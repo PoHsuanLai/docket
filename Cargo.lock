@@ -1756,6 +1756,7 @@ dependencies = [
  "porter-core",
  "prov",
  "serde",
+ "serde_json",
  "thiserror",
 ]
 

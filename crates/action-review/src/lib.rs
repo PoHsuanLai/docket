@@ -10,6 +10,8 @@
 mod breaker;
 mod cascade;
 mod infer;
+mod parse;
+mod render;
 mod request;
 mod verdict;
 
@@ -20,8 +22,9 @@ pub use cascade::{
     Gate, ModelChoice, ModelFamily, Reviewer, ReviewerSet, SetFault, escalate, plan, tighten,
 };
 pub use infer::InferReviewer;
+pub use parse::parse_verdict;
+pub use render::render;
 pub use request::{
-    ArgView, CallEndKind, ProposedAction, ReviewPrompt, ReviewRequest, TypedStep, parse_verdict,
-    render, verdict_shape,
+    ArgView, CallEndKind, ProposedAction, ReviewPrompt, ReviewRequest, TypedStep, verdict_shape,
 };
 pub use verdict::{ReviewReason, ReviewVerdict};

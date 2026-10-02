@@ -1,10 +1,9 @@
 //! The stripped request a reviewer sees, and how it becomes a prompt and a verdict again.
 //! Untrusted arguments appear as their sources and their size, never their text.
 
-use crate::verdict::ReviewVerdict;
 use docket_core::{
-    ActionRef, ArgLabels, ArgSink, CallId, CharCount, LabelText, ParamName, ReasonCode,
-    ReviewError, Stage, Strictness, TaskPolicy, UserTurn, Value,
+    ActionRef, ArgLabels, ArgSink, CallId, CharCount, LabelText, ParamName, ReasonCode, Stage,
+    Strictness, TaskPolicy, UserTurn, Value,
 };
 use model_provider::{ChoiceText, Field, FieldName, Shape};
 use porter_core::{AppName, Count};
@@ -106,25 +105,7 @@ pub struct ReviewPrompt {
     pub user: String,
 }
 
-/// Renders a request for a stage. Deterministic; the instruction is fixed text and the request
-/// holds only stripped data.
-pub fn render(request: &ReviewRequest, stage: Stage) -> ReviewPrompt {
-    let _ = (request, stage);
-    todo!(
-        "render: fixed system text per stage, then the person's turns, the typed action, the labels, the policy and the history"
-    )
-}
-
-/// Reads a model's raw reply into a verdict. Unknown codes, long reasons and anything outside
-/// the stage's shape are `OutOfVocabulary` or `Unparseable`; a failure is never an allow.
-pub fn parse_verdict(raw: &str, stage: Stage) -> Result<ReviewVerdict, ReviewError> {
-    let _ = (raw, stage);
-    todo!(
-        "parse_verdict: Quick reads one token (pass or flag); the others read the record of verdict, code and reason"
-    )
-}
-
-const CODES: [ReasonCode; 11] = [
+pub(crate) const CODES: [ReasonCode; 11] = [
     ReasonCode::WithinRequest,
     ReasonCode::CoveredByTaskPolicy,
     ReasonCode::Routine,
@@ -138,7 +119,7 @@ const CODES: [ReasonCode; 11] = [
     ReasonCode::Disagreement,
 ];
 
-fn slug<T: Serialize>(value: &T) -> String {
+pub(crate) fn slug<T: Serialize>(value: &T) -> String {
     match serde_json::to_value(value) {
         Ok(serde_json::Value::String(s)) => s,
         // A unit enum serialises as a string; anything else has no slug.

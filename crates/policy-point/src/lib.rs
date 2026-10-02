@@ -6,6 +6,7 @@
 //! the audit name them; the reviewer's `tighten` consumes a `Ruling` and may not depend on this
 //! crate.
 
+mod eval;
 mod pdp;
 mod request;
 

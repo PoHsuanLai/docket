@@ -1,9 +1,9 @@
 # Findings
 
 Open items and standing facts. An entry names the condition that closes it. At the freeze there
-are **50 `todo!()` bodies** in library and daemon code (49 lines: `MemoryProvider` and
+are **46 `todo!()` bodies** in library and daemon code (49 lines: `MemoryProvider` and
 `CompanionProvider` share one macro line), listed below, one row per crate or file; the tests
-contain none, and 8 tests are `#[ignore]`d with the work that blocks them.
+contain none, and 6 tests are `#[ignore]`d with the work that blocks them.
 
 ## Stubs behind frozen interfaces
 
@@ -11,9 +11,6 @@ contain none, and 8 tests are `#[ignore]`d with the work that blocks them.
 | --- | --- | --- |
 | docket-core `compare`, `covers` (`task_policy`) | 2 | fill wave 1 (F1c): `task_policy_compare_table`, `covers_rejects_untrusted_recipient`, `policy_never_derived_from_content`, `narrowing_is_silent_widening_confirms`, `writer_failure_means_outside`, `task_policy_cannot_exceed_grants`; an untrusted sink argument is never inside |
 | docket-core `tool_schema` | 1 | fill wave 1: one property per `ParamDecl` by `ParamType`, `Required` listed, `additionalProperties` false; the pinned snapshot for three fixture actions (`tool_schema_snapshot`); un-ignore `the_registry_becomes_tools_with_schemas` in actions-mcp |
-| policy-point `Pdp::decide` | 1 | fill wave 1 (F1a): build entities and the context from the request slugs, run `perform`, `perform_unasked`, `perform_unjudged`, map the reasons; the permit rules of the grid in `policy/default.cedar`; un-ignore `default_policy_grid` |
-| action-review `InferReviewer::review` | 1 | fill wave 1 (F1b), with `render`: the stage's model over porter-infer's `Model` with `ReplyShape::Choice` (Quick) or `Json`, the stage timeout (`ReviewTimeouts`) |
-| action-review `render`, `parse_verdict` | 2 | fill wave 1 (F1b): fixed system text per stage; Quick reads one token; a failure is never an allow; un-ignore `render_is_deterministic_and_parse_never_allows_by_failing` |
 | docket-router `call_step` | 1 | fill wave 1 (F1c): the rows of call lifecycle section 4.1 with the addendum's (Gating, Reviewing, Previewing, Confirming, Dispatched, Done; a halt cancels the sheet and the review; an in-flight app call continues); un-ignore `a_halt_cancels_the_sheet_and_the_review` |
 | docket-router `Router::handle` | 1 | fill wave 1 (F1c): `permits`/`acting_role`, then one arm per member over the machines in this crate; blocks docket-eval's runner |
 | docket-router `child_policy`, `roster_of` | 2 | fill wave 1 (F1c): a child's policy is the intersection with its parent's and never wider; the roster from the task table, goals as handles unless the person's own words, cut by `Roster::seen_from`; un-ignore `a_child_policy_is_never_wider_than_its_parents` |
@@ -36,12 +33,11 @@ contain none, and 8 tests are `#[ignore]`d with the work that blocks them.
 | voiced `serve` | 1 | fill wave 2, after the PipeWire line (spike V-A): `Begin` from the shell role only, capture through `choose_capture`, unicast signals, an inferd session through porter-client |
 | daemons serve their bus | | the items above; every daemon binary is a skeleton that exits 2 |
 
-Total: 2 + 1 + 1 + 1 + 2 + 1 + 1 + 2 + 1 + 2 + 2 + 1 + 1 + 7 + 4 + 2 + 2 + 2 + 1 + 2 + 5 + 1 + 4 + 1 + 1 = 50.
+Total: 2 + 1 + 1 + 1 + 2 + 1 + 2 + 2 + 1 + 1 + 7 + 4 + 2 + 2 + 2 + 1 + 2 + 5 + 1 + 4 + 1 + 1 = 46.
 
 ## Ignored tests (each has real assertions and names its blocker)
 
-`default_policy_grid` (policy-point), `render_is_deterministic_and_parse_never_allows_by_failing`
-(action-review), `a_refusal_tells_the_planner_only_the_coarse_code_and_a_trip_pauses_the_loop`
+`a_refusal_tells_the_planner_only_the_coarse_code_and_a_trip_pauses_the_loop`
 (agent-loop), `a_halt_cancels_the_sheet_and_the_review`, `a_child_policy_is_never_wider_than_its_parents`
 and `delivery_joins_the_message_label_into_the_receivers_taint` (docket-router; the last waits for
 prov's `Label::join`), `the_registry_becomes_tools_with_schemas` (actions-mcp),
@@ -117,6 +113,17 @@ Nothing below was edited in the other repos.
 8. voice.md section 3.4 (porter's speech items) is all present in `porter-infer`
    (`TranscribeBegin`, `SpeakRequest`, `AudioFrame`, `HeardDelta`, `ClientFrame::{Audio,
    EndOfAudio}`, `Readiness`): nothing is asked of porter for voice.
+
+9. **action-review: the stage timeout needs a timer.** `InferReviewer` is pure and cannot race
+   the model against `ReviewTimeouts` (a `0 ms` stage fails at once; a hung model does not). Ask
+   (docket interface, not another repo): either `docket-router` wraps `Reviewer::review` in its
+   `Clock`-driven deadline (the router already owns `ReviewError::Timeout` handling), or
+   `InferReviewer` gains a `Deadline` seam (`fn within<T>(&self, Millis, impl Future<Output = T>) ->
+   impl Future<Output = Result<T, Elapsed>>`) that intentd fills with `tokio::time::timeout`.
+10. **stoker `Shape::to_json_schema`** (item 6) also blocks `InferReviewer`: it sends the verdict
+    record as a hand-written JSON Schema (`record_schema`, pinned by a test against
+    `verdict_shape`'s codes); it switches to `verdict_shape(stage).to_json_schema(..)` when the fill
+    lands.
 
 ## Spec conflicts resolved
 

@@ -75,11 +75,9 @@ impl Pdp {
     /// Rules on one request. Pure. `perform` not permitted is `Deny` (with the forbid ids, or
     /// none when no policy permitted it); else `perform_unasked` not permitted is `Ask` with
     /// the reasons the forbids name; else `perform_unjudged` not permitted is `AllowJudged`;
-    /// else `AllowFinal`.
+    /// else `AllowFinal`. Any other operation is one query: permitted is `AllowFinal`, else
+    /// `Deny`. A request Cedar cannot evaluate is a `Deny` with no ids: failure never permits.
     pub fn decide(&self, request: &PolicyRequest) -> Ruling {
-        let _ = request;
-        todo!(
-            "Pdp::decide: build the Cedar entities and context from the request slugs, run the three queries, map the reasons"
-        )
+        crate::eval::decide(&self.policies, &self.schema, request)
     }
 }
