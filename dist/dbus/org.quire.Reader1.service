@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.quire.Reader1
+Exec=/usr/libexec/quire/readerd
+SystemdService=readerd.service

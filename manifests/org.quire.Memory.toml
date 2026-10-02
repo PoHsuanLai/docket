@@ -1,0 +1,89 @@
+# The built-in `org.quire.Memory` provider, served by intentd (SPEC C19): the planner reaches
+# memory only through these router actions, so the router can compute taint and label what it
+# delivers. Every field is written (porter's provider-file rule). Names carry the app's prefix.
+vocab = 1
+app = "org.quire.Memory"
+
+[[entities]]
+kind = "memory.fact"
+label = "Fact"
+plural = "Facts"
+icon = "memory"
+class = "app_own"
+index = "not_indexed"
+titles = { kind = "app_authored" }
+props = []
+
+[[actions]]
+name = "memory.recall"
+label = "Recall"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "entities", v = "memory.fact" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "query"
+label = "What to recall"
+ty = { kind = "text", v = { max = 500, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions]]
+name = "memory.facts"
+label = "List facts"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "entities", v = "memory.fact" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+[[actions]]
+name = "memory.propose"
+label = "Remember"
+on = { kind = "nothing" }
+effect = "undoable_write"
+classes = ["app_own"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+# Untrusted input lands in the pending queue; the queue is the confirmation.
+lasting = "staged"
+dry_run = "none"
+
+[[actions.params]]
+name = "text"
+label = "What to remember"
+ty = { kind = "text", v = { max = 1000, lines = "one" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions]]
+name = "memory.forget"
+label = "Forget"
+on = { kind = "one", v = "memory.fact" }
+effect = "destructive"
+classes = ["app_own"]
+undo = "not_undoable"
+# Forgetting is the person's, from the memory view; an agent never sees it.
+reach = "hidden"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "preview"
+params = []

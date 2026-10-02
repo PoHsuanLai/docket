@@ -1,0 +1,48 @@
+# Skeleton of intentd's systemd user unit: the router, the one decision point for every action
+# the companion, an MCP client or computer use takes. It talks D-Bus to apps, sill, inferd, readerd
+# and memoryd, and writes one file (the person's standing consent). Each sandbox line says what
+# it protects.
+[Unit]
+Description=Quire action router (org.quire.Intents1)
+
+[Service]
+Type=dbus
+BusName=org.quire.Intents1
+ExecStart=/usr/libexec/quire/intentd
+
+# --- Sandbox ---
+# Only Unix sockets (the session bus, inferd's and memoryd's sockets): no network at all, so a
+# compromised router cannot send what it routes anywhere.
+RestrictAddressFamilies=AF_UNIX
+PrivateNetwork=yes
+# It reads the apps' manifests (under the data dirs, flatpak exports included) and its own
+# config, and writes only the consent file.
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=%h/.local/share/quire/intents
+PrivateTmp=yes
+# No setuid gain, no writable-and-executable memory (no JIT, no injected code).
+NoNewPrivileges=yes
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+PrivateDevices=yes
+# No kernel, module or debug surfaces.
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+# A narrow syscall set: the system-service baseline, minus privileged and obsolete calls.
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @debug @obsolete
+SystemCallArchitectures=native
+# No capabilities at all.
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=default.target

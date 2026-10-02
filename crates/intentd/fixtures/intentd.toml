@@ -1,0 +1,67 @@
+[roles]
+launcher = ["org.quire.Sill"]
+companion = ["org.quire.Companion1"]
+reader = ["org.quire.Reader1"]
+cua = ["org.quire.Cua1"]
+mcp = ["org.quire.ActionsMcp"]
+confirm = ["org.quire.Sill"]
+control = ["org.quire.Sill"]
+
+[reviewers.quick]
+account = "local"
+model = "tiny-judge"
+family = "tiny"
+
+[reviewers.deliberate]
+account = "local"
+model = "holo-3.1-4b"
+family = "holo"
+
+[reviewers.second]
+account = "local"
+model = "second-opinion"
+family = "other"
+
+[agent]
+strictness = "default"
+mass_at = 20
+confirm_expiry = 120
+task_policy_max = 3600
+undo_keep = 86400
+
+[agent.budget]
+calls = 200
+writes = 100
+outbound = 10
+destructive = 5
+per_minute = 30
+fan_out = 50
+chain = 4
+wall = 1800
+reviews = 300
+spend = 0
+
+[agent.breaker]
+consecutive = 3
+recent = 10
+window = 50
+probing = 3
+
+[agent.review]
+quick = 300
+deliberate = 3000
+second = 3000
+
+[agent.assembler]
+rules = 2500
+profile = 1200
+roster = 400
+episodes = 1200
+recall = 1500
+context = 1000
+task = 3000
+full_steps = 3
+
+[agent.idle]
+idle_after = 30
+side_close = 120

@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.quire.Companion1
+Exec=/usr/libexec/quire/companiond
+SystemdService=companiond.service

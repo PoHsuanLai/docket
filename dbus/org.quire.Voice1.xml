@@ -1,0 +1,48 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+ <interface name="org.quire.Voice1">
+   <method name="Begin">
+     <arg name="begin" type="s" direction="in"/>
+     <arg type="o" direction="out"/>
+     <arg type="h" direction="out"/>
+   </method>
+   <method name="Speak">
+     <arg name="speak" type="s" direction="in"/>
+     <arg type="o" direction="out"/>
+   </method>
+   <method name="Hush">
+   </method>
+   <method name="Prepare">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Status">
+     <arg type="s" direction="out"/>
+   </method>
+   <signal name="StatusChanged">
+     <arg name="status" type="s"/>
+   </signal>
+ </interface>
+ <interface name="org.quire.Voice1.Utterance">
+   <method name="Route">
+     <arg name="target" type="s" direction="in"/>
+   </method>
+   <method name="Attach">
+     <arg type="h" direction="out"/>
+   </method>
+   <method name="Release">
+   </method>
+   <method name="Cancel">
+   </method>
+   <signal name="Ended">
+     <arg name="end" type="s"/>
+   </signal>
+ </interface>
+ <interface name="org.quire.Voice1.Speech">
+   <method name="Stop">
+   </method>
+   <signal name="Finished">
+     <arg name="end" type="s"/>
+   </signal>
+ </interface>
+</node>

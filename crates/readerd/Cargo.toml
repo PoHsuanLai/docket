@@ -1,0 +1,29 @@
+[package]
+name = "readerd"
+description = "The quarantined reader: a separate process that reads untrusted text under a closed task and a schema, with no tools, and answers a typed value. The binary is a skeleton."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+name = "readerd"
+path = "src/lib.rs"
+
+[[bin]]
+name = "readerd"
+path = "src/main.rs"
+
+[dependencies]
+docket-core = { workspace = true }
+docket-client = { workspace = true }
+docket-dbus = { workspace = true }
+prov = { workspace = true }
+porter-infer = { workspace = true }
+porter-client = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,32 @@
+[package]
+name = "voiced"
+description = "The voice daemon: the only process that opens the microphone, serves org.quire.Voice1, and runs the voice machines. The audio device is a seam; the PipeWire backend waits for its dependency line."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+voice-loop = { workspace = true }
+voice-wire = { workspace = true }
+docket-core = { workspace = true }
+porter-core = { workspace = true }
+porter-infer = { workspace = true }
+porter-client = { workspace = true }
+speech-vad = { workspace = true }
+zbus = { workspace = true }
+tokio = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+# `FakeAudioDevice`, for tests of this crate and of sill's stand-in.
+testing = []
+
+[lints]
+workspace = true

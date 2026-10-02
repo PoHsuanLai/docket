@@ -1,0 +1,22 @@
+[package]
+name = "voice-loop"
+description = "The voice step machines, pure: one utterance (the mic is open only in three states), speech output with barge-in, the sentencer and the audio buffer."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+voice-wire = { workspace = true }
+porter-core = { workspace = true }
+docket-core = { workspace = true }
+porter-infer = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

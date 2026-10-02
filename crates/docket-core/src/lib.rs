@@ -1,0 +1,112 @@
+//! docket's vocabulary, and the pure behaviour that is cheap to build with it: the manifest and
+//! its validation, values and their schemas, context and previews, calls and every way they end,
+//! the undo journal, confirmation, budgets and the kill switch, the per-task policy, the
+//! planner and reader contract, the roster, messages, tasks and their episodes, audit records,
+//! the proposed configuration and the Intents1 wire.
+//!
+//! Pure and portable: serde only. Names `prov` for who and what, `almanac-core` for the pure
+//! shapes of memory (episodes, recall, recent), `cua-action` for the computer-use gate and
+//! `model-provider` for the structured-output shapes `ValueSchema` renders through.
+
+mod audit;
+mod budget;
+mod call;
+mod caller;
+mod config;
+mod confirm;
+mod context;
+mod gate;
+mod grant;
+mod ids;
+mod index;
+mod manifest;
+mod message;
+mod planner;
+mod preview;
+mod reader;
+mod review;
+mod roster;
+mod schema;
+mod summon;
+mod task;
+mod task_policy;
+mod undo;
+mod units;
+mod validate;
+mod value;
+mod wire;
+
+pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};
+pub use budget::{
+    Budget, BudgetKind, Cost, Halt, HaltCause, KillSwitch, Ledger, Reviewed, charge, halted,
+};
+pub use call::{
+    AppRefusal, ArgFault, CallEnd, CallProgress, CallRefusal, CallRequest, FailText, Follow,
+    Invocation, Origin, Outcome, Undoable,
+};
+pub use caller::{CallerId, CallerRole, Member};
+pub use config::{
+    AgentConfig, AssemblerBudget, BreakerLimits, IdleRules, ReviewTimeouts, SETTING_ROWS,
+    SettingRow, SettingValue,
+};
+pub use confirm::{
+    Anchor, ArgLine, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer,
+    ConfirmRequest, Confirmer, Gesture, GrantScope, Shown, TaintNote,
+};
+pub use context::{
+    CharRange, ContextKeep, ContextScope, ContextSnapshot, ContextView, EditTarget, EntityLine,
+    Here, HereView, Keep, Reveal, Selection, SelectionView, TextPurpose, TextTarget,
+    TextTargetView, Visible, VisibleView, WindowPrivacy,
+};
+pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};
+pub use grant::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
+pub use ids::{
+    ActionRef, CallId, CardActionId, ChoiceId, EntityRef, FileRef, Handle, IconName, IntentsVocab,
+    LabelText, ParamName, StepId, TextTargetRef, TurnId, UndoId, UndoToken, UtteranceId, ViewName,
+    WindowKey, action_prefix,
+};
+pub use index::{Hit, IndexBatch, IndexEntry, IndexState, SearchAsk, SearchScope, SuggestAsk};
+pub use manifest::{
+    ActionDecl, AgentReach, ArgSink, DryRun, EntityDecl, IndexPolicy, KeyHint, Lasting, Latency,
+    Manifest, ParamDecl, ParamNeed, PropDecl, ResultShape, TargetKind, TitleTrust, UndoSupport,
+};
+pub use message::{
+    Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, MessageDraft, SendRefusal,
+};
+pub use planner::{
+    ActionCard, HandleCard, HandleShape, PlannerView, StepEnd, StepLine, StepShown, TurnIn,
+    TurnSource, TurnVia, UserTurn,
+};
+pub use preview::{
+    FactLine, FileFacts, FileMove, Markdownish, MessageSnip, PageIndex, Preview, TimeRange, size_of,
+};
+pub use reader::{
+    Reader, ReaderAsk, ReaderError, ReaderTask, SchemaFault, ValueSchema, conforms,
+    entity_choice_text,
+};
+pub use review::{
+    AskReason, BreakerTrip, DenyCode, Impact, PolicyId, ReasonCode, ReasonText, ReviewError,
+    ReviewMark, Ruling, Stage, Strictness, VerdictKind,
+};
+pub use roster::{
+    EpisodeLine, LeadText, PrimerText, ProfileLine, RecalledLine, RollupLine, Roster, RosterDetail,
+    RosterFull, RosterLine, RosterState, SkeletonText, TOLD_LEAD_CHARS,
+};
+pub use schema::{ToolSchema, tool_schema};
+pub use summon::{SummonAnswer, SummonOrigin, SummonSerial, VoiceIntent};
+pub use task::{
+    LedgerStep, SessionOpen, SessionOpened, TaskKind, TaskLedger, TaskStart, close, skeleton_of,
+    step_outcome,
+};
+pub use task_policy::{
+    ActionMatch, ArgLabels, Coverage, PolicyChange, PolicyWriter, Saw, SessionSaw, SinkIntegrity,
+    TaskPolicy, TaskPolicyState, TrustedPattern, Widening, compare, covers,
+};
+pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
+pub use units::{CharCount, Depth, Generation, Millis, Scale, Seconds};
+pub use validate::{ManifestError, ValidManifest, fits, validate};
+pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
+pub use wire::{
+    Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, NoteAsk, ReadAsk,
+    RecallAsk, RecallView, RecentLine, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
+};

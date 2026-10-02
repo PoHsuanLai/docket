@@ -1,0 +1,65 @@
+// The Cedar schema of the policy point. One query per request per action id:
+//   perform           not permitted -> Ruling::Deny
+//   perform_unasked   not permitted -> Ruling::Ask
+//   perform_unjudged  not permitted -> Ruling::AllowJudged (a reviewer may tighten, never loosen)
+//   all permitted                   -> Ruling::AllowFinal
+// Every context value is a slug (the serde form of the Rust type) or a count: Cedar has no
+// enums, and the policies read the same words the wire does.
+namespace Quire {
+  entity Caller { kind: String };
+  entity App;
+  entity Space;
+  entity Act in [App] {
+    effect: String,
+    classes: Set<String>,
+    reach: String,
+    lasting: String,
+  };
+
+  // The integrity of each sink an argument feeds: "trusted" or "untrusted".
+  type Sinks = {
+    recipient: String,
+    destination: String,
+    body: String,
+    path: String,
+  };
+
+  type Ctx = {
+    // "same", "other" or "unbound".
+    target_space: String,
+    // The join of the argument labels and the planner's integrity: "trusted" or "untrusted".
+    args: String,
+    planner: String,
+    // "public", "private" or "secret".
+    confidentiality: String,
+    // "interactive" or "background".
+    usage: String,
+    // The call's origin slug.
+    origin: String,
+    count: Long,
+    mass_at: Long,
+    // "always", "once", "none" or "denied".
+    grant: String,
+    // "inside" or "outside" the task policy.
+    coverage: String,
+    task_ceiling: String,
+    // "ask_more", "default" or "trust_more".
+    strictness: String,
+    // What the router saw this session: "seen" or "not_seen".
+    saw_private: String,
+    saw_untrusted: String,
+    sinks: Sinks,
+    // "low" or "high".
+    impact: String,
+  };
+
+  action "perform" appliesTo { principal: [Caller], resource: [Act], context: Ctx };
+  action "perform_unasked" appliesTo { principal: [Caller], resource: [Act], context: Ctx };
+  action "perform_unjudged" appliesTo { principal: [Caller], resource: [Act], context: Ctx };
+  action "search" appliesTo { principal: [Caller], resource: [Act], context: Ctx };
+  action "preview" appliesTo { principal: [Caller], resource: [Act], context: Ctx };
+  action "suggest" appliesTo { principal: [Caller], resource: [Act], context: Ctx };
+  action "read_context" appliesTo { principal: [Caller], resource: [Act], context: Ctx };
+  action "undo" appliesTo { principal: [Caller], resource: [Act], context: Ctx };
+  action "index_push" appliesTo { principal: [Caller], resource: [Act], context: Ctx };
+}

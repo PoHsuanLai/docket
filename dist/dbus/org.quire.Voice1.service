@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.quire.Voice1
+Exec=/usr/libexec/quire/voiced
+SystemdService=voiced.service

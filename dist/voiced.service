@@ -1,0 +1,48 @@
+# Skeleton of voiced's systemd user unit. It captures audio only between Begin and Release, holds
+# no files and no network. Each sandbox line says what it protects.
+[Unit]
+Description=Quire voice daemon (org.quire.Voice1)
+
+[Service]
+Type=dbus
+BusName=org.quire.Voice1
+ExecStart=/usr/libexec/quire/voiced --config /etc/quire/voiced.toml
+
+# --- Sandbox ---
+# Only Unix sockets: the PipeWire socket and the session bus. Nothing can reach the network, so
+# a compromised voiced cannot send audio out. (The PipeWire native protocol is a Unix socket, so
+# PrivateNetwork=yes below does not cut it off.)
+RestrictAddressFamilies=AF_UNIX
+PrivateNetwork=yes
+# The person's files are out of reach: voiced never reads or writes them, and records no audio.
+ProtectHome=yes
+# The whole file system is read-only; nothing is writable (audio is never stored).
+ProtectSystem=strict
+ReadWritePaths=
+PrivateTmp=yes
+# No setuid gain, no writable-and-executable memory (no JIT, no injected code).
+NoNewPrivileges=yes
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+RestrictRealtime=no
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+# No kernel, module or debug surfaces.
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+# A narrow syscall set: the system-service baseline, minus privileged and obsolete calls.
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @debug @obsolete
+SystemCallArchitectures=native
+# No capabilities at all.
+CapabilityBoundingSet=
+AmbientCapabilities=
+# Memory is never swapped out with audio in it.
+LimitMEMLOCK=0
+
+[Install]
+WantedBy=default.target

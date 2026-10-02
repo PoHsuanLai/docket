@@ -1,0 +1,69 @@
+# The built-in `org.quire.Companion` provider, served by intentd: how the companion starts a
+# worker task and talks to another agent. Starting a task is a read: the child task runs in its
+# own session under a task policy never wider than its parent's, and every call it makes is
+# gated on its own. A message grants nothing (see docket-core's `message` module).
+vocab = 1
+app = "org.quire.Companion"
+
+[[entities]]
+kind = "companion.task"
+label = "Task"
+plural = "Tasks"
+icon = "task"
+class = "app_own"
+index = "not_indexed"
+titles = { kind = "app_authored" }
+props = []
+
+[[actions]]
+name = "companion.task.start"
+label = "Start a task"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 64, lines = "one" } }, trust = { kind = "app_authored" } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "goal"
+label = "What to do"
+ty = { kind = "text", v = { max = 2000, lines = "many" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions.params]]
+name = "kind"
+label = "Kind of task"
+ty = { kind = "choice", v = [
+  { id = "research", label = "Research" },
+  { id = "watch", label = "Watch" },
+  { id = "background", label = "Background" },
+] }
+need = { kind = "defaulted", v = { kind = "choice", v = "research" } }
+sink = "inert"
+
+[[actions]]
+name = "companion.task.message"
+label = "Message a task"
+on = { kind = "one", v = "companion.task" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "text"
+label = "Message"
+ty = { kind = "text", v = { max = 2000, lines = "many" } }
+need = { kind = "required" }
+sink = "body"

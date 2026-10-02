@@ -1,0 +1,256 @@
+//! Each pair of view mark and wire type converts totally and loses nothing it should keep.
+
+use docket_core::*;
+use docket_ds::*;
+use ds_core::vocab::Tally;
+use ds_intents::{ChipKind, SummonAnswerMark, ThingMark};
+use porter_core::{AppName, Count};
+use prov::{Confidentiality, Integrity, Label, Labelled, Source, SpaceId};
+use std::collections::BTreeSet;
+use voice_wire::{
+    CancelCause, HeardSegment, HeardTail, HeardText, Level, UtteranceEnd, VoiceEvent,
+};
+
+fn app() -> AppName {
+    AppName::parse("org.quire.Mail").expect("app")
+}
+fn space() -> SpaceId {
+    SpaceId::parse("work").expect("space")
+}
+fn label() -> Label {
+    Label {
+        integrity: Integrity::Trusted,
+        confidentiality: Confidentiality::Public,
+        classes: BTreeSet::new(),
+        sources: BTreeSet::from([Source::User]),
+    }
+}
+fn text(t: &str) -> Labelled<String> {
+    Labelled {
+        value: t.into(),
+        label: label(),
+    }
+}
+
+#[test]
+fn summon_answers_convert_totally_both_ways() {
+    let answers = [
+        SummonAnswer::TookField,
+        SummonAnswer::TookAnchored,
+        SummonAnswer::Restored,
+        SummonAnswer::Declined,
+    ];
+    let marks = [
+        SummonAnswerMark::TookField,
+        SummonAnswerMark::TookAnchored,
+        SummonAnswerMark::Restored,
+        SummonAnswerMark::Declined,
+    ];
+    for (answer, mark) in answers.into_iter().zip(marks) {
+        assert_eq!(summon_answer_mark(answer), mark);
+        assert_eq!(summon_answer_of(mark), answer);
+    }
+    assert_eq!(serial_of(serial_mark(SummonSerial(41))), SummonSerial(41));
+}
+
+fn snapshot(
+    query: Option<&str>,
+    results: u32,
+    selection: Selection,
+    privacy: WindowPrivacy,
+) -> ContextSnapshot {
+    ContextSnapshot {
+        app: app(),
+        window: text("Inbox"),
+        here: match query {
+            Some(q) => Here::View {
+                view: ViewName::parse("search").expect("view"),
+                query: Some(text(q)),
+            },
+            None => Here::Nowhere,
+        },
+        selection,
+        visible: Visible {
+            kind: None,
+            items: vec![],
+            total: Count(results),
+        },
+        text_target: TextTarget::None,
+        privacy,
+    }
+}
+
+#[test]
+fn a_search_with_results_carries_a_query_and_a_results_chip() {
+    let chips = chips_of(&snapshot(
+        Some("lisbon receipts"),
+        12,
+        Selection::Nothing,
+        WindowPrivacy::Normal,
+    ));
+    let kinds: Vec<ChipKind> = chips.iter().map(|c| c.kind).collect();
+    assert_eq!(
+        kinds,
+        [
+            ChipKind::Query,
+            ChipKind::Results,
+            ChipKind::Window,
+            ChipKind::App
+        ]
+    );
+    assert_eq!(chips[0].label, "lisbon receipts");
+    assert_eq!(chips[1].count, Some(Tally(12)));
+}
+
+#[test]
+fn a_private_window_shows_the_app_alone() {
+    let chips = chips_of(&snapshot(
+        Some("secret"),
+        3,
+        Selection::Nothing,
+        WindowPrivacy::Private,
+    ));
+    assert_eq!(chips.len(), 1);
+    assert_eq!(chips[0].kind, ChipKind::App);
+    assert!(chips.iter().all(|c| !c.label.contains("secret")));
+}
+
+#[test]
+fn removing_a_chip_drops_that_context_from_the_turn() {
+    let mut chips = chips_of(&snapshot(
+        Some("lisbon"),
+        12,
+        Selection::Nothing,
+        WindowPrivacy::Normal,
+    ));
+    let all = keep_of(&chips);
+    assert_eq!(
+        (all.query, all.results, all.window),
+        (Keep::Kept, Keep::Kept, Keep::Kept)
+    );
+    assert_eq!(
+        all.selection,
+        Keep::Dropped,
+        "nothing was selected, so there is no chip to keep"
+    );
+    chips.retain(|c| c.kind != ChipKind::Results);
+    let kept = keep_of(&chips);
+    assert_eq!((kept.query, kept.results), (Keep::Kept, Keep::Dropped));
+}
+
+#[test]
+fn a_thing_keeps_its_words_and_is_labelled_by_the_kinds_title_trust() {
+    let mark = ThingMark {
+        kind: "mail.thread".into(),
+        key: "t1".into(),
+        title: "Re: invoice".into(),
+        subtitle: "Eve".into(),
+    };
+    let third = entity_ref(
+        &app(),
+        &space(),
+        &mark,
+        &TitleTrust::ThirdParty(Source::Mail),
+    )
+    .expect("a thing");
+    assert_eq!(third.title.label.integrity, Integrity::Untrusted);
+    assert!(third.title.label.sources.contains(&Source::Mail));
+    assert_eq!(
+        thing_mark(&third),
+        mark,
+        "the row's words survive the round trip"
+    );
+    let own = entity_ref(&app(), &space(), &mark, &TitleTrust::AppAuthored).expect("a thing");
+    assert_eq!(own.title.label.integrity, Integrity::Trusted);
+}
+
+#[test]
+fn a_mark_that_is_not_a_thing_is_refused() {
+    let bad_kind = ThingMark {
+        kind: "thread".into(),
+        key: "t".into(),
+        title: String::new(),
+        subtitle: String::new(),
+    };
+    assert!(matches!(
+        entity_ref(&app(), &space(), &bad_kind, &TitleTrust::AppAuthored),
+        Err(ThingError::Kind(_))
+    ));
+    let bad_key = ThingMark {
+        kind: "mail.thread".into(),
+        key: String::new(),
+        title: String::new(),
+        subtitle: String::new(),
+    };
+    assert_eq!(
+        entity_ref(&app(), &space(), &bad_key, &TitleTrust::AppAuthored),
+        Err(ThingError::Key)
+    );
+}
+
+#[test]
+fn voice_frames_become_what_a_field_does() {
+    let served = || porter_infer::ServedBy {
+        account: porter_core::AccountId::parse("local").expect("account"),
+        model: porter_core::ModelId::parse("nemotron").expect("model"),
+        locality: porter_core::Locality::OnDevice,
+    };
+    let cases: Vec<(&str, VoiceEvent, Option<Heard>)> = vec![
+        ("opened is not a field's business", VoiceEvent::Opened, None),
+        (
+            "waiting is not either",
+            VoiceEvent::Waiting(porter_infer::Readiness::Loading),
+            None,
+        ),
+        (
+            "level",
+            VoiceEvent::Level(Level(400)),
+            Some(Heard::Level(400)),
+        ),
+        (
+            "partial",
+            VoiceEvent::Partial(HeardTail {
+                text: HeardText("hel".into()),
+            }),
+            Some(Heard::Tail("hel".into())),
+        ),
+        (
+            "committed",
+            VoiceEvent::Committed(HeardSegment {
+                text: HeardText("hello".into()),
+            }),
+            Some(Heard::Committed("hello".into())),
+        ),
+        (
+            "heard end",
+            VoiceEvent::Ended(UtteranceEnd::Heard {
+                text: HeardText("hello there".into()),
+                served: served(),
+            }),
+            Some(Heard::Ended(HeardEnd::Send("hello there".into()))),
+        ),
+        (
+            "nothing heard",
+            VoiceEvent::Ended(UtteranceEnd::NothingHeard),
+            Some(Heard::Ended(HeardEnd::Nothing)),
+        ),
+        (
+            "cancelled",
+            VoiceEvent::Ended(UtteranceEnd::Cancelled(CancelCause::Escape)),
+            Some(Heard::Ended(HeardEnd::Cancelled)),
+        ),
+    ];
+    for (name, event, want) in cases {
+        assert_eq!(heard_of(&event), want, "case: {name}");
+    }
+}
+
+#[test]
+fn heard_debug_shows_no_words() {
+    let shown = format!(
+        "{:?} {:?}",
+        Heard::Tail("my secret".into()),
+        Heard::Ended(HeardEnd::Send("my secret".into()))
+    );
+    assert!(!shown.contains("secret"), "{shown}");
+}

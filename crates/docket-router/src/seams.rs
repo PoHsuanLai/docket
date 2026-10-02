@@ -1,0 +1,153 @@
+//! What the router is handed instead of reaching for it: the apps, the person's consent store,
+//! the event log, the clock and memory. The seams that draw (`Confirmer`), review (`Reviewer`),
+//! derive a policy (`PolicyWriter`) and read untrusted text (`Reader`) are traits of
+//! `docket-core` and `action-review`; `Seams` bundles all of them so the router is generic over
+//! one parameter and the implementations stay closed sets, not `dyn`.
+
+use action_review::Reviewer;
+use almanac_core::{MemoryReply, MemoryRequest};
+use docket_core::EntityRef;
+use docket_core::{
+    ActionGrant, AppRefusal, AuditRecord, Confirmer, ContextScope, ContextSnapshot, Generation,
+    Hit, Invocation, Latency, Outcome, PolicyWriter, Preview, Reader, SuggestAsk, UndoFault,
+    UndoToken,
+};
+use porter_core::AppName;
+use prov::{Actor, EntityId, UnixSeconds};
+use std::future::Future;
+
+/// Why a call to an app or to memory got no answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, thiserror::Error)]
+pub enum LinkFault {
+    /// The app is not running and could not be started.
+    #[error("unavailable")]
+    Unavailable,
+    /// It did not answer in time.
+    #[error("timed out")]
+    Timeout,
+    /// It answered something that is not the protocol.
+    #[error("malformed answer")]
+    Malformed,
+}
+
+/// Calls `IntentProvider1` on an app's own bus name, after checking the name's owner derives to
+/// the same `AppId`.
+pub trait AppLink: Send + Sync {
+    /// `Perform`, within the action's latency budget.
+    fn perform(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        within: Latency,
+    ) -> impl Future<Output = Result<Outcome, AppRefusal>> + Send;
+    /// `DryRun`: the concrete change, before it is made.
+    fn dry_run(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+    ) -> impl Future<Output = Result<Preview, AppRefusal>> + Send;
+    /// `Undo`.
+    fn undo(
+        &self,
+        app: &AppName,
+        token: &UndoToken,
+        actor: &Actor,
+    ) -> impl Future<Output = Result<(), UndoFault>> + Send;
+    /// `Context`.
+    fn context(
+        &self,
+        app: &AppName,
+        scope: ContextScope,
+    ) -> impl Future<Output = Result<ContextSnapshot, LinkFault>> + Send;
+    /// `Search`, for kinds the app does not index.
+    fn search(
+        &self,
+        app: &AppName,
+        text: &str,
+        generation: Generation,
+    ) -> impl Future<Output = Result<Vec<Hit>, LinkFault>> + Send;
+    /// `Preview`.
+    fn preview(
+        &self,
+        app: &AppName,
+        id: &EntityId,
+    ) -> impl Future<Output = Result<Preview, LinkFault>> + Send;
+    /// `Suggest`.
+    fn suggest(
+        &self,
+        app: &AppName,
+        ask: SuggestAsk,
+    ) -> impl Future<Output = Result<Vec<EntityRef>, LinkFault>> + Send;
+}
+
+/// The person's standing consent.
+pub trait GrantStore: Send + Sync {
+    /// Every grant.
+    fn grants(&self) -> Vec<ActionGrant>;
+    /// Records a grant the person gave.
+    fn record(&self, grant: ActionGrant);
+}
+
+/// The event log, as the router sees it.
+pub trait EventSink: Send + Sync {
+    /// Appends one record: never content.
+    fn append(&self, record: AuditRecord);
+}
+
+/// The one clock.
+pub trait Clock: Send + Sync {
+    /// Now.
+    fn now(&self) -> UnixSeconds;
+}
+
+/// Memory, reached as `Caller::Router` (the router acts for the companion's session, in the
+/// Space of the invocation; the companion never calls memory itself).
+pub trait MemoryLink: Send + Sync {
+    /// One memory request, answered by memoryd.
+    fn ask(
+        &self,
+        request: MemoryRequest,
+    ) -> impl Future<Output = Result<MemoryReply, LinkFault>> + Send;
+}
+
+/// The seams of one router, bundled. A closed set per seam: the real one, and the fake a test
+/// drives.
+pub trait Seams: Send + Sync {
+    /// The apps.
+    type Link: AppLink;
+    /// The sheet that asks the person.
+    type Confirm: Confirmer;
+    /// The reviewer cascade.
+    type Review: Reviewer;
+    /// The consent store.
+    type Grants: GrantStore;
+    /// The event log.
+    type Sink: EventSink;
+    /// The clock.
+    type Time: Clock;
+    /// Memory.
+    type Memory: MemoryLink;
+    /// The task-policy writer.
+    type Writer: PolicyWriter;
+    /// The quarantined reader.
+    type Reading: Reader;
+
+    /// The apps.
+    fn link(&self) -> &Self::Link;
+    /// The sheet.
+    fn confirmer(&self) -> &Self::Confirm;
+    /// The reviewer.
+    fn reviewer(&self) -> &Self::Review;
+    /// The consent store.
+    fn grants(&self) -> &Self::Grants;
+    /// The event log.
+    fn sink(&self) -> &Self::Sink;
+    /// The clock.
+    fn clock(&self) -> &Self::Time;
+    /// Memory.
+    fn memory(&self) -> &Self::Memory;
+    /// The policy writer.
+    fn writer(&self) -> &Self::Writer;
+    /// The reader.
+    fn reader(&self) -> &Self::Reading;
+}

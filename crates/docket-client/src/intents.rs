@@ -1,0 +1,218 @@
+//! The caller side: typed methods over a transport. Each sends one request and reads the one
+//! reply it expects; a refusal or an unexpected reply is an error the caller can act on.
+
+use crate::transport::{Transport, TransportError};
+use docket_core::{
+    CallRefusal, CallRequest, ContextView, Delivery, EntityRef, Handle, Hit, InboundLine, InboxAsk,
+    IntentsReply, IntentsRequest, MessageDraft, Outcome, Preview, SearchAsk, SessionOpen,
+    SessionOpened, SuggestAsk, TurnId, TurnIn, UndoId, UndoReport, UndoScope, WidenAnswer,
+    WidenAsk, WindowKey, WireRefusal,
+};
+use prov::{EntityId, SessionId};
+
+/// Why a request did not give the reply its caller wanted.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ClientError {
+    /// The request did not reach the router, or its reply did not come back.
+    #[error("transport: {0}")]
+    Transport(TransportError),
+    /// The router refused the request.
+    #[error("refused: {0:?}")]
+    Refused(WireRefusal),
+    /// The router answered, but not with the reply this request gets.
+    #[error("unexpected reply")]
+    Unexpected,
+}
+
+impl From<TransportError> for ClientError {
+    fn from(error: TransportError) -> Self {
+        ClientError::Transport(error)
+    }
+}
+
+/// A caller of the router.
+#[derive(Debug)]
+pub struct Intents<T: Transport> {
+    transport: T,
+}
+
+impl<T: Transport> Intents<T> {
+    /// Calls through `transport`.
+    pub fn over(transport: T) -> Self {
+        Self { transport }
+    }
+
+    async fn ask<R>(
+        &self,
+        request: IntentsRequest,
+        read: impl FnOnce(IntentsReply) -> Option<R>,
+    ) -> Result<R, ClientError> {
+        match self.transport.call(request).await? {
+            IntentsReply::Refused(why) => Err(ClientError::Refused(why)),
+            reply => read(reply).ok_or(ClientError::Unexpected),
+        }
+    }
+
+    /// Performs a call. The outer error is the transport or a refused request; the inner result
+    /// is the call's own end.
+    pub async fn perform(
+        &self,
+        call: CallRequest,
+        parent_window: Option<WindowKey>,
+    ) -> Result<Result<Outcome, CallRefusal>, ClientError> {
+        let request = IntentsRequest::Perform {
+            call,
+            parent_window,
+        };
+        self.ask(request, |r| match r {
+            IntentsReply::Performed(end) => Some(*end),
+            _ => None,
+        })
+        .await
+    }
+
+    /// A preview of one thing.
+    pub async fn preview(&self, id: EntityId) -> Result<Preview, ClientError> {
+        self.ask(IntentsRequest::Preview(id), |r| match r {
+            IntentsReply::Preview(p) => Some(p),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Options for a parameter.
+    pub async fn suggest(&self, ask: SuggestAsk) -> Result<Vec<EntityRef>, ClientError> {
+        self.ask(IntentsRequest::Suggest(ask), |r| match r {
+            IntentsReply::Suggestions(s) => Some(s),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Searches; late hits arrive on the transport's signal path.
+    pub async fn search(&self, ask: SearchAsk) -> Result<Vec<Hit>, ClientError> {
+        self.ask(IntentsRequest::Search(ask), |r| match r {
+            IntentsReply::Hits(h) => Some(h),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Undoes one journal row.
+    pub async fn undo(
+        &self,
+        entry: UndoId,
+    ) -> Result<Result<(), docket_core::UndoFault>, ClientError> {
+        self.ask(IntentsRequest::Undo(entry), |r| match r {
+            IntentsReply::Undone(end) => Some(end),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Undoes a run, a task or an entry.
+    pub async fn undo_all(&self, scope: UndoScope) -> Result<UndoReport, ClientError> {
+        self.ask(IntentsRequest::UndoAll(scope), |r| match r {
+            IntentsReply::UndoneAll(report) => Some(report),
+            _ => None,
+        })
+        .await
+    }
+
+    /// What the person is doing, as a planner may read it.
+    pub async fn context(&self, session: SessionId) -> Result<ContextView, ClientError> {
+        self.ask(IntentsRequest::Context { session }, |r| match r {
+            IntentsReply::Context(view) => Some(*view),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Opens a session.
+    pub async fn session_open(&self, open: SessionOpen) -> Result<SessionOpened, ClientError> {
+        self.ask(IntentsRequest::SessionOpen(open), |r| match r {
+            IntentsReply::SessionOpened(opened) => Some(opened),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Records the person's turn (launcher and field roles only).
+    pub async fn session_turn(
+        &self,
+        session: SessionId,
+        turn: TurnIn,
+    ) -> Result<TurnId, ClientError> {
+        self.ask(IntentsRequest::SessionTurn { session, turn }, |r| match r {
+            IntentsReply::TurnRecorded(id) => Some(id),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Closes a session.
+    pub async fn session_close(&self, session: SessionId) -> Result<(), ClientError> {
+        self.ask(IntentsRequest::SessionClose { session }, |r| match r {
+            IntentsReply::Done => Some(()),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The text behind a handle, for the screen.
+    pub async fn session_display(
+        &self,
+        session: SessionId,
+        handle: Handle,
+    ) -> Result<String, ClientError> {
+        self.ask(
+            IntentsRequest::SessionDisplay { session, handle },
+            |r| match r {
+                IntentsReply::Text(text) => Some(text),
+                _ => None,
+            },
+        )
+        .await
+    }
+
+    /// Asks the person to widen the task policy.
+    pub async fn session_widen(
+        &self,
+        session: SessionId,
+        widen: WidenAsk,
+    ) -> Result<WidenAnswer, ClientError> {
+        self.ask(
+            IntentsRequest::SessionWiden { session, widen },
+            |r| match r {
+                IntentsReply::Widened(answer) => Some(answer),
+                _ => None,
+            },
+        )
+        .await
+    }
+
+    /// Sends a message: a request, a note or a report, to an agent in any Space.
+    pub async fn send(
+        &self,
+        session: SessionId,
+        draft: MessageDraft,
+    ) -> Result<Delivery, ClientError> {
+        self.ask(
+            IntentsRequest::MessageSend { session, draft },
+            |r| match r {
+                IntentsReply::Delivered(delivery) => Some(delivery),
+                _ => None,
+            },
+        )
+        .await
+    }
+
+    /// The messages that wait for an agent.
+    pub async fn inbox(&self, ask: InboxAsk) -> Result<Vec<InboundLine>, ClientError> {
+        self.ask(IntentsRequest::MessageInbox(ask), |r| match r {
+            IntentsReply::Inbox(lines) => Some(lines),
+            _ => None,
+        })
+        .await
+    }
+}

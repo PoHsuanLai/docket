@@ -1,0 +1,184 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+ <interface name="org.quire.Intents1.Registry">
+   <method name="Manifests">
+     <arg type="a(ss)" direction="out"/>
+   </method>
+   <signal name="ManifestChanged">
+     <arg name="app" type="s"/>
+   </signal>
+ </interface>
+ <interface name="org.quire.Intents1.Index">
+   <method name="Push">
+     <arg name="batch" type="s" direction="in"/>
+   </method>
+   <method name="Reset">
+     <arg name="epoch" type="t" direction="in"/>
+   </method>
+ </interface>
+ <interface name="org.quire.Intents1.Search">
+   <method name="Query">
+     <arg name="text" type="s" direction="in"/>
+     <arg name="scope" type="s" direction="in"/>
+     <arg name="generation" type="t" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Cancel">
+     <arg name="generation" type="t" direction="in"/>
+   </method>
+   <signal name="Hits">
+     <arg name="generation" type="t"/>
+     <arg name="hits" type="s"/>
+   </signal>
+ </interface>
+ <interface name="org.quire.Intents1.Run">
+   <method name="Perform">
+     <arg name="call" type="s" direction="in"/>
+     <arg name="parent_window" type="s" direction="in"/>
+     <arg name="options" type="a{sv}" direction="in"/>
+     <arg type="o" direction="out"/>
+   </method>
+   <method name="Preview">
+     <arg name="entity" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Suggest">
+     <arg name="ask" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Undo">
+     <arg name="entry" type="t" direction="in"/>
+     <arg type="o" direction="out"/>
+   </method>
+   <method name="UndoAll">
+     <arg name="scope" type="s" direction="in"/>
+     <arg type="o" direction="out"/>
+   </method>
+ </interface>
+ <interface name="org.quire.Intents1.Context">
+   <method name="Current">
+     <arg name="session" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+ </interface>
+ <interface name="org.quire.Intents1.Session">
+   <method name="Open">
+     <arg name="open" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Turn">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="turn" type="s" direction="in"/>
+     <arg name="options" type="a{sv}" direction="in"/>
+     <arg type="t" direction="out"/>
+   </method>
+   <method name="Close">
+     <arg name="session" type="s" direction="in"/>
+   </method>
+   <method name="Resolve">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="handle" type="t" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Display">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="handle" type="t" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Read">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="ask" type="s" direction="in"/>
+     <arg name="options" type="a{sv}" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="TaskPolicy">
+     <arg name="session" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Widen">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="turn" type="t" direction="in"/>
+     <arg name="change" type="s" direction="in"/>
+     <arg type="o" direction="out"/>
+   </method>
+   <method name="Note">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="episode" type="s" direction="in"/>
+   </method>
+   <method name="Recall">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="ask" type="s" direction="in"/>
+     <arg name="options" type="a{sv}" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+ </interface>
+ <interface name="org.quire.Intents1.Message">
+   <method name="Send">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="draft" type="s" direction="in"/>
+     <arg name="options" type="a{sv}" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Inbox">
+     <arg name="ask" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <signal name="Arrived">
+     <arg name="agent" type="s"/>
+   </signal>
+ </interface>
+ <interface name="org.quire.Intents1.Gate">
+   <method name="Grant">
+     <arg name="app" type="s" direction="in"/>
+     <arg name="space" type="s" direction="in"/>
+     <arg type="o" direction="out"/>
+   </method>
+   <method name="Check">
+     <arg name="ask" type="s" direction="in"/>
+     <arg name="options" type="a{sv}" direction="in"/>
+     <arg type="o" direction="out"/>
+   </method>
+ </interface>
+ <interface name="org.quire.Intents1.Control">
+   <method name="Halt">
+     <arg name="scope" type="s" direction="in"/>
+     <arg name="cause" type="s" direction="in"/>
+   </method>
+   <method name="Resume">
+     <arg name="scope" type="s" direction="in"/>
+   </method>
+   <method name="State">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Journal">
+     <arg name="filter" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <signal name="Halted">
+     <arg name="scope" type="s"/>
+   </signal>
+   <signal name="Resumed">
+     <arg name="scope" type="s"/>
+   </signal>
+   <signal name="JournalChanged">
+     <arg name="rows" type="t"/>
+   </signal>
+   <signal name="BreakerTripped">
+     <arg name="session" type="s"/>
+   </signal>
+ </interface>
+ <interface name="org.quire.Intents1.Request">
+   <method name="Close">
+   </method>
+   <method name="Proceed">
+   </method>
+   <signal name="Progress">
+     <arg name="progress" type="s"/>
+   </signal>
+   <signal name="Response">
+     <arg name="code" type="u"/>
+     <arg name="reply" type="s"/>
+   </signal>
+ </interface>
+</node>

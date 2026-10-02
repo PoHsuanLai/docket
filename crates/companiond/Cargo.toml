@@ -1,0 +1,35 @@
+[package]
+name = "companiond"
+description = "The companion daemon: one identity over many tasks, each its own docket session. Serves org.quire.Companion1; the binary is a skeleton."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+name = "companiond"
+path = "src/lib.rs"
+
+[[bin]]
+name = "companiond"
+path = "src/main.rs"
+
+[dependencies]
+agent-loop = { workspace = true }
+companion-wire = { workspace = true }
+docket-core = { workspace = true }
+docket-client = { workspace = true }
+docket-dbus = { workspace = true }
+prov = { workspace = true }
+porter-client = { workspace = true }
+porter-infer = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+porter-core = { workspace = true }

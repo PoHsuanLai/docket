@@ -1,0 +1,22 @@
+[package]
+name = "voice-wire"
+description = "The bodies of org.quire.Voice1: begin, events on the utterance fd, ends, faults, status and refusals. Content-free except the transcript fields, which redact their Debug."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+porter-core = { workspace = true }
+porter-infer = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

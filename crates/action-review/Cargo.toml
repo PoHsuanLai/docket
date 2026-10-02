@@ -1,0 +1,22 @@
+[package]
+name = "action-review"
+description = "The reviewer that may only tighten: the stripped review request, the cascade and its plan, `tighten`, the denial breaker, and the model-backed reviewer over porter-infer."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+prov = { workspace = true }
+porter-core = { workspace = true }
+porter-infer = { workspace = true }
+model-provider = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

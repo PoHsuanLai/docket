@@ -1,0 +1,100 @@
+//! `org.quire.Intents1.Session`: sessions: one per task. The role decides who may call what.
+
+use porter_dbus::Details;
+use zbus::fdo;
+use zbus::zvariant::OwnedObjectPath;
+
+/// The caller's side.
+#[zbus::proxy(
+    interface = "org.quire.Intents1.Session",
+    default_service = "org.quire.Intents1",
+    default_path = "/org/quire/Intents1"
+)]
+pub trait Session {
+    /// Opens a session (`SessionOpen` JSON; answers `SessionOpened` JSON).
+    fn open(&self, open: &str) -> zbus::Result<String>;
+
+    /// Records the person's turn (`TurnIn` JSON; answers the `TurnId`). Launcher and field roles only.
+    fn turn(&self, session: &str, turn: &str, options: &Details) -> zbus::Result<u64>;
+
+    /// Closes a session.
+    fn close(&self, session: &str) -> zbus::Result<()>;
+
+    /// The text behind a handle, for the reader only.
+    fn resolve(&self, session: &str, handle: u64) -> zbus::Result<String>;
+
+    /// The text behind a handle, for the screen: never for a model.
+    fn display(&self, session: &str, handle: u64) -> zbus::Result<String>;
+
+    /// The planner asks the reader (`ReaderAsk` JSON; answers `Reveal<Value>` JSON).
+    fn read(&self, session: &str, ask: &str, options: &Details) -> zbus::Result<String>;
+
+    /// The task policy (`Option<TaskPolicy>` JSON).
+    fn task_policy(&self, session: &str) -> zbus::Result<String>;
+
+    /// Asks to widen the task policy (`TaskPolicy` JSON); the person confirms against their turn. Answers a Request.
+    fn widen(&self, session: &str, turn: u64, change: &str) -> zbus::Result<OwnedObjectPath>;
+
+    /// Records an episode the idle pass wrote (`NoteAsk` JSON). Companion role only.
+    fn note(&self, session: &str, episode: &str) -> zbus::Result<()>;
+
+    /// Reads memory for the session (`RecallAsk` JSON; answers `RecallView` JSON), labels applied by the router.
+    fn recall(&self, session: &str, ask: &str, options: &Details) -> zbus::Result<String>;
+}
+
+/// The daemon's side.
+#[derive(Debug, Default)]
+pub struct SessionSkeleton;
+
+#[zbus::interface(name = "org.quire.Intents1.Session")]
+impl SessionSkeleton {
+    fn open(&self, open: String) -> fdo::Result<String> {
+        let _ = (open,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn turn(&self, session: String, turn: String, options: Details) -> fdo::Result<u64> {
+        let _ = (session, turn, options);
+        Err(crate::introspect::frozen())
+    }
+
+    fn close(&self, session: String) -> fdo::Result<()> {
+        let _ = (session,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn resolve(&self, session: String, handle: u64) -> fdo::Result<String> {
+        let _ = (session, handle);
+        Err(crate::introspect::frozen())
+    }
+
+    fn display(&self, session: String, handle: u64) -> fdo::Result<String> {
+        let _ = (session, handle);
+        Err(crate::introspect::frozen())
+    }
+
+    fn read(&self, session: String, ask: String, options: Details) -> fdo::Result<String> {
+        let _ = (session, ask, options);
+        Err(crate::introspect::frozen())
+    }
+
+    fn task_policy(&self, session: String) -> fdo::Result<String> {
+        let _ = (session,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn widen(&self, session: String, turn: u64, change: String) -> fdo::Result<OwnedObjectPath> {
+        let _ = (session, turn, change);
+        Err(crate::introspect::frozen())
+    }
+
+    fn note(&self, session: String, episode: String) -> fdo::Result<()> {
+        let _ = (session, episode);
+        Err(crate::introspect::frozen())
+    }
+
+    fn recall(&self, session: String, ask: String, options: Details) -> fdo::Result<String> {
+        let _ = (session, ask, options);
+        Err(crate::introspect::frozen())
+    }
+}

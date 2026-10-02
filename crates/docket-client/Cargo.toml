@@ -1,0 +1,26 @@
+[package]
+name = "docket-client"
+description = "The app side (IntentProvider, serve) and the caller side (Intents over a Transport: in process, or D-Bus behind a feature)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+docket-router = { workspace = true }
+docket-dbus = { workspace = true, optional = true }
+prov = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[features]
+# The D-Bus transport (Linux, the desktop's intentd).
+dbus = ["dep:docket-dbus"]
+
+[lints]
+workspace = true

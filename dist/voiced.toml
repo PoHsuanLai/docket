@@ -1,0 +1,7 @@
+# voiced.toml: which bus names play which role (voice.md section 3.5).
+# `shell` may open utterances and speech. `app` is not listed: it is whoever owns the bus name a
+# `Route` names, checked with GetNameOwner.
+earcons = "on"
+
+[roles]
+shell = ["org.quire.Shell"]

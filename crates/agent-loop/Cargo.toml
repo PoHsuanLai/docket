@@ -1,0 +1,21 @@
+[package]
+name = "agent-loop"
+description = "The companion's pure machines: the working-set assembler, the planner step, the tier rule, side-conversation capture, the idle pass, completion notes and the restart rebuild."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+companion-wire = { workspace = true }
+prov = { workspace = true }
+porter-core = { workspace = true }
+almanac-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

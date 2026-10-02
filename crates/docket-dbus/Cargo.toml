@@ -1,0 +1,19 @@
+[package]
+name = "docket-dbus"
+description = "org.quire.Intents1, IntentProvider1, Confirm1, Companion1 and Reader1 as zbus proxies and skeletons, their introspection, bus names and the error mapping."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+prov = { workspace = true }
+porter-dbus = { workspace = true }
+zbus = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

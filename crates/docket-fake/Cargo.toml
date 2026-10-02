@@ -1,0 +1,26 @@
+[package]
+name = "docket-fake"
+description = "Test fakes for docket: fixture manifests, FakeMail and FakeFiles providers, scripted confirmer, reviewer, writer, reader and memory, and fake_router over them."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+docket-router = { workspace = true }
+docket-client = { workspace = true }
+policy-point = { workspace = true }
+action-review = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+almanac-core = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,0 +1,47 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+ <interface name="org.quire.Companion1">
+   <method name="Prepare">
+     <arg name="options" type="a{sv}" direction="in"/>
+   </method>
+   <method name="Open">
+     <arg name="open" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Ask">
+     <arg name="ask" type="s" direction="in"/>
+     <arg name="options" type="a{sv}" direction="in"/>
+     <arg type="o" direction="out"/>
+   </method>
+   <method name="Close">
+     <arg name="session" type="s" direction="in"/>
+   </method>
+   <method name="Roster">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Front">
+     <arg type="s" direction="out"/>
+   </method>
+   <signal name="AnswerAdded">
+     <arg name="answer" type="o"/>
+   </signal>
+   <signal name="AnswerRemoved">
+     <arg name="answer" type="o"/>
+   </signal>
+   <signal name="RosterChanged">
+   </signal>
+ </interface>
+ <interface name="org.quire.Companion1.Answer">
+   <method name="Act">
+     <arg name="action" type="s" direction="in"/>
+     <arg type="o" direction="out"/>
+   </method>
+   <method name="Cancel">
+   </method>
+   <signal name="Updated">
+     <arg name="view" type="s"/>
+   </signal>
+   <property name="View" type="s" access="read"/>
+ </interface>
+</node>

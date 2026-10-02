@@ -1,0 +1,64 @@
+# A fixture manifest for the fake files app. Every field is written.
+vocab = 1
+app = "org.quire.Files"
+
+[[entities]]
+kind = "files.file"
+label = "File"
+plural = "Files"
+icon = "file"
+class = "files"
+index = "not_indexed"
+titles = { kind = "third_party", v = { kind = "file" } }
+props = []
+
+[[actions]]
+name = "files.file.move"
+label = "Move"
+on = { kind = "many", v = "files.file" }
+effect = "undoable_write"
+classes = ["files"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "preview"
+
+[[actions.params]]
+name = "to"
+label = "Move to"
+ty = { kind = "file" }
+need = { kind = "required" }
+sink = "path"
+
+[[actions]]
+name = "files.file.delete"
+label = "Delete"
+on = { kind = "many", v = "files.file" }
+effect = "destructive"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "preview"
+params = []
+
+[[actions]]
+name = "files.file.read"
+label = "Read"
+on = { kind = "one", v = "files.file" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 20000, lines = "many" } }, trust = { kind = "third_party", v = { kind = "file" } } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []

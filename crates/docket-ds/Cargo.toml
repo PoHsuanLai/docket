@@ -1,0 +1,26 @@
+[package]
+name = "docket-ds"
+description = "The adapter quire apps use: ds-intents' view marks to and from docket's wire (context chips, things, summon answers), the context source and summon target over ds, and the voice bridge."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+docket-client = { workspace = true }
+companion-wire = { workspace = true }
+voice-wire = { workspace = true }
+ds-intents = { workspace = true }
+ds-core = { workspace = true }
+prov = { workspace = true }
+porter-core = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+porter-infer = { workspace = true }

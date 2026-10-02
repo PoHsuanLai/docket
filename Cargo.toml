@@ -1,0 +1,92 @@
+[workspace]
+resolver = "3"
+members = [
+  "crates/docket-core",
+  "crates/policy-point",
+  "crates/action-review",
+  "crates/docket-router",
+  "crates/companion-wire",
+  "crates/agent-loop",
+  "crates/docket-dbus",
+  "crates/docket-client",
+  "crates/docket-fake",
+  "crates/docket-eval",
+  "crates/actions-mcp",
+  "crates/intentd",
+  "crates/companiond",
+  "crates/readerd",
+  "crates/docket-ds",
+  "crates/voice-wire",
+  "crates/voice-loop",
+  "crates/voiced",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+# What quire declares; the toolchain itself is pinned in rust-toolchain.toml.
+rust-version = "1.92"
+repository = "https://github.com/PoHsuanLai/docket"
+publish = false
+
+[workspace.dependencies]
+docket-core    = { path = "crates/docket-core" }
+policy-point   = { path = "crates/policy-point" }
+action-review  = { path = "crates/action-review" }
+docket-router  = { path = "crates/docket-router" }
+companion-wire = { path = "crates/companion-wire" }
+agent-loop     = { path = "crates/agent-loop" }
+docket-dbus    = { path = "crates/docket-dbus" }
+docket-client  = { path = "crates/docket-client" }
+docket-fake    = { path = "crates/docket-fake" }
+docket-eval    = { path = "crates/docket-eval" }
+docket-ds      = { path = "crates/docket-ds" }
+voice-wire     = { path = "crates/voice-wire" }
+voice-loop     = { path = "crates/voice-loop" }
+
+# porter's frozen interfaces (master 5e0ca6a), by sibling path until the pinned git rev replaces
+# them in fill wave 1 (quire CONSUMING.md section 1). porter has no docket dependency, so there is
+# no cycle.
+porter-core     = { path = "../porter/crates/porter-core" }
+prov            = { path = "../porter/crates/prov" }
+porter-infer    = { path = "../porter/crates/porter-infer" }
+porter-client   = { path = "../porter/crates/porter-client" }
+porter-dbus     = { path = "../porter/crates/porter-dbus" }
+
+# almanac's frozen interfaces (master d35337f). docket-core names almanac-core's pure types
+# (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
+almanac-core    = { path = "../almanac/crates/almanac-core" }
+almanac-client  = { path = "../almanac/crates/almanac-client" }
+
+# stoker's pure vocabulary (master 134d58e): the computer-use actions (`CuaAsk`), the structured
+# output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
+cua-action      = { path = "../stoker/crates/cua-action" }
+model-provider  = { path = "../stoker/crates/model-provider" }
+speech-vad      = { path = "../stoker/crates/speech-vad" }
+
+# quire's view-only context seams, for `docket-ds` alone.
+ds-intents      = { path = "../quire/crates/ds-intents" }
+# `Tally`, the count a chip carries, is ds-core's; ds-intents does not re-export it.
+ds-core         = { path = "../quire/crates/ds-core" }
+
+# From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines docket
+# names itself.
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net", "io-util", "process"] }
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+zbus = { version = "5.19", default-features = false, features = ["tokio"] }  # shell repos only; they also enable ds-settings/tokio. quire itself builds zbus with its async-io default so app consumers keep their own executor.
+toml = "1"
+clap = { version = "4", features = ["derive"] }
+# Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).
+cedar-policy = "4.13"
+# actions-mcp: pin the minor.
+rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io"] }
+# Dev-dependencies.
+proptest = "1"
+tempfile = "3"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"

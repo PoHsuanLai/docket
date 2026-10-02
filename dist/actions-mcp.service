@@ -1,0 +1,46 @@
+# Skeleton of the MCP edge's systemd user unit, for the Unix-socket mode. Off by default
+# (QUESTIONS S7): it is not enabled by the package. A client that speaks MCP over stdio starts
+# the binary itself under its own sandbox; this unit is for a long-lived socket. Every call goes
+# to intentd as Actor::Mcp with untrusted arguments, and the router, not this process, decides.
+[Unit]
+Description=Quire MCP edge (off by default)
+After=intentd.service
+Wants=intentd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/quire/actions-mcp --socket %t/quire/actions-mcp.sock
+
+# --- Sandbox ---
+# Unix sockets only: the session bus to intentd and the client's socket.
+RestrictAddressFamilies=AF_UNIX
+PrivateNetwork=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=%t/quire
+PrivateTmp=yes
+# No setuid gain, no writable-and-executable memory (no JIT, no injected code).
+NoNewPrivileges=yes
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+PrivateDevices=yes
+# No kernel, module or debug surfaces.
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+# A narrow syscall set: the system-service baseline, minus privileged and obsolete calls.
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @debug @obsolete
+SystemCallArchitectures=native
+# No capabilities at all.
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+# Deliberately empty: nothing enables the MCP edge.

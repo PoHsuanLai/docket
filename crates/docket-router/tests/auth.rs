@@ -1,0 +1,110 @@
+//! Who may call which member of Intents1.
+
+use docket_core::*;
+use docket_router::*;
+
+fn role_set(member: Member) -> Vec<CallerRole> {
+    CallerRole::ALL
+        .into_iter()
+        .filter(|r| permits(*r, member))
+        .collect()
+}
+
+#[test]
+fn only_the_persons_surfaces_record_a_turn() {
+    assert_eq!(
+        role_set(Member::SessionTurn),
+        [CallerRole::Launcher, CallerRole::Field]
+    );
+}
+
+#[test]
+fn only_the_reader_resolves_a_handle_and_never_a_planner() {
+    assert_eq!(role_set(Member::SessionResolve), [CallerRole::Reader]);
+    assert!(!permits(CallerRole::Companion, Member::SessionResolve));
+    // Display is for the screen: a planner never gets the text.
+    assert!(!permits(CallerRole::Companion, Member::SessionDisplay));
+}
+
+#[test]
+fn only_cuad_uses_the_gate_and_only_control_resumes() {
+    assert_eq!(role_set(Member::GateCheck), [CallerRole::Cua]);
+    assert_eq!(role_set(Member::GateGrant), [CallerRole::Cua]);
+    assert_eq!(role_set(Member::ControlResume), [CallerRole::Control]);
+    assert_eq!(
+        role_set(Member::ControlHalt),
+        [CallerRole::Compositor, CallerRole::Control]
+    );
+}
+
+#[test]
+fn nobody_but_the_planner_reads_memory_or_notes_an_episode() {
+    for member in [
+        Member::SessionRecall,
+        Member::SessionNote,
+        Member::SessionRead,
+    ] {
+        assert_eq!(role_set(member), [CallerRole::Companion], "{member:?}");
+    }
+}
+
+#[test]
+fn a_run_may_send_a_report_but_a_reader_may_send_nothing() {
+    assert!(permits(CallerRole::Cua, Member::MessageSend));
+    assert!(permits(CallerRole::Launcher, Member::MessageSend));
+    for member in Member::ALL {
+        if member != Member::Manifests {
+            assert!(
+                !permits(CallerRole::Reader, member) || member == Member::SessionResolve,
+                "{member:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn every_member_is_reachable_by_some_role_and_the_registry_by_all() {
+    for member in Member::ALL {
+        assert!(!role_set(member).is_empty(), "{member:?} has no caller");
+    }
+    assert_eq!(role_set(Member::Manifests).len(), CallerRole::ALL.len());
+}
+
+#[test]
+fn a_caller_acts_in_the_first_of_its_roles_that_may_make_the_call() {
+    use std::collections::BTreeSet;
+    let sill = BTreeSet::from([
+        CallerRole::Launcher,
+        CallerRole::Confirm,
+        CallerRole::Control,
+    ]);
+    assert_eq!(
+        acting_role(&sill, Member::Perform),
+        Some(CallerRole::Launcher),
+        "sill performs as the person"
+    );
+    assert_eq!(
+        acting_role(&sill, Member::ControlResume),
+        Some(CallerRole::Control)
+    );
+    assert_eq!(
+        acting_role(&sill, Member::GateCheck),
+        None,
+        "sill is not cuad"
+    );
+    let plain = BTreeSet::new();
+    assert_eq!(
+        acting_role(&plain, Member::SearchQuery),
+        Some(CallerRole::App)
+    );
+    assert_eq!(
+        acting_role(&plain, Member::ControlHalt),
+        None,
+        "a plain app cannot halt"
+    );
+    assert_eq!(
+        acting_role(&plain, Member::SessionTurn),
+        None,
+        "and cannot record a turn"
+    );
+}

@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.quire.Intents1
+Exec=/usr/libexec/quire/intentd
+SystemdService=intentd.service

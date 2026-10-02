@@ -1,0 +1,20 @@
+[package]
+name = "policy-point"
+description = "The policy point: the Cedar schema and default policies, the request shape, and the four rulings a request can get."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+prov = { workspace = true }
+porter-core = { workspace = true }
+cedar-policy = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
