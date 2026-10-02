@@ -21,6 +21,7 @@ mod ids;
 mod index;
 mod manifest;
 mod message;
+mod pattern;
 mod planner;
 mod preview;
 mod reader;
@@ -100,7 +101,7 @@ pub use task::{
 };
 pub use task_policy::{
     ActionMatch, ArgLabels, Coverage, PolicyChange, PolicyWriter, Saw, SessionSaw, SinkIntegrity,
-    TaskPolicy, TaskPolicyState, TrustedPattern, Widening, compare, covers,
+    TaskPolicy, TaskPolicyState, TrustedPattern, Widening, compare, covers, intersection,
 };
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
 pub use units::{CharCount, Depth, Generation, Millis, Scale, Seconds};

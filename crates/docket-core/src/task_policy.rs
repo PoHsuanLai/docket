@@ -11,9 +11,10 @@
 use crate::call::CallRequest;
 use crate::ids::{ActionRef, FileRef, LabelText, TurnId};
 use crate::manifest::ArgSink;
+use crate::pattern::{pattern_inside, pattern_matches};
 use crate::planner::{ActionCard, UserTurn};
 use crate::review::ReviewError;
-use crate::value::Value;
+use crate::value::{TargetValue, Value};
 use porter_core::{AppName, Count};
 use prov::{Effect, EntityId, EntityKind, Integrity, Label, SpaceId, TaskId, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -175,18 +176,198 @@ pub struct ArgLabels {
     pub saw: SessionSaw,
 }
 
-/// How a new policy compares with the old: pure and table-tested.
+/// How a new policy compares with the old: pure and table-tested. It widens when it covers
+/// anything the old did not (the first such things are listed), narrows when only the old
+/// covered something, and is the same otherwise. The task, turns, rationale and state are
+/// not coverage.
 pub fn compare(new: &TaskPolicy, old: &TaskPolicy) -> PolicyChange {
-    let _ = (new, old);
-    todo!("compare: actions, kinds, ceiling, count, patterns and expiry, each against the old")
+    let wider = widenings(new, old);
+    if !wider.is_empty() {
+        PolicyChange::Widens(wider)
+    } else if widenings(old, new).is_empty() {
+        PolicyChange::Same
+    } else {
+        PolicyChange::Narrows
+    }
 }
 
-/// Whether a call is inside a policy. An untrusted sink argument is never inside.
+/// What `new` covers that `old` does not.
+fn widenings(new: &TaskPolicy, old: &TaskPolicy) -> Vec<Widening> {
+    let actions = new
+        .actions
+        .iter()
+        .filter(|m| !action_inside(m, new.ceiling, &old.actions))
+        .cloned()
+        .map(Widening::Action);
+    let kinds = new
+        .kinds
+        .difference(&old.kinds)
+        .cloned()
+        .map(Widening::Kind);
+    let ceiling = (new.ceiling > old.ceiling).then_some(Widening::Ceiling(new.ceiling));
+    let count = (new.max_count > old.max_count).then_some(Widening::Count(new.max_count));
+    let patterns = [
+        (ArgSink::Recipient, &new.recipients, &old.recipients),
+        (ArgSink::Destination, &new.destinations, &old.destinations),
+        (ArgSink::Path, &new.paths, &old.paths),
+    ]
+    .into_iter()
+    .flat_map(|(sink, new, old)| {
+        new.iter()
+            .filter(|p| !old.iter().any(|o| pattern_inside(p, o)))
+            .map(move |p| Widening::Pattern(sink, p.clone()))
+    });
+    let expiry = (new.expires > old.expires).then_some(Widening::Expiry);
+    actions
+        .chain(kinds)
+        .chain(ceiling)
+        .chain(count)
+        .chain(patterns)
+        .chain(expiry)
+        .collect()
+}
+
+/// What both `a` and `b` allow, under `a`'s task, turns and rationale: the lower ceiling, count
+/// and expiry, the kinds both name, and the actions and trusted patterns each side holds that
+/// the other covers. It never covers more than either (`compare` says `Narrows` or `Same`
+/// against both), and a policy in another Space shares nothing: Spaces are walls. It is the
+/// derivation of a child task's policy from its parent's.
+pub fn intersection(a: &TaskPolicy, b: &TaskPolicy) -> TaskPolicy {
+    let ceiling = a.ceiling.min(b.ceiling);
+    let shared_space = a.space == b.space;
+    let both_active = a.state == TaskPolicyState::Active && b.state == TaskPolicyState::Active;
+    let live = |keep: bool| keep && shared_space && both_active;
+    let actions = a
+        .actions
+        .iter()
+        .filter(|m| action_inside(m, ceiling, &b.actions))
+        .chain(
+            b.actions
+                .iter()
+                .filter(|m| action_inside(m, ceiling, &a.actions)),
+        )
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let patterns = |a: &[TrustedPattern], b: &[TrustedPattern]| {
+        let mut kept: Vec<TrustedPattern> = Vec::new();
+        for p in a
+            .iter()
+            .filter(|p| b.iter().any(|o| pattern_inside(p, o)))
+            .chain(b.iter().filter(|p| a.iter().any(|o| pattern_inside(p, o))))
+        {
+            if !kept.contains(p) {
+                kept.push(p.clone());
+            }
+        }
+        kept
+    };
+    TaskPolicy {
+        task: a.task.clone(),
+        space: a.space.clone(),
+        from: a.from.clone(),
+        actions: if live(true) { actions } else { BTreeSet::new() },
+        kinds: if live(true) {
+            a.kinds.intersection(&b.kinds).cloned().collect()
+        } else {
+            BTreeSet::new()
+        },
+        ceiling,
+        max_count: a.max_count.min(b.max_count),
+        recipients: patterns(&a.recipients, &b.recipients),
+        destinations: patterns(&a.destinations, &b.destinations),
+        paths: patterns(&a.paths, &b.paths),
+        expires: a.expires.min(b.expires),
+        rationale: a.rationale.clone(),
+        state: if both_active {
+            a.state
+        } else {
+            TaskPolicyState::Revoked
+        },
+    }
+}
+
+/// Whether `m`, bounded by the policy's `ceiling`, is already covered by one of `old`.
+fn action_inside(m: &ActionMatch, ceiling: Effect, old: &BTreeSet<ActionMatch>) -> bool {
+    let (app, reach) = match m {
+        ActionMatch::One(a) => (&a.app, ceiling),
+        ActionMatch::AppUpTo(app, e) => (app, (*e).min(ceiling)),
+    };
+    old.contains(m)
+        || old
+            .iter()
+            .any(|o| matches!(o, ActionMatch::AppUpTo(a, e) if a == app && reach <= *e))
+}
+
+/// Whether the call is inside the task policy, judged from the call and its labels alone: the
+/// policy is in force, the action and every target kind are named, no more things are touched
+/// than allowed, and every argument is either trusted or matches a trusted pattern. Effects
+/// and sinks come from the manifest, which a call does not carry: the router checks the
+/// effect against the ceiling before it asks, and treats every argument as feeding a sink,
+/// which is how the decision table reads "arguments untrusted".
 pub fn covers(policy: &TaskPolicy, call: &CallRequest, labels: &ArgLabels) -> Coverage {
-    let _ = (policy, call, labels);
-    todo!(
-        "covers: action match, kind, ceiling, count, and every sink argument trusted or matching a pattern"
-    )
+    if policy.state != TaskPolicyState::Active {
+        return Coverage::Outside(Widening::Expiry);
+    }
+    let named = policy.actions.iter().any(|m| match m {
+        ActionMatch::One(a) => *a == call.action,
+        ActionMatch::AppUpTo(app, _) => *app == call.action.app,
+    });
+    if !named {
+        return Coverage::Outside(Widening::Action(ActionMatch::One(call.action.clone())));
+    }
+    let targets = target_entities(&call.target);
+    if let Some(kind) = targets
+        .iter()
+        .map(|e| &e.kind)
+        .find(|k| !policy.kinds.contains(*k))
+    {
+        return Coverage::Outside(Widening::Kind(kind.clone()));
+    }
+    let count = Count(u32::try_from(targets.len()).unwrap_or(u32::MAX));
+    if count > policy.max_count {
+        return Coverage::Outside(Widening::Count(count));
+    }
+    // An argument the router did not label is untrusted: the planner never vouches for itself.
+    call.args
+        .iter()
+        .filter(|(name, _)| {
+            labels
+                .per_arg
+                .get(*name)
+                .is_none_or(|l| l.integrity == Integrity::Untrusted)
+        })
+        .find_map(|(_, arg)| uncovered_argument(policy, &arg.value))
+        .map_or(Coverage::Inside, Coverage::Outside)
+}
+
+/// The widening that would make an untrusted `value` acceptable, or `None` when a trusted
+/// pattern of the policy already matches it. The sink is read from the value's type.
+fn uncovered_argument(policy: &TaskPolicy, value: &Value) -> Option<Widening> {
+    let patterns = policy
+        .recipients
+        .iter()
+        .chain(&policy.destinations)
+        .chain(&policy.paths);
+    if patterns.into_iter().any(|p| pattern_matches(p, value)) {
+        return None;
+    }
+    let sink = match value {
+        Value::Entity(_) | Value::Entities(_) => ArgSink::Recipient,
+        Value::Url(_) => ArgSink::Destination,
+        Value::File(_) => ArgSink::Path,
+        _ => ArgSink::Body,
+    };
+    Some(Widening::Pattern(
+        sink,
+        TrustedPattern::Exact(value.clone()),
+    ))
+}
+
+fn target_entities(target: &TargetValue) -> Vec<&EntityId> {
+    match target {
+        TargetValue::Entities(ids) => ids.iter().collect(),
+        TargetValue::Nothing | TargetValue::Text(_) | TargetValue::Files(_) => vec![],
+    }
 }
 
 /// Derives a policy from the person's turns alone. Its input is the router-held turns and the

@@ -92,7 +92,6 @@ fn every_argument_from_a_client_is_untrusted_and_says_whose() {
 }
 
 #[test]
-#[ignore = "tool_schema is the docket-core fill"]
 fn the_registry_becomes_tools_with_schemas() {
     let registry = [manifest("org.quire.Memory.toml")];
     let tools = tools(&registry);
