@@ -2,9 +2,9 @@
 //! out the effects. The planner is a model that calls typed actions; every call goes through
 //! the router, which gates it, so nothing here decides what is allowed.
 
-use crate::completion::CompletionNote;
+use crate::completion::{Attention, CompletionNote, completion_line};
 use crate::tier::Tier;
-use companion_wire::AnswerPhase;
+use companion_wire::{AnswerPhase, NeedsYou};
 use docket_core::{
     BreakerTrip, CallId, CallRefusal, CallRequest, ReaderAsk, Reveal, StepEnd, TurnId, Value,
 };
@@ -129,10 +129,197 @@ pub enum LoopEffect {
     CloseTask,
 }
 
-/// One transition.
+/// One transition. The router mints call ids, after the loop has asked for the call, so a
+/// batch's calls are named by their position in it (`CallId(0)`, `CallId(1)`, ...): the
+/// `Call` effects come out in that order, a batch is only issued with nothing pending, and
+/// companiond reports each end as `CallEnded` with the position. `Planned` is one output of the planner's reply; a reply is a run of `Say`s
+/// ending in `Calls`, `Read`, `Ask` or `Finish` (companiond sends `Finish` for a reply that
+/// only spoke). Inputs that do not fit the phase change nothing, so a late or duplicate event
+/// is harmless.
 pub fn agent_step(state: LoopState, input: LoopInput) -> (LoopState, Vec<LoopEffect>) {
-    let _ = (state, input);
-    todo!(
-        "agent_step: Idle -> Planning on Asked; Planning -> AwaitingCalls/AwaitingReader/Finished on the model's output; each CallEnded returns to Planning when none are pending; a refusal tells the planner the coarse code; Tripped pauses until Resumed; Halted and Cancelled finish; a Completed note is appended to the current task and never starts one"
+    use LoopPhase::{AwaitingCalls, AwaitingReader, Finished, Idle, Paused, Planning};
+    match (state.phase, input) {
+        (Finished(_), _) => stay(state),
+        (_, LoopInput::Cancelled | LoopInput::Halted) => finish(state, FinishedAs::Cancelled),
+        (_, LoopInput::Completed(note)) => (state, completion_effects(&note)),
+        (Idle, LoopInput::Asked(turn)) => ask_planner(state, turn),
+        (Planning, LoopInput::Asked(turn)) => ask_planner(state, turn),
+        (_, LoopInput::Asked(turn)) => stay(LoopState {
+            turn: Some(turn),
+            ..state
+        }),
+        (Planning, LoopInput::Planned(output)) => planned(state, output),
+        (Planning | AwaitingReader, LoopInput::ModelFailed) => finish(state, FinishedAs::Failed),
+        (AwaitingReader, LoopInput::ReadAnswered(_)) => replan(state),
+        (AwaitingCalls | Paused(_), LoopInput::CallEnded(id, end)) => call_ended(state, id, end),
+        (Paused(_), LoopInput::Resumed) => resumed(state),
+        (Paused(_), LoopInput::Tripped(_)) => stay(state),
+        (Idle | Planning | AwaitingCalls | AwaitingReader, LoopInput::Tripped(trip)) => {
+            pause(state, trip)
+        }
+        _ => stay(state),
+    }
+}
+
+fn stay(state: LoopState) -> (LoopState, Vec<LoopEffect>) {
+    (state, vec![])
+}
+
+fn with_phase(state: LoopState, phase: LoopPhase) -> LoopState {
+    LoopState { phase, ..state }
+}
+
+fn ask_planner(state: LoopState, turn: TurnId) -> (LoopState, Vec<LoopEffect>) {
+    let next = LoopState {
+        phase: LoopPhase::Planning,
+        turn: Some(turn),
+        pending: vec![],
+        ..state
+    };
+    (
+        next,
+        vec![
+            LoopEffect::Publish(AnswerPhase::Thinking),
+            LoopEffect::AskPlanner,
+        ],
     )
+}
+
+fn replan(state: LoopState) -> (LoopState, Vec<LoopEffect>) {
+    (
+        with_phase(state, LoopPhase::Planning),
+        vec![LoopEffect::AskPlanner],
+    )
+}
+
+fn planned(state: LoopState, output: ModelOutput) -> (LoopState, Vec<LoopEffect>) {
+    let state = LoopState {
+        steps: state.steps.saturating_add(1),
+        ..state
+    };
+    match output {
+        ModelOutput::Calls(calls) if calls.is_empty() => finish(state, FinishedAs::Failed),
+        ModelOutput::Calls(calls) => {
+            let pending = (0..calls.len() as u64).map(CallId).collect();
+            let effects = calls
+                .into_iter()
+                .map(|c| LoopEffect::Call(Box::new(c.call)))
+                .collect();
+            let next = LoopState {
+                phase: LoopPhase::AwaitingCalls,
+                pending,
+                ..state
+            };
+            (next, effects)
+        }
+        ModelOutput::Read(ask) => (
+            with_phase(state, LoopPhase::AwaitingReader),
+            vec![LoopEffect::Read(Box::new(ask))],
+        ),
+        ModelOutput::Say(_) => (state, vec![LoopEffect::Publish(AnswerPhase::Streaming)]),
+        ModelOutput::Ask { text, choices } => (
+            with_phase(state, LoopPhase::Idle),
+            vec![LoopEffect::Publish(AnswerPhase::NeedsYou(
+                NeedsYou::Question { text, choices },
+            ))],
+        ),
+        ModelOutput::Finish => finish(state, FinishedAs::Done),
+    }
+}
+
+fn call_ended(state: LoopState, id: CallId, end: StepEnd) -> (LoopState, Vec<LoopEffect>) {
+    if !state.pending.contains(&id) {
+        return stay(state);
+    }
+    let pending: Vec<CallId> = state.pending.iter().copied().filter(|p| *p != id).collect();
+    let state = LoopState { pending, ..state };
+    let refusal = match end {
+        StepEnd::Refused(refusal) => Some(refusal),
+        StepEnd::Done { .. } | StepEnd::Unconfirmed(_) => None,
+    };
+    let told: Vec<LoopEffect> = refusal.iter().cloned().map(LoopEffect::Refused).collect();
+    match refusal {
+        Some(CallRefusal::Halted(_)) => finish(state, FinishedAs::Cancelled),
+        Some(CallRefusal::OverBudget(_)) => finish_after(state, FinishedAs::Failed, told),
+        Some(CallRefusal::Paused(trip)) => {
+            let (next, mut effects) = pause(state, trip);
+            effects.splice(0..0, told);
+            (next, effects)
+        }
+        _ if matches!(state.phase, LoopPhase::Paused(_)) || !state.pending.is_empty() => {
+            (state, told)
+        }
+        _ => {
+            let (next, effects) = replan(state);
+            (next, [told, effects].concat())
+        }
+    }
+}
+
+fn resumed(state: LoopState) -> (LoopState, Vec<LoopEffect>) {
+    if state.pending.is_empty() {
+        replan(state)
+    } else {
+        (with_phase(state, LoopPhase::AwaitingCalls), vec![])
+    }
+}
+
+fn pause(state: LoopState, trip: BreakerTrip) -> (LoopState, Vec<LoopEffect>) {
+    let text = format!("Paused after repeated refusals ({trip:?}); say something to go on.");
+    (
+        with_phase(state, LoopPhase::Paused(trip)),
+        vec![LoopEffect::Publish(AnswerPhase::NeedsYou(
+            NeedsYou::Question {
+                text,
+                choices: vec![],
+            },
+        ))],
+    )
+}
+
+fn finish(state: LoopState, how: FinishedAs) -> (LoopState, Vec<LoopEffect>) {
+    finish_after(state, how, vec![])
+}
+
+fn finish_after(
+    state: LoopState,
+    how: FinishedAs,
+    before: Vec<LoopEffect>,
+) -> (LoopState, Vec<LoopEffect>) {
+    let shown = match how {
+        FinishedAs::Done => AnswerPhase::Done,
+        FinishedAs::Failed => AnswerPhase::Failed,
+        FinishedAs::Cancelled => AnswerPhase::Cancelled,
+    };
+    let next = LoopState {
+        phase: LoopPhase::Finished(how),
+        pending: vec![],
+        ..state
+    };
+    let effects = [
+        before,
+        vec![LoopEffect::Publish(shown), LoopEffect::CloseTask],
+    ]
+    .concat();
+    (next, effects)
+}
+
+/// A completion note is a line in the task, and the answer waits for the person only when the
+/// result needs them. It never starts anything.
+fn completion_effects(note: &CompletionNote) -> Vec<LoopEffect> {
+    let Some(line) = completion_line(note) else {
+        return vec![];
+    };
+    let waits = match note.attention {
+        Attention::NeedsYou => Some(LoopEffect::Publish(AnswerPhase::NeedsYou(
+            NeedsYou::Question {
+                text: line.clone(),
+                choices: vec![],
+            },
+        ))),
+        Attention::Quiet => None,
+    };
+    std::iter::once(LoopEffect::Note(line))
+        .chain(waits)
+        .collect()
 }

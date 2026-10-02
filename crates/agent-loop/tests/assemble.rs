@@ -274,7 +274,6 @@ fn the_stable_sections_do_not_change_between_turns() {
 }
 
 #[test]
-#[ignore = "agent_step is the agent-loop fill (F1d)"]
 fn a_refusal_tells_the_planner_only_the_coarse_code_and_a_trip_pauses_the_loop() {
     let idle = LoopState {
         phase: LoopPhase::AwaitingCalls,
@@ -288,4 +287,39 @@ fn a_refusal_tells_the_planner_only_the_coarse_code_and_a_trip_pauses_the_loop()
     assert!(effects.contains(&LoopEffect::AskPlanner));
     let (state, _) = agent_step(idle, LoopInput::Tripped(BreakerTrip::Probing));
     assert_eq!(state.phase, LoopPhase::Paused(BreakerTrip::Probing));
+}
+
+#[test]
+fn assembled_view_keeps_untrusted_text_behind_handles() {
+    let mut s = sources();
+    let mut line = recalled(1, "unused");
+    line.text = Reveal::Handle(Handle(4));
+    s.recalled = vec![line];
+    let mut done = step(1, Some(3));
+    done.end = StepEnd::Done {
+        said: None,
+        value: Some(Reveal::Handle(Handle(5))),
+        undo: None,
+    };
+    s.history = vec![done];
+    s.handles = vec![HandleCard {
+        handle: Handle(4),
+        shape: HandleShape::Text,
+        from: prov::Source::Mail,
+        size: CharCount(40),
+    }];
+    let view = assemble(&budget(), &s);
+    assert_eq!(
+        view.recalled[0].text,
+        Reveal::Handle(Handle(4)),
+        "a handle stays a handle"
+    );
+    let json = serde_json::to_string(&view).expect("json");
+    for secret in ["Ignore previous", "wire the money", "evil.test"] {
+        assert!(!json.contains(secret), "{secret} reached the view");
+    }
+    assert!(
+        json.contains("archive the newsletters"),
+        "the person's own words stay plain"
+    );
 }
