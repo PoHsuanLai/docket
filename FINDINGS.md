@@ -1,22 +1,16 @@
 # Findings
 
 Open items and standing facts. An entry names the condition that closes it. At the freeze there
-are **46 `todo!()` bodies** in library and daemon code (49 lines: `MemoryProvider` and
+are **37 `todo!()` bodies** in library and daemon code (49 lines: `MemoryProvider` and
 `CompanionProvider` share one macro line), listed below, one row per crate or file; the tests
-contain none, and 6 tests are `#[ignore]`d with the work that blocks them.
+contain none, and no test is `#[ignore]`d.
 
 ## Stubs behind frozen interfaces
 
 | Where | Count | Closes when |
 | --- | --- | --- |
-| docket-core `compare`, `covers` (`task_policy`) | 2 | fill wave 1 (F1c): `task_policy_compare_table`, `covers_rejects_untrusted_recipient`, `policy_never_derived_from_content`, `narrowing_is_silent_widening_confirms`, `writer_failure_means_outside`, `task_policy_cannot_exceed_grants`; an untrusted sink argument is never inside |
-| docket-core `tool_schema` | 1 | fill wave 1: one property per `ParamDecl` by `ParamType`, `Required` listed, `additionalProperties` false; the pinned snapshot for three fixture actions (`tool_schema_snapshot`); un-ignore `the_registry_becomes_tools_with_schemas` in actions-mcp |
-| docket-router `call_step` | 1 | fill wave 1 (F1c): the rows of call lifecycle section 4.1 with the addendum's (Gating, Reviewing, Previewing, Confirming, Dispatched, Done; a halt cancels the sheet and the review; an in-flight app call continues); un-ignore `a_halt_cancels_the_sheet_and_the_review` |
-| docket-router `Router::handle` | 1 | fill wave 1 (F1c): `permits`/`acting_role`, then one arm per member over the machines in this crate; blocks docket-eval's runner |
-| docket-router `child_policy`, `roster_of` | 2 | fill wave 1 (F1c): a child's policy is the intersection with its parent's and never wider; the roster from the task table, goals as handles unless the person's own words, cut by `Roster::seen_from`; un-ignore `a_child_policy_is_never_wider_than_its_parents` |
 | agent-loop `agent_step` | 1 | fill wave 1 (F1d): the planner loop table (Idle, Planning, AwaitingCalls, AwaitingReader, Paused, Finished); un-ignore `a_refusal_tells_the_planner_only_the_coarse_code_and_a_trip_pauses_the_loop` |
 | docket-client `DbusTransport::call`, `serve` | 2 | fill wave 1 (F1d) with docket-dbus's codec: one match from `IntentsRequest` to the member and its JSON arguments; `IntentsError` maps back; the Request object's `Response` carries the reply of Perform, Undo, Widen and Check; `serve` exports `IntentProviderSkeleton` over the app's seams |
-| docket-eval `run_case`, `run_corpus` | 2 | the docket-eval fill (F1e), after `Router::handle`: runs the scripted planner steps through `fake_router` with `ScriptedReviewer::AlwaysAllow` and a maximal policy; un-ignore `structural_guarantees_hold_with_hijacked_judge` |
 | actions-mcp `McpEdge::call` | 1 | fill wave 2: tool name to action, JSON arguments to `Args` by `ParamType` each labelled with `mcp_label`, `Intents::perform`, outcome or coarse refusal to a tool result |
 | intentd `record_of` | 1 | fill wave 2: `AuditRecord` to almanac `Record` (typed `Message` and `Episode` bodies, the rest `Area { Docket }` with the things each names for cascade-forget) |
 | intentd `DbusLink::{perform, dry_run, undo, context, search, preview, suggest}` | 7 | fill wave 2: `IntentProviderProxy` on the app's own name after checking its owner derives to the same `AppId`; the 250 ms, 5 s and progress-request latencies |
@@ -33,15 +27,11 @@ contain none, and 6 tests are `#[ignore]`d with the work that blocks them.
 | voiced `serve` | 1 | fill wave 2, after the PipeWire line (spike V-A): `Begin` from the shell role only, capture through `choose_capture`, unicast signals, an inferd session through porter-client |
 | daemons serve their bus | | the items above; every daemon binary is a skeleton that exits 2 |
 
-Total: 2 + 1 + 1 + 1 + 2 + 1 + 2 + 2 + 1 + 1 + 7 + 4 + 2 + 2 + 2 + 1 + 2 + 5 + 1 + 4 + 1 + 1 = 46.
+Total: 1 + 2 + 1 + 1 + 7 + 4 + 2 + 2 + 2 + 1 + 2 + 5 + 1 + 4 + 1 + 1 = 37.
 
-## Ignored tests (each has real assertions and names its blocker)
+## Ignored tests
 
-`a_refusal_tells_the_planner_only_the_coarse_code_and_a_trip_pauses_the_loop`
-(agent-loop), `a_halt_cancels_the_sheet_and_the_review`, `a_child_policy_is_never_wider_than_its_parents`
-and `delivery_joins_the_message_label_into_the_receivers_taint` (docket-router; the last waits for
-prov's `Label::join`), `the_registry_becomes_tools_with_schemas` (actions-mcp),
-`structural_guarantees_hold_with_hijacked_judge` (docket-eval).
+None: every test that waited for a fill runs.
 
 ## Built at the freeze (pinned by tests)
 
@@ -66,6 +56,59 @@ actions, `mcp_label`. intentd: the configuration, the built-in manifests, record
 the memory seam, the clock, every unit file's sandbox lines. readerd: the fixed instructions, the
 reader host. docket-ds: every mark conversion. voice-wire, voice-loop, voiced: see their rows in
 `ARCHITECTURE.md` (the utterance and speech machines, the sentencer, the buffer, the introspection).
+
+Filled in fill wave 1 (router): docket-core `compare`, `covers` and `intersection` (a policy against
+another, a call against a policy, a child against its parent) with the whole-label and
+whole-segment pattern match, and `tool_schema` (one property per parameter, a handle accepted where
+text, an entity or a file goes). docket-router: `call_step` (every row of the lifecycle table),
+`Router::handle` (all 29 members), `child_policy`, `roster_of`, the labels the router derives
+itself (a model's value is trusted only when it traces to the person's turns, a thing the router
+showed the session, or a closed set), consent per data class (a tainted session cannot lean on an
+`Always` for a write), coverage, the task policy (derived from the person's turns, capped by a parent
+and by a prompt field, widened only on confirmation), review, preview, confirmation, dispatch, the
+journal, the breaker, halts that withdraw sheets, messages (stamped, labelled, delivered as input),
+the shadow index, and the computer-use gate. docket-fake: `clear` and `add_*` on the apps and the
+scripted seams, so one harness serves many cases. docket-eval: `run_case` and `run_corpus` over the
+fake router with a judge that always allows and the widest policy.
+
+## Router: open items and interface asks
+
+Each names the change that closes it. Nothing below was edited outside docket.
+
+1. **`IntentsRequest::Perform` carries no session.** A companion's call lands in its newest
+   session, which is wrong while two of its tasks work at once. Ask: `session: Option<SessionId>`
+   on `Perform` (and on the `Run.Perform` D-Bus method), `None` for the person's own surfaces.
+2. **`covers` has no `ActionDecl`.** The effect and each argument's sink are the manifest's, so
+   `covers(policy, call, labels)` judges what the call shows (state, action, kinds, count, and that
+   every untrusted argument matches a trusted pattern) and docket-router's `coverage` checks the
+   ceiling and an app's cap first. Ask: `covers(policy, decl, call, labels)` and `Widening::Pattern`
+   then names the declared sink instead of reading it from the value's type.
+3. **`call_step` cannot make its richest effects.** It holds no call data, so it never emits
+   `Audit` or `Confirm`, enters `Confirming` with an unissued id, and ends bad arguments with the
+   parameter `args`; `Router` writes the audit when a call ends and draws the sheet when the state
+   becomes `Confirming`. Ask: `CallEvent::Previewed` carries the built `ConfirmRequest`,
+   `ArgsChecked` carries the `ParamName`, and `AppTimedOut` needs a seam that can say it:
+   `AppLink::perform` has no timeout error, so the router never feeds it.
+4. **`roster_of` has no `HandleTable`.** A planner's goal is untrusted text, so `TaskRecord` holds
+   the `Reveal<String>` made when the task started (a handle in the spawning session's table).
+   Ask: none; a handle minted into the reading session's table needs `roster_of` to take it.
+5. **`Context.Current` names no app.** The router looks in the window of the last prompt field that
+   recorded a turn; a launcher turn names none, so it refuses. Ask: the turn (or `Context`) carries
+   the summoning app.
+6. **Stored state grew.** `SessionRecord`, `RouterState` and `TaskRecord` gained fields (the ledger,
+   the breaker, what the session saw, its turns and policy, per-Space strictness, the shadow index,
+   the goal and last step of a task). They are built by `new` and nothing outside docket-router
+   constructs one by literal.
+7. **`tool_schema` renders directly.** stoker's `Shape::to_json_schema` is a stub when this was
+   filled, and `Shape` has no object-with-handle form for entities; the schema is built from
+   `serde_json` and pinned by `tool_schema_snapshot`. When stoker fills it, the leaf types (text,
+   integer, choice) may route through `Shape`.
+8. **Outbound under `Default`.** The shipped Cedar grid (actions-addendum A2) lets an outbound act
+   with every sink trusted, inside the task policy, go to review and then run; QUESTIONS S1 says
+   outbound always asks under `Default`. The router follows the grid. policy-point's owner decides.
+9. **A target's Space is not known.** An entity id carries no Space, so every target counts as
+   `Same` (and `Unbound` for an action on nothing): `cross_space_target_asks` waits for an entity
+   that names its Space.
 
 ## Upstream asks
 

@@ -78,13 +78,13 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `docket-core` | `units`, `ids` < `value`, `manifest` < `validate`, `schema` < `context`, `preview` < `call`, `undo`, `grant`, `confirm`, `review`, `budget` < `task_policy`, `reader`, `planner`, `roster` < `message`, `task`, `audit`, `gate`, `index`, `summon` < `config`, `caller`, `wire` |
 | `policy-point` | `request` < `pdp` |
 | `action-review` | `verdict` < `request`, `breaker` < `cascade`, `infer` |
-| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `router` |
+| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck` < `router` |
 | `companion-wire` | `ask`, `answer` < `record` |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `step` |
 | `docket-dbus` | `names`, `error`, one file per interface, `introspect` |
 | `docket-client` | `provider`, `transport` < `intents`, `serve` |
 | `docket-fake` | `labels`, `simple`, `mail`, `files`, `scripted`, `seams`, `router` |
-| `docket-eval` | `case`, `report`, `corpus`, `runner` |
+| `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics` |
 | `intentd` | `config`, `builtin`, `record`, `sink`, `memory`, `grants`, `sheet`, `link`, `infer`, `system`, `serve` |
 | `companiond` | `completion`, `recover`, `planner`, `runtime`, `serve` |
 | `readerd` | `host`, `request`, `service`, `serve` |
