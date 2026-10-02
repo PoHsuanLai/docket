@@ -18,9 +18,13 @@ almanac-core = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true
 
 [dev-dependencies]
-serde_json = { workspace = true }
+docket-fake = { workspace = true }
+docket-client = { workspace = true }
+tokio = { workspace = true }
+cua-action = { workspace = true }

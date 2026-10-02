@@ -4,11 +4,13 @@
 //! around it.
 
 use crate::gate::Pending;
-use action_review::ReviewVerdict;
+use action_review::{Gate, ReviewVerdict, escalate, tighten};
 use docket_core::{
-    AppRefusal, AuditRecord, CallEnd, CallProgress, ConfirmAnswer, ConfirmEnd, ConfirmId,
-    ConfirmRequest, Outcome, Preview, ReviewError, Stage,
+    AppRefusal, AuditRecord, CallEnd, CallProgress, CallRefusal, ConfirmAnswer, ConfirmEnd,
+    ConfirmId, ConfirmRequest, GrantScope, Outcome, ParamName, Preview, ReviewError, Ruling, Stage,
+    Undoable,
 };
+use prov::SpaceScope;
 
 /// Where a call is.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -83,9 +85,162 @@ pub enum CallEffect {
 }
 
 /// One transition.
+///
+/// The step holds no data about the call beyond its state, so the effects that need such data
+/// are the router's to make at the matching transition: it writes the audit record when the
+/// state becomes `Done`, and draws the sheet when it becomes `Confirming` (which the step
+/// enters with an unissued id: the router mints the real one). Everything else the step
+/// decides is here.
 pub fn call_step(state: CallState, event: CallEvent) -> (CallState, Vec<CallEffect>) {
-    let _ = (state, event);
-    todo!(
-        "call_step: the rows of call lifecycle section 4.1 with the addendum's: Gating -> Reviewing/Previewing/Dispatched/Done; Reviewing -> Dispatched only when tighten says Run; Confirming -> Dispatched on a receipt; a halt cancels the sheet and the review; an in-flight app call continues and its result is journalled"
+    use CallEvent as V;
+    use CallState as S;
+    match (state, event) {
+        (done @ S::Done(_), _) => (done, vec![]),
+        (S::Received, V::ArgsChecked(Err(why))) => (
+            refused(CallRefusal::BadArgs {
+                param: unnamed_param(),
+                why,
+            }),
+            vec![],
+        ),
+        (S::Received, V::ArgsChecked(Ok(()))) => (S::Gating, vec![]),
+        (S::Received | S::Gating | S::Reviewing { .. } | S::Previewing, V::Halted) => {
+            (halted(), vec![])
+        }
+        (S::Gating, V::Gated(pending)) => gated(pending),
+        (S::Reviewing { planned, mut done }, V::Verdict(stage, result)) => {
+            done.push((stage, result));
+            reviewed(planned, done)
+        }
+        (S::Previewing, V::Previewed(_)) => {
+            let id = unissued_confirm();
+            (
+                S::Confirming(id.clone()),
+                vec![CallEffect::Progress(CallProgress::Confirming(id))],
+            )
+        }
+        (S::Confirming(_), V::Answered(ConfirmAnswer::Allowed { scope, .. })) => {
+            let grant = (scope == GrantScope::Always).then_some(CallEffect::RecordGrant);
+            let dispatch = [
+                CallEffect::Progress(CallProgress::Dispatched),
+                CallEffect::Dispatch,
+            ];
+            (S::Dispatched, grant.into_iter().chain(dispatch).collect())
+        }
+        (S::Confirming(_), V::Answered(ConfirmAnswer::Ended(end))) => (
+            refused(CallRefusal::Unconfirmed(end)),
+            vec![CallEffect::NoteDenial, CallEffect::Unconfirmed(end)],
+        ),
+        (S::Confirming(_), V::Halted) => (halted(), vec![CallEffect::CancelConfirm]),
+        (S::Dispatched, V::AppAnswered(answer)) => match *answer {
+            Ok(outcome) => {
+                let journal =
+                    matches!(outcome.undo, Undoable::Yes(_)).then_some(CallEffect::Journal);
+                (
+                    CallState::Done(CallEnd::Done),
+                    journal.into_iter().collect(),
+                )
+            }
+            Err(refusal) => (refused(CallRefusal::App(refusal)), vec![]),
+        },
+        (S::Dispatched, V::AppTimedOut) => (refused(CallRefusal::Timeout), vec![]),
+        // An app call in flight cannot be recalled: its result is still journalled.
+        (state, _) => (state, vec![]),
+    }
+}
+
+fn refused(why: CallRefusal) -> CallState {
+    CallState::Done(CallEnd::Refused(why))
+}
+
+/// A halt does not know its Space: the router narrows the scope when it records the end.
+fn halted() -> CallState {
+    refused(CallRefusal::Halted(SpaceScope::Any))
+}
+
+fn gated(pending: Pending) -> (CallState, Vec<CallEffect>) {
+    match pending {
+        Pending::Run => dispatched(),
+        Pending::NeedsReview(planned) => match planned.first().copied() {
+            Some(first) => (
+                CallState::Reviewing {
+                    planned,
+                    done: vec![],
+                },
+                vec![
+                    CallEffect::Progress(CallProgress::Reviewing),
+                    CallEffect::StartReview(first),
+                ],
+            ),
+            None => previewing(),
+        },
+        Pending::Confirm(_) => previewing(),
+        Pending::Refuse(why) => {
+            let denial = matches!(why, CallRefusal::Denied(_)).then_some(CallEffect::NoteDenial);
+            (refused(why), denial.into_iter().collect())
+        }
+    }
+}
+
+/// The stages that have not answered, in plan order, or the call's fate when all have.
+fn reviewed(
+    planned: Vec<Stage>,
+    done: Vec<(Stage, Result<ReviewVerdict, ReviewError>)>,
+) -> (CallState, Vec<CallEffect>) {
+    let planned = match done.first() {
+        Some((Stage::Quick, quick)) if done.len() == 1 => escalate(&planned, quick),
+        _ => planned,
+    };
+    let denied = done
+        .iter()
+        .any(|(_, v)| matches!(v, Ok(ReviewVerdict::Deny { .. })));
+    let next = planned
+        .iter()
+        .find(|s| !done.iter().any(|(d, _)| d == *s))
+        .copied();
+    match next {
+        Some(stage) if !denied => (
+            CallState::Reviewing { planned, done },
+            vec![CallEffect::StartReview(stage)],
+        ),
+        _ => match tighten(&Ruling::AllowJudged(vec![]), &planned, &done) {
+            Gate::Run => dispatched(),
+            Gate::Confirm => previewing(),
+            Gate::Refuse(code) => (
+                refused(CallRefusal::Denied(code)),
+                vec![CallEffect::NoteDenial],
+            ),
+        },
+    }
+}
+
+fn dispatched() -> (CallState, Vec<CallEffect>) {
+    (
+        CallState::Dispatched,
+        vec![
+            CallEffect::Progress(CallProgress::Dispatched),
+            CallEffect::Dispatch,
+        ],
     )
+}
+
+fn previewing() -> (CallState, Vec<CallEffect>) {
+    (
+        CallState::Previewing,
+        vec![
+            CallEffect::Progress(CallProgress::Previewing),
+            CallEffect::DryRun,
+        ],
+    )
+}
+
+/// The parameter a bad-arguments end names when the step is told only the fault; the router
+/// ends a call with the real parameter before it ever feeds the step.
+fn unnamed_param() -> ParamName {
+    ParamName::parse("args").expect("`args` is a valid parameter name")
+}
+
+/// The id of a confirmation the router has not drawn yet.
+fn unissued_confirm() -> ConfirmId {
+    ConfirmId::parse("c-0").expect("`c-0` is a valid confirmation id")
 }

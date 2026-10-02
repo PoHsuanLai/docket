@@ -101,6 +101,11 @@ impl HandleTable {
         self.entries.keys().filter_map(|h| self.card(*h)).collect()
     }
 
+    /// What a handle holds, with its label, for the router to put back in an argument.
+    pub fn value(&self, handle: Handle) -> Option<&Labelled<HandleValue>> {
+        self.entries.get(&handle).map(|e| &e.value)
+    }
+
     /// A handle's label.
     pub fn label(&self, handle: Handle) -> Option<&Label> {
         self.entries.get(&handle).map(|e| &e.value.label)

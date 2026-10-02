@@ -7,18 +7,37 @@
 //!
 //! No clock, bus, file or runtime is reached here; the daemon (`intentd`) passes them in.
 
+mod argcheck;
 mod auth;
 mod call;
+mod confirm;
+mod consent;
+mod control;
+mod coverage;
+mod driven;
+mod finish;
 mod gate;
+mod gatecheck;
 mod handles;
 mod index;
 mod journal;
+mod labels;
 mod messages;
+mod messaging;
+mod opening;
+mod perform;
+mod policy;
+mod prepare;
+mod prepared;
+mod reading;
 mod registry;
 mod router;
 mod seams;
+mod search;
 mod session;
+mod state;
 mod tasks;
+mod who;
 
 pub use auth::{acting_role, permits};
 pub use call::{CallEffect, CallEvent, CallState, call_step};
@@ -28,7 +47,8 @@ pub use index::{IndexAction, IndexEvent, index_step};
 pub use journal::UndoJournal;
 pub use messages::{assemble, check_stamped, inbound_line, intake_label, report_status};
 pub use registry::{Registry, RegistryError, parse};
-pub use router::{Router, RouterState, SessionRecord};
+pub use router::Router;
 pub use seams::{AppLink, Clock, EventSink, GrantStore, LinkFault, MemoryLink, Seams};
 pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
+pub use state::{RouterState, SessionRecord};
 pub use tasks::{TaskRecord, TaskState, TaskTable, child_policy, roster_of};

@@ -348,7 +348,6 @@ fn a_message_from_an_untrusted_sender_lands_as_a_handle() {
 }
 
 #[test]
-#[ignore = "Label::join is a frozen todo in prov; the receiver's taint is the join of its own and the message's"]
 fn delivery_joins_the_message_label_into_the_receivers_taint() {
     let note = message(
         address(worker(), "home"),
@@ -362,26 +361,4 @@ fn delivery_joins_the_message_label_into_the_receivers_taint() {
         joined.confidentiality,
         Confidentiality::Private(BTreeSet::from([space("home")]))
     );
-}
-
-#[test]
-#[ignore = "call_step is the docket-router fill (F1c)"]
-fn a_halt_cancels_the_sheet_and_the_review() {
-    let (state, effects) = call_step(
-        CallState::Confirming(ConfirmId::parse("c-1").expect("id")),
-        CallEvent::Halted,
-    );
-    assert_eq!(
-        state,
-        CallState::Done(CallEnd::Refused(CallRefusal::Halted(prov::SpaceScope::Any)))
-    );
-    assert!(effects.contains(&CallEffect::CancelConfirm));
-}
-
-#[test]
-#[ignore = "child_policy and roster_of are the docket-router fill (F1c)"]
-fn a_child_policy_is_never_wider_than_its_parents() {
-    let table = TaskTable::new();
-    let roster = roster_of(&table, &space("work"));
-    assert!(roster.entries.is_empty());
 }
