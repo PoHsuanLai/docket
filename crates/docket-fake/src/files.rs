@@ -43,11 +43,21 @@ impl FakeFiles {
 
     /// Adds a file at `path` with `content`.
     pub fn with_file(self, key: &str, path: &str, content: &str) -> Self {
+        self.add_file(key, path, content);
+        self
+    }
+
+    /// Adds a file to a running app.
+    pub fn add_file(&self, key: &str, path: &str, content: &str) {
         self.edit(|s| {
             s.files.insert(key.into(), path.into());
             s.content.insert(key.into(), content.into());
         });
-        self
+    }
+
+    /// Forgets every file and undo token.
+    pub fn clear(&self) {
+        self.edit(|s| *s = State::default());
     }
 
     fn edit<R>(&self, f: impl FnOnce(&mut State) -> R) -> R {

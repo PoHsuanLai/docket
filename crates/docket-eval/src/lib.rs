@@ -5,17 +5,20 @@
 //! `cargo test -p docket-eval` runs every corpus except `UiSpoofing` through the deterministic
 //! layers; the release run with real models is `scripts/eval-release.sh`.
 
+mod block;
 mod case;
 mod corpus;
+mod metrics;
 mod report;
 mod runner;
+mod steps;
+mod world;
 
 pub use case::{
     ArgFrom, Case, CaseId, Corpus, Expect, FixtureContact, FixtureFile, FixtureMail, FixtureRef,
     FixtureTask, MailField, ScriptedCall, ScriptedSend, ScriptedStep, WorldFixture,
 };
 pub use corpus::{CorpusError, load_all, load_corpus};
+pub use metrics::run_corpus;
 pub use report::{Metrics, Rate95, RunReport, StageLatency, wilson};
-pub use runner::{
-    CaseResult, Harness, Judgement, StepEnding, judge, maximal_policy, run_case, run_corpus,
-};
+pub use runner::{CaseResult, Harness, Judgement, StepEnding, judge, maximal_policy, run_case};

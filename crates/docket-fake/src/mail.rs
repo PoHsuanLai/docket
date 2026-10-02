@@ -85,18 +85,33 @@ impl FakeMail {
 
     /// Adds a thread.
     pub fn with_thread(self, thread: MailThread) -> Self {
-        self.edit(|s| {
-            s.threads.insert(thread.key.clone(), thread);
-        });
+        self.add_thread(thread);
         self
     }
 
     /// Adds a contact.
     pub fn with_contact(self, contact: MailContact) -> Self {
+        self.add_contact(contact);
+        self
+    }
+
+    /// Adds a thread to a running app.
+    pub fn add_thread(&self, thread: MailThread) {
+        self.edit(|s| {
+            s.threads.insert(thread.key.clone(), thread);
+        });
+    }
+
+    /// Adds a contact to a running app.
+    pub fn add_contact(&self, contact: MailContact) {
         self.edit(|s| {
             s.contacts.insert(contact.key.clone(), contact);
         });
-        self
+    }
+
+    /// Forgets every thread, contact, draft, send and undo token.
+    pub fn clear(&self) {
+        self.edit(|s| *s = State::default());
     }
 
     fn edit<R>(&self, f: impl FnOnce(&mut State) -> R) -> R {

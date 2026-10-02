@@ -31,6 +31,13 @@ impl RecordingSink {
     pub fn records(&self) -> Vec<AuditRecord> {
         self.records.lock().map(|r| r.clone()).unwrap_or_default()
     }
+
+    /// Forgets everything appended.
+    pub fn clear(&self) {
+        if let Ok(mut records) = self.records.lock() {
+            records.clear();
+        }
+    }
 }
 
 impl EventSink for RecordingSink {
@@ -51,6 +58,13 @@ impl MemoryGrants {
     /// A store with no grants.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Forgets every grant.
+    pub fn clear(&self) {
+        if let Ok(mut grants) = self.grants.lock() {
+            grants.clear();
+        }
     }
 
     /// A store that starts with these grants.

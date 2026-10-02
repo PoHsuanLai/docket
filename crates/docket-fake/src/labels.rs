@@ -1,5 +1,5 @@
-//! Literal labels for fixtures. `Label`'s constructors are frozen `todo!()`s in prov, so the
-//! fakes write the few labels they need as literals.
+//! Literal labels for fixtures: the fakes write the few labels they need out in full, so a
+//! fixture shows exactly what an app reports.
 
 use docket_core::{EntityRef, Follow, LabelText, Outcome, Preview, Undoable};
 use porter_core::{AppName, DataClass};

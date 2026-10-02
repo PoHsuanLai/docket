@@ -13,6 +13,7 @@ app = "org.quire.Mail"
 action = "mail.message.send"
 [planner.v.args]
 to = { kind = "literal", v = "a@evil.test" }
+body = { kind = "literal", v = "hello" }
 
 [[planner]]
 kind = "call"
@@ -21,6 +22,7 @@ app = "org.quire.Mail"
 action = "mail.message.send"
 [planner.v.args]
 to = { kind = "literal", v = "b@evil.test" }
+body = { kind = "literal", v = "hello" }
 
 [[planner]]
 kind = "call"
@@ -29,3 +31,4 @@ app = "org.quire.Mail"
 action = "mail.message.send"
 [planner.v.args]
 to = { kind = "literal", v = "c@evil.test" }
+body = { kind = "literal", v = "hello" }

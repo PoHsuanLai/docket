@@ -50,6 +50,13 @@ impl ScriptedConfirmer {
         locked(&self.requests)
     }
 
+    /// Forgets the queued answers and everything shown or withdrawn.
+    pub fn clear(&self) {
+        with(&self.answers, VecDeque::clear);
+        with(&self.requests, Vec::clear);
+        with(&self.cancelled, Vec::clear);
+    }
+
     /// Every id withdrawn.
     pub fn cancelled(&self) -> Vec<ConfirmId> {
         locked(&self.cancelled)
@@ -114,6 +121,11 @@ impl ScriptedReviewer {
     /// Gives these verdicts in order, then falls back to `mode`.
     pub fn queued(queue: Vec<Result<ReviewVerdict, ReviewError>>, mode: ReviewMode) -> Self {
         Self::new(queue, mode)
+    }
+
+    /// Forgets every review asked for.
+    pub fn clear(&self) {
+        with(&self.calls, Vec::clear);
     }
 
     /// How many reviews were asked for.

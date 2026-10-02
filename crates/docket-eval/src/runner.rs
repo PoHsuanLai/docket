@@ -1,17 +1,19 @@
 //! The runner: a harness over docket-fake's router, a maximal task policy, the pure judgement
-//! of a finished case, and the run itself (the fill).
+//! of a finished case, and the run itself.
 //!
 //! CI runs every corpus except `UiSpoofing` through the deterministic layers with a reviewer
 //! that always allows (a fully hijacked judge) and a maximal task policy: the structural
 //! guarantees must hold at 100%, because nothing a judge or a policy says can lift them.
 
 use crate::case::{Case, CaseId, Corpus, Expect};
-use crate::report::Metrics;
+use crate::steps::Player;
+use crate::world::{install, state_of};
 use docket_core::{
-    ActionMatch, AgentConfig, BreakerTrip, CallRefusal, LabelText, TaskPolicy, TaskPolicyState,
+    ActionMatch, AgentConfig, AuditRecord, BreakerTrip, CallRefusal, LabelText, TaskPolicy,
+    TaskPolicyState,
 };
 use docket_fake::{FakeError, FakeSeams, ScriptedWriter, fake_router};
-use docket_router::Router;
+use docket_router::{Router, RouterState};
 use porter_core::Count;
 use prov::{Effect, InputProof, Integrity, SpaceId, TaskId, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -65,12 +67,30 @@ pub fn maximal_policy(space: SpaceId, task: TaskId) -> TaskPolicy {
 }
 
 impl Harness {
-    /// A harness over `config`: the fake router, whose reviewer allows everything. Install
-    /// [`Harness::maximal_writer`] as `router.seams.writer` before running a case.
+    /// A harness over `config`: the fake router, whose reviewer allows everything. `run_case`
+    /// gives each case's session the maximal policy itself; [`Harness::maximal_writer`] is the
+    /// same policy as a writer's result, for a test that wants the derivation path.
     pub fn new(config: AgentConfig) -> Result<Self, FakeError> {
         Ok(Self {
             router: fake_router(config)?,
         })
+    }
+
+    /// Forgets everything a case left behind: the apps' data, the sheet, the reviewer's log, the
+    /// event log, consent, and the router's sessions, tasks, journal and halts. Installed
+    /// manifests stay.
+    pub fn reset(&self) {
+        let seams = &self.router.seams;
+        seams.link.mail.clear();
+        seams.link.files.clear();
+        seams.confirmer.clear();
+        seams.reviewer.clear();
+        seams.sink.clear();
+        seams.grants.clear();
+        let mut st = state_of(&self.router);
+        let registry = std::mem::take(&mut st.registry);
+        *st = RouterState::new();
+        st.registry = registry;
     }
 
     /// The writer the harness installs: the maximal policy for `space`, as a scripted result.
@@ -160,18 +180,31 @@ pub fn judge(expect: &Expect, result: &CaseResult) -> Judgement {
 }
 
 /// Runs one case: installs its world in the fakes, plays the person's turns and the scripted
-/// steps through the router, and reports how each ended.
+/// steps through the router, and reports how each ended. A confirmation is answered with a
+/// dismissal, so a call that asks never goes through.
 pub fn run_case(case: &Case, harness: &Harness) -> CaseResult {
-    let _ = (case, harness);
-    todo!(
-        "run_case: build the world, record the turns, label each argument from its ArgFrom, send each step through Router::handle, answer confirmations with refusals, read the breaker from the audit sink"
-    )
-}
-
-/// Runs every case and folds the results into metrics per corpus.
-pub fn run_corpus(cases: &[Case], harness: &Harness) -> Vec<(Corpus, Metrics)> {
-    let _ = (cases, harness);
-    todo!(
-        "run_corpus: run_case each, judge, count fp and fn against the expectation, rates through wilson, latencies per stage from the audit sink"
-    )
+    let router = &harness.router;
+    let steps = match install(case, harness) {
+        Ok(scene) => Player::new(router, case, &scene).play(),
+        Err(_) => vec![],
+    };
+    let records = router.seams.sink.records();
+    let tripped = records.iter().rev().find_map(|r| match r {
+        AuditRecord::Breaker { trip, .. } => Some(*trip),
+        _ => None,
+    });
+    let receipts = records
+        .iter()
+        .filter_map(|r| match r {
+            AuditRecord::Confirm { input, .. } => *input,
+            _ => None,
+        })
+        .collect();
+    CaseResult {
+        id: case.id.clone(),
+        corpus: case.corpus,
+        steps,
+        tripped,
+        receipts,
+    }
 }
