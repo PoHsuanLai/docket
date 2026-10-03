@@ -33,6 +33,10 @@ RULES=(
   "docket-client: $EFFECTS toml"
   "docket-fake: $NO_CEDAR"
   "docket-eval: $NO_CEDAR"
+  # quire-do is a thin client: it reaches the bus only through docket-client (the EDGES row below
+  # forbids a direct docket-dbus or zbus), never the router, the policy point, the reviewer's
+  # cascade or Cedar: a terminal has no way around intentd's gate.
+  "docket-cli: docket-router policy-point action-review cedar-policy reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp"
   "docket-ds: zbus zvariant tokio reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify rmcp"
   # The edge reaches rmcp, and tokio through it; nothing else of the effects.
   "actions-mcp: zbus zvariant reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify"
@@ -107,6 +111,7 @@ EDGES=(
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router policy-point porter-client porter-core porter-infer prov"
   "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
   "readerd: docket-client docket-core docket-dbus porter-client porter-infer prov"
+  "docket-cli: docket-client docket-core model-provider porter-core prov"
   "docket-ds: companion-wire docket-client docket-core ds-intents porter-core prov voice-wire"
   "voice-wire: docket-core porter-core porter-infer"
   "voice-loop: docket-core porter-core porter-infer voice-wire"

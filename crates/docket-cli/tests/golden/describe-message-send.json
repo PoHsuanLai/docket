@@ -1,0 +1,48 @@
+{
+  "action": "message.send",
+  "name": "mail.message.send",
+  "label": "Send",
+  "effect": "outbound",
+  "on": {
+    "kind": "nothing"
+  },
+  "undo": "token",
+  "dry_run": "preview",
+  "reach": "offered",
+  "params": [
+    {
+      "flag": "--to",
+      "name": "to",
+      "type": "entity",
+      "need": "required",
+      "label": "To"
+    },
+    {
+      "flag": "--body",
+      "name": "body",
+      "type": "text",
+      "need": "required",
+      "label": "Message"
+    }
+  ],
+  "vocab": 1,
+  "app": "mail",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "to": {
+        "type": "string",
+        "maxLength": 600
+      },
+      "body": {
+        "type": "string",
+        "maxLength": 20000
+      }
+    },
+    "required": [
+      "to",
+      "body"
+    ],
+    "additionalProperties": false
+  }
+}

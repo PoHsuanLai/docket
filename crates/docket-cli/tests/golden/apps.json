@@ -1,0 +1,38 @@
+{
+  "vocab": 1,
+  "apps": [
+    {
+      "slug": "companion",
+      "app": "org.quire.Companion",
+      "actions": 2,
+      "kinds": [
+        "companion.task"
+      ]
+    },
+    {
+      "slug": "files",
+      "app": "org.quire.Files",
+      "actions": 4,
+      "kinds": [
+        "files.file"
+      ]
+    },
+    {
+      "slug": "mail",
+      "app": "org.quire.Mail",
+      "actions": 6,
+      "kinds": [
+        "mail.thread",
+        "mail.contact"
+      ]
+    },
+    {
+      "slug": "memory",
+      "app": "org.quire.Memory",
+      "actions": 3,
+      "kinds": [
+        "memory.fact"
+      ]
+    }
+  ]
+}

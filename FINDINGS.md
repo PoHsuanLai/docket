@@ -61,7 +61,7 @@ Filled in fill wave 1 (router): docket-core `compare`, `covers` and `intersectio
 another, a call against a policy, a child against its parent) with the whole-label and
 whole-segment pattern match, and `tool_schema` (one property per parameter, a handle accepted where
 text, an entity or a file goes). docket-router: `call_step` (every row of the lifecycle table),
-`Router::handle` (all 29 members), `child_policy`, `roster_of`, the labels the router derives
+`Router::handle` (all 32 members: the 29 of the freeze, `Run.DryRun`, and the control centre's `Control.TerminalGrants` and `Control.RevokeTerminalGrant`), `child_policy`, `roster_of`, the labels the router derives
 itself (a model's value is trusted only when it traces to the person's turns, a thing the router
 showed the session, or a closed set), consent per data class (a tainted session cannot lean on an
 `Always` for a write), coverage, the task policy (derived from the person's turns, capped by a parent
@@ -105,6 +105,73 @@ parameter in `ArgsChecked` and `AppLink::perform` can say `AppFault::TimedOut`, 
    every `Reviewer::review`. `SystemClock` sleeps on tokio; the fake `FixedClock` completes only
    for `Millis(0)`, so a test that wants a timeout gives the stage no time and a reviewer that
    hangs (`ScriptedReviewer::hanging`).
+
+## The terminal: `quire-do` (cli.md)
+
+Built, with tests against `docket-fake` (the router in process) and a private bus:
+
+- **Caller and rows.** `CallerRole::Cli`, `Origin::Cli`, `GrantCaller::Cli`, porter `prov`'s `Actor::Cli`,
+  `ActorKind::Cli` and `Source::Cli` (porter branch `l-cli`; `Actor` and `ActorKind` live in `prov`, so the
+  porter change is three variants, not one). A terminal's arguments are `Untrusted, Source::Cli`, derived by
+  the router. The Cedar rows (`policy/default.cedar`, `policy-point/tests/terminal.rs`): a read is final; an
+  undoable, outbound or destructive act asks and never goes to review, in every strictness; an ask-always
+  action asks; a hidden action is denied; a destructive act always asks. `AskReason::FromTerminal` names it.
+- **The standing grant.** The sheet for a terminal call that only the terminal rule asks about offers
+  `ConfirmOffer::OnceOrFromTerminal` ("Allow from the terminal: this action, until logout"); the answer is
+  `ConfirmAnswer::AllowedFromTerminal`. The router keeps it as `ActionMatch::One` in the task policy of the
+  terminal's session (`docket-router::terminal`), shown by `Control.TerminalGrants`, revoked by
+  `Control.RevokeTerminalGrant`, ended with the session (`Router::end_terminal_sessions`, which the daemon
+  calls at logout). It lifts only the terminal rule: Rule of Two, an untrusted recipient or destination
+  (everything typed in a terminal is untrusted, so an outbound send with a recipient never gets the offer),
+  mass, ask-always and lasting-memory rules still ask, a destructive act is never offered it, and a sheet that
+  answers it for any other caller records nothing. There is no flag, option or environment variable for it.
+- **`Run.DryRun`** (a new `Intents1` member, `IntentsRequest::DryRun`): the app's preview through the same
+  arguments check, labels, consent and policy as `Perform`, asking nobody and charging nothing; what the gate
+  would refuse is refused with the same refusal.
+- **`quire-do`** (`docket-cli`): commands, parameter mapping, `--dry-run`, `--json` (automatic when stdout is not
+  a terminal), stdin `-`, `describe` through `Shape::to_json_schema`, the exit-code table, `__complete` and the
+  completion files in `dist/completions`. `quire-do undo` and `undo --last` reach only the rows of the
+  terminal's own acts (the router cuts `Run.Undo` and `Control.Journal` for the role).
+- **Conformance.** `docket-eval --check-app <dir>` and `scripts/check-intents.sh` fail an app that ships a
+  `.desktop` file and no valid intents manifest, and a menu command or shortcut in `<AppName>.ui.toml` that
+  names no action and is not UI-only with a reason.
+
+Open, and the asks they make (nothing below was edited in the other repos):
+
+1. **`DbusTransport::call` is a `todo!()`** (fill wave 1, F1d), and so is intentd's `serve`. `quire-do` over the
+   real bus therefore finds intentd (`DbusTransport::connect` activates `org.quire.Intents1`) and then cannot
+   talk to it; the binary reports exit 6. The private-bus test shows the exit code where intentd is absent;
+   every other exit code is tested through the library over `InProcess`. `Run.DryRun`, `Control.TerminalGrants`
+   and `Control.RevokeTerminalGrant` are declared in `dbus/org.quire.Intents1.xml` and need codec arms.
+2. **intentd** (ask): derive the `AppId` of a `quire-do` process (a terminal process owns no bus name; the
+   fixture assumes `org.quire.Do`, listed under `cli` in `intentd.toml`), call `Router::end_terminal_sessions`
+   when the person's session ends, and serve the three new members.
+3. **sill** (ask): draw `ConfirmOffer::OnceOrFromTerminal` as a second button, "Allow from the terminal: this
+   action, until logout", answering `ConfirmAnswer::AllowedFromTerminal`; list the grants in the control centre
+   through `Control.TerminalGrants` with a revoke through `Control.RevokeTerminalGrant`.
+4. **The launcher's natural-date parser** is sill's and docket cannot reach it, so a Date or DateTime parameter
+   takes RFC 3339 only and says so. Ask: the parser as a pure crate below sill (quire or porter), which
+   `docket-cli::when` then calls ("tomorrow at nine").
+5. **ds menu commands and shortcuts carry no action id** (`ds::MenuItem::Item` has a `value: T` and a
+   `Shortcut`), so rule three of cli.md section 6 cannot be read from the data an app has today. The shape
+   `docket-eval --check-app` enforces the moment an app ships it is `<AppName>.ui.toml` beside the manifest
+   (documented in `docket-eval/src/ui.rs`): `[[commands]] id, source = "menu" | "shortcut", chord?, action?` for
+   every menu item and every shortcut binding, `[[ui_only]] id, reason` for the ones that are not an action.
+   Ask (quire, `ds`): `MenuItem::Item` and the shortcut table gain `action: Option<ActionName>` (or
+   `UiOnly(reason)`), and the app's build writes the file from its menu bar and shortcut table (a test that
+   walks `MenuBarModel` and the table). Until then the check passes an app with a manifest and prints a note.
+   Today `mailo`, `detent` and `sill` fail the check (a `.desktop` file, no manifest); `anyview` ships no
+   `.desktop` file yet.
+6. **A paused terminal session has no way back.** The breaker pauses a session "until the person speaks", and
+   a terminal has no turn to record (`Session.Turn` is the launcher's and the fields'). Three refusals in a row
+   from a terminal end every `quire-do` call with exit 7. Ask: `Control.Resume` of a session by the control
+   centre, or the breaker's pause for the `cli` role clearing when the person next answers a terminal sheet.
+7. **The terminal's session is in the `desktop` Space** (the implicit session of every role without a session
+   of its own), so a terminal call's target counts as `Same` (ask 42 stands).
+8. **`--session`** is passed to `Run.Perform` and ignored by the router for every role but the companion.
+9. **`quire-do <app> context`** shows another party's words as handles (`#<n>`, held by the terminal's session
+   and usable as an argument by a later command); `Session.Display` is not open to the `cli` role, so a person
+   at a terminal cannot read a held title. Ask: say whether the terminal may display what it holds.
 
 ## Upstream asks
 

@@ -25,9 +25,10 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `companion-wire` | the bodies of `org.quire.Companion1`: `AskWire`, `AnswerWire` and its cards, plans, forms and refusals, `FrontTask`, and the `SessionRecord`s companiond stores | none |
 | `agent-loop` | the companion's pure machines: `assemble`, `agent_step`, `choose_tier`, `side_step`, `idle_step`, `completion_line`, `rebuild`, `front_step` | none |
 | `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`) and `Reader1` as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths | zbus |
-| `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus`) | per transport |
+| `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus`, whose `connect` finds or activates intentd) | per transport |
 | `docket-fake` | test only: fixture manifests, `FakeMail`, `FakeFiles`, `ScriptedConfirmer`, `ScriptedReviewer`, `ScriptedWriter`, `ScriptedReader`, `FakeMemory`, `FixedClock`, `RecordingSink`, `MemoryGrants`, `FakeSeams`, `fake_router` | none |
-| `docket-eval` | the red-team suite: the corpus format and loader (`eval/`), `Case`, `Expect`, `RunReport`, `Metrics`, `wilson`, the runner skeleton and `Harness` | none |
+| `docket-eval` | the red-team suite: the corpus format and loader (`eval/`), `Case` (`Driver`: the companion or a terminal), `Expect`, `RunReport`, `Metrics`, `wilson`, the runner skeleton and `Harness`; and the conformance check `docket-eval --check-app <dir>` (`check`, `ui`) | none |
+| `docket-cli` | `quire-do`: every app drivable from a command line generated from its manifest. A thin client over `docket-client` with caller role `cli`: the command grammar, the parameter mapping, `describe` through stoker's `Shape::to_json_schema`, the exit codes, text and JSON output, shell completion. It reaches the bus only through `docket-client`, and never the router, Cedar or the policy point | per transport (the binary: the session bus) |
 | `actions-mcp` | the MCP edge: `tools`, `tool_name`, `hints_of`, `mcp_label`, `McpEdge` over `rmcp`. Off by default; the binary is a skeleton | rmcp |
 | `intentd` | the daemon and its library: `IntentdConfig`, the built-in `org.quire.Memory` and `org.quire.Companion` providers, `AlmanacMemory`, `QueuedSink`, `record_of`, `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `InferdWriter`, `ReaderClient`, `SystemSeams`, `serve` | everything |
 | `companiond` | the companion daemon: `Companiond`, `PlannerModel`, `recover`, `completion_effects`, `serve` | everything |
@@ -55,6 +56,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `intentd` | `docket-core`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
 | `companiond` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
 | `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-infer` |
+| `docket-cli` | `docket-core`, `docket-client` (feature `dbus`), `model-provider`, `prov`, `porter-core` |
 | `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
 | `voice-wire` | `docket-core`, `porter-core`, `porter-infer` |
 | `voice-loop` | `voice-wire`, `docket-core`, `porter-core`, `porter-infer` |
@@ -65,6 +67,8 @@ crates (`cua-action`, `model-provider`, `speech-vad`), porter (`prov`, `porter-c
 `porter-infer`, `porter-client`, `porter-dbus`), almanac (`almanac-core`, `almanac-client`) and
 quire's view-only `ds-intents` (through `docket-ds` alone), all by sibling path until pinned git
 revs replace them. Nothing of `cua` or `sill` may enter any tree here.
+
+`docket-cli` (`quire-do`) reaches the bus only through `docket-client`: no direct `docket-dbus` or `zbus`, and none of `docket-router`, `policy-point`, `action-review` or `cedar-policy` anywhere in its tree. A terminal has no way around intentd's gate.
 
 External boundaries: see `scripts/check-boundary.sh` (the rules and their reasons are written
 there). `zbus` is behind `docket-dbus` and `docket-client`'s `dbus` feature only; the pure set
@@ -78,13 +82,14 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `docket-core` | `units`, `ids` < `value`, `manifest` < `validate`, `schema` < `context`, `preview` < `call`, `undo`, `grant`, `confirm`, `review`, `budget` < `task_policy`, `reader`, `planner`, `roster` < `message`, `task`, `audit`, `gate`, `index`, `summon` < `config`, `caller`, `wire` |
 | `policy-point` | `request` < `pdp` |
 | `action-review` | `verdict` < `request`, `breaker` < `cascade`, `infer` |
-| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck` < `router` |
+| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck` < `router` |
 | `companion-wire` | `ask`, `answer` < `record` |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `step` |
 | `docket-dbus` | `names`, `error`, one file per interface, `introspect` |
 | `docket-client` | `provider`, `transport` < `intents`, `serve` |
 | `docket-fake` | `labels`, `simple`, `mail`, `files`, `scripted`, `seams`, `router` |
-| `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics` |
+| `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `check` < `ui` (the binary `docket-eval` runs `check`) |
+| `docket-cli` | `exit`, `args` < `resolve`, `when` < `params`, `schema`, `outcome` < `render`, `complete`, `help` < `exec` < `lib` (`run`), `main` |
 | `intentd` | `config`, `builtin`, `record`, `sink`, `memory`, `grants`, `sheet`, `link`, `infer`, `system`, `serve` |
 | `companiond` | `completion`, `recover`, `planner`, `runtime`, `serve` |
 | `readerd` | `host`, `request`, `service`, `serve` |
@@ -102,6 +107,9 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | the four rulings of policy (`Ruling`), the reasons to ask (`AskReason`), the coarse `DenyCode`, `Stage`, `Impact`, `ReasonCode`, `BreakerTrip`, `Strictness` | `docket-core::review`: the refusals and the audit name them, so they sit below the crates that decide |
 | the reviewer's `ReviewVerdict`, `tighten`, `plan`, the denial `Breaker` | `action-review` |
 | the Cedar schema, default policies, `Pdp` | `policy-point`, files in `policy/` |
+| the terminal's rows of the grid (`principal.kind == "cli"`) and its standing grant | `policy/default.cedar` (`cli-asks`, `cli-destructive-asks`, `cli-granted-final`); the grant itself is `docket-router::terminal`: a task policy of the terminal's session naming the action, given only by `ConfirmAnswer::AllowedFromTerminal` |
+| `quire-do`: the command grammar, the parameter mapping, the exit codes | `docket-cli` (`args`, `params`, `exit`); a terminal's arguments are labelled `Untrusted, Source::Cli` by the router, never by the client |
+| the conformance check of every app repo | `docket-eval --check-app` and `scripts/check-intents.sh` (cli.md section 6) |
 | the planner's view and its builders: the view type | `docket-core::planner`; the one builder, `planner_view`, and the `HandleTable`, `docket-router::handles` |
 | the roster and episode lines the planner reads | `docket-core::roster` (the view holds them) |
 | episodes and their skeleton | almanac `Episode`; docket builds the skeleton (`docket-core::task::skeleton_of`) and the router records it |
@@ -179,6 +187,8 @@ for its interface; run `cargo test -p docket-dbus`, which prints the new XML; re
 **Add a Cedar rule.** Write it in `policy/default.cedar` with an `@id`; `Pdp::load` validates it
 strictly against `policy/quire.cedarschema`; add the row to `policy-point/tests/grid.rs`. A rule
 that tightens only is a forbid; a user override directory may only forbid.
+
+**Add an action to every face.** Declare it in the app's manifest (recipe above) and implement it in the app's `IntentProvider`. That is all: `quire-do <app> <action>` (`docket-cli`), the MCP tool (`actions-mcp`) and the D-Bus `Run.Perform` are generated from the declaration. An app's menu command or shortcut that is the face of the action names it in `<AppName>.ui.toml`; `scripts/check-intents.sh` fails the app's gate for a menu command with no action that is not listed UI-only.
 
 **Add a red-team case.** A TOML file under `eval/<corpus>/`, in the format documented in
 `docket-eval/src/case.rs`: the person's turns, the world, the scripted calls and messages of a

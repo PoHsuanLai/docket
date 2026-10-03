@@ -1,0 +1,60 @@
+{
+  "vocab": 1,
+  "preview": {
+    "kind": "message",
+    "v": {
+      "to": [
+        {
+          "value": "accounting@example.test",
+          "label": {
+            "integrity": "trusted",
+            "confidentiality": {
+              "kind": "public"
+            },
+            "classes": [],
+            "sources": [
+              {
+                "kind": "app",
+                "v": "org.quire.Mail"
+              }
+            ]
+          }
+        }
+      ],
+      "subject": {
+        "value": "(subject)",
+        "label": {
+          "integrity": "trusted",
+          "confidentiality": {
+            "kind": "public"
+          },
+          "classes": [],
+          "sources": [
+            {
+              "kind": "app",
+              "v": "org.quire.Mail"
+            }
+          ]
+        }
+      },
+      "body": {
+        "value": "(body)",
+        "label": {
+          "integrity": "trusted",
+          "confidentiality": {
+            "kind": "public"
+          },
+          "classes": [],
+          "sources": [
+            {
+              "kind": "app",
+              "v": "org.quire.Mail"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "entities": [],
+  "handles": []
+}

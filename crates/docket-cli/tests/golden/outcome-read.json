@@ -1,0 +1,19 @@
+{
+  "vocab": 1,
+  "outcome": {
+    "said": null,
+    "value": {
+      "kind": "text",
+      "v": "This week"
+    },
+    "show": {
+      "kind": "none"
+    },
+    "follow": {
+      "kind": "nothing"
+    }
+  },
+  "undo": null,
+  "entities": [],
+  "handles": []
+}

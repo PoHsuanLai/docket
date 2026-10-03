@@ -1,0 +1,9 @@
+{
+  "vocab": 1,
+  "error": {
+    "exit": 2,
+    "kind": "usage",
+    "what": "--bogus is not a parameter of mail.thread.read (it takes no parameters)",
+    "detail": null
+  }
+}

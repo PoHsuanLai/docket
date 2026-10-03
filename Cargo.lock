@@ -572,6 +572,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-cli"
+version = "0.1.0"
+dependencies = [
+ "docket-client",
+ "docket-core",
+ "docket-fake",
+ "docket-router",
+ "model-provider",
+ "porter-core",
+ "prov",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "docket-client"
 version = "0.1.0"
 dependencies = [

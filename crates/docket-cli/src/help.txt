@@ -1,0 +1,24 @@
+quire-do: drive any quire app from a command line.
+
+Usage:
+  quire-do apps                                  installed apps with manifests
+  quire-do <app> --list                          its actions: name, effect, parameters
+  quire-do describe <app> <action> [--json]      JSON Schema of the parameters
+  quire-do <app> <action> [<thing>...] [--<param> <value>]... [--dry-run] [--json] [--session <id>]
+  quire-do <app> search <text> [--json]          search the app's things
+  quire-do <app> context [--json]                what the app shows now
+  quire-do undo <undo-id> | --last               take back what this terminal did
+
+<app> is the app's slug (mail, anyview, shell) or its full name; <action> drops the app's
+prefix (thread.archive for mail.thread.archive). Things are <kind>:<key>, or #<n> for text an
+earlier command held. A text parameter given as `-` reads standard input. Dates are RFC 3339.
+
+Every call goes through intentd's gate: a read runs, anything else asks the person on screen
+unless they chose "Allow from the terminal: this action, until logout" on that sheet. There is
+no flag that skips the question.
+
+Output is text on a terminal, and JSON with --json or when stdout is not a terminal:
+  {vocab, outcome, undo, entities, handles}; a failure is {vocab, error}.
+
+Exit codes:
+{codes}

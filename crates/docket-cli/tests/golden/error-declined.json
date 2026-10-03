@@ -1,0 +1,12 @@
+{
+  "vocab": 1,
+  "error": {
+    "exit": 4,
+    "kind": "declined",
+    "what": "the person declined",
+    "detail": {
+      "kind": "unconfirmed",
+      "v": "dismissed"
+    }
+  }
+}

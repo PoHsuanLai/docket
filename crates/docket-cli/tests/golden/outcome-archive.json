@@ -1,0 +1,18 @@
+{
+  "vocab": 1,
+  "outcome": {
+    "said": "Archived 1 threads",
+    "value": null,
+    "show": {
+      "kind": "none"
+    },
+    "follow": {
+      "kind": "nothing"
+    }
+  },
+  "undo": {
+    "id": 1
+  },
+  "entities": [],
+  "handles": []
+}

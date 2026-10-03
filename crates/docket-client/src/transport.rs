@@ -69,6 +69,26 @@ impl DbusTransport {
     pub fn new(connection: docket_dbus::BusConnection) -> Self {
         Self { connection }
     }
+
+    /// Connects to the session bus and makes sure intentd is there, starting it through D-Bus
+    /// activation when it is installed and not running. A bus with no intentd on it, installed
+    /// or running, is `Closed`: the caller says "unavailable", and no request was sent.
+    pub async fn connect() -> Result<Self, TransportError> {
+        let connection = docket_dbus::BusConnection::session()
+            .await
+            .map_err(|e| TransportError::Bus(e.to_string()))?;
+        connection
+            .call_method(
+                Some("org.freedesktop.DBus"),
+                "/org/freedesktop/DBus",
+                Some("org.freedesktop.DBus"),
+                "StartServiceByName",
+                &(docket_dbus::INTENTS_BUS, 0u32),
+            )
+            .await
+            .map_err(|_| TransportError::Closed)?;
+        Ok(Self::new(connection))
+    }
 }
 
 #[cfg(feature = "dbus")]

@@ -1,0 +1,33 @@
+[package]
+name = "docket-cli"
+description = "quire-do: every app we ship, driven from a command line generated from its intents manifest. A thin client over docket-client with caller role cli; every call goes through intentd's full gate."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "quire-do"
+path = "src/main.rs"
+
+[dependencies]
+docket-core = { workspace = true }
+docket-client = { workspace = true, features = ["dbus"] }
+prov = { workspace = true }
+porter-core = { workspace = true }
+model-provider = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+docket-client = { workspace = true, features = ["dbus", "in_process"] }
+docket-fake = { workspace = true }
+docket-router = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

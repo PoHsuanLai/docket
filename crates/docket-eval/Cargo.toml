@@ -8,6 +8,10 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[[bin]]
+name = "docket-eval"
+path = "src/main.rs"
+
 [dependencies]
 docket-fake = { workspace = true }
 docket-core = { workspace = true }

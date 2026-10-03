@@ -36,6 +36,8 @@ pub struct FakeLink {
     pub files: FakeFiles,
     /// Apps that never answer `Perform`: the call times out.
     pub silent: Mutex<BTreeSet<AppName>>,
+    /// What the focused window shows, if a test set one: the fakes have no windows of their own.
+    pub window: Mutex<Option<ContextSnapshot>>,
 }
 
 impl FakeLink {
@@ -45,6 +47,14 @@ impl FakeLink {
             mail,
             files,
             silent: Mutex::new(BTreeSet::new()),
+            window: Mutex::new(None),
+        }
+    }
+
+    /// Makes `snapshot` what the app's `Context` answers (until the next call to this).
+    pub fn show_window(&self, snapshot: ContextSnapshot) {
+        if let Ok(mut window) = self.window.lock() {
+            *window = Some(snapshot);
         }
     }
 
@@ -108,11 +118,17 @@ impl AppLink for FakeLink {
 
     async fn context(
         &self,
-        _app: &AppName,
+        app: &AppName,
         _scope: ContextScope,
     ) -> Result<ContextSnapshot, LinkFault> {
-        // The fakes have no windows: ds answers context in a real app.
-        Err(LinkFault::Unavailable)
+        // The fakes have no windows of their own (ds answers context in a real app): a test
+        // sets one with `show_window`.
+        self.window
+            .lock()
+            .ok()
+            .and_then(|window| window.clone())
+            .filter(|snapshot| snapshot.app == *app)
+            .ok_or(LinkFault::Unavailable)
     }
 
     async fn search(

@@ -1,0 +1,119 @@
+{
+  "vocab": 1,
+  "app": "mail",
+  "actions": [
+    {
+      "action": "thread.read",
+      "name": "mail.thread.read",
+      "label": "Read",
+      "effect": "read",
+      "on": {
+        "kind": "one",
+        "v": "mail.thread"
+      },
+      "undo": "not_undoable",
+      "dry_run": "none",
+      "reach": "offered",
+      "params": []
+    },
+    {
+      "action": "thread.archive",
+      "name": "mail.thread.archive",
+      "label": "Archive",
+      "effect": "undoable_write",
+      "on": {
+        "kind": "many",
+        "v": "mail.thread"
+      },
+      "undo": "token",
+      "dry_run": "none",
+      "reach": "offered",
+      "params": []
+    },
+    {
+      "action": "draft.create",
+      "name": "mail.draft.create",
+      "label": "Create draft",
+      "effect": "undoable_write",
+      "on": {
+        "kind": "nothing"
+      },
+      "undo": "token",
+      "dry_run": "none",
+      "reach": "offered",
+      "params": [
+        {
+          "flag": "--body",
+          "name": "body",
+          "type": "text",
+          "need": "required",
+          "label": "Body"
+        }
+      ]
+    },
+    {
+      "action": "message.send",
+      "name": "mail.message.send",
+      "label": "Send",
+      "effect": "outbound",
+      "on": {
+        "kind": "nothing"
+      },
+      "undo": "token",
+      "dry_run": "preview",
+      "reach": "offered",
+      "params": [
+        {
+          "flag": "--to",
+          "name": "to",
+          "type": "entity",
+          "need": "required",
+          "label": "To"
+        },
+        {
+          "flag": "--body",
+          "name": "body",
+          "type": "text",
+          "need": "required",
+          "label": "Message"
+        }
+      ]
+    },
+    {
+      "action": "message.forward",
+      "name": "mail.message.forward",
+      "label": "Forward",
+      "effect": "outbound",
+      "on": {
+        "kind": "many",
+        "v": "mail.thread"
+      },
+      "undo": "not_undoable",
+      "dry_run": "preview",
+      "reach": "offered",
+      "params": [
+        {
+          "flag": "--to",
+          "name": "to",
+          "type": "entity",
+          "need": "required",
+          "label": "To"
+        }
+      ]
+    },
+    {
+      "action": "thread.delete",
+      "name": "mail.thread.delete",
+      "label": "Delete",
+      "effect": "destructive",
+      "on": {
+        "kind": "many",
+        "v": "mail.thread"
+      },
+      "undo": "not_undoable",
+      "dry_run": "none",
+      "reach": "offered",
+      "params": []
+    }
+  ]
+}
