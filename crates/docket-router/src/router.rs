@@ -76,10 +76,11 @@ impl<S: Seams> Router<S> {
             R::SearchCancel(_) => IntentsReply::Done,
             R::Perform {
                 call,
+                session,
                 parent_window,
             } => {
                 let now = self.seams.clock().now();
-                let who = self.locked().who_for(caller, role, now);
+                let who = self.locked().who_for(caller, role, session.as_ref(), now);
                 match who {
                     Ok(who) => IntentsReply::Performed(Box::new(
                         self.perform_chain(who, call, parent_window).await,

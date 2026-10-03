@@ -58,10 +58,12 @@ impl<T: Transport> Intents<T> {
     pub async fn perform(
         &self,
         call: CallRequest,
+        session: Option<SessionId>,
         parent_window: Option<WindowKey>,
     ) -> Result<Result<Outcome, CallRefusal>, ClientError> {
         let request = IntentsRequest::Perform {
             call,
+            session,
             parent_window,
         };
         self.ask(request, |r| match r {

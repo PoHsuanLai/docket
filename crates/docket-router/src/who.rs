@@ -41,12 +41,13 @@ impl Who {
 
 impl RouterState {
     /// Who a `role` calling as `caller` is. The person's surfaces act directly; a companion
-    /// acts in its newest session (a closed one refuses its calls, so a halt reads as a halt); MCP clients and apps act in a session of
+    /// acts in the session it names, else its newest (a closed one refuses its calls, so a halt reads as a halt); MCP clients and apps act in a session of
     /// their own, made when they first call.
     pub(crate) fn who_for(
         &mut self,
         caller: &CallerId,
         role: CallerRole,
+        named: Option<&SessionId>,
         now: prov::UnixSeconds,
     ) -> Result<Who, WireRefusal> {
         let app = caller.app.name.clone();
@@ -62,13 +63,16 @@ impl RouterState {
                 });
             }
             CallerRole::Companion => {
-                let session = self
+                let mut companions = self
                     .sessions
                     .iter()
-                    .filter(|(_, r)| matches!(r.actor, Actor::Companion { .. }))
-                    .max_by_key(|(id, _)| crate::messaging::age(id))
-                    .map(|(id, r)| (id.clone(), r.actor.clone()))
-                    .ok_or(WireRefusal::NoSuchSession)?;
+                    .filter(|(_, r)| matches!(r.actor, Actor::Companion { .. }));
+                let session = match named {
+                    Some(wanted) => companions.find(|(id, _)| *id == wanted),
+                    None => companions.max_by_key(|(id, _)| crate::messaging::age(id)),
+                }
+                .map(|(id, r)| (id.clone(), r.actor.clone()))
+                .ok_or(WireRefusal::NoSuchSession)?;
                 return Ok(Who {
                     caller: caller.clone(),
                     role,

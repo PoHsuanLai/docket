@@ -727,6 +727,7 @@ async fn the_persons_own_launcher_act_skips_policy_and_leaves_no_session_behind(
         &launcher(),
         IntentsRequest::Perform {
             call: call("mail.thread.archive", &["t2"], vec![]),
+            session: None,
             parent_window: None,
         },
     )
@@ -738,4 +739,49 @@ async fn the_persons_own_launcher_act_skips_policy_and_leaves_no_session_behind(
     assert!(router.seams.link.mail.is_archived("t2"));
     assert!(router.seams.confirmer.requests().is_empty());
     assert!(router.state.lock().expect("lock").sessions.is_empty());
+}
+
+#[tokio::test]
+async fn a_call_names_the_session_it_belongs_to_while_two_tasks_work() {
+    let router = router();
+    let first = ready(&router).await;
+    let _newer = open(&router, "work", AgentRef::Companion).await;
+    let reply = ask(
+        &router,
+        &companion(),
+        IntentsRequest::Perform {
+            call: call("mail.thread.archive", &["t1"], vec![]),
+            session: Some(first.session.clone()),
+            parent_window: None,
+        },
+    )
+    .await;
+    assert!(
+        matches!(reply, IntentsReply::Performed(ref r) if r.is_ok()),
+        "{reply:?}"
+    );
+    let acted_in = router
+        .seams
+        .sink
+        .records()
+        .into_iter()
+        .find_map(|r| match r {
+            AuditRecord::Call {
+                actor: prov::Actor::Companion { session, .. },
+                ..
+            } => Some(session),
+            _ => None,
+        });
+    assert_eq!(acted_in, Some(first.session), "not the newest session");
+    let stranger = ask(
+        &router,
+        &companion(),
+        IntentsRequest::Perform {
+            call: call("mail.thread.archive", &["t2"], vec![]),
+            session: Some(prov::SessionId::parse("s-999").expect("id")),
+            parent_window: None,
+        },
+    )
+    .await;
+    assert_eq!(stranger, IntentsReply::Refused(WireRefusal::NoSuchSession));
 }

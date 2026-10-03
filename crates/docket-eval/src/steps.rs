@@ -227,6 +227,7 @@ impl<'a> Player<'a> {
                     args,
                     origin: Origin::Companion,
                 },
+                session: Some(self.scene.front.clone()),
                 parent_window: None,
             },
         ));

@@ -240,6 +240,7 @@ pub async fn perform(
         &companion(),
         IntentsRequest::Perform {
             call: request,
+            session: None,
             parent_window: None,
         },
     )

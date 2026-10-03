@@ -11,10 +11,11 @@ use zbus::zvariant::OwnedObjectPath;
     default_path = "/org/quire/Intents1"
 )]
 pub trait Run {
-    /// Performs a call (`CallRequest` JSON; the window is `Option<WindowKey>` JSON). Answers a Request object whose `Response` carries the `Outcome` or `CallRefusal`.
+    /// Performs a call (`CallRequest` JSON; the session is `Option<SessionId>` JSON, `null` for the person's surfaces and callers with one session; the window is `Option<WindowKey>` JSON). Answers a Request object whose `Response` carries the `Outcome` or `CallRefusal`.
     fn perform(
         &self,
         call: &str,
+        session: &str,
         parent_window: &str,
         options: &Details,
     ) -> zbus::Result<OwnedObjectPath>;
@@ -41,10 +42,11 @@ impl RunSkeleton {
     fn perform(
         &self,
         call: String,
+        session: String,
         parent_window: String,
         options: Details,
     ) -> fdo::Result<OwnedObjectPath> {
-        let _ = (call, parent_window, options);
+        let _ = (call, session, parent_window, options);
         Err(crate::introspect::frozen())
     }
 

@@ -51,9 +51,9 @@ async fn perform_sends_the_call_and_keeps_the_calls_own_refusal_apart_from_a_ref
         Ok(denied),
         Ok(IntentsReply::Refused(WireRefusal::NotAllowed)),
     ]));
-    let first = intents.perform(call(), None).await.expect("a reply");
+    let first = intents.perform(call(), None, None).await.expect("a reply");
     assert_eq!(first, Err(CallRefusal::Denied(DenyCode::NeedsUser)));
-    let second = intents.perform(call(), None).await;
+    let second = intents.perform(call(), None, None).await;
     assert_eq!(second, Err(ClientError::Refused(WireRefusal::NotAllowed)));
 }
 

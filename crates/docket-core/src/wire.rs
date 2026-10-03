@@ -162,6 +162,9 @@ pub enum IntentsRequest {
     Perform {
         /// The call.
         call: CallRequest,
+        /// The session the call belongs to, for a companion with several tasks working at once;
+        /// `None` for the person's own surfaces and for callers with one session.
+        session: Option<SessionId>,
         /// The window to anchor a confirmation to.
         parent_window: Option<WindowKey>,
     },

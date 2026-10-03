@@ -35,6 +35,7 @@
  <interface name="org.quire.Intents1.Run">
    <method name="Perform">
      <arg name="call" type="s" direction="in"/>
+     <arg name="session" type="s" direction="in"/>
      <arg name="parent_window" type="s" direction="in"/>
      <arg name="options" type="a{sv}" direction="in"/>
      <arg type="o" direction="out"/>
