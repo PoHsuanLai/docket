@@ -10,7 +10,7 @@
 
 use crate::call::CallRequest;
 use crate::ids::{ActionRef, FileRef, LabelText, TurnId};
-use crate::manifest::ArgSink;
+use crate::manifest::{ActionDecl, ArgSink};
 use crate::pattern::{pattern_inside, pattern_matches};
 use crate::planner::{ActionCard, UserTurn};
 use crate::review::ReviewError;
@@ -298,19 +298,40 @@ fn action_inside(m: &ActionMatch, ceiling: Effect, old: &BTreeSet<ActionMatch>) 
             .any(|o| matches!(o, ActionMatch::AppUpTo(a, e) if a == app && reach <= *e))
 }
 
-/// Whether the call is inside the task policy, judged from the call and its labels alone: the
-/// policy is in force, the action and every target kind are named, no more things are touched
-/// than allowed, and every argument is either trusted or matches a trusted pattern. Effects
-/// and sinks come from the manifest, which a call does not carry: the router checks the
-/// effect against the ceiling before it asks, and treats every argument as feeding a sink,
-/// which is how the decision table reads "arguments untrusted".
-pub fn covers(policy: &TaskPolicy, call: &CallRequest, labels: &ArgLabels) -> Coverage {
+/// The trusted patterns a sink may be matched against: recipients, destinations (a query leaves
+/// the machine like a destination) and paths. A body has none: untrusted content never becomes
+/// trusted by what it says.
+fn patterns_for<'a>(policy: &'a TaskPolicy, sink: ArgSink) -> &'a [TrustedPattern] {
+    match sink {
+        ArgSink::Recipient => &policy.recipients,
+        ArgSink::Destination | ArgSink::Query => &policy.destinations,
+        ArgSink::Path => &policy.paths,
+        ArgSink::Inert | ArgSink::Body => &[],
+    }
+}
+
+/// Whether the call is inside the task policy, judged from the manifest's declaration of the
+/// action (its effect and where each argument goes), the call and its labels: the policy is in
+/// force, the action's effect is within the ceiling and within the cap of an app-wide grant, the
+/// action and every target kind are named, no more things are touched than allowed, and every
+/// argument that feeds a sink is either trusted or matches a trusted pattern for that sink. An
+/// argument the manifest does not declare is treated as a body. Expiry by the clock is the
+/// router's.
+pub fn covers(
+    policy: &TaskPolicy,
+    decl: &ActionDecl,
+    call: &CallRequest,
+    labels: &ArgLabels,
+) -> Coverage {
     if policy.state != TaskPolicyState::Active {
         return Coverage::Outside(Widening::Expiry);
     }
+    if decl.effect > policy.ceiling {
+        return Coverage::Outside(Widening::Ceiling(decl.effect));
+    }
     let named = policy.actions.iter().any(|m| match m {
         ActionMatch::One(a) => *a == call.action,
-        ActionMatch::AppUpTo(app, _) => *app == call.action.app,
+        ActionMatch::AppUpTo(app, cap) => *app == call.action.app && decl.effect <= *cap,
     });
     if !named {
         return Coverage::Outside(Widening::Action(ActionMatch::One(call.action.clone())));
@@ -336,27 +357,27 @@ pub fn covers(policy: &TaskPolicy, call: &CallRequest, labels: &ArgLabels) -> Co
                 .get(*name)
                 .is_none_or(|l| l.integrity == Integrity::Untrusted)
         })
-        .find_map(|(_, arg)| uncovered_argument(policy, &arg.value))
+        .find_map(|(name, arg)| {
+            let sink = decl
+                .params
+                .iter()
+                .find(|p| &p.name == name)
+                .map_or(ArgSink::Body, |p| p.sink);
+            uncovered_argument(policy, sink, &arg.value)
+        })
         .map_or(Coverage::Inside, Coverage::Outside)
 }
 
-/// The widening that would make an untrusted `value` acceptable, or `None` when a trusted
-/// pattern of the policy already matches it. The sink is read from the value's type.
-fn uncovered_argument(policy: &TaskPolicy, value: &Value) -> Option<Widening> {
-    let patterns = policy
-        .recipients
-        .iter()
-        .chain(&policy.destinations)
-        .chain(&policy.paths);
-    if patterns.into_iter().any(|p| pattern_matches(p, value)) {
+/// The widening that would make an untrusted `value` feeding `sink` acceptable, or `None` when
+/// the sink is inert or a trusted pattern of the policy already matches it.
+fn uncovered_argument(policy: &TaskPolicy, sink: ArgSink, value: &Value) -> Option<Widening> {
+    if sink == ArgSink::Inert
+        || patterns_for(policy, sink)
+            .iter()
+            .any(|p| pattern_matches(p, value))
+    {
         return None;
     }
-    let sink = match value {
-        Value::Entity(_) | Value::Entities(_) => ArgSink::Recipient,
-        Value::Url(_) => ArgSink::Destination,
-        Value::File(_) => ArgSink::Path,
-        _ => ArgSink::Body,
-    };
     Some(Widening::Pattern(
         sink,
         TrustedPattern::Exact(value.clone()),

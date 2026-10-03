@@ -325,7 +325,7 @@ fn covers_table() {
             ),
             labels(vec![("to", Integrity::Untrusted)]),
             Coverage::Outside(Widening::Pattern(
-                ArgSink::Body,
+                ArgSink::Recipient,
                 TrustedPattern::Exact(Value::Text("bob@evil-example.com".into())),
             )),
         ),
@@ -375,6 +375,74 @@ fn covers_table() {
         ),
     ];
     for (name, policy, call, labels, want) in cases {
-        assert_eq!(covers(&policy, &call, &labels), want, "case: {name}");
+        let decl = declared(&call, Effect::UndoableWrite);
+        assert_eq!(covers(&policy, &decl, &call, &labels), want, "case: {name}");
     }
+}
+
+/// The manifest's declaration of `call`'s action: `to` feeds a recipient, `body` a body, `into` a
+/// path and `label` nowhere that matters.
+fn declared(call: &CallRequest, effect: Effect) -> ActionDecl {
+    let mut decl = decl(call.action.name.as_str(), effect, UndoSupport::NotUndoable);
+    decl.params = vec![
+        text_param("to", ArgSink::Recipient, ParamNeed::Optional),
+        text_param("body", ArgSink::Body, ParamNeed::Optional),
+        text_param("into", ArgSink::Path, ParamNeed::Optional),
+        text_param("label", ArgSink::Inert, ParamNeed::Optional),
+    ];
+    decl
+}
+
+#[test]
+fn the_declaration_decides_the_effect_the_cap_and_the_sinks() {
+    let archive = call("mail.thread.archive", &["t1"], vec![]);
+    let outbound = declared(&archive, Effect::Outbound);
+    assert_eq!(
+        covers(&policy(), &outbound, &archive, &labels(vec![])),
+        Coverage::Outside(Widening::Ceiling(Effect::Outbound)),
+        "above the ceiling"
+    );
+    let capped = edit(|p| p.ceiling = Effect::Destructive);
+    assert_eq!(
+        covers(&capped, &outbound, &archive, &labels(vec![])),
+        Coverage::Outside(Widening::Action(ActionMatch::One(archive.action.clone()))),
+        "an app-wide grant stops at its own cap"
+    );
+    let inert = call(
+        "mail.thread.archive",
+        &["t1"],
+        vec![("label", Value::Text("from a stranger".into()))],
+    );
+    assert_eq!(
+        covers(
+            &policy(),
+            &declared(&inert, Effect::UndoableWrite),
+            &inert,
+            &labels(vec![("label", Integrity::Untrusted)])
+        ),
+        Coverage::Inside,
+        "an untrusted value that feeds nowhere is covered"
+    );
+    let body = call(
+        "mail.draft.create",
+        &[],
+        vec![("body", Value::Text("hi".into()))],
+    );
+    let wide = edit(|p| {
+        p.recipients
+            .push(TrustedPattern::Exact(Value::Text("hi".into())))
+    });
+    assert_eq!(
+        covers(
+            &wide,
+            &declared(&body, Effect::UndoableWrite),
+            &body,
+            &labels(vec![("body", Integrity::Untrusted)])
+        ),
+        Coverage::Outside(Widening::Pattern(
+            ArgSink::Body,
+            TrustedPattern::Exact(Value::Text("hi".into()))
+        )),
+        "no recipient pattern vouches for a body"
+    );
 }

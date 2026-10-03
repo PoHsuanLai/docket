@@ -1,10 +1,9 @@
-//! Whether a call is inside the task policy. `docket_core::covers` judges what a call and its
-//! labels show; the effect an action has is the manifest's, so the ceiling and an app's cap
-//! are checked here before it is asked.
+//! Whether a call is inside the task policy. `docket_core::covers` judges the call from the
+//! manifest's declaration (its effect, its cap and where each argument goes) and the labels; the
+//! clock's expiry is the router's.
 
-use docket_core::{
-    ActionDecl, ActionMatch, ArgLabels, CallRequest, Coverage, TaskPolicy, Widening, covers,
-};
+use docket_core::ActionMatch;
+use docket_core::{ActionDecl, ArgLabels, CallRequest, Coverage, TaskPolicy, Widening, covers};
 use prov::UnixSeconds;
 
 /// The coverage of `call` under `policy` at `now`. No policy covers nothing.
@@ -15,21 +14,9 @@ pub(crate) fn coverage(
     labels: &ArgLabels,
     now: UnixSeconds,
 ) -> Coverage {
-    let outside = || Coverage::Outside(Widening::Action(ActionMatch::One(call.action.clone())));
-    let Some(policy) = policy else {
-        return outside();
-    };
-    let named = policy.actions.iter().any(|m| match m {
-        ActionMatch::One(a) => *a == call.action,
-        ActionMatch::AppUpTo(app, cap) => *app == call.action.app && decl.effect <= *cap,
-    });
-    if policy.expires < now {
-        Coverage::Outside(Widening::Expiry)
-    } else if decl.effect > policy.ceiling {
-        Coverage::Outside(Widening::Ceiling(decl.effect))
-    } else if !named {
-        outside()
-    } else {
-        covers(policy, call, labels)
+    match policy {
+        None => Coverage::Outside(Widening::Action(ActionMatch::One(call.action.clone()))),
+        Some(policy) if policy.expires < now => Coverage::Outside(Widening::Expiry),
+        Some(policy) => covers(policy, decl, call, labels),
     }
 }
