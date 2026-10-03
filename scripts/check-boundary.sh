@@ -37,8 +37,8 @@ RULES=(
   # The edge reaches rmcp, and tokio through it; nothing else of the effects.
   "actions-mcp: zbus zvariant reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify"
   # The daemons reach the bus and a runtime; none reaches HTTP, an embedding runtime or the MCP
-  # SDK. intentd reaches rusqlite only through almanac-client (FINDINGS: upstream asks).
-  "intentd: reqwest hyper hyper-util rustls pipewire ort fastembed rmcp"
+  # SDK. almanac-client hosts the service only behind its `in_process` feature, so none reaches SQLite.
+  "intentd: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
   "companiond: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
   "readerd: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
   "voiced: reqwest hyper hyper-util rustls ort fastembed rusqlite rmcp cedar-policy"

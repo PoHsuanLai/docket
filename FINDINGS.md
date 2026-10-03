@@ -1,15 +1,15 @@
 # Findings
 
-Open items and standing facts. An entry names the condition that closes it. At the freeze there
-are **37 `todo!()` bodies** in library and daemon code (49 lines: `MemoryProvider` and
-`CompanionProvider` share one macro line), listed below, one row per crate or file; the tests
-contain none, and no test is `#[ignore]`d.
+Open items and standing facts. An entry names the condition that closes it. After fill wave 1
+and the docket amendment there are **36 `todo!()` bodies** in library and daemon code (35 lines:
+`MemoryProvider` and `CompanionProvider` share one macro line), listed below, one row per crate
+or file; the tests contain none, and no test is `#[ignore]`d. (The freeze had 37: `agent_step`
+was filled in fill wave 1.)
 
 ## Stubs behind frozen interfaces
 
 | Where | Count | Closes when |
 | --- | --- | --- |
-| agent-loop `agent_step` | 1 | fill wave 1 (F1d): the planner loop table (Idle, Planning, AwaitingCalls, AwaitingReader, Paused, Finished); un-ignore `a_refusal_tells_the_planner_only_the_coarse_code_and_a_trip_pauses_the_loop` |
 | docket-client `DbusTransport::call`, `serve` | 2 | fill wave 1 (F1d) with docket-dbus's codec: one match from `IntentsRequest` to the member and its JSON arguments; `IntentsError` maps back; the Request object's `Response` carries the reply of Perform, Undo, Widen and Check; `serve` exports `IntentProviderSkeleton` over the app's seams |
 | actions-mcp `McpEdge::call` | 1 | fill wave 2: tool name to action, JSON arguments to `Args` by `ParamType` each labelled with `mcp_label`, `Intents::perform`, outcome or coarse refusal to a tool result |
 | intentd `record_of` | 1 | fill wave 2: `AuditRecord` to almanac `Record` (typed `Message` and `Episode` bodies, the rest `Area { Docket }` with the things each names for cascade-forget) |
@@ -27,7 +27,7 @@ contain none, and no test is `#[ignore]`d.
 | voiced `serve` | 1 | fill wave 2, after the PipeWire line (spike V-A): `Begin` from the shell role only, capture through `choose_capture`, unicast signals, an inferd session through porter-client |
 | daemons serve their bus | | the items above; every daemon binary is a skeleton that exits 2 |
 
-Total: 1 + 2 + 1 + 1 + 7 + 4 + 2 + 2 + 2 + 1 + 2 + 5 + 1 + 4 + 1 + 1 = 37.
+Total: 2 + 1 + 1 + 7 + 4 + 2 + 2 + 2 + 1 + 2 + 5 + 1 + 4 + 1 + 1 = 36.
 
 ## Ignored tests
 
@@ -51,7 +51,7 @@ section, masking, deterministic), `choose_tier`, `front_step`, `completion_line`
 `idle_step`, `rebuild`. docket-dbus: the five XML files equal the skeletons' introspection; member
 lists; the options dictionary on every call that starts work; broadcasts carry no content.
 docket-client: `Intents` over a scripted transport. docket-fake and docket-eval: fixtures and fakes,
-the corpus (8 cases) loads, `wilson` and `judge` tables. actions-mcp: tool names, hints, offered
+the corpus loads and every case meets its expectation, `wilson` and `judge` tables. actions-mcp: tool names, hints, offered
 actions, `mcp_label`. intentd: the configuration, the built-in manifests, record kinds, the queue,
 the memory seam, the clock, every unit file's sandbox lines. readerd: the fixed instructions, the
 reader host. docket-ds: every mark conversion. voice-wire, voice-loop, voiced: see their rows in
@@ -73,100 +73,61 @@ fake router with a judge that always allows and the widest policy.
 
 ## Router: open items and interface asks
 
-Each names the change that closes it. Nothing below was edited outside docket.
+Closed by the docket amendment (interface-asks 38 to 41, 44): the Cedar grid now follows
+QUESTIONS S1 (an outbound act asks under `Default` and `AskMore`; the two-reviewer auto-run is
+`TrustMore` only; the grid test and two corpus cases pin it), `Perform` and `.Run.Perform` carry
+`session: Option<SessionId>`, `covers(policy, decl, call, labels)` reads the effect, the cap and
+each argument's declared sink, `call_step` takes the built sheet in `Previewed` and the
+parameter in `ArgsChecked` and `AppLink::perform` can say `AppFault::TimedOut`, and
+`Context.Current` names the app. Open:
 
-1. **`IntentsRequest::Perform` carries no session.** A companion's call lands in its newest
-   session, which is wrong while two of its tasks work at once. Ask: `session: Option<SessionId>`
-   on `Perform` (and on the `Run.Perform` D-Bus method), `None` for the person's own surfaces.
-2. **`covers` has no `ActionDecl`.** The effect and each argument's sink are the manifest's, so
-   `covers(policy, call, labels)` judges what the call shows (state, action, kinds, count, and that
-   every untrusted argument matches a trusted pattern) and docket-router's `coverage` checks the
-   ceiling and an app's cap first. Ask: `covers(policy, decl, call, labels)` and `Widening::Pattern`
-   then names the declared sink instead of reading it from the value's type.
-3. **`call_step` cannot make its richest effects.** It holds no call data, so it never emits
-   `Audit` or `Confirm`, enters `Confirming` with an unissued id, and ends bad arguments with the
-   parameter `args`; `Router` writes the audit when a call ends and draws the sheet when the state
-   becomes `Confirming`. Ask: `CallEvent::Previewed` carries the built `ConfirmRequest`,
-   `ArgsChecked` carries the `ParamName`, and `AppTimedOut` needs a seam that can say it:
-   `AppLink::perform` has no timeout error, so the router never feeds it.
-4. **`roster_of` has no `HandleTable`.** A planner's goal is untrusted text, so `TaskRecord` holds
+1. **`roster_of` has no `HandleTable`.** A planner's goal is untrusted text, so `TaskRecord` holds
    the `Reveal<String>` made when the task started (a handle in the spawning session's table).
    Ask: none; a handle minted into the reading session's table needs `roster_of` to take it.
-5. **`Context.Current` names no app.** The router looks in the window of the last prompt field that
-   recorded a turn; a launcher turn names none, so it refuses. Ask: the turn (or `Context`) carries
-   the summoning app.
-6. **Stored state grew.** `SessionRecord`, `RouterState` and `TaskRecord` gained fields (the ledger,
-   the breaker, what the session saw, its turns and policy, per-Space strictness, the shadow index,
-   the goal and last step of a task). They are built by `new` and nothing outside docket-router
-   constructs one by literal.
-7. **`tool_schema` renders directly.** stoker's `Shape::to_json_schema` is a stub when this was
-   filled, and `Shape` has no object-with-handle form for entities; the schema is built from
-   `serde_json` and pinned by `tool_schema_snapshot`. When stoker fills it, the leaf types (text,
-   integer, choice) may route through `Shape`.
-8. **Outbound under `Default`.** The shipped Cedar grid (actions-addendum A2) lets an outbound act
-   with every sink trusted, inside the task policy, go to review and then run; QUESTIONS S1 says
-   outbound always asks under `Default`. The router follows the grid. policy-point's owner decides.
-9. **A target's Space is not known.** An entity id carries no Space, so every target counts as
-   `Same` (and `Unbound` for an action on nothing): `cross_space_target_asks` waits for an entity
-   that names its Space.
+2. **Stored state grew.** `SessionRecord`, `RouterState` and `TaskRecord` gained fields (the
+   ledger, the breaker, what the session saw, its turns and policy, per-Space strictness, the
+   shadow index, the goal and last step of a task). They are built by `new` and nothing outside
+   docket-router constructs one by literal.
+3. **`tool_schema` renders directly** (ask 43). stoker's `Shape::to_json_schema` was a stub when
+   this was filled, and `Shape` has no object-with-handle form for entities; the schema is built
+   from `serde_json` and pinned by `tool_schema_snapshot`. When stoker fills it, the leaf types
+   (text, integer, choice) may route through `Shape`, and `Shape` needs an entity-or-handle form.
+4. **A target's Space is not known** (ask 42). An entity id carries no Space, so every target
+   counts as `Same` (and `Unbound` for an action on nothing): `cross_space_target_asks` waits for
+   an entity that names its Space (a `Space` on `EntityId`, or a resolver seam). No corpus case
+   for it until then.
+5. **Reviewer requests use `DataClass::Notes`** (ask 16) as the stand-in for "the person's own
+   words", because under the proposed AI policy it has the on-device floor where `AppOwn` may go
+   anywhere. A dedicated class (a `Prompt` class in porter's `DataClass`) would say it better.
+6. **The reviewer's schema is hand-written** (ask 14) until stoker's `Shape::to_json_schema` is
+   filled; `InferReviewer` then switches to `verdict_shape(stage)`.
+7. **Stage deadlines come from the clock.** `Clock::after(Millis)` is the router's timer: it races
+   every `Reviewer::review`. `SystemClock` sleeps on tokio; the fake `FixedClock` completes only
+   for `Millis(0)`, so a test that wants a timeout gives the stage no time and a reviewer that
+   hangs (`ScriptedReviewer::hanging`).
 
 ## Upstream asks
 
-Nothing below was edited in the other repos.
+Nothing below was edited in the other repos. Asks 1 to 4 of the freeze are cleared: almanac's
+`RecentEntry` carries `body` under `BodyMode::Json` (companiond reads it through `RecentSource`),
+almanac-client's `almanac-service` is behind `in_process`, quire's `ds-intents` has the voice
+marks and re-exports `Tally` (docket-ds no longer reaches `ds-core`), and quire's
+`docs/workspace-deps.toml` has `pipewire = "0.10"`.
 
-1. **almanac-core: `Recent` must return bodies.** The restart rebuild reads companiond's own
-   session records, the router's task events, messages and episodes through `Recent`, but
-   `RecentEntry` carries only a summary, effect, label and text, and an `Area` payload is opaque
-   JSON. Ask: a `body` on `RecentEntry`:
-   ```rust
-   pub struct RecentEntry { pub summary: EventSummary, pub effect: Effect, pub label: Label,
-       pub text: Option<UserText>,
-       /// The owner's serde JSON for an `Area` payload, or the serde form of a `Message` or `Episode`.
-       pub body: Option<JsonText> }
-   ```
-   (or `RecentQuery { .., bodies: BodyMode { Without, Json } }`). Until then `ReplaySource` is a
-   seam and `recover` is built over `ReplayEvent`s; the adapter from `RecentEntry` is the stub.
-2. **almanac-client: make `almanac-service` optional.** `almanac-client` depends on
-   `almanac-service` unconditionally (for `InProcess`), which links SQLCipher and a vendored
-   OpenSSL into every D-Bus client: intentd and, through it, nothing else needs them in process.
-   Ask: `almanac-service` behind a default-off feature `in_process`, with `InProcess` and `Backend`
-   under it; `dbus` already exists. `scripts/check-boundary.sh` allows intentd to reach `rusqlite`
-   for this reason, and forbids it to companiond and readerd.
-3. **quire `ds-intents`: the voice marks of voice.md section 3.6.** Not in the crate yet:
-   `SummonOriginMark { Keyboard, Voice, Dictation }`, `HeardMark { Level(InputLevel), Tail(String),
-   Committed(String), Ended(HeardEndMark) }`, `HeardEndMark { Send(String), Nothing, Cancelled }`,
-   `DictationPort`, `DictateSerial(pub u64)`, and `CompanionPort::on_summon` taking the origin.
-   `docket-ds` mirrors `HeardMark` as its own `Heard` and `HeardEnd` and converts from `VoiceEvent`;
-   it swaps to the quire types when they land. Also: `ds_core::vocab::Tally` (the count a
-   `ContextChip` carries) is not re-exported by `ds-intents`, so `docket-ds` takes `ds-core` as a
-   direct path dependency (listed in its edge row); a re-export would remove it.
-4. **quire `docs/workspace-deps.toml`: `pipewire = "0.10"`** (voice.md section 2.3, spike V-A) is
-   absent. docket added no external crate beyond the pinned block (no line was missing otherwise:
-   cedar-policy 4.13 and rmcp 3.5 are there, and `cargo deny check licenses` passes on them).
-   `voiced` holds the device behind the `AudioDevice` seam; the PipeWire device and a `silero`
-   feature on `speech-vad-silero` (an excluded crate in stoker) wait on the line.
-5. **porter `prov` fills** (already in porter's FINDINGS): `Label::{trusted_user, untrusted, join}`,
-   `Labelled::zip`, `endorse` and `declassify` are `todo!()`. docket's tests and fakes write label
-   literals; `intake_label` and any real join wait.
-6. **stoker `model-provider::Shape`** `to_json_schema`, `to_gbnf`, `to_regex` and `check` are
-   `todo!()`: `ValueSchema::shape` builds the shape, and rendering it for the reader, the reviewer
-   and the policy writer waits.
-7. **cua `cua-bus`** (stage 4) does not exist: the restart rebuild's computer-use input is
-   `ReplayWhat::Run`, which the caller maps from `CuaRecord`; it names no cua type.
-8. voice.md section 3.4 (porter's speech items) is all present in `porter-infer`
+1. **porter `prov` fills** are done (`Label::{trusted_user, untrusted, join}`); docket's tests and
+   fakes use them. Labels with an app source and no private scope (`Label` with
+   `Source::App`, a model's text) still have no constructor and stay literals.
+2. **stoker `model-provider::Shape`** `to_json_schema`, `to_gbnf`, `to_regex` and `check` are
+   `todo!()` (see the router items): rendering it for the reader, the reviewer and the policy
+   writer waits.
+3. **cua `cua-bus`** (stage 4) does not exist: the restart rebuild's computer-use input is
+   `ReplayWhat::Run`, which the caller maps from `CuaRecord`; it names no cua type, and
+   `companiond::recover` does not read it from `Recent` yet.
+4. voice.md section 3.4 (porter's speech items) is all present in `porter-infer`
    (`TranscribeBegin`, `SpeakRequest`, `AudioFrame`, `HeardDelta`, `ClientFrame::{Audio,
    EndOfAudio}`, `Readiness`): nothing is asked of porter for voice.
-
-9. **action-review: the stage timeout needs a timer.** `InferReviewer` is pure and cannot race
-   the model against `ReviewTimeouts` (a `0 ms` stage fails at once; a hung model does not). Ask
-   (docket interface, not another repo): either `docket-router` wraps `Reviewer::review` in its
-   `Clock`-driven deadline (the router already owns `ReviewError::Timeout` handling), or
-   `InferReviewer` gains a `Deadline` seam (`fn within<T>(&self, Millis, impl Future<Output = T>) ->
-   impl Future<Output = Result<T, Elapsed>>`) that intentd fills with `tokio::time::timeout`.
-10. **stoker `Shape::to_json_schema`** (item 6) also blocks `InferReviewer`: it sends the verdict
-    record as a hand-written JSON Schema (`record_schema`, pinned by a test against
-    `verdict_shape`'s codes); it switches to `verdict_shape(stage).to_json_schema(..)` when the fill
-    lands.
+5. **porter `DataClass`:** a class for the person's prompts (item 5 above).
+6. **stoker `Shape::to_json_schema`** (item 6 above) also blocks `InferReviewer`.
 
 ## Spec conflicts resolved
 
