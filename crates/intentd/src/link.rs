@@ -5,7 +5,7 @@ use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit, Invocation, Latency,
     Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
 };
-use docket_router::{AppLink, LinkFault};
+use docket_router::{AppFault, AppLink, LinkFault};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 
@@ -28,10 +28,10 @@ impl AppLink for DbusLink {
         app: &AppName,
         inv: Invocation,
         within: Latency,
-    ) -> Result<Outcome, AppRefusal> {
+    ) -> Result<Outcome, AppFault> {
         let _ = (&self.connection, app, inv, within);
         todo!(
-            "DbusLink::perform: IntentProviderProxy for the app's name, within 250 ms, 5 s or a progress request by latency; a timeout is Failed, an absent app is activated first"
+            "DbusLink::perform: IntentProviderProxy for the app's name, within 250 ms, 5 s or a progress request by latency; a timeout is AppFault::TimedOut, an absent app is activated first"
         )
     }
 

@@ -66,10 +66,10 @@ pub fn fake_router(config: AgentConfig) -> Result<Router<FakeSeams>, FakeError> 
     let mail = mail_manifest().map_err(FakeError::Manifest)?;
     let files = files_manifest().map_err(FakeError::Manifest)?;
     let seams = FakeSeams {
-        link: FakeLink {
-            mail: FakeMail::new(mail, space.clone()),
-            files: FakeFiles::new(files, space),
-        },
+        link: FakeLink::new(
+            FakeMail::new(mail, space.clone()),
+            FakeFiles::new(files, space),
+        ),
         confirmer: ScriptedConfirmer::default(),
         reviewer: ScriptedReviewer::always_allow(),
         grants: MemoryGrants::new(),

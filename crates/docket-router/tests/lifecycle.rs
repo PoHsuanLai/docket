@@ -75,7 +75,7 @@ impl AppLink for ChainLink {
         _: &porter_core::AppName,
         _: Invocation,
         _: Latency,
-    ) -> Result<Outcome, AppRefusal> {
+    ) -> Result<Outcome, docket_router::AppFault> {
         self.performed.fetch_add(1, Ordering::SeqCst);
         Ok(Outcome {
             value: None,

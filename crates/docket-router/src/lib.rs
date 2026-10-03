@@ -41,7 +41,7 @@ mod tasks;
 mod who;
 
 pub use auth::{acting_role, permits};
-pub use call::{CallEffect, CallEvent, CallState, call_step};
+pub use call::{ArgsRefused, CallEffect, CallEvent, CallState, call_step};
 pub use gate::{GateInputs, Pending, gate};
 pub use handles::{HandleEntry, HandleTable, HandleValue, ViewInputs, context_view, planner_view};
 pub use index::{IndexAction, IndexEvent, index_step};
@@ -49,7 +49,7 @@ pub use journal::UndoJournal;
 pub use messages::{assemble, check_stamped, inbound_line, intake_label, report_status};
 pub use registry::{Registry, RegistryError, parse};
 pub use router::Router;
-pub use seams::{AppLink, Clock, EventSink, GrantStore, LinkFault, MemoryLink, Seams};
+pub use seams::{AppFault, AppLink, Clock, EventSink, GrantStore, LinkFault, MemoryLink, Seams};
 pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
 pub use state::{RouterState, SessionRecord};
 pub use tasks::{TaskRecord, TaskState, TaskTable, child_policy, roster_of};

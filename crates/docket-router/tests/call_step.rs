@@ -9,6 +9,26 @@ fn confirm_id() -> ConfirmId {
     ConfirmId::parse("c-1").expect("id")
 }
 
+fn sheet(id: &str) -> ConfirmRequest {
+    ConfirmRequest {
+        id: ConfirmId::parse(id).expect("id"),
+        space: prov::SpaceId::parse("work").expect("space"),
+        actor: prov::Actor::Unknown,
+        app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
+        action: LabelText::parse("Send 1 message").expect("words"),
+        effect: prov::Effect::Outbound,
+        count: porter_core::Count(1),
+        detail: ConfirmDetail::Plain,
+        lines: vec![],
+        why: vec![AskReason::FirstUse],
+        taint: TaintNote::Clean,
+        offer: ConfirmOffer::OnceOnly,
+        gesture: Gesture::Press,
+        anchor: Anchor::Launcher,
+        expires: Seconds(120),
+    }
+}
+
 fn allow() -> Result<ReviewVerdict, ReviewError> {
     Ok(ReviewVerdict::Allow)
 }
@@ -89,9 +109,12 @@ fn rows() -> Vec<Row> {
         (
             "bad arguments end the call",
             S::Received,
-            V::ArgsChecked(Err(ArgFault::Missing)),
+            V::ArgsChecked(Err(ArgsRefused {
+                param: ParamName::parse("to").expect("param"),
+                why: ArgFault::Missing,
+            })),
             refused(CallRefusal::BadArgs {
-                param: ParamName::parse("args").expect("param"),
+                param: ParamName::parse("to").expect("param"),
                 why: ArgFault::Missing,
             }),
             vec![],
@@ -230,13 +253,16 @@ fn rows() -> Vec<Row> {
             vec![],
         ),
         (
-            "a preview that failed still goes to the person",
+            "a built sheet goes to the person, under the id the router minted",
             S::Previewing,
-            V::Previewed(Box::new(Err(AppRefusal::Unsupported))),
-            S::Confirming(ConfirmId::parse("c-0").expect("id")),
-            vec![E::Progress(CallProgress::Confirming(
-                ConfirmId::parse("c-0").expect("id"),
-            ))],
+            V::Previewed(Box::new(sheet("c-7"))),
+            S::Confirming(ConfirmId::parse("c-7").expect("id")),
+            vec![
+                E::Progress(CallProgress::Confirming(
+                    ConfirmId::parse("c-7").expect("id"),
+                )),
+                E::Confirm(Box::new(sheet("c-7"))),
+            ],
         ),
         (
             "a halt while previewing",

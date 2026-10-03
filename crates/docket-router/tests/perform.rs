@@ -785,3 +785,18 @@ async fn a_call_names_the_session_it_belongs_to_while_two_tasks_work() {
     .await;
     assert_eq!(stranger, IntentsReply::Refused(WireRefusal::NoSuchSession));
 }
+
+#[tokio::test]
+async fn an_app_that_never_answers_ends_the_call_as_a_timeout() {
+    let router = router();
+    ready(&router).await;
+    router
+        .seams
+        .link
+        .answer_from(&mail_app(), docket_fake::Answering::Silent);
+    let refused = perform(&router, call("mail.thread.archive", &["t1"], vec![]))
+        .await
+        .expect_err("silent app");
+    assert_eq!(refused, CallRefusal::Timeout);
+    assert!(!router.seams.link.mail.is_archived("t1"));
+}

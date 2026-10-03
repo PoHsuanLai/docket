@@ -12,9 +12,20 @@ use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit, Invocation, Latency,
     Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
 };
-use docket_router::{AppLink, LinkFault, Seams};
+use docket_router::{AppFault, AppLink, LinkFault, Seams};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
+use std::collections::BTreeSet;
+use std::sync::Mutex;
+
+/// Whether a fake app answers `Perform`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Answering {
+    /// It answers.
+    Normal,
+    /// It never answers: the router times the call out.
+    Silent,
+}
 
 /// Routes the router's calls to the fake apps by bus name.
 #[derive(Debug)]
@@ -23,9 +34,30 @@ pub struct FakeLink {
     pub mail: FakeMail,
     /// The files app.
     pub files: FakeFiles,
+    /// Apps that never answer `Perform`: the call times out.
+    pub silent: Mutex<BTreeSet<AppName>>,
 }
 
 impl FakeLink {
+    /// Both apps, answering.
+    pub fn new(mail: FakeMail, files: FakeFiles) -> Self {
+        Self {
+            mail,
+            files,
+            silent: Mutex::new(BTreeSet::new()),
+        }
+    }
+
+    /// Makes `app` stop answering `Perform` (its calls time out), or answer again.
+    pub fn answer_from(&self, app: &AppName, answering: Answering) {
+        if let Ok(mut silent) = self.silent.lock() {
+            match answering {
+                Answering::Silent => silent.insert(app.clone()),
+                Answering::Normal => silent.remove(app),
+            };
+        }
+    }
+
     fn is_mail(&self, app: &AppName) -> bool {
         self.mail.manifest().manifest().app == *app
     }
@@ -41,13 +73,16 @@ impl AppLink for FakeLink {
         app: &AppName,
         inv: Invocation,
         _within: Latency,
-    ) -> Result<Outcome, AppRefusal> {
+    ) -> Result<Outcome, AppFault> {
+        if self.silent.lock().is_ok_and(|silent| silent.contains(app)) {
+            return Err(AppFault::TimedOut);
+        }
         if self.is_mail(app) {
-            self.mail.perform(inv).await
+            self.mail.perform(inv).await.map_err(AppFault::Refused)
         } else if self.is_files(app) {
-            self.files.perform(inv).await
+            self.files.perform(inv).await.map_err(AppFault::Refused)
         } else {
-            Err(AppRefusal::Unsupported)
+            Err(AppFault::Refused(AppRefusal::Unsupported))
         }
     }
 

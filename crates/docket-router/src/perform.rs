@@ -8,14 +8,14 @@ use crate::driven::{Driven, Next, Run, code_of, reviewer_model, unissued};
 use crate::gate::Pending;
 use crate::prepared::{Prepared, grants_for};
 use crate::router::Router;
-use crate::seams::{AppLink, Clock, EventSink, GrantStore, Seams};
+use crate::seams::{AppFault, AppLink, Clock, EventSink, GrantStore, Seams};
 use crate::who::Who;
 use action_review::{DeniedBy, ReviewVerdict, Reviewer};
 use docket_core::{
     AppRefusal, AskReason, AuditRecord, CallEnd, CallRefusal, CallRequest, ConfirmAnswer,
-    ConfirmAnswerKind, ConfirmEnd, ConfirmId, Confirmer, Depth, Follow, Invocation, Millis,
-    Outcome, PolicyId, ReviewError, ReviewMark, Reviewed, Stage, UndoId, Undoable, WindowKey,
-    charge, halted,
+    ConfirmAnswerKind, ConfirmEnd, ConfirmId, ConfirmRequest, Confirmer, Depth, Follow, Invocation,
+    Millis, Outcome, PolicyId, ReviewError, ReviewMark, Reviewed, Stage, UndoId, Undoable,
+    WindowKey, charge, halted,
 };
 use porter_core::GrantId;
 use prov::{Actor, AgentRole, SpaceScope};
@@ -209,12 +209,10 @@ impl<S: Seams> Router<S> {
             match effect {
                 CallEffect::StartReview(stage) => return self.review(p, run, *stage).await,
                 CallEffect::DryRun => return self.dry_run(p, run).await,
+                CallEffect::Confirm(request) => return self.confirm(p, run, request).await,
                 CallEffect::Dispatch => return self.dispatch(p, run).await,
                 _ => {}
             }
-        }
-        if matches!(run.state, CallState::Confirming(_)) {
-            return self.confirm(p, run).await;
         }
         Next::Stop
     }
@@ -265,7 +263,12 @@ impl<S: Seams> Router<S> {
             }
         };
         run.preview = answer.as_ref().ok().cloned();
-        Next::Event(CallEvent::Previewed(Box::new(answer)))
+        match self.sheet_for(p, run) {
+            Some(request) => Next::Event(CallEvent::Previewed(Box::new(request))),
+            None => Next::Event(CallEvent::Answered(ConfirmAnswer::Ended(
+                ConfirmEnd::Cancelled,
+            ))),
+        }
     }
 
     fn invocation(&self, p: &Prepared) -> Invocation {
@@ -280,34 +283,32 @@ impl<S: Seams> Router<S> {
         }
     }
 
-    async fn confirm(&self, p: &Prepared, run: &mut Run) -> Next {
-        let (id, request) = {
-            let mut st = self.locked();
-            let n = st.mint();
-            let Ok(id) = ConfirmId::parse(&format!("c-{n}")) else {
-                return Next::Event(CallEvent::Answered(ConfirmAnswer::Ended(
-                    ConfirmEnd::Cancelled,
-                )));
-            };
-            st.pending.insert(id.clone(), p.space.clone());
-            let record = p.who.session.as_ref().and_then(|s| st.sessions.get(s));
-            let reasons = match &p.pending {
-                crate::gate::Pending::Confirm(r) => r.clone(),
-                _ => vec![AskReason::Rule(PolicyId("review".into()))],
-            };
-            let request = confirm_request(
-                id.clone(),
-                p,
-                record,
-                &reasons,
-                run.preview.as_ref(),
-                self.config.confirm_expiry,
-            );
-            (id, request)
+    /// The sheet for a call that goes to the person: its reasons, the preview the app gave (or
+    /// the plain argument lines), and a freshly minted id.
+    fn sheet_for(&self, p: &Prepared, run: &Run) -> Option<ConfirmRequest> {
+        let mut st = self.locked();
+        let n = st.mint();
+        let id = ConfirmId::parse(&format!("c-{n}")).ok()?;
+        let record = p.who.session.as_ref().and_then(|s| st.sessions.get(s));
+        let reasons = match &p.pending {
+            crate::gate::Pending::Confirm(r) => r.clone(),
+            _ => vec![AskReason::Rule(PolicyId("review".into()))],
         };
-        run.state = CallState::Confirming(id.clone());
+        Some(confirm_request(
+            id,
+            p,
+            record,
+            &reasons,
+            run.preview.as_ref(),
+            self.config.confirm_expiry,
+        ))
+    }
+
+    async fn confirm(&self, p: &Prepared, run: &mut Run, request: &ConfirmRequest) -> Next {
+        let id = request.id.clone();
+        self.locked().pending.insert(id.clone(), p.space.clone());
         run.confirm = Some(id.clone());
-        let answer = self.seams.confirmer().confirm(request).await;
+        let answer = self.seams.confirmer().confirm(request.clone()).await;
         self.locked().pending.remove(&id);
         if self.halt_scope(&p.space).is_some() {
             self.seams.confirmer().cancel(&id).await;
@@ -355,6 +356,10 @@ impl<S: Seams> Router<S> {
             .perform(&p.request.action.app, self.invocation(p), p.decl.latency)
             .await;
         run.outcome = answer.as_ref().ok().cloned();
-        Next::Event(CallEvent::AppAnswered(Box::new(answer)))
+        match answer {
+            Err(AppFault::TimedOut) => Next::Event(CallEvent::AppTimedOut),
+            Ok(outcome) => Next::Event(CallEvent::AppAnswered(Box::new(Ok(outcome)))),
+            Err(AppFault::Refused(why)) => Next::Event(CallEvent::AppAnswered(Box::new(Err(why)))),
+        }
     }
 }

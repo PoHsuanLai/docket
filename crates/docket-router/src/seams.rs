@@ -30,6 +30,21 @@ pub enum LinkFault {
     Malformed,
 }
 
+/// Why `Perform` got no outcome: the app said no, or said nothing in time.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AppFault {
+    /// The app's own refusal.
+    Refused(AppRefusal),
+    /// It did not answer within the action's latency budget.
+    TimedOut,
+}
+
+impl From<AppRefusal> for AppFault {
+    fn from(refusal: AppRefusal) -> Self {
+        AppFault::Refused(refusal)
+    }
+}
+
 /// Calls `IntentProvider1` on an app's own bus name, after checking the name's owner derives to
 /// the same `AppId`.
 pub trait AppLink: Send + Sync {
@@ -39,7 +54,7 @@ pub trait AppLink: Send + Sync {
         app: &AppName,
         inv: Invocation,
         within: Latency,
-    ) -> impl Future<Output = Result<Outcome, AppRefusal>> + Send;
+    ) -> impl Future<Output = Result<Outcome, AppFault>> + Send;
     /// `DryRun`: the concrete change, before it is made.
     fn dry_run(
         &self,

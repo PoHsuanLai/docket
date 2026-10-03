@@ -7,7 +7,7 @@ use crate::gate::Pending;
 use action_review::{Gate, ReviewVerdict, escalate, tighten};
 use docket_core::{
     AppRefusal, AuditRecord, CallEnd, CallProgress, CallRefusal, ConfirmAnswer, ConfirmEnd,
-    ConfirmId, ConfirmRequest, GrantScope, Outcome, ParamName, Preview, ReviewError, Ruling, Stage,
+    ConfirmId, ConfirmRequest, GrantScope, Outcome, ParamName, ReviewError, Ruling, Stage,
     Undoable,
 };
 use prov::SpaceScope;
@@ -36,17 +36,27 @@ pub enum CallState {
     Done(CallEnd),
 }
 
+/// The parameter an argument check refused, and why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArgsRefused {
+    /// Which parameter.
+    pub param: ParamName,
+    /// Why.
+    pub why: docket_core::ArgFault,
+}
+
 /// What happens to a call.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CallEvent {
-    /// The arguments checked out, or why not.
-    ArgsChecked(Result<(), docket_core::ArgFault>),
+    /// The arguments checked out, or which parameter was refused and why.
+    ArgsChecked(Result<(), ArgsRefused>),
     /// The gate decided.
     Gated(Pending),
     /// A stage answered or failed.
     Verdict(Stage, Result<ReviewVerdict, ReviewError>),
-    /// The app described the change, or could not.
-    Previewed(Box<Result<Preview, AppRefusal>>),
+    /// The router asked the app to describe the change (a failure falls back to the argument
+    /// lines) and built the sheet from the answer: this is what the person will be shown.
+    Previewed(Box<ConfirmRequest>),
     /// The person answered.
     Answered(ConfirmAnswer),
     /// The app answered.
@@ -86,23 +96,17 @@ pub enum CallEffect {
 
 /// One transition.
 ///
-/// The step holds no data about the call beyond its state, so the effects that need such data
-/// are the router's to make at the matching transition: it writes the audit record when the
-/// state becomes `Done`, and draws the sheet when it becomes `Confirming` (which the step
-/// enters with an unissued id: the router mints the real one). Everything else the step
-/// decides is here.
+/// The step holds no data about the call beyond its state. The sheet arrives built in
+/// `Previewed`, and the step emits it as `Confirm`; the router writes the audit record when the
+/// state becomes `Done`. Everything else the step decides is here.
 pub fn call_step(state: CallState, event: CallEvent) -> (CallState, Vec<CallEffect>) {
     use CallEvent as V;
     use CallState as S;
     match (state, event) {
         (done @ S::Done(_), _) => (done, vec![]),
-        (S::Received, V::ArgsChecked(Err(why))) => (
-            refused(CallRefusal::BadArgs {
-                param: unnamed_param(),
-                why,
-            }),
-            vec![],
-        ),
+        (S::Received, V::ArgsChecked(Err(ArgsRefused { param, why }))) => {
+            (refused(CallRefusal::BadArgs { param, why }), vec![])
+        }
         (S::Received, V::ArgsChecked(Ok(()))) => (S::Gating, vec![]),
         (S::Received | S::Gating | S::Reviewing { .. } | S::Previewing, V::Halted) => {
             (halted(), vec![])
@@ -112,11 +116,14 @@ pub fn call_step(state: CallState, event: CallEvent) -> (CallState, Vec<CallEffe
             done.push((stage, result));
             reviewed(planned, done)
         }
-        (S::Previewing, V::Previewed(_)) => {
-            let id = unissued_confirm();
+        (S::Previewing, V::Previewed(request)) => {
+            let id = request.id.clone();
             (
                 S::Confirming(id.clone()),
-                vec![CallEffect::Progress(CallProgress::Confirming(id))],
+                vec![
+                    CallEffect::Progress(CallProgress::Confirming(id)),
+                    CallEffect::Confirm(request),
+                ],
             )
         }
         (S::Confirming(_), V::Answered(ConfirmAnswer::Allowed { scope, .. })) => {
@@ -232,15 +239,4 @@ fn previewing() -> (CallState, Vec<CallEffect>) {
             CallEffect::DryRun,
         ],
     )
-}
-
-/// The parameter a bad-arguments end names when the step is told only the fault; the router
-/// ends a call with the real parameter before it ever feeds the step.
-fn unnamed_param() -> ParamName {
-    ParamName::parse("args").expect("`args` is a valid parameter name")
-}
-
-/// The id of a confirmation the router has not drawn yet.
-fn unissued_confirm() -> ConfirmId {
-    ConfirmId::parse("c-0").expect("`c-0` is a valid confirmation id")
 }
