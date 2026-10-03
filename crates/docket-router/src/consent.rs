@@ -47,6 +47,15 @@ pub(crate) fn consent_for(
     usage: Usage,
     taint: Taint,
 ) -> Verdict {
+    // A terminal has no class grants (a read from it is allowed and everything else asks by the
+    // policy's own rule), but a denial the person recorded for it still stands.
+    let unasked = match caller {
+        GrantCaller::Cli => Verdict::Granted {
+            grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
+            scope: GrantScope::Once,
+        },
+        _ => Verdict::Ask,
+    };
     let per_class: Vec<Verdict> = decl
         .classes
         .iter()
@@ -55,7 +64,7 @@ pub(crate) fn consent_for(
                 .iter()
                 .map(|k| decide(grants, k))
                 .find(|v| !matches!(v, Verdict::Ask))
-                .unwrap_or(Verdict::Ask)
+                .unwrap_or_else(|| unasked.clone())
         })
         .collect();
     let granted = per_class.iter().find_map(|v| match v {

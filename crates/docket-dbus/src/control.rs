@@ -22,6 +22,13 @@ pub trait Control {
     /// The undo journal (`JournalFilter` JSON; answers `Vec<UndoEntry>` JSON).
     fn journal(&self, filter: &str) -> zbus::Result<String>;
 
+    /// The actions the terminal (`quire-do`) may run without asking, until logout
+    /// (`Vec<ActionRef>` JSON). Control role only.
+    fn terminal_grants(&self) -> zbus::Result<String>;
+
+    /// Withdraws one standing terminal grant (`ActionRef` JSON). Control role only.
+    fn revoke_terminal_grant(&self, action: &str) -> zbus::Result<()>;
+
     /// A scope was halted.
     #[zbus(signal)]
     fn halted(&self, scope: &str) -> zbus::Result<()>;
@@ -61,6 +68,15 @@ impl ControlSkeleton {
 
     fn journal(&self, filter: String) -> fdo::Result<String> {
         let _ = (filter,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn terminal_grants(&self) -> fdo::Result<String> {
+        Err(crate::introspect::frozen())
+    }
+
+    fn revoke_terminal_grant(&self, action: String) -> fdo::Result<()> {
+        let _ = (action,);
         Err(crate::introspect::frozen())
     }
 

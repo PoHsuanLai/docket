@@ -16,7 +16,7 @@ use docket_core::{
 use docket_core::{AgentReach, Lasting, Origin};
 use policy_point::{
     ActionFacts, CoverageState, GrantState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
-    SpaceRelation,
+    SpaceRelation, TerminalGrant,
 };
 use porter_core::consent::{Decision, Grant, GrantScope, Usage, Verdict};
 use porter_core::{Count, DataClass, GrantId};
@@ -35,11 +35,19 @@ impl<S: Seams> Router<S> {
         self.locked()
             .pending
             .insert(id.clone(), request.space.clone());
-        let answer = self.seams.confirmer().confirm(request).await;
+        let answer = self
+            .seams
+            .confirmer()
+            .confirm(request)
+            .await
+            .without_terminal_grant();
         self.locked().pending.remove(&id);
         let (kind, input) = match &answer {
             ConfirmAnswer::Allowed { scope, receipt } => {
                 (ConfirmAnswerKind::Allowed(*scope), Some(receipt.input))
+            }
+            ConfirmAnswer::AllowedFromTerminal { receipt } => {
+                (ConfirmAnswerKind::AllowedFromTerminal, Some(receipt.input))
             }
             ConfirmAnswer::Ended(end) => (ConfirmAnswerKind::Ended(*end), None),
         };
@@ -95,7 +103,7 @@ impl<S: Seams> Router<S> {
         };
         match self.ask_person(request).await {
             ConfirmAnswer::Ended(end) => IntentsReply::Granted(GrantAnswer::Refused(end)),
-            ConfirmAnswer::Allowed { .. } => {
+            ConfirmAnswer::Allowed { .. } | ConfirmAnswer::AllowedFromTerminal { .. } => {
                 let now = self.seams.clock().now();
                 let classes: BTreeSet<DataClass> = self
                     .locked()
@@ -208,6 +216,7 @@ impl<S: Seams> Router<S> {
                     Verdict::Ask => GrantState::None,
                     Verdict::Denied => GrantState::Denied,
                 },
+                terminal: TerminalGrant::NotGranted,
                 coverage: CoverageState::Outside,
                 task_ceiling: Effect::Read,
                 strictness,
@@ -274,7 +283,9 @@ impl<S: Seams> Router<S> {
                     return IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Timeout));
                 };
                 match self.ask_person(request).await {
-                    ConfirmAnswer::Allowed { .. } => IntentsReply::Gate(GateAnswer::Run),
+                    ConfirmAnswer::Allowed { .. } | ConfirmAnswer::AllowedFromTerminal { .. } => {
+                        IntentsReply::Gate(GateAnswer::Run)
+                    }
                     ConfirmAnswer::Ended(end) => {
                         IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(end)))
                     }

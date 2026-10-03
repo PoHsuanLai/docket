@@ -44,6 +44,7 @@ fn context_json(c: &PolicyContext) -> Value {
         "count": number(&c.count),
         "mass_at": number(&c.mass_at),
         "grant": slug(&c.grant),
+        "terminal": slug(&c.terminal),
         "coverage": slug(&c.coverage),
         "task_ceiling": slug(&c.task_ceiling),
         "strictness": slug(&c.strictness),
@@ -161,6 +162,8 @@ fn ask_reason(id: &PolicyId, c: &PolicyContext) -> AskReason {
         "mass" => AskReason::Mass(c.count),
         "ask-always" => AskReason::AskAlways,
         "first-use" => AskReason::FirstUse,
+        "cli-asks" => AskReason::FromTerminal,
+        "cli-destructive-asks" => AskReason::Effect(Effect::Destructive),
         "lasting-from-untrusted" => AskReason::LastingFromUntrusted,
         _ => AskReason::Rule(id.clone()),
     }

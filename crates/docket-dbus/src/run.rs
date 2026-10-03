@@ -20,6 +20,9 @@ pub trait Run {
         options: &Details,
     ) -> zbus::Result<OwnedObjectPath>;
 
+    /// What the app would change (`CallRequest` JSON, the session as in `Perform`; `Preview` JSON out), through the same checks and policy as `Perform` and without asking, charging or running anything. A call policy refuses is refused here the same way.
+    fn dry_run(&self, call: &str, session: &str) -> zbus::Result<String>;
+
     /// A preview (`EntityId` JSON in, `Preview` JSON out).
     fn preview(&self, entity: &str) -> zbus::Result<String>;
 
@@ -47,6 +50,11 @@ impl RunSkeleton {
         options: Details,
     ) -> fdo::Result<OwnedObjectPath> {
         let _ = (call, session, parent_window, options);
+        Err(crate::introspect::frozen())
+    }
+
+    fn dry_run(&self, call: String, session: String) -> fdo::Result<String> {
+        let _ = (call, session);
         Err(crate::introspect::frozen())
     }
 

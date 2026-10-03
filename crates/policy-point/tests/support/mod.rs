@@ -43,6 +43,7 @@ pub fn base(effect: Effect) -> PolicyRequest {
             count: Count(1),
             mass_at: Count(20),
             grant: GrantState::Always,
+            terminal: TerminalGrant::NotGranted,
             coverage: CoverageState::Inside,
             task_ceiling: Effect::Destructive,
             strictness: Strictness::Default,

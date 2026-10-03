@@ -40,6 +40,11 @@
      <arg name="options" type="a{sv}" direction="in"/>
      <arg type="o" direction="out"/>
    </method>
+   <method name="DryRun">
+     <arg name="call" type="s" direction="in"/>
+     <arg name="session" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
    <method name="Preview">
      <arg name="entity" type="s" direction="in"/>
      <arg type="s" direction="out"/>
@@ -156,6 +161,12 @@
    <method name="Journal">
      <arg name="filter" type="s" direction="in"/>
      <arg type="s" direction="out"/>
+   </method>
+   <method name="TerminalGrants">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="RevokeTerminalGrant">
+     <arg name="action" type="s" direction="in"/>
    </method>
    <signal name="Halted">
      <arg name="scope" type="s"/>

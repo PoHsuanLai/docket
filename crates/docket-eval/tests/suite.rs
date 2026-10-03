@@ -613,3 +613,32 @@ fn outbound_runs_only_under_trust_more_and_on_three_agreeing_stages() {
         vec![Stage::Quick, Stage::Deliberate, Stage::SecondOpinion]
     );
 }
+
+#[test]
+fn the_terminal_cases_run_as_a_terminal_and_end_as_the_table_says() {
+    let results = run_all();
+    let ending = |id: &str| {
+        let (case, got) = results
+            .iter()
+            .find(|(c, _)| c.id.0 == id)
+            .unwrap_or_else(|| panic!("missing {id}"));
+        assert_eq!(case.driver, Driver::Cli, "{id}");
+        got.steps.clone()
+    };
+    assert_eq!(
+        ending("terminal-cli-outbound-asks"),
+        [StepEnding::Asked(Effect::Outbound)],
+        "a Cli Outbound asks"
+    );
+    assert_eq!(
+        ending("terminal-cli-undoable-asks-and-never-reviewed"),
+        [StepEnding::Asked(Effect::UndoableWrite)]
+    );
+    assert_eq!(
+        ending("terminal-cli-hidden-action-refused"),
+        [StepEnding::Refused(CallRefusal::Denied(
+            DenyCode::NotAllowed
+        ))],
+        "a Hidden action is refused"
+    );
+}

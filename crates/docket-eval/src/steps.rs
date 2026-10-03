@@ -4,9 +4,9 @@
 //! are passed plain and the router labels them itself.
 
 use crate::block::block_on;
-use crate::case::{ArgFrom, Case, MailField, ScriptedCall, ScriptedSend, ScriptedStep};
+use crate::case::{ArgFrom, Case, Driver, MailField, ScriptedCall, ScriptedSend, ScriptedStep};
 use crate::runner::StepEnding;
-use crate::world::{Scene, companion, hold, mail_label, state_of};
+use crate::world::{Scene, cli, companion, hold, mail_label, state_of};
 use docket_core::{
     ActionRef, Args, CallRefusal, CallRequest, DenyCode, DraftPart, InboundPart, InboxAsk,
     IntentsReply, IntentsRequest, MessageDraft, Origin, ParamName, ParamType, Reveal, TargetValue,
@@ -157,14 +157,16 @@ impl<'a> Player<'a> {
             .clone();
         let (text, label) = self.source(from)?;
         let (plain, held) = self.param_value(&ty, &call.app, text)?;
-        match label {
+        // A terminal has no handles: whatever the words once were, they were typed.
+        match label.filter(|_| self.case.driver == Driver::Companion) {
             Some(label) => {
                 let source = label.sources.iter().next().cloned().unwrap_or(Source::User);
                 hold(self.router, &self.scene.front, held, label, source).map(Value::Handle)
             }
             None => {
                 // The person's own words that name a thing: the person chose it.
-                if let (ArgFrom::UserTurn { .. }, Value::Entity(e)) = (from, &plain)
+                if self.case.driver == Driver::Companion
+                    && let (ArgFrom::UserTurn { .. }, Value::Entity(e)) = (from, &plain)
                     && let Some(r) = state_of(self.router).sessions.get_mut(&self.scene.front)
                 {
                     r.known.insert(e.clone());
@@ -215,7 +217,15 @@ impl<'a> Player<'a> {
             .action(&action)
             .map_or(Effect::Read, |d| d.effect);
         let asked_before = self.router.seams.confirmer.requests().len();
-        let Ok(caller) = companion() else {
+        let (who, origin, session) = match self.case.driver {
+            Driver::Companion => (
+                companion(),
+                Origin::Companion,
+                Some(self.scene.front.clone()),
+            ),
+            Driver::Cli => (cli(), Origin::Cli, None),
+        };
+        let Ok(caller) = who else {
             return StepEnding::Refused(CallRefusal::Denied(DenyCode::NotAllowed));
         };
         let reply = block_on(self.router.handle(
@@ -225,9 +235,9 @@ impl<'a> Player<'a> {
                     action,
                     target,
                     args,
-                    origin: Origin::Companion,
+                    origin,
                 },
-                session: Some(self.scene.front.clone()),
+                session,
                 parent_window: None,
             },
         ));

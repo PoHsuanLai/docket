@@ -9,7 +9,7 @@ use crate::confirm::ConfirmEnd;
 use crate::context::EntityRef;
 use crate::context::{ContextView, Reveal};
 use crate::gate::{CuaAsk, GateAnswer};
-use crate::ids::UndoId;
+use crate::ids::{ActionRef, UndoId};
 use crate::ids::{Handle, IntentsVocab, TurnId, WindowKey};
 use crate::index::{Hit, IndexBatch, SearchAsk, SuggestAsk};
 use crate::message::{Delivery, InboundLine, InboxAsk, MessageDraft, SendRefusal};
@@ -168,6 +168,15 @@ pub enum IntentsRequest {
         /// The window to anchor a confirmation to.
         parent_window: Option<WindowKey>,
     },
+    /// `.Run.DryRun`: what the app would change, through the same arguments check, labels and
+    /// policy as `Perform`, without asking the person, dispatching or charging a budget. A call
+    /// policy refuses is refused here with the same refusal.
+    DryRun {
+        /// The call.
+        call: CallRequest,
+        /// The session, as in `Perform`.
+        session: Option<SessionId>,
+    },
     /// `.Run.Preview`.
     Preview(EntityId),
     /// `.Run.Suggest`.
@@ -273,6 +282,10 @@ pub enum IntentsRequest {
     ControlState,
     /// `.Control.Journal`.
     ControlJournal(JournalFilter),
+    /// `.Control.TerminalGrants`: the actions the terminal may run without asking, until logout.
+    ControlTerminalGrants,
+    /// `.Control.RevokeTerminalGrant`: the next call of this action from the terminal asks again.
+    ControlTerminalRevoke(ActionRef),
 }
 
 /// Why a request got no answer of its own kind.
@@ -339,6 +352,8 @@ pub enum IntentsReply {
     State(KillSwitch),
     /// The journal.
     Journal(Vec<UndoEntry>),
+    /// The actions the terminal holds a standing grant for.
+    TerminalGrants(Vec<ActionRef>),
     /// The request was refused.
     Refused(WireRefusal),
 }

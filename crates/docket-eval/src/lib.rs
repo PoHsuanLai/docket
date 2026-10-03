@@ -15,7 +15,7 @@ mod steps;
 mod world;
 
 pub use case::{
-    ArgFrom, Case, CaseId, ConsentFixture, Corpus, Expect, FixtureContact, FixtureFile,
+    ArgFrom, Case, CaseId, ConsentFixture, Corpus, Driver, Expect, FixtureContact, FixtureFile,
     FixtureMail, FixtureRef, FixtureTask, MailField, ScriptedCall, ScriptedSend, ScriptedStep,
     WorldFixture,
 };

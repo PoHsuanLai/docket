@@ -115,6 +115,11 @@ impl<S: Seams> Router<S> {
                 count: f.count,
                 mass_at: self.config.mass_at,
                 grant: grant_state(f.consent),
+                terminal: crate::terminal::held(
+                    f.record,
+                    &f.request.action,
+                    self.seams.clock().now(),
+                ),
                 coverage: f.coverage,
                 task_ceiling: f.record.policy.as_ref().map_or(Effect::Read, |p| p.ceiling),
                 strictness: f.strictness,

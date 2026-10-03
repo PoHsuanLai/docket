@@ -2,7 +2,7 @@
 
 use docket_core::{CallerRole, Member};
 
-use CallerRole::{App, Companion, Compositor, Control, Cua, Field, Launcher, Mcp, Reader};
+use CallerRole::{App, Cli, Companion, Compositor, Control, Cua, Field, Launcher, Mcp, Reader};
 
 /// The roles that may call `member`.
 fn roles(member: Member) -> &'static [CallerRole] {
@@ -10,13 +10,15 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::Manifests => &CallerRole::ALL,
         // The owning app only; the router checks the name equals the manifest's app.
         Member::IndexPush | Member::IndexReset => &[App],
-        Member::SearchQuery | Member::SearchCancel => &[Launcher, Companion, App],
-        // The person's surfaces, the planner, MCP, and an app calling its own actions. cuad
-        // asks through the gate, not through Perform; the reader acts on nothing.
-        Member::Perform => &[Launcher, Field, Companion, Mcp, App],
+        Member::SearchQuery | Member::SearchCancel => &[Launcher, Companion, Cli, App],
+        // The person's surfaces, the planner, MCP, a terminal, and an app calling its own
+        // actions. cuad asks through the gate, not through Perform; the reader acts on nothing.
+        Member::Perform | Member::DryRun => &[Launcher, Field, Companion, Mcp, Cli, App],
         Member::Preview | Member::Suggest => &[Launcher, Field, Companion, Mcp, App],
-        Member::Undo | Member::UndoAll => &[Launcher, Field, Control, App],
-        Member::Context => &[Launcher, Companion],
+        // A terminal undoes only what a terminal did (`run_undo` checks the journal row).
+        Member::Undo => &[Launcher, Field, Control, Cli, App],
+        Member::UndoAll => &[Launcher, Field, Control, App],
+        Member::Context => &[Launcher, Companion, Cli],
         Member::SessionOpen | Member::SessionClose => &[Launcher, Field, Companion],
         // Only the person's own surfaces record a turn: a model cannot say what the person said.
         Member::SessionTurn => &[Launcher, Field],
@@ -31,7 +33,10 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::GateGrant | Member::GateCheck => &[Cua],
         Member::ControlHalt | Member::ControlState => &[Compositor, Control],
         Member::ControlResume => &[Control],
-        Member::ControlJournal => &[Launcher, Control],
+        // A terminal reads only its own rows (`control_journal` cuts the list).
+        Member::ControlJournal => &[Launcher, Control, Cli],
+        // The control centre shows and revokes what the terminal may do without asking.
+        Member::ControlTerminalGrants | Member::ControlTerminalRevoke => &[Control],
     }
 }
 

@@ -13,5 +13,5 @@ mod request;
 pub use pdp::{DEFAULT_POLICIES, Pdp, PolicyError, SCHEMA};
 pub use request::{
     ActionFacts, CoverageState, GrantState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
-    SpaceRelation,
+    SpaceRelation, TerminalGrant,
 };

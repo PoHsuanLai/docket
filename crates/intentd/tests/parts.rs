@@ -27,6 +27,12 @@ fn the_fixture_parses_and_one_name_may_play_several_roles() {
             CallerRole::Control
         ]
     );
+    let quire_do = AppName::parse("org.quire.Do").expect("app");
+    assert_eq!(
+        config.roles_of(&quire_do).into_iter().collect::<Vec<_>>(),
+        [CallerRole::Cli],
+        "any process running quire-do plays the cli role"
+    );
     let plain = AppName::parse("org.quire.Mail").expect("app");
     assert!(
         config.roles_of(&plain).is_empty(),

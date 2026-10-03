@@ -108,3 +108,36 @@ fn a_caller_acts_in_the_first_of_its_roles_that_may_make_the_call() {
         "and cannot record a turn"
     );
 }
+
+#[test]
+fn a_terminal_gets_exactly_the_members_quire_do_uses() {
+    let cli: Vec<Member> = Member::ALL
+        .into_iter()
+        .filter(|m| permits(CallerRole::Cli, *m))
+        .collect();
+    assert_eq!(
+        cli,
+        [
+            Member::Manifests,
+            Member::SearchQuery,
+            Member::SearchCancel,
+            Member::Perform,
+            Member::DryRun,
+            Member::Undo,
+            Member::Context,
+            Member::ControlJournal,
+        ]
+    );
+}
+
+#[test]
+fn only_the_control_centre_shows_and_revokes_what_the_terminal_may_do_unasked() {
+    assert_eq!(
+        role_set(Member::ControlTerminalGrants),
+        [CallerRole::Control]
+    );
+    assert_eq!(
+        role_set(Member::ControlTerminalRevoke),
+        [CallerRole::Control]
+    );
+}

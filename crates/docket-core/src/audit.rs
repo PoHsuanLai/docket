@@ -40,6 +40,8 @@ pub enum DecidedBy {
 pub enum ConfirmAnswerKind {
     /// Yes, once or always.
     Allowed(GrantScope),
+    /// Yes, and the terminal may run this action until logout.
+    AllowedFromTerminal,
     /// It ended without a yes.
     Ended(ConfirmEnd),
 }

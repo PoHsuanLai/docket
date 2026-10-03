@@ -27,6 +27,8 @@ pub enum Origin {
     Shortcut,
     /// An external MCP client.
     Mcp,
+    /// A process running `quire-do`.
+    Cli,
     /// An app calling itself.
     AppInternal,
 }

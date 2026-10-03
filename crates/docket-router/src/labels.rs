@@ -24,6 +24,8 @@ pub(crate) enum Voice {
     Model,
     /// An external client: everything it sends is untrusted.
     External(ClientName),
+    /// A terminal (`quire-do`): the person or an agent typing in it; everything is untrusted.
+    Cli,
 }
 
 fn label(integrity: Integrity, source: Source) -> Label {
@@ -154,6 +156,7 @@ fn claim(session: &SessionRecord, voice: &Voice, value: &Value, given: Label) ->
     match voice {
         Voice::Person | Voice::App => given,
         Voice::External(client) => label(Integrity::Untrusted, Source::Mcp(client.clone())),
+        Voice::Cli => label(Integrity::Untrusted, Source::Cli),
         Voice::Model => trace(session, value),
     }
 }

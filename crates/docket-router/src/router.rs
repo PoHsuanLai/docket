@@ -4,7 +4,8 @@ use crate::auth::acting_role;
 use crate::seams::{Clock, Seams};
 use crate::state::RouterState;
 use docket_core::{
-    AgentConfig, CallerId, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk, WireRefusal,
+    AgentConfig, CallerId, CallerRole, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk,
+    WireRefusal,
 };
 use policy_point::Pdp;
 use std::future::Future;
@@ -88,11 +89,32 @@ impl<S: Seams> Router<S> {
                     Err(why) => IntentsReply::Refused(why),
                 }
             }
+            R::DryRun { call, session } => {
+                let now = self.seams.clock().now();
+                let who = self.locked().who_for(caller, role, session.as_ref(), now);
+                match who {
+                    Ok(who) => self.run_dry(who, call).await,
+                    Err(why) => IntentsReply::Refused(why),
+                }
+            }
             R::Preview(id) => self.run_preview(&id).await,
             R::Suggest(ask) => self.run_suggest(role, ask).await,
             R::Undo(id) => self.run_undo(caller, role, id).await,
             R::UndoAll(scope) => self.run_undo_all(caller, role, scope).await,
-            R::Context { session, app } => self.session_context(&session, app).await,
+            R::Context { session, app } => {
+                // A terminal has one session of its own, which it cannot name.
+                let session = match role {
+                    CallerRole::Cli => {
+                        let now = self.seams.clock().now();
+                        match self.locked().who_for(caller, role, None, now) {
+                            Ok(who) => who.session.unwrap_or(session),
+                            Err(why) => return IntentsReply::Refused(why),
+                        }
+                    }
+                    _ => session,
+                };
+                self.session_context(&session, app).await
+            }
             R::SessionOpen(open) => self.session_open(caller, open),
             R::SessionTurn { session, turn } => {
                 match self.record_turn(caller, role, &session, turn) {
@@ -121,7 +143,12 @@ impl<S: Seams> Router<S> {
             R::ControlHalt { scope, cause } => self.control_halt(scope, cause).await,
             R::ControlResume { scope } => self.control_resume(scope),
             R::ControlState => IntentsReply::State(self.locked().kill.clone()),
-            R::ControlJournal(filter) => self.control_journal(&filter),
+            R::ControlJournal(filter) => self.control_journal(role, &filter),
+            R::ControlTerminalGrants => IntentsReply::TerminalGrants(self.terminal_grants()),
+            R::ControlTerminalRevoke(action) => {
+                self.revoke_terminal_grant(&action);
+                IntentsReply::Done
+            }
         }
     }
 

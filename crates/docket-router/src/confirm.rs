@@ -4,6 +4,7 @@
 
 use crate::prepared::Prepared;
 use crate::state::SessionRecord;
+use crate::terminal::offers_grant;
 use docket_core::{
     Anchor, ArgLine, AskReason, ConfirmDetail, ConfirmId, ConfirmOffer, ConfirmRequest, Gesture,
     Preview, Seconds, Shown, TaintNote, Value,
@@ -101,7 +102,9 @@ pub(crate) fn confirm_request(
 ) -> ConfirmRequest {
     let taint = taint_note(record);
     let destructive = p.decl.effect == Effect::Destructive;
-    let offer = if destructive || taint != TaintNote::Clean {
+    let offer = if offers_grant(p, why) {
+        ConfirmOffer::OnceOrFromTerminal
+    } else if destructive || taint != TaintNote::Clean || p.who.actor == prov::Actor::Cli {
         ConfirmOffer::OnceOnly
     } else {
         ConfirmOffer::OnceOrAlways

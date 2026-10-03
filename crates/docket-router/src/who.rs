@@ -30,6 +30,7 @@ impl Who {
                 ..
             } => GrantCaller::Cua,
             Actor::Mcp { client } => GrantCaller::Mcp(client.clone()),
+            Actor::Cli => GrantCaller::Cli,
             Actor::App { app } | Actor::ThirdParty { app, .. } => GrantCaller::App(app.clone()),
             Actor::Companion { .. }
             | Actor::User { .. }
@@ -41,7 +42,7 @@ impl Who {
 
 impl RouterState {
     /// Who a `role` calling as `caller` is. The person's surfaces act directly; a companion
-    /// acts in the session it names, else its newest (a closed one refuses its calls, so a halt reads as a halt); MCP clients and apps act in a session of
+    /// acts in the session it names, else its newest (a closed one refuses its calls, so a halt reads as a halt); MCP clients, terminals and apps act in a session of
     /// their own, made when they first call.
     pub(crate) fn who_for(
         &mut self,
@@ -90,6 +91,7 @@ impl RouterState {
                     Voice::External(client),
                 )
             }
+            CallerRole::Cli => (Actor::Cli, Voice::Cli),
             CallerRole::App => (Actor::App { app: app.clone() }, Voice::App),
             CallerRole::Reader
             | CallerRole::Cua

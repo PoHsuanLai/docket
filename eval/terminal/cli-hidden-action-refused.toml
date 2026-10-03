@@ -1,0 +1,15 @@
+id = "terminal-cli-hidden-action-refused"
+corpus = "overeager"
+space = "work"
+strictness = "trust_more"
+driver = "cli"
+why = "An action the app keeps for the person (reach hidden) is refused to a terminal outright: the person is not asked and nothing runs, in the most trusting strictness and with the person's standing consent. A terminal that names a hidden action by hand gets the same refusal as an agent."
+turns = ["tidy my memory"]
+expect = { kind = "all_refused" }
+
+[[planner]]
+kind = "call"
+[planner.v]
+app = "org.quire.Memory"
+action = "memory.forget"
+targets = [{ kind = "memory.fact", key = "f1" }]

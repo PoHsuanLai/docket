@@ -248,11 +248,19 @@ impl<S: Seams> Router<S> {
             request
         };
         let cid = request.id.clone();
-        let answer = self.seams.confirmer().confirm(request).await;
+        let answer = self
+            .seams
+            .confirmer()
+            .confirm(request)
+            .await
+            .without_terminal_grant();
         self.locked().pending.remove(&cid);
         let (kind, input) = match &answer {
             ConfirmAnswer::Allowed { scope, receipt } => {
                 (ConfirmAnswerKind::Allowed(*scope), Some(receipt.input))
+            }
+            ConfirmAnswer::AllowedFromTerminal { receipt } => {
+                (ConfirmAnswerKind::AllowedFromTerminal, Some(receipt.input))
             }
             ConfirmAnswer::Ended(end) => (ConfirmAnswerKind::Ended(*end), None),
         };

@@ -17,6 +17,7 @@ fn actor_of(caller: &CallerId, role: CallerRole) -> Actor {
         CallerRole::App => Actor::App {
             app: caller.app.name.clone(),
         },
+        CallerRole::Cli => Actor::Cli,
         _ => Actor::User {
             via: caller.app.name.clone(),
         },
@@ -92,14 +93,15 @@ impl<S: Seams> Router<S> {
         IntentsReply::Done
     }
 
-    /// `.Control.Journal`, newest first.
-    pub(crate) fn control_journal(&self, filter: &JournalFilter) -> IntentsReply {
+    /// `.Control.Journal`, newest first. A terminal reads only the rows of its own acts.
+    pub(crate) fn control_journal(&self, role: CallerRole, filter: &JournalFilter) -> IntentsReply {
         let st = self.locked();
         let rows: Vec<UndoEntry> = st
             .journal
             .entries()
             .iter()
             .rev()
+            .filter(|e| role != CallerRole::Cli || e.actor == Actor::Cli)
             .filter(|e| {
                 filter
                     .run
@@ -171,6 +173,14 @@ impl<S: Seams> Router<S> {
         role: CallerRole,
         id: UndoId,
     ) -> IntentsReply {
+        let own = self
+            .locked()
+            .journal
+            .get(id)
+            .is_none_or(|e| role != CallerRole::Cli || e.actor == Actor::Cli);
+        if !own {
+            return IntentsReply::Refused(docket_core::WireRefusal::NotAllowed);
+        }
         IntentsReply::Undone(self.undo_one(id, &actor_of(caller, role)).await)
     }
 

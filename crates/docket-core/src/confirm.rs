@@ -94,6 +94,9 @@ pub enum ConfirmOffer {
     OnceOnly,
     /// Once, or always for this app, class and Space.
     OnceOrAlways,
+    /// Once, or "allow from the terminal: this action, until logout" (a call made through
+    /// `quire-do`; never offered for a destructive act or an action that asks every time).
+    OnceOrFromTerminal,
 }
 
 /// How the person must answer.
@@ -167,8 +170,28 @@ pub enum ConfirmAnswer {
         /// The proof.
         receipt: ConfirmReceipt,
     },
+    /// Yes, and from now until logout the same action may run from the terminal without
+    /// asking. Only a call made through `quire-do` honours it; the router drops it for any other
+    /// caller.
+    AllowedFromTerminal {
+        /// The proof.
+        receipt: ConfirmReceipt,
+    },
     /// No answer to act on.
     Ended(ConfirmEnd),
+}
+
+impl ConfirmAnswer {
+    /// For a sheet that did not offer "allow from the terminal" (a computer-use step, a widened
+    /// policy): that answer was never on it, so it counts as the router withdrawing the sheet.
+    pub fn without_terminal_grant(self) -> ConfirmAnswer {
+        match self {
+            ConfirmAnswer::AllowedFromTerminal { .. } => {
+                ConfirmAnswer::Ended(ConfirmEnd::Cancelled)
+            }
+            other => other,
+        }
+    }
 }
 
 /// How a confirmation ended without a yes.

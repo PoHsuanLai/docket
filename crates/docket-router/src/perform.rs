@@ -9,6 +9,7 @@ use crate::gate::Pending;
 use crate::prepared::{Prepared, grants_for};
 use crate::router::Router;
 use crate::seams::{AppFault, AppLink, Clock, EventSink, GrantStore, Seams};
+use crate::terminal::offers_grant;
 use crate::who::Who;
 use action_review::{DeniedBy, ReviewVerdict, Reviewer};
 use docket_core::{
@@ -126,6 +127,16 @@ impl<S: Seams> Router<S> {
                     for grant in grants_for(p, id, now, p.who.grant_caller()) {
                         self.seams.grants().record(grant);
                     }
+                }
+            }
+            CallEffect::RecordTerminalGrant => {
+                let why = match &p.pending {
+                    Pending::Confirm(why) => why.as_slice(),
+                    _ => &[],
+                };
+                // Only a sheet that offered it may grant it.
+                if offers_grant(p, why) {
+                    self.record_terminal_grant(p);
                 }
             }
             CallEffect::NoteDenial => {
@@ -314,12 +325,21 @@ impl<S: Seams> Router<S> {
             self.seams.confirmer().cancel(&id).await;
             return Next::Event(CallEvent::Halted);
         }
-        if let ConfirmAnswer::Allowed { scope, receipt } = &answer {
+        let yes = match &answer {
+            ConfirmAnswer::Allowed { scope, receipt } => {
+                Some((ConfirmAnswerKind::Allowed(*scope), receipt))
+            }
+            ConfirmAnswer::AllowedFromTerminal { receipt } => {
+                Some((ConfirmAnswerKind::AllowedFromTerminal, receipt))
+            }
+            ConfirmAnswer::Ended(_) => None,
+        };
+        if let Some((kind, receipt)) = yes {
             run.receipt = Some(receipt.clone());
             self.seams.sink().append(AuditRecord::Confirm {
                 at: self.seams.clock().now(),
                 id: id.clone(),
-                answer: ConfirmAnswerKind::Allowed(*scope),
+                answer: kind,
                 input: Some(receipt.input),
             });
         }

@@ -3,10 +3,11 @@
 
 use crate::transport::{Transport, TransportError};
 use docket_core::{
-    CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, EntityRef, GateAnswer, GrantAnswer,
-    GrantAsk, Handle, Hit, InboundLine, InboxAsk, IntentsReply, IntentsRequest, MessageDraft,
-    Outcome, Preview, SearchAsk, SessionOpen, SessionOpened, SuggestAsk, TurnId, TurnIn, UndoId,
-    UndoReport, UndoScope, WidenAnswer, WidenAsk, WindowKey, WireRefusal,
+    ActionRef, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, EntityRef, GateAnswer,
+    GrantAnswer, GrantAsk, Handle, Hit, InboundLine, InboxAsk, IntentsReply, IntentsRequest,
+    JournalFilter, MessageDraft, Outcome, Preview, SearchAsk, SessionOpen, SessionOpened,
+    SuggestAsk, TurnId, TurnIn, UndoEntry, UndoId, UndoReport, UndoScope, ValidManifest,
+    WidenAnswer, WidenAsk, WindowKey, WireRefusal,
 };
 use prov::{AppName, EntityId, SessionId};
 
@@ -68,6 +69,56 @@ impl<T: Transport> Intents<T> {
         };
         self.ask(request, |r| match r {
             IntentsReply::Performed(end) => Some(*end),
+            _ => None,
+        })
+        .await
+    }
+
+    /// What the app would change if `call` ran, through the same checks and policy as
+    /// `perform`: nobody is asked, nothing runs. A call policy refuses comes back refused.
+    pub async fn dry_run(
+        &self,
+        call: CallRequest,
+        session: Option<SessionId>,
+    ) -> Result<Preview, ClientError> {
+        self.ask(IntentsRequest::DryRun { call, session }, |r| match r {
+            IntentsReply::Preview(p) => Some(p),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The installed manifests.
+    pub async fn manifests(&self) -> Result<Vec<ValidManifest>, ClientError> {
+        self.ask(IntentsRequest::Manifests, |r| match r {
+            IntentsReply::Manifests(all) => Some(all),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The undo journal, newest first. A terminal sees only the rows of its own acts.
+    pub async fn journal(&self, filter: JournalFilter) -> Result<Vec<UndoEntry>, ClientError> {
+        self.ask(IntentsRequest::ControlJournal(filter), |r| match r {
+            IntentsReply::Journal(rows) => Some(rows),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The actions the terminal may run without asking, until logout (control centre).
+    pub async fn terminal_grants(&self) -> Result<Vec<ActionRef>, ClientError> {
+        self.ask(IntentsRequest::ControlTerminalGrants, |r| match r {
+            IntentsReply::TerminalGrants(actions) => Some(actions),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Withdraws one standing terminal grant (control centre).
+    pub async fn revoke_terminal_grant(&self, action: ActionRef) -> Result<(), ClientError> {
+        self.ask(IntentsRequest::ControlTerminalRevoke(action), |r| match r {
+            IntentsReply::Done => Some(()),
             _ => None,
         })
         .await

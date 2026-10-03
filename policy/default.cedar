@@ -16,6 +16,12 @@
 //   Destructive, T, In           Ask           Ask                          AllowJudged + second opinion
 //   Destructive, otherwise       Ask           Ask                          Ask
 //
+// The terminal (`quire-do`, principal kind "cli") has its own rows, the same in every strictness:
+// a read is final; an undoable, outbound or destructive act asks and never goes to a reviewer
+// ("no auto-approval for a terminal"), unless the person gave a standing grant for that action
+// from the terminal, in which case it is final (the named rules below still ask); a destructive
+// act always asks; a hidden action is denied (hidden-from-agents).
+//
 // The second opinion is the cascade's business (`action_review::plan`), not Cedar's.
 
 // ---- Permits: the grid -------------------------------------------------------------------
@@ -140,6 +146,24 @@ when {
   context.sinks.path == "trusted"
 };
 
+// The terminal: the person gave a standing grant for this action ("allow from the terminal: this
+// action, until logout"), so it is final. No reviewer sits between a terminal and the app. The
+// forbids below (Rule of Two, untrusted sinks, mass, ask-always, lasting memory) still ask.
+@id("cli-granted-final")
+permit (
+  principal,
+  action in [
+    Quire::Action::"perform_unasked",
+    Quire::Action::"perform_unjudged"
+  ],
+  resource
+)
+when {
+  principal.kind == "cli" &&
+  resource.effect != "read" &&
+  context.terminal == "granted"
+};
+
 // ---- Forbids that refuse (Deny) ----------------------------------------------------------
 
 // An action the app keeps for the person is not for an agent.
@@ -221,7 +245,31 @@ forbid (
 )
 when { resource.reach == "ask_always" && principal.kind != "user" };
 
-// First use of this app, class and Space, or a grant that asks once.
+// A terminal cannot tell the person from an agent typing in it: anything but a read asks unless
+// the person gave a standing grant for this action from the terminal.
+@id("cli-asks")
+forbid (
+  principal,
+  action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
+  resource
+)
+when {
+  principal.kind == "cli" &&
+  resource.effect != "read" &&
+  context.terminal == "not_granted"
+};
+
+// A standing terminal grant never covers a destructive act.
+@id("cli-destructive-asks")
+forbid (
+  principal,
+  action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
+  resource
+)
+when { principal.kind == "cli" && resource.effect == "destructive" };
+
+// First use of this app, class and Space, or a grant that asks once. The terminal has no class
+// grants: a read from it is allowed and everything else asks by the rules above.
 @id("first-use")
 forbid (
   principal,
@@ -230,7 +278,8 @@ forbid (
 )
 when {
   (context.grant == "none" || context.grant == "once") &&
-  principal.kind != "user"
+  principal.kind != "user" &&
+  principal.kind != "cli"
 };
 
 // Lasting memory from untrusted arguments.

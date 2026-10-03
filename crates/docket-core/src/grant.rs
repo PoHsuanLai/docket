@@ -35,6 +35,8 @@ pub enum GrantCaller {
     Cua,
     /// This external MCP client.
     Mcp(prov::ClientName),
+    /// A process running `quire-do`.
+    Cli,
     /// This app on its own.
     App(AppName),
 }
@@ -46,6 +48,7 @@ impl GrantCaller {
             GrantCaller::Companion => ActorKind::Companion,
             GrantCaller::Cua => ActorKind::Cua,
             GrantCaller::Mcp(_) => ActorKind::Mcp,
+            GrantCaller::Cli => ActorKind::Cli,
             GrantCaller::App(_) => ActorKind::App,
         }
     }

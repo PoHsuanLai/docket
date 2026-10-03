@@ -54,6 +54,17 @@ pub(crate) fn companion() -> Result<CallerId, SetupFault> {
     })
 }
 
+/// The connection of a process running `quire-do`.
+pub(crate) fn cli() -> Result<CallerId, SetupFault> {
+    Ok(CallerId {
+        app: AppId {
+            name: name("org.quire.Do")?,
+            isolation: Isolation::Unsandboxed,
+        },
+        roles: BTreeSet::from([CallerRole::Cli]),
+    })
+}
+
 /// The connection of the shell's launcher, which records the person's own words.
 pub(crate) fn launcher() -> Result<CallerId, SetupFault> {
     Ok(CallerId {

@@ -286,6 +286,13 @@ fn rows() -> Vec<Row> {
             [vec![E::RecordGrant], dispatch()].concat(),
         ),
         (
+            "an allow from the terminal is remembered for the terminal, then dispatches",
+            S::Confirming(confirm_id()),
+            V::Answered(ConfirmAnswer::AllowedFromTerminal { receipt: receipt() }),
+            S::Dispatched,
+            [vec![E::RecordTerminalGrant], dispatch()].concat(),
+        ),
+        (
             "a no ends the call and counts",
             S::Confirming(confirm_id()),
             V::Answered(ConfirmAnswer::Ended(ConfirmEnd::Refused)),

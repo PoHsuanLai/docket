@@ -21,6 +21,8 @@ pub enum CallerRole {
     Cua,
     /// actions-mcp.
     Mcp,
+    /// Any process running `quire-do`: connection-derived, like every role.
+    Cli,
     /// sill as the only `Confirm1` server the router trusts.
     Confirm,
     /// The compositor fork: may halt.
@@ -33,13 +35,14 @@ pub enum CallerRole {
 
 impl CallerRole {
     /// Every role.
-    pub const ALL: [CallerRole; 10] = [
+    pub const ALL: [CallerRole; 11] = [
         CallerRole::Launcher,
         CallerRole::Field,
         CallerRole::Companion,
         CallerRole::Reader,
         CallerRole::Cua,
         CallerRole::Mcp,
+        CallerRole::Cli,
         CallerRole::Confirm,
         CallerRole::Compositor,
         CallerRole::Control,
@@ -74,6 +77,8 @@ pub enum Member {
     SearchCancel,
     /// `.Run.Perform`.
     Perform,
+    /// `.Run.DryRun`.
+    DryRun,
     /// `.Run.Preview`.
     Preview,
     /// `.Run.Suggest`.
@@ -120,17 +125,22 @@ pub enum Member {
     ControlState,
     /// `.Control.Journal`.
     ControlJournal,
+    /// `.Control.TerminalGrants`.
+    ControlTerminalGrants,
+    /// `.Control.RevokeTerminalGrant`.
+    ControlTerminalRevoke,
 }
 
 impl Member {
     /// Every member, in the order the interface table lists them.
-    pub const ALL: [Member; 29] = [
+    pub const ALL: [Member; 32] = [
         Member::Manifests,
         Member::IndexPush,
         Member::IndexReset,
         Member::SearchQuery,
         Member::SearchCancel,
         Member::Perform,
+        Member::DryRun,
         Member::Preview,
         Member::Suggest,
         Member::Undo,
@@ -154,6 +164,8 @@ impl Member {
         Member::ControlResume,
         Member::ControlState,
         Member::ControlJournal,
+        Member::ControlTerminalGrants,
+        Member::ControlTerminalRevoke,
     ];
 }
 
@@ -168,6 +180,7 @@ impl crate::wire::IntentsRequest {
             R::Search(_) => Member::SearchQuery,
             R::SearchCancel(_) => Member::SearchCancel,
             R::Perform { .. } => Member::Perform,
+            R::DryRun { .. } => Member::DryRun,
             R::Preview(_) => Member::Preview,
             R::Suggest(_) => Member::Suggest,
             R::Undo(_) => Member::Undo,
@@ -191,6 +204,8 @@ impl crate::wire::IntentsRequest {
             R::ControlResume { .. } => Member::ControlResume,
             R::ControlState => Member::ControlState,
             R::ControlJournal(_) => Member::ControlJournal,
+            R::ControlTerminalGrants => Member::ControlTerminalGrants,
+            R::ControlTerminalRevoke(_) => Member::ControlTerminalRevoke,
         }
     }
 }

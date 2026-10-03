@@ -40,6 +40,9 @@ namespace Quire {
     mass_at: Long,
     // "always", "once", "none" or "denied".
     grant: String,
+    // "granted" when the person gave a standing grant for this action from the terminal
+    // (`quire-do`), else "not_granted".
+    terminal: String,
     // "inside" or "outside" the task policy.
     coverage: String,
     task_ceiling: String,

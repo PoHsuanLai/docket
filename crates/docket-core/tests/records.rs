@@ -236,3 +236,69 @@ fn the_cua_ask_carries_an_untrusted_screen_label() {
     };
     round(&ask);
 }
+
+#[test]
+fn the_terminal_words_are_pinned() {
+    assert_eq!(round(&Origin::Cli), r#""cli""#);
+    assert_eq!(round(&CallerRole::Cli), r#""cli""#);
+    assert_eq!(round(&GrantCaller::Cli), r#"{"kind":"cli"}"#);
+    assert_eq!(GrantCaller::Cli.kind(), prov::ActorKind::Cli);
+    assert_eq!(
+        round(&AskReason::FromTerminal),
+        r#"{"kind":"from_terminal"}"#
+    );
+    assert_eq!(
+        round(&ConfirmOffer::OnceOrFromTerminal),
+        r#""once_or_from_terminal""#
+    );
+    assert_eq!(
+        round(&ConfirmAnswerKind::AllowedFromTerminal),
+        r#"{"kind":"allowed_from_terminal"}"#
+    );
+    let receipt = prov::ConfirmReceipt {
+        id: ConfirmId::parse("c-1").expect("id"),
+        input: prov::InputProof::HardwareSeat,
+        at: at(1),
+    };
+    let answer = ConfirmAnswer::AllowedFromTerminal {
+        receipt: receipt.clone(),
+    };
+    assert!(round(&answer).starts_with(r#"{"kind":"allowed_from_terminal""#));
+    // A sheet that never offered the grant (a computer-use step, a widened policy) cannot be
+    // answered with it: it reads as the router withdrawing the sheet.
+    assert_eq!(
+        answer.without_terminal_grant(),
+        ConfirmAnswer::Ended(ConfirmEnd::Cancelled)
+    );
+    let plain = ConfirmAnswer::Allowed {
+        scope: GrantScope::Once,
+        receipt,
+    };
+    assert_eq!(plain.clone().without_terminal_grant(), plain);
+}
+
+#[test]
+fn a_dry_run_is_a_member_of_its_own() {
+    let request = IntentsRequest::DryRun {
+        call: CallRequest {
+            action: ActionRef {
+                app: app("org.quire.Mail"),
+                name: action("mail.thread.archive"),
+            },
+            target: TargetValue::Nothing,
+            args: Args::new(),
+            origin: Origin::Cli,
+        },
+        session: None,
+    };
+    assert_eq!(request.member(), Member::DryRun);
+    round(&request);
+    assert_eq!(
+        IntentsRequest::ControlTerminalGrants.member(),
+        Member::ControlTerminalGrants
+    );
+    round(&IntentsReply::TerminalGrants(vec![ActionRef {
+        app: app("org.quire.Mail"),
+        name: action("mail.thread.archive"),
+    }]));
+}

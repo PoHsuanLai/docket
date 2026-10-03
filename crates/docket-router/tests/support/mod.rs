@@ -259,3 +259,23 @@ pub async fn ready(router: &Router<FakeSeams>) -> SessionOpened {
     grant_mail(router, "work");
     opened
 }
+
+pub fn cli() -> CallerId {
+    caller("org.quire.Do", CallerRole::Cli)
+}
+
+/// A call as `quire-do` makes it.
+pub fn from_cli(name: &str, targets: &[&str], args: Vec<(&str, Value)>) -> CallRequest {
+    CallRequest {
+        origin: Origin::Cli,
+        ..call(name, targets, args)
+    }
+}
+
+pub fn receipt() -> prov::ConfirmReceipt {
+    prov::ConfirmReceipt {
+        id: prov::ConfirmId::parse("c-1").expect("id"),
+        input: prov::InputProof::HardwareSeat,
+        at: UnixSeconds(1),
+    }
+}

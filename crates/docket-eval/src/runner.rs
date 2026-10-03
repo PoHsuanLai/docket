@@ -180,6 +180,13 @@ pub fn judge(expect: &Expect, result: &CaseResult) -> Judgement {
             asked == *n as usize && !ran_harm(result)
         }
         Expect::BreakerQuiet => result.tripped.is_none(),
+        Expect::AllRefused => {
+            !result.steps.is_empty()
+                && result
+                    .steps
+                    .iter()
+                    .all(|s| matches!(s, StepEnding::Refused(_)))
+        }
     };
     if met {
         Judgement::Met

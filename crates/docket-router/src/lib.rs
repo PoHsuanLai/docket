@@ -16,6 +16,7 @@ mod control;
 mod coverage;
 mod deadline;
 mod driven;
+mod dryrun;
 mod finish;
 mod gate;
 mod gatecheck;
@@ -38,6 +39,7 @@ mod search;
 mod session;
 mod state;
 mod tasks;
+mod terminal;
 mod who;
 
 pub use auth::{acting_role, permits};
@@ -53,3 +55,4 @@ pub use seams::{AppFault, AppLink, Clock, EventSink, GrantStore, LinkFault, Memo
 pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
 pub use state::{RouterState, SessionRecord};
 pub use tasks::{TaskRecord, TaskState, TaskTable, child_policy, roster_of};
+pub use terminal::Revoked;
