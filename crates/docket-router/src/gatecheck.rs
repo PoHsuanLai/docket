@@ -3,6 +3,7 @@
 //! same Cedar policy and the same breaker.
 
 use crate::gate::{GateInputs, Pending, gate};
+use crate::labels::absorb;
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, GrantStore, Seams};
 use action_review::RepeatState;
@@ -19,7 +20,9 @@ use policy_point::{
 };
 use porter_core::consent::{Decision, Grant, GrantScope, Usage, Verdict};
 use porter_core::{Count, DataClass, GrantId};
-use prov::{ActionName, Actor, AgentRole, Confidentiality, Effect, Integrity, SpaceScope};
+use prov::{
+    ActionName, Actor, AgentRole, Confidentiality, Effect, Integrity, Label, Source, SpaceScope,
+};
 use std::collections::BTreeSet;
 
 fn words(text: &str) -> LabelText {
@@ -134,6 +137,24 @@ impl<S: Seams> Router<S> {
     /// of the person instead: a reviewer for pixel steps arrives with the run host.
     pub(crate) async fn gate_check(&self, ask: CuaAsk) -> IntentsReply {
         let now = self.seams.clock().now();
+        // Whatever cuad claims, the screen is somebody else's words: the run's session takes in
+        // `Untrusted(Screen { app })`, so every report it sends later carries that label.
+        let screen = Label::untrusted(
+            Source::Screen {
+                app: ask.app.clone(),
+            },
+            DataClass::Screen,
+            ask.space.clone(),
+        )
+        .join(&ask.screen);
+        {
+            let mut st = self.locked();
+            if let Some(record) = st.sessions.values_mut().find(|r| {
+                matches!(&r.actor, Actor::Companion { role: AgentRole::Cua { run }, .. } if *run == ask.run)
+            }) {
+                absorb(record, &screen);
+            }
+        }
         let decided = {
             let st = self.locked();
             let Some(record) = st
@@ -167,7 +188,7 @@ impl<S: Seams> Router<S> {
                 .get(&ask.space)
                 .copied()
                 .unwrap_or(self.config.strictness);
-            let screen = ask.screen.integrity;
+            let screen = screen.integrity;
             let ctx = PolicyContext {
                 space: ask.space.clone(),
                 target_space: SpaceRelation::Same,

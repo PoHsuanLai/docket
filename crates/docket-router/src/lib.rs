@@ -14,6 +14,7 @@ mod confirm;
 mod consent;
 mod control;
 mod coverage;
+mod deadline;
 mod driven;
 mod finish;
 mod gate;

@@ -3,6 +3,7 @@
 
 use crate::call::{CallEffect, CallEvent, CallState, call_step};
 use crate::confirm::confirm_request;
+use crate::deadline::within;
 use crate::driven::{Driven, Next, Run, code_of, reviewer_model, unissued};
 use crate::gate::Pending;
 use crate::prepared::{Prepared, grants_for};
@@ -223,7 +224,18 @@ impl<S: Seams> Router<S> {
             return Next::Event(CallEvent::Verdict(stage, Err(ReviewError::Unavailable)));
         };
         let began = self.seams.clock().now();
-        let verdict = self.seams.reviewer().review(stage, request).await;
+        let limit = self.config.review;
+        let wait = match stage {
+            Stage::Quick => limit.quick,
+            Stage::Deliberate => limit.deliberate,
+            Stage::SecondOpinion => limit.second,
+        };
+        let verdict = within(
+            self.seams.clock().after(wait),
+            self.seams.reviewer().review(stage, request),
+        )
+        .await
+        .unwrap_or(Err(ReviewError::Timeout));
         let took = self.seams.clock().now().0.saturating_sub(began.0);
         let code = code_of(&verdict);
         self.seams.sink().append(AuditRecord::Review {

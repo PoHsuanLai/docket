@@ -165,6 +165,31 @@ async fn a_reviewer_that_asks_sends_the_call_to_the_person() {
 }
 
 #[tokio::test]
+async fn a_reviewer_that_hangs_past_its_deadline_is_a_timeout_that_asks() {
+    let mut router = router();
+    router.config.strictness = Strictness::TrustMore;
+    router.config.review = docket_core::ReviewTimeouts {
+        quick: docket_core::Millis(0),
+        deliberate: docket_core::Millis(0),
+        second: docket_core::Millis(0),
+    };
+    router.seams.reviewer = ScriptedReviewer::hanging();
+    ready(&router).await;
+    show_contacts(&router).await;
+    let refused = perform(&router, send(contact()))
+        .await
+        .expect_err("timed out, asked, then dismissed");
+    assert_eq!(refused, CallRefusal::Unconfirmed(ConfirmEnd::Dismissed));
+    assert_eq!(router.seams.confirmer.requests().len(), 1);
+    assert!(router.seams.link.mail.sent().is_empty());
+    let timed_out = router.seams.sink.records().iter().any(|r| {
+        matches!(r, AuditRecord::Review { mark, .. }
+            if mark.stage == Stage::Quick && mark.verdict == Err(ReviewError::Timeout))
+    });
+    assert!(timed_out, "the stage's timeout is logged");
+}
+
+#[tokio::test]
 async fn an_untrusted_recipient_asks_whatever_the_judge_says() {
     let router = router();
     ready(&router).await;

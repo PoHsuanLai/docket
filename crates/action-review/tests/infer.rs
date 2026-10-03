@@ -30,7 +30,12 @@ fn quick_asks_its_own_model_for_one_token() {
     assert!(sent.tools.is_empty());
     assert_eq!(sent.control.tool_choice, ToolChoice::Never);
     assert!(matches!(sent.control.max_output, Knob::Set(Tokens(n)) if n <= 8));
-    let _: DataClass = sent.class;
+    assert_eq!(sent.class, REVIEW_CLASS);
+    assert_eq!(
+        porter_infer::Policy::proposed().floor(sent.class),
+        porter_infer::Floor::OnDevice,
+        "the person's words stay on this computer"
+    );
 }
 
 #[test]

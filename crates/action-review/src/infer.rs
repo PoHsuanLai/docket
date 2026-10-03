@@ -3,8 +3,8 @@
 //! by failing.
 //!
 //! The stage timeout is `ReviewTimeouts`: a stage with no time at all (`0 ms`) fails before
-//! asking. Enforcing a running deadline needs a timer, which a pure crate does not own; see
-//! FINDINGS (the router wraps the call, or a `Deadline` seam is added here).
+//! asking. A running deadline needs a timer, which a pure crate does not own: the router races
+//! every `review` call against its clock's `after`.
 
 use crate::cascade::Reviewer;
 use crate::parse::parse_verdict;
@@ -106,6 +106,12 @@ fn message(role: Role, text: String) -> ChatMessage {
     }
 }
 
+/// The data class every reviewer request carries. The prompt holds the person's own words, so it
+/// must never leave the computer under the proposed AI policy: `Notes` has the on-device floor,
+/// where `AppOwn` and `Public` may go anywhere. (A dedicated class for the person's prompts would
+/// say it better; see FINDINGS.)
+pub const REVIEW_CLASS: DataClass = DataClass::Notes;
+
 /// The chat request for one stage of one review.
 pub(crate) fn chat_request(stage: Stage, request: &ReviewRequest) -> ChatRequest {
     let prompt = render(request, stage);
@@ -116,7 +122,7 @@ pub(crate) fn chat_request(stage: Stage, request: &ReviewRequest) -> ChatRequest
         ],
         shape: shape(stage),
         tier: tier(stage),
-        class: DataClass::AppOwn,
+        class: REVIEW_CLASS,
         usage: Usage::Interactive,
         tools: Vec::new(),
         control: control(stage),

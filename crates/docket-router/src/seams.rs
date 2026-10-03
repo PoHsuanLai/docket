@@ -9,8 +9,8 @@ use almanac_core::{MemoryReply, MemoryRequest};
 use docket_core::EntityRef;
 use docket_core::{
     ActionGrant, AppRefusal, AuditRecord, Confirmer, ContextScope, ContextSnapshot, Generation,
-    Hit, Invocation, Latency, Outcome, PolicyWriter, Preview, Reader, SuggestAsk, UndoFault,
-    UndoToken,
+    Hit, Invocation, Latency, Millis, Outcome, PolicyWriter, Preview, Reader, SuggestAsk,
+    UndoFault, UndoToken,
 };
 use porter_core::AppName;
 use prov::{Actor, EntityId, UnixSeconds};
@@ -98,6 +98,9 @@ pub trait EventSink: Send + Sync {
 pub trait Clock: Send + Sync {
     /// Now.
     fn now(&self) -> UnixSeconds;
+    /// Completes after `wait`: the deadline the router races a reviewer against (the real clock
+    /// sleeps; a fake completes at once only for no time at all).
+    fn after(&self, wait: Millis) -> impl Future<Output = ()> + Send;
 }
 
 /// Memory, reached as `Caller::Router` (the router acts for the companion's session, in the

@@ -7,6 +7,7 @@ use crate::memory::AlmanacMemory;
 use crate::sheet::SheetConfirmer;
 use crate::sink::QueuedSink;
 use action_review::InferReviewer;
+use docket_core::Millis;
 use docket_router::{Clock, Seams};
 use prov::UnixSeconds;
 
@@ -20,6 +21,10 @@ impl Clock for SystemClock {
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_secs());
         UnixSeconds(i64::try_from(seconds).unwrap_or(i64::MAX))
+    }
+
+    async fn after(&self, wait: Millis) {
+        tokio::time::sleep(std::time::Duration::from_millis(u64::from(wait.0))).await;
     }
 }
 

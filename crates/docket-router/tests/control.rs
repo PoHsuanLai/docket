@@ -266,3 +266,93 @@ async fn an_mcp_clients_arguments_are_untrusted_and_its_writes_ask() {
     );
     assert!(!router.seams.link.mail.is_archived("t1"));
 }
+
+#[tokio::test]
+async fn a_run_that_looked_at_a_screen_reports_with_the_screens_label() {
+    let mut router = router();
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![yes()]);
+    let run = RunId::parse("r-1").expect("run");
+    let front = open(&router, "work", AgentRef::Companion).await;
+    let run_opened = ask(
+        &router,
+        &companion(),
+        IntentsRequest::SessionOpen(SessionOpen {
+            space: space("work"),
+            agent: AgentRef::Cua { run: run.clone() },
+            parent: Some(front.task.clone()),
+        }),
+    )
+    .await;
+    let IntentsReply::SessionOpened(run_opened) = run_opened else {
+        panic!("{run_opened:?}");
+    };
+    let before = report(&router, &run_opened.session).await;
+    assert!(matches!(before, IntentsReply::Delivered(_)), "{before:?}");
+    let sent = |router: &docket_router::Router<docket_fake::FakeSeams>| {
+        router
+            .seams
+            .sink
+            .records()
+            .into_iter()
+            .filter_map(|r| match r {
+                AuditRecord::Message(m) => Some(m.label),
+                _ => None,
+            })
+            .next_back()
+            .expect("a message")
+    };
+    let screen = |label: &Label| {
+        label
+            .sources
+            .contains(&prov::Source::Screen { app: mail_app() })
+    };
+    assert!(!screen(&sent(&router)), "nothing was on screen yet");
+    ask(
+        &router,
+        &cuad(),
+        IntentsRequest::GateGrant(GrantAsk {
+            app: mail_app(),
+            space: space("work"),
+        }),
+    )
+    .await;
+    let step = ask(
+        &router,
+        &cuad(),
+        IntentsRequest::GateCheck(step(&run, Effect::Read)),
+    )
+    .await;
+    assert_eq!(step, IntentsReply::Gate(GateAnswer::Run));
+    let after = report(&router, &run_opened.session).await;
+    assert!(matches!(after, IntentsReply::Delivered(_)), "{after:?}");
+    let label = sent(&router);
+    assert!(
+        screen(&label),
+        "the report carries Untrusted(Screen): {label:?}"
+    );
+    assert_eq!(label.integrity, prov::Integrity::Untrusted);
+}
+
+async fn report(
+    router: &docket_router::Router<docket_fake::FakeSeams>,
+    session: &prov::SessionId,
+) -> IntentsReply {
+    let draft = MessageDraft {
+        to: prov::Address::new(AgentRef::Companion, space("work")),
+        thread: None,
+        in_reply_to: None,
+        kind: prov::MessageKind::Report {
+            status: prov::ReportStatus::Done,
+        },
+        parts: vec![DraftPart::Text(prov::MessageText::new("opened the page"))],
+    };
+    ask(
+        router,
+        &cuad(),
+        IntentsRequest::MessageSend {
+            session: session.clone(),
+            draft,
+        },
+    )
+    .await
+}

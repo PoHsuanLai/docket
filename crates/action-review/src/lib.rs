@@ -21,7 +21,7 @@ pub use breaker::{
 pub use cascade::{
     Gate, ModelChoice, ModelFamily, Reviewer, ReviewerSet, SetFault, escalate, plan, tighten,
 };
-pub use infer::InferReviewer;
+pub use infer::{InferReviewer, REVIEW_CLASS};
 pub use parse::parse_verdict;
 pub use render::render;
 pub use request::{

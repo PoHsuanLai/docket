@@ -84,6 +84,8 @@ pub enum ReviewMode {
     AlwaysAsk,
     /// Every stage times out.
     Timeout,
+    /// Every stage never answers: only a deadline ends it.
+    Hang,
 }
 
 /// A reviewer with a queue of verdicts, a fallback mode, and a log of every call.
@@ -111,6 +113,11 @@ impl ScriptedReviewer {
     /// Asks at every stage.
     pub fn always_ask() -> Self {
         Self::new(vec![], ReviewMode::AlwaysAsk)
+    }
+
+    /// Never answers: the router's deadline is what ends each stage.
+    pub fn hanging() -> Self {
+        Self::new(vec![], ReviewMode::Hang)
     }
 
     /// Times out at every stage.
@@ -158,6 +165,7 @@ impl Reviewer for ScriptedReviewer {
                 },
             }),
             ReviewMode::Timeout => Err(ReviewError::Timeout),
+            ReviewMode::Hang => std::future::pending().await,
         }
     }
 }
