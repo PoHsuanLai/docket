@@ -1,6 +1,10 @@
 //! The tools a registry offers to MCP clients.
 
-use docket_core::{ActionDecl, AgentReach, ToolSchema, ValidManifest, action_prefix, tool_schema};
+use crate::args::TARGET_KEY;
+use crate::fault::McpFault;
+use docket_core::{
+    ActionDecl, AgentReach, TargetKind, ToolSchema, ValidManifest, action_prefix, tool_schema,
+};
 use prov::Effect;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -22,14 +26,6 @@ impl fmt::Display for McpToolName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
     }
-}
-
-/// Why an action has no tool name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-pub enum McpFault {
-    /// The name would be longer than 64 characters.
-    #[error("tool name longer than 64 characters")]
-    TooLong,
 }
 
 /// How an MCP client is told what a tool does (the protocol's hints, which are advice and not
@@ -92,18 +88,60 @@ pub fn offered(registry: &[ValidManifest]) -> Vec<(&ValidManifest, &ActionDecl)>
         .collect()
 }
 
+/// The schema of an action's arguments plus the `target` key its `on` asks for: one entity, a
+/// list of entities or a list of files. A live text field has no key (a client cannot name it).
+fn schema_of(action: &ActionDecl) -> ToolSchema {
+    let ToolSchema(mut schema) = tool_schema(action);
+    let entity = |kind: &prov::EntityKind| {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "app": { "type": "string" },
+                "kind": { "const": kind.as_str() },
+                "key": { "type": "string" },
+            },
+            "required": ["app", "kind", "key"],
+            "additionalProperties": false,
+        })
+    };
+    let target = match &action.on {
+        TargetKind::Nothing | TargetKind::Text => None,
+        TargetKind::One(kind) => Some(entity(kind)),
+        TargetKind::Many(kind) => {
+            Some(serde_json::json!({ "type": "array", "minItems": 1, "items": entity(kind) }))
+        }
+        TargetKind::Files => Some(
+            serde_json::json!({ "type": "array", "minItems": 1, "items": { "type": "string" } }),
+        ),
+    };
+    if let (Some(target), Some(object)) = (target, schema.as_object_mut()) {
+        if let Some(properties) = object.get_mut("properties").and_then(|p| p.as_object_mut()) {
+            properties.insert(TARGET_KEY.to_owned(), target);
+        }
+        if let Some(required) = object.get_mut("required").and_then(|r| r.as_array_mut()) {
+            required.push(serde_json::json!(TARGET_KEY));
+        }
+    }
+    ToolSchema(schema)
+}
+
+/// The tool of one offered action, with the action's label as its description. An action whose
+/// name would be too long gets none.
+pub(crate) fn tool_of(manifest: &ValidManifest, action: &ActionDecl) -> Option<(McpTool, String)> {
+    let name = tool_name(&manifest.manifest().app, action).ok()?;
+    let tool = McpTool {
+        name,
+        schema: schema_of(action),
+        annotations: hints_of(action.effect),
+    };
+    Some((tool, action.label.as_str().to_owned()))
+}
+
 /// The tools of a registry, in registry order. An action whose name would be too long gets no
-/// tool.
+/// tool. The `target` key is part of each schema where the action acts on something.
 pub fn tools(registry: &[ValidManifest]) -> Vec<McpTool> {
     offered(registry)
         .into_iter()
-        .filter_map(|(m, a)| {
-            let name = tool_name(&m.manifest().app, a).ok()?;
-            Some(McpTool {
-                name,
-                schema: tool_schema(a),
-                annotations: hints_of(a.effect),
-            })
-        })
+        .filter_map(|(m, a)| tool_of(m, a).map(|(tool, _)| tool))
         .collect()
 }

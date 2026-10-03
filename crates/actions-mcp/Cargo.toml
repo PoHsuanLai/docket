@@ -31,3 +31,8 @@ workspace = true
 
 [dev-dependencies]
 toml = { workspace = true }
+docket-client = { workspace = true, features = ["in_process"] }
+docket-fake = { workspace = true }
+docket-router = { workspace = true }
+rmcp = { workspace = true, features = ["client"] }
+tokio = { workspace = true }
