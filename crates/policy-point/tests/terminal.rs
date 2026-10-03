@@ -140,15 +140,25 @@ fn terminal_grid() {
         ),
         ("read with a standing grant", Read, granted, Final),
     ];
-    for strictness in EVERY_STRICTNESS {
-        for (name, effect, edit, want) in &rows {
-            let request = cli(*effect, |r| {
-                r.context.strictness = strictness;
-                edit(r);
-            });
-            let got = pdp.decide(&request);
-            assert_eq!(cell(&got), *want, "{name} ({strictness:?}): {got:?}");
-        }
+    println!(
+        "{:<52} {:>9} {:>9} {:>9}",
+        "row", "ask_more", "default", "trust_more"
+    );
+    for (name, effect, edit, want) in &rows {
+        let got: Vec<Cell> = EVERY_STRICTNESS
+            .iter()
+            .map(|strictness| {
+                let request = cli(*effect, |r| {
+                    r.context.strictness = *strictness;
+                    edit(r);
+                });
+                let ruling = pdp.decide(&request);
+                let cell = cell(&ruling);
+                assert_eq!(cell, *want, "{name} ({strictness:?}): {ruling:?}");
+                cell
+            })
+            .collect();
+        println!("{name:<52} {:>9?} {:>9?} {:>9?}", got[0], got[1], got[2]);
     }
 }
 
