@@ -1,5 +1,5 @@
 //! The registry, the handle wall and the message checks, over the shipped manifests and
-//! literal labels (`Label::join` is a frozen `todo!()` in prov).
+//! the labels prov builds.
 
 use docket_core::*;
 use docket_router::*;
@@ -19,20 +19,10 @@ fn app(s: &str) -> AppName {
     AppName::parse(s).expect("app")
 }
 fn trusted() -> Label {
-    Label {
-        integrity: Integrity::Trusted,
-        confidentiality: Confidentiality::Public,
-        classes: BTreeSet::new(),
-        sources: BTreeSet::from([Source::User]),
-    }
+    Label::trusted_user()
 }
 fn mail(in_space: &str) -> Label {
-    Label {
-        integrity: Integrity::Untrusted,
-        confidentiality: Confidentiality::Private(BTreeSet::from([space(in_space)])),
-        classes: BTreeSet::from([DataClass::Mail]),
-        sources: BTreeSet::from([Source::Mail]),
-    }
+    Label::untrusted(Source::Mail, DataClass::Mail, space(in_space))
 }
 fn lab(text: &str, label: Label) -> Labelled<String> {
     Labelled {

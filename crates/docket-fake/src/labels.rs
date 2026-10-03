@@ -20,12 +20,7 @@ pub fn app_label(app: &AppName) -> Label {
 
 /// The label of somebody else's words from `source`, private to `space`.
 pub fn third_party(source: Source, class: DataClass, space: SpaceId) -> Label {
-    Label {
-        integrity: Integrity::Untrusted,
-        confidentiality: Confidentiality::Private(BTreeSet::from([space])),
-        classes: BTreeSet::from([class]),
-        sources: BTreeSet::from([source]),
-    }
+    Label::untrusted(source, class, space)
 }
 
 /// An entity id for `app`, or `None` if the kind or key is malformed.

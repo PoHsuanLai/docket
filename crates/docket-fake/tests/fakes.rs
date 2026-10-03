@@ -175,12 +175,7 @@ async fn files_move_and_undo() {
         ParamName::parse("to").expect("p"),
         prov::Labelled {
             value: Value::File(FileRef::parse("/home/p/docs").expect("f")),
-            label: prov::Label {
-                integrity: prov::Integrity::Trusted,
-                confidentiality: prov::Confidentiality::Public,
-                classes: BTreeSet::new(),
-                sources: BTreeSet::from([prov::Source::User]),
-            },
+            label: prov::Label::trusted_user(),
         },
     );
     let preview = files.dry_run(inv.clone()).await.expect("preview");

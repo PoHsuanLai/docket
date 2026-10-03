@@ -37,7 +37,7 @@ fn label(integrity: Integrity, source: Source) -> Label {
 
 /// The person's own words.
 pub(crate) fn user_label() -> Label {
-    label(Integrity::Trusted, Source::User)
+    Label::trusted_user()
 }
 
 /// Text a model wrote.

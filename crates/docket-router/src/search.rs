@@ -15,9 +15,7 @@ use docket_core::{
     SearchAsk, SearchScope, SuggestAsk, TitleTrust, WireRefusal,
 };
 use porter_core::AppName;
-use prov::{
-    Confidentiality, EntityId, EntityKind, Integrity, Label, Labelled, SpaceId, SpaceScope,
-};
+use prov::{EntityId, EntityKind, Label, Labelled, SpaceId, SpaceScope};
 use std::collections::BTreeSet;
 
 fn refuse(why: WireRefusal) -> IntentsReply {
@@ -33,15 +31,14 @@ fn title_label(st: &RouterState, app: &AppName, entry: &IndexEntry) -> Label {
         .map(|e| (e.titles.clone(), e.class));
     match trust {
         Some((TitleTrust::AppAuthored, _)) | None => app_label(app),
-        Some((TitleTrust::ThirdParty(source), class)) => Label {
-            integrity: Integrity::Untrusted,
-            confidentiality: Confidentiality::Private(BTreeSet::from([match &entry.space {
+        Some((TitleTrust::ThirdParty(source), class)) => Label::untrusted(
+            source,
+            class,
+            match &entry.space {
                 SpaceScope::Only(space) => space.clone(),
                 SpaceScope::Any => SpaceId::desktop(),
-            }])),
-            classes: BTreeSet::from([class]),
-            sources: BTreeSet::from([source]),
-        },
+            },
+        ),
     }
 }
 

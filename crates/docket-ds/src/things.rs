@@ -39,12 +39,9 @@ fn label_for(titles: &TitleTrust, app: &AppName, space: &SpaceId) -> Label {
             classes: BTreeSet::from([DataClass::AppOwn]),
             sources: BTreeSet::from([Source::App(app.clone())]),
         },
-        TitleTrust::ThirdParty(source) => Label {
-            integrity: Integrity::Untrusted,
-            confidentiality: Confidentiality::Private(BTreeSet::from([space.clone()])),
-            classes: BTreeSet::from([DataClass::AppOwn]),
-            sources: BTreeSet::from([source.clone()]),
-        },
+        TitleTrust::ThirdParty(source) => {
+            Label::untrusted(source.clone(), DataClass::AppOwn, space.clone())
+        }
     }
 }
 

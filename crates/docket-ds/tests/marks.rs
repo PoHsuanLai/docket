@@ -7,8 +7,7 @@ use ds_intents::{
     ThingMark,
 };
 use porter_core::{AppName, Count};
-use prov::{Confidentiality, Integrity, Label, Labelled, Source, SpaceId};
-use std::collections::BTreeSet;
+use prov::{Integrity, Label, Labelled, Source, SpaceId};
 use voice_wire::{
     CancelCause, HeardSegment, HeardTail, HeardText, Level, UtteranceEnd, VoiceEvent,
 };
@@ -20,12 +19,7 @@ fn space() -> SpaceId {
     SpaceId::parse("work").expect("space")
 }
 fn label() -> Label {
-    Label {
-        integrity: Integrity::Trusted,
-        confidentiality: Confidentiality::Public,
-        classes: BTreeSet::new(),
-        sources: BTreeSet::from([Source::User]),
-    }
+    Label::trusted_user()
 }
 fn text(t: &str) -> Labelled<String> {
     Labelled {

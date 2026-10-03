@@ -108,8 +108,28 @@ async fn a_planner_gets_untrusted_text_as_a_handle_never_plain() {
 }
 
 #[tokio::test]
-async fn an_outbound_act_with_every_sink_trusted_is_reviewed_by_every_stage_then_runs() {
+async fn under_default_an_outbound_act_always_asks_whatever_is_trusted() {
     let router = router();
+    ready(&router).await;
+    show_contacts(&router).await;
+    let refused = perform(&router, send(contact()))
+        .await
+        .expect_err("asked, then dismissed");
+    assert_eq!(refused, CallRefusal::Unconfirmed(ConfirmEnd::Dismissed));
+    assert_eq!(router.seams.confirmer.requests().len(), 1);
+    assert_eq!(
+        router.seams.reviewer.call_count(),
+        0,
+        "QUESTIONS S1: no reviewer stands in for the person under Default"
+    );
+    assert!(router.seams.link.mail.sent().is_empty());
+}
+
+#[tokio::test]
+async fn under_trust_more_an_outbound_act_with_every_sink_trusted_is_reviewed_by_every_stage_then_runs()
+ {
+    let mut router = router();
+    router.config.strictness = Strictness::TrustMore;
     ready(&router).await;
     show_contacts(&router).await;
     perform(&router, send(contact())).await.expect("ran");
@@ -132,6 +152,7 @@ async fn an_outbound_act_with_every_sink_trusted_is_reviewed_by_every_stage_then
 #[tokio::test]
 async fn a_reviewer_that_asks_sends_the_call_to_the_person() {
     let mut router = router();
+    router.config.strictness = Strictness::TrustMore;
     router.seams.reviewer = ScriptedReviewer::always_ask();
     ready(&router).await;
     show_contacts(&router).await;

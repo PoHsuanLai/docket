@@ -1,12 +1,11 @@
-//! Builders the tests share. `Label::join` and the label constructors are frozen `todo!()`s in
-//! prov, so labels are written as literals.
+//! Builders the tests share; labels come from prov's constructors.
 #![allow(dead_code)]
 
 use docket_core::*;
 use porter_core::{AppName, Count, DataClass};
 use prov::{
-    ActionName, Actor, AgentRole, Confidentiality, Effect, EntityId, EntityKey, EntityKind,
-    Integrity, Label, Labelled, SessionId, Source, SpaceId, UnixSeconds,
+    ActionName, Actor, AgentRole, Effect, EntityId, EntityKey, EntityKind, Label, Labelled,
+    SessionId, Source, SpaceId, UnixSeconds,
 };
 use std::collections::BTreeSet;
 
@@ -40,20 +39,10 @@ pub fn at(t: i64) -> UnixSeconds {
 }
 
 pub fn trusted() -> Label {
-    Label {
-        integrity: Integrity::Trusted,
-        confidentiality: Confidentiality::Public,
-        classes: BTreeSet::new(),
-        sources: BTreeSet::from([Source::User]),
-    }
+    Label::trusted_user()
 }
 pub fn untrusted_mail(in_space: &str) -> Label {
-    Label {
-        integrity: Integrity::Untrusted,
-        confidentiality: Confidentiality::Private(BTreeSet::from([space(in_space)])),
-        classes: BTreeSet::from([DataClass::Mail]),
-        sources: BTreeSet::from([Source::Mail]),
-    }
+    Label::untrusted(Source::Mail, DataClass::Mail, space(in_space))
 }
 pub fn lab<T>(value: T, label: Label) -> Labelled<T> {
     Labelled { value, label }

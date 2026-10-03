@@ -7,8 +7,8 @@ use docket_fake::{FakeSeams, MailContact, MailThread, fake_router};
 use docket_router::{Router, SessionRecord};
 use porter_core::{AppId, AppName, Count, Isolation};
 use prov::{
-    ActionName, AgentRef, Confidentiality, DataClass, Effect, EntityId, EntityKey, EntityKind,
-    Integrity, Label, Labelled, SessionId, Source, SpaceId, TaskId, UnixSeconds,
+    ActionName, AgentRef, DataClass, Effect, EntityId, EntityKey, EntityKind, Label, Labelled,
+    SessionId, Source, SpaceId, TaskId, UnixSeconds,
 };
 use std::collections::BTreeSet;
 
@@ -57,20 +57,10 @@ pub fn action(name: &str) -> ActionRef {
 }
 
 pub fn trusted() -> Label {
-    Label {
-        integrity: Integrity::Trusted,
-        confidentiality: Confidentiality::Public,
-        classes: BTreeSet::new(),
-        sources: BTreeSet::from([Source::User]),
-    }
+    Label::trusted_user()
 }
 pub fn mail_label(in_space: &str) -> Label {
-    Label {
-        integrity: Integrity::Untrusted,
-        confidentiality: Confidentiality::Private(BTreeSet::from([space(in_space)])),
-        classes: BTreeSet::from([DataClass::Mail]),
-        sources: BTreeSet::from([Source::Mail]),
-    }
+    Label::untrusted(Source::Mail, DataClass::Mail, space(in_space))
 }
 
 /// A fake router in `work` with two threads and one contact installed.
