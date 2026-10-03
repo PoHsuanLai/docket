@@ -147,10 +147,7 @@ async fn an_app_that_is_away_is_unavailable_and_never_a_panic() {
     let performed = link
         .perform(&gone, invocation("gone.do", "x"), Latency::Instant)
         .await;
-    assert!(
-        matches!(performed, Err(AppFault::Refused(AppRefusal::Failed(_)))),
-        "{performed:?}"
-    );
+    assert!(performed == Err(AppFault::Unavailable), "{performed:?}");
     assert!(
         link.dry_run(&gone, invocation("gone.do", "x"))
             .await

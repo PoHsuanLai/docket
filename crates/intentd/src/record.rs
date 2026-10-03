@@ -1,10 +1,23 @@
 //! The router's records as almanac's events. Never content: ids, kinds, decisions. A message and
 //! an episode are almanac's own bodies; everything else is an `Area { area: Docket }` payload
 //! in `docket-core`'s serde form, with the things it names for cascade-forget.
+//!
+//! What memoryd checks of a record from the router (almanac-service `record_fault`): a message
+//! was sent by the record's actor, an episode's skeleton is trusted and its Space is the
+//! record's, and the record's label covers the labels of the documents it carries. Each arm
+//! below meets those by construction.
 
-use almanac_core::{KindTag, Record};
+use almanac_core::{
+    AreaPayload, AreaTag, Cause, EventBody, JsonText, KindTag, Record, ThingRole, ThingView,
+    UserText,
+};
 use docket_core::AuditRecord;
-use prov::SpaceId;
+use porter_core::AppName;
+use prov::{
+    Actor, AgentRef, AgentRole, Confidentiality, Effect, Integrity, Label, SessionId, Source,
+    SpaceId, SystemPart, UnixSeconds,
+};
+use std::collections::BTreeSet;
 
 /// The header kind of a record: `docket.<what>`, or almanac's `companion.message` and
 /// `companion.episode` for the two typed bodies.
@@ -24,10 +37,166 @@ pub fn kind_tag_of(record: &AuditRecord) -> Option<KindTag> {
     KindTag::parse(text).ok()
 }
 
-/// The almanac record for one audit record, in the Space it happened in.
-pub fn record_of(record: &AuditRecord, space: &SpaceId) -> Record {
-    let _ = (record, space);
-    todo!(
-        "record_of: Message and Episode become EventBody::Message and ::Episode; the rest become an AreaPayload (area Docket, kind from kind_tag_of, json the serde form, things the entities each call touched); actor, effect and label from the record, Cause::Event for a call a review belongs to"
+/// When the record says it happened.
+fn occurred(record: &AuditRecord) -> UnixSeconds {
+    match record {
+        AuditRecord::Call { at, .. }
+        | AuditRecord::Review { at, .. }
+        | AuditRecord::Confirm { at, .. }
+        | AuditRecord::Undo { at, .. }
+        | AuditRecord::Halt { at, .. }
+        | AuditRecord::TaskPolicy { at, .. }
+        | AuditRecord::Breaker { at, .. }
+        | AuditRecord::TaskStarted { at, .. } => *at,
+        AuditRecord::Message(message) => message.sent,
+        AuditRecord::Episode(episode) => episode.ended,
+    }
+}
+
+/// The Space the record itself names, if it does: a call, a started task, a message (the
+/// sender's end) and an episode carry one. The rest are placed by the caller.
+pub fn space_named_by(record: &AuditRecord) -> Option<&SpaceId> {
+    match record {
+        AuditRecord::Call { space, .. } | AuditRecord::TaskStarted { space, .. } => Some(space),
+        AuditRecord::Message(message) => Some(&message.from.space),
+        AuditRecord::Episode(episode) => Some(&episode.space),
+        AuditRecord::Review { .. }
+        | AuditRecord::Confirm { .. }
+        | AuditRecord::Undo { .. }
+        | AuditRecord::Halt { .. }
+        | AuditRecord::TaskPolicy { .. }
+        | AuditRecord::Breaker { .. } => None,
+    }
+}
+
+/// The session the log keeps for a party that is on the roster by name only: a message names
+/// its sender as an `AgentRef`, and memoryd wants an `Actor` that is that party. The session is
+/// a placeholder; the party is what the check reads.
+fn placeholder_session() -> SessionId {
+    SessionId::parse("s-0").expect("`s-0` is a valid session id")
+}
+
+/// The actor memoryd will accept as the sender of a message from `agent`.
+fn actor_of(agent: &AgentRef) -> Actor {
+    match agent {
+        AgentRef::User => Actor::User { via: shell() },
+        AgentRef::Companion => Actor::Companion {
+            session: placeholder_session(),
+            role: AgentRole::Planner,
+        },
+        AgentRef::Worker { task } => Actor::Companion {
+            session: placeholder_session(),
+            role: AgentRole::Worker { task: task.clone() },
+        },
+        AgentRef::Cua { run } => Actor::Companion {
+            session: placeholder_session(),
+            role: AgentRole::Cua { run: run.clone() },
+        },
+    }
+}
+
+fn shell() -> AppName {
+    AppName::parse("org.quire.Shell").expect("`org.quire.Shell` is a valid app name")
+}
+
+fn router_app() -> AppName {
+    AppName::parse("org.quire.Intents1").expect("`org.quire.Intents1` is a valid app name")
+}
+
+fn router() -> Actor {
+    Actor::System {
+        part: SystemPart::Router,
+    }
+}
+
+/// What the router says about itself: trusted metadata, private to the Space it happened in.
+fn router_label(space: &SpaceId) -> Label {
+    Label {
+        integrity: Integrity::Trusted,
+        confidentiality: Confidentiality::Private(BTreeSet::from([space.clone()])),
+        classes: BTreeSet::new(),
+        sources: BTreeSet::from([Source::App(router_app())]),
+    }
+}
+
+/// A thing the record names, by id alone: the log keeps no titles of what an agent touched.
+fn named(thing: &prov::EntityId) -> (ThingView, ThingRole) {
+    (
+        ThingView {
+            thing: thing.clone(),
+            title: UserText::new(""),
+            subtitle: UserText::new(""),
+        },
+        ThingRole::Subject,
     )
+}
+
+/// The things a payload names, for cascade-forget: what a call touched.
+fn things_of(record: &AuditRecord) -> Vec<(ThingView, ThingRole)> {
+    match record {
+        AuditRecord::Call { targets, .. } => targets.iter().map(named).collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// The actor, effect and label of a record: the party the record is about, how consequential it
+/// was, and what it may be shown to.
+fn who_and_how(record: &AuditRecord, space: &SpaceId) -> (Actor, Effect, Label) {
+    match record {
+        AuditRecord::Call { actor, effect, .. } => (actor.clone(), *effect, router_label(space)),
+        AuditRecord::Undo { by, .. } => (by.clone(), Effect::Read, router_label(space)),
+        AuditRecord::Message(message) => (
+            actor_of(&message.from.agent),
+            Effect::Read,
+            message.label.clone(),
+        ),
+        AuditRecord::Episode(episode) => {
+            let label = match &episode.narrative {
+                Some(narrative) => episode.skeleton.label.join(&narrative.label),
+                None => episode.skeleton.label.clone(),
+            };
+            (actor_of(&episode.agent), Effect::Read, label)
+        }
+        AuditRecord::Review { .. }
+        | AuditRecord::Confirm { .. }
+        | AuditRecord::Halt { .. }
+        | AuditRecord::TaskPolicy { .. }
+        | AuditRecord::Breaker { .. }
+        | AuditRecord::TaskStarted { .. } => (router(), Effect::Read, router_label(space)),
+    }
+}
+
+/// The almanac record for one audit record, in the Space it happened in.
+///
+/// `space` is where the caller says the record belongs; the Space a call, a started task, a
+/// message or an episode names itself wins over it. A message and an episode are almanac's own
+/// bodies; everything else is an `Area { Docket }` payload carrying the record's serde form.
+pub fn record_of(record: &AuditRecord, space: &SpaceId) -> Record {
+    let space = space_named_by(record).unwrap_or(space).clone();
+    let (actor, effect, label) = who_and_how(record, &space);
+    let body = match record {
+        AuditRecord::Message(message) => EventBody::Message(message.clone()),
+        AuditRecord::Episode(episode) => EventBody::Episode(episode.clone()),
+        other => payload(other),
+    };
+    Record {
+        space,
+        occurred: occurred(record),
+        actor,
+        effect,
+        label,
+        body,
+        cause: Cause::None,
+    }
+}
+
+/// The `Area { Docket }` body of a record that has no typed body of its own.
+fn payload(record: &AuditRecord) -> EventBody {
+    let json = serde_json::to_string(record).unwrap_or_else(|_| "null".to_owned());
+    EventBody::Area(AreaPayload {
+        area: AreaTag::Docket,
+        kind: kind_tag_of(record).expect("every audit record has a `docket.` kind tag"),
+        json: JsonText::parse(&json).expect("serde_json writes one JSON value"),
+        things: things_of(record),
+    })
 }

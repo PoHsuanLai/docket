@@ -57,13 +57,14 @@ pub async fn serve_on<S: Seams + 'static>(
 }
 
 /// Claims `org.quire.Intents1` on the session bus and serves every interface of it over
-/// `router`, deriving each caller's identity and role from the connection (never from a body),
-/// until the connection closes. The roles are the shipped defaults of `IntentdConfig`; a
-/// daemon with a file of its own calls [`serve_on`].
-pub async fn serve<S: Seams + 'static>(router: Arc<Router<S>>) -> Result<(), ServeFault> {
+/// `router`, deriving each caller's identity and role from the connection (never from a body)
+/// by `config`'s roles, until the connection closes.
+pub async fn serve<S: Seams + 'static>(
+    router: Arc<Router<S>>,
+    config: Arc<IntentdConfig>,
+) -> Result<(), ServeFault> {
     let connection = BusConnection::session().await.map_err(bus)?;
-    let config = IntentdConfig::shipped().map_err(|e| ServeFault::Bus(e.to_string()))?;
-    serve_on(&connection, router, Arc::new(config)).await?;
+    serve_on(&connection, router, config).await?;
     closed(&connection).await;
     Ok(())
 }

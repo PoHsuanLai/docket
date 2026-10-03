@@ -596,6 +596,8 @@ dependencies = [
 name = "docket-cli"
 version = "0.1.0"
 dependencies = [
+ "almanac-core",
+ "almanac-dbus",
  "docket-client",
  "docket-core",
  "docket-dbus",
@@ -1108,6 +1110,7 @@ dependencies = [
  "action-review",
  "almanac-client",
  "almanac-core",
+ "almanac-dbus",
  "cua-action",
  "docket-client",
  "docket-core",
@@ -1118,6 +1121,7 @@ dependencies = [
  "policy-point",
  "porter-client",
  "porter-core",
+ "porter-fake",
  "porter-infer",
  "prov",
  "serde",
@@ -1607,6 +1611,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "porter-fake"
+version = "0.1.0"
+dependencies = [
+ "porter-core",
+ "porter-infer",
+ "porter-provider",
+ "porter-secrets",
+ "porter-service",
+]
+
+[[package]]
 name = "porter-infer"
 version = "0.1.0"
 dependencies = [
@@ -1727,9 +1742,14 @@ dependencies = [
  "docket-client",
  "docket-core",
  "docket-dbus",
+ "docket-fake",
+ "futures-util",
  "porter-client",
+ "porter-core",
+ "porter-fake",
  "porter-infer",
  "prov",
+ "serde_json",
  "tempfile",
  "thiserror",
  "tokio",

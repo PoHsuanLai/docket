@@ -12,17 +12,18 @@
 mod apps;
 #[path = "../../intentd/tests/support/bus.rs"]
 mod bus;
+#[path = "../../intentd/tests/support/memoryd.rs"]
+mod memoryd;
 
 use apps::{Answer, FakeSill, SharedMail, serve_mail};
 use bus::PrivateBus;
 use docket_client::{DbusTransport, Intents};
 use docket_core::{ActionRef, AskReason, ConfirmAnswer, ConfirmEnd, ConfirmOffer, GrantScope};
 use intentd::{Running, Setup, start};
+use memoryd::FakeMemoryd;
 use prov::{Actor, ConfirmId, ConfirmReceipt, InputProof, SpaceScope, UnixSeconds};
 use std::path::Path;
 use std::process::Output;
-
-const MEMORY_MANIFEST: &str = include_str!("../../../manifests/org.quire.Memory.toml");
 
 fn receipt() -> ConfirmReceipt {
     ConfirmReceipt {
@@ -55,6 +56,8 @@ struct Desk {
     intentd: Option<Running>,
     sill: FakeSill,
     mail: SharedMail,
+    /// memoryd, as the audit trail reaches it.
+    memoryd: std::sync::Arc<FakeMemoryd>,
     /// The control centre, as sill plays it: a caller that owns sill's names.
     control: Intents<DbusTransport>,
     _connections: Vec<docket_dbus::BusConnection>,
@@ -71,12 +74,19 @@ impl Desk {
             docket_fake::MAIL_MANIFEST,
         )
         .expect("mail manifest");
-        std::fs::write(manifests.join("org.quire.Memory.toml"), MEMORY_MANIFEST)
-            .expect("memory manifest");
+        // An app that is installed and never running: nothing on the bus owns its name.
+        std::fs::write(
+            manifests.join("org.quire.Files.toml"),
+            docket_fake::FILES_MANIFEST,
+        )
+        .expect("files manifest");
         let bus = PrivateBus::start(dir.path());
 
         let mail_connection = bus.connect().await;
         let mail = serve_mail(&mail_connection).await;
+        let memory_connection = bus.connect().await;
+        let memoryd = FakeMemoryd::recording();
+        memoryd.serve(&memory_connection).await;
         let sill_connection = bus.connect().await;
         let sill =
             FakeSill::start(&sill_connection, &["org.quire.Confirm1", "org.quire.Shell"]).await;
@@ -90,7 +100,8 @@ impl Desk {
             "XDG_CONFIG_DIRS" => Some(dir.path().join("none").display().to_string()),
             _ => None,
         };
-        let setup = Setup::from_env(&env).expect("the shipped configuration and the manifests");
+        let mut setup = Setup::from_env(&env).expect("the shipped configuration and the manifests");
+        setup.audit_every = std::time::Duration::from_millis(100);
         let daemon_connection = bus.connect().await;
         let intentd = start(&daemon_connection, None, setup)
             .await
@@ -103,8 +114,14 @@ impl Desk {
             intentd: Some(intentd),
             sill,
             mail,
+            memoryd,
             control,
-            _connections: vec![mail_connection, sill_connection, daemon_connection],
+            _connections: vec![
+                mail_connection,
+                memory_connection,
+                sill_connection,
+                daemon_connection,
+            ],
         }
     }
 
@@ -174,6 +191,14 @@ async fn the_real_quire_do_reaches_the_real_intentd_on_a_private_bus() {
     let apps = desk.quire(&["apps"]).await;
     assert_eq!(code(&apps), 0, "{}", say(&apps));
     assert!(text(&apps.stdout).contains("mail"), "{}", say(&apps));
+    // The two providers intentd hosts itself are listed without any file installed.
+    for hosted in ["memory", "companion"] {
+        assert!(
+            text(&apps.stdout).contains(hosted),
+            "{hosted}: {}",
+            say(&apps)
+        );
+    }
     let listed = desk.quire(&["mail", "--list"]).await;
     assert_eq!(code(&listed), 0, "{}", say(&listed));
     assert!(text(&listed.stdout).contains("thread.archive"));
@@ -308,6 +333,62 @@ async fn with_intentd_stopped_every_call_exits_6_and_sends_nothing() {
     }
     assert!(desk.sill.shown().is_empty(), "no sheet was raised");
     assert!(!desk.mail.0.is_archived("t2"));
+}
+
+/// What the terminal did reaches memoryd as the audit trail: one `docket.call` record, in the
+/// Space the call ran in, acted by the terminal, naming the thing it read.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn what_the_terminal_did_is_in_memory_as_audit_records() {
+    let desk = Desk::start().await;
+    let read = desk.quire(&["mail", "thread.read", "t2"]).await;
+    assert_eq!(code(&read), 0, "{}", say(&read));
+    let mut found = None;
+    for _ in 0..100 {
+        found = desk
+            .memoryd
+            .stored()
+            .into_iter()
+            .find(|r| r.body.kind().as_str() == "docket.call");
+        if found.is_some() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    let record = found.expect("the call reached memoryd");
+    assert_eq!(record.actor, Actor::Cli);
+    assert_eq!(record.effect, prov::Effect::Read);
+    assert_eq!(
+        record.space,
+        prov::SpaceId::desktop(),
+        "a terminal's session is in the desktop Space"
+    );
+    let almanac_core::EventBody::Area(payload) = &record.body else {
+        panic!("{:?}", record.body)
+    };
+    assert!(payload.json.as_str().contains("mail.thread.read"));
+    assert!(
+        payload
+            .things
+            .iter()
+            .any(|(t, _)| t.thing.key.as_str() == "t2"),
+        "it names what it touched: {:?}",
+        payload.things
+    );
+}
+
+/// An installed app that is not running (and cannot be started) is exit 6, "unavailable", not
+/// exit 5, "the app failed" (interface-asks 105, cli.md section 4).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_app_that_is_absent_is_exit_6() {
+    let desk = Desk::start().await;
+    let out = desk.quire(&["files", "file.read", "f1"]).await;
+    assert_eq!(code(&out), 6, "{}", say(&out));
+    // Stdout is not a terminal here, so the error is the JSON one.
+    assert!(
+        text(&out.stdout).contains("\"kind\":\"app_unavailable\""),
+        "{}",
+        say(&out)
+    );
 }
 
 /// The role is the cli role by the executable, never by anything `quire-do` says: another

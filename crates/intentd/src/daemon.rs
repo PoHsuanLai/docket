@@ -1,6 +1,9 @@
 //! The running daemon: the files it reads, the seams it builds over the session bus, the router
 //! over them, the bus served, the audit queue drained and the person's logout watched.
 
+use crate::audit::AuditLog;
+use crate::builtin::{HostedLink, builtin_manifests};
+use crate::builtin_companion::CompanionPort;
 use crate::config::{ConfigError, IntentdConfig};
 use crate::grants::FileGrants;
 use crate::infer::{InferdWriter, ReaderClient};
@@ -13,14 +16,16 @@ use crate::serve::{ServeFault, closed, serve_on};
 use crate::sheet::SheetConfirmer;
 use crate::sink::QueuedSink;
 use crate::system::{SystemClock, SystemSeams};
+use docket_core::AuditRecord;
 use docket_dbus::BusConnection;
-use docket_router::Router;
+use docket_router::{Router, Seams};
 use policy_point::Pdp;
+use prov::SpaceId;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-/// How often the audit queue is drained.
+/// How often the audit queue is drained into memoryd, unless the setup says otherwise.
 const DRAIN_EVERY: Duration = Duration::from_secs(5);
 
 /// Why the daemon did not start or stopped.
@@ -48,6 +53,8 @@ pub struct Setup {
     pub grants: PathBuf,
     /// The person's login session, when known (`XDG_SESSION_ID`).
     pub session: Option<String>,
+    /// How often the audit queue is written to memoryd.
+    pub audit_every: Duration,
 }
 
 fn home(env: &impl Fn(&str) -> Option<String>) -> PathBuf {
@@ -105,6 +112,7 @@ impl Setup {
             manifests: load_manifests(&data),
             grants,
             session: env("XDG_SESSION_ID").filter(|v| !v.is_empty()),
+            audit_every: DRAIN_EVERY,
         })
     }
 }
@@ -144,13 +152,21 @@ pub async fn start(
         manifests,
         grants,
         session: login,
+        audit_every,
     } = setup;
     for (file, why) in &manifests.skipped {
         eprintln!("intentd: skipped {}: {why}", file.display());
     }
     let confirmer = SheetConfirmer::trusting(session.clone(), Arc::new(config.clone()));
+    let port = CompanionPort::new();
+    let link = HostedLink::new(
+        DbusLink::new(session.clone()),
+        almanac_client::DbusTransport::new(session.clone()),
+        port.clone(),
+    )
+    .map_err(|e| DaemonFault::Policy(e.to_string()))?;
     let seams = SystemSeams {
-        link: DbusLink::new(session.clone()),
+        link,
         confirmer,
         reviewer: reviewer(session, config.reviewers.as_ref(), config.agent.review)
             .ok_or_else(|| DaemonFault::Policy("no reviewer set".into()))?,
@@ -168,22 +184,28 @@ pub async fn start(
             .state
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        for manifest in manifests.manifests {
+        for manifest in builtin_manifests()
+            .map_err(|e| DaemonFault::Policy(e.to_string()))?
+            .into_iter()
+            .chain(manifests.manifests)
+        {
             state.registry.insert(manifest);
         }
     }
     let router = Arc::new(router);
+    port.attach(&router);
     serve_on(session, router.clone(), Arc::new(config))
         .await
         .map_err(DaemonFault::Serve)?;
     let mut tasks = Vec::new();
     let queue = router.clone();
+    let mut audit = AuditLog::over(almanac_client::DbusTransport::new(session.clone()));
     tasks.push(tokio::spawn(async move {
         loop {
-            tokio::time::sleep(DRAIN_EVERY).await;
-            // The audit records have nowhere to go until `record_of` and memoryd's link are
-            // filled; the queue is emptied so it cannot grow for ever.
-            drop(queue.seams.sink.drain());
+            tokio::time::sleep(audit_every).await;
+            audit
+                .flush(&queue.seams.sink, |record| placed_by(&queue, record))
+                .await;
         }
     }));
     if let Some(system) = system {
@@ -200,6 +222,26 @@ pub async fn start(
         tasks,
         session: session.clone(),
     })
+}
+
+/// Where a record that names no Space of its own happened, from the router's session and task
+/// tables: a breaker trip is the session's, a task policy the task's, a halt the Space it covers.
+fn placed_by<S: Seams>(router: &Router<S>, record: &AuditRecord) -> Option<SpaceId> {
+    let state = router
+        .state
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    match record {
+        AuditRecord::Breaker { session, .. } => {
+            state.sessions.get(session).map(|r| r.space.clone())
+        }
+        AuditRecord::TaskPolicy { task, .. } => state.tasks.get(task).map(|t| t.space.clone()),
+        AuditRecord::Halt {
+            scope: prov::SpaceScope::Only(space),
+            ..
+        } => Some(space.clone()),
+        _ => None,
+    }
 }
 
 /// The session bus: `$DBUS_SESSION_BUS_ADDRESS`, else the address of the bus that started this

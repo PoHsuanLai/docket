@@ -35,6 +35,7 @@ mod undo;
 mod units;
 mod validate;
 mod value;
+pub mod when;
 mod wire;
 
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};

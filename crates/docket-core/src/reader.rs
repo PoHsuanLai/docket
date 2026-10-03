@@ -201,6 +201,19 @@ impl ValueSchema {
     }
 }
 
+impl ValueSchema {
+    /// The schema as JSON Schema text (stoker's `Shape::to_json_schema`, plain dialect): what the
+    /// reader sends inferd as the shape of its reply.
+    pub fn json_schema(&self) -> Result<String, SchemaFault> {
+        Ok(self
+            .shape()?
+            .to_json_schema(model_provider::SchemaDialect::Plain)
+            .0
+            .as_str()
+            .to_owned())
+    }
+}
+
 /// Why the reader could not answer.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]

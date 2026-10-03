@@ -158,7 +158,8 @@ impl AppLink for DbusLink {
                 .map_err(|_| AppFault::Refused(gone()))?
                 .map_err(AppFault::Refused),
             Err(LinkFault::Timeout) => Err(AppFault::TimedOut),
-            Err(LinkFault::Unavailable | LinkFault::Malformed) => Err(AppFault::Refused(gone())),
+            Err(LinkFault::Unavailable) => Err(AppFault::Unavailable),
+            Err(LinkFault::Malformed) => Err(AppFault::Refused(gone())),
         }
     }
 

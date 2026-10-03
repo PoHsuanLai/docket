@@ -55,11 +55,15 @@ prov            = { path = "../porter/crates/prov" }
 porter-infer    = { path = "../porter/crates/porter-infer" }
 porter-client   = { path = "../porter/crates/porter-client" }
 porter-dbus     = { path = "../porter/crates/porter-dbus" }
+# Test-only: the scripted inference session (dev-dependencies of the daemons that ask inferd).
+porter-fake     = { path = "../porter/crates/porter-fake" }
 
 # almanac's frozen interfaces (master d35337f). docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
 almanac-core    = { path = "../almanac/crates/almanac-core" }
 almanac-client  = { path = "../almanac/crates/almanac-client" }
+# Test-only: the fake memoryd of intentd's audit tests serves the real wire (dev-dependency).
+almanac-dbus    = { path = "../almanac/crates/almanac-dbus" }
 
 # stoker's pure vocabulary (master 134d58e): the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.

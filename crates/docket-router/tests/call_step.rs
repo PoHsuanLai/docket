@@ -5,6 +5,10 @@ use docket_core::*;
 use docket_router::*;
 use prov::{ConfirmReceipt, InputProof, SpaceScope, UnixSeconds};
 
+fn app() -> porter_core::AppName {
+    porter_core::AppName::parse("org.quire.Mail").expect("app")
+}
+
 fn confirm_id() -> ConfirmId {
     ConfirmId::parse("c-1").expect("id")
 }
@@ -333,6 +337,13 @@ fn rows() -> Vec<Row> {
             S::Dispatched,
             V::AppTimedOut,
             refused(CallRefusal::Timeout),
+            vec![],
+        ),
+        (
+            "the app is not there",
+            S::Dispatched,
+            V::AppUnavailable(app()),
+            refused(CallRefusal::AppUnavailable(app())),
             vec![],
         ),
         (

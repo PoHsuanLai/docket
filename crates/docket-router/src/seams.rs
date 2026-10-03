@@ -30,13 +30,15 @@ pub enum LinkFault {
     Malformed,
 }
 
-/// Why `Perform` got no outcome: the app said no, or said nothing in time.
+/// Why `Perform` got no outcome: the app said no, said nothing in time, or is not there.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppFault {
     /// The app's own refusal.
     Refused(AppRefusal),
     /// It did not answer within the action's latency budget.
     TimedOut,
+    /// It is not there: not running and not startable, or not the person's own process.
+    Unavailable,
 }
 
 impl From<AppRefusal> for AppFault {

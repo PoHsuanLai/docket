@@ -10,6 +10,7 @@ use docket_core::{
     ConfirmId, ConfirmRequest, GrantScope, Outcome, ParamName, ReviewError, Ruling, Stage,
     Undoable,
 };
+use porter_core::AppName;
 use prov::SpaceScope;
 
 /// Where a call is.
@@ -63,6 +64,8 @@ pub enum CallEvent {
     AppAnswered(Box<Result<Outcome, AppRefusal>>),
     /// The app did not answer in time.
     AppTimedOut,
+    /// The app is not there (`CallRefusal::AppUnavailable`).
+    AppUnavailable(AppName),
     /// A halt arrived.
     Halted,
 }
@@ -161,6 +164,9 @@ pub fn call_step(state: CallState, event: CallEvent) -> (CallState, Vec<CallEffe
             Err(refusal) => (refused(CallRefusal::App(refusal)), vec![]),
         },
         (S::Dispatched, V::AppTimedOut) => (refused(CallRefusal::Timeout), vec![]),
+        (S::Dispatched, V::AppUnavailable(app)) => {
+            (refused(CallRefusal::AppUnavailable(app)), vec![])
+        }
         // An app call in flight cannot be recalled: its result is still journalled.
         (state, _) => (state, vec![]),
     }

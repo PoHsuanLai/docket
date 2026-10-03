@@ -30,6 +30,10 @@ zbus = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }
+almanac-dbus = { workspace = true }
+almanac-core = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
 tempfile = { workspace = true }
 
 [lints]

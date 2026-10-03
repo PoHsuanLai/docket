@@ -378,6 +378,9 @@ impl<S: Seams> Router<S> {
         run.outcome = answer.as_ref().ok().cloned();
         match answer {
             Err(AppFault::TimedOut) => Next::Event(CallEvent::AppTimedOut),
+            Err(AppFault::Unavailable) => {
+                Next::Event(CallEvent::AppUnavailable(p.request.action.app.clone()))
+            }
             Ok(outcome) => Next::Event(CallEvent::AppAnswered(Box::new(Ok(outcome)))),
             Err(AppFault::Refused(why)) => Next::Event(CallEvent::AppAnswered(Box::new(Err(why)))),
         }

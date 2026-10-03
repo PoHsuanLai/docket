@@ -1,16 +1,21 @@
 //! The providers intentd hosts itself: `org.quire.Memory` (the planner reaches memory only
 //! through these router actions, so the router can label what it delivers) and
-//! `org.quire.Companion` (starting a worker task, messaging an agent).
+//! `org.quire.Companion` (starting a worker task, messaging one). `HostedLink` is the router's
+//! `AppLink` with the two answered in process and every other app over D-Bus, and
+//! `builtin_manifests` are what `quire-do apps` lists for them.
 
+use crate::builtin_companion::{CompanionPort, CompanionProvider};
+use crate::builtin_memory::{MEMORY_APP, MemoryProvider};
+use crate::link::DbusLink;
 use almanac_client::Transport as MemoryTransport;
 use docket_client::IntentProvider;
 use docket_core::{
-    AppRefusal, EntityRef, Hit, Invocation, Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
-    ValidManifest,
+    AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit, Invocation, Latency,
+    Outcome, Preview, SuggestAsk, UndoFault, UndoToken, ValidManifest,
 };
-use docket_router::{RegistryError, parse};
+use docket_router::{AppFault, AppLink, COMPANION_APP, LinkFault, RegistryError, parse};
+use porter_core::AppName;
 use prov::{Actor, EntityId};
-use std::marker::PhantomData;
 
 const MEMORY: &str = include_str!("../../../manifests/org.quire.Memory.toml");
 const COMPANION: &str = include_str!("../../../manifests/org.quire.Companion.toml");
@@ -20,70 +25,125 @@ pub fn builtin_manifests() -> Result<Vec<ValidManifest>, RegistryError> {
     [MEMORY, COMPANION].into_iter().map(parse).collect()
 }
 
-macro_rules! builtin_provider {
-    ($(#[$doc:meta])* $name:ident, $what:literal) => {
-        $(#[$doc])*
-        #[derive(Debug)]
-        pub struct $name<T> {
-            manifest: ValidManifest,
-            _transport: PhantomData<fn() -> T>,
-        }
-
-        impl<T> $name<T> {
-            /// The provider for its shipped manifest.
-            pub fn new(manifest: ValidManifest) -> Self {
-                Self { manifest, _transport: PhantomData }
-            }
-        }
-
-        impl<T: MemoryTransport> IntentProvider for $name<T> {
-            fn manifest(&self) -> &ValidManifest {
-                &self.manifest
-            }
-
-            async fn perform(&self, inv: Invocation) -> Result<Outcome, AppRefusal> {
-                let _ = inv;
-                todo!($what)
-            }
-
-            async fn dry_run(&self, inv: Invocation) -> Result<Preview, AppRefusal> {
-                let _ = inv;
-                Ok(Preview::None)
-            }
-
-            async fn undo(&self, token: UndoToken, actor: Actor) -> Result<(), UndoFault> {
-                let _ = (token, actor);
-                Err(UndoFault::Gone)
-            }
-
-            async fn search(&self, text: &str) -> Vec<Hit> {
-                let _ = text;
-                Vec::new()
-            }
-
-            async fn preview(&self, id: &EntityId) -> Preview {
-                let _ = id;
-                Preview::None
-            }
-
-            async fn suggest(&self, ask: SuggestAsk) -> Vec<EntityRef> {
-                let _ = ask;
-                Vec::new()
-            }
-        }
-    };
+/// Whether `app` is one of the two names intentd answers itself. No installed file may declare
+/// them: the declarations are the built-in ones.
+pub fn is_builtin(app: &AppName) -> bool {
+    matches!(app.as_str(), MEMORY_APP | COMPANION_APP)
 }
 
-builtin_provider!(
-    /// `org.quire.Memory`, over memoryd. Reads go as `Caller::Router` for the session's Space;
-    /// `memory.propose` of untrusted text always lands in the pending queue.
-    MemoryProvider,
-    "MemoryProvider::perform: memory.recall -> Search, memory.facts -> Facts, memory.propose -> Propose (Staged), memory.forget -> PlanForget then Forget; results labelled from the hits"
-);
-builtin_provider!(
-    /// `org.quire.Companion`: `companion.task.start` opens a child session (its task policy
-    /// never wider than the parent's) and records `task.started`; `companion.task.message` sends
-    /// a message through the router's delivery path.
-    CompanionProvider,
-    "CompanionProvider::perform: companion.task.start -> TaskStart::from_args, open the child session, record AuditRecord::TaskStarted, answer the task id; companion.task.message -> MessageDraft through the delivery path"
-);
+/// Which provider an app name is.
+enum Host {
+    Memory,
+    Companion,
+    Installed,
+}
+
+fn host_of(app: &AppName) -> Host {
+    match app.as_str() {
+        MEMORY_APP => Host::Memory,
+        COMPANION_APP => Host::Companion,
+        _ => Host::Installed,
+    }
+}
+
+/// Apps over D-Bus, and the two built-ins in process.
+#[derive(Debug)]
+pub struct HostedLink<T: MemoryTransport> {
+    apps: DbusLink,
+    memory: MemoryProvider<T>,
+    companion: CompanionProvider,
+}
+
+impl<T: MemoryTransport> HostedLink<T> {
+    /// Hosts the built-ins beside `apps`: Memory over `transport`, Companion through `port`.
+    pub fn new(apps: DbusLink, transport: T, port: CompanionPort) -> Result<Self, RegistryError> {
+        let [memory, companion] = <[ValidManifest; 2]>::try_from(builtin_manifests()?)
+            .map_err(|_| RegistryError::Toml("the built-in manifests are not two".to_owned()))?;
+        Ok(Self {
+            apps,
+            memory: MemoryProvider::new(memory, transport),
+            companion: CompanionProvider::new(companion, port),
+        })
+    }
+
+    /// The manifests of what is hosted, for the registry.
+    pub fn manifests(&self) -> [&ValidManifest; 2] {
+        [self.memory.manifest(), self.companion.manifest()]
+    }
+}
+
+fn faulted(refusal: AppRefusal) -> AppFault {
+    AppFault::Refused(refusal)
+}
+
+impl<T: MemoryTransport> AppLink for HostedLink<T> {
+    async fn perform(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        within: Latency,
+    ) -> Result<Outcome, AppFault> {
+        match host_of(app) {
+            Host::Memory => self.memory.perform(inv).await.map_err(faulted),
+            Host::Companion => self.companion.perform(inv).await.map_err(faulted),
+            Host::Installed => self.apps.perform(app, inv, within).await,
+        }
+    }
+
+    async fn dry_run(&self, app: &AppName, inv: Invocation) -> Result<Preview, AppRefusal> {
+        match host_of(app) {
+            Host::Memory => self.memory.dry_run(inv).await,
+            Host::Companion => self.companion.dry_run(inv).await,
+            Host::Installed => self.apps.dry_run(app, inv).await,
+        }
+    }
+
+    async fn undo(&self, app: &AppName, token: &UndoToken, actor: &Actor) -> Result<(), UndoFault> {
+        match host_of(app) {
+            Host::Memory => self.memory.undo(token.clone(), actor.clone()).await,
+            Host::Companion => self.companion.undo(token.clone(), actor.clone()).await,
+            Host::Installed => self.apps.undo(app, token, actor).await,
+        }
+    }
+
+    async fn context(
+        &self,
+        app: &AppName,
+        scope: ContextScope,
+    ) -> Result<ContextSnapshot, LinkFault> {
+        match host_of(app) {
+            // Neither has a window: there is nothing on screen to report.
+            Host::Memory | Host::Companion => Err(LinkFault::Unavailable),
+            Host::Installed => self.apps.context(app, scope).await,
+        }
+    }
+
+    async fn search(
+        &self,
+        app: &AppName,
+        text: &str,
+        generation: Generation,
+    ) -> Result<Vec<Hit>, LinkFault> {
+        match host_of(app) {
+            Host::Memory => Ok(self.memory.search(text).await),
+            Host::Companion => Ok(self.companion.search(text).await),
+            Host::Installed => self.apps.search(app, text, generation).await,
+        }
+    }
+
+    async fn preview(&self, app: &AppName, id: &EntityId) -> Result<Preview, LinkFault> {
+        match host_of(app) {
+            Host::Memory => Ok(self.memory.preview(id).await),
+            Host::Companion => Ok(self.companion.preview(id).await),
+            Host::Installed => self.apps.preview(app, id).await,
+        }
+    }
+
+    async fn suggest(&self, app: &AppName, ask: SuggestAsk) -> Result<Vec<EntityRef>, LinkFault> {
+        match host_of(app) {
+            Host::Memory => Ok(self.memory.suggest(ask).await),
+            Host::Companion => Ok(self.companion.suggest(ask).await),
+            Host::Installed => self.apps.suggest(app, ask).await,
+        }
+    }
+}

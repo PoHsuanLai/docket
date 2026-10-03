@@ -1,8 +1,8 @@
 //! All the system seams behind `docket_router::Seams`.
 
+use crate::builtin::HostedLink;
 use crate::grants::FileGrants;
 use crate::infer::{InferdModel, InferdWriter, ReaderClient};
-use crate::link::DbusLink;
 use crate::memory::AlmanacMemory;
 use crate::sheet::SheetConfirmer;
 use crate::sink::QueuedSink;
@@ -28,12 +28,13 @@ impl Clock for SystemClock {
     }
 }
 
-/// The seams of the running daemon: apps and the sheet over the session bus, models over
+/// The seams of the running daemon: apps and the sheet over the session bus, the built-in
+/// providers in process, models over
 /// inferd (`P` is porter-client's transport), memory over memoryd (`M` is almanac-client's).
 #[derive(Debug)]
 pub struct SystemSeams<P: porter_client::Transport, M: almanac_client::Transport> {
-    /// The apps.
-    pub link: DbusLink,
+    /// The apps, and the two built-in providers answered in process.
+    pub link: HostedLink<M>,
     /// The sheet.
     pub confirmer: SheetConfirmer,
     /// The reviewer cascade.
@@ -53,7 +54,7 @@ pub struct SystemSeams<P: porter_client::Transport, M: almanac_client::Transport
 }
 
 impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for SystemSeams<P, M> {
-    type Link = DbusLink;
+    type Link = HostedLink<M>;
     type Confirm = SheetConfirmer;
     type Review = InferReviewer<InferdModel<P>>;
     type Grants = FileGrants;
@@ -63,7 +64,7 @@ impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for System
     type Writer = InferdWriter<P>;
     type Reading = ReaderClient;
 
-    fn link(&self) -> &DbusLink {
+    fn link(&self) -> &HostedLink<M> {
         &self.link
     }
     fn confirmer(&self) -> &SheetConfirmer {

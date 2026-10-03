@@ -3,6 +3,7 @@
 //! system's), and a file that is not a manifest is skipped with its reason, never fatal: one
 //! broken app must not take every other app's actions away.
 
+use crate::builtin::is_builtin;
 use docket_core::ValidManifest;
 use docket_router::parse;
 use std::collections::BTreeSet;
@@ -45,6 +46,12 @@ pub fn load_manifests(data_dirs: &[PathBuf]) -> Loaded {
                 }
             };
             match parse(&text) {
+                // The built-in providers' declarations are intentd's own.
+                Ok(manifest) if is_builtin(&manifest.manifest().app) => {
+                    loaded
+                        .skipped
+                        .push((file, "that app is built into intentd".to_owned()));
+                }
                 Ok(manifest) if seen.insert(manifest.manifest().app.clone()) => {
                     loaded.manifests.push(manifest);
                 }

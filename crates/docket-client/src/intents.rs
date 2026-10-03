@@ -279,6 +279,23 @@ impl<T: Transport> Intents<T> {
         .await
     }
 
+    /// The text behind a handle, for the quarantined reader (the `reader` role's alone): the
+    /// session now counts as having shown it to a reader.
+    pub async fn session_resolve(
+        &self,
+        session: SessionId,
+        handle: Handle,
+    ) -> Result<String, ClientError> {
+        self.ask(
+            IntentsRequest::SessionResolve { session, handle },
+            |r| match r {
+                IntentsReply::Text(text) => Some(text),
+                _ => None,
+            },
+        )
+        .await
+    }
+
     /// Asks the person to widen the task policy.
     pub async fn session_widen(
         &self,

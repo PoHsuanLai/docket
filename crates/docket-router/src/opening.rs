@@ -12,6 +12,7 @@ use docket_core::{
     AuditRecord, CallerId, CallerRole, IntentsReply, Reveal, SessionOpen, SessionOpened,
     TaskLedger, TurnId, TurnIn, TurnSource, UserTurn, WireRefusal, close,
 };
+use porter_core::AppName;
 use prov::{Actor, AgentRef, AgentRole, ReportStatus, SessionId, TaskId};
 
 fn refuse(why: WireRefusal) -> IntentsReply {
@@ -21,6 +22,12 @@ fn refuse(why: WireRefusal) -> IntentsReply {
 impl<S: Seams> Router<S> {
     /// `.Session.Open`.
     pub(crate) fn session_open(&self, caller: &CallerId, open: SessionOpen) -> IntentsReply {
+        self.open_session(&caller.app.name, open)
+    }
+
+    /// Opens a session for `opener`: the one body of `.Session.Open`, which the hosted
+    /// `org.quire.Companion` provider also uses to start a worker.
+    pub(crate) fn open_session(&self, opener: &AppName, open: SessionOpen) -> IntentsReply {
         let now = self.seams.clock().now();
         let mut st = self.locked();
         let n = st.mint();
@@ -51,16 +58,11 @@ impl<S: Seams> Router<S> {
                 role: AgentRole::Cua { run: run.clone() },
             },
             AgentRef::User => Actor::User {
-                via: caller.app.name.clone(),
+                via: opener.clone(),
             },
         };
-        let mut record = SessionRecord::new(
-            task.clone(),
-            actor,
-            caller.app.name.clone(),
-            open.space.clone(),
-            now,
-        );
+        let mut record =
+            SessionRecord::new(task.clone(), actor, opener.clone(), open.space.clone(), now);
         let parent_episode = open
             .parent
             .as_ref()

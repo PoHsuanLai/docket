@@ -39,6 +39,8 @@ zbus = { workspace = true }
 
 [dev-dependencies]
 docket-fake = { workspace = true }
+porter-fake = { workspace = true }
+almanac-dbus = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 cua-action = { workspace = true }
 serde_json = { workspace = true }
