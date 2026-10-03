@@ -1,33 +1,331 @@
-//! Serving `org.quire.Companion1`.
+//! Serving `org.quire.Companion1`: the root object (`Prepare`, `Open`, `Ask`, `Close`, `Roster`,
+//! `Front`) and one answer object per task (`/org/quire/Companion1/answer/<task>`). The roster,
+//! the front task and the answers are read from what the loop last wrote (`Shared`), never from
+//! the companion itself, so `Roster()` answers while a planner turn waits on a confirmation.
+//! Members carry no doc comments: zbus copies them into the introspection, which is held to
+//! `dbus/org.quire.Companion1.xml`.
 
+use crate::fault::ServeFault;
 use crate::runtime::Companiond;
+use crate::shared::{Change, Shared};
+use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
+use docket_core::SessionOpen;
+use docket_dbus::{
+    BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
+};
 use porter_client::Transport as InferTransport;
+use prov::{SessionId, TaskId};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
+use zbus::fdo;
+use zbus::fdo::{RequestNameFlags, RequestNameReply};
+use zbus::object_server::SignalEmitter;
+use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 
-/// Why the daemon stopped serving.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum ServeFault {
-    /// The bus name is taken or the connection failed.
-    #[error("bus: {0}")]
-    Bus(String),
+/// How often time is told to the companion: side conversations end and the idle pass starts on
+/// this beat.
+const TICK: Duration = Duration::from_secs(5);
+
+fn failed(error: ServeFault) -> fdo::Error {
+    match error {
+        ServeFault::UnknownSession | ServeFault::UnknownTurn => {
+            fdo::Error::InvalidArgs(error.to_string())
+        }
+        other => fdo::Error::Failed(other.to_string()),
+    }
 }
 
-/// Claims `org.quire.Companion1`, serves the root object and one answer object per task
-/// (`/org/quire/Companion1/answer/<task>`), and runs until the connection closes.
+fn bad(error: serde_json::Error) -> fdo::Error {
+    fdo::Error::InvalidArgs(error.to_string())
+}
+
+fn json<T: serde::Serialize>(value: &T) -> fdo::Result<String> {
+    serde_json::to_string(value).map_err(|e| fdo::Error::Failed(e.to_string()))
+}
+
+fn path_of(task: &TaskId) -> fdo::Result<OwnedObjectPath> {
+    OwnedObjectPath::try_from(answer_path(task)).map_err(|e| fdo::Error::Failed(e.to_string()))
+}
+
+struct Root<P: InferTransport, I: IntentsTransport> {
+    companion: Arc<Mutex<Companiond<P, I>>>,
+    shared: Arc<Shared>,
+}
+
+#[zbus::interface(name = "org.quire.Companion1")]
+impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
+    async fn prepare(&self, options: Details) -> fdo::Result<()> {
+        let _ = options;
+        Ok(())
+    }
+
+    async fn open(&self, open: String) -> fdo::Result<String> {
+        let open: SessionOpen = serde_json::from_str(&open).map_err(bad)?;
+        let opened = self
+            .companion
+            .lock()
+            .await
+            .open(open)
+            .await
+            .map_err(failed)?;
+        json(&opened)
+    }
+
+    async fn ask(
+        &self,
+        ask: String,
+        options: Details,
+        #[zbus(object_server)] server: &zbus::ObjectServer,
+    ) -> fdo::Result<OwnedObjectPath> {
+        let _ = options;
+        let ask: AskWire = serde_json::from_str(&ask).map_err(bad)?;
+        // Whatever background work holds the model yields before the loop starts.
+        self.shared.interrupt();
+        let begun = self.companion.lock().await.begin_ask(ask).map_err(failed)?;
+        let path = path_of(&begun.task)?;
+        // The answer object exists before the caller has its path.
+        server
+            .at(
+                path.clone(),
+                AnswerObject {
+                    shared: self.shared.clone(),
+                    task: begun.task.clone(),
+                },
+            )
+            .await?;
+        let companion = self.companion.clone();
+        tokio::spawn(async move {
+            let _ = companion.lock().await.run_begun(begun).await;
+        });
+        Ok(path)
+    }
+
+    async fn close(&self, session: String) -> fdo::Result<()> {
+        let session =
+            SessionId::parse(&session).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
+        self.companion
+            .lock()
+            .await
+            .close(session)
+            .await
+            .map_err(failed)
+    }
+
+    async fn roster(&self) -> fdo::Result<String> {
+        json(&self.shared.roster())
+    }
+
+    async fn front(&self) -> fdo::Result<String> {
+        json(&self.shared.front())
+    }
+
+    #[zbus(signal)]
+    async fn answer_added(emitter: &SignalEmitter<'_>, answer: ObjectPath<'_>) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    async fn answer_removed(
+        emitter: &SignalEmitter<'_>,
+        answer: ObjectPath<'_>,
+    ) -> zbus::Result<()>;
+
+    #[zbus(signal)]
+    async fn roster_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
+struct AnswerObject {
+    shared: Arc<Shared>,
+    task: TaskId,
+}
+
+#[zbus::interface(name = "org.quire.Companion1.Answer")]
+impl AnswerObject {
+    async fn act(&self, action: String) -> fdo::Result<OwnedObjectPath> {
+        let _ = action;
+        // The loop makes text and refusals; it offers no card to act on.
+        Err(fdo::Error::NotSupported("this answer has no cards".into()))
+    }
+
+    async fn cancel(&self) -> fdo::Result<()> {
+        self.shared.cancel(&self.task);
+        Ok(())
+    }
+
+    #[zbus(signal)]
+    async fn updated(emitter: &SignalEmitter<'_>, view: &str) -> zbus::Result<()>;
+
+    #[zbus(property)]
+    async fn view(&self) -> fdo::Result<String> {
+        match self.shared.answer(&self.task) {
+            Some(answer) => json(&answer),
+            None => Err(fdo::Error::Failed("no such answer".into())),
+        }
+    }
+}
+
+fn bus(error: zbus::Error) -> ServeFault {
+    ServeFault::Bus(error.to_string())
+}
+
+/// Forwards what the loop wrote to the bus: answer objects appear, change and go away, and the
+/// roster changes, each as a content-free signal beside the object.
+async fn forward(connection: BusConnection, shared: Arc<Shared>) {
+    let mut changes = shared.subscribe();
+    let server = connection.object_server().clone();
+    while let Ok(change) = changes.recv().await {
+        match change {
+            Change::AnswerAdded(task) => {
+                let path = answer_path(&task);
+                let object = AnswerObject {
+                    shared: shared.clone(),
+                    task,
+                };
+                let _ = server.at(path.as_str(), object).await;
+                if let Ok(object) = ObjectPath::try_from(path.as_str()) {
+                    let _ = connection
+                        .emit_signal(
+                            None::<&str>,
+                            COMPANION_PATH,
+                            "org.quire.Companion1",
+                            "AnswerAdded",
+                            &(object,),
+                        )
+                        .await;
+                }
+            }
+            Change::AnswerChanged(task) => {
+                let path = answer_path(&task);
+                if let Some(view) = shared
+                    .answer(&task)
+                    .and_then(|a| serde_json::to_string(&a).ok())
+                {
+                    let _ = connection
+                        .emit_signal(
+                            None::<&str>,
+                            path.as_str(),
+                            "org.quire.Companion1.Answer",
+                            "Updated",
+                            &(view,),
+                        )
+                        .await;
+                }
+            }
+            Change::AnswerRemoved(task) => {
+                let path = answer_path(&task);
+                let _ = server.remove::<AnswerObject, _>(path.as_str()).await;
+                if let Ok(object) = ObjectPath::try_from(path.as_str()) {
+                    let _ = connection
+                        .emit_signal(
+                            None::<&str>,
+                            COMPANION_PATH,
+                            "org.quire.Companion1",
+                            "AnswerRemoved",
+                            &(object,),
+                        )
+                        .await;
+                }
+            }
+            Change::RosterChanged => {
+                let _ = connection
+                    .emit_signal(
+                        None::<&str>,
+                        COMPANION_PATH,
+                        "org.quire.Companion1",
+                        "RosterChanged",
+                        &(),
+                    )
+                    .await;
+            }
+        }
+    }
+}
+
+/// Claims `org.quire.Companion1` on `connection`, serves the root object and one answer object
+/// per task, listens for `Message.Arrived` and keeps time. Returns once the name is ours; the
+/// connection keeps serving until it closes.
+pub async fn serve_on<P, I>(
+    connection: &BusConnection,
+    companion: Arc<Mutex<Companiond<P, I>>>,
+) -> Result<(), ServeFault>
+where
+    P: InferTransport + 'static,
+    I: IntentsTransport + 'static,
+{
+    let shared = companion.lock().await.shared.clone();
+    connection
+        .object_server()
+        .at(
+            COMPANION_PATH,
+            Root {
+                companion: companion.clone(),
+                shared: shared.clone(),
+            },
+        )
+        .await
+        .map_err(bus)?;
+    let reply = connection
+        .request_name_with_flags(COMPANION_BUS, RequestNameFlags::DoNotQueue.into())
+        .await
+        .map_err(bus)?;
+    match reply {
+        RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => {}
+        RequestNameReply::InQueue | RequestNameReply::Exists => {
+            return Err(ServeFault::Bus(format!("{COMPANION_BUS} is taken")));
+        }
+    }
+    tokio::spawn(forward(connection.clone(), shared));
+    tokio::spawn(arrivals(connection.clone(), companion.clone()));
+    tokio::spawn(ticking(companion));
+    Ok(())
+}
+
+/// A message arrived for an agent: read the inbox of the agents the companion runs.
+async fn arrivals<P, I>(connection: BusConnection, companion: Arc<Mutex<Companiond<P, I>>>)
+where
+    P: InferTransport + 'static,
+    I: IntentsTransport + 'static,
+{
+    use futures_util::StreamExt;
+    let Ok(proxy) = MessageProxy::builder(&connection)
+        .destination(INTENTS_BUS)
+        .and_then(|b| b.path(docket_dbus::INTENTS_PATH))
+    else {
+        return;
+    };
+    let Ok(proxy) = proxy.build().await else {
+        return;
+    };
+    let Ok(mut signals) = proxy.receive_arrived().await else {
+        return;
+    };
+    while signals.next().await.is_some() {
+        let _ = companion.lock().await.arrived().await;
+    }
+}
+
+async fn ticking<P, I>(companion: Arc<Mutex<Companiond<P, I>>>)
+where
+    P: InferTransport + 'static,
+    I: IntentsTransport + 'static,
+{
+    let mut beat = tokio::time::interval(TICK);
+    loop {
+        beat.tick().await;
+        let _ = companion.lock().await.tick().await;
+    }
+}
+
+/// Claims `org.quire.Companion1` on the session bus and serves it until the connection closes.
 pub async fn serve<P, I>(companion: Arc<Mutex<Companiond<P, I>>>) -> Result<(), ServeFault>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
 {
-    let _ = (
-        companion,
-        docket_dbus::COMPANION_BUS,
-        docket_dbus::CompanionSkeleton,
-        docket_dbus::CompanionAnswerSkeleton,
-    );
-    todo!(
-        "serve: export the Companion1 and Companion1.Answer handlers; on startup call recover and open a fresh session for the front task; Message.Arrived triggers Companiond::arrived; the answer objects' Updated signals carry AnswerWire"
-    )
+    use futures_util::StreamExt;
+    let connection = BusConnection::session().await.map_err(bus)?;
+    serve_on(&connection, companion).await?;
+    let mut messages = zbus::MessageStream::from(&connection);
+    while messages.next().await.is_some() {}
+    Ok(())
 }

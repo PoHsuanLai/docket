@@ -13,6 +13,7 @@ mod provider;
 #[cfg(feature = "dbus")]
 mod provider_bus;
 mod serve;
+mod session_calls;
 mod transport;
 
 #[cfg(feature = "dbus")]

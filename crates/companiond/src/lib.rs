@@ -5,20 +5,40 @@
 //! carries their effects out.
 //!
 //! - `Companiond`: the runtime and the entry points the bus calls.
-//! - `PlannerModel`: the planner over inferd.
+//! - `PlannerModel`: the planner over inferd; `Catalogue`: the actions it may call.
 //! - `RecentSource`, `recover`, `replay_of`: restart, from what the eventlog holds, read through
 //!   `Recent` with `BodyMode::Json`.
 //! - `completion_effects`: how a finished worker or run reaches the front task.
-//! - `serve`: `org.quire.Companion1`.
+//! - `serve`, `serve_on`: `org.quire.Companion1`.
 
+mod args;
+mod catalogue;
+mod clock;
 mod completion;
+mod drive;
+mod fault;
+mod finish;
+mod idle;
+mod inbox;
 mod planner;
 mod recover;
+mod render;
+mod resume;
 mod runtime;
 mod serve;
+mod shared;
+mod sources;
+mod task;
 
+pub use args::{ArgsFault, ReadCall, planner_label, read_call};
+pub use catalogue::{Catalogue, CatalogueTool, TARGET};
+pub use clock::Clock;
 pub use completion::completion_effects;
-pub use planner::{PlanFault, PlannerModel};
+pub use fault::ServeFault;
+pub use planner::{PlanFault, PlannerModel, PlannerReply, TOOL_ASK, TOOL_FINISH, TOOL_READ};
 pub use recover::{RecentSource, ReplayFault, recover, replay_of, restart_query};
-pub use runtime::Companiond;
-pub use serve::{ServeFault, serve};
+pub use render::{RULES, messages, system_text, user_text};
+pub use runtime::{Begun, Companiond, Heard};
+pub use serve::{serve, serve_on};
+pub use shared::{Change, Shared};
+pub use task::TaskRuntime;

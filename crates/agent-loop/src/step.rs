@@ -99,6 +99,11 @@ pub enum LoopInput {
     ModelFailed,
     /// A worker or run reported.
     Completed(CompletionNote),
+    /// A request landed in the task's inbox while it was waiting for something to do (the goal
+    /// of a worker, a message from another Space). It is input like the person's turn, with no
+    /// words of the person's: the planner reads it from the view's inbox, and every call it
+    /// then plans is gated by the task's own policy.
+    Messaged,
     /// The person said something after a trip.
     Resumed,
     /// The breaker tripped.
@@ -142,6 +147,7 @@ pub fn agent_step(state: LoopState, input: LoopInput) -> (LoopState, Vec<LoopEff
         (Finished(_), _) => stay(state),
         (_, LoopInput::Cancelled | LoopInput::Halted) => finish(state, FinishedAs::Cancelled),
         (_, LoopInput::Completed(note)) => (state, completion_effects(&note)),
+        (Idle, LoopInput::Messaged) => ask_for_message(state),
         (Idle, LoopInput::Asked(turn)) => ask_planner(state, turn),
         (Planning, LoopInput::Asked(turn)) => ask_planner(state, turn),
         (_, LoopInput::Asked(turn)) => stay(LoopState {
@@ -173,6 +179,21 @@ fn ask_planner(state: LoopState, turn: TurnId) -> (LoopState, Vec<LoopEffect>) {
     let next = LoopState {
         phase: LoopPhase::Planning,
         turn: Some(turn),
+        pending: vec![],
+        ..state
+    };
+    (
+        next,
+        vec![
+            LoopEffect::Publish(AnswerPhase::Thinking),
+            LoopEffect::AskPlanner,
+        ],
+    )
+}
+
+fn ask_for_message(state: LoopState) -> (LoopState, Vec<LoopEffect>) {
+    let next = LoopState {
+        phase: LoopPhase::Planning,
         pending: vec![],
         ..state
     };

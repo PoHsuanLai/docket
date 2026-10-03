@@ -402,3 +402,40 @@ fn a_full_run_asks_calls_reads_and_finishes() {
         2
     );
 }
+
+#[test]
+fn a_request_that_lands_while_idle_starts_planning_and_never_touches_another_phase() {
+    let idle = LoopState {
+        phase: LoopPhase::Idle,
+        turn: None,
+        steps: 0,
+        pending: vec![],
+    };
+    let (next, effects) = agent_step(idle, LoopInput::Messaged);
+    assert_eq!(next.phase, LoopPhase::Planning);
+    assert_eq!(
+        next.turn, None,
+        "no turn of the person's: the inbox is the input"
+    );
+    assert_eq!(
+        effects,
+        [
+            LoopEffect::Publish(AnswerPhase::Thinking),
+            LoopEffect::AskPlanner
+        ]
+    );
+    for phase in [
+        LoopPhase::Planning,
+        LoopPhase::AwaitingCalls,
+        LoopPhase::AwaitingReader,
+        LoopPhase::Paused(BreakerTrip::Consecutive),
+        LoopPhase::Finished(FinishedAs::Done),
+    ] {
+        let s = state(phase, &[0]);
+        assert_eq!(
+            agent_step(s.clone(), LoopInput::Messaged),
+            (s, vec![]),
+            "{phase:?}"
+        );
+    }
+}

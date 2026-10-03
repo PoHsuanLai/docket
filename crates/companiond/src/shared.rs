@@ -1,0 +1,144 @@
+//! What the bus reads without waiting for the companion: the roster, the front task and each
+//! answer as of the last effect, and the two things that reach the running loop from outside
+//! (a cancel, and an interactive request that the idle pass must yield to). A planner turn can
+//! sit on a confirmation for minutes; `Roster()` and `Front()` must not.
+
+use companion_wire::{AnswerWire, FrontTask};
+use docket_core::Roster;
+use prov::TaskId;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Mutex;
+use tokio::sync::{Notify, broadcast};
+
+/// What changed, content-free: a reader asks for the content.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Change {
+    /// An answer object appeared.
+    AnswerAdded(TaskId),
+    /// An answer changed.
+    AnswerChanged(TaskId),
+    /// An answer object went away.
+    AnswerRemoved(TaskId),
+    /// The roster changed.
+    RosterChanged,
+}
+
+#[derive(Debug, Default)]
+struct State {
+    roster: Roster,
+    front: Option<FrontTask>,
+    answers: BTreeMap<TaskId, AnswerWire>,
+    cancels: BTreeSet<TaskId>,
+}
+
+/// The shared view.
+#[derive(Debug)]
+pub struct Shared {
+    state: Mutex<State>,
+    changes: broadcast::Sender<Change>,
+    interrupt: Notify,
+}
+
+impl Default for Shared {
+    fn default() -> Self {
+        let (changes, _) = broadcast::channel(256);
+        Self {
+            state: Mutex::new(State::default()),
+            changes,
+            interrupt: Notify::new(),
+        }
+    }
+}
+
+impl Shared {
+    fn with<R>(&self, f: impl FnOnce(&mut State) -> R) -> R {
+        match self.state.lock() {
+            Ok(mut state) => f(&mut state),
+            Err(poisoned) => f(&mut poisoned.into_inner()),
+        }
+    }
+
+    /// Who is subscribed to the changes.
+    pub fn subscribe(&self) -> broadcast::Receiver<Change> {
+        self.changes.subscribe()
+    }
+
+    fn tell(&self, change: Change) {
+        // No subscriber is not an error: nobody is listening yet.
+        let _ = self.changes.send(change);
+    }
+
+    /// The roster as of the last effect.
+    pub fn roster(&self) -> Roster {
+        self.with(|s| s.roster.clone())
+    }
+
+    /// Replaces the roster, and says so when it differs.
+    pub fn set_roster(&self, roster: Roster) {
+        let changed = self.with(|s| {
+            let changed = s.roster != roster;
+            s.roster = roster;
+            changed
+        });
+        if changed {
+            self.tell(Change::RosterChanged);
+        }
+    }
+
+    /// The front task as of the last effect.
+    pub fn front(&self) -> FrontTask {
+        self.with(|s| s.front.clone()).unwrap_or(FrontTask {
+            task: None,
+            session: None,
+        })
+    }
+
+    /// Sets the front task.
+    pub fn set_front(&self, front: FrontTask) {
+        self.with(|s| s.front = Some(front));
+    }
+
+    /// One answer as of the last effect.
+    pub fn answer(&self, task: &TaskId) -> Option<AnswerWire> {
+        self.with(|s| s.answers.get(task).cloned())
+    }
+
+    /// Sets an answer, saying whether it is new or changed.
+    pub fn set_answer(&self, answer: AnswerWire) {
+        let task = answer.task.clone();
+        let was = self.with(|s| s.answers.insert(task.clone(), answer.clone()));
+        match was {
+            None => self.tell(Change::AnswerAdded(task)),
+            Some(old) if old != answer => self.tell(Change::AnswerChanged(task)),
+            Some(_) => {}
+        }
+    }
+
+    /// Drops an answer.
+    pub fn drop_answer(&self, task: &TaskId) {
+        if self.with(|s| s.answers.remove(task)).is_some() {
+            self.tell(Change::AnswerRemoved(task.clone()));
+        }
+    }
+
+    /// The person (or the answer object's `Cancel`) stopped this task: the loop sees it between
+    /// effects.
+    pub fn cancel(&self, task: &TaskId) {
+        self.with(|s| s.cancels.insert(task.clone()));
+    }
+
+    /// Whether a cancel is waiting for `task`, taking it.
+    pub fn take_cancel(&self, task: &TaskId) -> bool {
+        self.with(|s| s.cancels.remove(task))
+    }
+
+    /// An interactive request is starting: whatever background work runs yields now.
+    pub fn interrupt(&self) {
+        self.interrupt.notify_waiters();
+    }
+
+    /// Resolves when an interactive request starts.
+    pub async fn interrupted(&self) {
+        self.interrupt.notified().await;
+    }
+}

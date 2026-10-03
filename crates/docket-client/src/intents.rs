@@ -43,7 +43,7 @@ impl<T: Transport> Intents<T> {
         Self { transport }
     }
 
-    async fn ask<R>(
+    pub(crate) async fn ask<R>(
         &self,
         request: IntentsRequest,
         read: impl FnOnce(IntentsReply) -> Option<R>,

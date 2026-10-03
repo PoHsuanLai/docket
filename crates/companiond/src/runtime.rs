@@ -1,13 +1,56 @@
-//! The runtime: the entry points the bus calls and the effects of the machines.
+//! The runtime: the entry points the bus calls and the state they share. The companion is one
+//! identity over many tasks; each task is its own docket session, run by the pure loop of
+//! `agent-loop` whose effects `drive` carries out.
 
+use crate::catalogue::Catalogue;
+use crate::clock::Clock;
+use crate::fault::ServeFault;
 use crate::planner::PlannerModel;
-use agent_loop::{IdleState, LoopState, SideTable};
-use companion_wire::{AskWire, FrontTask};
+use crate::shared::Shared;
+use crate::task::{TaskRuntime, roster_state};
+use agent_loop::{FrontEvent, IdleState, LoopInput, LoopPhase, LoopState, SideTable, front_step};
+use almanac_core::{Episode, EpisodeId};
+use companion_wire::{AnswerPhase, AskWire, FrontTask};
 use docket_client::{Intents, Transport as IntentsTransport};
-use docket_core::{AgentConfig, Roster, SessionOpen, SessionOpened};
+use docket_core::{
+    AgentConfig, ContextKeep, EpisodeLine, LeadText, Reveal, Roster, RosterDetail, RosterFull,
+    RosterLine, SessionOpen, SessionOpened, TurnId, UserTurn,
+};
 use porter_client::Transport as InferTransport;
-use prov::TaskId;
-use std::collections::BTreeMap;
+use porter_core::AppName;
+use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::sync::Arc;
+
+/// How many finished tasks the roster and the recent-episodes section remember.
+pub(crate) const REMEMBERED: usize = 8;
+
+/// What the person said, as the UI's recorded turn gave it to the companion.
+#[derive(Debug, Clone)]
+pub struct Heard {
+    /// The turn, verbatim.
+    pub turn: UserTurn,
+    /// The chips of context the person kept with it.
+    pub keep: ContextKeep,
+}
+
+/// An ask that has begun: the task, the input its loop starts with, and its answer's path.
+#[derive(Debug, Clone)]
+pub struct Begun {
+    /// The task.
+    pub task: TaskId,
+    /// What its loop is first told.
+    pub first: LoopInput,
+    /// The object path of its answer.
+    pub path: String,
+}
+
+/// A finished task waiting for its narrative.
+#[derive(Debug, Clone)]
+pub(crate) struct Narration {
+    pub episode: Episode,
+    pub session: SessionId,
+}
 
 /// The companion.
 #[derive(Debug)]
@@ -26,51 +69,300 @@ pub struct Companiond<P: InferTransport, I: IntentsTransport> {
     pub side: SideTable,
     /// The background narrative pass.
     pub idle: IdleState,
+    /// What tells the time.
+    pub clock: Clock,
+    /// What the bus reads without waiting for the loop.
+    pub shared: Arc<Shared>,
+    /// What each task keeps while it runs.
+    pub runtimes: BTreeMap<TaskId, TaskRuntime>,
+    /// The app the companion was summoned from, for the context section.
+    pub summoned: Option<AppName>,
+    /// The shell itself: where the person is when they summoned the companion from the launcher.
+    pub shell: AppName,
+    pub(crate) heard: BTreeMap<(SessionId, TurnId), Heard>,
+    pub(crate) episodes: Vec<EpisodeLine>,
+    pub(crate) narration: BTreeMap<EpisodeId, Narration>,
+    pub(crate) known: BTreeMap<AgentRef, RosterLine>,
+    pub(crate) told: BTreeMap<AgentRef, LeadText>,
+    pub(crate) triggers: VecDeque<(TaskId, LoopInput)>,
+    pub(crate) unplaced: VecDeque<docket_core::InboundLine>,
+    pub(crate) running: BTreeSet<TaskId>,
+    pub(crate) spawned: u64,
+    pub(crate) booted: UnixSeconds,
+}
+
+fn idle_state() -> LoopState {
+    LoopState {
+        phase: LoopPhase::Idle,
+        turn: None,
+        steps: 0,
+        pending: vec![],
+    }
 }
 
 impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
+    /// A companion with no tasks yet.
+    pub fn new(
+        intents: Intents<I>,
+        planner: PlannerModel<P>,
+        config: AgentConfig,
+        clock: Clock,
+        shell: AppName,
+    ) -> Self {
+        let now = clock.now();
+        Self {
+            intents,
+            planner,
+            config,
+            front: None,
+            tasks: BTreeMap::new(),
+            side: SideTable::default(),
+            idle: IdleState::quiet_since(now),
+            clock,
+            shared: Arc::new(Shared::default()),
+            runtimes: BTreeMap::new(),
+            summoned: None,
+            shell,
+            heard: BTreeMap::new(),
+            episodes: Vec::new(),
+            narration: BTreeMap::new(),
+            known: BTreeMap::new(),
+            told: BTreeMap::new(),
+            triggers: VecDeque::new(),
+            unplaced: VecDeque::new(),
+            running: BTreeSet::new(),
+            spawned: 0,
+            booted: now,
+        }
+    }
+
+    /// Refreshes what the planner may call from the installed manifests. A router that does not
+    /// answer leaves the last catalogue in place.
+    pub(crate) async fn refresh_catalogue(&mut self) {
+        if let Ok(manifests) = self.intents.manifests().await {
+            self.planner
+                .set_catalogue(Catalogue::from_manifests(&manifests));
+        }
+    }
+
     /// `Companion1.Open`: opens a session for the front conversation.
-    pub async fn open(&mut self, open: SessionOpen) -> Result<SessionOpened, crate::ServeFault> {
-        let _ = open;
-        todo!(
-            "Companiond::open: Intents1.Session.Open, make the new task the front, record SessionRecord::Opened"
-        )
+    pub async fn open(&mut self, open: SessionOpen) -> Result<SessionOpened, ServeFault> {
+        self.refresh_catalogue().await;
+        let opened = self
+            .intents
+            .session_open(open.clone())
+            .await
+            .map_err(ServeFault::Router)?;
+        self.adopt(&opened, &open);
+        if open.agent == AgentRef::Companion {
+            // Messages that came while no task of the companion could take them wait for it.
+            if let Some(rt) = self.runtimes.get_mut(&opened.task) {
+                rt.inbox.extend(self.unplaced.drain(..));
+            }
+            self.front = front_step(self.front.take(), &FrontEvent::Asked(opened.task.clone()));
+        }
+        self.publish();
+        Ok(opened)
+    }
+
+    /// Takes a session the router opened into the companion's tasks.
+    pub(crate) fn adopt(&mut self, opened: &SessionOpened, open: &SessionOpen) {
+        self.runtimes.insert(
+            opened.task.clone(),
+            TaskRuntime::new(
+                opened.session.clone(),
+                open.space.clone(),
+                open.agent.clone(),
+                open.parent.clone(),
+                self.clock.now(),
+            ),
+        );
+        self.tasks.insert(opened.task.clone(), idle_state());
+    }
+
+    /// `Companion1.Close`: ends a session. A task still working is cancelled first.
+    pub async fn close(&mut self, session: SessionId) -> Result<(), ServeFault> {
+        let task = self.task_of(&session).ok_or(ServeFault::UnknownSession)?;
+        let live = self
+            .tasks
+            .get(&task)
+            .is_some_and(|s| !matches!(s.phase, LoopPhase::Finished(_)));
+        if live {
+            self.run(&task, LoopInput::Cancelled).await?;
+        } else {
+            // A finished task already closed its session; the router answers either way.
+            let _ = self.intents.session_close(session).await;
+        }
+        if let Some(rt) = self.runtimes.remove(&task) {
+            self.remember_ended(&task, &rt);
+        }
+        self.tasks.remove(&task);
+        self.front = front_step(self.front.take(), &FrontEvent::Ended(task.clone()));
+        self.shared.drop_answer(&task);
+        self.publish();
+        Ok(())
+    }
+
+    /// The task running on `session`.
+    pub fn task_of(&self, session: &SessionId) -> Option<TaskId> {
+        self.runtimes
+            .iter()
+            .find(|(_, rt)| &rt.session == session)
+            .map(|(task, _)| task.clone())
+    }
+
+    /// The person's words, as the UI recorded them through `Session.Turn`: the companion asks
+    /// the router for no turn text (the router would have to give it), so whatever is on the
+    /// other end of `Companion1.Ask` hands the turn over first.
+    pub fn heard(&mut self, session: SessionId, turn: UserTurn, keep: ContextKeep) {
+        self.heard.insert((session, turn.id), Heard { turn, keep });
+    }
+
+    /// The app the person summoned the companion from, for the context section of what follows.
+    pub fn summoned_from(&mut self, app: Option<AppName>) {
+        self.summoned = app;
     }
 
     /// `Companion1.Ask`: starts the loop for a turn the UI already recorded and answers the
-    /// object path of its answer.
-    pub async fn ask(&mut self, ask: AskWire) -> Result<String, crate::ServeFault> {
-        let _ = ask;
-        todo!(
-            "Companiond::ask: LoopInput::Asked, assemble from Session.Recall (Recent, Inject), Context.Current, the roster and the inbox; carry out the effects"
-        )
+    /// object path of its answer, once the task has run as far as it can alone.
+    pub async fn ask(&mut self, ask: AskWire) -> Result<String, ServeFault> {
+        let begun = self.begin_ask(ask)?;
+        self.run_interactive(&begun.task, begun.first).await?;
+        Ok(begun.path)
     }
 
-    /// `Intents1.Message.Arrived`: reads the inbox and feeds each message to the right task as
-    /// input (a request is evaluated under that task's own policy; nothing in it widens it).
-    pub async fn arrived(&mut self) -> Result<(), crate::ServeFault> {
-        todo!(
-            "Companiond::arrived: Message.Inbox for each agent here, LoopInput per message, completion notes for reports"
-        )
+    /// The first half of `ask`: the turn is the task's and the answer exists, thinking. The bus
+    /// answers the path here and runs the rest in the background.
+    pub fn begin_ask(&mut self, ask: AskWire) -> Result<Begun, ServeFault> {
+        let task = self
+            .task_of(&ask.session)
+            .ok_or(ServeFault::UnknownSession)?;
+        let heard = self
+            .heard
+            .remove(&(ask.session.clone(), ask.turn))
+            .ok_or(ServeFault::UnknownTurn)?;
+        let phase = self.tasks.get(&task).map(|s| s.phase);
+        if matches!(phase, Some(LoopPhase::Finished(_))) {
+            return Err(ServeFault::Finished);
+        }
+        let Some(rt) = self.runtimes.get_mut(&task) else {
+            return Err(ServeFault::UnknownSession);
+        };
+        rt.turns.push(heard.turn.clone());
+        rt.keep = heard.keep;
+        rt.window = Some(ask.parent_window);
+        rt.phase = AnswerPhase::Thinking;
+        let first = match phase {
+            Some(LoopPhase::Paused(_)) => LoopInput::Resumed,
+            _ => LoopInput::Asked(heard.turn.id),
+        };
+        self.front = front_step(self.front.take(), &FrontEvent::Asked(task.clone()));
+        self.publish_answer(&task);
+        Ok(Begun {
+            path: docket_dbus::answer_path(&task),
+            task,
+            first,
+        })
+    }
+
+    /// Runs what `begin_ask` began.
+    pub async fn run_begun(&mut self, begun: Begun) -> Result<(), ServeFault> {
+        self.run_interactive(&begun.task, begun.first).await
     }
 
     /// The roster as the active Space may see it (another Space shows presence only).
     pub fn roster(&self) -> Roster {
-        todo!("Companiond::roster: Intents1 task table through roster_of, cut by Roster::seen_from")
+        self.roster_without(None).seen_from(&self.active_space())
+    }
+
+    /// Every agent but `leave`, as lines. A task's own planner is told who else is working, not
+    /// about itself: its own line changes with every step and would break the cached prefix.
+    pub(crate) fn roster_without(&self, leave: Option<&TaskId>) -> Roster {
+        let mut entries: Vec<RosterLine> = self
+            .runtimes
+            .iter()
+            .filter(|(task, _)| Some(*task) != leave)
+            .map(|(task, rt)| self.line_of(task, rt))
+            .collect();
+        entries.extend(self.known.values().cloned());
+        Roster { entries }
+    }
+
+    /// The Space the person is working in: the front task's.
+    pub(crate) fn active_space(&self) -> SpaceId {
+        self.front
+            .as_ref()
+            .and_then(|t| self.runtimes.get(t))
+            .map_or_else(SpaceId::desktop, |rt| rt.space.clone())
+    }
+
+    fn line_of(&self, task: &TaskId, rt: &TaskRuntime) -> RosterLine {
+        let waiting = rt.turns.is_empty() && rt.inbox.is_empty();
+        let state = match self.tasks.get(task) {
+            Some(s) if s.phase == LoopPhase::Idle && waiting => docket_core::RosterState::Starting,
+            other => roster_state(other, &rt.phase),
+        };
+        let goal = rt
+            .turns
+            .first()
+            .map(|t| t.text.clone())
+            .or_else(|| {
+                rt.inbox.first().and_then(|m| {
+                    m.parts.iter().find_map(|p| match p {
+                        docket_core::InboundPart::Text(Reveal::Plain(t)) => Some(t.clone()),
+                        _ => None,
+                    })
+                })
+            })
+            .map(|g| LeadText::of(&g).as_str().to_owned())
+            .unwrap_or_default();
+        RosterLine {
+            agent: rt.agent.clone(),
+            space: rt.space.clone(),
+            state,
+            detail: RosterDetail::Full(Box::new(RosterFull {
+                goal: Reveal::Plain(goal),
+                last: rt.history.last().cloned(),
+                told: self.told.get(&rt.agent).cloned(),
+            })),
+        }
+    }
+
+    /// Remembers a finished task's roster line when its row closes.
+    fn remember_ended(&mut self, task: &TaskId, rt: &TaskRuntime) {
+        let line = self.line_of(task, rt);
+        self.known.insert(rt.agent.clone(), line);
+        while self.known.len() > REMEMBERED {
+            let Some(oldest) = self.known.keys().next().cloned() else {
+                break;
+            };
+            self.known.remove(&oldest);
+        }
     }
 
     /// `Companion1.Front`.
     pub fn front_task(&self) -> FrontTask {
         FrontTask {
             task: self.front.clone(),
-            session: None,
+            session: self
+                .front
+                .as_ref()
+                .and_then(|t| self.runtimes.get(t))
+                .map(|rt| rt.session.clone()),
         }
     }
 
-    /// Time passed: ends idle side conversations and starts a narrative when the person is away.
-    pub async fn tick(&mut self) -> Result<(), crate::ServeFault> {
-        todo!(
-            "Companiond::tick: side_step(Tick) and idle_step(Tick), carry out WriteEpisode (Session.Note) and Start (reader-shaped narrative as background work)"
-        )
+    /// Writes what the bus reads: the roster, the front task, and the answers.
+    pub(crate) fn publish(&self) {
+        self.shared.set_roster(self.roster());
+        self.shared.set_front(self.front_task());
+    }
+
+    /// Writes one task's answer where the bus reads it.
+    pub(crate) fn publish_answer(&self, task: &TaskId) {
+        if let Some(rt) = self.runtimes.get(task) {
+            self.shared.set_answer(rt.answer(task));
+        }
+        self.publish();
     }
 }

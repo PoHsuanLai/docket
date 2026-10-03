@@ -1,0 +1,290 @@
+//! Carrying out the loop. `agent_step` says what happens; this turns each effect into a call to
+//! the router, the reader or the planner and feeds the end back in as the next input, until the
+//! task is waiting for the person or over. Nothing here decides what is allowed: every call goes
+//! to the router, which gates it, and a refusal comes back as a code.
+
+use crate::fault::ServeFault;
+use crate::runtime::Companiond;
+use agent_loop::{
+    IdleInput, LoopEffect, LoopInput, LoopPhase, LoopState, ModelOutput, agent_step, assemble,
+    idle_step,
+};
+use docket_client::{ClientError, Transport as IntentsTransport};
+use docket_core::{
+    ActionRef, CallId, CallRefusal, CallRequest, ReadAsk, ReaderAsk, Reveal, StepEnd, TaskStart,
+    WireRefusal,
+};
+use porter_client::Transport as InferTransport;
+use prov::{ActionName, Effect, Labelled, TaskId};
+use std::collections::VecDeque;
+
+/// The built-in provider whose two actions companiond carries out itself: it runs the loops of
+/// the tasks they start.
+const COMPANION_APP: &str = "org.quire.Companion";
+const TASK_START: &str = "companion.task.start";
+const TASK_MESSAGE: &str = "companion.task.message";
+
+/// What a call to the router came to, as the loop is told.
+fn refusal_of(error: ClientError) -> CallRefusal {
+    match error {
+        ClientError::Refused(WireRefusal::Call(refusal)) => refusal,
+        ClientError::Refused(_) | ClientError::Transport(_) | ClientError::Unexpected => {
+            CallRefusal::Timeout
+        }
+    }
+}
+
+fn idle_loop() -> LoopState {
+    LoopState {
+        phase: LoopPhase::Idle,
+        turn: None,
+        steps: 0,
+        pending: vec![],
+    }
+}
+
+impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
+    /// Runs `first`, and what follows from it, to the end of what the task can do alone.
+    pub(crate) async fn run(&mut self, task: &TaskId, first: LoopInput) -> Result<(), ServeFault> {
+        if !self.running.insert(task.clone()) {
+            return Ok(());
+        }
+        let result = self.run_inputs(task, first).await;
+        self.running.remove(task);
+        self.publish();
+        result
+    }
+
+    async fn run_inputs(&mut self, task: &TaskId, first: LoopInput) -> Result<(), ServeFault> {
+        let mut queue = VecDeque::from([first]);
+        while let Some(input) = queue.pop_front() {
+            let input = if self.shared.take_cancel(task) {
+                queue.clear();
+                LoopInput::Cancelled
+            } else {
+                input
+            };
+            let state = self.tasks.get(task).cloned().unwrap_or_else(idle_loop);
+            let (next, effects) = agent_step(state, input);
+            self.tasks.insert(task.clone(), next);
+            let mut position = 0u64;
+            for effect in effects {
+                let more = self.carry_out(task, effect, &mut position).await?;
+                queue.extend(more);
+            }
+        }
+        Ok(())
+    }
+
+    /// Applies one input to the idle pass and returns what it asks for.
+    pub(crate) fn idle_apply(&mut self, input: IdleInput) -> Vec<agent_loop::IdleEffect> {
+        let (next, effects) = idle_step(self.idle.clone(), input, &self.config.idle);
+        self.idle = next;
+        effects
+    }
+
+    /// A turn of the person's: the idle pass yields, the loop runs, and what landed meanwhile is
+    /// read.
+    pub(crate) async fn run_interactive(
+        &mut self,
+        task: &TaskId,
+        first: LoopInput,
+    ) -> Result<(), ServeFault> {
+        self.shared.interrupt();
+        self.idle_apply(IdleInput::InteractiveStarted);
+        let ran = self.run(task, first).await;
+        let ended = self.clock.now();
+        self.idle_apply(IdleInput::InteractiveEnded(ended));
+        ran?;
+        self.arrived().await
+    }
+
+    async fn carry_out(
+        &mut self,
+        task: &TaskId,
+        effect: LoopEffect,
+        position: &mut u64,
+    ) -> Result<Vec<LoopInput>, ServeFault> {
+        match effect {
+            LoopEffect::AskPlanner => self.plan_turn(task).await,
+            LoopEffect::Call(call) => {
+                let id = CallId(*position);
+                *position += 1;
+                self.perform(task, *call, id).await
+            }
+            LoopEffect::Read(ask) => self.read(task, *ask).await,
+            LoopEffect::Publish(phase) => {
+                if let Some(rt) = self.runtimes.get_mut(task) {
+                    rt.phase = phase;
+                }
+                self.publish_answer(task);
+                Ok(vec![])
+            }
+            // The report that made the note is in the task's inbox, where the planner reads it as
+            // a typed line; a refusal reached the planner as the coarse code in the history.
+            LoopEffect::Note(_) | LoopEffect::Refused(_) => Ok(vec![]),
+            LoopEffect::CloseTask => {
+                self.finish(task).await?;
+                Ok(vec![])
+            }
+        }
+    }
+
+    /// One planner turn: assemble the view, ask the model, and hand the loop what it said.
+    async fn plan_turn(&mut self, task: &TaskId) -> Result<Vec<LoopInput>, ServeFault> {
+        let spent = self.tasks.get(task).map_or(0, |s| s.steps);
+        if spent >= self.config.budget.calls.0 {
+            return Ok(vec![LoopInput::ModelFailed]);
+        }
+        let sources = self.sources(task).await;
+        let view = assemble(&self.config.assembler, &sources);
+        let reply = match self.planner.converse(&view).await {
+            Ok(reply) => reply,
+            Err(_) => return Ok(vec![LoopInput::ModelFailed]),
+        };
+        if let Some(rt) = self.runtimes.get_mut(task) {
+            rt.served = reply.served.clone();
+            if let Some(words) = &reply.said {
+                rt.said.push(words.clone());
+            }
+        }
+        let said = reply.said.map(|w| LoopInput::Planned(ModelOutput::Say(w)));
+        Ok(said
+            .into_iter()
+            .chain([LoopInput::Planned(reply.then)])
+            .collect())
+    }
+
+    /// One call, through the router. The two actions that start and message a task are carried
+    /// out here, because the loops of those tasks run here.
+    async fn perform(
+        &mut self,
+        task: &TaskId,
+        call: CallRequest,
+        id: CallId,
+    ) -> Result<Vec<LoopInput>, ServeFault> {
+        if call.action.app.as_str() == COMPANION_APP {
+            match call.action.name.as_str() {
+                TASK_START => return self.start_task(task, call, id).await,
+                TASK_MESSAGE => return self.message_task(task, call, id).await,
+                _ => {}
+            }
+        }
+        let Some(rt) = self.runtimes.get(task) else {
+            return Err(ServeFault::UnknownSession);
+        };
+        let (session, window) = (rt.session.clone(), rt.window.clone());
+        let effect = self
+            .planner
+            .catalogue()
+            .of(&call.action)
+            .map_or(Effect::Read, |t| t.decl.effect);
+        let result = self
+            .intents
+            .perform(call.clone(), Some(session), window)
+            .await
+            .unwrap_or_else(|error| Err(refusal_of(error)));
+        Ok(vec![self.ended(task, &call, effect, id, result)])
+    }
+
+    /// Records a call's end in the task and says it to the loop.
+    pub(crate) fn ended(
+        &mut self,
+        task: &TaskId,
+        call: &CallRequest,
+        effect: Effect,
+        id: CallId,
+        result: Result<docket_core::Outcome, CallRefusal>,
+    ) -> LoopInput {
+        let end = match self.runtimes.get_mut(task) {
+            Some(rt) => rt.record_call(call, effect, result),
+            None => StepEnd::Refused(CallRefusal::Timeout),
+        };
+        LoopInput::CallEnded(id, end)
+    }
+
+    /// `companion.task.start`: a worker is opened for the goal and runs to its end before the
+    /// spawning task goes on; the answer is its task id.
+    async fn start_task(
+        &mut self,
+        task: &TaskId,
+        call: CallRequest,
+        id: CallId,
+    ) -> Result<Vec<LoopInput>, ServeFault> {
+        let result = match TaskStart::from_args(&call.args) {
+            Err(why) => Err(docket_core::ParamName::parse("goal").map_or(
+                CallRefusal::Timeout,
+                |param| CallRefusal::BadArgs { param, why },
+            )),
+            Ok(start) => match self.spawn_worker(task, start).await {
+                Ok(worker) => Ok(self.outcome_text(&worker)),
+                Err(error) => Err(match error {
+                    ServeFault::Router(error) => refusal_of(error),
+                    _ => CallRefusal::Timeout,
+                }),
+            },
+        };
+        Ok(vec![self.ended(task, &call, Effect::Read, id, result)])
+    }
+
+    /// `companion.task.message`: the text goes to the task the target names, as a request.
+    async fn message_task(
+        &mut self,
+        task: &TaskId,
+        call: CallRequest,
+        id: CallId,
+    ) -> Result<Vec<LoopInput>, ServeFault> {
+        let result = self.send_to_target(task, &call).await;
+        Ok(vec![self.ended(task, &call, Effect::Read, id, result)])
+    }
+
+    /// One read of the quarantined reader: a closed-set answer is plain, text a handle. It is a
+    /// step in the task's history so the planner is shown what came back.
+    async fn read(&mut self, task: &TaskId, ask: ReaderAsk) -> Result<Vec<LoopInput>, ServeFault> {
+        let Some(session) = self.runtimes.get(task).map(|rt| rt.session.clone()) else {
+            return Err(ServeFault::UnknownSession);
+        };
+        let answer = self.intents.session_read(session, ReadAsk { ask }).await;
+        match answer {
+            Err(_) => Ok(vec![LoopInput::ModelFailed]),
+            Ok(reveal) => {
+                if let Some(rt) = self.runtimes.get_mut(task) {
+                    let held = match &reveal {
+                        Reveal::Plain(v) => Labelled {
+                            value: v.clone(),
+                            label: crate::args::planner_label(),
+                        },
+                        Reveal::Handle(h) => Labelled {
+                            value: docket_core::Value::Handle(*h),
+                            label: crate::args::planner_label(),
+                        },
+                    };
+                    let outcome = docket_core::Outcome {
+                        value: Some(held),
+                        said: None,
+                        show: docket_core::Preview::None,
+                        undo: docket_core::Undoable::No,
+                        follow: docket_core::Follow::Nothing,
+                    };
+                    if let Some(call) = read_call() {
+                        rt.record_call(&call, Effect::Read, Ok(outcome));
+                    }
+                }
+                Ok(vec![LoopInput::ReadAnswered(reveal)])
+            }
+        }
+    }
+}
+
+/// The step the planner is shown for a read: the reader is a step like any other.
+fn read_call() -> Option<CallRequest> {
+    Some(CallRequest {
+        action: ActionRef {
+            app: porter_core::AppName::parse(COMPANION_APP).ok()?,
+            name: ActionName::parse("companion.read").ok()?,
+        },
+        target: docket_core::TargetValue::Nothing,
+        args: docket_core::Args::new(),
+        origin: docket_core::Origin::Companion,
+    })
+}
