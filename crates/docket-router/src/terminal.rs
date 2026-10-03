@@ -8,14 +8,17 @@
 use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, Seams};
+use crate::session::{SessionEvent, session_step};
 use crate::state::{RouterState, SessionRecord};
+use crate::tasks::TaskState;
+use action_review::Breaker;
 use docket_core::{
     ActionDecl, ActionMatch, ActionRef, AgentReach, AskReason, AuditRecord, CallerRole, LabelText,
     TargetKind, TaskPolicy, TaskPolicyState,
 };
 use policy_point::TerminalGrant;
 use porter_core::Count;
-use prov::{Actor, Effect, EntityKind, UnixSeconds};
+use prov::{Actor, Effect, EntityKind, SpaceScope, UnixSeconds};
 use std::collections::BTreeSet;
 
 /// Whether the terminal session `record` holds a standing grant for `action` at `now`.
@@ -168,6 +171,37 @@ impl<S: Seams> Router<S> {
                 Revoked::Done
             }
             None => Revoked::NotHeld,
+        }
+    }
+
+    /// The person resumed (`Control.Resume`, the control centre's alone): every terminal session
+    /// the breaker paused in `scope` takes calls again with a fresh breaker. A terminal has no
+    /// turn to record (`Session.Turn` is the launcher's and the fields'), so without this a
+    /// session the breaker paused would refuse every `quire-do` call until logout. Nothing a
+    /// terminal can send reaches it: the member is the control role's, and the answer to a
+    /// sheet cannot do it because a paused session shows none.
+    pub(crate) fn resume_terminals(&self, scope: &SpaceScope) {
+        let mut st = self.locked();
+        for id in st.terminal_sessions() {
+            let Some(record) = st.sessions.get_mut(&id) else {
+                continue;
+            };
+            let covered = match scope {
+                SpaceScope::Any => true,
+                SpaceScope::Only(space) => *space == record.space,
+            };
+            if !covered {
+                continue;
+            }
+            let (state, _) = session_step(record.state, SessionEvent::UserTurn);
+            record.state = state;
+            record.breaker = Breaker::new();
+            let task = record.task.clone();
+            if let Some(t) = st.tasks.get_mut(&task)
+                && matches!(t.state, TaskState::NeedsYou | TaskState::Paused)
+            {
+                t.state = TaskState::Working;
+            }
         }
     }
 

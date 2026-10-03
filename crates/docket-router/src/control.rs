@@ -70,9 +70,12 @@ impl<S: Seams> Router<S> {
         IntentsReply::Done
     }
 
-    /// `.Control.Resume`: the only way back to running.
+    /// `.Control.Resume`: the only way back to running. It also reopens the terminal sessions the
+    /// breaker paused (`resume_terminals`): the person at the control centre is the one who
+    /// can say the terminal may go on.
     pub(crate) fn control_resume(&self, scope: SpaceScope) -> IntentsReply {
         let now = self.seams.clock().now();
+        self.resume_terminals(&scope);
         {
             let mut st = self.locked();
             match &scope {

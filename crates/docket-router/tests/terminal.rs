@@ -355,3 +355,112 @@ async fn only_the_terminal_may_hold_the_grant() {
     let _ = perform(&router, planned).await;
     assert!(router.terminal_grants().is_empty());
 }
+
+fn forget(key: &str) -> CallRequest {
+    CallRequest {
+        action: ActionRef {
+            app: app("org.quire.Memory"),
+            name: prov::ActionName::parse("memory.forget").expect("action"),
+        },
+        target: TargetValue::Entities(vec![prov::EntityId {
+            app: app("org.quire.Memory"),
+            kind: prov::EntityKind::parse("memory.fact").expect("kind"),
+            key: prov::EntityKey::parse(key).expect("key"),
+        }]),
+        args: Default::default(),
+        origin: Origin::Cli,
+    }
+}
+
+async fn resume_as(router: &Router<docket_fake::FakeSeams>, who: &CallerId) -> IntentsReply {
+    ask(
+        router,
+        who,
+        IntentsRequest::ControlResume {
+            scope: prov::SpaceScope::Any,
+        },
+    )
+    .await
+}
+
+/// Item 89: the breaker pauses a session "until the person speaks", and a terminal has no turn to
+/// record. The way back is `Control.Resume` from the control centre, and nothing a terminal can
+/// send does it.
+#[tokio::test]
+async fn a_terminal_the_breaker_paused_goes_on_only_when_the_control_centre_resumes() {
+    let router = router();
+    for key in ["f1", "f2", "f3"] {
+        assert_eq!(
+            run(&router, forget(key)).await,
+            Err(CallRefusal::Denied(DenyCode::NotAllowed))
+        );
+    }
+    let paused = run(&router, from_cli("mail.thread.read", &["t2"], vec![])).await;
+    assert!(
+        matches!(paused, Err(CallRefusal::Paused(_))),
+        "three refusals in a row pause the terminal: {paused:?}"
+    );
+
+    // Neither the terminal itself nor any role but the control centre can resume it.
+    assert_eq!(
+        resume_as(&router, &cli()).await,
+        IntentsReply::Refused(WireRefusal::NotAllowed)
+    );
+    assert_eq!(
+        resume_as(&router, &launcher()).await,
+        IntentsReply::Refused(WireRefusal::NotAllowed)
+    );
+    let still = run(&router, from_cli("mail.thread.read", &["t2"], vec![])).await;
+    assert!(matches!(still, Err(CallRefusal::Paused(_))), "{still:?}");
+
+    assert_eq!(resume_as(&router, &control()).await, IntentsReply::Done);
+    let back = run(&router, from_cli("mail.thread.read", &["t2"], vec![])).await;
+    assert!(back.is_ok(), "the control centre resumed it: {back:?}");
+
+    // The breaker starts afresh: one refusal does not pause it again.
+    assert_eq!(
+        run(&router, forget("f4")).await,
+        Err(CallRefusal::Denied(DenyCode::NotAllowed))
+    );
+    assert!(
+        run(&router, from_cli("mail.thread.read", &["t2"], vec![]))
+            .await
+            .is_ok()
+    );
+}
+
+#[tokio::test]
+async fn resuming_one_space_leaves_a_terminal_paused_in_another() {
+    let router = router();
+    for key in ["f1", "f2", "f3"] {
+        let _ = run(&router, forget(key)).await;
+    }
+    let other = ask(
+        &router,
+        &control(),
+        IntentsRequest::ControlResume {
+            scope: prov::SpaceScope::Only(prov::SpaceId::parse("work").expect("space")),
+        },
+    )
+    .await;
+    assert_eq!(other, IntentsReply::Done);
+    let still = run(&router, from_cli("mail.thread.read", &["t2"], vec![])).await;
+    assert!(
+        matches!(still, Err(CallRefusal::Paused(_))),
+        "the terminal lives in the desktop Space: {still:?}"
+    );
+    let own = ask(
+        &router,
+        &control(),
+        IntentsRequest::ControlResume {
+            scope: prov::SpaceScope::Only(prov::SpaceId::desktop()),
+        },
+    )
+    .await;
+    assert_eq!(own, IntentsReply::Done);
+    assert!(
+        run(&router, from_cli("mail.thread.read", &["t2"], vec![]))
+            .await
+            .is_ok()
+    );
+}
