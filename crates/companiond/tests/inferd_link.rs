@@ -1,6 +1,6 @@
 //! companiond's planner reaches inferd over porter-client's D-Bus transport on the daemon's own
-//! connection. `serve` and the planner's bodies are still `todo!()`, so only the constructor is
-//! wired; nothing is called until the first session.
+//! connection. The planner is filled and tested over a scripted model (`tests/planner.rs`); this one
+//! holds only that the constructor is built on the bus and calls nothing until the first session.
 
 mod support;
 

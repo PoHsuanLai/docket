@@ -19,6 +19,8 @@ use std::sync::{Arc, Mutex};
 pub enum Say {
     /// Words and tool calls (`name`, `args`).
     Reply(String, Vec<(String, Json)>),
+    /// Words cut off by the output limit.
+    Cut(String),
     /// Never finishes: only being dropped ends it.
     Hang,
 }
@@ -138,6 +140,13 @@ impl InferSession for ScriptedSession {
         inner.asked.push(request);
         match inner.script.pop_front() {
             Some(Say::Reply(text, calls)) => self.ready.push_back(reply(text, calls)),
+            Some(Say::Cut(text)) => {
+                let mut cut = reply(text, vec![]);
+                if let InferEvent::Finished(InferReply::Chat(chat)) = &mut cut {
+                    chat.stop = StopReason::MaxTokens;
+                }
+                self.ready.push_back(cut);
+            }
             Some(Say::Hang) => self.hang = true,
             None => return Err(SessionError::Closed),
         }

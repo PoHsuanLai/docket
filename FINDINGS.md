@@ -1,7 +1,7 @@
 # Findings
 
 Open items and standing facts. An entry names the condition that closes it. After fill wave 1,
-the docket amendment and the intentd bus fill (F3) there are **22 `todo!()` bodies** in library and
+the docket amendment and the intentd bus fill (F3) there were **22 `todo!()` bodies** in library and
 daemon code (21 lines: `MemoryProvider` and `CompanionProvider` share one macro line), listed
 below, one row per crate or file; the tests contain none, and no test is `#[ignore]`d. (The freeze
 had 37: `agent_step` was filled in fill wave 1; F3 filled `DbusTransport::call`, `docket_client::serve`,
@@ -11,19 +11,15 @@ had 37: `agent_step` was filled in fill wave 1; F3 filled `DbusTransport::call`,
 
 | Where | Count | Closes when |
 | --- | --- | --- |
-| actions-mcp `McpEdge::call` | 1 | fill wave 2: tool name to action, JSON arguments to `Args` by `ParamType` each labelled with `mcp_label`, `Intents::perform`, outcome or coarse refusal to a tool result |
 | intentd `record_of` | 1 | fill wave 2: `AuditRecord` to almanac `Record` (typed `Message` and `Episode` bodies, the rest `Area { Docket }` with the things each names for cascade-forget) |
 | intentd `InferdModel::{chat, embed}`, `InferdWriter::derive`, `ReaderClient::extract` | 4 | fill wave 2, blocked on porter's `DbusTransport::open` and session fills: sessions through porter-client; `ReplyShape::Json` of the policy record from the person's turns and the catalogue alone; `Reader1.Extract` |
 | intentd `MemoryProvider::perform`, `CompanionProvider::perform` | 2 | fill wave 2: `memory.recall/facts/propose/forget` through memoryd as `Caller::Router` (untrusted proposals land pending); `companion.task.start` opens a child session and records `task.started`, `companion.task.message` goes through message delivery |
-| companiond `PlannerModel::{request, plan}` | 2 | fill wave 2: the sections in the assembler's order into messages, `ToolDecl` per action card, a pinned session so the cached prefix is reused |
-| companiond `Companiond::{open, ask, arrived, roster, tick}` | 5 | fill wave 2: the entry points of the bus over `agent_step`, `side_step`, `idle_step`, `completion_effects` and `recover` |
-| companiond `serve` | 1 | fill wave 2: `Companion1` and `Companion1.Answer`; recover and open a fresh session for the front task on start |
 | readerd `reader_request`, `ReaderService::{extract, extract_in}`, `serve` | 4 | fill wave 2, with stoker's `Shape::to_json_schema`: the fenced data, no tools, the schema as the reply shape, `conforms` on the answer |
 | docket-ds `DsContextSource::snapshot` | 1 | fill wave 2 (quire apps): `ContextModel` to `Here`, `Selection`, `Visible` through `entity_ref`; a private window reports the app alone; password and PIN fields are never reported |
 | voiced `serve` | 1 | fill wave 2, after the PipeWire line (spike V-A): `Begin` from the shell role only, capture through `choose_capture`, unicast signals, an inferd session through porter-client |
-| companiond, readerd and voiced serve their bus | | the items above; those three binaries are skeletons that exit 2. intentd serves (F3): see "The bus path" below |
+| companiond, readerd and voiced binaries | | skeletons that exit 2. companiond's library serves `Companion1` (`serve_on`); its `main` waits for the daemon wiring (a planner model over the bus, the intents transport, the config) intentd serves (F3): see "The bus path" below |
 
-Total: 1 + 1 + 4 + 2 + 2 + 5 + 1 + 4 + 1 + 1 = 22.
+Total: 1 + 4 + 2 + 4 + 1 + 1 = 13 after w4-companion (actions-mcp and companiond are filled).
 
 ## Ignored tests
 
@@ -242,6 +238,113 @@ Not built yet, and what each blocks:
    `Control.Resume` button (item 6 above).
 7. The signals `ManifestChanged`, `Hits`, `JournalChanged`, `BreakerTripped` and `Arrived` are declared and not
    emitted; `Halted` and `Resumed` are. `Request.Proceed` answers `Malformed` (no computer-use lease yet).
+
+## The persistent companion and the MCP edge (w4-companion)
+
+Filled: all of `companiond` (`PlannerModel::{request, plan}` and `converse`, `Companiond::{open, ask,
+arrived, roster, tick}` and the entries beside them, `serve` and `serve_on`) and `actions-mcp`'s
+`McpEdge::call` with its `ServerHandler`. Tested over docket-fake's router in process, a scripted planner
+model and a private `dbus-daemon`; nothing real is touched.
+
+- **One identity, many tasks.** Each task is a session the companion opened (`TaskRuntime`: turns,
+  steps, handles, inbox, answer); `agent_step` is the only decision, `drive` carries the effects out (the
+  planner, `Run.Perform` with the task's session, `Session.Read`, `Session.Close`). The front pointer is
+  `front_step`; a finished task takes no follow-up (the next ask opens a new session and is shown the
+  last one's episode).
+- **The working set** is rebuilt for every planner turn (`sources`, then `assemble`): action cards from
+  the installed manifests, recall by `Session.Recall` (`Inject` with the `recall` token budget,
+  `TrustedOnly`, then `Recent` of `companion.episode` older than this run), the context, the roster
+  without the task itself, this run's recent episodes, the inbox, and the task. Untrusted text is a
+  handle because the router made it one. `render` puts the rules and the pinned profile in one system
+  message and the sections in the assembler's order in one user message, with no clock and no ids, so
+  the prefix is the same bytes while a task grows (`the_planner_prompt_keeps_its_prefix_while_a_task_grows`).
+- **Episodes.** The router writes a task's skeleton at close. A worker's final report ends its task in
+  the router first, so companiond hands the router the skeleton (`Session.Note`) in that case. The
+  narrative is the idle pass: after 30 s of quiet, `Usage::Background`, no tools, from the skeleton text
+  alone (even for a task that read untrusted text, whose narrative would otherwise be the reader's job),
+  recorded as a second event labelled `Untrusted`, `Source::Model(Consolidator)`, private to the Space;
+  an interactive request drops the stream (`Shared::interrupt`) and the job goes back to the queue.
+- **Subagents, one message model.** A worker is opened with `Session.Open` (parent set, policy never
+  wider), its goal goes as a `Request` message from its parent, it runs to its end inside the spawning
+  call, and its final word is a `Report` message in the request's thread. Reports from workers and
+  runs become a `CompletionNote` (a typed line, never the worker's words) and a roster line; a failure
+  makes the orb wait. The person's own message to a subagent is a trusted event: the roster line quotes
+  the first 80 characters at once, the conversation is tracked, and two idle minutes or a closed row
+  write a side episode of their words verbatim. A message across Spaces is `Companiond::message`; the
+  router labels it with what the sender read, the receiver plans on it as input and every call it then
+  makes is gated by its own policy (`a_request_in_a_message_is_still_gated_by_the_receivers_own_policy`);
+  the roster shows another Space's agents as presence only.
+- **Serving.** `Roster()` and `Front()` read `Shared` (what the loop last wrote), so they answer while a
+  planner turn waits on a confirmation; `Ask` answers the answer object's path at once and runs the loop
+  behind it; answer objects have `View`, `Updated` and `Cancel`; `Act` answers `NotSupported` (the loop
+  produces text and refusals, no cards). The served interfaces equal `dbus/org.quire.Companion1.xml`.
+- **Additive change in a frozen crate:** `agent_loop::LoopInput::Messaged` (a request landed in an idle
+  task's inbox: plan, with no turn of the person's). docket-client gained `Intents::{session_recall,
+  session_read, session_note, session_task_policy}` in a new file (`ask` became `pub(crate)`).
+  `Companiond` gained fields and `Companiond::new`; `ServeFault` gained variants; `serve` has a sibling
+  `serve_on(connection, companion)`.
+
+`actions-mcp`: `McpEdge::call` finds the tool among the offered actions (hidden and ask-always are not
+tools), reads the JSON arguments by declared type (`read_call`, with a `target` key per the action's `on`),
+labels each `mcp_label(client)`, performs it as `Origin::Mcp` and answers `{said, value}` or a coarse
+`McpFault::Refused`; `ServerHandler` serves `list_tools` and `call_tool`. `McpAccess` is `Off` by default:
+an off edge lists nothing and refuses every call. Tested with an rmcp client in process.
+
+Open, and the asks they make (nothing was edited in the other crates beyond the additions above):
+
+1. **A turn's text** (ask): `Companion1.Ask` carries a `TurnId` only and the router lets nothing read a
+   turn back (`Session.Turn` is the launcher's). companiond learns the words from `Companiond::heard`,
+   which nothing on the bus calls yet. Ask: `AskWire.turn: UserTurn` and `keep: ContextKeep`, or a
+   companion-role `Session.Turns(session)`.
+2. **The summoning app** (ask): `Context.Current` needs the app; `AskWire` has an opaque `WindowKey`.
+   Ask: `AskWire.app: Option<AppName>`. Until then `Companiond::summoned_from(app)`.
+3. **Session records have no write path** (ask): `Session.Note` takes an `Episode` only, so nothing writes
+   `companion.session.*` and `recover` finds only messages and episodes. Ask: `NoteAsk` becomes
+   `Episode(Episode) | Record(SessionRecord)`, stored as `Area { Companion }` with the kind
+   `companion.session.<slug>`.
+4. **Recent has no bodies** (ask): `RecentLine` carries no body or label, so the `RecentSource` that
+   `recover` reads cannot be built over the router, and `RecallView::Episodes` is never produced (older
+   days' episodes reach the planner as recalled text, not as `EpisodeLine`s with ids and outcomes). Ask:
+   `RecentLine.body: Option<JsonText>` for entries the label allows, and the router building
+   `RecallView::Episodes` from episode bodies.
+5. **Primer, profile and the digest have no read** (ask): section 2 is empty. Ask: `RecallAsk::Primer` and
+   `Profile` (or a field on the recall reply).
+6. **The worker's session** (ask): the built-in provider answers the task id; acting as the child needs
+   its session. companiond therefore carries out `companion.task.start` and `companion.task.message`
+   itself (`Session.Open`, `Message.Send`) and does not send them to `Run.Perform`, so they are neither
+   budgeted nor audited as a `Call`. Ask: the provider answers `{task, session}` (and companiond adopts
+   it), or opening is left to companiond and the provider only records `TaskStarted`.
+7. **An inbox line does not say who it is for** (ask): `Message.Inbox(Companion)` drains every companion
+   session at once. companiond places a line by Space and crossing (the front task first). Ask:
+   `InboundLine.to: Address`.
+8. **Undo ids and handle sizes** (ask): the outcome the companion gets carries the app's token, not the
+   journal's `UndoId`, and no handle size, so a step has no `undo #n` and a handle card says 0
+   characters. Ask: the presented outcome carries both.
+9. **`ActionCard` has no `on`** (ask): the planner's tool schema needs the target. companiond keeps the
+   declarations (`Catalogue`) and adds a `target` key. Ask: `ActionCard.on: TargetKind`, and one
+   `args_from_json(decl, json)` in docket-core beside `tool_schema` (companiond's `read_call` and
+   actions-mcp's are two copies).
+10. **A narrative should name its episode** (ask): `Episode::narrates` needs the router's own skeleton;
+    companiond writes the second event from its own ledger (same words and steps, no undo ids). Ask: a
+    narrative `Note` names the episode id and carries the `Narrative` alone; the router merges it.
+11. **A subagent cannot be narrowed from here** (ask): a goal change in a side conversation makes
+    `SideEffect::Rederive`, and `Session.Widen` only widens. Ask: a companion-role `Session.Narrow`.
+12. **A run's inbox is cuad's** (ask): companiond cannot read what the person told a computer-use run, so
+    `Companiond::told(agent, space, turn)` is its entry. Ask: the router copies person-to-subagent
+    messages into the companion's inbox as notes, or `Companion1` gains `Told`.
+13. **Scope left:** a worker runs inside the call that started it (a watch or background task needs a
+    scheduler); `ProposeFacts` extracts nothing; the idle pass reads the skeleton, not the transcript (a
+    reader client would run transcript narratives in readerd); `main` is still a skeleton; the planner
+    opens an inferd session per turn (the engine's cache is by prefix, pinning is inferd's), and the
+    MCP edge has no stdio or socket serve behind `McpAccess::On` and no `mcp.enabled` settings row (ask:
+    the row, read by the hosting daemon). `McpFault` lost `Copy`.
+
+Seams served: companiond to intentd (`Session.*`, `Run.Perform`, `Message.*`) and to inferd
+(`Open` with `Need::Llm`), the shell and sill through `Companion1`; actions-mcp to intentd through
+`Intents::perform`. Scenarios that prove them later (`~/rs-wt/integration/MAP.md`): the double-tap summon
+that reads mail and answers with a handle; a follow-up task an hour later seeing the last episode; the
+user redirecting a run and the front agent quoting them; two Spaces with a labelled message and a
+presence-only roster; an MCP client listing tools and reading mail while a write asks.
 
 ## Upstream asks
 

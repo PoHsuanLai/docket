@@ -96,7 +96,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         self.carry_side(effects, now).await;
         let effects = self.idle_apply(IdleInput::Tick(now));
         for effect in effects {
-            self.carry_idle(effect, now).await;
+            self.carry_idle(effect).await;
         }
         Ok(())
     }
@@ -159,9 +159,9 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             .map(|rt| rt.session.clone())
     }
 
-    async fn carry_idle(&mut self, effect: IdleEffect, now: UnixSeconds) {
+    async fn carry_idle(&mut self, effect: IdleEffect) {
         match effect {
-            IdleEffect::Start(job) => self.narrate(job, now).await,
+            IdleEffect::Start(job) => self.narrate(job).await,
             // Cancelling is dropping the future of the stream; there is nothing left to do here.
             IdleEffect::Cancel(_) => {}
             // Fact candidates come from the narrative; none are extracted in this pass, so
@@ -171,7 +171,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
     }
 
     /// Writes one narrative as background work, yielding to an interactive request.
-    async fn narrate(&mut self, job: NarrativeJob, now: UnixSeconds) {
+    async fn narrate(&mut self, job: NarrativeJob) {
         let Some(pending) = self.narration.get(&job.episode).cloned() else {
             self.idle_apply(IdleInput::NarrativeFailed(job.episode));
             return;
@@ -202,9 +202,9 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
                 match noted {
                     Ok(()) => {
                         self.narration.remove(&job.episode);
-                        for effect in self.idle_apply(IdleInput::NarrativeDone(job.episode)) {
-                            self.carry_idle_done(effect);
-                        }
+                        // `ProposeFacts` is the only effect: no fact candidates are extracted
+                        // from a narrative here, so there is nothing to send to `memory.propose`.
+                        self.idle_apply(IdleInput::NarrativeDone(job.episode));
                     }
                     Err(_) => {
                         self.idle_apply(IdleInput::NarrativeFailed(job.episode));
@@ -214,17 +214,11 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             Narrated::Written(_) | Narrated::Failed => {
                 self.idle_apply(IdleInput::NarrativeFailed(job.episode));
             }
+            // The stream was dropped, which is the cancel; the job goes back to the front of
+            // the queue, and the person's turn ends the interruption.
             Narrated::Yielded => {
-                for effect in self.idle_apply(IdleInput::InteractiveStarted) {
-                    self.carry_idle_done(effect);
-                }
-                self.idle_apply(IdleInput::InteractiveEnded(now));
+                self.idle_apply(IdleInput::InteractiveStarted);
             }
         }
-    }
-
-    fn carry_idle_done(&mut self, effect: IdleEffect) {
-        // `ProposeFacts` and `Cancel` carry nothing further here (see `carry_idle`).
-        let _ = effect;
     }
 }

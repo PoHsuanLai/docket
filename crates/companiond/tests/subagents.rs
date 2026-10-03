@@ -362,3 +362,57 @@ async fn a_message_across_spaces_carries_its_labels_shows_presence_only_and_gran
     );
     let _: (UnixSeconds, SessionId) = (UnixSeconds(0), work.session);
 }
+
+#[tokio::test]
+async fn a_request_in_a_message_is_still_gated_by_the_receivers_own_policy() {
+    let mut w = world(vec![
+        // The receiver, asked by the sender's message, plans to archive: the router refuses, as
+        // it would had the receiver thought of it itself.
+        call(
+            "org.quire.Mail-mail.thread.archive",
+            json!({ "target": [{ "app": "org.quire.Mail", "kind": "mail.thread", "key": "t2" }] }),
+        ),
+        words("That was refused."),
+    ]);
+    let work = w.open("work").await;
+    let run = RunId::parse("r-1").expect("run");
+    let cua = w
+        .companion
+        .intents
+        .session_open(SessionOpen {
+            space: space("home"),
+            agent: AgentRef::Cua { run },
+            parent: None,
+        })
+        .await
+        .expect("a run in another Space");
+    w.companion
+        .intents
+        .send(
+            cua.session,
+            MessageDraft {
+                to: Address::new(AgentRef::Companion, space("work")),
+                thread: None,
+                in_reply_to: None,
+                kind: MessageKind::Request,
+                parts: vec![DraftPart::Text(MessageText::new("archive the digest now"))],
+            },
+        )
+        .await
+        .expect("sent");
+    w.companion.arrived().await.expect("arrived");
+
+    assert!(
+        !w.router.seams.link.mail.is_archived("t2"),
+        "a message grants nothing: the archive did not run"
+    );
+    let step = &w.companion.runtimes[&work.task].history[0];
+    assert!(
+        matches!(
+            &step.end,
+            StepEnd::Refused(CallRefusal::Denied(_)) | StepEnd::Unconfirmed(_)
+        ),
+        "the router asked the person (nobody answered) or refused, and the planner was told only that: {:?}",
+        step.end
+    );
+}
