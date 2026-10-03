@@ -1,4 +1,6 @@
-# Skeleton of companiond's systemd user unit: the companion. It holds no files: its state is
+# companiond's systemd user unit: the companion. Its configuration is dist/companiond.toml at
+# /etc/xdg/quire/companiond.toml (a file of the person's own at ~/.config/quire/companiond.toml
+# replaces it whole). It holds no files: its state is
 # rebuilt from the eventlog on start, and everything it does goes through intentd. It talks to
 # inferd for the planner. Each sandbox line says what it protects.
 [Unit]
