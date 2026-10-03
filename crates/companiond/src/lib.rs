@@ -6,7 +6,8 @@
 //!
 //! - `Companiond`: the runtime and the entry points the bus calls.
 //! - `PlannerModel`: the planner over inferd.
-//! - `ReplaySource`, `recover`: restart, from what the eventlog holds.
+//! - `RecentSource`, `recover`, `replay_of`: restart, from what the eventlog holds, read through
+//!   `Recent` with `BodyMode::Json`.
 //! - `completion_effects`: how a finished worker or run reaches the front task.
 //! - `serve`: `org.quire.Companion1`.
 
@@ -18,6 +19,6 @@ mod serve;
 
 pub use completion::completion_effects;
 pub use planner::{PlanFault, PlannerModel};
-pub use recover::{ReplayFault, ReplaySource, recover};
+pub use recover::{RecentSource, ReplayFault, recover, replay_of, restart_query};
 pub use runtime::Companiond;
 pub use serve::{ServeFault, serve};

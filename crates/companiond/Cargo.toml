@@ -18,13 +18,16 @@ path = "src/main.rs"
 
 [dependencies]
 agent-loop = { workspace = true }
+almanac-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-client = { workspace = true }
 docket-dbus = { workspace = true }
 prov = { workspace = true }
 porter-client = { workspace = true }
+porter-core = { workspace = true }
 porter-infer = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 
@@ -32,4 +35,3 @@ tokio = { workspace = true }
 workspace = true
 
 [dev-dependencies]
-porter-core = { workspace = true }

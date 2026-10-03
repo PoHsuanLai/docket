@@ -53,7 +53,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `docket-eval` | `docket-core`, `docket-fake`, `docket-router`, `prov`, `porter-core` |
 | `actions-mcp` | `docket-core`, `docket-client`, `prov`, `porter-core` (+ `rmcp`) |
 | `intentd` | `docket-core`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
-| `companiond` | `agent-loop`, `companion-wire`, `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-infer` |
+| `companiond` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
 | `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-infer` |
 | `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
 | `voice-wire` | `docket-core`, `porter-core`, `porter-infer` |
@@ -130,7 +130,7 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `Reader` | `docket-core` | `ReaderService` (readerd), `ReaderClient` (intentd's end of `Reader1`), `ScriptedReader` |
 | `IntentProvider`, `ContextSource`, `SummonTarget` | `docket-client` | apps; `DsContextSource`, `DsSummonTarget`; the built-in providers; `FakeMail`, `FakeFiles` |
 | `Transport` | `docket-client` | `InProcess`, `DbusTransport` |
-| `ReplaySource` | `companiond` | the eventlog reader (stubbed until memory returns bodies) |
+| `RecentSource` | `companiond` | memory's `Recent` with bodies (`BodyMode::Json`); intentd's router forwards it through `Session.Recall` |
 | `PromptHost`, `DictationBridge`, `WindowFacts` | `docket-ds` | quire apps |
 | `AudioDevice` | `voiced` | the PipeWire device (stubbed), `FakeAudioDevice` |
 

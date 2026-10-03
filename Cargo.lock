@@ -439,6 +439,7 @@ name = "companiond"
 version = "0.1.0"
 dependencies = [
  "agent-loop",
+ "almanac-core",
  "companion-wire",
  "docket-client",
  "docket-core",
@@ -447,6 +448,7 @@ dependencies = [
  "porter-core",
  "porter-infer",
  "prov",
+ "serde_json",
  "thiserror",
  "tokio",
 ]
