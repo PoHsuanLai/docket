@@ -2,8 +2,10 @@
 
 use docket_core::*;
 use docket_ds::*;
-use ds_core::vocab::Tally;
-use ds_intents::{ChipKind, SummonAnswerMark, ThingMark};
+use ds_intents::{
+    ChipKind, HeardEndMark, HeardMark, InputLevel, SummonAnswerMark, SummonOriginMark, Tally,
+    ThingMark,
+};
 use porter_core::{AppName, Count};
 use prov::{Confidentiality, Integrity, Label, Labelled, Source, SpaceId};
 use std::collections::BTreeSet;
@@ -195,7 +197,7 @@ fn voice_frames_become_what_a_field_does() {
         model: porter_core::ModelId::parse("nemotron").expect("model"),
         locality: porter_core::Locality::OnDevice,
     };
-    let cases: Vec<(&str, VoiceEvent, Option<Heard>)> = vec![
+    let cases: Vec<(&str, VoiceEvent, Option<HeardMark>)> = vec![
         ("opened is not a field's business", VoiceEvent::Opened, None),
         (
             "waiting is not either",
@@ -205,21 +207,21 @@ fn voice_frames_become_what_a_field_does() {
         (
             "level",
             VoiceEvent::Level(Level(400)),
-            Some(Heard::Level(400)),
+            Some(HeardMark::Level(InputLevel(400))),
         ),
         (
             "partial",
             VoiceEvent::Partial(HeardTail {
                 text: HeardText("hel".into()),
             }),
-            Some(Heard::Tail("hel".into())),
+            Some(HeardMark::Tail("hel".into())),
         ),
         (
             "committed",
             VoiceEvent::Committed(HeardSegment {
                 text: HeardText("hello".into()),
             }),
-            Some(Heard::Committed("hello".into())),
+            Some(HeardMark::Committed("hello".into())),
         ),
         (
             "heard end",
@@ -227,17 +229,17 @@ fn voice_frames_become_what_a_field_does() {
                 text: HeardText("hello there".into()),
                 served: served(),
             }),
-            Some(Heard::Ended(HeardEnd::Send("hello there".into()))),
+            Some(HeardMark::Ended(HeardEndMark::Send("hello there".into()))),
         ),
         (
             "nothing heard",
             VoiceEvent::Ended(UtteranceEnd::NothingHeard),
-            Some(Heard::Ended(HeardEnd::Nothing)),
+            Some(HeardMark::Ended(HeardEndMark::Nothing)),
         ),
         (
             "cancelled",
             VoiceEvent::Ended(UtteranceEnd::Cancelled(CancelCause::Escape)),
-            Some(Heard::Ended(HeardEnd::Cancelled)),
+            Some(HeardMark::Ended(HeardEndMark::Cancelled)),
         ),
     ];
     for (name, event, want) in cases {
@@ -249,8 +251,37 @@ fn voice_frames_become_what_a_field_does() {
 fn heard_debug_shows_no_words() {
     let shown = format!(
         "{:?} {:?}",
-        Heard::Tail("my secret".into()),
-        Heard::Ended(HeardEnd::Send("my secret".into()))
+        HeardMark::Tail("my secret".into()),
+        HeardMark::Ended(HeardEndMark::Send("my secret".into()))
     );
     assert!(!shown.contains("secret"), "{shown}");
+}
+
+#[test]
+fn a_summon_origin_becomes_where_ds_says_it_came_from() {
+    let utterance = UtteranceId::parse("u-1").expect("utterance");
+    let voice = |intent| SummonOrigin::Voice {
+        utterance: utterance.clone(),
+        intent,
+    };
+    let cases = [
+        (
+            "double tap",
+            SummonOrigin::DoubleTap,
+            SummonOriginMark::Keyboard,
+        ),
+        (
+            "a held voice prompt",
+            voice(VoiceIntent::Ask),
+            SummonOriginMark::Voice,
+        ),
+        (
+            "a dictation",
+            voice(VoiceIntent::Dictate),
+            SummonOriginMark::Dictation,
+        ),
+    ];
+    for (name, origin, want) in cases {
+        assert_eq!(summon_origin_mark(&origin), want, "case: {name}");
+    }
 }

@@ -106,7 +106,7 @@ EDGES=(
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router policy-point porter-client porter-core porter-infer prov"
   "companiond: agent-loop companion-wire docket-client docket-core docket-dbus porter-client porter-infer prov"
   "readerd: docket-client docket-core docket-dbus porter-client porter-infer prov"
-  "docket-ds: companion-wire docket-client docket-core ds-core ds-intents porter-core prov voice-wire"
+  "docket-ds: companion-wire docket-client docket-core ds-intents porter-core prov voice-wire"
   "voice-wire: docket-core porter-core porter-infer"
   "voice-loop: docket-core porter-core porter-infer voice-wire"
   "voiced: docket-core porter-client porter-core porter-infer speech-vad voice-loop voice-wire"

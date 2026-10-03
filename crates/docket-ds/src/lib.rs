@@ -7,6 +7,7 @@
 //! - `thing_mark`, `entity_ref`: a thing as a row shows it and as the router names it.
 //! - [`summon_answer_mark`], [`summon_answer_of`], [`serial_of`], [`serial_mark`].
 //! - `DsContextSource`, `DsSummonTarget`: the seams `docket-client` asks ds to answer.
+//! - [`summon_origin_mark`]: where a summon came from, as ds's `SummonOriginMark`.
 //! - `heard_of`, `DictationBridge`: the voice path from `Voice1.Utterance.Attach` to a field.
 
 mod chips;
@@ -19,7 +20,7 @@ pub use chips::{chips_of, keep_of};
 pub use context::{DsContextSource, WindowFacts};
 pub use summon::{
     BridgeFault, DsSummonTarget, PromptHost, serial_mark, serial_of, summon_answer_mark,
-    summon_answer_of,
+    summon_answer_of, summon_origin_mark,
 };
 pub use things::{ThingError, entity_ref, thing_mark};
-pub use voice::{DictationBridge, Heard, HeardEnd, heard_of};
+pub use voice::{DictationBridge, heard_of};

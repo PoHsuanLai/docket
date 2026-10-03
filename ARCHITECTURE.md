@@ -55,7 +55,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `intentd` | `docket-core`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
 | `companiond` | `agent-loop`, `companion-wire`, `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-infer` |
 | `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-infer` |
-| `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents`, `ds-core` |
+| `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
 | `voice-wire` | `docket-core`, `porter-core`, `porter-infer` |
 | `voice-loop` | `voice-wire`, `docket-core`, `porter-core`, `porter-infer` |
 | `voiced` | `voice-loop`, `voice-wire`, `docket-core`, `porter-core`, `porter-infer`, `porter-client`, `speech-vad` |

@@ -2,8 +2,7 @@
 //! it will send, and removing a chip drops that context from the turn.
 
 use docket_core::{ContextKeep, ContextSnapshot, Here, Keep, Selection, WindowPrivacy};
-use ds_core::vocab::Tally;
-use ds_intents::{ChipKind, ContextChip, Removal};
+use ds_intents::{ChipKind, ContextChip, Removal, Tally};
 
 /// The chips for a context taken at the moment of the summon (before the field turned into a
 /// prompt): the query, the results with their count, the selection, the window and the app. A

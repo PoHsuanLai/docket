@@ -9,8 +9,8 @@ porter's additions below, which hold here for the same reasons.
 
 What docket adds or decides differently, each with its reason:
 
-1. **Closed sets are enums without `Word`.** docket does not depend on quire's `ds-core` (only
-   `docket-ds`, the adapter quire apps use, does): the router and the agent must build for any
+1. **Closed sets are enums without `Word`.** docket does not depend on quire's `ds-core` (nothing does
+   directly; `docket-ds`, the adapter quire apps use, reaches its vocabulary through `ds-intents`): the router and the agent must build for any
    desktop. A closed set's stable slug is its serde `snake_case` form (the same slug in files,
    on the bus and in the audit log); nothing hand-writes `slug` or `parse`. Where a list of
    every variant is needed (`CallerRole::ALL`, `Member::ALL`) it is written by hand and a test

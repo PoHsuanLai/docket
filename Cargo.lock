@@ -614,7 +614,6 @@ dependencies = [
  "companion-wire",
  "docket-client",
  "docket-core",
- "ds-core",
  "ds-intents",
  "porter-core",
  "porter-infer",

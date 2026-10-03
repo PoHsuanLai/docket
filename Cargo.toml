@@ -67,8 +67,6 @@ speech-vad      = { path = "../stoker/crates/speech-vad" }
 
 # quire's view-only context seams, for `docket-ds` alone.
 ds-intents      = { path = "../quire/crates/ds-intents" }
-# `Tally`, the count a chip carries, is ds-core's; ds-intents does not re-export it.
-ds-core         = { path = "../quire/crates/ds-core" }
 
 # From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines docket
 # names itself.

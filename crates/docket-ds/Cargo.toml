@@ -14,7 +14,6 @@ docket-client = { workspace = true }
 companion-wire = { workspace = true }
 voice-wire = { workspace = true }
 ds-intents = { workspace = true }
-ds-core = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }
 thiserror = { workspace = true }

@@ -3,8 +3,8 @@
 //! `docket-client` asks.
 
 use docket_client::SummonTarget;
-use docket_core::{SummonAnswer, SummonOrigin, SummonSerial};
-use ds_intents::{SummonAnswerMark, SummonSerial as DsSerial};
+use docket_core::{SummonAnswer, SummonOrigin, SummonSerial, VoiceIntent};
+use ds_intents::{SummonAnswerMark, SummonOriginMark, SummonSerial as DsSerial};
 
 /// ds's answer as the wire's. Total: a new variant on either side stops the build here.
 pub fn summon_answer_of(mark: SummonAnswerMark) -> SummonAnswer {
@@ -36,13 +36,29 @@ pub fn serial_of(serial: DsSerial) -> SummonSerial {
     SummonSerial(serial.0)
 }
 
+/// Where a summon came from, as ds's view of it: the double-tap is a key, and a voice summon is
+/// a prompt (`Ask`) or a dictation (`Dictate`). Total.
+pub fn summon_origin_mark(origin: &SummonOrigin) -> SummonOriginMark {
+    match origin {
+        SummonOrigin::DoubleTap => SummonOriginMark::Keyboard,
+        SummonOrigin::Voice {
+            intent: VoiceIntent::Ask,
+            ..
+        } => SummonOriginMark::Voice,
+        SummonOrigin::Voice {
+            intent: VoiceIntent::Dictate,
+            ..
+        } => SummonOriginMark::Dictation,
+    }
+}
+
 /// What ds does when a summon arrives: the host app's prompt machinery. A quire app implements
 /// it over ds's `CompanionPort`; `DsSummonTarget` is generic over it so the conversion is
 /// tested without a window.
 pub trait PromptHost: Send + Sync {
     /// Takes the summon: the focused field becomes a prompt, an anchored prompt opens, the
     /// previous prompt returns, or the app declines.
-    fn summoned(&self, serial: DsSerial, origin: &SummonOrigin) -> SummonAnswerMark;
+    fn summoned(&self, serial: DsSerial, origin: SummonOriginMark) -> SummonAnswerMark;
 }
 
 /// The `SummonTarget` of a quire app.
@@ -60,7 +76,10 @@ impl<H: PromptHost> DsSummonTarget<H> {
 
 impl<H: PromptHost> SummonTarget for DsSummonTarget<H> {
     fn summon(&self, serial: SummonSerial, origin: SummonOrigin) -> SummonAnswer {
-        summon_answer_of(self.host.summoned(serial_mark(serial), &origin))
+        summon_answer_of(
+            self.host
+                .summoned(serial_mark(serial), summon_origin_mark(&origin)),
+        )
     }
 }
 
