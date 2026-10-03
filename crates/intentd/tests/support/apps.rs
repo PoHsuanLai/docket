@@ -126,10 +126,15 @@ struct Script {
     next: u64,
 }
 
-/// sill's `Confirm1`: records every sheet and answers from a script, then dismisses.
+/// Asks somebody (blocking is fine: it runs off the async threads).
+type Asker = Arc<dyn Fn(&ConfirmRequest) -> Answer + Send + Sync>;
+
+/// sill's `Confirm1`: records every sheet and answers from a script, then dismisses; or, built
+/// with `start_asking`, hands each sheet to a function (the example asks on the terminal).
 #[derive(Clone)]
 pub struct FakeSill {
     script: Arc<Mutex<Script>>,
+    asker: Option<Asker>,
 }
 
 struct ConfirmServer(FakeSill);
@@ -144,15 +149,24 @@ impl ConfirmServer {
     ) -> fdo::Result<OwnedObjectPath> {
         let parsed: ConfirmRequest =
             serde_json::from_str(&request).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
-        let (answer, number) = {
+        let (scripted, number) = {
             let mut script = locked(&self.0.script);
-            script.shown.push(parsed);
+            script.shown.push(parsed.clone());
             script.next += 1;
             let answer = script
                 .answers
                 .pop_front()
                 .unwrap_or(Answer::With(ConfirmAnswer::Ended(ConfirmEnd::Dismissed)));
             (answer, script.next)
+        };
+        let answer = match &self.0.asker {
+            Some(ask) => {
+                let ask = ask.clone();
+                tokio::task::spawn_blocking(move || ask(&parsed))
+                    .await
+                    .unwrap_or(Answer::Never)
+            }
+            None => scripted,
         };
         let path = format!("/org/quire/Confirm1/request/{number}");
         if let (Answer::With(answer), Some(to)) = (answer, header.sender()) {
@@ -186,8 +200,22 @@ impl FakeSill {
     /// Serves `Confirm1` on `connection` and claims `names` (`org.quire.Confirm1` and the name
     /// the configuration gives sill's roles).
     pub async fn start(connection: &BusConnection, names: &[&str]) -> FakeSill {
+        Self::serve(connection, names, None).await
+    }
+
+    /// `start`, with every sheet handed to `ask` instead of the script.
+    pub async fn start_asking(
+        connection: &BusConnection,
+        names: &[&str],
+        ask: impl Fn(&ConfirmRequest) -> Answer + Send + Sync + 'static,
+    ) -> FakeSill {
+        Self::serve(connection, names, Some(Arc::new(ask))).await
+    }
+
+    async fn serve(connection: &BusConnection, names: &[&str], asker: Option<Asker>) -> FakeSill {
         let sill = FakeSill {
             script: Arc::new(Mutex::new(Script::default())),
+            asker,
         };
         connection
             .object_server()

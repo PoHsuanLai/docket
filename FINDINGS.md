@@ -220,6 +220,10 @@ Built and tested on a private `dbus-daemon` (nothing of the real session is name
   ask until the control centre revokes it, a hidden action exits 3, three refusals pause it (exit 7) until
   `Control.Resume`, `undo --last` reaches the app, and with intentd stopped every call exits 6.
 
+By hand: `scripts/try-quire-do.sh` starts a scratch `dbus-daemon`, intentd, a fake mail app and a sheet that asks
+on the terminal (`intentd/examples/try_apps.rs`), all with a scratch HOME and XDG directories, and prints the
+`source` line for a second terminal where `quire-do` then works.
+
 Not built yet, and what each blocks:
 
 1. **The audit queue is drained and dropped** (`record_of` and the memoryd link are `todo!()`): nothing a call
