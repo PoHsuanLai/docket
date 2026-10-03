@@ -3,12 +3,12 @@
 
 use crate::transport::{Transport, TransportError};
 use docket_core::{
-    CallRefusal, CallRequest, ContextView, Delivery, EntityRef, Handle, Hit, InboundLine, InboxAsk,
-    IntentsReply, IntentsRequest, MessageDraft, Outcome, Preview, SearchAsk, SessionOpen,
-    SessionOpened, SuggestAsk, TurnId, TurnIn, UndoId, UndoReport, UndoScope, WidenAnswer,
-    WidenAsk, WindowKey, WireRefusal,
+    CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, EntityRef, GateAnswer, GrantAnswer,
+    GrantAsk, Handle, Hit, InboundLine, InboxAsk, IntentsReply, IntentsRequest, MessageDraft,
+    Outcome, Preview, SearchAsk, SessionOpen, SessionOpened, SuggestAsk, TurnId, TurnIn, UndoId,
+    UndoReport, UndoScope, WidenAnswer, WidenAsk, WindowKey, WireRefusal,
 };
-use prov::{EntityId, SessionId};
+use prov::{AppName, EntityId, SessionId};
 
 /// Why a request did not give the reply its caller wanted.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -122,9 +122,32 @@ impl<T: Transport> Intents<T> {
     }
 
     /// What the person is doing, as a planner may read it.
-    pub async fn context(&self, session: SessionId) -> Result<ContextView, ClientError> {
-        self.ask(IntentsRequest::Context { session }, |r| match r {
+    pub async fn context(
+        &self,
+        session: SessionId,
+        app: AppName,
+    ) -> Result<ContextView, ClientError> {
+        self.ask(IntentsRequest::Context { session, app }, |r| match r {
             IntentsReply::Context(view) => Some(*view),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Computer use: may a run use this app in this Space? The person is asked inside the router.
+    pub async fn gate_grant(&self, ask: GrantAsk) -> Result<GrantAnswer, ClientError> {
+        self.ask(IntentsRequest::GateGrant(ask), |r| match r {
+            IntentsReply::Granted(answer) => Some(answer),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Computer use: may this pixel step run? A confirmation is resolved inside the router
+    /// before it answers.
+    pub async fn gate_check(&self, ask: CuaAsk) -> Result<GateAnswer, ClientError> {
+        self.ask(IntentsRequest::GateCheck(ask), |r| match r {
+            IntentsReply::Gate(answer) => Some(answer),
             _ => None,
         })
         .await

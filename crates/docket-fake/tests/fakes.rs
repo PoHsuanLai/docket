@@ -353,3 +353,46 @@ async fn the_scripted_writer_and_reader_answer_and_count() {
     assert_eq!(reader.extract(ask, vec![]).await, Err(ReaderError::Refused));
     assert_eq!(reader.asks().len(), 2);
 }
+
+#[tokio::test]
+async fn a_client_reaches_the_router_in_process_behind_its_feature() {
+    use docket_client::{InProcess, Intents};
+    let router = fake_router(AgentConfig::default()).expect("router");
+    router.seams.link.mail.add_thread(MailThread {
+        key: "t1".into(),
+        subject: "Hi".into(),
+        from: "a@example.test".into(),
+        body: "Hello".into(),
+    });
+    let router = std::sync::Arc::new(router);
+    let launcher = CallerId {
+        app: porter_core::AppId {
+            name: AppName::parse("org.quire.Shell").expect("app"),
+            isolation: porter_core::Isolation::Unsandboxed,
+        },
+        roles: BTreeSet::from([CallerRole::Launcher]),
+    };
+    let intents = Intents::over(InProcess::new(router.clone(), launcher));
+    let end = intents
+        .perform(
+            CallRequest {
+                action: ActionRef {
+                    app: AppName::parse("org.quire.Mail").expect("app"),
+                    name: ActionName::parse("mail.thread.archive").expect("action"),
+                },
+                target: TargetValue::Entities(vec![prov::EntityId {
+                    app: AppName::parse("org.quire.Mail").expect("app"),
+                    kind: prov::EntityKind::parse("mail.thread").expect("kind"),
+                    key: prov::EntityKey::parse("t1").expect("key"),
+                }]),
+                args: Args::new(),
+                origin: Origin::Launcher,
+            },
+            None,
+            None,
+        )
+        .await
+        .expect("a reply");
+    assert!(end.is_ok(), "the person's own act ran: {end:?}");
+    assert!(router.seams.link.mail.is_archived("t1"));
+}

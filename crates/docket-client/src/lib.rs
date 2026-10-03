@@ -1,7 +1,8 @@
 //! docket's client API. An app implements [`IntentProvider`] and answers the router's calls;
 //! a caller (sill, companiond, an MCP edge) holds [`Intents`] over a [`Transport`] and asks the
 //! router. The transport is the only thing that changes between the desktop's D-Bus
-//! (`DbusTransport`, feature `dbus`) and a test or an embedding host ([`InProcess`]).
+//! (`DbusTransport`, feature `dbus`) and a test or an embedding host (`InProcess`, feature
+//! `in_process`, which is the only way this crate reaches the router, cedar and policy-point).
 
 mod intents;
 mod provider;
@@ -13,4 +14,6 @@ pub use provider::{ContextSource, IntentProvider, SummonTarget};
 pub use serve::serve;
 #[cfg(feature = "dbus")]
 pub use transport::DbusTransport;
-pub use transport::{InProcess, Transport, TransportError};
+#[cfg(feature = "in_process")]
+pub use transport::InProcess;
+pub use transport::{Transport, TransportError};

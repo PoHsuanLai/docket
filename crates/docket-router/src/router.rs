@@ -92,7 +92,7 @@ impl<S: Seams> Router<S> {
             R::Suggest(ask) => self.run_suggest(role, ask).await,
             R::Undo(id) => self.run_undo(caller, role, id).await,
             R::UndoAll(scope) => self.run_undo_all(caller, role, scope).await,
-            R::Context { session } => self.session_context(&session).await,
+            R::Context { session, app } => self.session_context(&session, app).await,
             R::SessionOpen(open) => self.session_open(caller, open),
             R::SessionTurn { session, turn } => {
                 match self.record_turn(caller, role, &session, turn) {

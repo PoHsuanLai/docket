@@ -9,8 +9,8 @@ use zbus::fdo;
     default_path = "/org/quire/Intents1"
 )]
 pub trait Context {
-    /// The context the session was given at its turn (`ContextView` JSON), untrusted text as handles.
-    fn current(&self, session: &str) -> zbus::Result<String>;
+    /// The context in the window of `app`, the app the person summoned the companion from (an app name), for this session (`ContextView` JSON), untrusted text as handles.
+    fn current(&self, session: &str, app: &str) -> zbus::Result<String>;
 }
 
 /// The daemon's side.
@@ -19,8 +19,8 @@ pub struct ContextSkeleton;
 
 #[zbus::interface(name = "org.quire.Intents1.Context")]
 impl ContextSkeleton {
-    fn current(&self, session: String) -> fdo::Result<String> {
-        let _ = (session,);
+    fn current(&self, session: String, app: String) -> fdo::Result<String> {
+        let _ = (session, app);
         Err(crate::introspect::frozen())
     }
 }

@@ -1,8 +1,12 @@
 //! How a request reaches the router.
 
-use docket_core::{CallerId, IntentsReply, IntentsRequest};
+#[cfg(feature = "in_process")]
+use docket_core::CallerId;
+use docket_core::{IntentsReply, IntentsRequest};
+#[cfg(feature = "in_process")]
 use docket_router::{Router, Seams};
 use std::future::Future;
+#[cfg(feature = "in_process")]
 use std::sync::Arc;
 
 /// Why a request got no reply.
@@ -30,12 +34,14 @@ pub trait Transport: Send + Sync {
 
 /// The router in the caller's own process, as one fixed caller. For tests and for a host that
 /// embeds the core.
+#[cfg(feature = "in_process")]
 #[derive(Debug)]
 pub struct InProcess<S: Seams> {
     router: Arc<Router<S>>,
     caller: CallerId,
 }
 
+#[cfg(feature = "in_process")]
 impl<S: Seams> InProcess<S> {
     /// Talks to `router` as `caller`.
     pub fn new(router: Arc<Router<S>>, caller: CallerId) -> Self {
@@ -43,6 +49,7 @@ impl<S: Seams> InProcess<S> {
     }
 }
 
+#[cfg(feature = "in_process")]
 impl<S: Seams> Transport for InProcess<S> {
     async fn call(&self, request: IntentsRequest) -> Result<IntentsReply, TransportError> {
         Ok(self.router.handle(&self.caller, request).await)

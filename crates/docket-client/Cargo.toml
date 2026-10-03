@@ -1,6 +1,6 @@
 [package]
 name = "docket-client"
-description = "The app side (IntentProvider, serve) and the caller side (Intents over a Transport: in process, or D-Bus behind a feature)."
+description = "The app side (IntentProvider, serve) and the caller side (Intents over a Transport: D-Bus behind the dbus feature, or the router in process behind in_process)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,17 +10,21 @@ publish.workspace = true
 
 [dependencies]
 docket-core = { workspace = true }
-docket-router = { workspace = true }
+docket-router = { workspace = true, optional = true }
 docket-dbus = { workspace = true, optional = true }
 prov = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+cua-action = { workspace = true }
 tokio = { workspace = true }
 
 [features]
 # The D-Bus transport (Linux, the desktop's intentd).
 dbus = ["dep:docket-dbus"]
+# `InProcess`: the router in the caller's own process. Off by default so a client (cuad, an app)
+# never links the router, and with it cedar and policy-point.
+in_process = ["dep:docket-router"]
 
 [lints]
 workspace = true

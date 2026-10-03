@@ -575,6 +575,7 @@ dependencies = [
 name = "docket-client"
 version = "0.1.0"
 dependencies = [
+ "cua-action",
  "docket-core",
  "docket-dbus",
  "docket-router",

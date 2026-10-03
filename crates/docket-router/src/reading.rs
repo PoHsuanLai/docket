@@ -190,16 +190,12 @@ impl<S: Seams> Router<S> {
         }
     }
 
-    /// `.Context.Current`: where the person is, in the window they last prompted from.
-    pub(crate) async fn session_context(&self, id: &SessionId) -> IntentsReply {
-        let Some(app) = self
-            .locked()
-            .sessions
-            .get(id)
-            .and_then(|r| r.anchor.clone())
-        else {
-            return refuse(WireRefusal::Malformed);
-        };
+    /// `.Context.Current`: where the person is, in the window of `app`, the app they summoned
+    /// the companion from (a launcher turn names none, so the caller says which).
+    pub(crate) async fn session_context(&self, id: &SessionId, app: AppName) -> IntentsReply {
+        if !self.locked().sessions.contains_key(id) {
+            return refuse(WireRefusal::NoSuchSession);
+        }
         let snapshot = match self
             .seams
             .link()

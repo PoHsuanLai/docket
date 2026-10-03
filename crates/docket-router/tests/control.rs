@@ -358,3 +358,34 @@ async fn report(
     )
     .await
 }
+
+#[tokio::test]
+async fn context_looks_in_the_window_of_the_app_the_caller_names() {
+    let router = router();
+    let unknown = ask(
+        &router,
+        &companion(),
+        IntentsRequest::Context {
+            session: prov::SessionId::parse("s-999").expect("id"),
+            app: mail_app(),
+        },
+    )
+    .await;
+    assert_eq!(unknown, IntentsReply::Refused(WireRefusal::NoSuchSession));
+    let front = open(&router, "work", AgentRef::Companion).await;
+    let named = ask(
+        &router,
+        &companion(),
+        IntentsRequest::Context {
+            session: front.session,
+            app: mail_app(),
+        },
+    )
+    .await;
+    // The fakes have no windows, so the app is asked and cannot answer; what matters is that
+    // a launcher turn no longer has to name a window first.
+    assert!(
+        matches!(named, IntentsReply::Refused(WireRefusal::Call(_))),
+        "{named:?}"
+    );
+}

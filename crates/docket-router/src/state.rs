@@ -36,8 +36,6 @@ pub struct SessionRecord {
     pub opener: AppName,
     /// Its Space.
     pub space: SpaceId,
-    /// The app whose window the person last prompted from: where `Context` looks.
-    pub anchor: Option<AppName>,
     /// What it has used.
     pub ledger: Ledger,
     /// How its calls have been decided.
@@ -74,7 +72,6 @@ impl SessionRecord {
             actor,
             opener,
             space,
-            anchor: None,
             ledger: Ledger::new(now),
             breaker: Breaker::new(),
             saw: SessionSaw {

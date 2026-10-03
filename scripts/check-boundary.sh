@@ -13,8 +13,8 @@ cd "$(dirname "$0")/.."
 # The pure crates (docket-core, policy-point, action-review, docket-router, companion-wire,
 # agent-loop, voice-wire, voice-loop) never reach a bus, a runtime, an HTTP client, an audio or
 # display or accessibility stack, a database, a file watcher, an embedding runtime or the MCP SDK.
-# Only policy-point reaches cedar-policy, and the crates above it (docket-router, docket-client,
-# the fakes and the daemons that run the router). Only actions-mcp reaches rmcp. docket-core
+# Only policy-point reaches cedar-policy, and the crates above it (docket-router, the fakes and
+# the daemons that run the router; docket-client only behind its `in_process` feature). Only actions-mcp reaches rmcp. docket-core
 # and the pure crates beside it never reach toml: manifest TOML is parsed in docket-router.
 EFFECTS="zbus zvariant tokio reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy"
 NO_CEDAR="zbus zvariant tokio reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp"
@@ -29,7 +29,8 @@ RULES=(
   "voice-loop: $EFFECTS toml"
   # zbus lives in docket-dbus, and in docket-client only behind its `dbus` feature.
   "docket-dbus: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp cedar-policy"
-  "docket-client: $NO_CEDAR"
+  # A client never links the router: `InProcess` (feature `in_process`) is the one way in.
+  "docket-client: $EFFECTS toml"
   "docket-fake: $NO_CEDAR"
   "docket-eval: $NO_CEDAR"
   "docket-ds: zbus zvariant tokio reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify rmcp"

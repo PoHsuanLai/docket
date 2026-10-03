@@ -177,9 +177,6 @@ impl<S: Seams> Router<S> {
         };
         let (state, _) = session_step(record.state, SessionEvent::UserTurn);
         record.state = state;
-        if role == CallerRole::Field {
-            record.anchor = Some(caller.app.name.clone());
-        }
         record.turns.push(recorded.clone());
         let task = record.task.clone();
         if let Some(t) = st.tasks.get_mut(&task) {

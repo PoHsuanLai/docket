@@ -44,6 +44,50 @@ fn call() -> CallRequest {
     }
 }
 
+fn ask_for_run() -> CuaAsk {
+    CuaAsk {
+        run: prov::RunId::parse("r-1").expect("run"),
+        step: 1,
+        app: AppName::parse("org.quire.Mail").expect("app"),
+        trust: WindowTrust::Quire,
+        mode: RunMode::InPlace,
+        space: prov::SpaceId::parse("work").expect("space"),
+        action: cua_action::CuaAction::<cua_action::WindowSpace>::Observe,
+        node: None,
+        effect: prov::Effect::Read,
+        basis: EffectBasis::DefaultTable,
+        screen: prov::Label::trusted_user(),
+    }
+}
+
+#[tokio::test]
+async fn the_gate_methods_send_their_ask_and_read_only_their_own_reply() {
+    let intents = Intents::over(Scripted::answering(vec![
+        Ok(IntentsReply::Granted(GrantAnswer::Granted)),
+        Ok(IntentsReply::Gate(GateAnswer::Run)),
+        Ok(IntentsReply::Done),
+        Ok(IntentsReply::Granted(GrantAnswer::Granted)),
+    ]));
+    let grant = GrantAsk {
+        app: AppName::parse("org.quire.Mail").expect("app"),
+        space: prov::SpaceId::parse("work").expect("space"),
+    };
+    assert_eq!(
+        intents.gate_grant(grant.clone()).await,
+        Ok(GrantAnswer::Granted)
+    );
+    assert_eq!(intents.gate_check(ask_for_run()).await, Ok(GateAnswer::Run));
+    assert_eq!(
+        intents.gate_check(ask_for_run()).await,
+        Err(ClientError::Unexpected),
+        "a reply for another request is not a gate answer"
+    );
+    assert_eq!(
+        intents.gate_check(ask_for_run()).await,
+        Err(ClientError::Unexpected)
+    );
+}
+
 #[tokio::test]
 async fn perform_sends_the_call_and_keeps_the_calls_own_refusal_apart_from_a_refused_request() {
     let denied = IntentsReply::Performed(Box::new(Err(CallRefusal::Denied(DenyCode::NeedsUser))));

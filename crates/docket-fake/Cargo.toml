@@ -11,7 +11,7 @@ publish.workspace = true
 [dependencies]
 docket-core = { workspace = true }
 docket-router = { workspace = true }
-docket-client = { workspace = true }
+docket-client = { workspace = true, features = ["in_process"] }
 policy-point = { workspace = true }
 action-review = { workspace = true }
 porter-core = { workspace = true }

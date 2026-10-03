@@ -8,7 +8,7 @@ use support::*;
 use action_review::*;
 use docket_core::*;
 use porter_core::consent::Usage;
-use porter_core::{DataClass, Tier, Tokens};
+use porter_core::{Tier, Tokens};
 use porter_infer::{ChatReply, Knob, MessagePart, ModelError, ReplyShape, StopReason, ToolChoice};
 
 #[test]

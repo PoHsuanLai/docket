@@ -180,6 +180,8 @@ pub enum IntentsRequest {
     Context {
         /// The session.
         session: SessionId,
+        /// The app whose window the person is in: the one the companion was summoned from.
+        app: AppName,
     },
     /// `.Session.Open`.
     SessionOpen(SessionOpen),
