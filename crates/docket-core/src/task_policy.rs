@@ -301,7 +301,7 @@ fn action_inside(m: &ActionMatch, ceiling: Effect, old: &BTreeSet<ActionMatch>) 
 /// The trusted patterns a sink may be matched against: recipients, destinations (a query leaves
 /// the machine like a destination) and paths. A body has none: untrusted content never becomes
 /// trusted by what it says.
-fn patterns_for<'a>(policy: &'a TaskPolicy, sink: ArgSink) -> &'a [TrustedPattern] {
+fn patterns_for(policy: &TaskPolicy, sink: ArgSink) -> &[TrustedPattern] {
     match sink {
         ArgSink::Recipient => &policy.recipients,
         ArgSink::Destination | ArgSink::Query => &policy.destinations,
