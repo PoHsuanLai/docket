@@ -31,11 +31,42 @@ fn quick_asks_its_own_model_for_one_token() {
     assert_eq!(sent.control.tool_choice, ToolChoice::Never);
     assert!(matches!(sent.control.max_output, Knob::Set(Tokens(n)) if n <= 8));
     assert_eq!(sent.class, REVIEW_CLASS);
-    assert_eq!(
-        porter_infer::Policy::proposed().floor(sent.class),
-        porter_infer::Floor::OnDevice,
-        "the person's words stay on this computer"
-    );
+}
+
+/// The policy point for the person's words: every stage's request carries `Prompt`, and the
+/// proposed AI policy pins that class to this computer, so no cloud or network model is admitted
+/// however the models are configured.
+#[test]
+fn every_reviewer_request_carries_the_prompt_class_pinned_on_device() {
+    use porter_core::{DataClass, Locality};
+    use porter_infer::{Floor, Policy};
+
+    assert_eq!(REVIEW_CLASS, DataClass::Prompt);
+    let policy = Policy::proposed();
+    let floor = policy.floor(REVIEW_CLASS);
+    assert_eq!(floor, Floor::OnDevice, "the proposed floor of a prompt");
+    assert!(floor.admits(&Locality::OnDevice));
+    assert!(!floor.admits(&Locality::LocalNetwork));
+    assert!(!floor.admits(&Locality::Cloud { region: None }));
+    // `AppOwn`, which the first version used, may go anywhere: the class matters.
+    assert_eq!(policy.floor(DataClass::AppOwn), Floor::Anywhere);
+
+    for (stage, model) in [
+        (Stage::Quick, 0),
+        (Stage::Deliberate, 1),
+        (Stage::SecondOpinion, 2),
+    ] {
+        let models = [
+            Scripted::saying("q", "pass"),
+            Scripted::saying("d", ALLOW),
+            Scripted::saying("s", ALLOW),
+        ];
+        block_on(reviewer(&models[0], &models[1], &models[2]).review(stage, &request()))
+            .expect("verdict");
+        let sent = models[model].last();
+        assert_eq!(sent.class, DataClass::Prompt, "{stage:?}");
+        assert_eq!(policy.floor(sent.class), Floor::OnDevice, "{stage:?}");
+    }
 }
 
 #[test]

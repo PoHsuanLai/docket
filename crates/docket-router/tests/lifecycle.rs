@@ -57,6 +57,7 @@ impl Confirmer for HaltingConfirmer {
                 id: request.id,
                 input: prov::InputProof::HardwareSeat,
                 at: UnixSeconds(1),
+                covers: prov::Confidentiality::Secret,
             },
         }
     }

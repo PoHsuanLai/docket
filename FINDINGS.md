@@ -96,9 +96,12 @@ parameter in `ArgsChecked` and `AppLink::perform` can say `AppFault::TimedOut`, 
    counts as `Same` (and `Unbound` for an action on nothing): `cross_space_target_asks` waits for
    an entity that names its Space (a `Space` on `EntityId`, or a resolver seam). No corpus case
    for it until then.
-5. **Reviewer requests use `DataClass::Notes`** (ask 16) as the stand-in for "the person's own
-   words", because under the proposed AI policy it has the on-device floor where `AppOwn` may go
-   anywhere. A dedicated class (a `Prompt` class in porter's `DataClass`) would say it better.
+5. **Reviewer requests use `DataClass::Prompt`** (asks 16 and 61, closed): the person's own words and
+   what a reviewer quotes of them. Its floor in `Policy::proposed` is this computer
+   (`ai.floor.prompt`), so a reviewer request is pinned on-device; `action-review/tests/infer.rs`
+   (`every_reviewer_request_carries_the_prompt_class_pinned_on_device`) holds every stage to it. The
+   test lives in action-review rather than policy-point because policy-point (the Cedar grid) has
+   no porter-infer edge and none is added for a test.
 6. **The reviewer's schema is hand-written** (ask 14) until stoker's `Shape::to_json_schema` is
    filled; `InferReviewer` then switches to `verdict_shape(stage)`.
 7. **Stage deadlines come from the clock.** `Clock::after(Millis)` is the router's timer: it races
@@ -281,3 +284,15 @@ marks and re-exports `Tally` (docket-ds no longer reaches `ds-core`), and quire'
    write (and so reviewed when tainted), say so; delivery itself is already gated by the receiver.
 3. `docket-core` linking `almanac-core` means every app that uses docket's client links almanac's
    pure vocabulary. The alternative is a docket-only mirror of the episode and recall shapes.
+
+## inferd link (ask 81)
+
+`ConfirmReceipt` literals gained `covers` (`Confidentiality::Secret`: a confirmation here opens
+nothing; docket never calls `declassify`, so no caller handles its `Result`). intentd's
+`inferd_transport(connection)`, `InferdModel::on_bus`, `InferdWriter::on_bus`, companiond's
+`PlannerModel::on_bus` and readerd's `ReaderService::on_bus` build
+`AnyTransport::Dbus(DbusTransport::over(connection))` (porter-client with feature `dbus`); nothing is
+called until the first session, so an absent inferd is `Unreachable` at the first `open`. The
+daemons' `main`s are still skeletons (exit 2) and every `serve` body (and the models', planner's and
+reader's bodies) is `todo!()`: only the constructors are wired, and each is tested on a private bus
+(`tests/inferd_link.rs`). Whoever fills `serve` builds the connection first and passes it here.

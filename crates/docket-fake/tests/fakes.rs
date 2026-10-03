@@ -263,6 +263,7 @@ async fn the_scripted_confirmer_pops_in_order_and_records_requests() {
         id: ConfirmId::parse(n).expect("id"),
         input: prov::InputProof::SheetFallback,
         at: UnixSeconds(1),
+        covers: prov::Confidentiality::Secret,
     };
     let confirmer = ScriptedConfirmer::answering(vec![
         ConfirmAnswer::Allowed {

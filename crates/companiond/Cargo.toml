@@ -24,7 +24,7 @@ docket-core = { workspace = true }
 docket-client = { workspace = true }
 docket-dbus = { workspace = true }
 prov = { workspace = true }
-porter-client = { workspace = true }
+porter-client = { workspace = true, features = ["dbus"] }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
 serde_json = { workspace = true }
@@ -35,3 +35,5 @@ tokio = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+tempfile = { workspace = true }
+zbus = { workspace = true }

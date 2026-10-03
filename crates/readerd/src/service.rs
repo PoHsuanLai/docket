@@ -3,7 +3,7 @@
 use crate::host::ReaderHost;
 use docket_client::{Intents, Transport as IntentsTransport};
 use docket_core::{Reader, ReaderAsk, ReaderError, Value};
-use porter_client::Transport as InferTransport;
+use porter_client::{AnyTransport, DbusTransport, Transport as InferTransport};
 use prov::{Quarantined, SessionId};
 
 /// Reads for intentd: resolves handles through `Intents1.Session.Resolve` (the reader role),
@@ -14,6 +14,22 @@ pub struct ReaderService<P: InferTransport, I: IntentsTransport> {
     host: ReaderHost,
     infer: P,
     intents: Intents<I>,
+}
+
+impl<I: IntentsTransport> ReaderService<AnyTransport, I> {
+    /// A service over inferd on the session bus (`AnyTransport::Dbus`) and the router. Nothing is
+    /// called here: inferd is found, and started by activation, at the first session.
+    pub fn on_bus(
+        host: ReaderHost,
+        connection: &docket_dbus::BusConnection,
+        intents: Intents<I>,
+    ) -> Self {
+        Self::new(
+            host,
+            AnyTransport::Dbus(DbusTransport::over(connection.clone())),
+            intents,
+        )
+    }
 }
 
 impl<P: InferTransport, I: IntentsTransport> ReaderService<P, I> {

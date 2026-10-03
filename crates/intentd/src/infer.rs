@@ -7,11 +7,18 @@ use docket_core::{
     ActionCard, PolicyWriter, Reader, ReaderAsk, ReaderError, ReviewError, TaskPolicy, UserTurn,
     Value,
 };
-use porter_client::Transport;
+use porter_client::{AnyTransport, DbusTransport, Transport};
 use porter_infer::{
     ChatReply, ChatRequest, ChatSink, EmbedReply, EmbedRequest, Model, ModelCard, ModelError,
 };
 use prov::{Quarantined, SpaceId, TaskId};
+
+/// inferd over the session bus: porter-client's D-Bus transport on `connection`. Nothing is
+/// called here; inferd is found, and started by activation, at the first `open`, so a daemon
+/// that starts before inferd still starts and asks the person while it is away.
+pub fn inferd_transport(connection: &docket_dbus::BusConnection) -> AnyTransport {
+    AnyTransport::Dbus(DbusTransport::over(connection.clone()))
+}
 
 /// A chat model reached through an inferd session.
 #[derive(Debug)]
@@ -24,6 +31,13 @@ impl<T: Transport> InferdModel<T> {
     /// Asks through `transport`; `card` says who answers.
     pub fn new(transport: T, card: ModelCard) -> Self {
         Self { transport, card }
+    }
+}
+
+impl InferdModel<AnyTransport> {
+    /// Asks inferd over the session bus; `card` says who answers.
+    pub fn on_bus(connection: &docket_dbus::BusConnection, card: ModelCard) -> Self {
+        Self::new(inferd_transport(connection), card)
     }
 }
 
@@ -59,6 +73,13 @@ impl<T: Transport> InferdWriter<T> {
     /// Asks through `transport`.
     pub fn new(transport: T) -> Self {
         Self { transport }
+    }
+}
+
+impl InferdWriter<AnyTransport> {
+    /// Asks inferd over the session bus.
+    pub fn on_bus(connection: &docket_dbus::BusConnection) -> Self {
+        Self::new(inferd_transport(connection))
     }
 }
 

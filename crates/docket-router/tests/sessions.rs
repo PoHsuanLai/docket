@@ -16,6 +16,7 @@ fn yes() -> ConfirmAnswer {
             id: prov::ConfirmId::parse("c-1").expect("id"),
             input: InputProof::HardwareSeat,
             at: UnixSeconds(1),
+            covers: prov::Confidentiality::Secret,
         },
     }
 }

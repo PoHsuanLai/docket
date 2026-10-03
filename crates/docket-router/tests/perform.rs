@@ -439,6 +439,7 @@ async fn an_always_from_the_person_is_remembered() {
         id: prov::ConfirmId::parse("c-9").expect("id"),
         input: prov::InputProof::HardwareSeat,
         at: prov::UnixSeconds(1),
+        covers: prov::Confidentiality::Secret,
     };
     router.seams.confirmer =
         docket_fake::ScriptedConfirmer::answering(vec![ConfirmAnswer::Allowed {

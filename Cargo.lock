@@ -449,8 +449,10 @@ dependencies = [
  "porter-infer",
  "prov",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
+ "zbus",
 ]
 
 [[package]]
@@ -1090,6 +1092,7 @@ dependencies = [
  "prov",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
  "toml",
@@ -1542,11 +1545,16 @@ name = "porter-client"
 version = "0.1.0"
 dependencies = [
  "porter-core",
+ "porter-dbus",
  "porter-infer",
  "porter-provider",
  "porter-secrets",
  "porter-service",
+ "rustix",
+ "serde",
+ "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -1563,6 +1571,8 @@ name = "porter-dbus"
 version = "0.1.0"
 dependencies = [
  "porter-core",
+ "serde",
+ "serde_json",
  "zbus",
 ]
 
@@ -1690,7 +1700,10 @@ dependencies = [
  "porter-client",
  "porter-infer",
  "prov",
+ "tempfile",
  "thiserror",
+ "tokio",
+ "zbus",
 ]
 
 [[package]]

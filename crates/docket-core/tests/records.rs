@@ -259,6 +259,7 @@ fn the_terminal_words_are_pinned() {
         id: ConfirmId::parse("c-1").expect("id"),
         input: prov::InputProof::HardwareSeat,
         at: at(1),
+        covers: prov::Confidentiality::Secret,
     };
     let answer = ConfirmAnswer::AllowedFromTerminal {
         receipt: receipt.clone(),

@@ -106,11 +106,11 @@ fn message(role: Role, text: String) -> ChatMessage {
     }
 }
 
-/// The data class every reviewer request carries. The prompt holds the person's own words, so it
-/// must never leave the computer under the proposed AI policy: `Notes` has the on-device floor,
-/// where `AppOwn` and `Public` may go anywhere. (A dedicated class for the person's prompts would
-/// say it better; see FINDINGS.)
-pub const REVIEW_CLASS: DataClass = DataClass::Notes;
+/// The data class every reviewer request carries: `Prompt`, the person's own words and what a
+/// reviewer quotes of them. Under the proposed AI policy its floor is this computer
+/// (`ai.floor.prompt`), so a reviewer request is pinned on-device whatever the models are; a
+/// cloud model would be refused by inferd (`RequiresCloud`), never sent the words.
+pub const REVIEW_CLASS: DataClass = DataClass::Prompt;
 
 /// The chat request for one stage of one review.
 pub(crate) fn chat_request(stage: Stage, request: &ReviewRequest) -> ChatRequest {

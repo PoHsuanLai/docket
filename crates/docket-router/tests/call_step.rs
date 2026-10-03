@@ -56,6 +56,7 @@ fn receipt() -> ConfirmReceipt {
         id: confirm_id(),
         input: InputProof::HardwareSeat,
         at: UnixSeconds(1),
+        covers: prov::Confidentiality::Secret,
     }
 }
 

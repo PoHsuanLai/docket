@@ -25,7 +25,7 @@ mod system;
 pub use builtin::{CompanionProvider, MemoryProvider, builtin_manifests};
 pub use config::{ConfigError, IntentdConfig};
 pub use grants::FileGrants;
-pub use infer::{InferdModel, InferdWriter, ReaderClient};
+pub use infer::{InferdModel, InferdWriter, ReaderClient, inferd_transport};
 pub use link::DbusLink;
 pub use memory::AlmanacMemory;
 pub use record::{kind_tag_of, record_of};

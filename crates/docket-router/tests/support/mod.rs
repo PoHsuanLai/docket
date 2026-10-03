@@ -277,5 +277,6 @@ pub fn receipt() -> prov::ConfirmReceipt {
         id: prov::ConfirmId::parse("c-1").expect("id"),
         input: prov::InputProof::HardwareSeat,
         at: UnixSeconds(1),
+        covers: prov::Confidentiality::Secret,
     }
 }
