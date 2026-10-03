@@ -206,7 +206,7 @@ fn sealed(text: &str) -> Quarantined<String> {
 
 #[tokio::test]
 async fn what_the_model_says_is_passed_on_only_if_it_fits() {
-    let (router, ..) = world().await;
+    let (router, session, _) = world().await;
     let finish = |reply| ScriptedInferd::new([finishing(RequestKind::Chat, reply)]);
     let rows: Vec<(&str, ScriptedInferd, Result<Value, ReaderError>)> = vec![
         (
@@ -256,20 +256,29 @@ async fn what_the_model_says_is_passed_on_only_if_it_fits() {
     ];
     for (name, inferd, want) in rows {
         let service = service(inferd, router.clone());
-        let got =
-            docket_core::Reader::extract(&service, classify(&[Handle(1)]), vec![sealed("text")])
-                .await;
+        let got = docket_core::Reader::extract(
+            &service,
+            &session,
+            classify(&[Handle(1)]),
+            vec![sealed("text")],
+        )
+        .await;
         assert_eq!(got, want, "{name}");
     }
 }
 
 #[tokio::test]
 async fn the_request_class_is_the_strictest_of_the_inputs() {
-    let (router, ..) = world().await;
+    let (router, session, _) = world().await;
     let inferd = ScriptedInferd::answering("receipt");
     let service = service(inferd.clone(), router);
-    docket_core::Reader::extract(&service, classify(&[Handle(1)]), vec![sealed("a receipt")])
-        .await
-        .expect("an answer");
+    docket_core::Reader::extract(
+        &service,
+        &session,
+        classify(&[Handle(1)]),
+        vec![sealed("a receipt")],
+    )
+    .await
+    .expect("an answer");
     assert_eq!(inferd.opened()[0].class, DataClass::Mail);
 }

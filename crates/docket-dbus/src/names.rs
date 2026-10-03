@@ -3,6 +3,9 @@
 use docket_core::CallId;
 use prov::TaskId;
 
+/// The option of `Gate.Check` that says its caller watches the request: it listens for
+/// `Request.Progress` and will call `Request.Proceed` before the sheet may be drawn.
+pub const OPTION_WATCH: &str = "watch";
 /// intentd's bus name.
 pub const INTENTS_BUS: &str = "org.quire.Intents1";
 /// intentd's root object (every `org.quire.Intents1.*` interface).

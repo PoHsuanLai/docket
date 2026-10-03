@@ -152,3 +152,37 @@ async fn text_for_the_screen_comes_back_as_text() {
         .await;
     assert_eq!(got.as_deref(), Ok("hello"));
 }
+
+#[tokio::test]
+async fn a_transport_that_cannot_watch_gives_the_verdict_alone_and_proceed_does_nothing() {
+    use docket_client::GateEvent;
+    let intents = Intents::over(Scripted::answering(vec![
+        Ok(IntentsReply::Gate(GateAnswer::Run)),
+        Ok(IntentsReply::Refused(WireRefusal::NotAllowed)),
+        Ok(IntentsReply::Done),
+    ]));
+    let mut watch = intents
+        .gate_check_watched(ask_for_run())
+        .await
+        .expect("a watch");
+    assert_eq!(watch.proceed().await, Ok(()));
+    assert_eq!(watch.next().await, Ok(GateEvent::Verdict(GateAnswer::Run)));
+    assert_eq!(
+        watch.next().await,
+        Err(ClientError::Transport(TransportError::Closed)),
+        "nothing follows a verdict"
+    );
+    let mut refused = intents
+        .gate_check_watched(ask_for_run())
+        .await
+        .expect("a watch");
+    assert_eq!(
+        refused.next().await,
+        Err(ClientError::Refused(WireRefusal::NotAllowed))
+    );
+    let mut wrong = intents
+        .gate_check_watched(ask_for_run())
+        .await
+        .expect("a watch");
+    assert_eq!(wrong.next().await, Err(ClientError::Unexpected));
+}

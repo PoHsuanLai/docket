@@ -1,5 +1,6 @@
 //! `Run` and `Gate`: the members that act, most of them through a Request object.
 
+use super::request::Watching;
 use super::{Gateway, json, parsed};
 use docket_core::{GrantAsk, IntentsReply, IntentsRequest, UndoId};
 use docket_dbus::{Details, IntentsError};
@@ -128,9 +129,17 @@ impl GateBus {
         #[zbus(header)] header: Header<'_>,
         #[zbus(connection)] connection: &zbus::Connection,
     ) -> Result<OwnedObjectPath, IntentsError> {
-        let _ = options;
+        let watching = match options.contains_key(docket_dbus::OPTION_WATCH) {
+            true => Watching::Yes,
+            false => Watching::No,
+        };
         self.0
-            .start(&header, connection, IntentsRequest::GateCheck(json(&ask)?))
+            .start_as(
+                &header,
+                connection,
+                IntentsRequest::GateCheck(json(&ask)?),
+                watching,
+            )
             .await
     }
 }

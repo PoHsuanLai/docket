@@ -15,6 +15,11 @@ mod provider_bus;
 mod serve;
 mod session_calls;
 mod transport;
+mod watch;
+#[cfg(feature = "dbus")]
+mod watch_bus;
+#[cfg(feature = "in_process")]
+mod watch_in_process;
 
 #[cfg(feature = "dbus")]
 pub use awaiting::requested;
@@ -28,3 +33,4 @@ pub use transport::DbusTransport;
 #[cfg(feature = "in_process")]
 pub use transport::InProcess;
 pub use transport::{Transport, TransportError};
+pub use watch::{Boxed, Events, GateEvent, GateSteer, GateWatch, Said, Steering, Watched};

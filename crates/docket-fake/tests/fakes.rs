@@ -342,17 +342,22 @@ async fn the_scripted_writer_and_reader_answer_and_count() {
     );
     assert_eq!(writer.calls(), [(task, 0)]);
     let reader = ScriptedReader::answering(vec![Ok(Value::Integer(3))]);
+    let session = prov::SessionId::parse("s-1").expect("session");
     let ask = ReaderAsk {
         inputs: vec![],
         want: ValueSchema::Integer { min: 0, max: 9 },
         task: ReaderTask::Extract,
     };
     assert_eq!(
-        reader.extract(ask.clone(), vec![]).await,
+        reader.extract(&session, ask.clone(), vec![]).await,
         Ok(Value::Integer(3))
     );
-    assert_eq!(reader.extract(ask, vec![]).await, Err(ReaderError::Refused));
+    assert_eq!(
+        reader.extract(&session, ask, vec![]).await,
+        Err(ReaderError::Refused)
+    );
     assert_eq!(reader.asks().len(), 2);
+    assert_eq!(reader.sessions(), [session.clone(), session]);
 }
 
 #[tokio::test]
@@ -396,4 +401,62 @@ async fn a_client_reaches_the_router_in_process_behind_its_feature() {
         .expect("a reply");
     assert!(end.is_ok(), "the person's own act ran: {end:?}");
     assert!(router.seams.link.mail.is_archived("t1"));
+}
+
+#[tokio::test]
+async fn a_watched_gate_check_in_process_says_confirming_and_waits_for_proceed() {
+    use docket_client::{GateEvent, InProcess, Intents};
+    use prov::{AgentRef, ConfirmReceipt, InputProof, RunId};
+    let mut router = fake_router(AgentConfig::default()).expect("router");
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![ConfirmAnswer::Allowed {
+        scope: GrantScope::Once,
+        receipt: ConfirmReceipt {
+            id: prov::ConfirmId::parse("c-1").expect("id"),
+            input: InputProof::HardwareSeat,
+            at: UnixSeconds(1),
+            covers: prov::Confidentiality::Secret,
+        },
+    }]);
+    let router = std::sync::Arc::new(router);
+    let cuad = CallerId {
+        app: porter_core::AppId {
+            name: AppName::parse("org.quire.Cuad").expect("app"),
+            isolation: porter_core::Isolation::Unsandboxed,
+        },
+        roles: BTreeSet::from([CallerRole::Cua]),
+    };
+    let intents = Intents::over(InProcess::new(router.clone(), cuad));
+    let run = RunId::parse("r-1").expect("run");
+    intents
+        .session_open(SessionOpen {
+            space: space(),
+            agent: AgentRef::Cua { run: run.clone() },
+            parent: None,
+        })
+        .await
+        .expect("cuad opens its run's session");
+    let ask = CuaAsk {
+        run,
+        step: 1,
+        app: AppName::parse("org.quire.Mail").expect("app"),
+        trust: WindowTrust::Quire,
+        mode: RunMode::InPlace,
+        space: space(),
+        action: cua_action::CuaAction::<cua_action::WindowSpace>::Observe,
+        node: None,
+        effect: prov::Effect::Read,
+        basis: EffectBasis::DefaultTable,
+        screen: prov::Label::trusted_user(),
+    };
+    let mut watch = intents.gate_check_watched(ask).await.expect("a watch");
+    let GateEvent::Confirming(id) = watch.next().await.expect("progress") else {
+        panic!("the person is about to be asked")
+    };
+    assert!(
+        router.seams.confirmer.requests().is_empty(),
+        "no sheet before proceed"
+    );
+    watch.proceed().await.expect("proceed");
+    assert_eq!(watch.next().await, Ok(GateEvent::Verdict(GateAnswer::Run)));
+    assert_eq!(router.seams.confirmer.requests()[0].id, id);
 }

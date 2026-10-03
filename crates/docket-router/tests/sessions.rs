@@ -437,6 +437,11 @@ async fn the_reader_answers_a_closed_set_plainly_and_any_text_as_a_handle() {
         IntentsReply::Refused(WireRefusal::Malformed),
         "an answer outside the schema"
     );
+    assert_eq!(
+        router.seams.reader.sessions(),
+        vec![s.session.clone(); 3],
+        "the router names the session the handles are held in on every read"
+    );
 }
 
 #[tokio::test]

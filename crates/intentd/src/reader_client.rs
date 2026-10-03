@@ -39,17 +39,14 @@ impl ReaderClient {
 }
 
 impl Reader for ReaderClient {
-    /// The seam hands over the quarantined text but not the session it was read in, and
-    /// `Reader1.Extract` names the session (readerd resolves the handles itself, so the text
-    /// never crosses the bus). Until `Reader::extract` carries the session (interface ask:
-    /// the router passes `&SessionId`), the reader is not reachable through the seam and this
-    /// says so as `ModelUnavailable`; `extract_in` is the call itself.
+    /// The seam hands over the quarantined text too, but `Reader1.Extract` names the session
+    /// instead: readerd resolves the handles itself, so the text never crosses the bus.
     async fn extract(
         &self,
+        session: &SessionId,
         ask: ReaderAsk,
-        inputs: Vec<Quarantined<String>>,
+        _inputs: Vec<Quarantined<String>>,
     ) -> Result<Value, ReaderError> {
-        let _ = (ask, inputs);
-        Err(ReaderError::ModelUnavailable)
+        self.extract_in(session, &ask).await
     }
 }

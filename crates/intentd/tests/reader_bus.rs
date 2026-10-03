@@ -158,7 +158,7 @@ async fn a_reader_that_is_not_on_the_bus_is_unavailable() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn through_the_seam_the_reader_is_unavailable_until_the_seam_carries_the_session() {
+async fn through_the_seam_the_reader_answers_with_the_session_it_was_given() {
     use docket_core::Reader;
     let rig = rig("receipt").await;
     let sealed = Quarantined::new(Labelled {
@@ -166,7 +166,10 @@ async fn through_the_seam_the_reader_is_unavailable_until_the_seam_carries_the_s
         label: Label::trusted_user(),
     });
     let value = ReaderClient::new(rig.intentd.clone())
-        .extract(ask(rig.handle), vec![sealed])
+        .extract(&rig.session, ask(rig.handle), vec![sealed])
         .await;
-    assert_eq!(value, Err(ReaderError::ModelUnavailable));
+    assert_eq!(
+        value,
+        Ok(Value::Choice(ChoiceId::parse("receipt").expect("c")))
+    );
 }

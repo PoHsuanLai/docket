@@ -3,6 +3,7 @@
 use crate::auth::acting_role;
 use crate::seams::{Clock, Seams};
 use crate::state::RouterState;
+use crate::watch::Watch;
 use docket_core::{
     AgentConfig, CallerId, CallerRole, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk,
     WireRefusal,
@@ -48,17 +49,29 @@ impl<S: Seams> Router<S> {
     /// derived; the router checks that its role may make the request (`permits`) before
     /// anything else. The signature is the seam's: a future that can cross a multi-threaded
     /// runtime, written out so every implementation of the seam reads the same.
-    #[allow(clippy::manual_async_fn)]
     pub fn handle(
         &self,
         caller: &CallerId,
         request: IntentsRequest,
     ) -> impl Future<Output = IntentsReply> + Send {
+        self.handle_watched(caller, request, Watch::none())
+    }
+
+    /// `handle` for a request whose requester watches it: a computer-use gate check tells
+    /// `watch` when it is about to ask the person (`Progress(Confirming)`) and waits for its
+    /// `Proceed` before the sheet is drawn, and a withdrawn request takes its sheet back.
+    #[allow(clippy::manual_async_fn)]
+    pub fn handle_watched(
+        &self,
+        caller: &CallerId,
+        request: IntentsRequest,
+        watch: Watch,
+    ) -> impl Future<Output = IntentsReply> + Send {
         async move {
             let Some(role) = acting_role(&caller.roles, request.member()) else {
                 return IntentsReply::Refused(WireRefusal::NotAllowed);
             };
-            self.answer(caller, role, request).await
+            self.answer(caller, role, request, &watch).await
         }
     }
 
@@ -67,6 +80,7 @@ impl<S: Seams> Router<S> {
         caller: &CallerId,
         role: docket_core::CallerRole,
         request: IntentsRequest,
+        watch: &Watch,
     ) -> IntentsReply {
         use IntentsRequest as R;
         match request {
@@ -115,7 +129,7 @@ impl<S: Seams> Router<S> {
                 };
                 self.session_context(&session, app).await
             }
-            R::SessionOpen(open) => self.session_open(caller, open),
+            R::SessionOpen(open) => self.session_open(caller, role, open),
             R::SessionTurn { session, turn } => {
                 match self.record_turn(caller, role, &session, turn) {
                     Ok(recorded) => {
@@ -139,7 +153,7 @@ impl<S: Seams> Router<S> {
             R::MessageSend { session, draft } => self.message_send(caller, role, &session, draft),
             R::MessageInbox(ask) => self.message_inbox(role, ask),
             R::GateGrant(ask) => self.gate_grant(ask).await,
-            R::GateCheck(ask) => self.gate_check(ask).await,
+            R::GateCheck(ask) => self.gate_check(ask, watch).await,
             R::ControlHalt { scope, cause } => self.control_halt(scope, cause).await,
             R::ControlResume { scope } => self.control_resume(scope),
             R::ControlState => IntentsReply::State(self.locked().kill.clone()),

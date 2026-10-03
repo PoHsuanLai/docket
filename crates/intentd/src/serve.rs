@@ -5,7 +5,7 @@ use crate::config::IntentdConfig;
 use crate::peer::Peers;
 use docket_core::{CallerId, IntentsReply, IntentsRequest, Member};
 use docket_dbus::{BusConnection, INTENTS_BUS};
-use docket_router::{Router, Seams, acting_role};
+use docket_router::{Router, Seams, Watch, acting_role};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -25,12 +25,14 @@ fn bus(error: zbus::Error) -> ServeFault {
 
 /// The router as the bus hands it requests.
 fn handler<S: Seams + 'static>(router: Arc<Router<S>>) -> Handler {
-    Arc::new(move |caller: CallerId, request: IntentsRequest| {
-        let router = router.clone();
-        let reply: Pin<Box<dyn Future<Output = IntentsReply> + Send>> =
-            Box::pin(async move { router.handle(&caller, request).await });
-        reply
-    })
+    Arc::new(
+        move |caller: CallerId, request: IntentsRequest, watch: Watch| {
+            let router = router.clone();
+            let reply: Pin<Box<dyn Future<Output = IntentsReply> + Send>> =
+                Box::pin(async move { router.handle_watched(&caller, request, watch).await });
+            reply
+        },
+    )
 }
 
 /// The router's search as the bus asks it: the index at once, the apps that hold kinds they do

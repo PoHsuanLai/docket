@@ -95,7 +95,12 @@ impl<S: Seams> Router<S> {
             held.iter().for_each(|(_, l)| absorb(record, l));
             held.into_iter().unzip::<_, _, Vec<_>, Vec<_>>()
         };
-        let Ok(value) = self.seams.reader().extract(ask.ask.clone(), inputs).await else {
+        let Ok(value) = self
+            .seams
+            .reader()
+            .extract(id, ask.ask.clone(), inputs)
+            .await
+        else {
             return refuse(WireRefusal::Malformed);
         };
         if conforms(&value, &ask.ask.want).is_err() {

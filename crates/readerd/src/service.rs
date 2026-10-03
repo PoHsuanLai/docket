@@ -67,7 +67,7 @@ impl<P: InferTransport, I: IntentsTransport> ReaderService<P, I> {
                 label: resolved_label(),
             }));
         }
-        self.extract(ask, inputs).await
+        self.extract(session, ask, inputs).await
     }
 
     async fn read(
@@ -141,6 +141,7 @@ fn resolved_label() -> prov::Label {
 impl<P: InferTransport, I: IntentsTransport> Reader for ReaderService<P, I> {
     async fn extract(
         &self,
+        _session: &SessionId,
         ask: ReaderAsk,
         inputs: Vec<Quarantined<String>>,
     ) -> Result<Value, ReaderError> {

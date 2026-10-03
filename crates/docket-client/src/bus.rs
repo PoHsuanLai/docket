@@ -117,7 +117,7 @@ async fn requested(
 }
 
 /// Reads the `Response` of a request: the typed answer under code 0, a refusal under code 2.
-fn response<T: DeserializeOwned>(
+pub(crate) fn response<T: DeserializeOwned>(
     answer: Result<(u32, String), TransportError>,
     wrap: impl FnOnce(T) -> IntentsReply,
 ) -> Reply {
@@ -126,6 +126,30 @@ fn response<T: DeserializeOwned>(
         0 => Ok(wrap(from_json(&reply)?)),
         2 => Ok(IntentsReply::Refused(from_json(&reply)?)),
         _ => Err(TransportError::Closed),
+    }
+}
+
+/// `Gate.Check` for a caller that watches it: the option tells intentd to say `Confirming` and to
+/// wait for `Proceed` before it draws the sheet.
+pub(crate) async fn watch(
+    connection: &BusConnection,
+    request: IntentsRequest,
+) -> Result<crate::watch::Watched, TransportError> {
+    let IntentsRequest::GateCheck(ask) = request else {
+        return Ok(crate::watch::Watched::answered(
+            call(connection, request).await?,
+        ));
+    };
+    let proxy = GateProxy::new(connection).await.map_err(bus)?;
+    let ask = to_json(&ask)?;
+    let mut options = Details::new();
+    if let Ok(on) = zbus::zvariant::OwnedValue::try_from(zbus::zvariant::Value::Bool(true)) {
+        options.insert(docket_dbus::OPTION_WATCH.to_owned(), on);
+    }
+    let start = proxy.check(&ask, &options);
+    match crate::watch_bus::watching(connection, start, crate::watch_bus::gate_reading).await? {
+        Ok(watched) => Ok(watched),
+        Err(error) => Ok(crate::watch::Watched::answered(refused(error)?)),
     }
 }
 

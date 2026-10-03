@@ -1,0 +1,227 @@
+//! The computer-use daemon and its run: it opens the session of its own run (and no other kind),
+//! and a requester that watches a gate check is told when the person is about to be asked,
+//! decides when the sheet may be drawn (`Proceed`) and may take the request back (`Close`).
+
+mod support;
+
+use cua_action::{CuaAction, WindowSpace};
+use docket_core::*;
+use docket_fake::ScriptedConfirmer;
+use docket_router::{Flag, Queue, Watch};
+use prov::{AgentRef, ConfirmReceipt, Effect, InputProof, Label, RunId, UnixSeconds};
+use std::sync::Arc;
+use support::*;
+
+fn cuad() -> CallerId {
+    caller("org.quire.Cuad", CallerRole::Cua)
+}
+
+fn yes() -> ConfirmAnswer {
+    ConfirmAnswer::Allowed {
+        scope: GrantScope::Once,
+        receipt: ConfirmReceipt {
+            id: prov::ConfirmId::parse("c-1").expect("id"),
+            input: InputProof::HardwareSeat,
+            at: UnixSeconds(1),
+            covers: prov::Confidentiality::Secret,
+        },
+    }
+}
+
+fn step(run: &RunId) -> CuaAsk {
+    CuaAsk {
+        run: run.clone(),
+        step: 1,
+        app: mail_app(),
+        trust: WindowTrust::Quire,
+        mode: RunMode::InPlace,
+        space: space("work"),
+        action: CuaAction::<WindowSpace>::Observe,
+        node: None,
+        effect: Effect::Read,
+        basis: EffectBasis::DefaultTable,
+        screen: Label::untrusted(
+            prov::Source::Screen { app: mail_app() },
+            prov::DataClass::Mail,
+            space("work"),
+        ),
+    }
+}
+
+fn open_run(run: &RunId) -> IntentsRequest {
+    IntentsRequest::SessionOpen(SessionOpen {
+        space: space("work"),
+        agent: AgentRef::Cua { run: run.clone() },
+        parent: None,
+    })
+}
+
+#[tokio::test]
+async fn cuad_opens_the_session_of_its_own_run_and_its_first_step_is_ruled_not_halted() {
+    let router = router();
+    let run = RunId::parse("r-1").expect("run");
+    let opened = ask(&router, &cuad(), open_run(&run)).await;
+    assert!(
+        matches!(opened, IntentsReply::SessionOpened(_)),
+        "{opened:?}"
+    );
+    let first = ask(&router, &cuad(), IntentsRequest::GateCheck(step(&run))).await;
+    assert_eq!(
+        first,
+        IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(
+            ConfirmEnd::Dismissed
+        ))),
+        "the run has a session: the step reaches the person, it is not a halt"
+    );
+}
+
+#[tokio::test]
+async fn cuad_opens_a_run_and_nothing_else_and_a_run_has_one_session() {
+    let router = router();
+    let run = RunId::parse("r-2").expect("run");
+    for agent in [AgentRef::Companion, AgentRef::User] {
+        let reply = ask(
+            &router,
+            &cuad(),
+            IntentsRequest::SessionOpen(SessionOpen {
+                space: space("work"),
+                agent,
+                parent: None,
+            }),
+        )
+        .await;
+        assert_eq!(reply, IntentsReply::Refused(WireRefusal::NotAllowed));
+    }
+    assert!(matches!(
+        ask(&router, &cuad(), open_run(&run)).await,
+        IntentsReply::SessionOpened(_)
+    ));
+    assert_eq!(
+        ask(&router, &cuad(), open_run(&run)).await,
+        IntentsReply::Refused(WireRefusal::Malformed),
+        "a second session for the same run"
+    );
+    assert_eq!(
+        ask(&router, &companion(), open_run(&run)).await,
+        IntentsReply::Refused(WireRefusal::Malformed),
+        "whoever asks"
+    );
+}
+
+#[tokio::test]
+async fn cuad_closes_only_the_sessions_it_opened() {
+    let router = router();
+    let run = RunId::parse("r-3").expect("run");
+    let IntentsReply::SessionOpened(mine) = ask(&router, &cuad(), open_run(&run)).await else {
+        panic!("opened")
+    };
+    let theirs = open(&router, "work", AgentRef::Companion).await;
+    let close = |session| IntentsRequest::SessionClose { session };
+    assert_eq!(
+        ask(&router, &cuad(), close(theirs.session)).await,
+        IntentsReply::Refused(WireRefusal::NotAllowed)
+    );
+    assert_eq!(
+        ask(&router, &cuad(), close(mine.session)).await,
+        IntentsReply::Done
+    );
+}
+
+/// The requester's end of a watched request.
+struct Remote {
+    progress: Arc<Queue<CallProgress>>,
+    proceed: Arc<Flag>,
+    closed: Arc<Flag>,
+}
+
+fn watched() -> (Watch, Remote) {
+    let remote = Remote {
+        progress: Queue::new(),
+        proceed: Flag::new(),
+        closed: Flag::new(),
+    };
+    let (progress, proceed, closed) = (
+        remote.progress.clone(),
+        remote.proceed.clone(),
+        remote.closed.clone(),
+    );
+    let watch = Watch::new(
+        move |p| {
+            progress.push(p);
+            Box::pin(std::future::ready(()))
+        },
+        move || Box::pin(proceed.up()),
+        move || Box::pin(closed.up()),
+    );
+    (watch, remote)
+}
+
+async fn run_with_session(router: &docket_router::Router<docket_fake::FakeSeams>) -> RunId {
+    let run = RunId::parse("r-4").expect("run");
+    assert!(matches!(
+        ask(router, &cuad(), open_run(&run)).await,
+        IntentsReply::SessionOpened(_)
+    ));
+    run
+}
+
+#[tokio::test]
+async fn a_watcher_is_told_before_the_sheet_and_the_sheet_waits_for_proceed() {
+    let mut router = router();
+    let run = run_with_session(&router).await;
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![yes()]);
+    let (watch, remote) = watched();
+    let caller = cuad();
+    let check = router.handle_watched(&caller, IntentsRequest::GateCheck(step(&run)), watch);
+    let remote_side = async {
+        let CallProgress::Confirming(id) = remote.progress.next().await else {
+            panic!("the first thing said is that the person will be asked")
+        };
+        // Whatever the requester does now (suspending its own input), no sheet is drawn.
+        for _ in 0..5 {
+            tokio::task::yield_now().await;
+        }
+        assert!(router.seams.confirmer.requests().is_empty());
+        remote.proceed.raise();
+        id
+    };
+    let (answer, id) = tokio::join!(check, remote_side);
+    assert_eq!(answer, IntentsReply::Gate(GateAnswer::Run));
+    let shown = router.seams.confirmer.requests();
+    assert_eq!(shown.len(), 1);
+    assert_eq!(
+        shown[0].id, id,
+        "the id the watcher was told is the sheet's"
+    );
+}
+
+#[tokio::test]
+async fn a_request_withdrawn_before_proceed_draws_no_sheet() {
+    let mut router = router();
+    let run = run_with_session(&router).await;
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![yes()]);
+    let (watch, remote) = watched();
+    let caller = cuad();
+    let check = router.handle_watched(&caller, IntentsRequest::GateCheck(step(&run)), watch);
+    let remote_side = async {
+        let _ = remote.progress.next().await;
+        remote.closed.raise();
+    };
+    let (answer, ()) = tokio::join!(check, remote_side);
+    assert_eq!(
+        answer,
+        IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(
+            ConfirmEnd::Cancelled
+        )))
+    );
+    assert!(router.seams.confirmer.requests().is_empty());
+}
+
+#[tokio::test]
+async fn nobody_watching_means_no_wait() {
+    let mut router = router();
+    let run = run_with_session(&router).await;
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![yes()]);
+    let answer = ask(&router, &cuad(), IntentsRequest::GateCheck(step(&run))).await;
+    assert_eq!(answer, IntentsReply::Gate(GateAnswer::Run));
+}

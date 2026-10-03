@@ -21,7 +21,25 @@ fn refuse(why: WireRefusal) -> IntentsReply {
 
 impl<S: Seams> Router<S> {
     /// `.Session.Open`.
-    pub(crate) fn session_open(&self, caller: &CallerId, open: SessionOpen) -> IntentsReply {
+    ///
+    /// The computer-use daemon opens the session of its own run and nothing else; a run has one
+    /// session, whoever opened it, so a second open of the same run is refused.
+    pub(crate) fn session_open(
+        &self,
+        caller: &CallerId,
+        role: CallerRole,
+        open: SessionOpen,
+    ) -> IntentsReply {
+        if role == CallerRole::Cua && !matches!(open.agent, AgentRef::Cua { .. }) {
+            return refuse(WireRefusal::NotAllowed);
+        }
+        if let AgentRef::Cua { run } = &open.agent
+            && self.locked().sessions.values().any(|r| {
+                matches!(&r.actor, Actor::Companion { role: AgentRole::Cua { run: held }, .. } if held == run)
+            })
+        {
+            return refuse(WireRefusal::Malformed);
+        }
         self.open_session(&caller.app.name, open)
     }
 
@@ -116,7 +134,7 @@ impl<S: Seams> Router<S> {
         let Some(record) = st.sessions.get_mut(id) else {
             return refuse(WireRefusal::NoSuchSession);
         };
-        if role == CallerRole::Field && record.opener != caller.app.name {
+        if matches!(role, CallerRole::Field | CallerRole::Cua) && record.opener != caller.app.name {
             return refuse(WireRefusal::NotAllowed);
         }
         record.state = session_step(record.state, SessionEvent::Close).0;

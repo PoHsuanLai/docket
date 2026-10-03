@@ -43,7 +43,7 @@ pub use introspect::{Bus, introspection};
 pub use message::{MessageProxy, MessageSkeleton};
 pub use names::{
     COMPANION_BUS, COMPANION_PATH, CONFIRM_BUS, CONFIRM_PATH, INTENTS_BUS, INTENTS_PATH,
-    PROVIDER_PATH, READER_BUS, READER_PATH, answer_path, request_path,
+    OPTION_WATCH, PROVIDER_PATH, READER_BUS, READER_PATH, answer_path, request_path,
 };
 /// The reserved key of the W3C trace context in an `options` vardict, and the vardict type:
 /// porter's, shared on every call that starts work.

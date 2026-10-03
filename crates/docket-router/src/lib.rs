@@ -41,6 +41,7 @@ mod session;
 mod state;
 mod tasks;
 mod terminal;
+mod watch;
 mod who;
 
 pub use auth::{acting_role, permits};
@@ -58,3 +59,4 @@ pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, 
 pub use state::{RouterState, SessionRecord};
 pub use tasks::{TaskRecord, TaskState, TaskTable, child_policy, roster_of};
 pub use terminal::Revoked;
+pub use watch::{Flag, Queue, Watch};

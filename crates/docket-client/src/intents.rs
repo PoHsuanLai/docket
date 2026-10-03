@@ -43,6 +43,10 @@ impl<T: Transport> Intents<T> {
         Self { transport }
     }
 
+    pub(crate) fn transport(&self) -> &T {
+        &self.transport
+    }
+
     pub(crate) async fn ask<R>(
         &self,
         request: IntentsRequest,

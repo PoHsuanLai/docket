@@ -1,5 +1,6 @@
 //! How a request reaches the router.
 
+use crate::watch::Watched;
 #[cfg(feature = "in_process")]
 use docket_core::CallerId;
 use docket_core::{IntentsReply, IntentsRequest};
@@ -30,6 +31,16 @@ pub trait Transport: Send + Sync {
         &self,
         request: IntentsRequest,
     ) -> impl Future<Output = Result<IntentsReply, TransportError>> + Send;
+
+    /// Sends one request and watches it: its progress comes out as it happens and the caller may
+    /// `proceed` or `close` it. A transport that cannot watch sends the request as `call` does
+    /// and gives the answer alone.
+    fn watch(
+        &self,
+        request: IntentsRequest,
+    ) -> impl Future<Output = Result<Watched, TransportError>> + Send {
+        async move { Ok(Watched::answered(self.call(request).await?)) }
+    }
 }
 
 /// The router in the caller's own process, as one fixed caller. For tests and for a host that
@@ -50,9 +61,17 @@ impl<S: Seams> InProcess<S> {
 }
 
 #[cfg(feature = "in_process")]
-impl<S: Seams> Transport for InProcess<S> {
+impl<S: Seams + 'static> Transport for InProcess<S> {
     async fn call(&self, request: IntentsRequest) -> Result<IntentsReply, TransportError> {
         Ok(self.router.handle(&self.caller, request).await)
+    }
+
+    async fn watch(&self, request: IntentsRequest) -> Result<Watched, TransportError> {
+        Ok(crate::watch_in_process::watched(
+            self.router.clone(),
+            self.caller.clone(),
+            request,
+        ))
     }
 }
 
@@ -113,5 +132,9 @@ impl DbusTransport {
 impl Transport for DbusTransport {
     async fn call(&self, request: IntentsRequest) -> Result<IntentsReply, TransportError> {
         crate::bus::call(&self.connection, request).await
+    }
+
+    async fn watch(&self, request: IntentsRequest) -> Result<Watched, TransportError> {
+        crate::bus::watch(&self.connection, request).await
     }
 }

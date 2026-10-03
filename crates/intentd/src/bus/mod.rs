@@ -14,6 +14,7 @@ mod session;
 use crate::peer::{PeerFault, Peers};
 use docket_core::{CallerId, Hit, IntentsReply, IntentsRequest, SearchAsk};
 use docket_dbus::{INTENTS_PATH, IntentsError};
+use docket_router::Watch;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
@@ -30,7 +31,7 @@ pub(crate) use session::SessionBus;
 
 /// The router, as the bus sees it: one request from one caller, one reply.
 pub(crate) type Handler = Arc<
-    dyn Fn(CallerId, IntentsRequest) -> Pin<Box<dyn Future<Output = IntentsReply> + Send>>
+    dyn Fn(CallerId, IntentsRequest, Watch) -> Pin<Box<dyn Future<Output = IntentsReply> + Send>>
         + Send
         + Sync,
 >;
@@ -188,7 +189,7 @@ impl Gateway {
         request: IntentsRequest,
     ) -> Result<IntentsReply, IntentsError> {
         let caller = self.caller(header).await?;
-        Ok((self.handler)(caller, request).await)
+        Ok((self.handler)(caller, request, Watch::none()).await)
     }
 
     /// The reply read by `pick`: a request refused before it was a call is the bus error, and

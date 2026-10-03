@@ -2,18 +2,21 @@
 //! standing consent to use an app. One decision point: the same halt, the same budget, the
 //! same Cedar policy and the same breaker.
 
+use crate::deadline::within;
 use crate::gate::{GateInputs, Pending, gate};
 use crate::labels::absorb;
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, GrantStore, Seams};
+use crate::watch::Watch;
 use action_review::RepeatState;
 use docket_core::{
-    ActionGrantKey, Anchor, AskReason, AuditRecord, CallRefusal, ConfirmAnswer, ConfirmAnswerKind,
-    ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, Cost, CuaAsk,
-    Depth, GateAnswer, Gesture, GrantAnswer, GrantAsk, GrantCaller, GrantTarget, Impact,
-    IntentsReply, LabelText, Reviewed, Saw, SessionSaw, SinkIntegrity, TaintNote,
+    ActionGrantKey, Anchor, AskReason, AuditRecord, CallProgress, CallRefusal, ConfirmAnswer,
+    ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest,
+    Confirmer, Cost, CuaAsk, Depth, GateAnswer, Gesture, GrantAnswer, GrantAsk, GrantCaller,
+    GrantTarget, Impact, IntentsReply, LabelText, Reviewed, Saw, SessionSaw, SinkIntegrity,
+    TaintNote,
 };
-use docket_core::{AgentReach, Lasting, Origin};
+use docket_core::{AgentReach, Lasting, Millis, Origin};
 use policy_point::{
     ActionFacts, CoverageState, GrantState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
     SpaceRelation, TerminalGrant,
@@ -24,6 +27,9 @@ use prov::{
     ActionName, Actor, AgentRole, Confidentiality, Effect, Integrity, Label, Source, SpaceScope,
 };
 use std::collections::BTreeSet;
+
+/// How long a watching requester has to say `Proceed` before the step is refused unasked.
+const PROCEED_WITHIN: Millis = Millis(10_000);
 
 fn words(text: &str) -> LabelText {
     LabelText::parse(text).expect("fixed sheet words are valid label text")
@@ -143,7 +149,12 @@ impl<S: Seams> Router<S> {
 
     /// `.Gate.Check`: may this pixel step run? A step that Cedar leaves to a reviewer is asked
     /// of the person instead: a reviewer for pixel steps arrives with the run host.
-    pub(crate) async fn gate_check(&self, ask: CuaAsk) -> IntentsReply {
+    ///
+    /// A step the person must answer is announced to a watching requester
+    /// (`Progress(Confirming(id))`) before the sheet is drawn, and the router waits for its
+    /// `Proceed` (the lease is suspended, so the run's own input is idle while the person
+    /// answers): a requester that never proceeds, or withdraws, gets no sheet.
+    pub(crate) async fn gate_check(&self, ask: CuaAsk, watch: &Watch) -> IntentsReply {
         let now = self.seams.clock().now();
         // Whatever cuad claims, the screen is somebody else's words: the run's session takes in
         // `Untrusted(Screen { app })`, so every report it sends later carries that label.
@@ -276,21 +287,39 @@ impl<S: Seams> Router<S> {
         match decided {
             Pending::Run => IntentsReply::Gate(GateAnswer::Run),
             Pending::Refuse(why) => IntentsReply::Gate(GateAnswer::Refused(why)),
-            Pending::NeedsReview(_) | Pending::Confirm(_) => {
-                let Some(request) =
-                    self.sheet(&ask.app, &ask.space, "Let it do this step", ask.effect)
-                else {
-                    return IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Timeout));
-                };
-                match self.ask_person(request).await {
-                    ConfirmAnswer::Allowed { .. } | ConfirmAnswer::AllowedFromTerminal { .. } => {
-                        IntentsReply::Gate(GateAnswer::Run)
-                    }
-                    ConfirmAnswer::Ended(end) => {
-                        IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(end)))
-                    }
-                }
+            Pending::NeedsReview(_) | Pending::Confirm(_) => self.confirm_step(&ask, watch).await,
+        }
+    }
+
+    /// Asks the person about one step, once a watching requester has stopped its own input.
+    async fn confirm_step(&self, ask: &CuaAsk, watch: &Watch) -> IntentsReply {
+        let refused = |end| IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(end)));
+        let Some(request) = self.sheet(&ask.app, &ask.space, "Let it do this step", ask.effect)
+        else {
+            return IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Timeout));
+        };
+        let id = request.id.clone();
+        watch.tell(CallProgress::Confirming(id.clone())).await;
+        let ready = within(
+            self.seams.clock().after(PROCEED_WITHIN),
+            within(watch.withdrawn(), watch.proceeded()),
+        )
+        .await;
+        match ready {
+            None => return refused(ConfirmEnd::Expired),
+            Some(None) => return refused(ConfirmEnd::Cancelled),
+            Some(Some(())) => {}
+        }
+        let Some(answer) = within(watch.withdrawn(), self.ask_person(request)).await else {
+            self.seams.confirmer().cancel(&id).await;
+            self.locked().pending.remove(&id);
+            return refused(ConfirmEnd::Cancelled);
+        };
+        match answer {
+            ConfirmAnswer::Allowed { .. } | ConfirmAnswer::AllowedFromTerminal { .. } => {
+                IntentsReply::Gate(GateAnswer::Run)
             }
+            ConfirmAnswer::Ended(end) => refused(end),
         }
     }
 }

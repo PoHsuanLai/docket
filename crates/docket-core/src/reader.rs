@@ -8,7 +8,7 @@ use crate::units::CharCount;
 use crate::value::Value;
 use model_provider::{ChoiceText, Field, FieldName, Shape};
 use porter_core::Count;
-use prov::{EntityId, Quarantined};
+use prov::{EntityId, Quarantined, SessionId};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 
@@ -235,9 +235,12 @@ pub enum ReaderError {
 /// What `readerd` implements; `intentd` calls it over `Reader1`. The inputs are quarantined:
 /// only the reader's host holds the key that opens them.
 pub trait Reader: Send + Sync {
-    /// Reads the inputs under the schema and answers with a value that fits it.
+    /// Reads the inputs under the schema and answers with a value that fits it. `session` is the
+    /// session the ask's handles are held in: the router passes it, a reader in another process
+    /// resolves the handles itself through it, and one that is handed the text ignores it.
     fn extract(
         &self,
+        session: &SessionId,
         ask: ReaderAsk,
         inputs: Vec<Quarantined<String>>,
     ) -> impl Future<Output = Result<Value, ReaderError>> + Send;

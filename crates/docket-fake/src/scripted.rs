@@ -9,7 +9,7 @@ use docket_core::{
     UserTurn, Value,
 };
 use docket_router::{LinkFault, MemoryLink};
-use prov::{Quarantined, SpaceId, TaskId};
+use prov::{Quarantined, SessionId, SpaceId, TaskId};
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
@@ -244,6 +244,7 @@ impl PolicyWriter for ScriptedWriter {
 pub struct ScriptedReader {
     answers: Mutex<VecDeque<Result<Value, ReaderError>>>,
     asks: Mutex<Vec<ReaderAsk>>,
+    sessions: Mutex<Vec<SessionId>>,
 }
 
 impl ScriptedReader {
@@ -252,7 +253,13 @@ impl ScriptedReader {
         Self {
             answers: Mutex::new(answers.into()),
             asks: Mutex::new(vec![]),
+            sessions: Mutex::new(vec![]),
         }
+    }
+
+    /// The session of every ask received, in order.
+    pub fn sessions(&self) -> Vec<SessionId> {
+        locked(&self.sessions)
     }
 
     /// Every ask received.
@@ -264,9 +271,11 @@ impl ScriptedReader {
 impl Reader for ScriptedReader {
     async fn extract(
         &self,
+        session: &SessionId,
         ask: ReaderAsk,
         _inputs: Vec<Quarantined<String>>,
     ) -> Result<Value, ReaderError> {
+        with(&self.sessions, |s| s.push(session.clone()));
         with(&self.asks, |a| a.push(ask));
         with(&self.answers, VecDeque::pop_front).unwrap_or(Err(ReaderError::Refused))
     }

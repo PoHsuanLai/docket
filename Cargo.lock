@@ -697,6 +697,7 @@ version = "0.1.0"
 dependencies = [
  "action-review",
  "almanac-core",
+ "cua-action",
  "docket-client",
  "docket-core",
  "docket-router",

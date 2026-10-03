@@ -19,7 +19,9 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::Undo => &[Launcher, Field, Control, Cli, App],
         Member::UndoAll => &[Launcher, Field, Control, App],
         Member::Context => &[Launcher, Companion, Cli],
-        Member::SessionOpen | Member::SessionClose => &[Launcher, Field, Companion],
+        // The computer-use daemon opens and closes the session of its own run (`opening.rs`
+        // refuses it any other kind), so the run is ruled in a session before its first step.
+        Member::SessionOpen | Member::SessionClose => &[Launcher, Field, Companion, Cua],
         // Only the person's own surfaces record a turn: a model cannot say what the person said.
         Member::SessionTurn => &[Launcher, Field],
         Member::SessionResolve => &[Reader],
