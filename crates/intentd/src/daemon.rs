@@ -14,6 +14,7 @@ use crate::memory::AlmanacMemory;
 use crate::reviewers::reviewer;
 use crate::serve::{ServeFault, closed, serve_on};
 use crate::sheet::SheetConfirmer;
+use crate::signals::{Cadence, pump};
 use crate::sink::QueuedSink;
 use crate::system::{SystemClock, SystemSeams};
 use docket_core::AuditRecord;
@@ -55,6 +56,10 @@ pub struct Setup {
     pub session: Option<String>,
     /// How often the audit queue is written to memoryd.
     pub audit_every: Duration,
+    /// The data directories the manifests are read from, rescanned while the daemon runs.
+    pub data_dirs: Vec<PathBuf>,
+    /// How often the router's state is looked at for signals, and the manifests rescanned.
+    pub signals: Cadence,
 }
 
 fn home(env: &impl Fn(&str) -> Option<String>) -> PathBuf {
@@ -113,6 +118,8 @@ impl Setup {
             grants,
             session: env("XDG_SESSION_ID").filter(|v| !v.is_empty()),
             audit_every: DRAIN_EVERY,
+            data_dirs: data,
+            signals: Cadence::default(),
         })
     }
 }
@@ -153,6 +160,8 @@ pub async fn start(
         grants,
         session: login,
         audit_every,
+        data_dirs,
+        signals,
     } = setup;
     for (file, why) in &manifests.skipped {
         eprintln!("intentd: skipped {}: {why}", file.display());
@@ -198,6 +207,12 @@ pub async fn start(
         .await
         .map_err(DaemonFault::Serve)?;
     let mut tasks = Vec::new();
+    tasks.push(tokio::spawn(pump(
+        router.clone(),
+        session.clone(),
+        data_dirs,
+        signals,
+    )));
     let queue = router.clone();
     let mut audit = AuditLog::over(almanac_client::DbusTransport::new(session.clone()));
     tasks.push(tokio::spawn(async move {

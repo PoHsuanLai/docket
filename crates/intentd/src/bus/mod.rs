@@ -12,14 +12,15 @@ mod run;
 mod session;
 
 use crate::peer::{PeerFault, Peers};
-use docket_core::{CallerId, IntentsReply, IntentsRequest};
+use docket_core::{CallerId, Hit, IntentsReply, IntentsRequest, SearchAsk};
 use docket_dbus::{INTENTS_PATH, IntentsError};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
+use std::sync::{Arc, Mutex};
 use zbus::message::Header;
 
 pub(crate) use control::ControlBus;
@@ -34,10 +35,26 @@ pub(crate) type Handler = Arc<
         + Sync,
 >;
 
+/// A search, split in two: what the shadow index answers at once (`None` when the caller's role
+/// may not search), and what the apps that do not index must be asked, which may come late.
+#[derive(Clone)]
+pub(crate) struct SearchPort {
+    pub(crate) indexed: Arc<dyn Fn(CallerId, &SearchAsk) -> Option<Vec<Hit>> + Send + Sync>,
+    pub(crate) late: Arc<
+        dyn Fn(CallerId, SearchAsk) -> Pin<Box<dyn Future<Output = Vec<Hit>> + Send>> + Send + Sync,
+    >,
+}
+
+/// The generation of each asker's newest search that has not been cancelled: late hits of any
+/// other generation are stale and are not sent.
+pub(crate) type LiveSearches = Arc<Mutex<BTreeMap<String, u64>>>;
+
 /// What every interface shares.
 #[derive(Clone)]
 pub(crate) struct Gateway {
     handler: Handler,
+    search: SearchPort,
+    live: LiveSearches,
     peers: Peers,
     requests: Arc<AtomicU64>,
 }
@@ -83,11 +100,64 @@ pub(crate) fn parsed<T, E>(
 
 impl Gateway {
     /// A gateway over `handler` that names callers with `peers`.
-    pub(crate) fn new(handler: Handler, peers: Peers) -> Self {
+    pub(crate) fn new(handler: Handler, search: SearchPort, peers: Peers) -> Self {
         Self {
             handler,
+            search,
+            live: LiveSearches::default(),
             peers,
             requests: Arc::new(AtomicU64::new(0)),
+        }
+    }
+
+    /// Starts the part of a search that has to ask apps, for `sender` alone: its hits come as
+    /// `Hits` for `ask.generation` unless that search was cancelled or a newer one replaced it.
+    pub(crate) fn late_hits(
+        &self,
+        connection: zbus::Connection,
+        sender: String,
+        caller: CallerId,
+        ask: SearchAsk,
+    ) {
+        let generation = ask.generation.0;
+        self.live
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .insert(sender.clone(), generation);
+        let (late, live) = (self.search.late.clone(), self.live.clone());
+        tokio::spawn(async move {
+            let hits = late(caller, ask).await;
+            let current = live
+                .lock()
+                .unwrap_or_else(|p| p.into_inner())
+                .get(&sender)
+                .copied();
+            if hits.is_empty() || current != Some(generation) {
+                return;
+            }
+            let Ok(text) = serde_json::to_string(&hits) else {
+                return;
+            };
+            let Ok(to) = zbus::names::BusName::try_from(sender.as_str()) else {
+                return;
+            };
+            let _ = connection
+                .emit_signal(
+                    Some(to),
+                    INTENTS_PATH,
+                    "org.quire.Intents1.Search",
+                    "Hits",
+                    &(generation, text),
+                )
+                .await;
+        });
+    }
+
+    /// The asker no longer wants the late hits of `generation`.
+    pub(crate) fn cancel_search(&self, sender: &str, generation: u64) {
+        let mut live = self.live.lock().unwrap_or_else(|p| p.into_inner());
+        if live.get(sender) == Some(&generation) {
+            live.remove(sender);
         }
     }
 

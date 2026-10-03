@@ -104,47 +104,83 @@ impl<S: Seams> Router<S> {
     }
 
     /// `.Search.Query`: the shadow index first, then each app that holds kinds it does not
-    /// index.
+    /// index. A caller that can wait for the second part (a transport with no late signal)
+    /// gets both in one answer; the bus answers the first at once and sends the second as
+    /// `Hits` (see [`Router::search_indexed`] and [`Router::search_late`]).
     pub(crate) async fn search_query(&self, role: CallerRole, ask: SearchAsk) -> IntentsReply {
-        let (mut hits, live) = {
+        let mut hits = self.indexed_hits(&ask);
+        hits.extend(self.live_hits(&ask).await);
+        if role == CallerRole::Companion {
+            self.show_entities(hits.iter().map(|h| h.entity.id.clone()));
+        }
+        IntentsReply::Hits(hits)
+    }
+
+    /// The hits of the shadow index alone: what a search can answer without waking an app.
+    pub fn search_indexed(&self, role: CallerRole, ask: &SearchAsk) -> Vec<Hit> {
+        let hits = self.indexed_hits(ask);
+        if role == CallerRole::Companion {
+            self.show_entities(hits.iter().map(|h| h.entity.id.clone()));
+        }
+        hits
+    }
+
+    /// The hits of the apps that hold kinds they do not index: the part of a search that has to
+    /// ask each app, and so may come late.
+    pub async fn search_late(&self, role: CallerRole, ask: &SearchAsk) -> Vec<Hit> {
+        let hits = self.live_hits(ask).await;
+        if role == CallerRole::Companion {
+            self.show_entities(hits.iter().map(|h| h.entity.id.clone()));
+        }
+        hits
+    }
+
+    fn indexed_hits(&self, ask: &SearchAsk) -> Vec<Hit> {
+        let st = self.locked();
+        let wanted = |kind: &EntityKind| match &ask.scope {
+            SearchScope::Everything => true,
+            SearchScope::Kind(k) => k == kind,
+        };
+        st.shadow
+            .iter()
+            .flat_map(|(app, entries)| {
+                entries
+                    .values()
+                    .filter(|e| wanted(&e.kind) && matches(e, &ask.text))
+                    .map(|e| {
+                        let label = title_label(&st, app, e);
+                        Hit {
+                            entity: EntityRef {
+                                id: EntityId {
+                                    app: app.clone(),
+                                    kind: e.kind.clone(),
+                                    key: e.key.clone(),
+                                },
+                                title: Labelled {
+                                    value: e.title.clone(),
+                                    label: label.clone(),
+                                },
+                                subtitle: Labelled {
+                                    value: e.subtitle.clone(),
+                                    label,
+                                },
+                            },
+                            why: None,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
+    async fn live_hits(&self, ask: &SearchAsk) -> Vec<Hit> {
+        let live: Vec<(AppName, BTreeSet<EntityKind>)> = {
             let st = self.locked();
             let wanted = |kind: &EntityKind| match &ask.scope {
                 SearchScope::Everything => true,
                 SearchScope::Kind(k) => k == kind,
             };
-            let hits: Vec<Hit> = st
-                .shadow
-                .iter()
-                .flat_map(|(app, entries)| {
-                    entries
-                        .values()
-                        .filter(|e| wanted(&e.kind) && matches(e, &ask.text))
-                        .map(|e| {
-                            let label = title_label(&st, app, e);
-                            Hit {
-                                entity: EntityRef {
-                                    id: EntityId {
-                                        app: app.clone(),
-                                        kind: e.kind.clone(),
-                                        key: e.key.clone(),
-                                    },
-                                    title: Labelled {
-                                        value: e.title.clone(),
-                                        label: label.clone(),
-                                    },
-                                    subtitle: Labelled {
-                                        value: e.subtitle.clone(),
-                                        label,
-                                    },
-                                },
-                                why: None,
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect();
-            let live: Vec<(AppName, BTreeSet<EntityKind>)> = st
-                .registry
+            st.registry
                 .all()
                 .map(|m| {
                     let kinds: BTreeSet<EntityKind> = m
@@ -157,9 +193,9 @@ impl<S: Seams> Router<S> {
                     (m.manifest().app.clone(), kinds)
                 })
                 .filter(|(_, kinds)| !kinds.is_empty())
-                .collect();
-            (hits, live)
+                .collect()
         };
+        let mut hits = Vec::new();
         for (app, kinds) in live {
             if let Ok(found) = self
                 .seams
@@ -174,10 +210,7 @@ impl<S: Seams> Router<S> {
                 );
             }
         }
-        if role == CallerRole::Companion {
-            self.show_entities(hits.iter().map(|h| h.entity.id.clone()));
-        }
-        IntentsReply::Hits(hits)
+        hits
     }
 
     /// `.Run.Preview`.

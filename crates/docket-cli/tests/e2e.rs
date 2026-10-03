@@ -102,6 +102,7 @@ impl Desk {
         };
         let mut setup = Setup::from_env(&env).expect("the shipped configuration and the manifests");
         setup.audit_every = std::time::Duration::from_millis(100);
+        setup.signals.every = std::time::Duration::from_millis(30);
         let daemon_connection = bus.connect().await;
         let intentd = start(&daemon_connection, None, setup)
             .await
@@ -374,6 +375,54 @@ async fn what_the_terminal_did_is_in_memory_as_audit_records() {
         "it names what it touched: {:?}",
         payload.things
     );
+}
+
+async fn first<T>(stream: &mut (impl futures_util::Stream<Item = T> + Unpin)) -> T {
+    use futures_util::StreamExt;
+    tokio::time::timeout(std::time::Duration::from_secs(5), stream.next())
+        .await
+        .expect("the signal comes")
+        .expect("a signal")
+}
+
+/// The breaker pausing the terminal's session is said on the control interface, content-free.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_breaker_pausing_the_terminal_is_a_signal() {
+    let desk = Desk::start().await;
+    let listener = desk.bus.connect().await;
+    let control = docket_dbus::ControlProxy::new(&listener)
+        .await
+        .expect("proxy");
+    let mut tripped = control.receive_breaker_tripped().await.expect("subscribed");
+    for key in ["f1", "f2", "f3"] {
+        let hidden = desk
+            .quire(&["memory", "forget", &format!("memory.fact:{key}")])
+            .await;
+        assert_eq!(code(&hidden), 3, "{}", say(&hidden));
+    }
+    let signal = first(&mut tripped).await;
+    let session = signal.args().expect("args").session().to_string();
+    assert!(
+        session.starts_with("s-"),
+        "a session id and nothing else: {session}"
+    );
+}
+
+/// A change the terminal makes that can be undone is a row in the journal, and the control
+/// centre is told how many rows there are.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_undoable_change_is_a_journal_changed_signal_with_the_row_count() {
+    let desk = Desk::start().await;
+    let listener = desk.bus.connect().await;
+    let control = docket_dbus::ControlProxy::new(&listener)
+        .await
+        .expect("proxy");
+    let mut changed = control.receive_journal_changed().await.expect("subscribed");
+    desk.sill.answer(vec![once()]);
+    let archived = desk.quire(&["mail", "thread.archive", "t2"]).await;
+    assert_eq!(code(&archived), 0, "{}", say(&archived));
+    let signal = first(&mut changed).await;
+    assert_eq!(*signal.args().expect("args").rows(), 1);
 }
 
 /// An installed app that is not running (and cannot be started) is exit 6, "unavailable", not

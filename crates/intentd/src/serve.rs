@@ -1,11 +1,11 @@
 //! Serving the bus.
 
-use crate::bus::{Gateway, Handler, export};
+use crate::bus::{Gateway, Handler, SearchPort, export};
 use crate::config::IntentdConfig;
 use crate::peer::Peers;
-use docket_core::{CallerId, IntentsReply, IntentsRequest};
+use docket_core::{CallerId, IntentsReply, IntentsRequest, Member};
 use docket_dbus::{BusConnection, INTENTS_BUS};
-use docket_router::{Router, Seams};
+use docket_router::{Router, Seams, acting_role};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -33,6 +33,29 @@ fn handler<S: Seams + 'static>(router: Arc<Router<S>>) -> Handler {
     })
 }
 
+/// The router's search as the bus asks it: the index at once, the apps that hold kinds they do
+/// not index afterwards.
+fn search_port<S: Seams + 'static>(router: Arc<Router<S>>) -> SearchPort {
+    let now = router.clone();
+    SearchPort {
+        indexed: Arc::new(move |caller, ask| {
+            let role = acting_role(&caller.roles, Member::SearchQuery)?;
+            Some(now.search_indexed(role, ask))
+        }),
+        late: Arc::new(move |caller, ask| {
+            let router = router.clone();
+            let work: Pin<Box<dyn Future<Output = Vec<docket_core::Hit>> + Send>> =
+                Box::pin(async move {
+                    match acting_role(&caller.roles, Member::SearchQuery) {
+                        Some(role) => router.search_late(role, &ask).await,
+                        None => Vec::new(),
+                    }
+                });
+            work
+        }),
+    }
+}
+
 /// Exports every interface of `org.quire.Intents1` on `connection` over `router` and claims the
 /// name; the roles of the callers are `config`'s. Returns once the name is ours and the
 /// connection keeps serving until it closes.
@@ -41,7 +64,11 @@ pub async fn serve_on<S: Seams + 'static>(
     router: Arc<Router<S>>,
     config: Arc<IntentdConfig>,
 ) -> Result<(), ServeFault> {
-    let gateway = Gateway::new(handler(router), Peers::new(connection.clone(), config));
+    let gateway = Gateway::new(
+        handler(router.clone()),
+        search_port(router),
+        Peers::new(connection.clone(), config),
+    );
     export(connection, &gateway).await.map_err(bus)?;
     // Never queued behind another intentd: two routers would be two breakers and two journals.
     let reply = connection

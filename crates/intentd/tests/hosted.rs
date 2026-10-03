@@ -10,7 +10,7 @@ use almanac_core::{
 use docket_client::{DbusTransport, Intents};
 use docket_core::*;
 use docket_router::GrantStore;
-use intentd::{FileGrants, IntentdConfig, Setup, start};
+use intentd::{Cadence, FileGrants, IntentdConfig, Setup, start};
 use porter_core::AppName;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use prov::{AgentRef, Label, Labelled, Source, SpaceId};
@@ -40,8 +40,8 @@ fn config() -> IntentdConfig {
 }
 
 struct Desk {
-    _dir: tempfile::TempDir,
-    _bus: PrivateBus,
+    dir: tempfile::TempDir,
+    bus: PrivateBus,
     memoryd: Arc<FakeMemoryd>,
     sill: FakeSill,
     companion: Intents<DbusTransport>,
@@ -105,6 +105,10 @@ impl Desk {
         }
         setup.config = config();
         setup.audit_every = Duration::from_millis(50);
+        setup.signals = Cadence {
+            every: Duration::from_millis(30),
+            rescan_every: 2,
+        };
         let daemon_connection = bus.connect().await;
         let intentd = start(&daemon_connection, None, setup)
             .await
@@ -118,8 +122,8 @@ impl Desk {
             .expect("name");
         let companion = Intents::over(DbusTransport::new(companion_connection.clone()));
         Desk {
-            _dir: dir,
-            _bus: bus,
+            dir,
+            bus,
             memoryd,
             sill,
             companion,
@@ -365,5 +369,139 @@ async fn a_companion_starts_a_task_and_the_task_is_audited_into_memory() {
     assert!(
         !desk.records("docket.call").await.is_empty(),
         "the call that started it too"
+    );
+}
+
+fn first<T>(
+    stream: &mut (impl futures_util::Stream<Item = T> + Unpin),
+) -> impl std::future::Future<Output = T> + '_ {
+    use futures_util::StreamExt;
+    async move {
+        tokio::time::timeout(Duration::from_secs(5), stream.next())
+            .await
+            .expect("the signal comes")
+            .expect("a signal")
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_installed_manifest_appearing_changing_and_going_is_said_on_the_registry() {
+    let desk = Desk::start(FakeMemoryd::recording()).await;
+    let listener = desk.bus.connect().await;
+    let registry = docket_dbus::RegistryProxy::new(&listener)
+        .await
+        .expect("proxy");
+    let mut changed = registry
+        .receive_manifest_changed()
+        .await
+        .expect("subscribed");
+    let folder = desk.dir.path().join("data/quire/intents");
+    std::fs::create_dir_all(&folder).expect("dir");
+
+    std::fs::write(
+        folder.join("org.quire.Mail.toml"),
+        docket_fake::MAIL_MANIFEST,
+    )
+    .expect("write");
+    let signal = first(&mut changed).await;
+    assert_eq!(signal.args().expect("args").app(), &"org.quire.Mail");
+    let listed = desk.companion.manifests().await.expect("manifests");
+    assert!(
+        listed
+            .iter()
+            .any(|m| m.manifest().app.as_str() == "org.quire.Mail")
+    );
+
+    let edited = docket_fake::MAIL_MANIFEST.replace("Read", "Look at");
+    std::fs::write(folder.join("org.quire.Mail.toml"), edited).expect("write");
+    assert_eq!(
+        first(&mut changed).await.args().expect("args").app(),
+        &"org.quire.Mail"
+    );
+
+    std::fs::remove_file(folder.join("org.quire.Mail.toml")).expect("remove");
+    assert_eq!(
+        first(&mut changed).await.args().expect("args").app(),
+        &"org.quire.Mail"
+    );
+    let listed = desk.companion.manifests().await.expect("manifests");
+    assert!(
+        listed
+            .iter()
+            .all(|m| m.manifest().app.as_str() != "org.quire.Mail")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_file_cannot_declare_the_built_in_providers() {
+    let desk = Desk::start(FakeMemoryd::recording()).await;
+    let folder = desk.dir.path().join("data/quire/intents");
+    std::fs::create_dir_all(&folder).expect("dir");
+    // A file that renames the memory actions' effects: the built-in declaration stands.
+    let memory = include_str!("../../../manifests/org.quire.Memory.toml")
+        .replace("reach = \"hidden\"", "reach = \"offered\"");
+    std::fs::write(folder.join("org.quire.Memory.toml"), memory).expect("write");
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    let listed = desk.companion.manifests().await.expect("manifests");
+    let memory = listed
+        .iter()
+        .find(|m| m.manifest().app.as_str() == "org.quire.Memory")
+        .expect("memory is still there");
+    let forget = memory
+        .manifest()
+        .actions
+        .iter()
+        .find(|a| a.name.as_str() == "memory.forget")
+        .expect("forget");
+    assert_eq!(
+        forget.reach,
+        AgentReach::Hidden,
+        "an agent never sees forgetting"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_message_arriving_for_a_worker_is_said_content_free() {
+    let desk = Desk::start(FakeMemoryd::recording()).await;
+    let listener = desk.bus.connect().await;
+    let messages = docket_dbus::MessageProxy::new(&listener)
+        .await
+        .expect("proxy");
+    let mut arrived = messages.receive_arrived().await.expect("subscribed");
+    let front = desk.front().await;
+    let outcome = desk
+        .companion
+        .perform(
+            call(
+                "org.quire.Companion",
+                "companion.task.start",
+                TargetValue::Nothing,
+                &[("goal", Value::Text("find the receipts".into()))],
+            ),
+            Some(front.session),
+            None,
+        )
+        .await
+        .expect("the request")
+        .expect("the task starts");
+    let Some(Labelled {
+        value: Value::Text(task),
+        ..
+    }) = outcome.value
+    else {
+        panic!("{outcome:?}")
+    };
+    let signal = first(&mut arrived).await;
+    let agent: AgentRef =
+        serde_json::from_str(signal.args().expect("args").agent()).expect("an agent");
+    assert_eq!(
+        agent,
+        AgentRef::Worker {
+            task: prov::TaskId::parse(&task).expect("task")
+        }
+    );
+    assert!(
+        !signal.args().expect("args").agent().contains("receipts"),
+        "no content"
     );
 }

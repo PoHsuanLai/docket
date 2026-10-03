@@ -41,6 +41,7 @@ zbus = { workspace = true }
 docket-fake = { workspace = true }
 porter-fake = { workspace = true }
 almanac-dbus = { workspace = true }
+readerd = { path = "../readerd" }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 cua-action = { workspace = true }
 serde_json = { workspace = true }
