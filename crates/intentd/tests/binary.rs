@@ -97,7 +97,11 @@ async fn the_binary_serves_the_scratch_manifests_to_the_roles_the_shipped_config
         panic!("manifests");
     };
     let names: Vec<String> = all.iter().map(|m| m.manifest().app.to_string()).collect();
-    assert_eq!(names, ["org.quire.Mail"], "the data dir's one app");
+    assert_eq!(
+        names,
+        ["org.quire.Companion", "org.quire.Mail", "org.quire.Memory"],
+        "the data dir's one app, and the two providers intentd hosts itself"
+    );
 
     // sill's name plays the control centre; a plain app does not.
     let sill = bus.connect().await;
