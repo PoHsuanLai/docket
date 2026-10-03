@@ -154,7 +154,13 @@ async fn restart_rebuilds_the_front_and_the_roster_from_recent_with_bodies() {
         vec![
             "companion.session.*",
             "companion.message",
-            "companion.episode"
+            "companion.episode",
+            "cua.run.started",
+            "cua.asked",
+            "cua.confirmed",
+            "cua.taken_over",
+            "cua.handed_back",
+            "cua.run.finished",
         ]
     );
 }
@@ -178,6 +184,119 @@ fn replay_reads_oldest_first_and_refuses_a_body_it_cannot_parse() {
     ] {
         let bad = vec![entry(1, kind, 1, Some("{\"nope\":1}".into()))];
         assert_eq!(replay_of(&bad), Err(ReplayFault::Malformed), "{kind}");
+    }
+}
+
+/// A record of a run as cuad writes it (`cua-bus`'s `CuaRecord`: tag `kind`, content `v`).
+fn run_record(kind: &str, v: serde_json::Value) -> String {
+    serde_json::json!({ "kind": kind, "v": v }).to_string()
+}
+
+#[test]
+fn a_computer_use_run_is_rebuilt_from_its_area_records() {
+    let started = run_record(
+        "cua.run.started",
+        serde_json::json!({ "run": "r-3", "session": "s-2", "space": "work", "app": "org.example.Browser" }),
+    );
+    let asked = run_record("cua.asked", serde_json::json!({ "run": "r-3", "n": 4 }));
+    let rows = |last: &str, body: String| {
+        vec![
+            entry(4, last, 40, Some(body)),
+            entry(3, "cua.asked", 30, Some(asked.clone())),
+            entry(2, "cua.step", 20, Some("{}".into())),
+            entry(1, "cua.run.started", 10, Some(started.clone())),
+        ]
+    };
+    let state_after = |last: &str, body: String| {
+        let events = replay_of(&rows(last, body)).expect("events");
+        assert!(
+            events
+                .iter()
+                .all(|e| matches!(e.what, agent_loop::ReplayWhat::Run { .. })),
+            "only the run's own records are read: {events:?}"
+        );
+        recover_events(&events)
+    };
+    let finished = |outcome: serde_json::Value| {
+        run_record(
+            "cua.run.finished",
+            serde_json::json!({ "run": "r-3", "outcome": outcome }),
+        )
+    };
+    let rows_expected: [(&str, String, RosterState); 7] = [
+        (
+            "cua.confirmed",
+            run_record("cua.confirmed", serde_json::json!({ "run": "r-3", "n": 5 })),
+            RosterState::Working,
+        ),
+        (
+            "cua.taken_over",
+            run_record(
+                "cua.taken_over",
+                serde_json::json!({ "run": "r-3", "n": 5 }),
+            ),
+            RosterState::Paused,
+        ),
+        (
+            "cua.handed_back",
+            run_record(
+                "cua.handed_back",
+                serde_json::json!({ "run": "r-3", "n": 6 }),
+            ),
+            RosterState::Working,
+        ),
+        (
+            "cua.run.finished",
+            finished(serde_json::json!({ "kind": "done" })),
+            RosterState::Done,
+        ),
+        (
+            "cua.run.finished",
+            finished(serde_json::json!({ "kind": "failed", "v": "no_progress" })),
+            RosterState::Failed,
+        ),
+        (
+            "cua.run.finished",
+            finished(serde_json::json!({ "kind": "budget_out", "v": "steps" })),
+            RosterState::Failed,
+        ),
+        (
+            "cua.run.finished",
+            finished(serde_json::json!({ "kind": "cancelled", "v": "user" })),
+            RosterState::Cancelled,
+        ),
+    ];
+    for (kind, body, want) in rows_expected {
+        assert_eq!(state_after(kind, body.clone()), want, "{kind} {body}");
+    }
+    // With nothing after the question, the run is waiting for the person.
+    let only_asked = replay_of(&rows("cua.asked", asked.clone())).expect("events");
+    assert_eq!(recover_events(&only_asked), RosterState::NeedsYou);
+}
+
+fn recover_events(events: &[agent_loop::ReplayEvent]) -> RosterState {
+    let rebuilt = agent_loop::rebuild(events);
+    rebuilt
+        .tasks
+        .iter()
+        .find(|t| matches!(t.agent, AgentRef::Cua { .. }))
+        .map(|t| t.state)
+        .expect("the run is on the roster")
+}
+
+#[test]
+fn a_run_whose_start_is_older_than_the_window_says_nothing_and_a_broken_record_is_a_fault() {
+    let finished = run_record(
+        "cua.run.finished",
+        serde_json::json!({ "run": "r-9", "outcome": { "kind": "done" } }),
+    );
+    assert_eq!(
+        replay_of(&[entry(1, "cua.run.finished", 5, Some(finished))]).expect("events"),
+        vec![]
+    );
+    for body in ["{\"nope\":1}", "{\"kind\":\"cua.asked\",\"v\":{}}"] {
+        let bad = vec![entry(1, "cua.asked", 1, Some(body.into()))];
+        assert_eq!(replay_of(&bad), Err(ReplayFault::Malformed), "{body}");
     }
 }
 

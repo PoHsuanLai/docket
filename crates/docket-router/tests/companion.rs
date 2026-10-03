@@ -117,8 +117,22 @@ async fn starting_a_task_opens_a_child_session_holds_the_goal_as_a_handle_and_se
     let task = started_task(&outcome);
     assert_eq!(outcome.undo, Undoable::No);
 
-    let st = router.state.lock().expect("lock");
-    let record = st.tasks.get(&task).expect("the task is on the roster");
+    let (record, policy) = {
+        let st = router.state.lock().expect("lock");
+        let record = st
+            .tasks
+            .get(&task)
+            .expect("the task is on the roster")
+            .clone();
+        let policy = st
+            .sessions
+            .get(&record.session)
+            .expect("the child session")
+            .policy
+            .clone()
+            .expect("a child of a task with a policy has one");
+        (record, policy)
+    };
     assert_eq!(record.agent, AgentRef::Worker { task: task.clone() });
     assert_eq!(record.parent, Some(front.task.clone()));
     assert_eq!(record.state, TaskState::Working);
@@ -126,17 +140,11 @@ async fn starting_a_task_opens_a_child_session_holds_the_goal_as_a_handle_and_se
         matches!(record.goal, Reveal::Handle(_)),
         "the planner's goal is a handle, never plain text on the roster"
     );
-    let child = st.sessions.get(&record.session).expect("the child session");
-    let policy = child
-        .policy
-        .as_ref()
-        .expect("a child of a task with a policy has one");
     assert_eq!(
-        compare(policy, &parent_policy),
+        compare(&policy, &parent_policy),
         PolicyChange::Same,
         "never wider than the parent's"
     );
-    drop(st);
 
     let records = router.seams.sink.records();
     assert!(

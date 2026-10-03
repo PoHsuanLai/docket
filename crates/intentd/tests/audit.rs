@@ -292,6 +292,42 @@ fn what_could_not_be_written_goes_back_in_front_of_what_came_since() {
     assert_eq!(sink.len(), 2);
 }
 
+proptest::proptest! {
+    /// Whatever is appended and put back, the queue never holds more than its limit, keeps the
+    /// newest, and counts exactly what it dropped.
+    #[test]
+    fn the_queue_never_outgrows_its_limit_and_keeps_the_newest(
+        limit in 1usize..8,
+        first in 0usize..20,
+        put_back in 0usize..20,
+    ) {
+        let sink = QueuedSink::bounded(limit);
+        (0..first).for_each(|n| sink.append(halt(n as i64)));
+        let taken = sink.drain();
+        let dropped_on_the_way = sink.dropped() as usize;
+        sink.restore(taken);
+        (first..first + put_back).for_each(|n| sink.append(halt(n as i64)));
+        let held: Vec<i64> = sink
+            .drain()
+            .iter()
+            .map(|r| match r {
+                AuditRecord::Halt { at, .. } => at.0,
+                other => panic!("{other:?}"),
+            })
+            .collect();
+        let total = first + put_back;
+        proptest::prop_assert!(held.len() <= limit);
+        proptest::prop_assert_eq!(held.len(), total.min(limit));
+        let expected: Vec<i64> = (total.saturating_sub(limit)..total).map(|n| n as i64).collect();
+        proptest::prop_assert_eq!(held, expected);
+        proptest::prop_assert_eq!(
+            dropped_on_the_way + sink.dropped() as usize,
+            total.saturating_sub(limit),
+            "every record dropped is counted"
+        );
+    }
+}
+
 fn times(records: &[almanac_core::Record]) -> Vec<i64> {
     records.iter().map(|r| r.occurred.0).collect()
 }
@@ -406,7 +442,7 @@ async fn while_memoryd_is_away_nothing_is_lost_and_nothing_is_written_twice() {
     assert_eq!((back.written, back.waiting, back.lost), (3, 0, 0));
     assert_eq!(
         times(&memoryd.stored()),
-        [11, 13, 12].map(|n| n),
+        [11, 13, 12],
         "work's two in order, then home's: {:?}",
         times(&memoryd.stored())
     );

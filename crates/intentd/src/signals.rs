@@ -238,7 +238,7 @@ pub async fn pump<S: Seams>(
     loop {
         tokio::time::sleep(cadence.every).await;
         tick = tick.wrapping_add(1);
-        if cadence.rescan_every > 0 && tick % cadence.rescan_every == 0 {
+        if cadence.rescan_every > 0 && tick.is_multiple_of(cadence.rescan_every) {
             rescan(&router, &data_dirs);
         }
         let now = marks_of(&router);

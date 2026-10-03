@@ -30,7 +30,7 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `docket-eval` | the red-team suite: the corpus format and loader (`eval/`), `Case` (`Driver`: the companion or a terminal), `Expect`, `RunReport`, `Metrics`, `wilson`, the runner skeleton and `Harness`; and the conformance check `docket-eval --check-app <dir>` (`check`, `ui`) | none |
 | `docket-cli` | `quire-do`: every app drivable from a command line generated from its manifest. A thin client over `docket-client` with caller role `cli`: the command grammar, the parameter mapping, `describe` through stoker's `Shape::to_json_schema`, the exit codes, text and JSON output, shell completion. It reaches the bus only through `docket-client`, and never the router, Cedar or the policy point | per transport (the binary: the session bus) |
 | `actions-mcp` | the MCP edge: `tools`, `tool_name`, `hints_of`, `mcp_label`, `McpAccess` (off by default), `read_call`, `McpFault`, `McpEdge` over `rmcp`, which serves `list_tools` and `call_tool`; the binary is a skeleton | rmcp |
-| `intentd` | the daemon and its library: `IntentdConfig` (and the shipped `dist/intentd.toml`), the built-in `org.quire.Memory` and `org.quire.Companion` providers, `AlmanacMemory`, `QueuedSink`, `record_of`, `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `InferdWriter`, `ReaderClient`, `SystemSeams`, `Peers` (who is on a connection), `serve` / `serve_on` (one handler per `Intents1` interface), `watch_logind` (the end of the person's session), `start` / `run` (the daemon) | everything |
+| `intentd` | the daemon and its library: `IntentdConfig` (and the shipped `dist/intentd.toml`), the built-in `org.quire.Memory` and `org.quire.Companion` providers and `HostedLink` (which answers them in process), `AlmanacMemory`, `QueuedSink` (bounded), `record_of` and `AuditLog` (the audit trail into memoryd), `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `InferdWriter`, `ReaderClient`, `SystemSeams`, `Peers` (who is on a connection), `serve` / `serve_on` (one handler per `Intents1` interface), `signals` (`Marks`, `changes`, `pump`: the signals that say the router's state changed), `watch_logind` (the end of the person's session), `start` / `run` (the daemon) | everything |
 | `companiond` | the companion daemon: `Companiond` (one identity over many tasks: `TaskRuntime`, the working set `sources`, the loop's effects `drive`, messages `inbox`, episodes `finish`, the idle pass `idle`, restart `resume`), `PlannerModel` over a `Catalogue`, `Shared` (what the bus reads), `recover`, `completion_effects`, `serve` and `serve_on`; the binary is a skeleton | everything |
 | `readerd` | the quarantined reader, a separate process: `ReaderHost` (the one place the reader key is made), `reader_request`, `ReaderService`, `serve` | everything |
 | `docket-ds` | the adapter quire apps use: chips and keep, things and labels, summon answers, `DsContextSource`, `DsSummonTarget`, the voice bridge | none |
@@ -55,7 +55,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `actions-mcp` | `docket-core`, `docket-client`, `prov`, `porter-core` (+ `rmcp`) |
 | `intentd` | `docket-core`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
 | `companiond` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
-| `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-infer` |
+| `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
 | `docket-cli` | `docket-core`, `docket-client` (feature `dbus`), `model-provider`, `prov`, `porter-core` |
 | `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
 | `voice-wire` | `docket-core`, `porter-core`, `porter-infer` |
@@ -79,10 +79,10 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 
 | Crate | Modules |
 | --- | --- |
-| `docket-core` | `units`, `ids` < `value`, `manifest` < `validate`, `schema` < `context`, `preview` < `call`, `undo`, `grant`, `confirm`, `review`, `budget` < `task_policy`, `reader`, `planner`, `roster` < `message`, `task`, `audit`, `gate`, `index`, `summon` < `config`, `caller`, `wire` |
+| `docket-core` | `units`, `ids` < `value`, `manifest` < `validate`, `schema` < `context`, `preview` < `call`, `undo`, `grant`, `confirm`, `review`, `budget` < `task_policy`, `reader`, `planner`, `roster` < `message`, `task`, `audit`, `gate`, `index`, `summon` < `config`, `caller`, `wire`, `when` |
 | `policy-point` | `request` < `pdp` |
 | `action-review` | `verdict` < `request`, `breaker` < `cascade`, `infer` |
-| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck` < `router` |
+| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who`, `companion` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck` < `router` |
 | `companion-wire` | `ask`, `answer` < `record` |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `step` |
 | `docket-dbus` | `names`, `error`, one file per interface, `introspect` |
@@ -90,9 +90,9 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `docket-fake` | `labels`, `simple`, `mail`, `files`, `scripted`, `seams`, `router` |
 | `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `check` < `ui` (the binary `docket-eval` runs `check`) |
 | `docket-cli` | `exit`, `args` < `resolve`, `when` < `params`, `schema`, `outcome` < `render`, `complete`, `help` < `exec` < `lib` (`run`), `main` |
-| `intentd` | `config`, `builtin`, `record`, `sink`, `memory`, `grants`, `peer` < `sheet`, `link`, `infer`, `reviewers`, `system`, `bus` (`request`, `query`, `run`, `session`, `control`) < `serve`, `logout`, `manifests` < `daemon` (`main`) |
+| `intentd` | `config`, `builtin_memory`, `builtin_companion` < `builtin`, `record` < `sink` < `audit`, `memory`, `grants`, `peer` < `sheet`, `link`, `infer`, `writer`, `reader_client`, `reviewers`, `system`, `bus` (`request`, `query`, `run`, `session`, `control`) < `serve`, `logout`, `manifests` < `signals` < `daemon` (`main`) |
 | `companiond` | `clock`, `fault`, `shared`, `catalogue` < `args`, `render` < `planner`, `task` < `runtime`, `completion`, `recover`, `sources`, `drive`, `inbox`, `finish`, `idle`, `resume`, `serve` |
-| `readerd` | `host`, `request`, `service`, `serve` |
+| `readerd` | `host`, `request`, `answer` < `service` < `serve` |
 | `docket-ds` | `chips`, `things`, `summon`, `context`, `voice` |
 | `voice-wire` | `text`, `begin`, `event`, `status`, `refusal` |
 | `voice-loop` | `buffer`, `sentencer`, `utterance`, `speech`, `coordinate` |
@@ -131,7 +131,7 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | Trait | Home | Implemented by |
 | --- | --- | --- |
 | `Seams` | `docket-router` | `SystemSeams` (intentd), `FakeSeams` (docket-fake) |
-| `AppLink`, `GrantStore`, `EventSink`, `Clock`, `MemoryLink` | `docket-router` | `DbusLink`, `FileGrants`, `QueuedSink`, `SystemClock`, `AlmanacMemory`; the fakes |
+| `AppLink`, `GrantStore`, `EventSink`, `Clock`, `MemoryLink` | `docket-router` | `HostedLink` (over `DbusLink`), `FileGrants`, `QueuedSink`, `SystemClock`, `AlmanacMemory`; the fakes |
 | `Confirmer` | `docket-core` | `SheetConfirmer`, `ScriptedConfirmer` |
 | `Reviewer` | `action-review` | `InferReviewer`, `ScriptedReviewer` |
 | `PolicyWriter` | `docket-core` | `InferdWriter`, `ScriptedWriter` |
@@ -175,8 +175,9 @@ receiver's taint; a message across Spaces is delivered and never grants a memory
 **Add an action to a built-in provider.** Edit `manifests/org.quire.<App>.toml` (every field
 written; names carry the app's prefix; an outbound action declares a recipient or destination
 sink; a write without undo is destructive). `docket_core::validate` and the router's
-`Registry::unresolved` check it in `tests/manifests.rs`; add its behaviour to the provider in
-`intentd::builtin`.
+`Registry::unresolved` check it in `tests/manifests.rs`; add its behaviour to the provider:
+`intentd::builtin_memory` for `org.quire.Memory`, `Router::companion_perform` (docket-router,
+`companion.rs`) for `org.quire.Companion`. `HostedLink` routes the two names to them.
 
 **Add a member to `Intents1`.** (1) A variant of `IntentsRequest` and its reply in
 `docket-core::wire`; (2) `Member` and `IntentsRequest::member`; (3) its row in `docket-router::auth`

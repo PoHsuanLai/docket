@@ -6,14 +6,28 @@
 use agent_loop::{Rebuilt, ReplayEvent, ReplayWhat, rebuild};
 use almanac_core::{BodyMode, Episode, KindPattern, RecentEntry, RecentQuery, TrustFilter};
 use companion_wire::{SESSION_KIND_PREFIX, SessionRecord};
+use docket_core::RosterState;
 use porter_core::Count;
-use prov::{Message, UnixSeconds};
+use prov::{Message, RunId, SpaceId, UnixSeconds};
+use std::collections::BTreeMap;
 use std::future::Future;
 
 /// The kind of a message the router delivered.
 const MESSAGE_KIND: &str = "companion.message";
 /// The kind of an episode.
 const EPISODE_KIND: &str = "companion.episode";
+/// The kinds of a computer-use run the rebuild reads: where it began, what it asked, who has the
+/// window, how it ended. Its steps are not read: they say nothing the roster shows. cuad writes
+/// them as `Area { Cua }` payloads in `cua-bus`'s `CuaRecord` form; docket names no cua type and
+/// reads only the words below.
+const RUN_KINDS: [&str; 6] = [
+    "cua.run.started",
+    "cua.asked",
+    "cua.confirmed",
+    "cua.taken_over",
+    "cua.handed_back",
+    "cua.run.finished",
+];
 /// The most events one restart reads.
 const RESTART_LIMIT: u32 = 5000;
 
@@ -48,6 +62,8 @@ pub fn restart_query(since: UnixSeconds) -> RecentQuery {
             EPISODE_KIND.to_owned(),
         ]
         .iter()
+        .map(String::as_str)
+        .chain(RUN_KINDS)
         .filter_map(|k| KindPattern::parse(k).ok())
         .collect(),
         trust: TrustFilter::Any,
@@ -86,12 +102,68 @@ fn what_of(entry: &RecentEntry) -> Result<Option<ReplayWhat>, ReplayFault> {
     Ok(Some(what))
 }
 
+/// Where a run stands after one of its records, from the record's kind and body.
+fn run_state(kind: &str, record: &serde_json::Value) -> Option<RosterState> {
+    Some(match kind {
+        "cua.run.started" | "cua.confirmed" | "cua.handed_back" => RosterState::Working,
+        "cua.asked" => RosterState::NeedsYou,
+        "cua.taken_over" => RosterState::Paused,
+        "cua.run.finished" => match record["v"]["outcome"]["kind"].as_str()? {
+            "done" => RosterState::Done,
+            "cancelled" => RosterState::Cancelled,
+            "failed" | "blocked" | "budget_out" => RosterState::Failed,
+            _ => return None,
+        },
+        _ => return None,
+    })
+}
+
+/// A record of a computer-use run as the rebuild's `Run` event. Only `cua.run.started` names the
+/// Space, so the Space of each run seen so far is kept in `spaces` (oldest record first); a run
+/// whose start is older than the window has no Space and says nothing.
+fn run_of(
+    entry: &RecentEntry,
+    spaces: &mut BTreeMap<RunId, SpaceId>,
+) -> Result<Option<ReplayWhat>, ReplayFault> {
+    let kind = entry.summary.kind.as_str();
+    if !RUN_KINDS.contains(&kind) {
+        return Ok(None);
+    }
+    let Some(body) = &entry.body else {
+        return Ok(None);
+    };
+    let malformed = |_| ReplayFault::Malformed;
+    let record: serde_json::Value = serde_json::from_str(body.as_str()).map_err(malformed)?;
+    let run = record["v"]["run"]
+        .as_str()
+        .and_then(|r| RunId::parse(r).ok())
+        .ok_or(ReplayFault::Malformed)?;
+    if kind == "cua.run.started" {
+        let space = record["v"]["space"]
+            .as_str()
+            .and_then(|s| SpaceId::parse(s).ok())
+            .ok_or(ReplayFault::Malformed)?;
+        spaces.insert(run.clone(), space);
+    }
+    let state = run_state(kind, &record).ok_or(ReplayFault::Malformed)?;
+    Ok(spaces.get(&run).map(|space| ReplayWhat::Run {
+        run,
+        space: space.clone(),
+        state,
+    }))
+}
+
 /// The rebuild's events from `Recent`'s entries (newest first in, oldest first out). Entries of
 /// other kinds are skipped; one of ours that does not parse is `Malformed`.
 pub fn replay_of(entries: &[RecentEntry]) -> Result<Vec<ReplayEvent>, ReplayFault> {
     let mut events = Vec::new();
+    let mut spaces = BTreeMap::new();
     for entry in entries.iter().rev() {
-        if let Some(what) = what_of(entry)? {
+        let what = match run_of(entry, &mut spaces)? {
+            Some(run) => Some(run),
+            None => what_of(entry)?,
+        };
+        if let Some(what) = what {
             events.push(ReplayEvent {
                 at: entry.summary.occurred,
                 what,

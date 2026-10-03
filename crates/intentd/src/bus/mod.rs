@@ -35,14 +35,20 @@ pub(crate) type Handler = Arc<
         + Sync,
 >;
 
+/// What the shadow index answers at once: `None` when the caller's role may not search.
+type IndexedSearch = Arc<dyn Fn(CallerId, &SearchAsk) -> Option<Vec<Hit>> + Send + Sync>;
+
+/// What the apps that do not index answer, possibly late.
+type LateSearch = Arc<
+    dyn Fn(CallerId, SearchAsk) -> Pin<Box<dyn Future<Output = Vec<Hit>> + Send>> + Send + Sync,
+>;
+
 /// A search, split in two: what the shadow index answers at once (`None` when the caller's role
 /// may not search), and what the apps that do not index must be asked, which may come late.
 #[derive(Clone)]
 pub(crate) struct SearchPort {
-    pub(crate) indexed: Arc<dyn Fn(CallerId, &SearchAsk) -> Option<Vec<Hit>> + Send + Sync>,
-    pub(crate) late: Arc<
-        dyn Fn(CallerId, SearchAsk) -> Pin<Box<dyn Future<Output = Vec<Hit>> + Send>> + Send + Sync,
-    >,
+    pub(crate) indexed: IndexedSearch,
+    pub(crate) late: LateSearch,
 }
 
 /// The generation of each asker's newest search that has not been cancelled: late hits of any

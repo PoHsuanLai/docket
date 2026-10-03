@@ -282,27 +282,46 @@ async fn when_the_writer_fails_there_is_no_policy() {
 
 #[tokio::test]
 async fn text_planted_in_content_cannot_reach_the_policy_because_content_cannot_reach_the_writer() {
-    // The writer's whole input is `derive`'s arguments: turns and the catalogue. What it sends is
-    // those and the fixed instruction, so there is no door for mail text to come through.
+    // The writer's whole input is `derive`'s arguments: the turns and the catalogue. What it
+    // sends is the fixed instruction, one line per action and one line per turn; there is no
+    // door for the text of a mail to come through.
+    let cards = catalogue();
     let inferd = ScriptedInferd::answering(&draft(&[], "read", &[]));
     derive(&inferd, &[turn(1, "summarise my mail")])
         .await
         .expect("policy");
     let frames = inferd.frames();
     let [ClientFrame::Request(InferRequest::Chat(request))] = frames.as_slice() else {
-        panic!()
+        panic!("{frames:?}")
     };
-    let words: usize = request
-        .messages
+    let texts = |role: porter_infer::Role| -> Vec<String> {
+        request
+            .messages
+            .iter()
+            .filter(|m| m.role == role)
+            .flat_map(|m| &m.parts)
+            .filter_map(|p| match p {
+                MessagePart::Text(t) => Some(t.clone()),
+                _ => None,
+            })
+            .collect()
+    };
+    let user = texts(porter_infer::Role::User).join("\n");
+    let allowed: Vec<String> = cards
         .iter()
-        .flat_map(|m| &m.parts)
-        .map(|p| match p {
-            MessagePart::Text(t) => t.len(),
-            _ => 0,
-        })
-        .sum();
-    assert!(
-        words < 4000,
-        "a short prompt of fixed words, the catalogue and the turns: {words}"
-    );
+        .map(|c| format!("- {} ({:?}): {}", key_of(c), c.effect, c.label))
+        .chain([
+            "Actions that exist:".into(),
+            "What the person said:".into(),
+            "[1] summarise my mail".into(),
+            String::new(),
+        ])
+        .collect();
+    for line in user.lines() {
+        assert!(
+            allowed.iter().any(|a| a == line),
+            "a line that is neither the catalogue nor a turn: {line:?}"
+        );
+    }
+    assert_eq!(texts(porter_infer::Role::System).len(), 1);
 }

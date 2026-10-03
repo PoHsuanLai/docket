@@ -1,25 +1,24 @@
 # Findings
 
 Open items and standing facts. An entry names the condition that closes it. After fill wave 1,
-the docket amendment and the intentd bus fill (F3) there were **22 `todo!()` bodies** in library and
-daemon code (21 lines: `MemoryProvider` and `CompanionProvider` share one macro line), listed
-below, one row per crate or file; the tests contain none, and no test is `#[ignore]`d. (The freeze
-had 37: `agent_step` was filled in fill wave 1; F3 filled `DbusTransport::call`, `docket_client::serve`,
-`DbusLink`, `SheetConfirmer`, `FileGrants` and intentd's `serve` and `main`.)
+the docket amendment, the intentd bus fill (F3), the w4-companion fill (the persistent companion,
+the MCP edge) and the w4-docket fill (the audit trail, the built-in providers, the inferd bodies, the
+signals) there are **2 `todo!()` bodies** in library and daemon code, listed below; the tests contain
+none, and no test is `#[ignore]`d. (The freeze had 37: `agent_step` was filled in fill wave 1; F3 filled
+`DbusTransport::call`, `docket_client::serve`, `DbusLink`, `SheetConfirmer`, `FileGrants` and intentd's
+`serve` and `main`; w4-companion filled companiond and `McpEdge::call`; w4-docket filled `record_of`,
+`InferdModel::{chat, embed}`, `InferdWriter::derive`, `ReaderClient::extract`, both providers' `perform`,
+`reader_request`, `ReaderService::{extract, extract_in}` and readerd's `serve`.)
 
 ## Stubs behind frozen interfaces
 
 | Where | Count | Closes when |
 | --- | --- | --- |
-| intentd `record_of` | 1 | fill wave 2: `AuditRecord` to almanac `Record` (typed `Message` and `Episode` bodies, the rest `Area { Docket }` with the things each names for cascade-forget) |
-| intentd `InferdModel::{chat, embed}`, `InferdWriter::derive`, `ReaderClient::extract` | 4 | fill wave 2, blocked on porter's `DbusTransport::open` and session fills: sessions through porter-client; `ReplyShape::Json` of the policy record from the person's turns and the catalogue alone; `Reader1.Extract` |
-| intentd `MemoryProvider::perform`, `CompanionProvider::perform` | 2 | fill wave 2: `memory.recall/facts/propose/forget` through memoryd as `Caller::Router` (untrusted proposals land pending); `companion.task.start` opens a child session and records `task.started`, `companion.task.message` goes through message delivery |
-| readerd `reader_request`, `ReaderService::{extract, extract_in}`, `serve` | 4 | fill wave 2, with stoker's `Shape::to_json_schema`: the fenced data, no tools, the schema as the reply shape, `conforms` on the answer |
 | docket-ds `DsContextSource::snapshot` | 1 | fill wave 2 (quire apps): `ContextModel` to `Here`, `Selection`, `Visible` through `entity_ref`; a private window reports the app alone; password and PIN fields are never reported |
 | voiced `serve` | 1 | fill wave 2, after the PipeWire line (spike V-A): `Begin` from the shell role only, capture through `choose_capture`, unicast signals, an inferd session through porter-client |
-| companiond, readerd and voiced binaries | | skeletons that exit 2. companiond's library serves `Companion1` (`serve_on`); its `main` waits for the daemon wiring (a planner model over the bus, the intents transport, the config) intentd serves (F3): see "The bus path" below |
+| companiond, readerd and voiced binaries | | skeletons that exit 2: companiond's library serves `Companion1` (`serve_on`) and readerd's `serve` is filled; their `main`s wait for the daemon wiring. intentd serves (F3) |
 
-Total: 1 + 4 + 2 + 4 + 1 + 1 = 13 after w4-companion (actions-mcp and companiond are filled).
+Total: 1 + 1 = 2.
 
 ## Ignored tests
 
@@ -189,8 +188,7 @@ Built and tested on a private `dbus-daemon` (nothing of the real session is name
 - **intentd's side** (`intentd/src/bus/`): one struct per interface with the signatures of `docket-dbus`'s
   skeletons (a test holds the served introspection to `dbus/org.quire.Intents1.xml`; no member may carry a doc
   comment, zbus copies it into the XML). `serve_on(connection, router, config)` exports them and claims the
-  name with `DoNotQueue` (a second intentd stops); `serve(router)` is the same on the session bus with the
-  shipped configuration. `tests/bus_members.rs` sends every member over the bus and in process and requires the
+  name with `DoNotQueue` (a second intentd stops); `serve(router, config)` is the same on the session bus. `tests/bus_members.rs` sends every member over the bus and in process and requires the
   same reply.
 - **Identity** (`intentd/src/peer.rs`): from the bus's own credentials for the connection: the same user, the
   well-known names it owns, and for a process that owns none, the executable behind its pid (`quire-do` is
@@ -220,24 +218,69 @@ By hand: `scripts/try-quire-do.sh` starts a scratch `dbus-daemon`, intentd, a fa
 on the terminal (`intentd/examples/try_apps.rs`), all with a scratch HOME and XDG directories, and prints the
 `source` line for a second terminal where `quire-do` then works.
 
+Built in the w4-docket fill (each with tests on a private bus, a scripted inferd or the fakes):
+
+1. **The audit trail reaches memoryd.** `record_of` maps every `AuditRecord` to an almanac `Record` that memoryd
+   admits (a message and an episode are almanac's own typed bodies, the rest `Area { Docket }` in their serde form
+   with a call's targets as the `things` for cascade-forget; a record's Space is the one it names, else the Space of
+   the call it reviews, else the session or task the router still holds, else `desktop`). `QueuedSink` is bounded
+   (4096 records; the oldest are dropped and counted) and shared by clone; `AuditLog` writes one batch per Space as the
+   router's `Caller`. **Degraded path:** while memoryd is away, locked or busy, what could not be written goes back in
+   front of the queue in its original order, intentd says once that memoryd is not answering and once that it is back,
+   and says how many records it had to drop; a record memoryd refuses for good is dropped and counted, never retried.
+   `Setup.audit_every` (5 s) is the cadence. `Cause` is `None` on every record: a review names its call by id inside
+   its payload, because the call's `EventRef` is memoryd's to make after the batch is written.
+2. **intentd hosts `org.quire.Memory` and `org.quire.Companion`.** `HostedLink` (the `AppLink` of `SystemSeams`) answers
+   those two names in process and every other app over D-Bus; their manifests are built in (`builtin_manifests`) and
+   inserted before the installed ones, so `quire-do apps` lists them, and a file that declares either name is skipped
+   with a reason. Memory: `recall` (a search of the session's Space, `RecallOver::Both`), `facts` and `propose`
+   (`Staged`: memoryd labels the router's proposals untrusted, so they land pending), each result labelled with the join
+   of the hits' labels; `memory.forget` is `Unsupported` (the router may plan a forget, only the shell's own UI may apply
+   one, and the action is hidden). Companion: `Router::companion_perform` (docket-router, `companion.rs`): the
+   spawner's goal is held as a handle in its own table and sent to the new worker as a request message, the worker is a
+   child session under the spawner's policy (never wider), `AuditRecord::TaskStarted` is written, and a message to a
+   task goes through `message_send`; only a companion session may call either.
+3. **The models are over inferd.** `InferdModel::{chat, embed}` open one session per call with the need the request
+   names (chat, structured output when it has a shape, tools when it has any, room for the prompt), its class and its
+   tier, forward events to the sink and return the reply; every refusal and failure is a `ModelError`, so the reviewer
+   asks the person. `InferdWriter::derive` shows the model the person's turns and the catalogue (class `Prompt`, tier
+   Fast, JSON under a schema that names only catalogue actions) and believes nothing in the draft: an action must be in
+   the catalogue, the ceiling is cut to what the chosen actions need, a recipient, destination or path is kept only if
+   the person wrote it, the rationale is the person's own last words, and any failure is no policy. readerd:
+   `reader_request` (the fixed instruction, the inputs as numbered data between a per-request fence the data cannot
+   close, no tools, the strictest class of the inputs and, for unclassed text, the person's own words' floor, which is
+   this computer), `answer_of` (the reply read back under the schema, entities only among those offered, `conforms`
+   before anything is passed on), `ReaderService::{extract, extract_in}` (every handle resolved through
+   `Session.Resolve`, the whole read fails if one cannot be) and `serve` / `serve_on` (`Reader1`, answering only the
+   owner of intentd's name). `ReaderClient::extract_in` is the call from intentd; see the ask below for the seam.
+4. **The signals.** `ManifestChanged`, `JournalChanged`, `BreakerTripped` and `Arrived` are the difference between two
+   looks at the router's state (`Marks`, `changes`, every 200 ms; table-tested), so every way the state can change says
+   so the same way; the manifest directories are rescanned every few looks (polling, since `notify` is outside the
+   boundary) and a changed or removed file takes its app with it. `Hits` is the late part of a search: `Search.Query`
+   over the bus answers the shadow index at once and the apps that hold kinds they do not index send their hits to the
+   asker alone as `Hits` (not if the asker cancelled or asked again). `Halted` and `Resumed` are as before.
+5. **A missing app is `AppFault::Unavailable`** (ask 105): `call_step` turns it into `CallRefusal::AppUnavailable`, and
+   `quire-do` exits 6 (the end-to-end test installs the Files manifest and runs no Files app). **`serve(router, config)`**
+   takes the configuration (ask 106).
+6. **A computer-use run is rebuilt on restart** (ask 63): `companiond::recover` reads `cua.run.started`, `cua.asked`,
+   `cua.confirmed`, `cua.taken_over`, `cua.handed_back` and `cua.run.finished` as `ReplayWhat::Run`, by the words of
+   `cua-bus`'s `CuaRecord` (docket names no cua type); a run whose start is older than the window says nothing.
+7. **`tool_schema` routes its text, integer and choice leaves through stoker's `Shape`** (ask 43); the snapshot is
+   unchanged. Entities, handles, dates and the rest stay hand-written: `Shape` has no entity-or-handle form, and a date
+   is `{year, month, day}` here against `Shape::Date`'s string, which would change the planner's grammar.
+
 Not built yet, and what each blocks:
 
-1. **The audit queue is drained and dropped** (`record_of` and the memoryd link are `todo!()`): nothing a call
-   does is kept past the process. A person's log of what the terminal did does not exist yet.
-2. **intentd does not host `org.quire.Memory` and `org.quire.Companion`** (their providers' `perform` is
-   `todo!()`), so their manifests are not installed and `quire-do apps` does not list them.
-3. **The reviewer, the policy writer and the reader are built and not working** (`InferdModel`, `InferdWriter`,
-   `ReaderClient` are `todo!()`): a terminal never reaches them (it never goes to review and has no task
-   policy), but the companion's calls and `Session.Turn` will panic in the request's task until they are filled.
-4. **`AppFault` has no "unavailable"** (ask): `AppLink::perform` cannot say the app is not there, so
-   `DbusLink::perform` answers `AppRefusal::Failed("the app is not available")` (exit 5), where cli.md section 4
-   says 6. Ask: `AppFault::Unavailable`, which `call_step` turns into `CallRefusal::AppUnavailable`.
-5. **`serve`'s signature has no roles** (ask): `serve(router)` uses the shipped configuration; the daemon calls
-   `serve_on(connection, router, config)`. Ask: drop `serve` or give it the configuration.
-6. **sill** must serve `Confirm1` and draw `OnceOrFromTerminal` (ask 3), and `quire-do` over a login needs the
+1. **`Reader::extract` carries no session** (ask): `Reader1.Extract(session, ask)` needs the session the handles
+   are held in, and the seam `Reader::extract(ask, inputs)` has none, so `ReaderClient::extract` (the seam) answers
+   `ModelUnavailable` and `Session.Read` is "malformed" in the running daemon until the seam changes. The change:
+   `Reader::extract(&self, session: &SessionId, ask: ReaderAsk, inputs: Vec<Quarantined<String>>)`, the router passes
+   `id` in `session_read`, `ReaderClient::extract` calls `extract_in(session, &ask)`, `ReaderService::extract` ignores
+   it, `ScriptedReader` takes it. Everything else of the reader path is built and tested (`reader_bus.rs`).
+2. **sill** must serve `Confirm1` and draw `OnceOrFromTerminal` (ask 3), and `quire-do` over a login needs the
    `Control.Resume` button (item 6 above).
-7. The signals `ManifestChanged`, `Hits`, `JournalChanged`, `BreakerTripped` and `Arrived` are declared and not
-   emitted; `Halted` and `Resumed` are. `Request.Proceed` answers `Malformed` (no computer-use lease yet).
+3. `Request.Proceed` answers `Malformed` (no computer-use lease yet).
+4. **Identity beyond name and executable** (Flatpak, a systemd scope) is later, as ask 108 says.
 
 ## The persistent companion and the MCP edge (w4-companion)
 
@@ -357,12 +400,15 @@ marks and re-exports `Tally` (docket-ds no longer reaches `ds-core`), and quire'
 1. **porter `prov` fills** are done (`Label::{trusted_user, untrusted, join}`); docket's tests and
    fakes use them. Labels with an app source and no private scope (`Label` with
    `Source::App`, a model's text) still have no constructor and stay literals.
-2. **stoker `model-provider::Shape`** `to_json_schema`, `to_gbnf`, `to_regex` and `check` are
-   `todo!()` (see the router items): rendering it for the reader, the reviewer and the policy
-   writer waits.
-3. **cua `cua-bus`** (stage 4) does not exist: the restart rebuild's computer-use input is
-   `ReplayWhat::Run`, which the caller maps from `CuaRecord`; it names no cua type, and
-   `companiond::recover` does not read it from `Recent` yet.
+2. **stoker `model-provider::Shape`** is filled: the reader renders its reply schema through it
+   (`ValueSchema::json_schema`) and `tool_schema` routes its text, integer and choice leaves through
+   it. Still asked of stoker: an entity-or-handle form (ask 43), so entities and handles can leave
+   the hand-written part of `tool_schema`. The reviewer's and the policy writer's schemas are still
+   hand-written `serde_json` (ask 14): their records are not `ValueSchema`s.
+3. **cua `cua-bus`** exists: `companiond::recover` reads a run's records from `Recent` as
+   `ReplayWhat::Run` by the words of `CuaRecord`'s serde form and names no cua type; the strings
+   it reads (`cua.run.started`, `cua.asked`, `cua.confirmed`, `cua.taken_over`, `cua.handed_back`,
+   `cua.run.finished`, and the `run`, `space` and `outcome.kind` fields) are pinned by a test.
 4. voice.md section 3.4 (porter's speech items) is all present in `porter-infer`
    (`TranscribeBegin`, `SpeakRequest`, `AudioFrame`, `HeardDelta`, `ClientFrame::{Audio,
    EndOfAudio}`, `Readiness`): nothing is asked of porter for voice.
@@ -465,7 +511,8 @@ nothing; docket never calls `declassify`, so no caller handles its `Result`). in
 `inferd_transport(connection)`, `InferdModel::on_bus`, `InferdWriter::on_bus`, companiond's
 `PlannerModel::on_bus` and readerd's `ReaderService::on_bus` build
 `AnyTransport::Dbus(DbusTransport::over(connection))` (porter-client with feature `dbus`); nothing is
-called until the first session, so an absent inferd is `Unreachable` at the first `open`. The
-companiond, readerd and voiced `main`s are still skeletons (exit 2) and every other `serve` body (and the models', planner's and
-reader's bodies) is `todo!()`: only the constructors are wired, and each is tested on a private bus
-(`tests/inferd_link.rs`). Whoever fills `serve` builds the connection first and passes it here.
+called until the first session, so an absent inferd is `Unreachable` at the first `open`. The models' and the
+reader's bodies are filled (see "The bus path") and tested over a scripted session (`ScriptedInferd`, in
+`intentd/tests/support/inferd.rs`, porter-fake's session with the opens and frames logged). The companiond and
+voiced `main`s are still skeletons (exit 2) and the planner's and `serve` bodies are `todo!()`: whoever fills them
+builds the connection first and passes it here.

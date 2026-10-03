@@ -121,18 +121,31 @@ pub(crate) async fn turn<S: InferSession>(
     }
 }
 
-/// The model's reply as the `Model` seam returns it: a refusal of inferd is the model refusing
-/// (the reviewer's cascade turns every one into asking the person), a failed call is its error.
-pub(crate) fn settled<R>(
-    reply: InferReply,
-    want: impl FnOnce(InferReply) -> Result<R, InferReply>,
-) -> Result<R, ModelError> {
-    match want(reply) {
-        Ok(answer) => Ok(answer),
-        Err(InferReply::Refused(_)) => Err(ModelError::Refused),
-        Err(InferReply::Failed(why)) => Err(why),
-        Err(InferReply::Cancelled) => Err(ModelError::Unreachable),
-        Err(_) => Err(ModelError::Unparseable),
+/// What a reply that is not the one asked for is as a `Model` error: a refusal of inferd is the
+/// model refusing (the reviewer's cascade turns every one into asking the person), a failed call
+/// is its error, and an answer of another kind is unreadable.
+pub(crate) fn unwanted(reply: InferReply) -> ModelError {
+    match reply {
+        InferReply::Refused(_) => ModelError::Refused,
+        InferReply::Failed(why) => why,
+        InferReply::Cancelled => ModelError::Unreachable,
+        _ => ModelError::Unparseable,
+    }
+}
+
+/// The chat reply of a turn's last event.
+pub(crate) fn chat_of(reply: InferReply) -> Result<ChatReply, ModelError> {
+    match reply {
+        InferReply::Chat(chat) => Ok(chat),
+        other => Err(unwanted(other)),
+    }
+}
+
+/// The embeddings of a turn's last event.
+pub(crate) fn embed_of(reply: InferReply) -> Result<EmbedReply, ModelError> {
+    match reply {
+        InferReply::Embed(embedded) => Ok(embedded),
+        other => Err(unwanted(other)),
     }
 }
 
@@ -151,16 +164,12 @@ impl<T: Transport> Model for InferdModel<T> {
             .open(&chat_need(request), request.class, request.tier)
             .await
             .map_err(|_| ModelError::Unreachable)?;
-        let reply = turn(&mut session, InferRequest::Chat(request.clone()), sink).await?;
-        settled(reply, |reply| match reply {
-            InferReply::Chat(chat) => Ok(chat),
-            other => Err(other),
-        })
+        chat_of(turn(&mut session, InferRequest::Chat(request.clone()), sink).await?)
     }
 
     async fn embed(&self, request: &EmbedRequest) -> Result<EmbedReply, ModelError> {
         let need = Need::Embeddings(EmbedNeed {
-            dims: request.dims.clone(),
+            dims: request.dims,
             modalities: BTreeSet::from([Modality::Text]),
         });
         let mut session = self
@@ -174,9 +183,6 @@ impl<T: Transport> Model for InferdModel<T> {
             &mut Discard,
         )
         .await?;
-        settled(reply, |reply| match reply {
-            InferReply::Embed(embedded) => Ok(embedded),
-            other => Err(other),
-        })
+        embed_of(reply)
     }
 }

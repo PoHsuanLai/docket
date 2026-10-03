@@ -4,6 +4,7 @@
 
 use crate::manifest::{ActionDecl, ParamDecl, ParamNeed};
 use crate::value::{Lines, ParamType};
+use model_provider::{CharCount, ChoiceText, SchemaDialect, Shape};
 use prov::EntityKind;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -45,6 +46,15 @@ fn property(param: &ParamDecl) -> Value {
     schema
 }
 
+/// A leaf parameter as stoker's structured-output vocabulary renders it: text, integers and
+/// choices are `Shape`s, so the planner's grammar and the reader's reply shapes say the same
+/// thing the same way. Entities, handles, dates and the rest have no form in that vocabulary
+/// (an entity-or-handle form is an interface ask of stoker), so they stay hand-written below.
+fn shaped(shape: &Shape) -> Value {
+    serde_json::from_str(shape.to_json_schema(SchemaDialect::Plain).0.as_str())
+        .unwrap_or(Value::Null)
+}
+
 fn handle() -> Value {
     json!({
         "type": "object",
@@ -74,7 +84,9 @@ fn entity(kind: &EntityKind) -> Value {
 fn of_type(ty: &ParamType) -> Value {
     match ty {
         ParamType::Text { max, lines } => {
-            let mut text = json!({ "type": "string", "maxLength": max.0 });
+            let mut text = shaped(&Shape::Text {
+                max: CharCount(max.0),
+            });
             if *lines == Lines::One
                 && let Value::Object(fields) = &mut text
             {
@@ -82,9 +94,10 @@ fn of_type(ty: &ParamType) -> Value {
             }
             or_handle(text)
         }
-        ParamType::Integer { min, max } => {
-            json!({ "type": "integer", "minimum": min, "maximum": max })
-        }
+        ParamType::Integer { min, max } => shaped(&Shape::Integer {
+            min: *min,
+            max: *max,
+        }),
         ParamType::Decimal { scale } => json!({
             "type": "object",
             "properties": {
@@ -107,8 +120,11 @@ fn of_type(ty: &ParamType) -> Value {
         ParamType::DateTime => json!({ "type": "integer" }),
         ParamType::Duration => json!({ "type": "integer", "minimum": 0 }),
         ParamType::Choice(options) => {
-            let ids: Vec<&str> = options.iter().map(|o| o.id.as_str()).collect();
-            json!({ "type": "string", "enum": ids })
+            let ids = options
+                .iter()
+                .map(|o| ChoiceText(o.id.as_str().to_owned()))
+                .collect();
+            shaped(&Shape::Choice(ids))
         }
         ParamType::Entity(kind) => or_handle(entity(kind)),
         ParamType::Entities(kind) => json!({

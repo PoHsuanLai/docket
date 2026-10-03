@@ -110,7 +110,7 @@ EDGES=(
   "actions-mcp: docket-client docket-core porter-core prov"
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router policy-point porter-client porter-core porter-infer prov"
   "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
-  "readerd: docket-client docket-core docket-dbus porter-client porter-infer prov"
+  "readerd: docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
   "docket-cli: docket-client docket-core model-provider porter-core prov"
   "docket-ds: companion-wire docket-client docket-core ds-intents porter-core prov voice-wire"
   "voice-wire: docket-core porter-core porter-infer"

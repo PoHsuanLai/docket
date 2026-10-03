@@ -6,7 +6,7 @@
 //! by the grants (`Router::bound_policy`); if the writer fails there is no policy and every
 //! non-read call is outside.
 
-use crate::infer::{Discard, settled, turn};
+use crate::infer::{Discard, chat_of, turn};
 use docket_core::{
     ActionCard, ActionMatch, ActionRef, LabelText, PolicyWriter, ReviewError, TaskPolicy,
     TaskPolicyState, TrustedPattern, UserTurn, Value,
@@ -17,8 +17,8 @@ use porter_core::consent::Usage;
 use porter_core::need::LlmNeed;
 use porter_core::{Count, DataClass, Need, Permille, Tier, Tokens};
 use porter_infer::{
-    ChatControl, ChatMessage, ChatRequest, InferReply, InferRequest, Knob, MessagePart, ModelError,
-    Reasoning, ReplyShape, Role, Sampling, ToolChoice, ToolParallelism,
+    ChatControl, ChatMessage, ChatRequest, InferRequest, Knob, MessagePart, ModelError, Reasoning,
+    ReplyShape, Role, Sampling, ToolChoice, ToolParallelism,
 };
 use prov::{Effect, EntityKind, SpaceId, TaskId, UnixSeconds};
 use serde::Deserialize;
@@ -328,11 +328,7 @@ impl<T: Transport> PolicyWriter for InferdWriter<T> {
         let reply = turn(&mut session, InferRequest::Chat(request), &mut Discard)
             .await
             .map_err(failed)?;
-        let chat = settled(reply, |r| match r {
-            InferReply::Chat(chat) => Ok(chat),
-            other => Err(other),
-        })
-        .map_err(failed)?;
+        let chat = chat_of(reply).map_err(failed)?;
         match chat.stop {
             porter_infer::StopReason::EndTurn | porter_infer::StopReason::StopSequence => {}
             _ => return Err(ReviewError::Unparseable),

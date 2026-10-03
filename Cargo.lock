@@ -1136,6 +1136,7 @@ dependencies = [
  "porter-core",
  "porter-fake",
  "porter-infer",
+ "proptest",
  "prov",
  "readerd",
  "serde",
