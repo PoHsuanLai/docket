@@ -24,6 +24,9 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+docket-dbus = { workspace = true }
+intentd = { path = "../intentd" }
+zbus = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }

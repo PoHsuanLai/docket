@@ -103,7 +103,7 @@ EDGES=(
   "docket-router: action-review almanac-core docket-core policy-point porter-core prov"
   "companion-wire: almanac-core docket-core porter-core porter-infer prov"
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
-  "docket-dbus: docket-core porter-dbus prov"
+  "docket-dbus: docket-core porter-client porter-dbus prov"
   "docket-client: docket-core docket-dbus docket-router prov"
   "docket-fake: action-review almanac-core docket-client docket-core docket-router policy-point porter-core prov"
   "docket-eval: docket-core docket-fake docket-router porter-core prov"

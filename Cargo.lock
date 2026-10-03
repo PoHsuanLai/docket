@@ -58,6 +58,7 @@ name = "almanac-client"
 version = "0.1.0"
 dependencies = [
  "almanac-core",
+ "almanac-dbus",
  "thiserror",
 ]
 
@@ -70,6 +71,17 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "almanac-dbus"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "zbus",
 ]
 
 [[package]]
@@ -579,8 +591,10 @@ version = "0.1.0"
 dependencies = [
  "docket-client",
  "docket-core",
+ "docket-dbus",
  "docket-fake",
  "docket-router",
+ "intentd",
  "model-provider",
  "porter-core",
  "prov",
@@ -589,6 +603,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "zbus",
 ]
 
 [[package]]
@@ -599,9 +614,13 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-router",
+ "futures-util",
  "prov",
+ "serde",
+ "serde_json",
  "thiserror",
  "tokio",
+ "zbus",
 ]
 
 [[package]]
@@ -624,6 +643,7 @@ name = "docket-dbus"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "porter-client",
  "porter-dbus",
  "prov",
  "thiserror",
@@ -1081,10 +1101,13 @@ dependencies = [
  "action-review",
  "almanac-client",
  "almanac-core",
+ "cua-action",
  "docket-client",
  "docket-core",
  "docket-dbus",
+ "docket-fake",
  "docket-router",
+ "futures-util",
  "policy-point",
  "porter-client",
  "porter-core",

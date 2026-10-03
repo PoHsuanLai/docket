@@ -11,7 +11,7 @@ use zbus::object_server::SignalEmitter;
     default_path = "/org/quire/Intents1"
 )]
 pub trait Message {
-    /// Stamps and delivers a draft (`MessageDraft` JSON; answers `Delivery` JSON).
+    /// Stamps and delivers a draft (`MessageDraft` JSON; answers `Result<Delivery, SendRefusal>` JSON).
     fn send(&self, session: &str, draft: &str, options: &Details) -> zbus::Result<String>;
 
     /// The messages that wait for an agent (`InboxAsk` JSON; answers `Vec<InboundLine>` JSON).

@@ -70,23 +70,41 @@ impl DbusTransport {
         Self { connection }
     }
 
-    /// Connects to the session bus and makes sure intentd is there, starting it through D-Bus
-    /// activation when it is installed and not running. A bus with no intentd on it, installed
-    /// or running, is `Closed`: the caller says "unavailable", and no request was sent.
+    /// Connects to the session bus and makes sure intentd is there: already running, or started
+    /// through D-Bus activation when it is installed and not running. A bus with no intentd on
+    /// it, installed or running, is `Closed`: the caller says "unavailable", and no request was
+    /// sent. (A name that already has an owner is not activated: a bus without an activation
+    /// file for it, a private bus a person started intentd on by hand, answers
+    /// `StartServiceByName` with an error even then.)
     pub async fn connect() -> Result<Self, TransportError> {
         let connection = docket_dbus::BusConnection::session()
             .await
             .map_err(|e| TransportError::Bus(e.to_string()))?;
-        connection
+        let running = connection
             .call_method(
                 Some("org.freedesktop.DBus"),
                 "/org/freedesktop/DBus",
                 Some("org.freedesktop.DBus"),
-                "StartServiceByName",
-                &(docket_dbus::INTENTS_BUS, 0u32),
+                "NameHasOwner",
+                &(docket_dbus::INTENTS_BUS,),
             )
             .await
-            .map_err(|_| TransportError::Closed)?;
+            .map_err(|e| TransportError::Bus(e.to_string()))?
+            .body()
+            .deserialize::<bool>()
+            .map_err(|e| TransportError::Bus(e.to_string()))?;
+        if !running {
+            connection
+                .call_method(
+                    Some("org.freedesktop.DBus"),
+                    "/org/freedesktop/DBus",
+                    Some("org.freedesktop.DBus"),
+                    "StartServiceByName",
+                    &(docket_dbus::INTENTS_BUS, 0u32),
+                )
+                .await
+                .map_err(|_| TransportError::Closed)?;
+        }
         Ok(Self::new(connection))
     }
 }
@@ -94,9 +112,6 @@ impl DbusTransport {
 #[cfg(feature = "dbus")]
 impl Transport for DbusTransport {
     async fn call(&self, request: IntentsRequest) -> Result<IntentsReply, TransportError> {
-        let _ = (&self.connection, request);
-        todo!(
-            "DbusTransport::call: one match from IntentsRequest to the member and its JSON arguments; a bus error name maps back to WireRefusal through IntentsError; the Request object's Response signal carries the reply of Perform, Undo, Widen and Check"
-        )
+        crate::bus::call(&self.connection, request).await
     }
 }

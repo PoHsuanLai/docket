@@ -1,9 +1,19 @@
-# Skeleton of intentd's systemd user unit: the router, the one decision point for every action
-# the companion, an MCP client or computer use takes. It talks D-Bus to apps, sill, inferd, readerd
-# and memoryd, and writes one file (the person's standing consent). Each sandbox line says what
-# it protects.
+# intentd's systemd user unit: the router, the one decision point for every action the person's
+# terminal, the companion, an MCP client or computer use takes. It talks D-Bus to apps, sill,
+# inferd, readerd and memoryd, watches logind on the system bus for the end of the person's
+# session (the terminal's "allow until logout" grants end with it), and writes one file (the
+# person's standing consent). Each sandbox line says what it protects.
+#
+# Install: the binary at /usr/libexec/quire/intentd, this unit in /usr/lib/systemd/user/, the
+# activation file dist/dbus/org.quire.Intents1.service in /usr/share/dbus-1/services/, and the
+# default configuration dist/intentd.toml at /etc/xdg/quire/intentd.toml (a file of the
+# person's own at ~/.config/quire/intentd.toml replaces it whole).
 [Unit]
 Description=Quire action router (org.quire.Intents1)
+# It lives and dies with the graphical session, so what it holds in memory (the terminal's
+# standing grants, the undo journal, the breaker) never outlives the person's login.
+PartOf=graphical-session.target
+After=graphical-session.target
 
 [Service]
 Type=dbus
@@ -16,9 +26,11 @@ ExecStart=/usr/libexec/quire/intentd
 RestrictAddressFamilies=AF_UNIX
 PrivateNetwork=yes
 # It reads the apps' manifests (under the data dirs, flatpak exports included) and its own
-# config, and writes only the consent file.
+# config, and writes only the consent file. The directory is made before the sandbox is set up
+# (`+`: outside it), because a read-write path that does not exist stops the unit.
 ProtectHome=read-only
 ProtectSystem=strict
+ExecStartPre=+/usr/bin/mkdir -p %h/.local/share/quire/intents
 ReadWritePaths=%h/.local/share/quire/intents
 PrivateTmp=yes
 # No setuid gain, no writable-and-executable memory (no JIT, no injected code).

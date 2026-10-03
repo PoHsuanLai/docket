@@ -9,7 +9,7 @@ use zbus::fdo;
     default_path = "/org/quire/Intents1"
 )]
 pub trait Context {
-    /// The context in the window of `app`, the app the person summoned the companion from (an app name), for this session (`ContextView` JSON), untrusted text as handles.
+    /// The context in the window of `app`, the app the person summoned the companion from (an app name), for this session (`Result<ContextView, CallRefusal>` JSON), untrusted text as handles.
     fn current(&self, session: &str, app: &str) -> zbus::Result<String>;
 }
 

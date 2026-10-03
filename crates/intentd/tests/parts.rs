@@ -154,11 +154,20 @@ fn the_system_clock_is_after_2024() {
 }
 
 #[test]
-fn the_binary_is_a_skeleton_that_exits_two() {
+fn the_binary_with_no_bus_to_serve_on_says_so_and_exits_one() {
     let exe = env!("CARGO_BIN_EXE_intentd");
-    let output = std::process::Command::new(exe).output().expect("runs");
-    assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("not implemented"));
+    let dir = tempfile::tempdir().expect("scratch");
+    let nowhere = format!("unix:path={}", dir.path().join("none.sock").display());
+    let output = std::process::Command::new(exe)
+        .env_clear()
+        .env("HOME", dir.path())
+        .env("XDG_DATA_HOME", dir.path())
+        .env("XDG_CONFIG_HOME", dir.path())
+        .env("DBUS_SESSION_BUS_ADDRESS", nowhere)
+        .output()
+        .expect("runs");
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).starts_with("intentd: "));
 }
 
 #[test]
@@ -206,4 +215,26 @@ fn every_unit_carries_the_sandbox_lines_and_every_activation_file_names_a_unit()
             path.display()
         );
     }
+}
+
+#[test]
+fn intentds_unit_ends_with_the_graphical_session_and_makes_the_directory_it_may_write() {
+    let dist = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../dist");
+    let text = std::fs::read_to_string(dist.join("intentd.service")).expect("unit");
+    let has = |line: &str| text.lines().any(|l| l == line);
+    assert!(
+        has("PartOf=graphical-session.target"),
+        "grants end with the login"
+    );
+    assert!(has("Type=dbus") && has("BusName=org.quire.Intents1"));
+    // A read-write path that does not exist stops a sandboxed unit, so it is made first, outside
+    // the sandbox.
+    assert!(has(
+        "ExecStartPre=+/usr/bin/mkdir -p %h/.local/share/quire/intents"
+    ));
+    assert!(has("ReadWritePaths=%h/.local/share/quire/intents"));
+    let activation = std::fs::read_to_string(dist.join("dbus/org.quire.Intents1.service"))
+        .expect("activation file");
+    assert!(activation.contains("Name=org.quire.Intents1"));
+    assert!(activation.contains("SystemdService=intentd.service"));
 }

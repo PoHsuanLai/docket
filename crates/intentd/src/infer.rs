@@ -7,17 +7,16 @@ use docket_core::{
     ActionCard, PolicyWriter, Reader, ReaderAsk, ReaderError, ReviewError, TaskPolicy, UserTurn,
     Value,
 };
-use porter_client::{AnyTransport, DbusTransport, Transport};
+use porter_client::{AnyTransport, Transport};
 use porter_infer::{
     ChatReply, ChatRequest, ChatSink, EmbedReply, EmbedRequest, Model, ModelCard, ModelError,
 };
 use prov::{Quarantined, SpaceId, TaskId};
 
-/// inferd over the session bus: porter-client's D-Bus transport on `connection`. Nothing is
-/// called here; inferd is found, and started by activation, at the first `open`, so a daemon
-/// that starts before inferd still starts and asks the person while it is away.
+/// inferd over the session bus: the one link every daemon of this repo makes, on `connection`
+/// (see `docket_dbus::inferd_transport`).
 pub fn inferd_transport(connection: &docket_dbus::BusConnection) -> AnyTransport {
-    AnyTransport::Dbus(DbusTransport::over(connection.clone()))
+    docket_dbus::inferd_transport(connection)
 }
 
 /// A chat model reached through an inferd session.

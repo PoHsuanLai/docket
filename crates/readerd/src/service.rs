@@ -3,7 +3,7 @@
 use crate::host::ReaderHost;
 use docket_client::{Intents, Transport as IntentsTransport};
 use docket_core::{Reader, ReaderAsk, ReaderError, Value};
-use porter_client::{AnyTransport, DbusTransport, Transport as InferTransport};
+use porter_client::{AnyTransport, Transport as InferTransport};
 use prov::{Quarantined, SessionId};
 
 /// Reads for intentd: resolves handles through `Intents1.Session.Resolve` (the reader role),
@@ -24,11 +24,7 @@ impl<I: IntentsTransport> ReaderService<AnyTransport, I> {
         connection: &docket_dbus::BusConnection,
         intents: Intents<I>,
     ) -> Self {
-        Self::new(
-            host,
-            AnyTransport::Dbus(DbusTransport::over(connection.clone())),
-            intents,
-        )
+        Self::new(host, docket_dbus::inferd_transport(connection), intents)
     }
 }
 

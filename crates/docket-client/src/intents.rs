@@ -4,12 +4,12 @@
 use crate::transport::{Transport, TransportError};
 use docket_core::{
     ActionRef, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, EntityRef, GateAnswer,
-    GrantAnswer, GrantAsk, Handle, Hit, InboundLine, InboxAsk, IntentsReply, IntentsRequest,
-    JournalFilter, MessageDraft, Outcome, Preview, SearchAsk, SessionOpen, SessionOpened,
-    SuggestAsk, TurnId, TurnIn, UndoEntry, UndoId, UndoReport, UndoScope, ValidManifest,
-    WidenAnswer, WidenAsk, WindowKey, WireRefusal,
+    GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk, IntentsReply,
+    IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Outcome, Preview, SearchAsk,
+    SessionOpen, SessionOpened, SuggestAsk, TurnId, TurnIn, UndoEntry, UndoId, UndoReport,
+    UndoScope, ValidManifest, WidenAnswer, WidenAsk, WindowKey, WireRefusal,
 };
-use prov::{AppName, EntityId, SessionId};
+use prov::{AppName, EntityId, SessionId, SpaceScope};
 
 /// Why a request did not give the reply its caller wanted.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -119,6 +119,34 @@ impl<T: Transport> Intents<T> {
     pub async fn revoke_terminal_grant(&self, action: ActionRef) -> Result<(), ClientError> {
         self.ask(IntentsRequest::ControlTerminalRevoke(action), |r| match r {
             IntentsReply::Done => Some(()),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Resumes `scope` after a halt (control centre). It also reopens the terminal sessions the
+    /// breaker paused in that scope: a terminal has no way to say it is the person.
+    pub async fn resume(&self, scope: SpaceScope) -> Result<(), ClientError> {
+        self.ask(IntentsRequest::ControlResume { scope }, |r| match r {
+            IntentsReply::Done => Some(()),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Halts `scope` (control centre, compositor).
+    pub async fn halt(&self, scope: SpaceScope, cause: HaltCause) -> Result<(), ClientError> {
+        self.ask(IntentsRequest::ControlHalt { scope, cause }, |r| match r {
+            IntentsReply::Done => Some(()),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The kill switch (control centre, compositor).
+    pub async fn kill_switch(&self) -> Result<KillSwitch, ClientError> {
+        self.ask(IntentsRequest::ControlState, |r| match r {
+            IntentsReply::State(kill) => Some(kill),
             _ => None,
         })
         .await

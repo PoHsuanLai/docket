@@ -24,13 +24,13 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `docket-router` | the pure router: `permits` and `acting_role`, `gate`, `session_step`, the `HandleTable` and `planner_view`, `index_step`, the `UndoJournal`, the `Registry`, `assemble` and `inbound_line` for messages, tasks, `call_step`, `Router<S: Seams>` and its seams | none (seams are passed in) |
 | `companion-wire` | the bodies of `org.quire.Companion1`: `AskWire`, `AnswerWire` and its cards, plans, forms and refusals, `FrontTask`, and the `SessionRecord`s companiond stores | none |
 | `agent-loop` | the companion's pure machines: `assemble`, `agent_step`, `choose_tier`, `side_step`, `idle_step`, `completion_line`, `rebuild`, `front_step` | none |
-| `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`) and `Reader1` as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths | zbus |
-| `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus`, whose `connect` finds or activates intentd) | per transport |
+| `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`) and `Reader1` as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths; with feature `inferd`, `inferd_transport`, the one constructor of every daemon's inferd link | zbus |
+| `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`, `serve_on`: `IntentProvider1` on the app's own name, answering intentd alone) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus`, whose `connect` finds or activates intentd and whose `call` carries all 32 members; `requested` waits for a Request object's `Response`) | per transport |
 | `docket-fake` | test only: fixture manifests, `FakeMail`, `FakeFiles`, `ScriptedConfirmer`, `ScriptedReviewer`, `ScriptedWriter`, `ScriptedReader`, `FakeMemory`, `FixedClock`, `RecordingSink`, `MemoryGrants`, `FakeSeams`, `fake_router` | none |
 | `docket-eval` | the red-team suite: the corpus format and loader (`eval/`), `Case` (`Driver`: the companion or a terminal), `Expect`, `RunReport`, `Metrics`, `wilson`, the runner skeleton and `Harness`; and the conformance check `docket-eval --check-app <dir>` (`check`, `ui`) | none |
 | `docket-cli` | `quire-do`: every app drivable from a command line generated from its manifest. A thin client over `docket-client` with caller role `cli`: the command grammar, the parameter mapping, `describe` through stoker's `Shape::to_json_schema`, the exit codes, text and JSON output, shell completion. It reaches the bus only through `docket-client`, and never the router, Cedar or the policy point | per transport (the binary: the session bus) |
 | `actions-mcp` | the MCP edge: `tools`, `tool_name`, `hints_of`, `mcp_label`, `McpEdge` over `rmcp`. Off by default; the binary is a skeleton | rmcp |
-| `intentd` | the daemon and its library: `IntentdConfig`, the built-in `org.quire.Memory` and `org.quire.Companion` providers, `AlmanacMemory`, `QueuedSink`, `record_of`, `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `InferdWriter`, `ReaderClient`, `SystemSeams`, `serve` | everything |
+| `intentd` | the daemon and its library: `IntentdConfig` (and the shipped `dist/intentd.toml`), the built-in `org.quire.Memory` and `org.quire.Companion` providers, `AlmanacMemory`, `QueuedSink`, `record_of`, `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `InferdWriter`, `ReaderClient`, `SystemSeams`, `Peers` (who is on a connection), `serve` / `serve_on` (one handler per `Intents1` interface), `watch_logind` (the end of the person's session), `start` / `run` (the daemon) | everything |
 | `companiond` | the companion daemon: `Companiond`, `PlannerModel`, `recover`, `completion_effects`, `serve` | everything |
 | `readerd` | the quarantined reader, a separate process: `ReaderHost` (the one place the reader key is made), `reader_request`, `ReaderService`, `serve` | everything |
 | `docket-ds` | the adapter quire apps use: chips and keep, things and labels, summon answers, `DsContextSource`, `DsSummonTarget`, the voice bridge | none |
@@ -48,7 +48,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `docket-router` | `docket-core`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
 | `companion-wire` | `docket-core`, `prov`, `porter-core`, `porter-infer`, `almanac-core` |
 | `agent-loop` | `docket-core`, `companion-wire`, `almanac-core`, `porter-core`, `prov` |
-| `docket-dbus` | `docket-core`, `prov`, `porter-dbus` |
+| `docket-dbus` | `docket-core`, `prov`, `porter-dbus`; `porter-client` with feature `inferd` |
 | `docket-client` | `docket-core`, `docket-router`, `prov`; `docket-dbus` with feature `dbus` |
 | `docket-fake` | `docket-core`, `docket-router`, `docket-client`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
 | `docket-eval` | `docket-core`, `docket-fake`, `docket-router`, `prov`, `porter-core` |
@@ -86,11 +86,11 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `companion-wire` | `ask`, `answer` < `record` |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `step` |
 | `docket-dbus` | `names`, `error`, one file per interface, `introspect` |
-| `docket-client` | `provider`, `transport` < `intents`, `serve` |
+| `docket-client` | `provider`, `transport` < `awaiting` < `bus` < `intents`, `provider_bus` < `serve` |
 | `docket-fake` | `labels`, `simple`, `mail`, `files`, `scripted`, `seams`, `router` |
 | `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `check` < `ui` (the binary `docket-eval` runs `check`) |
 | `docket-cli` | `exit`, `args` < `resolve`, `when` < `params`, `schema`, `outcome` < `render`, `complete`, `help` < `exec` < `lib` (`run`), `main` |
-| `intentd` | `config`, `builtin`, `record`, `sink`, `memory`, `grants`, `sheet`, `link`, `infer`, `system`, `serve` |
+| `intentd` | `config`, `builtin`, `record`, `sink`, `memory`, `grants`, `peer` < `sheet`, `link`, `infer`, `reviewers`, `system`, `bus` (`request`, `query`, `run`, `session`, `control`) < `serve`, `logout`, `manifests` < `daemon` (`main`) |
 | `companiond` | `completion`, `recover`, `planner`, `runtime`, `serve` |
 | `readerd` | `host`, `request`, `service`, `serve` |
 | `docket-ds` | `chips`, `things`, `summon`, `context`, `voice` |

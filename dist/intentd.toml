@@ -1,0 +1,60 @@
+# intentd's configuration as the package ships it: $XDG_CONFIG_HOME/quire/intentd.toml (or
+# /etc/xdg/quire/intentd.toml) replaces it whole. Which bus names play which role: the name is a
+# well-known name the connection owns, except `org.quire.Do`, which no process owns: any process
+# running `quire-do` is named by its executable and plays `cli`. sill owns org.quire.Shell (and
+# org.quire.Confirm1) and is the launcher, the only Confirm1 server intentd trusts, and the
+# control centre. No reviewer models are named here: until the person chooses a set, a call that
+# would be reviewed asks instead.
+[roles]
+launcher = ["org.quire.Shell"]
+cli = ["org.quire.Do"]
+companion = ["org.quire.Companion1"]
+reader = ["org.quire.Reader1"]
+cua = ["org.quire.Cua1"]
+mcp = ["org.quire.ActionsMcp"]
+confirm = ["org.quire.Shell"]
+control = ["org.quire.Shell"]
+
+[agent]
+strictness = "default"
+mass_at = 20
+confirm_expiry = 120
+task_policy_max = 3600
+undo_keep = 86400
+
+[agent.budget]
+calls = 200
+writes = 100
+outbound = 10
+destructive = 5
+per_minute = 30
+fan_out = 50
+chain = 4
+wall = 1800
+reviews = 300
+spend = 0
+
+[agent.breaker]
+consecutive = 3
+recent = 10
+window = 50
+probing = 3
+
+[agent.review]
+quick = 300
+deliberate = 3000
+second = 3000
+
+[agent.assembler]
+rules = 2500
+profile = 1200
+roster = 400
+episodes = 1200
+recall = 1500
+context = 1000
+task = 3000
+full_steps = 3
+
+[agent.idle]
+idle_after = 30
+side_close = 120

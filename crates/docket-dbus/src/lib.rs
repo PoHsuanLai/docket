@@ -16,6 +16,8 @@ mod control;
 mod error;
 mod gate;
 mod index;
+#[cfg(feature = "inferd")]
+mod inferd;
 mod introspect;
 mod message;
 mod names;
@@ -35,6 +37,8 @@ pub use control::{ControlProxy, ControlSkeleton};
 pub use error::IntentsError;
 pub use gate::{GateProxy, GateSkeleton};
 pub use index::{IndexProxy, IndexSkeleton};
+#[cfg(feature = "inferd")]
+pub use inferd::inferd_transport;
 pub use introspect::{Bus, introspection};
 pub use message::{MessageProxy, MessageSkeleton};
 pub use names::{

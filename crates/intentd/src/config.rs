@@ -7,6 +7,8 @@ use porter_core::AppName;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+const SHIPPED: &str = include_str!("../../../dist/intentd.toml");
+
 /// Why the file is not a configuration.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ConfigError {
@@ -41,6 +43,22 @@ impl IntentdConfig {
             set.check().map_err(|_| ConfigError::SameFamily)?;
         }
         Ok(config)
+    }
+
+    /// The configuration the package ships (`dist/intentd.toml`): the role names of the quire
+    /// desktop, no reviewer set, the proposed values. What a machine with no file of its own
+    /// runs with.
+    pub fn shipped() -> Result<Self, ConfigError> {
+        Self::parse(SHIPPED)
+    }
+
+    /// A configuration in which no name plays any role.
+    pub fn empty() -> Self {
+        Self {
+            roles: BTreeMap::new(),
+            reviewers: None,
+            agent: AgentConfig::default(),
+        }
     }
 
     /// The roles of a bus name: every role it is listed under; empty for a plain app.

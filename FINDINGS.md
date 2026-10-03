@@ -1,33 +1,29 @@
 # Findings
 
-Open items and standing facts. An entry names the condition that closes it. After fill wave 1
-and the docket amendment there are **36 `todo!()` bodies** in library and daemon code (35 lines:
-`MemoryProvider` and `CompanionProvider` share one macro line), listed below, one row per crate
-or file; the tests contain none, and no test is `#[ignore]`d. (The freeze had 37: `agent_step`
-was filled in fill wave 1.)
+Open items and standing facts. An entry names the condition that closes it. After fill wave 1,
+the docket amendment and the intentd bus fill (F3) there are **22 `todo!()` bodies** in library and
+daemon code (21 lines: `MemoryProvider` and `CompanionProvider` share one macro line), listed
+below, one row per crate or file; the tests contain none, and no test is `#[ignore]`d. (The freeze
+had 37: `agent_step` was filled in fill wave 1; F3 filled `DbusTransport::call`, `docket_client::serve`,
+`DbusLink`, `SheetConfirmer`, `FileGrants` and intentd's `serve` and `main`.)
 
 ## Stubs behind frozen interfaces
 
 | Where | Count | Closes when |
 | --- | --- | --- |
-| docket-client `DbusTransport::call`, `serve` | 2 | fill wave 1 (F1d) with docket-dbus's codec: one match from `IntentsRequest` to the member and its JSON arguments; `IntentsError` maps back; the Request object's `Response` carries the reply of Perform, Undo, Widen and Check; `serve` exports `IntentProviderSkeleton` over the app's seams |
 | actions-mcp `McpEdge::call` | 1 | fill wave 2: tool name to action, JSON arguments to `Args` by `ParamType` each labelled with `mcp_label`, `Intents::perform`, outcome or coarse refusal to a tool result |
 | intentd `record_of` | 1 | fill wave 2: `AuditRecord` to almanac `Record` (typed `Message` and `Episode` bodies, the rest `Area { Docket }` with the things each names for cascade-forget) |
-| intentd `DbusLink::{perform, dry_run, undo, context, search, preview, suggest}` | 7 | fill wave 2: `IntentProviderProxy` on the app's own name after checking its owner derives to the same `AppId`; the 250 ms, 5 s and progress-request latencies |
 | intentd `InferdModel::{chat, embed}`, `InferdWriter::derive`, `ReaderClient::extract` | 4 | fill wave 2, blocked on porter's `DbusTransport::open` and session fills: sessions through porter-client; `ReplyShape::Json` of the policy record from the person's turns and the catalogue alone; `Reader1.Extract` |
-| intentd `FileGrants::{grants, record}` | 2 | fill wave 2: a missing or malformed file is no grants and never a panic; atomic write |
-| intentd `SheetConfirmer::{confirm, cancel}` | 2 | fill wave 2: `Confirm1`; a vanished sill ends the confirmation as dismissed, never an allow |
 | intentd `MemoryProvider::perform`, `CompanionProvider::perform` | 2 | fill wave 2: `memory.recall/facts/propose/forget` through memoryd as `Caller::Router` (untrusted proposals land pending); `companion.task.start` opens a child session and records `task.started`, `companion.task.message` goes through message delivery |
-| intentd `serve` | 1 | fill wave 2: one handler per `Intents1` interface, identity and role derived from the connection, Request objects for Perform, Undo, Widen and Check |
 | companiond `PlannerModel::{request, plan}` | 2 | fill wave 2: the sections in the assembler's order into messages, `ToolDecl` per action card, a pinned session so the cached prefix is reused |
 | companiond `Companiond::{open, ask, arrived, roster, tick}` | 5 | fill wave 2: the entry points of the bus over `agent_step`, `side_step`, `idle_step`, `completion_effects` and `recover` |
 | companiond `serve` | 1 | fill wave 2: `Companion1` and `Companion1.Answer`; recover and open a fresh session for the front task on start |
 | readerd `reader_request`, `ReaderService::{extract, extract_in}`, `serve` | 4 | fill wave 2, with stoker's `Shape::to_json_schema`: the fenced data, no tools, the schema as the reply shape, `conforms` on the answer |
 | docket-ds `DsContextSource::snapshot` | 1 | fill wave 2 (quire apps): `ContextModel` to `Here`, `Selection`, `Visible` through `entity_ref`; a private window reports the app alone; password and PIN fields are never reported |
 | voiced `serve` | 1 | fill wave 2, after the PipeWire line (spike V-A): `Begin` from the shell role only, capture through `choose_capture`, unicast signals, an inferd session through porter-client |
-| daemons serve their bus | | the items above; every daemon binary is a skeleton that exits 2 |
+| companiond, readerd and voiced serve their bus | | the items above; those three binaries are skeletons that exit 2. intentd serves (F3): see "The bus path" below |
 
-Total: 2 + 1 + 1 + 7 + 4 + 2 + 2 + 2 + 1 + 2 + 5 + 1 + 4 + 1 + 1 = 36.
+Total: 1 + 1 + 4 + 2 + 2 + 5 + 1 + 4 + 1 + 1 = 22.
 
 ## Ignored tests
 
@@ -141,14 +137,12 @@ Built, with tests against `docket-fake` (the router in process) and a private bu
 
 Open, and the asks they make (nothing below was edited in the other repos):
 
-1. **`DbusTransport::call` is a `todo!()`** (fill wave 1, F1d), and so is intentd's `serve`. `quire-do` over the
-   real bus therefore finds intentd (`DbusTransport::connect` activates `org.quire.Intents1`) and then cannot
-   talk to it; the binary reports exit 6. The private-bus test shows the exit code where intentd is absent;
-   every other exit code is tested through the library over `InProcess`. `Run.DryRun`, `Control.TerminalGrants`
-   and `Control.RevokeTerminalGrant` are declared in `dbus/org.quire.Intents1.xml` and need codec arms.
-2. **intentd** (ask): derive the `AppId` of a `quire-do` process (a terminal process owns no bus name; the
-   fixture assumes `org.quire.Do`, listed under `cli` in `intentd.toml`), call `Router::end_terminal_sessions`
-   when the person's session ends, and serve the three new members.
+1. **Closed by F3 (interface-asks 84, 89, 95):** `DbusTransport::call` and intentd's `serve` and `main` are built,
+   so `quire-do` reaches a real intentd on a D-Bus session bus (see "The bus path" below).
+2. **Closed by F3:** intentd derives the caller from the connection (a `quire-do` process owns no bus name, so
+   it is named by its executable: `org.quire.Do`, role cli), calls `Router::end_terminal_sessions` when logind
+   removes the person's session, and serves `Run.DryRun`, `Control.TerminalGrants` and
+   `Control.RevokeTerminalGrant`.
 3. **sill** (ask): draw `ConfirmOffer::OnceOrFromTerminal` as a second button, "Allow from the terminal: this
    action, until logout", answering `ConfirmAnswer::AllowedFromTerminal`; list the grants in the control centre
    through `Control.TerminalGrants` with a revoke through `Control.RevokeTerminalGrant`.
@@ -165,16 +159,85 @@ Open, and the asks they make (nothing below was edited in the other repos):
    walks `MenuBarModel` and the table). Until then the check passes an app with a manifest and prints a note.
    Today `mailo`, `detent` and `sill` fail the check (a `.desktop` file, no manifest); `anyview` ships no
    `.desktop` file yet.
-6. **A paused terminal session has no way back.** The breaker pauses a session "until the person speaks", and
-   a terminal has no turn to record (`Session.Turn` is the launcher's and the fields'). Three refusals in a row
-   from a terminal end every `quire-do` call with exit 7. Ask: `Control.Resume` of a session by the control
-   centre, or the breaker's pause for the `cli` role clearing when the person next answers a terminal sheet.
+6. **A paused terminal session (ask 89), decided in F3: `Control.Resume` from the control centre.** The breaker
+   pauses a session "until the person speaks", and a terminal has no turn to record. `Control.Resume` (the
+   `control` role's alone) now also reopens every terminal session the breaker paused in the scope, with a fresh
+   breaker (`Router::resume_terminals`, tests in `docket-router/tests/terminal.rs` and the end-to-end test). The
+   alternative, a reset on the next `quire-do` after a cool-down, was rejected: it lets the very process the
+   breaker stopped go on by waiting, and each round costs the person a sheet. A paused terminal says "paused: too
+   many refusals in a row; the person has to resume it" (exit 7). Ask (sill): a "Resume the terminal" button
+   in the control centre that calls `Control.Resume`; until it exists the person's ways back are `systemctl
+   --user restart intentd` or logging out.
 7. **The terminal's session is in the `desktop` Space** (the implicit session of every role without a session
    of its own), so a terminal call's target counts as `Same` (ask 42 stands).
 8. **`--session`** is passed to `Run.Perform` and ignored by the router for every role but the companion.
 9. **`quire-do <app> context`** shows another party's words as handles (`#<n>`, held by the terminal's session
    and usable as an argument by a later command); `Session.Display` is not open to the `cli` role, so a person
    at a terminal cannot read a held title. Ask: say whether the terminal may display what it holds.
+
+## The bus path: `quire-do` to intentd to an app (F3)
+
+Built and tested on a private `dbus-daemon` (nothing of the real session is named):
+
+- **`DbusTransport::call`** (`docket-client/src/bus.rs`): one arm per `IntentsRequest` (all 32 members). Bodies
+  are the JSON of the typed value the `docket-dbus` proxy documents. A request intentd refuses before it is a
+  call (`NotAllowed`, `NoSuchSession`, `Malformed`) is the bus error `org.quire.Intents1.Error.<Variant>` and
+  comes back as `IntentsReply::Refused`; a refused *call* is an answer: the body of `Run.DryRun`, `Run.Preview`,
+  `Run.Suggest` and `Context.Current` is `Result<T, CallRefusal>`, and `Message.Send`'s is `Result<Delivery,
+  SendRefusal>`. Six members answer a Request object (`Run.Perform`, `Run.Undo`, `Run.UndoAll`,
+  `Session.Widen`, `Gate.Grant`, `Gate.Check`): the answer is the `org.quire.Intents1.Request.Response(code, body)`
+  signal at the returned path, sent to the caller alone; code 0 carries the typed answer, code 2 a `WireRefusal`.
+  The signal is subscribed to before the call (`docket_client::requested`), counts only from the owner of
+  intentd's name, and the wait ends `Closed` when intentd leaves the bus. `DbusTransport::connect` does not ask
+  the bus to activate a name that already has an owner.
+- **intentd's side** (`intentd/src/bus/`): one struct per interface with the signatures of `docket-dbus`'s
+  skeletons (a test holds the served introspection to `dbus/org.quire.Intents1.xml`; no member may carry a doc
+  comment, zbus copies it into the XML). `serve_on(connection, router, config)` exports them and claims the
+  name with `DoNotQueue` (a second intentd stops); `serve(router)` is the same on the session bus with the
+  shipped configuration. `tests/bus_members.rs` sends every member over the bus and in process and requires the
+  same reply.
+- **Identity** (`intentd/src/peer.rs`): from the bus's own credentials for the connection: the same user, the
+  well-known names it owns, and for a process that owns none, the executable behind its pid (`quire-do` is
+  `org.quire.Do`). Roles are `intentd.toml`'s (`dist/intentd.toml` is the shipped default; a file in
+  `$XDG_CONFIG_HOME/quire` replaces it whole). An unknown connection is `NotAllowed`. This is advisory on a
+  desktop where every process runs as the person: the cli role asks for everything but a read, and the
+  stronger binding (Flatpak, a systemd scope) is later.
+- **Apps** (`DbusLink`): `IntentProvider1` on the app's own name, started by activation when absent, the
+  owner checked to be the person's own process; latencies 250 ms (instant), 5 s (quick), 10 min (long, reports
+  progress itself); a timeout is `AppFault::TimedOut`. `docket_client::serve_on` / `serve` serve a provider and
+  answer only intentd (every member but `Summon`). The mail app of the tests is docket-fake's `FakeMail`
+  behind it.
+- **The sheet** (`SheetConfirmer`): `Confirm1` is asked only when its owner plays the `confirm` role; no sill, an
+  untrusted owner, a sill that vanishes or never answers is a dismissal or an expiry, never an allow. The
+  Request object sill returns must send `org.quire.Intents1.Request.Response(0, <ConfirmAnswer JSON>)`.
+- **Logout** (`intentd/src/logout.rs`): `SessionRemoved` of logind on the system bus ends the terminal sessions
+  (the session of `XDG_SESSION_ID`, any session when it is unknown); the unit is `PartOf=graphical-session.target`.
+  Tested against a fake logind on the private bus.
+- **Files:** `FileGrants` (atomic, a damaged file is no grants), the manifests of `$XDG_DATA_HOME` and
+  `$XDG_DATA_DIRS` (`quire/intents/*.toml`, the first directory wins), `dist/intentd.service`, `dist/intentd.toml`.
+- **`quire-do` end to end** (`docket-cli/tests/e2e.rs`): the real binary, intentd's `start`, a fake mail provider,
+  a fake sill `Confirm1`: a read exits 0, a write asks and the answer decides, "from the terminal" skips the next
+  ask until the control centre revokes it, a hidden action exits 3, three refusals pause it (exit 7) until
+  `Control.Resume`, `undo --last` reaches the app, and with intentd stopped every call exits 6.
+
+Not built yet, and what each blocks:
+
+1. **The audit queue is drained and dropped** (`record_of` and the memoryd link are `todo!()`): nothing a call
+   does is kept past the process. A person's log of what the terminal did does not exist yet.
+2. **intentd does not host `org.quire.Memory` and `org.quire.Companion`** (their providers' `perform` is
+   `todo!()`), so their manifests are not installed and `quire-do apps` does not list them.
+3. **The reviewer, the policy writer and the reader are built and not working** (`InferdModel`, `InferdWriter`,
+   `ReaderClient` are `todo!()`): a terminal never reaches them (it never goes to review and has no task
+   policy), but the companion's calls and `Session.Turn` will panic in the request's task until they are filled.
+4. **`AppFault` has no "unavailable"** (ask): `AppLink::perform` cannot say the app is not there, so
+   `DbusLink::perform` answers `AppRefusal::Failed("the app is not available")` (exit 5), where cli.md section 4
+   says 6. Ask: `AppFault::Unavailable`, which `call_step` turns into `CallRefusal::AppUnavailable`.
+5. **`serve`'s signature has no roles** (ask): `serve(router)` uses the shipped configuration; the daemon calls
+   `serve_on(connection, router, config)`. Ask: drop `serve` or give it the configuration.
+6. **sill** must serve `Confirm1` and draw `OnceOrFromTerminal` (ask 3), and `quire-do` over a login needs the
+   `Control.Resume` button (item 6 above).
+7. The signals `ManifestChanged`, `Hits`, `JournalChanged`, `BreakerTripped` and `Arrived` are declared and not
+   emitted; `Halted` and `Resumed` are. `Request.Proceed` answers `Malformed` (no computer-use lease yet).
 
 ## Upstream asks
 
@@ -287,12 +350,15 @@ marks and re-exports `Tally` (docket-ds no longer reaches `ds-core`), and quire'
 
 ## inferd link (ask 81)
 
+Closed by F3 (ask 95): the one constructor is `docket_dbus::inferd_transport` (feature `inferd`);
+intentd's `inferd_transport`, `PlannerModel::on_bus` and `ReaderService::on_bus` call it.
+
 `ConfirmReceipt` literals gained `covers` (`Confidentiality::Secret`: a confirmation here opens
 nothing; docket never calls `declassify`, so no caller handles its `Result`). intentd's
 `inferd_transport(connection)`, `InferdModel::on_bus`, `InferdWriter::on_bus`, companiond's
 `PlannerModel::on_bus` and readerd's `ReaderService::on_bus` build
 `AnyTransport::Dbus(DbusTransport::over(connection))` (porter-client with feature `dbus`); nothing is
 called until the first session, so an absent inferd is `Unreachable` at the first `open`. The
-daemons' `main`s are still skeletons (exit 2) and every `serve` body (and the models', planner's and
+companiond, readerd and voiced `main`s are still skeletons (exit 2) and every other `serve` body (and the models', planner's and
 reader's bodies) is `todo!()`: only the constructors are wired, and each is tested on a private bus
 (`tests/inferd_link.rs`). Whoever fills `serve` builds the connection first and passes it here.

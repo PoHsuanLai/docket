@@ -4,7 +4,7 @@
 
 use agent_loop::ModelOutput;
 use docket_core::PlannerView;
-use porter_client::{AnyTransport, DbusTransport, Transport};
+use porter_client::{AnyTransport, Transport};
 use porter_infer::ChatRequest;
 
 /// Why the planner gave nothing usable.
@@ -28,7 +28,7 @@ impl PlannerModel<AnyTransport> {
     /// Asks inferd over the session bus (`AnyTransport::Dbus`). Nothing is called here: inferd is
     /// found, and started by activation, at the first session.
     pub fn on_bus(connection: &docket_dbus::BusConnection) -> Self {
-        Self::new(AnyTransport::Dbus(DbusTransport::over(connection.clone())))
+        Self::new(docket_dbus::inferd_transport(connection))
     }
 }
 

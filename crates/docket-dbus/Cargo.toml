@@ -12,8 +12,13 @@ publish.workspace = true
 docket-core = { workspace = true }
 prov = { workspace = true }
 porter-dbus = { workspace = true }
+porter-client = { workspace = true, features = ["dbus"], optional = true }
 zbus = { workspace = true }
 thiserror = { workspace = true }
+
+[features]
+# `inferd_transport`: the one place a daemon makes its inferd link (intentd, companiond, readerd).
+inferd = ["dep:porter-client"]
 
 [lints]
 workspace = true

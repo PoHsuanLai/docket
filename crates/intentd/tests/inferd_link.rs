@@ -1,7 +1,7 @@
 //! intentd's inferd link is porter-client's D-Bus transport on the daemon's own connection. The
 //! bus here is a private one with no inferd on it, so the first `open` says inferd is away (the
-//! reviewer then asks the person) instead of the daemon failing to start. `serve` is still
-//! `todo!()`, so only the constructors are wired.
+//! reviewer then asks the person) instead of the daemon failing to start. The link is
+//! `docket_dbus::inferd_transport`, the one constructor intentd, companiond and readerd share.
 
 mod support;
 

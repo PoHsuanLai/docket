@@ -1,6 +1,23 @@
-//! intentd, a skeleton until the daemons are served: it exits with code 2.
+//! intentd: serves `org.quire.Intents1` on the session bus until the bus closes.
 
-fn main() {
-    eprintln!("intentd: not implemented");
-    std::process::exit(2);
+use std::process::ExitCode;
+
+fn main() -> ExitCode {
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(runtime) => runtime,
+        Err(why) => {
+            eprintln!("intentd: no runtime: {why}");
+            return ExitCode::FAILURE;
+        }
+    };
+    match runtime.block_on(intentd::run()) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(why) => {
+            eprintln!("intentd: {why}");
+            ExitCode::FAILURE
+        }
+    }
 }

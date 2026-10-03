@@ -20,13 +20,13 @@ pub trait Run {
         options: &Details,
     ) -> zbus::Result<OwnedObjectPath>;
 
-    /// What the app would change (`CallRequest` JSON, the session as in `Perform`; `Preview` JSON out), through the same checks and policy as `Perform` and without asking, charging or running anything. A call policy refuses is refused here the same way.
+    /// What the app would change (`CallRequest` JSON, the session as in `Perform`; `Result<Preview, CallRefusal>` JSON out), through the same checks and policy as `Perform` and without asking, charging or running anything. A call policy refuses is refused here the same way.
     fn dry_run(&self, call: &str, session: &str) -> zbus::Result<String>;
 
-    /// A preview (`EntityId` JSON in, `Preview` JSON out).
+    /// A preview (`EntityId` JSON in, `Result<Preview, CallRefusal>` JSON out).
     fn preview(&self, entity: &str) -> zbus::Result<String>;
 
-    /// Suggested things (`SuggestAsk` JSON in, `Vec<EntityRef>` JSON out).
+    /// Suggested things (`SuggestAsk` JSON in, `Result<Vec<EntityRef>, CallRefusal>` JSON out).
     fn suggest(&self, ask: &str) -> zbus::Result<String>;
 
     /// Undoes one journal row, as the person. Answers a Request.

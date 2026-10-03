@@ -12,6 +12,10 @@ publish.workspace = true
 docket-core = { workspace = true }
 docket-router = { workspace = true, optional = true }
 docket-dbus = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+zbus = { workspace = true, optional = true }
 prov = { workspace = true }
 thiserror = { workspace = true }
 
@@ -21,7 +25,7 @@ tokio = { workspace = true }
 
 [features]
 # The D-Bus transport (Linux, the desktop's intentd).
-dbus = ["dep:docket-dbus"]
+dbus = ["dep:docket-dbus", "dep:futures-util", "dep:serde", "dep:serde_json", "dep:zbus"]
 # `InProcess`: the router in the caller's own process. Off by default so a client (cuad, an app)
 # never links the router, and with it cedar and policy-point.
 in_process = ["dep:docket-router"]

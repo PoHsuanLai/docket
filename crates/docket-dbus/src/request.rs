@@ -1,4 +1,4 @@
-//! `org.quire.Intents1.Request`: one request in flight, as portals do. `Response` carries 0 (done), 1 (cancelled) or 2 (other) and the reply JSON.
+//! `org.quire.Intents1.Request`: one request in flight, as portals do. `Response` carries 0 (done), 1 (cancelled) or 2 (other) and the reply JSON. In `Intents1` the reply of code 0 is the typed answer of the member that started it (`Run.Perform`: `Result<Outcome, CallRefusal>`; `Run.Undo`: `Result<(), UndoFault>`; `Run.UndoAll`: `UndoReport`; `Session.Widen`: `WidenAnswer`; `Gate.Grant`: `GrantAnswer`; `Gate.Check`: `GateAnswer`) and that of code 2 a `WireRefusal`; `Confirm1.Confirm` answers a `ConfirmAnswer` under code 0. The signal goes to the caller alone.
 
 use zbus::fdo;
 use zbus::object_server::SignalEmitter;

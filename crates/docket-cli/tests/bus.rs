@@ -2,10 +2,9 @@
 //! in a scratch directory, a scratch HOME and runtime directory, and nothing from the
 //! environment. The person's real session bus is never named, so it is never reached.
 //!
-//! intentd's bus side is not built yet (`DbusTransport::call` and `intentd::serve` are
-//! `todo!()`), so what a private bus can show today is how the binary behaves where intentd is
-//! not: exit 6, nothing sent. Every other exit code is tested through the library against
-//! docket-fake (`exit_codes.rs`).
+//! Where intentd is not on the bus the binary exits 6 and sends nothing (this file). With an
+//! intentd on it, `e2e.rs` runs the same binary against intentd's real `start`; every exit code
+//! is also tested through the library against docket-fake (`exit_codes.rs`).
 
 use std::io::{BufRead, BufReader};
 use std::path::Path;

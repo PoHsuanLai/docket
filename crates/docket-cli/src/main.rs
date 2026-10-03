@@ -54,8 +54,8 @@ async fn report(words: Vec<String>) -> Report {
     }
 }
 
-/// What a run that panicked is reported as: `DbusTransport::call` is not built yet, and a
-/// terminal should read "unavailable", not a backtrace.
+/// What a run that panicked is reported as: a terminal should read "unavailable", not a
+/// backtrace.
 fn broken(why: &str) -> Report {
     Report {
         stdout: String::new(),
@@ -75,9 +75,9 @@ fn main() -> ExitCode {
         Err(_) => return ExitCode::from(Exit::Unavailable.code()),
     };
     let done = runtime.block_on(async {
-        tokio::spawn(report(words)).await.unwrap_or_else(|_| {
-            broken("the bus transport to intentd is not complete in this build")
-        })
+        tokio::spawn(report(words))
+            .await
+            .unwrap_or_else(|_| broken("quire-do stopped on an internal error"))
     });
     let _ = std::io::stdout().write_all(done.stdout.as_bytes());
     let _ = std::io::stderr().write_all(done.stderr.as_bytes());

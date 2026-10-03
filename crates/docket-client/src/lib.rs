@@ -4,13 +4,23 @@
 //! (`DbusTransport`, feature `dbus`) and a test or an embedding host (`InProcess`, feature
 //! `in_process`, which is the only way this crate reaches the router, cedar and policy-point).
 
+#[cfg(feature = "dbus")]
+mod awaiting;
+#[cfg(feature = "dbus")]
+mod bus;
 mod intents;
 mod provider;
+#[cfg(feature = "dbus")]
+mod provider_bus;
 mod serve;
 mod transport;
 
+#[cfg(feature = "dbus")]
+pub use awaiting::requested;
 pub use intents::{ClientError, Intents};
 pub use provider::{ContextSource, IntentProvider, SummonTarget};
+#[cfg(feature = "dbus")]
+pub use provider_bus::serve_on;
 pub use serve::serve;
 #[cfg(feature = "dbus")]
 pub use transport::DbusTransport;
