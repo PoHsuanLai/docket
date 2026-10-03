@@ -51,6 +51,51 @@ pub trait RecentSource: Send + Sync {
     ) -> impl Future<Output = Result<Vec<RecentEntry>, ReplayFault>> + Send;
 }
 
+/// `Recent` through the router: `Session.Recall` in a session of the Space to read. The router
+/// hands over a body only for an entry whose label is trusted (a message that carries what a worker
+/// read, or a narrated episode, comes without one and says nothing here), and the Space is the
+/// session's: a restart reads each Space it knows through a session of its own.
+#[derive(Debug)]
+pub struct RouterRecent<'a, I: docket_client::Transport> {
+    intents: &'a docket_client::Intents<I>,
+    session: prov::SessionId,
+}
+
+impl<'a, I: docket_client::Transport> RouterRecent<'a, I> {
+    /// Reads the Space of `session` through `intents`.
+    pub fn new(intents: &'a docket_client::Intents<I>, session: prov::SessionId) -> Self {
+        Self { intents, session }
+    }
+}
+
+impl<I: docket_client::Transport> RecentSource for RouterRecent<'_, I> {
+    async fn recent(&self, query: RecentQuery) -> Result<Vec<RecentEntry>, ReplayFault> {
+        let view = self
+            .intents
+            .session_recall(self.session.clone(), docket_core::RecallAsk::Recent(query))
+            .await
+            .map_err(|_| ReplayFault::Unavailable)?;
+        let docket_core::RecallView::Recent(lines) = view else {
+            return Err(ReplayFault::Unavailable);
+        };
+        Ok(lines
+            .into_iter()
+            .map(|line| RecentEntry {
+                text: match line.text {
+                    Some(docket_core::Reveal::Plain(text)) => {
+                        Some(almanac_core::UserText::new(text))
+                    }
+                    Some(docket_core::Reveal::Handle(_)) | None => None,
+                },
+                summary: line.summary,
+                effect: line.effect,
+                label: line.label,
+                body: line.body,
+            })
+            .collect())
+    }
+}
+
 /// The query a restart sends: every kind the rebuild reads, with bodies, since the retention
 /// window opened.
 pub fn restart_query(since: UnixSeconds) -> RecentQuery {

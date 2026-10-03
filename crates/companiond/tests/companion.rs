@@ -313,14 +313,6 @@ async fn an_unreadable_record_is_a_fault_not_a_guess() {
     );
 }
 
-#[test]
-fn the_binary_is_a_skeleton_that_exits_two() {
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_companiond"))
-        .output()
-        .expect("runs");
-    assert_eq!(output.status.code(), Some(2));
-}
-
 fn porter_count(n: u32) -> porter_core::Count {
     porter_core::Count(n)
 }

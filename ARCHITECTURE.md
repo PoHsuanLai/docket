@@ -18,21 +18,21 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 
 | Crate | Purpose | I/O |
 | --- | --- | --- |
-| `docket-core` | the vocabulary: ids, the manifest and `validate`, values and `conforms`, context and its handle-substituted view, previews, calls and every way they end, the undo journal, confirmation, budgets (`charge`, `halted`), the task policy, the planner and reader contract, the roster and episode lines, tasks and the episode skeleton, messages (the draft, the delivery), audit records, `AgentConfig` and the settings rows, the `Intents1` wire, caller roles, summon and voice intents | none |
+| `docket-core` | the vocabulary: ids, the manifest and `validate`, values and `conforms`, the JSON-to-`Args` reader both the companion and the MCP edge use (`args_from_json`), context and its handle-substituted view, previews, calls and every way they end, the undo journal, confirmation, budgets (`charge`, `halted`), the task policy, the planner and reader contract, the roster and episode lines, tasks and the episode skeleton, messages (the draft, the delivery), audit records, `AgentConfig` and the settings rows, the `Intents1` wire, caller roles, summon and voice intents | none |
 | `policy-point` | the Cedar schema and default policies (`policy/`), `PolicyRequest`, `Pdp::load` (strict validation) and `Pdp::decide` (stubbed) | cedar-policy only |
 | `action-review` | the stripped `ReviewRequest`, `ReviewVerdict`, the cascade (`plan`, `escalate`, `tighten`), `ReviewerSet`, the `Reviewer` trait, `InferReviewer` over porter-infer's `Model`, `verdict_shape`, the denial `Breaker` | none |
-| `docket-router` | the pure router: `permits` and `acting_role`, `gate`, `session_step`, the `HandleTable` and `planner_view`, `index_step`, the `UndoJournal`, the `Registry`, `assemble` and `inbound_line` for messages, tasks, `call_step`, `Router<S: Seams>` and its seams | none (seams are passed in) |
+| `docket-router` | the pure router: `permits` and `acting_role`, `gate`, `Watch` (what a requester may see and say while its request is in flight), the companion's notes, recall and policy narrowing, `session_step`, the `HandleTable` and `planner_view`, `index_step`, the `UndoJournal`, the `Registry`, `assemble` and `inbound_line` for messages, tasks, `call_step`, `Router<S: Seams>` and its seams | none (seams are passed in) |
 | `companion-wire` | the bodies of `org.quire.Companion1`: `AskWire`, `AnswerWire` and its cards, plans, forms and refusals, `FrontTask`, and the `SessionRecord`s companiond stores | none |
 | `agent-loop` | the companion's pure machines: `assemble`, `agent_step` (inputs include `Messaged`, a request landing in an idle task), `choose_tier`, `side_step`, `idle_step`, `completion_line`, `rebuild`, `front_step` | none |
-| `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`) and `Reader1` as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths; with feature `inferd`, `inferd_transport`, the one constructor of every daemon's inferd link | zbus |
-| `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`, `serve_on`: `IntentProvider1` on the app's own name, answering intentd alone) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus`, whose `connect` finds or activates intentd and whose `call` carries all 32 members; `requested` waits for a Request object's `Response`) | per transport |
+| `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`) and `Reader1` as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths, `session_connection` (the session bus of a daemon, from its environment); with feature `inferd`, `inferd_transport`, the one constructor of every daemon's inferd link | zbus |
+| `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`, `serve_on`: `IntentProvider1` on the app's own name, answering intentd alone) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus`, whose `connect` finds or activates intentd and whose `call` carries all 34 members, and `Transport::watch` / `Intents::gate_check_watched` (a gate check whose `Progress(Confirming)` is heard and whose `Proceed` and `Close` are said); `requested` waits for a Request object's `Response`) | per transport |
 | `docket-fake` | test only: fixture manifests, `FakeMail`, `FakeFiles`, `ScriptedConfirmer`, `ScriptedReviewer`, `ScriptedWriter`, `ScriptedReader`, `FakeMemory`, `FixedClock`, `RecordingSink`, `MemoryGrants`, `FakeSeams`, `fake_router` | none |
 | `docket-eval` | the red-team suite: the corpus format and loader (`eval/`), `Case` (`Driver`: the companion or a terminal), `Expect`, `RunReport`, `Metrics`, `wilson`, the runner skeleton and `Harness`; and the conformance check `docket-eval --check-app <dir>` (`check`, `ui`) | none |
 | `docket-cli` | `quire-do`: every app drivable from a command line generated from its manifest. A thin client over `docket-client` with caller role `cli`: the command grammar, the parameter mapping, `describe` through stoker's `Shape::to_json_schema`, the exit codes, text and JSON output, shell completion. It reaches the bus only through `docket-client`, and never the router, Cedar or the policy point | per transport (the binary: the session bus) |
-| `actions-mcp` | the MCP edge: `tools`, `tool_name`, `hints_of`, `mcp_label`, `McpAccess` (off by default), `read_call`, `McpFault`, `McpEdge` over `rmcp`, which serves `list_tools` and `call_tool`; the binary is a skeleton | rmcp |
+| `actions-mcp` | the MCP edge: `tools`, `tool_name`, `hints_of`, `mcp_label`, `McpAccess` (off by default), `read_call` (docket-core's `args_from_json`), `McpFault`, `McpEdge` over `rmcp`, which serves `list_tools` and `call_tool`; the binary is a skeleton | rmcp |
 | `intentd` | the daemon and its library: `IntentdConfig` (and the shipped `dist/intentd.toml`), the built-in `org.quire.Memory` and `org.quire.Companion` providers and `HostedLink` (which answers them in process), `AlmanacMemory`, `QueuedSink` (bounded), `record_of` and `AuditLog` (the audit trail into memoryd), `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `InferdWriter`, `ReaderClient`, `SystemSeams`, `Peers` (who is on a connection), `serve` / `serve_on` (one handler per `Intents1` interface), `signals` (`Marks`, `changes`, `pump`: the signals that say the router's state changed), `watch_logind` (the end of the person's session), `start` / `run` (the daemon) | everything |
-| `companiond` | the companion daemon: `Companiond` (one identity over many tasks: `TaskRuntime`, the working set `sources`, the loop's effects `drive`, messages `inbox`, episodes `finish`, the idle pass `idle`, restart `resume`), `PlannerModel` over a `Catalogue`, `Shared` (what the bus reads), `recover`, `completion_effects`, `serve` and `serve_on`; the binary is a skeleton | everything |
-| `readerd` | the quarantined reader, a separate process: `ReaderHost` (the one place the reader key is made), `reader_request`, `ReaderService`, `serve` | everything |
+| `companiond` | the companion daemon: `Companiond` (one identity over many tasks: `TaskRuntime`, the working set `sources`, the loop's effects `drive`, messages `inbox`, episodes `finish`, the idle pass `idle`, restart `resume`), `PlannerModel` over a `Catalogue`, `Shared` (what the bus reads), `recover` (and `RouterRecent`, its `RecentSource` over the router), `completion_effects`, `CompaniondConfig`, `start` / `run` (the daemon), `serve` and `serve_on` | everything |
+| `readerd` | the quarantined reader, a separate process: `ReaderHost` (the one place the reader key is made), `reader_request`, `ReaderService`, `serve`, `start` / `run` (the daemon) | everything |
 | `docket-ds` | the adapter quire apps use: chips and keep, things and labels, summon answers, `DsContextSource`, `DsSummonTarget`, the voice bridge | none |
 | `voice-wire` | the bodies of `org.quire.Voice1`: `VoiceBegin`, `VoiceEvent`, `UtteranceEnd`, `VoiceStatus`, `VoiceRefusal` and its 1:1 error names, `SpeakWire` | none |
 | `voice-loop` | the voice machines: `utterance_step` (the microphone is open exactly in Opening, Listening and Tail), `speech_step` (barge-in), `sentences`, `PcmBuffer` | none |
@@ -79,20 +79,20 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 
 | Crate | Modules |
 | --- | --- |
-| `docket-core` | `units`, `ids` < `value`, `manifest` < `validate`, `schema` < `context`, `preview` < `call`, `undo`, `grant`, `confirm`, `review`, `budget` < `task_policy`, `reader`, `planner`, `roster` < `message`, `task`, `audit`, `gate`, `index`, `summon` < `config`, `caller`, `wire`, `when` |
+| `docket-core` | `units`, `ids` < `value`, `args`, `manifest` < `validate`, `schema` < `context`, `preview` < `call`, `undo`, `grant`, `confirm`, `review`, `budget` < `task_policy`, `reader`, `planner`, `roster` < `message`, `task`, `audit`, `gate`, `index`, `summon` < `config`, `caller`, `wire`, `when` |
 | `policy-point` | `request` < `pdp` |
 | `action-review` | `verdict` < `request`, `breaker` < `cascade`, `infer` |
-| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who`, `companion` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck` < `router` |
+| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who`, `companion` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck`, `watch`, `notes`, `recall` < `router` |
 | `companion-wire` | `ask`, `answer` < `record` |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `step` |
 | `docket-dbus` | `names`, `error`, one file per interface, `introspect` |
-| `docket-client` | `provider`, `transport` < `awaiting` < `bus` < `intents`, `provider_bus` < `serve` |
+| `docket-client` | `provider`, `transport` < `watch` < `awaiting`, `watch_bus`, `watch_in_process` < `bus` < `intents`, `session_calls`, `provider_bus` < `serve` |
 | `docket-fake` | `labels`, `simple`, `mail`, `files`, `scripted`, `seams`, `router` |
 | `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `check` < `ui` (the binary `docket-eval` runs `check`) |
 | `docket-cli` | `exit`, `args` < `resolve`, `when` < `params`, `schema`, `outcome` < `render`, `complete`, `help` < `exec` < `lib` (`run`), `main` |
 | `intentd` | `config`, `builtin_memory`, `builtin_companion` < `builtin`, `record` < `sink` < `audit`, `memory`, `grants`, `peer` < `sheet`, `link`, `infer`, `writer`, `reader_client`, `reviewers`, `system`, `bus` (`request`, `query`, `run`, `session`, `control`) < `serve`, `logout`, `manifests` < `signals` < `daemon` (`main`) |
-| `companiond` | `clock`, `fault`, `shared`, `catalogue` < `args`, `render` < `planner`, `task` < `runtime`, `completion`, `recover`, `sources`, `drive`, `inbox`, `finish`, `idle`, `resume`, `serve` |
-| `readerd` | `host`, `request`, `answer` < `service` < `serve` |
+| `companiond` | `clock`, `fault`, `shared`, `catalogue` < `args`, `render` < `planner`, `task` < `runtime`, `completion`, `recover`, `sources`, `drive`, `inbox`, `finish`, `idle`, `records`, `resume`, `serve`, `config` < `daemon` |
+| `readerd` | `host`, `request`, `answer` < `service` < `serve` < `daemon` (`main`) |
 | `docket-ds` | `chips`, `things`, `summon`, `context`, `voice` |
 | `voice-wire` | `text`, `begin`, `event`, `status`, `refusal` |
 | `voice-loop` | `buffer`, `sentencer`, `utterance`, `speech`, `coordinate` |
@@ -135,10 +135,10 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `Confirmer` | `docket-core` | `SheetConfirmer`, `ScriptedConfirmer` |
 | `Reviewer` | `action-review` | `InferReviewer`, `ScriptedReviewer` |
 | `PolicyWriter` | `docket-core` | `InferdWriter`, `ScriptedWriter` |
-| `Reader` | `docket-core` | `ReaderService` (readerd), `ReaderClient` (intentd's end of `Reader1`), `ScriptedReader` |
+| `Reader` | `docket-core` | `ReaderService` (readerd), `ReaderClient` (intentd's end of `Reader1`: it names the session, readerd resolves the handles through it), `ScriptedReader` |
 | `IntentProvider`, `ContextSource`, `SummonTarget` | `docket-client` | apps; `DsContextSource`, `DsSummonTarget`; the built-in providers; `FakeMail`, `FakeFiles` |
 | `Transport` | `docket-client` | `InProcess`, `DbusTransport` |
-| `RecentSource` | `companiond` | memory's `Recent` with bodies (`BodyMode::Json`); intentd's router forwards it through `Session.Recall` |
+| `RecentSource` | `companiond` | `RouterRecent` (`Session.Recall` through intentd's router: a body only for a trusted entry), a fake |
 | `PromptHost`, `DictationBridge`, `WindowFacts` | `docket-ds` | quire apps |
 | `AudioDevice` | `voiced` | the PipeWire device (stubbed), `FakeAudioDevice` |
 
@@ -213,7 +213,7 @@ every type `Serialize + Eq`, a table test, and the effects carried out by a daem
 - Behaviour is `todo!()` behind frozen signatures, each listed in `FINDINGS.md`; shape tests
   (round trips, pinned JSON, introspection, tables) pass.
 - Tests never touch the real system: no real bus, no real apps, no GPU, no real engine, no network.
-  The daemons' binaries are skeletons that exit with code 2.
+  `voiced`'s binary is a skeleton that exits with code 2 (its `serve` is a stub); intentd, companiond and readerd serve, and each has a binary test on a private bus.
 - The gate, with every exit code checked (`scripts/gate.sh` runs exactly this):
 
   ```bash

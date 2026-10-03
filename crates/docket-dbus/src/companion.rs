@@ -18,11 +18,14 @@ pub trait Companion {
     /// Opens a session for a front conversation (`SessionOpen` JSON; answers `SessionOpened` JSON).
     fn open(&self, open: &str) -> zbus::Result<String>;
 
-    /// Asks (`AskWire` JSON: a session and a turn the UI already recorded). Answers the answer object.
+    /// Asks (`AskWire` JSON: a session, the turn the UI recorded with its context keep, the window and the app the person asked from). Answers the answer object.
     fn ask(&self, ask: &str, options: &Details) -> zbus::Result<OwnedObjectPath>;
 
     /// Closes a session.
     fn close(&self, session: &str) -> zbus::Result<()>;
+
+    /// The person said something to a subagent through the shell (`AgentRef` JSON, `SpaceId`, `UserTurn` JSON): the companion keeps their words and shows the roster line at once.
+    fn told(&self, agent: &str, space: &str, turn: &str) -> zbus::Result<()>;
 
     /// The roster (`Roster` JSON): who is working, one line each; another Space shows presence only.
     fn roster(&self) -> zbus::Result<String>;
@@ -66,6 +69,11 @@ impl CompanionSkeleton {
 
     fn close(&self, session: String) -> fdo::Result<()> {
         let _ = (session,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn told(&self, agent: String, space: String, turn: String) -> fdo::Result<()> {
+        let _ = (agent, space, turn);
         Err(crate::introspect::frozen())
     }
 

@@ -38,6 +38,7 @@ fn catalogue() -> Vec<ActionCard> {
             },
             label: a.label.clone(),
             effect: a.effect,
+            on: a.on.clone(),
             tool: tool_schema(a),
             reach: a.reach,
             lasting: a.lasting,

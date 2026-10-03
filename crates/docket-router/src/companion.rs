@@ -21,6 +21,7 @@ use prov::{
     Actor, Address, AgentRef, EntityId, Labelled, MessageKind, MessageText, SessionId, Source,
     TaskId,
 };
+use std::collections::BTreeMap;
 
 /// The name the built-in provider answers to.
 pub const COMPANION_APP: &str = "org.quire.Companion";
@@ -68,6 +69,10 @@ fn spawner(inv: &Invocation) -> Result<&SessionId, AppRefusal> {
         Actor::Companion { session, .. } => Ok(session),
         _ => Err(AppRefusal::Unsupported),
     }
+}
+
+fn param(name: &str) -> ParamName {
+    ParamName::parse(name).expect("a fixed parameter name is valid")
 }
 
 fn said(text: &str) -> Option<LabelText> {
@@ -119,7 +124,11 @@ impl<S: Seams> Router<S> {
                 parent: Some(parent.clone()),
             },
         );
-        let IntentsReply::SessionOpened(SessionOpened { task, .. }) = opened else {
+        let IntentsReply::SessionOpened(SessionOpened {
+            task,
+            session: worker_session,
+        }) = opened
+        else {
             return Err(failed("the task could not be opened"));
         };
         let goal = {
@@ -166,9 +175,17 @@ impl<S: Seams> Router<S> {
             space: inv.space.clone(),
             by_call: inv.call,
         });
+        // The spawner is given the task and the session it runs in: acting as the child needs it.
+        let answer = BTreeMap::from([
+            (param("task"), Value::Text(task.as_str().to_owned())),
+            (
+                param("session"),
+                Value::Text(worker_session.as_str().to_owned()),
+            ),
+        ]);
         Ok(Outcome {
             value: Some(Labelled {
-                value: Value::Text(task.as_str().to_owned()),
+                value: Value::Record(answer),
                 label: app_label(&name()),
             }),
             said: said("Started a task"),

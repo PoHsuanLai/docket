@@ -90,6 +90,7 @@ pub fn inbound_line(
     InboundLine {
         id: message.id.clone(),
         thread: message.thread.clone(),
+        to: message.to.clone(),
         from: message.from.clone(),
         crossing: message.crossing(),
         kind: message.kind,

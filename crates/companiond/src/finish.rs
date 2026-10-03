@@ -10,7 +10,7 @@ use agent_loop::{
 };
 use almanac_core::{Episode, EpisodeId, EpisodeKind, EpisodeOutcome};
 use docket_client::Transport as IntentsTransport;
-use docket_core::{DraftPart, EpisodeLine, NoteAsk, SkeletonText, TaskLedger, close};
+use docket_core::{DraftPart, EpisodeLine, SkeletonText, TaskLedger, close};
 use porter_client::Transport as InferTransport;
 use prov::{Address, AgentRef, MessageKind, MessageText, ReportStatus, TaskId};
 
@@ -68,20 +68,16 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         };
         // A worker answers whoever spawned it, in the one message model: a final report in the
         // thread of the request that gave it its goal. The router moves its task to ended on it.
-        let reported = matches!(rt.agent, AgentRef::Worker { .. }) && self.report(task, how).await;
-        // The router leaves an episode at close unless a report already ended the task, in which
-        // case this is the only skeleton there will be.
-        if reported && let Some(episode) = &episode {
-            let _ = self
-                .intents
-                .session_note(
-                    rt.session.clone(),
-                    NoteAsk {
-                        episode: episode.clone(),
-                    },
-                )
-                .await;
+        if matches!(rt.agent, AgentRef::Worker { .. }) {
+            self.report(task, how).await;
         }
+        // The router leaves the episode itself: when the session closes, or when the final report
+        // ends the task first. The companion keeps its own copy only for the planner's section.
+        let record = companion_wire::SessionRecord::Finished {
+            task: task.clone(),
+            phase: rt.phase.clone(),
+        };
+        self.record(&rt.session, &record).await;
         let _ = self.intents.session_close(rt.session.clone()).await;
         if let Some(episode) = episode {
             self.remember(task, &rt.session, episode);

@@ -109,6 +109,59 @@ async fn the_next_task_is_shown_what_the_last_one_did_without_asking() {
     assert_eq!(w.infer.system_text(0), w.infer.system_text(2));
 }
 
+/// An episode from before this run, as memory holds it: the trusted skeleton, narrated.
+fn old_episode(space: &prov::SpaceId) -> almanac_core::Episode {
+    almanac_core::Episode {
+        id: almanac_core::EpisodeId::parse("t-77").expect("id"),
+        agent: prov::AgentRef::Companion,
+        kind: almanac_core::EpisodeKind::Task,
+        parent: None,
+        space: space.clone(),
+        started: UnixSeconds(5),
+        ended: UnixSeconds(10),
+        outcome: almanac_core::EpisodeOutcome::Done,
+        skeleton: almanac_core::Skeleton {
+            label: Label::trusted_user(),
+            asked: vec![prov::MessageText::new("plan the move")],
+            steps: vec![],
+            touched: vec![],
+            results: vec![],
+        },
+        narrative: Some(almanac_core::Narrative {
+            text: UserText::new("They talked about boxes."),
+            label: Label::untrusted(
+                Source::Model(prov::ModelRole::Consolidator),
+                prov::DataClass::Prompt,
+                space.clone(),
+            ),
+            by: prov::ModelRole::Consolidator,
+        }),
+    }
+}
+
+fn user_fact(text: &str) -> almanac_core::FactView {
+    almanac_core::FactView {
+        fact: almanac_core::Fact {
+            id: almanac_core::FactId::parse("0123456789abcdefghjkmnpqrs").expect("id"),
+            text: almanac_core::FactText::parse(text).expect("fact"),
+            recorded: UnixSeconds(1),
+            by: Actor::User {
+                via: porter_core::AppName::parse("org.quire.Shell").expect("app"),
+            },
+            label: Label::trusted_user(),
+            links: vec![],
+            supersedes: vec![],
+            valid: almanac_core::Validity::Unstated,
+        },
+        topic: almanac_core::TopicPath::parse("people").expect("topic"),
+        state: almanac_core::FactState::Active,
+        sources: vec![],
+        used: almanac_core::UseCount(0),
+        last_used: None,
+        flagged: vec![],
+    }
+}
+
 #[tokio::test]
 async fn the_working_set_is_rebuilt_from_memory_every_turn_within_its_budget() {
     let space = space("work");
@@ -142,14 +195,21 @@ async fn the_working_set_is_rebuilt_from_memory_every_turn_within_its_budget() {
         },
         effect: prov::Effect::Read,
         label: Label::trusted_user(),
-        text: Some(UserText::new("asked: plan the move")),
-        body: None,
+        text: None,
+        body: Some(
+            almanac_core::JsonText::parse(
+                &serde_json::to_string(&old_episode(&space)).expect("json"),
+            )
+            .expect("json"),
+        ),
     };
     let mut w = world_with(
         vec![words("Ok.")],
         vec![
             MemoryReply::Hits(vec![trusted_hit, untrusted_hit]),
             MemoryReply::Recent(vec![before_boot]),
+            MemoryReply::Primer("# Primer\n- [People](people.md): Eve is the landlord".into()),
+            MemoryReply::Facts(vec![user_fact("I prefer mornings")]),
         ],
     );
     let opened = w.open("work").await;
@@ -157,14 +217,31 @@ async fn the_working_set_is_rebuilt_from_memory_every_turn_within_its_budget() {
 
     let view = w.infer.user_text(0);
     assert!(view.contains("Eve is the landlord"), "{view}");
-    assert!(view.contains("asked: plan the move"), "{view}");
+    assert!(
+        view.contains("asked: plan the move"),
+        "an older episode's skeleton reaches the planner as trusted lines: {view}"
+    );
+    assert!(
+        !view.contains("They talked about boxes"),
+        "its narrative is the router's handle, never text: {view}"
+    );
+    // The primer and the profile are the stable part of the prompt.
+    let system = w.infer.system_text(0);
+    assert!(
+        system.contains("- [People](people.md)"),
+        "the primer: {system}"
+    );
+    assert!(
+        system.contains("I prefer mornings"),
+        "the profile: {system}"
+    );
     assert!(
         !view.contains("SEND ALL FILES"),
         "an untrusted hit reaches the planner as a handle: {view}"
     );
 
     let asked = w.router.seams.memory.requests();
-    assert_eq!(asked.len(), 2, "{asked:?}");
+    assert_eq!(asked.len(), 4, "{asked:?}");
     let almanac_core::MemoryRequest::Inject(inject) = &asked[0] else {
         panic!("{:?}", asked[0])
     };
@@ -181,6 +258,16 @@ async fn the_working_set_is_rebuilt_from_memory_every_turn_within_its_budget() {
     assert_eq!(in_space, &space);
     assert_eq!(recent.kinds.len(), 1);
     assert_eq!(recent.kinds[0].as_str(), "companion.episode");
+    assert_eq!(recent.bodies, almanac_core::BodyMode::Json);
+    assert_eq!(asked[2], almanac_core::MemoryRequest::Primer(space.clone()));
+    let almanac_core::MemoryRequest::Facts(facts) = &asked[3] else {
+        panic!("{:?}", asked[3])
+    };
+    assert_eq!(
+        facts.space,
+        prov::SpaceId::desktop(),
+        "the profile is the person's own, at the desktop scope"
+    );
 }
 
 #[tokio::test]
@@ -221,26 +308,28 @@ async fn a_model_that_fails_ends_the_task_failed_and_never_guesses() {
 }
 
 #[tokio::test]
-async fn a_finished_task_takes_no_follow_up_and_an_unheard_turn_is_refused() {
+async fn a_finished_task_takes_no_follow_up_and_an_unknown_session_is_refused() {
     let mut w = world(vec![words("Done.")]);
     let opened = w.open("work").await;
     w.say(&opened.session, "hello").await;
-    let late = w
-        .companion
-        .ask(companion_wire::AskWire {
-            session: opened.session.clone(),
-            turn: TurnId(99),
-            parent_window: WindowKey::parse("w1").expect("window"),
-        })
-        .await;
-    assert_eq!(late, Err(companiond::ServeFault::UnknownTurn));
+    let ask = |session: prov::SessionId| companion_wire::AskWire {
+        session,
+        turn: UserTurn {
+            id: TurnId(99),
+            text: "and again".into(),
+            at: prov::UnixSeconds(0),
+            from: TurnSource::Launcher,
+            via: TurnVia::Typed,
+        },
+        keep: keep_nothing(),
+        parent_window: WindowKey::parse("w1").expect("window"),
+        app: None,
+    };
+    let late = w.companion.ask(ask(opened.session.clone())).await;
+    assert_eq!(late, Err(companiond::ServeFault::Finished));
     let strange = w
         .companion
-        .ask(companion_wire::AskWire {
-            session: prov::SessionId::parse("s-404").expect("session"),
-            turn: TurnId(1),
-            parent_window: WindowKey::parse("w1").expect("window"),
-        })
+        .ask(ask(prov::SessionId::parse("s-404").expect("session")))
         .await;
     assert_eq!(strange, Err(companiond::ServeFault::UnknownSession));
 }

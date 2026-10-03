@@ -111,7 +111,15 @@
    </method>
    <method name="Note">
      <arg name="session" type="s" direction="in"/>
-     <arg name="episode" type="s" direction="in"/>
+     <arg name="note" type="s" direction="in"/>
+   </method>
+   <method name="Narrow">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="turn" type="s" direction="in"/>
+   </method>
+   <method name="Handles">
+     <arg name="session" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
    </method>
    <method name="Recall">
      <arg name="session" type="s" direction="in"/>

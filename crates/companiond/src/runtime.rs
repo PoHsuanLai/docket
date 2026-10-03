@@ -10,11 +10,11 @@ use crate::shared::Shared;
 use crate::task::{TaskRuntime, roster_state};
 use agent_loop::{FrontEvent, IdleState, LoopInput, LoopPhase, LoopState, SideTable, front_step};
 use almanac_core::{Episode, EpisodeId};
-use companion_wire::{AnswerPhase, AskWire, FrontTask};
+use companion_wire::{AnswerPhase, AskWire, FrontTask, SessionRecord};
 use docket_client::{Intents, Transport as IntentsTransport};
 use docket_core::{
-    AgentConfig, ContextKeep, EpisodeLine, LeadText, Reveal, Roster, RosterDetail, RosterFull,
-    RosterLine, SessionOpen, SessionOpened, TurnId, UserTurn,
+    AgentConfig, EpisodeLine, LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine,
+    SessionOpen, SessionOpened,
 };
 use porter_client::Transport as InferTransport;
 use porter_core::AppName;
@@ -25,15 +25,6 @@ use std::sync::Arc;
 /// How many finished tasks the roster and the recent-episodes section remember.
 pub(crate) const REMEMBERED: usize = 8;
 
-/// What the person said, as the UI's recorded turn gave it to the companion.
-#[derive(Debug, Clone)]
-pub struct Heard {
-    /// The turn, verbatim.
-    pub turn: UserTurn,
-    /// The chips of context the person kept with it.
-    pub keep: ContextKeep,
-}
-
 /// An ask that has begun: the task, the input its loop starts with, and its answer's path.
 #[derive(Debug, Clone)]
 pub struct Begun {
@@ -43,6 +34,10 @@ pub struct Begun {
     pub first: LoopInput,
     /// The object path of its answer.
     pub path: String,
+    /// What the person said, for the record of the session.
+    pub asked: SessionRecord,
+    /// The session.
+    pub session: SessionId,
 }
 
 /// A finished task waiting for its narrative.
@@ -75,11 +70,8 @@ pub struct Companiond<P: InferTransport, I: IntentsTransport> {
     pub shared: Arc<Shared>,
     /// What each task keeps while it runs.
     pub runtimes: BTreeMap<TaskId, TaskRuntime>,
-    /// The app the companion was summoned from, for the context section.
-    pub summoned: Option<AppName>,
     /// The shell itself: where the person is when they summoned the companion from the launcher.
     pub shell: AppName,
-    pub(crate) heard: BTreeMap<(SessionId, TurnId), Heard>,
     pub(crate) episodes: Vec<EpisodeLine>,
     pub(crate) narration: BTreeMap<EpisodeId, Narration>,
     pub(crate) known: BTreeMap<AgentRef, RosterLine>,
@@ -87,7 +79,6 @@ pub struct Companiond<P: InferTransport, I: IntentsTransport> {
     pub(crate) triggers: VecDeque<(TaskId, LoopInput)>,
     pub(crate) unplaced: VecDeque<docket_core::InboundLine>,
     pub(crate) running: BTreeSet<TaskId>,
-    pub(crate) spawned: u64,
     pub(crate) booted: UnixSeconds,
 }
 
@@ -121,9 +112,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             clock,
             shared: Arc::new(Shared::default()),
             runtimes: BTreeMap::new(),
-            summoned: None,
             shell,
-            heard: BTreeMap::new(),
             episodes: Vec::new(),
             narration: BTreeMap::new(),
             known: BTreeMap::new(),
@@ -131,7 +120,6 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             triggers: VecDeque::new(),
             unplaced: VecDeque::new(),
             running: BTreeSet::new(),
-            spawned: 0,
             booted: now,
         }
     }
@@ -154,6 +142,16 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             .await
             .map_err(ServeFault::Router)?;
         self.adopt(&opened, &open);
+        self.record(
+            &opened.session,
+            &SessionRecord::Opened {
+                task: opened.task.clone(),
+                space: open.space.clone(),
+                agent: open.agent.clone(),
+                parent: open.parent.clone(),
+            },
+        )
+        .await;
         if open.agent == AgentRef::Companion {
             // Messages that came while no task of the companion could take them wait for it.
             if let Some(rt) = self.runtimes.get_mut(&opened.task) {
@@ -187,6 +185,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             .tasks
             .get(&task)
             .is_some_and(|s| !matches!(s.phase, LoopPhase::Finished(_)));
+        self.record(&session, &SessionRecord::Closed).await;
         if live {
             self.run(&task, LoopInput::Cancelled).await?;
         } else {
@@ -211,22 +210,11 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             .map(|(task, _)| task.clone())
     }
 
-    /// The person's words, as the UI recorded them through `Session.Turn`: the companion asks
-    /// the router for no turn text (the router would have to give it), so whatever is on the
-    /// other end of `Companion1.Ask` hands the turn over first.
-    pub fn heard(&mut self, session: SessionId, turn: UserTurn, keep: ContextKeep) {
-        self.heard.insert((session, turn.id), Heard { turn, keep });
-    }
-
-    /// The app the person summoned the companion from, for the context section of what follows.
-    pub fn summoned_from(&mut self, app: Option<AppName>) {
-        self.summoned = app;
-    }
-
     /// `Companion1.Ask`: starts the loop for a turn the UI already recorded and answers the
     /// object path of its answer, once the task has run as far as it can alone.
     pub async fn ask(&mut self, ask: AskWire) -> Result<String, ServeFault> {
         let begun = self.begin_ask(ask)?;
+        self.record(&begun.session, &begun.asked).await;
         self.run_interactive(&begun.task, begun.first).await?;
         Ok(begun.path)
     }
@@ -237,10 +225,6 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         let task = self
             .task_of(&ask.session)
             .ok_or(ServeFault::UnknownSession)?;
-        let heard = self
-            .heard
-            .remove(&(ask.session.clone(), ask.turn))
-            .ok_or(ServeFault::UnknownTurn)?;
         let phase = self.tasks.get(&task).map(|s| s.phase);
         if matches!(phase, Some(LoopPhase::Finished(_))) {
             return Err(ServeFault::Finished);
@@ -248,25 +232,36 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         let Some(rt) = self.runtimes.get_mut(&task) else {
             return Err(ServeFault::UnknownSession);
         };
-        rt.turns.push(heard.turn.clone());
-        rt.keep = heard.keep;
+        let turn = ask.turn;
+        let asked = SessionRecord::Asked {
+            turn: turn.clone(),
+            to: rt.agent.clone(),
+            task: task.clone(),
+        };
+        let session = rt.session.clone();
+        rt.turns.push(turn.clone());
+        rt.keep = ask.keep;
         rt.window = Some(ask.parent_window);
         rt.phase = AnswerPhase::Thinking;
         let first = match phase {
             Some(LoopPhase::Paused(_)) => LoopInput::Resumed,
-            _ => LoopInput::Asked(heard.turn.id),
+            _ => LoopInput::Asked(turn.id),
         };
+        rt.summoned = ask.app;
         self.front = front_step(self.front.take(), &FrontEvent::Asked(task.clone()));
         self.publish_answer(&task);
         Ok(Begun {
             path: docket_dbus::answer_path(&task),
             task,
             first,
+            asked,
+            session,
         })
     }
 
     /// Runs what `begin_ask` began.
     pub async fn run_begun(&mut self, begun: Begun) -> Result<(), ServeFault> {
+        self.record(&begun.session, &begun.asked).await;
         self.run_interactive(&begun.task, begun.first).await
     }
 

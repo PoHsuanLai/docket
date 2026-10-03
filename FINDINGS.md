@@ -2,13 +2,15 @@
 
 Open items and standing facts. An entry names the condition that closes it. After fill wave 1,
 the docket amendment, the intentd bus fill (F3), the w4-companion fill (the persistent companion,
-the MCP edge) and the w4-docket fill (the audit trail, the built-in providers, the inferd bodies, the
-signals) there are **2 `todo!()` bodies** in library and daemon code, listed below; the tests contain
+the MCP edge), the w4-docket fill (the audit trail, the built-in providers, the inferd bodies, the
+signals) and the w5-docket fill (the reader's session, the gate's watch, the companion's asks, the
+daemons' binaries) there are **2 `todo!()` bodies** in library and daemon code, listed below; the tests contain
 none, and no test is `#[ignore]`d. (The freeze had 37: `agent_step` was filled in fill wave 1; F3 filled
 `DbusTransport::call`, `docket_client::serve`, `DbusLink`, `SheetConfirmer`, `FileGrants` and intentd's
 `serve` and `main`; w4-companion filled companiond and `McpEdge::call`; w4-docket filled `record_of`,
 `InferdModel::{chat, embed}`, `InferdWriter::derive`, `ReaderClient::extract`, both providers' `perform`,
-`reader_request`, `ReaderService::{extract, extract_in}` and readerd's `serve`.)
+`reader_request`, `ReaderService::{extract, extract_in}` and readerd's `serve`. w5-docket filled no stub: it
+changed signatures the asks named and filled the two daemons' `main`.)
 
 ## Stubs behind frozen interfaces
 
@@ -16,7 +18,7 @@ none, and no test is `#[ignore]`d. (The freeze had 37: `agent_step` was filled i
 | --- | --- | --- |
 | docket-ds `DsContextSource::snapshot` | 1 | fill wave 2 (quire apps): `ContextModel` to `Here`, `Selection`, `Visible` through `entity_ref`; a private window reports the app alone; password and PIN fields are never reported |
 | voiced `serve` | 1 | fill wave 2, after the PipeWire line (spike V-A): `Begin` from the shell role only, capture through `choose_capture`, unicast signals, an inferd session through porter-client |
-| companiond, readerd and voiced binaries | | skeletons that exit 2: companiond's library serves `Companion1` (`serve_on`) and readerd's `serve` is filled; their `main`s wait for the daemon wiring. intentd serves (F3) |
+| voiced binary | | a skeleton that exits 2 while `serve` is a stub. intentd, companiond and readerd serve |
 
 Total: 1 + 1 = 2.
 
@@ -271,15 +273,11 @@ Built in the w4-docket fill (each with tests on a private bus, a scripted inferd
 
 Not built yet, and what each blocks:
 
-1. **`Reader::extract` carries no session** (ask): `Reader1.Extract(session, ask)` needs the session the handles
-   are held in, and the seam `Reader::extract(ask, inputs)` has none, so `ReaderClient::extract` (the seam) answers
-   `ModelUnavailable` and `Session.Read` is "malformed" in the running daemon until the seam changes. The change:
-   `Reader::extract(&self, session: &SessionId, ask: ReaderAsk, inputs: Vec<Quarantined<String>>)`, the router passes
-   `id` in `session_read`, `ReaderClient::extract` calls `extract_in(session, &ask)`, `ReaderService::extract` ignores
-   it, `ScriptedReader` takes it. Everything else of the reader path is built and tested (`reader_bus.rs`).
+1. ~~`Reader::extract` carries no session~~: closed in w5-docket (see "The w5-docket fill").
 2. **sill** must serve `Confirm1` and draw `OnceOrFromTerminal` (ask 3), and `quire-do` over a login needs the
    `Control.Resume` button (item 6 above).
-3. `Request.Proceed` answers `Malformed` (no computer-use lease yet).
+3. ~~`Request.Proceed` answers `Malformed`~~: a watched `Gate.Check` implements it (w5-docket). On a request that is
+   not a watched gate check it still answers `Malformed`: nothing waits for it.
 4. **Identity beyond name and executable** (Flatpak, a systemd scope) is later, as ask 108 says.
 
 ## The persistent companion and the MCP edge (w4-companion)
@@ -333,7 +331,7 @@ labels each `mcp_label(client)`, performs it as `Origin::Mcp` and answers `{said
 `McpFault::Refused`; `ServerHandler` serves `list_tools` and `call_tool`. `McpAccess` is `Off` by default:
 an off edge lists nothing and refuses every call. Tested with an rmcp client in process.
 
-Open, and the asks they make (nothing was edited in the other crates beyond the additions above):
+Open, and the asks they make (nothing was edited in the other crates beyond the additions above). **Asks 1 to 12 were taken up in the w5-docket fill (next section); the text stays as it was written.**
 
 1. **A turn's text** (ask): `Companion1.Ask` carries a `TurnId` only and the router lets nothing read a
    turn back (`Session.Turn` is the launcher's). companiond learns the words from `Companiond::heard`,
@@ -388,6 +386,103 @@ Seams served: companiond to intentd (`Session.*`, `Run.Perform`, `Message.*`) an
 that reads mail and answers with a handle; a follow-up task an hour later seeing the last episode; the
 user redirecting a run and the front agent quoting them; two Spaces with a labelled message and a
 presence-only roster; an MCP client listing tools and reading mail while a write asks.
+
+## The w5-docket fill
+
+Built, each with tests on a private bus, over the fakes or in process (nothing real is touched). Branch
+`w5-docket`; the consumer call sites that change are listed at the end.
+
+1. **`Session.Read` works in the running daemon (ask 126).** `Reader::extract(&self, session: &SessionId, ask,
+   inputs)`: the router passes the session in `session_read`, `ReaderClient::extract` calls `Reader1.Extract(session,
+   ask)`, `ReaderService::extract` ignores it (readerd resolves the handles itself), `ScriptedReader` records it
+   (`sessions()`). `intentd/tests/reader_daemon.rs` runs the whole path on a private bus: a companion recalls untrusted
+   text (a handle), `Session.Read` goes to intentd, to readerd and to a scripted inferd, and the answer comes back plain
+   (an answer outside the schema, and a bus with no readerd, are refused). **Known limit:** `Session.Resolve` answers the
+   text alone, so readerd cannot class it and sends it as the person's own words (`DataClass::Prompt`, pinned on this
+   computer); the class of the handle's own label (mail) would pin it harder. Ask: `Session.Resolve` answers the
+   handle's label too.
+2. **A computer-use run has a session (ask 124) and its gate check can be watched (ask 123).** The cua role may
+   `Session.Open` and `Session.Close` (its own sessions only) and only for an agent `Cua { run }`; a run has one session,
+   whoever opened it. `Router::handle_watched(caller, request, Watch)` and `Watch` (`docket-router`: `progress`,
+   `proceed` and `closed` callbacks, with the small std-only `Flag` and `Queue`): a gate check that must ask the person
+   says `Progress(Confirming(id))`, waits for `Proceed` (10 s, then the step is refused unasked: `Unconfirmed(Expired)`;
+   the 10 s is not under test, the fake clock does not run out) and only then draws the sheet; `Close` withdraws the
+   request and its sheet (`Cancelled`), no `Response` follows. An unwatched check is exactly as before. On the bus the
+   caller says it watches with the `watch` option of `Gate.Check` (`docket_dbus::OPTION_WATCH`), intentd's Request
+   object answers `Proceed` and `Close` for the owner of the request only, and `Proceed` on a request nobody watches is
+   still `Malformed`. The client: `Transport::watch` (default: the answer alone), `Intents::gate_check_watched(ask)` ->
+   `GateWatch` (`next()` gives `GateEvent::Confirming(id)` then `Verdict(answer)`, `proceed()`, `close()`, and a cloneable
+   `GateSteer` for another task); `InProcess` drives the router's future from `next()` (no runtime here). Tests:
+   `docket-router/tests/watching.rs`, `intentd/tests/gate_watch.rs` (bus: told before the sheet, no sheet before
+   `Proceed`, `Close` before and during a sheet, an unwatched check), `docket-fake/tests/fakes.rs`.
+3. **The companion's asks (121), all but the scheduler and the settings row:**
+   - `AskWire { session, turn: UserTurn, keep, parent_window, app }` (so a real `Companion1.Ask` works; `Companiond::heard`
+     and `summoned_from` are gone, the summoning app is per task). companiond answers `Ask` and `Told` only to the
+     connection that owns the shell's name (`CompaniondConfig.shell`, `org.quire.Shell` shipped), because the turn it is
+     handed is the person's words and the router never recorded this copy. `Open` and `Close` are still open to any
+     caller (see asks).
+   - `NoteAsk` is `Episode(Episode) | Narrative { episode, narrative } | Record(SessionNote)`. `Record` is the serde JSON of
+     a `companion-wire` `SessionRecord` under its slug: the router stores it as `AuditRecord::Session`, intentd as
+     `Area { Companion }` of kind `companion.session.<slug>` (trusted, private to the session's Space), and companiond now
+     writes `opened`, `asked`, `replied`, `finished` and `closed` records. `Episode` is refused for another Space or an
+     untrusted skeleton. `Narrative` names the episode; the router merges it into its own skeleton from the task's ledger and
+     records the narrated successor (`narrates` holds); the companion never restates a skeleton. A final report that ends
+     a worker's task now leaves the episode at once in the router (companiond no longer hands it over), and a session
+     nobody used (no turn, no step) leaves no episode.
+   - `RecentLine { summary, effect, label, text, body }`: a body only for a trusted entry. `RouterRecent` (companiond) is the
+     `RecentSource` over `Session.Recall`; `Companiond::restore(spaces)` reads each Space through a session it opens and
+     closes, rebuilds, and `resume`s. `RecallAsk::{Episodes, Primer, Profile}` and `RecallView::{Primer, Profile}`: episodes
+     come as `EpisodeLine`s (the skeleton as trusted lines, a narrative only by handle, the newest event of each id), the
+     primer is cut to 200 lines, the profile is the facts the person stated themselves (`Actor::User`, trusted) at the desktop
+     scope. companiond fills sections 2 and 4 of the working set from them.
+   - `companion.task.start` answers a record `{task, session}` and companiond performs it through `Run.Perform` like any other
+     call (gated, budgeted, audited), adopts the worker and runs it; the planner is told the task id. The manifest's result
+     type stays `text` (there is no record `ParamType`). `docket_fake::host_companion(&router)` hosts the provider in the
+     fakes. `companion.task.message` is still performed by companiond (`Message.Send`).
+   - `InboundLine.to` (companiond places a line by where it was sent). `Undoable::Journaled(UndoId)`: the router answers its
+     caller the journal's row instead of the app's token (apps still answer `Yes(token)`); `quire-do` reads it, companiond's
+     steps carry it (`undo #n`). `Session.Handles` (companion role): the router's own `HandleCard`s with sizes, which replace
+     the placeholders companiond kept.
+   - `ActionCard.on`, and `docket_core::args_from_json(decl, arguments, label)` (with `ArgsFault`, `TargetFault`, `Why`
+     moved from actions-mcp, which re-exports them): companiond's `read_call` and the MCP edge's are one reader. A list of
+     entities with a handle among them is a list of values, as the companion wants.
+   - `Session.Narrow(session, turn)` (companion role): the policy writer reads the person's words and the session's policy
+     becomes the intersection with the one it has (with none, the parent's bound); a writer that fails changes nothing.
+     companiond sends it for a subagent's side conversation (`SideEffect::Rederive`), workers only: a run's session is cuad's.
+   - `Companion1.Told(agent, space, turn)` (the shell tells the companion what the person said to a subagent; companiond cannot
+     read a run's inbox).
+   - **`mcp.enabled` (ask, not done here):** quire's settings gain a row `mcp.enabled` (an on or off setting: off by default,
+     QUESTIONS S7), read by the daemon that hosts the MCP edge (`actions-mcp`'s binary), which passes
+     `McpAccess::On` to `McpEdge` and serves it over stdio or a socket; nothing was edited in quire.
+4. **128:** `BreakerTripped` is emitted (intentd `signals`, `tests/signals.rs`: said once, again after a resume and a second
+   pause): closed. `Resume(Only(space))` also lifts a global halt for that Space (the global halt becomes a halt of every other
+   Space the router has a session in; `tests/control.rs`). The effect classes **"changes only the view"** and **"file with no
+   undo"** cannot grow additively here: `Effect` is porter's `prov::Effect` (`Read < UndoableWrite < Outbound < Destructive`),
+   ordered, and the Cedar grid, the budgets and the ceilings are written over it. Ask (porter): the two classes, with the grid rows
+   and the ceilings decided by the person; until then a view-only action is `read` and a file with no undo is `destructive`.
+5. **The daemons' `main`s.** `readerd::run` / `readerd::start` and `companiond::run` / `companiond::start` (configuration,
+   `docket_dbus::session_connection` (shared with intentd), `DbusTransport`, `inferd_transport`, `restore`, `serve_on`),
+   `CompaniondConfig` (`dist/companiond.toml`, every key optional: `shell`, `spaces`, `[agent]`). Binary tests on a private bus
+   (`readerd/tests/binary.rs`, `companiond/tests/binary.rs`): the name is claimed, `Reader1` answers intentd alone and says
+   unavailable with no router behind it, `Roster()` and `Front()` answer with nothing running, the configured shell is heard
+   and another is not, a second daemon stops, and killing the daemon frees the name. `voiced` stays a skeleton.
+
+Interface asks left after this fill (for the other repos' agents, or the user):
+
+- `Companion1.Open` and `Close` are not guarded (any local process may open a session as the companion). Ask: the same shell
+  check, once sill's name is the one in `companiond.toml`.
+- `Session.Resolve` answers the label too (item 1).
+- porter: the two effect classes (item 4).
+- quire: `mcp.enabled` (item 3).
+- cuad: use `gate_check_watched`, open its run's session, and have `cua.run.start` answer the session it opened (the session id is
+  its own to name; docket only refuses a second one for the run).
+- A restart reads the Spaces `companiond.toml` names (`desktop`): memoryd's `Spaces` is not reachable by the companion role.
+  Ask: a companion-role Spaces read, or the router hands the list.
+- A recent entry whose label is untrusted comes without a body (a message carrying what a worker read, a narrated episode):
+  a restart falls back to the trusted skeleton events; nothing more can be rebuilt from them.
+- `Run.Perform` could say `Progress` (Reviewing, Previewing, Confirming) to a watching caller the way a gate check does; the
+  `Watch` is there, only the gate check uses it.
+- `Request.Proceed` timeout (10 s) is a constant (`gatecheck.rs`), not a setting.
 
 ## Upstream asks
 

@@ -41,6 +41,25 @@ pub fn answer_path(task: &TaskId) -> String {
     format!("{COMPANION_PATH}/answer/{segment}")
 }
 
+/// The session bus a daemon serves on: `$DBUS_SESSION_BUS_ADDRESS`, else the address of the bus
+/// that started this process by activation (`$DBUS_STARTER_ADDRESS`), else the default per-user
+/// socket. `env` reads the environment, so a test names its own bus.
+pub async fn session_connection(
+    env: &impl Fn(&str) -> Option<String>,
+) -> zbus::Result<zbus::Connection> {
+    let address = env("DBUS_SESSION_BUS_ADDRESS")
+        .or_else(|| env("DBUS_STARTER_ADDRESS"))
+        .filter(|a| !a.is_empty());
+    match address {
+        Some(address) => {
+            zbus::connection::Builder::address(address.as_str())?
+                .build()
+                .await
+        }
+        None => zbus::Connection::session().await,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

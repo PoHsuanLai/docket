@@ -17,6 +17,11 @@
    <method name="Close">
      <arg name="session" type="s" direction="in"/>
    </method>
+   <method name="Told">
+     <arg name="agent" type="s" direction="in"/>
+     <arg name="space" type="s" direction="in"/>
+     <arg name="turn" type="s" direction="in"/>
+   </method>
    <method name="Roster">
      <arg type="s" direction="out"/>
    </method>

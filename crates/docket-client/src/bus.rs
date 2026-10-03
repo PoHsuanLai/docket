@@ -307,6 +307,17 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
             let proxy = SessionProxy::new(c).await.map_err(bus)?;
             nothing(proxy.note(session.as_str(), &to_json(&note)?).await)
         }
+        Q::SessionNarrow { session, turn } => {
+            let proxy = SessionProxy::new(c).await.map_err(bus)?;
+            nothing(proxy.narrow(session.as_str(), &to_json(&turn)?).await)
+        }
+        Q::SessionHandles { session } => {
+            let proxy = SessionProxy::new(c).await.map_err(bus)?;
+            body(
+                proxy.handles(session.as_str()).await,
+                |cards: Vec<docket_core::HandleCard>| IntentsReply::Handles(cards),
+            )
+        }
         Q::SessionRecall { session, ask } => {
             let proxy = SessionProxy::new(c).await.map_err(bus)?;
             let answer = proxy

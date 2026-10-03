@@ -19,22 +19,24 @@ use prov::{
 };
 use std::collections::BTreeSet;
 
-/// The header kind of a record: `docket.<what>`, or almanac's `companion.message` and
-/// `companion.episode` for the two typed bodies.
+/// The header kind of a record: `docket.<what>`, almanac's `companion.message` and
+/// `companion.episode` for the two typed bodies, and `companion.session.<slug>` for a record of
+/// the companion's own sessions.
 pub fn kind_tag_of(record: &AuditRecord) -> Option<KindTag> {
     let text = match record {
-        AuditRecord::Call { .. } => "docket.call",
-        AuditRecord::Review { .. } => "docket.review",
-        AuditRecord::Confirm { .. } => "docket.confirm",
-        AuditRecord::Undo { .. } => "docket.undo",
-        AuditRecord::Halt { .. } => "docket.halt",
-        AuditRecord::TaskPolicy { .. } => "docket.task_policy",
-        AuditRecord::Breaker { .. } => "docket.breaker",
-        AuditRecord::TaskStarted { .. } => "docket.task_started",
-        AuditRecord::Message(_) => "companion.message",
-        AuditRecord::Episode(_) => "companion.episode",
+        AuditRecord::Call { .. } => "docket.call".to_owned(),
+        AuditRecord::Review { .. } => "docket.review".to_owned(),
+        AuditRecord::Confirm { .. } => "docket.confirm".to_owned(),
+        AuditRecord::Undo { .. } => "docket.undo".to_owned(),
+        AuditRecord::Halt { .. } => "docket.halt".to_owned(),
+        AuditRecord::TaskPolicy { .. } => "docket.task_policy".to_owned(),
+        AuditRecord::Breaker { .. } => "docket.breaker".to_owned(),
+        AuditRecord::TaskStarted { .. } => "docket.task_started".to_owned(),
+        AuditRecord::Message(_) => "companion.message".to_owned(),
+        AuditRecord::Episode(_) => "companion.episode".to_owned(),
+        AuditRecord::Session { slug, .. } => format!("companion.session.{}", slug.as_str()),
     };
-    KindTag::parse(text).ok()
+    KindTag::parse(&text).ok()
 }
 
 /// When the record says it happened.
@@ -47,7 +49,8 @@ fn occurred(record: &AuditRecord) -> UnixSeconds {
         | AuditRecord::Halt { at, .. }
         | AuditRecord::TaskPolicy { at, .. }
         | AuditRecord::Breaker { at, .. }
-        | AuditRecord::TaskStarted { at, .. } => *at,
+        | AuditRecord::TaskStarted { at, .. }
+        | AuditRecord::Session { at, .. } => *at,
         AuditRecord::Message(message) => message.sent,
         AuditRecord::Episode(episode) => episode.ended,
     }
@@ -57,7 +60,9 @@ fn occurred(record: &AuditRecord) -> UnixSeconds {
 /// sender's end) and an episode carry one. The rest are placed by the caller.
 pub fn space_named_by(record: &AuditRecord) -> Option<&SpaceId> {
     match record {
-        AuditRecord::Call { space, .. } | AuditRecord::TaskStarted { space, .. } => Some(space),
+        AuditRecord::Call { space, .. }
+        | AuditRecord::TaskStarted { space, .. }
+        | AuditRecord::Session { space, .. } => Some(space),
         AuditRecord::Message(message) => Some(&message.from.space),
         AuditRecord::Episode(episode) => Some(&episode.space),
         AuditRecord::Review { .. }
@@ -162,7 +167,8 @@ fn who_and_how(record: &AuditRecord, space: &SpaceId) -> (Actor, Effect, Label) 
         | AuditRecord::Halt { .. }
         | AuditRecord::TaskPolicy { .. }
         | AuditRecord::Breaker { .. }
-        | AuditRecord::TaskStarted { .. } => (router(), Effect::Read, router_label(space)),
+        | AuditRecord::TaskStarted { .. }
+        | AuditRecord::Session { .. } => (router(), Effect::Read, router_label(space)),
     }
 }
 
@@ -190,8 +196,17 @@ pub fn record_of(record: &AuditRecord, space: &SpaceId) -> Record {
     }
 }
 
-/// The `Area { Docket }` body of a record that has no typed body of its own.
+/// The `Area` body of a record that has no typed body of its own: `Docket`'s, in this crate's
+/// serde form, or a companion session record's own JSON under `Companion`.
 fn payload(record: &AuditRecord) -> EventBody {
+    if let AuditRecord::Session { json, .. } = record {
+        return EventBody::Area(AreaPayload {
+            area: AreaTag::Companion,
+            kind: kind_tag_of(record).expect("a note slug makes a valid `companion.session.` tag"),
+            json: json.clone(),
+            things: Vec::new(),
+        });
+    }
     let json = serde_json::to_string(record).unwrap_or_else(|_| "null".to_owned());
     EventBody::Area(AreaPayload {
         area: AreaTag::Docket,

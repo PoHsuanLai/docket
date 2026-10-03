@@ -140,11 +140,16 @@ impl<S: Seams> Router<S> {
             absorb(r, &message.label);
             r.inbox.push(message.clone());
         }
-        self.note_report(&mut st, session, &message);
+        let ended = self.note_report(&mut st, session, &message);
         drop(st);
         self.seams
             .sink()
             .append(AuditRecord::Message(Box::new(message.clone())));
+        if let Some(episode) = ended {
+            self.seams
+                .sink()
+                .append(AuditRecord::Episode(Box::new(episode)));
+        }
         IntentsReply::Delivered(Delivery {
             message: message.id.clone(),
             thread: message.thread.clone(),
@@ -169,19 +174,25 @@ impl<S: Seams> Router<S> {
         })
     }
 
-    /// A report moves the sender's task: its final word ends it.
-    fn note_report(&self, st: &mut RouterState, from: &SessionId, message: &Message) {
-        let Some(status) = report_status(message) else {
-            return;
+    /// A report moves the sender's task: its final word ends it, and the router leaves the
+    /// episode then (closing the session finds the task already ended and writes none).
+    fn note_report(
+        &self,
+        st: &mut RouterState,
+        from: &SessionId,
+        message: &Message,
+    ) -> Option<almanac_core::Episode> {
+        let status = report_status(message)?;
+        let task = st.sessions.get(from).map(|r| r.task.clone())?;
+        let t = st.tasks.get_mut(&task)?;
+        let was_over = matches!(t.state, TaskState::Ended(_));
+        t.state = match status {
+            ReportStatus::Progress => TaskState::Working,
+            done => TaskState::Ended(done),
         };
-        let Some(task) = st.sessions.get(from).map(|r| r.task.clone()) else {
-            return;
-        };
-        if let Some(t) = st.tasks.get_mut(&task) {
-            t.state = match status {
-                ReportStatus::Progress => TaskState::Working,
-                done => TaskState::Ended(done),
-            };
+        match (was_over, status) {
+            (true, _) | (false, ReportStatus::Progress) => None,
+            (false, done) => crate::notes::skeleton_episode(t, self.seams.clock().now(), done),
         }
     }
 

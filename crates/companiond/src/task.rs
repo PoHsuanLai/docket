@@ -8,8 +8,9 @@ use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, FooterWire, RefusalWir
 use docket_core::{
     CallEnd, CallId, CallRefusal, CallRequest, CharCount, ContextKeep, HandleCard, HandleShape,
     InboundLine, InboundPart, Keep, LedgerStep, Outcome, Reveal, StepEnd, StepLine, StepShown,
-    TargetValue, UserTurn, Value, WindowKey,
+    TargetValue, Undoable, UserTurn, Value, WindowKey,
 };
+use porter_core::AppName;
 use porter_infer::ServedBy;
 use prov::{
     AgentRef, Effect, EntityId, Integrity, Labelled, SessionId, Source, SpaceId, TaskId,
@@ -53,6 +54,9 @@ pub struct TaskRuntime {
     pub served: Option<ServedBy>,
     /// The next number a call of this task gets.
     pub next_call: u64,
+    /// The app the person asked from (the context section reads its window); none for the
+    /// launcher alone.
+    pub summoned: Option<AppName>,
 }
 
 /// A keep that sent everything: what an answer's footer says until the turn says otherwise.
@@ -92,6 +96,7 @@ impl TaskRuntime {
             refused: None,
             served: None,
             next_call: 0,
+            summoned: None,
         }
     }
 
@@ -120,14 +125,19 @@ impl TaskRuntime {
     ) -> StepEnd {
         let id = CallId(self.next_call);
         self.next_call += 1;
+        let mut undone = None;
         let (end, ended) = match result {
             Ok(outcome) => {
                 let value = outcome.value.map(|v| self.reveal(v));
+                undone = match outcome.undo {
+                    Undoable::Journaled(row) => Some(row),
+                    Undoable::Yes(_) | Undoable::No => None,
+                };
                 (
                     StepEnd::Done {
                         said: outcome.said,
                         value,
-                        undo: None,
+                        undo: undone,
                     },
                     CallEnd::Done,
                 )
@@ -154,7 +164,7 @@ impl TaskRuntime {
             targets: targets_of(call),
             effect,
             end: ended,
-            undo: None,
+            undo: undone,
         });
         end
     }
@@ -174,7 +184,7 @@ impl TaskRuntime {
                         handle,
                         shape: HandleShape::Text,
                         from,
-                        // The router does not say how long the text behind a handle is.
+                        // A placeholder until the router's own card (`Session.Handles`) replaces it.
                         size: CharCount(0),
                     });
                 }

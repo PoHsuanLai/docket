@@ -1,0 +1,8 @@
+# companiond's configuration as the package ships it: $XDG_CONFIG_HOME/quire/companiond.toml (or
+# /etc/xdg/quire/companiond.toml) replaces it whole. `shell` is the bus name that speaks for the
+# person (only it may ask, tell and open conversations); `spaces` are the Spaces a restart reads
+# its records from to rebuild the roster and the front task. Every key is optional: what is not
+# written is the proposed value (`[agent]` is intentd's table, of which the companion reads the
+# call budget, the assembler's sections and the idle rules).
+shell = "org.quire.Shell"
+spaces = ["desktop"]

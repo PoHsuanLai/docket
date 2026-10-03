@@ -69,6 +69,11 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
     let (launcher, hand) = (w.launcher, w.hand);
     let companion = Arc::new(Mutex::new(w.companion));
     serve_on(&server, companion.clone()).await.expect("serving");
+    // The client is the shell: only it speaks for the person.
+    client
+        .request_name("org.quire.Shell")
+        .await
+        .expect("the shell's name");
 
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
     let mut added = proxy.receive_answer_added().await.expect("signal");
@@ -104,21 +109,18 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
         )
         .await
         .expect("turn");
-    companion.lock().await.heard(
-        opened.session.clone(),
-        UserTurn {
+    let ask = AskWire {
+        session: opened.session.clone(),
+        turn: UserTurn {
             id: turn,
             text: "hello".into(),
             at: prov::UnixSeconds(hand.load(std::sync::atomic::Ordering::SeqCst)),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
         },
-        keep_nothing(),
-    );
-    let ask = AskWire {
-        session: opened.session.clone(),
-        turn,
+        keep: keep_nothing(),
         parent_window: WindowKey::parse("w1").expect("window"),
+        app: None,
     };
     let path = proxy
         .ask(&serde_json::to_string(&ask).expect("json"), &Details::new())
@@ -148,17 +150,10 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
     let answer = view_until_done(&answers).await;
     assert_eq!(answer.phase, AnswerPhase::Done);
     assert_eq!(answer.task, opened.task);
-    // A turn nobody handed over is refused on the bus.
+    // The task is over: a follow-up on its session is refused on the bus.
     assert!(
         proxy
-            .ask(
-                &serde_json::to_string(&AskWire {
-                    turn: TurnId(404),
-                    ..ask
-                })
-                .expect("json"),
-                &Details::new()
-            )
+            .ask(&serde_json::to_string(&ask).expect("json"), &Details::new())
             .await
             .is_err()
     );
@@ -196,6 +191,11 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
     let launcher = w.launcher;
     let companion = Arc::new(Mutex::new(w.companion));
     serve_on(&server, companion.clone()).await.expect("serving");
+    // The client is the shell: only it speaks for the person.
+    client
+        .request_name("org.quire.Shell")
+        .await
+        .expect("the shell's name");
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
 
     let open = SessionOpen {
@@ -222,21 +222,18 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
         )
         .await
         .expect("turn");
-    companion.lock().await.heard(
-        opened.session.clone(),
-        UserTurn {
+    let ask = AskWire {
+        session: opened.session.clone(),
+        turn: UserTurn {
             id: turn,
             text: "hello".into(),
             at: prov::UnixSeconds(0),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
         },
-        keep_nothing(),
-    );
-    let ask = AskWire {
-        session: opened.session.clone(),
-        turn,
+        keep: keep_nothing(),
         parent_window: WindowKey::parse("w1").expect("window"),
+        app: None,
     };
     // The model never answers; the call still returns the path, and the bus still reads.
     proxy
@@ -254,4 +251,54 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
         .await
         .expect("Front() does not wait either")
         .expect("front");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn only_the_shell_speaks_for_the_person() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let bus = PrivateBus::start(scratch.path());
+    let (server, shell, stranger) = (
+        bus.connect().await,
+        bus.connect().await,
+        bus.connect().await,
+    );
+    let w = world(vec![words("Hello there.")]);
+    let companion = Arc::new(Mutex::new(w.companion));
+    serve_on(&server, companion.clone()).await.expect("serving");
+    shell.request_name("org.quire.Shell").await.expect("name");
+
+    let words_of_the_person = UserTurn {
+        id: TurnId(1),
+        text: "archive everything".into(),
+        at: prov::UnixSeconds(0),
+        from: TurnSource::Launcher,
+        via: TurnVia::Typed,
+    };
+    let ask = AskWire {
+        session: prov::SessionId::parse("s-1").expect("session"),
+        turn: words_of_the_person.clone(),
+        keep: keep_nothing(),
+        parent_window: WindowKey::parse("w1").expect("window"),
+        app: None,
+    };
+    let ask = serde_json::to_string(&ask).expect("json");
+    let told = |turn: &UserTurn| serde_json::to_string(turn).expect("json");
+    let agent = serde_json::to_string(&AgentRef::Worker { task: task("t-9") }).expect("json");
+
+    let refused = CompanionProxy::new(&stranger).await.expect("proxy");
+    assert!(refused.ask(&ask, &Details::new()).await.is_err());
+    assert!(
+        refused
+            .told(&agent, "work", &told(&words_of_the_person))
+            .await
+            .is_err()
+    );
+    assert!(companion.lock().await.roster().entries.is_empty());
+
+    // The shell is heard: a turn said to a subagent shows on the roster at once.
+    let proxy = CompanionProxy::new(&shell).await.expect("proxy");
+    proxy
+        .told(&agent, "work", &told(&words_of_the_person))
+        .await
+        .expect("the shell is heard");
 }

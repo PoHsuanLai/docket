@@ -18,6 +18,7 @@ fn card(name: &str) -> ActionCard {
         },
         label: LabelText::parse("Do it").expect("label"),
         effect: Effect::Read,
+        on: TargetKind::Nothing,
         tool: ToolSchema(serde_json::json!({"type": "object"})),
         reach: AgentReach::Offered,
         lasting: Lasting::No,

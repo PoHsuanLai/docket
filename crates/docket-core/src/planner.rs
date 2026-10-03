@@ -5,7 +5,7 @@ use crate::call::CallRefusal;
 use crate::confirm::ConfirmEnd;
 use crate::context::{ContextKeep, ContextView, Reveal};
 use crate::ids::{ActionRef, CallId, Handle, LabelText, TurnId, UndoId};
-use crate::manifest::{AgentReach, Lasting};
+use crate::manifest::{AgentReach, Lasting, TargetKind};
 use crate::message::InboundLine;
 use crate::roster::{EpisodeLine, PrimerText, ProfileLine, RecalledLine, RollupLine, Roster};
 use crate::schema::ToolSchema;
@@ -87,6 +87,8 @@ pub struct ActionCard {
     pub label: LabelText,
     /// Its effect.
     pub effect: Effect,
+    /// What it acts on: the planner names the target beside the arguments (`target`).
+    pub on: TargetKind,
     /// The schema of its arguments.
     pub tool: ToolSchema,
     /// Whether it is offered or asks every time.

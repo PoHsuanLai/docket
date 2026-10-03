@@ -4,14 +4,53 @@
 //! told them), and the front task gets a fresh session in the Space it was in.
 
 use crate::fault::ServeFault;
+use crate::recover::{RouterRecent, recover};
 use crate::runtime::Companiond;
 use agent_loop::Rebuilt;
 use docket_client::Transport as IntentsTransport;
 use docket_core::{SessionOpen, SessionOpened};
 use porter_client::Transport as InferTransport;
-use prov::AgentRef;
+use prov::{AgentRef, SpaceId, UnixSeconds};
+
+/// How far back a restart reads: the retention window of `companion.*` records (30 days).
+const RETENTION: i64 = 30 * 24 * 3600;
 
 impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
+    /// A restart: reads what the eventlog holds of each Space in `spaces` (through a session
+    /// opened for the purpose, which is closed again), rebuilds the roster and the front task, and
+    /// takes them up. A Space the router or memoryd cannot answer for adds nothing.
+    pub async fn restore(
+        &mut self,
+        spaces: &[SpaceId],
+    ) -> Result<Option<SessionOpened>, ServeFault> {
+        let since = UnixSeconds(self.clock.now().0.saturating_sub(RETENTION));
+        let mut rebuilt = Rebuilt::default();
+        for space in spaces {
+            let Ok(reading) = self
+                .intents
+                .session_open(SessionOpen {
+                    space: space.clone(),
+                    agent: AgentRef::Companion,
+                    parent: None,
+                })
+                .await
+            else {
+                continue;
+            };
+            let found = recover(
+                &RouterRecent::new(&self.intents, reading.session.clone()),
+                since,
+            )
+            .await;
+            let _ = self.intents.session_close(reading.session).await;
+            if let Ok(found) = found {
+                rebuilt.front = found.front.or(rebuilt.front);
+                rebuilt.tasks.extend(found.tasks);
+            }
+        }
+        self.resume(rebuilt).await
+    }
+
     /// Takes up what a restart rebuilt. A front task that was open is opened again as a fresh
     /// session (the old one died with the process or is the router's to close); nothing else is
     /// guessed.

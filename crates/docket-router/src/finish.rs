@@ -13,7 +13,7 @@ use crate::tasks::TaskState;
 use action_review::note;
 use docket_core::{
     AuditRecord, CallEnd, CallRefusal, DecidedBy, LedgerStep, Outcome, Preview, StepLine,
-    StepShown, Value,
+    StepShown, Undoable, Value,
 };
 use prov::{Integrity, Labelled, Source};
 
@@ -134,7 +134,15 @@ impl<S: Seams> Router<S> {
             }
         }
         match driven.end {
-            CallEnd::Done => presented.ok_or(CallRefusal::Timeout),
+            CallEnd::Done => presented
+                .map(|mut outcome| {
+                    // The app's token stays the journal's: the caller is given the row.
+                    if let Some(row) = driven.undo {
+                        outcome.undo = Undoable::Journaled(row);
+                    }
+                    outcome
+                })
+                .ok_or(CallRefusal::Timeout),
             CallEnd::Refused(why) => Err(why),
         }
     }

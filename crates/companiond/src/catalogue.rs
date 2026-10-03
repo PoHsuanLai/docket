@@ -40,6 +40,7 @@ impl CatalogueTool {
             action: self.action(),
             label: self.decl.label.clone(),
             effect: self.decl.effect,
+            on: self.decl.on.clone(),
             tool: tool_schema(&self.decl),
             reach: self.decl.reach,
             lasting: self.decl.lasting,
@@ -65,7 +66,7 @@ impl CatalogueTool {
 }
 
 /// The reserved argument that names what the call acts on.
-pub const TARGET: &str = "target";
+pub const TARGET: &str = docket_core::TARGET_KEY;
 
 fn entity_or_handle(kind: &str) -> Json {
     json!({

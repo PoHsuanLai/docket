@@ -113,14 +113,17 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         self.carry_side(effects, now).await;
     }
 
-    /// Writes what ended side conversations leave: an episode of the person's own words and the
-    /// subagent's typed steps since. A goal change narrows the subagent through the policy
-    /// writer's path; the router offers the companion no way to ask for that yet, so it is not
-    /// applied here (see FINDINGS).
+    /// Carries out what the side conversations ask: a goal change narrows the subagent
+    /// (`Session.Narrow`), and one that ended leaves an episode of the person's own words and the
+    /// subagent's typed steps since.
     async fn carry_side(&mut self, effects: Vec<SideEffect>, now: UnixSeconds) {
         for effect in effects {
-            let SideEffect::WriteEpisode { conv, .. } = effect else {
-                continue;
+            let conv = match effect {
+                SideEffect::WriteEpisode { conv, .. } => conv,
+                SideEffect::Rederive { agent, turn } => {
+                    self.narrow(&agent, turn).await;
+                    continue;
+                }
             };
             let (steps, session) = self.side_steps(&conv.with, conv.opened);
             let Some(session) = session.or_else(|| self.any_session(&conv.space)) else {
@@ -129,9 +132,23 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             if let Some(episode) = side_episode(&conv, steps, vec![], now) {
                 let _ = self
                     .intents
-                    .session_note(session, NoteAsk { episode })
+                    .session_note(session, NoteAsk::Episode(Box::new(episode)))
                     .await;
             }
+        }
+    }
+
+    /// The person said something to a subagent: its policy is narrowed from their words, through
+    /// the router's policy writer, never wider than it has. A run's session is cuad's, so only a
+    /// worker of ours is narrowed here.
+    async fn narrow(&self, agent: &AgentRef, turn: docket_core::UserTurn) {
+        let session = self
+            .runtimes
+            .values()
+            .find(|rt| &rt.agent == agent && matches!(rt.agent, AgentRef::Worker { .. }))
+            .map(|rt| rt.session.clone());
+        if let Some(session) = session {
+            let _ = self.intents.session_narrow(session, turn).await;
         }
     }
 
@@ -187,17 +204,22 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         };
         match outcome {
             Narrated::Written(text) if !text.is_empty() => {
-                let episode = Episode {
-                    narrative: Some(Narrative {
-                        label: narrative_label(&pending.episode),
-                        text: UserText::new(text),
-                        by: ModelRole::Consolidator,
-                    }),
-                    ..pending.episode
+                let narrative = Narrative {
+                    label: narrative_label(&pending.episode),
+                    text: UserText::new(text),
+                    by: ModelRole::Consolidator,
                 };
+                // The router merges the narrative into the skeleton it left: it names the episode
+                // and carries the narrative alone.
                 let noted = self
                     .intents
-                    .session_note(pending.session, NoteAsk { episode })
+                    .session_note(
+                        pending.session,
+                        NoteAsk::Narrative {
+                            episode: pending.episode.id.clone(),
+                            narrative,
+                        },
+                    )
                     .await;
                 match noted {
                     Ok(()) => {

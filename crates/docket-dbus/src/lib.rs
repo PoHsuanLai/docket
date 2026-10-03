@@ -44,6 +44,7 @@ pub use message::{MessageProxy, MessageSkeleton};
 pub use names::{
     COMPANION_BUS, COMPANION_PATH, CONFIRM_BUS, CONFIRM_PATH, INTENTS_BUS, INTENTS_PATH,
     OPTION_WATCH, PROVIDER_PATH, READER_BUS, READER_PATH, answer_path, request_path,
+    session_connection,
 };
 /// The reserved key of the W3C trace context in an `options` vardict, and the vardict type:
 /// porter's, shared on every call that starts work.

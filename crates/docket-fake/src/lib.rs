@@ -22,5 +22,5 @@ pub use scripted::{
     FakeMemory, ReviewMode, ScriptedConfirmer, ScriptedReader, ScriptedReviewer, ScriptedWriter,
 };
 pub use seams::Answering;
-pub use seams::{FakeLink, FakeSeams};
+pub use seams::{FakeLink, FakeSeams, host_companion};
 pub use simple::{FixedClock, MemoryGrants, RecordingSink};

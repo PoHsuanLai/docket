@@ -174,4 +174,16 @@ pub enum AuditRecord {
     /// A task ended and left its skeleton, or the idle pass added its narrative. Stored as
     /// almanac's `EventBody::Episode`.
     Episode(Box<Episode>),
+    /// A record of the companion's own session (`Session.Note`): stored as
+    /// `Area { Companion }` of kind `companion.session.<slug>`, trusted and private to its Space.
+    Session {
+        /// When.
+        at: UnixSeconds,
+        /// The Space of the session.
+        space: SpaceId,
+        /// The record's kind.
+        slug: crate::wire::NoteSlug,
+        /// The record, in its owner's serde form.
+        json: almanac_core::JsonText,
+    },
 }

@@ -85,6 +85,20 @@ impl<S: Seams> Router<S> {
                 }
                 SpaceScope::Only(space) => {
                     st.kill.spaces.remove(space);
+                    // A global halt overrides every Space, so resuming one lifts it for that Space
+                    // alone: the global halt becomes a halt of each other Space the router knows.
+                    if let Halt::Halted { .. } = st.kill.all {
+                        let halt = std::mem::replace(&mut st.kill.all, Halt::Running);
+                        let others: Vec<_> = st
+                            .sessions
+                            .values()
+                            .map(|r| r.space.clone())
+                            .filter(|other| other != space)
+                            .collect();
+                        for other in others {
+                            st.kill.spaces.entry(other).or_insert(halt);
+                        }
+                    }
                 }
             }
         }

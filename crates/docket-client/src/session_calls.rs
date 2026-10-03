@@ -5,8 +5,8 @@
 use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
 use docket_core::{
-    IntentsReply, IntentsRequest, NoteAsk, ReadAsk, RecallAsk, RecallView, Reveal, TaskPolicy,
-    Value,
+    HandleCard, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, RecallAsk, RecallView, Reveal,
+    TaskPolicy, UserTurn, Value,
 };
 use prov::SessionId;
 
@@ -59,6 +59,36 @@ impl<T: Transport> Intents<T> {
     ) -> Result<Option<TaskPolicy>, ClientError> {
         self.ask(IntentsRequest::SessionTaskPolicy { session }, |r| match r {
             IntentsReply::TaskPolicy(policy) => Some(policy.map(|p| *p)),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Narrows a subagent's task policy from what the person said to it (`Session.Narrow`, the
+    /// companion only): never wider than the policy it has.
+    pub async fn session_narrow(
+        &self,
+        session: SessionId,
+        turn: UserTurn,
+    ) -> Result<(), ClientError> {
+        self.ask(
+            IntentsRequest::SessionNarrow { session, turn },
+            |r| match r {
+                IntentsReply::Done => Some(()),
+                _ => None,
+            },
+        )
+        .await
+    }
+
+    /// What the session holds by handle: shape, source and size, never the content
+    /// (`Session.Handles`, the companion only).
+    pub async fn session_handles(
+        &self,
+        session: SessionId,
+    ) -> Result<Vec<HandleCard>, ClientError> {
+        self.ask(IntentsRequest::SessionHandles { session }, |r| match r {
+            IntentsReply::Handles(cards) => Some(cards),
             _ => None,
         })
         .await

@@ -612,7 +612,9 @@ async fn an_undoable_act_is_journalled_under_its_actor_and_can_be_undone() {
     let outcome = perform(&router, call("mail.thread.archive", &["t1"], vec![]))
         .await
         .expect("ran");
-    assert!(matches!(outcome.undo, Undoable::Yes(_)));
+    let Undoable::Journaled(row) = outcome.undo else {
+        panic!("the caller is given the journal's row: {:?}", outcome.undo)
+    };
     assert!(router.seams.link.mail.is_archived("t1"));
     let IntentsReply::Journal(rows) = ask(
         &router,
@@ -628,6 +630,7 @@ async fn an_undoable_act_is_journalled_under_its_actor_and_can_be_undone() {
         panic!("journal")
     };
     assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].id, row, "the outcome names the journal's row");
     assert!(
         matches!(rows[0].actor, prov::Actor::Companion { .. }),
         "{:?}",

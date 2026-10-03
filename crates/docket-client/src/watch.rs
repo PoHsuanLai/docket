@@ -22,7 +22,7 @@ pub enum Said {
     /// How far it is.
     Progress(CallProgress),
     /// Its answer. Nothing follows.
-    Answer(IntentsReply),
+    Answer(Box<IntentsReply>),
 }
 
 /// What a watched request says, in order.
@@ -59,7 +59,7 @@ struct Once(Option<IntentsReply>);
 
 impl Events for Once {
     fn next(&mut self) -> Boxed<'_, Result<Said, TransportError>> {
-        let said = self.0.take().map(Said::Answer);
+        let said = self.0.take().map(|reply| Said::Answer(Box::new(reply)));
         Box::pin(std::future::ready(said.ok_or(TransportError::Closed)))
     }
 }
@@ -142,9 +142,13 @@ impl GateWatch {
                     return Ok(GateEvent::Confirming(id));
                 }
                 Said::Progress(_) => {}
-                Said::Answer(IntentsReply::Gate(answer)) => return Ok(GateEvent::Verdict(answer)),
-                Said::Answer(IntentsReply::Refused(why)) => return Err(ClientError::Refused(why)),
-                Said::Answer(_) => return Err(ClientError::Unexpected),
+                Said::Answer(reply) => {
+                    return match *reply {
+                        IntentsReply::Gate(answer) => Ok(GateEvent::Verdict(answer)),
+                        IntentsReply::Refused(why) => Err(ClientError::Refused(why)),
+                        _ => Err(ClientError::Unexpected),
+                    };
+                }
             }
         }
     }

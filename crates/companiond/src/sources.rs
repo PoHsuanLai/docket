@@ -6,13 +6,11 @@
 use crate::runtime::Companiond;
 use crate::task::TaskRuntime;
 use agent_loop::Sources;
-use almanac_core::{
-    BodyMode, InjectQuery, KindPattern, RecallOver, RecentQuery, TrustFilter, UserText,
-};
+use almanac_core::{BodyMode, InjectQuery, RecallOver, RecentQuery, TrustFilter, UserText};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
-    ContextView, EntityLine, HereView, RecallAsk, RecallView, RecalledLine, Reveal, SelectionView,
-    TextTargetView, VisibleView,
+    ContextView, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine, RecallAsk, RecallView,
+    RecalledLine, Reveal, SelectionView, TextTargetView, VisibleView,
 };
 use porter_client::Transport as InferTransport;
 use porter_core::{Count, UnixSeconds};
@@ -55,28 +53,25 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
     pub(crate) async fn sources(&mut self, task: &TaskId) -> Sources {
         // What landed since the last turn is part of this one.
         let _ = self.pull().await;
+        self.refresh_handles(task).await;
         let Some(rt) = self.runtimes.get(task).cloned() else {
             return self.empty_sources();
         };
         let now = self.clock.now();
         let context = self.context_of(&rt).await;
-        let recalled = self.recall_for(&rt, now).await;
+        let recalled = self.recall_for(&rt).await;
         let task_policy = self
             .intents
             .session_task_policy(rt.session.clone())
             .await
             .unwrap_or_default();
         let roster = self.roster_without(Some(task)).seen_from(&rt.space);
-        let episodes = self
-            .episodes
-            .iter()
-            .filter(|e| e.space == rt.space)
-            .cloned()
-            .collect();
+        let episodes = self.episodes_for(&rt, now).await;
+        let (primer, profile) = self.memory_sections(&rt).await;
         Sources {
             cards: self.planner.catalogue().cards(),
-            profile: Vec::new(),
-            primer: None,
+            profile,
+            primer,
             rollup: None,
             roster,
             episodes,
@@ -110,10 +105,76 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         }
     }
 
+    /// What the router holds by handle for the task, in shape and size: its cards replace the
+    /// placeholders the task kept (the router is the one who knows how long the text is).
+    async fn refresh_handles(&mut self, task: &TaskId) {
+        let Some(session) = self.runtimes.get(task).map(|rt| rt.session.clone()) else {
+            return;
+        };
+        if let Ok(cards) = self.intents.session_handles(session).await
+            && let Some(rt) = self.runtimes.get_mut(task)
+        {
+            rt.handles = cards;
+        }
+    }
+
+    /// The Space's primer and the person's own profile, which the router reads from memory: an
+    /// answer that does not come leaves its section empty.
+    async fn memory_sections(&self, rt: &TaskRuntime) -> (Option<PrimerText>, Vec<ProfileLine>) {
+        let primer = match self
+            .intents
+            .session_recall(rt.session.clone(), RecallAsk::Primer)
+            .await
+        {
+            Ok(RecallView::Primer(text)) if !text.0.is_empty() => Some(text),
+            _ => None,
+        };
+        let profile = match self
+            .intents
+            .session_recall(rt.session.clone(), RecallAsk::Profile)
+            .await
+        {
+            Ok(RecallView::Profile(lines)) => lines,
+            _ => Vec::new(),
+        };
+        (primer, profile)
+    }
+
+    /// What recently ended in the task's Space: this run's own episodes, then what the router
+    /// holds from before it began (the skeleton as trusted lines, a narrative only by handle).
+    async fn episodes_for(&self, rt: &TaskRuntime, now: UnixSeconds) -> Vec<EpisodeLine> {
+        let mut lines: Vec<EpisodeLine> = self
+            .episodes
+            .iter()
+            .filter(|e| e.space == rt.space)
+            .cloned()
+            .collect();
+        let query = RecentQuery {
+            since: UnixSeconds(now.0.saturating_sub(RECENT_WINDOW)),
+            kinds: Vec::new(),
+            trust: TrustFilter::Any,
+            limit: RECENT_LIMIT,
+            bodies: BodyMode::Json,
+        };
+        if let Ok(RecallView::Episodes(older)) = self
+            .intents
+            .session_recall(rt.session.clone(), RecallAsk::Episodes(query))
+            .await
+        {
+            let known: Vec<_> = lines.iter().map(|l| l.id.clone()).collect();
+            lines.extend(
+                older
+                    .into_iter()
+                    .filter(|l| l.ended < self.booted && !known.contains(&l.id)),
+            );
+        }
+        lines
+    }
+
     /// Where the person is: the window of the app they summoned the companion from, or nowhere
     /// in particular when it was the launcher alone.
     async fn context_of(&self, rt: &TaskRuntime) -> ContextView {
-        match &self.summoned {
+        match &rt.summoned {
             Some(app) => self
                 .intents
                 .context(rt.session.clone(), app.clone())
@@ -124,9 +185,8 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
     }
 
     /// Automatic recall (Q3): the hits that bear on what the person said, trusted ones only and
-    /// cut to the budget, and what happened lately in the Space before this run began (this run's
-    /// own episodes are already in the episodes section).
-    async fn recall_for(&self, rt: &TaskRuntime, now: UnixSeconds) -> Vec<RecalledLine> {
+    /// cut to the budget.
+    async fn recall_for(&self, rt: &TaskRuntime) -> Vec<RecalledLine> {
         let mut lines = Vec::new();
         let words = words_of(rt);
         if !words.is_empty() {
@@ -145,36 +205,6 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             {
                 lines.extend(hits);
             }
-        }
-        let episodes = KindPattern::parse("companion.episode")
-            .ok()
-            .into_iter()
-            .collect();
-        let recent = RecentQuery {
-            since: UnixSeconds(now.0.saturating_sub(RECENT_WINDOW)),
-            kinds: episodes,
-            trust: TrustFilter::Any,
-            limit: RECENT_LIMIT,
-            bodies: BodyMode::Without,
-        };
-        if let Ok(RecallView::Recent(events)) = self
-            .intents
-            .session_recall(rt.session.clone(), RecallAsk::Recent(recent))
-            .await
-        {
-            let before = self.booted;
-            lines.extend(events.into_iter().enumerate().filter_map(|(i, e)| {
-                let text = e.text?;
-                (e.summary.occurred < before).then(|| RecalledLine {
-                    doc: almanac_core::MemoryItem::Event(e.summary.event),
-                    at: e.summary.occurred,
-                    text,
-                    // Newest first: the rank is the recency order.
-                    why: almanac_core::RecallWhy::Lexical {
-                        rank: u32::try_from(i + 1).unwrap_or(u32::MAX),
-                    },
-                })
-            }));
         }
         lines
     }

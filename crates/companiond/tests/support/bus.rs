@@ -49,6 +49,11 @@ impl PrivateBus {
         }
     }
 
+    /// The address a daemon started by the test is told to use.
+    pub fn address(&self) -> &str {
+        &self.address
+    }
+
     /// A new connection to this bus.
     pub async fn connect(&self) -> docket_dbus::BusConnection {
         zbus::connection::Builder::address(self.address.as_str())

@@ -99,6 +99,9 @@ pub struct InboundLine {
     pub id: MessageId,
     /// Its thread.
     pub thread: ThreadId,
+    /// Who it was addressed to, in which Space: the companion is one identity over many tasks and
+    /// this is how a line is placed in the one it is for.
+    pub to: Address,
     /// Who sent it, in which Space.
     pub from: Address,
     /// Whether it crossed Spaces: it shows on the roster either way.

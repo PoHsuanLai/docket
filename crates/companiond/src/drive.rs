@@ -11,8 +11,7 @@ use agent_loop::{
 };
 use docket_client::{ClientError, Transport as IntentsTransport};
 use docket_core::{
-    ActionRef, CallId, CallRefusal, CallRequest, ReadAsk, ReaderAsk, Reveal, StepEnd, TaskStart,
-    WireRefusal,
+    ActionRef, CallId, CallRefusal, CallRequest, ReadAsk, ReaderAsk, Reveal, StepEnd, WireRefusal,
 };
 use porter_client::Transport as InferTransport;
 use prov::{ActionName, Effect, Labelled, TaskId};
@@ -76,6 +75,26 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         Ok(())
     }
 
+    /// An answer reached a phase: the record of what the turn left, for a restart.
+    async fn replied(&self, task: &TaskId) {
+        // A finished task has its own record: nothing more is said of it.
+        if matches!(
+            self.tasks.get(task).map(|s| s.phase),
+            Some(LoopPhase::Finished(_))
+        ) {
+            return;
+        }
+        let (Some(rt), Some(digest)) = (self.runtimes.get(task), self.digest_of(task)) else {
+            return;
+        };
+        let record = companion_wire::SessionRecord::Replied {
+            task: task.clone(),
+            phase: rt.phase.clone(),
+            digest,
+        };
+        self.record(&rt.session, &record).await;
+    }
+
     /// Applies one input to the idle pass and returns what it asks for.
     pub(crate) fn idle_apply(&mut self, input: IdleInput) -> Vec<agent_loop::IdleEffect> {
         let (next, effects) = idle_step(self.idle.clone(), input, &self.config.idle);
@@ -93,6 +112,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         self.shared.interrupt();
         self.idle_apply(IdleInput::InteractiveStarted);
         let ran = self.run(task, first).await;
+        self.replied(task).await;
         let ended = self.clock.now();
         self.idle_apply(IdleInput::InteractiveEnded(ended));
         ran?;
@@ -203,21 +223,31 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         LoopInput::CallEnded(id, end)
     }
 
-    /// `companion.task.start`: a worker is opened for the goal and runs to its end before the
-    /// spawning task goes on; the answer is its task id.
+    /// `companion.task.start`: a call like any other (gated, budgeted, audited): the router opens
+    /// the worker's session and answers the task and the session, which are adopted here, and the
+    /// worker runs to its end before the spawning task goes on. The planner is told the task id.
     async fn start_task(
         &mut self,
         task: &TaskId,
         call: CallRequest,
         id: CallId,
     ) -> Result<Vec<LoopInput>, ServeFault> {
-        let result = match TaskStart::from_args(&call.args) {
-            Err(why) => Err(docket_core::ParamName::parse("goal").map_or(
-                CallRefusal::Timeout,
-                |param| CallRefusal::BadArgs { param, why },
-            )),
-            Ok(start) => match self.spawn_worker(task, start).await {
-                Ok(worker) => Ok(self.outcome_text(&worker)),
+        let Some((session, window)) = self
+            .runtimes
+            .get(task)
+            .map(|rt| (rt.session.clone(), rt.window.clone()))
+        else {
+            return Err(ServeFault::UnknownSession);
+        };
+        let performed = self
+            .intents
+            .perform(call.clone(), Some(session), window)
+            .await
+            .unwrap_or_else(|error| Err(refusal_of(error)));
+        let result = match performed {
+            Err(refusal) => Err(refusal),
+            Ok(started) => match self.adopt_worker(task, &started).await {
+                Ok(worker) => Ok(self.outcome_text(&worker, started)),
                 Err(error) => Err(match error {
                     ServeFault::Router(error) => refusal_of(error),
                     _ => CallRefusal::Timeout,

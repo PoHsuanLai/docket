@@ -4,7 +4,7 @@ use crate::budget::BudgetKind;
 use crate::confirm::{ConfirmEnd, ConfirmId};
 use crate::context::EntityRef;
 use crate::ids::ParamName;
-use crate::ids::{ActionRef, CallId, UndoToken};
+use crate::ids::{ActionRef, CallId, UndoId, UndoToken};
 use crate::preview::Preview;
 use crate::review::{BreakerTrip, DenyCode};
 use crate::value::{Args, TargetValue, Value};
@@ -87,8 +87,11 @@ pub struct Outcome {
 pub enum Undoable {
     /// No.
     No,
-    /// Yes, with this token.
+    /// Yes, with this token: what an app answers.
     Yes(UndoToken),
+    /// Yes, by this journal row (`Run.Undo(id)`): what the router answers its caller once it has
+    /// journaled the app's token. An app never answers this.
+    Journaled(UndoId),
 }
 
 /// What an outcome asks for next; the router caps chains at depth four.

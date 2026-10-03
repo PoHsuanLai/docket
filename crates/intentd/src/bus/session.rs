@@ -146,15 +146,44 @@ impl SessionBus {
     async fn note(
         &self,
         session: String,
-        episode: String,
+        note: String,
         #[zbus(header)] header: Header<'_>,
     ) -> Result<(), IntentsError> {
-        let note: NoteAsk = json(&episode)?;
+        let note: NoteAsk = json(&note)?;
         let request = IntentsRequest::SessionNote {
             session: session_of(&session)?,
             note,
         };
         self.0.done(&header, request).await
+    }
+
+    async fn narrow(
+        &self,
+        session: String,
+        turn: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<(), IntentsError> {
+        let request = IntentsRequest::SessionNarrow {
+            session: session_of(&session)?,
+            turn: json(&turn)?,
+        };
+        self.0.done(&header, request).await
+    }
+
+    async fn handles(
+        &self,
+        session: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<String, IntentsError> {
+        let request = IntentsRequest::SessionHandles {
+            session: session_of(&session)?,
+        };
+        self.0
+            .answer(&header, request, |r| match r {
+                IntentsReply::Handles(cards) => Some(cards),
+                _ => None,
+            })
+            .await
     }
 
     async fn recall(

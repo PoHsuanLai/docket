@@ -14,14 +14,18 @@ use crate::ids::{Handle, IntentsVocab, TurnId, WindowKey};
 use crate::index::{Hit, IndexBatch, SearchAsk, SuggestAsk};
 use crate::message::{Delivery, InboundLine, InboxAsk, MessageDraft, SendRefusal};
 use crate::planner::TurnIn;
+use crate::planner::{HandleCard, UserTurn};
 use crate::preview::Preview;
 use crate::reader::ReaderAsk;
 use crate::roster::{EpisodeLine, RecalledLine};
+use crate::roster::{PrimerText, ProfileLine};
 use crate::task::{SessionOpen, SessionOpened};
 use crate::task_policy::TaskPolicy;
 use crate::undo::{UndoEntry, UndoFault, UndoScope};
 use crate::value::Value;
-use almanac_core::{Episode, EventSummary, InjectQuery, RecentQuery};
+use almanac_core::{
+    Episode, EpisodeId, EventSummary, InjectQuery, JsonText, Narrative, RecentQuery,
+};
 use porter_core::{AppName, Count};
 use prov::{EntityId, RunId, SessionId, SpaceId, SpaceScope};
 use serde::{Deserialize, Serialize};
@@ -70,6 +74,14 @@ pub enum RecallAsk {
     Recent(RecentQuery),
     /// Automatic top-k recall for this turn.
     Inject(InjectQuery),
+    /// The Space's recent episodes as the planner reads them (the query's kinds and bodies are
+    /// the router's: `companion.episode`, with bodies): the skeleton as trusted lines, a
+    /// narrative by handle.
+    Episodes(RecentQuery),
+    /// The Space's primer: at most 200 lines of what is kept.
+    Primer,
+    /// The facts the person stated themselves at the desktop scope.
+    Profile,
 }
 
 /// One recent event as the planner may read it.
@@ -79,8 +91,13 @@ pub struct RecentLine {
     pub summary: EventSummary,
     /// Its effect.
     pub effect: prov::Effect,
+    /// Its provenance.
+    pub label: prov::Label,
     /// Its text: plain when trusted, a handle when not.
     pub text: Option<Reveal<String>>,
+    /// The body's serde JSON, when the query asked for bodies and the label is trusted: an
+    /// untrusted body never reaches the companion (its text is the handle above).
+    pub body: Option<JsonText>,
 }
 
 /// What a recall returns.
@@ -93,13 +110,85 @@ pub enum RecallView {
     Hits(Vec<RecalledLine>),
     /// Recent episodes, skeleton as trusted lines.
     Episodes(Vec<EpisodeLine>),
+    /// The Space's primer.
+    Primer(PrimerText),
+    /// The person's own pinned facts.
+    Profile(Vec<ProfileLine>),
 }
 
-/// An episode the idle pass hands the router to record (`Session.Note`).
+/// The tail of a session record's kind (`companion.session.<slug>`): lowercase words and digits
+/// with underscores, 1 to 32 characters, starting with a letter.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct NoteSlug(String);
+
+/// Why a slug is not one.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("a note slug is 1 to 32 lowercase letters, digits and underscores, starting with a letter")]
+pub struct NoteSlugError;
+
+impl NoteSlug {
+    /// `text` as a slug.
+    pub fn parse(text: &str) -> Result<Self, NoteSlugError> {
+        let mut chars = text.chars();
+        let first = chars.next().is_some_and(|c| c.is_ascii_lowercase());
+        let rest = chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+        if first && rest && text.len() <= 32 {
+            Ok(Self(text.to_owned()))
+        } else {
+            Err(NoteSlugError)
+        }
+    }
+
+    /// The slug.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for NoteSlug {
+    type Error = NoteSlugError;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        Self::parse(&text)
+    }
+}
+
+impl From<NoteSlug> for String {
+    fn from(slug: NoteSlug) -> String {
+        slug.0
+    }
+}
+
+/// A record companiond keeps about its own sessions (`companion-wire`'s `SessionRecord`, in its
+/// serde form): the router stores it for the Space the session is in, as
+/// `Area { Companion }` of kind `companion.session.<slug>`, trusted and private to the Space.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct NoteAsk {
-    /// The episode, with its narrative.
-    pub episode: Episode,
+pub struct SessionNote {
+    /// What kind of record: the tail of its kind tag.
+    pub slug: NoteSlug,
+    /// The record's serde JSON.
+    pub json: JsonText,
+}
+
+/// What the companion hands the router to record (`Session.Note`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+pub enum NoteAsk {
+    /// An episode as it is: a side conversation's, or a worker's skeleton when its final report
+    /// ended the task before the router could write one.
+    Episode(Box<Episode>),
+    /// The idle pass's narrative of an episode the router already holds the skeleton of: the
+    /// router merges it into its own skeleton (the companion never restates the skeleton) and
+    /// records the narrated successor.
+    Narrative {
+        /// Which episode (the task's id).
+        episode: EpisodeId,
+        /// What the model wrote.
+        narrative: Narrative,
+    },
+    /// A record of the companion's sessions.
+    Record(SessionNote),
 }
 
 /// What to list of the undo journal.
@@ -253,6 +342,19 @@ pub enum IntentsRequest {
         /// What to read.
         ask: RecallAsk,
     },
+    /// `.Session.Narrow` (the companion only): narrows a session's policy from the person's
+    /// words, through the policy writer. Never wider than the session's own.
+    SessionNarrow {
+        /// The session.
+        session: SessionId,
+        /// What the person said to its agent.
+        turn: UserTurn,
+    },
+    /// `.Session.Handles` (the companion only): what the session holds by handle, in shape only.
+    SessionHandles {
+        /// The session.
+        session: SessionId,
+    },
     /// `.Message.Send`.
     MessageSend {
         /// The session the sender speaks from.
@@ -340,6 +442,8 @@ pub enum IntentsReply {
     Widened(WidenAnswer),
     /// What memory returned.
     Recalled(RecallView),
+    /// What a session holds by handle: shape, source and size, never the content.
+    Handles(Vec<HandleCard>),
     /// A message was delivered.
     Delivered(Delivery),
     /// Messages that wait.

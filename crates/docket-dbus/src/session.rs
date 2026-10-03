@@ -35,8 +35,14 @@ pub trait Session {
     /// Asks to widen the task policy (`TaskPolicy` JSON); the person confirms against their turn. Answers a Request.
     fn widen(&self, session: &str, turn: u64, change: &str) -> zbus::Result<OwnedObjectPath>;
 
-    /// Records an episode the idle pass wrote (`NoteAsk` JSON). Companion role only.
-    fn note(&self, session: &str, episode: &str) -> zbus::Result<()>;
+    /// Hands the router something to record (`NoteAsk` JSON: an episode, a narrative of one the router holds, or a record of the companion's sessions). Companion role only.
+    fn note(&self, session: &str, note: &str) -> zbus::Result<()>;
+
+    /// Narrows a subagent's task policy from what the person said to it (`UserTurn` JSON): never wider than the policy it has. Companion role only.
+    fn narrow(&self, session: &str, turn: &str) -> zbus::Result<()>;
+
+    /// What the session holds by handle, in shape only (`Vec<HandleCard>` JSON). Companion role only.
+    fn handles(&self, session: &str) -> zbus::Result<String>;
 
     /// Reads memory for the session (`RecallAsk` JSON; answers `RecallView` JSON), labels applied by the router.
     fn recall(&self, session: &str, ask: &str, options: &Details) -> zbus::Result<String>;
@@ -88,8 +94,18 @@ impl SessionSkeleton {
         Err(crate::introspect::frozen())
     }
 
-    fn note(&self, session: String, episode: String) -> fdo::Result<()> {
-        let _ = (session, episode);
+    fn note(&self, session: String, note: String) -> fdo::Result<()> {
+        let _ = (session, note);
+        Err(crate::introspect::frozen())
+    }
+
+    fn narrow(&self, session: String, turn: String) -> fdo::Result<()> {
+        let _ = (session, turn);
+        Err(crate::introspect::frozen())
+    }
+
+    fn handles(&self, session: String) -> fdo::Result<String> {
+        let _ = (session,);
         Err(crate::introspect::frozen())
     }
 

@@ -13,6 +13,14 @@ use serde_json::json;
 use std::path::PathBuf;
 use support::infer::{Say, ScriptedInfer, call, words};
 
+/// A value outside what the parameter declares.
+fn wrong(name: &str) -> ArgsFault {
+    ArgsFault::Wrong {
+        param: ParamName::parse(name).expect("param"),
+        why: docket_core::Why::Range,
+    }
+}
+
 fn manifest(file: &str) -> ValidManifest {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../manifests")
@@ -148,7 +156,7 @@ fn each_declared_type_reads_its_json() {
             "integer out of range",
             T::Integer { min: 1, max: 5 },
             json!(9),
-            Err(ArgsFault::WrongType("p".into())),
+            Err(wrong("p")),
         ),
         (
             "datetime",
@@ -182,7 +190,7 @@ fn each_declared_type_reads_its_json() {
             "a choice that is not declared",
             choice,
             json!("zzz"),
-            Err(ArgsFault::WrongType("p".into())),
+            Err(wrong("p")),
         ),
         (
             "an entity of its kind",
@@ -194,7 +202,7 @@ fn each_declared_type_reads_its_json() {
             "an entity of another kind",
             T::Entity(EntityKind::parse("mail.contact").expect("kind")),
             thread.clone(),
-            Err(ArgsFault::WrongType("p".into())),
+            Err(wrong("p")),
         ),
         (
             "entities",

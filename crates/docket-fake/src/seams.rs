@@ -16,7 +16,7 @@ use docket_router::{AppFault, AppLink, LinkFault, Seams};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 use std::collections::BTreeSet;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 /// Whether a fake app answers `Perform`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +38,36 @@ pub struct FakeLink {
     pub silent: Mutex<BTreeSet<AppName>>,
     /// What the focused window shows, if a test set one: the fakes have no windows of their own.
     pub window: Mutex<Option<ContextSnapshot>>,
+    /// The built-in `org.quire.Companion` provider, once a test has attached the router that
+    /// hosts it (`host_companion`); until then the app is unavailable.
+    companion: Hosted,
+}
+
+type Perform = Box<dyn Fn(Invocation) -> Result<Outcome, AppRefusal> + Send + Sync>;
+
+/// The way back to the router that hosts the built-in provider.
+#[derive(Default)]
+struct Hosted(OnceLock<Perform>);
+
+impl std::fmt::Debug for Hosted {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Hosted(attached: {})", self.0.get().is_some())
+    }
+}
+
+/// Attaches `router` as the host of the built-in `org.quire.Companion` provider, as intentd does:
+/// the app answers through the router's own `companion_perform`. The router is held weakly.
+pub fn host_companion(router: &std::sync::Arc<docket_router::Router<FakeSeams>>) {
+    let weak = std::sync::Arc::downgrade(router);
+    let _ = router
+        .seams
+        .link
+        .companion
+        .0
+        .set(Box::new(move |inv| match weak.upgrade() {
+            Some(router) => router.companion_perform(inv),
+            None => Err(AppRefusal::Unsupported),
+        }));
 }
 
 impl FakeLink {
@@ -48,6 +78,7 @@ impl FakeLink {
             files,
             silent: Mutex::new(BTreeSet::new()),
             window: Mutex::new(None),
+            companion: Hosted::default(),
         }
     }
 
@@ -91,6 +122,11 @@ impl AppLink for FakeLink {
             self.mail.perform(inv).await.map_err(AppFault::Refused)
         } else if self.is_files(app) {
             self.files.perform(inv).await.map_err(AppFault::Refused)
+        } else if app.as_str() == docket_router::COMPANION_APP {
+            match self.companion.0.get() {
+                Some(perform) => perform(inv).map_err(AppFault::Refused),
+                None => Err(AppFault::Unavailable),
+            }
         } else {
             Err(AppFault::Refused(AppRefusal::Unsupported))
         }

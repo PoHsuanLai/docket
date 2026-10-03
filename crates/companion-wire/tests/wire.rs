@@ -146,12 +146,30 @@ fn bodies_round_trip() {
 fn asks_and_the_front_pointer_round_trip() {
     let ask = AskWire {
         session: prov::SessionId::parse("s-1").expect("s"),
-        turn: TurnId(4),
+        turn: UserTurn {
+            id: TurnId(4),
+            text: "archive the newsletters".into(),
+            at: prov::UnixSeconds(5),
+            from: TurnSource::Launcher,
+            via: TurnVia::Typed,
+        },
+        keep: ContextKeep {
+            query: Keep::Kept,
+            results: Keep::Dropped,
+            selection: Keep::Dropped,
+            window: Keep::Kept,
+        },
         parent_window: WindowKey::parse("w-9").expect("w"),
+        app: Some(AppName::parse("org.quire.Mail").expect("app")),
     };
     assert_eq!(
         round(&ask),
-        r#"{"session":"s-1","turn":4,"parent_window":"w-9"}"#
+        concat!(
+            r#"{"session":"s-1","turn":{"id":4,"text":"archive the newsletters","at":5,"#,
+            r#""from":{"kind":"launcher"},"via":"typed"},"#,
+            r#""keep":{"query":"kept","results":"dropped","selection":"dropped","window":"kept"},"#,
+            r#""parent_window":"w-9","app":"org.quire.Mail"}"#
+        )
     );
     let front = FrontTask {
         task: Some(task("t-2")),

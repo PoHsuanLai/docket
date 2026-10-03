@@ -220,6 +220,45 @@ async fn a_halt_withdraws_every_sheet_in_scope_and_only_the_control_centre_resum
     );
 }
 
+#[tokio::test]
+async fn resuming_one_space_lifts_a_global_halt_for_that_space_alone() {
+    let router = router();
+    open(&router, "work", AgentRef::Companion).await;
+    open(&router, "home", AgentRef::Companion).await;
+    ask(
+        &router,
+        &control(),
+        IntentsRequest::ControlHalt {
+            scope: SpaceScope::Any,
+            cause: HaltCause::ControlCentre,
+        },
+    )
+    .await;
+    ask(
+        &router,
+        &control(),
+        IntentsRequest::ControlResume {
+            scope: SpaceScope::Only(space("work")),
+        },
+    )
+    .await;
+    let IntentsReply::State(kill) = ask(&router, &control(), IntentsRequest::ControlState).await
+    else {
+        panic!("state")
+    };
+    assert_eq!(
+        kill.all,
+        docket_core::Halt::Running,
+        "no global halt is left"
+    );
+    assert!(
+        kill.spaces.contains_key(&space("home")) && !kill.spaces.contains_key(&space("work")),
+        "the other Space is still halted: {kill:?}"
+    );
+    assert_eq!(docket_core::halted(&kill, &space("work")), None);
+    assert!(docket_core::halted(&kill, &space("home")).is_some());
+}
+
 fn launcher_with(role: CallerRole) -> CallerId {
     caller("org.quire.Shell", role)
 }

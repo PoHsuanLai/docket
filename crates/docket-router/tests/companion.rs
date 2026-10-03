@@ -74,14 +74,27 @@ fn task_entity(task: &str) -> EntityId {
     }
 }
 
+/// The task and the session `companion.task.start` answers: a record of both.
+fn started(outcome: &Outcome) -> (prov::TaskId, SessionId) {
+    let Some(Labelled {
+        value: Value::Record(fields),
+        ..
+    }) = &outcome.value
+    else {
+        panic!("{outcome:?}")
+    };
+    let text = |name: &str| match fields.get(&param(name)) {
+        Some(Value::Text(t)) => t.clone(),
+        other => panic!("{name}: {other:?}"),
+    };
+    (
+        prov::TaskId::parse(&text("task")).expect("a task id"),
+        SessionId::parse(&text("session")).expect("a session id"),
+    )
+}
+
 fn started_task(outcome: &Outcome) -> prov::TaskId {
-    match &outcome.value {
-        Some(Labelled {
-            value: Value::Text(id),
-            ..
-        }) => prov::TaskId::parse(id).expect("a task id"),
-        other => panic!("{other:?}"),
-    }
+    started(outcome).0
 }
 
 async fn worker_inbox(
@@ -114,7 +127,7 @@ async fn starting_a_task_opens_a_child_session_holds_the_goal_as_a_handle_and_se
     let outcome = router
         .companion_perform(start("Find the Lisbon receipts", &front.session))
         .expect("the task starts");
-    let task = started_task(&outcome);
+    let (task, worker_session) = started(&outcome);
     assert_eq!(outcome.undo, Undoable::No);
 
     let (record, policy) = {
@@ -133,6 +146,10 @@ async fn starting_a_task_opens_a_child_session_holds_the_goal_as_a_handle_and_se
             .expect("a child of a task with a policy has one");
         (record, policy)
     };
+    assert_eq!(
+        record.session, worker_session,
+        "the spawner is told the session the worker runs in"
+    );
     assert_eq!(record.agent, AgentRef::Worker { task: task.clone() });
     assert_eq!(record.parent, Some(front.task.clone()));
     assert_eq!(record.state, TaskState::Working);

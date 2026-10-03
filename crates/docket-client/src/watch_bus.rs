@@ -61,7 +61,8 @@ impl Events for Signals {
                             Some("Response") => {
                                 self.over = true;
                                 let answer = message.body().deserialize().map_err(bus)?;
-                                return (self.reading)(answer).map(Said::Answer);
+                                return (self.reading)(answer)
+                                    .map(|reply| Said::Answer(Box::new(reply)));
                             }
                             _ => {}
                         }

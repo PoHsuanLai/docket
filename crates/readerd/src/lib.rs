@@ -5,12 +5,14 @@
 //! a new handle, never as itself.
 
 mod answer;
+mod daemon;
 mod host;
 mod request;
 mod serve;
 mod service;
 
 pub use answer::answer_of;
+pub use daemon::{run, start};
 pub use host::ReaderHost;
 pub use request::{class_of, reader_request, reply_shape, task_instruction};
 pub use serve::{ServeFault, serve, serve_on};

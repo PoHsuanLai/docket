@@ -10,17 +10,21 @@ use crate::runtime::Companiond;
 use crate::shared::{Change, Shared};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
-use docket_core::SessionOpen;
+use docket_core::{SessionOpen, UserTurn};
 use docket_dbus::{
     BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
 };
 use porter_client::Transport as InferTransport;
-use prov::{SessionId, TaskId};
+use porter_core::AppName;
+use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use zbus::fdo;
+use zbus::fdo::DBusProxy;
 use zbus::fdo::{RequestNameFlags, RequestNameReply};
+use zbus::message::Header;
+use zbus::names::BusName;
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 
@@ -30,9 +34,7 @@ const TICK: Duration = Duration::from_secs(5);
 
 fn failed(error: ServeFault) -> fdo::Error {
     match error {
-        ServeFault::UnknownSession | ServeFault::UnknownTurn => {
-            fdo::Error::InvalidArgs(error.to_string())
-        }
+        ServeFault::UnknownSession => fdo::Error::InvalidArgs(error.to_string()),
         other => fdo::Error::Failed(other.to_string()),
     }
 }
@@ -52,6 +54,25 @@ fn path_of(task: &TaskId) -> fdo::Result<OwnedObjectPath> {
 struct Root<P: InferTransport, I: IntentsTransport> {
     companion: Arc<Mutex<Companiond<P, I>>>,
     shared: Arc<Shared>,
+    shell: AppName,
+    connection: BusConnection,
+}
+
+impl<P: InferTransport, I: IntentsTransport> Root<P, I> {
+    /// Only the shell speaks for the person: an ask carries the turn it recorded, and a turn the
+    /// router never recorded must not be taken from anybody else.
+    async fn require_shell(&self, header: &Header<'_>) -> fdo::Result<()> {
+        let sender = header.sender().map(ToString::to_string).unwrap_or_default();
+        let proxy = DBusProxy::new(&self.connection).await?;
+        let name = BusName::try_from(self.shell.as_str())
+            .map_err(|e| fdo::Error::Failed(e.to_string()))?;
+        match proxy.get_name_owner(name).await {
+            Ok(owner) if owner.as_str() == sender => Ok(()),
+            _ => Err(fdo::Error::AccessDenied(
+                "only the shell speaks for the person".into(),
+            )),
+        }
+    }
 }
 
 #[zbus::interface(name = "org.quire.Companion1")]
@@ -77,9 +98,11 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
         &self,
         ask: String,
         options: Details,
+        #[zbus(header)] header: Header<'_>,
         #[zbus(object_server)] server: &zbus::ObjectServer,
     ) -> fdo::Result<OwnedObjectPath> {
         let _ = options;
+        self.require_shell(&header).await?;
         let ask: AskWire = serde_json::from_str(&ask).map_err(bad)?;
         // Whatever background work holds the model yields before the loop starts.
         self.shared.interrupt();
@@ -111,6 +134,21 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
             .close(session)
             .await
             .map_err(failed)
+    }
+
+    async fn told(
+        &self,
+        agent: String,
+        space: String,
+        turn: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<()> {
+        self.require_shell(&header).await?;
+        let agent: AgentRef = serde_json::from_str(&agent).map_err(bad)?;
+        let space = SpaceId::parse(&space).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
+        let turn: UserTurn = serde_json::from_str(&turn).map_err(bad)?;
+        self.companion.lock().await.told(agent, space, turn);
+        Ok(())
     }
 
     async fn roster(&self) -> fdo::Result<String> {
@@ -252,7 +290,10 @@ where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
 {
-    let shared = companion.lock().await.shared.clone();
+    let (shared, shell) = {
+        let held = companion.lock().await;
+        (held.shared.clone(), held.shell.clone())
+    };
     connection
         .object_server()
         .at(
@@ -260,6 +301,8 @@ where
             Root {
                 companion: companion.clone(),
                 shared: shared.clone(),
+                shell,
+                connection: connection.clone(),
             },
         )
         .await

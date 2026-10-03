@@ -8,6 +8,7 @@
 //! shapes of memory (episodes, recall, recent), `cua-action` for the computer-use gate and
 //! `model-provider` for the structured-output shapes `ValueSchema` renders through.
 
+mod args;
 mod audit;
 mod budget;
 mod call;
@@ -38,6 +39,7 @@ mod value;
 pub mod when;
 mod wire;
 
+pub use args::{ArgsFault, TARGET_KEY, TargetFault, Why, args_from_json, target_from_json};
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};
 pub use budget::{
     Budget, BudgetKind, Cost, Halt, HaltCause, KillSwitch, Ledger, Reviewed, charge, halted,
@@ -109,6 +111,7 @@ pub use units::{CharCount, Depth, Generation, Millis, Scale, Seconds};
 pub use validate::{ManifestError, ValidManifest, fits, validate};
 pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
 pub use wire::{
-    Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, NoteAsk, ReadAsk,
-    RecallAsk, RecallView, RecentLine, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
+    Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, NoteAsk,
+    NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine, SessionNote, UndoReport,
+    WidenAnswer, WidenAsk, WireRefusal,
 };

@@ -27,7 +27,11 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::SessionResolve => &[Reader],
         // Text for the screen, never for a model.
         Member::SessionDisplay => &[Launcher, Field],
-        Member::SessionRead | Member::SessionNote | Member::SessionRecall => &[Companion],
+        Member::SessionRead
+        | Member::SessionNote
+        | Member::SessionRecall
+        | Member::SessionNarrow
+        | Member::SessionHandles => &[Companion],
         Member::SessionTaskPolicy | Member::SessionWiden => &[Launcher, Field, Companion],
         // The person talks to a subagent through the launcher; agents and runs report.
         Member::MessageSend => &[Launcher, Field, Companion, Cua],

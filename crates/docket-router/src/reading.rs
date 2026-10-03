@@ -5,15 +5,13 @@
 use crate::handles::{HandleValue, context_view};
 use crate::labels::{absorb, fold_labels};
 use crate::router::Router;
-use crate::seams::{AppLink, EventSink, LinkFault, MemoryLink, Seams};
-use almanac_core::{MemoryReply, MemoryRequest};
+use crate::seams::{AppLink, LinkFault, Seams};
 use docket_core::{
-    CallRefusal, ContextScope, ContextSnapshot, Handle, IntentsReply, NoteAsk, ReadAsk, Reader,
-    RecallAsk, RecallView, RecalledLine, RecentLine, Reveal, Selection, Value, WireRefusal,
-    conforms,
+    CallRefusal, ContextScope, ContextSnapshot, Handle, IntentsReply, ReadAsk, Reader, Reveal,
+    Selection, Value, WireRefusal, conforms,
 };
 use porter_core::AppName;
-use prov::{Integrity, Label, Labelled, SessionId, Source};
+use prov::{Label, Labelled, SessionId, Source};
 
 fn refuse(why: WireRefusal) -> IntentsReply {
     IntentsReply::Refused(why)
@@ -126,75 +124,6 @@ impl<S: Seams> Router<S> {
         IntentsReply::Read(Reveal::Handle(handle))
     }
 
-    /// `.Session.Note`: an episode the idle pass hands over, recorded as it is.
-    pub(crate) fn session_note(&self, id: &SessionId, note: NoteAsk) -> IntentsReply {
-        if !self.locked().sessions.contains_key(id) {
-            return refuse(WireRefusal::NoSuchSession);
-        }
-        self.seams
-            .sink()
-            .append(docket_core::AuditRecord::Episode(Box::new(note.episode)));
-        IntentsReply::Done
-    }
-
-    /// `.Session.Recall`: memory's answer for this session's Space, every untrusted text a
-    /// handle.
-    pub(crate) async fn session_recall(&self, id: &SessionId, ask: RecallAsk) -> IntentsReply {
-        let Some(space) = self.locked().sessions.get(id).map(|r| r.space.clone()) else {
-            return refuse(WireRefusal::NoSuchSession);
-        };
-        let request = match ask {
-            RecallAsk::Recent(query) => MemoryRequest::Recent(space, query),
-            RecallAsk::Inject(mut query) => {
-                query.space = space;
-                MemoryRequest::Inject(query)
-            }
-        };
-        let Ok(reply) = self.seams.memory().ask(request).await else {
-            return refuse(WireRefusal::Malformed);
-        };
-        let mut st = self.locked();
-        let Some(record) = st.sessions.get_mut(id) else {
-            return refuse(WireRefusal::NoSuchSession);
-        };
-        let mut reveal = |text: &str, label: &Label| {
-            let shown = record.handles.reveal(
-                Labelled {
-                    value: text.to_owned(),
-                    label: label.clone(),
-                },
-                source_of(label),
-            );
-            if matches!(shown, Reveal::Plain(_)) && label.integrity == Integrity::Trusted {
-                absorb_private(record, label);
-            }
-            shown
-        };
-        match reply {
-            MemoryReply::Recent(entries) => IntentsReply::Recalled(RecallView::Recent(
-                entries
-                    .into_iter()
-                    .map(|e| RecentLine {
-                        text: e.text.as_ref().map(|t| reveal(t.as_str(), &e.label)),
-                        summary: e.summary,
-                        effect: e.effect,
-                    })
-                    .collect(),
-            )),
-            MemoryReply::Hits(hits) => IntentsReply::Recalled(RecallView::Hits(
-                hits.into_iter()
-                    .map(|h| RecalledLine {
-                        text: reveal(h.text.as_str(), &h.label),
-                        doc: h.doc,
-                        at: h.at,
-                        why: h.why,
-                    })
-                    .collect(),
-            )),
-            _ => refuse(WireRefusal::Malformed),
-        }
-    }
-
     /// `.Context.Current`: where the person is, in the window of `app`, the app they summoned
     /// the companion from (a launcher turn names none, so the caller says which).
     pub(crate) async fn session_context(&self, id: &SessionId, app: AppName) -> IntentsReply {
@@ -233,10 +162,4 @@ fn entities_of(ctx: &ContextSnapshot) -> Vec<prov::EntityId> {
         .chain(selected)
         .chain(ctx.visible.items.iter().map(|e| e.id.clone()))
         .collect()
-}
-
-fn absorb_private(record: &mut crate::state::SessionRecord, label: &Label) {
-    if !matches!(label.confidentiality, prov::Confidentiality::Public) {
-        absorb(record, label);
-    }
 }

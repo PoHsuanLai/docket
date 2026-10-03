@@ -1,6 +1,6 @@
 [package]
 name = "companiond"
-description = "The companion daemon: one identity over many tasks, each its own docket session. Serves org.quire.Companion1; the binary is a skeleton."
+description = "The companion daemon: one identity over many tasks, each its own docket session. Serves org.quire.Companion1; the binary serves it on the session bus."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -21,7 +21,7 @@ agent-loop = { workspace = true }
 almanac-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
-docket-client = { workspace = true }
+docket-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true, features = ["inferd"] }
 futures-util = { workspace = true }
 prov = { workspace = true }
@@ -32,6 +32,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+toml = { workspace = true }
 zbus = { workspace = true }
 
 [lints]

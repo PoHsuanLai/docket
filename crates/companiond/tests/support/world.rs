@@ -85,6 +85,8 @@ pub fn world_with(script: Vec<Say>, memory: Vec<almanac_core::MemoryReply>) -> W
     grant_mail(&router, "work");
     grant_mail(&router, "home");
     let router = Arc::new(router);
+    // The built-in `org.quire.Companion` provider answers through the router, as in intentd.
+    docket_fake::host_companion(&router);
     let infer = ScriptedInfer::new(script);
     let (clock, hand) = Clock::manual(prov::UnixSeconds(1_000));
     let companion = Companiond::new(
@@ -110,20 +112,23 @@ pub fn world_with(script: Vec<Say>, memory: Vec<almanac_core::MemoryReply>) -> W
     }
 }
 
-/// Standing consent: the companion may use Mail's classes in `in_space`, always.
+/// Standing consent: the companion may use Mail's classes and its own built-in provider
+/// (starting a task) in `in_space`, always.
 fn grant_mail(router: &Router<FakeSeams>, in_space: &str) {
     use docket_router::GrantStore;
     use porter_core::consent::{Decision, Grant, GrantScope, Usage};
-    for (n, class) in [DataClass::Mail, DataClass::Contacts]
-        .into_iter()
-        .enumerate()
-    {
+    let uses = [
+        ("org.quire.Mail", DataClass::Mail),
+        ("org.quire.Mail", DataClass::Contacts),
+        ("org.quire.Companion", DataClass::AppOwn),
+    ];
+    for (n, (owner, class)) in uses.into_iter().enumerate() {
         for usage in [Usage::Interactive, Usage::Background] {
             router.seams.grants.record(Grant {
                 id: porter_core::GrantId::parse(&format!("g-{in_space}-{n}")).expect("grant"),
                 key: ActionGrantKey {
                     caller: GrantCaller::Companion,
-                    owner: app("org.quire.Mail"),
+                    owner: app(owner),
                     target: GrantTarget::App,
                     class,
                     usage,
@@ -177,22 +182,19 @@ impl World {
             .await
             .expect("turn");
         let at = prov::UnixSeconds(self.hand.load(Ordering::SeqCst));
-        self.companion.heard(
-            session.clone(),
-            UserTurn {
-                id,
-                text: text.into(),
-                at,
-                from: TurnSource::Launcher,
-                via: TurnVia::Typed,
-            },
-            keep_nothing(),
-        );
         self.companion
             .ask(companion_wire::AskWire {
                 session: session.clone(),
-                turn: id,
+                turn: UserTurn {
+                    id,
+                    text: text.into(),
+                    at,
+                    from: TurnSource::Launcher,
+                    via: TurnVia::Typed,
+                },
+                keep: keep_nothing(),
                 parent_window: WindowKey::parse("w1").expect("window"),
+                app: None,
             })
             .await
             .expect("ask")

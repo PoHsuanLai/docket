@@ -33,7 +33,7 @@ impl Events for Driven {
                 return Poll::Ready(Ok(Said::Progress(progress)));
             }
             match (self.answer.take(), &self.handling) {
-                (Some(reply), _) => Poll::Ready(Ok(Said::Answer(reply))),
+                (Some(reply), _) => Poll::Ready(Ok(Said::Answer(Box::new(reply)))),
                 (None, None) => Poll::Ready(Err(TransportError::Closed)),
                 (None, Some(_)) => Poll::Pending,
             }

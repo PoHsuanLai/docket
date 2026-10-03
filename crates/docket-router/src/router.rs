@@ -150,6 +150,8 @@ impl<S: Seams> Router<S> {
             R::SessionWiden { session, widen } => self.session_widen(&session, widen).await,
             R::SessionNote { session, note } => self.session_note(&session, note),
             R::SessionRecall { session, ask } => self.session_recall(&session, ask).await,
+            R::SessionNarrow { session, turn } => self.session_narrow(&session, turn).await,
+            R::SessionHandles { session } => self.session_handles(&session),
             R::MessageSend { session, draft } => self.message_send(caller, role, &session, draft),
             R::MessageInbox(ask) => self.message_inbox(role, ask),
             R::GateGrant(ask) => self.gate_grant(ask).await,

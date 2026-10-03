@@ -268,9 +268,39 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     .await;
     pair.both(IntentsRequest::SessionNote {
         session: session.clone(),
-        note: NoteAsk { episode: episode() },
+        note: NoteAsk::Episode(Box::new(episode())),
     })
     .await;
+    pair.both(IntentsRequest::SessionNote {
+        session: session.clone(),
+        note: NoteAsk::Record(SessionNote {
+            slug: NoteSlug::parse("opened").expect("slug"),
+            json: almanac_core::JsonText::parse(r#"{"kind":"closed"}"#).expect("json"),
+        }),
+    })
+    .await;
+    pair.both(IntentsRequest::SessionHandles {
+        session: session.clone(),
+    })
+    .await;
+    pair.both(IntentsRequest::SessionNarrow {
+        session: session.clone(),
+        turn: UserTurn {
+            id: TurnId(1),
+            text: "only read it".into(),
+            at: UnixSeconds(1),
+            from: TurnSource::Launcher,
+            via: TurnVia::Typed,
+        },
+    })
+    .await;
+    for ask in [RecallAsk::Primer, RecallAsk::Profile] {
+        pair.both(IntentsRequest::SessionRecall {
+            session: session.clone(),
+            ask,
+        })
+        .await;
+    }
     pair.both(IntentsRequest::SessionRecall {
         session: session.clone(),
         ask: almanac_core_recall(),

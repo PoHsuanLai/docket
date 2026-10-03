@@ -341,13 +341,25 @@ async fn a_companion_starts_a_task_and_the_task_is_audited_into_memory() {
         .await
         .expect("the request")
         .expect("the task starts");
+    // The answer is the task and the session the worker runs in.
     let Some(Labelled {
-        value: Value::Text(task),
+        value: Value::Record(answer),
         ..
     }) = outcome.value
     else {
         panic!("{outcome:?}")
     };
+    let Some(Value::Text(task)) = answer.get(&ParamName::parse("task").expect("param")) else {
+        panic!("{answer:?}")
+    };
+    let task = task.clone();
+    assert!(
+        matches!(
+            answer.get(&ParamName::parse("session").expect("param")),
+            Some(Value::Text(_))
+        ),
+        "{answer:?}"
+    );
 
     let worker = prov::TaskId::parse(&task).expect("a task id");
     let inbox = desk
@@ -484,13 +496,25 @@ async fn a_message_arriving_for_a_worker_is_said_content_free() {
         .await
         .expect("the request")
         .expect("the task starts");
+    // The answer is the task and the session the worker runs in.
     let Some(Labelled {
-        value: Value::Text(task),
+        value: Value::Record(answer),
         ..
     }) = outcome.value
     else {
         panic!("{outcome:?}")
     };
+    let Some(Value::Text(task)) = answer.get(&ParamName::parse("task").expect("param")) else {
+        panic!("{answer:?}")
+    };
+    let task = task.clone();
+    assert!(
+        matches!(
+            answer.get(&ParamName::parse("session").expect("param")),
+            Some(Value::Text(_))
+        ),
+        "{answer:?}"
+    );
     let signal = first(&mut arrived).await;
     let agent: AgentRef =
         serde_json::from_str(signal.args().expect("args").agent()).expect("an agent");
@@ -504,4 +528,32 @@ async fn a_message_arriving_for_a_worker_is_said_content_free() {
         !signal.args().expect("args").agent().contains("receipts"),
         "no content"
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_session_record_the_companion_notes_reaches_memory_as_a_companion_area_record() {
+    use almanac_core::{AreaTag, EventBody, JsonText};
+    let desk = Desk::start(FakeMemoryd::recording()).await;
+    let front = desk.front().await;
+    let json = r#"{"kind":"closed"}"#;
+    desk.companion
+        .session_note(
+            front.session.clone(),
+            NoteAsk::Record(SessionNote {
+                slug: NoteSlug::parse("closed").expect("slug"),
+                json: JsonText::parse(json).expect("json"),
+            }),
+        )
+        .await
+        .expect("the router took the note");
+
+    let stored = desk.records("companion.session.closed").await;
+    assert_eq!(stored.len(), 1, "{stored:?}");
+    assert_eq!(stored[0].space, space("work"), "the Space of the session");
+    assert_eq!(stored[0].label.integrity, prov::Integrity::Trusted);
+    let EventBody::Area(payload) = &stored[0].body else {
+        panic!("{:?}", stored[0].body)
+    };
+    assert_eq!(payload.area, AreaTag::Companion);
+    assert_eq!(payload.json.as_str(), json, "the owner's form, unchanged");
 }

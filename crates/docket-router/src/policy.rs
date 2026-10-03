@@ -8,9 +8,9 @@ use crate::tasks::child_policy;
 use docket_core::{
     ActionCard, ActionDecl, ActionMatch, ActionRef, AgentReach, Anchor, ArgLine, AskReason,
     AuditRecord, ConfirmAnswer, ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId,
-    ConfirmOffer, ConfirmRequest, Confirmer, Gesture, LabelText, PolicyChange, PolicyWriter, Shown,
-    TaintNote, TaskPolicy, TaskPolicyState, TurnSource, WidenAnswer, Widening, compare,
-    tool_schema,
+    ConfirmOffer, ConfirmRequest, Confirmer, Gesture, IntentsReply, LabelText, PolicyChange,
+    PolicyWriter, Shown, TaintNote, TaskPolicy, TaskPolicyState, TurnSource, UserTurn, WidenAnswer,
+    Widening, WireRefusal, compare, intersection, tool_schema,
 };
 use porter_core::{AppName, Count};
 use prov::{Effect, SessionId, UnixSeconds};
@@ -25,6 +25,7 @@ fn card_of(decl: &ActionDecl, app: &AppName) -> ActionCard {
         },
         label: decl.label.clone(),
         effect: decl.effect,
+        on: decl.on.clone(),
         tool: tool_schema(decl),
         reach: decl.reach,
         lasting: decl.lasting,
@@ -147,6 +148,44 @@ impl<S: Seams> Router<S> {
         if let Some(policy) = bounded {
             self.apply_policy(id, policy, Baseline::Anything).await;
         }
+    }
+
+    /// `.Session.Narrow`: the person said something to a subagent. The policy writer reads it and
+    /// the session's policy becomes what both the old policy and the new words allow, never more
+    /// than either; a writer that fails changes nothing.
+    pub(crate) async fn session_narrow(&self, id: &SessionId, turn: UserTurn) -> IntentsReply {
+        let (task, catalogue, space, old) = {
+            let st = self.locked();
+            let Some(record) = st.sessions.get(id) else {
+                return IntentsReply::Refused(WireRefusal::NoSuchSession);
+            };
+            (
+                record.task.clone(),
+                catalogue(&st),
+                record.space.clone(),
+                record.policy.clone(),
+            )
+        };
+        let Ok(derived) = self
+            .seams
+            .writer()
+            .derive(&task, &[turn], &catalogue, &space)
+            .await
+        else {
+            return IntentsReply::Done;
+        };
+        // Never more than the session's own policy: with none, the parent's bound applies.
+        let narrowed = match old {
+            Some(old) => Some(intersection(&old, &derived)),
+            None => {
+                let st = self.locked();
+                self.bound_policy(&st, id, derived)
+            }
+        };
+        if let Some(policy) = narrowed {
+            self.apply_policy(id, policy, Baseline::Anything).await;
+        }
+        IntentsReply::Done
     }
 
     /// `.Session.Widen`: the person confirms a wider policy against their own words.

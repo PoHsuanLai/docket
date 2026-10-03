@@ -44,7 +44,14 @@ async fn a_worker_is_asked_in_a_message_runs_in_its_own_session_and_reports_back
     let (request, report) = (&messages[0], &messages[1]);
     assert_eq!(request.kind, MessageKind::Request);
     assert_eq!(request.from.agent, AgentRef::Companion);
-    assert_eq!(request.to.agent, worker("w-1"));
+    // The router names the worker's task when it starts it, and tells the spawner.
+    let AgentRef::Worker { task: wtask } = request.to.agent.clone() else {
+        panic!("the request is for a worker: {:?}", request.to)
+    };
+    let wid = wtask.as_str().to_owned();
+    let worker = |_: &str| AgentRef::Worker {
+        task: wtask.clone(),
+    };
     assert_eq!(
         request.label.integrity,
         Integrity::Untrusted,
@@ -76,11 +83,11 @@ async fn a_worker_is_asked_in_a_message_runs_in_its_own_session_and_reports_back
     // roster, finished.
     let front_view = w.infer.user_text(2);
     assert!(
-        front_view.contains("task w-1 in work [report done]"),
+        front_view.contains(&format!("task {wid} in work [report done]")),
         "{front_view}"
     );
     assert!(
-        front_view.contains("companion.task.start done value"),
+        front_view.contains("companion.task.start done \"Started a task\" value"),
         "{front_view}"
     );
     let roster = w.companion.roster();
@@ -119,7 +126,15 @@ async fn a_worker_runs_under_a_policy_never_wider_than_its_parents() {
     let child = state
         .sessions
         .values()
-        .find(|r| r.task == task("w-1"))
+        .find(|r| {
+            matches!(
+                r.actor,
+                prov::Actor::Companion {
+                    role: prov::AgentRole::Worker { .. },
+                    ..
+                }
+            )
+        })
         .expect("the worker's session");
     // The parent had no policy (the writer is down), so the child has none either: every call
     // that is not a read is outside what it may do.

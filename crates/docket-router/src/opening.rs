@@ -150,7 +150,10 @@ impl<S: Seams> Router<S> {
                 Some(EpisodeOutcome::Done)
             }
         };
-        let episode = outcome.and_then(|o| close(&t.ledger, EpisodeKind::Task, now, o));
+        // A session nobody used (no turn, no step) leaves no episode: there is nothing to remember.
+        let episode = outcome
+            .and_then(|o| close(&t.ledger, EpisodeKind::Task, now, o))
+            .filter(|e| !(e.skeleton.asked.is_empty() && e.skeleton.steps.is_empty()));
         drop(st);
         if policy_ended {
             self.seams.sink().append(AuditRecord::TaskPolicy {

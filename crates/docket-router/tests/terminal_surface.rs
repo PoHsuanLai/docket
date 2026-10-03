@@ -125,7 +125,7 @@ async fn a_terminal_undoes_only_what_a_terminal_did() {
     let mut router = router();
     answering(&mut router, vec![once()]);
     let done = run(&router, archive()).await.expect("archived");
-    assert!(matches!(done.undo, Undoable::Yes(_)));
+    assert!(matches!(done.undo, Undoable::Journaled(_)));
     // The companion archives another thread.
     let _opened = ready(&router).await;
     perform(&router, call("mail.thread.archive", &["t1"], vec![]))

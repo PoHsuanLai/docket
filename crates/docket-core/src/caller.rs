@@ -109,6 +109,10 @@ pub enum Member {
     SessionNote,
     /// `.Session.Recall`.
     SessionRecall,
+    /// `.Session.Narrow`.
+    SessionNarrow,
+    /// `.Session.Handles`.
+    SessionHandles,
     /// `.Message.Send`.
     MessageSend,
     /// `.Message.Inbox`.
@@ -133,7 +137,7 @@ pub enum Member {
 
 impl Member {
     /// Every member, in the order the interface table lists them.
-    pub const ALL: [Member; 32] = [
+    pub const ALL: [Member; 34] = [
         Member::Manifests,
         Member::IndexPush,
         Member::IndexReset,
@@ -156,6 +160,8 @@ impl Member {
         Member::SessionWiden,
         Member::SessionNote,
         Member::SessionRecall,
+        Member::SessionNarrow,
+        Member::SessionHandles,
         Member::MessageSend,
         Member::MessageInbox,
         Member::GateGrant,
@@ -196,6 +202,8 @@ impl crate::wire::IntentsRequest {
             R::SessionWiden { .. } => Member::SessionWiden,
             R::SessionNote { .. } => Member::SessionNote,
             R::SessionRecall { .. } => Member::SessionRecall,
+            R::SessionNarrow { .. } => Member::SessionNarrow,
+            R::SessionHandles { .. } => Member::SessionHandles,
             R::MessageSend { .. } => Member::MessageSend,
             R::MessageInbox(_) => Member::MessageInbox,
             R::GateGrant(_) => Member::GateGrant,

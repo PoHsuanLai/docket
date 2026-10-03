@@ -12,8 +12,8 @@ use docket_client::{ClientError, Transport as IntentsTransport};
 use docket_core::{
     AppRefusal, CallRefusal, CallRequest, Delivery, DenyCode, DraftPart, Follow, InboundLine,
     InboundPart, InboxAsk, LeadText, MessageDraft, Outcome, ParamName, Preview, Reveal,
-    RosterDetail, RosterFull, RosterLine, RosterState, SendRefusal, SessionOpen, TargetValue,
-    TaskStart, TurnId, TurnSource, TurnVia, Undoable, Value, WireRefusal,
+    RosterDetail, RosterFull, RosterLine, RosterState, SendRefusal, SessionOpen, SessionOpened,
+    TargetValue, TurnId, TurnSource, TurnVia, Undoable, Value, WireRefusal,
 };
 use porter_client::Transport as InferTransport;
 use porter_core::{AppName, Count};
@@ -127,11 +127,12 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
                 .get(t)
                 .is_some_and(|s| !matches!(s.phase, LoopPhase::Finished(_)))
         };
+        // The line says which Space it is for: the task it lands in is one of the companion's own
+        // there (a message from another Space is for a task of the Space it was sent to).
         let fits = |t: &TaskId| {
-            self.runtimes.get(t).is_some_and(|rt| {
-                rt.agent == AgentRef::Companion
-                    && (rt.space == line.from.space) == (line.crossing == prov::Crossing::Within)
-            })
+            self.runtimes
+                .get(t)
+                .is_some_and(|rt| rt.agent == AgentRef::Companion && rt.space == line.to.space)
         };
         let front = self.front.iter().filter(|t| live(t) && fits(t)).cloned();
         let newest = self
@@ -238,58 +239,41 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         self.publish();
     }
 
-    /// A worker for a goal: its own session (never wider than its parent's policy), the goal
-    /// delivered as a request from its parent, and its loop run to the end.
-    pub(crate) async fn spawn_worker(
+    /// Takes up the worker the router started for a call of `companion.task.start`: its own
+    /// session (never wider than its parent's policy, opened by the router), the goal delivered
+    /// as a request from its parent, and its loop run to the end.
+    pub(crate) async fn adopt_worker(
         &mut self,
         parent: &TaskId,
-        start: TaskStart,
+        started: &Outcome,
     ) -> Result<TaskId, ServeFault> {
-        let (space, session) = {
-            let rt = self
-                .runtimes
-                .get(parent)
-                .ok_or(ServeFault::UnknownSession)?;
-            (rt.space.clone(), rt.session.clone())
-        };
-        self.spawned += 1;
-        let worker =
-            TaskId::parse(&format!("w-{}", self.spawned)).map_err(|_| ServeFault::Malformed)?;
-        let agent = AgentRef::Worker {
-            task: worker.clone(),
-        };
+        let (task, session) = started_of(started).ok_or(ServeFault::Malformed)?;
+        let space = self
+            .runtimes
+            .get(parent)
+            .map(|rt| rt.space.clone())
+            .ok_or(ServeFault::UnknownSession)?;
         let open = SessionOpen {
-            space: space.clone(),
-            agent: agent.clone(),
+            space,
+            agent: AgentRef::Worker { task: task.clone() },
             parent: Some(parent.clone()),
         };
-        let opened = self
-            .intents
-            .session_open(open.clone())
-            .await
-            .map_err(ServeFault::Router)?;
-        self.adopt(&opened, &open);
-        self.intents
-            .send(
+        self.adopt(
+            &SessionOpened {
                 session,
-                MessageDraft {
-                    to: Address::new(agent, space),
-                    thread: None,
-                    in_reply_to: None,
-                    kind: MessageKind::Request,
-                    parts: vec![DraftPart::Text(start.goal)],
-                },
-            )
-            .await
-            .map_err(ServeFault::Router)?;
+                task: task.clone(),
+            },
+            &open,
+        );
         self.publish();
         self.pull().await?;
         self.drain().await?;
-        Ok(worker)
+        Ok(task)
     }
 
-    /// The answer of `companion.task.start`: the new task's id, in the app's own trusted words.
-    pub(crate) fn outcome_text(&self, worker: &TaskId) -> Outcome {
+    /// The answer of `companion.task.start` as the planner reads it: the new task's id, in the
+    /// app's own trusted words, without the session it runs in.
+    pub(crate) fn outcome_text(&self, worker: &TaskId, started: Outcome) -> Outcome {
         let label = AppName::parse("org.quire.Companion")
             .map(app_label)
             .unwrap_or_else(|_| crate::args::planner_label());
@@ -298,10 +282,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
                 value: Value::Text(worker.as_str().to_owned()),
                 label,
             }),
-            said: None,
-            show: Preview::None,
-            undo: Undoable::No,
-            follow: Follow::Nothing,
+            ..started
         }
     }
 
@@ -383,6 +364,30 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             .await
             .map_err(ServeFault::Router)
     }
+}
+
+/// The task and the session the router answered `companion.task.start` with: a record of both.
+fn started_of(outcome: &Outcome) -> Option<(TaskId, prov::SessionId)> {
+    let Some(Labelled {
+        value: Value::Record(fields),
+        ..
+    }) = &outcome.value
+    else {
+        return None;
+    };
+    let text = |name: &str| {
+        fields
+            .iter()
+            .find(|(k, _)| k.as_str() == name)
+            .and_then(|(_, v)| match v {
+                Value::Text(t) => Some(t.as_str()),
+                _ => None,
+            })
+    };
+    Some((
+        TaskId::parse(text("task")?).ok()?,
+        prov::SessionId::parse(text("session")?).ok()?,
+    ))
 }
 
 fn bad(name: &str) -> CallRefusal {

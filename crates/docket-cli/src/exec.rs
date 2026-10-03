@@ -154,6 +154,7 @@ pub async fn call<T: Transport>(
                 .map_err(|e| of_client(&e))?
                 .map_err(|refusal| of_refusal(&refusal))?;
             let undo = match &outcome.undo {
+                Undoable::Journaled(row) => Some(*row),
                 Undoable::Yes(token) => undo_id(intents, token).await,
                 Undoable::No => None,
             };
