@@ -15,8 +15,9 @@ mod steps;
 mod world;
 
 pub use case::{
-    ArgFrom, Case, CaseId, Corpus, Expect, FixtureContact, FixtureFile, FixtureMail, FixtureRef,
-    FixtureTask, MailField, ScriptedCall, ScriptedSend, ScriptedStep, WorldFixture,
+    ArgFrom, Case, CaseId, ConsentFixture, Corpus, Expect, FixtureContact, FixtureFile,
+    FixtureMail, FixtureRef, FixtureTask, MailField, ScriptedCall, ScriptedSend, ScriptedStep,
+    WorldFixture,
 };
 pub use corpus::{CorpusError, load_all, load_corpus};
 pub use metrics::run_corpus;

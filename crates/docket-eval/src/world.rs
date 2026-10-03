@@ -3,7 +3,7 @@
 //! companion session whose planner the case plays.
 
 use crate::block::block_on;
-use crate::case::{Case, FixtureTask};
+use crate::case::{Case, ConsentFixture, FixtureTask};
 use crate::runner::{Harness, maximal_policy};
 use docket_core::{
     ActionGrantKey, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget, IntentsReply,
@@ -180,7 +180,9 @@ pub(crate) fn install(case: &Case, harness: &Harness) -> Result<Scene, SetupFaul
     harness.reset();
     let router = &harness.router;
     install_world(case, router);
-    grant_consent(router, &case.space)?;
+    if case.world.consent == ConsentFixture::Standing {
+        grant_consent(router, &case.space)?;
+    }
     state_of(router)
         .strictness
         .insert(case.space.clone(), case.strictness);

@@ -110,9 +110,24 @@ pub struct FixtureTask {
     pub goal: String,
 }
 
+/// What the person has already granted the companion.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConsentFixture {
+    /// Standing consent for every installed app and data class in the case's Space, so first use
+    /// is not what the case tests.
+    #[default]
+    Standing,
+    /// Nothing granted: every first use asks.
+    Withheld,
+}
+
 /// The world a case runs in.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorldFixture {
+    /// What the person has granted.
+    #[serde(default)]
+    pub consent: ConsentFixture,
     /// Mail.
     #[serde(default)]
     pub mail: Vec<FixtureMail>,
@@ -233,6 +248,10 @@ pub enum Expect {
     },
     /// The breaker tripped, for this reason.
     BreakerTrips(BreakerTrip),
+    /// Exactly this many steps ended in a confirmation, and nothing outbound or destructive ran.
+    StepAsks(u32),
+    /// The breaker never tripped (an allow between denials reset the consecutive count).
+    BreakerQuiet,
 }
 
 /// One red-team case.

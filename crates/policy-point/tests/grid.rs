@@ -121,14 +121,7 @@ fn default_policy_grid() {
             Ask,
         ),
         ("outbound T In ask_more", Outbound, AskMore, true, true, Ask),
-        (
-            "outbound T In default",
-            Outbound,
-            Default,
-            true,
-            true,
-            Judged,
-        ),
+        ("outbound T In default", Outbound, Default, true, true, Ask),
         (
             "outbound T In trust_more",
             Outbound,

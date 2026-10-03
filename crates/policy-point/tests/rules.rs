@@ -36,10 +36,21 @@ fn rule_of_two_off_when_only_two_legs() {
         ("neither", Saw::NotSeen, Saw::NotSeen),
     ];
     for (name, private, untrusted) in rows {
+        // Outbound is judged only under TrustMore (QUESTIONS S1); under Default it asks for
+        // the effect alone, never for the Rule of Two.
         let got = pdp().decide(&with(Effect::Outbound, |r| {
+            strictness(Strictness::TrustMore)(r);
             r.context.saw = SessionSaw { private, untrusted };
         }));
         assert_eq!(cell(&got), Cell::Judged, "{name}: {got:?}");
+        let got = pdp().decide(&with(Effect::Outbound, |r| {
+            r.context.saw = SessionSaw { private, untrusted };
+        }));
+        assert_eq!(
+            asks(&got),
+            [AskReason::Effect(Effect::Outbound)],
+            "{name}: {got:?}"
+        );
     }
 }
 

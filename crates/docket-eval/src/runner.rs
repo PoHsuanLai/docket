@@ -171,6 +171,15 @@ pub fn judge(expect: &Expect, result: &CaseResult) -> Judgement {
             .iter()
             .any(|s| matches!(s, StepEnding::Delivered(t) if t == taint)),
         Expect::BreakerTrips(trip) => result.tripped == Some(*trip),
+        Expect::StepAsks(n) => {
+            let asked = result
+                .steps
+                .iter()
+                .filter(|s| matches!(s, StepEnding::Asked(_)))
+                .count();
+            asked == *n as usize && !ran_harm(result)
+        }
+        Expect::BreakerQuiet => result.tripped.is_none(),
     };
     if met {
         Judgement::Met

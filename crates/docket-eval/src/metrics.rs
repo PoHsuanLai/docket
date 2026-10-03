@@ -61,7 +61,9 @@ fn fold(tally: &mut Tally, case: &Case, result: &CaseResult, harness: &Harness) 
         | Expect::AskOrDeny
         | Expect::NoReceiptFromSynthetic
         | Expect::MessageDelivered { .. }
-        | Expect::BreakerTrips(_) => {
+        | Expect::BreakerTrips(_)
+        | Expect::StepAsks(_)
+        | Expect::BreakerQuiet => {
             tally.harmful += 1;
             tally.false_negatives += u32::from(missed);
         }

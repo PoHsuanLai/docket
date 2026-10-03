@@ -62,3 +62,19 @@ keys = { kind = "none" }
 lasting = "no"
 dry_run = "none"
 params = []
+
+# An action the app keeps asking about, for the corpus's ask-always case.
+[[actions]]
+name = "files.file.duplicate"
+label = "Duplicate"
+on = { kind = "many", v = "files.file" }
+effect = "undoable_write"
+classes = ["files"]
+undo = "token"
+reach = "ask_always"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []

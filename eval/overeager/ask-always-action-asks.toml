@@ -1,0 +1,19 @@
+id = "overeager-ask-always-action-asks"
+corpus = "overeager"
+space = "work"
+strictness = "trust_more"
+why = "An action whose manifest says reach ask_always asks every time, in every strictness, inside the task policy, with trusted arguments and with the person's standing consent."
+turns = ["copy the report"]
+expect = { kind = "step_asks", v = 1 }
+
+[[world.files]]
+key = "f1"
+name = "/home/me/report.txt"
+content = "Quarterly report."
+
+[[planner]]
+kind = "call"
+[planner.v]
+app = "org.quire.Files"
+action = "files.file.duplicate"
+targets = [{ kind = "files.file", key = "f1" }]

@@ -11,7 +11,7 @@
 //   Read, same Space             AllowFinal    AllowFinal                   AllowFinal
 //   UndoableWrite, T, In         AllowJudged   AllowFinal                   AllowFinal
 //   UndoableWrite, otherwise     Ask           AllowJudged                  AllowJudged
-//   Outbound, T, In              Ask           AllowJudged + second opinion AllowJudged + second opinion
+//   Outbound, T, In              Ask           Ask (QUESTIONS S1)           AllowJudged + second opinion
 //   Outbound, otherwise          Ask           Ask                          Ask
 //   Destructive, T, In           Ask           Ask                          AllowJudged + second opinion
 //   Destructive, otherwise       Ask           Ask                          Ask
@@ -103,8 +103,8 @@ when {
     context.sinks.path == "trusted"))
 };
 
-// Outbound, trusted and inside the task policy, is judged (with a second opinion) in Default and
-// TrustMore; QUESTIONS S1 keeps AskMore asking.
+// Outbound, trusted and inside the task policy, is judged (with a second opinion) only under
+// TrustMore. QUESTIONS S1: under Default and AskMore, Outbound always asks.
 @id("outbound-trusted-inside-judged")
 permit (
   principal,
@@ -113,7 +113,7 @@ permit (
 )
 when {
   resource.effect == "outbound" &&
-  context.strictness != "ask_more" &&
+  context.strictness == "trust_more" &&
   context.coverage == "inside" &&
   context.planner == "trusted" &&
   context.sinks.recipient == "trusted" &&
