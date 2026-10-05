@@ -30,6 +30,7 @@ fn mail() -> FakeMail {
 fn invocation(action: &str, keys: &[&str]) -> Invocation {
     let app = AppName::parse("org.quire.Mail").expect("app");
     Invocation {
+        activation: None,
         call: CallId(1),
         action: ActionName::parse(action).expect("action"),
         target: TargetValue::Entities(

@@ -29,6 +29,7 @@ fn thread(key: &str) -> EntityId {
 
 fn invocation(action: &str, key: &str) -> Invocation {
     Invocation {
+        activation: None,
         call: CallId(1),
         action: prov::ActionName::parse(action).expect("action"),
         target: TargetValue::Entities(vec![thread(key)]),
