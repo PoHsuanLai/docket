@@ -1,7 +1,7 @@
 //! The server: `rmcp` over stdio or a Unix socket, with the router behind it.
 
-use crate::access::McpAccess;
 use crate::args::read_call;
+use crate::expose::McpExpose;
 use crate::fault::{ArgsFault, McpFault, McpRefusal};
 use crate::label::mcp_label;
 use crate::result::outcome_json;
@@ -19,12 +19,12 @@ use rmcp::{RoleServer, ServerHandler};
 use serde_json::Value as Json;
 use std::sync::Arc;
 
-/// An MCP server over the router, speaking as one client. Off until `with_access(McpAccess::On)`.
+/// An MCP server over the router, speaking as one client. Off until `with_expose(McpExpose::On)`.
 #[derive(Debug)]
 pub struct McpEdge<T: Transport> {
     intents: Intents<T>,
     client: ClientName,
-    access: McpAccess,
+    expose: McpExpose,
 }
 
 impl<T: Transport> McpEdge<T> {
@@ -34,18 +34,18 @@ impl<T: Transport> McpEdge<T> {
         Self {
             intents,
             client,
-            access: McpAccess::default(),
+            expose: McpExpose::default(),
         }
     }
 
-    /// The same edge with `access` (the person's setting).
-    pub fn with_access(self, access: McpAccess) -> Self {
-        Self { access, ..self }
+    /// The same edge with `expose` (the person's setting).
+    pub fn with_expose(self, expose: McpExpose) -> Self {
+        Self { expose, ..self }
     }
 
     /// Whether the edge is on.
-    pub fn access(&self) -> McpAccess {
-        self.access
+    pub fn expose(&self) -> McpExpose {
+        self.expose
     }
 
     async fn registry(&self) -> Result<Vec<ValidManifest>, McpFault> {
@@ -57,9 +57,9 @@ impl<T: Transport> McpEdge<T> {
 
     /// The tools offered right now, each with its description: nothing while the edge is off.
     pub async fn listing(&self) -> Result<Vec<(McpTool, String)>, McpFault> {
-        match self.access {
-            McpAccess::Off => Ok(Vec::new()),
-            McpAccess::On => {
+        match self.expose {
+            McpExpose::Off => Ok(Vec::new()),
+            McpExpose::On => {
                 let registry = self.registry().await?;
                 Ok(offered(&registry)
                     .into_iter()
@@ -75,7 +75,7 @@ impl<T: Transport> McpEdge<T> {
     /// answered here: the person answers it on the sheet. An argument that does not fit its
     /// declaration is refused before the router is asked anything.
     pub async fn call(&self, tool: &str, arguments: Json) -> Result<Json, McpFault> {
-        if self.access == McpAccess::Off {
+        if self.expose == McpExpose::Off {
             return Err(McpFault::Off);
         }
         let registry = self.registry().await?;

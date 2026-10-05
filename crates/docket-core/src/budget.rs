@@ -211,6 +211,14 @@ pub struct KillSwitch {
     pub all: Halt,
     /// One Space at a time.
     pub spaces: BTreeMap<SpaceId, Halt>,
+    /// Audit records lost since intentd started: memoryd refused them (a Space it does not know)
+    /// or the queue was full. Zero while the log is whole.
+    #[serde(default = "no_records")]
+    pub audit_lost: Count,
+}
+
+fn no_records() -> Count {
+    Count(0)
 }
 
 /// The cause the Space is halted for, if it is: the global halt first.

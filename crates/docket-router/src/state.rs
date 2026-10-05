@@ -128,6 +128,7 @@ impl RouterState {
             kill: KillSwitch {
                 all: Halt::Running,
                 spaces: BTreeMap::new(),
+                audit_lost: Count(0),
             },
             index: BTreeMap::new(),
             shadow: BTreeMap::new(),

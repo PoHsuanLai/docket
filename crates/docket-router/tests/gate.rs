@@ -20,6 +20,7 @@ fn world() -> World {
         halt: KillSwitch {
             all: Halt::Running,
             spaces: BTreeMap::new(),
+            audit_lost: Count(0),
         },
         ledger: Ledger::new(UnixSeconds(0)),
         budget: AgentConfig::default().budget,

@@ -218,9 +218,10 @@ pub async fn start(
     tasks.push(tokio::spawn(async move {
         loop {
             tokio::time::sleep(audit_every).await;
-            audit
+            let report = audit
                 .flush(&queue.seams.sink, |record| placed_by(&queue, record))
                 .await;
+            count_lost(&queue, report.lost);
         }
     }));
     if let Some(system) = system {
@@ -237,6 +238,19 @@ pub async fn start(
         tasks,
         session: session.clone(),
     })
+}
+
+/// Adds records the log lost to the counter `Control.State` shows.
+fn count_lost<S: Seams>(router: &Router<S>, lost: usize) {
+    if lost == 0 {
+        return;
+    }
+    let mut state = router
+        .state
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let more = u32::try_from(lost).unwrap_or(u32::MAX);
+    state.kill.audit_lost = porter_core::Count(state.kill.audit_lost.0.saturating_add(more));
 }
 
 /// Where a record that names no Space of its own happened, from the router's session and task

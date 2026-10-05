@@ -1,0 +1,29 @@
+# docket's settings schema in the design/22 format (section 9.2). Installed to
+# $XDG_DATA_DIRS/quire/settings/docket.settings.toml; `actions-mcp --write-schema <dir>` writes it
+# for a local install. The values live in $XDG_CONFIG_HOME/docket/settings.toml, as
+# `[agent.mcp] expose = "off"`. Hands-off for an agent (no `agent = "settable"`): the companion
+# can never switch the MCP edge on for itself.
+app = "docket"
+file = "docket/settings.toml"
+version = 1
+
+[[key]]
+path = "agent.mcp.expose"
+default = "off"
+label = "Let other apps use my apps' actions (MCP)"
+help = "Whether an external MCP client, such as a coding agent, may list and call the actions apps offer. Off by default; every call still goes through the same checks and asks before anything is sent or deleted."
+section = "Privacy"
+exposure = "basic"
+
+[key.kind]
+kind = "toggle"
+
+[key.kind.v]
+variants = ["off", "on"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+off = "Off"
+on = "On"

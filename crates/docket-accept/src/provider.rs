@@ -273,7 +273,7 @@ impl IntentProvider for AcceptMail {
         self.log
             .edit(|s| s.performed.push(inv.action.as_str().to_owned()));
         match inv.action.as_str() {
-            "mail.thread.find" => {
+            "mail.thread.search" => {
                 let query = Self::text_arg(&inv, "query")
                     .unwrap_or_default()
                     .to_lowercase();

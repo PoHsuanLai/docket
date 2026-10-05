@@ -89,6 +89,17 @@ fn configure(dir: &Path, text: &str) {
     std::fs::write(config.join("actions-mcp.toml"), text).expect("config");
 }
 
+/// The person switches the edge on in docket's settings.
+fn switch_on(dir: &Path) {
+    let config = dir.join("config/docket");
+    std::fs::create_dir_all(&config).expect("dirs");
+    std::fs::write(
+        config.join("settings.toml"),
+        "[agent.mcp]\nexpose = \"on\"\n",
+    )
+    .expect("settings");
+}
+
 async fn client_over_stdio(edge: &mut Edge) -> RunningService<RoleClient, ()> {
     let stdin = edge.child.stdin.take().expect("stdin");
     let stdout = edge.child.stdout.take().expect("stdout");
@@ -128,10 +139,8 @@ async fn desk() -> (tempfile::TempDir, PrivateBus, docket_dbus::BusConnection) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn over_stdio_a_switched_on_edge_serves_the_registry_as_the_mcp_role() {
     let (dir, bus, _intentd) = desk().await;
-    configure(
-        dir.path(),
-        &format!("access = \"on\"\nclient = \"{CLIENT}\"\n"),
-    );
+    switch_on(dir.path());
+    configure(dir.path(), &format!("client = \"{CLIENT}\"\n"));
     let mut edge = spawn(dir.path(), bus.address(), &[]);
     let client = client_over_stdio(&mut edge).await;
     let names: Vec<String> = client
@@ -169,10 +178,8 @@ async fn with_no_configuration_the_edge_is_off_and_lists_nothing() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn over_a_unix_socket_many_clients_share_one_edge() {
     let (dir, bus, _intentd) = desk().await;
-    configure(
-        dir.path(),
-        &format!("access = \"on\"\nclient = \"{CLIENT}\"\n"),
-    );
+    switch_on(dir.path());
+    configure(dir.path(), &format!("client = \"{CLIENT}\"\n"));
     let socket = dir.path().join("mcp.sock");
     let mut edge = spawn(
         dir.path(),
@@ -216,9 +223,11 @@ async fn over_a_unix_socket_many_clients_share_one_edge() {
 #[test]
 fn the_shipped_configuration_is_off_and_a_bad_file_is_refused() {
     assert_eq!(McpConfig::shipped().expect("shipped"), McpConfig::default());
-    assert_eq!(McpConfig::default().access, actions_mcp::McpAccess::Off);
-    assert!(McpConfig::parse("access = \"maybe\"").is_err());
+    assert_eq!(McpConfig::default().expose, actions_mcp::McpExpose::Off);
+    assert!(McpConfig::parse("client = 5").is_err());
     assert!(McpConfig::parse("acess = \"on\"").is_err());
+    // The switch is not a key of this file any more.
+    assert!(McpConfig::parse("access = \"on\"").is_err());
 }
 
 #[test]
@@ -244,4 +253,18 @@ fn the_units_command_line_is_one_the_binary_reads() {
     let args = exec.split_whitespace().skip(1).map(str::to_owned);
     let parsed = actions_mcp::Args::parse(args).expect("the unit's arguments");
     assert!(parsed.socket.is_some(), "the unit serves a socket");
+}
+
+#[test]
+fn write_schema_installs_the_settings_schema_without_touching_the_bus() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let out = dir.path().join("schemas");
+    let status = std::process::Command::new(env!("CARGO_BIN_EXE_actions-mcp"))
+        .env_clear()
+        .args(["--write-schema", out.to_str().expect("utf-8")])
+        .status()
+        .expect("actions-mcp starts");
+    assert!(status.success());
+    let written = std::fs::read_to_string(out.join("docket.settings.toml")).expect("schema");
+    assert_eq!(written, actions_mcp::SCHEMA);
 }

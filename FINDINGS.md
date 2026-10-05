@@ -542,14 +542,17 @@ flow (c) (the injected body never reaches the planner; the reader saw it fenced,
 `Session.Display` gives the summary to the screen; the Outbound send to `x@evil.example` asks, once only, the
 recipient `Quoted{from: Mail}`, taint `ReadUntrusted(Mail)`), and one ignored (finding 1).
 
-1. **The answer never shows the sheet or a plan card.** companiond calls the plain `Intents::perform`
-   (`companiond/src/drive.rs`, `perform`), so `Progress(Confirming)` is not seen: no `NeedsYou(Confirm)`, and no
-   `AnswerBody::Plan` is ever published (SPEC 5(a) steps 7 and 8). `Intents::perform_watched` exists. Ignored test
-   `flow_a_the_answer_shows_the_sheet_while_it_waits`.
-2. **Records that name no Space go to `desktop`** (`intentd/src/audit.rs`, `flush`): `Confirm`, `Undo`, `Review`
-   without a known call. memoryd refuses a Space it does not know and intentd counts the batch as lost with no line
-   on standard error (`write_space`, the `Ok(_)` arm). The run registers `desktop`; the desktop package must create
-   it, or intentd should say once that memoryd refused it.
+1. **The answer never shows the sheet or a plan card.** FIXED (f4-docket-2). companiond performs through
+   `Intents::perform_watched` (`companiond/src/drive.rs`) and `companiond/src/plan.rs` keeps the card: one
+   `PlanStepWire` per call (`Pending` until `Dispatched`, `Running`, then `Done`/`Failed`); the answer goes
+   Thinking, Streaming with `AnswerBody::Plan`, `NeedsYou(Confirm(id))` while the sheet is up, Streaming again,
+   Done, with an `Updated` signal at each. The card is the body while the phase is Thinking, Streaming or
+   `NeedsYou(Confirm)`; a finished answer shows its words. Test `flow_a_the_answer_shows_the_sheet_while_it_waits`
+   (un-ignored) and unit tests in `plan.rs` and `task.rs`.
+2. **Records that name no Space go to `desktop`** (`intentd/src/audit.rs`). `desktop` stays the default Space
+   (SPEC P6). When memoryd refuses a Space's records, intentd now says so once per Space on stderr (`tell_refused`)
+   and counts every lost record in `Control.State` (`KillSwitch::audit_lost`, additive, `serde(default)`). The run
+   still registers `desktop` until almanac makes memoryd always know it.
 3. **memoryd cannot run as its binary without a Secret Service.** `accept-memoryd` is almanac's `main.rs` with
    `MemoryKeys` and no Landlock. Ask (almanac, `memoryd/src/main.rs`): an environment switch such as
    `MEMORYD_KEYS=file:<path>` selecting a file-backed `KeyStore` for a scratch HOME, so the packaged binary itself
@@ -689,3 +692,17 @@ reader's bodies are filled (see "The bus path") and tested over a scripted sessi
 `intentd/tests/support/inferd.rs`, porter-fake's session with the opens and frames logged). The companiond and
 voiced `main`s are still skeletons (exit 2) and the planner's and `serve` bodies are `todo!()`: whoever fills them
 builds the connection first and passes it here.
+
+## f4-docket-2: edges and renames
+
+- **`agent.mcp.expose` and ds-settings.** docket's boundary table does not allow quire's `ds-settings` (the `agent`
+  key rows are `docket-core::SETTING_ROWS`, the keys are sill's). actions-mcp therefore reads
+  `$XDG_CONFIG_HOME/docket/settings.toml` (`[agent.mcp] expose = "on"`) with a small lenient reader
+  (`actions-mcp/src/settings.rs`) and docket ships a static design/22 schema, `dist/settings/docket.settings.toml`
+  (`actions-mcp --write-schema <dir>` writes it). Question for quire: should docket depend on `ds-settings` (derive
+  and `write_schema`) for the whole `agent` domain, and is `docket/settings.toml` the file design/22 wants? The old
+  `access` key of `actions-mcp.toml` is gone (a file that still has it is refused). `McpAccess` is now `McpExpose`.
+- **Rename `mail.thread.find` to `mail.thread.search`** in docket-accept (fixture, provider, planner scripts, tests,
+  README) to match mailo. porter's `inferd` cassette `docket-flow-a.jsonl` still says `mail.thread.find`.
+- **First-use consent** is tested (`first_use_of_mail_in_a_space_asks_once_and_the_second_call_does_not`): the scripted
+  sheet gained `Verdict::AllowAlways`.

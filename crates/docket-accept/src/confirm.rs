@@ -20,6 +20,8 @@ use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 pub enum Verdict {
     /// Presses Allow, once.
     Allow,
+    /// Presses Allow and "always": the grant is recorded and the same ask is not made again.
+    AllowAlways,
     /// Presses Refuse.
     Refuse,
 }
@@ -66,8 +68,11 @@ struct ConfirmObject {
 
 fn answer_of(verdict: Verdict, request: &ConfirmRequest) -> ConfirmAnswer {
     match verdict {
-        Verdict::Allow => ConfirmAnswer::Allowed {
-            scope: GrantScope::Once,
+        Verdict::Allow | Verdict::AllowAlways => ConfirmAnswer::Allowed {
+            scope: match verdict {
+                Verdict::AllowAlways => GrantScope::Always,
+                _ => GrantScope::Once,
+            },
             receipt: ConfirmReceipt {
                 id: request.id.clone(),
                 input: InputProof::SheetFallback,

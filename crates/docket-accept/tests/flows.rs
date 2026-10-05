@@ -31,7 +31,7 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
     let world = World::start(&binaries(), Consent::Standing).await;
     // The planner finds the threads and the contact, forwards, and says it is done.
     world.model.planner(vec![
-        calls(&tool("mail.thread.find"), json!({"query": "Lisbon"})),
+        calls(&tool("mail.thread.search"), json!({"query": "Lisbon"})),
         calls(&tool("mail.contact.search"), json!({"query": "Accounting"})),
         // The planner names the things the find returned (entity ids are structure; only the
         // words of a title are held back).
@@ -57,9 +57,6 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
         );
     }
 
-    // Known gap (docket FINDINGS, f4-e2e): companiond performs through the plain `Perform`, so the
-    // answer never shows `NeedsYou(Confirm)` or a plan card while the sheet is up; see the
-    // ignored test below.
     if std::env::var_os("ACCEPT_SHOW_PLANNER").is_some() {
         for request in world.model.asked_by(Role::Planner) {
             eprintln!("---- planner view\n{}", text_of(&request));
@@ -160,7 +157,7 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
 async fn flow_a_the_person_refuses_the_sheet_and_nothing_is_sent() {
     let world = World::start(&binaries(), Consent::Standing).await;
     world.model.planner(vec![
-        calls(&tool("mail.thread.find"), json!({"query": "Lisbon"})),
+        calls(&tool("mail.thread.search"), json!({"query": "Lisbon"})),
         calls(&tool("mail.contact.search"), json!({"query": "Accounting"})),
         calls(
             &tool("mail.message.forward"),
@@ -320,16 +317,13 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
     assert!(world.mail.messages().is_empty());
 }
 
-/// SPEC 5(a) steps 7 and 8: while the sheet is up the answer shows `NeedsYou(Confirm)`, and a
-/// plan card streams before it. companiond performs through the plain `Run.Perform`
-/// (`companiond/src/drive.rs`, `perform`), so neither ever appears; `Intents::perform_watched`
-/// exists for it. Un-ignore when companiond watches its calls and publishes the plan.
+/// SPEC 5(a) steps 7 and 8: a plan card streams, and while the sheet is up the answer shows
+/// `NeedsYou(Confirm)`; then it runs again and is done.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "companiond never publishes NeedsYou(Confirm) or a plan card (f4-e2e finding 1)"]
 async fn flow_a_the_answer_shows_the_sheet_while_it_waits() {
     let world = World::start(&binaries(), Consent::Standing).await;
     world.model.planner(vec![
-        calls(&tool("mail.thread.find"), json!({"query": "Lisbon"})),
+        calls(&tool("mail.thread.search"), json!({"query": "Lisbon"})),
         calls(&tool("mail.contact.search"), json!({"query": "Accounting"})),
         calls(
             &tool("mail.message.forward"),
@@ -351,4 +345,50 @@ async fn flow_a_the_answer_shows_the_sheet_while_it_waits() {
             .any(|v| matches!(v.body, companion_wire::AnswerBody::Plan(_))),
         "{history:#?}"
     );
+}
+
+/// The first use of Mail's classes in a Space asks (a sheet that says so); the person says
+/// "always", and the second call of the same kind does not ask.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn first_use_of_mail_in_a_space_asks_once_and_the_second_call_does_not() {
+    let world = World::start(&binaries(), Consent::FirstUse).await;
+    world.model.planner(vec![
+        calls(&tool("mail.thread.search"), json!({"query": "Lisbon"})),
+        calls(&tool("mail.thread.search"), json!({"query": "Porto"})),
+        words("Found both."),
+    ]);
+    world.sheet.will(Verdict::AllowAlways);
+    let launcher = Launcher::of(&world).await;
+    let opened = launcher.open().await;
+    let mut answer = launcher
+        .say(&opened, "look for Lisbon and Porto mail")
+        .await;
+    let history = answer.history_until(settled).await;
+    assert_eq!(
+        history.last().map(|v| v.phase.clone()),
+        Some(AnswerPhase::Done),
+        "{history:#?}"
+    );
+    assert!(history.iter().any(waiting_on_sheet), "{history:#?}");
+
+    // Both reads ran; only the first asked, and it said why.
+    assert_eq!(
+        world
+            .mail
+            .performed()
+            .iter()
+            .filter(|a| *a == "mail.thread.search")
+            .count(),
+        2,
+        "{:?}",
+        world.mail.performed()
+    );
+    let sheets = world.sheet.shown();
+    assert_eq!(sheets.len(), 1, "{sheets:#?}");
+    assert!(
+        sheets[0].why.contains(&docket_core::AskReason::FirstUse),
+        "{:?}",
+        sheets[0].why
+    );
+    assert_eq!(world.model.planner_left(), 0);
 }

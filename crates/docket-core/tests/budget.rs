@@ -203,6 +203,7 @@ fn halt_global_overrides_space() {
         let switch = KillSwitch {
             all,
             spaces: BTreeMap::from([(work.clone(), in_work)]),
+            audit_lost: Count(0),
         };
         assert_eq!(halted(&switch, &work), want, "case: {name}");
         assert_eq!(

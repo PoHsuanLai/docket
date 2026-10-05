@@ -3,8 +3,9 @@
 //! no content past the task: the episode it leaves is the trusted skeleton, and the router's
 //! own ledger is the audit.
 
+use crate::plan::Plan;
 use agent_loop::LoopState;
-use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, FooterWire, RefusalWire};
+use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, FooterWire, NeedsYou, RefusalWire};
 use docket_core::{
     CallEnd, CallId, CallRefusal, CallRequest, CharCount, ContextKeep, HandleCard, HandleShape,
     InboundLine, InboundPart, Keep, LedgerStep, Outcome, Reveal, StepEnd, StepLine, StepShown,
@@ -48,6 +49,8 @@ pub struct TaskRuntime {
     pub said: Vec<String>,
     /// Where the answer stands.
     pub phase: AnswerPhase,
+    /// The calls of this turn, as the plan card shows them.
+    pub plan: Plan,
     /// Why the task failed, if a refusal ended it.
     pub refused: Option<RefusalWire>,
     /// Who answered the planner, last.
@@ -93,6 +96,7 @@ impl TaskRuntime {
             inbox: Vec::new(),
             said: Vec::new(),
             phase: AnswerPhase::Thinking,
+            plan: Plan::default(),
             refused: None,
             served: None,
             next_call: 0,
@@ -196,8 +200,15 @@ impl TaskRuntime {
 
     /// The answer as the bus shows it.
     pub fn answer(&self, task: &TaskId) -> AnswerWire {
-        let body = match (&self.phase, &self.refused) {
-            (AnswerPhase::Failed, Some(refusal)) => AnswerBody::Refused(refusal.clone()),
+        let card = match &self.phase {
+            AnswerPhase::Thinking
+            | AnswerPhase::Streaming
+            | AnswerPhase::NeedsYou(NeedsYou::Confirm(_)) => self.plan.wire(),
+            _ => None,
+        };
+        let body = match (&self.phase, &self.refused, card) {
+            (AnswerPhase::Failed, Some(refusal), _) => AnswerBody::Refused(refusal.clone()),
+            (_, _, Some(plan)) => AnswerBody::Plan(plan),
             _ => AnswerBody::Text {
                 lines: self.said.iter().cloned().map(Reveal::Plain).collect(),
             },
@@ -266,5 +277,80 @@ pub fn roster_state(state: Option<&LoopState>, phase: &AnswerPhase) -> docket_co
             AnswerPhase::NeedsYou(_) => RosterState::NeedsYou,
             _ => RosterState::Working,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use docket_core::{CallId, CallProgress, ConfirmId, LabelText};
+    use prov::ActionName;
+
+    fn runtime() -> TaskRuntime {
+        TaskRuntime::new(
+            SessionId::parse("s-1").expect("session"),
+            SpaceId::desktop(),
+            AgentRef::Companion,
+            None,
+            UnixSeconds(0),
+        )
+    }
+
+    fn task() -> TaskId {
+        TaskId::parse("t-1").expect("task")
+    }
+
+    fn begin(rt: &mut TaskRuntime) {
+        rt.plan.begin(
+            CallId(0),
+            docket_core::ActionRef {
+                app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
+                name: ActionName::parse("mail.message.forward").expect("name"),
+            },
+            LabelText::parse("Forward").expect("label"),
+            Effect::Outbound,
+        );
+    }
+
+    /// The answer's phase and body through a call that asks: Thinking (text), Streaming (the
+    /// card, step pending), NeedsYou(Confirm) (the card), Streaming (step running), Done (text).
+    #[test]
+    fn a_call_that_asks_walks_thinking_streaming_needs_you_streaming_done() {
+        let mut rt = runtime();
+        let id = ConfirmId::parse("c-1").expect("id");
+        let is_plan = |rt: &TaskRuntime| matches!(rt.answer(&task()).body, AnswerBody::Plan(_));
+
+        assert_eq!(rt.answer(&task()).phase, AnswerPhase::Thinking);
+        assert!(!is_plan(&rt));
+
+        begin(&mut rt);
+        rt.phase = AnswerPhase::Streaming;
+        assert!(is_plan(&rt));
+
+        rt.phase = crate::plan::phase_of(&CallProgress::Confirming(id.clone()));
+        assert_eq!(
+            rt.answer(&task()).phase,
+            AnswerPhase::NeedsYou(NeedsYou::Confirm(id))
+        );
+        assert!(is_plan(&rt));
+
+        rt.plan.progress(CallId(0), &CallProgress::Dispatched);
+        rt.phase = crate::plan::phase_of(&CallProgress::Dispatched);
+        assert_eq!(rt.answer(&task()).phase, AnswerPhase::Streaming);
+
+        rt.phase = AnswerPhase::Done;
+        assert_eq!(rt.answer(&task()).phase, AnswerPhase::Done);
+        assert!(!is_plan(&rt), "a finished answer shows its words");
+    }
+
+    #[test]
+    fn a_question_to_the_person_shows_the_question_not_the_card() {
+        let mut rt = runtime();
+        begin(&mut rt);
+        rt.phase = AnswerPhase::NeedsYou(NeedsYou::Question {
+            text: "Which one?".to_owned(),
+            choices: vec![],
+        });
+        assert!(matches!(rt.answer(&task()).body, AnswerBody::Text { .. }));
     }
 }

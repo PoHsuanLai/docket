@@ -515,3 +515,31 @@ async fn a_locked_space_waits_and_is_tried_again() {
     let second = log.flush(&sink, |_| None).await;
     assert_eq!((second.written, second.waiting), (1, 0));
 }
+
+#[tokio::test]
+async fn a_space_memoryd_does_not_know_is_counted_lost_and_named_once() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let bus = PrivateBus::start(scratch.path());
+    let memoryd = FakeMemoryd::with(|request| match request {
+        MemoryRequest::RecordBatch(_) | MemoryRequest::Record(_) => Some(MemoryReply::Refused(
+            Refusal::Invalid("unknown space".into()),
+        )),
+        _ => None,
+    });
+    let server = bus.connect().await;
+    memoryd.serve(&server).await;
+    let mut log = AuditLog::over(DbusTransport::new(bus.connect().await));
+    let sink = QueuedSink::new();
+    sink.append(call(1, "nowhere"));
+    sink.append(call(2, "nowhere"));
+    let first = log.flush(&sink, |_| None).await;
+    assert_eq!((first.written, first.lost), (0, 2));
+    sink.append(call(3, "nowhere"));
+    let second = log.flush(&sink, |_| None).await;
+    assert_eq!(second.lost, 1);
+    assert_eq!(
+        log.refused_spaces().iter().collect::<Vec<_>>(),
+        [&space("nowhere")],
+        "named once"
+    );
+}

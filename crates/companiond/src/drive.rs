@@ -4,14 +4,17 @@
 //! to the router, which gates it, and a refusal comes back as a code.
 
 use crate::fault::ServeFault;
+use crate::plan::phase_of;
 use crate::runtime::Companiond;
 use agent_loop::{
     IdleInput, LoopEffect, LoopInput, LoopPhase, LoopState, ModelOutput, agent_step, assemble,
     idle_step,
 };
-use docket_client::{ClientError, Transport as IntentsTransport};
+use companion_wire::AnswerPhase;
+use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
 use docket_core::{
-    ActionRef, CallId, CallRefusal, CallRequest, ReadAsk, ReaderAsk, Reveal, StepEnd, WireRefusal,
+    ActionRef, CallId, CallProgress, CallRefusal, CallRequest, ReadAsk, ReaderAsk, Reveal, StepEnd,
+    WireRefusal,
 };
 use porter_client::Transport as InferTransport;
 use prov::{ActionName, Effect, Labelled, TaskId};
@@ -195,12 +198,71 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             .catalogue()
             .of(&call.action)
             .map_or(Effect::Read, |t| t.decl.effect);
-        let result = self
-            .intents
-            .perform(call.clone(), Some(session), window)
-            .await
-            .unwrap_or_else(|error| Err(refusal_of(error)));
+        let label = self
+            .planner
+            .catalogue()
+            .of(&call.action)
+            .map(|t| t.decl.label.clone());
+        self.plan_begin(task, &call, label, effect, id);
+        let result = self.perform_watched(task, &call, id, session, window).await;
         Ok(vec![self.ended(task, &call, effect, id, result)])
+    }
+
+    /// The call's own end, with the answer following the router's progress: the plan card shows
+    /// the step, and `NeedsYou(Confirm)` stands while the sheet is up.
+    async fn perform_watched(
+        &mut self,
+        task: &TaskId,
+        call: &CallRequest,
+        id: CallId,
+        session: prov::SessionId,
+        window: Option<docket_core::WindowKey>,
+    ) -> Result<docket_core::Outcome, CallRefusal> {
+        let mut watch = match self
+            .intents
+            .perform_watched(call.clone(), Some(session), window)
+            .await
+        {
+            Ok(watch) => watch,
+            Err(error) => return Err(refusal_of(error)),
+        };
+        loop {
+            match watch.next().await {
+                Ok(PerformEvent::Progress(progress)) => {
+                    self.plan_progress(task, id, &progress);
+                }
+                Ok(PerformEvent::Done(end)) => return *end,
+                Err(error) => return Err(refusal_of(error)),
+            }
+        }
+    }
+
+    fn plan_begin(
+        &mut self,
+        task: &TaskId,
+        call: &CallRequest,
+        label: Option<docket_core::LabelText>,
+        effect: Effect,
+        id: CallId,
+    ) {
+        if let Some(rt) = self.runtimes.get_mut(task) {
+            let label = label
+                .or_else(|| docket_core::LabelText::parse(call.action.name.as_str()).ok())
+                .or_else(|| docket_core::LabelText::parse("Step").ok());
+            if let Some(label) = label {
+                rt.plan.begin(id, call.action.clone(), label, effect);
+            }
+            rt.phase = AnswerPhase::Streaming;
+        }
+        self.publish_answer(task);
+    }
+
+    fn plan_progress(&mut self, task: &TaskId, id: CallId, progress: &CallProgress) {
+        if let Some(rt) = self.runtimes.get_mut(task) {
+            rt.plan.progress(id, progress);
+            rt.phase = phase_of(progress);
+        }
+        self.publish_answer(task);
     }
 
     /// Records a call's end in the task and says it to the loop.
@@ -213,9 +275,20 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         result: Result<docket_core::Outcome, CallRefusal>,
     ) -> LoopInput {
         let end = match self.runtimes.get_mut(task) {
-            Some(rt) => rt.record_call(call, effect, result),
+            Some(rt) => {
+                let end = rt.record_call(call, effect, result);
+                rt.plan.end(id, &end);
+                if matches!(
+                    rt.phase,
+                    AnswerPhase::NeedsYou(companion_wire::NeedsYou::Confirm(_))
+                ) {
+                    rt.phase = AnswerPhase::Streaming;
+                }
+                end
+            }
             None => StepEnd::Refused(CallRefusal::Timeout),
         };
+        self.publish_answer(task);
         LoopInput::CallEnded(id, end)
     }
 

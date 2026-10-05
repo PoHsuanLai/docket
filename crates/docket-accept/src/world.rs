@@ -149,7 +149,7 @@ format = 1
 
 /// The model's answer to intentd's policy writer for the acceptance turns: Mail's actions up to
 /// Outbound, at most 12 things, no recipient named (the person named none).
-pub const WRITER_DRAFT: &str = r#"{"actions":["org.quire.Mail mail.thread.find","org.quire.Mail mail.thread.read","org.quire.Mail mail.contact.search","org.quire.Mail mail.message.forward","org.quire.Mail mail.message.send"],"apps":[{"app":"org.quire.Mail","up_to":"outbound"}],"kinds":["mail.thread","mail.contact"],"ceiling":"outbound","max_count":12,"recipients":[],"destinations":[],"paths":[]}"#;
+pub const WRITER_DRAFT: &str = r#"{"actions":["org.quire.Mail mail.thread.search","org.quire.Mail mail.thread.read","org.quire.Mail mail.contact.search","org.quire.Mail mail.message.forward","org.quire.Mail mail.message.send"],"apps":[{"app":"org.quire.Mail","up_to":"outbound"}],"kinds":["mail.thread","mail.contact"],"ceiling":"outbound","max_count":12,"recipients":[],"destinations":[],"paths":[]}"#;
 
 impl World {
     /// Starts everything, in dependency order: the bus, sill and the scripted model, memoryd,

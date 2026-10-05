@@ -1,9 +1,9 @@
 //! The binary's body: the session bus, the bus name the `mcp` role is written under, and one
 //! edge per client connection, over stdio or a Unix socket.
 
-use crate::access::McpAccess;
 use crate::config::{ConfigError, McpConfig};
 use crate::edge::McpEdge;
+use crate::expose::McpExpose;
 use docket_client::{DbusTransport, Intents};
 use docket_dbus::BusConnection;
 use rmcp::ServiceExt;
@@ -66,7 +66,7 @@ fn edge(connection: &BusConnection, config: &McpConfig) -> McpEdge<DbusTransport
         Intents::over(DbusTransport::new(connection.clone())),
         config.client.clone(),
     )
-    .with_access(config.access)
+    .with_expose(config.expose)
 }
 
 async fn over_stdio(edge: McpEdge<DbusTransport>) -> Result<(), DaemonFault> {
@@ -111,13 +111,15 @@ pub async fn start(
     }
 }
 
-/// What the command line asks for: `--socket PATH`, `--client NAME`.
+/// What the command line asks for: `--socket PATH`, `--client NAME`, `--write-schema DIR`.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Args {
     /// Serve a socket instead of stdio.
     pub socket: Option<PathBuf>,
     /// The client name, over the configuration's.
     pub client: Option<prov::ClientName>,
+    /// Write docket's settings schema into this directory and stop.
+    pub write_schema: Option<PathBuf>,
 }
 
 impl Args {
@@ -129,6 +131,7 @@ impl Args {
             let mut value = || args.next().ok_or_else(|| format!("{flag} needs a value"));
             match flag.as_str() {
                 "--socket" => parsed.socket = Some(PathBuf::from(value()?)),
+                "--write-schema" => parsed.write_schema = Some(PathBuf::from(value()?)),
                 "--client" => {
                     parsed.client = Some(
                         prov::ClientName::parse(&value()?)
@@ -145,17 +148,27 @@ impl Args {
 /// The daemon: the configuration and the session bus from the environment, the arguments from the
 /// command line.
 pub async fn run(args: Args) -> Result<(), DaemonFault> {
+    if let Some(dir) = args.write_schema {
+        return write_schema(&dir);
+    }
     let env = |key: &str| std::env::var(key).ok();
     let mut config = McpConfig::from_env(&env)?;
     if let Some(client) = args.client {
         config = config.named(client);
     }
-    if config.access == McpAccess::Off {
+    if config.expose == McpExpose::Off {
         eprintln!(
-            "actions-mcp: off (set access = \"on\" in actions-mcp.toml): no tools are listed"
+            "actions-mcp: off (set agent.mcp.expose = \"on\" in docket/settings.toml): no tools are listed"
         );
     }
     let connection = docket_dbus::session_connection(&env).await.map_err(bus)?;
     let listen = args.socket.map_or(Listen::Stdio, Listen::Socket);
     start(&connection, config, listen).await
+}
+
+/// `--write-schema DIR`: `docket.settings.toml` into `DIR`, for a local install (design/22 section
+/// 9.2).
+pub fn write_schema(dir: &Path) -> Result<(), DaemonFault> {
+    std::fs::create_dir_all(dir).map_err(io)?;
+    std::fs::write(dir.join("docket.settings.toml"), crate::settings::SCHEMA).map_err(io)
 }

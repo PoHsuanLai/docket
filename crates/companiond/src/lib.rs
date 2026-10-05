@@ -22,6 +22,7 @@ mod fault;
 mod finish;
 mod idle;
 mod inbox;
+mod plan;
 mod planner;
 mod records;
 mod recover;

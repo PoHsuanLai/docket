@@ -13,7 +13,7 @@ use almanac_client::{ClientError, Memory, Transport};
 use almanac_core::{MemoryReply, MemoryRequest, Refusal};
 use docket_core::{AuditRecord, CallId};
 use prov::SpaceId;
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 /// How many calls the log remembers the Space of, so a review that is recorded after its call's
 /// batch still lands beside it.
@@ -72,6 +72,8 @@ pub struct AuditLog<T: Transport> {
     memory: Memory<T>,
     calls: Calls,
     link: Link,
+    /// The Spaces memoryd refused records for, already said on standard error.
+    told: BTreeSet<SpaceId>,
 }
 
 impl<T: Transport> AuditLog<T> {
@@ -81,7 +83,13 @@ impl<T: Transport> AuditLog<T> {
             memory: Memory::over(transport),
             calls: Calls::default(),
             link: Link::Up,
+            told: BTreeSet::new(),
         }
+    }
+
+    /// The Spaces memoryd refused records for, each already said once on standard error.
+    pub fn refused_spaces(&self) -> &BTreeSet<SpaceId> {
+        &self.told
     }
 
     /// Takes what the queue holds and writes it. `place` says where a record that names no
@@ -108,8 +116,9 @@ impl<T: Transport> AuditLog<T> {
             })
             .collect();
         let mut report = self.write(placed, sink).await;
-        report.lost += usize::try_from(sink.dropped()).unwrap_or(usize::MAX);
-        self.say(before, &report, sink);
+        let overflow = usize::try_from(sink.dropped()).unwrap_or(usize::MAX);
+        report.lost += overflow;
+        self.say(before, &report, overflow, sink);
         report
     }
 
@@ -171,6 +180,7 @@ impl<T: Transport> AuditLog<T> {
             }
             Ok(_) | Err(ClientError::Unexpected) => {
                 self.link = Link::Up;
+                self.tell_refused(space, "an unexpected reply");
                 Done::Settled {
                     written: 0,
                     lost: count,
@@ -213,7 +223,10 @@ impl<T: Transport> AuditLog<T> {
                     waiting.push((i, record));
                     waiting.extend(records.by_ref().map(|(i, _, r)| (i, r)));
                 }
-                Err(_) => lost += 1,
+                Err(why) => {
+                    self.tell_refused(space, &format!("{why:?}"));
+                    lost += 1;
+                }
             }
         }
         match waiting.is_empty() {
@@ -223,7 +236,7 @@ impl<T: Transport> AuditLog<T> {
     }
 
     /// Says what changed: the link going down, coming back, and records lost.
-    fn say(&self, before: Link, report: &Flushed, sink: &QueuedSink) {
+    fn say(&self, before: Link, report: &Flushed, overflow: usize, sink: &QueuedSink) {
         match (before, self.link) {
             (Link::Up, Link::Down) => eprintln!(
                 "intentd: memoryd is not answering: {} audit records wait for it",
@@ -235,10 +248,17 @@ impl<T: Transport> AuditLog<T> {
             ),
             (Link::Up, Link::Up) | (Link::Down, Link::Down) => {}
         }
-        if report.lost > 0 {
+        if overflow > 0 {
+            eprintln!("intentd: {overflow} audit records were dropped (the queue was full)");
+        }
+    }
+
+    /// Says once per Space that memoryd refused its records: they are counted in
+    /// `Control.State` (`audit_lost`) from then on, not repeated here.
+    fn tell_refused(&mut self, space: &SpaceId, why: &str) {
+        if self.told.insert(space.clone()) {
             eprintln!(
-                "intentd: {} audit records were dropped (memoryd refused them or the queue was full)",
-                report.lost
+                "intentd: memoryd refused the audit records of Space {space} ({why}); they are dropped and counted in Control.State"
             );
         }
     }

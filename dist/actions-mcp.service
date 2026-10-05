@@ -15,7 +15,7 @@ ExecStart=/usr/libexec/quire/actions-mcp --socket %t/quire/actions-mcp.sock
 # Unix sockets only: the session bus to intentd and the client's socket.
 RestrictAddressFamilies=AF_UNIX
 PrivateNetwork=yes
-# The person's actions-mcp.toml (access = "on") is read from the home directory.
+# The person's settings (docket/settings.toml, agent.mcp.expose = "on") are read from the home directory.
 ProtectHome=read-only
 ProtectSystem=strict
 ExecStartPre=+/usr/bin/mkdir -p %t/quire

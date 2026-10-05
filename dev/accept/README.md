@@ -33,7 +33,7 @@ quoted).
 
 The manifest `dev/accept/fixtures/org.quire.Mail.toml` is the contract the run proves:
 
-- `mail.thread.find` (Read, `Entities(mail.thread)`), `mail.thread.read` (Read, text result with
+- `mail.thread.search` (Read, `Entities(mail.thread)`), `mail.thread.read` (Read, text result with
   `trust = third_party(mail)`), `mail.contact.search` (Read, `Entities(mail.contact)`, trusted
   titles: the person's own address book), `mail.message.forward` (Outbound, `undo = "token"`, an
   entity `to` with the `recipient` sink, `dry_run = "preview"`), `mail.message.send` (Outbound,
@@ -49,5 +49,5 @@ The manifest `dev/accept/fixtures/org.quire.Mail.toml` is the contract the run p
 
 ## Known gaps the run found
 
-See FINDINGS.md, "f4-e2e acceptance". The ignored test `flow_a_the_answer_shows_the_sheet_while_it_waits`
-holds the first one.
+See FINDINGS.md, "f4-e2e acceptance". Finding 1 (the plan card and `NeedsYou(Confirm)`) is fixed and tested by
+`flow_a_the_answer_shows_the_sheet_while_it_waits`.

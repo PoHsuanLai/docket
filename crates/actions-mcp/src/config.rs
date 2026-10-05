@@ -1,12 +1,11 @@
-//! `$XDG_CONFIG_HOME/quire/actions-mcp.toml`: whether the edge is on and the name its client goes
-//! by. Off by default (QUESTIONS S7): a file that does not exist is an edge that lists nothing.
-//! Every key is optional. The switch is the setting `mcp.enabled` once quire's settings carry it;
-//! until then this file is where the person (or the package) writes it.
+//! `$XDG_CONFIG_HOME/quire/actions-mcp.toml`: the name the edge's client goes by. Every key is
+//! optional. Whether the edge is on is not here: it is the setting `agent.mcp.expose` in docket's
+//! own settings file (`settings.rs`), off when nothing says otherwise (QUESTIONS S7).
 
-use crate::access::McpAccess;
+use crate::expose::McpExpose;
+use crate::settings;
 use prov::ClientName;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 const SHIPPED: &str = include_str!("../../../dist/actions-mcp.toml");
 
@@ -25,7 +24,7 @@ fn client() -> ClientName {
 pub struct McpConfig {
     /// Whether external clients may use the registry's offered actions.
     #[serde(default)]
-    pub access: McpAccess,
+    pub expose: McpExpose,
     /// The name every argument and call of this process is labelled with.
     #[serde(default = "client")]
     pub client: ClientName,
@@ -34,7 +33,7 @@ pub struct McpConfig {
 impl Default for McpConfig {
     fn default() -> Self {
         Self {
-            access: McpAccess::Off,
+            expose: McpExpose::Off,
             client: client(),
         }
     }
@@ -52,23 +51,20 @@ impl McpConfig {
     }
 
     /// The first `quire/actions-mcp.toml` of the configuration directories (`$XDG_CONFIG_HOME`,
-    /// then `$XDG_CONFIG_DIRS`), else the shipped one.
+    /// then `$XDG_CONFIG_DIRS`), else the shipped one; the switch from the settings file.
     pub fn from_env(env: &impl Fn(&str) -> Option<String>) -> Result<Self, ConfigError> {
-        let home = env("XDG_CONFIG_HOME")
-            .filter(|v| !v.is_empty())
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(env("HOME").unwrap_or_default()).join(".config"));
-        let rest = env("XDG_CONFIG_DIRS")
-            .filter(|v| !v.is_empty())
-            .unwrap_or_else(|| "/etc/xdg".to_owned());
-        let found = std::iter::once(home)
-            .chain(rest.split(':').map(PathBuf::from))
+        let found = settings::config_dirs(env)
+            .into_iter()
             .map(|d| d.join("quire").join("actions-mcp.toml"))
             .find_map(|path| std::fs::read_to_string(path).ok());
-        match found {
-            Some(text) => Self::parse(&text),
-            None => Self::shipped(),
-        }
+        let config = match found {
+            Some(text) => Self::parse(&text)?,
+            None => Self::shipped()?,
+        };
+        Ok(Self {
+            expose: settings::from_env(env),
+            ..config
+        })
     }
 
     /// The same configuration under another client name.

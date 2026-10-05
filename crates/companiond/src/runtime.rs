@@ -243,6 +243,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         rt.keep = ask.keep;
         rt.window = Some(ask.parent_window);
         rt.phase = AnswerPhase::Thinking;
+        rt.plan = crate::plan::Plan::default();
         let first = match phase {
             Some(LoopPhase::Paused(_)) => LoopInput::Resumed,
             _ => LoopInput::Asked(turn.id),

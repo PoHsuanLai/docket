@@ -28,7 +28,7 @@ props = []
 
 # Finds threads by subject. The titles it returns are somebody else's words.
 [[actions]]
-name = "mail.thread.find"
+name = "mail.thread.search"
 label = "Find threads"
 on = { kind = "nothing" }
 effect = "read"
