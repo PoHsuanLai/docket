@@ -14,9 +14,8 @@ use porter_core::wire::{FrameRead, decode_frame, encode_frame};
 use porter_core::{AccountId, DataClass, Locality, ModelId, Need, Tokens};
 use porter_dbus::{Details, INFERENCE_BUS, INFERENCE_PATH, NeedArg, need_from_dbus};
 use porter_infer::{
-    ChatReply, ChatRequest, ClientFrame, InferEvent, InferRefusal, InferReply,
-    InferRequest, JsonText, MessagePart, ServedBy, StopReason, TokenUsage, ToolCallId,
-    ToolCallPart, ToolName,
+    ChatReply, ChatRequest, ClientFrame, InferEvent, InferRefusal, InferReply, InferRequest,
+    JsonText, MessagePart, ServedBy, StopReason, TokenUsage, ToolCallId, ToolCallPart, ToolName,
 };
 use serde_json::Value as Json;
 use std::collections::VecDeque;
@@ -138,7 +137,11 @@ pub fn text_of(request: &ChatRequest) -> String {
 fn role_of(need: &Need, request: &ChatRequest) -> Role {
     let text = text_of(request);
     match need {
-        Need::Llm(llm) if llm.features.contains(&porter_core::capability::LlmFeature::Tools) => {
+        Need::Llm(llm)
+            if llm
+                .features
+                .contains(&porter_core::capability::LlmFeature::Tools) =>
+        {
             Role::Planner
         }
         Need::Llm(_) if text.contains("You write a task policy") => Role::Writer,
@@ -232,13 +235,18 @@ impl Inference {
         let (ours, theirs) = StdStream::pair().map_err(|e| fdo::Error::Failed(e.to_string()))?;
         ours.set_nonblocking(true)
             .map_err(|e| fdo::Error::Failed(e.to_string()))?;
-        let stream =
-            UnixStream::from_std(ours).map_err(|e| fdo::Error::Failed(e.to_string()))?;
+        let stream = UnixStream::from_std(ours).map_err(|e| fdo::Error::Failed(e.to_string()))?;
         tokio::spawn(session(stream, need, class, self.model.clone()));
         Ok(OwnedFd::from(std::os::fd::OwnedFd::from(theirs)))
     }
 
-    async fn prepare(&self, _need: NeedArg, _class: String, _tier: String, _options: Details) -> String {
+    async fn prepare(
+        &self,
+        _need: NeedArg,
+        _class: String,
+        _tier: String,
+        _options: Details,
+    ) -> String {
         "ready".to_owned()
     }
 }

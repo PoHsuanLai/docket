@@ -36,7 +36,9 @@ pub fn handle_after(request: &ChatRequest, marker: &str) -> u64 {
         .chars()
         .take_while(char::is_ascii_digit)
         .collect();
-    digits.parse().unwrap_or_else(|_| panic!("no handle number on {line:?}"))
+    digits
+        .parse()
+        .unwrap_or_else(|_| panic!("no handle number on {line:?}"))
 }
 
 pub fn calls(name: &str, args: Json) -> Step {

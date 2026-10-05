@@ -10,9 +10,9 @@
 use docket_client::{ContextSource, IntentProvider, SummonTarget};
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, Follow, Here, Hit, Invocation, LabelText,
-    MessageSnip, Outcome, ParamName, Preview, SuggestAsk, SummonAnswer, SummonOrigin,
-    Selection, SummonSerial, TargetValue, TextTarget, UndoFault, UndoToken, Undoable, ValidManifest,
-    Value, Visible, WindowPrivacy,
+    MessageSnip, Outcome, ParamName, Preview, Selection, SuggestAsk, SummonAnswer, SummonOrigin,
+    SummonSerial, TargetValue, TextTarget, UndoFault, UndoToken, Undoable, ValidManifest, Value,
+    Visible, WindowPrivacy,
 };
 use porter_core::{AppName, DataClass};
 use prov::{
@@ -270,10 +270,13 @@ impl IntentProvider for AcceptMail {
     }
 
     async fn perform(&self, inv: Invocation) -> Result<Outcome, AppRefusal> {
-        self.log.edit(|s| s.performed.push(inv.action.as_str().to_owned()));
+        self.log
+            .edit(|s| s.performed.push(inv.action.as_str().to_owned()));
         match inv.action.as_str() {
             "mail.thread.find" => {
-                let query = Self::text_arg(&inv, "query").unwrap_or_default().to_lowercase();
+                let query = Self::text_arg(&inv, "query")
+                    .unwrap_or_default()
+                    .to_lowercase();
                 let ids: Vec<EntityId> = threads()
                     .iter()
                     .filter(|t| t.subject.to_lowercase().contains(&query))
@@ -307,7 +310,9 @@ impl IntentProvider for AcceptMail {
                 ))
             }
             "mail.contact.search" => {
-                let query = Self::text_arg(&inv, "query").unwrap_or_default().to_lowercase();
+                let query = Self::text_arg(&inv, "query")
+                    .unwrap_or_default()
+                    .to_lowercase();
                 let ids: Vec<EntityId> = contacts()
                     .iter()
                     .filter(|c| c.name.to_lowercase().contains(&query))

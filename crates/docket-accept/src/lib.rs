@@ -3,8 +3,8 @@
 //! provider and a `Confirm1` server around them (see `dev/accept/README.md`).
 
 pub mod confirm;
+pub mod drive;
 pub mod grants;
 pub mod inferd;
 pub mod provider;
 pub mod world;
-pub mod drive;

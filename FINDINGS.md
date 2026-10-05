@@ -24,7 +24,8 @@ Total: 1 + 1 = 2.
 
 ## Ignored tests
 
-None: every test that waited for a fill runs.
+One, a documented gap rather than a wait for a fill: `docket-accept/tests/flows.rs`
+`flow_a_the_answer_shows_the_sheet_while_it_waits` (f4-e2e finding 1). Every other test runs.
 
 ## Built at the freeze (pinned by tests)
 
@@ -530,6 +531,36 @@ Branch `f4-docket`. Each item has tests on a private bus, in process, or over th
 10. **Ask 105**: the chain was already there (`AppFault::Unavailable` -> `CallRefusal::AppUnavailable` -> exit 6);
     what was missing was a test of it end to end: `Answering::Absent` in the fakes, a router test and
     `quire-do`'s `an_app_that_is_not_installed_is_exit_6_not_5`.
+
+## The f4-e2e acceptance
+
+Branch `f4-e2e`. `crates/docket-accept` and `dev/accept/` (README: what is real, what is scripted, what mailo's
+provider must match). The real intentd, companiond, readerd and memoryd run as processes on a private bus with a
+scripted `Inference1`, a `Confirm1` server and a mail provider; SPEC section 5 flows (a) and (c) pass in the gate.
+Tests: flow (a) Allow through undo and the audit in memoryd, flow (a) refused (nothing sent, nothing journaled),
+flow (c) (the injected body never reaches the planner; the reader saw it fenced, with no tools, in class Mail;
+`Session.Display` gives the summary to the screen; the Outbound send to `x@evil.example` asks, once only, the
+recipient `Quoted{from: Mail}`, taint `ReadUntrusted(Mail)`), and one ignored (finding 1).
+
+1. **The answer never shows the sheet or a plan card.** companiond calls the plain `Intents::perform`
+   (`companiond/src/drive.rs`, `perform`), so `Progress(Confirming)` is not seen: no `NeedsYou(Confirm)`, and no
+   `AnswerBody::Plan` is ever published (SPEC 5(a) steps 7 and 8). `Intents::perform_watched` exists. Ignored test
+   `flow_a_the_answer_shows_the_sheet_while_it_waits`.
+2. **Records that name no Space go to `desktop`** (`intentd/src/audit.rs`, `flush`): `Confirm`, `Undo`, `Review`
+   without a known call. memoryd refuses a Space it does not know and intentd counts the batch as lost with no line
+   on standard error (`write_space`, the `Ok(_)` arm). The run registers `desktop`; the desktop package must create
+   it, or intentd should say once that memoryd refused it.
+3. **memoryd cannot run as its binary without a Secret Service.** `accept-memoryd` is almanac's `main.rs` with
+   `MemoryKeys` and no Landlock. Ask (almanac, `memoryd/src/main.rs`): an environment switch such as
+   `MEMORYD_KEYS=file:<path>` selecting a file-backed `KeyStore` for a scratch HOME, so the packaged binary itself
+   can be started in the jail.
+4. **inferd has no replay engine.** The run speaks the `Inference1` wire from a fake (`src/inferd.rs`). Ask
+   (porter, `inferd`): `[engines.<name>] replay = "<file>"` in `inferd.toml`, an engine host that answers the OpenAI
+   compatible chat route from a cassette of (request match, SSE reply) pairs, with the planner, writer and reader
+   replies of `dev/accept` as its first cassette; then the acceptance can run the real inferd binary.
+5. Observed, no action: entity ids in a step's value are shown to the planner plain even when the result is
+   labelled third-party (only the words of a title are held back); `Session.Resolve` now carries the label, so the
+   reader's session is opened for the class of the mail it reads (verified: class `Mail`).
 
 ## Upstream asks
 

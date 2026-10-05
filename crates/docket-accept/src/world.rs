@@ -130,11 +130,19 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).expect("file");
 }
 
-/// `spaces.toml`: the Space `work` exists, sealed, with a fixed replica.
+/// `spaces.toml`: the Space `work`, and `desktop` where intentd places the records that name no
+/// Space (a confirmation, an undo), both sealed with fixed replicas.
 const SPACES: &str = r#"[[spaces]]
 id = "work"
 created = 0
 replica = "00000000000000000000000000000001"
+vault = "sealed"
+format = 1
+
+[[spaces]]
+id = "desktop"
+created = 0
+replica = "00000000000000000000000000000002"
 vault = "sealed"
 format = 1
 "#;
@@ -239,8 +247,9 @@ impl World {
         self.daemons
             .iter()
             .map(|(name, _)| {
-                let text = std::fs::read_to_string(self.dir.path().join(format!("logs/{name}.log")))
-                    .unwrap_or_default();
+                let text =
+                    std::fs::read_to_string(self.dir.path().join(format!("logs/{name}.log")))
+                        .unwrap_or_default();
                 format!("---- {name}\n{text}")
             })
             .collect()

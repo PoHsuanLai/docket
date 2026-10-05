@@ -169,31 +169,43 @@ impl Answer {
     }
 }
 
-/// What memoryd holds of the Space `work` as the shell reads it (the shell's identity is this
+/// What memoryd holds of the Spaces `work` and `desktop` as the shell reads it (the shell's identity is this
 /// test process's executable, named in `memory-callers.toml`): the recent entries, polled until
-/// there are `at_least` of them. intentd drains its audit queue into memoryd on a timer, so
+/// every kind in `kinds` is among them (the audit kinds of `intentd`'s `record.rs`). intentd drains its audit queue into memoryd on a timer, so
 /// there is no event to wait on; the bound only turns a missing record into a failure.
-pub async fn recorded(world: &World, at_least: usize) -> Vec<almanac_core::RecentEntry> {
+pub async fn recorded(world: &World, kinds: &[&str]) -> Vec<almanac_core::RecentEntry> {
     use almanac_client::{DbusTransport, Memory};
     use almanac_core::{BodyMode, RecentQuery, TrustFilter};
     let memory = Memory::over(DbusTransport::new(world.sill.clone()));
-    let space = SpaceId::parse("work").expect("space");
+    let spaces = ["work", "desktop"].map(|s| SpaceId::parse(s).expect("space"));
+    let seen = std::cell::RefCell::new(Vec::<String>::new());
     let poll = async {
         loop {
-            let entries = memory
-                .recent(
-                    space.clone(),
-                    RecentQuery {
-                        since: UnixSeconds(0),
-                        kinds: vec![],
-                        trust: TrustFilter::Any,
-                        limit: porter_core::Count(100),
-                        bodies: BodyMode::Json,
-                    },
-                )
-                .await
-                .unwrap_or_default();
-            if entries.len() >= at_least {
+            let mut entries = Vec::new();
+            for space in &spaces {
+                let query = RecentQuery {
+                    since: UnixSeconds(0),
+                    kinds: vec![],
+                    trust: TrustFilter::Any,
+                    limit: porter_core::Count(100),
+                    bodies: BodyMode::Json,
+                };
+                entries.extend(
+                    memory
+                        .recent(space.clone(), query)
+                        .await
+                        .unwrap_or_default(),
+                );
+            }
+            *seen.borrow_mut() = entries
+                .iter()
+                .map(|e| format!("{:?}", e.summary.kind))
+                .collect();
+            if kinds.iter().all(|k| {
+                entries
+                    .iter()
+                    .any(|e| format!("{:?}", e.summary.kind) == format!("KindTag(\"{k}\")"))
+            }) {
                 return entries;
             }
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -201,5 +213,11 @@ pub async fn recorded(world: &World, at_least: usize) -> Vec<almanac_core::Recen
     };
     tokio::time::timeout(GIVE_UP, poll)
         .await
-        .unwrap_or_else(|_| panic!("memoryd never held {at_least} records\n{}", world.logs()))
+        .unwrap_or_else(|_| {
+            panic!(
+                "memoryd never held {kinds:?}; it holds {:?}\n{}",
+                seen.borrow(),
+                world.logs()
+            )
+        })
 }

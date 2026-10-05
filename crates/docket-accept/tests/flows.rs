@@ -51,7 +51,10 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
     let history = answer.history_until(settled).await;
     let last = history.last().expect("a view").clone();
     if last.phase != AnswerPhase::Done {
-        fail(&world, &format!("the answer ended {:?}\n{history:#?}", last.phase));
+        fail(
+            &world,
+            &format!("the answer ended {:?}\n{history:#?}", last.phase),
+        );
     }
 
     // Known gap (docket FINDINGS, f4-e2e): companiond performs through the plain `Perform`, so the
@@ -72,7 +75,10 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
     assert_eq!(sheet.action.as_str(), "Forward");
     assert_eq!(sheet.effect, prov::Effect::Outbound);
     assert!(
-        matches!(&sheet.detail, ConfirmDetail::Preview(_) | ConfirmDetail::Recipients(_)),
+        matches!(
+            &sheet.detail,
+            ConfirmDetail::Preview(_) | ConfirmDetail::Recipients(_)
+        ),
         "{:?}",
         sheet.detail
     );
@@ -132,8 +138,22 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
     assert_eq!(world.model.planner_left(), 0, "every planned step was used");
 
     // The router's audit records reached memoryd, from intentd's process, over the bus.
-    let recorded = recorded(&world, 1).await;
-    eprintln!("memoryd holds {recorded:#?}");
+    let recorded = recorded(
+        &world,
+        &[
+            "docket.call",
+            "docket.confirm",
+            "docket.undo",
+            "docket.task_policy",
+        ],
+    )
+    .await;
+    assert!(
+        recorded
+            .iter()
+            .all(|e| !format!("{e:?}").contains("IGNORE ALL PREVIOUS")),
+        "no mail body in the audit"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -164,14 +184,26 @@ async fn flow_a_the_person_refuses_the_sheet_and_nothing_is_sent() {
 
     // The sheet was shown, the person said no, and the app never held anything.
     assert_eq!(world.sheet.shown().len(), 1);
-    assert!(world.mail.messages().is_empty(), "{:?}", world.mail.messages());
     assert!(
-        !world.mail.performed().iter().any(|a| a == "mail.message.forward"),
+        world.mail.messages().is_empty(),
+        "{:?}",
+        world.mail.messages()
+    );
+    assert!(
+        !world
+            .mail
+            .performed()
+            .iter()
+            .any(|a| a == "mail.message.forward"),
         "the app was never asked to forward: {:?}",
         world.mail.performed()
     );
     // The planner was told, as a coarse step, that the call was not confirmed.
-    let last = world.model.asked_by(Role::Planner).pop().expect("a request");
+    let last = world
+        .model
+        .asked_by(Role::Planner)
+        .pop()
+        .expect("a request");
     assert!(
         text_of(&last).contains("mail.message.forward not confirmed"),
         "{}",
@@ -246,13 +278,13 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
     assert!(reader[0].tools.is_empty());
     assert!(matches!(reader[0].shape, porter_infer::ReplyShape::Json(_)));
     assert!(text_of(&reader[0]).contains(INJECTION));
-    // readerd asks for the strictest class: `Resolve` hands it text without labels, so it
-    // is `Prompt` (this computer only), never a class a cloud grant could cover.
+    // `Session.Resolve` hands readerd the handle's label with its text, so the reader's
+    // session is opened for the class of the mail it reads.
     assert!(
         world
             .model
             .opened()
-            .contains(&(Role::Reader, porter_core::DataClass::Prompt)),
+            .contains(&(Role::Reader, porter_core::DataClass::Mail)),
         "{:?}",
         world.model.opened()
     );
@@ -286,4 +318,37 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
         ask.taint
     );
     assert!(world.mail.messages().is_empty());
+}
+
+/// SPEC 5(a) steps 7 and 8: while the sheet is up the answer shows `NeedsYou(Confirm)`, and a
+/// plan card streams before it. companiond performs through the plain `Run.Perform`
+/// (`companiond/src/drive.rs`, `perform`), so neither ever appears; `Intents::perform_watched`
+/// exists for it. Un-ignore when companiond watches its calls and publishes the plan.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "companiond never publishes NeedsYou(Confirm) or a plan card (f4-e2e finding 1)"]
+async fn flow_a_the_answer_shows_the_sheet_while_it_waits() {
+    let world = World::start(&binaries(), Consent::Standing).await;
+    world.model.planner(vec![
+        calls(&tool("mail.thread.find"), json!({"query": "Lisbon"})),
+        calls(&tool("mail.contact.search"), json!({"query": "Accounting"})),
+        calls(
+            &tool("mail.message.forward"),
+            json!({"target": [thread("lisbon-1"), thread("lisbon-2")], "to": contact("accounting")}),
+        ),
+        words("Forwarded."),
+    ]);
+    world.sheet.will(Verdict::Allow);
+    let launcher = Launcher::of(&world).await;
+    let opened = launcher.open().await;
+    let mut answer = launcher
+        .say(&opened, "forward the Lisbon receipts to accounting")
+        .await;
+    let history = answer.history_until(settled).await;
+    assert!(history.iter().any(waiting_on_sheet), "{history:#?}");
+    assert!(
+        history
+            .iter()
+            .any(|v| matches!(v.body, companion_wire::AnswerBody::Plan(_))),
+        "{history:#?}"
+    );
 }
