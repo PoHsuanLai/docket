@@ -836,3 +836,11 @@ builds the connection first and passes it here.
    `perform_watched_activated` (the old `perform` and `perform_watched` are the `None` case).
    Tests: `docket-router/tests/activation.rs` (launcher gets it through; cli, field, companion, mcp dropped; wire
    form), `intentd/tests/identity.rs` (launcher token crosses the real bus; the cli's is dropped).
+4. **The shell's scope row waits for porter.** In a real login sill-session starts sill as `sill-shell.scope`
+   (`systemd-run --user --scope --unit=sill-shell`). porter-dbus on this base matches a unit row only for a
+   `<name>.service` leaf (`CallerTable::resolve_unit`; a `.scope` leaf must be `app-...`), so a `sill-shell.scope`
+   row cannot be matched yet. intentd therefore keeps the bus-name rule for the shell's roles (owner of
+   `org.quire.Shell` is launcher/control, owner of `org.quire.Confirm1` is confirm); no wider rule was added and no
+   callers file exists. When porter lets a unit row match an exact named scope, intentd gains a one-row callers
+   table (`org.quire.Shell` = `sill-shell.scope`) and docket-accept's fake proc root puts the shell at
+   `0::/user.slice/user-1000.slice/user@1000.service/app.slice/sill-shell.scope`. docket-accept is unchanged.
