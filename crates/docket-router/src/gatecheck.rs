@@ -16,7 +16,7 @@ use docket_core::{
     GrantTarget, Impact, IntentsReply, LabelText, Reviewed, Saw, SessionSaw, SinkIntegrity,
     TaintNote,
 };
-use docket_core::{AgentReach, Lasting, Millis, Origin};
+use docket_core::{AgentReach, Lasting, Origin};
 use policy_point::{
     ActionFacts, CoverageState, GrantState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
     SpaceRelation, TerminalGrant,
@@ -27,9 +27,6 @@ use prov::{
     ActionName, Actor, AgentRole, Confidentiality, Effect, Integrity, Label, Source, SpaceScope,
 };
 use std::collections::BTreeSet;
-
-/// How long a watching requester has to say `Proceed` before the step is refused unasked.
-const PROCEED_WITHIN: Millis = Millis(10_000);
 
 fn words(text: &str) -> LabelText {
     LabelText::parse(text).expect("fixed sheet words are valid label text")
@@ -301,7 +298,7 @@ impl<S: Seams> Router<S> {
         let id = request.id.clone();
         watch.tell(CallProgress::Confirming(id.clone())).await;
         let ready = within(
-            self.seams.clock().after(PROCEED_WITHIN),
+            self.seams.clock().after(self.config.confirm_proceed),
             within(watch.withdrawn(), watch.proceeded()),
         )
         .await;

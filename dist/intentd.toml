@@ -19,6 +19,7 @@ control = ["org.quire.Shell"]
 strictness = "default"
 mass_at = 20
 confirm_expiry = 120
+confirm_proceed = 10000
 task_policy_max = 3600
 undo_keep = 86400
 

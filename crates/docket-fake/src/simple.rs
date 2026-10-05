@@ -1,27 +1,8 @@
-//! The small fakes: a fixed clock, a recording event sink and an in-memory consent store.
+//! The small fakes: a recording event sink and an in-memory consent store.
 
-use docket_core::{ActionGrant, AuditRecord, Millis};
-use docket_router::{Clock, EventSink, GrantStore};
-use prov::UnixSeconds;
+use docket_core::{ActionGrant, AuditRecord};
+use docket_router::{EventSink, GrantStore};
 use std::sync::Mutex;
-
-/// A clock that always says the same instant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FixedClock(pub UnixSeconds);
-
-impl Clock for FixedClock {
-    fn now(&self) -> UnixSeconds {
-        self.0
-    }
-
-    /// Completes at once for no time at all and never otherwise: a test that wants a stage to
-    /// time out gives it `Millis(0)`.
-    async fn after(&self, wait: Millis) {
-        if wait.0 > 0 {
-            std::future::pending::<()>().await;
-        }
-    }
-}
 
 /// An event sink that keeps every record, in order.
 #[derive(Debug, Default)]

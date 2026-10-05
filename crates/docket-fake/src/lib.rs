@@ -5,6 +5,7 @@
 //! in-memory consent store, and `fake_router` over all of them. Test code only: nothing in a
 //! daemon links this crate.
 
+mod clock;
 mod files;
 mod labels;
 mod mail;
@@ -13,6 +14,7 @@ mod scripted;
 mod seams;
 mod simple;
 
+pub use clock::FixedClock;
 pub use files::FakeFiles;
 pub use mail::{FakeMail, MailContact, MailThread, SentMail};
 pub use router::{
@@ -23,4 +25,4 @@ pub use scripted::{
 };
 pub use seams::Answering;
 pub use seams::{FakeLink, FakeSeams, host_companion};
-pub use simple::{FixedClock, MemoryGrants, RecordingSink};
+pub use simple::{MemoryGrants, RecordingSink};

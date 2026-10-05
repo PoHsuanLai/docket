@@ -196,7 +196,7 @@ async fn rig(strictness: Strictness) -> (Arc<Router<Rig>>, SessionOpened) {
         reviewer: HaltingReviewer(late.clone()),
         grants: MemoryGrants::new(),
         sink: RecordingSink::new(),
-        clock: FixedClock(UnixSeconds(0)),
+        clock: FixedClock::at(UnixSeconds(0)),
         memory: FakeMemory::default(),
         writer: ScriptedWriter::failing(),
         reader: ScriptedReader::default(),

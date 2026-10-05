@@ -65,6 +65,10 @@ pub struct IdleRules {
     pub side_close: Seconds,
 }
 
+fn proceed_within() -> Millis {
+    Millis(10_000)
+}
+
 /// Every proposed value in one place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AgentConfig {
@@ -76,6 +80,10 @@ pub struct AgentConfig {
     pub mass_at: Count,
     /// `agent.confirm.expiry_s` (120).
     pub confirm_expiry: Seconds,
+    /// `agent.confirm.proceed_ms`: how long a watching requester has to say `Proceed` before a
+    /// step that must ask the person is refused unasked (10 s).
+    #[serde(default = "proceed_within")]
+    pub confirm_proceed: Millis,
     /// `agent.task_policy.max_s`: a task policy lapses by then, or at task end (3600).
     pub task_policy_max: Seconds,
     /// `agent.undo.keep_h` in seconds (24 h).
@@ -108,6 +116,7 @@ impl Default for AgentConfig {
             },
             mass_at: Count(20),
             confirm_expiry: Seconds(120),
+            confirm_proceed: proceed_within(),
             task_policy_max: Seconds(3600),
             undo_keep: Seconds(24 * 3600),
             breaker: BreakerLimits {
@@ -182,6 +191,7 @@ pub const SETTING_ROWS: &[SettingRow] = &[
     n("agent.budget.reviews", 300),
     n("agent.mass_at", 20),
     n("agent.confirm.expiry_s", 120),
+    n("agent.confirm.proceed_ms", 10_000),
     n("agent.task_policy.max_s", 3600),
     n("agent.undo.keep_h", 24),
     n("agent.breaker.consecutive", 3),
@@ -224,6 +234,7 @@ impl AgentConfig {
             "agent.budget.reviews" => num(c(self.budget.reviews)),
             "agent.mass_at" => num(c(self.mass_at)),
             "agent.confirm.expiry_s" => num(i64::from(self.confirm_expiry.0)),
+            "agent.confirm.proceed_ms" => num(i64::from(self.confirm_proceed.0)),
             "agent.task_policy.max_s" => num(i64::from(self.task_policy_max.0)),
             "agent.undo.keep_h" => num(i64::from(self.undo_keep.0 / 3600)),
             "agent.breaker.consecutive" => num(c(self.breaker.consecutive)),

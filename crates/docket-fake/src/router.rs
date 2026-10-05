@@ -1,12 +1,13 @@
 //! The manifests the fakes ship with, and `fake_router`.
 
+use crate::clock::FixedClock;
 use crate::files::FakeFiles;
 use crate::mail::FakeMail;
 use crate::scripted::{
     FakeMemory, ScriptedConfirmer, ScriptedReader, ScriptedReviewer, ScriptedWriter,
 };
 use crate::seams::{FakeLink, FakeSeams};
-use crate::simple::{FixedClock, MemoryGrants, RecordingSink};
+use crate::simple::{MemoryGrants, RecordingSink};
 use docket_core::{AgentConfig, ValidManifest};
 use docket_router::{Registry, RegistryError, Router, parse};
 use policy_point::{Pdp, PolicyError};
@@ -74,7 +75,7 @@ pub fn fake_router(config: AgentConfig) -> Result<Router<FakeSeams>, FakeError> 
         reviewer: ScriptedReviewer::always_allow(),
         grants: MemoryGrants::new(),
         sink: RecordingSink::new(),
-        clock: FixedClock(UnixSeconds(0)),
+        clock: FixedClock::at(UnixSeconds(0)),
         memory: FakeMemory::default(),
         writer: ScriptedWriter::failing(),
         reader: ScriptedReader::default(),
