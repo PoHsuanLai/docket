@@ -54,7 +54,7 @@ async fn a_watching_caller_hears_the_sheet_announced_and_then_the_end_of_its_cal
     let end = loop {
         match watch.next().await.expect("an event") {
             PerformEvent::Progress(progress) => heard.push(progress),
-            PerformEvent::Done(end) => break end,
+            PerformEvent::Done(end) => break *end,
         }
     };
     let shown = world.router.seams.confirmer.requests();

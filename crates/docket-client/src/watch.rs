@@ -196,7 +196,7 @@ pub enum PerformEvent {
     /// `Dispatched`.
     Progress(CallProgress),
     /// The call's own end. Nothing follows.
-    Done(Result<Outcome, CallRefusal>),
+    Done(Box<Result<Outcome, CallRefusal>>),
 }
 
 /// A `Run.Perform` in flight: read what it says. Nothing waits for the caller.
@@ -216,7 +216,7 @@ impl PerformWatch {
         match self.events.next().await? {
             Said::Progress(progress) => Ok(PerformEvent::Progress(progress)),
             Said::Answer(reply) => match *reply {
-                IntentsReply::Performed(end) => Ok(PerformEvent::Done(*end)),
+                IntentsReply::Performed(end) => Ok(PerformEvent::Done(end)),
                 IntentsReply::Refused(why) => Err(ClientError::Refused(why)),
                 _ => Err(ClientError::Unexpected),
             },
