@@ -6,7 +6,7 @@ mod support;
 use companion_wire::{AnswerPhase, AnswerWire, NeedsYou};
 use docket_accept::confirm::Verdict;
 use docket_accept::drive::{Launcher, recorded};
-use docket_accept::provider::{INJECTION, Sending};
+use docket_accept::provider::Sending;
 use docket_accept::world::{Consent, World};
 use docket_core::{
     ConfirmDetail, ConfirmOffer, Handle, JournalFilter, Shown, TaintNote, UndoState,
