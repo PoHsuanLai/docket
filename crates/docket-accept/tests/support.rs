@@ -21,8 +21,9 @@ pub const FLOW_A_REFUSED: Cassette = Cassette(include_str!(
     "../../../dev/accept/cassettes/flow-a-refused.jsonl"
 ));
 /// Two searches in a Space that has no grants yet.
-pub const FIRST_USE: Cassette =
-    Cassette(include_str!("../../../dev/accept/cassettes/first-use.jsonl"));
+pub const FIRST_USE: Cassette = Cassette(include_str!(
+    "../../../dev/accept/cassettes/first-use.jsonl"
+));
 /// Flow (c): the injected thread, the reader, the send. Every planner entry refuses to answer a
 /// view that shows the body.
 pub const FLOW_C: Cassette = Cassette(include_str!("../../../dev/accept/cassettes/flow-c.jsonl"));

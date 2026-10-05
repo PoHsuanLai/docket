@@ -279,11 +279,15 @@ impl World {
     /// inferd's audit trail so far: one entry per finished model turn, with the app that asked
     /// (never the content).
     pub fn model_turns(&self) -> Vec<porter_infer::AuditEntry> {
-        std::fs::read_to_string(self.dir.path().join(".local/state/quire/inferd/audit.jsonl"))
-            .unwrap_or_default()
-            .lines()
-            .filter_map(|line| serde_json::from_str(line).ok())
-            .collect()
+        std::fs::read_to_string(
+            self.dir
+                .path()
+                .join(".local/state/quire/inferd/audit.jsonl"),
+        )
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect()
     }
 
     /// Every daemon's standard error, for a failing test to print.

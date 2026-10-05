@@ -63,7 +63,10 @@ fn build(sibling: &Sibling, root: &Path, target: &Path) -> PathBuf {
         repo.display()
     );
     println!("cargo:rerun-if-changed={}", repo.join("crates").display());
-    println!("cargo:rerun-if-changed={}", repo.join("Cargo.lock").display());
+    println!(
+        "cargo:rerun-if-changed={}",
+        repo.join("Cargo.lock").display()
+    );
     target.join("debug").join(sibling.package)
 }
 
