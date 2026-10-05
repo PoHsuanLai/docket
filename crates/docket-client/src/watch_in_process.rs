@@ -84,6 +84,5 @@ pub(crate) fn watched<S: Seams + 'static>(
             progress,
         }),
         steering: Arc::new(Flags { proceed, closed }),
-        request: None,
     }
 }

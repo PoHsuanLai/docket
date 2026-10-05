@@ -726,7 +726,7 @@ builds the connection first and passes it here.
    structured output). Caveat: a task that has finished has closed its router session, and the router refuses a
    closed session's calls, so a card pressed on a finished task fails (`Failed`); a proposal is only actionable while
    its task stays open (decide when the planner starts making drafts: keep the task open until its cards are pressed
-   or dismissed). `docket-client` gained `PerformWatch::request()` and `Watched::request` (additive).
+   or dismissed). `docket-client` gained `PerformWatch::request()` and a defaulted `Steering::request` (additive: no struct literal breaks).
    Tests: `companiond/tests/act.rs` (private bus), unit tests in `act.rs`.
 
 2. **Opening a Hit: the convention, validated.** SPEC §3.5 has the launcher perform `Activation::Intent(CallRequest)`

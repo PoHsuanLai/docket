@@ -110,6 +110,10 @@ impl Steering for Calls {
     fn close(&self) -> Boxed<'_, Result<(), TransportError>> {
         Box::pin(async move { self.proxy().await?.close().await.map_err(bus) })
     }
+
+    fn request(&self) -> Option<String> {
+        Some(self.path.as_str().to_owned())
+    }
 }
 
 /// Starts a request with `start` and watches it. `Ok(Err(e))` is a method that failed before a
@@ -151,7 +155,6 @@ pub(crate) async fn watching(
             reading,
             over: false,
         }),
-        request: Some(path.as_str().to_owned()),
         steering: std::sync::Arc::new(Calls {
             connection: connection.clone(),
             path,

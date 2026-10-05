@@ -41,6 +41,11 @@ pub trait Steering: Send + Sync {
     fn proceed(&self) -> Boxed<'_, Result<(), TransportError>>;
     /// Takes the request back: no answer follows, and a sheet that is up is withdrawn.
     fn close(&self) -> Boxed<'_, Result<(), TransportError>>;
+    /// The request's object path on the bus (`/org/quire/Intents1/request/<n>`), for a transport
+    /// that has one; none for the router in process.
+    fn request(&self) -> Option<String> {
+        None
+    }
 }
 
 /// The two ends of one watched request.
@@ -49,9 +54,6 @@ pub struct Watched {
     pub events: Box<dyn Events>,
     /// What may be said to it.
     pub steering: Arc<dyn Steering>,
-    /// The object path of the request on the bus (`/org/quire/Intents1/request/<n>`), for a
-    /// transport that has one.
-    pub request: Option<String>,
 }
 
 impl std::fmt::Debug for Watched {
@@ -91,7 +93,6 @@ impl Watched {
         Self {
             events: Box::new(Once(Some(reply))),
             steering: Arc::new(Settled),
-            request: None,
         }
     }
 }
@@ -182,9 +183,7 @@ impl<T: Transport> Intents<T> {
     /// draws a sheet and waits for `proceed`; the verdict is the last event. A transport that
     /// cannot watch gives the verdict alone (`gate_check` is the same without the watch).
     pub async fn gate_check_watched(&self, ask: CuaAsk) -> Result<GateWatch, ClientError> {
-        let Watched {
-            events, steering, ..
-        } = self
+        let Watched { events, steering } = self
             .transport()
             .watch(IntentsRequest::GateCheck(ask))
             .await?;
@@ -247,9 +246,7 @@ impl<T: Transport> Intents<T> {
         session: Option<SessionId>,
         parent_window: Option<WindowKey>,
     ) -> Result<PerformWatch, ClientError> {
-        let Watched {
-            events, request, ..
-        } = self
+        let Watched { events, steering } = self
             .transport()
             .watch(IntentsRequest::Perform {
                 call,
@@ -257,6 +254,9 @@ impl<T: Transport> Intents<T> {
                 parent_window,
             })
             .await?;
-        Ok(PerformWatch { events, request })
+        Ok(PerformWatch {
+            events,
+            request: steering.request(),
+        })
     }
 }
