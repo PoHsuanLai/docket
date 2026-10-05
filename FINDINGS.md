@@ -553,7 +553,7 @@ recipient `Quoted{from: Mail}`, taint `ReadUntrusted(Mail)`), and one ignored (f
    (SPEC P6). When memoryd refuses a Space's records, intentd now says so once per Space on stderr (`tell_refused`)
    and counts every lost record in `Control.State` (`KillSwitch::audit_lost`, additive, `serde(default)`). The run
    still registers `desktop` until almanac makes memoryd always know it.
-3. **memoryd cannot run as its binary without a Secret Service.** CLOSED (f4-e2e-2, `MEMORYD_KEYS` and `MEMORYD_SANDBOX=off`). Was: `accept-memoryd` is almanac's `main.rs` with
+3. **memoryd cannot run as its binary without a Secret Service.** CLOSED (f4-e2e-2, `MEMORYD_KEYS`; sandbox on since f4-e2e-3). Was: `accept-memoryd` is almanac's `main.rs` with
    `MemoryKeys` and no Landlock. Ask (almanac, `memoryd/src/main.rs`): an environment switch such as
    `MEMORYD_KEYS=file:<path>` selecting a file-backed `KeyStore` for a scratch HOME, so the packaged binary itself
    can be started in the jail.
@@ -575,11 +575,31 @@ nextest archive finds them inside the jail's bound target dir; the paths are bak
 `ACCEPT_MEMORYD`. All five tests pass unchanged in intent. A mutated cassette (a `lacks` the planner's view does
 break) makes flow (c) fail, so the cassette match is checked.
 
-- Not provable any more (no equivalent through inferd): the data class of the reader's session was asserted
-  (`Mail`); inferd's `AuditEntry` has no class. Ask (porter): add `class` to `AuditEntry`.
-- memoryd's Landlock sandbox still blocks caller identity in production (almanac FINDINGS); the run turns it off.
+- The data class of the reader's session was not provable (inferd's `AuditEntry` had no class): CLOSED in f4-e2e-3.
+- memoryd's Landlock sandbox blocked caller identity (reading `/proc/<pid>/exe`); the run turned it off: CLOSED in f4-e2e-3.
 - MAP seams 36 (inferd to planner), 37 (inferd to memory) and 38 (router to memory) move to T: they run
   with real binaries on both sides.
+
+### f4-e2e-3: callers by cgroup, sandbox on, class asserted
+
+Branch `f4-e2e-3`. Since porter W2c inferd and memoryd name callers by `/proc/<pid>/cgroup` only, which a jailed
+test process cannot satisfy. Both daemons are built with their test-only `test-proc-root` feature (memoryd also
+`test-keys`) and run with `INFERD_PROC_ROOT` / `MEMORYD_PROC_ROOT` = `<scratch>/proc`. `World` writes
+`<scratch>/proc/<pid>/cgroup` for each daemon it spawns (`.../app.slice/<name>.service`) and for the test
+process as sill (`sill.service`). memoryd's sandbox is now ON (no `MEMORYD_SANDBOX=off`); its callers file
+(`memory-callers.toml`) has rows for intentd, sill, companiond and readerd; `inferd.toml` names memoryd, intentd,
+companiond and readerd by unit. The reader-class assertion is back (flow c: the reader's one audit entry is class
+`Mail`). `ACCEPT_RECORD=1` makes the replay engine record request bodies, printed when the world drops.
+- Mailo's real provider mode was not built: see the mailo ask below.
+- Ask (mailo session), to run `mailo intents` as the provider in the gate: (1) a headless way to seed a store with
+  an account and mail without network (today: `mailo watch` syncing from `scripts/live-imapd.py`, a Twisted IMAP
+  server, so the account must be configured and synced before `mailo intents` has threads; a fixture store
+  builder, or `mailo intents --fixture <dir>`, would do); (2) `mail-app` builds only with quire and pdfrum git
+  dependencies (network at build time) and the GUI stack (a ~900 MB debug build): a `--no-default-features`
+  headless `mailo-intents` binary (or package) with no `ds`/blitz deps; (3) a caller check that accepts the
+  fake-proc-root router (it asks for the owner of `org.quire.Intents1`, which intentd is, so this may need nothing).
+  Mailo's manifest also differs from the stand-in's (`dist/intents/org.quire.Mail.toml`), so flows (a) and (c)
+  need their own cassettes for it.
 
 ## Upstream asks
 

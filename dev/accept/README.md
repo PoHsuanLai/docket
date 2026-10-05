@@ -11,15 +11,17 @@ quoted).
 `crates/docket-accept/tests/flows.rs`, a test of the workspace: it runs in the gate
 (`~/rs-wt/gate-lane-jailed.sh`, inside `~/desktop/harness/jail.sh`) with every other test.
 `dev/accept/run.sh` runs only this package in the same jail, for working on it.
-`ACCEPT_SHOW_PLANNER=1` prints every view the planner was shown.
+`ACCEPT_RECORD=1 dev/accept/run.sh` makes inferd's replay engine write every request body it is asked
+(planner, writer, reader) to `<scratch>/record.jsonl`, printed to stderr when the world drops.
 
 ## What is real
 
 | Piece | How it runs |
 |---|---|
 | intentd, companiond, readerd | their own `run()`, one process each (`src/bin/accept-*.rs` are the packaged mains under names that cannot collide in one target dir), `env_clear`, scratch HOME and XDG dirs, the private bus |
-| memoryd (almanac) | the packaged binary, built by `crates/docket-accept/build.rs` from `../almanac` with `--features test-keys` into `<target>/accept-siblings/almanac`; `env_clear`, scratch dirs, `MEMORYD_KEYS=file:<scratch>/keys/memoryd.keys` (no Secret Service on the bus) and `MEMORYD_SANDBOX=off` (Landlock blocks reading the callers' `/proc/<pid>/exe`; the jail is the isolation). Callers by executable path: the router is intentd's binary, the shell is the test process |
-| inferd (porter) | the packaged binary, built the same way from `../porter`; `inferd.toml` in the scratch config names the replay engine `scripted` (the cassette) and the callers by executable (memoryd, intentd, companiond, readerd) |
+| memoryd (almanac) | the packaged binary, built by `crates/docket-accept/build.rs` from `../almanac` with `--features test-keys,test-proc-root` into `<target>/accept-siblings/almanac`; `env_clear`, scratch dirs, `MEMORYD_KEYS=file:<scratch>/keys/memoryd.keys` (no Secret Service on the bus), `MEMORYD_PROC_ROOT=<scratch>/proc`; its Landlock sandbox stays ON. Callers by unit in `<config>/quire/memory-callers.toml` (intentd agent, sill sheet_host, companiond, readerd) |
+| inferd (porter) | the packaged binary, built the same way from `../porter` with `--features test-proc-root`; `INFERD_PROC_ROOT=<scratch>/proc`; `inferd.toml` in the scratch config names the replay engine `scripted` (the cassette) and the callers by unit (`[callers.apps]`: memoryd, intentd, companiond, readerd) |
+| caller identity | both daemons read the callers' `<scratch>/proc/<pid>/cgroup`, which `World` writes for each daemon it spawns (`.../app.slice/<name>.service`) and for the test process as the shell (`sill.service`); an app provider would be `.../app-<App>-1.scope` (`Cgroup::AppScope`) |
 | the bus | `docket-testbus`'s `dbus-daemon`, killed by PID on drop, with a watchdog if the test dies |
 
 ## What is scripted
@@ -32,8 +34,8 @@ no answer (a replay miss, the answer ends Failed); the reader's entry needs the 
 body in its request; `flow-a-refused`'s closing words need the planner to have been told
 `mail.message.forward not confirmed`. Handle numbers in `flow-c` (the body is #1, the reader's answer #2)
 come from the router's sequential handle table. inferd's audit trail (`World::model_turns`) counts turns
-by app. The scripted `Inference1` is gone: nothing needed it. Not provable any more: the data class of the
-reader's session (the audit entry has no class) and the planner's full view (`ACCEPT_SHOW_PLANNER` is gone).
+by app, and flow (c) asserts the reader's session was class `mail` from the audit entry's `class`. The planner's
+full view is `ACCEPT_RECORD=1`'s output.
 
 | Piece | Why | File |
 |---|---|---|
@@ -57,6 +59,11 @@ The manifest `dev/accept/fixtures/org.quire.Mail.toml` is the contract the run p
 - Every member but `Summon` refuses a caller that is not the owner of `org.quire.Intents1`.
 - Action names carry the app prefix (`mail.`): the spec's `contacts.search` is
   `mail.contact.search`.
+
+## Mailo's real provider (not in the gate)
+
+Not built: running `mailo intents` needs a seeded store without network and a headless build; see
+FINDINGS "f4-e2e-3" for the ask to the mailo session. The stand-in stays the only provider mode.
 
 ## Known gaps the run found
 

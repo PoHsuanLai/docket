@@ -223,6 +223,14 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
     //    inferd's audit trail counts the turns by app: never their content.
     assert_eq!(turns_of(&world, "org.quire.Companion"), 4);
     assert_eq!(turns_of(&world, "org.quire.Reader"), 1);
+    // The reader's session was class `mail`, from inferd's audit trail.
+    let reader: Vec<_> = world
+        .model_turns()
+        .into_iter()
+        .filter(|turn| turn.app.name.as_str() == "org.quire.Reader")
+        .map(|turn| turn.class)
+        .collect();
+    assert_eq!(reader, [porter_core::DataClass::Mail]);
 
     // 3. The summary is for the screen only: Session.Display gives it to the person.
     let shown = launcher

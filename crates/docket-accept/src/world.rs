@@ -93,34 +93,82 @@ fn env_of(dir: &Path) -> Vec<(&'static str, String)> {
 }
 
 /// What only one daemon is told. memoryd's packaged binary runs a test build: its keys are a file
-/// (there is no Secret Service on the private bus) and its Landlock sandbox is off (the sandbox
-/// blocks reading the callers' `/proc/<pid>/exe`; the jail is the isolation here).
+/// (there is no Secret Service on the private bus), its sandbox stays ON, and both daemons read
+/// their callers from the scratch fake proc root instead of `/proc`.
 fn extra_env(dir: &Path, name: &str) -> Vec<(&'static str, String)> {
+    let proc_root = dir.join("proc").display().to_string();
     match name {
         "memoryd" => vec![
             (
                 "MEMORYD_KEYS",
                 format!("file:{}", dir.join("keys/memoryd.keys").display()),
             ),
-            ("MEMORYD_SANDBOX", "off".to_owned()),
+            ("MEMORYD_PROC_ROOT", proc_root),
         ],
+        "inferd" => vec![("INFERD_PROC_ROOT", proc_root)],
         _ => Vec::new(),
     }
 }
 
-/// inferd's configuration: the replay engine `scripted` playing the scratch cassette, and the
-/// callers by executable, as the packaged `inferd.toml` names them.
-fn inferd_toml(root: &Path, binaries: &Binaries) -> String {
-    let exe = |p: &Path| format!("[{:?}]", p.canonicalize().expect("binary path"));
+/// What a process of the fake proc root is: the unit it runs in, or the app scope it is in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Cgroup<'a> {
+    /// A user service unit, `<name>.service`.
+    Unit(&'a str),
+    /// An app's scope, `app-<app>-1.scope`.
+    AppScope(&'a str),
+}
+
+impl Cgroup<'_> {
+    /// The one line of `/proc/<pid>/cgroup`.
+    fn line(self) -> String {
+        let slice = "0::/user.slice/user-1000.slice/user@1000.service/app.slice";
+        match self {
+            Cgroup::Unit(name) => format!("{slice}/{name}.service\n"),
+            Cgroup::AppScope(app) => format!("{slice}/app-{app}-1.scope\n"),
+        }
+    }
+}
+
+/// Puts process `pid` in the fake proc root `<root>/proc`, in `cgroup`.
+pub fn place(root: &Path, pid: u32, cgroup: Cgroup<'_>) {
+    write(&root.join(format!("proc/{pid}/cgroup")), &cgroup.line());
+}
+
+/// inferd's configuration: the replay engine `scripted` playing the scratch cassette (recording
+/// its requests when `record` names a file), and the callers by unit, as `inferd.toml` names them.
+fn inferd_toml(root: &Path, record: Option<&Path>) -> String {
+    let record = record
+        .map(|p| format!("record = {:?}\n", p.display().to_string()))
+        .unwrap_or_default();
     format!(
-        "[engines.scripted]\nreplay = {:?}\n\n[callers.apps]\n\"org.quire.Memory\" = {}\n\"org.quire.Intents\" = {}\n\"org.quire.Companion\" = {}\n\"org.quire.Reader\" = {}\n",
+        "[engines.scripted]\nreplay = {:?}\n{record}\n[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n",
         root.join("cassette.jsonl").display().to_string(),
-        exe(&binaries.memoryd),
-        exe(&binaries.intentd),
-        exe(&binaries.companiond),
-        exe(&binaries.readerd),
     )
 }
+
+/// memoryd's callers file: the units that may call it, with the roles the router and the shell
+/// are told apart by.
+const MEMORY_CALLERS: &str = r#"[[caller]]
+app = "org.quire.Intents"
+unit = "intentd.service"
+role = "agent"
+
+[[caller]]
+app = "org.quire.Shell"
+unit = "sill.service"
+role = "sheet_host"
+
+[[caller]]
+app = "org.quire.Companion"
+unit = "companiond.service"
+role = "agent"
+
+[[caller]]
+app = "org.quire.Reader"
+unit = "readerd.service"
+role = "agent"
+"#;
 
 fn spawn(
     dir: &Path,
@@ -140,6 +188,15 @@ fn spawn(
         .stdout(Stdio::null())
         .stderr(Stdio::from(log));
     Ok((name, Reaped::spawn(&mut command)?))
+}
+
+impl Drop for World {
+    fn drop(&mut self) {
+        let text = self.recorded_requests();
+        if !text.is_empty() {
+            eprintln!("---- planner and reader requests (ACCEPT_RECORD)\n{text}");
+        }
+    }
 }
 
 /// Waits until `name` has an owner on the bus. Subscribes first, so an owner that appears
@@ -204,23 +261,19 @@ impl World {
         let sill = bus.connect().await;
         let (sheet, confirms) = confirm::serve(&sill).await.expect("Confirm1");
 
-        // Files the daemons read: memoryd's callers (the router is intentd's executable, the
-        // shell is this test process), its Spaces, intentd's manifest and consent.
-        let canon = |p: &Path| p.canonicalize().expect("binary path").display().to_string();
-        let me = std::env::current_exe().expect("test executable");
+        // Files the daemons read: memoryd's callers, its Spaces, intentd's manifest and consent.
+        // The test process is the shell (sill): the fake proc root says so.
+        let record = std::env::var_os("ACCEPT_RECORD").map(|_| root.join("record.jsonl"));
+        place(root, std::process::id(), Cgroup::Unit("sill"));
         write(
             &root.join("config/quire/memory-callers.toml"),
-            &format!(
-                "router = [\"{}\"]\nshell = [\"{}\"]\n",
-                canon(&binaries.intentd),
-                canon(&me)
-            ),
+            MEMORY_CALLERS,
         );
         write(&root.join("data/quire/memory/spaces.toml"), SPACES);
         write(&root.join("cassette.jsonl"), cassette.0);
         write(
             &root.join("config/quire/inferd.toml"),
-            &inferd_toml(root, binaries),
+            &inferd_toml(root, record.as_deref()),
         );
         write(
             &root.join("data/quire/intents/org.quire.Mail.toml"),
@@ -235,7 +288,9 @@ impl World {
 
         let mut daemons = Vec::new();
         let mut start = async |name: &'static str, binary: &Path, owns: &str| {
-            daemons.push(spawn(root, &address, name, binary).expect("daemon starts"));
+            let daemon = spawn(root, &address, name, binary).expect("daemon starts");
+            place(root, daemon.1.pid(), Cgroup::Unit(name));
+            daemons.push(daemon);
             until_owned(&sill, owns).await;
         };
         start("inferd", &binaries.inferd, "org.quire.Inference1").await;
@@ -288,6 +343,12 @@ impl World {
         .lines()
         .filter_map(|line| serde_json::from_str(line).ok())
         .collect()
+    }
+
+    /// The requests inferd's replay engine was asked, one JSON line each, when the run was started
+    /// with `ACCEPT_RECORD=1`; empty otherwise.
+    pub fn recorded_requests(&self) -> String {
+        std::fs::read_to_string(self.dir.path().join("record.jsonl")).unwrap_or_default()
     }
 
     /// Every daemon's standard error, for a failing test to print.

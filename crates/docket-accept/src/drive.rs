@@ -170,7 +170,7 @@ impl Answer {
 }
 
 /// What memoryd holds of the Spaces `work` and `desktop` as the shell reads it (the shell's identity is this
-/// test process's executable, named in `memory-callers.toml`): the recent entries, polled until
+/// test process, placed in the fake proc root as sill): the recent entries, polled until
 /// every kind in `kinds` is among them (the audit kinds of `intentd`'s `record.rs`). intentd drains its audit queue into memoryd on a timer, so
 /// there is no event to wait on; the bound only turns a missing record into a failure.
 pub async fn recorded(world: &World, kinds: &[&str]) -> Vec<almanac_core::RecentEntry> {
