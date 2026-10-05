@@ -11,6 +11,8 @@
 
 mod access;
 mod args;
+mod config;
+mod daemon;
 mod edge;
 mod fault;
 mod label;
@@ -19,6 +21,8 @@ mod tools;
 
 pub use access::McpAccess;
 pub use args::{TARGET_KEY, read_call, target};
+pub use config::{ConfigError, McpConfig};
+pub use daemon::{Args, DaemonFault, Listen, MCP_BUS, claim, run, start};
 pub use edge::McpEdge;
 pub use fault::{ArgsFault, McpFault, McpRefusal, TargetFault, Why};
 pub use label::mcp_label;

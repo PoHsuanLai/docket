@@ -1,0 +1,161 @@
+//! The binary's body: the session bus, the bus name the `mcp` role is written under, and one
+//! edge per client connection, over stdio or a Unix socket.
+
+use crate::access::McpAccess;
+use crate::config::{ConfigError, McpConfig};
+use crate::edge::McpEdge;
+use docket_client::{DbusTransport, Intents};
+use docket_dbus::BusConnection;
+use rmcp::ServiceExt;
+use std::path::{Path, PathBuf};
+use zbus::fdo::RequestNameFlags;
+use zbus::fdo::RequestNameReply;
+
+/// The bus name the shipped `intentd.toml` gives the `mcp` role.
+pub const MCP_BUS: &str = "org.quire.ActionsMcp";
+
+/// Where the edge speaks MCP.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Listen {
+    /// The process's own standard input and output, for one client that started it.
+    Stdio,
+    /// A Unix socket that many clients connect to in turn.
+    Socket(PathBuf),
+}
+
+/// Why the edge stopped.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum DaemonFault {
+    /// The configuration file does not read.
+    #[error("{0}")]
+    Config(#[from] ConfigError),
+    /// The bus name is taken or the connection failed.
+    #[error("bus: {0}")]
+    Bus(String),
+    /// The socket or the stream failed.
+    #[error("io: {0}")]
+    Io(String),
+}
+
+fn bus(error: zbus::Error) -> DaemonFault {
+    DaemonFault::Bus(error.to_string())
+}
+
+fn io(error: impl std::fmt::Display) -> DaemonFault {
+    DaemonFault::Io(error.to_string())
+}
+
+/// Takes the `mcp` role's bus name. intentd derives a caller's roles from the names its connection
+/// owns, so this process is `Actor::Mcp` only while it holds it; a second edge finds it taken and
+/// stops (several clients share one edge through the socket).
+pub async fn claim(connection: &BusConnection) -> Result<(), DaemonFault> {
+    let reply = connection
+        .request_name_with_flags(MCP_BUS, RequestNameFlags::DoNotQueue.into())
+        .await
+        .map_err(bus)?;
+    match reply {
+        RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => Ok(()),
+        RequestNameReply::InQueue | RequestNameReply::Exists => {
+            Err(DaemonFault::Bus(format!("{MCP_BUS} is taken")))
+        }
+    }
+}
+
+fn edge(connection: &BusConnection, config: &McpConfig) -> McpEdge<DbusTransport> {
+    McpEdge::new(
+        Intents::over(DbusTransport::new(connection.clone())),
+        config.client.clone(),
+    )
+    .with_access(config.access)
+}
+
+async fn over_stdio(edge: McpEdge<DbusTransport>) -> Result<(), DaemonFault> {
+    let running = edge
+        .serve((tokio::io::stdin(), tokio::io::stdout()))
+        .await
+        .map_err(io)?;
+    running.waiting().await.map(|_| ()).map_err(io)
+}
+
+async fn over_socket(
+    connection: BusConnection,
+    config: McpConfig,
+    path: &Path,
+) -> Result<(), DaemonFault> {
+    // A stale file from a crashed edge is ours to replace; a live one would refuse the bind below
+    // only after this removes it, so the bus name (taken first) is what keeps two edges apart.
+    let _ = std::fs::remove_file(path);
+    let listener = tokio::net::UnixListener::bind(path).map_err(io)?;
+    eprintln!("actions-mcp: listening on {}", path.display());
+    loop {
+        let (stream, _) = listener.accept().await.map_err(io)?;
+        let edge = edge(&connection, &config);
+        tokio::spawn(async move {
+            if let Ok(running) = edge.serve(stream).await {
+                let _ = running.waiting().await;
+            }
+        });
+    }
+}
+
+/// Serves the edge on `listen` over `connection` until the client goes (stdio) or forever (socket).
+pub async fn start(
+    connection: &BusConnection,
+    config: McpConfig,
+    listen: Listen,
+) -> Result<(), DaemonFault> {
+    claim(connection).await?;
+    match listen {
+        Listen::Stdio => over_stdio(edge(connection, &config)).await,
+        Listen::Socket(path) => over_socket(connection.clone(), config, &path).await,
+    }
+}
+
+/// What the command line asks for: `--socket PATH`, `--client NAME`.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Args {
+    /// Serve a socket instead of stdio.
+    pub socket: Option<PathBuf>,
+    /// The client name, over the configuration's.
+    pub client: Option<prov::ClientName>,
+}
+
+impl Args {
+    /// Reads the arguments after the program name; an unknown one is an error.
+    pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Self, String> {
+        let mut args = args.into_iter();
+        let mut parsed = Self::default();
+        while let Some(flag) = args.next() {
+            let mut value = || args.next().ok_or_else(|| format!("{flag} needs a value"));
+            match flag.as_str() {
+                "--socket" => parsed.socket = Some(PathBuf::from(value()?)),
+                "--client" => {
+                    parsed.client = Some(
+                        prov::ClientName::parse(&value()?)
+                            .map_err(|_| "--client: not a client name".to_owned())?,
+                    )
+                }
+                other => return Err(format!("unknown argument {other}")),
+            }
+        }
+        Ok(parsed)
+    }
+}
+
+/// The daemon: the configuration and the session bus from the environment, the arguments from the
+/// command line.
+pub async fn run(args: Args) -> Result<(), DaemonFault> {
+    let env = |key: &str| std::env::var(key).ok();
+    let mut config = McpConfig::from_env(&env)?;
+    if let Some(client) = args.client {
+        config = config.named(client);
+    }
+    if config.access == McpAccess::Off {
+        eprintln!(
+            "actions-mcp: off (set access = \"on\" in actions-mcp.toml): no tools are listed"
+        );
+    }
+    let connection = docket_dbus::session_connection(&env).await.map_err(bus)?;
+    let listen = args.socket.map_or(Listen::Stdio, Listen::Socket);
+    start(&connection, config, listen).await
+}

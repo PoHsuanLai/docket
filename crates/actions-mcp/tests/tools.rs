@@ -99,11 +99,3 @@ fn the_registry_becomes_tools_with_schemas() {
     assert!(tools.iter().all(|t| t.schema.0.get("type").is_some()));
     let _ = AppName::parse("org.quire.Memory");
 }
-
-#[test]
-fn the_binary_is_a_skeleton_that_exits_two() {
-    let output = std::process::Command::new(env!("CARGO_BIN_EXE_actions-mcp"))
-        .output()
-        .expect("runs");
-    assert_eq!(output.status.code(), Some(2));
-}

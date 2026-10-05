@@ -40,8 +40,8 @@ RULES=(
   # cascade or Cedar: a terminal has no way around intentd's gate.
   "docket-cli: docket-router policy-point action-review cedar-policy reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp"
   "docket-ds: zbus zvariant tokio reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify rmcp"
-  # The edge reaches rmcp, and tokio through it; nothing else of the effects.
-  "actions-mcp: zbus zvariant reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify"
+  # The edge reaches rmcp, tokio and, as a bus client of intentd (docket-client `dbus`), zbus; nothing else of the effects.
+  "actions-mcp: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify"
   # The daemons reach the bus and a runtime; none reaches HTTP, an embedding runtime or the MCP
   # SDK. almanac-client hosts the service only behind its `in_process` feature, so none reaches SQLite.
   "intentd: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
@@ -110,7 +110,7 @@ EDGES=(
   "docket-fake: action-review almanac-core docket-client docket-core docket-router policy-point porter-core prov"
   "docket-eval: docket-core docket-fake docket-router porter-core prov"
   "docket-testbus: docket-dbus"
-  "actions-mcp: docket-client docket-core porter-core prov"
+  "actions-mcp: docket-client docket-core docket-dbus porter-core prov"
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router policy-point porter-client porter-core porter-infer prov"
   "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
   "readerd: docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
