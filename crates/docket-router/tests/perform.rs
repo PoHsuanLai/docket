@@ -804,3 +804,17 @@ async fn an_app_that_never_answers_ends_the_call_as_a_timeout() {
     assert_eq!(refused, CallRefusal::Timeout);
     assert!(!router.seams.link.mail.is_archived("t1"));
 }
+
+#[tokio::test]
+async fn an_app_that_is_not_there_ends_the_call_as_unavailable_not_as_a_failure() {
+    let router = router();
+    ready(&router).await;
+    router
+        .seams
+        .link
+        .answer_from(&mail_app(), docket_fake::Answering::Absent);
+    let refused = perform(&router, call("mail.thread.archive", &["t1"], vec![]))
+        .await
+        .expect_err("absent app");
+    assert_eq!(refused, CallRefusal::AppUnavailable(mail_app()));
+}

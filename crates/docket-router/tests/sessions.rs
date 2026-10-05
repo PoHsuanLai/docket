@@ -349,7 +349,11 @@ async fn only_the_reader_may_resolve_a_handle_and_the_screen_may_display_it() {
     let reader = caller("org.quire.Readerd", CallerRole::Reader);
     assert_eq!(
         ask(&router, &reader, resolve).await,
-        IntentsReply::Text("secret words".into())
+        IntentsReply::Resolved(Resolved {
+            text: "secret words".into(),
+            label: mail_label("work"),
+        }),
+        "the reader gets the text with the handle's own label"
     );
     let display = IntentsRequest::SessionDisplay {
         session: s.session.clone(),

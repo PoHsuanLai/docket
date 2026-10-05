@@ -22,16 +22,21 @@ version = "0.1.0"
 dependencies = [
  "docket-client",
  "docket-core",
+ "docket-dbus",
  "docket-fake",
  "docket-router",
+ "docket-testbus",
+ "intentd",
  "porter-core",
  "prov",
  "rmcp",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
  "toml",
+ "zbus",
 ]
 
 [[package]]

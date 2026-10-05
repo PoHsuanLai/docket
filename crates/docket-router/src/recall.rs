@@ -9,7 +9,7 @@ use crate::router::Router;
 use crate::seams::{MemoryLink, Seams};
 use almanac_core::{
     BodyMode, Episode, FactFilter, FactQuery, KindPattern, MemoryReply, MemoryRequest, RecentEntry,
-    RecentQuery, TrustFilter,
+    RecentQuery, SpaceState, TrustFilter,
 };
 use docket_core::{
     EpisodeLine, IntentsReply, PrimerText, ProfileLine, RecallAsk, RecallView, RecalledLine,
@@ -47,6 +47,30 @@ fn episode_kind() -> Vec<KindPattern> {
 }
 
 impl<S: Seams> Router<S> {
+    /// The Spaces a restart should read: memory's list (the open and paused ones), with the Spaces
+    /// this router holds a session or a task in, and the desktop. Memory may refuse the list to
+    /// the router (its Spaces read is the shell's today): the router's own Spaces are then the
+    /// answer, so a restart still reaches every Space that has been used since the router began.
+    async fn recall_spaces(&self) -> IntentsReply {
+        let mut spaces: BTreeSet<SpaceId> = BTreeSet::from([SpaceId::desktop()]);
+        if let Ok(MemoryReply::Spaces(listed)) =
+            self.seams.memory().ask(MemoryRequest::Spaces).await
+        {
+            spaces.extend(
+                listed
+                    .into_iter()
+                    .filter(|s| matches!(s.state, SpaceState::Open | SpaceState::Paused { .. }))
+                    .map(|s| s.id),
+            );
+        }
+        {
+            let st = self.locked();
+            spaces.extend(st.sessions.values().map(|r| r.space.clone()));
+            spaces.extend(st.tasks.all().map(|t| t.space.clone()));
+        }
+        IntentsReply::Recalled(RecallView::Spaces(spaces.into_iter().collect()))
+    }
+
     /// `.Session.Recall`: memory's answer for this session's Space, every untrusted text a
     /// handle.
     pub(crate) async fn session_recall(&self, id: &SessionId, ask: RecallAsk) -> IntentsReply {
@@ -54,6 +78,7 @@ impl<S: Seams> Router<S> {
             return refuse(WireRefusal::NoSuchSession);
         };
         let request = match ask {
+            RecallAsk::Spaces => return self.recall_spaces().await,
             RecallAsk::Recent(query) => MemoryRequest::Recent(space, query),
             RecallAsk::Inject(mut query) => {
                 query.space = space;

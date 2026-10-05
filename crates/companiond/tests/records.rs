@@ -8,7 +8,7 @@ mod support;
 use almanac_core::{EventRef, EventSummary, KindTag, MemoryReply, RecentEntry, ReplicaId, Seq};
 use companiond::{RouterRecent, recover, replay_of};
 use docket_core::*;
-use prov::{Actor, Label, UnixSeconds};
+use prov::{Actor, Label, SpaceId, UnixSeconds};
 use serde_json::json;
 use support::infer::{call, words};
 use support::world::*;
@@ -140,7 +140,14 @@ async fn the_restart_reads_the_records_through_the_router_and_finds_the_front_ta
 
 #[tokio::test]
 async fn restore_reads_each_space_through_a_session_of_its_own_and_leaves_nothing_behind() {
-    let mut w = world_with(vec![], vec![MemoryReply::Recent(vec![open_front_entry()])]);
+    let mut w = world_with(
+        vec![],
+        vec![
+            // The router asks memory for its Spaces first; memory has none to add.
+            MemoryReply::Spaces(vec![]),
+            MemoryReply::Recent(vec![open_front_entry()]),
+        ],
+    );
     let resumed = w
         .companion
         .restore(&[space("work")])
@@ -186,4 +193,50 @@ async fn starting_a_task_is_a_call_the_router_gates_and_audits_and_answers_with_
             .any(|r| matches!(r, AuditRecord::TaskStarted { .. })),
         "the router wrote the start of the task"
     );
+}
+
+fn summary(name: &str, state: almanac_core::SpaceState) -> almanac_core::SpaceSummary {
+    almanac_core::SpaceSummary {
+        id: space(name),
+        state,
+        vault: almanac_core::VaultKind::Plain,
+        created: UnixSeconds(0),
+    }
+}
+
+#[tokio::test]
+async fn restore_reads_the_spaces_the_router_hands_over_and_not_only_the_configured_ones() {
+    use almanac_core::{MemoryRequest, SpaceState};
+    // Nothing is configured. The router lists `home` (open) and `old` (gone); the desktop is
+    // always read.
+    let mut w = world_with(
+        vec![],
+        vec![
+            MemoryReply::Spaces(vec![
+                summary("home", SpaceState::Open),
+                summary("old", SpaceState::Gone),
+            ]),
+            MemoryReply::Recent(vec![]),
+            MemoryReply::Recent(vec![open_front_entry()]),
+        ],
+    );
+    let resumed = w
+        .companion
+        .restore(&[])
+        .await
+        .expect("a restart")
+        .expect("the front task of `home` was open");
+    assert_ne!(resumed.task, task("t-9"));
+    let read: Vec<_> = w
+        .router
+        .seams
+        .memory
+        .requests()
+        .into_iter()
+        .filter_map(|r| match r {
+            MemoryRequest::Recent(space, _) => Some(space),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(read, [SpaceId::desktop(), space("home")], "`old` is gone");
 }

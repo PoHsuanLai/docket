@@ -227,6 +227,17 @@ async fn an_app_that_does_not_answer_is_the_app_failing_the_call() {
 }
 
 #[tokio::test]
+async fn an_app_that_is_not_installed_is_exit_6_not_5() {
+    let desk = Desk::answering(vec![once()]);
+    desk.router.seams.link.answer_from(
+        &AppName::parse("org.quire.Mail").expect("app"),
+        docket_fake::Answering::Absent,
+    );
+    let report = desk.quire(&["mail", "thread.archive", "t1"]).await;
+    assert_eq!(report.exit, Exit::Unavailable, "{report:?}");
+}
+
+#[tokio::test]
 async fn intentd_being_down_is_exit_6_for_every_command() {
     let intents = Intents::over(Down);
     for words in [

@@ -8,7 +8,7 @@ use crate::recover::{RouterRecent, recover};
 use crate::runtime::Companiond;
 use agent_loop::Rebuilt;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{SessionOpen, SessionOpened};
+use docket_core::{RecallAsk, RecallView, SessionOpen, SessionOpened};
 use porter_client::Transport as InferTransport;
 use prov::{AgentRef, SpaceId, UnixSeconds};
 
@@ -16,16 +16,48 @@ use prov::{AgentRef, SpaceId, UnixSeconds};
 const RETENTION: i64 = 30 * 24 * 3600;
 
 impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
-    /// A restart: reads what the eventlog holds of each Space in `spaces` (through a session
-    /// opened for the purpose, which is closed again), rebuilds the roster and the front task, and
-    /// takes them up. A Space the router or memoryd cannot answer for adds nothing.
+    /// The Spaces to read on a restart: the ones `named` (the configuration's, the floor) and
+    /// every Space the router says it knows (`Recall::Spaces`, asked in a session of the desktop
+    /// that is closed again). A router that does not answer leaves the named ones.
+    async fn spaces_to_read(&self, named: &[SpaceId]) -> Vec<SpaceId> {
+        let mut spaces = named.to_vec();
+        let Ok(asking) = self
+            .intents
+            .session_open(SessionOpen {
+                space: SpaceId::desktop(),
+                agent: AgentRef::Companion,
+                parent: None,
+            })
+            .await
+        else {
+            return spaces;
+        };
+        let known = self
+            .intents
+            .session_recall(asking.session.clone(), RecallAsk::Spaces)
+            .await;
+        let _ = self.intents.session_close(asking.session).await;
+        if let Ok(RecallView::Spaces(known)) = known {
+            for space in known {
+                if !spaces.contains(&space) {
+                    spaces.push(space);
+                }
+            }
+        }
+        spaces
+    }
+
+    /// A restart: reads what the eventlog holds of each Space in `spaces` and each the router
+    /// knows (through a session opened for the purpose, which is closed again), rebuilds the
+    /// roster and the front task, and takes them up. A Space the router or memoryd cannot answer
+    /// for adds nothing.
     pub async fn restore(
         &mut self,
         spaces: &[SpaceId],
     ) -> Result<Option<SessionOpened>, ServeFault> {
         let since = UnixSeconds(self.clock.now().0.saturating_sub(RETENTION));
         let mut rebuilt = Rebuilt::default();
-        for space in spaces {
+        for space in &self.spaces_to_read(spaces).await {
             let Ok(reading) = self
                 .intents
                 .session_open(SessionOpen {

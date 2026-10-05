@@ -60,7 +60,8 @@ struct Root<P: InferTransport, I: IntentsTransport> {
 
 impl<P: InferTransport, I: IntentsTransport> Root<P, I> {
     /// Only the shell speaks for the person: an ask carries the turn it recorded, and a turn the
-    /// router never recorded must not be taken from anybody else.
+    /// router never recorded must not be taken from anybody else; `Open` and `Close` make and end
+    /// the person's conversations, so they are the shell's too.
     async fn require_shell(&self, header: &Header<'_>) -> fdo::Result<()> {
         let sender = header.sender().map(ToString::to_string).unwrap_or_default();
         let proxy = DBusProxy::new(&self.connection).await?;
@@ -82,7 +83,8 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
         Ok(())
     }
 
-    async fn open(&self, open: String) -> fdo::Result<String> {
+    async fn open(&self, open: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
+        self.require_shell(&header).await?;
         let open: SessionOpen = serde_json::from_str(&open).map_err(bad)?;
         let opened = self
             .companion
@@ -125,7 +127,8 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
         Ok(path)
     }
 
-    async fn close(&self, session: String) -> fdo::Result<()> {
+    async fn close(&self, session: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
+        self.require_shell(&header).await?;
         let session =
             SessionId::parse(&session).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
         self.companion

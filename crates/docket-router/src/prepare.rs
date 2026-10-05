@@ -15,12 +15,13 @@ use crate::prepared::{
 use crate::router::Router;
 use crate::seams::{Clock, GrantStore, Seams};
 use crate::session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
+use crate::spacing::relation_of;
 use crate::state::{RouterState, SessionRecord};
 use crate::who::Who;
 use action_review::{GoalKey, ReviewRequest, repeated};
 use docket_core::{
     ActionDecl, ActionGrant, BudgetKind, CallId, CallRefusal, CallRequest, Cost, Depth, Impact,
-    Lasting, Reviewed, Ruling, Saw, TargetKind, WindowKey,
+    Lasting, Reviewed, Ruling, Saw, WindowKey,
 };
 use policy_point::{
     ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, SpaceRelation,
@@ -72,6 +73,7 @@ struct Facts<'a> {
     strictness: docket_core::Strictness,
     count: Count,
     impact: Impact,
+    relation: SpaceRelation,
 }
 
 impl<S: Seams> Router<S> {
@@ -103,10 +105,7 @@ impl<S: Seams> Router<S> {
             },
             context: PolicyContext {
                 space: f.record.space.clone(),
-                target_space: match f.decl.on {
-                    TargetKind::Nothing => SpaceRelation::Unbound,
-                    _ => SpaceRelation::Same,
-                },
+                target_space: f.relation,
                 args,
                 planner: planner_integrity(&saw),
                 confidentiality: args_confidentiality(&f.request.args),
@@ -235,6 +234,7 @@ impl<S: Seams> Router<S> {
             strictness,
             count,
             impact,
+            relation: relation_of(st, &space, &decl.on, &targets),
         }));
         let goal = GoalKey {
             app: request.action.app.clone(),

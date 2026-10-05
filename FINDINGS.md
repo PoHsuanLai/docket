@@ -3,8 +3,8 @@
 Open items and standing facts. An entry names the condition that closes it. After fill wave 1,
 the docket amendment, the intentd bus fill (F3), the w4-companion fill (the persistent companion,
 the MCP edge), the w4-docket fill (the audit trail, the built-in providers, the inferd bodies, the
-signals) and the w5-docket fill (the reader's session, the gate's watch, the companion's asks, the
-daemons' binaries) there are **2 `todo!()` bodies** in library and daemon code, listed below; the tests contain
+signals), the w5-docket fill (the reader's session, the gate's watch, the companion's asks, the
+daemons' binaries) and the f4-docket fill (the MCP binary, the watched perform, the resolver seam) there are **2 `todo!()` bodies** in library and daemon code, listed below; the tests contain
 none, and no test is `#[ignore]`d. (The freeze had 37: `agent_step` was filled in fill wave 1; F3 filled
 `DbusTransport::call`, `docket_client::serve`, `DbusLink`, `SheetConfirmer`, `FileGrants` and intentd's
 `serve` and `main`; w4-companion filled companiond and `McpEdge::call`; w4-docket filled `record_of`,
@@ -81,14 +81,21 @@ parameter in `ArgsChecked` and `AppLink::perform` can say `AppFault::TimedOut`, 
    ledger, the breaker, what the session saw, its turns and policy, per-Space strictness, the
    shadow index, the goal and last step of a task). They are built by `new` and nothing outside
    docket-router constructs one by literal.
-3. **`tool_schema` renders directly** (ask 43). stoker's `Shape::to_json_schema` was a stub when
-   this was filled, and `Shape` has no object-with-handle form for entities; the schema is built
-   from `serde_json` and pinned by `tool_schema_snapshot`. When stoker fills it, the leaf types
-   (text, integer, choice) may route through `Shape`, and `Shape` needs an entity-or-handle form.
-4. **A target's Space is not known** (ask 42). An entity id carries no Space, so every target
-   counts as `Same` (and `Unbound` for an action on nothing): `cross_space_target_asks` waits for
-   an entity that names its Space (a `Space` on `EntityId`, or a resolver seam). No corpus case
-   for it until then.
+3. **`tool_schema` keeps its entity and date parts hand-written** (asks 43 and 138, decided in
+   f4-docket). The leaves (text, integer, choice) go through stoker's `Shape`. Entities stay
+   `{app, kind (const), key}` with `{ "handle": n }` as the alternative, because the planner's
+   grammar and MCP read JSON Schema, which says `const` and `format: uri` and `Shape` (even with
+   `OrHandle`) does not; dates stay the `{year, month, day}` record `args_from_json` already checks
+   (a day in its month), because a second string form would be a second parse path for a model to
+   get wrong. Both are pinned by `tool_schema_snapshot`. Nothing is asked of stoker.
+4. **A target's Space comes from a resolver** (ask 42, closed in f4-docket). `prov::EntityId` is
+   unchanged; `SpaceOf` (`docket-router::spacing`) answers the Space scope of an entity, and the
+   router's one resolver is its shadow index (the scope each app pushed with the entity).
+   `relation_of` makes a call `Other` when any target is scoped to a Space that is not the
+   session's, `Unbound` for an action on nothing and `Same` otherwise (an entity the index does
+   not know is `Same`: the app refuses a thing it does not have). Cedar's `cross-space` rule then
+   asks the person even for a read, and `mcp-other-space` denies an MCP client. Pinned by
+   `docket-router/tests/crossspace.rs` (`cross_space_target_asks` and two more).
 5. **Reviewer requests use `DataClass::Prompt`** (asks 16 and 61, closed): the person's own words and
    what a reviewer quotes of them. Its floor in `Policy::proposed` is this computer
    (`ai.floor.prompt`), so a reviewer request is pinned on-device; `action-review/tests/infer.rs`
@@ -397,7 +404,7 @@ Built, each with tests on a private bus, over the fakes or in process (nothing r
    ask)`, `ReaderService::extract` ignores it (readerd resolves the handles itself), `ScriptedReader` records it
    (`sessions()`). `intentd/tests/reader_daemon.rs` runs the whole path on a private bus: a companion recalls untrusted
    text (a handle), `Session.Read` goes to intentd, to readerd and to a scripted inferd, and the answer comes back plain
-   (an answer outside the schema, and a bus with no readerd, are refused). **Known limit:** `Session.Resolve` answers the
+   (an answer outside the schema, and a bus with no readerd, are refused). **Known limit (closed by the f4-docket fill, item 4):** `Session.Resolve` answers the
    text alone, so readerd cannot class it and sends it as the person's own words (`DataClass::Prompt`, pinned on this
    computer); the class of the handle's own label (mail) would pin it harder. Ask: `Session.Resolve` answers the
    handle's label too.
@@ -406,7 +413,7 @@ Built, each with tests on a private bus, over the fakes or in process (nothing r
    whoever opened it. `Router::handle_watched(caller, request, Watch)` and `Watch` (`docket-router`: `progress`,
    `proceed` and `closed` callbacks, with the small std-only `Flag` and `Queue`): a gate check that must ask the person
    says `Progress(Confirming(id))`, waits for `Proceed` (10 s, then the step is refused unasked: `Unconfirmed(Expired)`;
-   the 10 s is not under test, the fake clock does not run out) and only then draws the sheet; `Close` withdraws the
+   the 10 s is a setting since the f4-docket fill and is tested on a virtual clock) and only then draws the sheet; `Close` withdraws the
    request and its sheet (`Cancelled`), no `Response` follows. An unwatched check is exactly as before. On the bus the
    caller says it watches with the `watch` option of `Gate.Check` (`docket_dbus::OPTION_WATCH`), intentd's Request
    object answers `Proceed` and `Close` for the owner of the request only, and `Proceed` on a request nobody watches is
@@ -467,22 +474,62 @@ Built, each with tests on a private bus, over the fakes or in process (nothing r
    unavailable with no router behind it, `Roster()` and `Front()` answer with nothing running, the configured shell is heard
    and another is not, a second daemon stops, and killing the daemon frees the name. `voiced` stays a skeleton.
 
-Interface asks left after this fill (for the other repos' agents, or the user):
+Interface asks left after the w5 fill, as the f4-docket fill leaves them (the full account is in
+"The f4-docket fill" below):
 
-- `Companion1.Open` and `Close` are not guarded (any local process may open a session as the companion). Ask: the same shell
-  check, once sill's name is the one in `companiond.toml`.
-- `Session.Resolve` answers the label too (item 1).
-- porter: the two effect classes (item 4).
-- quire: `mcp.enabled` (item 3).
-- cuad: use `gate_check_watched`, open its run's session, and have `cua.run.start` answer the session it opened (the session id is
-  its own to name; docket only refuses a second one for the run).
-- A restart reads the Spaces `companiond.toml` names (`desktop`): memoryd's `Spaces` is not reachable by the companion role.
-  Ask: a companion-role Spaces read, or the router hands the list.
+- porter: the two effect classes (item 4 of the w5 fill).
+- quire: `mcp.enabled` (item 3 of the w5 fill): until the settings row exists the edge reads its own
+  `actions-mcp.toml`.
+- cuad: use `gate_check_watched`, open its run's session, and have `cua.run.start` answer the session it opened.
+- almanac: let `Caller::Router` ask `MemoryRequest::Spaces` (see the f4-docket fill, item 5).
 - A recent entry whose label is untrusted comes without a body (a message carrying what a worker read, a narrated episode):
   a restart falls back to the trusted skeleton events; nothing more can be rebuilt from them.
-- `Run.Perform` could say `Progress` (Reviewing, Previewing, Confirming) to a watching caller the way a gate check does; the
-  `Watch` is there, only the gate check uses it.
-- `Request.Proceed` timeout (10 s) is a constant (`gatecheck.rs`), not a setting.
+
+## The f4-docket fill
+
+Branch `f4-docket`. Each item has tests on a private bus, in process, or over the fakes.
+
+1. **`actions-mcp` is a binary** (stdio by default, `--socket PATH` for a long-lived socket, `--client NAME`).
+   `McpConfig` (`$XDG_CONFIG_HOME/quire/actions-mcp.toml`, shipped as `dist/actions-mcp.toml`: `access = "off"`,
+   `client`): off by default, so an edge nobody switched on lists nothing and refuses every call (it still runs,
+   and says so on stderr). It claims `org.quire.ActionsMcp`, the name `intentd.toml` gives the `mcp` role, and a
+   second edge stops (several clients share one edge through the socket; each connection gets its own `McpEdge`).
+   The router names an MCP caller by that bus name, so consent grants are per edge process, while the `client`
+   name labels the arguments (`Source::Mcp(client)`); per-client grants would need the client on the wire.
+   `docket-dbus` and `zbus` join `actions-mcp`'s edges (`check-boundary.sh` rules updated). Tests
+   (`actions-mcp/tests/binary.rs`, `env_clear`, private bus, intentd's `serve_on` over the fake router, an rmcp
+   client on the child's pipes and on the socket): off lists nothing, on serves the registry and a read is allowed
+   as the role, a second edge stops, two socket clients share one edge, the unit's command line parses.
+2. **`Companion1.Open` and `Close` are the shell's** (the `Ask` check). `companiond/tests/serve.rs`.
+3. **`Run.Perform` says `Progress`** to a watching caller: `Reviewing` (per stage), `Previewing`,
+   `Confirming(id)` (told as the sheet is drawn, not waited on), `Dispatched`. `Watch::listening` is the
+   listen-only watcher; `Run.Perform` takes the `watch` option (`Watching::Listening`: `Close` still aborts the
+   call as for any request); the client has `Intents::perform_watched` -> `PerformWatch::next()` ->
+   `PerformEvent::{Progress, Done}`. Tests: `docket-router/tests/watching.rs`, `intentd/tests/perform_watch.rs`.
+4. **`Session.Resolve` answers the label** (ask 147): `IntentsReply::Resolved(Resolved { text, label })`
+   (`Session.Display` still answers `Text`); the D-Bus out argument stays one string (now the JSON of
+   `Resolved`, so `org.quire.Intents1.xml` is unchanged). readerd classes a read by the handle's own label
+   (`intentd/tests/reader_daemon.rs`: mail, not `Prompt`); `resolved_label` is gone.
+5. **A restart reads more Spaces than `companiond.toml`'s**: `RecallAsk::Spaces` / `RecallView::Spaces`
+   (any session may ask): the router answers the open and paused Spaces memory lists, the Spaces it holds a session
+   or a task in, and the desktop; `restore` takes the union with the configured list. Memory's `Spaces` read is
+   the shell's today (`almanac-service::auth::allowed`), so the router's own Spaces are the answer until
+   almanac lets `Caller::Router` ask it. Ask (almanac): in `allowed`, move `R::Spaces` from the
+   `Caller::ShellUi`-only group to `R::Spaces => yes_if(router_or_shell)`.
+6. **The `Proceed` wait is a setting**: `AgentConfig.confirm_proceed` (`agent.confirm.proceed_ms`, 10 000, serde
+   default so an old `intentd.toml` still reads; shipped in `dist/intentd.toml`). `FixedClock` is a virtual clock
+   now (`FixedClock::at`, `advance`, `asked`, `next_ask`; `after(Millis(0))` still completes at once), and
+   `a_watcher_that_never_proceeds_is_refused_unasked_after_the_configured_time` runs on it: the router asks for
+   the configured time, 2 499 ms more does nothing, the last millisecond expires the step.
+7. **Ask 42, cross-Space targets**: see Router item 4.
+8. **Asks 43 and 138**: see Router item 3; nothing is asked of stoker.
+9. **`companion.task.message` goes through the router**: companiond no longer carries it out (`message_task`,
+   `send_to_target` are gone); it is a `Run.Perform` like any call (gated, budgeted, audited) and the hosted provider
+   sends the message to the task record's own agent (a worker or a run, not always a worker). Only `companion.task.start`
+   is still carried out in companiond, because the worker's loop runs there.
+10. **Ask 105**: the chain was already there (`AppFault::Unavailable` -> `CallRefusal::AppUnavailable` -> exit 6);
+    what was missing was a test of it end to end: `Answering::Absent` in the fakes, a router test and
+    `quire-do`'s `an_app_that_is_not_installed_is_exit_6_not_5`.
 
 ## Upstream asks
 

@@ -112,6 +112,6 @@ pub use validate::{ManifestError, ValidManifest, fits, validate};
 pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
 pub use wire::{
     Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, NoteAsk,
-    NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine, SessionNote, UndoReport,
-    WidenAnswer, WidenAsk, WireRefusal,
+    NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved, SessionNote,
+    UndoReport, WidenAnswer, WidenAsk, WireRefusal,
 };

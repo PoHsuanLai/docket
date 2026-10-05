@@ -57,14 +57,14 @@ impl<P: InferTransport, I: IntentsTransport> ReaderService<P, I> {
     ) -> Result<Value, ReaderError> {
         let mut inputs = Vec::with_capacity(ask.inputs.len());
         for handle in &ask.inputs {
-            let text = self
+            let resolved = self
                 .intents
                 .session_resolve(session.clone(), *handle)
                 .await
                 .map_err(|_| ReaderError::ModelUnavailable)?;
             inputs.push(Quarantined::new(Labelled {
-                value: text,
-                label: resolved_label(),
+                value: resolved.text,
+                label: resolved.label,
             }));
         }
         self.extract(session, ask, inputs).await
@@ -122,19 +122,6 @@ impl<P: InferTransport, I: IntentsTransport> ReaderService<P, I> {
             | InferReply::Transcribed(_)
             | InferReply::Spoke(_) => Err(ReaderError::ModelUnavailable),
         }
-    }
-}
-
-/// The label of text the router resolved for the reader. The router keeps each handle's own
-/// label in its table and `Session.Resolve` answers the text alone, so the label here classes
-/// nothing, and a request over unclassed text is sent as the person's own words: its floor is
-/// this computer (see `class_of`).
-fn resolved_label() -> prov::Label {
-    prov::Label {
-        integrity: prov::Integrity::Untrusted,
-        confidentiality: prov::Confidentiality::Public,
-        classes: BTreeSet::new(),
-        sources: BTreeSet::new(),
     }
 }
 

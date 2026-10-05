@@ -7,8 +7,8 @@ use crate::labels::{absorb, fold_labels};
 use crate::router::Router;
 use crate::seams::{AppLink, LinkFault, Seams};
 use docket_core::{
-    CallRefusal, ContextScope, ContextSnapshot, Handle, IntentsReply, ReadAsk, Reader, Reveal,
-    Selection, Value, WireRefusal, conforms,
+    CallRefusal, ContextScope, ContextSnapshot, Handle, IntentsReply, ReadAsk, Reader, Resolved,
+    Reveal, Selection, Value, WireRefusal, conforms,
 };
 use porter_core::AppName;
 use prov::{Label, Labelled, SessionId, Source};
@@ -53,7 +53,7 @@ impl<S: Seams> Router<S> {
             return refuse(WireRefusal::Malformed);
         };
         absorb(record, &label);
-        IntentsReply::Text(text)
+        IntentsReply::Resolved(Resolved { text, label })
     }
 
     /// `.Session.Display`: a handle's text for the screen, never for a model.

@@ -311,7 +311,7 @@ async fn the_scripted_confirmer_pops_in_order_and_records_requests() {
 
 #[test]
 fn the_clock_is_fixed_and_the_sink_and_grants_record() {
-    let clock = FixedClock(UnixSeconds(42));
+    let clock = FixedClock::at(UnixSeconds(42));
     assert_eq!(
         (clock.now(), clock.now()),
         (UnixSeconds(42), UnixSeconds(42))
@@ -459,4 +459,23 @@ async fn a_watched_gate_check_in_process_says_confirming_and_waits_for_proceed()
     watch.proceed().await.expect("proceed");
     assert_eq!(watch.next().await, Ok(GateEvent::Verdict(GateAnswer::Run)));
     assert_eq!(router.seams.confirmer.requests()[0].id, id);
+}
+
+#[tokio::test]
+async fn the_virtual_clock_completes_a_timer_only_when_advanced_to_it() {
+    use std::future::Future;
+    let clock = FixedClock::at(UnixSeconds(1));
+    let mut timer = Box::pin(clock.after(Millis(100)));
+    let waker = std::task::Waker::noop();
+    let mut cx = std::task::Context::from_waker(waker);
+    assert!(timer.as_mut().poll(&mut cx).is_pending());
+    assert_eq!(clock.next_ask().await, Millis(100));
+    clock.advance(Millis(99));
+    assert!(timer.as_mut().poll(&mut cx).is_pending());
+    clock.advance(Millis(1));
+    assert!(timer.as_mut().poll(&mut cx).is_ready());
+    // No time at all is no wait; the instant never moves.
+    clock.after(Millis(0)).await;
+    assert_eq!(clock.now(), UnixSeconds(1));
+    assert_eq!(clock.asked(), [Millis(100), Millis(0)]);
 }

@@ -1,12 +1,13 @@
 //! `FakeLink` over the two fake apps, and `FakeSeams` bundling every fake into the router's
 //! `Seams`.
 
+use crate::clock::FixedClock;
 use crate::files::FakeFiles;
 use crate::mail::FakeMail;
 use crate::scripted::{
     FakeMemory, ScriptedConfirmer, ScriptedReader, ScriptedReviewer, ScriptedWriter,
 };
-use crate::simple::{FixedClock, MemoryGrants, RecordingSink};
+use crate::simple::{MemoryGrants, RecordingSink};
 use docket_client::IntentProvider;
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit, Invocation, Latency,
@@ -15,7 +16,7 @@ use docket_core::{
 use docket_router::{AppFault, AppLink, LinkFault, Seams};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 use std::sync::{Mutex, OnceLock};
 
 /// Whether a fake app answers `Perform`.
@@ -25,6 +26,8 @@ pub enum Answering {
     Normal,
     /// It never answers: the router times the call out.
     Silent,
+    /// It is not there (not installed, or it does not start): the call is refused as unavailable.
+    Absent,
 }
 
 /// Routes the router's calls to the fake apps by bus name.
@@ -34,8 +37,8 @@ pub struct FakeLink {
     pub mail: FakeMail,
     /// The files app.
     pub files: FakeFiles,
-    /// Apps that never answer `Perform`: the call times out.
-    pub silent: Mutex<BTreeSet<AppName>>,
+    /// Apps that do not answer `Perform` as usual: they time out, or are not there.
+    pub answering: Mutex<BTreeMap<AppName, Answering>>,
     /// What the focused window shows, if a test set one: the fakes have no windows of their own.
     pub window: Mutex<Option<ContextSnapshot>>,
     /// The built-in `org.quire.Companion` provider, once a test has attached the router that
@@ -76,7 +79,7 @@ impl FakeLink {
         Self {
             mail,
             files,
-            silent: Mutex::new(BTreeSet::new()),
+            answering: Mutex::new(BTreeMap::new()),
             window: Mutex::new(None),
             companion: Hosted::default(),
         }
@@ -89,12 +92,13 @@ impl FakeLink {
         }
     }
 
-    /// Makes `app` stop answering `Perform` (its calls time out), or answer again.
+    /// Makes `app` stop answering `Perform` (its calls time out), vanish (its calls are
+    /// unavailable), or answer again.
     pub fn answer_from(&self, app: &AppName, answering: Answering) {
-        if let Ok(mut silent) = self.silent.lock() {
+        if let Ok(mut all) = self.answering.lock() {
             match answering {
-                Answering::Silent => silent.insert(app.clone()),
-                Answering::Normal => silent.remove(app),
+                Answering::Normal => all.remove(app),
+                other => all.insert(app.clone(), other),
             };
         }
     }
@@ -115,8 +119,15 @@ impl AppLink for FakeLink {
         inv: Invocation,
         _within: Latency,
     ) -> Result<Outcome, AppFault> {
-        if self.silent.lock().is_ok_and(|silent| silent.contains(app)) {
-            return Err(AppFault::TimedOut);
+        let how = self
+            .answering
+            .lock()
+            .ok()
+            .and_then(|all| all.get(app).copied());
+        match how {
+            Some(Answering::Silent) => return Err(AppFault::TimedOut),
+            Some(Answering::Absent) => return Err(AppFault::Unavailable),
+            Some(Answering::Normal) | None => {}
         }
         if self.is_mail(app) {
             self.mail.perform(inv).await.map_err(AppFault::Refused)

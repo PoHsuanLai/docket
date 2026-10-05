@@ -193,9 +193,9 @@ async fn session_read_works_in_the_running_daemon_through_readerd_and_inferd() {
     );
     let opened = desk.inferd.opened();
     assert_eq!(opened.len(), 1, "readerd asked inferd once");
-    // Session.Resolve answers the text alone, so readerd sends unclassed text as the person's
-    // own words: pinned on this computer (a known limit, see FINDINGS).
-    assert_eq!(opened[0].class, DataClass::Prompt);
+    // Session.Resolve answers the handle's own label too, so the read is sent as what the text is
+    // (mail), not as the person's own words.
+    assert_eq!(opened[0].class, DataClass::Mail);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

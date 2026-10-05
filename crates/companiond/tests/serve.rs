@@ -293,6 +293,15 @@ async fn only_the_shell_speaks_for_the_person() {
             .await
             .is_err()
     );
+    // Opening and closing a conversation are the person's too.
+    let open = serde_json::to_string(&SessionOpen {
+        space: space("work"),
+        agent: AgentRef::Companion,
+        parent: None,
+    })
+    .expect("json");
+    assert!(refused.open(&open).await.is_err());
+    assert!(refused.close("s-1").await.is_err());
     assert!(companion.lock().await.roster().entries.is_empty());
 
     // The shell is heard: a turn said to a subagent shows on the roster at once.
@@ -301,4 +310,10 @@ async fn only_the_shell_speaks_for_the_person() {
         .told(&agent, "work", &told(&words_of_the_person))
         .await
         .expect("the shell is heard");
+    let opened: SessionOpened =
+        serde_json::from_str(&proxy.open(&open).await.expect("the shell opens")).expect("json");
+    proxy
+        .close(opened.session.as_str())
+        .await
+        .expect("the shell closes");
 }

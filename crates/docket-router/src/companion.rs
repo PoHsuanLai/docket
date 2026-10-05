@@ -205,18 +205,20 @@ impl<S: Seams> Router<S> {
             return Err(AppRefusal::Unsupported);
         };
         let task = task_of(target).ok_or_else(|| AppRefusal::NotFound(target.clone()))?;
-        let space = self
+        // The agent is the one the task record names: a worker, or a run of the computer-use
+        // daemon, whichever the task is.
+        let (agent, space) = self
             .locked()
             .tasks
             .get(&task)
-            .map(|t| t.space.clone())
+            .map(|t| (t.agent.clone(), t.space.clone()))
             .ok_or_else(|| AppRefusal::NotFound(target.clone()))?;
         let sent = self.message_send(
             &companion(),
             CallerRole::Companion,
             session,
             MessageDraft {
-                to: Address::new(AgentRef::Worker { task }, space),
+                to: Address::new(agent, space),
                 thread: None,
                 in_reply_to: None,
                 kind: MessageKind::Request,

@@ -82,6 +82,10 @@ pub enum RecallAsk {
     Primer,
     /// The facts the person stated themselves at the desktop scope.
     Profile,
+    /// The Spaces a restart should read: every Space memory keeps records for, and the ones the
+    /// router itself holds a session or a task in. Asked in any session (the Space it is in does
+    /// not matter).
+    Spaces,
 }
 
 /// One recent event as the planner may read it.
@@ -114,6 +118,8 @@ pub enum RecallView {
     Primer(PrimerText),
     /// The person's own pinned facts.
     Profile(Vec<ProfileLine>),
+    /// The Spaces to read on a restart, each once.
+    Spaces(Vec<prov::SpaceId>),
 }
 
 /// The tail of a session record's kind (`companion.session.<slug>`): lowercase words and digits
@@ -406,6 +412,17 @@ pub enum WireRefusal {
     Send(SendRefusal),
 }
 
+/// A handle's content as the reader receives it: the text and the label the router holds for it,
+/// so the reader classes what it sends to a model by the handle's own class (mail, not "the
+/// person's words").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Resolved {
+    /// The text.
+    pub text: String,
+    /// Its label in the session's table.
+    pub label: prov::Label,
+}
+
 /// Every reply of `org.quire.Intents1`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
@@ -432,8 +449,10 @@ pub enum IntentsReply {
     SessionOpened(SessionOpened),
     /// A turn was recorded.
     TurnRecorded(TurnId),
-    /// A handle's text (the reader only, or the screen).
+    /// A handle's text for the screen (`Session.Display`).
     Text(String),
+    /// A handle's text and its label, for the quarantined reader (`Session.Resolve`).
+    Resolved(Resolved),
     /// What the reader answered: a plain closed-set value, or a handle.
     Read(Reveal<Value>),
     /// The task policy, if there is one.

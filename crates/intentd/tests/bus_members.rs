@@ -294,7 +294,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         },
     })
     .await;
-    for ask in [RecallAsk::Primer, RecallAsk::Profile] {
+    for ask in [RecallAsk::Primer, RecallAsk::Profile, RecallAsk::Spaces] {
         pair.both(IntentsRequest::SessionRecall {
             session: session.clone(),
             ask,

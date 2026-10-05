@@ -8,12 +8,11 @@
 use crate::fault::ServeFault;
 use crate::runtime::Companiond;
 use agent_loop::{AskedPerson, CompletionNote, LoopInput, LoopPhase, SideInput, attention_of};
-use docket_client::{ClientError, Transport as IntentsTransport};
+use docket_client::Transport as IntentsTransport;
 use docket_core::{
-    AppRefusal, CallRefusal, CallRequest, Delivery, DenyCode, DraftPart, Follow, InboundLine,
-    InboundPart, InboxAsk, LeadText, MessageDraft, Outcome, ParamName, Preview, Reveal,
-    RosterDetail, RosterFull, RosterLine, RosterState, SendRefusal, SessionOpen, SessionOpened,
-    TargetValue, TurnId, TurnSource, TurnVia, Undoable, Value, WireRefusal,
+    Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft, Outcome,
+    Reveal, RosterDetail, RosterFull, RosterLine, RosterState, SessionOpen, SessionOpened, TurnId,
+    TurnSource, TurnVia, Value,
 };
 use porter_client::Transport as InferTransport;
 use porter_core::{AppName, Count};
@@ -286,54 +285,6 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         }
     }
 
-    /// `companion.task.message`: its text goes, as a request, to the task its target names.
-    pub(crate) async fn send_to_target(
-        &mut self,
-        from: &TaskId,
-        call: &CallRequest,
-    ) -> Result<Outcome, CallRefusal> {
-        let TargetValue::Entities(targets) = &call.target else {
-            return Err(bad("target"));
-        };
-        let entity = targets.first().ok_or_else(|| bad("target"))?;
-        let to_task = TaskId::parse(entity.key.as_str()).map_err(|_| bad("target"))?;
-        let (agent, space) = self
-            .runtimes
-            .get(&to_task)
-            .map(|rt| (rt.agent.clone(), rt.space.clone()))
-            .ok_or_else(|| CallRefusal::App(AppRefusal::NotFound(entity.clone())))?;
-        let text = ParamName::parse("text").map_err(|_| bad("text"))?;
-        let part = match call.args.get(&text).map(|a| &a.value) {
-            Some(Value::Text(t)) => DraftPart::Text(prov::MessageText::new(t.clone())),
-            Some(Value::Handle(h)) => DraftPart::Handle(*h),
-            _ => return Err(bad("text")),
-        };
-        self.message(
-            from,
-            Address::new(agent, space),
-            MessageKind::Request,
-            vec![part],
-        )
-        .await
-        .map(|_| self.outcome_nothing())
-        .map_err(|error| match error {
-            ServeFault::Router(ClientError::Refused(WireRefusal::Send(
-                SendRefusal::NoRecipient,
-            ))) => CallRefusal::App(AppRefusal::NotFound(entity.clone())),
-            _ => CallRefusal::Denied(DenyCode::NotAllowed),
-        })
-    }
-
-    fn outcome_nothing(&self) -> Outcome {
-        Outcome {
-            value: None,
-            said: None,
-            show: Preview::None,
-            undo: Undoable::No,
-            follow: Follow::Nothing,
-        }
-    }
-
     /// Sends a message from a task: to a worker, a run, or an agent in another Space. The router
     /// stamps the sender from the task's session and labels the message with what the task has
     /// read, so taint travels with it; it is delivered as input and grants the receiver nothing,
@@ -388,11 +339,4 @@ fn started_of(outcome: &Outcome) -> Option<(TaskId, prov::SessionId)> {
         TaskId::parse(text("task")?).ok()?,
         prov::SessionId::parse(text("session")?).ok()?,
     ))
-}
-
-fn bad(name: &str) -> CallRefusal {
-    ParamName::parse(name).map_or(CallRefusal::Timeout, |param| CallRefusal::BadArgs {
-        param,
-        why: docket_core::ArgFault::WrongType,
-    })
 }

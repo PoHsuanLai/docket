@@ -21,7 +21,6 @@ use std::collections::VecDeque;
 /// the tasks they start.
 const COMPANION_APP: &str = "org.quire.Companion";
 const TASK_START: &str = "companion.task.start";
-const TASK_MESSAGE: &str = "companion.task.message";
 
 /// What a call to the router came to, as the loop is told.
 fn refusal_of(error: ClientError) -> CallRefusal {
@@ -175,8 +174,9 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             .collect())
     }
 
-    /// One call, through the router. The two actions that start and message a task are carried
-    /// out here, because the loops of those tasks run here.
+    /// One call, through the router. The action that starts a task is carried out here as well
+    /// (the router makes the task, the loop of the worker runs here); `companion.task.message` is
+    /// the router's alone, like any other call.
     async fn perform(
         &mut self,
         task: &TaskId,
@@ -186,7 +186,6 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         if call.action.app.as_str() == COMPANION_APP {
             match call.action.name.as_str() {
                 TASK_START => return self.start_task(task, call, id).await,
-                TASK_MESSAGE => return self.message_task(task, call, id).await,
                 _ => {}
             }
         }
@@ -254,17 +253,6 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
                 }),
             },
         };
-        Ok(vec![self.ended(task, &call, Effect::Read, id, result)])
-    }
-
-    /// `companion.task.message`: the text goes to the task the target names, as a request.
-    async fn message_task(
-        &mut self,
-        task: &TaskId,
-        call: CallRequest,
-        id: CallId,
-    ) -> Result<Vec<LoopInput>, ServeFault> {
-        let result = self.send_to_target(task, &call).await;
         Ok(vec![self.ended(task, &call, Effect::Read, id, result)])
     }
 
