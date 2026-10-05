@@ -183,11 +183,8 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         call: CallRequest,
         id: CallId,
     ) -> Result<Vec<LoopInput>, ServeFault> {
-        if call.action.app.as_str() == COMPANION_APP {
-            match call.action.name.as_str() {
-                TASK_START => return self.start_task(task, call, id).await,
-                _ => {}
-            }
+        if call.action.app.as_str() == COMPANION_APP && call.action.name.as_str() == TASK_START {
+            return self.start_task(task, call, id).await;
         }
         let Some(rt) = self.runtimes.get(task) else {
             return Err(ServeFault::UnknownSession);
