@@ -64,6 +64,34 @@ pub struct Invocation {
     pub origin: Origin,
     /// The Space it acts in.
     pub space: SpaceId,
+    /// The activation token the launcher sent with the call, passed on unchanged: a capability
+    /// the app may redeem with the compositor to take focus. Absent for every other caller.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub activation: Option<ActivationToken>,
+}
+
+/// An XDG activation token: a capability to take focus, handed by the launcher with a `Perform`
+/// and by the router to the app. It is never logged or audited, so its `Debug` shows nothing.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct ActivationToken(String);
+
+impl ActivationToken {
+    /// A token, unless it is empty.
+    pub fn parse(text: &str) -> Option<Self> {
+        (!text.is_empty()).then(|| Self(text.to_owned()))
+    }
+
+    /// The token's text, for handing to the compositor.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for ActivationToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ActivationToken(..)")
+    }
 }
 
 /// What a finished action returns.

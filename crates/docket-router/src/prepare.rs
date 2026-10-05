@@ -285,6 +285,7 @@ impl<S: Seams> Router<S> {
             cost,
             window,
             targets,
+            activation: None,
         })
     }
 
@@ -336,6 +337,7 @@ impl<S: Seams> Router<S> {
             review: None,
             window,
             targets,
+            activation: None,
         }
     }
 }

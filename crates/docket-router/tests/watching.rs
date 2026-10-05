@@ -254,6 +254,7 @@ fn send_to_a_stranger() -> CallRequest {
 
 fn performing(call: CallRequest) -> IntentsRequest {
     IntentsRequest::Perform {
+        activation: None,
         call,
         session: None,
         parent_window: None,

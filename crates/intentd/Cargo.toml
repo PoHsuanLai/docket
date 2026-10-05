@@ -16,7 +16,15 @@ path = "src/lib.rs"
 name = "intentd"
 path = "src/main.rs"
 
+[features]
+# `INTENTD_PROC_ROOT=<dir>` makes the daemon read `<dir>/<pid>/cgroup` for its callers instead of
+# `/proc/<pid>/cgroup`, so an acceptance run can present its test processes as a terminal or an
+# app. TEST ONLY: off by default, never in a release or dist build (scripts/check-boundary.sh
+# fails if a default build has it); without it the variable is ignored, with one stderr line.
+test-proc-root = []
+
 [dependencies]
+porter-dbus = { workspace = true }
 docket-core = { workspace = true }
 docket-router = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }

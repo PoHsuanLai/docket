@@ -138,6 +138,17 @@ fn watching_options() -> Details {
     options
 }
 
+/// `options` with the launcher's activation token added, when there is one.
+fn with_activation(mut options: Details, token: Option<&docket_core::ActivationToken>) -> Details {
+    let value = token.and_then(|t| {
+        zbus::zvariant::OwnedValue::try_from(zbus::zvariant::Value::from(t.as_str())).ok()
+    });
+    if let Some(value) = value {
+        options.insert(docket_dbus::OPTION_ACTIVATION.to_owned(), value);
+    }
+    options
+}
+
 /// `Gate.Check` and `Run.Perform` for a caller that watches them: the option tells intentd to say
 /// how far the request is, and for a gate check to wait for `Proceed` before it draws the sheet.
 /// Any other request is answered in one piece.
@@ -163,7 +174,9 @@ pub(crate) async fn watch(
             call,
             session,
             parent_window,
+            activation,
         } => {
+            let options = with_activation(options, activation.as_ref());
             let run = RunProxy::new(connection).await.map_err(bus)?;
             let (call, session, window) = (
                 to_json(&call)?,
@@ -227,7 +240,9 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
             call,
             session,
             parent_window,
+            activation,
         } => {
+            let options = with_activation(options, activation.as_ref());
             let run = RunProxy::new(c).await.map_err(bus)?;
             let (call, session, window) = (
                 to_json(&call)?,

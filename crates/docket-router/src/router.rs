@@ -95,12 +95,16 @@ impl<S: Seams> Router<S> {
                 call,
                 session,
                 parent_window,
+                activation,
             } => {
                 let now = self.seams.clock().now();
                 let who = self.locked().who_for(caller, role, session.as_ref(), now);
+                // Only the launcher's token means anything: it is the person's own click.
+                let activation = activation.filter(|_| role == CallerRole::Launcher);
                 match who {
                     Ok(who) => IntentsReply::Performed(Box::new(
-                        self.perform_chain(who, call, parent_window, watch).await,
+                        self.perform_chain(who, call, parent_window, activation, watch)
+                            .await,
                     )),
                     Err(why) => IntentsReply::Refused(why),
                 }

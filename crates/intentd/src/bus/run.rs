@@ -2,12 +2,20 @@
 
 use super::request::Watching;
 use super::{Gateway, json, parsed};
-use docket_core::{GrantAsk, IntentsReply, IntentsRequest, UndoId};
+use docket_core::{ActivationToken, GrantAsk, IntentsReply, IntentsRequest, UndoId};
 use docket_dbus::{Details, IntentsError};
 use zbus::message::Header;
 use zbus::zvariant::OwnedObjectPath;
 
 pub(crate) struct RunBus(pub(crate) Gateway);
+
+/// The activation token in a `Perform`'s options: a non-empty string under `activation`. Whether
+/// the caller may send one is the router's to say (the launcher only).
+fn activation_of(options: &Details) -> Option<ActivationToken> {
+    let value = options.get(docket_dbus::OPTION_ACTIVATION)?;
+    let text: &str = value.downcast_ref().ok()?;
+    ActivationToken::parse(text)
+}
 
 #[zbus::interface(name = "org.quire.Intents1.Run")]
 impl RunBus {
@@ -30,6 +38,7 @@ impl RunBus {
             call: json(&call)?,
             session: json(&session)?,
             parent_window: json(&parent_window)?,
+            activation: activation_of(&options),
         };
         self.0
             .start_as(&header, connection, request, watching)

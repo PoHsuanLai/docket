@@ -264,6 +264,7 @@ async fn run(router: &Router<Rig>, request: CallRequest) -> Result<Outcome, Call
         .handle(
             &companion(),
             IntentsRequest::Perform {
+                activation: None,
                 call: request,
                 session: None,
                 parent_window: None,

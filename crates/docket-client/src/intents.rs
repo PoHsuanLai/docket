@@ -3,8 +3,8 @@
 
 use crate::transport::{Transport, TransportError};
 use docket_core::{
-    ActionRef, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, EntityRef, GateAnswer,
-    GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk, IntentsReply,
+    ActionRef, ActivationToken, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, EntityRef,
+    GateAnswer, GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk, IntentsReply,
     IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Outcome, Preview, Resolved, SearchAsk,
     SessionOpen, SessionOpened, SuggestAsk, TurnId, TurnIn, UndoEntry, UndoId, UndoReport,
     UndoScope, ValidManifest, WidenAnswer, WidenAsk, WindowKey, WireRefusal,
@@ -66,10 +66,24 @@ impl<T: Transport> Intents<T> {
         session: Option<SessionId>,
         parent_window: Option<WindowKey>,
     ) -> Result<Result<Outcome, CallRefusal>, ClientError> {
+        self.perform_activated(call, session, parent_window, None)
+            .await
+    }
+
+    /// `perform` with the launcher's activation token, which intentd passes to the app when the
+    /// caller is the launcher and drops for every other role.
+    pub async fn perform_activated(
+        &self,
+        call: CallRequest,
+        session: Option<SessionId>,
+        parent_window: Option<WindowKey>,
+        activation: Option<ActivationToken>,
+    ) -> Result<Result<Outcome, CallRefusal>, ClientError> {
         let request = IntentsRequest::Perform {
             call,
             session,
             parent_window,
+            activation,
         };
         self.ask(request, |r| match r {
             IntentsReply::Performed(end) => Some(*end),

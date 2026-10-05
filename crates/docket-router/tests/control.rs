@@ -279,6 +279,7 @@ async fn an_mcp_clients_arguments_are_untrusted_and_its_writes_ask() {
         &router,
         &mcp,
         IntentsRequest::Perform {
+            activation: None,
             call: call("mail.thread.read", &["t1"], vec![]),
             session: None,
             parent_window: None,
@@ -293,6 +294,7 @@ async fn an_mcp_clients_arguments_are_untrusted_and_its_writes_ask() {
         &router,
         &mcp,
         IntentsRequest::Perform {
+            activation: None,
             call: call("mail.thread.archive", &["t1"], vec![]),
             session: None,
             parent_window: None,

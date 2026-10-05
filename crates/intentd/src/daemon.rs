@@ -11,8 +11,9 @@ use crate::link::DbusLink;
 use crate::logout::watch_logind;
 use crate::manifests::{Loaded, intents_dir, load_manifests};
 use crate::memory::AlmanacMemory;
+use crate::procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 use crate::reviewers::reviewer;
-use crate::serve::{ServeFault, closed, serve_on};
+use crate::serve::{ServeFault, closed, serve_on_with};
 use crate::sheet::SheetConfirmer;
 use crate::signals::{Cadence, pump};
 use crate::sink::QueuedSink;
@@ -60,6 +61,8 @@ pub struct Setup {
     pub data_dirs: Vec<PathBuf>,
     /// How often the router's state is looked at for signals, and the manifests rescanned.
     pub signals: Cadence,
+    /// Where callers' cgroups are read: `/proc`, unless a test build was told otherwise.
+    pub proc_root: ProcRoot,
 }
 
 fn home(env: &impl Fn(&str) -> Option<String>) -> PathBuf {
@@ -110,6 +113,10 @@ impl Setup {
             None => IntentdConfig::shipped(),
         }
         .map_err(DaemonFault::Config)?;
+        let proc_root = proc_root_choice(env(PROC_ROOT_VAR).as_deref(), TestProcRoot::THIS_BUILD);
+        if let Some(line) = proc_root.said() {
+            eprintln!("intentd: {line}");
+        }
         let data = data_dirs(env);
         let grants = intents_dir(&data[0]).join("grants.json");
         Ok(Self {
@@ -120,6 +127,7 @@ impl Setup {
             audit_every: DRAIN_EVERY,
             data_dirs: data,
             signals: Cadence::default(),
+            proc_root,
         })
     }
 }
@@ -162,6 +170,7 @@ pub async fn start(
         audit_every,
         data_dirs,
         signals,
+        proc_root,
     } = setup;
     for (file, why) in &manifests.skipped {
         eprintln!("intentd: skipped {}: {why}", file.display());
@@ -203,7 +212,7 @@ pub async fn start(
     }
     let router = Arc::new(router);
     port.attach(&router);
-    serve_on(session, router.clone(), Arc::new(config))
+    serve_on_with(session, router.clone(), Arc::new(config), &proc_root)
         .await
         .map_err(DaemonFault::Serve)?;
     let mut tasks = Vec::new();

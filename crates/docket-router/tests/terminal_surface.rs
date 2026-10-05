@@ -37,6 +37,7 @@ async fn run(
         router,
         &cli(),
         IntentsRequest::Perform {
+            activation: None,
             call: request,
             session: None,
             parent_window: None,

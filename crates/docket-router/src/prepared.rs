@@ -8,8 +8,8 @@ use crate::who::Who;
 use action_review::GoalKey;
 use action_review::{ArgDigest, ArgView, CallEndKind, ProposedAction, ReviewRequest, TypedStep};
 use docket_core::{
-    ActionDecl, ActionRef, Args, CallId, CallRefusal, CallRequest, CharCount, Cost, GrantCaller,
-    ParamName, Ruling, StepEnd, TargetValue, Value, WindowKey, size_of,
+    ActionDecl, ActionRef, ActivationToken, Args, CallId, CallRefusal, CallRequest, CharCount,
+    Cost, GrantCaller, ParamName, Ruling, StepEnd, TargetValue, Value, WindowKey, size_of,
 };
 use policy_point::GrantState;
 use porter_core::Count;
@@ -44,6 +44,8 @@ pub(crate) struct Prepared {
     pub review: Option<ReviewRequest>,
     pub window: Option<WindowKey>,
     pub targets: Vec<EntityId>,
+    /// The launcher's activation token, for the app's `Perform` only.
+    pub activation: Option<ActivationToken>,
 }
 
 pub(crate) fn entities(target: &TargetValue) -> Vec<EntityId> {

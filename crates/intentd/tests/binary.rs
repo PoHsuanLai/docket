@@ -84,7 +84,7 @@ async fn the_binary_serves_the_scratch_manifests_to_the_roles_the_shipped_config
     let mut daemon = intentd(&env, bus.address());
     until_served(&me).await;
 
-    // A connection that owns no name and runs no known executable is nobody; a plain app owns
+    // A connection that owns no name is nobody unless its cgroup names it; a plain app owns
     // its name and may read the registry: the scratch manifest, and nothing from the real world.
     let app = bus.connect().await;
     app.request_name("org.quire.Mail").await.expect("name");
@@ -175,4 +175,58 @@ async fn d_bus_activation_starts_the_binary_for_a_caller_and_a_second_intentd_ca
         "a second intentd is not served: {status:?}"
     );
     assert!(has_owner(&me).await, "the first is still there");
+}
+
+/// The line intentd says about `INTENTD_PROC_ROOT` when it serves with it set to `fixture`.
+async fn said_about_the_proc_root(fixture: &Path) -> String {
+    let dir = tempfile::tempdir().expect("scratch");
+    let (_data, mut env) = scratch_world(dir.path());
+    env.push((
+        "INTENTD_PROC_ROOT".to_owned(),
+        fixture.display().to_string(),
+    ));
+    let bus = PrivateBus::start(dir.path());
+    let me = bus.connect().await;
+    let log = dir.path().join("intentd.log");
+    let mut daemon = Daemon(
+        Command::new(env!("CARGO_BIN_EXE_intentd"))
+            .env_clear()
+            .envs(env.iter().map(|(k, v)| (k.as_str(), v.as_str())))
+            .env("DBUS_SESSION_BUS_ADDRESS", bus.address())
+            .env("DBUS_SYSTEM_BUS_ADDRESS", bus.address())
+            .stdin(Stdio::null())
+            .stderr(std::fs::File::create(&log).expect("log"))
+            .spawn()
+            .expect("intentd starts"),
+    );
+    until_served(&me).await;
+    daemon.0.kill().expect("kill");
+    daemon.0.wait().expect("wait");
+    std::fs::read_to_string(&log).expect("the log")
+}
+
+#[cfg(not(feature = "test-proc-root"))]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_default_build_ignores_the_proc_root_variable_and_says_so() {
+    let fixture = tempfile::tempdir().expect("fixture");
+    let said = said_about_the_proc_root(fixture.path()).await;
+    assert!(
+        said.contains("INTENTD_PROC_ROOT is set but this build has no test-proc-root feature"),
+        "{said}"
+    );
+    assert!(!said.contains("TEST BUILD"), "{said}");
+}
+
+#[cfg(feature = "test-proc-root")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_test_build_honours_the_proc_root_variable_and_names_the_root() {
+    let fixture = tempfile::tempdir().expect("fixture");
+    let said = said_about_the_proc_root(fixture.path()).await;
+    let root = fixture.path().display().to_string();
+    assert!(
+        said.contains(&format!(
+            "TEST BUILD: reading callers from the proc root {root}"
+        )),
+        "{said}"
+    );
 }

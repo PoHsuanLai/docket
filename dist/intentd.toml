@@ -1,7 +1,10 @@
 # intentd's configuration as the package ships it: $XDG_CONFIG_HOME/quire/intentd.toml (or
 # /etc/xdg/quire/intentd.toml) replaces it whole. Which bus names play which role: the name is a
-# well-known name the connection owns, except `org.quire.Do`, which no process owns: any process
-# running `quire-do` is named by its executable and plays `cli`. sill owns org.quire.Shell (and
+# well-known name the connection owns, or the app a nameless connection's cgroup scope names.
+# `org.quire.Do` is owned by no process: a nameless connection in a terminal's scope (vte-spawn-*,
+# tmux-spawn-*, a login session-*) is named `org.quire.Do` and plays `cli`. A terminal that runs in
+# an app scope (konsole's `app-org.kde.konsole-<n>.scope`) is named after the app: list it under
+# `cli` to let its children use quire-do. sill owns org.quire.Shell (and
 # org.quire.Confirm1) and is the launcher, the only Confirm1 server intentd trusts, and the
 # control centre. No reviewer models are named here: until the person chooses a set, a call that
 # would be reviewed asks instead.

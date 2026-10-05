@@ -9,8 +9,8 @@
 use crate::intents::{ClientError, Intents};
 use crate::transport::{Transport, TransportError};
 use docket_core::{
-    CallProgress, CallRefusal, CallRequest, ConfirmId, CuaAsk, GateAnswer, IntentsReply,
-    IntentsRequest, Outcome, WindowKey,
+    ActivationToken, CallProgress, CallRefusal, CallRequest, ConfirmId, CuaAsk, GateAnswer,
+    IntentsReply, IntentsRequest, Outcome, WindowKey,
 };
 use prov::SessionId;
 use std::future::Future;
@@ -246,9 +246,22 @@ impl<T: Transport> Intents<T> {
         session: Option<SessionId>,
         parent_window: Option<WindowKey>,
     ) -> Result<PerformWatch, ClientError> {
+        self.perform_watched_activated(call, session, parent_window, None)
+            .await
+    }
+
+    /// `perform_watched` with the launcher's activation token (see `perform_activated`).
+    pub async fn perform_watched_activated(
+        &self,
+        call: CallRequest,
+        session: Option<SessionId>,
+        parent_window: Option<WindowKey>,
+        activation: Option<ActivationToken>,
+    ) -> Result<PerformWatch, ClientError> {
         let Watched { events, steering } = self
             .transport()
             .watch(IntentsRequest::Perform {
+                activation,
                 call,
                 session,
                 parent_window,

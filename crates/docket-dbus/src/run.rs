@@ -11,7 +11,7 @@ use zbus::zvariant::OwnedObjectPath;
     default_path = "/org/quire/Intents1"
 )]
 pub trait Run {
-    /// Performs a call (`CallRequest` JSON; the session is `Option<SessionId>` JSON, `null` for the person's surfaces and callers with one session; the window is `Option<WindowKey>` JSON). Answers a Request object whose `Response` carries the `Outcome` or `CallRefusal`.
+    /// Performs a call (`CallRequest` JSON; the session is `Option<SessionId>` JSON, `null` for the person's surfaces and callers with one session; the window is `Option<WindowKey>` JSON). Answers a Request object whose `Response` carries the `Outcome` or `CallRefusal`. Options: `watch` (bool) and `activation` (string, the launcher's activation token: honoured from the launcher role only, dropped for every other caller, passed unchanged to the app and never logged).
     fn perform(
         &self,
         call: &str,

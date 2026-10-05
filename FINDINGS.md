@@ -201,8 +201,8 @@ Built and tested on a private `dbus-daemon` (nothing of the real session is name
   name with `DoNotQueue` (a second intentd stops); `serve(router, config)` is the same on the session bus. `tests/bus_members.rs` sends every member over the bus and in process and requires the
   same reply.
 - **Identity** (`intentd/src/peer.rs`): from the bus's own credentials for the connection: the same user, the
-  well-known names it owns, and for a process that owns none, the executable behind its pid (`quire-do` is
-  `org.quire.Do`). Roles are `intentd.toml`'s (`dist/intentd.toml` is the shipped default; a file in
+  well-known names it owns, and for a process that owns none, the cgroup behind its pid (f4-docket-ident: a
+  terminal's child is `org.quire.Do`, see "f4-docket-ident" below; `/proc/<pid>/exe` is no longer read). Roles are `intentd.toml`'s (`dist/intentd.toml` is the shipped default; a file in
   `$XDG_CONFIG_HOME/quire` replaces it whole). An unknown connection is `NotAllowed`. This is advisory on a
   desktop where every process runs as the person: the cli role asks for everything but a read, and the
   stronger binding (Flatpak, a systemd scope) is later.
@@ -286,7 +286,7 @@ Not built yet, and what each blocks:
    `Control.Resume` button (item 6 above).
 3. ~~`Request.Proceed` answers `Malformed`~~: a watched `Gate.Check` implements it (w5-docket). On a request that is
    not a watched gate check it still answers `Malformed`: nothing waits for it.
-4. **Identity beyond name and executable** (Flatpak, a systemd scope) is later, as ask 108 says.
+4. **Identity beyond name and executable** (Flatpak, a systemd scope): done in f4-docket-ident (cgroup, porter's `ProcCallers`).
 
 ## The persistent companion and the MCP edge (w4-companion)
 
@@ -792,3 +792,47 @@ builds the connection first and passes it here.
 3. **The other f4-docket-2 items** are not behaviour over fakes in docket's own paths: the `ds-settings` question is
    quire's, the `mail.thread.find` rename is in docket-accept (lane f4-e2e-2's files), the `inferd` cassette is porter's;
    first-use consent was already tested. Nothing further closed.
+
+## f4-docket-ident: cgroup identity and the activation token
+
+1. **Caller identity moved off `/proc/<pid>/exe` onto the cgroup** (`intentd/src/peer.rs`). The bus still names the
+   pid; `porter_dbus::ProcCallers::caller_of_pid` reads only `/proc/<pid>/cgroup` (no ptrace check, works in a
+   Landlock domain). Order, unchanged for names: a connection that owns application-shaped well-known names is
+   those names, with `intentd.toml`'s roles (confirm = owner of `org.quire.Confirm1` through the `confirm` row).
+   A connection that owns no name is identified by its cgroup alone:
+   - `app-[<launcher>-]<id>-<n>.scope` or `app-flatpak-<id>-<n>.scope`: that app, with the roles `intentd.toml`
+     lists under `<id>` (none for almost every app: a plain app). This is also how a user whose terminal runs in
+     an app scope (konsole in `app-org.kde.konsole-<n>.scope`) opts in: list `org.kde.konsole` under `cli`.
+   - **a terminal child: `vte-spawn-*.scope`, `tmux-spawn-*.scope`, a login `session-*.scope`: `org.quire.Do`, the
+     cli role.** porter-dbus returns nobody for these (they are no app scope), so the cli role has this rule of its
+     own. **Security decision for the orchestrator to review:** the rule is same uid (checked as before) + a bus
+     connection owning no name + a cgroup leaf in that short list. It is NOT "any unidentified process": a service
+     unit (`foo.service`), `run-*.scope`, an unreadable or malformed cgroup are refused (`NotAllowed`). It is
+     weaker than the old rule in one way: any process in a terminal scope is the cli, not only a binary named
+     `quire-do` (the old exe name was as forgeable by a copy of any binary); and stronger in another: a binary
+     named `quire-do` outside a terminal scope (a service, a cron job's scope) is no longer the cli. The cli role
+     still asks for everything that is not a read, so it stays advisory on a desktop where every process runs as
+     the person. No callers file is read: intentd has no unit rows (porter's `CallerTable` is passed empty); a
+     daemon that is a service owns a well-known name, which already names it.
+   - Tests: `peer/tests.rs` (a table of names x cgroup facts; the cgroup leaves over a fixture proc tree),
+     `tests/identity.rs` (over a private bus with a fake proc root: sill's token goes through, a nameless
+     connection is cli / plain app / nobody by its leaf).
+2. **`INTENTD_PROC_ROOT` / feature `test-proc-root`** (`intentd/src/procroot.rs`, the same three guards as memoryd and
+   inferd): off by default; `scripts/check-boundary.sh` fails if `cargo tree -p intentd` shows a `test-` feature in a
+   default build; with the feature the daemon prints one stderr line naming the root
+   (`TEST BUILD: reading callers from the proc root <dir>, not /proc`); without it a set variable is ignored with one
+   stderr line (`INTENTD_PROC_ROOT is set but this build has no test-proc-root feature ...`). Tests: pure
+   `proc_root_choice` table, and the real binary on a private bus for whichever build is under test
+   (`tests/binary.rs`). docket-accept needed no change: its test processes own bus names, so intentd never reads
+   their cgroups; `Peers::with_proc_root` and `serve_on_with` take a `ProcRoot` for tests that do.
+3. **Activation token.** `Invocation` gained `activation: Option<ActivationToken>` (serde default, skipped when
+   `None`; JSON top-level `"activation": "<token>"`; `ActivationToken` is a newtype over `String` whose `Debug` is
+   `ActivationToken(..)`, so no `{:?}`, log line or audit record can show it; audit records are built from the
+   call, never from the `Invocation`). `IntentsRequest::Perform` gained the same optional field; over D-Bus it is the
+   string option `activation` (`docket_dbus::OPTION_ACTIVATION`) in `Run.Perform`'s `options` (`a{sv}`), next to
+   `watch`. The router keeps it only when the acting role is `launcher` and drops it for companion, cli, mcp, field,
+   cua and plain apps; it is passed unchanged to the provider's `IntentProvider1.Perform` for the first call of a
+   chain only (a `Follow::Next` step and a `DryRun` carry none). `docket-client`: `Intents::perform_activated` and
+   `perform_watched_activated` (the old `perform` and `perform_watched` are the `None` case).
+   Tests: `docket-router/tests/activation.rs` (launcher gets it through; cli, field, companion, mcp dropped; wire
+   form), `intentd/tests/identity.rs` (launcher token crosses the real bus; the cli's is dropped).

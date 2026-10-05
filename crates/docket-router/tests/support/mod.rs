@@ -239,6 +239,7 @@ pub async fn perform(
         router,
         &companion(),
         IntentsRequest::Perform {
+            activation: None,
             call: request,
             session: None,
             parent_window: None,

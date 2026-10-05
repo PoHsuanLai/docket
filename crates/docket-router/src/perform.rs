@@ -14,10 +14,10 @@ use crate::watch::Watch;
 use crate::who::Who;
 use action_review::{DeniedBy, ReviewVerdict, Reviewer};
 use docket_core::{
-    AppRefusal, AskReason, AuditRecord, CallEnd, CallRefusal, CallRequest, ConfirmAnswer,
-    ConfirmAnswerKind, ConfirmEnd, ConfirmId, ConfirmRequest, Confirmer, Depth, Follow, Invocation,
-    Millis, Outcome, PolicyId, ReviewError, ReviewMark, Reviewed, Stage, UndoId, Undoable,
-    WindowKey, charge, halted,
+    ActivationToken, AppRefusal, AskReason, AuditRecord, CallEnd, CallRefusal, CallRequest,
+    ConfirmAnswer, ConfirmAnswerKind, ConfirmEnd, ConfirmId, ConfirmRequest, Confirmer, Depth,
+    Follow, Invocation, Millis, Outcome, PolicyId, ReviewError, ReviewMark, Reviewed, Stage,
+    UndoId, Undoable, WindowKey, charge, halted,
 };
 use porter_core::GrantId;
 use prov::{Actor, AgentRole, SpaceScope};
@@ -29,16 +29,17 @@ impl<S: Seams> Router<S> {
         who: Who,
         request: CallRequest,
         window: Option<WindowKey>,
+        activation: Option<ActivationToken>,
         watch: &Watch,
     ) -> Result<Outcome, CallRefusal> {
         let mut outcome = self
-            .perform_once(&who, request, window.clone(), Depth(0), watch)
+            .perform_once(&who, request, window.clone(), activation, Depth(0), watch)
             .await?;
         let mut depth = 0u8;
         while let Follow::Next(next) = outcome.follow.clone() {
             depth = depth.saturating_add(1);
             match self
-                .perform_once(&who, next, window.clone(), Depth(depth), watch)
+                .perform_once(&who, next, window.clone(), None, Depth(depth), watch)
                 .await
             {
                 Ok(done) => outcome = done,
@@ -56,12 +57,17 @@ impl<S: Seams> Router<S> {
         who: &Who,
         request: CallRequest,
         window: Option<WindowKey>,
+        activation: Option<ActivationToken>,
         depth: Depth,
         watch: &Watch,
     ) -> Result<Outcome, CallRefusal> {
         match self.prepare(who, request, window, depth) {
             Err(early) => Err(self.finish_early(*early)),
             Ok(prepared) => {
+                let prepared = Prepared {
+                    activation,
+                    ..prepared
+                };
                 let driven = self.drive(&prepared, watch).await;
                 self.finish(&prepared, driven)
             }
@@ -297,6 +303,7 @@ impl<S: Seams> Router<S> {
             actor: p.who.actor.clone(),
             origin: p.request.origin,
             space: p.space.clone(),
+            activation: p.activation.clone(),
         }
     }
 

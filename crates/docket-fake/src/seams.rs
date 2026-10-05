@@ -41,6 +41,8 @@ pub struct FakeLink {
     pub answering: Mutex<BTreeMap<AppName, Answering>>,
     /// What the focused window shows, if a test set one: the fakes have no windows of their own.
     pub window: Mutex<Option<ContextSnapshot>>,
+    /// Every invocation the router sent to `Perform`, in order.
+    pub performed: Mutex<Vec<Invocation>>,
     /// The built-in `org.quire.Companion` provider, once a test has attached the router that
     /// hosts it (`host_companion`); until then the app is unavailable.
     companion: Hosted,
@@ -81,6 +83,7 @@ impl FakeLink {
             files,
             answering: Mutex::new(BTreeMap::new()),
             window: Mutex::new(None),
+            performed: Mutex::new(Vec::new()),
             companion: Hosted::default(),
         }
     }
@@ -119,6 +122,9 @@ impl AppLink for FakeLink {
         inv: Invocation,
         _within: Latency,
     ) -> Result<Outcome, AppFault> {
+        if let Ok(mut seen) = self.performed.lock() {
+            seen.push(inv.clone());
+        }
         let how = self
             .answering
             .lock()

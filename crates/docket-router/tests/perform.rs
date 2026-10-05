@@ -730,6 +730,7 @@ async fn the_persons_own_launcher_act_skips_policy_and_leaves_no_session_behind(
         &router,
         &launcher(),
         IntentsRequest::Perform {
+            activation: None,
             call: call("mail.thread.archive", &["t2"], vec![]),
             session: None,
             parent_window: None,
@@ -754,6 +755,7 @@ async fn a_call_names_the_session_it_belongs_to_while_two_tasks_work() {
         &router,
         &companion(),
         IntentsRequest::Perform {
+            activation: None,
             call: call("mail.thread.archive", &["t1"], vec![]),
             session: Some(first.session.clone()),
             parent_window: None,
@@ -781,6 +783,7 @@ async fn a_call_names_the_session_it_belongs_to_while_two_tasks_work() {
         &router,
         &companion(),
         IntentsRequest::Perform {
+            activation: None,
             call: call("mail.thread.archive", &["t2"], vec![]),
             session: Some(prov::SessionId::parse("s-999").expect("id")),
             parent_window: None,

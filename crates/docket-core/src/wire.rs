@@ -262,6 +262,10 @@ pub enum IntentsRequest {
         session: Option<SessionId>,
         /// The window to anchor a confirmation to.
         parent_window: Option<WindowKey>,
+        /// The launcher's activation token (D-Bus option `activation`), passed to the app's
+        /// `Perform`. The router drops it for every other role.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        activation: Option<crate::call::ActivationToken>,
     },
     /// `.Run.DryRun`: what the app would change, through the same arguments check, labels and
     /// policy as `Perform`, without asking the person, dispatching or charging a budget. A call

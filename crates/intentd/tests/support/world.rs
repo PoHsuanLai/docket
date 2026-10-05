@@ -6,7 +6,7 @@ use docket_client::DbusTransport;
 use docket_core::{AgentConfig, CallerId, CallerRole};
 use docket_fake::{FakeSeams, fake_router};
 use docket_router::Router;
-use intentd::{IntentdConfig, serve_on};
+use intentd::{IntentdConfig, ProcRoot, serve_on_with};
 use porter_core::{AppId, AppName, Isolation};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -54,12 +54,25 @@ pub struct World {
 }
 
 impl World {
+    /// intentd serving, reading a fake proc root in which this test process runs in a service
+    /// unit nothing names: a connection that owns no name is nobody.
     pub async fn serving(router: Router<FakeSeams>, config: IntentdConfig) -> World {
+        Self::serving_in(router, config, "test-runner.service").await
+    }
+
+    /// As `serving`, with this test process in the cgroup `leaf` of the fake proc root (every
+    /// connection of the test is this process).
+    pub async fn serving_in(router: Router<FakeSeams>, config: IntentdConfig, leaf: &str) -> World {
         let dir = tempfile::tempdir().expect("scratch");
+        let me = dir.path().join("proc").join(std::process::id().to_string());
+        std::fs::create_dir_all(&me).expect("fake proc");
+        let slice = "0::/user.slice/user-1000.slice/user@1000.service/app.slice";
+        std::fs::write(me.join("cgroup"), format!("{slice}/{leaf}\n")).expect("cgroup");
         let bus = PrivateBus::start(dir.path());
         let daemon = bus.connect().await;
         let router = Arc::new(router);
-        serve_on(&daemon, router.clone(), Arc::new(config))
+        let root = ProcRoot::Fixture(dir.path().join("proc"));
+        serve_on_with(&daemon, router.clone(), Arc::new(config), &root)
             .await
             .expect("intentd serves");
         World {

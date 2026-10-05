@@ -75,6 +75,7 @@ async fn terminal_with_a_grant() -> Arc<docket_router::Router<docket_fake::FakeS
         .handle(
             &cli,
             IntentsRequest::Perform {
+                activation: None,
                 call: archive(),
                 session: None,
                 parent_window: None,
@@ -120,6 +121,7 @@ async fn the_persons_session_ending_takes_the_terminals_grants_with_it() {
         .handle(
             &cli,
             IntentsRequest::Perform {
+                activation: None,
                 call: archive(),
                 session: None,
                 parent_window: None,

@@ -236,6 +236,7 @@ async fn a_hit_is_opened_by_its_kinds_open_action_performed_as_the_launcher() {
         &router,
         &launcher(),
         IntentsRequest::Perform {
+            activation: None,
             call: open,
             session: None,
             parent_window: None,

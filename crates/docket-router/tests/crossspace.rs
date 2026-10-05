@@ -83,6 +83,7 @@ async fn an_mcp_client_is_denied_a_cross_space_target() {
         &router,
         &mcp,
         IntentsRequest::Perform {
+            activation: None,
             call: CallRequest {
                 origin: Origin::Mcp,
                 ..call("mail.thread.read", &["t1"], vec![])

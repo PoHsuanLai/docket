@@ -1179,6 +1179,7 @@ dependencies = [
  "policy-point",
  "porter-client",
  "porter-core",
+ "porter-dbus",
  "porter-fake",
  "porter-infer",
  "proptest",

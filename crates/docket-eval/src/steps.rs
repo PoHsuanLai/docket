@@ -231,6 +231,7 @@ impl<'a> Player<'a> {
         let reply = block_on(self.router.handle(
             &caller,
             IntentsRequest::Perform {
+                activation: None,
                 call: CallRequest {
                     action,
                     target,

@@ -45,8 +45,8 @@ pub use budget::{
     Budget, BudgetKind, Cost, Halt, HaltCause, KillSwitch, Ledger, Reviewed, charge, halted,
 };
 pub use call::{
-    AppRefusal, ArgFault, CallEnd, CallProgress, CallRefusal, CallRequest, FailText, Follow,
-    Invocation, Origin, Outcome, Undoable,
+    ActivationToken, AppRefusal, ArgFault, CallEnd, CallProgress, CallRefusal, CallRequest,
+    FailText, Follow, Invocation, Origin, Outcome, Undoable,
 };
 pub use caller::{CallerId, CallerRole, Member};
 pub use config::{

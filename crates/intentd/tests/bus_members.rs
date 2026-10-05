@@ -332,6 +332,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     // Calls: a read, a dry run, a write, a refusal that is an answer, and the journal's undo.
     let read = pair
         .both(IntentsRequest::Perform {
+            activation: None,
             call: call("mail.thread.read", "t2"),
             session: None,
             parent_window: None,
@@ -350,6 +351,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     assert!(matches!(dry, IntentsReply::Preview(_)), "{dry:?}");
     let archived = pair
         .both(IntentsRequest::Perform {
+            activation: None,
             call: call("mail.thread.archive", "t2"),
             session: None,
             parent_window: None,
@@ -361,6 +363,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     );
     let missing = pair
         .both(IntentsRequest::Perform {
+            activation: None,
             call: call("mail.thread.nonesuch", "t2"),
             session: None,
             parent_window: None,
@@ -493,7 +496,7 @@ async fn a_caller_with_no_role_is_a_plain_app_and_an_unnamed_one_is_nobody() {
             .await,
         IntentsReply::Refused(WireRefusal::NotAllowed)
     );
-    // A connection that owns no name and runs no known executable has no identity: nobody.
+    // A connection that owns no name and runs in an unnamed service unit has no identity: nobody.
     let (nobody, _keep) = world.client(&[]).await;
     let reply = nobody
         .call(IntentsRequest::Manifests)

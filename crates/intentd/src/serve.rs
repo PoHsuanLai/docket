@@ -3,6 +3,7 @@
 use crate::bus::{Gateway, Handler, SearchPort, export};
 use crate::config::IntentdConfig;
 use crate::peer::Peers;
+use crate::procroot::ProcRoot;
 use docket_core::{CallerId, IntentsReply, IntentsRequest, Member};
 use docket_dbus::{BusConnection, INTENTS_BUS};
 use docket_router::{Router, Seams, Watch, acting_role};
@@ -66,10 +67,21 @@ pub async fn serve_on<S: Seams + 'static>(
     router: Arc<Router<S>>,
     config: Arc<IntentdConfig>,
 ) -> Result<(), ServeFault> {
+    serve_on_with(connection, router, config, &ProcRoot::System).await
+}
+
+/// As [`serve_on`], naming callers by the cgroups under `proc_root` (the system's `/proc` unless
+/// a test build chose a fixture tree).
+pub async fn serve_on_with<S: Seams + 'static>(
+    connection: &BusConnection,
+    router: Arc<Router<S>>,
+    config: Arc<IntentdConfig>,
+    proc_root: &ProcRoot,
+) -> Result<(), ServeFault> {
     let gateway = Gateway::new(
         handler(router.clone()),
         search_port(router),
-        Peers::new(connection.clone(), config),
+        Peers::with_proc_root(connection.clone(), config, proc_root),
     );
     export(connection, &gateway).await.map_err(bus)?;
     // Never queued behind another intentd: two routers would be two breakers and two journals.
