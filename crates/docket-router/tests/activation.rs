@@ -89,7 +89,13 @@ async fn the_companion_and_mcp_have_the_token_dropped() {
         ("companion", companion()),
         ("mcp", caller("org.quire.ActionsMcp", CallerRole::Mcp)),
     ] {
-        let router = router();
+        let mut router = router();
+        // The companion is granted; an MCP client is asked, and the person allows it once.
+        router.seams.confirmer =
+            docket_fake::ScriptedConfirmer::answering(vec![docket_core::ConfirmAnswer::Allowed {
+                scope: docket_core::GrantScope::Once,
+                receipt: receipt(),
+            }]);
         let opened = ready(&router).await;
         let (who, request) = perform_with(
             &who,
