@@ -38,6 +38,7 @@ tokio = { workspace = true }
 zbus = { workspace = true }
 
 [dev-dependencies]
+docket-testbus = { workspace = true }
 docket-fake = { workspace = true }
 porter-fake = { workspace = true }
 almanac-dbus = { workspace = true }

@@ -27,6 +27,7 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`) and `Reader1` as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths, `session_connection` (the session bus of a daemon, from its environment); with feature `inferd`, `inferd_transport`, the one constructor of every daemon's inferd link | zbus |
 | `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`, `serve_on`: `IntentProvider1` on the app's own name, answering intentd alone) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus`, whose `connect` finds or activates intentd and whose `call` carries all 34 members, and `Transport::watch` / `Intents::gate_check_watched` (a gate check whose `Progress(Confirming)` is heard and whose `Proceed` and `Close` are said); `requested` waits for a Request object's `Response`) | per transport |
 | `docket-fake` | test only: fixture manifests, `FakeMail`, `FakeFiles`, `ScriptedConfirmer`, `ScriptedReviewer`, `ScriptedWriter`, `ScriptedReader`, `FakeMemory`, `FixedClock`, `RecordingSink`, `MemoryGrants`, `FakeSeams`, `fake_router` | none |
+| `docket-testbus` | test only: `PrivateBus` (a private session bus from a scratch config; the daemon is killed by PID, and waited for, when it drops, and by a watchdog if the test process is killed) and `Reaped`, the guard under it; every daemon's bus tests use it | zbus |
 | `docket-eval` | the red-team suite: the corpus format and loader (`eval/`), `Case` (`Driver`: the companion or a terminal), `Expect`, `RunReport`, `Metrics`, `wilson`, the runner skeleton and `Harness`; and the conformance check `docket-eval --check-app <dir>` (`check`, `ui`) | none |
 | `docket-cli` | `quire-do`: every app drivable from a command line generated from its manifest. A thin client over `docket-client` with caller role `cli`: the command grammar, the parameter mapping, `describe` through stoker's `Shape::to_json_schema`, the exit codes, text and JSON output, shell completion. It reaches the bus only through `docket-client`, and never the router, Cedar or the policy point | per transport (the binary: the session bus) |
 | `actions-mcp` | the MCP edge: `tools`, `tool_name`, `hints_of`, `mcp_label`, `McpAccess` (off by default), `read_call` (docket-core's `args_from_json`), `McpFault`, `McpEdge` over `rmcp`, which serves `list_tools` and `call_tool`; the binary is a skeleton | rmcp |
@@ -51,6 +52,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `docket-dbus` | `docket-core`, `prov`, `porter-dbus`; `porter-client` with feature `inferd` |
 | `docket-client` | `docket-core`, `docket-router`, `prov`; `docket-dbus` with feature `dbus` |
 | `docket-fake` | `docket-core`, `docket-router`, `docket-client`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
+| `docket-testbus` | `docket-dbus` |
 | `docket-eval` | `docket-core`, `docket-fake`, `docket-router`, `prov`, `porter-core` |
 | `actions-mcp` | `docket-core`, `docket-client`, `prov`, `porter-core` (+ `rmcp`) |
 | `intentd` | `docket-core`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
@@ -88,6 +90,7 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `docket-dbus` | `names`, `error`, one file per interface, `introspect` |
 | `docket-client` | `provider`, `transport` < `watch` < `awaiting`, `watch_bus`, `watch_in_process` < `bus` < `intents`, `session_calls`, `provider_bus` < `serve` |
 | `docket-fake` | `labels`, `simple`, `mail`, `files`, `scripted`, `seams`, `router` |
+| `docket-testbus` | `guard` < `lib` (`PrivateBus`) |
 | `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `check` < `ui` (the binary `docket-eval` runs `check`) |
 | `docket-cli` | `exit`, `args` < `resolve`, `when` < `params`, `schema`, `outcome` < `render`, `complete`, `help` < `exec` < `lib` (`run`), `main` |
 | `intentd` | `config`, `builtin_memory`, `builtin_companion` < `builtin`, `record` < `sink` < `audit`, `memory`, `grants`, `peer` < `sheet`, `link`, `infer`, `writer`, `reader_client`, `reviewers`, `system`, `bus` (`request`, `query`, `run`, `session`, `control`) < `serve`, `logout`, `manifests` < `signals` < `daemon` (`main`) |

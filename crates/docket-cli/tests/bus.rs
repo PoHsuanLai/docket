@@ -6,60 +6,9 @@
 //! intentd on it, `e2e.rs` runs the same binary against intentd's real `start`; every exit code
 //! is also tested through the library against docket-fake (`exit_codes.rs`).
 
-use std::io::{BufRead, BufReader};
+use docket_testbus::PrivateBus;
 use std::path::Path;
-use std::process::{Child, Command, Stdio};
-
-const CONFIG: &str = r#"<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
- "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
-<busconfig>
-  <type>session</type>
-  <listen>unix:path=SOCKET</listen>
-  <auth>EXTERNAL</auth>
-  <policy context="default">
-    <allow send_destination="*" eavesdrop="true"/>
-    <allow eavesdrop="true"/>
-    <allow own="*"/>
-  </policy>
-</busconfig>
-"#;
-
-/// A bus of our own, killed when the test ends.
-struct PrivateBus {
-    child: Child,
-    address: String,
-}
-
-impl PrivateBus {
-    fn start(dir: &Path) -> Option<Self> {
-        let socket = dir.join("bus.sock");
-        let config = dir.join("bus.conf");
-        std::fs::write(&config, CONFIG.replace("SOCKET", &socket.to_string_lossy())).ok()?;
-        let mut child = Command::new("dbus-daemon")
-            .arg(format!("--config-file={}", config.display()))
-            .args(["--nofork", "--print-address=1"])
-            .env_clear()
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .ok()?;
-        let mut address = String::new();
-        BufReader::new(child.stdout.take()?)
-            .read_line(&mut address)
-            .ok()?;
-        Some(Self {
-            child,
-            address: address.trim().to_owned(),
-        })
-    }
-}
-
-impl Drop for PrivateBus {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
-}
+use std::process::Command;
 
 /// `quire-do` with a scratch world: only what is named here reaches the process.
 fn quire_do(dir: &Path, bus: &str, words: &[&str]) -> std::process::Output {
@@ -83,14 +32,12 @@ fn text(bytes: &[u8]) -> String {
 #[test]
 fn where_intentd_is_not_the_exit_is_6_and_nothing_is_sent() {
     let dir = tempfile::tempdir().expect("scratch dir");
-    let Some(bus) = PrivateBus::start(dir.path()) else {
-        panic!("dbus-daemon is needed for the private-bus tests (the gate machine has it)");
-    };
-    assert!(bus.address.starts_with("unix:"), "{}", bus.address);
+    let bus = PrivateBus::start_eavesdropping(dir.path());
+    assert!(bus.address().starts_with("unix:"), "{}", bus.address());
     assert!(
-        !bus.address.contains("/run/user"),
+        !bus.address().contains("/run/user"),
         "the private bus is not the person's own: {}",
-        bus.address
+        bus.address()
     );
     for words in [
         vec!["apps"],
@@ -98,7 +45,7 @@ fn where_intentd_is_not_the_exit_is_6_and_nothing_is_sent() {
         vec!["mail", "thread.archive", "t1"],
         vec!["undo", "--last"],
     ] {
-        let out = quire_do(dir.path(), &bus.address, &words);
+        let out = quire_do(dir.path(), bus.address(), &words);
         assert_eq!(
             out.status.code(),
             Some(6),

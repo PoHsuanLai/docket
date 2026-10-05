@@ -31,6 +31,7 @@ zbus = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+docket-testbus = { workspace = true }
 tempfile = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-fake = { workspace = true }

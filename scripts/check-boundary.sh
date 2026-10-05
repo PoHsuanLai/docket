@@ -33,6 +33,8 @@ RULES=(
   "docket-client: $EFFECTS toml"
   "docket-fake: $NO_CEDAR"
   "docket-eval: $NO_CEDAR"
+  # Test only: a private bus for the daemons' tests; nothing of the router, Cedar or the effects.
+  "docket-testbus: docket-router policy-point action-review cedar-policy reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp"
   # quire-do is a thin client: it reaches the bus only through docket-client (the EDGES row below
   # forbids a direct docket-dbus or zbus), never the router, the policy point, the reviewer's
   # cascade or Cedar: a terminal has no way around intentd's gate.
@@ -107,6 +109,7 @@ EDGES=(
   "docket-client: docket-core docket-dbus docket-router prov"
   "docket-fake: action-review almanac-core docket-client docket-core docket-router policy-point porter-core prov"
   "docket-eval: docket-core docket-fake docket-router porter-core prov"
+  "docket-testbus: docket-dbus"
   "actions-mcp: docket-client docket-core porter-core prov"
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router policy-point porter-client porter-core porter-infer prov"
   "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"

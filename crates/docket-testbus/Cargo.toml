@@ -1,0 +1,19 @@
+[package]
+name = "docket-testbus"
+description = "Test only: a private session bus (a dbus-daemon from a scratch config) whose teardown is certain, shared by the daemons' and the terminal's bus tests."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-dbus = { workspace = true }
+zbus = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
