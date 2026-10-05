@@ -20,13 +20,20 @@ impl RunBus {
         #[zbus(header)] header: Header<'_>,
         #[zbus(connection)] connection: &zbus::Connection,
     ) -> Result<OwnedObjectPath, IntentsError> {
-        let _ = options;
+        // A caller that watches is told how far the call is (`Reviewing`, `Previewing`,
+        // `Confirming`, `Dispatched`); nothing waits for it.
+        let watching = match options.contains_key(docket_dbus::OPTION_WATCH) {
+            true => Watching::Listening,
+            false => Watching::No,
+        };
         let request = IntentsRequest::Perform {
             call: json(&call)?,
             session: json(&session)?,
             parent_window: json(&parent_window)?,
         };
-        self.0.start(&header, connection, request).await
+        self.0
+            .start_as(&header, connection, request, watching)
+            .await
     }
 
     async fn dry_run(

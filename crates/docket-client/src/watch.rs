@@ -8,7 +8,11 @@
 
 use crate::intents::{ClientError, Intents};
 use crate::transport::{Transport, TransportError};
-use docket_core::{CallProgress, ConfirmId, CuaAsk, GateAnswer, IntentsReply, IntentsRequest};
+use docket_core::{
+    CallProgress, CallRefusal, CallRequest, ConfirmId, CuaAsk, GateAnswer, IntentsReply,
+    IntentsRequest, Outcome, WindowKey,
+};
+use prov::SessionId;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -182,5 +186,62 @@ impl<T: Transport> Intents<T> {
             events,
             steer: GateSteer(steering),
         })
+    }
+}
+
+/// What a watched `Run.Perform` says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PerformEvent {
+    /// How far the call is: `Reviewing`, `Previewing`, `Confirming(id)` (the sheet is up),
+    /// `Dispatched`.
+    Progress(CallProgress),
+    /// The call's own end. Nothing follows.
+    Done(Result<Outcome, CallRefusal>),
+}
+
+/// A `Run.Perform` in flight: read what it says. Nothing waits for the caller.
+pub struct PerformWatch {
+    events: Box<dyn Events>,
+}
+
+impl std::fmt::Debug for PerformWatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("PerformWatch")
+    }
+}
+
+impl PerformWatch {
+    /// The next event; the call's end is the last, and a refused request is an error.
+    pub async fn next(&mut self) -> Result<PerformEvent, ClientError> {
+        match self.events.next().await? {
+            Said::Progress(progress) => Ok(PerformEvent::Progress(progress)),
+            Said::Answer(reply) => match *reply {
+                IntentsReply::Performed(end) => Ok(PerformEvent::Done(*end)),
+                IntentsReply::Refused(why) => Err(ClientError::Refused(why)),
+                _ => Err(ClientError::Unexpected),
+            },
+        }
+    }
+}
+
+impl<T: Transport> Intents<T> {
+    /// `perform`, watched: the progress of the call comes out as it happens (a person's sheet is
+    /// announced as `Confirming(id)` as it is drawn) and the end is the last event. A transport
+    /// that cannot watch gives the end alone.
+    pub async fn perform_watched(
+        &self,
+        call: CallRequest,
+        session: Option<SessionId>,
+        parent_window: Option<WindowKey>,
+    ) -> Result<PerformWatch, ClientError> {
+        let Watched { events, .. } = self
+            .transport()
+            .watch(IntentsRequest::Perform {
+                call,
+                session,
+                parent_window,
+            })
+            .await?;
+        Ok(PerformWatch { events })
     }
 }

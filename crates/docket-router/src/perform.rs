@@ -10,6 +10,7 @@ use crate::prepared::{Prepared, grants_for};
 use crate::router::Router;
 use crate::seams::{AppFault, AppLink, Clock, EventSink, GrantStore, Seams};
 use crate::terminal::offers_grant;
+use crate::watch::Watch;
 use crate::who::Who;
 use action_review::{DeniedBy, ReviewVerdict, Reviewer};
 use docket_core::{
@@ -28,15 +29,16 @@ impl<S: Seams> Router<S> {
         who: Who,
         request: CallRequest,
         window: Option<WindowKey>,
+        watch: &Watch,
     ) -> Result<Outcome, CallRefusal> {
         let mut outcome = self
-            .perform_once(&who, request, window.clone(), Depth(0))
+            .perform_once(&who, request, window.clone(), Depth(0), watch)
             .await?;
         let mut depth = 0u8;
         while let Follow::Next(next) = outcome.follow.clone() {
             depth = depth.saturating_add(1);
             match self
-                .perform_once(&who, next, window.clone(), Depth(depth))
+                .perform_once(&who, next, window.clone(), Depth(depth), watch)
                 .await
             {
                 Ok(done) => outcome = done,
@@ -55,11 +57,12 @@ impl<S: Seams> Router<S> {
         request: CallRequest,
         window: Option<WindowKey>,
         depth: Depth,
+        watch: &Watch,
     ) -> Result<Outcome, CallRefusal> {
         match self.prepare(who, request, window, depth) {
             Err(early) => Err(self.finish_early(*early)),
             Ok(prepared) => {
-                let driven = self.drive(&prepared).await;
+                let driven = self.drive(&prepared, watch).await;
                 self.finish(&prepared, driven)
             }
         }
@@ -74,7 +77,7 @@ impl<S: Seams> Router<S> {
         })
     }
 
-    async fn drive(&self, p: &Prepared) -> Driven {
+    async fn drive(&self, p: &Prepared, watch: &Watch) -> Driven {
         let mut run = Run::new();
         run.state = call_step(run.state.clone(), CallEvent::ArgsChecked(Ok(()))).0;
         if matches!(p.pending, Pending::Refuse(_)) {
@@ -86,6 +89,9 @@ impl<S: Seams> Router<S> {
             run.state = state;
             for effect in &effects {
                 self.carry_out(p, &mut run, effect);
+                if let CallEffect::Progress(progress) = effect {
+                    watch.tell(progress.clone()).await;
+                }
             }
             if matches!(run.state, CallState::Done(_)) {
                 break;

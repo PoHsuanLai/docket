@@ -129,27 +129,59 @@ pub(crate) fn response<T: DeserializeOwned>(
     }
 }
 
-/// `Gate.Check` for a caller that watches it: the option tells intentd to say `Confirming` and to
-/// wait for `Proceed` before it draws the sheet.
-pub(crate) async fn watch(
-    connection: &BusConnection,
-    request: IntentsRequest,
-) -> Result<crate::watch::Watched, TransportError> {
-    let IntentsRequest::GateCheck(ask) = request else {
-        return Ok(crate::watch::Watched::answered(
-            call(connection, request).await?,
-        ));
-    };
-    let proxy = GateProxy::new(connection).await.map_err(bus)?;
-    let ask = to_json(&ask)?;
+/// The `options` of a request whose caller watches it.
+fn watching_options() -> Details {
     let mut options = Details::new();
     if let Ok(on) = zbus::zvariant::OwnedValue::try_from(zbus::zvariant::Value::Bool(true)) {
         options.insert(docket_dbus::OPTION_WATCH.to_owned(), on);
     }
-    let start = proxy.check(&ask, &options);
-    match crate::watch_bus::watching(connection, start, crate::watch_bus::gate_reading).await? {
-        Ok(watched) => Ok(watched),
-        Err(error) => Ok(crate::watch::Watched::answered(refused(error)?)),
+    options
+}
+
+/// `Gate.Check` and `Run.Perform` for a caller that watches them: the option tells intentd to say
+/// how far the request is, and for a gate check to wait for `Proceed` before it draws the sheet.
+/// Any other request is answered in one piece.
+pub(crate) async fn watch(
+    connection: &BusConnection,
+    request: IntentsRequest,
+) -> Result<crate::watch::Watched, TransportError> {
+    let options = watching_options();
+    match request {
+        IntentsRequest::GateCheck(ask) => {
+            let proxy = GateProxy::new(connection).await.map_err(bus)?;
+            let ask = to_json(&ask)?;
+            let start = proxy.check(&ask, &options);
+            let started =
+                crate::watch_bus::watching(connection, start, crate::watch_bus::gate_reading)
+                    .await?;
+            match started {
+                Ok(watched) => Ok(watched),
+                Err(error) => Ok(crate::watch::Watched::answered(refused(error)?)),
+            }
+        }
+        IntentsRequest::Perform {
+            call,
+            session,
+            parent_window,
+        } => {
+            let run = RunProxy::new(connection).await.map_err(bus)?;
+            let (call, session, window) = (
+                to_json(&call)?,
+                to_json(&session)?,
+                to_json(&parent_window)?,
+            );
+            let start = run.perform(&call, &session, &window, &options);
+            let started =
+                crate::watch_bus::watching(connection, start, crate::watch_bus::perform_reading)
+                    .await?;
+            match started {
+                Ok(watched) => Ok(watched),
+                Err(error) => Ok(crate::watch::Watched::answered(refused(error)?)),
+            }
+        }
+        other => Ok(crate::watch::Watched::answered(
+            call(connection, other).await?,
+        )),
     }
 }
 
@@ -267,10 +299,10 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
         }
         Q::SessionResolve { session, handle } => {
             let proxy = SessionProxy::new(c).await.map_err(bus)?;
-            match proxy.resolve(session.as_str(), handle.0).await {
-                Ok(text) => Ok(IntentsReply::Text(text)),
-                Err(error) => refused(error),
-            }
+            body(
+                proxy.resolve(session.as_str(), handle.0).await,
+                IntentsReply::Resolved,
+            )
         }
         Q::SessionDisplay { session, handle } => {
             let proxy = SessionProxy::new(c).await.map_err(bus)?;

@@ -53,6 +53,19 @@ impl Watch {
         }
     }
 
+    /// A watcher that only listens: `progress` carries each step to it; it has nothing to say back
+    /// (`proceeded` is ready at once, `withdrawn` never is). A `Run.Perform`'s requester.
+    pub fn listening<P>(progress: P) -> Self
+    where
+        P: Fn(CallProgress) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
+    {
+        Self {
+            progress: Some(Arc::new(progress)),
+            proceed: None,
+            closed: None,
+        }
+    }
+
     /// Tells the watcher how far the call is.
     pub(crate) async fn tell(&self, progress: CallProgress) {
         if let Some(tell) = &self.progress {

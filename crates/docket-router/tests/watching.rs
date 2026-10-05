@@ -225,3 +225,161 @@ async fn nobody_watching_means_no_wait() {
     let answer = ask(&router, &cuad(), IntentsRequest::GateCheck(step(&run))).await;
     assert_eq!(answer, IntentsReply::Gate(GateAnswer::Run));
 }
+
+fn send_to_a_stranger() -> CallRequest {
+    CallRequest {
+        action: action("mail.message.send"),
+        target: TargetValue::Nothing,
+        args: [
+            (
+                param("to"),
+                prov::Labelled {
+                    value: Value::Entity(entity("mail.contact", "eve@evil.test")),
+                    label: trusted(),
+                },
+            ),
+            (
+                param("body"),
+                prov::Labelled {
+                    value: Value::Text("tidy".into()),
+                    label: trusted(),
+                },
+            ),
+        ]
+        .into_iter()
+        .collect(),
+        origin: Origin::Companion,
+    }
+}
+
+fn performing(call: CallRequest) -> IntentsRequest {
+    IntentsRequest::Perform {
+        call,
+        session: None,
+        parent_window: None,
+    }
+}
+
+fn said(remote: &Remote) -> Vec<CallProgress> {
+    std::iter::from_fn(|| remote.progress.take()).collect()
+}
+
+#[tokio::test]
+async fn a_perform_tells_a_watcher_how_far_it_is_and_waits_for_nothing() {
+    let router = router();
+    ready(&router).await;
+    let (watch, remote) = watched();
+    let caller = companion();
+    // An outbound send to a stranger: previewed, then the person is asked (and dismisses).
+    let answer = router
+        .handle_watched(&caller, performing(send_to_a_stranger()), watch)
+        .await;
+    assert!(matches!(answer, IntentsReply::Performed(_)), "{answer:?}");
+    let progress = said(&remote);
+    let shown = router.seams.confirmer.requests();
+    assert_eq!(shown.len(), 1);
+    assert_eq!(
+        progress,
+        [
+            CallProgress::Previewing,
+            CallProgress::Confirming(shown[0].id.clone())
+        ],
+        "the watcher knows of the sheet as it is drawn, and no Proceed was needed"
+    );
+}
+
+#[tokio::test]
+async fn a_judged_call_says_reviewing_and_then_dispatched() {
+    // Under TrustMore an outbound act with every sink trusted is judged by every stage, then runs.
+    let mut router = router();
+    router.config.strictness = Strictness::TrustMore;
+    ready(&router).await;
+    let suggested = ask(
+        &router,
+        &companion(),
+        IntentsRequest::Suggest(SuggestAsk {
+            action: action("mail.message.send"),
+            param: param("to"),
+            typed: String::new(),
+        }),
+    )
+    .await;
+    assert!(
+        matches!(suggested, IntentsReply::Suggestions(_)),
+        "{suggested:?}"
+    );
+    let mut send = send_to_a_stranger();
+    send.args.insert(
+        param("to"),
+        prov::Labelled {
+            value: Value::Entity(entity("mail.contact", "c1")),
+            label: trusted(),
+        },
+    );
+    let (watch, remote) = watched();
+    let answer = router
+        .handle_watched(&companion(), performing(send), watch)
+        .await;
+    assert!(matches!(answer, IntentsReply::Performed(_)), "{answer:?}");
+    let progress = said(&remote);
+    assert!(progress.contains(&CallProgress::Reviewing), "{progress:?}");
+    assert_eq!(
+        progress.last(),
+        Some(&CallProgress::Dispatched),
+        "{progress:?}"
+    );
+}
+
+#[tokio::test]
+async fn an_unwatched_perform_is_as_before() {
+    let router = router();
+    ready(&router).await;
+    let answer = ask(&router, &companion(), performing(send_to_a_stranger())).await;
+    assert!(matches!(answer, IntentsReply::Performed(_)), "{answer:?}");
+}
+
+#[tokio::test]
+async fn a_watcher_that_never_proceeds_is_refused_unasked_after_the_configured_time() {
+    use docket_core::{AgentConfig, Millis};
+    // The time is a setting, and the clock is virtual: nothing here waits.
+    let config = AgentConfig {
+        confirm_proceed: Millis(2_500),
+        ..AgentConfig::default()
+    };
+    let mut router = docket_fake::fake_router(config).expect("router");
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![yes()]);
+    let run = run_with_session(&router).await;
+    let (watch, _remote) = watched();
+    let caller = cuad();
+    let check = router.handle_watched(&caller, IntentsRequest::GateCheck(step(&run)), watch);
+    let clock_side = async {
+        // The router asks the clock for the Proceed deadline: the configured one.
+        assert_eq!(router.seams.clock.next_ask().await, Millis(2_500));
+        router.seams.clock.advance(Millis(2_499));
+        for _ in 0..5 {
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(router.seams.clock.asked(), [Millis(2_500)]);
+        router.seams.clock.advance(Millis(1));
+    };
+    let (answer, ()) = tokio::join!(check, clock_side);
+    assert_eq!(
+        answer,
+        IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(
+            ConfirmEnd::Expired
+        )))
+    );
+    assert!(
+        router.seams.confirmer.requests().is_empty(),
+        "no sheet was drawn"
+    );
+}
+
+#[tokio::test]
+async fn the_proceed_time_is_a_setting_with_a_default_of_ten_seconds() {
+    assert_eq!(AgentConfig::default().confirm_proceed, Millis(10_000));
+    assert_eq!(
+        AgentConfig::default().value("agent.confirm.proceed_ms"),
+        Some(SettingValue::Number(10_000))
+    );
+}

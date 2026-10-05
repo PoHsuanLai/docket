@@ -162,3 +162,13 @@ pub(crate) async fn watching(
 pub(crate) fn gate_reading(answer: (u32, String)) -> Result<IntentsReply, TransportError> {
     crate::bus::response(Ok(answer), IntentsReply::Gate)
 }
+
+/// `IntentsReply` of a `Run.Perform` `Response`.
+pub(crate) fn perform_reading(answer: (u32, String)) -> Result<IntentsReply, TransportError> {
+    crate::bus::response(
+        Ok(answer),
+        |end: Result<docket_core::Outcome, docket_core::CallRefusal>| {
+            IntentsReply::Performed(Box::new(end))
+        },
+    )
+}

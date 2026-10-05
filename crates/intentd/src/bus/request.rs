@@ -4,9 +4,11 @@
 //! answer is awaited; a caller subscribes before it calls, so a quick answer is not lost.
 
 use super::{Gateway, render};
-use docket_core::{CallId, IntentsReply, IntentsRequest, WireRefusal};
+use docket_core::{CallId, CallProgress, IntentsReply, IntentsRequest, WireRefusal};
 use docket_dbus::{IntentsError, request_path};
 use docket_router::{Flag, Watch};
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use tokio::task::AbortHandle;
@@ -17,12 +19,15 @@ use zbus::zvariant::OwnedObjectPath;
 const DONE: u32 = 0;
 const REFUSED: u32 = 2;
 
-/// Whether the caller said it watches the request (`Gate.Check`'s `watch` option): it then
-/// hears `Progress`, and the router waits for its `Proceed` before it draws a sheet.
+/// Whether the caller said it watches the request (the `watch` option): it then hears `Progress`.
+/// A gate check also steers (the router waits for its `Proceed` before it draws a sheet); a
+/// `Run.Perform` only listens.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Watching {
     /// It listens and steers.
     Yes,
+    /// It listens; nothing waits for it, and `Close` aborts the call as for any request.
+    Listening,
     /// It waits for the `Response` alone.
     No,
 }
@@ -121,25 +126,32 @@ fn response_of(reply: IntentsReply) -> Result<(u32, String), IntentsError> {
 fn watch_of(connection: zbus::Connection, to: String, at: String, steer: &Steer) -> Watch {
     let (proceed, closed) = (steer.proceed.clone(), steer.closed.clone());
     Watch::new(
-        move |progress| {
-            let (connection, to, at) = (connection.clone(), to.clone(), at.clone());
-            Box::pin(async move {
-                if let Ok(text) = render(&progress) {
-                    let _ = connection
-                        .emit_signal(
-                            Some(to.as_str()),
-                            at.as_str(),
-                            "org.quire.Intents1.Request",
-                            "Progress",
-                            &(text,),
-                        )
-                        .await;
-                }
-            })
-        },
+        progress_to(connection, to, at),
         move || Box::pin(proceed.up()),
         move || Box::pin(closed.up()),
     )
+}
+
+type Telling = Box<dyn Fn(CallProgress) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
+
+/// `Progress` signals to `to` alone, from the request object at `at`.
+fn progress_to(connection: zbus::Connection, to: String, at: String) -> Telling {
+    Box::new(move |progress| {
+        let (connection, to, at) = (connection.clone(), to.clone(), at.clone());
+        Box::pin(async move {
+            if let Ok(text) = render(&progress) {
+                let _ = connection
+                    .emit_signal(
+                        Some(to.as_str()),
+                        at.as_str(),
+                        "org.quire.Intents1.Request",
+                        "Progress",
+                        &(text,),
+                    )
+                    .await;
+            }
+        })
+    })
 }
 
 impl Gateway {
@@ -179,12 +191,15 @@ impl Gateway {
                 proceed: Flag::new(),
                 closed: Flag::new(),
             }),
-            Watching::No => None,
+            Watching::Listening | Watching::No => None,
         };
-        let watch = steer
-            .clone()
-            .map(|s| watch_of(connection.clone(), to.to_string(), at.clone(), &s))
-            .unwrap_or_else(Watch::none);
+        let watch = match (&steer, watching) {
+            (Some(s), _) => watch_of(connection.clone(), to.to_string(), at.clone(), s),
+            (None, Watching::Listening) => {
+                Watch::listening(progress_to(connection.clone(), to.to_string(), at.clone()))
+            }
+            (None, _) => Watch::none(),
+        };
         let withdrawn = steer.clone();
         let work = tokio::spawn(async move {
             // The object is exported before the router is asked, so its removal below always

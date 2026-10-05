@@ -33,4 +33,7 @@ pub use transport::DbusTransport;
 #[cfg(feature = "in_process")]
 pub use transport::InProcess;
 pub use transport::{Transport, TransportError};
-pub use watch::{Boxed, Events, GateEvent, GateSteer, GateWatch, Said, Steering, Watched};
+pub use watch::{
+    Boxed, Events, GateEvent, GateSteer, GateWatch, PerformEvent, PerformWatch, Said, Steering,
+    Watched,
+};

@@ -59,7 +59,9 @@ impl<S: Seams> Router<S> {
 
     /// `handle` for a request whose requester watches it: a computer-use gate check tells
     /// `watch` when it is about to ask the person (`Progress(Confirming)`) and waits for its
-    /// `Proceed` before the sheet is drawn, and a withdrawn request takes its sheet back.
+    /// `Proceed` before the sheet is drawn, and a withdrawn request takes its sheet back. A
+    /// `Run.Perform` tells `watch` how far the call is (`Reviewing`, `Previewing`,
+    /// `Confirming(id)`, `Dispatched`) and waits for nothing.
     #[allow(clippy::manual_async_fn)]
     pub fn handle_watched(
         &self,
@@ -98,7 +100,7 @@ impl<S: Seams> Router<S> {
                 let who = self.locked().who_for(caller, role, session.as_ref(), now);
                 match who {
                     Ok(who) => IntentsReply::Performed(Box::new(
-                        self.perform_chain(who, call, parent_window).await,
+                        self.perform_chain(who, call, parent_window, watch).await,
                     )),
                     Err(why) => IntentsReply::Refused(why),
                 }

@@ -5,7 +5,7 @@ use crate::transport::{Transport, TransportError};
 use docket_core::{
     ActionRef, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, EntityRef, GateAnswer,
     GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk, IntentsReply,
-    IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Outcome, Preview, SearchAsk,
+    IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Outcome, Preview, Resolved, SearchAsk,
     SessionOpen, SessionOpened, SuggestAsk, TurnId, TurnIn, UndoEntry, UndoId, UndoReport,
     UndoScope, ValidManifest, WidenAnswer, WidenAsk, WindowKey, WireRefusal,
 };
@@ -283,17 +283,17 @@ impl<T: Transport> Intents<T> {
         .await
     }
 
-    /// The text behind a handle, for the quarantined reader (the `reader` role's alone): the
-    /// session now counts as having shown it to a reader.
+    /// The text behind a handle and its label, for the quarantined reader (the `reader` role's
+    /// alone): the session now counts as having shown it to a reader.
     pub async fn session_resolve(
         &self,
         session: SessionId,
         handle: Handle,
-    ) -> Result<String, ClientError> {
+    ) -> Result<Resolved, ClientError> {
         self.ask(
             IntentsRequest::SessionResolve { session, handle },
             |r| match r {
-                IntentsReply::Text(text) => Some(text),
+                IntentsReply::Resolved(resolved) => Some(resolved),
                 _ => None,
             },
         )

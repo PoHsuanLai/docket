@@ -1,7 +1,9 @@
 //! `Session`: one per task; the role decides who may call what (the router checks).
 
 use super::{Gateway, json, parsed};
-use docket_core::{Handle, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, TurnId, WidenAsk};
+use docket_core::{
+    Handle, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, TurnId, WidenAsk,
+};
 use docket_dbus::{Details, IntentsError};
 use prov::SessionId;
 use zbus::message::Header;
@@ -73,7 +75,7 @@ impl SessionBus {
             session: session_of(&session)?,
             handle: Handle(handle),
         };
-        self.0.ask(&header, request, text).await
+        self.0.answer(&header, request, resolved).await
     }
 
     async fn display(
@@ -204,6 +206,13 @@ impl SessionBus {
                 _ => None,
             })
             .await
+    }
+}
+
+fn resolved(reply: IntentsReply) -> Option<Resolved> {
+    match reply {
+        IntentsReply::Resolved(resolved) => Some(resolved),
+        _ => None,
     }
 }
 
