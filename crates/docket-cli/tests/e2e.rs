@@ -5,8 +5,11 @@
 //! XDG directories (the app's manifest is installed under the scratch `XDG_DATA_DIRS`): the
 //! person's real session bus and `~/.config` are never named.
 //!
-//! The terminal's AppId (`org.quire.Do`, role cli) comes from the pid behind its connection:
-//! the binary owns no bus name, so intentd names it by its executable.
+//! The terminal's AppId (`org.quire.Do`, role cli) comes from the cgroup of the pid behind its
+//! connection: the binary owns no bus name, so intentd names it by the scope it runs in. The test
+//! reads a fake proc root: `quire()` starts the binary through `sh`, which waits for a line on
+//! its stdin, so the child's pid (kept by `exec`) is placed in a `vte-spawn-*.scope` before the
+//! binary exists, with no timing to rely on.
 
 #[path = "../../intentd/tests/support/apps.rs"]
 mod apps;
@@ -19,7 +22,7 @@ use apps::{Answer, FakeSill, SharedMail, serve_mail};
 use bus::PrivateBus;
 use docket_client::{DbusTransport, Intents};
 use docket_core::{ActionRef, AskReason, ConfirmAnswer, ConfirmEnd, ConfirmOffer, GrantScope};
-use intentd::{Running, Setup, start};
+use intentd::{ProcRoot, Running, Setup, start};
 use memoryd::FakeMemoryd;
 use prov::{Actor, ConfirmId, ConfirmReceipt, InputProof, SpaceScope, UnixSeconds};
 use std::path::Path;
@@ -103,6 +106,7 @@ impl Desk {
         let mut setup = Setup::from_env(&env).expect("the shipped configuration and the manifests");
         setup.audit_every = std::time::Duration::from_millis(100);
         setup.signals.every = std::time::Duration::from_millis(30);
+        setup.proc_root = ProcRoot::Fixture(dir.path().join("proc"));
         let daemon_connection = bus.connect().await;
         let intentd = start(&daemon_connection, None, setup)
             .await
@@ -126,10 +130,14 @@ impl Desk {
         }
     }
 
-    /// The real `quire-do`, with only what is named here in its environment.
+    /// The real `quire-do`, with only what is named here in its environment, running in a
+    /// terminal's scope of the fake proc root.
     async fn quire(&self, words: &[&str]) -> Output {
+        use tokio::io::AsyncWriteExt;
         let scratch: &Path = self.dir.path();
-        tokio::process::Command::new(env!("CARGO_BIN_EXE_quire-do"))
+        let mut child = tokio::process::Command::new("sh")
+            .args(["-c", "read _; exec \"$0\" \"$@\" </dev/null"])
+            .arg(env!("CARGO_BIN_EXE_quire-do"))
             .args(words)
             .env_clear()
             .env("HOME", scratch)
@@ -138,11 +146,21 @@ impl Desk {
             .env("XDG_DATA_DIRS", scratch.join("none"))
             .env("XDG_CONFIG_HOME", scratch.join("config"))
             .env("DBUS_SESSION_BUS_ADDRESS", self.bus.address())
-            .stdin(std::process::Stdio::null())
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
             .kill_on_drop(true)
-            .output()
-            .await
-            .expect("quire-do runs")
+            .spawn()
+            .expect("quire-do starts");
+        let pid = child.id().expect("a pid");
+        let at = scratch.join("proc").join(pid.to_string());
+        std::fs::create_dir_all(&at).expect("fake proc");
+        let slice = "0::/user.slice/user-1000.slice/user@1000.service/app.slice";
+        std::fs::write(at.join("cgroup"), format!("{slice}/vte-spawn-1.scope\n")).expect("cgroup");
+        let mut go = child.stdin.take().expect("stdin");
+        go.write_all(b"\n").await.expect("go");
+        drop(go);
+        child.wait_with_output().await.expect("quire-do runs")
     }
 
     async fn stop_intentd(&mut self) {
@@ -446,7 +464,7 @@ async fn an_app_that_is_absent_is_exit_6() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_process_that_is_not_quire_do_is_not_the_terminal() {
     let desk = Desk::start().await;
-    // This test binary owns no name and runs no known executable: intentd names it nobody.
+    // This test binary owns no name and has no cgroup in the fake proc root: intentd names it nobody.
     let stranger = DbusTransport::new(desk.bus.connect().await);
     let intents = Intents::over(stranger);
     let reply = intents.manifests().await;
