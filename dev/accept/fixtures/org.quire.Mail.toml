@@ -1,0 +1,138 @@
+# The acceptance run's mail manifest: what a real org.quire.Mail provider has to declare for SPEC
+# section 5 flows (a) and (c). Every field is written. Names follow the app prefix rule (`mail.`),
+# so the contact lookup the spec calls `contacts.search` is `mail.contact.search` here.
+vocab = 1
+app = "org.quire.Mail"
+
+[[entities]]
+kind = "mail.thread"
+label = "Thread"
+plural = "Threads"
+icon = "mail"
+class = "mail"
+index = "not_indexed"
+# Subjects are written by other people.
+titles = { kind = "third_party", v = { kind = "mail" } }
+props = []
+
+[[entities]]
+kind = "mail.contact"
+label = "Contact"
+plural = "Contacts"
+icon = "person"
+class = "contacts"
+index = "not_indexed"
+# Contacts are the person's own store: trusted.
+titles = { kind = "app_authored" }
+props = []
+
+# Finds threads by subject. The titles it returns are somebody else's words.
+[[actions]]
+name = "mail.thread.find"
+label = "Find threads"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["mail"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "entities", v = "mail.thread" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "query"
+label = "Words in the subject"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+# Reads one thread. The body is somebody else's words: ThirdParty(Mail) is the trust floor.
+[[actions]]
+name = "mail.thread.read"
+label = "Read"
+on = { kind = "one", v = "mail.thread" }
+effect = "read"
+classes = ["mail"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 20000, lines = "many" } }, trust = { kind = "third_party", v = { kind = "mail" } } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+# The person's own contacts, a trusted store.
+[[actions]]
+name = "mail.contact.search"
+label = "Find contacts"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["contacts"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "entities", v = "mail.contact" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "query"
+label = "Name"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+# Forwarding is Outbound; the app holds the send for an undo window, so it has a token.
+[[actions]]
+name = "mail.message.forward"
+label = "Forward"
+on = { kind = "many", v = "mail.thread" }
+effect = "outbound"
+classes = ["mail", "contacts"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "preview"
+
+[[actions.params]]
+name = "to"
+label = "To"
+ty = { kind = "entity", v = "mail.contact" }
+need = { kind = "required" }
+sink = "recipient"
+
+# A fresh message: Body and Recipient sinks, the shape of the injection scenario's send.
+[[actions]]
+name = "mail.message.send"
+label = "Send"
+on = { kind = "nothing" }
+effect = "outbound"
+classes = ["mail", "contacts"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "preview"
+
+[[actions.params]]
+name = "to"
+label = "To"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "recipient"
+
+[[actions.params]]
+name = "body"
+label = "Message"
+ty = { kind = "text", v = { max = 20000, lines = "many" } }
+need = { kind = "required" }
+sink = "body"

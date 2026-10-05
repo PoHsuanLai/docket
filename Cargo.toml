@@ -11,6 +11,7 @@ members = [
   "crates/docket-client",
   "crates/docket-fake",
   "crates/docket-testbus",
+  "crates/docket-accept",
   "crates/docket-eval",
   "crates/docket-cli",
   "crates/actions-mcp",
