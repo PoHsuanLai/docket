@@ -49,6 +49,9 @@ pub struct Watched {
     pub events: Box<dyn Events>,
     /// What may be said to it.
     pub steering: Arc<dyn Steering>,
+    /// The object path of the request on the bus (`/org/quire/Intents1/request/<n>`), for a
+    /// transport that has one.
+    pub request: Option<String>,
 }
 
 impl std::fmt::Debug for Watched {
@@ -88,6 +91,7 @@ impl Watched {
         Self {
             events: Box::new(Once(Some(reply))),
             steering: Arc::new(Settled),
+            request: None,
         }
     }
 }
@@ -178,7 +182,9 @@ impl<T: Transport> Intents<T> {
     /// draws a sheet and waits for `proceed`; the verdict is the last event. A transport that
     /// cannot watch gives the verdict alone (`gate_check` is the same without the watch).
     pub async fn gate_check_watched(&self, ask: CuaAsk) -> Result<GateWatch, ClientError> {
-        let Watched { events, steering } = self
+        let Watched {
+            events, steering, ..
+        } = self
             .transport()
             .watch(IntentsRequest::GateCheck(ask))
             .await?;
@@ -202,6 +208,7 @@ pub enum PerformEvent {
 /// A `Run.Perform` in flight: read what it says. Nothing waits for the caller.
 pub struct PerformWatch {
     events: Box<dyn Events>,
+    request: Option<String>,
 }
 
 impl std::fmt::Debug for PerformWatch {
@@ -211,6 +218,12 @@ impl std::fmt::Debug for PerformWatch {
 }
 
 impl PerformWatch {
+    /// The request's object path on the bus, for a transport that has one (a call over D-Bus);
+    /// none for the router in process.
+    pub fn request(&self) -> Option<&str> {
+        self.request.as_deref()
+    }
+
     /// The next event; the call's end is the last, and a refused request is an error.
     pub async fn next(&mut self) -> Result<PerformEvent, ClientError> {
         match self.events.next().await? {
@@ -234,7 +247,9 @@ impl<T: Transport> Intents<T> {
         session: Option<SessionId>,
         parent_window: Option<WindowKey>,
     ) -> Result<PerformWatch, ClientError> {
-        let Watched { events, .. } = self
+        let Watched {
+            events, request, ..
+        } = self
             .transport()
             .watch(IntentsRequest::Perform {
                 call,
@@ -242,6 +257,6 @@ impl<T: Transport> Intents<T> {
                 parent_window,
             })
             .await?;
-        Ok(PerformWatch { events })
+        Ok(PerformWatch { events, request })
     }
 }

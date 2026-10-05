@@ -184,6 +184,85 @@ fn validate_rejects_one_row_per_rule() {
     }
 }
 
+fn thread_kind(index: IndexPolicy) -> EntityDecl {
+    EntityDecl {
+        kind: kind("mail.thread"),
+        label: words("Thread"),
+        plural: words("Threads"),
+        icon: IconName::parse("mail").expect("icon"),
+        class: prov::DataClass::Mail,
+        index,
+        titles: TitleTrust::AppAuthored,
+        props: vec![],
+    }
+}
+
+fn open_decl() -> ActionDecl {
+    let mut open = decl("mail.thread.open", Effect::Read, UndoSupport::NotUndoable);
+    open.on = TargetKind::One(kind("mail.thread"));
+    open
+}
+
+#[test]
+fn an_indexed_kind_declares_its_open_action_and_every_open_has_the_one_shape() {
+    use ManifestError as E;
+    let with = |index, actions| {
+        let mut m = manifest("org.quire.Mail", actions);
+        m.entities = vec![thread_kind(index)];
+        m
+    };
+    let mut on_many = open_decl();
+    on_many.on = TargetKind::Many(kind("mail.thread"));
+    let mut writes = open_decl();
+    writes.effect = Effect::UndoableWrite;
+    writes.undo = UndoSupport::Token;
+    let mut asks = open_decl();
+    asks.params = vec![text_param("where", ArgSink::Inert, ParamNeed::Required)];
+    let mut optional = open_decl();
+    optional.params = vec![text_param("where", ArgSink::Inert, ParamNeed::Optional)];
+    let bad = |a: &ActionDecl| Some(E::BadOpen(a.name.clone()));
+    let cases: Vec<(&str, Manifest, Option<ManifestError>)> = vec![
+        (
+            "indexed with its open",
+            with(IndexPolicy::Indexed, vec![open_decl()]),
+            None,
+        ),
+        (
+            "indexed without one",
+            with(IndexPolicy::Indexed, vec![]),
+            Some(E::OpenMissing(kind("mail.thread"))),
+        ),
+        (
+            "live-searched kinds may omit it",
+            with(IndexPolicy::NotIndexed, vec![]),
+            None,
+        ),
+        (
+            "an optional parameter is fine",
+            with(IndexPolicy::Indexed, vec![optional]),
+            None,
+        ),
+        (
+            "on many",
+            with(IndexPolicy::Indexed, vec![on_many.clone()]),
+            bad(&on_many),
+        ),
+        (
+            "writes",
+            with(IndexPolicy::NotIndexed, vec![writes.clone()]),
+            bad(&writes),
+        ),
+        (
+            "requires a parameter",
+            with(IndexPolicy::Indexed, vec![asks.clone()]),
+            bad(&asks),
+        ),
+    ];
+    for (name, manifest, want) in cases {
+        assert_eq!(validate(manifest).err(), want, "case: {name}");
+    }
+}
+
 #[test]
 fn defaults_must_fit_their_type() {
     let cases: Vec<(&str, Value, ParamType, bool)> = vec![

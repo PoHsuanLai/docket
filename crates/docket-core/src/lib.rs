@@ -108,7 +108,7 @@ pub use task_policy::{
 };
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
 pub use units::{CharCount, Depth, Generation, Millis, Scale, Seconds};
-pub use validate::{ManifestError, ValidManifest, fits, validate};
+pub use validate::{ManifestError, ValidManifest, fits, open_name, validate};
 pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
 pub use wire::{
     Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, NoteAsk,

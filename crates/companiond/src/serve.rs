@@ -34,7 +34,9 @@ const TICK: Duration = Duration::from_secs(5);
 
 fn failed(error: ServeFault) -> fdo::Error {
     match error {
-        ServeFault::UnknownSession => fdo::Error::InvalidArgs(error.to_string()),
+        ServeFault::UnknownSession | ServeFault::NoSuchCard => {
+            fdo::Error::InvalidArgs(error.to_string())
+        }
         other => fdo::Error::Failed(other.to_string()),
     }
 }
@@ -58,21 +60,28 @@ struct Root<P: InferTransport, I: IntentsTransport> {
     connection: BusConnection,
 }
 
+/// Only the shell speaks for the person: an ask carries the turn it recorded, and a turn the
+/// router never recorded must not be taken from anybody else; `Open` and `Close` make and end the
+/// person's conversations, and `Act` presses a card for them, so they are the shell's too.
+async fn require_shell(
+    connection: &BusConnection,
+    shell: &AppName,
+    header: &Header<'_>,
+) -> fdo::Result<()> {
+    let sender = header.sender().map(ToString::to_string).unwrap_or_default();
+    let proxy = DBusProxy::new(connection).await?;
+    let name = BusName::try_from(shell.as_str()).map_err(|e| fdo::Error::Failed(e.to_string()))?;
+    match proxy.get_name_owner(name).await {
+        Ok(owner) if owner.as_str() == sender => Ok(()),
+        _ => Err(fdo::Error::AccessDenied(
+            "only the shell speaks for the person".into(),
+        )),
+    }
+}
+
 impl<P: InferTransport, I: IntentsTransport> Root<P, I> {
-    /// Only the shell speaks for the person: an ask carries the turn it recorded, and a turn the
-    /// router never recorded must not be taken from anybody else; `Open` and `Close` make and end
-    /// the person's conversations, so they are the shell's too.
     async fn require_shell(&self, header: &Header<'_>) -> fdo::Result<()> {
-        let sender = header.sender().map(ToString::to_string).unwrap_or_default();
-        let proxy = DBusProxy::new(&self.connection).await?;
-        let name = BusName::try_from(self.shell.as_str())
-            .map_err(|e| fdo::Error::Failed(e.to_string()))?;
-        match proxy.get_name_owner(name).await {
-            Ok(owner) if owner.as_str() == sender => Ok(()),
-            _ => Err(fdo::Error::AccessDenied(
-                "only the shell speaks for the person".into(),
-            )),
-        }
+        require_shell(&self.connection, &self.shell, header).await
     }
 }
 
@@ -115,8 +124,11 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
             .at(
                 path.clone(),
                 AnswerObject {
+                    companion: self.companion.clone(),
                     shared: self.shared.clone(),
                     task: begun.task.clone(),
+                    shell: self.shell.clone(),
+                    connection: self.connection.clone(),
                 },
             )
             .await?;
@@ -175,17 +187,34 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
     async fn roster_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
 
-struct AnswerObject {
+struct AnswerObject<P: InferTransport, I: IntentsTransport> {
+    companion: Arc<Mutex<Companiond<P, I>>>,
     shared: Arc<Shared>,
     task: TaskId,
+    shell: AppName,
+    connection: BusConnection,
 }
 
 #[zbus::interface(name = "org.quire.Companion1.Answer")]
-impl AnswerObject {
-    async fn act(&self, action: String) -> fdo::Result<OwnedObjectPath> {
-        let _ = action;
-        // The loop makes text and refusals; it offers no card to act on.
-        Err(fdo::Error::NotSupported("this answer has no cards".into()))
+impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P, I> {
+    async fn act(
+        &self,
+        action: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<OwnedObjectPath> {
+        require_shell(&self.connection, &self.shell, &header).await?;
+        let card = crate::act::card_id(&action).map_err(failed)?;
+        let acting = self
+            .companion
+            .lock()
+            .await
+            .begin_act(&self.task, &card)
+            .await
+            .map_err(failed)?;
+        let path = OwnedObjectPath::try_from(acting.request_path())
+            .map_err(|e| fdo::Error::Failed(e.to_string()))?;
+        tokio::spawn(crate::act::follow(self.companion.clone(), acting));
+        Ok(path)
     }
 
     async fn cancel(&self) -> fdo::Result<()> {
@@ -211,7 +240,15 @@ fn bus(error: zbus::Error) -> ServeFault {
 
 /// Forwards what the loop wrote to the bus: answer objects appear, change and go away, and the
 /// roster changes, each as a content-free signal beside the object.
-async fn forward(connection: BusConnection, shared: Arc<Shared>) {
+async fn forward<P, I>(
+    connection: BusConnection,
+    shared: Arc<Shared>,
+    companion: Arc<Mutex<Companiond<P, I>>>,
+    shell: AppName,
+) where
+    P: InferTransport + 'static,
+    I: IntentsTransport + 'static,
+{
     let mut changes = shared.subscribe();
     let server = connection.object_server().clone();
     while let Ok(change) = changes.recv().await {
@@ -219,8 +256,11 @@ async fn forward(connection: BusConnection, shared: Arc<Shared>) {
             Change::AnswerAdded(task) => {
                 let path = answer_path(&task);
                 let object = AnswerObject {
+                    companion: companion.clone(),
                     shared: shared.clone(),
                     task,
+                    shell: shell.clone(),
+                    connection: connection.clone(),
                 };
                 let _ = server.at(path.as_str(), object).await;
                 if let Ok(object) = ObjectPath::try_from(path.as_str()) {
@@ -254,7 +294,7 @@ async fn forward(connection: BusConnection, shared: Arc<Shared>) {
             }
             Change::AnswerRemoved(task) => {
                 let path = answer_path(&task);
-                let _ = server.remove::<AnswerObject, _>(path.as_str()).await;
+                let _ = server.remove::<AnswerObject<P, I>, _>(path.as_str()).await;
                 if let Ok(object) = ObjectPath::try_from(path.as_str()) {
                     let _ = connection
                         .emit_signal(
@@ -304,7 +344,7 @@ where
             Root {
                 companion: companion.clone(),
                 shared: shared.clone(),
-                shell,
+                shell: shell.clone(),
                 connection: connection.clone(),
             },
         )
@@ -320,7 +360,12 @@ where
             return Err(ServeFault::Bus(format!("{COMPANION_BUS} is taken")));
         }
     }
-    tokio::spawn(forward(connection.clone(), shared));
+    tokio::spawn(forward(
+        connection.clone(),
+        shared,
+        companion.clone(),
+        shell,
+    ));
     tokio::spawn(arrivals(connection.clone(), companion.clone()));
     tokio::spawn(ticking(companion));
     Ok(())

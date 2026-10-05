@@ -1,7 +1,9 @@
 //! Manifest validation: pure, total, one error per rule a caller can act on.
 
 use crate::ids::{IntentsVocab, ParamName, action_prefix};
-use crate::manifest::{ActionDecl, ArgSink, Manifest, ParamNeed, UndoSupport};
+use crate::manifest::{
+    ActionDecl, ArgSink, IndexPolicy, Manifest, ParamNeed, TargetKind, UndoSupport,
+};
 use crate::value::{ParamType, Value};
 use prov::{ActionName, Effect, EntityKind};
 use serde::{Deserialize, Serialize};
@@ -56,6 +58,48 @@ pub enum ManifestError {
     /// An outbound action with no recipient or destination parameter.
     #[error("outbound action {0} declares no recipient or destination")]
     OutboundWithoutSink(ActionName),
+    /// An indexed kind with no `<kind>.open`: a hit of it could not be opened from the launcher.
+    #[error("indexed kind {0} declares no {0}.open")]
+    OpenMissing(EntityKind),
+    /// A `<kind>.open` that is not one read of one thing of the kind with nothing required.
+    #[error("action {0} must read one thing of its kind, with no undo and no required parameter")]
+    BadOpen(ActionName),
+}
+
+/// The name of the action that opens a thing of `kind` (`mail.thread` opens by `mail.thread.open`).
+/// Every indexed kind declares it, and the launcher performs it on a search hit.
+pub fn open_name(kind: &EntityKind) -> Option<ActionName> {
+    ActionName::parse(&format!("{}.open", kind.as_str())).ok()
+}
+
+impl Manifest {
+    /// The action that opens a thing of `kind`, if this app declares one.
+    pub fn open_of(&self, kind: &EntityKind) -> Option<&ActionDecl> {
+        let name = open_name(kind)?;
+        self.actions.iter().find(|a| a.name == name)
+    }
+}
+
+/// The open actions: one read of one thing of the kind, nothing required but the target.
+fn check_opens(manifest: &Manifest) -> Result<(), ManifestError> {
+    for e in &manifest.entities {
+        match (manifest.open_of(&e.kind), e.index) {
+            (None, IndexPolicy::Indexed) => {
+                return Err(ManifestError::OpenMissing(e.kind.clone()));
+            }
+            (Some(a), _) => {
+                let shape = a.on == TargetKind::One(e.kind.clone())
+                    && a.effect == Effect::Read
+                    && a.undo == UndoSupport::NotUndoable
+                    && a.params.iter().all(|p| p.need != ParamNeed::Required);
+                if !shape {
+                    return Err(ManifestError::BadOpen(a.name.clone()));
+                }
+            }
+            (None, IndexPolicy::NotIndexed) => {}
+        }
+    }
+    Ok(())
 }
 
 /// A manifest that passed [`validate`]. The only way to make one is to validate.
@@ -148,7 +192,8 @@ fn check_action(prefix: &str, a: &ActionDecl) -> Result<(), ManifestError> {
 /// carries its app's prefix; a read declares no undo; an undoable write declares a token (a
 /// write without undo is declared destructive, and an outbound action may declare a token when
 /// the app holds the send); an outbound action declares a recipient or destination parameter;
-/// a defaulted value fits its type. Kinds named by an action are checked by the registry.
+/// a defaulted value fits its type; every indexed kind declares `<kind>.open` (one read of one
+/// thing of the kind, nothing required), and any `<kind>.open` has that shape. Kinds named by an action are checked by the registry.
 pub fn validate(manifest: Manifest) -> Result<ValidManifest, ManifestError> {
     if manifest.vocab > IntentsVocab::CURRENT {
         return Err(ManifestError::VocabTooNew(manifest.vocab));
@@ -167,5 +212,6 @@ pub fn validate(manifest: Manifest) -> Result<ValidManifest, ManifestError> {
         }
         check_action(&prefix, a)?;
     }
+    check_opens(&manifest)?;
     Ok(ValidManifest(manifest))
 }

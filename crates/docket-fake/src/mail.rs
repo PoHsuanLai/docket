@@ -58,6 +58,7 @@ struct State {
     archived: BTreeSet<String>,
     drafts: Vec<String>,
     sent: Vec<SentMail>,
+    opened: Vec<String>,
     undo: BTreeMap<String, UndoStep>,
     next: u64,
 }
@@ -131,6 +132,11 @@ impl FakeMail {
         self.edit(|s| s.threads.contains_key(key))
     }
 
+    /// The threads the person opened, in order.
+    pub fn opened(&self) -> Vec<String> {
+        self.edit(|s| s.opened.clone())
+    }
+
     /// What was sent or forwarded.
     pub fn sent(&self) -> Vec<SentMail> {
         self.edit(|s| s.sent.clone())
@@ -185,6 +191,15 @@ impl IntentProvider for FakeMail {
                     label,
                 });
                 Ok(out)
+            }
+            "mail.thread.open" => {
+                let key = keys.first().ok_or(AppRefusal::Unsupported)?;
+                if !s.threads.contains_key(key) {
+                    return Err(entity(&app, "mail.thread", key)
+                        .map_or(AppRefusal::Unsupported, AppRefusal::NotFound));
+                }
+                s.opened.push(key.clone());
+                Ok(outcome(None, Undoable::No, Preview::None))
             }
             "mail.thread.archive" => {
                 let missing = keys.iter().find(|k| !s.threads.contains_key(*k));

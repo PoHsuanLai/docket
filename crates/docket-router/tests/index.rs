@@ -202,3 +202,53 @@ async fn search_also_asks_the_apps_for_what_they_do_not_index() {
     };
     assert_eq!(manifests.len(), 4);
 }
+
+#[tokio::test]
+async fn a_hit_is_opened_by_its_kinds_open_action_performed_as_the_launcher() {
+    let router = router();
+    ask(
+        &router,
+        &mail_caller(),
+        IntentsRequest::IndexReset { epoch: 1 },
+    )
+    .await;
+    ask(
+        &router,
+        &mail_caller(),
+        batch(1, vec![entry("mail.thread", "t1", "Invoice")]),
+    )
+    .await;
+    let IntentsReply::Hits(hits) = ask(&router, &launcher(), query("invoice")).await else {
+        panic!("hits")
+    };
+    let id = hits[0].entity.id.clone();
+    // The convention: the action is `<kind>.open` of the hit's own app, on the hit.
+    let open = CallRequest {
+        action: ActionRef {
+            app: id.app.clone(),
+            name: open_name(&id.kind).expect("name"),
+        },
+        target: TargetValue::Entities(vec![id]),
+        args: Args::new(),
+        origin: Origin::Launcher,
+    };
+    let reply = ask(
+        &router,
+        &launcher(),
+        IntentsRequest::Perform {
+            call: open,
+            session: None,
+            parent_window: None,
+        },
+    )
+    .await;
+    assert!(
+        matches!(reply, IntentsReply::Performed(ref end) if end.is_ok()),
+        "{reply:?}"
+    );
+    assert_eq!(router.seams.link.mail.opened(), vec!["t1".to_string()]);
+    assert!(
+        router.seams.confirmer.requests().is_empty(),
+        "opening reads: nothing asks"
+    );
+}

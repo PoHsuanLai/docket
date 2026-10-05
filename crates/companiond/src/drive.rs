@@ -26,7 +26,7 @@ const COMPANION_APP: &str = "org.quire.Companion";
 const TASK_START: &str = "companion.task.start";
 
 /// What a call to the router came to, as the loop is told.
-fn refusal_of(error: ClientError) -> CallRefusal {
+pub(crate) fn refusal_of(error: ClientError) -> CallRefusal {
     match error {
         ClientError::Refused(WireRefusal::Call(refusal)) => refusal,
         ClientError::Refused(_) | ClientError::Transport(_) | ClientError::Unexpected => {

@@ -11,6 +11,7 @@
 //! - `completion_effects`: how a finished worker or run reaches the front task.
 //! - `serve`, `serve_on`: `org.quire.Companion1`.
 
+mod act;
 mod args;
 mod catalogue;
 mod clock;

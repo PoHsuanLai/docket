@@ -60,6 +60,10 @@ pub struct TaskRuntime {
     /// The app the person asked from (the context section reads its window); none for the
     /// launcher alone.
     pub summoned: Option<AppName>,
+    /// The structured answer a draft or a proposal made, whose cards the person may act on.
+    pub proposal: Option<AnswerBody>,
+    /// The cards the person acted on since the last turn, as plan steps.
+    pub acts: Plan,
 }
 
 /// A keep that sent everything: what an answer's footer says until the turn says otherwise.
@@ -101,6 +105,18 @@ impl TaskRuntime {
             served: None,
             next_call: 0,
             summoned: None,
+            proposal: None,
+            acts: Plan::default(),
+        }
+    }
+
+    /// The card of the proposal named `id`.
+    pub fn card(&self, id: &docket_core::CardActionId) -> Option<&companion_wire::CardWire> {
+        match self.proposal.as_ref()? {
+            AnswerBody::DraftReply { actions, .. } | AnswerBody::ProposedEvent { actions, .. } => {
+                actions.iter().find(|c| &c.id == id)
+            }
+            _ => None,
         }
     }
 
@@ -206,9 +222,15 @@ impl TaskRuntime {
             | AnswerPhase::NeedsYou(NeedsYou::Confirm(_)) => self.plan.wire(),
             _ => None,
         };
+        // A card the person acted on shows its step, whatever came of it.
+        let card = self.acts.wire().or(card);
         let body = match (&self.phase, &self.refused, card) {
             (AnswerPhase::Failed, Some(refusal), _) => AnswerBody::Refused(refusal.clone()),
             (_, _, Some(plan)) => AnswerBody::Plan(plan),
+            _ if self.proposal.is_some() => self
+                .proposal
+                .clone()
+                .unwrap_or(AnswerBody::Text { lines: Vec::new() }),
             _ => AnswerBody::Text {
                 lines: self.said.iter().cloned().map(Reveal::Plain).collect(),
             },

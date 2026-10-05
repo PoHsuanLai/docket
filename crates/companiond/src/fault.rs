@@ -20,6 +20,9 @@ pub enum ServeFault {
     /// The task is over: a follow-up opens a new session.
     #[error("the task is finished")]
     Finished,
+    /// The answer offers no card by that id.
+    #[error("the answer has no such card")]
+    NoSuchCard,
     /// An id the companion minted is not one.
     #[error("malformed id")]
     Malformed,

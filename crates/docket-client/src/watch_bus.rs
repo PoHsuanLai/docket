@@ -151,6 +151,7 @@ pub(crate) async fn watching(
             reading,
             over: false,
         }),
+        request: Some(path.as_str().to_owned()),
         steering: std::sync::Arc::new(Calls {
             connection: connection.clone(),
             path,

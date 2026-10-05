@@ -706,3 +706,53 @@ builds the connection first and passes it here.
   README) to match mailo. porter's `inferd` cassette `docket-flow-a.jsonl` still says `mail.thread.find`.
 - **First-use consent** is tested (`first_use_of_mail_in_a_space_asks_once_and_the_second_call_does_not`): the scripted
   sheet gained `Verdict::AllowAlways`.
+
+## f4-docket-3: cards and opening a Hit
+
+1. **`Companion1.Answer.Act(action s) -> o`** is served (`companiond/src/act.rs`, `serve.rs`). `action` is a
+   `CardActionId` (the bare id or its JSON string). Only the connection that owns the shell's bus name
+   (`org.quire.Shell`) may call it, the same guard as `Open`/`Ask`/`Close`/`Told` (`AccessDenied` for anyone else; an
+   id the answer does not offer is `InvalidArgs`). It finds the card in the answer's structured body
+   (`AnswerBody::DraftReply` / `ProposedEvent` `actions`, held as `TaskRuntime::proposal`), starts its `CallRequest` as
+   a watched `Run.Perform` through `Intents::perform_watched` as the companion role in the answer's session and window,
+   and returns at once with the request's object path (`/org/quire/Intents1/request/<n>`; the router in process has no
+   object and the path is only the task's call number). The call is a call like any other: gated, confirmed (the
+   shell's own `Confirm1` sheet), journalled, audited. The answer follows it with `Updated` (`View` is always current):
+   the body becomes `AnswerBody::Plan` with one step per pressed card, `Pending`, `Running` once dispatched,
+   `Done { undo }` (the journal row) or `Failed(CallRefusal)`; the phase is `Streaming`, `NeedsYou(Confirm(id))` while
+   the sheet is up, then `Done` (also when the step failed: the task is fine, the card's call was not). More than one
+   card of the proposal may be pressed; the steps accumulate until the next `Ask`, which resets them. Nothing in the
+   loop makes a proposal body yet: `Companiond::propose(task, body)` is the seam for whoever does (the planner's
+   structured output). Caveat: a task that has finished has closed its router session, and the router refuses a
+   closed session's calls, so a card pressed on a finished task fails (`Failed`); a proposal is only actionable while
+   its task stays open (decide when the planner starts making drafts: keep the task open until its cards are pressed
+   or dismissed). `docket-client` gained `PerformWatch::request()` and `Watched::request` (additive).
+   Tests: `companiond/tests/act.rs` (private bus), unit tests in `act.rs`.
+
+2. **Opening a Hit: the convention, validated.** SPEC §3.5 has the launcher perform `Activation::Intent(CallRequest)`
+   on a row, with the row's actions taken from the manifest's `ActionDecl`s whose target fits the row's kind, so a Hit
+   needs no field of its own and `Follow::Open(EntityId)` stays what it is, an app asking its host to show a thing it
+   just made. The contract:
+
+   - Every entity kind an app indexes declares an action named exactly `<kind>.open` (`mail.thread` ->
+     `mail.thread.open`; `docket_core::open_name(&kind)`; `Manifest::open_of(&kind)` finds it). Shape: `on = One(<kind>)`,
+     `effect = read`, `undo = not_undoable`, no required parameter. `reach = hidden` unless the app wants agents to open
+     windows too (it stays callable by the person). `result = nothing`; the app shows the thing in its own window (focus
+     it if already open) and answers `Outcome` with `follow = Nothing`. Not indexed kinds that the app's live `Search`
+     returns as hits follow the same convention, but `validate` cannot know them: it checks only indexed kinds
+     (`ManifestError::OpenMissing(kind)`) and the shape of any `<kind>.open` of a kind the manifest declares
+     (`ManifestError::BadOpen(action)`), so mailo's live-searched `mail.thread` (not_indexed) is not broken today; it must
+     add `mail.thread.open` (and `mail.draft.open`) before the launcher offers Enter on a mail hit.
+   - sill: on Enter for a Things row of `Hit { entity }`, send `Run.Perform` as the launcher with
+     `CallRequest { action: ActionRef { app: entity.id.app, name: open_name(&entity.id.kind) }, target:
+     TargetValue::Entities(vec![entity.id]), args: Args::new(), origin: Origin::Launcher }`, no session. Effect Read by
+     the person: no sheet. If the app declares no `<kind>.open` (`Registry` has the manifests; `Manifest::open_of`),
+     the row has no Enter action: show it dimmed or fall back to the row's other actions. A later
+     `Outcome.follow = Follow::Open(id)` from any action is performed the same way by the host.
+   - Fixture: `docket-fake` mail declares `mail.thread.open` and records it (`FakeMail::opened()`). Tests:
+     `docket-core/tests/manifests.rs` (`an_indexed_kind_declares_its_open_action_and_every_open_has_the_one_shape`),
+     `docket-router/tests/index.rs` (`a_hit_is_opened_by_its_kinds_open_action_performed_as_the_launcher`).
+
+3. **The other f4-docket-2 items** are not behaviour over fakes in docket's own paths: the `ds-settings` question is
+   quire's, the `mail.thread.find` rename is in docket-accept (lane f4-e2e-2's files), the `inferd` cassette is porter's;
+   first-use consent was already tested. Nothing further closed.

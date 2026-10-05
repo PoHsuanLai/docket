@@ -38,6 +38,22 @@ lasting = "no"
 dry_run = "none"
 params = []
 
+# The launcher performs this on a search hit: show the thread in the app's own window.
+[[actions]]
+name = "mail.thread.open"
+label = "Open"
+on = { kind = "one", v = "mail.thread" }
+effect = "read"
+classes = []
+undo = "not_undoable"
+reach = "hidden"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
 [[actions]]
 name = "mail.thread.archive"
 label = "Archive"
