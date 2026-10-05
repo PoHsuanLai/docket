@@ -1,61 +1,35 @@
-//! Shared by the acceptance scenarios: where the daemon binaries are, planner steps that name
-//! what an earlier step returned, and a failure that prints the daemons' logs.
+//! Shared by the acceptance scenarios: where the daemon binaries are, the cassettes the model
+//! plays, and a failure that prints the daemons' logs.
 #![allow(dead_code)]
 
-use docket_accept::inferd::{Say, Step, text_of};
-use docket_accept::world::{Binaries, World};
-use porter_infer::ChatRequest;
-use serde_json::{Value as Json, json};
+use docket_accept::world::{Binaries, Cassette, World};
 
 pub fn binaries() -> Binaries {
     Binaries {
         intentd: env!("CARGO_BIN_EXE_accept-intentd").into(),
         companiond: env!("CARGO_BIN_EXE_accept-companiond").into(),
         readerd: env!("CARGO_BIN_EXE_accept-readerd").into(),
-        memoryd: env!("CARGO_BIN_EXE_accept-memoryd").into(),
+        memoryd: env!("ACCEPT_MEMORYD").into(),
+        inferd: env!("ACCEPT_INFERD").into(),
     }
 }
 
-pub fn tool(action: &str) -> String {
-    format!("org.quire.Mail-{action}")
-}
+/// Flow (a), the person allows: search, contact search, forward, the closing words.
+pub const FLOW_A: Cassette = Cassette(include_str!("../../../dev/accept/cassettes/flow-a.jsonl"));
+/// Flow (a), the person refuses: the closing words need the planner to have been told so.
+pub const FLOW_A_REFUSED: Cassette = Cassette(include_str!(
+    "../../../dev/accept/cassettes/flow-a-refused.jsonl"
+));
+/// Two searches in a Space that has no grants yet.
+pub const FIRST_USE: Cassette =
+    Cassette(include_str!("../../../dev/accept/cassettes/first-use.jsonl"));
+/// Flow (c): the injected thread, the reader, the send. Every planner entry refuses to answer a
+/// view that shows the body.
+pub const FLOW_C: Cassette = Cassette(include_str!("../../../dev/accept/cassettes/flow-c.jsonl"));
 
-/// The number after the first `#` on the last line of the request that holds `marker`: the
-/// handle the planner was shown for that step's value.
-pub fn handle_after(request: &ChatRequest, marker: &str) -> u64 {
-    let text = text_of(request);
-    let line = text
-        .lines()
-        .rev()
-        .find(|l| l.contains(marker))
-        .unwrap_or_else(|| panic!("no line with {marker:?} in the planner's view:\n{text}"));
-    let digits: String = line
-        .split_once("value #")
-        .unwrap_or_else(|| panic!("no handle on {line:?}"))
-        .1
-        .chars()
-        .take_while(char::is_ascii_digit)
-        .collect();
-    digits
-        .parse()
-        .unwrap_or_else(|_| panic!("no handle number on {line:?}"))
-}
-
-pub fn calls(name: &str, args: Json) -> Step {
-    docket_accept::inferd::say(Say::Calls(vec![(name.to_owned(), args)]))
-}
-
-pub fn words(text: &str) -> Step {
-    docket_accept::inferd::say(Say::Words(text.to_owned()))
-}
-
-pub fn contact(key: &str) -> Json {
-    json!({"app": "org.quire.Mail", "kind": "mail.contact", "key": key})
-}
-
-pub fn thread(key: &str) -> Json {
-    json!({"app": "org.quire.Mail", "kind": "mail.thread", "key": key})
-}
+/// The handle the planner is shown for the reader's answer (the body of the thread is handle 1);
+/// the flow-c cassette names it in the send.
+pub const SUMMARY_HANDLE: u64 = 2;
 
 /// Panics with the daemons' logs beside the message.
 pub fn fail(world: &World, why: &str) -> ! {

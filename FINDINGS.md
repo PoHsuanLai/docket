@@ -553,17 +553,33 @@ recipient `Quoted{from: Mail}`, taint `ReadUntrusted(Mail)`), and one ignored (f
    (SPEC P6). When memoryd refuses a Space's records, intentd now says so once per Space on stderr (`tell_refused`)
    and counts every lost record in `Control.State` (`KillSwitch::audit_lost`, additive, `serde(default)`). The run
    still registers `desktop` until almanac makes memoryd always know it.
-3. **memoryd cannot run as its binary without a Secret Service.** `accept-memoryd` is almanac's `main.rs` with
+3. **memoryd cannot run as its binary without a Secret Service.** CLOSED (f4-e2e-2, `MEMORYD_KEYS` and `MEMORYD_SANDBOX=off`). Was: `accept-memoryd` is almanac's `main.rs` with
    `MemoryKeys` and no Landlock. Ask (almanac, `memoryd/src/main.rs`): an environment switch such as
    `MEMORYD_KEYS=file:<path>` selecting a file-backed `KeyStore` for a scratch HOME, so the packaged binary itself
    can be started in the jail.
-4. **inferd has no replay engine.** The run speaks the `Inference1` wire from a fake (`src/inferd.rs`). Ask
+4. **inferd has no replay engine.** CLOSED (f4-e2e-2, porter's replay engine). Was: the run speaks the `Inference1` wire from a fake (`src/inferd.rs`). Ask
    (porter, `inferd`): `[engines.<name>] replay = "<file>"` in `inferd.toml`, an engine host that answers the OpenAI
    compatible chat route from a cassette of (request match, SSE reply) pairs, with the planner, writer and reader
    replies of `dev/accept` as its first cassette; then the acceptance can run the real inferd binary.
 5. Observed, no action: entity ids in a step's value are shown to the planner plain even when the result is
    labelled third-party (only the words of a title are held back); `Session.Resolve` now carries the label, so the
    reader's session is opened for the class of the mail it reads (verified: class `Mail`).
+
+### f4-e2e-2: real inferd and memoryd binaries
+
+Branch `f4-e2e-2`. The acceptance now runs porter's packaged `inferd` (replay engine, cassettes in
+`dev/accept/cassettes`) and almanac's packaged `memoryd` (`test-keys`, sandbox off) as processes; the library
+memoryd main and the scripted `Inference1` are removed. `crates/docket-accept/build.rs` builds both from their own
+workspaces (`$CARGO`, `--locked`, cargo variables scrubbed) into `<target>/accept-siblings/`, so the gate's
+nextest archive finds them inside the jail's bound target dir; the paths are baked in as `ACCEPT_INFERD` and
+`ACCEPT_MEMORYD`. All five tests pass unchanged in intent. A mutated cassette (a `lacks` the planner's view does
+break) makes flow (c) fail, so the cassette match is checked.
+
+- Not provable any more (no equivalent through inferd): the data class of the reader's session was asserted
+  (`Mail`); inferd's `AuditEntry` has no class. Ask (porter): add `class` to `AuditEntry`.
+- memoryd's Landlock sandbox still blocks caller identity in production (almanac FINDINGS); the run turns it off.
+- MAP seams 36 (inferd to planner), 37 (inferd to memory) and 38 (router to memory) move to T: they run
+  with real binaries on both sides.
 
 ## Upstream asks
 

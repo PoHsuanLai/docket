@@ -1,13 +1,13 @@
-//! The acceptance world: a private bus, the four real daemons as processes (memoryd, intentd,
-//! readerd, companiond), and the fakes on the bus around them: sill's `Confirm1`, the scripted
-//! inferd, and a mail provider. Everything is scratch: HOME, every XDG directory and the bus.
+//! The acceptance world: a private bus, the five real daemons as processes (inferd and memoryd as
+//! the packaged binaries of their repos, intentd, readerd and companiond), and the fakes on the
+//! bus around them: sill's `Confirm1` and a mail provider. The model is inferd's replay engine
+//! playing a cassette. Everything is scratch: HOME, every XDG directory and the bus.
 //!
 //! Teardown is certain: every daemon is a `Reaped` child (killed by PID and waited for on drop,
 //! with a watchdog if the test process itself dies) and the bus is `docket-testbus`'s. Waits are
 //! on bus events (a name appearing); the long bounds exist only to turn a hang into a failure.
 
 use crate::confirm::{self, Sheet};
-use crate::inferd::{self, Model};
 use crate::provider::{AcceptMail, MailLog, QuietWindow};
 use docket_core::{ConfirmRequest, ValidManifest};
 use docket_router::parse;
@@ -34,9 +34,16 @@ pub struct Binaries {
     pub companiond: PathBuf,
     /// `accept-readerd`.
     pub readerd: PathBuf,
-    /// `accept-memoryd`.
+    /// almanac's packaged `memoryd`, built with `test-keys`.
     pub memoryd: PathBuf,
+    /// porter's packaged `inferd`.
+    pub inferd: PathBuf,
 }
+
+/// The model's script: the text of a cassette file (`dev/accept/cassettes`), written into the
+/// scratch config for inferd's replay engine to play.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Cassette(pub &'static str);
 
 /// What a world starts with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -56,8 +63,6 @@ pub struct World {
     pub sheet: Sheet,
     /// The same, as a stream: one item per sheet shown.
     pub confirms: mpsc::UnboundedReceiver<ConfirmRequest>,
-    /// The scripted model and what it was asked.
-    pub model: Model,
     /// What the mail provider was asked and sent.
     pub mail: MailLog,
     /// A connection that owns `org.quire.Shell` and `org.quire.Confirm1`: sill.
@@ -87,6 +92,36 @@ fn env_of(dir: &Path) -> Vec<(&'static str, String)> {
     ]
 }
 
+/// What only one daemon is told. memoryd's packaged binary runs a test build: its keys are a file
+/// (there is no Secret Service on the private bus) and its Landlock sandbox is off (the sandbox
+/// blocks reading the callers' `/proc/<pid>/exe`; the jail is the isolation here).
+fn extra_env(dir: &Path, name: &str) -> Vec<(&'static str, String)> {
+    match name {
+        "memoryd" => vec![
+            (
+                "MEMORYD_KEYS",
+                format!("file:{}", dir.join("keys/memoryd.keys").display()),
+            ),
+            ("MEMORYD_SANDBOX", "off".to_owned()),
+        ],
+        _ => Vec::new(),
+    }
+}
+
+/// inferd's configuration: the replay engine `scripted` playing the scratch cassette, and the
+/// callers by executable, as the packaged `inferd.toml` names them.
+fn inferd_toml(root: &Path, binaries: &Binaries) -> String {
+    let exe = |p: &Path| format!("[{:?}]", p.canonicalize().expect("binary path"));
+    format!(
+        "[engines.scripted]\nreplay = {:?}\n\n[callers.apps]\n\"org.quire.Memory\" = {}\n\"org.quire.Intents\" = {}\n\"org.quire.Companion\" = {}\n\"org.quire.Reader\" = {}\n",
+        root.join("cassette.jsonl").display().to_string(),
+        exe(&binaries.memoryd),
+        exe(&binaries.intentd),
+        exe(&binaries.companiond),
+        exe(&binaries.readerd),
+    )
+}
+
 fn spawn(
     dir: &Path,
     bus: &str,
@@ -98,6 +133,7 @@ fn spawn(
     command
         .env_clear()
         .envs(env_of(dir))
+        .envs(extra_env(dir, name))
         .env("DBUS_SESSION_BUS_ADDRESS", bus)
         .env("DBUS_SYSTEM_BUS_ADDRESS", bus)
         .stdin(Stdio::null())
@@ -147,14 +183,10 @@ vault = "sealed"
 format = 1
 "#;
 
-/// The model's answer to intentd's policy writer for the acceptance turns: Mail's actions up to
-/// Outbound, at most 12 things, no recipient named (the person named none).
-pub const WRITER_DRAFT: &str = r#"{"actions":["org.quire.Mail mail.thread.search","org.quire.Mail mail.thread.read","org.quire.Mail mail.contact.search","org.quire.Mail mail.message.forward","org.quire.Mail mail.message.send"],"apps":[{"app":"org.quire.Mail","up_to":"outbound"}],"kinds":["mail.thread","mail.contact"],"ceiling":"outbound","max_count":12,"recipients":[],"destinations":[],"paths":[]}"#;
-
 impl World {
-    /// Starts everything, in dependency order: the bus, sill and the scripted model, memoryd,
-    /// intentd (with the mail manifest installed), the mail provider, readerd, companiond.
-    pub async fn start(binaries: &Binaries, consent: Consent) -> World {
+    /// Starts everything, in dependency order: the bus, sill, inferd (replaying `cassette`),
+    /// memoryd, intentd (with the mail manifest installed), the mail provider, readerd, companiond.
+    pub async fn start(binaries: &Binaries, consent: Consent, cassette: Cassette) -> World {
         let dir = tempfile::tempdir().expect("scratch");
         let root = dir.path();
         for sub in ["logs", "data", "config", "cache", "run"] {
@@ -168,12 +200,9 @@ impl World {
         let bus = PrivateBus::start(root);
         let address = bus.address().to_owned();
 
-        // sill and the model are on the bus before any daemon needs them.
+        // sill is on the bus before any daemon needs it.
         let sill = bus.connect().await;
         let (sheet, confirms) = confirm::serve(&sill).await.expect("Confirm1");
-        let model_connection = bus.connect().await;
-        let model = inferd::serve(&model_connection).await.expect("Inference1");
-        model.writer(WRITER_DRAFT);
 
         // Files the daemons read: memoryd's callers (the router is intentd's executable, the
         // shell is this test process), its Spaces, intentd's manifest and consent.
@@ -188,6 +217,11 @@ impl World {
             ),
         );
         write(&root.join("data/quire/memory/spaces.toml"), SPACES);
+        write(&root.join("cassette.jsonl"), cassette.0);
+        write(
+            &root.join("config/quire/inferd.toml"),
+            &inferd_toml(root, binaries),
+        );
         write(
             &root.join("data/quire/intents/org.quire.Mail.toml"),
             MAIL_MANIFEST,
@@ -204,6 +238,7 @@ impl World {
             daemons.push(spawn(root, &address, name, binary).expect("daemon starts"));
             until_owned(&sill, owns).await;
         };
+        start("inferd", &binaries.inferd, "org.quire.Inference1").await;
         start("memoryd", &binaries.memoryd, "org.quire.Memory1").await;
         start("intentd", &binaries.intentd, "org.quire.Intents1").await;
 
@@ -223,10 +258,9 @@ impl World {
             daemons,
             sheet,
             confirms,
-            model,
             mail: log,
             sill,
-            _helpers: vec![model_connection, provider_connection],
+            _helpers: vec![provider_connection],
             dir,
             bus,
         }
@@ -240,6 +274,16 @@ impl World {
     /// The bus address.
     pub fn address(&self) -> &str {
         self.bus.address()
+    }
+
+    /// inferd's audit trail so far: one entry per finished model turn, with the app that asked
+    /// (never the content).
+    pub fn model_turns(&self) -> Vec<porter_infer::AuditEntry> {
+        std::fs::read_to_string(self.dir.path().join(".local/state/quire/inferd/audit.jsonl"))
+            .unwrap_or_default()
+            .lines()
+            .filter_map(|line| serde_json::from_str(line).ok())
+            .collect()
     }
 
     /// Every daemon's standard error, for a failing test to print.

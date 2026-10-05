@@ -47,9 +47,9 @@ RULES=(
   "intentd: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
   "companiond: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
   "readerd: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
-  # Test only: the acceptance run links the daemons and memoryd to run them as processes; no HTTP,
+  # Test only: the acceptance run links the docket daemons to run them as processes (memoryd and inferd are built by build.rs, not linked); no HTTP,
   # audio, embedding runtime or MCP SDK.
-  "docket-accept: reqwest hyper hyper-util rustls pipewire ort fastembed rmcp"
+  "docket-accept: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
   "voiced: reqwest hyper hyper-util rustls ort fastembed rusqlite rmcp cedar-policy"
 )
 fail=0
@@ -117,7 +117,7 @@ EDGES=(
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router policy-point porter-client porter-core porter-infer prov"
   "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
   "readerd: docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
-  "docket-accept: almanac-client almanac-core almanac-dbus almanac-seal almanac-service companion-wire companiond docket-client docket-core docket-dbus docket-router docket-testbus intentd memoryd porter-client porter-core porter-dbus porter-infer prov readerd"
+  "docket-accept: almanac-client almanac-core companion-wire companiond docket-client docket-core docket-dbus docket-router docket-testbus intentd porter-core porter-infer prov readerd"
   "docket-cli: docket-client docket-core model-provider porter-core prov"
   "docket-ds: companion-wire docket-client docket-core ds-intents porter-core prov voice-wire"
   "voice-wire: docket-core porter-core porter-infer"
