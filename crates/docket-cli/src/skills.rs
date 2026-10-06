@@ -18,7 +18,10 @@ fn origin(skill: &Skill) -> &'static str {
 fn state(skill: &Skill, apps: &Apps) -> (&'static str, Option<String>) {
     match reach(skill, apps.all()) {
         Reach::Reachable => ("offered", None),
-        Reach::Missing(a) => ("hidden", Some(format!("{}:{} is not registered", a.app, a.name))),
+        Reach::Missing(a) => (
+            "hidden",
+            Some(format!("{}:{} is not registered", a.app, a.name)),
+        ),
         Reach::Hidden(a) => (
             "not offered",
             Some(format!("{}:{} is hidden from the companion", a.app, a.name)),

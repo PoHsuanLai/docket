@@ -9,8 +9,9 @@ use agent_loop::Sources;
 use almanac_core::{BodyMode, InjectQuery, RecallOver, RecentQuery, TrustFilter, UserText};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
-    ActionCard, ContextView, SkillCard, SkillText, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine, RecallAsk, RecallView,
-    RecalledLine, Reveal, SelectionView, TextTargetView, VisibleView,
+    ActionCard, ContextView, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine, RecallAsk,
+    RecallView, RecalledLine, Reveal, SelectionView, SkillCard, SkillText, TextTargetView,
+    VisibleView,
 };
 use docket_skills::{Situation, Skill, preselect, uses_first};
 use porter_client::Transport as InferTransport;

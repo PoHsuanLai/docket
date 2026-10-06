@@ -20,8 +20,8 @@ use crate::sink::QueuedSink;
 use crate::system::{SystemClock, SystemSeams};
 use docket_core::AuditRecord;
 use docket_dbus::BusConnection;
-use docket_skills::{Roots, discover};
 use docket_router::{Router, Seams};
+use docket_skills::{Roots, discover};
 use policy_point::Pdp;
 use prov::SpaceId;
 use std::path::PathBuf;
@@ -215,7 +215,11 @@ pub async fn start(
     // the registry at each load. What did not load, or is hidden for a missing action, is logged.
     let found = discover(&Roots::from_dirs(&data_dirs));
     for rejected in &found.rejected {
-        eprintln!("intentd: skill {}: {}", rejected.dir.display(), rejected.fault);
+        eprintln!(
+            "intentd: skill {}: {}",
+            rejected.dir.display(),
+            rejected.fault
+        );
     }
     router.install_skills(found.skills);
     router

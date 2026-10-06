@@ -39,9 +39,9 @@ impl Roots {
     /// a daemon's `main` with `std::env::var`, never from below.
     pub fn from_env(env: &impl Fn(&str) -> Option<String>) -> Self {
         let set = |key: &str| env(key).filter(|v| !v.is_empty());
-        let home = set("XDG_DATA_HOME").map(PathBuf::from).or_else(|| {
-            set("HOME").map(|h| PathBuf::from(h).join(".local").join("share"))
-        });
+        let home = set("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| set("HOME").map(|h| PathBuf::from(h).join(".local").join("share")));
         let dirs = set("XDG_DATA_DIRS")
             .unwrap_or_else(|| "/usr/local/share:/usr/share".to_owned())
             .split(':')
@@ -87,11 +87,13 @@ fn read(dir: &Path, file: &'static str) -> Result<String, SkillFault> {
 
 /// Loads the skill in `dir` (`skill.toml` and `SKILL.md`; the directory name is its id).
 pub fn load_dir(dir: &Path, origin: Origin) -> Result<Skill, SkillFault> {
-    let name = dir
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or_default();
-    parse(name, &read(dir, "skill.toml")?, &read(dir, "SKILL.md")?, origin)
+    let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    parse(
+        name,
+        &read(dir, "skill.toml")?,
+        &read(dir, "SKILL.md")?,
+        origin,
+    )
 }
 
 fn subdirs(root: &Path) -> Vec<PathBuf> {

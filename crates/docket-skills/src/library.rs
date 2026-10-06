@@ -94,7 +94,10 @@ impl Library {
 
     /// The catalogue of `offered`.
     pub fn cards(&self, manifests: &[ValidManifest]) -> Vec<SkillCard> {
-        self.offered(manifests).into_iter().map(Skill::card).collect()
+        self.offered(manifests)
+            .into_iter()
+            .map(Skill::card)
+            .collect()
     }
 }
 

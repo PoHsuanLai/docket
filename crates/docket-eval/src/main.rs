@@ -7,7 +7,8 @@ use docket_eval::{CheckError, CheckReport, check_app, check_skills};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-const USAGE: &str = "usage: docket-eval --check-app <repository dir>\n       docket-eval --check-skills <dir>...\n";
+const USAGE: &str =
+    "usage: docket-eval --check-app <repository dir>\n       docket-eval --check-skills <dir>...\n";
 
 fn main() -> ExitCode {
     let words: Vec<String> = std::env::args().skip(1).collect();

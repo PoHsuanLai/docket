@@ -38,7 +38,11 @@ pub async fn start_with(
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
     let found = discover(skills);
     for rejected in &found.rejected {
-        eprintln!("companiond: skill {}: {}", rejected.dir.display(), rejected.fault);
+        eprintln!(
+            "companiond: skill {}: {}",
+            rejected.dir.display(),
+            rejected.fault
+        );
     }
     let intents = Intents::over(DbusTransport::new(connection.clone()));
     let planner = PlannerModel::new(docket_dbus::inferd_transport(connection));

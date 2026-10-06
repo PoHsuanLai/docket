@@ -27,7 +27,12 @@ fn desktop_basics_validates_is_always_and_fits_a_kilobyte() {
     let md = std::fs::read_to_string(dist().join("desktop-basics/SKILL.md")).expect("md");
     assert!(md.len() <= 1024, "the whole file is {} bytes", md.len());
     // It uses only the Companion's built-in actions, all registered and offered.
-    assert!(skill.uses.iter().all(|u| u.app.as_str() == "org.quire.Companion"));
+    assert!(
+        skill
+            .uses
+            .iter()
+            .all(|u| u.app.as_str() == "org.quire.Companion")
+    );
     let library = Library::check(vec![skill], &manifests());
     assert!(library.hidden.is_empty());
     assert_eq!(library.offered(&manifests()).len(), 1);
@@ -37,5 +42,10 @@ fn desktop_basics_validates_is_always_and_fits_a_kilobyte() {
 fn everything_under_dist_skills_loads() {
     let found = discover(&Roots::shipped_only(vec![dist()]));
     assert!(found.rejected.is_empty(), "{:?}", found.rejected);
-    assert!(found.skills.iter().any(|s| s.id.as_str() == "desktop-basics"));
+    assert!(
+        found
+            .skills
+            .iter()
+            .any(|s| s.id.as_str() == "desktop-basics")
+    );
 }

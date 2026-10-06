@@ -59,8 +59,8 @@ pub use messages::{assemble, check_stamped, inbound_line, intake_label, report_s
 pub use registry::{Registry, RegistryError, parse};
 pub use router::Router;
 pub use seams::{AppFault, AppLink, Clock, EventSink, GrantStore, LinkFault, MemoryLink, Seams};
-pub use skills::SKILL_LOAD;
 pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
+pub use skills::SKILL_LOAD;
 pub use spacing::{SpaceOf, relation_of};
 pub use state::{RouterState, SessionRecord};
 pub use tasks::{TaskRecord, TaskState, TaskTable, child_policy, roster_of};

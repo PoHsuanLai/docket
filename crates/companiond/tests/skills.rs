@@ -28,7 +28,12 @@ const ARCHIVE_USE: &str = "org.quire.Mail:mail.thread.archive";
 
 fn installed() -> Vec<Skill> {
     vec![
-        skill("basics", LOAD_USE, "[when]\nalways = \"yes\"\n", "BASICS-BODY"),
+        skill(
+            "basics",
+            LOAD_USE,
+            "[when]\nalways = \"yes\"\n",
+            "BASICS-BODY",
+        ),
         skill(
             "shell-tips",
             LOAD_USE,
@@ -44,7 +49,12 @@ fn installed() -> Vec<Skill> {
         skill("extra-one", LOAD_USE, "", "ONE-BODY"),
         skill("extra-two", LOAD_USE, "", "TWO-BODY"),
         // Its action is not registered anywhere: hidden, in no catalogue, not loadable.
-        skill("ghost", "org.quire.Mail:mail.no.such", "[when]\nalways = \"yes\"\n", "GHOST-BODY"),
+        skill(
+            "ghost",
+            "org.quire.Mail:mail.no.such",
+            "[when]\nalways = \"yes\"\n",
+            "GHOST-BODY",
+        ),
     ]
 }
 
@@ -63,15 +73,30 @@ async fn the_catalogue_lists_offered_skills_and_the_contexts_match_is_expanded()
     w.say(&front.session, "hello").await;
 
     let system = w.infer.system_text(0);
-    for id in ["basics", "shell-tips", "mail-tips", "extra-one", "extra-two"] {
-        assert!(system.contains(&format!("- {id}: about {id}")), "{id}: {system}");
+    for id in [
+        "basics",
+        "shell-tips",
+        "mail-tips",
+        "extra-one",
+        "extra-two",
+    ] {
+        assert!(
+            system.contains(&format!("- {id}: about {id}")),
+            "{id}: {system}"
+        );
     }
-    assert!(!system.contains("ghost"), "a skill with a missing action is hidden");
+    assert!(
+        !system.contains("ghost"),
+        "a skill with a missing action is hidden"
+    );
 
     // Summoned from the launcher the focused app is the shell: `always` and the shell skill are
     // expanded (at most two); the mail skill is only in the catalogue.
     let user = w.infer.user_text(0);
-    assert!(user.contains("BASICS-BODY") && user.contains("SHELL-BODY"), "{user}");
+    assert!(
+        user.contains("BASICS-BODY") && user.contains("SHELL-BODY"),
+        "{user}"
+    );
     for absent in ["MAIL-BODY", "ONE-BODY", "GHOST-BODY"] {
         assert!(!user.contains(absent), "{absent} was not preselected");
     }
@@ -93,8 +118,16 @@ async fn a_load_puts_the_skill_first_keeps_its_body_and_is_audited() {
     let asked = w.infer.asked();
     assert_eq!(asked.len(), 2);
     let (before, after) = (tool_names(&asked[0]), tool_names(&asked[1]));
-    assert_ne!(before.first().map(String::as_str), Some(ARCHIVE), "{before:?}");
-    assert_eq!(after.first().map(String::as_str), Some(ARCHIVE), "{after:?}");
+    assert_ne!(
+        before.first().map(String::as_str),
+        Some(ARCHIVE),
+        "{before:?}"
+    );
+    assert_eq!(
+        after.first().map(String::as_str),
+        Some(ARCHIVE),
+        "{after:?}"
+    );
     // Nothing was added or removed: the same tools in another order.
     let (mut a, mut b) = (before.clone(), after.clone());
     a.sort();
@@ -117,7 +150,11 @@ async fn a_load_puts_the_skill_first_keeps_its_body_and_is_audited() {
         })
         .collect();
     assert_eq!(notes.len(), 1, "{notes:?}");
-    assert!(notes[0].contains("mail-tips") && notes[0].contains("1.9"), "{}", notes[0]);
+    assert!(
+        notes[0].contains("mail-tips") && notes[0].contains("1.9"),
+        "{}",
+        notes[0]
+    );
     assert!(!notes[0].contains("MAIL-BODY"));
 }
 
@@ -141,7 +178,9 @@ async fn at_most_three_skills_load_in_a_task_and_a_hidden_one_never() {
         .records()
         .into_iter()
         .filter_map(|r| match r {
-            AuditRecord::Call { action, end, .. } if action.name.as_str() == "companion.skill.load" => {
+            AuditRecord::Call { action, end, .. }
+                if action.name.as_str() == "companion.skill.load" =>
+            {
                 Some((matches!(end, CallEnd::Done), format!("{end:?}")))
             }
             _ => None,
@@ -149,12 +188,17 @@ async fn at_most_three_skills_load_in_a_task_and_a_hidden_one_never() {
         .collect();
     let done: Vec<bool> = loads.iter().map(|l| l.0).collect();
     assert_eq!(done, [true, true, true, false, false], "{loads:?}");
-    assert!(loads[3].1.starts_with("Refused(App(Failed("), "the fourth is the app's refusal: {loads:?}");
+    assert!(
+        loads[3].1.starts_with("Refused(App(Failed("),
+        "the fourth is the app's refusal: {loads:?}"
+    );
     // Only the three loaded skills are recorded as loaded.
     let recorded = w
         .records()
         .into_iter()
-        .filter(|r| matches!(r, AuditRecord::Session { slug, .. } if slug.as_str() == "skill_loaded"))
+        .filter(
+            |r| matches!(r, AuditRecord::Session { slug, .. } if slug.as_str() == "skill_loaded"),
+        )
         .count();
     assert_eq!(recorded, 3);
 }

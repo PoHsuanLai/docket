@@ -11,7 +11,7 @@ use crate::router::Router;
 use crate::seams::Seams;
 use docket_core::{
     AppRefusal, FailText, Follow, Invocation, LabelText, Outcome, ParamName, Preview, SkillId,
-    Undoable, Value, ValidManifest,
+    Undoable, ValidManifest, Value,
 };
 use docket_skills::{Library, Skill};
 use prov::{Actor, Labelled};

@@ -228,12 +228,7 @@ pub fn parse_doc(text: &str) -> Result<Doc, SkillFault> {
 
 /// Joins the two files of the directory named `dir` into a skill, checking the rules of the
 /// format: ids agree, sizes, non-empty body.
-pub fn assemble(
-    dir: &str,
-    facts: Facts,
-    doc: Doc,
-    origin: Origin,
-) -> Result<Skill, SkillFault> {
+pub fn assemble(dir: &str, facts: Facts, doc: Doc, origin: Origin) -> Result<Skill, SkillFault> {
     if facts.id.as_str() != dir || doc.name != dir {
         return Err(SkillFault::IdMismatch {
             dir: dir.to_owned(),

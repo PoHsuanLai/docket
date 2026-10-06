@@ -29,7 +29,13 @@ fn md_for(name: &str, description: &str, body: &str) -> String {
 }
 
 fn skill(id: &str, extra: &str) -> docket_skills::Skill {
-    parse(id, &toml_for(id, extra), &md_for(id, "d", "body"), Origin::Shipped).expect("skill")
+    parse(
+        id,
+        &toml_for(id, extra),
+        &md_for(id, "d", "body"),
+        Origin::Shipped,
+    )
+    .expect("skill")
 }
 
 #[test]
@@ -40,8 +46,14 @@ fn skill_toml_table() {
         (ok.replace("vocab = 1", "vocab = 2"), Err("vocab")),
         (ok.replace("id = \"a-b\"", "id = \"A_B\""), Err("bad id")),
         (ok.replace("0.1.0\"", "0.1.0\"\nsurprise = 1"), Err("toml")),
-        (ok.replace("companion.skill.load", "nocolon"), Err("bad use")),
-        (ok.replace("org.quire.Companion:", "Bad App:"), Err("bad use")),
+        (
+            ok.replace("companion.skill.load", "nocolon"),
+            Err("bad use"),
+        ),
+        (
+            ok.replace("org.quire.Companion:", "Bad App:"),
+            Err("bad use"),
+        ),
         (
             format!("{ok}[when]\nkinds = [\"Not A Kind\"]\n"),
             Err("bad kind"),
@@ -81,9 +93,18 @@ fn skill_md_table() {
             Ok(("x", "d", "Text")),
         ),
         ("# no front matter\n", Err(SkillFault::NoFrontMatter)),
-        ("---\nname: x\ndescription: d\n", Err(SkillFault::NoFrontMatter)),
-        ("---\ndescription: d\n---\nb", Err(SkillFault::MissingKey("name"))),
-        ("---\nname: x\n---\nb", Err(SkillFault::MissingKey("description"))),
+        (
+            "---\nname: x\ndescription: d\n",
+            Err(SkillFault::NoFrontMatter),
+        ),
+        (
+            "---\ndescription: d\n---\nb",
+            Err(SkillFault::MissingKey("name")),
+        ),
+        (
+            "---\nname: x\n---\nb",
+            Err(SkillFault::MissingKey("description")),
+        ),
         (
             "---\nname: x\ndescription:\n---\nb",
             Err(SkillFault::MissingKey("description")),
@@ -179,10 +200,30 @@ fn an_own_skill_overrides_a_shipped_one_and_a_bad_directory_is_reported() {
     let sys = data.path().join("sys");
     let sys2 = data.path().join("sys2");
     let skills = |d: &PathBuf| d.join("quire").join("skills");
-    write(&skills(&sys), "a", &toml_for("a", ""), &md_for("a", "shipped", "S"));
-    write(&skills(&sys), "b", &toml_for("b", ""), &md_for("b", "shipped b", "S"));
-    write(&skills(&sys2), "b", &toml_for("b", ""), &md_for("b", "second dir", "S"));
-    write(&skills(&home), "a", &toml_for("a", ""), &md_for("a", "mine", "M"));
+    write(
+        &skills(&sys),
+        "a",
+        &toml_for("a", ""),
+        &md_for("a", "shipped", "S"),
+    );
+    write(
+        &skills(&sys),
+        "b",
+        &toml_for("b", ""),
+        &md_for("b", "shipped b", "S"),
+    );
+    write(
+        &skills(&sys2),
+        "b",
+        &toml_for("b", ""),
+        &md_for("b", "second dir", "S"),
+    );
+    write(
+        &skills(&home),
+        "a",
+        &toml_for("a", ""),
+        &md_for("a", "mine", "M"),
+    );
     write(&skills(&home), "broken", "not toml [", "x");
     let roots = Roots::in_data_dirs(Some(&home), &[sys.clone(), sys2]);
     let Found { skills, rejected } = discover(&roots);
@@ -228,7 +269,10 @@ fn roots_read_the_xdg_variables() {
     assert_eq!(roots.own, Some(PathBuf::from("/h/quire/skills")));
     assert_eq!(
         roots.shipped,
-        vec![PathBuf::from("/a/quire/skills"), PathBuf::from("/b/quire/skills")]
+        vec![
+            PathBuf::from("/a/quire/skills"),
+            PathBuf::from("/b/quire/skills")
+        ]
     );
     let none = Roots::from_env(&|_| None);
     assert_eq!(none.own, None);
@@ -304,7 +348,10 @@ fn preselection_follows_when_and_stops_at_two() {
         ids(at(Some("org.quire.Mail"), &["mail.thread"])),
         ["basics", "by-app"]
     );
-    assert_eq!(ids(at(Some("org.quire.Shell"), &["mail.thread"])), ["basics", "by-kind"]);
+    assert_eq!(
+        ids(at(Some("org.quire.Shell"), &["mail.thread"])),
+        ["basics", "by-kind"]
+    );
     let only = [&by_app, &by_kind, &plain];
     let got: Vec<String> = preselect(&only, &at(Some("org.quire.Mail"), &["mail.thread"]))
         .into_iter()
@@ -325,7 +372,11 @@ fn a_task_loads_at_most_three_and_a_repeat_is_free() {
         assert_eq!(loaded.admit(id), Ok(()));
     }
     assert_eq!(loaded.admit(&ids[3]), Err(LoadRefusal::OverCap));
-    assert_eq!(loaded.admit(&ids[0]), Ok(()), "a skill already loaded costs nothing");
+    assert_eq!(
+        loaded.admit(&ids[0]),
+        Ok(()),
+        "a skill already loaded costs nothing"
+    );
     assert_eq!(loaded.ids().len(), LOAD_MAX);
 }
 
@@ -349,7 +400,10 @@ fn loaded_skills_actions_go_first_and_nothing_else_changes() {
         items.iter().map(|i| (action(i), *i)).collect();
     let out = uses_first(cards.clone(), |c| &c.0, &[&s]);
     let names: Vec<&str> = out.iter().map(|c| c.1).collect();
-    assert_eq!(names, ["org.quire.Companion:companion.skill.load", "x", "y"]);
+    assert_eq!(
+        names,
+        ["org.quire.Companion:companion.skill.load", "x", "y"]
+    );
     assert_eq!(uses_first(cards.clone(), |c| &c.0, &[]), cards);
 }
 

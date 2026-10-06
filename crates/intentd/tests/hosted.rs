@@ -589,7 +589,12 @@ async fn a_skill_loads_as_trusted_text_from_its_owner_and_a_task_loads_at_most_t
         for id in ["s-a", "s-b", "s-c", "s-d"] {
             skill_dir(data, id, LOAD_USES, &format!("How to {id}."));
         }
-        skill_dir(data, "s-missing", "org.quire.Companion:companion.no.such", "never");
+        skill_dir(
+            data,
+            "s-missing",
+            "org.quire.Companion:companion.no.such",
+            "never",
+        );
     })
     .await;
     let front = desk.front().await;
@@ -630,7 +635,7 @@ async fn a_skill_loads_as_trusted_text_from_its_owner_and_a_task_loads_at_most_t
         .await
         .expect("the request");
     assert!(matches!(refused, Err(CallRefusal::App(_))), "{refused:?}");
-    for id in ["s-a", ] {
+    for id in ["s-a"] {
         let again = desk
             .companion
             .perform(load(id), Some(front.session.clone()), None)
@@ -644,7 +649,10 @@ async fn a_skill_loads_as_trusted_text_from_its_owner_and_a_task_loads_at_most_t
             .perform(load(id), Some(front.session.clone()), None)
             .await
             .expect("the request");
-        assert!(matches!(hidden, Err(CallRefusal::App(_))), "{id}: {hidden:?}");
+        assert!(
+            matches!(hidden, Err(CallRefusal::App(_))),
+            "{id}: {hidden:?}"
+        );
     }
 
     // The budget is per task: another session starts with none loaded.

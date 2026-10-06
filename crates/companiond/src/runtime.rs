@@ -136,7 +136,10 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
     /// The installed skills this companion may offer (those that pass the format; the manifests
     /// decide which are reachable). Skills only teach: nothing here grants anything.
     pub fn with_skills(self, skill_files: Vec<docket_skills::Skill>) -> Self {
-        Self { skill_files, ..self }
+        Self {
+            skill_files,
+            ..self
+        }
     }
 
     /// Refreshes what the planner may call from the installed manifests. A router that does not

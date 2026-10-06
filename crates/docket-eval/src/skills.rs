@@ -47,7 +47,11 @@ pub fn check_skills(dirs: &[PathBuf]) -> Result<CheckReport, CheckError> {
         match load_dir(dir, Origin::Shipped) {
             Err(fault) => report.push(Level::Fail, dir, fault_words(&fault)),
             Ok(skill) if !ids.insert(skill.id.clone()) => {
-                report.push(Level::Fail, dir, format!("the id {} is shipped twice", skill.id));
+                report.push(
+                    Level::Fail,
+                    dir,
+                    format!("the id {} is shipped twice", skill.id),
+                );
             }
             Ok(skill) => match reach(&skill, &manifests) {
                 Reach::Reachable => report.push(
