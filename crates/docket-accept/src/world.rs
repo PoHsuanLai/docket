@@ -117,6 +117,8 @@ pub enum Cgroup<'a> {
     Unit(&'a str),
     /// An app's scope, `app-<app>-1.scope`.
     AppScope(&'a str),
+    /// A named transient user scope outside the `app-` namespace, `<name>.scope`.
+    Scope(&'a str),
 }
 
 impl Cgroup<'_> {
@@ -126,6 +128,7 @@ impl Cgroup<'_> {
         match self {
             Cgroup::Unit(name) => format!("{slice}/{name}.service\n"),
             Cgroup::AppScope(app) => format!("{slice}/app-{app}-1.scope\n"),
+            Cgroup::Scope(name) => format!("{slice}/{name}.scope\n"),
         }
     }
 }
@@ -148,7 +151,8 @@ fn inferd_toml(root: &Path, record: Option<&Path>) -> String {
 }
 
 /// memoryd's callers file: the units that may call it, with the roles the router and the shell
-/// are told apart by.
+/// are told apart by. The shell has both rows (sill.service, or the scope sill-session starts);
+/// the run places the test process in the scope.
 const MEMORY_CALLERS: &str = r#"[[caller]]
 app = "org.quire.Intents"
 unit = "intentd.service"
@@ -157,6 +161,11 @@ role = "agent"
 [[caller]]
 app = "org.quire.Shell"
 unit = "sill.service"
+role = "sheet_host"
+
+[[caller]]
+app = "org.quire.Shell"
+unit = "sill-shell.scope"
 role = "sheet_host"
 
 [[caller]]
@@ -264,7 +273,7 @@ impl World {
         // Files the daemons read: memoryd's callers, its Spaces, intentd's manifest and consent.
         // The test process is the shell (sill): the fake proc root says so.
         let record = std::env::var_os("ACCEPT_RECORD").map(|_| root.join("record.jsonl"));
-        place(root, std::process::id(), Cgroup::Unit("sill"));
+        place(root, std::process::id(), Cgroup::Scope("sill-shell"));
         write(
             &root.join("config/quire/memory-callers.toml"),
             MEMORY_CALLERS,
