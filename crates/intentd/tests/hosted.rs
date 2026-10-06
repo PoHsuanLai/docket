@@ -584,7 +584,7 @@ fn skill_dir(data: &std::path::Path, id: &str, uses: &str, body: &str) {
 const LOAD_USES: &str = "org.quire.Companion:companion.skill.load";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn a_skill_loads_as_trusted_text_from_its_owner_and_a_task_loads_at_most_three() {
+async fn a_skill_loads_as_trusted_text_from_the_person_and_a_task_loads_at_most_three() {
     let desk = Desk::start_with(FakeMemoryd::recording(), |data| {
         for id in ["s-a", "s-b", "s-c", "s-d"] {
             skill_dir(data, id, LOAD_USES, &format!("How to {id}."));
@@ -623,7 +623,7 @@ async fn a_skill_loads_as_trusted_text_from_its_owner_and_a_task_loads_at_most_t
     assert_eq!(label.integrity, prov::Integrity::Trusted);
     assert_eq!(
         label.sources,
-        std::collections::BTreeSet::from([Source::App(app("org.quire.Companion"))])
+        std::collections::BTreeSet::from([Source::User])
     );
     assert_eq!(loaded[0].undo, Undoable::No, "a load has no undo");
 
