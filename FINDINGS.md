@@ -976,3 +976,74 @@ An action's declared effect is a **ceiling**; an action may opt in to a per-call
   outside a task policy). A dry run (`Run.DryRun` preview) is prepared at the ceiling.
 - **Tests.** `docket-router/src/classify.rs` (table), `docket-router/tests/percall.rs` (docket-fake's `FakeMenu`),
   `intentd/tests/percall.rs` (a router over `DbusLink` and a real provider on a private bus).
+
+## f4-demo-install: the dev installer and `quire-do ask`
+
+For the owner's live demo of the companion on a cloud model (runbook: `docs/demo-cloud.md`).
+
+- **`dist/install-dev.sh`** installs the stack for one user from the sibling checkouts (`../porter`,
+  `../almanac`, `../stoker`, this one), builds with `cargo build --release --locked`, never runs sudo, and
+  records what it wrote in `~/.local/state/quire-dev/install-dev.manifest` for `--uninstall` (a config the person
+  edited is kept; directories are removed only if the install made them and they are empty). Tested in a jail
+  (`docket-cli/tests/install_dev.rs`: HOME, XDG and PREFIX in a tempdir, fake binaries through
+  `INSTALL_DEV_BIN_DIR`, cleared environment).
+  - memoryd has no unit in `almanac/dist`: `almanac/dbus/memoryd.service` is its unit, started by D-Bus
+    activation (`org.quire.Memory1.service` names it); that is what is installed.
+  - Beyond the brief, because the demo does not work without them: porter's `providers/*.toml` (accountd cannot
+    `add openrouter` without its provider file) to `$XDG_DATA_HOME/porter/providers`, and stoker's `catalog/*.toml`
+    (inferd reads its model entries only from `$XDG_DATA_HOME/stoker/catalog` and `/usr/share/stoker/catalog`;
+    without them there is no `cloud/<entry>`).
+  - Left out on purpose: `voiced` (skeleton), `syncd`, `cuad`; `docket/manifests` (the Memory and Companion
+    manifests are built into intentd, which logs "built into intentd" and skips a file of theirs). `intentd.toml`,
+    `companiond.toml` and `actions-mcp.toml` are installed only if absent as asked, but note that each replaces the
+    built-in default whole, so a later change to the shipped file does not reach a machine that has a copy.
+  - Skills land in `$XDG_DATA_HOME/quire/skills`, which docket-skills reads as the person's own (`Origin::Own`,
+    source `User`), not as shipped (`Source::App`). Fine for a dev install; a package installs under `/usr/share`.
+  - **Dev-only changes to the packaged units**: `ProtectHome=yes` becomes `read-only` for companiond and readerd when
+    the prefix is under `$HOME` (with `yes` the binary itself cannot be executed from `$HOME`, and companiond could
+    not read `~/.config/quire` or the skills). The porter units need a drop-in the installer writes
+    (`inferd.service.d/10-dev.conf`, `accountd.service.d/10-dev.conf`): `ExecStartPre=+mkdir -p` for the
+    `ReadWritePaths` directories (a missing one stops the unit with 226/NAMESPACE), and for inferd
+    `PrivateNetwork=no` with `AF_INET AF_INET6`: **`dist/inferd.service` as packaged allows only `AF_UNIX` in a
+    private network namespace, so a hosted model cannot connect.** Interface ask to porter: ship that drop-in (or an
+    inferd unit with the network and the directories) in `dist/`.
+  - The one root step (printed, never run): `sudo install -D -m644 <porter>/dist/callers.toml /etc/porter/callers.toml`.
+    accountd and syncd read `/etc/porter/callers.toml` with `$XDG_CONFIG_HOME/porter/callers.toml` laid over it (user
+    rows win); inferd's own caller table is `[callers]` in `~/.config/quire/inferd.toml` (installed), and memoryd's is
+    `memory-callers.toml` (installed in the user config, which layers over `/etc/quire/`), so neither needs root.
+- **`quire-do ask [--space <id>] "<text>"`**: `Companion1.Open` in the Space (default `desktop`), `Session.Turn`
+  through intentd, `Companion1.Ask`, then the answer object is followed (its current `View`, then each `Updated`)
+  until it is no longer Thinking or Streaming. Prints the text, the plan steps, what is waited for and the footer
+  (model, where it ran); `--json` or a pipe prints the answer object. `NeedsYou(Confirm)` prints the request and
+  exits **8** (new code, `needs_you`) with "answered in the shell": `quire-do` is not `Confirm1`, nothing answers
+  it, and the conversation is left open for the sheet; a finished conversation is closed. A handle in the text is
+  printed as `#n` (a terminal may not `Session.Display`). The seam is `docket_client::CompanionTransport`
+  (`DbusCompanion` over the bus); the whole program is `docket_cli::program::main`, which `accept-quire-do` also
+  runs. Tests: `docket-cli/tests/ask.rs` (scripted companion over the fake router), `docket-accept/tests/terminal.rs`
+  (the real `quire-do` against the real daemons: a read answered, a Forward left waiting for the sheet),
+  `companiond/tests/terminal.rs` (the authority, below).
+- **Security: the cli role speaks for the person in three calls.** companiond used to accept only the owner of
+  `org.quire.Shell`. It now also accepts, for `Open`, `Ask` and `Close` only, a connection that (1) is the same
+  user (`GetConnectionCredentials`), (2) is in a terminal's scope (`vte-spawn-*`, `tmux-spawn-*`, a login
+  `session-*`: the same `docket_core::is_terminal_scope` intentd derives the cli role from, over the cgroup of the
+  pid the bus names), and (3) owns no well-known name (a name makes it that app, as in intentd's `Peers`). `Told`
+  (words to a subagent) and the answer object's `Act` (pressing a card) stay the shell's alone; `Cancel` and `View` were
+  never restricted. The reasoning: the cli role is the person at a terminal, same uid, which intentd already
+  treats as asking for everything that is not a read, with a confirmation for each act; `Open`, `Ask` and `Close`
+  hand the companion words and a conversation, and every call the companion then makes still goes through
+  intentd's gate in role `companion` with the sheet for the person. What it adds: a process in a terminal (an
+  agent running shell commands, say) can now put words in the companion's mouth, which it could already do to
+  `quire-do <app> <action>` one call at a time; it cannot answer a confirmation, press a card, or reach a
+  subagent. The router's side: `Member::SessionTurn` now permits `Cli` (it was Launcher and Field only), because a
+  turn the router did not record is not a turn; such a turn is recorded as the new `TurnSource::Terminal`, not as
+  the launcher's, so a later rule can treat it differently (nothing does yet; sill only constructs `TurnSource`,
+  so adding the variant breaks no match there). `COMPANIOND_PROC_ROOT` (feature `test-proc-root`, ignored with a
+  line on stderr in any other build, and now checked by `check-boundary.sh` beside intentd's) lets the acceptance
+  run present a process as a terminal; `serve_on_rooted` is the in-process seam.
+- **Cannot work yet, for the demo.** (1) A confirmation cannot be answered without sill's `Confirm1` sheet: a write
+  (`memory.propose`) stops at "Waiting for your confirmation" (exit 8); reads and plain chat work. (2) The first use
+  of a data class in a Space also asks; there is no way to give the standing grant without the sheet. (3) The
+  `desktop` Space may not exist in memoryd on a fresh install (nothing here creates it; sill does): recall and the
+  audit trail may fail softly. (4) A handle in an answer prints as `#n`. (5) Mail, calendar, files: not installed
+  (mailo has its own installer). (6) `readerd` is installed but a cloud model is only reached for the classes
+  whose floor you lowered. (7) accountd stores the key in the Secret Service: KWallet must be unlocked.
