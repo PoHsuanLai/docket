@@ -6,9 +6,9 @@ use porter_core::{
     AccountId, AccountsReply, AccountsRequest, DataClass, Locality, ModelId, Need, Tier, Tokens,
 };
 use porter_infer::{
-    ChatReply, ChatRequest, ClientFrame, InferEvent, InferReply, InferRequest, InferSession,
-    JsonText, OpenOptions, ServedBy, SessionError, StopReason, TokenUsage, ToolCallId,
-    ToolCallPart, ToolName,
+    ChatReply, ChatRequest, ClientFrame, InferEvent, InferRefusal, InferReply, InferRequest,
+    InferSession, JsonText, OpenOptions, ServedBy, SessionError, StopReason, TokenUsage,
+    ToolCallId, ToolCallPart, ToolName,
 };
 use serde_json::Value as Json;
 use std::collections::VecDeque;
@@ -23,6 +23,10 @@ pub enum Say {
     Cut(String),
     /// Never finishes: only being dropped ends it.
     Hang,
+    /// These events first (a `Why`, a `Stage`, a `Declined`), then the inner reply.
+    Routed(Vec<InferEvent>, Box<Say>),
+    /// Ends in a refusal, which a `Declined` event just before it explains.
+    Refuse(InferRefusal),
 }
 
 /// Words only.
@@ -94,7 +98,7 @@ pub struct ScriptedSession {
     hang: bool,
 }
 
-fn served() -> ServedBy {
+pub fn served() -> ServedBy {
     ServedBy {
         account: AccountId::parse("local").expect("account"),
         model: ModelId::parse("scripted").expect("model"),
@@ -138,7 +142,12 @@ impl InferSession for ScriptedSession {
         };
         let mut inner = self.inner.0.lock().expect("lock");
         inner.asked.push(request);
-        match inner.script.pop_front() {
+        let mut next = inner.script.pop_front();
+        while let Some(Say::Routed(events, then)) = next {
+            self.ready.extend(events);
+            next = Some(*then);
+        }
+        match next {
             Some(Say::Reply(text, calls)) => self.ready.push_back(reply(text, calls)),
             Some(Say::Cut(text)) => {
                 let mut cut = reply(text, vec![]);
@@ -147,8 +156,11 @@ impl InferSession for ScriptedSession {
                 }
                 self.ready.push_back(cut);
             }
+            Some(Say::Refuse(why)) => self
+                .ready
+                .push_back(InferEvent::Finished(InferReply::Refused(why))),
             Some(Say::Hang) => self.hang = true,
-            None => return Err(SessionError::Closed),
+            Some(Say::Routed(..)) | None => return Err(SessionError::Closed),
         }
         Ok(())
     }

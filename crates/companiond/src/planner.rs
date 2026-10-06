@@ -11,6 +11,7 @@ use crate::args::read_call;
 use crate::catalogue::{Catalogue, CatalogueTool};
 use crate::render::messages;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier};
+use companion_wire::{RouteLog, RouteNote};
 use docket_core::{CallRequest, Origin, PlannerView, ReaderAsk};
 use porter_client::{AnyTransport, Transport};
 use porter_core::capability::LlmFeature;
@@ -18,9 +19,9 @@ use porter_core::consent::Usage;
 use porter_core::need::LlmNeed;
 use porter_core::{DataClass, Need, Tier, Tokens};
 use porter_infer::{
-    ChatControl, ChatReply, ChatRequest, ClientFrame, InferEvent, InferReply, InferRequest,
-    InferSession, JsonSchemaText, JsonText, Knob, Reasoning, ReplyShape, ServedBy, StopReason,
-    ToolCallPart, ToolChoice, ToolDecl, ToolName, ToolParallelism,
+    ChatControl, ChatReply, ChatRequest, ClientFrame, Declined, InferEvent, InferReply,
+    InferRequest, InferSession, JsonSchemaText, JsonText, Knob, Reasoning, ReplyShape, ServedBy,
+    StopReason, ToolCallPart, ToolChoice, ToolDecl, ToolName, ToolParallelism,
 };
 use serde_json::{Value as Json, json};
 use std::collections::BTreeSet;
@@ -36,7 +37,7 @@ pub const TOOL_READ: &str = "quire_read";
 pub const TOOL_FINISH: &str = "quire_finish";
 
 /// Why the planner gave nothing usable.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum PlanFault {
     /// No model could be reached or it refused.
     #[error("no planner model")]
@@ -44,6 +45,9 @@ pub enum PlanFault {
     /// Its reply was not a tool call or words.
     #[error("unreadable reply")]
     Unreadable,
+    /// The model the person named cannot serve; no other model answered in its place.
+    #[error("the named model cannot serve")]
+    Declined(Box<Declined>),
 }
 
 /// What the planner said and did in one turn: words first, then the one thing the loop acts on.
@@ -55,6 +59,8 @@ pub struct PlannerReply {
     pub then: ModelOutput,
     /// Who answered, for the answer's footer.
     pub served: Option<ServedBy>,
+    /// How each stage of the turn was reached and why, for the footer line.
+    pub route: Vec<RouteNote>,
 }
 
 /// The planner model.
@@ -188,8 +194,10 @@ impl<P: Transport> PlannerModel<P> {
 
     /// One planner step: what the model said, and what the loop does next.
     pub async fn converse(&self, view: &PlannerView) -> Result<PlannerReply, PlanFault> {
-        let reply = self.chat(self.request(view)).await?;
-        self.read(reply)
+        let (reply, route) = self.chat_routed(self.request(view)).await?;
+        let mut said = self.read(reply)?;
+        said.route = route;
+        Ok(said)
     }
 
     /// One planner step as the loop's single output: calls, a read, a question, an end, or
@@ -204,6 +212,14 @@ impl<P: Transport> PlannerModel<P> {
 
     /// Runs a chat turn to its end and returns the reply.
     pub(crate) async fn chat(&self, request: ChatRequest) -> Result<ChatReply, PlanFault> {
+        self.chat_routed(request).await.map(|(reply, _)| reply)
+    }
+
+    /// A chat turn and how it was routed: the reasons, doors and stages inferd announced.
+    pub(crate) async fn chat_routed(
+        &self,
+        request: ChatRequest,
+    ) -> Result<(ChatReply, Vec<RouteNote>), PlanFault> {
         let need = Need::Llm(LlmNeed {
             features: BTreeSet::from([LlmFeature::Chat, LlmFeature::Tools]),
             context: CONTEXT,
@@ -218,10 +234,18 @@ impl<P: Transport> PlannerModel<P> {
             .send(ClientFrame::Request(InferRequest::Chat(request)))
             .await
             .map_err(|_| PlanFault::Unavailable)?;
+        let mut route = RouteLog::default();
         loop {
-            match session.next().await.map_err(|_| PlanFault::Unavailable)? {
-                InferEvent::Finished(InferReply::Chat(reply)) => return Ok(reply),
-                InferEvent::Finished(_) => return Err(PlanFault::Unavailable),
+            let event = session.next().await.map_err(|_| PlanFault::Unavailable)?;
+            route.event(&event);
+            match event {
+                InferEvent::Finished(InferReply::Chat(reply)) => return Ok((reply, route.notes())),
+                InferEvent::Finished(_) => {
+                    return Err(match route.declined() {
+                        Some(declined) => PlanFault::Declined(Box::new(declined.clone())),
+                        None => PlanFault::Unavailable,
+                    });
+                }
                 _ => {}
             }
         }
@@ -256,6 +280,7 @@ impl<P: Transport> PlannerModel<P> {
             said,
             then,
             served: Some(reply.served),
+            route: Vec::new(),
         })
     }
 

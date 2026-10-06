@@ -9,6 +9,8 @@
 mod answer;
 mod ask;
 mod record;
+mod route;
+mod route_log;
 
 pub use answer::{
     AnswerBody, AnswerPhase, AnswerWire, CardWire, FooterWire, FormWire, NeedsYou, PlanStepWire,
@@ -16,3 +18,8 @@ pub use answer::{
 };
 pub use ask::{AskWire, FrontTask};
 pub use record::{SESSION_KIND_PREFIX, SessionRecord};
+pub use route::{
+    Reached, RouteNote, WhySays, WhyWord, declined_text, footer_line, model_name, provider_name,
+    why_says,
+};
+pub use route_log::RouteLog;

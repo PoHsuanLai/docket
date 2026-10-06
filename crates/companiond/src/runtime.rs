@@ -392,6 +392,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
     pub(crate) fn publish_answer(&self, task: &TaskId) {
         if let Some(rt) = self.runtimes.get(task) {
             self.shared.set_session(task, rt.session.clone());
+            self.shared.set_route(task, rt.route.clone());
             self.shared.set_answer(rt.answer(task));
         }
         self.publish();

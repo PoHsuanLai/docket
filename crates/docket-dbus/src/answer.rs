@@ -29,6 +29,12 @@ pub trait CompanionAnswer {
     /// `Companion1.Close`; after that the object is gone.
     #[zbus(property)]
     fn session(&self) -> zbus::Result<String>;
+
+    /// How the answer's last model turn was reached (`Vec<RouteNote>` JSON): per stage, the
+    /// model, the provider and door, and the reasons inferd gave. `companion_wire::footer_line`
+    /// turns it into the footer line. Read-only; empty (`[]`) until a model has answered.
+    #[zbus(property)]
+    fn routing(&self) -> zbus::Result<String>;
 }
 
 /// The daemon's side.
@@ -48,6 +54,11 @@ impl CompanionAnswerSkeleton {
 
     #[zbus(signal)]
     async fn updated(emitter: &SignalEmitter<'_>, view: &str) -> zbus::Result<()>;
+
+    #[zbus(property)]
+    fn routing(&self) -> fdo::Result<String> {
+        Err(crate::introspect::frozen())
+    }
 
     #[zbus(property)]
     fn session(&self) -> fdo::Result<String> {

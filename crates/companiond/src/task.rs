@@ -5,7 +5,9 @@
 
 use crate::plan::Plan;
 use agent_loop::LoopState;
-use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, FooterWire, NeedsYou, RefusalWire};
+use companion_wire::{
+    AnswerBody, AnswerPhase, AnswerWire, FooterWire, NeedsYou, RefusalWire, RouteNote,
+};
 use docket_core::{
     CallEnd, CallId, CallRefusal, CallRequest, CharCount, ContextKeep, HandleCard, HandleShape,
     InboundLine, InboundPart, Keep, LedgerStep, Outcome, Reveal, StepEnd, StepLine, StepShown,
@@ -55,6 +57,8 @@ pub struct TaskRuntime {
     pub refused: Option<RefusalWire>,
     /// Who answered the planner, last.
     pub served: Option<ServedBy>,
+    /// How the last turn's stages were reached and why.
+    pub route: Vec<RouteNote>,
     /// The next number a call of this task gets.
     pub next_call: u64,
     /// The app the person asked from (the context section reads its window); none for the
@@ -106,6 +110,7 @@ impl TaskRuntime {
             plan: Plan::default(),
             refused: None,
             served: None,
+            route: Vec::new(),
             next_call: 0,
             summoned: None,
             proposal: None,

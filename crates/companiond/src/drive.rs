@@ -5,12 +5,13 @@
 
 use crate::fault::ServeFault;
 use crate::plan::phase_of;
+use crate::planner::PlanFault;
 use crate::runtime::Companiond;
 use agent_loop::{
     IdleInput, LoopEffect, LoopInput, LoopPhase, LoopState, ModelOutput, agent_step, assemble,
     idle_step,
 };
-use companion_wire::AnswerPhase;
+use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
 use docket_core::{
     ActionRef, CallId, CallProgress, CallRefusal, CallRequest, ReadAsk, ReaderAsk, Reveal, StepEnd,
@@ -162,10 +163,20 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         let view = assemble(&self.config.assembler, &sources);
         let reply = match self.planner.converse(&view).await {
             Ok(reply) => reply,
-            Err(_) => return Ok(vec![LoopInput::ModelFailed]),
+            Err(fault) => {
+                if let (PlanFault::Declined(declined), Some(rt)) =
+                    (&fault, self.runtimes.get_mut(task))
+                {
+                    rt.refused = Some(RefusalWire::Failed(declined_text(declined)));
+                }
+                return Ok(vec![LoopInput::ModelFailed]);
+            }
         };
         if let Some(rt) = self.runtimes.get_mut(task) {
             rt.served = reply.served.clone();
+            if !reply.route.is_empty() {
+                rt.route = reply.route.clone();
+            }
             if let Some(words) = &reply.said {
                 rt.said.push(words.clone());
             }

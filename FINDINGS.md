@@ -1107,3 +1107,20 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
    beside a `skills` directory, every `*.toml` of each `--manifests` directory, and the built-in two."
 7. **docket-fake** `FakeMenu` now treats any `<app>.item.*` action as a menu item (it matched `menu.item.*` only), so
    a test can stand it in for another app by renaming the manifest.
+
+## f4-docket-why: the answer says why
+
+1. **Routing property.** `org.quire.Companion1.Answer` gained a read-only property `Routing` (`s`): JSON of
+   `Vec<companion_wire::RouteNote { stage, served, why: Vec<WhyWord>, reached: Option<Reached> }>`, the last model turn
+   that announced anything (`[]` before one did). Set before `AnswerAdded`, like `Session`. `AnswerWire`, `FooterWire`
+   and `AskWire` are unchanged, so no literal in sill, cua or almanac breaks.
+2. **The line.** `companion_wire::footer_line(&[RouteNote]) -> String` prints "Heard by Whisper · Answered by Claude
+   Haiku 4.5 via OpenRouter (already loaded)"; sill and detent both call it. Model names are made from the id
+   (`model_name`: "claude-haiku-4-5" is "Claude Haiku 4.5"); a catalogue display name would be better when porter has one.
+3. **Folding.** `RouteLog` folds one turn's events: `Why` words collect until a `Stage` (or the end, for a one-model session
+   with only `Routed`) closes a note; `Why::Reached` is the door, not a reason. A `Stage`'s own `why` is always sent by
+   inferd, so only its door is used: reasons come from `Why` events, which exist only when `ai.auto.show_reason` is on
+   (and for an eviction, always).
+4. **Declined.** `PlanFault::Declined` (no longer `Copy`): a `Declined` event before `Finished(Refused)` makes the task's
+   refusal `Failed("Kimi K2.6 cannot answer: it is not installed on this computer.")` (`declined_text`).
+5. Needs porter at f34da56 or later (`Why::Reached`, `Stage`). The workspace paths point at `../porter`.

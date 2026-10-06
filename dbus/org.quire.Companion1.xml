@@ -47,6 +47,7 @@
    <signal name="Updated">
      <arg name="view" type="s"/>
    </signal>
+   <property name="Routing" type="s" access="read"/>
    <property name="Session" type="s" access="read"/>
    <property name="View" type="s" access="read"/>
  </interface>

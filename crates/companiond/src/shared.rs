@@ -3,7 +3,7 @@
 //! (a cancel, and an interactive request that the idle pass must yield to). A planner turn can
 //! sit on a confirmation for minutes; `Roster()` and `Front()` must not.
 
-use companion_wire::{AnswerWire, FrontTask};
+use companion_wire::{AnswerWire, FrontTask, RouteNote};
 use docket_core::Roster;
 use prov::{SessionId, TaskId};
 use std::collections::{BTreeMap, BTreeSet};
@@ -29,6 +29,7 @@ struct State {
     front: Option<FrontTask>,
     answers: BTreeMap<TaskId, AnswerWire>,
     sessions: BTreeMap<TaskId, SessionId>,
+    routes: BTreeMap<TaskId, Vec<RouteNote>>,
     cancels: BTreeSet<TaskId>,
 }
 
@@ -126,8 +127,19 @@ impl Shared {
         self.with(|s| s.sessions.insert(task.clone(), session));
     }
 
+    /// How the answer's last turn was reached and why (`Answer.Routing`).
+    pub fn route_of(&self, task: &TaskId) -> Option<Vec<RouteNote>> {
+        self.with(|s| s.routes.get(task).cloned())
+    }
+
+    /// Records the route notes of `task`'s answer. Set before the answer, like the session.
+    pub fn set_route(&self, task: &TaskId, notes: Vec<RouteNote>) {
+        self.with(|s| s.routes.insert(task.clone(), notes));
+    }
+
     /// Drops an answer.
     pub fn drop_answer(&self, task: &TaskId) {
+        self.with(|s| s.routes.remove(task));
         self.with(|s| s.sessions.remove(task));
         if self.with(|s| s.answers.remove(task)).is_some() {
             self.tell(Change::AnswerRemoved(task.clone()));
