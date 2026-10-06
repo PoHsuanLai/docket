@@ -5,7 +5,7 @@
 use porter_client::{InferSession, OpenOptions, SessionError, Transport, TransportError};
 use porter_core::{AccountsReply, AccountsRequest, DataClass, Need, Tier};
 use porter_fake::{FakeInferSession, Script};
-use porter_infer::{ClientFrame, InferEvent};
+use porter_infer::{ClientFrame, InferEvent, Readiness};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Notify;
@@ -46,6 +46,7 @@ pub struct ScriptedInfer {
     pub seen: Arc<Seen>,
     hold: Option<Arc<Notify>>,
     fail: Option<TransportError>,
+    prepared: Option<Result<Readiness, TransportError>>,
 }
 
 impl ScriptedInfer {
@@ -56,6 +57,7 @@ impl ScriptedInfer {
             seen: Arc::new(Seen::default()),
             hold: None,
             fail: None,
+            prepared: None,
         }
     }
 
@@ -64,6 +66,12 @@ impl ScriptedInfer {
         let gate = Arc::new(Notify::new());
         self.hold = Some(gate.clone());
         (self, gate)
+    }
+
+    /// `prepare` answers `answer`; without this it is `Unreachable`, as the trait's default.
+    pub fn prepared(mut self, answer: Result<Readiness, TransportError>) -> Self {
+        self.prepared = Some(answer);
+        self
     }
 
     /// Every open fails with `error`.
@@ -104,6 +112,23 @@ impl Transport for ScriptedInfer {
 
     async fn call(&self, _request: AccountsRequest) -> Result<AccountsReply, TransportError> {
         Err(TransportError::Unreachable)
+    }
+
+    async fn prepare(
+        &self,
+        need: &Need,
+        class: DataClass,
+        tier: Tier,
+        _options: &OpenOptions,
+    ) -> Result<Readiness, TransportError> {
+        self.seen.opens.lock().expect("opens").push(Opened {
+            need: need.clone(),
+            class,
+            tier,
+        });
+        self.prepared
+            .clone()
+            .unwrap_or(Err(TransportError::Unreachable))
     }
 
     async fn open_with(

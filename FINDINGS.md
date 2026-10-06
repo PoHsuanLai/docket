@@ -1190,12 +1190,10 @@ Closes the voiced rows of the todo table: `voiced::serve` is filled and the bina
 
 1. **`CaptureStream: Send + Sync`** (was `Send`) and **`serve<D: AudioDevice + 'static>`**: the loop holds the
    stream across awaits in a spawned task. Every implementor in this repo already meets both.
-2. **porter, `Transport::prepare`** (ask): `porter-client`'s `Transport` has `open` but no `prepare`, so `Voice1.Prepare`
-   calls `Inference1.Prepare` through `porter_dbus::InferenceProxy` in `BusWarm`. Wanted: `fn prepare(&self, need:
-   &Need, class: DataClass, tier: Tier, options: &OpenOptions) -> impl Future<Output = Result<Readiness,
-   TransportError>>` on `Transport`, so voiced drops its porter-dbus use for this. Nothing else is asked of porter:
-   `Transcribe`, `Speak`, `Audio`, `EndOfAudio`, `Heard`, `Spoken` and `Readiness` are all there, and the fake scripts
-   them.
+2. **porter, `Transport::prepare`** (landed, porter d903d6a): `BusWarm` is now `TransportWarm<DbusTransport>` and asks
+   `Transport::prepare(stt_need, DataClass::Voice, tier, interactive options)`; a `Denied` or `Unreachable` reads as
+   `Unavailable`, as before. voiced keeps `porter-dbus` only for `ProcCallers` (`peer.rs`); the raw `InferenceProxy`
+   is gone. Nothing else is asked of porter.
 3. **sill, the consent source** (ask): voiced decides `VoiceUse` per call by reading sill's `settings.toml` (the
    unit binds `%h/.config/sill` read-only). It reads the `[voice]` table: `hold_to_talk = "off"` is Off; `consent =
    "given"` (or a `[voice.consent] given = <unix seconds>` table) is On; `"declined"` is Off; anything else, a missing
@@ -1250,3 +1248,12 @@ sentence, who may speak, half-duplex queueing, barge-in, hush, stop, synthesis r
 the capture choice table (default, override, monitor and missing refused, no sources), the metadata JSON shapes and key precedence, the `input` config key,
 roles, consent text, framing, errors, earcons, the PipeWire node classification and fade. The by-hand
 `dev/voice-capture-try.sh` is the only thing that touches a real device.
+
+### v-warm-prepare (2026-10-07)
+
+`BusWarm` goes through porter-client's `Transport::prepare` (`TransportWarm<T>`, `BusWarm` is the alias over
+`DbusTransport`); `Warm` and `FixedWarm` are unchanged. New `tests/warm.rs` (3 tests: readiness pass-through, refusal
+and missing inferd read as `Unavailable`, the need/class/tier asked) with `ScriptedInfer::prepared`. porter's
+voice-chat contract (11c7a2e): voiced only drives the `Transcribe` path (16 kHz, EndOfAudio), so it needs no change;
+`RouteLog`/`footer_line` already handle two `Routed` per voice turn (each `Stage` clears the pending `Routed`), now
+pinned by `a_voice_turn_has_two_routed_and_one_answer_line` in companion-wire. `todo!()` counts unchanged.

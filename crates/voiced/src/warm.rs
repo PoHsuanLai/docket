@@ -1,12 +1,12 @@
 //! `Voice1.Prepare`: warms the speech-to-text engine the route would pick, with no mic and no
-//! request, and says how ready it is. porter-client's `Transport` has no `prepare` yet (interface
-//! ask), so the shipped warmer calls `Inference1.Prepare` through porter-dbus; a test hands in a
-//! fixed answer.
+//! request, and says how ready it is. The shipped warmer asks porter-client's
+//! `Transport::prepare`; a test hands in a fixed answer or a scripted transport.
 
+use porter_client::{DbusTransport, OpenOptions, Transport};
 use porter_core::capability::SpeechMode;
+use porter_core::consent::Usage;
 use porter_core::need::SpeechNeed;
 use porter_core::{DataClass, Need, Tier};
-use porter_dbus::{Details, InferenceProxy, need_to_dbus};
 use porter_infer::Readiness;
 use std::collections::BTreeSet;
 use std::future::Future;
@@ -41,49 +41,42 @@ impl Warm for FixedWarm {
     }
 }
 
-/// `Inference1.Prepare` on the session bus.
+/// Warms through porter-client's [`Transport::prepare`]: `Inference1.Prepare` when the
+/// transport is the session bus. A refusal (`Denied`) and an absent inferd (`Unreachable`) both
+/// read as `Unavailable`, so the shell sees one answer for "cannot hear now".
 #[derive(Debug, Clone)]
-pub struct BusWarm {
-    connection: zbus::Connection,
+pub struct TransportWarm<T> {
+    transport: T,
     tier: Tier,
 }
 
-impl BusWarm {
+/// The shipped warmer: porter-client's D-Bus transport on the session bus.
+pub type BusWarm = TransportWarm<DbusTransport>;
+
+impl TransportWarm<DbusTransport> {
     /// Warms over `connection` for `tier`.
     pub fn new(connection: zbus::Connection, tier: Tier) -> Self {
-        Self { connection, tier }
+        Self::over(DbusTransport::over(connection), tier)
     }
 }
 
-fn slug<T: serde::Serialize>(value: &T) -> Option<String> {
-    match serde_json::to_value(value).ok()? {
-        serde_json::Value::String(text) => Some(text),
-        _ => None,
+impl<T: Transport> TransportWarm<T> {
+    /// Warms through `transport` for `tier`.
+    pub fn over(transport: T, tier: Tier) -> Self {
+        Self { transport, tier }
     }
 }
 
-fn readiness_of(slug: &str) -> Readiness {
-    match slug {
-        "ready" => Readiness::Ready,
-        "loading" => Readiness::Loading,
-        "loadable" => Readiness::Loadable,
-        "downloadable" => Readiness::Downloadable,
-        _ => Readiness::Unavailable,
-    }
-}
-
-impl Warm for BusWarm {
+impl<T: Transport + 'static> Warm for TransportWarm<T> {
     async fn warm(&self) -> Readiness {
-        let (Some(class), Some(tier)) = (slug(&DataClass::Voice), slug(&self.tier)) else {
-            return Readiness::Unavailable;
-        };
-        let need = need_to_dbus(&stt_need());
-        let Ok(proxy) = InferenceProxy::new(&self.connection).await else {
-            return Readiness::Unavailable;
-        };
-        proxy
-            .prepare(&need, &class, &tier, &Details::new())
+        self.transport
+            .prepare(
+                &stt_need(),
+                DataClass::Voice,
+                self.tier,
+                &OpenOptions::default().with_usage(Usage::Interactive),
+            )
             .await
-            .map_or(Readiness::Unavailable, |text| readiness_of(&text))
+            .unwrap_or(Readiness::Unavailable)
     }
 }

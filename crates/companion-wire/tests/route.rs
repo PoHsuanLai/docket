@@ -251,6 +251,29 @@ fn a_pipeline_gives_one_note_per_stage_and_a_bare_routed_one_answer() {
 }
 
 #[test]
+fn a_voice_turn_has_two_routed_and_one_answer_line() {
+    // Porter's voice-chat order: Routed, Stage(Hear), Heard.., Routed, Stage(Answer), deltas, end.
+    let mut log = RouteLog::default();
+    [
+        InferEvent::Routed(served("whisper", Locality::OnDevice)),
+        stage(StageRole::Hear, "whisper", Locality::OnDevice, Why::Named),
+        InferEvent::Routed(served("gemma-4", Locality::OnDevice)),
+        stage(StageRole::Answer, "gemma-4", Locality::OnDevice, Why::Named),
+        InferEvent::TextDelta("hi".into()),
+        InferEvent::Finished(porter_infer::InferReply::Refused(
+            porter_infer::InferRefusal::Unavailable,
+        )),
+    ]
+    .iter()
+    .for_each(|e| log.event(e));
+    let notes = log.notes();
+    assert_eq!(notes.len(), 2);
+    let line = footer_line(&notes);
+    assert_eq!(line, "Heard by Whisper · Answered by Gemma 4");
+    assert_eq!(line.matches("Answered by").count(), 1);
+}
+
+#[test]
 fn route_notes_round_trip_as_json() {
     let notes = vec![note(
         StageRole::Answer,

@@ -46,5 +46,5 @@ pub use pipewire_device::PipeWireDevice;
 pub use playback::{EARCON_RATE, earcon_samples};
 pub use serve::{Running, Seams, serve, start};
 pub use usage::{FileUse, FixedUse, UseSource, use_of_settings};
-pub use warm::{BusWarm, FixedWarm, Warm};
+pub use warm::{BusWarm, FixedWarm, TransportWarm, Warm};
 pub use wire::{frame, seal, unframe};
