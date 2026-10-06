@@ -7,7 +7,7 @@ use crate::error::VoiceError;
 use crate::peer::Peers;
 use std::os::fd::OwnedFd;
 use tokio::sync::{mpsc, oneshot};
-use voice_wire::{SpeakWire, VoiceBegin, VoiceTarget};
+use voice_wire::{CancelCause, SpeakWire, VoiceBegin, VoiceTarget};
 use zbus::message::Header;
 
 /// Who called: the connection's unique name and the role the daemon derived for it.
@@ -69,6 +69,7 @@ pub(crate) enum Command {
     Cancel {
         n: u64,
         caller: Caller,
+        cause: CancelCause,
         reply: Done,
     },
     StopSpeech {

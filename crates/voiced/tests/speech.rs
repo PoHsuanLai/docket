@@ -118,7 +118,10 @@ async fn speech_waits_for_the_mic_and_starts_when_the_utterance_ends() {
         "nothing plays while the mic is open"
     );
     assert_eq!(world.seen.opens().len(), 1, "no synthesis session yet");
-    utterance.cancel().await.expect("cancel");
+    utterance
+        .cancel(&cause_wire(voice_wire::CancelCause::Shell))
+        .await
+        .expect("cancel");
     assert_eq!(
         speech_end_of(&next_text(&mut finished).await),
         SpeechEnd::Done

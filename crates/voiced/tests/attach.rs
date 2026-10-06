@@ -144,7 +144,10 @@ async fn the_attached_app_may_cancel_and_may_speak_to_its_utterance() {
         "not an utterance it is attached to"
     );
 
-    theirs.cancel().await.expect("cancel");
+    theirs
+        .cancel(&cause_wire(CancelCause::FocusLost))
+        .await
+        .expect("cancel");
     assert_eq!(
         end_of(&next_text(&mut app_ended).await),
         UtteranceEnd::Cancelled(CancelCause::FocusLost)

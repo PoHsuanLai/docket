@@ -33,6 +33,7 @@
    <method name="Release">
    </method>
    <method name="Cancel">
+     <arg name="cause" type="s" direction="in"/>
    </method>
    <signal name="Ended">
      <arg name="end" type="s"/>

@@ -128,8 +128,9 @@ pub trait Utterance {
     fn attach(&self) -> zbus::Result<OwnedFd>;
     /// End of the hold: finish (the Begin caller).
     fn release(&self) -> zbus::Result<()>;
-    /// Discards everything (the Begin caller or the attached app).
-    fn cancel(&self) -> zbus::Result<()>;
+    /// Discards everything (the Begin caller or the attached app). `cause` is a sealed
+    /// `CancelCause`: `escape`, `other_input`, `focus_lost` or `shell`.
+    fn cancel(&self, cause: &str) -> zbus::Result<()>;
     /// `UtteranceEnd` without text, unicast to the Begin caller and the attached app.
     #[zbus(signal)]
     fn ended(&self, end: &str) -> zbus::Result<()>;
@@ -190,11 +191,21 @@ impl UtteranceSkeleton {
             .await?
     }
 
-    async fn cancel(&self, #[zbus(header)] header: Header<'_>) -> Result<(), VoiceError> {
+    async fn cancel(
+        &self,
+        cause: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<(), VoiceError> {
         let (n, handle) = self.handle()?;
+        let cause = crate::wire::caller_cause(&cause)?;
         let (n, caller) = (*n, handle.caller(&header).await);
         handle
-            .ask(|reply| Command::Cancel { n, caller, reply })
+            .ask(|reply| Command::Cancel {
+                n,
+                caller,
+                cause,
+                reply,
+            })
             .await?
     }
 

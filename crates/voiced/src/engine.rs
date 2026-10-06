@@ -146,8 +146,13 @@ where
             Command::Release { n, caller, reply } => {
                 let _ = reply.send(self.release(n, &caller).await);
             }
-            Command::Cancel { n, caller, reply } => {
-                let _ = reply.send(self.cancel(n, &caller).await);
+            Command::Cancel {
+                n,
+                caller,
+                cause,
+                reply,
+            } => {
+                let _ = reply.send(self.cancel(n, &caller, cause).await);
             }
             Command::StopSpeech { n, caller, reply } => {
                 let _ = reply.send(self.stop_speech(n, &caller).await);

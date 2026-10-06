@@ -211,21 +211,22 @@ where
         Ok(())
     }
 
-    pub(crate) async fn cancel(&mut self, n: u64, caller: &Caller) -> Result<(), VoiceError> {
+    pub(crate) async fn cancel(
+        &mut self,
+        n: u64,
+        caller: &Caller,
+        cause: CancelCause,
+    ) -> Result<(), VoiceError> {
         let Some(utt) = self.utt.as_ref().filter(|u| u.n == n) else {
             return Err(VoiceRefusal::NotAllowed.into());
         };
-        let cause = if utt.caller == caller.unique {
-            CancelCause::Shell
-        } else if utt
+        let attached = utt
             .attached
             .as_ref()
-            .is_some_and(|(who, _)| *who == caller.unique)
-        {
-            CancelCause::FocusLost
-        } else {
+            .is_some_and(|(who, _)| *who == caller.unique);
+        if utt.caller != caller.unique && !attached {
             return Err(VoiceRefusal::NotAllowed.into());
-        };
+        }
         self.utt_event(UtteranceEvent::Cancel(cause)).await;
         Ok(())
     }

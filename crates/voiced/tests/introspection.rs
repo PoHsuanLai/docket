@@ -46,6 +46,12 @@ fn every_member_is_declared_and_no_more() {
     let declared = xml.matches("<method ").count() + xml.matches("<signal ").count();
     assert_eq!(declared, 13);
     assert!(
+        xml.contains(
+            "<method name=\"Cancel\">\n     <arg name=\"cause\" type=\"s\" direction=\"in\"/>"
+        ),
+        "Cancel takes a sealed cause"
+    );
+    assert!(
         xml.contains("<arg type=\"h\" direction=\"out\"/>"),
         "the event stream is an fd"
     );

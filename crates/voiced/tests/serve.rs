@@ -270,7 +270,10 @@ async fn cancel_discards_everything_and_cancels_inferd() {
     let (utterance, mut events) = start_utterance(&world, VoiceIntent::Ask).await;
     assert_eq!(events.next().await, Some(VoiceEvent::Opened));
     feed_loud(&world, &mut events, 2).await;
-    utterance.cancel().await.expect("cancel");
+    utterance
+        .cancel(&cause_wire(CancelCause::Shell))
+        .await
+        .expect("cancel");
     let seen = events.until_ended().await;
     assert_eq!(ended_of(&seen), UtteranceEnd::Cancelled(CancelCause::Shell));
     assert_eq!(

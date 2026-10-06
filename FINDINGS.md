@@ -1182,7 +1182,7 @@ Closes the voiced rows of the todo table: `voiced::serve` is filled and the bina
 - **Bodies.** Voice1 bodies are `voice_wire::Envelope { vocab, body }` JSON in `s`; a foreign vocabulary or bad JSON
   is `org.quire.Voice1.Error.Malformed`. The refusals are `VoiceRefusal`'s error names, one to one. The event fd frame
   is a 4-byte big-endian length then the envelope (porter-core's framing with `VoiceVocab`). `wire::{seal, frame,
-  unframe}` are exported for sill's client.
+  unframe, Unframed, MAX_FRAME}` are exported for sill's client.
 - Earcons: a two-note blip generated in integers (`earcon_samples`), played on its own stream at 24 kHz when
   `earcons = "on"`.
 
@@ -1203,9 +1203,9 @@ Closes the voiced rows of the todo table: `voiced::serve` is filled and the bina
 4. **sill, the shell side of `Begin`** (ask): body is `Envelope<VoiceBegin>`; the reply is the utterance path and an
    fd of length-prefixed `Envelope<VoiceEvent>` frames; the shell must hold a bus name listed under `shell` in
    `voiced.toml` (`org.quire.Shell` in `dist/voiced.toml`). `Release` ends the hold; the daemon keeps the mic 250 ms
-   of captured audio longer; the shell cancels with `Cancel` (cause `Shell`: sill has no way to send `Escape` or
-   `OtherInput`, which are the causes its hold machine produces: either `Cancel` grows a cause argument, or sill maps
-   both to `Shell`; the transcript is discarded either way). Refusals come as errors named `org.quire.Voice1.Error.*`
+   of captured audio longer; the shell cancels with `Cancel(cause s)`, a sealed `CancelCause` (`escape`, `other_input`,
+   `focus_lost` or `shell`; `superseded` and `too_long` are the daemon's own and are refused `Malformed`); the
+   transcript is discarded whatever the cause. Refusals come as errors named `org.quire.Voice1.Error.*`
    (`NeedsConsent` is the cue for the consent sheet; `MicUnavailable` before anything opens when there is no physical
    source). sill must subscribe to `Ended` and `Finished` before calling (unicast, nothing is replayed).
 5. **The consent sheet** is sill's alone; voiced only refuses with `NeedsConsent` and never opens the mic first.
@@ -1214,7 +1214,10 @@ Closes the voiced rows of the todo table: `voiced::serve` is filled and the bina
 
 - A `Begin` with no physical source is refused `MicUnavailable` before the machine runs; a source that fails to open
   is `Ended(Failed(MicUnavailable | MicDenied))` as the machine says.
-- `Cancel` from the attached app is cause `FocusLost`; from the Begin caller `Shell`.
+- `Cancel(cause)` takes the cause from the caller (Begin caller or attached app, as before) and `Ended` carries it
+  unchanged; the daemon's own causes are refused as a malformed body (`org.quire.Voice1.Error.Malformed`).
+- The event fd's reader gets `Unframed::{Partial, Frame, Malformed, TooLong}`: a bad envelope costs one frame, an
+  over-`MAX_FRAME` (1 MiB) length means close the stream; `frame` refuses a body over the cap (`FrameError::TooLong`).
 - An old utterance's object is removed from the bus when the next `Begin` happens, so a late `Release` on it is an
   unknown-object error, not a way to touch the new mic. Finished speech objects go when the next `Speak` is made.
 - Tier is `Balanced` for both speech needs until the settings name another (`ai.model.speech_in.<tier>`).

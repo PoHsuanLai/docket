@@ -24,7 +24,8 @@ use voice_wire::{
     HeardText, UtteranceEnd, VoiceBegin, VoiceEvent, VoiceTarget, VoiceTrigger, VoiceUse,
 };
 use voiced::{
-    FixedUse, FixedWarm, Running, Seams, UtteranceProxy, VoiceProxy, VoicedConfig, seal, unframe,
+    FixedUse, FixedWarm, Running, Seams, Unframed, UtteranceProxy, VoiceProxy, VoicedConfig, seal,
+    unframe,
 };
 use zbus::zvariant::OwnedFd;
 
@@ -228,9 +229,17 @@ impl Events {
     /// The next event, or `None` at the end of the stream.
     pub async fn next(&mut self) -> Option<VoiceEvent> {
         loop {
-            if let Some((event, used)) = unframe::<VoiceEvent>(&self.buffer) {
-                self.buffer.drain(..used);
-                return Some(event);
+            match unframe::<VoiceEvent>(&self.buffer) {
+                Unframed::Frame { body, used } => {
+                    self.buffer.drain(..used);
+                    return Some(body);
+                }
+                Unframed::Malformed { used } => {
+                    self.buffer.drain(..used);
+                    continue;
+                }
+                Unframed::TooLong { .. } => return None,
+                Unframed::Partial => {}
             }
             let mut chunk = [0_u8; 4096];
             // The timeout is only a failsafe against a hung test; nothing waits on it.
@@ -433,3 +442,7 @@ pub fn route_to(app: &str, serial: u64) -> String {
 /// A sentence long enough that the sentencer keeps it whole.
 pub const FIRST: &str = "The meeting with the design team moved to Thursday afternoon.";
 pub const SECOND: &str = "Please bring the updated mock-ups and the latency numbers.";
+
+pub fn cause_wire(cause: voice_wire::CancelCause) -> String {
+    seal(&cause).expect("seal")
+}
