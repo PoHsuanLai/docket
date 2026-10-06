@@ -175,7 +175,7 @@ impl<S: Seams> Router<S> {
             decl.effect = c.used.min(decl.effect);
         }
         match &who.session {
-            None => Ok(self.prepare_person(id, who, request, decl, window, depth, class)),
+            None => Ok(self.prepare_person(id, who, request, decl, window, depth)),
             Some(session) => {
                 let Some(record) = st.sessions.get(session) else {
                     return Err(early(decl.effect, CallRefusal::Halted(SpaceScope::Any)));
@@ -319,7 +319,6 @@ impl<S: Seams> Router<S> {
         decl: ActionDecl,
         window: Option<WindowKey>,
         depth: Depth,
-        classified: Option<Classification>,
     ) -> Prepared {
         let targets = entities(&request.target);
         let count = Count(u32::try_from(targets.len()).unwrap_or(u32::MAX));
@@ -359,7 +358,8 @@ impl<S: Seams> Router<S> {
             window,
             targets,
             activation: None,
-            classified,
+            // The person's own calls are not gated, so they are not classified.
+            classified: None,
         }
     }
 }
