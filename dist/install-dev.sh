@@ -3,6 +3,7 @@
 #
 #   dist/install-dev.sh                       build (release, --locked) and install under ~/.local
 #   dist/install-dev.sh --prefix DIR          binaries in DIR/bin (default: $PREFIX, else ~/.local)
+#   dist/install-dev.sh --cloud               also let inferd reach the network (hosted models); without it inferd is offline
 #   dist/install-dev.sh --dry-run             print every action; write nothing, build nothing
 #   dist/install-dev.sh --uninstall           remove exactly what the last install put down
 #
@@ -21,15 +22,13 @@
 #   ~/.config/quire/*.toml                    default configs, ONLY where absent (never overwritten)
 #   ~/.local/state/quire-dev/install-dev.manifest   what was installed, for --uninstall
 #
-# Dev-only changes to the packaged units (the packaged ones are for /usr/libexec and /etc):
-#   - ProtectHome=yes becomes read-only for companiond and readerd when the prefix is under $HOME:
-#     with `yes` the binary itself (in $HOME) cannot be executed, and companiond could not read
-#     its config and skills.
-#   - inferd and accountd get a drop-in that makes the directories their ReadWritePaths name
-#     before the sandbox is built (a missing one stops the unit), and inferd's drop-in lets it
-#     reach the network: a hosted model needs a TLS connection from inferd's own process.
-#   - memoryd has no unit in almanac/dist: almanac/dbus/memoryd.service is its unit, started by
-#     D-Bus activation (org.quire.Memory1.service names it), and that is what is installed.
+# Dev-only change to the packaged units: ProtectHome=yes becomes read-only for companiond and readerd
+# when the prefix is under $HOME (with `yes` the binary itself cannot be executed from $HOME, and
+# companiond could not read its config and skills). The porter units need nothing: they make their own
+# directories. --cloud installs porter's dist/inferd-cloud.conf as inferd.service.d/cloud.conf (network
+# on); it is opt-in because local engines share inferd's sandbox, so an on-device-only setup keeps none.
+# memoryd has no unit in almanac/dist: almanac/dbus/memoryd.service is its unit, started by D-Bus
+# activation (org.quire.Memory1.service names it), and that is what is installed.
 #
 # Needs root, and is printed but never run: /etc/porter/callers.toml (accountd's caller table).
 #
@@ -47,6 +46,7 @@ CUA="$SIBLINGS/cua"
 PREFIX="${PREFIX:-$HOME/.local}"
 DRY=0
 UNINSTALL=0
+CLOUD=0
 
 usage() { sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d' | sed 's/^# \{0,1\}//'; }
 
@@ -56,6 +56,7 @@ while [ $# -gt 0 ]; do
     --prefix=*) PREFIX="${1#--prefix=}" ;;
     --dry-run) DRY=1 ;;
     --uninstall) UNINSTALL=1 ;;
+    --cloud) CLOUD=1 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -140,6 +141,7 @@ build_plan() {
     case "$(basename "$cfg")" in voiced.toml) continue ;; esac
     plan config "$cfg" "$QUIRE_CONFIG/$(basename "$cfg")"
   done
+  if [ "$CLOUD" = 1 ]; then plan dropin "$PORTER/dist/inferd-cloud.conf" "$UNITS/inferd.service.d/cloud.conf"; fi
   plan config "$PORTER/dist/inferd.toml" "$QUIRE_CONFIG/inferd.toml"
   plan config "$ALMANAC/dbus/memory-callers.toml" "$QUIRE_CONFIG/memory-callers.toml"
 }
@@ -190,12 +192,6 @@ render() { # kind source -> the text to install, on stdout
   esac
 }
 
-# Drop-ins: "unit|file name|text".
-DROPINS=(
-  "inferd|10-dev.conf|[Service]\n# A hosted model is a TLS connection from this process: the packaged unit has no network.\nPrivateNetwork=no\nRestrictAddressFamilies=\nRestrictAddressFamilies=AF_UNIX AF_INET AF_INET6\n# A ReadWritePaths entry that does not exist stops the unit: make them first, outside the sandbox.\nExecStartPre=+/usr/bin/mkdir -p %t/inferd %h/.local/state/quire/inferd\n"
-  "accountd|10-dev.conf|[Service]\nExecStartPre=+/usr/bin/mkdir -p %h/.local/state/porter %h/.local/state/quire/accountd %h/.config/porter\n"
-)
-
 # make_dir DIR: mkdir -p, remembering the directories this made (they are removed again when empty).
 make_dir() {
   local dir="$1" missing=() d
@@ -220,16 +216,12 @@ install_file() { # kind source dest
   OWNED["$dest"]="$kind $(sha_of "$dest")"
 }
 
-install_dropins() {
-  local row unit file text dir dest
-  for row in "${DROPINS[@]}"; do
-    IFS='|' read -r unit file text <<<"$row"
-    dir="$UNITS/$unit.service.d"; dest="$dir/$file"
-    if [ "$DRY" = 1 ]; then act "write drop-in $dest"; continue; fi
-    make_dir "$dir"
-    printf '%b' "$text" >"$dest"
-    act "installed: $dest"
-    OWNED["$dest"]="dropin $(sha_of "$dest")"
+# An earlier install-dev put its own drop-ins here; the units no longer need them.
+drop_stale() {
+  local path
+  for path in "$UNITS/inferd.service.d/10-dev.conf" "$UNITS/accountd.service.d/10-dev.conf"; do
+    [ -n "${OWNED[$path]:-}" ] || continue
+    if [ "$DRY" = 1 ]; then act "remove stale $path"; else rm -f "$path"; unset 'OWNED[$path]'; act "removed stale: $path"; fi
   done
 }
 
@@ -286,7 +278,7 @@ do_install() {
     IFS='|' read -r kind src dest <<<"$row"
     install_file "$kind" "$src" "$dest"
   done
-  install_dropins
+  drop_stale
   [ "$DRY" = 1 ] || write_manifest
   [ "$DRY" = 1 ] || say "manifest: $MANIFEST"
   if under_home; then say "note: ProtectHome is read-only (not yes) on companiond and readerd, because $BIN is under \$HOME"; fi

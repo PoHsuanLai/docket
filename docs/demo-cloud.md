@@ -11,10 +11,14 @@ Run the first step from the checkouts the installer builds from: `~/docket`, `~/
 
 ```sh
 cd ~/docket
-dist/install-dev.sh            # cargo build --release --locked in three repos, then installs under ~/.local
+dist/install-dev.sh --cloud    # cargo build --release --locked in three repos, then installs under ~/.local
 ```
 
-`dist/install-dev.sh --dry-run` first if you want to see every file it writes. It prints one more step and
+`--cloud` opens inferd's network (a drop-in, `inferd.service.d/cloud.conf`). It is opt-in because local
+engines share inferd's sandbox, so an on-device-only setup keeps no network; without the flag inferd stays
+offline and a hosted model cannot connect.
+
+`dist/install-dev.sh --cloud --dry-run` first if you want to see every file it writes. It prints one more step and
 does not run it; run that yourself:
 
 ```sh
@@ -73,6 +77,7 @@ balanced = "cloud/claude-haiku-4.5"
 fast = "cloud/gemini-3.8-flash"
 ```
 
+If Claude Haiku 4.5 is retired, pick another entry (its file in the catalogue says so).
 Other entries with tools: `cloud/kimi-k3`, `cloud/gpt-6-luna`. `auto` lets inferd choose among what the
 grants and floors allow.
 

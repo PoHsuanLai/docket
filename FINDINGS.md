@@ -1002,14 +1002,13 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
     built-in default whole, so a later change to the shipped file does not reach a machine that has a copy.
   - Skills land in `$XDG_DATA_HOME/quire/skills`, which docket-skills reads as the person's own (`Origin::Own`,
     source `User`), not as shipped (`Source::App`). Fine for a dev install; a package installs under `/usr/share`.
-  - **Dev-only changes to the packaged units**: `ProtectHome=yes` becomes `read-only` for companiond and readerd when
-    the prefix is under `$HOME` (with `yes` the binary itself cannot be executed from `$HOME`, and companiond could
-    not read `~/.config/quire` or the skills). The porter units need a drop-in the installer writes
-    (`inferd.service.d/10-dev.conf`, `accountd.service.d/10-dev.conf`): `ExecStartPre=+mkdir -p` for the
-    `ReadWritePaths` directories (a missing one stops the unit with 226/NAMESPACE), and for inferd
-    `PrivateNetwork=no` with `AF_INET AF_INET6`: **`dist/inferd.service` as packaged allows only `AF_UNIX` in a
-    private network namespace, so a hosted model cannot connect.** Interface ask to porter: ship that drop-in (or an
-    inferd unit with the network and the directories) in `dist/`.
+  - **Dev-only change to the packaged units** (f4-demo-install-2, after porter e7b8e35): `ProtectHome=yes` becomes
+    `read-only` for companiond and readerd when the prefix is under `$HOME`; their units still say `yes`, and with it the
+    binary in `~/.local/bin` cannot be executed (and companiond could not read `~/.config/quire` or the skills). The
+    porter units need no drop-ins any more (they make their own directories). `--cloud` installs porter's
+    `dist/inferd-cloud.conf` as `inferd.service.d/cloud.conf` (network on); opt-in because local engines share inferd's
+    sandbox, so an on-device-only setup keeps none. An install made before this change has its `10-dev.conf` drop-ins
+    removed on the next run.
   - The one root step (printed, never run): `sudo install -D -m644 <porter>/dist/callers.toml /etc/porter/callers.toml`.
     accountd and syncd read `/etc/porter/callers.toml` with `$XDG_CONFIG_HOME/porter/callers.toml` laid over it (user
     rows win); inferd's own caller table is `[callers]` in `~/.config/quire/inferd.toml` (installed), and memoryd's is

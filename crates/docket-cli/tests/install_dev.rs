@@ -156,7 +156,11 @@ fn an_install_puts_every_piece_where_the_session_reads_it() {
     ] {
         has(&format!(".config/quire/{config}.toml"));
     }
-    has(".config/systemd/user/inferd.service.d/10-dev.conf");
+    // Offline unless asked: no drop-in for inferd.
+    assert!(
+        !tree.iter().any(|p| p.contains("inferd.service.d")),
+        "{tree:#?}"
+    );
     has(".local/state/quire-dev/install-dev.manifest");
     // Nothing for voiced (a skeleton), syncd or cuad, and nothing outside HOME.
     assert!(
@@ -203,14 +207,6 @@ fn the_exec_lines_name_the_prefix_and_a_home_prefix_keeps_the_binary_reachable()
         assert!(!text.contains("\nProtectHome=yes"), "{unit}");
         assert!(text.contains("\nProtectHome=read-only"), "{unit}");
     }
-    // inferd's hosted models need the network the packaged unit does not give it.
-    let dropin = jail.read(".config/systemd/user/inferd.service.d/10-dev.conf");
-    assert!(dropin.contains("PrivateNetwork=no"), "{dropin}");
-    assert!(dropin.contains("AF_INET"), "{dropin}");
-    assert!(
-        dropin.contains("ExecStartPre=+/usr/bin/mkdir -p %t/inferd"),
-        "{dropin}"
-    );
     let mode = std::os::unix::fs::PermissionsExt::mode(
         &std::fs::metadata(jail.prefix().join("bin/inferd"))
             .expect("meta")
@@ -248,7 +244,6 @@ fn a_dry_run_prints_every_action_and_writes_nothing() {
     for expect in [
         "install -m 755",
         "intentd",
-        "systemd/user/inferd.service.d/10-dev.conf",
         "dbus-1/services/org.quire.Companion1.service",
         "quire/skills/desktop-basics/SKILL.md",
         "porter/providers/openrouter.toml",
@@ -325,4 +320,25 @@ fn the_script_never_calls_sudo_or_names_the_real_system() {
         );
     }
     assert!(text.contains("set -euo pipefail"));
+}
+
+#[test]
+fn cloud_is_opt_in_and_an_uninstall_removes_it() {
+    let jail = Jail::new();
+    jail.ok(&[]);
+    let offline = jail.tree();
+    // The packaged unit stays as shipped: it has no network.
+    assert!(
+        jail.read(".config/systemd/user/inferd.service")
+            .contains("PrivateNetwork=yes")
+    );
+    let dry = jail.ok(&["--cloud", "--dry-run"]);
+    assert!(dry.contains("inferd.service.d/cloud.conf"), "{dry}");
+    assert_eq!(jail.tree(), offline, "a dry run writes nothing");
+    jail.ok(&["--cloud"]);
+    let dropin = jail.read(".config/systemd/user/inferd.service.d/cloud.conf");
+    assert!(dropin.contains("PrivateNetwork=no"), "{dropin}");
+    assert!(dropin.contains("AF_INET AF_INET6"), "{dropin}");
+    jail.ok(&["--uninstall"]);
+    assert!(jail.tree().is_empty(), "{:#?}", jail.tree());
 }
