@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 /// An ask: a session and the turn the UI already recorded through `Intents1.Session.Turn`
 /// (with the id the router gave it), which of the context the person kept, and where they asked
 /// from: the window to anchor a confirmation to and the app whose context the companion reads.
-/// companiond answers only the shell, which is who may speak for the person.
+/// companiond answers only the shell, which is who may speak for the person, and a terminal for
+/// the conversation (`Open`, `Ask`, `Close`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AskWire {
     /// The session.

@@ -33,6 +33,7 @@ mod runtime;
 mod serve;
 mod shared;
 mod sources;
+mod speaker;
 mod task;
 
 pub use args::{ArgsFault, ReadCall, planner_label, read_call};
@@ -46,6 +47,7 @@ pub use planner::{PlanFault, PlannerModel, PlannerReply, TOOL_ASK, TOOL_FINISH, 
 pub use recover::{RecentSource, ReplayFault, RouterRecent, recover, replay_of, restart_query};
 pub use render::{RULES, messages, system_text, user_text};
 pub use runtime::{Begun, Companiond};
-pub use serve::{serve, serve_on};
+pub use serve::{serve, serve_on, serve_on_rooted};
 pub use shared::{Change, Shared};
+pub use speaker::{Call, PROC_ROOT_VAR, Speaker, permits, proc_root_from};
 pub use task::TaskRuntime;

@@ -23,7 +23,9 @@ fn roles(member: Member) -> &'static [CallerRole] {
         // refuses it any other kind), so the run is ruled in a session before its first step.
         Member::SessionOpen | Member::SessionClose => &[Launcher, Field, Companion, Cua],
         // Only the person's own surfaces record a turn: a model cannot say what the person said.
-        Member::SessionTurn => &[Launcher, Field],
+        // A terminal is one of them for `quire-do ask` (the person at a keyboard, the same user),
+        // and its turns are recorded as `TurnSource::Terminal`, never as the launcher's.
+        Member::SessionTurn => &[Launcher, Field, Cli],
         Member::SessionResolve => &[Reader],
         // Text for the screen, never for a model.
         Member::SessionDisplay => &[Launcher, Field],

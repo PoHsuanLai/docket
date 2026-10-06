@@ -17,7 +17,7 @@
 
 use crate::config::IntentdConfig;
 use crate::procroot::ProcRoot;
-use docket_core::CallerId;
+use docket_core::{CallerId, is_terminal_scope};
 use docket_dbus::BusConnection;
 use porter_core::{AppId, AppName, CgroupPath, Isolation};
 use porter_dbus::{CallerTable, ProcCallers};
@@ -29,10 +29,6 @@ use zbus::names::BusName;
 
 /// The name the cli role is listed under: what a terminal's child is.
 const CLI_NAME: &str = "org.quire.Do";
-
-/// Scope name prefixes of a terminal's children: a VTE terminal's spawned shell, tmux's server
-/// and a login session (tty or ssh).
-const TERMINAL_SCOPES: [&str; 3] = ["vte-spawn-", "tmux-spawn-", "session-"];
 
 /// Why a connection has no identity.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -113,12 +109,6 @@ fn process_of(root: &Path, pid: u32) -> Process {
         Ok(cgroup) if is_terminal_scope(cgroup.as_str()) => Process::Terminal,
         _ => Process::Unknown,
     }
-}
-
-/// Whether the cgroup's leaf is a terminal child's scope.
-fn is_terminal_scope(cgroup: &str) -> bool {
-    let leaf = cgroup.rsplit('/').next().unwrap_or_default();
-    leaf.ends_with(".scope") && TERMINAL_SCOPES.iter().any(|p| leaf.starts_with(p))
 }
 
 /// The user this process runs as.

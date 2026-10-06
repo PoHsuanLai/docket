@@ -14,7 +14,7 @@ fn role_set(member: Member) -> Vec<CallerRole> {
 fn only_the_persons_surfaces_record_a_turn() {
     assert_eq!(
         role_set(Member::SessionTurn),
-        [CallerRole::Launcher, CallerRole::Field]
+        [CallerRole::Launcher, CallerRole::Field, CallerRole::Cli]
     );
 }
 
@@ -125,6 +125,7 @@ fn a_terminal_gets_exactly_the_members_quire_do_uses() {
             Member::DryRun,
             Member::Undo,
             Member::Context,
+            Member::SessionTurn,
             Member::ControlJournal,
         ]
     );

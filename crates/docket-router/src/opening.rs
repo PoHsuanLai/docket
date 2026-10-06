@@ -19,6 +19,15 @@ fn refuse(why: WireRefusal) -> IntentsReply {
     IntentsReply::Refused(why)
 }
 
+/// Where a turn recorded by a caller in `role` came from.
+fn turn_source(role: CallerRole, caller: &CallerId) -> TurnSource {
+    match role {
+        CallerRole::Field => TurnSource::Field(caller.app.name.clone()),
+        CallerRole::Cli => TurnSource::Terminal,
+        _ => TurnSource::Launcher,
+    }
+}
+
 impl<S: Seams> Router<S> {
     /// `.Session.Open`.
     ///
@@ -187,10 +196,7 @@ impl<S: Seams> Router<S> {
         if role == CallerRole::Field && record.opener != caller.app.name {
             return Err(WireRefusal::NotAllowed);
         }
-        let from = match role {
-            CallerRole::Field => TurnSource::Field(caller.app.name.clone()),
-            _ => TurnSource::Launcher,
-        };
+        let from = turn_source(role, caller);
         let recorded = UserTurn {
             id: TurnId(number),
             text: turn.text,
@@ -212,5 +218,37 @@ impl<S: Seams> Router<S> {
             t.ledger.asked.push(recorded.clone());
         }
         Ok(recorded)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use porter_core::{AppId, AppName, Isolation};
+
+    fn caller(name: &str) -> CallerId {
+        CallerId {
+            app: AppId {
+                name: AppName::parse(name).expect("app"),
+                isolation: Isolation::Unsandboxed,
+            },
+            roles: Default::default(),
+        }
+    }
+
+    #[test]
+    fn a_turn_is_recorded_as_from_the_surface_that_took_it() {
+        let mail = caller("org.quire.Mail");
+        let rows = [
+            (CallerRole::Launcher, TurnSource::Launcher),
+            (CallerRole::Cli, TurnSource::Terminal),
+            (
+                CallerRole::Field,
+                TurnSource::Field(AppName::parse("org.quire.Mail").expect("app")),
+            ),
+        ];
+        for (role, expected) in rows {
+            assert_eq!(turn_source(role, &mail), expected, "{role:?}");
+        }
     }
 }

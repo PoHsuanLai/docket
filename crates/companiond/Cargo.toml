@@ -37,6 +37,13 @@ tokio = { workspace = true }
 toml = { workspace = true }
 zbus = { workspace = true }
 
+# `COMPANIOND_PROC_ROOT=<dir>` makes the daemon read `<dir>/<pid>/cgroup` to tell a terminal from
+# anything else, so an acceptance run can present a test process as one. TEST ONLY: off by
+# default and never in a release or dist build (scripts/check-boundary.sh); without it the
+# variable is ignored, with one stderr line.
+[features]
+test-proc-root = []
+
 [lints]
 workspace = true
 

@@ -146,16 +146,19 @@ for edge in "${EDGES[@]}"; do
 done
 
 # The test-only feature is never on in a default build (a dist build uses default features):
-# intentd's `test-proc-root` (INTENTD_PROC_ROOT), the only way to make it read callers from
-# somewhere other than /proc. Neither intentd's own default features nor any dependent's enable it.
-enabled=$(cargo tree -p intentd -e normal,build -f '{p} [{f}]' --prefix none 2>/dev/null \
-  | grep -E '^intentd ' | grep -oE '\[[^]]*\]' | tr ',[]' '\n\n\n')
-if printf '%s\n' "$enabled" | grep -qE '^test-'; then
-  echo "TEST FEATURE: a default build of intentd enables: $(printf '%s\n' "$enabled" | grep -E '^test-' | tr '\n' ' ')"
-  fail=1
-else
-  echo "test features (test-proc-root) are off in a default build of intentd"
-fi
+# `test-proc-root` (INTENTD_PROC_ROOT, COMPANIOND_PROC_ROOT), the only way to make a daemon read
+# callers from somewhere other than /proc. Neither the daemon's own default features nor any
+# dependent's enable it.
+for daemon in intentd companiond; do
+  enabled=$(cargo tree -p "$daemon" -e normal,build -f '{p} [{f}]' --prefix none 2>/dev/null \
+    | grep -E "^$daemon " | grep -oE '\[[^]]*\]' | tr ',[]' '\n\n\n')
+  if printf '%s\n' "$enabled" | grep -qE '^test-'; then
+    echo "TEST FEATURE: a default build of $daemon enables: $(printf '%s\n' "$enabled" | grep -E '^test-' | tr '\n' ' ')"
+    fail=1
+  else
+    echo "test features (test-proc-root) are off in a default build of $daemon"
+  fi
+done
 
 # Every workspace member has a row above, so a new crate cannot slip in unchecked.
 for member in $(sed -n 's#^  "crates/\(.*\)",$#\1#p' Cargo.toml); do

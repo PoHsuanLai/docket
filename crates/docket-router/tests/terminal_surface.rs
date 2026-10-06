@@ -190,20 +190,6 @@ async fn a_terminal_cannot_use_what_is_not_its_to_use() {
         },
         IntentsRequest::ControlTerminalGrants,
         IntentsRequest::ControlTerminalRevoke(action("mail.thread.archive")),
-        IntentsRequest::SessionTurn {
-            session: prov::SessionId::parse("s-1").expect("id"),
-            turn: TurnIn {
-                text: "yes".into(),
-                origin: Origin::Cli,
-                keep: ContextKeep {
-                    query: Keep::Dropped,
-                    results: Keep::Dropped,
-                    selection: Keep::Dropped,
-                    window: Keep::Dropped,
-                },
-                via: TurnVia::Typed,
-            },
-        },
     ] {
         assert_eq!(
             ask(&router, &cli(), request.clone()).await,

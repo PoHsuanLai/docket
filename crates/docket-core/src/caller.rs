@@ -33,6 +33,18 @@ pub enum CallerRole {
     App,
 }
 
+/// Scope name prefixes of a terminal's children: a VTE terminal's spawned shell, tmux's server
+/// and a login session (tty or ssh).
+const TERMINAL_SCOPES: [&str; 3] = ["vte-spawn-", "tmux-spawn-", "session-"];
+
+/// Whether the cgroup path (the unified line of `/proc/<pid>/cgroup`) ends in a terminal child's
+/// scope. The one place the desktop says what a terminal is: intentd derives the cli role from it
+/// and companiond lets the same processes open, ask and close.
+pub fn is_terminal_scope(cgroup: &str) -> bool {
+    let leaf = cgroup.rsplit('/').next().unwrap_or_default();
+    leaf.ends_with(".scope") && TERMINAL_SCOPES.iter().any(|p| leaf.starts_with(p))
+}
+
 impl CallerRole {
     /// Every role.
     pub const ALL: [CallerRole; 11] = [

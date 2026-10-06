@@ -8,6 +8,7 @@
 use crate::fault::ServeFault;
 use crate::runtime::Companiond;
 use crate::shared::{Change, Shared};
+use crate::speaker::{self, Call};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
 use docket_core::{SessionOpen, UserTurn};
@@ -17,14 +18,13 @@ use docket_dbus::{
 use porter_client::Transport as InferTransport;
 use porter_core::AppName;
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use zbus::fdo;
-use zbus::fdo::DBusProxy;
 use zbus::fdo::{RequestNameFlags, RequestNameReply};
 use zbus::message::Header;
-use zbus::names::BusName;
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 
@@ -58,30 +58,15 @@ struct Root<P: InferTransport, I: IntentsTransport> {
     shared: Arc<Shared>,
     shell: AppName,
     connection: BusConnection,
-}
-
-/// Only the shell speaks for the person: an ask carries the turn it recorded, and a turn the
-/// router never recorded must not be taken from anybody else; `Open` and `Close` make and end the
-/// person's conversations, and `Act` presses a card for them, so they are the shell's too.
-async fn require_shell(
-    connection: &BusConnection,
-    shell: &AppName,
-    header: &Header<'_>,
-) -> fdo::Result<()> {
-    let sender = header.sender().map(ToString::to_string).unwrap_or_default();
-    let proxy = DBusProxy::new(connection).await?;
-    let name = BusName::try_from(shell.as_str()).map_err(|e| fdo::Error::Failed(e.to_string()))?;
-    match proxy.get_name_owner(name).await {
-        Ok(owner) if owner.as_str() == sender => Ok(()),
-        _ => Err(fdo::Error::AccessDenied(
-            "only the shell speaks for the person".into(),
-        )),
-    }
+    proc_root: PathBuf,
 }
 
 impl<P: InferTransport, I: IntentsTransport> Root<P, I> {
-    async fn require_shell(&self, header: &Header<'_>) -> fdo::Result<()> {
-        require_shell(&self.connection, &self.shell, header).await
+    /// The shell speaks for the person, and so does a terminal for the conversation (`Open`,
+    /// `Ask`, `Close`): an ask carries the turn the router recorded, and a turn it never recorded
+    /// must not be taken from anybody else. `Told` and `Act` are the shell's alone.
+    async fn require(&self, header: &Header<'_>, call: Call) -> fdo::Result<()> {
+        speaker::require(&self.connection, &self.shell, &self.proc_root, header, call).await
     }
 }
 
@@ -93,7 +78,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
     }
 
     async fn open(&self, open: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
-        self.require_shell(&header).await?;
+        self.require(&header, Call::Open).await?;
         let open: SessionOpen = serde_json::from_str(&open).map_err(bad)?;
         let opened = self
             .companion
@@ -113,7 +98,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
         #[zbus(object_server)] server: &zbus::ObjectServer,
     ) -> fdo::Result<OwnedObjectPath> {
         let _ = options;
-        self.require_shell(&header).await?;
+        self.require(&header, Call::Ask).await?;
         let ask: AskWire = serde_json::from_str(&ask).map_err(bad)?;
         // Whatever background work holds the model yields before the loop starts.
         self.shared.interrupt();
@@ -129,6 +114,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
                     task: begun.task.clone(),
                     shell: self.shell.clone(),
                     connection: self.connection.clone(),
+                    proc_root: self.proc_root.clone(),
                 },
             )
             .await?;
@@ -140,7 +126,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
     }
 
     async fn close(&self, session: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
-        self.require_shell(&header).await?;
+        self.require(&header, Call::Close).await?;
         let session =
             SessionId::parse(&session).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
         self.companion
@@ -158,7 +144,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
         turn: String,
         #[zbus(header)] header: Header<'_>,
     ) -> fdo::Result<()> {
-        self.require_shell(&header).await?;
+        self.require(&header, Call::Told).await?;
         let agent: AgentRef = serde_json::from_str(&agent).map_err(bad)?;
         let space = SpaceId::parse(&space).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
         let turn: UserTurn = serde_json::from_str(&turn).map_err(bad)?;
@@ -193,6 +179,7 @@ struct AnswerObject<P: InferTransport, I: IntentsTransport> {
     task: TaskId,
     shell: AppName,
     connection: BusConnection,
+    proc_root: PathBuf,
 }
 
 #[zbus::interface(name = "org.quire.Companion1.Answer")]
@@ -202,7 +189,14 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
         action: String,
         #[zbus(header)] header: Header<'_>,
     ) -> fdo::Result<OwnedObjectPath> {
-        require_shell(&self.connection, &self.shell, &header).await?;
+        speaker::require(
+            &self.connection,
+            &self.shell,
+            &self.proc_root,
+            &header,
+            Call::Act,
+        )
+        .await?;
         let card = crate::act::card_id(&action).map_err(failed)?;
         let acting = self
             .companion
@@ -245,6 +239,7 @@ async fn forward<P, I>(
     shared: Arc<Shared>,
     companion: Arc<Mutex<Companiond<P, I>>>,
     shell: AppName,
+    proc_root: PathBuf,
 ) where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
@@ -261,6 +256,7 @@ async fn forward<P, I>(
                     task,
                     shell: shell.clone(),
                     connection: connection.clone(),
+                    proc_root: proc_root.clone(),
                 };
                 let _ = server.at(path.as_str(), object).await;
                 if let Ok(object) = ObjectPath::try_from(path.as_str()) {
@@ -333,6 +329,22 @@ where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
 {
+    let proc_root = speaker::proc_root_from(std::env::var(speaker::PROC_ROOT_VAR).ok().as_deref());
+    serve_on_rooted(connection, companion, proc_root).await
+}
+
+/// [`serve_on`] reading callers' cgroups under `proc_root` instead of `/proc`: how a test
+/// presents its processes as a terminal. The daemon's own `serve_on` never takes a path from
+/// anything but a test build's environment.
+pub async fn serve_on_rooted<P, I>(
+    connection: &BusConnection,
+    companion: Arc<Mutex<Companiond<P, I>>>,
+    proc_root: PathBuf,
+) -> Result<(), ServeFault>
+where
+    P: InferTransport + 'static,
+    I: IntentsTransport + 'static,
+{
     let (shared, shell) = {
         let held = companion.lock().await;
         (held.shared.clone(), held.shell.clone())
@@ -346,6 +358,7 @@ where
                 shared: shared.clone(),
                 shell: shell.clone(),
                 connection: connection.clone(),
+                proc_root: proc_root.clone(),
             },
         )
         .await
@@ -365,6 +378,7 @@ where
         shared,
         companion.clone(),
         shell,
+        proc_root,
     ));
     tokio::spawn(arrivals(connection.clone(), companion.clone()));
     tokio::spawn(ticking(companion));

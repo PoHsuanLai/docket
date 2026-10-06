@@ -50,7 +50,7 @@ pub use call::{
     ActivatedInvocation, ActivationToken, AppRefusal, ArgFault, CallEnd, CallProgress, CallRefusal,
     CallRequest, FailText, Follow, Invocation, Origin, Outcome, Undoable,
 };
-pub use caller::{CallerId, CallerRole, Member};
+pub use caller::{CallerId, CallerRole, Member, is_terminal_scope};
 pub use classify::{
     CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd, PerCall,
 };

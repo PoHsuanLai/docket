@@ -33,12 +33,14 @@ pub enum TurnVia {
 pub enum TurnSource {
     /// The launcher.
     Launcher,
+    /// A terminal (`quire-do ask`): the person at a keyboard, or whatever is typing in it.
+    Terminal,
     /// A prompt field inside this app: the task policy is capped to that app plus reads, and
     /// widening confirms.
     Field(porter_core::AppName),
 }
 
-/// One prompt, as the router records it. Only the launcher and field roles may record a turn.
+/// One prompt, as the router records it. Only the launcher, field and terminal roles may record a turn.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnIn {
     /// What the person said.
