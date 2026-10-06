@@ -13,6 +13,7 @@ mod audit;
 mod budget;
 mod call;
 mod caller;
+mod classify;
 mod config;
 mod confirm;
 mod context;
@@ -50,6 +51,9 @@ pub use call::{
     CallRequest, FailText, Follow, Invocation, Origin, Outcome, Undoable,
 };
 pub use caller::{CallerId, CallerRole, Member};
+pub use classify::{
+    CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd, PerCall,
+};
 pub use config::{
     AgentConfig, AssemblerBudget, BreakerLimits, IdleRules, ReviewTimeouts, SETTING_ROWS,
     SettingRow, SettingValue,

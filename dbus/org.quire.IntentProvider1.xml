@@ -7,6 +7,11 @@
      <arg name="options" type="a{sv}" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="Classify">
+     <arg name="invocation" type="s" direction="in"/>
+     <arg name="options" type="a{sv}" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
    <method name="DryRun">
      <arg name="invocation" type="s" direction="in"/>
      <arg name="options" type="a{sv}" direction="in"/>

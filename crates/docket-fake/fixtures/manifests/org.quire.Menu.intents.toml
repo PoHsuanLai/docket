@@ -1,0 +1,80 @@
+# A fixture manifest for the fake menu app: `menu.item.activate` is declared Destructive and
+# classifies each call (a ceiling), a second one with a lower ceiling, and two typed actions it can delegate to. Every field is
+# written, `per_call` included.
+vocab = 1
+app = "org.quire.Menu"
+entities = []
+
+[[actions]]
+name = "menu.item.activate"
+label = "Activate"
+on = { kind = "nothing" }
+effect = "destructive"
+per_call = "classified"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "item"
+label = "Item"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions]]
+name = "menu.item.adjust"
+label = "Adjust"
+on = { kind = "nothing" }
+effect = "undoable_write"
+per_call = "classified"
+classes = ["files"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "item"
+label = "Item"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions]]
+name = "menu.window.hide"
+label = "Hide"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+[[actions]]
+name = "menu.window.close"
+label = "Close"
+on = { kind = "nothing" }
+effect = "destructive"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []

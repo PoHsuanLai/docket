@@ -9,6 +9,7 @@ mod clock;
 mod files;
 mod labels;
 mod mail;
+mod menu;
 mod router;
 mod scripted;
 mod seams;
@@ -17,8 +18,10 @@ mod simple;
 pub use clock::FixedClock;
 pub use files::FakeFiles;
 pub use mail::{FakeMail, MailContact, MailThread, SentMail};
+pub use menu::{FakeMenu, MenuItem, MenuPerform};
 pub use router::{
-    FILES_MANIFEST, FakeError, MAIL_MANIFEST, fake_router, files_manifest, mail_manifest, registry,
+    FILES_MANIFEST, FakeError, MAIL_MANIFEST, MENU_MANIFEST, fake_router, files_manifest,
+    mail_manifest, menu_manifest, registry,
 };
 pub use scripted::{
     FakeMemory, ReviewMode, ScriptedConfirmer, ScriptedReader, ScriptedReviewer, ScriptedWriter,

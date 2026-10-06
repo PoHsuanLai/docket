@@ -61,7 +61,10 @@ impl<S: Seams> Router<S> {
         depth: Depth,
         watch: &Watch,
     ) -> Result<Outcome, CallRefusal> {
-        match self.prepare(who, request, window, depth) {
+        match self
+            .prepare_classified(who, request, window.clone(), depth)
+            .await
+        {
             Err(early) => Err(self.finish_early(*early)),
             Ok(prepared) => {
                 let prepared = Prepared {
@@ -69,7 +72,25 @@ impl<S: Seams> Router<S> {
                     ..prepared
                 };
                 let driven = self.drive(&prepared, watch).await;
-                self.finish(&prepared, driven)
+                self.note_delegation(&prepared, &driven);
+                let changed = Self::changed_since_classified(&prepared, &driven);
+                let first = self.finish(&prepared, driven);
+                if !changed {
+                    return first;
+                }
+                // The app's state moved between `Classify` and `Perform`: ask again at the
+                // declared ceiling, without classifying afresh.
+                match self.prepare_at_ceiling(&prepared, window, depth) {
+                    Err(early) => Err(self.finish_early(*early)),
+                    Ok(again) => {
+                        let again = Prepared {
+                            activation: prepared.activation.clone(),
+                            ..again
+                        };
+                        let driven = self.drive(&again, watch).await;
+                        self.finish(&again, driven)
+                    }
+                }
             }
         }
     }
@@ -294,7 +315,7 @@ impl<S: Seams> Router<S> {
         }
     }
 
-    fn invocation(&self, p: &Prepared) -> Invocation {
+    pub(crate) fn invocation(&self, p: &Prepared) -> Invocation {
         Invocation {
             call: p.id,
             action: p.decl.name.clone(),
@@ -385,10 +406,11 @@ impl<S: Seams> Router<S> {
         let answer = self
             .seams
             .link()
-            .perform_activated(
+            .perform_classified(
                 &p.request.action.app,
                 self.invocation(p),
                 p.activation.clone(),
+                p.classified.as_ref().map(|c| c.sent.clone()),
                 p.decl.latency,
             )
             .await;

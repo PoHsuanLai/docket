@@ -127,6 +127,10 @@ pub fn of_refusal(refusal: &CallRefusal) -> Failure {
         CallRefusal::App(AppRefusal::Unsupported) => {
             (Exit::AppFailed, "the app cannot do that".to_owned())
         }
+        CallRefusal::App(AppRefusal::ClassificationChanged) => (
+            Exit::AppFailed,
+            "the app's state changed while the call was being checked".to_owned(),
+        ),
         CallRefusal::App(AppRefusal::Failed(_)) => {
             (Exit::AppFailed, "the app failed the call".to_owned())
         }

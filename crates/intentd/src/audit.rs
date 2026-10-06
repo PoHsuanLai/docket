@@ -60,7 +60,9 @@ impl Calls {
 
     fn of(&self, record: &AuditRecord) -> Option<&SpaceId> {
         match record {
-            AuditRecord::Review { call, .. } => self.spaces.get(call),
+            AuditRecord::Review { call, .. }
+            | AuditRecord::Classified { call, .. }
+            | AuditRecord::Delegation { call, .. } => self.spaces.get(call),
             _ => None,
         }
     }

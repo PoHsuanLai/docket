@@ -94,6 +94,30 @@ pub enum AuditRecord {
         /// How it ended.
         end: CallEnd,
     },
+    /// A call to an action that classifies per call was classified: both the ceiling and the
+    /// effect the call was gated on are recorded. Written before the call's own record; a
+    /// reclassification at the ceiling (after `ClassificationChanged`) writes another.
+    Classified {
+        /// When.
+        at: UnixSeconds,
+        /// Which call.
+        call: CallId,
+        /// The action.
+        action: ActionRef,
+        /// What was decided.
+        classification: crate::classify::Classification,
+    },
+    /// A call that classified itself as delegating ended its delegation.
+    Delegation {
+        /// When.
+        at: UnixSeconds,
+        /// The outer call.
+        call: CallId,
+        /// The action it said it delegates to.
+        to: ActionRef,
+        /// How it ended.
+        end: crate::classify::DelegationEnd,
+    },
     /// One stage of a review ended; every stage is logged once.
     Review {
         /// When.

@@ -20,8 +20,8 @@ use crate::state::{RouterState, SessionRecord};
 use crate::who::Who;
 use action_review::{GoalKey, ReviewRequest, repeated};
 use docket_core::{
-    ActionDecl, ActionGrant, BudgetKind, CallId, CallRefusal, CallRequest, Cost, Depth, Impact,
-    Lasting, Reviewed, Ruling, Saw, WindowKey,
+    ActionDecl, ActionGrant, BudgetKind, CallId, CallRefusal, CallRequest, Classification, Cost,
+    Depth, Impact, Lasting, Reviewed, Ruling, Saw, WindowKey,
 };
 use policy_point::{
     ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, SpaceRelation,
@@ -138,10 +138,25 @@ impl<S: Seams> Router<S> {
         window: Option<WindowKey>,
         depth: Depth,
     ) -> Result<Prepared, Box<Early>> {
+        self.prepare_as(None, None, who, request, window, depth)
+    }
+
+    /// `prepare` for a call that may have been classified: the call keeps `id` if it has one,
+    /// and its effect, for Cedar, the budget, the taint rule and the audit, is the effect the
+    /// classification used (never above the declared one).
+    pub(crate) fn prepare_as(
+        &self,
+        id: Option<CallId>,
+        class: Option<Classification>,
+        who: &Who,
+        request: CallRequest,
+        window: Option<WindowKey>,
+        depth: Depth,
+    ) -> Result<Prepared, Box<Early>> {
         let now = self.seams.clock().now();
         let grants = self.seams.grants().grants();
         let mut st = self.locked();
-        let id = CallId(u64::from(st.mint()));
+        let id = id.unwrap_or_else(|| CallId(u64::from(st.mint())));
         let early = |effect: Effect, refusal: CallRefusal| {
             Box::new(Early {
                 id,
@@ -152,18 +167,21 @@ impl<S: Seams> Router<S> {
                 refusal,
             })
         };
-        let Some(decl) = st.registry.action(&request.action).cloned() else {
+        let Some(mut decl) = st.registry.action(&request.action).cloned() else {
             let why = CallRefusal::NoSuchAction(request.action.clone());
             return Err(early(Effect::Read, why));
         };
+        if let Some(c) = &class {
+            decl.effect = c.used.min(decl.effect);
+        }
         match &who.session {
-            None => Ok(self.prepare_person(id, who, request, decl, window, depth)),
+            None => Ok(self.prepare_person(id, who, request, decl, window, depth, class)),
             Some(session) => {
                 let Some(record) = st.sessions.get(session) else {
                     return Err(early(decl.effect, CallRefusal::Halted(SpaceScope::Any)));
                 };
                 self.prepare_agent(
-                    &st, record, id, who, request, decl, window, depth, now, &grants,
+                    &st, record, id, who, request, decl, window, depth, now, &grants, class,
                 )
             }
         }
@@ -184,6 +202,7 @@ impl<S: Seams> Router<S> {
         depth: Depth,
         now: prov::UnixSeconds,
         grants: &[ActionGrant],
+        classified: Option<Classification>,
     ) -> Result<Prepared, Box<Early>> {
         let space = record.space.clone();
         let end = |refusal: CallRefusal| {
@@ -286,6 +305,7 @@ impl<S: Seams> Router<S> {
             window,
             targets,
             activation: None,
+            classified,
         })
     }
 
@@ -299,6 +319,7 @@ impl<S: Seams> Router<S> {
         decl: ActionDecl,
         window: Option<WindowKey>,
         depth: Depth,
+        classified: Option<Classification>,
     ) -> Prepared {
         let targets = entities(&request.target);
         let count = Count(u32::try_from(targets.len()).unwrap_or(u32::MAX));
@@ -338,6 +359,7 @@ impl<S: Seams> Router<S> {
             window,
             targets,
             activation: None,
+            classified,
         }
     }
 }

@@ -24,6 +24,30 @@ pub trait IntentProvider: Send + Sync {
         let _ = activation;
         self.perform(inv)
     }
+    /// Performs an action the router gated on `classified` (an action that classifies per
+    /// call; `None` for every other). Re-derive the classification here: when it no longer
+    /// matches, refuse with `AppRefusal::ClassificationChanged` and the router asks again at
+    /// the declared ceiling. `classified` equal to the declared ceiling must always be
+    /// accepted. The default ignores it.
+    fn perform_classified(
+        &self,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
+        classified: Option<docket_core::CallClass>,
+    ) -> impl Future<Output = Result<Outcome, AppRefusal>> + Send {
+        let _ = classified;
+        self.perform_activated(inv, activation)
+    }
+    /// What this call does, for an action that declares `per_call = "classified"`: an effect
+    /// (never trusted past the declared one) or `Delegates` to another typed action. The
+    /// default refuses, which leaves the declared effect in force.
+    fn classify(
+        &self,
+        inv: Invocation,
+    ) -> impl Future<Output = Result<docket_core::CallClass, AppRefusal>> + Send {
+        let _ = inv;
+        async { Err(AppRefusal::Unsupported) }
+    }
     /// Describes the change without making it: what the confirmation shows.
     fn dry_run(&self, inv: Invocation) -> impl Future<Output = Result<Preview, AppRefusal>> + Send;
     /// Undoes one change.

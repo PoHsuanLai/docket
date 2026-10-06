@@ -37,6 +37,8 @@ pub struct FakeLink {
     pub mail: FakeMail,
     /// The files app.
     pub files: FakeFiles,
+    /// The menu app, whose `menu.item.activate` classifies per call.
+    pub menu: crate::menu::FakeMenu,
     /// Apps that do not answer `Perform` as usual: they time out, or are not there.
     pub answering: Mutex<BTreeMap<AppName, Answering>>,
     /// What the focused window shows, if a test set one: the fakes have no windows of their own.
@@ -76,11 +78,12 @@ pub fn host_companion(router: &std::sync::Arc<docket_router::Router<FakeSeams>>)
 }
 
 impl FakeLink {
-    /// Both apps, answering.
-    pub fn new(mail: FakeMail, files: FakeFiles) -> Self {
+    /// The three apps, answering.
+    pub fn new(mail: FakeMail, files: FakeFiles, menu: crate::menu::FakeMenu) -> Self {
         Self {
             mail,
             files,
+            menu,
             answering: Mutex::new(BTreeMap::new()),
             window: Mutex::new(None),
             performed: Mutex::new(Vec::new()),
@@ -110,6 +113,10 @@ impl FakeLink {
         self.mail.manifest().manifest().app == *app
     }
 
+    fn is_menu(&self, app: &AppName) -> bool {
+        self.menu.manifest().manifest().app == *app
+    }
+
     fn is_files(&self, app: &AppName) -> bool {
         self.files.manifest().manifest().app == *app
     }
@@ -130,12 +137,39 @@ impl AppLink for FakeLink {
         app: &AppName,
         inv: Invocation,
         activation: Option<docket_core::ActivationToken>,
+        within: Latency,
+    ) -> Result<Outcome, AppFault> {
+        self.perform_classified(app, inv, activation, None, within)
+            .await
+    }
+
+    async fn classify(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+    ) -> Result<docket_core::CallClass, docket_core::ClassifyFault> {
+        if !self.is_menu(app) {
+            return Err(docket_core::ClassifyFault::Unsupported);
+        }
+        self.menu
+            .classify(inv)
+            .await
+            .map_err(|_| docket_core::ClassifyFault::Refused)
+    }
+
+    async fn perform_classified(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
+        classified: Option<docket_core::CallClass>,
         _within: Latency,
     ) -> Result<Outcome, AppFault> {
         if let Ok(mut seen) = self.performed.lock() {
             seen.push(docket_core::ActivatedInvocation {
                 invocation: inv.clone(),
                 activation,
+                classified: classified.clone(),
             });
         }
         let how = self
@@ -152,6 +186,11 @@ impl AppLink for FakeLink {
             self.mail.perform(inv).await.map_err(AppFault::Refused)
         } else if self.is_files(app) {
             self.files.perform(inv).await.map_err(AppFault::Refused)
+        } else if self.is_menu(app) {
+            self.menu
+                .perform_classified(inv, None, classified)
+                .await
+                .map_err(AppFault::Refused)
         } else if app.as_str() == docket_router::COMPANION_APP {
             match self.companion.0.get() {
                 Some(perform) => perform(inv).map_err(AppFault::Refused),

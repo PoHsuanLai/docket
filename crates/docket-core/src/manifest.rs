@@ -3,6 +3,7 @@
 //! written (porter's provider-file rule). TOML is parsed in `docket-router::registry`; this
 //! crate never reaches `toml`.
 
+use crate::classify::PerCall;
 use crate::ids::{IconName, IntentsVocab, LabelText, ParamName};
 use crate::value::{ParamType, Value};
 use porter_core::DataClass;
@@ -86,8 +87,12 @@ pub struct ActionDecl {
     pub on: TargetKind,
     /// What it takes.
     pub params: Vec<ParamDecl>,
-    /// What it can do to the world.
+    /// What it can do to the world. With `per_call = "classified"` this is a ceiling.
     pub effect: Effect,
+    /// Whether the provider classifies each call below the declared effect (`Classify`). Absent
+    /// from a file means `declared`; it is not written when it is.
+    #[serde(default, skip_serializing_if = "PerCall::is_declared")]
+    pub per_call: PerCall,
     /// The data classes it touches.
     pub classes: BTreeSet<DataClass>,
     /// Whether it can be taken back.

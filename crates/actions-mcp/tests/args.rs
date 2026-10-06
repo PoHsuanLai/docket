@@ -35,6 +35,7 @@ fn action(on: TargetKind, params: Vec<ParamDecl>) -> ActionDecl {
         keys: KeyHint::None,
         lasting: Lasting::No,
         dry_run: DryRun::None,
+        per_call: PerCall::Declared,
     }
 }
 

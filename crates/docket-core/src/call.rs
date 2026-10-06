@@ -66,7 +66,8 @@ pub struct Invocation {
     pub space: SpaceId,
 }
 
-/// What `IntentProvider1.Perform` carries: the [`Invocation`] and, beside it, the activation
+/// What `IntentProvider1.Perform` carries: the [`Invocation`] and, beside it, the `classified`
+/// effect the router gated on (per-call actions only) and the activation
 /// token the launcher sent with the call (a capability the app may redeem with the compositor to
 /// take focus). The JSON is the invocation's with a top-level `"activation"` when there is a
 /// token, so a provider that reads only an `Invocation` is unaffected.
@@ -78,6 +79,12 @@ pub struct ActivatedInvocation {
     /// The launcher's token, passed on unchanged; absent for every other caller.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub activation: Option<ActivationToken>,
+    /// What the router gated the call on, for an action that classifies per call: absent for
+    /// every other call. A provider re-derives its classification and refuses with
+    /// `ClassificationChanged` when it no longer matches, unless this is the declared ceiling,
+    /// which it must accept.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub classified: Option<crate::classify::CallClass>,
 }
 
 /// An XDG activation token: a capability to take focus, handed by the launcher with a `Perform`
@@ -174,6 +181,9 @@ pub enum AppRefusal {
     Busy,
     /// The app cannot do that.
     Unsupported,
+    /// The call is no longer what `Classify` said (the app's state changed in between). The
+    /// router gates it again at the declared ceiling.
+    ClassificationChanged,
     /// It failed.
     Failed(FailText),
 }

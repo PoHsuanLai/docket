@@ -107,6 +107,36 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         }
     }
 
+    async fn perform_classified(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
+        classified: Option<docket_core::CallClass>,
+        within: Latency,
+    ) -> Result<Outcome, AppFault> {
+        match host_of(app) {
+            Host::Installed => {
+                self.apps
+                    .perform_classified(app, inv, activation, classified, within)
+                    .await
+            }
+            Host::Memory | Host::Companion => self.perform(app, inv, within).await,
+        }
+    }
+
+    async fn classify(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+    ) -> Result<docket_core::CallClass, docket_core::ClassifyFault> {
+        match host_of(app) {
+            Host::Installed => self.apps.classify(app, inv).await,
+            // The built-in providers declare every effect outright.
+            Host::Memory | Host::Companion => Err(docket_core::ClassifyFault::Unsupported),
+        }
+    }
+
     async fn dry_run(&self, app: &AppName, inv: Invocation) -> Result<Preview, AppRefusal> {
         match host_of(app) {
             Host::Memory => self.memory.dry_run(inv).await,

@@ -46,6 +46,9 @@ pub(crate) struct Prepared {
     pub targets: Vec<EntityId>,
     /// The launcher's activation token, for the app's `Perform` only.
     pub activation: Option<ActivationToken>,
+    /// How the call was classified, for an action that classifies per call. `decl.effect` is
+    /// already the effect it used.
+    pub classified: Option<docket_core::Classification>,
 }
 
 pub(crate) fn entities(target: &TargetValue) -> Vec<EntityId> {

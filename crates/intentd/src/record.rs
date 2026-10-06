@@ -26,6 +26,8 @@ pub fn kind_tag_of(record: &AuditRecord) -> Option<KindTag> {
     let text = match record {
         AuditRecord::Call { .. } => "docket.call".to_owned(),
         AuditRecord::Review { .. } => "docket.review".to_owned(),
+        AuditRecord::Classified { .. } => "docket.classified".to_owned(),
+        AuditRecord::Delegation { .. } => "docket.delegation".to_owned(),
         AuditRecord::Confirm { .. } => "docket.confirm".to_owned(),
         AuditRecord::Undo { .. } => "docket.undo".to_owned(),
         AuditRecord::Halt { .. } => "docket.halt".to_owned(),
@@ -44,6 +46,8 @@ fn occurred(record: &AuditRecord) -> UnixSeconds {
     match record {
         AuditRecord::Call { at, .. }
         | AuditRecord::Review { at, .. }
+        | AuditRecord::Classified { at, .. }
+        | AuditRecord::Delegation { at, .. }
         | AuditRecord::Confirm { at, .. }
         | AuditRecord::Undo { at, .. }
         | AuditRecord::Halt { at, .. }
@@ -66,6 +70,8 @@ pub fn space_named_by(record: &AuditRecord) -> Option<&SpaceId> {
         AuditRecord::Message(message) => Some(&message.from.space),
         AuditRecord::Episode(episode) => Some(&episode.space),
         AuditRecord::Review { .. }
+        | AuditRecord::Classified { .. }
+        | AuditRecord::Delegation { .. }
         | AuditRecord::Confirm { .. }
         | AuditRecord::Undo { .. }
         | AuditRecord::Halt { .. }
@@ -163,6 +169,8 @@ fn who_and_how(record: &AuditRecord, space: &SpaceId) -> (Actor, Effect, Label) 
             (actor_of(&episode.agent), Effect::Read, label)
         }
         AuditRecord::Review { .. }
+        | AuditRecord::Classified { .. }
+        | AuditRecord::Delegation { .. }
         | AuditRecord::Confirm { .. }
         | AuditRecord::Halt { .. }
         | AuditRecord::TaskPolicy { .. }

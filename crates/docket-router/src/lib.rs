@@ -8,8 +8,10 @@
 //! No clock, bus, file or runtime is reached here; the daemon (`intentd`) passes them in.
 
 mod argcheck;
+mod assess;
 mod auth;
 mod call;
+mod classify;
 mod companion;
 mod confirm;
 mod consent;
@@ -50,6 +52,7 @@ mod who;
 
 pub use auth::{acting_role, permits};
 pub use call::{ArgsRefused, CallEffect, CallEvent, CallState, call_step};
+pub use classify::{at_ceiling, classify_step, delegation_end};
 pub use companion::COMPANION_APP;
 pub use gate::{GateInputs, Pending, gate};
 pub use handles::{HandleEntry, HandleTable, HandleValue, ViewInputs, context_view, planner_view};

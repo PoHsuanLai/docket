@@ -157,9 +157,43 @@ impl AppLink for DbusLink {
         activation: Option<docket_core::ActivationToken>,
         within: Latency,
     ) -> Result<Outcome, AppFault> {
+        self.perform_classified(app, inv, activation, None, within)
+            .await
+    }
+
+    async fn classify(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+    ) -> Result<docket_core::CallClass, docket_core::ClassifyFault> {
+        use docket_core::ClassifyFault as Fault;
+        let text = json(&inv).map_err(|_| Fault::Unavailable)?;
+        let answered = self
+            .ask(app, READ, |p| async move {
+                p.classify(&text, &Details::new()).await
+            })
+            .await;
+        match answered {
+            Ok(text) => read::<Result<docket_core::CallClass, AppRefusal>>(&text)
+                .map_err(|_| Fault::Unavailable)?
+                .map_err(|_| Fault::Refused),
+            Err(LinkFault::Timeout) => Err(Fault::TimedOut),
+            Err(LinkFault::Unavailable | LinkFault::Malformed) => Err(Fault::Unavailable),
+        }
+    }
+
+    async fn perform_classified(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
+        classified: Option<docket_core::CallClass>,
+        within: Latency,
+    ) -> Result<Outcome, AppFault> {
         let delivered = docket_core::ActivatedInvocation {
             invocation: inv,
             activation,
+            classified,
         };
         let text = json(&delivered).map_err(|_| AppRefusal::Unsupported)?;
         let answered = self

@@ -67,9 +67,25 @@ where
         render(
             &self
                 .provider
-                .perform_activated(delivered.invocation, delivered.activation)
+                .perform_classified(
+                    delivered.invocation,
+                    delivered.activation,
+                    delivered.classified,
+                )
                 .await,
         )
+    }
+
+    async fn classify(
+        &self,
+        invocation: String,
+        options: Details,
+        #[zbus(header)] header: Header<'_>,
+        #[zbus(connection)] connection: &zbus::Connection,
+    ) -> fdo::Result<String> {
+        let _ = options;
+        from_intentd(connection, &header).await?;
+        render(&self.provider.classify(parse(&invocation)?).await)
     }
 
     async fn dry_run(

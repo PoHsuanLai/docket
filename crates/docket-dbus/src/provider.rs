@@ -10,8 +10,11 @@ use zbus::object_server::SignalEmitter;
     default_path = "/org/quire/IntentProvider1"
 )]
 pub trait IntentProvider {
-    /// Performs (`Invocation` JSON; answers `Outcome` or `AppRefusal` JSON). The app labels its undo entry with the invocation's actor.
+    /// Performs (`Invocation` JSON, flattened with an optional `activation` token and, for an action that classifies per call, the `classified` effect the router gated on; answers `Outcome` or `AppRefusal` JSON). The app labels its undo entry with the invocation's actor.
     fn perform(&self, invocation: &str, options: &Details) -> zbus::Result<String>;
+
+    /// What one call does, for an action that declares `per_call = "classified"` (`Invocation` JSON; answers `CallClass` or `AppRefusal` JSON). The declared effect is a ceiling: the router clamps the answer, and an error, a timeout or an unknown method leaves the ceiling in force.
+    fn classify(&self, invocation: &str, options: &Details) -> zbus::Result<String>;
 
     /// Describes the change without making it (`Preview` JSON).
     fn dry_run(&self, invocation: &str, options: &Details) -> zbus::Result<String>;
@@ -53,6 +56,11 @@ pub struct IntentProviderSkeleton;
 #[zbus::interface(name = "org.quire.IntentProvider1")]
 impl IntentProviderSkeleton {
     fn perform(&self, invocation: String, options: Details) -> fdo::Result<String> {
+        let _ = (invocation, options);
+        Err(crate::introspect::frozen())
+    }
+
+    fn classify(&self, invocation: String, options: Details) -> fdo::Result<String> {
         let _ = (invocation, options);
         Err(crate::introspect::frozen())
     }

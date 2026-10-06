@@ -69,6 +69,7 @@ pub fn decl(name: &str, effect: Effect, undo: UndoSupport) -> ActionDecl {
         keys: KeyHint::None,
         lasting: Lasting::No,
         dry_run: DryRun::None,
+        per_call: PerCall::Declared,
     }
 }
 pub fn text_param(name: &str, sink: ArgSink, need: ParamNeed) -> ParamDecl {

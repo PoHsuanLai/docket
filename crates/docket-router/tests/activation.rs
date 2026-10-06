@@ -138,6 +138,7 @@ fn the_wire_form_is_the_invocations_with_one_optional_top_level_string() {
         serde_json::to_value(ActivatedInvocation {
             invocation: invocation.clone(),
             activation: a,
+            classified: None,
         })
         .expect("json")
     };
@@ -155,4 +156,39 @@ fn the_wire_form_is_the_invocations_with_one_optional_top_level_string() {
     );
     let delivered: ActivatedInvocation = serde_json::from_value(json(Some(token()))).expect("both");
     assert_eq!(delivered.activation, Some(token()));
+}
+
+#[test]
+fn the_classification_is_one_more_optional_top_level_member() {
+    let delivered = |classified| ActivatedInvocation {
+        invocation: Invocation {
+            call: docket_core::CallId(1),
+            action: prov::ActionName::parse("mail.thread.read").expect("action"),
+            target: docket_core::TargetValue::Nothing,
+            args: docket_core::Args::new(),
+            actor: prov::Actor::Cli,
+            origin: docket_core::Origin::Cli,
+            space: prov::SpaceId::desktop(),
+        },
+        activation: None,
+        classified,
+    };
+    let none = serde_json::to_value(delivered(None)).expect("json");
+    assert!(
+        none.get("classified").is_none(),
+        "absent when not classified"
+    );
+    let read = serde_json::to_value(delivered(Some(docket_core::CallClass::Effect(
+        prov::Effect::Read,
+    ))))
+    .expect("json");
+    assert_eq!(
+        read["classified"],
+        serde_json::json!({"kind": "effect", "v": "read"})
+    );
+    let back: ActivatedInvocation = serde_json::from_value(read).expect("round trip");
+    assert_eq!(
+        back.classified,
+        Some(docket_core::CallClass::Effect(prov::Effect::Read))
+    );
 }

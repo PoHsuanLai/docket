@@ -69,6 +69,31 @@ pub trait AppLink: Send + Sync {
         let _ = activation;
         self.perform(app, inv, within)
     }
+    /// `Perform` with the activation token and, for an action that classifies per call, the
+    /// classification the router gated on. A link that does not deliver it (the default)
+    /// performs without it.
+    fn perform_classified(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
+        classified: Option<docket_core::CallClass>,
+        within: Latency,
+    ) -> impl Future<Output = Result<Outcome, AppFault>> + Send {
+        let _ = classified;
+        self.perform_activated(app, inv, activation, within)
+    }
+    /// `Classify`: what this call does, for an action that opts in to per-call effects. A link
+    /// without it (the default) classifies nothing, and the declared effect holds.
+    fn classify(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+    ) -> impl Future<Output = Result<docket_core::CallClass, docket_core::ClassifyFault>> + Send
+    {
+        let _ = (app, inv);
+        async { Err(docket_core::ClassifyFault::Unsupported) }
+    }
     /// `DryRun`: the concrete change, before it is made.
     fn dry_run(
         &self,
