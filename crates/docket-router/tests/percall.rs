@@ -317,8 +317,7 @@ fn fake_router_with(strictness: Strictness) -> Router<docket_fake::FakeSeams> {
         strictness,
         ..AgentConfig::default()
     };
-    let router = docket_fake::fake_router(config).expect("router");
-    router
+    docket_fake::fake_router(config).expect("router")
 }
 
 #[tokio::test]
