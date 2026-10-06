@@ -28,11 +28,6 @@ async fn a_narrative_is_written_after_thirty_quiet_seconds_from_the_skeleton_alo
     ]);
     let opened = w.open("work").await;
     w.say(&opened.session, "read the invoice").await;
-    // The narrative waits for the router to end the task: the answer is dismissed first.
-    w.companion
-        .close(opened.session.clone())
-        .await
-        .expect("close");
     assert_eq!(w.infer.asked().len(), 2);
 
     // Too soon: nothing is asked of the model.
@@ -102,10 +97,6 @@ async fn an_interactive_request_cancels_the_narrative_and_it_is_tried_again_late
     let mut w = world(vec![words("Done."), Say::Hang]);
     let first = w.open("work").await;
     w.say(&first.session, "hello").await;
-    w.companion
-        .close(first.session.clone())
-        .await
-        .expect("close");
     w.set_time(1_000 + 31);
 
     // The narrative is running (the model never answers) when the person speaks: the stream is
@@ -128,10 +119,6 @@ async fn an_interactive_request_cancels_the_narrative_and_it_is_tried_again_late
         .push(vec![words("Fine."), words("They said hello twice.")]);
     let second = w.open("work").await;
     w.say(&second.session, "hello again").await;
-    w.companion
-        .close(second.session.clone())
-        .await
-        .expect("close");
     assert_eq!(w.infer.asked().len(), 3);
     w.set_time(1_000 + 200);
     w.companion.tick().await.expect("tick");

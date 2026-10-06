@@ -28,6 +28,24 @@ fn turn_source(role: CallerRole, caller: &CallerId) -> TurnSource {
     }
 }
 
+/// Ends a task that is not ended yet and returns the skeleton it leaves. A session nobody used
+/// (no turn, no step) leaves no episode: there is nothing to remember.
+pub(crate) fn end_task(
+    t: &mut crate::tasks::TaskRecord,
+    now: prov::UnixSeconds,
+) -> Option<almanac_core::Episode> {
+    let outcome = match t.state {
+        TaskState::Ended(_) => None,
+        _ => {
+            t.state = TaskState::Ended(ReportStatus::Done);
+            Some(EpisodeOutcome::Done)
+        }
+    };
+    outcome
+        .and_then(|o| close(&t.ledger, EpisodeKind::Task, now, o))
+        .filter(|e| !(e.skeleton.asked.is_empty() && e.skeleton.steps.is_empty()))
+}
+
 impl<S: Seams> Router<S> {
     /// `.Session.Open`.
     ///
@@ -152,17 +170,7 @@ impl<S: Seams> Router<S> {
         let Some(t) = st.tasks.get_mut(&task) else {
             return IntentsReply::Done;
         };
-        let outcome = match t.state {
-            TaskState::Ended(_) => None,
-            _ => {
-                t.state = TaskState::Ended(ReportStatus::Done);
-                Some(EpisodeOutcome::Done)
-            }
-        };
-        // A session nobody used (no turn, no step) leaves no episode: there is nothing to remember.
-        let episode = outcome
-            .and_then(|o| close(&t.ledger, EpisodeKind::Task, now, o))
-            .filter(|e| !(e.skeleton.asked.is_empty() && e.skeleton.steps.is_empty()));
+        let episode = end_task(t, now);
         drop(st);
         if policy_ended {
             self.seams.sink().append(AuditRecord::TaskPolicy {

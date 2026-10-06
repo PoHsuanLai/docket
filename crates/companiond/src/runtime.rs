@@ -76,8 +76,6 @@ pub struct Companiond<P: InferTransport, I: IntentsTransport> {
     pub(crate) narration: BTreeMap<EpisodeId, Narration>,
     /// Finished tasks whose router session is still open, oldest finish first.
     pub(crate) lingering: crate::linger::Lingering,
-    /// The episode of each lingering task: its narrative waits for the router to end the task.
-    pub(crate) held: BTreeMap<TaskId, Episode>,
     pub(crate) known: BTreeMap<AgentRef, RosterLine>,
     pub(crate) told: BTreeMap<AgentRef, LeadText>,
     pub(crate) triggers: VecDeque<(TaskId, LoopInput)>,
@@ -126,7 +124,6 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             episodes: Vec::new(),
             narration: BTreeMap::new(),
             lingering: crate::linger::Lingering::default(),
-            held: BTreeMap::new(),
             known: BTreeMap::new(),
             told: BTreeMap::new(),
             triggers: VecDeque::new(),
@@ -226,16 +223,11 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         self.lingering = crate::linger::dismissed(std::mem::take(&mut self.lingering), task);
         if let Some(session) = self.runtimes.get(task).map(|rt| rt.session.clone()) {
             // The router answers either way (a session it already closed is not an error here).
-            let _ = self.intents.session_close(session.clone()).await;
-            // The task is ended at the router now, so its narrative can be merged.
-            if let Some(episode) = self.held.remove(task) {
-                self.queue_narration(task, &session, episode);
-            }
+            let _ = self.intents.session_close(session).await;
         }
         if let Some(rt) = self.runtimes.remove(task) {
             self.remember_ended(task, &rt);
         }
-        self.held.remove(task);
         self.tasks.remove(task);
         self.front = front_step(self.front.take(), &FrontEvent::Ended(task.clone()));
         self.shared.drop_answer(task);

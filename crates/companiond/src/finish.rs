@@ -11,7 +11,7 @@ use agent_loop::{
 };
 use almanac_core::{Episode, EpisodeId, EpisodeKind, EpisodeOutcome};
 use docket_client::Transport as IntentsTransport;
-use docket_core::{DraftPart, EpisodeLine, SkeletonText, TaskLedger, close};
+use docket_core::{DraftPart, EpisodeLine, NoteAsk, SkeletonText, TaskLedger, close};
 use porter_client::Transport as InferTransport;
 use prov::{Address, AgentRef, MessageKind, MessageText, ReportStatus, TaskId};
 
@@ -72,18 +72,22 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         if matches!(rt.agent, AgentRef::Worker { .. }) {
             self.report(task, how).await;
         }
-        // The router leaves the episode itself: when the session closes, or when the final report
-        // ends the task first. The companion keeps its own copy only for the planner's section.
-        // The session stays open so the screen can still show the answer's handles
+        // The router leaves the episode itself: when the task ends here (`NoteAsk::End`), or when
+        // the final report ends it first. The companion keeps its own copy only for the planner's
+        // section. The session stays open so the screen can still show the answer's handles
         // (`Session.Display`); `dismiss` closes it, or the oldest finished one is closed when more
-        // than `LINGER` wait. The router's episode and the narrative follow that close.
+        // than `LINGER` wait.
         let record = companion_wire::SessionRecord::Finished {
             task: task.clone(),
             phase: rt.phase.clone(),
         };
         self.record(&rt.session, &record).await;
+        let _ = self
+            .intents
+            .session_note(rt.session.clone(), NoteAsk::End)
+            .await;
         if let Some(episode) = episode {
-            self.remember(task, episode);
+            self.remember(task, &rt.session, episode);
         }
         self.front = front_step(self.front.take(), &FrontEvent::Ended(task.clone()));
         self.publish();
@@ -132,8 +136,8 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         self.intents.send(session, draft).await.is_ok()
     }
 
-    /// Keeps the episode for the recent-episodes section; its narrative waits for the close.
-    fn remember(&mut self, task: &TaskId, episode: Episode) {
+    /// Keeps the episode for the recent-episodes section and queues its narrative.
+    fn remember(&mut self, task: &TaskId, session: &prov::SessionId, episode: Episode) {
         let line = EpisodeLine {
             id: episode.id.clone(),
             agent: episode.agent.clone(),
@@ -145,16 +149,6 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         };
         self.episodes.insert(0, line);
         self.episodes.truncate(REMEMBERED * 2);
-        self.held.insert(task.clone(), episode);
-    }
-
-    /// Queues the narrative of an episode whose task the router has ended.
-    pub(crate) fn queue_narration(
-        &mut self,
-        task: &TaskId,
-        session: &prov::SessionId,
-        episode: Episode,
-    ) {
         let read = self
             .runtimes
             .get(task)

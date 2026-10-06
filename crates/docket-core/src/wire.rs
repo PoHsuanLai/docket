@@ -193,6 +193,10 @@ pub enum NoteAsk {
         /// What the model wrote.
         narrative: Narrative,
     },
+    /// The task of this session is over: the router ends it and leaves its skeleton now, as
+    /// closing the session would, but the session stays open (its handles can still be shown)
+    /// until `Session.Close`. A task already ended writes nothing.
+    End,
     /// A record of the companion's sessions.
     Record(SessionNote),
 }

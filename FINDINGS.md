@@ -1057,14 +1057,12 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
    finished one is closed in finish order and its answer is dropped exactly as `Close` would. The step is pure
    (`linger::finished` and `linger::dismissed`, table tests). Why 8: the same as `REMEMBERED`, the number of finished
    tasks the roster and the recent-episodes section already keep; a person does not look back at more answers than that.
-2. **What the delay changes for memory.** The router writes a task's episode when its session closes (or when a
-   worker's final report ends the task first). So a non-worker task's episode now reaches the log at the dismissal or
-   eviction, not at the finish, and carries that later `ended` time. A worker's report is unchanged: it still ends the
-   task and leaves the episode at once, and the later close finds the task ended and writes none (tested: one episode,
-   never two). The narrative (`Session.Note` Narrative) needs the router task to be ended, so the idle job and the
-   narration entry are queued at the close (`held` in `Companiond`), not at the finish. The planner's recent-episodes
-   section is unchanged (filled at the finish). If companiond dies while sessions linger, at most eight skeletons of
-   tasks nobody dismissed are never written; restart does not close them.
+2. **Memory is unchanged.** The router still ends the task and writes its episode at the finish, and the narrative
+   and idle job run then. `finish` sends the new `NoteAsk::End` through `Session.Note`: the router ends the task and
+   leaves its skeleton exactly as `Session.Close` did, but the session stays open (its handles can still be shown).
+   `Session.Close` at dismissal or eviction then finds the task ended and writes none. A worker's final report still ends
+   its task first; `End` after it writes nothing (tested: one episode, never two). Nothing is lost if companiond dies
+   while sessions linger; only the open sessions leak until the router restarts.
 3. **`Session.Display` on a closed session is refused** (`NoSuchSession`, `docket-router/src/reading.rs`). Before,
    the router kept a closed session's handles and still showed them; now a handle shows until its answer is
    dismissed and not after.

@@ -58,6 +58,22 @@ impl<S: Seams> Router<S> {
                     None => return refuse(WireRefusal::Malformed),
                 }
             }
+            NoteAsk::End => {
+                let ended = {
+                    let mut st = self.locked();
+                    let task = st.sessions.get(id).map(|r| r.task.clone());
+                    task.and_then(|task| {
+                        st.tasks
+                            .get_mut(&task)
+                            .and_then(|t| crate::opening::end_task(t, now))
+                    })
+                };
+                if let Some(episode) = ended {
+                    self.seams
+                        .sink()
+                        .append(AuditRecord::Episode(Box::new(episode)));
+                }
+            }
             NoteAsk::Record(note) => self.seams.sink().append(AuditRecord::Session {
                 at: now,
                 space,

@@ -67,11 +67,6 @@ async fn a_task_reads_mail_sees_only_a_handle_and_leaves_a_trusted_episode() {
         &[Reveal::Plain("You have an invoice from Eve.".to_owned())]
     );
 
-    // The answer is dismissed, which closes the session the router held open for its handles.
-    w.companion
-        .close(opened.session.clone())
-        .await
-        .expect("close");
     // The task ended: the router left its skeleton, trusted, with the person's own words and the
     // one typed step, and the front pointer is gone until the person asks again.
     let episodes = w.episodes();

@@ -70,10 +70,10 @@ async fn the_ninth_finished_task_closes_the_oldest_and_each_leaves_one_episode()
         w.say(&opened.session, &format!("read {n}")).await;
         sessions.push(opened);
         if n < 8 {
-            // Nothing is closed while eight or fewer wait, and no episode is left yet: the
-            // router leaves it when the session closes.
+            // Nothing is closed while eight or fewer wait, and each task left its episode at
+            // its finish, not at a close.
             assert_eq!(display(&w, &sessions[0].session).await.as_deref(), Ok(BODY));
-            assert_eq!(w.episodes().len(), 0, "after {n}");
+            assert_eq!(w.episodes().len(), n + 1, "after {n}");
         }
     }
     // The ninth finish closed the first, as a dismissal would: its answer is gone and the router
@@ -85,7 +85,7 @@ async fn the_ninth_finished_task_closes_the_oldest_and_each_leaves_one_episode()
         assert_eq!(display(&w, &later.session).await.as_deref(), Ok(BODY));
         assert!(w.companion.shared.answer(&later.task).is_some());
     }
-    assert_eq!(w.episodes().len(), 1, "one episode, left by the one close");
+    assert_eq!(w.episodes().len(), 9, "the close wrote no second one");
 
     // Dismissing the rest leaves exactly one skeleton each, none twice.
     for each in &sessions[1..] {
