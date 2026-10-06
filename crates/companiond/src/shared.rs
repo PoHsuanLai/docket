@@ -5,7 +5,7 @@
 
 use companion_wire::{AnswerWire, FrontTask};
 use docket_core::Roster;
-use prov::TaskId;
+use prov::{SessionId, TaskId};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Mutex;
 use tokio::sync::{Notify, broadcast};
@@ -28,6 +28,7 @@ struct State {
     roster: Roster,
     front: Option<FrontTask>,
     answers: BTreeMap<TaskId, AnswerWire>,
+    sessions: BTreeMap<TaskId, SessionId>,
     cancels: BTreeSet<TaskId>,
 }
 
@@ -114,8 +115,20 @@ impl Shared {
         }
     }
 
+    /// The router session an answer's task runs on: the one whose handles the answer shows.
+    pub fn session_of(&self, task: &TaskId) -> Option<SessionId> {
+        self.with(|s| s.sessions.get(task).cloned())
+    }
+
+    /// Records the session of `task`'s answer. Set before the answer, so a reader told of the
+    /// answer can already ask for it.
+    pub fn set_session(&self, task: &TaskId, session: SessionId) {
+        self.with(|s| s.sessions.insert(task.clone(), session));
+    }
+
     /// Drops an answer.
     pub fn drop_answer(&self, task: &TaskId) {
+        self.with(|s| s.sessions.remove(task));
         if self.with(|s| s.answers.remove(task)).is_some() {
             self.tell(Change::AnswerRemoved(task.clone()));
         }

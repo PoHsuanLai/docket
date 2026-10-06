@@ -23,6 +23,12 @@ pub trait CompanionAnswer {
     /// The current view (`AnswerWire` JSON).
     #[zbus(property)]
     fn view(&self) -> zbus::Result<String>;
+
+    /// The router session (`SessionId` text) this answer's handles are shown through
+    /// (`Intents1.Session.Display`). It stays open until the answer is dismissed with
+    /// `Companion1.Close`; after that the object is gone.
+    #[zbus(property)]
+    fn session(&self) -> zbus::Result<String>;
 }
 
 /// The daemon's side.
@@ -42,6 +48,11 @@ impl CompanionAnswerSkeleton {
 
     #[zbus(signal)]
     async fn updated(emitter: &SignalEmitter<'_>, view: &str) -> zbus::Result<()>;
+
+    #[zbus(property)]
+    fn session(&self) -> fdo::Result<String> {
+        Err(crate::introspect::frozen())
+    }
 
     #[zbus(property)]
     fn view(&self) -> fdo::Result<String> {

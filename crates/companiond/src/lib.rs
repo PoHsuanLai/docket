@@ -23,6 +23,7 @@ mod fault;
 mod finish;
 mod idle;
 mod inbox;
+mod linger;
 mod plan;
 mod planner;
 mod records;

@@ -4,6 +4,7 @@
 //! when the person is away, and never steers anything by itself.
 
 use crate::fault::ServeFault;
+use crate::linger::{LINGER, finished};
 use crate::runtime::{Companiond, Narration, REMEMBERED};
 use agent_loop::{
     EpisodeJob, FinishedAs, FrontEvent, IdleInput, LoopPhase, ReadUntrusted, front_step,
@@ -73,17 +74,28 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         }
         // The router leaves the episode itself: when the session closes, or when the final report
         // ends the task first. The companion keeps its own copy only for the planner's section.
+        // The session stays open so the screen can still show the answer's handles
+        // (`Session.Display`); `dismiss` closes it, or the oldest finished one is closed when more
+        // than `LINGER` wait. The router's episode and the narrative follow that close.
         let record = companion_wire::SessionRecord::Finished {
             task: task.clone(),
             phase: rt.phase.clone(),
         };
         self.record(&rt.session, &record).await;
-        let _ = self.intents.session_close(rt.session.clone()).await;
         if let Some(episode) = episode {
-            self.remember(task, &rt.session, episode);
+            self.remember(task, episode);
         }
         self.front = front_step(self.front.take(), &FrontEvent::Ended(task.clone()));
         self.publish();
+        let evicted = finished(std::mem::take(&mut self.lingering), task.clone(), LINGER);
+        self.lingering = evicted.queue;
+        for old in evicted.close {
+            if let Some(session) = self.runtimes.get(&old).map(|r| r.session.clone()) {
+                self.record(&session, &companion_wire::SessionRecord::Closed)
+                    .await;
+            }
+            self.dismiss(&old).await;
+        }
         Ok(())
     }
 
@@ -120,8 +132,8 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         self.intents.send(session, draft).await.is_ok()
     }
 
-    /// Keeps the episode for the recent-episodes section and queues its narrative.
-    fn remember(&mut self, task: &TaskId, session: &prov::SessionId, episode: Episode) {
+    /// Keeps the episode for the recent-episodes section; its narrative waits for the close.
+    fn remember(&mut self, task: &TaskId, episode: Episode) {
         let line = EpisodeLine {
             id: episode.id.clone(),
             agent: episode.agent.clone(),
@@ -133,6 +145,16 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         };
         self.episodes.insert(0, line);
         self.episodes.truncate(REMEMBERED * 2);
+        self.held.insert(task.clone(), episode);
+    }
+
+    /// Queues the narrative of an episode whose task the router has ended.
+    pub(crate) fn queue_narration(
+        &mut self,
+        task: &TaskId,
+        session: &prov::SessionId,
+        episode: Episode,
+    ) {
         let read = self
             .runtimes
             .get(task)

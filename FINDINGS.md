@@ -1048,3 +1048,28 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
   audit trail may fail softly. (4) A handle in an answer prints as `#n`. (5) Mail, calendar, files: not installed
   (mailo has its own installer). (6) `readerd` is installed but a cloud model is only reached for the classes
   whose floor you lowered. (7) accountd stores the key in the Secret Service: KWallet must be unlocked.
+
+## f4-docket-shown: an answer's handles outlive its task
+
+1. **A finished task keeps its router session open until the answer is dismissed.** `finish` no longer calls
+   `Session.Close`; `Companion1.Close` does (`Companiond::dismiss`, shared with the eviction path). The count is
+   bounded, not timed: `linger::LINGER = 8` finished-but-open sessions. When a ninth task finishes, the oldest
+   finished one is closed in finish order and its answer is dropped exactly as `Close` would. The step is pure
+   (`linger::finished` and `linger::dismissed`, table tests). Why 8: the same as `REMEMBERED`, the number of finished
+   tasks the roster and the recent-episodes section already keep; a person does not look back at more answers than that.
+2. **What the delay changes for memory.** The router writes a task's episode when its session closes (or when a
+   worker's final report ends the task first). So a non-worker task's episode now reaches the log at the dismissal or
+   eviction, not at the finish, and carries that later `ended` time. A worker's report is unchanged: it still ends the
+   task and leaves the episode at once, and the later close finds the task ended and writes none (tested: one episode,
+   never two). The narrative (`Session.Note` Narrative) needs the router task to be ended, so the idle job and the
+   narration entry are queued at the close (`held` in `Companiond`), not at the finish. The planner's recent-episodes
+   section is unchanged (filled at the finish). If companiond dies while sessions linger, at most eight skeletons of
+   tasks nobody dismissed are never written; restart does not close them.
+3. **`Session.Display` on a closed session is refused** (`NoSuchSession`, `docket-router/src/reading.rs`). Before,
+   the router kept a closed session's handles and still showed them; now a handle shows until its answer is
+   dismissed and not after.
+4. **How a surface finds an answer's session.** `org.quire.Companion1.Answer` gained a read-only property
+   `Session` (`s`, the `SessionId` text), set before `AnswerAdded` is signalled, so every answer object, whoever
+   started the task, names its session. `AnswerWire`, `FrontTask` and `AskWire` are unchanged. sill reads
+   `Session` from the answer object (the same proxy it reads `View` from), then calls `Intents1.Session.Display`
+   with it for each handle; the object, and the session, go away on `AnswerRemoved`.

@@ -6,6 +6,7 @@ use crate::handles::{HandleValue, context_view};
 use crate::labels::{absorb, fold_labels};
 use crate::router::Router;
 use crate::seams::{AppLink, LinkFault, Seams};
+use crate::session::SessionState;
 use docket_core::{
     CallRefusal, ContextScope, ContextSnapshot, Handle, IntentsReply, ReadAsk, Reader, Resolved,
     Reveal, Selection, Value, WireRefusal, conforms,
@@ -56,11 +57,15 @@ impl<S: Seams> Router<S> {
         IntentsReply::Resolved(Resolved { text, label })
     }
 
-    /// `.Session.Display`: a handle's text for the screen, never for a model.
+    /// `.Session.Display`: a handle's text for the screen, never for a model. A closed session
+    /// shows nothing: the handles of an answer live until the answer is dismissed.
     pub(crate) fn session_display(&self, id: &SessionId, handle: Handle) -> IntentsReply {
         let st = self.locked();
         match st.sessions.get(id) {
             None => refuse(WireRefusal::NoSuchSession),
+            Some(record) if matches!(record.state, SessionState::Closed(_)) => {
+                refuse(WireRefusal::NoSuchSession)
+            }
             Some(record) => match record.handles.display(handle) {
                 Some(text) => IntentsReply::Text(text.to_owned()),
                 None => refuse(WireRefusal::Malformed),

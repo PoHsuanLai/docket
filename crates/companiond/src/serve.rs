@@ -220,6 +220,14 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
     async fn updated(emitter: &SignalEmitter<'_>, view: &str) -> zbus::Result<()>;
 
     #[zbus(property)]
+    async fn session(&self) -> fdo::Result<String> {
+        match self.shared.session_of(&self.task) {
+            Some(session) => Ok(session.as_str().to_owned()),
+            None => Err(fdo::Error::Failed("no such answer".into())),
+        }
+    }
+
+    #[zbus(property)]
     async fn view(&self) -> fdo::Result<String> {
         match self.shared.answer(&self.task) {
             Some(answer) => json(&answer),
