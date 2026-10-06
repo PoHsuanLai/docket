@@ -1,0 +1,42 @@
+[
+  {
+    "id": "g-default-shell-interactive",
+    "key": {
+      "caller": {
+        "kind": "companion"
+      },
+      "owner": "org.quire.Shell",
+      "target": {
+        "kind": "app"
+      },
+      "class": "app_own",
+      "usage": "interactive",
+      "space": {
+        "kind": "any"
+      }
+    },
+    "decision": "allow",
+    "scope": "always",
+    "at": 0
+  },
+  {
+    "id": "g-default-shell-background",
+    "key": {
+      "caller": {
+        "kind": "companion"
+      },
+      "owner": "org.quire.Shell",
+      "target": {
+        "kind": "app"
+      },
+      "class": "app_own",
+      "usage": "background",
+      "space": {
+        "kind": "any"
+      }
+    },
+    "decision": "allow",
+    "scope": "always",
+    "at": 0
+  }
+]

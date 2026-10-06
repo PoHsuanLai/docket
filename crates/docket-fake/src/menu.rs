@@ -59,6 +59,12 @@ impl MenuItem {
     }
 }
 
+/// Whether `action` is one of the `<app>.item.*` actions, whatever the app is called (a test
+/// renames the manifest's app to stand in for another one).
+fn is_item(action: &str) -> bool {
+    action.split('.').nth(1) == Some("item")
+}
+
 fn app_name() -> AppName {
     AppName::parse("org.quire.Menu").unwrap_or_else(|_| unreachable!("a valid app name"))
 }
@@ -124,7 +130,7 @@ impl IntentProvider for FakeMenu {
         _activation: Option<docket_core::ActivationToken>,
         classified: Option<CallClass>,
     ) -> Result<Outcome, AppRefusal> {
-        if !inv.action.as_str().starts_with("menu.item.") {
+        if !is_item(inv.action.as_str()) {
             return Ok(outcome(
                 Some(format!("Did {}", inv.action.as_str())),
                 Undoable::No,
@@ -135,9 +141,10 @@ impl IntentProvider for FakeMenu {
         let how = self.script_of(&item).ok_or(AppRefusal::Unsupported)?;
         // Re-derive: what the item is now. The declared ceiling is always accepted.
         let now = how.at_perform.clone().or_else(|| how.classify.clone().ok());
-        let ceiling = CallClass::Effect(match inv.action.as_str() {
-            "menu.item.adjust" => Effect::UndoableWrite,
-            _ => Effect::Destructive,
+        let ceiling = CallClass::Effect(if inv.action.as_str().ends_with(".item.adjust") {
+            Effect::UndoableWrite
+        } else {
+            Effect::Destructive
         });
         if let Some(said) = classified
             && said != ceiling

@@ -313,3 +313,94 @@ fn the_script_runs_the_binary_and_passes_its_exit_code_on() {
     assert_eq!(nowhere.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&nowhere.stderr).contains("no docket checkout"));
 }
+
+// ---- --check-skills ----
+
+const SHELL_MANIFEST: &str = r#"vocab = 1
+app = "org.quire.Shell"
+entities = []
+
+[[actions]]
+name = "shell.window.hide"
+label = "Hide"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+"#;
+
+const HIDE_MD: &str = "---\nname: hiding\ndescription: Hide a window.\n---\n# Hiding\n\nHide it.\n";
+
+const HIDE_SKILL: &str = "vocab = 1\nid = \"hiding\"\nowner = \"org.quire.Shell\"\nversion = \"0.1.0\"\nuses = [\"org.quire.Shell:shell.window.hide\"]\n[when]\nalways = \"yes\"\n";
+
+fn skill_repo(dir: &Path) {
+    put(dir, "dist/skills/hiding/skill.toml", HIDE_SKILL);
+    put(dir, "dist/skills/hiding/SKILL.md", HIDE_MD);
+}
+
+fn run_skills(args: &[&std::ffi::OsStr]) -> (Option<i32>, String) {
+    let out = Command::new(binary())
+        .arg("--check-skills")
+        .args(args)
+        .output()
+        .expect("runs");
+    (
+        out.status.code(),
+        String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr),
+    )
+}
+
+#[test]
+fn a_repo_with_dist_intents_and_dist_skills_validates_whichever_directory_is_named() {
+    let repo = tempfile::tempdir().expect("dir");
+    skill_repo(repo.path());
+    // Without its manifest the skill's action is missing.
+    let skills = repo.path().join("dist/skills");
+    let (code, said) = run_skills(&[skills.as_os_str()]);
+    assert_eq!(code, Some(1), "{said}");
+    assert!(said.contains("which no manifest declares"), "{said}");
+    put(
+        repo.path(),
+        "dist/intents/org.quire.Shell.toml",
+        SHELL_MANIFEST,
+    );
+    // Named by the repository root, and by its skills directory alone.
+    for dir in [repo.path().to_path_buf(), skills] {
+        let (code, said) = run_skills(&[dir.as_os_str()]);
+        assert_eq!(code, Some(0), "{dir:?}: {said}");
+        assert!(said.contains("hiding 0.1.0 validates"), "{said}");
+    }
+}
+
+#[test]
+fn manifests_adds_a_directory_of_manifests_and_may_be_repeated() {
+    let repo = tempfile::tempdir().expect("dir");
+    put(repo.path(), "skills/hiding/skill.toml", HIDE_SKILL);
+    put(repo.path(), "skills/hiding/SKILL.md", HIDE_MD);
+    let elsewhere = tempfile::tempdir().expect("dir");
+    put(elsewhere.path(), "org.quire.Shell.toml", SHELL_MANIFEST);
+    let nothing = tempfile::tempdir().expect("dir");
+    let skills = repo.path().join("skills");
+    let (code, said) = run_skills(&[skills.as_os_str()]);
+    assert_eq!(code, Some(1), "{said}");
+    let (code, said) = run_skills(&[
+        skills.as_os_str(),
+        "--manifests".as_ref(),
+        nothing.path().as_os_str(),
+        "--manifests".as_ref(),
+        elsewhere.path().as_os_str(),
+    ]);
+    assert_eq!(code, Some(0), "{said}");
+    // A flag with no value is a usage error.
+    let (code, _) = run_skills(&[skills.as_os_str(), "--manifests".as_ref()]);
+    assert_eq!(code, Some(2));
+    let (code, _) = run_skills(&["--manifests".as_ref(), elsewhere.path().as_os_str()]);
+    assert_eq!(code, Some(2));
+}

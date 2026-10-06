@@ -105,7 +105,7 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `docket-accept` | `provider`, `confirm` < `world` < `drive` |
 | `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `check` < `ui` (the binary `docket-eval` runs `check`) |
 | `docket-cli` | `exit`, `args` < `resolve`, `when` < `params`, `schema`, `outcome` < `render`, `complete`, `help` < `exec`, `ask_render` < `ask` (`quire-do ask`) < `lib` (`run`), `program` (the whole program; `main` and the acceptance harness's `accept-quire-do` call it), `main` |
-| `intentd` | `config`, `builtin_memory`, `builtin_companion` < `builtin`, `record` < `sink` < `audit`, `memory`, `grants`, `procroot` < `peer` < `sheet`, `link`, `infer`, `writer`, `reader_client`, `reviewers`, `system`, `settings_watch`, `bus` (`request`, `query`, `run`, `session`, `control`) < `serve`, `logout`, `manifests` < `signals` < `daemon` (`main`) |
+| `intentd` | `config`, `builtin_memory`, `builtin_companion` < `builtin`, `record` < `sink` < `audit`, `memory`, `defaults` < `grants`, `procroot` < `peer` < `sheet`, `link`, `infer`, `writer`, `reader_client`, `reviewers`, `system`, `settings_watch`, `bus` (`request`, `query`, `run`, `session`, `control`) < `serve`, `logout`, `manifests` < `signals` < `daemon` (`main`) |
 | `companiond` | `clock`, `fault`, `shared`, `catalogue` < `args`, `render` < `planner`, `task` < `runtime`, `completion`, `recover`, `sources`, `drive`, `act`, `inbox`, `finish`, `idle`, `records`, `resume`, `serve`, `config` < `daemon` |
 | `readerd` | `host`, `request`, `answer` < `service` < `serve` < `daemon` (`main`) |
 | `docket-ds` | `chips`, `things`, `summon`, `context`, `voice` |

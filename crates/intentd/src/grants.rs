@@ -1,5 +1,6 @@
 //! The person's standing consent for actions, in a file under the user's data directory.
 
+use crate::defaults::{default_grants_file, read_defaults};
 use docket_core::ActionGrant;
 use docket_router::GrantStore;
 use std::path::{Path, PathBuf};
@@ -13,12 +14,27 @@ static WRITING: Mutex<()> = Mutex::new(());
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileGrants {
     path: PathBuf,
+    /// The shipped defaults files, read-only, layered under what the person's file holds.
+    defaults: Vec<PathBuf>,
 }
 
 impl FileGrants {
     /// Grants stored at `path`.
     pub fn at(path: PathBuf) -> Self {
-        Self { path }
+        Self {
+            path,
+            defaults: Vec::new(),
+        }
+    }
+
+    /// The same store with the shipped defaults of each data directory under it
+    /// (`quire/intents/default-grants.json`): the person's own entries, a denial included,
+    /// always win over a default.
+    pub fn with_defaults(self, data_dirs: &[PathBuf]) -> Self {
+        Self {
+            defaults: data_dirs.iter().map(|d| default_grants_file(d)).collect(),
+            ..self
+        }
     }
 
     /// What the file holds: nothing when it is missing, and nothing (with a line on standard
@@ -60,7 +76,13 @@ impl FileGrants {
 
 impl GrantStore for FileGrants {
     fn grants(&self) -> Vec<ActionGrant> {
-        self.read()
+        let mut all: Vec<ActionGrant> = self
+            .defaults
+            .iter()
+            .flat_map(|f| read_defaults(f))
+            .collect();
+        all.extend(self.read());
+        all
     }
 
     fn record(&self, grant: ActionGrant) {

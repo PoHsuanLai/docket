@@ -196,7 +196,7 @@ pub async fn start(
         // The router enforces the person's review times, live; the cascade's own are the ceiling.
         reviewer: reviewer(session, config.reviewers.as_ref(), REVIEW_CEILING)
             .ok_or_else(|| DaemonFault::Policy("no reviewer set".into()))?,
-        grants: FileGrants::at(grants),
+        grants: FileGrants::at(grants).with_defaults(&data_dirs),
         sink: QueuedSink::new(),
         clock: SystemClock,
         memory: AlmanacMemory::over(almanac_client::DbusTransport::new(session.clone())),

@@ -882,8 +882,11 @@ What landed: the skills format, discovery, validation and the three places they 
   reads as a refused Read; nothing is truncated and nothing is audited as loaded; a reload is free). Preselection
   gets what is left, takes `always` first then `when` matches, and stops at the first body that does not fit. The
   shipped `desktop-basics` is under 1 KiB; owners should keep bodies far below the cap.
-- **`docket-eval --check-skills <dir>...`** walks each directory for `skill.toml` files and for manifests (the
-  `--check-app` rules) and adds the two built-in manifests. Pass every repo whose actions the skills use. A missing
+- **`docket-eval --check-skills <dir>... [--manifests <dir>]...`** walks each directory for `skill.toml` files and for
+  manifests (the `--check-app` rules, which include `dist/intents/*.toml`), also reads `dist/intents/*.toml` under
+  each directory and the `intents` directory beside a directory named `skills` (so naming `~/sill/dist/skills`
+  finds `~/sill/dist/intents`), adds every `*.toml` of each `--manifests` directory, and adds the two built-in
+  manifests. A manifest reached twice is read once. Pass every repo whose actions the skills use. A missing
   action fails; an action Hidden from the companion is a note.
 - **`quire-do skills`** lists the installed skills from `$XDG_DATA_*`, each marked offered, hidden (missing action,
   with which) or not offered (Hidden action), plus directories that did not load. It needs intentd for the manifests.
@@ -1071,3 +1074,37 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
    started the task, names its session. `AnswerWire`, `FrontTask` and `AskWire` are unchanged. sill reads
    `Session` from the answer object (the same proxy it reads `View` from), then calls `Intents1.Session.Display`
    with it for each handle; the object, and the session, go away on `AnswerRemoved`.
+
+## f4-docket-defaults: shipped consent for the shell's own data, and `--check-skills` across repos
+
+1. **One shipped default.** `dist/intents/default-grants.json` holds two grants (Interactive and Background):
+   caller Companion, owner `org.quire.Shell`, target App, class `app_own`, every Space, `allow`, `always`. It is
+   installed with the other `dist/intents` files (the installer on `f4-demo-install` copies that tree whole, so
+   it needs no change). intentd reads `quire/intents/default-grants.json` under every data directory at each
+   consent lookup (`FileGrants::with_defaults`) and puts it under the person's `grants.json`.
+   Why this is safe: the shell is the desktop itself. Its `app_own` data is window, menu, workspace and dock state,
+   which the person already sees and drives from the same screen; nothing in it is mail, files, the screen or
+   another app's content. The default names the shell and no other app, so a delegate's inner action (an
+   app's own `app_own` rows, e.g. `dev.notes`) keeps the normal first-use ask per app, and the person can answer
+   Always there.
+2. **Layering.** Defaults are read as grants dated the epoch, so porter's `decide` (the newest grant for the exact
+   key wins, a denial wins a tie) lets any entry of the person's outrank them. `consent_for` already tries the
+   narrowest key first, so a denial for one action or one Space also wins over the broad default.
+3. **Revoking.** No new form was needed: a grant already carries `Decision::Deny`. A revoke of a default is the
+   person's own entry with the same key and `decision = deny` (`intentd::revoking(default, id, at)` builds it from
+   the default); it is written to the person's `grants.json`, never to the shipped file, and survives a restart.
+   A later `allow` from the person brings the key back.
+4. **A guard on the file.** The person's own data directory is also a data directory, so the loader accepts only
+   `Always` allowances over `app_own` and skips (with a line on standard error) anything else, a denial included. A
+   file dropped there cannot lend the companion mail, files or the screen, and a damaged file grants nothing.
+5. **Strictness.** The default only answers the consent question. docket's table (`policy/default.cedar`): a Read in
+   the same Space is final in all three strictnesses, so a shell Read row (Hide, Minimise) never asks, AskMore
+   included. An undoable write still asks under AskMore (judged under Default), an Outbound or Destructive act
+   asks in every strictness, and a tainted session still asks again before leaning on an Always for a write.
+   Tests: `crates/docket-router/tests/shell_defaults.rs`, `crates/intentd/tests/files.rs`.
+6. **`--check-skills`** now finds manifests where apps keep them (item above in f4-docket-skills). The line to change
+   in agent-spec `skills-format.md`: "`docket-eval --check-skills <dir>... [--manifests <dir>]...`: manifests are
+   those under each dir (as `--check-app` finds them, `dist/intents/*.toml` included), the `intents` directory
+   beside a `skills` directory, every `*.toml` of each `--manifests` directory, and the built-in two."
+7. **docket-fake** `FakeMenu` now treats any `<app>.item.*` action as a menu item (it matched `menu.item.*` only), so
+   a test can stand it in for another app by renaming the manifest.
