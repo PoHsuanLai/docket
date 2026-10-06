@@ -1,11 +1,35 @@
 # docket's settings schema in the design/22 format (section 9.2). Installed to
 # $XDG_DATA_DIRS/quire/settings/docket.settings.toml; `actions-mcp --write-schema <dir>` writes it
-# for a local install. The values live in $XDG_CONFIG_HOME/docket/settings.toml, as
-# `[agent.mcp] expose = "off"`. Hands-off for an agent (no `agent = "settable"`): the companion
-# can never switch the MCP edge on for itself.
+# for a local install. The values live in $XDG_CONFIG_HOME/docket/settings.toml, for example
+# `[agent.mcp] expose = "on"`; the daemons read them live (crates/docket-settings). Every row is
+# hands-off for an agent (no `agent = "settable"`): agent.* is never agent-settable, so the
+# companion can never loosen its own limits. The rows design/22 section 5 puts on the Intelligence
+# page are Privacy's three; the others are Advanced.
 app = "docket"
 file = "docket/settings.toml"
 version = 1
+
+[[key]]
+path = "agent.strictness"
+default = "default"
+label = "How much the assistant asks first"
+help = "Ask more makes the assistant check with you more often. Trust more lets it send or delete inside a task you approved once two reviewers agree. Default sits between."
+section = "Privacy"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["ask_more", "default", "trust_more"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+ask_more = "Ask more"
+default = "Default"
+trust_more = "Trust more"
 
 [[key]]
 path = "agent.mcp.expose"
@@ -27,3 +51,307 @@ kind = "intelligence"
 [key.labels]
 off = "Off"
 on = "On"
+
+[[key]]
+path = "agent.undo.keep_h"
+default = 24
+label = "Keep undo for"
+help = "How long the undo journal keeps what the assistant did, so you can take it back."
+section = "Privacy"
+exposure = "basic"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 168
+unit = "hours"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.review.quick_ms"
+default = 300
+label = "Quick review time"
+help = "How long the quick reviewer may take. A review that runs out of time asks you; it never allows."
+section = "Review time"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 50
+max = 10000
+unit = "ms"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.review.deliberate_ms"
+default = 3000
+label = "Careful review time"
+help = "How long the careful reviewer may take before the step asks you."
+section = "Review time"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 50
+max = 30000
+unit = "ms"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.review.second_ms"
+default = 3000
+label = "Second opinion time"
+help = "How long the second reviewer may take before the step asks you."
+section = "Review time"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 50
+max = 30000
+unit = "ms"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.calls"
+default = 200
+label = "Calls per session"
+help = "The most actions the assistant may run in one session."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 10000
+unit = "calls"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.writes"
+default = 100
+label = "Changes per session"
+help = "The most changes of any kind the assistant may make in one session."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 0
+max = 10000
+unit = "changes"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.outbound"
+default = 10
+label = "Sends per session"
+help = "The most things the assistant may send out (mail, messages, posts) in one session."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 0
+max = 1000
+unit = "sends"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.destructive"
+default = 5
+label = "Deletions per session"
+help = "The most deletions the assistant may make in one session."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 0
+max = 1000
+unit = "deletions"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.per_minute"
+default = 30
+label = "Calls per minute"
+help = "The most actions the assistant may run in a minute."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 600
+unit = "calls"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.fan_out"
+default = 50
+label = "Items per call"
+help = "The most items one action may touch."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 10000
+unit = "items"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.chain"
+default = 4
+label = "Follow-up depth"
+help = "How many actions one action may start in turn."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 16
+unit = "levels"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.wall_s"
+default = 1800
+label = "Session length"
+help = "How long one session may run before it stops."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 60
+max = 86400
+unit = "s"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.reviews"
+default = 300
+label = "Reviews per session"
+help = "The most reviews one session may use."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 10000
+unit = "reviews"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.denials_in_a_row"
+default = 3
+label = "Refusals before a pause"
+help = "After this many refusals in a row the session pauses and waits for you."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 20
+unit = "refusals"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.budget.spend_microusd"
+default = 0
+label = "Spend per session"
+help = "The most a session may spend on paid models, in millionths of a dollar. 0 keeps it on this computer."
+section = "Session budgets"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 0
+max = 1000000000
+unit = "micro-USD"
+
+[key.page]
+kind = "intelligence"
+
+[[key]]
+path = "agent.task_policy.max_min"
+default = 60
+label = "Longest task approval"
+help = "A task approval lasts until the task ends, and no longer than this."
+section = "Task approvals"
+exposure = "advanced"
+
+[key.kind]
+kind = "bounded"
+
+[key.kind.v]
+min = 1
+max = 480
+unit = "min"
+
+[key.page]
+kind = "intelligence"

@@ -8,6 +8,7 @@ use docket_client::{DbusTransport, Intents};
 use docket_dbus::BusConnection;
 use rmcp::ServiceExt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use zbus::fdo::RequestNameFlags;
 use zbus::fdo::RequestNameReply;
 
@@ -61,12 +62,20 @@ pub async fn claim(connection: &BusConnection) -> Result<(), DaemonFault> {
     }
 }
 
-fn edge(connection: &BusConnection, config: &McpConfig) -> McpEdge<DbusTransport> {
+/// Tells whether the edge is on, asked at every request.
+pub type ExposeRead = Arc<dyn Fn() -> McpExpose + Send + Sync>;
+
+fn edge(
+    connection: &BusConnection,
+    config: &McpConfig,
+    expose: &ExposeRead,
+) -> McpEdge<DbusTransport> {
+    let expose = expose.clone();
     McpEdge::new(
         Intents::over(DbusTransport::new(connection.clone())),
         config.client.clone(),
     )
-    .with_expose(config.expose)
+    .with_expose_read(move || expose())
 }
 
 async fn over_stdio(edge: McpEdge<DbusTransport>) -> Result<(), DaemonFault> {
@@ -80,6 +89,7 @@ async fn over_stdio(edge: McpEdge<DbusTransport>) -> Result<(), DaemonFault> {
 async fn over_socket(
     connection: BusConnection,
     config: McpConfig,
+    expose: ExposeRead,
     path: &Path,
 ) -> Result<(), DaemonFault> {
     // A stale file from a crashed edge is ours to replace; a live one would refuse the bind below
@@ -89,7 +99,7 @@ async fn over_socket(
     eprintln!("actions-mcp: listening on {}", path.display());
     loop {
         let (stream, _) = listener.accept().await.map_err(io)?;
-        let edge = edge(&connection, &config);
+        let edge = edge(&connection, &config, &expose);
         tokio::spawn(async move {
             if let Ok(running) = edge.serve(stream).await {
                 let _ = running.waiting().await;
@@ -98,16 +108,29 @@ async fn over_socket(
     }
 }
 
-/// Serves the edge on `listen` over `connection` until the client goes (stdio) or forever (socket).
+/// Serves the edge on `listen` over `connection` until the client goes (stdio) or forever (socket),
+/// switched as `config.expose` says for as long as it runs.
 pub async fn start(
     connection: &BusConnection,
     config: McpConfig,
     listen: Listen,
 ) -> Result<(), DaemonFault> {
+    let expose = config.expose;
+    start_following(connection, config, listen, Arc::new(move || expose)).await
+}
+
+/// `start`, with the switch asked of `expose` at every request: the daemon hands it the person's
+/// settings file, read again each time.
+pub async fn start_following(
+    connection: &BusConnection,
+    config: McpConfig,
+    listen: Listen,
+    expose: ExposeRead,
+) -> Result<(), DaemonFault> {
     claim(connection).await?;
     match listen {
-        Listen::Stdio => over_stdio(edge(connection, &config)).await,
-        Listen::Socket(path) => over_socket(connection.clone(), config, &path).await,
+        Listen::Stdio => over_stdio(edge(connection, &config, &expose)).await,
+        Listen::Socket(path) => over_socket(connection.clone(), config, expose, &path).await,
     }
 }
 
@@ -163,7 +186,14 @@ pub async fn run(args: Args) -> Result<(), DaemonFault> {
     }
     let connection = docket_dbus::session_connection(&env).await.map_err(bus)?;
     let listen = args.socket.map_or(Listen::Stdio, Listen::Socket);
-    start(&connection, config, listen).await
+    let locator = docket_settings::Locator::from_env(&env);
+    let expose: ExposeRead = Arc::new(move || {
+        locator
+            .read(docket_settings::AgentSettings::default())
+            .value
+            .expose
+    });
+    start_following(&connection, config, listen, expose).await
 }
 
 /// `--write-schema DIR`: `docket.settings.toml` into `DIR`, for a local install (design/22 section

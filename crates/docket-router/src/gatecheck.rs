@@ -89,7 +89,7 @@ impl<S: Seams> Router<S> {
             offer: ConfirmOffer::OnceOnly,
             gesture: Gesture::Press,
             anchor: Anchor::Centre,
-            expires: self.config.confirm_expiry,
+            expires: self.agent_config().confirm_expiry,
         })
     }
 
@@ -203,7 +203,7 @@ impl<S: Seams> Router<S> {
                 .strictness
                 .get(&ask.space)
                 .copied()
-                .unwrap_or(self.config.strictness);
+                .unwrap_or(self.agent_config().strictness);
             let screen = screen.integrity;
             let ctx = PolicyContext {
                 space: ask.space.clone(),
@@ -214,7 +214,7 @@ impl<S: Seams> Router<S> {
                 usage: Usage::Background,
                 origin: Origin::Companion,
                 count: Count(1),
-                mass_at: self.config.mass_at,
+                mass_at: self.agent_config().mass_at,
                 grant: match &consent {
                     Verdict::Granted {
                         scope: GrantScope::Always,
@@ -272,7 +272,7 @@ impl<S: Seams> Router<S> {
                 halt: &st.kill,
                 space: &ask.space,
                 ledger: &record.ledger,
-                budget: &self.config.budget,
+                budget: &self.agent_config().budget,
                 cost: &cost,
                 now,
                 consent: &consent,
@@ -298,7 +298,9 @@ impl<S: Seams> Router<S> {
         let id = request.id.clone();
         watch.tell(CallProgress::Confirming(id.clone())).await;
         let ready = within(
-            self.seams.clock().after(self.config.confirm_proceed),
+            self.seams
+                .clock()
+                .after(self.agent_config().confirm_proceed),
             within(watch.withdrawn(), watch.proceeded()),
         )
         .await;

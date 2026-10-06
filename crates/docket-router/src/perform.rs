@@ -245,7 +245,7 @@ impl<S: Seams> Router<S> {
             return Next::Event(CallEvent::Verdict(stage, Err(ReviewError::Unavailable)));
         };
         let began = self.seams.clock().now();
-        let limit = self.config.review;
+        let limit = self.agent_config().review;
         let wait = match stage {
             Stage::Quick => limit.quick,
             Stage::Deliberate => limit.deliberate,
@@ -323,7 +323,7 @@ impl<S: Seams> Router<S> {
             record,
             &reasons,
             run.preview.as_ref(),
-            self.config.confirm_expiry,
+            self.agent_config().confirm_expiry,
         ))
     }
 
@@ -372,7 +372,7 @@ impl<S: Seams> Router<S> {
                     review: reviewed,
                     ..p.cost
                 };
-                match charge(&record.ledger, &self.config.budget, &cost, now) {
+                match charge(&record.ledger, &self.agent_config().budget, &cost, now) {
                     Ok(ledger) => record.ledger = ledger,
                     Err(kind) => {
                         run.state =

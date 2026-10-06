@@ -112,7 +112,7 @@ impl<S: Seams> Router<S> {
                 usage: usage_of(&f.who.actor),
                 origin: f.request.origin,
                 count: f.count,
-                mass_at: self.config.mass_at,
+                mass_at: self.agent_config().mass_at,
                 grant: grant_state(f.consent),
                 terminal: crate::terminal::held(
                     f.record,
@@ -222,8 +222,8 @@ impl<S: Seams> Router<S> {
             .strictness
             .get(&space)
             .copied()
-            .unwrap_or(self.config.strictness);
-        let impact = impact_of(&decl, count, self.config.mass_at);
+            .unwrap_or(self.agent_config().strictness);
+        let impact = impact_of(&decl, count, self.agent_config().mass_at);
         let ruling = self.pdp.decide(&self.policy_request(&Facts {
             who,
             decl: &decl,
@@ -255,7 +255,7 @@ impl<S: Seams> Router<S> {
             halt: &st.kill,
             space: &space,
             ledger: &record.ledger,
-            budget: &self.config.budget,
+            budget: &self.agent_config().budget,
             cost: &cost,
             now,
             consent: &consent,

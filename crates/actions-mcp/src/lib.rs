@@ -22,7 +22,10 @@ mod tools;
 
 pub use args::{TARGET_KEY, read_call, target};
 pub use config::{ConfigError, McpConfig};
-pub use daemon::{Args, DaemonFault, Listen, MCP_BUS, claim, run, start, write_schema};
+pub use daemon::{
+    Args, DaemonFault, ExposeRead, Listen, MCP_BUS, claim, run, start, start_following,
+    write_schema,
+};
 pub use edge::McpEdge;
 pub use expose::McpExpose;
 pub use fault::{ArgsFault, McpFault, McpRefusal, TargetFault, Why};

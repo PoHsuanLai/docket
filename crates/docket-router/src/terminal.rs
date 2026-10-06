@@ -110,7 +110,7 @@ impl<S: Seams> Router<S> {
             let mut policy = record
                 .policy
                 .take()
-                .unwrap_or_else(|| grant_policy(record, &p.decl, self.config.mass_at));
+                .unwrap_or_else(|| grant_policy(record, &p.decl, self.agent_config().mass_at));
             policy
                 .actions
                 .insert(ActionMatch::One(p.request.action.clone()));

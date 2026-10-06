@@ -10,15 +10,18 @@ use docket_core::{
 };
 use policy_point::Pdp;
 use std::future::Future;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, RwLock};
 
 /// The router over one set of seams.
 #[derive(Debug)]
 pub struct Router<S: Seams> {
     /// The seams.
     pub seams: S,
-    /// The proposed values, as the settings give them.
+    /// The proposed values the router starts with.
     pub config: AgentConfig,
+    /// The values the person's settings give while the daemon runs (`apply_settings`); they win
+    /// over `config` once set.
+    live: RwLock<Option<AgentConfig>>,
     /// The policy point.
     pub pdp: Pdp,
     /// What it mutates.
@@ -31,8 +34,26 @@ impl<S: Seams> Router<S> {
         Self {
             seams,
             config,
+            live: RwLock::new(None),
             pdp,
             state: Mutex::new(RouterState::new()),
+        }
+    }
+
+    /// The values in force now: the person's latest settings, else the ones the router started
+    /// with. Every decision reads them afresh, so a settings change applies to the next call.
+    pub fn agent_config(&self) -> AgentConfig {
+        match self.live.read() {
+            Ok(live) => live.unwrap_or(self.config),
+            Err(poisoned) => poisoned.into_inner().unwrap_or(self.config),
+        }
+    }
+
+    /// Puts the person's settings in force for every call after this one.
+    pub fn apply_settings(&self, config: AgentConfig) {
+        match self.live.write() {
+            Ok(mut live) => *live = Some(config),
+            Err(poisoned) => *poisoned.into_inner() = Some(config),
         }
     }
 

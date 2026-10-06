@@ -20,6 +20,7 @@ path = "src/main.rs"
 docket-core = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true }
+docket-settings = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }
 rmcp = { workspace = true }

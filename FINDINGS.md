@@ -889,3 +889,57 @@ What landed: the skills format, discovery, validation and the three places they 
   with which) or not offered (Hidden action), plus directories that did not load. It needs intentd for the manifests.
 - **voiced.service** lost its `[Install]` section: voiced is a skeleton that exits 2, so `systemctl --user enable`
   must not start it at login in beta. Put the section back when `serve` is filled.
+
+## f4-settings: the settings schema and its reader
+
+The Settings app (detent) builds its Intelligence page from the schema each daemon ships (design/22
+section 9.2). docket's covers every `agent.*` key of section 3.27, and the daemons read what it offers.
+
+1. **`dist/settings/docket.settings.toml` has 18 rows**, one per key of design/22 section 3.27, none
+   `agent = "settable"` (`agent.*` is never agent-settable). **On the Intelligence page** (section 5, Privacy):
+   `agent.strictness` (segmented), `agent.mcp.expose` (toggle), `agent.undo.keep_h` (1..=168 hours).
+   **Advanced:** `agent.review.{quick,deliberate,second}_ms`, `agent.budget.{calls,writes,outbound,destructive,
+   per_minute,fan_out,chain,wall_s,reviews,denials_in_a_row,spend_microusd}`, `agent.task_policy.max_min`. The
+   design gives no range for the budget rows ("per session"); the ranges in the schema are ours (calls
+   1..=10000, writes 0..=10000, outbound and destructive 0..=1000, per_minute 1..=600, fan_out 1..=10000, chain
+   1..=16, wall_s 60..=86400, reviews 1..=10000, denials_in_a_row 1..=20, spend 0..=1e9 micro-USD): the person
+   may lower a budget and the top is generous. Design rows 3.27 names for the review times and `task_policy`,
+   `undo`, `mcp` are the design's.
+2. **The reader is `docket-settings`** (new crate; `read(text, base)`, `Locator`). The file is
+   `$XDG_CONFIG_HOME/docket/settings.toml` (then each of `$XDG_CONFIG_DIRS`; the first file that reads wins
+   whole). A value that is the wrong type, out of range or not a word of its key falls back **to the base
+   value of that key** (intentd.toml's `[agent]`, itself the shipped defaults) and is returned as a
+   `Fallback`; the daemon logs one line per fallback and per unknown key (`intentd: settings: agent.budget.
+   calls: outside 1..=10000; using the previous value`). A file that is not TOML keeps every base value. A key
+   the file stops setting is its base again (each read is over the same base, not over the previous read).
+   `denials_in_a_row` is `AgentConfig.breaker.consecutive`; the rest of the breaker (`recent`, `window`,
+   `probing`) is not a key of 3.27 and stays in intentd.toml.
+3. **intentd follows the file live** (`settings_watch.rs`): a `notify` watch on `$XDG_CONFIG_HOME/docket`
+   (created if missing), 30 ms debounce, the whole file read again, then `Router::apply_settings`. The router
+   reads `agent_config()` afresh in every decision (a settings value wins over `Router.config`, which tests
+   still set directly). A session already open keeps its ledger; its next charge is measured against the new
+   budget. The reviewer cascade's own timeouts are the ceiling (`REVIEW_CEILING`, the top of the ranges), so
+   the router's live `agent.review.*` deadline is the one that fires. If the directory cannot be watched the
+   settings are read once and one line says so (`SettingsWatch::state` is `Blind`).
+4. **actions-mcp reads `agent.mcp.expose` again at every `tools/list` and call** (`McpEdge::with_expose_read`),
+   not through a watch: its boundary row forbids `notify`. A change applies to the next request; the edge
+   does not push a `tools/list_changed`. Closes when rmcp's list-changed notification is wired (no ask yet).
+5. **companiond reads the file once, at start** (`CompaniondConfig::from_env` overlays it on `[agent]`).
+   The keys it uses are `agent.budget.calls` (the session call count) only; making it live means its
+   `Runtime` holding the config behind the same `apply_settings` shape, in `runtime.rs`, which the
+   f4-docket-shown lane owns. Closes when that lane has merged: one `RwLock<AgentConfig>` in `Runtime` and a
+   `settings_watch` task in companiond's `daemon.rs`, as in intentd.
+6. **Left out of the schema, and why.** Fields of `AgentConfig` with no row in design/22 section 3.27 are not
+   settings: `mass_at`, `confirm_expiry`, `confirm_proceed`, the breaker's `recent`/`window`/`probing`, and
+   `companion.*` (assembler budgets, idle rules). They stay in `intentd.toml` / `companiond.toml`. docket-core's
+   `SETTING_ROWS` still lists them under the older names (`agent.task_policy.max_s`, `agent.budget.wall_s`,
+   no `spend_microusd`) and is read by no daemon; it closes when section 3.27 and the table are made one list
+   (the new crate's table is the one the schema is held to).
+7. **Consumers' lockfiles** (cua, sill) gain `docket-settings` and `notify` when they next update docket:
+   `cargo update -p intentd` (cua also takes it through its dev-dependency on intentd).
+8. **Tests.** The schema parses with the Settings app's loader (`ds_settings::Schema::from_toml`, run by hand
+   from a scratch project: a dev-dependency on ds-settings would unify zbus's executor features across this
+   workspace) and is held structurally by `docket-settings` tests; every schema key is read (table test);
+   every key has a bad-value fallback case; `intentd/tests/settings_live.rs` changes the file under a running
+   router and waits on the watch's own event; `docket-router/tests/live_settings.rs` changes strictness under
+   a live router; actions-mcp's edge follows a changed file.

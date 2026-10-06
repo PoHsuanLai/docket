@@ -100,7 +100,7 @@ impl<S: Seams> Router<S> {
         policy.state = TaskPolicyState::Active;
         let latest = UnixSeconds(
             now.0
-                .saturating_add(i64::from(self.config.task_policy_max.0)),
+                .saturating_add(i64::from(self.agent_config().task_policy_max.0)),
         );
         policy.expires = policy.expires.min(latest);
         if let Some(TurnSource::Field(app)) = record.turns.last().map(|t| &t.from) {
@@ -281,7 +281,7 @@ impl<S: Seams> Router<S> {
                 offer: ConfirmOffer::OnceOnly,
                 gesture: Gesture::Press,
                 anchor: Anchor::Launcher,
-                expires: self.config.confirm_expiry,
+                expires: self.agent_config().confirm_expiry,
             };
             st.pending.insert(cid, new.space.clone());
             request

@@ -79,7 +79,7 @@ impl<S: Seams> Router<S> {
         let mut presented = driven.outcome.clone();
         if let Some(session) = &p.who.session {
             let mut st = self.locked();
-            let breaker = self.config.breaker;
+            let breaker = self.agent_config().breaker;
             let mut tripped = None;
             if let Some(record) = st.sessions.get_mut(session) {
                 if let Some(mark) = mark {

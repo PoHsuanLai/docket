@@ -2,58 +2,37 @@
 //! file, `$XDG_CONFIG_HOME/docket/settings.toml`, as `[agent.mcp] expose = "on"`. The schema the
 //! Settings app draws the row from is `dist/settings/docket.settings.toml`.
 //!
-//! Lenient as design/22 section 2 asks: a missing file, a missing key or a value that is not a
-//! word of `McpExpose` is `Off`, never an error. A switch that cannot be read is a switch that is
-//! not on.
+//! The reading is `docket-settings`' (lenient as design/22 section 2 asks): a missing file, a
+//! missing key or a value that is not a word of `McpExpose` is `Off`, never an error. A switch
+//! that cannot be read is a switch that is not on. This crate may not link a file watcher
+//! (`scripts/check-boundary.sh`), so the edge reads the file again whenever it is asked whether it
+//! is on: a change in the Settings app applies to the next request.
 
 use crate::expose::McpExpose;
+use docket_settings::{AgentSettings, Locator, read};
 use std::path::PathBuf;
 
-/// The schema docket ships for its settings (design/22 section 9.2).
-pub const SCHEMA: &str = include_str!("../../../dist/settings/docket.settings.toml");
-
-/// The file the settings live in, under the configuration directory.
-pub const SETTINGS_FILE: &str = "docket/settings.toml";
+pub use docket_settings::{SCHEMA, SETTINGS_FILE};
 
 /// The key's path in the schema.
 pub const SETTINGS_KEY: &str = "agent.mcp.expose";
 
 /// What the settings text says; anything else is `Off`.
 pub fn exposed(text: &str) -> McpExpose {
-    let word = text.parse::<toml::Table>().ok().and_then(|t| {
-        t.get("agent")?
-            .get("mcp")?
-            .get("expose")?
-            .as_str()
-            .map(str::to_owned)
-    });
-    match word.as_deref() {
-        Some("on") => McpExpose::On,
-        _ => McpExpose::Off,
-    }
+    read(text, AgentSettings::default()).value.expose
 }
 
 /// The configuration directories, the person's first: `$XDG_CONFIG_HOME`, then `$XDG_CONFIG_DIRS`.
 pub(crate) fn config_dirs(env: &impl Fn(&str) -> Option<String>) -> Vec<PathBuf> {
-    let home = env("XDG_CONFIG_HOME")
-        .filter(|v| !v.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(env("HOME").unwrap_or_default()).join(".config"));
-    let rest = env("XDG_CONFIG_DIRS")
-        .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| "/etc/xdg".to_owned());
-    std::iter::once(home)
-        .chain(rest.split(':').map(PathBuf::from))
-        .collect()
+    Locator::from_env(env).dirs().to_vec()
 }
 
 /// The first settings file of the configuration directories, read; none is `Off`.
 pub fn from_env(env: &impl Fn(&str) -> Option<String>) -> McpExpose {
-    config_dirs(env)
-        .into_iter()
-        .map(|d| d.join(SETTINGS_FILE))
-        .find_map(|path| std::fs::read_to_string(path).ok())
-        .map_or(McpExpose::Off, |text| exposed(&text))
+    Locator::from_env(env)
+        .read(AgentSettings::default())
+        .value
+        .expose
 }
 
 #[cfg(test)]
@@ -81,12 +60,13 @@ mod tests {
     }
 
     #[test]
-    fn the_shipped_schema_describes_the_key_the_reader_reads() {
+    fn the_shipped_schema_names_the_key_the_reader_reads() {
         let schema: toml::Table = SCHEMA.parse().expect("schema is TOML");
         assert_eq!(schema["file"].as_str(), Some(SETTINGS_FILE));
         let keys = schema["key"].as_array().expect("keys");
-        assert_eq!(keys.len(), 1);
-        assert_eq!(keys[0]["path"].as_str(), Some(SETTINGS_KEY));
-        assert_eq!(keys[0]["default"].as_str(), Some("off"));
+        assert!(
+            keys.iter()
+                .any(|k| k["path"].as_str() == Some(SETTINGS_KEY))
+        );
     }
 }

@@ -14,6 +14,7 @@ use crate::memory::AlmanacMemory;
 use crate::procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 use crate::reviewers::reviewer;
 use crate::serve::{ServeFault, closed, serve_on_with};
+use crate::settings_watch::{SettingsWatch, WatchState, apply, apply_next};
 use crate::sheet::SheetConfirmer;
 use crate::signals::{Cadence, pump};
 use crate::sink::QueuedSink;
@@ -21,6 +22,7 @@ use crate::system::{SystemClock, SystemSeams};
 use docket_core::AuditRecord;
 use docket_dbus::BusConnection;
 use docket_router::{Router, Seams};
+use docket_settings::{AgentSettings, Locator, REVIEW_CEILING};
 use docket_skills::{Roots, discover};
 use policy_point::Pdp;
 use prov::SpaceId;
@@ -64,6 +66,8 @@ pub struct Setup {
     pub signals: Cadence,
     /// Where callers' cgroups are read: `/proc`, unless a test build was told otherwise.
     pub proc_root: ProcRoot,
+    /// Where the person's settings file is (`docket/settings.toml`, design/22 section 3.27).
+    pub settings: Locator,
 }
 
 fn home(env: &impl Fn(&str) -> Option<String>) -> PathBuf {
@@ -129,6 +133,7 @@ impl Setup {
             data_dirs: data,
             signals: Cadence::default(),
             proc_root,
+            settings: Locator::from_env(env),
         })
     }
 }
@@ -172,6 +177,7 @@ pub async fn start(
         data_dirs,
         signals,
         proc_root,
+        settings,
     } = setup;
     for (file, why) in &manifests.skipped {
         eprintln!("intentd: skipped {}: {why}", file.display());
@@ -187,7 +193,8 @@ pub async fn start(
     let seams = SystemSeams {
         link,
         confirmer,
-        reviewer: reviewer(session, config.reviewers.as_ref(), config.agent.review)
+        // The router enforces the person's review times, live; the cascade's own are the ceiling.
+        reviewer: reviewer(session, config.reviewers.as_ref(), REVIEW_CEILING)
             .ok_or_else(|| DaemonFault::Policy("no reviewer set".into()))?,
         grants: FileGrants::at(grants),
         sink: QueuedSink::new(),
@@ -198,6 +205,12 @@ pub async fn start(
     };
     let pdp = Pdp::standard().map_err(|e| DaemonFault::Policy(e.to_string()))?;
     let router = Router::new(seams, config.agent, pdp);
+    // The person's settings over intentd.toml's proposed values, now and whenever the file changes.
+    let mut watched = SettingsWatch::start(settings, AgentSettings::over(config.agent));
+    if let WatchState::Blind { reason } = watched.state() {
+        eprintln!("intentd: settings are read once, not watched: {reason}");
+    }
+    apply(&router, &watched.current());
     {
         let mut state = router
             .state
@@ -232,6 +245,10 @@ pub async fn start(
         .await
         .map_err(DaemonFault::Serve)?;
     let mut tasks = Vec::new();
+    let followed = router.clone();
+    tasks.push(tokio::spawn(async move {
+        while apply_next(&followed, &mut watched).await.is_some() {}
+    }));
     tasks.push(tokio::spawn(pump(
         router.clone(),
         session.clone(),

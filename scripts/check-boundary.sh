@@ -44,6 +44,9 @@ RULES=(
   "docket-ds: zbus zvariant tokio reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify rmcp"
   # The edge reaches rmcp, tokio and, as a bus client of intentd (docket-client `dbus`), zbus; nothing else of the effects.
   "actions-mcp: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify"
+  # The settings reader is pure but for reading the file: no bus, no runtime, no watcher (intentd
+  # owns the directory watch), so actions-mcp, which may not link one, can share the reader.
+  "docket-settings: $EFFECTS"
   # The daemons reach the bus and a runtime; none reaches HTTP, an embedding runtime or the MCP
   # SDK. almanac-client hosts the service only behind its `in_process` feature, so none reaches SQLite.
   "intentd: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
@@ -116,12 +119,13 @@ EDGES=(
   "docket-fake: action-review almanac-core docket-client docket-core docket-router policy-point porter-core prov"
   "docket-eval: docket-core docket-fake docket-skills docket-router porter-core prov"
   "docket-testbus: docket-dbus"
-  "actions-mcp: docket-client docket-core docket-dbus porter-core prov"
-  "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
-  "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus docket-skills porter-client porter-core porter-infer prov"
+  "actions-mcp: docket-client docket-core docket-dbus docket-settings porter-core prov"
+  "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
+  "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus docket-settings docket-skills porter-client porter-core porter-infer prov"
   "readerd: docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
   "docket-accept: almanac-client almanac-core companion-wire companiond docket-client docket-core docket-dbus docket-router docket-testbus intentd porter-core porter-infer prov readerd"
   "docket-cli: docket-client docket-core docket-skills model-provider porter-core prov"
+  "docket-settings: docket-core porter-core"
   "docket-ds: companion-wire docket-client docket-core ds-intents porter-core prov voice-wire"
   "voice-wire: docket-core porter-core porter-infer"
   "voice-loop: docket-core porter-core porter-infer voice-wire"

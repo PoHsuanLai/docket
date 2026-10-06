@@ -2,6 +2,7 @@
 //! restart reads, and the proposed values. Every key is optional.
 
 use docket_core::AgentConfig;
+use docket_settings::{AgentSettings, Locator};
 use porter_core::AppName;
 use prov::SpaceId;
 use serde::{Deserialize, Serialize};
@@ -72,9 +73,17 @@ impl CompaniondConfig {
             .chain(rest.split(':').map(PathBuf::from))
             .map(|d| d.join("quire").join("companiond.toml"))
             .find_map(|path| std::fs::read_to_string(path).ok());
-        match found {
+        let mut config = match found {
             Some(text) => Self::parse(&text),
             None => Self::shipped(),
+        }?;
+        // The person's settings (`docket/settings.toml`) over the file's proposed values, read
+        // once at start: a bad value falls back to the file's and is logged.
+        let loaded = Locator::from_env(env).read(AgentSettings::over(config.agent));
+        for line in loaded.lines("companiond") {
+            eprintln!("{line}");
         }
+        config.agent = loaded.value.agent;
+        Ok(config)
     }
 }

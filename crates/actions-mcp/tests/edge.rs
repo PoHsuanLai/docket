@@ -85,6 +85,10 @@ fn allow_mail_for_the_client(router: &Router<FakeSeams>) {
 }
 
 async fn rig(expose: McpExpose) -> Rig {
+    rig_with(|edge| edge.with_expose(expose)).await
+}
+
+async fn rig_with(configure: impl FnOnce(McpEdge<Recording>) -> McpEdge<Recording>) -> Rig {
     let router = router();
     allow_mail_for_the_client(&router);
     let seen = Arc::new(Mutex::new(vec![]));
@@ -92,11 +96,10 @@ async fn rig(expose: McpExpose) -> Rig {
         inner: InProcess::new(router.clone(), mcp_caller()),
         seen: seen.clone(),
     };
-    let edge = McpEdge::new(
+    let edge = configure(McpEdge::new(
         Intents::over(transport),
         ClientName::parse(CLIENT).expect("client"),
-    )
-    .with_expose(expose);
+    ));
     let (server_io, client_io) = tokio::io::duplex(64 * 1024);
     tokio::spawn(async move {
         if let Ok(running) = edge.serve(server_io).await {
@@ -326,4 +329,43 @@ async fn call_can_be_used_without_a_server() {
         edge.call("mail__mail_thread_read", json!([1])).await,
         Err(McpFault::Args(ArgsFault::NotAnObject))
     );
+}
+
+#[tokio::test]
+async fn an_edge_following_the_settings_file_switches_on_and_off_with_it() {
+    use docket_settings::{AgentSettings, Locator};
+    let home = tempfile::tempdir().expect("scratch");
+    let env = |key: &str| match key {
+        "XDG_CONFIG_HOME" => Some(home.path().display().to_string()),
+        "XDG_CONFIG_DIRS" => Some(home.path().join("none").display().to_string()),
+        _ => None,
+    };
+    let locator = Locator::from_env(&env);
+    let rig = rig_with(|edge| {
+        edge.with_expose_read(move || locator.read(AgentSettings::default()).value.expose)
+    })
+    .await;
+    let write = |text: &str| {
+        std::fs::create_dir_all(home.path().join("docket")).expect("dir");
+        let temp = home.path().join("docket/settings.toml.tmp");
+        std::fs::write(&temp, text).expect("write");
+        std::fs::rename(&temp, home.path().join("docket/settings.toml")).expect("rename");
+    };
+    // No file: off.
+    assert!(rig.client.list_all_tools().await.expect("list").is_empty());
+    // The person switches it on in the Settings app: the next request sees the tools.
+    write("[agent.mcp]\nexpose = \"on\"\n");
+    let tools = rig.client.list_all_tools().await.expect("list");
+    assert!(!tools.is_empty());
+    // And off again: no tools, and a call is refused before the router is asked.
+    write("[agent.mcp]\nexpose = \"off\"\n");
+    assert!(rig.client.list_all_tools().await.expect("list").is_empty());
+    let result = call(
+        &rig,
+        "mail__mail_thread_read",
+        json!({ "target": thread("t1") }),
+    )
+    .await;
+    assert_eq!(text_of(&result), McpFault::Off.to_string());
+    assert!(performs(&rig).is_empty());
 }

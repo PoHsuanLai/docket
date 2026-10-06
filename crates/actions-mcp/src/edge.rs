@@ -19,12 +19,29 @@ use rmcp::{RoleServer, ServerHandler};
 use serde_json::Value as Json;
 use std::sync::Arc;
 
+/// Where the edge learns whether it is on: a value fixed at construction, or the person's setting
+/// read again at every request.
+#[derive(Clone)]
+enum Source {
+    Fixed(McpExpose),
+    Read(Arc<dyn Fn() -> McpExpose + Send + Sync>),
+}
+
+impl std::fmt::Debug for Source {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Source::Fixed(expose) => f.debug_tuple("Fixed").field(expose).finish(),
+            Source::Read(_) => f.write_str("Read(..)"),
+        }
+    }
+}
+
 /// An MCP server over the router, speaking as one client. Off until `with_expose(McpExpose::On)`.
 #[derive(Debug)]
 pub struct McpEdge<T: Transport> {
     intents: Intents<T>,
     client: ClientName,
-    expose: McpExpose,
+    expose: Source,
 }
 
 impl<T: Transport> McpEdge<T> {
@@ -34,18 +51,33 @@ impl<T: Transport> McpEdge<T> {
         Self {
             intents,
             client,
-            expose: McpExpose::default(),
+            expose: Source::Fixed(McpExpose::default()),
         }
     }
 
     /// The same edge with `expose` (the person's setting).
     pub fn with_expose(self, expose: McpExpose) -> Self {
-        Self { expose, ..self }
+        Self {
+            expose: Source::Fixed(expose),
+            ..self
+        }
+    }
+
+    /// The same edge following the person's setting: `read` is asked at every listing and call, so
+    /// a change in the Settings app applies to the next request.
+    pub fn with_expose_read(self, read: impl Fn() -> McpExpose + Send + Sync + 'static) -> Self {
+        Self {
+            expose: Source::Read(Arc::new(read)),
+            ..self
+        }
     }
 
     /// Whether the edge is on.
     pub fn expose(&self) -> McpExpose {
-        self.expose
+        match &self.expose {
+            Source::Fixed(expose) => *expose,
+            Source::Read(read) => read(),
+        }
     }
 
     async fn registry(&self) -> Result<Vec<ValidManifest>, McpFault> {
@@ -57,7 +89,7 @@ impl<T: Transport> McpEdge<T> {
 
     /// The tools offered right now, each with its description: nothing while the edge is off.
     pub async fn listing(&self) -> Result<Vec<(McpTool, String)>, McpFault> {
-        match self.expose {
+        match self.expose() {
             McpExpose::Off => Ok(Vec::new()),
             McpExpose::On => {
                 let registry = self.registry().await?;
@@ -75,7 +107,7 @@ impl<T: Transport> McpEdge<T> {
     /// answered here: the person answers it on the sheet. An argument that does not fit its
     /// declaration is refused before the router is asked anything.
     pub async fn call(&self, tool: &str, arguments: Json) -> Result<Json, McpFault> {
-        if self.expose == McpExpose::Off {
+        if self.expose() == McpExpose::Off {
             return Err(McpFault::Off);
         }
         let registry = self.registry().await?;
