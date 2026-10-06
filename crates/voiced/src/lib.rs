@@ -6,6 +6,7 @@
 mod bus;
 mod command;
 mod config;
+mod default_source;
 mod device;
 mod engine;
 mod error;
@@ -28,9 +29,10 @@ pub use bus::{
     SpeechProxy, SpeechSkeleton, UtteranceProxy, UtteranceSkeleton, VoiceProxy, VoiceSkeleton,
 };
 pub use config::{ConfigError, Earcons, VoiceRole, VoicedConfig};
+pub use default_source::{CONFIGURED_KEY, DefaultSources, RESOLVED_KEY, name_in};
 pub use device::{
-    AudioDevice, AudioNode, CaptureFormat, CaptureStream, DeviceError, MediaClass, NodeId,
-    NodeKind, PlaybackFormat, PlaybackStream, choose_capture,
+    AudioDevice, AudioNode, CaptureFormat, CaptureStream, Chosen, ChosenBy, DeviceError,
+    MediaClass, NodeId, NodeKind, PlaybackFormat, PlaybackStream, choose_capture,
 };
 #[cfg(feature = "testing")]
 pub use device::{FakeAudioDevice, FakeCapture, FakePlayback};

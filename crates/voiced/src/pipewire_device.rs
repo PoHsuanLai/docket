@@ -4,6 +4,7 @@
 //! loop on its own thread (PipeWire objects are not `Send`); frames cross to the async side over
 //! a channel and the stream is closed when its handle drops.
 
+use crate::default_source::DefaultSources;
 use crate::device::{
     AudioDevice, AudioNode, CaptureFormat, CaptureStream, DeviceError, MediaClass, NodeId,
     NodeKind, PlaybackFormat, PlaybackStream,
@@ -59,52 +60,96 @@ fn kind_of(class: &str, name: &str) -> Option<NodeKind> {
     }
 }
 
-fn list_nodes() -> Result<Vec<AudioNode>, pw::Error> {
+/// The audio nodes now present and what the `default` metadata object says is the default source.
+/// Two round trips: the first lists the globals (binding the metadata object as it appears), the
+/// second lets the bound metadata deliver its properties.
+fn list_nodes() -> Result<(Vec<AudioNode>, DefaultSources), pw::Error> {
+    use std::cell::{Cell, RefCell};
+    use std::rc::Rc;
     pw::init();
     let mainloop = pw::main_loop::MainLoopRc::new(None)?;
     let context = pw::context::ContextRc::new(&mainloop, None)?;
     let core = context.connect_rc(None)?;
-    let registry = core.get_registry()?;
-    let found = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
-    let done = std::rc::Rc::new(std::cell::Cell::new(false));
-    let pending = core.sync(0)?;
-    let (done_in, quit) = (done.clone(), mainloop.clone());
+    let registry = core.get_registry_rc()?;
+    let found = Rc::new(RefCell::new(Vec::new()));
+    let defaults = Rc::new(RefCell::new(DefaultSources::default()));
+    let bound = Rc::new(RefCell::new(Vec::new()));
+    let round = Rc::new(Cell::new(0_u8));
+    let first = core.sync(0)?;
+    let second = Rc::new(Cell::new(None));
+    let (round_in, second_in, quit, core_in) = (
+        round.clone(),
+        second.clone(),
+        mainloop.clone(),
+        core.clone(),
+    );
     let _core_listener = core
         .add_listener_local()
         .done(move |id, seq| {
-            if id == pw::core::PW_ID_CORE && seq == pending {
-                done_in.set(true);
+            if id != pw::core::PW_ID_CORE {
+                return;
+            }
+            if seq == first {
+                second_in.set(core_in.sync(0).ok());
+            } else if Some(seq) == second_in.get() {
+                round_in.set(2);
                 quit.quit();
             }
         })
         .register();
-    let sink = found.clone();
+    let (sink, sink_defaults, sink_bound, bind_from) = (
+        found.clone(),
+        defaults.clone(),
+        bound.clone(),
+        registry.clone(),
+    );
     let _registry_listener = registry
         .add_listener_local()
         .global(move |global| {
-            if global.type_ != pw::types::ObjectType::Node {
-                return;
-            }
             let Some(props) = global.props.as_ref() else {
                 return;
             };
-            let class = props.get("media.class").unwrap_or_default();
-            let name = props.get("node.name").unwrap_or_default();
-            if let Some(kind) = kind_of(class, name) {
-                sink.borrow_mut().push(AudioNode {
-                    id: NodeId(global.id),
-                    name: name.to_owned(),
-                    kind,
-                    media_class: MediaClass(class.to_owned()),
-                });
+            match global.type_ {
+                pw::types::ObjectType::Node => {
+                    let class = props.get("media.class").unwrap_or_default();
+                    let name = props.get("node.name").unwrap_or_default();
+                    if let Some(kind) = kind_of(class, name) {
+                        sink.borrow_mut().push(AudioNode {
+                            id: NodeId(global.id),
+                            name: name.to_owned(),
+                            kind,
+                            media_class: MediaClass(class.to_owned()),
+                        });
+                    }
+                }
+                pw::types::ObjectType::Metadata
+                    if props.get("metadata.name") == Some("default") =>
+                {
+                    let Ok(metadata) = bind_from.bind::<pw::metadata::Metadata, _>(global) else {
+                        return;
+                    };
+                    let seen = sink_defaults.clone();
+                    let listener = metadata
+                        .add_listener_local()
+                        .property(move |_subject, key, _type, value| {
+                            if let Some(key) = key {
+                                seen.borrow_mut().note(key, value);
+                            }
+                            0
+                        })
+                        .register();
+                    sink_bound.borrow_mut().push((metadata, listener));
+                }
+                _ => {}
             }
         })
         .register();
-    while !done.get() {
+    while round.get() < 2 {
         mainloop.run();
     }
     let nodes = found.borrow().clone();
-    Ok(nodes)
+    let defaults = defaults.borrow().clone();
+    Ok((nodes, defaults))
 }
 
 struct CaptureData {
@@ -390,9 +435,20 @@ impl AudioDevice for PipeWireDevice {
     type Playback = PipeWirePlayback;
 
     async fn sources(&self) -> Vec<AudioNode> {
-        tokio::task::spawn_blocking(|| list_nodes().unwrap_or_default())
+        tokio::task::spawn_blocking(|| list_nodes().map(|(nodes, _)| nodes).unwrap_or_default())
             .await
             .unwrap_or_default()
+    }
+
+    async fn default_source(&self) -> Option<String> {
+        tokio::task::spawn_blocking(|| {
+            list_nodes()
+                .ok()
+                .and_then(|(_, defaults)| defaults.name().map(str::to_owned))
+        })
+        .await
+        .ok()
+        .flatten()
     }
 
     async fn open_capture(

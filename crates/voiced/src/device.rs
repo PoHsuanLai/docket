@@ -39,11 +39,64 @@ pub struct AudioNode {
     pub media_class: MediaClass,
 }
 
-/// The first physical source. A monitor is never returned, whatever its class says.
-pub fn choose_capture(nodes: &[AudioNode]) -> Option<&AudioNode> {
-    nodes
-        .iter()
-        .find(|n| n.kind == NodeKind::Source && n.media_class.0 == "Audio/Source")
+/// Why a node was chosen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ChosenBy {
+    /// `input = "<node.name>"` in voiced.toml named it.
+    Override,
+    /// It is PipeWire's default source.
+    Default,
+    /// Nothing better: the first physical source.
+    First,
+}
+
+impl ChosenBy {
+    /// The word the by-hand script prints.
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Override => "override",
+            Self::Default => "default",
+            Self::First => "first",
+        }
+    }
+}
+
+/// The node to capture and why.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Chosen<'a> {
+    /// The node.
+    pub node: &'a AudioNode,
+    /// Why.
+    pub by: ChosenBy,
+}
+
+fn physical(node: &AudioNode) -> bool {
+    node.kind == NodeKind::Source && node.media_class.0 == "Audio/Source"
+}
+
+/// The source to capture: the configured `input` if that physical node exists, else PipeWire's
+/// default source if it is a physical node, else the first physical source. A monitor or a sink is
+/// never returned, whatever the override or the metadata names.
+pub fn choose_capture<'a>(
+    nodes: &'a [AudioNode],
+    default: Option<&str>,
+    input: Option<&str>,
+) -> Option<Chosen<'a>> {
+    let named = |name: Option<&str>, by| {
+        let name = name?;
+        nodes
+            .iter()
+            .find(|n| physical(n) && n.name == name)
+            .map(|node| Chosen { node, by })
+    };
+    named(input, ChosenBy::Override)
+        .or_else(|| named(default, ChosenBy::Default))
+        .or_else(|| {
+            nodes.iter().find(|n| physical(n)).map(|node| Chosen {
+                node,
+                by: ChosenBy::First,
+            })
+        })
 }
 
 /// The capture format: 16 kHz mono S16, converted by PipeWire's adapter.
@@ -97,6 +150,10 @@ pub trait AudioDevice: Send + Sync {
 
     /// The nodes now present.
     fn sources(&self) -> impl Future<Output = Vec<AudioNode>> + Send;
+    /// The node name of the person's default source, if the system names one.
+    fn default_source(&self) -> impl Future<Output = Option<String>> + Send {
+        async { None }
+    }
     /// Opens capture on a node (the caller chose it with [`choose_capture`]).
     fn open_capture(
         &self,

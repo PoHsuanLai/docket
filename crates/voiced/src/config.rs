@@ -43,6 +43,10 @@ pub struct VoicedConfig {
     pub roles: BTreeMap<VoiceRole, Vec<AppName>>,
     /// The earcons.
     pub earcons: Earcons,
+    /// `input = "<node.name>"`: capture from this physical source when it exists, instead of the
+    /// person's default source. Absent: follow the default. (Sill's settings could carry it later.)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<String>,
 }
 
 impl VoicedConfig {

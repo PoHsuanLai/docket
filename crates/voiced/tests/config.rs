@@ -14,23 +14,6 @@ fn node(id: u32, kind: NodeKind, class: &str) -> AudioNode {
 }
 
 #[test]
-fn monitor_source_refused() {
-    // A monitor is never chosen, even when it claims to be a source and comes first.
-    let nodes = [
-        node(1, NodeKind::Monitor, "Audio/Source"),
-        node(2, NodeKind::Sink, "Audio/Sink"),
-        node(3, NodeKind::Source, "Audio/Source"),
-    ];
-    assert_eq!(choose_capture(&nodes).map(|n| n.id), Some(NodeId(3)));
-    assert_eq!(choose_capture(&nodes[..2]), None);
-    assert_eq!(choose_capture(&[]), None);
-    assert_eq!(
-        choose_capture(&[node(4, NodeKind::Source, "Audio/Sink")]),
-        None
-    );
-}
-
-#[test]
 fn the_shipped_voiced_toml_parses_and_round_trips() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../dist/voiced.toml");
     let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
@@ -75,7 +58,7 @@ async fn the_fake_device_never_opens_a_monitor_and_plays_scripted_frames() {
             .map(|_| ()),
         Err(DeviceError::Denied)
     );
-    let chosen = choose_capture(&nodes).expect("a source");
+    let chosen = choose_capture(&nodes, None, None).expect("a source").node;
     let mut capture = device
         .open_capture(chosen, CaptureFormat { rate: 16_000 })
         .await
@@ -89,4 +72,140 @@ async fn the_fake_device_never_opens_a_monitor_and_plays_scripted_frames() {
         .expect("playback");
     out.write(&[0; 480]).await.expect("write");
     assert_eq!(out.written, 480);
+}
+
+fn named(id: u32, name: &str, kind: NodeKind, class: &str) -> AudioNode {
+    AudioNode {
+        name: name.into(),
+        ..node(id, kind, class)
+    }
+}
+
+fn pick(
+    nodes: &[AudioNode],
+    default: Option<&str>,
+    input: Option<&str>,
+) -> Option<(u32, ChosenBy)> {
+    choose_capture(nodes, default, input).map(|c| (c.node.id.0, c.by))
+}
+
+/// What it is, the nodes, the default, the override, the expected id and reason.
+type Row<'a> = (
+    &'a str,
+    &'a [AudioNode],
+    Option<&'a str>,
+    Option<&'a str>,
+    Option<(u32, ChosenBy)>,
+);
+
+#[test]
+fn the_capture_choice_table() {
+    let line = named(1, "line", NodeKind::Source, "Audio/Source");
+    let mic = named(2, "mic", NodeKind::Source, "Audio/Source");
+    let monitor = named(3, "out.monitor", NodeKind::Monitor, "Audio/Source");
+    let sink = named(4, "out", NodeKind::Sink, "Audio/Sink");
+    let all = [monitor.clone(), sink.clone(), line.clone(), mic.clone()];
+    let table: [Row; 13] = [
+        ("no nodes", &[], None, None, None),
+        (
+            "no nodes, a default and an override",
+            &[],
+            Some("mic"),
+            Some("mic"),
+            None,
+        ),
+        (
+            "only a monitor and a sink",
+            &[monitor.clone(), sink.clone()],
+            None,
+            None,
+            None,
+        ),
+        (
+            "no default: the first physical",
+            &all,
+            None,
+            None,
+            Some((1, ChosenBy::First)),
+        ),
+        (
+            "the default wins over order",
+            &all,
+            Some("mic"),
+            None,
+            Some((2, ChosenBy::Default)),
+        ),
+        (
+            "a default naming a monitor is refused",
+            &all,
+            Some("out.monitor"),
+            None,
+            Some((1, ChosenBy::First)),
+        ),
+        (
+            "a default naming a sink is refused",
+            &all,
+            Some("out"),
+            None,
+            Some((1, ChosenBy::First)),
+        ),
+        (
+            "a default naming a missing node",
+            &all,
+            Some("gone"),
+            None,
+            Some((1, ChosenBy::First)),
+        ),
+        (
+            "the override wins over the default",
+            &all,
+            Some("line"),
+            Some("mic"),
+            Some((2, ChosenBy::Override)),
+        ),
+        (
+            "an override naming a missing node falls to the default",
+            &all,
+            Some("mic"),
+            Some("gone"),
+            Some((2, ChosenBy::Default)),
+        ),
+        (
+            "an override naming a monitor is refused",
+            &all,
+            None,
+            Some("out.monitor"),
+            Some((1, ChosenBy::First)),
+        ),
+        (
+            "monitor only plus a refused default",
+            std::slice::from_ref(&monitor),
+            Some("out.monitor"),
+            None,
+            None,
+        ),
+        (
+            "a source whose class is not Audio/Source",
+            &[named(5, "odd", NodeKind::Source, "Audio/Sink")],
+            Some("odd"),
+            Some("odd"),
+            None,
+        ),
+    ];
+    for (why, nodes, default, input, want) in table {
+        assert_eq!(pick(nodes, default, input), want, "{why}");
+    }
+}
+
+#[test]
+fn the_input_override_is_optional_in_voiced_toml() {
+    let base = "earcons = \"on\"\n";
+    let roles = "[roles]\nshell = [\"org.quire.Shell\"]\n";
+    let none = VoicedConfig::parse(&format!("{base}{roles}")).expect("parses");
+    assert_eq!(none.input, None);
+    let some = VoicedConfig::parse(&format!("{base}input = \"alsa_input.usb-mic\"\n{roles}"))
+        .expect("parses");
+    assert_eq!(some.input.as_deref(), Some("alsa_input.usb-mic"));
+    let again = VoicedConfig::parse(&toml::to_string(&some).expect("toml")).expect("again");
+    assert_eq!(again, some);
 }

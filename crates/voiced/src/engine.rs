@@ -61,6 +61,7 @@ where
     pub warm: Arc<W>,
     pub usage: U,
     pub earcons: Earcons,
+    pub input: Option<String>,
     pub counter: u64,
     pub utt: Option<Utt>,
     pub node: Option<AudioNode>,

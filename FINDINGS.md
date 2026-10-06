@@ -1225,9 +1225,19 @@ Closes the voiced rows of the todo table: `voiced::serve` is filled and the bina
 
 ### Open questions for the owner
 
-- `choose_capture` takes the first `Audio/Source`; on this machine that is the **Line** input of the USB card, not
-  its Mic. Should voiced follow PipeWire's default source (`default.audio.source` in the metadata object), or a
-  `voice.input` setting by node name? Until then the dev script prints what would be captured.
+- ~~`choose_capture` takes the first `Audio/Source`~~ **Closed in v-source.** On this machine the first source is the
+  USB card's Line input, not its Mic. `choose_capture(nodes, default, input)` is now pure and returns the node and why:
+  the `input = "<node.name>"` override in `voiced.toml` if that physical node exists, else PipeWire's default source if it
+  is a physical `Audio/Source` (a monitor, a sink or a missing node is skipped, whatever the metadata says), else the first
+  physical source. The PipeWire device reads the `default` metadata object (`default.configured.audio.source`, preferred,
+  then `default.audio.source`; JSON `{"name": "<node.name>"}`) through `AudioDevice::default_source` (a provided method
+  returning none, so fakes need nothing). Voice1 XML is unchanged. Sill's settings could later carry `input` (a
+  `voice.input` key by node name) and write it to `voiced.toml`; nothing asks for it yet.
+- On the owner's machine today the `default` metadata object names a default sink but **no default source** (neither
+  key is set; `pw-metadata -n default` shows only the two sink keys), so voiced still falls to the first physical source,
+  the Line input. The fix is on the desktop side: pick the Mic as the default source in the sound settings
+  (`wpctl set-default 54`, or the `input` override). `dev/voice-capture-try.sh list` prints the default, the override
+  (`VOICED_INPUT=<node.name>` stands in for it) and which rule picked the node.
 - `voiced.service` needs `[Install]` (or a dbus activation file) when voice goes live: your word.
 
 ### Tests added
@@ -1237,5 +1247,6 @@ signals, unicast, audio order and size, cold engine buffering, cancel, supersede
 capture death, prepare, malformed bodies, name taken, nothing written to disk), 7 in `tests/speech.rs` (sentence by
 sentence, who may speak, half-duplex queueing, barge-in, hush, stop, synthesis refused), 2 in `tests/attach.rs`
 (route and attach, replay, one attachment, who may release, cancel and speak by the attached app); unit tests for
+the capture choice table (default, override, monitor and missing refused, no sources), the metadata JSON shapes and key precedence, the `input` config key,
 roles, consent text, framing, errors, earcons, the PipeWire node classification and fade. The by-hand
 `dev/voice-capture-try.sh` is the only thing that touches a real device.

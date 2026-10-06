@@ -78,6 +78,7 @@ where
     U: UseSource,
 {
     let earcons = config.earcons;
+    let input = config.input.clone();
     let peers = Peers::new(connection.clone(), Arc::new(config), seams.proc_root);
     let (tx, inbox) = mpsc::channel(32);
     let handle = Handle::new(tx, peers.clone());
@@ -92,6 +93,7 @@ where
         warm: Arc::new(seams.warm),
         usage: seams.usage,
         earcons,
+        input,
         counter: 0,
         utt: None,
         node: None,

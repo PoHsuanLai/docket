@@ -108,7 +108,10 @@ where
             return Err(refusal.into());
         }
         let sources = self.device.sources().await;
-        let Some(node) = choose_capture(&sources).cloned() else {
+        let default = self.device.default_source().await;
+        let Some(node) = choose_capture(&sources, default.as_deref(), self.input.as_deref())
+            .map(|chosen| chosen.node.clone())
+        else {
             return Err(VoiceRefusal::MicUnavailable.into());
         };
         let (sink, fd) = EventSink::open().map_err(|e| VoiceError::Malformed(e.to_string()))?;

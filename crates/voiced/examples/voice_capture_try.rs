@@ -15,6 +15,11 @@ use voiced::{
     PlaybackStream, choose_capture,
 };
 
+/// The override to try: `VOICED_INPUT`, standing in for `input = "..."` in voiced.toml.
+fn configured_input() -> Option<String> {
+    std::env::var("VOICED_INPUT").ok().filter(|v| !v.is_empty())
+}
+
 async fn list(device: &PipeWireDevice) -> ExitCode {
     let nodes = device.sources().await;
     for node in &nodes {
@@ -26,8 +31,25 @@ async fn list(device: &PipeWireDevice) -> ExitCode {
             node.name
         );
     }
-    match choose_capture(&nodes) {
-        Some(node) => println!("voiced would capture: {} ({})", node.name, node.id.0),
+    let default = device.default_source().await;
+    println!(
+        "PipeWire default source: {}",
+        default.as_deref().unwrap_or("none named")
+    );
+    let input = configured_input();
+    println!(
+        "voiced.toml input: {}",
+        input
+            .as_deref()
+            .unwrap_or("not set (VOICED_INPUT=<node.name> tries one)")
+    );
+    match choose_capture(&nodes, default.as_deref(), input.as_deref()) {
+        Some(chosen) => println!(
+            "voiced would capture: {} ({}), chosen by {}",
+            chosen.node.name,
+            chosen.node.id.0,
+            chosen.by.word()
+        ),
         None => println!("voiced would capture: nothing (no physical Audio/Source)"),
     }
     ExitCode::SUCCESS
@@ -42,7 +64,10 @@ async fn capture(device: &PipeWireDevice, seconds: u64) -> ExitCode {
             .is_err();
         println!("{:?} {}: refused = {refused}", monitor.kind, monitor.name);
     }
-    let Some(node) = choose_capture(&nodes) else {
+    let default = device.default_source().await;
+    let Some(node) = choose_capture(&nodes, default.as_deref(), configured_input().as_deref())
+        .map(|chosen| chosen.node)
+    else {
         eprintln!("no physical microphone");
         return ExitCode::FAILURE;
     };
