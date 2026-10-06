@@ -19,7 +19,7 @@ fn shipped(name: &str) -> Manifest {
 fn shipped_manifests_parse_and_validate() {
     for (file, prefix, actions) in [
         ("org.quire.Memory.toml", "memory", 4),
-        ("org.quire.Companion.toml", "companion", 2),
+        ("org.quire.Companion.toml", "companion", 3),
     ] {
         let manifest = shipped(file);
         assert_eq!(manifest.actions.len(), actions, "{file}");
