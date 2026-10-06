@@ -943,3 +943,36 @@ section 9.2). docket's covers every `agent.*` key of section 3.27, and the daemo
    every key has a bad-value fallback case; `intentd/tests/settings_live.rs` changes the file under a running
    router and waits on the watch's own event; `docket-router/tests/live_settings.rs` changes strictness under
    a live router; actions-mcp's edge follows a changed file.
+
+## f4-docket-calleffect: per-call effect (sill G372)
+
+An action's declared effect is a **ceiling**; an action may opt in to a per-call effect, so one action
+(sill's `shell.menu.activate`) does not have to ask for every call.
+
+- **Manifest.** `per_call = "classified"` on an `[[actions]]` row (`ActionDecl::per_call: PerCall`, serde
+  default `declared`, not written when it is the default; existing files and `..`-less Rust literals other than
+  docket's own test fixtures are unaffected, and no `ActionDecl` literal exists in sill, cua, almanac or mailo).
+- **Classify.** For an opted-in action called by an agent session, the router first asks the provider
+  (`IntentProvider::classify`, `IntentProvider1.Classify(invocation s, options a{sv}) -> s`, the answer is a
+  `Result<CallClass, AppRefusal>` in JSON; `CallClass` is `{"kind":"effect","v":"read"}` or
+  `{"kind":"delegates","v":{"app":"...","name":"..."}}`). The person's own calls are not gated and not classified.
+  The pure rule is `docket_router::classify_step` (table-tested): effect used = `min(answer, ceiling)`; an error,
+  a timeout, a provider without `Classify`, a delegate that is unknown or the action itself = the ceiling.
+- **Delegates.** The outer call is gated as `Read`; the provider performs the real action by answering a
+  `Follow::Next(call)` for exactly that action, which the router runs as a child in the same chain and session
+  with its own full gate (one ask for an inner Destructive action, none for an inner Read one). The outer call's
+  own effect is `Read` once it delegates, so `Delegates` cannot run a Destructive effect unasked. No follow is
+  audited `Delegation::Unused` (nothing beyond Read happens); a follow for another action is gated normally and
+  audited `Different`. A provider that calls `Run.Perform` itself instead is not a child and shows as `Unused`.
+- **Bound to Perform.** The classification gated on goes to `Perform` as a top-level `"classified"` beside the
+  invocation (`ActivatedInvocation::classified`, skipped when absent; `IntentProvider::perform_classified`). A
+  provider re-derives and refuses `AppRefusal::ClassificationChanged` on a mismatch, except that `classified`
+  equal to the declared ceiling must be accepted. The router then re-gates the same call at the ceiling (a new
+  call id, no new Classify) and performs again with `classified` = the ceiling.
+- **Audit and policy.** `AuditRecord::Classified { call, action, classification { ceiling, answer, used, sent } }`
+  (a second one, answer `failed: changed`, after a retry) and `AuditRecord::Delegation`. `AuditRecord::Call.effect`,
+  Cedar's `resource.effect`, the budget cost and the taint rule all see the effect used, so strictness rules apply
+  to it unchanged (tests: AskMore asks for a classified undoable write; TrustMore still asks for a Destructive one
+  outside a task policy). A dry run (`Run.DryRun` preview) is prepared at the ceiling.
+- **Tests.** `docket-router/src/classify.rs` (table), `docket-router/tests/percall.rs` (docket-fake's `FakeMenu`),
+  `intentd/tests/percall.rs` (a router over `DbusLink` and a real provider on a private bus).
