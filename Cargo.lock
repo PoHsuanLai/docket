@@ -443,6 +443,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
+name = "companion-client"
+version = "0.1.0"
+dependencies = [
+ "companion-wire",
+ "docket-client",
+ "docket-core",
+ "docket-dbus",
+ "futures-util",
+ "prov",
+ "serde",
+ "serde_json",
+ "zbus",
+]
+
+[[package]]
 name = "companion-wire"
 version = "0.1.0"
 dependencies = [
@@ -635,6 +650,7 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "almanac-dbus",
+ "companion-client",
  "companion-wire",
  "docket-client",
  "docket-core",
@@ -661,7 +677,6 @@ dependencies = [
 name = "docket-client"
 version = "0.1.0"
 dependencies = [
- "companion-wire",
  "cua-action",
  "docket-core",
  "docket-dbus",

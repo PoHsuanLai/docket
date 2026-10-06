@@ -1017,8 +1017,9 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
   (model, where it ran); `--json` or a pipe prints the answer object. `NeedsYou(Confirm)` prints the request and
   exits **8** (new code, `needs_you`) with "answered in the shell": `quire-do` is not `Confirm1`, nothing answers
   it, and the conversation is left open for the sheet; a finished conversation is closed. A handle in the text is
-  printed as `#n` (a terminal may not `Session.Display`). The seam is `docket_client::CompanionTransport`
-  (`DbusCompanion` over the bus); the whole program is `docket_cli::program::main`, which `accept-quire-do` also
+  printed as `#n` (a terminal may not `Session.Display`). The seam is `companion_client::CompanionTransport`
+  (`DbusCompanion` over the bus; a new crate rather than a module of `docket-client`, so cua's and sill's lock files, which
+  list docket-client's dependencies, do not change); the whole program is `docket_cli::program::main`, which `accept-quire-do` also
   runs. Tests: `docket-cli/tests/ask.rs` (scripted companion over the fake router), `docket-accept/tests/terminal.rs`
   (the real `quire-do` against the real daemons: a read answered, a Forward left waiting for the sheet),
   `companiond/tests/terminal.rs` (the authority, below).

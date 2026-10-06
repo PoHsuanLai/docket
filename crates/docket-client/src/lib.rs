@@ -8,9 +8,6 @@
 mod awaiting;
 #[cfg(feature = "dbus")]
 mod bus;
-mod companion;
-#[cfg(feature = "dbus")]
-mod companion_bus;
 mod intents;
 mod provider;
 #[cfg(feature = "dbus")]
@@ -26,9 +23,6 @@ mod watch_in_process;
 
 #[cfg(feature = "dbus")]
 pub use awaiting::requested;
-pub use companion::{CompanionTransport, Follow};
-#[cfg(feature = "dbus")]
-pub use companion_bus::{BusAnswer, DbusCompanion};
 pub use intents::{ClientError, Intents};
 pub use provider::{ContextSource, IntentProvider, SummonTarget};
 #[cfg(feature = "dbus")]

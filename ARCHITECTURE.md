@@ -24,6 +24,7 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `action-review` | the stripped `ReviewRequest`, `ReviewVerdict`, the cascade (`plan`, `escalate`, `tighten`), `ReviewerSet`, the `Reviewer` trait, `InferReviewer` over porter-infer's `Model`, `verdict_shape`, the denial `Breaker` | none |
 | `docket-router` | the pure router: `permits` and `acting_role`, `gate`, `Watch` (what a requester may see and say while its request is in flight), the companion's notes, recall and policy narrowing, `session_step`, the `HandleTable` and `planner_view`, `index_step`, the `UndoJournal`, the `Registry`, `assemble` and `inbound_line` for messages, tasks, `call_step`, `Router<S: Seams>` and its seams | none (seams are passed in) |
 | `companion-wire` | the bodies of `org.quire.Companion1`: `AskWire`, `AnswerWire` and its cards, plans, forms and refusals, `FrontTask`, and the `SessionRecord`s companiond stores | none |
+| `companion-client` | the person's side of `org.quire.Companion1`: `CompanionTransport` (open, ask, follow the answer object, close) and `DbusCompanion` over the session bus; what `quire-do ask` is written against. Not in `docket-client`, so the apps and cuad that use that crate do not take on the companion's wire | the session bus (`DbusCompanion`) |
 | `agent-loop` | the companion's pure machines: `assemble`, `agent_step` (inputs include `Messaged`, a request landing in an idle task), `choose_tier`, `side_step`, `idle_step`, `completion_line`, `rebuild`, `front_step` | none |
 | `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`) and `Reader1` as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths, `session_connection` (the session bus of a daemon, from its environment); with feature `inferd`, `inferd_transport`, the one constructor of every daemon's inferd link | zbus |
 | `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`, `serve_on`: `IntentProvider1` on the app's own name, answering intentd alone) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus`, whose `connect` finds or activates intentd and whose `call` carries all 34 members, and `Transport::watch` / `Intents::gate_check_watched` (a gate check whose `Progress(Confirming)` is heard and whose `Proceed` and `Close` are said) and `Intents::perform_watched` (a `Run.Perform` whose `Progress` is heard: `Reviewing`, `Previewing`, `Confirming(id)`, `Dispatched`; nothing waits for the caller); `requested` waits for a Request object's `Response`) | per transport |
@@ -52,9 +53,10 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `action-review` | `docket-core`, `prov`, `porter-core`, `porter-infer`, `model-provider` |
 | `docket-router` | `docket-core`, `docket-skills`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
 | `companion-wire` | `docket-core`, `prov`, `porter-core`, `porter-infer`, `almanac-core` |
+| `companion-client` | `companion-wire`, `docket-core`, `docket-client`, `docket-dbus`, `prov` |
 | `agent-loop` | `docket-core`, `companion-wire`, `almanac-core`, `porter-core`, `prov` |
 | `docket-dbus` | `docket-core`, `prov`, `porter-dbus`; `porter-client` with feature `inferd` |
-| `docket-client` | `companion-wire`, `docket-core`, `docket-router`, `prov`; `docket-dbus` with feature `dbus` |
+| `docket-client` | `docket-core`, `docket-router`, `prov`; `docket-dbus` with feature `dbus` |
 | `docket-fake` | `docket-core`, `docket-router`, `docket-client`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
 | `docket-testbus` | `docket-dbus` |
 | `docket-accept` | `almanac-client`, `almanac-core`, `companion-wire`, `companiond`, `docket-cli`, `docket-client`, `docket-core`, `docket-dbus`, `docket-router`, `docket-testbus`, `intentd`, `porter-core`, `porter-infer`, `prov`, `readerd` |
@@ -64,7 +66,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `intentd` | `docket-core`, `docket-skills`, `docket-settings`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
 | `companiond` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `docket-skills`, `docket-settings`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
 | `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
-| `docket-cli` | `companion-wire`, `docket-core`, `docket-skills`, `docket-client` (feature `dbus`), `model-provider`, `prov`, `porter-core` |
+| `docket-cli` | `companion-client`, `companion-wire`, `docket-core`, `docket-skills`, `docket-client` (feature `dbus`), `model-provider`, `prov`, `porter-core` |
 | `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
 | `voice-wire` | `docket-core`, `porter-core`, `porter-infer` |
 | `voice-loop` | `voice-wire`, `docket-core`, `porter-core`, `porter-infer` |
@@ -93,9 +95,10 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `action-review` | `verdict` < `request`, `breaker` < `cascade`, `infer` |
 | `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who`, `companion`, `skills` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck`, `watch`, `notes`, `recall` < `router` |
 | `companion-wire` | `ask`, `answer` < `record` |
+| `companion-client` | `lib` (`CompanionTransport`, `Follow`) < `bus` (`DbusCompanion`, `BusAnswer`) |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `step` |
 | `docket-dbus` | `names`, `error`, one file per interface, `introspect` |
-| `docket-client` | `provider`, `transport` < `watch` < `awaiting`, `watch_bus`, `watch_in_process` < `bus` < `intents`, `session_calls`, `provider_bus` < `serve`, `companion` (the `CompanionTransport` seam), `companion_bus` (`DbusCompanion`: `Open`, `Ask`, the answer object followed, `Close`) |
+| `docket-client` | `provider`, `transport` < `watch` < `awaiting`, `watch_bus`, `watch_in_process` < `bus` < `intents`, `session_calls`, `provider_bus` < `serve` |
 | `docket-fake` | `labels`, `simple`, `mail`, `files`, `scripted`, `seams`, `router` |
 | `docket-testbus` | `guard` < `lib` (`PrivateBus`) |
 | `docket-settings` | `expose`, `keys` < `read` < `locate` (`tests`: the schema against the table) |

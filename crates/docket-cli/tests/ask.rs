@@ -4,12 +4,13 @@
 
 mod support;
 
+use companion_client::{CompanionTransport, Follow};
 use companion_wire::{
     AnswerBody, AnswerPhase, AnswerWire, AskWire, FooterWire, NeedsYou, PlanStepWire, PlanWire,
     RefusalWire, StepWireState,
 };
 use docket_cli::{Exit, JsonFlag, Stdout, ask_companion};
-use docket_client::{CompanionTransport, Follow, InProcess, Intents, TransportError};
+use docket_client::{InProcess, Intents, TransportError};
 use docket_core::{
     ActionRef, CallerRole, ConfirmId, ContextKeep, Keep, LabelText, Reveal, SessionOpen,
     SessionOpened, StepId, TurnSource,

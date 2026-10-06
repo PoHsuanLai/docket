@@ -9,7 +9,6 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-router = { workspace = true, optional = true }
 docket-dbus = { workspace = true, optional = true }

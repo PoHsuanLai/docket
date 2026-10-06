@@ -1,0 +1,23 @@
+[package]
+name = "companion-client"
+description = "The person's side of org.quire.Companion1: a CompanionTransport seam (open, ask, follow the answer object, close) and DbusCompanion over the session bus. What quire-do ask is written against. Kept out of docket-client so the apps and cuad that use that crate do not take on the companion's wire."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+companion-wire = { workspace = true }
+docket-client = { workspace = true }
+docket-core = { workspace = true }
+docket-dbus = { workspace = true }
+futures-util = { workspace = true }
+prov = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zbus = { workspace = true }
+
+[lints]
+workspace = true

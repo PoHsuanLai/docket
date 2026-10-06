@@ -13,6 +13,7 @@ name = "quire-do"
 path = "src/main.rs"
 
 [dependencies]
+companion-client = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-skills = { workspace = true }

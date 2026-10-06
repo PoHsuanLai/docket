@@ -2,9 +2,9 @@
 //! answer object; the object's `Updated` signal is subscribed to before its `View` is read, so
 //! a change between the two is not lost.
 
-use crate::companion::{CompanionTransport, Follow};
-use crate::transport::TransportError;
+use crate::{CompanionTransport, Follow};
 use companion_wire::{AnswerWire, AskWire};
+use docket_client::TransportError;
 use docket_core::{SessionOpen, SessionOpened};
 use docket_dbus::{BusConnection, CompanionAnswerProxy, CompanionProxy, Details};
 use futures_util::{Stream, StreamExt};

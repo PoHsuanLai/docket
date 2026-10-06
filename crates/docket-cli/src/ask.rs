@@ -11,8 +11,9 @@ use crate::ask_render;
 use crate::exec::Style;
 use crate::exit::{Exit, Failure, of_client};
 use crate::{JsonFlag, Report, Stdout};
+use companion_client::{CompanionTransport, Follow};
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, AskWire, RefusalWire};
-use docket_client::{ClientError, CompanionTransport, Follow, Intents, Transport, TransportError};
+use docket_client::{ClientError, Intents, Transport, TransportError};
 use docket_core::{
     ContextKeep, Keep, Origin, SessionOpen, SessionOpened, TurnIn, TurnSource, TurnVia, UserTurn,
     WindowKey,

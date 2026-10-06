@@ -40,6 +40,7 @@ RULES=(
   # quire-do is a thin client: it reaches the bus only through docket-client (the EDGES row below
   # forbids a direct docket-dbus or zbus), never the router, the policy point, the reviewer's
   # cascade or Cedar: a terminal has no way around intentd's gate.
+  "companion-client: docket-router policy-point action-review cedar-policy reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp"
   "docket-cli: docket-router policy-point action-review cedar-policy reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp"
   "docket-ds: zbus zvariant tokio reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite notify rmcp"
   # The edge reaches rmcp, tokio and, as a bus client of intentd (docket-client `dbus`), zbus; nothing else of the effects.
@@ -115,7 +116,7 @@ EDGES=(
   "companion-wire: almanac-core docket-core porter-core porter-infer prov"
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
   "docket-dbus: docket-core porter-client porter-dbus prov"
-  "docket-client: companion-wire docket-core docket-dbus docket-router prov"
+  "docket-client: docket-core docket-dbus docket-router prov"
   "docket-fake: action-review almanac-core docket-client docket-core docket-router policy-point porter-core prov"
   "docket-eval: docket-core docket-fake docket-skills docket-router porter-core prov"
   "docket-testbus: docket-dbus"
@@ -124,7 +125,8 @@ EDGES=(
   "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus docket-settings docket-skills porter-client porter-core porter-infer prov"
   "readerd: docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
   "docket-accept: almanac-client almanac-core companion-wire companiond docket-cli docket-client docket-core docket-dbus docket-router docket-testbus intentd porter-core porter-infer prov readerd"
-  "docket-cli: companion-wire docket-client docket-core docket-skills model-provider porter-core prov"
+  "companion-client: companion-wire docket-client docket-core docket-dbus prov"
+  "docket-cli: companion-client companion-wire docket-client docket-core docket-skills model-provider porter-core prov"
   "docket-settings: docket-core porter-core"
   "docket-ds: companion-wire docket-client docket-core ds-intents porter-core prov voice-wire"
   "voice-wire: docket-core porter-core porter-infer"

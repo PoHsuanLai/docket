@@ -5,7 +5,8 @@ use crate::{
     Bus, Command, Exit, Invocation, NoBus, Report, Stdin, Stdout, ask_companion, bus_for, parse,
     run_in,
 };
-use docket_client::{DbusCompanion, DbusTransport, Intents};
+use companion_client::DbusCompanion;
+use docket_client::{DbusTransport, Intents};
 use std::io::{IsTerminal, Read, Write};
 use std::process::ExitCode;
 
