@@ -1117,6 +1117,9 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
 2. **The line.** `companion_wire::footer_line(&[RouteNote]) -> String` prints "Heard by Whisper · Answered by Claude
    Haiku 4.5 via OpenRouter (already loaded)"; sill and detent both call it. Model names are made from the id
    (`model_name`: "claude-haiku-4-5" is "Claude Haiku 4.5"); a catalogue display name would be better when porter has one.
+   Done: `RouteNote.name: Option<ModelLabel>` copies porter's `StageNote.name` (the catalogue label, sent on every
+   answer's `Answer` note since porter 11651d4), and the line prefers it; the id-made name is the fallback for a model
+   with no label or an older inferd. The field is skipped when absent, so an unnamed note's JSON is unchanged.
 3. **Folding.** `RouteLog` folds one turn's events: `Why` words collect until a `Stage` (or the end, for a one-model session
    with only `Routed`) closes a note; `Why::Reached` is the door, not a reason. A `Stage`'s own `why` is always sent by
    inferd, so only its door is used: reasons come from `Why` events, which exist only when `ai.auto.show_reason` is on

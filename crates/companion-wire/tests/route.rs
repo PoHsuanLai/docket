@@ -5,8 +5,8 @@ use companion_wire::{
 };
 use porter_core::{AccountId, Locality, ModelId};
 use porter_infer::{
-    Declined, DeclinedBecause, Door, InferEvent, InferRefusal, ModelRef, ProviderId, ServedBy,
-    StageNote, StageRole, Why,
+    Declined, DeclinedBecause, Door, InferEvent, InferRefusal, ModelLabel, ModelRef, ProviderId,
+    ServedBy, StageNote, StageRole, Why,
 };
 
 fn model(id: &str) -> ModelRef {
@@ -40,6 +40,7 @@ fn note(stage: StageRole, id: &str, why: Vec<WhyWord>, reached: Option<(&str, Do
     RouteNote {
         stage,
         served: served(id, cloud()),
+        name: None,
         why,
         reached: reached.map(|(p, door)| Reached {
             provider: ProviderId(p.into()),
@@ -141,7 +142,35 @@ fn stage(role: StageRole, id: &str, locality: Locality, why: Why) -> InferEvent 
         role,
         served: served(id, locality),
         why,
+        name: None,
     })
+}
+
+#[test]
+fn the_catalogue_name_wins_over_the_id() {
+    // Every answer's Stage note carries inferd's label; the id is only the fallback.
+    let mut log = RouteLog::default();
+    log.event(&InferEvent::Routed(served("gpt-6-luna", cloud())));
+    log.event(&InferEvent::Stage(StageNote {
+        role: StageRole::Answer,
+        served: served("gpt-6-luna", cloud()),
+        why: via("openrouter", Door::Gateway),
+        name: Some(ModelLabel("GPT-6 Luna".into())),
+    }));
+    let notes = log.notes();
+    assert_eq!(notes.len(), 1, "Routed then Stage is one note");
+    assert_eq!(footer_line(&notes), "Answered by GPT-6 Luna via OpenRouter");
+    let unnamed = note(StageRole::Answer, "gpt-6-luna", vec![], None);
+    assert_eq!(footer_line(&[unnamed]), "Answered by Gpt 6 Luna");
+}
+
+#[test]
+fn a_note_without_a_name_reads_and_writes_as_before() {
+    let old = note(StageRole::Answer, "gemma-4", vec![], None);
+    let json = serde_json::to_string(&old).expect("json");
+    assert!(!json.contains("name"), "{json}");
+    let back: RouteNote = serde_json::from_str(&json).expect("decodes");
+    assert_eq!(back, old);
 }
 
 #[test]

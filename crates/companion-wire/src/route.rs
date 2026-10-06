@@ -5,7 +5,7 @@
 //! the notes into the one line a card shows, so every surface prints the same words.
 
 use porter_infer::{Declined, DeclinedBecause, Door, InferRefusal, ModelRef, ProviderId, ServedBy};
-use porter_infer::{StageRole, Why};
+use porter_infer::{ModelLabel, StageRole, Why};
 use serde::{Deserialize, Serialize};
 
 /// One stage of an answer and how its model was reached.
@@ -15,6 +15,10 @@ pub struct RouteNote {
     pub stage: StageRole,
     /// Who ran it.
     pub served: ServedBy,
+    /// The model's name from inferd's catalogue ("Claude Haiku 4.5"); none when inferd had no
+    /// label for it or predates the field, and the footer then reads the name from the id.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<ModelLabel>,
     /// Why that model, in the order inferd said it. Empty when `ai.auto.show_reason` is off,
     /// except for an eviction, which is always said.
     pub why: Vec<WhyWord>,
@@ -149,11 +153,11 @@ fn why_text(word: &WhyWord) -> String {
 }
 
 fn stage_text(note: &RouteNote) -> String {
-    let mut text = format!(
-        "{} by {}",
-        verb(note.stage),
-        model_name(note.served.model.as_str())
+    let name = note.name.as_ref().map_or_else(
+        || model_name(note.served.model.as_str()),
+        |label| label.0.clone(),
     );
+    let mut text = format!("{} by {name}", verb(note.stage));
     if let Some(reached) = &note.reached {
         text.push_str(" via ");
         text.push_str(&provider_name(&reached.provider));

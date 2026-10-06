@@ -1,7 +1,7 @@
 //! One model turn's route: the events inferd sends before the reply, folded into notes.
 
 use crate::route::{Reached, RouteNote, WhySays, WhyWord, why_says};
-use porter_infer::{Declined, InferEvent, ServedBy, StageRole, Why};
+use porter_infer::{Declined, InferEvent, ModelLabel, ServedBy, StageRole, Why};
 
 /// What a turn's events said about its route. Feed every event; read it when the turn ends.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -26,7 +26,7 @@ impl RouteLog {
                 if let WhySays::Door(reached) = why_says(&stage.why) {
                     self.door.get_or_insert(reached);
                 }
-                self.note(stage.role, stage.served.clone());
+                self.note(stage.role, stage.served.clone(), stage.name.clone());
             }
             _ => {}
         }
@@ -39,21 +39,22 @@ impl RouteLog {
         }
     }
 
-    fn note(&mut self, stage: StageRole, served: ServedBy) {
+    fn note(&mut self, stage: StageRole, served: ServedBy, name: Option<ModelLabel>) {
         self.notes.push(RouteNote {
             stage,
             served,
+            name,
             why: std::mem::take(&mut self.words),
             reached: self.door.take(),
         });
         self.routed = None;
     }
 
-    /// The notes, oldest stage first. A turn whose inferd sent no `Stage` (a single model) is
-    /// one `Answer` note made from `Routed` and the reasons before it.
+    /// The notes, oldest stage first. A turn whose inferd sent no `Stage` (one older than the
+    /// every-answer note) is one unnamed `Answer` note made from `Routed` and the reasons before it.
     pub fn notes(mut self) -> Vec<RouteNote> {
         if let Some(served) = self.routed.take() {
-            self.note(StageRole::Answer, served);
+            self.note(StageRole::Answer, served, None);
         }
         self.notes
     }

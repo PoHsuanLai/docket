@@ -13,8 +13,8 @@ use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use futures_util::StreamExt;
 use porter_core::{AccountId, ModelId};
 use porter_infer::{
-    Declined, DeclinedBecause, Door, InferEvent, InferRefusal, ModelRef, ProviderId, StageNote,
-    StageRole, Why,
+    Declined, DeclinedBecause, Door, InferEvent, InferRefusal, ModelLabel, ModelRef, ProviderId,
+    StageNote, StageRole, Why,
 };
 use prov::AgentRef;
 use std::sync::Arc;
@@ -47,11 +47,12 @@ fn hosted() -> Vec<InferEvent> {
             role: StageRole::Answer,
             served: served(),
             why: Why::Warm,
+            name: Some(ModelLabel("Scripted One".into())),
         }),
     ]
 }
 
-const LINE: &str = "Answered by Scripted via OpenRouter (unloaded Qwen 3, already loaded)";
+const LINE: &str = "Answered by Scripted One via OpenRouter (unloaded Qwen 3, already loaded)";
 
 #[tokio::test]
 async fn the_answer_keeps_the_turns_route_and_the_line_reads_it() {
