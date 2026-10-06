@@ -21,7 +21,7 @@ pub use mail::{FakeMail, MailContact, MailThread, SentMail};
 pub use menu::{FakeMenu, MenuItem, MenuPerform};
 pub use router::{
     FILES_MANIFEST, FakeError, MAIL_MANIFEST, MENU_MANIFEST, fake_router, files_manifest,
-    mail_manifest, menu_manifest, registry,
+    install_menu, mail_manifest, menu_manifest, registry,
 };
 pub use scripted::{
     FakeMemory, ReviewMode, ScriptedConfirmer, ScriptedReader, ScriptedReviewer, ScriptedWriter,

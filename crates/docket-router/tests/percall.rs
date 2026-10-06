@@ -70,6 +70,7 @@ fn grant_menu(router: &Router<docket_fake::FakeSeams>) {
 }
 
 async fn session(router: &Router<docket_fake::FakeSeams>) {
+    docket_fake::install_menu(router).expect("menu manifest");
     grant_menu(router);
     let s = open(router, "work", AgentRef::Companion).await;
     say(router, &s.session, "use the menu").await;
@@ -260,6 +261,7 @@ async fn an_action_that_does_not_opt_in_is_never_classified() {
 #[tokio::test]
 async fn the_person_is_not_classified() {
     let router = router();
+    docket_fake::install_menu(&router).expect("menu manifest");
     router
         .seams
         .link

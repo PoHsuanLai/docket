@@ -52,19 +52,29 @@ pub fn menu_manifest() -> Result<ValidManifest, RegistryError> {
     parse(MENU_MANIFEST)
 }
 
-/// A registry holding the three fixtures and the two shipped built-in manifests.
+/// A registry holding the two fixtures and the two shipped built-in manifests.
 pub fn registry() -> Result<Registry, RegistryError> {
     let mut registry = Registry::new();
     for text in [
         MAIL_MANIFEST,
         FILES_MANIFEST,
-        MENU_MANIFEST,
         MEMORY_MANIFEST,
         COMPANION_MANIFEST,
     ] {
         registry.insert(parse(text)?);
     }
     Ok(registry)
+}
+
+/// Installs the fake menu app's manifest in `router` (it is not in `registry()`: the menu is only
+/// for the tests of per-call effects, and the default world's goldens do not list it).
+pub fn install_menu(router: &Router<FakeSeams>) -> Result<(), RegistryError> {
+    let menu = menu_manifest()?;
+    match router.state.lock() {
+        Ok(mut state) => state.registry.insert(menu),
+        Err(poisoned) => poisoned.into_inner().registry.insert(menu),
+    };
+    Ok(())
 }
 
 /// A router over the fakes, in the Space `work`, with the fixture and shipped manifests

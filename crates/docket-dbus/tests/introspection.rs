@@ -144,7 +144,7 @@ fn provider_confirm_companion_and_reader_members() {
             assert!(xml.contains(w), "{bus:?} is missing {w}");
         }
     }
-    assert_eq!(members(&introspection(Bus::IntentProvider)), 11);
+    assert_eq!(members(&introspection(Bus::IntentProvider)), 12);
     assert_eq!(members(&introspection(Bus::Confirm)), 2);
     assert_eq!(members(&introspection(Bus::Reader)), 1);
 }
@@ -174,8 +174,8 @@ fn calls_that_start_work_carry_an_options_dict_for_the_reserved_traceparent() {
     assert_eq!(introspection(Bus::Reader).matches(options).count(), 1);
     assert_eq!(
         introspection(Bus::IntentProvider).matches(options).count(),
-        2,
-        "Perform and DryRun"
+        3,
+        "Perform, Classify and DryRun"
     );
     assert_eq!(OPTION_TRACEPARENT, "traceparent");
 }
