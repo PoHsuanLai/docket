@@ -63,6 +63,19 @@ pub fn world(script: Vec<Say>) -> World {
 
 /// The same, with memory answering `memory` in order.
 pub fn world_with(script: Vec<Say>, memory: Vec<almanac_core::MemoryReply>) -> World {
+    world_full(script, memory, vec![])
+}
+
+/// The same, with `skills` installed (the router serves their loads; the companion offers them).
+pub fn world_with_skills(script: Vec<Say>, skills: Vec<docket_skills::Skill>) -> World {
+    world_full(script, vec![], skills)
+}
+
+fn world_full(
+    script: Vec<Say>,
+    memory: Vec<almanac_core::MemoryReply>,
+    skills: Vec<docket_skills::Skill>,
+) -> World {
     let mut router = fake_router(AgentConfig::default()).expect("router");
     router.seams.memory = docket_fake::FakeMemory::answering(memory);
     router.seams.link.mail.add_thread(MailThread {
@@ -84,6 +97,7 @@ pub fn world_with(script: Vec<Say>, memory: Vec<almanac_core::MemoryReply>) -> W
     });
     grant_mail(&router, "work");
     grant_mail(&router, "home");
+    router.install_skills(skills.clone());
     let router = Arc::new(router);
     // The built-in `org.quire.Companion` provider answers through the router, as in intentd.
     docket_fake::host_companion(&router);
@@ -98,7 +112,8 @@ pub fn world_with(script: Vec<Say>, memory: Vec<almanac_core::MemoryReply>) -> W
         AgentConfig::default(),
         clock,
         app("org.quire.Shell"),
-    );
+    )
+    .with_skills(skills);
     let launcher = Intents::over(InProcess::new(
         router.clone(),
         caller("org.quire.Shell", CallerRole::Launcher),

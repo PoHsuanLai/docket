@@ -96,6 +96,7 @@ impl<S: Seams> Router<S> {
         match inv.action.as_str() {
             "companion.task.start" => self.task_start(&inv),
             "companion.task.message" => self.task_message(&inv),
+            crate::skills::SKILL_LOAD => self.skill_load(&inv),
             _ => Err(AppRefusal::Unsupported),
         }
     }

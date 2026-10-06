@@ -40,7 +40,7 @@ pub use catalogue::{Catalogue, CatalogueTool, TARGET};
 pub use clock::Clock;
 pub use completion::completion_effects;
 pub use config::{CompaniondConfig, ConfigError};
-pub use daemon::{Daemon, run, start};
+pub use daemon::{Daemon, run, start, start_with};
 pub use fault::ServeFault;
 pub use planner::{PlanFault, PlannerModel, PlannerReply, TOOL_ASK, TOOL_FINISH, TOOL_READ};
 pub use recover::{RecentSource, ReplayFault, RouterRecent, recover, replay_of, restart_query};

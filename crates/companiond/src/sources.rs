@@ -9,9 +9,10 @@ use agent_loop::Sources;
 use almanac_core::{BodyMode, InjectQuery, RecallOver, RecentQuery, TrustFilter, UserText};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
-    ContextView, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine, RecallAsk, RecallView,
+    ActionCard, ContextView, SkillCard, SkillText, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine, RecallAsk, RecallView,
     RecalledLine, Reveal, SelectionView, TextTargetView, VisibleView,
 };
+use docket_skills::{Situation, Skill, preselect, uses_first};
 use porter_client::Transport as InferTransport;
 use porter_core::{Count, UnixSeconds};
 use prov::TaskId;
@@ -36,6 +37,26 @@ fn nowhere(app: porter_core::AppName) -> ContextView {
             total: Count(0),
         },
         text_target: TextTargetView::None,
+    }
+}
+
+/// What the context says for preselecting skills: the focused app and the kinds of thing in it.
+fn situation(context: &ContextView) -> Situation {
+    let here = match &context.here {
+        HereView::Entity(line) => Some(line.id.kind.clone()),
+        HereView::Nowhere | HereView::View { .. } => None,
+    };
+    let selected = match &context.selection {
+        SelectionView::Entities { kind, .. } => Some(kind.clone()),
+        _ => None,
+    };
+    Situation {
+        focused: Some(context.app.clone()),
+        kinds: here
+            .into_iter()
+            .chain(selected)
+            .chain(context.visible.kind.clone())
+            .collect(),
     }
 }
 
@@ -68,8 +89,9 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         let roster = self.roster_without(Some(task)).seen_from(&rt.space);
         let episodes = self.episodes_for(&rt, now).await;
         let (primer, profile) = self.memory_sections(&rt).await;
+        let (skills, skill_texts, cards) = self.skill_sections(&rt, &context);
         Sources {
-            cards: self.planner.catalogue().cards(),
+            cards,
             profile,
             primer,
             rollup: None,
@@ -83,7 +105,41 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             inbox: rt.inbox.clone(),
             taint: rt.taint(),
             task_policy,
+            skills,
+            skill_texts,
         }
+    }
+
+    /// The skill catalogue, the bodies shown this turn (preselected by the context, then those the
+    /// planner loaded) and the action cards with the loaded skills' actions first. A skill only
+    /// reorders and explains: no card is added or removed.
+    fn skill_sections(
+        &self,
+        rt: &TaskRuntime,
+        context: &ContextView,
+    ) -> (Vec<SkillCard>, Vec<SkillText>, Vec<ActionCard>) {
+        let offered = self.skills.offered(&self.manifests);
+        let cards = offered.iter().map(|s| s.card()).collect();
+        let loaded: Vec<&Skill> = rt
+            .loaded
+            .iter()
+            .filter_map(|id| offered.iter().copied().find(|s| &s.id == id))
+            .collect();
+        let shown = preselect(&offered, &situation(context));
+        let texts = shown
+            .into_iter()
+            .chain(loaded.iter().copied())
+            .fold(Vec::<&Skill>::new(), |mut acc, s| {
+                if acc.iter().all(|a| a.id != s.id) {
+                    acc.push(s);
+                }
+                acc
+            })
+            .into_iter()
+            .map(Skill::text)
+            .collect();
+        let actions = uses_first(self.planner.catalogue().cards(), |c| &c.action, &loaded);
+        (cards, texts, actions)
     }
 
     fn empty_sources(&self) -> Sources {
@@ -102,6 +158,8 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             inbox: Vec::new(),
             taint: prov::Integrity::Trusted,
             task_policy: None,
+            skills: Vec::new(),
+            skill_texts: Vec::new(),
         }
     }
 

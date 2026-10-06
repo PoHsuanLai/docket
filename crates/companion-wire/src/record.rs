@@ -5,7 +5,7 @@
 
 use crate::answer::AnswerPhase;
 use almanac_core::Skeleton;
-use docket_core::UserTurn;
+use docket_core::{SkillId, SkillVersion, UserTurn};
 use prov::{AgentRef, SpaceId, TaskId};
 use serde::{Deserialize, Serialize};
 
@@ -55,6 +55,16 @@ pub enum SessionRecord {
         /// How it ended.
         phase: AnswerPhase,
     },
+    /// The planner loaded a skill (`companion.skill.load`): which, and its version. Never the
+    /// body.
+    SkillLoaded {
+        /// The task.
+        task: TaskId,
+        /// The skill.
+        id: SkillId,
+        /// Its version.
+        version: SkillVersion,
+    },
     /// The session closed.
     Closed,
 }
@@ -67,6 +77,7 @@ impl SessionRecord {
             SessionRecord::Asked { .. } => "asked",
             SessionRecord::Replied { .. } => "replied",
             SessionRecord::Finished { .. } => "finished",
+            SessionRecord::SkillLoaded { .. } => "skill_loaded",
             SessionRecord::Closed => "closed",
         }
     }

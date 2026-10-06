@@ -59,6 +59,8 @@ pub enum Command {
     Version,
     /// `apps`.
     Apps,
+    /// `skills`.
+    Skills,
     /// `<app> --list`.
     List {
         /// The app word.
@@ -182,6 +184,8 @@ fn command(scan: &Scan) -> Result<Command, Failure> {
         [] => Err(Failure::usage("no command given (try: quire-do --help)")),
         ["apps"] => no_flags("apps").map(|()| Command::Apps),
         ["apps", ..] => Err(Failure::usage("apps takes no arguments")),
+        ["skills"] => no_flags("skills").map(|()| Command::Skills),
+        ["skills", ..] => Err(Failure::usage("skills takes no arguments")),
         ["describe", app, action] => Ok(Command::Describe {
             app: (*app).to_owned(),
             action: (*action).to_owned(),

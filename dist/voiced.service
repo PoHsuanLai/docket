@@ -1,5 +1,6 @@
-# Skeleton of voiced's systemd user unit. It captures audio only between Begin and Release, holds
-# no files and no network. Each sandbox line says what it protects.
+# Skeleton of voiced's systemd user unit. It has no [Install] section on purpose: the binary is a
+# skeleton that exits 2, so beta must not enable or start it. It captures audio only between
+# Begin and Release, holds no files and no network. Each sandbox line says what it protects.
 [Unit]
 Description=Quire voice daemon (org.quire.Voice1)
 
@@ -43,6 +44,3 @@ CapabilityBoundingSet=
 AmbientCapabilities=
 # Memory is never swapped out with audio in it.
 LimitMEMLOCK=0
-
-[Install]
-WantedBy=default.target

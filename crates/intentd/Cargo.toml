@@ -27,6 +27,7 @@ test-proc-root = []
 porter-dbus = { workspace = true }
 docket-core = { workspace = true }
 docket-router = { workspace = true }
+docket-skills = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true, features = ["inferd"] }
 policy-point = { workspace = true }

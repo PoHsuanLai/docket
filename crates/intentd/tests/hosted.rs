@@ -68,7 +68,13 @@ fn space(id: &str) -> SpaceId {
 
 impl Desk {
     async fn start(memoryd: Arc<FakeMemoryd>) -> Desk {
+        Desk::start_with(memoryd, |_| {}).await
+    }
+
+    /// A desk whose data directory (`$XDG_DATA_HOME`) `prefill` fills before intentd starts.
+    async fn start_with(memoryd: Arc<FakeMemoryd>, prefill: impl FnOnce(&std::path::Path)) -> Desk {
         let dir = tempfile::tempdir().expect("scratch");
+        prefill(&dir.path().join("data"));
         let bus = PrivateBus::start(dir.path());
         let memory_connection = bus.connect().await;
         memoryd.serve(&memory_connection).await;
@@ -556,4 +562,97 @@ async fn a_session_record_the_companion_notes_reaches_memory_as_a_companion_area
     };
     assert_eq!(payload.area, AreaTag::Companion);
     assert_eq!(payload.json.as_str(), json, "the owner's form, unchanged");
+}
+
+fn skill_dir(data: &std::path::Path, id: &str, uses: &str, body: &str) {
+    let dir = data.join("quire").join("skills").join(id);
+    std::fs::create_dir_all(&dir).expect("dir");
+    std::fs::write(
+        dir.join("skill.toml"),
+        format!(
+            "vocab = 1\nid = \"{id}\"\nowner = \"org.quire.Companion\"\nversion = \"0.2.0\"\nuses = [\"{uses}\"]\n"
+        ),
+    )
+    .expect("toml");
+    std::fs::write(
+        dir.join("SKILL.md"),
+        format!("---\nname: {id}\ndescription: about {id}\n---\n{body}\n"),
+    )
+    .expect("md");
+}
+
+const LOAD_USES: &str = "org.quire.Companion:companion.skill.load";
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_skill_loads_as_trusted_text_from_its_owner_and_a_task_loads_at_most_three() {
+    let desk = Desk::start_with(FakeMemoryd::recording(), |data| {
+        for id in ["s-a", "s-b", "s-c", "s-d"] {
+            skill_dir(data, id, LOAD_USES, &format!("How to {id}."));
+        }
+        skill_dir(data, "s-missing", "org.quire.Companion:companion.no.such", "never");
+    })
+    .await;
+    let front = desk.front().await;
+    let load = |id: &str| {
+        call(
+            "org.quire.Companion",
+            "companion.skill.load",
+            TargetValue::Nothing,
+            &[("id", Value::Text(id.into()))],
+        )
+    };
+    let mut loaded = Vec::new();
+    for id in ["s-a", "s-b", "s-c"] {
+        loaded.push(
+            desk.companion
+                .perform(load(id), Some(front.session.clone()), None)
+                .await
+                .expect("the request")
+                .unwrap_or_else(|why| panic!("{id}: {why:?}")),
+        );
+    }
+    let Some(Labelled { value, label }) = &loaded[0].value else {
+        panic!("{:?}", loaded[0])
+    };
+    assert_eq!(value, &Value::Text("How to s-a.".into()));
+    assert_eq!(label.integrity, prov::Integrity::Trusted);
+    assert_eq!(
+        label.sources,
+        std::collections::BTreeSet::from([Source::App(app("org.quire.Companion"))])
+    );
+    assert_eq!(loaded[0].undo, Undoable::No, "a load has no undo");
+
+    // The fourth is refused; one already loaded is still free; a skill with a missing action
+    // and one that does not exist cannot be loaded at all.
+    let refused = desk
+        .companion
+        .perform(load("s-d"), Some(front.session.clone()), None)
+        .await
+        .expect("the request");
+    assert!(matches!(refused, Err(CallRefusal::App(_))), "{refused:?}");
+    for id in ["s-a", ] {
+        let again = desk
+            .companion
+            .perform(load(id), Some(front.session.clone()), None)
+            .await
+            .expect("the request");
+        assert!(again.is_ok(), "{again:?}");
+    }
+    for id in ["s-missing", "nothing-here"] {
+        let hidden = desk
+            .companion
+            .perform(load(id), Some(front.session.clone()), None)
+            .await
+            .expect("the request");
+        assert!(matches!(hidden, Err(CallRefusal::App(_))), "{id}: {hidden:?}");
+    }
+
+    // The budget is per task: another session starts with none loaded.
+    let second = desk.front().await;
+    let fresh = desk
+        .companion
+        .perform(load("s-d"), Some(second.session), None)
+        .await
+        .expect("the request");
+    assert!(fresh.is_ok(), "{fresh:?}");
 }

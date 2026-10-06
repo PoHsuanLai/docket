@@ -160,11 +160,9 @@ impl<P: Transport> PlannerModel<P> {
     /// The tools of a view: the actions the budget kept, in the view's order, then the three
     /// every task has.
     fn tools(&self, view: &PlannerView) -> Vec<ToolDecl> {
-        let kept: BTreeSet<_> = view.actions.iter().map(|c| &c.action).collect();
-        self.catalogue
-            .tools()
+        view.actions
             .iter()
-            .filter(|t| kept.contains(&t.action()))
+            .filter_map(|card| self.catalogue.of(&card.action))
             .filter_map(CatalogueTool::declaration)
             .chain(meta_tools())
             .collect()

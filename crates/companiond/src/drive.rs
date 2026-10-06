@@ -204,7 +204,12 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             .of(&call.action)
             .map(|t| t.decl.label.clone());
         self.plan_begin(task, &call, label, effect, id);
-        let result = self.perform_watched(task, &call, id, session, window).await;
+        let result = self
+            .perform_watched(task, &call, id, session.clone(), window)
+            .await;
+        if result.is_ok() {
+            self.skill_loaded(task, &session, &call).await;
+        }
         Ok(vec![self.ended(task, &call, effect, id, result)])
     }
 

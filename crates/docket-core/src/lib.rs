@@ -29,6 +29,7 @@ mod reader;
 mod review;
 mod roster;
 mod schema;
+mod skill;
 mod summon;
 mod task;
 mod task_policy;
@@ -97,6 +98,7 @@ pub use roster::{
     RosterFull, RosterLine, RosterState, SkeletonText, TOLD_LEAD_CHARS,
 };
 pub use schema::{ToolSchema, tool_schema};
+pub use skill::{SKILL_ID_MAX, SkillCard, SkillId, SkillIdError, SkillText, SkillVersion};
 pub use summon::{SummonAnswer, SummonOrigin, SummonSerial, VoiceIntent};
 pub use task::{
     LedgerStep, SessionOpen, SessionOpened, TaskKind, TaskLedger, TaskStart, close, skeleton_of,

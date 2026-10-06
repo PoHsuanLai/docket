@@ -86,6 +86,8 @@ fn sources() -> Sources {
         history: vec![],
         handles: vec![],
         inbox: vec![],
+        skills: vec![],
+        skill_texts: vec![],
         taint: Integrity::Trusted,
         task_policy: None,
     }

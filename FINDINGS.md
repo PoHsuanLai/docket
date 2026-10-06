@@ -847,3 +847,42 @@ builds the connection first and passes it here.
    `org.quire.Confirm1` is confirm) and adds no scope rule and no callers file. When sill-session lands, intentd
    gains a one-row callers table (`org.quire.Shell` = `sill-shell.scope`) and docket-accept's fake proc root puts
    the shell at `0::/user.slice/user-1000.slice/user@1000.service/app.slice/sill-shell.scope`.
+
+## f4-docket-skills: skills (agent-spec skills.md)
+
+What landed: the skills format, discovery, validation and the three places they act.
+
+- **Where the code is.** A new small crate `docket-skills` (not docket-core: it parses `skill.toml`, so it
+  needs `toml`, and docket-core stays serde-only; the boundary script now has a `docket-skills` row). It holds the
+  parser (`parse_facts`, `parse_doc`, `parse`), the typed `SkillFault`, `discover(&Roots)`, `Library::check`
+  against the registered manifests, `preselect`, `Loaded` (the cap of three) and `uses_first`. docket-core gained
+  only the planner-facing shapes (`SkillId`, `SkillVersion`, `SkillCard`, `SkillText`) and two `PlannerView`
+  fields, `skills` and `skill_texts` (`agent-loop::Sources` has the same two).
+- **Only installed files.** `discover` takes `Roots` (directory paths) and nothing else; there is no way to give
+  it text. Roots are built from the environment only in a daemon's or quire-do's `main`
+  (`Roots::from_env`; intentd uses its own `data_dirs`). `$XDG_DATA_HOME/quire/skills/<id>/` wins over
+  `$XDG_DATA_DIRS`; earlier data dirs win over later; a directory that fails does not shadow another of its id.
+- **Trust.** Shipped text is `SkillText` with integrity Trusted and `Source::App(owner)`; the person's own is
+  `Source::User`. The prompt introduces each body as installed text for the planner that grants nothing.
+- **Load.** `companion.skill.load { id }` is in `manifests/org.quire.Companion.toml` (Read, no undo, instant) and
+  served by the router's `companion_perform` (`docket-router/src/skills.rs`), so intentd's hosted provider and the
+  fake world run the same code. A skill is loadable only if every action it uses is registered and not Hidden;
+  the cap of three per session is `SessionRecord::skill_loads`; reloading one already loaded is free. intentd
+  installs the skills at start (`Router::install_skills`) and logs rejected and hidden ones on stderr. They are
+  not rescanned while it runs (the manifests are); a new skill needs an intentd and companiond restart.
+- **Planner.** companiond keeps a task's loaded ids (`TaskRuntime::loaded`), shows loaded bodies and the preselected
+  ones (always first, then by id, at most two) every turn, and puts the loaded skills' actions first in the action
+  list. The tool order of the request now follows `view.actions` (it was the catalogue's order filtered by the
+  budget; the same thing until a skill reorders). `SessionRecord::SkillLoaded { task, id, version }` is written
+  through `Session.Note` (slug `skill_loaded`); the restart rebuild ignores it.
+- **Not done.** `evals/*.toml` cases in a skill directory are not run (skills.md section 6): no case format for
+  them exists yet; `--check-skills` checks everything else in that section. The assembler does not budget skill
+  text: eight skills' worth of 8 KiB is the worst case, and a 12k-token window would feel it. The shipped
+  `desktop-basics` is under 1 KiB; owners should keep bodies far below the cap.
+- **`docket-eval --check-skills <dir>...`** walks each directory for `skill.toml` files and for manifests (the
+  `--check-app` rules) and adds the two built-in manifests. Pass every repo whose actions the skills use. A missing
+  action fails; an action Hidden from the companion is a note.
+- **`quire-do skills`** lists the installed skills from `$XDG_DATA_*`, each marked offered, hidden (missing action,
+  with which) or not offered (Hidden action), plus directories that did not load. It needs intentd for the manifests.
+- **voiced.service** lost its `[Install]` section: voiced is a skeleton that exits 2, so `systemctl --user enable`
+  must not start it at login in beta. Put the section back when `serve` is filled.

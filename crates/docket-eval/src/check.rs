@@ -96,10 +96,12 @@ pub struct CheckError {
 
 /// What a walk of the repository found.
 #[derive(Debug, Default)]
-struct Found {
-    desktops: Vec<PathBuf>,
-    manifests: Vec<PathBuf>,
-    ui: Vec<PathBuf>,
+pub(crate) struct Found {
+    pub(crate) desktops: Vec<PathBuf>,
+    pub(crate) manifests: Vec<PathBuf>,
+    pub(crate) ui: Vec<PathBuf>,
+    /// Directories that hold a `skill.toml`, relative to the root.
+    pub(crate) skills: Vec<PathBuf>,
 }
 
 fn skipped(name: &str) -> bool {
@@ -110,7 +112,7 @@ fn skipped(name: &str) -> bool {
         )
 }
 
-fn walk(root: &Path, dir: &Path, found: &mut Found) -> Result<(), CheckError> {
+pub(crate) fn walk(root: &Path, dir: &Path, found: &mut Found) -> Result<(), CheckError> {
     let io = |e: std::io::Error| CheckError {
         path: dir.to_owned(),
         why: e.to_string(),
@@ -120,6 +122,11 @@ fn walk(root: &Path, dir: &Path, found: &mut Found) -> Result<(), CheckError> {
         .filter_map(Result::ok)
         .collect();
     entries.sort_by_key(std::fs::DirEntry::file_name);
+    if dir.join("skill.toml").is_file() {
+        found
+            .skills
+            .push(dir.strip_prefix(root).unwrap_or(dir).to_owned());
+    }
     for entry in entries {
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -163,7 +170,7 @@ fn app_of(desktop: &Path) -> Option<AppName> {
     AppName::parse(stem).ok()
 }
 
-fn read(root: &Path, relative: &Path) -> Result<String, CheckError> {
+pub(crate) fn read(root: &Path, relative: &Path) -> Result<String, CheckError> {
     std::fs::read_to_string(root.join(relative)).map_err(|e| CheckError {
         path: relative.to_owned(),
         why: e.to_string(),

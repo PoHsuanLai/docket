@@ -64,6 +64,9 @@ pub struct TaskRuntime {
     pub proposal: Option<AnswerBody>,
     /// The cards the person acted on since the last turn, as plan steps.
     pub acts: Plan,
+    /// The skills the planner has loaded in this task, oldest first (at most three: the router
+    /// refuses the fourth).
+    pub loaded: Vec<docket_core::SkillId>,
 }
 
 /// A keep that sent everything: what an answer's footer says until the turn says otherwise.
@@ -107,6 +110,7 @@ impl TaskRuntime {
             summoned: None,
             proposal: None,
             acts: Plan::default(),
+            loaded: Vec::new(),
         }
     }
 

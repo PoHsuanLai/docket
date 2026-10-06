@@ -9,6 +9,7 @@ use crate::runtime::Companiond;
 use crate::serve::serve_on;
 use docket_client::{DbusTransport, Intents};
 use docket_dbus::BusConnection;
+use docket_skills::{Roots, discover};
 use futures_util::StreamExt;
 use porter_client::AnyTransport;
 use std::sync::Arc;
@@ -25,6 +26,20 @@ pub async fn start(
     connection: &BusConnection,
     config: CompaniondConfig,
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
+    start_with(connection, config, &Roots::default()).await
+}
+
+/// [`start`] with the skill directories the daemon's `main` found: the only place skill text
+/// can come from. A directory that does not load is named on stderr and left out.
+pub async fn start_with(
+    connection: &BusConnection,
+    config: CompaniondConfig,
+    skills: &Roots,
+) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
+    let found = discover(skills);
+    for rejected in &found.rejected {
+        eprintln!("companiond: skill {}: {}", rejected.dir.display(), rejected.fault);
+    }
     let intents = Intents::over(DbusTransport::new(connection.clone()));
     let planner = PlannerModel::new(docket_dbus::inferd_transport(connection));
     let mut companion = Companiond::new(
@@ -33,7 +48,8 @@ pub async fn start(
         config.agent,
         Clock::System,
         config.shell.clone(),
-    );
+    )
+    .with_skills(found.skills);
     let _ = companion.restore(&config.spaces).await;
     let companion = Arc::new(Mutex::new(companion));
     serve_on(connection, companion.clone()).await?;
@@ -48,7 +64,7 @@ pub async fn run() -> Result<(), ServeFault> {
     let connection = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| ServeFault::Bus(e.to_string()))?;
-    let _running = start(&connection, config).await?;
+    let _running = start_with(&connection, config, &Roots::from_env(&env)).await?;
     let mut messages = zbus::MessageStream::from(&connection);
     while messages.next().await.is_some() {}
     Ok(())

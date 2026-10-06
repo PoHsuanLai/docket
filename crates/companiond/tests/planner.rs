@@ -311,6 +311,8 @@ fn view(cards: Vec<ActionCard>) -> PlannerView {
             history: vec![],
             handles: vec![],
             inbox: vec![],
+            skills: vec![],
+            skill_texts: vec![],
             taint: Integrity::Trusted,
             task_policy: None,
         },

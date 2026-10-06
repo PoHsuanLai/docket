@@ -466,6 +466,7 @@ dependencies = [
  "docket-dbus",
  "docket-fake",
  "docket-router",
+ "docket-skills",
  "docket-testbus",
  "futures-util",
  "porter-client",
@@ -636,6 +637,7 @@ dependencies = [
  "docket-dbus",
  "docket-fake",
  "docket-router",
+ "docket-skills",
  "docket-testbus",
  "futures-util",
  "intentd",
@@ -716,6 +718,7 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-router",
+ "docket-skills",
  "porter-core",
  "prov",
  "serde",
@@ -752,6 +755,7 @@ dependencies = [
  "docket-client",
  "docket-core",
  "docket-fake",
+ "docket-skills",
  "policy-point",
  "porter-core",
  "prov",
@@ -759,6 +763,19 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "toml",
+]
+
+[[package]]
+name = "docket-skills"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "porter-core",
+ "prov",
+ "serde",
+ "tempfile",
+ "thiserror",
  "toml",
 ]
 
@@ -1174,6 +1191,7 @@ dependencies = [
  "docket-dbus",
  "docket-fake",
  "docket-router",
+ "docket-skills",
  "docket-testbus",
  "futures-util",
  "policy-point",

@@ -205,6 +205,8 @@ fn the_planner_view_and_the_roster_round_trip() {
         episodes: vec![],
         recalled: vec![],
         inbox: vec![],
+        skills: vec![],
+        skill_texts: vec![],
     };
     let json = round(&view);
     // The view holds a handle where the window title was, and the history codes only.

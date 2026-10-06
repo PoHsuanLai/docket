@@ -9,6 +9,7 @@ use crate::manifest::{AgentReach, Lasting, TargetKind};
 use crate::message::InboundLine;
 use crate::roster::{EpisodeLine, PrimerText, ProfileLine, RecalledLine, RollupLine, Roster};
 use crate::schema::ToolSchema;
+use crate::skill::{SkillCard, SkillText};
 use crate::task_policy::TaskPolicy;
 use crate::units::CharCount;
 use crate::value::Value;
@@ -200,4 +201,8 @@ pub struct PlannerView {
     /// Messages that landed for this task since the last turn. Input only: nothing in them
     /// widens the task, and untrusted words are handles.
     pub inbox: Vec<InboundLine>,
+    /// The skills this session may load, one line each. A skill adds words, never authority.
+    pub skills: Vec<SkillCard>,
+    /// The skills expanded for this task (preselected by the context, or loaded), trusted text.
+    pub skill_texts: Vec<SkillText>,
 }

@@ -20,6 +20,7 @@ use crate::sink::QueuedSink;
 use crate::system::{SystemClock, SystemSeams};
 use docket_core::AuditRecord;
 use docket_dbus::BusConnection;
+use docket_skills::{Roots, discover};
 use docket_router::{Router, Seams};
 use policy_point::Pdp;
 use prov::SpaceId;
@@ -210,6 +211,17 @@ pub async fn start(
             state.registry.insert(manifest);
         }
     }
+    // The skills the data directories ship: valid files only; which are offered is checked against
+    // the registry at each load. What did not load, or is hidden for a missing action, is logged.
+    let found = discover(&Roots::from_dirs(&data_dirs));
+    for rejected in &found.rejected {
+        eprintln!("intentd: skill {}: {}", rejected.dir.display(), rejected.fault);
+    }
+    router.install_skills(found.skills);
+    router
+        .hidden_skills()
+        .iter()
+        .for_each(|line| eprintln!("intentd: {line}"));
     let router = Arc::new(router);
     port.attach(&router);
     serve_on_with(session, router.clone(), Arc::new(config), &proc_root)

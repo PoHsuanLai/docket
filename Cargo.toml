@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
   "crates/docket-core",
+  "crates/docket-skills",
   "crates/policy-point",
   "crates/action-review",
   "crates/docket-router",
@@ -35,6 +36,7 @@ publish = false
 
 [workspace.dependencies]
 docket-core    = { path = "crates/docket-core" }
+docket-skills  = { path = "crates/docket-skills" }
 policy-point   = { path = "crates/policy-point" }
 action-review  = { path = "crates/action-review" }
 docket-router  = { path = "crates/docket-router" }

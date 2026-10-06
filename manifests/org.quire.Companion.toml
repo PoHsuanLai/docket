@@ -67,3 +67,26 @@ label = "Message"
 ty = { kind = "text", v = { max = 2000, lines = "many" } }
 need = { kind = "required" }
 sink = "body"
+
+# Loads an installed skill: its body comes back as trusted text for the rest of the task. A skill
+# only teaches; it adds no grant and removes no check. At most three per task.
+[[actions]]
+name = "companion.skill.load"
+label = "Load a skill"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 8192, lines = "many" } }, trust = { kind = "app_authored" } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "id"
+label = "Skill"
+ty = { kind = "text", v = { max = 48, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"

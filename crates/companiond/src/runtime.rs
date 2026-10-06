@@ -80,6 +80,12 @@ pub struct Companiond<P: InferTransport, I: IntentsTransport> {
     pub(crate) unplaced: VecDeque<docket_core::InboundLine>,
     pub(crate) running: BTreeSet<TaskId>,
     pub(crate) booted: UnixSeconds,
+    /// The installed skills that passed the format, before they are checked against the
+    /// manifests (companiond reads them once, from directories its `main` was given).
+    pub(crate) skill_files: Vec<docket_skills::Skill>,
+    /// The skills whose actions are all registered, and the manifests they were checked against.
+    pub(crate) skills: docket_skills::Library,
+    pub(crate) manifests: Vec<docket_core::ValidManifest>,
 }
 
 fn idle_state() -> LoopState {
@@ -121,13 +127,24 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             unplaced: VecDeque::new(),
             running: BTreeSet::new(),
             booted: now,
+            skill_files: Vec::new(),
+            skills: docket_skills::Library::default(),
+            manifests: Vec::new(),
         }
+    }
+
+    /// The installed skills this companion may offer (those that pass the format; the manifests
+    /// decide which are reachable). Skills only teach: nothing here grants anything.
+    pub fn with_skills(self, skill_files: Vec<docket_skills::Skill>) -> Self {
+        Self { skill_files, ..self }
     }
 
     /// Refreshes what the planner may call from the installed manifests. A router that does not
     /// answer leaves the last catalogue in place.
     pub(crate) async fn refresh_catalogue(&mut self) {
         if let Ok(manifests) = self.intents.manifests().await {
+            self.skills = docket_skills::Library::check(self.skill_files.clone(), &manifests);
+            self.manifests = manifests.clone();
             self.planner
                 .set_catalogue(Catalogue::from_manifests(&manifests));
         }

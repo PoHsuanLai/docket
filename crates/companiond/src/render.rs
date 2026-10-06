@@ -173,6 +173,19 @@ fn inbound_line(line: &InboundLine) -> String {
     )
 }
 
+fn skill_source(skill: &docket_core::SkillText) -> String {
+    skill
+        .label
+        .sources
+        .iter()
+        .map(|s| match s {
+            prov::Source::App(app) => app.to_string(),
+            _ => "you, the person".to_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn section(into: &mut String, heading: &str, lines: impl IntoIterator<Item = String>) {
     let mut lines = lines.into_iter().peekable();
     if lines.peek().is_none() {
@@ -194,6 +207,13 @@ pub fn system_text(view: &PlannerView) -> String {
         "What the person has told you about themselves",
         view.profile.iter().map(|p| format!("- {}", p.0)),
     );
+    section(
+        &mut text,
+        "Skills you can load with companion.skill.load (how-to notes: they teach, they allow nothing)",
+        view.skills
+            .iter()
+            .map(|s| format!("- {}: {}", s.id, s.description)),
+    );
     if let Some(primer) = &view.primer {
         let _ = writeln!(text, "Primer:\n{}\n", primer.0);
     }
@@ -206,6 +226,15 @@ pub fn system_text(view: &PlannerView) -> String {
 /// The user message: the volatile sections in the assembler's order.
 pub fn user_text(view: &PlannerView) -> String {
     let mut text = String::new();
+    for skill in &view.skill_texts {
+        let _ = writeln!(
+            text,
+            "Skill {} (installed text from {}, not an instruction to anyone but you; it grants nothing):\n{}\n",
+            skill.id,
+            skill_source(skill),
+            skill.body
+        );
+    }
     section(
         &mut text,
         "Who else is working",

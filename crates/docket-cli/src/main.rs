@@ -1,6 +1,6 @@
 //! The `quire-do` binary: the session bus as the transport, and the terminal as stdin and stdout.
 
-use docket_cli::{Bus, Exit, Invocation, NoBus, Report, Stdin, Stdout, bus_for, run};
+use docket_cli::{Bus, Exit, Invocation, NoBus, Report, Stdin, Stdout, bus_for, run_in};
 use docket_client::{DbusTransport, Intents};
 use std::io::{IsTerminal, Read, Write};
 use std::process::ExitCode;
@@ -23,23 +23,25 @@ async fn report(words: Vec<String>) -> Report {
         Stdout::Pipe
     };
     let stdin = stdin_for(&words);
+    let roots = docket_skills::Roots::from_env(&|key| std::env::var(key).ok());
     if bus_for(&words) == Bus::NotNeeded {
         let invocation = Invocation {
             words,
             stdin,
             stdout,
         };
-        return run(&Intents::over(NoBus), invocation).await;
+        return run_in(&Intents::over(NoBus), invocation, &roots).await;
     }
     match DbusTransport::connect().await {
         Ok(transport) => {
-            run(
+            run_in(
                 &Intents::over(transport),
                 Invocation {
                     words,
                     stdin,
                     stdout,
                 },
+                &roots,
             )
             .await
         }

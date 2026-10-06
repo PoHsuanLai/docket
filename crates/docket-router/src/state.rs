@@ -54,6 +54,8 @@ pub struct SessionRecord {
     pub seen: Vec<Label>,
     /// Messages that landed for it and have not been read.
     pub inbox: Vec<Message>,
+    /// The skills this task has loaded (`companion.skill.load`), at most three.
+    pub skill_loads: docket_skills::Loaded,
 }
 
 impl SessionRecord {
@@ -84,6 +86,7 @@ impl SessionRecord {
             known: BTreeSet::new(),
             seen: Vec::new(),
             inbox: Vec::new(),
+            skill_loads: docket_skills::Loaded::default(),
         }
     }
 }
@@ -115,6 +118,9 @@ pub struct RouterState {
     pub pending: BTreeMap<ConfirmId, SpaceId>,
     /// The counter every minted id draws from.
     pub minted: Count,
+    /// The installed skills (valid files; which are offered is checked against the registry at
+    /// each load).
+    pub skills: Vec<docket_skills::Skill>,
 }
 
 impl RouterState {
@@ -137,6 +143,7 @@ impl RouterState {
             inboxes: BTreeMap::new(),
             pending: BTreeMap::new(),
             minted: Count(0),
+            skills: Vec::new(),
         }
     }
 

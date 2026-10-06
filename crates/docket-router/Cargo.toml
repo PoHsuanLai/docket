@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 docket-core = { workspace = true }
+docket-skills = { workspace = true }
 policy-point = { workspace = true }
 action-review = { workspace = true }
 prov = { workspace = true }

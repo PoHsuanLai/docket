@@ -40,6 +40,7 @@ mod router;
 mod seams;
 mod search;
 mod session;
+mod skills;
 mod spacing;
 mod state;
 mod tasks;
@@ -58,6 +59,7 @@ pub use messages::{assemble, check_stamped, inbound_line, intake_label, report_s
 pub use registry::{Registry, RegistryError, parse};
 pub use router::Router;
 pub use seams::{AppFault, AppLink, Clock, EventSink, GrantStore, LinkFault, MemoryLink, Seams};
+pub use skills::SKILL_LOAD;
 pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
 pub use spacing::{SpaceOf, relation_of};
 pub use state::{RouterState, SessionRecord};

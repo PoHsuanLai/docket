@@ -12,7 +12,7 @@ use almanac_core::{estimate_tokens, fit_budget};
 use docket_core::{
     ActionCard, AssemblerBudget, ContextView, EpisodeLine, HandleCard, InboundLine, PlannerView,
     PrimerText, ProfileLine, RecalledLine, RollupLine, Roster, StepEnd, StepLine, StepShown,
-    TaskPolicy, UserTurn,
+    SkillCard, SkillText, TaskPolicy, UserTurn,
 };
 use porter_core::{Count, Tokens};
 use prov::Integrity;
@@ -49,6 +49,10 @@ pub struct Sources {
     pub taint: Integrity,
     /// What the task may do.
     pub task_policy: Option<TaskPolicy>,
+    /// The catalogue of skills this session may load.
+    pub skills: Vec<SkillCard>,
+    /// Skills expanded for the task: preselected or loaded.
+    pub skill_texts: Vec<SkillText>,
 }
 
 fn cost<T: Serialize>(value: &T) -> Tokens {
@@ -160,6 +164,8 @@ pub fn assemble(budget: &AssemblerBudget, sources: &Sources) -> PlannerView {
         episodes: take_within(&sources.episodes, budget.episodes),
         recalled,
         inbox: sources.inbox.clone(),
+        skills: sources.skills.clone(),
+        skill_texts: sources.skill_texts.clone(),
     };
     let keep = budget.full_steps.0 as usize;
     while task_fit(budget, &view) == TaskFit::Overflows && view.history.len() > keep {

@@ -266,5 +266,8 @@ pub fn planner_view(
         episodes: inputs.episodes,
         recalled: inputs.recalled,
         inbox: inputs.inbox,
+        // Skills are companiond's: the router's view carries none.
+        skills: Vec::new(),
+        skill_texts: Vec::new(),
     }
 }

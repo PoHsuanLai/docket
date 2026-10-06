@@ -19,6 +19,7 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | Crate | Purpose | I/O |
 | --- | --- | --- |
 | `docket-core` | the vocabulary: ids, the manifest and `validate` (an indexed kind must declare `<kind>.open`, see FINDINGS "f4-docket-3"), values and `conforms`, the JSON-to-`Args` reader both the companion and the MCP edge use (`args_from_json`), context and its handle-substituted view, previews, calls and every way they end, the undo journal, confirmation, budgets (`charge`, `halted`), the task policy, the planner and reader contract, the roster and episode lines, tasks and the episode skeleton, messages (the draft, the delivery), audit records, `AgentConfig` and the settings rows, the `Intents1` wire, caller roles, summon and voice intents | none |
+| `docket-skills` | skills: the `skill.toml` and `SKILL.md` format and its validation, discovery from directories the daemon hands in (`Roots`), reach against the registered manifests, preselection by `when`, the load cap, `uses_first` | directory reads only |
 | `policy-point` | the Cedar schema and default policies (`policy/`), `PolicyRequest`, `Pdp::load` (strict validation) and `Pdp::decide` (stubbed) | cedar-policy only |
 | `action-review` | the stripped `ReviewRequest`, `ReviewVerdict`, the cascade (`plan`, `escalate`, `tighten`), `ReviewerSet`, the `Reviewer` trait, `InferReviewer` over porter-infer's `Model`, `verdict_shape`, the denial `Breaker` | none |
 | `docket-router` | the pure router: `permits` and `acting_role`, `gate`, `Watch` (what a requester may see and say while its request is in flight), the companion's notes, recall and policy narrowing, `session_step`, the `HandleTable` and `planner_view`, `index_step`, the `UndoJournal`, the `Registry`, `assemble` and `inbound_line` for messages, tasks, `call_step`, `Router<S: Seams>` and its seams | none (seams are passed in) |
@@ -45,9 +46,10 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | Crate | May depend on |
 | --- | --- |
 | `docket-core` | `prov`, `porter-core`, `almanac-core`, `cua-action`, `model-provider` |
+| `docket-skills` | `docket-core`, `prov`, `porter-core`, `toml` |
 | `policy-point` | `docket-core`, `prov`, `porter-core` |
 | `action-review` | `docket-core`, `prov`, `porter-core`, `porter-infer`, `model-provider` |
-| `docket-router` | `docket-core`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
+| `docket-router` | `docket-core`, `docket-skills`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
 | `companion-wire` | `docket-core`, `prov`, `porter-core`, `porter-infer`, `almanac-core` |
 | `agent-loop` | `docket-core`, `companion-wire`, `almanac-core`, `porter-core`, `prov` |
 | `docket-dbus` | `docket-core`, `prov`, `porter-dbus`; `porter-client` with feature `inferd` |
@@ -55,12 +57,12 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `docket-fake` | `docket-core`, `docket-router`, `docket-client`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
 | `docket-testbus` | `docket-dbus` |
 | `docket-accept` | `almanac-client`, `almanac-core`, `companion-wire`, `companiond`, `docket-client`, `docket-core`, `docket-dbus`, `docket-router`, `docket-testbus`, `intentd`, `porter-core`, `porter-infer`, `prov`, `readerd` |
-| `docket-eval` | `docket-core`, `docket-fake`, `docket-router`, `prov`, `porter-core` |
+| `docket-eval` | `docket-core`, `docket-skills`, `docket-fake`, `docket-router`, `prov`, `porter-core` |
 | `actions-mcp` | `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-core` (+ `rmcp`) |
-| `intentd` | `docket-core`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
-| `companiond` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
+| `intentd` | `docket-core`, `docket-skills`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
+| `companiond` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `docket-skills`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
 | `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
-| `docket-cli` | `docket-core`, `docket-client` (feature `dbus`), `model-provider`, `prov`, `porter-core` |
+| `docket-cli` | `docket-core`, `docket-skills`, `docket-client` (feature `dbus`), `model-provider`, `prov`, `porter-core` |
 | `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
 | `voice-wire` | `docket-core`, `porter-core`, `porter-infer` |
 | `voice-loop` | `voice-wire`, `docket-core`, `porter-core`, `porter-infer` |
@@ -83,10 +85,11 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 
 | Crate | Modules |
 | --- | --- |
-| `docket-core` | `units`, `ids` < `value`, `args`, `manifest` < `validate`, `schema` < `context`, `preview` < `call`, `undo`, `grant`, `confirm`, `review`, `budget` < `task_policy`, `reader`, `planner`, `roster` < `message`, `task`, `audit`, `gate`, `index`, `summon` < `config`, `caller`, `wire`, `when` |
+| `docket-core` | `units`, `ids` < `value`, `args`, `manifest` < `validate`, `schema` < `context`, `preview` < `call`, `undo`, `grant`, `confirm`, `review`, `budget` < `task_policy`, `reader`, `planner`, `roster`, `skill` < `message`, `task`, `audit`, `gate`, `index`, `summon` < `config`, `caller`, `wire`, `when` |
+| `docket-skills` | `fault`, `skill` < `discover`, `library` |
 | `policy-point` | `request` < `pdp` |
 | `action-review` | `verdict` < `request`, `breaker` < `cascade`, `infer` |
-| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who`, `companion` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck`, `watch`, `notes`, `recall` < `router` |
+| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who`, `companion`, `skills` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck`, `watch`, `notes`, `recall` < `router` |
 | `companion-wire` | `ask`, `answer` < `record` |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `step` |
 | `docket-dbus` | `names`, `error`, one file per interface, `introspect` |

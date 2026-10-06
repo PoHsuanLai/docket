@@ -27,6 +27,7 @@ pub enum Style {
 }
 
 /// What a command prints on success.
+#[derive(Debug)]
 pub struct Printed {
     /// The words for a person.
     pub human: String,

@@ -17,6 +17,7 @@ pub mod params;
 mod render;
 pub mod resolve;
 pub mod schema;
+mod skills;
 pub mod when;
 
 pub use args::{CallArgs, Command, JsonFlag, Parsed, RunMode, UndoWhich, parse};
@@ -24,6 +25,7 @@ pub use exec::Style;
 pub use exit::{Exit, Failure};
 pub use params::Stdin;
 pub use resolve::Apps;
+pub use skills::list as skills_list;
 
 use docket_client::{Intents, Transport};
 use exec::Printed;
@@ -132,6 +134,7 @@ async fn command<T: Transport>(
     intents: &Intents<T>,
     parsed: &Parsed,
     stdin: Stdin,
+    roots: &docket_skills::Roots,
 ) -> Result<Printed, Failure> {
     let plain = |text: String| Printed {
         human: text.clone(),
@@ -142,6 +145,7 @@ async fn command<T: Transport>(
         Command::Version => Ok(plain(format!("quire-do {}", env!("CARGO_PKG_VERSION")))),
         Command::Undo(which) => exec::undo(intents, *which).await,
         Command::Apps => Ok(exec::apps(&apps_of(intents).await?)),
+        Command::Skills => Ok(skills::list(&apps_of(intents).await?, roots)),
         Command::List { app } => exec::list(&apps_of(intents).await?, app),
         Command::Describe { app, action } => exec::describe(&apps_of(intents).await?, app, action),
         Command::Search { app, text } => {
@@ -159,8 +163,18 @@ async fn command<T: Transport>(
     }
 }
 
-/// The whole program: parse the command line, ask intentd, print, and say how it ended.
+/// The whole program with no skill directories: `skills` lists none.
 pub async fn run<T: Transport>(intents: &Intents<T>, invocation: Invocation) -> Report {
+    run_in(intents, invocation, &docket_skills::Roots::default()).await
+}
+
+/// The whole program: parse the command line, ask intentd, print, and say how it ended. `roots`
+/// are the skill directories `main` read from the environment, for `skills`.
+pub async fn run_in<T: Transport>(
+    intents: &Intents<T>,
+    invocation: Invocation,
+    roots: &docket_skills::Roots,
+) -> Report {
     let parsed = match parse(&invocation.words) {
         Ok(parsed) => parsed,
         Err(failure) => {
@@ -179,7 +193,7 @@ pub async fn run<T: Transport>(intents: &Intents<T>, invocation: Invocation) -> 
         parsed.command,
         Command::Help | Command::Version | Command::Complete(_)
     );
-    match command(intents, &parsed, invocation.stdin).await {
+    match command(intents, &parsed, invocation.stdin, roots).await {
         Ok(printed) if plain_text => Report::said(match &printed.json {
             serde_json::Value::String(text) => text.clone(),
             other => other.to_string(),

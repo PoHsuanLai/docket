@@ -224,6 +224,7 @@ fn apply_session(out: &mut Rebuilt, record: &SessionRecord) {
                 out.front = front_step(out.front.take(), &FrontEvent::Ended(task.clone()));
             }
         }
-        SessionRecord::Closed => {}
+        // A loaded skill changes neither the roster nor the front task.
+        SessionRecord::SkillLoaded { .. } | SessionRecord::Closed => {}
     }
 }

@@ -1,0 +1,12 @@
+vocab = 1
+id = "desktop-basics"
+owner = "org.quire.Companion"
+version = "0.1.0"
+uses = [
+  "org.quire.Companion:companion.skill.load",
+  "org.quire.Companion:companion.task.start",
+  "org.quire.Companion:companion.task.message",
+]
+
+[when]
+always = "yes"

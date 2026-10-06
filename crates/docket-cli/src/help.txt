@@ -2,6 +2,7 @@ quire-do: drive any quire app from a command line.
 
 Usage:
   quire-do apps                                  installed apps with manifests
+  quire-do skills                                installed skills the companion may load
   quire-do <app> --list                          its actions: name, effect, parameters
   quire-do describe <app> <action> [--json]      JSON Schema of the parameters
   quire-do <app> <action> [<thing>...] [--<param> <value>]... [--dry-run] [--json] [--session <id>]
