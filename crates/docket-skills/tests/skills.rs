@@ -79,7 +79,8 @@ fn skill_toml_table() {
 
 #[test]
 fn skill_md_table() {
-    let cases: Vec<(&str, Result<(&str, &str, &str), SkillFault>)> = vec![
+    type Expected = Result<(&'static str, &'static str, &'static str), SkillFault>;
+    let cases: Vec<(&str, Expected)> = vec![
         (
             "---\nname: x\ndescription: Does x.\n---\n# Title\n\nText.\n",
             Ok(("x", "Does x.", "# Title\n\nText.")),
@@ -383,7 +384,7 @@ fn a_task_loads_at_most_three_and_a_repeat_is_free() {
 #[test]
 fn loaded_skills_actions_go_first_and_nothing_else_changes() {
     let s = skill("s", "");
-    let items = vec!["x", "org.quire.Companion:companion.skill.load", "y"];
+    let items = ["x", "org.quire.Companion:companion.skill.load", "y"];
     let action = |i: &&str| -> docket_core::ActionRef {
         match i.split_once(':') {
             Some((app, name)) => docket_core::ActionRef {
