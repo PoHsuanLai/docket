@@ -202,3 +202,65 @@ async fn at_most_three_skills_load_in_a_task_and_a_hidden_one_never() {
         .count();
     assert_eq!(recorded, 3);
 }
+
+#[tokio::test]
+async fn a_load_over_the_byte_budget_is_refused_and_audited_as_nothing_loaded() {
+    let big = |id: &str| skill(id, LOAD_USE, "", &"x".repeat(7000));
+    let mut w = world_with_skills(
+        vec![
+            call(LOAD, json!({ "id": "big-one" })),
+            call(LOAD, json!({ "id": "big-two" })),
+            call(LOAD, json!({ "id": "small" })),
+            call(LOAD, json!({ "id": "big-one" })),
+            words("Done."),
+        ],
+        vec![
+            big("big-one"),
+            big("big-two"),
+            skill("small", LOAD_USE, "", "SMALL-BODY"),
+        ],
+    );
+    let front = w.open("work").await;
+    w.say(&front.session, "read everything").await;
+
+    let ends: Vec<String> = w
+        .records()
+        .into_iter()
+        .filter_map(|r| match r {
+            AuditRecord::Call { action, end, .. }
+                if action.name.as_str() == "companion.skill.load" =>
+            {
+                Some(match end {
+                    CallEnd::Done => "done".to_owned(),
+                    CallEnd::Refused(_) => "refused".to_owned(),
+                })
+            }
+            _ => None,
+        })
+        .collect();
+    // Within budget loads; the second 7000 would make 14000 > 12288; the small one fits; a
+    // reload of the first is free.
+    assert_eq!(ends, ["done", "refused", "done", "done"]);
+    let loaded: Vec<String> = w
+        .records()
+        .into_iter()
+        .filter_map(|r| match r {
+            AuditRecord::Session { slug, json, .. } if slug.as_str() == "skill_loaded" => {
+                Some(json.as_str().to_owned())
+            }
+            _ => None,
+        })
+        .collect();
+    assert!(loaded.iter().all(|j| !j.contains("big-two")), "{loaded:?}");
+    assert_eq!(
+        loaded.len(),
+        2,
+        "big-one and small; the reload is not recorded again: {loaded:?}"
+    );
+    // The refusal is the planner's to read, in the history of its next turn.
+    assert!(
+        w.infer
+            .user_text(4)
+            .contains("companion.skill.load refused")
+    );
+}

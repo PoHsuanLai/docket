@@ -73,7 +73,7 @@ impl<S: Seams> Router<S> {
             .ok_or_else(|| failed("the session is gone"))?;
         record
             .skill_loads
-            .admit(&id)
+            .admit(&id, skill.body.len())
             .map_err(|e| failed(&e.to_string()))?;
         let text = skill.text();
         Ok(Outcome {

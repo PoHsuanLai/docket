@@ -876,9 +876,12 @@ What landed: the skills format, discovery, validation and the three places they 
   budget; the same thing until a skill reorders). `SessionRecord::SkillLoaded { task, id, version }` is written
   through `Session.Note` (slug `skill_loaded`); the restart rebuild ignores it.
 - **Not done.** `evals/*.toml` cases in a skill directory are not run (skills.md section 6): no case format for
-  them exists yet; `--check-skills` checks everything else in that section. The assembler does not budget skill
-  text: eight skills' worth of 8 KiB is the worst case, and a 12k-token window would feel it. The shipped
-  `desktop-basics` is under 1 KiB; owners should keep bodies far below the cap.
+  them exists yet; `--check-skills` checks everything else in that section. Skill text is budgeted: a planner view
+  carries at most `BODY_BUDGET_BYTES` (12 KiB) of bodies, loaded and preselected together. Loaded bodies are
+  committed first (a load that would pass the budget is refused with `LoadRefusal::OverBudget`, which the planner
+  reads as a refused Read; nothing is truncated and nothing is audited as loaded; a reload is free). Preselection
+  gets what is left, takes `always` first then `when` matches, and stops at the first body that does not fit. The
+  shipped `desktop-basics` is under 1 KiB; owners should keep bodies far below the cap.
 - **`docket-eval --check-skills <dir>...`** walks each directory for `skill.toml` files and for manifests (the
   `--check-app` rules) and adds the two built-in manifests. Pass every repo whose actions the skills use. A missing
   action fails; an action Hidden from the companion is a note.

@@ -3,8 +3,9 @@
 
 use docket_core::{AgentReach, SkillId, ValidManifest};
 use docket_skills::{
-    Always, Found, LOAD_MAX, Library, LoadRefusal, Loaded, Origin, Reach, Roots, Situation,
-    SkillFault, discover, load_dir, parse, parse_doc, parse_facts, preselect, reach, uses_first,
+    Always, BODY_BUDGET_BYTES, Found, LOAD_MAX, Library, LoadRefusal, Loaded, Origin, Reach, Roots,
+    Situation, SkillFault, discover, load_dir, parse, parse_doc, parse_facts, preselect, reach,
+    uses_first,
 };
 use porter_core::AppName;
 use prov::EntityKind;
@@ -336,7 +337,7 @@ fn preselection_follows_when_and_stops_at_two() {
         kinds: kinds.iter().map(|k| kind(k)).collect(),
     };
     let ids = |at: Situation| -> Vec<String> {
-        preselect(&offered, &at)
+        preselect(&offered, &at, BODY_BUDGET_BYTES)
             .into_iter()
             .map(|s| s.id.to_string())
             .collect()
@@ -354,10 +355,14 @@ fn preselection_follows_when_and_stops_at_two() {
         ["basics", "by-kind"]
     );
     let only = [&by_app, &by_kind, &plain];
-    let got: Vec<String> = preselect(&only, &at(Some("org.quire.Mail"), &["mail.thread"]))
-        .into_iter()
-        .map(|s| s.id.to_string())
-        .collect();
+    let got: Vec<String> = preselect(
+        &only,
+        &at(Some("org.quire.Mail"), &["mail.thread"]),
+        BODY_BUDGET_BYTES,
+    )
+    .into_iter()
+    .map(|s| s.id.to_string())
+    .collect();
     assert_eq!(got, ["by-app", "by-kind"]);
     assert_eq!(always.when.always, Always::Yes);
 }
@@ -370,11 +375,11 @@ fn a_task_loads_at_most_three_and_a_repeat_is_free() {
         .collect();
     let mut loaded = Loaded::default();
     for id in &ids[..3] {
-        assert_eq!(loaded.admit(id), Ok(()));
+        assert_eq!(loaded.admit(id, 10), Ok(()));
     }
-    assert_eq!(loaded.admit(&ids[3]), Err(LoadRefusal::OverCap));
+    assert_eq!(loaded.admit(&ids[3], 10), Err(LoadRefusal::OverCap));
     assert_eq!(
-        loaded.admit(&ids[0]),
+        loaded.admit(&ids[0], 10),
         Ok(()),
         "a skill already loaded costs nothing"
     );
@@ -422,4 +427,69 @@ fn skill_text_enters_only_through_directory_paths() {
     // Every field of `Roots` is a path; destructuring without `..` fails to compile otherwise.
     let Roots { own, shipped } = roots;
     let _: (Option<PathBuf>, Vec<PathBuf>) = (own, shipped);
+}
+
+fn sized(id: &str, when: &str, bytes: usize) -> docket_skills::Skill {
+    parse(
+        id,
+        &toml_for(id, when),
+        &md_for(id, "d", &"b".repeat(bytes)),
+        Origin::Shipped,
+    )
+    .expect("skill")
+}
+
+#[test]
+fn preselection_stops_when_the_next_body_would_not_fit() {
+    let app = AppName::parse("org.quire.Shell").expect("app");
+    let at = Situation {
+        focused: Some(app),
+        kinds: BTreeSet::new(),
+    };
+    let first = sized("a-first", "[when]\nalways = \"yes\"\n", 5000);
+    let second = sized(
+        "b-second",
+        "[when]\nfocused_app = [\"org.quire.Shell\"]\n",
+        8000,
+    );
+    let third = sized(
+        "c-third",
+        "[when]\nfocused_app = [\"org.quire.Shell\"]\n",
+        100,
+    );
+    let offered = [&first, &second, &third];
+    let ids = |room: usize| -> Vec<String> {
+        preselect(&offered, &at, room)
+            .into_iter()
+            .map(|s| s.id.to_string())
+            .collect()
+    };
+    // 5000 + 8000 is over the budget: the second is not shown, and the small third is not
+    // taken in its place (it would be the third, past the cap of two, and order is kept).
+    assert_eq!(ids(BODY_BUDGET_BYTES), ["a-first"]);
+    assert_eq!(ids(13_000), ["a-first", "b-second"]);
+    assert_eq!(ids(5000), ["a-first"]);
+    assert_eq!(ids(4999), Vec::<String>::new());
+    assert_eq!(ids(0), Vec::<String>::new());
+}
+
+#[test]
+fn loads_stop_at_the_byte_budget_and_a_reload_is_free() {
+    let id = |s: &str| SkillId::parse(s).expect("id");
+    let mut loaded = Loaded::default();
+    assert_eq!(loaded.admit(&id("a"), 8000), Ok(()));
+    assert_eq!(loaded.admit(&id("b"), 8000), Err(LoadRefusal::OverBudget));
+    assert_eq!(
+        loaded.admit(&id("c"), 4288),
+        Ok(()),
+        "exactly the budget fits"
+    );
+    assert_eq!(loaded.bytes(), BODY_BUDGET_BYTES);
+    assert_eq!(
+        loaded.admit(&id("a"), 8000),
+        Ok(()),
+        "a reload costs nothing"
+    );
+    assert_eq!(loaded.admit(&id("d"), 1), Err(LoadRefusal::OverBudget));
+    assert_eq!(loaded.ids(), [&id("a"), &id("c")]);
 }

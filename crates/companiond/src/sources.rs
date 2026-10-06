@@ -13,7 +13,7 @@ use docket_core::{
     RecallView, RecalledLine, Reveal, SelectionView, SkillCard, SkillText, TextTargetView,
     VisibleView,
 };
-use docket_skills::{Situation, Skill, preselect, uses_first};
+use docket_skills::{BODY_BUDGET_BYTES, Situation, Skill, preselect, uses_first};
 use porter_client::Transport as InferTransport;
 use porter_core::{Count, UnixSeconds};
 use prov::TaskId;
@@ -126,7 +126,19 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             .iter()
             .filter_map(|id| offered.iter().copied().find(|s| &s.id == id))
             .collect();
-        let shown = preselect(&offered, &situation(context));
+        // The loaded bodies are committed; preselection gets what is left of the budget, and a
+        // skill already loaded is not shown twice.
+        let used: usize = loaded.iter().map(|s| s.body.len()).sum();
+        let unloaded: Vec<&Skill> = offered
+            .iter()
+            .copied()
+            .filter(|s| loaded.iter().all(|l| l.id != s.id))
+            .collect();
+        let shown = preselect(
+            &unloaded,
+            &situation(context),
+            BODY_BUDGET_BYTES.saturating_sub(used),
+        );
         let texts = shown
             .into_iter()
             .chain(loaded.iter().copied())

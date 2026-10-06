@@ -49,10 +49,10 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         let Some(version) = self.skills.get(&id).map(|s| s.version.clone()) else {
             return;
         };
-        if let Some(rt) = self.runtimes.get_mut(task)
-            && !rt.loaded.contains(&id)
-        {
-            rt.loaded.push(id.clone());
+        // A reload is free and not a new fact: only the first load is recorded.
+        match self.runtimes.get_mut(task) {
+            Some(rt) if !rt.loaded.contains(&id) => rt.loaded.push(id.clone()),
+            _ => return,
         }
         let record = SessionRecord::SkillLoaded {
             task: task.clone(),

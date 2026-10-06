@@ -18,8 +18,8 @@ mod skill;
 pub use discover::{Found, Rejected, Roots, discover, load_dir};
 pub use fault::{SkillFault, Unresolved};
 pub use library::{
-    Hidden, LOAD_MAX, Library, LoadRefusal, Loaded, PRESELECT_MAX, Reach, Situation, preselect,
-    reach, uses_first,
+    BODY_BUDGET_BYTES, Hidden, LOAD_MAX, Library, LoadRefusal, Loaded, PRESELECT_MAX, Reach,
+    Situation, preselect, reach, uses_first,
 };
 pub use skill::{
     Always, BODY_MAX_BYTES, DESCRIPTION_MAX_CHARS, Doc, Facts, Origin, Skill, When, assemble,

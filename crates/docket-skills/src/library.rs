@@ -11,6 +11,9 @@ use std::collections::BTreeSet;
 pub const PRESELECT_MAX: usize = 2;
 /// The most skills a task may load.
 pub const LOAD_MAX: usize = 3;
+/// The most skill text, in bytes, one planner view may carry: loaded and preselected bodies
+/// together. A body is never truncated: what does not fit is not shown or not loaded.
+pub const BODY_BUDGET_BYTES: usize = 12 * 1024;
 
 /// Whether the actions a skill uses can be reached by the companion.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -120,12 +123,22 @@ fn matches(skill: &Skill, at: &Situation) -> bool {
 }
 
 /// The skills to expand at the start of a turn: those whose `when` matches (`always`, the focused
-/// app, or a kind in the context), `always` ones first, then by id, at most two.
-pub fn preselect<'a>(offered: &[&'a Skill], at: &Situation) -> Vec<&'a Skill> {
+/// app, or a kind in the context), `always` ones first, then by id, at most two, and stopping at
+/// the first whose body does not fit in `room` bytes (what is left of [`BODY_BUDGET_BYTES`] after
+/// the loaded skills).
+pub fn preselect<'a>(offered: &[&'a Skill], at: &Situation, room: usize) -> Vec<&'a Skill> {
     let mut hits: Vec<&Skill> = offered.iter().copied().filter(|s| matches(s, at)).collect();
     hits.sort_by_key(|s| (s.when.always != Always::Yes, s.id.clone()));
-    hits.truncate(PRESELECT_MAX);
-    hits
+    let mut left = room;
+    let mut chosen = Vec::new();
+    for skill in hits.into_iter().take(PRESELECT_MAX) {
+        match left.checked_sub(skill.body.len()) {
+            Some(rest) => left = rest,
+            None => break,
+        }
+        chosen.push(skill);
+    }
+    chosen
 }
 
 /// Why a load was refused.
@@ -134,28 +147,40 @@ pub enum LoadRefusal {
     /// Three skills are already loaded in this task.
     #[error("this task has already loaded {LOAD_MAX} skills")]
     OverCap,
+    /// The skill's body would take the loaded skill text past the budget.
+    #[error("the skill budget is full: loaded skills may hold 12 KiB in all; nothing was loaded")]
+    OverBudget,
 }
 
-/// The skills one task has loaded, in order. Loading one again costs nothing.
+/// The skills one task has loaded, in order, with the size of each body. Loading one again costs
+/// nothing.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Loaded(Vec<SkillId>);
+pub struct Loaded(Vec<(SkillId, usize)>);
 
 impl Loaded {
-    /// Admits `id`, or refuses beyond the cap.
-    pub fn admit(&mut self, id: &SkillId) -> Result<(), LoadRefusal> {
-        if self.0.contains(id) {
+    /// Admits `id` whose body is `bytes` long, or refuses beyond the cap or the budget.
+    pub fn admit(&mut self, id: &SkillId, bytes: usize) -> Result<(), LoadRefusal> {
+        if self.0.iter().any(|(i, _)| i == id) {
             return Ok(());
         }
         if self.0.len() >= LOAD_MAX {
             return Err(LoadRefusal::OverCap);
         }
-        self.0.push(id.clone());
+        if self.bytes() + bytes > BODY_BUDGET_BYTES {
+            return Err(LoadRefusal::OverBudget);
+        }
+        self.0.push((id.clone(), bytes));
         Ok(())
     }
 
     /// The loaded ids, oldest first.
-    pub fn ids(&self) -> &[SkillId] {
-        &self.0
+    pub fn ids(&self) -> Vec<&SkillId> {
+        self.0.iter().map(|(i, _)| i).collect()
+    }
+
+    /// The bytes of loaded bodies.
+    pub fn bytes(&self) -> usize {
+        self.0.iter().map(|(_, b)| b).sum()
     }
 }
 
