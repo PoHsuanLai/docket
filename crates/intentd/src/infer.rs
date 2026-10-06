@@ -3,7 +3,8 @@
 //! says its data class and `Usage::Interactive`; a refusal from inferd is an error that asks
 //! the person, never an allow.
 
-use porter_client::{AnyTransport, Transport};
+use docket_dbus::InferLink;
+use porter_client::Transport;
 use porter_core::capability::{LlmFeature, Modality};
 use porter_core::need::{EmbedNeed, LlmNeed};
 use porter_core::{Need, Tokens};
@@ -19,7 +20,7 @@ pub use crate::writer::InferdWriter;
 
 /// inferd over the session bus: the one link every daemon of this repo makes, on `connection`
 /// (see `docket_dbus::inferd_transport`).
-pub fn inferd_transport(connection: &docket_dbus::BusConnection) -> AnyTransport {
+pub fn inferd_transport(connection: &docket_dbus::BusConnection) -> InferLink {
     docket_dbus::inferd_transport(connection)
 }
 
@@ -37,7 +38,7 @@ impl<T: Transport> InferdModel<T> {
     }
 }
 
-impl InferdModel<AnyTransport> {
+impl InferdModel<InferLink> {
     /// Asks inferd over the session bus; `card` says who answers.
     pub fn on_bus(connection: &docket_dbus::BusConnection, card: ModelCard) -> Self {
         Self::new(inferd_transport(connection), card)

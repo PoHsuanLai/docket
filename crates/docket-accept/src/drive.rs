@@ -12,6 +12,7 @@ use docket_core::{
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy};
 use futures_util::StreamExt;
 use prov::{AgentRef, SpaceId, UnixSeconds};
+use std::time::Duration;
 use zbus::proxy::CacheProperties;
 use zbus::zvariant::OwnedObjectPath;
 
@@ -34,6 +35,7 @@ pub struct Launcher {
     pub intents: Intents<DbusTransport>,
     connection: zbus::Connection,
     companion: CompanionProxy<'static>,
+    patience: Duration,
 }
 
 impl Launcher {
@@ -44,7 +46,14 @@ impl Launcher {
             intents: Intents::over(DbusTransport::new(connection.clone())),
             companion: CompanionProxy::new(&connection).await.expect("proxy"),
             connection,
+            patience: GIVE_UP,
         }
+    }
+
+    /// The same launcher, waiting this long for each change of an answer instead of
+    /// [`GIVE_UP`]: a real model on a cold engine is slower than a cassette.
+    pub fn patient(self, patience: Duration) -> Launcher {
+        Launcher { patience, ..self }
     }
 
     /// Opens a front conversation in the Space `work`.
@@ -99,12 +108,13 @@ impl Launcher {
             )
             .await
             .expect("Companion1.Ask");
-        Answer::watch(&self.connection, path).await
+        Answer::watch(&self.connection, path, self.patience).await
     }
 }
 
 /// One answer object, watched.
 pub struct Answer {
+    patience: Duration,
     proxy: CompanionAnswerProxy<'static>,
     updates: std::pin::Pin<Box<dyn futures_util::Stream<Item = String> + Send>>,
 }
@@ -116,7 +126,11 @@ impl std::fmt::Debug for Answer {
 }
 
 impl Answer {
-    async fn watch(connection: &zbus::Connection, path: OwnedObjectPath) -> Answer {
+    async fn watch(
+        connection: &zbus::Connection,
+        path: OwnedObjectPath,
+        patience: Duration,
+    ) -> Answer {
         let proxy = CompanionAnswerProxy::builder(connection)
             .path(path)
             .expect("answer path")
@@ -130,6 +144,7 @@ impl Answer {
             .expect("Updated signal")
             .filter_map(|signal| async move { signal.args().ok().map(|a| a.view().to_string()) });
         Answer {
+            patience,
             proxy,
             updates: Box::pin(updates),
         }
@@ -145,6 +160,18 @@ impl Answer {
     /// initial view and every `Updated` payload count, so a phase that passes quickly (a sheet
     /// answered at once) is still in the list.
     pub async fn history_until(&mut self, stop: impl Fn(&AnswerWire) -> bool) -> Vec<AnswerWire> {
+        match self.try_history_until(stop).await {
+            Ok(seen) => seen,
+            Err(seen) => panic!("the answer never settled; saw {seen:#?}"),
+        }
+    }
+
+    /// [`Answer::history_until`] that hands back what it saw, as the error, when nothing
+    /// changed for the answer's patience (or the signal stream ended).
+    pub async fn try_history_until(
+        &mut self,
+        stop: impl Fn(&AnswerWire) -> bool,
+    ) -> Result<Vec<AnswerWire>, Vec<AnswerWire>> {
         let mut seen: Vec<AnswerWire> = Vec::new();
         let take = |view: AnswerWire, seen: &mut Vec<AnswerWire>| {
             let last = stop(&view);
@@ -154,16 +181,18 @@ impl Answer {
             last
         };
         if take(self.view().await, &mut seen) {
-            return seen;
+            return Ok(seen);
         }
         loop {
-            let next = tokio::time::timeout(GIVE_UP, self.updates.next())
-                .await
-                .unwrap_or_else(|_| panic!("the answer never settled; saw {seen:#?}"))
-                .expect("the signal stream ended");
-            let view: AnswerWire = serde_json::from_str(&next).expect("AnswerWire");
+            let Ok(Some(next)) = tokio::time::timeout(self.patience, self.updates.next()).await
+            else {
+                return Err(seen);
+            };
+            let Ok(view) = serde_json::from_str::<AnswerWire>(&next) else {
+                return Err(seen);
+            };
             if take(view, &mut seen) {
-                return seen;
+                return Ok(seen);
             }
         }
     }

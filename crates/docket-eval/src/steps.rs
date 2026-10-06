@@ -5,14 +5,13 @@
 
 use crate::block::block_on;
 use crate::case::{ArgFrom, Case, Driver, MailField, ScriptedCall, ScriptedSend, ScriptedStep};
-use crate::runner::StepEnding;
+use crate::runner::{Rig, StepEnding};
 use crate::world::{Scene, cli, companion, hold, mail_label, state_of};
 use docket_core::{
     ActionRef, Args, CallRefusal, CallRequest, DenyCode, DraftPart, InboundPart, InboxAsk,
     IntentsReply, IntentsRequest, MessageDraft, Origin, ParamName, ParamType, Reveal, TargetValue,
     Value, WireRefusal,
 };
-use docket_fake::FakeSeams;
 use docket_router::{HandleValue, Router};
 use porter_core::AppName;
 use prov::{
@@ -28,8 +27,8 @@ enum Inbound {
 }
 
 /// How the planner's steps go, and what they learned from one another.
-pub(crate) struct Player<'a> {
-    router: &'a Router<FakeSeams>,
+pub(crate) struct Player<'a, S: Rig> {
+    router: &'a Router<S>,
     case: &'a Case,
     scene: &'a Scene,
     inbound: BTreeMap<usize, Inbound>,
@@ -44,8 +43,8 @@ fn trusted_by(app: &AppName) -> Label {
     }
 }
 
-impl<'a> Player<'a> {
-    pub(crate) fn new(router: &'a Router<FakeSeams>, case: &'a Case, scene: &'a Scene) -> Self {
+impl<'a, S: Rig> Player<'a, S> {
+    pub(crate) fn new(router: &'a Router<S>, case: &'a Case, scene: &'a Scene) -> Self {
         Self {
             router,
             case,
@@ -54,17 +53,18 @@ impl<'a> Player<'a> {
         }
     }
 
-    /// Plays every step, in order.
-    pub(crate) fn play(&mut self) -> Vec<StepEnding> {
-        self.case
-            .planner
-            .iter()
-            .enumerate()
-            .map(|(index, step)| match step {
+    /// Plays every step, in order, telling `after` how each ended as it does.
+    pub(crate) fn play(&mut self, mut after: impl FnMut(&StepEnding)) -> Vec<StepEnding> {
+        let mut endings = Vec::new();
+        for (index, step) in self.case.planner.iter().enumerate() {
+            let ending = match step {
                 ScriptedStep::Call(call) => self.call(call),
                 ScriptedStep::Send(send) => self.send(index, send),
-            })
-            .collect()
+            };
+            after(&ending);
+            endings.push(ending);
+        }
+        endings
     }
 
     fn mail_space(&self, msg: &str) -> prov::SpaceId {
@@ -216,7 +216,7 @@ impl<'a> Player<'a> {
             .registry
             .action(&action)
             .map_or(Effect::Read, |d| d.effect);
-        let asked_before = self.router.seams.confirmer.requests().len();
+        let asked_before = self.router.seams.confirmer().requests().len();
         let (who, origin, session) = match self.case.driver {
             Driver::Companion => (
                 companion(),
@@ -242,7 +242,7 @@ impl<'a> Player<'a> {
                 parent_window: None,
             },
         ));
-        let asked = self.router.seams.confirmer.requests().len() > asked_before;
+        let asked = self.router.seams.confirmer().requests().len() > asked_before;
         match reply {
             IntentsReply::Performed(result) => match (*result, asked) {
                 (_, true) => StepEnding::Asked(effect),
@@ -293,7 +293,7 @@ impl<'a> Player<'a> {
         let integrity = self
             .router
             .seams
-            .sink
+            .sink()
             .records()
             .into_iter()
             .rev()

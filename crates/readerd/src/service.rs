@@ -5,7 +5,8 @@ use crate::host::ReaderHost;
 use crate::request::reader_request;
 use docket_client::{Intents, Transport as IntentsTransport};
 use docket_core::{Reader, ReaderAsk, ReaderError, Value};
-use porter_client::{AnyTransport, Transport as InferTransport};
+use docket_dbus::InferLink;
+use porter_client::Transport as InferTransport;
 use porter_core::capability::LlmFeature;
 use porter_core::need::LlmNeed;
 use porter_core::{Need, Tokens};
@@ -25,8 +26,8 @@ pub struct ReaderService<P: InferTransport, I: IntentsTransport> {
     intents: Intents<I>,
 }
 
-impl<I: IntentsTransport> ReaderService<AnyTransport, I> {
-    /// A service over inferd on the session bus (`AnyTransport::Dbus`) and the router. Nothing is
+impl<I: IntentsTransport> ReaderService<InferLink, I> {
+    /// A service over inferd on the session bus (`InferLink`) and the router. Nothing is
     /// called here: inferd is found, and started by activation, at the first session.
     pub fn on_bus(
         host: ReaderHost,

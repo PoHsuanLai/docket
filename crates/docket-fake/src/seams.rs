@@ -8,12 +8,14 @@ use crate::scripted::{
     FakeMemory, ScriptedConfirmer, ScriptedReader, ScriptedReviewer, ScriptedWriter,
 };
 use crate::simple::{MemoryGrants, RecordingSink};
+use action_review::Reviewer;
 use docket_client::IntentProvider;
+use docket_core::PolicyWriter;
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit, Invocation, Latency,
     Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
 };
-use docket_router::{AppFault, AppLink, LinkFault, Seams};
+use docket_router::{AppFault, AppLink, Clock, LinkFault, Seams};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 use std::collections::BTreeMap;
@@ -272,38 +274,40 @@ impl AppLink for FakeLink {
     }
 }
 
-/// Every fake, public so a test reads what each recorded.
+/// Every fake, public so a test reads what each recorded. The reviewer, the writer and the clock
+/// are parameters whose defaults are the fakes: a live run puts the real cascade, the real
+/// writer and the system clock in their places and keeps every other fake.
 #[derive(Debug)]
-pub struct FakeSeams {
+pub struct FakeSeams<R = ScriptedReviewer, W = ScriptedWriter, K = FixedClock> {
     /// The apps.
     pub link: FakeLink,
     /// The sheet.
     pub confirmer: ScriptedConfirmer,
     /// The reviewer.
-    pub reviewer: ScriptedReviewer,
+    pub reviewer: R,
     /// The consent store.
     pub grants: MemoryGrants,
     /// The event log.
     pub sink: RecordingSink,
     /// The clock.
-    pub clock: FixedClock,
+    pub clock: K,
     /// Memory.
     pub memory: FakeMemory,
     /// The policy writer.
-    pub writer: ScriptedWriter,
+    pub writer: W,
     /// The reader.
     pub reader: ScriptedReader,
 }
 
-impl Seams for FakeSeams {
+impl<R: Reviewer, W: PolicyWriter, K: Clock> Seams for FakeSeams<R, W, K> {
     type Link = FakeLink;
     type Confirm = ScriptedConfirmer;
-    type Review = ScriptedReviewer;
+    type Review = R;
     type Grants = MemoryGrants;
     type Sink = RecordingSink;
-    type Time = FixedClock;
+    type Time = K;
     type Memory = FakeMemory;
-    type Writer = ScriptedWriter;
+    type Writer = W;
     type Reading = ScriptedReader;
 
     fn link(&self) -> &FakeLink {
@@ -312,7 +316,7 @@ impl Seams for FakeSeams {
     fn confirmer(&self) -> &ScriptedConfirmer {
         &self.confirmer
     }
-    fn reviewer(&self) -> &ScriptedReviewer {
+    fn reviewer(&self) -> &R {
         &self.reviewer
     }
     fn grants(&self) -> &MemoryGrants {
@@ -321,13 +325,13 @@ impl Seams for FakeSeams {
     fn sink(&self) -> &RecordingSink {
         &self.sink
     }
-    fn clock(&self) -> &FixedClock {
+    fn clock(&self) -> &K {
         &self.clock
     }
     fn memory(&self) -> &FakeMemory {
         &self.memory
     }
-    fn writer(&self) -> &ScriptedWriter {
+    fn writer(&self) -> &W {
         &self.writer
     }
     fn reader(&self) -> &ScriptedReader {

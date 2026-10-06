@@ -13,7 +13,8 @@ use crate::render::messages;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier};
 use companion_wire::{RouteLog, RouteNote};
 use docket_core::{CallRequest, Origin, PlannerView, ReaderAsk};
-use porter_client::{AnyTransport, Transport};
+use docket_dbus::InferLink;
+use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
 use porter_core::need::LlmNeed;
@@ -70,8 +71,8 @@ pub struct PlannerModel<P: Transport> {
     catalogue: Catalogue,
 }
 
-impl PlannerModel<AnyTransport> {
-    /// Asks inferd over the session bus (`AnyTransport::Dbus`). Nothing is called here: inferd is
+impl PlannerModel<InferLink> {
+    /// Asks inferd over the session bus (`InferLink`). Nothing is called here: inferd is
     /// found, and started by activation, at the first session.
     pub fn on_bus(connection: &docket_dbus::BusConnection) -> Self {
         Self::new(docket_dbus::inferd_transport(connection))

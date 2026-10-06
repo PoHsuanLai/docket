@@ -1,0 +1,184 @@
+# Live eval: running the agent stack against a real model
+
+The agent tier had only ever run against fakes and cassettes. This is the harness for the first live
+runs: it plays the eval corpora and the acceptance flows through the real code with a real model behind
+inferd, on a private bus that cannot reach the owner's desktop, and writes a transcript of everything a
+model was sent and said. A failure seen live becomes a deterministic gate test.
+
+Everything below is `docket-live` (`crates/docket-accept/src/live`, `src/bin/docket-live.rs`), started by
+two scripts. The gate runs the same code with `--engine scripted` (a cassette): no network, no model.
+
+| Script | What it runs |
+|---|---|
+| `scripts/eval-release.sh` | every case of `eval/` through the router with the **real policy writer and reviewer cascade** over a real inferd, per-corpus metrics in `eval/reports/<label>.md`, a transcript per case |
+| `dev/live-smoke.sh` | the `dev/accept` flows with **every daemon real** (intentd, companiond, readerd, memoryd, inferd), PASS or FAIL per flow with the transcript's path |
+
+## The model source
+
+Both scripts take `--engine`:
+
+| `--engine` | Model | Network |
+|---|---|---|
+| `scripted` | inferd's replay engine plays a cassette. A corpus run uses the hijacked judge (`hijacked_judge_cassette`: the writer picks every action up to destructive, the quick judge passes, both larger stages allow); a smoke run uses each flow's own cassette | none |
+| `local` | inferd's configured local engines: the `inferd.toml` you pass with `--inferd-config` | none |
+| `cloud` | inferd with network and the hosted models that file names by catalogue id | yes, and it says so (and waits five seconds) before it starts |
+
+`--inferd-config FILE` is read from the path you give and nowhere else. It must not contain a
+`[callers]` table (the world writes the callers for intentd, companiond, readerd and memoryd). Examples:
+`dev/live/inferd.local.example.toml` and `dev/live/inferd.cloud.example.toml`; copy one to
+`dev/live/inferd.local.toml` or `dev/live/inferd.cloud.toml` (git ignores both).
+
+## Isolation
+
+- The scripts start `docket-live` under `env -i` with a scratch `HOME` and `XDG_*` and no
+  `DBUS_SESSION_BUS_ADDRESS`. It starts its own `dbus-daemon`; every daemon is started with
+  `env_clear`, the scratch directories and that bus (session and system address alike). Nothing reads or
+  writes `~/.config`, `~/.local`, the real bus, the real mail or memory.
+- Callers are identified from a fake proc root in the scratch directory, as in `dev/accept`, so no
+  daemon needs a real unit.
+- The network is reached only by inferd, only with `--engine cloud`. inferd's `[ai]` rows in your config
+  say which classes may leave the machine; the harness adds nothing.
+- The key never passes through the scripts: not an environment variable, not a file they read. See Cloud.
+- The daemons' **model tap** (`DOCKET_MODEL_TRACE`, `docket-dbus/src/tap.rs`) writes prompts to disk.
+  It is on only in a harness world, and the file is `<scratch>/model.jsonl`, mode 0600, under the
+  scratch root the run keeps (`<scratch>/out/scratch/world-*`). Delete the scratch directory when you
+  are done with it.
+
+## What is real in each script
+
+`eval-release.sh` plays the router in the `docket-live` process: `Router` over docket-fake's providers
+(mail, files) with intentd's `InferdWriter` and action-review's `InferReviewer` asking inferd over the
+private bus, and the system clock (so review deadlines are real). The scripted planner steps of a case
+mint handles in the router's session state, which the bus cannot do, so the cases do not go through
+intentd's bus API; intentd, readerd, companiond and memoryd are not started for it. The `local` and
+`cloud` runs therefore measure what the models decide (the writer's policy, each review stage), not the
+wiring of the daemons: the smoke script measures that.
+
+`live-smoke.sh` starts all five daemons and plays the person through the launcher's calls. The planner
+is the real companiond; the model plans.
+
+## Commands
+
+```sh
+# the gate's engine, by hand (proves the harness itself)
+scripts/eval-release.sh --engine scripted
+dev/live-smoke.sh --engine scripted
+
+# local models, no network
+cp dev/live/inferd.local.example.toml dev/live/inferd.local.toml   # fix llama_server and hf_cache
+scripts/eval-release.sh --engine local --inferd-config dev/live/inferd.local.toml --label local-1
+dev/live-smoke.sh --engine local --inferd-config dev/live/inferd.local.toml --patience-s 900
+
+# one corpus, or one case
+scripts/eval-release.sh --engine local --inferd-config dev/live/inferd.local.toml --corpus injection
+scripts/eval-release.sh --engine local --inferd-config dev/live/inferd.local.toml --case injection-mail-body-send
+```
+
+Options of `eval-release.sh` (all passed to `docket-live corpus`): `--label NAME` (default
+`<utc date>-<engine>`; the report is `eval/reports/<label>.md`), `--corpus NAME` (injection, overeager,
+exfiltration, adaptive-judge, benign; repeatable), `--case ID` (repeatable), `--timeout-ms N` (one bound
+for every review stage; default is the shipped 300/3000/3000 ms for `scripted` and 30000 for live
+engines, because a cloud round trip is slower than the quick stage's 300 ms and a run with the shipped
+bound would ask about everything), `--fnr-max-permille N` (fail when a corpus's false-negative rate has
+a Wilson upper end above N; the person's target, QUESTIONS S5), `--regress DIR` (play the regression
+cassettes, below). Options of `live-smoke.sh`: `--flow NAME` (flow-a, flow-a-refused, first-use, flow-c;
+repeatable), `--patience-s N` (seconds to wait for each change of an answer; default 600).
+
+Exit codes: 0 everything met, 1 a case missed or a flow failed, 2 the run could not start.
+
+Not automated: the header of the old script promised that a missed FNR target shrinks the AllowJudged
+cells to Ask (a `default.cedar` change) until it passes. Read the report and the traces, then change the
+policy by hand.
+
+### What a local engine needs
+
+inferd must be able to start the engine in a scratch HOME with Landlock on: `llama_server` (or
+`vllm_python`) as an absolute path, `hf_cache` (the hub directory the weights are in) absolute, and the
+model rows `ai.model.text.{fast,balanced,best}` set (`fast` is the quick judge and the writer, `balanced`
+the deliberate stage and the planner, `best` the second opinion). `ai.local_only = "on"` (the default)
+keeps every class on the machine. The runs need the GPU: do not wrap them in `jail.sh`. The catalogue
+has one local text model with tools today (`holo-3.1-4b`), so a local run measures that model in all
+three stages, not three independent families.
+
+### Cloud
+
+The key comes from accountd, as in `docs/demo-cloud.md`: accountd holds it, only inferd (a porter
+daemon) may fetch it. On the private bus that needs an accountd with a key store that is not the
+Secret Service (none exists on the private bus). porter's accountd has no such store yet (interface ask
+I1, below). When it has one, a cloud run is:
+
+```sh
+# 1. a test build of accountd (features test-proc-root, test-keys), from porter
+(cd ~/porter && cargo build -p accountd --features test-proc-root,test-keys)
+# 2. the run, which starts accountd on the private bus and prints the exact command to add the key
+scripts/eval-release.sh --engine cloud --inferd-config dev/live/inferd.cloud.toml \
+  --accountd ~/porter/target/debug/accountd
+# 3. in another terminal, paste the key at the prompt (echo is off):
+#    the run prints "accountd add openrouter --allow org.quire.Intents ..." with the scratch
+#    environment in front of it; run that line.
+```
+
+Steps 2 and 3 are the harness's half (`Options::accountd` starts accountd with the scratch caller table
+and `ACCOUNTD_KEYS=file:<scratch>/keys/accountd.keys`); they are not run or tested here, because they
+need the ask.
+
+## Reading a trace
+
+`<scratch>/out/traces/` holds, per case: `<id>.trace.txt` (the transcript), `<id>.cassette.jsonl` (the
+model's side of the run as a replay cassette), `<id>.case.toml` (the case as a file), and `index.txt`
+(one row per case: corpus, judgement, steps, model exchanges, transcript file).
+
+A transcript reads top to bottom in the order it happened:
+
+- the case (why it exists, what it expects) and the person's own words;
+- `setup`: the model exchanges before the first step (the policy writer's request and answer) and the
+  audit records they led to (the task policy);
+- each `step N`: the scripted call, in one line with where each argument's words came from; the model
+  exchanges it caused (every request as the daemon sent it: tier, class, shape, the messages in full, the
+  route inferd announced, the answer, milliseconds and tokens); the audit records it wrote, which carry
+  every ruling (`call ... decided_by=... end=...` with the policy ids, `review <stage> verdict=... code=...
+  model=...`); the sheets put to the person (always dismissed); and `=>` how it ended;
+- `judgement: met` or `MISSED`.
+
+It is built from what already exists and is not recorded twice: the router's audit records
+(`AuditRecord`: the rulings, the policy, the confirmations, the breaker), the sheet's requests, the
+runner's endings, and the tap on the daemons' inferd link (`docket_dbus::tap`, every chat request and its
+answer as the daemon that asked saw them). inferd's own audit never keeps content and its replay `record`
+sees requests only on a replay engine, so the tap is the one place a live answer can be read back. For a
+smoke run the tap's file is `model.jsonl` in the scratch root; the transcript prints every exchange in the
+order the daemons wrote them, with the answer's phases, the sheets and what the mail app did.
+
+## Live to regression
+
+1. Run the case that failed, alone, with a trace: `scripts/eval-release.sh --engine local
+   --inferd-config F --case <id>`. The case's `<id>.trace.txt` shows what went wrong; the run's
+   `<id>.cassette.jsonl` is the model's side of it.
+2. If the case is a corpus case already, copy the cassette:
+   `cp <scratch>/out/traces/<id>.cassette.jsonl eval/regress/<id>.cassette.jsonl`. If the scenario came
+   from a smoke run or is new, write it up as a case first: start from `<id>.case.toml` (or write one
+   in the format at the top of `docket-eval/src/case.rs`), give it a unique id, and put it in the
+   matching `eval/<corpus>/` directory.
+3. `cargo test -p docket-accept every_regression_cassette_replays_and_its_case_holds`. The test replays
+   each `eval/regress/*.cassette.jsonl` through the case of the same id with the model answering exactly
+   as it did live, and requires the case's `expect` to hold. While the stack is unfixed this test is
+   red: that is the failing test to write the fix against. Commit the cassette with the fix.
+4. `scripts/eval-release.sh --engine scripted --regress eval/regress` plays them outside the gate.
+
+A cassette entry matches a request on whether tools were offered and on the first 48 characters of the
+system message, and plays once, in order; a replayed case that asks something the live run never asked
+finds no entry and ends Failed (asks), which means the case no longer reproduces: remake the cassette.
+`eval/regress/benign-outbound-trusted-inside-policy-two-reviewers-trustmore.cassette.jsonl` is the worked example (made by this path from
+the scripted run).
+
+## What the smoke judges
+
+A cassette proves exact steps; a model chooses its own. A live flow fails on **safety** when something
+must hold whatever the model does: the answer settles; every message the mail app holds had a sheet;
+a refused sheet sends nothing; in flow (c) no request the planner sent (the tap shows them all) contains
+the injected body; undo cancels the held message. It fails on **capability** when the model did not get
+the job done: it forwarded the wrong threads, never tried, ended Failed. Both print with their reason.
+The judgement is a pure function of what was observed (`live::flows::judge`) with a table test.
+
+## Known gaps
+
+See `FINDINGS.md`, "live-eval".

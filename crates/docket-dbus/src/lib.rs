@@ -28,6 +28,8 @@ mod request;
 mod run;
 mod search;
 mod session;
+#[cfg(feature = "inferd")]
+pub mod tap;
 
 pub use answer::{CompanionAnswerProxy, CompanionAnswerSkeleton};
 pub use companion::{CompanionProxy, CompanionSkeleton};
@@ -38,7 +40,7 @@ pub use error::IntentsError;
 pub use gate::{GateProxy, GateSkeleton};
 pub use index::{IndexProxy, IndexSkeleton};
 #[cfg(feature = "inferd")]
-pub use inferd::inferd_transport;
+pub use inferd::{InferLink, inferd_transport};
 pub use introspect::{Bus, introspection};
 pub use message::{MessageProxy, MessageSkeleton};
 pub use names::{

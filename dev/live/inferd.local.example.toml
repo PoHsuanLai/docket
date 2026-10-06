@@ -1,0 +1,25 @@
+# An inferd.toml for `--engine local`. Copy it to dev/live/inferd.local.toml (git ignores that),
+# fix the paths, and pass it with --inferd-config. It is read from the path you give and nowhere
+# else; the harness never opens ~/.config. It must not hold a [callers] table: the world writes the
+# callers (intentd, companiond, readerd, memoryd) itself.
+#
+# inferd runs in a scratch HOME, so every path is absolute.
+[engines]
+# llama.cpp's server, or vLLM's python: whichever serves the model's catalogue entry (the entry's
+# `engines` say which). A kind with no program here is not offered.
+llama_server = "/usr/bin/llama-server"
+# vllm_python = "/home/you/vllm/.venv/bin/python"
+# Where the weights are (the Hugging Face hub directory you downloaded into).
+hf_cache = "/mnt/data/hf/hub"
+
+[ai]
+local_only = "on"
+
+# The three reviewer tiers and the planner map to these rows: fast is the quick judge and the
+# policy writer, balanced the deliberate stage and the planner, best the second opinion.
+# The catalogue has one local text model with tools today (holo-3.1-4b), so all three are the same
+# model: a local run measures that model in every stage, not three independent families.
+[ai.model.text]
+fast = "local/holo-3.1-4b"
+balanced = "local/holo-3.1-4b"
+best = "local/holo-3.1-4b"

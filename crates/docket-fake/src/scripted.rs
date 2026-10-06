@@ -75,6 +75,18 @@ impl Confirmer for ScriptedConfirmer {
     }
 }
 
+/// A seam that keeps a record of what it was asked can drop it between two cases.
+pub trait Forget {
+    /// Forgets what was recorded.
+    fn forget(&self);
+}
+
+impl Forget for ScriptedReviewer {
+    fn forget(&self) {
+        self.clear();
+    }
+}
+
 /// What a scripted reviewer does once its queue is empty (or instead of one).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReviewMode {

@@ -8,15 +8,14 @@ use crate::planner::PlannerModel;
 use crate::runtime::Companiond;
 use crate::serve::serve_on;
 use docket_client::{DbusTransport, Intents};
-use docket_dbus::BusConnection;
+use docket_dbus::{BusConnection, InferLink};
 use docket_skills::{Roots, discover};
 use futures_util::StreamExt;
-use porter_client::AnyTransport;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// The companion as the daemon runs it: inferd and the router over the session bus.
-pub type Daemon = Companiond<AnyTransport, DbusTransport>;
+pub type Daemon = Companiond<InferLink, DbusTransport>;
 
 /// Builds the companion over `connection`, takes up what a restart finds in the eventlog (a
 /// router or memoryd that is not there yet leaves it with nothing to resume, never a failure) and

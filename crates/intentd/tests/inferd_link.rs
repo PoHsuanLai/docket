@@ -22,7 +22,7 @@ async fn the_link_is_the_dbus_transport_and_an_absent_inferd_is_unreachable() {
     let connection = bus.connect().await;
 
     let link = inferd_transport(&connection);
-    assert!(matches!(link, AnyTransport::Dbus(_)), "{link:?}");
+    assert!(matches!(link.inner(), AnyTransport::Dbus(_)), "{link:?}");
     let need = Need::Llm(LlmNeed {
         features: BTreeSet::from([LlmFeature::Chat]),
         context: Tokens(4096),

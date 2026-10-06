@@ -5,5 +5,6 @@
 pub mod confirm;
 pub mod drive;
 pub mod grants;
+pub mod live;
 pub mod provider;
 pub mod world;

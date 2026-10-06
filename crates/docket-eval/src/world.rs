@@ -4,12 +4,12 @@
 
 use crate::block::block_on;
 use crate::case::{Case, ConsentFixture, FixtureTask};
-use crate::runner::{Harness, maximal_policy};
+use crate::runner::{Harness, PolicyMode, Rig, maximal_policy};
 use docket_core::{
     ActionGrantKey, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget, IntentsReply,
     IntentsRequest, Keep, Origin, Reveal, SessionOpen, TurnIn, TurnVia,
 };
-use docket_fake::{FakeSeams, MailContact, MailThread};
+use docket_fake::{MailContact, MailThread};
 use docket_router::{HandleValue, Router, RouterState};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{AppId, AppName, DataClass, GrantId, Isolation};
@@ -32,7 +32,7 @@ pub(crate) struct Scene {
 }
 
 /// The state, even if a thread panicked while holding it.
-pub(crate) fn state_of(router: &Router<FakeSeams>) -> MutexGuard<'_, RouterState> {
+pub(crate) fn state_of<S: Rig>(router: &Router<S>) -> MutexGuard<'_, RouterState> {
     router
         .state
         .lock()
@@ -81,8 +81,8 @@ pub(crate) fn mail_label(in_space: SpaceId) -> Label {
     Label::untrusted(Source::Mail, DataClass::Mail, in_space)
 }
 
-fn install_world(case: &Case, router: &Router<FakeSeams>) {
-    let link = &router.seams.link;
+fn install_world<S: Rig>(case: &Case, router: &Router<S>) {
+    let link = router.seams.link();
     for m in &case.world.mail {
         link.mail.add_thread(MailThread {
             key: m.key.clone(),
@@ -105,7 +105,7 @@ fn install_world(case: &Case, router: &Router<FakeSeams>) {
 
 /// The person's standing consent: the companion may use every installed app, in the case's
 /// Space, always. It narrows nothing the gate decides: first use is not what a case tests.
-fn grant_consent(router: &Router<FakeSeams>, in_space: &SpaceId) -> Result<(), SetupFault> {
+fn grant_consent<S: Rig>(router: &Router<S>, in_space: &SpaceId) -> Result<(), SetupFault> {
     use docket_router::GrantStore;
     let mut apps: BTreeMap<AppName, BTreeSet<DataClass>> = BTreeMap::new();
     for m in state_of(router).registry.all() {
@@ -119,7 +119,7 @@ fn grant_consent(router: &Router<FakeSeams>, in_space: &SpaceId) -> Result<(), S
         for class in classes {
             for usage in [Usage::Interactive, Usage::Background] {
                 n += 1;
-                router.seams.grants.record(Grant {
+                router.seams.grants().record(Grant {
                     id: GrantId::parse(&format!("g-eval-{n}"))
                         .map_err(|_| SetupFault("a grant id"))?,
                     key: ActionGrantKey {
@@ -140,8 +140,8 @@ fn grant_consent(router: &Router<FakeSeams>, in_space: &SpaceId) -> Result<(), S
     Ok(())
 }
 
-fn open(
-    router: &Router<FakeSeams>,
+fn open<S: Rig>(
+    router: &Router<S>,
     in_space: &SpaceId,
     agent: AgentRef,
 ) -> Result<docket_core::SessionOpened, SetupFault> {
@@ -159,9 +159,9 @@ fn open(
     }
 }
 
-fn other_agents<'a>(
+fn other_agents<'a, S: Rig>(
     case: &'a Case,
-    router: &Router<FakeSeams>,
+    router: &Router<S>,
 ) -> Result<BTreeMap<AgentRef, (SessionId, &'a FixtureTask)>, SetupFault> {
     case.world
         .tasks
@@ -174,8 +174,8 @@ fn other_agents<'a>(
 }
 
 /// Mints `value` in `session`'s table, as the router would for something it showed a planner.
-pub(crate) fn hold(
-    router: &Router<FakeSeams>,
+pub(crate) fn hold<S: Rig>(
+    router: &Router<S>,
     session: &SessionId,
     value: HandleValue,
     label: Label,
@@ -187,7 +187,11 @@ pub(crate) fn hold(
 }
 
 /// Builds the case's world and returns what a running case needs of it.
-pub(crate) fn install(case: &Case, harness: &Harness) -> Result<Scene, SetupFault> {
+pub(crate) fn install<S: Rig>(
+    case: &Case,
+    harness: &Harness<S>,
+    mode: PolicyMode,
+) -> Result<Scene, SetupFault> {
     harness.reset();
     let router = &harness.router;
     install_world(case, router);
@@ -242,7 +246,9 @@ pub(crate) fn install(case: &Case, harness: &Harness) -> Result<Scene, SetupFaul
             return Err(SetupFault("a turn was not recorded"));
         }
     }
-    install_policy(router, &front.session, &case.space, front.task.clone());
+    if mode == PolicyMode::Maximal {
+        install_policy(router, &front.session, &case.space, front.task.clone());
+    }
     Ok(Scene {
         space: case.space.clone(),
         front: front.session,
@@ -252,8 +258,8 @@ pub(crate) fn install(case: &Case, harness: &Harness) -> Result<Scene, SetupFaul
 }
 
 /// The widest policy a writer could produce, stamped with the person's turns.
-fn install_policy(
-    router: &Router<FakeSeams>,
+fn install_policy<S: Rig>(
+    router: &Router<S>,
     session: &SessionId,
     in_space: &SpaceId,
     task: TaskId,

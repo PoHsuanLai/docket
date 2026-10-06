@@ -11,7 +11,8 @@ use docket_core::{
     ActionCard, ActionMatch, ActionRef, LabelText, PolicyWriter, ReviewError, TaskPolicy,
     TaskPolicyState, TrustedPattern, UserTurn, Value,
 };
-use porter_client::{AnyTransport, Transport};
+use docket_dbus::InferLink;
+use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
 use porter_core::need::LlmNeed;
@@ -48,7 +49,7 @@ impl<T: Transport> InferdWriter<T> {
     }
 }
 
-impl InferdWriter<AnyTransport> {
+impl InferdWriter<InferLink> {
     /// Asks inferd over the session bus.
     pub fn on_bus(connection: &docket_dbus::BusConnection) -> Self {
         Self::new(crate::infer::inferd_transport(connection))
@@ -275,8 +276,10 @@ fn policy_of(
             .filter_map(|p| docket_core::FileRef::parse(p.trim()).ok())
             .map(TrustedPattern::Under)
             .collect(),
-        // The router stamps the expiry.
-        expires: UnixSeconds(0),
+        // The router lowers this to now plus `task_policy_max` (`bound_policy` takes the
+        // smaller): a zero here would make every derived policy expired the moment a real clock
+        // reads past the epoch (found by the first live-eval run).
+        expires: UnixSeconds(i64::MAX),
         // The person's own last words, as the sheet will quote them.
         rationale: rationale_of(turns),
         state: TaskPolicyState::Active,

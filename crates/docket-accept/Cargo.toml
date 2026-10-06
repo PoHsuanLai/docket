@@ -28,13 +28,20 @@ path = "src/bin/accept-readerd.rs"
 name = "accept-quire-do"
 path = "src/bin/accept-quire-do.rs"
 
+[[bin]]
+name = "docket-live"
+path = "src/bin/docket-live.rs"
+
 [dependencies]
+action-review = { workspace = true }
 companion-wire = { workspace = true }
 companiond = { path = "../companiond" }
 docket-cli = { path = "../docket-cli" }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd"] }
+docket-eval = { workspace = true }
+docket-fake = { workspace = true }
 docket-router = { workspace = true }
 docket-testbus = { workspace = true }
 futures-util = { workspace = true }
@@ -42,10 +49,13 @@ intentd = { path = "../intentd" }
 readerd = { path = "../readerd" }
 almanac-core = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }
+porter-client = { workspace = true, features = ["dbus"] }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
 prov = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }
 toml = { workspace = true }

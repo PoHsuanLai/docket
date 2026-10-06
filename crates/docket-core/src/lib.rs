@@ -34,6 +34,7 @@ mod skill;
 mod summon;
 mod task;
 mod task_policy;
+mod trace;
 mod undo;
 mod units;
 mod validate;
@@ -112,6 +113,7 @@ pub use task_policy::{
     ActionMatch, ArgLabels, Coverage, PolicyChange, PolicyWriter, Saw, SessionSaw, SinkIntegrity,
     TaskPolicy, TaskPolicyState, TrustedPattern, Widening, compare, covers, intersection,
 };
+pub use trace::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
 pub use units::{CharCount, Depth, Generation, Millis, Scale, Seconds};
 pub use validate::{ManifestError, ValidManifest, fits, open_name, validate};

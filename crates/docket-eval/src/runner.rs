@@ -7,22 +7,63 @@
 
 use crate::case::{Case, CaseId, Corpus, Expect};
 use crate::steps::Player;
+use crate::trace::{CaseTrace, Cut};
 use crate::world::{install, state_of};
 use docket_core::{
-    ActionMatch, AgentConfig, AuditRecord, BreakerTrip, CallRefusal, LabelText, TaskPolicy,
-    TaskPolicyState,
+    ActionMatch, AgentConfig, AuditRecord, BreakerTrip, CallRefusal, LabelText, ModelExchange,
+    TaskPolicy, TaskPolicyState,
 };
-use docket_fake::{FakeError, FakeSeams, ScriptedWriter, fake_router};
-use docket_router::{Router, RouterState};
+use docket_fake::{
+    FakeError, FakeLink, FakeSeams, Forget, MemoryGrants, RecordingSink, ScriptedConfirmer,
+    ScriptedWriter, fake_router,
+};
+use docket_router::{Router, RouterState, Seams};
 use porter_core::Count;
 use prov::{Effect, InputProof, Integrity, SpaceId, TaskId, UnixSeconds};
 use serde::{Deserialize, Serialize};
 
-/// A router over the fakes with a hijacked judge and a maximal policy.
+/// What a harness can run cases over: a router whose apps, sheet, consent store and event log
+/// are the fakes (so a case can set its world up and read what happened), and whose reviewer can
+/// forget between cases. The reviewer, the writer and the clock are free: the gate's are
+/// scripted, a live run's are the real cascade and the real writer over inferd.
+pub trait Rig:
+    Seams<Link = FakeLink, Confirm = ScriptedConfirmer, Grants = MemoryGrants, Sink = RecordingSink>
+{
+    /// Drops what the reviewer recorded of the case before.
+    fn forget_reviews(&self);
+}
+
+impl<S> Rig for S
+where
+    S: Seams<
+            Link = FakeLink,
+            Confirm = ScriptedConfirmer,
+            Grants = MemoryGrants,
+            Sink = RecordingSink,
+        >,
+    S::Review: Forget,
+{
+    fn forget_reviews(&self) {
+        self.reviewer().forget();
+    }
+}
+
+/// Where a case's task policy comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PolicyMode {
+    /// The widest policy a writer could produce is installed on the session (the gate's
+    /// deterministic layers: nothing a writer says can matter).
+    Maximal,
+    /// The session starts with none: the router asks its writer, as it does for a person.
+    Written,
+}
+
+/// A router over the fakes (by default with a hijacked judge) and the cases' world.
 #[derive(Debug)]
-pub struct Harness {
+pub struct Harness<S: Rig = FakeSeams> {
     /// The router, with every fake reachable through `router.seams`.
-    pub router: Router<FakeSeams>,
+    pub router: Router<S>,
 }
 
 /// A policy that covers everything an app declares, up to destructive, in `space`: the widest
@@ -71,9 +112,19 @@ impl Harness {
     /// gives each case's session the maximal policy itself; [`Harness::maximal_writer`] is the
     /// same policy as a writer's result, for a test that wants the derivation path.
     pub fn new(config: AgentConfig) -> Result<Self, FakeError> {
-        Ok(Self {
-            router: fake_router(config)?,
-        })
+        Ok(Self::over(fake_router(config)?))
+    }
+
+    /// The writer the harness installs: the maximal policy for `space`, as a scripted result.
+    pub fn maximal_writer(space: SpaceId, task: TaskId) -> ScriptedWriter {
+        ScriptedWriter::returning(Ok(maximal_policy(space, task)))
+    }
+}
+
+impl<S: Rig> Harness<S> {
+    /// A harness over a router built with whatever reviewer, writer and clock a run wants.
+    pub fn over(router: Router<S>) -> Self {
+        Self { router }
     }
 
     /// Forgets everything a case left behind: the apps' data, the sheet, the reviewer's log, the
@@ -81,21 +132,16 @@ impl Harness {
     /// manifests stay.
     pub fn reset(&self) {
         let seams = &self.router.seams;
-        seams.link.mail.clear();
-        seams.link.files.clear();
-        seams.confirmer.clear();
-        seams.reviewer.clear();
-        seams.sink.clear();
-        seams.grants.clear();
+        seams.link().mail.clear();
+        seams.link().files.clear();
+        seams.confirmer().clear();
+        seams.forget_reviews();
+        seams.sink().clear();
+        seams.grants().clear();
         let mut st = state_of(&self.router);
         let registry = std::mem::take(&mut st.registry);
         *st = RouterState::new();
         st.registry = registry;
-    }
-
-    /// The writer the harness installs: the maximal policy for `space`, as a scripted result.
-    pub fn maximal_writer(space: SpaceId, task: TaskId) -> ScriptedWriter {
-        ScriptedWriter::returning(Ok(maximal_policy(space, task)))
     }
 }
 
@@ -195,16 +241,71 @@ pub fn judge(expect: &Expect, result: &CaseResult) -> Judgement {
     }
 }
 
+/// A moment of a running case that a watcher is told about.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Moment {
+    /// The world is built and the turns are recorded; no step has run.
+    Installed,
+    /// A step just ended.
+    Stepped,
+}
+
 /// Runs one case: installs its world in the fakes, plays the person's turns and the scripted
 /// steps through the router, and reports how each ended. A confirmation is answered with a
 /// dismissal, so a call that asks never goes through.
-pub fn run_case(case: &Case, harness: &Harness) -> CaseResult {
+pub fn run_case<S: Rig>(case: &Case, harness: &Harness<S>) -> CaseResult {
+    play(case, harness, PolicyMode::Maximal, &mut |_| ())
+}
+
+/// [`run_case`] with a policy `mode` and a record of what happened: the person's turns, each
+/// step as planned, every audit record and sheet it caused, and the model exchanges `drain`
+/// hands over once the world is built and again after each step (a live run drains its tap, so
+/// each exchange lands on the step that asked for it). The result is the one `run_case` gives.
+pub fn run_case_traced<S: Rig>(
+    case: &Case,
+    harness: &Harness<S>,
+    mode: PolicyMode,
+    drain: &mut impl FnMut() -> Vec<ModelExchange>,
+) -> (CaseResult, CaseTrace) {
+    let seams = &harness.router.seams;
+    let mut setup = Vec::new();
+    let mut installed = 0;
+    let mut cuts = Vec::new();
+    let result = play(case, harness, mode, &mut |moment| match moment {
+        Moment::Installed => {
+            installed = seams.sink().records().len();
+            setup = drain();
+        }
+        Moment::Stepped => cuts.push(Cut {
+            records: seams.sink().records().len(),
+            sheets: seams.confirmer().requests().len(),
+            exchanges: drain(),
+        }),
+    });
+    let records = seams.sink().records();
+    let sheets = seams.confirmer().requests();
+    let trace = CaseTrace::assemble(case, &result, (setup, installed), records, sheets, cuts);
+    (result, trace)
+}
+
+fn play<S: Rig>(
+    case: &Case,
+    harness: &Harness<S>,
+    mode: PolicyMode,
+    watch: &mut impl FnMut(Moment),
+) -> CaseResult {
     let router = &harness.router;
-    let steps = match install(case, harness) {
-        Ok(scene) => Player::new(router, case, &scene).play(),
-        Err(_) => vec![],
+    let steps = match install(case, harness, mode) {
+        Ok(scene) => {
+            watch(Moment::Installed);
+            Player::new(router, case, &scene).play(|_| watch(Moment::Stepped))
+        }
+        Err(_) => {
+            watch(Moment::Installed);
+            vec![]
+        }
     };
-    let records = router.seams.sink.records();
+    let records = router.seams.sink().records();
     let tripped = records.iter().rev().find_map(|r| match r {
         AuditRecord::Breaker { trip, .. } => Some(*trip),
         _ => None,

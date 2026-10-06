@@ -18,6 +18,8 @@ changed signatures the asks named and filled the two daemons' `main`.)
 | --- | --- | --- |
 | docket-ds `DsContextSource::snapshot` | 1 | fill wave 2 (quire apps): `ContextModel` to `Here`, `Selection`, `Visible` through `entity_ref`; a private window reports the app alone; password and PIN fields are never reported |
 
+| docket-eval runner and `scripts/eval-release.sh` | 0 | filled in live-eval (it was a script that exited 2, not a `todo!()`) |
+
 Total: 1. (voiced `serve` and the voiced binary closed in v-voiced, below: no stub is left in voiced.)
 
 ## Ignored tests
@@ -1260,3 +1262,47 @@ and missing inferd read as `Unavailable`, the need/class/tier asked) with `Scrip
 voice-chat contract (11c7a2e): voiced only drives the `Transcribe` path (16 kHz, EndOfAudio), so it needs no change;
 `RouteLog`/`footer_line` already handle two `Routed` per voice turn (each `Stage` clears the pending `Routed`), now
 pinned by `a_voice_turn_has_two_routed_and_one_answer_line` in companion-wire. `todo!()` counts unchanged.
+
+## live-eval: a harness for the first live runs
+
+`docs/live-eval.md` is the how-to. `todo!()` count: 0 before, 0 after (the release eval was a script that
+exited 2, not a `todo!()`).
+
+What it adds. `docket-live` (`crates/docket-accept/src/live`, bin `docket-live`) under
+`scripts/eval-release.sh` (corpora) and `dev/live-smoke.sh` (the dev/accept flows), `--engine
+scripted|local|cloud`, a private bus, scratch HOME and XDG, `env -i`, network only for `cloud`.
+- docket-fake: `FakeSeams<R, W, K>` (reviewer, writer, clock; defaults are the fakes), `fake_router_with`,
+  `Forget`. docket-eval: `Harness<S: Rig>`, `PolicyMode::{Maximal, Written}`, `run_case_traced`,
+  `CaseTrace` (rendering is pure; enums in serde slugs), `cassette_from`, `Tallies`/`Observed`,
+  `RunReport::render`; `block_on` now parks on the future's waker.
+- docket-dbus `tap`: every daemon's inferd link is `InferLink = Tapped<AnyTransport>`; with
+  `DOCKET_MODEL_TRACE=<file>` (harness worlds only) each chat request and answer is appended as a
+  `docket_core::ModelExchange` (messages in full, route notes, answer, ms, tokens). With the variable
+  unset nothing is copied. Reused for the trace: the router's audit records (rulings), the sheet's requests,
+  the runner's endings. Not reused: inferd's audit (no content) and its replay `record` (requests only, replay
+  engines only), hence the tap.
+- Live to regression: each case's trace dir holds `<id>.cassette.jsonl` and `<id>.case.toml`;
+  `eval/regress/<id>.cassette.jsonl` plus the corpus case of that id is replayed by
+  `every_regression_cassette_replays_and_its_case_holds`.
+
+Gaps and decisions.
+- Corpus cases play through the router in the `docket-live` process, not through intentd's bus: a hijacked
+  planner mints handles in router state, which the bus cannot do. The writer and the cascade are intentd's and
+  action-review's real code over a real inferd. The bus path (all daemons) is only the smoke flows.
+- Corpus size is 28 cases (injection 6, overeager 6+3 terminal, exfiltration 3, adaptive-judge 4, benign 4+2 cross-space);
+  with 6 injection cases, zero misses still has a Wilson upper end near 39%. No `UiSpoofing` cases exist. The planner is
+  scripted in corpus runs, so planner quality is measured only by the smoke flows (four of them; no terminal flow).
+- Approve rate is 0 (every sheet is dismissed). Stage latency is from the tap in ms (the router's own marks are whole seconds).
+- Cost per 1000 comes from inferd's `spend.json` (cloud accounts only; local is 0).
+- `local`: the catalogue has one local text model with tools (holo-3.1-4b), so all three stages are one model.
+- `cloud` is built but not run: accountd on a private bus has no key store (below). The auto-shrink of AllowJudged cells that the old
+  script header promised is not built; `--fnr-max-permille` only fails the run.
+- Not run here: `--engine local` and `--engine cloud` (no network, not our machine config). The gate runs `scripted` only.
+
+Interface asks.
+- I1 (porter, accountd): a file-backed key store for private-bus runs, as memoryd has: a `test-keys` feature and
+  `ACCOUNTD_KEYS=file:<path>` (accountd hard-codes `Oo7Secrets`, which needs a Secret Service). Also say where a scratch
+  accountd finds provider files (openrouter). Until then `--engine cloud` cannot hold a key.
+- I2 (porter, inferd): let `record` (or a new `tee`) capture the answers of a live engine, so the trace can be inferd's own view
+  and the tap in docket-dbus can go.
+- I3 (stoker): more local text models with tools, for three independent families.

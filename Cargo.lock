@@ -686,6 +686,7 @@ dependencies = [
 name = "docket-accept"
 version = "0.1.0"
 dependencies = [
+ "action-review",
  "almanac-client",
  "almanac-core",
  "companion-wire",
@@ -694,16 +695,21 @@ dependencies = [
  "docket-client",
  "docket-core",
  "docket-dbus",
+ "docket-eval",
+ "docket-fake",
  "docket-router",
  "docket-testbus",
  "futures-util",
  "intentd",
+ "porter-client",
  "porter-core",
  "porter-infer",
  "prov",
  "readerd",
+ "serde",
  "serde_json",
  "tempfile",
+ "thiserror",
  "tokio",
  "toml",
  "zbus",
@@ -776,8 +782,12 @@ version = "0.1.0"
 dependencies = [
  "docket-core",
  "porter-client",
+ "porter-core",
  "porter-dbus",
+ "porter-infer",
  "prov",
+ "serde",
+ "serde_json",
  "thiserror",
  "zbus",
 ]

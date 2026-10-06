@@ -47,6 +47,75 @@ pub struct Binaries {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cassette(pub &'static str);
 
+/// Where the model's answers come from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ModelSource {
+    /// inferd's replay engine plays this cassette (the text of a `.jsonl` file).
+    Scripted(String),
+    /// A real engine: this is the body of an `inferd.toml` (engines, `[ai]` rows) the owner wrote.
+    /// The world appends the `[callers.apps]` table, so the body must not hold one.
+    Live(String),
+}
+
+/// What a world does besides what its model source says.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Options {
+    /// Where the scratch root is made, and kept when the run ends (a live run's traces live in
+    /// it). Absent: a temporary directory that goes with the world.
+    pub keep_in: Option<PathBuf>,
+    /// Turn on the model tap in every daemon (`DOCKET_MODEL_TRACE`): every request a daemon
+    /// sends a model and its answer, appended to `<scratch>/model.jsonl`. THIS WRITES PROMPTS TO
+    /// DISK, in the scratch root.
+    pub tap: TapMode,
+    /// The accountd binary to run on the private bus (a cloud run's key store): a build with the
+    /// `test-proc-root` and `test-keys` features, as `ACCEPT_ACCOUNTD` names it.
+    pub accountd: Option<PathBuf>,
+}
+
+/// Whether the daemons tap their model link.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum TapMode {
+    /// No daemon keeps a copy of any prompt.
+    #[default]
+    Off,
+    /// Every daemon appends its exchanges to the scratch root's `model.jsonl`.
+    On,
+}
+
+/// A scratch root: temporary, or kept where the run was told to leave it.
+#[derive(Debug)]
+pub struct Scratch {
+    path: PathBuf,
+    _owned: Option<tempfile::TempDir>,
+}
+
+impl Scratch {
+    pub(crate) fn made(keep_in: Option<&Path>) -> std::io::Result<Self> {
+        match keep_in {
+            Some(root) => {
+                std::fs::create_dir_all(root)?;
+                let dir = tempfile::Builder::new().prefix("world-").tempdir_in(root)?;
+                Ok(Self {
+                    path: dir.keep(),
+                    _owned: None,
+                })
+            }
+            None => {
+                let dir = tempfile::tempdir()?;
+                Ok(Self {
+                    path: dir.path().to_owned(),
+                    _owned: Some(dir),
+                })
+            }
+        }
+    }
+
+    /// The root.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
 /// What a world starts with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Consent {
@@ -71,7 +140,7 @@ pub struct World {
     pub sill: zbus::Connection,
     _helpers: Vec<zbus::Connection>,
     /// The scratch root.
-    pub dir: tempfile::TempDir,
+    pub dir: Scratch,
     bus: PrivateBus,
 }
 
@@ -81,7 +150,7 @@ impl std::fmt::Debug for World {
     }
 }
 
-fn env_of(dir: &Path) -> Vec<(&'static str, String)> {
+pub(crate) fn env_of(dir: &Path) -> Vec<(&'static str, String)> {
     let at = |p: &str| dir.join(p).display().to_string();
     vec![
         ("HOME", dir.display().to_string()),
@@ -108,6 +177,15 @@ fn extra_env(dir: &Path, name: &str) -> Vec<(&'static str, String)> {
             ("MEMORYD_PROC_ROOT", proc_root),
         ],
         "inferd" => vec![("INFERD_PROC_ROOT", proc_root)],
+        // A cloud run's key store: its caller table is the scratch one, and its keys a file in
+        // the scratch root (a build with the `test-keys` feature; see docs/live-eval.md).
+        "accountd" => vec![
+            (
+                "ACCOUNTD_KEYS",
+                format!("file:{}", dir.join("keys/accountd.keys").display()),
+            ),
+            ("ACCOUNTD_PROC_ROOT", proc_root),
+        ],
         // intentd and companiond tell a terminal from its cgroup, read from the scratch root.
         "intentd" => vec![("INTENTD_PROC_ROOT", proc_root)],
         "companiond" => vec![("COMPANIOND_PROC_ROOT", proc_root)],
@@ -143,17 +221,33 @@ pub fn place(root: &Path, pid: u32, cgroup: Cgroup<'_>) {
     write(&root.join(format!("proc/{pid}/cgroup")), &cgroup.line());
 }
 
-/// inferd's configuration: the replay engine `scripted` playing the scratch cassette (recording
-/// its requests when `record` names a file), and the callers by unit, as `inferd.toml` names them.
-fn inferd_toml(root: &Path, record: Option<&Path>) -> String {
-    let record = record
-        .map(|p| format!("record = {:?}\n", p.display().to_string()))
-        .unwrap_or_default();
-    format!(
-        "[engines.scripted]\nreplay = {:?}\n{record}\n[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n",
-        root.join("cassette.jsonl").display().to_string(),
-    )
+const CALLERS: &str = "[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
+
+/// inferd's configuration. A cassette: the replay engine `scripted` playing the scratch cassette
+/// (recording its requests when `record` names a file). A live source: the owner's body as it is.
+/// Either way, then the callers by unit, as `inferd.toml` names them.
+pub fn inferd_toml(root: &Path, model: &ModelSource, record: Option<&Path>) -> String {
+    let engines = match model {
+        ModelSource::Scripted(_) => {
+            let record = record
+                .map(|p| format!("record = {:?}\n", p.display().to_string()))
+                .unwrap_or_default();
+            format!(
+                "[engines.scripted]\nreplay = {:?}\n{record}\n",
+                root.join("cassette.jsonl").display().to_string()
+            )
+        }
+        ModelSource::Live(body) => format!("{body}\n"),
+    };
+    format!("{engines}{CALLERS}")
 }
+
+/// accountd's caller table for a cloud run: inferd is the one porter daemon, and may resolve keys.
+pub(crate) const ACCOUNTD_CALLERS: &str = r#"[[caller]]
+app = "org.quire.Inference"
+unit = "inferd.service"
+role = "porter_daemon"
+"#;
 
 /// memoryd's callers file: the units that may call it, with the roles the router and the shell
 /// are told apart by. The shell has both rows (sill.service, or the scope sill-session starts);
@@ -184,11 +278,12 @@ unit = "readerd.service"
 role = "agent"
 "#;
 
-fn spawn(
+pub(crate) fn spawn(
     dir: &Path,
     bus: &str,
     name: &'static str,
     binary: &Path,
+    tap: Option<&Path>,
 ) -> std::io::Result<(&'static str, Reaped)> {
     let log = std::fs::File::create(dir.join("logs").join(format!("{name}.log")))?;
     let mut command = Command::new(binary);
@@ -198,6 +293,7 @@ fn spawn(
         .envs(extra_env(dir, name))
         .env("DBUS_SESSION_BUS_ADDRESS", bus)
         .env("DBUS_SYSTEM_BUS_ADDRESS", bus)
+        .envs(tap.map(|file| (docket_dbus::tap::TRACE_VAR, file.to_owned())))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::from(log));
@@ -232,7 +328,7 @@ pub async fn until_owned(connection: &zbus::Connection, name: &str) {
         .unwrap_or_else(|_| panic!("{name} never appeared on the bus"));
 }
 
-fn write(path: &Path, text: &str) {
+pub(crate) fn write(path: &Path, text: &str) {
     std::fs::create_dir_all(path.parent().expect("a parent")).expect("dirs");
     std::fs::write(path, text).expect("file");
 }
@@ -258,7 +354,19 @@ impl World {
     /// Starts everything, in dependency order: the bus, sill, inferd (replaying `cassette`),
     /// memoryd, intentd (with the mail manifest installed), the mail provider, readerd, companiond.
     pub async fn start(binaries: &Binaries, consent: Consent, cassette: Cassette) -> World {
-        let dir = tempfile::tempdir().expect("scratch");
+        let model = ModelSource::Scripted(cassette.0.to_owned());
+        World::start_model(binaries, consent, &model, &Options::default()).await
+    }
+
+    /// [`World::start`] with any model source and options: a cassette or a real engine, the
+    /// scratch root kept or not, the daemons' model tap on or off.
+    pub async fn start_model(
+        binaries: &Binaries,
+        consent: Consent,
+        model: &ModelSource,
+        options: &Options,
+    ) -> World {
+        let dir = Scratch::made(options.keep_in.as_deref()).expect("scratch");
         let root = dir.path();
         for sub in ["logs", "data", "config", "cache", "run"] {
             std::fs::create_dir_all(root.join(sub)).expect("dirs");
@@ -284,10 +392,12 @@ impl World {
             MEMORY_CALLERS,
         );
         write(&root.join("data/quire/memory/spaces.toml"), SPACES);
-        write(&root.join("cassette.jsonl"), cassette.0);
+        if let ModelSource::Scripted(cassette) = model {
+            write(&root.join("cassette.jsonl"), cassette);
+        }
         write(
             &root.join("config/quire/inferd.toml"),
-            &inferd_toml(root, record.as_deref()),
+            &inferd_toml(root, model, record.as_deref()),
         );
         write(
             &root.join("data/quire/intents/org.quire.Mail.toml"),
@@ -300,13 +410,22 @@ impl World {
             );
         }
 
+        let tap = match options.tap {
+            TapMode::On => Some(root.join("model.jsonl")),
+            TapMode::Off => None,
+        };
         let mut daemons = Vec::new();
         let mut start = async |name: &'static str, binary: &Path, owns: &str| {
-            let daemon = spawn(root, &address, name, binary).expect("daemon starts");
+            let daemon =
+                spawn(root, &address, name, binary, tap.as_deref()).expect("daemon starts");
             place(root, daemon.1.pid(), Cgroup::Unit(name));
             daemons.push(daemon);
             until_owned(&sill, owns).await;
         };
+        if let Some(accountd) = &options.accountd {
+            write(&root.join("config/porter/callers.toml"), ACCOUNTD_CALLERS);
+            start("accountd", accountd, "org.quire.Accounts1").await;
+        }
         start("inferd", &binaries.inferd, "org.quire.Inference1").await;
         start("memoryd", &binaries.memoryd, "org.quire.Memory1").await;
         start("intentd", &binaries.intentd, "org.quire.Intents1").await;

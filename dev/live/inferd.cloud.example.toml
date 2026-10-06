@@ -1,0 +1,24 @@
+# An inferd.toml for `--engine cloud`. Copy it to dev/live/inferd.cloud.toml (git ignores that) and
+# pass it with --inferd-config. No key is in it or may be: inferd gets the key from accountd on the
+# private bus (docs/live-eval.md, "Cloud"). It must not hold a [callers] table.
+[ai]
+# Prompts may leave this computer. The writer, the reviewers and the planner send the class
+# `prompt`; the reader sends `mail`, so a live smoke of flow-c needs `mail` floored too (leave it
+# out to keep mail on this computer: the reader then fails and the flow reports it).
+local_only = "off"
+
+[ai.floor]
+prompt = "anywhere"
+# mail = "anywhere"
+
+# Three families, so the second opinion is independent of the first two. Ids are entries of
+# ~/stoker/catalog (the file's own `id`); the account must reach them.
+[ai.model.text]
+fast = "cloud/gemini-3.8-flash"
+balanced = "cloud/claude-haiku-4.5"
+best = "cloud/gpt-6-luna"
+
+# A cap stops a runaway run: cents per day, on the account and on the app.
+[ai.spend]
+account_daily_cents = 500
+app_daily_cents = 500

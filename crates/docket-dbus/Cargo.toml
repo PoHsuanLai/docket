@@ -13,12 +13,17 @@ docket-core = { workspace = true }
 prov = { workspace = true }
 porter-dbus = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"], optional = true }
+porter-core = { workspace = true, optional = true }
+porter-infer = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 zbus = { workspace = true }
 thiserror = { workspace = true }
 
 [features]
-# `inferd_transport`: the one place a daemon makes its inferd link (intentd, companiond, readerd).
-inferd = ["dep:porter-client"]
+# `inferd_transport`: the one place a daemon makes its inferd link (intentd, companiond, readerd),
+# and the tap on it that a live run turns on (`tap`).
+inferd = ["dep:porter-client", "dep:porter-core", "dep:porter-infer", "dep:serde", "dep:serde_json"]
 
 [lints]
 workspace = true

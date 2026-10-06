@@ -69,3 +69,7 @@ FINDINGS "f4-e2e-3" for the ask to the mailo session. The stand-in stays the onl
 
 See FINDINGS.md, "f4-e2e acceptance". Finding 1 (the plan card and `NeedsYou(Confirm)`) is fixed and tested by
 `flow_a_the_answer_shows_the_sheet_while_it_waits`.
+
+## Against a real model
+
+`dev/live-smoke.sh --engine local|cloud` plays these flows with a real model instead of the cassettes, judged on safety and capability (`docs/live-eval.md`).

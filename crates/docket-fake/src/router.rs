@@ -9,8 +9,9 @@ use crate::scripted::{
 };
 use crate::seams::{FakeLink, FakeSeams};
 use crate::simple::{MemoryGrants, RecordingSink};
-use docket_core::{AgentConfig, ValidManifest};
-use docket_router::{Registry, RegistryError, Router, parse};
+use action_review::Reviewer;
+use docket_core::{AgentConfig, PolicyWriter, ValidManifest};
+use docket_router::{Clock, Registry, RegistryError, Router, parse};
 use policy_point::{Pdp, PolicyError};
 use prov::{SpaceId, UnixSeconds};
 
@@ -82,6 +83,22 @@ pub fn install_menu(router: &Router<FakeSeams>) -> Result<(), RegistryError> {
 /// writer that fails (no task policy), and the clock at the epoch. Tests replace what they
 /// need through `router.seams`.
 pub fn fake_router(config: AgentConfig) -> Result<Router<FakeSeams>, FakeError> {
+    fake_router_with(
+        config,
+        ScriptedReviewer::always_allow(),
+        ScriptedWriter::failing(),
+        FixedClock::at(UnixSeconds(0)),
+    )
+}
+
+/// [`fake_router`] with this reviewer, writer and clock in place of the fakes: what a live run
+/// builds, with the real cascade and the real writer over inferd.
+pub fn fake_router_with<R: Reviewer, W: PolicyWriter, K: Clock>(
+    config: AgentConfig,
+    reviewer: R,
+    writer: W,
+    clock: K,
+) -> Result<Router<FakeSeams<R, W, K>>, FakeError> {
     let space = SpaceId::parse("work").map_err(|_| FakeError::Space)?;
     let mail = mail_manifest().map_err(FakeError::Manifest)?;
     let files = files_manifest().map_err(FakeError::Manifest)?;
@@ -93,12 +110,12 @@ pub fn fake_router(config: AgentConfig) -> Result<Router<FakeSeams>, FakeError> 
             FakeMenu::new(menu),
         ),
         confirmer: ScriptedConfirmer::default(),
-        reviewer: ScriptedReviewer::always_allow(),
+        reviewer,
         grants: MemoryGrants::new(),
         sink: RecordingSink::new(),
-        clock: FixedClock::at(UnixSeconds(0)),
+        clock,
         memory: FakeMemory::default(),
-        writer: ScriptedWriter::failing(),
+        writer,
         reader: ScriptedReader::default(),
     };
     let pdp = Pdp::standard().map_err(FakeError::Policy)?;
