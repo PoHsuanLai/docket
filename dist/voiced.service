@@ -1,6 +1,8 @@
-# Skeleton of voiced's systemd user unit. It has no [Install] section on purpose: the binary is a
-# skeleton that exits 2, so beta must not enable or start it. It captures audio only between
-# Begin and Release, holds no files and no network. Each sandbox line says what it protects.
+# voiced's systemd user unit. It has no [Install] section on purpose: the owner has not said it
+# may start with the session yet (voice.md section 5: nothing opens the microphone but a hold),
+# so `systemctl --user enable` has nothing to enable; start it by hand or by bus activation once
+# a dbus service file is added. It captures audio only between Begin and the end of the tail,
+# holds no files and no network. Each sandbox line says what it protects.
 [Unit]
 Description=Quire voice daemon (org.quire.Voice1)
 
@@ -15,8 +17,14 @@ ExecStart=/usr/libexec/quire/voiced --config /etc/quire/voiced.toml
 # PrivateNetwork=yes below does not cut it off.)
 RestrictAddressFamilies=AF_UNIX
 PrivateNetwork=yes
-# The person's files are out of reach: voiced never reads or writes them, and records no audio.
-ProtectHome=yes
+# The person's files are out of reach: voiced never writes them and records no audio. /home, /root
+# and /run/user are empty tmpfs; only three paths are bound back in, read-only: the session bus
+# and the PipeWire socket (a socket connects through a read-only bind) and sill's settings
+# directory, where `voice.consent` says whether the mic may open at all.
+ProtectHome=tmpfs
+BindReadOnlyPaths=%t/bus
+BindReadOnlyPaths=%t/pipewire-0
+BindReadOnlyPaths=-%h/.config/sill
 # The whole file system is read-only; nothing is writable (audio is never stored).
 ProtectSystem=strict
 ReadWritePaths=

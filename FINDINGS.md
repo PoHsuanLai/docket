@@ -4,7 +4,7 @@ Open items and standing facts. An entry names the condition that closes it. Afte
 the docket amendment, the intentd bus fill (F3), the w4-companion fill (the persistent companion,
 the MCP edge), the w4-docket fill (the audit trail, the built-in providers, the inferd bodies, the
 signals), the w5-docket fill (the reader's session, the gate's watch, the companion's asks, the
-daemons' binaries) and the f4-docket fill (the MCP binary, the watched perform, the resolver seam) there are **2 `todo!()` bodies** in library and daemon code, listed below; the tests contain
+daemons' binaries) and the f4-docket fill (the MCP binary, the watched perform, the resolver seam) there is **1 `todo!()` body** in library and daemon code (the voice wave's v-voiced lane filled the other: `voiced::serve`), listed below; the tests contain
 none, and no test is `#[ignore]`d. (The freeze had 37: `agent_step` was filled in fill wave 1; F3 filled
 `DbusTransport::call`, `docket_client::serve`, `DbusLink`, `SheetConfirmer`, `FileGrants` and intentd's
 `serve` and `main`; w4-companion filled companiond and `McpEdge::call`; w4-docket filled `record_of`,
@@ -17,10 +17,8 @@ changed signatures the asks named and filled the two daemons' `main`.)
 | Where | Count | Closes when |
 | --- | --- | --- |
 | docket-ds `DsContextSource::snapshot` | 1 | fill wave 2 (quire apps): `ContextModel` to `Here`, `Selection`, `Visible` through `entity_ref`; a private window reports the app alone; password and PIN fields are never reported |
-| voiced `serve` | 1 | fill wave 2, after the PipeWire line (spike V-A): `Begin` from the shell role only, capture through `choose_capture`, unicast signals, an inferd session through porter-client |
-| voiced binary | | a skeleton that exits 2 while `serve` is a stub. intentd, companiond and readerd serve |
 
-Total: 1 + 1 = 2.
+Total: 1. (voiced `serve` and the voiced binary closed in v-voiced, below: no stub is left in voiced.)
 
 ## Ignored tests
 
@@ -890,8 +888,9 @@ What landed: the skills format, discovery, validation and the three places they 
   action fails; an action Hidden from the companion is a note.
 - **`quire-do skills`** lists the installed skills from `$XDG_DATA_*`, each marked offered, hidden (missing action,
   with which) or not offered (Hidden action), plus directories that did not load. It needs intentd for the manifests.
-- **voiced.service** lost its `[Install]` section: voiced is a skeleton that exits 2, so `systemctl --user enable`
-  must not start it at login in beta. Put the section back when `serve` is filled.
+- **voiced.service** lost its `[Install]` section: voiced was a skeleton that exits 2, so `systemctl --user enable`
+  must not start it at login in beta. `serve` is filled now (v-voiced), but the section stays out until the owner
+  says the daemon may start with the session.
 
 ## f4-settings: the settings schema and its reader
 
@@ -1127,3 +1126,116 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
 4. **Declined.** `PlanFault::Declined` (no longer `Copy`): a `Declined` event before `Finished(Refused)` makes the task's
    refusal `Failed("Kimi K2.6 cannot answer: it is not installed on this computer.")` (`declined_text`).
 5. Needs porter at f34da56 or later (`Why::Reached`, `Stage`). The workspace paths point at `../porter`.
+
+## v-voiced: spike V-A and the voiced daemon (voice wave, F2)
+
+Closes the voiced rows of the todo table: `voiced::serve` is filled and the binary serves instead of exiting 2.
+`todo!()` in voiced, voice-loop and voice-wire: 1 before, 0 after.
+
+### Spike V-A (PipeWire), by hand
+
+- **Builds and licenses.** `pipewire = "0.10"` (0.10.1, with libspa 0.10.1, pipewire-sys and libspa-sys 0.10.1; all
+  MIT) builds here against the system libpipewire 1.6.9 (`pipewire-devel`) and needs `libclang` for bindgen
+  (`clang` is installed). `cargo deny check licenses` passes with it; the workspace line is in `Cargo.toml` and only
+  voiced takes it (`check-boundary.sh` allows `porter-dbus` and `speech-provider` for voiced and still forbids
+  `pipewire` everywhere else). No fallback to libpulse was needed.
+- **Listing, read-only, run on this machine** (`dev/voice-capture-try.sh list`; it opens no stream): the registry
+  shows three `Audio/Sink` nodes (SPDIF, Speaker, Headphones) and two `Audio/Source` nodes on the USB audio device
+  (`...HiFi__Line__source`, `...HiFi__Mic__source`). `choose_capture` picked the **Line** source, the first it met:
+  see the open question below.
+- **Not yet run, owner's by-hand step**: `dev/voice-capture-try.sh capture 5` (opens the real microphone: 16 kHz
+  mono S16 through PipeWire's adapter, frame sizes, widest gap between frames, peak level, and that monitor and sink
+  nodes are refused) and `dev/voice-capture-try.sh play` (a tone at 24 kHz). Send the output back; the jitter and
+  the adapter's frame size are the two numbers this spike was meant to measure. voiced asks for `node.latency =
+  512/16000` (32 ms, one `Level` per frame) and treats the stream as dead if it does not reach Streaming in 2 s.
+- **Refusal of monitors** is in three places: `kind_of` classifies `Audio/Source` nodes named `*.monitor` and
+  `Audio/Source/Virtual` as `Monitor`; `choose_capture` takes `Source` with class `Audio/Source` only; `open_capture`
+  refuses any node that is not a `Source` before it connects. A test per layer.
+- Unit file: the sandbox is unchanged except `ProtectHome=tmpfs` with read-only binds of `%t/bus`, `%t/pipewire-0`
+  and `%h/.config/sill` (the bus and PipeWire sockets would otherwise sit under the `/run/user` that `ProtectHome=yes`
+  hides). `MemoryDenyWriteExecute=yes` and `LimitMEMLOCK=0` are kept; if PipeWire's client library needs either
+  relaxed, the by-hand run will say (a failed `mlock` is logged, not fatal). Still no `[Install]`.
+
+### What `serve` does
+
+- `voiced::start(connection, config, Seams)` registers `org.quire.Voice1` (root, then per-utterance and per-speech
+  objects) and starts the loop; `serve(config, device)` is `start` over the session bus with `DbusTransport`,
+  `BusWarm` and `FileUse`, and runs until the bus closes. `Seams` holds the device, the inferd transport, the
+  warmer, the consent source and the `/proc` root: the tests serve the whole daemon on a private bus with a scripted
+  device and porter-fake's `FakeInferSession`.
+- **Roles from the connection.** `peer.rs` takes the well-known names a connection owns (`ListNames` plus
+  `GetNameOwner`, the same user by `GetConnectionCredentials`) and, if it owns none, the app scope its cgroup names
+  (`porter_dbus::ProcCallers`, `/proc/<pid>/cgroup` only). `shell` is any connection that owns a name listed under
+  `shell` in `voiced.toml`; `app` is never derived, it is whoever owns the name a `Route` names (`GetNameOwner`).
+- **One loop, two pure machines.** Every command, capture frame, inferd event and playback report is an input to one
+  task that runs `utterance_step` and `speech_step` and carries out their effects. Slow things run elsewhere and come
+  back as events: the inferd session (`link.rs`), `Prepare`, playback (`playback.rs`) and each PipeWire stream (its
+  own thread). The mic is dropped exactly when the machine says `CloseMic`.
+- **No clock in the machine.** The 250 ms tail is counted in capture samples (4000), not in wall time, so a test
+  feeds frames and nothing sleeps. Buffered audio (engine cold) is the 10 s `PcmBuffer`, flushed in order when the
+  session is ready, in frames of at most one second; past ten seconds the oldest goes (voice.md section 4.2).
+- **Signals.** `Ended` and `Finished` are unicast (`set_destination`) to the Begin caller and the attached app, and
+  the requester; `Ended` carries the end with `Heard` text emptied. `StatusChanged` is broadcast, content-free. The
+  event fds carry the text; nothing carries audio. A test asserts a bystander is sent neither.
+- **Dictation** ends by itself on 30 s of silence (`EnergyGate` + `endpoint` from speech-vad, `EndpointSilence`,
+  the existing machine row); an Ask never does.
+- **Bodies.** Voice1 bodies are `voice_wire::Envelope { vocab, body }` JSON in `s`; a foreign vocabulary or bad JSON
+  is `org.quire.Voice1.Error.Malformed`. The refusals are `VoiceRefusal`'s error names, one to one. The event fd frame
+  is a 4-byte big-endian length then the envelope (porter-core's framing with `VoiceVocab`). `wire::{seal, frame,
+  unframe}` are exported for sill's client.
+- Earcons: a two-note blip generated in integers (`earcon_samples`), played on its own stream at 24 kHz when
+  `earcons = "on"`.
+
+### Interface notes and asks
+
+1. **`CaptureStream: Send + Sync`** (was `Send`) and **`serve<D: AudioDevice + 'static>`**: the loop holds the
+   stream across awaits in a spawned task. Every implementor in this repo already meets both.
+2. **porter, `Transport::prepare`** (ask): `porter-client`'s `Transport` has `open` but no `prepare`, so `Voice1.Prepare`
+   calls `Inference1.Prepare` through `porter_dbus::InferenceProxy` in `BusWarm`. Wanted: `fn prepare(&self, need:
+   &Need, class: DataClass, tier: Tier, options: &OpenOptions) -> impl Future<Output = Result<Readiness,
+   TransportError>>` on `Transport`, so voiced drops its porter-dbus use for this. Nothing else is asked of porter:
+   `Transcribe`, `Speak`, `Audio`, `EndOfAudio`, `Heard`, `Spoken` and `Readiness` are all there, and the fake scripts
+   them.
+3. **sill, the consent source** (ask): voiced decides `VoiceUse` per call by reading sill's `settings.toml` (the
+   unit binds `%h/.config/sill` read-only). It reads the `[voice]` table: `hold_to_talk = "off"` is Off; `consent =
+   "given"` (or a `[voice.consent] given = <unix seconds>` table) is On; `"declined"` is Off; anything else, a missing
+   file included, is NeedsConsent. sill's settings crate should write exactly that (the encoding of `VoiceConsent`
+   was not frozen), or say another and voiced changes `use_of_settings`. If sill would rather push consent, the XML
+   needs a shell-only `SetUse` member: say so and it is added with its introspection test.
+4. **sill, the shell side of `Begin`** (ask): body is `Envelope<VoiceBegin>`; the reply is the utterance path and an
+   fd of length-prefixed `Envelope<VoiceEvent>` frames; the shell must hold a bus name listed under `shell` in
+   `voiced.toml` (`org.quire.Shell` in `dist/voiced.toml`). `Release` ends the hold; the daemon keeps the mic 250 ms
+   of captured audio longer; the shell cancels with `Cancel` (cause `Shell`: sill has no way to send `Escape` or
+   `OtherInput`, which are the causes its hold machine produces: either `Cancel` grows a cause argument, or sill maps
+   both to `Shell`; the transcript is discarded either way). Refusals come as errors named `org.quire.Voice1.Error.*`
+   (`NeedsConsent` is the cue for the consent sheet; `MicUnavailable` before anything opens when there is no physical
+   source). sill must subscribe to `Ended` and `Finished` before calling (unicast, nothing is replayed).
+5. **The consent sheet** is sill's alone; voiced only refuses with `NeedsConsent` and never opens the mic first.
+
+### Decisions beyond the spec
+
+- A `Begin` with no physical source is refused `MicUnavailable` before the machine runs; a source that fails to open
+  is `Ended(Failed(MicUnavailable | MicDenied))` as the machine says.
+- `Cancel` from the attached app is cause `FocusLost`; from the Begin caller `Shell`.
+- An old utterance's object is removed from the bus when the next `Begin` happens, so a late `Release` on it is an
+  unknown-object error, not a way to touch the new mic. Finished speech objects go when the next `Speak` is made.
+- Tier is `Balanced` for both speech needs until the settings name another (`ai.model.speech_in.<tier>`).
+- Merged speak requests (one made while another plays) finish together; a second one made while the mic is open or
+  speech is stopping replaces the waiting one (depth one, the machine's rule) and the replaced one finishes `Hushed`.
+
+### Open questions for the owner
+
+- `choose_capture` takes the first `Audio/Source`; on this machine that is the **Line** input of the USB card, not
+  its Mic. Should voiced follow PipeWire's default source (`default.audio.source` in the metadata object), or a
+  `voice.input` setting by node name? Until then the dev script prints what would be captured.
+- `voiced.service` needs `[Install]` (or a dbus activation file) when voice goes live: your word.
+
+### Tests added
+
+voiced: 20 in `tests/serve.rs` (who may begin, consent and monitor refusal, denied mic, the full hold with levels,
+signals, unicast, audio order and size, cold engine buffering, cancel, supersede, refusals, dictation endpoint,
+capture death, prepare, malformed bodies, name taken, nothing written to disk), 7 in `tests/speech.rs` (sentence by
+sentence, who may speak, half-duplex queueing, barge-in, hush, stop, synthesis refused), 2 in `tests/attach.rs`
+(route and attach, replay, one attachment, who may release, cancel and speak by the attached app); unit tests for
+roles, consent text, framing, errors, earcons, the PipeWire node classification and fade. The by-hand
+`dev/voice-capture-try.sh` is the only thing that touches a real device.

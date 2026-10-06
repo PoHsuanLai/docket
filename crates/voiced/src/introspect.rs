@@ -10,7 +10,12 @@ pub const VOICE1_FILE: &str = "org.quire.Voice1.xml";
 
 /// The introspection document: every interface in one `<node>`.
 pub fn introspection() -> String {
-    let interfaces: Vec<&dyn Interface> = vec![&VoiceSkeleton, &UtteranceSkeleton, &SpeechSkeleton];
+    let (voice, utterance, speech) = (
+        VoiceSkeleton::default(),
+        UtteranceSkeleton::default(),
+        SpeechSkeleton::default(),
+    );
+    let interfaces: Vec<&dyn Interface> = vec![&voice, &utterance, &speech];
     let mut xml = String::from(
         "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\"\n \"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\">\n<node>\n",
     );

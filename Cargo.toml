@@ -80,6 +80,7 @@ almanac-dbus    = { path = "../almanac/crates/almanac-dbus" }
 cua-action      = { path = "../stoker/crates/cua-action" }
 model-provider  = { path = "../stoker/crates/model-provider" }
 speech-vad      = { path = "../stoker/crates/speech-vad" }
+speech-provider = { path = "../stoker/crates/speech-provider" }
 
 # quire's view-only context seams, for `docket-ds` alone.
 ds-intents      = { path = "../quire/crates/ds-intents" }
@@ -92,6 +93,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 zbus = { version = "5.19", default-features = false, features = ["tokio"] }  # shell repos only; they also enable ds-settings/tokio. quire itself builds zbus with its async-io default so app consumers keep their own executor.
 toml = "1"
+# voiced's audio device (spike V-A): MIT, safe wrapper over libpipewire; needs libclang to build.
+pipewire = "0.10"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 clap = { version = "4", features = ["derive"] }
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).

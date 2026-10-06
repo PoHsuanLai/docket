@@ -14,8 +14,12 @@ voice-wire = { workspace = true }
 docket-core = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
-porter-client = { workspace = true }
+porter-client = { workspace = true, features = ["dbus"] }
+porter-dbus = { workspace = true }
+pipewire = { workspace = true }
+futures-util = { workspace = true }
 speech-vad = { workspace = true }
+speech-provider = { workspace = true }
 zbus = { workspace = true }
 tokio = { workspace = true }
 clap = { workspace = true }
@@ -30,3 +34,9 @@ testing = []
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+docket-testbus = { workspace = true }
+porter-fake = { workspace = true }
+tempfile = { workspace = true }
+futures-util = { workspace = true }

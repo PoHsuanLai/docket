@@ -1,7 +1,9 @@
-//! The voiced binary: a skeleton until the PipeWire device and the serving loop exist.
+//! The voiced binary: reads `voiced.toml`, then serves `org.quire.Voice1` on the session bus over
+//! PipeWire until the bus closes.
 
 use clap::Parser;
 use std::process::ExitCode;
+use voiced::{PipeWireDevice, VoicedConfig};
 
 /// The voice daemon.
 #[derive(Debug, Parser)]
@@ -12,8 +14,35 @@ struct Args {
     config: std::path::PathBuf,
 }
 
+fn load(path: &std::path::Path) -> Result<VoicedConfig, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    VoicedConfig::parse(&text).map_err(|e| e.to_string())
+}
+
 fn main() -> ExitCode {
-    let _args = Args::parse();
-    eprintln!("voiced: not implemented");
-    ExitCode::from(2)
+    let args = Args::parse();
+    let config = match load(&args.config) {
+        Ok(config) => config,
+        Err(why) => {
+            eprintln!("voiced: {why}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(runtime) => runtime,
+        Err(why) => {
+            eprintln!("voiced: no runtime: {why}");
+            return ExitCode::FAILURE;
+        }
+    };
+    match runtime.block_on(voiced::serve(config, PipeWireDevice)) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(why) => {
+            eprintln!("voiced: {why}");
+            ExitCode::FAILURE
+        }
+    }
 }

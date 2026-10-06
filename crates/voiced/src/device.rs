@@ -75,7 +75,7 @@ pub enum DeviceError {
 }
 
 /// A running capture.
-pub trait CaptureStream: Send {
+pub trait CaptureStream: Send + Sync {
     /// The next frame of samples, or none when the stream ended.
     fn next(&mut self) -> impl Future<Output = Option<Vec<i16>>> + Send;
 }

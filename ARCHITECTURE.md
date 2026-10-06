@@ -41,7 +41,7 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `docket-ds` | the adapter quire apps use: chips and keep, things and labels, summon answers, `DsContextSource`, `DsSummonTarget`, the voice bridge | none |
 | `voice-wire` | the bodies of `org.quire.Voice1`: `VoiceBegin`, `VoiceEvent`, `UtteranceEnd`, `VoiceStatus`, `VoiceRefusal` and its 1:1 error names, `SpeakWire` | none |
 | `voice-loop` | the voice machines: `utterance_step` (the microphone is open exactly in Opening, Listening and Tail), `speech_step` (barge-in), `sentences`, `PcmBuffer` | none |
-| `voiced` | the microphone's owner: `VoicedConfig`, the `AudioDevice` seam and `choose_capture` (never a monitor), the `Voice1` skeleton and its introspection, `serve` | everything |
+| `voiced` | the microphone's owner: `VoicedConfig`, the `AudioDevice` seam and `choose_capture` (never a monitor), the `Voice1` interfaces and their introspection, `serve` (roles from the connection, one loop over the two `voice-loop` machines, inferd through porter-client), the PipeWire device | everything |
 
 Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it):
 
@@ -70,7 +70,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
 | `voice-wire` | `docket-core`, `porter-core`, `porter-infer` |
 | `voice-loop` | `voice-wire`, `docket-core`, `porter-core`, `porter-infer` |
-| `voiced` | `voice-loop`, `voice-wire`, `docket-core`, `porter-core`, `porter-infer`, `porter-client`, `speech-vad` |
+| `voiced` | `voice-loop`, `voice-wire`, `docket-core`, `porter-core`, `porter-dbus`, `porter-infer`, `porter-client`, `speech-provider`, `speech-vad` |
 
 The repo order is stoker, porter, almanac, docket, cua, sill. docket reaches stoker's pure
 crates (`cua-action`, `model-provider`, `speech-vad`), porter (`prov`, `porter-core`,
@@ -111,7 +111,7 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `docket-ds` | `chips`, `things`, `summon`, `context`, `voice` |
 | `voice-wire` | `text`, `begin`, `event`, `status`, `refusal` |
 | `voice-loop` | `buffer`, `sentencer`, `utterance`, `speech`, `coordinate` |
-| `voiced` | `names`, `config`, `device`, `bus`, `introspect`, `serve` |
+| `voiced` | `names`, `config`, `device`, `bus`, `introspect`, `serve`, `engine`, `utter`, `hear`, `talk`, `command`, `peer`, `link`, `playback`, `sink`, `usage`, `warm`, `wire`, `error`, `pipewire_device` |
 
 ## 3. One home per concept
 
@@ -156,7 +156,7 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `Transport` | `docket-client` | `InProcess`, `DbusTransport` |
 | `RecentSource` | `companiond` | `RouterRecent` (`Session.Recall` through intentd's router: a body only for a trusted entry), a fake |
 | `PromptHost`, `DictationBridge`, `WindowFacts` | `docket-ds` | quire apps |
-| `AudioDevice` | `voiced` | the PipeWire device (stubbed), `FakeAudioDevice` |
+| `AudioDevice` | `voiced` | `PipeWireDevice`, `FakeAudioDevice` (feature `testing`) |
 
 Closed sets stay enums: requests, replies, rulings, refusals, records, every machine's states,
 inputs and effects.
@@ -229,7 +229,7 @@ every type `Serialize + Eq`, a table test, and the effects carried out by a daem
 - Behaviour is `todo!()` behind frozen signatures, each listed in `FINDINGS.md`; shape tests
   (round trips, pinned JSON, introspection, tables) pass.
 - Tests never touch the real system: no real bus, no real apps, no GPU, no real engine, no network.
-  `voiced`'s binary is a skeleton that exits with code 2 (its `serve` is a stub); intentd, companiond and readerd serve, and each has a binary test on a private bus.
+  intentd, companiond, readerd and voiced serve; the first three have a binary test on a private bus, and voiced's `start` is tested on one over a scripted device (the real PipeWire device is `dev/voice-capture-try.sh`, by hand).
 - The gate, with every exit code checked (`scripts/gate.sh` runs exactly this):
 
   ```bash
@@ -244,5 +244,5 @@ every type `Serialize + Eq`, a table test, and the effects carried out by a daem
   ```
 
   No crate is excluded: every crate builds and tests without hardware or network. (`voiced`
-  holds the PipeWire device behind a seam and `speech-vad-silero` is not a dependency, so
+  links libpipewire but opens no device in a test, and `speech-vad-silero` is not a dependency, so
   neither needs the exclusion `recall-fastembed` needs in almanac.)
