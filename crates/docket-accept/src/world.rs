@@ -38,6 +38,8 @@ pub struct Binaries {
     pub memoryd: PathBuf,
     /// porter's packaged `inferd`.
     pub inferd: PathBuf,
+    /// `accept-quire-do`.
+    pub quire_do: PathBuf,
 }
 
 /// The model's script: the text of a cassette file (`dev/accept/cassettes`), written into the
@@ -106,6 +108,9 @@ fn extra_env(dir: &Path, name: &str) -> Vec<(&'static str, String)> {
             ("MEMORYD_PROC_ROOT", proc_root),
         ],
         "inferd" => vec![("INFERD_PROC_ROOT", proc_root)],
+        // intentd and companiond tell a terminal from its cgroup, read from the scratch root.
+        "intentd" => vec![("INTENTD_PROC_ROOT", proc_root)],
+        "companiond" => vec![("COMPANIOND_PROC_ROOT", proc_root)],
         _ => Vec::new(),
     }
 }
@@ -358,6 +363,33 @@ impl World {
     /// with `ACCEPT_RECORD=1`; empty otherwise.
     pub fn recorded_requests(&self) -> String {
         std::fs::read_to_string(self.dir.path().join("record.jsonl")).unwrap_or_default()
+    }
+
+    /// The real `quire-do` (`binary`: `accept-quire-do`) with `words`, run as a terminal's child:
+    /// it starts through `sh`, which waits for a line on stdin, so its pid (kept by `exec`) is
+    /// placed in a `vte-spawn-*` scope of the scratch proc root before the program exists. Its
+    /// environment is the scratch one and the private bus, nothing else.
+    pub async fn quire_do(&self, binary: &Path, words: &[&str]) -> std::process::Output {
+        use std::io::Write;
+        let mut child = Command::new("sh")
+            .args(["-c", "read _; exec \"$0\" \"$@\" </dev/null"])
+            .arg(binary)
+            .args(words)
+            .env_clear()
+            .envs(env_of(self.dir.path()))
+            .env("DBUS_SESSION_BUS_ADDRESS", self.address())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("quire-do starts");
+        place(self.dir.path(), child.id(), Cgroup::Scope("vte-spawn-1"));
+        let mut go = child.stdin.take().expect("stdin");
+        go.write_all(b"\n").expect("go");
+        drop(go);
+        tokio::task::spawn_blocking(move || child.wait_with_output().expect("quire-do runs"))
+            .await
+            .expect("joined")
     }
 
     /// Every daemon's standard error, for a failing test to print.

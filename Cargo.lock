@@ -610,6 +610,7 @@ dependencies = [
  "almanac-core",
  "companion-wire",
  "companiond",
+ "docket-cli",
  "docket-client",
  "docket-core",
  "docket-dbus",
@@ -634,6 +635,7 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "almanac-dbus",
+ "companion-wire",
  "docket-client",
  "docket-core",
  "docket-dbus",
@@ -645,6 +647,7 @@ dependencies = [
  "intentd",
  "model-provider",
  "porter-core",
+ "porter-infer",
  "prov",
  "serde",
  "serde_json",
@@ -658,6 +661,7 @@ dependencies = [
 name = "docket-client"
 version = "0.1.0"
 dependencies = [
+ "companion-wire",
  "cua-action",
  "docket-core",
  "docket-dbus",

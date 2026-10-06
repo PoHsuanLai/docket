@@ -5,7 +5,7 @@
 use crate::resolve::{Apps, short_name, slug, visible};
 use docket_core::{Manifest, ParamType};
 
-const COMMANDS: [&str; 5] = ["apps", "describe", "undo", "--help", "--version"];
+const COMMANDS: [&str; 6] = ["apps", "ask", "describe", "undo", "--help", "--version"];
 const ACTIONLESS: [&str; 3] = ["--list", "search", "context"];
 const GLOBALS: [&str; 3] = ["--dry-run", "--json", "--session"];
 

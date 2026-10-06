@@ -8,12 +8,15 @@
 //! `run` is the whole program over any `Transport`; `main` supplies the bus.
 
 mod args;
+mod ask;
+mod ask_render;
 mod complete;
 mod exec;
 pub mod exit;
 mod help;
 mod outcome;
 pub mod params;
+pub mod program;
 mod render;
 pub mod resolve;
 pub mod schema;
@@ -21,6 +24,7 @@ mod skills;
 pub mod when;
 
 pub use args::{CallArgs, Command, JsonFlag, Parsed, RunMode, UndoWhich, parse};
+pub use ask::ask as ask_companion;
 pub use exec::Style;
 pub use exit::{Exit, Failure};
 pub use params::Stdin;
@@ -144,6 +148,10 @@ async fn command<T: Transport>(
         Command::Help => Ok(plain(help::text())),
         Command::Version => Ok(plain(format!("quire-do {}", env!("CARGO_PKG_VERSION")))),
         Command::Undo(which) => exec::undo(intents, *which).await,
+        Command::Ask { .. } => Err(Failure::new(
+            Exit::Unavailable,
+            "ask talks to the companion, not to intentd: it needs the companion's bus",
+        )),
         Command::Apps => Ok(exec::apps(&apps_of(intents).await?)),
         Command::Skills => Ok(skills::list(&apps_of(intents).await?, roots)),
         Command::List { app } => exec::list(&apps_of(intents).await?, app),

@@ -22,11 +22,13 @@ pub enum Exit {
     Unavailable,
     /// 7: halted or paused (the kill switch, the breaker).
     Halted,
+    /// 8: the companion waits for the person (a confirmation is answered in the shell).
+    NeedsYou,
 }
 
 impl Exit {
     /// Every code, in order.
-    pub const ALL: [Exit; 7] = [
+    pub const ALL: [Exit; 8] = [
         Exit::Done,
         Exit::Usage,
         Exit::Refused,
@@ -34,6 +36,7 @@ impl Exit {
         Exit::AppFailed,
         Exit::Unavailable,
         Exit::Halted,
+        Exit::NeedsYou,
     ];
 
     /// The process exit status.
@@ -46,6 +49,7 @@ impl Exit {
             Exit::AppFailed => 5,
             Exit::Unavailable => 6,
             Exit::Halted => 7,
+            Exit::NeedsYou => 8,
         }
     }
 
@@ -59,6 +63,7 @@ impl Exit {
             Exit::AppFailed => "app_failed",
             Exit::Unavailable => "unavailable",
             Exit::Halted => "halted",
+            Exit::NeedsYou => "needs_you",
         }
     }
 }

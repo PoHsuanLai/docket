@@ -17,6 +17,9 @@ pub fn text() -> String {
                     "unavailable: intentd is down, or the app is not installed or does not start"
                 }
                 Exit::Halted => "halted or paused (kill switch, breaker)",
+                Exit::NeedsYou => {
+                    "the companion waits for you: a confirmation is answered in the shell, not here"
+                }
             };
             format!("  {}  {meaning}", e.code())
         })

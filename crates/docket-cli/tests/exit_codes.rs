@@ -272,7 +272,7 @@ async fn intentd_being_down_is_exit_6_for_every_command() {
 fn the_codes_are_the_table_in_cli_md() {
     assert_eq!(
         Exit::ALL.map(Exit::code),
-        [0, 2, 3, 4, 5, 6, 7],
+        [0, 2, 3, 4, 5, 6, 7, 8],
         "stable: scripts depend on them"
     );
     let help = docket_cli::Failure::usage("x").json();

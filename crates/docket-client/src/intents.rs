@@ -259,7 +259,7 @@ impl<T: Transport> Intents<T> {
         .await
     }
 
-    /// Records the person's turn (launcher and field roles only).
+    /// Records the person's turn (launcher, field and terminal roles only).
     pub async fn session_turn(
         &self,
         session: SessionId,

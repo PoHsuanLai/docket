@@ -3,7 +3,7 @@
 //! parameters exist is `resolve`'s and `params`'s business, from the manifests.
 
 use crate::exit::Failure;
-use prov::SessionId;
+use prov::{SessionId, SpaceId};
 use std::collections::BTreeSet;
 
 /// Whether the person asked for JSON; without it, JSON is chosen when stdout is not a terminal.
@@ -87,6 +87,13 @@ pub enum Command {
     },
     /// `undo <id>` or `undo --last`.
     Undo(UndoWhich),
+    /// `ask [--space <id>] <text>`: talk to the companion.
+    Ask {
+        /// What the person says.
+        text: String,
+        /// The Space the conversation lives in (default `desktop`).
+        space: SpaceId,
+    },
     /// `<app> <action> …`.
     Call(CallArgs),
     /// `__complete <words…>`: what a shell completes next (the completion files call it).
@@ -112,6 +119,7 @@ struct Scan {
     /// Which of [`SWITCHES`] were given.
     switches: BTreeSet<&'static str>,
     session: Option<String>,
+    space: Option<String>,
 }
 
 impl Scan {
@@ -157,6 +165,8 @@ fn scan(words: &[String]) -> Result<Scan, Failure> {
                 };
                 if other == "session" {
                     out.session = Some(value);
+                } else if other == "space" {
+                    out.space = Some(value);
                 } else {
                     out.params.push((other.replace('-', "_"), value));
                 }
@@ -191,6 +201,17 @@ fn command(scan: &Scan) -> Result<Command, Failure> {
             action: (*action).to_owned(),
         }),
         ["describe", ..] => Err(Failure::usage("usage: quire-do describe <app> <action>")),
+        ["ask", text @ ..] if !text.is_empty() => no_flags("ask").and_then(|()| {
+            Ok(Command::Ask {
+                text: text.join(" "),
+                space: match scan.space.as_deref() {
+                    None => SpaceId::desktop(),
+                    Some(id) => SpaceId::parse(id)
+                        .map_err(|_| Failure::usage("--space is not a Space id"))?,
+                },
+            })
+        }),
+        ["ask"] => Err(Failure::usage("usage: quire-do ask <text>")),
         ["undo"] if scan.has("last") => Ok(Command::Undo(UndoWhich::Last)),
         ["undo", id] => id
             .parse::<u64>()

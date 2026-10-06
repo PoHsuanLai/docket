@@ -9,6 +9,7 @@ Usage:
   quire-do <app> search <text> [--json]          search the app's things
   quire-do <app> context [--json]                what the app shows now
   quire-do undo <undo-id> | --last               take back what this terminal did
+  quire-do ask [--space <id>] <text> [--json]    talk to the companion; prints its answer
 
 <app> is the app's slug (mail, anyview, shell) or its full name; <action> drops the app's
 prefix (thread.archive for mail.thread.archive). Things are <kind>:<key>, or #<n> for text an
@@ -17,6 +18,10 @@ earlier command held. A text parameter given as `-` reads standard input. Dates 
 Every call goes through intentd's gate: a read runs, anything else asks the person on screen
 unless they chose "Allow from the terminal: this action, until logout" on that sheet. There is
 no flag that skips the question.
+
+`ask` is the companion's conversation from a terminal: it prints the answer, the plan steps and
+what the answer was made of. It never answers a confirmation: when one is waiting it says so and
+exits 8, and the confirmation is answered on sill's sheet.
 
 Output is text on a terminal, and JSON with --json or when stdout is not a terminal:
   {vocab, outcome, undo, entities, handles}; a failure is {vocab, error}.

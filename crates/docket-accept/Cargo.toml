@@ -24,9 +24,14 @@ path = "src/bin/accept-companiond.rs"
 name = "accept-readerd"
 path = "src/bin/accept-readerd.rs"
 
+[[bin]]
+name = "accept-quire-do"
+path = "src/bin/accept-quire-do.rs"
+
 [dependencies]
 companion-wire = { workspace = true }
 companiond = { path = "../companiond" }
+docket-cli = { path = "../docket-cli" }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd"] }

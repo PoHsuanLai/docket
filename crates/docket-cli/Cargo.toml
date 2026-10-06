@@ -13,6 +13,7 @@ name = "quire-do"
 path = "src/main.rs"
 
 [dependencies]
+companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-skills = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
@@ -25,6 +26,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+porter-infer = { workspace = true }
 docket-testbus = { workspace = true }
 docket-dbus = { workspace = true }
 intentd = { path = "../intentd" }
