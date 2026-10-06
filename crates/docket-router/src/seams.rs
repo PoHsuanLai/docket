@@ -57,6 +57,18 @@ pub trait AppLink: Send + Sync {
         inv: Invocation,
         within: Latency,
     ) -> impl Future<Output = Result<Outcome, AppFault>> + Send;
+    /// `Perform` with the launcher's activation token beside the invocation. A link that does
+    /// not deliver tokens (the default) performs without it.
+    fn perform_activated(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
+        within: Latency,
+    ) -> impl Future<Output = Result<Outcome, AppFault>> + Send {
+        let _ = activation;
+        self.perform(app, inv, within)
+    }
     /// `DryRun`: the concrete change, before it is made.
     fn dry_run(
         &self,

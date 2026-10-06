@@ -90,6 +90,23 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         }
     }
 
+    async fn perform_activated(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
+        within: Latency,
+    ) -> Result<Outcome, AppFault> {
+        match host_of(app) {
+            Host::Installed => {
+                self.apps
+                    .perform_activated(app, inv, activation, within)
+                    .await
+            }
+            Host::Memory | Host::Companion => self.perform(app, inv, within).await,
+        }
+    }
+
     async fn dry_run(&self, app: &AppName, inv: Invocation) -> Result<Preview, AppRefusal> {
         match host_of(app) {
             Host::Memory => self.memory.dry_run(inv).await,

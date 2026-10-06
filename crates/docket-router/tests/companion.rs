@@ -37,7 +37,6 @@ fn invocation(
     in_space: &str,
 ) -> Invocation {
     Invocation {
-        activation: None,
         call: CallId(1),
         action: prov::ActionName::parse(name).expect("action"),
         target,

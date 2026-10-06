@@ -3,7 +3,9 @@
 
 mod support;
 
-use docket_core::{ActivationToken, CallerRole, IntentsReply, IntentsRequest, Invocation};
+use docket_core::{
+    ActivatedInvocation, ActivationToken, CallerRole, IntentsReply, IntentsRequest, Invocation,
+};
 use docket_router::Router;
 use support::*;
 
@@ -11,7 +13,7 @@ fn token() -> ActivationToken {
     ActivationToken::parse("xdg-activation-1234").expect("token")
 }
 
-fn performed(router: &Router<docket_fake::FakeSeams>) -> Vec<Invocation> {
+fn performed(router: &Router<docket_fake::FakeSeams>) -> Vec<ActivatedInvocation> {
     router.seams.link.performed.lock().expect("log").clone()
 }
 
@@ -120,24 +122,37 @@ async fn the_token_is_never_shown_by_debug() {
 }
 
 #[test]
-fn the_wire_form_is_one_optional_top_level_string() {
+fn the_wire_form_is_the_invocations_with_one_optional_top_level_string() {
+    let invocation = Invocation {
+        call: docket_core::CallId(1),
+        action: prov::ActionName::parse("mail.thread.read").expect("action"),
+        target: docket_core::TargetValue::Nothing,
+        args: docket_core::Args::new(),
+        actor: prov::Actor::User {
+            via: app("org.quire.Shell"),
+        },
+        origin: docket_core::Origin::Launcher,
+        space: prov::SpaceId::desktop(),
+    };
     let json = |a: Option<ActivationToken>| {
-        let inv = Invocation {
-            call: docket_core::CallId(1),
-            action: prov::ActionName::parse("mail.thread.read").expect("action"),
-            target: docket_core::TargetValue::Nothing,
-            args: docket_core::Args::new(),
-            actor: prov::Actor::User {
-                via: app("org.quire.Shell"),
-            },
-            origin: docket_core::Origin::Launcher,
-            space: prov::SpaceId::desktop(),
+        serde_json::to_value(ActivatedInvocation {
+            invocation: invocation.clone(),
             activation: a,
-        };
-        serde_json::to_value(inv).expect("json")
+        })
+        .expect("json")
     };
     assert_eq!(json(Some(token()))["activation"], "xdg-activation-1234");
     assert!(json(None).get("activation").is_none(), "absent when None");
-    let back: Invocation = serde_json::from_value(json(None)).expect("an old body parses");
-    assert_eq!(back.activation, None);
+    assert_eq!(
+        json(None),
+        serde_json::to_value(&invocation).expect("json"),
+        "without a token the bytes are the invocation's own"
+    );
+    let back: Invocation = serde_json::from_value(json(Some(token()))).expect("a plain reader");
+    assert_eq!(
+        back, invocation,
+        "a provider that reads an Invocation is unaffected"
+    );
+    let delivered: ActivatedInvocation = serde_json::from_value(json(Some(token()))).expect("both");
+    assert_eq!(delivered.activation, Some(token()));
 }

@@ -42,7 +42,7 @@ pub struct FakeLink {
     /// What the focused window shows, if a test set one: the fakes have no windows of their own.
     pub window: Mutex<Option<ContextSnapshot>>,
     /// Every invocation the router sent to `Perform`, in order.
-    pub performed: Mutex<Vec<Invocation>>,
+    pub performed: Mutex<Vec<docket_core::ActivatedInvocation>>,
     /// The built-in `org.quire.Companion` provider, once a test has attached the router that
     /// hosts it (`host_companion`); until then the app is unavailable.
     companion: Hosted,
@@ -120,10 +120,23 @@ impl AppLink for FakeLink {
         &self,
         app: &AppName,
         inv: Invocation,
+        within: Latency,
+    ) -> Result<Outcome, AppFault> {
+        self.perform_activated(app, inv, None, within).await
+    }
+
+    async fn perform_activated(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
         _within: Latency,
     ) -> Result<Outcome, AppFault> {
         if let Ok(mut seen) = self.performed.lock() {
-            seen.push(inv.clone());
+            seen.push(docket_core::ActivatedInvocation {
+                invocation: inv.clone(),
+                activation,
+            });
         }
         let how = self
             .answering

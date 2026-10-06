@@ -147,7 +147,21 @@ impl AppLink for DbusLink {
         inv: Invocation,
         within: Latency,
     ) -> Result<Outcome, AppFault> {
-        let text = json(&inv).map_err(|_| AppRefusal::Unsupported)?;
+        self.perform_activated(app, inv, None, within).await
+    }
+
+    async fn perform_activated(
+        &self,
+        app: &AppName,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
+        within: Latency,
+    ) -> Result<Outcome, AppFault> {
+        let delivered = docket_core::ActivatedInvocation {
+            invocation: inv,
+            activation,
+        };
+        let text = json(&delivered).map_err(|_| AppRefusal::Unsupported)?;
         let answered = self
             .ask(app, budget(within), |p| async move {
                 p.perform(&text, &Details::new()).await

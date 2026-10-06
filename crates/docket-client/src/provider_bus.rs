@@ -63,7 +63,13 @@ where
     ) -> fdo::Result<String> {
         let _ = options;
         from_intentd(connection, &header).await?;
-        render(&self.provider.perform(parse(&invocation)?).await)
+        let delivered: docket_core::ActivatedInvocation = parse(&invocation)?;
+        render(
+            &self
+                .provider
+                .perform_activated(delivered.invocation, delivered.activation)
+                .await,
+        )
     }
 
     async fn dry_run(

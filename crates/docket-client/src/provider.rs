@@ -14,6 +14,16 @@ pub trait IntentProvider: Send + Sync {
     fn manifest(&self) -> &ValidManifest;
     /// Performs an action. The app labels its undo entry with `inv.actor`.
     fn perform(&self, inv: Invocation) -> impl Future<Output = Result<Outcome, AppRefusal>> + Send;
+    /// Performs an action the launcher started, with its activation token (a capability to take
+    /// focus, to hand to the compositor). The default ignores the token.
+    fn perform_activated(
+        &self,
+        inv: Invocation,
+        activation: Option<docket_core::ActivationToken>,
+    ) -> impl Future<Output = Result<Outcome, AppRefusal>> + Send {
+        let _ = activation;
+        self.perform(inv)
+    }
     /// Describes the change without making it: what the confirmation shows.
     fn dry_run(&self, inv: Invocation) -> impl Future<Output = Result<Preview, AppRefusal>> + Send;
     /// Undoes one change.

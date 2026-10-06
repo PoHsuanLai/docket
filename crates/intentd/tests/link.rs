@@ -29,7 +29,6 @@ fn thread(key: &str) -> EntityId {
 
 fn invocation(action: &str, key: &str) -> Invocation {
     Invocation {
-        activation: None,
         call: CallId(1),
         action: prov::ActionName::parse(action).expect("action"),
         target: TargetValue::Entities(vec![thread(key)]),
@@ -269,3 +268,78 @@ async fn a_provider_answers_nobody_but_intentd() {
 /// `Blank` keeps `ContextSource` and `SummonTarget` in scope for the slow app above.
 #[allow(dead_code)]
 fn _seams<T: ContextSource + SummonTarget>() {}
+
+/// An app that keeps the activation token it is handed (and refuses the call).
+struct Keeps(
+    ValidManifest,
+    std::sync::Arc<std::sync::Mutex<Vec<Option<ActivationToken>>>>,
+);
+
+impl IntentProvider for Keeps {
+    fn manifest(&self) -> &ValidManifest {
+        &self.0
+    }
+    async fn perform(&self, _: Invocation) -> Result<Outcome, AppRefusal> {
+        self.1.lock().expect("log").push(None);
+        Err(AppRefusal::Busy)
+    }
+    async fn perform_activated(
+        &self,
+        _: Invocation,
+        activation: Option<ActivationToken>,
+    ) -> Result<Outcome, AppRefusal> {
+        self.1.lock().expect("log").push(activation);
+        Err(AppRefusal::Busy)
+    }
+    async fn dry_run(&self, _: Invocation) -> Result<Preview, AppRefusal> {
+        Ok(Preview::None)
+    }
+    async fn undo(&self, _: UndoToken, _: Actor) -> Result<(), UndoFault> {
+        Ok(())
+    }
+    async fn search(&self, _: &str) -> Vec<Hit> {
+        vec![]
+    }
+    async fn preview(&self, _: &EntityId) -> Preview {
+        Preview::None
+    }
+    async fn suggest(&self, _: SuggestAsk) -> Vec<EntityRef> {
+        vec![]
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_activation_token_rides_beside_the_invocation_to_the_provider() {
+    let (_dir, bus, _daemon, link) = bus_with_intentd().await;
+    let connection = bus.connect().await;
+    let manifest = validate(Manifest {
+        vocab: IntentsVocab(1),
+        app: app("org.quire.Keeps"),
+        entities: vec![],
+        actions: vec![],
+    })
+    .expect("a manifest");
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    serve_on(
+        &connection,
+        Keeps(manifest, seen.clone()),
+        Blank(app("org.quire.Keeps")),
+        Blank(app("org.quire.Keeps")),
+    )
+    .await
+    .expect("serves");
+    let keeps = app("org.quire.Keeps");
+    let token = ActivationToken::parse("xdg-activation-77").expect("token");
+    let _ = link
+        .perform_activated(
+            &keeps,
+            invocation("keeps.do", "x"),
+            Some(token.clone()),
+            Latency::Instant,
+        )
+        .await;
+    let _ = link
+        .perform(&keeps, invocation("keeps.do", "x"), Latency::Instant)
+        .await;
+    assert_eq!(*seen.lock().expect("log"), [Some(token), None]);
+}

@@ -64,8 +64,18 @@ pub struct Invocation {
     pub origin: Origin,
     /// The Space it acts in.
     pub space: SpaceId,
-    /// The activation token the launcher sent with the call, passed on unchanged: a capability
-    /// the app may redeem with the compositor to take focus. Absent for every other caller.
+}
+
+/// What `IntentProvider1.Perform` carries: the [`Invocation`] and, beside it, the activation
+/// token the launcher sent with the call (a capability the app may redeem with the compositor to
+/// take focus). The JSON is the invocation's with a top-level `"activation"` when there is a
+/// token, so a provider that reads only an `Invocation` is unaffected.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActivatedInvocation {
+    /// The call.
+    #[serde(flatten)]
+    pub invocation: Invocation,
+    /// The launcher's token, passed on unchanged; absent for every other caller.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub activation: Option<ActivationToken>,
 }

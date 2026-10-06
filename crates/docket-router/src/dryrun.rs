@@ -36,7 +36,6 @@ impl<S: Seams> Router<S> {
             actor: prepared.who.actor.clone(),
             origin: prepared.request.origin,
             space: prepared.space.clone(),
-            activation: None,
         };
         match self
             .seams

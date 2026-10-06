@@ -303,7 +303,6 @@ impl<S: Seams> Router<S> {
             actor: p.who.actor.clone(),
             origin: p.request.origin,
             space: p.space.clone(),
-            activation: p.activation.clone(),
         }
     }
 
@@ -386,7 +385,12 @@ impl<S: Seams> Router<S> {
         let answer = self
             .seams
             .link()
-            .perform(&p.request.action.app, self.invocation(p), p.decl.latency)
+            .perform_activated(
+                &p.request.action.app,
+                self.invocation(p),
+                p.activation.clone(),
+                p.decl.latency,
+            )
             .await;
         run.outcome = answer.as_ref().ok().cloned();
         match answer {

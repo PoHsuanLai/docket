@@ -825,22 +825,25 @@ builds the connection first and passes it here.
    `proc_root_choice` table, and the real binary on a private bus for whichever build is under test
    (`tests/binary.rs`). docket-accept needed no change: its test processes own bus names, so intentd never reads
    their cgroups; `Peers::with_proc_root` and `serve_on_with` take a `ProcRoot` for tests that do.
-3. **Activation token.** `Invocation` gained `activation: Option<ActivationToken>` (serde default, skipped when
-   `None`; JSON top-level `"activation": "<token>"`; `ActivationToken` is a newtype over `String` whose `Debug` is
-   `ActivationToken(..)`, so no `{:?}`, log line or audit record can show it; audit records are built from the
-   call, never from the `Invocation`). `IntentsRequest::Perform` gained the same optional field; over D-Bus it is the
-   string option `activation` (`docket_dbus::OPTION_ACTIVATION`) in `Run.Perform`'s `options` (`a{sv}`), next to
-   `watch`. The router keeps it only when the acting role is `launcher` and drops it for companion, cli, mcp, field,
-   cua and plain apps; it is passed unchanged to the provider's `IntentProvider1.Perform` for the first call of a
-   chain only (a `Follow::Next` step and a `DryRun` carry none). `docket-client`: `Intents::perform_activated` and
-   `perform_watched_activated` (the old `perform` and `perform_watched` are the `None` case).
+3. **Activation token.** `docket_core::Invocation` is unchanged (consumers' struct literals keep compiling). The
+   token rides beside it: `ActivatedInvocation { #[serde(flatten)] invocation, activation: Option<ActivationToken> }`
+   is what `IntentProvider1.Perform` carries; JSON is the invocation's with a top-level `"activation": "<token>"`,
+   absent when there is none, so a provider that reads an `Invocation` is unaffected (tested). `ActivationToken` is a
+   newtype over `String` whose `Debug` is `ActivationToken(..)`; audit records are built from the call, never from
+   the delivered invocation. `IntentsRequest::Perform` gained the optional field; over D-Bus it is the string
+   option `activation` (`docket_dbus::OPTION_ACTIVATION`) in `Run.Perform`'s `options` (`a{sv}`), next to `watch`.
+   The router keeps it only when the acting role is `launcher` and drops it for companion, cli, mcp, field, cua and
+   plain apps; it reaches the app for the first call of a chain only (a `Follow::Next` step and a `DryRun` carry
+   none). Additive seams, all defaulted: `AppLink::perform_activated` (default: perform without the token;
+   `DbusLink` and `HostedLink` deliver it), `IntentProvider::perform_activated` (default: ignore the token, call
+   `perform`). `docket-client`: `Intents::perform_activated` and `perform_watched_activated`.
    Tests: `docket-router/tests/activation.rs` (launcher gets it through; cli, field, companion, mcp dropped; wire
-   form), `intentd/tests/identity.rs` (launcher token crosses the real bus; the cli's is dropped).
-4. **The shell's scope row waits for porter.** In a real login sill-session starts sill as `sill-shell.scope`
-   (`systemd-run --user --scope --unit=sill-shell`). porter-dbus on this base matches a unit row only for a
-   `<name>.service` leaf (`CallerTable::resolve_unit`; a `.scope` leaf must be `app-...`), so a `sill-shell.scope`
-   row cannot be matched yet. intentd therefore keeps the bus-name rule for the shell's roles (owner of
-   `org.quire.Shell` is launcher/control, owner of `org.quire.Confirm1` is confirm); no wider rule was added and no
-   callers file exists. When porter lets a unit row match an exact named scope, intentd gains a one-row callers
-   table (`org.quire.Shell` = `sill-shell.scope`) and docket-accept's fake proc root puts the shell at
-   `0::/user.slice/user-1000.slice/user@1000.service/app.slice/sill-shell.scope`. docket-accept is unchanged.
+   form), `intentd/tests/identity.rs` (launcher token crosses the real bus; the cli's is dropped),
+   `intentd/tests/link.rs` (the token reaches a real provider through `DbusLink`).
+4. **The shell's scope row follows sill-session.** In a real login sill-session will start sill as
+   `sill-shell.scope` (`systemd-run --user --scope --unit=sill-shell`). porter-dbus supports an exact named
+   non-`app-` scope unit row as of porter 4c2e696, but sill-session's scope change is not on sill master yet, so
+   intentd keeps the bus-name rule for the shell's roles (owner of `org.quire.Shell` is launcher/control, owner of
+   `org.quire.Confirm1` is confirm) and adds no scope rule and no callers file. When sill-session lands, intentd
+   gains a one-row callers table (`org.quire.Shell` = `sill-shell.scope`) and docket-accept's fake proc root puts
+   the shell at `0::/user.slice/user-1000.slice/user@1000.service/app.slice/sill-shell.scope`.
