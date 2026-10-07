@@ -1094,6 +1094,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-session"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "companion-wire",
+ "docket-core",
+ "porter-core",
+ "proptest",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "docket-settings"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,25 @@
+[package]
+name = "docket-session"
+description = "The durable session, portable and pure: `SessionEntry` (the append-only log of one session), `resume_plan` (entries in, a typed plan out), `fork`, `export`, a reader for the records companiond wrote before, and the `SessionBackend`, `SessionHost` and `SessionLog` seams. No bus, no runtime, no clock read."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+companion-wire = { workspace = true }
+docket-core = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+almanac-core = { workspace = true }
+proptest = { workspace = true }
+
+[lints]
+workspace = true

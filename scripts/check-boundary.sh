@@ -37,6 +37,8 @@ RULES=(
   # a clock and a surface that are passed in; no bus, no runtime (the daemon's surface is the
   # one that holds tokio).
   "docket-tasks: $EFFECTS"
+  # The durable session is portable and pure: no bus, runtime, HTTP, Cedar or toml; the log is a seam.
+  "docket-session: $EFFECTS toml"
   "docket-inapp: $NO_CEDAR"
   # The models, the quarantined reader and the memory seam are portable too (moved out of
   # intentd and readerd): they ask any porter-client or almanac-client Transport, never a bus or
@@ -139,6 +141,7 @@ EDGES=(
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
   "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-skills porter-client porter-core porter-infer prov"
+  "docket-session: companion-wire docket-core porter-core prov"
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
   "docket-memory: almanac-client almanac-core docket-core docket-router porter-core prov"

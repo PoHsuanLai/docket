@@ -1774,3 +1774,67 @@ after reading them, although the rules say to read a thing with its app's action
 turns issue three or four calls at once, so the loop guard sees repeats it would not see one at a time.
 (4) The `forward` call was never attempted: the policy the writer wrote ("ceiling read") would have refused
 it anyway (see above). Whether the 35B forwards with the new history is for the next live run.
+
+## session-core: the durable session record (S0 of the ACP/durable-sessions plan)
+
+`docket-session` is the pure core: no router change, no bus, no runtime, no clock read (every id and
+position is passed in). It is in the portable set and the boundary table.
+
+What it holds. `SessionEntry` (Opened, Turn, Policy, Call, Step, Handle, Taint, Breaker, Budget,
+Skill, Closed), stored as `{"version":1,"seq":n,"kind":..,"v":..}` under the kind tags
+`companion.session.<slug>`. The version is read first: a body of another version is
+`Unreadable::UnknownVersion`, never a guess. `resume_plan(&[Logged]) -> Result<ResumePlan,
+PlanRefusal>` is total; `fork`, `export`/`to_json`/`from_json` and `legacy` are pure beside it.
+
+Decisions made (confirm or overrule):
+- `Taint`, `EndCause` and `ProgramName` are this crate's own serde types, not the router's. The
+  router's `Taint` and `CloseCause` have no serde and docket-session does not depend on docket-router;
+  S1 maps them (two `From` impls, one test with a wildcard-free match each).
+- The slug `opened` and `closed` are shared with companiond's old records. A body is legacy exactly
+  when it has no `version` key; `decode` routes on that.
+- `seq` is the writer's own per-session count, in the body, because almanac's sequence is per Space
+  (ask A3) and a per-session gap could not be seen otherwise. Legacy bodies are numbered by place.
+- A call is two entries, `Call` then `Step`; a `Call` with no `Step` is `Interrupted`. A reply that
+  was never a call (`StepLine::unread`) has a `Step` and no `Call`. The plan reports interruption as
+  its own list; no `StepEnd` variant was added (docket-core is another lane's; S1 chooses between
+  `Unconfirmed(Cancelled)` and a new `Interrupted`).
+- Taint is conservative: any untrusted handle label counts, and one with no `Taint` entry before it
+  is a `MissingTaint` fault with the plan Tainted. The router taints on the first plain reveal, which
+  is later than a label; S1 should write the `Taint` entry before the untrusted `Handle` entry, as
+  the canonical log in the tests does.
+- Fail closed: a gap or an unreadable body makes the plan `Blocked` (display only, no turns) and
+  Tainted, because the lost entry might have been a taint, a narrowing or a close. A closed session
+  stays `Closed` first.
+- A trip holds until a `Turn` or `Breaker::Reset`. Only the trip is stored, not the breaker's
+  window; resume starts a fresh window (as `Breaker::new` documents).
+- Budget: the plan gives the last `Ledger` checkpoint and the calls begun since. The wall clock
+  restarts at the resume (D5, active time); the host rebases `Ledger::started`. A fork drops `Budget`
+  entries, so its budgets start at zero.
+- Fork keeps Turn, Policy, Call, Step, Handle, Breaker and Skill entries up to `at`, replaces the
+  opening (new task, `forked_from`), writes `Taint(Inherited)` first when the parent is Tainted (so
+  the child's log is in write-ahead order even when the parent's was repaired), and drops Closed. It
+  refuses a parent whose log is Blocked. Policy is copied as stored, never widened.
+- `Opening.opener` and `agent` are `Option` only because legacy `Opened` records name no opener.
+  `BackendKind::Acp` holds a `ProgramName`, since `AgentRef` has no external-agent variant.
+- Not in S0 (the note lists them): `Words`, `Compacted`, `Pinned`, `Renamed`, `AgentSession`,
+  `Usage` entries, `cwd`, and `SessionHost` has no implementation. Adding an entry kind is a new
+  slug within version 1 for writers, but an older reader reports `UnknownKind`; bump `CURRENT` when
+  an old reader must refuse instead.
+- The traits use `-> impl Future + Send` (CONVENTIONS 2). Events are pulled with `next_event`, so no
+  `Stream` type or executor is named; the note's `impl Stream` can wrap this later.
+
+The `SessionLog` seam, and what docket-memory needs from almanac in S1 (lane session-log):
+- `append(session, seq, &entry) -> Result<Appended{seq}, LogFault>`: answers only when durable
+  (A3 `Append { ack: Durable }`). A typed refusal (full, Space set to forget, unavailable) must reach
+  the caller as `LogFault::Refused` or `Unavailable`; for a `Taint` entry the caller refuses the
+  reveal. `OutOfOrder{expected}` is the store refusing a `seq` that is not its next for the session:
+  almanac has no per-session position, so docket-memory counts them (read the last row's `seq`).
+- `page(session, from: Option<Seq>, PageSize) -> LogPage{rows, next}`: one session's rows, oldest
+  first, each decoded by `decode(slug, json, place)`. Almanac must serve `Recent` filtered by kind
+  prefix `companion.session.` with `BodyMode::Json`, newest-first with a cursor (A1); docket-memory
+  filters to the session by a `session` key it wraps around the stored body (the body of S0 carries
+  none, deliberately, so the log key is the one source) and reverses to oldest first.
+- Entries must be stored "kept verbatim, not admitted to recall" (A4): `Inject` must skip
+  `companion.session.*`. Retention: `companion.*` 30 days; a `Pinned` entry per session key (A2) so
+  the sweep keeps one session whole; a log with its head swept resumes as `PlanRefusal::NoOpening`.
+- Per-Space sequence, not per session, is what A3 returns: unused here beyond the ack.
