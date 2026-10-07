@@ -101,6 +101,25 @@ async fn a_no_on_the_sheet_means_the_app_never_runs_the_action() {
 }
 
 #[tokio::test]
+async fn after_a_no_the_next_step_the_model_reads_says_not_to_retry() {
+    let sheet = TestSheet::answering(vec![SheetAnswer::Refused, SheetAnswer::Refused]);
+    let (mut agent, model) = agent(
+        vec![
+            call(ARCHIVE, json!({ "target": [thread("t2")] })),
+            words("I left it."),
+        ],
+        sheet,
+    );
+    agent.ask("archive the digest").await.expect("turn");
+    let second = model.user_text(1);
+    assert!(
+        second
+            .contains("not confirmed: the person declined this; do not retry it or work around it"),
+        "{second}"
+    );
+}
+
+#[tokio::test]
 async fn an_unanswered_sheet_is_a_dismissal_never_a_yes() {
     let (mut agent, _) = agent(
         vec![

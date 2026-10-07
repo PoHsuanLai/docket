@@ -1996,3 +1996,21 @@ Listings: `adopt_sessions` is a public method that returns every stored id, but 
 (`intentd`'s start-up) discards the list and no D-Bus member or reply carries it, so no other app's
 session id is exposed by it. The one trace is that it lifts the id counter, so the first id a new
 session gets reveals roughly how many sessions were ever stored; that is a count, not an id.
+
+### A declined or expired call is told as the person's answer
+
+Live eval (a 35B model on the real stack, smoke case `flow-a-refused`): the forward was refused and the
+step the model read said only `not confirmed: expired` (or `declined`). The model took that for a fault
+to route around, kept calling `mail.contact.search` until the loop guard fired and asked "I keep getting
+the same answer", where the case expects Done right after the refusal. `flow-a`, where the person allows
+the forward, was not affected.
+
+The step line now carries the instruction, rendered in one place (`docket-planner/src/unconfirmed.rs`,
+a typed cause per `ConfirmEnd`): `not confirmed: the person declined this; do not retry it or work around
+it; finish, saying what was not done, or ask the person with quire_ask`. An expiry reads "the person did
+not answer in time" with the same instruction; a dismissal reads as a decline, a withdrawn question as
+withdrawn. `RULES` gained one matching sentence. The line still starts `not confirmed`, so the
+`flow-a-refused` cassette (which matches `mail.message.forward not confirmed`) holds unchanged.
+Tests: the three texts (unit), and a scripted-model turn in `docket-inapp` showing the next view
+carries the instruction after a no on the sheet. No real model was called: the owner reruns the live eval
+later to confirm the model now ends Done.

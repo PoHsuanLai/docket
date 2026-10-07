@@ -3,6 +3,7 @@
 //! words: the router's coarse code is all that crosses, and a handle stays an opaque `#n`.
 
 use crate::read_ask::read_fault_text;
+use crate::unconfirmed::unconfirmed_text;
 use docket_core::{
     ArgFault, ArgsFault, CallRefusal, Handle, HandleCard, HandleShape, Held, ReplyFault, Reveal,
     StepEnd, StepLine, StepShown, TargetFault, Value, Why,
@@ -235,7 +236,9 @@ pub(crate) fn step_line(step: &StepLine, handles: &[HandleCard]) -> String {
                 .unwrap_or_default();
             format!("{head} refused {}{hint}", json(refusal))
         }
-        (_, StepEnd::Unconfirmed(end)) => format!("{head} not confirmed {}", json(end)),
+        (_, StepEnd::Unconfirmed(end)) => {
+            format!("{head} not confirmed: {}", unconfirmed_text(*end))
+        }
         (_, StepEnd::Unread(fault)) => unread_text(fault),
         (_, StepEnd::Interrupted) => format!(
             "{head} interrupted by a restart: it may have run, it is not run again; check before asking again"
