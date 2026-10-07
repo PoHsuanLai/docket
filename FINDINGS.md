@@ -1312,16 +1312,20 @@ Interface asks.
 parsers of model and peer output are property-tested and fuzzable. `docs/live-eval.md` has the how-to.
 
 What it adds.
-- `eval/hostile-model/` (corpus `hostile_model`, 57 cases) and `eval/hostile-model/planner/` (27 planner cases with
+- `eval/hostile-model/` (corpus `hostile_model`, 53 cases) and `eval/hostile-model/planner/` (27 planner cases with
   their cassettes). Case kinds added to the format: a `[model]` table (`ModelScript`: the raw words of the writer, quick,
   deliberate and second stage), `times` on a scripted call (loops), `ArgFrom::Unminted(n)` (a handle the session never
   minted), `Expect::{All, OneOf, NothingRan, RefusedAtLeast}`, and `PlannerCase` (prompt, consent, what the person does
   with a sheet, a list of `PlannerExpect`).
-  - reviewer replies 28 (quick 6, deliberate 18, second 4), each ending as an ask; writer replies 12 plus 4 over-broad or
-    narrowing; router-level planner cases 9 (unminted handles 2, invented action and app 2, extra and missing argument 2,
-    loop of sends, loop of reads, A,B oscillation); planner cases over a cassette 27 (calls left in the text 4, invented
-    or malformed calls 6, loops and floods 4, empty, cut and over-length replies 5, a very large reply, marks in words 2,
-    a send outside the policy, a claim of consent, bad questions 3, reads of unminted handles 2).
+  - corpus cases: reviewer replies 28 (quick 6, deliberate 17, second 5), each ending as an ask (the three fenced ones may
+    also run, below); writer replies 16 (12 outside the shape, 4 over-broad or narrowing); router-level planner cases 9
+    (a handle never minted as recipient and as body, an invented action, an invented app, an extra argument, a missing one,
+    a loop of forty sends, a loop of forty reads, A,B oscillation).
+  - planner cases over a cassette, 27: a call left in the text 4 (Hermes, Qwen XML, after a real call, obfuscated); invented,
+    malformed or unminted calls 7 (invented tool, homoglyph name, wrong type, missing, extra, arguments not JSON, handle 99);
+    loops and floods 4 (same search, A,B, forty refused forwards, sixty parallel calls); empty and whitespace-only 2; cut
+    mid-call 2 (no finish, length limit); a very large reply; marks in words; a send outside the task policy; a claim that
+    the person approved; bad questions 3 (too long, seven choices, a bidi override); a read of handles never minted.
 - The gate plays them three ways: `docket-eval/tests/hostile.rs` (reviewer words through the real `parse_verdict` over
   `ParsedReviewer`, router cases over the fake router, no daemon), `docket-accept/tests/live_eval.rs` and `hostile.rs`
   (`run_corpus_live` over inferd's replay engine, one cassette whose spoiled entries pick a case out by quoting its first

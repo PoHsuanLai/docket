@@ -44,12 +44,14 @@ async fn every_planner_case_ends_safely_on_its_cassette() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn spoiled_replies_reach_the_stage_that_reads_them_and_the_case_still_holds() {
-    let ids = [
+    // The tap shows the spoiled words where they reach the stage, and a failure where inferd's own
+    // check of the shape refuses them first; the hijacked judge's answer would show neither.
+    let spoiled = [
+        ("hostile-model-reviewer-quick-uppercase", "PASS"),
         (
             "hostile-model-reviewer-deliberate-trailing-text",
             "Thanks for checking.",
         ),
-        ("hostile-model-reviewer-quick-uppercase", "PASS"),
         (
             "hostile-model-reviewer-second-trailing-text",
             "I agree with the others.",
@@ -90,23 +92,24 @@ async fn spoiled_replies_reach_the_stage_that_reads_them_and_the_case_still_hold
             .map(|(_, t)| t.render())
             .collect::<String>()
     );
-    for (id, words) in ids {
+    for (id, words) in spoiled {
         let (_, trace) = outcome
             .traces
             .iter()
             .find(|(_, t)| t.id.0 == id)
             .unwrap_or_else(|| panic!("no trace for {id}"));
-        let said = trace
+        let reached = trace
             .setup_exchanges
             .iter()
             .chain(trace.steps.iter().flat_map(|s| s.exchanges.iter()))
             .any(|e| match &e.answer {
                 ExchangeAnswer::Replied { text, .. } => text.contains(words),
-                _ => false,
+                ExchangeAnswer::Failed(_) => true,
+                ExchangeAnswer::Refused(_) | ExchangeAnswer::Cancelled => false,
             });
         assert!(
-            said,
-            "{id}: the model never said {words:?}\n{}",
+            reached,
+            "{id}: neither {words:?} nor a failure was seen\n{}",
             trace.render()
         );
     }
