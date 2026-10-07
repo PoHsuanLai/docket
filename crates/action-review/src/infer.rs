@@ -148,6 +148,7 @@ pub(crate) fn chat_request(stage: Stage, request: &ReviewRequest) -> ChatRequest
 
 fn model_failed(error: ModelError, heard: Heard) -> ReviewError {
     match error {
+        ModelError::OnlyThought { .. } => ReviewError::OnlyThought,
         ModelError::Unparseable | ModelError::Unreadable if heard == Heard::OnlyThought => {
             ReviewError::OnlyThought
         }

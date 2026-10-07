@@ -110,6 +110,7 @@ fn message_len(message: &ChatMessage) -> usize {
 
 fn failed(error: ModelError) -> ReviewError {
     match error {
+        ModelError::OnlyThought { .. } => ReviewError::OnlyThought,
         ModelError::Unparseable | ModelError::Unreadable => ReviewError::Unparseable,
         ModelError::Unreachable
         | ModelError::RateLimited(_)
