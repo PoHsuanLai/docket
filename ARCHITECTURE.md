@@ -260,7 +260,7 @@ receiver's taint; a message across Spaces is delivered and never grants a memory
 **Add an action to a built-in provider.** Edit `manifests/org.quire.<App>.toml` (every field
 written; names carry the app's prefix; an outbound action declares a recipient or destination
 sink; a write without undo is destructive). `docket_core::validate` and the router's
-`Registry::unresolved` check it in `tests/manifests.rs`; add its behaviour to the provider:
+`Registry::unresolved` check it in `tests/it/manifests.rs`; add its behaviour to the provider:
 `intentd::builtin_memory` for `org.quire.Memory`, `Router::companion_perform` (docket-router,
 `companion.rs`) for `org.quire.Companion`. `HostedLink` routes the two names to them.
 
@@ -271,7 +271,7 @@ for its interface; run `cargo test -p docket-dbus`, which prints the new XML; re
 `dbus/org.quire.Intents1.xml` with it in the same commit; (5) a method on `docket_client::Intents`.
 
 **Add a Cedar rule.** Write it in `policy/default.cedar` with an `@id`; `Pdp::load` validates it
-strictly against `policy/quire.cedarschema`; add the row to `policy-point/tests/grid.rs`. A rule
+strictly against `policy/quire.cedarschema`; add the row to `policy-point/tests/it/grid.rs`. A rule
 that tightens only is a forbid; a user override directory may only forbid.
 
 **Add an action to every face.** Declare it in the app's manifest (recipe above) and implement it in the app's `IntentProvider`. That is all: `quire-do <app> <action>` (`docket-cli`), the MCP tool (`actions-mcp`) and the D-Bus `Run.Perform` are generated from the declaration. An app's menu command or shortcut that is the face of the action names it in `<AppName>.ui.toml`; `scripts/check-intents.sh` fails the app's gate for a menu command with no action that is not listed UI-only.

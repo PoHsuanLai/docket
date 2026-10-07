@@ -24,7 +24,7 @@ Total: 1. (voiced `serve` and the voiced binary closed in v-voiced, below: no st
 
 ## Ignored tests
 
-One, a documented gap rather than a wait for a fill: `docket-accept/tests/flows.rs`
+One, a documented gap rather than a wait for a fill: `docket-accept/tests/it/flows.rs`
 `flow_a_the_answer_shows_the_sheet_while_it_waits` (f4-e2e finding 1). Every other test runs.
 
 ## Built at the freeze (pinned by tests)
@@ -96,10 +96,10 @@ parameter in `ArgsChecked` and `AppLink::perform` can say `AppFault::TimedOut`, 
    session's, `Unbound` for an action on nothing and `Same` otherwise (an entity the index does
    not know is `Same`: the app refuses a thing it does not have). Cedar's `cross-space` rule then
    asks the person even for a read, and `mcp-other-space` denies an MCP client. Pinned by
-   `docket-router/tests/crossspace.rs` (`cross_space_target_asks` and two more).
+   `docket-router/tests/it/crossspace.rs` (`cross_space_target_asks` and two more).
 5. **Reviewer requests use `DataClass::Prompt`** (asks 16 and 61, closed): the person's own words and
    what a reviewer quotes of them. Its floor in `Policy::proposed` is this computer
-   (`ai.floor.prompt`), so a reviewer request is pinned on-device; `action-review/tests/infer.rs`
+   (`ai.floor.prompt`), so a reviewer request is pinned on-device; `action-review/tests/it/infer.rs`
    (`every_reviewer_request_carries_the_prompt_class_pinned_on_device`) holds every stage to it. The
    test lives in action-review rather than policy-point because policy-point (the Cedar grid) has
    no porter-infer edge and none is added for a test.
@@ -117,7 +117,7 @@ Built, with tests against `docket-fake` (the router in process) and a private bu
 - **Caller and rows.** `CallerRole::Cli`, `Origin::Cli`, `GrantCaller::Cli`, porter `prov`'s `Actor::Cli`,
   `ActorKind::Cli` and `Source::Cli` (porter branch `l-cli`; `Actor` and `ActorKind` live in `prov`, so the
   porter change is three variants, not one). A terminal's arguments are `Untrusted, Source::Cli`, derived by
-  the router. The Cedar rows (`policy/default.cedar`, `policy-point/tests/terminal.rs`): a read is final; an
+  the router. The Cedar rows (`policy/default.cedar`, `policy-point/tests/it/terminal.rs`): a read is final; an
   undoable, outbound or destructive act asks and never goes to review, in every strictness; an ask-always
   action asks; a hidden action is denied; a destructive act always asks. `AskReason::FromTerminal` names it.
 - **The standing grant.** The sheet for a terminal call that only the terminal rule asks about offers
@@ -167,7 +167,7 @@ Open, and the asks they make (nothing below was edited in the other repos):
 6. **A paused terminal session (ask 89), decided in F3: `Control.Resume` from the control centre.** The breaker
    pauses a session "until the person speaks", and a terminal has no turn to record. `Control.Resume` (the
    `control` role's alone) now also reopens every terminal session the breaker paused in the scope, with a fresh
-   breaker (`Router::resume_terminals`, tests in `docket-router/tests/terminal.rs` and the end-to-end test). The
+   breaker (`Router::resume_terminals`, tests in `docket-router/tests/it/terminal.rs` and the end-to-end test). The
    alternative, a reset on the next `quire-do` after a cool-down, was rejected: it lets the very process the
    breaker stopped go on by waiting, and each round costs the person a sheet. A paused terminal says "paused: too
    many refusals in a row; the person has to resume it" (exit 7). Ask (sill): a "Resume the terminal" button
@@ -198,7 +198,7 @@ Built and tested on a private `dbus-daemon` (nothing of the real session is name
 - **intentd's side** (`intentd/src/bus/`): one struct per interface with the signatures of `docket-dbus`'s
   skeletons (a test holds the served introspection to `dbus/org.quire.Intents1.xml`; no member may carry a doc
   comment, zbus copies it into the XML). `serve_on(connection, router, config)` exports them and claims the
-  name with `DoNotQueue` (a second intentd stops); `serve(router, config)` is the same on the session bus. `tests/bus_members.rs` sends every member over the bus and in process and requires the
+  name with `DoNotQueue` (a second intentd stops); `serve(router, config)` is the same on the session bus. `tests/it/bus_members.rs` sends every member over the bus and in process and requires the
   same reply.
 - **Identity** (`intentd/src/peer.rs`): from the bus's own credentials for the connection: the same user, the
   well-known names it owns, and for a process that owns none, the cgroup behind its pid (f4-docket-ident: a
@@ -403,7 +403,7 @@ Built, each with tests on a private bus, over the fakes or in process (nothing r
 1. **`Session.Read` works in the running daemon (ask 126).** `Reader::extract(&self, session: &SessionId, ask,
    inputs)`: the router passes the session in `session_read`, `ReaderClient::extract` calls `Reader1.Extract(session,
    ask)`, `ReaderService::extract` ignores it (readerd resolves the handles itself), `ScriptedReader` records it
-   (`sessions()`). `intentd/tests/reader_daemon.rs` runs the whole path on a private bus: a companion recalls untrusted
+   (`sessions()`). `intentd/tests/it/reader_daemon.rs` runs the whole path on a private bus: a companion recalls untrusted
    text (a handle), `Session.Read` goes to intentd, to readerd and to a scripted inferd, and the answer comes back plain
    (an answer outside the schema, and a bus with no readerd, are refused). **Known limit (closed by the f4-docket fill, item 4):** `Session.Resolve` answers the
    text alone, so readerd cannot class it and sends it as the person's own words (`DataClass::Prompt`, pinned on this
@@ -421,8 +421,8 @@ Built, each with tests on a private bus, over the fakes or in process (nothing r
    still `Malformed`. The client: `Transport::watch` (default: the answer alone), `Intents::gate_check_watched(ask)` ->
    `GateWatch` (`next()` gives `GateEvent::Confirming(id)` then `Verdict(answer)`, `proceed()`, `close()`, and a cloneable
    `GateSteer` for another task); `InProcess` drives the router's future from `next()` (no runtime here). Tests:
-   `docket-router/tests/watching.rs`, `intentd/tests/gate_watch.rs` (bus: told before the sheet, no sheet before
-   `Proceed`, `Close` before and during a sheet, an unwatched check), `docket-fake/tests/fakes.rs`.
+   `docket-router/tests/it/watching.rs`, `intentd/tests/it/gate_watch.rs` (bus: told before the sheet, no sheet before
+   `Proceed`, `Close` before and during a sheet, an unwatched check), `docket-fake/tests/it/fakes.rs`.
 3. **The companion's asks (121), all but the scheduler and the settings row:**
    - `AskWire { session, turn: UserTurn, keep, parent_window, app }` (so a real `Companion1.Ask` works; `Companiond::heard`
      and `summoned_from` are gone, the summoning app is per task). companiond answers `Ask` and `Told` only to the
@@ -462,16 +462,16 @@ Built, each with tests on a private bus, over the fakes or in process (nothing r
    - **`mcp.enabled` (ask, not done here):** quire's settings gain a row `mcp.enabled` (an on or off setting: off by default,
      QUESTIONS S7), read by the daemon that hosts the MCP edge (`actions-mcp`'s binary), which passes
      `McpAccess::On` to `McpEdge` and serves it over stdio or a socket; nothing was edited in quire.
-4. **128:** `BreakerTripped` is emitted (intentd `signals`, `tests/signals.rs`: said once, again after a resume and a second
+4. **128:** `BreakerTripped` is emitted (intentd `signals`, `tests/it/signals.rs`: said once, again after a resume and a second
    pause): closed. `Resume(Only(space))` also lifts a global halt for that Space (the global halt becomes a halt of every other
-   Space the router has a session in; `tests/control.rs`). The effect classes **"changes only the view"** and **"file with no
+   Space the router has a session in; `tests/it/control.rs`). The effect classes **"changes only the view"** and **"file with no
    undo"** cannot grow additively here: `Effect` is porter's `prov::Effect` (`Read < UndoableWrite < Outbound < Destructive`),
    ordered, and the Cedar grid, the budgets and the ceilings are written over it. Ask (porter): the two classes, with the grid rows
    and the ceilings decided by the person; until then a view-only action is `read` and a file with no undo is `destructive`.
 5. **The daemons' `main`s.** `readerd::run` / `readerd::start` and `companiond::run` / `companiond::start` (configuration,
    `docket_dbus::session_connection` (shared with intentd), `DbusTransport`, `inferd_transport`, `restore`, `serve_on`),
    `CompaniondConfig` (`dist/companiond.toml`, every key optional: `shell`, `spaces`, `[agent]`). Binary tests on a private bus
-   (`readerd/tests/binary.rs`, `companiond/tests/binary.rs`): the name is claimed, `Reader1` answers intentd alone and says
+   (`readerd/tests/it/binary.rs`, `companiond/tests/it/binary.rs`): the name is claimed, `Reader1` answers intentd alone and says
    unavailable with no router behind it, `Roster()` and `Front()` answer with nothing running, the configured shell is heard
    and another is not, a second daemon stops, and killing the daemon frees the name. `voiced` stays a skeleton.
 
@@ -498,19 +498,19 @@ Branch `f4-docket`. Each item has tests on a private bus, in process, or over th
    The router names an MCP caller by that bus name, so consent grants are per edge process, while the `client`
    name labels the arguments (`Source::Mcp(client)`); per-client grants would need the client on the wire.
    `docket-dbus` and `zbus` join `actions-mcp`'s edges (`check-boundary.sh` rules updated). Tests
-   (`actions-mcp/tests/binary.rs`, `env_clear`, private bus, intentd's `serve_on` over the fake router, an rmcp
+   (`actions-mcp/tests/it/binary.rs`, `env_clear`, private bus, intentd's `serve_on` over the fake router, an rmcp
    client on the child's pipes and on the socket): off lists nothing, on serves the registry and a read is allowed
    as the role, a second edge stops, two socket clients share one edge, the unit's command line parses.
-2. **`Companion1.Open` and `Close` are the shell's** (the `Ask` check). `companiond/tests/serve.rs`.
+2. **`Companion1.Open` and `Close` are the shell's** (the `Ask` check). `companiond/tests/it/serve.rs`.
 3. **`Run.Perform` says `Progress`** to a watching caller: `Reviewing` (per stage), `Previewing`,
    `Confirming(id)` (told as the sheet is drawn, not waited on), `Dispatched`. `Watch::listening` is the
    listen-only watcher; `Run.Perform` takes the `watch` option (`Watching::Listening`: `Close` still aborts the
    call as for any request); the client has `Intents::perform_watched` -> `PerformWatch::next()` ->
-   `PerformEvent::{Progress, Done}`. Tests: `docket-router/tests/watching.rs`, `intentd/tests/perform_watch.rs`.
+   `PerformEvent::{Progress, Done}`. Tests: `docket-router/tests/it/watching.rs`, `intentd/tests/it/perform_watch.rs`.
 4. **`Session.Resolve` answers the label** (ask 147): `IntentsReply::Resolved(Resolved { text, label })`
    (`Session.Display` still answers `Text`); the D-Bus out argument stays one string (now the JSON of
    `Resolved`, so `org.quire.Intents1.xml` is unchanged). readerd classes a read by the handle's own label
-   (`intentd/tests/reader_daemon.rs`: mail, not `Prompt`); `resolved_label` is gone.
+   (`intentd/tests/it/reader_daemon.rs`: mail, not `Prompt`); `resolved_label` is gone.
 5. **A restart reads more Spaces than `companiond.toml`'s**: `RecallAsk::Spaces` / `RecallView::Spaces`
    (any session may ask): the router answers the open and paused Spaces memory lists, the Spaces it holds a session
    or a task in, and the desktop; `restore` takes the union with the configured list. Memory's `Spaces` read is
@@ -763,7 +763,7 @@ builds the connection first and passes it here.
    closed session's calls, so a card pressed on a finished task fails (`Failed`); a proposal is only actionable while
    its task stays open (decide when the planner starts making drafts: keep the task open until its cards are pressed
    or dismissed). `docket-client` gained `PerformWatch::request()` and a defaulted `Steering::request` (additive: no struct literal breaks).
-   Tests: `companiond/tests/act.rs` (private bus), unit tests in `act.rs`.
+   Tests: `companiond/tests/it/act.rs` (private bus), unit tests in `act.rs`.
 
 2. **Opening a Hit: the convention, validated.** SPEC §3.5 has the launcher perform `Activation::Intent(CallRequest)`
    on a row, with the row's actions taken from the manifest's `ActionDecl`s whose target fits the row's kind, so a Hit
@@ -786,8 +786,8 @@ builds the connection first and passes it here.
      the row has no Enter action: show it dimmed or fall back to the row's other actions. A later
      `Outcome.follow = Follow::Open(id)` from any action is performed the same way by the host.
    - Fixture: `docket-fake` mail declares `mail.thread.open` and records it (`FakeMail::opened()`). Tests:
-     `docket-core/tests/manifests.rs` (`an_indexed_kind_declares_its_open_action_and_every_open_has_the_one_shape`),
-     `docket-router/tests/index.rs` (`a_hit_is_opened_by_its_kinds_open_action_performed_as_the_launcher`).
+     `docket-core/tests/it/manifests.rs` (`an_indexed_kind_declares_its_open_action_and_every_open_has_the_one_shape`),
+     `docket-router/tests/it/index.rs` (`a_hit_is_opened_by_its_kinds_open_action_performed_as_the_launcher`).
 
 3. **The other f4-docket-2 items** are not behaviour over fakes in docket's own paths: the `ds-settings` question is
    quire's, the `mail.thread.find` rename is in docket-accept (lane f4-e2e-2's files), the `inferd` cassette is porter's;
@@ -815,7 +815,7 @@ builds the connection first and passes it here.
      the person. No callers file is read: intentd has no unit rows (porter's `CallerTable` is passed empty); a
      daemon that is a service owns a well-known name, which already names it.
    - Tests: `peer/tests.rs` (a table of names x cgroup facts; the cgroup leaves over a fixture proc tree),
-     `tests/identity.rs` (over a private bus with a fake proc root: sill's token goes through, a nameless
+     `tests/it/identity.rs` (over a private bus with a fake proc root: sill's token goes through, a nameless
      connection is cli / plain app / nobody by its leaf).
 2. **`INTENTD_PROC_ROOT` / feature `test-proc-root`** (`intentd/src/procroot.rs`, the same three guards as memoryd and
    inferd): off by default; `scripts/check-boundary.sh` fails if `cargo tree -p intentd` shows a `test-` feature in a
@@ -823,7 +823,7 @@ builds the connection first and passes it here.
    (`TEST BUILD: reading callers from the proc root <dir>, not /proc`); without it a set variable is ignored with one
    stderr line (`INTENTD_PROC_ROOT is set but this build has no test-proc-root feature ...`). Tests: pure
    `proc_root_choice` table, and the real binary on a private bus for whichever build is under test
-   (`tests/binary.rs`). docket-accept needed no change: its test processes own bus names, so intentd never reads
+   (`tests/it/binary.rs`). docket-accept needed no change: its test processes own bus names, so intentd never reads
    their cgroups; `Peers::with_proc_root` and `serve_on_with` take a `ProcRoot` for tests that do.
 3. **Activation token.** `docket_core::Invocation` is unchanged (consumers' struct literals keep compiling). The
    token rides beside it: `ActivatedInvocation { #[serde(flatten)] invocation, activation: Option<ActivationToken> }`
@@ -837,9 +837,9 @@ builds the connection first and passes it here.
    none). Additive seams, all defaulted: `AppLink::perform_activated` (default: perform without the token;
    `DbusLink` and `HostedLink` deliver it), `IntentProvider::perform_activated` (default: ignore the token, call
    `perform`). `docket-client`: `Intents::perform_activated` and `perform_watched_activated`.
-   Tests: `docket-router/tests/activation.rs` (launcher gets it through; cli, field, companion, mcp dropped; wire
-   form), `intentd/tests/identity.rs` (launcher token crosses the real bus; the cli's is dropped),
-   `intentd/tests/link.rs` (the token reaches a real provider through `DbusLink`).
+   Tests: `docket-router/tests/it/activation.rs` (launcher gets it through; cli, field, companion, mcp dropped; wire
+   form), `intentd/tests/it/identity.rs` (launcher token crosses the real bus; the cli's is dropped),
+   `intentd/tests/it/link.rs` (the token reaches a real provider through `DbusLink`).
 4. **The shell's scope row follows sill-session.** In a real login sill-session will start sill as
    `sill-shell.scope` (`systemd-run --user --scope --unit=sill-shell`). porter-dbus supports an exact named
    non-`app-` scope unit row as of porter 4c2e696, but sill-session's scope change is not on sill master yet, so
@@ -944,8 +944,8 @@ section 9.2). docket's covers every `agent.*` key of section 3.27, and the daemo
 8. **Tests.** The schema parses with the Settings app's loader (`ds_settings::Schema::from_toml`, run by hand
    from a scratch project: a dev-dependency on ds-settings would unify zbus's executor features across this
    workspace) and is held structurally by `docket-settings` tests; every schema key is read (table test);
-   every key has a bad-value fallback case; `intentd/tests/settings_live.rs` changes the file under a running
-   router and waits on the watch's own event; `docket-router/tests/live_settings.rs` changes strictness under
+   every key has a bad-value fallback case; `intentd/tests/it/settings_live.rs` changes the file under a running
+   router and waits on the watch's own event; `docket-router/tests/it/live_settings.rs` changes strictness under
    a live router; actions-mcp's edge follows a changed file.
 
 ## f4-docket-calleffect: per-call effect (sill G372)
@@ -978,8 +978,8 @@ An action's declared effect is a **ceiling**; an action may opt in to a per-call
   Cedar's `resource.effect`, the budget cost and the taint rule all see the effect used, so strictness rules apply
   to it unchanged (tests: AskMore asks for a classified undoable write; TrustMore still asks for a Destructive one
   outside a task policy). A dry run (`Run.DryRun` preview) is prepared at the ceiling.
-- **Tests.** `docket-router/src/classify.rs` (table), `docket-router/tests/percall.rs` (docket-fake's `FakeMenu`),
-  `intentd/tests/percall.rs` (a router over `DbusLink` and a real provider on a private bus).
+- **Tests.** `docket-router/src/classify.rs` (table), `docket-router/tests/it/percall.rs` (docket-fake's `FakeMenu`),
+  `intentd/tests/it/percall.rs` (a router over `DbusLink` and a real provider on a private bus).
 
 ## f4-demo-install: the dev installer and `quire-do ask`
 
@@ -989,7 +989,7 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
   `../almanac`, `../stoker`, this one), builds with `cargo build --release --locked`, never runs sudo, and
   records what it wrote in `~/.local/state/quire-dev/install-dev.manifest` for `--uninstall` (a config the person
   edited is kept; directories are removed only if the install made them and they are empty). Tested in a jail
-  (`docket-cli/tests/install_dev.rs`: HOME, XDG and PREFIX in a tempdir, fake binaries through
+  (`docket-cli/tests/it/install_dev.rs`: HOME, XDG and PREFIX in a tempdir, fake binaries through
   `INSTALL_DEV_BIN_DIR`, cleared environment).
   - memoryd has no unit in `almanac/dist`: `almanac/dbus/memoryd.service` is its unit, started by D-Bus
     activation (`org.quire.Memory1.service` names it); that is what is installed.
@@ -1023,9 +1023,9 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
   printed as `#n` (a terminal may not `Session.Display`). The seam is `companion_client::CompanionTransport`
   (`DbusCompanion` over the bus; a new crate rather than a module of `docket-client`, so cua's and sill's lock files, which
   list docket-client's dependencies, do not change); the whole program is `docket_cli::program::main`, which `accept-quire-do` also
-  runs. Tests: `docket-cli/tests/ask.rs` (scripted companion over the fake router), `docket-accept/tests/terminal.rs`
+  runs. Tests: `docket-cli/tests/it/ask.rs` (scripted companion over the fake router), `docket-accept/tests/it/terminal.rs`
   (the real `quire-do` against the real daemons: a read answered, a Forward left waiting for the sheet),
-  `companiond/tests/terminal.rs` (the authority, below).
+  `companiond/tests/it/terminal.rs` (the authority, below).
 - **Security: the cli role speaks for the person in three calls.** companiond used to accept only the owner of
   `org.quire.Shell`. It now also accepts, for `Open`, `Ask` and `Close` only, a connection that (1) is the same
   user (`GetConnectionCredentials`), (2) is in a terminal's scope (`vte-spawn-*`, `tmux-spawn-*`, a login
@@ -1101,7 +1101,7 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
    the same Space is final in all three strictnesses, so a shell Read row (Hide, Minimise) never asks, AskMore
    included. An undoable write still asks under AskMore (judged under Default), an Outbound or Destructive act
    asks in every strictness, and a tainted session still asks again before leaning on an Always for a write.
-   Tests: `crates/docket-router/tests/shell_defaults.rs`, `crates/intentd/tests/files.rs`.
+   Tests: `crates/docket-router/tests/it/shell_defaults.rs`, `crates/intentd/tests/it/files.rs`.
 6. **`--check-skills`** now finds manifests where apps keep them (item above in f4-docket-skills). The line to change
    in agent-spec `skills-format.md`: "`docket-eval --check-skills <dir>... [--manifests <dir>]...`: manifests are
    those under each dir (as `--check-app` finds them, `dist/intents/*.toml` included), the `intents` directory
@@ -1245,10 +1245,10 @@ Closes the voiced rows of the todo table: `voiced::serve` is filled and the bina
 
 ### Tests added
 
-voiced: 20 in `tests/serve.rs` (who may begin, consent and monitor refusal, denied mic, the full hold with levels,
+voiced: 20 in `tests/it/serve.rs` (who may begin, consent and monitor refusal, denied mic, the full hold with levels,
 signals, unicast, audio order and size, cold engine buffering, cancel, supersede, refusals, dictation endpoint,
-capture death, prepare, malformed bodies, name taken, nothing written to disk), 7 in `tests/speech.rs` (sentence by
-sentence, who may speak, half-duplex queueing, barge-in, hush, stop, synthesis refused), 2 in `tests/attach.rs`
+capture death, prepare, malformed bodies, name taken, nothing written to disk), 7 in `tests/it/speech.rs` (sentence by
+sentence, who may speak, half-duplex queueing, barge-in, hush, stop, synthesis refused), 2 in `tests/it/attach.rs`
 (route and attach, replay, one attachment, who may release, cancel and speak by the attached app); unit tests for
 the capture choice table (default, override, monitor and missing refused, no sources), the metadata JSON shapes and key precedence, the `input` config key,
 roles, consent text, framing, errors, earcons, the PipeWire node classification and fade. The by-hand
@@ -1257,7 +1257,7 @@ roles, consent text, framing, errors, earcons, the PipeWire node classification 
 ### v-warm-prepare (2026-10-07)
 
 `BusWarm` goes through porter-client's `Transport::prepare` (`TransportWarm<T>`, `BusWarm` is the alias over
-`DbusTransport`); `Warm` and `FixedWarm` are unchanged. New `tests/warm.rs` (3 tests: readiness pass-through, refusal
+`DbusTransport`); `Warm` and `FixedWarm` are unchanged. New `tests/it/warm.rs` (3 tests: readiness pass-through, refusal
 and missing inferd read as `Unavailable`, the need/class/tier asked) with `ScriptedInfer::prepared`. porter's
 voice-chat contract (11c7a2e): voiced only drives the `Transcribe` path (16 kHz, EndOfAudio), so it needs no change;
 `RouteLog`/`footer_line` already handle two `Routed` per voice turn (each `Stage` clears the pending `Routed`), now
@@ -1326,10 +1326,10 @@ What it adds.
     loops and floods 8 (same search, A,B, forty refused forwards, sixty parallel calls, and the four loop-guard cases below); empty and whitespace-only 2; cut
     mid-call 2 (no finish, length limit); a very large reply; marks in words; a send outside the task policy; a claim that
     the person approved; bad questions 3 (too long, seven choices, a bidi override); a read of handles never minted.
-- The gate plays them three ways: `docket-eval/tests/hostile.rs` (reviewer words through the real `parse_verdict` over
-  `ParsedReviewer`, router cases over the fake router, no daemon), `docket-accept/tests/live_eval.rs` and `hostile.rs`
+- The gate plays them three ways: `docket-eval/tests/it/hostile.rs` (reviewer words through the real `parse_verdict` over
+  `ParsedReviewer`, router cases over the fake router, no daemon), `docket-accept/tests/it/live_eval.rs` and `hostile.rs`
   (`run_corpus_live` over inferd's replay engine, one cassette whose spoiled entries pick a case out by quoting its first
-  turn: `scripted_cassette`), and `docket-accept/tests/hostile.rs` (`run_planner_case`: real companiond, intentd and apps).
+  turn: `scripted_cassette`), and `docket-accept/tests/it/hostile.rs` (`run_planner_case`: real companiond, intentd and apps).
   `docket-live smoke --engine scripted|local|cloud` plays the planner cases after the flows (`--flow <id>`).
 - Mutation check: with the fixes below turned off, the planner cases for them fail (calls in text, very large reply,
   bidi words, over-long and over-many questions); with them on, all pass.
@@ -1383,13 +1383,13 @@ Things to know.
 - Not run: the hostile planner cases against a live model (`--engine local|cloud`); they are judged on safety only, so
   they can be.
 
-Property tests (small case counts, no clock): action-review `tests/props.rs` (a reference reader of the record shape agrees
+Property tests (small case counts, no clock): action-review `tests/it/props.rs` (a reference reader of the record shape agrees
 with `parse_verdict` on every generated record, in both directions, and only `pass` passes the quick judge),
-docket-core `tests/args_props.rs` (typed values or a typed fault, only declared arguments, text inside its bounds and
-free of marks), voice-wire `tests/props.rs` (`unframe` outcomes follow the four length bytes, never overrun, a stream
-split anywhere reads the same frames), companion-wire `tests/props.rs` (damaged bodies never panic and what reads is
-stable), agent-loop `tests/leak.rs`, docket-eval `tests/props.rs` (damaged case files; a cassette is a header and one
-JSON entry per exchange), intentd `tests/writer_hostile.rs`, companiond `tests/hostile.rs`.
+docket-core `tests/it/args_props.rs` (typed values or a typed fault, only declared arguments, text inside its bounds and
+free of marks), voice-wire `tests/it/props.rs` (`unframe` outcomes follow the four length bytes, never overrun, a stream
+split anywhere reads the same frames), companion-wire `tests/it/props.rs` (damaged bodies never panic and what reads is
+stable), agent-loop `tests/it/leak.rs`, docket-eval `tests/it/props.rs` (damaged case files; a cassette is a header and one
+JSON entry per exchange), intentd `tests/it/writer_hostile.rs`, companiond `tests/it/hostile.rs`.
 Fuzz: `fuzz/` (cargo-fuzz, outside the workspace and the gate) with six targets (`parse_verdict`, `tool_args`, `unframe`,
 `companion_wire`, `leaked_call`, `case_files`) and `dev/fuzz.sh`; it needs nightly (installed here) and `cargo-fuzz`
 (not installed; the script says so and exits 2, and installs nothing).
@@ -1486,13 +1486,13 @@ reads anything), `homoglyph-tool-name` (the wire type refuses the name before th
 length-limit cases (no call at all),
 `unminted-handle` (done or failed) and `repeat-invented-handle` (asks).
 
-Tests: agent-loop `tests/guard.rs` (told and asked again; the third running asks; a readable call resets the count; the
+Tests: agent-loop `tests/it/guard.rs` (told and asked again; the third running asks; a readable call resets the count; the
 same handles named again are "unchanged" and held), planner `step_text` (handle values, every fault line), router
-`tests/perform.rs` (a target by handle resolves; unknown and text handles refused by name; one handle per thing and
-label), companiond `tests/hostile.rs` and `planner.rs` (unread replies are `Unread` with the typed fault), docket-core
-`tests/args_props.rs` and `tests/records.rs`, docket-accept `tests/handles.rs` (cassettes `flow-a-handles`,
+`tests/it/perform.rs` (a target by handle resolves; unknown and text handles refused by name; one handle per thing and
+label), companiond `tests/it/hostile.rs` and `planner.rs` (unread replies are `Unread` with the typed fault), docket-core
+`tests/it/args_props.rs` and `tests/it/records.rs`, docket-accept `tests/it/handles.rs` (cassettes `flow-a-handles`,
 `flow-a-fault-line`, `flow-a-unread`: forward by handles; unknown handle then correct; unreadable then correct; the cassette
-entries need the handle lines or the fault line in the planner's request) and `tests/live_pure.rs` (question at rest).
+entries need the handle lines or the fault line in the planner's request) and `tests/it/live_pure.rs` (question at rest).
 Not run: a live model (the run that found this needs the local Qwen3 engine).
 
 ## portable-core: an in-app agent that needs no desktop (quire design/36)
@@ -1514,7 +1514,7 @@ desktop's extras are additive. docket's portable core is an in-app agent.
   and a router `Clock` `K`. `ask(text)` records the person's turn, then runs `agent_step` over the
   planner and the router (gate, Cedar, reviewer, budgets, the sheet) until the task is done, asks a
   question, pauses or fails, and returns a `Reply` (words, the calls and how each ended, the
-  `Ending`). Eight tests (`crates/docket-inapp/tests/in_app.rs`) run it with docket-fake's mail
+  `Ending`). Eight tests (`crates/docket-inapp/tests/it/in_app.rs`) run it with docket-fake's mail
   provider, companiond's scripted model transport (one file, included by path, not copied), a sheet
   the test answers and a virtual clock: a words-only turn, a write that asks on the sheet and runs on
   yes, a no that leaves the app untouched, an unanswered sheet that is a dismissal and never a yes, a
@@ -1746,7 +1746,7 @@ one by one is refused), and raising to it would let the writer's say-so on the c
 an app-wide entry mentions. The existing upper cut is unchanged (ceiling at most the highest of the chosen
 actions and the `app_up_to` levels). The reverse case, a ceiling above everything chosen, is left alone: it is
 cut to what the actions and grants need as before, and the actions list bounds what runs either way. Tests:
-`crates/intentd/tests/writer_ceiling.rs` (archive, forward, higher ceiling, grants, invented action).
+`crates/intentd/tests/it/writer_ceiling.rs` (archive, forward, higher ceiling, grants, invented action).
 
 **The planner's step history hid older steps' values.** A masked step rendered `action [outcome: said]`: no
 arguments and no handles returned. In smoke flow-a, after two thread reads returned #4 and #5, the next
@@ -1966,14 +1966,14 @@ which is why S1 added none). `SessionLog` should take the Space then. Skills rel
 mismatch is not warned yet.
 
 Tests (all over `MemoryLog` or almanac-fake, scripted models, no network, no wall clock; `crash_after(n)`
-is the crash): `docket-router/tests/restore.rs` (the order of a session's entries, the failed taint write
+is the crash): `docket-router/tests/it/restore.rs` (the order of a session's entries, the failed taint write
 refusing the reveal and leaving the session at its prior taint, a reveal withheld from the reply when its
 handle cannot be kept, restore never asking the writer, handles as labels that cannot be shown or read, an
 interrupted call reported and not run, a blocked log restoring tainted and display-only, a session read on
 under the same policy after a restart, a new session never taking a stored name, a log with untrusted
 handles and no taint restoring tainted and repaired, the crash between every pair of appends of a
 scenario, and the same property under proptest: whatever was revealed, a restore is at least as tainted);
-`docket-router/src/rebuild.rs` (the pure rules, one test each); `docket-memory/tests/session_log.rs` (the
+`docket-router/src/rebuild.rs` (the pure rules, one test each); `docket-memory/tests/it/session_log.rs` (the
 log contract over almanac: paging at any size from any position, out-of-order, no memory is a refusal, an
 acknowledgement lost on the way written once, the listing, and a whole session restored from almanac after
 the router is dropped); `docket-planner` (the interrupted line).
@@ -2026,9 +2026,9 @@ turns a grantable `Pending::Confirm` into a review at the call's impact plan; ev
 every reviewer verdict after it is untouched), the use audit at dispatch, a re-check of the grant just
 before dispatch (a revocation in flight stops the call), and `.Control.StandingGrants` /
 `.RevokeStandingGrant` (Control role; D-Bus `Control` interface; `Intents::standing_grants`,
-`revoke_standing_grant`). Tests: `docket-core/tests/standing.rs` (scope tables, offer table, a proptest
-that nothing never-grantable is offered or lifted), `docket-router/tests/standing.rs` (the gate around a
-grant), `docket-inapp/tests/grants.rs` and `intentd/tests/files.rs` (restart, revoke seen by the next
+`revoke_standing_grant`). Tests: `docket-core/tests/it/standing.rs` (scope tables, offer table, a proptest
+that nothing never-grantable is offered or lifted), `docket-router/tests/it/standing.rs` (the gate around a
+grant), `docket-inapp/tests/it/grants.rs` and `intentd/tests/it/files.rs` (restart, revoke seen by the next
 reader, damaged file).
 
 Open, and why:

@@ -8,7 +8,7 @@ quoted).
 
 ## Where it runs
 
-`crates/docket-accept/tests/flows.rs`, a test of the workspace: it runs in the gate
+`crates/docket-accept/tests/it/flows.rs`, a test of the workspace: it runs in the gate
 (`~/rs-wt/gate-lane-jailed.sh`, inside `~/desktop/harness/jail.sh`) with every other test.
 `dev/accept/run.sh` runs only this package in the same jail, for working on it.
 `ACCEPT_RECORD=1 dev/accept/run.sh` makes inferd's replay engine write every request body it is asked

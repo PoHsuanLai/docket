@@ -3,7 +3,7 @@
 #
 #   dev/accept/run.sh [extra nextest args, e.g. a test name filter]
 #
-# This is the same test the gate runs (`crates/docket-accept/tests/flows.rs`, part of
+# This is the same test the gate runs (`crates/docket-accept/tests/it/flows.rs`, part of
 # `cargo nextest run --workspace` under `~/rs-wt/gate-lane-jailed.sh`); this script only runs it
 # alone, for working on it. The build happens outside the jail, the test archive runs inside
 # ~/desktop/harness/jail.sh: no /dev/input, no /dev/dri, no network, a scratch HOME. The test

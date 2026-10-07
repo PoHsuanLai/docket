@@ -1,0 +1,17 @@
+mod act;
+mod binary;
+mod companion;
+mod hostile;
+mod idle;
+mod inferd_link;
+mod persistent;
+mod planner;
+mod records;
+mod resume;
+mod serve;
+mod shown;
+mod skills;
+mod subagents;
+mod support;
+mod terminal;
+mod why;

@@ -1,0 +1,3 @@
+# Dependencies keep no debug info (workspace members keep line tables): it is most of a test link.
+[profile.dev.package."*"]
+debug = false

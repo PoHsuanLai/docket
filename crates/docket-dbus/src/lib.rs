@@ -2,7 +2,7 @@
 //! `org.quire.IntentProvider1`, sill's `org.quire.Confirm1`, `org.quire.Companion1` and
 //! `org.quire.Reader1`. Each interface is declared twice from one table: a proxy trait for
 //! callers and a skeleton for the daemons, whose introspection is the checked-in `dbus/*.xml`
-//! (see `tests/introspection.rs`). Bodies are the JSON of the named `docket-core` type in an
+//! (see `tests/it/introspection.rs`). Bodies are the JSON of the named `docket-core` type in an
 //! `s` argument; the caller's identity is derived from the connection and never sent.
 //! Signatures only: every skeleton method answers `NotSupported`.
 //!

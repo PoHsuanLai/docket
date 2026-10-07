@@ -3,7 +3,7 @@
 //! `docket_client::serve_on`; the sheet is `Confirm1` asking on this terminal. Nothing here is
 //! the person's real session: it serves whatever bus `DBUS_SESSION_BUS_ADDRESS` names.
 
-#[path = "../tests/support/apps.rs"]
+#[path = "../tests/it/support/apps.rs"]
 mod apps;
 
 use apps::{Answer, FakeSill, serve_mail};

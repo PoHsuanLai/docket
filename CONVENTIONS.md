@@ -54,3 +54,16 @@ What docket adds or decides differently, each with its reason:
 11. **Proposed values are `AgentConfig`.** Every number the specs mark "proposed" is a field of
     `docket_core::AgentConfig` with its default and a row in `SETTING_ROWS`; a test pins the
     two together. The settings keys themselves belong to sill's Intelligence page.
+12. **One integration-test executable per crate.** Cargo links every file directly under `tests/`
+    into its own executable, and each one statically links the crate's whole dependency graph, so a
+    build directory grows with the number of files. Integration tests are therefore modules of
+    `tests/it/main.rs` (`mod <topic>;`), shared helpers are `tests/it/support/` modules
+    (`use crate::support::...`), and goldens, schemas and fixtures stay beside them under `tests/`.
+    A test that includes another crate's helper does it by `#[path]` into that crate's
+    `tests/it/support/`. A separate target (`tests/<name>.rs` plus `[[test]]` in the crate's
+    `Cargo.toml`, with a comment in `tests/it/main.rs`) needs a stated reason: it changes the
+    environment (`set_var`, a panic hook, the current dir), holds a process-wide singleton the others
+    must not share, needs its own `required-features`, has `harness = false`, or relies on being a
+    separate process. A new `tests/*.rs` without that reason is a mistake. Select tests with
+    `cargo test -p <crate> --test it <filter>`. Dependencies build without debug info
+    (`[profile.dev.package."*"]` in `.cargo/config.toml`).
