@@ -6,6 +6,8 @@
 //!
 //! - `assemble`: the working-set assembler, sections from most to least stable.
 //! - `agent_step`: the planner loop.
+//! - `Guard`: the turn's ledger of calls; it holds back a repeated call that got nothing and
+//!   stops a turn that will not change course.
 //! - `choose_tier`: typed action, then hook, then computer use.
 //! - `side_step`: capture of the person's side conversations with a subagent.
 //! - `idle_step`: the background narrative pass, preempted by anything interactive.
@@ -17,6 +19,7 @@
 mod assemble;
 mod completion;
 mod front;
+mod guard;
 mod idle;
 mod leak;
 mod rebuild;
@@ -27,6 +30,7 @@ mod tier;
 pub use assemble::{Sources, TaskFit, assemble, mask_history, task_fit};
 pub use completion::{AskedPerson, Attention, CompletionNote, attention_of, completion_line};
 pub use front::{FrontEvent, front_step};
+pub use guard::{Guard, HOLDS_BEFORE_STOP, MOST_HOLDS_PER_TURN, MOST_REMEMBERED, Stuck, Verdict};
 pub use idle::{
     EpisodeJob, IdleEffect, IdleInput, IdlePhase, IdleState, NarrativeJob, NarrativeVia,
     ReadUntrusted, idle_step,

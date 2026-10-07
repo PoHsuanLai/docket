@@ -96,6 +96,7 @@ fn idle_state() -> LoopState {
         turn: None,
         steps: 0,
         pending: vec![],
+        guard: Default::default(),
     }
 }
 

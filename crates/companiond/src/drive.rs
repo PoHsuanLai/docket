@@ -54,6 +54,7 @@ fn idle_loop() -> LoopState {
         turn: None,
         steps: 0,
         pending: vec![],
+        guard: Default::default(),
     }
 }
 
@@ -157,6 +158,10 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             }
             // The report that made the note is in the task's inbox, where the planner reads it as
             // a typed line; a refusal reached the planner as the coarse code in the history.
+            LoopEffect::Held(call, why) => {
+                self.hold(task, &call, why);
+                Ok(vec![])
+            }
             LoopEffect::Note(_) | LoopEffect::Refused(_) => Ok(vec![]),
             LoopEffect::CloseTask => {
                 self.finish(task).await?;

@@ -46,6 +46,8 @@ impl Plan {
             StepEnd::Done { undo, .. } => StepWireState::Done { undo: *undo },
             StepEnd::Refused(refusal) => StepWireState::Failed(refusal.clone()),
             StepEnd::Unconfirmed(why) => StepWireState::Failed(CallRefusal::Unconfirmed(*why)),
+            // A held call was never begun, so it has no card.
+            StepEnd::Held(_) => return,
         };
         self.set(call, state);
     }

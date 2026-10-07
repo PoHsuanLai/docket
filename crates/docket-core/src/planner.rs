@@ -154,6 +154,20 @@ pub enum StepEnd {
     Refused(CallRefusal),
     /// The person did not confirm it.
     Unconfirmed(ConfirmEnd),
+    /// It was not run: the planner had made this very call before and nothing had changed.
+    Held(Held),
+}
+
+/// Why a repeated call was not run, for the note the planner is given.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Held {
+    /// The same call had returned nothing.
+    Empty,
+    /// The same call had returned the same thing twice.
+    Unchanged,
+    /// The same call had been refused for its arguments.
+    Refused,
 }
 
 /// One call of the session, as history.

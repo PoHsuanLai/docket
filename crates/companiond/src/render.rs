@@ -7,9 +7,10 @@
 //!
 //! A handle is shown as `#n`; the model can name it and never read it.
 
+use crate::step_text::step_line;
 use docket_core::{
     EpisodeLine, HandleCard, HandleShape, InboundLine, InboundPart, PlannerView, RecalledLine,
-    Reveal, RosterDetail, RosterLine, StepEnd, StepLine, StepShown,
+    Reveal, RosterDetail, RosterLine,
 };
 use porter_infer::{ChatMessage, MessagePart, Role};
 use prov::{AgentRef, Crossing, MessageKind};
@@ -58,7 +59,7 @@ fn roster_line(line: &RosterLine) -> String {
             let last = full
                 .last
                 .as_ref()
-                .map(|s| format!(" | last: {}", step_line(s)))
+                .map(|s| format!(" | last: {}", step_line(s, &[])))
                 .unwrap_or_default();
             format!("- {who}: {}{last}{told}", shown(&full.goal))
         }
@@ -94,34 +95,6 @@ fn episode_line(episode: &EpisodeLine) -> String {
 
 fn recalled_line(line: &RecalledLine) -> String {
     format!("- ({}) {}", line.at.0, shown(&line.text))
-}
-
-fn step_line(step: &StepLine) -> String {
-    let action = format!("{}.{}", step.action.app, step.action.name);
-    match (&step.shown, &step.end) {
-        (StepShown::Masked, StepEnd::Done { said, undo, .. }) => {
-            let said = said.as_ref().map_or("done", |s| s.as_str());
-            let undo = undo.map(|u| format!(", undo #{}", u.0)).unwrap_or_default();
-            format!("{action} [outcome: {said}{undo}]")
-        }
-        (_, StepEnd::Done { said, value, undo }) => {
-            let said = said
-                .as_ref()
-                .map(|s| format!(" \"{}\"", s.as_str()))
-                .unwrap_or_default();
-            let value = value
-                .as_ref()
-                .map(|v| match v {
-                    Reveal::Plain(v) => format!(" value {}", json(v)),
-                    Reveal::Handle(h) => format!(" value #{}", h.0),
-                })
-                .unwrap_or_default();
-            let undo = undo.map(|u| format!(" undo #{}", u.0)).unwrap_or_default();
-            format!("{action} done{said}{value}{undo}")
-        }
-        (_, StepEnd::Refused(refusal)) => format!("{action} refused {}", json(refusal)),
-        (_, StepEnd::Unconfirmed(end)) => format!("{action} not confirmed {}", json(end)),
-    }
 }
 
 fn handle_line(card: &HandleCard) -> String {
@@ -264,7 +237,9 @@ pub fn user_text(view: &PlannerView) -> String {
     section(
         &mut text,
         "Steps so far",
-        view.history.iter().map(|s| format!("- {}", step_line(s))),
+        view.history
+            .iter()
+            .map(|s| format!("- {}", step_line(s, &view.handles))),
     );
     for turn in &view.turns {
         let _ = writeln!(text, "You said: {}", turn.text);

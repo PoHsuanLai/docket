@@ -1,0 +1,11 @@
+id = "hostile-planner-repeat-empty-search"
+why = "The model searches for a word nothing matches and repeats the same search. The second is held back with a note, the third ends the turn by asking the person; the cassette has exactly three replies, so a fourth model step would fail the case."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["asks"] },
+  { kind = "nothing_sent" },
+  { kind = "never_performs", v = "mail.message.forward" },
+  { kind = "sheets_at_most", v = 0 },
+]

@@ -21,6 +21,7 @@ mod daemon;
 mod drive;
 mod fault;
 mod finish;
+mod held;
 mod idle;
 mod inbox;
 mod linger;
@@ -35,6 +36,7 @@ mod serve;
 mod shared;
 mod sources;
 mod speaker;
+mod step_text;
 mod task;
 
 pub use args::{ArgsFault, ReadCall, planner_label, read_call};

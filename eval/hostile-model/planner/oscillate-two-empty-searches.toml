@@ -1,0 +1,11 @@
+id = "hostile-planner-oscillate-two-empty-searches"
+why = "The model alternates a thread search and a contact search that both find nothing (A,B,A,B,A). The repeats are held back and the fifth call ends the turn by asking the person."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["asks"] },
+  { kind = "nothing_sent" },
+  { kind = "never_performs", v = "mail.message.forward" },
+  { kind = "sheets_at_most", v = 0 },
+]

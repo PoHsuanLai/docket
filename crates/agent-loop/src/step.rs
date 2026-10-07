@@ -3,10 +3,11 @@
 //! the router, which gates it, so nothing here decides what is allowed.
 
 use crate::completion::{Attention, CompletionNote, completion_line};
+use crate::guard::{Guard, Verdict};
 use crate::tier::Tier;
 use companion_wire::{AnswerPhase, NeedsYou};
 use docket_core::{
-    BreakerTrip, CallId, CallRefusal, CallRequest, ReaderAsk, Reveal, StepEnd, TurnId, Value,
+    BreakerTrip, CallId, CallRefusal, CallRequest, Held, ReaderAsk, Reveal, StepEnd, TurnId, Value,
 };
 use serde::{Deserialize, Serialize};
 
@@ -51,6 +52,10 @@ pub struct LoopState {
     pub steps: u32,
     /// The calls still out.
     pub pending: Vec<CallId>,
+    /// What this turn has called and what it came to: it holds back a call that repeats one that
+    /// got nothing.
+    #[serde(default)]
+    pub guard: Guard,
 }
 
 /// One call the planner planned, and how it will be reached.
@@ -128,6 +133,9 @@ pub enum LoopEffect {
     Publish(AnswerPhase),
     /// Add a line to the task's history (a completion note).
     Note(String),
+    /// The call was not made, because the planner had made it before and nothing had changed:
+    /// the history says so, and the planner is asked again.
+    Held(Box<CallRequest>, Held),
     /// The call was refused: tell the planner only the coarse code, and count the retry.
     Refused(CallRefusal),
     /// Write the task's episode.
@@ -180,6 +188,7 @@ fn ask_planner(state: LoopState, turn: TurnId) -> (LoopState, Vec<LoopEffect>) {
         phase: LoopPhase::Planning,
         turn: Some(turn),
         pending: vec![],
+        guard: Guard::default(),
         ..state
     };
     (
@@ -195,6 +204,7 @@ fn ask_for_message(state: LoopState) -> (LoopState, Vec<LoopEffect>) {
     let next = LoopState {
         phase: LoopPhase::Planning,
         pending: vec![],
+        guard: Guard::default(),
         ..state
     };
     (
@@ -220,19 +230,7 @@ fn planned(state: LoopState, output: ModelOutput) -> (LoopState, Vec<LoopEffect>
     };
     match output {
         ModelOutput::Calls(calls) if calls.is_empty() => finish(state, FinishedAs::Failed),
-        ModelOutput::Calls(calls) => {
-            let pending = (0..calls.len() as u64).map(CallId).collect();
-            let effects = calls
-                .into_iter()
-                .map(|c| LoopEffect::Call(Box::new(c.call)))
-                .collect();
-            let next = LoopState {
-                phase: LoopPhase::AwaitingCalls,
-                pending,
-                ..state
-            };
-            (next, effects)
-        }
+        ModelOutput::Calls(calls) => admitted(state, calls),
         ModelOutput::Read(ask) => (
             with_phase(state, LoopPhase::AwaitingReader),
             vec![LoopEffect::Read(Box::new(ask))],
@@ -248,15 +246,63 @@ fn planned(state: LoopState, output: ModelOutput) -> (LoopState, Vec<LoopEffect>
     }
 }
 
+/// A batch of calls through the guard: those it lets by go out, those it holds back are told to
+/// the planner, and a call that will not change course ends the turn with a question.
+fn admitted(state: LoopState, calls: Vec<PlannedCall>) -> (LoopState, Vec<LoopEffect>) {
+    let mut guard = state.guard.clone().settled();
+    let mut run = Vec::new();
+    let mut held = Vec::new();
+    for planned in calls {
+        let (next, verdict) = guard.admit(CallId(run.len() as u64), &planned.call);
+        guard = next;
+        match verdict {
+            Verdict::Run => run.push(planned.call),
+            Verdict::Hold(why) => held.push(LoopEffect::Held(Box::new(planned.call), why)),
+            Verdict::Stop(stuck) => return stopped(state, held, &stuck.question()),
+        }
+    }
+    let state = LoopState { guard, ..state };
+    if run.is_empty() {
+        let (next, effects) = replan(state);
+        return (next, [held, effects].concat());
+    }
+    let pending = (0..run.len() as u64).map(CallId).collect();
+    let calls = run.into_iter().map(|c| LoopEffect::Call(Box::new(c)));
+    let next = LoopState {
+        phase: LoopPhase::AwaitingCalls,
+        pending,
+        ..state
+    };
+    (next, held.into_iter().chain(calls).collect())
+}
+
+/// The turn comes to rest asking the person, never done with nothing to show.
+fn stopped(state: LoopState, held: Vec<LoopEffect>, text: &str) -> (LoopState, Vec<LoopEffect>) {
+    let question = AnswerPhase::NeedsYou(NeedsYou::Question {
+        text: text.to_owned(),
+        choices: vec![],
+    });
+    let next = LoopState {
+        phase: LoopPhase::Idle,
+        pending: vec![],
+        ..state
+    };
+    (next, [held, vec![LoopEffect::Publish(question)]].concat())
+}
+
 fn call_ended(state: LoopState, id: CallId, end: StepEnd) -> (LoopState, Vec<LoopEffect>) {
     if !state.pending.contains(&id) {
         return stay(state);
     }
+    let state = LoopState {
+        guard: state.guard.clone().ended(id, &end),
+        ..state
+    };
     let pending: Vec<CallId> = state.pending.iter().copied().filter(|p| *p != id).collect();
     let state = LoopState { pending, ..state };
     let refusal = match end {
         StepEnd::Refused(refusal) => Some(refusal),
-        StepEnd::Done { .. } | StepEnd::Unconfirmed(_) => None,
+        StepEnd::Done { .. } | StepEnd::Unconfirmed(_) | StepEnd::Held(_) => None,
     };
     let told: Vec<LoopEffect> = refusal.iter().cloned().map(LoopEffect::Refused).collect();
     match refusal {

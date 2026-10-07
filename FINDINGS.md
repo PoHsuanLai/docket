@@ -1312,7 +1312,7 @@ Interface asks.
 parsers of model and peer output are property-tested and fuzzable. `docs/live-eval.md` has the how-to.
 
 What it adds.
-- `eval/hostile-model/` (corpus `hostile_model`, 53 cases) and `eval/hostile-model/planner/` (27 planner cases with
+- `eval/hostile-model/` (corpus `hostile_model`, 53 cases) and `eval/hostile-model/planner/` (31 planner cases with
   their cassettes). Case kinds added to the format: a `[model]` table (`ModelScript`: the raw words of the writer, quick,
   deliberate and second stage), `times` on a scripted call (loops), `ArgFrom::Unminted(n)` (a handle the session never
   minted), `Expect::{All, OneOf, NothingRan, RefusedAtLeast}`, and `PlannerCase` (prompt, consent, what the person does
@@ -1321,9 +1321,9 @@ What it adds.
     also run, below); writer replies 16 (12 outside the shape, 4 over-broad or narrowing); router-level planner cases 9
     (a handle never minted as recipient and as body, an invented action, an invented app, an extra argument, a missing one,
     a loop of forty sends, a loop of forty reads, A,B oscillation).
-  - planner cases over a cassette, 27: a call left in the text 4 (Hermes, Qwen XML, after a real call, obfuscated); invented,
+  - planner cases over a cassette, 31: a call left in the text 4 (Hermes, Qwen XML, after a real call, obfuscated); invented,
     malformed or unminted calls 7 (invented tool, homoglyph name, wrong type, missing, extra, arguments not JSON, handle 99);
-    loops and floods 4 (same search, A,B, forty refused forwards, sixty parallel calls); empty and whitespace-only 2; cut
+    loops and floods 8 (same search, A,B, forty refused forwards, sixty parallel calls, and the four loop-guard cases below); empty and whitespace-only 2; cut
     mid-call 2 (no finish, length limit); a very large reply; marks in words; a send outside the task policy; a claim that
     the person approved; bad questions 3 (too long, seven choices, a bidi override); a read of handles never minted.
 - The gate plays them three ways: `docket-eval/tests/hostile.rs` (reviewer words through the real `parse_verdict` over
@@ -1400,3 +1400,31 @@ Interface asks.
   `PlanFault::CallInText` (the same typed refusal); `leaked_call` stays as the fallback for engines that do not report it.
   No docket code depends on the field.
 - porter (inferd): none needed. (Noted above: it unwraps a fenced record.)
+
+## loop-guard: a planner that repeats itself is stopped and the person is asked
+
+`todo!()` count: 0 before, 0 after. The first live runs (local Qwen3 4B) repeated `mail.thread.search {"query":...}` 30
+times and `mail.contact.search` 31 times, each answering `{"kind":"entities","v":[]}`; only the turn budget ended the
+turn, as Failed with nothing for the person. It also named handles it was never given.
+
+- `agent-loop` `Guard` (pure, in `LoopState.guard`, reset by each new ask or message) keys a call by action, target and
+  argument values (labels ignored). A call is stale when its last run returned nothing (an empty value, or no value and
+  no words), returned the same as the run before, or was refused as `BadArgs`/`NoSuchAction`. Handle answers, journaled
+  changes and transient refusals (timeout, app unavailable, denials) are never stale; denials stay the breaker's.
+  Rules: first call runs; the 2nd identical stale call is not run (`LoopEffect::Held`, a `StepEnd::Held` line in the
+  history, planner asked again); the 3rd ends the turn by publishing `NeedsYou(Question)` and resting in `Idle`
+  ("I couldn't find anything with mail.thread.search ... What should I look for instead?"), never Done or Failed.
+  Constants: `HOLDS_BEFORE_STOP` = 1, `MOST_HOLDS_PER_TURN` = 4 (A,B,A,B and wider cycles: the fifth hold asks, "going
+  round in circles"), `MOST_REMEMBERED` = 32 distinct calls. In a batch the stale call is held and the others go out.
+- What the model reads: a held call is `... not run: you already called it with these arguments and got nothing; change
+  the arguments, try another action, ask the person with quire_ask, or finish`. A refusal for arguments now says which
+  argument and why, and for an unknown handle which `#n` it does hold ("argument "recipient" names a handle that does not
+  exist; handles you hold: #3 #4"); the coarse code stays on the line, `Denied` stays a bare code (no oracle), and a
+  roster line of another agent gets no handle list.
+- Not changed: a reply the planner cannot read (invented tool, arguments that do not parse or fit the manifest) still
+  ends the turn as Failed in `PlannerModel::read`; feeding that back needs a typed fault line in the view, which is not
+  built.
+- Cases: added `repeat-empty-search`, `repeat-empty-contact-search`, `oscillate-two-empty-searches`,
+  `repeat-invented-handle` (each ends `asks`, nothing sent; the cassettes hold exactly the replies needed, so a model step
+  past the guard fails the case). Changed: `loop-same-search-forty-times` and `oscillate-two-searches-forty-times` end
+  `asks` (was `failed` by budget).

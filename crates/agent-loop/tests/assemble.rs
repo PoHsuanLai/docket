@@ -283,6 +283,7 @@ fn a_refusal_tells_the_planner_only_the_coarse_code_and_a_trip_pauses_the_loop()
         turn: Some(TurnId(1)),
         steps: 1,
         pending: vec![CallId(1)],
+        guard: Default::default(),
     };
     let refused = StepEnd::Refused(CallRefusal::Denied(DenyCode::OutsideTask));
     let (state, effects) = agent_step(idle.clone(), LoopInput::CallEnded(CallId(1), refused));
