@@ -1,15 +1,21 @@
 //! A child process that cannot outlive its owner.
 
 use std::io;
+use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 
-/// The watchdog: a shell that waits for the owner's PID to vanish, then kills the child's PID.
-/// Both PIDs are arguments; nothing is looked up by name.
-const WATCH: &str = r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done; kill -9 "$2" 2>/dev/null"#;
+/// The watchdog: a shell that waits for the owner's PID to vanish, then kills the child's process
+/// group. Both ids are arguments; nothing is looked up by name.
+const WATCH: &str =
+    r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done; kill -9 -- "-$2" 2>/dev/null"#;
 
 /// A child killed by PID, and waited for, when this drops: held for a whole test, so it runs at
 /// the end, on a panic and on an early return. `spawn` must be given a command that does not
 /// fork away (a daemon run with `--nofork`), or the PID is not the daemon's.
+///
+/// The child leads a process group of its own, and the whole group is killed: a daemon's own
+/// children (inferd's engines, and vLLM's engine core under them) go with it instead of holding
+/// the GPU after the test.
 #[derive(Debug)]
 pub struct Reaped {
     // Declared first, so it goes first: a watchdog must never outlive the child it would kill,
@@ -21,7 +27,7 @@ pub struct Reaped {
 impl Reaped {
     /// Starts `command` and guards it, with a watchdog for the owner dying without unwinding.
     pub fn spawn(command: &mut Command) -> io::Result<Self> {
-        let child = command.spawn()?;
+        let child = command.process_group(0).spawn()?;
         let watchdog = Command::new("/bin/sh")
             .args(["-c", WATCH, "sh"])
             .arg(std::process::id().to_string())
@@ -53,7 +59,52 @@ impl Drop for Reaped {
             let _ = watchdog.kill();
             let _ = watchdog.wait();
         }
+        let _ = kill_group(self.child.id());
         let _ = self.child.kill();
         let _ = self.child.wait();
+    }
+}
+
+/// SIGKILL to the process group `pgid` leads (its id is the child's PID), by id.
+fn kill_group(pgid: u32) -> io::Result<std::process::ExitStatus> {
+    Command::new("/bin/kill")
+        .args(["-KILL", "--", &format!("-{pgid}")])
+        .env_clear()
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_grandchild_goes_with_the_child() {
+        let dir = tempfile::tempdir().expect("dir");
+        let pidfile = dir.path().join("grandchild");
+        let script = format!("sleep 300 & echo $! > {}; wait", pidfile.display());
+        let guard = Reaped::spawn(Command::new("/bin/sh").args(["-c", &script])).expect("spawn");
+        let grandchild = (0..200)
+            .find_map(|_| {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                std::fs::read_to_string(&pidfile)
+                    .ok()
+                    .and_then(|t| t.trim().parse::<u32>().ok())
+            })
+            .expect("the grandchild started");
+        drop(guard);
+        let alive = |pid: u32| {
+            std::path::Path::new(&format!("/proc/{pid}")).exists()
+                && !std::fs::read_to_string(format!("/proc/{pid}/stat"))
+                    .unwrap_or_default()
+                    .contains(") Z ")
+        };
+        let gone = (0..200).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            !alive(grandchild)
+        });
+        assert!(gone, "grandchild {grandchild} outlived the guard");
     }
 }

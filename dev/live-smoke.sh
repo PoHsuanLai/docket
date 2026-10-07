@@ -44,8 +44,13 @@ bin=$CARGO_TARGET_DIR/debug/docket-live
 scratch=${LIVE_SCRATCH:-$(mktemp -d "${TMPDIR:-/tmp}/docket-live.XXXXXX")}
 mkdir -p "$scratch/home" "$scratch/tmp" "$scratch/run"
 chmod 700 "$scratch/run"
+# vLLM, Triton and Inductor compile caches, kept across worlds and runs (a cold compile is
+# minutes; every world starts a fresh inferd). Engine build output only, never model input.
+engine_cache=${ENGINE_CACHE:-${TMPDIR:-/tmp}/docket-live-engine-cache}
+mkdir -p "$engine_cache"
 echo "live-smoke: scratch $scratch" >&2
 exec env -i PATH="$PATH" HOME="$scratch/home" TMPDIR="$scratch/tmp" XDG_RUNTIME_DIR="$scratch/run" \
+  DOCKET_LIVE_ENGINE_CACHE="$engine_cache" \
   XDG_CONFIG_HOME="$scratch/home/.config" XDG_DATA_HOME="$scratch/home/.local/share" \
   XDG_STATE_HOME="$scratch/home/.local/state" XDG_CACHE_HOME="$scratch/home/.cache" \
   "$bin" smoke --out "$scratch/out" ${catalog:+--catalog "$catalog"} "${args[@]}"

@@ -100,6 +100,12 @@ pub struct Scratch {
     _owned: Option<tempfile::TempDir>,
 }
 
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        crate::runlink::unlink_run(&self.path);
+    }
+}
+
 impl Scratch {
     pub(crate) fn made(keep_in: Option<&Path>) -> std::io::Result<Self> {
         match keep_in {
@@ -165,13 +171,34 @@ pub(crate) fn env_of(dir: &Path) -> Vec<(&'static str, String)> {
     let at = |p: &str| dir.join(p).display().to_string();
     vec![
         ("HOME", dir.display().to_string()),
+        // What systemd gives a user unit: an engine's compilers (vLLM's Triton runs gcc, which
+        // finds `ld` on PATH) need it.
+        ("PATH", "/usr/bin:/bin".to_owned()),
         ("XDG_DATA_HOME", at("data")),
         ("XDG_DATA_DIRS", at("none")),
         ("XDG_CONFIG_HOME", at("config")),
         ("XDG_CONFIG_DIRS", at("none")),
         ("XDG_CACHE_HOME", at("cache")),
-        ("XDG_RUNTIME_DIR", at("run")),
+        (
+            "XDG_RUNTIME_DIR",
+            crate::runlink::short_run(dir).display().to_string(),
+        ),
     ]
+}
+
+/// The engines' compile caches, when the run names a directory for them (`DOCKET_LIVE_ENGINE_CACHE`,
+/// set by the live scripts): a world is fresh each time, so without it vLLM compiles for minutes
+/// in every world. inferd's engines inherit its environment.
+fn engine_cache() -> Vec<(&'static str, String)> {
+    std::env::var("DOCKET_LIVE_ENGINE_CACHE")
+        .map(|root| {
+            vec![
+                ("VLLM_CACHE_ROOT", format!("{root}/vllm")),
+                ("TRITON_CACHE_DIR", format!("{root}/triton")),
+                ("TORCHINDUCTOR_CACHE_DIR", format!("{root}/inductor")),
+            ]
+        })
+        .unwrap_or_default()
 }
 
 /// What only one daemon is told. memoryd's packaged binary runs a test build: its keys are a file
@@ -187,7 +214,10 @@ fn extra_env(dir: &Path, name: &str) -> Vec<(&'static str, String)> {
             ),
             ("MEMORYD_PROC_ROOT", proc_root),
         ],
-        "inferd" => vec![("INFERD_PROC_ROOT", proc_root)],
+        "inferd" => [("INFERD_PROC_ROOT", proc_root)]
+            .into_iter()
+            .chain(engine_cache())
+            .collect(),
         // A cloud run's key store: its caller table is the scratch one, and its keys a file in
         // the scratch root (a build with the `test-keys` feature; see docs/live-eval.md).
         "accountd" => vec![
@@ -387,6 +417,7 @@ impl World {
             std::os::unix::fs::PermissionsExt::from_mode(0o700),
         )
         .expect("run dir mode");
+        crate::runlink::link_run(root).expect("short runtime name");
         let bus = PrivateBus::start(root);
         let address = bus.address().to_owned();
 

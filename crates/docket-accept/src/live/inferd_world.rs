@@ -44,6 +44,7 @@ impl InferdWorld {
             std::os::unix::fs::PermissionsExt::from_mode(0o700),
         )
         .expect("run dir mode");
+        crate::runlink::link_run(root).expect("short runtime name");
         crate::world::copy_catalog(options.catalog.as_deref(), root);
         let bus = PrivateBus::start(root);
         let client = bus.connect().await;

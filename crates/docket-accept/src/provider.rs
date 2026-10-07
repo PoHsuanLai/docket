@@ -279,7 +279,7 @@ impl IntentProvider for AcceptMail {
                     .to_lowercase();
                 let ids: Vec<EntityId> = threads()
                     .iter()
-                    .filter(|t| t.subject.to_lowercase().contains(&query))
+                    .filter(|t| words_match(&query, t.subject))
                     .filter_map(|t| self.id("mail.thread", t.key))
                     .collect();
                 Ok(Self::done(
@@ -315,7 +315,7 @@ impl IntentProvider for AcceptMail {
                     .to_lowercase();
                 let ids: Vec<EntityId> = contacts()
                     .iter()
-                    .filter(|c| c.name.to_lowercase().contains(&query))
+                    .filter(|c| words_match(&query, c.name))
                     .filter_map(|c| self.id("mail.contact", c.key))
                     .collect();
                 Ok(Self::done(
@@ -373,7 +373,7 @@ impl IntentProvider for AcceptMail {
         let own = self.theirs();
         threads()
             .iter()
-            .filter(|t| t.subject.contains(text))
+            .filter(|t| words_match(text, t.subject))
             .filter_map(|t| {
                 let id = self.id("mail.thread", t.key)?;
                 Some(Hit {
@@ -438,5 +438,37 @@ impl ContextSource for QuietWindow {
 impl SummonTarget for QuietWindow {
     fn summon(&self, _serial: SummonSerial, _origin: SummonOrigin) -> SummonAnswer {
         SummonAnswer::Declined
+    }
+}
+
+/// A mail app's search, roughly: every word of the query, without case or a plural `s`, is in
+/// the text. A live model words its query its own way ("Lisbon receipts" for "Lisbon hotel
+/// receipt"), so an exact substring would answer it with nothing.
+fn words_match(query: &str, text: &str) -> bool {
+    let text = text.to_lowercase();
+    let mut words = query.split_whitespace().peekable();
+    words.peek().is_some()
+        && words.all(|word| {
+            let word = word.to_lowercase();
+            let stem = word
+                .strip_suffix('s')
+                .filter(|s| s.len() > 2)
+                .unwrap_or(&word);
+            text.contains(stem)
+        })
+}
+
+#[cfg(test)]
+mod search_tests {
+    use super::words_match;
+
+    #[test]
+    fn a_query_matches_by_words_not_by_the_whole_string() {
+        assert!(words_match("Lisbon receipts", "Lisbon hotel receipt"));
+        assert!(words_match("lisbon", "Lisbon train receipt"));
+        assert!(words_match("Accounting", "Accounting"));
+        assert!(!words_match("Porto receipts", "Lisbon hotel receipt"));
+        assert!(!words_match("", "Lisbon hotel receipt"));
+        assert!(!words_match("Lisbon", "Accounting"));
     }
 }
