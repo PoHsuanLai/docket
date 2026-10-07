@@ -32,6 +32,7 @@ docket-settings = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true, features = ["inferd"] }
 docket-memory = { workspace = true }
+docket-session = { workspace = true }
 docket-models = { workspace = true }
 policy-point = { workspace = true }
 action-review = { workspace = true }

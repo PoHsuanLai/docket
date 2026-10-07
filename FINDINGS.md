@@ -1948,6 +1948,15 @@ check before asking again"), counts as a failed call for the breaker's history, 
 plan. The cost is one arm in five exhaustive matches (agent-loop twice, docket-planner, router, docket-tasks).
 `CallRefusal::NotRecorded` is the other new variant (and `McpRefusal::NotRecorded`).
 
+**Finding for almanac: the bus client cannot call `Entries` or `RecordDurable`.** almanac master's
+`almanac-dbus/src/invoke.rs` (the zbus proxy dispatch behind `DbusTransport`) has no `Recall.Entries` and no
+`Record.RecordDurable` arm: both answer `Invalid("no member ...")` over the bus, though the codec, the
+service and the in-process transport have them. Until that lands, intentd's log is `DaemonLog::Off`
+(sessions unrecorded, one stderr line at start) rather than refusing every call for want of a record: the
+daemon probes the log once at start (`adopt_sessions`) and falls back if it is not usable. The same
+fallback covers memoryd being down at start. Once almanac ships the arms the same code records sessions with
+no change here; an acceptance run with a restart in the middle is then the S2 check.
+
 **For S2 (convergence).** companiond's `TaskRuntime` and docket-tasks' `recover` still read and write the old
 `companion.session.*` records through their own path (`legacy` reads them); S2 moves them onto the router's
 session record: a front task and its roster come from `restore_session`, `recover` becomes a listing

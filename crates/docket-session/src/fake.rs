@@ -140,6 +140,13 @@ impl MemoryLog {
         }
     }
 
+    /// Forgets every session (a harness that starts its counters again must not meet old ones).
+    pub fn clear(&self) {
+        if let Ok(mut all) = self.bodies.lock() {
+            all.clear();
+        }
+    }
+
     /// How many entries it holds in all.
     pub fn stored(&self) -> usize {
         self.bodies

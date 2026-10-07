@@ -16,7 +16,7 @@ use crate::serve::{ServeFault, closed, serve_on_with};
 use crate::settings_watch::{SettingsWatch, WatchState, apply, apply_next};
 use crate::sheet::SheetConfirmer;
 use crate::signals::{Cadence, pump};
-use crate::system::{SystemClock, SystemSeams};
+use crate::system::{DaemonLog, SystemClock, SystemSeams};
 use docket_core::AuditRecord;
 use docket_dbus::BusConnection;
 use docket_memory::QueuedSink;
@@ -202,14 +202,14 @@ pub async fn start(
         memory: AlmanacMemory::over(almanac_client::DbusTransport::new(session.clone())),
         writer: InferdWriter::on_bus(session),
         reader: ReaderClient::new(session.clone()),
-        log: AlmanacSessionLog::over(
+        log: DaemonLog::Almanac(AlmanacSessionLog::over(
             almanac_client::DbusTransport::new(session.clone()),
             SpaceId::desktop(),
             SystemClock,
-        ),
+        )),
     };
     let pdp = Pdp::standard().map_err(|e| DaemonFault::Policy(e.to_string()))?;
-    let router = Router::new(seams, config.agent, pdp);
+    let mut router = Router::new(seams, config.agent, pdp);
     // The person's settings over intentd.toml's proposed values, now and whenever the file changes.
     let mut watched = SettingsWatch::start(settings, AgentSettings::over(config.agent));
     if let WatchState::Blind { reason } = watched.state() {
@@ -248,7 +248,8 @@ pub async fn start(
     // is restored when a request names it. Without memoryd the log is unreadable and the daemon
     // starts anyway; sessions then cannot be recorded or restored.
     if let Err(why) = router.adopt_sessions().await {
-        eprintln!("intentd: the session log is not readable ({why}): sessions are not restored");
+        eprintln!("intentd: the session log is not usable ({why}): sessions are not recorded");
+        router.seams.log = DaemonLog::Off(docket_router::NoLog);
     }
     let router = Arc::new(router);
     port.attach(&router);

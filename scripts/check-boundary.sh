@@ -152,7 +152,7 @@ EDGES=(
   "docket-eval: docket-core docket-fake docket-skills docket-router porter-core prov"
   "docket-testbus: docket-dbus"
   "actions-mcp: docket-client docket-core docket-dbus docket-settings porter-core prov"
-  "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
+  "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-session docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
   "companiond: companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills docket-tasks porter-client porter-core prov"
   "readerd: docket-client docket-core docket-dbus docket-reader porter-client porter-core porter-infer prov"
   "docket-accept: action-review almanac-client almanac-core companion-wire companiond docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-router docket-testbus intentd porter-client porter-core porter-infer prov readerd"

@@ -8,8 +8,9 @@ use action_review::InferReviewer;
 use docket_core::Millis;
 use docket_memory::QueuedSink;
 use docket_memory::{AlmanacMemory, AlmanacSessionLog};
-use docket_router::{Clock, Seams};
-use prov::UnixSeconds;
+use docket_router::{Clock, NoLog, Seams};
+use docket_session::{Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog};
+use prov::{SessionId, UnixSeconds};
 
 /// The system clock: the one place intentd reads the time.
 #[derive(Debug, Clone, Copy, Default)]
@@ -25,6 +26,51 @@ impl Clock for SystemClock {
 
     async fn after(&self, wait: Millis) {
         tokio::time::sleep(std::time::Duration::from_millis(u64::from(wait.0))).await;
+    }
+}
+
+/// The sessions' log of the running daemon: memoryd's, or none. The daemon reads the log once at
+/// start (`Router::adopt_sessions`); a memoryd that cannot serve it (not running, or too old to
+/// have `Entries` and `RecordDurable` on the bus) leaves the sessions unrecorded for this run,
+/// and the daemon says so, rather than refusing every call for want of a record.
+#[derive(Debug)]
+pub enum DaemonLog<M: almanac_client::Transport> {
+    /// Sessions are recorded in memoryd.
+    Almanac(AlmanacSessionLog<M, SystemClock>),
+    /// Sessions are not recorded.
+    Off(NoLog),
+}
+
+impl<M: almanac_client::Transport> SessionLog for DaemonLog<M> {
+    async fn append(
+        &self,
+        session: &SessionId,
+        seq: Seq,
+        entry: &SessionEntry,
+    ) -> Result<Appended, LogFault> {
+        match self {
+            DaemonLog::Almanac(log) => log.append(session, seq, entry).await,
+            DaemonLog::Off(log) => log.append(session, seq, entry).await,
+        }
+    }
+
+    async fn page(
+        &self,
+        session: &SessionId,
+        from: Option<Seq>,
+        size: PageSize,
+    ) -> Result<LogPage, LogFault> {
+        match self {
+            DaemonLog::Almanac(log) => log.page(session, from, size).await,
+            DaemonLog::Off(log) => log.page(session, from, size).await,
+        }
+    }
+
+    async fn sessions(&self) -> Result<Vec<SessionId>, LogFault> {
+        match self {
+            DaemonLog::Almanac(log) => log.sessions().await,
+            DaemonLog::Off(log) => log.sessions().await,
+        }
     }
 }
 
@@ -52,7 +98,7 @@ pub struct SystemSeams<P: porter_client::Transport, M: almanac_client::Transport
     /// The reader.
     pub reader: ReaderClient,
     /// The sessions' durable log, in memoryd.
-    pub log: AlmanacSessionLog<M, SystemClock>,
+    pub log: DaemonLog<M>,
 }
 
 impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for SystemSeams<P, M> {
@@ -65,7 +111,7 @@ impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for System
     type Memory = AlmanacMemory<M>;
     type Writer = InferdWriter<P>;
     type Reading = ReaderClient;
-    type Log = AlmanacSessionLog<M, SystemClock>;
+    type Log = DaemonLog<M>;
 
     fn link(&self) -> &HostedLink<M> {
         &self.link

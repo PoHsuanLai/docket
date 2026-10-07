@@ -58,4 +58,4 @@ pub use serve::{ServeFault, serve, serve_on, serve_on_with};
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use sheet::SheetConfirmer;
 pub use signals::{Cadence, Changed, Marks, changes, emit, marks_of, pump, rescan};
-pub use system::{SystemClock, SystemSeams};
+pub use system::{DaemonLog, SystemClock, SystemSeams};

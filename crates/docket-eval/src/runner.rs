@@ -42,9 +42,11 @@ where
             Sink = RecordingSink,
         >,
     S::Review: Forget,
+    S::Log: Forget,
 {
     fn forget_reviews(&self) {
         self.reviewer().forget();
+        self.log().forget();
     }
 }
 

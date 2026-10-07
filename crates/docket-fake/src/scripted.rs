@@ -81,6 +81,12 @@ pub trait Forget {
     fn forget(&self);
 }
 
+impl Forget for std::sync::Arc<docket_session::fake::MemoryLog> {
+    fn forget(&self) {
+        self.clear();
+    }
+}
+
 impl Forget for ScriptedReviewer {
     fn forget(&self) {
         self.clear();

@@ -1702,6 +1702,7 @@ dependencies = [
  "docket-memory",
  "docket-models",
  "docket-router",
+ "docket-session",
  "docket-settings",
  "docket-skills",
  "docket-testbus",
