@@ -400,12 +400,14 @@ pub async fn run_flow(
     flow: Flow,
     model: &ModelSource,
     keep_in: Option<std::path::PathBuf>,
+    catalog: Option<std::path::PathBuf>,
     patience: Duration,
 ) -> FlowReport {
     let options = Options {
         keep_in,
         tap: TapMode::On,
         accountd: None,
+        catalog,
     };
     let world = World::start_model(binaries, flow.consent(), model, &options).await;
     world.sheet.will(flow.verdict());

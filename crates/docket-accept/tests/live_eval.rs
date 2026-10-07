@@ -31,6 +31,7 @@ fn options(out: &Path, cassette: Option<String>) -> CorpusOptions {
         timeouts: Timeouts::Every(Millis(600_000)),
         out: out.to_owned(),
         accountd: None,
+        catalog: None,
     }
 }
 
@@ -200,7 +201,15 @@ async fn every_regression_cassette_replays_and_its_case_holds() {
 async fn the_flows_pass_on_their_cassettes_judged_as_a_live_model_is() {
     for flow in Flow::ALL {
         let model = ModelSource::Scripted(flow.cassette().to_owned());
-        let report = run_flow(&binaries(), flow, &model, None, Duration::from_secs(120)).await;
+        let report = run_flow(
+            &binaries(),
+            flow,
+            &model,
+            None,
+            None,
+            Duration::from_secs(120),
+        )
+        .await;
         assert!(
             report.failures.is_empty(),
             "{}: {:?}\n{}\n{}",
@@ -215,4 +224,37 @@ async fn the_flows_pass_on_their_cassettes_judged_as_a_live_model_is() {
             "the tap saw the daemons"
         );
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_worlds_inferd_finds_the_copied_catalogue_entries() {
+    use docket_accept::live::catalog::world_dir;
+    use docket_accept::live::{InferdWorld, hijacked_judge_cassette};
+    use docket_accept::world::{ModelSource, Options};
+    let source = tempfile::tempdir().expect("source");
+    std::fs::write(source.path().join("one.toml"), "id = \"one\"\n").expect("write");
+    std::fs::write(source.path().join("notes.txt"), "not an entry").expect("write");
+    let options = Options {
+        catalog: Some(source.path().to_owned()),
+        ..Options::default()
+    };
+    let world = InferdWorld::start(
+        &binaries(),
+        &ModelSource::Scripted(hijacked_judge_cassette()),
+        &options,
+    )
+    .await;
+    let dir = world_dir(world.root());
+    let mut names: Vec<_> = std::fs::read_dir(&dir)
+        .expect("catalogue dir")
+        .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().into_owned()))
+        .collect();
+    names.sort();
+    assert_eq!(names, ["one.toml"]);
+    assert_eq!(
+        std::fs::read_to_string(dir.join("one.toml")).expect("copy"),
+        "id = \"one\"\n"
+    );
+    // The scratch root is where inferd's XDG_DATA_HOME points, so this is the user catalogue.
+    assert!(dir.starts_with(world.root().join("data")));
 }

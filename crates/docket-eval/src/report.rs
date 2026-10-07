@@ -101,6 +101,8 @@ pub struct RunNote {
     pub skipped: Vec<(String, String)>,
     /// Cases that did not meet what they expected, by id.
     pub missed: Vec<String>,
+    /// The model catalogue the run used: its directory and git commit.
+    pub catalogue: String,
 }
 
 fn pct(p: Permille) -> String {
@@ -121,8 +123,8 @@ impl RunReport {
     /// benign) case shows the whole range, because nothing is known.
     pub fn render(&self, note: &RunNote) -> String {
         let mut out = format!(
-            "# Eval report: {}\n\nbuild {} - model source: {}\n\n",
-            note.label, self.version, note.engine
+            "# Eval report: {}\n\nbuild {} - model source: {} - {}\n\n",
+            note.label, self.version, note.engine, note.catalogue
         );
         out.push_str(
             "| corpus | n | FP | FN | FPR | FNR | ask | approve | p50 | p95 | cost per 1000 |\n\

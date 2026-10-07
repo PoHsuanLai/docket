@@ -240,3 +240,21 @@ fn the_hijacked_judge_has_an_entry_per_asker() {
             .is_some_and(|s| s.starts_with("org.quire.Files "))
     }));
 }
+
+#[test]
+fn the_catalogue_paths() {
+    use docket_accept::live::catalog::{default_source, world_dir};
+    use std::path::Path;
+    assert_eq!(
+        default_source(Path::new("/home/me/docket/eval")),
+        Path::new("/home/me/stoker/catalog")
+    );
+    assert_eq!(
+        default_source(Path::new("/home/me/rs-wt/x/docket/eval")),
+        Path::new("/home/me/rs-wt/x/stoker/catalog")
+    );
+    assert_eq!(
+        world_dir(Path::new("/s")),
+        Path::new("/s/data/stoker/catalog")
+    );
+}

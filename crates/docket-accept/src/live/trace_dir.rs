@@ -75,9 +75,13 @@ impl TraceDir {
     }
 
     /// Writes `index.txt`.
-    pub fn write_index(&self, traces: &[(String, CaseTrace)]) -> Result<(), TraceDirError> {
+    pub fn write_index(
+        &self,
+        header: &str,
+        traces: &[(String, CaseTrace)],
+    ) -> Result<(), TraceDirError> {
         let rows: Vec<(String, &CaseTrace)> =
             traces.iter().map(|(file, t)| (file.clone(), t)).collect();
-        self.put("index.txt", &render_index(&rows))
+        self.put("index.txt", &format!("{header}\n{}", render_index(&rows)))
     }
 }

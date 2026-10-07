@@ -7,13 +7,14 @@
 
 use docket_accept::live::cli::{Command, CorpusArgs, SmokeArgs, UsageError, parse};
 use docket_accept::live::flows::{Flow, Kind, run_flow};
-use docket_accept::live::regress;
 use docket_accept::live::{
     CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_live,
 };
+use docket_accept::live::{catalog, regress};
 use docket_accept::world::ModelSource;
 use docket_core::Millis;
 use docket_eval::{Case, Corpus, RunReport, load_all};
+use std::path::Path;
 use std::process::ExitCode;
 use std::time::Duration;
 
@@ -71,6 +72,11 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
         timeouts: timeouts(&args),
         out: args.out.clone(),
         accountd: args.accountd.clone(),
+        catalog: Some(
+            args.catalog
+                .clone()
+                .unwrap_or_else(|| catalog::default_source(&args.eval_dir)),
+        ),
     };
     let mut misses = Vec::new();
     let mut outcome = None;
@@ -135,6 +141,10 @@ async fn smoke(args: SmokeArgs) -> Result<ExitCode, String> {
             .map(|f| Flow::parse(f).ok_or_else(|| format!("no flow named {f:?}")))
             .collect::<Result<_, _>>()?
     };
+    let smoke_catalog = args
+        .catalog
+        .clone()
+        .unwrap_or_else(|| catalog::default_source(Path::new("eval")));
     let traces = args.out.join("smoke");
     std::fs::create_dir_all(&traces).map_err(|e| e.to_string())?;
     let mut failed = false;
@@ -148,11 +158,13 @@ async fn smoke(args: SmokeArgs) -> Result<ExitCode, String> {
             flow,
             &model,
             Some(args.out.join("scratch")),
+            Some(smoke_catalog.clone()),
             Duration::from_secs(args.patience_s),
         )
         .await;
         let file = traces.join(format!("{}.trace.txt", flow.slug()));
-        std::fs::write(&file, &report.transcript).map_err(|e| e.to_string())?;
+        let header = format!("{}\n\n", catalog::describe(&smoke_catalog));
+        std::fs::write(&file, header + &report.transcript).map_err(|e| e.to_string())?;
         let verdict = if report.failures.is_empty() {
             "PASS"
         } else {

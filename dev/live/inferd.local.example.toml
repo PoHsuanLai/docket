@@ -1,25 +1,25 @@
 # An inferd.toml for `--engine local`. Copy it to dev/live/inferd.local.toml (git ignores that),
 # fix the paths, and pass it with --inferd-config. It is read from the path you give and nowhere
 # else; the harness never opens ~/.config. It must not hold a [callers] table: the world writes the
-# callers (intentd, companiond, readerd, memoryd) itself.
+# callers (intentd, companiond, readerd, memoryd) itself. The model catalogue is the sibling stoker
+# checkout's catalog/ (--catalog DIR to change it), copied into the scratch world.
 #
 # inferd runs in a scratch HOME, so every path is absolute.
 [engines]
-# llama.cpp's server, or vLLM's python: whichever serves the model's catalogue entry (the entry's
-# `engines` say which). A kind with no program here is not offered.
-llama_server = "/usr/bin/llama-server"
-# vllm_python = "/home/you/vllm/.venv/bin/python"
-# Where the weights are (the Hugging Face hub directory you downloaded into).
+# vLLM serves both local text models of the catalogue.
+vllm_python = "/home/you/vllm/.venv/bin/python"
+# Where the weights are: the Hugging Face hub directory you downloaded into (inferd's own default is
+# $HF_HOME/hub, else ~/.cache/huggingface/hub, but HOME is scratch here, so name it).
 hf_cache = "/mnt/data/hf/hub"
 
 [ai]
 local_only = "on"
 
-# The three reviewer tiers and the planner map to these rows: fast is the quick judge and the
-# policy writer, balanced the deliberate stage and the planner, best the second opinion.
-# The catalogue has one local text model with tools today (holo-3.1-4b), so all three are the same
-# model: a local run measures that model in every stage, not three independent families.
+# fast is the quick judge and the policy writer, balanced the deliberate stage and the planner,
+# best the second opinion. Two families, qwen and granite; they cannot both be resident on 16 GB, so
+# inferd evicts one for the other and a run pays model swaps (the second opinion is a swap each time
+# it runs after the others).
 [ai.model.text]
-fast = "local/holo-3.1-4b"
-balanced = "local/holo-3.1-4b"
-best = "local/holo-3.1-4b"
+fast = "local/qwen3-4b-instruct-2507-fp8"
+balanced = "local/qwen3-4b-instruct-2507-fp8"
+best = "local/granite-4.2-3b-fp8"

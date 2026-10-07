@@ -1294,7 +1294,7 @@ Gaps and decisions.
   scripted in corpus runs, so planner quality is measured only by the smoke flows (four of them; no terminal flow).
 - Approve rate is 0 (every sheet is dismissed). Stage latency is from the tap in ms (the router's own marks are whole seconds).
 - Cost per 1000 comes from inferd's `spend.json` (cloud accounts only; local is 0).
-- `local`: the catalogue has one local text model with tools (holo-3.1-4b), so all three stages are one model.
+- `local`: two local text models with tools (qwen3-4b-instruct-2507-fp8, granite-4.2-3b-fp8); they are not co-resident on 16 GB, so a run pays swaps. Deliberate, second-opinion and planner send `Reasoning::EngineDefault`, so Granite thinks.
 - `cloud` is built but not run: accountd on a private bus has no key store (below). The auto-shrink of AllowJudged cells that the old
   script header promised is not built; `--fnr-max-permille` only fails the run.
 - Not run here: `--engine local` and `--engine cloud` (no network, not our machine config). The gate runs `scripted` only.
@@ -1305,4 +1305,3 @@ Interface asks.
   accountd finds provider files (openrouter). Until then `--engine cloud` cannot hold a key.
 - I2 (porter, inferd): let `record` (or a new `tee`) capture the answers of a live engine, so the trace can be inferd's own view
   and the tap in docket-dbus can go.
-- I3 (stoker): more local text models with tools, for three independent families.

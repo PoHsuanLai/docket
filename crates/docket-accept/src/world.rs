@@ -70,6 +70,17 @@ pub struct Options {
     /// The accountd binary to run on the private bus (a cloud run's key store): a build with the
     /// `test-proc-root` and `test-keys` features, as `ACCEPT_ACCOUNTD` names it.
     pub accountd: Option<PathBuf>,
+    /// A catalogue directory whose `*.toml` entries are copied into the scratch root before
+    /// inferd starts (see `live::catalog`).
+    pub catalog: Option<PathBuf>,
+}
+
+/// Copies the run's catalogue into the scratch root; a missing source is a failed start.
+pub(crate) fn copy_catalog(from: Option<&Path>, root: &Path) {
+    if let Some(from) = from {
+        crate::live::catalog::copy_entries(from, &crate::live::catalog::world_dir(root))
+            .unwrap_or_else(|e| panic!("catalogue {}: {e}", from.display()));
+    }
 }
 
 /// Whether the daemons tap their model link.
@@ -410,6 +421,7 @@ impl World {
             );
         }
 
+        copy_catalog(options.catalog.as_deref(), root);
         let tap = match options.tap {
             TapMode::On => Some(root.join("model.jsonl")),
             TapMode::Off => None,

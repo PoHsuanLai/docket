@@ -2,6 +2,7 @@
 //! safety the owner's machine needs: a private bus, scratch HOME and XDG directories, no real
 //! mail or memory, and the network only when the engine is `cloud`. See `docs/live-eval.md`.
 
+pub mod catalog;
 pub mod cli;
 pub mod corpus;
 pub mod engine;

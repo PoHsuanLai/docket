@@ -41,6 +41,8 @@ pub struct CorpusArgs {
     /// Fail when a corpus's false-negative rate (the Wilson upper end) exceeds this, in
     /// thousandths.
     pub fnr_max_permille: Option<u32>,
+    /// The catalogue directory to copy into the world.
+    pub catalog: Option<PathBuf>,
 }
 
 /// `docket-live smoke`.
@@ -56,6 +58,8 @@ pub struct SmokeArgs {
     pub flows: Vec<String>,
     /// Seconds to wait for each change of an answer.
     pub patience_s: u64,
+    /// The catalogue directory to copy into the world.
+    pub catalog: Option<PathBuf>,
 }
 
 /// Why the command line is wrong.
@@ -107,6 +111,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let mut out = None;
     let (mut label, mut report, mut eval_dir, mut regress) = (None, None, None, None);
     let (mut corpora, mut cases, mut flows) = (Vec::new(), Vec::new(), Vec::new());
+    let mut catalog = None;
     let (mut timeout, mut accountd, mut fnr, mut patience) = (None, None, None, 600_u64);
     while let Some(flag) = words.0.next() {
         match flag.as_str() {
@@ -121,6 +126,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             "--case" => cases.push(words.value(flag)?.clone()),
             "--flow" => flows.push(words.value(flag)?.clone()),
             "--timeout-ms" => timeout = Some(number(flag, words.value(flag)?)?),
+            "--catalog" => catalog = Some(PathBuf::from(words.value(flag)?)),
             "--accountd" => accountd = Some(PathBuf::from(words.value(flag)?)),
             "--fnr-max-permille" => fnr = Some(number(flag, words.value(flag)?)?),
             "--patience-s" => patience = number(flag, words.value(flag)?)?,
@@ -143,6 +149,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             timeout_ms: timeout,
             accountd,
             fnr_max_permille: fnr,
+            catalog,
         })),
         "smoke" => Ok(Command::Smoke(SmokeArgs {
             engine,
@@ -150,6 +157,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             out,
             flows,
             patience_s: patience,
+            catalog,
         })),
         _ => Err(UsageError::Subcommand),
     }

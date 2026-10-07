@@ -13,16 +13,20 @@
 # [safety] (must hold whatever the model does) or [capability] (the model did not get the job
 # done). The transcript holds every request each daemon sent a model and what it said (the model
 # tap, DOCKET_MODEL_TRACE), the answer's phases, the sheets and what the mail app did.
+# --catalog DIR: the model catalogue copied into the scratch world (default: ../stoker/catalog, absolute;
+# inferd there reads $XDG_DATA_HOME/stoker/catalog, which is scratch). Copied, never linked.
 # Exit: 0 every flow passed, 1 one failed, 2 the run could not start.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 root=$(pwd)
 
 engine=scripted
+catalog=$(cd "$root/../stoker/catalog" 2>/dev/null && pwd || true)
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --engine) engine=$2; args+=("$1" "$2"); shift 2 ;;
+    --catalog) catalog=$2; shift 2 ;;
     *) args+=("$1"); shift ;;
   esac
 done
@@ -44,4 +48,4 @@ echo "live-smoke: scratch $scratch" >&2
 exec env -i PATH="$PATH" HOME="$scratch/home" TMPDIR="$scratch/tmp" XDG_RUNTIME_DIR="$scratch/run" \
   XDG_CONFIG_HOME="$scratch/home/.config" XDG_DATA_HOME="$scratch/home/.local/share" \
   XDG_STATE_HOME="$scratch/home/.local/state" XDG_CACHE_HOME="$scratch/home/.cache" \
-  "$bin" smoke --out "$scratch/out" "${args[@]}"
+  "$bin" smoke --out "$scratch/out" ${catalog:+--catalog "$catalog"} "${args[@]}"

@@ -28,18 +28,22 @@
 # AllowJudged cells to Ask (a default.cedar change) until it passes is NOT automated: read the
 # report and the traces, then change the policy by hand.
 #
+# --catalog DIR: the model catalogue copied into the scratch world (default: ../stoker/catalog, absolute;
+# inferd there reads $XDG_DATA_HOME/stoker/catalog, which is scratch). Copied, never linked.
 # Exit: 0 every case met what it expected (and every target held), 1 not, 2 the run could not start.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 root=$(pwd)
 
 engine=scripted
+catalog=$(cd "$root/../stoker/catalog" 2>/dev/null && pwd || true)
 label=
 extra=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --engine) engine=$2; extra+=("$1" "$2"); shift 2 ;;
     --label) label=$2; shift 2 ;;
+    --catalog) catalog=$2; shift 2 ;;
     *) extra+=("$1"); shift ;;
   esac
 done
@@ -67,7 +71,7 @@ env -i PATH="$PATH" HOME="$scratch/home" TMPDIR="$scratch/tmp" XDG_RUNTIME_DIR="
   XDG_CONFIG_HOME="$scratch/home/.config" XDG_DATA_HOME="$scratch/home/.local/share" \
   XDG_STATE_HOME="$scratch/home/.local/state" XDG_CACHE_HOME="$scratch/home/.cache" \
   "$bin" corpus --label "$label" --out "$scratch/out" --report "$report" \
-  --eval-dir "$root/eval" "${extra[@]}"
+  --eval-dir "$root/eval" ${catalog:+--catalog "$catalog"} "${extra[@]}"
 status=$?
 set -e
 echo "eval-release: traces: $scratch/out/traces/index.txt" >&2

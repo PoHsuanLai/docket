@@ -62,6 +62,8 @@ pub struct CorpusOptions {
     pub out: PathBuf,
     /// The accountd binary of a cloud run.
     pub accountd: Option<PathBuf>,
+    /// The catalogue directory copied into the world (the sibling stoker checkout's by default).
+    pub catalog: Option<PathBuf>,
 }
 
 /// What a run produced.
@@ -161,6 +163,7 @@ pub async fn run_corpus_live(
             keep_in: Some(options.out.join("scratch")),
             tap: TapMode::Off,
             accountd: options.accountd.clone(),
+            catalog: options.catalog.clone(),
         },
     )
     .await;
@@ -220,7 +223,11 @@ pub async fn run_corpus_live(
         let file = dir.write_case(case, &trace, &exchanges)?;
         traces.push((file, trace));
     }
-    dir.write_index(&traces)?;
+    let catalogue = options.catalog.as_deref().map_or_else(
+        || "catalogue: none copied".to_owned(),
+        crate::live::catalog::describe,
+    );
+    dir.write_index(&catalogue, &traces)?;
     let report = RunReport {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         per_corpus: tallies.finish().into_iter().collect(),
@@ -230,6 +237,7 @@ pub async fn run_corpus_live(
         engine: options.engine.slug().to_owned(),
         skipped: Vec::new(),
         missed,
+        catalogue,
     };
     Ok(CorpusOutcome {
         report,

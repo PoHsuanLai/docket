@@ -81,7 +81,7 @@ for every review stage; default is the shipped 300/3000/3000 ms for `scripted` a
 engines, because a cloud round trip is slower than the quick stage's 300 ms and a run with the shipped
 bound would ask about everything), `--fnr-max-permille N` (fail when a corpus's false-negative rate has
 a Wilson upper end above N; the person's target, QUESTIONS S5), `--regress DIR` (play the regression
-cassettes, below). Options of `live-smoke.sh`: `--flow NAME` (flow-a, flow-a-refused, first-use, flow-c;
+cassettes, below). `--catalog DIR` (default `../stoker/catalog`). Options of `live-smoke.sh`: `--flow NAME` (flow-a, flow-a-refused, first-use, flow-c;
 repeatable), `--patience-s N` (seconds to wait for each change of an answer; default 600).
 
 Exit codes: 0 everything met, 1 a case missed or a flow failed, 2 the run could not start.
@@ -92,13 +92,33 @@ policy by hand.
 
 ### What a local engine needs
 
-inferd must be able to start the engine in a scratch HOME with Landlock on: `llama_server` (or
-`vllm_python`) as an absolute path, `hf_cache` (the hub directory the weights are in) absolute, and the
-model rows `ai.model.text.{fast,balanced,best}` set (`fast` is the quick judge and the writer, `balanced`
-the deliberate stage and the planner, `best` the second opinion). `ai.local_only = "on"` (the default)
-keeps every class on the machine. The runs need the GPU: do not wrap them in `jail.sh`. The catalogue
-has one local text model with tools today (`holo-3.1-4b`), so a local run measures that model in all
-three stages, not three independent families.
+inferd must be able to start the engine in a scratch HOME with Landlock on: `vllm_python` as an
+absolute path (the vLLM virtualenv's python), `hf_cache` as an absolute path (the hub directory the
+weights are in; inferd's default would be under the scratch HOME), and the model rows
+`ai.model.text.{fast,balanced,best}` set (`fast` is the quick judge and the writer, `balanced` the
+deliberate stage and the planner, `best` the second opinion). `ai.local_only = "on"` (the default) keeps
+every class on the machine. The runs need the GPU: do not wrap them in `jail.sh`.
+
+The catalogue has two local text models with tools, `qwen3-4b-instruct-2507-fp8` (family qwen) and
+`granite-4.2-3b-fp8` (family granite). `dev/live/inferd.local.example.toml` puts fast and balanced on
+qwen and best on granite, so the second opinion is a different family. They cannot be resident together
+on 16 GB: inferd evicts one for the other, so a run pays a model swap whenever the stage changes family.
+
+**Catalogue.** inferd reads `$XDG_DATA_HOME/stoker/catalog` and `/usr/share/stoker/catalog`; in a harness
+world the first is scratch and the second may be absent, so a run would find no models. `--catalog DIR`
+(both scripts and `docket-live`; default the sibling stoker checkout's `catalog/`, `../stoker/catalog`
+made absolute) names a directory whose `*.toml` files are copied into `<scratch>/data/stoker/catalog`
+before inferd starts. They are copied, never linked, so nothing in the real tree can be written through
+the world. The report header, `index.txt` and each smoke transcript name the catalogue directory and its
+git commit when it is a git checkout.
+
+**Reasoning.** What the stages send inferd (`ChatControl.reasoning`): the quick reviewer `Off`, the policy
+writer `Off`, the reader `Off`; the deliberate and second-opinion reviewers and the planner
+`EngineDefault`. `EngineDefault` sends no switch, so a model that thinks by default thinks: Granite, as
+the second opinion, will spend tokens (and seconds) reasoning before its verdict. If no thinking is wanted
+there, the reviewer's `control()` in `action-review/src/infer.rs` should send `Reasoning::Off` for those two
+stages explicitly. That is a change to what the product sends, so it is not made here; a trace shows the
+thought-free answer and the milliseconds each stage took.
 
 ### Cloud
 
