@@ -821,3 +821,82 @@ async fn an_app_that_is_not_there_ends_the_call_as_unavailable_not_as_a_failure(
         .expect_err("absent app");
     assert_eq!(refused, CallRefusal::AppUnavailable(mail_app()));
 }
+
+fn hold_thing(
+    router: &docket_router::Router<docket_fake::FakeSeams>,
+    session: &prov::SessionId,
+    key: &str,
+) -> Handle {
+    let mut st = router.state.lock().expect("lock");
+    let record = st.sessions.get_mut(session).expect("session");
+    record
+        .handles
+        .mint_entity(entity("mail.thread", key), mail_label("work"))
+}
+
+fn handled(action_name: &str, target: Vec<Handle>) -> CallRequest {
+    CallRequest {
+        target: TargetValue::Handles(target),
+        ..call(action_name, &[], vec![])
+    }
+}
+
+#[tokio::test]
+async fn a_target_named_by_handle_is_the_thing_the_handle_holds() {
+    let router = router();
+    let s = ready(&router).await;
+    let h = hold_thing(&router, &s.session, "t1");
+    perform(&router, handled("mail.thread.read", vec![h]))
+        .await
+        .expect("read the thread the handle holds");
+    let targets: Vec<Vec<prov::EntityId>> = calls(&router)
+        .into_iter()
+        .filter_map(|r| match r {
+            AuditRecord::Call { targets, .. } => Some(targets),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(targets, [vec![entity("mail.thread", "t1")]]);
+}
+
+#[tokio::test]
+async fn a_target_handle_that_is_not_held_or_holds_words_is_refused_by_name() {
+    let router = router();
+    let s = ready(&router).await;
+    let words = hold(&router, &s.session, "hello", mail_label("work"));
+    for (named, why) in [
+        (Handle(999), ArgFault::UnknownHandle),
+        (words, ArgFault::WrongType),
+    ] {
+        let refused = perform(&router, handled("mail.thread.read", vec![named]))
+            .await
+            .expect_err("refused");
+        assert_eq!(
+            refused,
+            CallRefusal::BadArgs {
+                param: param("target"),
+                why
+            }
+        );
+    }
+}
+
+#[tokio::test]
+async fn the_same_thing_held_twice_with_one_label_is_one_handle() {
+    let router = router();
+    let s = ready(&router).await;
+    let first = hold_thing(&router, &s.session, "t1");
+    let again = hold_thing(&router, &s.session, "t1");
+    let other = hold_thing(&router, &s.session, "t2");
+    assert_eq!(first, again, "the same search names the same #n");
+    assert_ne!(first, other);
+    let mut st = router.state.lock().expect("lock");
+    let record = st.sessions.get_mut(&s.session).expect("session");
+    let relabelled = record
+        .handles
+        .mint_entity(entity("mail.thread", "t1"), trusted());
+    assert_ne!(
+        first, relabelled,
+        "a thing held under another label is its own handle"
+    );
+}

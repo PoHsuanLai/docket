@@ -7,7 +7,8 @@ use crate::guard::{Guard, Verdict};
 use crate::tier::Tier;
 use companion_wire::{AnswerPhase, NeedsYou};
 use docket_core::{
-    BreakerTrip, CallId, CallRefusal, CallRequest, Held, ReaderAsk, Reveal, StepEnd, TurnId, Value,
+    BreakerTrip, CallId, CallRefusal, CallRequest, Held, ReaderAsk, ReplyFault, Reveal, StepEnd,
+    TurnId, Value,
 };
 use serde::{Deserialize, Serialize};
 
@@ -77,6 +78,9 @@ pub enum ModelOutput {
     Read(ReaderAsk),
     /// Words for the person.
     Say(String),
+    /// A reply that could not be read as a call: told to the planner on its next turn, and
+    /// counted, so a model that cannot get it right ends in a question to the person.
+    Unread(ReplyFault),
     /// A question for the person.
     Ask {
         /// The question.
@@ -136,6 +140,9 @@ pub enum LoopEffect {
     /// The call was not made, because the planner had made it before and nothing had changed:
     /// the history says so, and the planner is asked again.
     Held(Box<CallRequest>, Held),
+    /// The planner's reply could not be read: add a line to the task's history saying why, and
+    /// ask the planner again.
+    Unread(ReplyFault),
     /// The call was refused: tell the planner only the coarse code, and count the retry.
     Refused(CallRefusal),
     /// Write the task's episode.
@@ -231,6 +238,7 @@ fn planned(state: LoopState, output: ModelOutput) -> (LoopState, Vec<LoopEffect>
     match output {
         ModelOutput::Calls(calls) if calls.is_empty() => finish(state, FinishedAs::Failed),
         ModelOutput::Calls(calls) => admitted(state, calls),
+        ModelOutput::Unread(fault) => unreadable(state, fault),
         ModelOutput::Read(ask) => (
             with_phase(state, LoopPhase::AwaitingReader),
             vec![LoopEffect::Read(Box::new(ask))],
@@ -243,6 +251,20 @@ fn planned(state: LoopState, output: ModelOutput) -> (LoopState, Vec<LoopEffect>
             ))],
         ),
         ModelOutput::Finish => finish(state, FinishedAs::Done),
+    }
+}
+
+/// A reply that could not be read: the planner is told so and asked again, until it has done so
+/// too often running and the person is asked instead.
+fn unreadable(state: LoopState, fault: ReplyFault) -> (LoopState, Vec<LoopEffect>) {
+    let (guard, stuck) = state.guard.clone().unreadable();
+    let state = LoopState { guard, ..state };
+    match stuck {
+        None => (
+            state,
+            vec![LoopEffect::Unread(fault), LoopEffect::AskPlanner],
+        ),
+        Some(stuck) => stopped(state, vec![LoopEffect::Unread(fault)], &stuck.question()),
     }
 }
 
@@ -302,7 +324,9 @@ fn call_ended(state: LoopState, id: CallId, end: StepEnd) -> (LoopState, Vec<Loo
     let state = LoopState { pending, ..state };
     let refusal = match end {
         StepEnd::Refused(refusal) => Some(refusal),
-        StepEnd::Done { .. } | StepEnd::Unconfirmed(_) | StepEnd::Held(_) => None,
+        StepEnd::Done { .. } | StepEnd::Unconfirmed(_) | StepEnd::Held(_) | StepEnd::Unread(_) => {
+            None
+        }
     };
     let told: Vec<LoopEffect> = refusal.iter().cloned().map(LoopEffect::Refused).collect();
     match refusal {

@@ -17,6 +17,21 @@ pub fn binaries() -> Binaries {
 
 /// Flow (a), the person allows: search, contact search, forward, the closing words.
 pub const FLOW_A: Cassette = Cassette(include_str!("../../../dev/accept/cassettes/flow-a.jsonl"));
+/// Flow (a) by the handles the planner is shown for what the searches found: the cassette's
+/// forward entry needs `#1 mail.thread, #2 mail.thread` and `#3 mail.contact` in the request.
+pub const FLOW_A_HANDLES: Cassette = Cassette(include_str!(
+    "../../../dev/accept/cassettes/flow-a-handles.jsonl"
+));
+/// The same, but the first forward names handle 99 for the recipient; the second needs the router's
+/// refusal in the history ("names a handle that does not exist", "handles you hold: #1 #2 #3").
+pub const FLOW_A_FAULT_LINE: Cassette = Cassette(include_str!(
+    "../../../dev/accept/cassettes/flow-a-fault-line.jsonl"
+));
+/// The same, but the first forward leaves the recipient out; the second needs the fault line for a
+/// reply that could not be read as a call.
+pub const FLOW_A_UNREAD: Cassette = Cassette(include_str!(
+    "../../../dev/accept/cassettes/flow-a-unread.jsonl"
+));
 /// Flow (a), the person refuses: the closing words need the planner to have been told so.
 pub const FLOW_A_REFUSED: Cassette = Cassette(include_str!(
     "../../../dev/accept/cassettes/flow-a-refused.jsonl"

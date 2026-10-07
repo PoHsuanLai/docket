@@ -162,6 +162,10 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
                 self.hold(task, &call, why);
                 Ok(vec![])
             }
+            LoopEffect::Unread(fault) => {
+                self.unread(task, fault);
+                Ok(vec![])
+            }
             LoopEffect::Note(_) | LoopEffect::Refused(_) => Ok(vec![]),
             LoopEffect::CloseTask => {
                 self.finish(task).await?;

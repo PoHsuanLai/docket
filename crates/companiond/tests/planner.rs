@@ -376,12 +376,19 @@ async fn a_reply_is_read_into_calls_a_read_a_question_an_end_or_words() {
         planner.plan(&view).await,
         Ok(ModelOutput::Say("Just words.".into()))
     );
-    for why in [
-        "an unknown tool",
-        "bad arguments",
-        "nothing",
-        "a cut-off reply",
-    ] {
+    // An unknown tool and bad arguments are told to the model; nothing at all, and words cut off,
+    // are not a reply to tell anything about.
+    assert_eq!(
+        planner.plan(&view).await,
+        Ok(ModelOutput::Unread(docket_core::ReplyFault::NoSuchTool(
+            "nothing-here".into()
+        )))
+    );
+    assert!(matches!(
+        planner.plan(&view).await,
+        Ok(ModelOutput::Unread(docket_core::ReplyFault::Args(_)))
+    ));
+    for why in ["nothing", "a cut-off reply"] {
         assert_eq!(
             planner.plan(&view).await,
             Err(PlanFault::Unreadable),

@@ -54,7 +54,10 @@ pub(crate) struct Prepared {
 pub(crate) fn entities(target: &TargetValue) -> Vec<EntityId> {
     match target {
         TargetValue::Entities(ids) => ids.clone(),
-        TargetValue::Nothing | TargetValue::Text(_) | TargetValue::Files(_) => vec![],
+        TargetValue::Nothing
+        | TargetValue::Handles(_)
+        | TargetValue::Text(_)
+        | TargetValue::Files(_) => vec![],
     }
 }
 
@@ -107,7 +110,7 @@ pub(crate) fn typed_history(record: &SessionRecord) -> Vec<TypedStep> {
                 StepEnd::Done { .. } => CallEndKind::Done,
                 StepEnd::Refused(CallRefusal::Denied(_)) => CallEndKind::Denied,
                 StepEnd::Unconfirmed(_) => CallEndKind::Unconfirmed,
-                StepEnd::Refused(_) | StepEnd::Held(_) => CallEndKind::Failed,
+                StepEnd::Refused(_) | StepEnd::Held(_) | StepEnd::Unread(_) => CallEndKind::Failed,
             },
             verdict: None,
         })

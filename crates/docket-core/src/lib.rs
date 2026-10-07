@@ -86,8 +86,8 @@ pub use message::{
     Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, MessageDraft, SendRefusal,
 };
 pub use planner::{
-    ActionCard, HandleCard, HandleShape, Held, PlannerView, StepEnd, StepLine, StepShown, TurnIn,
-    TurnSource, TurnVia, UserTurn,
+    ActionCard, HandleCard, HandleShape, Held, PlannerView, ReplyFault, StepEnd, StepLine,
+    StepShown, TurnIn, TurnSource, TurnVia, UserTurn,
 };
 pub use preview::{
     FactLine, FileFacts, FileMove, Markdownish, MessageSnip, PageIndex, Preview, TimeRange, size_of,

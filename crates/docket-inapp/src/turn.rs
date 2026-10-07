@@ -100,6 +100,13 @@ impl OpenTask {
         });
     }
 
+    /// The planner's last reply could not be read as a call: a line in the history says why.
+    pub fn unread(&mut self, fault: docket_core::ReplyFault) {
+        let id = CallId(self.next_call);
+        self.next_call += 1;
+        self.history.extend(StepLine::unread(id, fault));
+    }
+
     fn reveal(&mut self, held: Labelled<Value>) -> Reveal<Value> {
         match held.value {
             Value::Handle(handle) => {

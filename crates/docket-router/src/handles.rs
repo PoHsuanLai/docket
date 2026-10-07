@@ -63,6 +63,22 @@ impl HandleTable {
         handle
     }
 
+    /// Holds a thing and returns its handle: the one it already has when the same thing is held
+    /// with the same label, so the same search twice names the same `#n` and a planner can see
+    /// it got nothing new.
+    pub fn mint_entity(&mut self, thing: EntityId, label: Label) -> Handle {
+        let held = HandleValue::Entity(thing.clone());
+        let known = self
+            .entries
+            .iter()
+            .find(|(_, e)| e.value.value == held && e.value.label == label)
+            .map(|(h, _)| *h);
+        known.unwrap_or_else(|| {
+            let from = Source::App(thing.app.clone());
+            self.mint(Labelled { value: held, label }, from)
+        })
+    }
+
     /// Words for a planner: plain when trusted, a handle when not.
     pub fn reveal(&mut self, text: Labelled<String>, from: Source) -> Reveal<String> {
         match text.label.integrity {

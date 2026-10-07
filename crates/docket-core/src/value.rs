@@ -95,6 +95,9 @@ pub enum TargetValue {
     Nothing,
     /// These things.
     Entities(Vec<EntityId>),
+    /// Things the caller holds only by handle (a planner names what it was given as `#n`). The
+    /// router resolves them to `Entities` before anything else reads the target.
+    Handles(Vec<Handle>),
     /// A live text field.
     Text(TextTargetRef),
     /// These files.

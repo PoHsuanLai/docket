@@ -387,7 +387,10 @@ fn uncovered_argument(policy: &TaskPolicy, sink: ArgSink, value: &Value) -> Opti
 fn target_entities(target: &TargetValue) -> Vec<&EntityId> {
     match target {
         TargetValue::Entities(ids) => ids.iter().collect(),
-        TargetValue::Nothing | TargetValue::Text(_) | TargetValue::Files(_) => vec![],
+        TargetValue::Nothing
+        | TargetValue::Handles(_)
+        | TargetValue::Text(_)
+        | TargetValue::Files(_) => vec![],
     }
 }
 

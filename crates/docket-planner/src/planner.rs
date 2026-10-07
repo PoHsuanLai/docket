@@ -7,12 +7,12 @@
 //! registry's order. Nothing else goes in (no clock, no random ids), so two turns of one task
 //! share every prompt token up to the first section that changed and the engine reuses its cache.
 
-use crate::args::read_call;
+use crate::args::{ArgsFault, read_call};
 use crate::catalogue::{Catalogue, CatalogueTool};
 use crate::render::messages;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
-use docket_core::{CallRequest, Origin, PlannerView, ReaderAsk};
+use docket_core::{CallRequest, Origin, PlannerView, ReaderAsk, ReplyFault};
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
@@ -269,11 +269,16 @@ impl<P: Transport> PlannerModel<P> {
             .tool_calls
             .iter()
             .partition(|c| !is_meta(c.name.as_str()));
-        let calls: Vec<PlannedCall> = actions.iter().filter_map(|c| self.planned(c)).collect();
+        let (calls, faults): (Vec<_>, Vec<_>) = actions
+            .iter()
+            .map(|c| self.planned(c))
+            .partition(Result::is_ok);
+        let calls: Vec<PlannedCall> = calls.into_iter().flatten().collect();
         let then = if !calls.is_empty() {
             ModelOutput::Calls(calls)
-        } else if !actions.is_empty() {
-            return Err(PlanFault::Unreadable);
+        } else if let Some(Err(fault)) = faults.into_iter().next() {
+            // Nothing to run: the model is told what was wrong with its first call.
+            ModelOutput::Unread(fault)
         } else {
             match meta.first() {
                 Some(call) => meta_output(call)?,
@@ -289,17 +294,23 @@ impl<P: Transport> PlannerModel<P> {
         })
     }
 
-    /// One action call, if the model named a tool of the catalogue and its arguments fit.
-    fn planned(&self, call: &ToolCallPart) -> Option<PlannedCall> {
-        let tool = self.catalogue.named(call.name.as_str())?;
-        let json: Json = serde_json::from_str(call.args.as_str()).ok()?;
-        let read = read_call(tool, &json).ok()?;
+    /// One action call, if the model named a tool of the catalogue and its arguments fit; else
+    /// what was wrong with it.
+    fn planned(&self, call: &ToolCallPart) -> Result<PlannedCall, ReplyFault> {
+        let tool = self
+            .catalogue
+            .named(call.name.as_str())
+            .ok_or_else(|| ReplyFault::NoSuchTool(plain_name(call.name.as_str())))?;
+        let json: Json =
+            serde_json::from_str(call.args.as_str()).map_err(|_| ReplyFault::NotJson)?;
+        let read = read_call(tool, &json).map_err(|fault| ReplyFault::Args(plain_fault(fault)))?;
         let tier = choose_tier(&Availability {
             typed: Offer::Offered,
             hook: Offer::Absent,
             cua: Offer::Absent,
-        })?;
-        Some(PlannedCall {
+        })
+        .ok_or(ReplyFault::NoSuchTool(String::new()))?;
+        Ok(PlannedCall {
             call: CallRequest {
                 action: tool.action(),
                 target: read.target,
@@ -308,6 +319,28 @@ impl<P: Transport> PlannerModel<P> {
             },
             tier,
         })
+    }
+}
+
+/// A name the model wrote, as far as it is plain enough to say back: letters, digits and `._-`,
+/// at most 64 of them; anything else is not repeated.
+fn plain_name(name: &str) -> String {
+    let plain = name.len() <= 64
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+    if plain {
+        name.to_owned()
+    } else {
+        String::new()
+    }
+}
+
+/// An argument fault that names nothing the model wrote but a plain name.
+fn plain_fault(fault: ArgsFault) -> ArgsFault {
+    match fault {
+        ArgsFault::Unknown(name) => ArgsFault::Unknown(plain_name(&name)),
+        other => other,
     }
 }
 

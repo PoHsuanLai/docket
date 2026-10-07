@@ -156,6 +156,21 @@ pub enum StepEnd {
     Unconfirmed(ConfirmEnd),
     /// It was not run: the planner had made this very call before and nothing had changed.
     Held(Held),
+    /// The planner's reply could not be read as a call at all; nothing was asked of the router.
+    Unread(ReplyFault),
+}
+
+/// Why a reply of the planner's could not be read as a call: told to it as a line of its history,
+/// so it can write the call again, and counted so a model that never does is asked about.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+pub enum ReplyFault {
+    /// It named a tool that was not offered (the name, when it is plain enough to repeat).
+    NoSuchTool(String),
+    /// Its arguments were not JSON.
+    NotJson,
+    /// Its arguments did not fit the action's manifest.
+    Args(crate::args::ArgsFault),
 }
 
 /// Why a repeated call was not run, for the note the planner is given.
@@ -183,6 +198,23 @@ pub struct StepLine {
     pub end: StepEnd,
     /// How much to show.
     pub shown: StepShown,
+}
+
+impl StepLine {
+    /// The line for a reply that could not be read as a call. It names no real action: the
+    /// planner's own tools are the companion's, and its history line says what was wrong.
+    pub fn unread(call: CallId, fault: ReplyFault) -> Option<Self> {
+        Some(StepLine {
+            call,
+            action: ActionRef {
+                app: porter_core::AppName::parse("org.quire.Companion").ok()?,
+                name: prov::ActionName::parse("companion.reply.unread").ok()?,
+            },
+            effect: Effect::Read,
+            end: StepEnd::Unread(fault),
+            shown: StepShown::Full,
+        })
+    }
 }
 
 /// Everything the planner may see; built only by the router.

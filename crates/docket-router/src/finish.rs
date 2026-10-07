@@ -17,8 +17,9 @@ use docket_core::{
 };
 use prov::{Integrity, Labelled, Source};
 
-/// An outcome as the caller named by `voice` may read it: a planner gets untrusted text as a
-/// handle the session holds, and never the app's preview, which may quote content.
+/// An outcome as the caller named by `voice` may read it: a planner gets untrusted text, and
+/// every thing an app returns, as a handle the session holds, and never the app's preview,
+/// which may quote content. Things are handles because a planner names them by `{"handle": n}`.
 fn present(record: &mut SessionRecord, voice: &Voice, mut outcome: Outcome) -> Outcome {
     if *voice != Voice::Model {
         return outcome;
@@ -48,11 +49,24 @@ fn present(record: &mut SessionRecord, voice: &Voice, mut outcome: Outcome) -> O
             }
             (Value::Entity(e), _) => {
                 record.known.insert(e.clone());
-                held
+                let handle = record.handles.mint_entity(e.clone(), held.label.clone());
+                Labelled {
+                    value: Value::Handle(handle),
+                    label: held.label,
+                }
             }
-            (Value::Entities(es), _) => {
+            (Value::Entities(es), _) if !es.is_empty() => {
                 record.known.extend(es.iter().cloned());
-                held
+                let handles = es
+                    .iter()
+                    .map(|e| {
+                        Value::Handle(record.handles.mint_entity(e.clone(), held.label.clone()))
+                    })
+                    .collect();
+                Labelled {
+                    value: Value::List(handles),
+                    label: held.label,
+                }
             }
             _ => held,
         }

@@ -14,6 +14,9 @@ pub const HOLDS_BEFORE_STOP: u8 = 1;
 /// How many calls one turn may have held back, across all its calls, before it stops. This caps
 /// A,B,A,B and wider cycles whose every call is stale.
 pub const MOST_HOLDS_PER_TURN: u8 = 4;
+/// How many replies in a row the planner may make that cannot be read as a call before the turn
+/// stops: the first and the second are told what was wrong, the third asks the person.
+pub const MOST_UNREADABLE: u8 = 3;
 /// How many distinct calls a turn remembers; the oldest are forgotten first.
 pub const MOST_REMEMBERED: usize = 32;
 
@@ -74,6 +77,8 @@ pub enum Stuck {
     Repeating(Held, ActionRef),
     /// Many stale calls, never the same one twice running.
     Circling,
+    /// Reply after reply that could not be read as a call, though each was told what was wrong.
+    Unreadable,
 }
 
 impl Stuck {
@@ -93,6 +98,7 @@ impl Stuck {
                 "{} keeps being refused with what I give it. How would you like me to go on?",
                 action.name.as_str()
             ),
+            Stuck::Unreadable => "I keep writing steps I cannot get right, though I was told what was wrong. How would you like me to go on?".to_owned(),
             Stuck::Circling => "I am going round in circles without getting anywhere. How would you like me to go on?".to_owned(),
         }
     }
@@ -115,6 +121,9 @@ pub enum Verdict {
 pub struct Guard {
     seen: Vec<Seen>,
     holds: u8,
+    /// Replies in a row that could not be read as a call.
+    #[serde(default)]
+    unread: u8,
 }
 
 fn key_of(call: &CallRequest) -> CallKey {
@@ -168,7 +177,7 @@ fn judged(end: &StepEnd, last: &Option<Print>) -> (Answer, Option<Print>) {
         StepEnd::Refused(CallRefusal::BadArgs { .. } | CallRefusal::NoSuchAction(_)) => {
             (Answer::Refused, last.clone())
         }
-        StepEnd::Refused(_) | StepEnd::Unconfirmed(_) | StepEnd::Held(_) => {
+        StepEnd::Refused(_) | StepEnd::Unconfirmed(_) | StepEnd::Held(_) | StepEnd::Unread(_) => {
             (Answer::Opaque, last.clone())
         }
     }
@@ -178,7 +187,11 @@ impl Guard {
     /// Whether `call`, wanted as position `id` of a batch, is made, held back or stops the turn.
     pub fn admit(self, id: CallId, call: &CallRequest) -> (Guard, Verdict) {
         let key = key_of(call);
-        let Guard { mut seen, holds } = self;
+        let Guard {
+            mut seen,
+            holds,
+            unread,
+        } = self;
         let Some(at) = seen.iter().position(|s| s.key == key) else {
             seen.push(Seen {
                 key,
@@ -189,24 +202,59 @@ impl Guard {
             });
             let excess = seen.len().saturating_sub(MOST_REMEMBERED);
             seen.drain(..excess);
-            return (Guard { seen, holds }, Verdict::Run);
+            return (
+                Guard {
+                    seen,
+                    holds,
+                    unread,
+                },
+                Verdict::Run,
+            );
         };
         let entry = &mut seen[at];
         let Some(why) = entry.answer.stale() else {
             entry.answer = Answer::Waiting(id);
             entry.held = 0;
-            return (Guard { seen, holds }, Verdict::Run);
+            return (
+                Guard {
+                    seen,
+                    holds,
+                    unread,
+                },
+                Verdict::Run,
+            );
         };
         if entry.held >= HOLDS_BEFORE_STOP {
             let stuck = Stuck::Repeating(why, entry.action.clone());
-            return (Guard { seen, holds }, Verdict::Stop(stuck));
+            return (
+                Guard {
+                    seen,
+                    holds,
+                    unread,
+                },
+                Verdict::Stop(stuck),
+            );
         }
         if holds >= MOST_HOLDS_PER_TURN {
-            return (Guard { seen, holds }, Verdict::Stop(Stuck::Circling));
+            return (
+                Guard {
+                    seen,
+                    holds,
+                    unread,
+                },
+                Verdict::Stop(Stuck::Circling),
+            );
         }
         entry.held += 1;
         let holds = holds.saturating_add(1);
-        (Guard { seen, holds }, Verdict::Hold(why))
+        (
+            Guard {
+                seen,
+                holds,
+                unread,
+            },
+            Verdict::Hold(why),
+        )
     }
 
     /// The call at position `id` ended.
@@ -225,6 +273,14 @@ impl Guard {
         Guard { seen, ..self }
     }
 
+    /// The planner's reply could not be read as a call: tells it so, or, when it has done so
+    /// [`MOST_UNREADABLE`] times running, ends the turn by asking the person.
+    pub fn unreadable(self) -> (Guard, Option<Stuck>) {
+        let unread = self.unread.saturating_add(1);
+        let stuck = (unread >= MOST_UNREADABLE).then_some(Stuck::Unreadable);
+        (Guard { unread, ..self }, stuck)
+    }
+
     /// A new batch is about to go out: calls of an older batch that never ended are forgotten as
     /// answers, so their positions cannot be taken for the new ones.
     pub fn settled(self) -> Guard {
@@ -239,6 +295,10 @@ impl Guard {
                 _ => s,
             })
             .collect();
-        Guard { seen, ..self }
+        Guard {
+            seen,
+            unread: 0,
+            ..self
+        }
     }
 }

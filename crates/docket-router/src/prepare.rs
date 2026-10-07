@@ -2,12 +2,12 @@
 //! and what they are worth, what standing consent and the task policy say, what Cedar rules,
 //! and where the gate sends the call. Pure over the router's state and its clock.
 
-use crate::argcheck::check_call;
+use crate::argcheck::{check_call, target_name};
 use crate::consent::consent_for;
 use crate::coverage::coverage;
 use crate::gate::{GateInputs, Pending, gate};
 use crate::labels::{
-    arg_labels, args_confidentiality, label_args, planner_integrity, sink_integrity,
+    arg_labels, args_confidentiality, label_args, planner_integrity, resolve_target, sink_integrity,
 };
 use crate::prepared::{
     Early, Prepared, digest, entities, grant_state, proposed, typed_history, usage_of,
@@ -216,10 +216,20 @@ impl<S: Seams> Router<S> {
             })
         };
         admit(record).map_err(end)?;
+        let target = resolve_target(record, request.target.clone()).map_err(|why| {
+            end(CallRefusal::BadArgs {
+                param: target_name(),
+                why,
+            })
+        })?;
         let args = label_args(record, &who.voice, request.args.clone())
-            .and_then(|a| check_call(&decl, &request.action.app, &request.target, a))
+            .and_then(|a| check_call(&decl, &request.action.app, &target, a))
             .map_err(|(param, why)| end(CallRefusal::BadArgs { param, why }))?;
-        let request = CallRequest { args, ..request };
+        let request = CallRequest {
+            args,
+            target,
+            ..request
+        };
         let targets = entities(&request.target);
         let count = Count(u32::try_from(targets.len()).unwrap_or(u32::MAX));
         let taint = match (record.saw.untrusted, decl.effect) {

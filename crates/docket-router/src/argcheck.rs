@@ -10,7 +10,7 @@ use porter_core::AppName;
 use prov::Labelled;
 
 /// The name a fault about the target carries.
-fn target_name() -> ParamName {
+pub(crate) fn target_name() -> ParamName {
     ParamName::parse("target").expect("`target` is a valid parameter name")
 }
 

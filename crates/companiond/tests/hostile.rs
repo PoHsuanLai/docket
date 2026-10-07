@@ -164,22 +164,37 @@ fn a_tool_name_with_a_homoglyph_is_not_a_name_at_all() {
 }
 
 #[tokio::test]
-async fn made_up_and_wrong_typed_calls_are_unreadable_not_run() {
+async fn made_up_and_wrong_typed_calls_are_unread_with_a_typed_fault_not_run() {
+    use docket_core::{ArgsFault, ReplyFault, TargetFault};
     let thread = json!({ "app": "org.quire.Mail", "kind": "mail.thread", "key": "t1" });
-    for (name, args) in [
+    let target = |fault| ReplyFault::Args(ArgsFault::Target(fault));
+    for (name, args, fault) in [
         (
             "org.quire.Mail-mail.thread.nuke",
             json!({ "target": thread }),
+            ReplyFault::NoSuchTool("org.quire.Mail-mail.thread.nuke".into()),
         ),
-        (READ, json!({ "target": 5 })),
-        (READ, json!({})),
-        (READ, json!({ "target": thread, "admin": true })),
-        (READ, json!([1, 2])),
-        (READ, json!("target")),
+        (READ, json!({ "target": 5 }), target(TargetFault::Malformed)),
+        (READ, json!({}), target(TargetFault::Missing)),
+        (
+            READ,
+            json!({ "target": thread, "admin": true }),
+            ReplyFault::Args(ArgsFault::Unknown("admin".into())),
+        ),
+        (
+            READ,
+            json!([1, 2]),
+            ReplyFault::Args(ArgsFault::NotAnObject),
+        ),
+        (
+            READ,
+            json!("target"),
+            ReplyFault::Args(ArgsFault::NotAnObject),
+        ),
     ] {
         assert_eq!(
             plan(call(name, args.clone())).await,
-            Err(PlanFault::Unreadable),
+            Ok(ModelOutput::Unread(fault)),
             "{name} {args}"
         );
     }

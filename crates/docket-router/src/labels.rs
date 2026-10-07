@@ -7,7 +7,7 @@ use crate::session::{SessionEvent, session_step};
 use crate::state::SessionRecord;
 use docket_core::{
     ActionDecl, ArgFault, ArgLabels, ArgSink, Args, ParamName, Saw, SessionSaw, SinkIntegrity,
-    Value,
+    TargetValue, Value,
 };
 use porter_core::AppName;
 use prov::{ClientName, Confidentiality, Integrity, Label, Labelled, ModelRole, Source};
@@ -88,6 +88,25 @@ pub(crate) fn label_args(
             },
         )
         .collect()
+}
+
+/// The target with every handle resolved to the thing it holds: a handle that is not held is
+/// unknown, one that holds words or a file is the wrong type.
+pub(crate) fn resolve_target(
+    session: &SessionRecord,
+    target: TargetValue,
+) -> Result<TargetValue, ArgFault> {
+    let TargetValue::Handles(held) = target else {
+        return Ok(target);
+    };
+    held.into_iter()
+        .map(|h| match session.handles.value(h).map(|v| &v.value) {
+            Some(HandleValue::Entity(e)) => Ok(e.clone()),
+            Some(HandleValue::Text(_) | HandleValue::File(_)) => Err(ArgFault::WrongType),
+            None => Err(ArgFault::UnknownHandle),
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .map(TargetValue::Entities)
 }
 
 fn relabel(

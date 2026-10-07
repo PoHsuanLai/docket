@@ -264,3 +264,67 @@ fn a_new_ask_forgets_the_turns_ledger() {
     let (_, e) = agent_step(s, plan(search()));
     assert_eq!(calls_in(&e), 1);
 }
+
+fn unread() -> LoopInput {
+    LoopInput::Planned(ModelOutput::Unread(ReplyFault::NotJson))
+}
+
+fn unread_lines(effects: &[LoopEffect]) -> usize {
+    effects
+        .iter()
+        .filter(|e| matches!(e, LoopEffect::Unread(_)))
+        .count()
+}
+
+#[test]
+fn an_unreadable_reply_is_told_and_the_planner_asked_again() {
+    let (s, e) = agent_step(asked(), unread());
+    assert_eq!(s.phase, LoopPhase::Planning);
+    assert_eq!(unread_lines(&e), 1);
+    assert!(e.contains(&LoopEffect::AskPlanner));
+    assert_eq!(asks_person(&e), None);
+}
+
+#[test]
+fn the_third_unreadable_reply_running_asks_the_person_instead() {
+    let (s, _) = agent_step(asked(), unread());
+    let (s, e) = agent_step(s, unread());
+    assert_eq!((unread_lines(&e), s.phase), (1, LoopPhase::Planning));
+    let (s, e) = agent_step(s, unread());
+    assert_eq!(s.phase, LoopPhase::Idle, "asking, not failed");
+    assert_eq!(unread_lines(&e), 1);
+    assert!(!e.contains(&LoopEffect::AskPlanner));
+    let question = asks_person(&e).expect("a question for the person");
+    assert!(
+        question.contains("How would you like me to go on?"),
+        "{question}"
+    );
+}
+
+#[test]
+fn a_readable_call_between_unreadable_replies_starts_the_count_again() {
+    let (s, _) = agent_step(asked(), unread());
+    let (s, _) = agent_step(s, unread());
+    let (s, _) = round(s, vec![call("mail.thread.search", "Lisbon")], &text("x"));
+    let (s, e) = agent_step(s, unread());
+    assert_eq!((unread_lines(&e), s.phase), (1, LoopPhase::Planning));
+    let (s, e) = agent_step(s, unread());
+    assert_eq!((unread_lines(&e), s.phase), (1, LoopPhase::Planning));
+}
+
+#[test]
+fn a_search_that_names_the_same_handles_again_is_unchanged_and_held() {
+    let found = StepEnd::Done {
+        said: Some(LabelText::parse("Found threads").expect("text")),
+        value: Some(Reveal::Plain(Value::List(vec![
+            Value::Handle(Handle(1)),
+            Value::Handle(Handle(2)),
+        ]))),
+        undo: None,
+    };
+    let search = || vec![call("mail.thread.search", "Lisbon")];
+    let (s, _) = round(asked(), search(), &found);
+    let (s, _) = round(s, search(), &found);
+    let (_, e) = agent_step(s, plan(search()));
+    assert_eq!(holds_in(&e), [Held::Unchanged]);
+}

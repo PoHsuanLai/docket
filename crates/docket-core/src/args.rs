@@ -2,7 +2,8 @@
 //! companion's tool calls and the MCP edge. The JSON is the schema `tool_schema` writes: an entity is
 //! `{app, kind, key}`, a decimal `{units, scale}`, a date `{year, month, day}`, an instant or a
 //! duration whole seconds, and a value the caller holds only by handle is `{ "handle": n }`. The
-//! target of an action is the one extra key, `target`, whose shape follows the action's `on`.
+//! target of an action is the one extra key, `target`, whose shape follows the action's `on` (a target held
+//! only by handle is `{ "handle": n }`, or a list of those for many things).
 //!
 //! Pure: every value comes out labelled with the label it is given, and an argument the manifest
 //! does not declare is refused rather than ignored.
@@ -259,18 +260,27 @@ pub fn target_from_json(
         (TargetKind::Nothing, Some(_)) => Err(TargetFault::Unexpected),
         (TargetKind::Text, _) => Err(TargetFault::NotNameable),
         (_, None) => Err(TargetFault::Missing),
+        (TargetKind::One(_) | TargetKind::Many(_), Some(json)) if handle(json).is_some() => {
+            Ok(TargetValue::Handles(handle(json).into_iter().collect()))
+        }
         (TargetKind::One(kind), Some(json)) => entity(kind, json)
             .map(|e| TargetValue::Entities(vec![e]))
             .map_err(bad),
-        (TargetKind::Many(kind), Some(json)) => json
-            .as_array()
-            .filter(|items| !items.is_empty())
-            .ok_or(TargetFault::Malformed)?
-            .iter()
-            .map(|item| entity(kind, item))
-            .collect::<Read<Vec<_>>>()
-            .map(TargetValue::Entities)
-            .map_err(bad),
+        (TargetKind::Many(kind), Some(json)) => {
+            let items = json
+                .as_array()
+                .filter(|items| !items.is_empty())
+                .ok_or(TargetFault::Malformed)?;
+            match items.iter().map(handle).collect::<Option<Vec<_>>>() {
+                Some(held) => Ok(TargetValue::Handles(held)),
+                None => items
+                    .iter()
+                    .map(|item| entity(kind, item))
+                    .collect::<Read<Vec<_>>>()
+                    .map(TargetValue::Entities)
+                    .map_err(bad),
+            }
+        }
         (TargetKind::Files, Some(json)) => files(json)
             .ok()
             .filter(|f| !f.is_empty())

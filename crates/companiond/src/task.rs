@@ -277,7 +277,10 @@ fn refusal_wire(refusal: &CallRefusal) -> RefusalWire {
 fn targets_of(call: &CallRequest) -> Vec<EntityId> {
     let mut targets = match &call.target {
         TargetValue::Entities(es) => es.clone(),
-        TargetValue::Nothing | TargetValue::Text(_) | TargetValue::Files(_) => Vec::new(),
+        TargetValue::Nothing
+        | TargetValue::Handles(_)
+        | TargetValue::Text(_)
+        | TargetValue::Files(_) => Vec::new(),
     };
     for arg in call.args.values() {
         match &arg.value {

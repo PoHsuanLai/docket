@@ -75,7 +75,10 @@ impl FakeFiles {
     fn keys(target: &TargetValue) -> Vec<String> {
         match target {
             TargetValue::Entities(ids) => ids.iter().map(|e| e.key.as_str().to_owned()).collect(),
-            TargetValue::Nothing | TargetValue::Text(_) | TargetValue::Files(_) => vec![],
+            TargetValue::Nothing
+            | TargetValue::Handles(_)
+            | TargetValue::Text(_)
+            | TargetValue::Files(_) => vec![],
         }
     }
 

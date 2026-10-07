@@ -1421,13 +1421,79 @@ turn, as Failed with nothing for the person. It also named handles it was never 
   argument and why, and for an unknown handle which `#n` it does hold ("argument "recipient" names a handle that does not
   exist; handles you hold: #3 #4"); the coarse code stays on the line, `Denied` stays a bare code (no oracle), and a
   roster line of another agent gets no handle list.
-- Not changed: a reply the planner cannot read (invented tool, arguments that do not parse or fit the manifest) still
-  ends the turn as Failed in `PlannerModel::read`; feeding that back needs a typed fault line in the view, which is not
-  built.
+- Not changed here, built since (see `planner-handles` below): a reply the planner cannot read (invented tool, arguments
+  that do not parse or fit the manifest) used to end the turn as Failed in `PlannerModel::read`.
 - Cases: added `repeat-empty-search`, `repeat-empty-contact-search`, `oscillate-two-empty-searches`,
   `repeat-invented-handle` (each ends `asks`, nothing sent; the cassettes hold exactly the replies needed, so a model step
   past the guard fails the case). Changed: `loop-same-search-forty-times` and `oscillate-two-searches-forty-times` end
   `asks` (was `failed` by budget).
+
+## planner-handles: things a search found are handles, and an unreadable reply is told back
+
+`todo!()` count: 0 before, 0 after. Live evidence (local Qwen3 4B, `docket-live smoke`, flow-a): after
+`mail.thread.search` the planner's "Steps so far" held `value {"kind":"entities","v":[{"app":..,"key":"lisbon-1"},..]}`:
+raw entity keys and no `#n`, though the rules say a handle may be named as `{"handle": n}`. The model guessed
+`{"handle":1}` for the `target`, which `args_from_json` refused as malformed (a target could only be a full entity), the
+reply was unreadable and the turn ended Failed.
+
+What a planner sees now (the router mints; the planner never reads):
+- `docket-router` `finish::present` (model voice only): every `Value::Entity` / non-empty `Value::Entities` an action returns
+  is held in the session's `HandleTable` (`HandleTable::mint_entity`, one handle per thing and label, so the same search
+  twice names the same `#n` and the guard's "unchanged" test still works) and the planner gets `Value::Handle` or a
+  `Value::List` of them, with the label the app gave. The entity still joins `SessionRecord.known`. Empty lists stay
+  `Entities([])` (the guard's "got nothing"). Companiond and docket-inapp needed no change for this: their `reveal` already
+  turns a handle into `Reveal::Handle`, and the cards come from `Session.Handles`.
+- `docket-planner` `step_text`: a step's handle value is `#3 mail.thread`, a list `[#3 mail.thread, #4 mail.thread]`;
+  a step line reads `mail.thread.search done "Found threads" value [#1 mail.thread, #2 mail.thread]`. The "What you can
+  name but not read" section lists `- #1 a mail.thread from {"app":"org.quire.Mail"}` (no character count for a thing).
+  The rules say a thing is named as `{"handle": n}` in an argument, or in a list for `target`.
+- Only kind and handle are shown. An entity result carries ids only (titles never cross: `present` drops the app's
+  preview), and a thread title is untrusted anyway, so the planner cannot tell two threads apart by name; it can forward
+  them all, or have the reader read one (`quire_read` on a text handle). A contact list is the person's own, but its
+  result is ids too. If a title is wanted later, the provider must return it as a labelled text beside the id.
+- A target may be a handle: `TargetValue::Handles(Vec<Handle>)` (`target_from_json` reads `{"handle": n}` or a list of
+  them; the tool schema already offered it). The router resolves it before anything reads the target
+  (`labels::resolve_target`, in `prepare_agent`): a handle not held is `BadArgs { param: "target", why: UnknownHandle }`,
+  one that holds words or a file is `WrongType`, and the refusal line already says which handles the planner holds. The
+  `Handles` variant never reaches the gate, the policy, the audit record or a provider.
+
+A reply the planner cannot read is told, not fatal:
+- `PlannerModel::read`: when a reply holds action calls and none is readable it is `ModelOutput::Unread(ReplyFault)`
+  (`NoSuchTool(name)`, `NotJson`, `Args(ArgsFault)`; `NotJson` is reachable by a transport that hands over unparseable
+  arguments), where it used to be `PlanFault::Unreadable` and the turn Failed.
+  The names the model wrote are repeated only if plain (`[A-Za-z0-9._-]`, at most 64). A reply with a readable call beside
+  an unreadable one still runs the readable one (as before). `PlanFault::Unreadable` remains for no tool call and no words,
+  words cut by the length limit, a bad `quire_ask`, and unreadable `quire_read`.
+- `agent-loop`: `LoopEffect::Unread(fault)` then `AskPlanner`; the host adds a history line (`StepLine::unread`,
+  `StepEnd::Unread`): `your last reply could not be read as a call: argument "to" is required and was missing; write the
+  call again, ask the person with quire_ask, or finish`. The guard counts replies in a row (`MOST_UNREADABLE` = 3, kept
+  in `Guard.unread`, cleared when a call goes out): the third ends the turn by publishing `NeedsYou(Question)` and resting in
+  `Idle` ("I keep writing steps I cannot get right ... How would you like me to go on?"). Hosts: companiond `held.rs`
+  (`Companiond::unread`, one arm in `carry_out`, one in `plan.rs`) and docket-inapp (`OpenTask::unread`).
+- An unknown handle in an argument stays the router's refusal (it owns the handle table): `... refused {...}: argument "to"
+  names a handle that does not exist; handles you hold: #1 #2 #3`, counted as stale by the guard as before.
+
+The smoke judge (`docket-accept` `live::flows`): `run_flow` stops at `at_rest` (the hostile cases' predicate: ended, or a
+question or form waits), not at "ended". A flow that expects Done whose answer rests at `NeedsYou(Question)` is judged as the
+capability failure `asked instead of finishing: "<question>"`; "[safety] the answer never settled" is kept for a run that
+really never came to rest. `first-use` expects no end, so a question there is not a failure of its own.
+
+Hostile cases whose expected end changed, all from `failed` to `asks` (each cassette now repeats the unreadable reply
+three times, because the first two are told what was wrong): `hostile-planner-made-up-tool`, `-extra-argument`,
+`-wrong-type-argument`, `-missing-required-argument`. Unchanged: `arguments-not-json` (its stream is cut inside the
+arguments, which inferd's layer reports as a failed reply, so the turn is `PlanFault::Unavailable` before the planner
+reads anything), `homoglyph-tool-name` (the wire type refuses the name before the planner reads it), the cut-off and
+length-limit cases (no call at all),
+`unminted-handle` (done or failed) and `repeat-invented-handle` (asks).
+
+Tests: agent-loop `tests/guard.rs` (told and asked again; the third running asks; a readable call resets the count; the
+same handles named again are "unchanged" and held), planner `step_text` (handle values, every fault line), router
+`tests/perform.rs` (a target by handle resolves; unknown and text handles refused by name; one handle per thing and
+label), companiond `tests/hostile.rs` and `planner.rs` (unread replies are `Unread` with the typed fault), docket-core
+`tests/args_props.rs` and `tests/records.rs`, docket-accept `tests/handles.rs` (cassettes `flow-a-handles`,
+`flow-a-fault-line`, `flow-a-unread`: forward by handles; unknown handle then correct; unreadable then correct; the cassette
+entries need the handle lines or the fault line in the planner's request) and `tests/live_pure.rs` (question at rest).
+Not run: a live model (the run that found this needs the local Qwen3 engine).
 
 ## portable-core: an in-app agent that needs no desktop (quire design/36)
 

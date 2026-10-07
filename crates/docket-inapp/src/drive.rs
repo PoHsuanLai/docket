@@ -73,6 +73,7 @@ where
                         let effect = self.effect_of(&call);
                         task.hold(&call, effect, why);
                     }
+                    LoopEffect::Unread(fault) => task.unread(fault),
                     LoopEffect::Publish(_) | LoopEffect::Note(_) | LoopEffect::CloseTask => {}
                 }
             }

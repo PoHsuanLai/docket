@@ -4,7 +4,7 @@
 
 use crate::runtime::Companiond;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{CallId, CallRequest, Held, StepEnd, StepLine, StepShown};
+use docket_core::{CallId, CallRequest, Held, ReplyFault, StepEnd, StepLine, StepShown};
 use porter_client::Transport as InferTransport;
 use prov::{Effect, TaskId};
 
@@ -26,6 +26,15 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
                 end: StepEnd::Held(why),
                 shown: StepShown::Full,
             });
+        }
+    }
+
+    /// Tells the task's history that the planner's last reply could not be read, and why.
+    pub(crate) fn unread(&mut self, task: &TaskId, fault: ReplyFault) {
+        if let Some(rt) = self.runtimes.get_mut(task) {
+            let id = CallId(rt.next_call);
+            rt.next_call += 1;
+            rt.history.extend(StepLine::unread(id, fault));
         }
     }
 }
