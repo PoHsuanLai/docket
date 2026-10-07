@@ -5,7 +5,8 @@
 
 use crate::fault::ServeFault;
 use crate::plan::phase_of;
-use crate::runtime::Companiond;
+use crate::runtime::Companion;
+use crate::seams::{Now, Surface};
 use agent_loop::{
     IdleInput, LoopEffect, LoopInput, LoopPhase, LoopState, ModelOutput, agent_step, assemble,
     idle_step,
@@ -27,7 +28,7 @@ const COMPANION_APP: &str = "org.quire.Companion";
 const TASK_START: &str = "companion.task.start";
 
 /// What a call to the router came to, as the loop is told.
-pub(crate) fn refusal_of(error: ClientError) -> CallRefusal {
+pub fn refusal_of(error: ClientError) -> CallRefusal {
     match error {
         ClientError::Refused(WireRefusal::Call(refusal)) => refusal,
         ClientError::Refused(_) | ClientError::Transport(_) | ClientError::Unexpected => {
@@ -58,7 +59,7 @@ fn idle_loop() -> LoopState {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
     /// Runs `first`, and what follows from it, to the end of what the task can do alone.
     pub(crate) async fn run(&mut self, task: &TaskId, first: LoopInput) -> Result<(), ServeFault> {
         if !self.running.insert(task.clone()) {

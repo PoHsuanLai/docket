@@ -4,20 +4,18 @@
 //! step, `Running` once dispatched, `NeedsYou(Confirm)` while the sheet is up, then
 //! `Done { undo }` or `Failed`. Nothing here decides what is allowed.
 
-use crate::drive::refusal_of;
 use crate::fault::ServeFault;
 use crate::plan::phase_of;
-use crate::runtime::Companiond;
+use crate::runtime::Companion;
+use crate::seams::{Now, Surface};
 use companion_wire::AnswerPhase;
-use docket_client::{PerformEvent, PerformWatch, Transport as IntentsTransport};
+use docket_client::{ClientError, PerformEvent, PerformWatch, Transport as IntentsTransport};
 use docket_core::{CallId, CallRequest, CardActionId};
 use porter_client::Transport as InferTransport;
 use prov::{Effect, TaskId};
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// A card's call that has begun: the request is in flight and its events are still to be read.
-pub(crate) struct Acting {
+pub struct Acting {
     task: TaskId,
     id: CallId,
     call: CallRequest,
@@ -25,26 +23,40 @@ pub(crate) struct Acting {
     watch: PerformWatch,
 }
 
+impl std::fmt::Debug for Acting {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Acting({}, {:?})", self.task, self.id)
+    }
+}
+
 impl Acting {
-    /// Where the request lives on the bus. The router in process has no object; its path is the
-    /// one the call would have, by the task's own count.
-    pub(crate) fn request_path(&self) -> String {
-        self.watch
-            .request()
-            .map_or_else(|| docket_dbus::request_path(self.id), str::to_owned)
+    /// Where the request lives, when the router has an object for it (a bus); the router in
+    /// process has none.
+    pub fn request(&self) -> Option<&str> {
+        self.watch.request()
+    }
+
+    /// The call's number in its task.
+    pub fn id(&self) -> CallId {
+        self.id
+    }
+
+    /// The next thing the router says of the call.
+    pub async fn event(&mut self) -> Result<PerformEvent, ClientError> {
+        self.watch.next().await
     }
 }
 
 /// The card named by the text `Act` was given: the id itself or its JSON string.
-pub(crate) fn card_id(text: &str) -> Result<CardActionId, ServeFault> {
+pub fn card_id(text: &str) -> Result<CardActionId, ServeFault> {
     serde_json::from_str::<CardActionId>(text)
         .or_else(|_| CardActionId::parse(text))
         .map_err(|_| ServeFault::NoSuchCard)
 }
 
-impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
     /// Starts the card's call and shows it as a step. The answer must offer the card.
-    pub(crate) async fn begin_act(
+    pub async fn begin_act(
         &mut self,
         task: &TaskId,
         card: &CardActionId,
@@ -93,7 +105,8 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         Ok(())
     }
 
-    fn act_progress(&mut self, acting: &Acting, progress: &docket_core::CallProgress) {
+    /// The router says how far a card's call is.
+    pub fn act_progress(&mut self, acting: &Acting, progress: &docket_core::CallProgress) {
         if let Some(rt) = self.runtimes.get_mut(&acting.task) {
             rt.acts.progress(acting.id, progress);
             rt.phase = phase_of(progress);
@@ -101,7 +114,8 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         self.publish_answer(&acting.task);
     }
 
-    fn act_end(
+    /// A card's call ended.
+    pub fn act_end(
         &mut self,
         acting: &Acting,
         result: Result<docket_core::Outcome, docket_core::CallRefusal>,
@@ -113,25 +127,6 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         }
         self.publish_answer(&acting.task);
     }
-}
-
-/// Reads the card's request to its end, telling the answer at each step. The companion is locked
-/// only to write, never while waiting on the router or the person.
-pub(crate) async fn follow<P, I>(companion: Arc<Mutex<Companiond<P, I>>>, mut acting: Acting)
-where
-    P: InferTransport,
-    I: IntentsTransport,
-{
-    let result = loop {
-        match acting.watch.next().await {
-            Ok(PerformEvent::Progress(progress)) => {
-                companion.lock().await.act_progress(&acting, &progress);
-            }
-            Ok(PerformEvent::Done(end)) => break *end,
-            Err(error) => break Err(refusal_of(error)),
-        }
-    };
-    companion.lock().await.act_end(&acting, result);
 }
 
 #[cfg(test)]

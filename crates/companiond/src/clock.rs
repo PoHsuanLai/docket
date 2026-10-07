@@ -35,3 +35,9 @@ impl Clock {
         }
     }
 }
+
+impl docket_tasks::Now for Clock {
+    fn now(&self) -> UnixSeconds {
+        Clock::now(self)
+    }
+}

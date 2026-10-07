@@ -5,9 +5,8 @@
 //! Members carry no doc comments: zbus copies them into the introspection, which is held to
 //! `dbus/org.quire.Companion1.xml`.
 
-use crate::fault::ServeFault;
-use crate::runtime::Companiond;
-use crate::shared::{Change, Shared};
+use crate::Companiond;
+use crate::Shared;
 use crate::speaker::{self, Call};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
@@ -15,6 +14,8 @@ use docket_core::{SessionOpen, UserTurn};
 use docket_dbus::{
     BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
 };
+use docket_tasks::Change;
+use docket_tasks::ServeFault;
 use porter_client::Transport as InferTransport;
 use porter_core::AppName;
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
@@ -197,7 +198,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
             Call::Act,
         )
         .await?;
-        let card = crate::act::card_id(&action).map_err(failed)?;
+        let card = docket_tasks::card_id(&action).map_err(failed)?;
         let acting = self
             .companion
             .lock()
@@ -205,9 +206,13 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
             .begin_act(&self.task, &card)
             .await
             .map_err(failed)?;
-        let path = OwnedObjectPath::try_from(acting.request_path())
-            .map_err(|e| fdo::Error::Failed(e.to_string()))?;
-        tokio::spawn(crate::act::follow(self.companion.clone(), acting));
+        let path = OwnedObjectPath::try_from(
+            acting
+                .request()
+                .map_or_else(|| docket_dbus::request_path(acting.id()), str::to_owned),
+        )
+        .map_err(|e| fdo::Error::Failed(e.to_string()))?;
+        tokio::spawn(crate::follow::follow(self.companion.clone(), acting));
         Ok(path)
     }
 

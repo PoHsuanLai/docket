@@ -6,7 +6,8 @@
 //! that task's taint (the router joined it at delivery).
 
 use crate::fault::ServeFault;
-use crate::runtime::Companiond;
+use crate::runtime::Companion;
+use crate::seams::{Now, Surface};
 use agent_loop::{AskedPerson, CompletionNote, LoopInput, LoopPhase, SideInput, attention_of};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
@@ -68,7 +69,7 @@ fn app_label(app: AppName) -> Label {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
     /// `Intents1.Message.Arrived`: reads the inbox and feeds each message to the right task as
     /// input (a request is evaluated under that task's own policy; nothing in it widens it), then
     /// runs what the messages started.

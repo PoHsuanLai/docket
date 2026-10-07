@@ -5,7 +5,8 @@
 
 use crate::fault::ServeFault;
 use crate::linger::{LINGER, finished};
-use crate::runtime::{Companiond, Narration, REMEMBERED};
+use crate::runtime::{Companion, Narration, REMEMBERED};
+use crate::seams::{Now, Surface};
 use agent_loop::{
     EpisodeJob, FinishedAs, FrontEvent, IdleInput, LoopPhase, ReadUntrusted, front_step,
 };
@@ -31,7 +32,7 @@ fn status_of(how: FinishedAs) -> ReportStatus {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
     /// The episode a task leaves: what it was asked, the typed steps it took, and how it ended.
     fn episode_of(&self, task: &TaskId, how: FinishedAs) -> Option<Episode> {
         let rt = self.runtimes.get(task)?;

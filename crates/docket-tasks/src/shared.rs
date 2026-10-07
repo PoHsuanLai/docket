@@ -3,12 +3,12 @@
 //! (a cancel, and an interactive request that the idle pass must yield to). A planner turn can
 //! sit on a confirmation for minutes; `Roster()` and `Front()` must not.
 
+use crate::seams::Surface;
 use companion_wire::{AnswerWire, FrontTask, RouteNote};
 use docket_core::Roster;
 use prov::{SessionId, TaskId};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Mutex;
-use tokio::sync::{Notify, broadcast};
 
 /// What changed, content-free: a reader asks for the content.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,26 +33,27 @@ struct State {
     cancels: BTreeSet<TaskId>,
 }
 
-/// The shared view.
-#[derive(Debug)]
-pub struct Shared {
+/// The shared view, over the surface that hears its changes.
+#[derive(Debug, Default)]
+pub struct Shared<S> {
     state: Mutex<State>,
-    changes: broadcast::Sender<Change>,
-    interrupt: Notify,
+    surface: S,
 }
 
-impl Default for Shared {
-    fn default() -> Self {
-        let (changes, _) = broadcast::channel(256);
+impl<S: Surface> Shared<S> {
+    /// An empty view over `surface`.
+    pub fn new(surface: S) -> Self {
         Self {
             state: Mutex::new(State::default()),
-            changes,
-            interrupt: Notify::new(),
+            surface,
         }
     }
-}
 
-impl Shared {
+    /// The surface.
+    pub fn surface(&self) -> &S {
+        &self.surface
+    }
+
     fn with<R>(&self, f: impl FnOnce(&mut State) -> R) -> R {
         match self.state.lock() {
             Ok(mut state) => f(&mut state),
@@ -61,13 +62,12 @@ impl Shared {
     }
 
     /// Who is subscribed to the changes.
-    pub fn subscribe(&self) -> broadcast::Receiver<Change> {
-        self.changes.subscribe()
+    pub fn subscribe(&self) -> S::Changes {
+        self.surface.changes()
     }
 
     fn tell(&self, change: Change) {
-        // No subscriber is not an error: nobody is listening yet.
-        let _ = self.changes.send(change);
+        self.surface.changed(change);
     }
 
     /// The roster as of the last effect.
@@ -159,11 +159,11 @@ impl Shared {
 
     /// An interactive request is starting: whatever background work runs yields now.
     pub fn interrupt(&self) {
-        self.interrupt.notify_waiters();
+        self.surface.interrupt();
     }
 
     /// Resolves when an interactive request starts.
     pub async fn interrupted(&self) {
-        self.interrupt.notified().await;
+        self.surface.interrupted().await;
     }
 }

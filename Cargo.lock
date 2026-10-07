@@ -658,6 +658,7 @@ dependencies = [
  "docket-router",
  "docket-settings",
  "docket-skills",
+ "docket-tasks",
  "docket-testbus",
  "futures-util",
  "porter-client",
@@ -1112,6 +1113,27 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toml",
+]
+
+[[package]]
+name = "docket-tasks"
+version = "0.1.0"
+dependencies = [
+ "agent-loop",
+ "almanac-core",
+ "companion-wire",
+ "docket-client",
+ "docket-core",
+ "docket-planner",
+ "docket-skills",
+ "futures-util",
+ "porter-client",
+ "porter-core",
+ "porter-infer",
+ "prov",
+ "serde_json",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

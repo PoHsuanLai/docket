@@ -3,7 +3,8 @@
 //! already a handle by the time it is here. The sections are the assembler's (`agent-loop`); this
 //! only fills them, and the assembler cuts each to its budget.
 
-use crate::runtime::Companiond;
+use crate::runtime::Companion;
+use crate::seams::{Now, Surface};
 use crate::task::TaskRuntime;
 use agent_loop::Sources;
 use almanac_core::{BodyMode, InjectQuery, RecallOver, RecentQuery, TrustFilter, UserText};
@@ -69,7 +70,7 @@ fn words_of(rt: &TaskRuntime) -> String {
         .join("\n")
 }
 
-impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
     /// The sections for one planner turn of `task`. A source that does not answer leaves its
     /// section empty: the planner works with less, never with a guess.
     pub(crate) async fn sources(&mut self, task: &TaskId) -> Sources {

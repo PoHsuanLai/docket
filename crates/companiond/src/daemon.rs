@@ -1,15 +1,15 @@
 //! The daemon: configuration, the session bus, the router and inferd over it, a restart that
 //! rebuilds the roster and the front task from the eventlog, and `Companion1` served.
 
+use crate::Companiond;
 use crate::clock::Clock;
 use crate::config::CompaniondConfig;
-use crate::fault::ServeFault;
-use crate::runtime::Companiond;
 use crate::serve::serve_on;
 use docket_client::{DbusTransport, Intents};
 use docket_dbus::{BusConnection, InferLink};
 use docket_planner::PlannerModel;
 use docket_skills::{Roots, discover};
+use docket_tasks::ServeFault;
 use futures_util::StreamExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;

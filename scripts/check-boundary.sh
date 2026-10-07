@@ -33,6 +33,10 @@ RULES=(
   "docket-planner: $EFFECTS"
   # The in-app agent: the router (and with it Cedar) hosted in one app, no bus, no runtime, no
   # HTTP, no watcher. docket-client only behind `in_process`, never `dbus`.
+  # The task model is portable: the companion's tasks over any router link and model transport,
+  # a clock and a surface that are passed in; no bus, no runtime (the daemon's surface is the
+  # one that holds tokio).
+  "docket-tasks: $EFFECTS"
   "docket-inapp: $NO_CEDAR"
   # The models, the quarantined reader and the memory seam are portable too (moved out of
   # intentd and readerd): they ask any porter-client or almanac-client Transport, never a bus or
@@ -134,6 +138,7 @@ EDGES=(
   "companion-wire: almanac-core docket-core porter-core porter-infer prov"
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
+  "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-skills porter-client porter-core porter-infer prov"
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
   "docket-memory: almanac-client almanac-core docket-core docket-router porter-core prov"
@@ -145,7 +150,7 @@ EDGES=(
   "docket-testbus: docket-dbus"
   "actions-mcp: docket-client docket-core docket-dbus docket-settings porter-core prov"
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
-  "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills porter-client porter-core porter-infer prov"
+  "companiond: companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills docket-tasks porter-client porter-core prov"
   "readerd: docket-client docket-core docket-dbus docket-reader porter-client porter-core porter-infer prov"
   "docket-accept: action-review almanac-client almanac-core companion-wire companiond docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-router docket-testbus intentd porter-client porter-core porter-infer prov readerd"
   "companion-client: companion-wire docket-client docket-core docket-dbus prov"

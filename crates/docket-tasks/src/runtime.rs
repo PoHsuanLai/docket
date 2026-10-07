@@ -2,8 +2,8 @@
 //! identity over many tasks; each task is its own docket session, run by the pure loop of
 //! `agent-loop` whose effects `drive` carries out.
 
-use crate::clock::Clock;
 use crate::fault::ServeFault;
+use crate::seams::{Now, Surface};
 use crate::shared::Shared;
 use crate::task::{TaskRuntime, roster_state};
 use agent_loop::{FrontEvent, IdleState, LoopInput, LoopPhase, LoopState, SideTable, front_step};
@@ -49,7 +49,7 @@ pub(crate) struct Narration {
 
 /// The companion.
 #[derive(Debug)]
-pub struct Companiond<P: InferTransport, I: IntentsTransport> {
+pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     /// The router, as role `companion`.
     pub intents: Intents<I>,
     /// The planner.
@@ -65,9 +65,9 @@ pub struct Companiond<P: InferTransport, I: IntentsTransport> {
     /// The background narrative pass.
     pub idle: IdleState,
     /// What tells the time.
-    pub clock: Clock,
+    pub clock: K,
     /// What the bus reads without waiting for the loop.
-    pub shared: Arc<Shared>,
+    pub shared: Arc<Shared<S>>,
     /// What each task keeps while it runs.
     pub runtimes: BTreeMap<TaskId, TaskRuntime>,
     /// The shell itself: where the person is when they summoned the companion from the launcher.
@@ -100,13 +100,13 @@ fn idle_state() -> LoopState {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
-    /// A companion with no tasks yet.
+impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+    /// A companion with no tasks yet, over the surface's default.
     pub fn new(
         intents: Intents<I>,
         planner: PlannerModel<P>,
         config: AgentConfig,
-        clock: Clock,
+        clock: K,
         shell: AppName,
     ) -> Self {
         let now = clock.now();
@@ -119,7 +119,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
             side: SideTable::default(),
             idle: IdleState::quiet_since(now),
             clock,
-            shared: Arc::new(Shared::default()),
+            shared: Arc::new(Shared::new(S::default())),
             runtimes: BTreeMap::new(),
             shell,
             episodes: Vec::new(),
@@ -287,7 +287,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         self.front = front_step(self.front.take(), &FrontEvent::Asked(task.clone()));
         self.publish_answer(&task);
         Ok(Begun {
-            path: docket_dbus::answer_path(&task),
+            path: self.shared.surface().answer_path(&task),
             task,
             first,
             asked,

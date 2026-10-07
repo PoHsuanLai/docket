@@ -17,12 +17,11 @@ name = "companiond"
 path = "src/main.rs"
 
 [dependencies]
-agent-loop = { workspace = true }
-almanac-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-planner = { workspace = true }
 docket-skills = { workspace = true }
+docket-tasks = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true, features = ["inferd"] }
 docket-settings = { workspace = true }
@@ -30,7 +29,6 @@ futures-util = { workspace = true }
 prov = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }
 porter-core = { workspace = true }
-porter-infer = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -49,6 +47,9 @@ test-proc-root = []
 workspace = true
 
 [dev-dependencies]
+agent-loop = { workspace = true }
+almanac-core = { workspace = true }
+porter-infer = { workspace = true }
 docket-testbus = { workspace = true }
 docket-client = { workspace = true, features = ["in_process"] }
 docket-fake = { workspace = true }

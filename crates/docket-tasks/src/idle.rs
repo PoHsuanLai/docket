@@ -6,13 +6,15 @@
 //! to be tried again later, the moment an interactive request starts.
 
 use crate::fault::ServeFault;
-use crate::runtime::Companiond;
+use crate::runtime::Companion;
+use crate::seams::{Now, Surface};
 use agent_loop::{
     IdleEffect, IdleInput, NarrativeJob, SideEffect, SideInput, side_episode, side_step,
 };
 use almanac_core::{Episode, Narrative, UserText};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{LedgerStep, NoteAsk};
+use futures_util::future::Either;
 use porter_client::Transport as InferTransport;
 use porter_core::consent::Usage;
 use porter_core::{DataClass, Tier};
@@ -77,7 +79,7 @@ enum Narrated {
     Failed,
 }
 
-impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
     /// Time passed, as the clock says.
     pub async fn tick(&mut self) -> Result<(), ServeFault> {
         let now = self.clock.now();
@@ -195,12 +197,18 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         };
         let request = request_for(&pending.episode.skeleton.text());
         let shared = self.shared.clone();
-        let outcome = tokio::select! {
-            reply = self.planner.chat(request) => match reply {
-                Ok(reply) => Narrated::Written(reply.text.trim().to_owned()),
-                Err(_) => Narrated::Failed,
-            },
-            () = shared.interrupted() => Narrated::Yielded,
+        let outcome = {
+            let chat = std::pin::pin!(async {
+                match self.planner.chat(request).await {
+                    Ok(reply) => Narrated::Written(reply.text.trim().to_owned()),
+                    Err(_) => Narrated::Failed,
+                }
+            });
+            let interrupted = std::pin::pin!(shared.interrupted());
+            match futures_util::future::select(chat, interrupted).await {
+                Either::Left((narrated, _)) => narrated,
+                Either::Right(((), _)) => Narrated::Yielded,
+            }
         };
         match outcome {
             Narrated::Written(text) if !text.is_empty() => {

@@ -10,6 +10,7 @@ members = [
   "crates/companion-client",
   "crates/agent-loop",
   "crates/docket-planner",
+  "crates/docket-tasks",
   "crates/docket-models",
   "crates/docket-reader",
   "crates/docket-memory",
@@ -53,6 +54,7 @@ companion-wire = { path = "crates/companion-wire" }
 companion-client = { path = "crates/companion-client" }
 agent-loop     = { path = "crates/agent-loop" }
 docket-planner = { path = "crates/docket-planner" }
+docket-tasks   = { path = "crates/docket-tasks" }
 docket-models  = { path = "crates/docket-models" }
 docket-reader  = { path = "crates/docket-reader" }
 docket-memory  = { path = "crates/docket-memory" }
