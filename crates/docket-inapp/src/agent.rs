@@ -110,6 +110,8 @@ pub struct InAppParts<P, C, T, R, M, K> {
 }
 
 type Seam<P, C, T, R, K> = InAppSeams<P, C, T, R, K>;
+type Link<P, C, T, R, K> = Intents<InProcess<Seam<P, C, T, R, K>>>;
+type Hosted<P, C, T, R, K> = Arc<Router<Seam<P, C, T, R, K>>>;
 
 /// One app's agent: `ask` runs a turn end to end through the router.
 pub struct InAppAgent<P, C, T, R, M: ModelTransport, K>
@@ -120,11 +122,11 @@ where
     R: Reviewer + 'static,
     K: Clock + Clone + 'static,
 {
-    router: Arc<Router<Seam<P, C, T, R, K>>>,
+    router: Hosted<P, C, T, R, K>,
     /// The planner's side: role `companion`, whose voice the router never believes.
-    intents: Intents<InProcess<Seam<P, C, T, R, K>>>,
+    intents: Link<P, C, T, R, K>,
     /// The person's side: role `field`, the app's own prompt, which alone records turns.
-    person: Intents<InProcess<Seam<P, C, T, R, K>>>,
+    person: Link<P, C, T, R, K>,
     planner: PlannerModel<M>,
     config: AgentConfig,
     app: AppName,
