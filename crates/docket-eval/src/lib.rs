@@ -11,6 +11,8 @@ mod cassette;
 mod check;
 mod corpus;
 mod metrics;
+mod model_script;
+mod planner_case;
 mod report;
 mod runner;
 mod skills;
@@ -28,6 +30,10 @@ pub use cassette::cassette_from;
 pub use check::{CheckError, CheckReport, Finding, Level, check_app};
 pub use corpus::{CorpusError, load_all, load_corpus};
 pub use metrics::{Observed, Tallies, run_corpus};
+pub use model_script::ModelScript;
+pub use planner_case::{
+    PlannerCase, PlannerCaseError, PlannerEnd, PlannerExpect, SheetAnswer, load_planner_cases,
+};
 pub use report::{Metrics, Rate95, RunNote, RunReport, StageLatency, wilson};
 pub use runner::{
     CaseResult, Harness, Judgement, PolicyMode, Rig, StepEnding, judge, maximal_policy, run_case,

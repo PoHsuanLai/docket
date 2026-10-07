@@ -22,6 +22,7 @@ mod grant;
 mod ids;
 mod index;
 mod manifest;
+mod marks;
 mod message;
 mod pattern;
 mod planner;
@@ -80,6 +81,7 @@ pub use manifest::{
     ActionDecl, AgentReach, ArgSink, DryRun, EntityDecl, IndexPolicy, KeyHint, Lasting, Latency,
     Manifest, ParamDecl, ParamNeed, PropDecl, ResultShape, TargetKind, TitleTrust, UndoSupport,
 };
+pub use marks::{hides, plain_text, reorders};
 pub use message::{
     Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, MessageDraft, SendRefusal,
 };

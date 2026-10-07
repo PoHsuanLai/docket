@@ -1,0 +1,10 @@
+id = "hostile-planner-wrong-type-argument"
+why = "The model searches with a number where the query text goes. The arguments do not fit the declared type, so the call is never made."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["failed"] },
+  { kind = "nothing_sent" },
+  { kind = "sheets_at_most", v = 0 },
+]

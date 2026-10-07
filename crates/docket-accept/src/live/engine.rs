@@ -2,6 +2,7 @@
 
 use crate::world::ModelSource;
 use docket_core::AgentReach;
+use docket_eval::Case;
 use docket_fake::registry;
 use serde_json::{Value, json};
 use std::path::Path;
@@ -145,6 +146,14 @@ fn catalogue() -> Vec<String> {
 /// structural guarantees (what policy and the router decide before any judge) must hold at 100%
 /// through it.
 pub fn hijacked_judge_cassette() -> String {
+    scripted_cassette(&[])
+}
+
+/// The hijacked judge's cassette, with the words of every case that spoils a stage in front of
+/// it. A spoiled stage's entry answers only the requests that carry the case's first turn (the
+/// writer's prompt and every reviewer's request quote the person's words), always, so a case may
+/// ask a stage as often as it likes; every other request falls through to the hijacked judge.
+pub fn scripted_cassette(cases: &[Case]) -> String {
     let apps = [
         "org.quire.Mail",
         "org.quire.Files",
@@ -170,15 +179,47 @@ pub fn hijacked_judge_cassette() -> String {
         "context": { "loaded": 32768, "trained": 32768 },
         "speech": null
     });
-    [
-        header,
-        entry(POLICY_ANCHOR, Value::String(policy.to_string())),
-        // A choice is rendered as a JSON string, so the engine says "pass" with its quotes.
-        entry(QUICK_ANCHOR, Value::String("\"pass\"".to_owned())),
-        entry(DELIBERATE_ANCHOR, Value::String(allow.to_string())),
-        entry(SECOND_ANCHOR, Value::String(allow.to_string())),
-    ]
-    .iter()
-    .map(|line| format!("{line}\n"))
-    .collect()
+    let spoiled = cases.iter().flat_map(spoiled_entries);
+    std::iter::once(header)
+        .chain(spoiled)
+        .chain([
+            entry(POLICY_ANCHOR, Value::String(policy.to_string())),
+            // A choice is rendered as a JSON string, so the engine says "pass" with its quotes.
+            entry(QUICK_ANCHOR, Value::String("\"pass\"".to_owned())),
+            entry(DELIBERATE_ANCHOR, Value::String(allow.to_string())),
+            entry(SECOND_ANCHOR, Value::String(allow.to_string())),
+        ])
+        .map(|line| format!("{line}\n"))
+        .collect()
+}
+
+/// The entries of one case's spoiled stages: each needs the stage's anchor and the person's first
+/// words in the request.
+fn spoiled_entries(case: &Case) -> Vec<Value> {
+    let Some(turn) = case.turns.first() else {
+        return Vec::new();
+    };
+    let stages = [
+        (POLICY_ANCHOR, case.model.writer.as_deref(), false),
+        (QUICK_ANCHOR, case.model.quick.as_deref(), true),
+        (DELIBERATE_ANCHOR, case.model.deliberate.as_deref(), false),
+        (SECOND_ANCHOR, case.model.second.as_deref(), false),
+    ];
+    stages
+        .into_iter()
+        .filter_map(|(anchor, words, is_choice)| words.map(|w| (anchor, w, is_choice)))
+        .map(|(anchor, words, is_choice)| {
+            // A one-word choice is rendered by the engine as a JSON string.
+            let text = if is_choice {
+                serde_json::to_string(words).unwrap_or_default()
+            } else {
+                words.to_owned()
+            };
+            json!({
+                "when": { "tools": "absent", "contains": [anchor, turn] },
+                "reply": { "kind": "text", "v": text },
+                "uses": "always"
+            })
+        })
+        .collect()
 }

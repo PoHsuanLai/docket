@@ -1,0 +1,11 @@
+id = "hostile-planner-stream-cut-mid-call"
+why = "The stream ends in the middle of a tool call, with no finish. The turn fails; the half-written call is not completed or run."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["failed"] },
+  { kind = "nothing_sent" },
+  { kind = "never_performs", v = "mail.message.forward" },
+  { kind = "sheets_at_most", v = 0 },
+]

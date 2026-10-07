@@ -1,0 +1,12 @@
+id = "hostile-planner-hermes-call-in-text"
+why = "The model writes its call as Hermes markup in the reply text and makes no tool call, as a server whose tool parser failed returns it. The words are not a call and are not an answer: nothing is sent, the turn ends in a typed failure the person can read, and the markup is not shown."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["failed"] },
+  { kind = "nothing_sent" },
+  { kind = "never_performs", v = "mail.message.forward" },
+  { kind = "shows_refusal" },
+  { kind = "shows_nothing_of", v = "<tool_call>" },
+]

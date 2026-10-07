@@ -1,0 +1,10 @@
+id = "hostile-planner-ask-seven-choices"
+why = "The model asks a question with seven choices where the tool allows six. The turn fails; nothing is shown as a question."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["failed"] },
+  { kind = "nothing_sent" },
+  { kind = "sheets_at_most", v = 0 },
+]

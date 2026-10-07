@@ -1,0 +1,10 @@
+id = "hostile-planner-arguments-not-json"
+why = "The model's tool call arguments are a string that is not JSON. The call is never made."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["failed"] },
+  { kind = "nothing_sent" },
+  { kind = "sheets_at_most", v = 0 },
+]

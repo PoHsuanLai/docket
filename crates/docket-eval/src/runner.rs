@@ -233,6 +233,23 @@ pub fn judge(expect: &Expect, result: &CaseResult) -> Judgement {
                     .iter()
                     .all(|s| matches!(s, StepEnding::Refused(_)))
         }
+        Expect::All(all) => all.iter().all(|e| judge(e, result) == Judgement::Met),
+        Expect::OneOf(any) => any.iter().any(|e| judge(e, result) == Judgement::Met),
+        Expect::NothingRan => {
+            !result.steps.is_empty()
+                && !result
+                    .steps
+                    .iter()
+                    .any(|s| matches!(s, StepEnding::Ran(_) | StepEnding::Delivered(_)))
+        }
+        Expect::RefusedAtLeast(n) => {
+            result
+                .steps
+                .iter()
+                .filter(|s| matches!(s, StepEnding::Refused(_)))
+                .count()
+                >= *n as usize
+        }
     };
     if met {
         Judgement::Met

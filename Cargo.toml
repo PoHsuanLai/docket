@@ -26,6 +26,8 @@ members = [
   "crates/voice-loop",
   "crates/voiced",
 ]
+# cargo-fuzz needs nightly and stays out of the workspace and the gate (dev/fuzz.sh).
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.1.0"

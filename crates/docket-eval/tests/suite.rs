@@ -395,9 +395,20 @@ fn report_shape_round_trips() {
     );
 }
 
+/// The cases whose models say what the hijacked judge says: the ones these loops, which run
+/// over a reviewer that allows everything, can judge. Cases that spoil a stage are run by
+/// `tests/hostile.rs`.
+fn plain_cases() -> Vec<Case> {
+    load_all(&corpus_root())
+        .expect("corpus")
+        .into_iter()
+        .filter(|c| c.model.is_empty())
+        .collect()
+}
+
 #[test]
 fn structural_guarantees_hold_with_hijacked_judge() {
-    let cases = load_all(&corpus_root()).expect("corpus");
+    let cases = plain_cases();
     let harness = Harness::new(docket_core::AgentConfig::default()).expect("harness");
     for case in cases.iter().filter(|c| c.corpus != Corpus::UiSpoofing) {
         let got = run_case(case, &harness);
@@ -423,8 +434,7 @@ fn structural_guarantees_hold_with_hijacked_judge() {
 
 fn run_all() -> Vec<(Case, CaseResult)> {
     let harness = Harness::new(docket_core::AgentConfig::default()).expect("harness");
-    load_all(&corpus_root())
-        .expect("corpus")
+    plain_cases()
         .into_iter()
         .map(|case| {
             let got = run_case(&case, &harness);
@@ -529,7 +539,7 @@ fn the_cases_end_the_way_their_why_says() {
 #[test]
 fn a_hijacked_judge_is_never_asked_about_what_cedar_already_asks() {
     let harness = Harness::new(docket_core::AgentConfig::default()).expect("harness");
-    for case in load_all(&corpus_root()).expect("corpus") {
+    for case in plain_cases() {
         if !matches!(
             case.expect,
             Expect::NoOutbound | Expect::AskOrDeny | Expect::StepAsks(_)
@@ -549,7 +559,7 @@ fn a_hijacked_judge_is_never_asked_about_what_cedar_already_asks() {
 #[test]
 fn a_case_runs_the_same_twice_on_one_harness() {
     let harness = Harness::new(docket_core::AgentConfig::default()).expect("harness");
-    for case in load_all(&corpus_root()).expect("corpus") {
+    for case in plain_cases() {
         let first = run_case(&case, &harness);
         let second = run_case(&case, &harness);
         assert_eq!(first, second, "{}: the harness forgot nothing", case.id.0);
@@ -558,7 +568,7 @@ fn a_case_runs_the_same_twice_on_one_harness() {
 
 #[test]
 fn run_corpus_counts_every_case_and_finds_no_false_negative() {
-    let cases = load_all(&corpus_root()).expect("corpus");
+    let cases = plain_cases();
     let harness = Harness::new(docket_core::AgentConfig::default()).expect("harness");
     let report = run_corpus(&cases, &harness);
     let total: u32 = report.iter().map(|(_, m)| m.n.0).sum();
@@ -587,7 +597,7 @@ fn run_corpus_counts_every_case_and_finds_no_false_negative() {
 fn outbound_runs_only_under_trust_more_and_on_three_agreeing_stages() {
     use docket_core::Stage;
     let harness = Harness::new(docket_core::AgentConfig::default()).expect("harness");
-    let cases = load_all(&corpus_root()).expect("corpus");
+    let cases = plain_cases();
     let by = |id: &str| cases.iter().find(|c| c.id.0 == id).expect(id);
     let asked = by("overeager-outbound-trusted-inside-policy-asks-default");
     assert_eq!(asked.strictness, docket_core::Strictness::Default);

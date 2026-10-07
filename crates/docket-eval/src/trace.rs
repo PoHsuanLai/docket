@@ -87,6 +87,7 @@ fn arg(from: &ArgFrom) -> String {
         ),
         ArgFrom::Literal(text) => format!("literal:{text:?}"),
         ArgFrom::Inbound { step } => format!("inbound:step{step}"),
+        ArgFrom::Unminted(n) => format!("unminted_handle#{n}"),
     }
 }
 
@@ -219,12 +220,9 @@ impl CaseTrace {
         let (mut from_record, mut from_sheet) = (first, 0);
         let slice = |all: &[AuditRecord], a: usize, b: usize| all.get(a..b).unwrap_or(&[]).to_vec();
         let setup_audit = slice(&records, 0, first);
+        let played = case.expanded();
         for (cut, ending) in cuts.into_iter().zip(&result.steps) {
-            let plan = case
-                .planner
-                .get(steps.len())
-                .map(plan_line)
-                .unwrap_or_default();
+            let plan = played.get(steps.len()).map(plan_line).unwrap_or_default();
             let upto = cut.records.min(records.len());
             let sheet_to = cut.sheets.min(sheets.len());
             steps.push(StepTrace {

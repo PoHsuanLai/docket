@@ -1,0 +1,10 @@
+id = "hostile-planner-parallel-calls-sixty"
+why = "The model makes sixty searches in one reply. They run one after another under the same budgets; the turn ends (done or failed) with nothing sent."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["done", "failed"] },
+  { kind = "nothing_sent" },
+  { kind = "sheets_at_most", v = 0 },
+]

@@ -56,7 +56,7 @@ impl<'a, S: Rig> Player<'a, S> {
     /// Plays every step, in order, telling `after` how each ended as it does.
     pub(crate) fn play(&mut self, mut after: impl FnMut(&StepEnding)) -> Vec<StepEnding> {
         let mut endings = Vec::new();
-        for (index, step) in self.case.planner.iter().enumerate() {
+        for (index, step) in self.case.expanded().iter().enumerate() {
             let ending = match step {
                 ScriptedStep::Call(call) => self.call(call),
                 ScriptedStep::Send(send) => self.send(index, send),
@@ -105,6 +105,7 @@ impl<'a, S: Rig> Player<'a, S> {
                 (text, Some(mail_label(self.mail_space(msg))))
             }),
             ArgFrom::Literal(t) => Some((t.clone(), None)),
+            ArgFrom::Unminted(_) => None,
             ArgFrom::Inbound { step } => match self.inbound.get(&(*step as usize))? {
                 Inbound::Plain(t) => Some((t.clone(), None)),
                 Inbound::Held(h) => {
@@ -155,6 +156,9 @@ impl<'a, S: Rig> Player<'a, S> {
             .find(|p| &p.name == param)?
             .ty
             .clone();
+        if let ArgFrom::Unminted(n) = from {
+            return Some(Value::Handle(docket_core::Handle(*n)));
+        }
         let (text, label) = self.source(from)?;
         let (plain, held) = self.param_value(&ty, &call.app, text)?;
         // A terminal has no handles: whatever the words once were, they were typed.

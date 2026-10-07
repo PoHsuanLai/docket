@@ -10,7 +10,7 @@
 use crate::args::read_call;
 use crate::catalogue::{Catalogue, CatalogueTool};
 use crate::render::messages;
-use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier};
+use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
 use docket_core::{CallRequest, Origin, PlannerView, ReaderAsk};
 use docket_dbus::InferLink;
@@ -46,6 +46,10 @@ pub enum PlanFault {
     /// Its reply was not a tool call or words.
     #[error("unreadable reply")]
     Unreadable,
+    /// The model wrote a tool call as words and made none: its server's tool parser did not
+    /// read it. Nothing was done, and the words are not shown.
+    #[error("a call written as words")]
+    CallInText,
     /// The model the person named cannot serve; no other model answered in its place.
     #[error("the named model cannot serve")]
     Declined(Box<Declined>),
@@ -260,7 +264,16 @@ impl<P: Transport> PlannerModel<P> {
         ) {
             return Err(PlanFault::Unreadable);
         }
-        let said = Some(reply.text.trim().to_owned()).filter(|t| !t.is_empty());
+        let said = Some(bounded(reply.text.trim())).filter(|t| !t.is_empty());
+        // A call left in the words is never a call, and its markup is not an answer: with real
+        // calls beside it the words are dropped, alone the turn fails with a name for it.
+        let said = match (said, reply.tool_calls.is_empty()) {
+            (Some(words), true) if leaked_call(&words).is_some() => {
+                return Err(PlanFault::CallInText);
+            }
+            (Some(words), false) if leaked_call(&words).is_some() => None,
+            (said, _) => said,
+        };
         let (actions, meta): (Vec<_>, Vec<_>) = reply
             .tool_calls
             .iter()
@@ -307,6 +320,28 @@ impl<P: Transport> PlannerModel<P> {
     }
 }
 
+/// The most words of one reply that are kept: a model with no output limit can say a great deal,
+/// and the person's answer, the history and the bus carry what is kept.
+const MOST_WORDS: usize = 32_000;
+
+/// `text` without the marks that reorder or hide words: the model's words are drawn as written,
+/// never reversed or concealed.
+fn plain(text: &str) -> String {
+    text.chars()
+        .filter(|c| !docket_core::reorders(*c) && !docket_core::hides(*c))
+        .collect()
+}
+
+/// `text` as the person is shown it: plain, and cut at [`MOST_WORDS`] characters with an
+/// ellipsis where it was cut.
+fn bounded(text: &str) -> String {
+    let shown = plain(text);
+    match shown.char_indices().nth(MOST_WORDS) {
+        Some((end, _)) => format!("{}\u{2026}", &shown[..end]),
+        None => shown,
+    }
+}
+
 /// The session type of a transport.
 type AnyOrP<P> = <P as Transport>::Session;
 
@@ -318,26 +353,41 @@ fn meta_output(call: &ToolCallPart) -> Result<ModelOutput, PlanFault> {
     let args: Json = serde_json::from_str(call.args.as_str()).map_err(|_| PlanFault::Unreadable)?;
     match call.name.as_str() {
         TOOL_FINISH => Ok(ModelOutput::Finish),
-        TOOL_ASK => {
-            let text = args
-                .get("text")
-                .and_then(Json::as_str)
-                .ok_or(PlanFault::Unreadable)?
-                .to_owned();
-            let choices = args
-                .get("choices")
-                .and_then(Json::as_array)
-                .map(|items| {
-                    items
-                        .iter()
-                        .filter_map(|c| c.as_str().map(str::to_owned))
-                        .collect()
-                })
-                .unwrap_or_default();
-            Ok(ModelOutput::Ask { text, choices })
-        }
+        TOOL_ASK => question(&args),
         _ => serde_json::from_value::<ReaderAsk>(args)
             .map(ModelOutput::Read)
             .map_err(|_| PlanFault::Unreadable),
     }
+}
+
+/// The longest question the planner may put to the person, and its choices: the limits the tool's
+/// schema states, which a model is not made to keep.
+const ASK_TEXT: usize = 400;
+const ASK_CHOICES: usize = 6;
+const ASK_CHOICE_TEXT: usize = 80;
+
+/// A question as the schema allows it: bounded text and at most six bounded choices, every one a
+/// string. Anything else is an unreadable reply, not a question trimmed to fit.
+fn question(args: &Json) -> Result<ModelOutput, PlanFault> {
+    let text = args
+        .get("text")
+        .and_then(Json::as_str)
+        .filter(|t| t.chars().count() <= ASK_TEXT)
+        .map(plain)
+        .filter(|t| !t.trim().is_empty())
+        .ok_or(PlanFault::Unreadable)?;
+    let choices = match args.get("choices") {
+        None => Vec::new(),
+        Some(Json::Array(items)) if items.len() <= ASK_CHOICES => items
+            .iter()
+            .map(|c| {
+                c.as_str()
+                    .filter(|c| c.chars().count() <= ASK_CHOICE_TEXT)
+                    .map(plain)
+                    .ok_or(PlanFault::Unreadable)
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        Some(_) => return Err(PlanFault::Unreadable),
+    };
+    Ok(ModelOutput::Ask { text, choices })
 }

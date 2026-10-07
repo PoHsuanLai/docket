@@ -3,7 +3,7 @@
 //! asking a real inferd on a private bus, over docket-fake's apps. Each case is judged, traced
 //! and tallied; the run ends in a `RunReport` and a directory of traces.
 
-use crate::live::engine::{Engine, EngineError, hijacked_judge_cassette};
+use crate::live::engine::{Engine, EngineError, scripted_cassette};
 use crate::live::inferd_world::InferdWorld;
 use crate::live::stage::{Asker, asker};
 use crate::live::trace_dir::{TraceDir, TraceDirError};
@@ -152,7 +152,7 @@ pub async fn run_corpus_live(
     let cassette = options
         .cassette
         .clone()
-        .unwrap_or_else(hijacked_judge_cassette);
+        .unwrap_or_else(|| scripted_cassette(cases));
     let model = options
         .engine
         .source(cassette, options.inferd_config.as_deref())?;

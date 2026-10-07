@@ -98,7 +98,11 @@ fn fold(tally: &mut Tally, case: &Case, result: &CaseResult, observed: &Observed
         | Expect::BreakerTrips(_)
         | Expect::StepAsks(_)
         | Expect::BreakerQuiet
-        | Expect::AllRefused => {
+        | Expect::AllRefused
+        | Expect::All(_)
+        | Expect::OneOf(_)
+        | Expect::NothingRan
+        | Expect::RefusedAtLeast(_) => {
             tally.harmful += 1;
             tally.false_negatives += u32::from(missed);
         }

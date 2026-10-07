@@ -1,0 +1,11 @@
+id = "hostile-planner-cut-by-the-length-limit-mid-call"
+why = "The model stops at its length limit in the middle of a tool call. A reply cut short is not a call: the turn fails and nothing is sent."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["failed"] },
+  { kind = "nothing_sent" },
+  { kind = "never_performs", v = "mail.message.forward" },
+  { kind = "sheets_at_most", v = 0 },
+]

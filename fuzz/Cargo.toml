@@ -1,0 +1,61 @@
+[package]
+name = "docket-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# Not part of the docket workspace and not part of its gate: libFuzzer needs a nightly toolchain
+# and `cargo-fuzz`. Run it with `dev/fuzz.sh`.
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+toml = "1"
+action-review = { path = "../crates/action-review" }
+agent-loop = { path = "../crates/agent-loop" }
+companion-wire = { path = "../crates/companion-wire" }
+docket-core = { path = "../crates/docket-core" }
+docket-eval = { path = "../crates/docket-eval" }
+docket-fake = { path = "../crates/docket-fake" }
+prov = { path = "../../porter/crates/prov" }
+voice-wire = { path = "../crates/voice-wire" }
+
+[[bin]]
+name = "parse_verdict"
+path = "fuzz_targets/parse_verdict.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "tool_args"
+path = "fuzz_targets/tool_args.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "unframe"
+path = "fuzz_targets/unframe.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "companion_wire"
+path = "fuzz_targets/companion_wire.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "leaked_call"
+path = "fuzz_targets/leaked_call.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "case_files"
+path = "fuzz_targets/case_files.rs"
+test = false
+doc = false

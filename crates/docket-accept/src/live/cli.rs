@@ -54,7 +54,9 @@ pub struct SmokeArgs {
     pub inferd_config: Option<PathBuf>,
     /// Where traces and scratch go.
     pub out: PathBuf,
-    /// Only these flows; every one when empty.
+    /// The `eval/` directory (its `hostile-model/planner` cases are played after the flows).
+    pub eval_dir: PathBuf,
+    /// Only these flows or planner cases; every one when empty.
     pub flows: Vec<String>,
     /// Seconds to wait for each change of an answer.
     pub patience_s: u64,
@@ -155,6 +157,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             engine,
             inferd_config: config,
             out,
+            eval_dir: eval_dir.unwrap_or_else(|| PathBuf::from("eval")),
             flows,
             patience_s: patience,
             catalog,

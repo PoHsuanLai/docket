@@ -1,0 +1,10 @@
+id = "hostile-planner-very-large-reply"
+why = "The model replies with seventy thousand characters of words. The answer keeps a bounded part of it and the turn ends; nothing is sent."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["done"] },
+  { kind = "nothing_sent" },
+  { kind = "shows_at_most", v = 33000 },
+]

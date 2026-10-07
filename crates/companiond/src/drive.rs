@@ -36,6 +36,18 @@ pub(crate) fn refusal_of(error: ClientError) -> CallRefusal {
     }
 }
 
+/// What the person is told when the planner gave nothing usable and there is more to say than
+/// "it failed".
+fn refusal_text(fault: &PlanFault) -> Option<String> {
+    match fault {
+        PlanFault::Declined(declined) => Some(declined_text(declined)),
+        PlanFault::CallInText => Some(
+            "The model wrote a step as text instead of making it, so nothing was done.".to_owned(),
+        ),
+        PlanFault::Unavailable | PlanFault::Unreadable => None,
+    }
+}
+
 fn idle_loop() -> LoopState {
     LoopState {
         phase: LoopPhase::Idle,
@@ -164,10 +176,9 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
         let reply = match self.planner.converse(&view).await {
             Ok(reply) => reply,
             Err(fault) => {
-                if let (PlanFault::Declined(declined), Some(rt)) =
-                    (&fault, self.runtimes.get_mut(task))
+                if let (Some(text), Some(rt)) = (refusal_text(&fault), self.runtimes.get_mut(task))
                 {
-                    rt.refused = Some(RefusalWire::Failed(declined_text(declined)));
+                    rt.refused = Some(RefusalWire::Failed(text));
                 }
                 return Ok(vec![LoopInput::ModelFailed]);
             }

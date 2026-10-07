@@ -282,7 +282,12 @@ pub fn judge(flow: Flow, e: &Evidence) -> Vec<Failure> {
 /// The readable transcript of a flow: the person's words, the answer's phases, every model
 /// exchange, the sheets, what the mail app did, and what failed.
 pub fn transcript(flow: Flow, e: &Evidence, failures: &[Failure]) -> String {
-    let mut out = format!("flow {}\nperson: {:?}\n", flow.slug(), flow.prompt());
+    transcript_of(flow.slug(), flow.prompt(), e, failures)
+}
+
+/// [`transcript`] for anything that plays the person's words: `name` heads it.
+pub fn transcript_of(name: &str, prompt: &str, e: &Evidence, failures: &[Failure]) -> String {
+    let mut out = format!("flow {name}\nperson: {prompt:?}\n");
     out.push_str("\nanswer phases:\n");
     for view in e.views() {
         let _ = writeln!(
@@ -349,7 +354,7 @@ pub struct FlowReport {
     pub logs: String,
 }
 
-fn exchanges_of(world: &World) -> Vec<ModelExchange> {
+pub(crate) fn exchanges_of(world: &World) -> Vec<ModelExchange> {
     std::fs::read_to_string(world.dir.path().join("model.jsonl"))
         .unwrap_or_default()
         .lines()
@@ -357,14 +362,14 @@ fn exchanges_of(world: &World) -> Vec<ModelExchange> {
         .collect()
 }
 
-fn settled(view: &AnswerWire) -> bool {
+pub(crate) fn settled(view: &AnswerWire) -> bool {
     matches!(
         view.phase,
         AnswerPhase::Done | AnswerPhase::Failed | AnswerPhase::Cancelled
     )
 }
 
-async fn undo_held(launcher: &Launcher, world: &World) -> UndoCheck {
+pub(crate) async fn undo_held(launcher: &Launcher, world: &World) -> UndoCheck {
     if world.mail.messages().is_empty() {
         return UndoCheck::NothingHeld;
     }
@@ -393,6 +398,56 @@ async fn undo_held(launcher: &Launcher, world: &World) -> UndoCheck {
     }
 }
 
+/// What a play of the person's words observes, and the daemons' logs.
+pub(crate) struct Played {
+    pub evidence: Evidence,
+    pub logs: String,
+}
+
+/// What a play is told: the person's grants, what they do with a sheet, and their words.
+pub(crate) struct Script<'a> {
+    pub consent: Consent,
+    pub verdict: Verdict,
+    pub prompt: &'a str,
+}
+
+/// Plays `script` in a fresh world over `model`, with the daemons' model tap on and the scratch
+/// root kept under `keep_in`, until `stop` says the answer has come to rest.
+pub(crate) async fn observe(
+    binaries: &Binaries,
+    script: Script<'_>,
+    model: &ModelSource,
+    (keep_in, catalog): (Option<std::path::PathBuf>, Option<std::path::PathBuf>),
+    patience: Duration,
+    stop: impl Fn(&AnswerWire) -> bool,
+) -> Played {
+    let options = Options {
+        keep_in,
+        tap: TapMode::On,
+        accountd: None,
+        catalog,
+    };
+    let world = World::start_model(binaries, script.consent, model, &options).await;
+    world.sheet.will(script.verdict);
+    let launcher = Launcher::of(&world).await.patient(patience);
+    let opened = launcher.open().await;
+    let mut answer = launcher.say(&opened, script.prompt).await;
+    let answered = answer.try_history_until(stop).await;
+    let undo = undo_held(&launcher, &world).await;
+    let evidence = Evidence {
+        answer: answered,
+        sheets: world.sheet.shown(),
+        messages: world.mail.messages(),
+        performed: world.mail.performed(),
+        exchanges: exchanges_of(&world),
+        undo,
+    };
+    Played {
+        evidence,
+        logs: world.logs(),
+    }
+}
+
 /// Plays `flow` in a fresh world over `model`, with the daemons' model tap on and the scratch
 /// root kept under `options.keep_in`.
 pub async fn run_flow(
@@ -403,32 +458,25 @@ pub async fn run_flow(
     catalog: Option<std::path::PathBuf>,
     patience: Duration,
 ) -> FlowReport {
-    let options = Options {
-        keep_in,
-        tap: TapMode::On,
-        accountd: None,
-        catalog,
+    let script = Script {
+        consent: flow.consent(),
+        verdict: flow.verdict(),
+        prompt: flow.prompt(),
     };
-    let world = World::start_model(binaries, flow.consent(), model, &options).await;
-    world.sheet.will(flow.verdict());
-    let launcher = Launcher::of(&world).await.patient(patience);
-    let opened = launcher.open().await;
-    let mut answer = launcher.say(&opened, flow.prompt()).await;
-    let answered = answer.try_history_until(settled).await;
-    let undo = undo_held(&launcher, &world).await;
-    let evidence = Evidence {
-        answer: answered,
-        sheets: world.sheet.shown(),
-        messages: world.mail.messages(),
-        performed: world.mail.performed(),
-        exchanges: exchanges_of(&world),
-        undo,
-    };
-    let failures = judge(flow, &evidence);
+    let played = observe(
+        binaries,
+        script,
+        model,
+        (keep_in, catalog),
+        patience,
+        settled,
+    )
+    .await;
+    let failures = judge(flow, &played.evidence);
     FlowReport {
         flow,
-        transcript: transcript(flow, &evidence, &failures),
+        transcript: transcript(flow, &played.evidence, &failures),
         failures,
-        logs: world.logs(),
+        logs: played.logs,
     }
 }

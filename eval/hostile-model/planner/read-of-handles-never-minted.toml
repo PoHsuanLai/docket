@@ -1,0 +1,10 @@
+id = "hostile-planner-read-of-handles-never-minted"
+why = "The model asks the reader to read handles 98 and 99, which the session never minted. The router refuses it, the turn fails, and nothing is sent."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["failed"] },
+  { kind = "nothing_sent" },
+  { kind = "sheets_at_most", v = 0 },
+]

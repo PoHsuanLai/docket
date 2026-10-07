@@ -106,8 +106,15 @@ fn entity(kind: &EntityKind, json: &Json) -> Read<EntityId> {
 fn text(max: CharCount, lines: Lines, json: &Json) -> Read<String> {
     let body = json.as_str().ok_or(Why::Type)?;
     let too_long = body.chars().count() > max.0 as usize;
-    let multi = lines == Lines::One && body.contains('\n');
-    if too_long || multi {
+    // One line has no control character at all; a body keeps its line breaks and tabs. Neither
+    // may hold a mark that reorders the words around it or hides itself: a recipient or a
+    // body drawn on a sheet must be what it reads as.
+    let allowed: &[char] = match lines {
+        Lines::One => &[],
+        Lines::Many => &['\n', '\r', '\t'],
+    };
+    let deceptive = !crate::marks::plain_text(body, allowed);
+    if too_long || deceptive {
         Err(Why::Range)
     } else {
         Ok(body.to_owned())

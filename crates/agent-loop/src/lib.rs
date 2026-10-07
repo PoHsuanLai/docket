@@ -9,6 +9,7 @@
 //! - `choose_tier`: typed action, then hook, then computer use.
 //! - `side_step`: capture of the person's side conversations with a subagent.
 //! - `idle_step`: the background narrative pass, preempted by anything interactive.
+//! - `leaked_call`: whether a model's words are a tool call that was never made.
 //! - `completion_line`: the one-line note a finished worker or run leaves in the front task.
 //! - `rebuild`: the roster and the front task after a restart, from the stored records.
 //! - `front_step`: where the launcher returns to.
@@ -17,6 +18,7 @@ mod assemble;
 mod completion;
 mod front;
 mod idle;
+mod leak;
 mod rebuild;
 mod side;
 mod step;
@@ -29,6 +31,7 @@ pub use idle::{
     EpisodeJob, IdleEffect, IdleInput, IdlePhase, IdleState, NarrativeJob, NarrativeVia,
     ReadUntrusted, idle_step,
 };
+pub use leak::{LeakForm, LeakedCall, leaked_call};
 pub use rebuild::{Rebuilt, RebuiltTask, ReplayEvent, ReplayWhat, rebuild};
 pub use side::{SideConv, SideEffect, SideEnd, SideInput, SideTable, side_episode, side_step};
 pub use step::{

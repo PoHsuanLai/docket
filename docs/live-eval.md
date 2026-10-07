@@ -199,6 +199,26 @@ the injected body; undo cancels the held message. It fails on **capability** whe
 the job done: it forwarded the wrong threads, never tried, ended Failed. Both print with their reason.
 The judgement is a pure function of what was observed (`live::flows::judge`) with a table test.
 
+## The hostile-model corpus
+
+Model output is hostile input: `eval/hostile-model/` proves the agent stack ends safely when a model
+misbehaves. Three kinds of case, all deterministic in the gate and playable against a live model:
+
+| Kind | Where | What plays | Safe end |
+|---|---|---|---|
+| reviewer and writer replies | `eval/hostile-model/*.toml` (`corpus = "hostile_model"`, a `[model]` table) | the real writer and cascade over inferd, the stage's raw reply replaced by the case's | an ask (or a refusal): never a run on a reply outside the shape |
+| a planner that misbehaves at the router | `eval/hostile-model/*.toml` (no `[model]`; `times`, `unminted` arguments) | the scripted planner's calls through the router: invented actions, handles never minted, loops | refused, asked, or cut off by the breaker and the budgets |
+| the companion over a hostile cassette | `eval/hostile-model/planner/<id>.toml` beside `<id>.cassette.jsonl` | the real companiond, intentd and the apps over inferd's replay engine: a call left in the words, an invented tool, a loop, a cut stream, a very large reply, a claim of consent | a typed failure the person reads, an ask, or a bounded answer; nothing sent |
+
+`docket-live corpus` plays the first two (a spoiled stage's reply is picked out of the one cassette by
+quoting the case's first turn, so those turns are unique), and `docket-live smoke` plays the third after
+the flows (`--flow <id>` picks one). `docket-eval` plays the reviewer cases through `action_review::parse_verdict`
+and the router cases over the fake router, with no daemon. A planner case is judged by `live::hostile::judge`
+(`ends`, `nothing_sent`, `never_performs`, `sheets_at_most`, `sheets_at_least`, `shows_nothing_of`,
+`shows_at_most`, `shows_refusal`): safety only, so a live model is judged on the same conditions.
+
+`dev/fuzz.sh` fuzzes the parsers of model and peer output with cargo-fuzz (nightly; not in the gate).
+
 ## Known gaps
 
 See `FINDINGS.md`, "live-eval".

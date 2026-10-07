@@ -191,19 +191,45 @@ fn message_len(message: &ChatMessage) -> usize {
         .sum()
 }
 
-/// Whether the person wrote `text` in one of their turns, ignoring case.
-fn said_by_person(turns: &[UserTurn], text: &str) -> bool {
+/// The words of a turn that can name something: runs of the characters an address, a domain or a
+/// path is made of, with a sentence's closing dot taken off, lower-cased.
+fn tokens(turns: &[UserTurn]) -> Vec<String> {
+    turns
+        .iter()
+        .flat_map(|t| {
+            t.text
+                .split(|c: char| {
+                    !(c.is_alphanumeric() || matches!(c, '.' | '/' | '@' | '_' | '-' | '+' | '~'))
+                })
+                .map(|w| w.trim_end_matches('.').to_lowercase())
+                .collect::<Vec<_>>()
+        })
+        .filter(|w| !w.is_empty())
+        .collect()
+}
+
+/// Whether the person wrote `text` as a whole word of their own: not a piece of one. The word
+/// `com` is not named by `alice@example.com`, nor `/` by any path, whatever a model draws from
+/// what the person wrote.
+fn named_by_person(turns: &[UserTurn], text: &str) -> bool {
     let needle = text.trim().to_lowercase();
+    !needle.is_empty() && tokens(turns).contains(&needle)
+}
+
+/// Whether the person wrote an address or domain that is `text`: the address itself, or the
+/// domain of an address they wrote, or the domain on its own.
+fn addressed_by_person(turns: &[UserTurn], text: &str) -> bool {
+    let needle = text.trim().trim_start_matches('@').to_lowercase();
     !needle.is_empty()
-        && turns
+        && tokens(turns)
             .iter()
-            .any(|t| t.text.to_lowercase().contains(&needle))
+            .any(|w| *w == needle || w.rsplit_once('@').is_some_and(|(_, host)| host == needle))
 }
 
 /// A recipient or a destination the person named: a whole address or value, or a domain.
 fn trusted_value(turns: &[UserTurn], text: &str) -> Option<TrustedPattern> {
     let text = text.trim();
-    if !said_by_person(turns, text) {
+    if !addressed_by_person(turns, text) {
         return None;
     }
     match text.contains('@') && !text.starts_with('@') {
@@ -212,6 +238,17 @@ fn trusted_value(turns: &[UserTurn], text: &str) -> Option<TrustedPattern> {
             text.trim_start_matches('@').to_owned(),
         )),
     }
+}
+
+/// A path the person wrote, whole, and not the root of everything: what a writer may draw a
+/// `paths` entry from.
+fn path_of_person(turns: &[UserTurn], path: &str) -> Option<docket_core::FileRef> {
+    let path = path.trim();
+    let whole = named_by_person(turns, path) || named_by_person(turns, path.trim_end_matches('/'));
+    let root = matches!(path.trim_end_matches('/'), "" | "~");
+    (whole && !root)
+        .then(|| docket_core::FileRef::parse(path).ok())
+        .flatten()
 }
 
 /// The policy a draft is, once everything in it is checked against the catalogue and the turns.
@@ -272,8 +309,7 @@ fn policy_of(
         paths: draft
             .paths
             .iter()
-            .filter(|p| said_by_person(turns, p))
-            .filter_map(|p| docket_core::FileRef::parse(p.trim()).ok())
+            .filter_map(|p| path_of_person(turns, p))
             .map(TrustedPattern::Under)
             .collect(),
         // The router lowers this to now plus `task_policy_max` (`bound_policy` takes the

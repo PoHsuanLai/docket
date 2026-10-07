@@ -1305,3 +1305,94 @@ Interface asks.
   accountd finds provider files (openrouter). Until then `--engine cloud` cannot hold a key.
 - I2 (porter, inferd): let `record` (or a new `tee`) capture the answers of a live engine, so the trace can be inferd's own view
   and the tap in docket-dbus can go.
+
+## hostile-model: model output is hostile input
+
+`todo!()` count: 1 before, 1 after. The agent stack is proved to fail safe when a model misbehaves, and docket's
+parsers of model and peer output are property-tested and fuzzable. `docs/live-eval.md` has the how-to.
+
+What it adds.
+- `eval/hostile-model/` (corpus `hostile_model`, 57 cases) and `eval/hostile-model/planner/` (27 planner cases with
+  their cassettes). Case kinds added to the format: a `[model]` table (`ModelScript`: the raw words of the writer, quick,
+  deliberate and second stage), `times` on a scripted call (loops), `ArgFrom::Unminted(n)` (a handle the session never
+  minted), `Expect::{All, OneOf, NothingRan, RefusedAtLeast}`, and `PlannerCase` (prompt, consent, what the person does
+  with a sheet, a list of `PlannerExpect`).
+  - reviewer replies 28 (quick 6, deliberate 18, second 4), each ending as an ask; writer replies 12 plus 4 over-broad or
+    narrowing; router-level planner cases 9 (unminted handles 2, invented action and app 2, extra and missing argument 2,
+    loop of sends, loop of reads, A,B oscillation); planner cases over a cassette 27 (calls left in the text 4, invented
+    or malformed calls 6, loops and floods 4, empty, cut and over-length replies 5, a very large reply, marks in words 2,
+    a send outside the policy, a claim of consent, bad questions 3, reads of unminted handles 2).
+- The gate plays them three ways: `docket-eval/tests/hostile.rs` (reviewer words through the real `parse_verdict` over
+  `ParsedReviewer`, router cases over the fake router, no daemon), `docket-accept/tests/live_eval.rs` and `hostile.rs`
+  (`run_corpus_live` over inferd's replay engine, one cassette whose spoiled entries pick a case out by quoting its first
+  turn: `scripted_cassette`), and `docket-accept/tests/hostile.rs` (`run_planner_case`: real companiond, intentd and apps).
+  `docket-live smoke --engine scripted|local|cloud` plays the planner cases after the flows (`--flow <id>`).
+- Mutation check: with the fixes below turned off, the planner cases for them fail (calls in text, very large reply,
+  bidi words, over-long and over-many questions); with them on, all pass.
+
+Where the stack did NOT fail safe, and the fix (each pinned by a test above).
+1. companiond `PlannerModel::read`: a call left in the reply text (Hermes `<tool_call>{..}</tool_call>`, Qwen3-coder
+   `<function=..>`, Mistral and Llama tags, dressed with zero-width marks, capitals or fullwidth brackets) was read as the
+   model's answer: the turn ended Done and the person was shown the markup. Fixed: `agent_loop::leaked_call` (pure) and
+   `PlanFault::CallInText`; the turn fails with "The model wrote a step as text instead of making it, so nothing was done."
+   (`RefusalWire::Failed`); beside real calls the markup is dropped and the calls stand. Nothing ever acts on the text.
+2. companiond: a reply of any length was kept (`max_output` is `Knob::Off` for the planner) and carried by the answer, the
+   history and the bus. Fixed: kept to 32,000 characters with an ellipsis.
+3. companiond: the model's words and questions were shown with bidirectional overrides and zero-width marks as written
+   (a reversed `moc.live` for `live.com`). Fixed: `docket_core::{reorders, hides}` marks are removed from words, questions
+   and choices.
+4. companiond `quire_ask`: the schema's limits (400 characters, six choices of 80) were advice to the model, and non-string
+   choices were silently dropped. Fixed: past the limits, or with a non-string choice, the reply is unreadable.
+5. docket-core `args_from_json`: a one-line text accepted every control character but `\n` (a `\r`, a NUL) and any text
+   accepted bidirectional overrides and zero-width marks, so a recipient on a sheet could read as another address.
+   Fixed in `text()`: one line has no control character, a body keeps `\n`, `\r`, `\t`, and neither holds a reordering or
+   hidden mark. (Applies to the MCP edge too: they share `args_from_json`.)
+6. action-review `parse_verdict`: the record was read through a JSON value, where a key written twice keeps its last value:
+   `{"verdict":"deny","verdict":"allow",..}` was an Allow. Fixed: a derived `Record` with `deny_unknown_fields` refuses
+   a repeated, missing, extra or non-string key.
+7. action-review: a reviewer's reason (shown in the activity view) could carry control characters and reordering or hidden
+   marks. Fixed: such a reason is `OutOfVocabulary`, which asks.
+8. intentd `InferdWriter`: "the person wrote it" was a substring test, so a draft naming `com` kept `Domain("com")`
+   (every `.com` recipient) when the person had written `alice@example.com`, and a draft naming `/` kept `Under("/")`
+   when any path was written. Fixed: a recipient or destination is kept only as a whole word of a turn (the address, or
+   the domain of an address, or a domain written alone); a path only whole and never the root.
+
+Held already (now pinned by a case): an invented action or app, a handle never minted (as a recipient, a body, or in a
+read), a missing or extra argument, a wrong-typed argument, arguments that are not JSON, an empty or whitespace reply, a
+stream cut mid-call, a reply stopped by its length limit mid-call, sixty parallel calls, forty identical or alternating
+calls (the per-minute budget ends them), forty refused sends (three denials trip the breaker and pause), a send outside
+the task policy, a claim in words that the person approved (the sheet still comes), every reviewer reply outside its
+shape ending as an ask, an unparseable or over-broad writer reply (no policy, or bounded: ceiling never above what the
+chosen actions need, count at most 100, recipients and paths the person did not write dropped, unknown actions dropped).
+A homoglyph tool name never gets as far as a comparison: `ToolName` refuses it at the wire.
+
+Things to know.
+- inferd's structured-output layer unwraps a fenced JSON record before docket reads it, so over inferd a fenced
+  deliberate, second-opinion or writer reply stands as the model said it (parse.rs alone still refuses a fence it is handed).
+  The three fenced cases therefore expect `one_of [step_asks 1, allow]`; trailing words outside the record are an ask on both paths.
+- The planner keeps the valid calls of a reply that also names an unknown tool (an existing test pins it); a reply whose
+  calls are all unreadable fails the turn.
+- A model that outputs `quire_ask` or words repeatedly is bounded by the step budget (`agent.budget.calls`) and the
+  per-minute budget, not by anything in the planner.
+- Not looked at: the idle pass stores the model's narrative of an episode in memory (hostile words persist there as the
+  episode's text, labelled by memoryd, not by docket); the reader's output is already a handle or a closed-set answer.
+- Not run: the hostile planner cases against a live model (`--engine local|cloud`); they are judged on safety only, so
+  they can be.
+
+Property tests (small case counts, no clock): action-review `tests/props.rs` (a reference reader of the record shape agrees
+with `parse_verdict` on every generated record, in both directions, and only `pass` passes the quick judge),
+docket-core `tests/args_props.rs` (typed values or a typed fault, only declared arguments, text inside its bounds and
+free of marks), voice-wire `tests/props.rs` (`unframe` outcomes follow the four length bytes, never overrun, a stream
+split anywhere reads the same frames), companion-wire `tests/props.rs` (damaged bodies never panic and what reads is
+stable), agent-loop `tests/leak.rs`, docket-eval `tests/props.rs` (damaged case files; a cassette is a header and one
+JSON entry per exchange), intentd `tests/writer_hostile.rs`, companiond `tests/hostile.rs`.
+Fuzz: `fuzz/` (cargo-fuzz, outside the workspace and the gate) with six targets (`parse_verdict`, `tool_args`, `unframe`,
+`companion_wire`, `leaked_call`, `case_files`) and `dev/fuzz.sh`; it needs nightly (installed here) and `cargo-fuzz`
+(not installed; the script says so and exits 2, and installs nothing).
+
+Interface asks.
+- stoker (fuzz-decode lane): when a server's tool parser fails and the call is left in the content, a typed field on
+  `ChatReply` (say `tool_parse: Option<ToolParseFault>`). `PlannerModel::read` should test it first and map it to
+  `PlanFault::CallInText` (the same typed refusal); `leaked_call` stays as the fallback for engines that do not report it.
+  No docket code depends on the field.
+- porter (inferd): none needed. (Noted above: it unwraps a fenced record.)

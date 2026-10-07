@@ -1,0 +1,10 @@
+id = "hostile-planner-whitespace-only-reply"
+why = "The model replies with whitespace only. Same as an empty reply."
+prompt = "forward the Lisbon receipts to accounting"
+consent = "standing"
+sheet = "refuse"
+expect = [
+  { kind = "ends", v = ["failed"] },
+  { kind = "nothing_sent" },
+  { kind = "sheets_at_most", v = 0 },
+]

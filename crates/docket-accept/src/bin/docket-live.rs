@@ -7,14 +7,14 @@
 
 use docket_accept::live::cli::{Command, CorpusArgs, SmokeArgs, UsageError, parse};
 use docket_accept::live::flows::{Flow, Kind, run_flow};
+use docket_accept::live::hostile::run_planner_case;
 use docket_accept::live::{
     CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_live,
 };
 use docket_accept::live::{catalog, regress};
 use docket_accept::world::ModelSource;
 use docket_core::Millis;
-use docket_eval::{Case, Corpus, RunReport, load_all};
-use std::path::Path;
+use docket_eval::{Case, Corpus, PlannerCase, RunReport, load_all, load_planner_cases};
 use std::process::ExitCode;
 use std::time::Duration;
 
@@ -130,55 +130,90 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
     })
 }
 
+/// What a smoke run plays: one of the acceptance flows, or one planner case of the hostile-model
+/// corpus.
+enum Play {
+    Flow(Flow),
+    Hostile(Box<PlannerCase>),
+}
+
+impl Play {
+    fn name(&self) -> String {
+        match self {
+            Play::Flow(flow) => flow.slug().to_owned(),
+            Play::Hostile(case) => case.id.clone(),
+        }
+    }
+
+    fn cassette(&self) -> String {
+        match self {
+            Play::Flow(flow) => flow.cassette().to_owned(),
+            Play::Hostile(case) => case.cassette.clone(),
+        }
+    }
+}
+
+/// The flows and planner cases a run is asked for: all of them, or the named ones.
+fn plays(args: &SmokeArgs) -> Result<Vec<Play>, String> {
+    let hostile = load_planner_cases(&args.eval_dir.join("hostile-model/planner"))
+        .map_err(|e| e.to_string())?;
+    let all = Flow::ALL
+        .into_iter()
+        .map(Play::Flow)
+        .chain(hostile.iter().cloned().map(|c| Play::Hostile(Box::new(c))));
+    if args.flows.is_empty() {
+        return Ok(all.collect());
+    }
+    args.flows
+        .iter()
+        .map(|name| {
+            all.clone()
+                .find(|p| &p.name() == name)
+                .ok_or_else(|| format!("no flow or planner case named {name:?}"))
+        })
+        .collect()
+}
+
 async fn smoke(args: SmokeArgs) -> Result<ExitCode, String> {
     say_reach(args.engine);
     let binaries = packaged_binaries().map_err(|e| e.to_string())?;
-    let flows: Vec<Flow> = if args.flows.is_empty() {
-        Flow::ALL.to_vec()
-    } else {
-        args.flows
-            .iter()
-            .map(|f| Flow::parse(f).ok_or_else(|| format!("no flow named {f:?}")))
-            .collect::<Result<_, _>>()?
-    };
     let smoke_catalog = args
         .catalog
         .clone()
-        .unwrap_or_else(|| catalog::default_source(Path::new("eval")));
+        .unwrap_or_else(|| catalog::default_source(&args.eval_dir));
     let traces = args.out.join("smoke");
     std::fs::create_dir_all(&traces).map_err(|e| e.to_string())?;
+    let patience = Duration::from_secs(args.patience_s);
+    let dirs = || (Some(args.out.join("scratch")), Some(smoke_catalog.clone()));
     let mut failed = false;
-    for flow in flows {
+    for play in plays(&args)? {
         let model: ModelSource = args
             .engine
-            .source(flow.cassette().to_owned(), args.inferd_config.as_deref())
+            .source(play.cassette(), args.inferd_config.as_deref())
             .map_err(|e: EngineError| e.to_string())?;
-        let report = run_flow(
-            &binaries,
-            flow,
-            &model,
-            Some(args.out.join("scratch")),
-            Some(smoke_catalog.clone()),
-            Duration::from_secs(args.patience_s),
-        )
-        .await;
-        let file = traces.join(format!("{}.trace.txt", flow.slug()));
-        let header = format!("{}\n\n", catalog::describe(&smoke_catalog));
-        std::fs::write(&file, header + &report.transcript).map_err(|e| e.to_string())?;
-        let verdict = if report.failures.is_empty() {
-            "PASS"
-        } else {
-            "FAIL"
+        let (name, transcript, failures) = match &play {
+            Play::Flow(flow) => {
+                let r = run_flow(&binaries, *flow, &model, dirs().0, dirs().1, patience).await;
+                (play.name(), r.transcript, r.failures)
+            }
+            Play::Hostile(case) => {
+                let r = run_planner_case(&binaries, case, &model, dirs(), patience).await;
+                (play.name(), r.transcript, r.failures)
+            }
         };
-        println!("{verdict} {}  trace: {}", flow.slug(), file.display());
-        for f in &report.failures {
+        let file = traces.join(format!("{name}.trace.txt"));
+        let header = format!("{}\n\n", catalog::describe(&smoke_catalog));
+        std::fs::write(&file, header + &transcript).map_err(|e| e.to_string())?;
+        let verdict = if failures.is_empty() { "PASS" } else { "FAIL" };
+        println!("{verdict} {name}  trace: {}", file.display());
+        for f in &failures {
             let kind = match f.kind {
                 Kind::Safety => "safety",
                 Kind::Capability => "capability",
             };
             println!("     [{kind}] {}", f.what);
         }
-        failed |= !report.failures.is_empty();
+        failed |= !failures.is_empty();
     }
     Ok(if failed {
         ExitCode::from(1)
