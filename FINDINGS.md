@@ -1838,3 +1838,22 @@ The `SessionLog` seam, and what docket-memory needs from almanac in S1 (lane ses
   `companion.session.*`. Retention: `companion.*` 30 days; a `Pinned` entry per session key (A2) so
   the sweep keeps one session whole; a log with its head swept resumes as `PlanRefusal::NoOpening`.
 - Per-Space sequence, not per session, is what A3 returns: unused here beyond the ack.
+
+## Cross-repo dependencies are git deps (gitdeps lane)
+
+porter, almanac, stoker and quire are git dependencies at pinned revs in the root `Cargo.toml` (and `prov` in
+`fuzz/Cargo.toml`): a plain `git clone` builds with no sibling. The URLs are spelled as porter and almanac spell
+them (`https://github.com/PoHsuanLai/<repo>`, no `.git`) and the revs match porter's pins of stoker and quire,
+so one copy of `cua-action` and `model-*` is in the graph.
+
+- **Override for cross-repo work**: a `[patch."https://github.com/PoHsuanLai/<repo>"]` table with `path` lines
+  for each crate named, in a `.cargo/config.toml` in a directory ABOVE the checkout (cargo merges parent
+  directories' config; never commit it). Commit `Cargo.lock` only from a build without the override.
+- **`docket-accept/build.rs`** no longer reads `../porter` and `../almanac`: it runs `cargo install --git <url>
+  --rev <pin> --locked --debug` for `inferd` and `memoryd`, reading the rev from the workspace manifest's own
+  porter and almanac lines, into `<target>/accept-siblings/<repo>`. It needs network at build time (the gate's build
+  step has it; its jail runs the finished archive). `ACCEPT_PORTER_DIR` / `ACCEPT_ALMANAC_DIR` name a local checkout
+  instead.
+- **Still sibling-based by design** (developer tools, not the build): `dist/install-dev.sh`
+  (`INSTALL_DEV_SIBLINGS`), `dev/live-smoke.sh` and `docket-accept`'s catalogue default (`../stoker/catalog`;
+  `--catalog DIR` overrides).

@@ -1,7 +1,9 @@
 //! `dist/install-dev.sh` in a jail: HOME, every XDG directory and the prefix are directories of a
 //! scratch tempdir, the binaries are fake files named by `INSTALL_DEV_BIN_DIR` (nothing builds,
 //! nothing is compiled), and the environment is cleared, so the person's real `~/.config`,
-//! `~/.local` and `/etc` are never named. The script reads the sibling checkouts' `dist` files.
+//! `~/.local` and `/etc` are never named. The script reads the sibling checkouts' `dist` files, so the tests that
+//! install skip (and say so) when porter, almanac and stoker are not checked out beside docket: a plain
+//! clone builds with no sibling, and this is a developer tool.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -18,6 +20,18 @@ const BINARIES: [&str; 9] = [
     "inferd",
     "accountd",
 ];
+
+/// The script's sources are the sibling checkouts; without them there is nothing to install from.
+fn siblings_present() -> bool {
+    let beside = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    let here = ["porter/dist", "almanac/dbus", "stoker/catalog"]
+        .iter()
+        .all(|dir| beside.join(dir).is_dir());
+    if !here {
+        eprintln!("skipped: porter, almanac and stoker are not checked out beside docket");
+    }
+    here
+}
 
 struct Jail {
     dir: tempfile::TempDir,
@@ -111,6 +125,9 @@ impl Jail {
 
 #[test]
 fn an_install_puts_every_piece_where_the_session_reads_it() {
+    if !siblings_present() {
+        return;
+    }
     let jail = Jail::new();
     let out = jail.ok(&[]);
     let tree = jail.tree();
@@ -178,6 +195,9 @@ fn an_install_puts_every_piece_where_the_session_reads_it() {
 
 #[test]
 fn the_exec_lines_name_the_prefix_and_a_home_prefix_keeps_the_binary_reachable() {
+    if !siblings_present() {
+        return;
+    }
     let jail = Jail::new();
     jail.ok(&[]);
     let bin = jail.prefix().join("bin");
@@ -217,6 +237,9 @@ fn the_exec_lines_name_the_prefix_and_a_home_prefix_keeps_the_binary_reachable()
 
 #[test]
 fn a_config_of_the_persons_own_is_never_overwritten_and_a_second_run_changes_nothing() {
+    if !siblings_present() {
+        return;
+    }
     let jail = Jail::new();
     let mine = jail.config().join("quire/inferd.toml");
     std::fs::create_dir_all(mine.parent().expect("dir")).expect("dir");
@@ -238,6 +261,9 @@ fn a_config_of_the_persons_own_is_never_overwritten_and_a_second_run_changes_not
 
 #[test]
 fn a_dry_run_prints_every_action_and_writes_nothing() {
+    if !siblings_present() {
+        return;
+    }
     let jail = Jail::new();
     let out = jail.ok(&["--dry-run"]);
     assert!(jail.tree().is_empty(), "{:#?}", jail.tree());
@@ -260,6 +286,9 @@ fn a_dry_run_prints_every_action_and_writes_nothing() {
 
 #[test]
 fn an_uninstall_removes_exactly_what_was_installed_and_keeps_what_is_the_persons() {
+    if !siblings_present() {
+        return;
+    }
     let jail = Jail::new();
     // Something of the person's in a directory the install also uses.
     let theirs = jail.prefix().join("bin/their-tool");
@@ -324,6 +353,9 @@ fn the_script_never_calls_sudo_or_names_the_real_system() {
 
 #[test]
 fn cloud_is_opt_in_and_an_uninstall_removes_it() {
+    if !siblings_present() {
+        return;
+    }
     let jail = Jail::new();
     jail.ok(&[]);
     let offline = jail.tree();

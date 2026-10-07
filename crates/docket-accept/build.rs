@@ -1,4 +1,4 @@
-//! Builds the two sibling daemons the acceptance runs as the packaged binaries: porter's `inferd`
+//! Builds the two daemons the acceptance runs as the packaged binaries: porter's `inferd`
 //! and almanac's `memoryd` (with `test-keys`, because the private bus has no Secret Service, and `test-proc-root`
 //! on both, so callers are named from a fake proc root). Each is built from its own workspace and lock file, into a target
 //! directory inside this build's (`<target>/accept-siblings/<repo>`), so the nextest archive's
@@ -35,13 +35,47 @@ fn var(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("{name} is not set"))
 }
 
-fn build(sibling: &Sibling, root: &Path, target: &Path) -> PathBuf {
-    let repo = root.join(sibling.repo);
+/// The `(git url, rev)` the workspace manifest pins for `repo`, read from its `<repo>-core`-style
+/// dependency lines: the one place the pin lives.
+fn pin(manifest: &str, repo: &str) -> (String, String) {
+    let needle = format!("git = \"https://github.com/PoHsuanLai/{repo}\"");
+    let line = manifest
+        .lines()
+        .find(|l| l.contains(&needle))
+        .unwrap_or_else(|| panic!("the workspace manifest pins no git rev of {repo}"));
+    let rev = line
+        .split("rev = \"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .unwrap_or_else(|| panic!("no rev on the {repo} line"));
+    (
+        format!("https://github.com/PoHsuanLai/{repo}"),
+        rev.to_owned(),
+    )
+}
+
+fn build(sibling: &Sibling, manifest: &str, target: &Path) -> PathBuf {
+    let local = std::env::var(format!("ACCEPT_{}_DIR", sibling.repo.to_uppercase())).ok();
+    println!(
+        "cargo:rerun-if-env-changed=ACCEPT_{}_DIR",
+        sibling.repo.to_uppercase()
+    );
     let mut command = Command::new(var("CARGO"));
-    command
-        .current_dir(&repo)
-        .args(["build", "--locked", "--quiet", "-p", sibling.package])
-        .args(["--bin", sibling.package]);
+    command.args(["install", "--locked", "--quiet", "--force", "--debug"]);
+    command.args(["--root"]).arg(target);
+    command.args(["--target-dir"]).arg(target.join("build"));
+    match &local {
+        Some(dir) => command
+            .args(["--path"])
+            .arg(Path::new(dir).join("crates").join(sibling.package)),
+        None => {
+            let (url, rev) = pin(manifest, sibling.repo);
+            command
+                .args(["--git", &url, "--rev", &rev])
+                .arg(sibling.package)
+        }
+    };
+    command.args(["--bin", sibling.package]);
     if !sibling.features.is_empty() {
         command.args(["--features", &sibling.features.join(",")]);
     }
@@ -58,16 +92,17 @@ fn build(sibling: &Sibling, root: &Path, target: &Path) -> PathBuf {
         .unwrap_or_else(|e| panic!("cargo for {}: {e}", sibling.repo));
     assert!(
         status.success(),
-        "building {} in {} failed ({status})",
+        "building {} of {} failed ({status})",
         sibling.package,
-        repo.display()
+        sibling.repo
     );
-    println!("cargo:rerun-if-changed={}", repo.join("crates").display());
-    println!(
-        "cargo:rerun-if-changed={}",
-        repo.join("Cargo.lock").display()
-    );
-    target.join("debug").join(sibling.package)
+    if let Some(dir) = &local {
+        println!(
+            "cargo:rerun-if-changed={}",
+            Path::new(dir).join("crates").display()
+        );
+    }
+    target.join("bin").join(sibling.package)
 }
 
 fn main() {
@@ -79,10 +114,12 @@ fn main() {
         .nth(4)
         .expect("OUT_DIR is inside a target directory")
         .join("accept-siblings");
-    // The workspace's siblings sit beside the docket checkout: <root>/docket/crates/docket-accept.
-    let root = PathBuf::from(var("CARGO_MANIFEST_DIR")).join("../../..");
+    let workspace_manifest = PathBuf::from(var("CARGO_MANIFEST_DIR")).join("../../Cargo.toml");
+    println!("cargo:rerun-if-changed={}", workspace_manifest.display());
+    let manifest = std::fs::read_to_string(&workspace_manifest)
+        .unwrap_or_else(|e| panic!("reading {}: {e}", workspace_manifest.display()));
     for sibling in &SIBLINGS {
-        let binary = build(sibling, &root, &target.join(sibling.repo));
+        let binary = build(sibling, &manifest, &target.join(sibling.repo));
         let name = sibling.package.to_uppercase();
         println!("cargo:rustc-env=ACCEPT_{name}={}", binary.display());
     }

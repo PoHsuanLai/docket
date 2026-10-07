@@ -285,8 +285,9 @@ every type `Serialize + Eq`, a table test, and the effects carried out by a daem
 
 - Licence `MIT OR Apache-2.0`; edition 2024; `unsafe_code = "deny"`; `rust-toolchain.toml` pins
   1.98.1 and `deny.toml` is the licence gate.
-- Cross-repo dependencies are `path` entries to sibling checkouts (`../porter`, `../almanac`,
-  `../stoker`, `../quire`) until each upstream freeze is merged and a pinned git rev replaces them.
+- Cross-repo dependencies are git dependencies at pinned revs (porter, almanac, stoker, quire), so a plain
+  clone builds with no sibling checkout. The pins use the same URL and rev as the other repos' pins of the
+  same crates, or cargo links two copies. Local cross-repo work overrides a pin with a `[patch]` (FINDINGS.md).
   External versions are copied from quire's `docs/workspace-deps.toml`, never chosen here.
 - Behaviour is `todo!()` behind frozen signatures, each listed in `FINDINGS.md`; shape tests
   (round trips, pinned JSON, introspection, tables) pass.
