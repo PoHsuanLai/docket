@@ -14,7 +14,29 @@ fn role_set(member: Member) -> Vec<CallerRole> {
 fn only_the_persons_surfaces_record_a_turn() {
     assert_eq!(
         role_set(Member::SessionTurn),
-        [CallerRole::Launcher, CallerRole::Field, CallerRole::Cli]
+        [
+            CallerRole::Launcher,
+            CallerRole::Field,
+            CallerRole::Editor,
+            CallerRole::Cli
+        ]
+    );
+}
+
+#[test]
+fn an_editor_opens_and_speaks_but_confirms_halts_and_performs_nothing() {
+    let allowed: Vec<Member> = Member::ALL
+        .into_iter()
+        .filter(|m| permits(CallerRole::Editor, *m))
+        .collect();
+    assert_eq!(
+        allowed,
+        [
+            Member::Manifests,
+            Member::SessionOpen,
+            Member::SessionTurn,
+            Member::SessionClose
+        ]
     );
 }
 

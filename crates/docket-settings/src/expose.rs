@@ -14,3 +14,15 @@ pub enum McpExpose {
     /// The offered actions are tools.
     On,
 }
+
+/// Whether a code editor may drive the companion over ACP: the setting `agent.acp.expose`. Off by
+/// default, like the MCP edge: the `docket-acp` binary that was never switched on refuses to serve.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AcpExpose {
+    /// The binary refuses to serve (the default).
+    #[default]
+    Off,
+    /// An editor may open sessions and prompt.
+    On,
+}

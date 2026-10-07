@@ -2,13 +2,13 @@
 //! that names it triggers. The rules are `rebuild`'s; this is the log read and the insertion.
 
 use crate::rebuild::{number_of, rebuild};
-use crate::restore_rule::{Claimant, may_restore};
 use crate::router::Router;
 use crate::seams::{Clock, Seams};
 use crate::wal::Writer;
 use docket_core::{CallerId, CallerRole, IntentsRequest};
 use docket_session::{
-    LogFault, Logged, PageSize, PlanRefusal, Seq, SessionLog, Standing, resume_plan,
+    Claimant, LogFault, Logged, PageSize, PlanRefusal, Seq, SessionLog, Standing, may_restore,
+    resume_plan,
 };
 use porter_core::Count;
 use prov::SessionId;

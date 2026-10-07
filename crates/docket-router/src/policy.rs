@@ -103,7 +103,9 @@ impl<S: Seams> Router<S> {
                 .saturating_add(i64::from(self.agent_config().task_policy_max.0)),
         );
         policy.expires = policy.expires.min(latest);
-        if let Some(TurnSource::Field(app)) = record.turns.last().map(|t| &t.from) {
+        if let Some(TurnSource::Field(app) | TurnSource::Editor(app)) =
+            record.turns.last().map(|t| &t.from)
+        {
             policy = cap_to_app(policy, app, st);
         }
         let parent = st

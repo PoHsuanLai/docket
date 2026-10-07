@@ -25,6 +25,7 @@ fn refuse(why: WireRefusal) -> IntentsReply {
 fn turn_source(role: CallerRole, caller: &CallerId) -> TurnSource {
     match role {
         CallerRole::Field => TurnSource::Field(caller.app.name.clone()),
+        CallerRole::Editor => TurnSource::Editor(caller.app.name.clone()),
         CallerRole::Cli => TurnSource::Terminal,
         _ => TurnSource::Launcher,
     }
@@ -140,6 +141,7 @@ impl<S: Seams> Router<S> {
             backend: BackendKind::Native,
             parent: open.parent.clone(),
             forked_from: None,
+            cwd: None,
         }));
         if let Some(policy) = &record.policy {
             record.wal.note(SessionEntry::Policy(policy.clone()));

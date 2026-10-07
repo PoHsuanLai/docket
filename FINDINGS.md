@@ -2046,3 +2046,61 @@ Open, and why:
   edge's job (acp-sessions.md section 7), not the grant's: a grant never widens what the edge refuses.
 - The grant has no expiry; it lasts until revoked. A Settings page lists and revokes only (a grant is
   never created from Settings, only by an answered sheet).
+
+## acp-server: an editor drives the companion over ACP (S3)
+
+`docket-acp` serves the Agent Client Protocol v1 on stdio (design note `acp-sessions.md`, section 3a).
+What landed, and what it leaves for other lanes.
+
+- **Protocol types: the schema crate, not the SDK.** `agent-client-protocol-schema` 1.10.2,
+  Apache-2.0, pinned `=1.10.2` with `default-features = false` (no `schemars`), in `Cargo.lock`. The
+  transport (`Wire`, `Incoming`, `LineWire`) is ours, about 150 lines, no runtime in the lib. The
+  crate ships no JSON Schema file, so `crates/docket-acp/tests/schema/schema.json` and `meta.json`
+  are protocol v1 copied from the upstream repo's `schema/v1/` (commit c4137ab, 2026-09-17; the
+  version is recorded in `tests/schema/VERSION`). No test fetches it. Every message the tests send
+  or receive is validated against it (`jsonschema` 0.58, MIT, dev-dependency only, no default
+  features).
+- **`CallerRole::Editor` and `TurnSource::Editor(AppName)`** in docket-core. The router's auth table
+  lets an editor open and close sessions and record turns, nothing else; `who_for` treats it like a
+  field; a turn from an editor caps the task policy to the editor's app like a field's. The restore
+  rule (`may_restore`) moved from docket-router to docket-session so the ACP edge can ask it without
+  linking the router and Cedar; the editor is under `Own`: it restores only what its app opened.
+- **`Opening.cwd`** (`Workspace`, optional, serde-defaulted so older logs read) records the editor's
+  directory. `session/load` refuses a different cwd; `session/list` skips sessions with none.
+- **`agent.acp.expose`** (`AcpExpose`, default off) in docket-settings, with its schema row
+  (Privacy, advanced). `Permit` is the proof it was read as on; `Server::new` takes one, and the
+  binary exits 2 without it.
+- **Permission is an extra gate.** Offered options are `allow_once` and `reject_once`, always;
+  `allow_always` and `reject_always` are never offered, and an answer naming any other option, an
+  error or a cancel is a reject. An allow only lets the call go on to the router's gate (a test:
+  allowed by the editor, refused by the gate, shown `failed`). It is no grant and no receipt. A
+  call whose gate verdict is `NeedsYou(Confirm)` is shown as "waiting on the desktop" text and
+  never resolved from the editor.
+- **Refusals are coarse.** A refused, unconfirmed, held, unread or interrupted step is `failed` with
+  one sentence from a fixed table (`calls::outcome`); no policy id, reviewer text or argument name.
+  `rawInput` and `rawOutput` are never set. A completed call carries only the app's own `said` text.
+- **Editor `mcpServers` are ignored** (read, validated against the schema, dropped).
+- **Prompt blocks:** only `text` blocks become the person's turn. Resources, links, images and audio
+  are not recorded (the server advertises none of them), so an `@file` cannot reach the policy
+  writer. Handing attachments to the reader as untrusted data is not built.
+
+Deferred, each closed by the work named:
+
+- **Allow-always for the editor** waits for the R1 standing-grant model in docket-core; wiring the
+  editor's `allow_always` to `GrantCaller::Editor` is a follow-up after both land.
+- **The binary has no host.** `SessionHost` has no real implementation yet (the native backend over
+  the router is S2), so `docket-acp` with the setting on exits 1 with "no session host". The tests
+  drive `Server` with `docket_session::fake_host::FakeHost` (scripted `FakeBackend`s over a shared
+  `MemoryLog`). Closed by the S2 host.
+- **Contract the real host must keep:** `next_event` is cancel-safe (the server races it against the
+  editor's lines) and a backend does not dispatch a call until the event after `Started` is pulled,
+  so the editor's reject (which cancels the host) can stop the call before it runs. The fake host
+  satisfies both trivially; the native backend must be written to it.
+- **Handles in words** are shown as a fixed placeholder; `Session.Display` (a role grant for the
+  editor and a seam) comes with the real host. Thoughts and usage are not forwarded.
+- **Workspace to Space** (design D4): every editor session opens in the desktop Space. A per-workspace
+  setting and its first-use sheet are not built.
+- **Not served:** `session/resume`, `close`, `delete`, `set_config_option`, `authenticate`,
+  elicitation, and the editor's `fs/*` and `terminal/*` (the client direction, S4).
+- **Fuzz target** on the JSON-RPC parser (design section 7) is not added; `Incoming::parse` is
+  total over strings and tested through the server with a non-JSON line.

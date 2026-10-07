@@ -53,6 +53,24 @@ pub struct LogPage {
     pub next: Option<Seq>,
 }
 
+/// Every row of `session`, oldest first, read page by page.
+pub async fn read_all<L: SessionLog>(
+    log: &L,
+    session: &SessionId,
+) -> Result<Vec<Logged>, LogFault> {
+    const PAGE: PageSize = PageSize(Count(200));
+    let mut rows = Vec::new();
+    let mut from = None;
+    loop {
+        let page = log.page(session, from, PAGE).await?;
+        rows.extend(page.rows);
+        match page.next {
+            Some(next) => from = Some(next),
+            None => return Ok(rows),
+        }
+    }
+}
+
 /// A log shared by several holders (a router and the one that replaces it after a restart) is a
 /// log.
 impl<L: SessionLog> SessionLog for std::sync::Arc<L> {

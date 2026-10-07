@@ -1,0 +1,7 @@
+Protocol version 1 of the Agent Client Protocol.
+schema.json and meta.json: schema/v1/ of github.com/agentclientprotocol/agent-client-protocol,
+last changed in commit c4137ab3b168d97f0ad6c542f483b6a417b2d610 (2026-09-17), as published beside
+agent-client-protocol-schema 1.10.2 (Apache-2.0, the crate the server's types come from).
+Copied once, by hand; no test or gate fetches it. Replace both files together and record the new
+commit here.
+The two files are licensed Apache-2.0 by the Agent Client Protocol authors, as the upstream repository is.

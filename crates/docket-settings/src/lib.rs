@@ -13,7 +13,7 @@ mod tests;
 
 use docket_core::AgentConfig;
 
-pub use expose::McpExpose;
+pub use expose::{AcpExpose, McpExpose};
 pub use locate::Locator;
 pub use read::{Fallback, Loaded, Why, read};
 
@@ -32,13 +32,15 @@ pub const REVIEW_CEILING: docket_core::ReviewTimeouts = docket_core::ReviewTimeo
 };
 
 /// Every value of the file, typed: what the router and the companion read, and whether the MCP
-/// edge is on.
+/// and ACP edges are on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AgentSettings {
     /// The proposed values, with the person's choices in them.
     pub agent: AgentConfig,
     /// `agent.mcp.expose`.
     pub expose: McpExpose,
+    /// `agent.acp.expose`.
+    pub acp: AcpExpose,
 }
 
 impl AgentSettings {
@@ -47,6 +49,7 @@ impl AgentSettings {
         Self {
             agent,
             expose: McpExpose::Off,
+            acp: AcpExpose::Off,
         }
     }
 }

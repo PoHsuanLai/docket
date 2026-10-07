@@ -229,6 +229,7 @@ fn each_key_lands_in_the_typed_value_the_design_names() {
         read_one("agent.mcp.expose", word("on")).expose,
         McpExpose::On
     );
+    assert_eq!(read_one("agent.acp.expose", word("on")).acp, AcpExpose::On);
     assert_eq!(
         read_one("agent.review.quick_ms", int(900))
             .agent

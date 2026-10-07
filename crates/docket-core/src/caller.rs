@@ -13,6 +13,9 @@ pub enum CallerRole {
     Launcher,
     /// A quire app recording a turn from its own prompt field.
     Field,
+    /// A code editor driving the companion over ACP (`docket-acp`): opens sessions, records its
+    /// person's turns and cancels. It answers no `Confirm1` sheet and halts nothing.
+    Editor,
     /// companiond.
     Companion,
     /// readerd: the only caller that may resolve a handle.
@@ -47,9 +50,10 @@ pub fn is_terminal_scope(cgroup: &str) -> bool {
 
 impl CallerRole {
     /// Every role.
-    pub const ALL: [CallerRole; 11] = [
+    pub const ALL: [CallerRole; 12] = [
         CallerRole::Launcher,
         CallerRole::Field,
+        CallerRole::Editor,
         CallerRole::Companion,
         CallerRole::Reader,
         CallerRole::Cua,

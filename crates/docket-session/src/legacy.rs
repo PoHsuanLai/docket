@@ -25,6 +25,7 @@ pub fn entry_of(record: &SessionRecord) -> Option<SessionEntry> {
             backend: BackendKind::Native,
             parent: parent.clone(),
             forked_from: None,
+            cwd: None,
         })),
         SessionRecord::Asked { turn, .. } => Some(SessionEntry::Turn(turn.clone())),
         SessionRecord::SkillLoaded { id, version, .. } => Some(SessionEntry::Skill(SkillUse {

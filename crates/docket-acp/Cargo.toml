@@ -1,0 +1,45 @@
+[package]
+name = "docket-acp"
+description = "The ACP server edge: an editor (Zed, JetBrains, Neovim) drives the companion over the Agent Client Protocol on stdio. Portable lib over the SessionHost and SessionLog seams; the `server` feature adds the stdio binary, which refuses to serve unless `agent.acp.expose` is on. The editor's permission prompt is an extra gate, never a replacement for ours."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+default = ["server"]
+# The stdio binary: a runtime and the settings reader's file lookup.
+server = ["dep:tokio"]
+
+[lib]
+name = "docket_acp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "docket-acp"
+path = "src/main.rs"
+required-features = ["server"]
+
+[dependencies]
+agent-client-protocol-schema = { workspace = true }
+companion-wire = { workspace = true }
+docket-core = { workspace = true }
+docket-session = { workspace = true }
+docket-settings = { workspace = true }
+futures-util = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, optional = true }
+
+[dev-dependencies]
+jsonschema = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

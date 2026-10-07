@@ -53,6 +53,27 @@ off = "Off"
 on = "On"
 
 [[key]]
+path = "agent.acp.expose"
+default = "off"
+label = "Let a code editor drive the assistant (ACP)"
+help = "Whether an editor such as Zed may open sessions with the assistant and send it prompts over the Agent Client Protocol. Off by default; the editor's permission prompts come on top of the usual checks, never instead of them."
+section = "Privacy"
+exposure = "advanced"
+
+[key.kind]
+kind = "toggle"
+
+[key.kind.v]
+variants = ["off", "on"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+off = "Off"
+on = "On"
+
+[[key]]
 path = "agent.undo.keep_h"
 default = 24
 label = "Keep undo for"

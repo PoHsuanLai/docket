@@ -12,6 +12,7 @@ members = [
   "crates/docket-planner",
   "crates/docket-tasks",
   "crates/docket-session",
+  "crates/docket-acp",
   "crates/docket-models",
   "crates/docket-reader",
   "crates/docket-memory",
@@ -57,6 +58,7 @@ agent-loop     = { path = "crates/agent-loop" }
 docket-planner = { path = "crates/docket-planner" }
 docket-tasks   = { path = "crates/docket-tasks" }
 docket-session = { path = "crates/docket-session" }
+docket-acp     = { path = "crates/docket-acp" }
 docket-models  = { path = "crates/docket-models" }
 docket-reader  = { path = "crates/docket-reader" }
 docket-memory  = { path = "crates/docket-memory" }
@@ -122,8 +124,12 @@ clap = { version = "4", features = ["derive"] }
 cedar-policy = "4.13"
 # actions-mcp: pin the minor.
 rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io"] }
+# docket-acp: the ACP protocol's wire types alone (Apache-2.0), no schemars; the transport is ours.
+agent-client-protocol-schema = { version = "=1.10.2", default-features = false }
 # Dev-dependencies.
 proptest = "1"
+# docket-acp tests: validate our messages against the protocol-v1 JSON Schema kept in the repo (MIT).
+jsonschema = { version = "0.58", default-features = false }
 tempfile = "3"
 
 [workspace.lints.rust]

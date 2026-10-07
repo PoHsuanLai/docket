@@ -246,6 +246,7 @@ mod tests {
                 backend: BackendKind::Native,
                 parent: None,
                 forked_from: None,
+                cwd: None,
             },
             standing,
             taint: Written::Clean,

@@ -54,6 +54,7 @@ fn opening() -> SessionEntry {
         backend: BackendKind::Native,
         parent: None,
         forked_from: None,
+        cwd: None,
     })
 }
 

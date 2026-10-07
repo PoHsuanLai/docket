@@ -1,5 +1,6 @@
 //! Who may bring a stored session back by naming it. Pure: the restore reads the log first, then
-//! asks this with the opener the log records.
+//! asks this with the opener the log records. The ACP edge asks it too, for `session/load` and
+//! `session/list`.
 //!
 //! A restored session carries its stored policy and handles, so naming one is a claim on them.
 //! The rule is never looser than the one for a live session (`opening.rs`: a prompt field or the
@@ -10,7 +11,7 @@ use prov::AppName;
 
 /// A caller asking for a stored session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Claimant<'a> {
+pub struct Claimant<'a> {
     /// The role the request is made in.
     pub role: CallerRole,
     /// The app behind the connection.
@@ -19,17 +20,18 @@ pub(crate) struct Claimant<'a> {
 
 /// What the caller's role says before the opener is looked at.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Standing {
+enum Reach {
     /// The person's shell, or the companion: acts on any session, as it does live.
     Any,
     /// Every other role: only a session its own app opened.
     Own,
 }
 
-fn standing(role: CallerRole) -> Standing {
+fn reach(role: CallerRole) -> Reach {
     match role {
-        CallerRole::Launcher | CallerRole::Companion => Standing::Any,
+        CallerRole::Launcher | CallerRole::Companion => Reach::Any,
         CallerRole::Field
+        | CallerRole::Editor
         | CallerRole::Reader
         | CallerRole::Cua
         | CallerRole::Mcp
@@ -37,17 +39,17 @@ fn standing(role: CallerRole) -> Standing {
         | CallerRole::Confirm
         | CallerRole::Compositor
         | CallerRole::Control
-        | CallerRole::App => Standing::Own,
+        | CallerRole::App => Reach::Own,
     }
 }
 
 /// Whether `claimant` may restore a session opened by `opener` (none for a legacy log that
 /// records no opener, which only the shell or the companion restores).
-pub(crate) fn may_restore(claimant: Claimant<'_>, opener: Option<&AppName>) -> bool {
-    match (standing(claimant.role), opener) {
-        (Standing::Any, _) => true,
-        (Standing::Own, Some(opened)) => opened == claimant.app,
-        (Standing::Own, None) => false,
+pub fn may_restore(claimant: Claimant<'_>, opener: Option<&AppName>) -> bool {
+    match (reach(claimant.role), opener) {
+        (Reach::Any, _) => true,
+        (Reach::Own, Some(opened)) => opened == claimant.app,
+        (Reach::Own, None) => false,
     }
 }
 
@@ -64,7 +66,28 @@ mod tests {
         let a = app("org.quire.A");
         let b = app("org.quire.B");
         let shell = app("org.quire.Shell");
-        let cases: [(CallerRole, &AppName, Option<&AppName>, bool, &str); 14] = [
+        let cases: [(CallerRole, &AppName, Option<&AppName>, bool, &str); 17] = [
+            (
+                CallerRole::Editor,
+                &a,
+                Some(&a),
+                true,
+                "an editor restores what it opened",
+            ),
+            (
+                CallerRole::Editor,
+                &b,
+                Some(&a),
+                false,
+                "an editor does not restore another's",
+            ),
+            (
+                CallerRole::Editor,
+                &a,
+                None,
+                false,
+                "legacy: an editor does not",
+            ),
             (CallerRole::Field, &a, Some(&a), true, "the opener restores"),
             (
                 CallerRole::App,

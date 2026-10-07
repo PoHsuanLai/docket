@@ -53,7 +53,7 @@ impl RouterState {
     ) -> Result<Who, WireRefusal> {
         let app = caller.app.name.clone();
         let (actor, voice) = match role {
-            CallerRole::Launcher | CallerRole::Field => {
+            CallerRole::Launcher | CallerRole::Field | CallerRole::Editor => {
                 let actor = Actor::User { via: app };
                 return Ok(Who {
                     caller: caller.clone(),

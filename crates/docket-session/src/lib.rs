@@ -9,6 +9,7 @@
 //! - `fork` and `export`: a child's first entries, and a stable JSON document.
 //! - `legacy`: the records companiond wrote before (`companion_wire::SessionRecord`) read as
 //!   entries.
+//! - `may_restore`: who may bring a stored session back by naming it (the opener rule).
 //! - `SessionLog`, `SessionBackend` and `SessionHost`: the seams. The native and ACP backends
 //!   and the host are later lanes; `fake` holds a scripted backend and an in-memory log for
 //!   tests.
@@ -20,10 +21,12 @@ mod codec;
 mod entry;
 mod export;
 pub mod fake;
+pub mod fake_host;
 mod fork;
 pub mod legacy;
 mod log;
 mod plan;
+mod restore_rule;
 mod resume;
 
 pub use backend::{
@@ -35,12 +38,14 @@ pub use codec::{
 };
 pub use entry::{
     BackendKind, BreakerNote, CallOpen, EndCause, ForkPoint, HandleLabel, Opening, ProgramName,
-    ProgramNameError, Seq, SessionEntry, SkillUse, Taint, TaintCause, TaintNote,
+    ProgramNameError, Seq, SessionEntry, SkillUse, Taint, TaintCause, TaintNote, Workspace,
+    WorkspaceError,
 };
 pub use export::{EXPORT_VERSION, ExportFault, SessionExport, export, from_json, to_json};
 pub use fork::{ForkFault, fork};
-pub use log::{Appended, LogFault, LogPage, PageSize, SessionLog};
+pub use log::{Appended, LogFault, LogPage, PageSize, SessionLog, read_all};
 pub use plan::{
     Blocker, Interrupted, PlanRefusal, ResumeFault, ResumePlan, ResumedBudget, Standing,
 };
+pub use restore_rule::{Claimant, may_restore};
 pub use resume::resume_plan;

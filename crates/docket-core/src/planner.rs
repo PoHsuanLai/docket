@@ -38,9 +38,12 @@ pub enum TurnSource {
     /// A prompt field inside this app: the task policy is capped to that app plus reads, and
     /// widening confirms.
     Field(porter_core::AppName),
+    /// A code editor (`docket-acp`): capped like a field. The prompt's text blocks are the only
+    /// words recorded; attachments are data and never reach the policy writer.
+    Editor(porter_core::AppName),
 }
 
-/// One prompt, as the router records it. Only the launcher, field and terminal roles may record a turn.
+/// One prompt, as the router records it. Only the launcher, field, editor and terminal roles may record a turn.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnIn {
     /// What the person said.

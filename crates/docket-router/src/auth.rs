@@ -2,7 +2,9 @@
 
 use docket_core::{CallerRole, Member};
 
-use CallerRole::{App, Cli, Companion, Compositor, Control, Cua, Field, Launcher, Mcp, Reader};
+use CallerRole::{
+    App, Cli, Companion, Compositor, Control, Cua, Editor, Field, Launcher, Mcp, Reader,
+};
 
 /// The roles that may call `member`.
 fn roles(member: Member) -> &'static [CallerRole] {
@@ -21,11 +23,11 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::Context => &[Launcher, Companion, Cli],
         // The computer-use daemon opens and closes the session of its own run (`opening.rs`
         // refuses it any other kind), so the run is ruled in a session before its first step.
-        Member::SessionOpen | Member::SessionClose => &[Launcher, Field, Companion, Cua],
+        Member::SessionOpen | Member::SessionClose => &[Launcher, Field, Editor, Companion, Cua],
         // Only the person's own surfaces record a turn: a model cannot say what the person said.
         // A terminal is one of them for `quire-do ask` (the person at a keyboard, the same user),
         // and its turns are recorded as `TurnSource::Terminal`, never as the launcher's.
-        Member::SessionTurn => &[Launcher, Field, Cli],
+        Member::SessionTurn => &[Launcher, Field, Editor, Cli],
         Member::SessionResolve => &[Reader],
         // Text for the screen, never for a model.
         Member::SessionDisplay => &[Launcher, Field],

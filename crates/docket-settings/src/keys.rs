@@ -3,7 +3,7 @@
 //! tables to each other, so a row without a reader or a reader without a row fails.
 
 use crate::AgentSettings;
-use crate::expose::McpExpose;
+use crate::expose::{AcpExpose, McpExpose};
 use docket_core::{Depth, Millis, Seconds, Strictness};
 use porter_core::{Count, MicroUsd};
 use std::ops::RangeInclusive;
@@ -59,6 +59,7 @@ const STRICTNESS: [Strictness; 3] = [
     Strictness::TrustMore,
 ];
 const EXPOSE: [McpExpose; 2] = [McpExpose::Off, McpExpose::On];
+const ACP: [AcpExpose; 2] = [AcpExpose::Off, AcpExpose::On];
 
 /// Every key, in the order the schema lists them.
 pub(crate) fn table() -> Vec<Key> {
@@ -75,6 +76,13 @@ pub(crate) fn table() -> Vec<Key> {
             rule: Rule::Word {
                 words: &["off", "on"],
                 set: |s, i| s.expose = EXPOSE[i],
+            },
+        },
+        Key {
+            path: "agent.acp.expose",
+            rule: Rule::Word {
+                words: &["off", "on"],
+                set: |s, i| s.acp = ACP[i],
             },
         },
         num("agent.undo.keep_h", 1..=168, |s, v| {
