@@ -34,11 +34,12 @@ pub fn copy_entries(from: &Path, to: &Path) -> std::io::Result<usize> {
     let mut n = 0;
     for entry in std::fs::read_dir(from)? {
         let path = entry?.path();
-        if path.is_file() && path.extension().is_some_and(|e| e == "toml") {
-            if let Some(name) = path.file_name() {
-                std::fs::copy(&path, to.join(name))?;
-                n += 1;
-            }
+        if path.is_file()
+            && path.extension().is_some_and(|e| e == "toml")
+            && let Some(name) = path.file_name()
+        {
+            std::fs::copy(&path, to.join(name))?;
+            n += 1;
         }
     }
     Ok(n)
