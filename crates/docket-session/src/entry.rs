@@ -31,46 +31,8 @@ impl Taint {
     }
 }
 
-/// The name of an external agent program (`claude-code`): 1 to 64 characters, no control
-/// characters. It names a program; it grants nothing.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(try_from = "String", into = "String")]
-pub struct ProgramName(String);
-
-/// Why text is not a program name.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("a program name is 1 to 64 characters with no control characters")]
-pub struct ProgramNameError;
-
-impl ProgramName {
-    /// `text` as a program name.
-    pub fn parse(text: &str) -> Result<Self, ProgramNameError> {
-        if text.is_empty() || text.len() > 64 || text.chars().any(char::is_control) {
-            Err(ProgramNameError)
-        } else {
-            Ok(Self(text.to_owned()))
-        }
-    }
-
-    /// The name.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl TryFrom<String> for ProgramName {
-    type Error = ProgramNameError;
-
-    fn try_from(text: String) -> Result<Self, Self::Error> {
-        Self::parse(&text)
-    }
-}
-
-impl From<ProgramName> for String {
-    fn from(name: ProgramName) -> String {
-        name.0
-    }
-}
+// The name lives in docket-core, where a standing grant also names the program.
+pub use docket_core::{ProgramName, ProgramNameError};
 
 /// What runs the session's turns.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

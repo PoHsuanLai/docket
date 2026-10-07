@@ -56,6 +56,7 @@ fn calls_confirmations_and_audit_round_trip() {
         why: vec![AskReason::Tainted, AskReason::RuleOfTwo],
         taint: TaintNote::ReadUntrusted(BTreeSet::from([prov::Source::Mail])),
         offer: ConfirmOffer::OnceOnly,
+        always: Default::default(),
         gesture: Gesture::Press,
         anchor: Anchor::Launcher,
         expires: Seconds(120),

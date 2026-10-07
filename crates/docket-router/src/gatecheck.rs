@@ -87,6 +87,7 @@ impl<S: Seams> Router<S> {
             why: vec![AskReason::FirstUse],
             taint: TaintNote::Clean,
             offer: ConfirmOffer::OnceOnly,
+            always: Default::default(),
             gesture: Gesture::Press,
             anchor: Anchor::Centre,
             expires: self.agent_config().confirm_expiry,

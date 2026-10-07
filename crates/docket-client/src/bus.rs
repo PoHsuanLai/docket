@@ -430,5 +430,13 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
             let proxy = ControlProxy::new(c).await.map_err(bus)?;
             nothing(proxy.revoke_terminal_grant(&to_json(&action)?).await)
         }
+        Q::ControlStandingGrants => {
+            let proxy = ControlProxy::new(c).await.map_err(bus)?;
+            body(proxy.standing_grants().await, IntentsReply::StandingGrants)
+        }
+        Q::ControlStandingRevoke(id) => {
+            let proxy = ControlProxy::new(c).await.map_err(bus)?;
+            nothing(proxy.revoke_standing_grant(&to_json(&id)?).await)
+        }
     }
 }

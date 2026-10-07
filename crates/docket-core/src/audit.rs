@@ -6,8 +6,10 @@
 use crate::budget::HaltCause;
 use crate::call::CallEnd;
 use crate::confirm::{ConfirmEnd, GrantScope};
+use crate::grant::GrantCaller;
 use crate::ids::{ActionRef, CallId, UndoId};
 use crate::review::{BreakerTrip, PolicyId, ReasonCode, ReviewMark, Stage};
+use crate::standing::{ScopeKind, StandingGrantId};
 use crate::task_policy::{PolicyChange, TaskPolicyState};
 use crate::undo::UndoState;
 use almanac_core::Episode;
@@ -148,6 +150,38 @@ pub enum AuditRecord {
         by: Actor,
         /// How it ended.
         end: UndoState,
+    },
+    /// The person gave a standing grant ("allow always", scoped). Never the scope's content:
+    /// Settings reads the grant from the store.
+    StandingGranted {
+        /// When.
+        at: UnixSeconds,
+        /// Which grant.
+        grant: StandingGrantId,
+        /// Whose.
+        caller: GrantCaller,
+        /// What kind of scope, and the action.
+        kind: ScopeKind,
+        /// The action it covers.
+        action: ActionRef,
+    },
+    /// A standing grant stood in for the ask on a call (the rest of the gate still ran).
+    StandingUsed {
+        /// When.
+        at: UnixSeconds,
+        /// The call.
+        call: CallId,
+        /// Which grant.
+        grant: StandingGrantId,
+        /// Whose.
+        caller: GrantCaller,
+    },
+    /// A standing grant was revoked: the next call asks again.
+    StandingRevoked {
+        /// When.
+        at: UnixSeconds,
+        /// Which grant.
+        grant: StandingGrantId,
     },
     /// A halt began or ended.
     Halt {

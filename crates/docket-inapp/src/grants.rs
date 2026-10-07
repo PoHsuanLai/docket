@@ -8,7 +8,10 @@
 //! must not stop a call over a disk), so a failed write is kept for the app to ask for
 //! ([`FileGrantStore::take_fault`]); the grant still counts for this run.
 
-use docket_core::ActionGrant;
+use docket_core::{
+    ActionGrant, Revocation, StandingGrant, StandingGrantId, decode_standing, encode_standing,
+    held_with, held_without,
+};
 use docket_router::GrantStore;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -162,5 +165,75 @@ impl GrantStore for FileGrantStore {
         let current = read_file(&self.path).unwrap_or_else(|_| held.grants.clone());
         held.grants = recorded(current, grant);
         held.fault = write_file(&self.path, &held.grants).err();
+    }
+
+    // Standing grants live in the file beside the grants, read afresh on every call so a
+    // revocation made by another process takes effect on the next call. An unreadable file holds
+    // none: the person is asked again.
+    fn standing(&self) -> Vec<StandingGrant> {
+        read_standing(&self.standing_file()).unwrap_or_default()
+    }
+
+    fn add_standing(&self, grant: StandingGrant) {
+        let mut held = self.locked();
+        let file = self.standing_file();
+        let current = read_standing(&file).unwrap_or_default();
+        held.fault = write_standing(&file, &held_with(current, grant)).err();
+    }
+
+    fn revoke_standing(&self, id: &StandingGrantId) -> Revocation {
+        let mut held = self.locked();
+        let file = self.standing_file();
+        let (rest, done) = held_without(read_standing(&file).unwrap_or_default(), id);
+        if done == Revocation::Revoked {
+            held.fault = write_standing(&file, &rest).err();
+        }
+        done
+    }
+}
+
+/// The file beside `path` that holds the standing grants: the same name and `.standing`.
+fn standing_path(path: &Path) -> PathBuf {
+    let mut name = path.file_name().unwrap_or_default().to_owned();
+    name.push(".standing");
+    path.with_file_name(name)
+}
+
+fn read_standing(path: &Path) -> Result<Vec<StandingGrant>, GrantFileError> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => decode_standing(&text).map_err(|why| GrantFileError::Corrupt {
+            path: path.to_owned(),
+            why,
+        }),
+        Err(why) if why.kind() == ErrorKind::NotFound => Ok(Vec::new()),
+        Err(why) => Err(GrantFileError::Read {
+            path: path.to_owned(),
+            kind: why.kind(),
+        }),
+    }
+}
+
+fn write_standing(path: &Path, grants: &[StandingGrant]) -> Result<(), GrantFileError> {
+    use std::io::Write;
+    let failed = |why: std::io::Error| GrantFileError::Write {
+        path: path.to_owned(),
+        kind: why.kind(),
+    };
+    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+        std::fs::create_dir_all(dir).map_err(failed)?;
+    }
+    let mut name = path.file_name().unwrap_or_default().to_owned();
+    name.push(".tmp");
+    let temporary = path.with_file_name(name);
+    let mut file = std::fs::File::create(&temporary).map_err(failed)?;
+    file.write_all(encode_standing(grants).as_bytes())
+        .map_err(failed)?;
+    file.sync_all().map_err(failed)?;
+    std::fs::rename(&temporary, path).map_err(failed)
+}
+
+impl FileGrantStore {
+    fn standing_file(&self) -> PathBuf {
+        standing_path(&self.path)
     }
 }

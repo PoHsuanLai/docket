@@ -34,6 +34,9 @@ pub fn kind_tag_of(record: &AuditRecord) -> Option<KindTag> {
         AuditRecord::TaskPolicy { .. } => "docket.task_policy".to_owned(),
         AuditRecord::PolicyCorrected { .. } => "docket.policy_corrected".to_owned(),
         AuditRecord::Breaker { .. } => "docket.breaker".to_owned(),
+        AuditRecord::StandingGranted { .. } => "docket.standing_granted".to_owned(),
+        AuditRecord::StandingUsed { .. } => "docket.standing_used".to_owned(),
+        AuditRecord::StandingRevoked { .. } => "docket.standing_revoked".to_owned(),
         AuditRecord::TaskStarted { .. } => "docket.task_started".to_owned(),
         AuditRecord::Message(_) => "companion.message".to_owned(),
         AuditRecord::Episode(_) => "companion.episode".to_owned(),
@@ -55,6 +58,9 @@ fn occurred(record: &AuditRecord) -> UnixSeconds {
         | AuditRecord::TaskPolicy { at, .. }
         | AuditRecord::PolicyCorrected { at, .. }
         | AuditRecord::Breaker { at, .. }
+        | AuditRecord::StandingGranted { at, .. }
+        | AuditRecord::StandingUsed { at, .. }
+        | AuditRecord::StandingRevoked { at, .. }
         | AuditRecord::TaskStarted { at, .. }
         | AuditRecord::Session { at, .. } => *at,
         AuditRecord::Message(message) => message.sent,
@@ -79,6 +85,9 @@ pub fn space_named_by(record: &AuditRecord) -> Option<&SpaceId> {
         | AuditRecord::Halt { .. }
         | AuditRecord::TaskPolicy { .. }
         | AuditRecord::PolicyCorrected { .. }
+        | AuditRecord::StandingGranted { .. }
+        | AuditRecord::StandingUsed { .. }
+        | AuditRecord::StandingRevoked { .. }
         | AuditRecord::Breaker { .. } => None,
     }
 }
@@ -179,6 +188,9 @@ fn who_and_how(record: &AuditRecord, space: &SpaceId) -> (Actor, Effect, Label) 
         | AuditRecord::TaskPolicy { .. }
         | AuditRecord::PolicyCorrected { .. }
         | AuditRecord::Breaker { .. }
+        | AuditRecord::StandingGranted { .. }
+        | AuditRecord::StandingUsed { .. }
+        | AuditRecord::StandingRevoked { .. }
         | AuditRecord::TaskStarted { .. }
         | AuditRecord::Session { .. } => (router(), Effect::Read, router_label(space)),
     }

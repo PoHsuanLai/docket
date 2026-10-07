@@ -177,7 +177,12 @@ pub fn audit_line(record: &AuditRecord) -> Option<String> {
             "classified {}",
             slug(classification).unwrap_or_default()
         )),
+        AuditRecord::StandingUsed { grant, .. } => {
+            Some(format!("standing used grant={}", grant.as_str()))
+        }
         AuditRecord::Delegation { .. }
+        | AuditRecord::StandingGranted { .. }
+        | AuditRecord::StandingRevoked { .. }
         | AuditRecord::Undo { .. }
         | AuditRecord::TaskStarted { .. }
         | AuditRecord::Message(_)

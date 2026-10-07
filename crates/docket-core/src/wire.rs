@@ -402,6 +402,10 @@ pub enum IntentsRequest {
     ControlTerminalGrants,
     /// `.Control.RevokeTerminalGrant`: the next call of this action from the terminal asks again.
     ControlTerminalRevoke(ActionRef),
+    /// `.Control.StandingGrants`: the standing "allow always" grants held (Settings lists them).
+    ControlStandingGrants,
+    /// `.Control.RevokeStandingGrant`: the next call it covered asks again.
+    ControlStandingRevoke(crate::StandingGrantId),
 }
 
 /// Why a request got no answer of its own kind.
@@ -487,6 +491,8 @@ pub enum IntentsReply {
     Journal(Vec<UndoEntry>),
     /// The actions the terminal holds a standing grant for.
     TerminalGrants(Vec<ActionRef>),
+    /// The standing grants held.
+    StandingGrants(Vec<crate::StandingGrant>),
     /// The request was refused.
     Refused(WireRefusal),
 }

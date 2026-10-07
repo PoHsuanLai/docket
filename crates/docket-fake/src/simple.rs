@@ -1,6 +1,8 @@
 //! The small fakes: a recording event sink and an in-memory consent store.
 
-use docket_core::{ActionGrant, AuditRecord};
+use docket_core::{
+    ActionGrant, AuditRecord, Revocation, StandingGrant, StandingGrantId, held_with, held_without,
+};
 use docket_router::{EventSink, GrantStore};
 use std::sync::Mutex;
 
@@ -41,6 +43,7 @@ impl EventSink for RecordingSink {
 #[derive(Debug, Default)]
 pub struct MemoryGrants {
     grants: Mutex<Vec<ActionGrant>>,
+    standing: Mutex<Vec<StandingGrant>>,
 }
 
 impl MemoryGrants {
@@ -60,6 +63,7 @@ impl MemoryGrants {
     pub fn with(grants: Vec<ActionGrant>) -> Self {
         Self {
             grants: Mutex::new(grants),
+            standing: Mutex::default(),
         }
     }
 }
@@ -72,6 +76,27 @@ impl GrantStore for MemoryGrants {
     fn record(&self, grant: ActionGrant) {
         if let Ok(mut grants) = self.grants.lock() {
             grants.push(grant);
+        }
+    }
+
+    fn standing(&self) -> Vec<StandingGrant> {
+        self.standing.lock().map(|g| g.clone()).unwrap_or_default()
+    }
+
+    fn add_standing(&self, grant: StandingGrant) {
+        if let Ok(mut held) = self.standing.lock() {
+            *held = held_with(std::mem::take(&mut held), grant);
+        }
+    }
+
+    fn revoke_standing(&self, id: &StandingGrantId) -> Revocation {
+        match self.standing.lock() {
+            Ok(mut held) => {
+                let (rest, done) = held_without(std::mem::take(&mut held), id);
+                *held = rest;
+                done
+            }
+            Err(_) => Revocation::NotHeld,
         }
     }
 }

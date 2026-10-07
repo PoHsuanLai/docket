@@ -297,3 +297,48 @@ fn a_damaged_defaults_file_grants_nothing() {
         assert!(store.grants().is_empty(), "{text:?}");
     }
 }
+
+fn standing_grant(prefix: &str) -> docket_core::StandingGrant {
+    docket_core::StandingGrant::new(
+        GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
+        docket_core::StandingScope::Files {
+            action: docket_core::ActionRef {
+                app: AppName::parse("org.quire.Files").expect("app"),
+                name: ActionName::parse("files.file.move").expect("action"),
+            },
+            under: docket_core::AbsPath::parse(prefix).expect("path"),
+        },
+        UnixSeconds(1),
+    )
+}
+
+#[test]
+fn standing_grants_survive_a_restart_and_a_revocation_is_seen_by_the_next_reader() {
+    use docket_core::Revocation;
+    let dir = tempfile::tempdir().expect("scratch");
+    let path = dir.path().join("quire/intents/grants.json");
+    let store = FileGrants::at(path.clone());
+    assert!(store.standing().is_empty());
+    let (a, b) = (standing_grant("/w/a"), standing_grant("/w/b"));
+    store.add_standing(a.clone());
+    store.add_standing(b.clone());
+    store.add_standing(a.clone());
+    let reopened = FileGrants::at(path.clone());
+    assert_eq!(reopened.standing(), vec![b.clone(), a.clone()]);
+    assert_eq!(reopened.revoke_standing(&a.id), Revocation::Revoked);
+    assert_eq!(reopened.revoke_standing(&a.id), Revocation::NotHeld);
+    assert_eq!(
+        FileGrants::at(path.clone()).standing(),
+        vec![b.clone()],
+        "a third process reads the revocation"
+    );
+    assert!(
+        store.grants().is_empty(),
+        "class grants are a separate list"
+    );
+    std::fs::write(path.with_file_name("standing.json"), "{").expect("damage");
+    assert!(
+        FileGrants::at(path).standing().is_empty(),
+        "a damaged file holds none: the person is asked again"
+    );
+}

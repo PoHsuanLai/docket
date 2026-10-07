@@ -15,10 +15,10 @@ use crate::watch::Watch;
 use crate::who::Who;
 use action_review::{DeniedBy, ReviewVerdict, Reviewer};
 use docket_core::{
-    ActivationToken, AppRefusal, AskReason, AuditRecord, BudgetKind, CallEnd, CallRefusal,
-    CallRequest, ConfirmAnswer, ConfirmAnswerKind, ConfirmEnd, ConfirmId, ConfirmRequest,
-    Confirmer, Depth, Follow, Invocation, Ledger, Millis, Outcome, PolicyId, ReviewError,
-    ReviewMark, Reviewed, Stage, UndoId, Undoable, WindowKey, charge, halted,
+    ActivationToken, AlwaysOffer, AppRefusal, AskReason, AuditRecord, BudgetKind, CallEnd,
+    CallRefusal, CallRequest, ConfirmAnswer, ConfirmAnswerKind, ConfirmEnd, ConfirmId,
+    ConfirmRequest, Confirmer, Depth, Follow, Invocation, Ledger, Millis, Outcome, PolicyId,
+    ReviewError, ReviewMark, Reviewed, Stage, UndoId, Undoable, WindowKey, charge, halted,
 };
 use docket_session::{CallOpen, SessionEntry};
 use porter_core::GrantId;
@@ -155,18 +155,16 @@ impl<S: Seams> Router<S> {
     /// The effects that need no await: the consent store, the breaker's tally, the journal.
     fn carry_out(&self, p: &Prepared, run: &mut Run, effect: &CallEffect) {
         match effect {
-            CallEffect::RecordGrant => {
-                let now = self.seams.clock().now();
-                let id = {
-                    let n = self.locked().mint();
-                    GrantId::parse(&format!("g-{n}")).ok()
-                };
-                if let Some(id) = id {
-                    for grant in grants_for(p, id, now, p.who.grant_caller()) {
-                        self.seams.grants().record(grant);
+            CallEffect::RecordGrant => match &p.standing {
+                // An editor's or agent's "always" is the scoped grant the sheet offered, or
+                // nothing: never the broad class grant.
+                Some(s) if s.holds() => {
+                    if let AlwaysOffer::Offered(scope) = s.offer(&p.decl, &asked_why(p)) {
+                        self.record_standing(s.caller.clone(), scope);
                     }
                 }
-            }
+                _ => self.record_class_grant(p),
+            },
             CallEffect::RecordTerminalGrant => {
                 let why = match &p.pending {
                     Pending::Confirm(why) => why.as_slice(),
@@ -208,6 +206,21 @@ impl<S: Seams> Router<S> {
             | CallEffect::Confirm(_)
             | CallEffect::CancelConfirm
             | CallEffect::Dispatch => {}
+        }
+    }
+
+    /// The broad "always" of the other callers: one grant per data class, for the app in this
+    /// Space.
+    fn record_class_grant(&self, p: &Prepared) {
+        let now = self.seams.clock().now();
+        let id = {
+            let n = self.locked().mint();
+            GrantId::parse(&format!("g-{n}")).ok()
+        };
+        if let Some(id) = id {
+            for grant in grants_for(p, id, now, p.who.grant_caller()) {
+                self.seams.grants().record(grant);
+            }
         }
     }
 
@@ -339,10 +352,7 @@ impl<S: Seams> Router<S> {
         let n = st.mint();
         let id = ConfirmId::parse(&format!("c-{n}")).ok()?;
         let record = p.who.session.as_ref().and_then(|s| st.sessions.get(s));
-        let reasons = match &p.pending {
-            crate::gate::Pending::Confirm(r) => r.clone(),
-            _ => vec![AskReason::Rule(PolicyId("review".into()))],
-        };
+        let reasons = asked_why(p);
         Some(confirm_request(
             id,
             p,
@@ -415,6 +425,13 @@ impl<S: Seams> Router<S> {
     }
 
     async fn dispatch(&self, p: &Prepared, run: &mut Run) -> Next {
+        let answered = run.receipt.is_some();
+        if self.standing_use(p, answered).is_err() {
+            run.state = CallState::Done(CallEnd::Refused(CallRefusal::Denied(
+                docket_core::DenyCode::NeedsUser,
+            )));
+            return Next::Stop;
+        }
         let reviewed = if run.verdicts.is_empty() {
             Reviewed::No
         } else {
@@ -462,5 +479,13 @@ impl<S: Seams> Router<S> {
             Ok(outcome) => Next::Event(CallEvent::AppAnswered(Box::new(Ok(outcome)))),
             Err(AppFault::Refused(why)) => Next::Event(CallEvent::AppAnswered(Box::new(Err(why)))),
         }
+    }
+}
+
+/// Why the person is asked: the gate's reasons, or the reviewers' tightening.
+fn asked_why(p: &Prepared) -> Vec<AskReason> {
+    match &p.pending {
+        Pending::Confirm(r) => r.clone(),
+        _ => vec![AskReason::Rule(PolicyId("review".into()))],
     }
 }

@@ -29,6 +29,12 @@ pub trait Control {
     /// Withdraws one standing terminal grant (`ActionRef` JSON). Control role only.
     fn revoke_terminal_grant(&self, action: &str) -> zbus::Result<()>;
 
+    /// The standing "allow always" grants held (`Vec<StandingGrant>` JSON). Control role only.
+    fn standing_grants(&self) -> zbus::Result<String>;
+
+    /// Revokes one standing grant (`StandingGrantId` JSON). Control role only.
+    fn revoke_standing_grant(&self, id: &str) -> zbus::Result<()>;
+
     /// A scope was halted.
     #[zbus(signal)]
     fn halted(&self, scope: &str) -> zbus::Result<()>;
@@ -77,6 +83,15 @@ impl ControlSkeleton {
 
     fn revoke_terminal_grant(&self, action: String) -> fdo::Result<()> {
         let _ = (action,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn standing_grants(&self) -> fdo::Result<String> {
+        Err(crate::introspect::frozen())
+    }
+
+    fn revoke_standing_grant(&self, id: String) -> fdo::Result<()> {
+        let _ = (id,);
         Err(crate::introspect::frozen())
     }
 

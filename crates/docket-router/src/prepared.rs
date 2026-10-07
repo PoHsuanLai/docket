@@ -51,6 +51,8 @@ pub(crate) struct Prepared {
     /// How the call was classified, for an action that classifies per call. `decl.effect` is
     /// already the effect it used.
     pub classified: Option<docket_core::Classification>,
+    /// What standing grants say about the call; none for the person's own calls.
+    pub standing: Option<crate::standing::StandingCtx>,
 }
 
 pub(crate) fn entities(target: &TargetValue) -> Vec<EntityId> {

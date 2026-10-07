@@ -130,3 +130,51 @@ fn the_file_is_a_json_list_of_grants_the_desktop_store_format() {
         [grant("g-1", "mail.thread.archive", GrantScope::Always)]
     );
 }
+
+fn standing_grant(prefix: &str) -> docket_core::StandingGrant {
+    docket_core::StandingGrant::new(
+        GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
+        docket_core::StandingScope::Files {
+            action: docket_core::ActionRef {
+                app: AppName::parse("org.quire.Files").expect("app"),
+                name: ActionName::parse("files.file.move").expect("action"),
+            },
+            under: docket_core::AbsPath::parse(prefix).expect("path"),
+        },
+        UnixSeconds(1),
+    )
+}
+
+#[test]
+fn standing_grants_survive_a_restart_and_a_revocation_is_seen_by_the_next_reader() {
+    use docket_core::Revocation;
+    let dir = tempfile::tempdir().expect("scratch");
+    let path = dir.path().join("app/grants.json");
+    let store = FileGrantStore::open(path.clone()).expect("open");
+    assert!(store.standing().is_empty());
+    let (a, b) = (standing_grant("/w/a"), standing_grant("/w/b"));
+    store.add_standing(a.clone());
+    store.add_standing(b.clone());
+    store.add_standing(a.clone());
+    let reopened = FileGrantStore::open(path.clone()).expect("open");
+    assert_eq!(reopened.standing(), vec![b.clone(), a.clone()]);
+    assert_eq!(reopened.revoke_standing(&a.id), Revocation::Revoked);
+    assert_eq!(reopened.revoke_standing(&a.id), Revocation::NotHeld);
+    assert_eq!(
+        FileGrantStore::open(path.clone()).expect("open").standing(),
+        vec![b.clone()],
+        "a third process reads the revocation"
+    );
+    assert!(
+        store.grants().is_empty(),
+        "class grants are a separate list"
+    );
+    std::fs::write(path.with_file_name("grants.json.standing"), "{").expect("damage");
+    assert!(
+        FileGrantStore::open(path)
+            .expect("open")
+            .standing()
+            .is_empty(),
+        "a damaged file holds none: the person is asked again"
+    );
+}

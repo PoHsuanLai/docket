@@ -194,6 +194,11 @@ impl<S: Seams> Router<S> {
                 self.revoke_terminal_grant(&action);
                 IntentsReply::Done
             }
+            R::ControlStandingGrants => IntentsReply::StandingGrants(self.standing_grants()),
+            R::ControlStandingRevoke(id) => {
+                self.revoke_standing(&id);
+                IntentsReply::Done
+            }
         }
     }
 

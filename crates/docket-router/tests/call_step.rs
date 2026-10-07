@@ -27,6 +27,7 @@ fn sheet(id: &str) -> ConfirmRequest {
         why: vec![AskReason::FirstUse],
         taint: TaintNote::Clean,
         offer: ConfirmOffer::OnceOnly,
+        always: Default::default(),
         gesture: Gesture::Press,
         anchor: Anchor::Launcher,
         expires: Seconds(120),

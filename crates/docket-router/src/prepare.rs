@@ -16,12 +16,14 @@ use crate::router::Router;
 use crate::seams::{Clock, GrantStore, Seams};
 use crate::session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
 use crate::spacing::relation_of;
+use crate::standing::StandingCtx;
 use crate::state::{RouterState, SessionRecord};
 use crate::who::Who;
 use action_review::{GoalKey, ReviewRequest, repeated};
 use docket_core::{
-    ActionDecl, ActionGrant, BudgetKind, CallId, CallRefusal, CallRequest, Classification, Cost,
-    Depth, Impact, Lasting, Reviewed, Ruling, Saw, WindowKey,
+    ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
+    CallRequest, Classification, Cost, Depth, Impact, Lasting, Reviewed, Ruling, Saw, WindowKey,
+    charge,
 };
 use policy_point::{
     ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, SpaceRelation,
@@ -281,7 +283,7 @@ impl<S: Seams> Router<S> {
                 _ => Reviewed::No,
             },
         };
-        let pending = gate(&GateInputs {
+        let gated = gate(&GateInputs {
             halt: &st.kill,
             space: &space,
             ledger: &record.ledger,
@@ -293,6 +295,23 @@ impl<S: Seams> Router<S> {
             impact,
             repeat: repeated(&record.breaker, &goal, digest),
         });
+        // A standing grant replaces only the ask: the refusals above have already run, and the
+        // reviewers still look at what it lets through.
+        let breaker = match admit(record) {
+            Ok(()) => BreakerState::Running,
+            Err(_) => BreakerState::Tripped,
+        };
+        let budget = match charge(&record.ledger, &self.agent_config().budget, &cost, now) {
+            Ok(_) => BudgetState::Within,
+            Err(_) => BudgetState::Over,
+        };
+        let (pending, standing) =
+            StandingCtx::new(who.grant_caller(), &decl, &request, breaker, budget).lifted(
+                &self.seams.grants().standing(),
+                &decl,
+                impact,
+                gated,
+            );
         Ok(Prepared {
             id,
             who: who.clone(),
@@ -318,6 +337,7 @@ impl<S: Seams> Router<S> {
             named,
             activation: None,
             classified,
+            standing: Some(standing),
         })
     }
 
@@ -374,6 +394,7 @@ impl<S: Seams> Router<S> {
             activation: None,
             // The person's own calls are not gated, so they are not classified.
             classified: None,
+            standing: None,
         }
     }
 }

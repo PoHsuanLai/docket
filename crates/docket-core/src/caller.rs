@@ -145,11 +145,15 @@ pub enum Member {
     ControlTerminalGrants,
     /// `.Control.RevokeTerminalGrant`.
     ControlTerminalRevoke,
+    /// `.Control.StandingGrants`.
+    ControlStandingGrants,
+    /// `.Control.RevokeStandingGrant`.
+    ControlStandingRevoke,
 }
 
 impl Member {
     /// Every member, in the order the interface table lists them.
-    pub const ALL: [Member; 34] = [
+    pub const ALL: [Member; 36] = [
         Member::Manifests,
         Member::IndexPush,
         Member::IndexReset,
@@ -184,6 +188,8 @@ impl Member {
         Member::ControlJournal,
         Member::ControlTerminalGrants,
         Member::ControlTerminalRevoke,
+        Member::ControlStandingGrants,
+        Member::ControlStandingRevoke,
     ];
 }
 
@@ -226,6 +232,8 @@ impl crate::wire::IntentsRequest {
             R::ControlJournal(_) => Member::ControlJournal,
             R::ControlTerminalGrants => Member::ControlTerminalGrants,
             R::ControlTerminalRevoke(_) => Member::ControlTerminalRevoke,
+            R::ControlStandingGrants => Member::ControlStandingGrants,
+            R::ControlStandingRevoke(_) => Member::ControlStandingRevoke,
         }
     }
 }

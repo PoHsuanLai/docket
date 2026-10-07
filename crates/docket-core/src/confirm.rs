@@ -6,6 +6,7 @@ use crate::context::EntityRef;
 use crate::ids::{LabelText, WindowKey};
 use crate::preview::{FileMove, Preview};
 use crate::review::AskReason;
+use crate::standing_offer::AlwaysOffer;
 use crate::units::Seconds;
 use porter_core::{AppName, Count};
 use prov::{Actor, ConfirmReceipt, Effect, Source, SpaceId};
@@ -148,6 +149,11 @@ pub struct ConfirmRequest {
     pub taint: TaintNote,
     /// What the person may choose.
     pub offer: ConfirmOffer,
+    /// Whether "allow always" is offered as a scoped standing grant, and for what scope; for the
+    /// callers that hold one (an editor, an ACP agent) it replaces the broad `OnceOrAlways`. A
+    /// sheet from before it existed reads as none.
+    #[serde(default)]
+    pub always: AlwaysOffer,
     /// How to answer.
     pub gesture: Gesture,
     /// Where to draw it.

@@ -176,6 +176,12 @@
    <method name="RevokeTerminalGrant">
      <arg name="action" type="s" direction="in"/>
    </method>
+   <method name="StandingGrants">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="RevokeStandingGrant">
+     <arg name="id" type="s" direction="in"/>
+   </method>
    <signal name="Halted">
      <arg name="scope" type="s"/>
    </signal>

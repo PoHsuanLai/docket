@@ -39,6 +39,10 @@ pub enum GrantCaller {
     Cli,
     /// This app on its own.
     App(AppName),
+    /// An editor speaking ACP (`zed`): the client of the person's own session.
+    Editor(prov::ClientName),
+    /// An external agent program the companion drives over ACP (`claude-code`).
+    AcpAgent(ProgramName),
 }
 
 impl GrantCaller {
@@ -50,7 +54,50 @@ impl GrantCaller {
             GrantCaller::Mcp(_) => ActorKind::Mcp,
             GrantCaller::Cli => ActorKind::Cli,
             GrantCaller::App(_) => ActorKind::App,
+            // prov has no ACP kind yet (FINDINGS "acp-grants"): both act as an external client.
+            GrantCaller::Editor(_) | GrantCaller::AcpAgent(_) => ActorKind::Mcp,
         }
+    }
+}
+
+/// The name of an external agent program (`claude-code`): 1 to 64 characters, no control
+/// characters. It names a program; it grants nothing.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct ProgramName(String);
+
+/// Why text is not a program name.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("a program name is 1 to 64 characters with no control characters")]
+pub struct ProgramNameError;
+
+impl ProgramName {
+    /// `text` as a program name.
+    pub fn parse(text: &str) -> Result<Self, ProgramNameError> {
+        if text.is_empty() || text.len() > 64 || text.chars().any(char::is_control) {
+            Err(ProgramNameError)
+        } else {
+            Ok(Self(text.to_owned()))
+        }
+    }
+
+    /// The name.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for ProgramName {
+    type Error = ProgramNameError;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        Self::parse(&text)
+    }
+}
+
+impl From<ProgramName> for String {
+    fn from(name: ProgramName) -> String {
+        name.0
     }
 }
 

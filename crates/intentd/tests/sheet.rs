@@ -29,6 +29,7 @@ fn request(id: &str, expires: u32) -> ConfirmRequest {
         why: vec![AskReason::FromTerminal],
         taint: TaintNote::Clean,
         offer: ConfirmOffer::OnceOrFromTerminal,
+        always: Default::default(),
         gesture: Gesture::Press,
         anchor: Anchor::Centre,
         expires: Seconds(expires),

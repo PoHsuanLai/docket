@@ -95,6 +95,32 @@ impl ControlBus {
             .await
     }
 
+    async fn standing_grants(
+        &self,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<String, IntentsError> {
+        self.0
+            .answer(
+                &header,
+                IntentsRequest::ControlStandingGrants,
+                |r| match r {
+                    IntentsReply::StandingGrants(grants) => Some(grants),
+                    _ => None,
+                },
+            )
+            .await
+    }
+
+    async fn revoke_standing_grant(
+        &self,
+        id: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<(), IntentsError> {
+        self.0
+            .done(&header, IntentsRequest::ControlStandingRevoke(json(&id)?))
+            .await
+    }
+
     #[zbus(signal)]
     async fn halted(emitter: &SignalEmitter<'_>, scope: &str) -> zbus::Result<()>;
 

@@ -184,6 +184,8 @@ fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         | R::ControlState
         | R::ControlJournal(_)
         | R::ControlTerminalGrants
-        | R::ControlTerminalRevoke(_) => None,
+        | R::ControlTerminalRevoke(_)
+        | R::ControlStandingGrants
+        | R::ControlStandingRevoke(_) => None,
     }
 }

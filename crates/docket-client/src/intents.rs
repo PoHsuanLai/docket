@@ -142,6 +142,27 @@ impl<T: Transport> Intents<T> {
         .await
     }
 
+    /// The standing "allow always" grants held (Settings).
+    pub async fn standing_grants(&self) -> Result<Vec<docket_core::StandingGrant>, ClientError> {
+        self.ask(IntentsRequest::ControlStandingGrants, |r| match r {
+            IntentsReply::StandingGrants(grants) => Some(grants),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Revokes one standing grant (Settings): the next call it covered asks again.
+    pub async fn revoke_standing_grant(
+        &self,
+        id: docket_core::StandingGrantId,
+    ) -> Result<(), ClientError> {
+        self.ask(IntentsRequest::ControlStandingRevoke(id), |r| match r {
+            IntentsReply::Done => Some(()),
+            _ => None,
+        })
+        .await
+    }
+
     /// Resumes `scope` after a halt (control centre). It also reopens the terminal sessions the
     /// breaker paused in that scope: a terminal has no way to say it is the person.
     pub async fn resume(&self, scope: SpaceScope) -> Result<(), ClientError> {

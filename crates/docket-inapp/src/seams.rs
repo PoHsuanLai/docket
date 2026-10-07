@@ -12,7 +12,8 @@ use almanac_core::{MemoryReply, MemoryRequest};
 use docket_client::{ContextSource, IntentProvider};
 use docket_core::{
     ActionCard, ActionGrant, AuditRecord, PolicyWriter, Reader, ReaderAsk, ReaderError,
-    ReviewError, UserTurn, Value,
+    ReviewError, Revocation, StandingGrant, StandingGrantId, UserTurn, Value, held_with,
+    held_without,
 };
 use docket_memory::QueuedSink;
 use docket_router::{Clock, EventSink, GrantStore, LinkFault, MemoryLink, NoLog, Seams};
@@ -29,12 +30,12 @@ fn held<T, R>(m: &Mutex<T>, f: impl FnOnce(&mut T) -> R) -> R {
 /// The consent the person gave in this process: gone when the process ends. An app that wants
 /// "always" to last stores `grants()` itself and replays them with [`SessionGrants::with`].
 #[derive(Debug, Default)]
-pub struct SessionGrants(Mutex<Vec<ActionGrant>>);
+pub struct SessionGrants(Mutex<Vec<ActionGrant>>, Mutex<Vec<StandingGrant>>);
 
 impl SessionGrants {
     /// A store that starts with these grants.
     pub fn with(grants: Vec<ActionGrant>) -> Self {
-        Self(Mutex::new(grants))
+        Self(Mutex::new(grants), Mutex::default())
     }
 }
 
@@ -44,6 +45,19 @@ impl GrantStore for SessionGrants {
     }
     fn record(&self, grant: ActionGrant) {
         held(&self.0, |g| g.push(grant));
+    }
+    fn standing(&self) -> Vec<StandingGrant> {
+        held(&self.1, |g| g.clone())
+    }
+    fn add_standing(&self, grant: StandingGrant) {
+        held(&self.1, |g| *g = held_with(std::mem::take(g), grant));
+    }
+    fn revoke_standing(&self, id: &StandingGrantId) -> Revocation {
+        held(&self.1, |g| {
+            let (rest, done) = held_without(std::mem::take(g), id);
+            *g = rest;
+            done
+        })
     }
 }
 

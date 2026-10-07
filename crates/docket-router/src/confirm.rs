@@ -6,8 +6,8 @@ use crate::prepared::Prepared;
 use crate::state::SessionRecord;
 use crate::terminal::offers_grant;
 use docket_core::{
-    Anchor, ArgLine, AskReason, ConfirmDetail, ConfirmId, ConfirmOffer, ConfirmRequest, Gesture,
-    Preview, Seconds, Shown, TaintNote, Value,
+    AlwaysOffer, Anchor, ArgLine, AskReason, ConfirmDetail, ConfirmId, ConfirmOffer,
+    ConfirmRequest, Gesture, Preview, Seconds, Shown, TaintNote, Value,
 };
 use docket_core::{ArgSink, CallerRole};
 use porter_core::Count;
@@ -100,9 +100,15 @@ pub(crate) fn confirm_request(
     preview: Option<&Preview>,
     expires: Seconds,
 ) -> ConfirmRequest {
+    let standing = p.standing.as_ref();
+    let always = standing.map_or_else(AlwaysOffer::default, |s| s.offer(&p.decl, why));
     let taint = taint_note(record);
     let destructive = p.decl.effect == Effect::Destructive;
-    let offer = if offers_grant(p, why) {
+    // A caller that holds standing grants is offered the scoped one (`always`), never the broad
+    // class grant.
+    let offer = if standing.is_some_and(|s| s.holds()) {
+        ConfirmOffer::OnceOnly
+    } else if offers_grant(p, why) {
         ConfirmOffer::OnceOrFromTerminal
     } else if destructive || taint != TaintNote::Clean || p.who.actor == prov::Actor::Cli {
         ConfirmOffer::OnceOnly
@@ -132,6 +138,7 @@ pub(crate) fn confirm_request(
         why: why.to_vec(),
         taint,
         offer,
+        always,
         gesture: if destructive {
             Gesture::HoldToConfirm
         } else {

@@ -44,7 +44,10 @@ fn roles(member: Member) -> &'static [CallerRole] {
         // A terminal reads only its own rows (`control_journal` cuts the list).
         Member::ControlJournal => &[Launcher, Control, Cli],
         // The control centre shows and revokes what the terminal may do without asking.
-        Member::ControlTerminalGrants | Member::ControlTerminalRevoke => &[Control],
+        Member::ControlTerminalGrants
+        | Member::ControlTerminalRevoke
+        | Member::ControlStandingGrants
+        | Member::ControlStandingRevoke => &[Control],
     }
 }
 

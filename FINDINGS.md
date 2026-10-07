@@ -2014,3 +2014,35 @@ withdrawn. `RULES` gained one matching sentence. The line still starts `not conf
 Tests: the three texts (unit), and a scripted-model turn in `docket-inapp` showing the next view
 carries the instruction after a no on the sheet. No real model was called: the owner reruns the live eval
 later to confirm the model now ends Done.
+
+### Standing grants: "allow always" as a scoped grant (acp-grants, R1)
+
+Done: `docket-core::{standing, standing_match, standing_offer}` (typed scopes, matching, the offer rule
+with the reason it is withheld), `GrantCaller::{Editor(ClientName), AcpAgent(ProgramName)}` (`ProgramName`
+moved from `docket-session` to `docket-core`, re-exported there), `ConfirmRequest::always`
+(`AlwaysOffer`, defaulting to none for an older sheet), the store methods on `GrantStore` (default: none
+held, so a store that does not implement them asks every time), the router hook (`StandingCtx::lifted`
+turns a grantable `Pending::Confirm` into a review at the call's impact plan; every refusal before it and
+every reviewer verdict after it is untouched), the use audit at dispatch, a re-check of the grant just
+before dispatch (a revocation in flight stops the call), and `.Control.StandingGrants` /
+`.RevokeStandingGrant` (Control role; D-Bus `Control` interface; `Intents::standing_grants`,
+`revoke_standing_grant`). Tests: `docket-core/tests/standing.rs` (scope tables, offer table, a proptest
+that nothing never-grantable is offered or lifted), `docket-router/tests/standing.rs` (the gate around a
+grant), `docket-inapp/tests/grants.rs` and `intentd/tests/files.rs` (restart, revoke seen by the next
+reader, damaged file).
+
+Open, and why:
+- No editor or ACP agent reaches the router yet, so `Who::grant_caller` never returns `Editor` or
+  `AcpAgent` and no sheet is offered a standing grant; the router tests key grants to the companion to
+  exercise the lookup. The ACP lane maps its `CallerRole::Editor` / agent actor to the new variants; until
+  then `holds_standing` is false for every live caller and nothing changes for them.
+- `GrantCaller::kind()` maps both new callers to `ActorKind::Mcp`: prov has no ACP actor kind.
+- The terminal scope reads its facts from parameters named `command` and `cwd` (`standing_facts`); a
+  real terminal action must use those names, or the manifest needs a `command` sink.
+- An entity recipient (`mail.contact`) is scoped only when its key is an address; otherwise the facts
+  are `Opaque` and no outbound grant is offered or matched. Resolving a contact to its address needs the
+  provider (a later step).
+- Paths are compared lexically. Symlinks and the secrets deny list (`.ssh` and the like) are the file
+  edge's job (acp-sessions.md section 7), not the grant's: a grant never widens what the edge refuses.
+- The grant has no expiry; it lasts until revoked. A Settings page lists and revokes only (a grant is
+  never created from Settings, only by an answered sheet).

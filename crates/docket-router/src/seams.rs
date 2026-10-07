@@ -9,8 +9,8 @@ use almanac_core::{MemoryReply, MemoryRequest};
 use docket_core::EntityRef;
 use docket_core::{
     ActionGrant, AppRefusal, AuditRecord, Confirmer, ContextScope, ContextSnapshot, Generation,
-    Hit, Invocation, Latency, Millis, Outcome, PolicyWriter, Preview, Reader, SuggestAsk,
-    UndoFault, UndoToken,
+    Hit, Invocation, Latency, Millis, Outcome, PolicyWriter, Preview, Reader, Revocation,
+    StandingGrant, StandingGrantId, SuggestAsk, UndoFault, UndoToken,
 };
 use docket_session::{Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog};
 use porter_core::AppName;
@@ -141,6 +141,17 @@ pub trait GrantStore: Send + Sync {
     fn grants(&self) -> Vec<ActionGrant>;
     /// Records a grant the person gave.
     fn record(&self, grant: ActionGrant);
+    /// Every standing grant ("allow always", scoped). A store that keeps none holds none, so
+    /// every such call asks.
+    fn standing(&self) -> Vec<StandingGrant> {
+        Vec::new()
+    }
+    /// Holds a standing grant the person gave; the same id replaces the earlier one.
+    fn add_standing(&self, _grant: StandingGrant) {}
+    /// Drops a standing grant; it takes effect on the next call.
+    fn revoke_standing(&self, _id: &StandingGrantId) -> Revocation {
+        Revocation::NotHeld
+    }
 }
 
 /// The event log, as the router sees it.

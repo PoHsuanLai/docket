@@ -50,6 +50,8 @@ mod search;
 mod session;
 mod skills;
 mod spacing;
+mod standing;
+mod standing_facts;
 mod state;
 mod tasks;
 mod terminal;
