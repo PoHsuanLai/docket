@@ -4,8 +4,8 @@
 //! kept only when the person wrote it in a turn. Pure: no model, no clock.
 
 use docket_core::{
-    ActionCard, ActionMatch, ActionRef, LabelText, TaskPolicy, TaskPolicyState, TrustedPattern,
-    UserTurn, Value,
+    ActionCard, ActionMatch, ActionRef, Corrected, Derived, LabelText, TaskPolicy, TaskPolicyState,
+    TrustedPattern, UserTurn, Value,
 };
 use porter_core::Count;
 use prov::{Effect, EntityKind, SpaceId, TaskId, UnixSeconds};
@@ -149,7 +149,7 @@ pub(crate) fn policy_of(
     turns: &[UserTurn],
     catalogue: &[ActionCard],
     space: &SpaceId,
-) -> TaskPolicy {
+) -> Derived {
     let chosen: Vec<&ActionCard> = draft
         .actions
         .iter()
@@ -164,11 +164,9 @@ pub(crate) fn policy_of(
             })
         })
         .collect();
-    let mut needed = chosen
-        .iter()
-        .map(|c| c.effect)
-        .max()
-        .unwrap_or(Effect::Read);
+    // The highest effect among the actions the draft named itself: the floor of its ceiling.
+    let floor = chosen.iter().map(|c| c.effect).max();
+    let mut needed = floor.unwrap_or(Effect::Read);
     for entry in &draft.apps {
         let known = catalogue.iter().any(|c| c.action.app.as_str() == entry.app);
         if let (true, Ok(app)) = (known, porter_core::AppName::parse(&entry.app)) {
@@ -182,7 +180,8 @@ pub(crate) fn policy_of(
             .filter_map(|t| trusted_value(turns, t))
             .collect()
     };
-    TaskPolicy {
+    let (ceiling, corrected) = settled_ceiling(draft.ceiling, floor, needed);
+    let policy = TaskPolicy {
         task: task.clone(),
         space: space.clone(),
         from: turns.iter().map(|t| t.id).collect(),
@@ -192,8 +191,7 @@ pub(crate) fn policy_of(
             .iter()
             .filter_map(|k| EntityKind::parse(k).ok())
             .collect(),
-        // Never above what the chosen actions need, whatever the model asked for.
-        ceiling: draft.ceiling.min(needed),
+        ceiling,
         max_count: Count(draft.max_count.clamp(1, MOST_AT_ONCE)),
         recipients: patterns(&draft.recipients),
         destinations: patterns(&draft.destinations),
@@ -210,6 +208,24 @@ pub(crate) fn policy_of(
         // The person's own last words, as the sheet will quote them.
         rationale: rationale_of(turns),
         state: TaskPolicyState::Active,
+    };
+    Derived { policy, corrected }
+}
+
+/// The ceiling the policy gets, and the correction made to the draft's if any. Never above what
+/// the chosen actions and app grants need, whatever the model asked for; and never below the
+/// highest effect among the `one` actions it chose, which would make the draft refuse its own
+/// actions. A ceiling that is too high is only cut (the actions bound what runs either way); an
+/// `app_up_to` level is not a floor: a lower ceiling already narrows that grant, and raising to
+/// it would let the ceiling stand for more than the actions the draft named one by one.
+fn settled_ceiling(
+    asked: Effect,
+    floor: Option<Effect>,
+    needed: Effect,
+) -> (Effect, Vec<Corrected>) {
+    match floor.filter(|floor| asked < *floor) {
+        Some(to) => (to, vec![Corrected::CeilingRaised { from: asked, to }]),
+        None => (asked.min(needed), Vec::new()),
     }
 }
 

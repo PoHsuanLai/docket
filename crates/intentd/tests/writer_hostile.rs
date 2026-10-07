@@ -51,6 +51,7 @@ async fn derive(reply: &str, said: &str) -> Result<TaskPolicy, ReviewError> {
             &SpaceId::parse("work").expect("space"),
         )
         .await
+        .map(|derived| derived.policy)
 }
 
 fn with(extra: serde_json::Value) -> String {

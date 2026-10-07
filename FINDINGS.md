@@ -255,7 +255,7 @@ Built in the w4-docket fill (each with tests on a private bus, a scripted inferd
    tier, forward events to the sink and return the reply; every refusal and failure is a `ModelError`, so the reviewer
    asks the person. `InferdWriter::derive` shows the model the person's turns and the catalogue (class `Prompt`, tier
    Fast, JSON under a schema that names only catalogue actions) and believes nothing in the draft: an action must be in
-   the catalogue, the ceiling is cut to what the chosen actions need, a recipient, destination or path is kept only if
+   the catalogue, the ceiling is cut to what the chosen actions need (and raised to the highest chosen `one` effect, recorded as `Corrected::CeilingRaised`), a recipient, destination or path is kept only if
    the person wrote it, the rationale is the person's own last words, and any failure is no policy. readerd:
    `reader_request` (the fixed instruction, the inputs as numbered data between a per-request fence the data cannot
    close, no tools, the strictest class of the inputs and, for unclassed text, the person's own words' floor, which is
@@ -1731,8 +1731,22 @@ Likewise in smoke flow-a it listed `mail.message.forward` with `"ceiling": "read
 "forward the Lisbon receipts" (two threads). That is a writer-quality problem on this model: the prompt
 already says to choose a ceiling no higher than the actions need, and these actions need more than read.
 A cheaper repair is deterministic: derive the ceiling's floor from the effects of the chosen actions (a
-ceiling below the highest chosen effect is raised to it, or the policy is refused as inconsistent). Not done
-in this lane.
+ceiling below the highest chosen effect is raised to it, or the policy is refused as inconsistent).
+
+**Fixed (writer-ceiling lane).** `draft::policy_of` now floors the ceiling at the highest effect among the
+`one` actions the draft chose (catalogue actions only; an invented name is dropped first and raises nothing).
+It returns `Derived { policy, corrected }`; `PolicyWriter::derive` returns that, and the router appends
+`AuditRecord::PolicyCorrected { corrected: Corrected::CeilingRaised { from, to } }` (the eval trace prints
+`policy corrected ...`). The prompt gained one clause: "and no lower: it must cover the effect of every chosen
+action". Reasoning on `app_up_to`: `covers` checks two independent bounds, `decl.effect <= ceiling` and, for an
+app-wide entry, `decl.effect <= cap`. Raising the ceiling therefore cannot widen an `AppUpTo` grant: it still
+stops at its own level, and the actions list still names what runs. The floor ignores `app_up_to` levels: a
+ceiling below a grant's level is a narrower grant, not a contradiction in the draft (nothing the draft named
+one by one is refused), and raising to it would let the writer's say-so on the ceiling stand for effects only
+an app-wide entry mentions. The existing upper cut is unchanged (ceiling at most the highest of the chosen
+actions and the `app_up_to` levels). The reverse case, a ceiling above everything chosen, is left alone: it is
+cut to what the actions and grants need as before, and the actions list bounds what runs either way. Tests:
+`crates/intentd/tests/writer_ceiling.rs` (archive, forward, higher ceiling, grants, invented action).
 
 **The planner's step history hid older steps' values.** A masked step rendered `action [outcome: said]`: no
 arguments and no handles returned. In smoke flow-a, after two thread reads returned #4 and #5, the next

@@ -32,6 +32,7 @@ pub fn kind_tag_of(record: &AuditRecord) -> Option<KindTag> {
         AuditRecord::Undo { .. } => "docket.undo".to_owned(),
         AuditRecord::Halt { .. } => "docket.halt".to_owned(),
         AuditRecord::TaskPolicy { .. } => "docket.task_policy".to_owned(),
+        AuditRecord::PolicyCorrected { .. } => "docket.policy_corrected".to_owned(),
         AuditRecord::Breaker { .. } => "docket.breaker".to_owned(),
         AuditRecord::TaskStarted { .. } => "docket.task_started".to_owned(),
         AuditRecord::Message(_) => "companion.message".to_owned(),
@@ -52,6 +53,7 @@ fn occurred(record: &AuditRecord) -> UnixSeconds {
         | AuditRecord::Undo { at, .. }
         | AuditRecord::Halt { at, .. }
         | AuditRecord::TaskPolicy { at, .. }
+        | AuditRecord::PolicyCorrected { at, .. }
         | AuditRecord::Breaker { at, .. }
         | AuditRecord::TaskStarted { at, .. }
         | AuditRecord::Session { at, .. } => *at,
@@ -76,6 +78,7 @@ pub fn space_named_by(record: &AuditRecord) -> Option<&SpaceId> {
         | AuditRecord::Undo { .. }
         | AuditRecord::Halt { .. }
         | AuditRecord::TaskPolicy { .. }
+        | AuditRecord::PolicyCorrected { .. }
         | AuditRecord::Breaker { .. } => None,
     }
 }
@@ -174,6 +177,7 @@ fn who_and_how(record: &AuditRecord, space: &SpaceId) -> (Actor, Effect, Label) 
         | AuditRecord::Confirm { .. }
         | AuditRecord::Halt { .. }
         | AuditRecord::TaskPolicy { .. }
+        | AuditRecord::PolicyCorrected { .. }
         | AuditRecord::Breaker { .. }
         | AuditRecord::TaskStarted { .. }
         | AuditRecord::Session { .. } => (router(), Effect::Read, router_label(space)),

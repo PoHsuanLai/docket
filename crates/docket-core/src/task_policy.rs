@@ -405,5 +405,5 @@ pub trait PolicyWriter: Send + Sync {
         turns: &[UserTurn],
         catalogue: &[ActionCard],
         space: &SpaceId,
-    ) -> impl Future<Output = Result<TaskPolicy, ReviewError>> + Send;
+    ) -> impl Future<Output = Result<crate::Derived, ReviewError>> + Send;
 }

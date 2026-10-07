@@ -141,6 +141,7 @@ impl<S: Seams> Router<S> {
         else {
             return;
         };
+        let derived = self.note_corrections(derived);
         let bounded = {
             let st = self.locked();
             self.bound_policy(&st, id, derived)
@@ -148,6 +149,19 @@ impl<S: Seams> Router<S> {
         if let Some(policy) = bounded {
             self.apply_policy(id, policy, Baseline::Anything).await;
         }
+    }
+
+    /// Records each correction the writer made to its draft, and gives back the policy.
+    fn note_corrections(&self, derived: docket_core::Derived) -> TaskPolicy {
+        let at = self.seams.clock().now();
+        for corrected in derived.corrected {
+            self.seams.sink().append(AuditRecord::PolicyCorrected {
+                at,
+                task: derived.policy.task.clone(),
+                corrected,
+            });
+        }
+        derived.policy
     }
 
     /// `.Session.Narrow`: the person said something to a subagent. The policy writer reads it and
@@ -174,6 +188,7 @@ impl<S: Seams> Router<S> {
         else {
             return IntentsReply::Done;
         };
+        let derived = self.note_corrections(derived);
         // Never more than the session's own policy: with none, the parent's bound applies.
         let narrowed = match old {
             Some(old) => Some(intersection(&old, &derived)),

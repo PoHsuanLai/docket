@@ -84,6 +84,7 @@ async fn derive(inferd: &ScriptedInferd, turns: &[UserTurn]) -> Result<TaskPolic
     InferdWriter::new(inferd.clone())
         .derive(&task(), turns, &catalogue(), &space())
         .await
+        .map(|derived| derived.policy)
 }
 
 #[tokio::test]

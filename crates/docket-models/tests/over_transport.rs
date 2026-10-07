@@ -133,7 +133,8 @@ async fn the_writer_asks_with_the_persons_words_only_and_believes_nothing_it_was
             &SpaceId::parse("work").expect("space"),
         )
         .await
-        .expect("policy");
+        .expect("policy")
+        .policy;
     assert_eq!(policy.actions.len(), 1, "the invented action was dropped");
     assert!(
         policy.recipients.is_empty(),

@@ -2,7 +2,7 @@
 //! reads the person's own turns and the action catalogue, never content; nothing in a draft is
 //! believed as written); this adds the constructor over the session bus.
 
-use docket_core::{ActionCard, PolicyWriter, ReviewError, TaskPolicy, UserTurn};
+use docket_core::{ActionCard, Derived, PolicyWriter, ReviewError, UserTurn};
 use docket_dbus::InferLink;
 use docket_models::TransportWriter;
 use porter_client::Transport;
@@ -33,7 +33,7 @@ impl<T: Transport> PolicyWriter for InferdWriter<T> {
         turns: &[UserTurn],
         catalogue: &[ActionCard],
         space: &SpaceId,
-    ) -> Result<TaskPolicy, ReviewError> {
+    ) -> Result<Derived, ReviewError> {
         self.0.derive(task, turns, catalogue, space).await
     }
 }

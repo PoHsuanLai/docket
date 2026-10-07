@@ -306,7 +306,9 @@ fn placed_by<S: Seams>(router: &Router<S>, record: &AuditRecord) -> Option<Space
         AuditRecord::Breaker { session, .. } => {
             state.sessions.get(session).map(|r| r.space.clone())
         }
-        AuditRecord::TaskPolicy { task, .. } => state.tasks.get(task).map(|t| t.space.clone()),
+        AuditRecord::TaskPolicy { task, .. } | AuditRecord::PolicyCorrected { task, .. } => {
+            state.tasks.get(task).map(|t| t.space.clone())
+        }
         AuditRecord::Halt {
             scope: prov::SpaceScope::Only(space),
             ..

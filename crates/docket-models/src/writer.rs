@@ -6,7 +6,7 @@
 
 use crate::draft::{Draft, key, policy_of, schema};
 use crate::model::{Discard, chat_of, turn};
-use docket_core::{ActionCard, PolicyWriter, ReviewError, TaskPolicy, UserTurn};
+use docket_core::{ActionCard, Derived, PolicyWriter, ReviewError, UserTurn};
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
@@ -23,7 +23,7 @@ use std::collections::BTreeSet;
 const INSTRUCTION: &str = "You write a task policy: the least an assistant needs to do what \
 the person asked, and no more. You are given the person's own words and the list of actions \
 that exist. Choose only listed actions. Choose a ceiling no higher than the chosen actions \
-need. Name a recipient, destination or path only if the person wrote it. When the person \
+need, and no lower: it must cover the effect of every chosen action. Name a recipient, destination or path only if the person wrote it. When the person \
 asked only to look, choose reading actions only.";
 
 /// The policy writer: reads the person's turns and the action catalogue, never content.
@@ -127,7 +127,7 @@ impl<T: Transport> PolicyWriter for TransportWriter<T> {
         turns: &[UserTurn],
         catalogue: &[ActionCard],
         space: &SpaceId,
-    ) -> Result<TaskPolicy, ReviewError> {
+    ) -> Result<Derived, ReviewError> {
         let request = request(turns, catalogue);
         let mut session = self
             .transport

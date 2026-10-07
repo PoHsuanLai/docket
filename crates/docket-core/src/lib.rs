@@ -17,6 +17,7 @@ mod classify;
 mod config;
 mod confirm;
 mod context;
+mod derived;
 mod gate;
 mod grant;
 mod ids;
@@ -69,6 +70,7 @@ pub use context::{
     Here, HereView, Keep, Reveal, Selection, SelectionView, TextPurpose, TextTarget,
     TextTargetView, Visible, VisibleView, WindowPrivacy,
 };
+pub use derived::{Corrected, Derived};
 pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};
 pub use grant::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
 pub use ids::{

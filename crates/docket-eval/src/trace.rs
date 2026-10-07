@@ -162,6 +162,10 @@ pub fn audit_line(record: &AuditRecord) -> Option<String> {
             slug(state).unwrap_or_default(),
             slug(change).unwrap_or_default()
         )),
+        AuditRecord::PolicyCorrected { corrected, .. } => Some(format!(
+            "policy corrected {}",
+            slug(corrected).unwrap_or_default()
+        )),
         AuditRecord::Breaker { trip, .. } => Some(format!(
             "breaker tripped={}",
             slug(trip).unwrap_or_default()

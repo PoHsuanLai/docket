@@ -169,6 +169,15 @@ pub enum AuditRecord {
         /// How it changed.
         change: PolicyChangeKind,
     },
+    /// The policy writer's draft contradicted itself and was corrected before it became a policy.
+    PolicyCorrected {
+        /// When.
+        at: UnixSeconds,
+        /// The task.
+        task: TaskId,
+        /// What was changed.
+        corrected: crate::Corrected,
+    },
     /// The breaker tripped.
     Breaker {
         /// When.

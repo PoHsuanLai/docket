@@ -12,7 +12,7 @@ use almanac_core::{MemoryReply, MemoryRequest};
 use docket_client::{ContextSource, IntentProvider};
 use docket_core::{
     ActionCard, ActionGrant, AuditRecord, PolicyWriter, Reader, ReaderAsk, ReaderError,
-    ReviewError, TaskPolicy, UserTurn, Value,
+    ReviewError, UserTurn, Value,
 };
 use docket_memory::QueuedSink;
 use docket_router::{Clock, EventSink, GrantStore, LinkFault, MemoryLink, Seams};
@@ -113,7 +113,7 @@ impl PolicyWriter for NoWriter {
         _turns: &[UserTurn],
         _catalogue: &[ActionCard],
         _space: &SpaceId,
-    ) -> Result<TaskPolicy, ReviewError> {
+    ) -> Result<docket_core::Derived, ReviewError> {
         Err(ReviewError::Unavailable)
     }
 }

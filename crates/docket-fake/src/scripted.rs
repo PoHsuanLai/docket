@@ -245,9 +245,9 @@ impl PolicyWriter for ScriptedWriter {
         turns: &[UserTurn],
         _catalogue: &[ActionCard],
         _space: &SpaceId,
-    ) -> Result<TaskPolicy, ReviewError> {
+    ) -> Result<docket_core::Derived, ReviewError> {
         with(&self.calls, |c| c.push((task.clone(), turns.len())));
-        self.result.clone()
+        self.result.clone().map(docket_core::Derived::plain)
     }
 }
 
