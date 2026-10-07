@@ -9,6 +9,7 @@
 //! kills the daemon by PID once it sees the test process gone. No kill here goes by a name or a
 //! pattern.
 
+mod groups;
 mod guard;
 
 pub use guard::Reaped;

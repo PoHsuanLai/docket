@@ -59,8 +59,11 @@ impl Drop for Reaped {
             let _ = watchdog.kill();
             let _ = watchdog.wait();
         }
-        // SIGTERM first, so a daemon that owns process groups of its own (inferd's engines lead
-        // theirs) can end them; then SIGKILL to whatever of ours is left.
+        // The groups its children lead (inferd's engines lead theirs), read before anything is
+        // signalled: a daemon that dies on SIGTERM without ending them would orphan them.
+        let theirs = crate::groups::groups_below(self.child.id(), &crate::groups::table());
+        // SIGTERM first, so the daemon can end its own children; then SIGKILL to whatever of
+        // ours is left, the daemon's group and every group found below it.
         let _ = signal_group("-TERM", self.child.id());
         let deadline = std::time::Instant::now() + GRACE;
         while std::time::Instant::now() < deadline {
@@ -70,6 +73,9 @@ impl Drop for Reaped {
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
         let _ = signal_group("-KILL", self.child.id());
+        for group in theirs {
+            let _ = signal_group("-KILL", group);
+        }
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
@@ -92,6 +98,35 @@ fn signal_group(signal: &str, pgid: u32) -> io::Result<std::process::ExitStatus>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_grandchild_in_a_group_of_its_own_goes_too() {
+        let dir = tempfile::tempdir().expect("dir");
+        let pidfile = dir.path().join("grandchild");
+        // `setsid` puts the sleeper in a session and group of its own, as inferd does an engine;
+        // `trap '' TERM` keeps the shell from ending it, as a daemon dying on SIGTERM would not.
+        let script = format!(
+            "trap '' TERM; /usr/bin/setsid /bin/sleep 300 & echo $! > {}; wait",
+            pidfile.display()
+        );
+        let guard = Reaped::spawn(Command::new("/bin/sh").args(["-c", &script])).expect("spawn");
+        let started = (0..200).find_map(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            std::fs::read_to_string(&pidfile)
+                .ok()
+                .and_then(|t| t.trim().parse::<u32>().ok())
+        });
+        let grandchild = started.expect("the grandchild started");
+        drop(guard);
+        let gone = (0..200).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            !std::path::Path::new(&format!("/proc/{grandchild}")).exists()
+                || std::fs::read_to_string(format!("/proc/{grandchild}/stat"))
+                    .unwrap_or_default()
+                    .contains(") Z ")
+        });
+        assert!(gone, "grandchild {grandchild} outlived the guard");
+    }
 
     #[test]
     fn a_grandchild_goes_with_the_child() {
