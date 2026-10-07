@@ -112,6 +112,14 @@ settings file the shell's pages write), `docket-ds` (quire's adapter), `docket-t
 `docket-accept`. cua (computer use) is above docket and desktop only. These light up when
 `org.quire.Intents1` answers; a missing one means the in-app path, never an error.
 
+Two kinds of Cargo feature, kept apart. A *platform feature* says what the OS provides (inotify,
+PipeWire, `/proc`): named for the thing, off where the OS lacks it. The *app-level desktop switch*
+is `quire-desktop`, mapped by implication: a crate with a D-Bus client has
+`quire-desktop = ["dbus"]` (default on), and `dbus` stays the transport feature that pulls zbus.
+`docket-client` is the one such crate here (`docket-dbus` is the D-Bus layer itself and has no
+switch; its `inferd` feature names a transport, not the desktop). A portable build is
+`--no-default-features`.
+
 `scripts/check-portable.sh` is the mechanical form: `cargo check --no-default-features` on exactly
 the portable list, a `cargo tree` grep for the forbidden crates, and `cargo check --target` for
 every cross target rustup already has. `scripts/check-boundary.sh` holds the rows (the portable

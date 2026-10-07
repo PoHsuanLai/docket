@@ -30,6 +30,7 @@ impl OpenTask {
                 turn: None,
                 steps: 0,
                 pending: vec![],
+                guard: Default::default(),
             },
             turns: Vec::new(),
             history: Vec::new(),
@@ -78,6 +79,25 @@ impl OpenTask {
             shown: StepShown::Full,
         });
         end
+    }
+
+    /// A call the loop did not make because the planner had made it before and nothing had
+    /// changed: a line in the history, so the next view says why. The router is not asked.
+    pub fn hold(
+        &mut self,
+        call: &docket_core::CallRequest,
+        effect: Effect,
+        why: docket_core::Held,
+    ) {
+        let id = CallId(self.next_call);
+        self.next_call += 1;
+        self.history.push(StepLine {
+            call: id,
+            action: call.action.clone(),
+            effect,
+            end: StepEnd::Held(why),
+            shown: StepShown::Full,
+        });
     }
 
     fn reveal(&mut self, held: Labelled<Value>) -> Reveal<Value> {

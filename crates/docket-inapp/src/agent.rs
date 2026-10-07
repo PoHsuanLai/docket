@@ -345,6 +345,10 @@ where
                             failure = Some(Failure::Refused(refusal));
                         }
                     }
+                    LoopEffect::Held(call, why) => {
+                        let effect = self.effect_of(&call);
+                        task.hold(&call, effect, why);
+                    }
                     LoopEffect::Publish(_) | LoopEffect::Note(_) | LoopEffect::CloseTask => {}
                 }
             }
@@ -428,14 +432,17 @@ where
         }
     }
 
+    fn effect_of(&self, call: &CallRequest) -> Effect {
+        self.planner
+            .catalogue()
+            .of(&call.action)
+            .map_or(Effect::Read, |t| t.decl.effect)
+    }
+
     /// One call, through the router: gated, reviewed, confirmed on the app's sheet where the
     /// gate says so, performed by the app's own provider.
     async fn call(&self, task: &mut OpenTask, call: CallRequest, id: CallId) -> LoopInput {
-        let effect = self
-            .planner
-            .catalogue()
-            .of(&call.action)
-            .map_or(Effect::Read, |t| t.decl.effect);
+        let effect = self.effect_of(&call);
         let result = self
             .intents
             .perform(call.clone(), Some(task.session.clone()), None)

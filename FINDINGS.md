@@ -1435,10 +1435,10 @@ What this lane built. The rule: everything except the desktop environment is cro
 desktop's extras are additive. docket's portable core is an in-app agent.
 
 - `docket-client` was already split: `dbus` (the transport and `serve_on`) pulls zbus, nothing else
-  does; `serve` without it answers `Closed`. It is now `default = ["dbus"]` so a consumer outside the
+  does; `serve` without it answers `Closed`. It is now `default = ["quire-desktop"]` with `quire-desktop = ["dbus"]` (design/36: the app-level switch, implied by the D-Bus client; `dbus` stays the transport feature) so a consumer outside the
   workspace is unchanged, while the workspace declares it with `default-features = false` and each
   desktop crate names `dbus` (as sill already does), so every in-workspace build is what it was.
-- `docket-planner` (new, portable): companiond's `PlannerModel`, `Catalogue`, prompt rendering and
+- `docket-planner` (new, portable): companiond's `PlannerModel`, `Catalogue`, prompt rendering, `step_text` (loop-guard) and
   `read_call` moved out unchanged, generic over any `porter_client::Transport`. `PlannerModel::on_bus`
   is gone (an inherent impl cannot live in another crate); companiond writes
   `PlannerModel::new(docket_dbus::inferd_transport(connection))`. companiond re-exports every name, so
@@ -1448,12 +1448,12 @@ desktop's extras are additive. docket's portable core is an in-app agent.
   and a router `Clock` `K`. `ask(text)` records the person's turn, then runs `agent_step` over the
   planner and the router (gate, Cedar, reviewer, budgets, the sheet) until the task is done, asks a
   question, pauses or fails, and returns a `Reply` (words, the calls and how each ended, the
-  `Ending`). Seven tests (`crates/docket-inapp/tests/in_app.rs`) run it with docket-fake's mail
+  `Ending`). Eight tests (`crates/docket-inapp/tests/in_app.rs`) run it with docket-fake's mail
   provider, companiond's scripted model transport (one file, included by path, not copied), a sheet
   the test answers and a virtual clock: a words-only turn, a write that asks on the sheet and runs on
   yes, a no that leaves the app untouched, an unanswered sheet that is a dismissal and never a yes, a
   read whose untrusted text reaches the planner only as a handle, a question that carries into the next
-  `ask` in the same task, and a model that gives nothing usable.
+  `ask` in the same task, and a model that gives nothing usable, and a dismissed call that is not made again (breaker or repeat guard). `LoopEffect::Held` is handled as companiond does: a `StepEnd::Held` line in the history, no router call.
 - Two callers, never one. The host speaks to the router as two callers of the app's own name: role
   `companion` (the planner's calls) and role `field` (the app's own prompt, which alone records turns,
   so the task policy is capped to this app plus reads). A first draft gave one caller both roles; the

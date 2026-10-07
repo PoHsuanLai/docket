@@ -236,3 +236,25 @@ async fn a_model_that_gives_nothing_usable_fails_the_turn_without_touching_the_a
     assert!(matches!(reply.ending, Ending::Failed(_)), "{reply:?}");
     assert!(reply.steps.is_empty());
 }
+
+#[tokio::test]
+async fn a_call_the_person_dismissed_is_not_made_again_by_asking_again() {
+    let same = || call(READ, json!({ "target": thread("t1") }));
+    let (mut agent, _) = agent(
+        vec![same(), same(), words("Giving up.")],
+        TestSheet::default(),
+    );
+    let reply = agent.ask("read it").await.expect("turn");
+    assert!(
+        matches!(reply.steps[0].end, StepEnd::Unconfirmed(_)),
+        "{reply:?}"
+    );
+    assert!(
+        matches!(
+            reply.steps[1].end,
+            StepEnd::Refused(CallRefusal::Denied(_)) | StepEnd::Held(_)
+        ),
+        "the breaker or the repeat guard stops it: {reply:?}"
+    );
+    assert_eq!(reply.ending, Ending::Done);
+}

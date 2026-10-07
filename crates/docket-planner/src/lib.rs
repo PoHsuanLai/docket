@@ -12,6 +12,7 @@ mod args;
 mod catalogue;
 mod planner;
 mod render;
+mod step_text;
 
 pub use args::{ArgsFault, ReadCall, planner_label, read_call};
 pub use catalogue::{Catalogue, CatalogueTool, TARGET};

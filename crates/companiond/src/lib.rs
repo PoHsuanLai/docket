@@ -32,7 +32,6 @@ mod serve;
 mod shared;
 mod sources;
 mod speaker;
-mod step_text;
 mod task;
 
 pub use clock::Clock;
