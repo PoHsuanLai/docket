@@ -13,7 +13,6 @@ use crate::render::messages;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
 use docket_core::{CallRequest, Origin, PlannerView, ReaderAsk};
-use docket_dbus::InferLink;
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
@@ -73,14 +72,6 @@ pub struct PlannerReply {
 pub struct PlannerModel<P: Transport> {
     infer: P,
     catalogue: Catalogue,
-}
-
-impl PlannerModel<InferLink> {
-    /// Asks inferd over the session bus (`InferLink`). Nothing is called here: inferd is
-    /// found, and started by activation, at the first session.
-    pub fn on_bus(connection: &docket_dbus::BusConnection) -> Self {
-        Self::new(docket_dbus::inferd_transport(connection))
-    }
 }
 
 fn schema_text(schema: &Json) -> Option<JsonSchemaText> {
@@ -216,12 +207,12 @@ impl<P: Transport> PlannerModel<P> {
     }
 
     /// Runs a chat turn to its end and returns the reply.
-    pub(crate) async fn chat(&self, request: ChatRequest) -> Result<ChatReply, PlanFault> {
+    pub async fn chat(&self, request: ChatRequest) -> Result<ChatReply, PlanFault> {
         self.chat_routed(request).await.map(|(reply, _)| reply)
     }
 
     /// A chat turn and how it was routed: the reasons, doors and stages inferd announced.
-    pub(crate) async fn chat_routed(
+    pub async fn chat_routed(
         &self,
         request: ChatRequest,
     ) -> Result<(ChatReply, Vec<RouteNote>), PlanFault> {

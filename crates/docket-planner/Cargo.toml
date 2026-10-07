@@ -1,0 +1,25 @@
+[package]
+name = "docket-planner"
+description = "The planner model: the working-set view rendered into a chat request, the catalogue of tools, and the reply read back into a ModelOutput, over any porter-client Transport. Portable: no bus, no runtime."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+agent-loop = { workspace = true }
+almanac-core = { workspace = true }
+companion-wire = { workspace = true }
+docket-core = { workspace = true }
+porter-client = { workspace = true }
+porter-core = { workspace = true }
+porter-infer = { workspace = true }
+prov = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

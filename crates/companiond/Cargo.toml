@@ -21,6 +21,7 @@ agent-loop = { workspace = true }
 almanac-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
+docket-planner = { workspace = true }
 docket-skills = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true, features = ["inferd"] }

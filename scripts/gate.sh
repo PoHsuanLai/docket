@@ -8,5 +8,6 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo test -p policy-point -p docket-eval
 ./scripts/check-boundary.sh
+./scripts/check-portable.sh
 cargo deny check licenses
 echo "GATE GREEN"

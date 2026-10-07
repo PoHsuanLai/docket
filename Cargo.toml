@@ -9,6 +9,8 @@ members = [
   "crates/companion-wire",
   "crates/companion-client",
   "crates/agent-loop",
+  "crates/docket-planner",
+  "crates/docket-inapp",
   "crates/docket-dbus",
   "crates/docket-client",
   "crates/docket-fake",
@@ -47,8 +49,10 @@ docket-router  = { path = "crates/docket-router" }
 companion-wire = { path = "crates/companion-wire" }
 companion-client = { path = "crates/companion-client" }
 agent-loop     = { path = "crates/agent-loop" }
+docket-planner = { path = "crates/docket-planner" }
+docket-inapp   = { path = "crates/docket-inapp" }
 docket-dbus    = { path = "crates/docket-dbus" }
-docket-client  = { path = "crates/docket-client" }
+docket-client  = { path = "crates/docket-client", default-features = false }
 docket-fake    = { path = "crates/docket-fake" }
 docket-testbus = { path = "crates/docket-testbus" }
 docket-eval    = { path = "crates/docket-eval" }

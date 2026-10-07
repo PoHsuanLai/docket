@@ -4,11 +4,11 @@
 use crate::clock::Clock;
 use crate::config::CompaniondConfig;
 use crate::fault::ServeFault;
-use crate::planner::PlannerModel;
 use crate::runtime::Companiond;
 use crate::serve::serve_on;
 use docket_client::{DbusTransport, Intents};
 use docket_dbus::{BusConnection, InferLink};
+use docket_planner::PlannerModel;
 use docket_skills::{Roots, discover};
 use futures_util::StreamExt;
 use std::sync::Arc;

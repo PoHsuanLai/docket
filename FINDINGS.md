@@ -1428,3 +1428,100 @@ turn, as Failed with nothing for the person. It also named handles it was never 
   `repeat-invented-handle` (each ends `asks`, nothing sent; the cassettes hold exactly the replies needed, so a model step
   past the guard fails the case). Changed: `loop-same-search-forty-times` and `oscillate-two-searches-forty-times` end
   `asks` (was `failed` by budget).
+
+## portable-core: an in-app agent that needs no desktop (quire design/36)
+
+What this lane built. The rule: everything except the desktop environment is cross-platform; the
+desktop's extras are additive. docket's portable core is an in-app agent.
+
+- `docket-client` was already split: `dbus` (the transport and `serve_on`) pulls zbus, nothing else
+  does; `serve` without it answers `Closed`. It is now `default = ["dbus"]` so a consumer outside the
+  workspace is unchanged, while the workspace declares it with `default-features = false` and each
+  desktop crate names `dbus` (as sill already does), so every in-workspace build is what it was.
+- `docket-planner` (new, portable): companiond's `PlannerModel`, `Catalogue`, prompt rendering and
+  `read_call` moved out unchanged, generic over any `porter_client::Transport`. `PlannerModel::on_bus`
+  is gone (an inherent impl cannot live in another crate); companiond writes
+  `PlannerModel::new(docket_dbus::inferd_transport(connection))`. companiond re-exports every name, so
+  its tests and its callers are unchanged.
+- `docket-inapp` (new, portable): `InAppAgent<P, C, T, R, M, K>` over the app's `IntentProvider` `P`,
+  its `ContextSource` `C`, its `ConfirmSheet` `T`, a `Reviewer` `R`, a `porter_client::Transport` `M`
+  and a router `Clock` `K`. `ask(text)` records the person's turn, then runs `agent_step` over the
+  planner and the router (gate, Cedar, reviewer, budgets, the sheet) until the task is done, asks a
+  question, pauses or fails, and returns a `Reply` (words, the calls and how each ended, the
+  `Ending`). Seven tests (`crates/docket-inapp/tests/in_app.rs`) run it with docket-fake's mail
+  provider, companiond's scripted model transport (one file, included by path, not copied), a sheet
+  the test answers and a virtual clock: a words-only turn, a write that asks on the sheet and runs on
+  yes, a no that leaves the app untouched, an unanswered sheet that is a dismissal and never a yes, a
+  read whose untrusted text reaches the planner only as a handle, a question that carries into the next
+  `ask` in the same task, and a model that gives nothing usable.
+- Two callers, never one. The host speaks to the router as two callers of the app's own name: role
+  `companion` (the planner's calls) and role `field` (the app's own prompt, which alone records turns,
+  so the task policy is capped to this app plus reads). A first draft gave one caller both roles; the
+  router acts in the first role that may make a call, so `field` won `Perform`, the model spoke with
+  the person's voice and untrusted text reached the planner as plain text. The test
+  `a_read_runs_without_asking_and_the_text_reaches_the_planner_only_as_a_handle` pins the fix.
+- The sheet cannot forge a yes. The app implements `ConfirmSheet` (draw the request, answer
+  `Once`, `Always`, `Refused` or `Dismissed`); `SheetConfirmer` builds the `ConfirmReceipt` itself
+  (`InputProof::SheetFallback`, the clock's time, `covers: Secret`), and `Always` counts only where
+  the sheet offered it.
+- `scripts/check-portable.sh` (in `scripts/gate.sh`, no network): `cargo check --no-default-features
+  --all-targets` on exactly the portable list, a `cargo tree` grep for zbus, zvariant, inotify,
+  landlock, pipewire, notify and libspa, and `cargo check --target` for each cross target rustup has.
+  Targets named by the owner and not installed here: `x86_64-apple-darwin`, `x86_64-pc-windows-gnu`.
+  Installed and checked: `x86_64-pc-windows-msvc`.
+- `check-boundary.sh` has RULES and EDGES rows for both new crates and the companiond edge to
+  `docket-planner`; ARCHITECTURE.md section 1a names the portable core and the desktop extras.
+
+What is still missing for a real app (mailo, anyview) to host it, each with its owner.
+
+1. Model access without inferd. `porter-client::InProcess` exists, but its inference broker is the
+   `SessionHost` seam and the only implementation is `NoBroker` (every `open` is `Unreachable`). A
+   portable broker, the routing of a `Need` and `DataClass` to a model account and a local or HTTP
+   engine, is inferd's brain as a library without the bus. Owner: porter (a `porter-infer-host` or
+   `inferd-core` crate with a `SessionHost`). Until it exists an app reaches a model only by running
+   inferd and the latchkey socket (`SocketTransport`, feature `socket`); the Windows named pipe is not
+   built there either (porter).
+2. Reviewer and policy writer over a model. `action-review::InferReviewer` takes a porter-infer
+   `Model`; intentd's `InferdModel` and `InferdWriter` build one from the bus, so the in-app host has
+   no model-backed reviewer or task-policy writer: it takes a `Reviewer` from the app, and
+   `NoWriter` derives no task policy (the default policies and the reviewer decide alone). Owner:
+   docket (generic `InferdModel<T: porter_client::Transport>` and `InferdWriter` moved out of intentd
+   into a portable crate, as `docket-planner` was moved out of companiond).
+3. Memory. `NoMemory` answers unavailable, so the working set has no primer, profile, recall or
+   episodes and nothing is remembered between runs. almanac master (bf4992d) now has what the other
+   half needs: `almanac-client`'s `in_process` Transport (feature `in_process`, no memoryd, no bus) and
+   `ProvidedKeys`. Owner: docket, only: a `MemoryLink` adapter over `almanac-client` with that
+   transport (`MemoryLink` is docket-router's trait; the adapter maps `MemoryRequest`/`MemoryReply`),
+   plus the audit trail written as episodes. Not done here: it adds an almanac-client edge to a portable
+   crate and wants almanac's own gate to settle first. No ask of almanac.
+4. Consent storage. `SessionGrants` keeps "always" grants in memory only; the person's standing
+   consent is gone when the app quits. Owner: docket (a `GrantStore` over a file the app names, the
+   shape of intentd's `FileGrants` without its `/proc` and XDG paths) and the app (where the file
+   lives).
+5. The audit trail. `AuditBuffer` holds records in memory; the app drains them. Owner: the app, or
+   almanac's event log through item 3.
+6. A clock. The router's `Clock` needs `after` (a deadline for the reviewer race); the only clocks
+   are docket-fake's virtual one and companiond's, which is tokio. Owner: docket (a runtime-neutral
+   `SystemClock` behind a feature, or the app's executor's timer), so no app writes one.
+7. The quarantined reader. `NoReader` fails a `quire_read` step, which ends the turn as failed. The
+   reader is a separate process on the desktop (readerd) for isolation; in-app it must be a second
+   model session with no tools in the same process. Owner: docket (a portable `Reader` over a
+   `porter_client::Transport`, moved out of readerd's `ReaderHost` as in item 2).
+8. One task, no front pointer, roster, side conversations, idle pass or restart recovery.
+   `InAppAgent` runs one task at a time and keeps nothing across a restart. The pure machines for the
+   rest are in `agent-loop`; what drives them is companiond's `Companiond`, which is generic over its
+   transports but lives in a crate that links zbus. Owner: docket (extract `TaskRuntime`, `sources` and
+   the drive loop into a portable crate that both companiond and `docket-inapp` use; the two copies
+   of `record_call` and the sources assembly in `docket-inapp/src/turn.rs` and `agent.rs` are the
+   cost until then).
+9. Skills. The host installs no skills (`Sources.skills` is empty). Owner: docket (`docket-inapp`
+   takes `Vec<Skill>` and calls `router.install_skills`, as the companiond tests do).
+10. The capability probe. design/36 has the app choose in-app or desktop at run time (`Desktop::probe()`
+    of quire's `ds-desktop`). Nothing here chooses; an app builds `InAppAgent` or talks to intentd.
+    Owner: quire (`ds-desktop`, planned) and each app.
+
+Interface asks.
+- porter: item 1 (a `SessionHost` that routes to a model without the bus) and the Windows named pipe.
+- almanac: none (item 3 is docket's adapter over `almanac-client` `in_process`).
+- quire: `ds-desktop` for item 10; nothing else.
+- stoker: none.

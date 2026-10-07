@@ -24,6 +24,9 @@ cua-action = { workspace = true }
 tokio = { workspace = true }
 
 [features]
+# The desktop transport is on by default so a consumer outside this workspace is unchanged; the
+# workspace declares docket-client with default-features = false and each desktop crate names `dbus`.
+default = ["dbus"]
 # The D-Bus transport (Linux, the desktop's intentd).
 dbus = ["dep:docket-dbus", "dep:futures-util", "dep:serde", "dep:serde_json", "dep:zbus"]
 # `InProcess`: the router in the caller's own process. Off by default so a client (cuad, an app)

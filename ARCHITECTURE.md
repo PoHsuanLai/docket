@@ -26,8 +26,10 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `companion-wire` | the bodies of `org.quire.Companion1`: `AskWire`, `AnswerWire` and its cards, plans, forms and refusals, `FrontTask`, and the `SessionRecord`s companiond stores | none |
 | `companion-client` | the person's side of `org.quire.Companion1`: `CompanionTransport` (open, ask, follow the answer object, close) and `DbusCompanion` over the session bus; what `quire-do ask` is written against. Not in `docket-client`, so the apps and cuad that use that crate do not take on the companion's wire | the session bus (`DbusCompanion`) |
 | `agent-loop` | the companion's pure machines: `assemble`, `agent_step` (inputs include `Messaged`, a request landing in an idle task), `choose_tier`, `side_step`, `idle_step`, `completion_line`, `leaked_call` (a tool call a model left in its words), `rebuild`, `front_step` | none |
+| `docket-planner` | the planner model, portable: `PlannerModel<P: porter_client::Transport>` (`converse`: a view in, one `PlannerReply` out), `Catalogue` (the manifests' actions as tools), the prompt (`RULES`, `messages`), `read_call` and `planner_label`. Moved out of companiond so an app-hosted agent asks its own model the same way; the transport is the caller's choice (inferd over D-Bus on the desktop, the latchkey socket or `InProcess` elsewhere) | per transport |
+| `docket-inapp` | the in-app agent (design/36): `InAppAgent` hosts the router, policy point, reviewer, agent loop and planner inside one app over that app's own `IntentProvider`, with `ConfirmSheet` (the app's own sheet; `SheetConfirmer` mints the receipt), `ProviderLink`, `InAppSeams`, `SessionGrants`, `AuditBuffer` and the `NoMemory`, `NoReader`, `NoWriter` seams. No intentd, no bus, no daemon | none (the model transport and the sheet are passed in) |
 | `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`) and `Reader1` as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths, `session_connection` (the session bus of a daemon, from its environment); with feature `inferd`, `inferd_transport`, the one constructor of every daemon's inferd link (an `InferLink`: the transport behind `tap`, the model tap a live run turns on with `DOCKET_MODEL_TRACE`) | zbus |
-| `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`, `serve_on`: `IntentProvider1` on the app's own name, answering intentd alone) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus`, whose `connect` finds or activates intentd and whose `call` carries all 34 members, and `Transport::watch` / `Intents::gate_check_watched` (a gate check whose `Progress(Confirming)` is heard and whose `Proceed` and `Close` are said) and `Intents::perform_watched` (a `Run.Perform` whose `Progress` is heard: `Reviewing`, `Previewing`, `Confirming(id)`, `Dispatched`; nothing waits for the caller); `requested` waits for a Request object's `Response`) | per transport |
+| `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`, `serve_on`: `IntentProvider1` on the app's own name, answering intentd alone) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus` (on by default for a consumer outside the workspace; the workspace declares the crate with `default-features = false` and each desktop crate names `dbus`), whose `connect` finds or activates intentd and whose `call` carries all 34 members, and `Transport::watch` / `Intents::gate_check_watched` (a gate check whose `Progress(Confirming)` is heard and whose `Proceed` and `Close` are said) and `Intents::perform_watched` (a `Run.Perform` whose `Progress` is heard: `Reviewing`, `Previewing`, `Confirming(id)`, `Dispatched`; nothing waits for the caller); `requested` waits for a Request object's `Response`) | per transport |
 | `docket-fake` | test only: fixture manifests, `FakeMail`, `FakeFiles`, `ScriptedConfirmer`, `ScriptedReviewer`, `ScriptedWriter`, `ParsedReviewer` (a reviewer whose replies are raw text read by `parse_verdict`), `ScriptedReader`, `FakeMemory`, `FixedClock` (a virtual clock: `advance`, `asked`, `next_ask`), `RecordingSink`, `MemoryGrants`, `FakeSeams`, `fake_router` | none |
 | `docket-testbus` | test only: `PrivateBus` (a private session bus from a scratch config; the daemon is killed by PID, and waited for, when it drops, and by a watchdog if the test process is killed) and `Reaped`, the guard under it; every daemon's bus tests use it | zbus |
 | `docket-accept` | test only: the agent tier's end-to-end acceptance. Thin mains run intentd, companiond and readerd as processes (`accept-*`); `build.rs` builds porter's `inferd` and almanac's `memoryd` (feature `test-keys`) from their own workspaces into `<target>/accept-siblings`, and inferd plays the cassettes in `dev/accept/cassettes`; the library holds the `Confirm1` server, the mail provider, the world (private bus, scratch dirs, event-driven waits) and the launcher's calls. `dev/accept/` holds the fixtures, README and `run.sh` | intentd, companiond, readerd, docket-testbus (inferd and memoryd by build.rs) |
@@ -36,7 +38,7 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `actions-mcp` | the MCP edge: `tools`, `tool_name`, `hints_of`, `mcp_label`, `McpExpose` (the setting `agent.mcp.expose`, off by default; `settings.rs` reads `docket/settings.toml` through `docket-settings`, again at every request, because this crate may not link a watcher), `read_call` (docket-core's `args_from_json`), `McpFault`, `McpEdge` over `rmcp`, which serves `list_tools` and `call_tool`; the binary (`McpConfig`, `claim`, `start`, `run`): stdio or `--socket`, off unless the settings file says `agent.mcp.expose = "on"`, one bus name (`org.quire.ActionsMcp`, the `mcp` role) | rmcp |
 | `docket-settings` | the person's settings (design/22 section 3.27): `read` (text in, `AgentSettings` out: lenient, a bad value falls back per key and is a `Fallback`), the key table (`keys.rs`, held to the schema by tests), `Locator` (`$XDG_CONFIG_HOME/docket/settings.toml`, then `$XDG_CONFIG_DIRS`), `McpExpose`, `SCHEMA` (`dist/settings/docket.settings.toml`), `REVIEW_CEILING`. No bus, no runtime, no watcher: intentd owns the directory watch | the settings file |
 | `intentd` | the daemon and its library: `IntentdConfig` (and the shipped `dist/intentd.toml`), the built-in `org.quire.Memory` and `org.quire.Companion` providers and `HostedLink` (which answers them in process), `AlmanacMemory`, `QueuedSink` (bounded), `record_of` and `AuditLog` (the audit trail into memoryd), `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `InferdWriter`, `ReaderClient`, `SystemSeams`, `Peers` (who is on a connection: names, else the cgroup read through porter's `ProcCallers`; `ProcRoot`, the test-only `INTENTD_PROC_ROOT`; the terminal scope names are `docket_core::is_terminal_scope`), `serve` / `serve_on` (one handler per `Intents1` interface), `signals` (`Marks`, `changes`, `pump`: the signals that say the router's state changed), `SettingsWatch` (the directory watch on `docket/settings.toml`; `apply_next` puts each change in force on the router through `Router::apply_settings`), `watch_logind` (the end of the person's session), `start` / `run` (the daemon) | everything |
-| `companiond` | the companion daemon: `Companiond` (one identity over many tasks: `TaskRuntime`, the working set `sources`, the loop's effects `drive`, a pressed card `act`, messages `inbox`, episodes `finish`, the idle pass `idle`, restart `resume`), `PlannerModel` over a `Catalogue`, `Shared` (what the bus reads), `recover` (and `RouterRecent`, its `RecentSource` over the router), `completion_effects`, `CompaniondConfig`, `start` / `run` (the daemon), `serve`, `serve_on` and `serve_on_rooted`, `speaker` (who speaks for the person: the shell for everything, a terminal for `Open`, `Ask` and `Close` only; the test-only `COMPANIOND_PROC_ROOT`) | everything |
+| `companiond` | the companion daemon: `Companiond` (one identity over many tasks: `TaskRuntime`, the working set `sources`, the loop's effects `drive`, a pressed card `act`, messages `inbox`, episodes `finish`, the idle pass `idle`, restart `resume`), `PlannerModel` (docket-planner's, over inferd) over a `Catalogue`, `Shared` (what the bus reads), `recover` (and `RouterRecent`, its `RecentSource` over the router), `completion_effects`, `CompaniondConfig`, `start` / `run` (the daemon), `serve`, `serve_on` and `serve_on_rooted`, `speaker` (who speaks for the person: the shell for everything, a terminal for `Open`, `Ask` and `Close` only; the test-only `COMPANIOND_PROC_ROOT`) | everything |
 | `readerd` | the quarantined reader, a separate process: `ReaderHost` (the one place the reader key is made), `reader_request`, `ReaderService`, `serve`, `start` / `run` (the daemon) | everything |
 | `docket-ds` | the adapter quire apps use: chips and keep, things and labels, summon answers, `DsContextSource`, `DsSummonTarget`, the voice bridge | none |
 | `voice-wire` | the bodies of `org.quire.Voice1`: `VoiceBegin`, `VoiceEvent`, `UtteranceEnd`, `VoiceStatus`, `VoiceRefusal` and its 1:1 error names, `SpeakWire` | none |
@@ -55,6 +57,8 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `companion-wire` | `docket-core`, `prov`, `porter-core`, `porter-infer`, `almanac-core` |
 | `companion-client` | `companion-wire`, `docket-core`, `docket-client`, `docket-dbus`, `prov` |
 | `agent-loop` | `docket-core`, `companion-wire`, `almanac-core`, `porter-core`, `prov` |
+| `docket-planner` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `porter-client` (no features), `porter-core`, `porter-infer`, `prov` |
+| `docket-inapp` | `action-review`, `agent-loop`, `almanac-core`, `companion-wire`, `docket-client` (feature `in_process`), `docket-core`, `docket-planner`, `docket-router`, `policy-point`, `porter-client` (no features), `porter-core`, `prov` |
 | `docket-dbus` | `docket-core`, `prov`, `porter-dbus`; `porter-client` with feature `inferd` |
 | `docket-client` | `docket-core`, `docket-router`, `prov`; `docket-dbus` with feature `dbus` |
 | `docket-fake` | `docket-core`, `docket-router`, `docket-client`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
@@ -64,7 +68,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `docket-settings` | `docket-core`, `porter-core` |
 | `actions-mcp` | `docket-core`, `docket-client`, `docket-dbus`, `docket-settings`, `prov`, `porter-core` (+ `rmcp`) |
 | `intentd` | `docket-core`, `docket-skills`, `docket-settings`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
-| `companiond` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `docket-skills`, `docket-settings`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
+| `companiond` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `docket-planner`, `docket-skills`, `docket-settings`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
 | `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
 | `docket-cli` | `companion-client`, `companion-wire`, `docket-core`, `docket-skills`, `docket-client` (feature `dbus`), `model-provider`, `prov`, `porter-core` |
 | `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
@@ -85,6 +89,35 @@ there). `zbus` is behind `docket-dbus` and `docket-client`'s `dbus` feature only
 never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp` only in
 `actions-mcp`.
 
+## 1a. Portable core and desktop extras
+
+The rule (quire design/36): everything except the desktop environment is cross-platform, and
+the desktop's features are additive extras that are probed at run time and absent from foreign
+builds. For docket that makes two sets.
+
+**Portable core: an in-app agent.** These crates build with `--no-default-features` on macOS and
+Windows, reach no `zbus`, `inotify`, `landlock`, `pipewire` or `/proc`, and carry no D-Bus type
+in a public signature: `docket-core`, `docket-skills`, `policy-point`, `action-review`,
+`docket-router`, `companion-wire`, `agent-loop`, `docket-planner`, `docket-client` (the app side,
+`IntentProvider`, and `InProcess`, without its `dbus` feature), `docket-fake`, `docket-eval`,
+`docket-inapp` (the host that runs the others inside one app), `voice-wire` and `voice-loop`.
+An app that embeds `docket-inapp` gets the whole gate (Cedar policy point, reviewer, breaker,
+budgets, the confirm sheet only the person can answer) with no other process.
+
+**Desktop extras: one companion across every app.** `docket-dbus` and `docket-client`'s `dbus`
+feature (the transport), `intentd` (the cross-app broker and its audit trail), `companiond` (one
+identity over many tasks), `readerd` (the quarantined reader as a process), `voiced` (the
+microphone), `actions-mcp`, `quire-do` (`docket-cli`), `companion-client`, `docket-settings` (the
+settings file the shell's pages write), `docket-ds` (quire's adapter), `docket-testbus` and
+`docket-accept`. cua (computer use) is above docket and desktop only. These light up when
+`org.quire.Intents1` answers; a missing one means the in-app path, never an error.
+
+`scripts/check-portable.sh` is the mechanical form: `cargo check --no-default-features` on exactly
+the portable list, a `cargo tree` grep for the forbidden crates, and `cargo check --target` for
+every cross target rustup already has. `scripts/check-boundary.sh` holds the rows (the portable
+rows never list a bus). The seams that have no portable answer yet are the "what is still
+missing" list in `FINDINGS.md` (portable-core).
+
 ## 2. Modules
 
 | Crate | Modules |
@@ -97,6 +130,8 @@ never reaches an effect crate; `cedar-policy` only through `policy-point`; `rmcp
 | `companion-wire` | `ask`, `answer` < `record` |
 | `companion-client` | `lib` (`CompanionTransport`, `Follow`) < `bus` (`DbusCompanion`, `BusAnswer`) |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `step` |
+| `docket-planner` | `args`, `catalogue` < `render` < `planner` |
+| `docket-inapp` | `link`, `sheet`, `seams` < `turn` < `agent` |
 | `docket-dbus` | `names`, `error`, one file per interface, `introspect` |
 | `docket-client` | `provider`, `transport` < `watch` < `awaiting`, `watch_bus`, `watch_in_process` < `bus` < `intents`, `session_calls`, `provider_bus` < `serve` |
 | `docket-fake` | `labels`, `simple`, `mail`, `files`, `scripted`, `seams`, `router` |

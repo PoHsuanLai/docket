@@ -5,7 +5,6 @@
 
 use crate::fault::ServeFault;
 use crate::plan::phase_of;
-use crate::planner::PlanFault;
 use crate::runtime::Companiond;
 use agent_loop::{
     IdleInput, LoopEffect, LoopInput, LoopPhase, LoopState, ModelOutput, agent_step, assemble,
@@ -17,6 +16,7 @@ use docket_core::{
     ActionRef, CallId, CallProgress, CallRefusal, CallRequest, ReadAsk, ReaderAsk, Reveal, StepEnd,
     WireRefusal,
 };
+use docket_planner::PlanFault;
 use porter_client::Transport as InferTransport;
 use prov::{ActionName, Effect, Labelled, TaskId};
 use std::collections::VecDeque;
@@ -372,11 +372,11 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
                     let held = match &reveal {
                         Reveal::Plain(v) => Labelled {
                             value: v.clone(),
-                            label: crate::args::planner_label(),
+                            label: docket_planner::planner_label(),
                         },
                         Reveal::Handle(h) => Labelled {
                             value: docket_core::Value::Handle(*h),
-                            label: crate::args::planner_label(),
+                            label: docket_planner::planner_label(),
                         },
                     };
                     let outcome = docket_core::Outcome {

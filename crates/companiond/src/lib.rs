@@ -12,8 +12,6 @@
 //! - `serve`, `serve_on`: `org.quire.Companion1`.
 
 mod act;
-mod args;
-mod catalogue;
 mod clock;
 mod completion;
 mod config;
@@ -26,10 +24,8 @@ mod idle;
 mod inbox;
 mod linger;
 mod plan;
-mod planner;
 mod records;
 mod recover;
-mod render;
 mod resume;
 mod runtime;
 mod serve;
@@ -39,16 +35,17 @@ mod speaker;
 mod step_text;
 mod task;
 
-pub use args::{ArgsFault, ReadCall, planner_label, read_call};
-pub use catalogue::{Catalogue, CatalogueTool, TARGET};
 pub use clock::Clock;
 pub use completion::completion_effects;
 pub use config::{CompaniondConfig, ConfigError};
 pub use daemon::{Daemon, run, start, start_with};
+pub use docket_planner::{
+    ArgsFault, Catalogue, CatalogueTool, PlanFault, PlannerModel, PlannerReply, RULES, ReadCall,
+    TARGET, TOOL_ASK, TOOL_FINISH, TOOL_READ, messages, planner_label, read_call, system_text,
+    user_text,
+};
 pub use fault::ServeFault;
-pub use planner::{PlanFault, PlannerModel, PlannerReply, TOOL_ASK, TOOL_FINISH, TOOL_READ};
 pub use recover::{RecentSource, ReplayFault, RouterRecent, recover, replay_of, restart_query};
-pub use render::{RULES, messages, system_text, user_text};
 pub use runtime::{Begun, Companiond};
 pub use serve::{serve, serve_on, serve_on_rooted};
 pub use shared::{Change, Shared};

@@ -27,6 +27,13 @@ RULES=(
   "docket-skills: $EFFECTS"
   "companion-wire: $EFFECTS toml"
   "agent-loop: $EFFECTS toml"
+  # The planner is portable: it asks any porter-client Transport (porter-client without its
+  # `dbus` and `socket` features reaches no runtime), so inferd over D-Bus is companiond's
+  # choice of transport, never the planner's.
+  "docket-planner: $EFFECTS"
+  # The in-app agent: the router (and with it Cedar) hosted in one app, no bus, no runtime, no
+  # HTTP, no watcher. docket-client only behind `in_process`, never `dbus`.
+  "docket-inapp: $NO_CEDAR"
   "voice-wire: $EFFECTS toml"
   "voice-loop: $EFFECTS toml"
   # zbus lives in docket-dbus, and in docket-client only behind its `dbus` feature.
@@ -70,10 +77,14 @@ for rule in "${RULES[@]}"; do
     continue
   fi
   leaked=0
+  # docket-client's default feature is the desktop transport (`dbus`); the rule is about the
+  # portable build, so it is read without it. The `dbus` edge is held by the EDGES row below.
+  nodef=()
+  [ "$crate" = docket-client ] && nodef=(--no-default-features)
   for dep in "${forbidden[@]}"; do
-    if cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+    if cargo tree -p "$crate" "${nodef[@]}" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
       echo "LEAK: $crate depends on $dep"
-      cargo tree -p "$crate" -i "$dep" -e normal,build 2>/dev/null | head -20
+      cargo tree -p "$crate" "${nodef[@]}" -i "$dep" -e normal,build 2>/dev/null | head -20
       leaked=1
       fail=1
     fi
@@ -115,6 +126,8 @@ EDGES=(
   "docket-router: action-review almanac-core docket-core docket-skills policy-point porter-core prov"
   "companion-wire: almanac-core docket-core porter-core porter-infer prov"
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
+  "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
+  "docket-inapp: action-review agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-router policy-point porter-client porter-core prov"
   "docket-dbus: docket-core porter-client porter-core porter-dbus porter-infer prov"
   "docket-client: docket-core docket-dbus docket-router prov"
   "docket-fake: action-review almanac-core docket-client docket-core docket-router policy-point porter-core prov"
@@ -122,7 +135,7 @@ EDGES=(
   "docket-testbus: docket-dbus"
   "actions-mcp: docket-client docket-core docket-dbus docket-settings porter-core prov"
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
-  "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus docket-settings docket-skills porter-client porter-core porter-infer prov"
+  "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills porter-client porter-core porter-infer prov"
   "readerd: docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
   "docket-accept: action-review almanac-client almanac-core companion-wire companiond docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-router docket-testbus intentd porter-client porter-core porter-infer prov readerd"
   "companion-client: companion-wire docket-client docket-core docket-dbus prov"

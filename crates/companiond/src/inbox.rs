@@ -275,7 +275,7 @@ impl<P: InferTransport, I: IntentsTransport> Companiond<P, I> {
     pub(crate) fn outcome_text(&self, worker: &TaskId, started: Outcome) -> Outcome {
         let label = AppName::parse("org.quire.Companion")
             .map(app_label)
-            .unwrap_or_else(|_| crate::args::planner_label());
+            .unwrap_or_else(|_| docket_planner::planner_label());
         Outcome {
             value: Some(Labelled {
                 value: Value::Text(worker.as_str().to_owned()),

@@ -543,6 +543,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-fake",
+ "docket-planner",
  "docket-router",
  "docket-settings",
  "docket-skills",
@@ -844,6 +845,47 @@ dependencies = [
  "prov",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "docket-inapp"
+version = "0.1.0"
+dependencies = [
+ "action-review",
+ "agent-loop",
+ "almanac-core",
+ "companion-wire",
+ "cua-action",
+ "docket-client",
+ "docket-core",
+ "docket-fake",
+ "docket-planner",
+ "docket-router",
+ "policy-point",
+ "porter-client",
+ "porter-core",
+ "porter-infer",
+ "prov",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "docket-planner"
+version = "0.1.0"
+dependencies = [
+ "agent-loop",
+ "almanac-core",
+ "companion-wire",
+ "docket-core",
+ "porter-client",
+ "porter-core",
+ "porter-infer",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

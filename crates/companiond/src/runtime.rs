@@ -2,10 +2,8 @@
 //! identity over many tasks; each task is its own docket session, run by the pure loop of
 //! `agent-loop` whose effects `drive` carries out.
 
-use crate::catalogue::Catalogue;
 use crate::clock::Clock;
 use crate::fault::ServeFault;
-use crate::planner::PlannerModel;
 use crate::shared::Shared;
 use crate::task::{TaskRuntime, roster_state};
 use agent_loop::{FrontEvent, IdleState, LoopInput, LoopPhase, LoopState, SideTable, front_step};
@@ -16,6 +14,8 @@ use docket_core::{
     AgentConfig, EpisodeLine, LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine,
     SessionOpen, SessionOpened,
 };
+use docket_planner::Catalogue;
+use docket_planner::PlannerModel;
 use porter_client::Transport as InferTransport;
 use porter_core::AppName;
 use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
