@@ -13,9 +13,9 @@ const WATCH: &str =
 /// the end, on a panic and on an early return. `spawn` must be given a command that does not
 /// fork away (a daemon run with `--nofork`), or the PID is not the daemon's.
 ///
-/// The child leads a process group of its own, and the whole group is killed: a daemon's own
-/// children (inferd's engines, and vLLM's engine core under them) go with it instead of holding
-/// the GPU after the test.
+/// The child leads a process group of its own. On drop the group gets SIGTERM and a grace period
+/// (a daemon that put its own children in groups of their own, as inferd does with its engines,
+/// ends them), then SIGKILL: nothing it started holds the GPU after the test.
 #[derive(Debug)]
 pub struct Reaped {
     // Declared first, so it goes first: a watchdog must never outlive the child it would kill,
@@ -59,16 +59,29 @@ impl Drop for Reaped {
             let _ = watchdog.kill();
             let _ = watchdog.wait();
         }
-        let _ = kill_group(self.child.id());
+        // SIGTERM first, so a daemon that owns process groups of its own (inferd's engines lead
+        // theirs) can end them; then SIGKILL to whatever of ours is left.
+        let _ = signal_group("-TERM", self.child.id());
+        let deadline = std::time::Instant::now() + GRACE;
+        while std::time::Instant::now() < deadline {
+            if let Ok(Some(_)) = self.child.try_wait() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let _ = signal_group("-KILL", self.child.id());
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
 }
 
-/// SIGKILL to the process group `pgid` leads (its id is the child's PID), by id.
-fn kill_group(pgid: u32) -> io::Result<std::process::ExitStatus> {
+/// How long a daemon gets to end its own children after SIGTERM (inferd gives an engine 5 s).
+const GRACE: std::time::Duration = std::time::Duration::from_secs(8);
+
+/// `signal` to the process group `pgid` leads (its id is the child's PID), by id.
+fn signal_group(signal: &str, pgid: u32) -> io::Result<std::process::ExitStatus> {
     Command::new("/bin/kill")
-        .args(["-KILL", "--", &format!("-{pgid}")])
+        .args([signal, "--", &format!("-{pgid}")])
         .env_clear()
         .stdin(Stdio::null())
         .stdout(Stdio::null())

@@ -153,7 +153,10 @@ impl Play {
     }
 }
 
-/// The flows and planner cases a run is asked for: all of them, or the named ones.
+/// The flows and planner cases a run is asked for: the named ones, or else every flow, plus the
+/// planner cases when the engine is a cassette. A planner case's expectation is written for its
+/// own misbehaving replies; a live model says something else, so on a live engine the cases run
+/// only when named.
 fn plays(args: &SmokeArgs) -> Result<Vec<Play>, String> {
     let hostile = load_planner_cases(&args.eval_dir.join("hostile-model/planner"))
         .map_err(|e| e.to_string())?;
@@ -162,7 +165,10 @@ fn plays(args: &SmokeArgs) -> Result<Vec<Play>, String> {
         .map(Play::Flow)
         .chain(hostile.iter().cloned().map(|c| Play::Hostile(Box::new(c))));
     if args.flows.is_empty() {
-        return Ok(all.collect());
+        return Ok(match args.engine {
+            Engine::Scripted => all.collect(),
+            _ => Flow::ALL.into_iter().map(Play::Flow).collect(),
+        });
     }
     args.flows
         .iter()
