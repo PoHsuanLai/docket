@@ -234,7 +234,11 @@ async fn a_companion_recalls_through_memory_and_what_it_gets_carries_the_hits_la
         .expect("the call ran");
 
     let asked = memoryd.seen();
-    let Some(MemoryRequest::Search(query)) = asked.first() else {
+    // intentd lists the stored sessions at start, so the search is not the first request.
+    let Some(query) = asked.iter().find_map(|r| match r {
+        MemoryRequest::Search(q) => Some(q),
+        _ => None,
+    }) else {
         panic!("{asked:?}")
     };
     assert_eq!(
