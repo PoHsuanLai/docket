@@ -200,6 +200,10 @@ pub struct StepLine {
     pub end: StepEnd,
     /// How much to show.
     pub shown: StepShown,
+    /// The handles the call named, its target first and then its arguments in order, so a
+    /// masked line can still say which thing each result came from.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub with: Vec<Handle>,
 }
 
 impl StepLine {
@@ -215,6 +219,7 @@ impl StepLine {
             effect: Effect::Read,
             end: StepEnd::Unread(fault),
             shown: StepShown::Full,
+            with: Vec::new(),
         })
     }
 }

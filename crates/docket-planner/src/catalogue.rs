@@ -91,15 +91,31 @@ fn entity_or_handle(kind: &str) -> Json {
     })
 }
 
+/// Says what the target is: the kind, and that a handle you hold names it.
+fn described(mut schema: Json, kind: &str) -> Json {
+    if let Json::Object(fields) = &mut schema {
+        fields.insert(
+            "description".to_owned(),
+            json!(format!(
+                "What this acts on: a {kind}, named as {{\"handle\": n}} with a handle you hold"
+            )),
+        );
+    }
+    schema
+}
+
 fn target_schema(on: &TargetKind) -> Option<Json> {
     match on {
         TargetKind::Nothing | TargetKind::Text | TargetKind::Files => None,
-        TargetKind::One(kind) => Some(entity_or_handle(kind.as_str())),
-        TargetKind::Many(kind) => Some(json!({
-            "type": "array",
-            "items": entity_or_handle(kind.as_str()),
-            "minItems": 1,
-        })),
+        TargetKind::One(kind) => Some(described(entity_or_handle(kind.as_str()), kind.as_str())),
+        TargetKind::Many(kind) => Some(described(
+            json!({
+                "type": "array",
+                "items": entity_or_handle(kind.as_str()),
+                "minItems": 1,
+            }),
+            kind.as_str(),
+        )),
     }
 }
 

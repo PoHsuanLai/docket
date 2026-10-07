@@ -1704,3 +1704,59 @@ router does not read things for the planner: reading an app's thread is a call t
 model waited 180 s for its load and failed the turn. Fix in the harness, not the product timeouts:
 `docket-live` warms every routed model per world before the first flow or case (docs/live-eval.md,
 Warm-up). Not yet run against a live engine.
+
+## Live run 1 on Qwen3.5-35B-A3B: reviewer reasoning, masked history (review-history)
+
+From the first live run (docket 7bac60a; eval traces `live-eval/tmp/docket-live.onej7R`, smoke traces
+`docket-live.exA9jl`).
+
+**Reviewer deliberate and second-opinion stages failed on a thinking model.** They sent
+`Reasoning::EngineDefault` with 320 output tokens; Qwen3.5 thinks by default, spent all 320 on thought and
+wrote no content, the daemon answered `ModelError::Unparseable` (0 tokens), the review became
+`reviewer_failed` and the person was asked (3 of 5 benign cases; benign false-positive rate 75%). Fix: every
+stage sends `Reasoning::Off` (the record carries its own `reason`). A new `ReviewError::OnlyThought` names the
+case in traces and the audit: a reply with no text and no tool call but a non-empty `thought`, or a failed
+turn whose events were only `ThoughtDelta`s (the reviewer's sink watches the kind of output that went by).
+It is handled like `Unparseable` (the cascade tightens to asking). **Interface ask (porter-infer):** when
+the daemon fails a turn with `Unparseable` it returns no `ChatReply`, so the thought and the stop reason
+(`MaxTokens`) are lost; the sink's `ThoughtDelta`s are the only evidence. A `ModelError::OnlyThought`, or
+the partial reply on a failed turn, would say it without the sink. In the live traces the failed turns showed
+0 tokens, so whether the daemon streamed thought deltas before failing is not known from them.
+
+**The policy writer picks `ceiling: "read"` for write tasks (model-side, not fixed here).** In the same run
+the writer (Qwen3.5-35B, thinking off) answered `"ceiling": "read"` for "archive the newsletters" and
+"move files..." even though it listed `mail.thread.archive` among the actions (trace
+`benign-archive-newsletters`: task policy `"ceiling":"read"` with `mail.thread.archive` in `actions`).
+Likewise in smoke flow-a it listed `mail.message.forward` with `"ceiling": "read"` and `max_count: 1` for
+"forward the Lisbon receipts" (two threads). That is a writer-quality problem on this model: the prompt
+already says to choose a ceiling no higher than the actions need, and these actions need more than read.
+A cheaper repair is deterministic: derive the ceiling's floor from the effects of the chosen actions (a
+ceiling below the highest chosen effect is raised to it, or the policy is refused as inconsistent). Not done
+in this lane.
+
+**The planner's step history hid older steps' values.** A masked step rendered `action [outcome: said]`: no
+arguments and no handles returned. In smoke flow-a, after two thread reads returned #4 and #5, the next
+turn showed `mail.thread.read [outcome: Read the thread]` twice, the model could not tell which text came
+from which thread, re-searched, and the loop guard asked the person. Fix: `StepLine.with` records the
+handles a call named (target first, then arguments, nested ones included; `CallRequest::handles`);
+`mask_history` keeps a value that is only handles; a masked line is
+`mail.thread.read #1 → #4 [outcome: Read the thread]` or
+`mail.thread.search → [#1 mail.thread, #2 mail.thread] [outcome: Found threads]`, at most four handles in
+each place and then `+k more`. Full lines show the handles too. The "What you can name but not read" list
+adds `, returned by mail.thread.read #1` to a handle a retained step made. Masking is a pure function of the
+step, so a masked line is the same bytes on every turn.
+
+**Other docket-side issues found in the flow-a trace (fixed small).** The history never showed arguments,
+so `mail.thread.search` twice looked like the same call; the planner repeated `contact.search` and
+`thread.search` three times each while holding their results (the loop guard answered `Held`, which
+worked, then asked the person). `RULES` now says a history line names the handles used and returned,
+not to repeat a call whose answer is held, and to call an action once the handles it needs are held. The
+`target` property had no description; it now says it is a `<kind>` named as `{"handle": n}`.
+
+**Model-side behaviour in flow-a, not fixed.** (1) The 35B called `thread.read` for both threads and
+`contact.search` again in one parallel batch on turn 3 instead of forwarding, and never passed the held
+`#3` contact as `to`. (2) It tried `quire_read` on the thread handles #1 and #2 (things, not text) right
+after reading them, although the rules say to read a thing with its app's action first. (3) The first
+turns issue three or four calls at once, so the loop guard sees repeats it would not see one at a time.
+(4) The `forward` call was never attempted: the policy the writer wrote ("ceiling read") would have refused
+it anyway (see above). Whether the 35B forwards with the new history is for the next live run.

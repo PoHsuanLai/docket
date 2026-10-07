@@ -44,6 +44,8 @@ pub(crate) struct Prepared {
     pub review: Option<ReviewRequest>,
     pub window: Option<WindowKey>,
     pub targets: Vec<EntityId>,
+    /// The handles the caller named, before the router resolved them (for the history line).
+    pub named: Vec<docket_core::Handle>,
     /// The launcher's activation token, for the app's `Perform` only.
     pub activation: Option<ActivationToken>,
     /// How the call was classified, for an action that classifies per call. `decl.effect` is

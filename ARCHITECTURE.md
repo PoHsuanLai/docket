@@ -182,6 +182,7 @@ missing" list in `FINDINGS.md` (portable-core).
 | `quire-do`: the command grammar, the parameter mapping, the exit codes | `docket-cli` (`args`, `params`, `exit`); a terminal's arguments are labelled `Untrusted, Source::Cli` by the router, never by the client |
 | the conformance check of every app repo | `docket-eval --check-app` and `scripts/check-intents.sh` (cli.md section 6) |
 | the planner's view and its builders: the view type | `docket-core::planner`; the one builder, `planner_view`, and the `HandleTable`, `docket-router::handles` |
+| a past step as the planner reads it (`StepLine`: `with` the handles named, `end` with the handles returned; masked to `action #1 → #4 [outcome: ...]`, at most four handles per place) | `docket-core::planner`; the masking, `agent-loop::assemble::mask_history` (keeps only handle values); the text, `docket-planner::step_text` (pure: same step, same bytes). Reviewer stages never ask for reasoning (`action-review::infer::control`); a reply that was only thought is `ReviewError::OnlyThought` |
 | the roster and episode lines the planner reads | `docket-core::roster` (the view holds them) |
 | episodes and their skeleton | almanac `Episode`; docket builds the skeleton (`docket-core::task::skeleton_of`) and the router records it |
 | the one message model | porter `prov::Message`; docket's `MessageDraft`, `Delivery`, `InboundLine` are input and views |

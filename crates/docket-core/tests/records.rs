@@ -188,6 +188,7 @@ fn the_planner_view_and_the_roster_round_trip() {
             effect: Effect::Read,
             end: StepEnd::Refused(CallRefusal::Denied(DenyCode::NotAllowed)),
             shown: StepShown::Masked,
+            with: vec![Handle(1)],
         }],
         taint: prov::Integrity::Untrusted,
         task_policy: None,

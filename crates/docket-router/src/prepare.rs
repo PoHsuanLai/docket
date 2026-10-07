@@ -216,6 +216,7 @@ impl<S: Seams> Router<S> {
             })
         };
         admit(record).map_err(end)?;
+        let named = request.handles();
         let target = resolve_target(record, request.target.clone()).map_err(|why| {
             end(CallRefusal::BadArgs {
                 param: target_name(),
@@ -314,6 +315,7 @@ impl<S: Seams> Router<S> {
             cost,
             window,
             targets,
+            named,
             activation: None,
             classified,
         })
@@ -331,6 +333,7 @@ impl<S: Seams> Router<S> {
         depth: Depth,
     ) -> Prepared {
         let targets = entities(&request.target);
+        let request_named = request.handles();
         let count = Count(u32::try_from(targets.len()).unwrap_or(u32::MAX));
         let (pending, request) = match check_call(
             &decl,
@@ -367,6 +370,7 @@ impl<S: Seams> Router<S> {
             review: None,
             window,
             targets,
+            named: request_named,
             activation: None,
             // The person's own calls are not gated, so they are not classified.
             classified: None,

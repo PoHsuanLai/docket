@@ -11,8 +11,8 @@
 use almanac_core::{estimate_tokens, fit_budget};
 use docket_core::{
     ActionCard, AssemblerBudget, ContextView, EpisodeLine, HandleCard, InboundLine, PlannerView,
-    PrimerText, ProfileLine, RecalledLine, RollupLine, Roster, SkillCard, SkillText, StepEnd,
-    StepLine, StepShown, TaskPolicy, UserTurn,
+    PrimerText, ProfileLine, RecalledLine, Reveal, RollupLine, Roster, SkillCard, SkillText,
+    StepEnd, StepLine, StepShown, TaskPolicy, UserTurn, Value,
 };
 use porter_core::{Count, Tokens};
 use prov::Integrity;
@@ -78,9 +78,21 @@ fn take_within<T: Serialize + Clone>(items: &[T], budget: Tokens) -> Vec<T> {
     taken
 }
 
-/// The history with every step but the newest `keep_full` masked: the value is dropped, and
-/// the line keeps what the app said and the undo row, so the cached prefix stays stable until
-/// the task ends.
+/// The handles a value is, when it is only handles: a thing or text held (`#4`), or a list of
+/// them (a search). Anything else is dropped when a step is masked.
+fn handles_only(value: &Reveal<Value>) -> Option<Reveal<Value>> {
+    let list = |items: &[Value]| items.iter().all(|i| matches!(i, Value::Handle(_)));
+    match value {
+        Reveal::Handle(_) | Reveal::Plain(Value::Handle(_)) => Some(value.clone()),
+        Reveal::Plain(Value::List(items)) if list(items) => Some(value.clone()),
+        Reveal::Plain(_) => None,
+    }
+}
+
+/// The history with every step but the newest `keep_full` masked: a value that is anything but
+/// handles is dropped, and the line keeps what the app said, the undo row, the handles the call
+/// named and the handles it returned, so the model can still tell which result came from which
+/// call and the cached prefix stays stable until the task ends.
 pub fn mask_history(history: &[StepLine], keep_full: Count) -> Vec<StepLine> {
     let cut = history.len().saturating_sub(keep_full.0 as usize);
     history
@@ -91,9 +103,9 @@ pub fn mask_history(history: &[StepLine], keep_full: Count) -> Vec<StepLine> {
                 return step.clone();
             }
             let end = match &step.end {
-                StepEnd::Done { said, undo, .. } => StepEnd::Done {
+                StepEnd::Done { said, value, undo } => StepEnd::Done {
                     said: said.clone(),
-                    value: None,
+                    value: value.as_ref().and_then(handles_only),
                     undo: *undo,
                 },
                 other => other.clone(),

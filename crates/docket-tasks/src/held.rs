@@ -26,6 +26,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 effect,
                 end: StepEnd::Held(why),
                 shown: StepShown::Full,
+                with: call.handles(),
             });
         }
     }

@@ -34,11 +34,27 @@ pub struct InferReviewer<M> {
     pub timeouts: ReviewTimeouts,
 }
 
-/// Drops every event: the reviewer reads the finished reply.
-struct Discard;
+/// What the model has put out so far, as the events told it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Heard {
+    /// Nothing yet.
+    Nothing,
+    /// Reasoning and no reply text: the budget may have gone on thinking.
+    OnlyThought,
+    /// Reply text.
+    Text,
+}
 
-impl ChatSink for Discard {
-    fn event(&mut self, _event: InferEvent) -> Flow {
+/// Keeps what kind of output went by, and drops the rest: the reviewer reads the finished reply.
+struct Watch(Heard);
+
+impl ChatSink for Watch {
+    fn event(&mut self, event: InferEvent) -> Flow {
+        self.0 = match (event, self.0) {
+            (InferEvent::TextDelta(text), _) if !text.is_empty() => Heard::Text,
+            (InferEvent::ThoughtDelta(_), Heard::Nothing) => Heard::OnlyThought,
+            (_, heard) => heard,
+        };
         Flow::Continue
     }
 }
@@ -76,18 +92,19 @@ fn tier(stage: Stage) -> Tier {
     }
 }
 
-/// A reviewer answers the same way every time: temperature zero, no tools, no reasoning for the
-/// one-token judge, and a short reply.
+/// A reviewer answers the same way every time: temperature zero, no tools, no reasoning at all
+/// (a thinking model spends a short budget on thought and writes no verdict; the record already
+/// carries a `reason`), and a short reply.
 fn control(stage: Stage) -> ChatControl {
-    let (max_output, reasoning) = match stage {
-        Stage::Quick => (Tokens(8), Reasoning::Off),
-        Stage::Deliberate | Stage::SecondOpinion => (Tokens(320), Reasoning::EngineDefault),
+    let max_output = match stage {
+        Stage::Quick => Tokens(8),
+        Stage::Deliberate | Stage::SecondOpinion => Tokens(320),
     };
     ChatControl {
         tool_choice: ToolChoice::Never,
         tool_calls: ToolParallelism::One,
         max_output: Knob::Set(max_output),
-        reasoning,
+        reasoning: Reasoning::Off,
         sampling: Knob::Set(Sampling {
             temperature: Permille(0),
             top_p: Knob::Off,
@@ -129,8 +146,11 @@ pub(crate) fn chat_request(stage: Stage, request: &ReviewRequest) -> ChatRequest
     }
 }
 
-fn model_failed(error: ModelError) -> ReviewError {
+fn model_failed(error: ModelError, heard: Heard) -> ReviewError {
     match error {
+        ModelError::Unparseable | ModelError::Unreadable if heard == Heard::OnlyThought => {
+            ReviewError::OnlyThought
+        }
         ModelError::Unparseable | ModelError::Unreadable => ReviewError::Unparseable,
         ModelError::Unreachable
         | ModelError::RateLimited(_)
@@ -143,6 +163,15 @@ fn model_failed(error: ModelError) -> ReviewError {
 
 /// A reply cut short by its limit or a filter is not a verdict, whatever its text says.
 fn complete(reply: ChatReply) -> Result<String, ReviewError> {
+    let only_thought = reply.text.trim().is_empty()
+        && reply.tool_calls.is_empty()
+        && reply
+            .thought
+            .as_deref()
+            .is_some_and(|t| !t.trim().is_empty());
+    if only_thought {
+        return Err(ReviewError::OnlyThought);
+    }
     match reply.stop {
         StopReason::EndTurn | StopReason::StopSequence => Ok(reply.text),
         StopReason::MaxTokens | StopReason::ContentFilter | StopReason::ToolUse => {
@@ -171,10 +200,11 @@ impl<M: Model> Reviewer for InferReviewer<M> {
         if allowed == Millis(0) {
             return Err(ReviewError::Timeout);
         }
+        let mut watch = Watch(Heard::Nothing);
         let reply = model
-            .chat(&chat_request(stage, request), &mut Discard)
+            .chat(&chat_request(stage, request), &mut watch)
             .await
-            .map_err(model_failed)?;
+            .map_err(|error| model_failed(error, watch.0))?;
         parse_verdict(&complete(reply)?, stage)
     }
 }

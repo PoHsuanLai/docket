@@ -4,7 +4,7 @@ use crate::budget::BudgetKind;
 use crate::confirm::{ConfirmEnd, ConfirmId};
 use crate::context::EntityRef;
 use crate::ids::ParamName;
-use crate::ids::{ActionRef, CallId, UndoId, UndoToken};
+use crate::ids::{ActionRef, CallId, Handle, UndoId, UndoToken};
 use crate::preview::Preview;
 use crate::review::{BreakerTrip, DenyCode};
 use crate::value::{Args, TargetValue, Value};
@@ -44,6 +44,27 @@ pub struct CallRequest {
     pub args: Args,
     /// Where the call came from.
     pub origin: Origin,
+}
+
+impl CallRequest {
+    /// The handles the call names: its target first, then its arguments in order (a handle
+    /// inside a list or a record counts). A request the router has already resolved names none.
+    pub fn handles(&self) -> Vec<Handle> {
+        fn walk(value: &Value, into: &mut Vec<Handle>) {
+            match value {
+                Value::Handle(h) => into.push(*h),
+                Value::List(items) => items.iter().for_each(|i| walk(i, into)),
+                Value::Record(fields) => fields.values().for_each(|v| walk(v, into)),
+                _ => {}
+            }
+        }
+        let mut found = match &self.target {
+            TargetValue::Handles(hs) => hs.clone(),
+            _ => Vec::new(),
+        };
+        self.args.values().for_each(|a| walk(&a.value, &mut found));
+        found
+    }
 }
 
 /// What the router sends to `IntentProvider1.Perform`. The app sees the actor and the origin

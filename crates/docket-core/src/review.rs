@@ -190,6 +190,10 @@ pub enum ReviewError {
     /// The reply did not parse.
     #[error("unparseable reply")]
     Unparseable,
+    /// The model reasoned and wrote no reply: its token budget went on thought. Handled as
+    /// `Unparseable` is (the person is asked); the audit and traces say what happened.
+    #[error("only reasoning, no reply")]
+    OnlyThought,
     /// The reply used a word outside the vocabulary.
     #[error("reply outside the vocabulary")]
     OutOfVocabulary,

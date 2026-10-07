@@ -5,8 +5,8 @@ use action_review::*;
 use docket_core::*;
 use porter_core::{AccountId, Billing, Locality, ModelId, Tokens};
 use porter_infer::{
-    ChatReply, ChatRequest, ChatSink, EmbedReply, EmbedRequest, Model, ModelCard, ModelError,
-    ServedBy, StopReason, TokenUsage,
+    ChatReply, ChatRequest, ChatSink, EmbedReply, EmbedRequest, InferEvent, Model, ModelCard,
+    ModelError, ServedBy, StopReason, TokenUsage,
 };
 use prov::{ActionName, Effect, Integrity, SpaceId};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -31,6 +31,7 @@ pub struct Scripted {
     pub card: ModelCard,
     replies: Arc<Mutex<VecDeque<Result<ChatReply, ModelError>>>>,
     seen: Arc<Mutex<Vec<ChatRequest>>>,
+    events: Vec<InferEvent>,
 }
 
 pub fn served(card: &ModelCard) -> ServedBy {
@@ -53,7 +54,14 @@ impl Scripted {
             },
             replies: Arc::new(Mutex::new(replies.into())),
             seen: Arc::new(Mutex::new(vec![])),
+            events: vec![],
         }
+    }
+
+    /// The events the model sends its sink before each answer.
+    pub fn sending(mut self, events: Vec<InferEvent>) -> Self {
+        self.events = events;
+        self
     }
 
     pub fn saying(name: &str, text: &str) -> Self {
@@ -103,8 +111,11 @@ impl Model for Scripted {
     async fn chat(
         &self,
         request: &ChatRequest,
-        _sink: &mut impl ChatSink,
+        sink: &mut impl ChatSink,
     ) -> Result<ChatReply, ModelError> {
+        for event in &self.events {
+            let _ = sink.event(event.clone());
+        }
         self.seen.lock().expect("lock").push(request.clone());
         self.replies
             .lock()

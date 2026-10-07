@@ -54,6 +54,7 @@ fn step(n: u64, undo: Option<u64>) -> StepLine {
             undo: undo.map(UndoId),
         },
         shown: StepShown::Full,
+        with: vec![],
     }
 }
 
@@ -138,6 +139,33 @@ fn only_the_newest_steps_stay_in_full() {
         history[..2].to_vec(),
         "fewer steps than the window are untouched"
     );
+}
+
+#[test]
+fn masking_keeps_the_handles_a_step_named_and_returned_and_drops_other_values() {
+    let mut read = step(1, None);
+    read.with = vec![Handle(1)];
+    read.end = StepEnd::Done {
+        said: None,
+        value: Some(Reveal::Handle(Handle(4))),
+        undo: None,
+    };
+    let mut search = step(2, None);
+    search.end = StepEnd::Done {
+        said: None,
+        value: Some(Reveal::Plain(Value::List(vec![Value::Handle(Handle(1))]))),
+        undo: None,
+    };
+    let plain = step(3, None);
+    let history = vec![read.clone(), search.clone(), plain, step(4, None)];
+    let masked = mask_history(&history, Count(1));
+    assert_eq!(masked[0].with, vec![Handle(1)]);
+    assert_eq!(masked[0].end, read.end);
+    assert_eq!(masked[1].end, search.end);
+    let StepEnd::Done { value, .. } = &masked[2].end else {
+        panic!("done")
+    };
+    assert_eq!(value, &None, "a count is not a handle");
 }
 
 #[test]

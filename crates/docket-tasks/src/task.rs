@@ -203,6 +203,7 @@ impl TaskRuntime {
             effect,
             end: end.clone(),
             shown: StepShown::Full,
+            with: call.handles(),
         });
         self.steps.push(LedgerStep {
             call: id,

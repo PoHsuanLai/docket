@@ -9,7 +9,10 @@ use action_review::*;
 use docket_core::*;
 use porter_core::consent::Usage;
 use porter_core::{Tier, Tokens};
-use porter_infer::{ChatReply, Knob, MessagePart, ModelError, ReplyShape, StopReason, ToolChoice};
+use porter_infer::{
+    ChatReply, InferEvent, Knob, MessagePart, ModelError, Reasoning, ReplyShape, StopReason,
+    ToolChoice,
+};
 
 #[test]
 fn quick_asks_its_own_model_for_one_token() {
@@ -365,4 +368,53 @@ fn the_schema_the_model_is_given_names_the_codes_the_parser_reads() {
         let raw = format!(r#"{{"verdict":"{verdict}","code":"{}","reason":"r"}}"#, c.0);
         assert!(parse_verdict(&raw, Stage::Deliberate).is_ok(), "{raw}");
     }
+}
+
+#[test]
+fn no_stage_asks_for_reasoning() {
+    for (stage, _) in [
+        (Stage::Quick, 0),
+        (Stage::Deliberate, 1),
+        (Stage::SecondOpinion, 2),
+    ] {
+        let models = [
+            Scripted::saying("q", "pass"),
+            Scripted::saying("d", ALLOW),
+            Scripted::saying("s", ALLOW),
+        ];
+        block_on(reviewer(&models[0], &models[1], &models[2]).review(stage, &request()))
+            .expect("verdict");
+        let sent = models
+            .iter()
+            .find(|m| m.calls() == 1)
+            .expect("one model asked")
+            .last();
+        assert_eq!(sent.control.reasoning, Reasoning::Off, "{stage:?}");
+    }
+}
+
+#[test]
+fn a_reply_that_is_only_thought_has_its_own_cause() {
+    let model = Scripted::new("d", vec![]);
+    let mut thought = reply(&model.card, "", StopReason::MaxTokens);
+    thought.thought = Some("let me think about the request".into());
+    model.push(Ok(thought));
+    let got =
+        block_on(reviewer(&silent(), &model, &silent()).review(Stage::Deliberate, &request()));
+    assert_eq!(got, Err(ReviewError::OnlyThought));
+}
+
+#[test]
+fn a_failed_turn_that_only_streamed_thought_is_only_thought() {
+    let thinking = vec![InferEvent::ThoughtDelta("hmm".into())];
+    let model = Scripted::new("d", vec![Err(ModelError::Unparseable)]).sending(thinking.clone());
+    let got =
+        block_on(reviewer(&silent(), &model, &silent()).review(Stage::Deliberate, &request()));
+    assert_eq!(got, Err(ReviewError::OnlyThought));
+    let mut mixed = thinking;
+    mixed.push(InferEvent::TextDelta("{".into()));
+    let model = Scripted::new("d", vec![Err(ModelError::Unparseable)]).sending(mixed);
+    let got =
+        block_on(reviewer(&silent(), &model, &silent()).review(Stage::Deliberate, &request()));
+    assert_eq!(got, Err(ReviewError::Unparseable));
 }

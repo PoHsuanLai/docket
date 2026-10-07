@@ -147,14 +147,72 @@ fn held_text(held: Held) -> &'static str {
 const INSTEAD: &str =
     "change the arguments, try another action, ask the person with quire_ask, or finish";
 
+/// The most handles a masked line names in one place; the rest are counted, so a line stays short
+/// and the same every turn.
+const MASKED_HANDLES: usize = 4;
+
+/// The handles a value is made of, in order, and whether it was a list.
+fn returned(value: &Reveal<Value>) -> Option<(Vec<Handle>, bool)> {
+    match value {
+        Reveal::Handle(h) | Reveal::Plain(Value::Handle(h)) => Some((vec![*h], false)),
+        Reveal::Plain(Value::List(items)) => items
+            .iter()
+            .map(|i| match i {
+                Value::Handle(h) => Some(*h),
+                _ => None,
+            })
+            .collect::<Option<Vec<_>>>()
+            .map(|hs| (hs, true)),
+        Reveal::Plain(_) => None,
+    }
+}
+
+/// At most `MASKED_HANDLES` of `names`, then `+k more`.
+fn bounded(names: Vec<String>) -> Vec<String> {
+    let more = names.len().saturating_sub(MASKED_HANDLES);
+    let mut shown: Vec<String> = names.into_iter().take(MASKED_HANDLES).collect();
+    if more > 0 {
+        shown.push(format!("+{more} more"));
+    }
+    shown
+}
+
+/// The handles a call named, as ` #1 #3` (a leading space), or nothing. Always plain `#n`: a
+/// masked line must read the same on every turn.
+fn with_text(with: &[Handle]) -> String {
+    let names = bounded(with.iter().map(|h| format!("#{}", h.0)).collect());
+    if names.is_empty() {
+        String::new()
+    } else {
+        format!(" {}", names.join(" "))
+    }
+}
+
+/// What a masked step returned, as ` → #4` or ` → [#1 mail.thread, #2 mail.thread]`.
+fn returned_text(value: Option<&Reveal<Value>>, handles: &[HandleCard]) -> String {
+    match value.and_then(returned) {
+        Some((hs, false)) => hs
+            .first()
+            .map(|h| format!(" → {}", named(*h, handles)))
+            .unwrap_or_default(),
+        Some((hs, true)) => {
+            let names = bounded(hs.iter().map(|h| named(*h, handles)).collect());
+            format!(" → [{}]", names.join(", "))
+        }
+        None => String::new(),
+    }
+}
+
 /// One step, as one line of the planner's history. `handles` are the ones the planner holds.
 pub(crate) fn step_line(step: &StepLine, handles: &[HandleCard]) -> String {
     let action = format!("{}.{}", step.action.app, step.action.name);
+    let head = format!("{action}{}", with_text(&step.with));
     match (&step.shown, &step.end) {
-        (StepShown::Masked, StepEnd::Done { said, undo, .. }) => {
+        (StepShown::Masked, StepEnd::Done { said, undo, value }) => {
             let said = said.as_ref().map_or("done", |s| s.as_str());
             let undo = undo.map(|u| format!(", undo #{}", u.0)).unwrap_or_default();
-            format!("{action} [outcome: {said}{undo}]")
+            let got = returned_text(value.as_ref(), handles);
+            format!("{head}{got} [outcome: {said}{undo}]")
         }
         (_, StepEnd::Done { said, value, undo }) => {
             let said = said
@@ -169,18 +227,18 @@ pub(crate) fn step_line(step: &StepLine, handles: &[HandleCard]) -> String {
                 })
                 .unwrap_or_default();
             let undo = undo.map(|u| format!(" undo #{}", u.0)).unwrap_or_default();
-            format!("{action} done{said}{value}{undo}")
+            format!("{head} done{said}{value}{undo}")
         }
         (_, StepEnd::Refused(refusal)) => {
             let hint = refusal_hint(refusal, handles)
                 .map(|h| format!(": {h}"))
                 .unwrap_or_default();
-            format!("{action} refused {}{hint}", json(refusal))
+            format!("{head} refused {}{hint}", json(refusal))
         }
-        (_, StepEnd::Unconfirmed(end)) => format!("{action} not confirmed {}", json(end)),
+        (_, StepEnd::Unconfirmed(end)) => format!("{head} not confirmed {}", json(end)),
         (_, StepEnd::Unread(fault)) => unread_text(fault),
         (_, StepEnd::Held(held)) => {
-            format!("{action} not run: {}; {INSTEAD}", held_text(*held))
+            format!("{head} not run: {}; {INSTEAD}", held_text(*held))
         }
     }
 }
@@ -201,6 +259,7 @@ mod tests {
             effect: Effect::Outbound,
             end,
             shown: StepShown::Full,
+            with: Vec::new(),
         }
     }
 
@@ -369,5 +428,88 @@ mod tests {
             );
             assert!(line.contains(want), "{fault:?}: {line}");
         }
+    }
+
+    fn masked(action: &str, with: Vec<u64>, end: StepEnd) -> StepLine {
+        StepLine {
+            action: ActionRef {
+                app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
+                name: ActionName::parse(action).expect("name"),
+            },
+            shown: StepShown::Masked,
+            with: with.into_iter().map(Handle).collect(),
+            ..step(end)
+        }
+    }
+
+    fn done(said: &str, value: Reveal<Value>) -> StepEnd {
+        StepEnd::Done {
+            said: Some(docket_core::LabelText::parse(said).expect("text")),
+            value: Some(value),
+            undo: None,
+        }
+    }
+
+    #[test]
+    fn a_masked_read_keeps_what_it_named_and_what_it_returned() {
+        let read = masked(
+            "mail.thread.read",
+            vec![1],
+            done("Read the thread", Reveal::Handle(Handle(4))),
+        );
+        let line = step_line(&read, &[card(4)]);
+        assert_eq!(
+            line,
+            "org.quire.Mail.mail.thread.read #1 → #4 [outcome: Read the thread]"
+        );
+        assert_eq!(
+            line,
+            step_line(&read, &[card(4), card(5)]),
+            "stable as cards grow"
+        );
+    }
+
+    #[test]
+    fn a_masked_search_keeps_the_things_it_found() {
+        let found = Value::List(vec![Value::Handle(Handle(1)), Value::Handle(Handle(2))]);
+        let search = masked(
+            "mail.thread.search",
+            vec![],
+            done("Found threads", Reveal::Plain(found)),
+        );
+        let cards = [entity_card(1, "mail.thread"), entity_card(2, "mail.thread")];
+        assert_eq!(
+            step_line(&search, &cards),
+            "org.quire.Mail.mail.thread.search → [#1 mail.thread, #2 mail.thread] [outcome: Found threads]"
+        );
+    }
+
+    #[test]
+    fn a_masked_line_is_bounded() {
+        let many: Vec<u64> = (1..=9).collect();
+        let list = Value::List(many.iter().map(|n| Value::Handle(Handle(*n))).collect());
+        let line = step_line(
+            &masked(
+                "mail.message.forward",
+                many,
+                done("Done", Reveal::Plain(list)),
+            ),
+            &[],
+        );
+        assert!(
+            line.contains(" #1 #2 #3 #4 +5 more → [#1, #2, #3, #4, +5 more]"),
+            "{line}"
+        );
+    }
+
+    #[test]
+    fn a_full_step_shows_its_handle_arguments() {
+        let mut forward = step(StepEnd::Held(Held::Empty));
+        forward.with = vec![Handle(1), Handle(3)];
+        let line = step_line(&forward, &[]);
+        assert!(
+            line.starts_with("org.quire.Mail.mail.message.forward #1 #3 not run"),
+            "{line}"
+        );
     }
 }

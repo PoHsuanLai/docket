@@ -333,3 +333,47 @@ async fn a_finished_task_takes_no_follow_up_and_an_unknown_session_is_refused() 
         .await;
     assert_eq!(strange, Err(companiond::ServeFault::UnknownSession));
 }
+
+fn draft_from(handle: u64) -> support::infer::Say {
+    call(
+        "org.quire.Mail-mail.draft.create",
+        json!({ "body": { "handle": handle } }),
+    )
+}
+
+/// Once a step is masked its line still says which handle came from which call, and the same
+/// words come back on the next turn (the cached prefix; the line is a pure function of the step).
+#[tokio::test]
+async fn a_masked_step_still_says_which_handle_came_from_which_call() {
+    let mut w = world(vec![
+        read_t1(),
+        call(
+            READ,
+            json!({ "target": { "app": "org.quire.Mail", "kind": "mail.thread", "key": "t2" } }),
+        ),
+        draft_from(1),
+        draft_from(2),
+        words("Done."),
+    ]);
+    let opened = w.open("work").await;
+    w.say(&opened.session, "read both and draft").await;
+    let last = w.infer.asked().len() - 1;
+    let after = w.infer.user_text(last);
+    let line = |text: &str| {
+        text.lines()
+            .find(|l| l.contains("mail.thread.read → #1"))
+            .map(str::to_owned)
+    };
+    assert!(
+        line(&after).is_some_and(|l| l.ends_with("[outcome: done]")),
+        "the first read is masked and still names what it returned: {after}"
+    );
+    assert!(
+        after.contains("mail.draft.create #1 "),
+        "a step shows the handles it was given: {after}"
+    );
+    assert!(
+        after.contains("returned by mail.thread.read"),
+        "a text handle says which step made it: {after}"
+    );
+}

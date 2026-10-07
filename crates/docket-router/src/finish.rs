@@ -119,6 +119,7 @@ impl<S: Seams> Router<S> {
                     effect: p.decl.effect,
                     end,
                     shown: StepShown::Full,
+                    with: p.named.clone(),
                 });
                 presented = presented.map(|o| present(record, &p.who.voice, o));
                 let line = record.history.last().cloned();
