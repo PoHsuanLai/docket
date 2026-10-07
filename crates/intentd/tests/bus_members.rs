@@ -430,6 +430,11 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         "mail.thread.archive",
     )))
     .await;
+    pair.both(IntentsRequest::ControlStandingGrants).await;
+    pair.both(IntentsRequest::ControlStandingRevoke(
+        docket_core::StandingGrantId::parse("sg-0000000000000000").expect("id"),
+    ))
+    .await;
     pair.both(IntentsRequest::SessionClose { session }).await;
 
     let missing: Vec<Member> = Member::ALL
