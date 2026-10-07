@@ -2,7 +2,7 @@
 //! which one and what it looks like, instead of the turn failing on an unreadable reply.
 
 use agent_loop::ModelOutput;
-use docket_core::{Handle, ReadFault, ReaderAsk, ReaderTask, ReplyFault, ValueSchema};
+use docket_core::{Handle, HandleShape, ReadFault, ReaderAsk, ReaderTask, ReplyFault, ValueSchema};
 use serde_json::Value as Json;
 
 /// The most handles one read may name: a model that lists hundreds has not chosen.
@@ -56,9 +56,25 @@ pub(crate) fn read_fault_text(fault: &ReadFault) -> String {
         ReadFault::Task => "\"task\" must be one of classify, extract, summarise, compare".to_owned(),
         ReadFault::Want => "\"want\" is not a shape of the answer; give {\"kind\": ..., \"v\": ...} with kind one of choice, integer, date, datetime, text, record, list, such as {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}".to_owned(),
         ReadFault::NotHeld => "an input is not a handle you were shown; name only the #n handles listed".to_owned(),
+        ReadFault::NotText { handle, shape } => not_text(*handle, shape),
         ReadFault::OutOfSchema(_) => "the reader's answer did not fit \"want\"; ask for a simpler shape, or a choice among options".to_owned(),
         ReadFault::Unparseable => "the reader's answer could not be read; ask for a simpler shape".to_owned(),
         ReadFault::Refused => "the reader declined to answer these inputs".to_owned(),
         ReadFault::Unavailable => "no reader could answer".to_owned(),
+    }
+}
+
+/// A held thing or file is not text: how to get text from it, as a call the policy will see.
+fn not_text(handle: Handle, shape: &HandleShape) -> String {
+    match shape {
+        HandleShape::Entity(kind) => format!(
+            "#{n} is a {kind}, not text: read it first with the action that reads a {kind} (such as {kind}.read) and give quire_read the handle that call returns",
+            n = handle.0
+        ),
+        HandleShape::File => format!(
+            "#{} is a file, not text; quire_read takes only text handles",
+            handle.0
+        ),
+        HandleShape::Text => format!("#{} is text; name it as an input again", handle.0),
     }
 }

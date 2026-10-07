@@ -12,6 +12,8 @@ pub mod inferd_world;
 pub mod regress;
 pub mod stage;
 pub mod trace_dir;
+pub mod warm;
+pub mod warm_bus;
 
 pub use corpus::{CorpusError, CorpusOptions, CorpusOutcome, Timeouts, run_corpus_live};
 pub use engine::{Engine, EngineError, Reach, hijacked_judge_cassette, scripted_cassette};

@@ -41,6 +41,8 @@ pub struct CorpusArgs {
     /// Fail when a corpus's false-negative rate (the Wilson upper end) exceeds this, in
     /// thousandths.
     pub fnr_max_permille: Option<u32>,
+    /// Seconds to wait for each model's warm-up (live engines).
+    pub patience_s: u64,
     /// The catalogue directory to copy into the world.
     pub catalog: Option<PathBuf>,
 }
@@ -58,7 +60,7 @@ pub struct SmokeArgs {
     pub eval_dir: PathBuf,
     /// Only these flows or planner cases; every one when empty.
     pub flows: Vec<String>,
-    /// Seconds to wait for each change of an answer.
+    /// Seconds to wait for each change of an answer, and for each model's warm-up.
     pub patience_s: u64,
     /// The catalogue directory to copy into the world.
     pub catalog: Option<PathBuf>,
@@ -151,6 +153,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             timeout_ms: timeout,
             accountd,
             fnr_max_permille: fnr,
+            patience_s: patience,
             catalog,
         })),
         "smoke" => Ok(Command::Smoke(SmokeArgs {

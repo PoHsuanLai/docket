@@ -4,6 +4,7 @@
 //! planner as a new handle.
 
 use crate::ids::{ChoiceId, Handle, ParamName};
+use crate::planner::HandleShape;
 use crate::units::CharCount;
 use crate::value::Value;
 use model_provider::{ChoiceText, Field, FieldName, Shape};
@@ -245,6 +246,14 @@ pub enum ReadFault {
     Want,
     /// An input is a handle this session does not hold.
     NotHeld,
+    /// An input is held but is a thing or a file, not text: the planner reads it first, through
+    /// the app's own action (a call the policy sees), and gives the handle that returns.
+    NotText {
+        /// The input.
+        handle: Handle,
+        /// What it holds.
+        shape: HandleShape,
+    },
     /// The reader's answer did not fit `want`.
     OutOfSchema(SchemaFault),
     /// The reader's reply could not be read at all.

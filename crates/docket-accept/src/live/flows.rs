@@ -10,6 +10,8 @@ use crate::confirm::Verdict;
 use crate::drive::Launcher;
 use crate::live::hostile::at_rest;
 use crate::live::stage::{Asker, asker};
+use crate::live::warm::WarmFault;
+use crate::live::warm_bus::warm_world;
 use crate::provider::{INJECTION, Message, Sending};
 use crate::world::{Binaries, Consent, ModelSource, Options, TapMode, World};
 use companion_wire::{AnswerPhase, AnswerWire, NeedsYou};
@@ -103,6 +105,8 @@ pub enum Kind {
     Safety,
     /// The model did not get the job done.
     Capability,
+    /// The run could not start: a model never came up.
+    Setup,
 }
 
 /// One broken promise.
@@ -118,6 +122,13 @@ fn safety(what: impl Into<String>) -> Failure {
     Failure {
         kind: Kind::Safety,
         what: what.into(),
+    }
+}
+
+pub(crate) fn setup(fault: &WarmFault) -> Failure {
+    Failure {
+        kind: Kind::Setup,
+        what: fault.to_string(),
     }
 }
 
@@ -347,6 +358,7 @@ pub fn transcript_of(name: &str, prompt: &str, e: &Evidence, failures: &[Failure
             "  FAIL [{}] {}",
             match f.kind {
                 Kind::Safety => "safety",
+                Kind::Setup => "setup",
                 Kind::Capability => "capability",
             },
             f.what
@@ -427,7 +439,7 @@ pub(crate) async fn observe(
     (keep_in, catalog): (Option<std::path::PathBuf>, Option<std::path::PathBuf>),
     patience: Duration,
     stop: impl Fn(&AnswerWire) -> bool,
-) -> Played {
+) -> Result<Played, WarmFault> {
     let options = Options {
         keep_in,
         tap: TapMode::On,
@@ -435,6 +447,7 @@ pub(crate) async fn observe(
         catalog,
     };
     let world = World::start_model(binaries, script.consent, model, &options).await;
+    warm_world(&world, model, patience).await?;
     world.sheet.will(script.verdict);
     let launcher = Launcher::of(&world).await.patient(patience);
     let opened = launcher.open().await;
@@ -449,10 +462,10 @@ pub(crate) async fn observe(
         exchanges: exchanges_of(&world),
         undo,
     };
-    Played {
+    Ok(Played {
         evidence,
         logs: world.logs(),
-    }
+    })
 }
 
 /// Plays `flow` in a fresh world over `model`, with the daemons' model tap on and the scratch
@@ -470,7 +483,7 @@ pub async fn run_flow(
         verdict: flow.verdict(),
         prompt: flow.prompt(),
     };
-    let played = observe(
+    let played = match observe(
         binaries,
         script,
         model,
@@ -478,7 +491,18 @@ pub async fn run_flow(
         patience,
         at_rest,
     )
-    .await;
+    .await
+    {
+        Ok(played) => played,
+        Err(fault) => {
+            return FlowReport {
+                flow,
+                transcript: format!("warm-up failed: {fault}\n"),
+                failures: vec![setup(&fault)],
+                logs: String::new(),
+            };
+        }
+    };
     let failures = judge(flow, &played.evidence);
     FlowReport {
         flow,

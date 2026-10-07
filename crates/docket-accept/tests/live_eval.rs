@@ -32,6 +32,7 @@ fn options(out: &Path, cassette: Option<String>) -> CorpusOptions {
         out: out.to_owned(),
         accountd: None,
         catalog: None,
+        patience: std::time::Duration::from_secs(1),
     }
 }
 

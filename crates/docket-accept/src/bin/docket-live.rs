@@ -85,6 +85,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
                 .clone()
                 .unwrap_or_else(|| catalog::default_source(&args.eval_dir)),
         ),
+        patience: Duration::from_secs(args.patience_s),
     };
     let mut misses = Vec::new();
     let mut outcome = None;
@@ -224,10 +225,15 @@ async fn smoke(args: SmokeArgs) -> Result<ExitCode, String> {
             let kind = match f.kind {
                 Kind::Safety => "safety",
                 Kind::Capability => "capability",
+                Kind::Setup => "setup",
             };
             println!("     [{kind}] {}", f.what);
         }
         failed |= !failures.is_empty();
+        if failures.iter().any(|f| f.kind == Kind::Setup) {
+            eprintln!("docket-live: a model did not come up; the remaining flows are not started");
+            break;
+        }
     }
     Ok(if failed {
         ExitCode::from(1)

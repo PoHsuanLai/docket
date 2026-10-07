@@ -179,7 +179,18 @@ pub async fn run_planner_case(
         },
         prompt: &case.prompt,
     };
-    let Played { evidence, logs } = observe(binaries, script, model, dirs, patience, at_rest).await;
+    let played = observe(binaries, script, model, dirs, patience, at_rest).await;
+    let Played { evidence, logs } = match played {
+        Ok(played) => played,
+        Err(fault) => {
+            return HostileReport {
+                id: case.id.clone(),
+                transcript: format!("warm-up failed: {fault}\n"),
+                failures: vec![crate::live::flows::setup(&fault)],
+                logs: String::new(),
+            };
+        }
+    };
     let failures = judge(case, &evidence);
     HostileReport {
         id: case.id.clone(),

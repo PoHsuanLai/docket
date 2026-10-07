@@ -1690,3 +1690,17 @@ ReadFault)` (NotHeld, OutOfSchema, Unparseable, Refused, Unavailable; `Session.R
 `Unavailable` stays a failed turn with `Failure::Reader`. The tool description and `want` schema now give
 the shapes and an example. `want` is the reader's `ValueSchema`, not a JSON Schema: the description says
 so, since a model that writes JSON Schema is the mistake we saw.
+
+## Live smoke 13: entity handles read as "not held", and the cold start (read-entity-warm)
+
+Two findings of the Qwen3-8B smoke run. (1) In flow-a-refused the planner passed two thread handles to
+`quire_read`; the router resolves text only, so a held thing answered `NotHeld` ("not a handle you were
+shown"), and the planner gave up and asked the person. Fix: `ReadFault::NotText { handle, shape }` for a
+handle that is held but is a thing or a file. Its line names the handle and kind and says to read it with
+the app's read action first (`<kind>.read` is the manifests' convention; the wording says "such as"
+because the planner's line has no catalogue). `NotHeld` stays for handles the session never minted. The
+router does not read things for the planner: reading an app's thread is a call the policy must see.
+`RULES` says `quire_read` takes text handles and a thing is read first. (2) The first request of a local
+model waited 180 s for its load and failed the turn. Fix in the harness, not the product timeouts:
+`docket-live` warms every routed model per world before the first flow or case (docs/live-eval.md,
+Warm-up). Not yet run against a live engine.

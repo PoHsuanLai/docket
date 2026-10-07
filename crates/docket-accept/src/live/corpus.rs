@@ -7,6 +7,8 @@ use crate::live::engine::{Engine, EngineError, scripted_cassette};
 use crate::live::inferd_world::InferdWorld;
 use crate::live::stage::{Asker, asker};
 use crate::live::trace_dir::{TraceDir, TraceDirError};
+use crate::live::warm::WarmFault;
+use crate::live::warm_bus::warm_up;
 use crate::world::{Binaries, Options, TapMode};
 use action_review::{InferReviewer, ReviewRequest, ReviewVerdict, Reviewer};
 use docket_core::{AgentConfig, Millis, ModelExchange, ReviewError, ReviewTimeouts, Stage};
@@ -20,6 +22,7 @@ use porter_client::{AnyTransport, DbusTransport};
 use porter_core::{AccountId, Billing, Locality, ModelId};
 use porter_infer::ModelCard;
 use std::path::PathBuf;
+use std::time::Duration;
 
 /// How long each review stage may take, as a run is told.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +67,8 @@ pub struct CorpusOptions {
     pub accountd: Option<PathBuf>,
     /// The catalogue directory copied into the world (the sibling stoker checkout's by default).
     pub catalog: Option<PathBuf>,
+    /// How long each model may take to come up before the run starts (live engines).
+    pub patience: Duration,
 }
 
 /// What a run produced.
@@ -88,6 +93,9 @@ pub enum CorpusError {
     /// The fake router could not be built.
     #[error("router: {0}")]
     Router(FakeError),
+    /// A model did not come up before the run started.
+    #[error(transparent)]
+    Warm(#[from] WarmFault),
     /// A trace could not be written.
     #[error(transparent)]
     Trace(#[from] TraceDirError),
@@ -168,6 +176,7 @@ pub async fn run_corpus_live(
     )
     .await;
     let connection = world.connect().await;
+    warm_up(&model, connection.clone(), options.patience).await?;
     let memory = MemoryTap::default();
     let tap = Tap::memory(memory.clone(), "eval");
     let link = || -> Link {

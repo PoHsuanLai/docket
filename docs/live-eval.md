@@ -82,7 +82,7 @@ engines, because a cloud round trip is slower than the quick stage's 300 ms and 
 bound would ask about everything), `--fnr-max-permille N` (fail when a corpus's false-negative rate has
 a Wilson upper end above N; the person's target, QUESTIONS S5), `--regress DIR` (play the regression
 cassettes, below). `--catalog DIR` (default `../stoker/catalog`). Options of `live-smoke.sh`: `--flow NAME` (flow-a, flow-a-refused, first-use, flow-c;
-repeatable), `--patience-s N` (seconds to wait for each change of an answer; default 600).
+repeatable), `--patience-s N` (seconds to wait for each change of an answer, and for each model's warm-up; default 600).
 
 Exit codes: 0 everything met, 1 a case missed or a flow failed, 2 the run could not start.
 
@@ -141,6 +141,18 @@ scripts/eval-release.sh --engine cloud --inferd-config dev/live/inferd.cloud.tom
 Steps 2 and 3 are the harness's half (`Options::accountd` starts accountd with the scratch caller table
 and `ACCOUNTD_KEYS=file:<scratch>/keys/accountd.keys`); they are not run or tested here, because they
 need the ask.
+
+### Warm-up
+
+A local model's first request waits for its load (75 to 200 s for the 8B planner on vLLM), longer than
+any product timeout, and the turn would fail on it. So a live engine (`local`, `cloud`) warms first:
+after each world's inferd is up and before its first flow or case, `docket-live` asks inferd to prepare
+every model the config's `[ai.model.text]` routes (`warm.rs`: one per distinct model, the `fast` tier
+last because the first request uses it), through porter-client's `Transport::prepare`, polling every 2 s
+up to `--patience-s` per model. Each is printed as `docket-live: warm <Tier> <model> ready in N.Ns`.
+A model that is unavailable or never comes up is a `[setup]` failure (a smoke run stops there; a corpus
+run errors) and no flow starts. A scripted engine skips it. The warm-up runs once per world, because a
+world is a fresh inferd: the engine's compile cache (`DOCKET_LIVE_ENGINE_CACHE`) is what is shared.
 
 ## Reading a trace
 

@@ -339,6 +339,22 @@ mod tests {
             ),
             (ReadFault::NotHeld, "not a handle you were shown"),
             (
+                ReadFault::NotText {
+                    handle: Handle(1),
+                    shape: HandleShape::Entity(
+                        prov::EntityKind::parse("mail.thread").expect("kind"),
+                    ),
+                },
+                "#1 is a mail.thread, not text: read it first with the action that reads a mail.thread (such as mail.thread.read) and give quire_read the handle that call returns",
+            ),
+            (
+                ReadFault::NotText {
+                    handle: Handle(2),
+                    shape: HandleShape::File,
+                },
+                "#2 is a file, not text",
+            ),
+            (
                 ReadFault::OutOfSchema(SchemaFault::NotInSet),
                 "did not fit \"want\"",
             ),

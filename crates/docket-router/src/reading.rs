@@ -2,7 +2,7 @@
 //! context of the window the person prompted from. Untrusted text reaches a planner only as a
 //! handle; plain text goes to the reader and to the screen.
 
-use crate::handles::{HandleValue, context_view};
+use crate::handles::{HandleTable, HandleValue, context_view};
 use crate::labels::{absorb, fold_labels};
 use crate::router::Router;
 use crate::seams::{AppLink, LinkFault, Seams};
@@ -12,7 +12,7 @@ use docket_core::{
     Resolved, Reveal, Selection, Value, WireRefusal, conforms,
 };
 use porter_core::AppName;
-use prov::{Label, Labelled, SessionId, Source};
+use prov::{Label, Labelled, Quarantined, SessionId, Source};
 
 fn refuse(why: WireRefusal) -> IntentsReply {
     IntentsReply::Refused(why)
@@ -37,6 +37,22 @@ fn texts(value: &Value, into: &mut Vec<String>) {
         Value::Record(fields) => fields.values().for_each(|v| texts(v, into)),
         _ => {}
     }
+}
+
+/// An input of a read: its quarantined text and label. A handle of a thing or a file is held
+/// but not text (`NotText`); one the session never minted is `NotHeld`.
+fn text_input(
+    handles: &HandleTable,
+    handle: Handle,
+) -> Result<(Quarantined<String>, Label), ReadFault> {
+    let card = handles.card(handle).ok_or(ReadFault::NotHeld)?;
+    handles
+        .resolve_text(handle)
+        .zip(handles.label(handle).cloned())
+        .ok_or(ReadFault::NotText {
+            handle,
+            shape: card.shape,
+        })
 }
 
 impl<S: Seams> Router<S> {
@@ -81,19 +97,15 @@ impl<S: Seams> Router<S> {
             let Some(record) = st.sessions.get_mut(id) else {
                 return refuse(WireRefusal::NoSuchSession);
             };
-            let held: Option<Vec<_>> = ask
+            let held: Result<Vec<_>, ReadFault> = ask
                 .ask
                 .inputs
                 .iter()
-                .map(|h| {
-                    record
-                        .handles
-                        .resolve_text(*h)
-                        .zip(record.handles.label(*h).cloned())
-                })
+                .map(|h| text_input(&record.handles, *h))
                 .collect();
-            let Some(held) = held else {
-                return refuse(WireRefusal::Read(ReadFault::NotHeld));
+            let held = match held {
+                Ok(held) => held,
+                Err(fault) => return refuse(WireRefusal::Read(fault)),
             };
             held.iter().for_each(|(_, l)| absorb(record, l));
             held.into_iter().unzip::<_, _, Vec<_>, Vec<_>>()

@@ -77,6 +77,7 @@ async fn spoiled_replies_reach_the_stage_that_reads_them_and_the_case_still_hold
             out: out.path().to_owned(),
             accountd: None,
             catalog: None,
+            patience: std::time::Duration::from_secs(1),
         },
     )
     .await

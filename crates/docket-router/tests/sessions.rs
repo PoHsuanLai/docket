@@ -486,6 +486,56 @@ async fn a_read_that_gives_no_answer_says_why() {
 }
 
 #[tokio::test]
+async fn a_thing_given_to_a_read_is_held_but_not_text_and_a_stranger_is_not_held() {
+    let mut router = router();
+    let s = ready(&router).await;
+    let thread = {
+        let mut st = router.state.lock().expect("lock");
+        let record = st.sessions.get_mut(&s.session).expect("session");
+        record
+            .handles
+            .mint_entity(entity("mail.thread", "t1"), mail_label("work"))
+    };
+    let text = hold(&router, &s.session, "thanks", mail_label("work"));
+    let read = |inputs: Vec<Handle>| IntentsRequest::SessionRead {
+        session: s.session.clone(),
+        ask: ReadAsk {
+            ask: ReaderAsk {
+                inputs,
+                want: ValueSchema::Date,
+                task: ReaderTask::Classify,
+            },
+        },
+    };
+    router.seams.reader = ScriptedReader::answering(vec![]);
+    let kind = prov::EntityKind::parse("mail.thread").expect("kind");
+    let rows = [
+        (
+            vec![thread],
+            ReadFault::NotText {
+                handle: thread,
+                shape: HandleShape::Entity(kind.clone()),
+            },
+        ),
+        (
+            vec![text, thread],
+            ReadFault::NotText {
+                handle: thread,
+                shape: HandleShape::Entity(kind),
+            },
+        ),
+        (vec![Handle(999), thread], ReadFault::NotHeld),
+    ];
+    for (inputs, fault) in rows {
+        assert_eq!(
+            ask(&router, &companion(), read(inputs)).await,
+            IntentsReply::Refused(WireRefusal::Read(fault.clone())),
+            "{fault:?}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn closing_and_turns_belong_to_the_session_the_surface_opened() {
     let router = router();
     let field = caller("org.quire.Mail", CallerRole::Field);
