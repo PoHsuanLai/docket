@@ -8,8 +8,8 @@ use crate::router::Router;
 use crate::seams::{AppLink, LinkFault, Seams};
 use crate::session::SessionState;
 use docket_core::{
-    CallRefusal, ContextScope, ContextSnapshot, Handle, IntentsReply, ReadAsk, Reader, Resolved,
-    Reveal, Selection, Value, WireRefusal, conforms,
+    CallRefusal, ContextScope, ContextSnapshot, Handle, IntentsReply, ReadAsk, ReadFault, Reader,
+    Resolved, Reveal, Selection, Value, WireRefusal, conforms,
 };
 use porter_core::AppName;
 use prov::{Label, Labelled, SessionId, Source};
@@ -93,21 +93,22 @@ impl<S: Seams> Router<S> {
                 })
                 .collect();
             let Some(held) = held else {
-                return refuse(WireRefusal::Malformed);
+                return refuse(WireRefusal::Read(ReadFault::NotHeld));
             };
             held.iter().for_each(|(_, l)| absorb(record, l));
             held.into_iter().unzip::<_, _, Vec<_>, Vec<_>>()
         };
-        let Ok(value) = self
+        let value = match self
             .seams
             .reader()
             .extract(id, ask.ask.clone(), inputs)
             .await
-        else {
-            return refuse(WireRefusal::Malformed);
+        {
+            Ok(value) => value,
+            Err(error) => return refuse(WireRefusal::Read(error.into())),
         };
-        if conforms(&value, &ask.ask.want).is_err() {
-            return refuse(WireRefusal::Malformed);
+        if let Err(fault) = conforms(&value, &ask.ask.want) {
+            return refuse(WireRefusal::Read(ReadFault::OutOfSchema(fault)));
         }
         let mut words = Vec::new();
         texts(&value, &mut words);

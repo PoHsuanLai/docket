@@ -248,7 +248,7 @@ async fn without_a_reader_the_read_ends_the_turn_as_failed() {
         call(READ, json!({ "target": thread("t1") })),
         call("quire_read", serde_json::to_value(&ask).expect("ask")),
     ]);
-    let sheet = TestSheet::default();
+    let sheet = TestSheet::answering(vec![docket_inapp::SheetAnswer::Once; 2]);
     let mut agent =
         InAppAgent::new(parts(ScriptedReviewer::always_allow(), &planner, &sheet)).expect("agent");
     let reply = agent.ask("classify the invoice").await.expect("turn");

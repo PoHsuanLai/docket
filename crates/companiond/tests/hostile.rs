@@ -199,3 +199,56 @@ async fn made_up_and_wrong_typed_calls_are_unread_with_a_typed_fault_not_run() {
         );
     }
 }
+
+#[tokio::test]
+async fn a_read_with_a_part_that_does_not_fit_is_unread_with_the_part_named() {
+    use docket_core::{ReadFault, ReplyFault};
+    let want = json!({ "kind": "choice", "v": ["a", "b"] });
+    for (name, args, fault) in [
+        (
+            "want written as a handle",
+            json!({ "inputs": [1, 2], "task": "classify", "want": { "handle": "thread" } }),
+            ReadFault::Want,
+        ),
+        (
+            "want written as a JSON Schema",
+            json!({ "inputs": [1], "task": "classify", "want": { "type": "object" } }),
+            ReadFault::Want,
+        ),
+        (
+            "want missing",
+            json!({ "inputs": [1], "task": "classify" }),
+            ReadFault::Want,
+        ),
+        (
+            "inputs that are words",
+            json!({ "inputs": ["the thread"], "task": "classify", "want": want }),
+            ReadFault::Inputs,
+        ),
+        (
+            "no inputs",
+            json!({ "inputs": [], "task": "classify", "want": want }),
+            ReadFault::Inputs,
+        ),
+        (
+            "a task of its own",
+            json!({ "inputs": [1], "task": "find", "want": want }),
+            ReadFault::Task,
+        ),
+    ] {
+        assert_eq!(
+            plan(call(TOOL_READ, args.clone())).await,
+            Ok(ModelOutput::Unread(ReplyFault::Read(fault))),
+            "{name} {args}"
+        );
+    }
+    assert_eq!(
+        plan(Say::Reply(
+            String::new(),
+            vec![(TOOL_READ.into(), json!("x"))]
+        ))
+        .await,
+        Ok(ModelOutput::Unread(ReplyFault::Read(ReadFault::Inputs))),
+        "arguments that are not an object"
+    );
+}

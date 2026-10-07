@@ -93,7 +93,7 @@ pub use preview::{
     FactLine, FileFacts, FileMove, Markdownish, MessageSnip, PageIndex, Preview, TimeRange, size_of,
 };
 pub use reader::{
-    Reader, ReaderAsk, ReaderError, ReaderTask, SchemaFault, ValueSchema, conforms,
+    ReadFault, Reader, ReaderAsk, ReaderError, ReaderTask, SchemaFault, ValueSchema, conforms,
     entity_choice_text,
 };
 pub use review::{

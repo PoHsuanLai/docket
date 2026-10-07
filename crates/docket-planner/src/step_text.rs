@@ -2,6 +2,7 @@
 //! on (which argument, why, and which handles it does hold), never a policy id or a reviewer's
 //! words: the router's coarse code is all that crosses, and a handle stays an opaque `#n`.
 
+use crate::read_ask::read_fault_text;
 use docket_core::{
     ArgFault, ArgsFault, CallRefusal, Handle, HandleCard, HandleShape, Held, ReplyFault, Reveal,
     StepEnd, StepLine, StepShown, TargetFault, Value, Why,
@@ -89,10 +90,13 @@ fn unread_text(fault: &ReplyFault) -> String {
             format!("argument \"{}\" {how}", param.as_str())
         }
         ReplyFault::Args(ArgsFault::Target(target)) => target_text(*target),
+        ReplyFault::Read(fault) => read_fault_text(fault),
     };
-    format!(
-        "your last reply could not be read as a call: {why}; write the call again, ask the person with quire_ask, or finish"
-    )
+    let lead = match fault {
+        ReplyFault::Read(_) => "your quire_read gave no answer",
+        _ => "your last reply could not be read as a call",
+    };
+    format!("{lead}: {why}; write the call again, ask the person with quire_ask, or finish")
 }
 
 fn target_text(fault: TargetFault) -> String {
@@ -320,6 +324,34 @@ mod tests {
             );
             assert!(line.contains(want), "{fault:?}: {line}");
             assert!(line.contains("quire_ask"), "{line}");
+        }
+    }
+
+    #[test]
+    fn a_read_that_gave_no_answer_is_told_what_was_wrong_and_the_shape_expected() {
+        use docket_core::{ReadFault, SchemaFault};
+        let table = [
+            (ReadFault::Inputs, "list of handle numbers"),
+            (ReadFault::Task, "classify, extract, summarise, compare"),
+            (
+                ReadFault::Want,
+                "{\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}",
+            ),
+            (ReadFault::NotHeld, "not a handle you were shown"),
+            (
+                ReadFault::OutOfSchema(SchemaFault::NotInSet),
+                "did not fit \"want\"",
+            ),
+            (ReadFault::Unparseable, "could not be read"),
+            (ReadFault::Refused, "declined"),
+        ];
+        for (fault, want) in table {
+            let line = step_line(&step(StepEnd::Unread(ReplyFault::Read(fault.clone()))), &[]);
+            assert!(
+                line.starts_with("your quire_read gave no answer: "),
+                "{line}"
+            );
+            assert!(line.contains(want), "{fault:?}: {line}");
         }
     }
 }

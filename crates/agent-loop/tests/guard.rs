@@ -328,3 +328,49 @@ fn a_search_that_names_the_same_handles_again_is_unchanged_and_held() {
     let (_, e) = agent_step(s, plan(search()));
     assert_eq!(holds_in(&e), [Held::Unchanged]);
 }
+
+fn read_pending() -> LoopState {
+    let ask = ReaderAsk {
+        inputs: vec![Handle(1)],
+        want: ValueSchema::Date,
+        task: ReaderTask::Extract,
+    };
+    agent_step(asked(), LoopInput::Planned(ModelOutput::Read(ask))).0
+}
+
+fn read_failed() -> LoopInput {
+    LoopInput::ReadFailed(ReplyFault::Read(ReadFault::Want))
+}
+
+#[test]
+fn a_read_with_no_usable_answer_is_told_and_the_planner_asked_again() {
+    let pending = read_pending();
+    assert_eq!(pending.phase, LoopPhase::AwaitingReader);
+    let (s, e) = agent_step(pending, read_failed());
+    assert_eq!(s.phase, LoopPhase::Planning);
+    assert_eq!(unread_lines(&e), 1);
+    assert!(e.contains(&LoopEffect::AskPlanner));
+}
+
+#[test]
+fn read_faults_and_unreadable_replies_share_one_bound() {
+    let (s, _) = agent_step(read_pending(), read_failed());
+    let (s, _) = agent_step(s, unread());
+    let (s, e) = agent_step(s, unread());
+    assert_eq!(
+        s.phase,
+        LoopPhase::Idle,
+        "the third in a row asks the person"
+    );
+    assert!(!e.contains(&LoopEffect::AskPlanner));
+    assert!(asks_person(&e).is_some());
+}
+
+#[test]
+fn a_read_failure_outside_a_read_changes_nothing() {
+    let planning = asked();
+    assert_eq!(
+        agent_step(planning.clone(), read_failed()),
+        (planning, vec![])
+    );
+}

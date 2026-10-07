@@ -15,8 +15,8 @@ use agent_loop::{
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
 use docket_core::{
-    ActionRef, CallId, CallProgress, CallRefusal, CallRequest, ReadAsk, ReaderAsk, Reveal, StepEnd,
-    WireRefusal,
+    ActionRef, CallId, CallProgress, CallRefusal, CallRequest, ReadAsk, ReadFault, ReaderAsk,
+    ReplyFault, Reveal, StepEnd, WireRefusal,
 };
 use docket_planner::PlanFault;
 use porter_client::Transport as InferTransport;
@@ -385,6 +385,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         };
         let answer = self.intents.session_read(session, ReadAsk { ask }).await;
         match answer {
+            Err(ClientError::Refused(WireRefusal::Read(fault)))
+                if !matches!(fault, ReadFault::Unavailable) =>
+            {
+                Ok(vec![LoopInput::ReadFailed(ReplyFault::Read(fault))])
+            }
             Err(_) => {
                 if let Some(rt) = self.runtimes.get_mut(task) {
                     rt.failure = Some(Failure::Reader);

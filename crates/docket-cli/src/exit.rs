@@ -191,7 +191,7 @@ pub fn of_client(error: &ClientError) -> Failure {
         ClientError::Refused(WireRefusal::Malformed) => {
             Failure::new(Exit::Usage, "intentd could not read the request")
         }
-        ClientError::Refused(WireRefusal::Send(_)) => {
+        ClientError::Refused(WireRefusal::Send(_) | WireRefusal::Read(_)) => {
             Failure::new(Exit::AppFailed, "the request was refused")
         }
     }

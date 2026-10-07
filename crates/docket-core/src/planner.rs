@@ -171,6 +171,8 @@ pub enum ReplyFault {
     NotJson,
     /// Its arguments did not fit the action's manifest.
     Args(crate::args::ArgsFault),
+    /// A `quire_read` that could not be answered, or its arguments did not fit.
+    Read(crate::reader::ReadFault),
 }
 
 /// Why a repeated call was not run, for the note the planner is given.

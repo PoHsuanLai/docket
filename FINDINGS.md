@@ -1664,3 +1664,29 @@ Interface asks.
 - almanac: `RecentEntry::body` for an `Area` payload should be the payload's `json` (the owner's form), as
   documented (`almanac-service/src/search.rs` `recent_entry`). docket reads both until then.
 - quire / apps: none.
+
+## A model's mistake on quire_read ended the turn (live smoke, Qwen3-8B, 2026-10-07)
+
+Smoke `flow-a` and `flow-a-refused` (traces in the live-eval scratch dir) both ended
+`{"kind":"failed"}` right after the planner's third step, the identical call
+`quire_read {"inputs":[1,2],"task":"classify","want":{"handle":"thread with Lisbon receipts"}}`, and no
+reader exchange was recorded.
+
+Cause. The smoke world does have a reader (readerd is started and appears in the caller table), so
+nothing was missing there. The planner parsed `quire_read` with one `serde_json::from_value::<ReaderAsk>`
+(`docket-planner` `meta_output`); `want` is a closed `ValueSchema` (`{"kind":"choice","v":[...]}`), the tool
+schema only said `{"type":"object"}`, the model wrote a handle-shaped object, the parse failed and the
+planner returned `PlanFault::Unreadable`, which the loop turns into `ModelFailed` and a failed turn. The
+same single-step failure covered inputs that were not numbers and an unknown `task`. Further down the
+path the router collapsed every read problem (input not held, reader refused or unparseable, answer off
+the schema) into `WireRefusal::Malformed`, and `drive::read` turned any error into `Failure::Reader`, so
+those would have failed the turn too.
+
+Fix. A read is parsed part by part (`docket-planner` `read_ask`): a bad part is `ModelOutput::Unread(
+ReplyFault::Read(ReadFault))` and joins the unreadable-reply fault lines and their bound
+(`MOST_UNREADABLE`, then the person is asked). The router answers a read with `WireRefusal::Read(
+ReadFault)` (NotHeld, OutOfSchema, Unparseable, Refused, Unavailable; `Session.Read`'s body is now
+`Result<Reveal, ReadFault>`), the driver feeds all but `Unavailable` back as `LoopInput::ReadFailed`, and
+`Unavailable` stays a failed turn with `Failure::Reader`. The tool description and `want` schema now give
+the shapes and an example. `want` is the reader's `ValueSchema`, not a JSON Schema: the description says
+so, since a model that writes JSON Schema is the mistake we saw.

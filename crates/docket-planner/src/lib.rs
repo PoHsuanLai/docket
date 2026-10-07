@@ -11,6 +11,7 @@
 mod args;
 mod catalogue;
 mod planner;
+mod read_ask;
 mod render;
 mod step_text;
 

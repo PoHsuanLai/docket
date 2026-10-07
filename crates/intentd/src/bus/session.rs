@@ -2,7 +2,7 @@
 
 use super::{Gateway, json, parsed};
 use docket_core::{
-    Handle, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, TurnId, WidenAsk,
+    Handle, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, TurnId, WidenAsk, WireRefusal,
 };
 use docket_dbus::{Details, IntentsError};
 use prov::SessionId;
@@ -105,7 +105,8 @@ impl SessionBus {
         };
         self.0
             .answer(&header, request, |r| match r {
-                IntentsReply::Read(value) => Some(value),
+                IntentsReply::Read(value) => Some(Ok(value)),
+                IntentsReply::Refused(WireRefusal::Read(fault)) => Some(Err(fault)),
                 _ => None,
             })
             .await

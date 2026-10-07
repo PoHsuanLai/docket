@@ -418,6 +418,8 @@ pub enum WireRefusal {
     Call(CallRefusal),
     /// A message was not delivered.
     Send(SendRefusal),
+    /// A read gave no answer.
+    Read(crate::reader::ReadFault),
 }
 
 /// A handle's content as the reader receives it: the text and the label the router holds for it,

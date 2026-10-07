@@ -232,6 +232,40 @@ pub enum ReaderError {
     ModelUnavailable,
 }
 
+/// Why a read produced no answer the planner can use: told to it as a line of its history when
+/// it can write the read again, a failure of the turn when no reader answers at all.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+pub enum ReadFault {
+    /// `inputs` was not a non-empty list of handle numbers.
+    Inputs,
+    /// `task` was not one of the four.
+    Task,
+    /// `want` was not a shape of the answer.
+    Want,
+    /// An input is a handle this session does not hold.
+    NotHeld,
+    /// The reader's answer did not fit `want`.
+    OutOfSchema(SchemaFault),
+    /// The reader's reply could not be read at all.
+    Unparseable,
+    /// The reader refused.
+    Refused,
+    /// No reader or model could answer: not the planner's mistake.
+    Unavailable,
+}
+
+impl From<ReaderError> for ReadFault {
+    fn from(error: ReaderError) -> Self {
+        match error {
+            ReaderError::OutOfSchema(fault) => ReadFault::OutOfSchema(fault),
+            ReaderError::Unparseable => ReadFault::Unparseable,
+            ReaderError::Refused => ReadFault::Refused,
+            ReaderError::ModelUnavailable => ReadFault::Unavailable,
+        }
+    }
+}
+
 /// What `readerd` implements; `intentd` calls it over `Reader1`. The inputs are quarantined:
 /// only the reader's host holds the key that opens them.
 pub trait Reader: Send + Sync {

@@ -9,10 +9,11 @@
 
 use crate::args::{ArgsFault, read_call};
 use crate::catalogue::{Catalogue, CatalogueTool};
+use crate::read_ask::{read_output, want_schema};
 use crate::render::messages;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
-use docket_core::{CallRequest, Origin, PlannerView, ReaderAsk, ReplyFault};
+use docket_core::{CallRequest, Origin, PlannerView, ReplyFault};
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
@@ -103,7 +104,7 @@ fn meta_tools() -> Vec<ToolDecl> {
         "properties": {
             "inputs": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1 },
             "task": { "enum": ["classify", "extract", "summarise", "compare"] },
-            "want": { "type": "object" },
+            "want": want_schema(),
         },
         "required": ["inputs", "task", "want"],
         "additionalProperties": false,
@@ -113,7 +114,7 @@ fn meta_tools() -> Vec<ToolDecl> {
         meta_tool(TOOL_ASK, "Ask the person a question and wait for the answer.", &ask),
         meta_tool(
             TOOL_READ,
-            "Have the reader answer a question about handles you cannot read. It answers in the shape you give.",
+            "Have the reader answer a question about handles you cannot read. \"want\" is the shape of the answer, as {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]} (kinds: choice, integer, date, datetime, text, record, list); it is not a JSON Schema.",
             &read,
         ),
         meta_tool(TOOL_FINISH, "The task is done.", &finish),
@@ -374,13 +375,16 @@ fn is_meta(name: &str) -> bool {
 }
 
 fn meta_output(call: &ToolCallPart) -> Result<ModelOutput, PlanFault> {
-    let args: Json = serde_json::from_str(call.args.as_str()).map_err(|_| PlanFault::Unreadable)?;
+    let Ok(args) = serde_json::from_str::<Json>(call.args.as_str()) else {
+        return match call.name.as_str() {
+            TOOL_READ => Ok(ModelOutput::Unread(ReplyFault::NotJson)),
+            _ => Err(PlanFault::Unreadable),
+        };
+    };
     match call.name.as_str() {
         TOOL_FINISH => Ok(ModelOutput::Finish),
         TOOL_ASK => question(&args),
-        _ => serde_json::from_value::<ReaderAsk>(args)
-            .map(ModelOutput::Read)
-            .map_err(|_| PlanFault::Unreadable),
+        _ => Ok(read_output(&args)),
     }
 }
 

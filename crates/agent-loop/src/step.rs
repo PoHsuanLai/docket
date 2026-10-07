@@ -104,6 +104,8 @@ pub enum LoopInput {
     CallEnded(CallId, StepEnd),
     /// The reader answered.
     ReadAnswered(Reveal<Value>),
+    /// The read gave no answer the planner can use, and it may write the read again.
+    ReadFailed(ReplyFault),
     /// The model failed or timed out.
     ModelFailed,
     /// A worker or run reported.
@@ -172,6 +174,9 @@ pub fn agent_step(state: LoopState, input: LoopInput) -> (LoopState, Vec<LoopEff
         (Planning, LoopInput::Planned(output)) => planned(state, output),
         (Planning | AwaitingReader, LoopInput::ModelFailed) => finish(state, FinishedAs::Failed),
         (AwaitingReader, LoopInput::ReadAnswered(_)) => replan(state),
+        (AwaitingReader, LoopInput::ReadFailed(fault)) => {
+            unreadable(with_phase(state, Planning), fault)
+        }
         (AwaitingCalls | Paused(_), LoopInput::CallEnded(id, end)) => call_ended(state, id, end),
         (Paused(_), LoopInput::Resumed) => resumed(state),
         (Paused(_), LoopInput::Tripped(_)) => stay(state),

@@ -438,7 +438,9 @@ async fn the_reader_answers_a_closed_set_plainly_and_any_text_as_a_handle() {
     .await;
     assert_eq!(
         wrong,
-        IntentsReply::Refused(WireRefusal::Malformed),
+        IntentsReply::Refused(WireRefusal::Read(ReadFault::OutOfSchema(
+            SchemaFault::OutOfRange
+        ))),
         "an answer outside the schema"
     );
     assert_eq!(
@@ -446,6 +448,41 @@ async fn the_reader_answers_a_closed_set_plainly_and_any_text_as_a_handle() {
         vec![s.session.clone(); 3],
         "the router names the session the handles are held in on every read"
     );
+}
+
+#[tokio::test]
+async fn a_read_that_gives_no_answer_says_why() {
+    let mut router = router();
+    let s = ready(&router).await;
+    let h = hold(&router, &s.session, "thanks", mail_label("work"));
+    let read = |input: Handle| IntentsRequest::SessionRead {
+        session: s.session.clone(),
+        ask: ReadAsk {
+            ask: ReaderAsk {
+                inputs: vec![input],
+                want: ValueSchema::Date,
+                task: ReaderTask::Classify,
+            },
+        },
+    };
+    router.seams.reader = ScriptedReader::answering(vec![
+        Err(ReaderError::Unparseable),
+        Err(ReaderError::OutOfSchema(SchemaFault::NotRepresentable)),
+        Err(ReaderError::ModelUnavailable),
+    ]);
+    let rows = [
+        (Handle(999), ReadFault::NotHeld),
+        (h, ReadFault::Unparseable),
+        (h, ReadFault::OutOfSchema(SchemaFault::NotRepresentable)),
+        (h, ReadFault::Unavailable),
+    ];
+    for (input, fault) in rows {
+        assert_eq!(
+            ask(&router, &companion(), read(input)).await,
+            IntentsReply::Refused(WireRefusal::Read(fault.clone())),
+            "{fault:?}"
+        );
+    }
 }
 
 #[tokio::test]

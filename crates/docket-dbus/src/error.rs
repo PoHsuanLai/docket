@@ -38,7 +38,7 @@ impl IntentsError {
             WireRefusal::NotAllowed => Some(IntentsError::NotAllowed(text)),
             WireRefusal::NoSuchSession => Some(IntentsError::NoSuchSession(text)),
             WireRefusal::Malformed => Some(IntentsError::Malformed(text)),
-            WireRefusal::Call(_) | WireRefusal::Send(_) => None,
+            WireRefusal::Call(_) | WireRefusal::Send(_) | WireRefusal::Read(_) => None,
         }
     }
 }
