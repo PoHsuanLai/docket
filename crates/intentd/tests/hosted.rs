@@ -252,7 +252,8 @@ async fn a_companion_recalls_through_memory_and_what_it_gets_carries_the_hits_la
         "what was read from mail is untrusted"
     );
     assert!(label.sources.contains(&Source::Mail));
-    assert!(matches!(value, Value::Entities(ids) if ids.len() == 1));
+    // A planner names what recall found by handle: one hit, one handle.
+    assert!(matches!(&value, Value::List(hits) if matches!(hits.as_slice(), [Value::Handle(_)])));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
