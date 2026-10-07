@@ -109,7 +109,8 @@ pub struct InAppParts<P, C, T, R, M, K> {
 
 type Seam<P, C, T, R, K, G, Y, W, D> = InAppSeams<P, C, T, R, K, G, Y, W, D>;
 type Link<P, C, T, R, K, G, Y, W, D> = Intents<InProcess<Seam<P, C, T, R, K, G, Y, W, D>>>;
-type Hosted<P, C, T, R, K, G, Y, W, D> = Arc<Router<Seam<P, C, T, R, K, G, Y, W, D>>>;
+type Hosting<P, C, T, R, K, G, Y, W, D> = Router<Seam<P, C, T, R, K, G, Y, W, D>>;
+type Hosted<P, C, T, R, K, G, Y, W, D> = Arc<Hosting<P, C, T, R, K, G, Y, W, D>>;
 
 /// One app's agent: `ask` runs a turn end to end through the router.
 pub struct InAppAgent<
@@ -274,7 +275,7 @@ where
     }
 
     /// The router, for the app to read what its seams hold (the sheet, the consent store).
-    pub fn router(&self) -> &Router<Seam<P, C, T, R, K, G, Y, W, D>> {
+    pub fn router(&self) -> &Hosting<P, C, T, R, K, G, Y, W, D> {
         &self.router
     }
 
