@@ -142,7 +142,7 @@ EDGES=(
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
   "docket-memory: almanac-client almanac-core docket-core docket-router porter-core prov"
-  "docket-inapp: action-review agent-loop almanac-core companion-wire docket-client docket-core docket-memory docket-models docket-planner docket-reader docket-router policy-point porter-client porter-core prov"
+  "docket-inapp: action-review agent-loop almanac-core companion-wire docket-client docket-core docket-memory docket-models docket-planner docket-reader docket-router docket-skills docket-tasks policy-point porter-client porter-core prov"
   "docket-dbus: docket-core porter-client porter-core porter-dbus porter-infer prov"
   "docket-client: docket-core docket-dbus docket-router prov"
   "docket-fake: action-review almanac-core docket-client docket-core docket-router policy-point porter-core prov"

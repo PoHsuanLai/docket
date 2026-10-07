@@ -146,6 +146,13 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         }
     }
 
+    /// Replaces the installed skills, checked at once against the manifests last seen. Skills
+    /// only teach: nothing here grants anything.
+    pub fn install_skills(&mut self, skill_files: Vec<docket_skills::Skill>) {
+        self.skills = docket_skills::Library::check(skill_files.clone(), &self.manifests);
+        self.skill_files = skill_files;
+    }
+
     /// Refreshes what the planner may call from the installed manifests. A router that does not
     /// answer leaves the last catalogue in place.
     pub(crate) async fn refresh_catalogue(&mut self) {
@@ -279,6 +286,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         rt.plan = crate::plan::Plan::default();
         rt.acts = crate::plan::Plan::default();
         rt.proposal = None;
+        rt.failure = None;
         let first = match phase {
             Some(LoopPhase::Paused(_)) => LoopInput::Resumed,
             _ => LoopInput::Asked(turn.id),

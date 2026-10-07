@@ -7,6 +7,7 @@ use crate::fault::ServeFault;
 use crate::plan::phase_of;
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
+use crate::task::Failure;
 use agent_loop::{
     IdleInput, LoopEffect, LoopInput, LoopPhase, LoopState, ModelOutput, agent_step, assemble,
     idle_step,
@@ -167,7 +168,15 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 self.unread(task, fault);
                 Ok(vec![])
             }
-            LoopEffect::Note(_) | LoopEffect::Refused(_) => Ok(vec![]),
+            LoopEffect::Refused(refusal) => {
+                if let (CallRefusal::OverBudget(_), Some(rt)) =
+                    (&refusal, self.runtimes.get_mut(task))
+                {
+                    rt.failure = Some(Failure::Refused(refusal));
+                }
+                Ok(vec![])
+            }
+            LoopEffect::Note(_) => Ok(vec![]),
             LoopEffect::CloseTask => {
                 self.finish(task).await?;
                 Ok(vec![])
@@ -179,6 +188,9 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     async fn plan_turn(&mut self, task: &TaskId) -> Result<Vec<LoopInput>, ServeFault> {
         let spent = self.tasks.get(task).map_or(0, |s| s.steps);
         if spent >= self.config.budget.calls.0 {
+            if let Some(rt) = self.runtimes.get_mut(task) {
+                rt.failure = Some(Failure::Budget);
+            }
             return Ok(vec![LoopInput::ModelFailed]);
         }
         let sources = self.sources(task).await;
@@ -186,9 +198,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let reply = match self.planner.converse(&view).await {
             Ok(reply) => reply,
             Err(fault) => {
-                if let (Some(text), Some(rt)) = (refusal_text(&fault), self.runtimes.get_mut(task))
-                {
-                    rt.refused = Some(RefusalWire::Failed(text));
+                if let Some(rt) = self.runtimes.get_mut(task) {
+                    if let Some(text) = refusal_text(&fault) {
+                        rt.refused = Some(RefusalWire::Failed(text));
+                    }
+                    rt.failure = Some(Failure::Model(fault));
                 }
                 return Ok(vec![LoopInput::ModelFailed]);
             }
@@ -371,7 +385,12 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         };
         let answer = self.intents.session_read(session, ReadAsk { ask }).await;
         match answer {
-            Err(_) => Ok(vec![LoopInput::ModelFailed]),
+            Err(_) => {
+                if let Some(rt) = self.runtimes.get_mut(task) {
+                    rt.failure = Some(Failure::Reader);
+                }
+                Ok(vec![LoopInput::ModelFailed])
+            }
             Ok(reveal) => {
                 if let Some(rt) = self.runtimes.get_mut(task) {
                     let held = match &reveal {

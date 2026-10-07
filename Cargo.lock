@@ -994,6 +994,8 @@ dependencies = [
  "docket-planner",
  "docket-reader",
  "docket-router",
+ "docket-skills",
+ "docket-tasks",
  "policy-point",
  "porter-client",
  "porter-core",

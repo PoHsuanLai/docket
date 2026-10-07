@@ -117,6 +117,20 @@ pub fn restart_query(since: UnixSeconds) -> RecentQuery {
     }
 }
 
+/// The owner's form of a stored body. Memory's `Recent` is documented to answer an `Area` payload
+/// as its owner wrote it, but the service answers the whole body, `{"kind":"area","v":{..,
+/// "json":"<the owner's form>"}}`; both are read, so a record is rebuilt from either.
+fn owner_form(text: &str) -> std::borrow::Cow<'_, str> {
+    let wrapped = serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .filter(|body| body["kind"] == "area")
+        .and_then(|body| body["v"]["json"].as_str().map(str::to_owned));
+    match wrapped {
+        Some(inner) => std::borrow::Cow::Owned(inner),
+        None => std::borrow::Cow::Borrowed(text),
+    }
+}
+
 fn what_of(entry: &RecentEntry) -> Result<Option<ReplayWhat>, ReplayFault> {
     let kind = entry.summary.kind.as_str();
     let wanted = kind == MESSAGE_KIND
@@ -131,7 +145,8 @@ fn what_of(entry: &RecentEntry) -> Result<Option<ReplayWhat>, ReplayFault> {
     let Some(body) = &entry.body else {
         return Ok(None);
     };
-    let text = body.as_str();
+    let text = owner_form(body.as_str());
+    let text = text.as_ref();
     let malformed = |_| ReplayFault::Malformed;
     let what = match kind {
         MESSAGE_KIND => ReplayWhat::Message(Box::new(
@@ -178,7 +193,8 @@ fn run_of(
         return Ok(None);
     };
     let malformed = |_| ReplayFault::Malformed;
-    let record: serde_json::Value = serde_json::from_str(body.as_str()).map_err(malformed)?;
+    let record: serde_json::Value =
+        serde_json::from_str(&owner_form(body.as_str())).map_err(malformed)?;
     let run = record["v"]["run"]
         .as_str()
         .and_then(|r| RunId::parse(r).ok())
@@ -225,4 +241,34 @@ pub async fn recover<S: RecentSource>(
 ) -> Result<Rebuilt, ReplayFault> {
     let entries = source.recent(restart_query(since)).await?;
     Ok(rebuild(&replay_of(&entries)?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const BARE: &str = r#"{"kind":"closed"}"#;
+
+    #[test]
+    fn a_body_is_read_the_same_bare_or_wrapped_in_the_area_envelope() {
+        let wrapped = serde_json::json!({
+            "kind": "area",
+            "v": { "area": "companion", "kind": "companion.session.closed", "json": BARE, "things": [] }
+        })
+        .to_string();
+        assert_eq!(owner_form(BARE), BARE);
+        assert_eq!(owner_form(&wrapped), BARE);
+    }
+
+    #[test]
+    fn text_that_is_not_json_or_not_an_envelope_is_left_alone() {
+        for text in [
+            "",
+            "not json",
+            "[1]",
+            r#"{"kind":"closed","v":{"json":"x"}}"#,
+        ] {
+            assert_eq!(owner_form(text), text, "{text}");
+        }
+    }
 }

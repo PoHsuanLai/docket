@@ -7,7 +7,11 @@
 //! on macOS and Windows. On our desktop the same app also serves its provider to intentd, and
 //! the companion there reaches it across apps; this is the part that works without any of it.
 //!
-//! - [`InAppAgent`]: hosts the turn; `ask` runs it end to end and returns a [`Reply`].
+//! - [`InAppAgent`]: hosts the tasks (`docket-tasks`, the model companiond runs): `ask` runs a turn
+//!   end to end and returns a [`Reply`]; `new_task`, `ask_in`, `front`, `roster`, `told`, `tick` and
+//!   `restore` are the many-task doors; `install_skills` and `install_skills_from` add skills (words
+//!   for the planner, never a grant); [`AuditFile`] keeps the audit records waiting for memory
+//!   across a restart.
 //! - [`ConfirmSheet`]: what the app implements to ask its person; [`SheetConfirmer`] mints the
 //!   receipt itself, so an app's sheet can say yes or no but never forge a proof.
 //! - [`ProviderLink`], [`InAppSeams`]: the router's seams over the one provider, with the
@@ -21,17 +25,20 @@
 //!   [`InAppParts::reviewer`]); [`SystemClock`] is the router's clock with no runtime needed.
 
 mod agent;
+mod ask;
+mod audit;
+mod audit_file;
 mod clock;
-mod drive;
 mod grants;
 mod kit;
 mod link;
-mod recall;
 mod seams;
 mod sheet;
-mod turn;
+mod skills;
+mod tasks;
 
-pub use agent::{AgentFault, Ending, Failure, InAppAgent, InAppParts, Reply};
+pub use agent::{AgentFault, Ending, Failure, HostClock, InAppAgent, InAppParts, Reply};
+pub use audit_file::{AuditFile, AuditFileError};
 pub use clock::SystemClock;
 pub use docket_memory::{AlmanacMemory, AuditState, Flushed, QueuedSink, Report};
 pub use docket_models::{TransportModel, TransportWriter, placeholder_set, reviewer_over};

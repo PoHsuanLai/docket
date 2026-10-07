@@ -1558,9 +1558,9 @@ DONE were filled by the inapp-seams lane (see the next section); the rest are li
 4. DONE. Consent storage. `FileGrantStore` (docket-inapp): a path the app gives, intentd's file format,
    atomic writes, typed `GrantFileError`; a write that fails is kept for `take_fault` because the
    `GrantStore` seam has no way to say so. The app decides where the file lives.
-5. The audit trail. `AuditBuffer` is now a bounded `QueuedSink`; with `AuditTo::Memory` each turn drains it
+5. DONE (inapp-tasks lane). The audit trail. `AuditBuffer` is now a bounded `QueuedSink`; with `AuditTo::Memory` each turn drains it
    into memory (`AuditState`), and what memory cannot take stays queued. An app that wants its own log
-   still drains the buffer. Open: a cross-restart queue (records waiting when the app quits are lost).
+   still drains the buffer. The cross-restart queue is `AuditFile` (see "inapp-tasks").
 6. DONE. A clock. `SystemClock` (docket-inapp): std only, one timer thread started at the first deadline,
    `Flag`-based futures, so `after` works under any executor. No dependency added: `futures-timer` and
    `async-io` would each bring a runtime-flavoured crate for about 100 lines.
@@ -1568,14 +1568,14 @@ DONE were filled by the inapp-seams lane (see the next section); the rest are li
    `TransportReader`, a second model session with no tools in the same process; readerd re-exports the pure
    names and keeps `ReaderHost`, the bus and `Resolve`. The process isolation of the desktop is replaced
    by the session boundary (fixed instruction, fenced data, typed answer, handles for text), not matched.
-8. One task, no front pointer, roster, side conversations, idle pass or restart recovery.
+8. DONE (inapp-tasks lane). One task, no front pointer, roster, side conversations, idle pass or restart recovery.
    `InAppAgent` runs one task at a time and keeps nothing across a restart. The pure machines for the
    rest are in `agent-loop`; what drives them is companiond's `Companiond`, which is generic over its
    transports but lives in a crate that links zbus. Owner: docket (extract `TaskRuntime`, `sources` and
    the drive loop into a portable crate that both companiond and `docket-inapp` use; the copies of
    `record_call` and the sources assembly in `docket-inapp/src/turn.rs` and `recall.rs` (the recall limits
    are companiond's, repeated) are the cost until then).
-9. Skills. The host installs no skills (`Sources.skills` is empty). Owner: docket (`docket-inapp`
+9. DONE (inapp-tasks lane). Skills. The host installs no skills (`Sources.skills` is empty). Owner: docket (`docket-inapp`
    takes `Vec<Skill>` and calls `router.install_skills`, as the companiond tests do).
 10. The capability probe. design/36 has the app choose in-app or desktop at run time (`Desktop::probe()`
     of quire's `ds-desktop`). Nothing here chooses; an app builds `InAppAgent` or talks to intentd.
@@ -1604,3 +1604,63 @@ Interface asks.
 - almanac: none (item 3 is done over `almanac-client` `in_process`).
 - quire: `ds-desktop` for item 10; nothing else.
 - stoker: none.
+
+## inapp-tasks: the in-app agent reaches parity with companiond's task model
+
+Items 5, 8 and 9 of "portable-core" are done.
+
+- Moved, behaviour unchanged (companiond's own tests, the hostile and eval corpora run through the
+  adapter untouched): companiond's `runtime`, `task`, `plan`, `drive`, `finish`, `held`, `idle`, `inbox`,
+  `linger`, `records`, `recover`, `resume`, `sources`, `completion`, `fault`, `shared` and the pure
+  part of `act` to the new portable crate `docket-tasks`. `Companiond<P, I>` is now
+  `docket_tasks::Companion<P, I, Clock, Bell>`: the model transport and the router transport as
+  before, plus `K: Now` (the clock) and `S: Surface` (what is told when state changes, how an
+  interactive request cuts into the idle pass, an answer's address). companiond keeps the system
+  clock, `Bell` (the surface over a tokio broadcast channel and `Notify`, and `docket_dbus`'s object
+  paths), `follow` (a card's call followed on the bus), `serve`, the speaker and the daemon, and
+  re-exports every name it had. The idle pass's `tokio::select!` is `futures_util::future::select`
+  over the surface's `interrupted`, so the crate reaches no runtime (check-boundary row: no tokio).
+- `docket-inapp` runs the same `Companion` (over `InProcess`, `HostClock<K>` and `Quiet`): its own
+  `turn.rs` (`record_call`, `hold`), `drive.rs` and `recall.rs` (the repeated recall limits and sources
+  assembly) are gone. `InAppAgent` keeps `ask` (the front task, or a new one), and adds `new_task`,
+  `ask_in`, `front`, `roster`, `phase_of`, `open_tasks`, `close_task`, `told`, `row_closed`, `tick`
+  and `restore`. A turn that ends the task closes its router session at once (the episode was left);
+  the app's `ContextSource` now reaches the planner (it was `nowhere` before). `Reply` gained `task`
+  and `Failure` is `docket_tasks::Failure` (set by the drive loop: model, over budget, reader, step
+  budget).
+- Skills: `InAppAgent::install_skills(Vec<Skill>)` and `install_skills_from(dir)` (the router and the
+  task model both get them; a skill whose action the app's manifest does not register is hidden). Tested:
+  the text reaches the system and user text, grants nothing (the sheet still asks, no grant appears), a
+  directory loads and a broken one is reported.
+- Durable audit queue: `AuditFile` (`InAppKit::audit_file`): a path the app names, a temporary file and
+  a rename, the newest `limit` records (default the queue's own bound), an empty queue removes the file,
+  typed `AuditFileError` (`Read`, `Corrupt`, `Write`; `fresh` starts over a damaged file, as
+  `FileGrantStore::fresh`), a failed write kept for `take_audit_fault`. The next agent queues what the
+  file holds and writes it on its first flush (`flush_audit`, or the end of its first turn). Tested over
+  two agent instances with memory switched off and on.
+- Multi-task tests: two tasks and the front pointer, the roster, a side conversation that becomes an
+  episode after the quiet time (virtual clock), restart recovery picking up the unfinished front task
+  and leaving a finished one.
+- Found: almanac's `Recent` with `BodyMode::Json` answers an `Area` payload as the whole body
+  (`{"kind":"area","v":{"area":..,"kind":..,"json":"<owner's form>"}}`), not the owner's form its doc
+  promises (`RecentEntry::body`), so `companiond`'s `recover` met `Malformed` on a real service (docket-fake's
+  memory answers the owner's form, which is why no test saw it). `recover` now reads either form
+  (`owner_form`, unit-tested). Almanac may fix the service to match its doc; nothing here depends on it.
+
+Still missing for the in-app agent (none blocks the app):
+
+1. Workers. `companion.task.start` is the built-in `org.quire.Companion` provider, which the in-app
+   registry does not hold (only the app's manifest), so the model cannot start a subagent in an app. Side
+   conversations and restart recovery work for workers that exist (the tests open one session with
+   `AgentRef::Worker`); starting one needs the built-in provider hosted over `ProviderLink` as intentd's
+   `HostedLink` does (`Router::companion_perform`).
+2. A restart reopens the front task as a fresh session: the roster and the front pointer come back, the
+   conversation does not (the digest holds no goals); same as companiond.
+3. The idle pass cannot yield to an interactive request in the app (one `&mut` caller): `Quiet`'s
+   `interrupted` never resolves.
+4. `Companion::act`/`propose` (cards) have no in-app door yet; an app has no answer object to press.
+
+Interface asks.
+- almanac: `RecentEntry::body` for an `Area` payload should be the payload's `json` (the owner's form), as
+  documented (`almanac-service/src/search.rs` `recent_entry`). docket reads both until then.
+- quire / apps: none.

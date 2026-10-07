@@ -42,4 +42,4 @@ pub use recover::{RecentSource, ReplayFault, RouterRecent, recover, replay_of, r
 pub use runtime::{Begun, Companion};
 pub use seams::{Now, Quiet, Surface};
 pub use shared::{Change, Shared};
-pub use task::TaskRuntime;
+pub use task::{Failure, TaskRuntime, kept_all};

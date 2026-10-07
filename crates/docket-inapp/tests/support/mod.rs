@@ -3,6 +3,7 @@
 
 #![allow(dead_code)]
 
+pub mod host;
 #[path = "../../../companiond/tests/support/infer.rs"]
 pub mod infer;
 

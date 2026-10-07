@@ -7,6 +7,7 @@
 //! - writer: `docket_models::TransportWriter` over a porter-client transport;
 //! - reader: `docket_reader::TransportReader` over a porter-client transport.
 
+use crate::audit_file::AuditFile;
 use crate::seams::{NoMemory, NoReader, NoWriter, SessionGrants};
 
 /// Where the audit trail of a turn goes.
@@ -33,6 +34,9 @@ pub struct InAppKit<G = SessionGrants, Y = NoMemory, W = NoWriter, D = NoReader>
     pub reader: D,
     /// Where the audit trail goes.
     pub audit: AuditTo,
+    /// The file the records waiting for memory are kept in across a restart (under
+    /// [`AuditTo::Memory`]).
+    pub audit_file: Option<AuditFile>,
 }
 
 impl Default for InAppKit {
@@ -43,6 +47,7 @@ impl Default for InAppKit {
             writer: NoWriter,
             reader: NoReader,
             audit: AuditTo::default(),
+            audit_file: None,
         }
     }
 }
@@ -56,6 +61,7 @@ impl<G, Y, W, D> InAppKit<G, Y, W, D> {
             writer: self.writer,
             reader: self.reader,
             audit: self.audit,
+            audit_file: self.audit_file,
         }
     }
 
@@ -67,6 +73,7 @@ impl<G, Y, W, D> InAppKit<G, Y, W, D> {
             writer: self.writer,
             reader: self.reader,
             audit: self.audit,
+            audit_file: self.audit_file,
         }
     }
 
@@ -78,6 +85,7 @@ impl<G, Y, W, D> InAppKit<G, Y, W, D> {
             writer,
             reader: self.reader,
             audit: self.audit,
+            audit_file: self.audit_file,
         }
     }
 
@@ -89,6 +97,16 @@ impl<G, Y, W, D> InAppKit<G, Y, W, D> {
             writer: self.writer,
             reader,
             audit: self.audit,
+            audit_file: self.audit_file,
+        }
+    }
+
+    /// Keeps the audit records that wait for memory in `file`, so they are written on the next
+    /// start if the app quits first. Only meaningful with [`AuditTo::Memory`].
+    pub fn audit_file(self, file: AuditFile) -> Self {
+        Self {
+            audit_file: Some(file),
+            ..self
         }
     }
 

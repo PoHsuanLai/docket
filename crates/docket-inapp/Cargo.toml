@@ -20,6 +20,8 @@ docket-models = { workspace = true }
 docket-planner = { workspace = true }
 docket-reader = { workspace = true }
 docket-router = { workspace = true }
+docket-skills = { workspace = true }
+docket-tasks = { workspace = true }
 policy-point = { workspace = true }
 porter-client = { workspace = true }
 porter-core = { workspace = true }

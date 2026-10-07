@@ -71,6 +71,22 @@ pub struct TaskRuntime {
     /// The skills the planner has loaded in this task, oldest first (at most three: the router
     /// refuses the fourth).
     pub loaded: Vec<docket_core::SkillId>,
+    /// Why the last turn failed, if it did.
+    pub failure: Option<Failure>,
+}
+
+/// Why a task ended failed, as the host that runs it can tell the person (the answer's
+/// [`RefusalWire`] is the coarser form the bus shows).
+#[derive(Debug, Clone, PartialEq)]
+pub enum Failure {
+    /// The planner model gave nothing usable.
+    Model(docket_planner::PlanFault),
+    /// A call was refused in a way that ends the task (over budget).
+    Refused(CallRefusal),
+    /// The quarantined reader could not answer.
+    Reader,
+    /// The task spent its step budget.
+    Budget,
 }
 
 /// A keep that sent everything: what an answer's footer says until the turn says otherwise.
@@ -116,6 +132,7 @@ impl TaskRuntime {
             proposal: None,
             acts: Plan::default(),
             loaded: Vec::new(),
+            failure: None,
         }
     }
 
