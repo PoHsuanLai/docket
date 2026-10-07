@@ -2,10 +2,11 @@
 //! that names it triggers. The rules are `rebuild`'s; this is the log read and the insertion.
 
 use crate::rebuild::{number_of, rebuild};
+use crate::restore_rule::{Claimant, may_restore};
 use crate::router::Router;
 use crate::seams::{Clock, Seams};
 use crate::wal::Writer;
-use docket_core::IntentsRequest;
+use docket_core::{CallerId, CallerRole, IntentsRequest};
 use docket_session::{
     LogFault, Logged, PageSize, PlanRefusal, Seq, SessionLog, Standing, resume_plan,
 };
@@ -28,6 +29,10 @@ pub enum RestoreFault {
     /// The log holds no session of this name, or no longer holds its opening.
     #[error("the log holds no such session")]
     Unknown(PlanRefusal),
+    /// The session is stored but belongs to another caller: told to nobody, the request is
+    /// answered as for an unknown session.
+    #[error("the log holds no such session")]
+    NotYours,
 }
 
 /// What a restore brought back.
@@ -61,11 +66,26 @@ impl<S: Seams> Router<S> {
     /// and is not run again, and the budget's wall clock starts now. A session whose log has a
     /// gap or an unreadable entry comes back closed, for display, tainted.
     pub async fn restore_session(&self, id: &SessionId) -> Result<Restored, RestoreFault> {
+        self.restore_for(id, None).await
+    }
+
+    /// `restore_session` for a request: with a claimant, only the opener, the shell or the
+    /// companion gets the session (`may_restore`); without one the daemon itself is asking.
+    async fn restore_for(
+        &self,
+        id: &SessionId,
+        claimant: Option<Claimant<'_>>,
+    ) -> Result<Restored, RestoreFault> {
         if self.locked().sessions.contains_key(id) {
             return Err(RestoreFault::Live);
         }
         let rows = self.rows_of(id).await.map_err(RestoreFault::Log)?;
         let plan = resume_plan(&rows).map_err(RestoreFault::Unknown)?;
+        if let Some(claim) = claimant
+            && !may_restore(claim, plan.opening.opener.as_ref())
+        {
+            return Err(RestoreFault::NotYours);
+        }
         let now = self.seams.clock().now();
         let rebuilt = rebuild(id, &plan, now);
         let next = rows.last().map_or(Seq(0), |r| r.seq.next());
@@ -107,15 +127,24 @@ impl<S: Seams> Router<S> {
     }
 
     /// Restores the session a request names when the router does not hold it. A session that
-    /// cannot be restored stays unknown, and the request is answered as for any unknown one.
-    pub(crate) async fn restore_named(&self, request: &IntentsRequest) {
+    /// cannot be restored, or is not the caller's to restore, stays unknown, and the request is answered as for any unknown one.
+    pub(crate) async fn restore_named(
+        &self,
+        caller: &CallerId,
+        role: CallerRole,
+        request: &IntentsRequest,
+    ) {
         let Some(id) = named_session(request) else {
             return;
         };
         if self.locked().sessions.contains_key(id) {
             return;
         }
-        let _ = self.restore_session(id).await;
+        let claim = Claimant {
+            role,
+            app: &caller.app.name,
+        };
+        let _ = self.restore_for(id, Some(claim)).await;
     }
 }
 

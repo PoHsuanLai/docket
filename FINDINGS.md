@@ -1977,3 +1977,22 @@ scenario, and the same property under proptest: whatever was revealed, a restore
 log contract over almanac: paging at any size from any position, out-of-order, no memory is a refusal, an
 acknowledgement lost on the way written once, the listing, and a whole session restored from almanac after
 the router is dropped); `docket-planner` (the interrupted line).
+
+### Restore on use checks the caller
+
+Session ids are sequential (`s-{n}`), so after a restart any caller that may send a session-naming
+request could have revived a session it never opened, with its stored policy and handles. Restore on
+use now asks `restore_rule::may_restore` after the log is read and before anything is inserted: the
+opener the log records restores it, and so do the shell (`Launcher`) and the companion, which act on any
+session live. Every other role (Field, Cua, Mcp, Cli, App, Reader, ...) restores only a session its own
+app opened; this is at least as strict as the live checks on Field and Cua in `opening.rs`. A legacy log
+with no opener is restored only for the shell or the companion. A refused restore leaves the session
+unknown and the request gets `NoSuchSession`, the same reply as an id that never existed (a test compares
+the two). The `Reader` is deliberately not in the any-session set: a resolve right after a restart
+waits until the owner has named the session once. `Router::restore_session` (the daemon's own call)
+carries no check.
+
+Listings: `adopt_sessions` is a public method that returns every stored id, but its only caller
+(`intentd`'s start-up) discards the list and no D-Bus member or reply carries it, so no other app's
+session id is exposed by it. The one trace is that it lifts the id counter, so the first id a new
+session gets reveals roughly how many sessions were ever stored; that is a count, not an id.

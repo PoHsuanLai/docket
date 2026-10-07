@@ -94,7 +94,7 @@ impl<S: Seams> Router<S> {
             let Some(role) = acting_role(&caller.roles, request.member()) else {
                 return IntentsReply::Refused(WireRefusal::NotAllowed);
             };
-            self.restore_named(&request).await;
+            self.restore_named(caller, role, &request).await;
             let reply = self.answer(caller, role, request, &watch).await;
             self.settle(reply).await
         }

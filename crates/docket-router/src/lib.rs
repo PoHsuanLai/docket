@@ -43,6 +43,7 @@ mod recall;
 mod recording;
 mod registry;
 mod restore;
+mod restore_rule;
 mod router;
 mod seams;
 mod search;
