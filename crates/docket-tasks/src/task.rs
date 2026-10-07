@@ -287,6 +287,7 @@ fn refusal_wire(refusal: &CallRefusal) -> RefusalWire {
         | CallRefusal::NoSuchAction(_)
         | CallRefusal::BadArgs { .. }
         | CallRefusal::AppUnavailable(_)
+        | CallRefusal::NotRecorded
         | CallRefusal::Timeout => RefusalWire::Failed(String::new()),
     }
 }

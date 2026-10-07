@@ -158,6 +158,10 @@ pub fn of_refusal(refusal: &CallRefusal) -> Failure {
         ),
         CallRefusal::AppUnavailable(app) => (Exit::Unavailable, format!("{app} is not available")),
         CallRefusal::Timeout => (Exit::AppFailed, "the app did not answer in time".to_owned()),
+        CallRefusal::NotRecorded => (
+            Exit::Unavailable,
+            "the session's record could not be kept, so nothing was done".to_owned(),
+        ),
     };
     with_detail(Failure::new(exit, what), refusal)
 }

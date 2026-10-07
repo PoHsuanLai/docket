@@ -19,8 +19,8 @@ use crate::signals::{Cadence, pump};
 use crate::system::{SystemClock, SystemSeams};
 use docket_core::AuditRecord;
 use docket_dbus::BusConnection;
-use docket_memory::AlmanacMemory;
 use docket_memory::QueuedSink;
+use docket_memory::{AlmanacMemory, AlmanacSessionLog};
 use docket_router::{Router, Seams};
 use docket_settings::{AgentSettings, Locator, REVIEW_CEILING};
 use docket_skills::{Roots, discover};
@@ -202,6 +202,11 @@ pub async fn start(
         memory: AlmanacMemory::over(almanac_client::DbusTransport::new(session.clone())),
         writer: InferdWriter::on_bus(session),
         reader: ReaderClient::new(session.clone()),
+        log: AlmanacSessionLog::over(
+            almanac_client::DbusTransport::new(session.clone()),
+            SpaceId::desktop(),
+            SystemClock,
+        ),
     };
     let pdp = Pdp::standard().map_err(|e| DaemonFault::Policy(e.to_string()))?;
     let router = Router::new(seams, config.agent, pdp);
@@ -239,6 +244,12 @@ pub async fn start(
         .hidden_skills()
         .iter()
         .for_each(|line| eprintln!("intentd: {line}"));
+    // A session the log already holds keeps its name: nothing opened from now on takes it. Each
+    // is restored when a request names it. Without memoryd the log is unreadable and the daemon
+    // starts anyway; sessions then cannot be recorded or restored.
+    if let Err(why) = router.adopt_sessions().await {
+        eprintln!("intentd: the session log is not readable ({why}): sessions are not restored");
+    }
     let router = Arc::new(router);
     port.attach(&router);
     serve_on_with(session, router.clone(), Arc::new(config), &proc_root)

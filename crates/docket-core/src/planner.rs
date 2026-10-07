@@ -158,6 +158,9 @@ pub enum StepEnd {
     Held(Held),
     /// The planner's reply could not be read as a call at all; nothing was asked of the router.
     Unread(ReplyFault),
+    /// A restart cut it off: it began and nothing says how it ended. It may have run; it is not
+    /// run again, and the planner is told so.
+    Interrupted,
 }
 
 /// Why a reply of the planner's could not be read as a call: told to it as a line of its history,

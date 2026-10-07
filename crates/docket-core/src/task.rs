@@ -135,9 +135,9 @@ pub fn step_outcome(end: &CallEnd) -> StepOutcome {
             StepOutcome::Denied
         }
         CallEnd::Refused(R::NoSuchAction(_) | R::BadArgs { .. }) => StepOutcome::Skipped,
-        CallEnd::Refused(R::App(_) | R::OverBudget(_) | R::AppUnavailable(_) | R::Timeout) => {
-            StepOutcome::Failed
-        }
+        CallEnd::Refused(
+            R::App(_) | R::OverBudget(_) | R::AppUnavailable(_) | R::Timeout | R::NotRecorded,
+        ) => StepOutcome::Failed,
     }
 }
 

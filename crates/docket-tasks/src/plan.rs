@@ -48,6 +48,8 @@ impl Plan {
             StepEnd::Unconfirmed(why) => StepWireState::Failed(CallRefusal::Unconfirmed(*why)),
             // A held call was never begun, so it has no card.
             StepEnd::Held(_) | StepEnd::Unread(_) => return,
+            // A restart cut it off: shown as a call that gave no answer.
+            StepEnd::Interrupted => StepWireState::Failed(CallRefusal::Timeout),
         };
         self.set(call, state);
     }

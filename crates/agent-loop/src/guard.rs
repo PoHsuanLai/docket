@@ -177,9 +177,11 @@ fn judged(end: &StepEnd, last: &Option<Print>) -> (Answer, Option<Print>) {
         StepEnd::Refused(CallRefusal::BadArgs { .. } | CallRefusal::NoSuchAction(_)) => {
             (Answer::Refused, last.clone())
         }
-        StepEnd::Refused(_) | StepEnd::Unconfirmed(_) | StepEnd::Held(_) | StepEnd::Unread(_) => {
-            (Answer::Opaque, last.clone())
-        }
+        StepEnd::Refused(_)
+        | StepEnd::Unconfirmed(_)
+        | StepEnd::Held(_)
+        | StepEnd::Unread(_)
+        | StepEnd::Interrupted => (Answer::Opaque, last.clone()),
     }
 }
 

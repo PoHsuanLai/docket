@@ -53,6 +53,32 @@ pub struct LogPage {
     pub next: Option<Seq>,
 }
 
+/// A log shared by several holders (a router and the one that replaces it after a restart) is a
+/// log.
+impl<L: SessionLog> SessionLog for std::sync::Arc<L> {
+    fn append(
+        &self,
+        session: &SessionId,
+        seq: Seq,
+        entry: &SessionEntry,
+    ) -> impl Future<Output = Result<Appended, LogFault>> + Send {
+        L::append(self, session, seq, entry)
+    }
+
+    fn page(
+        &self,
+        session: &SessionId,
+        from: Option<Seq>,
+        size: PageSize,
+    ) -> impl Future<Output = Result<LogPage, LogFault>> + Send {
+        L::page(self, session, from, size)
+    }
+
+    fn sessions(&self) -> impl Future<Output = Result<Vec<SessionId>, LogFault>> + Send {
+        L::sessions(self)
+    }
+}
+
 /// The durable log of sessions.
 pub trait SessionLog: Send + Sync {
     /// Appends `entry` as position `seq` of `session`, and answers only when it is durable.
@@ -71,4 +97,8 @@ pub trait SessionLog: Send + Sync {
         from: Option<Seq>,
         size: PageSize,
     ) -> impl Future<Output = Result<LogPage, LogFault>> + Send;
+
+    /// Every session that has an opening in the log, oldest first: what a daemon reads at start
+    /// so that a session it opens next never takes the name of one the log already holds.
+    fn sessions(&self) -> impl Future<Output = Result<Vec<SessionId>, LogFault>> + Send;
 }

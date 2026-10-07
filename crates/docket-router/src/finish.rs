@@ -7,14 +7,15 @@ use crate::labels::{Voice, absorb};
 use crate::prepared::{Early, Prepared};
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, Seams};
-use crate::session::{SessionEffect, SessionEvent, session_step};
+use crate::session::{SessionEffect, SessionEvent};
 use crate::state::SessionRecord;
 use crate::tasks::TaskState;
 use action_review::note;
 use docket_core::{
-    AuditRecord, CallEnd, CallRefusal, DecidedBy, LedgerStep, Outcome, Preview, StepLine,
+    AuditRecord, CallEnd, CallRefusal, DecidedBy, LedgerStep, Outcome, Preview, StepEnd, StepLine,
     StepShown, Undoable, Value,
 };
+use docket_session::{BreakerNote, SessionEntry};
 use prov::{Integrity, Labelled, Source};
 
 /// An outcome as the caller named by `voice` may read it: a planner gets untrusted text, and
@@ -76,7 +77,11 @@ fn present(record: &mut SessionRecord, voice: &Voice, mut outcome: Outcome) -> O
 
 impl<S: Seams> Router<S> {
     /// Ends a call that went through the gate: audit it, tally it, remember it.
-    pub(crate) fn finish(&self, p: &Prepared, driven: Driven) -> Result<Outcome, CallRefusal> {
+    pub(crate) async fn finish(
+        &self,
+        p: &Prepared,
+        driven: Driven,
+    ) -> Result<Outcome, CallRefusal> {
         let at = self.seams.clock().now();
         self.seams.sink().append(AuditRecord::Call {
             at,
@@ -90,7 +95,14 @@ impl<S: Seams> Router<S> {
             end: driven.end.clone(),
         });
         let mark = decision_of(&driven, p, at);
-        let mut presented = driven.outcome.clone();
+        // Write-ahead: an untrusted value is not revealed, or held as a handle, until the
+        // session's taint is on the record. If it cannot be, the call ran but its result is
+        // withheld and its step ends interrupted.
+        let withheld = self.taint_ahead_of(p, &driven).await;
+        let mut presented = match withheld {
+            Some(_) => None,
+            None => driven.outcome.clone(),
+        };
         if let Some(session) = &p.who.session {
             let mut st = self.locked();
             let breaker = self.agent_config().breaker;
@@ -100,9 +112,10 @@ impl<S: Seams> Router<S> {
                     let (next, trip) = note(std::mem::take(&mut record.breaker), mark, &breaker);
                     record.breaker = next;
                     if let Some(trip) = trip {
-                        let (state, effects) =
-                            session_step(record.state, SessionEvent::BreakerTrip(trip));
-                        record.state = state;
+                        let effects = record.apply(SessionEvent::BreakerTrip(trip));
+                        record
+                            .wal
+                            .note(SessionEntry::Breaker(BreakerNote::Tripped(trip)));
                         tripped = effects.into_iter().find_map(|e| match e {
                             SessionEffect::EmitBreakerTripped(t) => Some(t),
                             _ => None,
@@ -112,7 +125,10 @@ impl<S: Seams> Router<S> {
                 if let Some(value) = presented.as_ref().and_then(|o| o.value.as_ref()) {
                     absorb(record, &value.label);
                 }
-                let end = step_end(&driven, presented.as_ref());
+                let end = match withheld {
+                    Some(_) => StepEnd::Interrupted,
+                    None => step_end(&driven, presented.as_ref()),
+                };
                 record.history.push(StepLine {
                     call: p.id,
                     action: p.request.action.clone(),
@@ -122,7 +138,12 @@ impl<S: Seams> Router<S> {
                     with: p.named.clone(),
                 });
                 presented = presented.map(|o| present(record, &p.who.voice, o));
+                // The handles this call minted go on the record before the step that names them.
+                record.gather();
                 let line = record.history.last().cloned();
+                if let Some(line) = &line {
+                    record.wal.note(SessionEntry::Step(line.clone()));
+                }
                 let task = record.task.clone();
                 if let Some(t) = st.tasks.get_mut(&task) {
                     t.ledger.steps.push(LedgerStep {
@@ -148,6 +169,9 @@ impl<S: Seams> Router<S> {
                 });
             }
         }
+        if let Some(refusal) = withheld {
+            return Err(refusal);
+        }
         match driven.end {
             CallEnd::Done => presented
                 .map(|mut outcome| {
@@ -160,6 +184,21 @@ impl<S: Seams> Router<S> {
                 .ok_or(CallRefusal::Timeout),
             CallEnd::Refused(why) => Err(why),
         }
+    }
+
+    /// The write-ahead step of a call's end: `Some` when the call's value is untrusted and the
+    /// session's taint could not be put on the record, so the value must not be revealed.
+    async fn taint_ahead_of(&self, p: &Prepared, driven: &Driven) -> Option<CallRefusal> {
+        let session = p.who.session.as_ref()?;
+        let untrusted = driven
+            .outcome
+            .as_ref()
+            .and_then(|o| o.value.as_ref())
+            .is_some_and(|v| v.label.integrity == Integrity::Untrusted);
+        if !untrusted {
+            return None;
+        }
+        self.ahead_of_reveal(session, Some(p.id)).await.err()
     }
 
     /// Ends a call that never reached the gate.

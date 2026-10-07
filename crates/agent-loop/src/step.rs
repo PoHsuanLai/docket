@@ -329,9 +329,11 @@ fn call_ended(state: LoopState, id: CallId, end: StepEnd) -> (LoopState, Vec<Loo
     let state = LoopState { pending, ..state };
     let refusal = match end {
         StepEnd::Refused(refusal) => Some(refusal),
-        StepEnd::Done { .. } | StepEnd::Unconfirmed(_) | StepEnd::Held(_) | StepEnd::Unread(_) => {
-            None
-        }
+        StepEnd::Done { .. }
+        | StepEnd::Unconfirmed(_)
+        | StepEnd::Held(_)
+        | StepEnd::Unread(_)
+        | StepEnd::Interrupted => None,
     };
     let told: Vec<LoopEffect> = refusal.iter().cloned().map(LoopEffect::Refused).collect();
     match refusal {

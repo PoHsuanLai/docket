@@ -15,7 +15,7 @@ use docket_core::{
     ReviewError, UserTurn, Value,
 };
 use docket_memory::QueuedSink;
-use docket_router::{Clock, EventSink, GrantStore, LinkFault, MemoryLink, Seams};
+use docket_router::{Clock, EventSink, GrantStore, LinkFault, MemoryLink, NoLog, Seams};
 use prov::{Quarantined, SessionId, SpaceId, TaskId};
 use std::sync::Mutex;
 
@@ -164,6 +164,7 @@ where
     type Memory = Y;
     type Writer = W;
     type Reading = D;
+    type Log = NoLog;
 
     fn link(&self) -> &Self::Link {
         &self.link
@@ -191,5 +192,8 @@ where
     }
     fn reader(&self) -> &D {
         &self.reader
+    }
+    fn log(&self) -> &NoLog {
+        &NoLog
     }
 }

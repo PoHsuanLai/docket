@@ -12,7 +12,7 @@ use docket_core::{
     Resolved, Reveal, Selection, Value, WireRefusal, conforms,
 };
 use porter_core::AppName;
-use prov::{Label, Labelled, Quarantined, SessionId, Source};
+use prov::{Integrity, Label, Labelled, Quarantined, SessionId, Source};
 
 fn refuse(why: WireRefusal) -> IntentsReply {
     IntentsReply::Refused(why)
@@ -58,7 +58,18 @@ fn text_input(
 impl<S: Seams> Router<S> {
     /// `.Session.Resolve`: a handle's text, for the reader. The session now counts as having
     /// shown it to a reader.
-    pub(crate) fn session_resolve(&self, id: &SessionId, handle: Handle) -> IntentsReply {
+    pub(crate) async fn session_resolve(&self, id: &SessionId, handle: Handle) -> IntentsReply {
+        let held = self
+            .locked()
+            .sessions
+            .get(id)
+            .and_then(|r| r.handles.label(handle).cloned());
+        if let Some(label) = held
+            && label.integrity == Integrity::Untrusted
+            && let Err(why) = self.ahead_of_reveal(id, None).await
+        {
+            return refuse(WireRefusal::Call(why));
+        }
         let mut st = self.locked();
         let Some(record) = st.sessions.get_mut(id) else {
             return refuse(WireRefusal::NoSuchSession);
@@ -107,9 +118,20 @@ impl<S: Seams> Router<S> {
                 Ok(held) => held,
                 Err(fault) => return refuse(WireRefusal::Read(fault)),
             };
-            held.iter().for_each(|(_, l)| absorb(record, l));
             held.into_iter().unzip::<_, _, Vec<_>, Vec<_>>()
         };
+        if labels.iter().any(|l| l.integrity == Integrity::Untrusted)
+            && let Err(why) = self.ahead_of_reveal(id, None).await
+        {
+            return refuse(WireRefusal::Call(why));
+        }
+        {
+            let mut st = self.locked();
+            let Some(record) = st.sessions.get_mut(id) else {
+                return refuse(WireRefusal::NoSuchSession);
+            };
+            labels.iter().for_each(|l| absorb(record, l));
+        }
         let value = match self
             .seams
             .reader()
@@ -128,6 +150,11 @@ impl<S: Seams> Router<S> {
             return IntentsReply::Read(Reveal::Plain(value));
         }
         let label = fold_labels(labels).unwrap_or_else(crate::labels::model_label);
+        if label.integrity == Integrity::Untrusted
+            && let Err(why) = self.ahead_of_reveal(id, None).await
+        {
+            return refuse(WireRefusal::Call(why));
+        }
         let mut st = self.locked();
         let Some(record) = st.sessions.get_mut(id) else {
             return refuse(WireRefusal::NoSuchSession);
@@ -157,6 +184,15 @@ impl<S: Seams> Router<S> {
             Ok(snapshot) => snapshot,
             Err(fault) => return refuse(WireRefusal::Call(link_refusal(fault, &app))),
         };
+        // The view holds every untrusted text of the window as a handle: the session's taint is
+        // on the record before any is held.
+        let mut probe = HandleTable::new();
+        context_view(&snapshot, &mut probe);
+        if probe.untrusted_since(0)
+            && let Err(why) = self.ahead_of_reveal(id, None).await
+        {
+            return refuse(WireRefusal::Call(why));
+        }
         let mut st = self.locked();
         let Some(record) = st.sessions.get_mut(id) else {
             return refuse(WireRefusal::NoSuchSession);

@@ -75,6 +75,12 @@ impl<S: Seams> Router<S> {
             .skill_loads
             .admit(&id, skill.body.len())
             .map_err(|e| failed(&e.to_string()))?;
+        record.wal.note(docket_session::SessionEntry::Skill(
+            docket_session::SkillUse {
+                id: skill.id.clone(),
+                version: skill.version.clone(),
+            },
+        ));
         let text = skill.text();
         Ok(Outcome {
             value: Some(Labelled {

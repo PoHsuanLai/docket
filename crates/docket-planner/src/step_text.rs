@@ -237,6 +237,9 @@ pub(crate) fn step_line(step: &StepLine, handles: &[HandleCard]) -> String {
         }
         (_, StepEnd::Unconfirmed(end)) => format!("{head} not confirmed {}", json(end)),
         (_, StepEnd::Unread(fault)) => unread_text(fault),
+        (_, StepEnd::Interrupted) => format!(
+            "{head} interrupted by a restart: it may have run, it is not run again; check before asking again"
+        ),
         (_, StepEnd::Held(held)) => {
             format!("{head} not run: {}; {INSTEAD}", held_text(*held))
         }
@@ -283,6 +286,14 @@ mod tests {
         assert!(none.contains("you hold no handles yet"));
         let some = step_line(&step(end), &[card(3), card(4)]);
         assert!(some.ends_with("handles you hold: #3 #4"), "{some}");
+    }
+
+    #[test]
+    fn an_interrupted_call_says_it_may_have_run_and_will_not_run_again() {
+        let line = step_line(&step(StepEnd::Interrupted), &[]);
+        assert!(line.contains("interrupted by a restart"), "{line}");
+        assert!(line.contains("may have run"));
+        assert!(line.contains("not run again"));
     }
 
     #[test]

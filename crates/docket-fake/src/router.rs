@@ -12,8 +12,11 @@ use crate::simple::{MemoryGrants, RecordingSink};
 use action_review::Reviewer;
 use docket_core::{AgentConfig, PolicyWriter, ValidManifest};
 use docket_router::{Clock, Registry, RegistryError, Router, parse};
+use docket_session::SessionLog;
+use docket_session::fake::MemoryLog;
 use policy_point::{Pdp, PolicyError};
 use prov::{SpaceId, UnixSeconds};
+use std::sync::Arc;
 
 /// The fixture manifest of the fake mail app.
 pub const MAIL_MANIFEST: &str = include_str!("../fixtures/manifests/org.quire.Mail.intents.toml");
@@ -99,6 +102,18 @@ pub fn fake_router_with<R: Reviewer, W: PolicyWriter, K: Clock>(
     writer: W,
     clock: K,
 ) -> Result<Router<FakeSeams<R, W, K>>, FakeError> {
+    fake_router_on(config, reviewer, writer, clock, Arc::new(MemoryLog::new()))
+}
+
+/// [`fake_router_with`] over `log`: the router a test builds after dropping the first one, to
+/// restore sessions from what the first wrote.
+pub fn fake_router_on<R: Reviewer, W: PolicyWriter, K: Clock, L: SessionLog>(
+    config: AgentConfig,
+    reviewer: R,
+    writer: W,
+    clock: K,
+    log: L,
+) -> Result<Router<FakeSeams<R, W, K, L>>, FakeError> {
     let space = SpaceId::parse("work").map_err(|_| FakeError::Space)?;
     let mail = mail_manifest().map_err(FakeError::Manifest)?;
     let files = files_manifest().map_err(FakeError::Manifest)?;
@@ -117,6 +132,7 @@ pub fn fake_router_with<R: Reviewer, W: PolicyWriter, K: Clock>(
         memory: FakeMemory::default(),
         writer,
         reader: ScriptedReader::default(),
+        log,
     };
     let pdp = Pdp::standard().map_err(FakeError::Policy)?;
     let router = Router::new(seams, config, pdp);

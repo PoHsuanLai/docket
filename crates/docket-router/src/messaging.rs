@@ -198,7 +198,7 @@ impl<S: Seams> Router<S> {
 
     /// `.Message.Inbox`: what waited for an agent, as its planner may read it. Reading takes
     /// the messages out.
-    pub(crate) fn message_inbox(&self, role: CallerRole, ask: InboxAsk) -> IntentsReply {
+    pub(crate) async fn message_inbox(&self, role: CallerRole, ask: InboxAsk) -> IntentsReply {
         let allowed = matches!(
             (&ask.agent, role),
             (_, CallerRole::Launcher)
@@ -210,6 +210,25 @@ impl<S: Seams> Router<S> {
         );
         if !allowed {
             return IntentsReply::Refused(WireRefusal::NotAllowed);
+        }
+        // Waiting words of an untrusted label are handed out as handles: the taint of each
+        // session that holds some is on the record first.
+        let untrusted: Vec<SessionId> = self
+            .locked()
+            .sessions
+            .iter()
+            .filter(|(_, r)| AgentRef::of(&r.actor) == Some(ask.agent.clone()))
+            .filter(|(_, r)| {
+                r.inbox
+                    .iter()
+                    .any(|m| m.label.integrity == prov::Integrity::Untrusted)
+            })
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in untrusted {
+            if let Err(why) = self.ahead_of_reveal(&id, None).await {
+                return IntentsReply::Refused(WireRefusal::Call(why));
+            }
         }
         let mut st = self.locked();
         let ids: Vec<SessionId> = st

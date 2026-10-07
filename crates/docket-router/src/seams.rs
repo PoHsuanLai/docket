@@ -12,8 +12,9 @@ use docket_core::{
     Hit, Invocation, Latency, Millis, Outcome, PolicyWriter, Preview, Reader, SuggestAsk,
     UndoFault, UndoToken,
 };
+use docket_session::{Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog};
 use porter_core::AppName;
-use prov::{Actor, EntityId, UnixSeconds};
+use prov::{Actor, EntityId, SessionId, UnixSeconds};
 use std::future::Future;
 
 /// Why a call to an app or to memory got no answer.
@@ -167,6 +168,39 @@ pub trait MemoryLink: Send + Sync {
     ) -> impl Future<Output = Result<MemoryReply, LinkFault>> + Send;
 }
 
+/// The seam to a session's durable record when there is none: every entry is accepted and
+/// nothing is kept, so a session cannot be restored. What an app that hosts its own agent
+/// without memory runs with; the daemon passes `docket-memory`'s log over almanac.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NoLog;
+
+impl SessionLog for NoLog {
+    async fn append(
+        &self,
+        _session: &SessionId,
+        seq: Seq,
+        _entry: &SessionEntry,
+    ) -> Result<Appended, LogFault> {
+        Ok(Appended { seq })
+    }
+
+    async fn page(
+        &self,
+        _session: &SessionId,
+        _from: Option<Seq>,
+        _size: PageSize,
+    ) -> Result<LogPage, LogFault> {
+        Ok(LogPage {
+            rows: Vec::new(),
+            next: None,
+        })
+    }
+
+    async fn sessions(&self) -> Result<Vec<SessionId>, LogFault> {
+        Ok(Vec::new())
+    }
+}
+
 /// The seams of one router, bundled. A closed set per seam: the real one, and the fake a test
 /// drives.
 pub trait Seams: Send + Sync {
@@ -188,6 +222,8 @@ pub trait Seams: Send + Sync {
     type Writer: PolicyWriter;
     /// The quarantined reader.
     type Reading: Reader;
+    /// The durable record of sessions.
+    type Log: SessionLog;
 
     /// The apps.
     fn link(&self) -> &Self::Link;
@@ -207,4 +243,6 @@ pub trait Seams: Send + Sync {
     fn writer(&self) -> &Self::Writer;
     /// The reader.
     fn reader(&self) -> &Self::Reading;
+    /// The session log.
+    fn log(&self) -> &Self::Log;
 }

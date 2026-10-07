@@ -6,8 +6,8 @@ use crate::infer::{InferdModel, InferdWriter, ReaderClient};
 use crate::sheet::SheetConfirmer;
 use action_review::InferReviewer;
 use docket_core::Millis;
-use docket_memory::AlmanacMemory;
 use docket_memory::QueuedSink;
+use docket_memory::{AlmanacMemory, AlmanacSessionLog};
 use docket_router::{Clock, Seams};
 use prov::UnixSeconds;
 
@@ -51,6 +51,8 @@ pub struct SystemSeams<P: porter_client::Transport, M: almanac_client::Transport
     pub writer: InferdWriter<P>,
     /// The reader.
     pub reader: ReaderClient,
+    /// The sessions' durable log, in memoryd.
+    pub log: AlmanacSessionLog<M, SystemClock>,
 }
 
 impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for SystemSeams<P, M> {
@@ -63,6 +65,7 @@ impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for System
     type Memory = AlmanacMemory<M>;
     type Writer = InferdWriter<P>;
     type Reading = ReaderClient;
+    type Log = AlmanacSessionLog<M, SystemClock>;
 
     fn link(&self) -> &HostedLink<M> {
         &self.link
@@ -90,5 +93,8 @@ impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for System
     }
     fn reader(&self) -> &ReaderClient {
         &self.reader
+    }
+    fn log(&self) -> &Self::Log {
+        &self.log
     }
 }

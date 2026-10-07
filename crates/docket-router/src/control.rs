@@ -4,7 +4,7 @@
 use crate::messaging::age;
 use crate::router::Router;
 use crate::seams::{AppLink, Clock, EventSink, Seams};
-use crate::session::{SessionEvent, session_step};
+use crate::session::SessionEvent;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, Confirmer, Halt, HaltCause, IntentsReply, JournalFilter,
     UndoEntry, UndoFault, UndoId, UndoReport, UndoScope, UndoState,
@@ -47,7 +47,7 @@ impl<S: Seams> Router<S> {
                     SpaceScope::Only(space) => *space == record.space,
                 };
                 if inside {
-                    record.state = session_step(record.state, SessionEvent::SpaceHalted).0;
+                    record.apply(SessionEvent::SpaceHalted);
                 }
             }
             st.pending

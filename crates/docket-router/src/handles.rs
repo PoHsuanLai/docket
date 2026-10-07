@@ -10,6 +10,7 @@ use docket_core::{
     UserTurn, VisibleView, WindowPrivacy, size_of,
 };
 use docket_core::{Here, Selection, TextTarget};
+use docket_session::HandleLabel;
 use prov::{EntityId, Integrity, Label, Labelled, Measured, Quarantined, Source};
 use std::collections::BTreeMap;
 
@@ -22,6 +23,9 @@ pub enum HandleValue {
     Entity(EntityId),
     /// A file.
     File(FileRef),
+    /// What a restart left of a handle: its label, shape and source, not its value. It cannot
+    /// be shown, read or put in an argument; a fresh call mints a new handle for the thing.
+    Forgotten(HandleShape),
 }
 
 impl Measured for HandleValue {
@@ -29,6 +33,7 @@ impl Measured for HandleValue {
         match self {
             HandleValue::Text(t) => t.len(),
             HandleValue::Entity(_) | HandleValue::File(_) => 1,
+            HandleValue::Forgotten(_) => 0,
         }
     }
 }
@@ -47,6 +52,8 @@ pub struct HandleEntry {
 pub struct HandleTable {
     next: u64,
     entries: BTreeMap<Handle, HandleEntry>,
+    /// Handles minted since the session's record last took them (see `take_fresh`).
+    fresh: Vec<Handle>,
 }
 
 impl HandleTable {
@@ -60,7 +67,69 @@ impl HandleTable {
         self.next += 1;
         let handle = Handle(self.next);
         self.entries.insert(handle, HandleEntry { value, from });
+        self.fresh.push(handle);
         handle
+    }
+
+    /// Holds a handle a restart brought back as a label: the number is kept (a new handle never
+    /// reuses it) and the value is not.
+    pub fn restore_label(&mut self, label: HandleLabel) {
+        self.next = self.next.max(label.handle.0);
+        let value = Labelled {
+            value: HandleValue::Forgotten(label.shape),
+            label: label.label,
+        };
+        self.entries.insert(
+            label.handle,
+            HandleEntry {
+                value,
+                from: label.from,
+            },
+        );
+    }
+
+    /// The handles minted since the last call, as the log keeps them: label, shape and source,
+    /// never the value. Handles restored as labels are not fresh.
+    pub fn take_fresh(&mut self) -> Vec<HandleLabel> {
+        std::mem::take(&mut self.fresh)
+            .into_iter()
+            .filter_map(|handle| {
+                let card = self.card(handle)?;
+                let entry = self.entries.get(&handle)?;
+                Some(HandleLabel {
+                    handle,
+                    label: entry.value.label.clone(),
+                    shape: card.shape,
+                    from: card.from,
+                })
+            })
+            .collect()
+    }
+
+    /// Whether `take_fresh` has anything.
+    pub fn has_fresh(&self) -> bool {
+        !self.fresh.is_empty()
+    }
+
+    /// Where the next handle will be numbered from: a mark for `untrusted_since`.
+    pub fn mark(&self) -> u64 {
+        self.next
+    }
+
+    /// Whether a handle numbered after `mark` holds untrusted text or things.
+    pub fn untrusted_since(&self, mark: u64) -> bool {
+        self.entries
+            .iter()
+            .any(|(h, e)| h.0 > mark && e.value.label.integrity == Integrity::Untrusted)
+    }
+
+    /// The handles a restart left as labels, in order.
+    pub fn forgotten(&self) -> Vec<(Handle, &Label)> {
+        self.entries
+            .iter()
+            .filter(|(_, e)| matches!(e.value.value, HandleValue::Forgotten(_)))
+            .map(|(h, e)| (*h, &e.value.label))
+            .collect()
     }
 
     /// Holds a thing and returns its handle: the one it already has when the same thing is held
@@ -94,6 +163,7 @@ impl HandleTable {
     }
 
     /// What a planner is told about a handle: its shape, source and size, never its content.
+    /// A handle a restart left as a label is no one's to use: no card.
     pub fn card(&self, handle: Handle) -> Option<HandleCard> {
         let entry = self.entries.get(&handle)?;
         let (shape, size) = match &entry.value.value {
@@ -103,6 +173,7 @@ impl HandleTable {
                 docket_core::CharCount(0),
             ),
             HandleValue::File(_) => (HandleShape::File, docket_core::CharCount(0)),
+            HandleValue::Forgotten(_) => return None,
         };
         Some(HandleCard {
             handle,
@@ -112,7 +183,7 @@ impl HandleTable {
         })
     }
 
-    /// Cards for every handle, in order.
+    /// Cards for every handle a planner may use, in order (a restart's labels have none).
     pub fn cards(&self) -> Vec<HandleCard> {
         self.entries.keys().filter_map(|h| self.card(*h)).collect()
     }
@@ -136,7 +207,7 @@ impl HandleTable {
                 value: t.clone(),
                 label: entry.value.label.clone(),
             })),
-            HandleValue::Entity(_) | HandleValue::File(_) => None,
+            HandleValue::Entity(_) | HandleValue::File(_) | HandleValue::Forgotten(_) => None,
         }
     }
 
@@ -144,7 +215,7 @@ impl HandleTable {
     pub fn display(&self, handle: Handle) -> Option<&str> {
         match &self.entries.get(&handle)?.value.value {
             HandleValue::Text(t) => Some(t),
-            HandleValue::Entity(_) | HandleValue::File(_) => None,
+            HandleValue::Entity(_) | HandleValue::File(_) | HandleValue::Forgotten(_) => None,
         }
     }
 }

@@ -5,6 +5,7 @@ use crate::call::{CallEffect, CallEvent, CallState, call_step};
 use crate::confirm::confirm_request;
 use crate::deadline::within;
 use crate::driven::{Driven, Next, Run, code_of, reviewer_model, unissued};
+use crate::durable::Flush;
 use crate::gate::Pending;
 use crate::prepared::{Prepared, grants_for};
 use crate::router::Router;
@@ -14,13 +15,17 @@ use crate::watch::Watch;
 use crate::who::Who;
 use action_review::{DeniedBy, ReviewVerdict, Reviewer};
 use docket_core::{
-    ActivationToken, AppRefusal, AskReason, AuditRecord, CallEnd, CallRefusal, CallRequest,
-    ConfirmAnswer, ConfirmAnswerKind, ConfirmEnd, ConfirmId, ConfirmRequest, Confirmer, Depth,
-    Follow, Invocation, Millis, Outcome, PolicyId, ReviewError, ReviewMark, Reviewed, Stage,
-    UndoId, Undoable, WindowKey, charge, halted,
+    ActivationToken, AppRefusal, AskReason, AuditRecord, BudgetKind, CallEnd, CallRefusal,
+    CallRequest, ConfirmAnswer, ConfirmAnswerKind, ConfirmEnd, ConfirmId, ConfirmRequest,
+    Confirmer, Depth, Follow, Invocation, Ledger, Millis, Outcome, PolicyId, ReviewError,
+    ReviewMark, Reviewed, Stage, UndoId, Undoable, WindowKey, charge, halted,
 };
+use docket_session::{CallOpen, SessionEntry};
 use porter_core::GrantId;
-use prov::{Actor, AgentRole, SpaceScope};
+use prov::{Actor, AgentRole, SessionId, SpaceScope};
+
+/// A ledger checkpoint is written when the session has made a multiple of this many calls.
+const BUDGET_EVERY: u32 = 5;
 
 impl<S: Seams> Router<S> {
     /// One call, from arguments to answer.
@@ -74,7 +79,7 @@ impl<S: Seams> Router<S> {
                 let driven = self.drive(&prepared, watch).await;
                 self.note_delegation(&prepared, &driven);
                 let changed = Self::changed_since_classified(&prepared, &driven);
-                let first = self.finish(&prepared, driven);
+                let first = self.finish(&prepared, driven).await;
                 if !changed {
                     return first;
                 }
@@ -88,7 +93,7 @@ impl<S: Seams> Router<S> {
                             ..again
                         };
                         let driven = self.drive(&again, watch).await;
-                        self.finish(&again, driven)
+                        self.finish(&again, driven).await
                     }
                 }
             }
@@ -379,6 +384,36 @@ impl<S: Seams> Router<S> {
         Next::Event(CallEvent::Answered(answer))
     }
 
+    /// Charges the call to its session and queues its `Call` entry. Gives back the ledger as it
+    /// was, to restore if the call cannot be recorded and so does not run.
+    fn begin_call(
+        &self,
+        p: &Prepared,
+        reviewed: Reviewed,
+        session: &SessionId,
+    ) -> Result<Option<Ledger>, BudgetKind> {
+        let now = self.seams.clock().now();
+        let mut st = self.locked();
+        let Some(record) = st.sessions.get_mut(session) else {
+            return Ok(None);
+        };
+        let cost = docket_core::Cost {
+            review: reviewed,
+            ..p.cost
+        };
+        let ledger = charge(&record.ledger, &self.agent_config().budget, &cost, now)?;
+        let before = std::mem::replace(&mut record.ledger, ledger);
+        record.wal.note(SessionEntry::Call(CallOpen {
+            call: p.id,
+            action: p.request.action.clone(),
+            effect: p.decl.effect,
+        }));
+        if record.ledger.calls.0 % BUDGET_EVERY == 0 {
+            record.wal.note(SessionEntry::Budget(record.ledger));
+        }
+        Ok(Some(before))
+    }
+
     async fn dispatch(&self, p: &Prepared, run: &mut Run) -> Next {
         let reviewed = if run.verdicts.is_empty() {
             Reviewed::No
@@ -386,21 +421,25 @@ impl<S: Seams> Router<S> {
             Reviewed::Yes
         };
         if let Some(session) = &p.who.session {
-            let now = self.seams.clock().now();
-            let mut st = self.locked();
-            if let Some(record) = st.sessions.get_mut(session) {
-                let cost = docket_core::Cost {
-                    review: reviewed,
-                    ..p.cost
-                };
-                match charge(&record.ledger, &self.agent_config().budget, &cost, now) {
-                    Ok(ledger) => record.ledger = ledger,
-                    Err(kind) => {
-                        run.state =
-                            CallState::Done(CallEnd::Refused(CallRefusal::OverBudget(kind)));
-                        return Next::Stop;
+            let before = match self.begin_call(p, reviewed, session) {
+                Ok(before) => before,
+                Err(kind) => {
+                    run.state = CallState::Done(CallEnd::Refused(CallRefusal::OverBudget(kind)));
+                    return Next::Stop;
+                }
+            };
+            // The call is on the record before it is handed to the app: a crash after this
+            // leaves a `Call` with no `Step`, which a restore ends interrupted and never runs
+            // again. If it cannot be recorded, it does not run.
+            if self.flush(session).await != Flush::Durable {
+                if let Some(record) = self.locked().sessions.get_mut(session) {
+                    record.wal.retract_call(p.id);
+                    if let Some(before) = before {
+                        record.ledger = before;
                     }
                 }
+                run.state = CallState::Done(CallEnd::Refused(CallRefusal::NotRecorded));
+                return Next::Stop;
             }
         }
         let answer = self

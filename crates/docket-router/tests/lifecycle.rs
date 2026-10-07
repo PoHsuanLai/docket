@@ -154,6 +154,7 @@ impl Seams for Rig {
     type Memory = FakeMemory;
     type Writer = ScriptedWriter;
     type Reading = ScriptedReader;
+    type Log = docket_router::NoLog;
     fn link(&self) -> &ChainLink {
         &self.link
     }
@@ -180,6 +181,9 @@ impl Seams for Rig {
     }
     fn reader(&self) -> &ScriptedReader {
         &self.reader
+    }
+    fn log(&self) -> &docket_router::NoLog {
+        &docket_router::NoLog
     }
 }
 

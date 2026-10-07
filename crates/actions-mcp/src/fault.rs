@@ -37,6 +37,9 @@ pub enum McpRefusal {
     /// The app did not answer in time.
     #[error("timed out")]
     TimedOut,
+    /// The session's record could not be kept, so nothing was done.
+    #[error("not recorded")]
+    NotRecorded,
     /// The app said no; what it said may quote the person's content and is never passed on.
     #[error("the app refused")]
     AppRefused,
@@ -56,6 +59,7 @@ impl From<&CallRefusal> for McpRefusal {
             }
             CallRefusal::AppUnavailable(_) => McpRefusal::AppUnavailable,
             CallRefusal::Timeout => McpRefusal::TimedOut,
+            CallRefusal::NotRecorded => McpRefusal::NotRecorded,
             CallRefusal::App(_) => McpRefusal::AppRefused,
         }
     }

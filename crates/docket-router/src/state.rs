@@ -7,6 +7,7 @@ use crate::journal::UndoJournal;
 use crate::registry::Registry;
 use crate::session::SessionState;
 use crate::tasks::TaskTable;
+use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
     CallerRole, ConfirmId, Halt, IndexEntry, IndexState, KillSwitch, Ledger, SessionSaw, StepLine,
@@ -56,6 +57,8 @@ pub struct SessionRecord {
     pub inbox: Vec<Message>,
     /// The skills this task has loaded (`companion.skill.load`), at most three.
     pub skill_loads: docket_skills::Loaded,
+    /// What waits to go on the session's durable record.
+    pub wal: Wal,
 }
 
 impl SessionRecord {
@@ -87,6 +90,7 @@ impl SessionRecord {
             seen: Vec::new(),
             inbox: Vec::new(),
             skill_loads: docket_skills::Loaded::default(),
+            wal: Wal::Off,
         }
     }
 }
@@ -121,6 +125,8 @@ pub struct RouterState {
     /// The installed skills (valid files; which are offered is checked against the registry at
     /// each load).
     pub skills: Vec<docket_skills::Skill>,
+    /// The writer of each recorded session's log.
+    pub(crate) lanes: BTreeMap<SessionId, Lane>,
 }
 
 impl RouterState {
@@ -144,7 +150,15 @@ impl RouterState {
             pending: BTreeMap::new(),
             minted: Count(0),
             skills: Vec::new(),
+            lanes: BTreeMap::new(),
         }
+    }
+
+    /// Makes sure no id minted from now on is `number` or below: a restored session brings its
+    /// own numbers (ids, turns, calls) back, and a new one must not take them again.
+    pub fn reserve(&mut self, number: u64) {
+        let number = u32::try_from(number).unwrap_or(u32::MAX);
+        self.minted = Count(self.minted.0.max(number));
     }
 
     /// Applies an index event for an app and returns the action to take.

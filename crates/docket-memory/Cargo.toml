@@ -13,6 +13,7 @@ almanac-client = { workspace = true }
 almanac-core = { workspace = true }
 docket-core = { workspace = true }
 docket-router = { workspace = true }
+docket-session = { workspace = true }
 porter-core = { workspace = true }
 prov = { workspace = true }
 serde_json = { workspace = true }
@@ -20,6 +21,7 @@ serde_json = { workspace = true }
 [dev-dependencies]
 almanac-client = { workspace = true, features = ["in_process"] }
 almanac-fake = { workspace = true }
+almanac-service = { workspace = true }
 docket-fake = { workspace = true }
 tokio = { workspace = true }
 

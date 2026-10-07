@@ -278,7 +278,12 @@ impl AppLink for FakeLink {
 /// are parameters whose defaults are the fakes: a live run puts the real cascade, the real
 /// writer and the system clock in their places and keeps every other fake.
 #[derive(Debug)]
-pub struct FakeSeams<R = ScriptedReviewer, W = ScriptedWriter, K = FixedClock> {
+pub struct FakeSeams<
+    R = ScriptedReviewer,
+    W = ScriptedWriter,
+    K = FixedClock,
+    L = std::sync::Arc<docket_session::fake::MemoryLog>,
+> {
     /// The apps.
     pub link: FakeLink,
     /// The sheet.
@@ -297,9 +302,14 @@ pub struct FakeSeams<R = ScriptedReviewer, W = ScriptedWriter, K = FixedClock> {
     pub writer: W,
     /// The reader.
     pub reader: ScriptedReader,
+    /// The sessions' durable log. Shared by default, so a test can drop the router and restore
+    /// from it.
+    pub log: L,
 }
 
-impl<R: Reviewer, W: PolicyWriter, K: Clock> Seams for FakeSeams<R, W, K> {
+impl<R: Reviewer, W: PolicyWriter, K: Clock, L: docket_session::SessionLog> Seams
+    for FakeSeams<R, W, K, L>
+{
     type Link = FakeLink;
     type Confirm = ScriptedConfirmer;
     type Review = R;
@@ -309,6 +319,7 @@ impl<R: Reviewer, W: PolicyWriter, K: Clock> Seams for FakeSeams<R, W, K> {
     type Memory = FakeMemory;
     type Writer = W;
     type Reading = ScriptedReader;
+    type Log = L;
 
     fn link(&self) -> &FakeLink {
         &self.link
@@ -336,5 +347,8 @@ impl<R: Reviewer, W: PolicyWriter, K: Clock> Seams for FakeSeams<R, W, K> {
     }
     fn reader(&self) -> &ScriptedReader {
         &self.reader
+    }
+    fn log(&self) -> &L {
+        &self.log
     }
 }

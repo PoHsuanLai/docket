@@ -1857,3 +1857,114 @@ so one copy of `cua-action` and `model-*` is in the graph.
 - **Still sibling-based by design** (developer tools, not the build): `dist/install-dev.sh`
   (`INSTALL_DEV_SIBLINGS`), `dev/live-smoke.sh` and `docket-accept`'s catalogue default (`../stoker/catalog`;
   `--catalog DIR` overrides).
+
+## session-restore: the router writes its session record and restores from it (S1)
+
+`docket-router` now keeps each session's durable record as it goes and rebuilds a session from it:
+`Router::restore_session`, over the `SessionLog` seam (`Seams::Log`) that `docket-memory` implements on
+almanac (`AlmanacSessionLog`). The in-memory `SessionRecord` is still the source of truth for every
+reader; the log is written beside it and read only by a restore. No D-Bus member was added.
+
+**Where the async appends happen (decision: a queue the router flushes outside its lock, with a
+write-ahead gate for taint).** The router decides under one synchronous lock, so it cannot await a log
+there. Each change that belongs on the record is queued on the session in the order it happened
+(`Wal::note`, in `SessionRecord::apply` for state changes, `finish`, `dispatch`, `apply_policy`,
+`record_turn`, `open_session`, `skill_load`), and handles are collected from the table itself
+(`HandleTable::take_fresh`, so no mint site can forget one). Three async steps, all taken with no lock
+held, append them through one `Writer` per session (a `futures-util` async mutex, so appends of one
+session are serialised and the position `seq` is the writer's own count):
+- `flush` appends the queue in order. A failed append leaves the entry and everything after it queued
+  and the position where it was; the next flush retries it.
+- `ahead_of_reveal` is the write-ahead rule. Before untrusted text can be revealed to a model, or held as
+  a handle, the `Taint` entry is appended and acked. It guards a call's untrusted result (`finish`), a
+  handle's text going to the reader (`Session.Resolve`, `Session.Read`), the context view,
+  `Session.Recall` and `Message.Inbox`. If the append fails the reveal does not happen: the in-memory taint
+  is not raised, no handle is minted, and the caller gets `CallRefusal::NotRecorded`.
+- `settle` ends every request: it flushes whatever is queued, and a reply that carries a reveal whose entry
+  is still not durable (a `Taint`, or an untrusted `Handle` waiting in the queue) is withheld as
+  `Refused(Call(NotRecorded))`. This backstop covers a site the explicit gate does not (the goal handle of
+  `companion.task.start`, which is not sync-to-async convertible without changing every provider seam).
+  The writer also refuses to append an untrusted `Handle` entry before a `Taint` entry, whatever put it in
+  the queue.
+The call is the other fail-closed point: `dispatch` appends the `Call` entry before the app is asked, and a
+call that cannot be recorded is refused (`NotRecorded`) and not run. A call that ran but whose result could
+not be revealed (the taint append failed after dispatch) ends in the planner's history as the new
+`StepEnd::Interrupted` and the caller gets `NotRecorded`; the undo journal row, if any, stands.
+
+Why not an outbox the daemon drains: the acks must gate the reveal, and the reveal is the reply of a
+request the router itself is answering, so the router has to await them; an outbox the daemon drains
+cannot hold a reply. Why not async appends under the lock: a slow memoryd would stall every session. The
+choice is testable with `MemoryLog` (`LogMood::RefusingTaint`, `crash_after(n)`).
+
+**Departures and limits of the queue (decide or accept).**
+- A narrowing `Policy` entry that is queued while the log is down is lost if the process dies before the log
+  returns; the restore then runs the older, wider policy. The in-memory policy is narrowed at once and the
+  entry is retried at every request. Closing this needs the narrowing to be acked before it applies, which
+  would let a log outage block a narrowing; it is the wrong way round, so it is accepted and noted.
+- A session whose `Taint` is on the record but whose live state never took it (a context view with an
+  untrusted window title mints untrusted handles without tainting the live session) restores `Tainted`. The
+  fold counts any untrusted handle label as taint (S0), so the durable record is the more conservative one.
+- A write that fails with an unknown outcome (the store may have kept it) is handled by the log, not the
+  router: `AlmanacSessionLog` reads the end of the log again on the next append and treats the same entry at
+  the position just written as acknowledged. A store holding another position than the writer's
+  (`OutOfOrder`: another writer, or a fresh session that reused the name of a stored one) stops that
+  session's writer for good: every later reveal and call of it is refused until it is restored from the log.
+- The log lives in one Space (the desktop Space, named when `AlmanacSessionLog` is built). `SessionLog`
+  carries no Space; a per-Space placement needs the trait to take one (S2).
+- Implicit sessions (an app, a terminal or an MCP client that opened none) are not recorded (`Wal::Off`).
+- Ids: session, task, turn and call numbers come from one counter. `adopt_sessions` (called by intentd at
+  start through `SessionLog::sessions`) lifts the counter above every session the log holds, and a restore
+  lifts it above the numbers in that session, so nothing minted later reuses a restored name. If memoryd is
+  not up at start, `adopt_sessions` fails and a new session may reuse a stored name; its writer then stops
+  at the first append (`OutOfOrder`) and its calls are refused rather than interleaved.
+
+**`restore_session`** reads the log (`rows_of`), runs `resume_plan`, and `rebuild` (pure, a table test per
+rule) makes the record:
+- Taint is the log's or higher, never lower. `saw.untrusted` follows it. `saw.private` is `Seen` as soon as
+  the session did anything (the log does not carry confidentiality, so a session that did anything is taken
+  to have seen private text).
+- The policy is the stored one; the policy writer is not asked (a test with a failing, counting writer).
+- Handles come back as `HandleValue::Forgotten(shape)`: label, shape and source, a number that is never
+  reused. No card, no display, no resolve, no argument (`UnknownHandle`); a fresh call mints a new handle.
+- A call with no `Step` ends `StepEnd::Interrupted` in the history, the restore appends that `Step` to the
+  log, and the call is not run again. A `Taint(Repaired)` is appended when an untrusted handle had none
+  before it.
+- Budget: the last `Budget` checkpoint (every fifth call) plus the calls since; `started` and the minute
+  window restart at the restore (active time, D5).
+- A paused session restores paused (the person's next turn resumes it); a closed one restores closed; a
+  `Blocked` plan (a gap or an unreadable entry) restores `Closed` and tainted, writes nothing, and takes no
+  call or turn.
+- `known` (the things the router showed) is empty: the planner has to find things again, which keeps a
+  restored session from naming a thing it was never shown in this process.
+- The restore is lazy: a request that names an unknown session (`Perform`, `Context`, `Session.*`,
+  `Message.Send`) restores it first (`Router::restore_named`). A session that cannot be restored stays
+  unknown and is answered as any unknown session.
+
+**`StepEnd::Interrupted` (decision).** The brief offered `Unconfirmed(Cancelled)` or a new variant. A new
+variant: `Unconfirmed` says the person was asked and declined, which a planner reads as "do not try this
+again without asking", and nothing here is true of an interrupted call: it may have run. `Interrupted` is
+its own line in the planner's history ("interrupted by a restart: it may have run, it is not run again;
+check before asking again"), counts as a failed call for the breaker's history, and is a failed card in the
+plan. The cost is one arm in five exhaustive matches (agent-loop twice, docket-planner, router, docket-tasks).
+`CallRefusal::NotRecorded` is the other new variant (and `McpRefusal::NotRecorded`).
+
+**For S2 (convergence).** companiond's `TaskRuntime` and docket-tasks' `recover` still read and write the old
+`companion.session.*` records through their own path (`legacy` reads them); S2 moves them onto the router's
+session record: a front task and its roster come from `restore_session`, `recover` becomes a listing
+(`adopt_sessions` already returns the ids), and `Session.List`, `Session.Restore`, load and fork become
+`Intents1` members at that point (wire, `permits`, proxy, introspection and the golden files move together,
+which is why S1 added none). `SessionLog` should take the Space then. Skills reload by id only: a version
+mismatch is not warned yet.
+
+Tests (all over `MemoryLog` or almanac-fake, scripted models, no network, no wall clock; `crash_after(n)`
+is the crash): `docket-router/tests/restore.rs` (the order of a session's entries, the failed taint write
+refusing the reveal and leaving the session at its prior taint, a reveal withheld from the reply when its
+handle cannot be kept, restore never asking the writer, handles as labels that cannot be shown or read, an
+interrupted call reported and not run, a blocked log restoring tainted and display-only, a session read on
+under the same policy after a restart, a new session never taking a stored name, a log with untrusted
+handles and no taint restoring tainted and repaired, the crash between every pair of appends of a
+scenario, and the same property under proptest: whatever was revealed, a restore is at least as tainted);
+`docket-router/src/rebuild.rs` (the pure rules, one test each); `docket-memory/tests/session_log.rs` (the
+log contract over almanac: paging at any size from any position, out-of-order, no memory is a refusal, an
+acknowledgement lost on the way written once, the listing, and a whole session restored from almanac after
+the router is dropped); `docket-planner` (the interrupted line).

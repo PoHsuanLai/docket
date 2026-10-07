@@ -254,6 +254,9 @@ pub enum CallRefusal {
     AppUnavailable(AppName),
     /// The app did not answer in time.
     Timeout,
+    /// The session's record could not be kept durably, so the call did not run (or the text it
+    /// would have revealed was withheld): what is not on the record is not done.
+    NotRecorded,
 }
 
 /// Where a call is, for the requester's progress signal.

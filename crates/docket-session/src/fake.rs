@@ -100,6 +100,9 @@ pub enum LogMood {
     Refusing,
     /// It does not answer.
     Down,
+    /// It stores everything but taint entries, which it refuses: the fault a write-ahead taint
+    /// has to survive.
+    RefusingTaint,
 }
 
 /// An in-memory `SessionLog` that stores the encoded bodies, so a test reads back exactly what a
@@ -108,6 +111,8 @@ pub enum LogMood {
 pub struct MemoryLog {
     bodies: Mutex<BTreeMap<SessionId, Vec<(String, String)>>>,
     mood: Mutex<LogMood>,
+    /// How many more appends it stores before it stops answering (a crash), if limited.
+    allowance: Mutex<Option<u32>>,
 }
 
 impl MemoryLog {
@@ -116,7 +121,30 @@ impl MemoryLog {
         Self {
             bodies: Mutex::new(BTreeMap::new()),
             mood: Mutex::new(LogMood::Storing),
+            allowance: Mutex::new(None),
         }
+    }
+
+    /// Stores `appends` more entries and then answers nothing, as a store does when the process
+    /// is killed between two appends. `set_mood(Storing)` and `no_crash` bring it back.
+    pub fn crash_after(&self, appends: u32) {
+        if let Ok(mut a) = self.allowance.lock() {
+            *a = Some(appends);
+        }
+    }
+
+    /// Ends a `crash_after`: the store answers again, holding what it stored before.
+    pub fn no_crash(&self) {
+        if let Ok(mut a) = self.allowance.lock() {
+            *a = None;
+        }
+    }
+
+    /// How many entries it holds in all.
+    pub fn stored(&self) -> usize {
+        self.bodies
+            .lock()
+            .map_or(0, |all| all.values().map(Vec::len).sum())
     }
 
     /// Changes how it answers appends from now on.
@@ -151,8 +179,17 @@ impl SessionLog for MemoryLog {
     ) -> Result<Appended, LogFault> {
         match self.mood.lock().map(|m| *m) {
             Ok(LogMood::Storing) => {}
-            Ok(LogMood::Refusing) => return Err(LogFault::Refused),
+            Ok(LogMood::RefusingTaint) if !matches!(entry, SessionEntry::Taint(_)) => {}
+            Ok(LogMood::Refusing | LogMood::RefusingTaint) => return Err(LogFault::Refused),
             Ok(LogMood::Down) | Err(_) => return Err(LogFault::Unavailable),
+        }
+        if let Ok(mut allowance) = self.allowance.lock()
+            && let Some(left) = allowance.as_mut()
+        {
+            if *left == 0 {
+                return Err(LogFault::Unavailable);
+            }
+            *left -= 1;
         }
         let encoded = encode(seq, entry).map_err(|_| LogFault::Encode)?;
         let mut all = self.bodies.lock().map_err(|_| LogFault::Unavailable)?;
@@ -186,5 +223,17 @@ impl SessionLog for MemoryLog {
             .collect();
         let next = (end < rows.len()).then_some(Seq(end as u64));
         Ok(LogPage { rows: logged, next })
+    }
+
+    async fn sessions(&self) -> Result<Vec<SessionId>, LogFault> {
+        let all = self.bodies.lock().map_err(|_| LogFault::Unavailable)?;
+        Ok(all
+            .iter()
+            .filter(|(_, rows)| {
+                rows.first()
+                    .is_some_and(|(kind, _)| kind.ends_with(".opened"))
+            })
+            .map(|(id, _)| id.clone())
+            .collect())
     }
 }

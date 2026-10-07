@@ -243,6 +243,9 @@ impl<S: Seams> Router<S> {
         let at = self.seams.clock().now();
         let task = new.task.clone();
         if let Some(record) = self.locked().sessions.get_mut(id) {
+            record
+                .wal
+                .note(docket_session::SessionEntry::Policy(new.clone()));
             record.policy = Some(new);
         }
         self.seams.sink().append(AuditRecord::TaskPolicy {

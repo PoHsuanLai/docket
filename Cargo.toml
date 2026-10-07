@@ -92,6 +92,7 @@ almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "00f5bc
 almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "00f5bcf924ec0580b6d2fa29fe8b1449b0deb64d", default-features = false }
 # Test-only: a MemoryService over in-memory seams, the backend of the in-process memory tests.
 almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "00f5bcf924ec0580b6d2fa29fe8b1449b0deb64d" }
+almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "00f5bcf924ec0580b6d2fa29fe8b1449b0deb64d" }
 # Test-only: the fake memoryd of intentd's audit tests serves the real wire (dev-dependency).
 almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "00f5bcf924ec0580b6d2fa29fe8b1449b0deb64d" }
 

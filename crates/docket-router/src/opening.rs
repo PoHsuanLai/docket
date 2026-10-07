@@ -4,14 +4,16 @@
 
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, Seams};
-use crate::session::{SessionEvent, session_step};
+use crate::session::SessionEvent;
 use crate::state::SessionRecord;
 use crate::tasks::{TaskRecord, TaskState, child_policy};
+use crate::wal::Wal;
 use almanac_core::{EpisodeId, EpisodeKind, EpisodeOutcome};
 use docket_core::{
     AuditRecord, CallerId, CallerRole, IntentsReply, Reveal, SessionOpen, SessionOpened,
     TaskLedger, TurnId, TurnIn, TurnSource, UserTurn, WireRefusal, close,
 };
+use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use porter_core::AppName;
 use prov::{Actor, AgentRef, AgentRole, ReportStatus, SessionId, TaskId};
 
@@ -25,6 +27,27 @@ fn turn_source(role: CallerRole, caller: &CallerId) -> TurnSource {
         CallerRole::Field => TurnSource::Field(caller.app.name.clone()),
         CallerRole::Cli => TurnSource::Terminal,
         _ => TurnSource::Launcher,
+    }
+}
+
+/// Who acts in the session of `agent`, opened by `opener`: how calls and the journal name it.
+pub(crate) fn actor_of(agent: &AgentRef, session: &SessionId, opener: &AppName) -> Actor {
+    match agent {
+        AgentRef::Companion => Actor::Companion {
+            session: session.clone(),
+            role: AgentRole::Planner,
+        },
+        AgentRef::Worker { task } => Actor::Companion {
+            session: session.clone(),
+            role: AgentRole::Worker { task: task.clone() },
+        },
+        AgentRef::Cua { run } => Actor::Companion {
+            session: session.clone(),
+            role: AgentRole::Cua { run: run.clone() },
+        },
+        AgentRef::User => Actor::User {
+            via: opener.clone(),
+        },
     }
 }
 
@@ -89,23 +112,7 @@ impl<S: Seams> Router<S> {
         if st.tasks.get(&task).is_some() {
             return refuse(WireRefusal::Malformed);
         }
-        let actor = match &open.agent {
-            AgentRef::Companion => Actor::Companion {
-                session: session.clone(),
-                role: AgentRole::Planner,
-            },
-            AgentRef::Worker { task } => Actor::Companion {
-                session: session.clone(),
-                role: AgentRole::Worker { task: task.clone() },
-            },
-            AgentRef::Cua { run } => Actor::Companion {
-                session: session.clone(),
-                role: AgentRole::Cua { run: run.clone() },
-            },
-            AgentRef::User => Actor::User {
-                via: opener.clone(),
-            },
-        };
+        let actor = actor_of(&open.agent, &session, opener);
         let mut record =
             SessionRecord::new(task.clone(), actor, opener.clone(), open.space.clone(), now);
         let parent_episode = open
@@ -123,6 +130,19 @@ impl<S: Seams> Router<S> {
             asked.task = task.clone();
             asked.space = open.space.clone();
             record.policy = Some(child_policy(&inherited, &asked));
+        }
+        record.wal = Wal::on(Written::Clean);
+        record.wal.note(SessionEntry::Opened(Opening {
+            task: task.clone(),
+            space: open.space.clone(),
+            opener: Some(opener.clone()),
+            agent: Some(open.agent.clone()),
+            backend: BackendKind::Native,
+            parent: open.parent.clone(),
+            forked_from: None,
+        }));
+        if let Some(policy) = &record.policy {
+            record.wal.note(SessionEntry::Policy(policy.clone()));
         }
         st.sessions.insert(session.clone(), record);
         st.tasks.insert(TaskRecord {
@@ -164,7 +184,7 @@ impl<S: Seams> Router<S> {
         if matches!(role, CallerRole::Field | CallerRole::Cua) && record.opener != caller.app.name {
             return refuse(WireRefusal::NotAllowed);
         }
-        record.state = session_step(record.state, SessionEvent::Close).0;
+        record.apply(SessionEvent::Close);
         let task = record.task.clone();
         let policy_ended = record.policy.is_some();
         let Some(t) = st.tasks.get_mut(&task) else {
@@ -212,8 +232,8 @@ impl<S: Seams> Router<S> {
             from,
             via: turn.via,
         };
-        let (state, _) = session_step(record.state, SessionEvent::UserTurn);
-        record.state = state;
+        record.apply(SessionEvent::UserTurn);
+        record.wal.note(SessionEntry::Turn(recorded.clone()));
         record.turns.push(recorded.clone());
         let task = record.task.clone();
         if let Some(t) = st.tasks.get_mut(&task) {

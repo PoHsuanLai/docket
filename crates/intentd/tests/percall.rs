@@ -88,6 +88,7 @@ impl Seams for BusSeams {
     type Memory = FakeMemory;
     type Writer = ScriptedWriter;
     type Reading = ScriptedReader;
+    type Log = docket_router::NoLog;
     fn link(&self) -> &DbusLink {
         &self.link
     }
@@ -114,6 +115,9 @@ impl Seams for BusSeams {
     }
     fn reader(&self) -> &ScriptedReader {
         &self.reader
+    }
+    fn log(&self) -> &docket_router::NoLog {
+        &docket_router::NoLog
     }
 }
 

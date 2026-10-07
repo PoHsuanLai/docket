@@ -94,7 +94,9 @@ impl<S: Seams> Router<S> {
             let Some(role) = acting_role(&caller.roles, request.member()) else {
                 return IntentsReply::Refused(WireRefusal::NotAllowed);
             };
-            self.answer(caller, role, request, &watch).await
+            self.restore_named(&request).await;
+            let reply = self.answer(caller, role, request, &watch).await;
+            self.settle(reply).await
         }
     }
 
@@ -167,7 +169,7 @@ impl<S: Seams> Router<S> {
                 }
             }
             R::SessionClose { session } => self.session_close(caller, role, &session),
-            R::SessionResolve { session, handle } => self.session_resolve(&session, handle),
+            R::SessionResolve { session, handle } => self.session_resolve(&session, handle).await,
             R::SessionDisplay { session, handle } => self.session_display(&session, handle),
             R::SessionRead { session, ask } => self.session_read(&session, ask).await,
             R::SessionTaskPolicy { session } => match self.locked().sessions.get(&session) {
@@ -180,7 +182,7 @@ impl<S: Seams> Router<S> {
             R::SessionNarrow { session, turn } => self.session_narrow(&session, turn).await,
             R::SessionHandles { session } => self.session_handles(&session),
             R::MessageSend { session, draft } => self.message_send(caller, role, &session, draft),
-            R::MessageInbox(ask) => self.message_inbox(role, ask),
+            R::MessageInbox(ask) => self.message_inbox(role, ask).await,
             R::GateGrant(ask) => self.gate_grant(ask).await,
             R::GateCheck(ask) => self.gate_check(ask, watch).await,
             R::ControlHalt { scope, cause } => self.control_halt(scope, cause).await,

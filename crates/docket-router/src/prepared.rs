@@ -112,7 +112,10 @@ pub(crate) fn typed_history(record: &SessionRecord) -> Vec<TypedStep> {
                 StepEnd::Done { .. } => CallEndKind::Done,
                 StepEnd::Refused(CallRefusal::Denied(_)) => CallEndKind::Denied,
                 StepEnd::Unconfirmed(_) => CallEndKind::Unconfirmed,
-                StepEnd::Refused(_) | StepEnd::Held(_) | StepEnd::Unread(_) => CallEndKind::Failed,
+                StepEnd::Refused(_)
+                | StepEnd::Held(_)
+                | StepEnd::Unread(_)
+                | StepEnd::Interrupted => CallEndKind::Failed,
             },
             verdict: None,
         })

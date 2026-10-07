@@ -106,6 +106,11 @@ impl<S: Seams> Router<S> {
         let Ok(reply) = self.seams.memory().ask(request).await else {
             return refuse(WireRefusal::Malformed);
         };
+        if hands_out_untrusted(&reply, episodes)
+            && let Err(why) = self.ahead_of_reveal(id, None).await
+        {
+            return refuse(WireRefusal::Call(why));
+        }
         let mut st = self.locked();
         let Some(record) = st.sessions.get_mut(id) else {
             return refuse(WireRefusal::NoSuchSession);
@@ -174,6 +179,21 @@ impl<S: Seams> Router<S> {
             )),
             _ => refuse(WireRefusal::Malformed),
         }
+    }
+}
+
+/// Whether the recalled `reply` puts untrusted text in a handle: an entry or a hit whose label
+/// is untrusted, or an episode (its narrative is a model's, so always).
+fn hands_out_untrusted(reply: &MemoryReply, episodes: bool) -> bool {
+    match reply {
+        MemoryReply::Recent(entries) if episodes => entries.iter().any(|e| e.body.is_some()),
+        MemoryReply::Recent(entries) => entries
+            .iter()
+            .any(|e| e.label.integrity == Integrity::Untrusted),
+        MemoryReply::Hits(hits) => hits
+            .iter()
+            .any(|h| h.label.integrity == Integrity::Untrusted),
+        _ => false,
     }
 }
 

@@ -3,7 +3,7 @@
 //! something the router showed it, and a handle brings back the label it was minted with.
 
 use crate::handles::HandleValue;
-use crate::session::{SessionEvent, session_step};
+use crate::session::SessionEvent;
 use crate::state::SessionRecord;
 use docket_core::{
     ActionDecl, ArgFault, ArgLabels, ArgSink, Args, ParamName, Saw, SessionSaw, SinkIntegrity,
@@ -103,7 +103,7 @@ pub(crate) fn resolve_target(
         .map(|h| match session.handles.value(h).map(|v| &v.value) {
             Some(HandleValue::Entity(e)) => Ok(e.clone()),
             Some(HandleValue::Text(_) | HandleValue::File(_)) => Err(ArgFault::WrongType),
-            None => Err(ArgFault::UnknownHandle),
+            Some(HandleValue::Forgotten(_)) | None => Err(ArgFault::UnknownHandle),
         })
         .collect::<Result<Vec<_>, _>>()
         .map(TargetValue::Entities)
@@ -122,6 +122,7 @@ fn relabel(
                 HandleValue::Text(t) => Value::Text(t.clone()),
                 HandleValue::Entity(e) => Value::Entity(e.clone()),
                 HandleValue::File(f) => Value::File(f.clone()),
+                HandleValue::Forgotten(_) => return Err(ArgFault::UnknownHandle),
             };
             Ok(Labelled {
                 value,
@@ -261,7 +262,7 @@ pub(crate) fn args_confidentiality(args: &Args) -> Confidentiality {
 pub(crate) fn absorb(session: &mut SessionRecord, label: &Label) {
     if label.integrity == Integrity::Untrusted {
         session.saw.untrusted = Saw::Seen;
-        session.state = session_step(session.state, SessionEvent::UntrustedReveal).0;
+        session.apply(SessionEvent::UntrustedReveal);
     }
     if private(&label.confidentiality) {
         session.saw.private = Saw::Seen;
