@@ -162,6 +162,89 @@ pub struct ConfirmRequest {
     pub expires: Seconds,
 }
 
+/// What every sheet must say. A consumer outside docket builds a request from this with
+/// [`ConfirmRequest::new`] rather than a struct literal, so a field added with a default (like
+/// `always`) never breaks it; a new required field lands here, and breaking then is intended.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfirmParts {
+    /// Which confirmation.
+    pub id: ConfirmId,
+    /// The Space.
+    pub space: SpaceId,
+    /// Who is acting.
+    pub actor: Actor,
+    /// The app acted on.
+    pub app: AppName,
+    /// The manifest's label.
+    pub action: LabelText,
+    /// Its effect.
+    pub effect: Effect,
+    /// How many things.
+    pub count: Count,
+    /// The concrete change.
+    pub detail: ConfirmDetail,
+    /// The arguments.
+    pub lines: Vec<ArgLine>,
+    /// Why it asks.
+    pub why: Vec<AskReason>,
+    /// Whether the session read untrusted content.
+    pub taint: TaintNote,
+    /// What the person may choose.
+    pub offer: ConfirmOffer,
+    /// How to answer.
+    pub gesture: Gesture,
+    /// Where to draw it.
+    pub anchor: Anchor,
+    /// How long it stays.
+    pub expires: Seconds,
+}
+
+impl ConfirmRequest {
+    /// A request with no standing-grant offer; add one with [`ConfirmRequest::offering`].
+    pub fn new(parts: ConfirmParts) -> Self {
+        let ConfirmParts {
+            id,
+            space,
+            actor,
+            app,
+            action,
+            effect,
+            count,
+            detail,
+            lines,
+            why,
+            taint,
+            offer,
+            gesture,
+            anchor,
+            expires,
+        } = parts;
+        ConfirmRequest {
+            id,
+            space,
+            actor,
+            app,
+            action,
+            effect,
+            count,
+            detail,
+            lines,
+            why,
+            taint,
+            offer,
+            always: AlwaysOffer::default(),
+            gesture,
+            anchor,
+            expires,
+        }
+    }
+
+    /// The same request with this "allow always" offer.
+    pub fn offering(self, always: AlwaysOffer) -> Self {
+        ConfirmRequest { always, ..self }
+    }
+}
+
 /// How a grant lasts.
 pub use porter_core::consent::GrantScope;
 

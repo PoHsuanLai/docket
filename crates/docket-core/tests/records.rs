@@ -37,7 +37,7 @@ fn calls_confirmations_and_audit_round_trip() {
         origin: Origin::Companion,
     };
     round(&call);
-    let confirm = ConfirmRequest {
+    let confirm = ConfirmRequest::new(ConfirmParts {
         id: ConfirmId::parse("c-1").expect("id"),
         space: space("work"),
         actor: planner(),
@@ -56,11 +56,17 @@ fn calls_confirmations_and_audit_round_trip() {
         why: vec![AskReason::Tainted, AskReason::RuleOfTwo],
         taint: TaintNote::ReadUntrusted(BTreeSet::from([prov::Source::Mail])),
         offer: ConfirmOffer::OnceOnly,
-        always: Default::default(),
         gesture: Gesture::Press,
         anchor: Anchor::Launcher,
         expires: Seconds(120),
-    };
+    });
+    assert_eq!(
+        confirm.always,
+        AlwaysOffer::default(),
+        "a request built from its parts offers no standing grant"
+    );
+    let withheld = AlwaysOffer::Withheld(Withheld::BreakerTripped);
+    assert_eq!(confirm.clone().offering(withheld.clone()).always, withheld);
     round(&confirm);
     for record in [
         AuditRecord::Breaker {
