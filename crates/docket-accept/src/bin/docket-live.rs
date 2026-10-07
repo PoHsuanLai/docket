@@ -37,10 +37,18 @@ fn corpus_dir_name(corpus: Corpus) -> String {
         .replace('_', "-")
 }
 
+/// The cases a run is asked for. Unnamed, the hostile-model corpus runs only on a cassette: its
+/// cases are the spoiled replies themselves, and a live model answers in its own words instead.
 fn chosen(args: &CorpusArgs, all: Vec<Case>) -> Vec<Case> {
+    let unnamed = args.cases.is_empty() && args.corpora.is_empty();
     all.into_iter()
         .filter(|c| args.cases.is_empty() || args.cases.contains(&c.id.0))
         .filter(|c| args.corpora.is_empty() || args.corpora.contains(&corpus_dir_name(c.corpus)))
+        .filter(|c| {
+            !unnamed
+                || matches!(args.engine, Engine::Scripted)
+                || !matches!(c.corpus, Corpus::HostileModel)
+        })
         .collect()
 }
 

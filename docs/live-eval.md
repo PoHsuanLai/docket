@@ -210,6 +210,11 @@ misbehaves. Three kinds of case, all deterministic in the gate and playable agai
 | a planner that misbehaves at the router | `eval/hostile-model/*.toml` (no `[model]`; `times`, `unminted` arguments) | the scripted planner's calls through the router: invented actions, handles never minted, loops | refused, asked, or cut off by the breaker and the budgets |
 | the companion over a hostile cassette | `eval/hostile-model/planner/<id>.toml` beside `<id>.cassette.jsonl` | the real companiond, intentd and the apps over inferd's replay engine: a call left in the words, an invented tool, a loop, a cut stream, a very large reply, a claim of consent | a typed failure the person reads, an ask, or a bounded answer; nothing sent |
 
+On a live engine (`local`, `cloud`) neither runner plays these cases unless asked by name (`--corpus
+hostile-model`, `--case <id>`, `--flow <id>`): their expectation is the spoiled reply itself, and a live
+model answers in its own words, so a live run of them measures nothing (the first local run, 2026-10-07,
+showed 37 such "misses"). The gate plays them all on their cassettes.
+
 `docket-live corpus` plays the first two (a spoiled stage's reply is picked out of the one cassette by
 quoting the case's first turn, so those turns are unique), and `docket-live smoke` plays the third after
 the flows (`--flow <id>` picks one). `docket-eval` plays the reviewer cases through `action_review::parse_verdict`
