@@ -1,5 +1,5 @@
 //! The router's event sink. The router is synchronous about it: `append` queues, and a task of
-//! the daemon drains the queue into memoryd, so a slow memoryd never stalls a call.
+//! the host (the daemon, or the in-app agent after a turn) drains the queue into memory, so a slow memoryd never stalls a call.
 //!
 //! The queue is bounded. While memoryd is away the daemon puts what it could not write back
 //! (`restore`), and when the queue is full the oldest record is dropped and counted (`dropped`),
@@ -53,6 +53,11 @@ impl QueuedSink {
     /// Takes everything queued so far, oldest first.
     pub fn drain(&self) -> Vec<AuditRecord> {
         std::mem::take(&mut self.locked().records).into()
+    }
+
+    /// A copy of what is queued, oldest first, leaving it queued.
+    pub fn snapshot(&self) -> Vec<AuditRecord> {
+        self.locked().records.iter().cloned().collect()
     }
 
     /// Puts records that could not be written back in front of what was queued since, oldest

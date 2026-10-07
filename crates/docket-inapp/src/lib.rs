@@ -12,15 +12,32 @@
 //!   receipt itself, so an app's sheet can say yes or no but never forge a proof.
 //! - [`ProviderLink`], [`InAppSeams`]: the router's seams over the one provider, with the
 //!   in-memory consent store ([`SessionGrants`]) and audit buffer ([`AuditBuffer`]).
-//! - [`NoMemory`], [`NoReader`], [`NoWriter`]: the seams an app has no portable answer for yet.
+//! - [`NoMemory`], [`NoReader`], [`NoWriter`]: the stubs an app starts with.
+//! - [`InAppKit`]: the real parts an app may choose instead, each portable and each over a
+//!   transport the app hands in: [`FileGrantStore`] (consent that survives a restart),
+//!   [`AlmanacMemory`] (recall and the audit as episodes, over `almanac-client`),
+//!   [`TransportWriter`] (the task policy from the person's words), [`TransportReader`] (the
+//!   quarantined reader in this process), and [`reviewer_over`] (the model-backed reviewer for
+//!   [`InAppParts::reviewer`]); [`SystemClock`] is the router's clock with no runtime needed.
 
 mod agent;
+mod clock;
+mod drive;
+mod grants;
+mod kit;
 mod link;
+mod recall;
 mod seams;
 mod sheet;
 mod turn;
 
-pub use agent::{AgentFault, Ending, InAppAgent, InAppParts, Reply};
+pub use agent::{AgentFault, Ending, Failure, InAppAgent, InAppParts, Reply};
+pub use clock::SystemClock;
+pub use docket_memory::{AlmanacMemory, AuditState, Flushed, QueuedSink, Report};
+pub use docket_models::{TransportModel, TransportWriter, placeholder_set, reviewer_over};
+pub use docket_reader::TransportReader;
+pub use grants::{FileGrantStore, GrantFileError};
+pub use kit::{AuditTo, InAppKit};
 pub use link::ProviderLink;
 pub use seams::{AuditBuffer, InAppSeams, NoMemory, NoReader, NoWriter, SessionGrants};
 pub use sheet::{ConfirmSheet, SheetAnswer, SheetConfirmer};

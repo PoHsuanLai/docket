@@ -1,7 +1,9 @@
-//! The router's seams for one app: the app's provider, its sheet, its reviewer and clock, an
-//! in-memory consent store and audit buffer, and the three seams that have no portable answer
-//! yet (memory, the quarantined reader, the task-policy writer): each says "unavailable", which
-//! the router already handles as "work with less".
+//! The router's seams for one app: the app's provider, its sheet, its reviewer and clock, and the
+//! four seams an app may choose an answer for: the consent store (in memory by default;
+//! [`FileGrantStore`](crate::FileGrantStore) keeps "always"), memory, the task-policy writer and
+//! the quarantined reader (each defaulting to a stub that says "unavailable", which the router
+//! already handles as "work with less"; the portable parts are `docket-memory`, `docket-models`
+//! and `docket-reader`), and the audit queue.
 
 use crate::link::ProviderLink;
 use crate::sheet::{ConfirmSheet, SheetConfirmer};
@@ -12,6 +14,7 @@ use docket_core::{
     ActionCard, ActionGrant, AuditRecord, PolicyWriter, Reader, ReaderAsk, ReaderError,
     ReviewError, TaskPolicy, UserTurn, Value,
 };
+use docket_memory::QueuedSink;
 use docket_router::{Clock, EventSink, GrantStore, LinkFault, MemoryLink, Seams};
 use prov::{Quarantined, SessionId, SpaceId, TaskId};
 use std::sync::Mutex;
@@ -44,25 +47,31 @@ impl GrantStore for SessionGrants {
     }
 }
 
-/// The audit records of this process, in order; the app drains them into its own log.
+/// The audit records of this process, in order. The app drains them into its own log, or the
+/// agent writes them into memory at the end of a turn ([`AuditTo::Memory`](crate::AuditTo)).
 #[derive(Debug, Default)]
-pub struct AuditBuffer(Mutex<Vec<AuditRecord>>);
+pub struct AuditBuffer(QueuedSink);
 
 impl AuditBuffer {
     /// Takes every record appended so far.
     pub fn drain(&self) -> Vec<AuditRecord> {
-        held(&self.0, std::mem::take)
+        self.0.drain()
     }
 
-    /// A copy of every record appended so far.
+    /// A copy of every record appended and not yet drained or written.
     pub fn records(&self) -> Vec<AuditRecord> {
-        held(&self.0, |r| r.clone())
+        self.0.snapshot()
+    }
+
+    /// The bounded queue underneath, which `docket_memory::AuditState` drains into memory.
+    pub fn queue(&self) -> &QueuedSink {
+        &self.0
     }
 }
 
 impl EventSink for AuditBuffer {
     fn append(&self, record: AuditRecord) {
-        held(&self.0, |r| r.push(record));
+        self.0.append(record);
     }
 }
 
@@ -110,8 +119,10 @@ impl PolicyWriter for NoWriter {
 }
 
 /// Every seam of an in-app router. Public so an app reads what its sheet, store and buffer hold.
+/// The last four parameters default to the stubs; an app that chooses a real one names it through
+/// [`InAppKit`](crate::InAppKit).
 #[derive(Debug)]
-pub struct InAppSeams<P, C, T, R, K> {
+pub struct InAppSeams<P, C, T, R, K, G = SessionGrants, Y = NoMemory, W = NoWriter, D = NoReader> {
     /// The app's own provider.
     pub link: ProviderLink<P, C>,
     /// The app's sheet, with the clock that stamps its receipts.
@@ -119,36 +130,40 @@ pub struct InAppSeams<P, C, T, R, K> {
     /// The reviewer cascade.
     pub reviewer: R,
     /// The consent store.
-    pub grants: SessionGrants,
+    pub grants: G,
     /// The audit buffer.
     pub sink: AuditBuffer,
     /// The clock, as the router races its deadlines.
     pub clock: K,
-    /// No memory.
-    pub memory: NoMemory,
-    /// No policy writer.
-    pub writer: NoWriter,
-    /// No reader.
-    pub reader: NoReader,
+    /// Memory.
+    pub memory: Y,
+    /// The task-policy writer.
+    pub writer: W,
+    /// The quarantined reader.
+    pub reader: D,
 }
 
-impl<P, C, T, R, K> Seams for InAppSeams<P, C, T, R, K>
+impl<P, C, T, R, K, G, Y, W, D> Seams for InAppSeams<P, C, T, R, K, G, Y, W, D>
 where
     P: IntentProvider,
     C: ContextSource,
     T: ConfirmSheet,
     R: Reviewer,
     K: Clock + Clone,
+    G: GrantStore,
+    Y: MemoryLink,
+    W: PolicyWriter,
+    D: Reader,
 {
     type Link = ProviderLink<P, C>;
     type Confirm = SheetConfirmer<T, K>;
     type Review = R;
-    type Grants = SessionGrants;
+    type Grants = G;
     type Sink = AuditBuffer;
     type Time = K;
-    type Memory = NoMemory;
-    type Writer = NoWriter;
-    type Reading = NoReader;
+    type Memory = Y;
+    type Writer = W;
+    type Reading = D;
 
     fn link(&self) -> &Self::Link {
         &self.link
@@ -159,7 +174,7 @@ where
     fn reviewer(&self) -> &R {
         &self.reviewer
     }
-    fn grants(&self) -> &SessionGrants {
+    fn grants(&self) -> &G {
         &self.grants
     }
     fn sink(&self) -> &AuditBuffer {
@@ -168,13 +183,13 @@ where
     fn clock(&self) -> &K {
         &self.clock
     }
-    fn memory(&self) -> &NoMemory {
+    fn memory(&self) -> &Y {
         &self.memory
     }
-    fn writer(&self) -> &NoWriter {
+    fn writer(&self) -> &W {
         &self.writer
     }
-    fn reader(&self) -> &NoReader {
+    fn reader(&self) -> &D {
         &self.reader
     }
 }

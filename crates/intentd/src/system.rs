@@ -3,11 +3,11 @@
 use crate::builtin::HostedLink;
 use crate::grants::FileGrants;
 use crate::infer::{InferdModel, InferdWriter, ReaderClient};
-use crate::memory::AlmanacMemory;
 use crate::sheet::SheetConfirmer;
-use crate::sink::QueuedSink;
 use action_review::InferReviewer;
 use docket_core::Millis;
+use docket_memory::AlmanacMemory;
+use docket_memory::QueuedSink;
 use docket_router::{Clock, Seams};
 use prov::UnixSeconds;
 

@@ -1,43 +1,16 @@
-//! The reviewer cascade over inferd, from the configured set or the placeholder one.
+//! The reviewer cascade over inferd, from the configured set or the placeholder one. The set,
+//! its cards and the placeholder are `docket-models`'; this makes each stage's link on the bus.
 
-use action_review::{InferReviewer, ModelChoice, ModelFamily, ReviewerSet};
+use action_review::{InferReviewer, ModelChoice, ReviewerSet};
 use docket_core::ReviewTimeouts;
 use docket_dbus::{BusConnection, InferLink};
-use porter_core::{AccountId, Billing, Locality, ModelId};
-use porter_infer::ModelCard;
 
 use crate::infer::InferdModel;
 
-fn choice(model: &str, family: &str) -> Option<ModelChoice> {
-    Some(ModelChoice {
-        account: AccountId::parse("local").ok()?,
-        model: ModelId::parse(model).ok()?,
-        family: ModelFamily(family.to_owned()),
-    })
-}
-
-/// The set used when `intentd.toml` names none: three placeholder local models of three
-/// families. inferd answers a model it does not have with an error, which asks the person, so
-/// the placeholder set can never allow anything; it only keeps the cascade built.
-pub fn placeholder_set() -> Option<ReviewerSet> {
-    Some(ReviewerSet {
-        quick: choice("quire-quick", "quick")?,
-        deliberate: choice("quire-deliberate", "deliberate")?,
-        second: choice("quire-second", "second")?,
-    })
-}
+pub use docket_models::placeholder_set;
 
 fn model(connection: &BusConnection, choice: &ModelChoice) -> InferdModel<InferLink> {
-    InferdModel::on_bus(
-        connection,
-        ModelCard {
-            account: choice.account.clone(),
-            model: choice.model.clone(),
-            locality: Locality::OnDevice,
-            billing: Billing::Free,
-            capabilities: vec![],
-        },
-    )
+    InferdModel::on_bus(connection, docket_models::card_of(choice))
 }
 
 /// The cascade for `set` (the placeholder one when none is given), with `timeouts` per stage.

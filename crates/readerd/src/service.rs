@@ -1,20 +1,11 @@
 //! The service behind `org.quire.Reader1`.
 
-use crate::answer::answer_of;
 use crate::host::ReaderHost;
-use crate::request::reader_request;
 use docket_client::{Intents, Transport as IntentsTransport};
 use docket_core::{Reader, ReaderAsk, ReaderError, Value};
 use docket_dbus::InferLink;
 use porter_client::Transport as InferTransport;
-use porter_core::capability::LlmFeature;
-use porter_core::need::LlmNeed;
-use porter_core::{Need, Tokens};
-use porter_infer::{
-    ClientFrame, InferEvent, InferReply, InferRequest, InferSession, ModelError, StopReason,
-};
 use prov::{Labelled, Quarantined, SessionId};
-use std::collections::BTreeSet;
 
 /// Reads for intentd: resolves handles through `Intents1.Session.Resolve` (the reader role),
 /// asks the reader model through inferd (`Need::Llm` with structured output, no tools), and
@@ -70,60 +61,6 @@ impl<P: InferTransport, I: IntentsTransport> ReaderService<P, I> {
         }
         self.extract(session, ask, inputs).await
     }
-
-    async fn read(
-        &self,
-        ask: &ReaderAsk,
-        inputs: &[Labelled<String>],
-    ) -> Result<Value, ReaderError> {
-        // A schema with no shape in the structured-output vocabulary is refused before any
-        // model is asked.
-        ask.want.shape().map_err(ReaderError::OutOfSchema)?;
-        let request = reader_request(ask, inputs);
-        let need = Need::Llm(LlmNeed {
-            features: BTreeSet::from([LlmFeature::Chat, LlmFeature::StructuredOutput]),
-            context: Tokens(
-                u32::try_from(inputs.iter().map(|i| i.value.len()).sum::<usize>() / 3)
-                    .unwrap_or(u32::MAX)
-                    .saturating_add(1024),
-            ),
-        });
-        let mut session = self
-            .infer
-            .open(&need, request.class, request.tier)
-            .await
-            .map_err(|_| ReaderError::ModelUnavailable)?;
-        // A daemon that refuses a session hangs up after writing the refusal: read first.
-        let _ = session
-            .send(ClientFrame::Request(InferRequest::Chat(request.clone())))
-            .await;
-        let reply = loop {
-            match session.next().await {
-                Ok(InferEvent::Finished(reply)) => break reply,
-                Ok(_) => {}
-                Err(_) => return Err(ReaderError::ModelUnavailable),
-            }
-        };
-        match reply {
-            InferReply::Chat(chat) => match chat.stop {
-                StopReason::EndTurn | StopReason::StopSequence => answer_of(&chat.text, &ask.want),
-                StopReason::MaxTokens | StopReason::ContentFilter | StopReason::ToolUse => {
-                    Err(ReaderError::Unparseable)
-                }
-            },
-            InferReply::Failed(ModelError::Refused) => Err(ReaderError::Refused),
-            InferReply::Failed(ModelError::Unparseable | ModelError::Unreadable) => {
-                Err(ReaderError::Unparseable)
-            }
-            InferReply::Failed(_)
-            | InferReply::Refused(_)
-            | InferReply::Cancelled
-            | InferReply::Embed(_)
-            | InferReply::CuaStep(_)
-            | InferReply::Transcribed(_)
-            | InferReply::Spoke(_) => Err(ReaderError::ModelUnavailable),
-        }
-    }
 }
 
 impl<P: InferTransport, I: IntentsTransport> Reader for ReaderService<P, I> {
@@ -134,6 +71,6 @@ impl<P: InferTransport, I: IntentsTransport> Reader for ReaderService<P, I> {
         inputs: Vec<Quarantined<String>>,
     ) -> Result<Value, ReaderError> {
         let opened: Vec<Labelled<String>> = inputs.into_iter().map(|q| self.host.open(q)).collect();
-        self.read(&ask, &opened).await
+        docket_reader::read(&self.infer, &ask, &opened).await
     }
 }

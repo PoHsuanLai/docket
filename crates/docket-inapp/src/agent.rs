@@ -1,27 +1,25 @@
 //! The in-app host: one app, one task at a time, the whole gate in process.
 
+use crate::kit::{AuditTo, InAppKit};
 use crate::link::ProviderLink;
 use crate::seams::{AuditBuffer, InAppSeams, NoMemory, NoReader, NoWriter, SessionGrants};
 use crate::sheet::{ConfirmSheet, SheetConfirmer};
 use crate::turn::OpenTask;
 use action_review::Reviewer;
-use agent_loop::{
-    FinishedAs, LoopEffect, LoopInput, LoopPhase, ModelOutput, Sources, agent_step, assemble,
-};
-use companion_wire::{AnswerPhase, NeedsYou};
+use agent_loop::LoopInput;
 use docket_client::{ClientError, ContextSource, InProcess, IntentProvider, Intents};
 use docket_core::{
-    AgentConfig, AuditRecord, CallId, CallRefusal, CallRequest, ContextKeep, ContextView, HereView,
-    Keep, Origin, ReadAsk, ReaderAsk, Reveal, SelectionView, SessionOpen, StepLine, TextTargetView,
-    TurnIn, TurnSource, TurnVia, UserTurn, VisibleView, WireRefusal,
+    AgentConfig, AuditRecord, CallRefusal, ContextKeep, Keep, NoteAsk, Origin, PolicyWriter,
+    Reader, SessionOpen, StepLine, TurnIn, TurnSource, TurnVia, UserTurn,
 };
+use docket_memory::{AuditState, Report};
 use docket_planner::{Catalogue, PlanFault, PlannerModel};
-use docket_router::{Clock, Registry, Router};
+use docket_router::{Clock, GrantStore, MemoryLink, Registry, Router};
 use policy_point::Pdp;
 use porter_client::Transport as ModelTransport;
-use porter_core::{AppId, AppName, Count, Isolation};
-use prov::{AgentRef, Effect, SpaceId};
-use std::collections::{BTreeSet, VecDeque};
+use porter_core::{AppId, AppName, Isolation};
+use prov::{AgentRef, SpaceId};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 /// Why the host could not run a turn at all (a turn that ran and went badly is a [`Reply`]).
@@ -109,66 +107,63 @@ pub struct InAppParts<P, C, T, R, M, K> {
     pub config: AgentConfig,
 }
 
-type Seam<P, C, T, R, K> = InAppSeams<P, C, T, R, K>;
-type Link<P, C, T, R, K> = Intents<InProcess<Seam<P, C, T, R, K>>>;
-type Hosted<P, C, T, R, K> = Arc<Router<Seam<P, C, T, R, K>>>;
+type Seam<P, C, T, R, K, G, Y, W, D> = InAppSeams<P, C, T, R, K, G, Y, W, D>;
+type Link<P, C, T, R, K, G, Y, W, D> = Intents<InProcess<Seam<P, C, T, R, K, G, Y, W, D>>>;
+type Hosted<P, C, T, R, K, G, Y, W, D> = Arc<Router<Seam<P, C, T, R, K, G, Y, W, D>>>;
 
 /// One app's agent: `ask` runs a turn end to end through the router.
-pub struct InAppAgent<P, C, T, R, M: ModelTransport, K>
-where
+pub struct InAppAgent<
+    P,
+    C,
+    T,
+    R,
+    M: ModelTransport,
+    K,
+    G = SessionGrants,
+    Y = NoMemory,
+    W = NoWriter,
+    D = NoReader,
+> where
     P: IntentProvider + 'static,
     C: ContextSource + 'static,
     T: ConfirmSheet + 'static,
     R: Reviewer + 'static,
     K: Clock + Clone + 'static,
+    G: GrantStore + 'static,
+    Y: MemoryLink + 'static,
+    W: PolicyWriter + 'static,
+    D: Reader + 'static,
 {
-    router: Hosted<P, C, T, R, K>,
+    pub(crate) router: Hosted<P, C, T, R, K, G, Y, W, D>,
     /// The planner's side: role `companion`, whose voice the router never believes.
-    intents: Link<P, C, T, R, K>,
+    pub(crate) intents: Link<P, C, T, R, K, G, Y, W, D>,
     /// The person's side: role `field`, the app's own prompt, which alone records turns.
-    person: Link<P, C, T, R, K>,
-    planner: PlannerModel<M>,
-    config: AgentConfig,
-    app: AppName,
-    space: SpaceId,
-    clock: K,
+    person: Link<P, C, T, R, K, G, Y, W, D>,
+    pub(crate) planner: PlannerModel<M>,
+    pub(crate) config: AgentConfig,
+    pub(crate) app: AppName,
+    pub(crate) space: SpaceId,
+    pub(crate) clock: K,
     task: Option<OpenTask>,
+    audit: AuditTo,
+    audit_state: AuditState,
 }
 
-impl<P, C, T, R, M: ModelTransport, K> std::fmt::Debug for InAppAgent<P, C, T, R, M, K>
+impl<P, C, T, R, M: ModelTransport, K, G, Y, W, D> std::fmt::Debug
+    for InAppAgent<P, C, T, R, M, K, G, Y, W, D>
 where
     P: IntentProvider + 'static,
     C: ContextSource + 'static,
     T: ConfirmSheet + 'static,
     R: Reviewer + 'static,
     K: Clock + Clone + 'static,
+    G: GrantStore + 'static,
+    Y: MemoryLink + 'static,
+    W: PolicyWriter + 'static,
+    D: Reader + 'static,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "InAppAgent({})", self.app)
-    }
-}
-
-fn nowhere(app: AppName) -> ContextView {
-    ContextView {
-        app,
-        window: Reveal::Plain(String::new()),
-        here: HereView::Nowhere,
-        selection: SelectionView::Nothing,
-        visible: VisibleView {
-            kind: None,
-            items: Vec::new(),
-            total: Count(0),
-        },
-        text_target: TextTargetView::None,
-    }
-}
-
-fn refusal_of(error: ClientError) -> CallRefusal {
-    match error {
-        ClientError::Refused(WireRefusal::Call(refusal)) => refusal,
-        ClientError::Refused(_) | ClientError::Transport(_) | ClientError::Unexpected => {
-            CallRefusal::Timeout
-        }
     }
 }
 
@@ -189,25 +184,47 @@ where
     R: Reviewer + 'static,
     K: Clock + Clone + 'static,
 {
+    /// The agent with the stub seams: consent in memory, no memory, no policy writer, no reader.
+    /// [`InAppAgent::with_kit`] takes the real parts an app chooses.
+    pub fn new(parts: InAppParts<P, C, T, R, M, K>) -> Result<Self, AgentFault> {
+        Self::with_kit(parts, InAppKit::default())
+    }
+}
+
+impl<P, C, T, R, M: ModelTransport, K, G, Y, W, D> InAppAgent<P, C, T, R, M, K, G, Y, W, D>
+where
+    P: IntentProvider + 'static,
+    C: ContextSource + 'static,
+    T: ConfirmSheet + 'static,
+    R: Reviewer + 'static,
+    K: Clock + Clone + 'static,
+    G: GrantStore + 'static,
+    Y: MemoryLink + 'static,
+    W: PolicyWriter + 'static,
+    D: Reader + 'static,
+{
     /// Builds the router over the app's provider and installs its manifest. The host speaks to
     /// the router as two callers of the app's own name and different roles: `field` (the app's
     /// own prompt records the person's turns, so the task policy is capped to this app plus
     /// reads) and `companion` (the planner's calls, whose labels the router derives itself).
     /// They are never one caller with both roles: the first role that may make a call is the
     /// one it acts in, and `field` would speak with the person's voice.
-    pub fn new(parts: InAppParts<P, C, T, R, M, K>) -> Result<Self, AgentFault> {
+    pub fn with_kit(
+        parts: InAppParts<P, C, T, R, M, K>,
+        kit: InAppKit<G, Y, W, D>,
+    ) -> Result<Self, AgentFault> {
         let manifest = parts.provider.manifest().clone();
         let app = manifest.manifest().app.clone();
         let seams = InAppSeams {
             link: ProviderLink::new(parts.provider, parts.context),
             confirmer: SheetConfirmer::new(parts.sheet, parts.clock.clone()),
             reviewer: parts.reviewer,
-            grants: SessionGrants::default(),
+            grants: kit.grants,
             sink: AuditBuffer::default(),
             clock: parts.clock.clone(),
-            memory: NoMemory,
-            writer: NoWriter,
-            reader: NoReader,
+            memory: kit.memory,
+            writer: kit.writer,
+            reader: kit.reader,
         };
         let pdp = Pdp::standard().map_err(AgentFault::Policy)?;
         let router = Router::new(seams, parts.config, pdp);
@@ -241,6 +258,8 @@ where
             space: parts.space,
             clock: parts.clock,
             task: None,
+            audit: kit.audit,
+            audit_state: AuditState::default(),
         })
     }
 
@@ -255,7 +274,7 @@ where
     }
 
     /// The router, for the app to read what its seams hold (the sheet, the consent store).
-    pub fn router(&self) -> &Router<Seam<P, C, T, R, K>> {
+    pub fn router(&self) -> &Router<Seam<P, C, T, R, K, G, Y, W, D>> {
         &self.router
     }
 
@@ -299,10 +318,34 @@ where
         match reply.ending {
             Ending::Asked { .. } | Ending::Paused(_) => self.task = Some(task),
             _ => {
+                // The router leaves the task's episode itself, as it does for companiond.
+                let _ = self
+                    .intents
+                    .session_note(task.session.clone(), NoteAsk::End)
+                    .await;
                 let _ = self.intents.session_close(task.session).await;
             }
         }
+        if self.audit == AuditTo::Memory {
+            self.flush_audit().await;
+        }
         Ok(reply)
+    }
+
+    /// Writes the audit records waiting in the buffer into memory (as almanac records in the
+    /// agent's Space, the task's episode among them). What memory cannot take, because it is
+    /// away or busy, stays queued for the next flush; the report says what happened. `ask` does
+    /// this at the end of every turn under [`AuditTo::Memory`]; an app may also call it before
+    /// it quits.
+    pub async fn flush_audit(&mut self) -> Report {
+        let space = self.space.clone();
+        self.audit_state
+            .flush(
+                &self.router.seams.memory,
+                self.router.seams.sink.queue(),
+                move |_| Some(space.clone()),
+            )
+            .await
     }
 
     async fn open(&self) -> Result<OpenTask, AgentFault> {
@@ -315,160 +358,5 @@ where
             })
             .await?;
         Ok(OpenTask::new(opened.session))
-    }
-
-    async fn run(&self, mut task: OpenTask, first: LoopInput) -> (Ending, OpenTask) {
-        let mut queue = VecDeque::from([first]);
-        let mut question = None;
-        let mut failure = None;
-        while let Some(input) = queue.pop_front() {
-            let (next, effects) = agent_step(task.state.clone(), input);
-            task.state = next;
-            let mut position = 0u64;
-            for effect in effects {
-                match effect {
-                    LoopEffect::AskPlanner => {
-                        queue.extend(self.plan_turn(&mut task, &mut failure).await);
-                    }
-                    LoopEffect::Call(call) => {
-                        let id = CallId(position);
-                        position += 1;
-                        queue.push_back(self.call(&mut task, *call, id).await);
-                    }
-                    LoopEffect::Read(ask) => {
-                        queue.push_back(self.read(&mut task, *ask, &mut failure).await);
-                    }
-                    LoopEffect::Publish(AnswerPhase::NeedsYou(NeedsYou::Question {
-                        text,
-                        choices,
-                    })) => question = Some((text, choices)),
-                    LoopEffect::Refused(refusal) => {
-                        if matches!(refusal, CallRefusal::OverBudget(_)) {
-                            failure = Some(Failure::Refused(refusal));
-                        }
-                    }
-                    LoopEffect::Held(call, why) => {
-                        let effect = self.effect_of(&call);
-                        task.hold(&call, effect, why);
-                    }
-                    LoopEffect::Publish(_) | LoopEffect::Note(_) | LoopEffect::CloseTask => {}
-                }
-            }
-        }
-        let ending = match task.state.phase {
-            LoopPhase::Finished(FinishedAs::Done) => Ending::Done,
-            LoopPhase::Finished(FinishedAs::Failed) => {
-                Ending::Failed(failure.unwrap_or(Failure::Model(PlanFault::Unavailable)))
-            }
-            LoopPhase::Finished(FinishedAs::Cancelled) => Ending::Cancelled,
-            LoopPhase::Paused(_) => Ending::Paused(question.map(|(t, _)| t).unwrap_or_default()),
-            LoopPhase::Idle
-            | LoopPhase::Planning
-            | LoopPhase::AwaitingCalls
-            | LoopPhase::AwaitingReader => {
-                let (text, choices) = question.unwrap_or_default();
-                Ending::Asked { text, choices }
-            }
-        };
-        (ending, task)
-    }
-
-    async fn plan_turn(
-        &self,
-        task: &mut OpenTask,
-        failure: &mut Option<Failure>,
-    ) -> Vec<LoopInput> {
-        if task.state.steps >= self.config.budget.calls.0 {
-            *failure = Some(Failure::Budget);
-            return vec![LoopInput::ModelFailed];
-        }
-        self.refresh_handles(task).await;
-        let sources = self.sources(task).await;
-        let view = assemble(&self.config.assembler, &sources);
-        match self.planner.converse(&view).await {
-            Err(fault) => {
-                *failure = Some(Failure::Model(fault));
-                vec![LoopInput::ModelFailed]
-            }
-            Ok(reply) => {
-                let said = reply.said.map(|words| {
-                    task.said.push(words.clone());
-                    LoopInput::Planned(ModelOutput::Say(words))
-                });
-                said.into_iter()
-                    .chain([LoopInput::Planned(reply.then)])
-                    .collect()
-            }
-        }
-    }
-
-    async fn refresh_handles(&self, task: &mut OpenTask) {
-        if let Ok(cards) = self.intents.session_handles(task.session.clone()).await {
-            task.handles = cards;
-        }
-    }
-
-    async fn sources(&self, task: &OpenTask) -> Sources {
-        let task_policy = self
-            .intents
-            .session_task_policy(task.session.clone())
-            .await
-            .unwrap_or_default();
-        Sources {
-            cards: self.planner.catalogue().cards(),
-            profile: Vec::new(),
-            primer: None,
-            rollup: None,
-            roster: docket_core::Roster::default(),
-            episodes: Vec::new(),
-            recalled: Vec::new(),
-            context: nowhere(self.app.clone()),
-            turns: task.turns.clone(),
-            history: task.history.clone(),
-            handles: task.handles.clone(),
-            inbox: Vec::new(),
-            taint: task.taint(),
-            task_policy,
-            skills: Vec::new(),
-            skill_texts: Vec::new(),
-        }
-    }
-
-    fn effect_of(&self, call: &CallRequest) -> Effect {
-        self.planner
-            .catalogue()
-            .of(&call.action)
-            .map_or(Effect::Read, |t| t.decl.effect)
-    }
-
-    /// One call, through the router: gated, reviewed, confirmed on the app's sheet where the
-    /// gate says so, performed by the app's own provider.
-    async fn call(&self, task: &mut OpenTask, call: CallRequest, id: CallId) -> LoopInput {
-        let effect = self.effect_of(&call);
-        let result = self
-            .intents
-            .perform(call.clone(), Some(task.session.clone()), None)
-            .await
-            .unwrap_or_else(|error| Err(refusal_of(error)));
-        LoopInput::CallEnded(id, task.record(call.action, effect, result))
-    }
-
-    async fn read(
-        &self,
-        task: &mut OpenTask,
-        ask: ReaderAsk,
-        failure: &mut Option<Failure>,
-    ) -> LoopInput {
-        match self
-            .intents
-            .session_read(task.session.clone(), ReadAsk { ask })
-            .await
-        {
-            Ok(reveal) => LoopInput::ReadAnswered(reveal),
-            Err(_) => {
-                *failure = Some(Failure::Reader);
-                LoopInput::ModelFailed
-            }
-        }
     }
 }

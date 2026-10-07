@@ -1,0 +1,27 @@
+[package]
+name = "docket-memory"
+description = "docket's memory seam, portable: the router's `MemoryLink` over almanac-client (any Transport: memoryd over D-Bus, or the service hosted in process), the audit trail as almanac records (`record_of`, `QueuedSink`, `AuditState`). No bus, no runtime."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-client = { workspace = true }
+almanac-core = { workspace = true }
+docket-core = { workspace = true }
+docket-router = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+almanac-client = { workspace = true, features = ["in_process"] }
+almanac-fake = { workspace = true }
+docket-fake = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

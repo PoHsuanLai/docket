@@ -34,6 +34,13 @@ RULES=(
   # The in-app agent: the router (and with it Cedar) hosted in one app, no bus, no runtime, no
   # HTTP, no watcher. docket-client only behind `in_process`, never `dbus`.
   "docket-inapp: $NO_CEDAR"
+  # The models, the quarantined reader and the memory seam are portable too (moved out of
+  # intentd and readerd): they ask any porter-client or almanac-client Transport, never a bus or
+  # a runtime; almanac-client hosts its service only behind `in_process` (a dev-dependency here)
+# and reaches the bus only behind `dbus`. docket-memory sits on the router, so Cedar is below it.
+  "docket-models: $EFFECTS"
+  "docket-reader: $EFFECTS"
+  "docket-memory: $NO_CEDAR"
   "voice-wire: $EFFECTS toml"
   "voice-loop: $EFFECTS toml"
   # zbus lives in docket-dbus, and in docket-client only behind its `dbus` feature.
@@ -127,16 +134,19 @@ EDGES=(
   "companion-wire: almanac-core docket-core porter-core porter-infer prov"
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
-  "docket-inapp: action-review agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-router policy-point porter-client porter-core prov"
+  "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
+  "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
+  "docket-memory: almanac-client almanac-core docket-core docket-router porter-core prov"
+  "docket-inapp: action-review agent-loop almanac-core companion-wire docket-client docket-core docket-memory docket-models docket-planner docket-reader docket-router policy-point porter-client porter-core prov"
   "docket-dbus: docket-core porter-client porter-core porter-dbus porter-infer prov"
   "docket-client: docket-core docket-dbus docket-router prov"
   "docket-fake: action-review almanac-core docket-client docket-core docket-router policy-point porter-core prov"
   "docket-eval: docket-core docket-fake docket-skills docket-router porter-core prov"
   "docket-testbus: docket-dbus"
   "actions-mcp: docket-client docket-core docket-dbus docket-settings porter-core prov"
-  "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-router docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
+  "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
   "companiond: agent-loop almanac-core companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills porter-client porter-core porter-infer prov"
-  "readerd: docket-client docket-core docket-dbus porter-client porter-core porter-infer prov"
+  "readerd: docket-client docket-core docket-dbus docket-reader porter-client porter-core porter-infer prov"
   "docket-accept: action-review almanac-client almanac-core companion-wire companiond docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-router docket-testbus intentd porter-client porter-core porter-infer prov readerd"
   "companion-client: companion-wire docket-client docket-core docket-dbus prov"
   "docket-cli: companion-client companion-wire docket-client docket-core docket-skills model-provider porter-core prov"

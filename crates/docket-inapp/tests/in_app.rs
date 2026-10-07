@@ -1,80 +1,15 @@
 //! The in-app agent end to end: the app's own provider (docket-fake's mail), a scripted model, a
 //! sheet the test answers, a virtual clock. No intentd, no bus, no daemon, no socket.
 
-// The scripted model of companiond's tests is the same transport: one file, not a copy.
-#[allow(dead_code)]
-#[path = "../../companiond/tests/support/infer.rs"]
-mod infer;
+mod support;
 
-use docket_client::ContextSource;
-use docket_core::{
-    AgentConfig, CallRefusal, ConfirmEnd, ConfirmId, ConfirmRequest, ContextScope, ContextSnapshot,
-    Here, Selection, StepEnd, TextTarget, Visible, WindowPrivacy,
-};
+use docket_core::{AgentConfig, CallRefusal, ConfirmEnd, StepEnd};
 use docket_fake::{FakeMail, FixedClock, MailThread, ScriptedReviewer, mail_manifest};
-use docket_inapp::{ConfirmSheet, Ending, InAppAgent, InAppParts, SheetAnswer};
-use infer::{Say, ScriptedInfer, call, words};
-use porter_core::Count;
-use prov::{Labelled, SpaceId, UnixSeconds};
+use docket_inapp::{Ending, InAppAgent, InAppParts, SheetAnswer};
+use prov::{SpaceId, UnixSeconds};
 use serde_json::json;
-use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
-
-/// The sheet the test answers from a queue, remembering what it was shown.
-#[derive(Debug, Default, Clone)]
-struct TestSheet {
-    answers: Arc<Mutex<VecDeque<SheetAnswer>>>,
-    shown: Arc<Mutex<Vec<ConfirmRequest>>>,
-}
-
-impl TestSheet {
-    fn answering(answers: Vec<SheetAnswer>) -> Self {
-        Self {
-            answers: Arc::new(Mutex::new(answers.into())),
-            shown: Arc::default(),
-        }
-    }
-    fn shown(&self) -> Vec<ConfirmRequest> {
-        self.shown.lock().expect("lock").clone()
-    }
-}
-
-impl ConfirmSheet for TestSheet {
-    async fn ask(&self, request: &ConfirmRequest) -> SheetAnswer {
-        self.shown.lock().expect("lock").push(request.clone());
-        self.answers
-            .lock()
-            .expect("lock")
-            .pop_front()
-            .unwrap_or(SheetAnswer::Dismissed)
-    }
-    async fn withdraw(&self, _id: &ConfirmId) {}
-}
-
-/// What the person is looking at: nothing in particular.
-#[derive(Debug, Clone, Copy)]
-struct Nowhere;
-
-impl ContextSource for Nowhere {
-    fn snapshot(&self, _scope: ContextScope) -> ContextSnapshot {
-        ContextSnapshot {
-            app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
-            window: Labelled {
-                value: String::new(),
-                label: prov::Label::trusted_user(),
-            },
-            here: Here::Nowhere,
-            selection: Selection::Nothing,
-            visible: Visible {
-                kind: None,
-                items: vec![],
-                total: Count(0),
-            },
-            text_target: TextTarget::None,
-            privacy: WindowPrivacy::Normal,
-        }
-    }
-}
+use support::infer::{Say, ScriptedInfer, call, words};
+use support::{Nowhere, TestSheet};
 
 type Agent = InAppAgent<FakeMail, Nowhere, TestSheet, ScriptedReviewer, ScriptedInfer, FixedClock>;
 
@@ -205,7 +140,7 @@ async fn a_read_runs_without_asking_and_the_text_reaches_the_planner_only_as_a_h
 async fn a_question_ends_the_turn_and_the_next_ask_goes_on_in_the_same_task() {
     let (mut agent, model) = agent(
         vec![
-            infer::call(
+            call(
                 "quire_ask",
                 json!({ "text": "Which one?", "choices": ["a", "b"] }),
             ),

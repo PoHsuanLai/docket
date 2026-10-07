@@ -3,11 +3,11 @@
 //! nowhere in it: an ask is handles, a closed task and a schema.
 
 use docket_core::*;
+use docket_reader::{class_of, reader_request, reply_shape, task_instruction};
 use porter_core::DataClass;
 use porter_infer::{MessagePart, ReplyShape, Role, ToolChoice};
 use proptest::prelude::*;
 use prov::{Confidentiality, Integrity, Label, Labelled, Source};
-use readerd::{class_of, reader_request, reply_shape, task_instruction};
 use std::collections::BTreeSet;
 
 fn label(classes: &[DataClass]) -> Label {

@@ -10,6 +10,9 @@ members = [
   "crates/companion-client",
   "crates/agent-loop",
   "crates/docket-planner",
+  "crates/docket-models",
+  "crates/docket-reader",
+  "crates/docket-memory",
   "crates/docket-inapp",
   "crates/docket-dbus",
   "crates/docket-client",
@@ -50,6 +53,9 @@ companion-wire = { path = "crates/companion-wire" }
 companion-client = { path = "crates/companion-client" }
 agent-loop     = { path = "crates/agent-loop" }
 docket-planner = { path = "crates/docket-planner" }
+docket-models  = { path = "crates/docket-models" }
+docket-reader  = { path = "crates/docket-reader" }
+docket-memory  = { path = "crates/docket-memory" }
 docket-inapp   = { path = "crates/docket-inapp" }
 docket-dbus    = { path = "crates/docket-dbus" }
 docket-client  = { path = "crates/docket-client", default-features = false }
@@ -77,7 +83,11 @@ porter-fake     = { path = "../porter/crates/porter-fake" }
 # almanac's frozen interfaces (master d35337f). docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
 almanac-core    = { path = "../almanac/crates/almanac-core" }
-almanac-client  = { path = "../almanac/crates/almanac-client" }
+# Without its default desktop switch (`quire-desktop`, which pulls the bus): the portable crates name
+# no feature, the daemons name `dbus`.
+almanac-client  = { path = "../almanac/crates/almanac-client", default-features = false }
+# Test-only: a MemoryService over in-memory seams, the backend of the in-process memory tests.
+almanac-fake    = { path = "../almanac/crates/almanac-fake" }
 # Test-only: the fake memoryd of intentd's audit tests serves the real wire (dev-dependency).
 almanac-dbus    = { path = "../almanac/crates/almanac-dbus" }
 

@@ -1,0 +1,28 @@
+[package]
+name = "docket-reader"
+description = "The quarantined reader, portable: what the reader model is asked (`reader_request`), its reply read back as a typed value under the ask's schema (`answer_of`), and `read` / `TransportReader` over any porter-client Transport. readerd is the desktop's process around it; an app-hosted agent uses `TransportReader` in its own process."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+docket-models = { workspace = true }
+porter-client = { workspace = true }
+porter-core = { workspace = true }
+porter-infer = { workspace = true }
+prov = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+docket-fake = { workspace = true }
+tokio = { workspace = true }
+# The scripted model transport of companiond's tests is included by path (one file, not a copy).
+porter-client = { workspace = true }
+proptest = { workspace = true }
+
+[lints]
+workspace = true

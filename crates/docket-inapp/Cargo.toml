@@ -15,12 +15,16 @@ companion-wire = { workspace = true }
 almanac-core = { workspace = true }
 docket-client = { workspace = true, features = ["in_process"] }
 docket-core = { workspace = true }
+docket-memory = { workspace = true }
+docket-models = { workspace = true }
 docket-planner = { workspace = true }
+docket-reader = { workspace = true }
 docket-router = { workspace = true }
 policy-point = { workspace = true }
 porter-client = { workspace = true }
 porter-core = { workspace = true }
 prov = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
@@ -29,6 +33,9 @@ docket-fake = { workspace = true }
 porter-infer = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
+tempfile = { workspace = true }
+almanac-client = { workspace = true, features = ["in_process"] }
+almanac-fake = { workspace = true }
 
 [lints]
 workspace = true

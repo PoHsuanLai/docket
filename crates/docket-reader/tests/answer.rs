@@ -2,8 +2,8 @@
 //! entity only if the ask offered it, and nothing out of schema passed on.
 
 use docket_core::*;
+use docket_reader::answer_of;
 use prov::{EntityId, EntityKey, EntityKind};
-use readerd::answer_of;
 use std::collections::BTreeMap;
 
 fn p(name: &str) -> ParamName {

@@ -4,16 +4,13 @@
 //! has no tools, and answers a typed value only; text inside the answer reaches the planner as
 //! a new handle, never as itself.
 
-mod answer;
 mod daemon;
 mod host;
-mod request;
 mod serve;
 mod service;
 
-pub use answer::answer_of;
 pub use daemon::{run, start};
+pub use docket_reader::{answer_of, class_of, reader_request, reply_shape, task_instruction};
 pub use host::ReaderHost;
-pub use request::{class_of, reader_request, reply_shape, task_instruction};
 pub use serve::{ServeFault, serve, serve_on};
 pub use service::ReaderService;

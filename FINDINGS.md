@@ -1472,7 +1472,8 @@ desktop's extras are additive. docket's portable core is an in-app agent.
 - `check-boundary.sh` has RULES and EDGES rows for both new crates and the companiond edge to
   `docket-planner`; ARCHITECTURE.md section 1a names the portable core and the desktop extras.
 
-What is still missing for a real app (mailo, anyview) to host it, each with its owner.
+What is still missing for a real app (mailo, anyview) to host it, each with its owner. Items marked
+DONE were filled by the inapp-seams lane (see the next section); the rest are listed as they were.
 
 1. Model access without inferd. `porter-client::InProcess` exists, but its inference broker is the
    `SessionHost` seam and the only implementation is `NoBroker` (every `open` is `Unreachable`). A
@@ -1481,47 +1482,59 @@ What is still missing for a real app (mailo, anyview) to host it, each with its 
    `inferd-core` crate with a `SessionHost`). Until it exists an app reaches a model only by running
    inferd and the latchkey socket (`SocketTransport`, feature `socket`); the Windows named pipe is not
    built there either (porter).
-2. Reviewer and policy writer over a model. `action-review::InferReviewer` takes a porter-infer
-   `Model`; intentd's `InferdModel` and `InferdWriter` build one from the bus, so the in-app host has
-   no model-backed reviewer or task-policy writer: it takes a `Reviewer` from the app, and
-   `NoWriter` derives no task policy (the default policies and the reviewer decide alone). Owner:
-   docket (generic `InferdModel<T: porter_client::Transport>` and `InferdWriter` moved out of intentd
-   into a portable crate, as `docket-planner` was moved out of companiond).
-3. Memory. `NoMemory` answers unavailable, so the working set has no primer, profile, recall or
-   episodes and nothing is remembered between runs. almanac master (bf4992d) now has what the other
-   half needs: `almanac-client`'s `in_process` Transport (feature `in_process`, no memoryd, no bus) and
-   `ProvidedKeys`. Owner: docket, only: a `MemoryLink` adapter over `almanac-client` with that
-   transport (`MemoryLink` is docket-router's trait; the adapter maps `MemoryRequest`/`MemoryReply`),
-   plus the audit trail written as episodes. Not done here: it adds an almanac-client edge to a portable
-   crate and wants almanac's own gate to settle first. No ask of almanac.
-4. Consent storage. `SessionGrants` keeps "always" grants in memory only; the person's standing
-   consent is gone when the app quits. Owner: docket (a `GrantStore` over a file the app names, the
-   shape of intentd's `FileGrants` without its `/proc` and XDG paths) and the app (where the file
-   lives).
-5. The audit trail. `AuditBuffer` holds records in memory; the app drains them. Owner: the app, or
-   almanac's event log through item 3.
-6. A clock. The router's `Clock` needs `after` (a deadline for the reviewer race); the only clocks
-   are docket-fake's virtual one and companiond's, which is tokio. Owner: docket (a runtime-neutral
-   `SystemClock` behind a feature, or the app's executor's timer), so no app writes one.
-7. The quarantined reader. `NoReader` fails a `quire_read` step, which ends the turn as failed. The
-   reader is a separate process on the desktop (readerd) for isolation; in-app it must be a second
-   model session with no tools in the same process. Owner: docket (a portable `Reader` over a
-   `porter_client::Transport`, moved out of readerd's `ReaderHost` as in item 2).
+2. DONE. Reviewer and policy writer over a model. `docket-models` (portable) holds `TransportModel<T>`,
+   `TransportWriter<T>` and `reviewer_over`; intentd's `InferdModel` and `InferdWriter` are thin adapters
+   (the bus constructor). `InAppKit::writer` takes the writer, `InAppParts::reviewer` the cascade.
+3. DONE. Memory. `docket-memory` (portable) holds `AlmanacMemory<T>` over any almanac-client Transport
+   (intentd's `AlmanacMemory` is the same type), and `InAppKit::memory` plus `AuditTo::Memory` give the
+   planner primer, profile, recall and episodes and write the turn's audit as records with the task's
+   episode. Tested over almanac's `in_process` transport with almanac-fake's backend.
+4. DONE. Consent storage. `FileGrantStore` (docket-inapp): a path the app gives, intentd's file format,
+   atomic writes, typed `GrantFileError`; a write that fails is kept for `take_fault` because the
+   `GrantStore` seam has no way to say so. The app decides where the file lives.
+5. The audit trail. `AuditBuffer` is now a bounded `QueuedSink`; with `AuditTo::Memory` each turn drains it
+   into memory (`AuditState`), and what memory cannot take stays queued. An app that wants its own log
+   still drains the buffer. Open: a cross-restart queue (records waiting when the app quits are lost).
+6. DONE. A clock. `SystemClock` (docket-inapp): std only, one timer thread started at the first deadline,
+   `Flag`-based futures, so `after` works under any executor. No dependency added: `futures-timer` and
+   `async-io` would each bring a runtime-flavoured crate for about 100 lines.
+7. DONE. The quarantined reader. `docket-reader` (portable) holds `reader_request`, `answer_of`, `read` and
+   `TransportReader`, a second model session with no tools in the same process; readerd re-exports the pure
+   names and keeps `ReaderHost`, the bus and `Resolve`. The process isolation of the desktop is replaced
+   by the session boundary (fixed instruction, fenced data, typed answer, handles for text), not matched.
 8. One task, no front pointer, roster, side conversations, idle pass or restart recovery.
    `InAppAgent` runs one task at a time and keeps nothing across a restart. The pure machines for the
    rest are in `agent-loop`; what drives them is companiond's `Companiond`, which is generic over its
    transports but lives in a crate that links zbus. Owner: docket (extract `TaskRuntime`, `sources` and
-   the drive loop into a portable crate that both companiond and `docket-inapp` use; the two copies
-   of `record_call` and the sources assembly in `docket-inapp/src/turn.rs` and `agent.rs` are the
-   cost until then).
+   the drive loop into a portable crate that both companiond and `docket-inapp` use; the copies of
+   `record_call` and the sources assembly in `docket-inapp/src/turn.rs` and `recall.rs` (the recall limits
+   are companiond's, repeated) are the cost until then).
 9. Skills. The host installs no skills (`Sources.skills` is empty). Owner: docket (`docket-inapp`
    takes `Vec<Skill>` and calls `router.install_skills`, as the companiond tests do).
 10. The capability probe. design/36 has the app choose in-app or desktop at run time (`Desktop::probe()`
     of quire's `ds-desktop`). Nothing here chooses; an app builds `InAppAgent` or talks to intentd.
     Owner: quire (`ds-desktop`, planned) and each app.
 
+## inapp-seams: the real parts behind docket-inapp's stubs
+
+- Moved, behaviour unchanged (intentd's and readerd's own tests run through the adapters; the hostile
+  writer corpus and the reader's tests are untouched but for their `use` line): intentd's `infer.rs` and
+  `writer.rs` bodies to `docket-models`; intentd's `memory.rs`, `record.rs`, `sink.rs` and the logic of
+  `audit.rs` to `docket-memory` (`AuditLog` keeps the memoryd link and the `eprintln` lines; the pure
+  `AuditState::flush` returns a `Report` and prints nothing, and works over `MemoryLink` instead of the
+  almanac `Memory`, with the same mapping of refusals and link faults); readerd's `request.rs` and
+  `answer.rs` (and their tests) to `docket-reader`, with `read` taken out of `ReaderService`.
+- New: `FileGrantStore`, `SystemClock`, `InAppKit` and `AuditTo`, the recall sections of the planner's view
+  (`recall.rs`), the end-of-turn `Session.Note(End)` so the router leaves the task's episode, and
+  `InAppAgent::flush_audit`. `InAppAgent::new` is what it was (the stub kit); `with_kit` takes the rest.
+- `scripts/check-portable.sh` and `check-boundary.sh` carry the three new crates.
+- Not done, still the app's or another lane's: items 1, 8, 9, 10 above; a queue that survives a restart;
+  `ReaderKey::for_reader_host` is now also called by `TransportReader::in_process` (the one in-process
+  reader), so "a planner's crates never call it" is held by the crate graph (docket-inapp wires it, the
+  planner crate cannot) and no longer by readerd alone.
+
 Interface asks.
 - porter: item 1 (a `SessionHost` that routes to a model without the bus) and the Windows named pipe.
-- almanac: none (item 3 is docket's adapter over `almanac-client` `in_process`).
+- almanac: none (item 3 is done over `almanac-client` `in_process`).
 - quire: `ds-desktop` for item 10; nothing else.
 - stoker: none.

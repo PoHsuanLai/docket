@@ -5,7 +5,9 @@
 #
 # The portable core is the in-app agent: the vocabulary, the router and its Cedar policy point,
 # the reviewer, the agent loop, the planner over any porter-client Transport, skills, the red
-# team's suite, the fakes, and `docket-inapp`, which hosts them in one app. The desktop extras
+# team's suite, the fakes, the model-backed reviewer and policy writer (`docket-models`), the
+# quarantined reader (`docket-reader`), the memory seam (`docket-memory`), and `docket-inapp`,
+# which hosts them in one app. The desktop extras
 # (docket-dbus, intentd, companiond, readerd, voiced, quire-do, actions-mcp, the acceptance
 # crate and everything that names a bus) are not on this list on purpose.
 #
@@ -17,7 +19,7 @@ cd "$(dirname "$0")/.."
 PORTABLE=(
   docket-core docket-skills policy-point action-review docket-router
   companion-wire agent-loop docket-planner docket-client docket-fake docket-eval
-  docket-inapp voice-wire voice-loop
+  docket-models docket-reader docket-memory docket-inapp voice-wire voice-loop
 )
 # What must never be in a portable crate's tree: a bus, or a Linux-only kernel interface.
 FORBIDDEN='zbus|zvariant|inotify|landlock|pipewire|notify|libspa'
