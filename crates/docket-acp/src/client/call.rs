@@ -5,8 +5,9 @@
 
 use super::confine::Care;
 use docket_core::{
-    AbsPath, CallRequest, FILES_READ, FILES_SENSITIVE, FILES_WRITE, FileRef, Origin,
-    PermissionKind, REPORTED, TERMINAL_RUN, TargetValue, Value, acp_agent_action,
+    AbsPath, CallRequest, ChoiceId, DERIVES_PARAM, Derivation, FILES_READ, FILES_SENSITIVE,
+    FILES_WRITE, FileRef, NETWORK_PARAM, NetAccess, Origin, PermissionKind, REPORTED, TERMINAL_RUN,
+    TargetValue, Value, acp_agent_action, derives_choice, network_choice,
 };
 use prov::{Integrity, Label, Labelled, ModelRole, Source};
 use std::collections::BTreeSet;
@@ -43,6 +44,16 @@ pub struct Command {
     pub line: String,
     /// Where it runs.
     pub cwd: AbsPath,
+}
+
+/// What the host knows of a command that the router rules on (R11): whether its arguments derive
+/// from what the agent was served, and what network its sandbox has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RunFacts {
+    /// Whether the arguments derive from what the agent was served.
+    pub derives: Derivation,
+    /// What network the command's sandbox has.
+    pub network: NetAccess,
 }
 
 /// A permission request, reduced to what the router can rule on. The agent's own title is not
@@ -105,6 +116,8 @@ pub enum AgentCall {
     Run {
         /// The command and where it runs.
         command: Command,
+        /// What the host knows of it.
+        facts: RunFacts,
         /// The staged request.
         stage: StageId,
     },
@@ -155,6 +168,10 @@ fn file(path: &AbsPath) -> Option<Value> {
     FileRef::parse(path.as_str()).ok().map(Value::File)
 }
 
+fn choice(id: &str) -> Option<Value> {
+    ChoiceId::parse(id).ok().map(Value::Choice)
+}
+
 fn number(n: u32) -> Value {
     Value::Integer(i64::from(n))
 }
@@ -185,13 +202,19 @@ impl AgentCall {
                     ("stage", Value::Text(stage.as_str().to_owned())),
                 ])?,
             ),
-            AgentCall::Run { command, stage } => (
+            AgentCall::Run {
+                command,
+                facts,
+                stage,
+            } => (
                 TERMINAL_RUN.to_owned(),
                 TargetValue::Nothing,
                 args([
                     ("command", Value::Text(command.line.clone())),
                     ("cwd", file(&command.cwd)?),
                     ("stage", Value::Text(stage.as_str().to_owned())),
+                    (DERIVES_PARAM, choice(derives_choice(facts.derives))?),
+                    (NETWORK_PARAM, choice(network_choice(facts.network))?),
                 ])?,
             ),
             AgentCall::Permission(ask) => permission(ask)?,
@@ -336,11 +359,15 @@ mod tests {
                 line: "cargo test".into(),
                 cwd: abs("/work/app"),
             },
+            facts: RunFacts {
+                derives: Derivation::Independent,
+                network: NetAccess::Closed,
+            },
             stage: StageId::numbered(1),
         };
         let request = run.request().expect("request");
         assert_eq!(request.target, TargetValue::Nothing);
         let names: Vec<&str> = request.args.keys().map(|k| k.as_str()).collect();
-        assert_eq!(names, ["command", "cwd", "stage"]);
+        assert_eq!(names, ["command", "cwd", "derives", "network", "stage"]);
     }
 }

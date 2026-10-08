@@ -22,6 +22,7 @@ use docket_session::fake::MemoryLog;
 use docket_session::{
     BackendEvent, BackendKind, Opening, ProgramName, SessionHost, SheetChoice, TurnEnd, Workspace,
 };
+use docket_shell::Network;
 use docket_shell::fake::{FakeSandbox, Script, Seen};
 use porter_core::{AppId, Count, Isolation};
 use prov::{AgentRef, Effect, SessionId, SpaceId, TaskId, UnixSeconds};
@@ -124,6 +125,8 @@ pub struct Setup {
     /// Standing grants already held in docket's store.
     pub held: Vec<StandingGrant>,
     pub config: AgentConfig,
+    /// The network the agent's commands run with.
+    pub network: Network,
 }
 
 impl Default for Setup {
@@ -137,6 +140,7 @@ impl Default for Setup {
             reviewer: ScriptedReviewer::always_allow(),
             held: Vec::new(),
             config: AgentConfig::default(),
+            network: Network::Off,
         }
     }
 }
@@ -243,7 +247,7 @@ where
         router.seams.grants.add_standing(grant);
     }
     let (sandbox, seen) = FakeSandbox::ready(setup.scripts);
-    let performer = Performer::new(files, sandbox);
+    let performer = Performer::with_network(files, sandbox, setup.network);
     router.seams.link.host(
         acp_agent_app().expect("app"),
         Arc::new(Hosted(performer.clone())),

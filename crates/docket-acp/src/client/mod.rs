@@ -44,7 +44,7 @@ mod taint;
 mod tool_req;
 
 pub use backend::{AcpBackend, Parts, Seams};
-pub use call::{AgentCall, Command, PermissionAsk, StageId};
+pub use call::{AgentCall, Command, PermissionAsk, RunFacts, StageId};
 pub use confine::{Care, Confined, Refusal, confine, named};
 pub use court::{Court, CourtFault, OpenAgent, Ruled};
 pub use files::{FileFault, Files, MAX_READ, MAX_WRITE, OsFiles};

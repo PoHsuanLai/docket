@@ -120,7 +120,10 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
     fn read(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {
         let (held, scope) = self.take(inv)?;
         let Held::Read {
-            file, line, limit, ..
+            session,
+            file,
+            line,
+            limit,
         } = held
         else {
             return Err(failed("the held request is not a read"));
@@ -134,6 +137,7 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
             .read(&file.real, &scope.real_cwd)
             .map_err(file_failed)?;
         let text = lines_of(&content, line, limit);
+        self.note_served(&session, &file.path, &file.real, &text);
         // What the file held is somebody's words, in the agent's hands now: untrusted, and the
         // router takes the session's taint from this label.
         let label = Label::untrusted(Source::File, DataClass::Files, inv.space.clone());

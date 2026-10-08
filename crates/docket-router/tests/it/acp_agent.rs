@@ -217,6 +217,13 @@ pub(crate) fn write(path: &str) -> CallRequest {
 }
 
 pub(crate) fn run(line: &str) -> CallRequest {
+    run_with(line, DERIVES_OWN, NETWORK_CLOSED)
+}
+
+/// A command with the two facts the host would send: where its arguments come from, and the
+/// sandbox's network.
+pub(crate) fn run_with(line: &str, derives: &str, network: &str) -> CallRequest {
+    let choice = |id: &str| Value::Choice(ChoiceId::parse(id).expect("choice"));
     acp(
         TERMINAL_RUN,
         &[],
@@ -227,6 +234,8 @@ pub(crate) fn run(line: &str) -> CallRequest {
                 Value::File(FileRef::parse("/home/u/proj").expect("cwd")),
             ),
             ("stage", Value::Text("stage-2".into())),
+            (DERIVES_PARAM, choice(derives)),
+            (NETWORK_PARAM, choice(network)),
         ],
     )
 }
@@ -370,7 +379,7 @@ async fn a_session_the_launcher_opened_is_not_an_agents_even_if_it_says_so() {
 }
 
 #[tokio::test]
-async fn after_a_file_is_served_a_command_asks_and_offers_no_always() {
+async fn after_a_file_is_served_a_command_derived_from_it_asks_and_offers_no_always() {
     let mut w = world();
     w.router.seams.confirmer = ScriptedConfirmer::answering(vec![once(), once()]);
     let session = w.open(CLAUDE, SheetSurface::Desktop).await;
@@ -385,9 +394,12 @@ async fn after_a_file_is_served_a_command_asks_and_offers_no_always() {
     w.call(&session, read("/home/u/proj/a.rs"))
         .await
         .expect("read");
-    w.call(&session, run("cargo test"))
-        .await
-        .expect("tainted: asks, then runs");
+    w.call(
+        &session,
+        run_with("cat /home/u/proj/a.rs", DERIVES_READ, NETWORK_CLOSED),
+    )
+    .await
+    .expect("derived: asks, then runs");
     assert_eq!(
         w.sheets()[1].always,
         AlwaysOffer::Withheld(Withheld::UntrustedIntoSink)

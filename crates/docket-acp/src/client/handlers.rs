@@ -7,7 +7,7 @@
 //! allowed, and the record keeps the router's reason.
 
 use super::backend::{AcpBackend, Seams, Staged};
-use super::call::{AgentCall, Command};
+use super::call::{AgentCall, Command, RunFacts};
 use super::confine::{Confined, confine, named};
 use super::court::{Court, Ruled};
 use super::intake::Work;
@@ -323,12 +323,14 @@ impl<X: Seams> AcpBackend<X> {
         let stage = self
             .performer
             .stage_run(&session, line.clone(), cwd.clone(), params);
+        let (derives, network) = self.performer.exec_facts(&session, argv.words(), &cwd);
         let command = Command { line, cwd };
         let ruled = self
             .ask(
                 n,
                 &AgentCall::Run {
                     command,
+                    facts: RunFacts { derives, network },
                     stage: stage.clone(),
                 },
             )

@@ -102,6 +102,7 @@ struct Term<J> {
 #[derive(Debug)]
 pub struct Shell<S: Sandbox> {
     sandbox: S,
+    network: Network,
     terms: BTreeMap<TermId, Term<S::Job>>,
     next: u64,
     held: BTreeMap<Handle, String>,
@@ -113,14 +114,25 @@ fn limit_of(asked: Option<u64>) -> ByteLimit {
 }
 
 impl<S: Sandbox> Shell<S> {
-    /// A shell over `sandbox`.
+    /// A shell over `sandbox`, whose commands have no network.
     pub fn new(sandbox: S) -> Self {
+        Self::with_network(sandbox, Network::Off)
+    }
+
+    /// A shell over `sandbox` whose commands run with `network`.
+    pub fn with_network(sandbox: S, network: Network) -> Self {
         Self {
             sandbox,
+            network,
             terms: BTreeMap::new(),
             next: 0,
             held: BTreeMap::new(),
         }
+    }
+
+    /// The network the commands run with.
+    pub fn network(&self) -> Network {
+        self.network
     }
 
     /// Whether the sandbox can confine anything at all.
@@ -143,7 +155,7 @@ impl<S: Sandbox> Shell<S> {
             argv: launch.argv.clone(),
             cwd: launch.cwd.clone(),
             env: sandbox_env(&launch.env),
-            network: Network::Off,
+            network: self.network,
             keep: limit,
         };
         let job = self.sandbox.start(&spec)?;

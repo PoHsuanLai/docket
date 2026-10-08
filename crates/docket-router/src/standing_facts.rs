@@ -3,8 +3,8 @@
 //! beyond the typed values; anything unreadable is `Opaque`, which no grant covers.
 
 use docket_core::{
-    AbsPath, ActionDecl, ArgFacts, ArgSink, CallFacts, CallRequest, Domain, ParamName, Recipient,
-    TargetValue, Value,
+    AbsPath, ActionDecl, ArgFacts, ArgSink, CallFacts, CallRequest, DERIVES_PARAM, Domain,
+    ExecFacts, NETWORK_PARAM, ParamName, Recipient, TERMINAL_RUN, TargetValue, Value,
 };
 
 /// The parameters a terminal action names its command and working directory by.
@@ -126,4 +126,25 @@ fn args_of(decl: &ActionDecl, request: &CallRequest) -> ArgFacts {
         (true, true) => ArgFacts::Unscoped,
         (false, false) => ArgFacts::Opaque,
     }
+}
+
+/// What the host said of a terminal command (R11): whether its arguments derive from what the
+/// agent read, and the sandbox's network, with the command's own reach. None for any other call.
+/// A fact that is missing or unknown is read the conservative way.
+pub(crate) fn exec_of(request: &CallRequest) -> Option<ExecFacts> {
+    if request.action.name.as_str() != TERMINAL_RUN {
+        return None;
+    }
+    let Some(Value::Text(line)) = named(request, COMMAND_PARAM) else {
+        return None;
+    };
+    let choice = |name: &str| match named(request, name) {
+        Some(Value::Choice(c)) => Some(c.as_str()),
+        _ => None,
+    };
+    Some(ExecFacts::from_choices(
+        choice(DERIVES_PARAM),
+        choice(NETWORK_PARAM),
+        line,
+    ))
 }

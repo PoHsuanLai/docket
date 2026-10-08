@@ -261,6 +261,7 @@ fn facts<'a>(effect: Effect, why: &'a [AskReason], untrusted: &'a [ArgSink]) -> 
         untrusted,
         breaker: BreakerState::Running,
         budget: BudgetState::Within,
+        exec: None,
     }
 }
 
@@ -466,6 +467,7 @@ proptest! {
             untrusted: &untrusted,
             breaker: if tripped { BreakerState::Tripped } else { BreakerState::Running },
             budget: if spent { BudgetState::Over } else { BudgetState::Within },
+            exec: None,
         };
         let offered = matches!(
             may_offer(&editor(), &paths(&["/a/b/c"]), &f),
@@ -494,4 +496,39 @@ proptest! {
         let child = path(&format!("{base}/{tail}"));
         prop_assert_eq!(under.covers(&child), Cover::Covers);
     }
+}
+
+// R11: the execute taint, narrowed.
+
+#[test]
+fn an_executes_session_taint_excuses_only_a_command_of_its_own_with_no_way_out() {
+    use AskReason as R;
+    let taint = [R::Tainted, R::RuleOfTwo, R::UntrustedSink(ArgSink::Body)];
+    let exec = |derives, network, line| Some(ExecFacts::from_choices(derives, network, line));
+    let with = |exec| AskFacts {
+        exec,
+        ..facts(Effect::Outbound, &taint, &[ArgSink::Body])
+    };
+    let own = with(exec(Some("own"), Some("closed"), "cargo test"));
+    assert_eq!(blocker(&own), None);
+    let derived = with(exec(Some("read"), Some("closed"), "cargo test"));
+    assert_eq!(blocker(&derived), Some(Withheld::UntrustedIntoSink));
+    let out = with(exec(Some("own"), Some("closed"), "curl a.test"));
+    assert_eq!(blocker(&out), Some(Withheld::CanSendOut));
+    let open = with(exec(Some("own"), Some("open"), "cargo test"));
+    assert_eq!(blocker(&open), Some(Withheld::CanSendOut));
+    // Every other call keeps the rule.
+    assert_eq!(blocker(&with(None)), Some(Withheld::UntrustedIntoSink));
+    // A reason that is not the session's taint is still a reason.
+    let outside = AskFacts {
+        exec: exec(Some("own"), Some("closed"), "ls"),
+        ..facts(Effect::Outbound, &[R::OutsideTask], &[])
+    };
+    assert_eq!(blocker(&outside), Some(Withheld::OutsideTask));
+    // A tripped breaker comes first, and a way out beats the other reasons.
+    let tripped = AskFacts {
+        breaker: BreakerState::Tripped,
+        ..out
+    };
+    assert_eq!(blocker(&tripped), Some(Withheld::BreakerTripped));
 }

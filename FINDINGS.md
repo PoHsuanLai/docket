@@ -2200,7 +2200,8 @@ command outside the sandbox.
   derived arguments ask and offer no "always" (a held grant does not stand in); a tripped breaker or
   spent budget ask with no "always"; otherwise a terminal-scoped standing grant of the same caller
   (command prefix and a cwd at or below the grant's) runs the command in place of the ask, and
-  without one the person is asked with the `may_offer` offer. A reviewer can only tighten: its `Ask`
+  without one the person is asked with the `may_offer` offer. (R11 later narrowed "untrusted-derived": see
+  "Narrowing the execute taint".) A reviewer can only tighten: its `Ask`
   makes a covered command ask and its `Allow` changes nothing. A prefix never covers a command with a
   shell operator, quote or expansion (`CommandPrefix::covers`). `Withheld::CannotSandbox` is new.
 - **Ask-with-reason vs refuse.** The note (section 7) says an unsandboxable command is "Ask with the
@@ -2681,14 +2682,14 @@ an edit or move approves a write of those files, an execute approves that line i
 breaker or a budget says no; it is spent at dispatch (`ApprovalUsed` in the audit) and cleared when the person speaks.
 It does not lift a reviewer's ask (a call that goes to review and is asked there asks again).
 
-**Taint, unchanged as a rule.** After any file is served, a command asks and offers no "always"
-(`UntrustedIntoSink`); edits keep their always. The router now holds it: a file served is an untrusted-labelled
+**Taint.** (Narrowed for commands by R11, see "Narrowing the execute taint" below; this paragraph is how it began.)
+After any file is served, a command asked and offered no "always" (`UntrustedIntoSink`); edits keep their always. The router now holds it: a file served is an untrusted-labelled
 outcome, so the session is tainted write-ahead like any untrusted reveal, and the agent's arguments are labelled by
 `Voice::Agent` (trusted while the session has seen nothing untrusted, untrusted after: the same "origin" S4 kept
 by hand). The typed source is the host's `TaintSource` (`Served(path)`, `Reported(kind)`, `Resumed`;
-`AcpBackend::tainted_by`) and the router's own `TaintNote.at_call`, the call whose result was revealed. A narrowing
-(taint by path, or only content the agent then uses in a command) changes what `brings_content` and the performer's
-label say; the owner's decision is still pending and nothing was narrowed.
+`AcpBackend::tainted_by`) and the router's own `TaintNote.at_call`, the call whose result was revealed. The narrowing the
+owner asked for (only content the agent then uses in a command) did not need `brings_content` or the label to
+change: the session still reads as tainted, and the command's own facts excuse it (below).
 
 **What is different from S4, and worth knowing.**
 - The router's grid decides, not S4's "every write asks": with a task policy that covers the pseudo-app, an untainted
@@ -2772,6 +2773,94 @@ the agent's text never becomes policy; S4's hostile corpus re-run (each case end
 come back (desktop; host only with the flag); a dropped call asked again is one router call; `intentd` (the agent host
 name waits on `agent.acp.agents`; its sheet route). `docket-acp/tests/it/terminals.rs` for the runner.
 
+## Narrowing the execute taint (R11)
+
+Owner decision R11 (2026-10-08): after an external agent reads a file, only a command whose arguments derive from
+what was read loses grant eligibility; every other command keeps it. A command that can send data out always asks and
+is never granted, whether or not anything was read. Before, any read made every command ask with no "always"
+(`UntrustedIntoSink`): safe, and noisy.
+
+**How the ruling changed.** The router's taint is unchanged: a served file is an untrusted-labelled outcome, the session
+is `Saw::Seen`, Cedar still sees `planner = untrusted`, and the same asks (`Tainted`, `RuleOfTwo`,
+`UntrustedSink(Body)`) still come out of the grid for a command. What changed is the offer rule (`docket_core::blocker`,
+so `may_offer`, the held-grant lift and the sheet all agree): `AskFacts` carries `exec: Option<ExecFacts>`, and for
+`acpagent.terminal.run` only, when the command's arguments are the agent's own and it has no way out
+(`ExecFacts::is_session_taint_only`), those three reasons and the untrusted-argument label are excused: the session's
+taint is the only untrusted thing about the call, and the Rule of Two needs a channel out which there is none. A
+command that derives from what was read keeps today's rule exactly (`UntrustedIntoSink`, a held grant does not stand
+in). A command that can send data out is `Withheld::CanSendOut` (new), checked right after the breaker and the
+budget, before everything else. Grants, the reviewers, the breaker, the budgets, the repeat rule and the policy point
+run on every call as before; a grant still replaces only the confirmation. Writes and outbound actions keep today's
+rules (`exec` is none for them). `EXECUTE_AS` is unchanged (`Outbound`); the porter re-pin that swaps it for
+`Effect::Execute` does not touch this.
+
+**How the facts reach the router.** The agent sends argv as plain strings, with no provenance, and the router labels
+every argument of `Voice::Agent` with the session's integrity (untrusted after any read), so its labels cannot say
+which arguments came from the read. The host can: it served the files. `acpagent.terminal.run` therefore has two
+required choice parameters the host fills and the router reads (`derives` = `own` or `read`; `network` = `closed` or
+`open`, both `inert` sinks, so they are not argument labels). The role that can call the pseudo-app is the host's own,
+as for `stage`. The router computes `NetReach` itself from the command line and `network`, so a host that
+under-reports cannot hide a `curl`. A parameter that is not a known choice reads as `read` and `open` (the cautious
+way); a call without them is refused as bad arguments.
+
+**The derivation test** (`docket_core::Served::derivation`, pure, table-tested in `exec_derive.rs`; the host keeps one
+`Served` per session in the `Performer`, filled when a read is performed). A command derives from what was read when
+any of its words, after taking the value of `--flag=value` and skipping bare flags:
+- names a path the agent read, or a path below one (a relative word is resolved against the working directory, `..`
+  folded lexically; both the path as asked and the link-resolved path count). The program word is tested this way too;
+- or (not the program word) contains a token-like string of any served text, or is a part of one. A token is a run of
+  `[A-Za-z0-9._-/@+~%]` of at least 8 characters that is not a plain lowercase word (it holds a digit, a capital or a
+  symbol); at most 20,000 are kept, each cut to 512 characters.
+Anything else is `Independent`. If the host cannot be sure it saw everything the agent took in, every command is
+`Derived`: a tool the agent ran itself reported bringing content in (`acpagent.reported`, `TaintSource::Reported`), a
+session resumed tainted (`TaintSource::Resumed`), or more text than the token cap. That is today's rule, kept where the
+host is blind.
+
+**Limits, honestly.** It misses a value the agent transformed (decoded, split, joined, hashed), one assembled from
+short pieces, a plain lowercase word, a token under 8 characters, a path reached through a link the host did not
+resolve, and everything a script the agent wrote to disk then does. It over-catches too: `cargo test some_test_name`
+after reading the file that defines it is `Derived` (the name is token-like), and so is `-p docket-core` when the
+README says so. Both cost a question and no "always", never safety. Because it can miss, the network rule does not
+depend on it.
+
+**`NetReach`** (`docket_core::exec_reach`, const table `PROGRAMS`; `NetReach::of(line, NetAccess)`). `NetAccess::Open`
+(any sandbox network but `Off`; `From<docket_shell::Network>` and `From<NetworkMode>`) makes every command `Possible`.
+Otherwise the basename of the first word is looked up; for a subcommand program a later word naming a network
+subcommand counts (so `git -C dir push` does). A wrapper (`sh`, `env`, `xargs`, `timeout`, `sudo`, ...) or a line
+holding a shell operator is searched word by word. The table:
+- any use: `curl wget aria2c http https nc ncat netcat socat telnet ftp sftp lftp ssh scp rsync mosh ping dig nslookup
+  sendmail msmtp gh apt apt-get dnf yum pacman zypper brew flatpak snap`;
+- `git`: `push fetch clone pull ls-remote submodule remote lfs send-email`; `cargo`: `publish install fetch update
+  search login owner yank add`; `npm`: `publish install i ci add update view login adduser audit access token
+  unpublish deprecate dist-tag search outdated`; `pnpm`, `yarn`, `pip`/`pip3`, `uv` (`add sync lock publish pip tool
+  python venv`), `go` (`get install mod`), `docker`/`podman` (`push pull login build run ...`), `gem`, `bundle`;
+- none: `git status|diff|log|commit|...`, `cargo build|test|check|clippy|run|fmt`, `npm test|run`, `ls`, `cat`, `echo`,
+  `pwd`, `cd`, shell builtins. **`cargo build`/`test` are `None` by decision:** they may fetch crates when the lockfile
+  is not vendored, but send out nothing the agent chose, and the owner wants them grantable; `cargo install`,
+  `publish` and the like are `Possible`. `uv run` and interpreters (`python`, `node`) are `None`: they can reach the
+  network only through the sandbox, which has none unless `NetAccess::Open`.
+A match is a false positive on purpose when it can be (`echo curl` asks); a word that only looks like a tool asks,
+never the reverse. The terminal sandbox has no network today (`Network::Off`, every command), so the table is the
+second layer; `Performer::with_network` and `Shell::with_network` let a deployment give commands the host's network,
+which then makes every command `Possible` and also really runs them with it. The agent *process*'s own
+`NetworkMode` (its model endpoint) is a different sandbox from the commands' and does not enter this rule.
+
+**What R11 does not touch.** `session/request_permission` for an execute (`acpagent.execute`, the agent running a
+command with its own tool) keeps today's rule: under taint it asks with no "always"; the person's allow approves the
+matching call once, a `Possible` command included (that is the person's yes to that exact line, not a grant). Edits
+and writes keep their "always" after a read as before.
+
+**Tests.** Table tests: derivation (`exec_derive`: paths read, relative and `..`, substrings, short tokens and
+lowercase words ignored, flags, program word, unseen content, token cap, links) and `NetReach` (`exec_reach`: curl,
+`git push` yes, `git status` no, cargo build/test no, `cargo publish` yes, ssh, builtins, wrappers, operators) and the
+facts (`exec_facts`), plus `blocker` with `exec` in `docket-core/tests/it/standing.rs`. Router
+(`docket-router/tests/it/acp_agent_exec.rs`) and docket-acp with the scripted fake agent
+(`tests/it/client/exec_taint.rs`): after a read `cargo test` is granted always and the second run asks nothing
+(`StandingUsed`); a command with a token or path from the file asks with no always even with a grant held; `curl` and
+`git push` always ask with no reads and a matching grant; a `Network::Host` sandbox makes `cargo test` ask with
+`CanSendOut`; shell operators are still never covered; content from the agent's own tool makes every command derived.
+The S4 hostile corpus ran unchanged and every case still ends safely.
+
 **Owner-run check for Claude Code, updated since S4.**
 1. As S4 (adapter installed, signed in). `~/.config/docket/settings.toml`: `[agent.acp]` `agents = "on"`.
 2. `intentd.toml` must list `org.quire.AcpAgent` under `acp_agent` (the shipped `dist/intentd.toml` does; a replaced file
@@ -2783,11 +2872,12 @@ name waits on `agent.acp.agents`; its sheet route). `docket-acp/tests/it/termina
    prompt) for each write the task does not cover, each command and each permission request; "Always allow ..." appears
    where the rules allow it. Settings' standing-grant page lists the program's grants and revokes them.
 6. `--tty` only as a fallback if sill is not up: the sheets come to the terminal as before.
-7. Things to try: a write outside the project is refused with no sheet; read a file then ask it to run a command (asks,
-   no "always"); allow "always" for an edit in `src/`, edit again (no sheet, `quire-do` audit shows `StandingUsed`),
+7. Things to try: a write outside the project is refused with no sheet; read a file then ask it to run a command that
+   uses a path or token from it (asks, no "always"), or `curl` (asks, never "always"), or `cargo test` (asks, "always"
+   offered); allow "always" for an edit in `src/`, edit again (no sheet, `quire-do` audit shows `StandingUsed`),
    revoke it in Settings, edit again (asks).
 
 **Deferred.** Resuming an agent session through the host (the router restores it, but `AgentHost::resume` is not
 served and the agent's own session id is not kept); the per-session MCP edge (D-3); a dry-run preview of a write for
-the sheet (`dry_run = none`: the sheet shows the path and a line count); an `Effect::Execute` and an `ActorKind::Acp` in porter; narrowing the taint (owner); the provider-host network allowlist, Landlock, resource limits and the
+the sheet (`dry_run = none`: the sheet shows the path and a line count); an `Effect::Execute` and an `ActorKind::Acp` in porter; the provider-host network allowlist, Landlock, resource limits and the
 second test agent (S4's list stands).

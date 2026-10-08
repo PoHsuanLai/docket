@@ -1,4 +1,5 @@
 mod acp_agent;
+mod acp_agent_exec;
 mod acp_agent_grants;
 mod acp_agent_paths;
 mod activation;

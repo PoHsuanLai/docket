@@ -4,6 +4,8 @@
 //! outside the task policy, a tripped breaker, an exhausted budget, and effect classes marked
 //! never-grantable (permanent delete). For those the offer is simply absent.
 
+use crate::exec_facts::ExecFacts;
+use crate::exec_reach::NetReach;
 use crate::grant::GrantCaller;
 use crate::manifest::{AgentReach, ArgSink, UndoSupport};
 use crate::review::AskReason;
@@ -61,6 +63,9 @@ pub enum Withheld {
     AlreadyHeld,
     /// A terminal command that cannot run in the sandbox: it asks, and nothing is remembered.
     CannotSandbox(crate::execute::CannotSandbox),
+    /// A terminal command that can send data out (a network tool, or a sandbox with a network):
+    /// it asks every time, whether or not anything was read, and no grant stands in.
+    CanSendOut,
 }
 
 /// What a confirmation may offer beyond "this once".
@@ -97,6 +102,8 @@ pub struct AskFacts<'a> {
     pub breaker: BreakerState,
     /// The budgets.
     pub budget: BudgetState,
+    /// What the host said of a terminal command; none for every other call.
+    pub exec: Option<ExecFacts>,
 }
 
 /// Whether the effect or the lack of undo makes untrusted input dangerous.
@@ -141,18 +148,30 @@ pub fn blocker(f: &AskFacts<'_>) -> Option<Withheld> {
     if f.budget == BudgetState::Over {
         return Some(Withheld::OverBudget);
     }
+    if f.exec.is_some_and(|e| e.reach == NetReach::Possible) {
+        return Some(Withheld::CanSendOut);
+    }
     if f.effect == Effect::Destructive {
         return Some(Withheld::NeverGrantable(f.effect));
     }
     if f.reach == AgentReach::AskAlways {
         return Some(Withheld::AsksEveryTime);
     }
-    if let Some(why) = f.why.iter().find_map(|r| reason(r, f.effect, f.undo).err()) {
+    // A command of its own with no way out is not made untrusted by the session having read
+    // something (R11): the session's taint is not a reason to refuse it a grant.
+    let excused = |r: &AskReason| f.exec.is_some_and(|e| e.excuses(r));
+    if let Some(why) = f
+        .why
+        .iter()
+        .filter(|r| !excused(r))
+        .find_map(|r| reason(r, f.effect, f.undo).err())
+    {
         return Some(why);
     }
+    let taint_only = f.exec.is_some_and(|e| e.is_session_taint_only());
     f.untrusted
         .iter()
-        .any(|sink| risky(f.effect, f.undo) || leaves(*sink))
+        .any(|sink| !taint_only && (risky(f.effect, f.undo) || leaves(*sink)))
         .then_some(Withheld::UntrustedIntoSink)
 }
 

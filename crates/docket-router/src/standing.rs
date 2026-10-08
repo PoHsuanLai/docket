@@ -8,11 +8,11 @@ use crate::gate::Pending;
 use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, GrantStore, Seams};
-use crate::standing_facts::facts_of;
+use crate::standing_facts::{exec_of, facts_of};
 use action_review::plan;
 use docket_core::{
     ActionDecl, AlwaysOffer, ArgSink, AskFacts, AskReason, AuditRecord, BreakerState, BudgetState,
-    CallFacts, CallRequest, GrantCaller, Impact, Revocation, Ruling, StandingGrant,
+    CallFacts, CallRequest, ExecFacts, GrantCaller, Impact, Revocation, Ruling, StandingGrant,
     StandingGrantId, StandingScope, Withheld, blocker, covers_approval, find_standing,
     holds_standing, may_offer,
 };
@@ -27,6 +27,8 @@ pub(crate) struct StandingCtx {
     pub facts: CallFacts,
     /// The sinks fed by untrusted arguments.
     pub untrusted: Vec<ArgSink>,
+    /// What the host said of a terminal command; none for any other call.
+    pub exec: Option<ExecFacts>,
     /// The breaker as the call arrived.
     pub breaker: BreakerState,
     /// The budgets as the call arrived.
@@ -61,6 +63,7 @@ impl StandingCtx {
         Self {
             caller,
             facts: facts_of(decl, request),
+            exec: exec_of(request),
             untrusted,
             breaker,
             budget,
@@ -78,6 +81,7 @@ impl StandingCtx {
             untrusted: &self.untrusted,
             breaker: self.breaker,
             budget: self.budget,
+            exec: self.exec,
         }
     }
 

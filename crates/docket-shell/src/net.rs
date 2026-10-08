@@ -25,6 +25,16 @@ pub enum NetworkMode {
     Host,
 }
 
+impl From<NetworkMode> for docket_core::NetAccess {
+    /// Any mode other than `None` is open: the sandbox can reach something.
+    fn from(mode: NetworkMode) -> Self {
+        match mode {
+            NetworkMode::None => docket_core::NetAccess::Closed,
+            NetworkMode::EndpointOnly | NetworkMode::Host => docket_core::NetAccess::Open,
+        }
+    }
+}
+
 /// Where the forwarder sits inside the sandbox and what it forwards to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EndpointBind {

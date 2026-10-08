@@ -55,6 +55,15 @@ pub enum Network {
     Host,
 }
 
+impl From<Network> for docket_core::NetAccess {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::Off => docket_core::NetAccess::Closed,
+            Network::Host => docket_core::NetAccess::Open,
+        }
+    }
+}
+
 /// How many bytes of output a job keeps (the tail).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ByteLimit(pub usize);

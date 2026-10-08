@@ -19,6 +19,9 @@ mod config;
 mod confirm;
 mod context;
 mod derived;
+mod exec_derive;
+mod exec_facts;
+mod exec_reach;
 mod execute;
 mod external;
 mod gate;
@@ -84,6 +87,12 @@ pub use context::{
     TextTargetView, Visible, VisibleView, WindowPrivacy,
 };
 pub use derived::{Corrected, Derived};
+pub use exec_derive::{Derivation, MIN_TOKEN, Served};
+pub use exec_facts::{
+    DERIVES_OWN, DERIVES_PARAM, DERIVES_READ, ExecFacts, NETWORK_CLOSED, NETWORK_OPEN,
+    NETWORK_PARAM, derives_choice, network_choice,
+};
+pub use exec_reach::{NetAccess, NetReach};
 pub use execute::{CannotSandbox, EXECUTE_AS, SandboxState};
 pub use external::{ExternalAgent, SheetSurface};
 pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};

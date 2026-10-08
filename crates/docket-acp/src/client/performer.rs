@@ -14,8 +14,8 @@ use super::confine::Confined;
 use super::files::{FileFault, Files};
 use crate::terminals::Terminals;
 use agent_client_protocol_schema::v1::{ClientCapabilities, Error};
-use docket_core::{AbsPath, UndoToken};
-use docket_shell::Sandbox;
+use docket_core::{AbsPath, Derivation, NetAccess, Served, UndoToken};
+use docket_shell::{Network, Sandbox};
 use prov::SessionId;
 use serde_json::Value as Json;
 use std::collections::BTreeMap;
@@ -66,6 +66,7 @@ pub(super) struct Inner<F, S: Sandbox> {
     pub(super) files: F,
     pub(super) terminals: Terminals<S>,
     pub(super) scopes: BTreeMap<SessionId, Scope>,
+    pub(super) served: BTreeMap<SessionId, Served>,
     pub(super) held: BTreeMap<StageId, Held>,
     pub(super) undo: Vec<(UndoToken, UndoNote)>,
     pub(super) next: u64,
@@ -94,11 +95,18 @@ impl<F: Files, S: Sandbox> std::fmt::Debug for Performer<F, S> {
 impl<F: Files, S: Sandbox> Performer<F, S> {
     /// A performer over `files` and the terminal `sandbox`.
     pub fn new(files: F, sandbox: S) -> Self {
+        Self::with_network(files, sandbox, Network::Off)
+    }
+
+    /// A performer over `files` and the terminal `sandbox`, whose commands run with `network`.
+    /// Any network but `Off` makes every command one that can send data out (R11).
+    pub fn with_network(files: F, sandbox: S, network: Network) -> Self {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 files,
-                terminals: Terminals::new(sandbox),
+                terminals: Terminals::with_network(sandbox, network),
                 scopes: BTreeMap::new(),
+                served: BTreeMap::new(),
                 held: BTreeMap::new(),
                 undo: Vec::new(),
                 next: 0,
@@ -127,15 +135,55 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
 
     /// The session works in `cwd`, which really is `real_cwd`.
     pub fn open_scope(&self, session: &SessionId, cwd: AbsPath, real_cwd: AbsPath) {
-        self.lock()
+        let mut inner = self.lock();
+        inner
             .scopes
             .insert(session.clone(), Scope { cwd, real_cwd });
+        inner.served.insert(session.clone(), Served::default());
+    }
+
+    /// A file's text was served to the agent of `session`: what a later command is compared with.
+    pub(super) fn note_served(
+        &self,
+        session: &SessionId,
+        asked: &AbsPath,
+        real: &AbsPath,
+        text: &str,
+    ) {
+        if let Some(served) = self.lock().served.get_mut(session) {
+            served.record(asked, real, text);
+        }
+    }
+
+    /// Content came into the session that the host never saw (a tool the agent ran itself, or a
+    /// resumed session): every command of it counts as derived from it from now on.
+    pub fn note_unseen(&self, session: &SessionId) {
+        if let Some(served) = self.lock().served.get_mut(session) {
+            served.unseen();
+        }
+    }
+
+    /// What the host tells the router of the command `words` run in `cwd` by `session`: whether
+    /// its arguments derive from what was served, and the sandbox's network.
+    pub(super) fn exec_facts(
+        &self,
+        session: &SessionId,
+        words: &[String],
+        cwd: &AbsPath,
+    ) -> (Derivation, NetAccess) {
+        let inner = self.lock();
+        let derivation = inner
+            .served
+            .get(session)
+            .map_or(Derivation::Derived, |s| s.derivation(words, cwd));
+        (derivation, inner.terminals.access())
     }
 
     /// The session is over: whatever it staged and never used is dropped.
     pub fn close_scope(&self, session: &SessionId) {
         let mut inner = self.lock();
         inner.scopes.remove(session);
+        inner.served.remove(session);
         inner.held.retain(|_, held| match held {
             Held::Read { session: s, .. }
             | Held::Write { session: s, .. }

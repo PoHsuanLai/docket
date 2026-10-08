@@ -206,6 +206,10 @@ impl<X: Seams> AcpBackend<X> {
             reported: Reported::default(),
             ids: Ids::default(),
         });
+        if taint == Taint::Tainted {
+            // A resumed session read something the host cannot see.
+            self.performer.note_unseen(&session);
+        }
         self.session = Some(session);
         self.handshake(&cwd).await
     }

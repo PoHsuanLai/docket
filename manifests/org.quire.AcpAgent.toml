@@ -134,6 +134,28 @@ ty = { kind = "text", v = { max = 64, lines = "one" } }
 need = { kind = "required" }
 sink = "inert"
 
+# What the host knows and the router rules on (R11): whether the arguments derive from what the
+# agent was served, and whether the command's sandbox has a network.
+[[actions.params]]
+name = "derives"
+label = "Where the arguments come from"
+ty = { kind = "choice", v = [
+  { id = "own", label = "The agent's own" },
+  { id = "read", label = "From what it read" },
+] }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "network"
+label = "Network of the sandbox"
+ty = { kind = "choice", v = [
+  { id = "closed", label = "None" },
+  { id = "open", label = "Some" },
+] }
+need = { kind = "required" }
+sink = "inert"
+
 [[actions]]
 name = "acpagent.reported"
 label = "Note what the agent did itself"

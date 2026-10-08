@@ -17,8 +17,8 @@ use agent_client_protocol_schema::v1::{
     TerminalExitStatus, TerminalId, TerminalOutputRequest, TerminalOutputResponse,
     WaitForTerminalExitRequest, WaitForTerminalExitResponse,
 };
-use docket_core::{AbsPath, Cover, SandboxState};
-use docket_shell::{Argv, Cut, ExitReport, Launch, Sandbox, Shell, ShellFault, TermId};
+use docket_core::{AbsPath, Cover, NetAccess, SandboxState};
+use docket_shell::{Argv, Cut, ExitReport, Launch, Network, Sandbox, Shell, ShellFault, TermId};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -53,10 +53,20 @@ fn shell_error(fault: &ShellFault) -> Error {
 impl<S: Sandbox> Terminals<S> {
     /// The terminal methods over `sandbox`.
     pub fn new(sandbox: S) -> Self {
+        Self::with_network(sandbox, Network::Off)
+    }
+
+    /// The terminal methods over `sandbox`, whose commands run with `network`.
+    pub fn with_network(sandbox: S, network: Network) -> Self {
         Self {
-            shell: Shell::new(sandbox),
+            shell: Shell::with_network(sandbox, network),
             owners: BTreeMap::new(),
         }
+    }
+
+    /// What network the commands have, for the router's rule on commands that can send data out.
+    pub fn access(&self) -> NetAccess {
+        self.shell.network().into()
     }
 
     /// `base` with the terminal capability on exactly when the sandbox is there. With none, the

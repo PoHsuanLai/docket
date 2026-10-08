@@ -132,6 +132,8 @@ impl<X: Seams> AcpBackend<X> {
         let heard = live.reported.hear(&mut self.next_call, note.update);
         if let Some(kind) = heard.taint {
             live.tainted_by.get_or_insert(TaintSource::Reported(kind));
+            // What a tool the agent ran itself brought in is never seen here.
+            self.performer.note_unseen(&live.session);
             self.next_ask += 1;
             self.owed.push_back((self.next_ask, kind));
         }
