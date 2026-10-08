@@ -17,7 +17,7 @@ use crate::serve::{ServeFault, closed, serve_on_gated};
 use crate::settings_watch::{SettingsWatch, WatchState, apply, apply_next};
 use crate::sheet::SheetConfirmer;
 use crate::signals::{Cadence, pump};
-use crate::space_watch::SpaceKeeper;
+use crate::space_watch::{RemovedMemories, SpaceKeeper};
 use crate::system::{DaemonLog, SystemClock, SystemSeams};
 use docket_core::AuditRecord;
 use docket_dbus::BusConnection;
@@ -288,7 +288,8 @@ pub async fn start(
         signals,
     )));
     tasks.push(tokio::spawn(
-        SpaceKeeper::new(router.clone(), SPACES_RETRY).run(session.clone()),
+        SpaceKeeper::new(router.clone(), RemovedMemories::LeaveToMemory, SPACES_RETRY)
+            .run(session.clone()),
     ));
     let queue = router.clone();
     let mut audit = AuditLog::over(almanac_client::DbusTransport::new(session.clone()));

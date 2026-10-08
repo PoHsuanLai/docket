@@ -1,8 +1,9 @@
 //! The router's memory seam over memoryd.
 
 use almanac_client::{ClientError, Memory, Transport};
-use almanac_core::{MemoryReply, MemoryRequest};
-use docket_router::{LinkFault, MemoryLink};
+use almanac_core::{MemoryFate, MemoryReply, MemoryRequest};
+use docket_router::{LinkFault, MemoryLink, SpaceMemories};
+use prov::SpaceId;
 
 /// Memory, as the router asks it (`Caller::Router`).
 #[derive(Debug, Clone)]
@@ -28,6 +29,19 @@ impl<T: Transport> MemoryLink for AlmanacMemory<T> {
             Err(ClientError::Refused(refusal)) => Ok(MemoryReply::Refused(refusal)),
             Err(ClientError::Transport(_)) => Err(LinkFault::Unavailable),
             Err(ClientError::Unexpected) => Err(LinkFault::Malformed),
+        }
+    }
+
+    async fn erase_space(&self, space: &SpaceId) -> SpaceMemories {
+        match self
+            .ask(MemoryRequest::RemoveSpace(
+                space.clone(),
+                MemoryFate::Delete,
+            ))
+            .await
+        {
+            Ok(MemoryReply::Relocated(_)) => SpaceMemories::Deleted,
+            Ok(_) | Err(_) => SpaceMemories::Kept,
         }
     }
 }

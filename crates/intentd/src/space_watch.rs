@@ -1,5 +1,5 @@
 //! Keeps consent in step with the desktop's Spaces. When accountd says a Space was removed,
-//! every grant scoped to it is dropped and its memories are handed to memory to delete; no
+//! every grant scoped to it is dropped and, when the person chose to delete them, memory is asked to; no
 //! grant is moved to another Space. A Space removed while the daemon was away (or while the
 //! bus was) is found by comparing the grant file with the registry's list each time the
 //! subscription is made, so a restart drops what the removal left behind.
@@ -16,9 +16,20 @@ use prov::SpaceId;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// What the keeper does with the memories of a removed Space. Memory moves them to the apps
+/// that wrote them on its own; only the person's choice to delete them makes the keeper ask.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RemovedMemories {
+    /// Memory's own handling stands.
+    LeaveToMemory,
+    /// Ask memory to delete them with the Space.
+    Delete,
+}
+
 /// Follows accountd's Spaces for one router.
 pub struct SpaceKeeper<S: Seams> {
     router: Arc<Router<S>>,
+    memories: RemovedMemories,
     /// How long to wait before subscribing again after accountd is lost.
     retry: Duration,
 }
@@ -33,8 +44,12 @@ impl<S: Seams> std::fmt::Debug for SpaceKeeper<S> {
 
 impl<S: Seams<Grants = FileGrants>> SpaceKeeper<S> {
     /// A keeper for `router`'s consent file.
-    pub fn new(router: Arc<Router<S>>, retry: Duration) -> Self {
-        Self { router, retry }
+    pub fn new(router: Arc<Router<S>>, memories: RemovedMemories, retry: Duration) -> Self {
+        Self {
+            router,
+            memories,
+            retry,
+        }
     }
 
     fn said(&self, settled: Result<Vec<Ended>, GrantFileFault>) {
@@ -63,7 +78,12 @@ impl<S: Seams<Grants = FileGrants>> SpaceKeeper<S> {
     async fn removed(&self, space: DesktopSpace) {
         let id = SpaceId::linked(&space);
         self.said(self.router.seams.grants().end_space(&id));
-        self.router.seams.memory().erase_space(&id).await;
+        match self.memories {
+            RemovedMemories::Delete => {
+                self.router.seams.memory().erase_space(&id).await;
+            }
+            RemovedMemories::LeaveToMemory => {}
+        }
     }
 
     /// Subscribes, settles what is already out of date, then follows the changes until the
