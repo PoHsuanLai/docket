@@ -275,8 +275,8 @@ async fn a_call_is_audited_as_the_agent_program_and_a_read_runs_without_a_questi
             _ => None,
         })
         .collect();
-    let agent = ClientName::parse("acp:claude-code").expect("client");
-    assert_eq!(actors, [Actor::Mcp { client: agent }]);
+    let program = prov::AgentProgram::parse("claude-code").expect("program");
+    assert_eq!(actors, [Actor::Acp { program }]);
 }
 
 #[tokio::test]

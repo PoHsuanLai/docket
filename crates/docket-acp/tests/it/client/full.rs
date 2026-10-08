@@ -164,8 +164,8 @@ async fn a_full_session_goes_through_the_router_call_by_call() {
     assert_eq!(shapes, want);
 
     // The router audited every call that reached it, as the agent program, and the grant.
-    let agent = Actor::Mcp {
-        client: prov::ClientName::parse("acp:claude-code").expect("client"),
+    let agent = Actor::Acp {
+        program: prov::AgentProgram::parse("claude-code").expect("program"),
     };
     let calls: Vec<String> = rig
         .audit()
