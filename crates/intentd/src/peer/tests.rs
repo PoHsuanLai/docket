@@ -143,10 +143,8 @@ fn a_cgroup_names_the_process_and_only_a_terminal_scope_is_the_cli() {
             "app-gnome-org.gnome.Terminal-77.scope",
             app("org.gnome.Terminal"),
         ),
-        (
-            "app-flatpak-org.example.Thing-5.scope",
-            app("org.example.Thing"),
-        ),
+        // A Flatpak app is named by its sandbox's metadata, never by its scope's name.
+        ("app-flatpak-org.example.Thing-5.scope", Process::Unknown),
         ("intentd.service", Process::Unknown),
         ("dbus-broker.service", Process::Unknown),
         ("vte-spawn-1b2c.service", Process::Unknown),
@@ -157,6 +155,19 @@ fn a_cgroup_names_the_process_and_only_a_terminal_scope_is_the_cli() {
         let root = proc_with(41, leaf);
         assert_eq!(process_of(root.path(), 41), expected, "{leaf}");
     }
+}
+
+#[test]
+fn a_flatpak_app_is_named_by_its_sandbox_metadata() {
+    let root = proc_with(42, "app-flatpak-org.example.Thing-5.scope");
+    let sandbox = root.path().join("42").join("root");
+    std::fs::create_dir_all(&sandbox).expect("root dir");
+    std::fs::write(
+        sandbox.join(".flatpak-info"),
+        "[Application]\nname=org.example.Thing\n\n[Instance]\ninstance-id=5\n",
+    )
+    .expect("flatpak info");
+    assert_eq!(process_of(root.path(), 42), app("org.example.Thing"));
 }
 
 #[test]

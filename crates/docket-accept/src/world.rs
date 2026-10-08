@@ -277,9 +277,17 @@ impl Cgroup<'_> {
     }
 }
 
-/// Puts process `pid` in the fake proc root `<root>/proc`, in `cgroup`.
+/// Puts process `pid` in the fake proc root `<root>/proc`, in `cgroup`. In a service unit it is
+/// that unit's main process (`<root>/proc/units/<name>.service`, the fixture's stand-in for the
+/// systemd manager's `MainPID`, which is all a caller table's service row names).
 pub fn place(root: &Path, pid: u32, cgroup: Cgroup<'_>) {
     write(&root.join(format!("proc/{pid}/cgroup")), &cgroup.line());
+    if let Cgroup::Unit(name) = cgroup {
+        write(
+            &root.join(format!("proc/units/{name}.service")),
+            &pid.to_string(),
+        );
+    }
 }
 
 const CALLERS: &str = "[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
