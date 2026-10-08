@@ -50,6 +50,7 @@ async fn a_confined_process_speaks_lines_over_its_stdio_with_exactly_the_environ
         ],
         net: AgentNet::None,
         binds: Vec::new(),
+        overlays: Vec::new(),
     };
     let mut procs = BwrapProcs::new(program);
     let Ok((mut wire, mut proc)) = procs.start(&run).await else {

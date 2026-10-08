@@ -38,6 +38,17 @@ pub struct Bind {
     pub access: Access,
 }
 
+/// One host file shown inside the sandbox at another path, read-only: a file docket wrote for this
+/// run, over the agent's own file of that name. The agent cannot change it, and the host's file is
+/// not touched (bubblewrap mounts over it).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Overlay {
+    /// The file on the host.
+    pub from: AbsPath,
+    /// Where the agent sees it.
+    pub to: AbsPath,
+}
+
 /// Everything needed to confine one agent process.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AgentRun {
@@ -54,6 +65,8 @@ pub struct AgentRun {
     pub net: AgentNet,
     /// The extra binds, in order.
     pub binds: Vec<Bind>,
+    /// Files docket wrote for this run, mounted after the binds so they win over them.
+    pub overlays: Vec<Overlay>,
 }
 
 fn words(list: &[&str]) -> Vec<String> {
@@ -90,6 +103,9 @@ pub fn agent_bwrap_args(run: &AgentRun, hidden: &[&str]) -> Vec<String> {
         };
         let path = bind.path.as_str();
         args.extend([flag, path, path].map(str::to_owned));
+    }
+    for overlay in &run.overlays {
+        args.extend(["--ro-bind", overlay.from.as_str(), overlay.to.as_str()].map(str::to_owned));
     }
     let cwd = run.cwd.as_str();
     args.extend(["--bind", cwd, cwd, "--chdir", cwd].map(str::to_owned));

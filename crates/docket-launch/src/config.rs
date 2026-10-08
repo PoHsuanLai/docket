@@ -16,7 +16,7 @@
 //! home = "/home/me"
 //! label = "Claude Code"             # optional: what the audit and the journal call it
 //! tools = "offered"                  # offered (default) | off: the desktop's actions as an MCP server
-//! profile = "claude-code"            # optional: confine the program's own extras (see `managed`)
+//! profile = "claude-code"            # or "agy"; optional: confine the program's own extras (see `managed`)
 //! sign_in = "oauth-personal"         # optional: the way the agent signs itself in at start
 //! [agent.endpoint]
 //! kind = "account"
@@ -79,6 +79,9 @@ pub enum Profile {
     /// Claude Code: settings in `session/new` `_meta` and the variables of its isolated mode.
     #[serde(rename = "claude-code")]
     ClaudeCode,
+    /// Google's agy: a settings file written for the run (see `agy`).
+    #[serde(rename = "agy")]
+    Agy,
 }
 
 /// Which model the endpoint serves.

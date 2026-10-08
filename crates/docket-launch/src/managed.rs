@@ -13,6 +13,9 @@
 //! tool server (and no other) to be called without Claude Code's own prompt, so the router's sheet
 //! is the only one. Keys that only apply in managed settings (`allowManagedMcpServersOnly`,
 //! `allowedMcpServers`, `allowManagedHooksOnly`) do nothing at the flag tier and are not sent.
+//! Google's agy takes its rules from a settings file, so its preset (`agy`) is a file instead; see
+//! that module.
+//!
 //! A `permissions.allow` the person's own settings hold is unioned with ours; that is theirs.
 
 use crate::config::Profile;
@@ -29,13 +32,15 @@ impl Profile {
                 ("ENABLE_CLAUDEAI_MCP_SERVERS", "false"),
                 ("DISABLE_AUTOUPDATER", "1"),
             ],
+            Profile::Agy => Vec::new(),
         }
     }
 
     /// The `_meta` of `session/new` the preset adds.
-    pub fn session_meta(self) -> SessionMeta {
+    pub fn session_meta(self) -> Option<SessionMeta> {
         match self {
-            Profile::ClaudeCode => claude_code_meta(),
+            Profile::ClaudeCode => Some(claude_code_meta()),
+            Profile::Agy => None,
         }
     }
 }

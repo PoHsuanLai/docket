@@ -99,6 +99,26 @@ fn the_agent_options_are_checked_before_anything_starts() {
 }
 
 #[test]
+fn the_agy_profile_is_taken_and_written_into_the_entry() {
+    let line = "smoke --engine scripted --agent acp --acp-program agy --acp-command /home/u/agy \
+                --acp-state .gemini --acp-sign-in oauth-personal --acp-profile agy";
+    let Ok(Command::Smoke(s)) = parse(&words(line)) else {
+        panic!("smoke")
+    };
+    let Agent::Acp(spec) = s.agent else {
+        panic!("acp")
+    };
+    assert_eq!(spec.profile.as_deref(), Some("agy"));
+    let text = spec.entry_toml(std::path::Path::new("/home/u/scratch"));
+    assert!(text.contains("profile = \"agy\"\n"));
+    let file = docket_launch::AgentsFile::parse(&text).expect("agents.toml reads it");
+    let entry = file
+        .get(&docket_session::ProgramName::parse("agy").expect("name"))
+        .expect("entry");
+    assert_eq!(entry.profile, Some(docket_launch::Profile::Agy));
+}
+
+#[test]
 fn there_is_no_default_credentials_path_to_a_real_home() {
     let line = "smoke --engine scripted --agent acp --acp-command /x";
     let Ok(Command::Smoke(s)) = parse(&words(line)) else {

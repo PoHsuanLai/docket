@@ -33,6 +33,7 @@ fn run_in_sandbox(program: &Path, net: AgentNet, cwd: &Path, script: &str) -> Op
         }],
         net,
         binds: Vec::new(),
+        overlays: Vec::new(),
     };
     let out = Command::new(program)
         .args(agent_bwrap_args(&run, &present_hidden()))

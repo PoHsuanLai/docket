@@ -93,6 +93,7 @@ async fn a_process_in_the_sandbox_with_no_network_reaches_its_sessions_edge_and_
                 path: edge.bind().socket.clone(),
                 access: Access::ReadWrite,
             }],
+            overlays: Vec::new(),
         };
         Command::new(&bwrap)
             .args(agent_bwrap_args(&run, &present_hidden()))

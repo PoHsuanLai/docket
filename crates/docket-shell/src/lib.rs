@@ -27,7 +27,8 @@ mod sandbox;
 mod tool;
 
 pub use agent::{
-    Access, AgentRun, Bind, INSIDE_FORWARDER, INSIDE_SOCKET, agent_bwrap_args, present_hidden,
+    Access, AgentRun, Bind, INSIDE_FORWARDER, INSIDE_SOCKET, Overlay, agent_bwrap_args,
+    present_hidden,
 };
 pub use bwrap::{BwrapSandbox, Detected, HIDDEN, bwrap_args};
 pub use bwrap_job::BwrapJob;

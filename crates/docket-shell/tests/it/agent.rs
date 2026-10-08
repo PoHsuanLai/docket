@@ -20,6 +20,7 @@ fn run(net: AgentNet, binds: Vec<Bind>) -> AgentRun {
         }],
         net,
         binds,
+        overlays: Vec::new(),
     }
 }
 
@@ -163,4 +164,30 @@ fn a_command_with_the_host_network_resolves_names_too() {
     }
     let none = bwrap_args(&spec(Network::Off), &["/run"]);
     assert!(!none.iter().any(|a| a == "--ro-bind-try"));
+}
+
+#[test]
+fn an_overlay_is_a_read_only_mount_of_another_file_after_the_binds() {
+    let binds = vec![Bind {
+        path: abs("/home/u/.gemini"),
+        access: Access::ReadWrite,
+    }];
+    let mut with = run(AgentNet::None, binds);
+    with.overlays = vec![docket_shell::Overlay {
+        from: abs("/run/d/settings.json"),
+        to: abs("/home/u/.gemini/antigravity-acp/settings.json"),
+    }];
+    let args = agent_bwrap_args(&with, &["/home"]);
+    let at = |seq: &[&str]| {
+        args.windows(seq.len())
+            .position(|w| w.iter().map(String::as_str).eq(seq.iter().copied()))
+            .expect("present")
+    };
+    let state = at(&["--bind", "/home/u/.gemini", "/home/u/.gemini"]);
+    let over = at(&[
+        "--ro-bind",
+        "/run/d/settings.json",
+        "/home/u/.gemini/antigravity-acp/settings.json",
+    ]);
+    assert!(state < over);
 }

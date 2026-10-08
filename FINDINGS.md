@@ -3210,3 +3210,45 @@ login file is valid. The Settings app has `login` for this but nothing offers it
 code is the only signal for "authentication required"; an agent that answers a different code stays `Unavailable`.
 (3) docket-live's `--acp-state` for agy is `.gemini` and the credentials land at
 `.gemini/antigravity-acp/acp_token.json`; `accept-fake-agent` (the process fake) does not model sign-in.
+
+## agy-isolation: agy's own permission prompt for the desktop's tool server (`profile = "agy"`)
+
+**Observed (docket-live smoke, agy 1.3.0, signed in).** agy has its own tools (`view_file`, `run_command`,
+`call_mcp_tool`, `list_resources`, `invoke_subagent`, `client_view_file`) and runs a pre-tool hook before each one that
+sends `session/request_permission`. The host maps that kind to `acpagent.other` (Destructive), which the scripted person
+refuses. So agy's calls to the per-session `quire` server were gated twice, as with Claude Code (acp-isolation): agy asked,
+then the edge gated the real call. flow-a never reached the forward and flow-c never read the thread.
+
+**Rule chosen.** `profile = "agy"` (and `docket-live --acp-profile agy`) writes a settings file for the run:
+`{"permissions":{"allow":["mcp(quire/*)"]}}`, plus `"auth":{"type":"<sign_in>"}` when the entry names a `sign_in`. The
+server name is `docket_acp::client::SERVER_NAME`, the name the edge gives in `session/new` `mcpServers`. Nothing else is
+allowed.
+
+**Where it lives.** agy reads `$HOME/.gemini/antigravity-acp/settings.json`. `state` usually binds the real `.gemini`
+read-write (it holds the login), so writing there would write the person's file. Instead docket writes the file (mode 0600)
+into the run's private directory under `run_dir` and bubblewrap mounts it read-only over that path inside the sandbox
+(`docket_shell::Overlay`, mounted after the binds). The run's directory is removed with the session.
+
+**Merge or overwrite: overwrite, every run.** The mount shadows whatever `settings.json` the state holds. A merge would
+need docket to read and rewrite the person's file, and a rule they had added (`command(git)`) would be allowed in the
+desktop's sandbox without the desktop knowing; overwrite keeps the allowed set equal to the one line above and is the
+same on a scratch and a real `state`. The cost: the person's own agy rules and settings do not apply under docket, and
+agy cannot write to the file (a read-only mount). One trace remains on the host: bubblewrap creates an empty
+`settings.json` in the person's state if there is none, as the mount target.
+
+**What stays gated.** No `ask` rules are written. A tool no rule names is asked about (that is what the run showed), and
+agy's command, file and subagent tools then reach the person as `request_permission` sheets, classed `acpagent.other` or
+by kind, never grantable as a standing allow. I did not write `ask(...)` rules because the documented syntax only shows
+examples (`command(git)`, `mcp(server/*)`); a wildcard I guessed wrong would be inert at best. The allowed server is still
+gated by the edge: the router's sheet is the one the person sees.
+
+**Tests (fakes only).** The file holds exactly the allow rule and the auth type, and no `auth` without a `sign_in`; it is
+under the run directory, the person's state file is unchanged and keeps its only entry; the run file goes with the session;
+the overlay uses the default home when the entry has none; other entries get no overlay and write nothing; agy takes no
+`session/new` meta and sets no variables; `Overlay` comes after the binds in the bubblewrap arguments; `--acp-profile agy`
+parses and writes `profile = "agy"`; the shipped example reads with the preset.
+
+**Open.** (1) Not run against a real agy: whether it takes `mcp(quire/*)` as written and whether it reads the file from a
+read-only mount at start. (2) agy may also read workspace or other settings files; their `allow` rules would add to ours.
+(3) The empty placeholder file above. (4) The two `quire_do_ask` terminal tests in docket-accept failed with a bus
+AccessDenied in runs outside the jailed gate; they passed inside it.

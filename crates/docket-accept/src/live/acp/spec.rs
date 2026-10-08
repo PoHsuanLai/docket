@@ -35,7 +35,7 @@ pub enum SpecFault {
     )]
     Route(String),
     /// A `--acp-profile` that is not a preset `agents.toml` knows.
-    #[error("--acp-profile takes claude-code, not {0:?}")]
+    #[error("--acp-profile takes claude-code or agy, not {0:?}")]
     Profile(String),
     /// A `--acp-sign-in` that is not a short id.
     #[error("--acp-sign-in takes 1 to 64 letters, digits, - _ or ., not {0:?}")]
@@ -112,7 +112,11 @@ impl AcpSpec {
         if let Some(bad) = self.reads.iter().find(|p| !p.is_absolute()) {
             return Err(SpecFault::Reads(bad.display().to_string()));
         }
-        if let Some(profile) = self.profile.as_ref().filter(|p| *p != "claude-code") {
+        if let Some(profile) = self
+            .profile
+            .as_ref()
+            .filter(|p| !matches!(p.as_str(), "claude-code" | "agy"))
+        {
             return Err(SpecFault::Profile(profile.clone()));
         }
         if let Some(method) = self
