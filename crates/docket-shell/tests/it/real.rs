@@ -147,6 +147,25 @@ fn kill_ends_a_long_command() {
     shell.release(id).expect("release");
 }
 
+/// Why: a kill straight after `create` once reached the outer bubblewrap before the inner one had
+/// armed its death signal, leaving the command alive and holding the output pipe. Counted polls,
+/// no clock: every terminal must report its end.
+#[test]
+fn a_kill_straight_after_create_ends_everything() {
+    let Some(sandbox) = sandbox() else { return };
+    let (_root, cwd) = scratch();
+    let mut shell = Shell::new(sandbox);
+    for _ in 0..25 {
+        let id = shell
+            .create(&launch(&cwd, &["sleep", "600"]))
+            .expect("created");
+        shell.kill(id).expect("kill");
+        let ended = (0..1_000_000).any(|_| shell.output(id).expect("output").exit.is_some());
+        assert!(ended, "the killed command never reported an end");
+        shell.release(id).expect("release");
+    }
+}
+
 #[test]
 fn a_cwd_that_is_not_a_directory_or_is_too_shallow_cannot_be_sandboxed() {
     let Some(sandbox) = sandbox() else { return };
