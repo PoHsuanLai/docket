@@ -24,6 +24,12 @@ pub enum BackendFault {
     /// The process or the model did not answer.
     #[error("the backend is unavailable")]
     Unavailable,
+    /// The agent is not signed in, or refused the sign-in it was given.
+    #[error("the agent needs signing in")]
+    SignInNeeded,
+    /// The configured way of signing in is not one the agent offers.
+    #[error("the agent does not offer the configured way of signing in")]
+    SignInUnsupported,
 }
 
 /// How a resume went.

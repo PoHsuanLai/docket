@@ -253,6 +253,7 @@ impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
                     release: Some(release),
                 },
                 meta: entry.profile.map(Profile::session_meta),
+                sign_in: entry.sign_in.clone(),
             }),
             Err(fault) => {
                 release.run().await;

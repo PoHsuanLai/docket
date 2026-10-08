@@ -15,4 +15,5 @@ mod labelled;
 mod osfiles;
 mod rig;
 mod schema;
+mod sign_in;
 mod world;

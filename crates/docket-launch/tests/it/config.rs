@@ -146,11 +146,21 @@ fn an_empty_file_lists_nothing() {
 fn the_shipped_example_reads_in_both_of_its_forms() {
     let text = include_str!("../../../../dist/agents.example.toml");
     let file = AgentsFile::parse(text).expect("the example");
-    assert_eq!(file.len(), 1);
-    assert!(file.programs().iter().all(|p| {
-        file.by_program(p)
-            .is_some_and(|e| e.profile == Some(docket_launch::Profile::ClaudeCode))
-    }));
+    assert_eq!(file.len(), 2);
+    let claude = file
+        .by_program(&"claude-code".parse_program())
+        .expect("claude");
+    assert_eq!(claude.profile, Some(docket_launch::Profile::ClaudeCode));
+    let agy = file.by_program(&"agy".parse_program()).expect("agy");
+    assert_eq!(
+        agy.sign_in.as_ref().map(|s| s.as_str()),
+        Some("oauth-personal")
+    );
+    assert_eq!(
+        agy.label.as_ref().map(|l| l.0.as_str()),
+        Some("Antigravity")
+    );
+    assert_eq!(agy.args, ["--uid="]);
     // The commented endpoint entry, uncommented in place of the first, reads too.
     let (_, endpoint) = text.split_once("# [[agent]]").expect("second form");
     let uncommented: String = std::iter::once("[[agent]]\n".to_owned())
@@ -222,4 +232,41 @@ fn a_label_that_is_empty_long_or_has_control_characters_is_refused_naming_the_pr
     }
     let longest = format!("\"{}\"", "x".repeat(64));
     assert!(AgentsFile::parse(&labelled(&longest)).is_ok());
+}
+
+fn signed_in(value: &str) -> String {
+    format!(
+        "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/true\"\nroute = \"login\"\nsign_in = {value}\n"
+    )
+}
+
+#[test]
+fn a_sign_in_method_is_a_short_id_and_is_optional() {
+    let file = AgentsFile::parse(&signed_in(r#""oauth-personal""#)).expect("file");
+    let entry = file.by_program(&"plain".parse_program()).expect("entry");
+    assert_eq!(
+        entry.sign_in.as_ref().map(|s| s.as_str()),
+        Some("oauth-personal")
+    );
+    let bare = "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/true\"\nroute = \"login\"\n";
+    let file = AgentsFile::parse(bare).expect("file");
+    let entry = file.by_program(&"plain".parse_program()).expect("entry");
+    assert!(entry.sign_in.is_none());
+}
+
+#[test]
+fn a_sign_in_method_that_is_empty_long_or_odd_is_refused_naming_the_program() {
+    let long = format!("\"{}\"", "x".repeat(65));
+    for bad in [
+        r#""""#.to_owned(),
+        long,
+        r#""two words""#.to_owned(),
+        r#""new\nline""#.to_owned(),
+        r#""a/b""#.to_owned(),
+    ] {
+        match AgentsFile::parse(&signed_in(&bad)) {
+            Err(ConfigFault::Entry { program, .. }) => assert_eq!(program, "plain"),
+            other => panic!("{bad}: {other:?}"),
+        }
+    }
 }

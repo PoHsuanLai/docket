@@ -25,15 +25,15 @@ use super::intake::{Intake, Work, intake};
 use super::performer::Performer;
 use super::reported::Reported;
 use super::rpc::{self, Ids};
-use super::spawn::{AgentChild, LaunchPlan, SessionMeta, Spawn, Spawned};
+use super::spawn::{AgentChild, LaunchPlan, SessionMeta, SignIn, Spawn, Spawned};
 use super::strikes::Strikes;
 use super::taint::TaintSource;
 use crate::wire::Wire;
 use agent_client_protocol_schema::ProtocolVersion;
 use agent_client_protocol_schema::rpc::RequestId;
 use agent_client_protocol_schema::v1::{
-    ClientCapabilities, InitializeResponse, NewSessionResponse, PromptResponse, SessionId,
-    StopReason,
+    AuthMethod, ClientCapabilities, Error, ErrorCode, InitializeResponse, NewSessionResponse,
+    PromptResponse, SessionId, StopReason,
 };
 use docket_core::{AbsPath, CallId, PermissionKind, UserTurn};
 use docket_session::{
@@ -81,6 +81,8 @@ pub(super) struct Live<X: Seams> {
     pub agent: Option<SessionId>,
     /// The launcher's `_meta` for `session/new`, kept for the handshake.
     pub meta: Option<SessionMeta>,
+    /// The way to sign in before `session/new`, kept for the handshake.
+    pub sign_in: Option<SignIn>,
     pub cwd: AbsPath,
     pub real_cwd: AbsPath,
     pub session: prov::SessionId,
@@ -199,7 +201,12 @@ impl<X: Seams> AcpBackend<X> {
             cwd: cwd.clone(),
             edge: edge.as_ref().map(|e| e.bind().clone()),
         };
-        let Spawned { wire, child, meta } = self
+        let Spawned {
+            wire,
+            child,
+            meta,
+            sign_in,
+        } = self
             .spawn
             .spawn(&plan)
             .await
@@ -215,6 +222,7 @@ impl<X: Seams> AcpBackend<X> {
             child,
             agent: None,
             meta: meta.clone(),
+            sign_in,
             cwd: cwd.clone(),
             real_cwd,
             session: session.clone(),
@@ -242,6 +250,7 @@ impl<X: Seams> AcpBackend<X> {
         if init.protocol_version != ProtocolVersion::V1 {
             return Err(BackendFault::Unavailable);
         }
+        self.sign_in(&init).await?;
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         let id = live.ids.next();
         let servers = live
@@ -251,13 +260,40 @@ impl<X: Seams> AcpBackend<X> {
             .collect();
         let meta = live.meta.clone();
         self.send(rpc::session_new(&id, cwd, servers, meta)).await?;
-        let reply = self.await_reply(&id).await?;
+        let reply = match self.await_outcome(&id).await? {
+            Ok(reply) => reply,
+            Err(error) => return Err(refusal_fault(&error)),
+        };
         let made: NewSessionResponse =
             serde_json::from_value(reply).map_err(|_| BackendFault::Unavailable)?;
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         live.agent = Some(made.session_id);
         self.phase = Phase::Idle;
         Ok(())
+    }
+
+    /// Signs in the way `agents.toml` names, when it names one: only a way the agent advertised
+    /// as its own to run, and the reply is awaited before `session/new` goes out. The agent reads
+    /// its own login; nothing of it passes through us.
+    async fn sign_in(&mut self, init: &InitializeResponse) -> Result<(), BackendFault> {
+        let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
+        let Some(method) = live.sign_in.clone() else {
+            return Ok(());
+        };
+        let offered = init
+            .auth_methods
+            .iter()
+            .any(|m| matches!(m, AuthMethod::Agent(_)) && m.id().0.as_ref() == method.as_str());
+        if !offered {
+            return Err(BackendFault::SignInUnsupported);
+        }
+        let id = live.ids.next();
+        self.send(rpc::authenticate(&id, &method)).await?;
+        // Whatever the agent answers with an error, it did not sign in.
+        match self.await_outcome(&id).await? {
+            Ok(_) => Ok(()),
+            Err(_) => Err(BackendFault::SignInNeeded),
+        }
     }
 
     pub(super) async fn send(&mut self, line: String) -> Result<(), BackendFault> {
@@ -271,6 +307,17 @@ impl<X: Seams> AcpBackend<X> {
     /// Reads until the reply to `id`. Before a session exists the agent may ask for nothing:
     /// its requests are refused, its notifications dropped.
     async fn await_reply(&mut self, id: &RequestId) -> Result<serde_json::Value, BackendFault> {
+        self.await_outcome(id)
+            .await?
+            .map_err(|_| BackendFault::Unavailable)
+    }
+
+    /// Like `await_reply`, but an error the agent answers with is given back, not folded into
+    /// "unavailable".
+    async fn await_outcome(
+        &mut self,
+        id: &RequestId,
+    ) -> Result<Result<serde_json::Value, serde_json::Value>, BackendFault> {
         loop {
             let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
             let Some(line) = live.wire.read_line().await else {
@@ -279,7 +326,7 @@ impl<X: Seams> AcpBackend<X> {
             };
             match intake(&line) {
                 Intake::Reply { id: got, outcome } if &got == id => {
-                    return outcome.map_err(|_| BackendFault::Unavailable);
+                    return Ok(outcome);
                 }
                 Intake::Request { id: theirs, .. } => {
                     let refusal = super::serve::refusal(&theirs, "not now");
@@ -288,6 +335,15 @@ impl<X: Seams> AcpBackend<X> {
                 _ => {}
             }
         }
+    }
+}
+
+/// The fault for an error the agent answered `session/new` with: "authentication required"
+/// (-32000) is its own fault, everything else is the agent being unavailable.
+fn refusal_fault(error: &serde_json::Value) -> BackendFault {
+    match serde_json::from_value::<Error>(error.clone()) {
+        Ok(e) if e.code == ErrorCode::AuthRequired => BackendFault::SignInNeeded,
+        _ => BackendFault::Unavailable,
     }
 }
 

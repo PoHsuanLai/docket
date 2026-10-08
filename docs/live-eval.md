@@ -275,6 +275,7 @@ judges the router's ruling on each, and an agent chooses its own.
 | `--acp-credentials FILE` | the login to stage (see below); no default |
 | `--acp-credentials-at REL` | where it goes in the scratch HOME (default `.claude/.credentials.json`, Claude Code's) |
 | `--acp-profile claude-code` | the `agents.toml` preset that confines the agent's own extras (below); the entry gets `profile = "claude-code"` |
+| `--acp-sign-in METHOD` | the way the agent signs itself in after it starts (`sign_in` in the entry), for an agent that refuses a session until then; it must be one the agent offers. The login file is still `--acp-credentials` |
 | `--acp-route login` | the only route the harness can run: there is no accountd on the private bus |
 
 The harness writes the entry into the scratch `agents.toml` (`AcpSpec::entry_toml`) and switches `agent.acp.agents` on in

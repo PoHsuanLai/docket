@@ -1,11 +1,11 @@
 //! The requests we send an agent, as lines. Every payload is a schema-crate type.
 
-use super::spawn::SessionMeta;
+use super::spawn::{SessionMeta, SignIn};
 use crate::out;
 use agent_client_protocol_schema::ProtocolVersion;
 use agent_client_protocol_schema::rpc::RequestId;
 use agent_client_protocol_schema::v1::{
-    AGENT_METHOD_NAMES, CancelNotification, ClientCapabilities, ContentBlock,
+    AGENT_METHOD_NAMES, AuthenticateRequest, CancelNotification, ClientCapabilities, ContentBlock,
     FileSystemCapabilities, Implementation, InitializeRequest, McpServer, NewSessionRequest,
     PromptRequest, SessionId,
 };
@@ -38,6 +38,13 @@ pub fn initialize(id: &RequestId, caps: ClientCapabilities) -> String {
         .client_capabilities(caps)
         .client_info(Implementation::new("docket", env!("CARGO_PKG_VERSION")));
     out::ask(id, AGENT_METHOD_NAMES.initialize, &request)
+}
+
+/// `authenticate` with the way the person chose. The agent signs itself in from the login it
+/// already holds; nothing secret passes through here.
+pub fn authenticate(id: &RequestId, method: &SignIn) -> String {
+    let request = AuthenticateRequest::new(method.as_str().to_owned());
+    out::ask(id, AGENT_METHOD_NAMES.authenticate, &request)
 }
 
 /// `session/new` in `cwd`, offering `servers`: the one tool edge of this session when there is

@@ -116,3 +116,25 @@ fn the_preset_reads_from_agents_toml_and_an_unknown_one_is_refused() {
         .replace("profile = \"claude-code\"", "profile = \"other\"");
     assert!(AgentsFile::parse(&bad).is_err());
 }
+
+#[tokio::test]
+async fn the_sign_in_the_entry_names_is_handed_to_the_client_and_none_otherwise() {
+    let signed = format!("{LOGIN}sign_in = \"oauth-personal\"\n");
+    let mut first = rig(&signed, Mood::Working, true);
+    let spawned = first
+        .spawn
+        .spawn(&plan("claude-code", "s-1"))
+        .await
+        .expect("spawned");
+    assert_eq!(
+        spawned.sign_in.as_ref().map(|s| s.as_str()),
+        Some("oauth-personal")
+    );
+    let mut bare = rig(LOGIN, Mood::Working, true);
+    let spawned = bare
+        .spawn
+        .spawn(&plan("claude-code", "s-1"))
+        .await
+        .expect("spawned");
+    assert!(spawned.sign_in.is_none());
+}

@@ -3,7 +3,7 @@
 //! audit); what is faked is the world around it: the agent process, the files, the sandbox, the
 //! person's answers, and the models.
 
-use super::agent::{Act, View, agent};
+use super::agent::{Act, Auth, View, agent_signing};
 use crate::support::app;
 use docket_acp::client::fake::{FakeFiles, FakeSpawn, SpawnSeen};
 use docket_acp::client::{
@@ -138,6 +138,10 @@ pub struct Setup {
     pub label: Option<prov::AgentLabel>,
     /// The launcher's `_meta` for `session/new`, when a test has one.
     pub session_meta: Option<docket_acp::client::SessionMeta>,
+    /// How the fake agent treats sign-in.
+    pub auth: Auth,
+    /// The way to sign in that `agents.toml` names, when a test has one.
+    pub sign_in: Option<docket_acp::client::SignIn>,
 }
 
 impl Default for Setup {
@@ -156,6 +160,8 @@ impl Default for Setup {
             tools: None,
             label: None,
             session_meta: None,
+            auth: Auth::Open,
+            sign_in: None,
         }
     }
 }
@@ -270,10 +276,14 @@ where
     );
     let router = Arc::new(router);
     let court = IntentsCourt::over(InProcess::new(router.clone(), host_caller()));
-    let (wire, view) = agent(setup.turns);
+    let (wire, view) = agent_signing(setup.turns, setup.auth);
     let (spawn, spawned) = FakeSpawn::new(vec![wire]);
     let spawn = match setup.session_meta.clone() {
         Some(meta) => spawn.with_meta(meta),
+        None => spawn,
+    };
+    let spawn = match setup.sign_in.clone() {
+        Some(method) => spawn.with_sign_in(method),
         None => spawn,
     };
     let backend = AcpBackend::<X>::new(Parts {

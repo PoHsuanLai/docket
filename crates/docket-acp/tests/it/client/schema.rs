@@ -26,6 +26,7 @@ fn conforms(schema: &Value, def: &str, value: &Value) {
 fn params_def(method: &str) -> &'static str {
     match method {
         "initialize" => "InitializeRequest",
+        "authenticate" => "AuthenticateRequest",
         "session/new" => "NewSessionRequest",
         "session/prompt" => "PromptRequest",
         "session/cancel" => "CancelNotification",
@@ -47,6 +48,7 @@ fn params_def(method: &str) -> &'static str {
 fn result_def(method: &str) -> &'static str {
     match method {
         "initialize" => "InitializeResponse",
+        "authenticate" => "AuthenticateResponse",
         "session/new" => "NewSessionResponse",
         "session/prompt" => "PromptResponse",
         "fs/read_text_file" => "ReadTextFileResponse",

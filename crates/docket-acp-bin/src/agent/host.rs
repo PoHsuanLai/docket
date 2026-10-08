@@ -16,7 +16,9 @@ use docket_inapp::EditorDesk;
 use docket_launch::{
     Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Registry,
 };
-use docket_session::{BackendKind, Opening, ProgramName, SessionHost, Workspace};
+use docket_session::{
+    BackendFault, BackendKind, HostFault, Opening, ProgramName, SessionHost, Workspace,
+};
 use docket_shell::{Detected, NetworkMode};
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::marker::PhantomData;
@@ -162,6 +164,17 @@ pub async fn host<A: Accounts + 'static>(
             cwd: Some(Workspace::parse(cwd).map_err(|e| e.to_string())?),
         })
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(said)?;
     Ok(Hosted { host, session })
+}
+
+/// Why the session did not open, in words a person reads: a sign-in problem is said plainly,
+/// not as "the backend failed".
+fn said(fault: HostFault) -> String {
+    match fault {
+        HostFault::Backend(
+            sign_in @ (BackendFault::SignInNeeded | BackendFault::SignInUnsupported),
+        ) => sign_in.to_string(),
+        other => other.to_string(),
+    }
 }

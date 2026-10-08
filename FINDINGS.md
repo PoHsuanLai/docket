@@ -3170,3 +3170,43 @@ operation that reads `Context` for the session's summoning app) would serve ever
 action; it needs the `acp_agent` role added to `Context` and the summoning app carried on the session. (3) The
 check "the answer says what was not done" looks for words of refusal or negation, so a model that words it
 oddly fails it as a capability miss, never a safety one.
+
+## agy-sign-in: an agent that must be signed in before it opens a session
+
+Google's agy server answers `initialize` with the ways it can sign in (`authMethods`) and then refuses `session/new`
+with error -32000 ("authentication required") until the client has sent `authenticate` with one of them and read the
+reply. docket used to map that refusal, like every other, to "the backend is unavailable".
+
+**What changed.** `agents.toml` takes an optional `sign_in = "<method id>"` (1 to 64 letters, digits, `-`, `_`, `.`).
+When set, the client sends `authenticate` with it right after `initialize`, awaits the reply, and only then sends
+`session/new`. It sends only a method the agent advertised as its own to run: an unadvertised one, or a terminal-type
+one, fails with `BackendFault::SignInUnsupported` before anything is sent. An error answering `authenticate`, or
+-32000 answering `session/new`, is `BackendFault::SignInNeeded` ("the agent needs signing in"); every other error is
+still `Unavailable`. docket-live says the same in plain words (`the agent did not start: the agent needs signing in`)
+and takes `--acp-sign-in <method>`, which writes `sign_in` into the scratch entry. docket never reads the agent's
+token: it only copies the login file in (`--acp-credentials`) and the agent signs itself in from it.
+
+**Tests (fakes only).** The fake agent can advertise methods and refuse `session/new` until `oauth-personal` is
+authenticated. It also refuses a `session/new` that was already in the pipe when it answered `authenticate`, which is
+how the await is checked. Covered: opens with the method; the order is initialize, authenticate, session/new; no
+method gives `SignInNeeded`; an unadvertised or terminal method gives `SignInUnsupported` with nothing sent; a
+configured method on an agent that advertises none is refused; the config and flag validation.
+
+**Sandbox, by reading `docket-shell/src/agent.rs` and `docket-launch` (agy itself not run).**
+- The command's own directory is always bound read-only, so the 926 MB program and a helper binary beside it are
+  visible and keep their executable bit (a read-only bind does not strip it). A helper or a symlink target that lives
+  in another directory is not visible: add it with `--acp-reads` / `reads`.
+- `/tmp` is an empty writable tmpfs and `TMPDIR=/tmp`, so a program that unpacks itself there can; the size counts
+  against memory (the tmpfs default is half of RAM). Anything it writes under `HOME` outside `state` goes to a
+  throwaway tmpfs and is gone at exit; its login directory must be in `state` (read-write) to keep a refreshed token.
+- `/run` is empty and the environment is exactly the launcher's, so nothing that expects `XDG_RUNTIME_DIR` or a
+  session bus will find one.
+- Suspicious: the sandbox is `--unshare-all --cap-drop ALL` in a user namespace. If the helper starts its own sandbox
+  (a nested user namespace or `bwrap`) it will probably fail there. Only a real run shows it.
+
+**Open.** (1) A sign-in that needs a browser (`oauth-business`, a first `oauth-personal`) cannot finish in a sandbox
+with no display: the person signs in once with the agent's own tool, and docket reports "needs signing in" until the
+login file is valid. The Settings app has `login` for this but nothing offers it from the failure yet. (2) The error
+code is the only signal for "authentication required"; an agent that answers a different code stays `Unavailable`.
+(3) docket-live's `--acp-state` for agy is `.gemini` and the credentials land at
+`.gemini/antigravity-acp/acp_token.json`; `accept-fake-agent` (the process fake) does not model sign-in.

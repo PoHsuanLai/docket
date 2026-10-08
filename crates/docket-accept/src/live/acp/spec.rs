@@ -37,6 +37,9 @@ pub enum SpecFault {
     /// A `--acp-profile` that is not a preset `agents.toml` knows.
     #[error("--acp-profile takes claude-code, not {0:?}")]
     Profile(String),
+    /// A `--acp-sign-in` that is not a short id.
+    #[error("--acp-sign-in takes 1 to 64 letters, digits, - _ or ., not {0:?}")]
+    SignIn(String),
     /// A `--acp-set` that is not NAME=VALUE.
     #[error("--acp-set takes NAME=VALUE, not {0:?}")]
     Set(String),
@@ -72,6 +75,8 @@ pub struct AcpSpec {
     pub credentials: Option<CredentialsSource>,
     /// The `agents.toml` preset that confines the agent's own extras (`profile`), if any.
     pub profile: Option<String>,
+    /// The way the agent signs itself in at start (`sign_in`), one of the ids it advertises.
+    pub sign_in: Option<String>,
 }
 
 impl AcpSpec {
@@ -87,6 +92,7 @@ impl AcpSpec {
             set: Vec::new(),
             credentials: None,
             profile: None,
+            sign_in: None,
         }
     }
 
@@ -108,6 +114,13 @@ impl AcpSpec {
         }
         if let Some(profile) = self.profile.as_ref().filter(|p| *p != "claude-code") {
             return Err(SpecFault::Profile(profile.clone()));
+        }
+        if let Some(method) = self
+            .sign_in
+            .as_ref()
+            .filter(|m| docket_acp::client::SignIn::parse(m).is_err())
+        {
+            return Err(SpecFault::SignIn(method.clone()));
         }
         let credentials = self.credentials.iter().map(|c| c.at.as_str());
         for inside in self.state.iter().map(String::as_str).chain(credentials) {
@@ -147,6 +160,9 @@ impl AcpSpec {
         out.push_str("tools = \"offered\"\n");
         if let Some(profile) = &self.profile {
             out.push_str(&format!("profile = {}\n", quote(profile)));
+        }
+        if let Some(method) = &self.sign_in {
+            out.push_str(&format!("sign_in = {}\n", quote(method)));
         }
         if !self.set.is_empty() {
             out.push_str("[agent.set]\n");

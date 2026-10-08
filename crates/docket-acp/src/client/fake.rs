@@ -2,7 +2,7 @@
 //! clock, no network.
 
 use super::files::{FileFault, Files};
-use super::spawn::{AgentChild, LaunchPlan, SessionMeta, Spawn, SpawnFault, Spawned};
+use super::spawn::{AgentChild, LaunchPlan, SessionMeta, SignIn, Spawn, SpawnFault, Spawned};
 use crate::wire::{Wire, WireClosed};
 use docket_core::{AbsPath, Cover};
 use std::collections::{BTreeMap, VecDeque};
@@ -78,6 +78,7 @@ pub struct FakeSpawn {
     wires: VecDeque<ChannelWire>,
     seen: SpawnSeen,
     meta: Option<SessionMeta>,
+    sign_in: Option<SignIn>,
 }
 
 impl FakeSpawn {
@@ -89,6 +90,7 @@ impl FakeSpawn {
                 wires: wires.into(),
                 seen: seen.clone(),
                 meta: None,
+                sign_in: None,
             },
             seen,
         )
@@ -97,6 +99,14 @@ impl FakeSpawn {
     /// The same spawner, handing back `meta` for `session/new` with every start.
     pub fn with_meta(mut self, meta: SessionMeta) -> Self {
         self.meta = Some(meta);
+        self
+    }
+}
+
+impl FakeSpawn {
+    /// The same spawner, handing back a way to sign in with every start.
+    pub fn with_sign_in(mut self, sign_in: SignIn) -> Self {
+        self.sign_in = Some(sign_in);
         self
     }
 }
@@ -145,6 +155,7 @@ impl Spawn for FakeSpawn {
             wire,
             child,
             meta: self.meta.clone(),
+            sign_in: self.sign_in.clone(),
         })
     }
 }

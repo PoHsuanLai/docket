@@ -16,6 +16,19 @@ pub type Make = Box<dyn Fn(&Replies) -> Value + Send>;
 /// What a forged bridge line is built from the offered entry: the socket and the line.
 pub type Forge = Box<dyn Fn(&Offered) -> (String, Value) + Send>;
 
+/// How the fake agent treats sign-in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Auth {
+    /// Advertises no methods and opens a session for anyone.
+    #[default]
+    Open,
+    /// Advertises `oauth-personal` (the agent signs itself in), `gemini-api-key` (the same) and
+    /// a terminal method it cannot take through `authenticate`. `session/new` fails with
+    /// "authentication required" until `oauth-personal` is authenticated, and also when it
+    /// arrives before the reply to `authenticate` has been read by the client.
+    Needed,
+}
+
 /// One thing the agent does during a prompt.
 pub enum Act {
     /// Sends a `session/update` notification with this update.
@@ -174,6 +187,10 @@ pub struct Seen {
     pub new_session: Option<Value>,
     pub prompts: Vec<Value>,
     pub cancels: usize,
+    /// The `authenticate` parameters, in order.
+    pub authenticated: Vec<Value>,
+    /// `session/new` lines that were already sent before the `authenticate` reply was read.
+    pub raced: usize,
     /// Every line the agent wrote.
     pub sent: Vec<Value>,
 }
@@ -218,6 +235,14 @@ impl View {
 
     pub fn sent(&self) -> Vec<Value> {
         locked(&self.0).sent.clone()
+    }
+
+    pub fn authenticated(&self) -> Vec<Value> {
+        locked(&self.0).authenticated.clone()
+    }
+
+    pub fn raced(&self) -> usize {
+        locked(&self.0).raced
     }
 
     pub fn cancels(&self) -> usize {
@@ -357,8 +382,46 @@ async fn play(
     false
 }
 
-async fn run(mut wire: ChannelWire, view: View, mut turns: std::collections::VecDeque<Vec<Act>>) {
+const METHODS: &str = "oauth-personal";
+
+fn advertised(auth: Auth) -> Value {
+    match auth {
+        Auth::Open => json!([]),
+        Auth::Needed => json!([
+            {"id": METHODS, "name": "Personal sign-in"},
+            {"id": "gemini-api-key", "name": "API key"},
+            {"type": "terminal", "id": "login-terminal", "name": "Terminal sign-in"},
+        ]),
+    }
+}
+
+/// A line the client has already sent, if one is waiting right now. Nothing is awaited.
+fn waiting(wire: &mut ChannelWire) -> Option<String> {
+    use std::task::{Context, Poll, Waker};
+    let mut read = std::pin::pin!(wire.read_line());
+    match read.as_mut().poll(&mut Context::from_waker(Waker::noop())) {
+        Poll::Ready(line) => line,
+        Poll::Pending => None,
+    }
+}
+
+fn refused_sign_in(id: &Value) -> String {
+    let error = json!({
+        "code": -32000,
+        "message": "Authentication required",
+        "data": {"message": "No authentication method selected."},
+    });
+    json!({"jsonrpc": "2.0", "id": id, "error": error}).to_string()
+}
+
+async fn run(
+    mut wire: ChannelWire,
+    view: View,
+    mut turns: std::collections::VecDeque<Vec<Act>>,
+    auth: Auth,
+) {
     let mut offered = None;
+    let mut signed_in = auth == Auth::Open;
     while let Some(msg) = next(&mut wire, &view).await {
         let id = msg["id"].clone();
         match msg["method"].as_str() {
@@ -368,9 +431,32 @@ async fn run(mut wire: ChannelWire, view: View, mut turns: std::collections::Vec
                 let result = json!({
                     "protocolVersion": 1,
                     "agentCapabilities": {},
+                    "authMethods": advertised(auth),
                     "agentInfo": {"name": "grand", "title": "The Desktop Itself", "version": "1"},
                 });
                 put(&mut wire, &view, reply(&id, result)).await;
+            }
+            Some("authenticate") => {
+                locked(&view.0).authenticated.push(msg["params"].clone());
+                if msg["params"]["methodId"] != METHODS {
+                    let error = json!({"code": -32602, "message": "unknown method"});
+                    let line = json!({"jsonrpc": "2.0", "id": id, "error": error});
+                    put(&mut wire, &view, line.to_string()).await;
+                    continue;
+                }
+                signed_in = true;
+                // A client that sends `session/new` without waiting for this reply has it in
+                // the pipe by now: it is answered as the real server does, with a refusal.
+                if let Some(early) = waiting(&mut wire) {
+                    let early: Value = serde_json::from_str(&early).expect("JSON");
+                    locked(&view.0).lines.push(early.clone());
+                    locked(&view.0).raced += 1;
+                    put(&mut wire, &view, refused_sign_in(&early["id"])).await;
+                }
+                put(&mut wire, &view, reply(&id, json!({}))).await;
+            }
+            Some("session/new") if !signed_in => {
+                put(&mut wire, &view, refused_sign_in(&id)).await;
             }
             Some("session/new") => {
                 locked(&view.0).new_session = Some(msg["params"].clone());
@@ -394,9 +480,14 @@ async fn run(mut wire: ChannelWire, view: View, mut turns: std::collections::Vec
 
 /// An agent playing `turns`, one script per prompt, and the client's end of the pipe.
 pub fn agent(turns: Vec<Vec<Act>>) -> (ChannelWire, View) {
+    agent_signing(turns, Auth::Open)
+}
+
+/// The same, with the sign-in it takes.
+pub fn agent_signing(turns: Vec<Vec<Act>>, auth: Auth) -> (ChannelWire, View) {
     let (client, far) = pipe();
     let view = View::default();
-    tokio::spawn(run(far, view.clone(), turns.into()));
+    tokio::spawn(run(far, view.clone(), turns.into(), auth));
     (client, view)
 }
 

@@ -17,11 +17,13 @@
 //! label = "Claude Code"             # optional: what the audit and the journal call it
 //! tools = "offered"                  # offered (default) | off: the desktop's actions as an MCP server
 //! profile = "claude-code"            # optional: confine the program's own extras (see `managed`)
+//! sign_in = "oauth-personal"         # optional: the way the agent signs itself in at start
 //! [agent.endpoint]
 //! kind = "account"
 //! id = "anthropic-main"
 //! ```
 
+use docket_acp::client::SignIn;
 use docket_core::AbsPath;
 use docket_session::ProgramName;
 use docket_shell::NetworkMode;
@@ -134,6 +136,7 @@ struct Raw {
     tools: ToolsMode,
     label: Option<String>,
     profile: Option<Profile>,
+    sign_in: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -208,6 +211,9 @@ pub struct Entry {
     pub label: Option<prov::AgentLabel>,
     /// The preset that confines the program's own extras, if the person named one.
     pub profile: Option<Profile>,
+    /// The way the agent signs itself in before a session opens, one of the ids it advertises.
+    /// It signs in from the login it already holds; docket sends the id and nothing else.
+    pub sign_in: Option<SignIn>,
 }
 
 /// The longest label, in characters.
@@ -361,6 +367,12 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
         tools: raw.tools,
         label,
         profile: raw.profile,
+        sign_in: raw
+            .sign_in
+            .as_deref()
+            .map(SignIn::parse)
+            .transpose()
+            .map_err(|_| bad(&at, "sign_in is 1 to 64 letters, digits, - _ or ."))?,
     })
 }
 

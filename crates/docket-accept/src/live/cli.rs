@@ -218,6 +218,7 @@ struct AcpFlags {
     credentials_at: Option<String>,
     route: Option<String>,
     profile: Option<String>,
+    sign_in: Option<String>,
     seen: bool,
 }
 
@@ -237,6 +238,7 @@ impl AcpFlags {
             "--acp-credentials-at" => self.credentials_at = Some(value),
             "--acp-route" => self.route = Some(value),
             "--acp-profile" => self.profile = Some(value),
+            "--acp-sign-in" => self.sign_in = Some(value),
             other => return Err(UsageError::Unknown(other.to_owned())),
         }
         Ok(())
@@ -268,6 +270,7 @@ impl AcpFlags {
         spec.state = self.state;
         spec.reads = self.reads;
         spec.profile = self.profile;
+        spec.sign_in = self.sign_in;
         if let Some(word) = self.network {
             spec.network = network_of(&word)?;
         }

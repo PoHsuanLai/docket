@@ -41,6 +41,24 @@ tools = "offered"
 # allow rules in your own settings add to ours: that is your choice. Use a scratch `state` for a closed run.
 profile = "claude-code"
 
+# Google's Antigravity agent (agy) through its ACP server, a self-contained program that comes with a static
+# helper beside it (keep that helper executable; the program's own directory is visible to the sandbox, read-only).
+# Its login file is `.gemini/antigravity-acp/acp_token.json` under its home: docket never reads it. The live-eval
+# harness copies it in per run (`--acp-credentials FILE --acp-credentials-at .gemini/antigravity-acp/acp_token.json`).
+# The agent signs itself in from that file when docket sends `sign_in`; the id must be one the agent offers when it
+# starts, or the session does not open and docket says the agent needs signing in. A way that needs a browser is not
+# one docket can run for you: sign in once with the agent's own tool, then use `oauth-personal`.
+[[agent]]
+program = "agy"
+command = "/home/u/.local/share/agy-acp-server/agy_acp_server.par"
+args = ["--uid="]
+route = "login"
+network = "host"
+state = ["/home/u/.gemini"]
+home = "/home/u"
+label = "Antigravity"
+sign_in = "oauth-personal"
+
 # The same program with inferd as its model (an API-key account in accountd): the agent gets a
 # base URL and a per-session token, the real key stays in porter, and the only network it has is
 # that endpoint. Use one entry or the other for a program name.

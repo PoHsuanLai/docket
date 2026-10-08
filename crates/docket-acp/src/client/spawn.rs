@@ -43,6 +43,40 @@ pub enum SpawnFault {
 /// (never the agent) and sends as it opens the session. The client does not read it.
 pub type SessionMeta = serde_json::Map<String, serde_json::Value>;
 
+/// The way of signing in the person chose for an agent: one of the ids the agent advertises
+/// when it starts. Written in `agents.toml`, never taken from the agent.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SignIn(String);
+
+/// The longest sign-in id, in characters.
+const SIGN_IN_MAX: usize = 64;
+
+/// Why a sign-in id was not accepted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("a sign-in method is 1 to 64 letters, digits, - _ or .")]
+pub struct SignInRefused;
+
+impl SignIn {
+    /// A short id: letters, digits, `-`, `_` and `.`.
+    pub fn parse(text: &str) -> Result<Self, SignInRefused> {
+        let fine = !text.is_empty()
+            && text.len() <= SIGN_IN_MAX
+            && text
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'));
+        if fine {
+            Ok(Self(text.to_owned()))
+        } else {
+            Err(SignInRefused)
+        }
+    }
+
+    /// The id as the agent knows it.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// A started agent: its stdio and the handle that ends it.
 #[derive(Debug)]
 pub struct Spawned<W, C> {
@@ -52,6 +86,8 @@ pub struct Spawned<W, C> {
     pub child: C,
     /// The `_meta` of `session/new`, when the launcher has any (a preset in `agents.toml`).
     pub meta: Option<SessionMeta>,
+    /// The way to sign in before `session/new`, when `agents.toml` names one.
+    pub sign_in: Option<SignIn>,
 }
 
 /// The process behind a wire.
