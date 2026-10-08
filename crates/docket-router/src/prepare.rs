@@ -173,9 +173,10 @@ impl<S: Seams> Router<S> {
             let why = CallRefusal::NoSuchAction(request.action.clone());
             return Err(early(Effect::Read, why));
         };
-        // The pseudo-app of the external agents is the host's alone, and the host makes no other
-        // call: the agent's own tools are not reached by its host's role.
-        if is_agent_action(&request.action) != (who.role == CallerRole::AcpAgent) {
+        // The pseudo-app of the external agents is the host's alone. The host's role makes one
+        // other kind of call: the agent's own tool calls over its per-session edge, which are
+        // exactly the actions an MCP client is offered (reach `Offered`, not host-only).
+        if !may_make(&st.registry, who.role, &request.action, &decl) {
             return Err(early(
                 decl.effect,
                 CallRefusal::Denied(DenyCode::NotAllowed),
@@ -404,6 +405,28 @@ impl<S: Seams> Router<S> {
             // The person's own calls are not gated, so they are not classified.
             classified: None,
             standing: None,
+        }
+    }
+}
+
+/// Whether a caller in `role` may make a call of `action`. The pseudo-app belongs to the host of
+/// an external agent alone; that host makes it no call of another app but the ones the agent's
+/// edge offers (`AgentReach::Offered` of an app that is not host-only), so a hostile agent cannot
+/// reach an action nobody offered it by naming it.
+fn may_make(
+    registry: &crate::registry::Registry,
+    role: CallerRole,
+    action: &docket_core::ActionRef,
+    decl: &ActionDecl,
+) -> bool {
+    match (role == CallerRole::AcpAgent, is_agent_action(action)) {
+        (_, true) => role == CallerRole::AcpAgent,
+        (false, false) => true,
+        (true, false) => {
+            decl.reach == docket_core::AgentReach::Offered
+                && registry
+                    .get(&action.app)
+                    .is_some_and(|m| m.manifest().visibility == docket_core::Visibility::Everyone)
         }
     }
 }

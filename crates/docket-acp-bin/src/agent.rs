@@ -24,7 +24,7 @@ use crate::Wall;
 use crate::confirm::ConfirmObject;
 use args::Args;
 use docket_acp::client::{
-    AcpBackend, AgentHost, Fallback, IntentsCourt, OsFiles, Parts, Performer, Seams,
+    AcpBackend, AgentHost, Fallback, IntentsCourt, OsFiles, Parts, Performer, Seams, ToolsOffer,
 };
 use docket_client::{DbusTransport, serve_on};
 use docket_core::{ACP_AGENT_APP, AbsPath, ValidManifest};
@@ -33,7 +33,7 @@ use docket_inapp::EditorDesk;
 use docket_launch::dbus::DbusAccounts;
 use docket_launch::login::VisibleLogin;
 use docket_launch::{
-    AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Registry, Supervisor,
+    AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Registry, Supervisor, ToolsMode,
 };
 use docket_session::{BackendEvent, BackendKind, Opening, SessionHost, Workspace};
 use docket_settings::{AgentSettings, Locator};
@@ -80,6 +80,14 @@ fn data_dir() -> PathBuf {
         .join("docket")
 }
 
+/// The program `name` in the directory of this one (it may not be built).
+fn sibling(name: &str) -> Option<AbsPath> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|d| d.join(name)))
+        .and_then(|p| p.to_str().and_then(|t| AbsPath::parse(t).ok()))
+}
+
 /// Runs the host until the person quits.
 pub async fn run(args: Args) -> Result<(), String> {
     let loaded = Locator::from_env(&env).read(AgentSettings::default());
@@ -91,12 +99,25 @@ pub async fn run(args: Args) -> Result<(), String> {
     let Detected::Bwrap(bwrap) = Detected::probe(&path) else {
         return Err("no sandbox (bubblewrap) here: no agent is started unconfined".to_owned());
     };
-    let forwarder = std::env::current_exe()
-        .ok()
-        .and_then(|exe| exe.parent().map(|d| d.join("docket-net-forward")))
-        .and_then(|p| p.to_str().and_then(|t| AbsPath::parse(t).ok()))
+    let forwarder = sibling("docket-net-forward")
         .ok_or("cannot find docket-net-forward beside this program")?;
     let run_dir = PathBuf::from(env("XDG_RUNTIME_DIR").ok_or("no XDG_RUNTIME_DIR")?);
+    // The desktop's actions go to the agent as an MCP server it starts itself: the `actions-mcp`
+    // program beside this one, as the bridge to this host. An entry can switch it off.
+    let tools = file
+        .get(&args.program)
+        .filter(|entry| entry.tools == ToolsMode::Offered)
+        .and_then(|_| sibling("actions-mcp"))
+        .filter(|bridge| std::path::Path::new(bridge.as_str()).exists())
+        .map(|bridge| ToolsOffer {
+            run_dir: run_dir.clone(),
+            bridge,
+        });
+    if tools.is_none() {
+        eprintln!(
+            "docket-agent: the agent is not offered the desktop's actions (off, or no actions-mcp beside this program)"
+        );
+    }
 
     let bus = docket_dbus::session_connection(&env)
         .await
@@ -179,6 +200,7 @@ pub async fn run(args: Args) -> Result<(), String> {
         spawn,
         performer,
         court: court.clone(),
+        tools,
     });
     let mut host = AgentHost::new(backend, court, desk, args.fallback);
 

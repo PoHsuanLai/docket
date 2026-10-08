@@ -19,6 +19,7 @@
 //! `cancel`, then `close`, which kills the process.
 
 use super::court::Court;
+use super::edge::{ToolsEdge, ToolsOffer};
 use super::files::Files;
 use super::intake::{Intake, Work, intake};
 use super::performer::Performer;
@@ -69,6 +70,8 @@ pub struct Parts<X: Seams> {
     pub performer: Performer<X::Files, X::Sandbox>,
     /// The router.
     pub court: X::Court,
+    /// The tool edge to offer the agent, when the host has one to give.
+    pub tools: Option<ToolsOffer>,
 }
 
 /// The connection to one running agent.
@@ -82,6 +85,8 @@ pub(super) struct Live<X: Seams> {
     pub tainted_by: Option<TaintSource>,
     pub reported: Reported,
     pub ids: Ids,
+    /// The session's tool edge, alive as long as the connection is.
+    pub edge: Option<ToolsEdge>,
 }
 
 /// A call we run for the agent.
@@ -117,6 +122,7 @@ pub struct AcpBackend<X: Seams> {
     pub(super) spawn: X::Spawn,
     pub(super) performer: Performer<X::Files, X::Sandbox>,
     pub(super) court: X::Court,
+    pub(super) tools: Option<ToolsOffer>,
     pub(super) live: Option<Live<X>>,
     pub(super) session: Option<prov::SessionId>,
     pub(super) phase: Phase,
@@ -144,6 +150,7 @@ impl<X: Seams> AcpBackend<X> {
             spawn: parts.spawn,
             performer: parts.performer,
             court: parts.court,
+            tools: parts.tools,
             live: None,
             session: Some(parts.session),
             phase: Phase::Stopped,
@@ -179,10 +186,16 @@ impl<X: Seams> AcpBackend<X> {
         cwd: AbsPath,
         taint: Taint,
     ) -> Result<(), BackendFault> {
+        // The edge is made first: the launcher binds its socket into the sandbox. A host that
+        // offers none, or one that cannot make it, runs the agent with its own tools and ours.
+        let edge = self.tools.as_ref().and_then(|offer| {
+            ToolsEdge::start(offer, &session, &self.program, self.court.clone()).ok()
+        });
         let plan = LaunchPlan {
             program: self.program.clone(),
             session: session.clone(),
             cwd: cwd.clone(),
+            edge: edge.as_ref().map(|e| e.bind().clone()),
         };
         let Spawned { wire, child } = self
             .spawn
@@ -205,6 +218,7 @@ impl<X: Seams> AcpBackend<X> {
             tainted_by: (taint == Taint::Tainted).then_some(TaintSource::Resumed),
             reported: Reported::default(),
             ids: Ids::default(),
+            edge,
         });
         if taint == Taint::Tainted {
             // A resumed session read something the host cannot see.
@@ -227,7 +241,12 @@ impl<X: Seams> AcpBackend<X> {
         }
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         let id = live.ids.next();
-        self.send(rpc::session_new(&id, cwd)).await?;
+        let servers = live
+            .edge
+            .iter()
+            .map(|e| e.bind().server(e.token()))
+            .collect();
+        self.send(rpc::session_new(&id, cwd, servers)).await?;
         let reply = self.await_reply(&id).await?;
         let made: NewSessionResponse =
             serde_json::from_value(reply).map_err(|_| BackendFault::Unavailable)?;
@@ -367,6 +386,8 @@ impl<X: Seams> SessionBackend for AcpBackend<X> {
         self.waiters.clear();
         if let Some(mut live) = self.live.take() {
             self.performer.close_scope(&live.session);
+            // The edge goes first: a call after this finds no socket, then the process goes.
+            drop(live.edge.take());
             live.child.kill();
             live.child.close().await;
         }

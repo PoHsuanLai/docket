@@ -19,7 +19,7 @@ use crate::env::{Lent, child_env};
 use crate::names::launcher_session;
 use crate::permit::AgentsPermit;
 use crate::procs::{Proc, Procs};
-use docket_acp::client::{AgentChild, LaunchPlan, Spawn, SpawnFault, Spawned};
+use docket_acp::client::{AgentChild, EdgeBind, LaunchPlan, Spawn, SpawnFault, Spawned};
 use docket_core::AbsPath;
 use docket_shell::forward::{Bridge, Loopback};
 use docket_shell::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
@@ -186,19 +186,27 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     }
 }
 
-fn binds(entry: &Entry, key_file: Option<&AbsPath>) -> Vec<Bind> {
+fn binds(entry: &Entry, key_file: Option<&AbsPath>, edge: Option<&EdgeBind>) -> Vec<Bind> {
     let program_dir = entry.command.parent().into_iter();
     let read_only = entry
         .reads
         .iter()
         .cloned()
         .chain(program_dir)
-        .chain(key_file.cloned());
+        .chain(key_file.cloned())
+        .chain(edge.map(|e| e.bridge.clone()));
+    // The tool edge's socket is written to by whoever connects, so it is the one read-write bind
+    // that is not the program's own state.
+    let socket = edge.map(|e| Bind {
+        path: e.socket.clone(),
+        access: Access::ReadWrite,
+    });
     read_only
         .map(|path| Bind {
             path,
             access: Access::ReadOnly,
         })
+        .chain(socket)
         .chain(entry.state.iter().cloned().map(|path| Bind {
             path,
             access: Access::ReadWrite,
@@ -353,7 +361,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             cwd: plan.cwd.clone(),
             env: built.vars,
             net,
-            binds: binds(entry, built.key_file.as_ref()),
+            binds: binds(entry, built.key_file.as_ref(), plan.edge.as_ref()),
         };
         let (wire, proc) = self
             .procs

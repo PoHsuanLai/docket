@@ -27,6 +27,7 @@ members = [
   "crates/docket-accept",
   "crates/docket-eval",
   "crates/docket-cli",
+  "crates/actions-tools",
   "crates/actions-mcp",
   "crates/docket-settings",
   "crates/intentd",
@@ -50,6 +51,7 @@ repository = "https://github.com/PoHsuanLai/docket"
 publish = false
 
 [workspace.dependencies]
+actions-tools  = { path = "crates/actions-tools" }
 docket-core    = { path = "crates/docket-core" }
 docket-skills  = { path = "crates/docket-skills" }
 policy-point   = { path = "crates/policy-point" }

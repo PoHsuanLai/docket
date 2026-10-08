@@ -21,6 +21,7 @@ dependencies = [
 name = "actions-mcp"
 version = "0.1.0"
 dependencies = [
+ "actions-tools",
  "docket-client",
  "docket-core",
  "docket-dbus",
@@ -39,6 +40,18 @@ dependencies = [
  "tokio",
  "toml",
  "zbus",
+]
+
+[[package]]
+name = "actions-tools"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "porter-core",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -954,6 +967,7 @@ name = "docket-acp"
 version = "0.1.0"
 dependencies = [
  "action-review",
+ "actions-tools",
  "agent-client-protocol-schema",
  "companion-wire",
  "docket-client",
@@ -984,6 +998,7 @@ dependencies = [
  "docket-client",
  "docket-core",
  "docket-dbus",
+ "docket-fake",
  "docket-inapp",
  "docket-launch",
  "docket-planner",

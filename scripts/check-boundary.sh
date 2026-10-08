@@ -25,6 +25,8 @@ RULES=(
   "docket-router: $NO_CEDAR"
   # Skills are files read from directories handed in: no bus, runtime, network or Cedar.
   "docket-skills: $EFFECTS"
+  # The tools an outside agent is offered, as pure data: shared by the MCP edge and the ACP host.
+  "actions-tools: $EFFECTS toml"
   "companion-wire: $EFFECTS toml"
   "agent-loop: $EFFECTS toml"
   # The planner is portable: it asks any porter-client Transport (porter-client without its
@@ -156,7 +158,7 @@ EDGES=(
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
   "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-session docket-skills porter-client porter-core porter-infer prov"
   "docket-session: companion-wire docket-core porter-core prov"
-  "docket-acp: companion-wire docket-client docket-core docket-session docket-settings docket-shell porter-core prov"
+  "docket-acp: actions-tools companion-wire docket-client docket-core docket-session docket-settings docket-shell porter-core prov"
   "docket-shell: docket-core"
   "docket-launch: docket-acp docket-core docket-session docket-settings docket-shell porter-client porter-core porter-dbus prov"
   "docket-acp-bin: docket-acp docket-client docket-core docket-dbus docket-inapp docket-launch docket-planner docket-router docket-session docket-settings docket-shell docket-tasks porter-core prov"
@@ -169,7 +171,8 @@ EDGES=(
   "docket-fake: action-review almanac-core docket-client docket-core docket-router docket-session policy-point porter-core prov"
   "docket-eval: docket-core docket-fake docket-skills docket-router porter-core prov"
   "docket-testbus: docket-dbus"
-  "actions-mcp: docket-client docket-core docket-dbus docket-settings porter-core prov"
+  "actions-tools: docket-core porter-core prov"
+  "actions-mcp: actions-tools docket-client docket-core docket-dbus docket-settings porter-core prov"
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-session docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
   "companiond: companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills docket-tasks porter-client porter-core prov"
   "readerd: docket-client docket-core docket-dbus docket-reader porter-client porter-core porter-infer prov"

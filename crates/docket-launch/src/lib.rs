@@ -31,7 +31,9 @@ pub mod supervise;
 pub use accounts::{
     AccountFault, Accounts, AskKind, Heard, Issued, KeyHandoff, LoginAsk, OpenedEndpoint, RouteWish,
 };
-pub use config::{AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Route};
+pub use config::{
+    AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Route, ToolsMode,
+};
 pub use names::launcher_session;
 pub use permit::{AgentsPermit, Refusal};
 pub use procs::{BwrapProcs, ChildProc, Proc, ProcFault, Procs, StdioWire};

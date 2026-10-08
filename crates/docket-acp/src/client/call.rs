@@ -126,6 +126,9 @@ pub enum AgentCall {
     /// A tool call the agent reports having run itself: asked of the router only so that what it
     /// brought in is taken into the session's taint.
     Reported(PermissionKind),
+    /// One of the desktop's actions the agent called over its per-session tool edge (`edge`),
+    /// formed there from the tool name and arguments, never from anything that names a session.
+    Tool(Box<CallRequest>),
 }
 
 /// What the router is told of a value the agent supplied. Every label it gives is overwritten by
@@ -223,6 +226,7 @@ impl AgentCall {
                 TargetValue::Nothing,
                 args([("what", Value::Text(kind.word().to_owned()))])?,
             ),
+            AgentCall::Tool(request) => return Some((**request).clone()),
         };
         Some(CallRequest {
             action: acp_agent_action(&name)?,

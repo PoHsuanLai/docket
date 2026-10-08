@@ -79,6 +79,7 @@ pub fn plan(program: &str, session: &str) -> LaunchPlan {
         program: ProgramName::parse(program).expect("program"),
         session: SessionId::parse(session).expect("session"),
         cwd: abs(CWD),
+        edge: None,
     }
 }
 

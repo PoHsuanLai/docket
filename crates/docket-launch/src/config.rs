@@ -14,6 +14,7 @@
 //! reads = ["/home/me/.local/share/node"]    # read-only: where the program is installed
 //! state = ["/home/me/.claude"]              # read-write: its own login and settings
 //! home = "/home/me"
+//! tools = "offered"                  # offered (default) | off: the desktop's actions as an MCP server
 //! [agent.endpoint]
 //! kind = "account"
 //! id = "anthropic-main"
@@ -51,6 +52,18 @@ pub enum Delivery {
     /// `<key_env>_FILE` names a 0600 file on a tmpfs, bound read-only into the sandbox: for
     /// programs that read such a variable. The key is in no environment.
     File,
+}
+
+/// Whether the agent is offered the desktop's actions over the per-session tool edge
+/// (`docket_acp::client::ToolsEdge`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolsMode {
+    /// `session/new` offers an MCP server whose calls are router calls of this session.
+    #[default]
+    Offered,
+    /// The agent has its own tools and the host's `fs/*` and `terminal/*` only.
+    Off,
 }
 
 /// Which model the endpoint serves.
@@ -104,6 +117,8 @@ struct Raw {
     login: Vec<String>,
     #[serde(default)]
     logout: Vec<String>,
+    #[serde(default)]
+    tools: ToolsMode,
 }
 
 #[derive(Debug, Deserialize)]
@@ -171,6 +186,8 @@ pub struct Entry {
     pub login: Vec<String>,
     /// The logout command, if it has one.
     pub logout: Vec<String>,
+    /// Whether the agent is offered the desktop's actions.
+    pub tools: ToolsMode,
 }
 
 fn bad(program: &str, why: &'static str) -> ConfigFault {
@@ -299,6 +316,7 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
         set,
         login: raw.login,
         logout: raw.logout,
+        tools: raw.tools,
     })
 }
 

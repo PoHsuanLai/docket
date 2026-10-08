@@ -134,6 +134,10 @@ impl<T: Transport + 'static> Court for IntentsCourt<T> {
         }
     }
 
+    async fn registry(&mut self) -> Option<Vec<docket_core::ValidManifest>> {
+        self.intents.manifests().await.ok()
+    }
+
     async fn close(&mut self, session: &SessionId) {
         let _ = self.intents.session_close(session.clone()).await;
     }

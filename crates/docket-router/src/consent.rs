@@ -57,11 +57,15 @@ pub(crate) fn consent_for(
         // Launching an external agent in a directory is the person's own act: what it does there
         // is judged by the rest of the gate and by standing grants, not by a class question on
         // every first use. A recorded denial still stands, and a session that read untrusted
-        // content asks again for anything that writes (below).
-        GrantCaller::AcpAgent(_) => Verdict::Granted {
-            grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
-            scope: GrantScope::Always,
-        },
+        // content asks again for anything that writes (below). Only for the pseudo-app: the
+        // person launched the agent in a directory, not into their mail, so an action of another
+        // app that the agent calls over its tool edge is asked about like a planner's.
+        GrantCaller::AcpAgent(_) if app.as_str() == docket_core::ACP_AGENT_APP => {
+            Verdict::Granted {
+                grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
+                scope: GrantScope::Always,
+            }
+        }
         _ => Verdict::Ask,
     };
     let per_class: Vec<Verdict> = decl

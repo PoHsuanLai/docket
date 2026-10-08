@@ -1,13 +1,12 @@
 //! The server: `rmcp` over stdio or a Unix socket, with the router behind it.
 
-use crate::args::read_call;
 use crate::expose::McpExpose;
-use crate::fault::{ArgsFault, McpFault, McpRefusal};
-use crate::label::mcp_label;
-use crate::result::outcome_json;
-use crate::tools::{McpTool, ToolHints, offered, tool_name, tool_of};
+use actions_tools::{
+    ArgsFault, McpFault, McpRefusal, McpTool, ToolHints, find, mcp_label, offered, outcome_json,
+    read_call, tool_of,
+};
 use docket_client::{Intents, Transport};
-use docket_core::{ActionDecl, ActionRef, CallRequest, Origin, ValidManifest};
+use docket_core::{ActionRef, CallRequest, Origin, ValidManifest};
 use prov::ClientName;
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData,
@@ -135,16 +134,7 @@ impl<T: Transport> McpEdge<T> {
     }
 }
 
-fn find<'a>(
-    registry: &'a [ValidManifest],
-    tool: &str,
-) -> Option<(&'a ValidManifest, &'a ActionDecl)> {
-    offered(registry)
-        .into_iter()
-        .find(|(m, a)| tool_name(&m.manifest().app, a).is_ok_and(|n| n.as_str() == tool))
-}
-
-fn annotations(hints: ToolHints) -> ToolAnnotations {
+pub(crate) fn annotations(hints: ToolHints) -> ToolAnnotations {
     match hints {
         ToolHints::ReadOnly => ToolAnnotations::new().read_only(true),
         ToolHints::Undoable => ToolAnnotations::new().read_only(false).destructive(false),
@@ -156,14 +146,14 @@ fn annotations(hints: ToolHints) -> ToolAnnotations {
     }
 }
 
-fn rmcp_tool(tool: McpTool, description: String) -> Option<Tool> {
+pub(crate) fn rmcp_tool(tool: McpTool, description: String) -> Option<Tool> {
     let schema = tool.schema.0.as_object()?.clone();
     let mut listed = Tool::new(tool.name.to_string(), description, Arc::new(schema));
     listed.annotations = Some(annotations(tool.annotations));
     Some(listed)
 }
 
-fn failed(fault: &McpFault) -> CallToolResult {
+pub(crate) fn failed(fault: &McpFault) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(fault.to_string())])
 }
 

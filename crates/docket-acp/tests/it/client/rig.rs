@@ -6,7 +6,9 @@
 use super::agent::{Act, View, agent};
 use crate::support::app;
 use docket_acp::client::fake::{FakeFiles, FakeSpawn, SpawnSeen};
-use docket_acp::client::{AcpBackend, AgentHost, Fallback, IntentsCourt, Parts, Performer, Seams};
+use docket_acp::client::{
+    AcpBackend, AgentHost, Fallback, IntentsCourt, Parts, Performer, Seams, ToolsOffer,
+};
 use docket_client::InProcess;
 use docket_core::{
     AbsPath, ActionMatch, AgentConfig, CallerId, CallerRole, ConfirmAnswer, ConfirmEnd,
@@ -129,6 +131,8 @@ pub struct Setup {
     pub network: Network,
     /// The network the agent process itself runs with (R12).
     pub agent_network: NetworkMode,
+    /// The tool edge the host offers the agent, when a test has one.
+    pub tools: Option<ToolsOffer>,
 }
 
 impl Default for Setup {
@@ -144,6 +148,7 @@ impl Default for Setup {
             config: AgentConfig::default(),
             network: Network::Off,
             agent_network: NetworkMode::None,
+            tools: None,
         }
     }
 }
@@ -266,6 +271,7 @@ where
         spawn,
         performer: performer.clone(),
         court: court.clone(),
+        tools: setup.tools,
     });
     Wired {
         backend,

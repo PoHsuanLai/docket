@@ -131,7 +131,7 @@ fn schema_of(action: &ActionDecl) -> ToolSchema {
 
 /// The tool of one offered action, with the action's label as its description. An action whose
 /// name would be too long gets none.
-pub(crate) fn tool_of(manifest: &ValidManifest, action: &ActionDecl) -> Option<(McpTool, String)> {
+pub fn tool_of(manifest: &ValidManifest, action: &ActionDecl) -> Option<(McpTool, String)> {
     let name = tool_name(&manifest.manifest().app, action).ok()?;
     let tool = McpTool {
         name,
@@ -148,4 +148,14 @@ pub fn tools(registry: &[ValidManifest]) -> Vec<McpTool> {
         .into_iter()
         .filter_map(|(m, a)| tool_of(m, a).map(|(tool, _)| tool))
         .collect()
+}
+
+/// The offered action a tool name stands for, if there is one.
+pub fn find<'a>(
+    registry: &'a [ValidManifest],
+    tool: &str,
+) -> Option<(&'a ValidManifest, &'a ActionDecl)> {
+    offered(registry)
+        .into_iter()
+        .find(|(m, a)| tool_name(&m.manifest().app, a).is_ok_and(|n| n.as_str() == tool))
 }

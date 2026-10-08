@@ -100,7 +100,9 @@ impl<X: Seams> AcpBackend<X> {
             }
             // Whatever we owe the agent goes out before we wait to hear from it.
             self.flush().await;
-            match self.line().await {
+            let heard = self.line().await;
+            self.adopt_trip();
+            match heard {
                 None => self.dead = true,
                 Some(line) if line.is_empty() => self.poll_waiters(),
                 Some(line) => {
@@ -108,6 +110,22 @@ impl<X: Seams> AcpBackend<X> {
                     self.poll_waiters();
                 }
             }
+        }
+    }
+
+    /// The router paused the session on a call over the tool edge: the agent is told to stop,
+    /// and the turn ends `Paused` when it does, as for a file call.
+    fn adopt_trip(&mut self) {
+        if self.pausing.is_some() {
+            return;
+        }
+        let Some(live) = self.live.as_ref() else {
+            return;
+        };
+        if let Some(trip) = live.edge.as_ref().and_then(|e| e.take_trip()) {
+            self.pausing = Some(trip);
+            self.outbox
+                .push_back(live.agent.as_ref().map(rpc::cancel).unwrap_or_default());
         }
     }
 

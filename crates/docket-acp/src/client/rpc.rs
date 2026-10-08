@@ -5,8 +5,8 @@ use agent_client_protocol_schema::ProtocolVersion;
 use agent_client_protocol_schema::rpc::RequestId;
 use agent_client_protocol_schema::v1::{
     AGENT_METHOD_NAMES, CancelNotification, ClientCapabilities, ContentBlock,
-    FileSystemCapabilities, Implementation, InitializeRequest, NewSessionRequest, PromptRequest,
-    SessionId,
+    FileSystemCapabilities, Implementation, InitializeRequest, McpServer, NewSessionRequest,
+    PromptRequest, SessionId,
 };
 use docket_core::AbsPath;
 use std::path::PathBuf;
@@ -39,10 +39,10 @@ pub fn initialize(id: &RequestId, caps: ClientCapabilities) -> String {
     out::ask(id, AGENT_METHOD_NAMES.initialize, &request)
 }
 
-/// `session/new` in `cwd`, with no MCP servers: the agent's tools are its own and ours, and
-/// nothing is imported.
-pub fn session_new(id: &RequestId, cwd: &AbsPath) -> String {
-    let request = NewSessionRequest::new(PathBuf::from(cwd.as_str()));
+/// `session/new` in `cwd`, offering `servers`: the one tool edge of this session when there is
+/// one, else none. Nothing else is imported; the agent's other tools are its own.
+pub fn session_new(id: &RequestId, cwd: &AbsPath, servers: Vec<McpServer>) -> String {
+    let request = NewSessionRequest::new(PathBuf::from(cwd.as_str())).mcp_servers(servers);
     out::ask(id, AGENT_METHOD_NAMES.session_new, &request)
 }
 

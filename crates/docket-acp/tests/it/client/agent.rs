@@ -36,6 +36,88 @@ pub enum Act {
     Stop(&'static str),
     /// The process ends: the pipe closes.
     Exit,
+    /// What the MCP server entry the agent was offered would do: connects to a socket, sends one
+    /// line, records the parsed reply under `tag` (`Err("unreachable")` when nothing answers).
+    /// `make` is given the entry as offered and may forge anything the agent could write.
+    Bridge {
+        tag: &'static str,
+        make: Box<dyn Fn(&Offered) -> (String, Value) + Send>,
+    },
+}
+
+/// The MCP server entry the agent was offered in `session/new`, as it read it.
+#[derive(Debug, Clone, Default)]
+pub struct Offered {
+    pub name: String,
+    pub command: String,
+    pub args: Vec<String>,
+    pub env: BTreeMap<String, String>,
+}
+
+impl Offered {
+    pub fn from_params(params: &Value) -> Option<Self> {
+        let server = params["mcpServers"].get(0)?;
+        let strings = |v: &Value| -> Vec<String> {
+            v.as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|s| s.as_str().map(str::to_owned))
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        Some(Self {
+            name: server["name"].as_str()?.to_owned(),
+            command: server["command"].as_str()?.to_owned(),
+            args: strings(&server["args"]),
+            env: server["env"]
+                .as_array()?
+                .iter()
+                .filter_map(|e| {
+                    Some((
+                        e["name"].as_str()?.to_owned(),
+                        e["value"].as_str()?.to_owned(),
+                    ))
+                })
+                .collect(),
+        })
+    }
+
+    /// The socket the bridge program is told to connect to (the argument after the flag).
+    pub fn socket(&self) -> String {
+        self.args.get(1).cloned().unwrap_or_default()
+    }
+
+    /// The token in the bridge's environment.
+    pub fn token(&self) -> String {
+        self.env
+            .get("QUIRE_EDGE_TOKEN")
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// A request line as the bridge would send it: the right token, this operation.
+    pub fn line(&self, op: Value) -> (String, Value) {
+        (self.socket(), json!({"token": self.token(), "op": op}))
+    }
+}
+
+/// The agent lists the tools through its bridge.
+pub fn bridge_list(tag: &'static str) -> Act {
+    Act::Bridge {
+        tag,
+        make: Box::new(|o| o.line(json!("list"))),
+    }
+}
+
+/// The agent calls a tool through its bridge, as offered.
+pub fn bridge_call(tag: &'static str, tool: &'static str, arguments: Value) -> Act {
+    Act::Bridge {
+        tag,
+        make: Box::new(move |o| {
+            o.line(json!({"call": {"tool": tool, "arguments": arguments.clone()}}))
+        }),
+    }
 }
 
 pub fn call(tag: &'static str, method: &'static str, params: Value) -> Act {
@@ -185,8 +267,35 @@ async fn collect(wire: &mut ChannelWire, view: &View, id: &Value, tag: &'static 
     }
 }
 
+/// Sends `line` to the unix socket `path` and reads one line back.
+pub async fn over_socket(path: &str, line: &Value) -> Result<Value, Value> {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    let unreachable = |_| json!("unreachable");
+    let stream = tokio::net::UnixStream::connect(path)
+        .await
+        .map_err(unreachable)?;
+    let (read, mut write) = stream.into_split();
+    let text = format!("{line}\n");
+    write
+        .write_all(text.as_bytes())
+        .await
+        .map_err(unreachable)?;
+    let mut back = String::new();
+    BufReader::new(read)
+        .read_line(&mut back)
+        .await
+        .map_err(unreachable)?;
+    serde_json::from_str(back.trim()).map_err(|_| json!("unreachable"))
+}
+
 /// Plays `acts`; true when the agent exited.
-async fn play(wire: &mut ChannelWire, view: &View, prompt_id: &Value, acts: Vec<Act>) -> bool {
+async fn play(
+    wire: &mut ChannelWire,
+    view: &View,
+    prompt_id: &Value,
+    acts: Vec<Act>,
+    offered: &Option<Offered>,
+) -> bool {
     let mut n = 0_u64;
     let mut fired: BTreeMap<&str, Value> = BTreeMap::new();
     for act in acts {
@@ -234,12 +343,23 @@ async fn play(wire: &mut ChannelWire, view: &View, prompt_id: &Value, acts: Vec<
                 put(wire, view, reply(prompt_id, json!({"stopReason": reason}))).await;
             }
             Act::Exit => return true,
+            Act::Bridge { tag, make } => {
+                let outcome = match offered {
+                    Some(offered) => {
+                        let (socket, line) = make(offered);
+                        over_socket(&socket, &line).await
+                    }
+                    None => Err(json!("no server was offered")),
+                };
+                locked(&view.0).replies.insert(tag.to_owned(), outcome);
+            }
         }
     }
     false
 }
 
 async fn run(mut wire: ChannelWire, view: View, mut turns: std::collections::VecDeque<Vec<Act>>) {
+    let mut offered = None;
     while let Some(msg) = next(&mut wire, &view).await {
         let id = msg["id"].clone();
         match msg["method"].as_str() {
@@ -250,6 +370,7 @@ async fn run(mut wire: ChannelWire, view: View, mut turns: std::collections::Vec
             }
             Some("session/new") => {
                 locked(&view.0).new_session = Some(msg["params"].clone());
+                offered = Offered::from_params(&msg["params"]);
                 let result = json!({"sessionId": AGENT_SESSION});
                 put(&mut wire, &view, reply(&id, result)).await;
             }
@@ -258,7 +379,7 @@ async fn run(mut wire: ChannelWire, view: View, mut turns: std::collections::Vec
                 let acts = turns
                     .pop_front()
                     .unwrap_or_else(|| vec![Act::Stop("end_turn")]);
-                if play(&mut wire, &view, &id, acts).await {
+                if play(&mut wire, &view, &id, acts, &offered).await {
                     return;
                 }
             }

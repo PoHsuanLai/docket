@@ -1,6 +1,7 @@
 //! The seam that starts an external agent and hands back its stdio as a `Wire`. The real one is
 //! `docket-launch`'s (accounts, sandbox, process); `fake::FakeSpawn` returns an in-memory pipe.
 
+use super::edge::EdgeBind;
 use crate::wire::Wire;
 use docket_core::AbsPath;
 use docket_session::ProgramName;
@@ -16,6 +17,9 @@ pub struct LaunchPlan {
     pub session: SessionId,
     /// The directory it works in, and the only place it may write.
     pub cwd: AbsPath,
+    /// The tool edge of its session, when one is offered: what the sandbox must bind in so the
+    /// agent can start the bridge program and reach its socket.
+    pub edge: Option<EdgeBind>,
 }
 
 /// Why an agent did not start.

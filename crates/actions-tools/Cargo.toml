@@ -1,0 +1,24 @@
+[package]
+name = "actions-tools"
+description = "The tools a registry offers to an outside agent, as pure data: tool names, schemas and hints, the arguments read by their declared types, the coarse refusals and the outcome as JSON. The MCP edge (actions-mcp) and the host of an external ACP agent (docket-acp) both serve these; neither keeps a mapping of its own."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+name = "actions_tools"
+path = "src/lib.rs"
+
+[dependencies]
+docket-core = { workspace = true }
+prov = { workspace = true }
+porter-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

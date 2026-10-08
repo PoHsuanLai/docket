@@ -160,3 +160,22 @@ fn the_shipped_example_reads_in_both_of_its_forms() {
     let file = AgentsFile::parse(&uncommented).expect("the endpoint form");
     assert_eq!(file.len(), 1);
 }
+
+#[test]
+fn the_desktops_actions_are_offered_unless_the_entry_says_off() {
+    let text = |tools: &str| {
+        format!(
+            "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/true\"\nroute = \"login\"\n{tools}"
+        )
+    };
+    let tools_of = |text: String| {
+        AgentsFile::parse(&text)
+            .map(|f| f.by_program(&"plain".parse_program()).expect("entry").tools)
+    };
+    assert_eq!(tools_of(text("")), Ok(docket_launch::ToolsMode::Offered));
+    assert_eq!(
+        tools_of(text("tools = \"off\"\n")),
+        Ok(docket_launch::ToolsMode::Off)
+    );
+    assert!(tools_of(text("tools = \"yes\"\n")).is_err());
+}

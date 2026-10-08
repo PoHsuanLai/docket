@@ -347,3 +347,44 @@ async fn a_long_session_id_is_mapped_to_the_launcher_grammar() {
     assert!(name.starts_with("acp-"));
     let _ = FakeAccounts::new();
 }
+
+#[tokio::test]
+async fn the_tool_edge_is_bound_in_the_bridge_read_only_and_its_socket_read_write() {
+    let mut rig = rig(LOGIN, Mood::Working, true);
+    let mut with_edge = plan("claude-code", "s-1");
+    with_edge.edge = Some(docket_acp::client::EdgeBind {
+        socket: super::support::abs("/run/user/1000/docket-edge-x/tools.sock"),
+        bridge: super::support::abs("/opt/docket/actions-mcp"),
+    });
+    let mut spawned = rig.spawn.spawn(&with_edge).await.expect("spawned");
+    let runs = rig.procs.runs();
+    let binds: Vec<(&str, Access)> = runs[0]
+        .binds
+        .iter()
+        .map(|b| (b.path.as_str(), b.access))
+        .collect();
+    assert!(
+        binds.contains(&("/opt/docket/actions-mcp", Access::ReadOnly)),
+        "{binds:?}"
+    );
+    assert!(
+        binds.contains(&("/run/user/1000/docket-edge-x/tools.sock", Access::ReadWrite)),
+        "{binds:?}"
+    );
+    // Without an edge, neither is bound.
+    spawned.child.close().await;
+    let mut rig = super::support::rig(LOGIN, Mood::Working, true);
+    let mut spawned = rig
+        .spawn
+        .spawn(&plan("claude-code", "s-2"))
+        .await
+        .expect("spawned");
+    let runs = rig.procs.runs();
+    assert!(
+        runs[0]
+            .binds
+            .iter()
+            .all(|b| !b.path.as_str().contains("docket-edge"))
+    );
+    spawned.child.close().await;
+}

@@ -9,7 +9,7 @@
 //! the router should be asked to weigh.
 
 use super::call::AgentCall;
-use docket_core::{CallRefusal, ExternalAgent, Outcome, SheetSurface};
+use docket_core::{CallRefusal, ExternalAgent, Outcome, SheetSurface, ValidManifest};
 use docket_session::{ProgramName, Workspace};
 use prov::SessionId;
 use std::future::Future;
@@ -86,6 +86,9 @@ pub trait Court: Send + Clone + 'static {
         n: u64,
         call: &AgentCall,
     ) -> impl Future<Output = Ruled> + Send;
+
+    /// The registry's manifests, for the tools the agent's edge offers.
+    fn registry(&mut self) -> impl Future<Output = Option<Vec<ValidManifest>>> + Send;
 
     /// Ends the session.
     fn close(&mut self, session: &SessionId) -> impl Future<Output = ()> + Send;

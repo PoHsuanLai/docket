@@ -41,6 +41,10 @@ impl Court for Nobody {
         Ruled::Lost
     }
 
+    async fn registry(&mut self) -> Option<Vec<docket_core::ValidManifest>> {
+        None
+    }
+
     async fn close(&mut self, _session: &SessionId) {}
 }
 
@@ -76,6 +80,7 @@ async fn a_session_through_the_launcher_asks_porter_in_order_and_gives_it_all_ba
         spawn,
         performer: Performer::new(FakeFiles::new(), sandbox),
         court: Nobody,
+        tools: None,
     });
     backend
         .start(StartSession {

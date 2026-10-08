@@ -36,6 +36,9 @@ pub enum DaemonFault {
     /// The socket or the stream failed.
     #[error("io: {0}")]
     Io(String),
+    /// A bridge was started without its session's token.
+    #[error("{0}")]
+    NoToken(#[from] crate::bound::NoToken),
 }
 
 fn bus(error: zbus::Error) -> DaemonFault {
@@ -78,7 +81,7 @@ fn edge(
     .with_expose_read(move || expose())
 }
 
-async fn over_stdio(edge: McpEdge<DbusTransport>) -> Result<(), DaemonFault> {
+async fn over_stdio<S: rmcp::ServerHandler>(edge: S) -> Result<(), DaemonFault> {
     let running = edge
         .serve((tokio::io::stdin(), tokio::io::stdout()))
         .await
@@ -134,7 +137,7 @@ pub async fn start_following(
     }
 }
 
-/// What the command line asks for: `--socket PATH`, `--client NAME`, `--write-schema DIR`.
+/// What the command line asks for: `--socket PATH`, `--client NAME`, `--write-schema DIR`, `--host-socket PATH`.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Args {
     /// Serve a socket instead of stdio.
@@ -143,6 +146,9 @@ pub struct Args {
     pub client: Option<prov::ClientName>,
     /// Write docket's settings schema into this directory and stop.
     pub write_schema: Option<PathBuf>,
+    /// Be the bridge of an external agent's session: forward to the host's socket on stdio. The
+    /// token is in the environment, never here.
+    pub host_socket: Option<PathBuf>,
 }
 
 impl Args {
@@ -155,6 +161,7 @@ impl Args {
             match flag.as_str() {
                 "--socket" => parsed.socket = Some(PathBuf::from(value()?)),
                 "--write-schema" => parsed.write_schema = Some(PathBuf::from(value()?)),
+                "--host-socket" => parsed.host_socket = Some(PathBuf::from(value()?)),
                 "--client" => {
                     parsed.client = Some(
                         prov::ClientName::parse(&value()?)
@@ -175,6 +182,10 @@ pub async fn run(args: Args) -> Result<(), DaemonFault> {
         return write_schema(&dir);
     }
     let env = |key: &str| std::env::var(key).ok();
+    if let Some(socket) = args.host_socket {
+        let edge = crate::bound::BoundEdge::from_env(socket, &env)?;
+        return over_stdio(edge).await;
+    }
     let mut config = McpConfig::from_env(&env)?;
     if let Some(client) = args.client {
         config = config.named(client);
