@@ -24,6 +24,33 @@ use tokio::sync::mpsc;
 use voice_loop::{PcmBuffer, UtteranceState};
 use voice_wire::{HeardSegment, HeardTail, UtteranceEnd, VoiceTarget};
 
+/// Whether the end of the audio is waiting for the engine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EndOfAudio {
+    /// The utterance has not ended its audio, or it was already sent.
+    NotYet,
+    /// The audio ended while the engine was cold; send it once the engine is ready.
+    Pending,
+}
+
+/// The speech-to-text session of the utterance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SttLink {
+    /// Still warming; audio is buffered.
+    Cold { end: EndOfAudio },
+    /// Ready for audio.
+    Ready,
+}
+
+impl SttLink {
+    pub(crate) fn gate(self) -> voice_loop::EngineGate {
+        match self {
+            Self::Ready => voice_loop::EngineGate::Ready,
+            Self::Cold { .. } => voice_loop::EngineGate::Cold,
+        }
+    }
+}
+
 /// What the loop knows of the one utterance it holds (the last one stays until the next begins,
 /// so a late `Release` or `Attach` finds its object).
 #[derive(Debug)]
@@ -43,8 +70,7 @@ pub(crate) struct Utt {
     pub pcm: PcmBuffer,
     pub tail_left: Option<usize>,
     pub sent: u64,
-    pub end_pending: bool,
-    pub ready: bool,
+    pub engine: SttLink,
     pub dictation: Option<crate::hear::Dictation>,
 }
 

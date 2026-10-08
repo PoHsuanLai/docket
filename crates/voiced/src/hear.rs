@@ -3,7 +3,7 @@
 //! back (partials, segments, the transcript, a refusal).
 
 use crate::device::AudioDevice;
-use crate::engine::Core;
+use crate::engine::{Core, EndOfAudio, SttLink};
 use crate::link::LinkEvent;
 use crate::usage::UseSource;
 use crate::warm::Warm;
@@ -82,10 +82,10 @@ where
             return;
         };
         let level = Level(level_of(&framed).0);
-        let engine = match self.utt.as_ref().is_some_and(|u| u.ready) {
-            true => EngineGate::Ready,
-            false => EngineGate::Cold,
-        };
+        let engine = self
+            .utt
+            .as_ref()
+            .map_or(EngineGate::Cold, |u| u.engine.gate());
         self.cur = frame;
         self.utt_event(UtteranceEvent::Audio { level, engine })
             .await;
@@ -132,11 +132,14 @@ where
 
     async fn engine_ready(&mut self) {
         let Some(utt) = self.utt.as_mut() else { return };
-        utt.ready = true;
+        let end = match utt.engine {
+            SttLink::Cold { end } => end,
+            SttLink::Ready => EndOfAudio::NotYet,
+        };
+        utt.engine = SttLink::Ready;
         let held = utt.pcm.take();
-        let end_pending = std::mem::take(&mut utt.end_pending);
         self.send_audio(&held);
-        if end_pending {
+        if end == EndOfAudio::Pending {
             self.end_of_audio();
         }
     }

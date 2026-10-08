@@ -7,7 +7,7 @@
 use crate::default_source::DefaultSources;
 use crate::device::{
     AudioDevice, AudioNode, CaptureFormat, CaptureStream, DeviceError, MediaClass, NodeId,
-    NodeKind, PlaybackFormat, PlaybackStream,
+    NodeKind, PlaybackFormat, PlaybackStream, SNAPSHOT_BUDGET, Snapshot,
 };
 use crate::playback::samples_of;
 use pipewire as pw;
@@ -15,9 +15,10 @@ use pw::properties::properties;
 use pw::spa;
 use pw::spa::pod::Pod;
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::sync::{Notify, mpsc, oneshot};
+use tokio::sync::{Notify, oneshot};
 
 /// How long a stream may take to start before the device is called absent.
 const START_TIMEOUT: Duration = Duration::from_secs(2);
@@ -63,7 +64,7 @@ fn kind_of(class: &str, name: &str) -> Option<NodeKind> {
 /// The audio nodes now present and what the `default` metadata object says is the default source.
 /// Two round trips: the first lists the globals (binding the metadata object as it appears), the
 /// second lets the bound metadata deliver its properties.
-fn list_nodes() -> Result<(Vec<AudioNode>, DefaultSources), pw::Error> {
+fn list_nodes(budget: Duration) -> Result<(Vec<AudioNode>, DefaultSources), pw::Error> {
     use std::cell::{Cell, RefCell};
     use std::rc::Rc;
     pw::init();
@@ -144,17 +145,68 @@ fn list_nodes() -> Result<(Vec<AudioNode>, DefaultSources), pw::Error> {
             }
         })
         .register();
-    while round.get() < 2 {
-        mainloop.run();
+    // The budget ends the wait on the loop itself, so a registry that never answers cannot hold
+    // the blocking thread.
+    let expiry = mainloop.clone();
+    let timer = mainloop.loop_().add_timer(move |_| expiry.quit());
+    timer
+        .update_timer(Some(budget), None)
+        .into_result()
+        .map_err(|_| pw::Error::CreationFailed)?;
+    mainloop.run();
+    if round.get() < 2 {
+        return Err(pw::Error::CreationFailed);
     }
     let nodes = found.borrow().clone();
     let defaults = defaults.borrow().clone();
     Ok((nodes, defaults))
 }
 
+/// Capture buffers held for the async side before the oldest is dropped (about three seconds).
+const CAPTURE_QUEUE: usize = 256;
+
+/// Captured buffers waiting for the async side; a stalled reader loses the oldest, never memory.
+#[derive(Debug, Default)]
+struct FrameQueue {
+    frames: Mutex<VecDeque<Vec<i16>>>,
+    arrived: Notify,
+    closed: AtomicBool,
+}
+
+impl FrameQueue {
+    fn push(&self, samples: Vec<i16>) {
+        if let Ok(mut frames) = self.frames.lock() {
+            if frames.len() >= CAPTURE_QUEUE {
+                frames.pop_front();
+            }
+            frames.push_back(samples);
+        }
+        self.arrived.notify_one();
+    }
+
+    fn close(&self) {
+        self.closed.store(true, Ordering::Release);
+        self.arrived.notify_one();
+    }
+
+    fn is_closed(&self) -> bool {
+        self.closed.load(Ordering::Acquire)
+    }
+
+    fn pop(&self) -> Option<Vec<i16>> {
+        self.frames.lock().ok().and_then(|mut f| f.pop_front())
+    }
+}
+
 struct CaptureData {
     started: Option<oneshot::Sender<Result<(), DeviceError>>>,
-    frames: mpsc::UnboundedSender<Vec<i16>>,
+    frames: Arc<FrameQueue>,
+}
+
+impl Drop for CaptureData {
+    fn drop(&mut self) {
+        self.frames.close();
+    }
 }
 
 fn run_capture(
@@ -209,7 +261,7 @@ fn run_capture(
             let Some(bytes) = first.data() else { return };
             let samples = samples_of(bytes.get(..used.min(bytes.len())).unwrap_or_default());
             if !samples.is_empty() {
-                let _ = data.frames.send(samples);
+                data.frames.push(samples);
             }
         })
         .register()?;
@@ -231,7 +283,7 @@ fn run_capture(
 
 /// A running capture; dropping it closes the stream and so the microphone.
 pub struct PipeWireCapture {
-    frames: mpsc::UnboundedReceiver<Vec<i16>>,
+    frames: Arc<FrameQueue>,
     quit: pw::channel::Sender<()>,
 }
 
@@ -249,7 +301,18 @@ impl Drop for PipeWireCapture {
 
 impl CaptureStream for PipeWireCapture {
     async fn next(&mut self) -> Option<Vec<i16>> {
-        self.frames.recv().await
+        loop {
+            let arrival = self.frames.arrived.notified();
+            tokio::pin!(arrival);
+            arrival.as_mut().enable();
+            if let Some(samples) = self.frames.pop() {
+                return Some(samples);
+            }
+            if self.frames.is_closed() {
+                return None;
+            }
+            arrival.await;
+        }
     }
 }
 
@@ -267,14 +330,15 @@ struct PlayShared {
     emptied: Notify,
 }
 
-fn fill(shared: &PlayShared, out: &mut [i16]) {
+/// Fills `out` (little-endian S16) from the ring in place; nothing is allocated.
+fn fill(shared: &PlayShared, out: &mut [u8]) {
     let Ok(mut ring) = shared.ring.lock() else {
         out.fill(0);
         return;
     };
-    for slot in out.iter_mut() {
+    for slot in out.chunks_exact_mut(std::mem::size_of::<i16>()) {
         let sample = ring.samples.pop_front().unwrap_or(0);
-        *slot = match ring.fade.as_mut() {
+        let value = match ring.fade.as_mut() {
             Some((left, total)) => {
                 let gain = i64::try_from(*left).unwrap_or(0);
                 let whole = i64::try_from((*total).max(1)).unwrap_or(1);
@@ -283,6 +347,7 @@ fn fill(shared: &PlayShared, out: &mut [i16]) {
             }
             None => sample,
         };
+        slot.copy_from_slice(&value.to_le_bytes());
     }
     if matches!(ring.fade, Some((0, _))) {
         ring.samples.clear();
@@ -335,11 +400,7 @@ fn run_playback(
             let frames = match first.data() {
                 Some(bytes) => {
                     let frames = bytes.len() / stride;
-                    let mut out = vec![0_i16; frames];
-                    fill(shared, &mut out);
-                    for (slot, sample) in bytes.chunks_exact_mut(stride).zip(out) {
-                        slot.copy_from_slice(&sample.to_le_bytes());
-                    }
+                    fill(shared, bytes);
                     frames
                 }
                 None => 0,
@@ -434,21 +495,23 @@ impl AudioDevice for PipeWireDevice {
     type Capture = PipeWireCapture;
     type Playback = PipeWirePlayback;
 
-    async fn sources(&self) -> Vec<AudioNode> {
-        tokio::task::spawn_blocking(|| list_nodes().map(|(nodes, _)| nodes).unwrap_or_default())
+    async fn snapshot(&self) -> Result<Snapshot, DeviceError> {
+        let listed = tokio::task::spawn_blocking(|| list_nodes(SNAPSHOT_BUDGET))
             .await
-            .unwrap_or_default()
+            .map_err(|_| DeviceError::Closed)?;
+        let (sources, defaults) = listed.map_err(|_| DeviceError::TimedOut)?;
+        Ok(Snapshot {
+            sources,
+            default: defaults.name().map(str::to_owned),
+        })
+    }
+
+    async fn sources(&self) -> Vec<AudioNode> {
+        self.snapshot().await.map(|s| s.sources).unwrap_or_default()
     }
 
     async fn default_source(&self) -> Option<String> {
-        tokio::task::spawn_blocking(|| {
-            list_nodes()
-                .ok()
-                .and_then(|(_, defaults)| defaults.name().map(str::to_owned))
-        })
-        .await
-        .ok()
-        .flatten()
+        self.snapshot().await.ok().and_then(|s| s.default)
     }
 
     async fn open_capture(
@@ -459,13 +522,13 @@ impl AudioDevice for PipeWireDevice {
         if node.kind != NodeKind::Source {
             return Err(DeviceError::Denied);
         }
-        let (frames_tx, frames) = mpsc::unbounded_channel();
+        let frames = Arc::new(FrameQueue::default());
         let (quit, quit_rx) = pw::channel::channel::<()>();
         let (started_tx, started_rx) = oneshot::channel();
         let (target, rate) = (node.name.clone(), format.rate);
         let data = CaptureData {
             started: Some(started_tx),
-            frames: frames_tx,
+            frames: frames.clone(),
         };
         std::thread::spawn(move || {
             let _ = run_capture(target, rate, data, quit_rx);
@@ -524,8 +587,9 @@ mod tests {
             ring.samples.extend(std::iter::repeat_n(1_000_i16, 100));
             ring.fade = Some((10, 10));
         }
-        let mut out = [0_i16; 20];
-        fill(&shared, &mut out);
+        let mut bytes = [0_u8; 40];
+        fill(&shared, &mut bytes);
+        let out: Vec<i16> = samples_of(&bytes);
         assert_eq!(out[0], 1_000);
         assert!(out[1] < out[0]);
         assert_eq!(&out[10..], &[0; 10]);

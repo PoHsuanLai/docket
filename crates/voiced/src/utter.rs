@@ -4,8 +4,10 @@
 //! touches it.
 
 use crate::command::Caller;
-use crate::device::{AudioDevice, CaptureFormat, DeviceError, choose_capture};
-use crate::engine::{Core, Utt};
+use crate::device::{
+    AudioDevice, CaptureFormat, DeviceError, SNAPSHOT_BUDGET, choose_capture, snapshot_before,
+};
+use crate::engine::{Core, EndOfAudio, SttLink, Utt};
 use crate::error::VoiceError;
 use crate::link;
 use crate::names::{VOICE_PATH, utterance_path};
@@ -24,8 +26,8 @@ use porter_infer::{
 };
 use std::os::fd::OwnedFd;
 use voice_loop::{
-    MicNow, PcmBuffer, PushOutcome, UtteranceEffect, UtteranceEvent, UtteranceState,
-    begin_utterance, mic_of, utterance_step,
+    CAPTURE_RATE, MicNow, PcmBuffer, PushOutcome, UtteranceEffect, UtteranceEvent, UtteranceState,
+    begin_utterance, mic_of, refusal_for, samples_in, utterance_step,
 };
 use voice_wire::{
     CancelCause, HeardText, MicState, UtteranceEnd, VoiceBegin, VoiceEvent, VoiceFault,
@@ -36,7 +38,9 @@ use zbus::object_server::SignalEmitter;
 fn fault_of(error: DeviceError) -> VoiceFault {
     match error {
         DeviceError::Denied => VoiceFault::MicDenied,
-        DeviceError::NoSource | DeviceError::Closed => VoiceFault::MicUnavailable,
+        DeviceError::NoSource | DeviceError::Closed | DeviceError::TimedOut => {
+            VoiceFault::MicUnavailable
+        }
     }
 }
 
@@ -97,21 +101,19 @@ where
             enabled,
             intent: begin.intent,
         };
-        let refused = utterance_step(UtteranceState::Idle, probe.clone())
-            .1
-            .into_iter()
-            .find_map(|e| match e {
-                UtteranceEffect::Refuse(r) => Some(r),
-                _ => None,
-            });
-        if let Some(refusal) = refused {
+        if let Some(refusal) = refusal_for(enabled) {
             return Err(refusal.into());
         }
-        let sources = self.device.sources().await;
-        let default = self.device.default_source().await;
-        let Some(node) = choose_capture(&sources, default.as_deref(), self.input.as_deref())
-            .map(|chosen| chosen.node.clone())
+        let Ok(found) = snapshot_before(&*self.device, tokio::time::sleep(SNAPSHOT_BUDGET)).await
         else {
+            return Err(VoiceRefusal::MicUnavailable.into());
+        };
+        let Some(node) = choose_capture(
+            &found.sources,
+            found.default.as_deref(),
+            self.input.as_deref(),
+        )
+        .map(|chosen| chosen.node.clone()) else {
             return Err(VoiceRefusal::MicUnavailable.into());
         };
         let (sink, fd) = EventSink::open().map_err(|e| VoiceError::Malformed(e.to_string()))?;
@@ -144,8 +146,9 @@ where
             pcm: PcmBuffer::new(),
             tail_left: None,
             sent: 0,
-            end_pending: false,
-            ready: false,
+            engine: SttLink::Cold {
+                end: EndOfAudio::NotYet,
+            },
             dictation: (begin.intent == VoiceIntent::Dictate).then(crate::hear::Dictation::new),
         });
         let (speech, state, steps) =
@@ -300,7 +303,7 @@ where
             }
             UtteranceEffect::StartTail { ms } => {
                 if let Some(utt) = self.utt.as_mut() {
-                    utt.tail_left = Some(usize::try_from(ms * 16).unwrap_or(0));
+                    utt.tail_left = Some(samples_in(ms));
                 }
             }
             UtteranceEffect::Zeroize => {
@@ -327,7 +330,7 @@ where
         };
         match self
             .device
-            .open_capture(&node, CaptureFormat { rate: 16_000 })
+            .open_capture(&node, CaptureFormat { rate: CAPTURE_RATE })
             .await
         {
             Ok(stream) => {
@@ -342,7 +345,7 @@ where
         let first = ClientFrame::Request(InferRequest::Transcribe(TranscribeBegin {
             mode: TranscribeMode::Streaming,
             lang: LangPick::Auto,
-            rate: AudioRate(16_000),
+            rate: AudioRate(CAPTURE_RATE),
             usage: Usage::Interactive,
         }));
         self.stt = Some(link::spawn(
@@ -356,11 +359,15 @@ where
 
     pub(crate) fn end_of_audio(&mut self) {
         let Some(utt) = self.utt.as_mut() else { return };
-        match (&self.stt, utt.ready) {
-            (Some(link), true) => {
+        match (&self.stt, utt.engine) {
+            (Some(link), SttLink::Ready) => {
                 let _ = link.tx.send(ClientFrame::EndOfAudio);
             }
-            _ => utt.end_pending = true,
+            _ => {
+                utt.engine = SttLink::Cold {
+                    end: EndOfAudio::Pending,
+                }
+            }
         }
     }
 
@@ -369,7 +376,7 @@ where
         let (Some(link), Some(utt)) = (&self.stt, self.utt.as_mut()) else {
             return;
         };
-        for piece in samples.chunks(16_000) {
+        for piece in samples.chunks(samples_in(1000)) {
             let frame = AudioFrame {
                 at: utt.sent,
                 pcm: Base64Bytes(bytes_of(piece)),

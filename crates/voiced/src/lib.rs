@@ -32,7 +32,8 @@ pub use config::{ConfigError, Earcons, VoiceRole, VoicedConfig};
 pub use default_source::{CONFIGURED_KEY, DefaultSources, RESOLVED_KEY, name_in};
 pub use device::{
     AudioDevice, AudioNode, CaptureFormat, CaptureStream, Chosen, ChosenBy, DeviceError,
-    MediaClass, NodeId, NodeKind, PlaybackFormat, PlaybackStream, choose_capture,
+    MediaClass, NodeId, NodeKind, PlaybackFormat, PlaybackStream, SNAPSHOT_BUDGET, Snapshot,
+    choose_capture, snapshot_before,
 };
 #[cfg(feature = "testing")]
 pub use device::{FakeAudioDevice, FakeCapture, FakePlayback};

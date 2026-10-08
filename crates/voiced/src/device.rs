@@ -125,6 +125,33 @@ pub enum DeviceError {
     /// The stream ended.
     #[error("stream closed")]
     Closed,
+    /// The system did not answer in time.
+    #[error("timed out")]
+    TimedOut,
+}
+
+/// What one enumeration found.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Snapshot {
+    /// The nodes present.
+    pub sources: Vec<AudioNode>,
+    /// The node name of the default source, if the system names one.
+    pub default: Option<String>,
+}
+
+/// How long one enumeration may take before the device is called absent.
+pub const SNAPSHOT_BUDGET: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// One snapshot of `device`, or [`DeviceError::TimedOut`] if `expiry` completes first. The
+/// expiry is a future the caller supplies, so a test fires it without waiting on any clock.
+pub async fn snapshot_before<D: AudioDevice>(
+    device: &D,
+    expiry: impl Future<Output = ()>,
+) -> Result<Snapshot, DeviceError> {
+    tokio::select! {
+        found = device.snapshot() => found,
+        () = expiry => Err(DeviceError::TimedOut),
+    }
 }
 
 /// A running capture.
@@ -148,6 +175,16 @@ pub trait AudioDevice: Send + Sync {
     /// The playback stream type.
     type Playback: PlaybackStream;
 
+    /// The nodes now present and the default source, from one look at the system. The shipped
+    /// device does this in one enumeration, off the async threads.
+    fn snapshot(&self) -> impl Future<Output = Result<Snapshot, DeviceError>> + Send {
+        async {
+            Ok(Snapshot {
+                sources: self.sources().await,
+                default: self.default_source().await,
+            })
+        }
+    }
     /// The nodes now present.
     fn sources(&self) -> impl Future<Output = Vec<AudioNode>> + Send;
     /// The node name of the person's default source, if the system names one.
