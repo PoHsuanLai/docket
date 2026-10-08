@@ -149,6 +149,7 @@ impl Desk {
                 parent: None,
                 cwd: None,
                 started_from: None,
+                external: None,
             })
             .await
             .expect("a session")

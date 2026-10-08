@@ -125,8 +125,10 @@ impl<S: Seams> Router<S> {
                 // Only the launcher's token means anything: it is the person's own click.
                 let activation = activation.filter(|_| role == CallerRole::Launcher);
                 match who {
+                    // Boxed: the call's whole lifecycle is the largest future the router has, and
+                    // it would otherwise sit inline in every caller's.
                     Ok(who) => IntentsReply::Performed(Box::new(
-                        self.perform_chain(who, call, parent_window, activation, watch)
+                        Box::pin(self.perform_chain(who, call, parent_window, activation, watch))
                             .await,
                     )),
                     Err(why) => IntentsReply::Refused(why),

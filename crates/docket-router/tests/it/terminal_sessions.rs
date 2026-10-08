@@ -32,6 +32,7 @@ async fn opens(router: &Router<FakeSeams>, who: &CallerId, from: Option<StartedF
             parent: None,
             cwd: None,
             started_from: from,
+            external: None,
         }),
     )
     .await;

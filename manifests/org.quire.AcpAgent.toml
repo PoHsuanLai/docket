@@ -1,0 +1,304 @@
+# The pseudo-app of an external coding agent's calls: `org.quire.AcpAgent`. The host that launched
+# the agent (`docket-agent`) makes every call the agent asks of it as a router call of one of these
+# actions, so the policy point, the reviewers, taint, the breaker, the budgets and the audit all
+# apply, and it performs a call only after the router has allowed it. The host serves the actions
+# on this bus name; the declarations are intentd's own (no installed file may declare them).
+#
+# Notes on the declarations:
+# - Files are the call's target, so a standing grant scopes to a directory (`Files`), and a
+#   command's grant scopes to a command prefix and a directory (the `command` and `cwd` names are
+#   the ones the standing grant reads).
+# - `stage` is a handle for what is too big or too private for a sheet and a reviewer (the text of
+#   a write, the argument vector and environment of a command): the host holds it, the router
+#   never sees it. `lines` only tells the sheet how big a write is.
+# - The classes are `files` for every action: launching an agent in a directory is the person's
+#   act (the router treats it as the class consent), and the rest of the gate still decides.
+# - The agent's own title for a request is never carried: the sheet draws the manifest's words
+#   and the typed arguments, not an agent's prose.
+vocab = 1
+app = "org.quire.AcpAgent"
+entities = []
+
+[[actions]]
+name = "acpagent.files.read"
+label = "Read a file"
+on = { kind = "files" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 2097152, lines = "many" } }, trust = { kind = "third_party", v = { kind = "file" } } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "line"
+label = "From line"
+ty = { kind = "integer", v = { min = 1, max = 100000000 } }
+need = { kind = "optional" }
+sink = "inert"
+
+[[actions.params]]
+name = "limit"
+label = "Lines"
+ty = { kind = "integer", v = { min = 1, max = 100000000 } }
+need = { kind = "optional" }
+sink = "inert"
+
+[[actions]]
+name = "acpagent.files.write"
+label = "Write a file"
+on = { kind = "files" }
+effect = "undoable_write"
+classes = ["files"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "lines"
+label = "Lines"
+ty = { kind = "integer", v = { min = 0, max = 100000000 } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "stage"
+label = "Held text"
+ty = { kind = "text", v = { max = 64, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions]]
+name = "acpagent.terminal.run"
+label = "Run a command"
+on = { kind = "nothing" }
+effect = "outbound"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "long"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 64, lines = "one" } }, trust = { kind = "app_authored" } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "command"
+label = "Command"
+ty = { kind = "text", v = { max = 8192, lines = "many" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions.params]]
+name = "cwd"
+label = "Where"
+ty = { kind = "file" }
+need = { kind = "required" }
+sink = "destination"
+
+[[actions.params]]
+name = "stage"
+label = "Held command"
+ty = { kind = "text", v = { max = 64, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions]]
+name = "acpagent.reported"
+label = "Note what the agent did itself"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 64, lines = "one" } }, trust = { kind = "third_party", v = { kind = "file" } } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "what"
+label = "What"
+ty = { kind = "text", v = { max = 64, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+# What the agent asks permission for (ACP tool kinds). Allowing one is the person's yes to the thing
+# it names, good once for the matching call; the host answers the agent from the ruling.
+
+[[actions]]
+name = "acpagent.read"
+label = "Allow it to read"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+[[actions]]
+name = "acpagent.search"
+label = "Allow it to search"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+[[actions]]
+name = "acpagent.think"
+label = "Allow it to think"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+[[actions]]
+name = "acpagent.edit"
+label = "Allow it to edit files"
+on = { kind = "files" }
+effect = "undoable_write"
+classes = ["files"]
+undo = "token"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+[[actions]]
+name = "acpagent.move"
+label = "Allow it to move files"
+on = { kind = "files" }
+effect = "undoable_write"
+classes = ["files"]
+undo = "token"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+[[actions]]
+name = "acpagent.delete"
+label = "Allow it to delete files"
+on = { kind = "files" }
+effect = "destructive"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+[[actions]]
+name = "acpagent.execute"
+label = "Allow it to run a command"
+on = { kind = "nothing" }
+effect = "outbound"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "command"
+label = "Command"
+ty = { kind = "text", v = { max = 8192, lines = "many" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions.params]]
+name = "cwd"
+label = "Where"
+ty = { kind = "file" }
+need = { kind = "required" }
+sink = "destination"
+
+[[actions]]
+name = "acpagent.fetch"
+label = "Allow it to fetch from the network"
+on = { kind = "nothing" }
+effect = "outbound"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "url"
+label = "Address"
+ty = { kind = "url" }
+need = { kind = "required" }
+sink = "destination"
+
+[[actions]]
+name = "acpagent.switch_mode"
+label = "Allow it to switch its own mode"
+on = { kind = "nothing" }
+effect = "destructive"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+[[actions]]
+name = "acpagent.other"
+label = "Allow something unclassified"
+on = { kind = "nothing" }
+effect = "destructive"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []

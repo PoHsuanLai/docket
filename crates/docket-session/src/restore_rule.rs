@@ -40,6 +40,7 @@ fn reach(role: CallerRole) -> Reach {
         | CallerRole::Confirm
         | CallerRole::Compositor
         | CallerRole::Control
+        | CallerRole::AcpAgent
         | CallerRole::App => Reach::Own,
     }
 }

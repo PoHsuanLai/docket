@@ -13,7 +13,8 @@ use action_review::plan;
 use docket_core::{
     ActionDecl, AlwaysOffer, ArgSink, AskFacts, AskReason, AuditRecord, BreakerState, BudgetState,
     CallFacts, CallRequest, GrantCaller, Impact, Revocation, Ruling, StandingGrant,
-    StandingGrantId, StandingScope, Withheld, blocker, find_standing, holds_standing, may_offer,
+    StandingGrantId, StandingScope, Withheld, blocker, covers_approval, find_standing,
+    holds_standing, may_offer,
 };
 use prov::Integrity;
 
@@ -32,6 +33,8 @@ pub(crate) struct StandingCtx {
     pub budget: BudgetState,
     /// The grant that stood in for the ask, if one did.
     pub applied: Option<StandingGrantId>,
+    /// The permission request the person said yes to that stood in for the ask, if one did.
+    pub approved: Option<CallFacts>,
 }
 
 impl StandingCtx {
@@ -62,6 +65,7 @@ impl StandingCtx {
             breaker,
             budget,
             applied: None,
+            approved: None,
         }
     }
 
@@ -83,6 +87,7 @@ impl StandingCtx {
     pub(crate) fn lifted(
         mut self,
         grants: &[StandingGrant],
+        approvals: &[CallFacts],
         decl: &ActionDecl,
         impact: Impact,
         pending: Pending,
@@ -91,10 +96,20 @@ impl StandingCtx {
             return (pending, self);
         };
         let held = find_standing(grants, &self.caller, &self.facts);
+        let stages = plan(&Ruling::AllowJudged(vec![]), impact);
         match held {
             Some(grant) if blocker(&self.ask_facts(decl, why)).is_none() => {
                 self.applied = Some(grant.id.clone());
-                let stages = plan(&Ruling::AllowJudged(vec![]), impact);
+                return (Pending::NeedsReview(stages), self);
+            }
+            _ => {}
+        }
+        // A permission request the person already said yes to covers the very thing it named,
+        // once, unless the breaker or a budget says no (a yes is not a way round either).
+        let open = self.breaker == BreakerState::Running && self.budget == BudgetState::Within;
+        match approvals.iter().find(|a| covers_approval(a, &self.facts)) {
+            Some(approval) if open => {
+                self.approved = Some(approval.clone());
                 (Pending::NeedsReview(stages), self)
             }
             _ => (pending, self),
@@ -116,6 +131,31 @@ impl StandingCtx {
 }
 
 impl<S: Seams> Router<S> {
+    /// Spends the approval a call ran on: gone if it was spent in the meantime (the call must not
+    /// run), and audited when it was used.
+    fn approval_use(&self, p: &Prepared, approval: &CallFacts) -> Result<(), ()> {
+        let spent = {
+            let mut st = self.locked();
+            p.who
+                .session
+                .as_ref()
+                .and_then(|s| st.sessions.get_mut(s))
+                .and_then(|r| {
+                    let at = r.approvals.iter().position(|a| a == approval)?;
+                    Some(r.approvals.remove(at))
+                })
+        };
+        spent
+            .map(|_| {
+                self.seams.sink().append(AuditRecord::ApprovalUsed {
+                    at: self.seams.clock().now(),
+                    call: p.id,
+                    action: p.request.action.clone(),
+                });
+            })
+            .ok_or(())
+    }
+
     /// The person answered "always" on a sheet that offered `scope`: it is held from now on.
     pub(crate) fn record_standing(&self, caller: GrantCaller, scope: StandingScope) {
         let at = self.seams.clock().now();
@@ -154,6 +194,9 @@ impl<S: Seams> Router<S> {
         let (Some(ctx), false) = (&p.standing, answered) else {
             return Ok(());
         };
+        if let Some(approval) = &ctx.approved {
+            return self.approval_use(p, approval);
+        }
         let Some(id) = &ctx.applied else {
             return Ok(());
         };

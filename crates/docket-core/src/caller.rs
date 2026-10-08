@@ -34,6 +34,11 @@ pub enum CallerRole {
     Control,
     /// Any other app: its own actions, plus search, preview and suggest.
     App,
+    /// The host of an external coding agent (`docket-agent`): opens the session of the agent it
+    /// launched, records the person's turns, and makes the agent's calls (its file reads and
+    /// writes, its commands, its permission requests) for it. It answers no `Confirm1` sheet
+    /// unless the session says so, and halts nothing.
+    AcpAgent,
 }
 
 /// Scope name prefixes of a terminal's children: a VTE terminal's spawned shell, tmux's server
@@ -50,7 +55,7 @@ pub fn is_terminal_scope(cgroup: &str) -> bool {
 
 impl CallerRole {
     /// Every role.
-    pub const ALL: [CallerRole; 12] = [
+    pub const ALL: [CallerRole; 13] = [
         CallerRole::Launcher,
         CallerRole::Field,
         CallerRole::Editor,
@@ -63,6 +68,7 @@ impl CallerRole {
         CallerRole::Compositor,
         CallerRole::Control,
         CallerRole::App,
+        CallerRole::AcpAgent,
     ];
 }
 

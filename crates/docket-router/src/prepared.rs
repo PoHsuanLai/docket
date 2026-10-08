@@ -65,11 +65,12 @@ pub(crate) fn entities(target: &TargetValue) -> Vec<EntityId> {
     }
 }
 
-/// A stable hash of what a call is about: the same action, targets and argument values.
-pub(crate) fn digest(targets: &[EntityId], args: &Args) -> ArgDigest {
+/// A stable hash of what a call is about: the same action, target (things or files) and argument
+/// values.
+pub(crate) fn digest(target: &TargetValue, args: &Args) -> ArgDigest {
     let values: std::collections::BTreeMap<&ParamName, &Value> =
         args.iter().map(|(k, v)| (k, &v.value)).collect();
-    let bytes = serde_json::to_vec(&(targets, values)).unwrap_or_default();
+    let bytes = serde_json::to_vec(&(target, values)).unwrap_or_default();
     let hash = bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
         (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
     });

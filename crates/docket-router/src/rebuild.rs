@@ -14,7 +14,10 @@ use crate::state::SessionRecord;
 use crate::tasks::{TaskRecord, TaskState};
 use crate::wal::Wal;
 use almanac_core::EpisodeId;
-use docket_core::{Ledger, Reveal, Saw, StepEnd, StepLine, StepShown, TaskLedger, UserTurn};
+use docket_core::{
+    ExternalAgent, Ledger, Reveal, Saw, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger,
+    UserTurn,
+};
 use docket_session::{
     ResumeFault, ResumePlan, SessionEntry, Standing, Taint as Written, TaintCause, TaintNote,
 };
@@ -139,13 +142,21 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         .map(|i| interrupted_line(&i.open))
         .collect();
 
+    let external = match &opening.backend {
+        docket_session::BackendKind::Acp(program) => Some(ExternalAgent {
+            program: program.clone(),
+            sheets: SheetSurface::Desktop,
+        }),
+        _ => None,
+    };
     let mut record = SessionRecord::new(
         opening.task.clone(),
-        actor_of(&agent, id, &opener),
+        actor_of(&agent, external.as_ref(), id, &opener),
         opener,
         opening.space.clone(),
         now,
     );
+    record.external = external;
     record.state = state;
     record.ledger = ledger_of(plan, now);
     record.turns = plan.turns.clone();

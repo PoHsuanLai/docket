@@ -25,6 +25,7 @@ fn open() -> IntentsRequest {
         parent: None,
         cwd: None,
         started_from: None,
+        external: None,
     })
 }
 

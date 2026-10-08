@@ -176,6 +176,16 @@ pub enum AuditRecord {
         /// Whose.
         caller: GrantCaller,
     },
+    /// A permission request the person already said yes to stood in for the ask on the call it
+    /// named (the rest of the gate still ran). One use.
+    ApprovalUsed {
+        /// When.
+        at: UnixSeconds,
+        /// The call that ran on it.
+        call: CallId,
+        /// The action.
+        action: ActionRef,
+    },
     /// A standing grant was revoked: the next call asks again.
     StandingRevoked {
         /// When.

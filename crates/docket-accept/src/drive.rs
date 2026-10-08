@@ -64,6 +64,7 @@ impl Launcher {
             parent: None,
             cwd: None,
             started_from: None,
+            external: None,
         };
         let text = self
             .companion

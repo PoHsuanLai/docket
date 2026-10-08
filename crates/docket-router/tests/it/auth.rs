@@ -18,7 +18,26 @@ fn only_the_persons_surfaces_record_a_turn() {
             CallerRole::Launcher,
             CallerRole::Field,
             CallerRole::Editor,
-            CallerRole::Cli
+            CallerRole::Cli,
+            CallerRole::AcpAgent
+        ]
+    );
+}
+
+#[test]
+fn the_host_of_an_external_agent_opens_speaks_and_performs_and_nothing_else() {
+    let allowed: Vec<Member> = Member::ALL
+        .into_iter()
+        .filter(|m| permits(CallerRole::AcpAgent, *m))
+        .collect();
+    assert_eq!(
+        allowed,
+        [
+            Member::Manifests,
+            Member::Perform,
+            Member::SessionOpen,
+            Member::SessionTurn,
+            Member::SessionClose
         ]
     );
 }

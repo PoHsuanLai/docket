@@ -80,6 +80,7 @@ where
                 parent: None,
                 cwd: None,
                 started_from: None,
+                external: None,
             })
             .await?;
         Ok(opened.task)

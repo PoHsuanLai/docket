@@ -182,6 +182,7 @@ pub fn audit_line(record: &AuditRecord) -> Option<String> {
         }
         AuditRecord::Delegation { .. }
         | AuditRecord::StandingGranted { .. }
+        | AuditRecord::ApprovalUsed { .. }
         | AuditRecord::StandingRevoked { .. }
         | AuditRecord::Undo { .. }
         | AuditRecord::TaskStarted { .. }

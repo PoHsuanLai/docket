@@ -10,8 +10,8 @@ use crate::link::DbusLink;
 use almanac_client::Transport as MemoryTransport;
 use docket_client::IntentProvider;
 use docket_core::{
-    AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit, Invocation, Latency,
-    Outcome, Preview, SuggestAsk, UndoFault, UndoToken, ValidManifest,
+    ACP_AGENT_APP, AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit,
+    Invocation, Latency, Outcome, Preview, SuggestAsk, UndoFault, UndoToken, ValidManifest,
 };
 use docket_router::{AppFault, AppLink, COMPANION_APP, LinkFault, RegistryError, parse};
 use porter_core::AppName;
@@ -19,16 +19,22 @@ use prov::{Actor, EntityId};
 
 const MEMORY: &str = include_str!("../../../manifests/org.quire.Memory.toml");
 const COMPANION: &str = include_str!("../../../manifests/org.quire.Companion.toml");
+const ACP_AGENT: &str = include_str!("../../../manifests/org.quire.AcpAgent.toml");
 
-/// The built-in manifests, validated: Memory first, then Companion.
+/// The built-in manifests, validated: Memory, Companion, then the external agents' pseudo-app.
 pub fn builtin_manifests() -> Result<Vec<ValidManifest>, RegistryError> {
-    [MEMORY, COMPANION].into_iter().map(parse).collect()
+    [MEMORY, COMPANION, ACP_AGENT]
+        .into_iter()
+        .map(parse)
+        .collect()
 }
 
-/// Whether `app` is one of the two names intentd answers itself. No installed file may declare
-/// them: the declarations are the built-in ones.
+/// Whether `app` is one of the three names whose declarations are the built-in ones: no
+/// installed file may declare them. Memory and Companion are answered in process; the external
+/// agents' pseudo-app (`org.quire.AcpAgent`) is answered by the host that launched the agent, on
+/// that bus name, like an installed app.
 pub fn is_builtin(app: &AppName) -> bool {
-    matches!(app.as_str(), MEMORY_APP | COMPANION_APP)
+    matches!(app.as_str(), MEMORY_APP | COMPANION_APP | ACP_AGENT_APP)
 }
 
 /// Which provider an app name is.
@@ -57,8 +63,8 @@ pub struct HostedLink<T: MemoryTransport> {
 impl<T: MemoryTransport> HostedLink<T> {
     /// Hosts the built-ins beside `apps`: Memory over `transport`, Companion through `port`.
     pub fn new(apps: DbusLink, transport: T, port: CompanionPort) -> Result<Self, RegistryError> {
-        let [memory, companion] = <[ValidManifest; 2]>::try_from(builtin_manifests()?)
-            .map_err(|_| RegistryError::Toml("the built-in manifests are not two".to_owned()))?;
+        let [memory, companion, _agents] = <[ValidManifest; 3]>::try_from(builtin_manifests()?)
+            .map_err(|_| RegistryError::Toml("the built-in manifests are not three".to_owned()))?;
         Ok(Self {
             apps,
             memory: MemoryProvider::new(memory, transport),

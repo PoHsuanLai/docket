@@ -3,7 +3,7 @@
 use docket_core::{CallerRole, Member};
 
 use CallerRole::{
-    App, Cli, Companion, Compositor, Control, Cua, Editor, Field, Launcher, Mcp, Reader,
+    AcpAgent, App, Cli, Companion, Compositor, Control, Cua, Editor, Field, Launcher, Mcp, Reader,
 };
 
 /// The roles that may call `member`.
@@ -15,7 +15,8 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::SearchQuery | Member::SearchCancel => &[Launcher, Companion, Cli, App],
         // The person's surfaces, the planner, MCP, a terminal, and an app calling its own
         // actions. cuad asks through the gate, not through Perform; the reader acts on nothing.
-        Member::Perform | Member::DryRun => &[Launcher, Field, Companion, Mcp, Cli, App],
+        Member::Perform => &[Launcher, Field, Companion, Mcp, Cli, App, AcpAgent],
+        Member::DryRun => &[Launcher, Field, Companion, Mcp, Cli, App],
         Member::Preview | Member::Suggest => &[Launcher, Field, Companion, Mcp, App],
         // A terminal undoes only what a terminal did (`run_undo` checks the journal row).
         Member::Undo => &[Launcher, Field, Control, Cli, App],
@@ -23,11 +24,13 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::Context => &[Launcher, Companion, Cli],
         // The computer-use daemon opens and closes the session of its own run (`opening.rs`
         // refuses it any other kind), so the run is ruled in a session before its first step.
-        Member::SessionOpen | Member::SessionClose => &[Launcher, Field, Editor, Companion, Cua],
+        Member::SessionOpen | Member::SessionClose => {
+            &[Launcher, Field, Editor, Companion, Cua, AcpAgent]
+        }
         // Only the person's own surfaces record a turn: a model cannot say what the person said.
         // A terminal is one of them for `quire-do ask` (the person at a keyboard, the same user),
         // and its turns are recorded as `TurnSource::Terminal`, never as the launcher's.
-        Member::SessionTurn => &[Launcher, Field, Editor, Cli],
+        Member::SessionTurn => &[Launcher, Field, Editor, Cli, AcpAgent],
         Member::SessionResolve => &[Reader],
         // Text for the screen, never for a model.
         Member::SessionDisplay => &[Launcher, Field],

@@ -10,8 +10,8 @@ use crate::tasks::{TaskRecord, TaskState, child_policy};
 use crate::wal::Wal;
 use almanac_core::{EpisodeId, EpisodeKind, EpisodeOutcome};
 use docket_core::{
-    AuditRecord, CallerId, CallerRole, IntentsReply, Reveal, SessionOpen, SessionOpened,
-    TaskLedger, TurnId, TurnIn, TurnSource, UserTurn, WireRefusal, close,
+    AuditRecord, CallerId, CallerRole, ExternalAgent, IntentsReply, Reveal, SessionOpen,
+    SessionOpened, TaskLedger, TurnId, TurnIn, TurnSource, UserTurn, WireRefusal, close,
 };
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use porter_core::AppName;
@@ -26,13 +26,22 @@ fn turn_source(role: CallerRole, caller: &CallerId) -> TurnSource {
     match role {
         CallerRole::Field => TurnSource::Field(caller.app.name.clone()),
         CallerRole::Editor => TurnSource::Editor(caller.app.name.clone()),
+        CallerRole::AcpAgent => TurnSource::Agent(caller.app.name.clone()),
         CallerRole::Cli => TurnSource::Terminal,
         _ => TurnSource::Launcher,
     }
 }
 
 /// Who acts in the session of `agent`, opened by `opener`: how calls and the journal name it.
-pub(crate) fn actor_of(agent: &AgentRef, session: &SessionId, opener: &AppName) -> Actor {
+pub(crate) fn actor_of(
+    agent: &AgentRef,
+    external: Option<&ExternalAgent>,
+    session: &SessionId,
+    opener: &AppName,
+) -> Actor {
+    if let Some(client) = external.and_then(|e| crate::who::acp_client(&e.program)) {
+        return Actor::Mcp { client };
+    }
     match agent {
         AgentRef::Companion => Actor::Companion {
             session: session.clone(),
@@ -84,6 +93,15 @@ impl<S: Seams> Router<S> {
         if role == CallerRole::Cua && !matches!(open.agent, AgentRef::Cua { .. }) {
             return refuse(WireRefusal::NotAllowed);
         }
+        // The host of an external agent opens that agent's session and nothing else, and says
+        // which program it is; nobody else may say it.
+        let external = match (role, &open.external) {
+            (CallerRole::AcpAgent, Some(external)) if open.agent == AgentRef::Companion => {
+                Some(external.clone())
+            }
+            (CallerRole::AcpAgent, _) => return refuse(WireRefusal::NotAllowed),
+            _ => None,
+        };
         if let AgentRef::Cua { run } = &open.agent
             && self.locked().sessions.values().any(|r| {
                 matches!(&r.actor, Actor::Companion { role: AgentRole::Cua { run: held }, .. } if held == run)
@@ -100,6 +118,7 @@ impl<S: Seams> Router<S> {
             &caller.app.name,
             SessionOpen {
                 started_from,
+                external,
                 ..open
             },
         )
@@ -124,9 +143,10 @@ impl<S: Seams> Router<S> {
         if st.tasks.get(&task).is_some() {
             return refuse(WireRefusal::Malformed);
         }
-        let actor = actor_of(&open.agent, &session, opener);
+        let actor = actor_of(&open.agent, open.external.as_ref(), &session, opener);
         let mut record =
             SessionRecord::new(task.clone(), actor, opener.clone(), open.space.clone(), now);
+        record.external = open.external.clone();
         let parent_episode = open
             .parent
             .as_ref()
@@ -149,7 +169,10 @@ impl<S: Seams> Router<S> {
             space: open.space.clone(),
             opener: Some(opener.clone()),
             agent: Some(open.agent.clone()),
-            backend: BackendKind::Native,
+            backend: open
+                .external
+                .as_ref()
+                .map_or(BackendKind::Native, |e| BackendKind::Acp(e.program.clone())),
             parent: open.parent.clone(),
             forked_from: None,
             cwd: open.cwd.clone(),
@@ -197,7 +220,7 @@ impl<S: Seams> Router<S> {
         };
         if matches!(
             role,
-            CallerRole::Field | CallerRole::Cua | CallerRole::Editor
+            CallerRole::Field | CallerRole::Cua | CallerRole::Editor | CallerRole::AcpAgent
         ) && record.opener != caller.app.name
         {
             return refuse(WireRefusal::NotAllowed);
@@ -239,8 +262,10 @@ impl<S: Seams> Router<S> {
         let mut st = self.locked();
         let number = u64::from(st.mint());
         let record = st.sessions.get_mut(id).ok_or(WireRefusal::NoSuchSession)?;
-        if matches!(role, CallerRole::Field | CallerRole::Editor)
-            && record.opener != caller.app.name
+        if matches!(
+            role,
+            CallerRole::Field | CallerRole::Editor | CallerRole::AcpAgent
+        ) && record.opener != caller.app.name
         {
             return Err(WireRefusal::NotAllowed);
         }
@@ -253,6 +278,8 @@ impl<S: Seams> Router<S> {
             via: turn.via,
         };
         record.apply(SessionEvent::UserTurn);
+        // A new turn ends the one-use yeses of the last.
+        record.approvals.clear();
         record.wal.note(SessionEntry::Turn(recorded.clone()));
         record.turns.push(recorded.clone());
         let task = record.task.clone();

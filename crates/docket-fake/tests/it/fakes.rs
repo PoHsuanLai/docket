@@ -81,7 +81,7 @@ fn the_fixtures_resolve_every_kind_when_both_are_loaded() {
 fn fake_router_installs_the_fixture_and_the_shipped_manifests() {
     let router = fake_router(AgentConfig::default()).expect("router");
     let state = router.state.lock().expect("lock");
-    assert_eq!(state.registry.all().count(), 4);
+    assert_eq!(state.registry.all().count(), 5);
     assert!(state.registry.unresolved().is_empty());
 }
 
@@ -436,6 +436,7 @@ async fn a_watched_gate_check_in_process_says_confirming_and_waits_for_proceed()
             parent: None,
             cwd: None,
             started_from: None,
+            external: None,
         })
         .await
         .expect("cuad opens its run's session");

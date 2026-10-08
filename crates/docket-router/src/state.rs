@@ -10,8 +10,8 @@ use crate::tasks::TaskTable;
 use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
-    CallerRole, ConfirmId, Halt, IndexEntry, IndexState, KillSwitch, Ledger, SessionSaw, StepLine,
-    Strictness, TaskPolicy, UserTurn,
+    CallFacts, CallerRole, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState, KillSwitch,
+    Ledger, SessionSaw, StepLine, Strictness, TaskPolicy, UserTurn,
 };
 use porter_core::{AppName, Count};
 use prov::{
@@ -59,6 +59,12 @@ pub struct SessionRecord {
     pub skill_loads: docket_skills::Loaded,
     /// What waits to go on the session's durable record.
     pub wal: Wal,
+    /// The external agent program the session is for, as the host that launched it said when it
+    /// opened the session; none for every other session.
+    pub external: Option<ExternalAgent>,
+    /// Permission requests the person said yes to, each good for one matching call; cleared when
+    /// the person speaks again.
+    pub approvals: Vec<CallFacts>,
 }
 
 impl SessionRecord {
@@ -91,6 +97,8 @@ impl SessionRecord {
             inbox: Vec::new(),
             skill_loads: docket_skills::Loaded::default(),
             wal: Wal::Off,
+            external: None,
+            approvals: Vec::new(),
         }
     }
 }

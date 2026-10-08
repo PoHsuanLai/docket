@@ -228,6 +228,7 @@ async fn open_in(router: &Router<Rig>) -> SessionOpened {
                 parent: None,
                 cwd: None,
                 started_from: None,
+                external: None,
             }),
         )
         .await

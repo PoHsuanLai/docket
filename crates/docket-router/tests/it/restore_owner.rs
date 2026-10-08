@@ -62,6 +62,7 @@ async fn only_the_opener_restores_a_session_by_naming_it() {
             parent: None,
             cwd: None,
             started_from: None,
+            external: None,
         }),
     )
     .await;

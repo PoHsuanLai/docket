@@ -48,6 +48,7 @@ impl Harness for Native {
                 parent: None,
                 cwd: None,
                 started_from: None,
+                external: None,
             })
             .await
             .expect("open");

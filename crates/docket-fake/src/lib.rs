@@ -7,6 +7,7 @@
 
 mod clock;
 mod files;
+mod hosted;
 mod labels;
 mod mail;
 mod menu;
@@ -18,6 +19,7 @@ mod simple;
 
 pub use clock::FixedClock;
 pub use files::FakeFiles;
+pub use hosted::{BoxFut, HostedApp};
 pub use mail::{FakeMail, MailContact, MailThread, SentMail};
 pub use menu::{FakeMenu, MenuItem, MenuPerform};
 pub use parsed::ParsedReviewer;

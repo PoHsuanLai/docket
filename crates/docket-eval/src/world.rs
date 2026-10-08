@@ -153,6 +153,7 @@ fn open<S: Rig>(
             parent: None,
             cwd: None,
             started_from: None,
+            external: None,
         }),
     ));
     match reply {

@@ -26,6 +26,7 @@ pub const FILES_MANIFEST: &str = include_str!("../fixtures/manifests/org.quire.F
 pub const MENU_MANIFEST: &str = include_str!("../fixtures/manifests/org.quire.Menu.intents.toml");
 const MEMORY_MANIFEST: &str = include_str!("../../../manifests/org.quire.Memory.toml");
 const COMPANION_MANIFEST: &str = include_str!("../../../manifests/org.quire.Companion.toml");
+const ACP_AGENT_MANIFEST: &str = include_str!("../../../manifests/org.quire.AcpAgent.toml");
 
 /// Why a fake router could not be built.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -56,7 +57,7 @@ pub fn menu_manifest() -> Result<ValidManifest, RegistryError> {
     parse(MENU_MANIFEST)
 }
 
-/// A registry holding the two fixtures and the two shipped built-in manifests.
+/// A registry holding the two fixtures and the three shipped built-in manifests.
 pub fn registry() -> Result<Registry, RegistryError> {
     let mut registry = Registry::new();
     for text in [
@@ -64,6 +65,7 @@ pub fn registry() -> Result<Registry, RegistryError> {
         FILES_MANIFEST,
         MEMORY_MANIFEST,
         COMPANION_MANIFEST,
+        ACP_AGENT_MANIFEST,
     ] {
         registry.insert(parse(text)?);
     }

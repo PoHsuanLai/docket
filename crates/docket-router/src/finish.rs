@@ -13,7 +13,7 @@ use crate::tasks::TaskState;
 use action_review::note;
 use docket_core::{
     AuditRecord, CallEnd, CallRefusal, DecidedBy, LedgerStep, Outcome, Preview, StepEnd, StepLine,
-    StepShown, Undoable, Value,
+    StepShown, Undoable, Value, approves,
 };
 use docket_session::{BreakerNote, SessionEntry};
 use prov::{Integrity, Labelled, Source};
@@ -137,6 +137,14 @@ impl<S: Seams> Router<S> {
                     shown: StepShown::Full,
                     with: p.named.clone(),
                 });
+                // A permission request that went through is the person's yes to the thing it
+                // names, good once for the matching call (`docket_core::approves`).
+                if matches!(driven.end, CallEnd::Done)
+                    && withheld.is_none()
+                    && let Some(held) = p.standing.as_ref().and_then(|s| approves(&s.facts))
+                {
+                    record.approvals.push(held);
+                }
                 presented = presented.map(|o| present(record, &p.who.voice, o));
                 // The handles this call minted go on the record before the step that names them.
                 record.gather();

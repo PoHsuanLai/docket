@@ -42,6 +42,10 @@ pub enum TurnSource {
     /// them as for the launcher (not capped like a field). The prompt's text blocks are the only
     /// words recorded; attachments are data and never reach the policy writer.
     Editor(porter_core::AppName),
+    /// The host of an external coding agent (`docket-agent`): the person's typed prompt, so the
+    /// task policy is derived from it as for the launcher. The agent's own words are never a
+    /// turn.
+    Agent(porter_core::AppName),
 }
 
 /// One prompt, as the router records it. Only the launcher, field, editor and terminal roles may record a turn.

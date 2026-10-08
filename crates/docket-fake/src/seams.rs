@@ -19,7 +19,7 @@ use docket_router::{AppFault, AppLink, Clock, LinkFault, Seams};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 use std::collections::BTreeMap;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 /// Whether a fake app answers `Perform`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,6 +50,8 @@ pub struct FakeLink {
     /// The built-in `org.quire.Companion` provider, once a test has attached the router that
     /// hosts it (`host_companion`); until then the app is unavailable.
     companion: Hosted,
+    /// Apps a test answers itself (`host`).
+    hosted: Mutex<BTreeMap<AppName, Arc<dyn crate::HostedApp>>>,
 }
 
 type Perform = Box<dyn Fn(Invocation) -> Result<Outcome, AppRefusal> + Send + Sync>;
@@ -90,7 +92,22 @@ impl FakeLink {
             window: Mutex::new(None),
             performed: Mutex::new(Vec::new()),
             companion: Hosted::default(),
+            hosted: Mutex::new(BTreeMap::new()),
         }
+    }
+
+    /// Makes `app` answered by `hosted`, in the test's own process.
+    pub fn host(&self, app: AppName, hosted: Arc<dyn crate::HostedApp>) {
+        if let Ok(mut all) = self.hosted.lock() {
+            all.insert(app, hosted);
+        }
+    }
+
+    fn hosted(&self, app: &AppName) -> Option<Arc<dyn crate::HostedApp>> {
+        self.hosted
+            .lock()
+            .ok()
+            .and_then(|all| all.get(app).cloned())
     }
 
     /// Makes `snapshot` what the app's `Context` answers (until the next call to this).
@@ -193,6 +210,8 @@ impl AppLink for FakeLink {
                 .perform_classified(inv, None, classified)
                 .await
                 .map_err(AppFault::Refused)
+        } else if let Some(hosted) = self.hosted(app) {
+            hosted.perform(inv).await.map_err(AppFault::Refused)
         } else if app.as_str() == docket_router::COMPANION_APP {
             match self.companion.0.get() {
                 Some(perform) => perform(inv).map_err(AppFault::Refused),
@@ -208,6 +227,8 @@ impl AppLink for FakeLink {
             self.mail.dry_run(inv).await
         } else if self.is_files(app) {
             self.files.dry_run(inv).await
+        } else if let Some(hosted) = self.hosted(app) {
+            hosted.dry_run(inv).await
         } else {
             Err(AppRefusal::Unsupported)
         }
@@ -218,6 +239,8 @@ impl AppLink for FakeLink {
             self.mail.undo(token.clone(), actor.clone()).await
         } else if self.is_files(app) {
             self.files.undo(token.clone(), actor.clone()).await
+        } else if let Some(hosted) = self.hosted(app) {
+            hosted.undo(token.clone(), actor.clone()).await
         } else {
             Err(UndoFault::AppUnavailable)
         }

@@ -259,6 +259,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             parent: Some(parent.clone()),
             cwd: None,
             started_from: None,
+            external: None,
         };
         self.adopt(
             &SessionOpened {

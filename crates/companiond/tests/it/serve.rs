@@ -83,6 +83,7 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
         parent: None,
         cwd: None,
         started_from: None,
+        external: None,
     };
     let opened: SessionOpened = serde_json::from_str(
         &proxy
@@ -204,6 +205,7 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
         parent: None,
         cwd: None,
         started_from: None,
+        external: None,
     };
     let opened: SessionOpened = serde_json::from_str(
         &proxy
@@ -302,6 +304,7 @@ async fn only_the_shell_speaks_for_the_person() {
         parent: None,
         cwd: None,
         started_from: None,
+        external: None,
     })
     .expect("json");
     assert!(refused.open(&open).await.is_err());

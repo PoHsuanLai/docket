@@ -1,3 +1,4 @@
+mod acp_agent;
 mod activation;
 mod auth;
 mod behaviour;

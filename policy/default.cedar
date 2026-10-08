@@ -295,11 +295,15 @@ when {
   principal.kind != "user"
 };
 
-// An external MCP client may read; anything else asks.
+// An external MCP client may read; anything else asks. An external coding agent's host is not an
+// MCP client: its calls (the `org.quire.AcpAgent` pseudo-app, which only that role may call) are
+// ruled by the grid above and by taint, so a standing grant of the program can stand in for the
+// ask where the named rules allow.
 @id("mcp-asks")
 forbid (
   principal,
   action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
   resource
 )
-when { principal.kind == "mcp" && resource.effect != "read" };
+when { principal.kind == "mcp" && resource.effect != "read" }
+unless { resource in Quire::App::"org.quire.AcpAgent" };

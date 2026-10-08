@@ -81,6 +81,10 @@ pub struct SessionOpen {
     /// `quire-do ask`; the router keeps it only from the companion role.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub started_from: Option<crate::started::StartedFrom>,
+    /// The external agent program the session is for, said by the host that launched it; the
+    /// router keeps it only from the `acp_agent` role.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external: Option<crate::external::ExternalAgent>,
 }
 
 /// The session the router opened.

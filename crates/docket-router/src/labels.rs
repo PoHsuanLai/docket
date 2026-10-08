@@ -26,6 +26,11 @@ pub(crate) enum Voice {
     External(ClientName),
     /// A terminal (`quire-do`): the person or an agent typing in it; everything is untrusted.
     Cli,
+    /// An external coding agent, through the host that launched it: a model's words like a
+    /// planner's, so what it sends is as trusted as a planner that has seen nothing untrusted,
+    /// and untrusted from the first untrusted thing it was served or reported (the session's
+    /// taint). The name is the host's, never the agent's.
+    Agent(ClientName),
 }
 
 fn label(integrity: Integrity, source: Source) -> Label {
@@ -177,6 +182,7 @@ fn claim(session: &SessionRecord, voice: &Voice, value: &Value, given: Label) ->
         Voice::Person | Voice::App => given,
         Voice::External(client) => label(Integrity::Untrusted, Source::Mcp(client.clone())),
         Voice::Cli => label(Integrity::Untrusted, Source::Cli),
+        Voice::Agent(client) => label(planner_integrity(&session.saw), Source::Mcp(client.clone())),
         Voice::Model => trace(session, value),
     }
 }

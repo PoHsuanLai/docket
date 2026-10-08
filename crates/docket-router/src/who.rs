@@ -3,7 +3,7 @@
 
 use crate::labels::Voice;
 use crate::state::{RouterState, SessionRecord};
-use docket_core::{CallerId, CallerRole, GrantCaller, TurnSource, WireRefusal};
+use docket_core::{CallerId, CallerRole, GrantCaller, ProgramName, TurnSource, WireRefusal};
 use prov::{Actor, AgentRole, ClientName, SessionId, TaskId};
 
 /// The party behind a request.
@@ -22,6 +22,28 @@ pub(crate) struct Who {
     /// The editor the person is speaking through, named by the app behind its connection (what
     /// the router saw, never a name the editor wrote about itself).
     pub editor: Option<ClientName>,
+    /// The external agent the call is made for, when its host makes it: the program the host
+    /// named when it opened the session, never a name the agent sent.
+    pub agent: Option<AgentSeat>,
+}
+
+/// The external agent behind a host's call.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AgentSeat {
+    /// The configured program.
+    pub program: ProgramName,
+    /// The host that shows this session's sheets itself, when the session asked for that.
+    pub host: Option<ClientName>,
+}
+
+/// How an external agent program is named as an actor: `acp:<program>`, cut to a client name's
+/// length, so an audit line tells an agent from an MCP client of the same name.
+pub(crate) fn acp_client(program: &ProgramName) -> Option<ClientName> {
+    let mut text = format!("acp:{}", program.as_str());
+    while text.len() > 64 {
+        text.pop();
+    }
+    ClientName::parse(&text).ok()
 }
 
 /// The editor the person last spoke through in `record`: the app that recorded its latest turn,
@@ -35,8 +57,12 @@ pub(crate) fn editor_of(record: &SessionRecord) -> Option<ClientName> {
 
 /// Where a sheet for a call of `who` goes when an editor is driving its session.
 pub(crate) fn route_of(who: &Who) -> Option<docket_core::EditorRoute> {
+    let client = match &who.agent {
+        Some(seat) => seat.host.clone()?,
+        None => who.editor.clone()?,
+    };
     Some(docket_core::EditorRoute {
-        client: who.editor.clone()?,
+        client,
         session: who.session.clone()?,
     })
 }
@@ -44,6 +70,9 @@ pub(crate) fn route_of(who: &Who) -> Option<docket_core::EditorRoute> {
 impl Who {
     /// The consent a grant for this party is keyed by.
     pub(crate) fn grant_caller(&self) -> GrantCaller {
+        if let Some(seat) = &self.agent {
+            return GrantCaller::AcpAgent(seat.program.clone());
+        }
         if let Some(client) = &self.editor
             && !matches!(
                 self.actor,
@@ -96,6 +125,7 @@ impl RouterState {
                     actor,
                     voice: Voice::Person,
                     editor,
+                    agent: None,
                 });
             }
             CallerRole::Companion => {
@@ -116,6 +146,7 @@ impl RouterState {
                     actor: session.1,
                     voice: Voice::Model,
                     editor: session.2,
+                    agent: None,
                 });
             }
             CallerRole::Mcp => {
@@ -127,6 +158,7 @@ impl RouterState {
                     Voice::External(client),
                 )
             }
+            CallerRole::AcpAgent => return self.agent_who(caller, named),
             CallerRole::Cli => (Actor::Cli, Voice::Cli),
             CallerRole::App => (Actor::App { app: app.clone() }, Voice::App),
             CallerRole::Reader
@@ -161,6 +193,40 @@ impl RouterState {
             actor,
             voice,
             editor: None,
+            agent: None,
+        })
+    }
+
+    /// The host of an external agent, acting in the agent's session. The session must be named,
+    /// must be an agent session, and must have been opened by this very app: a host acts only
+    /// in the sessions it opened, as the program it named then.
+    fn agent_who(&self, caller: &CallerId, named: Option<&SessionId>) -> Result<Who, WireRefusal> {
+        let session = named.ok_or(WireRefusal::Malformed)?;
+        let record = self
+            .sessions
+            .get(session)
+            .ok_or(WireRefusal::NoSuchSession)?;
+        let external = record
+            .external
+            .as_ref()
+            .filter(|_| record.opener == caller.app.name)
+            .ok_or(WireRefusal::NotAllowed)?;
+        let client = acp_client(&external.program).ok_or(WireRefusal::Malformed)?;
+        let host = match external.sheets {
+            docket_core::SheetSurface::Host => ClientName::parse(caller.app.name.as_str()).ok(),
+            docket_core::SheetSurface::Desktop => None,
+        };
+        Ok(Who {
+            caller: caller.clone(),
+            role: CallerRole::AcpAgent,
+            session: Some(session.clone()),
+            actor: record.actor.clone(),
+            voice: Voice::Agent(client),
+            editor: None,
+            agent: Some(AgentSeat {
+                program: external.program.clone(),
+                host,
+            }),
         })
     }
 }

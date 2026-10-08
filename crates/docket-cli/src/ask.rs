@@ -153,6 +153,7 @@ async fn run<T: Transport, C: CompanionTransport>(
         parent: None,
         cwd: None,
         started_from: None,
+        external: None,
     };
     let opened = companion.open(&open).await.map_err(|e| unavailable(&e))?;
     let id = turn(intents, &opened.session, text).await?;

@@ -8,6 +8,7 @@
 //! shapes of memory (episodes, recall, recent), `cua-action` for the computer-use gate and
 //! `model-provider` for the structured-output shapes `ValueSchema` renders through.
 
+mod agent_app;
 mod args;
 mod audit;
 mod budget;
@@ -19,6 +20,7 @@ mod confirm;
 mod context;
 mod derived;
 mod execute;
+mod external;
 mod gate;
 mod grant;
 mod ids;
@@ -50,6 +52,11 @@ pub mod when;
 mod wire;
 mod workspace;
 
+pub use agent_app::{
+    ACP_AGENT_APP, FILES_READ, FILES_WRITE, PermissionKind, REPORTED, TERMINAL_RUN, approves,
+    covers_approval, is_agent_action,
+};
+pub use agent_app::{action as acp_agent_action, app as acp_agent_app};
 pub use args::{ArgsFault, TARGET_KEY, TargetFault, Why, args_from_json, target_from_json};
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};
 pub use budget::{
@@ -81,6 +88,7 @@ pub use execute::{
     ArgOrigin, CannotSandbox, EXECUTE_AS, ExecuteAsk, ExecuteFacts, ExecuteRuling, SandboxState,
     rule_execute,
 };
+pub use external::{ExternalAgent, SheetSurface};
 pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};
 pub use grant::{
     ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, ProgramName, ProgramNameError,

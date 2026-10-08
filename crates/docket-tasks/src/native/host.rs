@@ -162,6 +162,7 @@ where
                 parent: opening.parent.clone(),
                 cwd: opening.cwd.clone(),
                 started_from: None,
+                external: None,
             })
             .await
             .map_err(|_| BackendFault::Unavailable)?

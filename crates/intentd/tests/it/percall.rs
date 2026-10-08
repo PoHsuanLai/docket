@@ -215,6 +215,7 @@ async fn desk(answers: usize) -> Desk {
                 parent: None,
                 cwd: None,
                 started_from: None,
+                external: None,
             }),
         )
         .await;

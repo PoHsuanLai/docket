@@ -198,7 +198,7 @@ async fn search_also_asks_the_apps_for_what_they_do_not_index() {
     else {
         panic!("manifests")
     };
-    assert_eq!(manifests.len(), 4);
+    assert_eq!(manifests.len(), 5);
 }
 
 #[tokio::test]

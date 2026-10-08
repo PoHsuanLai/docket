@@ -54,6 +54,14 @@ pub(crate) fn consent_for(
             grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
             scope: GrantScope::Once,
         },
+        // Launching an external agent in a directory is the person's own act: what it does there
+        // is judged by the rest of the gate and by standing grants, not by a class question on
+        // every first use. A recorded denial still stands, and a session that read untrusted
+        // content asks again for anything that writes (below).
+        GrantCaller::AcpAgent(_) => Verdict::Granted {
+            grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
+            scope: GrantScope::Always,
+        },
         _ => Verdict::Ask,
     };
     let per_class: Vec<Verdict> = decl

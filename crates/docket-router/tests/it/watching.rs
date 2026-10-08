@@ -53,6 +53,7 @@ fn open_run(run: &RunId) -> IntentsRequest {
         parent: None,
         cwd: None,
         started_from: None,
+        external: None,
     })
 }
 
@@ -89,6 +90,7 @@ async fn cuad_opens_a_run_and_nothing_else_and_a_run_has_one_session() {
                 parent: None,
                 cwd: None,
                 started_from: None,
+                external: None,
             }),
         )
         .await;

@@ -66,7 +66,14 @@ fn the_built_in_manifests_validate_and_carry_their_prefixes() {
         .iter()
         .map(|m| m.manifest().app.to_string())
         .collect();
-    assert_eq!(apps, ["org.quire.Memory", "org.quire.Companion"]);
+    assert_eq!(
+        apps,
+        [
+            "org.quire.Memory",
+            "org.quire.Companion",
+            "org.quire.AcpAgent"
+        ]
+    );
     let companion = &manifests[1];
     assert!(
         companion

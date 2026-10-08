@@ -22,8 +22,8 @@ use crate::who::Who;
 use action_review::{GoalKey, ReviewRequest, repeated};
 use docket_core::{
     ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
-    CallRequest, Classification, Cost, Depth, Impact, Lasting, Reviewed, Ruling, Saw, WindowKey,
-    charge,
+    CallRequest, CallerRole, Classification, Cost, DenyCode, Depth, Impact, Lasting, Reviewed,
+    Ruling, Saw, WindowKey, charge, is_agent_action,
 };
 use policy_point::{
     ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, SpaceRelation,
@@ -173,6 +173,14 @@ impl<S: Seams> Router<S> {
             let why = CallRefusal::NoSuchAction(request.action.clone());
             return Err(early(Effect::Read, why));
         };
+        // The pseudo-app of the external agents is the host's alone, and the host makes no other
+        // call: the agent's own tools are not reached by its host's role.
+        if is_agent_action(&request.action) != (who.role == CallerRole::AcpAgent) {
+            return Err(early(
+                decl.effect,
+                CallRefusal::Denied(DenyCode::NotAllowed),
+            ));
+        }
         if let Some(c) = &class {
             decl.effect = c.used.min(decl.effect);
         }
@@ -273,7 +281,7 @@ impl<S: Seams> Router<S> {
             action: decl.name.clone(),
             kind: targets.first().map(|e| e.kind.clone()),
         };
-        let digest = digest(&targets, &request.args);
+        let digest = digest(&request.target, &request.args);
         let cost = Cost {
             effect: decl.effect,
             entities: count,
@@ -308,6 +316,7 @@ impl<S: Seams> Router<S> {
         let (pending, standing) =
             StandingCtx::new(who.grant_caller(), &decl, &request, breaker, budget).lifted(
                 &self.seams.grants().standing(),
+                &record.approvals,
                 &decl,
                 impact,
                 gated,
@@ -376,7 +385,7 @@ impl<S: Seams> Router<S> {
                 action: decl.name.clone(),
                 kind: targets.first().map(|e| e.kind.clone()),
             },
-            digest: digest(&targets, &request.args),
+            digest: digest(&request.target, &request.args),
             cost: Cost {
                 effect: decl.effect,
                 entities: count,
