@@ -373,7 +373,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
                 let written = Managed::write(profile, &self.run_dir, session, entry, &plan.cwd)
                     .map_err(|_| SpawnFault::Sandbox)?;
                 release.managed = Some(written.dir);
-                Some(written.file)
+                Some(written.place)
             }
             None => None,
         };

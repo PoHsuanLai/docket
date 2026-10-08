@@ -26,16 +26,22 @@ async fn the_preset_writes_a_private_read_only_file_and_points_the_child_at_it()
         .expect("spawned")
         .child;
     let run = &rig.procs.runs()[0];
-    let file = env_of(run, PATH_VAR).expect("the variable").to_owned();
+    // The variable names the directory: Claude Code reads `managed-settings.json` (and a
+    // `managed-settings.d` of drop-ins) inside it, and reads nothing when handed the file.
+    let named = env_of(run, PATH_VAR).expect("the variable").to_owned();
     let dir = rig.dir.path().join("docket-managed-acp-s-1");
-    assert_eq!(
-        file,
-        dir.join("managed-settings.json").to_str().expect("utf8")
-    );
+    assert_eq!(named, dir.to_str().expect("utf8"));
+    let file = dir.join("managed-settings.json");
     let mode =
         |p: &std::path::Path| std::fs::metadata(p).expect("meta").permissions().mode() & 0o777;
     assert_eq!(mode(&dir), 0o700);
-    assert_eq!(mode(std::path::Path::new(&file)), 0o400);
+    assert_eq!(mode(&file), 0o400);
+    let entries: Vec<_> = std::fs::read_dir(&dir).expect("dir").collect();
+    assert_eq!(
+        entries.len(),
+        1,
+        "the bound directory holds the settings file only"
+    );
 
     // Connectors, skills and plugins are off, and exactly the desktop's server is pre-allowed.
     let json: serde_json::Value =
@@ -52,6 +58,7 @@ async fn the_preset_writes_a_private_read_only_file_and_points_the_child_at_it()
         serde_json::json!([{"serverName": "quire"}])
     );
     assert_eq!(json["allowManagedMcpServersOnly"], true);
+    assert_eq!(json["allowManagedHooksOnly"], true);
 
     assert_eq!(env_of(run, "ENABLE_CLAUDEAI_MCP_SERVERS"), Some("false"));
     assert_eq!(env_of(run, "CLAUDE_CODE_DISABLE_CLAUDE_MDS"), Some("1"));
@@ -66,7 +73,7 @@ async fn the_preset_writes_a_private_read_only_file_and_points_the_child_at_it()
 }
 
 #[tokio::test]
-async fn the_agent_cannot_write_the_file_because_its_bind_is_read_only_and_last() {
+async fn the_agent_cannot_write_the_settings_because_their_directory_is_bound_read_only_and_last() {
     let mut rig = rig(&confined("/home/me/.claude", ""), Mood::Working, true);
     let _child = rig
         .spawn
