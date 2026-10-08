@@ -325,10 +325,7 @@ impl<X: Seams> AcpBackend<X> {
         let end = match (&self.pausing, outcome) {
             (Some(trip), _) => TurnEnd::Paused(*trip),
             (None, Ok(value)) => match serde_json::from_value::<PromptResponse>(value) {
-                Ok(done) if self.cancelling => {
-                    let _ = done;
-                    TurnEnd::Cancelled
-                }
+                Ok(_) if self.cancelling => TurnEnd::Cancelled,
                 Ok(done) => stop(done.stop_reason),
                 Err(_) => TurnEnd::Failed,
             },

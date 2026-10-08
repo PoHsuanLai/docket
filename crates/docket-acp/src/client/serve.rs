@@ -186,8 +186,8 @@ impl<X: Seams> AcpBackend<X> {
                     )),
                 );
             }
-            _ if refusing => self.reply(&id, Err(fault::not_now("the turn is ending"))),
             Work::Terminal { method, params } => self.terminal_other(&id, &method, params),
+            _ if refusing => self.reply(&id, Err(fault::not_now("the turn is ending"))),
             work => self.hold(id, work),
         }
     }
