@@ -178,7 +178,15 @@ impl AuditState {
                     report.written += written;
                     report.lost += lost;
                 }
-                Done::Waiting(back) => waiting.extend(back),
+                Done::Waiting {
+                    back,
+                    written,
+                    lost,
+                } => {
+                    report.written += written;
+                    report.lost += lost;
+                    waiting.extend(back);
+                }
             }
         }
         waiting.sort_by_key(|(i, _)| *i);
@@ -208,7 +216,7 @@ impl AuditState {
             }
             Ok(MemoryReply::Refused(Refusal::SpaceLocked | Refusal::Busy)) => {
                 self.link = Link::Up;
-                Done::Waiting(records.into_iter().map(|(i, _, r)| (i, r)).collect())
+                Done::keep(records)
             }
             // A batch memory refuses may hold one record it dislikes: try them one at a time so
             // the rest are kept.
@@ -223,7 +231,7 @@ impl AuditState {
             }
             Err(LinkFault::Unavailable | LinkFault::Timeout) => {
                 self.link = Link::Down;
-                Done::Waiting(records.into_iter().map(|(i, _, r)| (i, r)).collect())
+                Done::keep(records)
             }
         }
     }
@@ -242,8 +250,13 @@ impl AuditState {
                 .ask(MemoryRequest::Record(record_of(&record, space)))
                 .await
             {
-                Ok(MemoryReply::Refused(Refusal::SpaceLocked | Refusal::Busy))
-                | Err(LinkFault::Unavailable | LinkFault::Timeout) => {
+                // A lock is memory answering: the link stays up and the rest wait for the next flush.
+                Ok(MemoryReply::Refused(Refusal::SpaceLocked | Refusal::Busy)) => {
+                    self.link = Link::Up;
+                    waiting.push((i, record));
+                    waiting.extend(records.by_ref().map(|(i, _, r)| (i, r)));
+                }
+                Err(LinkFault::Unavailable | LinkFault::Timeout) => {
                     self.link = Link::Down;
                     waiting.push((i, record));
                     waiting.extend(records.by_ref().map(|(i, _, r)| (i, r)));
@@ -260,7 +273,11 @@ impl AuditState {
             }
         }
         match waiting.is_empty() {
-            false => Done::Waiting(waiting),
+            false => Done::Waiting {
+                back: waiting,
+                written,
+                lost,
+            },
             true => Done::Settled { written, lost },
         }
     }
@@ -275,6 +292,24 @@ impl AuditState {
 }
 
 enum Done {
-    Settled { written: usize, lost: usize },
-    Waiting(Vec<(usize, AuditRecord)>),
+    Settled {
+        written: usize,
+        lost: usize,
+    },
+    Waiting {
+        back: Vec<(usize, AuditRecord)>,
+        written: usize,
+        lost: usize,
+    },
+}
+
+impl Done {
+    /// Every record goes back in the queue; none was written or lost.
+    fn keep(records: Vec<(usize, SpaceId, AuditRecord)>) -> Self {
+        Self::Waiting {
+            back: records.into_iter().map(|(i, _, r)| (i, r)).collect(),
+            written: 0,
+            lost: 0,
+        }
+    }
 }
