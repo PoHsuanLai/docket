@@ -19,7 +19,7 @@
 //! `cancel`, then `close`, which kills the process.
 
 use super::court::Court;
-use super::edge::{ToolsEdge, ToolsOffer};
+use super::edge::{EdgeFault, ToolsEdge, ToolsOffer};
 use super::files::Files;
 use super::intake::{Intake, Work, intake};
 use super::performer::Performer;
@@ -141,6 +141,8 @@ pub struct AcpBackend<X: Seams> {
     pub(super) cancelling: bool,
     pub(super) pausing: Option<docket_core::BreakerTrip>,
     pub(super) dead: bool,
+    /// Why the tool edge could not be made at the last start, when it was offered and failed.
+    pub(super) edge_fault: Option<EdgeFault>,
     pub(super) next_call: u64,
     pub(super) next_ask: u64,
     /// Tool calls the agent reported that bring content in, to be told to the router.
@@ -169,6 +171,7 @@ impl<X: Seams> AcpBackend<X> {
             cancelling: false,
             pausing: None,
             dead: false,
+            edge_fault: None,
             next_call: 0,
             next_ask: 0,
             owed: VecDeque::new(),
@@ -187,6 +190,12 @@ impl<X: Seams> AcpBackend<X> {
         self.live.as_ref().and_then(|l| l.tainted_by.as_ref())
     }
 
+    /// Why the agent runs without the desktop's tools, when the host offered them and the edge
+    /// could not be made: the person should be told, not left to wonder.
+    pub fn edge_fault(&self) -> Option<EdgeFault> {
+        self.edge_fault
+    }
+
     async fn open(
         &mut self,
         session: prov::SessionId,
@@ -195,9 +204,12 @@ impl<X: Seams> AcpBackend<X> {
     ) -> Result<(), BackendFault> {
         // The edge is made first: the launcher binds its socket into the sandbox. A host that
         // offers none, or one that cannot make it, runs the agent with its own tools and ours.
-        let edge = self.tools.as_ref().and_then(|offer| {
-            ToolsEdge::start(offer, &session, &self.program, self.court.clone()).ok()
-        });
+        let made = self
+            .tools
+            .as_ref()
+            .map(|offer| ToolsEdge::start(offer, &session, &self.program, self.court.clone()));
+        self.edge_fault = made.as_ref().and_then(|m| m.as_ref().err().copied());
+        let edge = made.and_then(Result::ok);
         let plan = LaunchPlan {
             program: self.program.clone(),
             session: session.clone(),

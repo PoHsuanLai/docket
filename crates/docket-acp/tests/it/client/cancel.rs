@@ -6,7 +6,8 @@ use super::agent::{Auth, agent_signing, call};
 use super::rig::{CWD, opening, turn, write};
 use docket_acp::client::fake::{FakeFiles, FakeSpawn};
 use docket_acp::client::{
-    AcpBackend, AgentCall, Court, CourtFault, OpenAgent, Parts, Performer, Ruled, Seams, StageId,
+    AcpBackend, AgentCall, Court, CourtFault, EdgeFault, OpenAgent, Parts, Performer, Ruled, Seams,
+    StageId, ToolsOffer,
 };
 use docket_core::ValidManifest;
 use docket_session::{SessionBackend, StartSession};
@@ -67,8 +68,7 @@ struct Waiting {
     court: Silent,
 }
 
-/// A started backend whose agent has asked for a write, announced but not yet ruled on.
-async fn waiting() -> Waiting {
+fn backend(tools: Option<ToolsOffer>) -> Waiting {
     let (wire, _view) = agent_signing(
         vec![vec![call(
             "w",
@@ -81,29 +81,39 @@ async fn waiting() -> Waiting {
     let (sandbox, _seen) = FakeSandbox::ready(Vec::new());
     let performer = Performer::with_network(FakeFiles::new(), sandbox, Network::Off);
     let court = Silent::default();
-    let mut backend = AcpBackend::<Silence>::new(Parts {
+    let backend = AcpBackend::<Silence>::new(Parts {
         program: super::rig::program(),
         session: SessionId::parse("s-1").expect("session"),
         spawn,
         performer: performer.clone(),
         court: court.clone(),
-        tools: None,
+        tools,
     });
-    backend
+    Waiting {
+        backend,
+        performer,
+        court,
+    }
+}
+
+async fn start(w: &mut Waiting) {
+    w.backend
         .start(StartSession {
             session: SessionId::parse("s-1").expect("session"),
             opening: opening(CWD),
         })
         .await
         .expect("start");
-    backend.turn(turn(1, "go")).await.expect("turn");
-    let announced = backend.next_event().await;
+}
+
+/// A started backend whose agent has asked for a write, announced but not yet ruled on.
+async fn waiting() -> Waiting {
+    let mut w = backend(None);
+    start(&mut w).await;
+    w.backend.turn(turn(1, "go")).await.expect("turn");
+    let announced = w.backend.next_event().await;
     assert!(announced.is_some(), "the call is announced first");
-    Waiting {
-        backend,
-        performer,
-        court,
-    }
+    w
 }
 
 /// Pulls until the router has been asked, then drops the pull, as the host does when a sheet
@@ -138,4 +148,24 @@ async fn a_cancel_drops_the_held_request_so_nothing_runs_after_it() {
     assert!(w.performer.holds(&stage), "held while the router waits");
     w.backend.cancel().await;
     assert!(!w.performer.holds(&stage), "a cancel takes the hold away");
+}
+
+/// Why: a tool edge that was offered and could not be made leaves the agent without the
+/// desktop's actions; the backend keeps the reason so the host can say so.
+#[tokio::test]
+async fn a_tool_edge_that_cannot_be_made_is_reported_not_swallowed() {
+    let offer = ToolsOffer {
+        run_dir: "/no/such/run/dir".into(),
+        bridge: super::rig::abs("/usr/bin/bridge"),
+    };
+    let mut w = backend(Some(offer));
+    start(&mut w).await;
+    assert_eq!(w.backend.edge_fault(), Some(EdgeFault::Io));
+    let mut plain = backend(None);
+    start(&mut plain).await;
+    assert_eq!(
+        plain.backend.edge_fault(),
+        None,
+        "none offered, none failed"
+    );
 }
