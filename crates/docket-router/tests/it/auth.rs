@@ -149,6 +149,7 @@ fn a_terminal_gets_exactly_the_members_quire_do_uses() {
             Member::Undo,
             Member::Context,
             Member::SessionTurn,
+            Member::SessionStored,
             Member::ControlJournal,
         ]
     );
