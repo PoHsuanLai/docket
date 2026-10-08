@@ -33,7 +33,11 @@ fn alive(pid: u32) -> bool {
 
 fn pids_of(line: &str) -> Vec<u32> {
     line.strip_prefix("PIDS ")
-        .map(|rest| rest.split_whitespace().filter_map(|p| p.parse().ok()).collect())
+        .map(|rest| {
+            rest.split_whitespace()
+                .filter_map(|p| p.parse().ok())
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -75,7 +79,9 @@ fn a_killed_test_group_leaves_no_bus_and_no_service() {
     });
     let left: Vec<u32> = pids.iter().copied().filter(|p| alive(*p)).collect();
     for pid in &left {
-        let _ = Command::new("/bin/kill").args(["-KILL", &pid.to_string()]).status();
+        let _ = Command::new("/bin/kill")
+            .args(["-KILL", &pid.to_string()])
+            .status();
     }
     assert!(gone, "outlived a killed test group: {left:?}");
 }
