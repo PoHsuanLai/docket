@@ -46,6 +46,15 @@ pub fn mic_of(state: UtteranceState) -> MicNow {
     }
 }
 
+/// Why a `Begin` is refused whatever the state, or `None` when voice is on.
+pub fn refusal_for(enabled: VoiceUse) -> Option<VoiceRefusal> {
+    match enabled {
+        VoiceUse::On => None,
+        VoiceUse::NeedsConsent => Some(VoiceRefusal::NeedsConsent),
+        VoiceUse::Off => Some(VoiceRefusal::Disabled),
+    }
+}
+
 /// Whether the speech engine can take audio now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -199,7 +208,8 @@ pub fn utterance_step(
     state: UtteranceState,
     event: UtteranceEvent,
 ) -> (UtteranceState, Vec<UtteranceEffect>) {
-    let open = matches!(state, S::Opening | S::Listening | S::Tail | S::Finishing);
+    // The utterance is still live (the mic is closed in `Finishing`; see `mic_of`).
+    let active = matches!(state, S::Opening | S::Listening | S::Tail | S::Finishing);
     match (state, event) {
         (
             S::Idle,
@@ -208,20 +218,6 @@ pub fn utterance_step(
                 ..
             },
         ) => (S::Opening, begin_effects()),
-        (
-            S::Idle,
-            V::Begin {
-                enabled: VoiceUse::NeedsConsent,
-                ..
-            },
-        ) => (S::Idle, vec![E::Refuse(VoiceRefusal::NeedsConsent)]),
-        (
-            S::Idle,
-            V::Begin {
-                enabled: VoiceUse::Off,
-                ..
-            },
-        ) => (S::Idle, vec![E::Refuse(VoiceRefusal::Disabled)]),
         (
             _,
             V::Begin {
@@ -313,8 +309,8 @@ pub fn utterance_step(
         (S::Finishing, V::EndpointNoSpeech) => {
             (S::Idle, vec![ended(UtteranceEnd::NothingHeard), E::Zeroize])
         }
-        (_, V::Cancel(cause)) if open => stop(UtteranceEnd::Cancelled(cause)),
-        (_, V::EngineFailed(fault)) if open => stop(UtteranceEnd::Failed(fault)),
+        (_, V::Cancel(cause)) if active => stop(UtteranceEnd::Cancelled(cause)),
+        (_, V::EngineFailed(fault)) if active => stop(UtteranceEnd::Failed(fault)),
         (s, V::Route(target)) => (s, vec![E::StoreRoute(target)]),
         (s, V::Attach) => (s, vec![E::Replay]),
         // Everything else is a late or stray event: no state change, no effect.

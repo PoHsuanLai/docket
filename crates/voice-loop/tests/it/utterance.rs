@@ -384,3 +384,33 @@ fn a_trace_serialises_and_compares() {
     let json = serde_json::to_string(&(begin(VoiceUse::On), state, &effects)).expect("json");
     assert!(json.contains("open_mic"), "{json}");
 }
+
+#[test]
+fn the_refusal_for_a_setting_matches_what_the_table_refuses() {
+    for enabled in [VoiceUse::Off, VoiceUse::NeedsConsent, VoiceUse::On] {
+        let (state, effects) = utterance_step(UtteranceState::Idle, begin(enabled));
+        let refused = effects.into_iter().find_map(|e| match e {
+            UtteranceEffect::Refuse(r) => Some(r),
+            _ => None,
+        });
+        assert_eq!(refused, refusal_for(enabled), "{enabled:?}");
+        assert_eq!(state == UtteranceState::Idle, refused.is_some());
+    }
+}
+
+#[test]
+fn a_second_begin_while_off_keeps_the_state_and_refuses() {
+    let (state, effects) = utterance_step(UtteranceState::Listening, begin(VoiceUse::Off));
+    assert_eq!(state, UtteranceState::Listening);
+    assert_eq!(
+        effects,
+        vec![UtteranceEffect::Refuse(VoiceRefusal::Disabled)]
+    );
+}
+
+#[test]
+fn milliseconds_become_samples_at_the_capture_rate() {
+    assert_eq!(samples_in(1000), CAPTURE_RATE as usize);
+    assert_eq!(samples_in(TAIL_MS), 4_000);
+    assert_eq!(BUFFER_SAMPLES, samples_in(10_000));
+}

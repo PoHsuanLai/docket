@@ -3,8 +3,16 @@
 
 use std::fmt;
 
+/// The capture and engine rate: 16 kHz mono S16.
+pub const CAPTURE_RATE: u32 = 16_000;
+
+/// How many samples `ms` milliseconds hold at [`CAPTURE_RATE`].
+pub fn samples_in(ms: u32) -> usize {
+    usize::try_from(u64::from(ms) * u64::from(CAPTURE_RATE) / 1000).unwrap_or(usize::MAX)
+}
+
 /// Ten seconds at 16 kHz.
-pub const BUFFER_SAMPLES: usize = 10 * 16_000;
+pub const BUFFER_SAMPLES: usize = 10 * CAPTURE_RATE as usize;
 
 /// What a push did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
