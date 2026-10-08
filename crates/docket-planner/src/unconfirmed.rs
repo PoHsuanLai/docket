@@ -1,6 +1,6 @@
 //! What the planner reads when a call was not confirmed. A no, a dismissal and an expiry are the
 //! person's answer, not a fault to route around: the line says so and says what to do, so the
-//! model finishes or asks instead of searching for another way to the same call.
+//! model finishes instead of offering the same call again or searching for another way to it.
 
 use docket_core::ConfirmEnd;
 
@@ -33,7 +33,7 @@ impl Cause {
     }
 }
 
-const NEXT: &str = "do not retry it or work around it; finish, saying what was not done, or ask the person with quire_ask";
+const NEXT: &str = "do not retry it, offer to retry it or work around it; finish, saying what was not done. Ask the person with quire_ask only about a different way to what they wanted, never about this call";
 
 /// The words after `not confirmed` on a step line: the reason and what to do next.
 pub(crate) fn unconfirmed_text(end: ConfirmEnd) -> String {
@@ -51,10 +51,8 @@ mod tests {
             text.starts_with("the person declined this; do not retry it"),
             "{text}"
         );
-        assert!(
-            text.contains("finish, saying what was not done, or ask"),
-            "{text}"
-        );
+        assert!(text.contains("finish, saying what was not done."), "{text}");
+        assert!(text.contains("never about this call"), "{text}");
         assert_eq!(text, unconfirmed_text(ConfirmEnd::Dismissed));
     }
 

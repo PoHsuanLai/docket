@@ -112,7 +112,7 @@ async fn after_a_no_the_next_step_the_model_reads_says_not_to_retry() {
     let second = model.user_text(1);
     assert!(
         second
-            .contains("not confirmed: the person declined this; do not retry it or work around it"),
+            .contains("not confirmed: the person declined this; do not retry it, offer to retry it or work around it"),
         "{second}"
     );
 }
