@@ -47,7 +47,7 @@ impl<S: Seams> Router<S> {
         self.locked().pending.remove(&id);
         let (kind, input) = match &answer {
             ConfirmAnswer::Allowed { scope, receipt } => {
-                (ConfirmAnswerKind::Allowed(*scope), Some(receipt.input))
+                (ConfirmAnswerKind::Allowed(scope.clone()), Some(receipt.input))
             }
             ConfirmAnswer::AllowedFromTerminal { receipt } => {
                 (ConfirmAnswerKind::AllowedFromTerminal, Some(receipt.input))
@@ -194,7 +194,7 @@ impl<S: Seams> Router<S> {
                 .map(|g| match g.decision {
                     Decision::Allow => Verdict::Granted {
                         grant: g.id.clone(),
-                        scope: g.scope,
+                        scope: g.scope.clone(),
                     },
                     Decision::Deny => Verdict::Denied,
                 })

@@ -375,7 +375,7 @@ impl<S: Seams> Router<S> {
         }
         let yes = match &answer {
             ConfirmAnswer::Allowed { scope, receipt } => {
-                Some((ConfirmAnswerKind::Allowed(*scope), receipt))
+                Some((ConfirmAnswerKind::Allowed(scope.clone()), receipt))
             }
             ConfirmAnswer::AllowedFromTerminal { receipt } => {
                 Some((ConfirmAnswerKind::AllowedFromTerminal, receipt))

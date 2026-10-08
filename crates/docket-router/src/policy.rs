@@ -317,7 +317,7 @@ impl<S: Seams> Router<S> {
         self.locked().pending.remove(&cid);
         let (kind, input) = match &answer {
             ConfirmAnswer::Allowed { scope, receipt } => {
-                (ConfirmAnswerKind::Allowed(*scope), Some(receipt.input))
+                (ConfirmAnswerKind::Allowed(scope.clone()), Some(receipt.input))
             }
             ConfirmAnswer::AllowedFromTerminal { receipt } => {
                 (ConfirmAnswerKind::AllowedFromTerminal, Some(receipt.input))

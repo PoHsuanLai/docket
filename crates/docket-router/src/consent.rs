@@ -68,7 +68,7 @@ pub(crate) fn consent_for(
         })
         .collect();
     let granted = per_class.iter().find_map(|v| match v {
-        Verdict::Granted { grant, scope } => Some((grant.clone(), *scope)),
+        Verdict::Granted { grant, scope } => Some((grant.clone(), scope.clone())),
         Verdict::Denied | Verdict::Ask => None,
     });
     if per_class.iter().any(|v| matches!(v, Verdict::Denied)) {

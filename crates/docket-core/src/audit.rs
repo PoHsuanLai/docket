@@ -36,8 +36,8 @@ pub enum DecidedBy {
     User(ConfirmReceipt),
 }
 
-/// How a confirmation was answered.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// How a confirmation was answered. Not `Copy`: a session-scoped grant names its session.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
 pub enum ConfirmAnswerKind {
     /// Yes, once or always.

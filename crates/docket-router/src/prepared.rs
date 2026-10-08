@@ -82,8 +82,9 @@ pub(crate) fn grant_state(v: &Verdict) -> GrantState {
             scope: GrantScope::Always,
             ..
         } => GrantState::Always,
+        // A grant for one launcher session holds now but is not standing: like a once.
         Verdict::Granted {
-            scope: GrantScope::Once,
+            scope: GrantScope::Once | GrantScope::Session(_),
             ..
         } => GrantState::Once,
         Verdict::Ask => GrantState::None,
