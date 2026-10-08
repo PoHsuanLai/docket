@@ -5,46 +5,19 @@
 
 use crate::support::infer::{call, words};
 use crate::support::world::*;
-use almanac_core::{EventRef, EventSummary, KindTag, MemoryReply, RecentEntry, ReplicaId, Seq};
-use companiond::{RouterRecent, recover, replay_of};
+use almanac_core::MemoryReply;
+use companiond::{RouterLog, stored_events};
 use docket_core::*;
-use prov::{Actor, Label, SpaceId, UnixSeconds};
+use prov::{SpaceId, UnixSeconds};
 use serde_json::json;
 
 const START: &str = "org.quire.Companion-companion.task.start";
 
-/// The records the router was handed for the companion's sessions, oldest first, as memory would
-/// give them back from `Recent`: their kind, and their body when the label is trusted.
-fn stored(w: &World) -> Vec<RecentEntry> {
-    let mut seq = 0;
-    w.records()
-        .into_iter()
-        .filter_map(|r| match r {
-            AuditRecord::Session { slug, json, .. } => {
-                seq += 1;
-                Some(RecentEntry {
-                    summary: EventSummary {
-                        event: EventRef {
-                            space: space("work"),
-                            replica: ReplicaId([2; 16]),
-                            seq: Seq(seq),
-                        },
-                        occurred: UnixSeconds(1_000 + i64::try_from(seq).expect("seq")),
-                        kind: KindTag::parse(&format!("companion.session.{}", slug.as_str()))
-                            .expect("kind"),
-                        actor: Actor::Unknown,
-                        things: vec![],
-                    },
-                    effect: prov::Effect::Read,
-                    label: Label::trusted_user(),
-                    text: None,
-                    body: Some(json),
-                })
-            }
-            _ => None,
-        })
-        .rev()
-        .collect()
+/// The sessions the router stores, as a restarted companion reads them.
+async fn stored(w: &World) -> Vec<agent_loop::ReplayEvent> {
+    stored_events(&RouterLog::reading(&w.companion.intents))
+        .await
+        .expect("the router lists its sessions")
 }
 
 fn slugs(w: &World) -> Vec<String> {
@@ -58,108 +31,100 @@ fn slugs(w: &World) -> Vec<String> {
 }
 
 #[tokio::test]
-async fn a_conversation_leaves_the_records_a_restart_rebuilds_the_roster_from() {
+async fn a_conversation_leaves_the_rows_a_restart_rebuilds_the_roster_from() {
     let mut w = world(vec![words("Hello there.")]);
     let opened = w.open("work").await;
     w.say(&opened.session, "hello").await;
     assert_eq!(slugs(&w), ["opened", "asked", "finished"]);
 
-    let events = replay_of(&stored(&w)).expect("the records are in the form the restart reads");
+    let events = stored(&w).await;
     let rebuilt = agent_loop::rebuild(&events);
-    assert_eq!(
-        rebuilt.front, None,
-        "the task finished: no front to return to"
-    );
+    // The router's log holds the opening and the person's turn. That the turn finished is a note
+    // in the eventlog (a legacy row of the stored view in a real deployment, see `stored_roster`
+    // tests) and an episode: this fake log holds neither, so the session reads as open.
+    assert_eq!(rebuilt.front.as_ref(), Some(&opened.task));
     assert_eq!(rebuilt.tasks.len(), 1);
-    assert_eq!(rebuilt.tasks[0].state, RosterState::Done);
+    assert_eq!(rebuilt.tasks[0].state, RosterState::Working);
     assert_eq!(rebuilt.tasks[0].task.as_ref(), Some(&opened.task));
 }
 
-/// The record of a front conversation that was opened and never ended, as `Recent` gives it back.
-fn open_front_entry() -> RecentEntry {
-    let record = companion_wire::SessionRecord::Opened {
-        task: task("t-9"),
-        space: space("work"),
-        agent: prov::AgentRef::Companion,
-        parent: None,
-    };
-    RecentEntry {
-        summary: EventSummary {
-            event: EventRef {
-                space: space("work"),
-                replica: ReplicaId([2; 16]),
-                seq: Seq(1),
-            },
-            occurred: UnixSeconds(900),
-            kind: KindTag::parse("companion.session.opened").expect("kind"),
-            actor: Actor::Unknown,
-            things: vec![],
-        },
-        effect: prov::Effect::Read,
-        label: Label::trusted_user(),
-        text: None,
-        body: Some(
-            almanac_core::JsonText::parse(&serde_json::to_string(&record).expect("json"))
-                .expect("json"),
-        ),
-    }
+#[tokio::test]
+async fn an_editors_host_writes_no_roster_notes() {
+    let mut w = world(vec![words("Hello there.")]);
+    w.companion = w.restarted().without_notes();
+    let opened = w.open("work").await;
+    w.say(&opened.session, "hello").await;
+    assert_eq!(slugs(&w), Vec::<String>::new());
+}
+
+/// A legacy session record as the router is handed it.
+fn as_note(record: &companion_wire::SessionRecord) -> NoteAsk {
+    NoteAsk::Record(SessionNote {
+        slug: NoteSlug::parse(record.slug()).expect("slug"),
+        json: almanac_core::JsonText::parse(&serde_json::to_string(record).expect("json"))
+            .expect("json"),
+    })
 }
 
 #[tokio::test]
-async fn the_restart_reads_the_records_through_the_router_and_finds_the_front_task() {
-    let mut w = world_with(vec![], vec![MemoryReply::Recent(vec![open_front_entry()])]);
-    let reading = w
-        .companion
-        .intents
-        .session_open(SessionOpen {
-            space: space("work"),
-            agent: prov::AgentRef::Companion,
-            parent: None,
-            cwd: None,
-        })
-        .await
-        .expect("a session to read through")
-        .session;
-    let rebuilt = recover(
-        &RouterRecent::new(&w.companion.intents, reading),
-        UnixSeconds(0),
-    )
-    .await
-    .expect("through the router");
-    assert_eq!(rebuilt.front.as_ref(), Some(&task("t-9")));
+async fn a_restart_finds_the_front_task_in_the_sessions_the_router_stores() {
+    let mut w = world(vec![]);
+    let opened = w.open("work").await;
+    let rebuilt = agent_loop::rebuild(&stored(&w).await);
+    assert_eq!(rebuilt.front.as_ref(), Some(&opened.task));
     assert_eq!(rebuilt.tasks[0].state, RosterState::Working);
-    let asked = w.router.seams.memory.requests();
-    let almanac_core::MemoryRequest::Recent(in_space, query) = &asked[0] else {
-        panic!("{asked:?}")
-    };
-    assert_eq!(in_space, &space("work"));
-    assert_eq!(query.bodies, almanac_core::BodyMode::Json);
-    let _ = &mut w;
 }
 
 #[tokio::test]
-async fn restore_reads_each_space_through_a_session_of_its_own_and_leaves_nothing_behind() {
+async fn restore_rebuilds_from_the_stored_sessions_and_opens_the_front_afresh() {
     let mut w = world_with(
         vec![],
         vec![
             // The router asks memory for its Spaces first; memory has none to add.
             MemoryReply::Spaces(vec![]),
-            MemoryReply::Recent(vec![open_front_entry()]),
+            MemoryReply::Recent(vec![]),
         ],
     );
-    let resumed = w
-        .companion
+    let before = w.open("work").await;
+    let mut fresh = w.restarted();
+    let resumed = fresh
         .restore(&[space("work")])
         .await
         .expect("a restart")
         .expect("the front task was open: it gets a fresh session");
-    assert_ne!(resumed.task, task("t-9"));
+    assert_ne!(resumed.task, before.task);
+    assert_eq!(fresh.front.as_ref(), Some(&resumed.task));
     assert!(
         w.episodes().is_empty(),
         "the session the restart read through is closed and leaves no episode: {:?}",
         w.episodes()
     );
-    assert_eq!(w.companion.front.as_ref(), Some(&resumed.task));
+}
+
+#[tokio::test]
+async fn sessions_an_editor_opened_are_not_on_the_roster_or_the_front_after_a_restart() {
+    let mut w = world_with(
+        vec![],
+        vec![MemoryReply::Spaces(vec![]), MemoryReply::Recent(vec![])],
+    );
+    let editors = w.open_for_editor("work").await;
+    // Its legacy notes (an older host wrote them) do not bring it back either.
+    let note = companion_wire::SessionRecord::Opened {
+        task: editors.task.clone(),
+        space: space("work"),
+        agent: prov::AgentRef::Companion,
+        parent: None,
+    };
+    let _ = w
+        .companion
+        .intents
+        .session_note(editors.session.clone(), as_note(&note))
+        .await;
+    let mut fresh = w.restarted();
+    let resumed = fresh.restore(&[space("work")]).await.expect("a restart");
+    assert_eq!(resumed, None, "an editor's session is not the front");
+    assert_eq!(fresh.front, None);
+    assert!(fresh.roster().entries.is_empty());
 }
 
 #[tokio::test]
@@ -216,16 +181,17 @@ async fn restore_reads_the_spaces_the_router_hands_over_and_not_only_the_configu
                 summary("old", SpaceState::Gone),
             ]),
             MemoryReply::Recent(vec![]),
-            MemoryReply::Recent(vec![open_front_entry()]),
+            MemoryReply::Recent(vec![]),
         ],
     );
-    let resumed = w
-        .companion
+    let before = w.open("home").await;
+    let mut fresh = w.restarted();
+    let resumed = fresh
         .restore(&[])
         .await
         .expect("a restart")
         .expect("the front task of `home` was open");
-    assert_ne!(resumed.task, task("t-9"));
+    assert_ne!(resumed.task, before.task);
     let read: Vec<_> = w
         .router
         .seams

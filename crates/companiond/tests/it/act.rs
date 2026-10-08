@@ -8,10 +8,10 @@ use companiond::serve_on;
 use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy};
 use futures_util::StreamExt;
+use futures_util::lock::Mutex;
 use prov::Effect;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
 
 fn card(id: &str, action: &str, key: &str) -> CardWire {
     CardWire {

@@ -2290,7 +2290,7 @@ restart of the host between the turns, with `session/load` replaying the first t
 turn's updates and the app's calls equal in both.
 
 **Deferred, and why.**
-- **companiond is not behind `SessionHost`.** It shares the loop (`Tap`) but its task model, roster and
+- **companiond is not behind `SessionHost`.** (Roster and lock closed, see "companiond's roster from Session.Stored" below; the task model is still `TaskRuntime`.) It shares the loop (`Tap`) but its task model, roster and
   front pointer still rebuild after a restart from the old `companion.session.*` notes (`recover`),
   and its lock is tokio's, `NativeHost`'s a futures mutex. Moving the roster to `Session.Stored` and
   the lock across is the next lane; `Session.Stored` is the member it needed.
@@ -2303,7 +2303,7 @@ turn's updates and the app's calls equal in both.
   sessions` needs the `cli` role on `Session.Stored` and a renderer. Not built.
 - **A cancel does not interrupt a call or a model in flight**, and the router's pending sheet for
   it is withdrawn only when the router drops the watch; the S3 note on withdrawing confirmations stands.
-- **The ACP host's roster** is its own companion's: an editor session shows on no other surface's
+- **The ACP host's roster** (closed below) is its own companion's: an editor session shows on no other surface's
   roster. Its legacy `Session.Note` records are still written (companiond reads them after a
   restart and would show the editor's task on the roster).
 - `Reseeded` (a stored session whose router record cannot be restored) is not built: such a
@@ -2360,3 +2360,33 @@ A sheet for a call in an editor's session no longer goes to sill.
   performs, reject refuses, a sheet asked while a turn is recorded reaches the editor), `acp_confirm.rs` (the
   bus half on a private bus: Once/Always/Refused, setting off, process gone and sill not asked, a stranger
   refused), `docket-inapp` desk tests, `docket-router` `asked_widenings`.
+
+## companiond's roster from Session.Stored (S2, second part)
+
+- **`recover` no longer reads `companion.session.*` from `Recent`.** The roster and the front pointer are
+  rebuilt from `stored_events` (docket-tasks): `Session.Stored` lists the sessions the companion may bring back
+  (`may_restore`: any) and every row of each is folded into the events the rebuild already reads: an opening
+  (`Opened` with its agent, Space and parent), the person's turns (`Asked`, with the turn's time) and the legacy
+  `Replied` / `Finished` rows a log may still hold (the stored view surfaces them as `Read::Legacy`). Messages,
+  episodes and runs still come from `Recent`; `rebuild_from` joins both in time order (stable, sessions first among
+  equals). A session row has no time of its own: the opening takes its first turn's, the rows without one the
+  last turn's. `Companion::restore` reads the stored sessions once and `Recent` once per Space, then rebuilds once
+  (it used to rebuild per Space and concatenate).
+- **A session an editor opened is not on the roster or the front**, whatever else its rows say: a session whose
+  opening records a directory (`Opening.cwd`) contributes no events at all, so even an older log in which the
+  editor's host also wrote legacy notes (no directory) does not bring it back.
+- **The editor's host writes no roster notes** (`Companion::without_notes`, used by docket-acp-bin): the router
+  writes the session's own log, and the legacy `Session.Note` records were what put an editor's task on
+  companiond's roster after a restart. companiond itself still writes them: its `Finished` row is how a finished
+  front task stops being the front after a restart (no native entry says a turn ended), and a router log without
+  them (the in-process fake) shows such a session as still open.
+- **The lock: the futures mutex.** `NativeHost` shares `Arc<futures_util::lock::Mutex<Companion>>`
+  (`Core`), companiond used tokio's. companiond now uses the futures one: docket-tasks is the portable crate and
+  has no tokio, both daemons then hold the same `Core` type so one companion can later serve both surfaces,
+  and nothing in companiond relied on tokio's fairness or `try_lock`. One caveat: the futures mutex holds no
+  timer, so a stuck turn holds the lock for ever in either; a cancel is heard between effects as before.
+- Tests: `companiond/tests/it/records.rs` (a restart finds the front in the stored sessions; `restore`
+  rebuilds from them and opens the front afresh; an editor's session is not on the roster or front, with or
+  without legacy notes; an editor's host writes no notes), `docket-tasks` `stored_roster` unit tests.
+- Not done: companiond's task model (`TaskRuntime`, `Companiond::ask`) is not replaced by `NativeHost`; the front
+  pointer still moves on `Companion::open`. The launcher's side conversations keep their own table.

@@ -16,13 +16,13 @@ use docket_dbus::{
 };
 use docket_tasks::Change;
 use docket_tasks::ServeFault;
+use futures_util::lock::Mutex;
 use porter_client::Transport as InferTransport;
 use porter_core::AppName;
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
 use zbus::fdo;
 use zbus::fdo::{RequestNameFlags, RequestNameReply};
 use zbus::message::Header;

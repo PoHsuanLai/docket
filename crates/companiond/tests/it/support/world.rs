@@ -216,6 +216,37 @@ impl World {
             .expect("ask")
     }
 
+    /// The companion after a restart: a new one over the same router, which remembers the
+    /// sessions in its log. It has no state of its own.
+    pub fn restarted(&self) -> Companion {
+        let (clock, _hand) = Clock::manual(prov::UnixSeconds(2_000));
+        Companiond::new(
+            Intents::over(InProcess::new(
+                self.router.clone(),
+                caller("org.quire.Companiond", CallerRole::Companion),
+            )),
+            PlannerModel::new(self.infer.clone()),
+            AgentConfig::default(),
+            clock,
+            app("org.quire.Shell"),
+        )
+    }
+
+    /// An editor opens a session (the companion's identity opens it here; the router records the
+    /// directory the editor sent).
+    pub async fn open_for_editor(&mut self, in_space: &str) -> SessionOpened {
+        self.companion
+            .intents
+            .session_open(SessionOpen {
+                space: space(in_space),
+                agent: AgentRef::Companion,
+                parent: None,
+                cwd: Some(Workspace::parse("/work/project").expect("workspace")),
+            })
+            .await
+            .expect("open")
+    }
+
     /// Every record the router appended to the log, oldest first.
     pub fn records(&self) -> Vec<AuditRecord> {
         self.router.seams.sink.records()

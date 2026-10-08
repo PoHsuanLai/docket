@@ -36,6 +36,7 @@ mod runtime;
 mod seams;
 mod shared;
 mod sources;
+mod stored_roster;
 mod tap;
 mod task;
 
@@ -44,9 +45,13 @@ pub use completion::completion_effects;
 pub use drive::refusal_of;
 pub use fault::ServeFault;
 pub use native::{Core, NativeBackend, NativeHost, RouterLog};
-pub use recover::{RecentSource, ReplayFault, RouterRecent, recover, replay_of, restart_query};
+pub use recover::{
+    RecentSource, ReplayFault, RouterRecent, rebuild_from, recent_events, recover, replay_of,
+    restart_query,
+};
 pub use runtime::{Begun, Companion};
 pub use seams::{Now, Quiet, Surface};
 pub use shared::{Change, Shared};
+pub use stored_roster::{events_of, stored_events};
 pub use tap::{Go, NoTap, Tap};
 pub use task::{Failure, TaskRuntime, kept_all};

@@ -132,11 +132,12 @@ fn opened(task: &TaskId) -> String {
 }
 
 #[tokio::test]
-async fn restart_rebuilds_the_front_and_the_roster_from_recent_with_bodies() {
+async fn restart_reads_messages_episodes_and_runs_from_recent_and_no_session_notes() {
     let task = TaskId::parse("t-1").expect("task");
     let source = Scripted::new(Ok(vec![
         // Newest first, as `Recent` answers; a kind the rebuild does not read is skipped, and so
-        // is an event whose body is gone.
+        // is an event whose body is gone. A legacy session note is no longer read from here: the
+        // sessions come from `Session.Stored`.
         entry(3, "docket.call", 3, Some("{}".into())),
         entry(2, "companion.session.closed", 2, None),
         entry(1, "companion.session.opened", 1, Some(opened(&task))),
@@ -144,8 +145,8 @@ async fn restart_rebuilds_the_front_and_the_roster_from_recent_with_bodies() {
     let rebuilt = recover(&source, prov::UnixSeconds(0))
         .await
         .expect("rebuilt");
-    assert_eq!(rebuilt.front, Some(task));
-    assert_eq!(rebuilt.roster().entries[0].state, RosterState::Working);
+    assert_eq!(rebuilt.front, None);
+    assert!(rebuilt.tasks.is_empty());
     let queries = source.1.lock().expect("log");
     assert_eq!(queries.len(), 1);
     assert_eq!(queries[0].bodies, BodyMode::Json);
@@ -154,7 +155,6 @@ async fn restart_rebuilds_the_front_and_the_roster_from_recent_with_bodies() {
     assert_eq!(
         kinds,
         vec![
-            "companion.session.*",
             "companion.message",
             "companion.episode",
             "cua.run.started",
@@ -169,21 +169,22 @@ async fn restart_rebuilds_the_front_and_the_roster_from_recent_with_bodies() {
 
 #[test]
 fn replay_reads_oldest_first_and_refuses_a_body_it_cannot_parse() {
-    let task = TaskId::parse("t-1").expect("task");
+    let started = |run: &str| {
+        run_record(
+            "cua.run.started",
+            serde_json::json!({ "run": run, "session": "s-2", "space": "work", "app": "org.example.Browser" }),
+        )
+    };
     let two = vec![
-        entry(2, "companion.session.opened", 20, Some(opened(&task))),
-        entry(1, "companion.session.opened", 10, Some(opened(&task))),
+        entry(2, "cua.run.started", 20, Some(started("r-2"))),
+        entry(1, "cua.run.started", 10, Some(started("r-1"))),
     ];
     let events = replay_of(&two).expect("events");
     assert_eq!(
         events.iter().map(|e| e.at.0).collect::<Vec<_>>(),
         vec![10, 20]
     );
-    for kind in [
-        "companion.session.opened",
-        "companion.message",
-        "companion.episode",
-    ] {
+    for kind in ["companion.message", "companion.episode"] {
         let bad = vec![entry(1, kind, 1, Some("{\"nope\":1}".into()))];
         assert_eq!(replay_of(&bad), Err(ReplayFault::Malformed), "{kind}");
     }

@@ -9,17 +9,33 @@ use docket_session::{
     Appended, LogFault, LogPage, Logged, PageSize, Seq, SessionEntry, SessionLog,
 };
 use prov::SessionId;
+use std::borrow::Borrow;
+use std::marker::PhantomData;
 
 /// The log, read through a router link.
 #[derive(Debug)]
-pub struct RouterLog<I: IntentsTransport> {
-    intents: Intents<I>,
+pub struct RouterLog<I: IntentsTransport, H: Borrow<Intents<I>> = Intents<I>> {
+    intents: H,
+    transport: PhantomData<fn() -> I>,
 }
 
 impl<I: IntentsTransport> RouterLog<I> {
     /// The log as `intents` reaches it.
     pub fn new(intents: Intents<I>) -> Self {
-        Self { intents }
+        Self {
+            intents,
+            transport: PhantomData,
+        }
+    }
+}
+
+impl<'a, I: IntentsTransport> RouterLog<I, &'a Intents<I>> {
+    /// The log as a link someone else holds reaches it.
+    pub fn reading(intents: &'a Intents<I>) -> Self {
+        Self {
+            intents,
+            transport: PhantomData,
+        }
     }
 }
 
@@ -32,7 +48,7 @@ fn fault_of(error: &ClientError) -> LogFault {
     }
 }
 
-impl<I: IntentsTransport> SessionLog for RouterLog<I> {
+impl<I: IntentsTransport, H: Borrow<Intents<I>> + Send + Sync> SessionLog for RouterLog<I, H> {
     async fn append(
         &self,
         _session: &SessionId,
@@ -53,7 +69,7 @@ impl<I: IntentsTransport> SessionLog for RouterLog<I> {
             from: from.map(|s| s.0),
             size: size.0.0,
         };
-        match self.intents.session_stored(ask).await {
+        match self.intents.borrow().session_stored(ask).await {
             Ok(StoredView::Rows { rows, next }) => Ok(LogPage {
                 rows: rows
                     .iter()
@@ -72,7 +88,7 @@ impl<I: IntentsTransport> SessionLog for RouterLog<I> {
     }
 
     async fn sessions(&self) -> Result<Vec<SessionId>, LogFault> {
-        match self.intents.session_stored(StoredAsk::List).await {
+        match self.intents.borrow().session_stored(StoredAsk::List).await {
             Ok(StoredView::Sessions(all)) => Ok(all),
             Ok(StoredView::Rows { .. }) => Err(LogFault::Unavailable),
             Err(error) => Err(fault_of(&error)),

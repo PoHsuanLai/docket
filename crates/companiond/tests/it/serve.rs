@@ -13,10 +13,10 @@ use docket_dbus::{
     introspection,
 };
 use futures_util::StreamExt;
+use futures_util::lock::Mutex;
 use prov::AgentRef;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
 
 /// The text of one `<interface name="...">` element.
 fn block(xml: &str, name: &str) -> String {

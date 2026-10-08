@@ -1,11 +1,12 @@
 //! Restart. companiond keeps no state of its own: the roster and the front task are rebuilt from
-//! the records the eventlog holds (its own session records, the router's messages and the
-//! episodes), read through memory's `Recent` with `BodyMode::Json`. Each entry's body is the
-//! owner's serde form, so an entry that does not parse is a fault, never a guess.
+//! the sessions the router stores (`stored_roster`, read through `Session.Stored`) and from the
+//! records the eventlog holds (the router's messages, the episodes and the computer-use runs),
+//! read through memory's `Recent` with `BodyMode::Json`. Each entry's body is the owner's serde
+//! form, so an entry that does not parse is a fault, never a guess. The legacy
+//! `companion.session.*` notes are not read from `Recent` any more.
 
 use agent_loop::{Rebuilt, ReplayEvent, ReplayWhat, rebuild};
 use almanac_core::{BodyMode, Episode, KindPattern, RecentEntry, RecentQuery, TrustFilter};
-use companion_wire::{SESSION_KIND_PREFIX, SessionRecord};
 use docket_core::RosterState;
 use porter_core::Count;
 use prov::{Message, RunId, SpaceId, UnixSeconds};
@@ -101,16 +102,11 @@ impl<I: docket_client::Transport> RecentSource for RouterRecent<'_, I> {
 pub fn restart_query(since: UnixSeconds) -> RecentQuery {
     RecentQuery {
         since,
-        kinds: [
-            format!("{SESSION_KIND_PREFIX}.*"),
-            MESSAGE_KIND.to_owned(),
-            EPISODE_KIND.to_owned(),
-        ]
-        .iter()
-        .map(String::as_str)
-        .chain(RUN_KINDS)
-        .filter_map(|k| KindPattern::parse(k).ok())
-        .collect(),
+        kinds: [MESSAGE_KIND, EPISODE_KIND]
+            .into_iter()
+            .chain(RUN_KINDS)
+            .filter_map(|k| KindPattern::parse(k).ok())
+            .collect(),
         trust: TrustFilter::Any,
         limit: Count(RESTART_LIMIT),
         bodies: BodyMode::Json,
@@ -133,12 +129,7 @@ fn owner_form(text: &str) -> std::borrow::Cow<'_, str> {
 
 fn what_of(entry: &RecentEntry) -> Result<Option<ReplayWhat>, ReplayFault> {
     let kind = entry.summary.kind.as_str();
-    let wanted = kind == MESSAGE_KIND
-        || kind == EPISODE_KIND
-        || kind
-            .strip_prefix(SESSION_KIND_PREFIX)
-            .is_some_and(|rest| rest.starts_with('.'));
-    if !wanted {
+    if kind != MESSAGE_KIND && kind != EPISODE_KIND {
         return Ok(None);
     }
     // Header-only or erased events have no body: nothing to rebuild from.
@@ -152,11 +143,8 @@ fn what_of(entry: &RecentEntry) -> Result<Option<ReplayWhat>, ReplayFault> {
         MESSAGE_KIND => ReplayWhat::Message(Box::new(
             serde_json::from_str::<Message>(text).map_err(malformed)?,
         )),
-        EPISODE_KIND => ReplayWhat::Episode(Box::new(
+        _ => ReplayWhat::Episode(Box::new(
             serde_json::from_str::<Episode>(text).map_err(malformed)?,
-        )),
-        _ => ReplayWhat::Session(Box::new(
-            serde_json::from_str::<SessionRecord>(text).map_err(malformed)?,
         )),
     };
     Ok(Some(what))
@@ -234,13 +222,31 @@ pub fn replay_of(entries: &[RecentEntry]) -> Result<Vec<ReplayEvent>, ReplayFaul
     Ok(events)
 }
 
-/// Rebuilds the roster and the front task from what `source` holds since `since`.
+/// The events `source` holds since `since`: messages, episodes and runs, oldest first.
+pub async fn recent_events<S: RecentSource>(
+    source: &S,
+    since: UnixSeconds,
+) -> Result<Vec<ReplayEvent>, ReplayFault> {
+    replay_of(&source.recent(restart_query(since)).await?)
+}
+
+/// Rebuilds the roster and the front task from what `source` holds since `since` (no sessions:
+/// those come from `stored_events`, and `rebuild_from` joins the two).
 pub async fn recover<S: RecentSource>(
     source: &S,
     since: UnixSeconds,
 ) -> Result<Rebuilt, ReplayFault> {
-    let entries = source.recent(restart_query(since)).await?;
-    Ok(rebuild(&replay_of(&entries)?))
+    Ok(rebuild(&recent_events(source, since).await?))
+}
+
+/// Rebuilds from the sessions the router stores and the records memory holds, in time order. A
+/// session's events come first among equals: its own records are older than the episode that
+/// ends it.
+pub fn rebuild_from(stored: Vec<ReplayEvent>, recent: Vec<ReplayEvent>) -> Rebuilt {
+    let mut events = stored;
+    events.extend(recent);
+    events.sort_by_key(|event| event.at);
+    rebuild(&events)
 }
 
 #[cfg(test)]

@@ -7,7 +7,8 @@
 //! - `Companiond`: the runtime as the bus runs it (`docket_tasks::Companion` over the system
 //!   clock and the bell).
 //! - `PlannerModel`: the planner over inferd; `Catalogue`: the actions it may call.
-//! - `RecentSource`, `recover`, `replay_of`: restart, from what the eventlog holds.
+//! - `RecentSource`, `recover`, `replay_of`: restart, from what the eventlog holds (messages,
+//!   episodes, runs); `stored_events`, `events_of`: the sessions, from `Session.Stored`.
 //! - `completion_effects`: how a finished worker or run reaches the front task.
 //! - `serve`, `serve_on`: `org.quire.Companion1`.
 
@@ -29,8 +30,9 @@ pub use docket_planner::{
     user_text,
 };
 pub use docket_tasks::{
-    Begun, Change, RecentSource, ReplayFault, RouterRecent, ServeFault, TaskRuntime,
-    completion_effects, recover, replay_of, restart_query,
+    Begun, Change, RecentSource, ReplayFault, RouterLog, RouterRecent, ServeFault, TaskRuntime,
+    completion_effects, events_of, rebuild_from, recent_events, recover, replay_of, restart_query,
+    stored_events,
 };
 pub use serve::{serve, serve_on, serve_on_rooted};
 pub use speaker::{Call, PROC_ROOT_VAR, Speaker, permits, proc_root_from};

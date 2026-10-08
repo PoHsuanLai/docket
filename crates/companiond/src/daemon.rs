@@ -11,8 +11,8 @@ use docket_planner::PlannerModel;
 use docket_skills::{Roots, discover};
 use docket_tasks::ServeFault;
 use futures_util::StreamExt;
+use futures_util::lock::Mutex;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// The companion as the daemon runs it: inferd and the router over the session bus.
 pub type Daemon = Companiond<InferLink, DbusTransport>;

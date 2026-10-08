@@ -5,9 +5,9 @@
 use crate::{Bell, Clock};
 use docket_client::{PerformEvent, Transport as IntentsTransport};
 use docket_tasks::{Acting, Companion, refusal_of};
+use futures_util::lock::Mutex;
 use porter_client::Transport as InferTransport;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// Reads the card's request to its end, telling the answer at each step.
 pub(crate) async fn follow<P, I>(

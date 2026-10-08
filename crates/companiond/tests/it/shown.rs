@@ -10,11 +10,11 @@ use companiond::serve_on;
 use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use futures_util::StreamExt;
+use futures_util::lock::Mutex;
 use prov::{AgentRef, SessionId};
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
 
 const START: &str = "org.quire.Companion-companion.task.start";
 /// The one handle a mail read leaves in its session.

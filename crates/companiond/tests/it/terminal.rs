@@ -10,11 +10,11 @@ use companion_wire::{AnswerPhase, AnswerWire, AskWire};
 use companiond::serve_on_rooted;
 use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
+use futures_util::lock::Mutex;
 use prov::AgentRef;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
 
 fn place(root: &Path, leaf: &str) {
     let at = root.join(std::process::id().to_string());

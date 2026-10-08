@@ -2,7 +2,7 @@
 //! through the router (`Session.Note`) so a restart can rebuild the roster and the front task.
 //! A record that cannot be written costs only that rebuild: nothing waits on it.
 
-use crate::runtime::Companion;
+use crate::runtime::{Companion, Notes};
 use crate::seams::{Now, Surface};
 use almanac_core::JsonText;
 use companion_wire::SessionRecord;
@@ -21,6 +21,9 @@ pub(crate) fn note_of(record: &SessionRecord) -> Option<NoteAsk> {
 impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
     /// Writes `record` for `session`. A router that does not answer is not waited for twice.
     pub(crate) async fn record(&self, session: &SessionId, record: &SessionRecord) {
+        if self.notes == Notes::Silent {
+            return;
+        }
         if let Some(note) = note_of(record) {
             let _ = self.intents.session_note(session.clone(), note).await;
         }

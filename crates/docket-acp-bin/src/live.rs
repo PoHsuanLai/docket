@@ -92,7 +92,10 @@ pub async fn serve(permit: Permit) -> Result<(), LiveFault> {
         AgentConfig::default(),
         Wall,
         shell,
-    );
+    )
+    // An editor's sessions are not the companion's: no roster notes, so a restart of companiond
+    // does not list them.
+    .without_notes();
     // Stored sessions are read through the router: memoryd answers log reads for the router and
     // the shell only.
     let log: Log = Arc::new(RouterLog::new(Intents::over(DbusTransport::new(

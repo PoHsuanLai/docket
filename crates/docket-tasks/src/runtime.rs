@@ -88,6 +88,19 @@ pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     /// The skills whose actions are all registered, and the manifests they were checked against.
     pub(crate) skills: docket_skills::Library,
     pub(crate) manifests: Vec<docket_core::ValidManifest>,
+    /// Whether the companion writes its roster notes (`Session.Note`) for its sessions.
+    pub(crate) notes: Notes,
+}
+
+/// Whether a companion writes the legacy session notes (`companion.session.*`) a restart used to
+/// rebuild the roster from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Notes {
+    /// companiond: its sessions are on the roster.
+    Written,
+    /// An editor's host: its sessions are the editor's, not the companion's, and must not appear
+    /// on the roster after a restart.
+    Silent,
 }
 
 pub(crate) fn idle_state() -> LoopState {
@@ -133,7 +146,16 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             booted: now,
             skill_files: Vec::new(),
             skills: docket_skills::Library::default(),
+            notes: Notes::Written,
             manifests: Vec::new(),
+        }
+    }
+
+    /// The same companion, writing no roster notes: the host of an editor's sessions.
+    pub fn without_notes(self) -> Self {
+        Self {
+            notes: Notes::Silent,
+            ..self
         }
     }
 

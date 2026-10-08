@@ -4,9 +4,11 @@
 //! told them), and the front task gets a fresh session in the Space it was in.
 
 use crate::fault::ServeFault;
-use crate::recover::{RouterRecent, recover};
+use crate::native::RouterLog;
+use crate::recover::{RouterRecent, rebuild_from, recent_events};
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
+use crate::stored_roster::stored_events;
 use agent_loop::Rebuilt;
 use docket_client::Transport as IntentsTransport;
 use docket_core::{RecallAsk, RecallView, SessionOpen, SessionOpened};
@@ -49,16 +51,20 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         spaces
     }
 
-    /// A restart: reads what the eventlog holds of each Space in `spaces` and each the router
-    /// knows (through a session opened for the purpose, which is closed again), rebuilds the
-    /// roster and the front task, and takes them up. A Space the router or memoryd cannot answer
-    /// for adds nothing.
+    /// A restart: reads the sessions the router stores (`Session.Stored`) and what the eventlog
+    /// holds of each Space in `spaces` and each the router knows (through a session opened for the
+    /// purpose, which is closed again), rebuilds the roster and the front task, and takes them
+    /// up. A Space the router or memoryd cannot answer for adds nothing; sessions an editor
+    /// opened are not the companion's and are left out.
     pub async fn restore(
         &mut self,
         spaces: &[SpaceId],
     ) -> Result<Option<SessionOpened>, ServeFault> {
         let since = UnixSeconds(self.clock.now().0.saturating_sub(RETENTION));
-        let mut rebuilt = Rebuilt::default();
+        let stored = stored_events(&RouterLog::reading(&self.intents))
+            .await
+            .unwrap_or_default();
+        let mut recent = Vec::new();
         for space in &self.spaces_to_read(spaces).await {
             let Ok(reading) = self
                 .intents
@@ -72,18 +78,17 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             else {
                 continue;
             };
-            let found = recover(
+            let found = recent_events(
                 &RouterRecent::new(&self.intents, reading.session.clone()),
                 since,
             )
             .await;
             let _ = self.intents.session_close(reading.session).await;
             if let Ok(found) = found {
-                rebuilt.front = found.front.or(rebuilt.front);
-                rebuilt.tasks.extend(found.tasks);
+                recent.extend(found);
             }
         }
-        self.resume(rebuilt).await
+        self.resume(rebuild_from(stored, recent)).await
     }
 
     /// Takes up what a restart rebuilt. A front task that was open is opened again as a fresh
