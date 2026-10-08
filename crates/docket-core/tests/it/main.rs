@@ -2,6 +2,7 @@ mod args_props;
 mod atomic_file;
 mod budget;
 mod episodes;
+mod grant_space;
 mod manifests;
 mod records;
 mod schema;

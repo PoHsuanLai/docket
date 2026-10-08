@@ -193,6 +193,15 @@ pub enum AuditRecord {
         /// Which grant.
         grant: StandingGrantId,
     },
+    /// Standing consent ended without the person ending it: its Space is gone, was never one
+    /// porter knows, or is another app's own. The grants are dropped, never moved to another
+    /// Space. Never what the grants were for.
+    GrantsEnded {
+        /// When.
+        at: UnixSeconds,
+        /// Why, and how many.
+        ended: crate::grant_space::Ended,
+    },
     /// A halt began or ended.
     Halt {
         /// When.

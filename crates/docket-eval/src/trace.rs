@@ -184,6 +184,7 @@ pub fn audit_line(record: &AuditRecord) -> Option<String> {
         | AuditRecord::StandingGranted { .. }
         | AuditRecord::ApprovalUsed { .. }
         | AuditRecord::StandingRevoked { .. }
+        | AuditRecord::GrantsEnded { .. }
         | AuditRecord::Undo { .. }
         | AuditRecord::TaskStarted { .. }
         | AuditRecord::Message(_)

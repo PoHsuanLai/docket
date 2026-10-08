@@ -38,6 +38,7 @@ pub fn kind_tag_of(record: &AuditRecord) -> Option<KindTag> {
         AuditRecord::StandingUsed { .. } => "docket.standing_used".to_owned(),
         AuditRecord::ApprovalUsed { .. } => "docket.approval_used".to_owned(),
         AuditRecord::StandingRevoked { .. } => "docket.standing_revoked".to_owned(),
+        AuditRecord::GrantsEnded { .. } => "docket.grants_ended".to_owned(),
         AuditRecord::TaskStarted { .. } => "docket.task_started".to_owned(),
         AuditRecord::Message(_) => "companion.message".to_owned(),
         AuditRecord::Episode(_) => "companion.episode".to_owned(),
@@ -63,6 +64,7 @@ fn occurred(record: &AuditRecord) -> UnixSeconds {
         | AuditRecord::StandingUsed { at, .. }
         | AuditRecord::ApprovalUsed { at, .. }
         | AuditRecord::StandingRevoked { at, .. }
+        | AuditRecord::GrantsEnded { at, .. }
         | AuditRecord::TaskStarted { at, .. }
         | AuditRecord::Session { at, .. } => *at,
         AuditRecord::Message(message) => message.sent,
@@ -91,6 +93,7 @@ pub fn space_named_by(record: &AuditRecord) -> Option<&SpaceId> {
         | AuditRecord::StandingUsed { .. }
         | AuditRecord::ApprovalUsed { .. }
         | AuditRecord::StandingRevoked { .. }
+        | AuditRecord::GrantsEnded { .. }
         | AuditRecord::Breaker { .. } => None,
     }
 }
@@ -195,6 +198,7 @@ fn who_and_how(record: &AuditRecord, space: &SpaceId) -> (Actor, Effect, Label) 
         | AuditRecord::StandingUsed { .. }
         | AuditRecord::ApprovalUsed { .. }
         | AuditRecord::StandingRevoked { .. }
+        | AuditRecord::GrantsEnded { .. }
         | AuditRecord::TaskStarted { .. }
         | AuditRecord::Session { .. } => (router(), Effect::Read, router_label(space)),
     }

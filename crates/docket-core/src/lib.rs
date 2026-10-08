@@ -27,6 +27,7 @@ mod execute;
 mod external;
 mod gate;
 mod grant;
+mod grant_space;
 mod ids;
 mod index;
 mod manifest;
@@ -40,6 +41,7 @@ mod review;
 mod roster;
 mod schema;
 mod skill;
+mod space_access;
 mod standing;
 mod standing_match;
 mod standing_offer;
@@ -101,6 +103,10 @@ pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass,
 pub use grant::{
     ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, ProgramName, ProgramNameError,
 };
+pub use grant_space::{
+    Ended, GrantEnd, GrantListFault, KnownSpaces, Reconciled, decode_grants, reconcile,
+    without_space,
+};
 pub use ids::{
     ActionRef, CallId, CardActionId, ChoiceId, EntityRef, FileRef, Handle, IconName, IntentsVocab,
     LabelText, ParamName, StepId, TextTargetRef, TurnId, UndoId, UndoToken, UtteranceId, ViewName,
@@ -137,6 +143,7 @@ pub use roster::{
 };
 pub use schema::{ToolSchema, tool_schema};
 pub use skill::{SKILL_ID_MAX, SkillCard, SkillId, SkillIdError, SkillText, SkillVersion};
+pub use space_access::{SpaceAccess, SpaceRefusal, space_access};
 pub use standing::{
     AbsPath, AddressFault, CommandFault, CommandPrefix, Cover, Domain, DomainFault, NarrowState,
     PathFault, Recipient, Revocation, RootState, ScopeKind, StandingFileFault, StandingGrant,
