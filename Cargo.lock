@@ -124,6 +124,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "almanac-client"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=b83e57741a3a6362bbbeca04f96c9d93471c3b08#b83e57741a3a6362bbbeca04f96c9d93471c3b08"
 dependencies = [
  "almanac-core",
  "almanac-dbus",
@@ -134,6 +135,7 @@ dependencies = [
 [[package]]
 name = "almanac-core"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=b83e57741a3a6362bbbeca04f96c9d93471c3b08#b83e57741a3a6362bbbeca04f96c9d93471c3b08"
 dependencies = [
  "porter-core",
  "prov",
@@ -145,6 +147,7 @@ dependencies = [
 [[package]]
 name = "almanac-dbus"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=b83e57741a3a6362bbbeca04f96c9d93471c3b08#b83e57741a3a6362bbbeca04f96c9d93471c3b08"
 dependencies = [
  "almanac-core",
  "serde",
@@ -156,6 +159,7 @@ dependencies = [
 [[package]]
 name = "almanac-fake"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=b83e57741a3a6362bbbeca04f96c9d93471c3b08#b83e57741a3a6362bbbeca04f96c9d93471c3b08"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -171,6 +175,7 @@ dependencies = [
 [[package]]
 name = "almanac-seal"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=b83e57741a3a6362bbbeca04f96c9d93471c3b08#b83e57741a3a6362bbbeca04f96c9d93471c3b08"
 dependencies = [
  "almanac-core",
  "blake3",
@@ -183,6 +188,7 @@ dependencies = [
 [[package]]
 name = "almanac-service"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=b83e57741a3a6362bbbeca04f96c9d93471c3b08#b83e57741a3a6362bbbeca04f96c9d93471c3b08"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -1535,6 +1541,7 @@ dependencies = [
 [[package]]
 name = "eventlog"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=b83e57741a3a6362bbbeca04f96c9d93471c3b08#b83e57741a3a6362bbbeca04f96c9d93471c3b08"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -2335,6 +2342,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "memfiles"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=b83e57741a3a6362bbbeca04f96c9d93471c3b08#b83e57741a3a6362bbbeca04f96c9d93471c3b08"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -3052,6 +3060,7 @@ dependencies = [
 [[package]]
 name = "recall"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=b83e57741a3a6362bbbeca04f96c9d93471c3b08#b83e57741a3a6362bbbeca04f96c9d93471c3b08"
 dependencies = [
  "rusqlite",
  "thiserror",
@@ -4432,19 +4441,3 @@ dependencies = [
  "syn 3.0.6",
  "winnow",
 ]
-
-[[patch.unused]]
-name = "almanac-local"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "almanac-watch"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "memoryd"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "recall-fastembed"
-version = "0.1.0"

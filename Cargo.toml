@@ -96,15 +96,15 @@ porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b
 
 # almanac's frozen interfaces, by git at a pinned rev. docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
-almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "d0e65a110465e725567b9b725ec197d834c13b37" }
+almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "b83e57741a3a6362bbbeca04f96c9d93471c3b08" }
 # Without its default desktop switch (`quire-desktop`, which pulls the bus): the portable crates name
 # no feature, the daemons name `dbus`.
-almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "d0e65a110465e725567b9b725ec197d834c13b37", default-features = false }
+almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "b83e57741a3a6362bbbeca04f96c9d93471c3b08", default-features = false }
 # Test-only: a MemoryService over in-memory seams, the backend of the in-process memory tests.
-almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "d0e65a110465e725567b9b725ec197d834c13b37" }
-almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "d0e65a110465e725567b9b725ec197d834c13b37" }
+almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "b83e57741a3a6362bbbeca04f96c9d93471c3b08" }
+almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "b83e57741a3a6362bbbeca04f96c9d93471c3b08" }
 # Test-only: the fake memoryd of intentd's audit tests serves the real wire (dev-dependency).
-almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "d0e65a110465e725567b9b725ec197d834c13b37" }
+almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "b83e57741a3a6362bbbeca04f96c9d93471c3b08" }
 
 # stoker's pure vocabulary, by git at a pinned rev: the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
