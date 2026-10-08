@@ -282,6 +282,10 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         session: session.clone(),
     })
     .await;
+    pair.both(IntentsRequest::SessionStored {
+        ask: docket_core::StoredAsk::List,
+    })
+    .await;
     pair.both(IntentsRequest::SessionNarrow {
         session: session.clone(),
         turn: UserTurn {
