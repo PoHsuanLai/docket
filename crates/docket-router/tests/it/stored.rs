@@ -39,7 +39,7 @@ async fn an_editor_lists_and_reads_its_own_sessions_and_nobody_elses() {
         )
         .await,
     );
-    assert_eq!(listed, [mine.session.clone()]);
+    assert_eq!(listed, std::slice::from_ref(&mine.session));
 
     let page = ask(
         &router,
