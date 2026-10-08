@@ -28,6 +28,16 @@ login = ["konsole", "-e", "claude", "login"]
 # (the `actions-mcp` program beside docket-agent); every call is a call of this session, asked about like the
 # planner's. "off" keeps the agent to its own tools and the host's file and terminal methods.
 tools = "offered"
+# Confines what Claude Code brings of its own (profile = "claude-code"). Docket writes a managed-settings file for
+# each run, outside everything the agent can write, binds it read-only into the sandbox and points
+# CLAUDE_CODE_MANAGED_SETTINGS_PATH at it, with the variables of Claude Code's isolated mode. The file:
+#   - turns off your claude.ai account's connectors (cloud services), skills and plugins, which would otherwise
+#     reach tools and hooks that never pass docket's router;
+#   - lets Claude Code call the desktop's own tool server (`quire`) without its own permission prompt, so the
+#     desktop's sheet is the only one you see; no other server is pre-allowed;
+#   - lets only that server be configured (allowManagedMcpServersOnly), whatever your own settings list.
+# Claude Code ranks managed settings above your own and a project's, so nothing the agent writes widens them.
+profile = "claude-code"
 
 # The same program with inferd as its model (an API-key account in accountd): the agent gets a
 # base URL and a per-session token, the real key stays in porter, and the only network it has is
@@ -44,6 +54,7 @@ tools = "offered"
 # reads = ["/home/me/.local/share/node"]
 # state = ["/home/me/.claude", "/home/me/.claude.json"]
 # home = "/home/me"
+# profile = "claude-code"
 # [agent.endpoint]
 # kind = "account"
 # id = "anthropic-main"

@@ -23,6 +23,7 @@ pub mod env;
 pub mod fake;
 pub mod login;
 mod login_only;
+pub mod managed;
 mod names;
 mod permit;
 pub mod procs;
@@ -33,7 +34,7 @@ pub use accounts::{
     AccountFault, Accounts, AskKind, Heard, Issued, KeyHandoff, LoginAsk, OpenedEndpoint, RouteWish,
 };
 pub use config::{
-    AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Route, ToolsMode,
+    AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Profile, Route, ToolsMode,
 };
 pub use login_only::LoginOnly;
 pub use names::launcher_session;

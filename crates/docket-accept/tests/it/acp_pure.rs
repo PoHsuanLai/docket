@@ -29,7 +29,7 @@ fn an_acp_run_names_its_agent_on_the_command_line() {
     let line = "smoke --engine scripted --agent acp --acp-command /home/u/.local/bin/claude-agent-acp \
                 --acp-arg --verbose --acp-state .claude --acp-state .claude.json \
                 --acp-reads /home/u/.local/share/node --acp-credentials /home/u/creds.json \
-                --acp-set FOO=bar --flow flow-a";
+                --acp-set FOO=bar --acp-profile claude-code --flow flow-a";
     let Ok(Command::Smoke(s)) = parse(&words(line)) else {
         panic!("smoke")
     };
@@ -45,6 +45,11 @@ fn an_acp_run_names_its_agent_on_the_command_line() {
     assert_eq!(spec.state, [".claude", ".claude.json"]);
     assert_eq!(spec.reads, [PathBuf::from("/home/u/.local/share/node")]);
     assert_eq!(spec.set, [("FOO".to_owned(), "bar".to_owned())]);
+    assert_eq!(spec.profile.as_deref(), Some("claude-code"));
+    assert!(
+        spec.entry_toml(std::path::Path::new("/home/u/scratch"))
+            .contains("profile = \"claude-code\"\n")
+    );
     let source = spec.credentials.expect("credentials");
     assert_eq!(source.from, PathBuf::from("/home/u/creds.json"));
     assert_eq!(source.at, ".claude/.credentials.json");
@@ -72,6 +77,7 @@ fn the_agent_options_are_checked_before_anything_starts() {
         "smoke --engine scripted --agent acp --acp-command /x --acp-program Claude",
         "smoke --engine scripted --agent acp --acp-command /x --acp-credentials /c --acp-credentials-at ../../x",
         "smoke --engine scripted --agent acp --acp-command /x --acp-nope 1",
+        "smoke --engine scripted --agent acp --acp-command /x --acp-profile bogus",
     ];
     for line in cases {
         let got = parse(&words(line));

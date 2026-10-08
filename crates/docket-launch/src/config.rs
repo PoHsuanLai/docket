@@ -16,6 +16,7 @@
 //! home = "/home/me"
 //! label = "Claude Code"             # optional: what the audit and the journal call it
 //! tools = "offered"                  # offered (default) | off: the desktop's actions as an MCP server
+//! profile = "claude-code"            # optional: confine the program's own extras (see `managed`)
 //! [agent.endpoint]
 //! kind = "account"
 //! id = "anthropic-main"
@@ -65,6 +66,16 @@ pub enum ToolsMode {
     Offered,
     /// The agent has its own tools and the host's `fs/*` and `terminal/*` only.
     Off,
+}
+
+/// A preset that confines what a program brings of its own (its account's connectors, skills and
+/// plugins, its own permission prompt for the desktop's tools). Docket writes the files and the
+/// variables the preset names; the program cannot write them. See `managed`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum Profile {
+    /// Claude Code: a managed-settings file and the variables that make it the isolated mode.
+    #[serde(rename = "claude-code")]
+    ClaudeCode,
 }
 
 /// Which model the endpoint serves.
@@ -121,6 +132,7 @@ struct Raw {
     #[serde(default)]
     tools: ToolsMode,
     label: Option<String>,
+    profile: Option<Profile>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -193,6 +205,8 @@ pub struct Entry {
     /// What the person calls it, shown in the audit and the journal. Written here and nowhere
     /// else: never taken from what the agent says of itself.
     pub label: Option<prov::AgentLabel>,
+    /// The preset that confines the program's own extras, if the person named one.
+    pub profile: Option<Profile>,
 }
 
 /// The longest label, in characters.
@@ -345,6 +359,7 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
         logout: raw.logout,
         tools: raw.tools,
         label,
+        profile: raw.profile,
     })
 }
 

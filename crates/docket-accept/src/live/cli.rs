@@ -217,6 +217,7 @@ struct AcpFlags {
     credentials: Option<PathBuf>,
     credentials_at: Option<String>,
     route: Option<String>,
+    profile: Option<String>,
     seen: bool,
 }
 
@@ -235,6 +236,7 @@ impl AcpFlags {
             "--acp-credentials" => self.credentials = Some(PathBuf::from(value)),
             "--acp-credentials-at" => self.credentials_at = Some(value),
             "--acp-route" => self.route = Some(value),
+            "--acp-profile" => self.profile = Some(value),
             other => return Err(UsageError::Unknown(other.to_owned())),
         }
         Ok(())
@@ -265,6 +267,7 @@ impl AcpFlags {
         spec.args = self.args;
         spec.state = self.state;
         spec.reads = self.reads;
+        spec.profile = self.profile;
         if let Some(word) = self.network {
             spec.network = network_of(&word)?;
         }

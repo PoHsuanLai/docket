@@ -274,10 +274,29 @@ judges the router's ruling on each, and an agent chooses its own.
 | `--acp-set NAME=VALUE` | a plain environment variable |
 | `--acp-credentials FILE` | the login to stage (see below); no default |
 | `--acp-credentials-at REL` | where it goes in the scratch HOME (default `.claude/.credentials.json`, Claude Code's) |
+| `--acp-profile claude-code` | the `agents.toml` preset that confines the agent's own extras (below); the entry gets `profile = "claude-code"` |
 | `--acp-route login` | the only route the harness can run: there is no accountd on the private bus |
 
 The harness writes the entry into the scratch `agents.toml` (`AcpSpec::entry_toml`) and switches `agent.acp.agents` on in
 the scratch settings; it reads neither from the person's configuration.
+
+**Confining Claude Code (`--acp-profile claude-code`).** Signed in with a claude.ai login, Claude Code asks its own
+permission before each MCP tool call (a second sheet beside the router's), loads the account's claude.ai connectors and
+syncs its skills and plugins; none of that passes the router. The preset has docket write a managed-settings file for the
+run (connectors, skills and plugins off; `mcp__quire` pre-allowed, which is the desktop's server and no other; only that
+server configurable), bind it read-only into the sandbox and set `CLAUDE_CODE_MANAGED_SETTINGS_PATH` and the isolated-mode
+variables. A run with it:
+
+```
+dev/live-smoke.sh --engine scripted --agent acp \
+  --acp-command /home/u/.local/bin/claude-agent-acp \
+  --acp-reads /home/u/.local/share/node \
+  --acp-state .claude --acp-state .claude.json \
+  --acp-credentials /home/u/claude-live-login.json \
+  --acp-profile claude-code --flow flow-a
+```
+
+See `FINDINGS.md`, "acp-isolation".
 
 **What counts.** The checks that look inside the planner are not made for an agent, and each run says so: in
 flow-c "the planner was not shown the injected body" and "the reader read the thread"; in first-use "exactly one

@@ -22,5 +22,5 @@ mod offer;
 mod serve;
 mod token;
 
-pub use offer::{EdgeBind, ToolsOffer};
+pub use offer::{EdgeBind, SERVER_NAME, ToolsOffer};
 pub use serve::{EdgeFault, ToolsEdge};

@@ -147,6 +147,10 @@ fn the_shipped_example_reads_in_both_of_its_forms() {
     let text = include_str!("../../../../dist/agents.example.toml");
     let file = AgentsFile::parse(text).expect("the example");
     assert_eq!(file.len(), 1);
+    assert!(file.programs().iter().all(|p| {
+        file.by_program(p)
+            .is_some_and(|e| e.profile == Some(docket_launch::Profile::ClaudeCode))
+    }));
     // The commented endpoint entry, uncommented in place of the first, reads too.
     let (_, endpoint) = text.split_once("# [[agent]]").expect("second form");
     let uncommented: String = std::iter::once("[[agent]]\n".to_owned())

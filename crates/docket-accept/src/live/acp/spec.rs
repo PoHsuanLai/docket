@@ -34,6 +34,9 @@ pub enum SpecFault {
         "--acp-route {0:?}: the harness has no accountd on its private bus, so only the login route can run"
     )]
     Route(String),
+    /// A `--acp-profile` that is not a preset `agents.toml` knows.
+    #[error("--acp-profile takes claude-code, not {0:?}")]
+    Profile(String),
     /// A `--acp-set` that is not NAME=VALUE.
     #[error("--acp-set takes NAME=VALUE, not {0:?}")]
     Set(String),
@@ -67,6 +70,8 @@ pub struct AcpSpec {
     pub set: Vec<(String, String)>,
     /// The login to stage, if the agent signs in with one.
     pub credentials: Option<CredentialsSource>,
+    /// The `agents.toml` preset that confines the agent's own extras (`profile`), if any.
+    pub profile: Option<String>,
 }
 
 impl AcpSpec {
@@ -81,6 +86,7 @@ impl AcpSpec {
             reads: Vec::new(),
             set: Vec::new(),
             credentials: None,
+            profile: None,
         }
     }
 
@@ -99,6 +105,9 @@ impl AcpSpec {
         }
         if let Some(bad) = self.reads.iter().find(|p| !p.is_absolute()) {
             return Err(SpecFault::Reads(bad.display().to_string()));
+        }
+        if let Some(profile) = self.profile.as_ref().filter(|p| *p != "claude-code") {
+            return Err(SpecFault::Profile(profile.clone()));
         }
         let credentials = self.credentials.iter().map(|c| c.at.as_str());
         for inside in self.state.iter().map(String::as_str).chain(credentials) {
@@ -136,6 +145,9 @@ impl AcpSpec {
         ));
         out.push_str(&format!("home = {}\n", path(home)));
         out.push_str("tools = \"offered\"\n");
+        if let Some(profile) = &self.profile {
+            out.push_str(&format!("profile = {}\n", quote(profile)));
+        }
         if !self.set.is_empty() {
             out.push_str("[agent.set]\n");
             for (name, value) in &self.set {

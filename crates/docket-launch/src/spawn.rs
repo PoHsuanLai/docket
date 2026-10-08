@@ -16,6 +16,7 @@
 use crate::accounts::{Accounts, KeyHandoff, OpenedEndpoint, RouteWish};
 use crate::config::{AgentsFile, EndpointKind, Entry, Route};
 use crate::env::{Lent, child_env};
+use crate::managed::Managed;
 use crate::names::launcher_session;
 use crate::permit::AgentsPermit;
 use crate::procs::{Proc, Procs};
@@ -89,6 +90,7 @@ struct Release<A, P> {
     credential: Option<ProcessCredentialId>,
     bridge: Option<Bridge>,
     dir: Option<PathBuf>,
+    managed: Option<PathBuf>,
 }
 
 impl<A: Accounts, P: Proc> Release<A, P> {
@@ -103,7 +105,7 @@ impl<A: Accounts, P: Proc> Release<A, P> {
         }
         let _ = self.accounts.end_session(&self.session).await;
         drop(self.bridge.take());
-        if let Some(dir) = self.dir.take() {
+        for dir in [self.dir.take(), self.managed.take()].into_iter().flatten() {
             let _ = std::fs::remove_dir_all(dir);
         }
     }
@@ -186,7 +188,12 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     }
 }
 
-fn binds(entry: &Entry, key_file: Option<&AbsPath>, edge: Option<&EdgeBind>) -> Vec<Bind> {
+fn binds(
+    entry: &Entry,
+    key_file: Option<&AbsPath>,
+    edge: Option<&EdgeBind>,
+    managed: Option<&AbsPath>,
+) -> Vec<Bind> {
     let program_dir = entry.command.parent().into_iter();
     let read_only = entry
         .reads
@@ -210,6 +217,12 @@ fn binds(entry: &Entry, key_file: Option<&AbsPath>, edge: Option<&EdgeBind>) -> 
         .chain(entry.state.iter().cloned().map(|path| Bind {
             path,
             access: Access::ReadWrite,
+        }))
+        // Last, so nothing before it can shadow it (`Managed::write` refuses a place under any
+        // read-write bind besides).
+        .chain(managed.cloned().map(|path| Bind {
+            path,
+            access: Access::ReadOnly,
         }))
         .collect()
 }
@@ -244,6 +257,7 @@ impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
             credential: None,
             bridge: None,
             dir: None,
+            managed: None,
         };
         match self.launch(entry, plan, &session, &mut release).await {
             Ok((wire, proc)) => Ok(Spawned {
@@ -354,14 +368,28 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             Got::Endpoint(e) => Lent::Endpoint(e),
             Got::Key(k) => Lent::Key(k),
         };
-        let built = child_env(entry, &lent).map_err(|_| SpawnFault::Sandbox)?;
+        let managed = match entry.profile {
+            Some(profile) => {
+                let written = Managed::write(profile, &self.run_dir, session, entry, &plan.cwd)
+                    .map_err(|_| SpawnFault::Sandbox)?;
+                release.managed = Some(written.dir);
+                Some(written.file)
+            }
+            None => None,
+        };
+        let built = child_env(entry, &lent, managed.as_ref()).map_err(|_| SpawnFault::Sandbox)?;
         let command = entry.command.as_str();
         let run = AgentRun {
             argv: Argv::new(command, &entry.args).ok_or(SpawnFault::Process)?,
             cwd: plan.cwd.clone(),
             env: built.vars,
             net,
-            binds: binds(entry, built.key_file.as_ref(), plan.edge.as_ref()),
+            binds: binds(
+                entry,
+                built.key_file.as_ref(),
+                plan.edge.as_ref(),
+                managed.as_ref(),
+            ),
         };
         let (wire, proc) = self
             .procs

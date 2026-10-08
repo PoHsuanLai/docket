@@ -55,7 +55,11 @@ fn put(vars: &mut Vec<EnvVar>, name: &EnvName, value: &str) {
 }
 
 /// The environment for `entry` with what its route lent.
-pub fn child_env(entry: &Entry, lent: &Lent<'_>) -> Result<Built, EnvFault> {
+pub fn child_env(
+    entry: &Entry,
+    lent: &Lent<'_>,
+    managed: Option<&AbsPath>,
+) -> Result<Built, EnvFault> {
     let home = entry.home.as_ref().map_or(SANDBOX_HOME, AbsPath::as_str);
     let mut vars = vec![
         var("PATH", SANDBOX_PATH),
@@ -66,6 +70,13 @@ pub fn child_env(entry: &Entry, lent: &Lent<'_>) -> Result<Built, EnvFault> {
     ];
     for (name, value) in &entry.set {
         put(&mut vars, name, value);
+    }
+    // The preset's variables come after the person's `set` and win over it: they are the point.
+    if let (Some(profile), Some(file)) = (entry.profile, managed) {
+        for (name, value) in profile.env(file) {
+            vars.retain(|v| v.name != name);
+            vars.push(var(name, &value));
+        }
     }
     let mut key_file = None;
     match (entry.route, lent) {

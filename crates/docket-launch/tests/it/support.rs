@@ -124,3 +124,21 @@ pub fn rig(toml: &str, mood: Mood, with_process: bool) -> Rig {
         agent_end: Some(far),
     }
 }
+
+/// A subscription login with the Claude Code preset; `{state}` is where its state lives.
+pub fn confined(state: &str, set: &str) -> String {
+    format!(
+        r#"
+[[agent]]
+program = "claude-code"
+command = "/home/me/.local/bin/claude-agent-acp"
+route = "login"
+network = "host"
+state = ["{state}"]
+home = "/home/me"
+profile = "claude-code"
+[agent.set]
+{set}
+"#
+    )
+}

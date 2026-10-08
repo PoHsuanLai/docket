@@ -48,7 +48,7 @@ pub use backend::{AcpBackend, Parts, Seams};
 pub use call::{AgentCall, Command, PermissionAsk, RunFacts, StageId};
 pub use confine::{Care, Confined, Refusal, confine, named};
 pub use court::{Court, CourtFault, OpenAgent, Ruled};
-pub use edge::{EdgeBind, EdgeFault, ToolsEdge, ToolsOffer};
+pub use edge::{EdgeBind, EdgeFault, SERVER_NAME, ToolsEdge, ToolsOffer};
 pub use files::{FileFault, Files, MAX_READ, MAX_WRITE, OsFiles};
 pub use host::{AgentHost, Fallback};
 pub use intents_court::IntentsCourt;
