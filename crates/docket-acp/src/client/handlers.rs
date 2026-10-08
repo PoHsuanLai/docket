@@ -151,9 +151,8 @@ impl<X: Seams> AcpBackend<X> {
         let Some(session) = self.live.as_ref().map(|l| l.session.clone()) else {
             return self.denied(fault::unknown_session());
         };
-        let stage = self
-            .performer
-            .stage_read(&session, file.clone(), request.line, request.limit);
+        let stage =
+            self.stage_once(|p| p.stage_read(&session, file.clone(), request.line, request.limit));
         let ruled = self
             .ask(
                 n,
@@ -215,9 +214,7 @@ impl<X: Seams> AcpBackend<X> {
         };
         let lines = u32::try_from(request.content.lines().count()).unwrap_or(u32::MAX);
         let (path, care) = (file.path.clone(), file.care);
-        let stage = self
-            .performer
-            .stage_write(&session, file, request.content.clone());
+        let stage = self.stage_once(|p| p.stage_write(&session, file, request.content.clone()));
         let ruled = self
             .ask(
                 n,
@@ -354,9 +351,7 @@ impl<X: Seams> AcpBackend<X> {
             return self.denied(fault::not_now(&format!("cannot sandbox: {why}")));
         }
         let line = argv.line();
-        let stage = self
-            .performer
-            .stage_run(&session, line.clone(), cwd.clone(), params);
+        let stage = self.stage_once(|p| p.stage_run(&session, line.clone(), cwd.clone(), params));
         let (derives, network) = self.performer.exec_facts(&session, argv.words(), &cwd);
         let command = Command { line, cwd };
         let ruled = self

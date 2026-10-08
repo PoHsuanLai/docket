@@ -261,6 +261,11 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
         Self::hold(&mut inner, held)
     }
 
+    /// Whether `stage` is still held (for a test: a spent or dropped one is not).
+    pub fn holds(&self, stage: &StageId) -> bool {
+        self.lock().held.contains_key(stage)
+    }
+
     /// Drops a staged request the router did not allow, so it cannot be used later.
     pub fn drop_stage(&self, stage: &StageId) {
         self.lock().held.remove(stage);

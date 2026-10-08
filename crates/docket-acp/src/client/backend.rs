@@ -107,6 +107,9 @@ pub(super) struct Staged {
     pub id: RequestId,
     pub work: Work,
     pub call: Option<Called>,
+    /// The host's hold on the request, made the first time it runs and kept so that a run the
+    /// router's wait cut short does not stage a second copy.
+    pub stage: Option<super::call::StageId>,
     pub announced: bool,
     pub n: u64,
 }
@@ -379,7 +382,7 @@ impl<X: Seams> AcpBackend<X> {
         self.prompt = None;
         self.cancelling = false;
         self.pausing = None;
-        self.staged = None;
+        self.drop_staged();
         self.phase = Phase::Idle;
     }
 }

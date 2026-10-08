@@ -5,6 +5,7 @@
 mod agent;
 mod bridged;
 mod calls;
+mod cancel;
 mod contract;
 mod edge;
 mod exec_taint;

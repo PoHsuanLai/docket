@@ -216,6 +216,7 @@ impl<X: Seams> AcpBackend<X> {
             work,
             announced: call.is_none(),
             call,
+            stage: None,
             n: self.next_ask,
         });
     }
@@ -272,6 +273,29 @@ impl<X: Seams> AcpBackend<X> {
         })
     }
 
+    /// Forgets the staged request, and the host's hold on it.
+    pub(super) fn drop_staged(&mut self) {
+        if let Some(stage) = self.staged.take().and_then(|s| s.stage) {
+            self.performer.drop_stage(&stage);
+        }
+    }
+
+    /// The host's hold on the staged request: made now if this is its first run, the same one
+    /// if the run is being repeated.
+    pub(super) fn stage_once(
+        &mut self,
+        make: impl FnOnce(&super::performer::Performer<X::Files, X::Sandbox>) -> super::call::StageId,
+    ) -> super::call::StageId {
+        if let Some(stage) = self.staged.as_ref().and_then(|s| s.stage.clone()) {
+            return stage;
+        }
+        let stage = make(&self.performer);
+        if let Some(staged) = self.staged.as_mut() {
+            staged.stage = Some(stage.clone());
+        }
+        stage
+    }
+
     /// Stops the turn in progress: a call that is staged and has not run never will, the agent
     /// is told "cancelled", and the turn ends when the agent answers its prompt.
     pub(super) async fn stop_turn(&mut self) {
@@ -280,6 +304,11 @@ impl<X: Seams> AcpBackend<X> {
         }
         self.cancelling = true;
         if let Some(staged) = self.staged.take() {
+            // The router may still rule "yes" on the flight that outlives this: with the hold
+            // gone it finds no request, and nothing runs after the agent heard "cancelled".
+            if let Some(stage) = &staged.stage {
+                self.performer.drop_stage(stage);
+            }
             if let Some(call) = &staged.call {
                 // The announcement may still be unread; an orphan `Started` must not survive.
                 self.ready.retain(|e| {
