@@ -17,6 +17,7 @@ use crate::serve::{ServeFault, closed, serve_on_gated};
 use crate::settings_watch::{SettingsWatch, WatchState, apply, apply_next};
 use crate::sheet::SheetConfirmer;
 use crate::signals::{Cadence, pump};
+use crate::space_watch::SpaceKeeper;
 use crate::system::{DaemonLog, SystemClock, SystemSeams};
 use docket_core::AuditRecord;
 use docket_dbus::BusConnection;
@@ -33,6 +34,9 @@ use std::time::Duration;
 
 /// How often the audit queue is drained into memoryd, unless the setup says otherwise.
 const DRAIN_EVERY: Duration = Duration::from_secs(5);
+
+/// How long the daemon waits before following accountd's Spaces again after losing it.
+const SPACES_RETRY: Duration = Duration::from_secs(10);
 
 /// Why the daemon did not start or stopped.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -283,6 +287,9 @@ pub async fn start(
         data_dirs,
         signals,
     )));
+    tasks.push(tokio::spawn(
+        SpaceKeeper::new(router.clone(), SPACES_RETRY).run(session.clone()),
+    ));
     let queue = router.clone();
     let mut audit = AuditLog::over(almanac_client::DbusTransport::new(session.clone()));
     tasks.push(tokio::spawn(async move {

@@ -18,6 +18,7 @@ mod reader_daemon;
 mod settings_live;
 mod sheet;
 mod signals;
+mod spaces;
 mod support;
 mod writer;
 mod writer_ceiling;

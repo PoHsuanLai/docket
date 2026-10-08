@@ -1,12 +1,14 @@
 //! The person's standing consent for actions, in a file under the user's data directory.
 
 use crate::defaults::{default_grants_file, read_defaults};
-use crate::grant_file::{GrantFileFault, read_list, write_list};
+use crate::grant_file::{GrantFileFault, read_list, read_with, write_list};
 use docket_core::{
-    ActionGrant, Revocation, StandingGrant, StandingGrantId, decode_standing, encode_standing,
-    held_with, held_without,
+    ActionGrant, Ended, KnownSpaces, Reconciled, Revocation, SpaceAccess, StandingGrant,
+    StandingGrantId, decode_grants, decode_standing, encode_standing, held_with, held_without,
+    reconcile, without_space,
 };
 use docket_router::GrantStore;
+use prov::SpaceId;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -42,9 +44,45 @@ impl FileGrants {
     }
 
     /// What the file holds: nothing when it is missing. A file that cannot be read or is not a
-    /// list of grants is a fault, never an empty list.
-    fn read(&self) -> Result<Vec<ActionGrant>, GrantFileFault> {
-        read_list(&self.path, |text| serde_json::from_str(text))
+    /// list of grants is a fault, never an empty list. An entry for a Space porter does not read
+    /// is not in the answer (it is dropped, and counted in `ended`).
+    fn read(&self) -> Result<Reconciled, GrantFileFault> {
+        read_with(&self.path, Reconciled::default(), decode_grants)
+    }
+
+    /// The grants that stay: those no other app's Space is under.
+    fn kept(&self) -> Result<Vec<ActionGrant>, GrantFileFault> {
+        self.read().map(|read| reconcile(read.kept, None).kept)
+    }
+
+    /// Rewrites the file when `settle` ends any grant, and says what ended (what the file could
+    /// not read included). A file that cannot be read is left alone.
+    fn settle(
+        &self,
+        settle: impl FnOnce(Vec<ActionGrant>) -> Reconciled,
+    ) -> Result<Vec<Ended>, GrantFileFault> {
+        let _one_at_a_time = WRITING
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let read = self.read()?;
+        let settled = settle(read.kept);
+        let ended: Vec<Ended> = read.ended.into_iter().chain(settled.ended).collect();
+        if !ended.is_empty() {
+            self.write(&settled.kept)?;
+        }
+        Ok(ended)
+    }
+
+    /// Drops every grant over a desktop-wide Space `known` does not hold (and any over another
+    /// app's own Space), and those the file holds for a Space porter does not read. Run at
+    /// start: a Space removed while the daemon was away ends its grants here.
+    pub fn reconcile_with(&self, known: &KnownSpaces) -> Result<Vec<Ended>, GrantFileFault> {
+        self.settle(|grants| reconcile(grants, Some(known)))
+    }
+
+    /// Drops every grant scoped to exactly `gone`: the Space was removed.
+    pub fn end_space(&self, gone: &SpaceId) -> Result<Vec<Ended>, GrantFileFault> {
+        self.settle(|grants| without_space(grants, gone))
     }
 
     fn standing_path(&self) -> PathBuf {
@@ -77,17 +115,21 @@ impl GrantStore for FileGrants {
             .iter()
             .flat_map(|f| read_defaults(f))
             .collect();
-        all.extend(logged(self.read()).unwrap_or_default());
+        all.extend(logged(self.kept()).unwrap_or_default());
         all
     }
 
     fn record(&self, grant: ActionGrant) {
+        // An app holds no grant over another app's own Space.
+        if let SpaceAccess::Refused(_) = grant.key.space_access() {
+            return;
+        }
         let _one_at_a_time = WRITING
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         // A file that cannot be read is not written over: the grant is not kept, and the
         // person is asked again.
-        let Some(mut all) = logged(self.read()) else {
+        let Some(mut all) = logged(self.kept()) else {
             return;
         };
         all.retain(|held| held.key != grant.key);

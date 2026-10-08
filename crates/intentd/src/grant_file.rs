@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 /// Why a consent file could not be read or written.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub(crate) enum GrantFileFault {
+pub enum GrantFileFault {
     /// The file exists and could not be read.
     #[error("cannot read {path}: {kind}")]
     Read { path: PathBuf, kind: ErrorKind },
@@ -26,22 +26,31 @@ pub(crate) enum GrantFileFault {
     Write { path: PathBuf, kind: ErrorKind },
 }
 
-/// The list the file at `path` holds: none when the file is missing or blank.
-pub(crate) fn read_list<T, E: Display>(
+/// What the file at `path` holds, decoded: `none` when the file is missing or blank.
+pub(crate) fn read_with<T, E: Display>(
     path: &Path,
-    decode: impl FnOnce(&str) -> Result<Vec<T>, E>,
-) -> Result<Vec<T>, GrantFileFault> {
+    none: T,
+    decode: impl FnOnce(&str) -> Result<T, E>,
+) -> Result<T, GrantFileFault> {
     let read = read_optional(path).map_err(|why| GrantFileFault::Read {
         path: path.to_owned(),
         kind: why.kind(),
     })?;
     match read.as_deref().map(str::trim) {
-        None | Some("") => Ok(Vec::new()),
+        None | Some("") => Ok(none),
         Some(text) => decode(text).map_err(|why| GrantFileFault::Corrupt {
             path: path.to_owned(),
             why: why.to_string(),
         }),
     }
+}
+
+/// The list the file at `path` holds: none when the file is missing or blank.
+pub(crate) fn read_list<T, E: Display>(
+    path: &Path,
+    decode: impl FnOnce(&str) -> Result<Vec<T>, E>,
+) -> Result<Vec<T>, GrantFileFault> {
+    read_with(path, Vec::new(), decode)
 }
 
 /// Replaces the file at `path` with `text`. A text that could not be encoded writes nothing.
