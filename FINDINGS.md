@@ -2842,8 +2842,17 @@ holding a shell operator is searched word by word. The table:
 A match is a false positive on purpose when it can be (`echo curl` asks); a word that only looks like a tool asks,
 never the reverse. The terminal sandbox has no network today (`Network::Off`, every command), so the table is the
 second layer; `Performer::with_network` and `Shell::with_network` let a deployment give commands the host's network,
-which then makes every command `Possible` and also really runs them with it. The agent *process*'s own
-`NetworkMode` (its model endpoint) is a different sandbox from the commands' and does not enter this rule.
+which then makes every command `Possible` and also really runs them with it. **R12 (owner, 2026-10-08): the agent
+*process*'s own `NetworkMode` counts too.** A command an external agent runs is `Possible` (so `CanSendOut`: always asks,
+never granted) when the agent's own sandbox has any network (`EndpointOnly` or `Host`), not only when the command's
+sandbox does. `docket-agent` reads the mode from the program's `agents.toml` entry (`Entry::network`; a program the
+file does not list is taken as `Host`) and gives it to the host with `Performer::with_agent_network`; the performer's
+`exec_facts` then fills the `network` parameter with `NetAccess::combine` of the command sandbox's access and the
+agent's (open if either is open, a pure function table-tested in `exec_reach`). The router still computes `NetReach`
+from the command line itself; only the host-side `network` input changed. Tests: `combine` table;
+`exec_taint.rs` with the fake agent launched as `EndpointOnly` or `Host` (`cargo test` after a read asks with
+`CanSendOut`, a held matching grant does not stand in, the command's own sandbox is still `Network::Off`) and as `None`
+(R11 unchanged: `cargo test` after a read is offered and granted always).
 
 **What R11 does not touch.** `session/request_permission` for an execute (`acpagent.execute`, the agent running a
 command with its own tool) keeps today's rule: under taint it asks with no "always"; the person's allow approves the

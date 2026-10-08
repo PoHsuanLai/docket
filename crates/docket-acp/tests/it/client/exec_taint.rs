@@ -8,7 +8,7 @@ use docket_core::{
     AlwaysOffer, AuditRecord, CommandPrefix, GrantCaller, StandingGrant, StandingScope,
     TERMINAL_RUN, Withheld, acp_agent_action,
 };
-use docket_shell::{Network, fake::Script};
+use docket_shell::{Network, NetworkMode, fake::Script};
 use prov::UnixSeconds;
 use serde_json::json;
 
@@ -195,4 +195,51 @@ async fn what_the_agents_own_tool_brought_in_makes_every_command_derived() {
         rig.sheets()[0].always,
         AlwaysOffer::Withheld(Withheld::UntrustedIntoSink)
     );
+}
+
+#[tokio::test]
+async fn an_agent_process_with_a_network_makes_every_command_one_that_can_send_data_out() {
+    for mode in [NetworkMode::EndpointOnly, NetworkMode::Host] {
+        let (mut rig, _files) = started(Setup {
+            turns: vec![read_then(vec![run("t", "cargo", &["test"])])],
+            answers: vec![once()],
+            scripts: vec![Script::done("", 0)],
+            held: vec![grant("cargo test")],
+            agent_network: mode,
+            ..Setup::default()
+        })
+        .await;
+        run_turn(&mut rig, "go").await;
+        let sheets = rig.sheets();
+        assert_eq!(sheets.len(), 1, "{mode:?}: the grant did not stand in");
+        assert_eq!(
+            sheets[0].always,
+            AlwaysOffer::Withheld(Withheld::CanSendOut),
+            "{mode:?}"
+        );
+        assert_eq!(used(&rig), 0);
+        assert_eq!(
+            rig.sandbox.started()[0].network,
+            Network::Off,
+            "the command's own sandbox is unchanged"
+        );
+    }
+}
+
+#[tokio::test]
+async fn an_agent_process_without_a_network_leaves_the_rule_as_it_was() {
+    let (mut rig, files) = started(Setup {
+        turns: vec![read_then(vec![run("t", "cargo", &["test"])])],
+        answers: vec![always()],
+        scripts: vec![Script::done("ok\n", 0)],
+        agent_network: NetworkMode::None,
+        ..Setup::default()
+    })
+    .await;
+    files.put(&abs("/work/app/a.txt"), "plain words only");
+    run_turn(&mut rig, "go").await;
+    let sheets = rig.sheets();
+    assert_eq!(sheets.len(), 1);
+    assert!(matches!(sheets[0].always, AlwaysOffer::Offered(_)));
+    assert_eq!(rig.grants().len(), 1, "the always was granted");
 }

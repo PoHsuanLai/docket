@@ -15,7 +15,7 @@ use super::files::{FileFault, Files};
 use crate::terminals::Terminals;
 use agent_client_protocol_schema::v1::{ClientCapabilities, Error};
 use docket_core::{AbsPath, Derivation, NetAccess, Served, UndoToken};
-use docket_shell::{Network, Sandbox};
+use docket_shell::{Network, NetworkMode, Sandbox};
 use prov::SessionId;
 use serde_json::Value as Json;
 use std::collections::BTreeMap;
@@ -65,6 +65,8 @@ pub(super) enum Held {
 pub(super) struct Inner<F, S: Sandbox> {
     pub(super) files: F,
     pub(super) terminals: Terminals<S>,
+    /// What network the agent process itself has (R12); closed until told.
+    pub(super) agent_net: NetAccess,
     pub(super) scopes: BTreeMap<SessionId, Scope>,
     pub(super) served: BTreeMap<SessionId, Served>,
     pub(super) held: BTreeMap<StageId, Held>,
@@ -105,6 +107,7 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
             inner: Arc::new(Mutex::new(Inner {
                 files,
                 terminals: Terminals::with_network(sandbox, network),
+                agent_net: NetAccess::Closed,
                 scopes: BTreeMap::new(),
                 served: BTreeMap::new(),
                 held: BTreeMap::new(),
@@ -112,6 +115,15 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
                 next: 0,
             })),
         }
+    }
+
+    /// The agent process runs with `mode` (R12). Any network but none makes every command it
+    /// runs one that can send data out, whatever network the command's own sandbox has: the
+    /// agent can reach the network too, and the host cannot see what it does with what it is told.
+    #[must_use]
+    pub fn with_agent_network(self, mode: NetworkMode) -> Self {
+        self.lock().agent_net = mode.into();
+        self
     }
 
     pub(super) fn lock(&self) -> MutexGuard<'_, Inner<F, S>> {
@@ -164,7 +176,8 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
     }
 
     /// What the host tells the router of the command `words` run in `cwd` by `session`: whether
-    /// its arguments derive from what was served, and the sandbox's network.
+    /// its arguments derive from what was served, and the network the command's sandbox and the
+    /// agent process have between them.
     pub(super) fn exec_facts(
         &self,
         session: &SessionId,
@@ -176,7 +189,10 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
             .served
             .get(session)
             .map_or(Derivation::Derived, |s| s.derivation(words, cwd));
-        (derivation, inner.terminals.access())
+        (
+            derivation,
+            inner.terminals.access().combine(inner.agent_net),
+        )
     }
 
     /// The session is over: whatever it staged and never used is dropped.

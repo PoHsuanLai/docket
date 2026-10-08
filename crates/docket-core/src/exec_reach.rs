@@ -22,6 +22,17 @@ pub enum NetAccess {
     Open,
 }
 
+impl NetAccess {
+    /// The network a command really has when it runs under two sandboxes' worth of network (its
+    /// own, and the agent process's that asked for it, R12): open when either is open.
+    pub const fn combine(self, other: NetAccess) -> NetAccess {
+        match (self, other) {
+            (NetAccess::Closed, NetAccess::Closed) => NetAccess::Closed,
+            _ => NetAccess::Open,
+        }
+    }
+}
+
 /// Whether the command can send data out.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -275,6 +286,20 @@ mod tests {
     fn an_open_sandbox_reaches_with_every_command() {
         for line in ["ls", "cargo test", "pwd", "git status"] {
             assert_eq!(NetReach::of(line, NetAccess::Open), NetReach::Possible);
+        }
+    }
+
+    #[test]
+    fn combine_is_open_when_either_is() {
+        use NetAccess::{Closed, Open};
+        let table = [
+            (Closed, Closed, Closed),
+            (Closed, Open, Open),
+            (Open, Closed, Open),
+            (Open, Open, Open),
+        ];
+        for (a, b, want) in table {
+            assert_eq!(a.combine(b), want, "{a:?} {b:?}");
         }
     }
 

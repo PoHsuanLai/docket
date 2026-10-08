@@ -22,8 +22,8 @@ use docket_session::fake::MemoryLog;
 use docket_session::{
     BackendEvent, BackendKind, Opening, ProgramName, SessionHost, SheetChoice, TurnEnd, Workspace,
 };
-use docket_shell::Network;
 use docket_shell::fake::{FakeSandbox, Script, Seen};
+use docket_shell::{Network, NetworkMode};
 use porter_core::{AppId, Count, Isolation};
 use prov::{AgentRef, Effect, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::BTreeSet;
@@ -127,6 +127,8 @@ pub struct Setup {
     pub config: AgentConfig,
     /// The network the agent's commands run with.
     pub network: Network,
+    /// The network the agent process itself runs with (R12).
+    pub agent_network: NetworkMode,
 }
 
 impl Default for Setup {
@@ -141,6 +143,7 @@ impl Default for Setup {
             held: Vec::new(),
             config: AgentConfig::default(),
             network: Network::Off,
+            agent_network: NetworkMode::None,
         }
     }
 }
@@ -247,7 +250,8 @@ where
         router.seams.grants.add_standing(grant);
     }
     let (sandbox, seen) = FakeSandbox::ready(setup.scripts);
-    let performer = Performer::with_network(files, sandbox, setup.network);
+    let performer = Performer::with_network(files, sandbox, setup.network)
+        .with_agent_network(setup.agent_network);
     router.seams.link.host(
         acp_agent_app().expect("app"),
         Arc::new(Hosted(performer.clone())),

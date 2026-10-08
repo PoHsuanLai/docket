@@ -37,7 +37,7 @@ use docket_launch::{
 };
 use docket_session::{BackendEvent, BackendKind, Opening, SessionHost, Workspace};
 use docket_settings::{AgentSettings, Locator};
-use docket_shell::Detected;
+use docket_shell::{Detected, NetworkMode};
 use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
 use provider::{PerformerProvider, Quiet};
 use std::path::PathBuf;
@@ -129,7 +129,13 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     // The performer is what the router's `Perform` for the pseudo-app reaches, over the bus, and
     // the backend stages its requests with it.
-    let performer = Performer::new(OsFiles, Detected::Bwrap(bwrap.clone()));
+    // The agent process's own network counts for the commands it runs (R12). A program the file
+    // does not list cannot be started at all; until then assume the widest.
+    let agent_network = file
+        .get(&args.program)
+        .map_or(NetworkMode::Host, |entry| entry.network);
+    let performer =
+        Performer::new(OsFiles, Detected::Bwrap(bwrap.clone())).with_agent_network(agent_network);
     let manifest: ValidManifest =
         docket_router::parse(MANIFEST).map_err(|e| format!("the agent manifest: {e}"))?;
     let quiet = Quiet(docket_core::acp_agent_app().ok_or("no app name for the agent host")?);
