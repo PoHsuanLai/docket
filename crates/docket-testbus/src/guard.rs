@@ -4,10 +4,10 @@ use std::io;
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 
-/// The watchdog: a shell that waits for the owner's PID to vanish, then kills the child's process
-/// group. Both ids are arguments; nothing is looked up by name.
-const WATCH: &str =
-    r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done; kill -9 -- "-$2" 2>/dev/null"#;
+/// The watchdog: a shell that waits for the owner's PID to vanish (or to be a zombie nobody has
+/// reaped), then kills the child's process group. Both ids are arguments; nothing is looked up by
+/// name.
+const WATCH: &str = r#"while kill -0 "$1" 2>/dev/null && ! grep -q ') Z ' "/proc/$1/stat" 2>/dev/null; do sleep 1; done; kill -9 -- "-$2" 2>/dev/null"#;
 
 /// A child killed by PID, and waited for, when this drops: held for a whole test, so it runs at
 /// the end, on a panic and on an early return. `spawn` must be given a command that does not
@@ -16,6 +16,11 @@ const WATCH: &str =
 /// The child leads a process group of its own. On drop the group gets SIGTERM and a grace period
 /// (a daemon that put its own children in groups of their own, as inferd does with its engines,
 /// ends them), then SIGKILL: nothing it started holds the GPU after the test.
+///
+/// The watchdog leads a group of its own too. A timeout or a Ctrl-C signals the owner's whole
+/// group; a watchdog in it would die with the owner, just when it is needed. (PDEATHSIG is not
+/// used: arming it needs `pre_exec`, which is unsafe, and it fires on the spawning thread's exit
+/// rather than the process's.)
 #[derive(Debug)]
 pub struct Reaped {
     // Declared first, so it goes first: a watchdog must never outlive the child it would kill,
@@ -34,6 +39,7 @@ impl Reaped {
             .arg(child.id().to_string())
             .env_clear()
             .env("PATH", "/usr/bin:/bin")
+            .process_group(0)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
