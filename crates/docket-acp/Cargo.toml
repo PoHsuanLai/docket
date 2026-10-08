@@ -12,6 +12,9 @@ publish.workspace = true
 default = ["server"]
 # `LineWire` over tokio streams; the process that serves it is `docket-acp-bin`.
 server = ["dep:tokio"]
+# An external agent as a session backend (S4): `client::AcpBackend` over a `Spawn` seam. Off by
+# default; the process that starts agents is `docket-launch`, and `agent.acp.agents` gates it.
+client = ["dep:tokio"]
 
 [lib]
 name = "docket_acp"

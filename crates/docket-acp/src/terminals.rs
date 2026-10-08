@@ -38,6 +38,7 @@ pub struct Terminals<S: Sandbox, D> {
     grants: Vec<StandingGrant>,
     posture: Posture,
     notes: Vec<Note>,
+    approved: Vec<String>,
     owners: BTreeMap<TermId, String>,
 }
 
@@ -80,6 +81,7 @@ impl<S: Sandbox, D: Decide> Terminals<S, D> {
             grants: Vec::new(),
             posture: Posture::default(),
             notes: Vec::new(),
+            approved: Vec::new(),
             owners: BTreeMap::new(),
         }
     }
@@ -98,6 +100,13 @@ impl<S: Sandbox, D: Decide> Terminals<S, D> {
     /// The standing grants held (the store the person revokes from).
     pub fn grants(&self) -> &[StandingGrant] {
         &self.grants
+    }
+
+    /// The person already said yes, in a permission request, to exactly this command line: the
+    /// next `terminal/create` for it runs without asking again, once, and only while the breaker
+    /// is not tripped.
+    pub fn approve_once(&mut self, line: &str) {
+        self.approved.push(line.to_owned());
     }
 
     /// Loads the grants the store holds.
@@ -199,6 +208,16 @@ impl<S: Sandbox, D: Decide> Terminals<S, D> {
             budget: self.posture.budget,
             review: self.posture.review,
         };
+        let at = self.approved.iter().position(|l| l == line);
+        if let Some(at) = at
+            && self.posture.breaker == docket_core::BreakerState::Running
+        {
+            self.approved.remove(at);
+            self.notes.push(Note::Confirmed {
+                line: line.to_owned(),
+            });
+            return Ok(());
+        }
         let refused = |notes: &mut Vec<Note>| {
             notes.push(Note::Refused {
                 line: line.to_owned(),
@@ -259,6 +278,17 @@ impl<S: Sandbox, D: Decide> Terminals<S, D> {
         let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
         let report = self.shell.wait(id).map_err(|f| shell_error(&f))?;
         out(&WaitForTerminalExitResponse::new(exit_status(report)))
+    }
+
+    /// `terminal/wait_for_exit` without blocking: the answer if the command has ended, `None`
+    /// while it runs. A host that cannot block polls this.
+    pub fn poll_wait(&mut self, params: Value) -> Result<Option<Value>, Error> {
+        let asked: WaitForTerminalExitRequest = fault::params(params)?;
+        let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
+        let snap = self.shell.output(id).map_err(|f| shell_error(&f))?;
+        snap.exit
+            .map(|report| out(&WaitForTerminalExitResponse::new(exit_status(report))))
+            .transpose()
     }
 
     fn kill(&mut self, params: Value) -> Result<Value, Error> {

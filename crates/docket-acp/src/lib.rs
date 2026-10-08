@@ -8,6 +8,7 @@
 //!   the mappings from our step lines, the editor's extra gate, the modes and the stored
 //!   sessions.
 //!
+//! - `client` (feature `client`): the other direction (S4), an external agent as a session backend.
 //! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`docket-shell`),
 //!   ruled by the `Execute` rules. They run in our sandbox, never in an editor's terminal.
 //!
@@ -16,6 +17,8 @@
 //! sheet that offered it.
 
 mod calls;
+#[cfg(feature = "client")]
+pub mod client;
 mod covered;
 mod expose;
 mod fault;
