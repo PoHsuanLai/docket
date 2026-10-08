@@ -1,0 +1,19 @@
+[package]
+name = "docket-shell"
+description = "The sandboxed shell tool: a Sandbox seam (bubblewrap as a separate process, and a fake for tests), bounded and redacted terminal output, and the terminal table that docket-acp's terminal/* methods drive. A command never runs unsandboxed."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

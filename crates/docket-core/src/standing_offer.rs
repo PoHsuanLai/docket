@@ -59,6 +59,8 @@ pub enum Withheld {
     TooBroad,
     /// A grant already stands for this call, so the ask that remains is a reviewer's.
     AlreadyHeld,
+    /// A terminal command that cannot run in the sandbox: it asks, and nothing is remembered.
+    CannotSandbox(crate::execute::CannotSandbox),
 }
 
 /// What a confirmation may offer beyond "this once".

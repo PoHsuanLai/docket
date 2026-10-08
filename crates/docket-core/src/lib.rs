@@ -18,6 +18,7 @@ mod config;
 mod confirm;
 mod context;
 mod derived;
+mod execute;
 mod gate;
 mod grant;
 mod ids;
@@ -74,6 +75,10 @@ pub use context::{
     TextTargetView, Visible, VisibleView, WindowPrivacy,
 };
 pub use derived::{Corrected, Derived};
+pub use execute::{
+    ArgOrigin, CannotSandbox, EXECUTE_AS, ExecuteAsk, ExecuteFacts, ExecuteRuling, SandboxState,
+    rule_execute,
+};
 pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};
 pub use grant::{
     ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, ProgramName, ProgramNameError,

@@ -42,6 +42,9 @@ RULES=(
   # The ACP server edge: the lib is portable (the runtime is only the `server` feature's binary);
   # no bus, HTTP, Cedar or MCP SDK. The protocol's types come from agent-client-protocol-schema.
   "docket-acp: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy"
+  # The sandboxed shell tool: bubblewrap is a separate process (std only), so no runtime, bus,
+  # HTTP, Cedar or toml; and nothing that links a sandbox library.
+  "docket-shell: $EFFECTS toml landlock libseccomp"
   "docket-inapp: $NO_CEDAR"
   # The models, the quarantined reader and the memory seam are portable too (moved out of
   # intentd and readerd): they ask any porter-client or almanac-client Transport, never a bus or
@@ -145,7 +148,8 @@ EDGES=(
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
   "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-skills porter-client porter-core porter-infer prov"
   "docket-session: companion-wire docket-core porter-core prov"
-  "docket-acp: companion-wire docket-core docket-session docket-settings porter-core prov"
+  "docket-acp: companion-wire docket-core docket-session docket-settings docket-shell porter-core prov"
+  "docket-shell: docket-core"
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
   "docket-memory: almanac-client almanac-core docket-core docket-router docket-session porter-core prov"

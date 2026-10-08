@@ -8,6 +8,9 @@
 //!   the mappings from our step lines, the editor's extra gate, the modes and the stored
 //!   sessions.
 //!
+//! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`docket-shell`),
+//!   ruled by the `Execute` rules. They run in our sandbox, never in an editor's terminal.
+//!
 //! The protocol's wire types are `agent-client-protocol-schema`'s (Apache-2.0); the transport is
 //! ours. `rawInput` and `rawOutput` are never sent; `allow_always` is offered only on a router
 //! sheet that offered it.
@@ -27,6 +30,8 @@ mod sessions;
 mod sheet;
 #[cfg(feature = "server")]
 mod stdio;
+mod terminal_ask;
+mod terminals;
 mod turn;
 mod wire;
 
@@ -43,5 +48,7 @@ pub use scope_words::always_words;
 pub use server::{Server, Ticks};
 #[cfg(feature = "server")]
 pub use stdio::{LineWire, SystemTicks};
+pub use terminal_ask::{Answer, Decide, Note, Posture, TerminalAsk};
+pub use terminals::Terminals;
 pub use turn::{Finish, Order, Turn, Wants};
 pub use wire::{Incoming, NotJsonRpc, Wire, WireClosed};

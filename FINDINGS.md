@@ -2146,3 +2146,78 @@ R1 direction (a): the editor's `allow_always` click creates the standing grant. 
 Open: the Settings page lists and revokes; it still cannot say which editor product a grant is for
 beyond its app name. The `Sheet` event's tool-call id is the sheet id, not the call's: an editor
 shows the sheet as its own entry next to the call.
+
+## Sandboxed shell tool and the Execute rules (S8)
+
+`terminal/*` is `Execute`, the most dangerous effect docket models. The tool is `docket-shell`; the
+rules are `docket-core::execute`; the ACP methods are `docket-acp::Terminals`. Nothing runs a
+command outside the sandbox.
+
+- **Mechanism: bubblewrap, run as a separate process.** `bwrap` is LGPL, so it is only ever
+  executed (`no GPL linking`). Landlock through the `landlock` crate was not used: applying a
+  ruleset to a child needs `pre_exec`, which is `unsafe` (the repo denies it), and a Landlock ruleset
+  applied to docket itself would confine docket. It stays an option behind the same `Sandbox` seam
+  (a launcher binary that applies it and execs), recorded as deferred.
+- **Guarantees of a run** (`bwrap_args`, tested as arguments and, where namespaces work, for real):
+  the host file system is read-only; `/home`, `/root`, `/run` (the session bus socket, other users'
+  runtime), `/tmp`, `/var/tmp`, `/mnt`, `/media` and `/srv` are empty in-memory directories when
+  they exist; the working directory is the one writable bind; new user, pid, ipc, uts, cgroup and
+  network namespaces (no interface that reaches the host: the host's loopback listeners are
+  unreachable, an outside address gives "network unreachable"); all capabilities dropped; a new
+  session (its own process group); the environment cleared and rebuilt (`sandbox_env`: fixed `PATH`,
+  `HOME` and `TMPDIR` of `/tmp`, plus a small allowlist; an agent's `env` entries outside it are
+  dropped, so no secret passes through `env` an agent chose); `--die-with-parent` and a pid
+  namespace, so `kill`, `release` or dropping the job takes every descendant with it. A working
+  directory must be a real directory two levels down (never `/`, `/home`, `/tmp` themselves).
+- **What it does not stop.** (1) Reads: everything on the host outside the emptied directories is
+  readable, including `/etc` and any world-readable file, and the working directory itself (a
+  project's `.env`); the redactor is the second line, not a guarantee. (2) The kernel: a bubblewrap
+  or kernel bug, or a setuid helper in the read-only root, is outside our control. (3) Resource use:
+  there is no CPU, memory, process-count or disk limit (the in-memory `/tmp` and `/dev/shm` are
+  bounded only by the machine) and no wall-clock limit; a caller kills a runaway command. (4) The
+  writable directory is writable in full: a command in a project can rewrite the project, including
+  `.git/hooks` and build scripts that the person later runs outside the sandbox. (5) Network is all
+  or nothing (`Network::Off`, or `Host`, which nothing asks for yet); there is no per-host allowlist.
+  (6) Output goes to a requester who asked for it; a command's output is untrusted text.
+- **When bubblewrap is unusable.** `Detected::probe` finds `bwrap` on the given search path and makes
+  one throwaway run; the result is `Missing(NotInstalled)` or `Missing(NamespacesDenied)` (user
+  namespaces off, as in some containers and CI jails). A missing sandbox starts nothing: `Shell::create`
+  returns `ShellFault::CannotSandbox`, `Terminals::capabilities` leaves the `terminal` client
+  capability off so an agent is told it has no terminal, and `terminal/create` is refused before the
+  person is asked. It never falls back to running unsandboxed.
+- **The `Execute` effect.** prov's `Effect` is porter's frozen enum (`Read < UndoableWrite <
+  Outbound < Destructive`) and has no `Execute`; design note D-4 asks for one. Until porter adds it,
+  docket gates an `Execute` as `EXECUTE_AS = Outbound`, the severity at which untrusted input into the
+  call is never grantable. Ask for porter: `Effect::Execute` between `Outbound` and `Destructive`.
+- **The rules** (`rule_execute`, tables in `docket-core/tests/it/execute.rs`): a reviewer's `Deny`
+  refuses; a command that cannot be sandboxed asks with the reason and offers no "always"; untrusted-
+  derived arguments ask and offer no "always" (a held grant does not stand in); a tripped breaker or
+  spent budget ask with no "always"; otherwise a terminal-scoped standing grant of the same caller
+  (command prefix and a cwd at or below the grant's) runs the command in place of the ask, and
+  without one the person is asked with the `may_offer` offer. A reviewer can only tighten: its `Ask`
+  makes a covered command ask and its `Allow` changes nothing. A prefix never covers a command with a
+  shell operator, quote or expansion (`CommandPrefix::covers`). `Withheld::CannotSandbox` is new.
+- **Ask-with-reason vs refuse.** The note (section 7) says an unsandboxable command is "Ask with the
+  reason". Because we never run unsandboxed there is nothing for an approval to unlock, so
+  `Terminals` refuses it before asking, with `cannot sandbox: <reason>`. The ruling is still pure and
+  tested; it is what a future explicit unsandboxed mode would surface.
+- **Output.** The job keeps the last `outputByteLimit` bytes (default 64 KiB, at most 1 MiB), stdout
+  and stderr interleaved; `terminal/output` returns them as valid UTF-8, redacted (assignments to
+  secret-looking names, `Bearer` credentials, well-known token shapes, JWTs, URL passwords,
+  private-key blocks), cut from the start at a character boundary with `truncated`. A secret split by
+  the cut may leave a fragment. `Shell::view` holds output over 2 KiB behind a `Handle` for a planner.
+  The environment appears in no note, `Debug` or reply.
+- **Where the methods apply.** `terminal/*` are methods a client answers. With an editor driving us
+  (S3) the editor answers them and we never call them. They are for direction (b): an external agent
+  sends them to us (S4), and the S4 edge is a thin dispatch to `Terminals::handle`. S4 must run
+  `handle` in a blocking task (`wait_for_exit` blocks) and map `Decide` to the sheet, `Posture` to
+  the session's taint, breaker, budget and reviewer verdict, and `grants()` / `load_grants` to the
+  consent store. The calls are single-session per terminal (a terminal id from another session is
+  refused).
+- **Tests.** `docket-core` (rule tables), `docket-shell` (`FakeSandbox`; output, redaction, env;
+  real bubblewrap tests that print `SKIP real sandbox test: <reason>` and return when `bwrap` is
+  missing or the kernel refuses namespaces), `docket-acp` (`Terminals` against the schema).
+- **Deferred.** Landlock backend; resource limits (rlimits, a cgroup, a wall-clock limit); a network
+  allowlist; `Effect::Execute` in porter; the settings page for terminal grants (the generic
+  standing-grant list already shows them); the S4 dispatch and the `agent-reported` records; a
+  hostile-corpus case for `terminal/create` with `curl | sh`.

@@ -27,6 +27,7 @@ agent-client-protocol-schema = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-session = { workspace = true }
+docket-shell = { workspace = true }
 docket-settings = { workspace = true }
 futures-util = { workspace = true }
 porter-core = { workspace = true }

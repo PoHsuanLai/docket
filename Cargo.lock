@@ -953,6 +953,7 @@ dependencies = [
  "docket-core",
  "docket-session",
  "docket-settings",
+ "docket-shell",
  "futures-util",
  "jsonschema",
  "porter-core",
@@ -1240,6 +1241,15 @@ dependencies = [
  "serde",
  "tempfile",
  "toml",
+]
+
+[[package]]
+name = "docket-shell"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]
