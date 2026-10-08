@@ -41,6 +41,5 @@ pub use sandbox::{
     StartFault,
 };
 pub use tool::{
-    DEFAULT_KEEP, INLINE_MAX, Launch, MAX_KEEP, MAX_TERMINALS, Shell, ShellFault, Snapshot, TermId,
-    View,
+    DEFAULT_KEEP, Launch, MAX_KEEP, MAX_TERMINALS, Shell, ShellFault, Snapshot, TermId,
 };

@@ -2,14 +2,13 @@
 //! started, and it starts nothing the sandbox cannot confine: if the sandbox cannot, `create`
 //! refuses with the reason and runs nothing.
 //!
-//! `output` is bounded and redacted; `view` turns a long output into a `Handle` for a reader that
-//! must not see untrusted text (the planner). `kill` and `release` always work: no gate stands
-//! in front of stopping a command.
+//! `output` is bounded and redacted. `kill` and `release` always work: no gate stands in front of
+//! stopping a command.
 
 use crate::env::sandbox_env;
 use crate::output::{Shown, shown};
 use crate::sandbox::{Argv, ByteLimit, ExitReport, Job, Network, RunSpec, Sandbox, StartFault};
-use docket_core::{AbsPath, CannotSandbox, Handle, SandboxState};
+use docket_core::{AbsPath, CannotSandbox, SandboxState};
 use std::collections::BTreeMap;
 
 /// Output kept when the requester names no limit.
@@ -17,9 +16,6 @@ pub const DEFAULT_KEEP: usize = 64 * 1024;
 
 /// The most output ever kept, whatever the requester asks.
 pub const MAX_KEEP: usize = 1024 * 1024;
-
-/// Output longer than this reaches a planner as a handle.
-pub const INLINE_MAX: usize = 2048;
 
 /// Terminals open at once.
 pub const MAX_TERMINALS: usize = 8;
@@ -76,22 +72,6 @@ pub struct Snapshot {
     pub exit: Option<ExitReport>,
 }
 
-/// Output as a planner sees it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum View {
-    /// Short enough to show.
-    Inline(Snapshot),
-    /// Too long: held behind a handle.
-    Held {
-        /// The handle.
-        handle: Handle,
-        /// Its length in bytes.
-        bytes: usize,
-        /// How it ended, if it has.
-        exit: Option<ExitReport>,
-    },
-}
-
 #[derive(Debug)]
 struct Term<J> {
     job: J,
@@ -105,7 +85,6 @@ pub struct Shell<S: Sandbox> {
     network: Network,
     terms: BTreeMap<TermId, Term<S::Job>>,
     next: u64,
-    held: BTreeMap<Handle, String>,
 }
 
 fn limit_of(asked: Option<u64>) -> ByteLimit {
@@ -126,7 +105,6 @@ impl<S: Sandbox> Shell<S> {
             network,
             terms: BTreeMap::new(),
             next: 0,
-            held: BTreeMap::new(),
         }
     }
 
@@ -193,27 +171,6 @@ impl<S: Sandbox> Shell<S> {
         let mut term = self.terms.remove(&id).ok_or(ShellFault::NoSuchTerminal)?;
         term.job.kill();
         Ok(())
-    }
-
-    /// The output as a planner may see it: a long one is held behind a handle.
-    pub fn view(&mut self, id: TermId) -> Result<View, ShellFault> {
-        let snap = self.output(id)?;
-        if snap.shown.text.len() <= INLINE_MAX {
-            return Ok(View::Inline(snap));
-        }
-        let handle = Handle(self.held.len() as u64 + 1);
-        let bytes = snap.shown.text.len();
-        self.held.insert(handle, snap.shown.text);
-        Ok(View::Held {
-            handle,
-            bytes,
-            exit: snap.exit,
-        })
-    }
-
-    /// What a handle holds: for the person's own view, never a planner's.
-    pub fn held(&self, handle: Handle) -> Option<&str> {
-        self.held.get(&handle).map(String::as_str)
     }
 
     /// Terminals open now.

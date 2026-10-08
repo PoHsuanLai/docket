@@ -3,9 +3,7 @@
 
 use docket_core::{AbsPath, CannotSandbox};
 use docket_shell::fake::{FakeSandbox, Fate, Script};
-use docket_shell::{
-    Argv, Cut, ExitReport, INLINE_MAX, Launch, MAX_TERMINALS, Network, Shell, ShellFault, View,
-};
+use docket_shell::{Argv, Cut, ExitReport, Launch, MAX_TERMINALS, Network, Shell, ShellFault};
 
 fn launch(line: &[&str]) -> Launch {
     let words: Vec<String> = line.iter().map(|s| (*s).to_owned()).collect();
@@ -70,21 +68,6 @@ fn the_output_cap_keeps_the_tail() {
     let snap = shell.output(id).expect("output");
     assert_eq!(snap.shown.text, "abcdef");
     assert_eq!(snap.shown.cut, Cut::Head);
-}
-
-#[test]
-fn a_long_output_becomes_a_handle_and_a_short_one_stays_inline() {
-    let long = "x".repeat(INLINE_MAX + 1);
-    let (sandbox, _) = FakeSandbox::ready(vec![Script::done(&long, 0), Script::done("short", 0)]);
-    let mut shell = Shell::new(sandbox);
-    let big = shell.create(&launch(&["a"])).expect("created");
-    let small = shell.create(&launch(&["b"])).expect("created");
-    let View::Held { handle, bytes, .. } = shell.view(big).expect("view") else {
-        panic!("a long output must be held");
-    };
-    assert_eq!(bytes, long.len());
-    assert_eq!(shell.held(handle), Some(long.as_str()));
-    assert!(matches!(shell.view(small), Ok(View::Inline(_))));
 }
 
 #[test]
