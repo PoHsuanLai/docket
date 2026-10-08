@@ -8,9 +8,10 @@ use crate::tasks::child_policy;
 use docket_core::{
     ActionCard, ActionDecl, ActionMatch, ActionRef, AgentReach, Anchor, ArgLine, AskReason,
     AuditRecord, ConfirmAnswer, ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId,
-    ConfirmOffer, ConfirmRequest, Confirmer, Gesture, IntentsReply, LabelText, PolicyChange,
-    PolicyWriter, Shown, TaintNote, TaskPolicy, TaskPolicyState, TurnSource, UserTurn, WidenAnswer,
-    Widening, WireRefusal, compare, intersection, tool_schema,
+    ConfirmOffer, ConfirmRequest, Confirmer, FileRef, Gesture, IntentsReply, LabelText,
+    PolicyChange, PolicyWriter, Shown, TaintNote, TaskPolicy, TaskPolicyState, TrustedPattern,
+    TurnSource, UserTurn, WidenAnswer, Widening, WireRefusal, Workspace, compare, intersection,
+    tool_schema,
 };
 use porter_core::{AppName, Count};
 use prov::{Effect, SessionId, UnixSeconds};
@@ -44,6 +45,31 @@ pub(crate) fn catalogue(st: &RouterState) -> Vec<ActionCard> {
                 .filter(|a| a.reach != AgentReach::Hidden)
                 .map(move |a| card_of(a, &app))
                 .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+/// The policy's paths with each relative one made absolute under the session's directory: the
+/// writer reads the person's words and cannot know where they were said. A relative path that
+/// cannot be placed (no directory, or a `..` step that could climb out of it) is kept as it is:
+/// it matches no file, so the bound it stands for still asks, where dropping it would lift the
+/// bound.
+fn anchored(paths: Vec<TrustedPattern>, cwd: Option<&Workspace>) -> Vec<TrustedPattern> {
+    let place = |f: &FileRef| -> Option<FileRef> {
+        let base = cwd?.as_str().trim_end_matches('/');
+        let rest = f.as_str().trim_start_matches("./").trim_end_matches('/');
+        let climbs = rest.split('/').any(|part| part == "..");
+        FileRef::parse(&format!("{base}/{rest}"))
+            .ok()
+            .filter(|_| !climbs)
+    };
+    paths
+        .into_iter()
+        .map(|p| match &p {
+            TrustedPattern::Under(f) if !f.as_str().starts_with('/') => {
+                place(f).map_or(p.clone(), TrustedPattern::Under)
+            }
+            _ => p,
         })
         .collect()
 }
@@ -112,6 +138,7 @@ impl<S: Seams> Router<S> {
         policy.space = record.space.clone();
         policy.from = record.turns.iter().map(|t| t.id).collect();
         policy.state = TaskPolicyState::Active;
+        policy.paths = anchored(policy.paths, record.cwd.as_ref());
         let latest = UnixSeconds(
             now.0
                 .saturating_add(i64::from(self.agent_config().task_policy_max.0)),
@@ -383,6 +410,29 @@ fn describe(w: &Widening) -> String {
 mod tests {
     use super::*;
     use prov::Effect;
+
+    fn under(path: &str) -> TrustedPattern {
+        TrustedPattern::Under(FileRef::parse(path).expect("file"))
+    }
+
+    #[test]
+    fn a_relative_path_is_placed_under_the_session_directory_or_kept_as_it_is() {
+        let cwd = Workspace::parse("/home/u/proj").expect("cwd");
+        let table = [
+            ("tests/", Some(&cwd), "/home/u/proj/tests"),
+            ("./tests", Some(&cwd), "/home/u/proj/tests"),
+            ("/srv/data", Some(&cwd), "/srv/data"),
+            ("../other", Some(&cwd), "../other"),
+            ("tests", None, "tests"),
+        ];
+        for (written, at, want) in table {
+            assert_eq!(
+                anchored(vec![under(written)], at),
+                vec![under(want)],
+                "{written}"
+            );
+        }
+    }
 
     #[test]
     fn a_later_expiry_alone_is_not_asked_about_for_the_words_of_a_new_turn() {

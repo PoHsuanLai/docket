@@ -7,6 +7,7 @@ mod records;
 mod schema;
 mod standing;
 mod support;
+mod task_paths;
 mod task_policy;
 mod tool_schema;
 mod when;

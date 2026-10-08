@@ -62,6 +62,9 @@ pub struct SessionRecord {
     /// The external agent program the session is for, as the host that launched it said when it
     /// opened the session; none for every other session.
     pub external: Option<ExternalAgent>,
+    /// The directory the session was opened in; a relative path the person wrote means a path
+    /// under it.
+    pub cwd: Option<docket_core::Workspace>,
     /// Permission requests the person said yes to, each good for one matching call; cleared when
     /// the person speaks again.
     pub approvals: Vec<CallFacts>,
@@ -98,6 +101,7 @@ impl SessionRecord {
             skill_loads: docket_skills::Loaded::default(),
             wal: Wal::Off,
             external: None,
+            cwd: None,
             approvals: Vec::new(),
         }
     }

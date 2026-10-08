@@ -42,7 +42,10 @@ pub struct TaskPolicy {
     pub recipients: Vec<TrustedPattern>,
     /// Destinations that trace to the person.
     pub destinations: Vec<TrustedPattern>,
-    /// Paths that trace to the person.
+    /// Paths that trace to the person. For a call whose target is files, a non-empty list bounds
+    /// every file (whole path components, as a standing grant's scope does) and an empty list
+    /// leaves the files to the session's directory and the grants. For an untrusted argument that
+    /// feeds a path sink, an empty list trusts nothing.
     pub paths: Vec<TrustedPattern>,
     /// When it lapses (`agent.task_policy.max_s`, proposed 3600, or at task end).
     pub expires: UnixSeconds,
@@ -218,11 +221,16 @@ fn widenings(new: &TaskPolicy, old: &TaskPolicy) -> Vec<Widening> {
             .map(move |p| Widening::Pattern(sink, p.clone()))
     });
     let expiry = (new.expires > old.expires).then_some(Widening::Expiry);
+    // A list that bounded files and is now empty bounds nothing: files anywhere.
+    let unbounded = (new.paths.is_empty() && !old.paths.is_empty())
+        .then(|| anywhere().map(|p| Widening::Pattern(ArgSink::Path, p)))
+        .flatten();
     actions
         .chain(kinds)
         .chain(ceiling)
         .chain(count)
         .chain(patterns)
+        .chain(unbounded)
         .chain(expiry)
         .collect()
 }
@@ -275,7 +283,7 @@ pub fn intersection(a: &TaskPolicy, b: &TaskPolicy) -> TaskPolicy {
         max_count: a.max_count.min(b.max_count),
         recipients: patterns(&a.recipients, &b.recipients),
         destinations: patterns(&a.destinations, &b.destinations),
-        paths: patterns(&a.paths, &b.paths),
+        paths: bounded_paths(&a.paths, &b.paths),
         expires: a.expires.min(b.expires),
         rationale: a.rationale.clone(),
         state: if both_active {
@@ -283,6 +291,30 @@ pub fn intersection(a: &TaskPolicy, b: &TaskPolicy) -> TaskPolicy {
         } else {
             TaskPolicyState::Revoked
         },
+    }
+}
+
+/// The pattern that matches every file.
+fn anywhere() -> Option<TrustedPattern> {
+    FileRef::parse("/").ok().map(TrustedPattern::Under)
+}
+
+/// What both path lists allow. An empty list does not bound files, so it yields to the other
+/// side's; two lists keep what each covers of the other.
+fn bounded_paths(a: &[TrustedPattern], b: &[TrustedPattern]) -> Vec<TrustedPattern> {
+    match (a.is_empty(), b.is_empty()) {
+        (true, _) => b.to_vec(),
+        (_, true) => a.to_vec(),
+        (false, false) => a
+            .iter()
+            .filter(|p| b.iter().any(|o| pattern_inside(p, o)))
+            .chain(b.iter().filter(|p| a.iter().any(|o| pattern_inside(p, o))))
+            .fold(Vec::new(), |mut kept, p| {
+                if !kept.contains(p) {
+                    kept.push(p.clone());
+                }
+                kept
+            }),
     }
 }
 
@@ -348,6 +380,12 @@ pub fn covers(
     if count > policy.max_count {
         return Coverage::Outside(Widening::Count(count));
     }
+    if let Some(file) = file_outside(&policy.paths, &call.target) {
+        return Coverage::Outside(Widening::Pattern(
+            ArgSink::Path,
+            TrustedPattern::Exact(Value::File(file.clone())),
+        ));
+    }
     // An argument the router did not label is untrusted: the planner never vouches for itself.
     call.args
         .iter()
@@ -382,6 +420,21 @@ fn uncovered_argument(policy: &TaskPolicy, sink: ArgSink, value: &Value) -> Opti
         sink,
         TrustedPattern::Exact(value.clone()),
     ))
+}
+
+/// The first file target that no path of the policy covers; none when the policy names no paths
+/// or the target is not files.
+fn file_outside<'a>(paths: &[TrustedPattern], target: &'a TargetValue) -> Option<&'a FileRef> {
+    let TargetValue::Files(files) = target else {
+        return None;
+    };
+    if paths.is_empty() {
+        return None;
+    }
+    files.iter().find(|f| {
+        let value = Value::File((*f).clone());
+        !paths.iter().any(|p| pattern_matches(p, &value))
+    })
 }
 
 fn target_entities(target: &TargetValue) -> Vec<&EntityId> {

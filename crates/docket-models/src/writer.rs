@@ -23,7 +23,7 @@ use std::collections::BTreeSet;
 const INSTRUCTION: &str = "You write a task policy: the least an assistant needs to do what \
 the person asked, and no more. You are given the person's own words and the list of actions \
 that exist. Choose only listed actions. Choose a ceiling no higher than the chosen actions \
-need, and no lower: it must cover the effect of every chosen action. Name a recipient, destination or path only if the person wrote it. When the person \
+need, and no lower: it must cover the effect of every chosen action. Name a recipient, destination or path only if the person wrote it; when the person limits the files to a folder, give that folder in paths. When the person \
 asked only to look, choose reading actions only.";
 
 /// The policy writer: reads the person's turns and the action catalogue, never content.

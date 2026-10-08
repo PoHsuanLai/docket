@@ -147,6 +147,7 @@ impl<S: Seams> Router<S> {
         let mut record =
             SessionRecord::new(task.clone(), actor, opener.clone(), open.space.clone(), now);
         record.external = open.external.clone();
+        record.cwd = open.cwd.clone();
         let parent_episode = open
             .parent
             .as_ref()

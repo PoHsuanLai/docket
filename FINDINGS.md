@@ -2710,9 +2710,20 @@ label say; the owner's decision is still pending and nothing was narrowed.
 - The breaker is the router's (consecutive refusals, `Paused`, `AuditRecord::Breaker`); the client's flood rule (forty
   asks in a turn) is replaced by the budgets (destructive acts 5, outbound 10, calls 200, per minute 30).
 - `Strikes` is the only host-side count, for refusals that never became calls.
-- Task policy coverage does not compare a `Files` target with `policy.paths` (`covers` checks untrusted sink arguments
-  only; a files target has no label). So "writes under the path the person named" is not enforced beyond the confinement
-  to the session's directory; a later change would give `TargetKind::Files` a label and a compare. Note for the owner.
+- DONE (agent-paths): `covers` checks every `Files` target against `policy.paths` (`Under` patterns, whole path
+  components, a `..` step never inside; the same matcher as the policy's other path patterns, which agrees with the
+  standing grant's `AbsPath::covers`). A target outside is `Outside(Widening::Pattern(Path, Exact(file)))`, which the
+  grid rules `OutsideTask` (the "Allow more for this task" sheet under Ask more; under Default the grid sends a trusted
+  outside write to the reviewers, as it does for any outside write, and a reviewer's ask is the sheet). An empty `paths`
+  keeps the old behaviour (files bounded by the directory and the grants only). What the writer derives: `paths` are
+  entries the person wrote whole in a turn (`draft::path_of_person`), as `Under`; the router anchors a relative one
+  (`tests/`, `./tests`) under the session's directory (`SessionRecord.cwd`, restored from the log's opening) and keeps
+  one it cannot place (no directory, a `..` step) as written, so it matches nothing and asks rather than lifting the
+  bound; the writer's instruction now says to give a folder the person limits the files to. A person who names no
+  folder gets an empty list. `compare`: an added path widens, a removed one narrows, and dropping the last one widens
+  (files are then unbounded; reported as `Under("/")`); going from an empty list to a first path is still reported as a
+  widening (conservative: for an untrusted path argument it is one). `intersection` no longer lets an empty list
+  swallow the other's bound (a child of a bounded policy stays bounded).
 - The planner of the native companion sees the pseudo-app's actions in the catalogue (the policy writer needs them to
   cover a task); a planner call to one is refused (`NotAllowed`) because only the host role may make it. Hiding them
   from planner prompts is not done.
@@ -2772,6 +2783,5 @@ name waits on `agent.acp.agents`; its sheet route). `docket-acp/tests/it/termina
 **Deferred.** Resuming an agent session through the host (the router restores it, but `AgentHost::resume` is not
 served and the agent's own session id is not kept); the per-session MCP edge (D-3); a dry-run preview of a write for
 the sheet (`dry_run = none`: the sheet shows the path and a line count); hiding the pseudo-app from planner prompts;
-an `Effect::Execute` and an `ActorKind::Acp` in porter; narrowing the taint (owner); the `Files`-target compare with
-`policy.paths`; deleting `rule_execute`; the provider-host network allowlist, Landlock, resource limits and the
+an `Effect::Execute` and an `ActorKind::Acp` in porter; narrowing the taint (owner); deleting `rule_execute`; the provider-host network allowlist, Landlock, resource limits and the
 second test agent (S4's list stands).

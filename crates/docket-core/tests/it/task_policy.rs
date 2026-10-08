@@ -14,7 +14,7 @@ fn mail_action(name: &str) -> ActionRef {
     }
 }
 
-fn policy() -> TaskPolicy {
+pub(crate) fn policy() -> TaskPolicy {
     TaskPolicy {
         task: TaskId::parse("t-1").expect("task"),
         space: space("work"),
@@ -35,7 +35,7 @@ fn policy() -> TaskPolicy {
     }
 }
 
-fn edit(f: impl FnOnce(&mut TaskPolicy)) -> TaskPolicy {
+pub(crate) fn edit(f: impl FnOnce(&mut TaskPolicy)) -> TaskPolicy {
     let mut p = policy();
     f(&mut p);
     p
@@ -200,7 +200,7 @@ fn task_policy_compare_table() {
     }
 }
 
-fn file(path: &str) -> FileRef {
+pub(crate) fn file(path: &str) -> FileRef {
     FileRef::parse(path).expect("file")
 }
 
@@ -216,7 +216,7 @@ fn call(name: &str, targets: &[&str], args: Vec<(&str, Value)>) -> CallRequest {
     }
 }
 
-fn labels(per_arg: Vec<(&str, Integrity)>) -> ArgLabels {
+pub(crate) fn labels(per_arg: Vec<(&str, Integrity)>) -> ArgLabels {
     ArgLabels {
         per_arg: per_arg
             .into_iter()
@@ -380,7 +380,7 @@ fn covers_table() {
 
 /// The manifest's declaration of `call`'s action: `to` feeds a recipient, `body` a body, `into` a
 /// path and `label` nowhere that matters.
-fn declared(call: &CallRequest, effect: Effect) -> ActionDecl {
+pub(crate) fn declared(call: &CallRequest, effect: Effect) -> ActionDecl {
     let mut decl = decl(call.action.name.as_str(), effect, UndoSupport::NotUndoable);
     decl.params = vec![
         text_param("to", ArgSink::Recipient, ParamNeed::Optional),

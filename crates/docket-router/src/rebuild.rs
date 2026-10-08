@@ -157,6 +157,7 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         now,
     );
     record.external = external;
+    record.cwd = opening.cwd.clone();
     record.state = state;
     record.ledger = ledger_of(plan, now);
     record.turns = plan.turns.clone();
