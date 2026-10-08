@@ -485,6 +485,7 @@ pub fn agent(turns: Vec<Vec<Act>>) -> (ChannelWire, View) {
 
 /// The same, with the sign-in it takes.
 pub fn agent_signing(turns: Vec<Vec<Act>>, auth: Auth) -> (ChannelWire, View) {
+    docket_testbus::hang_guard::arm();
     let (client, far) = pipe();
     let view = View::default();
     tokio::spawn(run(far, view.clone(), turns.into(), auth));

@@ -11,6 +11,7 @@
 
 mod groups;
 mod guard;
+pub mod hang_guard;
 
 pub use guard::Reaped;
 

@@ -101,6 +101,7 @@ pub fn rig(
     scripts: Vec<Vec<Vec<BackendEvent>>>,
     editor_app: &str,
 ) -> (TestServer, Editor) {
+    docket_testbus::hang_guard::arm();
     let (client_end, server_end) = duplex(1 << 16);
     let (server_read, server_write) = split(server_end);
     let (client_read, client_write) = split(client_end);

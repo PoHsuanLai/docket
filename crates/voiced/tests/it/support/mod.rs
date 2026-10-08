@@ -164,6 +164,7 @@ pub fn config() -> VoicedConfig {
 }
 
 pub async fn world(options: Options) -> World {
+    docket_testbus::hang_guard::arm();
     let home = TempDir::new().expect("scratch");
     // The daemon reads nothing of the person's: HOME and XDG point at the scratch directory.
     let bus = PrivateBus::start(home.path());

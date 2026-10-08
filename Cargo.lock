@@ -981,6 +981,7 @@ dependencies = [
  "docket-session",
  "docket-settings",
  "docket-shell",
+ "docket-testbus",
  "futures-util",
  "jsonschema",
  "policy-point",
