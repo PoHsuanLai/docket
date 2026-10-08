@@ -532,3 +532,91 @@ fn an_executes_session_taint_excuses_only_a_command_of_its_own_with_no_way_out()
     };
     assert_eq!(blocker(&tripped), Some(Withheld::BreakerTripped));
 }
+
+fn agent() -> GrantCaller {
+    GrantCaller::AcpAgent(ProgramName::parse("claude-code").expect("program"))
+}
+
+fn mail_read(name: &str) -> CallFacts {
+    CallFacts {
+        action: ActionRef {
+            app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
+            name: prov::ActionName::parse(name).expect("action"),
+        },
+        args: ArgFacts::Unscoped,
+    }
+}
+
+#[test]
+fn an_agents_read_is_offered_the_one_action_even_when_the_session_is_tainted() {
+    let call = mail_read("mail.thread.search");
+    let f = facts(
+        Effect::Read,
+        &[AskReason::FirstUse, AskReason::Tainted],
+        &[],
+    );
+    assert_eq!(
+        may_offer(&agent(), &call, &f),
+        AlwaysOffer::Offered(StandingScope::Reads {
+            action: call.action.clone()
+        })
+    );
+    // An editor, a write, a hidden or ask-always action and the agent pseudo-app are not offered it.
+    assert_ne!(
+        may_offer(&editor(), &call, &f),
+        AlwaysOffer::Offered(StandingScope::Reads {
+            action: call.action.clone()
+        })
+    );
+    for effect in [Effect::UndoableWrite, Effect::Outbound, Effect::Destructive] {
+        let w = facts(effect, &[AskReason::FirstUse], &[]);
+        assert!(
+            !matches!(
+                may_offer(&agent(), &call, &w),
+                AlwaysOffer::Offered(StandingScope::Reads { .. })
+            ),
+            "{effect:?}"
+        );
+    }
+    let mut ask = f;
+    ask.reach = AgentReach::AskAlways;
+    assert_eq!(
+        may_offer(&agent(), &call, &ask),
+        AlwaysOffer::Withheld(Withheld::AsksEveryTime)
+    );
+    let pseudo = CallFacts {
+        action: acp_agent_action(FILES_READ).expect("action"),
+        args: ArgFacts::Unscoped,
+    };
+    assert!(!matches!(
+        may_offer(&agent(), &pseudo, &f),
+        AlwaysOffer::Offered(StandingScope::Reads { .. })
+    ));
+}
+
+#[test]
+fn a_read_scope_covers_its_action_only_and_never_the_pseudo_app() {
+    let search = mail_read("mail.thread.search");
+    let scope = StandingScope::Reads {
+        action: search.action.clone(),
+    };
+    assert_eq!(scope.covers(&search), Cover::Covers);
+    for other in [
+        "mail.message.forward",
+        "mail.message.send",
+        "mail.thread.read",
+    ] {
+        assert_eq!(scope.covers(&mail_read(other)), Cover::Misses, "{other}");
+    }
+    let pseudo = CallFacts {
+        action: acp_agent_action(FILES_READ).expect("action"),
+        args: ArgFacts::Unscoped,
+    };
+    let on_pseudo = StandingScope::Reads {
+        action: pseudo.action.clone(),
+    };
+    assert_eq!(on_pseudo.covers(&pseudo), Cover::Misses);
+    let grant = StandingGrant::new(agent(), scope, prov::UnixSeconds(1));
+    let other = GrantCaller::AcpAgent(ProgramName::parse("gemini-cli").expect("program"));
+    assert_eq!(grant.covers(&other, &search), Cover::Misses);
+}

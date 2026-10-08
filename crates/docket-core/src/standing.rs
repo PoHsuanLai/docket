@@ -333,9 +333,16 @@ pub enum StandingScope {
         /// Where it goes.
         to: Recipient,
     },
+    /// Reads: this one read-only action, whatever it reads. Only an external agent's read-only
+    /// action of an app (never the agent pseudo-app) is offered this scope, and it covers a call
+    /// only while the action's effect is a read.
+    Reads {
+        /// The action.
+        action: ActionRef,
+    },
 }
 
-/// Which of the three scopes, without its arguments (what the audit keeps).
+/// Which of the four scopes, without its arguments (what the audit keeps).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ScopeKind {
@@ -345,6 +352,8 @@ pub enum ScopeKind {
     Terminal,
     /// [`StandingScope::Outbound`].
     Outbound,
+    /// [`StandingScope::Reads`].
+    Reads,
 }
 
 impl StandingScope {
@@ -353,7 +362,8 @@ impl StandingScope {
         match self {
             StandingScope::Files { action, .. }
             | StandingScope::Terminal { action, .. }
-            | StandingScope::Outbound { action, .. } => action,
+            | StandingScope::Outbound { action, .. }
+            | StandingScope::Reads { action } => action,
         }
     }
 
@@ -363,6 +373,7 @@ impl StandingScope {
             StandingScope::Files { .. } => ScopeKind::Files,
             StandingScope::Terminal { .. } => ScopeKind::Terminal,
             StandingScope::Outbound { .. } => ScopeKind::Outbound,
+            StandingScope::Reads { .. } => ScopeKind::Reads,
         }
     }
 
@@ -371,7 +382,7 @@ impl StandingScope {
         let rooted = match self {
             StandingScope::Files { under, .. } => under.is_root(),
             StandingScope::Terminal { cwd, .. } => cwd.is_root(),
-            StandingScope::Outbound { .. } => RootState::Below,
+            StandingScope::Outbound { .. } | StandingScope::Reads { .. } => RootState::Below,
         };
         match rooted {
             RootState::Root => NarrowState::TooBroad,

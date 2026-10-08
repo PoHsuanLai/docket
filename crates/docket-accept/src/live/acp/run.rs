@@ -3,6 +3,7 @@
 use super::play::{AgentEnd, Played, play};
 use super::secret::{Credentials, Redactor};
 use super::spec::AcpSpec;
+use crate::confirm::{ByEffect, Verdict};
 use crate::drive::Launcher;
 use crate::live::flows::{
     Evidence, Failure, Flow, Kind, Mode, exchanges_of, judge_in, setup, transcript_of, undo_held,
@@ -15,10 +16,6 @@ use docket_session::TurnEnd;
 use serde_json::json;
 use std::path::PathBuf;
 use std::time::Duration;
-
-/// How many times the scripted person answers a flow's sheet the same way: an agent may ask more
-/// than a planner would (a class, then the action), and the person's mind does not change.
-const ANSWERS: usize = 8;
 
 /// The cassette an agent run plays when the engine is `scripted`: the policy writer allows Mail
 /// up to outbound (what the flows ask) and the host's own actions up to reads, and the judges
@@ -132,6 +129,20 @@ fn describe(end: &AgentEnd) -> String {
     }
 }
 
+/// What the scripted person does with an agent's sheets: "always" for a read-only action, where
+/// a planner's first-use grant makes its reads quiet too, and the flow's own answer for the rest
+/// (so a refused flow declines the forward itself). The injected-thread flow refuses every sheet.
+fn person_for(flow: Flow) -> ByEffect {
+    let reads = match flow {
+        Flow::InjectedThread => flow.verdict(),
+        _ => Verdict::AllowAlways,
+    };
+    ByEffect {
+        reads,
+        rest: flow.verdict(),
+    }
+}
+
 /// Plays `flow` with the agent `spec` in a fresh world over `model`, with the model tap on and
 /// the scratch root kept under `keep_in`. The login of the spec, if any, is staged for the run and
 /// removed when this returns (or unwinds); everything written is scrubbed of it.
@@ -178,9 +189,7 @@ pub async fn run_flow_acp(
             };
         }
     };
-    for _ in 0..ANSWERS {
-        world.sheet.will(flow.verdict());
-    }
+    world.sheet.will_by_effect(person_for(flow));
     let played = play(
         &world,
         binaries,

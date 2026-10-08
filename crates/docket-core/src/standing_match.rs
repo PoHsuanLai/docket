@@ -2,9 +2,11 @@
 //! off the call's typed arguments; a fact it could not read (a held handle, a relative path) is
 //! `Opaque`, which no scope covers.
 
+use crate::agent_app::is_agent_action;
 use crate::grant::GrantCaller;
 use crate::ids::ActionRef;
-use crate::standing::{AbsPath, Cover, Recipient, StandingGrant, StandingScope};
+use crate::standing::{AbsPath, Cover, Recipient, ScopeKind, StandingGrant, StandingScope};
+use prov::Effect;
 use serde::{Deserialize, Serialize};
 
 /// The arguments of a call, reduced to what a scope can be compared with.
@@ -54,6 +56,7 @@ impl StandingScope {
             (StandingScope::Outbound { to, .. }, ArgFacts::Recipients(who)) => {
                 all_cover(who.iter().map(|r| to.covers(r)))
             }
+            (StandingScope::Reads { action }, _) if !is_agent_action(action) => Cover::Covers,
             _ => Cover::Misses,
         }
     }
@@ -80,6 +83,20 @@ impl StandingGrant {
             Cover::Misses
         }
     }
+}
+
+/// The first of `grants` that covers the call made by `caller` to an action of this `effect`. A
+/// reads grant stands only for a read: if the action ever declares more, it covers nothing.
+pub fn find_standing_for<'a>(
+    grants: &'a [StandingGrant],
+    caller: &GrantCaller,
+    call: &CallFacts,
+    effect: Effect,
+) -> Option<&'a StandingGrant> {
+    grants.iter().find(|g| {
+        let fits = effect == Effect::Read || g.scope.kind() != ScopeKind::Reads;
+        fits && g.covers(caller, call) == Cover::Covers
+    })
 }
 
 /// The first of `grants` that covers the call made by `caller`.

@@ -7,7 +7,7 @@
 use docket_core::{ConfirmAnswer, ConfirmEnd, ConfirmRequest};
 use docket_dbus::{CONFIRM_BUS, CONFIRM_PATH};
 use porter_core::consent::GrantScope;
-use prov::{Confidentiality, ConfirmReceipt, InputProof, UnixSeconds};
+use prov::{Confidentiality, ConfirmReceipt, Effect, InputProof, UnixSeconds};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, PoisonError};
 use tokio::sync::mpsc;
@@ -26,8 +26,28 @@ pub enum Verdict {
     Refuse,
 }
 
+/// What the person does with every sheet once the queue is empty, by what the sheet is for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ByEffect {
+    /// For a sheet about a read-only action.
+    pub reads: Verdict,
+    /// For every other sheet.
+    pub rest: Verdict,
+}
+
+impl ByEffect {
+    fn verdict_for(self, request: &ConfirmRequest) -> Verdict {
+        if request.effect == Effect::Read {
+            self.reads
+        } else {
+            self.rest
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 struct Inner {
+    by_effect: Option<ByEffect>,
     verdicts: VecDeque<Verdict>,
     shown: Vec<ConfirmRequest>,
     cancelled: Vec<String>,
@@ -48,6 +68,11 @@ impl Sheet {
     /// Queues what the person does with the next sheet that has no verdict yet.
     pub fn will(&self, verdict: Verdict) {
         self.edit(|i| i.verdicts.push_back(verdict));
+    }
+
+    /// Sets what the person does with each sheet the queue does not answer, by effect.
+    pub fn will_by_effect(&self, rule: ByEffect) {
+        self.edit(|i| i.by_effect = Some(rule));
     }
 
     /// Every request shown so far, oldest first.
@@ -97,7 +122,12 @@ impl ConfirmObject {
         let (n, verdict) = self.sheet.edit(|i| {
             i.shown.push(parsed.clone());
             i.next += 1;
-            (i.next, i.verdicts.pop_front())
+            (
+                i.next,
+                i.verdicts
+                    .pop_front()
+                    .or_else(|| i.by_effect.map(|r| r.verdict_for(&parsed))),
+            )
         });
         let _ = self.seen.send(parsed.clone());
         let path = format!("{CONFIRM_PATH}/request/{n}");

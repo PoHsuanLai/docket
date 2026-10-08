@@ -249,6 +249,16 @@ fn command_prefix(line: &str) -> Option<CommandPrefix> {
     CommandPrefix::parse(&text).ok()
 }
 
+/// Whether this is an external agent's read-only call of an app's action that the edge offers:
+/// the one case scoped by the action alone, since a search or a read has no path or recipient to
+/// name. The agent pseudo-app keeps its files and terminal scopes.
+fn reads_only(caller: &GrantCaller, call: &CallFacts, f: &AskFacts<'_>) -> bool {
+    matches!(caller, GrantCaller::AcpAgent(_))
+        && f.effect == Effect::Read
+        && f.reach == AgentReach::Offered
+        && !crate::agent_app::is_agent_action(&call.action)
+}
+
 /// May this confirmation offer "allow always"? `Offered` carries the exact scope the grant would
 /// have; `Withheld` says why not.
 pub fn may_offer(caller: &GrantCaller, call: &CallFacts, f: &AskFacts<'_>) -> AlwaysOffer {
@@ -257,6 +267,11 @@ pub fn may_offer(caller: &GrantCaller, call: &CallFacts, f: &AskFacts<'_>) -> Al
     }
     if let Some(why) = blocker(f) {
         return AlwaysOffer::Withheld(why);
+    }
+    if reads_only(caller, call, f) {
+        return AlwaysOffer::Offered(StandingScope::Reads {
+            action: call.action.clone(),
+        });
     }
     match scope_for(call) {
         Ok(scope) => AlwaysOffer::Offered(scope),

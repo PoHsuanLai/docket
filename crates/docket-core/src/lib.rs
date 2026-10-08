@@ -140,7 +140,7 @@ pub use standing::{
     PathFault, Recipient, Revocation, RootState, ScopeKind, StandingGrant, StandingGrantId,
     StandingIdFault, StandingScope, decode_standing, encode_standing, held_with, held_without,
 };
-pub use standing_match::{ArgFacts, CallFacts, find_standing};
+pub use standing_match::{ArgFacts, CallFacts, find_standing, find_standing_for};
 pub use standing_offer::{
     AlwaysOffer, AskFacts, BreakerState, BudgetState, Withheld, blocker, holds_standing, may_offer,
     scope_for,

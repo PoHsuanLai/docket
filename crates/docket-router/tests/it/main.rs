@@ -3,6 +3,7 @@ mod acp_agent_exec;
 mod acp_agent_grants;
 mod acp_agent_label;
 mod acp_agent_paths;
+mod acp_agent_reads;
 mod acp_agent_tools;
 mod activation;
 mod auth;

@@ -101,7 +101,7 @@ async fn a_refusal_stops_the_forward_and_the_agent_is_told_so() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn the_first_use_of_mail_asks_and_each_search_after_it_asks_again() {
+async fn the_first_use_of_mail_asks_once_and_the_persons_always_quiets_the_next_search() {
     if !sandbox_here() {
         return;
     }
@@ -113,16 +113,15 @@ async fn the_first_use_of_mail_asks_and_each_search_after_it_asks_again() {
         report.failures,
         said(&report)
     );
-    // An agent holds scoped standing grants and a search has no scope: both searches asked, and
-    // the report says the planner's "exactly one" was not measured.
-    assert_eq!(
-        report.not_applicable.len(),
-        1,
+    // The person's "always" on the first search is a read-only grant for the action: the second
+    // search asks nothing, and the check "exactly one first-use sheet" applies again.
+    assert!(
+        report.not_applicable.is_empty(),
         "{:?}",
         report.not_applicable
     );
     let t = said(&report);
-    assert_eq!(t.matches("Find threads effect=").count(), 2, "{t}");
+    assert_eq!(t.matches("Find threads effect=").count(), 1, "{t}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

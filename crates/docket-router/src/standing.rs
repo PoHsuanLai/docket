@@ -13,7 +13,7 @@ use action_review::plan;
 use docket_core::{
     ActionDecl, AlwaysOffer, ArgSink, AskFacts, AskReason, AuditRecord, BreakerState, BudgetState,
     CallFacts, CallRequest, ExecFacts, GrantCaller, Impact, Revocation, Ruling, StandingGrant,
-    StandingGrantId, StandingScope, Withheld, blocker, covers_approval, find_standing,
+    StandingGrantId, StandingScope, Withheld, blocker, covers_approval, find_standing_for,
     holds_standing, may_offer,
 };
 use prov::Integrity;
@@ -99,7 +99,7 @@ impl StandingCtx {
         let Pending::Confirm(why) = &pending else {
             return (pending, self);
         };
-        let held = find_standing(grants, &self.caller, &self.facts);
+        let held = find_standing_for(grants, &self.caller, &self.facts, decl.effect);
         let stages = plan(&Ruling::AllowJudged(vec![]), impact);
         match held {
             Some(grant) if blocker(&self.ask_facts(decl, why)).is_none() => {

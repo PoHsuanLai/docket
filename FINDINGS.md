@@ -2977,13 +2977,9 @@ cannot see `acpagent.*` as tools, and its words are never the person's. Taint wo
 tool result is untrusted, the session is tainted, and a later send asks and offers no "always".
 
 **Costs worth knowing.**
-- An agent asks about every mail action. `holds_standing(AcpAgent)` is true, so the sheet's "always" is the scoped
-  standing grant or nothing (`carry_out`: "never the broad class grant"), and a search or a read has no scope
-  (`Withheld::Unscoped`): the first-use sheet is once-only and each later search asks again. A planner's "always" is a
-  class grant for Mail in the Space. Making an agent's reads quiet means a scoped standing grant that names an action
-  (or an app in a Space) with no arguments, which is a change to the standing-grant vocabulary; it is an owner decision
-  and is not made here. The harness's first-use flow reports "exactly one first-use sheet" as not applicable for this
-  reason.
+- An agent asks about every mail action the first time. Its "always" is a scoped standing grant, never the broad class
+  grant. Since "agent-read-always" a read-only action has one (`StandingScope::Reads`), so a search or a read is asked
+  about once per action and then runs quietly; a write, an outbound or a destructive call still has no scope and asks.
 - A pause by the breaker on a tool call ends the turn `Paused` (the edge leaves the trip where the backend reads it
   and the backend sends `session/cancel`), as it does for a file call. The tool calls do not appear as step lines in the
   host's event stream yet; the router's audit has them.
@@ -3032,7 +3028,7 @@ settled, nothing held without a sheet, undo of the held message works, nothing s
 recipient and threads, and (agent only) every message the app holds was made by `Actor::Acp { program }` and nobody else.
 Not applicable, listed in the trace and on a `[n/a]` line of the run: "the planner was shown the injected body" and "the
 reader read the thread" (flow-c; they inspect the planner's and readerd's exchanges, and an agent reads the body itself,
-as untrusted), and "exactly one first-use sheet" (see the cost above). The hostile-model planner cases script the
+as untrusted), and, until "agent-read-always", "exactly one first-use sheet" (applies again since "agent-read-always"). The hostile-model planner cases script the
 planner's replies and have no agent counterpart (`N/A` line). `docket-live corpus --agent acp` writes the same report
 format with every case under "Cases that could not run in this mode": a case scripts the planner's calls and judges the
 router's ruling on each, and an agent chooses its own. Making some corpus cases meaningful (a `NoOutbound` outcome over a
@@ -3109,3 +3105,45 @@ holds, and that nothing of the preset is a file or a bind; they never start Clau
   outside docket's per-run reach), or the adapter passing `strictMcpConfig`. Open.
 - The pre-allow covers every `quire` tool, including ones that act (send, forward): they are still router calls with the
   router's sheets; Claude's prompt was the duplicate, not the gate.
+
+## agent-read-always: an external agent's "always" on a read-only action
+
+**Decision (owner, 2026-10-08).** An ACP agent over the per-session tool edge is as usable as the planner for read-only
+actions: the person is asked once per action, not on every search and read. Only `Effect::Read`; never a write, an
+outbound, an execute or a destructive call.
+
+**Scope chosen: `StandingScope::Reads { action }`, per action** (docket's own grant type; no porter change). It is
+keyed like the other agent grants, by (program, app, action): `GrantCaller::AcpAgent(program)` is the caller and the
+`ActionRef` carries the app and the action, so `mail.thread.search` is one grant and `mail.thread.read` another. The
+app-wide "all its read-only actions" scope was not chosen: it would quietly cover a read action an app adds later, and
+one person-visible grant per action reads better in Settings. The grant covers a call of that action whatever it reads
+(a search or a read has no path or recipient to name), and nothing else.
+
+**Where it is offered.** `may_offer` (docket-core `standing_offer.rs`) offers `Reads` when all hold: the caller is an
+`AcpAgent`, the effect is `Read`, the action's reach is `Offered` (not `Hidden`, not `AskAlways`), the action is not
+one of the `acpagent.*` pseudo-app (files and terminal keep their scoped grants, R10 and R11 unchanged), and the usual
+`blocker` rules find nothing (breaker, budget, `OutsideTask`, a named rule, untrusted arguments into a query sink, ...).
+The sheet's `always` is then `Offered(Reads { action })` and the person's "always" answer records it in `GrantStore`
+(`record_standing`, audited as `StandingGranted`, kind `reads`). A later call of the same action by the same program
+is lifted from "ask" to "review" like any held grant: audited (`StandingUsed`), budgeted, counted by the breaker, and
+the reviewers still look.
+
+**Taint.** A session that read untrusted mail is not a reason to withhold a read grant: `reason` already excuses
+`Tainted` for an effect that is not risky, and `consent_for`'s taint rule only turns an `Always` class grant into an
+ask for writes. Taint matters for sinks. A search whose query is itself derived from untrusted content still withholds
+(`UntrustedIntoSink`, the query sink leaves the machine), as for any caller.
+
+**Limits.** It never covers another program, another app, another action, a non-read effect (`find_standing_for`
+checks the declared effect at match time, so an action that later declares more than a read is not covered), or an
+action the edge does not offer. An agent cannot create it: only the person's answer to a sheet reaches
+`record_standing`, and the Control surface that lists and revokes is closed to the host's role. It is listed over
+`ControlStandingGrants` and revoked by `ControlStandingRevoke` with the other standing grants, where Settings shows
+them; the sheet's words are "Always allow "<action>" (read only)". It persists in the same standing file as the others.
+A forward still asks on its own, and a refusal of it is the outbound call's.
+
+**Harness.** The ACP engine's scripted person answers "always" to a read-only sheet and the flow's own answer
+(`Flow::verdict`) to the rest (`Sheet::will_by_effect`), so flow-a-refused declines the forward itself, and the
+first-use check "exactly one first-use sheet" applies to the agent again.
+
+**Open.** A read whose query comes from untrusted text still asks each time (by design). Settings has no row text of its
+own for `Reads` beyond the generic grant listing; a nicer label is shell work.

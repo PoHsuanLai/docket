@@ -26,5 +26,6 @@ pub fn always_words(label: &str, scope: &StandingScope) -> String {
         StandingScope::Outbound { to: whom, .. } => {
             format!("Always allow \"{label}\" to {}", to(whom))
         }
+        StandingScope::Reads { .. } => format!("Always allow \"{label}\" (read only)"),
     }
 }

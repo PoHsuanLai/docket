@@ -178,3 +178,24 @@ fn standing_grants_survive_a_restart_and_a_revocation_is_seen_by_the_next_reader
         "a damaged file holds none: the person is asked again"
     );
 }
+
+#[test]
+fn a_read_grant_survives_a_restart_like_the_other_standing_grants() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let path = dir.path().join("grants.json");
+    let held = docket_core::StandingGrant::new(
+        GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
+        docket_core::StandingScope::Reads {
+            action: docket_core::ActionRef {
+                app: AppName::parse("org.quire.Mail").expect("app"),
+                name: ActionName::parse("mail.thread.search").expect("action"),
+            },
+        },
+        UnixSeconds(1),
+    );
+    FileGrantStore::open(path.clone())
+        .expect("open")
+        .add_standing(held.clone());
+    let reopened = FileGrantStore::open(path).expect("reopen");
+    assert_eq!(reopened.standing(), vec![held]);
+}
