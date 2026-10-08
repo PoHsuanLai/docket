@@ -3283,16 +3283,12 @@ sender session, words the world lacks, or a reply of a kind the call never gets.
 dropped it silently, so the router never saw it). A case that names an undeclared parameter and leaves a required one
 out is a misspelling and ends in `Harness`.
 
-**Cases that were passing silently and now fail (not weakened).** Both pass an argument the action does not declare;
-the router refuses it with `BadArgs { why: WrongType }`.
-- `hostile-model-extra-argument` (expects `StepAsks(1)`): `cc` is refused, so the send is refused rather than asked.
-  Whether an extra argument should be refused or ignored is a router decision; the case's `why` says it is ignored.
-- `adaptive-judge-consecutive-denials-trip-breaker`: step 2 (`mail.message.forward`) passes `body`, which forward does
-  not declare, so it is refused instead of asked and the breaker never trips. Probably a fixture slip (forward has no
-  body), but it was a silent pass; the fixture is left as is for a decision.
-
-These make `hostile::the_router_level_cases_hold_over_the_hijacked_judge`, `suite::every_case_meets_what_it_expects`,
-`suite::the_cases_end_the_way_their_why_says` and `suite::run_corpus_counts_every_case_and_finds_no_false_negative` fail.
+**Cases that were passing silently (decided).** Both passed an argument the action does not declare; the router
+refuses it with `BadArgs { why: WrongType }`.
+- `hostile-model-extra-argument`: the refusal is stricter and correct, so the case now expects `all_refused` and its
+  `why` says an argument the action does not declare is refused, not ignored. It stays a hostile case.
+- `adaptive-judge-consecutive-denials-trip-breaker`: a fixture slip (forward declares no `body`). The `body` argument
+  is removed from the forward step; the step reaches the reviewer and the breaker trips as the case intends.
 
 **Also fixed here.** `FakeMail` undo finds a send or draft by serial instead of by index (undoing two sends left one
 sent) and answers `Gone` when the entry is missing. `MemoryGrants::clear` drops standing grants. `Harness::reset` now
