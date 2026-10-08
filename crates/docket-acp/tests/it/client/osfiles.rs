@@ -99,3 +99,25 @@ fn a_descriptor_that_points_outside_after_the_open_is_caught() {
         "x"
     );
 }
+
+/// Why: a write the check refuses after the file was opened must not leave the empty file it
+/// created behind, and must not touch a file that was already there.
+#[test]
+fn a_refused_write_leaves_no_new_file_and_spares_an_old_one() {
+    let root = tempfile::tempdir().expect("scratch");
+    let inside = root.path().join("inside");
+    let elsewhere = root.path().join("elsewhere");
+    std::fs::create_dir_all(&inside).expect("inside");
+    std::fs::create_dir_all(&elsewhere).expect("elsewhere");
+    let within = abs(inside.to_str().expect("utf8"));
+    let fresh = elsewhere.join("fresh.txt");
+    let old = elsewhere.join("old.txt");
+    std::fs::write(&old, "kept").expect("old");
+
+    let mut files = OsFiles;
+    let outside = |path: &std::path::Path| abs(path.to_str().expect("utf8"));
+    assert!(files.write(&outside(&fresh), &within, "evil").is_err());
+    assert!(!fresh.exists(), "the empty file is not left behind");
+    assert!(files.write(&outside(&old), &within, "evil").is_err());
+    assert_eq!(std::fs::read_to_string(&old).expect("old"), "kept");
+}

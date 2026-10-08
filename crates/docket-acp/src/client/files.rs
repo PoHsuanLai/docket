@@ -169,7 +169,14 @@ impl Files for OsFiles {
             .truncate(false)
             .open(real.as_str())
             .map_err(|e| fault(&e))?;
-        still_inside(&file, within)?;
+        if let Err(outside) = still_inside(&file, within) {
+            // A link swapped in after the check made `open` create the file somewhere else: an
+            // empty file this call made is not left behind.
+            if !existed && file.metadata().is_ok_and(|m| m.len() == 0) {
+                let _ = std::fs::remove_file(real.as_str());
+            }
+            return Err(outside);
+        }
         let before = if existed {
             Some(read_text(&mut file)?)
         } else {
