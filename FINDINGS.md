@@ -2418,16 +2418,29 @@ An editor's typed turn is the person's words, so the task policy derives from it
 <open|paused|closed|unreadable>`) or the turns and calls of one; `--json` (or a pipe) is `{vocab, sessions}` for the
 list, the `docket-session` export document for `load`, and `{vocab, forked, session, at}` for a fork.
 
-- **The cli role may call `Session.Stored`** (`auth.rs`), and the router answers it by the same rule as a restore
-  (`may_restore`): a terminal brings back the sessions **its own app opened** and no others. Another app's session is
-  not listed, and `Rows` or `Fork` on it is answered as a session the log does not hold.
-- **Consequence to know: today that list is empty in practice.** `quire-do ask` does not open its session; the
-  companion does (`companion.open`), so the opener is companiond's app, and the cli role cannot open a session at all
-  (`Session.Open` is not its member). The rule is the one asked for and is never looser than a live session's, so
-  nothing is widened here. To make `quire-do sessions` show the terminal's own `ask` conversations, the router would
-  have to record who spoke (the `TurnSource::Terminal` turns are already there) and a rule would have to say a
-  terminal may restore a session it spoke in. That widens what a terminal can claim; it is a decision, not made.
-  The tests open the session under the terminal's app name to exercise the rule.
+- **The cli role may call `Session.Stored`** (`auth.rs`), and the router answers it by the restore rule for an
+  opening (`may_restore_opening`): a terminal brings back the sessions **its own app opened** and the conversations
+  **a terminal started through the companion** (R9, below). Any other session is not listed, and `Rows` or `Fork` on
+  it is answered as a session the log does not hold.
+- **R9: `quire-do ask` conversations are visible to `quire-do sessions`.** `quire-do ask` asks companiond to open the
+  session (`companion.open`), so the router's opener is companiond and the old opener rule showed the cli nothing.
+  Now `Opening::started_from: Option<StartedFrom>` (serde-defaulted and skipped when none, so old logs read as none;
+  `StartedFrom::Terminal(TerminalScope)`, in `docket-core::started`) records the terminal. `TerminalScope` is the
+  leaf of the caller's cgroup (`vte-spawn-*`, `tmux-spawn-*`, `session-*`, checked by `is_terminal_scope`, also
+  when read back from a log). companiond already finds that scope to decide that a caller is a terminal
+  (`Speaker::Terminal(scope)`); on `Open` it sets `SessionOpen::started_from` itself from what it saw, overwriting
+  anything in the request body. The router keeps `started_from` only from the `companion` role (a launcher, field,
+  editor or cua open drops it), so only the daemon that read the cgroup can claim a terminal.
+- **Decision: any cli caller sees them, not only the same terminal.** Terminal scopes are advisory (every terminal
+  runs as the person, and intentd already gives the same cli role to every terminal scope), so matching the exact scope
+  would add a name check that protects nothing; the name is kept for display and audit. The cli role may list, load
+  and fork a session it opened or one a terminal started; a fork keeps `started_from`, so the child is visible too.
+  Not visible to the cli: a companion session the launcher opened, an editor's, an app's, and any log written before
+  the field (it reads as none); each gets the unknown-session refusal, as restore does. An editor, field, app or
+  mcp client is unchanged (only its own app's sessions).
+- **Cost to know.** A terminal can now read the stored turns and calls of every `quire-do ask` conversation, whichever
+  terminal wrote them. They are the person's own, and the terminal already could ask the companion as the person.
+  Sessions started before this change stay invisible to `quire-do sessions`.
 - **A fork is written by the router.** `RouterLog` refuses appends (the router writes the log), so an edge
   outside the router could not fork. `StoredAsk::Fork { session, at }` answers `StoredView::Forked(child)`: the router
   checks `may_restore` on the parent, cuts the child with `docket_session::fork` (the same pure function as
@@ -2437,7 +2450,10 @@ list, the `docket-session` export document for `load`, and `{vocab, forked, sess
   not serve fork (ACP v1 has none), so it is not reached.
 - Tests: `docket-cli/tests/it/sessions.rs` (empty list, list and the opener rule, load, fork and its refusals, the
   grammar), `docket-router/tests/it/stored.rs` (the terminal's reads, the fork for the editor, another editor
-  refused, a position past the end).
+  refused, a position past the end), `docket-router/tests/it/terminal_sessions.rs` (list, load and fork of a
+  terminal-started conversation, any terminal, launcher-opened and editor sessions hidden, only the companion may say
+  it), `docket-cli/tests/it/ask.rs` (`ask` then `sessions`, `load` and `fork`), `companiond/tests/it/terminal.rs`
+  (the scope is recorded from the cgroup, never from the body), `docket-session` (the rule table, an old opening).
 
 ## acp-client: an external agent as a session backend (S4)
 

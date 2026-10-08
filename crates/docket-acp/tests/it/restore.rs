@@ -38,6 +38,7 @@ async fn opening_by(log: &MemoryLog, session: &str, opener: Option<&str>) {
         parent: None,
         forked_from: None,
         cwd: Some(Workspace::parse("/work/a").unwrap()),
+        started_from: None,
     };
     let id = SessionId::parse(session).unwrap();
     log.append(&id, Seq(0), &SessionEntry::Opened(opening))

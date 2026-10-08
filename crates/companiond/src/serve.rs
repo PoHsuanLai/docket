@@ -7,10 +7,10 @@
 
 use crate::Companiond;
 use crate::Shared;
-use crate::speaker::{self, Call};
+use crate::speaker::{self, Call, Speaker};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{SessionOpen, UserTurn};
+use docket_core::{SessionOpen, StartedFrom, UserTurn};
 use docket_dbus::{
     BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
 };
@@ -66,7 +66,7 @@ impl<P: InferTransport, I: IntentsTransport> Root<P, I> {
     /// The shell speaks for the person, and so does a terminal for the conversation (`Open`,
     /// `Ask`, `Close`): an ask carries the turn the router recorded, and a turn it never recorded
     /// must not be taken from anybody else. `Told` and `Act` are the shell's alone.
-    async fn require(&self, header: &Header<'_>, call: Call) -> fdo::Result<()> {
+    async fn require(&self, header: &Header<'_>, call: Call) -> fdo::Result<Speaker> {
         speaker::require(&self.connection, &self.shell, &self.proc_root, header, call).await
     }
 }
@@ -79,8 +79,16 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
     }
 
     async fn open(&self, open: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
-        self.require(&header, Call::Open).await?;
+        let speaker = self.require(&header, Call::Open).await?;
         let open: SessionOpen = serde_json::from_str(&open).map_err(bad)?;
+        // Only what the daemon itself saw of the caller's cgroup counts, never what the caller wrote.
+        let open = SessionOpen {
+            started_from: match speaker {
+                Speaker::Terminal(scope) => Some(StartedFrom::Terminal(scope)),
+                Speaker::Shell => None,
+            },
+            ..open
+        };
         let opened = self
             .companion
             .lock()

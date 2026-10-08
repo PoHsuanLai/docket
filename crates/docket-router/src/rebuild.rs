@@ -247,6 +247,7 @@ mod tests {
                 parent: None,
                 forked_from: None,
                 cwd: None,
+                started_from: None,
             },
             standing,
             taint: Written::Clean,

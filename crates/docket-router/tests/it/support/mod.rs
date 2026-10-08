@@ -114,6 +114,7 @@ pub async fn open_as(
             agent,
             parent: None,
             cwd: None,
+            started_from: None,
         }),
     )
     .await;

@@ -23,6 +23,7 @@ fn opening() -> Opening {
         parent: None,
         forked_from: None,
         cwd: Some(Workspace::parse("/work/a").expect("cwd")),
+        started_from: None,
     }
 }
 

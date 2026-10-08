@@ -227,6 +227,7 @@ async fn run(args: Args) -> Result<(), String> {
         backend: BackendKind::Acp(args.program),
         parent: None,
         forked_from: None,
+        started_from: None,
         cwd: Some(Workspace::parse(&cwd).map_err(|e| e.to_string())?),
     };
     backend

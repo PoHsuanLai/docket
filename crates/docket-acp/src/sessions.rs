@@ -68,6 +68,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
             parent: None,
             forked_from: None,
             cwd: Some(cwd.clone()),
+            started_from: None,
         };
         let session = self
             .host

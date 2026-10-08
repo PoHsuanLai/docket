@@ -55,6 +55,7 @@ fn opening() -> SessionEntry {
         parent: None,
         forked_from: None,
         cwd: None,
+        started_from: None,
     })
 }
 
@@ -355,6 +356,7 @@ async fn a_session_is_restored_from_almanac_after_the_router_is_dropped() {
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             }),
         )
         .await

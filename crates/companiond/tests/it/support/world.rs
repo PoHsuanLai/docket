@@ -176,6 +176,7 @@ impl World {
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             })
             .await
             .expect("open")
@@ -242,6 +243,7 @@ impl World {
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: Some(Workspace::parse("/work/project").expect("workspace")),
+                started_from: None,
             })
             .await
             .expect("open")

@@ -161,6 +161,7 @@ where
                 agent: opening.agent.clone().unwrap_or(AgentRef::Companion),
                 parent: opening.parent.clone(),
                 cwd: opening.cwd.clone(),
+                started_from: None,
             })
             .await
             .map_err(|_| BackendFault::Unavailable)?

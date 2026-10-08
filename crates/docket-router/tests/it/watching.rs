@@ -52,6 +52,7 @@ fn open_run(run: &RunId) -> IntentsRequest {
         agent: AgentRef::Cua { run: run.clone() },
         parent: None,
         cwd: None,
+        started_from: None,
     })
 }
 
@@ -87,6 +88,7 @@ async fn cuad_opens_a_run_and_nothing_else_and_a_run_has_one_session() {
                 agent,
                 parent: None,
                 cwd: None,
+                started_from: None,
             }),
         )
         .await;

@@ -77,6 +77,10 @@ pub struct SessionOpen {
     /// The directory an editor opened it in; none for a session no editor opened.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd: Option<crate::workspace::Workspace>,
+    /// The terminal a conversation came from, said by the companion when it opens one for
+    /// `quire-do ask`; the router keeps it only from the companion role.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_from: Option<crate::started::StartedFrom>,
 }
 
 /// The session the router opened.

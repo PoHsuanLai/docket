@@ -32,6 +32,7 @@ async fn session_of(desk: &Desk, app: &str, words: &str) -> SessionId {
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             }),
         )
         .await;

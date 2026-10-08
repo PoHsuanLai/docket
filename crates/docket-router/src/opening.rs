@@ -91,7 +91,18 @@ impl<S: Seams> Router<S> {
         {
             return refuse(WireRefusal::Malformed);
         }
-        self.open_session(&caller.app.name, open)
+        // Only the companion may say which terminal a conversation came from: it saw the cgroup.
+        let started_from = open
+            .started_from
+            .clone()
+            .filter(|_| role == CallerRole::Companion);
+        self.open_session(
+            &caller.app.name,
+            SessionOpen {
+                started_from,
+                ..open
+            },
+        )
     }
 
     /// Opens a session for `opener`: the one body of `.Session.Open`, which the hosted
@@ -142,6 +153,7 @@ impl<S: Seams> Router<S> {
             parent: open.parent.clone(),
             forked_from: None,
             cwd: open.cwd.clone(),
+            started_from: open.started_from.clone(),
         }));
         if let Some(policy) = &record.policy {
             record.wal.note(SessionEntry::Policy(policy.clone()));

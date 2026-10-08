@@ -37,6 +37,7 @@ mod skill;
 mod standing;
 mod standing_match;
 mod standing_offer;
+mod started;
 mod summon;
 mod task;
 mod task_policy;
@@ -129,6 +130,7 @@ pub use standing_offer::{
     AlwaysOffer, AskFacts, BreakerState, BudgetState, Withheld, blocker, holds_standing, may_offer,
     scope_for,
 };
+pub use started::{NotATerminalScope, StartedFrom, TerminalScope};
 pub use summon::{SummonAnswer, SummonOrigin, SummonSerial, VoiceIntent};
 pub use task::{
     LedgerStep, SessionOpen, SessionOpened, TaskKind, TaskLedger, TaskStart, close, skeleton_of,

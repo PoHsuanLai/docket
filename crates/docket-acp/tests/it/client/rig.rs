@@ -55,6 +55,7 @@ pub fn opening(cwd: &str) -> Opening {
         backend: BackendKind::Acp(program()),
         parent: None,
         forked_from: None,
+        started_from: None,
         cwd: Some(Workspace::parse(cwd).expect("cwd")),
     }
 }

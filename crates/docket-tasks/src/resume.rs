@@ -31,6 +31,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             })
             .await
         else {
@@ -73,6 +74,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                     agent: AgentRef::Companion,
                     parent: None,
                     cwd: None,
+                    started_from: None,
                 })
                 .await
             else {
@@ -115,6 +117,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                     agent: AgentRef::Companion,
                     parent: None,
                     cwd: None,
+                    started_from: None,
                 })
                 .await?,
             ),

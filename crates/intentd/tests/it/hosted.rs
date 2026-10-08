@@ -148,6 +148,7 @@ impl Desk {
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             })
             .await
             .expect("a session")

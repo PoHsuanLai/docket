@@ -227,6 +227,7 @@ async fn open_in(router: &Router<Rig>) -> SessionOpened {
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             }),
         )
         .await

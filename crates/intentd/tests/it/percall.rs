@@ -214,6 +214,7 @@ async fn desk(answers: usize) -> Desk {
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             }),
         )
         .await;

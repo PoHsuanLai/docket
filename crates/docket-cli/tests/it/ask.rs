@@ -12,7 +12,7 @@ use docket_cli::{Exit, JsonFlag, Stdout, ask_companion};
 use docket_client::{InProcess, Intents, TransportError};
 use docket_core::{
     ActionRef, CallerRole, ConfirmId, ContextKeep, Keep, LabelText, Reveal, SessionOpen,
-    SessionOpened, StepId, TurnSource,
+    SessionOpened, StartedFrom, StepId, TerminalScope, TurnSource,
 };
 use docket_fake::FakeSeams;
 use porter_core::{AccountId, DataClass, Locality, ModelId};
@@ -52,8 +52,14 @@ impl CompanionTransport for Scripted {
         if self.down {
             return Err(TransportError::Closed);
         }
+        // As companiond does for a speaker it found in a terminal's scope.
+        let scope = TerminalScope::from_cgroup("vte-spawn-1.scope").expect("scope");
+        let open = SessionOpen {
+            started_from: Some(StartedFrom::Terminal(scope)),
+            ..open.clone()
+        };
         self.opener
-            .session_open(open.clone())
+            .session_open(open)
             .await
             .map_err(|e| TransportError::Bus(e.to_string()))
     }
@@ -294,4 +300,30 @@ fn ask_is_a_command_with_its_words_joined_and_nothing_else_is_taken() {
     );
     assert!(docket_cli::parse(&words(&["ask", "--space", "No Good!", "hi"])).is_err());
     assert!(docket_cli::parse(&words(&["ask"])).is_err());
+}
+
+#[tokio::test]
+async fn the_conversation_an_ask_started_is_listed_loaded_and_forked_by_quire_do_sessions() {
+    let run = ask(
+        vec![view(AnswerPhase::Done, text(&["Nothing today."]))],
+        false,
+        Stdout::Pipe,
+        JsonFlag::Auto,
+    )
+    .await;
+    let session = run.seen.lock().expect("lock").asked[0].session.clone();
+    let listed = run.desk.quire(&["sessions"]).await;
+    let doc: serde_json::Value = serde_json::from_str(&listed.stdout).expect("json");
+    assert_eq!(doc["sessions"][0]["session"], session.as_str(), "{doc}");
+    let loaded = run.desk.tty(&["sessions", "load", session.as_str()]).await;
+    assert_eq!(loaded.exit, Exit::Done, "{loaded:?}");
+    assert!(
+        loaded.stdout.contains("you: what is on my calendar"),
+        "{loaded:?}"
+    );
+    let forked = run
+        .desk
+        .quire(&["sessions", "fork", session.as_str()])
+        .await;
+    assert_eq!(forked.exit, Exit::Done, "{forked:?}");
 }

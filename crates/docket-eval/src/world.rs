@@ -152,6 +152,7 @@ fn open<S: Rig>(
             agent,
             parent: None,
             cwd: None,
+            started_from: None,
         }),
     ));
     match reply {

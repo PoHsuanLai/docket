@@ -24,6 +24,7 @@ fn open() -> IntentsRequest {
         agent: AgentRef::Companion,
         parent: None,
         cwd: None,
+        started_from: None,
     })
 }
 

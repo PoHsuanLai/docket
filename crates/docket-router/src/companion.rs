@@ -124,6 +124,7 @@ impl<S: Seams> Router<S> {
                 },
                 parent: Some(parent.clone()),
                 cwd: None,
+                started_from: None,
             },
         );
         let IntentsReply::SessionOpened(SessionOpened {

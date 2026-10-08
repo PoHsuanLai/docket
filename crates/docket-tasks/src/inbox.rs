@@ -258,6 +258,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             agent: AgentRef::Worker { task: task.clone() },
             parent: Some(parent.clone()),
             cwd: None,
+            started_from: None,
         };
         self.adopt(
             &SessionOpened {

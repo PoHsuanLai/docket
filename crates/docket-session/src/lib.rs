@@ -51,5 +51,5 @@ pub use log::{Appended, LogFault, LogPage, PageSize, SessionLog, read_all};
 pub use plan::{
     Blocker, Interrupted, PlanRefusal, ResumeFault, ResumePlan, ResumedBudget, Standing,
 };
-pub use restore_rule::{Claimant, may_restore};
+pub use restore_rule::{Claimant, may_restore, may_restore_opening};
 pub use resume::resume_plan;

@@ -63,6 +63,7 @@ impl Launcher {
             agent: AgentRef::Companion,
             parent: None,
             cwd: None,
+            started_from: None,
         };
         let text = self
             .companion

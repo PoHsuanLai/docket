@@ -79,6 +79,7 @@ where
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             })
             .await?;
         Ok(opened.task)

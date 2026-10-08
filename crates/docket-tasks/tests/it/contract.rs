@@ -47,6 +47,7 @@ impl Harness for Native {
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             })
             .await
             .expect("open");
@@ -63,6 +64,7 @@ impl Harness for Native {
                     parent: None,
                     forked_from: None,
                     cwd: None,
+                    started_from: None,
                 },
             })
             .await

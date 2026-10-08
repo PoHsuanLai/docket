@@ -35,6 +35,7 @@ async fn world() -> (Arc<Router<FakeSeams>>, SessionId, Handle) {
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             }),
         )
         .await;

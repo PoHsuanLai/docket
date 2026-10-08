@@ -7,8 +7,8 @@ use crate::seams::{Clock, Seams};
 use crate::wal::Writer;
 use docket_core::{CallerId, CallerRole, IntentsRequest};
 use docket_session::{
-    Claimant, LogFault, Logged, PageSize, PlanRefusal, Seq, SessionLog, Standing, may_restore,
-    resume_plan,
+    Claimant, LogFault, Logged, PageSize, PlanRefusal, Seq, SessionLog, Standing,
+    may_restore_opening, resume_plan,
 };
 use porter_core::Count;
 use prov::SessionId;
@@ -70,7 +70,7 @@ impl<S: Seams> Router<S> {
     }
 
     /// `restore_session` for a request: with a claimant, only the opener, the shell or the
-    /// companion gets the session (`may_restore`); without one the daemon itself is asking.
+    /// companion gets the session (`may_restore_opening`); without one the daemon itself is asking.
     async fn restore_for(
         &self,
         id: &SessionId,
@@ -82,7 +82,7 @@ impl<S: Seams> Router<S> {
         let rows = self.rows_of(id).await.map_err(RestoreFault::Log)?;
         let plan = resume_plan(&rows).map_err(RestoreFault::Unknown)?;
         if let Some(claim) = claimant
-            && !may_restore(claim, plan.opening.opener.as_ref())
+            && !may_restore_opening(claim, &plan.opening)
         {
             return Err(RestoreFault::NotYours);
         }

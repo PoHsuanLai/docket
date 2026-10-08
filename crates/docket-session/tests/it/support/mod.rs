@@ -57,6 +57,7 @@ pub fn opening() -> Opening {
         parent: None,
         forked_from: None,
         cwd: None,
+        started_from: None,
     }
 }
 

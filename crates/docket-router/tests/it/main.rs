@@ -26,5 +26,6 @@ mod stored;
 mod support;
 mod tasks;
 mod terminal;
+mod terminal_sessions;
 mod terminal_surface;
 mod watching;

@@ -80,6 +80,7 @@ async fn world() -> (Arc<Router<docket_fake::FakeSeams>>, SessionId, Vec<Handle>
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: None,
+                started_from: None,
             }),
         )
         .await;

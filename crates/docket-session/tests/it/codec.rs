@@ -113,3 +113,27 @@ fn an_unknown_version_in_the_log_blocks_the_resume() {
     assert_eq!(plan.standing, Standing::Blocked(Blocker::Unreadable));
     assert_eq!(plan.taint, Taint::Tainted);
 }
+
+#[test]
+fn an_opening_written_before_started_from_reads_back_with_none() {
+    let scope = docket_core::TerminalScope::from_cgroup("vte-spawn-1.scope").expect("scope");
+    let with = Opening {
+        started_from: Some(docket_core::StartedFrom::Terminal(scope)),
+        ..opening()
+    };
+    assert!(
+        serde_json::to_string(&with)
+            .expect("json")
+            .contains("vte-spawn-1.scope")
+    );
+    // What a log wrote before the field existed: the same object without the key.
+    let mut old = serde_json::to_value(opening()).expect("value");
+    assert!(
+        old.as_object_mut()
+            .expect("object")
+            .remove("started_from")
+            .is_none()
+    );
+    let read: Opening = serde_json::from_value(old).expect("an old opening reads");
+    assert_eq!(read.started_from, None);
+}

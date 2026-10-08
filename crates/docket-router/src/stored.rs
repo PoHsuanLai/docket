@@ -1,7 +1,7 @@
 //! `.Session.Stored`: the durable log of sessions, read through the router. The log is the
 //! router's to read (memoryd answers its reads for the router and the shell), so an edge that
 //! lists, loads or forks stored sessions asks here. Only the sessions the caller may bring back
-//! are listed or read (`may_restore`); any other is answered as one the log does not hold.
+//! are listed or read (`may_restore_opening`); any other is answered as one the log does not hold.
 
 use crate::Router;
 use crate::seams::Seams;
@@ -9,7 +9,7 @@ use docket_core::{
     CallerId, CallerRole, IntentsReply, StoredAsk, StoredRow, StoredView, WireRefusal,
 };
 use docket_session::{
-    Claimant, Logged, PageSize, Seq, SessionLog, child_names, fork, forks_of, may_restore,
+    Claimant, Logged, PageSize, Seq, SessionLog, child_names, fork, forks_of, may_restore_opening,
     resume_plan,
 };
 use porter_core::Count;
@@ -24,7 +24,7 @@ impl<S: Seams> Router<S> {
         let Ok(rows) = self.rows_of(session).await else {
             return false;
         };
-        resume_plan(&rows).is_ok_and(|plan| may_restore(claim, plan.opening.opener.as_ref()))
+        resume_plan(&rows).is_ok_and(|plan| may_restore_opening(claim, &plan.opening))
     }
 
     pub(crate) async fn session_stored(

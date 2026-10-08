@@ -9,7 +9,7 @@
 //! Every call the companion then makes goes through intentd's gate in the role `companion`, and
 //! a confirmation is still answered on the sheet by the person.
 
-use docket_core::is_terminal_scope;
+use docket_core::TerminalScope;
 use docket_dbus::BusConnection;
 use porter_core::{AppName, CgroupPath};
 use std::os::unix::fs::MetadataExt;
@@ -41,12 +41,12 @@ pub fn proc_root_from(var: Option<&str>) -> PathBuf {
 }
 
 /// Who a caller is, as far as the person's voice goes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Speaker {
     /// The shell.
     Shell,
-    /// A terminal's child.
-    Terminal,
+    /// A terminal's child, in this scope.
+    Terminal(TerminalScope),
 }
 
 /// What a caller asks for.
@@ -65,10 +65,10 @@ pub enum Call {
 }
 
 /// Whether `speaker` may make `call`: the shell anything, a terminal only the conversation.
-pub fn permits(speaker: Speaker, call: Call) -> bool {
+pub fn permits(speaker: &Speaker, call: Call) -> bool {
     match speaker {
         Speaker::Shell => true,
-        Speaker::Terminal => matches!(call, Call::Open | Call::Ask | Call::Close),
+        Speaker::Terminal(_) => matches!(call, Call::Open | Call::Ask | Call::Close),
     }
 }
 
@@ -76,11 +76,12 @@ fn denied() -> fdo::Error {
     fdo::Error::AccessDenied("only the shell or a terminal speaks for the person".into())
 }
 
-/// Whether the cgroup file of `pid` under `root` says a terminal's child.
-fn in_terminal(root: &Path, pid: u32) -> bool {
+/// The terminal scope the cgroup file of `pid` under `root` names, if it is a terminal's child.
+fn in_terminal(root: &Path, pid: u32) -> Option<TerminalScope> {
     let text =
         std::fs::read_to_string(root.join(pid.to_string()).join("cgroup")).unwrap_or_default();
-    CgroupPath::from_proc_cgroup(&text).is_ok_and(|c| is_terminal_scope(c.as_str()))
+    let cgroup = CgroupPath::from_proc_cgroup(&text).ok()?;
+    TerminalScope::from_cgroup(cgroup.as_str()).ok()
 }
 
 fn own_uid() -> Option<u32> {
@@ -131,11 +132,12 @@ pub async fn identify(
     let same_user = own_uid().is_some_and(|ours| credentials.unix_user_id() == Some(ours));
     let terminal = credentials
         .process_id()
-        .is_some_and(|pid| in_terminal(root, pid));
-    if same_user && terminal && !owns_a_name(&dbus, &sender).await? {
-        Ok(Speaker::Terminal)
-    } else {
-        Err(denied())
+        .and_then(|pid| in_terminal(root, pid));
+    match terminal {
+        Some(scope) if same_user && !owns_a_name(&dbus, &sender).await? => {
+            Ok(Speaker::Terminal(scope))
+        }
+        _ => Err(denied()),
     }
 }
 
@@ -146,10 +148,10 @@ pub async fn require(
     root: &Path,
     header: &Header<'_>,
     call: Call,
-) -> fdo::Result<()> {
+) -> fdo::Result<Speaker> {
     let speaker = identify(connection, shell, root, header).await?;
-    if permits(speaker, call) {
-        Ok(())
+    if permits(&speaker, call) {
+        Ok(speaker)
     } else {
         Err(fdo::Error::AccessDenied(
             "a terminal may open, ask and close, nothing else".into(),
@@ -161,15 +163,19 @@ pub async fn require(
 mod tests {
     use super::*;
 
+    fn scope() -> TerminalScope {
+        TerminalScope::from_cgroup("vte-spawn-1.scope").expect("scope")
+    }
+
     #[test]
     fn the_shell_may_do_everything_and_a_terminal_only_the_conversation() {
         let all = [Call::Open, Call::Ask, Call::Close, Call::Told, Call::Act];
         let terminal: Vec<Call> = all
             .into_iter()
-            .filter(|c| permits(Speaker::Terminal, *c))
+            .filter(|c| permits(&Speaker::Terminal(scope()), *c))
             .collect();
         assert_eq!(terminal, [Call::Open, Call::Ask, Call::Close]);
-        assert!(all.into_iter().all(|c| permits(Speaker::Shell, c)));
+        assert!(all.into_iter().all(|c| permits(&Speaker::Shell, c)));
     }
 
     #[test]
@@ -190,7 +196,11 @@ mod tests {
         place(4, "app-org.quire.Mail-1.scope");
         let rows = [(1, true), (2, true), (3, false), (4, false), (99, false)];
         for (pid, expected) in rows {
-            assert_eq!(in_terminal(dir.path(), pid), expected, "pid {pid}");
+            assert_eq!(
+                in_terminal(dir.path(), pid).is_some(),
+                expected,
+                "pid {pid}"
+            );
         }
     }
 

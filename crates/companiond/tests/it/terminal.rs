@@ -32,6 +32,7 @@ fn open_json() -> String {
         agent: AgentRef::Companion,
         parent: None,
         cwd: None,
+        started_from: None,
     })
     .expect("json")
 }
@@ -148,4 +149,87 @@ async fn a_process_that_is_not_a_terminal_or_owns_a_name_speaks_for_nobody() {
         .await
         .expect("a name of its own");
     assert!(denied(proxy.open(&open_json()).await), "owns a name");
+}
+
+/// `Session.Stored` as `app` in `role` asks it.
+async fn stored(
+    router: &docket_router::Router<docket_fake::FakeSeams>,
+    app: &str,
+    role: CallerRole,
+    ask: StoredAsk,
+) -> StoredView {
+    let who = CallerId {
+        app: porter_core::AppId {
+            name: porter_core::AppName::parse(app).expect("app"),
+            isolation: porter_core::Isolation::Unsandboxed,
+        },
+        roles: [role].into(),
+    };
+    match router
+        .handle(&who, IntentsRequest::SessionStored { ask })
+        .await
+    {
+        IntentsReply::Stored(view) => view,
+        other => panic!("{other:?}"),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_conversation_a_terminal_opens_records_the_terminal_and_the_shells_does_not() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let proc_root = scratch.path().join("proc");
+    place(&proc_root, "vte-spawn-7.scope");
+    let bus = PrivateBus::start(scratch.path());
+    let (server, client) = (bus.connect().await, bus.connect().await);
+    let w = world(vec![]);
+    let router = w.router.clone();
+    let companion = Arc::new(Mutex::new(w.companion));
+    serve_on_rooted(&server, companion, proc_root)
+        .await
+        .expect("serving");
+    let proxy = CompanionProxy::new(&client).await.expect("proxy");
+
+    // A terminal cannot make the daemon record another scope by writing one in the body.
+    let claimed = serde_json::to_string(&SessionOpen {
+        started_from: Some(StartedFrom::Terminal(
+            TerminalScope::from_cgroup("tmux-spawn-1.scope").expect("scope"),
+        )),
+        ..serde_json::from_str(&open_json()).expect("open")
+    })
+    .expect("json");
+    let opened: SessionOpened =
+        serde_json::from_str(&proxy.open(&claimed).await.expect("open")).expect("opened");
+
+    let rows = StoredAsk::Rows {
+        session: opened.session.clone(),
+        from: None,
+        size: 5,
+    };
+    let StoredView::Rows { rows, .. } =
+        stored(&router, "org.quire.Shell", CallerRole::Launcher, rows).await
+    else {
+        panic!("rows")
+    };
+    assert!(
+        rows[0].json.contains("vte-spawn-7.scope"),
+        "{}",
+        rows[0].json
+    );
+    assert!(!rows[0].json.contains("tmux-spawn-1"), "{}", rows[0].json);
+    let list = || stored(&router, "org.quire.Do", CallerRole::Cli, StoredAsk::List);
+    assert_eq!(
+        list().await,
+        StoredView::Sessions(vec![opened.session.clone()])
+    );
+
+    // A session the shell opens in its own right is not a terminal's.
+    let shells = w
+        .launcher
+        .session_open(serde_json::from_str(&open_json()).expect("open"))
+        .await
+        .expect("shell open");
+    let StoredView::Sessions(now) = list().await else {
+        panic!("sessions")
+    };
+    assert!(!now.contains(&shells.session), "{now:?}");
 }

@@ -7,7 +7,8 @@
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
 use docket_core::{
-    ActionRef, CallId, Handle, HandleShape, SkillId, SkillVersion, StepLine, TaskPolicy, UserTurn,
+    ActionRef, CallId, Handle, HandleShape, SkillId, SkillVersion, StartedFrom, StepLine,
+    TaskPolicy, UserTurn,
 };
 use docket_core::{BreakerTrip, Ledger};
 use porter_core::AppName;
@@ -92,6 +93,10 @@ pub struct Opening {
     /// The directory an editor opened it in; none for a session no editor opened.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd: Option<Workspace>,
+    /// The terminal a `quire-do ask` conversation came from, which the companion that opened it
+    /// said; none for any other session, and for every log written before this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_from: Option<StartedFrom>,
 }
 
 /// A call the router accepted, written before its end: a `Call` with no `Step` after it is a call
