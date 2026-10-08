@@ -23,6 +23,9 @@ thiserror = { workspace = true }
 [features]
 # `inferd_transport`: the one place a daemon makes its inferd link (intentd, companiond, readerd),
 # and the tap on it that a live run turns on (`tap`).
+# `test-model-trace`: lets `DOCKET_MODEL_TRACE` switch the tap on. TEST ONLY: written prompts go to
+# disk. Only docket-accept enables it; scripts/check-boundary.sh fails if a daemon's default build does.
+test-model-trace = ["inferd"]
 inferd = ["dep:porter-client", "dep:porter-core", "dep:porter-infer", "dep:serde", "dep:serde_json"]
 
 [lints]

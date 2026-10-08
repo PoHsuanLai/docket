@@ -40,7 +40,7 @@ Both scripts take `--engine`:
   say which classes may leave the machine; the harness adds nothing.
 - The key never passes through the scripts: not an environment variable, not a file they read. See Cloud.
 - The daemons' **model tap** (`DOCKET_MODEL_TRACE`, `docket-dbus/src/tap.rs`) writes prompts to disk.
-  It is on only in a harness world, and the file is `<scratch>/model.jsonl`, mode 0600, under the
+  It is on only in a harness world (the harness builds its daemons with docket-dbus feature `test-model-trace`; a packaged daemon ignores the variable), and the file is `<scratch>/model.jsonl`, mode 0600, under the
   scratch root the run keeps (`<scratch>/out/scratch/world-*`). Delete the scratch directory when you
   are done with it.
 

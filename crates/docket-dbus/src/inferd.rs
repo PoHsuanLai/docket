@@ -4,7 +4,7 @@ use crate::tap::{Tap, Tapped};
 use porter_client::{AnyTransport, DbusTransport};
 
 /// What every daemon holds as its inferd link: porter-client's transport behind the tap that a
-/// live run turns on (`DOCKET_MODEL_TRACE`, see [`crate::tap`]); with the tap off it is the
+/// live run turns on (`DOCKET_MODEL_TRACE`, honoured only by a build with `test-model-trace`, see [`crate::tap`]); with the tap off it is the
 /// transport and nothing else.
 pub type InferLink = Tapped<AnyTransport>;
 

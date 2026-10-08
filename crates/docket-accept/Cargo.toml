@@ -54,7 +54,7 @@ docket-acp-bin = { path = "../docket-acp-bin" }
 docket-cli = { path = "../docket-cli" }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true }
-docket-dbus = { workspace = true, features = ["inferd"] }
+docket-dbus = { workspace = true, features = ["inferd", "test-model-trace"] }
 docket-eval = { workspace = true }
 docket-inapp = { workspace = true }
 docket-launch = { workspace = true }

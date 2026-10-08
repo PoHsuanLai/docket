@@ -3,10 +3,13 @@
 //! into a cassette. It is the one place the words a model was sent and said can be read back:
 //! inferd's own audit never keeps content, and its replay `record` sees requests only.
 //!
-//! THIS WRITES PROMPTS TO DISK. It is off unless the process is started with
-//! `DOCKET_MODEL_TRACE=<file>` (the live harness's scratch directory; the file is created 0600
-//! and appended to, one JSON line per exchange). Nothing else turns it on, and a daemon with the
-//! variable unset takes no copy of anything. A process that is not a daemon builds a
+//! THIS WRITES PROMPTS TO DISK. The environment can switch it on only in a build with the
+//! `test-model-trace` feature, which only the live harness (`docket-accept`) enables: there the
+//! process must also be started with `DOCKET_MODEL_TRACE=<file>` (the harness's scratch
+//! directory; the file is created 0600 and appended to, one JSON line per exchange). In any
+//! other build the variable is ignored, with one stderr line, so a release daemon's environment
+//! cannot make it write prompts; `scripts/check-boundary.sh` checks that no daemon's default
+//! build enables the feature. A daemon that is not asked takes no copy of anything. A process that is not a daemon builds a
 //! [`MemoryTap`] and reads the exchanges itself.
 
 use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
@@ -17,12 +20,20 @@ use porter_infer::{
     OpenOptions, Readiness, ReplyShape, Role, SessionError,
 };
 use serde::Serialize;
+use std::ffi::OsString;
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Instant;
+
+/// Whether this build may let the environment switch the tap on.
+#[derive(Debug, Clone, Copy)]
+enum Build {
+    Harness,
+    Release,
+}
 
 /// The variable that names the file the tap appends to.
 pub const TRACE_VAR: &str = "DOCKET_MODEL_TRACE";
@@ -89,11 +100,27 @@ impl Tap {
         Self::with(Sink::Memory(memory), by)
     }
 
-    /// The tap the daemon's environment asks for: a file when `DOCKET_MODEL_TRACE` names one,
-    /// else off.
+    /// The tap the daemon's environment asks for: a file when `DOCKET_MODEL_TRACE` names one
+    /// and this build has the `test-model-trace` feature, else off.
     pub fn from_env() -> Self {
-        match std::env::var_os(TRACE_VAR) {
-            Some(path) if !path.is_empty() => Self::file(PathBuf::from(path), &process_label()),
+        let build = match cfg!(feature = "test-model-trace") {
+            true => Build::Harness,
+            false => Build::Release,
+        };
+        Self::chosen(std::env::var_os(TRACE_VAR), build)
+    }
+
+    fn chosen(var: Option<OsString>, build: Build) -> Self {
+        match (var, build) {
+            (Some(path), Build::Harness) if !path.is_empty() => {
+                Self::file(PathBuf::from(path), &process_label())
+            }
+            (Some(path), Build::Release) if !path.is_empty() => {
+                eprintln!(
+                    "docket: {TRACE_VAR} is set but this build has no test-model-trace feature; ignoring it"
+                );
+                Self::off()
+            }
             _ => Self::off(),
         }
     }
@@ -398,6 +425,20 @@ mod tests {
                 stop: vec![],
             },
         }
+    }
+
+    #[test]
+    fn a_release_build_ignores_the_trace_variable() {
+        let var = Some(OsString::from("/scratch/model.jsonl"));
+        assert!(Tap::chosen(var, Build::Release).is_off());
+    }
+
+    #[test]
+    fn a_harness_build_follows_the_trace_variable() {
+        let var = Some(OsString::from("/scratch/model.jsonl"));
+        assert!(!Tap::chosen(var, Build::Harness).is_off());
+        assert!(Tap::chosen(Some(OsString::new()), Build::Harness).is_off());
+        assert!(Tap::chosen(None, Build::Harness).is_off());
     }
 
     #[test]
