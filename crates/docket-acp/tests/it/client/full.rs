@@ -367,3 +367,34 @@ async fn a_resume_starts_a_new_agent_session_and_keeps_the_taint() {
     assert_eq!(seen.plans().len(), 1);
     backend.close().await;
 }
+
+fn meta() -> (docket_acp::client::SessionMeta, serde_json::Value) {
+    let value = json!({"claudeCode": {"options": {"settings": {"permissions": {"allow": ["mcp__quire"]}}}}});
+    let serde_json::Value::Object(map) = value.clone() else {
+        panic!("object")
+    };
+    (map, value)
+}
+
+#[tokio::test]
+async fn session_new_carries_the_launchers_meta_and_nothing_else_adds_one() {
+    let (map, value) = meta();
+    let (rig, _files) = started(Setup {
+        turns: vec![vec![Act::Stop("end_turn")]],
+        session_meta: Some(map),
+        ..Setup::default()
+    })
+    .await;
+    // The host wrote it into its own request; the agent only receives it.
+    assert_eq!(rig.agent.new_session()["_meta"], value);
+}
+
+#[tokio::test]
+async fn session_new_has_no_meta_without_one() {
+    let (rig, _files) = started(Setup {
+        turns: vec![vec![Act::Stop("end_turn")]],
+        ..Setup::default()
+    })
+    .await;
+    assert!(rig.agent.new_session().get("_meta").is_none());
+}

@@ -136,6 +136,8 @@ pub struct Setup {
     pub tools: Option<ToolsOffer>,
     /// What the person calls the agent in `agents.toml`; the host says it when it opens.
     pub label: Option<prov::AgentLabel>,
+    /// The launcher's `_meta` for `session/new`, when a test has one.
+    pub session_meta: Option<docket_acp::client::SessionMeta>,
 }
 
 impl Default for Setup {
@@ -153,6 +155,7 @@ impl Default for Setup {
             agent_network: NetworkMode::None,
             tools: None,
             label: None,
+            session_meta: None,
         }
     }
 }
@@ -269,6 +272,10 @@ where
     let court = IntentsCourt::over(InProcess::new(router.clone(), host_caller()));
     let (wire, view) = agent(setup.turns);
     let (spawn, spawned) = FakeSpawn::new(vec![wire]);
+    let spawn = match setup.session_meta.clone() {
+        Some(meta) => spawn.with_meta(meta),
+        None => spawn,
+    };
     let backend = AcpBackend::<X>::new(Parts {
         program: program(),
         session: SessionId::parse("s-1").expect("session"),

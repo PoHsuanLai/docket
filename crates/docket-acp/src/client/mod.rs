@@ -54,7 +54,7 @@ pub use host::{AgentHost, Fallback};
 pub use intents_court::IntentsCourt;
 pub use names::{effect, permission, reported_action};
 pub use performer::{Performer, UndoNote};
-pub use spawn::{AgentChild, LaunchPlan, Spawn, SpawnFault, Spawned};
+pub use spawn::{AgentChild, LaunchPlan, SessionMeta, Spawn, SpawnFault, Spawned};
 pub use strikes::{STRIKES_MAX, Strikes};
 pub use taint::{TaintSource, brings_content};
 pub use tool_req::{Asked, tool_req};

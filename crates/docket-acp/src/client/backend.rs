@@ -25,7 +25,7 @@ use super::intake::{Intake, Work, intake};
 use super::performer::Performer;
 use super::reported::Reported;
 use super::rpc::{self, Ids};
-use super::spawn::{AgentChild, LaunchPlan, Spawn, Spawned};
+use super::spawn::{AgentChild, LaunchPlan, SessionMeta, Spawn, Spawned};
 use super::strikes::Strikes;
 use super::taint::TaintSource;
 use crate::wire::Wire;
@@ -79,6 +79,8 @@ pub(super) struct Live<X: Seams> {
     pub wire: <X::Spawn as Spawn>::Wire,
     pub child: <X::Spawn as Spawn>::Child,
     pub agent: Option<SessionId>,
+    /// The launcher's `_meta` for `session/new`, kept for the handshake.
+    pub meta: Option<SessionMeta>,
     pub cwd: AbsPath,
     pub real_cwd: AbsPath,
     pub session: prov::SessionId,
@@ -197,7 +199,7 @@ impl<X: Seams> AcpBackend<X> {
             cwd: cwd.clone(),
             edge: edge.as_ref().map(|e| e.bind().clone()),
         };
-        let Spawned { wire, child } = self
+        let Spawned { wire, child, meta } = self
             .spawn
             .spawn(&plan)
             .await
@@ -212,6 +214,7 @@ impl<X: Seams> AcpBackend<X> {
             wire,
             child,
             agent: None,
+            meta: meta.clone(),
             cwd: cwd.clone(),
             real_cwd,
             session: session.clone(),
@@ -246,7 +249,8 @@ impl<X: Seams> AcpBackend<X> {
             .iter()
             .map(|e| e.bind().server(e.token()))
             .collect();
-        self.send(rpc::session_new(&id, cwd, servers)).await?;
+        let meta = live.meta.clone();
+        self.send(rpc::session_new(&id, cwd, servers, meta)).await?;
         let reply = self.await_reply(&id).await?;
         let made: NewSessionResponse =
             serde_json::from_value(reply).map_err(|_| BackendFault::Unavailable)?;

@@ -1,73 +1,41 @@
-//! The files docket writes for one run to confine what a program brings of its own, and the
-//! variables that point the program at them. A preset (`profile` in `agents.toml`) names both;
-//! the router never knows which program it is.
+//! What a preset (`profile` in `agents.toml`) adds to a run to confine what a program brings of
+//! its own: environment variables, and extra `_meta` for `session/new`. The router never knows
+//! which program it is; `docket_acp::client` only carries the `_meta` the launcher hands back.
 //!
-//! The file lives in a directory of its own under the run directory (0700), is written 0400, and
-//! the whole directory is bound read-only into the sandbox last: Claude Code reads a managed
-//! directory (`managed-settings.json` and a `managed-settings.d` of drop-ins), and a directory
-//! bwrap made for a lone file bind would be writable inside, room for a drop-in of the agent's. It is never put under a path the agent can write:
-//! its state, its working directory. The agent cannot widen what it allows, whatever it writes.
+//! Claude Code reads no managed-settings file outside its hosted mode (its
+//! `CLAUDE_CODE_MANAGED_SETTINGS_PATH` is ignored), so the settings go the way its ACP adapter
+//! takes them: `_meta.claudeCode.options.settings` of `session/new`, an object the adapter hands
+//! the SDK as its `settings` option, the flag tier, which outranks the user's, the project's and
+//! the local settings. The object is sent inline: docket writes `session/new`, so the agent has
+//! no file to write and no path to shadow, and nothing is bound into the sandbox for it.
 //!
-//! Claude Code: the managed-settings file outranks the user's, the project's and the local
-//! settings (Claude Code's own precedence; docket relies on it and tests only that the file and
-//! the variable are in the spawn plan). It turns off the account's connectors, skills and
-//! plugins, allows the desktop's tool server (and no other) to be called without Claude Code's
-//! own prompt, so the router's sheet is the only one, lets only that server be configured, and
-//! runs no hooks but managed ones (none).
+//! The settings turn off the account's connectors, skills and plugins and allow the desktop's
+//! tool server (and no other) to be called without Claude Code's own prompt, so the router's sheet
+//! is the only one. Keys that only apply in managed settings (`allowManagedMcpServersOnly`,
+//! `allowedMcpServers`, `allowManagedHooksOnly`) do nothing at the flag tier and are not sent.
+//! A `permissions.allow` the person's own settings hold is unioned with ours; that is theirs.
 
-use crate::config::{Entry, Profile};
-use docket_acp::client::SERVER_NAME;
-use docket_core::AbsPath;
-use porter_core::LauncherSession;
-use std::io::Write;
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
-use std::path::{Path, PathBuf};
-
-/// The settings file's name inside the run's directory.
-const SETTINGS_FILE: &str = "managed-settings.json";
-
-/// The variable that names Claude Code's managed-settings directory (not the file: it reads
-/// `managed-settings.json` and `managed-settings.d/` inside it).
-pub const SETTINGS_PATH_ENV: &str = "CLAUDE_CODE_MANAGED_SETTINGS_PATH";
-
-/// Why the files could not be written.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-pub enum ManagedFault {
-    /// The place is not made, not writable, or not a path.
-    #[error("the managed settings could not be written")]
-    Io,
-    /// The place is under a path the agent can write, where it could be shadowed or replaced.
-    #[error("the managed settings would sit under a path the agent can write")]
-    Writable,
-}
-
-/// What was written for one run.
-#[derive(Debug)]
-pub struct Managed {
-    /// The directory, to remove with the session.
-    pub dir: PathBuf,
-    /// The same directory, to bind read-only and to name in the environment.
-    pub place: AbsPath,
-}
+use crate::config::Profile;
+use docket_acp::client::{SERVER_NAME, SessionMeta};
+use serde_json::{Value, json};
 
 impl Profile {
-    /// The settings file's text.
-    pub fn settings(self) -> String {
+    /// The variables that go with the preset. They are applied after the entry's `set`.
+    pub fn env(self) -> Vec<(&'static str, &'static str)> {
         match self {
-            Profile::ClaudeCode => claude_code_settings(),
+            Profile::ClaudeCode => vec![
+                ("CLAUDE_CODE_DISABLE_CLAUDE_MDS", "1"),
+                ("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"),
+                ("ENABLE_CLAUDEAI_MCP_SERVERS", "false"),
+                ("DISABLE_AUTOUPDATER", "1"),
+            ],
         }
     }
 
-    /// The variables that make the program read the settings in `place` and keep to them.
-    pub fn env(self, place: &AbsPath) -> Vec<(&'static str, String)> {
+    /// The `_meta` of `session/new` the preset adds.
+    pub fn session_meta(self) -> SessionMeta {
         match self {
-            Profile::ClaudeCode => vec![
-                (SETTINGS_PATH_ENV, place.as_str().to_owned()),
-                ("CLAUDE_CODE_DISABLE_CLAUDE_MDS", "1".to_owned()),
-                ("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1".to_owned()),
-                ("ENABLE_CLAUDEAI_MCP_SERVERS", "false".to_owned()),
-                ("DISABLE_AUTOUPDATER", "1".to_owned()),
-            ],
+            Profile::ClaudeCode => claude_code_meta(),
         }
     }
 }
@@ -77,73 +45,16 @@ pub fn allow_rule() -> String {
     format!("mcp__{SERVER_NAME}")
 }
 
-fn claude_code_settings() -> String {
-    // `SERVER_NAME` is a fixed lower-case word, so it needs no escaping.
-    format!(
-        concat!(
-            "{{\"disableClaudeAiConnectors\":true,",
-            "\"syncClaudeAiSkills\":false,",
-            "\"syncClaudeAiPlugins\":false,",
-            "\"permissions\":{{\"allow\":[\"{rule}\"]}},",
-            "\"allowManagedMcpServersOnly\":true,",
-            "\"allowManagedHooksOnly\":true,",
-            "\"allowedMcpServers\":[{{\"serverName\":\"{server}\"}}]}}"
-        ),
-        rule = allow_rule(),
-        server = SERVER_NAME
-    )
-}
-
-fn under(path: &Path, roots: impl Iterator<Item = impl AsRef<Path>>) -> bool {
-    roots.into_iter().any(|r| path.starts_with(r.as_ref()))
-}
-
-impl Managed {
-    /// Writes the preset's file for `session` under `run_dir`, refusing a place under the
-    /// entry's state or the working directory.
-    pub fn write(
-        profile: Profile,
-        run_dir: &Path,
-        session: &LauncherSession,
-        entry: &Entry,
-        cwd: &AbsPath,
-    ) -> Result<Self, ManagedFault> {
-        let dir = run_dir.join(format!("docket-managed-{}", session.as_str()));
-        let writable = entry
-            .state
-            .iter()
-            .map(|p| PathBuf::from(p.as_str()))
-            .chain([PathBuf::from(cwd.as_str())]);
-        if under(&dir, writable) {
-            return Err(ManagedFault::Writable);
-        }
-        std::fs::DirBuilder::new()
-            .mode(0o700)
-            .create(&dir)
-            .map_err(|_| ManagedFault::Io)?;
-        let written = write_file(&dir.join(SETTINGS_FILE), &profile.settings());
-        let place = written.and_then(|()| {
-            dir.to_str()
-                .and_then(|t| AbsPath::parse(t).ok())
-                .ok_or(ManagedFault::Io)
-        });
-        match place {
-            Ok(place) => Ok(Self { dir, place }),
-            Err(fault) => {
-                let _ = std::fs::remove_dir_all(&dir);
-                Err(fault)
-            }
-        }
-    }
-}
-
-fn write_file(path: &Path, text: &str) -> Result<(), ManagedFault> {
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o400)
-        .open(path)
-        .map_err(|_| ManagedFault::Io)?;
-    file.write_all(text.as_bytes())
-        .map_err(|_| ManagedFault::Io)
+fn claude_code_meta() -> SessionMeta {
+    let settings = json!({
+        "disableClaudeAiConnectors": true,
+        "syncClaudeAiSkills": false,
+        "syncClaudeAiPlugins": false,
+        "permissions": { "allow": [allow_rule()] },
+    });
+    let Value::Object(meta) = json!({ "claudeCode": { "options": { "settings": settings } } })
+    else {
+        unreachable!("a JSON object literal is an object")
+    };
+    meta
 }

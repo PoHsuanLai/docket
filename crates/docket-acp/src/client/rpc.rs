@@ -1,5 +1,6 @@
 //! The requests we send an agent, as lines. Every payload is a schema-crate type.
 
+use super::spawn::SessionMeta;
 use crate::out;
 use agent_client_protocol_schema::ProtocolVersion;
 use agent_client_protocol_schema::rpc::RequestId;
@@ -41,8 +42,16 @@ pub fn initialize(id: &RequestId, caps: ClientCapabilities) -> String {
 
 /// `session/new` in `cwd`, offering `servers`: the one tool edge of this session when there is
 /// one, else none. Nothing else is imported; the agent's other tools are its own.
-pub fn session_new(id: &RequestId, cwd: &AbsPath, servers: Vec<McpServer>) -> String {
-    let request = NewSessionRequest::new(PathBuf::from(cwd.as_str())).mcp_servers(servers);
+/// `meta` is the launcher's extra `_meta`, if any.
+pub fn session_new(
+    id: &RequestId,
+    cwd: &AbsPath,
+    servers: Vec<McpServer>,
+    meta: Option<SessionMeta>,
+) -> String {
+    let request = NewSessionRequest::new(PathBuf::from(cwd.as_str()))
+        .mcp_servers(servers)
+        .meta(meta);
     out::ask(id, AGENT_METHOD_NAMES.session_new, &request)
 }
 

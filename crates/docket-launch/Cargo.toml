@@ -11,7 +11,7 @@ publish.workspace = true
 [features]
 default = []
 # The real porter link: accountd's launcher interface and inferd's agent endpoints over the bus.
-dbus = ["dep:porter-client", "dep:porter-dbus", "dep:futures-util", "dep:serde_json", "dep:zbus"]
+dbus = ["dep:porter-client", "dep:porter-dbus", "dep:futures-util", "dep:zbus"]
 
 [lib]
 name = "docket_launch"
@@ -29,7 +29,7 @@ porter-core = { workspace = true }
 porter-dbus = { workspace = true, optional = true }
 prov = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true, optional = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["io-std"] }
 toml = { workspace = true }

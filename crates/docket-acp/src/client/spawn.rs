@@ -39,6 +39,10 @@ pub enum SpawnFault {
     Process,
 }
 
+/// Extra `_meta` for `session/new`, the launcher's: an agent-specific request the host writes
+/// (never the agent) and sends as it opens the session. The client does not read it.
+pub type SessionMeta = serde_json::Map<String, serde_json::Value>;
+
 /// A started agent: its stdio and the handle that ends it.
 #[derive(Debug)]
 pub struct Spawned<W, C> {
@@ -46,6 +50,8 @@ pub struct Spawned<W, C> {
     pub wire: W,
     /// What ends it.
     pub child: C,
+    /// The `_meta` of `session/new`, when the launcher has any (a preset in `agents.toml`).
+    pub meta: Option<SessionMeta>,
 }
 
 /// The process behind a wire.

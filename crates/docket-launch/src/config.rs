@@ -69,11 +69,12 @@ pub enum ToolsMode {
 }
 
 /// A preset that confines what a program brings of its own (its account's connectors, skills and
-/// plugins, its own permission prompt for the desktop's tools). Docket writes the files and the
-/// variables the preset names; the program cannot write them. See `managed`.
+/// plugins, its own permission prompt for the desktop's tools). Docket sends the settings in the
+/// `session/new` it writes and sets the variables the preset names; the program cannot change
+/// either. See `managed`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 pub enum Profile {
-    /// Claude Code: a managed-settings file and the variables that make it the isolated mode.
+    /// Claude Code: settings in `session/new` `_meta` and the variables of its isolated mode.
     #[serde(rename = "claude-code")]
     ClaudeCode,
 }

@@ -282,10 +282,9 @@ the scratch settings; it reads neither from the person's configuration.
 
 **Confining Claude Code (`--acp-profile claude-code`).** Signed in with a claude.ai login, Claude Code asks its own
 permission before each MCP tool call (a second sheet beside the router's), loads the account's claude.ai connectors and
-syncs its skills and plugins; none of that passes the router. The preset has docket write a managed-settings file for the
-run (connectors, skills and plugins off; `mcp__quire` pre-allowed, which is the desktop's server and no other; only that
-server configurable), bind it read-only into the sandbox and set `CLAUDE_CODE_MANAGED_SETTINGS_PATH` and the isolated-mode
-variables. A run with it:
+syncs its skills and plugins; none of that passes the router. The preset has docket send settings in the `session/new`
+request (`_meta.claudeCode.options.settings`: connectors, skills and plugins off; `mcp__quire` pre-allowed, which is the
+desktop's server and no other) and set the isolated-mode variables. A run with it:
 
 ```
 dev/live-smoke.sh --engine scripted --agent acp \

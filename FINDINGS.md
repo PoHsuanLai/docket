@@ -3066,42 +3066,46 @@ agent saw the `quire` server's tools and called mail actions through the router.
    plugins (plugins can bring MCP servers and hooks). None of those tools passes the router.
 
 **Decision: a preset, not a table.** An entry says `profile = "claude-code"`; the router and the spawn plan know the
-mechanism (files docket writes, bound read-only, variables pointing at them), not Claude Code: the preset is the one place
-that names the program's settings keys (`docket-launch/src/managed.rs`). A `[agents.<program>.managed]` table was rejected: it
-would have the person write JSON settings and variable names in the config, and the pre-allow list is exactly the part that
-must not be person-edited into a wildcard. Another program gets another `Profile` variant.
+mechanism (extra environment variables, and extra `_meta` on `session/new` that the launcher hands back in `Spawned.meta`),
+not Claude Code: the preset is the one place that names the program's settings keys (`docket-launch/src/managed.rs`). A
+`[agents.<program>.managed]` table was rejected: it would have the person write settings JSON and variable names in the
+config, and the pre-allow list is exactly the part that must not be person-edited into a wildcard. Another program gets
+another `Profile` variant.
+
+**Revised after the live check: settings travel in `session/new`, not in a managed file.** The first version wrote a
+managed-settings file and set `CLAUDE_CODE_MANAGED_SETTINGS_PATH` (to the file, then to the directory). Real Claude Code
+(adapter 0.87.0) ignored it in both forms ("no managed settings"): the variable is honoured only in its hosted mode. What the
+adapter does take is `session/new` `_meta.claudeCode.options.settings`, an object or a path, which becomes the SDK `settings`
+option, Claude Code's flag-settings tier, above user, project and local settings. We send the **object inline**, not a file:
+docket writes the request, so the agent has no file to write, no path to shadow and no drop-in directory, and nothing needs
+binding into the sandbox. (A path would need a read-only directory bind; inline removes the whole class.) The file, the
+directory, the bind and the refusal of a place under `state` or the cwd are gone.
 
 **What a run with the preset has.**
 
-- A managed-settings JSON written by docket into `docket-managed-<session>/` under the run directory (0700; file 0400),
-  removed with the session. It sets `disableClaudeAiConnectors: true`, `syncClaudeAiSkills: false`,
-  `syncClaudeAiPlugins: false`, `permissions.allow: ["mcp__quire"]` (all tools of the server named by `SERVER_NAME` in
-  `docket-acp` `client/edge/offer.rs`, derived from that constant, never a wildcard over other servers),
-  `allowManagedMcpServersOnly: true` and `allowedMcpServers: [{"serverName": "quire"}]`.
-- The file is bound read-only, as the last bind of the sandbox so nothing before it can shadow it, and the spawn refuses (a
-  `Sandbox` fault, nothing started) when its place is under the entry's `state` or the session's working directory, the two
-  read-write binds. The agent has no write path to it.
-- The environment: `CLAUDE_CODE_MANAGED_SETTINGS_PATH` (the file), `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`,
-  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, `ENABLE_CLAUDEAI_MCP_SERVERS=false`, `DISABLE_AUTOUPDATER=1` (Claude Code's own
-  isolated-mode set). They are applied after the entry's `set`, so the person's `set` cannot override them.
-- The double-gating fix is the pre-allow in that file. The host does not auto-approve permission requests by their title
-  (agent-written text), and `acpagent.other` is unchanged.
+- `session/new` carries `_meta = {"claudeCode": {"options": {"settings": {...}}}}` with `disableClaudeAiConnectors: true`,
+  `syncClaudeAiSkills: false`, `syncClaudeAiPlugins: false` and `permissions.allow: ["mcp__quire"]` (all tools of the server
+  named by `SERVER_NAME` in `docket-acp` `client/edge/offer.rs`, derived from that constant; never a wildcard over other
+  servers). The client only carries it (`Spawned.meta`, `rpc::session_new`); with no preset there is no `_meta`.
+- The environment: `CLAUDE_CODE_DISABLE_CLAUDE_MDS=1`, `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
+  `ENABLE_CLAUDEAI_MCP_SERVERS=false` (checked live: "[claudeai-mcp] Disabled via env var") and `DISABLE_AUTOUPDATER=1`. They
+  are applied after the entry's `set`, so the person's `set` cannot override them.
+- The keys that only apply in managed settings (`allowManagedMcpServersOnly`, `allowedMcpServers`, `allowManagedHooksOnly`) did
+  nothing at the flag tier and were removed.
+- The double-gating fix is the pre-allow. The host does not auto-approve permission requests by their title (agent-written
+  text), and `acpagent.other` is unchanged.
 
-**Reliance.** A person's own `~/.claude/settings.json` (or the project's) that allows more does not override managed
-settings: that is Claude Code's precedence (managed outranks user, project and local). Tests cover that our file and
-variable are in the spawn plan and what protects the file; they never start Claude Code.
-
-**Not verified live.** Whether `allowedMcpServers` filters the server the ACP host passes in `session/new` (an SDK-supplied
-server rather than one from a settings file) was not run. The names and shapes come from the CLI's own strings. If a live run
-shows the edge server hidden, drop the two `allowedMcpServers` keys from `claude_code_settings` and keep the pre-allow.
+**Reliance.** The flag-settings tier outranks the user's, the project's and the local settings (Claude Code's own precedence,
+seen live); `permissions.allow` rules from those are unioned with ours, so a person's own allow rules add to the pre-allow. That
+is their choice. Tests cover that `session/new` carries the settings exactly when the preset is set, that the environment
+holds, and that nothing of the preset is a file or a bind; they never start Claude Code.
 
 **What remains.**
 
-- **User-level MCP servers.** `--strict-mcp-config` exists only as a CLI flag (and an SDK option), not as a settings key or
-  environment variable, so the preset cannot set it; the adapter would have to pass it. The managed allowlist above is the
-  settings-side substitute. A person who points `state` at their real `~/.claude` still has their own user-level MCP servers
-  configured (they are filtered by the allowlist, if it applies as hoped). The safe way is the harness's: a scratch `state`.
-- Hooks in the person's settings run in the sandbox as the agent's own code; `allowManagedHooksOnly` would stop them and is not
-  set because it would also stop hooks a person wants. Open.
+- **User-level MCP servers and hooks.** A person who binds their real `~/.claude` as `state` still has their own user-level MCP
+  servers and hooks loaded: `--strict-mcp-config` is a CLI/SDK flag, not a setting or variable, and the managed-only keys that
+  would restrict servers and hooks do nothing at the flag tier. The way to a closed run is a scratch `state` (the harness's).
+- **A managed layer.** Restricting servers and hooks needs Claude Code's real managed settings (`/etc/claude-code/`, root-owned,
+  outside docket's per-run reach), or the adapter passing `strictMcpConfig`. Open.
 - The pre-allow covers every `quire` tool, including ones that act (send, forward): they are still router calls with the
   router's sheets; Claude's prompt was the duplicate, not the gate.
