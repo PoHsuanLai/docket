@@ -433,6 +433,7 @@ async fn a_watched_gate_check_in_process_says_confirming_and_waits_for_proceed()
             space: space(),
             agent: AgentRef::Cua { run: run.clone() },
             parent: None,
+            cwd: None,
         })
         .await
         .expect("cuad opens its run's session");

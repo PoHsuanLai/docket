@@ -74,6 +74,9 @@ pub struct SessionOpen {
     pub agent: AgentRef,
     /// The task that spawned it; the child policy is never wider than the parent's.
     pub parent: Option<TaskId>,
+    /// The directory an editor opened it in; none for a session no editor opened.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<crate::workspace::Workspace>,
 }
 
 /// The session the router opened.

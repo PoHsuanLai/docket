@@ -13,7 +13,7 @@
 use crate::transport::TransportError;
 use docket_core::{
     CallRefusal, ContextView, Delivery, IntentsReply, IntentsRequest, Outcome, ReadFault,
-    RecallView, SessionOpened, TurnId, UndoFault, UndoReport, WidenAnswer, WireRefusal,
+    RecallView, SessionOpened, StoredView, TurnId, UndoFault, UndoReport, WidenAnswer, WireRefusal,
 };
 use docket_dbus::{
     BusConnection, ContextProxy, ControlProxy, Details, GateProxy, INTENTS_BUS, IndexProxy,
@@ -374,6 +374,12 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
                 .recall(session.as_str(), &to_json(&ask)?, &options)
                 .await;
             body(answer, |view: RecallView| IntentsReply::Recalled(view))
+        }
+        Q::SessionStored { ask } => {
+            let proxy = SessionProxy::new(c).await.map_err(bus)?;
+            body(proxy.stored(&to_json(&ask)?).await, |view: StoredView| {
+                IntentsReply::Stored(view)
+            })
         }
         Q::MessageSend { session, draft } => {
             let proxy = MessageProxy::new(c).await.map_err(bus)?;

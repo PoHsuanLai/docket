@@ -150,6 +150,7 @@ async fn the_answer_object_names_its_session_and_close_removes_it() {
         space: space("work"),
         agent: AgentRef::Companion,
         parent: None,
+        cwd: None,
     };
     let opened: SessionOpened = serde_json::from_str(
         &proxy

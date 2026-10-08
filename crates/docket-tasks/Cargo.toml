@@ -15,7 +15,9 @@ companion-wire = { workspace = true }
 docket-client = { workspace = true }
 docket-core = { workspace = true }
 docket-planner = { workspace = true }
+docket-session = { workspace = true }
 docket-skills = { workspace = true }
+futures-channel = { workspace = true }
 futures-util = { workspace = true }
 porter-client = { workspace = true }
 porter-core = { workspace = true }
@@ -25,6 +27,12 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+docket-client = { workspace = true, features = ["in_process"] }
+docket-fake = { workspace = true }
+docket-router = { workspace = true }
+porter-infer = { workspace = true }
+prov = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true }
 
 [lints]

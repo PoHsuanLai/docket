@@ -34,6 +34,7 @@ async fn world() -> (Arc<Router<FakeSeams>>, SessionId, Handle) {
                 space: SpaceId::parse("work").expect("space"),
                 agent: AgentRef::Companion,
                 parent: None,
+                cwd: None,
             }),
         )
         .await;

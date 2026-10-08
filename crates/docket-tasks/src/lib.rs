@@ -13,6 +13,9 @@
 //! - [`Shared`], [`Change`]: what a surface reads without waiting for the loop.
 //! - [`RecentSource`], [`recover`], [`replay_of`]: restart, from what the eventlog holds, read
 //!   through `Recent` with `BodyMode::Json`.
+//! - [`NativeBackend`], [`NativeHost`]: the planner loop behind the durable-session traits
+//!   (`docket-session`), the ACP edge's host.
+//! - [`Tap`]: how a turn is told as it runs and a call is held at its gate.
 //! - [`completion_effects`]: how a finished worker or run reaches the front task.
 
 mod act;
@@ -24,6 +27,7 @@ mod held;
 mod idle;
 mod inbox;
 mod linger;
+mod native;
 mod plan;
 mod records;
 mod recover;
@@ -32,14 +36,17 @@ mod runtime;
 mod seams;
 mod shared;
 mod sources;
+mod tap;
 mod task;
 
 pub use act::{Acting, card_id};
 pub use completion::completion_effects;
 pub use drive::refusal_of;
 pub use fault::ServeFault;
+pub use native::{Core, NativeBackend, NativeHost, RouterLog};
 pub use recover::{RecentSource, ReplayFault, RouterRecent, recover, replay_of, restart_query};
 pub use runtime::{Begun, Companion};
 pub use seams::{Now, Quiet, Surface};
 pub use shared::{Change, Shared};
+pub use tap::{Go, NoTap, Tap};
 pub use task::{Failure, TaskRuntime, kept_all};

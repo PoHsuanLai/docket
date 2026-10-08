@@ -181,6 +181,7 @@ impl<S: Seams> Router<S> {
             R::SessionRecall { session, ask } => self.session_recall(&session, ask).await,
             R::SessionNarrow { session, turn } => self.session_narrow(&session, turn).await,
             R::SessionHandles { session } => self.session_handles(&session),
+            R::SessionStored { ask } => self.session_stored(caller, role, ask).await,
             R::MessageSend { session, draft } => self.message_send(caller, role, &session, draft),
             R::MessageInbox(ask) => self.message_inbox(role, ask).await,
             R::GateGrant(ask) => self.gate_grant(ask).await,

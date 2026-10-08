@@ -56,3 +56,9 @@ pub const SUMMARY_HANDLE: u64 = 2;
 pub fn fail(world: &World, why: &str) -> ! {
     panic!("{why}\n{}", world.logs());
 }
+
+/// Two turns: a search and its words, then words only (after the host's restart, in the tests
+/// that restart it).
+pub const ACP_TWO_TURNS: Cassette = Cassette(include_str!(
+    "../../../../dev/accept/cassettes/acp-two-turns.jsonl"
+));

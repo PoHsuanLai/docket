@@ -90,7 +90,7 @@ pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     pub(crate) manifests: Vec<docket_core::ValidManifest>,
 }
 
-fn idle_state() -> LoopState {
+pub(crate) fn idle_state() -> LoopState {
     LoopState {
         phase: LoopPhase::Idle,
         turn: None,

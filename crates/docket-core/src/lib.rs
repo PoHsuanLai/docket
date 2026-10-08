@@ -47,6 +47,7 @@ mod validate;
 mod value;
 pub mod when;
 mod wire;
+mod workspace;
 
 pub use args::{ArgsFault, TARGET_KEY, TargetFault, Why, args_from_json, target_from_json};
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};
@@ -145,5 +146,6 @@ pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetVa
 pub use wire::{
     Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, NoteAsk,
     NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved, SessionNote,
-    UndoReport, WidenAnswer, WidenAsk, WireRefusal,
+    StoredAsk, StoredRow, StoredView, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
 };
+pub use workspace::{Workspace, WorkspaceError};

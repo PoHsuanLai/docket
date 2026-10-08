@@ -24,7 +24,7 @@ fn only_the_persons_surfaces_record_a_turn() {
 }
 
 #[test]
-fn an_editor_opens_and_speaks_but_confirms_halts_and_performs_nothing() {
+fn an_editor_opens_speaks_and_reads_the_log_but_confirms_halts_and_performs_nothing() {
     let allowed: Vec<Member> = Member::ALL
         .into_iter()
         .filter(|m| permits(CallerRole::Editor, *m))
@@ -35,7 +35,8 @@ fn an_editor_opens_and_speaks_but_confirms_halts_and_performs_nothing() {
             Member::Manifests,
             Member::SessionOpen,
             Member::SessionTurn,
-            Member::SessionClose
+            Member::SessionClose,
+            Member::SessionStored
         ]
     );
 }

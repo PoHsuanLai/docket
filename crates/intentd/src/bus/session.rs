@@ -208,6 +208,20 @@ impl SessionBus {
             })
             .await
     }
+
+    async fn stored(
+        &self,
+        ask: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<String, IntentsError> {
+        let request = IntentsRequest::SessionStored { ask: json(&ask)? };
+        self.0
+            .answer(&header, request, |r| match r {
+                IntentsReply::Stored(view) => Some(view),
+                _ => None,
+            })
+            .await
+    }
 }
 
 fn resolved(reply: IntentsReply) -> Option<Resolved> {

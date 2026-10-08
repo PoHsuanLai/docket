@@ -21,6 +21,10 @@ name = "accept-companiond"
 path = "src/bin/accept-companiond.rs"
 
 [[bin]]
+name = "accept-acp"
+path = "src/bin/accept-acp.rs"
+
+[[bin]]
 name = "accept-readerd"
 path = "src/bin/accept-readerd.rs"
 
@@ -36,6 +40,8 @@ path = "src/bin/docket-live.rs"
 action-review = { workspace = true }
 companion-wire = { workspace = true }
 companiond = { path = "../companiond" }
+docket-acp = { path = "../docket-acp" }
+docket-acp-bin = { path = "../docket-acp-bin" }
 docket-cli = { path = "../docket-cli" }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true }

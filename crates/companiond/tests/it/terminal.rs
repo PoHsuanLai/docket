@@ -31,6 +31,7 @@ fn open_json() -> String {
         space: space("work"),
         agent: AgentRef::Companion,
         parent: None,
+        cwd: None,
     })
     .expect("json")
 }

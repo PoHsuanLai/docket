@@ -1,6 +1,8 @@
 //! For tests only: a scripted `SessionBackend` and an in-memory `SessionLog`.
 
-use crate::backend::{BackendEvent, BackendFault, Resumed, SessionBackend, StartSession, TurnEnd};
+use crate::backend::{
+    BackendEvent, BackendFault, CallEvent, Resumed, SessionBackend, StartSession, TurnEnd,
+};
 use crate::codec::{Logged, decode, encode};
 use crate::entry::{BackendKind, Seq, SessionEntry};
 use crate::log::{Appended, LogFault, LogPage, PageSize, SessionLog};
@@ -27,6 +29,9 @@ pub struct FakeBackend {
     pending: VecDeque<BackendEvent>,
     /// The turns it was given, in order.
     pub turns: Vec<UserTurn>,
+    /// How many calls have ended, which is when a call counts as having run: a call whose
+    /// `Ended` was never pulled never ran.
+    pub ran: usize,
 }
 
 impl FakeBackend {
@@ -37,6 +42,7 @@ impl FakeBackend {
             script: script.into(),
             pending: VecDeque::new(),
             turns: Vec::new(),
+            ran: 0,
         }
     }
 }
@@ -75,6 +81,9 @@ impl SessionBackend for FakeBackend {
 
     async fn next_event(&mut self) -> Option<BackendEvent> {
         let event = self.pending.pop_front()?;
+        if matches!(event, BackendEvent::Call(CallEvent::Ended(_))) {
+            self.ran += 1;
+        }
         if matches!(event, BackendEvent::TurnEnd(_)) {
             self.running = Running::Idle;
         }

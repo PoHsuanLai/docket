@@ -52,6 +52,7 @@ mod spacing;
 mod standing;
 mod standing_facts;
 mod state;
+mod stored;
 mod tasks;
 mod terminal;
 mod wal;

@@ -48,7 +48,7 @@ pub struct Restored {
 
 impl<S: Seams> Router<S> {
     /// Every row of `id`'s log, oldest first.
-    async fn rows_of(&self, id: &SessionId) -> Result<Vec<Logged>, LogFault> {
+    pub(crate) async fn rows_of(&self, id: &SessionId) -> Result<Vec<Logged>, LogFault> {
         let mut rows = Vec::new();
         let mut from: Option<Seq> = None;
         loop {
@@ -186,6 +186,7 @@ fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         | R::ControlTerminalGrants
         | R::ControlTerminalRevoke(_)
         | R::ControlStandingGrants
-        | R::ControlStandingRevoke(_) => None,
+        | R::ControlStandingRevoke(_)
+        | R::SessionStored { .. } => None,
     }
 }

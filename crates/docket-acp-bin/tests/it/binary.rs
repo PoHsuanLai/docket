@@ -15,6 +15,11 @@ fn run(settings: Option<&str>) -> Output {
         .env("HOME", home.path())
         .env("XDG_CONFIG_HOME", home.path().join("config"))
         .env("XDG_CONFIG_DIRS", home.path().join("none"))
+        // A bus that is not there: the process must never find the real session bus.
+        .env(
+            "DBUS_SESSION_BUS_ADDRESS",
+            format!("unix:path={}", home.path().join("no-bus").display()),
+        )
         .output()
         .expect("run")
 }
@@ -38,9 +43,9 @@ fn it_refuses_to_serve_while_the_setting_is_off_or_missing() {
 }
 
 #[test]
-fn switched_on_it_still_serves_nothing_until_a_session_host_exists() {
+fn switched_on_it_serves_through_the_bus_and_stops_when_there_is_none() {
     let out = run(Some("[agent.acp]\nexpose = \"on\"\n"));
     assert_eq!(out.status.code(), Some(1));
     assert!(out.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("no session host"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("bus"));
 }

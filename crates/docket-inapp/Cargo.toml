@@ -15,11 +15,14 @@ companion-wire = { workspace = true }
 almanac-core = { workspace = true }
 docket-client = { workspace = true, features = ["in_process"] }
 docket-core = { workspace = true }
+futures-channel = { workspace = true }
+futures-util = { workspace = true }
 docket-memory = { workspace = true }
 docket-models = { workspace = true }
 docket-planner = { workspace = true }
 docket-reader = { workspace = true }
 docket-router = { workspace = true }
+docket-session = { workspace = true }
 docket-skills = { workspace = true }
 docket-tasks = { workspace = true }
 policy-point = { workspace = true }

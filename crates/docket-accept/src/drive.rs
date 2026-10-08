@@ -62,6 +62,7 @@ impl Launcher {
             space: SpaceId::parse("work").expect("space"),
             agent: AgentRef::Companion,
             parent: None,
+            cwd: None,
         };
         let text = self
             .companion

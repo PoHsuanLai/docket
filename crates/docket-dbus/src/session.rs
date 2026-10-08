@@ -46,6 +46,9 @@ pub trait Session {
 
     /// Reads memory for the session (`RecallAsk` JSON; answers `RecallView` JSON), labels applied by the router.
     fn recall(&self, session: &str, ask: &str, options: &Details) -> zbus::Result<String>;
+
+    /// The durable log of sessions (`StoredAsk` JSON; answers `StoredView` JSON): the sessions the caller may bring back, or a page of one's rows.
+    fn stored(&self, ask: &str) -> zbus::Result<String>;
 }
 
 /// The daemon's side.
@@ -111,6 +114,11 @@ impl SessionSkeleton {
 
     fn recall(&self, session: String, ask: String, options: Details) -> fdo::Result<String> {
         let _ = (session, ask, options);
+        Err(crate::introspect::frozen())
+    }
+
+    fn stored(&self, ask: String) -> fdo::Result<String> {
+        let _ = (ask,);
         Err(crate::introspect::frozen())
     }
 }

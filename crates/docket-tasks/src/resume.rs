@@ -28,6 +28,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 space: SpaceId::desktop(),
                 agent: AgentRef::Companion,
                 parent: None,
+                cwd: None,
             })
             .await
         else {
@@ -65,6 +66,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                     space: space.clone(),
                     agent: AgentRef::Companion,
                     parent: None,
+                    cwd: None,
                 })
                 .await
             else {
@@ -107,6 +109,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                     space,
                     agent: AgentRef::Companion,
                     parent: None,
+                    cwd: None,
                 })
                 .await?,
             ),

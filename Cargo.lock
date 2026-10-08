@@ -920,6 +920,8 @@ dependencies = [
  "almanac-core",
  "companion-wire",
  "companiond",
+ "docket-acp",
+ "docket-acp-bin",
  "docket-cli",
  "docket-client",
  "docket-core",
@@ -963,6 +965,25 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "docket-acp-bin"
+version = "0.1.0"
+dependencies = [
+ "docket-acp",
+ "docket-client",
+ "docket-core",
+ "docket-dbus",
+ "docket-planner",
+ "docket-router",
+ "docket-tasks",
+ "porter-core",
+ "prov",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "zbus",
 ]
 
 [[package]]
@@ -1113,8 +1134,11 @@ dependencies = [
  "docket-planner",
  "docket-reader",
  "docket-router",
+ "docket-session",
  "docket-skills",
  "docket-tasks",
+ "futures-channel",
+ "futures-util",
  "policy-point",
  "porter-client",
  "porter-core",
@@ -1274,8 +1298,12 @@ dependencies = [
  "companion-wire",
  "docket-client",
  "docket-core",
+ "docket-fake",
  "docket-planner",
+ "docket-router",
+ "docket-session",
  "docket-skills",
+ "futures-channel",
  "futures-util",
  "porter-client",
  "porter-core",

@@ -10,17 +10,12 @@ publish.workspace = true
 
 [features]
 default = ["server"]
-# The stdio binary: a runtime and the settings reader's file lookup.
+# `LineWire` over tokio streams; the process that serves it is `docket-acp-bin`.
 server = ["dep:tokio"]
 
 [lib]
 name = "docket_acp"
 path = "src/lib.rs"
-
-[[bin]]
-name = "docket-acp"
-path = "src/main.rs"
-required-features = ["server"]
 
 [dependencies]
 agent-client-protocol-schema = { workspace = true }

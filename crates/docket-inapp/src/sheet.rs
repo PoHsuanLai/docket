@@ -4,7 +4,8 @@
 //! compositor attestation), so a sheet can say yes or no but a model can never forge a yes.
 
 use docket_core::{
-    ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, GrantScope,
+    AlwaysOffer, ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer,
+    GrantScope,
 };
 use docket_router::Clock;
 use prov::{Confidentiality, ConfirmReceipt, InputProof};
@@ -72,7 +73,14 @@ impl<T: ConfirmSheet, K: Clock> Confirmer for SheetConfirmer<T, K> {
         let answer = self.sheet.ask(&request).await;
         match answer {
             SheetAnswer::Once | SheetAnswer::Always => ConfirmAnswer::Allowed {
-                scope: scope_of(answer, request.offer),
+                scope: if answer == SheetAnswer::Always
+                    && matches!(request.always, AlwaysOffer::Offered(_))
+                {
+                    // A scoped standing grant the router itself offered; it re-derives the scope.
+                    GrantScope::Always
+                } else {
+                    scope_of(answer, request.offer)
+                },
                 receipt: ConfirmReceipt {
                     id: request.id,
                     input: InputProof::SheetFallback,

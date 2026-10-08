@@ -141,7 +141,7 @@ impl<S: Seams> Router<S> {
             backend: BackendKind::Native,
             parent: open.parent.clone(),
             forked_from: None,
-            cwd: None,
+            cwd: open.cwd.clone(),
         }));
         if let Some(policy) = &record.policy {
             record.wal.note(SessionEntry::Policy(policy.clone()));
@@ -183,7 +183,11 @@ impl<S: Seams> Router<S> {
         let Some(record) = st.sessions.get_mut(id) else {
             return refuse(WireRefusal::NoSuchSession);
         };
-        if matches!(role, CallerRole::Field | CallerRole::Cua) && record.opener != caller.app.name {
+        if matches!(
+            role,
+            CallerRole::Field | CallerRole::Cua | CallerRole::Editor
+        ) && record.opener != caller.app.name
+        {
             return refuse(WireRefusal::NotAllowed);
         }
         record.apply(SessionEvent::Close);
@@ -223,7 +227,9 @@ impl<S: Seams> Router<S> {
         let mut st = self.locked();
         let number = u64::from(st.mint());
         let record = st.sessions.get_mut(id).ok_or(WireRefusal::NoSuchSession)?;
-        if role == CallerRole::Field && record.opener != caller.app.name {
+        if matches!(role, CallerRole::Field | CallerRole::Editor)
+            && record.opener != caller.app.name
+        {
             return Err(WireRefusal::NotAllowed);
         }
         let from = turn_source(role, caller);

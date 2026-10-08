@@ -148,6 +148,8 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             skeleton: SkeletonText(episode.skeleton.text()),
             narrative: None,
         };
+        // A session that takes more turns ends its task again: the newest episode replaces its last.
+        self.episodes.retain(|e| e.id != line.id);
         self.episodes.insert(0, line);
         self.episodes.truncate(REMEMBERED * 2);
         let read = self

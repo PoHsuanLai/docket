@@ -1,0 +1,37 @@
+[package]
+name = "docket-acp-bin"
+description = "The docket-acp process: the ACP server edge on stdio, hosting its own companion (docket-tasks NativeHost) over the session bus. Refuses to serve unless agent.acp.expose is on. The lib is what the acceptance harness runs under its own name."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+name = "docket_acp_bin"
+path = "src/live.rs"
+
+[[bin]]
+name = "docket-acp"
+path = "src/main.rs"
+
+[dependencies]
+docket-acp = { workspace = true }
+docket-client = { workspace = true, features = ["dbus"] }
+docket-core = { workspace = true }
+docket-dbus = { workspace = true, features = ["inferd"] }
+docket-planner = { workspace = true }
+docket-router = { workspace = true }
+docket-tasks = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["io-std"] }
+zbus = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

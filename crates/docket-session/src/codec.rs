@@ -77,7 +77,8 @@ pub enum Unreadable {
 }
 
 /// What a body is.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
 pub enum Read {
     /// An entry of this crate's form, or a legacy record that maps onto one.
     Entry(Box<SessionEntry>),
@@ -88,7 +89,7 @@ pub enum Read {
 }
 
 /// One row of a session's log, in log order.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Logged {
     /// Its position: the stored `seq`, or the row's place in the log for a legacy body.
     pub seq: Seq,

@@ -113,6 +113,7 @@ pub async fn open_as(
             space: space(in_space),
             agent,
             parent: None,
+            cwd: None,
         }),
     )
     .await;

@@ -175,6 +175,7 @@ impl World {
                 space: space(in_space),
                 agent: AgentRef::Companion,
                 parent: None,
+                cwd: None,
             })
             .await
             .expect("open")

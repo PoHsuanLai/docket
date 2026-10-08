@@ -100,6 +100,7 @@ impl Desk {
             space: space(),
             agent: AgentRef::Cua { run: run.clone() },
             parent: None,
+            cwd: None,
         })
         .await
         .expect("cuad opens the session of its own run");

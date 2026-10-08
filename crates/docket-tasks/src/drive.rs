@@ -7,6 +7,7 @@ use crate::fault::ServeFault;
 use crate::plan::phase_of;
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
+use crate::tap::{Go, NoTap, Tap};
 use crate::task::Failure;
 use agent_loop::{
     IdleInput, LoopEffect, LoopInput, LoopPhase, LoopState, ModelOutput, agent_step, assemble,
@@ -19,6 +20,7 @@ use docket_core::{
     ReplyFault, Reveal, StepEnd, WireRefusal,
 };
 use docket_planner::PlanFault;
+use docket_session::CallOpen;
 use porter_client::Transport as InferTransport;
 use prov::{ActionName, Effect, Labelled, TaskId};
 use std::collections::VecDeque;
@@ -63,16 +65,31 @@ fn idle_loop() -> LoopState {
 impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
     /// Runs `first`, and what follows from it, to the end of what the task can do alone.
     pub(crate) async fn run(&mut self, task: &TaskId, first: LoopInput) -> Result<(), ServeFault> {
+        self.run_tapped(task, first, &mut NoTap).await
+    }
+
+    /// [`Self::run`] with `tap` told of each step and holding each call at its gate.
+    pub(crate) async fn run_tapped<T: Tap>(
+        &mut self,
+        task: &TaskId,
+        first: LoopInput,
+        tap: &mut T,
+    ) -> Result<(), ServeFault> {
         if !self.running.insert(task.clone()) {
             return Ok(());
         }
-        let result = self.run_inputs(task, first).await;
+        let result = self.run_inputs(task, first, tap).await;
         self.running.remove(task);
         self.publish();
         result
     }
 
-    async fn run_inputs(&mut self, task: &TaskId, first: LoopInput) -> Result<(), ServeFault> {
+    async fn run_inputs<T: Tap>(
+        &mut self,
+        task: &TaskId,
+        first: LoopInput,
+        tap: &mut T,
+    ) -> Result<(), ServeFault> {
         let mut queue = VecDeque::from([first]);
         while let Some(input) = queue.pop_front() {
             let input = if self.shared.take_cancel(task) {
@@ -86,7 +103,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             self.tasks.insert(task.clone(), next);
             let mut position = 0u64;
             for effect in effects {
-                let more = self.carry_out(task, effect, &mut position).await?;
+                let more = self.carry_out(task, effect, &mut position, tap).await?;
                 queue.extend(more);
             }
         }
@@ -127,9 +144,19 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         task: &TaskId,
         first: LoopInput,
     ) -> Result<(), ServeFault> {
+        self.run_interactive_tapped(task, first, &mut NoTap).await
+    }
+
+    /// [`Self::run_interactive`] with `tap` told of each step.
+    pub(crate) async fn run_interactive_tapped<T: Tap>(
+        &mut self,
+        task: &TaskId,
+        first: LoopInput,
+        tap: &mut T,
+    ) -> Result<(), ServeFault> {
         self.shared.interrupt();
         self.idle_apply(IdleInput::InteractiveStarted);
-        let ran = self.run(task, first).await;
+        let ran = self.run_tapped(task, first, tap).await;
         self.replied(task).await;
         let ended = self.clock.now();
         self.idle_apply(IdleInput::InteractiveEnded(ended));
@@ -137,21 +164,33 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         self.arrived().await
     }
 
-    async fn carry_out(
+    async fn carry_out<T: Tap>(
         &mut self,
         task: &TaskId,
         effect: LoopEffect,
         position: &mut u64,
+        tap: &mut T,
     ) -> Result<Vec<LoopInput>, ServeFault> {
         match effect {
-            LoopEffect::AskPlanner => self.plan_turn(task).await,
+            LoopEffect::AskPlanner => self.plan_turn(task, tap).await,
             LoopEffect::Call(call) => {
                 let id = CallId(*position);
                 *position += 1;
-                self.perform(task, *call, id).await
+                let open = self.open_of(task, &call);
+                if tap.gate(open).await == Go::Stop {
+                    return Ok(vec![LoopInput::Cancelled]);
+                }
+                let inputs = self.perform(task, *call, id, tap).await?;
+                if let Some(line) = self.runtimes.get(task).and_then(|rt| rt.history.last()) {
+                    tap.ended(line);
+                }
+                Ok(inputs)
             }
             LoopEffect::Read(ask) => self.read(task, *ask).await,
             LoopEffect::Publish(phase) => {
+                if let AnswerPhase::NeedsYou(need) = &phase {
+                    tap.needs(need);
+                }
                 if let Some(rt) = self.runtimes.get_mut(task) {
                     rt.phase = phase;
                 }
@@ -185,7 +224,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     }
 
     /// One planner turn: assemble the view, ask the model, and hand the loop what it said.
-    async fn plan_turn(&mut self, task: &TaskId) -> Result<Vec<LoopInput>, ServeFault> {
+    async fn plan_turn<T: Tap>(
+        &mut self,
+        task: &TaskId,
+        tap: &mut T,
+    ) -> Result<Vec<LoopInput>, ServeFault> {
         let spent = self.tasks.get(task).map_or(0, |s| s.steps);
         if spent >= self.config.budget.calls.0 {
             if let Some(rt) = self.runtimes.get_mut(task) {
@@ -214,6 +257,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             }
             if let Some(words) = &reply.said {
                 rt.said.push(words.clone());
+                tap.said(words);
             }
         }
         let said = reply.said.map(|w| LoopInput::Planned(ModelOutput::Say(w)));
@@ -226,11 +270,12 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     /// One call, through the router. The action that starts a task is carried out here as well
     /// (the router makes the task, the loop of the worker runs here); `companion.task.message` is
     /// the router's alone, like any other call.
-    async fn perform(
+    async fn perform<T: Tap>(
         &mut self,
         task: &TaskId,
         call: CallRequest,
         id: CallId,
+        tap: &mut T,
     ) -> Result<Vec<LoopInput>, ServeFault> {
         if call.action.app.as_str() == COMPANION_APP && call.action.name.as_str() == TASK_START {
             return self.start_task(task, call, id).await;
@@ -251,7 +296,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             .map(|t| t.decl.label.clone());
         self.plan_begin(task, &call, label, effect, id);
         let result = self
-            .perform_watched(task, &call, id, session.clone(), window)
+            .perform_watched(task, &call, id, session.clone(), window, tap)
             .await;
         if result.is_ok() {
             self.skill_loaded(task, &session, &call).await;
@@ -261,13 +306,14 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
 
     /// The call's own end, with the answer following the router's progress: the plan card shows
     /// the step, and `NeedsYou(Confirm)` stands while the sheet is up.
-    async fn perform_watched(
+    async fn perform_watched<T: Tap>(
         &mut self,
         task: &TaskId,
         call: &CallRequest,
         id: CallId,
         session: prov::SessionId,
         window: Option<docket_core::WindowKey>,
+        tap: &mut T,
     ) -> Result<docket_core::Outcome, CallRefusal> {
         let mut watch = match self
             .intents
@@ -281,10 +327,30 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             match watch.next().await {
                 Ok(PerformEvent::Progress(progress)) => {
                     self.plan_progress(task, id, &progress);
+                    if let Some(AnswerPhase::NeedsYou(need)) =
+                        self.runtimes.get(task).map(|rt| &rt.phase)
+                    {
+                        tap.needs(need);
+                    }
                 }
                 Ok(PerformEvent::Done(end)) => return *end,
                 Err(error) => return Err(refusal_of(error)),
             }
+        }
+    }
+
+    /// The call as the one who reads the turn is told of it before it is made: the number its
+    /// step line will carry, its action and its effect.
+    fn open_of(&self, task: &TaskId, call: &CallRequest) -> CallOpen {
+        let effect = self
+            .planner
+            .catalogue()
+            .of(&call.action)
+            .map_or(Effect::Read, |t| t.decl.effect);
+        CallOpen {
+            call: CallId(self.runtimes.get(task).map_or(0, |rt| rt.next_call)),
+            action: call.action.clone(),
+            effect,
         }
     }
 

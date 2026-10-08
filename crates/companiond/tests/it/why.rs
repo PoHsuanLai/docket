@@ -124,6 +124,7 @@ async fn the_answer_object_serves_the_routing_property() {
         space: space("work"),
         agent: AgentRef::Companion,
         parent: None,
+        cwd: None,
     };
     let opened: SessionOpened = serde_json::from_str(
         &proxy

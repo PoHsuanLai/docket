@@ -9,6 +9,7 @@
 //! - `fork` and `export`: a child's first entries, and a stable JSON document.
 //! - `legacy`: the records companiond wrote before (`companion_wire::SessionRecord`) read as
 //!   entries.
+//! - `contract`: the rules every backend keeps, written once for each backend's test to run.
 //! - `may_restore`: who may bring a stored session back by naming it (the opener rule).
 //! - `SessionLog`, `SessionBackend` and `SessionHost`: the seams. The native and ACP backends
 //!   and the host are later lanes; `fake` holds a scripted backend and an in-memory log for
@@ -18,6 +19,8 @@
 
 mod backend;
 mod codec;
+pub mod contract;
+mod desk;
 mod entry;
 mod export;
 pub mod fake;
@@ -36,6 +39,7 @@ pub use backend::{
 pub use codec::{
     CURRENT, EncodeFault, Encoded, EntryVersion, Logged, Read, Unreadable, decode, encode, kind_tag,
 };
+pub use desk::{DeskFault, NoDesk, SheetDesk};
 pub use entry::{
     BackendKind, BreakerNote, CallOpen, EndCause, ForkPoint, HandleLabel, Opening, ProgramName,
     ProgramNameError, Seq, SessionEntry, SkillUse, Taint, TaintCause, TaintNote, Workspace,

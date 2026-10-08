@@ -134,6 +134,7 @@ impl Desk {
                 space: space(),
                 agent: AgentRef::Companion,
                 parent: None,
+                cwd: None,
             })
             .await
             .expect("a session");

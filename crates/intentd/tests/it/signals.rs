@@ -31,6 +31,7 @@ async fn open(router: &Router<docket_fake::FakeSeams>, agent: AgentRef) -> Sessi
                 space: SpaceId::parse("work").expect("space"),
                 agent,
                 parent: None,
+                cwd: None,
             }),
         )
         .await;

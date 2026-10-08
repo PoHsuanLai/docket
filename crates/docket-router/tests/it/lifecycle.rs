@@ -226,6 +226,7 @@ async fn open_in(router: &Router<Rig>) -> SessionOpened {
                 space: space("work"),
                 agent: AgentRef::Companion,
                 parent: None,
+                cwd: None,
             }),
         )
         .await

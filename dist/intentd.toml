@@ -11,7 +11,10 @@
 [roles]
 launcher = ["org.quire.Shell"]
 cli = ["org.quire.Do"]
-companion = ["org.quire.Companion1"]
+companion = ["org.quire.Companion1", "org.quire.Acp"]
+# docket-acp (an editor drives the companion over ACP; off unless agent.acp.expose = "on") opens
+# sessions and records the editor's turns as an editor, and its planner calls as the companion.
+editor = ["org.quire.Acp"]
 reader = ["org.quire.Reader1"]
 cua = ["org.quire.Cua1"]
 mcp = ["org.quire.ActionsMcp"]

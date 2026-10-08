@@ -51,6 +51,7 @@ fn open_run(run: &RunId) -> IntentsRequest {
         space: space("work"),
         agent: AgentRef::Cua { run: run.clone() },
         parent: None,
+        cwd: None,
     })
 }
 
@@ -85,6 +86,7 @@ async fn cuad_opens_a_run_and_nothing_else_and_a_run_has_one_session() {
                 space: space("work"),
                 agent,
                 parent: None,
+                cwd: None,
             }),
         )
         .await;

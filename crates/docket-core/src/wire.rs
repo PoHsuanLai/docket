@@ -369,6 +369,12 @@ pub enum IntentsRequest {
         /// The session.
         session: SessionId,
     },
+    /// `.Session.Stored`: the durable log of sessions, for an edge that lists, loads or forks
+    /// them. The router answers only for sessions the caller may bring back.
+    SessionStored {
+        /// What to read.
+        ask: StoredAsk,
+    },
     /// `.Message.Send`.
     MessageSend {
         /// The session the sender speaks from.
@@ -437,6 +443,47 @@ pub struct Resolved {
     pub label: prov::Label,
 }
 
+/// What `.Session.Stored` is asked.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+pub enum StoredAsk {
+    /// The sessions the caller may bring back, oldest first.
+    List,
+    /// One session's rows from a position, at most `size`.
+    Rows {
+        /// The session.
+        session: SessionId,
+        /// The position to start from (the first row when none).
+        from: Option<u64>,
+        /// How many rows at most.
+        size: u32,
+    },
+}
+
+/// One row of a stored session: its position and its body, which `docket-session` writes and reads.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoredRow {
+    /// The position.
+    pub seq: u64,
+    /// The row as JSON.
+    pub json: String,
+}
+
+/// What `.Session.Stored` answers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+pub enum StoredView {
+    /// The sessions.
+    Sessions(Vec<SessionId>),
+    /// A page of rows.
+    Rows {
+        /// The rows, oldest first.
+        rows: Vec<StoredRow>,
+        /// Where the next page starts; none at the end.
+        next: Option<u64>,
+    },
+}
+
 /// Every reply of `org.quire.Intents1`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
@@ -477,6 +524,8 @@ pub enum IntentsReply {
     Recalled(RecallView),
     /// What a session holds by handle: shape, source and size, never the content.
     Handles(Vec<HandleCard>),
+    /// What the durable log of sessions holds.
+    Stored(StoredView),
     /// A message was delivered.
     Delivered(Delivery),
     /// Messages that wait.

@@ -6,7 +6,7 @@ use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
 use docket_core::{
     HandleCard, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, RecallAsk, RecallView, Reveal,
-    TaskPolicy, UserTurn, Value,
+    StoredAsk, StoredView, TaskPolicy, UserTurn, Value,
 };
 use prov::SessionId;
 
@@ -25,6 +25,16 @@ impl<T: Transport> Intents<T> {
                 _ => None,
             },
         )
+        .await
+    }
+
+    /// The durable log of sessions (`Session.Stored`): the sessions the caller may bring back, or
+    /// a page of one session's rows.
+    pub async fn session_stored(&self, ask: StoredAsk) -> Result<StoredView, ClientError> {
+        self.ask(IntentsRequest::SessionStored { ask }, |r| match r {
+            IntentsReply::Stored(view) => Some(view),
+            _ => None,
+        })
         .await
     }
 

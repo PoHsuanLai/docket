@@ -164,6 +164,9 @@ pub enum HostFault {
     /// The session could not be exported.
     #[error("the session cannot be exported: {0}")]
     Export(#[from] crate::export::ExportFault),
+    /// No open sheet by that id.
+    #[error("no such sheet")]
+    Desk(#[from] crate::desk::DeskFault),
 }
 
 /// The registry of sessions: it writes the log, owns the backends, and answers the edges (the

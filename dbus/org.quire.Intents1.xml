@@ -127,6 +127,10 @@
      <arg name="options" type="a{sv}" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="Stored">
+     <arg name="ask" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
  </interface>
  <interface name="org.quire.Intents1.Message">
    <method name="Send">

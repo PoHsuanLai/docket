@@ -115,6 +115,7 @@ async fn the_restart_reads_the_records_through_the_router_and_finds_the_front_ta
             space: space("work"),
             agent: prov::AgentRef::Companion,
             parent: None,
+            cwd: None,
         })
         .await
         .expect("a session to read through")

@@ -46,6 +46,9 @@ RULES=(
   # HTTP, Cedar or toml; and nothing that links a sandbox library.
   "docket-shell: $EFFECTS toml landlock libseccomp"
   "docket-inapp: $NO_CEDAR"
+  # The docket-acp process: the router and the companion hosted in it, over the bus (zbus, tokio) and
+  # nothing else of the desktop.
+  "docket-acp-bin: reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp"
   # The models, the quarantined reader and the memory seam are portable too (moved out of
   # intentd and readerd): they ask any porter-client or almanac-client Transport, never a bus or
   # a runtime; almanac-client hosts its service only behind `in_process` (a dev-dependency here)
@@ -146,14 +149,15 @@ EDGES=(
   "companion-wire: almanac-core docket-core porter-core porter-infer prov"
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
-  "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-skills porter-client porter-core porter-infer prov"
+  "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-session docket-skills porter-client porter-core porter-infer prov"
   "docket-session: companion-wire docket-core porter-core prov"
   "docket-acp: companion-wire docket-core docket-session docket-settings docket-shell porter-core prov"
   "docket-shell: docket-core"
+  "docket-acp-bin: docket-acp docket-client docket-core docket-dbus docket-planner docket-router docket-tasks porter-core prov"
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
   "docket-memory: almanac-client almanac-core docket-core docket-router docket-session porter-core prov"
-  "docket-inapp: action-review agent-loop almanac-core companion-wire docket-client docket-core docket-memory docket-models docket-planner docket-reader docket-router docket-skills docket-tasks policy-point porter-client porter-core prov"
+  "docket-inapp: action-review agent-loop almanac-core companion-wire docket-client docket-core docket-memory docket-models docket-planner docket-reader docket-router docket-session docket-skills docket-tasks policy-point porter-client porter-core prov"
   "docket-dbus: docket-core porter-client porter-core porter-dbus porter-infer prov"
   "docket-client: docket-core docket-dbus docket-router prov"
   "docket-fake: action-review almanac-core docket-client docket-core docket-router docket-session policy-point porter-core prov"
@@ -163,7 +167,7 @@ EDGES=(
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-session docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
   "companiond: companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills docket-tasks porter-client porter-core prov"
   "readerd: docket-client docket-core docket-dbus docket-reader porter-client porter-core porter-infer prov"
-  "docket-accept: action-review almanac-client almanac-core companion-wire companiond docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-router docket-testbus intentd porter-client porter-core porter-infer prov readerd"
+  "docket-accept: action-review almanac-client almanac-core companion-wire companiond docket-acp docket-acp-bin docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-router docket-testbus intentd porter-client porter-core porter-infer prov readerd"
   "companion-client: companion-wire docket-client docket-core docket-dbus prov"
   "docket-cli: companion-client companion-wire docket-client docket-core docket-skills model-provider porter-core prov"
   "docket-settings: docket-core porter-core"

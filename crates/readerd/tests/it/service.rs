@@ -79,6 +79,7 @@ async fn world() -> (Arc<Router<docket_fake::FakeSeams>>, SessionId, Vec<Handle>
                 space: SpaceId::parse("work").expect("space"),
                 agent: AgentRef::Companion,
                 parent: None,
+                cwd: None,
             }),
         )
         .await;

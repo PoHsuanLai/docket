@@ -2087,11 +2087,8 @@ What landed, and what it leaves for other lanes.
 Deferred, each closed by the work named:
 
 - **Allow-always for the editor** is wired, see "Allow always for an editor (acp-always)" below.
-- **The binary has no host.** `SessionHost` has no real implementation yet (the native backend over
-  the router is S2), so `docket-acp` with the setting on exits 1 with "no session host". The tests
-  drive `Server` with `docket_session::fake_host::FakeHost` (scripted `FakeBackend`s over a shared
-  `MemoryLog`). Closed by the S2 host.
-- **Contract the real host must keep:** `next_event` is cancel-safe (the server races it against the
+- **The binary has no host.** Closed by "native-backend" below (the process is now `docket-acp-bin`).
+- **Contract the real host must keep (kept and tested by native-backend):** `next_event` is cancel-safe (the server races it against the
   editor's lines) and a backend does not dispatch a call until the event after `Started` is pulled,
   so the editor's reject (which cancels the host) can stop the call before it runs. The fake host
   satisfies both trivially; the native backend must be written to it.
@@ -2221,3 +2218,85 @@ command outside the sandbox.
   allowlist; `Effect::Execute` in porter; the settings page for terminal grants (the generic
   standing-grant list already shows them); the S4 dispatch and the `agent-reported` records; a
   hostile-corpus case for `terminal/create` with `curl | sh`.
+
+## native-backend: the planner loop behind SessionBackend (S2)
+
+`docket-tasks` now holds `NativeBackend` and `NativeHost`, and `docket-acp-bin` is the `docket-acp`
+process with a real host.
+
+**What landed.**
+- `Tap` (docket-tasks): the drive loop's one seam to whoever reads a turn. `Companion::run` is
+  `run_tapped` with `NoTap`; the backend runs the same loop with a `ChannelTap`. There is one loop,
+  not two: companiond's `TaskRuntime` and the backend step the same machine, the same effects.
+- `NativeBackend`: one session's turns on a shared `Companion` (`Core`, a futures mutex held for a
+  turn, as companiond's lock is). A turn is a `Flight`: the loop as a stored boxed future plus two
+  channels. **`next_event` is cancel-safe** because a pull's own future holds nothing: it polls the
+  stored loop and reads the channel, and a dropped pull leaves both where they were.
+  **A call is announced (`Started`), then waits at the gate until the pull after the one that
+  returned `Started`**; `cancel` before that pull makes the gate answer `Stop`, so the call is never
+  made and the turn ends `Cancelled`. A cancel while a call or the model is in flight is heard
+  between effects (the flag `Answer.Cancel` already uses); a model that hangs is not interrupted.
+- `NativeHost`: open (the router's `Session.Open`, with `cwd`), resume (the plan from the log, the
+  router restoring its record when a request names the session, a `TaskRuntime` rebuilt from the plan:
+  turns, history, interrupted calls, the breaker's pause), turn (the router records and numbers it),
+  next_event, cancel, close, fork (the child's first entries appended to the log under `<session>-f<n>`,
+  never an `s-<n>` name, restored by the router on use) and export. The router writes a native session's
+  log itself, so the host appends nothing to a session that runs. A finished task takes another turn
+  (`reopen`), so an editor session has many prompts; later turns leave no extra episode (the router
+  ended the task at the first).
+- `SheetDesk` / `NoDesk` (docket-session) and `EditorDesk` (docket-inapp): the host turns a
+  `NeedsYou(Confirm(id))` into `BackendEvent::Sheet` when its desk holds the request, and
+  `answer_sheet` goes to the desk; `EditorDesk` is a `ConfirmSheet`, so `SheetConfirmer` builds the
+  answer and the receipt, and now honours an `Always` where the request offered a scoped grant.
+- `docket_session::contract` (`Harness`): the rules every backend keeps, run against `FakeBackend`
+  (docket-session) and `NativeBackend` (docket-tasks): a turn's events, a stop before the next pull
+  stops the call, a call waits for the pull after its announcement, a dropped pull loses and repeats
+  nothing (the native harness stalls every planner answer once, so there is a pending pull to drop).
+- **`Session.Stored`** (new `Intents1` member; roles launcher, editor, companion): the log read
+  through the router. memoryd answers log reads for the router and the shell only (acceptance showed
+  `NotAllowed` for the editor's process), so `RouterLog` (docket-tasks) is the editor host's
+  `SessionLog`. The router lists and pages only the sessions the caller `may_restore`; anything else is
+  answered as a session the log does not hold. `SessionOpen.cwd` (`Workspace` moved to docket-core)
+  carries the editor's directory into the `Opened` entry, which S3's load and list read.
+- **`docket-acp-bin`**: the process. It owns the bus name `org.quire.Acp`; `dist/intentd.toml` lists
+  it as an `editor` and a `companion`. One identity plays both because the router's role table gives
+  the editor open/turn/close/stored and the companion everything the planner calls. Deployment
+  consequence to read: whoever may own that name on the session bus gets the companion's
+  calls inside sessions that name an editor turn. It is off unless `agent.acp.expose` is on, and the
+  name is the same one the router sees as the editor's app (the edge's `may_restore` check and the
+  `TurnSource` use it; the old `--app` argument is gone).
+- Router: an editor may close and record turns only in sessions its own app opened (it could close
+  any before).
+
+**Tests** (scripted, no network, no wall clock): `docket-tasks/tests/it/{contract,native}.rs` (the
+contract on the native backend; a turn recorded by the router; an editor's reject means the fake
+app's call log is empty and the log has no `Call`; a restart over the same log resumes with the history
+and the planner is shown it; fork and export; a sheet reaches the edge as `Sheet` and its answer goes
+to the desk); `docket-session/tests/it/contract.rs`; `docket-router/tests/it/stored.rs`;
+`docket-inapp` desk unit tests; `docket-accept/tests/it/acp.rs`: `docket-acp` as a process on the
+private bus beside the real intentd, memoryd, inferd (a cassette) and the mail provider, spoken to by
+a scripted editor: initialize, new, prompt, a permission round, done; an editor's reject (the mail
+app's call log shows no forward, no sheet, no message); and the same two-turn session with and without a
+restart of the host between the turns, with `session/load` replaying the first turn and the second
+turn's updates and the app's calls equal in both.
+
+**Deferred, and why.**
+- **companiond is not behind `SessionHost`.** It shares the loop (`Tap`) but its task model, roster and
+  front pointer still rebuild after a restart from the old `companion.session.*` notes (`recover`),
+  and its lock is tokio's, `NativeHost`'s a futures mutex. Moving the roster to `Session.Stored` and
+  the lock across is the next lane; `Session.Stored` is the member it needed.
+- **Sheets for an editor session over the bus.** The router in intentd asks sill's `Confirm1`; no
+  confirmer there hands a request to the editor's host, so `LiveHost` uses `NoDesk` and the editor is
+  told "waiting on the desktop" (the S3 behaviour). `EditorDesk` is the in-process half: an
+  `InAppAgent`-style router can route an editor session's sheets to it today. The bus half needs a
+  `Confirm1` server for the acp process that intentd's confirmer prefers for editor sessions.
+- **quire-do / the shell: list, load, fork.** The host side and the router member exist; a `quire-do
+  sessions` needs the `cli` role on `Session.Stored` and a renderer. Not built.
+- **A cancel does not interrupt a call or a model in flight**, and the router's pending sheet for
+  it is withdrawn only when the router drops the watch; the S3 note on withdrawing confirmations stands.
+- **The ACP host's roster** is its own companion's: an editor session shows on no other surface's
+  roster. Its legacy `Session.Note` records are still written (companiond reads them after a
+  restart and would show the editor's task on the roster).
+- `Reseeded` (a stored session whose router record cannot be restored) is not built: such a
+  session fails to resume.
+

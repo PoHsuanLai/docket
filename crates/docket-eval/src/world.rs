@@ -151,6 +151,7 @@ fn open<S: Rig>(
             space: in_space.clone(),
             agent,
             parent: None,
+            cwd: None,
         }),
     ));
     match reply {

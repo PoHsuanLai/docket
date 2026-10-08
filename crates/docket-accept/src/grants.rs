@@ -9,13 +9,26 @@ use prov::{SpaceId, SpaceScope, UnixSeconds};
 /// The grants of the companion for Mail's classes (`mail`, `contacts`) in `space`, for
 /// interactive use, as the JSON intentd reads.
 pub fn standing_json(space: &str) -> String {
-    let grants: Vec<docket_core::ActionGrant> = [DataClass::Mail, DataClass::Contacts]
+    // An editor's session asks under the editor's own name (the app behind its connection), and
+    // opens in the desktop Space: the same consent, given to it.
+    let editor = GrantCaller::Editor(prov::ClientName::parse("org.quire.Acp").expect("client"));
+    let holders = [
+        (GrantCaller::Companion, space),
+        (editor.clone(), space),
+        (editor, "desktop"),
+    ];
+    let grants: Vec<docket_core::ActionGrant> = holders
         .into_iter()
+        .flat_map(|(caller, space)| {
+            [DataClass::Mail, DataClass::Contacts]
+                .into_iter()
+                .map(move |class| (caller.clone(), space, class))
+        })
         .enumerate()
-        .map(|(n, class)| Grant {
+        .map(|(n, (caller, space, class))| Grant {
             id: GrantId::parse(&format!("accept-{n}")).expect("grant id"),
             key: ActionGrantKey {
-                caller: GrantCaller::Companion,
+                caller,
                 owner: AppName::parse("org.quire.Mail").expect("app"),
                 target: GrantTarget::App,
                 class,

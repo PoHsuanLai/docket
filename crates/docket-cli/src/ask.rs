@@ -151,6 +151,7 @@ async fn run<T: Transport, C: CompanionTransport>(
         space,
         agent: AgentRef::Companion,
         parent: None,
+        cwd: None,
     };
     let opened = companion.open(&open).await.map_err(|e| unavailable(&e))?;
     let id = turn(intents, &opened.session, text).await?;

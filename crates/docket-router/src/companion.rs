@@ -123,6 +123,7 @@ impl<S: Seams> Router<S> {
                     task: worker.clone(),
                 },
                 parent: Some(parent.clone()),
+                cwd: None,
             },
         );
         let IntentsReply::SessionOpened(SessionOpened {

@@ -27,6 +27,9 @@ pub enum Say {
     Routed(Vec<InferEvent>, Box<Say>),
     /// Ends in a refusal, which a `Declined` event just before it explains.
     Refuse(InferRefusal),
+    /// The inner reply, after the model has been waited on once: a pull of the planner's answer
+    /// is pending on its first poll.
+    Late(Box<Say>),
 }
 
 /// Words only.
@@ -96,6 +99,26 @@ pub struct ScriptedSession {
     inner: ScriptedInfer,
     ready: VecDeque<InferEvent>,
     hang: bool,
+    late: bool,
+}
+
+/// Pending once, then ready.
+struct Once(bool);
+
+impl std::future::Future for Once {
+    type Output = ();
+
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<()> {
+        if self.0 {
+            return std::task::Poll::Ready(());
+        }
+        self.0 = true;
+        cx.waker().wake_by_ref();
+        std::task::Poll::Pending
+    }
 }
 
 pub fn served() -> ServedBy {
@@ -143,9 +166,18 @@ impl InferSession for ScriptedSession {
         let mut inner = self.inner.0.lock().expect("lock");
         inner.asked.push(request);
         let mut next = inner.script.pop_front();
-        while let Some(Say::Routed(events, then)) = next {
-            self.ready.extend(events);
-            next = Some(*then);
+        loop {
+            match next {
+                Some(Say::Routed(events, then)) => {
+                    self.ready.extend(events);
+                    next = Some(*then);
+                }
+                Some(Say::Late(then)) => {
+                    self.late = true;
+                    next = Some(*then);
+                }
+                _ => break,
+            }
         }
         match next {
             Some(Say::Reply(text, calls)) => self.ready.push_back(reply(text, calls)),
@@ -160,7 +192,7 @@ impl InferSession for ScriptedSession {
                 .ready
                 .push_back(InferEvent::Finished(InferReply::Refused(why))),
             Some(Say::Hang) => self.hang = true,
-            Some(Say::Routed(..)) | None => return Err(SessionError::Closed),
+            Some(Say::Routed(..) | Say::Late(_)) | None => return Err(SessionError::Closed),
         }
         Ok(())
     }
@@ -168,6 +200,9 @@ impl InferSession for ScriptedSession {
     async fn next(&mut self) -> Result<InferEvent, SessionError> {
         if self.hang {
             std::future::pending::<()>().await;
+        }
+        if std::mem::take(&mut self.late) {
+            Once(false).await;
         }
         self.ready.pop_front().ok_or(SessionError::Closed)
     }
@@ -191,6 +226,7 @@ impl Transport for ScriptedInfer {
             inner: self.clone(),
             ready: VecDeque::new(),
             hang: false,
+            late: false,
         })
     }
 }

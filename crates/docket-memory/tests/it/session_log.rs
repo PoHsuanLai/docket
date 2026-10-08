@@ -354,6 +354,7 @@ async fn a_session_is_restored_from_almanac_after_the_router_is_dropped() {
                 space: work(),
                 agent: AgentRef::Companion,
                 parent: None,
+                cwd: None,
             }),
         )
         .await

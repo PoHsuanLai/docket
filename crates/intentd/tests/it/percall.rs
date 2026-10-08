@@ -213,6 +213,7 @@ async fn desk(answers: usize) -> Desk {
                 space: SpaceId::parse("work").expect("space"),
                 agent: AgentRef::Companion,
                 parent: None,
+                cwd: None,
             }),
         )
         .await;

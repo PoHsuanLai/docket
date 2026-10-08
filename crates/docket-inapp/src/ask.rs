@@ -78,6 +78,7 @@ where
                 space: self.space.clone(),
                 agent: AgentRef::Companion,
                 parent: None,
+                cwd: None,
             })
             .await?;
         Ok(opened.task)

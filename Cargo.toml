@@ -14,6 +14,7 @@ members = [
   "crates/docket-session",
   "crates/docket-acp",
   "crates/docket-shell",
+  "crates/docket-acp-bin",
   "crates/docket-models",
   "crates/docket-reader",
   "crates/docket-memory",
@@ -61,6 +62,7 @@ docket-tasks   = { path = "crates/docket-tasks" }
 docket-session = { path = "crates/docket-session" }
 docket-acp     = { path = "crates/docket-acp" }
 docket-shell   = { path = "crates/docket-shell" }
+docket-acp-bin = { path = "crates/docket-acp-bin" }
 docket-models  = { path = "crates/docket-models" }
 docket-reader  = { path = "crates/docket-reader" }
 docket-memory  = { path = "crates/docket-memory" }
@@ -120,6 +122,7 @@ zbus = { version = "5.19", default-features = false, features = ["tokio"] }  # s
 toml = "1"
 # voiced's audio device (spike V-A): MIT, safe wrapper over libpipewire; needs libclang to build.
 pipewire = "0.10"
+futures-channel = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 clap = { version = "4", features = ["derive"] }
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).

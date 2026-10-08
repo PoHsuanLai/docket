@@ -21,6 +21,7 @@ mod sessions;
 mod shell_defaults;
 mod standing;
 mod standing_editor;
+mod stored;
 mod support;
 mod tasks;
 mod terminal;
