@@ -62,6 +62,11 @@ pub struct BwrapSandbox {
 }
 
 impl BwrapSandbox {
+    /// The `bwrap` program this sandbox runs.
+    pub fn program(&self) -> &Path {
+        &self.program
+    }
+
     /// Finds `bwrap` in the `:`-separated `path` and checks that the kernel lets it make the
     /// namespaces (one throwaway run). Reads no environment: the caller passes the search path.
     pub fn detect(path: &str) -> Result<Self, CannotSandbox> {

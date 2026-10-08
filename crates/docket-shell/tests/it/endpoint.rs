@@ -37,7 +37,7 @@ fn run_in_sandbox(program: &Path, net: AgentNet, cwd: &Path, script: &str) -> Op
     let out = Command::new(program)
         .args(agent_bwrap_args(&run, &present_hidden()))
         .env_clear()
-        .env("PATH", "/usr/bin:/bin")
+        .envs(run.env.iter().map(|v| (&v.name, &v.value)))
         .stdin(Stdio::null())
         .stderr(Stdio::null())
         .output()

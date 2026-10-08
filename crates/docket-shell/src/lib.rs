@@ -18,6 +18,7 @@ mod bwrap;
 mod bwrap_job;
 mod env;
 pub mod fake;
+#[cfg(unix)]
 pub mod forward;
 mod net;
 mod output;

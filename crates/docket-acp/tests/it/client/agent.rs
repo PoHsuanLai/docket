@@ -274,3 +274,8 @@ pub fn agent(turns: Vec<Vec<Act>>) -> (ChannelWire, View) {
     tokio::spawn(run(far, view.clone(), turns.into()));
     (client, view)
 }
+
+/// The parameters of a `fs/read_text_file` for `path` in the agent's session.
+pub fn read(path: &str) -> Value {
+    json!({"sessionId": AGENT_SESSION, "path": path})
+}

@@ -34,8 +34,8 @@ fn with_no_network_the_namespace_is_new_and_nothing_is_shared() {
     assert!(has(&args, &["--unshare-all"]));
     assert!(!args.iter().any(|a| a == "--share-net"));
     assert!(has(&args, &["--cap-drop", "ALL"]));
-    assert!(has(&args, &["--clearenv"]));
-    assert!(has(&args, &["--setenv", "HOME", "/home/u"]));
+    // The environment is not in the arguments, so a key in it is not on a command line.
+    assert!(!args.iter().any(|a| a == "--setenv" || a == "/home/u"));
     assert!(has(&args, &["--bind", "/work/project", "/work/project"]));
     assert!(has(&args, &["--tmpfs", "/home"]));
     assert_eq!(args.last().map(String::as_str), Some("--stdio"));

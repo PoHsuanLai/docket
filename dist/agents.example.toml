@@ -1,0 +1,43 @@
+# Agent programs docket may run as session backends (acp-sessions.md S4). Copy to
+# ~/.config/docket/agents.toml, fix the paths, and switch it on with
+#
+#   [agent.acp]
+#   agents = "on"
+#
+# in ~/.config/docket/settings.toml. Nothing starts while that setting is off or the program is
+# not listed here. Paths must be absolute.
+
+# Claude Code through its ACP adapter, signed in the way you sign it in today (a subscription or
+# its own key): docket gives it no key and never reads its login. The network is the host's,
+# because this agent has to reach its provider; that is weaker than the endpoint route below and
+# is on only because this entry says so.
+[[agent]]
+program = "claude-code"
+command = "/home/me/.local/bin/claude-agent-acp"
+route = "login"
+network = "host"
+# Where the program is installed (read-only), and its own login and settings (read-write).
+reads = ["/home/me/.local/share/node"]
+state = ["/home/me/.claude", "/home/me/.claude.json"]
+home = "/home/me"
+# The agent's own login, run where you can see it (a terminal), when the Settings app asks.
+login = ["konsole", "-e", "claude", "login"]
+
+# The same program with inferd as its model (an API-key account in accountd): the agent gets a
+# base URL and a per-session token, the real key stays in porter, and the only network it has is
+# that endpoint. Use one entry or the other for a program name.
+#
+# [[agent]]
+# program = "claude-code"
+# command = "/home/me/.local/bin/claude-agent-acp"
+# route = "endpoint"
+# network = "endpoint_only"
+# key_env = "ANTHROPIC_API_KEY"
+# base_url_env = "ANTHROPIC_BASE_URL"
+# protocol = "anthropic_messages"
+# reads = ["/home/me/.local/share/node"]
+# state = ["/home/me/.claude", "/home/me/.claude.json"]
+# home = "/home/me"
+# [agent.endpoint]
+# kind = "account"
+# id = "anthropic-main"

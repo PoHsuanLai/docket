@@ -10,7 +10,6 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::thread::JoinHandle;
 
 /// Connections served at once, per listener. A flood waits in the kernel's queue.
 pub const MAX_LIVE: usize = 32;
@@ -129,12 +128,11 @@ impl Loopback {
 }
 
 /// The host side: a unix socket whose every connection goes to one loopback address. Dropping it
-/// closes the socket and removes the file.
+/// stops accepting and removes the socket file.
 #[derive(Debug)]
 pub struct Bridge {
     path: PathBuf,
     stop: Arc<AtomicBool>,
-    thread: Option<JoinHandle<()>>,
 }
 
 impl Bridge {
@@ -143,7 +141,9 @@ impl Bridge {
         let listener = UnixListener::bind(path)?;
         let stop = Arc::new(AtomicBool::new(false));
         let flag = stop.clone();
-        let thread = std::thread::spawn(move || {
+        // Detached: dropping the bridge wakes the thread and does not wait for it, so a bridge
+        // dropped after its directory was removed cannot hang the caller.
+        std::thread::spawn(move || {
             let live = Live::default();
             for incoming in listener.incoming() {
                 if flag.load(Ordering::SeqCst) {
@@ -163,7 +163,6 @@ impl Bridge {
         Ok(Self {
             path: path.to_owned(),
             stop,
-            thread: Some(thread),
         })
     }
 }
@@ -173,9 +172,6 @@ impl Drop for Bridge {
         self.stop.store(true, Ordering::SeqCst);
         // A connection wakes the blocked accept so the thread sees the flag.
         let _ = UnixStream::connect(&self.path);
-        if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
-        }
         let _ = std::fs::remove_file(&self.path);
     }
 }

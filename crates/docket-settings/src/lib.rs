@@ -13,7 +13,7 @@ mod tests;
 
 use docket_core::AgentConfig;
 
-pub use expose::{AcpExpose, McpExpose};
+pub use expose::{AcpAgents, AcpExpose, McpExpose};
 pub use locate::Locator;
 pub use read::{Fallback, Loaded, Why, read};
 
@@ -41,6 +41,8 @@ pub struct AgentSettings {
     pub expose: McpExpose,
     /// `agent.acp.expose`.
     pub acp: AcpExpose,
+    /// `agent.acp.agents`.
+    pub agents: AcpAgents,
 }
 
 impl AgentSettings {
@@ -50,6 +52,7 @@ impl AgentSettings {
             agent,
             expose: McpExpose::Off,
             acp: AcpExpose::Off,
+            agents: AcpAgents::Off,
         }
     }
 }

@@ -6,7 +6,8 @@
 //! What the agent gets: the host read-only; `/home`, `/root`, `/run`, `/tmp` and the like empty;
 //! the session's working directory writable; each extra bind the person's config names for this
 //! program (its own program directory read-only, its own login and state directory read-write);
-//! the network per `NetworkMode`; a cleared environment that is exactly what the caller passes;
+//! the network per `NetworkMode`; an environment that is exactly what the caller passes (set on
+//! the bubblewrap process, never in its arguments, so a key is not on a command line);
 //! no capabilities; a new session; death with its parent.
 
 use crate::bwrap::HIDDEN;
@@ -44,7 +45,10 @@ pub struct AgentRun {
     pub argv: Argv,
     /// The session's working directory, writable.
     pub cwd: AbsPath,
-    /// The whole environment (already built); nothing else is inherited.
+    /// The whole environment (already built). It is not in the arguments: a command line is
+    /// readable by every process of the user, a process's environment only by its owner. The
+    /// caller starts bubblewrap with exactly this environment and nothing else
+    /// (`env_clear`, then these), and bubblewrap passes it on.
     pub env: Vec<EnvVar>,
     /// The network.
     pub net: AgentNet,
@@ -85,10 +89,7 @@ pub fn agent_bwrap_args(run: &AgentRun, hidden: &[&str]) -> Vec<String> {
         args.extend([flag, path, path].map(str::to_owned));
     }
     let cwd = run.cwd.as_str();
-    args.extend(["--bind", cwd, cwd, "--chdir", cwd, "--clearenv"].map(str::to_owned));
-    for var in &run.env {
-        args.extend(["--setenv".to_owned(), var.name.clone(), var.value.clone()]);
-    }
+    args.extend(["--bind", cwd, cwd, "--chdir", cwd].map(str::to_owned));
     if let AgentNet::Endpoint(bind) = &run.net {
         args.extend([
             "--ro-bind".to_owned(),

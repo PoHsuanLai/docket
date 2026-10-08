@@ -2225,7 +2225,7 @@ command outside the sandbox.
   missing or the kernel refuses namespaces), `docket-acp` (`Terminals` against the schema).
 - **Deferred.** Landlock backend; resource limits (rlimits, a cgroup, a wall-clock limit); a network
   allowlist; `Effect::Execute` in porter; the settings page for terminal grants (the generic
-  standing-grant list already shows them); the S4 dispatch and the `agent-reported` records; a
+  standing-grant list already shows them); the S4 dispatch and the `agent-reported` records (closed by "acp-client" below); a
   hostile-corpus case for `terminal/create` with `curl | sh`.
 
 ## native-backend: the planner loop behind SessionBackend (S2)
@@ -2421,3 +2421,164 @@ list, the `docket-session` export document for `load`, and `{vocab, forked, sess
 - Tests: `docket-cli/tests/it/sessions.rs` (empty list, list and the opener rule, load, fork and its refusals, the
   grammar), `docket-router/tests/it/stored.rs` (the terminal's reads, the fork for the editor, another editor
   refused, a position past the end).
+
+## acp-client: an external agent as a session backend (S4)
+
+An external coding agent (Claude Code through its ACP adapter, Gemini CLI, any ACP agent) runs as a
+`SessionBackend`. Off by default: `agent.acp.agents = "off"` (`AcpAgents` in docket-settings, a schema row on the
+Advanced page), and the programs come from `agents.toml`. Two crates and one binary.
+
+**Layout.** `docket-acp` feature `client` (`src/client/`, no zbus): `AcpBackend` and its seams (`Spawn`, `Files`,
+`Ask`, `Sandbox`, `Ticks`, bundled in `Seams`), `Gatekeeper`, `confine`, `reported`, `fake`. `docket-shell`: the agent
+process's confinement (`AgentRun`, `agent_bwrap_args`, `NetworkMode`) and the forwarder and bridge (`forward`, the
+binary `docket-net-forward`). `docket-launch` (new, desktop extra): `agents.toml`, `Accounts` and `DbusAccounts`,
+`AgentSpawn`, `Supervisor`, the visible login, and the binary `docket-agent`.
+
+**How each request from the agent is handled.**
+- `initialize`, `session/new` are ours to send: `protocolVersion` 1 or the agent is refused; file read and write are
+  offered, `terminal` only when `Terminals::capabilities` says the sandbox is there; no elicitation, no auth
+  terminal; `mcpServers` is empty (the per-session MCP edge, design note D-3, is not built).
+- `fs/read_text_file`: the path must be absolute, without `..`, inside the session's directory, still inside after
+  links (`Files::real`), not a secret place (`.ssh`, `.gnupg`, `.aws`, `.kube`, `.password-store`, `.mozilla`,
+  `.netrc`, `.git-credentials`, `.pgpass`, `id_*`, `.config/{accountd,gcloud,chromium,google-chrome}`,
+  `.local/share/keyrings`), and again inside when `OsFiles` has the descriptor open (`/proc/self/fd`), which closes
+  the swapped-link race. No question is asked for a read (the router asks for none either); the session becomes
+  tainted (the content is untrusted text in the agent's hands). Bounded to 2 MiB, text only.
+- `fs/write_text_file`: the same path rules, then `Gatekeeper::write`: the breaker; a one-use approval from a permission
+  request the person already said yes to; a standing grant of this program that covers the directory; the person.
+  `.git`, `.claude`, `.vscode`, `.idea`, `.husky`, `.envrc`, shell rc files are `Sensitive`: they ask every time and
+  never offer "always" (a file there runs later outside the sandbox). The text replaced is kept (`undo_notes`,
+  256 per connection) for the undo journal; nothing connects them to the router's journal yet.
+- `terminal/*`: `Terminals` (S8) with `AsTerminal` as its `Decide`, the gate's posture (taint, breaker) before every
+  command, the grants shared both ways, and an approval from a permission request spent by `approve_once`.
+  `wait_for_exit` does not block: it is a waiter polled when the agent writes and every 50 ms while one is pending
+  (the one `tokio::time` use; no test reaches it), so the loop never blocks the runtime. `terminal/create` is
+  announced as a call and runs on the next pull; the other four methods answer at once.
+- `session/request_permission`: never auto-allowed and never answered with the agent's own "always". The tool's kind
+  maps to an effect (`names::effect`: read, search, think read; edit, move undoable write; execute, fetch outbound;
+  delete, switch_mode, other and anything unknown destructive); its locations are confined like `fs` paths (outside or
+  secret is refused without asking); execute goes through `rule_execute`; the rest through `may_offer` (destructive:
+  `NeverGrantable`; tainted plus outbound: `UntrustedIntoSink`). An allow is answered with the agent's `allow_once`
+  option, a refusal with its `reject_once`; with no such option, `cancelled`. Our "always" stores
+  `GrantCaller::AcpAgent(program)`'s standing grant and the agent is still told `allow_once`. A read or search request
+  is allowed without a question.
+- `elicitation/create`: declined. Any other method: method-not-found. A request for another session id: refused.
+- `session/update`: `agent_message_chunk` is `Words`; `agent_thought_chunk` is `Thought` (the ACP server drops it;
+  nothing reads it as the person's or as an instruction); `usage_update` is `Usage`; `tool_call` and its updates are
+  recorded as `acp.<program>.reported.<kind>` (`Started`, then `Ended`; an unfinished one ends `Interrupted` at the turn's
+  end), never dispatched, and a reported read, search, fetch, execute or other taints the session. `rawInput` and
+  `rawOutput` are never kept.
+- Turn end: `end_turn` is `Done`, `refusal` `Refused`, `cancelled` `Cancelled` (and any end after our cancel is
+  `Cancelled`), anything else `Failed`; a tripped breaker ends the turn `Paused` after `session/cancel`; the agent
+  going away ends it `Failed`. `resume` always starts a new agent session (the agent's own id is not in the log) and
+  answers `Reseeded`, with the stored taint.
+
+**The breaker.** Five denials in a row, or more than forty questions that reached the person in one turn, trip it:
+every later request is refused without a question, no "always" is offered, `session/cancel` is sent and the turn ends
+`Paused` until the person speaks (`FLOOD_MAX`, `DENIALS_MAX` in `client/breaker.rs`; `agent.breaker.*` is not read
+yet).
+
+**The sandbox and the network (R2).** The agent runs under bubblewrap (a separate process): host read-only, `/home`,
+`/run`, `/tmp` and the like emptied, the session's directory the one writable place, plus what the person's entry
+names: `reads` read-only (the program's install; its own directory is bound automatically) and `state` read-write
+(its login and settings, for example `~/.claude` and `~/.claude.json`), per program, never shared; no capabilities; new
+user, pid, ipc, uts, cgroup and network namespaces; `--die-with-parent`. A missing sandbox starts nothing
+(`ProcFault::NoSandbox`); there is no unconfined agent. The environment is built from nothing (`env::child_env`: `PATH`,
+`HOME`, `TMPDIR`, `LANG`, `TERM`, the entry's plain `set` variables, and the route's variables) and is set on the
+bubblewrap process, not in its arguments, so a key is never on a command line.
+- `NetworkMode::None` (the default): loopback only.
+- `NetworkMode::EndpointOnly`: built and tested for real (`docket-shell/tests/it/endpoint.rs` runs bubblewrap, the
+  forwarder and the bridge; it skips with a printed reason where namespaces are denied). Inside the namespace
+  (bubblewrap brings `lo` up) `docket-net-forward` listens on `127.0.0.1:<inferd's port>` and hands each connection to a
+  unix socket bind-mounted from a 0700 directory under `$XDG_RUNTIME_DIR`; outside, `Bridge` hands each connection to
+  `127.0.0.1:<port>` and nowhere else (`Loopback` accepts only IPv4 loopback). The agent sees an http base URL on its
+  own loopback; nothing else is reachable (a test shows the host's loopback listener is not). 32 connections at once
+  per side.
+- `NetworkMode::Host`: the host's network, unfiltered. **Weaker**: the agent can reach any address and send anything it
+  holds (its login, a handed-off key) anywhere. It is allowed only for the program whose entry says
+  `network = "host"`; an entry that needs it (a handoff, a subscription login) must say it, and `endpoint_only` or `none`
+  with those routes is refused at parse time. Never a silent fallback.
+- **Deferred: a provider-host allowlist** (pasta or slirp4netns as a separate GPL process, plus filtering) so a
+  subscription login or a provider key can have the internet without having all of it.
+- **The agent's own state directory is writable by the agent.** `state` binds exactly the paths the entry names and
+  nothing else; it can read and rewrite its own login there (that is the point) and so can anything it runs. With
+  `network = "host"` it can send it out. This is the cost of a subscription login under docket; the P4 route avoids it
+  (no state needed when the model is inferd, though the adapter may still want `~/.claude`).
+- The agent's stderr goes nowhere (it can hold anything). A deadline for an agent that stops answering is the host's:
+  `cancel`, then `close`, which kills the process (the backend has no clock).
+
+**Accounts (R3).** Routes in `agents.toml`: `endpoint` (default for a program that takes a base URL): inferd's
+`Agents.OpenEndpoint` gives host, port, base URL and a per-session token; the child gets `base_url_env` and `key_env`
+set to those (for Claude Code `ANTHROPIC_BASE_URL` and `ANTHROPIC_API_KEY`; whether the adapter wants
+`ANTHROPIC_AUTH_TOKEN` is unverified and is a config line); `CloseEndpoint` on close. `handoff` (P2) for a program that
+cannot take a base URL: `request_agent_grant` for the session, `issue_credential`, the key as `Value` (in the child's
+environment; porter's residual-risk note applies) or `File` (`<key_env>_FILE` names the tmpfs file, bound read-only;
+for programs that read such a variable, none known); `revoke_credential` on close. `login`: nothing from us; the agent
+signs itself in and docket never reads its state. The launcher's duties from porter's `credential` docs, and where
+each is tested (`docket-launch/tests/it/{launch,login,e2e}.rs`): key in the child only and after a cleared environment
+(`the_endpoint_route_...`, `a_handed_off_key_...`); a command line without the key (same tests scan
+`agent_bwrap_args`); revocation ends the process (`a_revocation_ends_the_process_...`, `Registry` and
+`Supervisor`); revoke on exit and on close, `CloseEndpoint`, `end_session` in the reverse order of lending, also when
+spawning fails half way and when the child is dropped without `close`; one child per credential (the registry maps a
+credential to one process); the session id mapped to `acp-<id>` or `acp-<fnv64 hex>` (`names`); `register` of the
+listed programs; login and logout requests run the entry's own command (outside the agent sandbox, stdio nowhere,
+exactly the environment the daemon hands in) and report only `Ready`, `Failed(reason)` from the closed set.
+- **Not done: a descriptor handed to the child.** `Delivery::File { child_fd }` with a memfd needs the child to inherit
+  an fd at a given number, which std offers only through `pre_exec` (unsafe, denied here). The `File` delivery uses
+  porter's tmpfs-file handoff instead (no descriptor to pass). A safe fd-mapping facility would let a memfd be used.
+- **Not done: the real accountd and inferd in a test.** `DbusAccounts` compiles and maps the porter-client and
+  porter-dbus calls one to one; it is exercised only by the owner-run check. The tests use `FakeAccounts` behind the
+  `Accounts` seam (the notes in the task allowed that).
+
+**The gate is `Gatekeeper`, not the router.** There is no files app and `Who::grant_caller` never returns
+`AcpAgent`, so an agent's `fs` calls do not yet reach the router as intent calls (no `Session.Open` for the agent, no
+router audit line, no router breaker). `Gatekeeper` applies the same typed rules (`may_offer`, `rule_execute`,
+`find_standing`, the same `StandingGrant`s) and keeps its own audit (`take_audit`) and breaker. Bridging it to the router
+is the next lane: an `acp.<program>.*` manifest, the actor, and `GrantStore` for the grants (today they live in the
+backend, and `docket-agent` writes them to `$XDG_DATA_HOME/docket/acp-agent-grants.json`, which Settings does not list).
+Also not wired: the sheet. `Ask` is the seam; the host's implementation (the desktop's sheet or the editor's
+permission prompt) is the lane that hosts `AcpBackend` behind a `SessionHost`.
+
+**Costs worth knowing.**
+- Taint is session-wide: after any file is served or the agent reports a read, fetch or execute, an execute asks and
+  offers no "always" (`UntrustedIntoSink`), and so does any fetch. Edits keep their "always". This is the router's rule
+  applied literally; if it makes the live check tedious, narrowing it (taint by path, or only content the agent then
+  uses in a command) is an owner decision.
+- The agent can write its own `.claude` or `.git/hooks` inside the project only through us (asks every time) but,
+  being sandboxed with the project writable, its own tools can write there directly (finding S8 (4)). The point of
+  the gated mode is the calls that come through us; the sandbox is the boundary for the rest.
+- `OsFiles` creates a missing file before it checks where it landed; the name check already refused every path that
+  resolves outside, so this only matters if a link is swapped in the microseconds between.
+- Model route and the agent's own tools: with `endpoint_only` the agent cannot reach a web search or a package
+  registry; most coding agents want some. That is why `host` exists as an explicit, per-program, written choice.
+
+**Hostile corpus** (`docket-acp/tests/it/client/hostile.rs`; each test carries its why): writes outside the directory
+by name, traversal, a link, and by relative path; secrets and `.git/hooks` (asks twice, no grant from an "always");
+a grant for `echo` does not cover `echo hi; rm ...` or `sh -c "curl | sh"`; a flood of permission requests with a
+person who says no (breaker at five) and with one who says yes (breaker past forty); a thought that claims the user said
+allow; tool results the agent claims (recorded, nothing runs); an agent that offers only `allow_always`; unknown
+methods, a wrong session id, elicitation; "always" offered only where the rules allow. Real links under a scratch
+directory: `client/osfiles.rs`. Conformance: `client/schema.rs` validates every message both ways against the
+protocol-v1 schema kept for the server's tests. The contract: `client/contract.rs` runs docket-session's
+backend contract on `AcpBackend` (a dropped pull loses and repeats nothing; a call waits for the pull after its
+announcement; a stop before it means it never runs).
+
+**Owner-run check for Claude Code (R6).**
+1. Install the ACP adapter for Claude Code (the adapter's own instructions) and sign Claude Code in as you do now.
+2. `~/.config/docket/settings.toml`: `[agent.acp]` `agents = "on"`.
+3. `~/.config/docket/agents.toml`: see `dist/agents.example.toml`; fill in your paths.
+4. Subscription login first (no key from us): `route = "login"`, `network = "host"`, `state = ["~/.claude", ...]` written
+   out as absolute paths. Then `docket-agent claude-code --cwd ~/some/scratch/project` (build with
+   `cargo build -p docket-launch --features dbus`; the `docket-net-forward` binary must sit beside it).
+5. Expect a prompt on the terminal for each file write, command and permission request, naming what the agent wants and
+   its own words as data; `y` once, `a` always when offered. A write outside the project or a secret path is refused
+   without a prompt. `Ctrl-D` closes the session; the process is killed and nothing it was lent remains.
+6. Second check, once inferd's agent endpoints and an Anthropic API-key account exist: `route = "endpoint"`,
+   `network = "endpoint_only"`; watch accountd's launcher session open and close.
+
+**Deferred.** The router bridge and the sheet (above); the per-session MCP edge (D-3) and `mcpServers`; a provider-host
+network allowlist; Landlock; resource limits for the agent process; a safe fd handoff; `session/load` or `resume` of the
+agent's own session; `agent.breaker.*` for the client breaker; the second test agent (agy, R7); a fuzz target on the
+agent's JSON-RPC lines; an undo-journal row for an agent's write; Windows and macOS (the client edge, the agent
+confinement and the forwarder are Linux-only; the portable set is unchanged and builds without them).
+

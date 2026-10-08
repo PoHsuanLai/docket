@@ -96,6 +96,7 @@ fn resolve(path: &Path) -> Result<PathBuf, FileFault> {
 }
 
 /// Whether the open descriptor still points inside `within`.
+#[cfg(unix)]
 fn still_inside(file: &File, within: &AbsPath) -> Result<(), FileFault> {
     use std::os::fd::AsRawFd;
     let target = std::fs::read_link(format!("/proc/self/fd/{}", file.as_raw_fd()))
@@ -106,6 +107,12 @@ fn still_inside(file: &File, within: &AbsPath) -> Result<(), FileFault> {
     } else {
         Err(FileFault::Moved)
     }
+}
+
+/// Where there is no `/proc/self/fd`, the check cannot be made, so the call is refused.
+#[cfg(not(unix))]
+fn still_inside(_file: &File, _within: &AbsPath) -> Result<(), FileFault> {
+    Err(FileFault::Moved)
 }
 
 fn read_text(file: &mut File) -> Result<String, FileFault> {

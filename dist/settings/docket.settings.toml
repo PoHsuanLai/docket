@@ -74,6 +74,27 @@ off = "Off"
 on = "On"
 
 [[key]]
+path = "agent.acp.agents"
+default = "off"
+label = "Let the assistant use coding agents (Claude Code, Gemini CLI)"
+help = "Whether docket may start the coding agents you list in agents.toml and run them as its helpers, inside a sandbox, with every file write, command and permission request going through the usual checks. Off by default. An agent's own sign-in stays its own; docket never reads it."
+section = "Privacy"
+exposure = "advanced"
+
+[key.kind]
+kind = "toggle"
+
+[key.kind.v]
+variants = ["off", "on"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+off = "Off"
+on = "On"
+
+[[key]]
 path = "agent.undo.keep_h"
 default = 24
 label = "Keep undo for"

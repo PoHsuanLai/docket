@@ -155,9 +155,7 @@ pub fn tool(kind: &str, title: &str, paths: &[&str], raw: serde_json::Value) -> 
     })
 }
 
-pub fn read(path: &str) -> serde_json::Value {
-    serde_json::json!({"sessionId": super::agent::AGENT_SESSION, "path": path})
-}
+pub use super::agent::read;
 
 pub fn write(path: &str, content: &str) -> serde_json::Value {
     serde_json::json!({"sessionId": super::agent::AGENT_SESSION, "path": path, "content": content})

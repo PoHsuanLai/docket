@@ -5,17 +5,19 @@
 //! with this process's own stdio. Exits with the program's exit code. std only; it reaches
 //! nothing but that socket.
 
-use docket_shell::forward;
+#[cfg(unix)]
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
+#[cfg_attr(not(unix), allow(dead_code))]
 struct Args {
     listen: String,
     socket: PathBuf,
     program: Vec<String>,
 }
 
+#[cfg_attr(not(unix), allow(dead_code))]
 fn parse(mut args: impl Iterator<Item = String>) -> Option<Args> {
     if args.next().as_deref() != Some("run") {
         return None;
@@ -37,7 +39,15 @@ fn parse(mut args: impl Iterator<Item = String>) -> Option<Args> {
     })
 }
 
+#[cfg(not(unix))]
 fn main() -> ExitCode {
+    eprintln!("docket-net-forward runs where bubblewrap does: on Linux");
+    ExitCode::from(2)
+}
+
+#[cfg(unix)]
+fn main() -> ExitCode {
+    use docket_shell::forward;
     let Some(args) = parse(std::env::args().skip(1)) else {
         eprintln!("usage: docket-net-forward run --listen ADDR --socket PATH -- PROGRAM [ARGS]");
         return ExitCode::from(2);

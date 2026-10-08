@@ -1157,6 +1157,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-launch"
+version = "0.1.0"
+dependencies = [
+ "docket-acp",
+ "docket-core",
+ "docket-session",
+ "docket-settings",
+ "docket-shell",
+ "futures-util",
+ "porter-client",
+ "porter-core",
+ "porter-dbus",
+ "prov",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "toml",
+ "zbus",
+]
+
+[[package]]
 name = "docket-memory"
 version = "0.1.0"
 dependencies = [

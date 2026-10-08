@@ -26,3 +26,16 @@ pub enum AcpExpose {
     /// An editor may open sessions and prompt.
     On,
 }
+
+/// Whether docket may run external coding agents (Claude Code, Gemini CLI) as session backends
+/// over ACP: the setting `agent.acp.agents`. Off by default. Nothing launches while it is off, and
+/// the programs themselves come from the person's `agents.toml`, never from a prompt.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AcpAgents {
+    /// No agent program starts (the default).
+    #[default]
+    Off,
+    /// The programs in `agents.toml` may be started.
+    On,
+}

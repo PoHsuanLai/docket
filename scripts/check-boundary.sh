@@ -45,6 +45,9 @@ RULES=(
   # The sandboxed shell tool: bubblewrap is a separate process (std only), so no runtime, bus,
   # HTTP, Cedar or toml; and nothing that links a sandbox library.
   "docket-shell: $EFFECTS toml landlock libseccomp"
+  # Starts the external agents: the bus is the `dbus` feature's, the runtime is its processes'; no
+  # HTTP, desktop stack, database, Cedar or MCP SDK, and nothing that links a sandbox library.
+  "docket-launch: reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy landlock libseccomp"
   "docket-inapp: $NO_CEDAR"
   # The docket-acp process: the router and the companion hosted in it, over the bus (zbus, tokio) and
   # nothing else of the desktop.
@@ -153,6 +156,7 @@ EDGES=(
   "docket-session: companion-wire docket-core porter-core prov"
   "docket-acp: companion-wire docket-core docket-session docket-settings docket-shell porter-core prov"
   "docket-shell: docket-core"
+  "docket-launch: docket-acp docket-core docket-session docket-settings docket-shell porter-client porter-core porter-dbus prov"
   "docket-acp-bin: docket-acp docket-client docket-core docket-dbus docket-inapp docket-planner docket-router docket-tasks porter-core prov"
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
