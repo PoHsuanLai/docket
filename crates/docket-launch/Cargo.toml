@@ -36,6 +36,7 @@ toml = { workspace = true }
 zbus = { workspace = true, optional = true }
 
 [dev-dependencies]
+docket-testbus = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 

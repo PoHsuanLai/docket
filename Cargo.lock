@@ -1195,6 +1195,7 @@ dependencies = [
  "docket-session",
  "docket-settings",
  "docket-shell",
+ "docket-testbus",
  "futures-util",
  "porter-client",
  "porter-core",
