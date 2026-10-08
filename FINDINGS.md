@@ -2300,3 +2300,10 @@ turn's updates and the app's calls equal in both.
 - `Reseeded` (a stored session whose router record cannot be restored) is not built: such a
   session fails to resume.
 
+
+Observed, not explained: in the two-turn acceptance run (`acp-two-turns`), in about one run in eight
+the router shows one sheet, "Allow more for this task" (reason `OutsideTask`), during the second turn
+or the first search of an editor session, with or without the host restart in between. The editor
+session's task policy is capped to the editor's app plus reads (S3), and the cassette's policy is
+re-derived on each turn; the race is not found. The test compares the editor's updates and the app's
+calls, which never differed, and not the sheets.

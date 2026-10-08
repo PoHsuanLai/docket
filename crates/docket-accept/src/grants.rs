@@ -22,17 +22,18 @@ pub fn standing_json(space: &str) -> String {
         .flat_map(|(caller, space)| {
             [DataClass::Mail, DataClass::Contacts]
                 .into_iter()
-                .map(move |class| (caller.clone(), space, class))
+                .flat_map(|class| [Usage::Interactive, Usage::Background].map(|u| (class, u)))
+                .map(move |(class, usage)| (caller.clone(), space, class, usage))
         })
         .enumerate()
-        .map(|(n, (caller, space, class))| Grant {
+        .map(|(n, (caller, space, class, usage))| Grant {
             id: GrantId::parse(&format!("accept-{n}")).expect("grant id"),
             key: ActionGrantKey {
                 caller,
                 owner: AppName::parse("org.quire.Mail").expect("app"),
                 target: GrantTarget::App,
                 class,
-                usage: Usage::Interactive,
+                usage,
                 space: SpaceScope::Only(SpaceId::parse(space).expect("space")),
             },
             decision: Decision::Allow,
