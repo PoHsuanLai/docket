@@ -191,3 +191,44 @@ fn an_overlay_is_a_read_only_mount_of_another_file_after_the_binds() {
     ]);
     assert!(state < over);
 }
+
+/// Why: the terminal sandbox and the agent sandbox must not drift apart on the hardening flags
+/// (namespaces, capabilities, read-only root, emptied directories); both begin with one prefix.
+#[test]
+fn the_terminal_and_the_agent_sandbox_begin_with_the_same_confinement() {
+    let spec = RunSpec {
+        argv: Argv::new("true", &[]).expect("argv"),
+        cwd: abs("/work/project"),
+        env: Vec::new(),
+        network: Network::Off,
+        keep: ByteLimit(1024),
+    };
+    let terminal = bwrap_args(&spec, &["/run", "/home"]);
+    let agent = agent_bwrap_args(&run(AgentNet::None, Vec::new()), &["/run", "/home"]);
+    let prefix = [
+        "--die-with-parent",
+        "--new-session",
+        "--unshare-all",
+        "--cap-drop",
+        "ALL",
+        "--ro-bind",
+        "/",
+        "/",
+        "--dev",
+        "/dev",
+        "--proc",
+        "/proc",
+        "--tmpfs",
+        "/run",
+        "--tmpfs",
+        "/home",
+    ];
+    for args in [&terminal, &agent] {
+        assert!(
+            args.iter()
+                .map(String::as_str)
+                .take(prefix.len())
+                .eq(prefix)
+        );
+    }
+}

@@ -12,6 +12,7 @@
 //! stop.
 
 use crate::bwrap_job::BwrapJob;
+use crate::confinement::{Share, confinement};
 use crate::sandbox::{Network, RunSpec, Sandbox, StartFault};
 use docket_core::{AbsPath, CannotSandbox, RootState, SandboxState};
 use std::path::{Path, PathBuf};
@@ -23,33 +24,17 @@ pub const HIDDEN: &[&str] = &[
 ];
 
 /// The `bwrap` arguments for `spec`, hiding the `hidden` directories. Pure.
+///
+/// The shared confinement comes first (`confinement`). The environment then travels as
+/// `--setenv` words, readable in `/proc/*/cmdline`: safe only because `sandbox_env` is a fixed
+/// allowlist with no secret. The agent sandbox passes its environment on the process instead.
 pub fn bwrap_args(spec: &RunSpec, hidden: &[&str]) -> Vec<String> {
     let cwd = spec.cwd.as_str();
-    let mut args: Vec<String> = ["--die-with-parent", "--new-session", "--unshare-all"]
-        .into_iter()
-        .map(str::to_owned)
-        .collect();
-    if spec.network == Network::Host {
-        args.push("--share-net".to_owned());
-    }
-    let fixed = [
-        "--cap-drop",
-        "ALL",
-        "--ro-bind",
-        "/",
-        "/",
-        "--dev",
-        "/dev",
-        "--proc",
-        "/proc",
-    ];
-    args.extend(fixed.into_iter().map(str::to_owned));
-    for dir in hidden {
-        args.extend(["--tmpfs".to_owned(), (*dir).to_owned()]);
-    }
-    if spec.network == Network::Host {
-        args.extend(crate::net::resolver_binds());
-    }
+    let share = match spec.network {
+        Network::Host => Share::HostNet,
+        Network::Off => Share::Nothing,
+    };
+    let mut args = confinement(share, hidden);
     // The working directory goes in after the emptied directories, so it shows through them.
     args.extend(["--bind", cwd, cwd, "--chdir", cwd, "--clearenv"].map(str::to_owned));
     for var in &spec.env {

@@ -16,6 +16,7 @@
 mod agent;
 mod bwrap;
 mod bwrap_job;
+mod confinement;
 mod env;
 pub mod fake;
 #[cfg(unix)]

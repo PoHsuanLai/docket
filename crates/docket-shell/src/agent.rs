@@ -11,7 +11,8 @@
 //! no capabilities; a new session; death with its parent.
 
 use crate::bwrap::HIDDEN;
-use crate::net::{AgentNet, EndpointBind, resolver_binds};
+use crate::confinement::{Share, confinement};
+use crate::net::{AgentNet, EndpointBind};
 use crate::sandbox::{Argv, EnvVar};
 use docket_core::AbsPath;
 
@@ -69,33 +70,13 @@ pub struct AgentRun {
     pub overlays: Vec<Overlay>,
 }
 
-fn words(list: &[&str]) -> Vec<String> {
-    list.iter().map(|s| (*s).to_owned()).collect()
-}
-
 /// The `bwrap` arguments for `run`, hiding the `hidden` directories. Pure.
 pub fn agent_bwrap_args(run: &AgentRun, hidden: &[&str]) -> Vec<String> {
-    let mut args = words(&["--die-with-parent", "--new-session", "--unshare-all"]);
-    if run.net == AgentNet::Host {
-        args.push("--share-net".to_owned());
-    }
-    args.extend(words(&[
-        "--cap-drop",
-        "ALL",
-        "--ro-bind",
-        "/",
-        "/",
-        "--dev",
-        "/dev",
-        "--proc",
-        "/proc",
-    ]));
-    for dir in hidden {
-        args.extend(["--tmpfs".to_owned(), (*dir).to_owned()]);
-    }
-    if run.net == AgentNet::Host {
-        args.extend(resolver_binds());
-    }
+    let share = match run.net {
+        AgentNet::Host => Share::HostNet,
+        AgentNet::None | AgentNet::Endpoint(_) => Share::Nothing,
+    };
+    let mut args = confinement(share, hidden);
     for bind in &run.binds {
         let flag = match bind.access {
             Access::ReadOnly => "--ro-bind",
