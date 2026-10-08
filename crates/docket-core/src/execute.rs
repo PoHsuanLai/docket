@@ -1,9 +1,9 @@
 //! What the `Execute` effect is gated as, and why a command may not run in the sandbox
 //! (acp-sessions.md section 7, S8).
 //!
-//! `prov::Effect` is porter's frozen enum and has no `Execute`, so docket gates the effect as
-//! [`EXECUTE_AS`], which is `Outbound`: the severity at which untrusted input into the call is
-//! never grantable. The router rules a command like any other call (the `Execute` rules of S8
+//! [`EXECUTE_AS`] is prov's own `Effect::Execute`, ranked above `Destructive`: a command can
+//! delete as well as send out, so every rule from `Outbound` or `Destructive` up covers it, and
+//! untrusted input into it is never grantable. The router rules a command like any other call (the `Execute` rules of S8
 //! are its policy point's, its `may_offer` and its terminal scope: see `docket-router`'s
 //! `terminal` and `standing`); this module keeps the two facts the host and the sandbox share.
 
@@ -11,7 +11,7 @@ use prov::Effect;
 use serde::{Deserialize, Serialize};
 
 /// The effect class an `Execute` call is gated as.
-pub const EXECUTE_AS: Effect = Effect::Outbound;
+pub const EXECUTE_AS: Effect = Effect::Execute;
 
 /// Why a command cannot run in the sandbox.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, thiserror::Error)]

@@ -50,7 +50,8 @@ pub fn hints_of(effect: Effect) -> ToolHints {
         Effect::Read => ToolHints::ReadOnly,
         Effect::UndoableWrite => ToolHints::Undoable,
         Effect::Outbound => ToolHints::OpenWorld,
-        Effect::Destructive => ToolHints::Destructive,
+        // A command can delete as well as reach out: the strictest hint.
+        Effect::Destructive | Effect::Execute => ToolHints::Destructive,
     }
 }
 

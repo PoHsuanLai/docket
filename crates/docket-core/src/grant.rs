@@ -54,8 +54,9 @@ impl GrantCaller {
             GrantCaller::Mcp(_) => ActorKind::Mcp,
             GrantCaller::Cli => ActorKind::Cli,
             GrantCaller::App(_) => ActorKind::App,
-            // prov has no ACP kind yet (FINDINGS "acp-grants"): both act as an external client.
-            GrantCaller::Editor(_) | GrantCaller::AcpAgent(_) => ActorKind::Mcp,
+            // An editor drives us over ACP as an outside client; an agent we run is prov's `Acp`.
+            GrantCaller::Editor(_) => ActorKind::Mcp,
+            GrantCaller::AcpAgent(_) => ActorKind::Acp,
         }
     }
 }
@@ -84,6 +85,14 @@ impl ProgramName {
     /// The name.
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl From<&prov::AgentProgram> for ProgramName {
+    /// porter's program grammar (lowercase ASCII, digits and `-`, at most 48 bytes) is a subset
+    /// of this one, so every porter program is a program name here.
+    fn from(program: &prov::AgentProgram) -> Self {
+        Self(program.as_str().to_owned())
     }
 }
 

@@ -66,6 +66,7 @@ fn kind(open: &CallOpen) -> ToolKind {
         Effect::UndoableWrite => ToolKind::Edit,
         Effect::Outbound => ToolKind::Other,
         Effect::Destructive => ToolKind::Delete,
+        Effect::Execute => ToolKind::Execute,
     }
 }
 

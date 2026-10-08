@@ -39,8 +39,15 @@ pub(crate) fn actor_of(
     session: &SessionId,
     opener: &AppName,
 ) -> Actor {
-    if let Some(client) = external.and_then(|e| crate::who::acp_client(&e.program)) {
-        return Actor::Mcp { client };
+    if let Some(external) = external {
+        // prov's own actor when the program fits porter's grammar; the older `acp:<program>`
+        // client name otherwise, so the audit still tells the agent apart.
+        if let Ok(program) = prov::AgentProgram::parse(external.program.as_str()) {
+            return Actor::Acp { program };
+        }
+        if let Some(client) = crate::who::acp_client(&external.program) {
+            return Actor::Mcp { client };
+        }
     }
     match agent {
         AgentRef::Companion => Actor::Companion {
