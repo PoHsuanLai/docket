@@ -23,7 +23,7 @@ use action_review::{GoalKey, ReviewRequest, repeated};
 use docket_core::{
     ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
     CallRequest, CallerRole, Classification, Cost, DenyCode, Depth, Impact, Lasting, Reviewed,
-    Ruling, Saw, WindowKey, charge, is_agent_action,
+    Ruling, Saw, SpaceAccess, WindowKey, charge, is_agent_action, space_access,
 };
 use policy_point::{
     ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, SpaceRelation,
@@ -227,6 +227,12 @@ impl<S: Seams> Router<S> {
             })
         };
         admit(record).map_err(end)?;
+        // An app's own Space is that app's alone, whatever the grants or the policy would say.
+        if let SpaceAccess::Refused(_) =
+            space_access(&SpaceScope::Only(space.clone()), &who.caller.app.name)
+        {
+            return Err(end(CallRefusal::Denied(DenyCode::NotAllowed)));
+        }
         let named = request.handles();
         let target = resolve_target(record, request.target.clone()).map_err(|why| {
             end(CallRefusal::BadArgs {

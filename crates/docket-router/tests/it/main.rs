@@ -27,6 +27,7 @@ mod restore;
 mod restore_owner;
 mod sessions;
 mod shell_defaults;
+mod space_owner;
 mod standing;
 mod standing_editor;
 mod stored;

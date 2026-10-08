@@ -14,7 +14,7 @@ use docket_core::{
 };
 use docket_session::{Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog};
 use porter_core::AppName;
-use prov::{Actor, EntityId, SessionId, UnixSeconds};
+use prov::{Actor, EntityId, SessionId, SpaceId, UnixSeconds};
 use std::future::Future;
 
 /// Why a call to an app or to memory got no answer.
@@ -177,6 +177,22 @@ pub trait MemoryLink: Send + Sync {
         &self,
         request: MemoryRequest,
     ) -> impl Future<Output = Result<MemoryReply, LinkFault>> + Send;
+
+    /// Deletes what memory keeps for a Space that was removed, rather than moving it to any other
+    /// Space. A link without that operation says [`SpaceMemories::Kept`], which leaves the
+    /// records where they are, unreachable from a Space that is gone.
+    fn erase_space(&self, _space: &SpaceId) -> impl Future<Output = SpaceMemories> + Send {
+        async { SpaceMemories::Kept }
+    }
+}
+
+/// What became of a removed Space's memories.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpaceMemories {
+    /// Memory was left as it was.
+    Kept,
+    /// Memory deleted them.
+    Deleted,
 }
 
 /// The seam to a session's durable record when there is none: every entry is accepted and
