@@ -2724,9 +2724,14 @@ label say; the owner's decision is still pending and nothing was narrowed.
   (files are then unbounded; reported as `Under("/")`); going from an empty list to a first path is still reported as a
   widening (conservative: for an untrusted path argument it is one). `intersection` no longer lets an empty list
   swallow the other's bound (a child of a bounded policy stays bounded).
-- The planner of the native companion sees the pseudo-app's actions in the catalogue (the policy writer needs them to
-  cover a task); a planner call to one is refused (`NotAllowed`) because only the host role may make it. Hiding them
-  from planner prompts is not done.
+- DONE (agent-paths): the pseudo-app is hidden from planner prompts by a typed manifest property,
+  `visibility = "host_only"` (`docket_core::Visibility`, default `everyone`, not written when default). It is
+  honoured where tools are listed: the planner's `Catalogue::from_manifests`, the MCP edge's `offered`, and the
+  policy writer's catalogue (`docket-router::policy::catalogue` lists a host-only app only for a session with an
+  external agent, which is the one task whose policy needs those actions). `quire-do apps` and `describe` still list
+  the app (golden unchanged, on purpose): they are for the person and scripts, not a prompt, and a refused call
+  there is a clear error. The listing is context, not the rule: the router still refuses the actions to every role
+  but the host.
 
 **Removed from `Gatekeeper`'s role** (the file is deleted): the decision order (breaker, one-use approvals, grants,
 person), `Audit`/`Basis`/`Ruling`/`Why`, `ToolReq`, the `Ask` seam and `AgentAsk`/`What`/`Shown`/`AsTerminal`/`Epoch`,
@@ -2782,6 +2787,5 @@ name waits on `agent.acp.agents`; its sheet route). `docket-acp/tests/it/termina
 
 **Deferred.** Resuming an agent session through the host (the router restores it, but `AgentHost::resume` is not
 served and the agent's own session id is not kept); the per-session MCP edge (D-3); a dry-run preview of a write for
-the sheet (`dry_run = none`: the sheet shows the path and a line count); hiding the pseudo-app from planner prompts;
-an `Effect::Execute` and an `ActorKind::Acp` in porter; narrowing the taint (owner); deleting `rule_execute`; the provider-host network allowlist, Landlock, resource limits and the
+the sheet (`dry_run = none`: the sheet shows the path and a line count); an `Effect::Execute` and an `ActorKind::Acp` in porter; narrowing the taint (owner); deleting `rule_execute`; the provider-host network allowlist, Landlock, resource limits and the
 second test agent (S4's list stands).

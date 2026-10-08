@@ -276,6 +276,7 @@ mod tests {
             app: prov::AppName::parse("org.quire.Nobody").expect("an app name"),
             entities: vec![],
             actions: vec![],
+            visibility: docket_core::Visibility::Everyone,
         })
         .expect("a manifest");
         let object = ProviderObject {

@@ -120,13 +120,15 @@ fn entry(anchor: &str, reply: Value) -> Value {
     })
 }
 
-/// Every action the fake apps declare, as the writer's schema names them.
+/// Every action the fake apps declare and a session without an external agent is told of, as
+/// the writer's schema names them.
 fn catalogue() -> Vec<String> {
     registry().map_or_else(
         |_| Vec::new(),
         |registry| {
             registry
                 .all()
+                .filter(|m| m.manifest().visibility == docket_core::Visibility::Everyone)
                 .flat_map(|m| {
                     let app = m.manifest().app.to_string();
                     m.manifest()

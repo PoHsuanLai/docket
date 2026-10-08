@@ -3,7 +3,8 @@
 use crate::args::TARGET_KEY;
 use crate::fault::McpFault;
 use docket_core::{
-    ActionDecl, AgentReach, TargetKind, ToolSchema, ValidManifest, action_prefix, tool_schema,
+    ActionDecl, AgentReach, TargetKind, ToolSchema, ValidManifest, Visibility, action_prefix,
+    tool_schema,
 };
 use prov::Effect;
 use serde::{Deserialize, Serialize};
@@ -78,11 +79,13 @@ pub fn tool_name(app: &porter_core::AppName, action: &ActionDecl) -> Result<McpT
     }
 }
 
-/// The actions offered to clients: only `AgentReach::Offered`. Hidden ones are dropped, and so
-/// are the ones that ask every time (a client cannot answer a sheet).
+/// The actions offered to clients: only `AgentReach::Offered`, of apps that are not host-only.
+/// Hidden ones are dropped, and so are the ones that ask every time (a client cannot answer a
+/// sheet).
 pub fn offered(registry: &[ValidManifest]) -> Vec<(&ValidManifest, &ActionDecl)> {
     registry
         .iter()
+        .filter(|m| m.manifest().visibility == Visibility::Everyone)
         .flat_map(|m| m.manifest().actions.iter().map(move |a| (m, a)))
         .filter(|(_, a)| a.reach == AgentReach::Offered)
         .collect()

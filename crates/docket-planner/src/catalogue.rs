@@ -5,7 +5,7 @@
 
 use docket_core::{
     ActionCard, ActionDecl, ActionRef, AgentReach, TargetKind, ToolSchema, ValidManifest,
-    tool_schema,
+    Visibility, tool_schema,
 };
 use porter_core::AppName;
 use porter_infer::{JsonSchemaText, JsonText, ToolDecl, ToolName};
@@ -126,10 +126,14 @@ pub struct Catalogue {
 }
 
 impl Catalogue {
-    /// The tools of the installed manifests, hidden actions left out.
+    /// The tools of the installed manifests, hidden actions and host-only apps left out.
     pub fn from_manifests(manifests: &[ValidManifest]) -> Self {
         let mut tools: Vec<CatalogueTool> = Vec::new();
-        for manifest in manifests.iter().map(ValidManifest::manifest) {
+        for manifest in manifests
+            .iter()
+            .map(ValidManifest::manifest)
+            .filter(|m| m.visibility == Visibility::Everyone)
+        {
             for decl in &manifest.actions {
                 if decl.reach == AgentReach::Hidden {
                     continue;

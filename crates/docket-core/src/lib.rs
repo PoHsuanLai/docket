@@ -102,6 +102,7 @@ pub use index::{Hit, IndexBatch, IndexEntry, IndexState, SearchAsk, SearchScope,
 pub use manifest::{
     ActionDecl, AgentReach, ArgSink, DryRun, EntityDecl, IndexPolicy, KeyHint, Lasting, Latency,
     Manifest, ParamDecl, ParamNeed, PropDecl, ResultShape, TargetKind, TitleTrust, UndoSupport,
+    Visibility,
 };
 pub use marks::{hides, plain_text, reorders};
 pub use message::{

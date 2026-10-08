@@ -99,3 +99,17 @@ fn the_registry_becomes_tools_with_schemas() {
     assert!(tools.iter().all(|t| t.schema.0.get("type").is_some()));
     let _ = AppName::parse("org.quire.Memory");
 }
+
+#[test]
+fn a_host_only_app_is_not_offered_to_clients() {
+    let registry = [
+        manifest("org.quire.Memory.toml"),
+        manifest("org.quire.AcpAgent.toml"),
+    ];
+    assert!(
+        offered(&registry)
+            .into_iter()
+            .all(|(m, _)| m.manifest().app.as_str() != "org.quire.AcpAgent"),
+        "the pseudo-app's calls are refused to a client"
+    );
+}

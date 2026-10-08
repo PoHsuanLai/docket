@@ -204,6 +204,7 @@ async fn a_slow_app_is_cut_at_its_latency() {
         app: app("org.quire.Slow"),
         entities: vec![],
         actions: vec![],
+        visibility: Visibility::Everyone,
     })
     .expect("a manifest");
     serve_on(
@@ -315,6 +316,7 @@ async fn the_activation_token_rides_beside_the_invocation_to_the_provider() {
         app: app("org.quire.Keeps"),
         entities: vec![],
         actions: vec![],
+        visibility: Visibility::Everyone,
     })
     .expect("a manifest");
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));

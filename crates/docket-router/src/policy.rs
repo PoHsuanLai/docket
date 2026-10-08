@@ -3,15 +3,15 @@
 
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, Seams};
-use crate::state::RouterState;
+use crate::state::{RouterState, SessionRecord};
 use crate::tasks::child_policy;
 use docket_core::{
     ActionCard, ActionDecl, ActionMatch, ActionRef, AgentReach, Anchor, ArgLine, AskReason,
     AuditRecord, ConfirmAnswer, ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId,
     ConfirmOffer, ConfirmRequest, Confirmer, FileRef, Gesture, IntentsReply, LabelText,
     PolicyChange, PolicyWriter, Shown, TaintNote, TaskPolicy, TaskPolicyState, TrustedPattern,
-    TurnSource, UserTurn, WidenAnswer, Widening, WireRefusal, Workspace, compare, intersection,
-    tool_schema,
+    TurnSource, UserTurn, Visibility, WidenAnswer, Widening, WireRefusal, Workspace, compare,
+    intersection, tool_schema,
 };
 use porter_core::{AppName, Count};
 use prov::{Effect, SessionId, UnixSeconds};
@@ -33,10 +33,14 @@ fn card_of(decl: &ActionDecl, app: &AppName) -> ActionCard {
     }
 }
 
-/// The actions an agent may be offered, as cards: what the policy writer reads.
-pub(crate) fn catalogue(st: &RouterState) -> Vec<ActionCard> {
+/// The actions an agent may be offered, as cards: what the policy writer reads. The actions of a
+/// host-only app (the external agent's pseudo-app) are listed only for a session that has an
+/// external agent: the writer needs them to cover that agent's task, and no other task can use
+/// them.
+pub(crate) fn catalogue(st: &RouterState, record: &SessionRecord) -> Vec<ActionCard> {
     st.registry
         .all()
+        .filter(|m| m.manifest().visibility == Visibility::Everyone || record.external.is_some())
         .flat_map(|m| {
             let app = m.manifest().app.clone();
             m.manifest()
@@ -170,7 +174,7 @@ impl<S: Seams> Router<S> {
             (
                 record.task.clone(),
                 record.turns.clone(),
-                catalogue(&st),
+                catalogue(&st, record),
                 record.space.clone(),
             )
         };
@@ -216,7 +220,7 @@ impl<S: Seams> Router<S> {
             };
             (
                 record.task.clone(),
-                catalogue(&st),
+                catalogue(&st, record),
                 record.space.clone(),
                 record.policy.clone(),
             )

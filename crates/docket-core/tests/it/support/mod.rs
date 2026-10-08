@@ -90,6 +90,7 @@ pub fn manifest(app_name: &str, actions: Vec<ActionDecl>) -> Manifest {
         app: app(app_name),
         entities: vec![],
         actions,
+        visibility: Visibility::Everyone,
     }
 }
 pub fn count(n: u32) -> Count {

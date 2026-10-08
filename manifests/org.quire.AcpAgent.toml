@@ -13,10 +13,13 @@
 #   never sees it. `lines` only tells the sheet how big a write is.
 # - The classes are `files` for every action: launching an agent in a directory is the person's
 #   act (the router treats it as the class consent), and the rest of the gate still decides.
+# - `visibility = "host_only"`: planners, MCP clients and the policy writer of an ordinary session are
+#   not told these actions exist (only the host's role may call them anyway).
 # - The agent's own title for a request is never carried: the sheet draws the manifest's words
 #   and the typed arguments, not an agent's prose.
 vocab = 1
 app = "org.quire.AcpAgent"
+visibility = "host_only"
 entities = []
 
 [[actions]]

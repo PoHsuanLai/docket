@@ -22,6 +22,30 @@ pub struct Manifest {
     pub entities: Vec<EntityDecl>,
     /// What it can do.
     pub actions: Vec<ActionDecl>,
+    /// Who may be shown its actions. Absent from a file means `everyone`; it is not written when
+    /// it is.
+    #[serde(default, skip_serializing_if = "Visibility::is_everyone")]
+    pub visibility: Visibility,
+}
+
+/// Who is shown an app's actions as things to call. It is a matter of what is listed, not of
+/// what is allowed: the router refuses a call whatever the listing says.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Visibility {
+    /// Every agent and client that may use the app.
+    #[default]
+    Everyone,
+    /// Only the host the app stands for (the external agent's host): no planner, MCP client or
+    /// policy writer of an ordinary session is told its actions exist.
+    HostOnly,
+}
+
+impl Visibility {
+    /// Whether this is the default, so the file need not say it.
+    pub fn is_everyone(&self) -> bool {
+        *self == Self::Everyone
+    }
 }
 
 /// One kind of thing an app owns.
