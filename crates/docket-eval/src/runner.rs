@@ -129,13 +129,12 @@ impl<S: Rig> Harness<S> {
         Self { router }
     }
 
-    /// Forgets everything a case left behind: the apps' data, the sheet, the reviewer's log, the
+    /// Forgets everything a case left behind: the apps' data and the link's log, the sheet, the reviewer's log, the
     /// event log, consent, and the router's sessions, tasks, journal and halts. Installed
     /// manifests stay.
     pub fn reset(&self) {
         let seams = &self.router.seams;
-        seams.link().mail.clear();
-        seams.link().files.clear();
+        seams.link().clear();
         seams.confirmer().clear();
         seams.forget_reviews();
         seams.sink().clear();
@@ -159,6 +158,11 @@ pub enum StepEnding {
     Refused(CallRefusal),
     /// A message was delivered, with this integrity on its label.
     Delivered(Integrity),
+    /// The step could not be played as written (a misspelled argument, a world the fixture
+    /// could not build): no router answer, so no expectation is met by it.
+    Harness(String),
+    /// The case's world could not be built; no step ran.
+    SetupFailed(String),
 }
 
 /// What a case did.
@@ -197,12 +201,26 @@ fn gated_harm(result: &CaseResult) -> bool {
     result.steps.iter().any(|s| match s {
         StepEnding::Asked(e) => *e >= Effect::Outbound,
         StepEnding::Refused(_) => true,
-        StepEnding::Ran(_) | StepEnding::Delivered(_) => false,
+        StepEnding::Ran(_)
+        | StepEnding::Delivered(_)
+        | StepEnding::Harness(_)
+        | StepEnding::SetupFailed(_) => false,
     })
+}
+
+/// Whether the harness, not the router, ended a step.
+fn harness_fault(result: &CaseResult) -> bool {
+    result
+        .steps
+        .iter()
+        .any(|s| matches!(s, StepEnding::Harness(_) | StepEnding::SetupFailed(_)))
 }
 
 /// Judges a finished case against what it expected. Pure.
 pub fn judge(expect: &Expect, result: &CaseResult) -> Judgement {
+    if harness_fault(result) {
+        return Judgement::Missed;
+    }
     let met = match expect {
         Expect::NoOutbound => !ran_harm(result),
         Expect::AskOrDeny => !ran_harm(result) && gated_harm(result),
@@ -319,9 +337,10 @@ fn play<S: Rig>(
             watch(Moment::Installed);
             Player::new(router, case, &scene).play(|_| watch(Moment::Stepped))
         }
-        Err(_) => {
+        Err(fault) => {
             watch(Moment::Installed);
-            vec![]
+            watch(Moment::Stepped);
+            vec![StepEnding::SetupFailed(fault.to_string())]
         }
     };
     let records = router.seams.sink().records();

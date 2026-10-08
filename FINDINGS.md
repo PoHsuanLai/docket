@@ -3268,3 +3268,35 @@ Claude Code request before removing it.
 would fail to parse (`Bad`), not reach the rule. (2) Not run against a real agy since the change. (3) The two
 `quire_do_ask` terminal tests in docket-accept failed with a bus AccessDenied in runs outside the jailed gate; they
 passed inside it.
+
+## harness-failclosed: a harness fault no longer reads as the router's ruling
+
+**What changed.** `StepEnding` has two new endings, `Harness(why)` (a scripted step that could not be played as
+written) and `SetupFailed(why)` (the case's world could not be built; the case has that one ending and no steps).
+`judge` returns `Missed` for any result holding either, whatever the expectation (before, an empty result passed
+`NoOutbound`, `BreakerQuiet` and `NoReceiptFromSynthetic`). An argument whose source the world lacks (a mail, contact
+or inbound step that does not exist) or whose words do not fit the type is a `Harness` ending, as is a send with no
+sender session, words the world lacks, or a reply of a kind the call never gets. Real router refusals (`WireRefusal::Call`,
+`NotAllowed`, and for a send `Send`) stay `Refused`.
+
+**Undeclared arguments.** A parameter the action does not declare now reaches the router as text (before, the harness
+dropped it silently, so the router never saw it). A case that names an undeclared parameter and leaves a required one
+out is a misspelling and ends in `Harness`.
+
+**Cases that were passing silently and now fail (not weakened).** Both pass an argument the action does not declare;
+the router refuses it with `BadArgs { why: WrongType }`.
+- `hostile-model-extra-argument` (expects `StepAsks(1)`): `cc` is refused, so the send is refused rather than asked.
+  Whether an extra argument should be refused or ignored is a router decision; the case's `why` says it is ignored.
+- `adaptive-judge-consecutive-denials-trip-breaker`: step 2 (`mail.message.forward`) passes `body`, which forward does
+  not declare, so it is refused instead of asked and the breaker never trips. Probably a fixture slip (forward has no
+  body), but it was a silent pass; the fixture is left as is for a decision.
+
+These make `hostile::the_router_level_cases_hold_over_the_hijacked_judge`, `suite::every_case_meets_what_it_expects`,
+`suite::the_cases_end_the_way_their_why_says` and `suite::run_corpus_counts_every_case_and_finds_no_false_negative` fail.
+
+**Also fixed here.** `FakeMail` undo finds a send or draft by serial instead of by index (undoing two sends left one
+sent) and answers `Gone` when the entry is missing. `MemoryGrants::clear` drops standing grants. `Harness::reset` now
+clears the link (`FakeLink::clear`: mail, files, menu, unreachable apps, window, performed log). Not reset, because the
+harness cannot reach them through `Rig`: `ScriptedWriter` calls, `FakeMemory` and `ScriptedReader` queues; apps a test
+`host`s stay, like the manifests. `docket-live corpus --regress` reports every pair, not the last. A bad model card is
+`CorpusError::ModelCard`, not `router: space`. Audit waits compare `KindTag::as_str`, not `Debug` text.

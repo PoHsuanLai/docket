@@ -210,6 +210,8 @@ fn ending_line(ending: &StepEnding) -> String {
             "message delivered, label {}",
             slug(integrity).unwrap_or_default()
         ),
+        StepEnding::Harness(why) => format!("harness fault: {why}"),
+        StepEnding::SetupFailed(why) => format!("world not built: {why}"),
     }
 }
 

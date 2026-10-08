@@ -9,8 +9,8 @@ use crate::runner::{Rig, StepEnding};
 use crate::world::{Scene, cli, companion, hold, mail_label, state_of};
 use docket_core::{
     ActionRef, Args, CallRefusal, CallRequest, DenyCode, DraftPart, InboundPart, InboxAsk,
-    IntentsReply, IntentsRequest, MessageDraft, Origin, ParamName, ParamType, Reveal, TargetValue,
-    Value, WireRefusal,
+    IntentsReply, IntentsRequest, MessageDraft, Origin, ParamDecl, ParamNeed, ParamType, Reveal,
+    TargetValue, Value, WireRefusal,
 };
 use docket_router::{HandleValue, Router};
 use porter_core::AppName;
@@ -32,6 +32,31 @@ pub(crate) struct Player<'a, S: Rig> {
     case: &'a Case,
     scene: &'a Scene,
     inbound: BTreeMap<usize, Inbound>,
+}
+
+/// The scripted step could not be played as written: the case file or the harness is at fault,
+/// not the router.
+struct Fault(&'static str);
+
+impl Fault {
+    fn ending(self) -> StepEnding {
+        StepEnding::Harness(self.0.to_owned())
+    }
+}
+
+/// A case file that names a parameter the action lacks and leaves a required one out has
+/// misspelled it: a planner that invents an extra argument still gives the real ones.
+fn misspelled(call: &ScriptedCall, declared: &[ParamDecl]) -> Option<Fault> {
+    let invented = call
+        .args
+        .keys()
+        .any(|name| !declared.iter().any(|d| &d.name == name));
+    let left_out = declared
+        .iter()
+        .any(|d| d.need == ParamNeed::Required && !call.args.contains_key(&d.name));
+    (invented && left_out).then_some(Fault(
+        "an argument the manifest does not declare, with a required one left out",
+    ))
 }
 
 fn trusted_by(app: &AppName) -> Label {
@@ -142,30 +167,49 @@ impl<'a, S: Rig> Player<'a, S> {
         }
     }
 
-    /// One argument as the planner passes it.
-    fn argument(&self, call: &ScriptedCall, param: &ParamName, from: &ArgFrom) -> Option<Value> {
-        let registry = state_of(self.router).registry.clone();
+    /// The parameters the manifest declares for the call's action; none if it declares no such
+    /// action.
+    fn declared(&self, call: &ScriptedCall) -> Vec<ParamDecl> {
         let action = ActionRef {
             app: call.app.clone(),
             name: call.action.clone(),
         };
-        let ty = registry
-            .action(&action)?
-            .params
-            .iter()
-            .find(|p| &p.name == param)?
-            .ty
-            .clone();
+        let st = state_of(self.router);
+        st.registry
+            .action(&action)
+            .map(|def| def.params.clone())
+            .unwrap_or_default()
+    }
+
+    /// One argument as the planner passes it, or the reason the case file names one that
+    /// cannot be built: words from something the world lacks, or that do not fit the type.
+    /// A parameter the manifest does not declare goes through as text: a planner may invent
+    /// one, and the router is what rules on it.
+    fn argument(
+        &self,
+        call: &ScriptedCall,
+        ty: Option<&ParamType>,
+        from: &ArgFrom,
+    ) -> Result<Value, Fault> {
         if let ArgFrom::Unminted(n) = from {
-            return Some(Value::Handle(docket_core::Handle(*n)));
+            return Ok(Value::Handle(docket_core::Handle(*n)));
         }
-        let (text, label) = self.source(from)?;
-        let (plain, held) = self.param_value(&ty, &call.app, text)?;
+        let (text, label) = self
+            .source(from)
+            .ok_or(Fault("an argument whose source the world lacks"))?;
+        let (plain, held) = match ty {
+            Some(ty) => self
+                .param_value(ty, &call.app, text)
+                .ok_or(Fault("an argument whose words do not fit its type"))?,
+            None => (Value::Text(text.clone()), HandleValue::Text(text)),
+        };
         // A terminal has no handles: whatever the words once were, they were typed.
         match label.filter(|_| self.case.driver == Driver::Companion) {
             Some(label) => {
                 let source = label.sources.iter().next().cloned().unwrap_or(Source::User);
-                hold(self.router, &self.scene.front, held, label, source).map(Value::Handle)
+                hold(self.router, &self.scene.front, held, label, source)
+                    .map(Value::Handle)
+                    .ok_or(Fault("a handle the front session could not hold"))
             }
             None => {
                 // The person's own words that name a thing: the person chose it.
@@ -175,17 +219,22 @@ impl<'a, S: Rig> Player<'a, S> {
                 {
                     r.known.insert(e.clone());
                 }
-                Some(plain)
+                Ok(plain)
             }
         }
     }
 
     fn call(&mut self, call: &ScriptedCall) -> StepEnding {
-        let args: Args = call
+        let declared = self.declared(call);
+        if let Some(fault) = misspelled(call, &declared) {
+            return fault.ending();
+        }
+        let args: Result<Args, Fault> = call
             .args
             .iter()
-            .filter_map(|(param, from)| {
-                self.argument(call, param, from).map(|v| {
+            .map(|(param, from)| {
+                let ty = declared.iter().find(|d| &d.name == param).map(|d| &d.ty);
+                self.argument(call, ty, from).map(|v| {
                     (
                         param.clone(),
                         // A hijacked planner claims everything is trusted; the router derives
@@ -198,6 +247,10 @@ impl<'a, S: Rig> Player<'a, S> {
                 })
             })
             .collect();
+        let args = match args {
+            Ok(args) => args,
+            Err(fault) => return fault.ending(),
+        };
         let target = if call.targets.is_empty() {
             TargetValue::Nothing
         } else {
@@ -230,7 +283,7 @@ impl<'a, S: Rig> Player<'a, S> {
             Driver::Cli => (cli(), Origin::Cli, None),
         };
         let Ok(caller) = who else {
-            return StepEnding::Refused(CallRefusal::Denied(DenyCode::NotAllowed));
+            return Fault("the caller identity did not parse").ending();
         };
         let reply = block_on(self.router.handle(
             &caller,
@@ -254,7 +307,10 @@ impl<'a, S: Rig> Player<'a, S> {
                 (Err(why), false) => StepEnding::Refused(why),
             },
             IntentsReply::Refused(WireRefusal::Call(why)) => StepEnding::Refused(why),
-            _ => StepEnding::Refused(CallRefusal::Denied(DenyCode::NotAllowed)),
+            IntentsReply::Refused(WireRefusal::NotAllowed) => {
+                StepEnding::Refused(CallRefusal::Denied(DenyCode::NotAllowed))
+            }
+            _ => Fault("a reply of a kind a call never gets").ending(),
         }
     }
 
@@ -265,18 +321,18 @@ impl<'a, S: Rig> Player<'a, S> {
             self.scene.workers.get(&send.from.agent)
         };
         let (Some(session), Ok(caller)) = (sender, companion()) else {
-            return StepEnding::Refused(CallRefusal::Denied(DenyCode::NotAllowed));
+            return Fault("a sender with no session").ending();
         };
         let part = match self.source(&send.text) {
             Some((text, Some(label))) => {
                 let from = label.sources.iter().next().cloned().unwrap_or(Source::User);
                 match hold(self.router, session, HandleValue::Text(text), label, from) {
                     Some(h) => DraftPart::Handle(h),
-                    None => return StepEnding::Refused(CallRefusal::Denied(DenyCode::NotAllowed)),
+                    None => return Fault("a handle the sender could not hold").ending(),
                 }
             }
             Some((text, None)) => DraftPart::Text(MessageText::new(text)),
-            None => DraftPart::Text(MessageText::new(String::new())),
+            None => return Fault("message words whose source the world lacks").ending(),
         };
         let reply = block_on(self.router.handle(
             &caller,
@@ -291,8 +347,12 @@ impl<'a, S: Rig> Player<'a, S> {
                 },
             },
         ));
-        if !matches!(reply, IntentsReply::Delivered(_)) {
-            return StepEnding::Refused(CallRefusal::Denied(DenyCode::NotAllowed));
+        match reply {
+            IntentsReply::Delivered(_) => {}
+            IntentsReply::Refused(WireRefusal::Send(_) | WireRefusal::NotAllowed) => {
+                return StepEnding::Refused(CallRefusal::Denied(DenyCode::NotAllowed));
+            }
+            _ => return Fault("a reply of a kind a send never gets").ending(),
         }
         let integrity = self
             .router
