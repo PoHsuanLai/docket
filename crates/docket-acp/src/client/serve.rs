@@ -124,8 +124,14 @@ impl<X: Seams> AcpBackend<X> {
         };
         if let Some(trip) = live.edge.as_ref().and_then(|e| e.take_trip()) {
             self.pausing = Some(trip);
-            self.outbox
-                .push_back(live.agent.as_ref().map(rpc::cancel).unwrap_or_default());
+            self.tell_cancel();
+        }
+    }
+
+    /// Queues "cancel" for the agent's session; nothing when it has none.
+    fn tell_cancel(&mut self) {
+        if let Some(agent) = self.live.as_ref().and_then(|l| l.agent.as_ref()) {
+            self.outbox.push_back(rpc::cancel(agent));
         }
     }
 
@@ -253,13 +259,12 @@ impl<X: Seams> AcpBackend<X> {
         self.staged = None;
         self.reply(&staged.id, ran.reply);
         if let (Some(trip), None) = (ran.paused, self.pausing)
-            && let Some(live) = self.live.as_ref()
+            && self.live.is_some()
         {
             // The router paused the session: the agent is told to stop, and the turn ends
             // `Paused` when it does.
             self.pausing = Some(trip);
-            self.outbox
-                .push_back(live.agent.as_ref().map(rpc::cancel).unwrap_or_default());
+            self.tell_cancel();
         }
         staged.call.map(|call| {
             BackendEvent::Call(CallEvent::Ended(StepLine {
@@ -324,9 +329,7 @@ impl<X: Seams> AcpBackend<X> {
                 _ => self.reply(&staged.id, Err(fault::not_now("cancelled"))),
             }
         }
-        if let Some(agent) = self.live.as_ref().and_then(|l| l.agent.clone()) {
-            self.outbox.push_back(rpc::cancel(&agent));
-        }
+        self.tell_cancel();
         self.flush().await;
     }
 }
