@@ -585,26 +585,48 @@ impl World {
     /// placed in a `vte-spawn-*` scope of the scratch proc root before the program exists. Its
     /// environment is the scratch one and the private bus, nothing else.
     pub async fn quire_do(&self, binary: &Path, words: &[&str]) -> std::process::Output {
-        use std::io::Write;
-        let mut child = Command::new("sh")
-            .args(["-c", "read _; exec \"$0\" \"$@\" </dev/null"])
-            .arg(binary)
-            .args(words)
-            .env_clear()
-            .envs(env_of(self.dir.path()))
-            .env("DBUS_SESSION_BUS_ADDRESS", self.address())
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect("quire-do starts");
-        place(self.dir.path(), child.id(), Cgroup::Scope("vte-spawn-1"));
+        use std::io::{Read, Write};
+        let mut process = Reaped::spawn(
+            Command::new("sh")
+                .args(["-c", "read _; exec \"$0\" \"$@\" </dev/null"])
+                .arg(binary)
+                .args(words)
+                .env_clear()
+                .envs(env_of(self.dir.path()))
+                .env("DBUS_SESSION_BUS_ADDRESS", self.address())
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped()),
+        )
+        .expect("quire-do starts");
+        place(self.dir.path(), process.pid(), Cgroup::Scope("vte-spawn-1"));
+        let child = process.child_mut();
         let mut go = child.stdin.take().expect("stdin");
         go.write_all(b"\n").expect("go");
         drop(go);
-        tokio::task::spawn_blocking(move || child.wait_with_output().expect("quire-do runs"))
-            .await
-            .expect("joined")
+        let (mut out, mut err) = (
+            child.stdout.take().expect("stdout"),
+            child.stderr.take().expect("stderr"),
+        );
+        // The guard travels into the blocking task, so the program is killed by PID if the test
+        // is dropped while it runs.
+        tokio::task::spawn_blocking(move || {
+            let reader = std::thread::spawn(move || {
+                let mut bytes = Vec::new();
+                err.read_to_end(&mut bytes).map(|_| bytes)
+            });
+            let mut stdout = Vec::new();
+            out.read_to_end(&mut stdout).expect("quire-do runs");
+            let stderr = reader.join().expect("joined").expect("quire-do runs");
+            let status = process.child_mut().wait().expect("quire-do runs");
+            std::process::Output {
+                status,
+                stdout,
+                stderr,
+            }
+        })
+        .await
+        .expect("joined")
     }
 
     /// Every daemon's standard error, for a failing test to print.
