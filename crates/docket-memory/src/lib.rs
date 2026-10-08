@@ -11,6 +11,7 @@
 //! - [`AuditState`]: draining the sink into memory, Space by Space, with retry accounting.
 
 mod audit;
+mod cursor_cache;
 mod memory;
 mod record;
 mod session_log;

@@ -7,6 +7,7 @@
 //! because almanac's sequence is the Space's and interleaves its own audit events. The log lives
 //! in one Space, named when it is built.
 
+use crate::cursor_cache::CursorCache;
 use almanac_client::{ClientError, Memory, Transport};
 use almanac_core::{
     AreaPayload, AreaTag, BodyMode, Cause, Cursor, EntriesQuery, EventBody, JsonText, KindPattern,
@@ -45,7 +46,7 @@ pub struct AlmanacSessionLog<T: Transport, K: Clock> {
     /// The next position of each session this writer has seen the end of.
     next: Mutex<BTreeMap<SessionId, Seq>>,
     /// Where almanac's cursor stood after the rows a page ended on.
-    cursors: Mutex<BTreeMap<(SessionId, Seq), Cursor>>,
+    cursors: CursorCache,
 }
 
 /// The end of a log as read.
@@ -62,7 +63,7 @@ impl<T: Transport, K: Clock> AlmanacSessionLog<T, K> {
             space,
             clock,
             next: Mutex::new(BTreeMap::new()),
-            cursors: Mutex::new(BTreeMap::new()),
+            cursors: CursorCache::default(),
         }
     }
 
@@ -169,6 +170,7 @@ impl<T: Transport, K: Clock> AlmanacSessionLog<T, K> {
         if let Ok(mut all) = self.next.lock() {
             all.remove(session);
         }
+        self.cursors.forget(session);
     }
 
     fn cached(&self, session: &SessionId) -> Option<Seq> {
@@ -245,11 +247,7 @@ impl<T: Transport, K: Clock> SessionLog for AlmanacSessionLog<T, K> {
     ) -> Result<LogPage, LogFault> {
         let want = size.0.0.max(1);
         let start = from.map_or(0, |s| s.0);
-        let known = self
-            .cursors
-            .lock()
-            .ok()
-            .and_then(|c| c.get(&(session.clone(), Seq(start))).copied());
+        let known = self.cursors.at(session, Seq(start));
         // With the cursor of `start` the read resumes there; without one it counts from the
         // first row.
         let (mut after, mut place) = match (start, known) {
@@ -276,8 +274,8 @@ impl<T: Transport, K: Clock> SessionLog for AlmanacSessionLog<T, K> {
                 }
                 place += 1;
             }
-            if let (Some(cursor), Ok(mut cursors)) = (page.next, self.cursors.lock()) {
-                cursors.insert((session.clone(), Seq(place)), cursor);
+            if let Some(cursor) = page.next {
+                self.cursors.stop(session, Seq(place), cursor);
             }
             after = page.next;
             if after.is_none() || rows.len() >= want as usize {
@@ -291,6 +289,7 @@ impl<T: Transport, K: Clock> SessionLog for AlmanacSessionLog<T, K> {
 
     async fn sessions(&self) -> Result<Vec<SessionId>, LogFault> {
         let mut found = Vec::new();
+        let mut seen = BTreeSet::new();
         let mut after = None;
         loop {
             let query = EntriesQuery {
@@ -312,7 +311,7 @@ impl<T: Transport, K: Clock> SessionLog for AlmanacSessionLog<T, K> {
                     .iter()
                     .find(|t| t.thing.kind.as_str() == SESSION_KIND)
                     .and_then(|t| SessionId::parse(t.thing.key.as_str()).ok());
-                found.extend(named.filter(|id| !found.contains(id)));
+                found.extend(named.filter(|id| seen.insert(id.clone())));
             }
             match page.next {
                 Some(cursor) => after = Some(cursor),
