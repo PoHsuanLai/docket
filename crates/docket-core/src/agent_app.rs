@@ -83,6 +83,11 @@ impl PermissionKind {
         }
     }
 
+    /// The kind a word names, if it names one: the inverse of [`word`](Self::word).
+    pub fn from_word(word: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|k| k.word() == word)
+    }
+
     /// The action name: `acpagent.<kind>`.
     pub fn action_name(self) -> String {
         format!("acpagent.{}", self.word())
@@ -166,6 +171,15 @@ pub fn covers_approval(held: &CallFacts, call: &CallFacts) -> bool {
 mod tests {
     use super::*;
     use crate::standing::AbsPath;
+
+    #[test]
+    fn every_kinds_word_names_it_and_other_words_name_none() {
+        for kind in PermissionKind::ALL {
+            assert_eq!(PermissionKind::from_word(kind.word()), Some(kind));
+        }
+        assert_eq!(PermissionKind::from_word("Read"), None);
+        assert_eq!(PermissionKind::from_word(""), None);
+    }
 
     fn path(text: &str) -> AbsPath {
         AbsPath::parse(text).expect("path")

@@ -5,6 +5,7 @@
 //! not a hunt through string compares.
 
 use docket_core::{AbsPath, PermissionKind};
+use prov::Source;
 
 /// What caused it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,9 +31,29 @@ pub fn brings_content(kind: PermissionKind) -> bool {
     )
 }
 
+/// Where what a tainting kind brings in comes from: the network for a fetch, a file for the rest.
+/// `None` for a kind that brings nothing in. The one rule behind both the host's record
+/// ([`brings_content`]) and the label the performer gives a reported call.
+pub fn source(kind: PermissionKind) -> Option<Source> {
+    match (brings_content(kind), kind) {
+        (false, _) => None,
+        (true, PermissionKind::Fetch) => Some(Source::Web),
+        (true, _) => Some(Source::File),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_source_exists_exactly_for_the_kinds_that_taint() {
+        for kind in PermissionKind::ALL {
+            assert_eq!(source(kind).is_some(), brings_content(kind), "{kind:?}");
+        }
+        assert_eq!(source(PermissionKind::Fetch), Some(Source::Web));
+        assert_eq!(source(PermissionKind::Read), Some(Source::File));
+    }
 
     #[test]
     fn only_the_tools_that_bring_content_in_taint() {

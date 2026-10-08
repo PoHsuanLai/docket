@@ -7,6 +7,7 @@ use super::call::StageId;
 use super::files::FileFault;
 use super::files::Files;
 use super::performer::{Held, Performer, Scope, UNDO_KEEP, UndoNote};
+use super::taint::source;
 use docket_core::{
     AbsPath, AppRefusal, FILES_READ, FILES_SENSITIVE, FILES_WRITE, FailText, Follow, Invocation,
     LabelText, Outcome, ParamName, PermissionKind, Preview, REPORTED, TERMINAL_RUN, TargetValue,
@@ -60,16 +61,6 @@ fn done() -> Outcome {
         show: Preview::None,
         undo: Undoable::No,
         follow: Follow::Nothing,
-    }
-}
-
-/// What a call the agent only reported brings into the session: a read or a fetch or a command
-/// is untrusted content in the agent's hands.
-fn brings_content(what: &str) -> Option<Source> {
-    match what {
-        "read" | "search" | "execute" | "other" => Some(Source::File),
-        "fetch" => Some(Source::Web),
-        _ => None,
     }
 }
 
@@ -227,7 +218,7 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
 
     fn reported(&self, inv: &Invocation) -> Outcome {
         let source = match param(inv, "what") {
-            Some(Value::Text(what)) => brings_content(what),
+            Some(Value::Text(what)) => PermissionKind::from_word(what).and_then(source),
             _ => Some(Source::File),
         };
         let value = source.map(|source| Labelled {
