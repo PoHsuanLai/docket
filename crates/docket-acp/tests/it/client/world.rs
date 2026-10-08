@@ -2,6 +2,7 @@
 //! of the person's answers, or the host's own desk for a session routed there), the host's
 //! performer answering for the pseudo-app, and the seams that wire them.
 
+use bulkhead::fake::FakeSandbox;
 use docket_acp::client::fake::{FakeFiles, FakeSpawn};
 use docket_acp::client::{Files, IntentsCourt, OsFiles, Performer, Seams};
 use docket_client::InProcess;
@@ -14,7 +15,6 @@ use docket_fake::{
 };
 use docket_inapp::{EditorDesk, SheetConfirmer};
 use docket_session::fake::MemoryLog;
-use docket_shell::fake::FakeSandbox;
 use prov::Actor;
 use std::sync::Arc;
 

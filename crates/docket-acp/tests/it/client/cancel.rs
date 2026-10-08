@@ -4,6 +4,8 @@
 
 use super::agent::{Auth, agent_signing, call};
 use super::rig::{CWD, opening, turn, write};
+use bulkhead::Network;
+use bulkhead::fake::FakeSandbox;
 use docket_acp::client::fake::{FakeFiles, FakeSpawn};
 use docket_acp::client::{
     AcpBackend, AgentCall, Court, CourtFault, EdgeFault, OpenAgent, Parts, Performer, Ruled, Seams,
@@ -11,8 +13,6 @@ use docket_acp::client::{
 };
 use docket_core::ValidManifest;
 use docket_session::{SessionBackend, StartSession};
-use docket_shell::Network;
-use docket_shell::fake::FakeSandbox;
 use futures_util::future::pending;
 use prov::SessionId;
 use std::sync::{Arc, Mutex, MutexGuard};

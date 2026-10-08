@@ -9,6 +9,7 @@ mod agent;
 
 use super::support::{ENDPOINT, abs, permit};
 use agent::{Act, agent as scripted, say};
+use bulkhead::fake::FakeSandbox;
 use docket_acp::client::fake::FakeFiles;
 use docket_acp::client::{
     AcpBackend, AgentCall, Court, CourtFault, OpenAgent, Parts, Performer, Ruled, Seams,
@@ -19,7 +20,6 @@ use docket_session::{
     BackendEvent, BackendKind, Opening, ProgramName, SessionBackend, StartSession, TurnEnd,
     Workspace,
 };
-use docket_shell::fake::FakeSandbox;
 use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::sync::Arc;
 

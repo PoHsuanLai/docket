@@ -1,7 +1,7 @@
 //! `agents.toml`: what is accepted, and what is refused outright.
 
+use bulkhead::NetworkMode;
 use docket_launch::{AgentsFile, ConfigFault, Delivery, Route};
-use docket_shell::NetworkMode;
 
 use super::support::{ENDPOINT, HANDOFF, LOGIN};
 

@@ -23,10 +23,10 @@
 //! id = "anthropic-main"
 //! ```
 
+use bulkhead::NetworkMode;
 use docket_acp::client::SignIn;
 use docket_core::AbsPath;
 use docket_session::ProgramName;
-use docket_shell::NetworkMode;
 use porter_core::DataClass;
 use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
 use serde::Deserialize;

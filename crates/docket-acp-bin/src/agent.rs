@@ -22,6 +22,7 @@ pub mod provider;
 pub mod tty;
 
 use args::Args;
+use bulkhead::Detected;
 use docket_acp::client::ToolsOffer;
 use docket_core::AbsPath;
 use docket_inapp::EditorDesk;
@@ -30,7 +31,6 @@ use docket_launch::login::VisibleLogin;
 use docket_launch::{AgentsFile, AgentsPermit, ChildProc, Registry, Supervisor, ToolsMode};
 use docket_session::{BackendEvent, SessionHost};
 use docket_settings::{AgentSettings, Locator};
-use docket_shell::Detected;
 use host::{Hosted, Wiring, host};
 use prov::UnixSeconds;
 use std::path::PathBuf;

@@ -2,9 +2,9 @@
 //! `BwrapProcs` is the real one (bubblewrap as a separate program, never linked); `fake::FakeProcs`
 //! records the run it was asked for and returns an in-memory pipe.
 
+use bulkhead::{AgentRun, agent_bwrap_args, present_hidden};
 use docket_acp::LineWire;
 use docket_acp::Wire;
-use docket_shell::{AgentRun, agent_bwrap_args, present_hidden};
 use std::future::Future;
 use std::path::PathBuf;
 use std::process::Stdio;

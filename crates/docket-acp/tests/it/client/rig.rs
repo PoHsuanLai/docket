@@ -5,6 +5,8 @@
 
 use super::agent::{Act, Auth, View, agent_signing};
 use crate::support::app;
+use bulkhead::fake::{FakeSandbox, Script, Seen};
+use bulkhead::{Network, NetworkMode};
 use docket_acp::client::fake::{FakeFiles, FakeSpawn, SpawnSeen};
 use docket_acp::client::{
     AcpBackend, AgentHost, Fallback, IntentsCourt, Parts, Performer, Seams, ToolsOffer,
@@ -24,8 +26,6 @@ use docket_session::fake::MemoryLog;
 use docket_session::{
     BackendEvent, BackendKind, Opening, ProgramName, SessionHost, SheetChoice, TurnEnd, Workspace,
 };
-use docket_shell::fake::{FakeSandbox, Script, Seen};
-use docket_shell::{Network, NetworkMode};
 use porter_core::{AppId, Count, Isolation};
 use prov::{AgentRef, Effect, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::BTreeSet;

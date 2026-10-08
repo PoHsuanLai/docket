@@ -2,9 +2,9 @@
 //! adds, and that nothing of it is a file the agent could reach.
 
 use super::support::{LOGIN, confined, plan, rig};
+use bulkhead::AgentRun;
 use docket_acp::client::{AgentChild, Spawn};
 use docket_launch::fake::Mood;
-use docket_shell::AgentRun;
 use serde_json::json;
 
 fn env_of<'a>(run: &'a AgentRun, name: &str) -> Option<&'a str> {

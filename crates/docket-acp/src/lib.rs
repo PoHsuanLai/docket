@@ -9,15 +9,16 @@
 //!   sessions.
 //!
 //! - `client` (feature `client`): the other direction (S4), an external agent as a session backend.
-//! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`docket-shell`),
+//! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`bulkhead`),
 //!   ruled by the `Execute` rules. They run in our sandbox, never in an editor's terminal.
 //!
 //! The protocol's wire types are `agent-client-protocol-schema`'s (Apache-2.0); the transport is
 //! ours. `rawInput` and `rawOutput` are never sent; `allow_always` is offered only on a router
 //! sheet that offered it.
 
-mod calls;
 #[cfg(feature = "client")]
+pub mod bulk;
+mod calls;
 pub mod client;
 mod covered;
 mod expose;

@@ -19,10 +19,11 @@ use crate::env::{Lent, child_env};
 use crate::names::launcher_session;
 use crate::permit::AgentsPermit;
 use crate::procs::{Proc, Procs};
+use bulkhead::forward::{Bridge, Loopback};
+use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
+use docket_acp::bulk;
 use docket_acp::client::{AgentChild, EdgeBind, LaunchPlan, Spawn, SpawnFault, Spawned};
 use docket_core::AbsPath;
-use docket_shell::forward::{Bridge, Loopback};
-use docket_shell::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
 use porter_core::{LauncherSession, ProcessCredentialId};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -186,7 +187,11 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     }
 }
 
-fn binds(entry: &Entry, key_file: Option<&AbsPath>, edge: Option<&EdgeBind>) -> Vec<Bind> {
+fn binds(
+    entry: &Entry,
+    key_file: Option<&AbsPath>,
+    edge: Option<&EdgeBind>,
+) -> Result<Vec<Bind>, bulkhead::PathFault> {
     let program_dir = entry.command.parent().into_iter();
     let read_only = entry
         .reads
@@ -197,20 +202,23 @@ fn binds(entry: &Entry, key_file: Option<&AbsPath>, edge: Option<&EdgeBind>) -> 
         .chain(edge.map(|e| e.bridge.clone()));
     // The tool edge's socket is written to by whoever connects, so it is the one read-write bind
     // that is not the program's own state.
-    let socket = edge.map(|e| Bind {
-        path: e.socket.clone(),
-        access: Access::ReadWrite,
-    });
+    let socket = edge.map(|e| (e.socket.clone(), Access::ReadWrite));
     read_only
-        .map(|path| Bind {
-            path,
-            access: Access::ReadOnly,
-        })
+        .map(|path| (path, Access::ReadOnly))
         .chain(socket)
-        .chain(entry.state.iter().cloned().map(|path| Bind {
-            path,
-            access: Access::ReadWrite,
-        }))
+        .chain(
+            entry
+                .state
+                .iter()
+                .cloned()
+                .map(|path| (path, Access::ReadWrite)),
+        )
+        .map(|(path, access)| {
+            Ok(Bind {
+                path: bulk::to_shell(&path)?,
+                access,
+            })
+        })
         .collect()
 }
 
@@ -340,10 +348,10 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         release.bridge = Some(Bridge::start(&socket, target).map_err(|_| SpawnFault::Sandbox)?);
         let socket = socket
             .to_str()
-            .and_then(|t| AbsPath::parse(t).ok())
+            .and_then(|t| bulkhead::AbsPath::parse(t).ok())
             .ok_or(SpawnFault::Sandbox)?;
         let bind = EndpointBind {
-            forwarder: self.forwarder.clone(),
+            forwarder: bulk::to_shell(&self.forwarder).map_err(|_| SpawnFault::Sandbox)?,
             socket,
             port: target.port(),
         };
@@ -368,10 +376,11 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         let command = entry.command.as_str();
         let run = AgentRun {
             argv: Argv::new(command, &entry.args).ok_or(SpawnFault::Process)?,
-            cwd: plan.cwd.clone(),
+            cwd: bulk::to_shell(&plan.cwd).map_err(|_| SpawnFault::Sandbox)?,
             env: built.vars,
             net,
-            binds: binds(entry, built.key_file.as_ref(), plan.edge.as_ref()),
+            binds: binds(entry, built.key_file.as_ref(), plan.edge.as_ref())
+                .map_err(|_| SpawnFault::Sandbox)?,
             overlays: Vec::new(),
         };
         let (wire, proc) = self

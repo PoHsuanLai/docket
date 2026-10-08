@@ -46,9 +46,6 @@ RULES=(
   # The client edge reaches the router only through docket-client (its `InProcess` transport is a
   # dev-dependency): the host of an external agent calls the same Intents1 every caller does.
   "docket-acp: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy"
-  # The sandboxed shell tool: bubblewrap is a separate process (std only), so no runtime, bus,
-  # HTTP, Cedar or toml; and nothing that links a sandbox library.
-  "docket-shell: $EFFECTS toml landlock libseccomp"
   # Starts the external agents: the bus is the `dbus` feature's, the runtime is its processes'; no
   # HTTP, desktop stack, database, Cedar or MCP SDK, and nothing that links a sandbox library.
   "docket-launch: reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy landlock libseccomp"
@@ -159,10 +156,9 @@ EDGES=(
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
   "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-session docket-skills porter-client porter-core porter-infer prov"
   "docket-session: companion-wire docket-core porter-core prov"
-  "docket-acp: actions-tools companion-wire docket-client docket-core docket-session docket-settings docket-shell porter-core prov"
-  "docket-shell: docket-core"
-  "docket-launch: docket-acp docket-core docket-session docket-settings docket-shell porter-client porter-core porter-dbus prov"
-  "docket-acp-bin: docket-acp docket-client docket-core docket-dbus docket-inapp docket-launch docket-planner docket-router docket-session docket-settings docket-shell docket-tasks porter-core prov"
+  "docket-acp: actions-tools bulkhead companion-wire docket-client docket-core docket-session docket-settings porter-core prov"
+  "docket-launch: bulkhead docket-acp docket-core docket-session docket-settings porter-client porter-core porter-dbus prov"
+  "docket-acp-bin: bulkhead docket-acp docket-client docket-core docket-dbus docket-inapp docket-launch docket-planner docket-router docket-session docket-settings docket-tasks porter-core prov"
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
   "docket-memory: almanac-client almanac-core docket-core docket-router docket-session porter-core prov"
@@ -177,7 +173,7 @@ EDGES=(
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-session docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
   "companiond: companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills docket-tasks porter-client porter-core prov"
   "readerd: docket-client docket-core docket-dbus docket-reader porter-client porter-core porter-infer prov"
-  "docket-accept: action-review actions-mcp almanac-client almanac-core companion-wire companiond docket-acp docket-acp-bin docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-inapp docket-launch docket-router docket-session docket-settings docket-shell docket-testbus intentd porter-client porter-core porter-infer prov readerd"
+  "docket-accept: action-review actions-mcp almanac-client almanac-core bulkhead companion-wire companiond docket-acp docket-acp-bin docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-inapp docket-launch docket-router docket-session docket-settings docket-testbus intentd porter-client porter-core porter-infer prov readerd"
   "companion-client: companion-wire docket-client docket-core docket-dbus prov"
   "docket-cli: companion-client companion-wire docket-client docket-core docket-session docket-skills model-provider porter-core prov"
   "docket-settings: docket-core porter-core"

@@ -6,9 +6,9 @@ use crate::accounts::{
 };
 use crate::config::Delivery;
 use crate::procs::{Proc, ProcFault, Procs};
+use bulkhead::AgentRun;
 use docket_acp::client::fake::ChannelWire;
 use docket_core::AbsPath;
-use docket_shell::AgentRun;
 use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
 use porter_core::{
     DataClass, GrantId, LauncherSession, LoginOutcome, ProcessCredentialId, SecretText,

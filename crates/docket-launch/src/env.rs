@@ -9,8 +9,8 @@
 
 use crate::accounts::{KeyHandoff, OpenedEndpoint};
 use crate::config::{Entry, Route};
+use bulkhead::{EnvVar, SANDBOX_HOME, SANDBOX_PATH};
 use docket_core::AbsPath;
-use docket_shell::{EnvVar, SANDBOX_HOME, SANDBOX_PATH};
 use porter_core::capability::EnvName;
 
 /// What a route gave the child.

@@ -58,7 +58,7 @@ docket-dbus = { workspace = true, features = ["inferd", "test-model-trace"] }
 docket-eval = { workspace = true }
 docket-inapp = { workspace = true }
 docket-launch = { workspace = true }
-docket-shell = { workspace = true }
+bulkhead = { workspace = true }
 docket-session = { workspace = true }
 docket-settings = { workspace = true }
 docket-fake = { workspace = true }

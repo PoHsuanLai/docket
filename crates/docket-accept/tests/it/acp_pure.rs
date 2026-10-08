@@ -126,7 +126,7 @@ fn the_entry_is_an_agents_toml_entry_under_the_scratch_home() {
         .get(&docket_session::ProgramName::parse("claude-code").expect("name"))
         .expect("entry");
     assert_eq!(entry.route, docket_launch::Route::Login);
-    assert_eq!(entry.network, docket_shell::NetworkMode::Host);
+    assert_eq!(entry.network, bulkhead::NetworkMode::Host);
     assert_eq!(entry.state[0].as_str(), "/scratch/world-1/.claude");
     assert_eq!(
         entry.home.as_ref().map(|h| h.as_str()),

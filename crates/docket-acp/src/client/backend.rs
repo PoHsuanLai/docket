@@ -35,12 +35,12 @@ use agent_client_protocol_schema::v1::{
     AuthMethod, ClientCapabilities, Error, ErrorCode, InitializeResponse, NewSessionResponse,
     PromptResponse, SessionId, StopReason,
 };
+use bulkhead::Sandbox;
 use docket_core::{AbsPath, CallId, PermissionKind, UserTurn};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, ProgramName, ResumePlan, Resumed, SessionBackend,
     StartSession, Taint, TurnEnd,
 };
-use docket_shell::Sandbox;
 use prov::Effect;
 use std::collections::VecDeque;
 

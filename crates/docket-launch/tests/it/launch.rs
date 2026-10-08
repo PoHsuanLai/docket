@@ -3,10 +3,10 @@
 //! close, on a failure, and when a credential is revoked.
 
 use super::support::{ENDPOINT, HANDOFF, HANDOFF_FILE, LOGIN, plan, rig};
+use bulkhead::{Access, AgentNet, AgentRun, NetworkMode, agent_bwrap_args};
 use docket_acp::client::{AgentChild, Spawn, SpawnFault};
 use docket_launch::fake::{Call, FakeAccounts, Mood};
 use docket_launch::{Heard, Supervisor};
-use docket_shell::{Access, AgentNet, AgentRun, NetworkMode, agent_bwrap_args};
 use porter_core::ProcessCredentialId;
 use std::os::unix::fs::PermissionsExt;
 

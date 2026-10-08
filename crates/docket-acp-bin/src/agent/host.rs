@@ -6,6 +6,7 @@
 
 use crate::Wall;
 use crate::agent::provider::{PerformerProvider, Quiet};
+use bulkhead::{Detected, NetworkMode};
 use docket_acp::client::{
     AcpBackend, AgentHost, Fallback, IntentsCourt, OsFiles, Parts, Performer, Seams, ToolsOffer,
 };
@@ -19,7 +20,6 @@ use docket_launch::{
 use docket_session::{
     BackendFault, BackendKind, HostFault, Opening, ProgramName, SessionHost, Workspace,
 };
-use docket_shell::{Detected, NetworkMode};
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::marker::PhantomData;
 use std::path::PathBuf;

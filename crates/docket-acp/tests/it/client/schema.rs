@@ -5,7 +5,7 @@
 
 use super::agent::{AGENT_SESSION, Act, View, call, call_with, say};
 use super::rig::{Setup, once, read, run_turn, started, tool, write};
-use docket_shell::fake::Script;
+use bulkhead::fake::Script;
 use serde_json::{Value, json};
 
 fn conforms(schema: &Value, def: &str, value: &Value) {

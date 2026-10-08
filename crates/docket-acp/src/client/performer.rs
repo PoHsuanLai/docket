@@ -12,10 +12,11 @@
 use super::call::StageId;
 use super::confine::Confined;
 use super::files::{FileFault, Files};
+use crate::bulk;
 use crate::terminals::Terminals;
 use agent_client_protocol_schema::v1::{ClientCapabilities, Error};
+use bulkhead::{Network, NetworkMode, Sandbox};
 use docket_core::{AbsPath, Derivation, NetAccess, Served, UndoToken};
-use docket_shell::{Network, NetworkMode, Sandbox};
 use prov::SessionId;
 use serde_json::Value as Json;
 use std::collections::BTreeMap;
@@ -122,7 +123,7 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
     /// agent can reach the network too, and the host cannot see what it does with what it is told.
     #[must_use]
     pub fn with_agent_network(self, mode: NetworkMode) -> Self {
-        self.lock().agent_net = mode.into();
+        self.lock().agent_net = bulk::mode_access(mode);
         self
     }
 

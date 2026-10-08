@@ -6,10 +6,10 @@
 //! namespaces are not available.
 
 use crate::support::binaries;
+use bulkhead::{Detected, NetworkMode};
 use docket_accept::live::acp::{AcpSpec, CredentialsSource, agent_cassette, run_flow_acp};
 use docket_accept::live::flows::{Flow, Kind};
 use docket_accept::world::ModelSource;
-use docket_shell::{Detected, NetworkMode};
 use std::path::Path;
 use std::time::Duration;
 

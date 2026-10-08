@@ -459,6 +459,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bulkhead"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/bulkhead?rev=648ce1e5876856c69fd3251d1951d33cf5e1f435#648ce1e5876856c69fd3251d1951d33cf5e1f435"
+dependencies = [
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -932,6 +941,7 @@ dependencies = [
  "actions-mcp",
  "almanac-client",
  "almanac-core",
+ "bulkhead",
  "companion-wire",
  "companiond",
  "docket-acp",
@@ -947,7 +957,6 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-settings",
- "docket-shell",
  "docket-testbus",
  "futures-util",
  "intentd",
@@ -972,6 +981,7 @@ dependencies = [
  "action-review",
  "actions-tools",
  "agent-client-protocol-schema",
+ "bulkhead",
  "companion-wire",
  "docket-client",
  "docket-core",
@@ -980,7 +990,6 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-settings",
- "docket-shell",
  "docket-testbus",
  "futures-util",
  "jsonschema",
@@ -998,6 +1007,7 @@ dependencies = [
 name = "docket-acp-bin"
 version = "0.1.0"
 dependencies = [
+ "bulkhead",
  "docket-acp",
  "docket-client",
  "docket-core",
@@ -1009,7 +1019,6 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-settings",
- "docket-shell",
  "docket-tasks",
  "porter-core",
  "prov",
@@ -1190,11 +1199,11 @@ dependencies = [
 name = "docket-launch"
 version = "0.1.0"
 dependencies = [
+ "bulkhead",
  "docket-acp",
  "docket-core",
  "docket-session",
  "docket-settings",
- "docket-shell",
  "docket-testbus",
  "futures-util",
  "porter-client",
@@ -1325,16 +1334,6 @@ dependencies = [
  "serde",
  "tempfile",
  "toml",
-]
-
-[[package]]
-name = "docket-shell"
-version = "0.1.0"
-dependencies = [
- "docket-core",
- "serde",
- "tempfile",
- "thiserror",
 ]
 
 [[package]]

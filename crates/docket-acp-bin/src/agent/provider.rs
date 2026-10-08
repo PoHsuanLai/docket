@@ -3,6 +3,7 @@
 //! does it. Only intentd may call a provider (`docket-client` enforces it), so nothing reaches
 //! the performer that the gate did not allow.
 
+use bulkhead::Sandbox;
 use docket_acp::client::{Files, Performer};
 use docket_client::{ContextSource, IntentProvider, SummonTarget};
 use docket_core::{
@@ -10,7 +11,6 @@ use docket_core::{
     Selection, SuggestAsk, SummonAnswer, SummonOrigin, SummonSerial, TextTarget, UndoFault,
     UndoToken, ValidManifest, Visible, WindowPrivacy,
 };
-use docket_shell::Sandbox;
 use porter_core::{AppName, Count};
 use prov::{Actor, Confidentiality, EntityId, Integrity, Label, Labelled, Source};
 use std::collections::BTreeSet;

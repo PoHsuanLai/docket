@@ -39,7 +39,7 @@ fn say_agent(agent: &Agent) {
             "docket-live: --agent acp: {} runs in a sandbox with network {}{}",
             spec.program,
             docket_accept::live::acp::spec::network_word(spec.network),
-            if spec.network == docket_shell::NetworkMode::Host {
+            if spec.network == bulkhead::NetworkMode::Host {
                 " (its prompts go to its own provider)"
             } else {
                 ""

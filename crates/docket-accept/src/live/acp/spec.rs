@@ -3,7 +3,7 @@
 //! own `agents.toml`. A path the agent keeps its state in is given relative to the scratch HOME,
 //! so the entry can never name a place in the person's real one.
 
-use docket_shell::NetworkMode;
+use bulkhead::NetworkMode;
 use std::path::{Component, Path, PathBuf};
 
 /// Where Claude Code keeps its login, relative to HOME.

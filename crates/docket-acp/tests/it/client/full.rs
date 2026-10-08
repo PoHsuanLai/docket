@@ -6,10 +6,10 @@ use super::agent::{AGENT_SESSION, Act, call, call_with, fire_with, say};
 use super::rig::{
     CWD, Setup, abs, always, no, once, program, read, run_turn, selected, started, tool, write,
 };
+use bulkhead::fake::Script;
 use docket_acp::client::TaintSource;
 use docket_core::{AuditRecord, FILES_READ, FILES_WRITE, GrantCaller, StandingScope, TERMINAL_RUN};
 use docket_session::{BackendEvent, CallEvent, EndCause, SessionHost, TurnEnd};
-use docket_shell::fake::Script;
 use prov::Actor;
 use serde_json::json;
 
@@ -142,7 +142,7 @@ async fn a_full_session_goes_through_the_router_call_by_call() {
     let ran = rig.sandbox.started();
     assert_eq!(ran.len(), 1);
     assert_eq!(ran[0].argv.line(), "echo hi");
-    assert_eq!(ran[0].cwd, abs(CWD));
+    assert_eq!(ran[0].cwd.as_str(), CWD);
     assert_eq!(rig.agent.reply("out").unwrap()["output"], json!("hi\n"));
     assert_eq!(rig.agent.reply("exit").unwrap()["exitCode"], json!(0));
     assert!(rig.agent.reply("release").is_ok());

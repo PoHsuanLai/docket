@@ -8,12 +8,12 @@ use super::files::FileFault;
 use super::files::Files;
 use super::performer::{Held, Performer, Scope, UNDO_KEEP, UndoNote};
 use super::taint::source;
+use bulkhead::Sandbox;
 use docket_core::{
     AbsPath, AppRefusal, FILES_READ, FILES_SENSITIVE, FILES_WRITE, FailText, Follow, Invocation,
     LabelText, Outcome, ParamName, PermissionKind, Preview, REPORTED, TERMINAL_RUN, TargetValue,
     UndoFault, UndoToken, Undoable, Value,
 };
-use docket_shell::Sandbox;
 use porter_core::DataClass;
 use prov::{Integrity, Label, Labelled, Source};
 use serde_json::Value as Json;

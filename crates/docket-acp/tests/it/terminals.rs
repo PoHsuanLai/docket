@@ -1,9 +1,10 @@
 //! The terminal methods over the fake sandbox, driven the way a peer agent drives them: each
 //! request and response is checked against the protocol schema.
 
+use bulkhead::CannotSandbox;
+use bulkhead::fake::{FakeSandbox, Fate, Script, Seen};
 use docket_acp::Terminals;
-use docket_core::{AbsPath, CannotSandbox};
-use docket_shell::fake::{FakeSandbox, Fate, Script, Seen};
+use docket_core::AbsPath;
 use serde_json::{Value, json};
 
 /// The scope the host was opened in.
@@ -182,7 +183,7 @@ async fn the_command_runs_with_the_cwd_a_cleared_env_and_no_network() {
     let started = b.seen.started();
     assert_eq!(started[0].argv.line(), "ls -la");
     assert_eq!(started[0].cwd.as_str(), "/work/app/src");
-    assert_eq!(started[0].network, docket_shell::Network::Off);
+    assert_eq!(started[0].network, bulkhead::Network::Off);
     assert!(started[0].env.iter().all(|v| v.name != "API_TOKEN"));
 }
 

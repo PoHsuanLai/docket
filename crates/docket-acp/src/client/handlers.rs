@@ -21,11 +21,11 @@ use agent_client_protocol_schema::v1::{
     RequestPermissionResponse, SelectedPermissionOutcome, TerminalId, WriteTextFileRequest,
     WriteTextFileResponse,
 };
+use bulkhead::Argv;
 use docket_core::{
     AbsPath, AppRefusal, BreakerTrip, CallRefusal, DenyCode, FailText, Outcome, SandboxState,
     StepEnd, Undoable, Value,
 };
-use docket_shell::Argv;
 use serde::Serialize;
 use serde_json::Value as Json;
 

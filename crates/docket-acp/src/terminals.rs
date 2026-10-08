@@ -10,6 +10,7 @@
 //! `terminal/wait_for_exit` blocks the thread until the command ends; a host that shares a thread
 //! with other work uses `poll_wait`.
 
+use crate::bulk;
 use crate::fault;
 use agent_client_protocol_schema::v1::{
     CLIENT_METHOD_NAMES, ClientCapabilities, CreateTerminalRequest, CreateTerminalResponse, Error,
@@ -17,8 +18,8 @@ use agent_client_protocol_schema::v1::{
     TerminalExitStatus, TerminalId, TerminalOutputRequest, TerminalOutputResponse,
     WaitForTerminalExitRequest, WaitForTerminalExitResponse,
 };
-use docket_core::{AbsPath, Cover, NetAccess, SandboxState};
-use docket_shell::{Argv, Cut, ExitReport, Launch, Network, Sandbox, Shell, ShellFault, TermId};
+use bulkhead::{Argv, Cut, ExitReport, Launch, Network, Sandbox, Shell, ShellFault, TermId};
+use docket_core::{AbsPath, CannotSandbox, Cover, NetAccess, SandboxState};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -66,19 +67,21 @@ impl<S: Sandbox> Terminals<S> {
 
     /// What network the commands have, for the router's rule on commands that can send data out.
     pub fn access(&self) -> NetAccess {
-        self.shell.network().into()
+        bulk::access(self.shell.network())
     }
 
     /// `base` with the terminal capability on exactly when the sandbox is there. With none, the
     /// capability stays off and an agent is told it has no terminal.
     pub fn capabilities(&self, base: ClientCapabilities) -> ClientCapabilities {
-        base.terminal(self.shell.available() == SandboxState::Ready)
+        base.terminal(self.shell.available() == bulkhead::SandboxState::Ready)
     }
 
     /// Whether `cwd` can be confined, and if not why not: a command that cannot be sandboxed is
     /// refused before anyone is asked.
     pub fn check(&self, cwd: &AbsPath) -> SandboxState {
-        self.shell.check(cwd)
+        bulk::to_shell(cwd).map_or(SandboxState::Cannot(CannotSandbox::BadWorkingDir), |path| {
+            bulk::state(self.shell.check(&path))
+        })
     }
 
     /// Answers one `terminal/*` request other than `create` (which needs the session's scope and
@@ -125,12 +128,14 @@ impl<S: Sandbox> Terminals<S> {
             .ok_or_else(|| fault::invalid("the command is empty or holds a NUL"))?;
         // We never run unsandboxed: a command that cannot be confined is refused here, with the
         // reason.
-        if let SandboxState::Cannot(why) = self.shell.check(&cwd) {
+        let shell_cwd = bulk::to_shell(&cwd)
+            .map_err(|_| fault::invalid("the working directory must be absolute"))?;
+        if let bulkhead::SandboxState::Cannot(why) = self.shell.check(&shell_cwd) {
             return Err(shell_error(&ShellFault::CannotSandbox(why)));
         }
         let launch = Launch {
             argv,
-            cwd,
+            cwd: shell_cwd,
             env: asked
                 .env
                 .iter()

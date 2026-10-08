@@ -2,10 +2,9 @@
 //! the one given. Skips, with a printed reason, where it does not. Scratch directories, an
 //! unreachable bus, a scratch home.
 
+use bulkhead::{AgentNet, AgentRun, Argv, Detected, EnvVar};
 use docket_acp::Wire;
-use docket_core::AbsPath;
 use docket_launch::{BwrapProcs, Proc, Procs};
-use docket_shell::{AgentNet, AgentRun, Argv, Detected, EnvVar};
 
 fn bwrap() -> Option<std::path::PathBuf> {
     let path = std::env::var("PATH").unwrap_or_default();
@@ -41,7 +40,7 @@ async fn a_confined_process_speaks_lines_over_its_stdio_with_exactly_the_environ
             ],
         )
         .expect("argv"),
-        cwd: AbsPath::parse(cwd.to_str().expect("utf8")).expect("abs"),
+        cwd: bulkhead::AbsPath::parse(cwd.to_str().expect("utf8")).expect("abs"),
         env: vec![
             var("PATH", "/usr/bin:/bin"),
             var("HOME", "/tmp"),

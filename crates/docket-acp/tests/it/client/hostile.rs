@@ -151,7 +151,7 @@ async fn a_grant_for_one_command_does_not_cover_a_pipeline() {
         held: vec![grant],
         // The person is never asked for the first (the grant stands in) and says no to the rest.
         answers: vec![no(), no()],
-        scripts: vec![docket_shell::fake::Script::done("hi\n", 0)],
+        scripts: vec![bulkhead::fake::Script::done("hi\n", 0)],
         ..Setup::default()
     })
     .await;

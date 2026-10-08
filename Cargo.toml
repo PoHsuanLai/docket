@@ -13,7 +13,6 @@ members = [
   "crates/docket-tasks",
   "crates/docket-session",
   "crates/docket-acp",
-  "crates/docket-shell",
   "crates/docket-launch",
   "crates/docket-acp-bin",
   "crates/docket-models",
@@ -64,7 +63,6 @@ docket-planner = { path = "crates/docket-planner" }
 docket-tasks   = { path = "crates/docket-tasks" }
 docket-session = { path = "crates/docket-session" }
 docket-acp     = { path = "crates/docket-acp" }
-docket-shell   = { path = "crates/docket-shell" }
 docket-launch  = { path = "crates/docket-launch" }
 docket-acp-bin = { path = "crates/docket-acp-bin" }
 docket-models  = { path = "crates/docket-models" }
@@ -88,6 +86,8 @@ voice-loop     = { path = "crates/voice-loop" }
 # no cycle.
 porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }
 prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }
+# The confined shell and agent sandbox (bubblewrap as a separate process).
+bulkhead        = { git = "https://github.com/PoHsuanLai/bulkhead", rev = "648ce1e5876856c69fd3251d1951d33cf5e1f435" }
 porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }
 porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }
 porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "993c56b79c1f15d07bb8843d44c06eb054f4cb6c" }

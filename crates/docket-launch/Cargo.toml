@@ -22,7 +22,7 @@ docket-acp = { workspace = true, features = ["client", "server"] }
 docket-core = { workspace = true }
 docket-session = { workspace = true }
 docket-settings = { workspace = true }
-docket-shell = { workspace = true }
+bulkhead = { workspace = true }
 futures-util = { workspace = true, optional = true }
 porter-client = { workspace = true, features = ["dbus"], optional = true }
 porter-core = { workspace = true }
