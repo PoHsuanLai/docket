@@ -243,13 +243,12 @@ pub async fn recorded(world: &World, kinds: &[&str]) -> Vec<almanac_core::Recent
             }
             *seen.borrow_mut() = entries
                 .iter()
-                .map(|e| format!("{:?}", e.summary.kind))
+                .map(|e| e.summary.kind.as_str().to_owned())
                 .collect();
-            if kinds.iter().all(|k| {
-                entries
-                    .iter()
-                    .any(|e| format!("{:?}", e.summary.kind) == format!("KindTag(\"{k}\")"))
-            }) {
+            if kinds
+                .iter()
+                .all(|k| entries.iter().any(|e| e.summary.kind.as_str() == *k))
+            {
                 return entries;
             }
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;

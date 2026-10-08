@@ -93,6 +93,9 @@ pub enum CorpusError {
     /// The fake router could not be built.
     #[error("router: {0}")]
     Router(FakeError),
+    /// A model card could not be built from this model name.
+    #[error("model card for {0}")]
+    ModelCard(&'static str),
     /// A model did not come up before the run started.
     #[error(transparent)]
     Warm(#[from] WarmFault),
@@ -186,14 +189,14 @@ pub async fn run_corpus_live(
             tap.clone(),
         )
     };
-    let model_of = |name: &str| card(name).map(|c| InferdModel::new(link(), c));
-    let (Some(quick), Some(deliberate), Some(second)) = (
-        model_of("quire-quick"),
-        model_of("quire-deliberate"),
-        model_of("quire-second"),
-    ) else {
-        return Err(CorpusError::Router(FakeError::Space));
+    let model_of = |name: &'static str| {
+        card(name)
+            .map(|c| InferdModel::new(link(), c))
+            .ok_or(CorpusError::ModelCard(name))
     };
+    let quick = model_of("quire-quick")?;
+    let deliberate = model_of("quire-deliberate")?;
+    let second = model_of("quire-second")?;
     let reviewer = Judges(InferReviewer {
         quick,
         deliberate,

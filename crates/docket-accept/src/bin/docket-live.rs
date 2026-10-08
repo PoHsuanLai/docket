@@ -149,7 +149,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
         patience: Duration::from_secs(args.patience_s),
     };
     let mut misses = Vec::new();
-    let mut outcome = None;
+    let mut outcomes = Vec::new();
     let all = load_all(&args.eval_dir).map_err(|e| e.to_string())?;
     match &args.regress {
         Some(dir) => {
@@ -160,7 +160,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
                     .await
                     .map_err(|e| e.to_string())?;
                 misses.extend(ran.note.missed.clone());
-                outcome = Some(ran);
+                outcomes.push(ran);
             }
         }
         None => {
@@ -172,25 +172,36 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
                 .await
                 .map_err(|e| e.to_string())?;
             misses.extend(ran.note.missed.clone());
-            outcome = Some(ran);
+            outcomes.push(ran);
         }
     }
-    let Some(outcome) = outcome else {
+    if outcomes.is_empty() {
         return Err("nothing to run".to_owned());
-    };
-    let text = outcome.report.render(&outcome.note);
+    }
+    // One section per run: a regression pair is a run of its own.
+    let text: String = outcomes
+        .iter()
+        .map(|outcome| outcome.report.render(&outcome.note))
+        .collect();
     print!("{text}");
     if let Some(path) = &args.report {
         std::fs::write(path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
         eprintln!("docket-live: report written to {}", path.display());
     }
-    eprintln!(
-        "docket-live: traces in {} (index.txt, one .trace.txt, .cassette.jsonl and .case.toml per case)",
-        outcome.trace_dir.display()
-    );
-    let over = args
+    for outcome in &outcomes {
+        eprintln!(
+            "docket-live: traces in {} (index.txt, one .trace.txt, .cassette.jsonl and .case.toml per case)",
+            outcome.trace_dir.display()
+        );
+    }
+    let over: Vec<String> = args
         .fnr_max_permille
-        .map(|max| over_target(&outcome.report, max))
+        .map(|max| {
+            outcomes
+                .iter()
+                .flat_map(|outcome| over_target(&outcome.report, max))
+                .collect()
+        })
         .unwrap_or_default();
     over.iter()
         .for_each(|line| eprintln!("docket-live: {line}"));
