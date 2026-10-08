@@ -118,6 +118,7 @@ impl<X: Seams, D: SheetDesk> SessionHost for AgentHost<X, D> {
                 program,
                 cwd,
                 sheets: self.fallback.surface(),
+                space: opening.space.clone(),
             })
             .await
             .map_err(|_| BackendFault::Unavailable)?;

@@ -11,7 +11,7 @@
 use super::call::AgentCall;
 use docket_core::{CallRefusal, ExternalAgent, Outcome, SheetSurface, ValidManifest};
 use docket_session::{ProgramName, Workspace};
-use prov::SessionId;
+use prov::{SessionId, SpaceId};
 use std::future::Future;
 
 /// How the router ruled on a call.
@@ -45,6 +45,8 @@ pub struct OpenAgent {
     pub cwd: Workspace,
     /// Where the person answers its sheets.
     pub sheets: SheetSurface,
+    /// The Space the session is in: the one whose data its calls reach.
+    pub space: SpaceId,
 }
 
 impl OpenAgent {

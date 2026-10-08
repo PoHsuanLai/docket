@@ -1,7 +1,8 @@
-//! The command line of `docket-agent`: `docket-agent PROGRAM [--cwd DIR] [--tty]`.
+//! The command line of `docket-agent`: `docket-agent PROGRAM [--cwd DIR] [--space NAME] [--tty]`.
 
 use docket_acp::client::Fallback;
 use docket_session::ProgramName;
+use prov::SpaceId;
 use std::path::PathBuf;
 
 /// What was asked for.
@@ -11,6 +12,8 @@ pub struct Args {
     pub program: ProgramName,
     /// The directory it works in.
     pub cwd: PathBuf,
+    /// The Space the session is in (the desktop's, unless `--space` names one).
+    pub space: SpaceId,
     /// Where the person answers its sheets: the desktop's, unless `--tty` asked for this
     /// terminal (a development fallback).
     pub fallback: Fallback,
@@ -23,9 +26,11 @@ pub fn parse(args: impl IntoIterator<Item = String>, here: PathBuf) -> Option<Ar
     let program = ProgramName::parse(&it.next()?).ok()?;
     let mut cwd = here;
     let mut fallback = Fallback::Off;
+    let mut space = SpaceId::desktop();
     while let Some(flag) = it.next() {
         match flag.as_str() {
             "--cwd" => cwd = PathBuf::from(it.next()?),
+            "--space" => space = SpaceId::parse(&it.next()?).ok()?,
             "--tty" => fallback = Fallback::Terminal,
             _ => return None,
         }
@@ -33,6 +38,7 @@ pub fn parse(args: impl IntoIterator<Item = String>, here: PathBuf) -> Option<Ar
     Some(Args {
         program,
         cwd,
+        space,
         fallback,
     })
 }
@@ -51,6 +57,9 @@ mod tests {
         let plain = parse(words("claude-code"), here.clone()).expect("args");
         assert_eq!(plain.fallback, Fallback::Off);
         assert_eq!(plain.cwd, here);
+        assert_eq!(plain.space, SpaceId::desktop());
+        let work = parse(words("claude-code --space work"), here.clone()).expect("args");
+        assert_eq!(work.space.as_str(), "work");
         let tty = parse(words("claude-code --tty --cwd /home/u/q"), here.clone()).expect("args");
         assert_eq!(tty.fallback, Fallback::Terminal);
         assert_eq!(tty.cwd, PathBuf::from("/home/u/q"));

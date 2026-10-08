@@ -40,6 +40,8 @@ pub struct Binaries {
     pub inferd: PathBuf,
     /// `accept-quire-do`.
     pub quire_do: PathBuf,
+    /// `accept-actions-mcp`: the bridge an external agent starts.
+    pub actions_mcp: PathBuf,
 }
 
 /// The model's script: the text of a cassette file (`dev/accept/cassettes`), written into the
@@ -66,6 +68,9 @@ pub enum AcpSetting {
     Off,
     /// `[agent.acp] expose = "on"`.
     On,
+    /// `[agent.acp] agents = "on"`: intentd counts the host of an external agent
+    /// (`org.quire.AcpAgent`) and `agents.toml` may start programs.
+    Agents,
 }
 
 /// What a world does besides what its model source says.
@@ -475,11 +480,16 @@ impl World {
             );
         }
 
-        if options.acp == AcpSetting::On {
-            write(
+        match options.acp {
+            AcpSetting::Off => {}
+            AcpSetting::On => write(
                 &root.join("config/docket/settings.toml"),
                 "[agent.acp]\nexpose = \"on\"\n",
-            );
+            ),
+            AcpSetting::Agents => write(
+                &root.join("config/docket/settings.toml"),
+                "[agent.acp]\nagents = \"on\"\n",
+            ),
         }
         copy_catalog(options.catalog.as_deref(), root);
         let tap = match options.tap {

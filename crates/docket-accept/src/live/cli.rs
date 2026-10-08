@@ -1,8 +1,20 @@
 //! The command line of `docket-live`, parsed into a request. Pure: it reads no file and no
 //! environment, so a table of command lines tests it.
 
+use crate::live::acp::AcpSpec;
+use crate::live::acp::spec::{CLAUDE_CREDENTIALS_AT, CredentialsSource, SpecFault, network_of};
 use crate::live::engine::{Engine, EngineError};
 use std::path::PathBuf;
+
+/// Who plays the companion's part in a run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Agent {
+    /// The companion's own planner, over the model of `--engine`.
+    Planner,
+    /// An external ACP agent, hosted as `docket-agent` hosts it. `--engine` still says where the
+    /// policy writer and the reviewers get their answers.
+    Acp(Box<AcpSpec>),
+}
 
 /// What the person asked for.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,6 +57,8 @@ pub struct CorpusArgs {
     pub patience_s: u64,
     /// The catalogue directory to copy into the world.
     pub catalog: Option<PathBuf>,
+    /// Who plays the companion's part.
+    pub agent: Agent,
 }
 
 /// `docket-live smoke`.
@@ -64,6 +78,8 @@ pub struct SmokeArgs {
     pub patience_s: u64,
     /// The catalogue directory to copy into the world.
     pub catalog: Option<PathBuf>,
+    /// Who plays the companion's part.
+    pub agent: Agent,
 }
 
 /// Why the command line is wrong.
@@ -84,6 +100,18 @@ pub enum UsageError {
     /// `--engine` is missing or wrong.
     #[error("{0}")]
     Engine(String),
+    /// `--agent` is not planner or acp.
+    #[error("--agent takes planner or acp, not {0:?}")]
+    Agent(String),
+    /// The external agent's options are wrong or incomplete.
+    #[error("{0}")]
+    Acp(String),
+}
+
+impl From<SpecFault> for UsageError {
+    fn from(fault: SpecFault) -> Self {
+        UsageError::Acp(fault.to_string())
+    }
 }
 
 struct Words<'a>(std::slice::Iter<'a, String>);
@@ -117,8 +145,12 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let (mut corpora, mut cases, mut flows) = (Vec::new(), Vec::new(), Vec::new());
     let mut catalog = None;
     let (mut timeout, mut accountd, mut fnr, mut patience) = (None, None, None, 600_u64);
+    let mut agent_word = None;
+    let mut acp = AcpFlags::default();
     while let Some(flag) = words.0.next() {
         match flag.as_str() {
+            "--agent" => agent_word = Some(words.value(flag)?.clone()),
+            other if other.starts_with("--acp-") => acp.take(other, &mut words)?,
             "--engine" => engine_text = Some(words.value(flag)?.clone()),
             "--inferd-config" => config = Some(PathBuf::from(words.value(flag)?)),
             "--out" => out = Some(PathBuf::from(words.value(flag)?)),
@@ -138,6 +170,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
         }
     }
     let engine = engine(engine_text)?;
+    let agent = acp.agent(agent_word)?;
     let out = out.unwrap_or_else(|| PathBuf::from("docket-live-out"));
     match sub.as_str() {
         "corpus" => Ok(Command::Corpus(CorpusArgs {
@@ -155,6 +188,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             fnr_max_permille: fnr,
             patience_s: patience,
             catalog,
+            agent,
         })),
         "smoke" => Ok(Command::Smoke(SmokeArgs {
             engine,
@@ -164,7 +198,89 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             flows,
             patience_s: patience,
             catalog,
+            agent,
         })),
         _ => Err(UsageError::Subcommand),
+    }
+}
+
+/// The `--acp-*` options as they come, before they are known to be wanted.
+#[derive(Default)]
+struct AcpFlags {
+    program: Option<String>,
+    command: Option<PathBuf>,
+    args: Vec<String>,
+    network: Option<String>,
+    state: Vec<String>,
+    reads: Vec<PathBuf>,
+    set: Vec<String>,
+    credentials: Option<PathBuf>,
+    credentials_at: Option<String>,
+    route: Option<String>,
+    seen: bool,
+}
+
+impl AcpFlags {
+    fn take(&mut self, flag: &str, words: &mut Words<'_>) -> Result<(), UsageError> {
+        self.seen = true;
+        let value = words.value(flag)?.clone();
+        match flag {
+            "--acp-program" => self.program = Some(value),
+            "--acp-command" => self.command = Some(PathBuf::from(value)),
+            "--acp-arg" => self.args.push(value),
+            "--acp-network" => self.network = Some(value),
+            "--acp-state" => self.state.push(value),
+            "--acp-reads" => self.reads.push(PathBuf::from(value)),
+            "--acp-set" => self.set.push(value),
+            "--acp-credentials" => self.credentials = Some(PathBuf::from(value)),
+            "--acp-credentials-at" => self.credentials_at = Some(value),
+            "--acp-route" => self.route = Some(value),
+            other => return Err(UsageError::Unknown(other.to_owned())),
+        }
+        Ok(())
+    }
+
+    /// The agent the options ask for: the planner unless `--agent acp`, and then the spec,
+    /// checked. `--acp-*` options without `--agent acp` are a mistake, not an ignored line.
+    fn agent(self, word: Option<String>) -> Result<Agent, UsageError> {
+        match word.as_deref() {
+            None | Some("planner") if !self.seen => Ok(Agent::Planner),
+            None | Some("planner") => Err(UsageError::Acp(
+                "--acp-* options need --agent acp".to_owned(),
+            )),
+            Some("acp") => self.spec().map(|spec| Agent::Acp(Box::new(spec))),
+            Some(other) => Err(UsageError::Agent(other.to_owned())),
+        }
+    }
+
+    fn spec(self) -> Result<AcpSpec, UsageError> {
+        let command = self.command.ok_or_else(|| {
+            UsageError::Acp("--agent acp needs --acp-command <program>".to_owned())
+        })?;
+        if let Some(route) = self.route.filter(|r| r != "login") {
+            return Err(SpecFault::Route(route).into());
+        }
+        let program = self.program.unwrap_or_else(|| "claude-code".to_owned());
+        let mut spec = AcpSpec::new(&program, command);
+        spec.args = self.args;
+        spec.state = self.state;
+        spec.reads = self.reads;
+        if let Some(word) = self.network {
+            spec.network = network_of(&word)?;
+        }
+        for pair in self.set {
+            let (name, value) = pair
+                .split_once('=')
+                .ok_or_else(|| SpecFault::Set(pair.clone()))?;
+            spec.set.push((name.to_owned(), value.to_owned()));
+        }
+        spec.credentials = self.credentials.map(|from| CredentialsSource {
+            from,
+            at: self
+                .credentials_at
+                .unwrap_or_else(|| CLAUDE_CREDENTIALS_AT.to_owned()),
+        });
+        spec.check()?;
+        Ok(spec)
     }
 }

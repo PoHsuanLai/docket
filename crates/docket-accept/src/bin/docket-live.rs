@@ -5,7 +5,8 @@
 //! `--engine cloud`, and that is said before anything starts. Start it through
 //! `scripts/eval-release.sh` or `dev/live-smoke.sh`.
 
-use docket_accept::live::cli::{Command, CorpusArgs, SmokeArgs, UsageError, parse};
+use docket_accept::live::acp::{AcpSpec, Redactor, agent_cassette, run_flow_acp};
+use docket_accept::live::cli::{Agent, Command, CorpusArgs, SmokeArgs, UsageError, parse};
 use docket_accept::live::flows::{Flow, Kind, run_flow};
 use docket_accept::live::hostile::run_planner_case;
 use docket_accept::live::{
@@ -14,7 +15,7 @@ use docket_accept::live::{
 use docket_accept::live::{catalog, regress};
 use docket_accept::world::ModelSource;
 use docket_core::Millis;
-use docket_eval::{Case, Corpus, PlannerCase, RunReport, load_all, load_planner_cases};
+use docket_eval::{Case, Corpus, PlannerCase, RunNote, RunReport, load_all, load_planner_cases};
 use std::process::ExitCode;
 use std::time::Duration;
 
@@ -27,6 +28,28 @@ fn say_reach(engine: Engine) {
         );
     } else {
         eprintln!("docket-live: --engine {}: no network", engine.slug());
+    }
+}
+
+/// What an external agent reaches, said before anything starts: its own network, whatever the
+/// engine is, and the login it is given.
+fn say_agent(agent: &Agent) {
+    if let Agent::Acp(spec) = agent {
+        eprintln!(
+            "docket-live: --agent acp: {} runs in a sandbox with network {}{}",
+            spec.program,
+            docket_accept::live::acp::spec::network_word(spec.network),
+            if spec.network == docket_shell::NetworkMode::Host {
+                " (its prompts go to its own provider)"
+            } else {
+                ""
+            }
+        );
+        if spec.credentials.is_some() {
+            eprintln!(
+                "docket-live: the login you named is copied into the scratch HOME for this run and removed when it ends"
+            );
+        }
     }
 }
 
@@ -69,8 +92,46 @@ fn over_target(report: &RunReport, max: u32) -> Vec<String> {
         .collect()
 }
 
+/// Every case of the chosen corpora, as a report that says none of them could run with an agent.
+/// A case scripts the planner's calls and judges the router's ruling on each; an external agent
+/// chooses its own, so the case's expectation has nothing to compare. The flows (`smoke`) are what
+/// an agent is measured on.
+fn corpus_agent(args: &CorpusArgs, spec: &AcpSpec) -> Result<ExitCode, String> {
+    let all = load_all(&args.eval_dir).map_err(|e| e.to_string())?;
+    let cases = chosen(args, all);
+    if cases.is_empty() {
+        return Err("no case matches --corpus/--case".to_owned());
+    }
+    let why = "the case scripts the planner's calls and judges the router's ruling on each; an external agent chooses its own";
+    let note = RunNote {
+        label: args.label.clone(),
+        engine: format!("{} + acp:{}", args.engine.slug(), spec.program),
+        skipped: cases
+            .iter()
+            .map(|c| (c.id.0.clone(), why.to_owned()))
+            .collect(),
+        missed: Vec::new(),
+        catalogue: "catalogue: not used (no model is asked)".to_owned(),
+    };
+    let report = RunReport {
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        per_corpus: Default::default(),
+    };
+    let text = report.render(&note);
+    print!("{text}");
+    if let Some(path) = &args.report {
+        std::fs::write(path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
+        eprintln!("docket-live: report written to {}", path.display());
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
 async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
     say_reach(args.engine);
+    say_agent(&args.agent);
+    if let Agent::Acp(spec) = &args.agent {
+        return corpus_agent(&args, spec);
+    }
     let binaries = packaged_binaries().map_err(|e| e.to_string())?;
     let mut options = CorpusOptions {
         label: args.label.clone(),
@@ -189,8 +250,94 @@ fn plays(args: &SmokeArgs) -> Result<Vec<Play>, String> {
         .collect()
 }
 
+/// The flows with an external agent in the companion's place: the same world, the same flows,
+/// the same outcome checks. A planner case of the hostile-model corpus scripts the planner's own
+/// replies, so it has no agent counterpart and is said to be skipped.
+async fn smoke_agent(args: SmokeArgs, spec: AcpSpec) -> Result<ExitCode, String> {
+    let binaries = packaged_binaries().map_err(|e| e.to_string())?;
+    let smoke_catalog = args
+        .catalog
+        .clone()
+        .unwrap_or_else(|| catalog::default_source(&args.eval_dir));
+    let traces = args.out.join("smoke-acp");
+    std::fs::create_dir_all(&traces).map_err(|e| e.to_string())?;
+    let patience = Duration::from_secs(args.patience_s);
+    let redactor = spec
+        .credentials
+        .as_ref()
+        .and_then(|c| std::fs::read(&c.from).ok())
+        .map_or_else(Redactor::none, |bytes| Redactor::of(&bytes));
+    let flows: Vec<Flow> = if args.flows.is_empty() {
+        Flow::ALL.to_vec()
+    } else {
+        args.flows
+            .iter()
+            .map(|name| {
+                Flow::parse(name).ok_or_else(|| {
+                    format!("no flow named {name:?} (a planner case has no agent counterpart)")
+                })
+            })
+            .collect::<Result<_, _>>()?
+    };
+    println!(
+        "N/A hostile-model planner cases: they script the planner's replies, which an agent does not take"
+    );
+    let mut failed = false;
+    for flow in flows {
+        let model = args
+            .engine
+            .source(agent_cassette(), args.inferd_config.as_deref())
+            .map_err(|e: EngineError| e.to_string())?;
+        let dirs = (Some(args.out.join("scratch")), Some(smoke_catalog.clone()));
+        let r = run_flow_acp(&binaries, flow, &spec, &model, dirs, patience).await;
+        let file = traces.join(format!("{}.trace.txt", flow.slug()));
+        let header = format!("{}\n\n", catalog::describe(&smoke_catalog));
+        std::fs::write(&file, redactor.scrub(&(header + &r.transcript)))
+            .map_err(|e| e.to_string())?;
+        let verdict = if r.failures.is_empty() {
+            "PASS"
+        } else {
+            "FAIL"
+        };
+        let name = flow.slug();
+        println!(
+            "{verdict} {name} (acp:{})  trace: {}",
+            spec.program,
+            file.display()
+        );
+        for f in &r.failures {
+            let kind = match f.kind {
+                Kind::Safety => "safety",
+                Kind::Capability => "capability",
+                Kind::Setup => "setup",
+            };
+            println!("     [{kind}] {}", redactor.scrub(&f.what));
+        }
+        for check in &r.not_applicable {
+            println!("     [n/a] {check}");
+        }
+        failed |= !r.failures.is_empty();
+        if r.failures.iter().any(|f| f.kind == Kind::Setup) {
+            eprintln!(
+                "docket-live: the agent did not come up; the remaining flows are not started"
+            );
+            break;
+        }
+    }
+    redactor.sweep(&args.out);
+    Ok(if failed {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    })
+}
+
 async fn smoke(args: SmokeArgs) -> Result<ExitCode, String> {
     say_reach(args.engine);
+    say_agent(&args.agent);
+    if let Agent::Acp(spec) = args.agent.clone() {
+        return smoke_agent(args, *spec).await;
+    }
     let binaries = packaged_binaries().map_err(|e| e.to_string())?;
     let smoke_catalog = args
         .catalog

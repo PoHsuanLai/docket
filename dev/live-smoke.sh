@@ -6,6 +6,8 @@
 #   dev/live-smoke.sh --engine local --inferd-config dev/live/inferd.local.toml
 #   dev/live-smoke.sh --engine cloud --inferd-config dev/live/inferd.cloud.toml --accountd <bin>
 #   dev/live-smoke.sh --engine local --inferd-config F --flow flow-c --patience-s 900
+#   dev/live-smoke.sh --engine scripted --agent acp --acp-command ABS ...   # an external ACP agent plays the
+#     companion (docs/live-eval.md, "An external agent instead of the planner"); its own network is said first
 #
 # Same engine flag and the same isolation as scripts/eval-release.sh: `env -i`, scratch HOME and XDG
 # directories, a private bus, no real mail or memory; the network only with --engine cloud, said

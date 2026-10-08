@@ -22,6 +22,10 @@ state = ["/home/me/.claude", "/home/me/.claude.json"]
 home = "/home/me"
 # The agent's own login, run where you can see it (a terminal), when the Settings app asks.
 login = ["konsole", "-e", "claude", "login"]
+# The desktop's actions (mail, contacts, memory) are offered to the agent as an MCP server it starts itself
+# (the `actions-mcp` program beside docket-agent); every call is a call of this session, asked about like the
+# planner's. "off" keeps the agent to its own tools and the host's file and terminal methods.
+tools = "offered"
 
 # The same program with inferd as its model (an API-key account in accountd): the agent gets a
 # base URL and a per-session token, the real key stays in porter, and the only network it has is

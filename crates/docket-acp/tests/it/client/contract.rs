@@ -43,6 +43,7 @@ impl Harness for Acp {
                 program: super::rig::program(),
                 cwd: opened.cwd.clone().expect("cwd"),
                 sheets: SheetSurface::Desktop,
+                space: opened.space.clone(),
             })
             .await
             .expect("the router opens the session");

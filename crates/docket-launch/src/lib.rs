@@ -22,6 +22,7 @@ pub mod dbus;
 pub mod env;
 pub mod fake;
 pub mod login;
+mod login_only;
 mod names;
 mod permit;
 pub mod procs;
@@ -34,6 +35,7 @@ pub use accounts::{
 pub use config::{
     AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Route, ToolsMode,
 };
+pub use login_only::LoginOnly;
 pub use names::launcher_session;
 pub use permit::{AgentsPermit, Refusal};
 pub use procs::{BwrapProcs, ChildProc, Proc, ProcFault, Procs, StdioWire};

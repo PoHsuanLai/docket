@@ -236,6 +236,63 @@ and the router cases over the fake router, with no daemon. A planner case is jud
 
 `dev/fuzz.sh` fuzzes the parsers of model and peer output with cargo-fuzz (nightly; not in the gate).
 
+## An external agent instead of the planner (`--agent acp`)
+
+`docket-live` can play the companion's part with an external ACP agent (Claude Code through its ACP adapter, say)
+instead of companiond's planner, so that using an agent over ACP is measured the way the API model is. The world is the
+same (private bus, scratch HOME and XDG, the fake mail, the scripted person answering the sheets), the flows are the same,
+the outcome checks are the same and so are the PASS/FAIL lines and the trace per flow. The agent is hosted as
+`docket-agent` hosts it: in bubblewrap, every call it makes a router call, the desktop's actions offered to it as an MCP
+server over a per-session socket (FINDINGS, "acp-edge"). `--engine` still names the model of the policy writer and the
+reviewers (`scripted` uses `agent_cassette`: Mail up to outbound, the judges pass); the agent brings its own model and
+login.
+
+```sh
+# Claude Code, logged in with a login file made for the run (paths are examples):
+dev/live-smoke.sh --engine scripted --agent acp \
+  --acp-command /home/u/.local/bin/claude-agent-acp \
+  --acp-reads /home/u/.local/share/node \
+  --acp-state .claude --acp-state .claude.json \
+  --acp-credentials /home/u/claude-live-login.json \
+  --flow flow-a
+```
+
+Which flows: `flow-a`, `flow-a-refused`, `first-use`, `flow-c` (all of them when no `--flow` is given); the planner cases of
+the hostile-model corpus have no agent counterpart and print an `N/A` line. `corpus --agent acp` writes the report
+in the same format with every case under "Cases that could not run in this mode": a case scripts the planner's calls and
+judges the router's ruling on each, and an agent chooses its own.
+
+| Option | Meaning |
+|---|---|
+| `--agent planner\|acp` | who plays the companion (default `planner`; any `--acp-*` option needs `acp`) |
+| `--acp-command ABS` | the agent program (required) |
+| `--acp-program NAME` | its name in grants and records (default `claude-code`) |
+| `--acp-arg X` | an argument, repeatable |
+| `--acp-network none\|host` | its sandbox's network (default `host`, because a login agent must reach its provider; said before it starts) |
+| `--acp-state REL` | a path the agent keeps its login and settings in, **relative to the scratch HOME**, bound read-write (an entry ending in `.json` is made as an empty object); repeatable |
+| `--acp-reads ABS` | a read-only path (where the program is installed); repeatable |
+| `--acp-set NAME=VALUE` | a plain environment variable |
+| `--acp-credentials FILE` | the login to stage (see below); no default |
+| `--acp-credentials-at REL` | where it goes in the scratch HOME (default `.claude/.credentials.json`, Claude Code's) |
+| `--acp-route login` | the only route the harness can run: there is no accountd on the private bus |
+
+The harness writes the entry into the scratch `agents.toml` (`AcpSpec::entry_toml`) and switches `agent.acp.agents` on in
+the scratch settings; it reads neither from the person's configuration.
+
+**What counts.** The checks that look inside the planner are not made for an agent, and each run says so: in
+flow-c "the planner was not shown the injected body" and "the reader read the thread"; in first-use "exactly one
+first-use sheet" (an agent holds scoped standing grants and a search has no scope, so each search asks). They are on a
+`[n/a]` line of the run and in a "not applicable in this mode" section of the trace. Everything about outcomes and
+boundaries stands, and one is added: every message the mail app holds was made by `Actor::Acp { program }`.
+
+**The login.** `--acp-credentials FILE` is copied into the scratch HOME (mode 0600, in a 0700 directory) before the agent
+starts and removed when the run ends, including when it fails or panics. The harness reads nothing else from anywhere, and
+writes nothing outside the scratch root. The file's text and every token-length string in it are scrubbed from the
+transcript, from every line the command prints and from the files under the output directory (daemon logs, the model
+tap); the command says that it copies the login before it starts. A token the agent refreshes is refreshed in the copy:
+give the run its own login file. Never run it with the file a running Claude Code keeps current. The agent's own state
+directory is the agent's (`--acp-state`).
+
 ## Known gaps
 
 See `FINDINGS.md`, "live-eval".

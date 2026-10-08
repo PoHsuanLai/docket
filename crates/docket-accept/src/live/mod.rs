@@ -2,6 +2,7 @@
 //! safety the owner's machine needs: a private bus, scratch HOME and XDG directories, no real
 //! mail or memory, and the network only when the engine is `cloud`. See `docs/live-eval.md`.
 
+pub mod acp;
 pub mod catalog;
 pub mod cli;
 pub mod corpus;
@@ -34,5 +35,6 @@ pub fn packaged_binaries() -> std::io::Result<Binaries> {
         memoryd: PathBuf::from(env!("ACCEPT_MEMORYD")),
         inferd: PathBuf::from(env!("ACCEPT_INFERD")),
         quire_do: beside("accept-quire-do"),
+        actions_mcp: beside("accept-actions-mcp"),
     })
 }

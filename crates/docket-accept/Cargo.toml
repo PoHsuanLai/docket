@@ -33,10 +33,19 @@ name = "accept-quire-do"
 path = "src/bin/accept-quire-do.rs"
 
 [[bin]]
+name = "accept-actions-mcp"
+path = "src/bin/accept-actions-mcp.rs"
+
+[[bin]]
+name = "accept-fake-agent"
+path = "src/bin/accept-fake-agent.rs"
+
+[[bin]]
 name = "docket-live"
 path = "src/bin/docket-live.rs"
 
 [dependencies]
+actions-mcp = { path = "../actions-mcp" }
 action-review = { workspace = true }
 companion-wire = { workspace = true }
 companiond = { path = "../companiond" }
@@ -48,6 +57,8 @@ docket-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd"] }
 docket-eval = { workspace = true }
 docket-inapp = { workspace = true }
+docket-launch = { workspace = true }
+docket-shell = { workspace = true }
 docket-session = { workspace = true }
 docket-settings = { workspace = true }
 docket-fake = { workspace = true }

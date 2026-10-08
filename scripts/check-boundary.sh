@@ -91,7 +91,8 @@ RULES=(
   "readerd: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
   # Test only: the acceptance run links the docket daemons to run them as processes (memoryd and inferd are built by build.rs, not linked); no HTTP,
   # audio, embedding runtime or MCP SDK.
-  "docket-accept: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite rmcp"
+  # (The acceptance run starts the actions-mcp bridge as a process for the ACP engine, so it links rmcp through it.)
+  "docket-accept: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite"
   "voiced: reqwest hyper hyper-util rustls ort fastembed rusqlite rmcp cedar-policy"
 )
 fail=0
@@ -176,7 +177,7 @@ EDGES=(
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-session docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
   "companiond: companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills docket-tasks porter-client porter-core prov"
   "readerd: docket-client docket-core docket-dbus docket-reader porter-client porter-core porter-infer prov"
-  "docket-accept: action-review almanac-client almanac-core companion-wire companiond docket-acp docket-acp-bin docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-inapp docket-router docket-session docket-settings docket-testbus intentd porter-client porter-core porter-infer prov readerd"
+  "docket-accept: action-review actions-mcp almanac-client almanac-core companion-wire companiond docket-acp docket-acp-bin docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-inapp docket-launch docket-router docket-session docket-settings docket-shell docket-testbus intentd porter-client porter-core porter-infer prov readerd"
   "companion-client: companion-wire docket-client docket-core docket-dbus prov"
   "docket-cli: companion-client companion-wire docket-client docket-core docket-session docket-skills model-provider porter-core prov"
   "docket-settings: docket-core porter-core"

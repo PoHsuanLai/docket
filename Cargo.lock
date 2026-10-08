@@ -929,6 +929,7 @@ name = "docket-accept"
 version = "0.1.0"
 dependencies = [
  "action-review",
+ "actions-mcp",
  "almanac-client",
  "almanac-core",
  "companion-wire",
@@ -942,9 +943,11 @@ dependencies = [
  "docket-eval",
  "docket-fake",
  "docket-inapp",
+ "docket-launch",
  "docket-router",
  "docket-session",
  "docket-settings",
+ "docket-shell",
  "docket-testbus",
  "futures-util",
  "intentd",

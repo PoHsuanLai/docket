@@ -83,7 +83,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `docket-client` | `docket-core`, `docket-router`, `prov`; `docket-dbus` with feature `dbus` |
 | `docket-fake` | `docket-core`, `docket-router`, `docket-session`, `docket-client`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
 | `docket-testbus` | `docket-dbus` |
-| `docket-accept` | `almanac-client`, `almanac-core`, `companion-wire`, `companiond`, `docket-acp`, `docket-acp-bin`, `docket-cli`, `docket-client`, `docket-core`, `docket-dbus`, `docket-inapp`, `docket-router`, `docket-session`, `docket-settings`, `docket-testbus`, `intentd`, `porter-core`, `porter-infer`, `prov`, `readerd` |
+| `docket-accept` | `actions-mcp`, `almanac-client`, `almanac-core`, `companion-wire`, `companiond`, `docket-acp`, `docket-acp-bin`, `docket-cli`, `docket-client`, `docket-core`, `docket-dbus`, `docket-inapp`, `docket-launch`, `docket-router`, `docket-session`, `docket-settings`, `docket-shell`, `docket-testbus`, `intentd`, `porter-core`, `porter-infer`, `prov`, `readerd` |
 | `docket-eval` | `docket-core`, `docket-skills`, `docket-fake`, `docket-router`, `prov`, `porter-core` |
 | `docket-settings` | `docket-core`, `porter-core` |
 | `actions-mcp` | `actions-tools`, `docket-core`, `docket-client`, `docket-dbus`, `docket-settings`, `prov`, `porter-core` (+ `rmcp`) |

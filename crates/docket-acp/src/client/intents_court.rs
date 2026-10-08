@@ -10,7 +10,7 @@ use super::call::AgentCall;
 use super::court::{Court, CourtFault, OpenAgent, Ruled};
 use docket_client::{Intents, Transport};
 use docket_core::{CallRefusal, ContextKeep, DenyCode, Keep, Origin, SessionOpen, TurnIn, TurnVia};
-use prov::{AgentRef, SessionId, SpaceId};
+use prov::{AgentRef, SessionId};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 use tokio::sync::Notify;
@@ -97,7 +97,7 @@ impl<T: Transport + 'static> Court for IntentsCourt<T> {
         let opened = self
             .intents
             .session_open(SessionOpen {
-                space: SpaceId::desktop(),
+                space: open.space.clone(),
                 agent: AgentRef::Companion,
                 parent: None,
                 cwd: Some(open.cwd.clone()),

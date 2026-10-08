@@ -2471,7 +2471,8 @@ binary `docket-net-forward`). `docket-launch` (new, desktop extra): `agents.toml
 **How each request from the agent is handled.**
 - `initialize`, `session/new` are ours to send: `protocolVersion` 1 or the agent is refused; file read and write are
   offered, `terminal` only when `Terminals::capabilities` says the sandbox is there; no elicitation, no auth
-  terminal; `mcpServers` is empty (the per-session MCP edge, design note D-3, is not built).
+  terminal; `mcpServers` is the one tool edge of the session when the host has one to offer (D-3, built: see "acp-edge"
+  below), else empty.
 - `fs/read_text_file`: the path must be absolute, without `..`, inside the session's directory, still inside after
   links (`Files::real`), not a secret place (`.ssh`, `.gnupg`, `.aws`, `.kube`, `.password-store`, `.mozilla`,
   `.netrc`, `.git-credentials`, `.pgpass`, `id_*`, `.config/{accountd,gcloud,chromium,google-chrome}`,
@@ -2610,7 +2611,8 @@ announcement; a stop before it means it never runs).
 6. Second check, once inferd's agent endpoints and an Anthropic API-key account exist: `route = "endpoint"`,
    `network = "endpoint_only"`; watch accountd's launcher session open and close.
 
-**Deferred.** (The router bridge and the sheet landed: "acp-bridge" below.) The per-session MCP edge (D-3) and `mcpServers`; a provider-host
+**Deferred.** (The router bridge and the sheet landed: "acp-bridge" below; the per-session MCP edge, D-3, landed: "acp-edge"
+below.) A provider-host
 network allowlist; Landlock; resource limits for the agent process; a safe fd handoff; `session/load` or `resume` of the
 agent's own session; `agent.breaker.*` for the client breaker; the second test agent (agy, R7); a fuzz target on the
 agent's JSON-RPC lines; an undo-journal row for an agent's write; Windows and macOS (the client edge, the agent
@@ -2887,6 +2889,154 @@ The S4 hostile corpus ran unchanged and every case still ends safely.
    revoke it in Settings, edit again (asks).
 
 **Deferred.** Resuming an agent session through the host (the router restores it, but `AgentHost::resume` is not
-served and the agent's own session id is not kept); the per-session MCP edge (D-3); a dry-run preview of a write for
+served and the agent's own session id is not kept); a dry-run preview of a write for
 the sheet (`dry_run = none`: the sheet shows the path and a line count); an `Effect::Execute` and an `ActorKind::Acp` in porter; the provider-host network allowlist, Landlock, resource limits and the
 second test agent (S4's list stands).
+
+## acp-edge: an external agent reaches the desktop's actions (D-3)
+
+Until now an agent started by `docket-agent` could do `fs/*` and `terminal/*` and nothing else: the client sent no
+`mcpServers`, so Claude Code over ACP could not touch mail, contacts or memory. Now the host offers the agent the
+desktop's actions as an MCP server, and every call through it is a router call in the agent's own session.
+
+**Layout.** `actions-tools` (new, pure, portable): the tool names, schemas and hints (`tools`, `offered`, `find`,
+`tool_of`), the argument reader (`read_call`, docket-core's `args_from_json`, the one the planner's tool calls use),
+`mcp_label`, `outcome_json`, `McpFault`/`McpRefusal`, and the lines of the edge (`EdgeRequest`, `EdgeReply`,
+`EdgeToken`). `actions-mcp` re-exports them (its public names did not change) and serves them over MCP to the clients
+that connect to it; it also grew `--host-socket PATH`, the bridge (`BoundEdge`). `docket-acp` `client/edge/` is the
+host's side (`ToolsEdge`, `ToolsOffer`, `EdgeBind`). There is one mapping: the MCP edge and the agent's edge list the
+same tools because they call the same function.
+
+**The chain.** `session/new` carries one stdio server, `quire`: command = the `actions-mcp` program beside
+`docket-agent`, args `--host-socket <socket>`, env `QUIRE_EDGE_TOKEN=<token>`. The agent starts it itself, inside its
+sandbox, where the launcher has bound the bridge program (read only) and the socket file (read and write); the bridge
+forwards `tools/list` and `tools/call` as one line each over the socket. The host answers: it lists
+`offered(registry)` (only `AgentReach::Offered`, never a host-only app, so never `acpagent.*`), and for a call it reads
+the arguments by their declared types, forms the `CallRequest` and makes it through `Court::call` in the session it
+opened (`Origin::Mcp`, labelled by the router as `Voice::Agent`). The outcome goes back as `outcome_json`; a refusal
+goes back coarse (`McpRefusal`: kind only, never a rule, a reviewer or an app's words). `AgentCall::Tool` is the call;
+calls over the edge are numbered from `1 << 40` in the court's table of calls in flight, so they cannot collide with
+the backend's own.
+
+**The binding (design).** The session a call is in, the program it is for and the app it reaches are the host's,
+never the agent's:
+- The socket is made by the host for one session: a 0700 directory `docket-edge-<64 random bits>` under
+  `$XDG_RUNTIME_DIR` (or the harness's runtime directory), a socket in it, a listener task that holds that session's id,
+  that program's name and that session's token. A request line is `{token, op}` with `op` one of `list` or
+  `call {tool, arguments}`. There is no field for a session, a program or an app, and unknown fields are refused
+  (`deny_unknown_fields`), so the agent cannot write one. A tool argument named `session` or `program` is only an
+  argument the action does not declare, and `read_call` refuses it.
+- The token is 32 bytes from `/dev/urandom`, hex, minted per session, compared without stopping at the first difference,
+  and never printed (`EdgeToken`'s `Debug` hides it). It reaches the bridge through the MCP server entry's environment,
+  never a command line. A request with another token, a missing one or a malformed line is answered `"refused"` and
+  nothing else happens (the router sees nothing).
+- The listener accepts only connections whose peer uid is the host's (`SO_PEERCRED`), whatever the directory's mode.
+- The router is the last check. The host role may make only the calls of a session it opened, as the program it named
+  when it opened it (`agent_who`, unchanged), and now only two kinds of call: the pseudo-app's, and an action an MCP
+  client is offered (`reach = offered`, app not host-only; `prepare.rs: may_make`). An action nobody offered is
+  `NotAllowed` for the host role even if the edge were bypassed.
+- Closing the session drops the `ToolsEdge`: the listener task and every connection end, and the socket and its
+  directory are removed (`Drop`), before the agent process is killed. A later connect finds nothing; a call in flight is
+  refused by the router (the session is closed).
+
+**Threat model.**
+| Who | Can | Cannot | Test |
+| --- | --- | --- | --- |
+| The agent (it holds the token by design) | call any offered action in its own session, as itself, under the person's task policy, taint, breaker, budgets, grants and sheets | name another session, program or app; call `acpagent.*` or a hidden action; answer a sheet; widen its policy | `acp::client::edge`: `a_call_cannot_name_...`, `the_hosts_actions_and_hidden_ones_are_not_tools`; router `acp_agent_tools` |
+| The agent, editing the entry it was given (command, args, env) | run a different program with this session's socket and token, which is the agent's own power already | gain more: a changed socket path finds nothing, a changed or cut token is refused, the token cannot be read from the arguments | `an_agent_that_edits_the_entry_it_was_given_gains_nothing`, `a_wrong_token_is_refused_and_reaches_nothing` |
+| A second process outside the sandbox, same user | connect to the socket path if it learns it | act without the token; it would also need `/proc/<pid>/environ` of the agent (same user, so readable: the edge is not a defence against the user's own processes, as the user's bus is not) | `a_wrong_token_is_refused_...` |
+| A process of another user | nothing | connect (0700 directory, and the peer-uid check) | the check in `connection` |
+| Anyone, after the session closed | nothing | connect (no socket); act (the router refuses the closed session) | `after_the_session_is_closed_the_edge_is_gone` |
+| Anyone, with the token of session A on the socket of session B | nothing | the token is checked against the session the socket was made for | `an_edge_cannot_act_in_a_session_the_host_did_not_open_and_tokens_are_not_shared` |
+| Anyone, with a valid edge for a session the host never opened | nothing | the router refuses a session the host's name did not open | the same test |
+| A line that is garbage or 5 MB | get a `refused` | cost more than a 4 MiB line read | `garbage_and_oversized_lines_are_refused_without_effect` |
+
+The cost to know: the token and the socket are readable by any process of the same user that can read the agent's
+environment. That is the same trust boundary as the session bus, where any of the user's processes can already call
+intentd under a name it can take. What the edge buys is that the agent cannot act as anyone but itself, in any session
+but its own, and that a stranger without the token gets nothing.
+
+**Network mode `none`/`endpoint_only` and the sandbox.** The edge is a unix socket: no TCP, no namespace crossing. A
+unix socket by path works from inside `--unshare-all` (new network namespace); the test
+`docket-acp-bin/tests/it/edge_sandbox.rs` runs a process in the real bubblewrap sandbox with no network, binds the socket
+file in, and reaches the edge (it skips with a printed reason where namespaces are denied). The launcher binds the bridge
+program read only and the socket file read and write (`docket-launch` `binds`); nothing else of the run directory is
+visible. `docket-agent` offers the edge when the entry says `tools = "offered"` (the default; `"off"` keeps the old
+behaviour) and an `actions-mcp` binary sits beside it.
+
+**What changed in the router.** (1) `may_make` above. (2) `consent_for` gave `GrantCaller::AcpAgent` the class consent
+that launching the agent in a directory implies (`Always`, for every class of every app). That is right for the
+pseudo-app and wrong for the person's mail: it applies now only to `org.quire.AcpAgent`; an action of another app asks the
+first time, as a planner's does. (3) `OpenAgent` carries the Space (`docket-agent --space NAME`, default `desktop` as
+before): a session in `desktop` reaches nothing of `work`; the harness opens its agent in `work`.
+
+**What the agent can and cannot do now.** It can read and search mail, contacts and memory, start companion tasks and
+load skills (whatever `offered` lists: 11 actions in the fixture world), forward or send mail (the sheet asks), through
+the same gate as the planner. It cannot call an action by naming another app's session, cannot answer its own sheet,
+cannot see `acpagent.*` as tools, and its words are never the person's. Taint works as for any caller: a mail body in a
+tool result is untrusted, the session is tainted, and a later send asks and offers no "always".
+
+**Costs worth knowing.**
+- An agent asks about every mail action. `holds_standing(AcpAgent)` is true, so the sheet's "always" is the scoped
+  standing grant or nothing (`carry_out`: "never the broad class grant"), and a search or a read has no scope
+  (`Withheld::Unscoped`): the first-use sheet is once-only and each later search asks again. A planner's "always" is a
+  class grant for Mail in the Space. Making an agent's reads quiet means a scoped standing grant that names an action
+  (or an app in a Space) with no arguments, which is a change to the standing-grant vocabulary; it is an owner decision
+  and is not made here. The harness's first-use flow reports "exactly one first-use sheet" as not applicable for this
+  reason.
+- A pause by the breaker on a tool call ends the turn `Paused` (the edge leaves the trip where the backend reads it
+  and the backend sends `session/cancel`), as it does for a file call. The tool calls do not appear as step lines in the
+  host's event stream yet; the router's audit has them.
+- `docket-agent` still opens its session in the `desktop` Space unless `--space` says otherwise; which Space the shell's
+  current one is, is not known to it.
+
+**quire_ask and quire_finish.** They are the planner's protocol, not actions. For an agent: finishing is the turn
+ending (`end_turn` is `Done`), as it already was. Asking the person something is the agent ending its turn with the
+question as its last words; the person's answer is the next turn, which re-derives the task policy from the person's
+words. A decision to run something is `session/request_permission` (the router's sheet) or a tool call that the router
+asks about. No third channel is added: an action the agent could call to ask would be a way to put words in front of the
+person that the gate does not weigh.
+
+**Tests** (none starts a real agent, a real login or the network; a bus, when there is one, is a private one or an
+unreachable address). `docket-acp/tests/it/client/edge.rs` (a fake agent plays the bridge against the real router over the
+fakes: the offer, the listing, a read, a write that asks, a refusal, the breaker, every hostile case above),
+`docket-router/tests/it/acp_agent_tools.rs` (the host role's two kinds of call and no third),
+`actions-mcp/tests/it/bridge.rs` (the real bridge binary over stdio against a recording host: the token and nothing
+else is sent, a refusal or a gone host is a tool error, no token no start), `docket-launch` (the binds, `tools = "off"`),
+`docket-acp-bin/tests/it/edge_sandbox.rs` (bubblewrap, no network), `actions-tools` (the lines).
+
+## acp-live: an external agent in docket-live (the ACP engine)
+
+`docket-live smoke --agent acp ...` plays the acceptance flows with an external ACP agent in the place of companiond's
+planner: the same scratch world (private bus, scratch HOME and XDG directories, the fake mail, the scripted person
+answering the sheets), the same flows (`flows.rs`), the same outcome checks, the same PASS/FAIL lines and a trace per flow.
+`--engine` still says where the policy writer and the reviewers get their answers (`scripted` uses `agent_cassette`: Mail
+up to outbound, the host's app up to read, the judges pass). The agent is hosted exactly as `docket-agent` hosts it
+(`docket_acp_bin::agent::host`, extracted from `run`): bubblewrap, `AgentSpawn`, the pseudo-app served on the bus under
+`org.quire.AcpAgent`, the per-session tool edge with the bridge program `accept-actions-mcp`. The one difference is the
+accounts seam: the private bus has no accountd, so the host runs over `docket_launch::LoginOnly` (the `login` route
+works, every other route fails to start rather than run without what it was promised).
+
+**Which checks apply.** Judged by `judge_in(Mode::Agent(program), ...)`. Outcome and boundary checks stand: the answer
+settled, nothing held without a sheet, undo of the held message works, nothing sent when the person refused, the right
+recipient and threads, and (agent only) every message the app holds was made by `Actor::Acp { program }` and nobody else.
+Not applicable, listed in the trace and on a `[n/a]` line of the run: "the planner was shown the injected body" and "the
+reader read the thread" (flow-c; they inspect the planner's and readerd's exchanges, and an agent reads the body itself,
+as untrusted), and "exactly one first-use sheet" (see the cost above). The hostile-model planner cases script the
+planner's replies and have no agent counterpart (`N/A` line). `docket-live corpus --agent acp` writes the same report
+format with every case under "Cases that could not run in this mode": a case scripts the planner's calls and judges the
+router's ruling on each, and an agent chooses its own. Making some corpus cases meaningful (a `NoOutbound` outcome over a
+world loaded from the case) is open.
+
+**Credentials (owner decision).** For a `login` agent, `--acp-credentials PATH` (never a default) is copied into the
+scratch HOME at `--acp-credentials-at` (default `.claude/.credentials.json`, Claude Code's) with mode 0600 in a 0700
+directory, and `Credentials`, a guard, removes the copy when it is dropped (a failure and a panic drop it too; a SIGKILL
+does not, and the scratch root is the only place it could be). Nothing else is read from anywhere and nothing is written
+outside the scratch root. A run that refreshes the token inside the sandbox rewrites only the scratch copy, so use a
+login file made for the purpose, not the one a running Claude Code keeps current. `Redactor` holds the file's text and
+every string in it of 8 characters or more; it scrubs the transcript, every printed line and the trace files, and sweeps
+the scratch tree at the end (daemon logs, the model tap), so an agent that says its login aloud (the fake `leak` script
+does) leaves it nowhere the harness writes. The agent's own state directory (`--acp-state`, bound read-write) is the
+agent's. Tests: `acp_pure.rs` (mode, removal, removal on panic, scrubbing, the sweep, no default path),
+`acp_engine.rs` (the agent sees the file; the report, the tree and the packaged `docket-live`'s stdout, stderr and traces
+hold none of it).

@@ -13,6 +13,8 @@ pub const AGENT_SESSION: &str = "agent-s1";
 
 pub type Replies = BTreeMap<String, Result<Value, Value>>;
 pub type Make = Box<dyn Fn(&Replies) -> Value + Send>;
+/// What a forged bridge line is built from the offered entry: the socket and the line.
+pub type Forge = Box<dyn Fn(&Offered) -> (String, Value) + Send>;
 
 /// One thing the agent does during a prompt.
 pub enum Act {
@@ -39,10 +41,7 @@ pub enum Act {
     /// What the MCP server entry the agent was offered would do: connects to a socket, sends one
     /// line, records the parsed reply under `tag` (`Err("unreachable")` when nothing answers).
     /// `make` is given the entry as offered and may forge anything the agent could write.
-    Bridge {
-        tag: &'static str,
-        make: Box<dyn Fn(&Offered) -> (String, Value) + Send>,
-    },
+    Bridge { tag: &'static str, make: Forge },
 }
 
 /// The MCP server entry the agent was offered in `session/new`, as it read it.
