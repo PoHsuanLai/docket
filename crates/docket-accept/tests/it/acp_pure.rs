@@ -84,6 +84,7 @@ fn the_agent_options_are_checked_before_anything_starts() {
         "smoke --engine scripted --agent acp --acp-command /x --acp-credentials /c --acp-credentials-at ../../x",
         "smoke --engine scripted --agent acp --acp-command /x --acp-nope 1",
         "smoke --engine scripted --agent acp --acp-command /x --acp-profile bogus",
+        "smoke --engine scripted --agent acp --acp-command /x --acp-profile agy",
         "smoke --engine scripted --agent acp --acp-command /x --acp-sign-in a/b",
     ];
     for line in cases {
@@ -96,26 +97,6 @@ fn the_agent_options_are_checked_before_anything_starts() {
             "{line}: {got:?}"
         );
     }
-}
-
-#[test]
-fn the_agy_profile_is_taken_and_written_into_the_entry() {
-    let line = "smoke --engine scripted --agent acp --acp-program agy --acp-command /home/u/agy \
-                --acp-state .gemini --acp-sign-in oauth-personal --acp-profile agy";
-    let Ok(Command::Smoke(s)) = parse(&words(line)) else {
-        panic!("smoke")
-    };
-    let Agent::Acp(spec) = s.agent else {
-        panic!("acp")
-    };
-    assert_eq!(spec.profile.as_deref(), Some("agy"));
-    let text = spec.entry_toml(std::path::Path::new("/home/u/scratch"));
-    assert!(text.contains("profile = \"agy\"\n"));
-    let file = docket_launch::AgentsFile::parse(&text).expect("agents.toml reads it");
-    let entry = file
-        .get(&docket_session::ProgramName::parse("agy").expect("name"))
-        .expect("entry");
-    assert_eq!(entry.profile, Some(docket_launch::Profile::Agy));
 }
 
 #[test]

@@ -3211,44 +3211,60 @@ code is the only signal for "authentication required"; an agent that answers a d
 (3) docket-live's `--acp-state` for agy is `.gemini` and the credentials land at
 `.gemini/antigravity-acp/acp_token.json`; `accept-fake-agent` (the process fake) does not model sign-in.
 
-## agy-isolation: agy's own permission prompt for the desktop's tool server (`profile = "agy"`)
+## agy-isolation: agy's own permission prompt for the desktop's tool server (answered at the host)
 
 **Observed (docket-live smoke, agy 1.3.0, signed in).** agy has its own tools (`view_file`, `run_command`,
-`call_mcp_tool`, `list_resources`, `invoke_subagent`, `client_view_file`) and runs a pre-tool hook before each one that
-sends `session/request_permission`. The host maps that kind to `acpagent.other` (Destructive), which the scripted person
-refuses. So agy's calls to the per-session `quire` server were gated twice, as with Claude Code (acp-isolation): agy asked,
-then the edge gated the real call. flow-a never reached the forward and flow-c never read the thread.
+`call_mcp_tool`, `list_resources`, `invoke_subagent`, `client_view_file`) and sends `session/request_permission` before
+each one, including before every call to the per-session `quire` server. The host mapped that to `acpagent.other`
+(Destructive) and raised a sheet; then the real call reached the edge and was gated again: two sheets for one action.
 
-**Rule chosen.** `profile = "agy"` (and `docket-live --acp-profile agy`) writes a settings file for the run:
-`{"permissions":{"allow":["mcp(quire/*)"]}}`, plus `"auth":{"type":"<sign_in>"}` when the entry names a `sign_in`. The
-server name is `docket_acp::client::SERVER_NAME`, the name the edge gives in `session/new` `mcpServers`. Nothing else is
-allowed.
+**The file rule is inert under ACP.** The first answer was a read-only `settings.json` overlay with
+`permissions.allow = ["mcp(quire/*)"]` (`profile = "agy"`). Measured live against agy 1.3.0: under ACP agy still asked for
+every `quire` call. The preset, `docket_launch::agy`, `Profile::Agy` and `--acp-profile agy` are removed. The
+`auth.type` line it also wrote is not needed: sign-in is the client's `authenticate` (see agy-sign-in), which opens the
+session without any file. `docket_shell::Overlay` stays, unused here, for other uses.
 
-**Where it lives.** agy reads `$HOME/.gemini/antigravity-acp/settings.json`. `state` usually binds the real `.gemini`
-read-write (it holds the login), so writing there would write the person's file. Instead docket writes the file (mode 0600)
-into the run's private directory under `run_dir` and bubblewrap mounts it read-only over that path inside the sandbox
-(`docket_shell::Overlay`, mounted after the binds). The run's directory is removed with the session.
+**The rule now (`docket_acp::client`, `own_edge` and `handlers`).** A permission request is answered with the agent's
+`allow_once` option, with no sheet and no router ruling, when all of this holds:
+- `toolCall.kind` is `other` or `fetch`, and the request names no path (`locations` empty);
+- `toolCall._meta.mcp.server` equals `SERVER_NAME` (`quire`), `_meta.is_mcp_tool_call` is true when present, and
+  `_meta.mcp.tool` is a tool the edge offers in this session (`actions_tools::find` on the registry, the same lookup the
+  edge's `tools/call` does);
+- or, for agy's resource listing: no `_meta.mcp`, kind `other`, and `rawInput` is exactly `{"ServerName": "quire"}`.
 
-**Merge or overwrite: overwrite, every run.** The mount shadows whatever `settings.json` the state holds. A merge would
-need docket to read and rewrite the person's file, and a rule they had added (`command(git)`) would be allowed in the
-desktop's sandbox without the desktop knowing; overwrite keeps the allowed set equal to the one line above and is the
-same on a scratch and a real `state`. The cost: the person's own agy rules and settings do not apply under docket, and
-agy cannot write to the file (a read-only mount). One trace remains on the host: bubblewrap creates an empty
-`settings.json` in the person's state if there is none, as the mount target.
+The answer is never `allow_always`: with no `allow_once` option offered the request takes the usual path. The event is
+recorded as a started and ended step `acpagent.reported.other` (effect read: the answer changed nothing). Everything else
+is unchanged: another server, a tool the edge did not offer, no `_meta`, any other kind, or a resource request that
+carries more than the server name (a `Uri`, say) goes to the router and the sheet as before.
 
-**What stays gated.** No `ask` rules are written. A tool no rule names is asked about (that is what the run showed), and
-agy's command, file and subagent tools then reach the person as `request_permission` sheets, classed `acpagent.other` or
-by kind, never grantable as a standing allow. I did not write `ask(...)` rules because the documented syntax only shows
-examples (`command(git)`, `mcp(server/*)`); a wildcard I guessed wrong would be inert at best. The allowed server is still
-gated by the edge: the router's sheet is the one the person sees.
+**Why this is safe.**
+- `_meta.mcp.server` and `.tool` are what agy's runtime dispatches the call on, so a request is about the server it names.
+- Allowing the request only lets the call go on to our edge, and the edge gates it as any call: the token, the offered
+  tool list, the router's ruling and the person's sheet (tested: a refused edge call after the door still fails, one sheet).
+- A request that lies about the server either goes on to our edge (gated) or to a server we never offered. What bounds
+  that: `session/new` offers agy exactly one server, `quire`; agy's sandbox holds only the entry's `state` and the
+  program's own directory, so a server it knows of besides ours can only come from the person's own agy settings in
+  `state`, and a request naming such a server is not `quire`, so it is not recognised and asks. The one lie that is
+  recognised, "server quire, a tool we offered", is dispatched to our edge by the runtime that sent it.
+- Listing resources: the edge serves tools only, so listing its resources reveals nothing beyond what `tools/list`
+  already shows the agent. The shape is narrow (one key, our name), so `read_resource`-like requests with a `Uri` ask.
+- The `allow_once` answer is for this call only; docket holds no standing grant for it, and agy's own memory of an
+  "always" never exists because we never choose it.
 
-**Tests (fakes only).** The file holds exactly the allow rule and the auth type, and no `auth` without a `sign_in`; it is
-under the run directory, the person's state file is unchanged and keeps its only entry; the run file goes with the session;
-the overlay uses the default home when the entry has none; other entries get no overlay and write nothing; agy takes no
-`session/new` meta and sets no variables; `Overlay` comes after the binds in the bubblewrap arguments; `--acp-profile agy`
-parses and writes `profile = "agy"`; the shipped example reads with the preset.
+**What stays gated.** agy's command, file and subagent tools reach the person as sheets, classed `acpagent.other` or by
+kind, as before.
 
-**Open.** (1) Not run against a real agy: whether it takes `mcp(quire/*)` as written and whether it reads the file from a
-read-only mount at start. (2) agy may also read workspace or other settings files; their `allow` rules would add to ours.
-(3) The empty placeholder file above. (4) The two `quire_do_ask` terminal tests in docket-accept failed with a bus
-AccessDenied in runs outside the jailed gate; they passed inside it.
+**Tests (fakes only).** `client::own_edge`: our tool gets `allow_once`, no sheet, and a reported step; `fetch` kind the
+same; with only `allow_always` offered it is not chosen and the request asks; an unoffered or empty tool name, a foreign
+server, a missing `_meta` and kinds `execute` and `edit` all ask; our resource listing is answered, a foreign one or one
+with a `Uri` asks; a refused edge call after the door still fails with exactly one sheet. Unit tests pin the claim.
+
+**Claude Code.** `profile = "claude-code"` still sends `permissions.allow = ["mcp__quire"]` in `session/new` meta. The
+host rule might make it unnecessary if Claude Code's adapter sends `_meta.mcp` the way agy does, but this is not
+known: the adapter may not send it, and then its request would ask as `acpagent.other`. Left in place; check a live
+Claude Code request before removing it.
+
+**Open.** (1) The wire sample we had showed options without `name`; the schema requires it, so a real agy that omits it
+would fail to parse (`Bad`), not reach the rule. (2) Not run against a real agy since the change. (3) The two
+`quire_do_ask` terminal tests in docket-accept failed with a bus AccessDenied in runs outside the jailed gate; they
+passed inside it.

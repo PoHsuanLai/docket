@@ -14,7 +14,6 @@
 //! way on the runtime.
 
 use crate::accounts::{Accounts, KeyHandoff, OpenedEndpoint, RouteWish};
-use crate::agy::ProfileFile;
 use crate::config::{AgentsFile, EndpointKind, Entry, Profile, Route};
 use crate::env::{Lent, child_env};
 use crate::names::launcher_session;
@@ -23,9 +22,7 @@ use crate::procs::{Proc, Procs};
 use docket_acp::client::{AgentChild, EdgeBind, LaunchPlan, Spawn, SpawnFault, Spawned};
 use docket_core::AbsPath;
 use docket_shell::forward::{Bridge, Loopback};
-use docket_shell::{
-    Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode, Overlay, SANDBOX_HOME,
-};
+use docket_shell::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
 use porter_core::{LauncherSession, ProcessCredentialId};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -233,36 +230,6 @@ fn session_dir<A: Accounts, P: Proc>(
     Ok(dir)
 }
 
-/// The preset's file, written into the run's private directory and shown inside the sandbox
-/// under `home`. The host's own copy is never written.
-fn overlay_of(
-    file: &ProfileFile,
-    home: &str,
-    dir: &std::path::Path,
-) -> Result<Overlay, SpawnFault> {
-    use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
-    let from = dir.join("profile-file");
-    let mut out = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(&from)
-        .map_err(|_| SpawnFault::Sandbox)?;
-    out.write_all(file.text.as_bytes())
-        .map_err(|_| SpawnFault::Sandbox)?;
-    let path = |p: &std::path::Path| {
-        p.to_str()
-            .and_then(|t| AbsPath::parse(t).ok())
-            .ok_or(SpawnFault::Sandbox)
-    };
-    let to = PathBuf::from(home).join(file.at);
-    Ok(Overlay {
-        from: path(&from)?,
-        to: path(&to)?,
-    })
-}
-
 impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
     type Wire = P::Wire;
     type Child = Child<A, P::Proc>;
@@ -399,22 +366,13 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         };
         let built = child_env(entry, &lent).map_err(|_| SpawnFault::Sandbox)?;
         let command = entry.command.as_str();
-        let home = entry.home.as_ref().map_or(SANDBOX_HOME, AbsPath::as_str);
-        let overlays = match entry.profile.and_then(|p| p.file(entry.sign_in.as_ref())) {
-            Some(file) => {
-                let dir = session_dir(&self.run_dir, session, release)
-                    .map_err(|_| SpawnFault::Sandbox)?;
-                vec![overlay_of(&file, home, &dir)?]
-            }
-            None => Vec::new(),
-        };
         let run = AgentRun {
             argv: Argv::new(command, &entry.args).ok_or(SpawnFault::Process)?,
             cwd: plan.cwd.clone(),
             env: built.vars,
             net,
             binds: binds(entry, built.key_file.as_ref(), plan.edge.as_ref()),
-            overlays,
+            overlays: Vec::new(),
         };
         let (wire, proc) = self
             .procs

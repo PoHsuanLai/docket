@@ -58,12 +58,9 @@ state = ["/home/u/.gemini"]
 home = "/home/u"
 label = "Antigravity"
 sign_in = "oauth-personal"
-# agy asks before every tool of its own, the desktop's tool server (`quire`) included, and the desktop asks
-# again: two sheets for one action. profile = "agy" has docket write a settings file for each run that allows
-# that one server (`permissions.allow = ["mcp(quire/*)"]`) and names the sign_in method, and shows it read-only
-# at ~/.gemini/antigravity-acp/settings.json inside the sandbox. Your own file there is shadowed for the run,
-# not merged and not changed; agy's own command, file and subagent tools keep asking, through the desktop.
-profile = "agy"
+# agy asks before every tool of its own, the desktop's tool server (`quire`) included. The desktop answers
+# that request itself for a call to its own server (the call is ruled when it arrives), so no `profile` is needed;
+# agy's command, file and subagent tools keep asking, through the desktop.
 
 # The same program with inferd as its model (an API-key account in accountd): the agent gets a
 # base URL and a per-session token, the real key stays in porter, and the only network it has is

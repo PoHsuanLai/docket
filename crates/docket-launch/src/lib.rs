@@ -16,7 +16,6 @@
 //! coarse outcome.
 
 pub mod accounts;
-pub mod agy;
 pub mod config;
 #[cfg(feature = "dbus")]
 pub mod dbus;
