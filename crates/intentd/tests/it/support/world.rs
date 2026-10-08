@@ -6,7 +6,7 @@ use docket_client::DbusTransport;
 use docket_core::{AgentConfig, CallerId, CallerRole};
 use docket_fake::{FakeSeams, fake_router};
 use docket_router::Router;
-use intentd::{IntentdConfig, ProcRoot, serve_on_with};
+use intentd::{AcpGate, IntentdConfig, ProcRoot, serve_on_gated};
 use porter_core::{AppId, AppName, Isolation};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -63,6 +63,16 @@ impl World {
     /// As `serving`, with this test process in the cgroup `leaf` of the fake proc root (every
     /// connection of the test is this process).
     pub async fn serving_in(router: Router<FakeSeams>, config: IntentdConfig, leaf: &str) -> World {
+        Self::serving_gated(router, config, leaf, AcpGate::shut()).await
+    }
+
+    /// As `serving_in`, with `org.quire.Acp` a name only while `acp` shows the setting on.
+    pub async fn serving_gated(
+        router: Router<FakeSeams>,
+        config: IntentdConfig,
+        leaf: &str,
+        acp: AcpGate,
+    ) -> World {
         let dir = tempfile::tempdir().expect("scratch");
         let me = dir.path().join("proc").join(std::process::id().to_string());
         std::fs::create_dir_all(&me).expect("fake proc");
@@ -72,7 +82,7 @@ impl World {
         let daemon = bus.connect().await;
         let router = Arc::new(router);
         let root = ProcRoot::Fixture(dir.path().join("proc"));
-        serve_on_with(&daemon, router.clone(), Arc::new(config), &root)
+        serve_on_gated(&daemon, router.clone(), Arc::new(config), &root, acp)
             .await
             .expect("intentd serves");
         World {

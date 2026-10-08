@@ -67,7 +67,7 @@ fn words(updates: &[Value]) -> Vec<String> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn one_session_initialize_new_prompt_a_permission_round_and_done() {
-    let world = World::start(&binaries(), Consent::Standing, FLOW_A).await;
+    let world = World::start_acp(&binaries(), Consent::Standing, FLOW_A).await;
     world.sheet.will(Verdict::Allow);
     let mut editor = editor_of(&world).await;
     let id = session(&mut editor).await;
@@ -100,7 +100,7 @@ async fn one_session_initialize_new_prompt_a_permission_round_and_done() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn an_editors_reject_means_the_app_never_runs_the_call() {
-    let world = World::start(&binaries(), Consent::Standing, FLOW_A).await;
+    let world = World::start_acp(&binaries(), Consent::Standing, FLOW_A).await;
     world.sheet.will(Verdict::Allow);
     let mut editor = editor_of(&world).await;
     let id = session(&mut editor).await;
@@ -132,7 +132,7 @@ async fn an_editors_reject_means_the_app_never_runs_the_call() {
 /// Turn one, then (when `restart`) the host goes and a new one starts, loads the session and
 /// goes on with turn two. Returns what turn two showed and what the app did. (Sheets are not compared: the router sometimes asks to widen the task for the second turn, in either run, which is its own matter.)
 async fn two_turns(restart: bool) -> (Vec<Value>, Vec<String>) {
-    let world = World::start(&binaries(), Consent::Standing, ACP_TWO_TURNS).await;
+    let world = World::start_acp(&binaries(), Consent::Standing, ACP_TWO_TURNS).await;
     world.sheet.will(Verdict::Allow);
     let mut editor = editor_of(&world).await;
     let id = session(&mut editor).await;

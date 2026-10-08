@@ -172,6 +172,7 @@ pub async fn run_corpus_live(
             tap: TapMode::Off,
             accountd: options.accountd.clone(),
             catalog: options.catalog.clone(),
+            ..Options::default()
         },
     )
     .await;

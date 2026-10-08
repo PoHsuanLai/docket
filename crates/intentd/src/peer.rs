@@ -13,8 +13,10 @@
 //!
 //! This is advisory on a desktop where every process runs as the person: a process can take a
 //! name or start a scope. What it cannot do is be more than the role that name plays, and the
-//! cli role asks for everything that is not a read.
+//! cli role asks for everything that is not a read. One narrowing: `org.quire.Acp` counts as a
+//! name only while `agent.acp.expose` is on (`AcpGate`), because it is usually unowned.
 
+use crate::acp_gate::AcpGate;
 use crate::config::IntentdConfig;
 use crate::procroot::ProcRoot;
 use docket_core::{CallerId, is_terminal_scope};
@@ -122,6 +124,7 @@ pub struct Peers {
     connection: BusConnection,
     config: Arc<IntentdConfig>,
     proc_root: PathBuf,
+    acp: AcpGate,
 }
 
 impl Peers {
@@ -137,10 +140,22 @@ impl Peers {
         config: Arc<IntentdConfig>,
         proc_root: &ProcRoot,
     ) -> Self {
+        Self::gated(connection, config, proc_root, AcpGate::shut())
+    }
+
+    /// As [`Peers::with_proc_root`], honouring the roles held through `org.quire.Acp` only while
+    /// `acp` shows the setting on.
+    pub fn gated(
+        connection: BusConnection,
+        config: Arc<IntentdConfig>,
+        proc_root: &ProcRoot,
+        acp: AcpGate,
+    ) -> Self {
         Self {
             connection,
             config,
             proc_root: proc_root.path(),
+            acp,
         }
     }
 
@@ -172,7 +187,7 @@ impl Peers {
             let owner = dbus
                 .get_name_owner(BusName::try_from(text).map_err(|e| PeerFault::Bus(e.to_string()))?)
                 .await;
-            if owner.is_ok_and(|o| o.as_str() == unique) {
+            if owner.is_ok_and(|o| o.as_str() == unique) && self.acp.keeps(&app) {
                 names.push(app);
             }
         }

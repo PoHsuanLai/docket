@@ -1,6 +1,7 @@
 //! The running daemon: the files it reads, the seams it builds over the session bus, the router
 //! over them, the bus served, the audit queue drained and the person's logout watched.
 
+use crate::acp_gate::AcpGate;
 use crate::audit::AuditLog;
 use crate::builtin::{HostedLink, builtin_manifests};
 use crate::builtin_companion::CompanionPort;
@@ -12,7 +13,7 @@ use crate::logout::watch_logind;
 use crate::manifests::{Loaded, intents_dir, load_manifests};
 use crate::procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 use crate::reviewers::reviewer;
-use crate::serve::{ServeFault, closed, serve_on_with};
+use crate::serve::{ServeFault, closed, serve_on_gated};
 use crate::settings_watch::{SettingsWatch, WatchState, apply, apply_next};
 use crate::sheet::SheetConfirmer;
 use crate::signals::{Cadence, pump};
@@ -253,13 +254,23 @@ pub async fn start(
     }
     let router = Arc::new(router);
     port.attach(&router);
-    serve_on_with(session, router.clone(), Arc::new(config), &proc_root)
-        .await
-        .map_err(DaemonFault::Serve)?;
+    // The ACP name plays its roles only while the setting is on; the watch below keeps it current.
+    let acp = AcpGate::new(watched.current().value.acp);
+    serve_on_gated(
+        session,
+        router.clone(),
+        Arc::new(config),
+        &proc_root,
+        acp.clone(),
+    )
+    .await
+    .map_err(DaemonFault::Serve)?;
     let mut tasks = Vec::new();
     let followed = router.clone();
     tasks.push(tokio::spawn(async move {
-        while apply_next(&followed, &mut watched).await.is_some() {}
+        while let Some(loaded) = apply_next(&followed, &mut watched).await {
+            acp.set(loaded.value.acp);
+        }
     }));
     tasks.push(tokio::spawn(pump(
         router.clone(),

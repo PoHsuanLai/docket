@@ -445,6 +445,7 @@ pub(crate) async fn observe(
         tap: TapMode::On,
         accountd: None,
         catalog,
+        ..Options::default()
     };
     let world = World::start_model(binaries, script.consent, model, &options).await;
     warm_world(&world, model, patience).await?;

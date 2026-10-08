@@ -12,6 +12,7 @@
 //! - `serve`, `serve_on`: the bus (`bus`: one handler per `Intents1` interface); `Peers`: who is on
 //!   the other end of a connection; `end_terminals_at_logout`: logind; `start` and `run`: the daemon.
 
+mod acp_gate;
 mod audit;
 mod builtin;
 mod builtin_companion;
@@ -36,6 +37,7 @@ mod signals;
 mod system;
 mod writer;
 
+pub use acp_gate::{ACP_NAME, AcpGate};
 pub use audit::{AuditLog, Flushed};
 pub use builtin::{HostedLink, builtin_manifests, is_builtin};
 pub use builtin_companion::{CompanionPort, CompanionProvider};
@@ -54,7 +56,7 @@ pub use manifests::{Loaded, intents_dir, load_manifests};
 pub use peer::{PeerFault, Peers};
 pub use procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 pub use reviewers::{placeholder_set, reviewer};
-pub use serve::{ServeFault, serve, serve_on, serve_on_with};
+pub use serve::{ServeFault, serve, serve_on, serve_on_gated, serve_on_with};
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use sheet::SheetConfirmer;
 pub use signals::{Cadence, Changed, Marks, changes, emit, marks_of, pump, rescan};

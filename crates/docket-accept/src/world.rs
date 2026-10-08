@@ -57,6 +57,17 @@ pub enum ModelSource {
     Live(String),
 }
 
+/// The person's `agent.acp.expose`, written into the scratch settings file. intentd honours the
+/// roles of `org.quire.Acp` only while it is on.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum AcpSetting {
+    /// No settings file: the feature is off.
+    #[default]
+    Off,
+    /// `[agent.acp] expose = "on"`.
+    On,
+}
+
 /// What a world does besides what its model source says.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Options {
@@ -73,6 +84,8 @@ pub struct Options {
     /// A catalogue directory whose `*.toml` entries are copied into the scratch root before
     /// inferd starts (see `live::catalog`).
     pub catalog: Option<PathBuf>,
+    /// Whether the person switched the ACP edge on.
+    pub acp: AcpSetting,
 }
 
 /// Copies the run's catalogue into the scratch root; a missing source is a failed start.
@@ -399,6 +412,16 @@ impl World {
         World::start_model(binaries, consent, &model, &Options::default()).await
     }
 
+    /// [`World::start`] with the person's `agent.acp.expose` switched on, for a run with an editor.
+    pub async fn start_acp(binaries: &Binaries, consent: Consent, cassette: Cassette) -> World {
+        let model = ModelSource::Scripted(cassette.0.to_owned());
+        let options = Options {
+            acp: AcpSetting::On,
+            ..Options::default()
+        };
+        World::start_model(binaries, consent, &model, &options).await
+    }
+
     /// [`World::start`] with any model source and options: a cassette or a real engine, the
     /// scratch root kept or not, the daemons' model tap on or off.
     pub async fn start_model(
@@ -452,6 +475,12 @@ impl World {
             );
         }
 
+        if options.acp == AcpSetting::On {
+            write(
+                &root.join("config/docket/settings.toml"),
+                "[agent.acp]\nexpose = \"on\"\n",
+            );
+        }
         copy_catalog(options.catalog.as_deref(), root);
         let tap = match options.tap {
             TapMode::On => Some(root.join("model.jsonl")),

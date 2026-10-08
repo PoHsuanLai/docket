@@ -1,5 +1,6 @@
 //! Serving the bus.
 
+use crate::acp_gate::AcpGate;
 use crate::bus::{Gateway, Handler, SearchPort, export};
 use crate::config::IntentdConfig;
 use crate::peer::Peers;
@@ -78,10 +79,21 @@ pub async fn serve_on_with<S: Seams + 'static>(
     config: Arc<IntentdConfig>,
     proc_root: &ProcRoot,
 ) -> Result<(), ServeFault> {
+    serve_on_gated(connection, router, config, proc_root, AcpGate::shut()).await
+}
+
+/// As [`serve_on_with`], with `org.quire.Acp` a name only while `acp` shows the setting on.
+pub async fn serve_on_gated<S: Seams + 'static>(
+    connection: &BusConnection,
+    router: Arc<Router<S>>,
+    config: Arc<IntentdConfig>,
+    proc_root: &ProcRoot,
+    acp: AcpGate,
+) -> Result<(), ServeFault> {
     let gateway = Gateway::new(
         handler(router.clone()),
         search_port(router),
-        Peers::with_proc_root(connection.clone(), config, proc_root),
+        Peers::gated(connection.clone(), config, proc_root, acp),
     );
     export(connection, &gateway).await.map_err(bus)?;
     // Never queued behind another intentd: two routers would be two breakers and two journals.

@@ -206,6 +206,15 @@ Built and tested on a private `dbus-daemon` (nothing of the real session is name
   `$XDG_CONFIG_HOME/quire` replaces it whole). An unknown connection is `NotAllowed`. This is advisory on a
   desktop where every process runs as the person: the cli role asks for everything but a read, and the
   stronger binding (Flatpak, a systemd scope) is later.
+  **One narrowing (acp-gate):** `org.quire.Acp` is listed as an editor and a companion, but its owner exists only
+  while `agent.acp.expose = "on"`, so the name is usually unowned and any process of the person could take it.
+  `AcpGate` (intentd) drops that name from a connection's facts unless the setting is on, read at each call
+  (`Peers::facts`); the daemon sets it from the settings watch, so a flip applies to the next call and nothing is
+  cached. Off means the name is nobody (the connection falls back to its cgroup, usually a plain app).
+  Identity stays advisory for same-user processes: with the setting on, any of them can still own the name and
+  play both roles. The gate narrows exposure while the feature is off, nothing more. A library caller of
+  `serve_on` / `serve_on_with` gets a shut gate; `serve_on_gated` takes one. Tests: `intentd/tests/it/acp_gate.rs`;
+  the acceptance world writes the setting (`AcpSetting::On`, `World::start_acp`).
 - **Apps** (`DbusLink`): `IntentProvider1` on the app's own name, started by activation when absent, the
   owner checked to be the person's own process; latencies 250 ms (instant), 5 s (quick), 10 min (long, reports
   progress itself); a timeout is `AppFault::TimedOut`. `docket_client::serve_on` / `serve` serve a provider and

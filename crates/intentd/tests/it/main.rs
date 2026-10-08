@@ -1,3 +1,4 @@
+mod acp_gate;
 mod audit;
 mod binary;
 mod bus_members;
