@@ -52,10 +52,13 @@ impl MemoryGrants {
         Self::default()
     }
 
-    /// Forgets every grant.
+    /// Forgets every grant, the standing ones too.
     pub fn clear(&self) {
         if let Ok(mut grants) = self.grants.lock() {
             grants.clear();
+        }
+        if let Ok(mut standing) = self.standing.lock() {
+            standing.clear();
         }
     }
 

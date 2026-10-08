@@ -484,3 +484,109 @@ async fn the_virtual_clock_completes_a_timer_only_when_advanced_to_it() {
     assert_eq!(clock.now(), UnixSeconds(1));
     assert_eq!(clock.asked(), [Millis(100), Millis(0)]);
 }
+
+fn send_to(key: &str) -> Invocation {
+    let mut inv = invocation("mail.message.send", &[]);
+    let to = prov::EntityId {
+        app: AppName::parse("org.quire.Mail").expect("app"),
+        kind: prov::EntityKind::parse("mail.contact").expect("kind"),
+        key: prov::EntityKey::parse(key).expect("key"),
+    };
+    inv.args.insert(
+        ParamName::parse("to").expect("param"),
+        prov::Labelled {
+            value: Value::Entity(to),
+            label: prov::Label::trusted_user(),
+        },
+    );
+    inv
+}
+
+fn user() -> Actor {
+    Actor::User {
+        via: AppName::parse("org.quire.Shell").expect("app"),
+    }
+}
+
+async fn sent_token(app: &FakeMail) -> UndoToken {
+    match app.perform(send_to("c1")).await.expect("sent").undo {
+        Undoable::Yes(token) => token,
+        other => panic!("send is undoable, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn undoing_two_sends_in_order_removes_both() {
+    let app = mail();
+    let first = sent_token(&app).await;
+    let second = sent_token(&app).await;
+    assert_eq!(app.sent().len(), 2);
+    app.undo(first, user()).await.expect("first undone");
+    app.undo(second, user()).await.expect("second undone");
+    assert!(app.sent().is_empty(), "the second undo found its own send");
+}
+
+#[tokio::test]
+async fn undoing_a_send_whose_entry_is_gone_says_so() {
+    let app = mail();
+    let token = sent_token(&app).await;
+    app.clear();
+    assert_eq!(app.undo(token, user()).await, Err(UndoFault::Gone));
+}
+
+#[tokio::test]
+async fn undoing_two_drafts_out_of_order_removes_both() {
+    let app = mail();
+    let mut tokens = Vec::new();
+    for _ in 0..2 {
+        match app
+            .perform(invocation("mail.draft.create", &[]))
+            .await
+            .expect("drafted")
+            .undo
+        {
+            Undoable::Yes(token) => tokens.push(token),
+            other => panic!("a draft is undoable, got {other:?}"),
+        }
+    }
+    for token in tokens {
+        app.undo(token, user()).await.expect("undone");
+    }
+    assert_eq!(app.drafts(), 0);
+}
+
+#[test]
+fn clearing_the_grants_drops_the_standing_ones_too() {
+    let grants = MemoryGrants::new();
+    grants.add_standing(StandingGrant::new(
+        GrantCaller::Cli,
+        StandingScope::Outbound {
+            action: ActionRef {
+                app: AppName::parse("org.quire.Mail").expect("app"),
+                name: ActionName::parse("mail.message.send").expect("action"),
+            },
+            to: Recipient::address("accounting@example.test").expect("address"),
+        },
+        UnixSeconds(1),
+    ));
+    assert_eq!(grants.standing().len(), 1);
+    grants.clear();
+    assert!(grants.standing().is_empty());
+}
+
+#[test]
+fn clearing_the_link_forgets_what_a_case_left_in_it() {
+    let router = fake_router(AgentConfig::default()).expect("router");
+    let link = &router.seams.link;
+    let app = AppName::parse("org.quire.Mail").expect("app");
+    link.answering
+        .lock()
+        .expect("lock")
+        .insert(app, Answering::Absent);
+    link.menu
+        .script("copy", MenuItem::effect(prov::Effect::Read));
+    link.clear();
+    assert!(link.answering.lock().expect("lock").is_empty());
+    assert!(link.window.lock().expect("lock").is_none());
+    assert!(link.performed.lock().expect("lock").is_empty());
+}

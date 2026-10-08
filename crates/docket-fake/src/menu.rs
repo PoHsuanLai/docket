@@ -87,6 +87,16 @@ impl FakeMenu {
         }
     }
 
+    /// Forgets every scripted item and every item asked about.
+    pub fn clear(&self) {
+        if let Ok(mut items) = self.items.lock() {
+            items.clear();
+        }
+        if let Ok(mut classified) = self.classified.lock() {
+            classified.clear();
+        }
+    }
+
     /// Sets what `item` does.
     pub fn script(&self, item: &str, how: MenuItem) {
         if let Ok(mut items) = self.items.lock() {

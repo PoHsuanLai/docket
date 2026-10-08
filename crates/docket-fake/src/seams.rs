@@ -96,6 +96,24 @@ impl FakeLink {
         }
     }
 
+    /// Forgets what a case left in the apps and in the link itself: the mail, files and menu
+    /// data, the apps made unreachable, the window, and the invocations performed. Apps a test
+    /// hosts stay, like the manifests do.
+    pub fn clear(&self) {
+        self.mail.clear();
+        self.files.clear();
+        self.menu.clear();
+        if let Ok(mut answering) = self.answering.lock() {
+            answering.clear();
+        }
+        if let Ok(mut window) = self.window.lock() {
+            *window = None;
+        }
+        if let Ok(mut performed) = self.performed.lock() {
+            performed.clear();
+        }
+    }
+
     /// Makes `app` answered by `hosted`, in the test's own process.
     pub fn host(&self, app: AppName, hosted: Arc<dyn crate::HostedApp>) {
         if let Ok(mut all) = self.hosted.lock() {

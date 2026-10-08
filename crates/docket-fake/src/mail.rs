@@ -47,8 +47,8 @@ pub struct SentMail {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum UndoStep {
     Unarchive(Vec<String>),
-    Unsend(usize),
-    Undraft(usize),
+    Unsend(u64),
+    Undraft(u64),
 }
 
 #[derive(Debug, Default)]
@@ -56,11 +56,14 @@ struct State {
     threads: BTreeMap<String, MailThread>,
     contacts: BTreeMap<String, MailContact>,
     archived: BTreeSet<String>,
-    drafts: Vec<String>,
-    sent: Vec<SentMail>,
+    /// Each draft with the serial it was made under, so an undo finds it after others left.
+    drafts: Vec<(u64, String)>,
+    /// Each send with its serial.
+    sent: Vec<(u64, SentMail)>,
     opened: Vec<String>,
     undo: BTreeMap<String, UndoStep>,
     next: u64,
+    serial: u64,
 }
 
 /// The fake mail app.
@@ -139,7 +142,7 @@ impl FakeMail {
 
     /// What was sent or forwarded.
     pub fn sent(&self) -> Vec<SentMail> {
-        self.edit(|s| s.sent.clone())
+        self.edit(|s| s.sent.iter().map(|(_, m)| m.clone()).collect())
     }
 
     /// How many drafts exist.
@@ -155,6 +158,11 @@ impl FakeMail {
             | TargetValue::Text(_)
             | TargetValue::Files(_) => vec![],
         }
+    }
+
+    fn serial(s: &mut State) -> u64 {
+        s.serial += 1;
+        s.serial
     }
 
     fn token(s: &mut State) -> Option<UndoToken> {
@@ -221,12 +229,11 @@ impl IntentProvider for FakeMail {
                 ))
             }
             "mail.draft.create" => {
-                s.drafts.push("draft".into());
+                let serial = Self::serial(s);
+                s.drafts.push((serial, "draft".into()));
                 let token = Self::token(s).ok_or(AppRefusal::Busy)?;
-                s.undo.insert(
-                    token.as_str().to_owned(),
-                    UndoStep::Undraft(s.drafts.len() - 1),
-                );
+                s.undo
+                    .insert(token.as_str().to_owned(), UndoStep::Undraft(serial));
                 Ok(outcome(
                     Some("Draft saved".into()),
                     Undoable::Yes(token),
@@ -235,15 +242,17 @@ impl IntentProvider for FakeMail {
             }
             "mail.message.send" => {
                 let to = Self::contact_key(&inv).ok_or(AppRefusal::Unsupported)?;
-                s.sent.push(SentMail {
-                    to,
-                    threads: vec![],
-                });
+                let serial = Self::serial(s);
+                s.sent.push((
+                    serial,
+                    SentMail {
+                        to,
+                        threads: vec![],
+                    },
+                ));
                 let token = Self::token(s).ok_or(AppRefusal::Busy)?;
-                s.undo.insert(
-                    token.as_str().to_owned(),
-                    UndoStep::Unsend(s.sent.len() - 1),
-                );
+                s.undo
+                    .insert(token.as_str().to_owned(), UndoStep::Unsend(serial));
                 Ok(outcome(
                     Some("Sent".into()),
                     Undoable::Yes(token),
@@ -252,10 +261,14 @@ impl IntentProvider for FakeMail {
             }
             "mail.message.forward" => {
                 let to = Self::contact_key(&inv).ok_or(AppRefusal::Unsupported)?;
-                s.sent.push(SentMail {
-                    to,
-                    threads: keys.clone(),
-                });
+                let serial = Self::serial(s);
+                s.sent.push((
+                    serial,
+                    SentMail {
+                        to,
+                        threads: keys.clone(),
+                    },
+                ));
                 Ok(outcome(
                     Some(format!("Forwarded {} threads", keys.len())),
                     Undoable::No,
@@ -308,17 +321,17 @@ impl IntentProvider for FakeMail {
                 });
                 Ok(())
             }
-            Some(UndoStep::Unsend(i)) => {
-                if i < s.sent.len() {
-                    s.sent.remove(i);
-                }
-                Ok(())
+            Some(UndoStep::Unsend(serial)) => {
+                let before = s.sent.len();
+                s.sent.retain(|(n, _)| *n != serial);
+                (s.sent.len() < before).then_some(()).ok_or(UndoFault::Gone)
             }
-            Some(UndoStep::Undraft(i)) => {
-                if i < s.drafts.len() {
-                    s.drafts.remove(i);
-                }
-                Ok(())
+            Some(UndoStep::Undraft(serial)) => {
+                let before = s.drafts.len();
+                s.drafts.retain(|(n, _)| *n != serial);
+                (s.drafts.len() < before)
+                    .then_some(())
+                    .ok_or(UndoFault::Gone)
             }
         })
     }
