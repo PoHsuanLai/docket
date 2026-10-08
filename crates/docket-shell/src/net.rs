@@ -12,6 +12,28 @@
 use docket_core::AbsPath;
 use serde::{Deserialize, Serialize};
 
+/// Where a host keeps the resolver file `/etc/resolv.conf` points at, when it is a link into a
+/// directory the sandbox empties (`/run`): systemd-resolved, NetworkManager, resolvconf, connman.
+/// With the host's network, each that exists is bound back read-only so names resolve; the rest
+/// of `/run` (the session bus, other sockets) stays hidden.
+pub const RESOLVER_FILES: &[&str] = &[
+    "/run/systemd/resolve/stub-resolv.conf",
+    "/run/systemd/resolve/resolv.conf",
+    "/run/NetworkManager/resolv.conf",
+    "/run/NetworkManager/no-stub-resolv.conf",
+    "/run/resolvconf/resolv.conf",
+    "/run/connman/resolv.conf",
+];
+
+/// The `bwrap` words that bind the resolver files back, each only if the host has it.
+pub(crate) fn resolver_binds() -> Vec<String> {
+    RESOLVER_FILES
+        .iter()
+        .flat_map(|f| ["--ro-bind-try", f, f])
+        .map(str::to_owned)
+        .collect()
+}
+
 /// What the person allows a program, by its config entry. `None` is the default.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

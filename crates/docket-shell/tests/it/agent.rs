@@ -2,8 +2,8 @@
 
 use docket_core::AbsPath;
 use docket_shell::{
-    Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, EnvVar, INSIDE_FORWARDER, INSIDE_SOCKET,
-    NetworkMode, agent_bwrap_args,
+    Access, AgentNet, AgentRun, Argv, Bind, ByteLimit, EndpointBind, EnvVar, INSIDE_FORWARDER,
+    INSIDE_SOCKET, Network, NetworkMode, RESOLVER_FILES, RunSpec, agent_bwrap_args, bwrap_args,
 };
 
 fn abs(text: &str) -> AbsPath {
@@ -45,6 +45,21 @@ fn with_no_network_the_namespace_is_new_and_nothing_is_shared() {
 fn only_host_mode_shares_the_host_network() {
     let args = agent_bwrap_args(&run(AgentNet::Host, Vec::new()), &[]);
     assert!(has(&args, &["--share-net"]));
+}
+
+#[test]
+fn host_mode_binds_back_only_the_resolver_files() {
+    // /etc/resolv.conf is often a link into /run, which the sandbox empties: without these the
+    // agent has the network but cannot resolve a name.
+    let host = agent_bwrap_args(&run(AgentNet::Host, Vec::new()), &["/run"]);
+    for file in RESOLVER_FILES {
+        assert!(has(&host, &["--ro-bind-try", file, file]), "{file}");
+    }
+    let tmpfs = host.iter().position(|a| a == "--tmpfs");
+    let bind = host.iter().position(|a| a == "--ro-bind-try");
+    assert!(tmpfs < bind, "the binds come after /run is emptied");
+    let none = agent_bwrap_args(&run(AgentNet::None, Vec::new()), &["/run"]);
+    assert!(!none.iter().any(|a| a == "--ro-bind-try"));
 }
 
 #[test]
@@ -131,4 +146,21 @@ fn a_mode_and_its_endpoint_must_agree() {
         NetworkMode::EndpointOnly
     );
     assert_eq!(NetworkMode::default(), NetworkMode::None);
+}
+
+#[test]
+fn a_command_with_the_host_network_resolves_names_too() {
+    let spec = |network| RunSpec {
+        argv: Argv::new("curl", &["example.org".to_owned()]).expect("argv"),
+        cwd: abs("/work/project"),
+        env: Vec::new(),
+        network,
+        keep: ByteLimit(1024),
+    };
+    let host = bwrap_args(&spec(Network::Host), &["/run"]);
+    for file in RESOLVER_FILES {
+        assert!(has(&host, &["--ro-bind-try", file, file]), "{file}");
+    }
+    let none = bwrap_args(&spec(Network::Off), &["/run"]);
+    assert!(!none.iter().any(|a| a == "--ro-bind-try"));
 }

@@ -6,7 +6,9 @@
 //! socket and other users' files are not there to read), the working directory bound writable and
 //! nothing else writable, new user, pid, ipc, uts, cgroup and network namespaces (no interface at
 //! all, not even loopback), no capabilities, a new session (its own process group), a cleared
-//! environment, and death with its parent. FINDINGS.md "Sandboxed shell" lists what that does not
+//! environment, and death with its parent. With the host's network, the resolver files under `/run`
+//! that `/etc/resolv.conf` may point at are bound back read-only (`RESOLVER_FILES`), or names would
+//! not resolve. FINDINGS.md "Sandboxed shell" lists what that does not
 //! stop.
 
 use crate::bwrap_job::BwrapJob;
@@ -44,6 +46,9 @@ pub fn bwrap_args(spec: &RunSpec, hidden: &[&str]) -> Vec<String> {
     args.extend(fixed.into_iter().map(str::to_owned));
     for dir in hidden {
         args.extend(["--tmpfs".to_owned(), (*dir).to_owned()]);
+    }
+    if spec.network == Network::Host {
+        args.extend(crate::net::resolver_binds());
     }
     // The working directory goes in after the emptied directories, so it shows through them.
     args.extend(["--bind", cwd, cwd, "--chdir", cwd, "--clearenv"].map(str::to_owned));

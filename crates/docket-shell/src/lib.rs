@@ -32,7 +32,7 @@ pub use agent::{
 pub use bwrap::{BwrapSandbox, Detected, HIDDEN, bwrap_args};
 pub use bwrap_job::BwrapJob;
 pub use env::{SANDBOX_HOME, SANDBOX_PATH, dropped, sandbox_env};
-pub use net::{AgentNet, EndpointBind, NetFault, NetworkMode};
+pub use net::{AgentNet, EndpointBind, NetFault, NetworkMode, RESOLVER_FILES};
 pub use output::{Shown, Tail, shown};
 pub use redact::{MASK, redact};
 pub use sandbox::{

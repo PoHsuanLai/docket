@@ -11,7 +11,7 @@
 //! no capabilities; a new session; death with its parent.
 
 use crate::bwrap::HIDDEN;
-use crate::net::{AgentNet, EndpointBind};
+use crate::net::{AgentNet, EndpointBind, resolver_binds};
 use crate::sandbox::{Argv, EnvVar};
 use docket_core::AbsPath;
 
@@ -79,6 +79,9 @@ pub fn agent_bwrap_args(run: &AgentRun, hidden: &[&str]) -> Vec<String> {
     ]));
     for dir in hidden {
         args.extend(["--tmpfs".to_owned(), (*dir).to_owned()]);
+    }
+    if run.net == AgentNet::Host {
+        args.extend(resolver_binds());
     }
     for bind in &run.binds {
         let flag = match bind.access {
