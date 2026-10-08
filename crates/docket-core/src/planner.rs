@@ -38,7 +38,8 @@ pub enum TurnSource {
     /// A prompt field inside this app: the task policy is capped to that app plus reads, and
     /// widening confirms.
     Field(porter_core::AppName),
-    /// A code editor (`docket-acp`): capped like a field. The prompt's text blocks are the only
+    /// A code editor (`docket-acp`): the person's typed words, so the task policy is derived from
+    /// them as for the launcher (not capped like a field). The prompt's text blocks are the only
     /// words recorded; attachments are data and never reach the policy writer.
     Editor(porter_core::AppName),
 }

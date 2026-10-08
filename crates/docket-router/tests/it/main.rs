@@ -5,6 +5,7 @@ mod call_step;
 mod companion;
 mod control;
 mod crossspace;
+mod editor_policy;
 mod gate;
 mod index;
 mod lifecycle;

@@ -98,7 +98,8 @@ fn asked_widenings(widenings: &[Widening], baseline: Baseline) -> Vec<Widening> 
 impl<S: Seams> Router<S> {
     /// Cuts a policy to what its session may hold: stamped with the session's task, Space and
     /// turns, lapsing by the configured maximum, capped by its parent's policy and by the
-    /// prompt field the last turn came from.
+    /// prompt field the last turn came from. An editor's typed turn is the person's words and is
+    /// not capped, like a launcher's.
     fn bound_policy(
         &self,
         st: &RouterState,
@@ -116,9 +117,7 @@ impl<S: Seams> Router<S> {
                 .saturating_add(i64::from(self.agent_config().task_policy_max.0)),
         );
         policy.expires = policy.expires.min(latest);
-        if let Some(TurnSource::Field(app) | TurnSource::Editor(app)) =
-            record.turns.last().map(|t| &t.from)
-        {
+        if let Some(TurnSource::Field(app)) = record.turns.last().map(|t| &t.from) {
             policy = cap_to_app(policy, app, st);
         }
         let parent = st

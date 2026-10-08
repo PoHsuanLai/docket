@@ -2071,7 +2071,7 @@ What landed, and what it leaves for other lanes.
   features).
 - **`CallerRole::Editor` and `TurnSource::Editor(AppName)`** in docket-core. The router's auth table
   lets an editor open and close sessions and record turns, nothing else; `who_for` treats it like a
-  field; a turn from an editor caps the task policy to the editor's app like a field's. The restore
+  field; a turn from an editor first capped the task policy to the editor's app like a field's (changed by "Editor policy (R8)" below). The restore
   rule (`may_restore`) moved from docket-router to docket-session so the ACP edge can ask it without
   linking the router and Cedar; the editor is under `Own`: it restores only what its app opened.
 - **`Opening.cwd`** (`Workspace`, optional, serde-defaulted so older logs read) records the editor's
@@ -2342,12 +2342,9 @@ A sheet for a call in an editor's session no longer goes to sill.
   awaited `Session.Turn` inline; the router derives the task policy in that call and may ask about it, and with
   the sheet now on the editor the edge was not pulling events: a deadlock (seen in about one in four two-turn
   runs once the second turn asked). A recording that fails ends the turn `Failed` rather than failing `turn`.
-- **No end-to-end "allow always" for Mail.** An editor's turn caps the task policy to the editor's own app plus
-  reads (S3), and the editor's app is `org.quire.Acp`, which has no actions; every Mail write in an editor session
-  is therefore `OutsideTask`, and `OutsideTask` withholds "allow always" by design. The tests send the editor's
-  `allow_always` through the bus (`acp_confirm.rs`: `Once`, `Always`, `Refused` come back as the router's answer)
-  and the router's own tests hold the standing grant (`standing_editor.rs`), but a process-level run cannot offer
-  one until editor sessions have actions of their own (the `fs/*` and `terminal/*` of S4) or the cap is revisited.
+- **No end-to-end "allow always" for Mail: closed by R8 (see "Editor policy (R8)").** The cap on an editor's
+  turn is gone, so Mail writes in an editor session are inside the task and the sheet offers "allow always"
+  where R1 allows it.
 - **The flake: real, in the router.** `compare` counts a later `expires` as a widening. Each turn derives its
   policy again from the same words with `expires = now + ttl`, so whenever a clock second ticked between two turns
   (about one run in eight) the second turn's policy was "wider" and the router asked "Allow more for this task"
@@ -2360,6 +2357,26 @@ A sheet for a call in an editor's session no longer goes to sill.
   performs, reject refuses, a sheet asked while a turn is recorded reaches the editor), `acp_confirm.rs` (the
   bus half on a private bus: Once/Always/Refused, setting off, process gone and sill not asked, a stranger
   refused), `docket-inapp` desk tests, `docket-router` `asked_widenings`.
+
+## Editor policy (R8)
+
+An editor's typed turn is the person's words, so the task policy derives from it as for the launcher's.
+
+- **What changed.** `bound_policy` (docket-router `policy.rs`) capped the policy to the turn's app plus reads for
+  `TurnSource::Field(app)` and `TurnSource::Editor(app)`. It now caps only `Field`. The writer, the ceiling floor,
+  the reviewers, the breaker, budgets, taint and the R1 rules are untouched, and a parent's policy still bounds a
+  child's.
+- **Unchanged.** The editor role's identity is still the verified connection app (`Who::grant_caller` gives
+  `GrantCaller::Editor`); a session still belongs to its opener (`record_turn` and the restore rule); only the
+  latest turn's source matters, so a later launcher turn still ends the editor's grants.
+- **Effect.** An editor session that asks to forward mail gets a policy covering Mail, so the forward asks a normal
+  sheet and not "Allow more for this task"; the sheet offers `allow_always` when R1 allows, and the editor's click
+  creates the `GrantCaller::Editor` grant; the next matching call asks nothing and is audited `StandingUsed`.
+  Untrusted content into an outbound still withholds the offer (taint). A prompt field keeps its cap.
+- **Risk to know.** The editor's words are now the policy's source, so whatever a malicious editor types is the
+  person's words; an editor is a trusted surface the person chose to type in, like the launcher. The policy
+  still only bounds what the gate asks about; every call still passes the gate.
+- Tests: `docket-router/tests/it/editor_policy.rs`.
 
 ## companiond's roster from Session.Stored (S2, second part)
 
