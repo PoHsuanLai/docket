@@ -2,6 +2,12 @@
   "vocab": 1,
   "apps": [
     {
+      "slug": "acpagent",
+      "app": "org.quire.AcpAgent",
+      "actions": 15,
+      "kinds": []
+    },
+    {
       "slug": "companion",
       "app": "org.quire.Companion",
       "actions": 3,
