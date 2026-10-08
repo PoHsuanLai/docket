@@ -23,6 +23,7 @@
 //! - `fake`: an in-memory pipe, a scripted spawner and the like, for tests.
 
 mod backend;
+mod call;
 mod confine;
 mod court;
 pub mod fake;
@@ -32,6 +33,7 @@ mod host;
 mod intake;
 mod intents_court;
 mod names;
+mod perform;
 mod performer;
 mod reported;
 mod rpc;
@@ -42,8 +44,9 @@ mod taint;
 mod tool_req;
 
 pub use backend::{AcpBackend, Parts, Seams};
+pub use call::{AgentCall, Command, PermissionAsk, StageId};
 pub use confine::{Care, Confined, Refusal, confine, named};
-pub use court::{AgentCall, Command, Court, CourtFault, OpenAgent, PermissionAsk, Ruled, StageId};
+pub use court::{Court, CourtFault, OpenAgent, Ruled};
 pub use files::{FileFault, Files, MAX_READ, MAX_WRITE, OsFiles};
 pub use host::{AgentHost, Fallback};
 pub use intents_court::IntentsCourt;

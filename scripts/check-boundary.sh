@@ -41,6 +41,8 @@ RULES=(
   "docket-session: $EFFECTS toml"
   # The ACP server edge: the lib is portable (the runtime is only the `server` feature's binary);
   # no bus, HTTP, Cedar or MCP SDK. The protocol's types come from agent-client-protocol-schema.
+  # The client edge reaches the router only through docket-client (its `InProcess` transport is a
+  # dev-dependency): the host of an external agent calls the same Intents1 every caller does.
   "docket-acp: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy"
   # The sandboxed shell tool: bubblewrap is a separate process (std only), so no runtime, bus,
   # HTTP, Cedar or toml; and nothing that links a sandbox library.
@@ -49,8 +51,8 @@ RULES=(
   # HTTP, desktop stack, database, Cedar or MCP SDK, and nothing that links a sandbox library.
   "docket-launch: reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy landlock libseccomp"
   "docket-inapp: $NO_CEDAR"
-  # The docket-acp process: the router and the companion hosted in it, over the bus (zbus, tokio) and
-  # nothing else of the desktop.
+  # The docket-acp process (and `docket-agent`, the host of an external coding agent): the router
+  # and the companion hosted in it, over the bus (zbus, tokio) and nothing else of the desktop.
   "docket-acp-bin: reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp"
   # The models, the quarantined reader and the memory seam are portable too (moved out of
   # intentd and readerd): they ask any porter-client or almanac-client Transport, never a bus or
@@ -154,10 +156,10 @@ EDGES=(
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
   "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-session docket-skills porter-client porter-core porter-infer prov"
   "docket-session: companion-wire docket-core porter-core prov"
-  "docket-acp: companion-wire docket-core docket-session docket-settings docket-shell porter-core prov"
+  "docket-acp: companion-wire docket-client docket-core docket-session docket-settings docket-shell porter-core prov"
   "docket-shell: docket-core"
   "docket-launch: docket-acp docket-core docket-session docket-settings docket-shell porter-client porter-core porter-dbus prov"
-  "docket-acp-bin: docket-acp docket-client docket-core docket-dbus docket-inapp docket-planner docket-router docket-tasks porter-core prov"
+  "docket-acp-bin: docket-acp docket-client docket-core docket-dbus docket-inapp docket-launch docket-planner docket-router docket-session docket-settings docket-shell docket-tasks porter-core prov"
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
   "docket-memory: almanac-client almanac-core docket-core docket-router docket-session porter-core prov"

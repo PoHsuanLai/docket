@@ -6,7 +6,8 @@
 //! the same number waits for that one task: the backend's pull is cancel-safe (see `Court`), and a
 //! second router call would put a second sheet in front of the person.
 
-use super::court::{AgentCall, Court, CourtFault, OpenAgent, Ruled};
+use super::call::AgentCall;
+use super::court::{Court, CourtFault, OpenAgent, Ruled};
 use docket_client::{Intents, Transport};
 use docket_core::{CallRefusal, ContextKeep, DenyCode, Keep, Origin, SessionOpen, TurnIn, TurnVia};
 use prov::{AgentRef, SessionId, SpaceId};

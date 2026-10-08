@@ -7,8 +7,9 @@
 //! allowed, and the record keeps the router's reason.
 
 use super::backend::{AcpBackend, Seams, Staged};
+use super::call::{AgentCall, Command};
 use super::confine::{Confined, confine, named};
-use super::court::{AgentCall, Command, Court, Ruled};
+use super::court::{Court, Ruled};
 use super::intake::Work;
 use super::taint::TaintSource;
 use super::tool_req::{Asked, tool_req};
@@ -188,7 +189,7 @@ impl<X: Seams> AcpBackend<X> {
 
     /// A call the router did not let through: the staged request is dropped and the agent told
     /// only that it was not allowed.
-    fn refused(&self, stage: &super::court::StageId, ruled: Ruled, why: &str) -> Ran {
+    fn refused(&self, stage: &super::call::StageId, ruled: Ruled, why: &str) -> Ran {
         self.performer.drop_stage(stage);
         let end = match ruled {
             Ruled::Refused(refusal) => refused_end(refusal),

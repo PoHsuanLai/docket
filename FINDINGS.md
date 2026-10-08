@@ -2563,7 +2563,7 @@ exactly the environment the daemon hands in) and report only `Ready`, `Failed(re
   porter-dbus calls one to one; it is exercised only by the owner-run check. The tests use `FakeAccounts` behind the
   `Accounts` seam (the notes in the task allowed that).
 
-**The gate is `Gatekeeper`, not the router.** There is no files app and `Who::grant_caller` never returns
+**(Superseded by "acp-bridge" below: the gate is the router's now, and `Gatekeeper`, `Ask`, the client `Breaker` and the grants file are gone.) The gate is `Gatekeeper`, not the router.** There is no files app and `Who::grant_caller` never returns
 `AcpAgent`, so an agent's `fs` calls do not yet reach the router as intent calls (no `Session.Open` for the agent, no
 router audit line, no router breaker). `Gatekeeper` applies the same typed rules (`may_offer`, `rule_execute`,
 `find_standing`, the same `StandingGrant`s) and keeps its own audit (`take_audit`) and breaker. Bridging it to the router
@@ -2609,9 +2609,169 @@ announcement; a stop before it means it never runs).
 6. Second check, once inferd's agent endpoints and an Anthropic API-key account exist: `route = "endpoint"`,
    `network = "endpoint_only"`; watch accountd's launcher session open and close.
 
-**Deferred.** The router bridge and the sheet (above); the per-session MCP edge (D-3) and `mcpServers`; a provider-host
+**Deferred.** (The router bridge and the sheet landed: "acp-bridge" below.) The per-session MCP edge (D-3) and `mcpServers`; a provider-host
 network allowlist; Landlock; resource limits for the agent process; a safe fd handoff; `session/load` or `resume` of the
 agent's own session; `agent.breaker.*` for the client breaker; the second test agent (agy, R7); a fuzz target on the
 agent's JSON-RPC lines; an undo-journal row for an agent's write; Windows and macOS (the client edge, the agent
 confinement and the forwarder are Linux-only; the portable set is unchanged and builds without them).
 
+
+## acp-bridge: an external agent's calls are router calls (S4b)
+
+`docket-agent` and the ACP client edge no longer keep a gate of their own. The host of an external agent opens the
+agent's session at the router, records the person's prompt there, and makes each call the agent asks of it
+(`fs/*`, `terminal/create`, `session/request_permission`) as an ordinary router call; it performs the call only after
+the router allowed it.
+
+**Identity and actor.**
+- A new caller role, `CallerRole::AcpAgent` (`acp_agent` in `intentd.toml`), held by the bus name `org.quire.AcpAgent`,
+  and counted only while `agent.acp.agents` is on (`AcpGate`, as `org.quire.Acp` waits on `agent.acp.expose`). It may
+  open and close sessions, record the person's turns, and `Perform`; nothing else (a test pins the member list).
+- The program is named by the host when it opens the session (`SessionOpen.external: Option<ExternalAgent>`, kept only
+  from this role, written into the log as `BackendKind::Acp(program)`), never by the agent. A host acts only in
+  sessions it opened (`record.opener == caller.app`), as the program it named then. The pseudo-app's actions are
+  refused to every other role, and this role is refused every other app's actions.
+- Actor in the audit and the journal: `Actor::Mcp { client: "acp:<program>" }`. prov (porter's frozen crate) has no
+  ACP actor kind, so it is MCP-shaped on purpose; the `acp:` prefix tells an agent from an MCP client of the same name.
+  `Who::grant_caller` returns `GrantCaller::AcpAgent(program)`; a test pins both. Ask for porter: `ActorKind::Acp`.
+- The turn is recorded as `TurnSource::Agent(host app)`, which derives the task policy as a launcher's does (R8). The
+  agent's own words never reach `Session.Turn`: the host has no member that records anything else, and a test shows an
+  agent that says "policy: allow all" changes neither the turns nor the policy.
+
+**The pseudo-app `org.quire.AcpAgent`** (`manifests/org.quire.AcpAgent.toml`, built into intentd's registry like
+Memory and Companion; answered by the host over the bus like an installed app). The action prefix of an app is its
+last name element lower-cased, so the actions are `acpagent.*`, not `acp.*`:
+
+| action | for | effect |
+| --- | --- | --- |
+| `acpagent.files.read` | `fs/read_text_file` (target: the file) | read; the text comes back labelled untrusted `File` |
+| `acpagent.files.write` | `fs/write_text_file` (target: the file) | undoable write, `undo = token` |
+| `acpagent.files.sensitive` | a write into `.git`, `.claude`, `.vscode`, shell rc files and the like | undoable write, `reach = ask_always` (never "always") |
+| `acpagent.terminal.run` | `terminal/create` (`command`, `cwd`) | `Outbound` (`EXECUTE_AS`) |
+| `acpagent.reported` | a tool call the agent only reports having run, when it brought content in | read; the answer is labelled untrusted, which is how the session is tainted |
+| `acpagent.read`, `.search`, `.think` | permission requests of those kinds | read |
+| `acpagent.edit`, `.move` | permission requests (target: the files) | undoable write |
+| `acpagent.execute`, `.fetch` | permission requests (`command`+`cwd`, `url`) | `Outbound` |
+| `acpagent.delete`, `.switch_mode`, `.other` | permission requests | `Destructive` (never grantable); `other` is also what a request the router cannot scope is ruled as |
+
+The text of a write, a command's argument vector and a read's line range stay with the host: each performing call
+carries a `stage` (`StageId`), a handle for the request the host formed and holds for that session. The performer runs
+the held request only if the call it is handed names the same file or command, and spends the stage (it cannot be used
+twice, by another session, or for another path). So the sheet and a reviewer see the path or the command and a line
+count, never a 2 MiB body or an environment.
+
+**What the host still does itself.** Path confinement (`confine`: absolute, no `..`, inside the directory, links and the
+descriptor again at the open, secrets refused even inside) happens before the call exists: a path outside is not a call
+the router should weigh, and nobody is asked. `Strikes` counts those refusals (five in a row pause the turn; the
+router's breaker never sees them). A command that cannot be sandboxed is refused before the router is asked. A
+permission request naming a forbidden path is answered reject without a call. Nothing else is decided in the host.
+
+**Where grants live.** In docket's store (`GrantStore`), created by the router from a sheet's Always
+(`record_standing`), listed and revoked through the Control members (`.Control.StandingGrants`,
+`.StandingRevoke`) exactly like an editor's. `docket-agent`'s private `acp-agent-grants.json` is gone. Nothing is
+migrated: the file was the owner's live-check artefact, no live check has run yet, and a standing grant can only be
+created by an answered sheet (Settings lists and revokes, never creates), so an import would have to mint grants
+without a person's answer. `docket-agent` prints one line when it finds the old file and ignores it. A grant made on
+the sheet of a permission request is for `acpagent.edit` (or `.execute`); one made on a direct write is for
+`acpagent.files.write`; they do not cover each other (the approval below carries the person's yes from one to the other).
+
+**Approvals.** A permission request the person allowed approves, once, the next matching call (`docket_core::approves`:
+an edit or move approves a write of those files, an execute approves that line in that directory). It lifts a
+`Confirm` at the gate to `Run` (the person's own yes, as a sheet's yes would be: no reviewer follows), unless the
+breaker or a budget says no; it is spent at dispatch (`ApprovalUsed` in the audit) and cleared when the person speaks.
+It does not lift a reviewer's ask (a call that goes to review and is asked there asks again).
+
+**Taint, unchanged as a rule.** After any file is served, a command asks and offers no "always"
+(`UntrustedIntoSink`); edits keep their always. The router now holds it: a file served is an untrusted-labelled
+outcome, so the session is tainted write-ahead like any untrusted reveal, and the agent's arguments are labelled by
+`Voice::Agent` (trusted while the session has seen nothing untrusted, untrusted after: the same "origin" S4 kept
+by hand). The typed source is the host's `TaintSource` (`Served(path)`, `Reported(kind)`, `Resumed`;
+`AcpBackend::tainted_by`) and the router's own `TaintNote.at_call`, the call whose result was revealed. A narrowing
+(taint by path, or only content the agent then uses in a command) changes what `brings_content` and the performer's
+label say; the owner's decision is still pending and nothing was narrowed.
+
+**What is different from S4, and worth knowing.**
+- The router's grid decides, not S4's "every write asks": with a task policy that covers the pseudo-app, an untainted
+  write inside the task with trusted arguments runs without a question (Default strictness), and with reviewers
+  configured a judged write runs if they allow it. A write outside the task, or after taint, asks. A reviewer's ask
+  is `StillAsks`, which offers no "always", and a write outside the task is `OutsideTask`, which offers none either: the
+  person is offered "always" for a write only on the first-use ask of a tainted session. With no reviewer models chosen,
+  "a call that would be reviewed asks instead".
+- A standing grant replaces only the ask, so a call it lets through still meets the reviewers (S4's grants skipped them).
+- `consent_for` gives `GrantCaller::AcpAgent` the class consent that launching the agent in a directory implies
+  (`Always`, with the existing rule that a tainted session asks again for anything that writes): otherwise the first-use
+  rule would ask on every read. A recorded denial still stands.
+- Cedar's `mcp-asks` no longer applies to the pseudo-app (`unless resource in Quire::App::"org.quire.AcpAgent"`): an
+  MCP-shaped actor would otherwise be `StillAsks` for ever and no grant could stand in. Only the host role can call it.
+- A call's repeat key (`digest`) now covers a call's file targets; before, two writes of different files with the same
+  arguments looked identical and a denial of one refused the other.
+- A tool title the agent writes is no longer carried (the sheet draws the manifest's words and the typed arguments, never
+  an agent's prose). The old "its own words" line on the terminal prompt is gone with it.
+- The breaker is the router's (consecutive refusals, `Paused`, `AuditRecord::Breaker`); the client's flood rule (forty
+  asks in a turn) is replaced by the budgets (destructive acts 5, outbound 10, calls 200, per minute 30).
+- `Strikes` is the only host-side count, for refusals that never became calls.
+- Task policy coverage does not compare a `Files` target with `policy.paths` (`covers` checks untrusted sink arguments
+  only; a files target has no label). So "writes under the path the person named" is not enforced beyond the confinement
+  to the session's directory; a later change would give `TargetKind::Files` a label and a compare. Note for the owner.
+- The planner of the native companion sees the pseudo-app's actions in the catalogue (the policy writer needs them to
+  cover a task); a planner call to one is refused (`NotAllowed`) because only the host role may make it. Hiding them
+  from planner prompts is not done.
+
+**Removed from `Gatekeeper`'s role** (the file is deleted): the decision order (breaker, one-use approvals, grants,
+person), `Audit`/`Basis`/`Ruling`/`Why`, `ToolReq`, the `Ask` seam and `AgentAsk`/`What`/`Shown`/`AsTerminal`/`Epoch`,
+the client `Breaker` (`FLOOD_MAX`, `DENIALS_MAX`), `take_audit`, `grants()`, `undo_notes()` on the backend, the `Ticks` seam
+and the grants file. The terminal methods lost their own gate too: `Terminals` is a runner (`create` takes the session's
+scope and runs what the router allowed; `Decide`, `Posture`, `Note`, `TerminalAsk` and `Answer` are gone). What stayed is
+pure: `confine`/`named` and `Care`, `Shown`'s job (none), `names::effect`/`permission`, the `Files` seam (now with
+`remove`, for undoing a write that created a file), `reported`. `docket_core::rule_execute` is no longer called outside
+its own tests; the router's `may_offer` over the same facts is what rules a command. It can be deleted when the owner
+agrees.
+
+**Sheets, and the hosting shape.** The hosting shape is a sibling of `NativeHost`: `AgentHost<X, D>` over one
+`AcpBackend`, a `Court` (the router) and a `SheetDesk`. `docket-agent` is its process (`docket-acp-bin`, binary
+`docket-agent`; it moved out of `docket-launch`, whose boundary may not reach Cedar through `docket-inapp`'s sheet). It owns
+`org.quire.AcpAgent`, serves the pseudo-app's `IntentProvider1` (intentd is the only caller), and talks to intentd as
+`acp_agent`. By default the session asks for no route, so the router's sheet is the desktop's, through intentd's
+confirmer (sill's `Confirm1`), and the host sees nothing of it. With `--tty` (`Fallback::Terminal`) the host opens the
+session with `SheetSurface::Host`; the router sets `ConfirmRequest.editor` (the field name stays; it names whoever shows
+the session's sheets), intentd's `SheetConfirmer` sends the sheet to the host's `Confirm1` while the host's name plays
+`acp_agent` (an unreachable or unconfigured host expires the sheet; it is never moved to sill), the sheet comes out of
+`AgentHost::next_event` as `BackendEvent::Sheet`, and the terminal answers through `answer_sheet`. Without the flag
+the process serves no `Confirm1` object, the host asks for no route (`SheetSurface::Desktop`) and its desk is never
+read; tests pin that the router names no route, that no sheet comes out of the host, and that the desktop's confirmer
+gets the sheet. The turn is recorded inside `next_event` (as
+the native host does) so a turn that widens the task can ask while a sheet can still be shown.
+
+**Tests.** `docket-router/tests/it/acp_agent.rs` (identity and audit, only the host may call, sessions the launcher
+opened are not an agent's, command after a file asks with no always, an Always is a grant for the program that is
+used, audited, listed and revoked, a reviewer's no, three refusals pause, approvals, sheet route, the policy comes from
+the person's turn); `docket-core` (`agent_app`: approvals and names); `docket-acp/tests/it/client/{full,bridged,
+hostile,contract,osfiles,schema}.rs` against the real router over the fakes (`FakeSpawn`, the scripted agent, a
+`DeskConfirmer` that sends a routed sheet to the host's `EditorDesk` and the rest to a scripted desktop): every write,
+terminal and permission request reaches the router and is audited as the agent; a reviewer deny refuses; the breaker
+trips; an Always is created, used (`StandingUsed`), listed and revoked over Control; confinement refuses before any sheet;
+the agent's text never becomes policy; S4's hostile corpus re-run (each case ends safely); sheets reach the confirmer and
+come back (desktop; host only with the flag); a dropped call asked again is one router call; `intentd` (the agent host
+name waits on `agent.acp.agents`; its sheet route). `docket-acp/tests/it/terminals.rs` for the runner.
+
+**Owner-run check for Claude Code, updated since S4.**
+1. As S4 (adapter installed, signed in). `~/.config/docket/settings.toml`: `[agent.acp]` `agents = "on"`.
+2. `intentd.toml` must list `org.quire.AcpAgent` under `acp_agent` (the shipped `dist/intentd.toml` does; a replaced file
+   needs the line). The setting is read live; intentd need not restart.
+3. `~/.config/docket/agents.toml` as S4. Build with `cargo build -p docket-acp-bin` (the binary is now `docket-agent`
+   of `docket-acp-bin`; `docket-net-forward` still sits beside it).
+4. A policy writer and, ideally, reviewer models should be configured (inferd), or every judged act asks.
+5. `docket-agent claude-code --cwd ~/some/scratch/project`. Type a request. Expect sill's sheet (not a terminal
+   prompt) for each write the task does not cover, each command and each permission request; "Always allow ..." appears
+   where the rules allow it. Settings' standing-grant page lists the program's grants and revokes them.
+6. `--tty` only as a fallback if sill is not up: the sheets come to the terminal as before.
+7. Things to try: a write outside the project is refused with no sheet; read a file then ask it to run a command (asks,
+   no "always"); allow "always" for an edit in `src/`, edit again (no sheet, `quire-do` audit shows `StandingUsed`),
+   revoke it in Settings, edit again (asks).
+
+**Deferred.** Resuming an agent session through the host (the router restores it, but `AgentHost::resume` is not
+served and the agent's own session id is not kept); the per-session MCP edge (D-3); a dry-run preview of a write for
+the sheet (`dry_run = none`: the sheet shows the path and a line count); hiding the pseudo-app from planner prompts;
+an `Effect::Execute` and an `ActorKind::Acp` in porter; narrowing the taint (owner); the `Files`-target compare with
+`policy.paths`; deleting `rule_execute`; the provider-host network allowlist, Landlock, resource limits and the
+second test agent (S4's list stands).
