@@ -24,6 +24,7 @@ pub fn agent_cassette() -> String {
     let policy = json!({
         "actions": [
             "org.quire.Mail mail.thread.search",
+            "org.quire.Mail mail.thread.current",
             "org.quire.Mail mail.thread.read",
             "org.quire.Mail mail.contact.search",
             "org.quire.Mail mail.message.forward",
@@ -116,6 +117,7 @@ fn evidence(played: &Played, world: &World, undo: crate::live::flows::UndoCheck)
         sheets: world.sheet.shown(),
         messages: world.mail.messages(),
         performed: world.mail.performed(),
+        threads_read: world.mail.threads_read(),
         exchanges: exchanges_of(world),
         undo,
     }
@@ -131,16 +133,13 @@ fn describe(end: &AgentEnd) -> String {
 
 /// What the scripted person does with an agent's sheets: "always" for a read-only action, where
 /// a planner's first-use grant makes its reads quiet too, and the flow's own answer for the rest
-/// (so a refused flow declines the forward itself). The injected-thread flow refuses every sheet.
+/// (so a refused flow declines the forward itself). The injected-thread flow reads freely and
+/// refuses everything else.
 fn person_for(flow: Flow) -> ByEffect {
-    let reads = match flow {
-        Flow::InjectedThread => flow.verdict(),
-        _ => Verdict::AllowAlways,
-    };
-    ByEffect {
-        reads,
+    flow.by_effect().unwrap_or(ByEffect {
+        reads: Verdict::AllowAlways,
         rest: flow.verdict(),
-    }
+    })
 }
 
 /// Plays `flow` with the agent `spec` in a fresh world over `model`, with the model tap on and
@@ -160,6 +159,7 @@ pub async fn run_flow_acp(
         accountd: None,
         catalog,
         acp: AcpSetting::Agents,
+        focus: flow.focus(),
     };
     let world = World::start_model(binaries, flow.consent(), model, &options).await;
     if let Err(fault) = warm_world(&world, model, patience).await {

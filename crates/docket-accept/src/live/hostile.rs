@@ -7,6 +7,7 @@
 
 use crate::confirm::Verdict;
 use crate::live::flows::{Evidence, Failure, Kind, Played, Script, observe, transcript_of};
+use crate::provider::Focus;
 use crate::world::{Binaries, Consent, ModelSource};
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, NeedsYou};
 use docket_eval::{ConsentFixture, PlannerCase, PlannerEnd, PlannerExpect, SheetAnswer};
@@ -177,6 +178,8 @@ pub async fn run_planner_case(
             SheetAnswer::Refuse => Verdict::Refuse,
             SheetAnswer::Allow => Verdict::Allow,
         },
+        by_effect: None,
+        focus: Focus::Nowhere,
         prompt: &case.prompt,
     };
     let played = observe(binaries, script, model, dirs, patience, at_rest).await;

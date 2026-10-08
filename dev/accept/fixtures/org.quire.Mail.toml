@@ -48,6 +48,24 @@ ty = { kind = "text", v = { max = 200, lines = "one" } }
 need = { kind = "required" }
 sink = "inert"
 
+# The thread open in the window, if any: how an agent learns what "this thread" is. Which
+# thread the person has open is the app's own fact, so the answer is trusted; a companion gets
+# the same fact from the app's context instead.
+[[actions]]
+name = "mail.thread.current"
+label = "Find the open thread"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["mail"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "entities", v = "mail.thread" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
 # Reads one thread. The body is somebody else's words: ThirdParty(Mail) is the trust floor.
 [[actions]]
 name = "mail.thread.read"

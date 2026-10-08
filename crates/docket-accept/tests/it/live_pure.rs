@@ -146,6 +146,7 @@ fn evidence() -> Evidence {
         sheets: vec![],
         messages: vec![],
         performed: vec![],
+        threads_read: vec![],
         exchanges: vec![],
         undo: UndoCheck::NothingHeld,
     }

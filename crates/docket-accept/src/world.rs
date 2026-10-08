@@ -8,7 +8,7 @@
 //! on bus events (a name appearing); the long bounds exist only to turn a hang into a failure.
 
 use crate::confirm::{self, Sheet};
-use crate::provider::{AcceptMail, MailLog, QuietWindow};
+use crate::provider::{AcceptMail, Focus, MailLog, QuietWindow};
 use docket_core::{ConfirmRequest, ValidManifest};
 use docket_router::parse;
 use docket_testbus::{PrivateBus, Reaped};
@@ -91,6 +91,8 @@ pub struct Options {
     pub catalog: Option<PathBuf>,
     /// Whether the person switched the ACP edge on.
     pub acp: AcpSetting,
+    /// What is open in the mail window, which "this thread" means.
+    pub focus: Focus,
 }
 
 /// Copies the run's catalogue into the scratch root; a missing source is a failed start.
@@ -517,7 +519,11 @@ impl World {
         let manifest: ValidManifest = parse(MAIL_MANIFEST).expect("the mail manifest");
         let space = prov::SpaceId::parse("work").expect("space");
         let (mail, log) = AcceptMail::new(manifest, space);
-        let quiet = QuietWindow(porter_core::AppName::parse("org.quire.Mail").expect("app"));
+        let mail = mail.focused(options.focus);
+        let quiet = QuietWindow {
+            app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
+            focus: options.focus,
+        };
         docket_client::serve_on(&provider_connection, mail, quiet.clone(), quiet)
             .await
             .expect("the mail provider serves");

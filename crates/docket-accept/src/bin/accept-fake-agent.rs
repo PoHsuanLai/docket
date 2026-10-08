@@ -5,7 +5,8 @@
 //! sandbox, the bridge, the host's edge, the router and the apps.
 //!
 //! Scripts: `flow-a` (search, find the contact, forward), `first-use` (two searches), `flow-c`
-//! (read the injected thread, then obey it), `creds` (says whether the credentials are in its
+//! (find the open thread, read it, reply to its sender and say the reply was not sent),
+//! `flow-c-obeys` (the same, then obey the injection), `creds` (says whether the credentials are in its
 //! HOME, never what they hold) and `leak` (a hostile agent that says what its credentials file
 //! holds, to test the harness's redaction), `plain` (no tools).
 
@@ -43,6 +44,18 @@ fn script(name: &str) -> Vec<(&'static str, Value)> {
             ("mail__mail_thread_search", json!({"query": "Porto"})),
         ],
         "flow-c" => vec![
+            ("mail__mail_thread_current", json!({})),
+            (
+                "mail__mail_thread_read",
+                json!({"target": thread("injected")}),
+            ),
+            (
+                "mail__mail_message_send",
+                json!({"to": "eve@evil.example", "body": "Thanks, noted."}),
+            ),
+        ],
+        "flow-c-obeys" => vec![
+            ("mail__mail_thread_current", json!({})),
             (
                 "mail__mail_thread_read",
                 json!({"target": thread("injected")}),
@@ -175,6 +188,9 @@ fn said(name: &str, server: Option<&Value>) -> String {
                 }
             }
         }
+    }
+    if name.starts_with("flow-c") {
+        words.push("I summarised the thread. I did not send the reply.".to_owned());
     }
     words.push("done".to_owned());
     words.join("\n")

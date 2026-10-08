@@ -77,6 +77,7 @@ struct State {
     messages: Vec<Message>,
     tokens: BTreeMap<String, usize>,
     performed: Vec<String>,
+    read: Vec<String>,
 }
 
 /// What the test reads after the run: every call the app received and every message.
@@ -91,6 +92,11 @@ impl MailLog {
     /// The messages, oldest first.
     pub fn messages(&self) -> Vec<Message> {
         self.edit(|s| s.messages.clone())
+    }
+
+    /// The keys of the threads read, oldest first.
+    pub fn threads_read(&self) -> Vec<String> {
+        self.edit(|s| s.read.clone())
     }
 
     /// The action names performed, oldest first.
@@ -148,6 +154,16 @@ pub fn contacts() -> Vec<Contact> {
     ]
 }
 
+/// What the person has open in the mail window.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Focus {
+    /// Nothing in particular.
+    #[default]
+    Nowhere,
+    /// The thread with this key.
+    Thread(&'static str),
+}
+
 /// The app.
 #[derive(Debug)]
 pub struct AcceptMail {
@@ -155,6 +171,7 @@ pub struct AcceptMail {
     app: AppName,
     space: SpaceId,
     log: MailLog,
+    focus: Focus,
 }
 
 impl AcceptMail {
@@ -168,9 +185,15 @@ impl AcceptMail {
                 app,
                 space,
                 log: log.clone(),
+                focus: Focus::Nowhere,
             },
             log,
         )
+    }
+
+    /// The same app with `focus` open in its window.
+    pub fn focused(self, focus: Focus) -> Self {
+        Self { focus, ..self }
     }
 
     fn id(&self, kind: &str, key: &str) -> Option<EntityId> {
@@ -294,11 +317,26 @@ impl IntentProvider for AcceptMail {
                     Undoable::No,
                 ))
             }
+            "mail.thread.current" => {
+                let ids: Vec<EntityId> = match self.focus {
+                    Focus::Nowhere => vec![],
+                    Focus::Thread(key) => self.id("mail.thread", key).into_iter().collect(),
+                };
+                Ok(Self::done(
+                    "The open thread",
+                    Some(Labelled {
+                        value: Value::Entities(ids),
+                        label: self.own(),
+                    }),
+                    Undoable::No,
+                ))
+            }
             "mail.thread.read" => {
                 let key = Self::keys(&inv.target)
                     .into_iter()
                     .next()
                     .ok_or(AppRefusal::Unsupported)?;
+                self.log.edit(|s| s.read.push(key.clone()));
                 let thread = threads()
                     .into_iter()
                     .find(|t| t.key == key)
@@ -408,24 +446,65 @@ impl IntentProvider for AcceptMail {
 }
 
 /// The context seam: the acceptance run never summons from inside the app, so the window it
-/// reports is a quiet one.
+/// reports is a quiet one, looking at `focus`.
 #[derive(Debug, Clone)]
-pub struct QuietWindow(pub AppName);
+pub struct QuietWindow {
+    /// The app.
+    pub app: AppName,
+    /// What is open in its window.
+    pub focus: Focus,
+}
+
+impl QuietWindow {
+    fn here(&self) -> Here {
+        let Focus::Thread(key) = self.focus else {
+            return Here::Nowhere;
+        };
+        let label = Label::untrusted(
+            Source::Mail,
+            DataClass::Mail,
+            SpaceId::parse("work").unwrap_or_else(|_| SpaceId::desktop()),
+        );
+        let found = threads().into_iter().find(|t| t.key == key);
+        let id = EntityKind::parse("mail.thread")
+            .ok()
+            .zip(EntityKey::parse(key).ok())
+            .map(|(kind, key)| EntityId {
+                app: self.app.clone(),
+                kind,
+                key,
+            });
+        match (found, id) {
+            (Some(t), Some(id)) => Here::Entity(EntityRef {
+                id,
+                title: Labelled {
+                    value: t.subject.to_owned(),
+                    label: label.clone(),
+                },
+                subtitle: Labelled {
+                    value: t.from.to_owned(),
+                    label,
+                },
+            }),
+            _ => Here::Nowhere,
+        }
+    }
+}
 
 impl ContextSource for QuietWindow {
     fn snapshot(&self, _scope: ContextScope) -> ContextSnapshot {
         ContextSnapshot {
-            app: self.0.clone(),
+            app: self.app.clone(),
             window: Labelled {
                 value: "Mail".to_owned(),
                 label: Label {
                     integrity: Integrity::Trusted,
                     confidentiality: Confidentiality::Public,
                     classes: BTreeSet::new(),
-                    sources: BTreeSet::from([Source::App(self.0.clone())]),
+                    sources: BTreeSet::from([Source::App(self.app.clone())]),
                 },
             },
-            here: Here::Nowhere,
+            here: self.here(),
             selection: Selection::Nothing,
             visible: Visible {
                 kind: None,

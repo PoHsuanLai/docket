@@ -11,6 +11,7 @@ use docket_core::{
 };
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy};
 use futures_util::StreamExt;
+use porter_core::AppName;
 use prov::{AgentRef, SpaceId, UnixSeconds};
 use std::time::Duration;
 use zbus::proxy::CacheProperties;
@@ -36,6 +37,7 @@ pub struct Launcher {
     connection: zbus::Connection,
     companion: CompanionProxy<'static>,
     patience: Duration,
+    summoned: Option<AppName>,
 }
 
 impl Launcher {
@@ -47,6 +49,16 @@ impl Launcher {
             companion: CompanionProxy::new(&connection).await.expect("proxy"),
             connection,
             patience: GIVE_UP,
+            summoned: None,
+        }
+    }
+
+    /// The same launcher, asking from the window of `app`: the companion reads where the person
+    /// is there (the thread they have open) when it resolves "this".
+    pub fn summoned_from(self, app: AppName) -> Launcher {
+        Launcher {
+            summoned: Some(app),
+            ..self
         }
     }
 
@@ -101,7 +113,7 @@ impl Launcher {
             },
             keep: keep_nothing(),
             parent_window: WindowKey::parse("w1").expect("window"),
-            app: None,
+            app: self.summoned.clone(),
         };
         let path: OwnedObjectPath = self
             .companion
