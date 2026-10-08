@@ -101,6 +101,21 @@ fn mail_tools() -> Vec<EdgeTool> {
 }
 
 #[tokio::test]
+async fn the_list_says_it_is_private_and_never_fresh() {
+    // A 2026-07-28 client (Claude Code's) refuses a tool list without these two fields, and then
+    // the agent has none of the desktop's tools.
+    let dir = tempfile::tempdir().expect("scratch");
+    let socket = dir.path().join("host.sock");
+    let _seen = host(&socket, |_| EdgeReply::Tools(mail_tools()));
+    let mut bridge = spawn(dir.path(), &socket, Some(TOKEN));
+    let client = client(&mut bridge).await;
+    let listed = client.list_tools(None).await.expect("tools");
+    assert_eq!(listed.ttl_ms, Some(0));
+    assert_eq!(listed.cache_scope, Some(rmcp::model::CacheScope::Private));
+    assert!(!listed.tools.is_empty());
+}
+
+#[tokio::test]
 async fn the_bridge_lists_what_the_host_lists_and_sends_the_token_and_nothing_else() {
     let dir = tempfile::tempdir().expect("scratch");
     let socket = dir.path().join("host.sock");

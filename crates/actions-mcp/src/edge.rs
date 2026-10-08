@@ -9,7 +9,7 @@ use docket_client::{Intents, Transport};
 use docket_core::{ActionRef, CallRequest, Origin, ValidManifest};
 use prov::ClientName;
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData,
+    CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData,
     ListToolsResult, PaginatedRequestParams, ServerCapabilities, ServerConfig, Tool,
     ToolAnnotations,
 };
@@ -146,6 +146,15 @@ pub(crate) fn annotations(hints: ToolHints) -> ToolAnnotations {
     }
 }
 
+/// A tool list as the 2026-07-28 protocol requires it (`ttlMs`, `cacheScope`; a client of that
+/// version refuses a list without them). The list is the caller's own, by its grants and its
+/// session, and changes when they do: never fresh past the answer, never shared.
+pub(crate) fn listed(tools: Vec<Tool>) -> ListToolsResult {
+    ListToolsResult::with_all_items(tools)
+        .with_ttl_ms(0)
+        .with_cache_scope(CacheScope::Private)
+}
+
 pub(crate) fn rmcp_tool(tool: McpTool, description: String) -> Option<Tool> {
     let schema = tool.schema.0.as_object()?.clone();
     let mut listed = Tool::new(tool.name.to_string(), description, Arc::new(schema));
@@ -171,7 +180,7 @@ impl<T: Transport + 'static> ServerHandler for McpEdge<T> {
             .listing()
             .await
             .map_err(|fault| ErrorData::internal_error(fault.to_string(), None))?;
-        Ok(ListToolsResult::with_all_items(
+        Ok(listed(
             listing
                 .into_iter()
                 .filter_map(|(tool, description)| rmcp_tool(tool, description))

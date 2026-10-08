@@ -5,7 +5,7 @@
 //! another, because the lines it sends have nowhere to write one (`actions_tools::EdgeRequest`).
 //! It does not touch the bus, the configuration or the settings.
 
-use crate::edge::{failed, rmcp_tool};
+use crate::edge::{failed, listed, rmcp_tool};
 use actions_tools::{
     EDGE_LINE_MAX, EDGE_TOKEN_ENV, EdgeOp, EdgeReply, EdgeRequest, EdgeToken, McpFault,
 };
@@ -89,7 +89,7 @@ impl ServerHandler for BoundEdge {
             Ok(EdgeReply::Tools(tools)) => tools,
             Ok(_) | Err(_) => Vec::new(),
         };
-        Ok(ListToolsResult::with_all_items(
+        Ok(listed(
             tools
                 .into_iter()
                 .filter_map(|t| rmcp_tool(t.tool, t.description))
