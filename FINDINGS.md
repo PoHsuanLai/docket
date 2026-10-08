@@ -2363,12 +2363,15 @@ A sheet for a call in an editor's session no longer goes to sill.
 
 ## companiond's roster from Session.Stored (S2, second part)
 
-- **`recover` no longer reads `companion.session.*` from `Recent`.** The roster and the front pointer are
-  rebuilt from `stored_events` (docket-tasks): `Session.Stored` lists the sessions the companion may bring back
+- **The roster and the front pointer come from `Session.Stored`; the legacy `companion.session.*` notes in `Recent`
+  count only when the router stores no sessions at all** (`rebuild_from`: `stored_events` answers `None`). The
+  fallback is for a host whose router keeps no session log (the in-app agent: `NoLog`), which has nothing else to rebuild
+  its sessions from; with any stored session the notes are dropped, so an older editor note cannot bring an editor's
+  session back. The roster is rebuilt from `stored_events` (docket-tasks): `Session.Stored` lists the sessions the companion may bring back
   (`may_restore`: any) and every row of each is folded into the events the rebuild already reads: an opening
   (`Opened` with its agent, Space and parent), the person's turns (`Asked`, with the turn's time) and the legacy
   `Replied` / `Finished` rows a log may still hold (the stored view surfaces them as `Read::Legacy`). Messages,
-  episodes and runs still come from `Recent`; `rebuild_from` joins both in time order (stable, sessions first among
+  episodes and runs always come from `Recent`; `rebuild_from` joins both in time order (stable, sessions first among
   equals). A session row has no time of its own: the opening takes its first turn's, the rows without one the
   last turn's. `Companion::restore` reads the stored sessions once and `Recent` once per Space, then rebuilds once
   (it used to rebuild per Space and concatenate).

@@ -18,6 +18,7 @@ async fn stored(w: &World) -> Vec<agent_loop::ReplayEvent> {
     stored_events(&RouterLog::reading(&w.companion.intents))
         .await
         .expect("the router lists its sessions")
+        .expect("it stores some")
 }
 
 fn slugs(w: &World) -> Vec<String> {

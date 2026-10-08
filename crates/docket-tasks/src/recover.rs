@@ -2,11 +2,16 @@
 //! the sessions the router stores (`stored_roster`, read through `Session.Stored`) and from the
 //! records the eventlog holds (the router's messages, the episodes and the computer-use runs),
 //! read through memory's `Recent` with `BodyMode::Json`. Each entry's body is the owner's serde
-//! form, so an entry that does not parse is a fault, never a guess. The legacy
-//! `companion.session.*` notes are not read from `Recent` any more.
+//! form, so an entry that does not parse is a fault, never a guess.
+//!
+//! The legacy session notes (`companion.session.*`) are still read from `Recent`, but used only
+//! when the router stores no sessions at all: a host whose router keeps no session log (the in-app
+//! agent) has nothing else to rebuild its sessions from, and a log that has just begun may have
+//! older notes.
 
 use agent_loop::{Rebuilt, ReplayEvent, ReplayWhat, rebuild};
 use almanac_core::{BodyMode, Episode, KindPattern, RecentEntry, RecentQuery, TrustFilter};
+use companion_wire::{SESSION_KIND_PREFIX, SessionRecord};
 use docket_core::RosterState;
 use porter_core::Count;
 use prov::{Message, RunId, SpaceId, UnixSeconds};
@@ -102,11 +107,16 @@ impl<I: docket_client::Transport> RecentSource for RouterRecent<'_, I> {
 pub fn restart_query(since: UnixSeconds) -> RecentQuery {
     RecentQuery {
         since,
-        kinds: [MESSAGE_KIND, EPISODE_KIND]
-            .into_iter()
-            .chain(RUN_KINDS)
-            .filter_map(|k| KindPattern::parse(k).ok())
-            .collect(),
+        kinds: [
+            format!("{SESSION_KIND_PREFIX}.*"),
+            MESSAGE_KIND.to_owned(),
+            EPISODE_KIND.to_owned(),
+        ]
+        .iter()
+        .map(String::as_str)
+        .chain(RUN_KINDS)
+        .filter_map(|k| KindPattern::parse(k).ok())
+        .collect(),
         trust: TrustFilter::Any,
         limit: Count(RESTART_LIMIT),
         bodies: BodyMode::Json,
@@ -129,7 +139,12 @@ fn owner_form(text: &str) -> std::borrow::Cow<'_, str> {
 
 fn what_of(entry: &RecentEntry) -> Result<Option<ReplayWhat>, ReplayFault> {
     let kind = entry.summary.kind.as_str();
-    if kind != MESSAGE_KIND && kind != EPISODE_KIND {
+    let wanted = kind == MESSAGE_KIND
+        || kind == EPISODE_KIND
+        || kind
+            .strip_prefix(SESSION_KIND_PREFIX)
+            .is_some_and(|rest| rest.starts_with('.'));
+    if !wanted {
         return Ok(None);
     }
     // Header-only or erased events have no body: nothing to rebuild from.
@@ -143,8 +158,11 @@ fn what_of(entry: &RecentEntry) -> Result<Option<ReplayWhat>, ReplayFault> {
         MESSAGE_KIND => ReplayWhat::Message(Box::new(
             serde_json::from_str::<Message>(text).map_err(malformed)?,
         )),
-        _ => ReplayWhat::Episode(Box::new(
+        EPISODE_KIND => ReplayWhat::Episode(Box::new(
             serde_json::from_str::<Episode>(text).map_err(malformed)?,
+        )),
+        _ => ReplayWhat::Session(Box::new(
+            serde_json::from_str::<SessionRecord>(text).map_err(malformed)?,
         )),
     };
     Ok(Some(what))
@@ -222,7 +240,8 @@ pub fn replay_of(entries: &[RecentEntry]) -> Result<Vec<ReplayEvent>, ReplayFaul
     Ok(events)
 }
 
-/// The events `source` holds since `since`: messages, episodes and runs, oldest first.
+/// The events `source` holds since `since`: session notes, messages, episodes and runs, oldest
+/// first.
 pub async fn recent_events<S: RecentSource>(
     source: &S,
     since: UnixSeconds,
@@ -230,8 +249,9 @@ pub async fn recent_events<S: RecentSource>(
     replay_of(&source.recent(restart_query(since)).await?)
 }
 
-/// Rebuilds the roster and the front task from what `source` holds since `since` (no sessions:
-/// those come from `stored_events`, and `rebuild_from` joins the two).
+/// Rebuilds the roster and the front task from what `source` holds since `since`, session notes
+/// included (the sessions the router stores come from `stored_events`, and `rebuild_from` joins
+/// the two).
 pub async fn recover<S: RecentSource>(
     source: &S,
     since: UnixSeconds,
@@ -239,12 +259,21 @@ pub async fn recover<S: RecentSource>(
     Ok(rebuild(&recent_events(source, since).await?))
 }
 
-/// Rebuilds from the sessions the router stores and the records memory holds, in time order. A
-/// session's events come first among equals: its own records are older than the episode that
-/// ends it.
-pub fn rebuild_from(stored: Vec<ReplayEvent>, recent: Vec<ReplayEvent>) -> Rebuilt {
-    let mut events = stored;
-    events.extend(recent);
+/// Rebuilds from the sessions the router stores (`stored`: `None` when it stores none) and the
+/// records memory holds, in time order. The session notes in memory count only when the router
+/// stores no sessions; otherwise the stored sessions are the truth, and an editor's session
+/// (left out of them) is not brought back by an older note. A session's events come first among
+/// equals: its own records are older than the episode that ends it.
+pub fn rebuild_from(stored: Option<Vec<ReplayEvent>>, recent: Vec<ReplayEvent>) -> Rebuilt {
+    let mut events = match stored {
+        Some(stored) => {
+            let others = recent
+                .into_iter()
+                .filter(|event| !matches!(event.what, ReplayWhat::Session(_)));
+            stored.into_iter().chain(others).collect()
+        }
+        None => recent,
+    };
     events.sort_by_key(|event| event.at);
     rebuild(&events)
 }
@@ -252,6 +281,36 @@ pub fn rebuild_from(stored: Vec<ReplayEvent>, recent: Vec<ReplayEvent>) -> Rebui
 #[cfg(test)]
 mod tests {
     use super::*;
+    use companion_wire::SessionRecord;
+    use prov::{AgentRef, TaskId};
+
+    fn opened(task: &str, at: i64) -> ReplayEvent {
+        ReplayEvent {
+            at: UnixSeconds(at),
+            what: ReplayWhat::Session(Box::new(SessionRecord::Opened {
+                task: TaskId::parse(task).expect("task"),
+                space: SpaceId::parse("work").expect("space"),
+                agent: AgentRef::Companion,
+                parent: None,
+            })),
+        }
+    }
+
+    #[test]
+    fn session_notes_in_memory_count_only_when_the_router_stores_no_sessions() {
+        // No stored sessions (a router with no session log): the notes are what there is.
+        let from_notes = rebuild_from(None, vec![opened("t-1", 10)]);
+        assert_eq!(from_notes.tasks.len(), 1);
+        // Some stored sessions, even ones that add no events (an editor's): the notes are older
+        // facts the stored view has superseded, and an editor's session is not brought back by one.
+        let superseded = rebuild_from(Some(vec![]), vec![opened("t-1", 10)]);
+        assert_eq!(superseded.tasks.len(), 0);
+        assert_eq!(superseded.front, None);
+        // Stored events win and the rest of memory is kept.
+        let both = rebuild_from(Some(vec![opened("t-2", 5)]), vec![opened("t-1", 10)]);
+        assert_eq!(both.tasks.len(), 1);
+        assert_eq!(both.front, Some(TaskId::parse("t-2").expect("task")));
+    }
 
     const BARE: &str = r#"{"kind":"closed"}"#;
 

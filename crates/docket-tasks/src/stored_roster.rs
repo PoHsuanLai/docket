@@ -74,17 +74,23 @@ pub fn events_of(rows: &[Logged]) -> Vec<ReplayEvent> {
     events
 }
 
-/// The events of every session `log` lists, oldest session first. A session whose rows cannot be
+/// The events of every session `log` lists, oldest session first; `None` when it lists none (a
+/// router with no session log, or a log that has just begun). A session whose rows cannot be
 /// read adds nothing; a log that cannot list is unavailable.
-pub async fn stored_events<L: SessionLog>(log: &L) -> Result<Vec<ReplayEvent>, ReplayFault> {
+pub async fn stored_events<L: SessionLog>(
+    log: &L,
+) -> Result<Option<Vec<ReplayEvent>>, ReplayFault> {
     let sessions = log.sessions().await.map_err(|_| ReplayFault::Unavailable)?;
+    if sessions.is_empty() {
+        return Ok(None);
+    }
     let mut events = Vec::new();
     for session in sessions {
         if let Ok(rows) = read_all(log, &session).await {
             events.extend(events_of(&rows));
         }
     }
-    Ok(events)
+    Ok(Some(events))
 }
 
 #[cfg(test)]
