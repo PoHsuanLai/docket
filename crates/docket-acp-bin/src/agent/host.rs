@@ -102,6 +102,7 @@ pub async fn host<A: Accounts + 'static>(
     let program_path = found.program().to_owned();
     // The agent process's own network counts for the commands it runs (R12). A program the file
     // does not list cannot be started at all; until then assume the widest.
+    let label = file.get(&program).and_then(|entry| entry.label.clone());
     let agent_network = file
         .get(&program)
         .map_or(NetworkMode::Host, |entry| entry.network);
@@ -157,6 +158,7 @@ pub async fn host<A: Accounts + 'static>(
             parent: None,
             forked_from: None,
             started_from: None,
+            label,
             cwd: Some(Workspace::parse(cwd).map_err(|e| e.to_string())?),
         })
         .await

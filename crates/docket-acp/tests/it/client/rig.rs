@@ -63,6 +63,7 @@ pub fn opening(cwd: &str) -> Opening {
         forked_from: None,
         started_from: None,
         cwd: Some(Workspace::parse(cwd).expect("cwd")),
+        label: None,
     }
 }
 
@@ -133,6 +134,8 @@ pub struct Setup {
     pub agent_network: NetworkMode,
     /// The tool edge the host offers the agent, when a test has one.
     pub tools: Option<ToolsOffer>,
+    /// What the person calls the agent in `agents.toml`; the host says it when it opens.
+    pub label: Option<prov::AgentLabel>,
 }
 
 impl Default for Setup {
@@ -149,6 +152,7 @@ impl Default for Setup {
             network: Network::Off,
             agent_network: NetworkMode::None,
             tools: None,
+            label: None,
         }
     }
 }
@@ -292,6 +296,7 @@ where
     X: Seams<Court = TheCourt, Sandbox = FakeSandbox, Spawn = FakeSpawn>,
     X::Files: Clone + 'static,
 {
+    let label = setup.label.clone();
     let wired = wired_over::<X>(files, setup);
     let mut host = AgentHost::new(
         wired.backend,
@@ -299,7 +304,13 @@ where
         wired.desk.clone(),
         wired.fallback,
     );
-    let session = host.open(opening(cwd)).await.expect("open");
+    let session = host
+        .open(Opening {
+            label,
+            ..opening(cwd)
+        })
+        .await
+        .expect("open");
     Rig {
         host,
         router: wired.router,

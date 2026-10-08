@@ -292,7 +292,10 @@ fn the_checks_that_look_inside_the_planner_are_not_made_for_an_agent() {
 fn an_agents_messages_are_the_agents_and_nobody_elses() {
     let mode = Mode::Agent("claude-code".to_owned());
     let program = prov::AgentProgram::parse("claude-code").expect("program");
-    let own = held_by(prov::Actor::Acp { program });
+    let own = held_by(prov::Actor::Acp {
+        program,
+        label: None,
+    });
     let ok = judge_in(&mode, Flow::ForwardAllowed, &evidence(vec![own]));
     // (No sheet is in this evidence, which is its own failure; the actor is not.)
     assert!(

@@ -146,6 +146,7 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         docket_session::BackendKind::Acp(program) => Some(ExternalAgent {
             program: program.clone(),
             sheets: SheetSurface::Desktop,
+            label: opening.label.clone(),
         }),
         _ => None,
     };
@@ -260,6 +261,7 @@ mod tests {
                 forked_from: None,
                 cwd: None,
                 started_from: None,
+                label: None,
             },
             standing,
             taint: Written::Clean,
@@ -280,6 +282,21 @@ mod tests {
 
     fn id() -> SessionId {
         SessionId::parse("s-4").expect("session")
+    }
+
+    #[test]
+    fn an_external_agents_label_survives_a_rebuild() {
+        let mut p = plan(Standing::Open);
+        p.opening.backend =
+            BackendKind::Acp(docket_session::ProgramName::parse("claude-code").expect("program"));
+        p.opening.label = Some(prov::AgentLabel("Claude Code".to_owned()));
+        let record = rebuild(&id(), &p, UnixSeconds(1)).record;
+        let external = record.external.expect("external");
+        assert_eq!(external.label, p.opening.label);
+        assert!(matches!(
+            record.actor,
+            prov::Actor::Acp { label: Some(_), .. }
+        ));
     }
 
     #[test]

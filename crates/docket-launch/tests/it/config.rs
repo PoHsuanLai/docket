@@ -179,3 +179,43 @@ fn the_desktops_actions_are_offered_unless_the_entry_says_off() {
     );
     assert!(tools_of(text("tools = \"yes\"\n")).is_err());
 }
+
+fn labelled(label: &str) -> String {
+    format!(
+        "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/true\"\nroute = \"login\"\nlabel = {label}\n"
+    )
+}
+
+fn label_of(text: &str) -> Option<String> {
+    let file = AgentsFile::parse(text).expect("file");
+    let entry = file.by_program(&"plain".parse_program()).expect("entry");
+    entry.label.as_ref().map(|l| l.0.clone())
+}
+
+#[test]
+fn a_label_is_the_trimmed_text_the_person_wrote_and_is_optional() {
+    assert_eq!(
+        label_of(&labelled(r#""  Claude Code ""#)),
+        Some("Claude Code".to_owned())
+    );
+    let bare = "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/true\"\nroute = \"login\"\n";
+    assert_eq!(label_of(bare), None);
+}
+
+#[test]
+fn a_label_that_is_empty_long_or_has_control_characters_is_refused_naming_the_program() {
+    let long = format!("\"{}\"", "x".repeat(65));
+    for bad in [
+        r#""   ""#.to_owned(),
+        long,
+        r#""two\nlines""#.to_owned(),
+        r#""tab\there""#.to_owned(),
+    ] {
+        match AgentsFile::parse(&labelled(&bad)) {
+            Err(ConfigFault::Entry { program, .. }) => assert_eq!(program, "plain"),
+            other => panic!("{bad}: {other:?}"),
+        }
+    }
+    let longest = format!("\"{}\"", "x".repeat(64));
+    assert!(AgentsFile::parse(&labelled(&longest)).is_ok());
+}

@@ -166,6 +166,7 @@ async fn a_full_session_goes_through_the_router_call_by_call() {
     // The router audited every call that reached it, as the agent program, and the grant.
     let agent = Actor::Acp {
         program: prov::AgentProgram::parse("claude-code").expect("program"),
+        label: None,
     };
     let calls: Vec<String> = rig
         .audit()

@@ -11,6 +11,7 @@ mod exec_taint;
 mod full;
 mod hostile;
 mod hostile_limits;
+mod labelled;
 mod osfiles;
 mod rig;
 mod schema;

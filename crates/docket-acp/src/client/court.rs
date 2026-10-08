@@ -47,6 +47,9 @@ pub struct OpenAgent {
     pub sheets: SheetSurface,
     /// The Space the session is in: the one whose data its calls reach.
     pub space: SpaceId,
+    /// What the person calls the agent (`agents.toml`), which only the host says: never the
+    /// agent's own title from `initialize`.
+    pub label: Option<prov::AgentLabel>,
 }
 
 impl OpenAgent {
@@ -55,6 +58,7 @@ impl OpenAgent {
         ExternalAgent {
             program: self.program.clone(),
             sheets: self.sheets,
+            label: self.label.clone(),
         }
     }
 }

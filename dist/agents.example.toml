@@ -20,6 +20,8 @@ network = "host"
 reads = ["/home/me/.local/share/node"]
 state = ["/home/me/.claude", "/home/me/.claude.json"]
 home = "/home/me"
+# What the audit and the journal call it. Yours to write: docket never takes it from the agent.
+label = "Claude Code"
 # The agent's own login, run where you can see it (a terminal), when the Settings app asks.
 login = ["konsole", "-e", "claude", "login"]
 # The desktop's actions (mail, contacts, memory) are offered to the agent as an MCP server it starts itself

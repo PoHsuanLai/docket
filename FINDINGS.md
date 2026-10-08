@@ -3005,6 +3005,16 @@ fakes: the offer, the listing, a read, a write that asks, a refusal, the breaker
 else is sent, a refusal or a gone host is a tool error, no token no start), `docket-launch` (the binds, `tools = "off"`),
 `docket-acp-bin/tests/it/edge_sandbox.rs` (bubblewrap, no network), `actions-tools` (the lines).
 
+**The agent's display label is the person's, written in `agents.toml`.** An entry may carry `label = "Claude Code"`
+(trimmed, 1 to 64 characters, no control characters; a bad one refuses the file, naming the program). The host passes it
+when it opens the session (`OpenAgent.label` -> `ExternalAgent.label`), the session log's `Opening` keeps it so a
+restarted router rebuilds the same actor, and `actor_of` puts it in `Actor::Acp { program, label }` for the audit and
+the journal. It is never read from the ACP `initialize` response (`agentInfo`, a title) or anything else the agent
+writes: that is a model's text, and a label the agent chose would let it pass as another program. The fake agent in the
+tests claims a title of its own, and a test pins that the label does not change.
+
+
+
 ## acp-live: an external agent in docket-live (the ACP engine)
 
 `docket-live smoke --agent acp ...` plays the acceptance flows with an external ACP agent in the place of companiond's

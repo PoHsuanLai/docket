@@ -148,7 +148,7 @@ async fn a_read_is_a_router_call_in_the_agents_session_as_that_program() {
     let actors = tool_calls(&rig, "mail.thread.read");
     assert_eq!(actors.len(), 1, "one router call");
     assert!(
-        matches!(&actors[0], Actor::Acp { program: p } if p.as_str() == program().as_str()),
+        matches!(&actors[0], Actor::Acp { program: p, .. } if p.as_str() == program().as_str()),
         "{actors:?}"
     );
     // The content was untrusted: the session is tainted by it, as for any caller.

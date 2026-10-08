@@ -66,6 +66,7 @@ impl Harness for Native {
                     forked_from: None,
                     cwd: None,
                     started_from: None,
+                    label: None,
                 },
             })
             .await

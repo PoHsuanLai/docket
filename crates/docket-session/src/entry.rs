@@ -97,6 +97,11 @@ pub struct Opening {
     /// said; none for any other session, and for every log written before this field.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub started_from: Option<StartedFrom>,
+    /// What the person calls the external agent (`label` in `agents.toml`), which the host that
+    /// launched it said; none for any other session, and for every log written before this field.
+    /// Never the agent's own claim.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<prov::AgentLabel>,
 }
 
 /// A call the router accepted, written before its end: a `Call` with no `Step` after it is a call

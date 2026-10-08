@@ -56,6 +56,7 @@ fn opening() -> SessionEntry {
         forked_from: None,
         cwd: None,
         started_from: None,
+        label: None,
     })
 }
 

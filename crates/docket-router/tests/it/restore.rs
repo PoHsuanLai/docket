@@ -473,6 +473,7 @@ async fn untrusted_handles_with_no_taint_before_them_restore_tainted_and_are_rep
         forked_from: None,
         cwd: None,
         started_from: None,
+        label: None,
     };
     let label = HandleLabel {
         handle: Handle(1),

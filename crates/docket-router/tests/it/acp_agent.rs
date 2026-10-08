@@ -91,6 +91,16 @@ impl World {
     }
 
     pub(crate) async fn open(&self, name: &str, sheets: SheetSurface) -> SessionId {
+        self.open_labelled(name, sheets, None).await
+    }
+
+    /// Opens as the host does when the person's `agents.toml` entry carries a `label`.
+    pub(crate) async fn open_labelled(
+        &self,
+        name: &str,
+        sheets: SheetSurface,
+        label: Option<prov::AgentLabel>,
+    ) -> SessionId {
         let reply = ask(
             &self.router,
             &host(),
@@ -103,6 +113,7 @@ impl World {
                 external: Some(ExternalAgent {
                     program: program(name),
                     sheets,
+                    label,
                 }),
             }),
         )
@@ -276,7 +287,13 @@ async fn a_call_is_audited_as_the_agent_program_and_a_read_runs_without_a_questi
         })
         .collect();
     let program = prov::AgentProgram::parse("claude-code").expect("program");
-    assert_eq!(actors, [Actor::Acp { program }]);
+    assert_eq!(
+        actors,
+        [Actor::Acp {
+            program,
+            label: None
+        }]
+    );
 }
 
 #[tokio::test]
@@ -342,6 +359,7 @@ async fn a_session_the_launcher_opened_is_not_an_agents_even_if_it_says_so() {
             external: Some(ExternalAgent {
                 program: program(CLAUDE),
                 sheets: SheetSurface::Desktop,
+                label: None,
             }),
         }),
     )

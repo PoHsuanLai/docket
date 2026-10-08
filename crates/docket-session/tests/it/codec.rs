@@ -137,3 +137,25 @@ fn an_opening_written_before_started_from_reads_back_with_none() {
     let read: Opening = serde_json::from_value(old).expect("an old opening reads");
     assert_eq!(read.started_from, None);
 }
+
+#[test]
+fn an_opening_written_before_the_label_reads_back_with_none_and_a_label_round_trips() {
+    let with = Opening {
+        label: Some(prov::AgentLabel("Claude Code".to_owned())),
+        ..opening()
+    };
+    let text = serde_json::to_string(&with).expect("json");
+    assert!(text.contains("Claude Code"));
+    let back: Opening = serde_json::from_str(&text).expect("reads");
+    assert_eq!(back, with);
+    // No label: the key is not written, and a log without it reads as none.
+    let mut old = serde_json::to_value(opening()).expect("value");
+    assert!(
+        old.as_object_mut()
+            .expect("object")
+            .remove("label")
+            .is_none()
+    );
+    let read: Opening = serde_json::from_value(old).expect("an old opening reads");
+    assert_eq!(read.label, None);
+}

@@ -214,6 +214,7 @@ mod tests {
             forked_from: None,
             cwd: None,
             started_from,
+            label: None,
         }
     }
 

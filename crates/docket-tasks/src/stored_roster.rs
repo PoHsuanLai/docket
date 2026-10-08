@@ -112,6 +112,7 @@ mod tests {
             forked_from: None,
             cwd: cwd.map(|c| Workspace::parse(c).expect("workspace")),
             started_from: None,
+            label: None,
         })
     }
 

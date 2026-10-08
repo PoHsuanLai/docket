@@ -33,7 +33,13 @@ async fn an_offered_action_is_a_call_of_the_agents_program_in_its_session() {
             _ => None,
         })
         .collect();
-    assert_eq!(actors, [Actor::Acp { program }]);
+    assert_eq!(
+        actors,
+        [Actor::Acp {
+            program,
+            label: None
+        }]
+    );
 }
 
 #[tokio::test]

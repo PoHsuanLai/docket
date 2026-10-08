@@ -370,7 +370,9 @@ pub fn judge_in(mode: &Mode, flow: Flow, e: &Evidence) -> Judged {
 fn acted_as(program: &str, e: &Evidence) -> Vec<Failure> {
     e.messages
         .iter()
-        .filter(|m| !matches!(&m.actor, prov::Actor::Acp { program: p } if p.as_str() == program))
+        .filter(
+            |m| !matches!(&m.actor, prov::Actor::Acp { program: p, .. } if p.as_str() == program),
+        )
         .map(|m| {
             safety(format!(
                 "a message was made by {:?}, not by the agent {program}",

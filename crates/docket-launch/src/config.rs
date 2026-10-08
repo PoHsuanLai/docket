@@ -14,6 +14,7 @@
 //! reads = ["/home/me/.local/share/node"]    # read-only: where the program is installed
 //! state = ["/home/me/.claude"]              # read-write: its own login and settings
 //! home = "/home/me"
+//! label = "Claude Code"             # optional: what the audit and the journal call it
 //! tools = "offered"                  # offered (default) | off: the desktop's actions as an MCP server
 //! [agent.endpoint]
 //! kind = "account"
@@ -119,6 +120,7 @@ struct Raw {
     logout: Vec<String>,
     #[serde(default)]
     tools: ToolsMode,
+    label: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -188,6 +190,30 @@ pub struct Entry {
     pub logout: Vec<String>,
     /// Whether the agent is offered the desktop's actions.
     pub tools: ToolsMode,
+    /// What the person calls it, shown in the audit and the journal. Written here and nowhere
+    /// else: never taken from what the agent says of itself.
+    pub label: Option<prov::AgentLabel>,
+}
+
+/// The longest label, in characters.
+const LABEL_MAX: usize = 64;
+
+fn label(program: &str, text: Option<String>) -> Result<Option<prov::AgentLabel>, ConfigFault> {
+    let Some(text) = text else { return Ok(None) };
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Err(bad(program, "a label may not be empty"));
+    }
+    if trimmed.chars().count() > LABEL_MAX {
+        return Err(bad(program, "a label is at most 64 characters"));
+    }
+    if trimmed.chars().any(char::is_control) {
+        return Err(bad(
+            program,
+            "a label holds no control character or newline",
+        ));
+    }
+    Ok(Some(prov::AgentLabel(trimmed.to_owned())))
 }
 
 fn bad(program: &str, why: &'static str) -> ConfigFault {
@@ -233,6 +259,7 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
     if raw.args.iter().any(|a| a.contains('\0')) {
         return Err(bad(&at, "an argument holds a NUL"));
     }
+    let label = label(&at, raw.label.clone())?;
     let key_env = env(&at, raw.key_env.as_ref())?;
     let base_url_env = env(&at, raw.base_url_env.as_ref())?;
     let set = raw
@@ -317,6 +344,7 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
         login: raw.login,
         logout: raw.logout,
         tools: raw.tools,
+        label,
     })
 }
 

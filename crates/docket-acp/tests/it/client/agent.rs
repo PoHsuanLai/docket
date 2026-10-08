@@ -364,7 +364,12 @@ async fn run(mut wire: ChannelWire, view: View, mut turns: std::collections::Vec
         match msg["method"].as_str() {
             Some("initialize") => {
                 locked(&view.0).client_caps = Some(msg["params"]["clientCapabilities"].clone());
-                let result = json!({"protocolVersion": 1, "agentCapabilities": {}});
+                // The agent calls itself something grand: that is its claim, and no label of ours.
+                let result = json!({
+                    "protocolVersion": 1,
+                    "agentCapabilities": {},
+                    "agentInfo": {"name": "grand", "title": "The Desktop Itself", "version": "1"},
+                });
                 put(&mut wire, &view, reply(&id, result)).await;
             }
             Some("session/new") => {

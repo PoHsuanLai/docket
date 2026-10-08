@@ -43,7 +43,10 @@ pub(crate) fn actor_of(
         // prov's own actor when the program fits porter's grammar; the older `acp:<program>`
         // client name otherwise, so the audit still tells the agent apart.
         if let Ok(program) = prov::AgentProgram::parse(external.program.as_str()) {
-            return Actor::Acp { program };
+            return Actor::Acp {
+                program,
+                label: external.label.clone(),
+            };
         }
         if let Some(client) = crate::who::acp_client(&external.program) {
             return Actor::Mcp { client };
@@ -185,6 +188,7 @@ impl<S: Seams> Router<S> {
             forked_from: None,
             cwd: open.cwd.clone(),
             started_from: open.started_from.clone(),
+            label: open.external.as_ref().and_then(|e| e.label.clone()),
         }));
         if let Some(policy) = &record.policy {
             record.wal.note(SessionEntry::Policy(policy.clone()));

@@ -25,4 +25,8 @@ pub struct ExternalAgent {
     /// Where its sheets are answered.
     #[serde(default)]
     pub sheets: SheetSurface,
+    /// What the person calls it (`label` in `agents.toml`), as the host that launched it says.
+    /// Never read from the agent, which is a model's: it is shown in the audit and the journal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<prov::AgentLabel>,
 }

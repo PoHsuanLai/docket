@@ -90,7 +90,7 @@ impl Who {
                 ..
             } => GrantCaller::Cua,
             Actor::Mcp { client } => GrantCaller::Mcp(client.clone()),
-            Actor::Acp { program } => GrantCaller::AcpAgent(program.into()),
+            Actor::Acp { program, .. } => GrantCaller::AcpAgent(program.into()),
             Actor::Cli => GrantCaller::Cli,
             Actor::App { app } | Actor::ThirdParty { app, .. } => GrantCaller::App(app.clone()),
             Actor::Companion { .. }
