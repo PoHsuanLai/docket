@@ -99,6 +99,13 @@ fn signal_group(signal: &str, pgid: u32) -> io::Result<std::process::ExitStatus>
 mod tests {
     use super::*;
 
+    /// The process group `pid` is in, from `/proc/<pid>/stat` (the fields after the name).
+    fn group_of(pid: u32) -> Option<u32> {
+        let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        let after = stat.rsplit_once(')')?.1;
+        after.split_whitespace().nth(2)?.parse().ok()
+    }
+
     #[test]
     fn a_grandchild_in_a_group_of_its_own_goes_too() {
         let dir = tempfile::tempdir().expect("dir");
@@ -117,6 +124,13 @@ mod tests {
                 .and_then(|t| t.trim().parse::<u32>().ok())
         });
         let grandchild = started.expect("the grandchild started");
+        // The pid is written before `setsid` has run: dropping now races the move into a group of
+        // its own, and a group read before it and signalled after it misses the sleeper.
+        let own_group = (0..200).any(|_| {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+            group_of(grandchild) == Some(grandchild)
+        });
+        assert!(own_group, "the grandchild never led a group of its own");
         drop(guard);
         let gone = (0..200).any(|_| {
             std::thread::sleep(std::time::Duration::from_millis(10));
