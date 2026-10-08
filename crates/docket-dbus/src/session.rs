@@ -47,7 +47,7 @@ pub trait Session {
     /// Reads memory for the session (`RecallAsk` JSON; answers `RecallView` JSON), labels applied by the router.
     fn recall(&self, session: &str, ask: &str, options: &Details) -> zbus::Result<String>;
 
-    /// The durable log of sessions (`StoredAsk` JSON; answers `StoredView` JSON): the sessions the caller may bring back, or a page of one's rows.
+    /// The durable log of sessions (`StoredAsk` JSON; answers `StoredView` JSON): the sessions the caller may bring back, a page of one's rows, or a fork of one (the router writes the child).
     fn stored(&self, ask: &str) -> zbus::Result<String>;
 }
 

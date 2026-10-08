@@ -20,6 +20,7 @@ pub mod program;
 mod render;
 pub mod resolve;
 pub mod schema;
+mod sessions;
 mod skills;
 pub mod when;
 
@@ -29,6 +30,7 @@ pub use exec::Style;
 pub use exit::{Exit, Failure};
 pub use params::Stdin;
 pub use resolve::Apps;
+pub use sessions::SessionsCmd;
 pub use skills::list as skills_list;
 
 use docket_client::{Intents, Transport};
@@ -152,6 +154,11 @@ async fn command<T: Transport>(
             Exit::Unavailable,
             "ask talks to the companion, not to intentd: it needs the companion's bus",
         )),
+        Command::Sessions(SessionsCmd::List) => sessions::list(intents).await,
+        Command::Sessions(SessionsCmd::Load(id)) => sessions::load(intents, id).await,
+        Command::Sessions(SessionsCmd::Fork { session, at }) => {
+            sessions::fork(intents, session, *at).await
+        }
         Command::Apps => Ok(exec::apps(&apps_of(intents).await?)),
         Command::Skills => Ok(skills::list(&apps_of(intents).await?, roots)),
         Command::List { app } => exec::list(&apps_of(intents).await?, app),

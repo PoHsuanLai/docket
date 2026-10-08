@@ -46,7 +46,7 @@ pub use entry::{
     WorkspaceError,
 };
 pub use export::{EXPORT_VERSION, ExportFault, SessionExport, export, from_json, to_json};
-pub use fork::{ForkFault, fork};
+pub use fork::{ForkFault, child_names, fork, forks_of};
 pub use log::{Appended, LogFault, LogPage, PageSize, SessionLog, read_all};
 pub use plan::{
     Blocker, Interrupted, PlanRefusal, ResumeFault, ResumePlan, ResumedBudget, Standing,

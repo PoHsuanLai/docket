@@ -458,6 +458,14 @@ pub enum StoredAsk {
         /// How many rows at most.
         size: u32,
     },
+    /// A new session that keeps `session`'s log up to and including the row `at` (the router
+    /// writes the child's log; the caller may bring the parent back, as for `Rows`).
+    Fork {
+        /// The session to fork.
+        session: SessionId,
+        /// The last row the fork keeps.
+        at: u64,
+    },
 }
 
 /// One row of a stored session: its position and its body, which `docket-session` writes and reads.
@@ -482,6 +490,8 @@ pub enum StoredView {
         /// Where the next page starts; none at the end.
         next: Option<u64>,
     },
+    /// The session a fork made.
+    Forked(SessionId),
 }
 
 /// Every reply of `org.quire.Intents1`.

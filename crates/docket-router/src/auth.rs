@@ -37,8 +37,8 @@ fn roles(member: Member) -> &'static [CallerRole] {
         | Member::SessionNarrow
         | Member::SessionHandles => &[Companion],
         // The durable log, for the edges that list, load and fork sessions; the router lists only
-        // what the caller may bring back.
-        Member::SessionStored => &[Launcher, Editor, Companion],
+        // what the caller may bring back (a terminal: what a terminal opened).
+        Member::SessionStored => &[Launcher, Editor, Companion, Cli],
         Member::SessionTaskPolicy | Member::SessionWiden => &[Launcher, Field, Companion],
         // The person talks to a subagent through the launcher; agents and runs report.
         Member::MessageSend => &[Launcher, Field, Companion, Cua],

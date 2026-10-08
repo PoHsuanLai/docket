@@ -8,4 +8,5 @@ mod grammar;
 mod install_dev;
 mod mapping;
 mod output;
+mod sessions;
 mod support;

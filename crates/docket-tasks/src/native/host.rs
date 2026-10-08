@@ -16,12 +16,12 @@ use docket_core::{
 use docket_session::{
     BackendEvent, BackendFault, EndCause, HostFault, NoDesk, Opening, ResumePlan, Seq,
     SessionBackend, SessionExport, SessionHost, SessionLog, SheetChoice, SheetDesk, Standing,
-    StartSession, export, fork, read_all, resume_plan,
+    StartSession, child_names, export, fork, forks_of, read_all, resume_plan,
 };
 use futures_util::future::{Either, select};
 use futures_util::lock::Mutex;
 use porter_client::Transport as InferTransport;
-use prov::{AgentRef, SessionId, TaskId};
+use prov::{AgentRef, SessionId};
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::sync::Arc;
@@ -278,19 +278,8 @@ where
     async fn fork(&mut self, session: &SessionId, at: Seq) -> Result<SessionId, HostFault> {
         let rows = read_all(&self.log, session).await?;
         let parent = resume_plan(&rows)?.opening.task;
-        let taken = self
-            .log
-            .sessions()
-            .await?
-            .iter()
-            .filter(|s| s.as_str().starts_with(&format!("{session}-f")))
-            .count();
-        let suffix = format!("-f{}", taken + 1);
-        // The router's own ids are `s-<n>` and `t-<n>`: a fork's name never meets one of them.
-        let child = SessionId::parse(&format!("{session}{suffix}"))
-            .map_err(|_| HostFault::NoSuchSession)?;
-        let task =
-            TaskId::parse(&format!("{parent}{suffix}")).map_err(|_| HostFault::NoSuchSession)?;
+        let taken = forks_of(session, &self.log.sessions().await?);
+        let (child, task) = child_names(session, &parent, taken).ok_or(HostFault::NoSuchSession)?;
         let entries = fork(session, &rows, at, task)?;
         for (n, entry) in entries.iter().enumerate() {
             self.log.append(&child, Seq(n as u64), entry).await?;

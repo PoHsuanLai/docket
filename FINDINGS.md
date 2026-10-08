@@ -2299,7 +2299,7 @@ turn's updates and the app's calls equal in both.
   told "waiting on the desktop" (the S3 behaviour). `EditorDesk` is the in-process half: an
   `InAppAgent`-style router can route an editor session's sheets to it today. The bus half needs a
   `Confirm1` server for the acp process that intentd's confirmer prefers for editor sessions.
-- **quire-do / the shell: list, load, fork.** The host side and the router member exist; a `quire-do
+- **quire-do / the shell: list, load, fork.** (`quire-do sessions` is built, see below.) The host side and the router member exist; a `quire-do
   sessions` needs the `cli` role on `Session.Stored` and a renderer. Not built.
 - **A cancel does not interrupt a call or a model in flight**, and the router's pending sheet for
   it is withdrawn only when the router drops the watch; the S3 note on withdrawing confirmations stands.
@@ -2390,3 +2390,31 @@ A sheet for a call in an editor's session no longer goes to sill.
   without legacy notes; an editor's host writes no notes), `docket-tasks` `stored_roster` unit tests.
 - Not done: companiond's task model (`TaskRuntime`, `Companiond::ask`) is not replaced by `NativeHost`; the front
   pointer still moves on `Companion::open`. The launcher's side conversations keep their own table.
+
+## quire-do sessions (S2, second part)
+
+`quire-do sessions` (list), `sessions load <id>` and `sessions fork <id> [--at <row>]`, all through
+`Session.Stored`, in `docket-cli/src/sessions.rs`. Text is one line per session (`<id>  <space>  <agent>  <n> turns
+<open|paused|closed|unreadable>`) or the turns and calls of one; `--json` (or a pipe) is `{vocab, sessions}` for the
+list, the `docket-session` export document for `load`, and `{vocab, forked, session, at}` for a fork.
+
+- **The cli role may call `Session.Stored`** (`auth.rs`), and the router answers it by the same rule as a restore
+  (`may_restore`): a terminal brings back the sessions **its own app opened** and no others. Another app's session is
+  not listed, and `Rows` or `Fork` on it is answered as a session the log does not hold.
+- **Consequence to know: today that list is empty in practice.** `quire-do ask` does not open its session; the
+  companion does (`companion.open`), so the opener is companiond's app, and the cli role cannot open a session at all
+  (`Session.Open` is not its member). The rule is the one asked for and is never looser than a live session's, so
+  nothing is widened here. To make `quire-do sessions` show the terminal's own `ask` conversations, the router would
+  have to record who spoke (the `TurnSource::Terminal` turns are already there) and a rule would have to say a
+  terminal may restore a session it spoke in. That widens what a terminal can claim; it is a decision, not made.
+  The tests open the session under the terminal's app name to exercise the rule.
+- **A fork is written by the router.** `RouterLog` refuses appends (the router writes the log), so an edge
+  outside the router could not fork. `StoredAsk::Fork { session, at }` answers `StoredView::Forked(child)`: the router
+  checks `may_restore` on the parent, cuts the child with `docket_session::fork` (the same pure function as
+  `NativeHost::fork`, which now shares the naming `child_names` / `forks_of`), appends the whole child log, and only
+  then names it. The child keeps the parent's opener, so whoever may bring the one back may bring the other. A
+  position past the end is `Malformed`. `NativeHost::fork` over a `RouterLog` still cannot append; the ACP host does
+  not serve fork (ACP v1 has none), so it is not reached.
+- Tests: `docket-cli/tests/it/sessions.rs` (empty list, list and the opener rule, load, fork and its refusals, the
+  grammar), `docket-router/tests/it/stored.rs` (the terminal's reads, the fork for the editor, another editor
+  refused, a position past the end).

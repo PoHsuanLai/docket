@@ -77,7 +77,7 @@ impl<I: IntentsTransport, H: Borrow<Intents<I>> + Send + Sync> SessionLog for Ro
                     .collect::<Result<_, _>>()?,
                 next: next.map(Seq),
             }),
-            Ok(StoredView::Sessions(_)) => Err(LogFault::Unavailable),
+            Ok(StoredView::Sessions(_) | StoredView::Forked(_)) => Err(LogFault::Unavailable),
             // A session the router will not show this caller is a session with no rows.
             Err(ClientError::Refused(WireRefusal::NoSuchSession)) => Ok(LogPage {
                 rows: Vec::new(),
@@ -90,7 +90,7 @@ impl<I: IntentsTransport, H: Borrow<Intents<I>> + Send + Sync> SessionLog for Ro
     async fn sessions(&self) -> Result<Vec<SessionId>, LogFault> {
         match self.intents.borrow().session_stored(StoredAsk::List).await {
             Ok(StoredView::Sessions(all)) => Ok(all),
-            Ok(StoredView::Rows { .. }) => Err(LogFault::Unavailable),
+            Ok(StoredView::Rows { .. } | StoredView::Forked(_)) => Err(LogFault::Unavailable),
             Err(error) => Err(fault_of(&error)),
         }
     }

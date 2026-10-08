@@ -10,6 +10,9 @@ Usage:
   quire-do <app> context [--json]                what the app shows now
   quire-do undo <undo-id> | --last               take back what this terminal did
   quire-do ask [--space <id>] <text> [--json]    talk to the companion; prints its answer
+  quire-do sessions                              the stored sessions this terminal may bring back
+  quire-do sessions load <id> [--json]           one session's turns and calls
+  quire-do sessions fork <id> [--at <row>]       a new session keeping the log up to a row
 
 <app> is the app's slug (mail, anyview, shell) or its full name; <action> drops the app's
 prefix (thread.archive for mail.thread.archive). Things are <kind>:<key>, or #<n> for text an

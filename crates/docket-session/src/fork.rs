@@ -24,6 +24,25 @@ pub enum ForkFault {
     NotWhole,
 }
 
+/// The names a fork of `parent` (running `task`) takes when `taken` forks of it exist: the
+/// session `<parent>-f<n>` and the task `<task>-f<n>`. The router's own ids are `s-<n>` and
+/// `t-<n>`, so a fork's name never meets one of them. None when the suffixed names are not ids.
+pub fn child_names(parent: &SessionId, task: &TaskId, taken: usize) -> Option<(SessionId, TaskId)> {
+    let suffix = format!("-f{}", taken + 1);
+    Some((
+        SessionId::parse(&format!("{parent}{suffix}")).ok()?,
+        TaskId::parse(&format!("{task}{suffix}")).ok()?,
+    ))
+}
+
+/// How many forks of `parent` the sessions in `all` already hold.
+pub fn forks_of(parent: &SessionId, all: &[SessionId]) -> usize {
+    let prefix = format!("{parent}-f");
+    all.iter()
+        .filter(|s| s.as_str().starts_with(&prefix))
+        .count()
+}
+
 /// The child's log from position 0: `Opened` (naming `task` and the fork point), a `Taint` when
 /// the parent's plan is tainted (first, so write-ahead holds for every handle after it), then
 /// the parent's entries up to and including `at`, minus `Opened`, `Taint`, `Budget` and

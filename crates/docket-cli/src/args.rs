@@ -3,6 +3,7 @@
 //! parameters exist is `resolve`'s and `params`'s business, from the manifests.
 
 use crate::exit::Failure;
+use crate::sessions::SessionsCmd;
 use prov::{SessionId, SpaceId};
 use std::collections::BTreeSet;
 
@@ -94,6 +95,9 @@ pub enum Command {
         /// The Space the conversation lives in (default `desktop`).
         space: SpaceId,
     },
+    /// `sessions`, `sessions load <id>`, `sessions fork <id> [--at <row>]`: the stored sessions
+    /// the terminal may bring back.
+    Sessions(SessionsCmd),
     /// `<app> <action> …`.
     Call(CallArgs),
     /// `__complete <words…>`: what a shell completes next (the completion files call it).
@@ -176,6 +180,10 @@ fn scan(words: &[String]) -> Result<Scan, Failure> {
     Ok(out)
 }
 
+fn session_word(word: &str) -> Result<SessionId, Failure> {
+    SessionId::parse(word).map_err(|_| Failure::usage(format!("{word:?} is not a session id")))
+}
+
 fn command(scan: &Scan) -> Result<Command, Failure> {
     let words: Vec<&str> = scan.positional.iter().map(String::as_str).collect();
     let no_flags = |what: &str| -> Result<(), Failure> {
@@ -212,6 +220,31 @@ fn command(scan: &Scan) -> Result<Command, Failure> {
             })
         }),
         ["ask"] => Err(Failure::usage("usage: quire-do ask <text>")),
+        ["sessions"] => no_flags("sessions").map(|()| Command::Sessions(SessionsCmd::List)),
+        ["sessions", "load", id] => no_flags("sessions load")
+            .and_then(|()| session_word(id))
+            .map(|id| Command::Sessions(SessionsCmd::Load(id))),
+        ["sessions", "fork", id] => {
+            let at = match scan.params.as_slice() {
+                [] => None,
+                [(name, row)] if name == "at" => Some(
+                    row.parse::<u64>()
+                        .map_err(|_| Failure::usage("--at is not a row number"))?,
+                ),
+                _ => {
+                    return Err(Failure::usage(
+                        "usage: quire-do sessions fork <id> [--at <row>]",
+                    ));
+                }
+            };
+            Ok(Command::Sessions(SessionsCmd::Fork {
+                session: session_word(id)?,
+                at,
+            }))
+        }
+        ["sessions", ..] => Err(Failure::usage(
+            "usage: quire-do sessions | sessions load <id> | sessions fork <id> [--at <row>]",
+        )),
         ["undo"] if scan.has("last") => Ok(Command::Undo(UndoWhich::Last)),
         ["undo", id] => id
             .parse::<u64>()

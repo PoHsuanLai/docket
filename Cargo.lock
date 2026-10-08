@@ -1004,6 +1004,7 @@ dependencies = [
  "docket-dbus",
  "docket-fake",
  "docket-router",
+ "docket-session",
  "docket-skills",
  "docket-testbus",
  "futures-util",
