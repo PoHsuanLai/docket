@@ -10,7 +10,7 @@
 //! - `redact`, `Tail`, `shown`: output is bounded and secrets are masked before anyone reads it.
 //! - `sandbox_env`: the environment is cleared and rebuilt from an allowlist.
 //!
-//! Whether a command may run at all is the gate's decision (`docket_core::rule_execute`); this
+//! Whether a command may run at all is the gate's decision (the router's policy point and `docket-router`'s terminal rules); this
 //! crate only runs what the gate let through, and only inside the sandbox.
 
 mod agent;

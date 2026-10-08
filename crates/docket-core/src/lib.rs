@@ -84,10 +84,7 @@ pub use context::{
     TextTargetView, Visible, VisibleView, WindowPrivacy,
 };
 pub use derived::{Corrected, Derived};
-pub use execute::{
-    ArgOrigin, CannotSandbox, EXECUTE_AS, ExecuteAsk, ExecuteFacts, ExecuteRuling, SandboxState,
-    rule_execute,
-};
+pub use execute::{CannotSandbox, EXECUTE_AS, SandboxState};
 pub use external::{ExternalAgent, SheetSurface};
 pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};
 pub use grant::{

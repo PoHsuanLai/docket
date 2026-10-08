@@ -2740,8 +2740,10 @@ and the grants file. The terminal methods lost their own gate too: `Terminals` i
 scope and runs what the router allowed; `Decide`, `Posture`, `Note`, `TerminalAsk` and `Answer` are gone). What stayed is
 pure: `confine`/`named` and `Care`, `Shown`'s job (none), `names::effect`/`permission`, the `Files` seam (now with
 `remove`, for undoing a write that created a file), `reported`. `docket_core::rule_execute` is no longer called outside
-its own tests; the router's `may_offer` over the same facts is what rules a command. It can be deleted when the owner
-agrees.
+its own tests; the router's `may_offer` over the same facts is what rules a command. DONE (agent-paths): `rule_execute`,
+`ExecuteFacts`, `ExecuteRuling`, `ExecuteAsk`, `ArgOrigin` and `tests/it/execute.rs` are deleted (nothing outside the
+tests used them; the table's cases are covered by `standing.rs` and the router's terminal tests). `EXECUTE_AS`,
+`SandboxState` and `CannotSandbox` stay: the host, the sandbox and `Withheld` use them.
 
 **Sheets, and the hosting shape.** The hosting shape is a sibling of `NativeHost`: `AgentHost<X, D>` over one
 `AcpBackend`, a `Court` (the router) and a `SheetDesk`. `docket-agent` is its process (`docket-acp-bin`, binary
@@ -2787,5 +2789,5 @@ name waits on `agent.acp.agents`; its sheet route). `docket-acp/tests/it/termina
 
 **Deferred.** Resuming an agent session through the host (the router restores it, but `AgentHost::resume` is not
 served and the agent's own session id is not kept); the per-session MCP edge (D-3); a dry-run preview of a write for
-the sheet (`dry_run = none`: the sheet shows the path and a line count); an `Effect::Execute` and an `ActorKind::Acp` in porter; narrowing the taint (owner); deleting `rule_execute`; the provider-host network allowlist, Landlock, resource limits and the
+the sheet (`dry_run = none`: the sheet shows the path and a line count); an `Effect::Execute` and an `ActorKind::Acp` in porter; narrowing the taint (owner); the provider-host network allowlist, Landlock, resource limits and the
 second test agent (S4's list stands).
