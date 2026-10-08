@@ -336,7 +336,7 @@ fn fill(shared: &PlayShared, out: &mut [u8]) {
         out.fill(0);
         return;
     };
-    for slot in out.chunks_exact_mut(std::mem::size_of::<i16>()) {
+    for slot in out.as_chunks_mut::<2>().0 {
         let sample = ring.samples.pop_front().unwrap_or(0);
         let value = match ring.fade.as_mut() {
             Some((left, total)) => {
@@ -347,7 +347,7 @@ fn fill(shared: &PlayShared, out: &mut [u8]) {
             }
             None => sample,
         };
-        slot.copy_from_slice(&value.to_le_bytes());
+        *slot = value.to_le_bytes();
     }
     if matches!(ring.fade, Some((0, _))) {
         ring.samples.clear();
