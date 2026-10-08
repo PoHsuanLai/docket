@@ -206,7 +206,14 @@ async fn the_built_in_providers_are_listed_with_their_manifests() {
         .iter()
         .map(|m| m.manifest().app.to_string())
         .collect();
-    assert_eq!(listed, ["org.quire.Companion", "org.quire.Memory"]);
+    assert_eq!(
+        listed,
+        [
+            "org.quire.AcpAgent",
+            "org.quire.Companion",
+            "org.quire.Memory"
+        ]
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
