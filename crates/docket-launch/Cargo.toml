@@ -17,11 +17,6 @@ dbus = ["dep:porter-client", "dep:porter-dbus", "dep:futures-util", "dep:serde_j
 name = "docket_launch"
 path = "src/lib.rs"
 
-[[bin]]
-name = "docket-agent"
-path = "src/bin/docket-agent.rs"
-required-features = ["dbus"]
-
 [dependencies]
 docket-acp = { workspace = true, features = ["client", "server"] }
 docket-core = { workspace = true }

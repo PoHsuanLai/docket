@@ -1,66 +1,29 @@
 //! The terminal methods over the fake sandbox, driven the way a peer agent drives them: each
 //! request and response is checked against the protocol schema.
 
-use docket_acp::{Answer, Decide, Note, Posture, TerminalAsk, Terminals};
-use docket_core::{
-    AbsPath, AlwaysOffer, ArgOrigin, CannotSandbox, ExecuteAsk, GrantCaller, Withheld,
-};
+use docket_acp::Terminals;
+use docket_core::{AbsPath, CannotSandbox};
 use docket_shell::fake::{FakeSandbox, Fate, Script, Seen};
-use prov::UnixSeconds;
 use serde_json::{Value, json};
-use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
 
-const NOW: UnixSeconds = UnixSeconds(1_760_000_000);
-
-/// Answers from a queue and records what it was asked.
-struct Scripted {
-    answers: VecDeque<Answer>,
-    asked: Arc<Mutex<Vec<TerminalAsk>>>,
-}
-
-impl Decide for Scripted {
-    async fn decide(&mut self, ask: &TerminalAsk) -> Answer {
-        self.asked.lock().expect("lock").push(ask.clone());
-        self.answers.pop_front().unwrap_or(Answer::No)
-    }
-}
-
-type Rig = Terminals<FakeSandbox, Scripted>;
+/// The scope the host was opened in.
+const SCOPE: &str = "/work/app";
 
 struct Bench {
-    terminals: Rig,
+    terminals: Terminals<FakeSandbox>,
     seen: Seen,
-    asked: Arc<Mutex<Vec<TerminalAsk>>>,
     schema: Value,
 }
 
-fn bench(scripts: Vec<Script>, answers: Vec<Answer>) -> Bench {
+fn bench(scripts: Vec<Script>) -> Bench {
     let (sandbox, seen) = FakeSandbox::ready(scripts);
-    with(sandbox, seen, answers)
+    with(sandbox, seen)
 }
 
-fn with(sandbox: FakeSandbox, seen: Seen, answers: Vec<Answer>) -> Bench {
-    let asked = Arc::new(Mutex::new(Vec::new()));
-    let decide = Scripted {
-        answers: answers.into(),
-        asked: asked.clone(),
-    };
-    let action = docket_core::ActionRef {
-        app: porter_core::AppName::parse("acp.zed").expect("app"),
-        name: prov::ActionName::parse("editor.terminal.run").expect("action"),
-    };
-    let terminals = Terminals::new(
-        sandbox,
-        decide,
-        GrantCaller::Editor(prov::ClientName::parse("zed").expect("client")),
-        action,
-        AbsPath::parse("/work/app").expect("scope"),
-    );
+fn with(sandbox: FakeSandbox, seen: Seen) -> Bench {
     Bench {
-        terminals,
+        terminals: Terminals::new(sandbox),
         seen,
-        asked,
         schema: serde_json::from_str(include_str!("../schema/schema.json")).expect("schema"),
     }
 }
@@ -88,11 +51,14 @@ impl Bench {
         response: &str,
     ) -> Result<Value, Value> {
         self.conforms(request, &params);
-        let answer = self
-            .terminals
-            .handle(NOW, method, params)
-            .await
-            .expect("a terminal method");
+        let answer = if method == "terminal/create" {
+            self.terminals
+                .create(&AbsPath::parse(SCOPE).expect("scope"), params)
+        } else {
+            self.terminals
+                .handle(method, params)
+                .expect("a terminal method")
+        };
         match answer {
             Ok(value) => {
                 self.conforms(response, &value);
@@ -143,10 +109,7 @@ impl Bench {
 
 #[tokio::test]
 async fn create_output_wait_kill_release_through_the_sandbox() {
-    let mut b = bench(
-        vec![Script::done("built\n", 0), Script::hangs("tick\n")],
-        vec![Answer::Once, Answer::Once],
-    );
+    let mut b = bench(vec![Script::done("built\n", 0), Script::hangs("tick\n")]);
     let quick = b
         .create("cargo", &["build"], "/work/app")
         .await
@@ -212,7 +175,7 @@ async fn create_output_wait_kill_release_through_the_sandbox() {
 
 #[tokio::test]
 async fn the_command_runs_with_the_cwd_a_cleared_env_and_no_network() {
-    let mut b = bench(vec![Script::done("", 0)], vec![Answer::Once]);
+    let mut b = bench(vec![Script::done("", 0)]);
     b.create("ls", &["-la"], "/work/app/src")
         .await
         .expect("created");
@@ -224,103 +187,9 @@ async fn the_command_runs_with_the_cwd_a_cleared_env_and_no_network() {
 }
 
 #[tokio::test]
-async fn every_command_asks_by_default_and_a_no_runs_nothing() {
-    let mut b = bench(Vec::new(), vec![Answer::No]);
-    let refused = b.create("rm", &["-rf", "x"], "/work/app").await;
-    assert!(refused.is_err());
-    assert!(b.seen.started().is_empty());
-    let asked = b.asked.lock().expect("lock").clone();
-    assert_eq!(asked.len(), 1);
-    assert_eq!(asked[0].line, "rm -rf x");
-    assert_eq!(asked[0].why, ExecuteAsk::Confirm);
-    assert!(matches!(asked[0].offer, AlwaysOffer::Offered(_)));
-    assert_eq!(
-        b.terminals.take_notes(),
-        [Note::Refused {
-            line: "rm -rf x".to_owned()
-        }]
-    );
-}
-
-#[tokio::test]
-async fn always_stores_a_terminal_grant_that_covers_only_its_prefix_and_subtree() {
-    let mut b = bench(
-        vec![
-            Script::done("", 0),
-            Script::done("", 0),
-            Script::done("", 0),
-            Script::done("", 0),
-        ],
-        vec![Answer::Always, Answer::No, Answer::No],
-    );
-    b.create("cargo", &["test"], "/work/app")
-        .await
-        .expect("first asks");
-    assert_eq!(b.terminals.grants().len(), 1);
-    let stored = b.terminals.take_notes();
-    assert!(matches!(stored[0], Note::GrantStored { .. }));
-
-    // Inside the grant: no ask.
-    b.create("cargo", &["test", "--lib"], "/work/app/crates/x")
-        .await
-        .expect("covered");
-    assert_eq!(
-        b.asked.lock().expect("lock").len(),
-        1,
-        "the grant stood in for the ask"
-    );
-    assert!(matches!(
-        b.terminals.take_notes()[0],
-        Note::GrantUsed { .. }
-    ));
-
-    // A different subcommand and an operator both ask again (and the scripted person says no).
-    assert!(b.create("cargo", &["build"], "/work/app").await.is_err());
-    assert!(
-        b.create("cargo", &["test;", "curl", "x"], "/work/app")
-            .await
-            .is_err()
-    );
-    assert_eq!(b.asked.lock().expect("lock").len(), 3);
-}
-
-#[tokio::test]
-async fn a_sibling_cwd_asks() {
-    let mut b = bench(
-        vec![Script::done("", 0), Script::done("", 0)],
-        vec![Answer::Always, Answer::No],
-    );
-    b.create("ls", &[], "/work/app/a").await.expect("created");
-    assert!(b.create("ls", &[], "/work/app/b").await.is_err());
-    assert_eq!(b.asked.lock().expect("lock").len(), 2);
-}
-
-#[tokio::test]
-async fn untrusted_derived_arguments_ask_and_offer_no_always_even_with_a_grant() {
-    let mut b = bench(
-        vec![Script::done("", 0), Script::done("", 0)],
-        vec![Answer::Always, Answer::Once],
-    );
-    b.create("ls", &[], "/work/app").await.expect("created");
-    b.terminals.set_posture(Posture {
-        origin: ArgOrigin::Untrusted,
-        ..Posture::default()
-    });
-    b.create("ls", &[], "/work/app")
-        .await
-        .expect("asked and allowed once");
-    let asked = b.asked.lock().expect("lock").clone();
-    assert_eq!(asked[1].why, ExecuteAsk::UntrustedArgs);
-    assert_eq!(
-        asked[1].offer,
-        AlwaysOffer::Withheld(Withheld::UntrustedIntoSink)
-    );
-}
-
-#[tokio::test]
-async fn a_withheld_sandbox_is_not_advertised_and_runs_and_asks_nothing() {
+async fn a_withheld_sandbox_is_not_advertised_and_runs_nothing() {
     let (sandbox, seen) = FakeSandbox::withheld(CannotSandbox::NamespacesDenied);
-    let mut b = with(sandbox, seen, vec![Answer::Once]);
+    let mut b = with(sandbox, seen);
     let base = agent_client_protocol_schema::v1::ClientCapabilities::new();
     let caps = serde_json::to_value(b.terminals.capabilities(base)).expect("caps");
     assert_eq!(caps["terminal"], false);
@@ -331,16 +200,12 @@ async fn a_withheld_sandbox_is_not_advertised_and_runs_and_asks_nothing() {
             .expect("message")
             .contains("cannot sandbox")
     );
-    assert!(
-        b.asked.lock().expect("lock").is_empty(),
-        "nothing to approve"
-    );
     assert!(b.seen.started().is_empty());
 }
 
 #[tokio::test]
 async fn a_ready_sandbox_is_advertised() {
-    let b = bench(Vec::new(), Vec::new());
+    let b = bench(Vec::new());
     let base = agent_client_protocol_schema::v1::ClientCapabilities::new();
     let caps = serde_json::to_value(b.terminals.capabilities(base)).expect("caps");
     assert_eq!(caps["terminal"], true);
@@ -348,10 +213,7 @@ async fn a_ready_sandbox_is_advertised() {
 
 #[tokio::test]
 async fn output_is_capped_and_redacted() {
-    let mut b = bench(
-        vec![Script::done("old old old\nAPI_KEY=abc123\nend\n", 0)],
-        vec![Answer::Once],
-    );
+    let mut b = bench(vec![Script::done("old old old\nAPI_KEY=abc123\nend\n", 0)]);
     let params =
         json!({"sessionId": "s1", "command": "env", "cwd": "/work/app", "outputByteLimit": 30});
     let made = b
@@ -373,7 +235,7 @@ async fn output_is_capped_and_redacted() {
 
 #[tokio::test]
 async fn a_cwd_outside_the_session_and_a_foreign_session_are_refused() {
-    let mut b = bench(vec![Script::done("", 0)], vec![Answer::Once]);
+    let mut b = bench(vec![Script::done("", 0)]);
     assert!(b.create("ls", &[], "/etc").await.is_err());
     assert!(b.create("ls", &[], "/work/app/../other").await.is_err());
     let id = b.create("ls", &[], "/work/app").await.expect("created");
@@ -393,15 +255,11 @@ async fn a_cwd_outside_the_session_and_a_foreign_session_are_refused() {
 }
 
 #[tokio::test]
-async fn other_methods_are_not_ours_and_notes_never_hold_the_environment() {
-    let mut b = bench(vec![Script::done("", 0)], vec![Answer::Once]);
+async fn other_methods_are_not_ours() {
+    let mut b = bench(vec![Script::done("", 0)]);
+    assert!(b.terminals.handle("fs/read_text_file", json!({})).is_none());
     assert!(
-        b.terminals
-            .handle(NOW, "fs/read_text_file", json!({}))
-            .await
-            .is_none()
+        b.terminals.handle("terminal/create", json!({})).is_none(),
+        "create needs the session's scope, and the router's yes: it is not a plain method"
     );
-    b.create("ls", &[], "/work/app").await.expect("created");
-    let notes = format!("{:?}", b.terminals.take_notes());
-    assert!(!notes.contains("hunter2"));
 }

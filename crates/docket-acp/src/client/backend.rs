@@ -1,8 +1,10 @@
 //! `AcpBackend`: an external coding agent (Claude Code through its ACP adapter, Gemini CLI, any
 //! ACP agent) as a `SessionBackend`. We are the ACP client; the agent is a process behind the
 //! `Spawn` seam. Everything it asks of us (`fs/*`, `terminal/*`, `session/request_permission`)
-//! is ruled by our gate (`gate`), never by its own options; what it only reports is recorded as
-//! `agent-reported` and trusted for nothing (`reported`).
+//! is a call the router rules (`court`), never decided here and never by the agent's own options;
+//! the file, the command and the answer are performed only after the router allowed the call
+//! (`performer`). What the agent only reports is recorded for display and trusted for nothing
+//! (`reported`).
 //!
 //! The two rules a backend keeps (docket-session's contract):
 //! - `next_event` is cancel-safe. Everything it holds between awaits is in a field: lines read
@@ -16,16 +18,15 @@
 //! There is no clock here. A deadline for an agent that stops answering is the host's: it calls
 //! `cancel`, then `close`, which kills the process.
 
-use super::ask::{AsTerminal, Ask, Epoch};
+use super::court::Court;
 use super::files::Files;
-use super::gate::{Audit, Gatekeeper};
 use super::intake::{Intake, Work, intake};
-use super::names;
+use super::performer::Performer;
 use super::reported::Reported;
 use super::rpc::{self, Ids};
 use super::spawn::{AgentChild, LaunchPlan, Spawn, Spawned};
-use crate::server::Ticks;
-use crate::terminals::Terminals;
+use super::strikes::Strikes;
+use super::taint::TaintSource;
 use crate::wire::Wire;
 use agent_client_protocol_schema::ProtocolVersion;
 use agent_client_protocol_schema::rpc::RequestId;
@@ -33,7 +34,7 @@ use agent_client_protocol_schema::v1::{
     ClientCapabilities, InitializeResponse, NewSessionResponse, PromptResponse, SessionId,
     StopReason,
 };
-use docket_core::{AbsPath, CallId, GrantCaller, StandingGrant, UserTurn};
+use docket_core::{AbsPath, CallId, PermissionKind, UserTurn};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, ProgramName, ResumePlan, Resumed, SessionBackend,
     StartSession, Taint, TurnEnd,
@@ -47,13 +48,11 @@ pub trait Seams {
     /// Starts the agent process.
     type Spawn: Spawn;
     /// The file system `fs/*` reaches.
-    type Files: Files;
-    /// Asks the person.
-    type Ask: Ask;
+    type Files: Files + 'static;
+    /// The router, as the agent's host calls it.
+    type Court: Court;
     /// Confines the commands the agent runs through `terminal/*`.
     type Sandbox: Sandbox + 'static;
-    /// The time.
-    type Ticks: Ticks;
 }
 
 /// What an `AcpBackend` is built from.
@@ -61,20 +60,15 @@ pub trait Seams {
 pub struct Parts<X: Seams> {
     /// The configured program.
     pub program: ProgramName,
-    /// The session this backend runs.
+    /// The router session this backend runs (the one the host opened for it).
     pub session: prov::SessionId,
     /// Starts the process.
     pub spawn: X::Spawn,
-    /// The file system.
-    pub files: X::Files,
-    /// The person.
-    pub ask: X::Ask,
-    /// The terminal sandbox.
-    pub sandbox: X::Sandbox,
-    /// The time.
-    pub ticks: X::Ticks,
-    /// The standing grants this program's caller holds.
-    pub grants: Vec<StandingGrant>,
+    /// What performs a call the router allowed: files and the terminal sandbox. The router's
+    /// `Perform` for the pseudo-app must reach this very performer.
+    pub performer: Performer<X::Files, X::Sandbox>,
+    /// The router.
+    pub court: X::Court,
 }
 
 /// The connection to one running agent.
@@ -84,11 +78,10 @@ pub(super) struct Live<X: Seams> {
     pub agent: Option<SessionId>,
     pub cwd: AbsPath,
     pub real_cwd: AbsPath,
-    pub gate: Gatekeeper<X::Ask>,
-    pub terminals: Terminals<X::Sandbox, AsTerminal<X::Ask>>,
+    pub session: prov::SessionId,
+    pub tainted_by: Option<TaintSource>,
     pub reported: Reported,
     pub ids: Ids,
-    pub epoch: Epoch,
 }
 
 /// A call we run for the agent.
@@ -122,11 +115,8 @@ pub(super) enum Phase {
 pub struct AcpBackend<X: Seams> {
     pub(super) program: ProgramName,
     pub(super) spawn: X::Spawn,
-    pub(super) files: X::Files,
-    pub(super) ask: X::Ask,
-    pub(super) sandbox: Option<X::Sandbox>,
-    pub(super) ticks: X::Ticks,
-    pub(super) grants: Vec<StandingGrant>,
+    pub(super) performer: Performer<X::Files, X::Sandbox>,
+    pub(super) court: X::Court,
     pub(super) live: Option<Live<X>>,
     pub(super) session: Option<prov::SessionId>,
     pub(super) phase: Phase,
@@ -140,8 +130,10 @@ pub struct AcpBackend<X: Seams> {
     pub(super) dead: bool,
     pub(super) next_call: u64,
     pub(super) next_ask: u64,
-    pub(super) audit: Vec<Audit>,
-    pub(super) undo: Vec<super::handlers::UndoNote>,
+    /// Tool calls the agent reported that bring content in, to be told to the router.
+    pub(super) owed: VecDeque<(u64, PermissionKind)>,
+    /// Refusals that never reached the router.
+    pub(super) strikes: Strikes,
 }
 
 impl<X: Seams> AcpBackend<X> {
@@ -150,11 +142,8 @@ impl<X: Seams> AcpBackend<X> {
         Self {
             program: parts.program,
             spawn: parts.spawn,
-            files: parts.files,
-            ask: parts.ask,
-            sandbox: Some(parts.sandbox),
-            ticks: parts.ticks,
-            grants: parts.grants,
+            performer: parts.performer,
+            court: parts.court,
             live: None,
             session: Some(parts.session),
             phase: Phase::Stopped,
@@ -168,38 +157,20 @@ impl<X: Seams> AcpBackend<X> {
             dead: false,
             next_call: 0,
             next_ask: 0,
-            audit: Vec::new(),
-            undo: Vec::new(),
+            owed: VecDeque::new(),
+            strikes: Strikes::default(),
         }
     }
 
-    /// The audit lines since the last call: every ruling, every grant stored, every call the
-    /// agent only reported.
-    pub fn take_audit(&mut self) -> Vec<Audit> {
-        let mut lines = std::mem::take(&mut self.audit);
-        if let Some(live) = self.live.as_mut() {
-            lines.extend(live.gate.take_audit());
-            lines.extend(super::serve::terminal_audit(live));
-        }
-        lines
-    }
-
-    /// The standing grants now held, for the store.
-    pub fn grants(&self) -> Vec<StandingGrant> {
-        self.live
-            .as_ref()
-            .map_or_else(|| self.grants.clone(), |l| l.gate.grants().to_vec())
-    }
-
-    /// The writes made for the agent, newest last, each with the text it replaced: what an undo
-    /// journal keeps.
-    pub fn undo_notes(&self) -> &[super::handlers::UndoNote] {
-        &self.undo
-    }
-
-    /// Whether the session is tainted (it served the agent a file or heard its own tools).
+    /// Whether the session is tainted: it served the agent a file or heard its own tools bring
+    /// content in. The router holds the taint that rules; this says which thing caused it.
     pub fn tainted(&self) -> bool {
-        self.live.as_ref().is_some_and(|l| l.gate.tainted())
+        self.tainted_by().is_some()
+    }
+
+    /// The first thing that tainted the session, if anything did.
+    pub fn tainted_by(&self) -> Option<&TaintSource> {
+        self.live.as_ref().and_then(|l| l.tainted_by.as_ref())
     }
 
     async fn open(
@@ -219,38 +190,21 @@ impl<X: Seams> AcpBackend<X> {
             .await
             .map_err(|_| BackendFault::Unavailable)?;
         let real_cwd = self
-            .files
+            .performer
             .real(&cwd)
             .map_err(|_| BackendFault::Unavailable)?;
-        let sandbox = self.sandbox.take().ok_or(BackendFault::Unavailable)?;
-        let state = docket_shell::Sandbox::available(&sandbox);
-        let epoch = Epoch::default();
-        let caller = GrantCaller::AcpAgent(self.program.clone());
-        let action = names::action(&self.program, "execute").ok_or(BackendFault::Unavailable)?;
-        let mut terminals = Terminals::new(
-            sandbox,
-            AsTerminal::new(self.ask.clone(), epoch.clone()),
-            caller,
-            action,
-            cwd.clone(),
-        );
-        terminals.load_grants(self.grants.clone());
-        let mut gate = Gatekeeper::new(self.program.clone(), cwd.clone(), state, self.ask.clone());
-        gate.set_grants(self.grants.clone());
-        if taint == Taint::Tainted {
-            gate.taint();
-        }
+        self.performer
+            .open_scope(&session, cwd.clone(), real_cwd.clone());
         self.live = Some(Live {
             wire,
             child,
             agent: None,
             cwd: cwd.clone(),
             real_cwd,
-            gate,
-            terminals,
+            session: session.clone(),
+            tainted_by: (taint == Taint::Tainted).then_some(TaintSource::Resumed),
             reported: Reported::default(),
             ids: Ids::default(),
-            epoch,
         });
         self.session = Some(session);
         self.handshake(&cwd).await
@@ -259,7 +213,7 @@ impl<X: Seams> AcpBackend<X> {
     async fn handshake(&mut self, cwd: &AbsPath) -> Result<(), BackendFault> {
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         let id = live.ids.next();
-        let caps = rpc::capabilities(live.terminals.capabilities(ClientCapabilities::new()));
+        let caps = rpc::capabilities(self.performer.capabilities(ClientCapabilities::new()));
         self.send(rpc::initialize(&id, caps)).await?;
         let reply = self.await_reply(&id).await?;
         let init: InitializeResponse =
@@ -385,7 +339,7 @@ impl<X: Seams> SessionBackend for AcpBackend<X> {
         }
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         let agent = live.agent.clone().ok_or(BackendFault::NotRunning)?;
-        live.gate.new_turn();
+        self.strikes.new_turn();
         let id = live.ids.next();
         self.send(rpc::prompt(&id, &agent, &turn.text)).await?;
         self.prompt = Some(id);
@@ -408,6 +362,7 @@ impl<X: Seams> SessionBackend for AcpBackend<X> {
         self.staged = None;
         self.waiters.clear();
         if let Some(mut live) = self.live.take() {
+            self.performer.close_scope(&live.session);
             live.child.kill();
             live.child.close().await;
         }

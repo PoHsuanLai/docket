@@ -1,18 +1,18 @@
 //! What an agent tells us it is doing, as opposed to what it asks us to do. A `tool_call` it
-//! reports is a record, `acp.<program>.reported.<kind>`, and it is never dispatched, never
-//! trusted, and never a reason to let anything through: the agent may claim it ran anything. Its
-//! message text is its words (untrusted); its thoughts are `Thought` events and nothing reads
-//! them as instructions or as the person's.
+//! reports is a display record, `acpagent.reported.<kind>`, and it is never performed, never
+//! trusted, and never a reason to let anything through: the agent may claim it ran anything. A
+//! kind that brings content in (a read, a fetch, a command) is told to the router so the session
+//! is tainted by it. Its message text is its words (untrusted); its thoughts are `Thought`
+//! events and nothing reads them as instructions or as the person's.
 
-use super::gate::Audit;
 use super::names;
-use agent_client_protocol_schema::v1::{
-    ContentBlock, ContentChunk, SessionUpdate, ToolCallStatus, ToolKind,
-};
+use super::taint::brings_content;
+use agent_client_protocol_schema::v1::{ContentBlock, ContentChunk, SessionUpdate, ToolCallStatus};
+use docket_core::PermissionKind;
 use docket_core::{
     AppRefusal, CallId, CallRefusal, FailText, Reveal, StepEnd, StepLine, StepShown,
 };
-use docket_session::{BackendEvent, CallEvent, CallOpen, ProgramName, UsageNote};
+use docket_session::{BackendEvent, CallEvent, CallOpen, UsageNote};
 use porter_core::{Count, MicroUsd};
 use prov::Effect;
 use std::collections::BTreeMap;
@@ -22,10 +22,8 @@ use std::collections::BTreeMap;
 pub struct Heard {
     /// Events to hand on, in order.
     pub events: Vec<BackendEvent>,
-    /// The agent's own tool brought untrusted content into the session.
-    pub taint: bool,
-    /// Lines for the audit.
-    pub audit: Vec<Audit>,
+    /// The agent's own tool brought untrusted content into the session, and of what kind.
+    pub taint: Option<PermissionKind>,
 }
 
 #[derive(Debug, Clone)]
@@ -46,13 +44,6 @@ fn text(chunk: &ContentChunk) -> Option<String> {
         ContentBlock::Text(t) => Some(t.text.clone()),
         _ => None,
     }
-}
-
-fn brings_content(kind: ToolKind) -> bool {
-    matches!(
-        kind,
-        ToolKind::Read | ToolKind::Search | ToolKind::Fetch | ToolKind::Execute | ToolKind::Other
-    )
 }
 
 fn end_of(open: &Open, end: StepEnd) -> BackendEvent {
@@ -94,7 +85,7 @@ fn usage(update: &agent_client_protocol_schema::v1::UsageUpdate) -> UsageNote {
 
 impl Reported {
     /// Hears one `session/update`. `next` is the connection's call counter.
-    pub fn hear(&mut self, program: &ProgramName, next: &mut u64, update: SessionUpdate) -> Heard {
+    pub fn hear(&mut self, next: &mut u64, update: SessionUpdate) -> Heard {
         let mut heard = Heard::default();
         match update {
             SessionUpdate::AgentMessageChunk(chunk) => heard
@@ -106,7 +97,7 @@ impl Reported {
             SessionUpdate::UsageUpdate(u) => heard.events.push(BackendEvent::Usage(usage(&u))),
             SessionUpdate::ToolCall(call) => {
                 let key = call.tool_call_id.0.to_string();
-                let Some(action) = names::action(program, &names::reported_tail(call.kind)) else {
+                let Some(action) = names::reported_action(call.kind) else {
                     return heard;
                 };
                 *next += 1;
@@ -115,10 +106,8 @@ impl Reported {
                     action,
                     effect: names::effect(call.kind),
                 };
-                heard.taint = brings_content(call.kind);
-                heard.audit.push(Audit::Reported {
-                    action: open.action.name.as_str().to_owned(),
-                });
+                let kind = names::permission(call.kind);
+                heard.taint = brings_content(kind).then_some(kind);
                 heard
                     .events
                     .push(BackendEvent::Call(CallEvent::Started(CallOpen {

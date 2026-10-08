@@ -14,7 +14,7 @@ default = ["server"]
 server = ["dep:tokio"]
 # An external agent as a session backend (S4): `client::AcpBackend` over a `Spawn` seam. Off by
 # default; the process that starts agents is `docket-launch`, and `agent.acp.agents` gates it.
-client = ["dep:tokio"]
+client = ["dep:tokio", "dep:docket-client"]
 
 [lib]
 name = "docket_acp"
@@ -23,6 +23,7 @@ path = "src/lib.rs"
 [dependencies]
 agent-client-protocol-schema = { workspace = true }
 companion-wire = { workspace = true }
+docket-client = { workspace = true, optional = true }
 docket-core = { workspace = true }
 docket-session = { workspace = true }
 docket-shell = { workspace = true }
@@ -36,6 +37,12 @@ thiserror = { workspace = true }
 tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
+action-review = { workspace = true }
+docket-client = { workspace = true, features = ["in_process"] }
+docket-fake = { workspace = true }
+docket-inapp = { workspace = true }
+docket-router = { workspace = true }
+policy-point = { workspace = true }
 jsonschema = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }

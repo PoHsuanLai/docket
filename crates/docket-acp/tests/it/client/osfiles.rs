@@ -1,14 +1,6 @@
-//! The real file system under a scratch directory: links that lead out of the session's
-//! directory are refused, by the path check and again at the open.
-
-use super::agent::{Act, agent, call};
-use super::rig::{Real, abs, opening, program, read, session, write};
-use crate::support::Fixed;
-use docket_acp::Answer;
-use docket_acp::client::fake::{FakeAsk, FakeSpawn};
-use docket_acp::client::{AcpBackend, FileFault, Files, OsFiles, Parts};
-use docket_session::{SessionBackend, StartSession};
-use docket_shell::fake::FakeSandbox;
+use super::agent::{Act, call};
+use super::rig::{Real, Setup, abs, once, read, run_turn, started_over, write};
+use docket_acp::client::{FileFault, Files, OsFiles};
 use std::os::unix::fs::symlink;
 
 #[tokio::test]
@@ -24,52 +16,43 @@ async fn a_link_inside_the_directory_cannot_lead_a_read_or_a_write_out() {
     symlink(&outside, app.join("dirlink")).expect("dir link");
     let at = |rel: &str| app.join(rel).to_str().expect("utf8").to_owned();
 
-    let (wire, view) = agent(vec![vec![
-        call("real", "fs/read_text_file", read(&at("real.txt"))),
-        call("leak", "fs/read_text_file", read(&at("leak"))),
-        call(
-            "via_dir",
-            "fs/read_text_file",
-            read(&at("dirlink/secret.txt")),
-        ),
-        call(
-            "put_dir",
-            "fs/write_text_file",
-            write(&at("dirlink/new.txt"), "evil"),
-        ),
-        call(
-            "put_in",
-            "fs/write_text_file",
-            write(&at("made.txt"), "one"),
-        ),
-        call(
-            "put_again",
-            "fs/write_text_file",
-            write(&at("made.txt"), "two"),
-        ),
-        Act::Stop("end_turn"),
-    ]]);
-    let (spawn, _seen) = FakeSpawn::new(vec![wire]);
-    let (sandbox, _) = FakeSandbox::ready(Vec::new());
-    let mut backend: AcpBackend<Real> = AcpBackend::new(Parts {
-        program: program(),
-        session: session(),
-        spawn,
-        files: OsFiles,
-        ask: FakeAsk::new(vec![Answer::Once, Answer::Once]),
-        sandbox,
-        ticks: Fixed,
-        grants: Vec::new(),
-    });
-    backend
-        .start(StartSession {
-            session: session(),
-            opening: opening(app.to_str().expect("utf8")),
-        })
-        .await
-        .expect("start");
-    backend.turn(super::rig::turn(1, "go")).await.expect("turn");
-    while backend.next_event().await.is_some() {}
+    let mut rig = started_over::<Real>(
+        OsFiles,
+        app.to_str().expect("utf8"),
+        Setup {
+            turns: vec![vec![
+                call("real", "fs/read_text_file", read(&at("real.txt"))),
+                call("leak", "fs/read_text_file", read(&at("leak"))),
+                call(
+                    "via_dir",
+                    "fs/read_text_file",
+                    read(&at("dirlink/secret.txt")),
+                ),
+                call(
+                    "put_dir",
+                    "fs/write_text_file",
+                    write(&at("dirlink/new.txt"), "evil"),
+                ),
+                call(
+                    "put_in",
+                    "fs/write_text_file",
+                    write(&at("made.txt"), "one"),
+                ),
+                call(
+                    "put_again",
+                    "fs/write_text_file",
+                    write(&at("made.txt"), "two"),
+                ),
+                Act::Stop("end_turn"),
+            ]],
+            // The file served taints the session, so each write asks.
+            answers: vec![once(), once()],
+            ..Setup::default()
+        },
+    )
+    .await;
+    run_turn(&mut rig, "go").await;
+    let view = &rig.agent;
 
     assert_eq!(view.reply("real").expect("read")["content"], "fine");
     assert!(view.reply("leak").is_err(), "a link to a file outside");
@@ -92,7 +75,7 @@ async fn a_link_inside_the_directory_cannot_lead_a_read_or_a_write_out() {
         "two"
     );
     // The undo notes kept what each write replaced.
-    let undo = backend.undo_notes();
+    let undo = rig.performer.undo_notes();
     assert_eq!(undo.len(), 2);
     assert_eq!(undo[0].before, None);
     assert_eq!(undo[1].before.as_deref(), Some("one"));

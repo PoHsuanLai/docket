@@ -18,6 +18,9 @@ pub const ACP_AGENT_APP: &str = "org.quire.AcpAgent";
 pub const FILES_READ: &str = "acpagent.files.read";
 /// `fs/write_text_file`.
 pub const FILES_WRITE: &str = "acpagent.files.write";
+/// `fs/write_text_file` to a place that later runs code outside the sandbox (`.git`, an editor or
+/// agent configuration, a shell rc file): it asks every time and never offers "always".
+pub const FILES_SENSITIVE: &str = "acpagent.files.sensitive";
 /// `terminal/create`.
 pub const TERMINAL_RUN: &str = "acpagent.terminal.run";
 /// A tool call the agent only reports having made itself.

@@ -7,6 +7,11 @@
 //! and is trusted only while it plays the `editor` role. If it is gone, the sheet ends as expired:
 //! it is not moved to the desktop, where the person would be asked about a call whose editor has
 //! left, with nothing waiting to receive the answer.
+//!
+//! The same route serves the host of an external coding agent that asked, when it opened the
+//! session, to show that session's sheets itself (`docket-agent --tty`, a development fallback):
+//! its process is trusted there while it plays the `acp_agent` role. Without that ask the router
+//! names no route, and the agent's sheets are the desktop's like any other.
 
 use crate::acp_gate::AcpGate;
 use crate::config::IntentdConfig;
@@ -50,11 +55,11 @@ impl Surface {
         }
     }
 
-    /// The role the owner of the service must play to be trusted with a question.
-    fn role(&self) -> CallerRole {
+    /// The roles of which the owner of the service must play one to be trusted with a question.
+    fn roles(&self) -> &'static [CallerRole] {
         match self {
-            Surface::Desktop => CallerRole::Confirm,
-            Surface::Editor(_) => CallerRole::Editor,
+            Surface::Desktop => &[CallerRole::Confirm],
+            Surface::Editor(_) => &[CallerRole::Editor, CallerRole::AcpAgent],
         }
     }
 
@@ -126,7 +131,7 @@ impl SheetConfirmer {
         self.peers
             .owner_of(surface.service())
             .await
-            .is_ok_and(|owner| owner.roles.contains(&surface.role()))
+            .is_ok_and(|owner| surface.roles().iter().any(|r| owner.roles.contains(r)))
     }
 
     async fn proxy(&self, surface: &Surface) -> Option<ConfirmProxy<'static>> {

@@ -15,6 +15,10 @@ companion = ["org.quire.Companion1", "org.quire.Acp"]
 # docket-acp (an editor drives the companion over ACP; off unless agent.acp.expose = "on") opens
 # sessions and records the editor's turns as an editor, and its planner calls as the companion.
 editor = ["org.quire.Acp"]
+# docket-agent (the host of an external coding agent; off unless agent.acp.agents = "on") opens the
+# agent's session, records the person's prompts and makes the agent's file, command and permission
+# calls, each ruled like any agent's.
+acp_agent = ["org.quire.AcpAgent"]
 reader = ["org.quire.Reader1"]
 cua = ["org.quire.Cua1"]
 mcp = ["org.quire.ActionsMcp"]

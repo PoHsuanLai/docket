@@ -116,6 +116,35 @@ pub fn fake_router_on<R: Reviewer, W: PolicyWriter, K: Clock, L: SessionLog>(
     clock: K,
     log: L,
 ) -> Result<Router<FakeSeams<R, W, K, L>>, FakeError> {
+    fake_router_over(
+        config,
+        ScriptedConfirmer::default(),
+        reviewer,
+        writer,
+        clock,
+        log,
+    )
+}
+
+/// The router [`fake_router_over`] builds.
+pub type Overed<R, W, K, L, C> = Router<FakeSeams<R, W, K, L, C>>;
+
+/// [`fake_router_on`] with this confirmer in place of the scripted one: a test whose sheets are
+/// answered by something else (a desk the host of an external agent shows).
+pub fn fake_router_over<
+    R: Reviewer,
+    W: PolicyWriter,
+    K: Clock,
+    L: SessionLog,
+    C: docket_core::Confirmer,
+>(
+    config: AgentConfig,
+    confirmer: C,
+    reviewer: R,
+    writer: W,
+    clock: K,
+    log: L,
+) -> Result<Overed<R, W, K, L, C>, FakeError> {
     let space = SpaceId::parse("work").map_err(|_| FakeError::Space)?;
     let mail = mail_manifest().map_err(FakeError::Manifest)?;
     let files = files_manifest().map_err(FakeError::Manifest)?;
@@ -126,7 +155,7 @@ pub fn fake_router_on<R: Reviewer, W: PolicyWriter, K: Clock, L: SessionLog>(
             FakeFiles::new(files, space),
             FakeMenu::new(menu),
         ),
-        confirmer: ScriptedConfirmer::default(),
+        confirmer,
         reviewer,
         grants: MemoryGrants::new(),
         sink: RecordingSink::new(),

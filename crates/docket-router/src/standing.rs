@@ -105,12 +105,14 @@ impl StandingCtx {
             _ => {}
         }
         // A permission request the person already said yes to covers the very thing it named,
-        // once, unless the breaker or a budget says no (a yes is not a way round either).
+        // once, unless the breaker or a budget says no (a yes is not a way round either). It is
+        // the person's own answer to this call, so the call runs as it would on the sheet's yes,
+        // which no reviewer follows; a grant, which is only standing, is reviewed.
         let open = self.breaker == BreakerState::Running && self.budget == BudgetState::Within;
         match approvals.iter().find(|a| covers_approval(a, &self.facts)) {
             Some(approval) if open => {
                 self.approved = Some(approval.clone());
-                (Pending::NeedsReview(stages), self)
+                (Pending::Run, self)
             }
             _ => (pending, self),
         }

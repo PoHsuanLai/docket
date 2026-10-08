@@ -259,6 +259,7 @@ pub async fn start(
     let router = Arc::new(router);
     port.attach(&router);
     acp.set(watched.current().value.acp);
+    acp.set_agents(watched.current().value.agents);
     serve_on_gated(
         session,
         router.clone(),
@@ -273,6 +274,7 @@ pub async fn start(
     tasks.push(tokio::spawn(async move {
         while let Some(loaded) = apply_next(&followed, &mut watched).await {
             acp.set(loaded.value.acp);
+            acp.set_agents(loaded.value.agents);
         }
     }));
     tasks.push(tokio::spawn(pump(

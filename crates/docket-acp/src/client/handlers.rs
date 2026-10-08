@@ -1,90 +1,92 @@
-//! The handlers: what a staged request does once it runs. Each returns the reply for the agent
-//! and how the call ends in our record; the loop (`serve`) sends the one and reports the other.
+//! The handlers: what a staged request does once it runs. Each forms the call the agent asked
+//! for (confining its paths first: a path outside the session's directory never becomes a call),
+//! has the router rule on it, and answers the agent as the router ruled. The reply is returned
+//! with how the call ends in our record; the loop (`serve`) sends the one and reports the other.
+//!
+//! The router's refusal is carried as it came: the agent is told only that the call was not
+//! allowed, and the record keeps the router's reason.
 
 use super::backend::{AcpBackend, Seams, Staged};
-use super::confine::{confine, named};
-use super::files::{FileFault, Files};
-use super::gate::{Audit, Basis, Ruling, Why};
+use super::confine::{Confined, confine, named};
+use super::court::{AgentCall, Command, Court, Ruled};
 use super::intake::Work;
-use super::tool_req::tool_req;
+use super::taint::TaintSource;
+use super::tool_req::{Asked, tool_req};
 use crate::fault;
-use crate::server::Ticks;
 use agent_client_protocol_schema::v1::{
-    Error, PermissionOptionKind, ReadTextFileRequest, ReadTextFileResponse,
-    RequestPermissionOutcome, RequestPermissionRequest, RequestPermissionResponse,
-    SelectedPermissionOutcome, WriteTextFileRequest, WriteTextFileResponse,
+    CreateTerminalRequest, CreateTerminalResponse, Error, PermissionOptionId, PermissionOptionKind,
+    ReadTextFileRequest, ReadTextFileResponse, RequestPermissionOutcome, RequestPermissionRequest,
+    RequestPermissionResponse, SelectedPermissionOutcome, TerminalId, WriteTextFileRequest,
+    WriteTextFileResponse,
 };
-use docket_core::{AbsPath, AppRefusal, CallRefusal, ConfirmEnd, DenyCode, FailText, StepEnd};
+use docket_core::{
+    AbsPath, AppRefusal, BreakerTrip, CallRefusal, DenyCode, FailText, Outcome, SandboxState,
+    StepEnd, Undoable, Value,
+};
+use docket_shell::Argv;
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::Value as Json;
 
-/// A write made for the agent: the old text, kept for the undo journal.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UndoNote {
-    /// The file.
-    pub path: AbsPath,
-    /// What was there; `None` if the write created it.
-    pub before: Option<String>,
-}
-
-/// The most undo notes kept in memory per connection.
-const UNDO_KEEP: usize = 256;
-
-pub(super) fn ok(value: &impl Serialize) -> Result<Value, Error> {
+pub(super) fn ok(value: &impl Serialize) -> Result<Json, Error> {
     serde_json::to_value(value).map_err(|_| fault::internal("could not answer"))
-}
-
-/// What a refused call is called in the record, and what the agent is told (nothing specific).
-fn refused_end(why: Why, trip: Option<docket_core::BreakerTrip>) -> StepEnd {
-    match why {
-        Why::Declined => StepEnd::Unconfirmed(ConfirmEnd::Refused),
-        Why::Breaker => match trip {
-            Some(trip) => StepEnd::Refused(CallRefusal::Paused(trip)),
-            None => StepEnd::Refused(CallRefusal::Denied(DenyCode::NotAllowed)),
-        },
-        Why::Forbidden | Why::Reviewer => {
-            StepEnd::Refused(CallRefusal::Denied(DenyCode::NotAllowed))
-        }
-    }
-}
-
-fn file_end(fault: FileFault) -> StepEnd {
-    StepEnd::Refused(CallRefusal::App(AppRefusal::Failed(FailText(format!(
-        "the file call failed: {fault}"
-    )))))
-}
-
-fn done() -> StepEnd {
-    StepEnd::Done {
-        said: None,
-        value: None,
-        undo: None,
-    }
 }
 
 /// What running a staged request produced.
 pub(super) struct Ran {
-    pub reply: Result<Value, Error>,
+    pub reply: Result<Json, Error>,
     pub end: StepEnd,
+    /// The router paused the session: the turn ends after the agent is told to stop.
+    pub paused: Option<BreakerTrip>,
 }
 
-fn lines_of(content: &str, from: Option<u32>, limit: Option<u32>) -> String {
-    let skip = from.map_or(0, |n| n.saturating_sub(1)) as usize;
-    let take = limit.map_or(usize::MAX, |n| n as usize);
-    if skip == 0 && take == usize::MAX {
-        return content.to_owned();
+fn not_allowed() -> StepEnd {
+    StepEnd::Refused(CallRefusal::Denied(DenyCode::NotAllowed))
+}
+
+/// How a call the router refused ends in our record.
+fn refused_end(why: CallRefusal) -> StepEnd {
+    match why {
+        CallRefusal::Unconfirmed(end) => StepEnd::Unconfirmed(end),
+        other => StepEnd::Refused(other),
     }
-    content
-        .split_inclusive('\n')
-        .skip(skip)
-        .take(take)
-        .collect()
+}
+
+fn lost_end() -> StepEnd {
+    StepEnd::Refused(CallRefusal::App(AppRefusal::Failed(FailText(
+        "the router could not be asked".to_owned(),
+    ))))
+}
+
+fn done_end(outcome: &Outcome) -> StepEnd {
+    StepEnd::Done {
+        said: outcome.said.clone(),
+        value: None,
+        undo: match &outcome.undo {
+            Undoable::Journaled(row) => Some(*row),
+            Undoable::No | Undoable::Yes(_) => None,
+        },
+    }
+}
+
+fn paused_by(end: &StepEnd) -> Option<BreakerTrip> {
+    match end {
+        StepEnd::Refused(CallRefusal::Paused(trip)) => Some(*trip),
+        _ => None,
+    }
+}
+
+/// The text a call's value carries.
+fn text_of(outcome: &Outcome) -> Option<&str> {
+    match outcome.value.as_ref().map(|v| &v.value) {
+        Some(Value::Text(t)) => Some(t),
+        _ => None,
+    }
 }
 
 impl<X: Seams> AcpBackend<X> {
     pub(super) async fn run(&mut self, staged: &Staged) -> Ran {
         match &staged.work {
-            Work::Read(request) => self.read(request),
+            Work::Read(request) => self.read(staged.n, request).await,
             Work::Write(request) => self.write(staged.n, request).await,
             Work::Permission(request) => self.permission(staged.n, request).await,
             Work::Create { params, request } => {
@@ -92,137 +94,162 @@ impl<X: Seams> AcpBackend<X> {
             }
             _ => Ran {
                 reply: Err(Error::method_not_found()),
-                end: done(),
+                end: StepEnd::Done {
+                    said: None,
+                    value: None,
+                    undo: None,
+                },
+                paused: None,
             },
         }
     }
 
+    /// A request that never became a call: refused here, the router not asked. Enough of them in
+    /// a row pause the turn.
     fn denied(&mut self, error: Error) -> Ran {
-        if let Some(live) = self.live.as_mut() {
-            live.gate.breaker().denied();
-        }
+        self.strikes.refused();
         Ran {
             reply: Err(error),
-            end: StepEnd::Refused(CallRefusal::Denied(DenyCode::NotAllowed)),
+            end: not_allowed(),
+            paused: self.strikes.trip(),
         }
     }
 
-    fn read(&mut self, request: &ReadTextFileRequest) -> Ran {
-        let Some(live) = self.live.as_mut() else {
-            return self.denied(fault::unknown_session());
+    fn for_agent(&self, session: &agent_client_protocol_schema::v1::SessionId) -> bool {
+        self.live.as_ref().and_then(|l| l.agent.as_ref()) == Some(session)
+    }
+
+    /// The path the agent named, confined to the session's directory, links and secrets included.
+    fn confined(&self, text: Option<&str>) -> Option<Confined> {
+        let live = self.live.as_ref()?;
+        let path = named(&live.cwd, text?).ok()?;
+        let real = self.performer.real(&path).ok()?;
+        confine(&live.real_cwd, path, real).ok()
+    }
+
+    /// Makes `call` and returns how the router ruled.
+    pub(super) async fn ask(&mut self, n: u64, call: &AgentCall) -> Ruled {
+        let Some(session) = self.live.as_ref().map(|l| l.session.clone()) else {
+            return Ruled::Lost;
         };
-        if live.agent.as_ref() != Some(&request.session_id) {
+        let ruled = self.court.call(&session, n, call).await;
+        if matches!(ruled, Ruled::Done(_)) {
+            self.strikes.let_through();
+        }
+        ruled
+    }
+
+    async fn read(&mut self, n: u64, request: &ReadTextFileRequest) -> Ran {
+        if !self.for_agent(&request.session_id) {
             return self.denied(fault::unknown_session());
         }
-        if live.gate.breaker().trip().is_some() {
-            return self.denied(fault::not_now("paused"));
-        }
-        let confined = request
-            .path
-            .to_str()
-            .and_then(|t| named(&live.cwd, t).ok())
-            .and_then(|path| {
-                let real = self.files.real(&path).ok()?;
-                confine(&live.real_cwd, path, real).ok()
-            });
-        let Some(confined) = confined else {
+        let Some(file) = self.confined(request.path.to_str()) else {
             return self.denied(fault::invalid("not a path this session may read"));
         };
-        match self.files.read(&confined.real, &live.real_cwd) {
-            Ok(content) => {
-                // What the file held is untrusted text now in the agent's hands: the session is
-                // tainted, and the record says a read happened, not what it read.
-                live.gate.taint();
-                live.gate.note(Audit::Allowed {
-                    action: "read".to_owned(),
-                    basis: Basis::Unasked,
-                });
-                let text = lines_of(&content, request.line, request.limit);
-                Ran {
-                    reply: ok(&ReadTextFileResponse::new(text)),
-                    end: done(),
+        let Some(session) = self.live.as_ref().map(|l| l.session.clone()) else {
+            return self.denied(fault::unknown_session());
+        };
+        let stage = self
+            .performer
+            .stage_read(&session, file.clone(), request.line, request.limit);
+        let ruled = self
+            .ask(
+                n,
+                &AgentCall::Read {
+                    path: file.path.clone(),
+                    stage: stage.clone(),
+                },
+            )
+            .await;
+        match ruled {
+            Ruled::Done(outcome) => match text_of(&outcome) {
+                Some(text) => {
+                    // What the file held is untrusted text now in the agent's hands: the router
+                    // took the session's taint from the label; this notes which read it was.
+                    if let Some(live) = self.live.as_mut() {
+                        live.tainted_by
+                            .get_or_insert(TaintSource::Served(file.path.clone()));
+                    }
+                    Ran {
+                        reply: ok(&ReadTextFileResponse::new(text)),
+                        end: done_end(&outcome),
+                        paused: None,
+                    }
                 }
-            }
-            Err(why) => Ran {
-                reply: Err(fault::invalid("the file could not be read")),
-                end: file_end(why),
+                None => Ran {
+                    reply: Err(fault::invalid("the file could not be read")),
+                    end: lost_end(),
+                    paused: None,
+                },
             },
+            other => self.refused(&stage, other, "the read was not allowed"),
+        }
+    }
+
+    /// A call the router did not let through: the staged request is dropped and the agent told
+    /// only that it was not allowed.
+    fn refused(&self, stage: &super::court::StageId, ruled: Ruled, why: &str) -> Ran {
+        self.performer.drop_stage(stage);
+        let end = match ruled {
+            Ruled::Refused(refusal) => refused_end(refusal),
+            Ruled::Done(_) | Ruled::Lost => lost_end(),
+        };
+        Ran {
+            reply: Err(fault::not_now(why)),
+            paused: paused_by(&end),
+            end,
         }
     }
 
     async fn write(&mut self, n: u64, request: &WriteTextFileRequest) -> Ran {
-        let now = self.ticks.now();
-        let Some(live) = self.live.as_mut() else {
-            return self.denied(fault::unknown_session());
-        };
-        if live.agent.as_ref() != Some(&request.session_id) {
+        if !self.for_agent(&request.session_id) {
             return self.denied(fault::unknown_session());
         }
-        let confined = request
-            .path
-            .to_str()
-            .and_then(|t| named(&live.cwd, t).ok())
-            .and_then(|path| {
-                let real = self.files.real(&path).ok()?;
-                confine(&live.real_cwd, path, real).ok()
-            });
-        let Some(confined) = confined else {
+        let Some(file) = self.confined(request.path.to_str()) else {
             return self.denied(fault::invalid("not a path this session may write"));
         };
-        let ruling = live.gate.write(now, n, &confined).await;
-        let Ruling::Allow(_) = ruling else {
-            let Ruling::Refuse(why) = ruling else {
-                unreachable!()
-            };
-            let trip = live.gate.breaker().trip();
-            return Ran {
-                reply: Err(fault::not_now("the write was not allowed")),
-                end: refused_end(why, trip),
-            };
+        let Some(session) = self.live.as_ref().map(|l| l.session.clone()) else {
+            return self.denied(fault::unknown_session());
         };
-        match self
-            .files
-            .write(&confined.real, &live.real_cwd, &request.content)
-        {
-            Ok(before) => {
-                self.undo.push(UndoNote {
-                    path: confined.real,
-                    before,
-                });
-                if self.undo.len() > UNDO_KEEP {
-                    self.undo.remove(0);
-                }
-                Ran {
-                    reply: ok(&WriteTextFileResponse::new()),
-                    end: done(),
-                }
-            }
-            Err(why) => Ran {
-                reply: Err(fault::invalid("the file could not be written")),
-                end: file_end(why),
+        let lines = u32::try_from(request.content.lines().count()).unwrap_or(u32::MAX);
+        let (path, care) = (file.path.clone(), file.care);
+        let stage = self
+            .performer
+            .stage_write(&session, file, request.content.clone());
+        let ruled = self
+            .ask(
+                n,
+                &AgentCall::Write {
+                    path,
+                    care,
+                    lines,
+                    stage: stage.clone(),
+                },
+            )
+            .await;
+        match ruled {
+            Ruled::Done(outcome) => Ran {
+                reply: ok(&WriteTextFileResponse::new()),
+                end: done_end(&outcome),
+                paused: None,
             },
+            other => self.refused(&stage, other, "the write was not allowed"),
         }
     }
 
     async fn permission(&mut self, n: u64, request: &RequestPermissionRequest) -> Ran {
-        let now = self.ticks.now();
-        let program = self.program.clone();
-        let Some(live) = self.live.as_mut() else {
-            return self.denied(fault::unknown_session());
-        };
-        if live.agent.as_ref() != Some(&request.session_id) {
+        if !self.for_agent(&request.session_id) {
             return self.denied(fault::unknown_session());
         }
-        let Some(tool) = tool_req(
-            &program,
+        let Some(live) = self.live.as_ref() else {
+            return self.denied(fault::unknown_session());
+        };
+        let asked = tool_req(
             &live.cwd,
             &live.real_cwd,
-            &self.files,
+            &|path| self.performer.real(path).ok(),
             &request.tool_call,
-        ) else {
-            return self.denied(fault::invalid("not a tool call"));
-        };
-        let ruling = live.gate.tool(now, n, &tool).await;
+        );
         let pick = |kind: PermissionOptionKind| {
             request
                 .options
@@ -230,64 +257,95 @@ impl<X: Seams> AcpBackend<X> {
                 .find(|o| o.kind == kind)
                 .map(|o| o.option_id.clone())
         };
-        // Our answer is always the "once" option: an "always" the agent offered is never chosen,
-        // so its own memory of one never exists; ours is the standing grant in our store. With no
-        // matching "once" option the answer is cancelled.
-        let outcome = match &ruling {
-            Ruling::Allow(_) => pick(PermissionOptionKind::AllowOnce),
-            Ruling::Refuse(_) => pick(PermissionOptionKind::RejectOnce),
-        }
-        .map_or(RequestPermissionOutcome::Cancelled, |option| {
-            RequestPermissionOutcome::Selected(SelectedPermissionOutcome::new(option))
-        });
+        let answer = |option: Option<PermissionOptionId>| {
+            let outcome = option.map_or(RequestPermissionOutcome::Cancelled, |option| {
+                RequestPermissionOutcome::Selected(SelectedPermissionOutcome::new(option))
+            });
+            ok(&RequestPermissionResponse::new(outcome))
+        };
+        let (reply, end) = match asked {
+            Asked::Forbidden => {
+                self.strikes.refused();
+                (
+                    answer(pick(PermissionOptionKind::RejectOnce)),
+                    not_allowed(),
+                )
+            }
+            Asked::Ask(ask) => match self.ask(n, &AgentCall::Permission(ask)).await {
+                // Our answer is always the "once" option: an "always" the agent offered is never
+                // chosen, so its own memory of one never exists; ours is the standing grant in
+                // our store. With no matching "once" option the answer is cancelled.
+                Ruled::Done(outcome) => (
+                    answer(pick(PermissionOptionKind::AllowOnce)),
+                    done_end(&outcome),
+                ),
+                Ruled::Refused(why) => (
+                    answer(pick(PermissionOptionKind::RejectOnce)),
+                    refused_end(why),
+                ),
+                Ruled::Lost => (answer(pick(PermissionOptionKind::RejectOnce)), lost_end()),
+            },
+        };
         Ran {
-            reply: ok(&RequestPermissionResponse::new(outcome)),
-            end: done(),
+            reply,
+            paused: paused_by(&end).or(self.strikes.trip()),
+            end,
         }
     }
 
-    async fn create(
-        &mut self,
-        n: u64,
-        params: Value,
-        request: &agent_client_protocol_schema::v1::CreateTerminalRequest,
-    ) -> Ran {
-        let now = self.ticks.now();
-        let Some(live) = self.live.as_mut() else {
-            return self.denied(fault::unknown_session());
-        };
-        if live.agent.as_ref() != Some(&request.session_id) {
+    async fn create(&mut self, n: u64, params: Json, request: &CreateTerminalRequest) -> Ran {
+        if !self.for_agent(&request.session_id) {
             return self.denied(fault::unknown_session());
         }
-        if live.gate.breaker().trip().is_some() {
-            return self.denied(fault::not_now("paused"));
-        }
-        let line = docket_shell::Argv::new(&request.command, &request.args).map(|a| a.line());
-        if let Some(line) = &line
-            && live.gate.spend_command(line)
-        {
-            live.terminals.approve_once(line);
-        }
-        live.epoch.set(n);
-        live.terminals.set_posture(live.gate.posture());
-        live.terminals.load_grants(live.gate.grants().to_vec());
-        let method = agent_client_protocol_schema::v1::CLIENT_METHOD_NAMES.terminal_create;
-        let answer = live
-            .terminals
-            .handle(now, method, params)
-            .await
-            .unwrap_or_else(|| Err(Error::method_not_found()));
-        live.gate.set_grants(live.terminals.grants().to_vec());
-        let end = match &answer {
-            Ok(_) => {
-                live.gate.breaker().allowed();
-                done()
-            }
-            Err(_) => {
-                live.gate.breaker().denied();
-                StepEnd::Refused(CallRefusal::Denied(DenyCode::NotAllowed))
-            }
+        let Some(live) = self.live.as_ref() else {
+            return self.denied(fault::unknown_session());
         };
-        Ran { reply: answer, end }
+        let (scope, session) = (live.cwd.clone(), live.session.clone());
+        let Some(argv) = Argv::new(&request.command, &request.args) else {
+            return self.denied(fault::invalid("the command is empty or holds a NUL"));
+        };
+        let cwd = match &request.cwd {
+            Some(path) => AbsPath::parse(&path.to_string_lossy()).ok(),
+            None => Some(scope.clone()),
+        };
+        let Some(cwd) = cwd.filter(|c| scope.covers(c) == docket_core::Cover::Covers) else {
+            return self.denied(fault::invalid(
+                "the working directory is outside the session",
+            ));
+        };
+        // We never run unsandboxed: a command that cannot be confined is refused before anyone
+        // is asked, with the reason; there is nothing for an approval to unlock.
+        if let SandboxState::Cannot(why) = self.performer.check(&cwd) {
+            return self.denied(fault::not_now(&format!("cannot sandbox: {why}")));
+        }
+        let line = argv.line();
+        let stage = self
+            .performer
+            .stage_run(&session, line.clone(), cwd.clone(), params);
+        let command = Command { line, cwd };
+        let ruled = self
+            .ask(
+                n,
+                &AgentCall::Run {
+                    command,
+                    stage: stage.clone(),
+                },
+            )
+            .await;
+        match ruled {
+            Ruled::Done(outcome) => match text_of(&outcome) {
+                Some(id) => Ran {
+                    reply: ok(&CreateTerminalResponse::new(TerminalId::new(id.to_owned()))),
+                    end: done_end(&outcome),
+                    paused: None,
+                },
+                None => Ran {
+                    reply: Err(fault::internal("the terminal has no name")),
+                    end: lost_end(),
+                    paused: None,
+                },
+            },
+            other => self.refused(&stage, other, "the command was not allowed"),
+        }
     }
 }

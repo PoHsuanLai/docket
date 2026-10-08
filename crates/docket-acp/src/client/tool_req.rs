@@ -1,18 +1,25 @@
 //! A permission request, read. The agent's `toolCall` says a kind, a title, the paths it touches
-//! and its raw input; none of it is trusted. This reduces it to what the gate can compare: the
-//! effect from the kind, the paths (each confined as `fs/*` paths are), a command line for an
-//! execute, a host for a fetch. A path outside the session's directory or one that holds secrets
-//! makes the whole request `forbidden`: it is refused without asking.
+//! and its raw input; none of it is trusted. This reduces it to what the router can rule on: the
+//! kind, the paths (each confined as `fs/*` paths are), a command line for an execute, an address
+//! for a fetch. A path outside the session's directory or one that holds secrets makes the whole
+//! request `Forbidden`: it is refused without asking, before any call is formed. The agent's
+//! title is dropped: it is prose, and the sheet does not draw an agent's prose.
 
-use super::ask::Shown;
-use super::confine::{confine, named};
-use super::files::Files;
-use super::gate::ToolReq;
+use super::confine::{Care, confine, named};
+use super::court::{Command, PermissionAsk};
 use super::names;
 use agent_client_protocol_schema::v1::{ToolCallUpdate, ToolKind};
-use docket_core::{AbsPath, ArgFacts, CallFacts, Domain, Recipient};
-use docket_session::ProgramName;
+use docket_core::AbsPath;
 use serde_json::Value;
+
+/// A permission request, read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Asked {
+    /// It names a place the agent may not reach: refused, nobody asked.
+    Forbidden,
+    /// What the router rules on.
+    Ask(PermissionAsk),
+}
 
 /// The command line in a tool's raw input: a string `command`, or a list of words.
 fn command_line(raw: &Value) -> Option<String> {
@@ -26,79 +33,58 @@ fn command_line(raw: &Value) -> Option<String> {
     }
 }
 
-/// The host in a tool's raw input `url`.
-fn host(raw: &Value) -> Option<Domain> {
+/// The address in a tool's raw input `url`: an `http` or `https` URL with a host and no user
+/// information, as written.
+fn address(raw: &Value) -> Option<String> {
     let url = raw.get("url")?.as_str()?;
-    let rest = url.split_once("://")?.1;
+    let rest = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))?;
     let authority = rest.split(['/', '?', '#']).next()?;
-    let host = authority.rsplit('@').next()?;
-    let host = host.rsplit_once(':').map_or(host, |(h, port)| {
-        if port.chars().all(|c| c.is_ascii_digit()) {
-            h
-        } else {
-            host
-        }
-    });
-    Domain::parse(host).ok()
+    (!authority.is_empty() && !authority.contains('@') && url.len() <= 2048).then(|| url.to_owned())
 }
 
-/// Reads `update` for `program`, working in `scope` (whose links resolve to `real_scope`).
+/// Reads `update`, working in `scope` (whose links resolve to `real_scope`).
 pub fn tool_req(
-    program: &ProgramName,
     scope: &AbsPath,
     real_scope: &AbsPath,
-    files: &impl Files,
+    real: &dyn Fn(&AbsPath) -> Option<AbsPath>,
     update: &ToolCallUpdate,
-) -> Option<ToolReq> {
+) -> Asked {
     let fields = &update.fields;
-    let kind = fields.kind.unwrap_or(ToolKind::Other);
+    let kind = names::permission(fields.kind.unwrap_or(ToolKind::Other));
     let mut paths = Vec::new();
-    let mut forbidden = false;
+    let mut care = Care::Plain;
     for location in fields.locations.iter().flatten() {
-        let ok = location
+        let confined = location
             .path
             .to_str()
             .and_then(|text| named(scope, text).ok())
             .and_then(|path| {
-                let real = files.real(&path).ok()?;
-                confine(real_scope, path, real).ok()
+                let at = real(&path)?;
+                confine(real_scope, path, at).ok()
             });
-        match ok {
-            Some(confined) => paths.push(confined.path),
-            None => forbidden = true,
+        match confined {
+            Some(c) => {
+                if c.care == Care::Sensitive {
+                    care = Care::Sensitive;
+                }
+                paths.push(c.path);
+            }
+            None => return Asked::Forbidden,
         }
     }
     let raw = fields.raw_input.clone().unwrap_or(Value::Null);
-    let line = (kind == ToolKind::Execute)
-        .then(|| command_line(&raw))
-        .flatten();
-    let args = match kind {
-        ToolKind::Edit | ToolKind::Move | ToolKind::Delete if !paths.is_empty() => {
-            ArgFacts::Paths(paths.clone())
-        }
-        ToolKind::Edit | ToolKind::Move | ToolKind::Delete => ArgFacts::Opaque,
-        ToolKind::Execute => match &line {
-            Some(line) => ArgFacts::Command {
-                line: line.clone(),
-                cwd: scope.clone(),
-            },
-            None => ArgFacts::Opaque,
-        },
-        ToolKind::Fetch => match host(&raw) {
-            Some(domain) => ArgFacts::Recipients(vec![Recipient::Domain(domain)]),
-            None => ArgFacts::Opaque,
-        },
-        _ => ArgFacts::Unscoped,
-    };
-    let action = names::action(program, names::tail(kind))?;
-    Some(ToolReq {
-        kind,
-        facts: CallFacts { action, args },
-        effect: names::effect(kind),
-        title: Shown::of(fields.title.as_deref().unwrap_or("")),
+    let command = command_line(&raw).map(|line| Command {
         line,
+        cwd: scope.clone(),
+    });
+    Asked::Ask(PermissionAsk {
+        kind,
         paths,
-        forbidden,
+        care,
+        command,
+        url: address(&raw),
     })
 }
 
@@ -107,22 +93,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_host_is_read_from_a_url_and_only_from_a_url() {
-        let url = |u: &str| host(&serde_json::json!({ "url": u }));
+    fn an_address_is_a_plain_http_url_and_nothing_else() {
+        let url = |u: &str| address(&serde_json::json!({ "url": u }));
         assert_eq!(
-            url("https://Example.org/a?b")
-                .map(|d| d.as_str().to_owned())
-                .as_deref(),
-            Some("example.org")
+            url("https://Example.org/a?b").as_deref(),
+            Some("https://Example.org/a?b")
         );
-        assert_eq!(
-            url("http://user:pw@example.org:8080/x")
-                .map(|d| d.as_str().to_owned())
-                .as_deref(),
-            Some("example.org")
-        );
+        assert!(url("http://user:pw@example.org:8080/x").is_none());
+        assert!(url("file:///etc/passwd").is_none());
         assert!(url("example.org").is_none());
-        assert!(host(&serde_json::json!({})).is_none());
+        assert!(address(&serde_json::json!({})).is_none());
     }
 
     #[test]

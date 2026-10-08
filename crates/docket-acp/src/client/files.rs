@@ -55,6 +55,10 @@ pub trait Files: Send {
         within: &AbsPath,
         content: &str,
     ) -> Result<Option<String>, FileFault>;
+
+    /// Removes the file at `real`, which must still lie inside `within`: what undoing a write
+    /// that created the file does.
+    fn remove(&mut self, real: &AbsPath, within: &AbsPath) -> Result<(), FileFault>;
 }
 
 /// The real file system.
@@ -176,5 +180,11 @@ impl Files for OsFiles {
         std::io::Seek::rewind(&mut file).map_err(|e| fault(&e))?;
         file.write_all(content.as_bytes()).map_err(|e| fault(&e))?;
         Ok(before)
+    }
+
+    fn remove(&mut self, real: &AbsPath, within: &AbsPath) -> Result<(), FileFault> {
+        let file = File::open(real.as_str()).map_err(|e| fault(&e))?;
+        still_inside(&file, within)?;
+        std::fs::remove_file(real.as_str()).map_err(|e| fault(&e))
     }
 }

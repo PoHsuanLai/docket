@@ -34,17 +34,10 @@ lasting = "no"
 dry_run = "none"
 
 [[actions.params]]
-name = "line"
-label = "From line"
-ty = { kind = "integer", v = { min = 1, max = 100000000 } }
-need = { kind = "optional" }
-sink = "inert"
-
-[[actions.params]]
-name = "limit"
-label = "Lines"
-ty = { kind = "integer", v = { min = 1, max = 100000000 } }
-need = { kind = "optional" }
+name = "stage"
+label = "Held request"
+ty = { kind = "text", v = { max = 64, lines = "one" } }
+need = { kind = "required" }
 sink = "inert"
 
 [[actions]]
@@ -55,6 +48,34 @@ effect = "undoable_write"
 classes = ["files"]
 undo = "token"
 reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "lines"
+label = "Lines"
+ty = { kind = "integer", v = { min = 0, max = 100000000 } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "stage"
+label = "Held text"
+ty = { kind = "text", v = { max = 64, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions]]
+name = "acpagent.files.sensitive"
+label = "Write a file that later runs code"
+on = { kind = "files" }
+effect = "undoable_write"
+classes = ["files"]
+undo = "token"
+reach = "ask_always"
 latency = "quick"
 result = { kind = "nothing" }
 keys = { kind = "none" }

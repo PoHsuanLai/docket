@@ -1,10 +1,8 @@
-//! For tests: an in-memory pipe, a scripted `Spawn`, a file system in a map, and an `Ask` that
-//! answers from a list. No process, no clock, no network.
+//! For tests: an in-memory pipe, a scripted `Spawn` and a file system in a map. No process, no
+//! clock, no network.
 
-use super::ask::{AgentAsk, Ask};
 use super::files::{FileFault, Files};
 use super::spawn::{AgentChild, LaunchPlan, Spawn, SpawnFault, Spawned};
-use crate::terminal_ask::Answer;
 use crate::wire::{Wire, WireClosed};
 use docket_core::{AbsPath, Cover};
 use std::collections::{BTreeMap, VecDeque};
@@ -212,38 +210,12 @@ impl Files for FakeFiles {
         disk.writes.push((real.clone(), content.to_owned()));
         Ok(disk.files.insert(real.clone(), content.to_owned()))
     }
-}
 
-/// What the scripted `Ask` was asked.
-#[derive(Debug, Default)]
-struct Asked {
-    answers: VecDeque<Answer>,
-    questions: Vec<AgentAsk>,
-}
-
-/// An `Ask` that answers from a list (`No` when the list runs out) and keeps the questions.
-#[derive(Debug, Clone, Default)]
-pub struct FakeAsk(Arc<Mutex<Asked>>);
-
-impl FakeAsk {
-    /// Answers `answers` in order.
-    pub fn new(answers: Vec<Answer>) -> Self {
-        Self(Arc::new(Mutex::new(Asked {
-            answers: answers.into(),
-            questions: Vec::new(),
-        })))
-    }
-
-    /// Every question put, in order.
-    pub fn questions(&self) -> Vec<AgentAsk> {
-        locked(&self.0).questions.clone()
-    }
-}
-
-impl Ask for FakeAsk {
-    async fn ask(&mut self, ask: &AgentAsk) -> Answer {
-        let mut asked = locked(&self.0);
-        asked.questions.push(ask.clone());
-        asked.answers.pop_front().unwrap_or(Answer::No)
+    fn remove(&mut self, real: &AbsPath, _within: &AbsPath) -> Result<(), FileFault> {
+        locked(&self.0)
+            .files
+            .remove(real)
+            .map(|_| ())
+            .ok_or(FileFault::NotFound)
     }
 }

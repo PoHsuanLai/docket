@@ -4,8 +4,7 @@
 //! script spoke the protocol and not a dialect.
 
 use super::agent::{AGENT_SESSION, Act, View, call, call_with, say};
-use super::rig::{Setup, read, run_turn, started, tool, write};
-use docket_acp::Answer;
+use super::rig::{Setup, once, read, run_turn, started, tool, write};
 use docket_shell::fake::Script;
 use serde_json::{Value, json};
 
@@ -148,15 +147,15 @@ fn script() -> Vec<Act> {
 async fn every_message_both_ways_fits_the_protocol_schema() {
     let schema: Value =
         serde_json::from_str(include_str!("../../schema/schema.json")).expect("schema");
-    let mut rig = started(Setup {
+    let (mut rig, files) = started(Setup {
         turns: vec![script()],
-        answers: vec![Answer::Once, Answer::Once, Answer::Once, Answer::Once],
+        answers: vec![once(), once(), once(), once()],
         scripts: vec![Script::done("", 0), Script::done("", 0)],
         ..Setup::default()
     })
     .await;
-    rig.files.put(&super::rig::abs("/work/app/a.txt"), "a");
-    run_turn(&mut rig.backend, "go").await;
+    files.put(&super::rig::abs("/work/app/a.txt"), "a");
+    run_turn(&mut rig, "go").await;
     let view: &View = &rig.agent;
     let to_agent = view.lines();
     let from_agent = view.sent();

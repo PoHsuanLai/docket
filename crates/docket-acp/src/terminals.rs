@@ -2,43 +2,31 @@
 //! the party that runs commands answers them. When an external agent drives us (S4) it sends them
 //! to us; here they run in our sandbox, behind our gate, never in the editor's own terminal.
 //!
-//! `terminal/create` is the `Execute` effect: `rule_execute` rules it. A command that is not
-//! sandboxable is refused before the person is asked (we never run unsandboxed, so there is
-//! nothing to approve). `terminal/kill` and `terminal/release` are always allowed.
+//! `terminal/create` is the `Execute` effect, which the router rules (`acpagent.terminal.run`);
+//! this only runs what the router allowed. A command that is not sandboxable is refused before
+//! the router is asked (we never run unsandboxed, so there is nothing to approve).
+//! `terminal/kill` and `terminal/release` are always allowed.
 //!
 //! `terminal/wait_for_exit` blocks the thread until the command ends; a host that shares a thread
-//! with other work calls `handle` from a blocking task.
+//! with other work uses `poll_wait`.
 
 use crate::fault;
-use crate::terminal_ask::{Answer, Decide, Note, Posture, TerminalAsk};
 use agent_client_protocol_schema::v1::{
     CLIENT_METHOD_NAMES, ClientCapabilities, CreateTerminalRequest, CreateTerminalResponse, Error,
     KillTerminalRequest, KillTerminalResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
     TerminalExitStatus, TerminalId, TerminalOutputRequest, TerminalOutputResponse,
     WaitForTerminalExitRequest, WaitForTerminalExitResponse,
 };
-use docket_core::{
-    AbsPath, ArgFacts, CallFacts, Cover, ExecuteFacts, ExecuteRuling, GrantCaller, SandboxState,
-    StandingGrant, held_with, rule_execute,
-};
+use docket_core::{AbsPath, Cover, SandboxState};
 use docket_shell::{Argv, Cut, ExitReport, Launch, Sandbox, Shell, ShellFault, TermId};
-use prov::UnixSeconds;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-/// The terminal methods for one connection and one caller.
+/// The terminal methods for one connection.
 #[derive(Debug)]
-pub struct Terminals<S: Sandbox, D> {
+pub struct Terminals<S: Sandbox> {
     shell: Shell<S>,
-    decide: D,
-    caller: GrantCaller,
-    action: docket_core::ActionRef,
-    scope: AbsPath,
-    grants: Vec<StandingGrant>,
-    posture: Posture,
-    notes: Vec<Note>,
-    approved: Vec<String>,
     owners: BTreeMap<TermId, String>,
 }
 
@@ -62,26 +50,11 @@ fn shell_error(fault: &ShellFault) -> Error {
     }
 }
 
-impl<S: Sandbox, D: Decide> Terminals<S, D> {
-    /// The terminal methods for `caller`, whose commands may run at or below `scope` (the
-    /// session's working directory). `action` names the `Execute` action the gate rules on.
-    pub fn new(
-        sandbox: S,
-        decide: D,
-        caller: GrantCaller,
-        action: docket_core::ActionRef,
-        scope: AbsPath,
-    ) -> Self {
+impl<S: Sandbox> Terminals<S> {
+    /// The terminal methods over `sandbox`.
+    pub fn new(sandbox: S) -> Self {
         Self {
             shell: Shell::new(sandbox),
-            decide,
-            caller,
-            action,
-            scope,
-            grants: Vec::new(),
-            posture: Posture::default(),
-            notes: Vec::new(),
-            approved: Vec::new(),
             owners: BTreeMap::new(),
         }
     }
@@ -92,43 +65,17 @@ impl<S: Sandbox, D: Decide> Terminals<S, D> {
         base.terminal(self.shell.available() == SandboxState::Ready)
     }
 
-    /// Sets what the host knows about the session before the next command.
-    pub fn set_posture(&mut self, posture: Posture) {
-        self.posture = posture;
+    /// Whether `cwd` can be confined, and if not why not: a command that cannot be sandboxed is
+    /// refused before anyone is asked.
+    pub fn check(&self, cwd: &AbsPath) -> SandboxState {
+        self.shell.check(cwd)
     }
 
-    /// The standing grants held (the store the person revokes from).
-    pub fn grants(&self) -> &[StandingGrant] {
-        &self.grants
-    }
-
-    /// The person already said yes, in a permission request, to exactly this command line: the
-    /// next `terminal/create` for it runs without asking again, once, and only while the breaker
-    /// is not tripped.
-    pub fn approve_once(&mut self, line: &str) {
-        self.approved.push(line.to_owned());
-    }
-
-    /// Loads the grants the store holds.
-    pub fn load_grants(&mut self, grants: Vec<StandingGrant>) {
-        self.grants = grants;
-    }
-
-    /// The audit notes since the last call.
-    pub fn take_notes(&mut self) -> Vec<Note> {
-        std::mem::take(&mut self.notes)
-    }
-
-    /// Answers one `terminal/*` request; `None` for any other method.
-    pub async fn handle(
-        &mut self,
-        now: UnixSeconds,
-        method: &str,
-        params: Value,
-    ) -> Option<Result<Value, Error>> {
+    /// Answers one `terminal/*` request other than `create` (which needs the session's scope and
+    /// the router's yes: `create`); `None` for any other method.
+    pub fn handle(&mut self, method: &str, params: Value) -> Option<Result<Value, Error>> {
         let names = CLIENT_METHOD_NAMES;
         let answer = match method {
-            m if m == names.terminal_create => self.create(now, params).await,
             m if m == names.terminal_output => self.output(params),
             m if m == names.terminal_wait_for_exit => self.wait(params),
             m if m == names.terminal_kill => self.kill(params),
@@ -150,28 +97,27 @@ impl<S: Sandbox, D: Decide> Terminals<S, D> {
         }
     }
 
-    async fn create(&mut self, now: UnixSeconds, params: Value) -> Result<Value, Error> {
+    /// Starts the command a `terminal/create` asked for, in `scope` or below it. The router has
+    /// ruled on it; this only refuses what cannot be confined or runs outside the session.
+    pub fn create(&mut self, scope: &AbsPath, params: Value) -> Result<Value, Error> {
         let asked: CreateTerminalRequest = fault::params(params)?;
         let cwd = match &asked.cwd {
             Some(path) => AbsPath::parse(&path.to_string_lossy())
                 .map_err(|_| fault::invalid("the working directory must be absolute"))?,
-            None => self.scope.clone(),
+            None => scope.clone(),
         };
-        if self.scope.covers(&cwd) != Cover::Covers {
+        if scope.covers(&cwd) != Cover::Covers {
             return Err(fault::invalid(
                 "the working directory is outside the session",
             ));
         }
         let argv = Argv::new(&asked.command, &asked.args)
             .ok_or_else(|| fault::invalid("the command is empty or holds a NUL"))?;
-        let line = argv.line();
         // We never run unsandboxed: a command that cannot be confined is refused here, with the
-        // reason, and the person is not asked to approve what cannot run.
+        // reason.
         if let SandboxState::Cannot(why) = self.shell.check(&cwd) {
-            self.notes.push(Note::Refused { line });
             return Err(shell_error(&ShellFault::CannotSandbox(why)));
         }
-        self.gate(now, &line, &cwd).await?;
         let launch = Launch {
             argv,
             cwd,
@@ -188,80 +134,6 @@ impl<S: Sandbox, D: Decide> Terminals<S, D> {
             "term-{}",
             id.0
         ))))
-    }
-
-    /// Runs the `Execute` rules, asking the person where they say to.
-    async fn gate(&mut self, now: UnixSeconds, line: &str, cwd: &AbsPath) -> Result<(), Error> {
-        let call = CallFacts {
-            action: self.action.clone(),
-            args: ArgFacts::Command {
-                line: line.to_owned(),
-                cwd: cwd.clone(),
-            },
-        };
-        let facts = ExecuteFacts {
-            caller: &self.caller,
-            call: &call,
-            sandbox: self.shell.check(cwd),
-            origin: self.posture.origin,
-            breaker: self.posture.breaker,
-            budget: self.posture.budget,
-            review: self.posture.review,
-        };
-        let at = self.approved.iter().position(|l| l == line);
-        if let Some(at) = at
-            && self.posture.breaker == docket_core::BreakerState::Running
-        {
-            self.approved.remove(at);
-            self.notes.push(Note::Confirmed {
-                line: line.to_owned(),
-            });
-            return Ok(());
-        }
-        let refused = |notes: &mut Vec<Note>| {
-            notes.push(Note::Refused {
-                line: line.to_owned(),
-            });
-            fault::not_now("the command was not allowed")
-        };
-        match rule_execute(&facts, &self.grants) {
-            ExecuteRuling::Deny => Err(refused(&mut self.notes)),
-            ExecuteRuling::Run(grant) => {
-                self.notes.push(Note::GrantUsed {
-                    grant,
-                    line: line.to_owned(),
-                });
-                Ok(())
-            }
-            ExecuteRuling::Ask { why, offer } => {
-                let ask = TerminalAsk {
-                    line: line.to_owned(),
-                    cwd: cwd.clone(),
-                    why,
-                    offer: offer.clone(),
-                };
-                match self.decide.decide(&ask).await {
-                    Answer::No => Err(refused(&mut self.notes)),
-                    answer => {
-                        self.remember(now, answer, &offer);
-                        self.notes.push(Note::Confirmed {
-                            line: line.to_owned(),
-                        });
-                        Ok(())
-                    }
-                }
-            }
-        }
-    }
-
-    fn remember(&mut self, now: UnixSeconds, answer: Answer, offer: &docket_core::AlwaysOffer) {
-        if let (Answer::Always, docket_core::AlwaysOffer::Offered(scope)) = (answer, offer) {
-            let grant = StandingGrant::new(self.caller.clone(), scope.clone(), now);
-            self.notes.push(Note::GrantStored {
-                grant: grant.id.clone(),
-            });
-            self.grants = held_with(std::mem::take(&mut self.grants), grant);
-        }
     }
 
     fn output(&mut self, params: Value) -> Result<Value, Error> {

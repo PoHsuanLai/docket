@@ -306,11 +306,12 @@ pub struct FakeSeams<
     W = ScriptedWriter,
     K = FixedClock,
     L = std::sync::Arc<docket_session::fake::MemoryLog>,
+    C = ScriptedConfirmer,
 > {
     /// The apps.
     pub link: FakeLink,
     /// The sheet.
-    pub confirmer: ScriptedConfirmer,
+    pub confirmer: C,
     /// The reviewer.
     pub reviewer: R,
     /// The consent store.
@@ -330,11 +331,16 @@ pub struct FakeSeams<
     pub log: L,
 }
 
-impl<R: Reviewer, W: PolicyWriter, K: Clock, L: docket_session::SessionLog> Seams
-    for FakeSeams<R, W, K, L>
+impl<
+    R: Reviewer,
+    W: PolicyWriter,
+    K: Clock,
+    L: docket_session::SessionLog,
+    C: docket_core::Confirmer,
+> Seams for FakeSeams<R, W, K, L, C>
 {
     type Link = FakeLink;
-    type Confirm = ScriptedConfirmer;
+    type Confirm = C;
     type Review = R;
     type Grants = MemoryGrants;
     type Sink = RecordingSink;
@@ -347,7 +353,7 @@ impl<R: Reviewer, W: PolicyWriter, K: Clock, L: docket_session::SessionLog> Seam
     fn link(&self) -> &FakeLink {
         &self.link
     }
-    fn confirmer(&self) -> &ScriptedConfirmer {
+    fn confirmer(&self) -> &C {
         &self.confirmer
     }
     fn reviewer(&self) -> &R {

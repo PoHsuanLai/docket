@@ -8,10 +8,11 @@
 mod agent;
 
 use super::support::{ENDPOINT, abs, permit};
-use agent::{Act, agent as scripted, call, read, say};
-use docket_acp::Ticks;
-use docket_acp::client::fake::{FakeAsk, FakeFiles};
-use docket_acp::client::{AcpBackend, Parts, Seams};
+use agent::{Act, agent as scripted, say};
+use docket_acp::client::fake::FakeFiles;
+use docket_acp::client::{
+    AcpBackend, AgentCall, Court, CourtFault, OpenAgent, Parts, Performer, Ruled, Seams,
+};
 use docket_launch::fake::{Call, FakeAccounts, FakeProcs, Mood, Secrets};
 use docket_launch::{AgentSpawn, AgentsFile, Registry};
 use docket_session::{
@@ -22,29 +23,38 @@ use docket_shell::fake::FakeSandbox;
 use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::sync::Arc;
 
-struct Fixed;
-impl Ticks for Fixed {
-    fn now(&self) -> UnixSeconds {
-        UnixSeconds(1_760_000_000)
+/// A router that is never asked: this test is about what the launcher lends and gives back, and
+/// the agent here makes no call.
+#[derive(Clone)]
+struct Nobody;
+
+impl Court for Nobody {
+    async fn open(&mut self, _open: OpenAgent) -> Result<SessionId, CourtFault> {
+        Err(CourtFault::Unavailable)
     }
+
+    async fn turn(&mut self, _session: &SessionId, _text: &str) -> Result<(), CourtFault> {
+        Err(CourtFault::Unavailable)
+    }
+
+    async fn call(&mut self, _session: &SessionId, _n: u64, _call: &AgentCall) -> Ruled {
+        Ruled::Lost
+    }
+
+    async fn close(&mut self, _session: &SessionId) {}
 }
 
 struct Launched;
 impl Seams for Launched {
     type Spawn = AgentSpawn<FakeAccounts, FakeProcs>;
     type Files = FakeFiles;
-    type Ask = FakeAsk;
+    type Court = Nobody;
     type Sandbox = FakeSandbox;
-    type Ticks = Fixed;
 }
 
 #[tokio::test]
 async fn a_session_through_the_launcher_asks_porter_in_order_and_gives_it_all_back_on_close() {
-    let (wire, view) = scripted(vec![vec![
-        call("r", "fs/read_text_file", read("/work/app/a.txt")),
-        say("done"),
-        Act::Stop("end_turn"),
-    ]]);
+    let (wire, view) = scripted(vec![vec![say("done"), Act::Stop("end_turn")]]);
     let accounts = FakeAccounts::with(Mood::Working, Secrets::default());
     let (procs, seen) = FakeProcs::new(vec![wire]);
     let dir = tempfile::tempdir().expect("scratch");
@@ -57,8 +67,6 @@ async fn a_session_through_the_launcher_asks_porter_in_order_and_gives_it_all_ba
         abs("/opt/docket/docket-net-forward"),
         Registry::default(),
     );
-    let files = FakeFiles::new();
-    files.put(&abs("/work/app/a.txt"), "text");
     let (sandbox, _) = FakeSandbox::ready(Vec::new());
     let program = ProgramName::parse("claude-code").expect("program");
     let session = SessionId::parse("s-1").expect("session");
@@ -66,11 +74,8 @@ async fn a_session_through_the_launcher_asks_porter_in_order_and_gives_it_all_ba
         program: program.clone(),
         session: session.clone(),
         spawn,
-        files,
-        ask: FakeAsk::new(Vec::new()),
-        sandbox,
-        ticks: Fixed,
-        grants: Vec::new(),
+        performer: Performer::new(FakeFiles::new(), sandbox),
+        court: Nobody,
     });
     backend
         .start(StartSession {
@@ -108,7 +113,7 @@ async fn a_session_through_the_launcher_asks_porter_in_order_and_gives_it_all_ba
         events.last(),
         Some(BackendEvent::TurnEnd(TurnEnd::Done))
     ));
-    assert_eq!(view.reply("r").expect("read")["content"], "text");
+    assert_eq!(view.prompts().len(), 1);
 
     backend.close().await;
     assert_eq!(

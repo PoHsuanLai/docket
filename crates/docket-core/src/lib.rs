@@ -53,8 +53,8 @@ mod wire;
 mod workspace;
 
 pub use agent_app::{
-    ACP_AGENT_APP, FILES_READ, FILES_WRITE, PermissionKind, REPORTED, TERMINAL_RUN, approves,
-    covers_approval, is_agent_action,
+    ACP_AGENT_APP, FILES_READ, FILES_SENSITIVE, FILES_WRITE, PermissionKind, REPORTED,
+    TERMINAL_RUN, approves, covers_approval, is_agent_action,
 };
 pub use agent_app::{action as acp_agent_action, app as acp_agent_app};
 pub use args::{ArgsFault, TARGET_KEY, TargetFault, Why, args_from_json, target_from_json};

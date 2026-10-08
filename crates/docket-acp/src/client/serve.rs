@@ -1,23 +1,23 @@
 //! The loop and the handlers: what `next_event` does with each line the agent sends, and how a
 //! staged request runs. See `backend` for the rules this keeps.
 
-use super::backend::{AcpBackend, Called, Live, Phase, Seams, Staged};
-use super::gate::{Audit, Basis, Why};
+use super::backend::{AcpBackend, Called, Phase, Seams, Staged};
+use super::court::AgentCall;
 use super::handlers::ok;
 use super::intake::{Intake, Work, intake};
-use super::names;
 use super::rpc;
+use super::taint::TaintSource;
 use crate::fault;
 use crate::out;
-use crate::server::Ticks;
-use crate::terminal_ask::Note;
 use crate::wire::Wire;
 use agent_client_protocol_schema::rpc::RequestId;
 use agent_client_protocol_schema::v1::{
     CreateElicitationResponse, ElicitationAction, Error, RequestPermissionOutcome,
     RequestPermissionResponse,
 };
-use docket_core::{CallId, StepLine, StepShown};
+use docket_core::{
+    CallId, FILES_READ, FILES_WRITE, StepLine, StepShown, TERMINAL_RUN, acp_agent_action,
+};
 use docket_session::{BackendEvent, CallEvent, CallOpen, TurnEnd};
 use prov::Effect;
 use serde_json::Value;
@@ -29,30 +29,6 @@ const WAIT_POLL: Duration = Duration::from_millis(50);
 /// An error reply line.
 pub(super) fn refusal(id: &RequestId, message: &str) -> String {
     out::failure(id, &fault::not_now(message))
-}
-
-/// Terminal notes as audit lines.
-pub(super) fn terminal_audit<X: Seams>(live: &mut Live<X>) -> Vec<Audit> {
-    let program = names::tail(agent_client_protocol_schema::v1::ToolKind::Execute);
-    live.terminals
-        .take_notes()
-        .into_iter()
-        .map(|note| match note {
-            Note::Confirmed { .. } => Audit::Allowed {
-                action: program.to_owned(),
-                basis: Basis::Confirmed,
-            },
-            Note::GrantUsed { grant, .. } => Audit::Allowed {
-                action: program.to_owned(),
-                basis: Basis::Grant(grant),
-            },
-            Note::GrantStored { grant } => Audit::GrantStored(grant),
-            Note::Refused { .. } => Audit::Refused {
-                action: program.to_owned(),
-                why: Why::Declined,
-            },
-        })
-        .collect()
 }
 
 impl<X: Seams> AcpBackend<X> {
@@ -92,12 +68,9 @@ impl<X: Seams> AcpBackend<X> {
     }
 
     fn poll_waiters(&mut self) {
-        let Some(live) = self.live.as_mut() else {
-            return;
-        };
         let waiting = std::mem::take(&mut self.waiters);
         for (id, params) in waiting {
-            match live.terminals.poll_wait(params.clone()) {
+            match self.performer.poll_wait(params.clone()) {
                 Ok(None) => self.waiters.push((id, params)),
                 Ok(Some(value)) => self.outbox.push_back(out::reply(&id, &value)),
                 Err(error) => self.outbox.push_back(out::failure(&id, &error)),
@@ -111,6 +84,7 @@ impl<X: Seams> AcpBackend<X> {
                 return Some(event);
             }
             self.flush().await;
+            self.tell_owed().await;
             if let Some(event) = self.step_staged().await {
                 return Some(event);
             }
@@ -149,21 +123,28 @@ impl<X: Seams> AcpBackend<X> {
     }
 
     fn hear(&mut self, note: agent_client_protocol_schema::v1::SessionNotification) {
-        let program = self.program.clone();
         let Some(live) = self.live.as_mut() else {
             return;
         };
         if live.agent.as_ref() != Some(&note.session_id) {
             return;
         }
-        let heard = live
-            .reported
-            .hear(&program, &mut self.next_call, note.update);
-        if heard.taint {
-            live.gate.taint();
+        let heard = live.reported.hear(&mut self.next_call, note.update);
+        if let Some(kind) = heard.taint {
+            live.tainted_by.get_or_insert(TaintSource::Reported(kind));
+            self.next_ask += 1;
+            self.owed.push_back((self.next_ask, kind));
         }
         self.ready.extend(heard.events);
-        self.audit.extend(heard.audit);
+    }
+
+    /// Tells the router what the agent's own tools brought in, so the session is tainted by it.
+    /// What the router says changes nothing: it already happened.
+    async fn tell_owed(&mut self) {
+        while let Some(&(n, kind)) = self.owed.front() {
+            let _ = self.ask(n, &AgentCall::Reported(kind)).await;
+            self.owed.pop_front();
+        }
     }
 
     fn stage(&mut self, id: RequestId, work: Work) {
@@ -194,18 +175,13 @@ impl<X: Seams> AcpBackend<X> {
 
     fn hold(&mut self, id: RequestId, work: Work) {
         let (action, effect) = match &work {
-            Work::Read(_) => ("read", Effect::Read),
-            Work::Write(_) => ("edit", Effect::UndoableWrite),
-            Work::Create { .. } => (
-                "execute",
-                names::effect(agent_client_protocol_schema::v1::ToolKind::Execute),
-            ),
+            Work::Read(_) => (FILES_READ, Effect::Read),
+            Work::Write(_) => (FILES_WRITE, Effect::UndoableWrite),
+            Work::Create { .. } => (TERMINAL_RUN, docket_core::EXECUTE_AS),
             _ => ("", Effect::Read),
         };
-        let announce = !action.is_empty();
-        let call = announce
-            .then(|| names::action(&self.program, action))
-            .flatten()
+        let call = acp_agent_action(action)
+            .filter(|_| !action.is_empty())
             .map(|action| {
                 self.next_call += 1;
                 Called {
@@ -225,19 +201,15 @@ impl<X: Seams> AcpBackend<X> {
     }
 
     fn terminal_other(&mut self, id: &RequestId, method: &str, params: Value) {
-        let Some(live) = self.live.as_mut() else {
-            return;
-        };
         if method == agent_client_protocol_schema::v1::CLIENT_METHOD_NAMES.terminal_wait_for_exit {
             self.waiters.push((id.clone(), params));
             return;
         }
-        let now = self.ticks.now();
-        // Kill, release and output never ask and never block: no await is needed.
-        let answer =
-            futures_util::FutureExt::now_or_never(live.terminals.handle(now, method, params))
-                .flatten()
-                .unwrap_or_else(|| Err(fault::internal("could not answer")));
+        // Kill, release and output never ask and never block.
+        let answer = self
+            .performer
+            .terminal_other(method, params)
+            .unwrap_or_else(|| Err(fault::internal("could not answer")));
         self.reply(id, answer);
     }
 
@@ -258,13 +230,12 @@ impl<X: Seams> AcpBackend<X> {
         // From here to the end of the function nothing is awaited: the call has run, and its
         // reply, its end and the clearing of `staged` happen together.
         self.staged = None;
-        if let Some(live) = self.live.as_mut() {
-            self.audit.extend(terminal_audit(live));
-        }
         self.reply(&staged.id, ran.reply);
-        if let Some(live) = self.live.as_mut()
-            && let (Some(trip), None) = (live.gate.breaker().trip(), self.pausing)
+        if let (Some(trip), None) = (ran.paused, self.pausing)
+            && let Some(live) = self.live.as_ref()
         {
+            // The router paused the session: the agent is told to stop, and the turn ends
+            // `Paused` when it does.
             self.pausing = Some(trip);
             self.outbox
                 .push_back(live.agent.as_ref().map(rpc::cancel).unwrap_or_default());

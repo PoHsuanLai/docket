@@ -1,13 +1,14 @@
-//! The rules every `SessionBackend` keeps (docket-session's contract), run against `AcpBackend`.
+//! The rules every `SessionBackend` keeps (docket-session's contract), run against `AcpBackend`
+//! with its calls going through the real router.
 
-use super::agent::{Act, agent, call, say};
-use super::rig::{Fakes, abs, opening, program, read, session, turn};
-use crate::support::Fixed;
-use docket_acp::client::fake::{FakeAsk, FakeFiles, FakeSpawn};
-use docket_acp::client::{AcpBackend, Parts};
+use super::agent::{Act, call, say};
+use super::rig::{Fakes, Setup, abs, opening, read, wired_over};
+use docket_acp::client::AcpBackend;
+use docket_acp::client::fake::FakeFiles;
+use docket_acp::client::{Court, OpenAgent};
+use docket_core::SheetSurface;
 use docket_session::contract::{self, Harness};
 use docket_session::{SessionBackend, StartSession};
-use docket_shell::fake::FakeSandbox;
 
 struct Acp {
     files: FakeFiles,
@@ -26,33 +27,38 @@ impl Harness for Acp {
             say("read it"),
             Act::Stop("end_turn"),
         ];
-        let (wire, _view) = agent(vec![script]);
-        let (spawn, _seen) = FakeSpawn::new(vec![wire]);
-        let (sandbox, _) = FakeSandbox::ready(Vec::new());
         self.files.put(&abs("/work/app/a.txt"), "text");
         self.base = self.files.reads();
-        let mut backend = AcpBackend::new(Parts {
-            program: program(),
-            session: session(),
-            spawn,
-            files: self.files.clone(),
-            ask: FakeAsk::new(Vec::new()),
-            sandbox,
-            ticks: Fixed,
-            grants: Vec::new(),
-        });
-        backend
+        let mut wired = wired_over::<Fakes>(
+            self.files.clone(),
+            Setup {
+                turns: vec![script],
+                ..Setup::default()
+            },
+        );
+        let opened = opening("/work/app");
+        let session = wired
+            .court
+            .open(OpenAgent {
+                program: super::rig::program(),
+                cwd: opened.cwd.clone().expect("cwd"),
+                sheets: SheetSurface::Desktop,
+            })
+            .await
+            .expect("the router opens the session");
+        wired
+            .backend
             .start(StartSession {
-                session: session(),
-                opening: opening("/work/app"),
+                session,
+                opening: opened,
             })
             .await
             .expect("start");
-        backend
+        wired.backend
     }
 
     fn turn(&self, n: u64) -> docket_core::UserTurn {
-        turn(n, "go")
+        super::rig::turn(n, "go")
     }
 
     fn ran(&self, _backend: &Self::Backend) -> usize {

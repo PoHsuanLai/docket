@@ -161,3 +161,67 @@ async fn a_sheet_nobody_answers_expires_and_a_sill_that_vanishes_dismisses() {
         .expect("joined");
     assert_eq!(ended, ConfirmAnswer::Ended(ConfirmEnd::Dismissed));
 }
+
+/// A sheet for a session whose host asked to show it itself (`docket-agent --tty`).
+fn hosted(id: &str) -> ConfirmRequest {
+    ConfirmRequest {
+        editor: Some(EditorRoute {
+            client: prov::ClientName::parse(ACP_AGENT_APP).expect("client"),
+            session: prov::SessionId::parse("s-1").expect("session"),
+        }),
+        ..request(id, 120)
+    }
+}
+
+async fn gated_desk(agents: docket_settings::AcpAgents) -> Desk {
+    let dir = tempfile::tempdir().expect("scratch");
+    let bus = PrivateBus::start(dir.path());
+    let daemon = bus.connect().await;
+    let config = IntentdConfig::shipped().expect("the shipped configuration");
+    let gate = intentd::AcpGate::shut();
+    gate.set_agents(agents);
+    let sheet = SheetConfirmer::trusting(daemon, Arc::new(config))
+        .gated(gate, &intentd::ProcRoot::System)
+        .waiting(Duration::from_millis(100));
+    Desk {
+        _dir: dir,
+        bus,
+        sheet,
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_sheet_the_agent_host_asked_for_goes_to_its_confirm1_and_not_to_sill() {
+    let desk = gated_desk(docket_settings::AcpAgents::On).await;
+    let (apart, other) = (desk.bus.connect().await, desk.bus.connect().await);
+    let sill = FakeSill::start(&apart, &["org.quire.Confirm1", "org.quire.Shell"]).await;
+    let host = FakeSill::start(&other, &[ACP_AGENT_APP]).await;
+    host.answer(vec![Answer::With(yes())]);
+    assert_eq!(desk.sheet.confirm(hosted("c-1")).await, yes());
+    assert_eq!(host.shown().len(), 1);
+    assert!(sill.shown().is_empty(), "the desktop was not asked");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_sheet_for_an_agent_host_that_is_off_or_gone_expires_and_is_not_moved_to_sill() {
+    // The setting is off: the name is nobody, whoever owns it.
+    let off = gated_desk(docket_settings::AcpAgents::Off).await;
+    let (apart, other) = (off.bus.connect().await, off.bus.connect().await);
+    let sill = FakeSill::start(&apart, &["org.quire.Confirm1", "org.quire.Shell"]).await;
+    let host = FakeSill::start(&other, &[ACP_AGENT_APP]).await;
+    host.answer(vec![Answer::With(yes())]);
+    assert_eq!(
+        off.sheet.confirm(hosted("c-1")).await,
+        ConfirmAnswer::Ended(ConfirmEnd::Expired)
+    );
+    assert!(host.shown().is_empty());
+    // The setting is on and nobody owns the name.
+    let on = gated_desk(docket_settings::AcpAgents::On).await;
+    let connection = on.bus.connect().await;
+    let sill_on = FakeSill::start(&connection, &["org.quire.Confirm1", "org.quire.Shell"]).await;
+    assert_eq!(
+        on.sheet.confirm(hosted("c-2")).await,
+        ConfirmAnswer::Ended(ConfirmEnd::Expired)
+    );
+    assert!(sill.shown().is_empty() && sill_on.shown().is_empty());
+}

@@ -5,10 +5,13 @@
 //! connection's facts unless the setting is on, read at each call, so a flip of the setting
 //! changes the next call and nothing is cached.
 //!
+//! The same for `org.quire.AcpAgent`, the host of an external coding agent (`acp_agent`): it is
+//! anybody only while `agent.acp.agents` is `on`.
+//!
 //! This only narrows the exposure while the feature is off. Identity stays advisory for processes
 //! of the same user (see `peer.rs`): with the setting on, any of them can still own the name.
 
-use docket_settings::AcpExpose;
+use docket_settings::{AcpAgents, AcpExpose};
 use porter_core::AppName;
 use std::sync::Arc;
 use tokio::sync::watch;
@@ -16,11 +19,12 @@ use tokio::sync::watch;
 /// The bus name the ACP process owns.
 pub const ACP_NAME: &str = "org.quire.Acp";
 
-/// The setting as last read, shared by the settings watch (which sets it) and the peers (which
-/// read it).
+/// The settings as last read, shared by the settings watch (which sets them) and the peers (which
+/// read them).
 #[derive(Debug, Clone)]
 pub struct AcpGate {
     expose: Arc<watch::Sender<AcpExpose>>,
+    agents: Arc<watch::Sender<AcpAgents>>,
 }
 
 impl AcpGate {
@@ -28,6 +32,7 @@ impl AcpGate {
     pub fn new(expose: AcpExpose) -> Self {
         Self {
             expose: Arc::new(watch::channel(expose).0),
+            agents: Arc::new(watch::channel(AcpAgents::Off).0),
         }
     }
 
@@ -41,15 +46,30 @@ impl AcpGate {
         self.expose.send_replace(expose);
     }
 
+    /// Puts a newly read `agent.acp.agents` in force for the next call.
+    pub fn set_agents(&self, agents: AcpAgents) {
+        self.agents.send_replace(agents);
+    }
+
     /// The setting now.
     pub fn expose(&self) -> AcpExpose {
         *self.expose.borrow()
     }
 
-    /// Whether a connection owning `name` keeps it: every name but the ACP one always, that one
-    /// only while the setting is on.
+    /// `agent.acp.agents` now.
+    pub fn agents(&self) -> AcpAgents {
+        *self.agents.borrow()
+    }
+
+    /// Whether a connection owning `name` keeps it: every name but the two ACP ones always; the
+    /// editor server's only while `agent.acp.expose` is on, the agent host's only while
+    /// `agent.acp.agents` is.
     pub(crate) fn keeps(&self, name: &AppName) -> bool {
-        name.as_str() != ACP_NAME || self.expose() == AcpExpose::On
+        match name.as_str() {
+            ACP_NAME => self.expose() == AcpExpose::On,
+            docket_core::ACP_AGENT_APP => self.agents() == AcpAgents::On,
+            _ => true,
+        }
     }
 }
 
@@ -62,13 +82,19 @@ mod tests {
     }
 
     #[test]
-    fn only_the_acp_name_waits_on_the_setting() {
+    fn only_the_acp_names_wait_on_their_settings() {
         let gate = AcpGate::shut();
+        let host = name(docket_core::ACP_AGENT_APP);
         assert!(!gate.keeps(&name(ACP_NAME)));
+        assert!(!gate.keeps(&host));
         assert!(gate.keeps(&name("org.quire.Shell")));
         gate.set(AcpExpose::On);
         assert!(gate.keeps(&name(ACP_NAME)));
+        assert!(!gate.keeps(&host), "the editor setting is not the agents'");
         gate.set(AcpExpose::Off);
+        assert!(!gate.keeps(&name(ACP_NAME)));
+        gate.set_agents(AcpAgents::On);
+        assert!(gate.keeps(&host));
         assert!(!gate.keeps(&name(ACP_NAME)));
     }
 

@@ -33,7 +33,6 @@ mod sessions;
 mod sheet;
 #[cfg(feature = "server")]
 mod stdio;
-mod terminal_ask;
 mod terminals;
 mod turn;
 mod wire;
@@ -51,7 +50,6 @@ pub use scope_words::always_words;
 pub use server::{Server, Ticks};
 #[cfg(feature = "server")]
 pub use stdio::{LineWire, SystemTicks};
-pub use terminal_ask::{Answer, Decide, Note, Posture, TerminalAsk};
 pub use terminals::Terminals;
 pub use turn::{Finish, Order, Turn, Wants};
 pub use wire::{Incoming, NotJsonRpc, Wire, WireClosed};

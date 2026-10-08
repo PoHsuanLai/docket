@@ -7,6 +7,7 @@
 //! name under both `editor` (opens sessions and records the editor's turns) and `companion`
 //! (the planner's calls in them). Without those lines the router refuses everything this does.
 
+pub mod agent;
 pub mod confirm;
 
 use confirm::ConfirmObject;
