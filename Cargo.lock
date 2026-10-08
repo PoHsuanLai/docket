@@ -1278,6 +1278,7 @@ name = "docket-shell"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "serde",
  "tempfile",
  "thiserror",
 ]

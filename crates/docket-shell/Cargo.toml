@@ -8,8 +8,13 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[[bin]]
+name = "docket-net-forward"
+path = "src/bin/docket-net-forward.rs"
+
 [dependencies]
 docket-core = { workspace = true }
+serde = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
