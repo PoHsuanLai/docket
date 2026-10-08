@@ -13,6 +13,7 @@ mod hostile;
 mod hostile_limits;
 mod labelled;
 mod osfiles;
+mod own_edge;
 mod rig;
 mod schema;
 mod sign_in;

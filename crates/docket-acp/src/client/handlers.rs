@@ -11,6 +11,7 @@ use super::call::{AgentCall, Command, RunFacts};
 use super::confine::{Confined, confine, named};
 use super::court::{Court, Ruled};
 use super::intake::Work;
+use super::own_edge::{OwnEdge, claim};
 use super::taint::TaintSource;
 use super::tool_req::{Asked, tool_req};
 use crate::fault;
@@ -242,6 +243,9 @@ impl<X: Seams> AcpBackend<X> {
         if !self.for_agent(&request.session_id) {
             return self.denied(fault::unknown_session());
         }
+        if let Some(once) = self.own_edge_once(request).await {
+            return once;
+        }
         let Some(live) = self.live.as_ref() else {
             return self.denied(fault::unknown_session());
         };
@@ -292,6 +296,36 @@ impl<X: Seams> AcpBackend<X> {
             paused: paused_by(&end).or(self.strikes.trip()),
             end,
         }
+    }
+
+    /// A request for a call to our own edge, answered with the agent's "once" option and no
+    /// ruling: the call is ruled when it reaches the edge. Never the "always" option. With no
+    /// "once" option the request is left to the usual path.
+    async fn own_edge_once(&mut self, request: &RequestPermissionRequest) -> Option<Ran> {
+        let own = claim(&request.tool_call)?;
+        if let OwnEdge::Tool(tool) = &own {
+            let registry = self.court.registry().await?;
+            actions_tools::find(&registry, tool)?;
+        }
+        let once = request
+            .options
+            .iter()
+            .find(|o| o.kind == PermissionOptionKind::AllowOnce)?;
+        let outcome = SelectedPermissionOutcome::new(once.option_id.clone());
+        let reply = ok(&RequestPermissionResponse::new(
+            RequestPermissionOutcome::Selected(outcome),
+        ));
+        self.ready
+            .extend(super::reported::door_opened(&mut self.next_call));
+        Some(Ran {
+            reply,
+            end: StepEnd::Done {
+                said: None,
+                value: None,
+                undo: None,
+            },
+            paused: None,
+        })
     }
 
     async fn create(&mut self, n: u64, params: Json, request: &CreateTerminalRequest) -> Ran {

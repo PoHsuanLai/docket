@@ -21,11 +21,11 @@ fn offer(dir: &tempfile::TempDir) -> ToolsOffer {
     }
 }
 
-fn thread() -> Value {
+pub(super) fn thread() -> Value {
     json!({"app": "org.quire.Mail", "kind": "mail.thread", "key": THREAD})
 }
 
-async fn with_mail(
+pub(super) async fn with_mail(
     turns: Vec<Vec<Act>>,
     answers: Vec<docket_core::ConfirmAnswer>,
 ) -> (Rig<super::rig::Fakes>, tempfile::TempDir) {

@@ -30,3 +30,30 @@ pub fn selected(reply: &Result<serde_json::Value, serde_json::Value>) -> Option<
     let value = reply.as_ref().ok()?;
     value["outcome"]["optionId"].as_str().map(str::to_owned)
 }
+
+/// A permission request as agy sends it for a call to an MCP tool: `kind` other, and the
+/// server and tool in `_meta.mcp`; `meta` is that object, or none to leave `_meta` out.
+pub fn mcp_request(
+    kind: &str,
+    meta: Option<serde_json::Value>,
+    raw: serde_json::Value,
+    options: serde_json::Value,
+) -> serde_json::Value {
+    let mut call = serde_json::json!({
+        "toolCallId": "tc-1", "kind": kind, "status": "pending",
+        "title": "quire_mail__mail_thread_read", "content": [], "rawInput": raw
+    });
+    if let Some(mcp) = meta {
+        call["_meta"] = serde_json::json!({"mcp": mcp, "is_mcp_tool_call": true});
+    }
+    serde_json::json!({"sessionId": super::agent::AGENT_SESSION, "toolCall": call, "options": options})
+}
+
+/// The three options agy offers.
+pub fn agy_options() -> serde_json::Value {
+    serde_json::json!([
+        {"optionId": "a-always", "name": "Allow Always", "kind": "allow_always"},
+        {"optionId": "a-once", "name": "Allow", "kind": "allow_once"},
+        {"optionId": "r-once", "name": "Deny", "kind": "reject_once"}
+    ])
+}

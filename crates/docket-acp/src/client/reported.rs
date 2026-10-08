@@ -7,7 +7,9 @@
 
 use super::names;
 use super::taint::brings_content;
-use agent_client_protocol_schema::v1::{ContentBlock, ContentChunk, SessionUpdate, ToolCallStatus};
+use agent_client_protocol_schema::v1::{
+    ContentBlock, ContentChunk, SessionUpdate, ToolCallStatus, ToolKind,
+};
 use docket_core::PermissionKind;
 use docket_core::{
     AppRefusal, CallId, CallRefusal, FailText, Reveal, StepEnd, StepLine, StepShown,
@@ -81,6 +83,29 @@ fn usage(update: &agent_client_protocol_schema::v1::UsageUpdate) -> UsageNote {
         context: Some(Count(u32::try_from(update.used).unwrap_or(u32::MAX))),
         spent,
     }
+}
+
+/// The record of a request for a call to our own edge that was answered "once" at the door: a
+/// started and an ended line under `acpagent.reported.other`, effect `read` (the answer
+/// changed nothing; the call itself is ruled, and shown, when it reaches the edge).
+pub fn door_opened(next: &mut u64) -> Vec<BackendEvent> {
+    let Some(action) = names::reported_action(ToolKind::Other) else {
+        return Vec::new();
+    };
+    *next += 1;
+    let open = Open {
+        call: CallId(*next),
+        action,
+        effect: Effect::Read,
+    };
+    vec![
+        BackendEvent::Call(CallEvent::Started(CallOpen {
+            call: open.call,
+            action: open.action.clone(),
+            effect: open.effect,
+        })),
+        end_of(&open, done()),
+    ]
 }
 
 impl Reported {
