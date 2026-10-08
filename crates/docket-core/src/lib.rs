@@ -68,7 +68,7 @@ pub use config::{
 };
 pub use confirm::{
     Anchor, ArgLine, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer,
-    ConfirmParts, ConfirmRequest, Confirmer, Gesture, GrantScope, Shown, TaintNote,
+    ConfirmParts, ConfirmRequest, Confirmer, EditorRoute, Gesture, GrantScope, Shown, TaintNote,
 };
 pub use context::{
     CharRange, ContextKeep, ContextScope, ContextSnapshot, ContextView, EditTarget, EntityLine,

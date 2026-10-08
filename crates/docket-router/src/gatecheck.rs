@@ -92,6 +92,7 @@ impl<S: Seams> Router<S> {
             gesture: Gesture::Press,
             anchor: Anchor::Centre,
             expires: self.agent_config().confirm_expiry,
+            editor: None,
         })
     }
 

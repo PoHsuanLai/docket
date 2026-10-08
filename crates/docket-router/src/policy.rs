@@ -82,6 +82,19 @@ fn cap_to_app(policy: TaskPolicy, app: &AppName, st: &RouterState) -> TaskPolicy
     TaskPolicy { actions, ..policy }
 }
 
+/// The widenings the person is asked about. A policy derived from the person's newest words
+/// (`Baseline::Anything`) lives from that turn, so a later expiry than the last turn's policy is
+/// the passing of time and not something to ask about: asking would put a sheet in front of a
+/// person who asked for nothing more, and only when a clock second happened to tick between two
+/// turns. A widening they confirm explicitly (`Baseline::Nothing`) is asked as it is.
+fn asked_widenings(widenings: &[Widening], baseline: Baseline) -> Vec<Widening> {
+    widenings
+        .iter()
+        .filter(|w| !(baseline == Baseline::Anything && **w == Widening::Expiry))
+        .cloned()
+        .collect()
+}
+
 impl<S: Seams> Router<S> {
     /// Cuts a policy to what its session may hold: stamped with the session's task, Space and
     /// turns, lapsing by the configured maximum, capped by its parent's policy and by the
@@ -237,9 +250,12 @@ impl<S: Seams> Router<S> {
             (Some(old), _) => compare(&new, old),
         };
         if let PolicyChange::Widens(widenings) = &change {
-            let answer = self.confirm_widening(id, &new, widenings).await;
-            if let ConfirmAnswer::Ended(end) = answer {
-                return WidenAnswer::Refused(end);
+            let asked = asked_widenings(widenings, baseline);
+            if !asked.is_empty() {
+                let answer = self.confirm_widening(id, &new, &asked).await;
+                if let ConfirmAnswer::Ended(end) = answer {
+                    return WidenAnswer::Refused(end);
+                }
             }
         }
         let at = self.seams.clock().now();
@@ -303,6 +319,10 @@ impl<S: Seams> Router<S> {
                 gesture: Gesture::Press,
                 anchor: Anchor::Launcher,
                 expires: self.agent_config().confirm_expiry,
+                editor: crate::who::editor_of(record).map(|client| docket_core::EditorRoute {
+                    client,
+                    session: id.clone(),
+                }),
             };
             st.pending.insert(cid, new.space.clone());
             request
@@ -357,5 +377,29 @@ fn describe(w: &Widening) -> String {
         Widening::Count(c) => format!("up to {} things at once", c.0),
         Widening::Pattern(sink, _) => format!("a new {sink:?}"),
         Widening::Expiry => "for longer".to_owned(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prov::Effect;
+
+    #[test]
+    fn a_later_expiry_alone_is_not_asked_about_for_the_words_of_a_new_turn() {
+        let both = [Widening::Expiry, Widening::Ceiling(Effect::Outbound)];
+        let table = [
+            (
+                Baseline::Anything,
+                &both[..],
+                vec![Widening::Ceiling(Effect::Outbound)],
+            ),
+            (Baseline::Anything, &both[..1], vec![]),
+            (Baseline::Nothing, &both[..1], vec![Widening::Expiry]),
+            (Baseline::Nothing, &both[..], both.to_vec()),
+        ];
+        for (baseline, widenings, asked) in table {
+            assert_eq!(asked_widenings(widenings, baseline), asked, "{baseline:?}");
+        }
     }
 }

@@ -14,7 +14,7 @@ use crate::seams::{Now, Surface};
 use crate::shared::Shared;
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{ContextKeep, Keep, UserTurn, WindowKey};
+use docket_core::{ContextKeep, Keep, TurnIn, UserTurn, WindowKey};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, ResumePlan, Resumed, SessionBackend, Standing,
     StartSession, TurnEnd,
@@ -92,6 +92,73 @@ where
     }
 }
 
+/// Whether the router already numbered the person's turn.
+#[derive(Debug, Clone)]
+enum Recording {
+    /// It did: the turn carries its id.
+    Done,
+    /// It has not: the turn's flight records it first, so a sheet the router asks while deriving
+    /// the turn's policy is shown by the same pulls that run the turn.
+    Pending(TurnIn),
+}
+
+impl<P, I, K, S> NativeBackend<P, I, K, S>
+where
+    P: InferTransport + 'static,
+    I: IntentsTransport + 'static,
+    K: Now + Send + Sync + 'static,
+    S: Surface + Send + Sync + 'static,
+{
+    /// Records `said` with the router (which numbers it and derives the task's policy, and may
+    /// ask the person about it) and runs the turn, all inside the flight.
+    pub fn record_and_turn(&mut self, turn: UserTurn, said: TurnIn) -> Result<(), BackendFault> {
+        self.begin(turn, Recording::Pending(said))
+    }
+
+    fn begin(&mut self, turn: UserTurn, recording: Recording) -> Result<(), BackendFault> {
+        let Bound::Task(task) = self.bound.clone() else {
+            return Err(BackendFault::NotRunning);
+        };
+        if self.flight.is_some() {
+            return Err(BackendFault::Busy);
+        }
+        let window = WindowKey::parse(EDITOR_WINDOW).map_err(|_| BackendFault::Unavailable)?;
+        let core = self.core.clone();
+        let session = self.session.clone();
+        self.flight = Some(Flight::of(|mut tap| {
+            async move {
+                let mut core = core.lock().await;
+                let mut turn = turn;
+                if let Recording::Pending(said) = recording {
+                    match core.intents.session_turn(session.clone(), said).await {
+                        Ok(id) => turn.id = id,
+                        Err(_) => return TurnEnd::Failed,
+                    }
+                }
+                core.reopen(&task);
+                let Ok(begun) = core.begin_ask(AskWire {
+                    session,
+                    turn,
+                    keep: kept_nothing(),
+                    parent_window: window,
+                    app: None,
+                }) else {
+                    return TurnEnd::Failed;
+                };
+                match core.run_begun_tapped(begun, &mut tap).await {
+                    Ok(()) => end_of(
+                        core.tasks.get(&task),
+                        core.runtimes.get(&task).and_then(|rt| rt.failure.as_ref()),
+                    ),
+                    Err(_) => TurnEnd::Failed,
+                }
+            }
+            .boxed()
+        }));
+        Ok(())
+    }
+}
+
 impl<P, I, K, S> SessionBackend for NativeBackend<P, I, K, S>
 where
     P: InferTransport + 'static,
@@ -125,41 +192,7 @@ where
     }
 
     async fn turn(&mut self, turn: UserTurn) -> Result<(), BackendFault> {
-        let Bound::Task(task) = self.bound.clone() else {
-            return Err(BackendFault::NotRunning);
-        };
-        if self.flight.is_some() {
-            return Err(BackendFault::Busy);
-        }
-        let window = WindowKey::parse(EDITOR_WINDOW).map_err(|_| BackendFault::Unavailable)?;
-        let begun = {
-            let mut core = self.core.lock().await;
-            core.reopen(&task);
-            core.begin_ask(AskWire {
-                session: self.session.clone(),
-                turn,
-                keep: kept_nothing(),
-                parent_window: window,
-                app: None,
-            })
-            .map_err(|_| BackendFault::Unavailable)?
-        };
-        let core = self.core.clone();
-        self.flight = Some(Flight::of(|mut tap| {
-            async move {
-                let mut core = core.lock().await;
-                let ran = core.run_begun_tapped(begun, &mut tap).await;
-                match ran {
-                    Ok(()) => end_of(
-                        core.tasks.get(&task),
-                        core.runtimes.get(&task).and_then(|rt| rt.failure.as_ref()),
-                    ),
-                    Err(_) => TurnEnd::Failed,
-                }
-            }
-            .boxed()
-        }));
-        Ok(())
+        self.begin(turn, Recording::Done)
     }
 
     async fn next_event(&mut self) -> Option<BackendEvent> {

@@ -21,10 +21,12 @@ docket-acp = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd"] }
+docket-inapp = { workspace = true }
 docket-planner = { workspace = true }
 docket-router = { workspace = true }
 docket-tasks = { workspace = true }
 porter-core = { workspace = true }
+serde_json = { workspace = true }
 prov = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["io-std"] }

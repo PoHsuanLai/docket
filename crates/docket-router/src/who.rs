@@ -26,11 +26,19 @@ pub(crate) struct Who {
 
 /// The editor the person last spoke through in `record`: the app that recorded its latest turn,
 /// if that turn came from an editor.
-fn editor_of(record: &SessionRecord) -> Option<ClientName> {
+pub(crate) fn editor_of(record: &SessionRecord) -> Option<ClientName> {
     match record.turns.last().map(|t| &t.from) {
         Some(TurnSource::Editor(app)) => ClientName::parse(app.as_str()).ok(),
         _ => None,
     }
+}
+
+/// Where a sheet for a call of `who` goes when an editor is driving its session.
+pub(crate) fn route_of(who: &Who) -> Option<docket_core::EditorRoute> {
+    Some(docket_core::EditorRoute {
+        client: who.editor.clone()?,
+        session: who.session.clone()?,
+    })
 }
 
 impl Who {

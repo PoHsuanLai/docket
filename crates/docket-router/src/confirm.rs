@@ -150,5 +150,6 @@ pub(crate) fn confirm_request(
             (None, _) => Anchor::Centre,
         },
         expires,
+        editor: crate::who::route_of(&p.who),
     }
 }

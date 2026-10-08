@@ -2294,8 +2294,8 @@ turn's updates and the app's calls equal in both.
   front pointer still rebuild after a restart from the old `companion.session.*` notes (`recover`),
   and its lock is tokio's, `NativeHost`'s a futures mutex. Moving the roster to `Session.Stored` and
   the lock across is the next lane; `Session.Stored` is the member it needed.
-- **Sheets for an editor session over the bus.** The router in intentd asks sill's `Confirm1`; no
-  confirmer there hands a request to the editor's host, so `LiveHost` uses `NoDesk` and the editor is
+- **Sheets for an editor session over the bus.** (Closed, see below.) The router in intentd asked sill's `Confirm1`; no
+  confirmer handed a request to the editor's host, so `LiveHost` uses `NoDesk` and the editor is
   told "waiting on the desktop" (the S3 behaviour). `EditorDesk` is the in-process half: an
   `InAppAgent`-style router can route an editor session's sheets to it today. The bus half needs a
   `Confirm1` server for the acp process that intentd's confirmer prefers for editor sessions.
@@ -2310,9 +2310,53 @@ turn's updates and the app's calls equal in both.
   session fails to resume.
 
 
-Observed, not explained: in the two-turn acceptance run (`acp-two-turns`), in about one run in eight
-the router shows one sheet, "Allow more for this task" (reason `OutsideTask`), during the second turn
-or the first search of an editor session, with or without the host restart in between. The editor
-session's task policy is capped to the editor's app plus reads (S3), and the cassette's policy is
-re-derived on each turn; the race is not found. The test compares the editor's updates and the app's
-calls, which never differed, and not the sheets.
+Closed by "Editor sheets over the bus" below: the sheets-for-an-editor bullet, and the flake that was observed here
+(a later clock second made the second turn's policy count as wider).
+
+## Editor sheets over the bus (S2, second part)
+
+A sheet for a call in an editor's session no longer goes to sill.
+
+- **The router names the route.** `ConfirmRequest.editor: Option<EditorRoute>` (`client`, the app behind the
+  editor's connection as the router saw it, and `session`), set from `Who::editor` for a call and from the
+  session record for the "Allow more for this task" sheet; absent for everything else and for a computer-use step.
+  It is skipped when absent, so sill's wire is unchanged.
+- **intentd** (`SheetConfirmer`): a request with a route goes to `Confirm1` on the bus name `client`, trusted only
+  while its owner plays the `editor` role (which, for `org.quire.Acp`, is the `AcpGate` of the previous section).
+  The surface of every open sheet is remembered by id so a withdrawal finds it.
+- **docket-acp-bin** serves `Confirm1` at the usual path under its own name (`ConfirmObject` over an
+  `EditorDesk`); the answer is the usual `Response` signal. Only the owner of `org.quire.Intents1` may ask or
+  withdraw. The receipt is minted in the acp process (`SheetConfirmer` of docket-inapp, input proof
+  `SheetFallback`): the same trust as an in-app sheet, and the same as sill's, whose receipt also arrives over
+  the bus.
+- **If the acp process is gone, or not trusted: the sheet ends `Expired`, and is not moved to sill.** The call
+  is refused. Reasons: the editor that made the call has left, so nothing receives the answer, and a sheet on the
+  desktop would ask the person about a call whose editor they cannot see; and with the setting off the name is
+  nobody, which must not turn into a desktop prompt. Never an allow. (A sill sheet is still a dismissal.)
+- **The host shows a sheet when the desk is handed it** (`SheetDesk::next_sheet(session)`), not only when the
+  router's `NeedsYou` signal arrives, because the two travel by different routes and the router can ask while it
+  records a turn. `NativeHost::next_event` races the desk against the backend; a `NeedsYou` for a sheet the desk
+  does not hold yet is awaited together with the next event, and if the event comes first the sheet went to the
+  desktop and stays text. State between pulls is in fields, so a dropped pull loses nothing.
+- **The turn is recorded inside the flight** (`NativeBackend::record_and_turn`). Before, `NativeHost::turn`
+  awaited `Session.Turn` inline; the router derives the task policy in that call and may ask about it, and with
+  the sheet now on the editor the edge was not pulling events: a deadlock (seen in about one in four two-turn
+  runs once the second turn asked). A recording that fails ends the turn `Failed` rather than failing `turn`.
+- **No end-to-end "allow always" for Mail.** An editor's turn caps the task policy to the editor's own app plus
+  reads (S3), and the editor's app is `org.quire.Acp`, which has no actions; every Mail write in an editor session
+  is therefore `OutsideTask`, and `OutsideTask` withholds "allow always" by design. The tests send the editor's
+  `allow_always` through the bus (`acp_confirm.rs`: `Once`, `Always`, `Refused` come back as the router's answer)
+  and the router's own tests hold the standing grant (`standing_editor.rs`), but a process-level run cannot offer
+  one until editor sessions have actions of their own (the `fs/*` and `terminal/*` of S4) or the cap is revisited.
+- **The flake: real, in the router.** `compare` counts a later `expires` as a widening. Each turn derives its
+  policy again from the same words with `expires = now + ttl`, so whenever a clock second ticked between two turns
+  (about one run in eight) the second turn's policy was "wider" and the router asked "Allow more for this task"
+  for nothing. Not a race and not an ordering: the writer's output was identical. `apply_policy` now leaves a
+  later expiry out of the widenings it asks about when the policy is derived from the person's newest words
+  (`asked_widenings`); an explicit `Session.Widen` still asks for it. The two-turn acceptance compares sheets
+  again (none in either run). 40 runs of the test (80 two-turn sessions, with and without the restart) passed;
+  before the change it failed about one run in five to eight.
+- Tests: `docket-accept/tests/it/acp_sheets.rs` (the editor sees the sheet as a permission request, allow_once
+  performs, reject refuses, a sheet asked while a turn is recorded reaches the editor), `acp_confirm.rs` (the
+  bus half on a private bus: Once/Always/Refused, setting off, process gone and sill not asked, a stranger
+  refused), `docket-inapp` desk tests, `docket-router` `asked_widenings`.

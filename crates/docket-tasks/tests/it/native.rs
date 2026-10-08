@@ -186,11 +186,30 @@ async fn a_closed_session_takes_no_turn_and_a_fork_goes_on_from_a_point() {
     );
 }
 
-/// A desk with one canned sheet and a record of the choices put to it.
+/// A desk with one canned sheet, handed out once, and a record of the choices put to it.
 #[derive(Default, Clone)]
-struct Canned(Arc<std::sync::Mutex<Vec<SheetChoice>>>);
+struct Canned(
+    Arc<std::sync::Mutex<Vec<SheetChoice>>>,
+    Arc<std::sync::atomic::AtomicUsize>,
+);
 
 impl SheetDesk for Canned {
+    fn next_sheet(
+        &self,
+        _session: &prov::SessionId,
+    ) -> impl std::future::Future<Output = Option<docket_core::ConfirmRequest>> + Send {
+        let once = self.1.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0;
+        let sheet = once
+            .then(|| self.request(&docket_core::ConfirmId::parse("c-1").expect("id")))
+            .flatten();
+        async move {
+            match sheet {
+                Some(sheet) => Some(sheet),
+                None => std::future::pending().await,
+            }
+        }
+    }
+
     fn request(&self, id: &docket_core::ConfirmId) -> Option<docket_core::ConfirmRequest> {
         use docket_core::*;
         Some(

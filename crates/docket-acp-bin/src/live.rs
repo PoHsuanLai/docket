@@ -7,10 +7,14 @@
 //! name under both `editor` (opens sessions and records the editor's turns) and `companion`
 //! (the planner's calls in them). Without those lines the router refuses everything this does.
 
+pub mod confirm;
+
+use confirm::ConfirmObject;
 use docket_acp::{LineWire, Permit, Server, SystemTicks, Ticks};
 use docket_client::{DbusTransport, Intents};
 use docket_core::{AgentConfig, Millis};
-use docket_dbus::InferLink;
+use docket_dbus::{CONFIRM_PATH, InferLink};
+use docket_inapp::EditorDesk;
 use docket_planner::PlannerModel;
 use docket_router::Clock;
 use docket_tasks::{Companion, NativeHost, Now, Quiet, RouterLog};
@@ -50,7 +54,7 @@ impl Clock for Wall {
 type Log = Arc<RouterLog<DbusTransport>>;
 
 /// The host the binary serves with.
-pub type LiveHost = NativeHost<InferLink, DbusTransport, Wall, Quiet, Log>;
+pub type LiveHost = NativeHost<InferLink, DbusTransport, Wall, Quiet, Log, EditorDesk>;
 
 /// Why the process could not serve.
 #[derive(Debug, thiserror::Error)]
@@ -72,6 +76,14 @@ pub async fn serve(permit: Permit) -> Result<(), LiveFault> {
     let env = |key: &str| std::env::var(key).ok();
     let bus = |e: zbus::Error| LiveFault::Bus(e.to_string());
     let connection = docket_dbus::session_connection(&env).await.map_err(bus)?;
+    // The sheets intentd hands this process for an editor's session wait on the desk the host
+    // shows the editor. Served before the name is claimed, so the first sheet finds it.
+    let desk = EditorDesk::new();
+    connection
+        .object_server()
+        .at(CONFIRM_PATH, ConfirmObject::new(desk.clone(), Wall))
+        .await
+        .map_err(bus)?;
     connection.request_name(BUS_NAME).await.map_err(bus)?;
     let shell = AppName::parse(SHELL).map_err(|_| LiveFault::App(SHELL.to_owned()))?;
     let companion = Companion::new(
@@ -86,7 +98,7 @@ pub async fn serve(permit: Permit) -> Result<(), LiveFault> {
     let log: Log = Arc::new(RouterLog::new(Intents::over(DbusTransport::new(
         connection,
     ))));
-    let host: LiveHost = NativeHost::over(companion, log.clone());
+    let host: LiveHost = NativeHost::over(companion, log.clone()).with_desk(desk);
     let wire = LineWire::new(BufReader::new(stdin()), stdout());
     let mut server = Server::new(permit, editor, host, log, wire, SystemTicks);
     // The editor closing the pipe is the normal end.

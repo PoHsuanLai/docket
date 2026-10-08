@@ -5,6 +5,8 @@
 
 use crate::backend::SheetChoice;
 use docket_core::{ConfirmId, ConfirmRequest};
+use prov::SessionId;
+use std::future::Future;
 
 /// Why a sheet could not be answered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -18,6 +20,17 @@ pub enum DeskFault {
 pub trait SheetDesk: Send + Sync {
     /// The open sheet `id`, as the router asked it.
     fn request(&self, id: &ConfirmId) -> Option<ConfirmRequest>;
+
+    /// The next sheet of `session` the host has not been handed, waiting for one. A sheet is
+    /// handed out once. `None` at once from a desk that never holds any (it is not an editor's).
+    /// Cancel-safe: a future dropped before it is ready hands out nothing.
+    fn next_sheet(
+        &self,
+        session: &SessionId,
+    ) -> impl Future<Output = Option<ConfirmRequest>> + Send {
+        let _ = session;
+        std::future::ready(None)
+    }
 
     /// Answers `id` with the person's choice. The router's own offer decides what an "always"
     /// covers; the choice names no scope.

@@ -183,7 +183,11 @@ pub async fn start(
     for (file, why) in &manifests.skipped {
         eprintln!("intentd: skipped {}: {why}", file.display());
     }
-    let confirmer = SheetConfirmer::trusting(session.clone(), Arc::new(config.clone()));
+    // The ACP name plays its roles only while the setting is on; the settings watch below keeps the
+    // gate current, for the bus (who is an editor) and for the sheets (whose process is trusted).
+    let acp = AcpGate::shut();
+    let confirmer = SheetConfirmer::trusting(session.clone(), Arc::new(config.clone()))
+        .gated(acp.clone(), &proc_root);
     let port = CompanionPort::new();
     let link = HostedLink::new(
         DbusLink::new(session.clone()),
@@ -254,8 +258,7 @@ pub async fn start(
     }
     let router = Arc::new(router);
     port.attach(&router);
-    // The ACP name plays its roles only while the setting is on; the watch below keeps it current.
-    let acp = AcpGate::new(watched.current().value.acp);
+    acp.set(watched.current().value.acp);
     serve_on_gated(
         session,
         router.clone(),

@@ -62,3 +62,9 @@ pub fn fail(world: &World, why: &str) -> ! {
 pub const ACP_TWO_TURNS: Cassette = Cassette(include_str!(
     "../../../../dev/accept/cassettes/acp-two-turns.jsonl"
 ));
+
+/// Two turns whose policies differ: the second one's words allow contact searches too, which the
+/// router asks the person about while it records the turn.
+pub const ACP_WIDENS: Cassette = Cassette(include_str!(
+    "../../../../dev/accept/cassettes/acp-widens.jsonl"
+));

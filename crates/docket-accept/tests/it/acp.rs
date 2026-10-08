@@ -8,13 +8,13 @@ use docket_accept::confirm::Verdict;
 use docket_accept::world::{Consent, World};
 use serde_json::{Value, json};
 
-const CWD: &str = "/work/project";
+pub(crate) const CWD: &str = "/work/project";
 
-fn permission(option: &'static str) -> impl FnMut(&Value) -> Option<Value> {
+pub(crate) fn permission(option: &'static str) -> impl FnMut(&Value) -> Option<Value> {
     move |_| Some(json!({"outcome": {"outcome": "selected", "optionId": option}}))
 }
 
-async fn session(editor: &mut AcpEditor) -> String {
+pub(crate) async fn session(editor: &mut AcpEditor) -> String {
     let init = json!({"protocolVersion": 1, "clientCapabilities": {}, "clientInfo": {"name": "zed", "version": "1"}});
     let reply = editor.request("initialize", init, &mut |_| None).await;
     assert_eq!(reply["result"]["protocolVersion"], 1, "{reply}");
@@ -31,17 +31,17 @@ async fn session(editor: &mut AcpEditor) -> String {
         .to_owned()
 }
 
-fn prompt(id: &str, text: &str) -> Value {
+pub(crate) fn prompt(id: &str, text: &str) -> Value {
     json!({"sessionId": id, "prompt": [{"type": "text", "text": text}]})
 }
 
 const BIN: &str = env!("CARGO_BIN_EXE_accept-acp");
 
-async fn editor_of(world: &World) -> AcpEditor {
+pub(crate) async fn editor_of(world: &World) -> AcpEditor {
     AcpEditor::start(world, std::path::Path::new(BIN)).await
 }
 
-fn titles(updates: &[Value]) -> Vec<String> {
+pub(crate) fn titles(updates: &[Value]) -> Vec<String> {
     updates
         .iter()
         .filter(|u| u["sessionUpdate"] == "tool_call")
@@ -49,7 +49,7 @@ fn titles(updates: &[Value]) -> Vec<String> {
         .collect()
 }
 
-fn permissions(editor: &AcpEditor) -> usize {
+pub(crate) fn permissions(editor: &AcpEditor) -> usize {
     editor
         .seen
         .iter()
@@ -57,7 +57,7 @@ fn permissions(editor: &AcpEditor) -> usize {
         .count()
 }
 
-fn words(updates: &[Value]) -> Vec<String> {
+pub(crate) fn words(updates: &[Value]) -> Vec<String> {
     updates
         .iter()
         .filter(|u| u["sessionUpdate"] == "agent_message_chunk")
@@ -88,11 +88,13 @@ async fn one_session_initialize_new_prompt_a_permission_round_and_done() {
             "mail.message.forward"
         ]
     );
-    // Reads go on; the forward is the one call the editor was asked about.
-    assert_eq!(permissions(&editor), 1);
+    // Reads go on; the forward is the one call the editor was asked about, twice: the editor's
+    // own gate at the call's start, then the router's sheet, which no longer goes to the desktop.
+    assert_eq!(permissions(&editor), 2);
     assert!(words(&updates).contains(&"Forwarded the Lisbon receipts to Accounting.".to_owned()));
-    // The router's own gate still ran: the desktop sheet was shown and the app did the work.
-    assert_eq!(world.sheet.shown().len(), 1);
+    // The router's own gate still ran: its sheet went to the editor, not the desktop, and the app
+    // did the work.
+    assert!(world.sheet.shown().is_empty());
     let sent = world.mail.messages();
     assert_eq!(sent.len(), 1, "{sent:#?}");
     assert!(matches!(sent[0].actor, prov::Actor::Companion { .. }));
@@ -130,8 +132,8 @@ async fn an_editors_reject_means_the_app_never_runs_the_call() {
 }
 
 /// Turn one, then (when `restart`) the host goes and a new one starts, loads the session and
-/// goes on with turn two. Returns what turn two showed and what the app did. (Sheets are not compared: the router sometimes asks to widen the task for the second turn, in either run, which is its own matter.)
-async fn two_turns(restart: bool) -> (Vec<Value>, Vec<String>) {
+/// goes on with turn two. Returns what turn two showed and what the app did. The sheets the editor was shown are returned too: none, since both turns only read (a later clock second used to make the second turn's policy count as wider, and the router asked "Allow more for this task" in about one run in eight).
+async fn two_turns(restart: bool) -> (Vec<Value>, Vec<String>, Vec<String>) {
     let world = World::start_acp(&binaries(), Consent::Standing, ACP_TWO_TURNS).await;
     world.sheet.will(Verdict::Allow);
     let mut editor = editor_of(&world).await;
@@ -173,17 +175,39 @@ async fn two_turns(restart: bool) -> (Vec<Value>, Vec<String>) {
         .await;
     assert_eq!(two["result"]["stopReason"], "end_turn", "{two}");
     let after = editor.updates().split_off(before);
-    (after, world.mail.performed())
+    assert!(world.sheet.shown().is_empty(), "the desktop was not asked");
+    (after, world.mail.performed(), sheet_titles(&editor))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_restart_of_the_host_between_turns_changes_nothing_the_editor_or_the_app_sees() {
-    let (steady, steady_performed) = two_turns(false).await;
-    let (restarted, restarted_performed) = two_turns(true).await;
+    let (steady, steady_performed, steady_sheets) = two_turns(false).await;
+    let (restarted, restarted_performed, restarted_sheets) = two_turns(true).await;
     assert_eq!(
         words(&restarted),
         ["Still here, and nothing else was done."]
     );
     assert_eq!(restarted, steady);
     assert_eq!(restarted_performed, steady_performed);
+    assert_eq!(restarted_sheets, steady_sheets);
+    assert_eq!(steady_sheets, Vec::<String>::new());
+}
+
+pub(crate) fn sheet_titles(editor: &AcpEditor) -> Vec<String> {
+    editor
+        .seen
+        .iter()
+        .filter(|m| m["method"] == "session/request_permission")
+        .filter(|m| {
+            m["params"]["toolCall"]["toolCallId"]
+                .as_str()
+                .is_some_and(|id| id.starts_with("sheet-"))
+        })
+        .map(|m| {
+            m["params"]["toolCall"]["title"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned()
+        })
+        .collect()
 }

@@ -9,7 +9,7 @@ use crate::review::AskReason;
 use crate::standing_offer::AlwaysOffer;
 use crate::units::Seconds;
 use porter_core::{AppName, Count};
-use prov::{Actor, ConfirmReceipt, Effect, Source, SpaceId};
+use prov::{Actor, ClientName, ConfirmReceipt, Effect, SessionId, Source, SpaceId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::future::Future;
@@ -122,6 +122,17 @@ pub enum Anchor {
     Centre,
 }
 
+/// Where a sheet for a call in an editor's session goes: the app behind the editor's connection,
+/// as the router saw it (never a name the editor wrote about itself), and the session, so the
+/// editor's process shows the sheet in the right one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EditorRoute {
+    /// The editor's app.
+    pub client: ClientName,
+    /// The session whose call asks.
+    pub session: SessionId,
+}
+
 /// What the compositor or the shell draws.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConfirmRequest {
@@ -160,6 +171,12 @@ pub struct ConfirmRequest {
     pub anchor: Anchor,
     /// How long it stays (the setting `agent.confirm.expiry_s`, proposed 120).
     pub expires: Seconds,
+    /// The editor the person is speaking through, when the sheet is for a call in a session whose
+    /// latest turn came from an editor. The
+    /// confirmer hands such a sheet to that app's process rather than to the desktop. Sheets
+    /// from before it existed read as none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor: Option<EditorRoute>,
 }
 
 /// What every sheet must say. A consumer outside docket builds a request from this with
@@ -236,7 +253,13 @@ impl ConfirmRequest {
             gesture,
             anchor,
             expires,
+            editor: None,
         }
+    }
+
+    /// The same request for a call in a session an editor drives.
+    pub fn for_editor(self, editor: Option<EditorRoute>) -> Self {
+        ConfirmRequest { editor, ..self }
     }
 
     /// The same request with this "allow always" offer.

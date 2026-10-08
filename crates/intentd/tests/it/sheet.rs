@@ -31,6 +31,7 @@ fn request(id: &str, expires: u32) -> ConfirmRequest {
         gesture: Gesture::Press,
         anchor: Anchor::Centre,
         expires: Seconds(expires),
+        editor: None,
     }
 }
 

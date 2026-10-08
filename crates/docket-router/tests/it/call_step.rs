@@ -31,6 +31,7 @@ fn sheet(id: &str) -> ConfirmRequest {
         gesture: Gesture::Press,
         anchor: Anchor::Launcher,
         expires: Seconds(120),
+        editor: None,
     }
 }
 

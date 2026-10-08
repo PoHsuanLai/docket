@@ -10,18 +10,31 @@ use crate::seams::{Now, Surface};
 use crate::shared::Shared;
 use companion_wire::NeedsYou;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{ConfirmId, ContextKeep, Keep, Origin, SessionOpen, TurnIn, UserTurn};
+use docket_core::{
+    ConfirmId, ConfirmRequest, ContextKeep, Keep, Origin, SessionOpen, TurnIn, UserTurn,
+};
 use docket_session::{
     BackendEvent, BackendFault, EndCause, HostFault, NoDesk, Opening, ResumePlan, Seq,
     SessionBackend, SessionExport, SessionHost, SessionLog, SheetChoice, SheetDesk, Standing,
     StartSession, export, fork, read_all, resume_plan,
 };
+use futures_util::future::{Either, select};
 use futures_util::lock::Mutex;
 use porter_client::Transport as InferTransport;
 use prov::{AgentRef, SessionId, TaskId};
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::sync::Arc;
+
+/// What a pull of a session found.
+enum Pulled {
+    /// A sheet the desk was handed.
+    Sheet(Box<ConfirmRequest>),
+    /// The desk holds no sheets at all (not an editor's host).
+    NoDesk,
+    /// The backend's next event.
+    Event(Option<BackendEvent>),
+}
 
 /// The native sessions of one companion, over the log the router writes.
 #[derive(Debug)]
@@ -33,6 +46,10 @@ pub struct NativeHost<P: InferTransport, I: IntentsTransport, K, S: Surface, L, 
     backends: BTreeMap<SessionId, NativeBackend<P, I, K, S>>,
     /// Sessions that take no turn: closed, or stored for display only.
     over: BTreeSet<SessionId>,
+    /// The sheet each session was told about and whose request has not reached the desk yet.
+    awaited: BTreeMap<SessionId, ConfirmId>,
+    /// An event pulled while a sheet was awaited and not yet handed out.
+    later: BTreeMap<SessionId, Option<BackendEvent>>,
 }
 
 impl<P, I, K, S, L> NativeHost<P, I, K, S, L>
@@ -58,6 +75,8 @@ where
             desk: NoDesk,
             backends: BTreeMap::new(),
             over: BTreeSet::new(),
+            awaited: BTreeMap::new(),
+            later: BTreeMap::new(),
         }
     }
 
@@ -70,6 +89,8 @@ where
             desk,
             backends: self.backends,
             over: self.over,
+            awaited: self.awaited,
+            later: self.later,
         }
     }
 }
@@ -90,6 +111,22 @@ where
         self.backends
             .get_mut(session)
             .ok_or(HostFault::NoSuchSession)
+    }
+
+    /// The next thing a session shows: a sheet its desk was handed, or the backend's next event.
+    /// Cancel-safe: the two futures lose nothing when dropped.
+    async fn pull(&mut self, session: &SessionId) -> Result<Pulled, HostFault> {
+        let backend = self
+            .backends
+            .get_mut(session)
+            .ok_or(HostFault::NoSuchSession)?;
+        let sheet = Box::pin(self.desk.next_sheet(session));
+        let event = Box::pin(backend.next_event());
+        Ok(match select(sheet, event).await {
+            Either::Left((Some(request), _)) => Pulled::Sheet(Box::new(request)),
+            Either::Left((None, _)) => Pulled::NoDesk,
+            Either::Right((event, _)) => Pulled::Event(event),
+        })
     }
 
     fn fresh(&self, session: &SessionId) -> NativeBackend<P, I, K, S> {
@@ -160,38 +197,57 @@ where
             return Err(HostFault::NotOpen);
         }
         self.backend(session)?;
-        // The router records what the person said, and numbers it.
-        let id = {
-            let core = self.core.lock().await;
-            core.intents
-                .session_turn(
-                    session.clone(),
-                    TurnIn {
-                        text: turn.text.clone(),
-                        origin: Origin::InWindowField,
-                        keep: kept_nothing(),
-                        via: turn.via,
-                    },
-                )
-                .await
-                .map_err(|_| BackendFault::Unavailable)?
+        // The router records what the person said, and numbers it, inside the turn's flight.
+        let said = TurnIn {
+            text: turn.text.clone(),
+            origin: Origin::InWindowField,
+            keep: kept_nothing(),
+            via: turn.via,
         };
-        self.backend(session)?.turn(UserTurn { id, ..turn }).await?;
+        self.backend(session)?.record_and_turn(turn, said)?;
         Ok(())
     }
 
+    /// The router tells the host a sheet is up (`NeedsYou::Confirm`) by one route and the desk is
+    /// handed the sheet by another, so either may come first. A sheet the desk holds is shown as
+    /// itself, once; one that has not arrived is awaited together with the backend's next event,
+    /// and if that comes first the sheet went elsewhere (the desktop) and stays text. All state
+    /// between pulls is in fields (`awaited`, `later`), so a dropped pull loses nothing.
     async fn next_event(&mut self, session: &SessionId) -> Result<Option<BackendEvent>, HostFault> {
-        let event = self.backend(session)?.next_event().await;
-        // A sheet the desk holds goes to the edge as itself; one it does not hold stays text.
-        Ok(match event {
-            Some(BackendEvent::NeedsYou(NeedsYou::Confirm(id))) => {
-                Some(match self.desk.request(&id) {
-                    Some(request) => BackendEvent::Sheet(Box::new(request)),
-                    None => BackendEvent::NeedsYou(NeedsYou::Confirm(id)),
-                })
+        loop {
+            let pulled = match self.later.remove(session) {
+                Some(event) => Pulled::Event(event),
+                None => self.pull(session).await?,
+            };
+            let owed = self.awaited.get(session).cloned();
+            let event = match (pulled, owed) {
+                (Pulled::Sheet(request), _) => {
+                    self.awaited.remove(session);
+                    return Ok(Some(BackendEvent::Sheet(request)));
+                }
+                (Pulled::NoDesk, Some(id)) => {
+                    self.awaited.remove(session);
+                    return Ok(Some(BackendEvent::NeedsYou(NeedsYou::Confirm(id))));
+                }
+                (Pulled::NoDesk, None) => self.backend(session)?.next_event().await,
+                (Pulled::Event(event), Some(id)) => {
+                    // The event came before the sheet: it went elsewhere.
+                    self.awaited.remove(session);
+                    self.later.insert(session.clone(), event);
+                    return Ok(Some(BackendEvent::NeedsYou(NeedsYou::Confirm(id))));
+                }
+                (Pulled::Event(event), None) => event,
+            };
+            match event {
+                Some(BackendEvent::NeedsYou(NeedsYou::Confirm(id))) => {
+                    // On the desk: shown (or about to be) as a sheet. Not yet: wait for it.
+                    if self.desk.request(&id).is_none() {
+                        self.awaited.insert(session.clone(), id);
+                    }
+                }
+                other => return Ok(other),
             }
-            other => other,
-        })
+        }
     }
 
     async fn answer_sheet(
