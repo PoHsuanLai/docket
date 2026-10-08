@@ -96,9 +96,19 @@ pub async fn ask(
 
 /// Opens a companion session in `in_space` and returns it.
 pub async fn open(router: &Router<FakeSeams>, in_space: &str, agent: AgentRef) -> SessionOpened {
+    open_as(router, &companion(), in_space, agent).await
+}
+
+/// `who` opens a session in `in_space`.
+pub async fn open_as(
+    router: &Router<FakeSeams>,
+    who: &CallerId,
+    in_space: &str,
+    agent: AgentRef,
+) -> SessionOpened {
     let reply = ask(
         router,
-        &companion(),
+        who,
         IntentsRequest::SessionOpen(SessionOpen {
             space: space(in_space),
             agent,
@@ -114,9 +124,19 @@ pub async fn open(router: &Router<FakeSeams>, in_space: &str, agent: AgentRef) -
 
 /// The person says something in a session.
 pub async fn say(router: &Router<FakeSeams>, session: &SessionId, text: &str) -> TurnId {
+    say_as(router, &launcher(), session, text).await
+}
+
+/// `who` (a launcher, a field, an editor) says something in a session.
+pub async fn say_as(
+    router: &Router<FakeSeams>,
+    who: &CallerId,
+    session: &SessionId,
+    text: &str,
+) -> TurnId {
     let reply = ask(
         router,
-        &launcher(),
+        who,
         IntentsRequest::SessionTurn {
             session: session.clone(),
             turn: TurnIn {
@@ -169,6 +189,11 @@ pub fn give_policy(router: &Router<FakeSeams>, session: &SessionId, policy: Task
 
 /// Standing consent: the companion may use Mail's classes in `in_space`, always.
 pub fn grant_mail(router: &Router<FakeSeams>, in_space: &str) {
+    grant_mail_to(router, GrantCaller::Companion, in_space);
+}
+
+/// Standing consent: `caller` may use Mail's classes in `in_space`, always.
+pub fn grant_mail_to(router: &Router<FakeSeams>, caller: GrantCaller, in_space: &str) {
     use docket_router::GrantStore;
     use porter_core::consent::{Decision, Grant, GrantScope, Usage};
     for (n, class) in [DataClass::Mail, DataClass::Contacts]
@@ -179,7 +204,7 @@ pub fn grant_mail(router: &Router<FakeSeams>, in_space: &str) {
             router.seams.grants.record(Grant {
                 id: porter_core::GrantId::parse(&format!("g-{n}")).expect("grant"),
                 key: ActionGrantKey {
-                    caller: GrantCaller::Companion,
+                    caller: caller.clone(),
                     owner: mail_app(),
                     target: GrantTarget::App,
                     class,

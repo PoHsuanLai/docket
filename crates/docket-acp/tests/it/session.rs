@@ -110,6 +110,8 @@ async fn the_editor_allowing_a_call_does_not_get_it_past_our_gate_and_the_failur
         ed.transcript()
     };
     let (_, transcript) = tokio::join!(server.run(), script);
+    // No router sheet was put to the editor here, so nothing offered "always": it never appears
+    // when withheld (`sheets.rs` covers the offered case).
     for banned in [
         "rawOutput",
         "rawInput",
@@ -201,7 +203,7 @@ async fn a_reject_stops_the_turn_and_the_call_never_runs() {
 }
 
 #[tokio::test]
-async fn allow_always_is_never_offered_and_choosing_it_anyway_is_a_reject() {
+async fn allow_always_is_never_offered_at_the_gate_and_choosing_it_anyway_is_a_reject() {
     let log = Arc::new(MemoryLog::new());
     let (mut server, mut ed) = rig(&log, one_turn(), EDITOR);
     let script = async move {

@@ -31,7 +31,7 @@ mod resume;
 
 pub use backend::{
     BackendEvent, BackendFault, CallEvent, HostFault, Resumed, SessionBackend, SessionHost,
-    StartSession, TurnEnd, UsageNote,
+    SheetChoice, StartSession, TurnEnd, UsageNote,
 };
 pub use codec::{
     CURRENT, EncodeFault, Encoded, EntryVersion, Logged, Read, Unreadable, decode, encode, kind_tag,

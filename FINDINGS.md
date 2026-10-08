@@ -2032,8 +2032,8 @@ grant), `docket-inapp/tests/it/grants.rs` and `intentd/tests/it/files.rs` (resta
 reader, damaged file).
 
 Open, and why:
-- No editor or ACP agent reaches the router yet, so `Who::grant_caller` never returns `Editor` or
-  `AcpAgent` and no sheet is offered a standing grant; the router tests key grants to the companion to
+- (Editor part closed by "acp-always" below.) No ACP agent reaches the router yet, so
+  `Who::grant_caller` never returns `AcpAgent`; the router tests key grants to the companion to
   exercise the lookup. The ACP lane maps its `CallerRole::Editor` / agent actor to the new variants; until
   then `holds_standing` is false for every live caller and nothing changes for them.
 - `GrantCaller::kind()` maps both new callers to `ActorKind::Mcp`: prov has no ACP actor kind.
@@ -2086,8 +2086,7 @@ What landed, and what it leaves for other lanes.
 
 Deferred, each closed by the work named:
 
-- **Allow-always for the editor** waits for the R1 standing-grant model in docket-core; wiring the
-  editor's `allow_always` to `GrantCaller::Editor` is a follow-up after both land.
+- **Allow-always for the editor** is wired, see "Allow always for an editor (acp-always)" below.
 - **The binary has no host.** `SessionHost` has no real implementation yet (the native backend over
   the router is S2), so `docket-acp` with the setting on exits 1 with "no session host". The tests
   drive `Server` with `docket_session::fake_host::FakeHost` (scripted `FakeBackend`s over a shared
@@ -2104,3 +2103,46 @@ Deferred, each closed by the work named:
   elicitation, and the editor's `fs/*` and `terminal/*` (the client direction, S4).
 - **Fuzz target** on the JSON-RPC parser (design section 7) is not added; `Incoming::parse` is
   total over strings and tested through the server with a non-JSON line.
+
+## Allow always for an editor (acp-always)
+
+R1 direction (a): the editor's `allow_always` click creates the standing grant. What is wired:
+
+- **Identity: the connection's app.** `Who::grant_caller` returns `GrantCaller::Editor(ClientName)`
+  for an editor's calls, where the name is the app behind the connection that recorded the session's
+  latest turn (`TurnSource::Editor(app)`, which `turn_source` fills from `caller.app.name`), or the
+  connection's own app for a `Who` in the `Editor` role. The ACP `clientInfo.name` is NOT used: the
+  editor writes it, so any process could claim to be `zed` and inherit its grants. The app name is
+  what the router saw on the bus. The cost: a grant is per app, not per editor product, which is the
+  right grain (a fork of an editor is another app). A Cua actor never maps to an editor.
+- **An editor session's calls are made by the companion**, so the role is read from the session:
+  `Who::editor` is set for a companion whose session's latest turn came from an editor. When the
+  person later speaks from the launcher in the same session, the next call is the companion's again,
+  asks as the companion does and holds no editor grant (a test). Consequence to know: class consent
+  (`grant_mail` and the like) is keyed by `GrantCaller` too, so an editor session needs consent in
+  its own name, not the companion's; without it the editor's calls ask under the editor's key.
+- **The sheet reaches the editor as an event.** `BackendEvent::Sheet(Box<ConfirmRequest>)` and
+  `SessionHost::answer_sheet(session, id, SheetChoice)` are new. The edge reports the click
+  (`Once`, `Always`, `Refused`); the host builds the router's `ConfirmAnswer` and receipt, and the
+  router re-derives the offer (`record_standing` only records an `Offered` scope), so an editor can
+  never name a scope or force a grant the sheet did not offer. A host that has no Sheet to send
+  changes nothing. The real host (S2) must map `Sheet` from its `Confirmer` and `answer_sheet` back
+  to it; the fake host records the choices.
+- **Scope words** (`docket_acp::always_words`) are built only from the typed scope and the manifest's
+  label for the action: `Always allow "<label>" on files under <path>`, `... for commands starting
+  "<prefix>" in <cwd> and below`, `... to <address>` or `to anyone at <domain>`. Paths, prefixes and
+  addresses have passed their parsers (no control characters, no shell syntax); no model text is in
+  the option.
+- **The editor's own prompt stands down per action.** In mode `ask` the extra gate at a call's start
+  would otherwise ask again on every covered call. `Covered` remembers, per connection and by action
+  name only, what the person said "always" to; the gate skips those actions (never in `read-only`).
+  It is not the grant: a sibling path, another recipient or a revoked grant still reaches the person
+  as a router sheet, and every review still runs. A new connection starts with none, so after a
+  restart the gate asks once more per action.
+- **Never offered** (tests): untrusted content into an outbound, permanent delete, and a call outside
+  the task. A withheld sheet shows no `allow_always`, and picking it anyway is a refusal.
+- Tests: `docket-router/tests/it/standing_editor.rs`, `docket-acp/tests/it/sheets.rs`.
+
+Open: the Settings page lists and revokes; it still cannot say which editor product a grant is for
+beyond its app name. The `Sheet` event's tool-call id is the sheet id, not the call's: an editor
+shows the sheet as its own entry next to the call.

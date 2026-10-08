@@ -10,26 +10,26 @@ use docket_fake::{FakeSeams, MailContact, ReviewMode, ScriptedReviewer};
 use docket_router::{GrantStore, Router};
 use prov::{Labelled, UnixSeconds};
 
-const ADDRESS: &str = "accounting@example.test";
+pub(crate) const ADDRESS: &str = "accounting@example.test";
 
 fn contact() -> Value {
     Value::Entity(entity("mail.contact", ADDRESS))
 }
 
-fn send_with(body: Labelled<Value>) -> CallRequest {
+pub(crate) fn send_with(body: Labelled<Value>) -> CallRequest {
     let mut request = call("mail.message.send", &[], vec![("to", contact())]);
     request.args.insert(param("body"), body);
     request
 }
 
-fn send() -> CallRequest {
+pub(crate) fn send() -> CallRequest {
     send_with(Labelled {
         value: Value::Text("tidy".into()),
         label: trusted(),
     })
 }
 
-fn scope_to(to: &str) -> StandingScope {
+pub(crate) fn scope_to(to: &str) -> StandingScope {
     StandingScope::Outbound {
         action: action("mail.message.send"),
         to: Recipient::address(to).expect("address"),
@@ -63,7 +63,7 @@ async fn ready_router() -> Router<FakeSeams> {
     router
 }
 
-fn used(router: &Router<FakeSeams>) -> usize {
+pub(crate) fn used(router: &Router<FakeSeams>) -> usize {
     router
         .seams
         .sink
@@ -262,11 +262,11 @@ async fn the_control_surface_lists_and_revokes() {
     assert!(matches!(refused, IntentsReply::Refused(_)), "{refused:?}");
 }
 
-fn files_app() -> porter_core::AppName {
+pub(crate) fn files_app() -> porter_core::AppName {
     app("org.quire.Files")
 }
 
-fn move_to(destination: &str) -> CallRequest {
+pub(crate) fn move_to(destination: &str) -> CallRequest {
     CallRequest {
         action: ActionRef {
             app: files_app(),
@@ -301,7 +301,7 @@ async fn files_router() -> Router<FakeSeams> {
     router
 }
 
-fn under(prefix: &str) -> StandingScope {
+pub(crate) fn under(prefix: &str) -> StandingScope {
     StandingScope::Files {
         action: ActionRef {
             app: files_app(),

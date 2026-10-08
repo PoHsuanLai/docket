@@ -4,11 +4,13 @@
 //! backend is cancelled and the turn ends `cancelled`.
 
 use crate::calls;
+use crate::covered::Covered;
 use crate::mode::{Mode, Say};
 use crate::permission::Verdict;
 use agent_client_protocol_schema::v1::{SessionUpdate, StopReason};
 use companion_wire::NeedsYou;
-use docket_core::Reveal;
+use docket_core::{AlwaysOffer, ConfirmRequest, Reveal};
+use docket_session::SheetChoice;
 use docket_session::{BackendEvent, CallEvent, CallOpen, TurnEnd};
 
 /// Why the turn is being stopped.
@@ -33,6 +35,7 @@ impl Why {
 enum State {
     Running,
     Asking(CallOpen),
+    Sheeting(Box<ConfirmRequest>),
     Stopping { call: Option<CallOpen>, why: Why },
     Done(Finish),
 }
@@ -53,6 +56,8 @@ pub enum Wants {
     Event,
     /// The editor's answer about this call.
     Answer(CallOpen),
+    /// The editor's choice on the router's sheet.
+    Sheet(Box<ConfirmRequest>),
     /// Nothing: answer the prompt.
     Over(Finish),
 }
@@ -70,6 +75,7 @@ pub enum Order {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Turn {
     mode: Mode,
+    covered: Covered,
     state: State,
 }
 
@@ -95,10 +101,11 @@ fn needs(of: &NeedsYou) -> String {
 }
 
 impl Turn {
-    /// A turn in `mode`.
-    pub fn new(mode: Mode) -> Self {
+    /// A turn in `mode`, for a person who already said "always" to `covered`.
+    pub fn new(mode: Mode, covered: Covered) -> Self {
         Self {
             mode,
+            covered,
             state: State::Running,
         }
     }
@@ -108,6 +115,7 @@ impl Turn {
         match &self.state {
             State::Running | State::Stopping { .. } => Wants::Event,
             State::Asking(call) => Wants::Answer(call.clone()),
+            State::Sheeting(sheet) => Wants::Sheet(sheet.clone()),
             State::Done(finish) => Wants::Over(*finish),
         }
     }
@@ -122,6 +130,7 @@ impl Turn {
         match std::mem::replace(&mut self.state, State::Running) {
             State::Running => self.stop(None, Why::Cancelled),
             State::Asking(call) => self.stop(Some(call), Why::Cancelled),
+            State::Sheeting(_) => self.stop(None, Why::Cancelled),
             other => {
                 self.state = other;
                 Vec::new()
@@ -138,6 +147,23 @@ impl Turn {
             Verdict::Allow => vec![Order::Update(Box::new(calls::running(&call)))],
             Verdict::Reject => self.stop(Some(call), Why::Rejected),
         }
+    }
+
+    /// The sheet was answered (the host has the choice): the turn goes on, and the router ends
+    /// the call as the choice says.
+    pub fn sheet_answered(&mut self, choice: SheetChoice) {
+        let State::Sheeting(sheet) = std::mem::replace(&mut self.state, State::Running) else {
+            return;
+        };
+        if let (SheetChoice::Always, AlwaysOffer::Offered(scope)) = (choice, &sheet.always) {
+            let covered = std::mem::take(&mut self.covered);
+            self.covered = covered.with(scope.action().clone());
+        }
+    }
+
+    /// What the person has said "always" to, this turn included.
+    pub fn covered(&self) -> Covered {
+        self.covered.clone()
     }
 
     /// The backend's next event.
@@ -158,6 +184,10 @@ impl Turn {
         match event {
             BackendEvent::Words(text) => vec![Order::Update(Box::new(calls::say(words(text))))],
             BackendEvent::Thought(_) | BackendEvent::Usage(_) => Vec::new(),
+            BackendEvent::Sheet(sheet) => {
+                self.state = State::Sheeting(sheet);
+                Vec::new()
+            }
             BackendEvent::NeedsYou(need) => vec![Order::Update(Box::new(calls::say(needs(&need))))],
             BackendEvent::Call(CallEvent::Ended(step)) => {
                 vec![Order::Update(Box::new(calls::ended(&step)))]
@@ -169,7 +199,11 @@ impl Turn {
 
     fn started(&mut self, open: CallOpen) -> Vec<Order> {
         let first = Order::Update(Box::new(calls::started(&open)));
-        match self.mode.says(&open) {
+        let says = match self.mode.says(&open) {
+            Say::Ask if self.covered.holds(&open.action) => Say::Proceed,
+            other => other,
+        };
+        match says {
             Say::Proceed => vec![first, Order::Update(Box::new(calls::running(&open)))],
             Say::Ask => {
                 self.state = State::Asking(open);

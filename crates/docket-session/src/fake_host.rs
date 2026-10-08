@@ -3,7 +3,7 @@
 //! hands each session the next scripted backend. Fork is not scripted.
 
 use crate::backend::{
-    BackendEvent, CallEvent, HostFault, SessionBackend, SessionHost, StartSession,
+    BackendEvent, CallEvent, HostFault, SessionBackend, SessionHost, SheetChoice, StartSession,
 };
 use crate::entry::{EndCause, Opening, Seq, SessionEntry};
 use crate::export::{SessionExport, export};
@@ -11,7 +11,7 @@ use crate::fake::{FakeBackend, MemoryLog};
 use crate::log::{SessionLog, read_all};
 use crate::plan::ResumePlan;
 use crate::resume::resume_plan;
-use docket_core::UserTurn;
+use docket_core::{ConfirmId, UserTurn};
 use prov::SessionId;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
@@ -28,6 +28,8 @@ pub struct FakeHost {
     minted: u32,
     /// The sessions it was asked to cancel, in order.
     pub cancelled: Vec<SessionId>,
+    /// The choices it was given on sheets, in order.
+    pub sheets: Vec<(ConfirmId, SheetChoice)>,
     /// The turns it was given, by session, in order.
     pub turns: Vec<(SessionId, UserTurn)>,
 }
@@ -43,6 +45,7 @@ impl FakeHost {
             closed: BTreeSet::new(),
             minted: 0,
             cancelled: Vec::new(),
+            sheets: Vec::new(),
             turns: Vec::new(),
         }
     }
@@ -127,6 +130,17 @@ impl SessionHost for FakeHost {
             _ => {}
         }
         Ok(event)
+    }
+
+    async fn answer_sheet(
+        &mut self,
+        session: &SessionId,
+        id: &ConfirmId,
+        choice: SheetChoice,
+    ) -> Result<(), HostFault> {
+        self.backend(session)?;
+        self.sheets.push((id.clone(), choice));
+        Ok(())
     }
 
     async fn cancel(&mut self, session: &SessionId) -> Result<(), HostFault> {

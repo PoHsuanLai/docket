@@ -12,7 +12,7 @@ use crate::wire::{Incoming, Wire, WireClosed};
 use agent_client_protocol_schema::rpc::RequestId;
 use agent_client_protocol_schema::v1::{
     AGENT_METHOD_NAMES, CLIENT_METHOD_NAMES, CancelNotification, ContentBlock, Error,
-    PromptRequest, PromptResponse, SessionNotification,
+    PromptRequest, PromptResponse, RequestPermissionRequest, SessionNotification,
 };
 use docket_core::{TurnId, TurnSource, TurnVia, UserTurn};
 use docket_session::{BackendEvent, HostFault, SessionHost, SessionLog, TurnEnd};
@@ -43,6 +43,14 @@ fn refused(fault: HostFault) -> Error {
     }
 }
 
+/// What came of asking the editor.
+pub(crate) enum Reply {
+    /// Its answer.
+    Answer(Result<serde_json::Value, serde_json::Value>),
+    /// A cancel or a hang-up ended the wait first; these are the orders it brings.
+    Heard(Vec<Order>),
+}
+
 /// What woke the loop.
 enum Woke {
     Event(Result<Option<BackendEvent>, HostFault>),
@@ -58,7 +66,10 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
         match self.begin(params).await {
             Err(error) => self.wire.write_line(out::failure(&id, &error)).await,
             Ok((session, mode)) => {
-                let finish = self.drive(&session, Turn::new(mode)).await?;
+                let mut turn = Turn::new(mode, self.covered.clone());
+                let finish = self.drive(&session, &mut turn).await;
+                self.covered = turn.covered();
+                let finish = finish?;
                 let line = match finish {
                     Finish::Stop(reason) => out::reply(&id, &PromptResponse::new(reason)),
                     Finish::Failed => out::failure(&id, &fault::internal("the turn failed")),
@@ -90,7 +101,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
         Ok((session, mode))
     }
 
-    async fn drive(&mut self, session: &SessionId, mut turn: Turn) -> Result<Finish, WireClosed> {
+    async fn drive(&mut self, session: &SessionId, turn: &mut Turn) -> Result<Finish, WireClosed> {
         loop {
             let orders = match turn.wants() {
                 Wants::Over(finish) => return Ok(finish),
@@ -107,44 +118,49 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
                         Woke::Event(Ok(Some(event))) => turn.event(event),
                         Woke::Event(_) => turn.event(BackendEvent::TurnEnd(TurnEnd::Failed)),
                         Woke::Line(None) => turn.cancelled(),
-                        Woke::Line(Some(line)) => self.heard(session, &line, &mut turn).await?,
+                        Woke::Line(Some(line)) => self.heard(session, &line, turn).await?,
                     }
                 }
                 Wants::Answer(call) => {
-                    let asked = RequestId::Str(format!("docket-permission-{}", self.mint()));
                     let request = permission::request(&out::wire_id(session), &call);
-                    let line = out::ask(
-                        &asked,
-                        CLIENT_METHOD_NAMES.session_request_permission,
-                        &request,
-                    );
-                    self.wire.write_line(line).await?;
-                    self.await_answer(session, &asked, &mut turn).await?
+                    match self.ask_editor(session, &request, turn).await? {
+                        Reply::Heard(orders) => orders,
+                        Reply::Answer(reply) => turn.answered(verdict_of_reply(reply)),
+                    }
                 }
+                Wants::Sheet(sheet) => self.put_sheet(session, &sheet, turn).await?,
             };
             self.carry(session, orders).await?;
         }
     }
 
-    /// Reads lines until the editor answers `asked`, or cancels, or goes away.
-    async fn await_answer(
+    /// Sends the permission `request` and reads lines until the editor answers it, or cancels,
+    /// or goes away.
+    pub(crate) async fn ask_editor(
         &mut self,
         session: &SessionId,
-        asked: &RequestId,
+        request: &RequestPermissionRequest,
         turn: &mut Turn,
-    ) -> Result<Vec<Order>, WireClosed> {
+    ) -> Result<Reply, WireClosed> {
+        let asked = RequestId::Str(format!("docket-permission-{}", self.mint()));
+        let line = out::ask(
+            &asked,
+            CLIENT_METHOD_NAMES.session_request_permission,
+            request,
+        );
+        self.wire.write_line(line).await?;
         loop {
             let Some(line) = self.wire.read_line().await else {
-                return Ok(turn.cancelled());
+                return Ok(Reply::Heard(turn.cancelled()));
             };
             match Incoming::parse(&line) {
-                Ok(Incoming::Reply { id, outcome }) if &id == asked => {
-                    return Ok(turn.answered(verdict_of_reply(outcome)));
+                Ok(Incoming::Reply { id, outcome }) if id == asked => {
+                    return Ok(Reply::Answer(outcome));
                 }
                 _ => {
                     let orders = self.heard(session, &line, turn).await?;
-                    if !matches!(turn.wants(), Wants::Answer(_)) {
-                        return Ok(orders);
+                    if !matches!(turn.wants(), Wants::Answer(_) | Wants::Sheet(_)) {
+                        return Ok(Reply::Heard(orders));
                     }
                 }
             }

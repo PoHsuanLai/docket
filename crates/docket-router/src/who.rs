@@ -3,7 +3,7 @@
 
 use crate::labels::Voice;
 use crate::state::{RouterState, SessionRecord};
-use docket_core::{CallerId, CallerRole, GrantCaller, WireRefusal};
+use docket_core::{CallerId, CallerRole, GrantCaller, TurnSource, WireRefusal};
 use prov::{Actor, AgentRole, ClientName, SessionId, TaskId};
 
 /// The party behind a request.
@@ -19,11 +19,34 @@ pub(crate) struct Who {
     pub actor: Actor,
     /// How far its labels are believed.
     pub voice: Voice,
+    /// The editor the person is speaking through, named by the app behind its connection (what
+    /// the router saw, never a name the editor wrote about itself).
+    pub editor: Option<ClientName>,
+}
+
+/// The editor the person last spoke through in `record`: the app that recorded its latest turn,
+/// if that turn came from an editor.
+fn editor_of(record: &SessionRecord) -> Option<ClientName> {
+    match record.turns.last().map(|t| &t.from) {
+        Some(TurnSource::Editor(app)) => ClientName::parse(app.as_str()).ok(),
+        _ => None,
+    }
 }
 
 impl Who {
     /// The consent a grant for this party is keyed by.
     pub(crate) fn grant_caller(&self) -> GrantCaller {
+        if let Some(client) = &self.editor
+            && !matches!(
+                self.actor,
+                Actor::Companion {
+                    role: AgentRole::Cua { .. },
+                    ..
+                }
+            )
+        {
+            return GrantCaller::Editor(client.clone());
+        }
         match &self.actor {
             Actor::Companion {
                 role: AgentRole::Cua { .. },
@@ -55,12 +78,16 @@ impl RouterState {
         let (actor, voice) = match role {
             CallerRole::Launcher | CallerRole::Field | CallerRole::Editor => {
                 let actor = Actor::User { via: app };
+                let editor = (role == CallerRole::Editor)
+                    .then(|| ClientName::parse(caller.app.name.as_str()).ok())
+                    .flatten();
                 return Ok(Who {
                     caller: caller.clone(),
                     role,
                     session: None,
                     actor,
                     voice: Voice::Person,
+                    editor,
                 });
             }
             CallerRole::Companion => {
@@ -72,7 +99,7 @@ impl RouterState {
                     Some(wanted) => companions.find(|(id, _)| *id == wanted),
                     None => companions.max_by_key(|(id, _)| crate::messaging::age(id)),
                 }
-                .map(|(id, r)| (id.clone(), r.actor.clone()))
+                .map(|(id, r)| (id.clone(), r.actor.clone(), editor_of(r)))
                 .ok_or(WireRefusal::NoSuchSession)?;
                 return Ok(Who {
                     caller: caller.clone(),
@@ -80,6 +107,7 @@ impl RouterState {
                     session: Some(session.0),
                     actor: session.1,
                     voice: Voice::Model,
+                    editor: session.2,
                 });
             }
             CallerRole::Mcp => {
@@ -124,6 +152,7 @@ impl RouterState {
             session: Some(session),
             actor,
             voice,
+            editor: None,
         })
     }
 }

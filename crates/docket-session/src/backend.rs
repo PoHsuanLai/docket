@@ -7,7 +7,7 @@ use crate::entry::{BackendKind, CallOpen, EndCause, Opening, Seq};
 use crate::export::SessionExport;
 use crate::plan::ResumePlan;
 use companion_wire::NeedsYou;
-use docket_core::{BreakerTrip, Reveal, StepLine, UserTurn};
+use docket_core::{BreakerTrip, ConfirmId, ConfirmRequest, Reveal, StepLine, UserTurn};
 use porter_core::{Count, MicroUsd};
 use prov::SessionId;
 use std::future::Future;
@@ -59,6 +59,18 @@ pub enum TurnEnd {
     Paused(BreakerTrip),
 }
 
+/// What the person chose on a sheet an edge put to them. The edge reports the click; it mints no
+/// receipt and names no scope: the router's own offer says what "always" would cover.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SheetChoice {
+    /// Yes, this once.
+    Once,
+    /// Yes, and from now on for what the sheet offered. Honoured only if it offered one.
+    Always,
+    /// No.
+    Refused,
+}
+
 /// What a backend reports of its own use: informational, never trusted for a budget.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UsageNote {
@@ -88,6 +100,10 @@ pub enum BackendEvent {
     Call(CallEvent),
     /// The person is needed.
     NeedsYou(NeedsYou),
+    /// The router's sheet for a call, put to an edge that can ask the person where they are (an
+    /// editor). The edge answers it with [`SessionHost::answer_sheet`]; the host turns the
+    /// choice into the router's answer and its receipt.
+    Sheet(Box<ConfirmRequest>),
     /// Use, informational.
     Usage(UsageNote),
     /// The turn is over.
@@ -178,6 +194,14 @@ pub trait SessionHost: Send {
         &mut self,
         session: &SessionId,
     ) -> impl Future<Output = Result<Option<BackendEvent>, HostFault>> + Send;
+
+    /// The person's choice on the sheet `id`, which an event handed to the edge.
+    fn answer_sheet(
+        &mut self,
+        session: &SessionId,
+        id: &ConfirmId,
+        choice: SheetChoice,
+    ) -> impl Future<Output = Result<(), HostFault>> + Send;
 
     /// Cancels the turn in progress.
     fn cancel(&mut self, session: &SessionId)

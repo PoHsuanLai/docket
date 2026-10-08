@@ -7,6 +7,7 @@
 //! `session/cancel`, `session/set_mode`. Anything else is `method not found`. `mcpServers` in
 //! `session/new` and `session/load` are ignored: the editor's tools are not ours to run.
 
+use crate::covered::Covered;
 use crate::expose::Permit;
 use crate::fault;
 use crate::mode::Mode;
@@ -83,6 +84,7 @@ pub struct Server<H, L, W, T> {
     pub(crate) editor: AppName,
     pub(crate) roster: BTreeMap<SessionId, Known>,
     pub(crate) minted: u64,
+    pub(crate) covered: Covered,
     readiness: Readiness,
 }
 
@@ -98,6 +100,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
             editor,
             roster: BTreeMap::new(),
             minted: 0,
+            covered: Covered::default(),
             readiness: Readiness::Fresh,
         }
     }
