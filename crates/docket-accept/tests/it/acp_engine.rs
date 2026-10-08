@@ -114,7 +114,7 @@ async fn the_first_use_of_mail_asks_once_and_the_persons_always_quiets_the_next_
         said(&report)
     );
     // The person's "always" on the first search is a read-only grant for the action: the second
-    // search asks nothing, and the check "exactly one first-use sheet" applies again.
+    // search asks nothing, and the check (for an agent, one sheet per read action, each once) holds.
     assert!(
         report.not_applicable.is_empty(),
         "{:?}",

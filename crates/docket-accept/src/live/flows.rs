@@ -312,14 +312,27 @@ pub fn judge_in(mode: &Mode, flow: Flow, e: &Evidence) -> Judged {
                 .sheets
                 .first()
                 .is_some_and(|s| s.why.contains(&AskReason::FirstUse));
-            // The planner's "always" is a class grant; an agent's is a read-only grant for the
-            // action (FINDINGS, "agent-read-always"). Either way one sheet is shown the first
-            // time and the person's "always" quiets the later searches.
-            if !first_asked || e.sheets.len() != 1 {
-                out.push(capability(format!(
-                    "expected exactly one first-use sheet, saw {}",
-                    e.sheets.len()
-                )));
+            // The planner's "always" is a class grant: one sheet in all. An agent's is a
+            // read-only grant for one action (FINDINGS, "agent-read-always"): one sheet per
+            // action the first time, and the person's "always" quiets every repeat of it.
+            if planner {
+                if !first_asked || e.sheets.len() != 1 {
+                    out.push(capability(format!(
+                        "expected exactly one first-use sheet, saw {}",
+                        e.sheets.len()
+                    )));
+                }
+            } else {
+                let mut actions: Vec<&str> = e.sheets.iter().map(|s| s.action.as_str()).collect();
+                let asked = actions.len();
+                actions.sort_unstable();
+                actions.dedup();
+                if !first_asked || actions.len() != asked {
+                    out.push(capability(format!(
+                        "expected one sheet per read action, each once; saw {asked} for {} actions",
+                        actions.len()
+                    )));
+                }
             }
         }
         Flow::InjectedThread => {
