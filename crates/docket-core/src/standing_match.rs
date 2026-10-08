@@ -98,14 +98,3 @@ pub fn find_standing_for<'a>(
         fits && g.covers(caller, call) == Cover::Covers
     })
 }
-
-/// The first of `grants` that covers the call made by `caller`.
-pub fn find_standing<'a>(
-    grants: &'a [StandingGrant],
-    caller: &GrantCaller,
-    call: &CallFacts,
-) -> Option<&'a StandingGrant> {
-    grants
-        .iter()
-        .find(|g| g.covers(caller, call) == Cover::Covers)
-}

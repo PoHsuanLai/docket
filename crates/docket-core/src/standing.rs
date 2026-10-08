@@ -37,6 +37,9 @@ pub enum PathFault {
     /// It holds a control character.
     #[error("a path must not hold control characters")]
     Control,
+    /// It is not valid UTF-8, so it cannot be held as text.
+    #[error("a path must be valid UTF-8")]
+    NotUtf8,
 }
 
 impl AbsPath {
@@ -125,6 +128,18 @@ impl TryFrom<String> for AbsPath {
 
     fn try_from(text: String) -> Result<Self, Self::Error> {
         Self::parse(&text)
+    }
+}
+
+impl TryFrom<&std::path::Path> for AbsPath {
+    type Error = PathFault;
+
+    /// Strict: a path that is not UTF-8 is a fault, never a lossy replacement that names a
+    /// different file.
+    fn try_from(path: &std::path::Path) -> Result<Self, Self::Error> {
+        path.to_str()
+            .ok_or(PathFault::NotUtf8)
+            .and_then(Self::parse)
     }
 }
 
@@ -510,15 +525,30 @@ pub fn held_without(
     (grants, done)
 }
 
+/// Why a standing-grant file's text could not be read or made.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum StandingFileFault {
+    /// The text is not a list of standing grants.
+    #[error("not a list of standing grants: {0}")]
+    Decode(String),
+    /// The grants could not be turned into text. Nothing is written: a file the grants could
+    /// not be encoded into must keep what it holds.
+    #[error("standing grants could not be encoded: {0}")]
+    Encode(String),
+}
+
 /// The grants a file's text holds: an empty text is none.
-pub fn decode_standing(text: &str) -> Result<Vec<StandingGrant>, String> {
+pub fn decode_standing(text: &str) -> Result<Vec<StandingGrant>, StandingFileFault> {
     match text.trim() {
         "" => Ok(Vec::new()),
-        json => serde_json::from_str(json).map_err(|why| why.to_string()),
+        json => {
+            serde_json::from_str(json).map_err(|why| StandingFileFault::Decode(why.to_string()))
+        }
     }
 }
 
-/// The text of a list of grants.
-pub fn encode_standing(grants: &[StandingGrant]) -> String {
-    serde_json::to_string_pretty(grants).unwrap_or_else(|_| "[]".to_owned())
+/// The text of a list of grants. An error is never turned into an empty list: that would
+/// overwrite every grant held.
+pub fn encode_standing(grants: &[StandingGrant]) -> Result<String, StandingFileFault> {
+    serde_json::to_string_pretty(grants).map_err(|why| StandingFileFault::Encode(why.to_string()))
 }

@@ -1,4 +1,5 @@
 mod args_props;
+mod atomic_file;
 mod budget;
 mod episodes;
 mod manifests;

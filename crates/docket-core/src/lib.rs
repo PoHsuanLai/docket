@@ -10,6 +10,7 @@
 
 mod agent_app;
 mod args;
+mod atomic_file;
 mod audit;
 mod budget;
 mod call;
@@ -61,6 +62,7 @@ pub use agent_app::{
 };
 pub use agent_app::{action as acp_agent_action, app as acp_agent_app};
 pub use args::{ArgsFault, TARGET_KEY, TargetFault, Why, args_from_json, target_from_json};
+pub use atomic_file::{read_optional, write_atomic};
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};
 pub use budget::{
     Budget, BudgetKind, Cost, Halt, HaltCause, KillSwitch, Ledger, Reviewed, charge, halted,
@@ -137,10 +139,11 @@ pub use schema::{ToolSchema, tool_schema};
 pub use skill::{SKILL_ID_MAX, SkillCard, SkillId, SkillIdError, SkillText, SkillVersion};
 pub use standing::{
     AbsPath, AddressFault, CommandFault, CommandPrefix, Cover, Domain, DomainFault, NarrowState,
-    PathFault, Recipient, Revocation, RootState, ScopeKind, StandingGrant, StandingGrantId,
-    StandingIdFault, StandingScope, decode_standing, encode_standing, held_with, held_without,
+    PathFault, Recipient, Revocation, RootState, ScopeKind, StandingFileFault, StandingGrant,
+    StandingGrantId, StandingIdFault, StandingScope, decode_standing, encode_standing, held_with,
+    held_without,
 };
-pub use standing_match::{ArgFacts, CallFacts, find_standing, find_standing_for};
+pub use standing_match::{ArgFacts, CallFacts, find_standing_for};
 pub use standing_offer::{
     AlwaysOffer, AskFacts, BreakerState, BudgetState, Withheld, blocker, holds_standing, may_offer,
     scope_for,

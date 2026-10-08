@@ -1,12 +1,13 @@
 //! The person's standing consent for actions, in a file under the user's data directory.
 
 use crate::defaults::{default_grants_file, read_defaults};
+use crate::grant_file::{GrantFileFault, read_list, write_list};
 use docket_core::{
     ActionGrant, Revocation, StandingGrant, StandingGrantId, decode_standing, encode_standing,
     held_with, held_without,
 };
 use docket_router::GrantStore;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 /// One writer at a time: a grant recorded while another is being written is added to the file
@@ -40,67 +41,33 @@ impl FileGrants {
         }
     }
 
-    /// What the file holds: nothing when it is missing, and nothing (with a line on standard
-    /// error) when it is not a list of grants. A damaged file never takes the daemon down; it
-    /// only means the person is asked again.
-    fn read(&self) -> Vec<ActionGrant> {
-        match std::fs::read_to_string(&self.path) {
-            Ok(text) => serde_json::from_str(&text).unwrap_or_else(|why| {
-                eprintln!(
-                    "intentd: {} is not a list of grants: {why}",
-                    self.path.display()
-                );
-                Vec::new()
-            }),
-            Err(why) if why.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-            Err(why) => {
-                eprintln!("intentd: cannot read {}: {why}", self.path.display());
-                Vec::new()
-            }
-        }
+    /// What the file holds: nothing when it is missing. A file that cannot be read or is not a
+    /// list of grants is a fault, never an empty list.
+    fn read(&self) -> Result<Vec<ActionGrant>, GrantFileFault> {
+        read_list(&self.path, |text| serde_json::from_str(text))
     }
 
     fn standing_path(&self) -> PathBuf {
         self.path.with_file_name("standing.json")
     }
 
-    fn read_standing(&self) -> Vec<StandingGrant> {
-        let path = self.standing_path();
-        match std::fs::read_to_string(&path) {
-            Ok(text) => decode_standing(&text).unwrap_or_else(|why| {
-                eprintln!("intentd: {} is not a list of grants: {why}", path.display());
-                Vec::new()
-            }),
-            Err(_) => Vec::new(),
-        }
+    fn read_standing(&self) -> Result<Vec<StandingGrant>, GrantFileFault> {
+        read_list(&self.standing_path(), decode_standing)
     }
 
-    fn write_standing(&self, grants: &[StandingGrant]) {
-        let path = self.standing_path();
-        let temporary = path.with_extension("json.tmp");
-        let done = std::fs::create_dir_all(path.parent().unwrap_or(Path::new(".")))
-            .and_then(|()| std::fs::write(&temporary, encode_standing(grants)))
-            .and_then(|()| std::fs::rename(&temporary, &path));
-        if let Err(why) = done {
-            eprintln!("intentd: cannot write {}: {why}", path.display());
-        }
+    fn write_standing(&self, grants: &[StandingGrant]) -> Result<(), GrantFileFault> {
+        write_list(&self.standing_path(), encode_standing(grants))
     }
 
-    /// Writes `grants` through a temporary file in the same directory and renames it into
-    /// place, so a crash leaves the old file or the new one, never half of one.
-    fn write(&self, grants: &[ActionGrant]) -> std::io::Result<()> {
-        let dir = self.path.parent().unwrap_or(Path::new("."));
-        std::fs::create_dir_all(dir)?;
-        let temporary = self.path.with_extension("json.tmp");
-        let text = serde_json::to_string_pretty(grants)?;
-        {
-            use std::io::Write;
-            let mut file = std::fs::File::create(&temporary)?;
-            file.write_all(text.as_bytes())?;
-            file.sync_all()?;
-        }
-        std::fs::rename(&temporary, &self.path)
+    fn write(&self, grants: &[ActionGrant]) -> Result<(), GrantFileFault> {
+        write_list(&self.path, serde_json::to_string_pretty(grants))
     }
+}
+
+/// What a store does with a fault: the person is asked again (no grants held), and the line says
+/// why. The damaged file is left alone for the person to look at.
+fn logged<T>(done: Result<T, GrantFileFault>) -> Option<T> {
+    done.map_err(|why| eprintln!("intentd: {why}")).ok()
 }
 
 impl GrantStore for FileGrants {
@@ -110,7 +77,7 @@ impl GrantStore for FileGrants {
             .iter()
             .flat_map(|f| read_defaults(f))
             .collect();
-        all.extend(self.read());
+        all.extend(logged(self.read()).unwrap_or_default());
         all
     }
 
@@ -118,35 +85,42 @@ impl GrantStore for FileGrants {
         let _one_at_a_time = WRITING
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let mut all = self.read();
+        // A file that cannot be read is not written over: the grant is not kept, and the
+        // person is asked again.
+        let Some(mut all) = logged(self.read()) else {
+            return;
+        };
         all.retain(|held| held.key != grant.key);
         all.push(grant);
-        if let Err(why) = self.write(&all) {
-            eprintln!("intentd: cannot write {}: {why}", self.path.display());
-        }
+        logged(self.write(&all));
     }
 
     // Standing grants ("allow always", scoped) in `standing.json` beside the grants file, read
     // afresh on every call: a revocation takes effect on the next call, and a damaged file holds
-    // none, which only means the person is asked again.
+    // none (which only means the person is asked again) and is never written over.
     fn standing(&self) -> Vec<StandingGrant> {
-        self.read_standing()
+        logged(self.read_standing()).unwrap_or_default()
     }
 
     fn add_standing(&self, grant: StandingGrant) {
         let _one_at_a_time = WRITING
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        self.write_standing(&held_with(self.read_standing(), grant));
+        if let Some(held) = logged(self.read_standing()) {
+            logged(self.write_standing(&held_with(held, grant)));
+        }
     }
 
     fn revoke_standing(&self, id: &StandingGrantId) -> Revocation {
         let _one_at_a_time = WRITING
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let (rest, done) = held_without(self.read_standing(), id);
+        let Some(held) = logged(self.read_standing()) else {
+            return Revocation::NotHeld;
+        };
+        let (rest, done) = held_without(held, id);
         if done == Revocation::Revoked {
-            self.write_standing(&rest);
+            logged(self.write_standing(&rest));
         }
         done
     }

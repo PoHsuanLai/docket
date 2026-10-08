@@ -226,7 +226,7 @@ fn grants_round_trip_through_their_text_and_ids_are_checked() {
         terminal("cargo test", "/w/p"),
         prov::UnixSeconds(5),
     );
-    let text = encode_standing(std::slice::from_ref(&g));
+    let text = encode_standing(std::slice::from_ref(&g)).expect("encode");
     assert_eq!(decode_standing(&text), Ok(vec![g.clone()]));
     assert_eq!(decode_standing(""), Ok(vec![]));
     assert!(decode_standing("{").is_err());

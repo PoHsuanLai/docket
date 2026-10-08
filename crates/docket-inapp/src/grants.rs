@@ -10,7 +10,7 @@
 
 use docket_core::{
     ActionGrant, Revocation, StandingGrant, StandingGrantId, decode_standing, encode_standing,
-    held_with, held_without,
+    held_with, held_without, read_optional, write_atomic,
 };
 use docket_router::GrantStore;
 use std::io::ErrorKind;
@@ -37,6 +37,14 @@ pub enum GrantFileError {
         /// What the parser said.
         why: String,
     },
+    /// The grants could not be turned into text, so the file is left as it was.
+    #[error("grants for {path} could not be encoded: {why}")]
+    Encode {
+        /// The file.
+        path: PathBuf,
+        /// What the encoder said.
+        why: String,
+    },
     /// The file (or its temporary) could not be written.
     #[error("cannot write {path}: {kind}")]
     Write {
@@ -55,9 +63,10 @@ pub fn decode(text: &str) -> Result<Vec<ActionGrant>, String> {
     }
 }
 
-/// The text of a list of grants.
-pub fn encode(grants: &[ActionGrant]) -> String {
-    serde_json::to_string_pretty(grants).unwrap_or_else(|_| "[]".to_owned())
+/// The text of a list of grants. An error is never turned into an empty list: that would
+/// overwrite every grant held.
+pub fn encode(grants: &[ActionGrant]) -> Result<String, String> {
+    serde_json::to_string_pretty(grants).map_err(|why| why.to_string())
 }
 
 /// `grants` with `grant` recorded: a grant for the same key replaces the earlier one.
@@ -67,13 +76,17 @@ pub fn recorded(mut grants: Vec<ActionGrant>, grant: ActionGrant) -> Vec<ActionG
     grants
 }
 
-fn read_file(path: &Path) -> Result<Vec<ActionGrant>, GrantFileError> {
-    match std::fs::read_to_string(path) {
-        Ok(text) => decode(&text).map_err(|why| GrantFileError::Corrupt {
+/// The grants the text holds, or why the file is not a list of them.
+fn read_list<T, E: std::fmt::Display>(
+    path: &Path,
+    decode: impl FnOnce(&str) -> Result<Vec<T>, E>,
+) -> Result<Vec<T>, GrantFileError> {
+    match read_optional(path) {
+        Ok(Some(text)) => decode(&text).map_err(|why| GrantFileError::Corrupt {
             path: path.to_owned(),
-            why,
+            why: why.to_string(),
         }),
-        Err(why) if why.kind() == ErrorKind::NotFound => Ok(Vec::new()),
+        Ok(None) => Ok(Vec::new()),
         Err(why) => Err(GrantFileError::Read {
             path: path.to_owned(),
             kind: why.kind(),
@@ -81,22 +94,27 @@ fn read_file(path: &Path) -> Result<Vec<ActionGrant>, GrantFileError> {
     }
 }
 
-fn write_file(path: &Path, grants: &[ActionGrant]) -> Result<(), GrantFileError> {
-    use std::io::Write;
-    let failed = |why: std::io::Error| GrantFileError::Write {
+/// Replaces the file with `text`; a text that could not be encoded writes nothing.
+fn write_text<E: std::fmt::Display>(
+    path: &Path,
+    text: Result<String, E>,
+) -> Result<(), GrantFileError> {
+    let text = text.map_err(|why| GrantFileError::Encode {
+        path: path.to_owned(),
+        why: why.to_string(),
+    })?;
+    write_atomic(path, text.as_bytes()).map_err(|why| GrantFileError::Write {
         path: path.to_owned(),
         kind: why.kind(),
-    };
-    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
-        std::fs::create_dir_all(dir).map_err(failed)?;
-    }
-    let mut name = path.file_name().unwrap_or_default().to_owned();
-    name.push(".tmp");
-    let temporary = path.with_file_name(name);
-    let mut file = std::fs::File::create(&temporary).map_err(failed)?;
-    file.write_all(encode(grants).as_bytes()).map_err(failed)?;
-    file.sync_all().map_err(failed)?;
-    std::fs::rename(&temporary, path).map_err(failed)
+    })
+}
+
+fn read_file(path: &Path) -> Result<Vec<ActionGrant>, GrantFileError> {
+    read_list(path, decode)
+}
+
+fn write_file(path: &Path, grants: &[ActionGrant]) -> Result<(), GrantFileError> {
+    write_text(path, encode(grants))
 }
 
 #[derive(Debug, Default)]
@@ -111,6 +129,17 @@ struct Held {
 pub struct FileGrantStore {
     path: PathBuf,
     held: Mutex<Held>,
+    on_damage: OnDamage,
+}
+
+/// What a write does when the file it would merge into cannot be read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum OnDamage {
+    /// Leave the file alone and keep the fault for the app: the grants it holds may be the
+    /// person's only copy.
+    Keep,
+    /// Replace it with what this run holds (the app chose to start over).
+    Replace,
 }
 
 impl FileGrantStore {
@@ -124,6 +153,7 @@ impl FileGrantStore {
                 grants,
                 fault: None,
             }),
+            on_damage: OnDamage::Keep,
         })
     }
 
@@ -133,6 +163,7 @@ impl FileGrantStore {
         Self {
             path: path.into(),
             held: Mutex::default(),
+            on_damage: OnDamage::Replace,
         }
     }
 
@@ -144,6 +175,20 @@ impl FileGrantStore {
     /// The last write that failed, if one did; asking clears it.
     pub fn take_fault(&self) -> Option<GrantFileError> {
         self.locked().fault.take()
+    }
+
+    /// What a write merges into: the file's list, or when it cannot be read, this run's
+    /// `fallback` for a store that started over, and the fault for one that did not.
+    fn base<T>(
+        &self,
+        read: Result<Vec<T>, GrantFileError>,
+        fallback: Vec<T>,
+    ) -> Result<Vec<T>, GrantFileError> {
+        match (read, self.on_damage) {
+            (Ok(on_disk), _) => Ok(on_disk),
+            (Err(_), OnDamage::Replace) => Ok(fallback),
+            (Err(why), OnDamage::Keep) => Err(why),
+        }
     }
 
     fn locked(&self) -> MutexGuard<'_, Held> {
@@ -162,14 +207,18 @@ impl GrantStore for FileGrantStore {
 
     fn record(&self, grant: ActionGrant) {
         let mut held = self.locked();
-        let current = read_file(&self.path).unwrap_or_else(|_| held.grants.clone());
-        held.grants = recorded(current, grant);
-        held.fault = write_file(&self.path, &held.grants).err();
+        let kept = held.grants.clone();
+        let base = self.base(read_file(&self.path), kept.clone());
+        // The grant counts for this run whatever the file does.
+        held.grants = recorded(base.clone().unwrap_or(kept), grant);
+        held.fault = base
+            .and_then(|_| write_file(&self.path, &held.grants))
+            .err();
     }
 
     // Standing grants live in the file beside the grants, read afresh on every call so a
     // revocation made by another process takes effect on the next call. An unreadable file holds
-    // none: the person is asked again.
+    // none (the person is asked again) and is not written over.
     fn standing(&self) -> Vec<StandingGrant> {
         read_standing(&self.standing_file()).unwrap_or_default()
     }
@@ -177,18 +226,28 @@ impl GrantStore for FileGrantStore {
     fn add_standing(&self, grant: StandingGrant) {
         let mut held = self.locked();
         let file = self.standing_file();
-        let current = read_standing(&file).unwrap_or_default();
-        held.fault = write_standing(&file, &held_with(current, grant)).err();
+        held.fault = self
+            .base(read_standing(&file), Vec::new())
+            .and_then(|current| write_standing(&file, &held_with(current, grant)))
+            .err();
     }
 
     fn revoke_standing(&self, id: &StandingGrantId) -> Revocation {
         let mut held = self.locked();
         let file = self.standing_file();
-        let (rest, done) = held_without(read_standing(&file).unwrap_or_default(), id);
-        if done == Revocation::Revoked {
-            held.fault = write_standing(&file, &rest).err();
+        match self.base(read_standing(&file), Vec::new()) {
+            Err(why) => {
+                held.fault = Some(why);
+                Revocation::NotHeld
+            }
+            Ok(current) => {
+                let (rest, done) = held_without(current, id);
+                if done == Revocation::Revoked {
+                    held.fault = write_standing(&file, &rest).err();
+                }
+                done
+            }
         }
-        done
     }
 }
 
@@ -200,36 +259,11 @@ fn standing_path(path: &Path) -> PathBuf {
 }
 
 fn read_standing(path: &Path) -> Result<Vec<StandingGrant>, GrantFileError> {
-    match std::fs::read_to_string(path) {
-        Ok(text) => decode_standing(&text).map_err(|why| GrantFileError::Corrupt {
-            path: path.to_owned(),
-            why,
-        }),
-        Err(why) if why.kind() == ErrorKind::NotFound => Ok(Vec::new()),
-        Err(why) => Err(GrantFileError::Read {
-            path: path.to_owned(),
-            kind: why.kind(),
-        }),
-    }
+    read_list(path, decode_standing)
 }
 
 fn write_standing(path: &Path, grants: &[StandingGrant]) -> Result<(), GrantFileError> {
-    use std::io::Write;
-    let failed = |why: std::io::Error| GrantFileError::Write {
-        path: path.to_owned(),
-        kind: why.kind(),
-    };
-    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
-        std::fs::create_dir_all(dir).map_err(failed)?;
-    }
-    let mut name = path.file_name().unwrap_or_default().to_owned();
-    name.push(".tmp");
-    let temporary = path.with_file_name(name);
-    let mut file = std::fs::File::create(&temporary).map_err(failed)?;
-    file.write_all(encode_standing(grants).as_bytes())
-        .map_err(failed)?;
-    file.sync_all().map_err(failed)?;
-    std::fs::rename(&temporary, path).map_err(failed)
+    write_text(path, encode_standing(grants))
 }
 
 impl FileGrantStore {

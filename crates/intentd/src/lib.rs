@@ -21,6 +21,7 @@ mod bus;
 mod config;
 mod daemon;
 mod defaults;
+mod grant_file;
 mod grants;
 mod infer;
 mod link;

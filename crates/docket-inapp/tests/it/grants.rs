@@ -170,13 +170,55 @@ fn standing_grants_survive_a_restart_and_a_revocation_is_seen_by_the_next_reader
         "class grants are a separate list"
     );
     std::fs::write(path.with_file_name("grants.json.standing"), "{").expect("damage");
+    let reader = FileGrantStore::open(path).expect("open");
     assert!(
-        FileGrantStore::open(path)
-            .expect("open")
-            .standing()
-            .is_empty(),
+        reader.standing().is_empty(),
         "a damaged file holds none: the person is asked again"
     );
+    // ... and is not written over: a new grant keeps the fault instead.
+    reader.add_standing(standing_grant("/w/c"));
+    assert!(matches!(
+        reader.take_fault(),
+        Some(GrantFileError::Corrupt { .. })
+    ));
+    assert_eq!(
+        std::fs::read_to_string(reader.path().with_file_name("grants.json.standing"))
+            .expect("read"),
+        "{"
+    );
+}
+
+#[test]
+fn a_store_opened_over_a_damaged_file_never_overwrites_it_but_fresh_does() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let path = dir.path().join("grants.json");
+    std::fs::write(&path, "[]").expect("write");
+    let store = FileGrantStore::open(&path).expect("open");
+    std::fs::write(&path, "{").expect("damage");
+    store.record(grant("g-1", "mail.thread.archive", GrantScope::Always));
+    assert!(matches!(
+        store.take_fault(),
+        Some(GrantFileError::Corrupt { .. })
+    ));
+    assert_eq!(std::fs::read_to_string(&path).expect("read"), "{");
+    assert_eq!(store.grants().len(), 1, "this run still has the consent");
+}
+
+#[test]
+fn a_failed_write_keeps_the_old_file() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let path = dir.path().join("grants.json");
+    let store = FileGrantStore::open(&path).expect("open");
+    store.record(grant("g-1", "mail.thread.archive", GrantScope::Always));
+    let before = std::fs::read_to_string(&path).expect("read");
+    // A directory where the temporary file belongs: the write cannot start.
+    std::fs::create_dir(dir.path().join("grants.json.tmp")).expect("blocker");
+    store.record(grant("g-2", "mail.draft.create", GrantScope::Always));
+    assert!(matches!(
+        store.take_fault(),
+        Some(GrantFileError::Write { .. })
+    ));
+    assert_eq!(std::fs::read_to_string(&path).expect("read"), before);
 }
 
 #[test]

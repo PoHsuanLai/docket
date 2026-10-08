@@ -12,7 +12,7 @@
 //! ([`InAppAgent::take_audit_fault`](crate::InAppAgent)): the records still wait in memory for
 //! this run.
 
-use docket_core::AuditRecord;
+use docket_core::{AuditRecord, write_atomic};
 use docket_memory::QUEUE_LIMIT;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -37,6 +37,14 @@ pub enum AuditFileError {
         /// What the parser said.
         why: String,
     },
+    /// The records could not be turned into text, so the file is left as it was.
+    #[error("records for {path} could not be encoded: {why}")]
+    Encode {
+        /// The file.
+        path: PathBuf,
+        /// What the encoder said.
+        why: String,
+    },
     /// The file (or its temporary) could not be written or removed.
     #[error("cannot write {path}: {kind}")]
     Write {
@@ -56,9 +64,10 @@ pub fn decode(text: &str) -> Result<Vec<AuditRecord>, String> {
 }
 
 /// The text of a list of records, the newest `limit` of them.
-pub fn encode(records: &[AuditRecord], limit: usize) -> String {
+/// An error is never turned into an empty list: that would overwrite every record waiting.
+pub fn encode(records: &[AuditRecord], limit: usize) -> Result<String, String> {
     let skip = records.len().saturating_sub(limit);
-    serde_json::to_string(&records[skip..]).unwrap_or_else(|_| "[]".to_owned())
+    serde_json::to_string(&records[skip..]).map_err(|why| why.to_string())
 }
 
 /// The queue file at a path, and the records it held when it was opened.
@@ -127,7 +136,6 @@ fn read_file(path: &Path) -> Result<Vec<AuditRecord>, AuditFileError> {
 }
 
 fn write_file(path: &Path, records: &[AuditRecord], limit: usize) -> Result<(), AuditFileError> {
-    use std::io::Write;
     let failed = |why: std::io::Error| AuditFileError::Write {
         path: path.to_owned(),
         kind: why.kind(),
@@ -138,15 +146,9 @@ fn write_file(path: &Path, records: &[AuditRecord], limit: usize) -> Result<(), 
             _ => Ok(()),
         };
     }
-    if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
-        std::fs::create_dir_all(dir).map_err(failed)?;
-    }
-    let mut name = path.file_name().unwrap_or_default().to_owned();
-    name.push(".tmp");
-    let temporary = path.with_file_name(name);
-    let mut file = std::fs::File::create(&temporary).map_err(failed)?;
-    file.write_all(encode(records, limit).as_bytes())
-        .map_err(failed)?;
-    file.sync_all().map_err(failed)?;
-    std::fs::rename(&temporary, path).map_err(failed)
+    let text = encode(records, limit).map_err(|why| AuditFileError::Encode {
+        path: path.to_owned(),
+        why,
+    })?;
+    write_atomic(path, text.as_bytes()).map_err(failed)
 }
