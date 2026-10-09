@@ -7,7 +7,7 @@
 //!
 //! A handle is shown as `#n`; the model can name it and never read it.
 
-use crate::accepts::used_as;
+use crate::accepts::{text_used_as, used_as};
 use crate::role::RoleText;
 use crate::step_text::{Seen, step_line, step_line_in};
 use docket_core::{
@@ -134,7 +134,10 @@ fn handle_line(card: &HandleCard, history: &[StepLine], actions: &[ActionCard]) 
         HandleShape::Entity(kind) => used_as(kind, actions)
             .map(|u| format!(" \u{2014} use {u}"))
             .unwrap_or_default(),
-        HandleShape::Text | HandleShape::File => String::new(),
+        HandleShape::Text => text_used_as(u64::from(card.size.0), actions)
+            .map(|u| format!(" \u{2014} use {u}"))
+            .unwrap_or_default(),
+        HandleShape::File => String::new(),
     };
     format!(
         "- #{} {shape} from {}{size}{by}{uses}",
@@ -355,8 +358,29 @@ mod tests {
     }
 
     #[test]
-    fn text_and_unused_things_get_no_use_clause() {
-        let text = handle_line(&card(3, HandleShape::Text), &[], &mail());
+    fn a_text_handle_says_which_parameters_take_it() {
+        let mut text = card(7, HandleShape::Text);
+        text.size = CharCount(120);
+        let line = handle_line(&text, &[], &mail());
+        assert!(
+            line.ends_with(
+                "(120 characters) \u{2014} use as \"body\" in mail.message.send; as \"subject\" in mail.message.send"
+            ),
+            "{line}"
+        );
+        text.size = CharCount(5000);
+        let long = handle_line(&text, &[], &mail());
+        assert!(!long.contains("subject"), "{long}");
+    }
+
+    #[test]
+    fn text_nothing_takes_and_unused_things_get_no_use_clause() {
+        let nowhere = [crate::accepts::fixtures::card(
+            "mail.contact.search",
+            docket_core::TargetKind::Nothing,
+            &[],
+        )];
+        let text = handle_line(&card(3, HandleShape::Text), &[], &nowhere);
         assert!(!text.contains("use as"), "{text}");
         let unused = handle_line(
             &card(4, HandleShape::Entity(kind("mail.draft"))),
