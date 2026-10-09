@@ -2,7 +2,9 @@
 //! environment, so a table of command lines tests it.
 
 use crate::live::acp::AcpSpec;
-use crate::live::acp::spec::{CLAUDE_CREDENTIALS_AT, CredentialsSource, SpecFault, network_of};
+use crate::live::acp::spec::{
+    CLAUDE_CREDENTIALS_AT, CredentialsSource, RegistryPick, SpecFault, Task, network_of,
+};
 use crate::live::engine::{Engine, EngineError};
 use std::path::PathBuf;
 
@@ -219,12 +221,21 @@ struct AcpFlags {
     route: Option<String>,
     profile: Option<String>,
     sign_in: Option<String>,
+    agent: Option<String>,
+    version: Option<String>,
+    agents_dir: Option<PathBuf>,
+    model: Option<String>,
+    list_models: Task,
     seen: bool,
 }
 
 impl AcpFlags {
     fn take(&mut self, flag: &str, words: &mut Words<'_>) -> Result<(), UsageError> {
         self.seen = true;
+        if flag == "--acp-list-models" {
+            self.list_models = Task::ListModels;
+            return Ok(());
+        }
         let value = words.value(flag)?.clone();
         match flag {
             "--acp-program" => self.program = Some(value),
@@ -239,6 +250,10 @@ impl AcpFlags {
             "--acp-route" => self.route = Some(value),
             "--acp-profile" => self.profile = Some(value),
             "--acp-sign-in" => self.sign_in = Some(value),
+            "--acp-agent" => self.agent = Some(value),
+            "--acp-version" => self.version = Some(value),
+            "--acp-agents-dir" => self.agents_dir = Some(PathBuf::from(value)),
+            "--acp-model" => self.model = Some(value),
             other => return Err(UsageError::Unknown(other.to_owned())),
         }
         Ok(())
@@ -258,14 +273,29 @@ impl AcpFlags {
     }
 
     fn spec(self) -> Result<AcpSpec, UsageError> {
-        let command = self.command.ok_or_else(|| {
-            UsageError::Acp("--agent acp needs --acp-command <program>".to_owned())
-        })?;
+        let need = |what: &str| UsageError::Acp(format!("--agent acp needs {what}"));
+        let (command, registry) = match (self.command, self.agent) {
+            (Some(command), None) => (command, None),
+            (None, Some(id)) => {
+                let version = self
+                    .version
+                    .ok_or_else(|| need("--acp-version with --acp-agent"))?;
+                let dir = self
+                    .agents_dir
+                    .ok_or_else(|| need("--acp-agents-dir with --acp-agent"))?;
+                (PathBuf::new(), Some(RegistryPick { id, version, dir }))
+            }
+            _ => return Err(need("--acp-command <program>, or --acp-agent (not both)")),
+        };
         if let Some(route) = self.route.filter(|r| r != "login") {
             return Err(SpecFault::Route(route).into());
         }
-        let program = self.program.unwrap_or_else(|| "claude-code".to_owned());
+        let fallback = registry.as_ref().map_or("claude-code", |p| p.id.as_str());
+        let program = self.program.unwrap_or_else(|| fallback.to_owned());
         let mut spec = AcpSpec::new(&program, command);
+        spec.registry = registry;
+        spec.model = self.model;
+        spec.task = self.list_models;
         spec.args = self.args;
         spec.state = self.state;
         spec.reads = self.reads;

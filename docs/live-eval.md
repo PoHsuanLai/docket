@@ -265,14 +265,19 @@ judges the router's ruling on each, and an agent chooses its own.
 | Option | Meaning |
 |---|---|
 | `--agent planner\|acp` | who plays the companion (default `planner`; any `--acp-*` option needs `acp`) |
-| `--acp-command ABS` | the agent program (required) |
+| `--acp-command ABS` | the agent program (required, unless `--acp-agent`) |
+| `--acp-agent ID` | an agent installed from the registry (below), instead of `--acp-command`; needs `--acp-version` and `--acp-agents-dir`; its program name defaults to the id |
+| `--acp-version V` | the pinned version of that agent |
+| `--acp-agents-dir ABS` | the agents directory `docket-agents` installed it into; the agent signs in inside its own home there and keeps the login between runs (no `--acp-credentials`, no `--acp-state`) |
+| `--acp-model ID` | the model to switch to once the session is open (`model` in the entry); refused with the list of models the agent offers if it is not one of them |
+| `--acp-list-models` | open a session, print the models the agent offers (`*` marks the one in use) and stop |
 | `--acp-program NAME` | its name in grants and records (default `claude-code`) |
 | `--acp-arg X` | an argument, repeatable |
 | `--acp-network none\|host` | its sandbox's network (default `host`, because a login agent must reach its provider; said before it starts) |
 | `--acp-state REL` | a path the agent keeps its login and settings in, **relative to the scratch HOME**, bound read-write (an entry ending in `.json` is made as an empty object); repeatable |
 | `--acp-reads ABS` | a read-only path (where the program is installed); repeatable |
 | `--acp-set NAME=VALUE` | a plain environment variable |
-| `--acp-credentials FILE` | the login to stage (see below); no default |
+| `--acp-credentials FILE` | legacy: the login to stage (see below); no default. A registry agent signs in inside its own home instead |
 | `--acp-credentials-at REL` | where it goes in the scratch HOME (default `.claude/.credentials.json`, Claude Code's) |
 | `--acp-profile claude-code` | the `agents.toml` preset that confines the agent's own extras (below); the entry gets `profile = "claude-code"` |
 | `--acp-sign-in METHOD` | the way the agent signs itself in after it starts (`sign_in` in the entry), for an agent that refuses a session until then; it must be one the agent offers. The login file is still `--acp-credentials` |
@@ -297,6 +302,25 @@ dev/live-smoke.sh --engine scripted --agent acp \
 ```
 
 See `FINDINGS.md`, "acp-isolation".
+
+**An agent from the registry.** Docket ships no list of agents. `docket-agents` reads the agent registry's snapshot,
+installs the version you name (the archive is checked against the registry's SHA-256; when the registry gives none the
+install record says "first use") under the agents directory, and never updates by itself:
+`docket-agents --dir DIR check ID` says what is on offer, `docket-agents --dir DIR install ID VERSION` installs exactly
+that version. Only these two reach the network; starting an agent never does. The agent signs in inside its own home
+(`DIR/state/ID/home`), once, and the login stays there.
+
+```sh
+docket-agents --dir /scratch/agents install antigravity-acp 1.3.0
+dev/live-smoke.sh --engine scripted --agent acp --acp-agent antigravity-acp --acp-version 1.3.0 \
+  --acp-agents-dir /scratch/agents --acp-list-models
+dev/live-smoke.sh --engine scripted --agent acp --acp-agent antigravity-acp --acp-version 1.3.0 \
+  --acp-agents-dir /scratch/agents --acp-model gemini-pro-agent --flow flow-a
+```
+
+If the agent needs signing in and no `--acp-sign-in` is given, the run stops and lists the ways the agent offers, by
+their names. In `agents.toml` the same agent is
+`registry = "antigravity-acp"`, `version = "1.3.0"`, `model = "gemini-pro-agent"`, `sign_in = "..."`, `label`.
 
 **What counts.** The checks that look inside the planner are not made for an agent, and each run says so: in
 flow-c "the planner was not shown the injected body" and "the reader read the thread"; in first-use "exactly one

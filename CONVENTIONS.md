@@ -67,3 +67,14 @@ What docket adds or decides differently, each with its reason:
     separate process. A new `tests/*.rs` without that reason is a mistake. Select tests with
     `cargo test -p <crate> --test it <filter>`. Dependencies build without debug info
     (`[profile.dev.package."*"]` in `.cargo/config.toml`).
+13. **Docket keeps no list of agents, and nothing about an agent is copied from the person's home.**
+    Which agents exist, their versions and their digests come from the agent registry's snapshot
+    (`docket-agents`); `agents.toml` holds only the person's choices (the registry id, the pinned
+    version, the model, the way to sign in, the label). The network is reached by the install and
+    update commands alone, never when an agent starts, and a newer version is installed only when
+    the person names it. An agent signs in inside its own home under the agents directory, kept
+    between runs; `--acp-credentials` (copying a login into a scratch home) is legacy, for the
+    live eval of an agent that has no sign-in of its own. The model is the person's choice, sent
+    once after the session opens, and only one the agent offers; switching a session's *mode* stays
+    a destructive action through the normal sheet. Text a person sees never names the protocol
+    ("sign in with Google", "Gemini 3.1 Pro").

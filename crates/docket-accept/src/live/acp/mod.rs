@@ -16,7 +16,7 @@ pub mod run;
 pub mod secret;
 pub mod spec;
 
-pub use play::{AgentEnd, Played, play};
-pub use run::{AcpFlowReport, agent_cassette, run_flow_acp};
+pub use play::{AgentEnd, Played, offered_models, play};
+pub use run::{AcpFlowReport, agent_cassette, list_models_acp, run_flow_acp};
 pub use secret::{Credentials, Redactor};
-pub use spec::{AcpSpec, CredentialsSource, SpecFault};
+pub use spec::{AcpSpec, CredentialsSource, RegistryPick, SpecFault, Task};

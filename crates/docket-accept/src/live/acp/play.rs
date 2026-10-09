@@ -10,7 +10,7 @@ use crate::live::acp::secret::Credentials;
 use crate::runlink::short_run;
 use crate::world::{Binaries, World};
 use bulkhead::Detected;
-use docket_acp::client::{Fallback, ToolsOffer};
+use docket_acp::client::{Fallback, Models, ToolsOffer};
 use docket_acp_bin::agent::host::{Hosted, Wiring, host};
 use docket_core::{AbsPath, TurnId, TurnSource, TurnVia, UserTurn};
 use docket_inapp::EditorDesk;
@@ -73,34 +73,30 @@ fn prepare_state(spec: &AcpSpec, home: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Hosts `spec` in `world`, gives it `prompt`, and watches the turn to its end, for at most
-/// `patience` between events. `credentials` is the staged login, kept alive for the turn.
-pub async fn play(
+/// Hosts `spec` in `world` the way `docket-agent` does and opens its session; the scratch
+/// directories exist first. The reason, when it does not open, is said plainly.
+async fn open(
     world: &World,
     binaries: &Binaries,
     spec: &AcpSpec,
-    _credentials: Option<&Credentials>,
-    prompt: &str,
-    patience: Duration,
-) -> Played {
+) -> Result<Hosted<LoginOnly>, String> {
     let home = world.dir.path();
     let work = home.join("work");
-    if let Err(why) = std::fs::create_dir_all(&work).and_then(|()| prepare_state(spec, home)) {
-        return Played::failed(format!("scratch directories: {why}"));
-    }
+    std::fs::create_dir_all(&work)
+        .and_then(|()| prepare_state(spec, home))
+        .map_err(|why| format!("scratch directories: {why}"))?;
     let (Some(forwarder), Some(cwd)) = (abs(&binaries.actions_mcp), abs(&work)) else {
-        return Played::failed("a path is not UTF-8");
+        return Err("a path is not UTF-8".to_owned());
     };
     let entry = spec.entry_toml(home);
-    let Ok(file) = AgentsFile::parse(&entry) else {
-        return Played::failed("the agent entry is not an agents.toml entry");
-    };
-    let Ok(permit) = AgentsPermit::from_text("[agent.acp]\nagents = \"on\"\n") else {
-        return Played::failed("agents are off");
-    };
-    let Ok(program) = ProgramName::parse(&spec.program) else {
-        return Played::failed("the program name");
-    };
+    let dir = spec
+        .registry
+        .as_ref()
+        .map(|pick| docket_agents::AgentsDir::at(&pick.dir));
+    let file = AgentsFile::parse_in(&entry, dir.as_ref()).map_err(|why| why.to_string())?;
+    let permit = AgentsPermit::from_text("[agent.acp]\nagents = \"on\"\n")
+        .map_err(|_| "agents are off".to_owned())?;
+    let program = ProgramName::parse(&spec.program).map_err(|_| "the program name".to_owned())?;
     let wiring = Wiring {
         bus: world.connect().await,
         accounts: Arc::new(LoginOnly),
@@ -118,8 +114,33 @@ pub async fn play(
         desk: EditorDesk::new(),
     };
     let space = SpaceId::parse("work").unwrap_or_else(|_| SpaceId::desktop());
-    let hosted = host(wiring, program, cwd.as_str(), space).await;
-    let Hosted { mut host, session } = match hosted {
+    host(wiring, program, cwd.as_str(), space).await
+}
+
+/// The models the agent offers for a session opened in `world`, and the one in use; none when it
+/// offers no choice. The session is closed again without a turn.
+pub async fn offered_models(
+    world: &World,
+    binaries: &Binaries,
+    spec: &AcpSpec,
+) -> Result<Option<Models>, String> {
+    let Hosted { mut host, session } = open(world, binaries, spec).await?;
+    let models = host.backend().models().cloned();
+    let _ = host.close(&session, EndCause::Closed).await;
+    Ok(models)
+}
+
+/// Hosts `spec` in `world`, gives it `prompt`, and watches the turn to its end, for at most
+/// `patience` between events. `credentials` is the staged login, kept alive for the turn.
+pub async fn play(
+    world: &World,
+    binaries: &Binaries,
+    spec: &AcpSpec,
+    _credentials: Option<&Credentials>,
+    prompt: &str,
+    patience: Duration,
+) -> Played {
+    let Hosted { mut host, session } = match open(world, binaries, spec).await {
         Ok(hosted) => hosted,
         Err(why) => return Played::failed(why),
     };

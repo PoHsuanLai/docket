@@ -49,6 +49,7 @@ actions-mcp = { path = "../actions-mcp" }
 action-review = { workspace = true }
 companion-wire = { workspace = true }
 companiond = { path = "../companiond" }
+docket-agents = { workspace = true }
 docket-acp = { path = "../docket-acp" }
 docket-acp-bin = { path = "../docket-acp-bin" }
 docket-cli = { path = "../docket-cli" }

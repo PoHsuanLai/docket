@@ -5,7 +5,9 @@
 //! `--engine cloud`, and that is said before anything starts. Start it through
 //! `scripts/eval-release.sh` or `dev/live-smoke.sh`.
 
-use docket_accept::live::acp::{AcpSpec, Redactor, agent_cassette, run_flow_acp};
+use docket_accept::live::acp::{
+    AcpSpec, Redactor, Task, agent_cassette, list_models_acp, run_flow_acp,
+};
 use docket_accept::live::cli::{Agent, Command, CorpusArgs, SmokeArgs, UsageError, parse};
 use docket_accept::live::flows::{Flow, Kind, run_flow};
 use docket_accept::live::hostile::run_planner_case;
@@ -273,6 +275,15 @@ async fn smoke_agent(args: SmokeArgs, spec: AcpSpec) -> Result<ExitCode, String>
     let traces = args.out.join("smoke-acp");
     std::fs::create_dir_all(&traces).map_err(|e| e.to_string())?;
     let patience = Duration::from_secs(args.patience_s);
+    if spec.task == Task::ListModels {
+        let model = args
+            .engine
+            .source(agent_cassette(), args.inferd_config.as_deref())
+            .map_err(|e: EngineError| e.to_string())?;
+        let dirs = (Some(args.out.join("scratch")), Some(smoke_catalog));
+        print!("{}", list_models_acp(&binaries, &spec, &model, dirs).await?);
+        return Ok(ExitCode::SUCCESS);
+    }
     let redactor = spec
         .credentials
         .as_ref()

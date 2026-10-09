@@ -2,7 +2,9 @@
 //! login's staging and removal, the redaction of a secret, and which checks an agent cannot be
 //! asked. No daemon, no sandbox, no network.
 
-use docket_accept::live::acp::{AcpSpec, Credentials, CredentialsSource, Redactor, agent_cassette};
+use docket_accept::live::acp::{
+    AcpSpec, Credentials, CredentialsSource, Redactor, Task, agent_cassette,
+};
 use docket_accept::live::cli::{Agent, Command, UsageError, parse};
 use docket_accept::live::flows::{Evidence, Flow, Kind, Mode, UndoCheck, judge_in};
 use docket_accept::provider::{Message, Sending};
@@ -450,4 +452,45 @@ fn the_answer_must_say_what_was_not_done() {
             "{words}: {told:?}"
         );
     }
+}
+
+// ---- an agent from the registry, and its model ----
+
+fn acp_spec(line: &str) -> Result<AcpSpec, UsageError> {
+    match parse(&words(line))? {
+        Command::Smoke(s) => match s.agent {
+            Agent::Acp(spec) => Ok(*spec),
+            Agent::Planner => panic!("planner"),
+        },
+        Command::Corpus(_) => panic!("smoke"),
+    }
+}
+
+#[test]
+fn a_registry_agent_needs_its_pin_and_directory_and_takes_no_login_of_its_own() {
+    let base = "smoke --engine scripted --agent acp --acp-agent agy-acp";
+    assert!(acp_spec(base).is_err());
+    assert!(acp_spec(&format!("{base} --acp-version 1.3.0")).is_err());
+    let line = format!("{base} --acp-version 1.3.0 --acp-agents-dir /scratch/agents");
+    let spec = acp_spec(&format!("{line} --acp-model gemini-pro-agent")).expect("spec");
+    assert_eq!(spec.program, "agy-acp");
+    assert_eq!(spec.model.as_deref(), Some("gemini-pro-agent"));
+    assert_eq!(spec.task, Task::Flows);
+    assert!(acp_spec(&format!("{line} --acp-credentials /x")).is_err());
+    assert!(acp_spec(&format!("{line} --acp-command /x")).is_err());
+    let list = acp_spec(&format!("{line} --acp-list-models")).expect("list");
+    assert_eq!(list.task, Task::ListModels);
+}
+
+#[test]
+fn a_registry_entry_names_the_install_and_leaves_the_home_to_launch() {
+    let line = "smoke --engine scripted --agent acp --acp-agent agy-acp --acp-version 1.3.0 \
+        --acp-agents-dir /scratch/agents --acp-model gemini-pro-agent --acp-sign-in google";
+    let text = acp_spec(line).expect("spec").entry_toml(std::path::Path::new("/s"));
+    assert!(text.contains("registry = \"agy-acp\""));
+    assert!(text.contains("version = \"1.3.0\""));
+    assert!(text.contains("model = \"gemini-pro-agent\""));
+    assert!(!text.contains("command ="));
+    assert!(!text.contains("home ="));
+    assert!(!text.contains("state ="));
 }

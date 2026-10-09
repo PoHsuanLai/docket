@@ -40,6 +40,12 @@ pub enum SpecFault {
     /// A `--acp-sign-in` that is not a short id.
     #[error("--acp-sign-in takes 1 to 64 letters, digits, - _ or ., not {0:?}")]
     SignIn(String),
+    /// A `--acp-model` that is not a model id.
+    #[error("--acp-model takes a model id without spaces, not {0:?}")]
+    Model(String),
+    /// A registry agent with something that only a command agent has.
+    #[error("{0}")]
+    Registry(String),
     /// A `--acp-set` that is not NAME=VALUE.
     #[error("--acp-set takes NAME=VALUE, not {0:?}")]
     Set(String),
@@ -54,13 +60,42 @@ pub struct CredentialsSource {
     pub at: String,
 }
 
+/// An agent installed from the agent registry (`docket-agents install`): which one, which pinned
+/// version, and the agents directory it lives in. Its sandbox home is the directory's, kept
+/// between runs, so the agent signs in there and nothing is copied from the real home.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RegistryPick {
+    /// The registry's id for it.
+    pub id: String,
+    /// The pinned version.
+    pub version: String,
+    /// The agents directory.
+    pub dir: PathBuf,
+}
+
+/// What the run does with the agent.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Task {
+    /// Play the flows.
+    #[default]
+    Flows,
+    /// Open a session, print the models the agent offers, and stop.
+    ListModels,
+}
+
 /// One agent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AcpSpec {
     /// The program's name (`agents.toml`'s `program`).
     pub program: String,
-    /// The executable, absolute.
+    /// The executable, absolute. Ignored when `registry` is set.
     pub command: PathBuf,
+    /// The registry agent to run instead of `command`.
+    pub registry: Option<RegistryPick>,
+    /// The model to switch to once the session is open, one the agent offers.
+    pub model: Option<String>,
+    /// What the run does.
+    pub task: Task,
     /// Its arguments.
     pub args: Vec<String>,
     /// The network its sandbox gets. `host` for an agent that must reach its provider.
@@ -85,6 +120,9 @@ impl AcpSpec {
         Self {
             program: program.to_owned(),
             command,
+            registry: None,
+            model: None,
+            task: Task::Flows,
             args: Vec::new(),
             network: NetworkMode::Host,
             state: Vec::new(),
@@ -106,8 +144,17 @@ impl AcpSpec {
         if !name_ok {
             return Err(SpecFault::Program(self.program.clone()));
         }
-        if !self.command.is_absolute() {
-            return Err(SpecFault::Command);
+        match &self.registry {
+            None if !self.command.is_absolute() => return Err(SpecFault::Command),
+            None => {}
+            Some(pick) => self.check_registry(pick)?,
+        }
+        if let Some(model) = self
+            .model
+            .as_ref()
+            .filter(|m| docket_acp::client::ModelId::parse(m).is_err())
+        {
+            return Err(SpecFault::Model(model.clone()));
         }
         if let Some(bad) = self.reads.iter().find(|p| !p.is_absolute()) {
             return Err(SpecFault::Reads(bad.display().to_string()));
@@ -135,6 +182,22 @@ impl AcpSpec {
         Ok(())
     }
 
+    fn check_registry(&self, pick: &RegistryPick) -> Result<(), SpecFault> {
+        let clash = |what: &str| SpecFault::Registry(format!("a registry agent takes no {what}"));
+        if !pick.dir.is_absolute() {
+            return Err(SpecFault::Registry(
+                "--acp-agents-dir must be an absolute path".to_owned(),
+            ));
+        }
+        if self.credentials.is_some() {
+            return Err(clash("--acp-credentials: it signs in inside its own home"));
+        }
+        if !self.state.is_empty() {
+            return Err(clash("--acp-state: its home is kept for it"));
+        }
+        Ok(())
+    }
+
     /// The `agents.toml` text for this agent working with `home` as its HOME.
     pub fn entry_toml(&self, home: &Path) -> String {
         let quote = |text: &str| toml::Value::String(text.to_owned()).to_string();
@@ -142,7 +205,13 @@ impl AcpSpec {
         let path = |p: &Path| quote(&p.display().to_string());
         let mut out = String::from("[[agent]]\n");
         out.push_str(&format!("program = {}\n", quote(&self.program)));
-        out.push_str(&format!("command = {}\n", path(&self.command)));
+        match &self.registry {
+            None => out.push_str(&format!("command = {}\n", path(&self.command))),
+            Some(pick) => {
+                out.push_str(&format!("registry = {}\n", quote(&pick.id)));
+                out.push_str(&format!("version = {}\n", quote(&pick.version)));
+            }
+        }
         out.push_str(&format!(
             "args = {}\n",
             list(self.args.iter().map(|a| quote(a)).collect())
@@ -156,17 +225,22 @@ impl AcpSpec {
             "reads = {}\n",
             list(self.reads.iter().map(|p| path(p)).collect())
         ));
-        out.push_str(&format!(
-            "state = {}\n",
-            list(self.state.iter().map(|s| path(&home.join(s))).collect())
-        ));
-        out.push_str(&format!("home = {}\n", path(home)));
+        if self.registry.is_none() {
+            out.push_str(&format!(
+                "state = {}\n",
+                list(self.state.iter().map(|s| path(&home.join(s))).collect())
+            ));
+            out.push_str(&format!("home = {}\n", path(home)));
+        }
         out.push_str("tools = \"offered\"\n");
         if let Some(profile) = &self.profile {
             out.push_str(&format!("profile = {}\n", quote(profile)));
         }
         if let Some(method) = &self.sign_in {
             out.push_str(&format!("sign_in = {}\n", quote(method)));
+        }
+        if let Some(model) = &self.model {
+            out.push_str(&format!("model = {}\n", quote(model)));
         }
         if !self.set.is_empty() {
             out.push_str("[agent.set]\n");

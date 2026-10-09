@@ -1,6 +1,6 @@
 //! A flow played by an external agent, in the same world and judged the same way.
 
-use super::play::{AgentEnd, Played, play};
+use super::play::{AgentEnd, Played, offered_models, play};
 use super::secret::{Credentials, Redactor};
 use super::spec::AcpSpec;
 use crate::confirm::{ByEffect, Verdict};
@@ -239,4 +239,40 @@ pub async fn run_flow_acp(
         not_applicable: judged.not_applicable,
         transcript: redactor.scrub(&text),
     }
+}
+
+/// Opens the agent in a fresh world and says which models it offers: one line per model, the
+/// current one marked, or why nothing could be listed. No turn is taken.
+pub async fn list_models_acp(
+    binaries: &Binaries,
+    spec: &AcpSpec,
+    model: &ModelSource,
+    (keep_in, catalog): (Option<PathBuf>, Option<PathBuf>),
+) -> Result<String, String> {
+    let options = Options {
+        keep_in,
+        tap: TapMode::On,
+        accountd: None,
+        catalog,
+        acp: AcpSetting::Agents,
+        focus: Flow::ALL[0].focus(),
+    };
+    let world = World::start_model(binaries, Flow::ALL[0].consent(), model, &options).await;
+    let offered = offered_models(&world, binaries, spec).await?;
+    let Some(models) = offered else {
+        return Ok("the agent offers no choice of model\n".to_owned());
+    };
+    let lines: Vec<String> = models
+        .available
+        .iter()
+        .map(|m| {
+            let mark = if models.current.as_deref() == Some(m.id.as_str()) {
+                "*"
+            } else {
+                " "
+            };
+            format!("{mark} {}  {}", m.id, m.name)
+        })
+        .collect();
+    Ok(lines.join("\n") + "\n")
 }
