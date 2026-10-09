@@ -17,12 +17,10 @@ use porter_core::Tier;
 /// cannot remove them.
 ///
 /// ```no_run
-/// use docket_client::{Intents, Transport as IntentsTransport};
-/// use docket_kit::{Actions, Agent, Asker, Limits, Memory, RecallScope};
-/// use docket_planner::Catalogue;
-/// use almanac_core::TrustFilter;
-/// use porter_client::Transport as InferTransport;
-/// use porter_core::{Count, Tier};
+/// use docket_kit::{
+///     Actions, Agent, Asker, Catalogue, Count, InferTransport, Intents, IntentsTransport, Limits,
+///     Memory, RecallScope, Tier, TrustFilter,
+/// };
 ///
 /// # async fn demo<P: InferTransport, I: IntentsTransport>(
 /// #     infer: P,

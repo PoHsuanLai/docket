@@ -2,7 +2,7 @@
 //! providers behind them (`FakeMail`, `FakeFiles`, with real undo tokens), scripted stand-ins
 //! for everything that asks a person or a model (`ScriptedConfirmer`, `ScriptedReviewer`,
 //! `ScriptedWriter`, `ScriptedReader`, `FakeMemory`), a fixed clock, a recording sink, an
-//! in-memory consent store, and `fake_router` over all of them. Test code only: nothing in a
+//! in-memory consent store, a model that only talks (`WordsModel`), and `fake_router` over all of them. Test code only: nothing in a
 //! daemon links this crate.
 
 mod clock;
@@ -17,6 +17,7 @@ mod router;
 mod scripted;
 mod seams;
 mod simple;
+mod words;
 
 pub use clock::FixedClock;
 pub use files::FakeFiles;
@@ -37,3 +38,4 @@ pub use scripted::{
 pub use seams::Answering;
 pub use seams::{FakeLink, FakeSeams, host_companion};
 pub use simple::{MemoryGrants, RecordingSink};
+pub use words::{WordsModel, WordsSession};

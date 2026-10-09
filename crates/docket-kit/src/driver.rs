@@ -71,6 +71,7 @@ impl<'a, P: InferTransport, I: IntentsTransport> Driver<'a, P, I> {
             said: self.rt.said,
             steps: self.rt.history,
             failure: self.rt.failure,
+            close: None,
         }
     }
 

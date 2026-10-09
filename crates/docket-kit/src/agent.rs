@@ -108,7 +108,7 @@ impl<P: InferTransport, I: IntentsTransport> Agent<P, I> {
             via: TurnVia::Typed,
         });
         let run = Driver::new(self, asker, rt).run(LoopInput::Asked(id)).await;
-        let _ = self.intents.session_close(opened.session).await;
-        Ok(run)
+        let close = self.intents.session_close(opened.session).await.err();
+        Ok(Run { close, ..run })
     }
 }

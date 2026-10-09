@@ -1,5 +1,6 @@
 //! What one ask came to.
 
+use docket_client::ClientError;
 use docket_core::StepLine;
 use docket_tasks::Failure;
 
@@ -40,4 +41,7 @@ pub struct Run {
     pub steps: Vec<StepLine>,
     /// Why it failed, when a failure is known.
     pub failure: Option<Failure>,
+    /// Why the router did not close the session after the ask, when it did not. The ask ran
+    /// all the same; the session is left to the router's own expiry.
+    pub close: Option<ClientError>,
 }

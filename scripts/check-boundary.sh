@@ -176,7 +176,7 @@ EDGES=(
   "docket-inapp: action-review agent-loop almanac-core companion-wire docket-client docket-core docket-memory docket-models docket-planner docket-reader docket-router docket-session docket-skills docket-tasks policy-point porter-client porter-core prov"
   "docket-dbus: docket-core porter-client porter-core porter-dbus porter-infer prov"
   "docket-client: docket-core docket-dbus docket-router prov"
-  "docket-fake: action-review almanac-core docket-client docket-core docket-router docket-session policy-point porter-core prov"
+  "docket-fake: action-review almanac-core docket-client docket-core docket-router docket-session policy-point porter-client porter-core porter-infer prov"
   "docket-eval: action-review docket-core docket-fake docket-skills docket-router porter-core prov"
   "docket-testbus: docket-dbus"
   "actions-tools: docket-core porter-core prov"
