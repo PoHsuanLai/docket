@@ -269,7 +269,8 @@ async fn when_the_writer_fails_there_is_no_policy() {
             ScriptedInferd::new([porter_fake::FakeInferSession::scripted([chat_script(
                 reply_stopped(&draft(&[], "read", &[]), StopReason::MaxTokens),
             )])]),
-            ReviewError::Unparseable,
+            // Stopped at the model's output limit: its own fault, not an unreadable reply.
+            ReviewError::OutOfRoom,
         ),
     ];
     for (name, inferd, want) in rows {
