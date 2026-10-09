@@ -127,17 +127,19 @@ where
 
 /// Serves `org.quire.Voice1` on the session bus over a device: registers the three
 /// interfaces, derives each caller's role from the connection, runs `voice-loop` and talks to
-/// inferd through porter-client. Returns when the bus closes.
+/// inferd through porter-client. `usage` is where the person's voice settings are read. Returns
+/// when the bus closes.
 pub async fn serve<D: AudioDevice + 'static>(
     config: VoicedConfig,
     device: D,
+    usage: FileUse,
 ) -> Result<(), zbus::Error> {
     let connection = zbus::Connection::session().await?;
     let seams = Seams {
         device,
         transport: DbusTransport::over(connection.clone()),
         warm: BusWarm::new(connection.clone(), Tier::Balanced),
-        usage: FileUse::sill_default(),
+        usage,
         proc_root: PathBuf::from("/proc"),
     };
     start(connection, config, seams).await?.wait().await;

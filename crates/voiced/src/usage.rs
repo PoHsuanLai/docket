@@ -36,10 +36,12 @@ impl FileUse {
     }
 
     /// `$XDG_CONFIG_HOME/sill/settings.toml`, or `~/.config/sill/settings.toml`.
-    pub fn sill_default() -> Self {
-        let base = std::env::var_os("XDG_CONFIG_HOME")
+    ///
+    /// `env` answers a variable by name (a daemon's main passes `|k| std::env::var(k).ok()`).
+    pub fn sill_default(env: impl Fn(&str) -> Option<String>) -> Self {
+        let base = env("XDG_CONFIG_HOME")
             .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+            .or_else(|| env("HOME").map(|home| PathBuf::from(home).join(".config")))
             .unwrap_or_default();
         Self::new(base.join("sill/settings.toml"))
     }
@@ -93,6 +95,27 @@ mod tests {
         ];
         for (text, want) in table {
             assert_eq!(use_of_settings(text), want, "{text:?}");
+        }
+    }
+
+    #[test]
+    fn the_default_path_follows_the_injected_environment() {
+        let table = [
+            (vec![("XDG_CONFIG_HOME", "/x")], "/x/sill/settings.toml"),
+            (vec![("HOME", "/h")], "/h/.config/sill/settings.toml"),
+            (
+                vec![("XDG_CONFIG_HOME", "/x"), ("HOME", "/h")],
+                "/x/sill/settings.toml",
+            ),
+            (vec![], "sill/settings.toml"),
+        ];
+        for (vars, want) in table {
+            let env = |k: &str| {
+                vars.iter()
+                    .find(|(n, _)| *n == k)
+                    .map(|(_, v)| (*v).to_owned())
+            };
+            assert_eq!(FileUse::sill_default(env).path, PathBuf::from(want));
         }
     }
 

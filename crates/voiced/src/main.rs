@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use std::process::ExitCode;
-use voiced::{PipeWireDevice, VoicedConfig};
+use voiced::{FileUse, PipeWireDevice, VoicedConfig};
 
 /// The voice daemon.
 #[derive(Debug, Parser)]
@@ -38,7 +38,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(voiced::serve(config, PipeWireDevice)) {
+    let usage = FileUse::sill_default(|name| std::env::var(name).ok());
+    match runtime.block_on(voiced::serve(config, PipeWireDevice, usage)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("voiced: {why}");
