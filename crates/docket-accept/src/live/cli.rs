@@ -53,6 +53,8 @@ pub struct CorpusArgs {
     pub timeout_ms: Option<u32>,
     /// The accountd binary of a cloud run.
     pub accountd: Option<PathBuf>,
+    /// The durable directory that holds the cloud account (`dev/live/cloud-key.sh` fills it).
+    pub accountd_home: Option<PathBuf>,
     /// Fail when a corpus's false-negative rate (the Wilson upper end) exceeds this, in
     /// thousandths.
     pub fnr_max_permille: Option<u32>,
@@ -111,6 +113,9 @@ pub enum UsageError {
     /// The external agent's options are wrong or incomplete.
     #[error("{0}")]
     Acp(String),
+    /// `--accountd-home` is relative, or has no `--accountd` to go with.
+    #[error("{0}")]
+    Home(String),
 }
 
 impl From<SpecFault> for UsageError {
@@ -150,6 +155,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let (mut corpora, mut cases, mut flows) = (Vec::new(), Vec::new(), Vec::new());
     let mut catalog = None;
     let (mut timeout, mut accountd, mut fnr, mut patience) = (None, None, None, 600_u64);
+    let mut accountd_home: Option<PathBuf> = None;
     let mut agent_word = None;
     let mut shadow = ShadowMode::Off;
     let mut acp = AcpFlags::default();
@@ -170,6 +176,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             "--timeout-ms" => timeout = Some(number(flag, words.value(flag)?)?),
             "--catalog" => catalog = Some(PathBuf::from(words.value(flag)?)),
             "--accountd" => accountd = Some(PathBuf::from(words.value(flag)?)),
+            "--accountd-home" => accountd_home = Some(PathBuf::from(words.value(flag)?)),
             "--fnr-max-permille" => fnr = Some(number(flag, words.value(flag)?)?),
             "--shadow" => shadow = ShadowMode::Record,
             "--patience-s" => patience = number(flag, words.value(flag)?)?,
@@ -177,6 +184,20 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
         }
     }
     let engine = engine(engine_text)?;
+    match (&accountd_home, &accountd) {
+        (Some(home), _) if !home.is_absolute() => {
+            return Err(UsageError::Home(format!(
+                "--accountd-home {} is not an absolute path",
+                home.display()
+            )));
+        }
+        (Some(_), None) => {
+            return Err(UsageError::Home(
+                "--accountd-home needs --accountd (the test build of accountd)".to_owned(),
+            ));
+        }
+        _ => {}
+    }
     let agent = acp.agent(agent_word)?;
     let out = out.unwrap_or_else(|| PathBuf::from("docket-live-out"));
     match sub.as_str() {
@@ -192,6 +213,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             regress,
             timeout_ms: timeout,
             accountd,
+            accountd_home,
             fnr_max_permille: fnr,
             patience_s: patience,
             catalog,

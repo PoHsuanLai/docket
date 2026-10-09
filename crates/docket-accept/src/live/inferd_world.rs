@@ -59,16 +59,28 @@ impl InferdWorld {
         let accountd = match &options.accountd {
             Some(binary) => {
                 write(&root.join("config/porter/callers.toml"), ACCOUNTD_CALLERS);
-                let (name, daemon) =
-                    spawn(root, bus.address(), "accountd", binary, None).expect("accountd starts");
+                let keys = options.accountd_home.as_ref().map(|home| {
+                    home.seed(root)
+                        .expect("the account home's records are copied");
+                    home.keys_setting()
+                });
+                let (name, daemon) = spawn(
+                    root,
+                    bus.address(),
+                    "accountd",
+                    binary,
+                    None,
+                    keys.as_deref(),
+                )
+                .expect("accountd starts");
                 place(root, daemon.pid(), Cgroup::Unit(name));
                 until_owned(&client, "org.quire.Accounts1").await;
                 Some(daemon)
             }
             None => None,
         };
-        let (name, inferd) =
-            spawn(root, bus.address(), "inferd", &binaries.inferd, None).expect("inferd starts");
+        let (name, inferd) = spawn(root, bus.address(), "inferd", &binaries.inferd, None, None)
+            .expect("inferd starts");
         place(root, inferd.pid(), Cgroup::Unit(name));
         until_owned(&client, "org.quire.Inference1").await;
         let world = Self {
@@ -77,7 +89,7 @@ impl InferdWorld {
             dir,
             bus,
         };
-        if let Some(binary) = &options.accountd {
+        if let (Some(binary), None) = (&options.accountd, &options.accountd_home) {
             world.wait_for_key(binary).await;
         }
         world

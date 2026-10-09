@@ -11,12 +11,13 @@ local_only = "off"
 prompt = "anywhere"
 # mail = "anywhere"
 
-# Three families, so the second opinion is independent of the first two. Ids are entries of
-# ~/stoker/catalog (the file's own `id`); the account must reach them.
+# Each run pins all three tiers to ONE model, so the run measures that model alone. Fill the ids
+# with `cloud/<entry id>` of ~/stoker/catalog (the file's own `id`); the account must reach them.
+# The ids are left empty here because the cloud set is being changed in stoker.
 [ai.model.text]
-fast = "cloud/gemini-3.8-flash"
-balanced = "cloud/claude-haiku-4.5"
-best = "cloud/gpt-6-luna"
+fast = ""
+balanced = ""
+best = ""
 
 # A cap stops a runaway run: cents per day, on the account and on the app.
 [ai.spend]

@@ -336,3 +336,88 @@ fn a_question_at_rest_is_asking_instead_of_finishing_never_an_unsettled_answer()
             .any(|f| f.starts_with("asked instead"))
     );
 }
+
+mod accountd_home {
+    use super::words;
+    use docket_accept::live::accountd_home::{AccountdHome, HomeFault, check_dir};
+    use docket_accept::live::cli::{Command, UsageError, parse};
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::Path;
+
+    fn mode(path: &Path, bits: u32) {
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(bits)).expect("chmod");
+    }
+
+    #[test]
+    fn the_option_needs_an_absolute_path_and_an_accountd() {
+        let Ok(Command::Corpus(c)) = parse(&words(
+            "corpus --engine cloud --accountd /a/accountd --accountd-home /h",
+        )) else {
+            panic!("parses");
+        };
+        assert_eq!(c.accountd_home.as_deref(), Some(Path::new("/h")));
+        let no_flag = parse(&words("corpus --engine scripted"));
+        assert!(matches!(no_flag, Ok(Command::Corpus(c)) if c.accountd_home.is_none()));
+        for line in [
+            "corpus --engine cloud --accountd /a --accountd-home rel",
+            "corpus --engine cloud --accountd-home /h",
+        ] {
+            assert!(
+                matches!(parse(&words(line)), Err(UsageError::Home(_))),
+                "{line}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_loose_directory_or_one_in_a_git_work_tree_is_refused() {
+        let tmp = tempfile::tempdir().expect("scratch");
+        let loose = tmp.path().join("loose");
+        std::fs::create_dir(&loose).expect("dir");
+        mode(&loose, 0o750);
+        assert!(matches!(check_dir(&loose), Err(HomeFault::LooseMode(..))));
+        mode(&loose, 0o700);
+        assert!(check_dir(&loose).is_ok());
+        let repo = tmp.path().join("repo");
+        std::fs::create_dir_all(repo.join(".git")).expect("git");
+        let inside = repo.join("keys");
+        std::fs::create_dir(&inside).expect("dir");
+        mode(&inside, 0o700);
+        assert!(matches!(check_dir(&inside), Err(HomeFault::InsideGit(..))));
+        assert!(matches!(
+            check_dir(Path::new("relative")),
+            Err(HomeFault::NotAbsolute(_))
+        ));
+    }
+
+    #[test]
+    fn an_empty_home_says_how_to_fill_it_and_a_filled_one_is_pointed_at_not_copied() {
+        let tmp = tempfile::tempdir().expect("scratch");
+        let home = tmp.path().join("home");
+        std::fs::create_dir(&home).expect("dir");
+        mode(&home, 0o700);
+        let accountd = Path::new("/bin/accountd");
+        let why = AccountdHome::open(&home, accountd)
+            .expect_err("empty")
+            .to_string();
+        assert!(
+            why.contains("dev/live/cloud-key.sh") && why.contains("/bin/accountd"),
+            "{why}"
+        );
+        std::fs::write(home.join("accountd.keys"), "fake").expect("keys");
+        mode(&home.join("accountd.keys"), 0o644);
+        assert!(matches!(
+            AccountdHome::open(&home, accountd),
+            Err(HomeFault::LooseMode(..))
+        ));
+        mode(&home.join("accountd.keys"), 0o600);
+        std::fs::create_dir_all(home.join("state/porter")).expect("state");
+        std::fs::write(home.join("state/porter/registry.json"), "{}").expect("registry");
+        let open = AccountdHome::open(&home, accountd).expect("filled");
+        assert!(open.keys_setting().ends_with("/accountd.keys"));
+        let world = tmp.path().join("world");
+        open.seed(&world).expect("seed");
+        assert!(world.join(".local/state/porter/registry.json").is_file());
+        assert!(!world.join("accountd.keys").exists());
+    }
+}

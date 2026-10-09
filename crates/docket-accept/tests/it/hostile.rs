@@ -74,6 +74,7 @@ async fn spoiled_replies_reach_the_stage_that_reads_them_and_the_case_still_hold
             timeouts: Timeouts::Every(Millis(600_000)),
             out: out.path().to_owned(),
             accountd: None,
+            accountd_home: None,
             catalog: None,
             patience: std::time::Duration::from_secs(1),
         },

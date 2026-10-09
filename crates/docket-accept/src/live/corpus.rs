@@ -69,6 +69,8 @@ pub struct CorpusOptions {
     pub out: PathBuf,
     /// The accountd binary of a cloud run.
     pub accountd: Option<PathBuf>,
+    /// The checked home that holds the cloud account, instead of a key typed per world.
+    pub accountd_home: Option<crate::live::accountd_home::AccountdHome>,
     /// The catalogue directory copied into the world (the sibling stoker checkout's by default).
     pub catalog: Option<PathBuf>,
     /// How long each model may take to come up before the run starts (live engines).
@@ -191,6 +193,7 @@ pub async fn run_corpus_shadowed(
             keep_in: Some(options.out.join("scratch")),
             tap: TapMode::Off,
             accountd: options.accountd.clone(),
+            accountd_home: options.accountd_home.clone(),
             catalog: options.catalog.clone(),
             ..Options::default()
         },

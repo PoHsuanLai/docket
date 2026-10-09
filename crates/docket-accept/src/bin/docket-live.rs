@@ -5,6 +5,7 @@
 //! `--engine cloud`, and that is said before anything starts. Start it through
 //! `scripts/eval-release.sh` or `dev/live-smoke.sh`.
 
+use docket_accept::live::accountd_home::AccountdHome;
 use docket_accept::live::acp::{
     AcpSpec, Redactor, Task, agent_cassette, list_models_acp, run_flow_acp,
 };
@@ -135,6 +136,12 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
         return corpus_agent(&args, spec);
     }
     let binaries = packaged_binaries().map_err(|e| e.to_string())?;
+    let accountd_home = match (&args.accountd_home, &args.accountd) {
+        (Some(home), Some(binary)) => {
+            Some(AccountdHome::open(home, binary).map_err(|e| e.to_string())?)
+        }
+        _ => None,
+    };
     let mut options = CorpusOptions {
         label: args.label.clone(),
         engine: args.engine,
@@ -143,6 +150,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
         timeouts: timeouts(&args),
         out: args.out.clone(),
         accountd: args.accountd.clone(),
+        accountd_home,
         catalog: Some(
             args.catalog
                 .clone()

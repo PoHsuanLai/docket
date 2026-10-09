@@ -86,6 +86,10 @@ pub struct Options {
     /// The accountd binary to run on the private bus (a cloud run's key store): a build with the
     /// `test-proc-root` and `test-keys` features, as `ACCEPT_ACCOUNTD` names it.
     pub accountd: Option<PathBuf>,
+    /// A durable home that already holds the cloud account (`--accountd-home`): accountd's keys
+    /// are the file in it and its non-secret records are copied into the scratch root, so no key
+    /// is typed per world.
+    pub accountd_home: Option<crate::live::accountd_home::AccountdHome>,
     /// A catalogue directory whose `*.toml` entries are copied into the scratch root before
     /// inferd starts (see `live::catalog`).
     pub catalog: Option<PathBuf>,
@@ -224,7 +228,7 @@ fn engine_cache() -> Vec<(&'static str, String)> {
 /// What only one daemon is told. memoryd's packaged binary runs a test build: its keys are a file
 /// (there is no Secret Service on the private bus), its sandbox stays ON, and both daemons read
 /// their callers from the scratch fake proc root instead of `/proc`.
-fn extra_env(dir: &Path, name: &str) -> Vec<(&'static str, String)> {
+fn extra_env(dir: &Path, name: &str, keys: Option<&str>) -> Vec<(&'static str, String)> {
     let proc_root = dir.join("proc").display().to_string();
     match name {
         "memoryd" => vec![
@@ -243,7 +247,10 @@ fn extra_env(dir: &Path, name: &str) -> Vec<(&'static str, String)> {
         "accountd" => vec![
             (
                 "ACCOUNTD_KEYS",
-                format!("file:{}", dir.join("keys/accountd.keys").display()),
+                keys.map_or_else(
+                    || format!("file:{}", dir.join("keys/accountd.keys").display()),
+                    str::to_owned,
+                ),
             ),
             ("ACCOUNTD_PROC_ROOT", proc_root),
         ],
@@ -369,13 +376,14 @@ pub(crate) fn spawn(
     name: &'static str,
     binary: &Path,
     tap: Option<&Path>,
+    keys: Option<&str>,
 ) -> std::io::Result<(&'static str, Reaped)> {
     let log = std::fs::File::create(dir.join("logs").join(format!("{name}.log")))?;
     let mut command = Command::new(binary);
     command
         .env_clear()
         .envs(env_of(dir))
-        .envs(extra_env(dir, name))
+        .envs(extra_env(dir, name, keys))
         .env("DBUS_SESSION_BUS_ADDRESS", bus)
         .env("DBUS_SYSTEM_BUS_ADDRESS", bus)
         .envs(tap.map(|file| (docket_dbus::tap::TRACE_VAR, file.to_owned())))
@@ -525,7 +533,7 @@ impl World {
         let mut daemons = Vec::new();
         let mut start = async |name: &'static str, binary: &Path, owns: &str| {
             let daemon =
-                spawn(root, &address, name, binary, tap.as_deref()).expect("daemon starts");
+                spawn(root, &address, name, binary, tap.as_deref(), None).expect("daemon starts");
             place(root, daemon.1.pid(), Cgroup::Unit(name));
             daemons.push(daemon);
             until_owned(&sill, owns).await;
