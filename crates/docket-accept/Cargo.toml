@@ -48,7 +48,7 @@ path = "src/bin/docket-live.rs"
 actions-mcp = { path = "../actions-mcp" }
 action-review = { workspace = true }
 companion-wire = { workspace = true }
-companiond = { path = "../companiond" }
+companiond = { path = "../companiond", features = ["test-proc-root"] }
 docket-agents = { workspace = true }
 docket-acp = { path = "../docket-acp" }
 docket-acp-bin = { path = "../docket-acp-bin" }
@@ -66,7 +66,7 @@ docket-fake = { workspace = true }
 docket-router = { workspace = true }
 docket-testbus = { workspace = true }
 futures-util = { workspace = true }
-intentd = { path = "../intentd" }
+intentd = { path = "../intentd", features = ["test-proc-root"] }
 readerd = { path = "../readerd" }
 almanac-core = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }

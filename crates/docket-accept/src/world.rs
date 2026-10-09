@@ -74,6 +74,23 @@ pub enum AcpSetting {
     Agents,
 }
 
+/// The scratch `settings.toml` of a world: the person's ACP setting, and review deadlines at the
+/// top of their ranges. The shipped quick stage gives a reviewer 300 ms, which a world under load
+/// (a whole suite on one machine) misses; a reviewer that misses its deadline makes the router
+/// ask the person again, where these runs mean to test consent, not speed.
+pub fn settings_toml(acp: AcpSetting) -> String {
+    let review = docket_settings::REVIEW_CEILING;
+    let acp = match acp {
+        AcpSetting::Off => "",
+        AcpSetting::On => "[agent.acp]\nexpose = \"on\"\n",
+        AcpSetting::Agents => "[agent.acp]\nagents = \"on\"\n",
+    };
+    format!(
+        "[agent.review]\nquick_ms = {}\ndeliberate_ms = {}\nsecond_ms = {}\n{acp}",
+        review.quick.0, review.deliberate.0, review.second.0
+    )
+}
+
 /// What a world does besides what its model source says.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Options {
@@ -517,17 +534,10 @@ impl World {
             );
         }
 
-        match options.acp {
-            AcpSetting::Off => {}
-            AcpSetting::On => write(
-                &root.join("config/docket/settings.toml"),
-                "[agent.acp]\nexpose = \"on\"\n",
-            ),
-            AcpSetting::Agents => write(
-                &root.join("config/docket/settings.toml"),
-                "[agent.acp]\nagents = \"on\"\n",
-            ),
-        }
+        write(
+            &root.join("config/docket/settings.toml"),
+            &settings_toml(options.acp),
+        );
         copy_catalog(options.catalog.as_deref(), root);
         let tap = match options.tap {
             TapMode::On => Some(root.join("model.jsonl")),
