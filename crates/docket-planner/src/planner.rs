@@ -23,12 +23,13 @@ use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
 use porter_core::need::LlmNeed;
-use porter_core::{DataClass, Need, Tier, Tokens};
+use porter_core::{AppName, DataClass, Need, Tier, Tokens};
 use porter_infer::{
     ChatControl, ChatReply, ChatRequest, ClientFrame, Declined, InferEvent, InferReply,
     InferRequest, InferSession, JsonSchemaText, JsonText, Knob, Reasoning, ReplyShape, ServedBy,
     StopReason, ToolCallPart, ToolChoice, ToolDecl, ToolName, ToolParallelism,
 };
+use prov::{EntityId, EntityKey, EntityKind};
 use serde_json::{Value as Json, json};
 use std::collections::BTreeSet;
 
@@ -119,10 +120,24 @@ fn related_tool(actions: &[ActionCard]) -> Option<ToolDecl> {
         "type": "object",
         "properties": {
             "of": {
-                "type": "object",
-                "properties": { "handle": { "type": "integer", "minimum": 0 } },
-                "required": ["handle"],
-                "additionalProperties": false,
+                "anyOf": [
+                    {
+                        "type": "object",
+                        "properties": { "handle": { "type": "integer", "minimum": 0 } },
+                        "required": ["handle"],
+                        "additionalProperties": false,
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "app": { "type": "string" },
+                            "kind": { "type": "string" },
+                            "key": { "type": "string" },
+                        },
+                        "required": ["app", "kind", "key"],
+                        "additionalProperties": false,
+                    },
+                ],
             },
             "relation": { "enum": names },
         },
@@ -131,7 +146,7 @@ fn related_tool(actions: &[ActionCard]) -> Option<ToolDecl> {
     });
     meta_tool(
         TOOL_RELATED,
-        "Get a thing related to a thing you hold, as a handle: \"of\" is the handle of the thing and \"relation\" is one of the relations shown beside it (\"related: ...\"). Use it when an action needs a thing of another kind that you cannot read from the one you hold, such as who sent a thread.",
+        "Get a thing related to a thing you hold, as a handle: \"of\" is the thing, as {\"handle\": n} or as {\"app\", \"kind\", \"key\"}, and \"relation\" is one of the relations shown beside it (\"related: ...\"). Use it when an action needs a thing of another kind that you cannot read from the one you hold, such as who sent a thread.",
         &params,
     )
 }
@@ -475,8 +490,9 @@ fn missing(name: &str) -> ModelOutput {
 
 /// A `quire_related` as the call of the related action of the thing's kind: the same call the
 /// router gates and records as any other read, so a planner gets a related thing no other way
-/// than through the gate. The handle must be a thing the view shows, of a kind with that
-/// relation.
+/// than through the gate. The thing is a handle the view shows or a thing named as `target`
+/// names it (`{"app", "kind", "key"}`, as the context shows the thing the person has open), and
+/// its kind must have that relation.
 fn related_output(args: &Json, view: &PlannerView) -> ModelOutput {
     let Some(of) = args.get("of") else {
         return missing("of");
@@ -484,21 +500,10 @@ fn related_output(args: &Json, view: &PlannerView) -> ModelOutput {
     let Some(relation) = args.get("relation").and_then(Json::as_str) else {
         return missing(RELATION_ARG);
     };
-    let Some(held) = of
-        .as_object()
-        .filter(|o| o.len() == 1)
-        .and_then(|o| o.get("handle"))
-        .and_then(Json::as_u64)
-        .map(Handle)
-    else {
+    let Some((target, kind)) = related_subject(of, view) else {
         return wrong("of", Why::Type);
     };
-    let Some(kind) = view.handles.iter().find_map(|c| match &c.shape {
-        HandleShape::Entity(kind) if c.handle == held => Some(kind),
-        _ => None,
-    }) else {
-        return wrong("of", Why::Type);
-    };
+    let kind = &kind;
     let Some(card) = view.actions.iter().find(|card| {
         matches!(&card.on, docket_core::TargetKind::One(k) if k == kind)
             && card.related.iter().any(|r| r.name.as_str() == relation)
@@ -529,7 +534,7 @@ fn related_output(args: &Json, view: &PlannerView) -> ModelOutput {
     ModelOutput::Calls(vec![PlannedCall {
         call: CallRequest {
             action: card.action.clone(),
-            target: TargetValue::Handles(vec![held]),
+            target,
             args,
             origin: Origin::Companion,
         },
@@ -567,4 +572,25 @@ fn question(args: &Json) -> Result<ModelOutput, PlanFault> {
         Some(_) => return Err(PlanFault::Unreadable),
     };
     Ok(ModelOutput::Ask { text, choices })
+}
+
+/// The thing a `quire_related` is about and its kind: a handle the view holds a thing for, or a
+/// thing named in full.
+fn related_subject(of: &Json, view: &PlannerView) -> Option<(TargetValue, EntityKind)> {
+    let object = of.as_object()?;
+    if let (1, Some(n)) = (object.len(), object.get("handle")) {
+        let held = Handle(n.as_u64()?);
+        let kind = view.handles.iter().find_map(|c| match &c.shape {
+            HandleShape::Entity(kind) if c.handle == held => Some(kind.clone()),
+            _ => None,
+        })?;
+        return Some((TargetValue::Handles(vec![held]), kind));
+    }
+    let text = |name: &str| object.get(name).and_then(Json::as_str);
+    let id = EntityId {
+        app: AppName::parse(text("app")?).ok()?,
+        kind: EntityKind::parse(text("kind")?).ok()?,
+        key: EntityKey::parse(text("key")?).ok()?,
+    };
+    (object.len() == 3).then(|| (TargetValue::Entities(vec![id.clone()]), id.kind))
 }

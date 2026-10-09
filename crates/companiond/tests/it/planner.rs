@@ -507,6 +507,11 @@ async fn a_quire_related_that_cannot_be_a_call_is_told_what_was_wrong() {
         // No relation at all, and not an object.
         call(TOOL_RELATED, json!({ "of": { "handle": 1 } })),
         call(TOOL_RELATED, json!({ "of": 1, "relation": "from" })),
+        // A thing named in full, of a kind that has no such relation.
+        call(
+            TOOL_RELATED,
+            json!({ "of": { "app": "org.quire.Mail", "kind": "mail.contact", "key": "c1" }, "relation": "from" }),
+        ),
     ]);
     let mut v = view(catalogue().cards());
     v.handles = vec![thread_handle()];
@@ -522,6 +527,26 @@ async fn a_quire_related_that_cannot_be_a_call_is_told_what_was_wrong() {
         fault(ArgsFault::Missing(param("relation")))
     );
     assert_eq!(planner.plan(&v).await, fault(wrong("of", Why::Type)));
+    assert_eq!(planner.plan(&v).await, fault(wrong("relation", Why::Range)));
+}
+
+#[tokio::test]
+async fn a_thing_named_in_full_is_asked_about_as_a_target_names_it() {
+    let (planner, _) = planner(vec![call(
+        TOOL_RELATED,
+        json!({ "of": { "app": "org.quire.Mail", "kind": "mail.thread", "key": "t1" }, "relation": "from" }),
+    )]);
+    let ModelOutput::Calls(calls) = planner
+        .plan(&view(catalogue().cards()))
+        .await
+        .expect("a call")
+    else {
+        panic!("a call")
+    };
+    assert_eq!(
+        calls[0].call.target,
+        TargetValue::Entities(vec![entity("t1")])
+    );
 }
 
 #[test]
