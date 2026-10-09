@@ -1,6 +1,7 @@
 //! The planner's `quire_read` call, read part by part so a model that gets one part wrong is told
 //! which one and what it looks like, instead of the turn failing on an unreadable reply.
 
+use crate::want::with_option_ids;
 use agent_loop::ModelOutput;
 use docket_core::{Handle, HandleShape, ReadFault, ReaderAsk, ReaderTask, ReplyFault, ValueSchema};
 use serde_json::Value as Json;
@@ -32,21 +33,13 @@ fn read_ask(args: &Json) -> Result<ReaderAsk, ReadFault> {
         return Err(ReadFault::Inputs);
     }
     let task: ReaderTask = part(args, "task", ReadFault::Task)?;
-    let want: ValueSchema = part(args, "want", ReadFault::Want)?;
+    let want: ValueSchema = match args.get("want") {
+        Some(want) => {
+            serde_json::from_value(with_option_ids(want)?).map_err(|_| ReadFault::Want)?
+        }
+        None => return Err(ReadFault::Want),
+    };
     Ok(ReaderAsk { inputs, want, task })
-}
-
-/// The tool's `want` parameter: the closed shapes of an answer, as the reader takes them.
-pub(crate) fn want_schema() -> Json {
-    serde_json::json!({
-        "type": "object",
-        "description": "The shape of the answer, as {\"kind\": ..., \"v\": ...}. Kinds: choice (v: list of option strings), integer (v: {min, max}), date, datetime, text (v: {max}), record (v: list of [name, shape]), list (v: {of: shape, max}). Example: {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}",
-        "properties": {
-            "kind": { "enum": ["choice", "integer", "date", "datetime", "text", "record", "list"] },
-            "v": {},
-        },
-        "required": ["kind"],
-    })
 }
 
 /// How a read fault is told to the planner: what was wrong and the shape expected, short.
@@ -54,7 +47,9 @@ pub(crate) fn read_fault_text(fault: &ReadFault) -> String {
     match fault {
         ReadFault::Inputs => "\"inputs\" must be a list of handle numbers you were shown, such as [1, 2]".to_owned(),
         ReadFault::Task => "\"task\" must be one of classify, extract, summarise, compare".to_owned(),
-        ReadFault::Want => "\"want\" is not a shape of the answer; give {\"kind\": ..., \"v\": ...} with kind one of choice, integer, date, datetime, text, record, list, such as {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}".to_owned(),
+        ReadFault::Want => "\"want\" is not a shape of the answer; give {\"kind\": ..., \"v\": ...} with kind one of choice, integer, date, datetime, text, record, list, such as {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}; choice options are ids of lowercase letters, digits and _".to_owned(),
+        ReadFault::WantOption(option) => format!("option \"{option}\" is not an id and has no id to read it as: use lowercase letters, digits and _, such as \"lisbon_receipts\""),
+        ReadFault::WantClash(id) => format!("two options of the choice are both \"{id}\": give each option a different id"),
         ReadFault::NotHeld => "an input is not a handle you were shown; name only the #n handles listed".to_owned(),
         ReadFault::NotText { handle, shape } => not_text(*handle, shape),
         ReadFault::OutOfSchema(_) => "the reader's answer did not fit \"want\"; ask for a simpler shape, or a choice among options".to_owned(),

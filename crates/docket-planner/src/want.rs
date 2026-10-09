@@ -1,0 +1,143 @@
+//! The `want` of a `quire_read`: the schema the model is shown, and the options of a `choice`
+//! read as ids. A model that writes an option as words ("Lisbon receipts") has said what it
+//! meant, so the words become the id they name; when they name none, or two options name the
+//! same one, it is told which option and what an option looks like.
+
+use docket_core::{ChoiceId, ReadFault};
+use serde_json::Value as Json;
+use std::collections::HashSet;
+
+/// What an option may be, as a pattern: the id grammar.
+const OPTION_PATTERN: &str = "^[a-z0-9][a-z0-9_.-]{0,63}$";
+
+/// The most characters of a bad option quoted back to the model.
+const QUOTED: usize = 60;
+
+/// The tool's `want` parameter: the closed shapes of an answer, as the reader takes them.
+pub(crate) fn want_schema() -> Json {
+    serde_json::json!({
+        "type": "object",
+        "description": "The shape of the answer, as {\"kind\": ..., \"v\": ...}. Kinds: choice (v: list of option ids, each lowercase letters, digits and _, such as \"lisbon_receipts\"), integer (v: {min, max}), date, datetime, text (v: {max}), record (v: list of [name, shape]), list (v: {of: shape, max}). Example: {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}.",
+        "properties": {
+            "kind": { "enum": ["choice", "integer", "date", "datetime", "text", "record", "list"] },
+            "v": {
+                "anyOf": [
+                    { "type": "array", "items": { "anyOf": [
+                        { "type": "string", "pattern": OPTION_PATTERN },
+                        { "type": "array" },
+                    ] } },
+                    { "type": "object" },
+                ],
+            },
+        },
+        "required": ["kind"],
+    })
+}
+
+/// `want` with every `choice` option (at any depth) written as its id, or why one cannot be.
+pub(crate) fn with_option_ids(want: &Json) -> Result<Json, ReadFault> {
+    let Some(kind) = want.get("kind").and_then(Json::as_str) else {
+        return Ok(want.clone());
+    };
+    let Some(v) = want.get("v") else {
+        return Ok(want.clone());
+    };
+    let v = match (kind, v) {
+        ("choice", Json::Array(options)) => Json::Array(option_ids(options)?),
+        ("list", Json::Object(list)) => {
+            let mut list = list.clone();
+            if let Some(of) = list.get("of") {
+                let of = with_option_ids(of)?;
+                list.insert("of".to_owned(), of);
+            }
+            Json::Object(list)
+        }
+        ("record", Json::Array(fields)) => Json::Array(
+            fields
+                .iter()
+                .map(|field| match field {
+                    Json::Array(pair) if pair.len() == 2 => Ok(Json::Array(vec![
+                        pair[0].clone(),
+                        with_option_ids(&pair[1])?,
+                    ])),
+                    other => Ok(other.clone()),
+                })
+                .collect::<Result<_, ReadFault>>()?,
+        ),
+        _ => v.clone(),
+    };
+    Ok(serde_json::json!({ "kind": kind, "v": v }))
+}
+
+/// The options as ids. A value that is not a string is left for the parse to refuse.
+fn option_ids(options: &[Json]) -> Result<Vec<Json>, ReadFault> {
+    let mut seen = HashSet::new();
+    options
+        .iter()
+        .map(|option| {
+            let Some(text) = option.as_str() else {
+                return Ok(option.clone());
+            };
+            let id = ChoiceId::slug(text)
+                .ok_or_else(|| ReadFault::WantOption(text.chars().take(QUOTED).collect()))?;
+            if !seen.insert(id.clone()) {
+                return Err(ReadFault::WantClash(id));
+            }
+            Ok(Json::String(id.to_string()))
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn ids(want: Json) -> Result<Json, ReadFault> {
+        with_option_ids(&want)
+    }
+
+    #[test]
+    fn options_written_as_words_become_the_ids_they_name() {
+        let got = ids(json!({ "kind": "choice", "v": ["Lisbon receipts", "skip"] }));
+        assert_eq!(
+            got,
+            Ok(json!({ "kind": "choice", "v": ["lisbon_receipts", "skip"] }))
+        );
+    }
+
+    #[test]
+    fn a_choice_inside_a_record_or_a_list_is_read_the_same_way() {
+        let got = ids(json!({ "kind": "record", "v": [
+            ["kind", { "kind": "choice", "v": ["Not Lisbon"] }],
+            ["rest", { "kind": "list", "v": { "of": { "kind": "choice", "v": ["A b"] }, "max": 3 } }],
+        ] }))
+        .expect("ids");
+        assert_eq!(got["v"][0][1]["v"], json!(["not_lisbon"]));
+        assert_eq!(got["v"][1][1]["v"]["of"]["v"], json!(["a_b"]));
+    }
+
+    #[test]
+    fn two_options_that_name_one_id_are_refused() {
+        let got = ids(
+            json!({ "kind": "choice", "v": ["Lisbon receipts", "lisbon-receipts!", "lisbon_receipts"] }),
+        );
+        let clash = ChoiceId::parse("lisbon_receipts").expect("id");
+        assert_eq!(got, Err(ReadFault::WantClash(clash)));
+    }
+
+    #[test]
+    fn an_option_with_nothing_to_make_an_id_of_is_named() {
+        let got = ids(json!({ "kind": "choice", "v": ["forward", "???"] }));
+        assert_eq!(got, Err(ReadFault::WantOption("???".to_owned())));
+    }
+
+    #[test]
+    fn the_schema_gives_choice_options_the_id_pattern() {
+        let schema = want_schema().to_string();
+        assert!(
+            schema.contains("\"pattern\":\"^[a-z0-9][a-z0-9_.-]{0,63}$\""),
+            "{schema}"
+        );
+    }
+}

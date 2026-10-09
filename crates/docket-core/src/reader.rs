@@ -244,6 +244,10 @@ pub enum ReadFault {
     Task,
     /// `want` was not a shape of the answer.
     Want,
+    /// An option of a `choice` cannot be written as an id (the option as given, cut short).
+    WantOption(String),
+    /// Two options of a `choice` came to the same id.
+    WantClash(ChoiceId),
     /// An input is a handle this session does not hold.
     NotHeld,
     /// An input is held but is a thing or a file, not text: the planner reads it first, through

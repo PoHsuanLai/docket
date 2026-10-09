@@ -410,6 +410,14 @@ mod tests {
                 ReadFault::Want,
                 "{\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}",
             ),
+            (
+                ReadFault::WantOption("Lisbon receipts?!".to_owned()),
+                "option \"Lisbon receipts?!\" is not an id and has no id to read it as: use lowercase letters, digits and _, such as \"lisbon_receipts\"",
+            ),
+            (
+                ReadFault::WantClash(docket_core::ChoiceId::parse("a_b").expect("id")),
+                "both \"a_b\"",
+            ),
             (ReadFault::NotHeld, "not a handle you were shown"),
             (
                 ReadFault::NotText {

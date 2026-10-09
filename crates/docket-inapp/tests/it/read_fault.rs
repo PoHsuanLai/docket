@@ -147,3 +147,44 @@ async fn a_reader_that_is_not_there_still_fails_the_turn_with_its_cause() {
         .expect("turn");
     assert_eq!(reply.ending, Ending::Failed(Failure::Reader), "{reply:?}");
 }
+
+#[tokio::test]
+async fn an_option_written_as_words_is_read_as_its_id_and_the_choice_stays_closed() {
+    let words_ask = json!({
+        "inputs": [1], "task": "classify",
+        "want": { "kind": "choice", "v": ["Invoice", "News letter"] },
+    });
+    let planner = ScriptedInfer::new(vec![
+        open_thread(),
+        call("quire_read", words_ask),
+        words("It is an invoice."),
+    ]);
+    let reader = ScriptedInfer::new(vec![words("invoice")]);
+    let reply = turn(&planner, &reader).await;
+    assert_eq!(reply.ending, Ending::Done, "{reply:?}");
+    assert_eq!(reader.asked().len(), 1, "the ask reached the reader");
+    let after = planner.user_text(2);
+    assert!(!after.contains("gave no answer"), "{after}");
+}
+
+#[tokio::test]
+async fn an_option_with_no_id_is_named_in_the_fault_the_planner_reads() {
+    let bad = json!({
+        "inputs": [1], "task": "classify",
+        "want": { "kind": "choice", "v": ["invoice", "???"] },
+    });
+    let planner = ScriptedInfer::new(vec![
+        open_thread(),
+        call("quire_read", bad),
+        call("quire_read", good_ask()),
+        words("It is an invoice."),
+    ]);
+    let reader = ScriptedInfer::new(vec![words("invoice")]);
+    let reply = turn(&planner, &reader).await;
+    assert_eq!(reply.ending, Ending::Done, "{reply:?}");
+    assert!(
+        planner.user_text(2).contains("option \"???\" is not an id"),
+        "{}",
+        planner.user_text(2)
+    );
+}

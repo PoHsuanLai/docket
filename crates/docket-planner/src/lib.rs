@@ -17,6 +17,7 @@ mod render;
 mod role;
 mod step_text;
 mod unconfirmed;
+mod want;
 
 pub use args::{ArgsFault, ReadCall, planner_label, read_call};
 pub use catalogue::{Catalogue, CatalogueTool, TARGET};

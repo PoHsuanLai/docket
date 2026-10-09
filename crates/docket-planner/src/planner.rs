@@ -9,9 +9,10 @@
 
 use crate::args::{ArgsFault, read_call};
 use crate::catalogue::{Catalogue, CatalogueTool};
-use crate::read_ask::{read_output, want_schema};
+use crate::read_ask::read_output;
 use crate::render::messages_with;
 use crate::role::RoleText;
+use crate::want::want_schema;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
 use docket_core::{CallRequest, Origin, PlannerView, ReplyFault};
