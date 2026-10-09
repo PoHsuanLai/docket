@@ -35,7 +35,7 @@ use voice_wire::{
 };
 use zbus::object_server::SignalEmitter;
 
-fn fault_of(error: DeviceError) -> VoiceFault {
+pub(crate) fn fault_of(error: DeviceError) -> VoiceFault {
     match error {
         DeviceError::Denied => VoiceFault::MicDenied,
         DeviceError::NoSource | DeviceError::Closed | DeviceError::TimedOut => {

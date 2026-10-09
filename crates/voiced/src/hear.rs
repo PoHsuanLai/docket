@@ -32,7 +32,7 @@ impl Dictation {
     }
 
     /// Whether this frame ended it (after speech or never any).
-    fn ended(&mut self, frame: &Frame512) -> bool {
+    pub(crate) fn ended(&mut self, frame: &Frame512) -> bool {
         let (voiced, _): (Voiced, _) = self.gate.push(frame);
         self.state = endpoint(
             self.state,

@@ -8,6 +8,7 @@ mod command;
 mod config;
 mod default_source;
 mod device;
+mod dictate;
 mod engine;
 mod error;
 mod hear;
@@ -35,6 +36,7 @@ pub use device::{
 };
 #[cfg(feature = "testing")]
 pub use device::{FakeAudioDevice, FakeCapture, FakePlayback};
+pub use dictate::{Dictated, dictate};
 pub use error::{VoiceError, refusal_of_name};
 pub use introspect::{VOICE1_FILE, introspection};
 pub use peer::Peers;

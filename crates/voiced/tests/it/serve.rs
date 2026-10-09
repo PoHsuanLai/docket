@@ -15,7 +15,7 @@ use porter_infer::{
 };
 use std::collections::BTreeSet;
 use voice_wire::{
-    CancelCause, MicState, UtteranceEnd, VoiceEvent, VoiceFault, VoiceRefusal, VoiceUse,
+    CancelCause, HeardText, MicState, UtteranceEnd, VoiceEvent, VoiceFault, VoiceRefusal, VoiceUse,
 };
 use voiced::{DeviceError, NodeKind, VoiceProxy};
 
@@ -542,4 +542,25 @@ async fn a_request_inferd_cannot_serve_ends_the_utterance_refused() {
         UtteranceEnd::Failed(VoiceFault::Refused(InferRefusal::Unsupported))
     );
     assert_eq!(world.hand.open_now(), 0);
+}
+
+#[tokio::test]
+async fn dictation_runs_in_process_over_the_device_seam_with_no_bus() {
+    let (device, hand) = ScriptedDevice::with_a_microphone();
+    let infer = ScriptedInfer::new(vec![transcript("hel", "hello", "hello world")]);
+    let seen = infer.seen.clone();
+    let task = tokio::spawn(async move { voiced::dictate(&device, &infer, None).await });
+    while hand.feed(loud()) == 0 {
+        tokio::task::yield_now().await;
+    }
+    for _ in 0..3 {
+        hand.feed(loud());
+    }
+    hand.end_stream();
+    let dictated = task.await.expect("joined").expect("dictated");
+    assert_eq!(dictated.text, HeardText("hello world".to_owned()));
+    assert_eq!(seen.opens().len(), 1, "one inferd session");
+    assert_eq!(hand.open_now(), 0, "the mic is closed again");
+    let sent = audio_frames(&seen.frames_of(0));
+    assert_eq!(sent, [(0, 512), (512, 512), (1024, 512), (1536, 512)]);
 }
