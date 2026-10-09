@@ -48,6 +48,7 @@ fn shell_error(fault: &ShellFault) -> Error {
         ShellFault::CannotSandbox(why) => fault::not_now(&format!("cannot sandbox: {why}")),
         ShellFault::TooMany => fault::not_now("too many terminals are open"),
         ShellFault::Spawn => fault::internal("the sandbox did not start"),
+        _ => fault::internal("the sandbox did not start"),
     }
 }
 
@@ -133,15 +134,16 @@ impl<S: Sandbox> Terminals<S> {
         if let bulkhead::SandboxState::Cannot(why) = self.shell.check(&shell_cwd) {
             return Err(shell_error(&ShellFault::CannotSandbox(why)));
         }
-        let launch = Launch {
-            argv,
-            cwd: shell_cwd,
-            env: asked
+        let launch = Launch::new(argv, shell_cwd).with_env(
+            asked
                 .env
                 .iter()
                 .map(|v| (v.name.clone(), v.value.clone()))
                 .collect(),
-            limit: asked.output_byte_limit,
+        );
+        let launch = match asked.output_byte_limit {
+            Some(bytes) => launch.with_limit(bytes),
+            None => launch,
         };
         let id = self.shell.create(&launch).map_err(|f| shell_error(&f))?;
         self.owners.insert(id, asked.session_id.0.to_string());

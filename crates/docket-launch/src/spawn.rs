@@ -213,12 +213,7 @@ fn binds(
                 .cloned()
                 .map(|path| (path, Access::ReadWrite)),
         )
-        .map(|(path, access)| {
-            Ok(Bind {
-                path: bulk::to_shell(&path)?,
-                access,
-            })
-        })
+        .map(|(path, access)| Ok(Bind::new(bulk::to_shell(&path)?, access)))
         .collect()
 }
 
@@ -351,11 +346,11 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             .to_str()
             .and_then(|t| bulkhead::AbsPath::parse(t).ok())
             .ok_or(SpawnFault::Sandbox)?;
-        let bind = EndpointBind {
-            forwarder: bulk::to_shell(&self.forwarder).map_err(|_| SpawnFault::Sandbox)?,
+        let bind = EndpointBind::new(
+            bulk::to_shell(&self.forwarder).map_err(|_| SpawnFault::Sandbox)?,
             socket,
-            port: target.port(),
-        };
+            target.port(),
+        );
         AgentNet::of(NetworkMode::EndpointOnly, Some(bind)).map_err(|_| SpawnFault::Sandbox)
     }
 
@@ -375,15 +370,18 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         };
         let built = child_env(entry, &lent).map_err(|_| SpawnFault::Sandbox)?;
         let command = entry.command.as_str();
-        let run = AgentRun {
-            argv: Argv::new(command, &entry.args).ok_or(SpawnFault::Process)?,
-            cwd: bulk::to_shell(&plan.cwd).map_err(|_| SpawnFault::Sandbox)?,
-            env: built.vars,
-            net,
-            binds: binds(entry, built.key_file.as_ref(), plan.edge.as_ref())
-                .map_err(|_| SpawnFault::Sandbox)?,
-            overlays: Vec::new(),
-        };
+        let run = binds(entry, built.key_file.as_ref(), plan.edge.as_ref())
+            .map_err(|_| SpawnFault::Sandbox)?
+            .into_iter()
+            .fold(
+                AgentRun::new(
+                    Argv::new(command, &entry.args).ok_or(SpawnFault::Process)?,
+                    bulk::to_shell(&plan.cwd).map_err(|_| SpawnFault::Sandbox)?,
+                    built.vars,
+                    net,
+                ),
+                AgentRun::with_bind,
+            );
         let (wire, proc) = self
             .procs
             .start(&run)

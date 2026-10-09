@@ -30,9 +30,9 @@ async fn a_confined_process_speaks_lines_over_its_stdio_with_exactly_the_environ
     let root = tempfile::tempdir().expect("scratch");
     let cwd = root.path().join("work/app");
     std::fs::create_dir_all(&cwd).expect("cwd");
-    let run = AgentRun {
+    let run = AgentRun::new(
         // `sh` reads a line, then prints its environment's names: a stand-in agent.
-        argv: Argv::new(
+        Argv::new(
             "sh",
             &[
                 "-c".to_owned(),
@@ -40,17 +40,15 @@ async fn a_confined_process_speaks_lines_over_its_stdio_with_exactly_the_environ
             ],
         )
         .expect("argv"),
-        cwd: bulkhead::AbsPath::parse(cwd.to_str().expect("utf8")).expect("abs"),
-        env: vec![
+        bulkhead::AbsPath::parse(cwd.to_str().expect("utf8")).expect("abs"),
+        vec![
             var("PATH", "/usr/bin:/bin"),
             var("HOME", "/tmp"),
             var("SECRET_FOR_THE_CHILD", "child-only-value"),
             var("DBUS_SESSION_BUS_ADDRESS", "unix:path=/nonexistent/bus"),
         ],
-        net: AgentNet::None,
-        binds: Vec::new(),
-        overlays: Vec::new(),
-    };
+        AgentNet::None,
+    );
     let mut procs = BwrapProcs::new(program);
     let Ok((mut wire, mut proc)) = procs.start(&run).await else {
         eprintln!("SKIP real process test: the sandbox did not start here");

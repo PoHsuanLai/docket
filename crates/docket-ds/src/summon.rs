@@ -6,13 +6,15 @@ use docket_client::SummonTarget;
 use docket_core::{SummonAnswer, SummonOrigin, SummonSerial, VoiceIntent};
 use ds_intents::{SummonAnswerMark, SummonOriginMark, SummonSerial as DsSerial};
 
-/// ds's answer as the wire's. Total: a new variant on either side stops the build here.
+/// ds's answer as the wire's. A new wire variant stops the build in the other direction; an unknown ds mark reads as declined.
 pub fn summon_answer_of(mark: SummonAnswerMark) -> SummonAnswer {
     match mark {
         SummonAnswerMark::TookField => SummonAnswer::TookField,
         SummonAnswerMark::TookAnchored => SummonAnswer::TookAnchored,
         SummonAnswerMark::Restored => SummonAnswer::Restored,
         SummonAnswerMark::Declined => SummonAnswer::Declined,
+        // A mark newer than this build knows: the field was not taken.
+        _ => SummonAnswer::Declined,
     }
 }
 

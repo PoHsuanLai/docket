@@ -69,8 +69,8 @@ async fn a_process_in_the_sandbox_with_no_network_reaches_its_sessions_edge_and_
     let program = docket_session::ProgramName::parse("claude-code").expect("program");
     let edge = ToolsEdge::start(&offer, &session, &program, Stand).expect("edge");
     let run = |socket: &bulkhead::AbsPath, token: &str| {
-        let run = AgentRun {
-            argv: Argv::new(
+        let run = AgentRun::new(
+            Argv::new(
                 python.to_str().expect("utf8"),
                 &[
                     "-c".to_owned(),
@@ -79,8 +79,8 @@ async fn a_process_in_the_sandbox_with_no_network_reaches_its_sessions_edge_and_
                 ],
             )
             .expect("argv"),
-            cwd: shell_abs(&work),
-            env: vec![
+            shell_abs(&work),
+            vec![
                 EnvVar {
                     name: "PATH".to_owned(),
                     value: "/usr/bin:/bin".to_owned(),
@@ -90,13 +90,12 @@ async fn a_process_in_the_sandbox_with_no_network_reaches_its_sessions_edge_and_
                     value: token.to_owned(),
                 },
             ],
-            net: AgentNet::None,
-            binds: vec![Bind {
-                path: bulkhead::AbsPath::parse(edge.bind().socket.as_str()).expect("abs"),
-                access: Access::ReadWrite,
-            }],
-            overlays: Vec::new(),
-        };
+            AgentNet::None,
+        )
+        .with_bind(Bind::new(
+            bulkhead::AbsPath::parse(edge.bind().socket.as_str()).expect("abs"),
+            Access::ReadWrite,
+        ));
         Command::new(&bwrap)
             .args(agent_bwrap_args(&run, &present_hidden()))
             .env_clear()

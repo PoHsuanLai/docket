@@ -22,6 +22,8 @@ pub const fn cannot(why: ShellCannot) -> CannotSandbox {
         ShellCannot::NamespacesDenied => CannotSandbox::NamespacesDenied,
         ShellCannot::Unsupported => CannotSandbox::Unsupported,
         ShellCannot::BadWorkingDir => CannotSandbox::BadWorkingDir,
+        // A reason this build cannot name: the sandbox cannot run, so say unsupported.
+        _ => CannotSandbox::Unsupported,
     }
 }
 
@@ -38,6 +40,8 @@ pub const fn access(network: Network) -> NetAccess {
     match network {
         Network::Off => NetAccess::Closed,
         Network::Host => NetAccess::Open,
+        // Unknown network: assume it reaches out, so every command is treated as net-capable.
+        _ => NetAccess::Open,
     }
 }
 
@@ -46,5 +50,7 @@ pub const fn mode_access(mode: NetworkMode) -> NetAccess {
     match mode {
         NetworkMode::None => NetAccess::Closed,
         NetworkMode::EndpointOnly | NetworkMode::Host => NetAccess::Open,
+        // Unknown mode: assume it reaches out, so every command is treated as net-capable.
+        _ => NetAccess::Open,
     }
 }
