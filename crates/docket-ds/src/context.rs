@@ -43,6 +43,8 @@ impl<M: ContextModel + Send + Sync, W: WindowFacts> ContextSource for DsContextS
     /// nothing about the window rather than something wrong (or, as it once did, panic). The
     /// router drops everything but the app from a `Private` snapshot, and no field is reported.
     fn snapshot(&self, _scope: ContextScope) -> ContextSnapshot {
+        // Held for the mapping to come; nothing of them is reported yet.
+        let _ = (&self.model, &self.window);
         ContextSnapshot {
             app: self.app.clone(),
             window: Labelled::new(String::new(), Label::trusted_user()),
