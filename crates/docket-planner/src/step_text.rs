@@ -35,6 +35,14 @@ fn named(handle: Handle, handles: &[HandleCard]) -> String {
     }
 }
 
+/// How many things a list holds, as ` (2 items)`.
+fn items_text(count: usize) -> String {
+    match count {
+        1 => " (1 item)".to_owned(),
+        n => format!(" ({n} items)"),
+    }
+}
+
 /// A value of a step as the planner reads it: handles (and lists of them, as a search returns
 /// its things) as `#n`, everything else as JSON.
 fn value_text(value: &Value, handles: &[HandleCard]) -> String {
@@ -48,7 +56,7 @@ fn value_text(value: &Value, handles: &[HandleCard]) -> String {
                     _ => None,
                 })
                 .collect();
-            format!("[{}]", names.join(", "))
+            format!("[{}]{}", names.join(", "), items_text(items.len()))
         }
         other => json(other),
     }
@@ -198,7 +206,7 @@ fn returned_text(value: Option<&Reveal<Value>>, handles: &[HandleCard]) -> Strin
             .unwrap_or_default(),
         Some((hs, true)) => {
             let names = bounded(hs.iter().map(|h| named(*h, handles)).collect());
-            format!(" → [{}]", names.join(", "))
+            format!(" → [{}]{}", names.join(", "), items_text(hs.len()))
         }
         None => String::new(),
     }
@@ -336,7 +344,9 @@ mod tests {
         let cards = [entity_card(3, "mail.thread"), entity_card(4, "mail.thread")];
         let line = step_line(&step(found(value)), &cards);
         assert!(
-            line.ends_with("done \"Found threads\" value [#3 mail.thread, #4 mail.thread]"),
+            line.ends_with(
+                "done \"Found threads\" value [#3 mail.thread, #4 mail.thread] (2 items)"
+            ),
             "{line}"
         );
         assert!(
@@ -502,7 +512,7 @@ mod tests {
         let cards = [entity_card(1, "mail.thread"), entity_card(2, "mail.thread")];
         assert_eq!(
             step_line(&search, &cards),
-            "org.quire.Mail.mail.thread.search → [#1 mail.thread, #2 mail.thread] [outcome: Found threads]"
+            "org.quire.Mail.mail.thread.search → [#1 mail.thread, #2 mail.thread] (2 items) [outcome: Found threads]"
         );
     }
 

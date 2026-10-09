@@ -9,6 +9,7 @@
 //!   instructions, which follow the rules and never replace them.
 //! - `read_call`, `planner_label`: the planner's own steps and labels.
 
+mod accepts;
 mod args;
 mod catalogue;
 mod planner;

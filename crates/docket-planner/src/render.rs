@@ -8,10 +8,11 @@
 //! A handle is shown as `#n`; the model can name it and never read it.
 
 use crate::role::RoleText;
+use crate::accepts::used_as;
 use crate::step_text::step_line;
 use docket_core::{
-    EpisodeLine, Handle, HandleCard, HandleShape, InboundLine, InboundPart, PlannerView,
-    RecalledLine, Reveal, RosterDetail, RosterLine, StepEnd, StepLine, Value,
+    ActionCard, EpisodeLine, Handle, HandleCard, HandleShape, InboundLine, InboundPart,
+    PlannerView, RecalledLine, Reveal, RosterDetail, RosterLine, StepEnd, StepLine, Value,
 };
 use porter_infer::{ChatMessage, MessagePart, Role};
 use prov::{AgentRef, Crossing, MessageKind};
@@ -120,7 +121,7 @@ fn made_by(handle: Handle, history: &[StepLine]) -> Option<String> {
         })
 }
 
-fn handle_line(card: &HandleCard, history: &[StepLine]) -> String {
+fn handle_line(card: &HandleCard, history: &[StepLine], actions: &[ActionCard]) -> String {
     let (shape, size) = match &card.shape {
         HandleShape::Text => ("text".to_owned(), format!(" ({} characters)", card.size.0)),
         HandleShape::Entity(kind) => (format!("a {kind}"), String::new()),
@@ -129,8 +130,14 @@ fn handle_line(card: &HandleCard, history: &[StepLine]) -> String {
     let by = made_by(card.handle, history)
         .map(|step| format!(", returned by {step}"))
         .unwrap_or_default();
+    let uses = match &card.shape {
+        HandleShape::Entity(kind) => used_as(kind, actions)
+            .map(|u| format!(" \u{2014} use {u}"))
+            .unwrap_or_default(),
+        HandleShape::Text | HandleShape::File => String::new(),
+    };
     format!(
-        "- #{} {shape} from {}{size}{by}",
+        "- #{} {shape} from {}{size}{by}{uses}",
         card.handle.0,
         json(&card.from)
     )
@@ -266,7 +273,9 @@ pub fn user_text(view: &PlannerView) -> String {
     section(
         &mut text,
         "What you can name but not read",
-        view.handles.iter().map(|h| handle_line(h, &view.history)),
+        view.handles
+            .iter()
+            .map(|h| handle_line(h, &view.history, &view.actions)),
     );
     section(
         &mut text,
@@ -299,4 +308,59 @@ pub fn messages_with(view: &PlannerView, role: Option<&RoleText>) -> Vec<ChatMes
         message(Role::System, system_text_with(view, role)),
         message(Role::User, user_text(view)),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::accepts::fixtures::{kind, mail};
+    use docket_core::CharCount;
+    use prov::Source;
+
+    fn card(n: u64, shape: HandleShape) -> HandleCard {
+        HandleCard {
+            handle: Handle(n),
+            shape,
+            from: Source::Mail,
+            size: CharCount(0),
+        }
+    }
+
+    #[test]
+    fn a_thing_handle_says_where_it_can_be_used() {
+        let line = handle_line(
+            &card(5, HandleShape::Entity(kind("mail.contact"))),
+            &[],
+            &mail(),
+        );
+        assert!(
+            line.ends_with(" \u{2014} use as \"to\" in mail.message.forward, mail.message.send"),
+            "{line}"
+        );
+        assert!(line.starts_with("- #5 a mail.contact from "), "{line}");
+        assert_eq!(
+            line,
+            handle_line(
+                &card(5, HandleShape::Entity(kind("mail.contact"))),
+                &[],
+                &mail()
+            ),
+            "the same on every turn"
+        );
+    }
+
+    #[test]
+    fn text_and_unused_things_get_no_use_clause() {
+        let text = handle_line(&card(3, HandleShape::Text), &[], &mail());
+        assert!(!text.contains("use as"), "{text}");
+        let unused = handle_line(
+            &card(4, HandleShape::Entity(kind("mail.draft"))),
+            &[],
+            &mail(),
+        );
+        assert!(
+            unused.ends_with("a mail.draft from {\"kind\":\"mail\"}"),
+            "{unused}"
+        );
+    }
 }
