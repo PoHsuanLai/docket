@@ -329,6 +329,33 @@ fn a_search_that_names_the_same_handles_again_is_unchanged_and_held() {
     assert_eq!(holds_in(&e), [Held::Unchanged]);
 }
 
+#[test]
+fn a_held_repeat_of_handles_is_followed_by_a_question_when_it_is_repeated_again() {
+    let found = StepEnd::Done {
+        said: None,
+        value: Some(Reveal::Plain(Value::List(vec![Value::Handle(Handle(5))]))),
+        undo: None,
+    };
+    let search = || vec![call("mail.contact.search", "accounting")];
+    let (s, _) = round(asked(), search(), &found);
+    let (s, _) = round(s, search(), &found);
+    let (s, e) = agent_step(s, plan(search()));
+    assert_eq!(
+        holds_in(&e),
+        [Held::Unchanged],
+        "held first, with the answer"
+    );
+    assert_eq!(s.phase, LoopPhase::Planning);
+    let (s, e) = agent_step(s, plan(search()));
+    assert_eq!(calls_in(&e), 0);
+    assert_eq!(s.phase, LoopPhase::Idle, "then the person is asked");
+    let question = asks_person(&e).expect("a question for the person");
+    assert!(
+        question.contains("same answer from mail.contact.search"),
+        "{question}"
+    );
+}
+
 fn read_pending() -> LoopState {
     let ask = ReaderAsk {
         inputs: vec![Handle(1)],

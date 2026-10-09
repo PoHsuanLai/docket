@@ -7,9 +7,9 @@
 //!
 //! A handle is shown as `#n`; the model can name it and never read it.
 
-use crate::role::RoleText;
 use crate::accepts::used_as;
-use crate::step_text::step_line;
+use crate::role::RoleText;
+use crate::step_text::{Seen, step_line, step_line_in};
 use docket_core::{
     ActionCard, EpisodeLine, Handle, HandleCard, HandleShape, InboundLine, InboundPart,
     PlannerView, RecalledLine, Reveal, RosterDetail, RosterLine, StepEnd, StepLine, Value,
@@ -280,9 +280,14 @@ pub fn user_text(view: &PlannerView) -> String {
     section(
         &mut text,
         "Steps so far",
-        view.history
-            .iter()
-            .map(|s| format!("- {}", step_line(s, &view.handles))),
+        view.history.iter().enumerate().map(|(at, s)| {
+            let seen = Seen {
+                handles: &view.handles,
+                earlier: &view.history[..at],
+                actions: &view.actions,
+            };
+            format!("- {}", step_line_in(s, &seen))
+        }),
     );
     for turn in &view.turns {
         let _ = writeln!(text, "You said: {}", turn.text);

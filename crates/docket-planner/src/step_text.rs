@@ -2,11 +2,12 @@
 //! on (which argument, why, and which handles it does hold), never a policy id or a reviewer's
 //! words: the router's coarse code is all that crosses, and a handle stays an opaque `#n`.
 
+use crate::accepts::used_as;
 use crate::read_ask::read_fault_text;
 use crate::unconfirmed::unconfirmed_text;
 use docket_core::{
-    ArgFault, ArgsFault, CallRefusal, Handle, HandleCard, HandleShape, Held, ReplyFault, Reveal,
-    StepEnd, StepLine, StepShown, TargetFault, Value, Why,
+    ActionCard, ArgFault, ArgsFault, CallRefusal, Handle, HandleCard, HandleShape, Held,
+    ReplyFault, Reveal, StepEnd, StepLine, StepShown, TargetFault, Value, Why,
 };
 
 fn json<T: serde::Serialize>(value: &T) -> String {
@@ -153,6 +154,73 @@ fn held_text(held: Held) -> &'static str {
     }
 }
 
+/// The handles a repeated call already returned, when every earlier run of it (same action, same
+/// handles) returned the same: nothing is restated when the runs differ, since a line cannot say
+/// which of them this repeat was.
+fn held_answer(step: &StepLine, seen: &Seen<'_>) -> Option<(Vec<Handle>, bool)> {
+    let mut answers = seen
+        .earlier
+        .iter()
+        .filter(|s| s.action == step.action && s.with == step.with)
+        .filter_map(|s| match &s.end {
+            StepEnd::Done { value: Some(v), .. } => Some(v),
+            _ => None,
+        });
+    let first = answers.next()?;
+    if answers.any(|a| a != first) {
+        return None;
+    }
+    returned(first)
+}
+
+/// Where the things a repeated call returned can go next, one clause per kind of thing.
+fn next_use(handles: &[Handle], seen: &Seen<'_>) -> String {
+    let mut kinds: Vec<&prov::EntityKind> = Vec::new();
+    for card in seen.handles.iter().filter(|c| handles.contains(&c.handle)) {
+        if let HandleShape::Entity(kind) = &card.shape
+            && !kinds.contains(&kind)
+        {
+            kinds.push(kind);
+        }
+    }
+    let clauses: Vec<String> = kinds
+        .into_iter()
+        .filter_map(|kind| {
+            let of_kind: Vec<String> = seen
+                .handles
+                .iter()
+                .filter(|c| {
+                    handles.contains(&c.handle) && c.shape == HandleShape::Entity(kind.clone())
+                })
+                .map(|c| format!("#{}", c.handle.0))
+                .collect();
+            let used = used_as(kind, seen.actions)?;
+            Some(format!("{} can be used {used}", bounded(of_kind).join(" ")))
+        })
+        .collect();
+    clauses.iter().map(|c| format!("; {c}")).collect()
+}
+
+/// A call that was not run because it repeats one with the same answer: when that answer is
+/// held, it is restated with where it goes next, so the repeat has nothing left to look for.
+fn held_line(head: &str, step: &StepLine, held: Held, seen: &Seen<'_>) -> String {
+    match (held, held_answer(step, seen)) {
+        (Held::Unchanged, Some((hs, list))) => {
+            let names = bounded(hs.iter().map(|h| named(*h, seen.handles)).collect());
+            let answer = if list {
+                format!("[{}]{}", names.join(", "), items_text(hs.len()))
+            } else {
+                names.join(", ")
+            };
+            format!(
+                "{head} not run: you already hold its answer {answer}{}; repeating it again asks the person",
+                next_use(&hs, seen)
+            )
+        }
+        _ => format!("{head} not run: {}; {INSTEAD}", held_text(held)),
+    }
+}
+
 const INSTEAD: &str =
     "change the arguments, try another action, ask the person with quire_ask, or finish";
 
@@ -212,8 +280,29 @@ fn returned_text(value: Option<&Reveal<Value>>, handles: &[HandleCard]) -> Strin
     }
 }
 
-/// One step, as one line of the planner's history. `handles` are the ones the planner holds.
+/// What a line of history may look back on: the handles the planner holds, the steps before
+/// this one, and the actions it is offered.
+pub(crate) struct Seen<'a> {
+    pub(crate) handles: &'a [HandleCard],
+    pub(crate) earlier: &'a [StepLine],
+    pub(crate) actions: &'a [ActionCard],
+}
+
+/// One step, as one line of the planner's history, with nothing before it to look back on.
 pub(crate) fn step_line(step: &StepLine, handles: &[HandleCard]) -> String {
+    step_line_in(
+        step,
+        &Seen {
+            handles,
+            earlier: &[],
+            actions: &[],
+        },
+    )
+}
+
+/// One step, as one line of the planner's history.
+pub(crate) fn step_line_in(step: &StepLine, seen: &Seen<'_>) -> String {
+    let handles = seen.handles;
     let action = format!("{}.{}", step.action.app, step.action.name);
     let head = format!("{action}{}", with_text(&step.with));
     match (&step.shown, &step.end) {
@@ -251,9 +340,7 @@ pub(crate) fn step_line(step: &StepLine, handles: &[HandleCard]) -> String {
         (_, StepEnd::Interrupted) => format!(
             "{head} interrupted by a restart: it may have run, it is not run again; check before asking again"
         ),
-        (_, StepEnd::Held(held)) => {
-            format!("{head} not run: {}; {INSTEAD}", held_text(*held))
-        }
+        (_, StepEnd::Held(held)) => held_line(&head, step, *held, seen),
     }
 }
 
@@ -312,6 +399,76 @@ mod tests {
         let line = step_line(&step(StepEnd::Held(Held::Empty)), &[]);
         assert!(line.contains("got nothing"));
         assert!(line.contains("quire_ask"));
+    }
+
+    fn searched(action: &str, end: StepEnd) -> StepLine {
+        StepLine {
+            action: ActionRef {
+                app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
+                name: ActionName::parse(action).expect("name"),
+            },
+            ..step(end)
+        }
+    }
+
+    fn found_contact() -> StepEnd {
+        StepEnd::Done {
+            said: None,
+            value: Some(Reveal::Plain(Value::List(vec![Value::Handle(Handle(5))]))),
+            undo: None,
+        }
+    }
+
+    #[test]
+    fn a_repeat_gets_the_answer_it_already_holds_and_where_it_goes() {
+        let ran = searched("mail.contact.search", found_contact());
+        let again = searched("mail.contact.search", StepEnd::Held(Held::Unchanged));
+        let cards = [entity_card(5, "mail.contact")];
+        let actions = crate::accepts::fixtures::mail();
+        let earlier = [ran.clone(), ran];
+        let seen = Seen {
+            handles: &cards,
+            earlier: &earlier,
+            actions: &actions,
+        };
+        assert_eq!(
+            step_line_in(&again, &seen),
+            "org.quire.Mail.mail.contact.search not run: you already hold its answer [#5 mail.contact] (1 item); #5 can be used as \"to\" in mail.message.forward, mail.message.send; repeating it again asks the person"
+        );
+    }
+
+    #[test]
+    fn a_repeat_is_not_told_an_answer_the_earlier_runs_do_not_agree_on() {
+        let first = searched("mail.contact.search", found_contact());
+        let other = searched(
+            "mail.contact.search",
+            done(
+                "Found",
+                Reveal::Plain(Value::List(vec![Value::Handle(Handle(6))])),
+            ),
+        );
+        let again = searched("mail.contact.search", StepEnd::Held(Held::Unchanged));
+        let earlier = [first, other];
+        let seen = Seen {
+            handles: &[],
+            earlier: &earlier,
+            actions: &[],
+        };
+        let line = step_line_in(&again, &seen);
+        assert!(
+            line.contains("got the same answer") && line.contains(INSTEAD),
+            "{line}"
+        );
+    }
+
+    #[test]
+    fn a_repeat_with_no_answer_to_restate_keeps_the_old_line() {
+        let again = searched("mail.contact.search", StepEnd::Held(Held::Empty));
+        let line = step_line(&again, &[]);
+        assert!(
+            line.ends_with(INSTEAD) && line.contains("got nothing"),
+            "{line}"
+        );
     }
 
     #[test]
