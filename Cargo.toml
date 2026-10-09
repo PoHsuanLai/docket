@@ -118,7 +118,7 @@ speech-vad      = { git = "https://github.com/PoHsuanLai/stoker", rev = "b24f6d4
 speech-provider = { git = "https://github.com/PoHsuanLai/stoker", rev = "b24f6d456e7915f1052c722f5aebabf1ee0f0e74" }
 
 # quire's view-only context seams, for `docket-ds` alone (by git at a pinned rev).
-ds-intents      = { git = "https://github.com/PoHsuanLai/quire.git", rev = "6081ebf2ea1d075979f5335e1a7f6fcad873986e" }
+ds-intents      = { git = "https://github.com/PoHsuanLai/quire.git", rev = "267451763728522f04e23e8fa8564c9f83ffda27" }
 
 # From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines docket
 # names itself.
