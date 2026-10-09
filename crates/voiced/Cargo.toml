@@ -17,7 +17,7 @@ porter-core = { workspace = true }
 porter-infer = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }
 porter-dbus = { workspace = true }
-pipewire = { workspace = true }
+pipewire = { workspace = true, optional = true }
 futures-util = { workspace = true }
 speech-vad = { workspace = true }
 speech-provider = { workspace = true }
@@ -30,8 +30,22 @@ toml = { workspace = true }
 thiserror = { workspace = true }
 
 [features]
+default = ["pipewire"]
+# `PipeWireDevice`, the shipped audio backend (needs libpipewire and libclang to build). The
+# daemon binary and the by-hand example need it; the library without it is the seam and the machines,
+# so a test or another backend builds with `--no-default-features`.
+pipewire = ["dep:pipewire"]
 # `FakeAudioDevice`, for tests of this crate and of sill's stand-in.
 testing = []
+
+[[bin]]
+name = "voiced"
+path = "src/main.rs"
+required-features = ["pipewire"]
+
+[[example]]
+name = "voice_capture_try"
+required-features = ["pipewire"]
 
 [lints]
 workspace = true

@@ -14,6 +14,7 @@ mod hear;
 mod introspect;
 mod link;
 mod peer;
+#[cfg(feature = "pipewire")]
 mod pipewire_device;
 mod playback;
 mod serve;
@@ -37,6 +38,7 @@ pub use device::{FakeAudioDevice, FakeCapture, FakePlayback};
 pub use error::{VoiceError, refusal_of_name};
 pub use introspect::{VOICE1_FILE, introspection};
 pub use peer::Peers;
+#[cfg(feature = "pipewire")]
 pub use pipewire_device::PipeWireDevice;
 pub use playback::{EARCON_RATE, earcon_samples};
 pub use serve::{Running, Seams, serve, start};
