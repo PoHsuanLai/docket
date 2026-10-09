@@ -18,10 +18,10 @@ use prov::{Effect, SessionId, UnixSeconds};
 use std::collections::BTreeSet;
 
 /// An action as a card: what the person reads, its effect and the schema of its arguments.
-fn card_of(decl: &ActionDecl, app: &AppName) -> ActionCard {
+fn card_of(decl: &ActionDecl, manifest: &docket_core::Manifest) -> ActionCard {
     ActionCard {
         action: ActionRef {
-            app: app.clone(),
+            app: manifest.app.clone(),
             name: decl.name.clone(),
         },
         label: decl.label.clone(),
@@ -30,6 +30,10 @@ fn card_of(decl: &ActionDecl, app: &AppName) -> ActionCard {
         tool: tool_schema(decl),
         reach: decl.reach,
         lasting: decl.lasting,
+        related: manifest
+            .related_kind(&decl.name)
+            .map(|e| e.relations.clone())
+            .unwrap_or_default(),
     }
 }
 
@@ -42,12 +46,11 @@ pub(crate) fn catalogue(st: &RouterState, record: &SessionRecord) -> Vec<ActionC
         .all()
         .filter(|m| m.manifest().visibility == Visibility::Everyone || record.external.is_some())
         .flat_map(|m| {
-            let app = m.manifest().app.clone();
             m.manifest()
                 .actions
                 .iter()
                 .filter(|a| a.reach != AgentReach::Hidden)
-                .map(move |a| card_of(a, &app))
+                .map(move |a| card_of(a, m.manifest()))
                 .collect::<Vec<_>>()
         })
         .collect()

@@ -40,6 +40,7 @@ fn catalogue() -> Vec<ActionCard> {
             tool: tool_schema(a),
             reach: a.reach,
             lasting: a.lasting,
+            related: vec![],
         })
         .collect()
 }

@@ -85,6 +85,12 @@ text_id!(
     ident
 );
 text_id!(
+    /// The name of a relation an entity kind declares (`from`, `organiser`): `[a-z][a-z0-9_]*`.
+    RelationName,
+    "relation name",
+    ident
+);
+text_id!(
     /// One option of a choice parameter.
     ChoiceId,
     "choice id",
@@ -144,6 +150,14 @@ text_id!(
     "utterance id",
     is_id
 );
+
+impl RelationName {
+    /// The choice that names this relation as the `relation` argument of a kind's related
+    /// action. A relation name is always a choice id.
+    pub fn choice(&self) -> Option<ChoiceId> {
+        ChoiceId::parse(self.as_str()).ok()
+    }
+}
 
 impl ChoiceId {
     /// The id that free text names, if there is exactly one obvious: lowercased, spaces, `-`, `_`

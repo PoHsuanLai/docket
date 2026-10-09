@@ -22,6 +22,7 @@ fn card(name: &str) -> ActionCard {
         tool: ToolSchema(serde_json::json!({"type": "object"})),
         reach: AgentReach::Offered,
         lasting: Lasting::No,
+        related: vec![],
     }
 }
 

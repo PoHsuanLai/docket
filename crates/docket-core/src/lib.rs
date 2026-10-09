@@ -109,14 +109,14 @@ pub use grant_space::{
 };
 pub use ids::{
     ActionRef, CallId, CardActionId, ChoiceId, EntityRef, FileRef, Handle, IconName, IntentsVocab,
-    LabelText, ParamName, StepId, TextTargetRef, TurnId, UndoId, UndoToken, UtteranceId, ViewName,
-    WindowKey, action_prefix,
+    LabelText, ParamName, RelationName, StepId, TextTargetRef, TurnId, UndoId, UndoToken,
+    UtteranceId, ViewName, WindowKey, action_prefix,
 };
 pub use index::{Hit, IndexBatch, IndexEntry, IndexState, SearchAsk, SearchScope, SuggestAsk};
 pub use manifest::{
-    ActionDecl, AgentReach, ArgSink, DryRun, EntityDecl, IndexPolicy, KeyHint, Lasting, Latency,
-    Manifest, ParamDecl, ParamNeed, PropDecl, ResultShape, TargetKind, TitleTrust, UndoSupport,
-    Visibility,
+    ActionDecl, AgentReach, ArgSink, Cardinality, DryRun, EntityDecl, IndexPolicy, KeyHint,
+    Lasting, Latency, Manifest, ParamDecl, ParamNeed, PropDecl, RELATION_ARG, RelationDecl,
+    ResultShape, TargetKind, TitleTrust, UndoSupport, Visibility, related_name,
 };
 pub use marks::{hides, plain_text, reorders};
 pub use message::{

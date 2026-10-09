@@ -4,8 +4,8 @@
 //! crate never reaches `toml`.
 
 use crate::classify::PerCall;
-use crate::ids::{IconName, IntentsVocab, LabelText, ParamName};
-use crate::value::{ParamType, Value};
+use crate::ids::{IconName, IntentsVocab, LabelText, ParamName, RelationName};
+use crate::value::{ChoiceDecl, ParamType, Value};
 use porter_core::DataClass;
 use prov::{ActionName, Effect, EntityKind, Source};
 use serde::{Deserialize, Serialize};
@@ -67,7 +67,52 @@ pub struct EntityDecl {
     pub titles: TitleTrust,
     /// The properties the context call may report.
     pub props: Vec<PropDecl>,
+    /// The things of other kinds this kind's things are related to, which the app can name
+    /// (`[[entities.relations]]`). Absent from a file means none; it is not written when none.
+    /// Each makes the kind's related action (`<kind>.related`, see [`related_name`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub relations: Vec<RelationDecl>,
 }
+
+/// How many things a relation names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Cardinality {
+    /// At most one (a message's sender).
+    One,
+    /// Any number (an event's attendees).
+    Many,
+}
+
+/// One relation of an entity kind: the app resolves it, for a thing of the kind, to things of
+/// another kind. The planner never reads untrusted content, so this is how it gets, as a handle,
+/// the sender of a thread or the owner of a file, to use where an action takes a thing of that
+/// kind. Resolving is a read of the kind's related action, so it goes through the whole gate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RelationDecl {
+    /// Its name, one of the kind's `relation` choices.
+    pub name: RelationName,
+    /// What the person reads.
+    pub label: LabelText,
+    /// The kind of thing it names.
+    pub to: EntityKind,
+    /// One thing or several.
+    pub many: Cardinality,
+    /// Who decides what it names. `third_party` when the answer comes from content somebody else
+    /// wrote (the sender of a message): the things it names are then untrusted whatever the app
+    /// says, and so is anything chosen from them. `app_authored` when the app's own data decides.
+    pub trust: TitleTrust,
+}
+
+/// The name of the read action that resolves the relations of `kind` (`mail.thread` resolves by
+/// `mail.thread.related`). The router derives it from the declared relations; a manifest never
+/// declares it itself.
+pub fn related_name(kind: &EntityKind) -> Option<ActionName> {
+    ActionName::parse(&format!("{}.related", kind.as_str())).ok()
+}
+
+/// The name of the argument of a related action that picks the relation.
+pub const RELATION_ARG: &str = "relation";
 
 /// Whether a kind is pushed into the shadow index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -278,4 +323,68 @@ pub enum DryRun {
     None,
     /// `IntentProvider1.DryRun` answers a `Preview`.
     Preview,
+}
+
+impl EntityDecl {
+    /// The read action that resolves this kind's relations, derived from them: one thing of the
+    /// kind in, the `relation` to follow as a choice, the things it names out. `None` when the
+    /// kind declares no relation. `classes` is the kind's data class and the class of every
+    /// kind in `others` that a relation names, so the gate asks for what resolving reveals.
+    pub fn related_action(&self, others: &[EntityDecl]) -> Option<ActionDecl> {
+        let first = self.relations.first()?;
+        let name = related_name(&self.kind)?;
+        let options = self
+            .relations
+            .iter()
+            .map(|r| {
+                Some(ChoiceDecl {
+                    id: r.name.choice()?,
+                    label: r.label.clone(),
+                })
+            })
+            .collect::<Option<Vec<_>>>()?;
+        let mut classes = BTreeSet::from([self.class]);
+        classes.extend(
+            others
+                .iter()
+                .filter(|o| self.relations.iter().any(|r| r.to == o.kind))
+                .map(|o| o.class),
+        );
+        Some(ActionDecl {
+            name,
+            label: LabelText::parse("Find related").ok()?,
+            on: TargetKind::One(self.kind.clone()),
+            params: vec![ParamDecl {
+                name: ParamName::parse(RELATION_ARG).ok()?,
+                label: LabelText::parse("Which related thing").ok()?,
+                ty: ParamType::Choice(options),
+                need: ParamNeed::Required,
+                sink: ArgSink::Inert,
+            }],
+            effect: Effect::Read,
+            per_call: PerCall::default(),
+            classes,
+            undo: UndoSupport::NotUndoable,
+            reach: AgentReach::Offered,
+            latency: Latency::Quick,
+            result: ResultShape::Entities(first.to.clone()),
+            keys: KeyHint::None,
+            lasting: Lasting::No,
+            dry_run: DryRun::None,
+        })
+    }
+
+    /// The relation of this kind named `name`.
+    pub fn relation(&self, name: &RelationName) -> Option<&RelationDecl> {
+        self.relations.iter().find(|r| &r.name == name)
+    }
+}
+
+impl Manifest {
+    /// The kind whose relations `action` resolves, if `action` is a derived related action.
+    pub fn related_kind(&self, action: &ActionName) -> Option<&EntityDecl> {
+        self.entities
+            .iter()
+            .find(|e| !e.relations.is_empty() && related_name(&e.kind).as_ref() == Some(action))
+    }
 }

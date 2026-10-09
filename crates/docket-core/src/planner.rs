@@ -5,7 +5,7 @@ use crate::call::CallRefusal;
 use crate::confirm::ConfirmEnd;
 use crate::context::{ContextKeep, ContextView, Reveal};
 use crate::ids::{ActionRef, CallId, Handle, LabelText, TurnId, UndoId};
-use crate::manifest::{AgentReach, Lasting, TargetKind};
+use crate::manifest::{AgentReach, Lasting, RelationDecl, TargetKind};
 use crate::message::InboundLine;
 use crate::roster::{EpisodeLine, PrimerText, ProfileLine, RecalledLine, RollupLine, Roster};
 use crate::schema::ToolSchema;
@@ -106,6 +106,10 @@ pub struct ActionCard {
     pub reach: AgentReach,
     /// Whether it writes lasting memory.
     pub lasting: Lasting,
+    /// For the related action of a kind, the relations it resolves, from the manifest; empty
+    /// for every other action.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub related: Vec<RelationDecl>,
 }
 
 /// What a handle holds, in shape only.

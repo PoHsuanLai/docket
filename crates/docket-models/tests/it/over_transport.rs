@@ -113,6 +113,7 @@ fn catalogue() -> Vec<ActionCard> {
             tool: docket_core::tool_schema(a),
             reach: a.reach,
             lasting: a.lasting,
+            related: vec![],
         })
         .collect()
 }

@@ -1,6 +1,6 @@
 //! Manifest validation: pure, total, one error per rule a caller can act on.
 
-use crate::ids::{IntentsVocab, ParamName, action_prefix};
+use crate::ids::{IntentsVocab, ParamName, RelationName, action_prefix};
 use crate::manifest::{
     ActionDecl, ArgSink, IndexPolicy, Manifest, ParamNeed, TargetKind, UndoSupport,
 };
@@ -64,6 +64,17 @@ pub enum ManifestError {
     /// A `<kind>.open` that is not one read of one thing of the kind with nothing required.
     #[error("action {0} must read one thing of its kind, with no undo and no required parameter")]
     BadOpen(ActionName),
+    /// A kind that names one of its relations twice.
+    #[error("kind {kind} declares the relation {relation} twice")]
+    DuplicateRelation {
+        /// The kind.
+        kind: EntityKind,
+        /// The relation.
+        relation: RelationName,
+    },
+    /// An action that takes the name of a kind's derived related action but is not it.
+    #[error("action {0} is the name of a derived related action; do not declare it")]
+    RelatedDeclared(ActionName),
 }
 
 /// The name of the action that opens a thing of `kind` (`mail.thread` opens by `mail.thread.open`).
@@ -213,5 +224,36 @@ pub fn validate(manifest: Manifest) -> Result<ValidManifest, ManifestError> {
         check_action(&prefix, a)?;
     }
     check_opens(&manifest)?;
+    let manifest = with_related(manifest, &prefix)?;
     Ok(ValidManifest(manifest))
+}
+
+/// The manifest with the derived related action of every kind that declares relations. The
+/// action is the same whatever the app wrote, so a manifest that already holds it (one that was
+/// validated, written out and read back) is taken as it is, and one that declares an action
+/// of that name by hand is refused.
+fn with_related(mut manifest: Manifest, prefix: &str) -> Result<Manifest, ManifestError> {
+    let mut derived = Vec::new();
+    for e in &manifest.entities {
+        let mut seen = BTreeSet::new();
+        if let Some(r) = e.relations.iter().find(|r| !seen.insert(&r.name)) {
+            return Err(ManifestError::DuplicateRelation {
+                kind: e.kind.clone(),
+                relation: r.name.clone(),
+            });
+        }
+        let Some(action) = e.related_action(&manifest.entities) else {
+            continue;
+        };
+        match manifest.actions.iter().find(|a| a.name == action.name) {
+            Some(held) if *held == action => {}
+            Some(held) => return Err(ManifestError::RelatedDeclared(held.name.clone())),
+            None => {
+                check_action(prefix, &action)?;
+                derived.push(action);
+            }
+        }
+    }
+    manifest.actions.extend(derived);
+    Ok(manifest)
 }
