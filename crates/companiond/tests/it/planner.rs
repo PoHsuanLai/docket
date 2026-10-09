@@ -556,3 +556,82 @@ fn a_handle_card_names_the_relations_its_kind_has_from_the_manifests_alone() {
     let text = companiond::user_text(&v);
     assert!(text.contains("related: from (mail.contact)"), "{text}");
 }
+
+fn text_card(n: u64, from: Source) -> HandleCard {
+    HandleCard {
+        handle: Handle(n),
+        shape: HandleShape::Text,
+        from,
+        size: CharCount(40),
+    }
+}
+
+/// `quire_finish` may name text handles of the view to show the person: the reply carries them,
+/// in order and once, and the planner reads none. A handle the view does not hold (unknown, or
+/// another session's), a thing that is not text, and a malformed list are told to the model, and
+/// the task does not end.
+#[tokio::test]
+async fn quire_finish_shows_text_handles_of_the_view_and_refuses_the_rest() {
+    let (planner, _) = planner(vec![
+        call(TOOL_FINISH, json!({ "show": [1] })),
+        call(TOOL_FINISH, json!({ "show": [2, 1, 2] })),
+        call(TOOL_FINISH, json!({ "show": [9] })),
+        call(TOOL_FINISH, json!({ "show": [3] })),
+        call(TOOL_FINISH, json!({ "show": "#1" })),
+        call(TOOL_FINISH, json!({ "show": [1, 2, 1, 2, 1, 2, 1, 2, 1] })),
+        call(TOOL_FINISH, json!({})),
+    ]);
+    let mut view = view(catalogue().cards());
+    view.handles = vec![
+        text_card(1, Source::User),
+        text_card(2, Source::Mail),
+        HandleCard {
+            handle: Handle(3),
+            shape: HandleShape::Entity(EntityKind::parse("mail.thread").expect("kind")),
+            from: Source::Mail,
+            size: CharCount(0),
+        },
+    ];
+    let unread = |why| {
+        ModelOutput::Unread(ReplyFault::Args(ArgsFault::Wrong {
+            param: ParamName::parse("show").expect("param"),
+            why,
+        }))
+    };
+
+    let trusted = planner.converse(&view).await.expect("trusted");
+    assert_eq!(
+        (trusted.then, trusted.show),
+        (ModelOutput::Finish, vec![Handle(1)])
+    );
+    let both = planner.converse(&view).await.expect("both");
+    assert_eq!(
+        (both.then, both.show),
+        (ModelOutput::Finish, vec![Handle(2), Handle(1)])
+    );
+    for (why, fault) in [
+        ("unknown", docket_core::Why::Range),
+        ("not text", docket_core::Why::Range),
+        ("not a list", docket_core::Why::Type),
+    ] {
+        let reply = planner.converse(&view).await.expect(why);
+        assert_eq!((reply.then, reply.show), (unread(fault), vec![]), "{why}");
+    }
+    let many = planner.converse(&view).await.expect("too many");
+    assert_eq!(many.then, unread(docket_core::Why::Range));
+    let none = planner.converse(&view).await.expect("none");
+    assert_eq!((none.then, none.show), (ModelOutput::Finish, vec![]));
+}
+
+#[tokio::test]
+async fn the_rules_and_the_finish_tool_say_how_to_show_a_handle() {
+    let (planner, _) = planner(vec![]);
+    let request = planner.request(&view(catalogue().cards()));
+    let finish = request
+        .tools
+        .iter()
+        .find(|t| t.name.as_str() == TOOL_FINISH)
+        .expect("quire_finish");
+    assert!(RULES.contains("\"show\""));
+    assert!(finish.description.contains("show"));
+}

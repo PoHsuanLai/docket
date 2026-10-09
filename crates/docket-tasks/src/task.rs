@@ -9,9 +9,9 @@ use companion_wire::{
     AnswerBody, AnswerPhase, AnswerWire, FooterWire, NeedsYou, RefusalWire, RouteNote,
 };
 use docket_core::{
-    CallEnd, CallId, CallRefusal, CallRequest, CharCount, ContextKeep, HandleCard, HandleShape,
-    InboundLine, InboundPart, Keep, LedgerStep, Outcome, Reveal, StepEnd, StepLine, StepShown,
-    TargetValue, Undoable, UserTurn, Value, WindowKey,
+    CallEnd, CallId, CallRefusal, CallRequest, CharCount, ContextKeep, Handle, HandleCard,
+    HandleShape, InboundLine, InboundPart, Keep, LedgerStep, Outcome, Reveal, StepEnd, StepLine,
+    StepShown, TargetValue, Undoable, UserTurn, Value, WindowKey,
 };
 use porter_core::AppName;
 use porter_infer::ServedBy;
@@ -49,6 +49,9 @@ pub struct TaskRuntime {
     pub inbox: Vec<InboundLine>,
     /// What the planner said to the person, in order.
     pub said: Vec<String>,
+    /// The text handles the planner finished by showing, in order: the answer lists them after
+    /// its words as handles, which the screen resolves as quoted content.
+    pub shown: Vec<Handle>,
     /// Where the answer stands.
     pub phase: AnswerPhase,
     /// The calls of this turn, as the plan card shows them.
@@ -122,6 +125,7 @@ impl TaskRuntime {
             handles: Vec::new(),
             inbox: Vec::new(),
             said: Vec::new(),
+            shown: Vec::new(),
             phase: AnswerPhase::Thinking,
             plan: Plan::default(),
             refused: None,
@@ -133,6 +137,20 @@ impl TaskRuntime {
             acts: Plan::default(),
             loaded: Vec::new(),
             failure: None,
+        }
+    }
+
+    /// Notes the handles a finish named to show. Only a text handle this task holds is kept,
+    /// once: the planner's list is a request, and the host decides what the person is shown.
+    pub fn show(&mut self, named: &[Handle]) {
+        for handle in named {
+            let held = self
+                .handles
+                .iter()
+                .any(|c| c.handle == *handle && c.shape == HandleShape::Text);
+            if held && !self.shown.contains(handle) {
+                self.shown.push(*handle);
+            }
         }
     }
 
@@ -259,7 +277,13 @@ impl TaskRuntime {
                 .clone()
                 .unwrap_or(AnswerBody::Text { lines: Vec::new() }),
             _ => AnswerBody::Text {
-                lines: self.said.iter().cloned().map(Reveal::Plain).collect(),
+                lines: self
+                    .said
+                    .iter()
+                    .cloned()
+                    .map(Reveal::Plain)
+                    .chain(self.shown.iter().copied().map(Reveal::Handle))
+                    .collect(),
             },
         };
         AnswerWire {
@@ -405,5 +429,41 @@ mod tests {
             choices: vec![],
         });
         assert!(matches!(rt.answer(&task()).body, AnswerBody::Text { .. }));
+    }
+
+    fn card(n: u64, shape: HandleShape, from: Source) -> HandleCard {
+        HandleCard {
+            handle: Handle(n),
+            shape,
+            from,
+            size: CharCount(0),
+        }
+    }
+
+    /// Shown handles follow the words as handles, whatever their source: the screen resolves them
+    /// as quoted content. Only text handles the task holds are kept, once each; a handle it does
+    /// not hold (unknown, or another session's) and a thing that is not text are dropped.
+    #[test]
+    fn a_finish_shows_only_text_handles_the_task_holds() {
+        let mut rt = runtime();
+        rt.handles = vec![
+            card(1, HandleShape::Text, Source::User),
+            card(2, HandleShape::Text, Source::Mail),
+            card(3, HandleShape::File, Source::Mail),
+        ];
+        rt.said.push("Here it is.".to_owned());
+        rt.show(&[Handle(2), Handle(1), Handle(2), Handle(3), Handle(9)]);
+        assert_eq!(rt.shown, [Handle(2), Handle(1)]);
+        let AnswerBody::Text { lines } = rt.answer(&task()).body else {
+            panic!("text")
+        };
+        assert_eq!(
+            lines,
+            [
+                Reveal::Plain("Here it is.".to_owned()),
+                Reveal::Handle(Handle(2)),
+                Reveal::Handle(Handle(1)),
+            ]
+        );
     }
 }

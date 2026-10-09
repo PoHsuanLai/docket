@@ -58,6 +58,33 @@ async fn a_handle_still_shows_after_the_task_finished_and_not_after_close() {
     assert!(w.companion.shared.session_of(&opened.task).is_none());
 }
 
+/// A finish that names the handle puts it in the answer as a handle, after the words, and the
+/// screen resolves it as content (`Session.Display`); the content is not in the answer. Another
+/// session holds no such handle, and the screen is refused it there.
+#[tokio::test]
+async fn a_finish_shows_a_handle_as_content_in_its_own_session_only() {
+    let mut w = world(vec![
+        read_t1(),
+        call(companiond::TOOL_FINISH, json!({ "show": [1] })),
+    ]);
+    let opened = w.open("work").await;
+    let other = w.open("work").await;
+    w.say(&opened.session, "find the invoice and show me").await;
+
+    let answer = w.companion.shared.answer(&opened.task).expect("answer");
+    let companion_wire::AnswerBody::Text { lines } = answer.body else {
+        panic!("text")
+    };
+    assert_eq!(lines, [Reveal::Handle(READ)]);
+    assert!(!format!("{lines:?}").contains("IGNORE"));
+    assert_eq!(display(&w, &opened.session).await.as_deref(), Ok(BODY));
+    assert_eq!(
+        display(&w, &other.session).await,
+        Err(docket_client::ClientError::Refused(WireRefusal::Malformed)),
+        "another session's handle"
+    );
+}
+
 #[tokio::test]
 async fn the_ninth_finished_task_closes_the_oldest_and_each_leaves_one_episode() {
     let script: Vec<Say> = (0..9).flat_map(|_| [read_t1(), words("Done.")]).collect();

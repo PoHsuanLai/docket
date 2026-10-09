@@ -12,6 +12,7 @@ use crate::catalogue::{Catalogue, CatalogueTool};
 use crate::read_ask::read_output;
 use crate::render::messages_with;
 use crate::role::RoleText;
+use crate::show::{MOST_SHOWN, finish_output};
 use crate::want::want_schema;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
@@ -71,6 +72,9 @@ pub struct PlannerReply {
     pub said: Option<String>,
     /// What the loop does next: calls, a read, a question, or an end.
     pub then: ModelOutput,
+    /// The text handles the person is shown in the answer, as `quire_finish` named them: each
+    /// one a text handle of the view, once. The planner never reads them.
+    pub show: Vec<Handle>,
     /// Who answered, for the answer's footer.
     pub served: Option<ServedBy>,
     /// How each stage of the turn was reached and why, for the footer line.
@@ -173,7 +177,13 @@ fn meta_tools(actions: &[ActionCard]) -> Vec<ToolDecl> {
         "required": ["inputs", "task", "want"],
         "additionalProperties": false,
     });
-    let finish = json!({ "type": "object", "properties": {}, "additionalProperties": false });
+    let finish = json!({
+        "type": "object",
+        "properties": {
+            "show": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "maxItems": MOST_SHOWN },
+        },
+        "additionalProperties": false,
+    });
     [
         related_tool(actions),
         meta_tool(TOOL_ASK, "Ask the person a question and wait for the answer.", &ask),
@@ -182,7 +192,11 @@ fn meta_tools(actions: &[ActionCard]) -> Vec<ToolDecl> {
             "Have the reader answer a question about handles you cannot read. \"want\" is the shape of the answer, as {\"kind\": \"choice\", \"v\": [\"yes\", \"no\"]} (kinds: choice, integer, date, datetime, text, record, list); it is not a JSON Schema. A choice, integer, date or datetime answer is returned to you to read; an answer in words (text, or a record or list holding text) is returned as a handle you cannot read, so use it only as an argument.",
             &read,
         ),
-        meta_tool(TOOL_FINISH, "The task is done.", &finish),
+        meta_tool(
+            TOOL_FINISH,
+            "The task is done. \"show\" lists text handles to put in front of the person as content, in this order; you cannot read them.",
+            &finish,
+        ),
     ]
     .into_iter()
     .flatten()
@@ -357,21 +371,23 @@ impl<P: Transport> PlannerModel<P> {
             .map(|c| self.planned(c))
             .partition(Result::is_ok);
         let calls: Vec<PlannedCall> = calls.into_iter().flatten().collect();
-        let then = if !calls.is_empty() {
-            ModelOutput::Calls(calls)
+        let (then, show) = if !calls.is_empty() {
+            (ModelOutput::Calls(calls), Vec::new())
         } else if let Some(Err(fault)) = faults.into_iter().next() {
             // Nothing to run: the model is told what was wrong with its first call.
-            ModelOutput::Unread(fault)
+            (ModelOutput::Unread(fault), Vec::new())
         } else {
             match meta.first() {
-                Some(call) => meta_output(call, view)?,
-                None if said.is_some() => ModelOutput::Finish,
+                Some(call) if call.name.as_str() == TOOL_FINISH => finish_output(call, view)?,
+                Some(call) => (meta_output(call, view)?, Vec::new()),
+                None if said.is_some() => (ModelOutput::Finish, Vec::new()),
                 None => return Err(PlanFault::Unreadable),
             }
         };
         Ok(PlannerReply {
             said,
             then,
+            show,
             served: Some(reply.served),
             route: Vec::new(),
         })

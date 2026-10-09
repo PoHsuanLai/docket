@@ -258,6 +258,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 rt.said.push(words.clone());
                 tap.said(words);
             }
+            rt.show(&reply.show);
         }
         let said = reply.said.map(|w| LoopInput::Planned(ModelOutput::Say(w)));
         Ok(said

@@ -16,6 +16,7 @@ mod planner;
 mod read_ask;
 mod render;
 mod role;
+mod show;
 mod step_text;
 mod unconfirmed;
 mod want;
