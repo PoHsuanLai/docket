@@ -38,6 +38,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
+docket-session = { workspace = true, features = ["testing"] }
 action-review = { workspace = true }
 docket-client = { workspace = true, features = ["in_process"] }
 docket-fake = { workspace = true }

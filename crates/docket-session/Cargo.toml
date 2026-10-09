@@ -8,6 +8,10 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# The backend contract suite (`contract`): test code, which asserts by panicking.
+testing = []
+
 [dependencies]
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
