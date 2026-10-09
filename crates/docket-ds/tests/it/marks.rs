@@ -279,3 +279,37 @@ fn a_summon_origin_becomes_where_ds_says_it_came_from() {
         assert_eq!(summon_origin_mark(&origin), want, "case: {name}");
     }
 }
+
+struct Bare;
+impl ds_intents::ContextModel for Bare {
+    fn thing(&self) -> Option<ThingMark> {
+        None
+    }
+    fn things(&self) -> Vec<ThingMark> {
+        vec![]
+    }
+}
+impl WindowFacts for Bare {
+    fn title(&self) -> String {
+        "Inbox".into()
+    }
+    fn is_private(&self) -> WindowPrivacy {
+        WindowPrivacy::Normal
+    }
+    fn space(&self) -> SpaceId {
+        space()
+    }
+    fn titles_of(&self, _kind: &str) -> TitleTrust {
+        TitleTrust::AppAuthored
+    }
+}
+
+/// The mapping from the model is not built: the source reports the app alone, and never panics.
+#[test]
+fn an_unbuilt_context_source_reports_the_app_alone() {
+    use docket_client::ContextSource;
+    let snap = DsContextSource::new(app(), Bare, Bare).snapshot(ContextScope::ActiveWindow);
+    assert_eq!(snap.app, app());
+    assert_eq!(snap.privacy, WindowPrivacy::Private);
+    assert_eq!(chips_of(&snap).len(), 1);
+}

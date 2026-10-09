@@ -3,10 +3,12 @@
 //! each text labelled by the kind's declared title trust.
 
 use docket_client::ContextSource;
-use docket_core::{ContextScope, ContextSnapshot, TitleTrust};
+use docket_core::{
+    ContextScope, ContextSnapshot, Here, Selection, TextTarget, TitleTrust, Visible, WindowPrivacy,
+};
 use ds_intents::ContextModel;
-use porter_core::AppName;
-use prov::SpaceId;
+use porter_core::{AppName, Count};
+use prov::{Label, Labelled, SpaceId};
 
 /// What only the app knows about its window.
 pub trait WindowFacts: Send + Sync {
@@ -36,10 +38,23 @@ impl<M: ContextModel, W: WindowFacts> DsContextSource<M, W> {
 }
 
 impl<M: ContextModel + Send + Sync, W: WindowFacts> ContextSource for DsContextSource<M, W> {
-    fn snapshot(&self, scope: ContextScope) -> ContextSnapshot {
-        let _ = (scope, &self.app, &self.model, &self.window);
-        todo!(
-            "DsContextSource::snapshot: ContextModel::thing and things become Here, Selection and Visible through entity_ref; the window title is labelled by the app; a private window reports the app alone; Password and PIN fields are never reported"
-        )
+    /// Reports the app alone, as a private window does: the mapping from `ContextModel` to
+    /// `Here`, `Selection` and `Visible` is not built yet, and until it is the source says
+    /// nothing about the window rather than something wrong (or, as it once did, panic). The
+    /// router drops everything but the app from a `Private` snapshot, and no field is reported.
+    fn snapshot(&self, _scope: ContextScope) -> ContextSnapshot {
+        ContextSnapshot {
+            app: self.app.clone(),
+            window: Labelled::new(String::new(), Label::trusted_user()),
+            here: Here::Nowhere,
+            selection: Selection::Nothing,
+            visible: Visible {
+                kind: None,
+                items: vec![],
+                total: Count(0),
+            },
+            text_target: TextTarget::None,
+            privacy: WindowPrivacy::Private,
+        }
     }
 }
