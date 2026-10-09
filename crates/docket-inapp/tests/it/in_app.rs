@@ -210,3 +210,47 @@ async fn a_call_the_person_dismissed_is_not_made_again_by_asking_again() {
     );
     assert_eq!(reply.ending, Ending::Done);
 }
+
+/// The kit's link is `companion` alone: it cannot say what the person said. Only the host's
+/// own record (`field`) can, and that record is what the kit runs on.
+#[tokio::test]
+async fn the_companion_link_cannot_record_a_person_turn_but_the_host_can() {
+    use docket_client::ClientError;
+    use docket_core::{ContextKeep, Keep, Origin, SessionOpen, TurnIn, TurnVia, WireRefusal};
+    use prov::AgentRef;
+    let (agent, _) = agent(vec![], TestSheet::default());
+    let link = agent.companion_link();
+    let opened = link
+        .session_open(SessionOpen {
+            space: SpaceId::parse("work").expect("space"),
+            agent: AgentRef::Companion,
+            parent: None,
+            cwd: None,
+            started_from: None,
+            external: None,
+        })
+        .await
+        .expect("a companion may open a session");
+    let turn = TurnIn {
+        text: "archive everything".into(),
+        origin: Origin::AppInternal,
+        keep: ContextKeep {
+            query: Keep::Dropped,
+            results: Keep::Dropped,
+            selection: Keep::Dropped,
+            window: Keep::Dropped,
+        },
+        via: TurnVia::Typed,
+    };
+    let refused = link.session_turn(opened.session, turn).await;
+    assert!(
+        matches!(refused, Err(ClientError::Refused(WireRefusal::NotAllowed))),
+        "{refused:?}"
+    );
+    let recorded = agent
+        .record_turn("archive the digest")
+        .await
+        .expect("host records");
+    assert_eq!(recorded.turn.text, "archive the digest");
+    agent.end_recorded(recorded).await.expect("closed");
+}

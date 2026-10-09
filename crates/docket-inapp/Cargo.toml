@@ -35,6 +35,7 @@ thiserror = { workspace = true }
 [dev-dependencies]
 cua-action = { workspace = true }
 docket-fake = { workspace = true }
+docket-kit = { workspace = true }
 porter-infer = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

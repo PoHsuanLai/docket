@@ -10,7 +10,9 @@
 //! call returns is a handle, never text in the next prompt; the rules in the system message
 //! come first and are not an option of the builder.
 //!
-//! - [`Agent`], [`AgentBuilder`], [`Asker`]: declare and ask.
+//! - [`Agent`], [`AgentBuilder`], [`Asker`]: declare and ask. `ask` records the person's words
+//!   itself and so needs a person role beside `companion`; `ask_recorded` takes a turn the host
+//!   already recorded and needs `companion` alone (an in-app host's link).
 //! - [`Actions`]: the chosen actions, by app, name and greatest effect.
 //! - [`Memory`], [`RecallScope`]: the sections it remembers, each opt-in.
 //! - [`Limits`]: how far an ask may go.

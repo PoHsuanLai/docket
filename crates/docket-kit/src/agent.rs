@@ -15,7 +15,7 @@ use docket_planner::{Catalogue, PlannerModel};
 use docket_tasks::TaskRuntime;
 use porter_client::Transport as InferTransport;
 use porter_core::{AppName, UnixSeconds};
-use prov::{AgentRef, SpaceId};
+use prov::{AgentRef, SessionId, SpaceId};
 
 /// An agent has no window and shows the person nothing, so no chip of context is kept.
 const fn keep_nothing() -> ContextKeep {
@@ -67,6 +67,11 @@ impl<P: InferTransport, I: IntentsTransport> Agent<P, I> {
     /// Runs one ask to the end: a session is opened, `words` recorded as the turn, and the
     /// planner loop (`agent_step`) driven until it is done, asks, is paused or fails. Every call
     /// goes to the router; the session is closed at the end.
+    ///
+    /// Roles the link needs: `companion` (the session and the planner's calls) and one of the
+    /// person's own roles (`field`, `editor`, `launcher`, `cli`), because only those may record a
+    /// turn. A link that must stay `companion` alone (an in-app host's) uses
+    /// [`Agent::ask_recorded`] instead.
     pub async fn ask(&self, asker: &Asker, words: &str) -> Result<Run, KitFault> {
         let opened = self
             .intents
@@ -93,22 +98,39 @@ impl<P: InferTransport, I: IntentsTransport> Agent<P, I> {
             )
             .await
             .map_err(KitFault::Router)?;
-        let mut rt = TaskRuntime::new(
-            opened.session.clone(),
-            asker.space.clone(),
-            AgentRef::Companion,
-            None,
-            asker.at,
-        );
-        rt.turns.push(UserTurn {
+        let turn = UserTurn {
             id,
             text: words.to_owned(),
             at: asker.at,
             from: asker.from.clone(),
             via: TurnVia::Typed,
-        });
-        let run = Driver::new(self, asker, rt).run(LoopInput::Asked(id)).await;
+        };
+        let run = self.run_turn(asker, opened.session.clone(), turn).await;
         let close = self.intents.session_close(opened.session).await.err();
         Ok(Run { close, ..run })
+    }
+
+    /// Runs one ask whose turn the host has already recorded in `session` with a person-role
+    /// link of its own. The kit records nothing and opens and closes nothing: the session and the
+    /// turn are the host's, and the host closes the session when it is done with it.
+    ///
+    /// Roles the link needs: `companion` alone. The person's words come from the host's record
+    /// (`turn.from` says who spoke), never from this link, which is why it can stay unable to
+    /// record a turn. Every call still goes through the router and is gated as in `ask`.
+    pub async fn ask_recorded(&self, asker: &Asker, session: SessionId, turn: UserTurn) -> Run {
+        self.run_turn(asker, session, turn).await
+    }
+
+    async fn run_turn(&self, asker: &Asker, session: SessionId, turn: UserTurn) -> Run {
+        let id = turn.id;
+        let mut rt = TaskRuntime::new(
+            session,
+            asker.space.clone(),
+            AgentRef::Companion,
+            None,
+            asker.at,
+        );
+        rt.turns.push(turn);
+        Driver::new(self, asker, rt).run(LoopInput::Asked(id)).await
     }
 }

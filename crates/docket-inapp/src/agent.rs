@@ -143,6 +143,34 @@ type Hosted<P, C, T, R, K, G, Y, W, D> = Arc<Hosting<P, C, T, R, K, G, Y, W, D>>
 pub(crate) type Tasks<P, C, T, R, M, K, G, Y, W, D> =
     Companion<M, InProcess<Seam<P, C, T, R, K, G, Y, W, D>>, HostClock<K>, Quiet>;
 
+/// A link to `router` as the app's own name in one role. A caller never holds two roles: the
+/// first role that may make a call is the one it acts in.
+fn link_of<P, C, T, R, K, G, Y, W, D>(
+    router: &Hosted<P, C, T, R, K, G, Y, W, D>,
+    app: &AppName,
+    role: docket_core::CallerRole,
+) -> Link<P, C, T, R, K, G, Y, W, D>
+where
+    P: IntentProvider + 'static,
+    C: ContextSource + 'static,
+    T: ConfirmSheet + 'static,
+    R: Reviewer + 'static,
+    K: Clock + Clone + 'static,
+    G: GrantStore + 'static,
+    Y: MemoryLink + 'static,
+    W: PolicyWriter + 'static,
+    D: Reader + 'static,
+{
+    let caller = docket_core::CallerId {
+        app: AppId {
+            name: app.clone(),
+            isolation: Isolation::Unsandboxed,
+        },
+        roles: BTreeSet::from([role]),
+    };
+    Intents::over(InProcess::new(router.clone(), caller))
+}
+
 /// One app's agent: `ask` runs a turn end to end through the router, in the front task or a task
 /// the app names.
 pub struct InAppAgent<
@@ -265,17 +293,7 @@ where
             Err(poisoned) => poisoned.into_inner().registry = registry,
         }
         let router = Arc::new(router);
-        let caller = |role| docket_core::CallerId {
-            app: AppId {
-                name: app.clone(),
-                isolation: Isolation::Unsandboxed,
-            },
-            roles: BTreeSet::from([role]),
-        };
-        let companion = Intents::over(InProcess::new(
-            router.clone(),
-            caller(docket_core::CallerRole::Companion),
-        ));
+        let companion = link_of(&router, &app, docket_core::CallerRole::Companion);
         let tasks = Companion::new(
             companion,
             PlannerModel::new(parts.model),
@@ -284,10 +302,7 @@ where
             app.clone(),
         );
         Ok(Self {
-            person: Intents::over(InProcess::new(
-                router.clone(),
-                caller(docket_core::CallerRole::Field),
-            )),
+            person: link_of(&router, &app, docket_core::CallerRole::Field),
             router,
             tasks,
             app,
@@ -309,6 +324,90 @@ where
     /// The app's provider, for the app to read what it holds.
     pub fn provider(&self) -> &P {
         self.router.seams.link.provider()
+    }
+
+    /// A link to this agent's router in the planner's role (`companion`) alone, for running a
+    /// `docket-kit` agent in process with no bus and no daemon:
+    /// `Agent::builder(model, agent.companion_link())`, then `ask_recorded` with a turn from
+    /// [`InAppAgent::record_turn`].
+    ///
+    /// It is the very link the host's own tasks use, so it adds no authority: the router derives
+    /// the labels of its calls itself, never believes its voice, and gates, confirms and audits
+    /// every call as for the tasks. It cannot record a person's turn (`field` alone may), and it
+    /// names the app's own name, so it reaches the app's own manifest only.
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # use docket_client::ContextSource;
+    /// # use docket_core::{AgentConfig, ConfirmRequest, ContextScope, ContextSnapshot, ConfirmId};
+    /// # use docket_core::{Here, Selection, TextTarget, Visible, WindowPrivacy};
+    /// # use docket_fake::{FakeFiles, FixedClock, ScriptedReviewer, WordsModel, files_manifest};
+    /// # use docket_inapp::{ConfirmSheet, InAppAgent, InAppParts, SheetAnswer};
+    /// use docket_kit::{Actions, Agent, Asker, Catalogue, Ended};
+    /// # use porter_core::{AppName, Count};
+    /// # use prov::{Label, Labelled, SpaceId, UnixSeconds};
+    /// # struct Nobody;
+    /// # impl ConfirmSheet for Nobody {
+    /// #     async fn ask(&self, _: &ConfirmRequest) -> SheetAnswer { SheetAnswer::Dismissed }
+    /// # }
+    /// # struct Nowhere(AppName);
+    /// # impl ContextSource for Nowhere {
+    /// #     fn snapshot(&self, _: ContextScope) -> ContextSnapshot {
+    /// #         ContextSnapshot {
+    /// #             app: self.0.clone(),
+    /// #             window: Labelled { value: String::new(), label: Label::trusted_user() },
+    /// #             here: Here::Nowhere,
+    /// #             selection: Selection::Nothing,
+    /// #             visible: Visible { kind: None, items: vec![], total: Count(0) },
+    /// #             text_target: TextTarget::None,
+    /// #             privacy: WindowPrivacy::Normal,
+    /// #         }
+    /// #     }
+    /// # }
+    /// # let space = SpaceId::parse("work")?;
+    /// # let manifest = files_manifest()?;
+    /// # let app = manifest.manifest().app.clone();
+    /// // The app hosts its agent over its own provider (the neutral fake Files app here).
+    /// # let parts = InAppParts {
+    /// #     provider: FakeFiles::new(manifest, space.clone()),
+    /// #     context: Nowhere(app.clone()),
+    /// #     sheet: Nobody,
+    /// #     reviewer: ScriptedReviewer::always_allow(),
+    /// #     model: WordsModel::says("unused"),
+    /// #     clock: FixedClock::at(UnixSeconds(1_000)),
+    /// #     space: space.clone(),
+    /// #     config: AgentConfig::default(),
+    /// # };
+    /// let host = InAppAgent::new(parts)?;
+    ///
+    /// // 1. The host records the person's words with its own person link.
+    /// let recorded = host.record_turn("Anything to tidy?").await?;
+    ///
+    /// // 2. The kit agent runs over the companion-only link, on that record.
+    /// let link = host.companion_link();
+    /// let catalogue = Catalogue::from_manifests(&link.manifests().await?);
+    /// let kit = Agent::builder(WordsModel::says("Nothing to change."), link)
+    ///     .actions(Actions::from(&catalogue).app(app.as_str()).reads_only())
+    ///     .build()?;
+    /// let asker = Asker {
+    ///     app: app.clone(),
+    ///     space,
+    ///     from: recorded.turn.from.clone(),
+    ///     at: recorded.turn.at,
+    /// };
+    /// let run = kit
+    ///     .ask_recorded(&asker, recorded.session.clone(), recorded.turn.clone())
+    ///     .await;
+    /// assert_eq!(run.ended, Ended::Done);
+    /// assert_eq!(run.said, ["Nothing to change."]);
+    ///
+    /// // 3. The host closes the session it opened.
+    /// host.end_recorded(recorded).await?;
+    /// # Ok(()) }
+    /// ```
+    pub fn companion_link(&self) -> Link<P, C, T, R, K, G, Y, W, D> {
+        link_of(&self.router, &self.app, docket_core::CallerRole::Companion)
     }
 
     /// The router, for the app to read what its seams hold (the sheet, the consent store).
