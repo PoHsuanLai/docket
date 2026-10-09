@@ -25,8 +25,8 @@ pub use actions_tools::{
 pub use bound::{BoundEdge, NoToken};
 pub use config::{ConfigError, McpConfig};
 pub use daemon::{
-    Args, DaemonFault, ExposeRead, Listen, MCP_BUS, claim, run, start, start_following,
-    write_schema,
+    Args, CommandLineFault, DaemonFault, ExposeRead, Listen, MCP_BUS, claim, run, start,
+    start_following, write_schema,
 };
 pub use edge::McpEdge;
 pub use expose::McpExpose;

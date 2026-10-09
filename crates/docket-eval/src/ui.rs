@@ -72,10 +72,15 @@ pub struct UiFile {
     pub ui_only: Vec<UiOnly>,
 }
 
+/// Why a ui commands file could not be read.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{0}")]
+pub struct UiFault(#[from] toml::de::Error);
+
 impl UiFile {
     /// Reads the file.
-    pub fn parse(text: &str) -> Result<Self, String> {
-        toml::from_str(text).map_err(|e| e.to_string())
+    pub fn parse(text: &str) -> Result<Self, UiFault> {
+        Ok(toml::from_str(text)?)
     }
 }
 

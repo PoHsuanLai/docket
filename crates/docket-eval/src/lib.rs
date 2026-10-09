@@ -48,4 +48,4 @@ pub use skills::check_skills;
 pub use trace::{
     CaseTrace, StepTrace, audit_line, plan_line, render_exchange, render_index, trace_file,
 };
-pub use ui::{UiCommand, UiFile, UiOnly, UiSource, check_ui};
+pub use ui::{UiCommand, UiFault, UiFile, UiOnly, UiSource, check_ui};

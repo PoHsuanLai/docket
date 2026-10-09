@@ -151,13 +151,30 @@ pub struct Args {
     pub host_socket: Option<PathBuf>,
 }
 
+/// Why the command line was not understood.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum CommandLineFault {
+    /// A flag that takes a value came last.
+    #[error("{0} needs a value")]
+    NeedsValue(String),
+    /// `--client` was given something that is not a client name.
+    #[error("--client: not a client name")]
+    NotAClient,
+    /// A flag this program does not have.
+    #[error("unknown argument {0}")]
+    Unknown(String),
+}
+
 impl Args {
     /// Reads the arguments after the program name; an unknown one is an error.
-    pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Self, String> {
+    pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Self, CommandLineFault> {
         let mut args = args.into_iter();
         let mut parsed = Self::default();
         while let Some(flag) = args.next() {
-            let mut value = || args.next().ok_or_else(|| format!("{flag} needs a value"));
+            let mut value = || {
+                args.next()
+                    .ok_or_else(|| CommandLineFault::NeedsValue(flag.clone()))
+            };
             match flag.as_str() {
                 "--socket" => parsed.socket = Some(PathBuf::from(value()?)),
                 "--write-schema" => parsed.write_schema = Some(PathBuf::from(value()?)),
@@ -165,10 +182,10 @@ impl Args {
                 "--client" => {
                     parsed.client = Some(
                         prov::ClientName::parse(&value()?)
-                            .map_err(|_| "--client: not a client name".to_owned())?,
+                            .map_err(|_| CommandLineFault::NotAClient)?,
                     )
                 }
-                other => return Err(format!("unknown argument {other}")),
+                other => return Err(CommandLineFault::Unknown(other.to_owned())),
             }
         }
         Ok(parsed)
