@@ -82,6 +82,7 @@ pub(crate) fn request(turns: &[UserTurn], catalogue: &[ActionCard]) -> ChatReque
                 seed: Knob::Off,
             }),
             stop: Vec::new(),
+            scores: Knob::Off,
         },
     }
 }

@@ -36,6 +36,7 @@ fn control() -> ChatControl {
         reasoning: Reasoning::Off,
         sampling: Knob::Off,
         stop: Vec::new(),
+        scores: Knob::Off,
     }
 }
 

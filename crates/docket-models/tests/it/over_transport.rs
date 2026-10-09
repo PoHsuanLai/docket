@@ -35,6 +35,7 @@ fn chat() -> ChatRequest {
             reasoning: Reasoning::Off,
             sampling: Knob::Off,
             stop: Vec::new(),
+            scores: Knob::Off,
         },
     }
 }

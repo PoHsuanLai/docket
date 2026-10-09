@@ -155,6 +155,7 @@ fn reply(text: String, calls: Vec<(String, Json)>) -> InferEvent {
             cached: Tokens(0),
         },
         served: served(),
+        scores: None,
     }))
 }
 

@@ -166,6 +166,7 @@ pub fn reader_request(ask: &ReaderAsk, inputs: &[Labelled<String>]) -> ChatReque
                 seed: Knob::Off,
             }),
             stop: Vec::new(),
+            scores: Knob::Off,
         },
     }
 }

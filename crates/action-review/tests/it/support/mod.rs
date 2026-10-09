@@ -100,6 +100,7 @@ pub fn reply(card: &ModelCard, text: &str, stop: StopReason) -> ChatReply {
             cached: Tokens(0),
         },
         served: served(card),
+        scores: None,
     }
 }
 

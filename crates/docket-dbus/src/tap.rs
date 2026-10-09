@@ -423,6 +423,7 @@ mod tests {
                 reasoning: porter_infer::Reasoning::Off,
                 sampling: porter_infer::Knob::Off,
                 stop: vec![],
+                scores: porter_infer::Knob::Off,
             },
         }
     }

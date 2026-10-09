@@ -140,6 +140,7 @@ pub fn reply_stopped(text: &str, stop: StopReason) -> ChatReply {
         thought: None,
         usage: usage(),
         served: served(),
+        scores: None,
     }
 }
 

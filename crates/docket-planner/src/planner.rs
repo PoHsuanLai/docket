@@ -198,6 +198,7 @@ fn control() -> ChatControl {
         reasoning: Reasoning::EngineDefault,
         sampling: Knob::Off,
         stop: Vec::new(),
+        scores: Knob::Off,
     }
 }
 

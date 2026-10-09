@@ -121,6 +121,7 @@ fn control(stage: Stage) -> ChatControl {
             seed: Knob::Off,
         }),
         stop: Vec::new(),
+        scores: Knob::Off,
     }
 }
 
