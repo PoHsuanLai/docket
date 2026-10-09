@@ -9,6 +9,7 @@
 //! The agent signs in inside `home` and keeps its login there. Nothing is copied into it from the
 //! person's real home.
 
+use crate::record::Record;
 use crate::slug::Slug;
 use std::path::{Path, PathBuf};
 
@@ -33,15 +34,18 @@ impl AgentsDir {
     /// The versions of `id` that are installed.
     pub fn versions(&self, id: &Slug) -> Vec<Slug> {
         let dir = self.0.join("installed").join(id.as_str());
-        let Ok(read) = std::fs::read_dir(dir) else {
+        let Ok(read) = std::fs::read_dir(&dir) else {
             return Vec::new();
         };
         let mut found: Vec<Slug> = read
             .filter_map(|e| {
-                e.ok()?
+                let slug = e
+                    .ok()?
                     .file_name()
                     .to_str()
-                    .and_then(|n| Slug::parse(n).ok())
+                    .and_then(|n| Slug::parse(n).ok())?;
+                // Only a version with its record is installed; a staging directory has none.
+                Record::read(&dir.join(slug.as_str())).ok().map(|_| slug)
             })
             .collect();
         found.sort();

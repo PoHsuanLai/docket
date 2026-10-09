@@ -6,7 +6,10 @@ use docket_agents::hash::Sha256Hex;
 use docket_agents::platform::Platform;
 use docket_agents::record::Check;
 use docket_agents::run::{Run, RunFault};
+use docket_agents::slug::Slug;
+use docket_agents::uv::PythonPackage;
 use docket_agents::{AgentsDir, InstallFault, Snapshot, Standing, Want, install, standing};
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;
@@ -32,6 +35,35 @@ impl Run for FakeNpm {
         std::fs::create_dir_all(&pkg).map_err(|_| RunFault("npm".into()))?;
         std::fs::write(pkg.join("package.json"), r#"{"bin": {"tool-acp": "x.js"}}"#)
             .map_err(|_| RunFault("npm".into()))
+    }
+}
+
+/// A `uv` that makes the environment and the program the package installs, and keeps each call.
+#[derive(Default)]
+struct FakeUv {
+    calls: RefCell<Vec<Vec<String>>>,
+    /// Whether the install leaves its program behind.
+    leaves_program: bool,
+}
+
+impl Run for FakeUv {
+    fn run(&self, program: &str, args: &[String], dir: &Path) -> Result<(), RunFault> {
+        self.calls.borrow_mut().push(args.to_vec());
+        let fail = || RunFault(program.to_owned());
+        if program != "uv" {
+            return Err(fail());
+        }
+        let bin = dir.join("venv/bin");
+        if args.iter().any(|a| a == "venv") {
+            std::fs::create_dir_all(&bin).map_err(|_| fail())?;
+            return std::fs::write(bin.join("python"), b"").map_err(|_| fail());
+        }
+        if !self.leaves_program {
+            return Ok(());
+        }
+        let requirement = args.last().ok_or_else(fail)?;
+        let name = requirement.split("==").next().unwrap_or_default();
+        std::fs::write(bin.join(name), b"#!/bin/sh\n").map_err(|_| fail())
     }
 }
 
@@ -178,8 +210,53 @@ fn a_node_package_goes_through_the_package_manager() {
         install(&dir, &snap, want("claude-acp", "0.1.0"), (&net, &FakeNpm)).expect("install");
     assert_eq!(record.check, Check::PackageManager);
     assert_eq!(record.command, "node_modules/.bin/tool-acp");
-    let fault = install(&dir, &snap, want("py", "1"), (&net, &FakeNpm)).expect_err("uvx");
-    assert!(matches!(fault, InstallFault::Unsupported(_)));
+}
+
+#[test]
+fn a_python_package_goes_through_uv_into_its_own_directory() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let dir = AgentsDir::at(tmp.path());
+    let snap = snapshot(None, "1.0.0");
+    let net = Served(BTreeMap::new());
+    let uv = FakeUv {
+        leaves_program: true,
+        ..FakeUv::default()
+    };
+    let record = install(&dir, &snap, want("py", "1"), (&net, &uv)).expect("install");
+    assert_eq!(record.check, Check::PackageManager);
+    assert_eq!(record.command, "venv/bin/py");
+    assert!(dir.launch("py", "1").expect("launch").command.is_file());
+    let calls = uv.calls.borrow();
+    assert_eq!(calls.len(), 2);
+    assert!(calls[1].contains(&"py==1".to_owned()));
+    assert!(calls.iter().all(|c| c.contains(&"--cache-dir".to_owned())));
+    assert!(calls[0].contains(&"--no-python-downloads".to_owned()));
+    assert!(calls[1].contains(&"pip".to_owned()));
+}
+
+#[test]
+fn a_python_program_missing_after_uv_installs_nothing() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let dir = AgentsDir::at(tmp.path());
+    let snap = snapshot(None, "1.0.0");
+    let net = Served(BTreeMap::new());
+    let fault =
+        install(&dir, &snap, want("py", "1"), (&net, &FakeUv::default())).expect_err("no program");
+    assert_eq!(fault, InstallFault::NoProgram);
+    assert!(dir.launch("py", "1").is_err());
+    assert!(dir.versions(&Slug::parse("py").expect("slug")).is_empty());
+}
+
+#[test]
+fn python_package_forms_are_read_and_direct_references_refused() {
+    let pinned = PythonPackage::parse("minion-code@0.1.44").expect("at form");
+    assert_eq!(pinned.requirement, "minion-code==0.1.44");
+    assert_eq!(pinned.name, "minion-code");
+    let extra = PythonPackage::parse("pkg[acp]==2").expect("extra");
+    assert_eq!(extra.name, "pkg");
+    assert!(PythonPackage::parse("git+https://example.test/x").is_err());
+    assert!(PythonPackage::parse("pkg @ https://example.test/x.whl").is_err());
+    assert!(PythonPackage::parse("../escape").is_err());
 }
 
 #[test]

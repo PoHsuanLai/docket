@@ -33,7 +33,7 @@ pub struct Distribution {
     pub binary: BTreeMap<Platform, Binary>,
     /// A package from the node package registry.
     pub npx: Option<Package>,
-    /// A package from the python package index (not installable here).
+    /// A package from the python package index, installed with `uv`.
     pub uvx: Option<Package>,
 }
 

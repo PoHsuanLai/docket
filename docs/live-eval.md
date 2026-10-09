@@ -318,6 +318,8 @@ dev/live-smoke.sh --engine scripted --agent acp --acp-agent antigravity-acp --ac
   --acp-agents-dir /scratch/agents --acp-model gemini-pro-agent --flow flow-a
 ```
 
+An agent the registry offers only as a python package (`uvx`) is installed the same way: `uv` makes a virtual environment under the agent's own directory and installs the package there (no network but that install; the cache is in the same directory). When the registry offers several, a binary for this platform is taken first, then the node package, then the python one.
+
 If the agent needs signing in and no `--acp-sign-in` is given, the run stops and lists the ways the agent offers, by
 their names. In `agents.toml` the same agent is
 `registry = "antigravity-acp"`, `version = "1.3.0"`, `model = "gemini-pro-agent"`, `sign_in = "..."`, `label`.

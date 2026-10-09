@@ -11,6 +11,7 @@ use crate::run::{Run, RunFault};
 use crate::slug::{Slug, SlugRefused};
 use crate::snapshot::{Binary, Listing, Package, Snapshot};
 use crate::unpack::{UnpackFault, unpack};
+use crate::uv::uvx;
 use std::path::Path;
 
 /// Why an install did not happen. Nothing is left half-installed.
@@ -124,28 +125,26 @@ pub fn install(
     if let Ok(done) = Record::read(&target) {
         return Ok(done);
     }
-    let partial = target.with_file_name(format!(".{}.partial", version.as_str()));
-    let _ = std::fs::remove_dir_all(&partial);
-    std::fs::create_dir_all(partial.join(FILES)).map_err(|_| InstallFault::Disk)?;
-    let made = fill(listing, &partial, (fetch, run));
-    let record = made.and_then(|record| {
-        record.write(&partial).map_err(|_| InstallFault::Disk)?;
-        let _ = std::fs::remove_dir_all(&target);
-        std::fs::rename(&partial, &target).map_err(|_| InstallFault::Disk)?;
+    // Staged at its final place: a python environment keeps absolute paths, so it cannot be moved
+    // into place afterwards. A directory without a record is not installed (see `AgentsDir::versions`).
+    let _ = std::fs::remove_dir_all(&target);
+    std::fs::create_dir_all(target.join(FILES)).map_err(|_| InstallFault::Disk)?;
+    let record = fill(listing, &target, (fetch, run)).and_then(|record| {
+        record.write(&target).map_err(|_| InstallFault::Disk)?;
         Ok(record)
     });
     if record.is_err() {
-        let _ = std::fs::remove_dir_all(&partial);
+        let _ = std::fs::remove_dir_all(&target);
     }
     record
 }
 
 fn fill(
     listing: &Listing,
-    partial: &Path,
+    target: &Path,
     (fetch, run): (&dyn Fetch, &dyn Run),
 ) -> Result<Record, InstallFault> {
-    let files = partial.join(FILES);
+    let files = target.join(FILES);
     let unsupported = || InstallFault::Unsupported(listing.name.clone());
     let dist = &listing.distribution;
     let record = |command: String, args, env, digest: Option<String>, check| Record {
@@ -172,8 +171,19 @@ fn fill(
             check,
         ));
     }
-    let package = dist.npx.as_ref().ok_or_else(unsupported)?;
-    let command = npm(package, &files, run)?;
+    // Preference: a binary for this platform, then a node package, then a python package.
+    if let Some(package) = dist.npx.as_ref() {
+        let command = npm(package, &files, run)?;
+        return Ok(record(
+            command,
+            package.args.clone(),
+            package.env.clone(),
+            None,
+            Check::PackageManager,
+        ));
+    }
+    let package = dist.uvx.as_ref().ok_or_else(unsupported)?;
+    let command = uvx(package, &files, run)?;
     Ok(record(
         command,
         package.args.clone(),

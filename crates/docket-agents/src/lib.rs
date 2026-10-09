@@ -20,6 +20,7 @@ pub mod run;
 pub mod slug;
 pub mod snapshot;
 pub mod unpack;
+pub mod uv;
 
 pub use dirs::AgentsDir;
 pub use install::{InstallFault, Standing, Want, install, standing};
