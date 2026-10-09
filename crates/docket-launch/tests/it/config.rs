@@ -323,7 +323,10 @@ fn a_registry_agent_runs_from_its_install_with_a_home_of_its_own() {
     assert_eq!(entry.home.as_ref().map(|h| h.as_str()), Some(home.as_str()));
     assert_eq!(entry.state[0].as_str(), home);
     assert_eq!(entry.reads.len(), 1);
-    assert_eq!(entry.model.as_ref().map(|m| m.as_str()), Some("gemini-pro-agent"));
+    assert_eq!(
+        entry.model.as_ref().map(|m| m.as_str()),
+        Some("gemini-pro-agent")
+    );
     assert_eq!(entry.sign_in.as_ref().map(|m| m.as_str()), Some("google"));
 }
 

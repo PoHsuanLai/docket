@@ -486,7 +486,9 @@ fn a_registry_agent_needs_its_pin_and_directory_and_takes_no_login_of_its_own() 
 fn a_registry_entry_names_the_install_and_leaves_the_home_to_launch() {
     let line = "smoke --engine scripted --agent acp --acp-agent agy-acp --acp-version 1.3.0 \
         --acp-agents-dir /scratch/agents --acp-model gemini-pro-agent --acp-sign-in google";
-    let text = acp_spec(line).expect("spec").entry_toml(std::path::Path::new("/s"));
+    let text = acp_spec(line)
+        .expect("spec")
+        .entry_toml(std::path::Path::new("/s"));
     assert!(text.contains("registry = \"agy-acp\""));
     assert!(text.contains("version = \"1.3.0\""));
     assert!(text.contains("model = \"gemini-pro-agent\""));
