@@ -15,6 +15,15 @@ index = "not_indexed"
 titles = { kind = "third_party", v = { kind = "mail" } }
 props = []
 
+# The sender is decided by the message, which somebody else wrote: whatever the app says, the
+# thing this names is untrusted.
+[[entities.relations]]
+name = "from"
+label = "Sender"
+to = "mail.contact"
+many = "one"
+trust = { kind = "third_party", v = { kind = "mail" } }
+
 [[entities]]
 kind = "mail.contact"
 label = "Contact"
@@ -126,7 +135,8 @@ ty = { kind = "entity", v = "mail.contact" }
 need = { kind = "required" }
 sink = "recipient"
 
-# A fresh message: Body and Recipient sinks, the shape of the injection scenario's send.
+# A fresh message: Body and Recipient sinks, the shape of the injection scenario's send. The
+# recipient is a contact: the person's own, or the one a thread's sender relation names.
 [[actions]]
 name = "mail.message.send"
 label = "Send"
@@ -144,7 +154,7 @@ dry_run = "preview"
 [[actions.params]]
 name = "to"
 label = "To"
-ty = { kind = "text", v = { max = 200, lines = "one" } }
+ty = { kind = "entity", v = "mail.contact" }
 need = { kind = "required" }
 sink = "recipient"
 

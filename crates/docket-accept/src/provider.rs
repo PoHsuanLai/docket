@@ -361,6 +361,32 @@ impl IntentProvider for AcceptMail {
                     Undoable::No,
                 ))
             }
+            "mail.thread.related" => {
+                let key = Self::keys(&inv.target)
+                    .into_iter()
+                    .next()
+                    .ok_or(AppRefusal::Unsupported)?;
+                let thread = threads()
+                    .into_iter()
+                    .find(|t| t.key == key)
+                    .ok_or(AppRefusal::Unsupported)?;
+                // The sender is a contact when the address is saved, else the address itself
+                // stands for them: it is the message's word, so the answer is theirs.
+                let sender = contacts()
+                    .iter()
+                    .find(|c| c.address == thread.from)
+                    .map_or(thread.from, |c| c.key);
+                Ok(Self::done(
+                    "Found the sender",
+                    Some(Labelled {
+                        value: Value::Entities(
+                            self.id("mail.contact", sender).into_iter().collect(),
+                        ),
+                        label: self.theirs(),
+                    }),
+                    Undoable::No,
+                ))
+            }
             "mail.thread.read" => {
                 let key = Self::keys(&inv.target)
                     .into_iter()

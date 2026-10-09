@@ -260,6 +260,60 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
     assert!(world.app.messages().is_empty());
 }
 
+/// The same thread, but the planner replies to its sender, which it can only name through the
+/// thread's `from` relation: it never reads an address. The sender is somebody else's word, so the
+/// send asks, quoted, exactly as the send to an address the injection named does.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn flow_c_a_reply_to_the_related_sender_is_a_handle_and_still_asks_quoted() {
+    let world = World::start(&binaries(), Consent::Standing, FLOW_C_RELATED).await;
+    world.sheet.will(Verdict::Refuse);
+
+    let launcher = Launcher::of(&world).await;
+    let opened = launcher.open().await;
+    let mut answer = launcher
+        .say(&opened, "summarise this thread and reply")
+        .await;
+    let history = answer.history_until(settled).await;
+    if history.last().map(|v| v.phase.clone()) != Some(AnswerPhase::Done) {
+        fail(&world, &format!("{history:#?}"));
+    }
+
+    // The planner asked for the sender (it is the thread's `from`), and the app resolved it.
+    assert_eq!(
+        world
+            .mail
+            .performed()
+            .iter()
+            .filter(|a| *a == "mail.thread.related")
+            .count(),
+        1
+    );
+    // Five planner turns: read, summarise, relate, send, words. It never saw the body or the
+    // address, which the cassette's `lacks` enforces.
+    assert_eq!(turns_of(&world, "org.quire.Companion"), 5);
+    assert_eq!(turns_of(&world, "org.quire.Reader"), 1);
+
+    // The send asks once, with the sender quoted from mail, and says the session read untrusted
+    // mail. The person refused it, so nothing went.
+    let sheets = world.sheet.shown();
+    assert_eq!(sheets.len(), 1, "{sheets:#?}");
+    let ask = &sheets[0];
+    assert_eq!(ask.action.as_str(), "Send");
+    let ConfirmDetail::Recipients(to) = &ask.detail else {
+        panic!("recipients: {:?}", ask.detail);
+    };
+    assert!(
+        matches!(&to[..], [Shown::Quoted { text, from: prov::Source::Mail }] if text == "eve@evil.example"),
+        "{to:?}"
+    );
+    assert!(
+        matches!(&ask.taint, TaintNote::ReadUntrusted(sources) if sources.contains(&prov::Source::Mail)),
+        "{:?}",
+        ask.taint
+    );
+    assert!(world.mail.messages().is_empty());
+}
+
 /// SPEC 5(a) steps 7 and 8: a plan card streams, and while the sheet is up the answer shows
 /// `NeedsYou(Confirm)`; then it runs again and is done.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

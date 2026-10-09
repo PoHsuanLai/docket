@@ -49,6 +49,12 @@ pub const FLOW_C: Cassette = Cassette(include_str!(
     "../../../../dev/accept/cassettes/flow-c.jsonl"
 ));
 
+/// Flow (c) where the planner replies to the thread's sender: it asks for the sender with
+/// `quire_related` (the sender is the relation `from` of the thread), and sends to that handle.
+pub const FLOW_C_RELATED: Cassette = Cassette(include_str!(
+    "../../../../dev/accept/cassettes/flow-c-related.jsonl"
+));
+
 /// The handle the planner is shown for the reader's answer (the body of the thread is handle 1);
 /// the flow-c cassette names it in the send.
 pub const SUMMARY_HANDLE: u64 = 2;
