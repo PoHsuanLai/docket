@@ -208,6 +208,11 @@ pub enum ReviewError {
     /// `Unparseable` is (the person is asked); the audit and traces say what happened.
     #[error("only reasoning, no reply")]
     OnlyThought,
+    /// The model stopped at its token limit before it finished: its reply (and any reasoning
+    /// ahead of it) did not fit. Handled as `Unparseable` is; the audit and traces say it ran out
+    /// of room, so a limit that is too small is not mistaken for a model that refused.
+    #[error("ran out of room")]
+    OutOfRoom,
     /// The reply used a word outside the vocabulary.
     #[error("reply outside the vocabulary")]
     OutOfVocabulary,

@@ -19,6 +19,10 @@ use porter_infer::{
 use prov::{SpaceId, TaskId};
 use std::collections::BTreeSet;
 
+/// The room the reply is counted to need when a model is chosen: the draft and some thought ahead
+/// of it. The reply's own limit is the model's (`Knob::Off`).
+const REPLY_ROOM: u32 = 2048;
+
 /// The words the model is given. The turns are the person's own; nothing else is in the prompt.
 const INSTRUCTION: &str = "You write a task policy: the least an assistant needs to do what \
 the person asked, and no more. You are given the person's own words and the list of actions \
@@ -72,7 +76,9 @@ pub(crate) fn request(turns: &[UserTurn], catalogue: &[ActionCard]) -> ChatReque
         control: ChatControl {
             tool_choice: ToolChoice::Never,
             tool_calls: ToolParallelism::One,
-            max_output: Knob::Set(Tokens(600)),
+            // The model's own limit, from its catalogue entry: a model that must reason before it
+            // answers spends part of it on thought, which a fixed few hundred tokens cannot hold.
+            max_output: Knob::Off,
             reasoning: Reasoning::Off,
             sampling: Knob::Set(Sampling {
                 temperature: Permille(0),
@@ -93,7 +99,7 @@ fn need(request: &ChatRequest) -> Need {
         context: Tokens(
             u32::try_from(request.messages.iter().map(message_len).sum::<usize>() / 3)
                 .unwrap_or(u32::MAX)
-                .saturating_add(600),
+                .saturating_add(REPLY_ROOM),
         ),
     })
 }
@@ -142,6 +148,7 @@ impl<T: Transport> PolicyWriter for TransportWriter<T> {
         let chat = chat_of(reply).map_err(failed)?;
         match chat.stop {
             porter_infer::StopReason::EndTurn | porter_infer::StopReason::StopSequence => {}
+            porter_infer::StopReason::MaxTokens => return Err(ReviewError::OutOfRoom),
             _ => return Err(ReviewError::Unparseable),
         }
         let draft: Draft =

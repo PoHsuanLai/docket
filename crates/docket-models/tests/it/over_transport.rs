@@ -151,3 +151,21 @@ async fn the_writer_asks_with_the_persons_words_only_and_believes_nothing_it_was
     assert_eq!(asked.class, DataClass::Prompt);
     assert!(matches!(asked.shape, ReplyShape::Json(_)));
 }
+
+/// The writer leaves the reply's limit to the model's catalogue entry (a model that must reason
+/// first needs the room), and a model that still stops at its limit is out of room, not
+/// unparseable and not refusing.
+#[tokio::test]
+async fn a_writer_cut_at_the_models_limit_ran_out_of_room() {
+    let transport = ScriptedInfer::new(vec![infer::Say::Cut("{\"actions\": [".into())]);
+    let derived = TransportWriter::new(transport.clone())
+        .derive(
+            &TaskId::parse("t-1").expect("task"),
+            &[turn("archive the digest")],
+            &catalogue(),
+            &SpaceId::parse("work").expect("space"),
+        )
+        .await;
+    assert_eq!(derived.err(), Some(docket_core::ReviewError::OutOfRoom));
+    assert_eq!(transport.asked()[0].control.max_output, Knob::Off);
+}
