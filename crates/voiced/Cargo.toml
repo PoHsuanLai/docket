@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 voice-loop = { workspace = true }
 voice-wire = { workspace = true }
+voice-dbus = { workspace = true }
 docket-core = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }

@@ -69,6 +69,8 @@ RULES=(
   "docket-memory: $NO_CEDAR"
   "voice-wire: $EFFECTS toml"
   "voice-loop: $EFFECTS toml"
+  # The caller's side of Voice1: zbus (with its tokio feature) and nothing of the microphone or speech engines.
+  "voice-dbus: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp cedar-policy"
   # zbus lives in docket-dbus, and in docket-client only behind its `dbus` feature.
   "docket-dbus: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp cedar-policy"
   # A client never links the router: `InProcess` (feature `in_process`) is the one way in.
@@ -189,7 +191,8 @@ EDGES=(
   "docket-ds: companion-wire docket-client docket-core ds-intents porter-core prov voice-wire"
   "voice-wire: docket-core porter-core porter-infer"
   "voice-loop: docket-core porter-core porter-infer voice-wire"
-  "voiced: docket-core porter-client porter-core porter-dbus porter-infer speech-provider speech-vad voice-loop voice-wire"
+  "voice-dbus: "
+  "voiced: docket-core porter-client porter-core porter-dbus porter-infer speech-provider speech-vad voice-dbus voice-loop voice-wire"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"

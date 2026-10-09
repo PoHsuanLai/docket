@@ -36,6 +36,7 @@ members = [
   "crates/readerd",
   "crates/docket-ds",
   "crates/voice-wire",
+  "crates/voice-dbus",
   "crates/voice-loop",
   "crates/voiced",
 ]
@@ -83,6 +84,7 @@ docket-settings = { path = "crates/docket-settings" }
 notify = "8.2"
 docket-ds      = { path = "crates/docket-ds" }
 voice-wire     = { path = "crates/voice-wire" }
+voice-dbus     = { path = "crates/voice-dbus" }
 voice-loop     = { path = "crates/voice-loop" }
 
 # porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout

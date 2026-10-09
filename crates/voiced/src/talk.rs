@@ -6,7 +6,6 @@ use crate::command::{Caller, Reply};
 use crate::engine::Core;
 use crate::error::VoiceError;
 use crate::link::{self, Link, LinkEvent};
-use crate::names::speech_path;
 use crate::playback::{Played, samples_of};
 use crate::usage::UseSource;
 use crate::warm::{Warm, tts_need};
@@ -18,6 +17,7 @@ use porter_core::{DataClass, Tier};
 use porter_infer::{
     ClientFrame, InferEvent, InferReply, InferRequest, ModelError, Readiness, SpeakRequest,
 };
+use voice_dbus::speech_path;
 use voice_loop::{MicNow, SpeechEffect, SpeechEvent, SpeechPhase, SpeechState, speech_step};
 use voice_wire::{SpeakWire, Speaking, SpeechEnd, VoiceFault, VoiceRefusal, VoiceUse};
 use zbus::object_server::SignalEmitter;

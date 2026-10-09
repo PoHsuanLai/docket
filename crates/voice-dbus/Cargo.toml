@@ -1,0 +1,15 @@
+[package]
+name = "voice-dbus"
+description = "The caller's side of org.quire.Voice1: zbus proxies for the voice service, its utterance and speech objects, and the bus names and object paths. No daemon, no audio stack."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+zbus = { workspace = true }
+
+[lints]
+workspace = true

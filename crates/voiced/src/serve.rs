@@ -5,7 +5,6 @@ use crate::command::Handle;
 use crate::config::VoicedConfig;
 use crate::device::AudioDevice;
 use crate::engine::Core;
-use crate::names::{VOICE_BUS, VOICE_PATH};
 use crate::peer::Peers;
 use crate::playback::Player;
 use crate::talk::Say;
@@ -18,6 +17,7 @@ use porter_infer::Readiness;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
+use voice_dbus::{VOICE_BUS, VOICE_PATH};
 use zbus::fdo::RequestNameFlags;
 
 /// Everything outside the bus that voiced leans on, as seams: the audio device, inferd, the

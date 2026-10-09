@@ -10,7 +10,6 @@ use crate::device::{
 use crate::engine::{Core, EndOfAudio, SttLink, Utt};
 use crate::error::VoiceError;
 use crate::link;
-use crate::names::{VOICE_PATH, utterance_path};
 use crate::playback;
 use crate::sink::EventSink;
 use crate::usage::UseSource;
@@ -25,6 +24,7 @@ use porter_infer::{
     TranscribeMode,
 };
 use std::os::fd::OwnedFd;
+use voice_dbus::{VOICE_PATH, utterance_path};
 use voice_loop::{
     CAPTURE_RATE, MicNow, PcmBuffer, PushOutcome, UtteranceEffect, UtteranceEvent, UtteranceState,
     begin_utterance, mic_of, refusal_for, samples_in, utterance_step,

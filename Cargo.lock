@@ -4146,6 +4146,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "voice-dbus"
+version = "0.1.0"
+dependencies = [
+ "zbus",
+]
+
+[[package]]
 name = "voice-loop"
 version = "0.1.0"
 dependencies = [
@@ -4192,6 +4199,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+ "voice-dbus",
  "voice-loop",
  "voice-wire",
  "zbus",

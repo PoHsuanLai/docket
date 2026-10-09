@@ -13,7 +13,6 @@ mod error;
 mod hear;
 mod introspect;
 mod link;
-mod names;
 mod peer;
 mod pipewire_device;
 mod playback;
@@ -25,9 +24,7 @@ mod utter;
 mod warm;
 mod wire;
 
-pub use bus::{
-    SpeechProxy, SpeechSkeleton, UtteranceProxy, UtteranceSkeleton, VoiceProxy, VoiceSkeleton,
-};
+pub use bus::{SpeechSkeleton, UtteranceSkeleton, VoiceSkeleton};
 pub use config::{ConfigError, Earcons, VoiceRole, VoicedConfig};
 pub use default_source::{CONFIGURED_KEY, DefaultSources, RESOLVED_KEY, name_in};
 pub use device::{
@@ -39,13 +36,14 @@ pub use device::{
 pub use device::{FakeAudioDevice, FakeCapture, FakePlayback};
 pub use error::{VoiceError, refusal_of_name};
 pub use introspect::{VOICE1_FILE, introspection};
-pub use names::{
-    SPEECH_PREFIX, UTTERANCE_PREFIX, VOICE_BUS, VOICE_PATH, speech_path, utterance_path,
-};
 pub use peer::Peers;
 pub use pipewire_device::PipeWireDevice;
 pub use playback::{EARCON_RATE, earcon_samples};
 pub use serve::{Running, Seams, serve, start};
 pub use usage::{FileUse, FixedUse, UseSource, use_of_settings};
+pub use voice_dbus::{
+    SPEECH_PREFIX, SpeechProxy, UTTERANCE_PREFIX, UtteranceProxy, VOICE_BUS, VOICE_PATH,
+    VoiceProxy, speech_path, utterance_path,
+};
 pub use warm::{BusWarm, FixedWarm, TransportWarm, Warm};
 pub use wire::{FrameError, MAX_FRAME, Unframed, frame, seal, unframe};
