@@ -34,11 +34,11 @@ fn rows<'a>(doc: &'a toml::Table, key: &str) -> Vec<&'a toml::Table> {
         .unwrap_or_default()
 }
 
-fn word<'a, T: Copy>(
+fn word<T: Copy>(
     row: &toml::Table,
     key: &str,
     words: &'static [&'static str],
-    values: &'a [T],
+    values: &[T],
     off: T,
     fallbacks: &mut Vec<Fallback>,
 ) -> T {
