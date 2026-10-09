@@ -126,6 +126,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 zbus = { version = "5.19", default-features = false, features = ["tokio"] }  # shell repos only; they also enable ds-settings/tokio. quire itself builds zbus with its async-io default so app consumers keep their own executor.
 toml = "1"
+toml_edit = "0.25"  # docket-settings only: agents.toml is edited in place, comments kept
 # voiced's audio device (spike V-A): MIT, safe wrapper over libpipewire; needs libclang to build.
 pipewire = "0.10"
 futures-channel = { version = "0.3", default-features = false, features = ["std"] }

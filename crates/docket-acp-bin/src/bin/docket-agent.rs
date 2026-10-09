@@ -7,7 +7,7 @@ use std::process::ExitCode;
 async fn main() -> ExitCode {
     let here = std::env::current_dir().unwrap_or_default();
     let Some(args) = args::parse(std::env::args().skip(1), here) else {
-        eprintln!("usage: docket-agent PROGRAM [--cwd DIR] [--tty]");
+        eprintln!("usage: docket-agent PROGRAM [--cwd DIR] [--tty | --refresh]");
         return ExitCode::from(2);
     };
     match run(args).await {

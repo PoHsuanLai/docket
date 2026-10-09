@@ -6,10 +6,12 @@
 
 use crate::Wall;
 use crate::agent::provider::{PerformerProvider, Quiet};
+use crate::agent::remember::remember;
 use bulkhead::{Detected, NetworkMode};
 use docket_acp::client::{
     AcpBackend, AgentHost, Fallback, IntentsCourt, OsFiles, Parts, Performer, Seams, ToolsOffer,
 };
+use docket_agents::AgentsDir;
 use docket_client::{DbusTransport, serve_on};
 use docket_core::{ACP_AGENT_APP, AbsPath, ValidManifest};
 use docket_dbus::{BusConnection, CONFIRM_PATH};
@@ -66,6 +68,9 @@ pub struct Wiring<A: Accounts + 'static> {
     pub fallback: Fallback,
     /// The desk those sheets land on, served as `Confirm1` by the caller when it is used.
     pub desk: EditorDesk,
+    /// The agents directory a registry agent was installed in: what an opening shows of the
+    /// agent is written down there. None writes nothing.
+    pub agents: Option<AgentsDir>,
 }
 
 /// A running host and the session it opened.
@@ -97,6 +102,7 @@ pub async fn host<A: Accounts + 'static>(
         tools,
         fallback,
         desk,
+        agents,
     } = wiring;
     let Detected::Bwrap(found) = &bwrap else {
         return Err("no sandbox (bubblewrap) here: no agent is started unconfined".to_owned());
@@ -105,6 +111,7 @@ pub async fn host<A: Accounts + 'static>(
     // The agent process's own network counts for the commands it runs (R12). A program the file
     // does not list cannot be started at all; until then assume the widest.
     let label = file.get(&program).and_then(|entry| entry.label.clone());
+    let installed_as = file.get(&program).and_then(|entry| entry.registry.clone());
     let agent_network = file
         .get(&program)
         .map_or(NetworkMode::Host, |entry| entry.network);
@@ -150,7 +157,7 @@ pub async fn host<A: Accounts + 'static>(
         tools,
     });
     let mut host = AgentHost::new(backend, court, desk, fallback);
-    let session = host
+    let opened = host
         .open(Opening {
             task: TaskId::parse("agent-task-1").map_err(|e| e.to_string())?,
             space,
@@ -163,8 +170,11 @@ pub async fn host<A: Accounts + 'static>(
             label,
             cwd: Some(Workspace::parse(cwd).map_err(|e| e.to_string())?),
         })
-        .await
-        .map_err(said)?;
+        .await;
+    if let (Some(dir), Some(id)) = (&agents, &installed_as) {
+        remember(dir, id, host.backend(), opened.as_ref().map(|_| ()));
+    }
+    let session = opened.map_err(said)?;
     Ok(Hosted { host, session })
 }
 

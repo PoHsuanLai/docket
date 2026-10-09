@@ -77,6 +77,9 @@ What docket adds or decides differently, each with its reason:
     live eval of an agent that has no sign-in of its own. The model is the person's choice, sent
     once after the session opens, and only one the agent offers; switching a session's *mode* stays
     a destructive action through the normal sheet. Text a person sees never names the protocol
-    ("sign in with Google", "Gemini 3.1 Pro").
+    ("sign in with Google", "Gemini 3.1 Pro"). What an agent offered (its models, its ways of signing
+    in, whether the last start was signed in) is written to `state/<id>/offered.toml` whenever a
+    session with it opens; the Settings app reads it (`docket_settings::read_agents`) and starts an
+    agent only on an explicit refresh (`docket-agent PROGRAM --refresh`), never when a page opens.
 
 - Where the assistant may run: a place with no row in the settings is Off, a value the reader cannot read is Off, and the privacy floor filters in `docket_settings::route` before any setting is looked at; a cloud place is never chosen unless its row says On or AskEachTime (owner decision 2026-10-09).

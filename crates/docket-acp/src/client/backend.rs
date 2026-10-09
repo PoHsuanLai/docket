@@ -88,6 +88,8 @@ pub(super) struct Live<X: Seams> {
     pub model: Option<ModelId>,
     /// The models the agent offered for this session.
     pub models: Option<Models>,
+    /// The ways of signing in the agent listed at `initialize`.
+    pub ways: Choices,
     pub cwd: AbsPath,
     pub real_cwd: AbsPath,
     pub session: prov::SessionId,
@@ -246,6 +248,7 @@ impl<X: Seams> AcpBackend<X> {
             sign_in,
             model,
             models: None,
+            ways: Choices(Vec::new()),
             cwd: cwd.clone(),
             real_cwd,
             session: session.clone(),
@@ -276,6 +279,7 @@ impl<X: Seams> AcpBackend<X> {
         self.sign_in(&init).await?;
         let methods = signable(&init);
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
+        live.ways = methods.clone();
         let id = live.ids.next();
         let servers = live
             .edge
@@ -330,6 +334,11 @@ impl<X: Seams> AcpBackend<X> {
     /// The models the agent offered for the session, once it is open and when it offers a choice.
     pub fn models(&self) -> Option<&Models> {
         self.live.as_ref().and_then(|l| l.models.as_ref())
+    }
+
+    /// The ways of signing in the agent listed when it started, once it has answered `initialize`.
+    pub fn sign_in_ways(&self) -> Option<&Choices> {
+        self.live.as_ref().map(|l| &l.ways)
     }
 
     /// Signs in the way `agents.toml` names, when it names one: only a way the agent advertised

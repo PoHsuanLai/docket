@@ -1060,6 +1060,7 @@ version = "0.1.0"
 dependencies = [
  "bulkhead",
  "docket-acp",
+ "docket-agents",
  "docket-client",
  "docket-core",
  "docket-dbus",
@@ -1084,6 +1085,7 @@ dependencies = [
 name = "docket-agents"
 version = "0.1.0"
 dependencies = [
+ "docket-core",
  "flate2",
  "serde",
  "serde_json",
@@ -1398,11 +1400,14 @@ dependencies = [
 name = "docket-settings"
 version = "0.1.0"
 dependencies = [
+ "docket-agents",
  "docket-core",
  "porter-core",
  "serde",
  "tempfile",
+ "thiserror",
  "toml",
+ "toml_edit",
 ]
 
 [[package]]
@@ -3904,6 +3909,7 @@ dependencies = [
  "indexmap 2.14.2",
  "toml_datetime",
  "toml_parser",
+ "toml_writer",
  "winnow",
 ]
 

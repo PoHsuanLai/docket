@@ -1,9 +1,20 @@
-//! The command line of `docket-agent`: `docket-agent PROGRAM [--cwd DIR] [--space NAME] [--tty]`.
+//! The command line of `docket-agent`: `docket-agent PROGRAM [--cwd DIR] [--space NAME] [--tty]`,
+//! or `docket-agent PROGRAM --refresh`: start the agent briefly, write down what it offers, and
+//! stop it without a turn.
 
 use docket_acp::client::Fallback;
 use docket_session::ProgramName;
 use prov::SpaceId;
 use std::path::PathBuf;
+
+/// What the run is for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    /// A session with a prompt on the terminal.
+    Session,
+    /// Open a session, write down what the agent offers, close it. No turn is taken.
+    Refresh,
+}
 
 /// What was asked for.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -17,6 +28,8 @@ pub struct Args {
     /// Where the person answers its sheets: the desktop's, unless `--tty` asked for this
     /// terminal (a development fallback).
     pub fallback: Fallback,
+    /// A session, or a refresh of what the agent offers.
+    pub mode: Mode,
 }
 
 /// Reads `args` (the program's name first, as `std::env::args().skip(1)` gives them), with
@@ -27,11 +40,13 @@ pub fn parse(args: impl IntoIterator<Item = String>, here: PathBuf) -> Option<Ar
     let mut cwd = here;
     let mut fallback = Fallback::Off;
     let mut space = SpaceId::desktop();
+    let mut mode = Mode::Session;
     while let Some(flag) = it.next() {
         match flag.as_str() {
             "--cwd" => cwd = PathBuf::from(it.next()?),
             "--space" => space = SpaceId::parse(&it.next()?).ok()?,
             "--tty" => fallback = Fallback::Terminal,
+            "--refresh" => mode = Mode::Refresh,
             _ => return None,
         }
     }
@@ -40,6 +55,7 @@ pub fn parse(args: impl IntoIterator<Item = String>, here: PathBuf) -> Option<Ar
         cwd,
         space,
         fallback,
+        mode,
     })
 }
 
@@ -63,6 +79,19 @@ mod tests {
         let tty = parse(words("claude-code --tty --cwd /home/u/q"), here.clone()).expect("args");
         assert_eq!(tty.fallback, Fallback::Terminal);
         assert_eq!(tty.cwd, PathBuf::from("/home/u/q"));
+    }
+
+    #[test]
+    fn a_refresh_is_a_flag_and_a_session_is_the_default() {
+        let here = PathBuf::from("/home/u/p");
+        assert_eq!(
+            parse(words("claude-code --refresh"), here.clone()).map(|a| a.mode),
+            Some(Mode::Refresh)
+        );
+        assert_eq!(
+            parse(words("claude-code"), here).map(|a| a.mode),
+            Some(Mode::Session)
+        );
     }
 
     #[test]

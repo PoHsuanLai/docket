@@ -8,12 +8,15 @@
 //!   itself, and the network is reached only through `fetch::Fetch` in these two.
 //! - `dirs`, `record`, `launch`: where agents live, what was installed, how to start it. Each
 //!   agent has its own home inside its sandbox, where it signs in.
+//! - `offered`: what an agent last offered when a session opened (its models and ways of signing
+//!   in, and whether it was signed in), kept beside its home for the Settings app to read.
 
 pub mod dirs;
 pub mod fetch;
 pub mod hash;
 pub mod install;
 pub mod launch;
+pub mod offered;
 pub mod platform;
 pub mod record;
 pub mod run;
@@ -25,4 +28,5 @@ pub mod uv;
 pub use dirs::AgentsDir;
 pub use install::{InstallFault, Standing, Want, install, standing};
 pub use launch::{Launch, LaunchFault};
+pub use offered::{Offered, OfferedFault, Start};
 pub use snapshot::{Listing, Snapshot, SnapshotFault};

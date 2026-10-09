@@ -112,6 +112,7 @@ async fn open(
         }),
         fallback: Fallback::Off,
         desk: EditorDesk::new(),
+        agents: dir,
     };
     let space = SpaceId::parse("work").unwrap_or_else(|_| SpaceId::desktop());
     host(wiring, program, cwd.as_str(), space).await

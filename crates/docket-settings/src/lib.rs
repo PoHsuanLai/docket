@@ -4,6 +4,7 @@
 //! Reading is a pure function of text; only [`Locator::read`] touches the disk, and the live
 //! watch is the daemon's (intentd), so this crate reaches no runtime and no watcher.
 
+mod agents;
 mod expose;
 mod keys;
 mod locate;
@@ -14,6 +15,7 @@ mod tests;
 
 use docket_core::AgentConfig;
 
+pub use agents::*;
 pub use expose::{AcpAgents, AcpExpose, McpExpose};
 pub use locate::Locator;
 pub use places::*;

@@ -17,6 +17,7 @@ name = "docket-agents"
 path = "src/main.rs"
 
 [dependencies]
+docket-core = { workspace = true }
 flate2 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

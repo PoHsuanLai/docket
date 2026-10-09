@@ -26,6 +26,7 @@ path = "src/bin/docket-net-forward.rs"
 
 [dependencies]
 docket-acp = { workspace = true, features = ["client"] }
+docket-agents = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd"] }

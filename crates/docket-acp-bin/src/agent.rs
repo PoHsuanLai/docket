@@ -19,11 +19,13 @@
 pub mod args;
 pub mod host;
 pub mod provider;
+pub mod remember;
 pub mod tty;
 
-use args::Args;
+use args::{Args, Mode};
 use bulkhead::Detected;
 use docket_acp::client::ToolsOffer;
+use docket_agents::AgentsDir;
 use docket_core::AbsPath;
 use docket_inapp::EditorDesk;
 use docket_launch::dbus::DbusAccounts;
@@ -55,6 +57,12 @@ fn config_dir() -> PathBuf {
         .unwrap_or_default()
 }
 
+/// Where agents from the registry are installed (`docket-agents --dir`): `agents` in the data
+/// directory.
+pub fn agents_dir() -> AgentsDir {
+    AgentsDir::at(&data_dir().join("agents"))
+}
+
 fn data_dir() -> PathBuf {
     env("XDG_DATA_HOME")
         .filter(|v| !v.is_empty())
@@ -77,7 +85,8 @@ pub async fn run(args: Args) -> Result<(), String> {
     let permit = AgentsPermit::from_setting(loaded.value.agents).map_err(|e| e.to_string())?;
     let text = std::fs::read_to_string(config_dir().join("docket/agents.toml"))
         .map_err(|_| "no agents.toml under the configuration directory".to_owned())?;
-    let file = Arc::new(AgentsFile::parse(&text).map_err(|e| e.to_string())?);
+    let agents = agents_dir();
+    let file = Arc::new(AgentsFile::parse_in(&text, Some(&agents)).map_err(|e| e.to_string())?);
     let path = env("PATH").unwrap_or_default();
     let Detected::Bwrap(bwrap) = Detected::probe(&path) else {
         return Err("no sandbox (bubblewrap) here: no agent is started unconfined".to_owned());
@@ -89,14 +98,14 @@ pub async fn run(args: Args) -> Result<(), String> {
     // program beside this one, as the bridge to this host. An entry can switch it off.
     let tools = file
         .get(&args.program)
-        .filter(|entry| entry.tools == ToolsMode::Offered)
+        .filter(|entry| entry.tools == ToolsMode::Offered && args.mode == Mode::Session)
         .and_then(|_| sibling("actions-mcp"))
         .filter(|bridge| std::path::Path::new(bridge.as_str()).exists())
         .map(|bridge| ToolsOffer {
             run_dir: run_dir.clone(),
             bridge,
         });
-    if tools.is_none() {
+    if tools.is_none() && args.mode == Mode::Session {
         eprintln!(
             "docket-agent: the agent is not offered the desktop's actions (off, or no actions-mcp beside this program)"
         );
@@ -156,12 +165,19 @@ pub async fn run(args: Args) -> Result<(), String> {
             tools,
             fallback: args.fallback,
             desk,
+            agents: Some(agents),
         },
         args.program,
         &cwd,
         args.space,
     )
     .await?;
+    if args.mode == Mode::Refresh {
+        host.close(&session, docket_session::EndCause::Closed)
+            .await
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
     eprintln!("agent started in {cwd}. Type a request; an empty line or ctrl-d quits.");
 
     let lines: Lines = Arc::new(Mutex::new(BufReader::new(tokio::io::stdin()).lines()));

@@ -243,6 +243,9 @@ pub struct Entry {
     pub sign_in: Option<SignIn>,
     /// The model to switch to after the session opens, one the agent offers.
     pub model: Option<ModelId>,
+    /// The registry id it was installed under, when it came from the registry: its record of
+    /// what it offered is kept under that name.
+    pub registry: Option<String>,
 }
 
 /// The longest label, in characters.
@@ -469,6 +472,7 @@ fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFault> {
             .map(ModelId::parse)
             .transpose()
             .map_err(|_| bad(&at, "a model id has no spaces or control characters"))?,
+        registry: raw.registry.clone(),
     })
 }
 

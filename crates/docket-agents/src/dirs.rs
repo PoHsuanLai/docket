@@ -4,6 +4,7 @@
 //! <root>/installed/<id>/<version>/files/        what the archive unpacked to
 //! <root>/installed/<id>/<version>/installed.toml  what was installed and how it was checked
 //! <root>/state/<id>/home/                         the agent's own home inside its sandbox
+//! <root>/state/<id>/offered.toml                  what it last offered (see `offered`)
 //! ```
 //!
 //! The agent signs in inside `home` and keeps its login there. Nothing is copied into it from the
@@ -55,5 +56,13 @@ impl AgentsDir {
     /// The agent's home inside its sandbox.
     pub fn home(&self, id: &Slug) -> PathBuf {
         self.0.join("state").join(id.as_str()).join("home")
+    }
+
+    /// The record of what `id` last offered.
+    pub fn offered(&self, id: &Slug) -> PathBuf {
+        self.0
+            .join("state")
+            .join(id.as_str())
+            .join(crate::offered::FILE)
     }
 }

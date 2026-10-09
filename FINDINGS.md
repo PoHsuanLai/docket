@@ -3333,3 +3333,10 @@ Phase 2 (Laya, not started): another `ShadowFlagger` arm. Needs a runtime (ONNX 
 1 GB of VRAM beside the 4B, the 322M multilingual checkpoint fine-tuned for the reviewer
 question (it is near random zero-shot), and training data: synthetic `ReviewRequest`s labelled
 by the large model on fatcat; the corpus must grow roughly tenfold before any promotion.
+
+## agentrows (2026-10-09): the agent rows for Settings
+
+- docket has no settings bus: settings are a file that intentd watches. So the Settings app reads rows with `docket_settings::read_agents(text, &AgentsDir)` and refreshes by running `docket-agent PROGRAM --refresh` (`RefreshRequest::arguments`); it re-reads the rows when that exits, whatever the status (a start that needed signing in exits 2 and is still written down).
+- The record is written in `docket-acp-bin`'s `host()` right after the session opens or fails to open: signed in (models, in use, ways), `SignInNeeded` / `SignInChoose` (needs sign-in, the ways), `ModelNotOffered` (signed in, the models it listed). Any other failure writes nothing. A start without models keeps the models listed before. `--acp-list-models` goes through the same `host()`, so a registry agent's list is recorded too.
+- `docket-agent` now reads `agents.toml` with the agents directory (`agents` under the data directory), so a registry entry starts there; before it only accepted entries with a `command`.
+- `toml_edit` is a new direct dependency (docket-settings): `write_agent_choice` must keep the comments of a file the person also edits by hand. It was already in the lock file.
