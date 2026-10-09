@@ -281,7 +281,7 @@ async fn flow_c_a_reply_to_the_related_sender_is_a_handle_and_still_asks_quoted(
     // The planner asked for the sender (it is the thread's `from`), and the app resolved it.
     assert_eq!(
         world
-            .mail
+            .app
             .performed()
             .iter()
             .filter(|a| *a == "mail.thread.related")
@@ -311,7 +311,7 @@ async fn flow_c_a_reply_to_the_related_sender_is_a_handle_and_still_asks_quoted(
         "{:?}",
         ask.taint
     );
-    assert!(world.mail.messages().is_empty());
+    assert!(world.app.messages().is_empty());
 }
 
 /// SPEC 5(a) steps 7 and 8: a plan card streams, and while the sheet is up the answer shows
