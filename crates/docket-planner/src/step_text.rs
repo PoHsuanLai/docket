@@ -575,11 +575,11 @@ mod tests {
             (ReadFault::Task, "classify, extract, summarise, compare"),
             (
                 ReadFault::Want,
-                "{\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}",
+                "{\"kind\": \"choice\", \"v\": [\"yes\", \"no\"]}",
             ),
             (
-                ReadFault::WantOption("Lisbon receipts?!".to_owned()),
-                "option \"Lisbon receipts?!\" is not an id and has no id to read it as: use lowercase letters, digits and _, such as \"lisbon_receipts\"",
+                ReadFault::WantOption("Option A?!".to_owned()),
+                "option \"Option A?!\" is not an id and has no id to read it as: use lowercase letters, digits and _, such as \"option_a\"",
             ),
             (
                 ReadFault::WantClash(docket_core::ChoiceId::parse("a_b").expect("id")),

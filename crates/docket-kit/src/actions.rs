@@ -41,7 +41,7 @@ impl Actions {
         }
     }
 
-    /// Only the actions of `app` (its manifest name, such as `org.quire.Mail`).
+    /// Only the actions of `app` (its manifest name, such as `org.quire.Notes`).
     pub fn app(self, app: &str) -> Self {
         let tools: Vec<_> = self
             .tools
@@ -53,7 +53,7 @@ impl Actions {
         self.then(tools, miss)
     }
 
-    /// Only the actions with these names (such as `mail.thread.archive`). A name that is not in
+    /// Only the actions with these names (such as `notes.note.archive`). A name that is not in
     /// the set is a fault of the build, not a silent omission.
     pub fn named(self, names: &[&str]) -> Self {
         let tools = self

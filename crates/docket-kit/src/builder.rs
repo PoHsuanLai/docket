@@ -31,13 +31,13 @@ use porter_core::Tier;
 /// #     asker: Asker,
 /// # ) -> Result<(), Box<dyn std::error::Error>> {
 /// let agent = Agent::builder(infer, intents)
-///     .role("You review outgoing mail for anything the person did not mean to say.")
-///     .actions(Actions::from(&catalogue).app("org.quire.Mail").reads_only())
+///     .role("You review outgoing changes for anything the person did not mean to make.")
+///     .actions(Actions::from(&catalogue).app("org.quire.Notes").reads_only())
 ///     .memory(Memory::none().recall(RecallScope::AskedSpace, TrustFilter::TrustedOnly))
 ///     .tier(Tier::Balanced)
 ///     .limits(Limits { steps: Count(6) })
 ///     .build()?;
-/// let run = agent.ask(&asker, "Review the draft to Accounting.").await?;
+/// let run = agent.ask(&asker, "Review the draft I just made.").await?;
 /// println!("{:?}: {} steps", run.ended, run.steps.len());
 /// # Ok(()) }
 /// ```

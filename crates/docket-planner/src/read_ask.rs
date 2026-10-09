@@ -45,8 +45,8 @@ pub(crate) fn read_fault_text(fault: &ReadFault) -> String {
     match fault {
         ReadFault::Inputs => "\"inputs\" must be a list of handle numbers you were shown, such as [1, 2]".to_owned(),
         ReadFault::Task => "\"task\" must be one of classify, extract, summarise, compare".to_owned(),
-        ReadFault::Want => "\"want\" is not a shape of the answer; give {\"kind\": ..., \"v\": ...} with kind one of choice, integer, date, datetime, text, record, list, such as {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}; choice options are ids of lowercase letters, digits and _".to_owned(),
-        ReadFault::WantOption(option) => format!("option \"{option}\" is not an id and has no id to read it as: use lowercase letters, digits and _, such as \"lisbon_receipts\""),
+        ReadFault::Want => "\"want\" is not a shape of the answer; give {\"kind\": ..., \"v\": ...} with kind one of choice, integer, date, datetime, text, record, list, such as {\"kind\": \"choice\", \"v\": [\"yes\", \"no\"]}; choice options are ids of lowercase letters, digits and _".to_owned(),
+        ReadFault::WantOption(option) => format!("option \"{option}\" is not an id and has no id to read it as: use lowercase letters, digits and _, such as \"option_a\""),
         ReadFault::WantClash(id) => format!("two options of the choice are both \"{id}\": give each option a different id"),
         ReadFault::WantText => "text needs v: {\"max\": N}, with N the most characters (a whole number, 1 or more), such as {\"kind\": \"text\", \"v\": {\"max\": 500}}; leave v out for the default".to_owned(),
         ReadFault::NotHeld => "an input is not a handle you were shown; name only the #n handles listed".to_owned(),

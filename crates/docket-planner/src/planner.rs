@@ -118,7 +118,7 @@ fn meta_tools() -> Vec<ToolDecl> {
         meta_tool(TOOL_ASK, "Ask the person a question and wait for the answer.", &ask),
         meta_tool(
             TOOL_READ,
-            "Have the reader answer a question about handles you cannot read. \"want\" is the shape of the answer, as {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]} (kinds: choice, integer, date, datetime, text, record, list); it is not a JSON Schema. A choice, integer, date or datetime answer is returned to you to read; an answer in words (text, or a record or list holding text) is returned as a handle you cannot read, so use it only as an argument.",
+            "Have the reader answer a question about handles you cannot read. \"want\" is the shape of the answer, as {\"kind\": \"choice\", \"v\": [\"yes\", \"no\"]} (kinds: choice, integer, date, datetime, text, record, list); it is not a JSON Schema. A choice, integer, date or datetime answer is returned to you to read; an answer in words (text, or a record or list holding text) is returned as a handle you cannot read, so use it only as an argument.",
             &read,
         ),
         meta_tool(TOOL_FINISH, "The task is done.", &finish),

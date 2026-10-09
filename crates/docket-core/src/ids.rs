@@ -260,10 +260,10 @@ mod tests {
     #[test]
     fn free_text_is_slugged_to_the_one_id_it_names() {
         let cases = [
-            ("Lisbon receipts", Some("lisbon_receipts")),
-            ("lisbon_receipts", Some("lisbon_receipts")),
-            ("  Not -- Lisbon!  ", Some("not_lisbon")),
-            ("#1 has Lisbon receipts", Some("1_has_lisbon_receipts")),
+            ("Option A", Some("option_a")),
+            ("option_a", Some("option_a")),
+            ("  Not -- A!  ", Some("not_a")),
+            ("#1 has Option A", Some("1_has_option_a")),
             ("forward", Some("forward")),
             ("???", None),
             ("", None),

@@ -1,5 +1,5 @@
 //! The `want` of a `quire_read`: the schema the model is shown, and the options of a `choice`
-//! read as ids. A model that writes an option as words ("Lisbon receipts") has said what it
+//! read as ids. A model that writes an option as words ("Option A") has said what it
 //! meant, so the words become the id they name; when they name none, or two options name the
 //! same one, it is told which option and what an option looks like.
 
@@ -21,7 +21,7 @@ const QUOTED: usize = 60;
 pub(crate) fn want_schema() -> Json {
     serde_json::json!({
         "type": "object",
-        "description": "The shape of the answer, as {\"kind\": ..., \"v\": ...}. Kinds: choice (v: list of option ids, each lowercase letters, digits and _, such as \"lisbon_receipts\"), integer (v: {min, max}), date, datetime, text (v: {max}; v may be left out for the default of 2000 characters), record (v: list of [name, shape]), list (v: {of: shape, max}). Example: {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}. To decide something, ask for choice, integer, date or datetime: text, and a record or list holding text, comes back as a handle you cannot read.",
+        "description": "The shape of the answer, as {\"kind\": ..., \"v\": ...}. Kinds: choice (v: list of option ids, each lowercase letters, digits and _, such as \"option_a\"), integer (v: {min, max}), date, datetime, text (v: {max}; v may be left out for the default of 2000 characters), record (v: list of [name, shape]), list (v: {of: shape, max}). Example: {\"kind\": \"choice\", \"v\": [\"yes\", \"no\"]}. To decide something, ask for choice, integer, date or datetime: text, and a record or list holding text, comes back as a handle you cannot read.",
         "properties": {
             "kind": { "enum": ["choice", "integer", "date", "datetime", "text", "record", "list"] },
             "v": {
@@ -124,30 +124,30 @@ mod tests {
 
     #[test]
     fn options_written_as_words_become_the_ids_they_name() {
-        let got = ids(json!({ "kind": "choice", "v": ["Lisbon receipts", "skip"] }));
+        let got = ids(json!({ "kind": "choice", "v": ["Option A", "skip"] }));
         assert_eq!(
             got,
-            Ok(json!({ "kind": "choice", "v": ["lisbon_receipts", "skip"] }))
+            Ok(json!({ "kind": "choice", "v": ["option_a", "skip"] }))
         );
     }
 
     #[test]
     fn a_choice_inside_a_record_or_a_list_is_read_the_same_way() {
         let got = ids(json!({ "kind": "record", "v": [
-            ["kind", { "kind": "choice", "v": ["Not Lisbon"] }],
+            ["kind", { "kind": "choice", "v": ["Not A"] }],
             ["rest", { "kind": "list", "v": { "of": { "kind": "choice", "v": ["A b"] }, "max": 3 } }],
         ] }))
         .expect("ids");
-        assert_eq!(got["v"][0][1]["v"], json!(["not_lisbon"]));
+        assert_eq!(got["v"][0][1]["v"], json!(["not_a"]));
         assert_eq!(got["v"][1][1]["v"]["of"]["v"], json!(["a_b"]));
     }
 
     #[test]
     fn two_options_that_name_one_id_are_refused() {
         let got = ids(
-            json!({ "kind": "choice", "v": ["Lisbon receipts", "lisbon-receipts!", "lisbon_receipts"] }),
+            json!({ "kind": "choice", "v": ["Option A", "option-a!", "option_a"] }),
         );
-        let clash = ChoiceId::parse("lisbon_receipts").expect("id");
+        let clash = ChoiceId::parse("option_a").expect("id");
         assert_eq!(got, Err(ReadFault::WantClash(clash)));
     }
 

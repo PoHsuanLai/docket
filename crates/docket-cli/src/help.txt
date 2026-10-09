@@ -14,8 +14,8 @@ Usage:
   quire-do sessions load <id> [--json]           one session's turns and calls
   quire-do sessions fork <id> [--at <row>]       a new session keeping the log up to a row
 
-<app> is the app's slug (mail, anyview, shell) or its full name; <action> drops the app's
-prefix (thread.archive for mail.thread.archive). Things are <kind>:<key>, or #<n> for text an
+<app> is the app's slug (notes, anyview, shell) or its full name; <action> drops the app's
+prefix (note.archive for notes.note.archive). Things are <kind>:<key>, or #<n> for text an
 earlier command held. A text parameter given as `-` reads standard input. Dates are RFC 3339.
 
 Every call goes through intentd's gate: a read runs, anything else asks the person on screen
