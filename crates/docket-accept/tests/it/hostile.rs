@@ -15,30 +15,96 @@ fn eval_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../eval")
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn every_planner_case_ends_safely_on_its_cassette() {
+/// Every planner case id the corpus ends safely on: one test per case, so the cases run in
+/// parallel. `every_planner_case_has_its_test` fails if a case file has no row here.
+macro_rules! planner_cases {
+    ($($test:ident => $id:literal,)*) => {
+        const PLANNER_CASES: &[&str] = &[$($id),*];
+        $(
+            #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+            async fn $test() {
+                planner_case_ends_safely_on_its_cassette($id).await;
+            }
+        )*
+    };
+}
+
+planner_cases! {
+    arguments_not_json => "arguments-not-json",
+    ask_question_too_long => "ask-question-too-long",
+    ask_question_with_a_bidi_override => "ask-question-with-a-bidi-override",
+    ask_seven_choices => "ask-seven-choices",
+    bidi_and_zero_width_in_words => "bidi-and-zero-width-in-words",
+    call_in_text_after_a_real_call => "call-in-text-after-a-real-call",
+    claims_the_person_approved => "claims-the-person-approved",
+    cut_by_the_length_limit_mid_call => "cut-by-the-length-limit-mid-call",
+    empty_reply => "empty-reply",
+    extra_argument => "extra-argument",
+    hermes_call_in_text => "hermes-call-in-text",
+    homoglyph_tool_name => "homoglyph-tool-name",
+    loop_forward_forty_times => "loop-forward-forty-times",
+    loop_same_search_forty_times => "loop-same-search-forty-times",
+    made_up_tool => "made-up-tool",
+    missing_required_argument => "missing-required-argument",
+    obfuscated_call_in_text => "obfuscated-call-in-text",
+    oscillate_two_empty_searches => "oscillate-two-empty-searches",
+    oscillate_two_searches_forty_times => "oscillate-two-searches-forty-times",
+    outbound_outside_the_task_policy => "outbound-outside-the-task-policy",
+    parallel_calls_sixty => "parallel-calls-sixty",
+    qwen_xml_call_in_text => "qwen-xml-call-in-text",
+    read_of_handles_never_minted => "read-of-handles-never-minted",
+    repeat_empty_contact_search => "repeat-empty-contact-search",
+    repeat_empty_search => "repeat-empty-search",
+    repeat_invented_handle => "repeat-invented-handle",
+    stream_cut_mid_call => "stream-cut-mid-call",
+    unminted_handle => "unminted-handle",
+    very_large_reply => "very-large-reply",
+    whitespace_only_reply => "whitespace-only-reply",
+    wrong_type_argument => "wrong-type-argument",
+}
+
+async fn planner_case_ends_safely_on_its_cassette(stem: &str) {
+    let id = format!("hostile-planner-{stem}");
+    let case = load_planner_cases(&eval_root().join("hostile-model/planner"))
+        .expect("cases")
+        .into_iter()
+        .find(|case| case.id == id)
+        .unwrap_or_else(|| panic!("no planner case {id}"));
+    let model = ModelSource::Scripted(case.cassette.clone());
+    let report = run_planner_case(
+        &binaries(),
+        &case,
+        &model,
+        (None, None),
+        None,
+        Duration::from_secs(120),
+    )
+    .await;
+    assert!(
+        report.failures.is_empty(),
+        "{}: {:?}\n{}\n{}",
+        report.id,
+        report.failures,
+        report.transcript,
+        report.logs
+    );
+}
+
+#[test]
+fn every_planner_case_has_its_test() {
     let cases = load_planner_cases(&eval_root().join("hostile-model/planner")).expect("cases");
     assert!(cases.len() >= 25);
-    let mut broken = Vec::new();
-    for case in &cases {
-        let model = ModelSource::Scripted(case.cassette.clone());
-        let report = run_planner_case(
-            &binaries(),
-            case,
-            &model,
-            (None, None),
-            None,
-            Duration::from_secs(120),
-        )
-        .await;
-        if !report.failures.is_empty() {
-            broken.push(format!(
-                "{}: {:?}\n{}\n{}",
-                report.id, report.failures, report.transcript, report.logs
-            ));
-        }
-    }
-    assert!(broken.is_empty(), "{}", broken.join("\n----\n"));
+    let mut ids: Vec<String> = cases.into_iter().map(|case| case.id).collect();
+    let mut tested: Vec<String> = PLANNER_CASES
+        .iter()
+        .map(|stem| format!("hostile-planner-{stem}"))
+        .collect();
+    ids.sort();
+    tested.sort();
+    assert_eq!(
+        ids, tested,
+        "a planner case has no test row above, or a row has no case"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

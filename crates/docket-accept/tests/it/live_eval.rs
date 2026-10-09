@@ -197,34 +197,70 @@ async fn every_regression_cassette_replays_and_its_case_holds() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn the_flows_pass_on_their_cassettes_judged_as_a_live_model_is() {
-    for flow in Flow::ALL {
-        let model = ModelSource::Scripted(flow.cassette().to_owned());
-        let report = run_flow(
-            &binaries(),
-            flow,
-            &model,
-            None,
-            None,
-            None,
-            Duration::from_secs(120),
-        )
-        .await;
-        assert!(
-            report.failures.is_empty(),
-            "{}: {:?}\n{}\n{}",
-            flow.slug(),
-            report.failures,
-            report.transcript,
-            report.logs
-        );
-        assert!(report.transcript.contains("PASS"), "{}", flow.slug());
-        assert!(
-            report.transcript.contains("model exchanges"),
-            "the tap saw the daemons"
-        );
-    }
+/// One test per flow, so the flows run in parallel. `every_flow_has_its_test` fails if a flow
+/// has no row here.
+macro_rules! flow_tests {
+    ($($test:ident => $slug:literal,)*) => {
+        const FLOW_SLUGS: &[&str] = &[$($slug),*];
+        $(
+            #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+            async fn $test() {
+                the_flow_passes_on_its_cassette_judged_as_a_live_model_is($slug).await;
+            }
+        )*
+    };
+}
+
+flow_tests! {
+    flow_a => "flow-a",
+    flow_a_refused => "flow-a-refused",
+    first_use => "first-use",
+    flow_c => "flow-c",
+    notes_search_act => "notes-search-act",
+    notes_search_act_refused => "notes-search-act-refused",
+    notes_first_use => "notes-first-use",
+    notes_inject_summarise => "notes-inject-summarise",
+    files_search_act => "files-search-act",
+    files_search_act_refused => "files-search-act-refused",
+    files_first_use => "files-first-use",
+    files_inject_summarise => "files-inject-summarise",
+}
+
+async fn the_flow_passes_on_its_cassette_judged_as_a_live_model_is(slug: &str) {
+    let flow = Flow::parse(slug).unwrap_or_else(|| panic!("no flow {slug}"));
+    let model = ModelSource::Scripted(flow.cassette().to_owned());
+    let report = run_flow(
+        &binaries(),
+        flow,
+        &model,
+        None,
+        None,
+        None,
+        Duration::from_secs(120),
+    )
+    .await;
+    assert!(
+        report.failures.is_empty(),
+        "{}: {:?}\n{}\n{}",
+        flow.slug(),
+        report.failures,
+        report.transcript,
+        report.logs
+    );
+    assert!(report.transcript.contains("PASS"), "{}", flow.slug());
+    assert!(
+        report.transcript.contains("model exchanges"),
+        "the tap saw the daemons"
+    );
+}
+
+#[test]
+fn every_flow_has_its_test() {
+    let all: Vec<&str> = Flow::ALL.iter().map(|flow| flow.slug()).collect();
+    assert_eq!(
+        all, FLOW_SLUGS,
+        "a flow has no test row above, or a row has no flow"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
