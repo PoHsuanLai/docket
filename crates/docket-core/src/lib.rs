@@ -10,6 +10,7 @@
 
 mod agent_app;
 mod args;
+#[cfg(feature = "atomic-file")]
 mod atomic_file;
 mod audit;
 mod budget;
@@ -64,6 +65,7 @@ pub use agent_app::{
 };
 pub use agent_app::{action as acp_agent_action, app as acp_agent_app};
 pub use args::{ArgsFault, TARGET_KEY, TargetFault, Why, args_from_json, target_from_json};
+#[cfg(feature = "atomic-file")]
 pub use atomic_file::{read_optional, write_atomic};
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};
 pub use budget::{

@@ -4,6 +4,7 @@
 //! Reading is a pure function of text; only [`Locator::read`] touches the disk, and the live
 //! watch is the daemon's (intentd), so this crate reaches no runtime and no watcher.
 
+#[cfg(feature = "agents")]
 mod agents;
 mod expose;
 mod keys;
@@ -15,10 +16,19 @@ mod tests;
 
 use docket_core::AgentConfig;
 
-pub use agents::*;
+#[cfg(feature = "agents")]
+pub use agents::{
+    AgentChoice, AgentRow, Agents, Availability, ChoiceFault, Install, ModelState, Offers, Pick,
+    REFRESH_PROGRAM, RefreshRequest, SignInState, Source, edit_agent_choice, read_agents,
+    write_agent_choice,
+};
 pub use expose::{AcpAgents, AcpExpose, McpExpose};
 pub use locate::Locator;
-pub use places::*;
+pub use places::{
+    CloudAccount, CloudAllowed, Floor, Known, KnownPlace, ModelChoice, OwnComputer, PLACES_PATH,
+    Place, PlaceKind, PlaceName, PlaceSource, Places, PlacesLoaded, Routed, Toggle,
+    confirm_turn_on, kind_label, no_place_says, read_places, route, write_places,
+};
 pub use read::{Fallback, Loaded, Why, read};
 
 /// The schema docket ships for its settings (design/22 section 9.2).

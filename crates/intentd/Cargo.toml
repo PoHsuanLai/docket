@@ -25,7 +25,7 @@ test-proc-root = []
 
 [dependencies]
 porter-dbus = { workspace = true }
-docket-core = { workspace = true }
+docket-core = { workspace = true, features = ["atomic-file"] }
 docket-router = { workspace = true }
 docket-skills = { workspace = true }
 docket-settings = { workspace = true }

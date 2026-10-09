@@ -18,6 +18,11 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
+[features]
+# `write_atomic` and `read_optional` (std::fs): the one durable way to replace a file. Off, this is a
+# types crate that touches no disk; the crates that keep files turn it on.
+atomic-file = []
+
 [lints]
 workspace = true
 

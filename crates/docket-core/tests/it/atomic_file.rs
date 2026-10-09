@@ -1,11 +1,12 @@
 //! The durable file helpers: a write replaces the file whole or not at all, and a missing file
 //! is told apart from an unreadable one. Every file is in a scratch directory.
 
-use docket_core::{
-    AbsPath, PathFault, StandingFileFault, decode_standing, read_optional, write_atomic,
-};
+use docket_core::{AbsPath, PathFault, StandingFileFault, decode_standing};
+#[cfg(feature = "atomic-file")]
+use docket_core::{read_optional, write_atomic};
 use std::path::Path;
 
+#[cfg(feature = "atomic-file")]
 #[test]
 fn a_write_creates_the_directory_and_replaces_the_file_whole() {
     let dir = tempfile::tempdir().expect("scratch");
@@ -16,6 +17,7 @@ fn a_write_creates_the_directory_and_replaces_the_file_whole() {
     assert!(!path.with_file_name("grants.json.tmp").exists());
 }
 
+#[cfg(feature = "atomic-file")]
 #[test]
 fn a_failed_write_keeps_the_old_content_and_leaves_no_temporary() {
     let dir = tempfile::tempdir().expect("scratch");
@@ -35,11 +37,13 @@ fn a_failed_write_keeps_the_old_content_and_leaves_no_temporary() {
     assert!(!dir.path().join("target.tmp").exists());
 }
 
+#[cfg(feature = "atomic-file")]
 #[test]
 fn a_path_without_a_file_name_is_refused() {
     assert!(write_atomic(Path::new("/"), b"x").is_err());
 }
 
+#[cfg(feature = "atomic-file")]
 #[test]
 fn a_missing_file_is_none_and_an_unreadable_one_is_an_error() {
     let dir = tempfile::tempdir().expect("scratch");

@@ -80,7 +80,9 @@ docket-fake    = { path = "crates/docket-fake" }
 docket-testbus = { path = "crates/docket-testbus" }
 docket-eval    = { path = "crates/docket-eval" }
 docket-cli     = { path = "crates/docket-cli" }
-docket-settings = { path = "crates/docket-settings" }
+# The `agents` feature (the Settings app's agents.toml rows, which read the registry through
+# docket-agents) is off for consumers of the `agent.*` keys; docket-accept turns it on.
+docket-settings = { path = "crates/docket-settings", default-features = false }
 notify = "8.2"
 docket-ds      = { path = "crates/docket-ds" }
 voice-wire     = { path = "crates/voice-wire" }

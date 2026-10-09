@@ -61,7 +61,7 @@ docket-inapp = { workspace = true }
 docket-launch = { workspace = true }
 bulkhead = { workspace = true }
 docket-session = { workspace = true }
-docket-settings = { workspace = true }
+docket-settings = { workspace = true, features = ["agents"] }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }
 docket-testbus = { workspace = true }
