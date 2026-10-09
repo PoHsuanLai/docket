@@ -144,9 +144,7 @@ mod tests {
 
     #[test]
     fn two_options_that_name_one_id_are_refused() {
-        let got = ids(
-            json!({ "kind": "choice", "v": ["Option A", "option-a!", "option_a"] }),
-        );
+        let got = ids(json!({ "kind": "choice", "v": ["Option A", "option-a!", "option_a"] }));
         let clash = ChoiceId::parse("option_a").expect("id");
         assert_eq!(got, Err(ReadFault::WantClash(clash)));
     }
