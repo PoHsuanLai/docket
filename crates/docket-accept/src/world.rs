@@ -290,6 +290,22 @@ pub fn place(root: &Path, pid: u32, cgroup: Cgroup<'_>) {
     }
 }
 
+/// The pid the fake proc root names as the main process of service unit `name`, if any.
+pub fn unit_main(root: &Path, name: &str) -> Option<String> {
+    std::fs::read_to_string(root.join(format!("proc/units/{name}.service"))).ok()
+}
+
+/// Puts back the main process of service unit `name` that [`unit_main`] read (nothing: removes
+/// the row). A process placed in a unit by [`place`] takes the unit's main pid; this gives it
+/// back to the daemon that really is the unit.
+pub fn restore_unit(root: &Path, name: &str, main: Option<String>) {
+    let row = root.join(format!("proc/units/{name}.service"));
+    match main {
+        Some(pid) => write(&row, &pid),
+        None => drop(std::fs::remove_file(row)),
+    }
+}
+
 const CALLERS: &str = "[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
 
 /// inferd's configuration. A cassette: the replay engine `scripted` playing the scratch cassette

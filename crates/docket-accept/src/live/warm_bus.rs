@@ -2,7 +2,7 @@
 //! intentd unit (the policy writer's identity, which inferd serves every tier of a run to).
 
 use crate::live::warm::{POLL, Prepare, WarmFault, plan, warm_all};
-use crate::world::{Cgroup, ModelSource, World, place};
+use crate::world::{Cgroup, ModelSource, World, place, restore_unit, unit_main};
 use porter_client::{DbusTransport, OpenOptions, Transport};
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
@@ -72,6 +72,20 @@ pub async fn warm_up(
         .map(drop)
 }
 
+/// Runs `work` with the harness process standing in as the intentd unit, then puts both back:
+/// the harness in the shell's scope, and the unit's main pid with the daemon that really is
+/// intentd (a service caller is known by its unit's main pid, so leaving the harness there would
+/// make memoryd refuse every record of the real intentd).
+pub async fn as_intentd<T>(world: &World, work: impl std::future::Future<Output = T>) -> T {
+    let (root, pid) = (world.dir.path(), std::process::id());
+    let daemon = unit_main(root, "intentd");
+    place(root, pid, Cgroup::Unit("intentd"));
+    let done = work.await;
+    place(root, pid, Cgroup::Scope("sill-shell"));
+    restore_unit(root, "intentd", daemon);
+    done
+}
+
 /// Warms a smoke world's models. The harness process stands in for sill there; for the warm-up
 /// it is placed as intentd (the identity inferd serves a run's models to) and put back after.
 pub async fn warm_world(
@@ -82,9 +96,6 @@ pub async fn warm_world(
     if matches!(source, ModelSource::Scripted(_)) {
         return Ok(());
     }
-    let (root, pid) = (world.dir.path(), std::process::id());
-    place(root, pid, Cgroup::Unit("intentd"));
-    let warmed = warm_up(source, world.connect().await, patience).await;
-    place(root, pid, Cgroup::Scope("sill-shell"));
-    warmed
+    let connection = world.connect().await;
+    as_intentd(world, warm_up(source, connection, patience)).await
 }

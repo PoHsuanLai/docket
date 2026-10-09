@@ -11,3 +11,4 @@ mod live_pure;
 mod live_warm;
 mod support;
 mod terminal;
+mod warm_identity;
