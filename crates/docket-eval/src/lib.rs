@@ -15,6 +15,8 @@ mod model_script;
 mod planner_case;
 mod report;
 mod runner;
+mod shadow;
+mod shadow_render;
 mod skills;
 mod steps;
 mod trace;
@@ -38,6 +40,9 @@ pub use report::{Metrics, Rate95, RunNote, RunReport, StageLatency, wilson};
 pub use runner::{
     CaseResult, Harness, Judgement, PolicyMode, Rig, StepEnding, judge, maximal_policy, run_case,
     run_case_traced,
+};
+pub use shadow::{
+    Label, ShadowCase, ShadowReport, THRESHOLDS, auc, false_negatives, false_positives,
 };
 pub use skills::check_skills;
 pub use trace::{

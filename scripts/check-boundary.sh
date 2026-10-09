@@ -170,7 +170,7 @@ EDGES=(
   "docket-dbus: docket-core porter-client porter-core porter-dbus porter-infer prov"
   "docket-client: docket-core docket-dbus docket-router prov"
   "docket-fake: action-review almanac-core docket-client docket-core docket-router docket-session policy-point porter-core prov"
-  "docket-eval: docket-core docket-fake docket-skills docket-router porter-core prov"
+  "docket-eval: action-review docket-core docket-fake docket-skills docket-router porter-core prov"
   "docket-testbus: docket-dbus"
   "actions-tools: docket-core porter-core prov"
   "actions-mcp: actions-tools docket-client docket-core docket-dbus docket-settings porter-core prov"

@@ -4,7 +4,7 @@
 //! [`AgentConfig`].
 
 use crate::budget::Budget;
-use crate::review::Strictness;
+use crate::review::{ShadowMode, Strictness};
 use crate::units::{Depth, Millis, Seconds};
 use porter_core::{Count, MicroUsd, Tokens};
 use serde::{Deserialize, Serialize};
@@ -92,6 +92,9 @@ pub struct AgentConfig {
     pub breaker: BreakerLimits,
     /// `agent.review.*`.
     pub review: ReviewTimeouts,
+    /// `agent.review.shadow`: a second scorer recorded beside the quick judge (off).
+    #[serde(default)]
+    pub shadow: ShadowMode,
     /// `companion.budget.*`.
     pub assembler: AssemblerBudget,
     /// `companion.idle_s` and `companion.side_close_s`.
@@ -130,6 +133,7 @@ impl Default for AgentConfig {
                 deliberate: Millis(3000),
                 second: Millis(3000),
             },
+            shadow: ShadowMode::Off,
             assembler: AssemblerBudget {
                 rules: Tokens(2500),
                 profile: Tokens(1200),
@@ -199,6 +203,10 @@ pub const SETTING_ROWS: &[SettingRow] = &[
     n("agent.review.quick_ms", 300),
     n("agent.review.deliberate_ms", 3000),
     n("agent.review.second_ms", 3000),
+    SettingRow {
+        key: "agent.review.shadow",
+        default: SettingValue::Word("off"),
+    },
     n("companion.budget.rules", 2500),
     n("companion.budget.profile", 1200),
     n("companion.budget.roster", 400),
@@ -242,6 +250,10 @@ impl AgentConfig {
             "agent.review.quick_ms" => num(i64::from(self.review.quick.0)),
             "agent.review.deliberate_ms" => num(i64::from(self.review.deliberate.0)),
             "agent.review.second_ms" => num(i64::from(self.review.second.0)),
+            "agent.review.shadow" => Some(SettingValue::Word(match self.shadow {
+                ShadowMode::Off => "off",
+                ShadowMode::Record => "on",
+            })),
             "companion.budget.rules" => num(t(self.assembler.rules)),
             "companion.budget.profile" => num(t(self.assembler.profile)),
             "companion.budget.roster" => num(t(self.assembler.roster)),

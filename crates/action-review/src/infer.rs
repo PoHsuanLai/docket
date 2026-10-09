@@ -76,9 +76,17 @@ fn record_schema() -> String {
     .to_string()
 }
 
+/// The Quick judge's option that means "ask".
+pub(crate) const FLAG: &str = "flag";
+
+/// The Quick judge's declared options, in the order it is shown them.
+pub(crate) fn quick_options() -> Vec<String> {
+    vec!["pass".to_owned(), FLAG.to_owned()]
+}
+
 fn shape(stage: Stage) -> ReplyShape {
     match stage {
-        Stage::Quick => ReplyShape::Choice(vec!["pass".to_owned(), "flag".to_owned()]),
+        Stage::Quick => ReplyShape::Choice(quick_options()),
         Stage::Deliberate | Stage::SecondOpinion => ReplyShape::Json(record_schema()),
     }
 }

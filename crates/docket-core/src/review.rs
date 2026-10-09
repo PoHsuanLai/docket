@@ -115,6 +115,20 @@ pub enum Stage {
     SecondOpinion,
 }
 
+/// Whether a second scorer is run beside the quick judge to be compared with it. It never
+/// changes what the quick judge decides; it only keeps a record (`agent.review.shadow`).
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ShadowMode {
+    /// Not run. The default.
+    #[default]
+    Off,
+    /// Run beside the quick judge and record how it would have judged.
+    Record,
+}
+
 /// How much is at stake, which sets how many stages run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

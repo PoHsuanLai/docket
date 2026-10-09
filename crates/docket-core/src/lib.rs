@@ -135,7 +135,7 @@ pub use reader::{
 };
 pub use review::{
     AskReason, BreakerTrip, DenyCode, Impact, PolicyId, ReasonCode, ReasonText, ReviewError,
-    ReviewMark, Ruling, Stage, Strictness, VerdictKind,
+    ReviewMark, Ruling, ShadowMode, Stage, Strictness, VerdictKind,
 };
 pub use roster::{
     EpisodeLine, LeadText, PrimerText, ProfileLine, RecalledLine, RollupLine, Roster, RosterDetail,

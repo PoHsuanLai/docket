@@ -12,11 +12,11 @@ use docket_accept::live::cli::{Agent, Command, CorpusArgs, SmokeArgs, UsageError
 use docket_accept::live::flows::{Flow, Kind, run_flow};
 use docket_accept::live::hostile::run_planner_case;
 use docket_accept::live::{
-    CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_live,
+    CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_shadowed,
 };
 use docket_accept::live::{catalog, regress};
 use docket_accept::world::ModelSource;
-use docket_core::Millis;
+use docket_core::{Millis, ShadowMode};
 use docket_eval::{Case, Corpus, PlannerCase, RunNote, RunReport, load_all, load_planner_cases};
 use std::process::ExitCode;
 use std::time::Duration;
@@ -158,9 +158,14 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
             for pair in regress::load(dir, &all).map_err(|e| e.to_string())? {
                 options.cassette = Some(pair.cassette.clone());
                 options.out = args.out.join(&pair.case.id.0);
-                let ran = run_corpus_live(&binaries, std::slice::from_ref(&pair.case), &options)
-                    .await
-                    .map_err(|e| e.to_string())?;
+                let ran = run_corpus_shadowed(
+                    &binaries,
+                    std::slice::from_ref(&pair.case),
+                    &options,
+                    args.shadow,
+                )
+                .await
+                .map_err(|e| e.to_string())?;
                 misses.extend(ran.note.missed.clone());
                 outcomes.push(ran);
             }
@@ -170,7 +175,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
             if cases.is_empty() {
                 return Err("no case matches --corpus/--case".to_owned());
             }
-            let ran = run_corpus_live(&binaries, &cases, &options)
+            let ran = run_corpus_shadowed(&binaries, &cases, &options, args.shadow)
                 .await
                 .map_err(|e| e.to_string())?;
             misses.extend(ran.note.missed.clone());
@@ -183,7 +188,13 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
     // One section per run: a regression pair is a run of its own.
     let text: String = outcomes
         .iter()
-        .map(|outcome| outcome.report.render(&outcome.note))
+        .map(|outcome| {
+            let shadow = match args.shadow {
+                ShadowMode::Off => String::new(),
+                ShadowMode::Record => outcome.shadow.render(),
+            };
+            outcome.report.render(&outcome.note) + &shadow
+        })
         .collect();
     print!("{text}");
     if let Some(path) = &args.report {

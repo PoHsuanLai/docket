@@ -1194,6 +1194,7 @@ dependencies = [
 name = "docket-eval"
 version = "0.1.0"
 dependencies = [
+ "action-review",
  "docket-core",
  "docket-fake",
  "docket-router",

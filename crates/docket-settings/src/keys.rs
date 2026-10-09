@@ -4,7 +4,7 @@
 
 use crate::AgentSettings;
 use crate::expose::{AcpAgents, AcpExpose, McpExpose};
-use docket_core::{Depth, Millis, Seconds, Strictness};
+use docket_core::{Depth, Millis, Seconds, ShadowMode, Strictness};
 use porter_core::{Count, MicroUsd};
 use std::ops::RangeInclusive;
 
@@ -60,6 +60,7 @@ const STRICTNESS: [Strictness; 3] = [
 ];
 const EXPOSE: [McpExpose; 2] = [McpExpose::Off, McpExpose::On];
 const ACP: [AcpExpose; 2] = [AcpExpose::Off, AcpExpose::On];
+const SHADOW: [ShadowMode; 2] = [ShadowMode::Off, ShadowMode::Record];
 const AGENTS: [AcpAgents; 2] = [AcpAgents::Off, AcpAgents::On];
 
 /// Every key, in the order the schema lists them.
@@ -105,6 +106,13 @@ pub(crate) fn table() -> Vec<Key> {
         num("agent.review.second_ms", 50..=30_000, |s, v| {
             s.agent.review.second = millis(v)
         }),
+        Key {
+            path: "agent.review.shadow",
+            rule: Rule::Word {
+                words: &["off", "on"],
+                set: |s, i| s.agent.shadow = SHADOW[i],
+            },
+        },
         num("agent.budget.calls", 1..=10_000, |s, v| {
             s.agent.budget.calls = count(v)
         }),

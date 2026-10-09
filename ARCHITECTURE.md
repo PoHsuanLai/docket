@@ -85,7 +85,7 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `docket-fake` | `docket-core`, `docket-router`, `docket-session`, `docket-client`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
 | `docket-testbus` | `docket-dbus` |
 | `docket-accept` | `actions-mcp`, `almanac-client`, `almanac-core`, `companion-wire`, `companiond`, `docket-acp`, `docket-acp-bin`, `docket-agents`, `docket-cli`, `docket-client`, `docket-core`, `docket-dbus`, `docket-inapp`, `docket-launch`, `docket-router`, `docket-session`, `docket-settings`, `bulkhead`, `docket-testbus`, `intentd`, `porter-core`, `porter-infer`, `prov`, `readerd` |
-| `docket-eval` | `docket-core`, `docket-skills`, `docket-fake`, `docket-router`, `prov`, `porter-core` |
+| `docket-eval` | `action-review`, `docket-core`, `docket-skills`, `docket-fake`, `docket-router`, `prov`, `porter-core` |
 | `docket-settings` | `docket-core`, `porter-core` |
 | `actions-mcp` | `actions-tools`, `docket-core`, `docket-client`, `docket-dbus`, `docket-settings`, `prov`, `porter-core` (+ `rmcp`) |
 | `intentd` | `docket-core`, `docket-memory`, `docket-session`, `docket-models`, `docket-skills`, `docket-settings`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
@@ -170,7 +170,7 @@ missing" list in `FINDINGS.md` (portable-core).
 | `docket-testbus` | `guard` < `lib` (`PrivateBus`) |
 | `docket-settings` | `expose`, `keys` < `read` < `locate` (`tests`: the schema against the table) |
 | `docket-accept` | `provider`, `confirm` < `world` < `drive` |
-| `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `check` < `ui` (the binary `docket-eval` runs `check`) |
+| `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `shadow`, `check` < `ui` (the binary `docket-eval` runs `check`) |
 | `docket-agents` | `slug`, `platform`, `hash`, `snapshot`, `dirs`, `record`, `fetch`, `run`, `unpack`, `uv` < `install`, `launch` |
 | `docket-launch` | `config`, `accounts`, `names`, `permit`, `env`, `procs`, `fake`, `login` < `spawn` < `supervise`, `dbus` (feature) |
 | `docket-session` | `entry`, `plan` < `codec`, `legacy` < `resume` < `fork`, `export`, `log`, `backend`, `desk` < `fake`, `contract` |

@@ -7,10 +7,10 @@
 use crate::support::*;
 use docket_accept::live::flows::{Flow, run_flow};
 use docket_accept::live::{
-    CorpusOptions, CorpusOutcome, Engine, Timeouts, regress, run_corpus_live,
+    CorpusOptions, CorpusOutcome, Engine, Timeouts, regress, run_corpus_live, run_corpus_shadowed,
 };
 use docket_accept::world::ModelSource;
-use docket_core::{Millis, ModelExchange};
+use docket_core::{Millis, ModelExchange, ShadowMode};
 use docket_eval::{Case, CaseTrace, Corpus, Judgement, cassette_from, load_all};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -256,4 +256,40 @@ async fn the_worlds_inferd_finds_the_copied_catalogue_entries() {
     );
     // The scratch root is where inferd's XDG_DATA_HOME points, so this is the user catalogue.
     assert!(dir.starts_with(world.root().join("data")));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_shadow_flagger_scores_cases_and_changes_no_result() {
+    let cases = load_all(&eval_root()).expect("corpus");
+    let (plain_dir, shadow_dir) = (
+        tempfile::tempdir().expect("scratch"),
+        tempfile::tempdir().expect("scratch"),
+    );
+    let plain = run(&cases, plain_dir.path(), None).await;
+    let shadowed = run_corpus_shadowed(
+        &binaries(),
+        &cases,
+        &options(shadow_dir.path(), None),
+        ShadowMode::Record,
+    )
+    .await
+    .unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(
+        plain.report.per_corpus.len(),
+        shadowed.report.per_corpus.len()
+    );
+    for (corpus, m) in &plain.report.per_corpus {
+        let s = &shadowed.report.per_corpus[corpus];
+        assert_eq!(
+            (m.n, m.fp, m.fn_, m.ask_rate),
+            (s.n, s.fp, s.fn_, s.ask_rate)
+        );
+    }
+    assert_eq!(plain.note.missed, shadowed.note.missed);
+    assert!(plain.shadow.cases.is_empty(), "off by default");
+    assert!(
+        !shadowed.shadow.cases.is_empty(),
+        "some cases reach the quick judge"
+    );
+    assert!(shadowed.shadow.render().contains("### Benign cases"));
 }

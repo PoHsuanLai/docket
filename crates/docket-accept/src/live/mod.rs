@@ -11,12 +11,15 @@ pub mod flows;
 pub mod hostile;
 pub mod inferd_world;
 pub mod regress;
+pub mod shadow_arm;
 pub mod stage;
 pub mod trace_dir;
 pub mod warm;
 pub mod warm_bus;
 
-pub use corpus::{CorpusError, CorpusOptions, CorpusOutcome, Timeouts, run_corpus_live};
+pub use corpus::{
+    CorpusError, CorpusOptions, CorpusOutcome, Timeouts, run_corpus_live, run_corpus_shadowed,
+};
 pub use engine::{Engine, EngineError, Reach, hijacked_judge_cassette, scripted_cassette};
 pub use inferd_world::InferdWorld;
 

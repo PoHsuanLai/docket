@@ -12,6 +12,7 @@ mod labels;
 mod mail;
 mod menu;
 mod parsed;
+mod readout;
 mod router;
 mod scripted;
 mod seams;
@@ -23,6 +24,7 @@ pub use hosted::{BoxFut, HostedApp};
 pub use mail::{FakeMail, MailContact, MailThread, SentMail};
 pub use menu::{FakeMenu, MenuItem, MenuPerform};
 pub use parsed::ParsedReviewer;
+pub use readout::{BrokenReadout, FeatureReadout, FixedReadout};
 pub use router::{
     FILES_MANIFEST, FakeError, MAIL_MANIFEST, MENU_MANIFEST, fake_router, fake_router_on,
     fake_router_over, fake_router_with, files_manifest, install_menu, mail_manifest, menu_manifest,

@@ -6,6 +6,7 @@ use crate::live::acp::spec::{
     CLAUDE_CREDENTIALS_AT, CredentialsSource, RegistryPick, SpecFault, Task, network_of,
 };
 use crate::live::engine::{Engine, EngineError};
+use docket_core::ShadowMode;
 use std::path::PathBuf;
 
 /// Who plays the companion's part in a run.
@@ -61,6 +62,8 @@ pub struct CorpusArgs {
     pub catalog: Option<PathBuf>,
     /// Who plays the companion's part.
     pub agent: Agent,
+    /// Whether to run the shadow flagger beside the quick judge and report it.
+    pub shadow: ShadowMode,
 }
 
 /// `docket-live smoke`.
@@ -148,6 +151,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let mut catalog = None;
     let (mut timeout, mut accountd, mut fnr, mut patience) = (None, None, None, 600_u64);
     let mut agent_word = None;
+    let mut shadow = ShadowMode::Off;
     let mut acp = AcpFlags::default();
     while let Some(flag) = words.0.next() {
         match flag.as_str() {
@@ -167,6 +171,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             "--catalog" => catalog = Some(PathBuf::from(words.value(flag)?)),
             "--accountd" => accountd = Some(PathBuf::from(words.value(flag)?)),
             "--fnr-max-permille" => fnr = Some(number(flag, words.value(flag)?)?),
+            "--shadow" => shadow = ShadowMode::Record,
             "--patience-s" => patience = number(flag, words.value(flag)?)?,
             other => return Err(UsageError::Unknown(other.to_owned())),
         }
@@ -191,6 +196,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             patience_s: patience,
             catalog,
             agent,
+            shadow,
         })),
         "smoke" => Ok(Command::Smoke(SmokeArgs {
             engine,

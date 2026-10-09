@@ -13,6 +13,7 @@ name = "docket-eval"
 path = "src/main.rs"
 
 [dependencies]
+action-review = { workspace = true }
 docket-fake = { workspace = true }
 docket-core = { workspace = true }
 docket-skills = { workspace = true }

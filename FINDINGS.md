@@ -3302,3 +3302,34 @@ harness cannot reach them through `Rig`: `ScriptedWriter` calls, `FakeMemory` an
 - Model routing is not in docket-router (that is the action router); it is porter's `route` plus the `ai.*` keys of inferd's own config. docket had no setting of its own, so the places setting lives in docket-settings (`places/`), table `assistant` in `docket/settings.toml`.
 - Nothing older says yes to a particular computer or account (`ai.local_only` is one switch for every cloud model), so migration leaves every known place Off.
 - Needs porter: a call listing own computers and signed-in cloud accounts (name, provider) and the models each offers, implementing `PlaceSource`; and `route` at inferd honouring the allowed set docket sends. Not built here.
+
+## Shadow Quick flagger (phase 1 of the decision-model trial)
+
+What landed: `action-review`'s `shadow` module. A `ShadowFlagger` scores the same stripped
+`ReviewRequest` the Quick judge reads; `Shadowed` runs it beside the Quick stage and keeps a
+`ShadowNote` (live pass/flag, shadow P(flag)) in a `ShadowSink`. It is off by default
+(`agent.review.shadow`, "Compare quick checks with a second scorer", advanced). The verdict is
+always the live reviewer's, returned the moment it is ready; a slower shadow is noted `Late`.
+Tighten-only by type: a flagger's only vocabulary is `ShadowLean::{WouldPass, WouldFlag}`, which
+has no conversion to a verdict, and the later combined mode `either_flags` can only turn an
+Allow into an Ask. Promotion rule: combined only on a grown corpus (about 75 harmful cases per
+category with no miss for a Wilson upper bound under 5%); replace the LLM Quick stage only when
+the shadow's false-negative rate is no worse in every category. `docket-live corpus --shadow`
+appends a "Shadow flagger" section to the report (P(flag) per case, AUC, FNR with Wilson bounds
+and benign FPR at 12%/30%/50%, flags where the live Quick passed). The scripted engine uses a
+deterministic stand-in readout (`docket-fake::FeatureReadout`); local and cloud runs score
+nothing until porter returns option probabilities.
+
+Porter does not return token log-probabilities: `logprobs` is dropped without a word in
+inferd's OpenAI front, and `ChatReply` carries none. The ask (porter, no edit made here):
+`porter-infer` `ChatControl` gains `scores: Knob<ScoreOptions>`; with `ReplyShape::Choice`, a
+reply gets `scores: Option<OptionScores>`, one `(option, Permille)` per declared option, the
+first-token log-probabilities of the constrained choice renormalised over the options (sum
+1000). inferd passes it to stoker's `TurnRequest`/`Shape::Choice` (vLLM `logprobs` /
+llama.cpp `n_probs`) and back through the Inference1 reply. Then a `Readout` over `InferdModel`
+replaces the stand-in, from the same call the Quick judge already makes.
+
+Phase 2 (Laya, not started): another `ShadowFlagger` arm. Needs a runtime (ONNX or candle), about
+1 GB of VRAM beside the 4B, the 322M multilingual checkpoint fine-tuned for the reviewer
+question (it is near random zero-shot), and training data: synthetic `ReviewRequest`s labelled
+by the large model on fatcat; the corpus must grow roughly tenfold before any promotion.

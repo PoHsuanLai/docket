@@ -13,6 +13,7 @@ mod infer;
 mod parse;
 mod render;
 mod request;
+mod shadow;
 mod verdict;
 
 pub use breaker::{
@@ -26,5 +27,10 @@ pub use parse::parse_verdict;
 pub use render::render;
 pub use request::{
     ArgView, CallEndKind, ProposedAction, ReviewPrompt, ReviewRequest, TypedStep, verdict_shape,
+};
+pub use shadow::{
+    DEFAULT_THRESHOLD, Disabled, LiveCall, OptionFlagger, OptionScores, Readout, ShadowFault,
+    ShadowFlagger, ShadowLean, ShadowLog, ShadowNote, ShadowScore, ShadowSink, Shadowed, Threshold,
+    either_flags,
 };
 pub use verdict::{ReviewReason, ReviewVerdict};

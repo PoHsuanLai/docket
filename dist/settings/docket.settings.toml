@@ -171,6 +171,27 @@ unit = "ms"
 kind = "intelligence"
 
 [[key]]
+path = "agent.review.shadow"
+default = "off"
+label = "Compare quick checks with a second scorer"
+help = "Keeps a private record of how a second scorer would have judged each quick check, so the two can be compared later. It never changes what the assistant does, and nothing in the record leaves this computer."
+section = "Review time"
+exposure = "advanced"
+
+[key.kind]
+kind = "toggle"
+
+[key.kind.v]
+variants = ["off", "on"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+off = "Off"
+on = "On"
+
+[[key]]
 path = "agent.budget.calls"
 default = 200
 label = "Calls per session"
