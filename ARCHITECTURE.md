@@ -294,6 +294,19 @@ that tightens only is a forbid; a user override directory may only forbid.
 
 **Add an action to every face.** Declare it in the app's manifest (recipe above) and implement it in the app's `IntentProvider`. That is all: `quire-do <app> <action>` (`docket-cli`), the MCP tool (`actions-mcp`) and the D-Bus `Run.Perform` are generated from the declaration. An app's menu command or shortcut that is the face of the action names it in `<AppName>.ui.toml`; `scripts/check-intents.sh` fails the app's gate for a menu command with no action that is not listed UI-only.
 
+**Declare a relation.** A planner never reads untrusted content, so when an action needs a thing of
+another kind than the one it holds (the sender of a thread, the owner of a file) the app declares it
+on the kind: `[[entities.relations]]` with `name`, `label`, `to` (a kind), `many` (`one` or `many`)
+and `trust` (`third_party` when somebody else's words decide the answer, else `app_authored`). That
+is all the manifest says: `validate` derives the read action `<kind>.related` (one thing of the kind,
+a required `relation` choice, classes of both kinds, result the things named), the app implements it
+in `Perform` like any action, and the planner reaches it as `quire_related {"of": ..., "relation":
+...}`, offered only while some action in its view resolves a relation. The router checks the answer
+names things of the relation's kind (no more than `many` allows) and joins the relation's `trust`
+and the labels of the handles it was asked from into the label, so an app cannot make a sender
+trusted. A recipient taken from the answer meets the same sink rules as any untrusted recipient.
+Tests: `tests/it/related.rs` in docket-router (over `docket-fake`'s mail and files).
+
 **Add a red-team case.** A TOML file under `eval/<corpus>/`, in the format documented in
 `docket-eval/src/case.rs`: the person's turns, the world, the scripted calls and messages of a
 hijacked or naive planner (each argument says where it came from), and one `Expect`. Every case
