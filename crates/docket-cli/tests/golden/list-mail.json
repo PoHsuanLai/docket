@@ -114,6 +114,28 @@
       "dry_run": "none",
       "reach": "offered",
       "params": []
+    },
+    {
+      "action": "thread.related",
+      "name": "mail.thread.related",
+      "label": "Find related",
+      "effect": "read",
+      "on": {
+        "kind": "one",
+        "v": "mail.thread"
+      },
+      "undo": "not_undoable",
+      "dry_run": "none",
+      "reach": "offered",
+      "params": [
+        {
+          "flag": "--relation",
+          "name": "relation",
+          "type": "choice",
+          "need": "required",
+          "label": "Which related thing"
+        }
+      ]
     }
   ]
 }

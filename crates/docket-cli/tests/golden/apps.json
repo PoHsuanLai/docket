@@ -18,15 +18,16 @@
     {
       "slug": "files",
       "app": "org.quire.Files",
-      "actions": 4,
+      "actions": 5,
       "kinds": [
-        "files.file"
+        "files.file",
+        "files.person"
       ]
     },
     {
       "slug": "mail",
       "app": "org.quire.Mail",
-      "actions": 6,
+      "actions": 7,
       "kinds": [
         "mail.thread",
         "mail.contact"
