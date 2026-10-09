@@ -43,6 +43,7 @@ mod rebuild;
 mod recall;
 mod recording;
 mod registry;
+mod related;
 mod restore;
 mod router;
 mod seams;

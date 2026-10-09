@@ -100,6 +100,17 @@ impl Registry {
                     }
                 }
             }
+            // A relation names a kind as an action does; its derived action carries the fault.
+            for e in &manifest.manifest().entities {
+                for r in e.relations.iter().filter(|r| !known.contains(&r.to)) {
+                    if let Some(action) = docket_core::related_name(&e.kind) {
+                        faults.push(ManifestError::UnknownKind {
+                            action,
+                            kind: r.to.clone(),
+                        });
+                    }
+                }
+            }
         }
         faults
     }

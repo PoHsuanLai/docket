@@ -498,7 +498,8 @@ impl<S: Seams> Router<S> {
                 p.classified.as_ref().map(|c| c.sent.clone()),
                 p.decl.latency,
             )
-            .await;
+            .await
+            .and_then(|outcome| self.related_outcome(p, outcome).map_err(AppFault::Refused));
         run.outcome = answer.as_ref().ok().cloned();
         match answer {
             Err(AppFault::TimedOut) => Next::Event(CallEvent::AppTimedOut),
