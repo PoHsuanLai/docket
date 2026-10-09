@@ -14,6 +14,7 @@ use crate::live::stage::{Asker, asker};
 use crate::live::warm::WarmFault;
 use crate::live::warm_bus::warm_world;
 use crate::provider::{Focus, INJECTION, Message, Sending};
+use crate::things::App;
 use crate::world::{Binaries, Consent, ModelSource, Options, TapMode, World};
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, NeedsYou};
 use docket_core::{
@@ -64,6 +65,11 @@ impl Flow {
     /// The flow named `text`.
     pub fn parse(text: &str) -> Option<Flow> {
         Flow::ALL.into_iter().find(|f| f.slug() == text)
+    }
+
+    /// The app the flow is played on.
+    pub fn app(self) -> App {
+        App::Mail
     }
 
     /// What consent the world starts with.
@@ -549,7 +555,7 @@ pub(crate) fn exchanges_of(world: &World) -> Vec<ModelExchange> {
 }
 
 pub(crate) async fn undo_held(launcher: &Launcher, world: &World) -> UndoCheck {
-    if world.mail.messages().is_empty() {
+    if world.app.messages().is_empty() {
         return UndoCheck::NothingHeld;
     }
     let journal = launcher
@@ -566,7 +572,7 @@ pub(crate) async fn undo_held(launcher: &Launcher, world: &World) -> UndoCheck {
     match launcher.intents.undo(entry.id).await {
         Ok(Ok(_))
             if world
-                .mail
+                .app
                 .messages()
                 .iter()
                 .all(|m| m.state == Sending::Cancelled) =>
@@ -589,6 +595,7 @@ pub(crate) struct Script<'a> {
     pub verdict: Verdict,
     pub by_effect: Option<ByEffect>,
     pub focus: Focus,
+    pub app: App,
     pub prompt: &'a str,
 }
 
@@ -610,6 +617,7 @@ pub(crate) async fn observe(
         accountd_home: cloud.map(|c| c.home.clone()),
         catalog,
         focus: script.focus,
+        app: script.app,
         ..Options::default()
     };
     let world = World::start_model(binaries, script.consent, model, &options).await;
@@ -632,9 +640,9 @@ pub(crate) async fn observe(
     let evidence = Evidence {
         answer: answered,
         sheets: world.sheet.shown(),
-        messages: world.mail.messages(),
-        performed: world.mail.performed(),
-        threads_read: world.mail.threads_read(),
+        messages: world.app.messages(),
+        performed: world.app.performed(),
+        threads_read: world.app.threads_read(),
         exchanges: exchanges_of(&world),
         undo,
     };
@@ -660,6 +668,7 @@ pub async fn run_flow(
         verdict: flow.verdict(),
         by_effect: flow.by_effect(),
         focus: flow.focus(),
+        app: flow.app(),
         prompt: flow.prompt(),
     };
     let played = match observe(

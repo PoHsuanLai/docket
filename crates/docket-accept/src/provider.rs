@@ -80,13 +80,50 @@ struct State {
     read: Vec<String>,
 }
 
-/// What the test reads after the run: every call the app received and every message.
+/// What the test reads after the run: every call the app received and every message it holds.
+/// Every fake app of the acceptance world keeps one.
 #[derive(Debug, Clone, Default)]
-pub struct MailLog(Arc<Mutex<State>>);
+pub struct AppLog(Arc<Mutex<State>>);
 
-impl MailLog {
+impl AppLog {
     fn edit<R>(&self, f: impl FnOnce(&mut State) -> R) -> R {
         f(&mut self.0.lock().unwrap_or_else(PoisonError::into_inner))
+    }
+
+    /// Holds `message` for the undo window and gives the token that takes it back.
+    pub(crate) fn hold(&self, message: Message) -> String {
+        self.edit(|s| {
+            s.messages.push(message);
+            let at = s.messages.len() - 1;
+            let token = format!("undo-{at}");
+            s.tokens.insert(token.clone(), at);
+            token
+        })
+    }
+
+    /// Takes back what `token` holds, once.
+    pub(crate) fn cancel(&self, token: &str) -> Result<(), UndoFault> {
+        self.edit(|s| {
+            let at = s.tokens.remove(token).ok_or(UndoFault::Gone)?;
+            let message = s.messages.get_mut(at).ok_or(UndoFault::Gone)?;
+            match message.state {
+                Sending::Held => {
+                    message.state = Sending::Cancelled;
+                    Ok(())
+                }
+                Sending::Cancelled => Err(UndoFault::Gone),
+            }
+        })
+    }
+
+    /// Notes that `action` was performed.
+    pub(crate) fn performing(&self, action: &str) {
+        self.edit(|s| s.performed.push(action.to_owned()));
+    }
+
+    /// Notes that the thing with `key` was read.
+    pub(crate) fn reading(&self, key: &str) {
+        self.edit(|s| s.read.push(key.to_owned()));
     }
 
     /// The messages, oldest first.
@@ -170,14 +207,14 @@ pub struct AcceptMail {
     manifest: ValidManifest,
     app: AppName,
     space: SpaceId,
-    log: MailLog,
+    log: AppLog,
     focus: Focus,
 }
 
 impl AcceptMail {
     /// A mail app with this manifest working in `space`, and the log the test reads.
-    pub fn new(manifest: ValidManifest, space: SpaceId) -> (Self, MailLog) {
-        let log = MailLog::default();
+    pub fn new(manifest: ValidManifest, space: SpaceId) -> (Self, AppLog) {
+        let log = AppLog::default();
         let app = manifest.manifest().app.clone();
         (
             Self {
@@ -278,13 +315,7 @@ impl AcceptMail {
             state: Sending::Held,
         };
         let said = format!("Held {} for the undo window", inv.action.as_str());
-        let token = self.log.edit(|s| {
-            s.messages.push(message);
-            let at = s.messages.len() - 1;
-            let token = format!("mail-undo-{at}");
-            s.tokens.insert(token.clone(), at);
-            token
-        });
+        let token = self.log.hold(message);
         let token = UndoToken::parse(&token).map_err(|_| AppRefusal::Busy)?;
         Ok(Self::done(&said, None, Undoable::Yes(token)))
     }
@@ -296,8 +327,7 @@ impl IntentProvider for AcceptMail {
     }
 
     async fn perform(&self, inv: Invocation) -> Result<Outcome, AppRefusal> {
-        self.log
-            .edit(|s| s.performed.push(inv.action.as_str().to_owned()));
+        self.log.performing(inv.action.as_str());
         match inv.action.as_str() {
             "mail.thread.search" => {
                 let query = Self::text_arg(&inv, "query")
@@ -336,7 +366,7 @@ impl IntentProvider for AcceptMail {
                     .into_iter()
                     .next()
                     .ok_or(AppRefusal::Unsupported)?;
-                self.log.edit(|s| s.read.push(key.clone()));
+                self.log.reading(&key);
                 let thread = threads()
                     .into_iter()
                     .find(|t| t.key == key)
@@ -397,17 +427,7 @@ impl IntentProvider for AcceptMail {
     }
 
     async fn undo(&self, token: UndoToken, _actor: Actor) -> Result<(), UndoFault> {
-        self.log.edit(|s| {
-            let at = s.tokens.remove(token.as_str()).ok_or(UndoFault::Gone)?;
-            let message = s.messages.get_mut(at).ok_or(UndoFault::Gone)?;
-            match message.state {
-                Sending::Held => {
-                    message.state = Sending::Cancelled;
-                    Ok(())
-                }
-                Sending::Cancelled => Err(UndoFault::Gone),
-            }
-        })
+        self.log.cancel(token.as_str())
     }
 
     async fn search(&self, text: &str) -> Vec<Hit> {
@@ -453,6 +473,8 @@ pub struct QuietWindow {
     pub app: AppName,
     /// What is open in its window.
     pub focus: Focus,
+    /// The window's name.
+    pub window: &'static str,
 }
 
 impl QuietWindow {
@@ -496,7 +518,7 @@ impl ContextSource for QuietWindow {
         ContextSnapshot {
             app: self.app.clone(),
             window: Labelled {
-                value: "Mail".to_owned(),
+                value: self.window.to_owned(),
                 label: Label {
                     integrity: Integrity::Trusted,
                     confidentiality: Confidentiality::Public,
@@ -526,7 +548,7 @@ impl SummonTarget for QuietWindow {
 /// A mail app's search, roughly: every word of the query, without case or a plural `s`, is in
 /// the text. A live model words its query its own way ("Lisbon receipts" for "Lisbon hotel
 /// receipt"), so an exact substring would answer it with nothing.
-fn words_match(query: &str, text: &str) -> bool {
+pub(crate) fn words_match(query: &str, text: &str) -> bool {
     let text = text.to_lowercase();
     let mut words = query.split_whitespace().peekable();
     words.peek().is_some()

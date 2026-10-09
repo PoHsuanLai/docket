@@ -8,7 +8,8 @@
 //! on bus events (a name appearing); the long bounds exist only to turn a hang into a failure.
 
 use crate::confirm::{self, Sheet};
-use crate::provider::{AcceptMail, Focus, MailLog, QuietWindow};
+use crate::provider::{AcceptMail, AppLog, Focus, QuietWindow};
+use crate::things::{AcceptThings, App};
 use docket_core::{ConfirmRequest, ValidManifest};
 use docket_router::parse;
 use docket_testbus::{PrivateBus, Reaped};
@@ -95,8 +96,10 @@ pub struct Options {
     pub catalog: Option<PathBuf>,
     /// Whether the person switched the ACP edge on.
     pub acp: AcpSetting,
-    /// What is open in the mail window, which "this thread" means.
+    /// What is open in the app's window, which "this thread" means.
     pub focus: Focus,
+    /// The app the world serves.
+    pub app: App,
 }
 
 /// Copies the run's catalogue into the scratch root; a missing source is a failed start.
@@ -175,8 +178,8 @@ pub struct World {
     pub sheet: Sheet,
     /// The same, as a stream: one item per sheet shown.
     pub confirms: mpsc::UnboundedReceiver<ConfirmRequest>,
-    /// What the mail provider was asked and sent.
-    pub mail: MailLog,
+    /// What the app was asked and what it holds.
+    pub app: AppLog,
     /// A connection that owns `org.quire.Shell` and `org.quire.Confirm1`: sill.
     pub sill: zbus::Connection,
     _helpers: Vec<zbus::Connection>,
@@ -504,13 +507,13 @@ impl World {
             &inferd_toml(root, model, record.as_deref()),
         );
         write(
-            &root.join("data/quire/intents/org.quire.Mail.toml"),
-            MAIL_MANIFEST,
+            &root.join(format!("data/quire/intents/{}.toml", options.app.name())),
+            options.app.manifest(),
         );
         if consent == Consent::Standing {
             write(
                 &root.join("data/quire/intents/grants.json"),
-                &crate::grants::standing_json("work"),
+                &crate::grants::standing_json("work", options.app),
             );
         }
 
@@ -561,19 +564,32 @@ impl World {
         start("memoryd", &binaries.memoryd, "org.quire.Memory1").await;
         start("intentd", &binaries.intentd, "org.quire.Intents1").await;
 
-        // The mail provider: its own connection, its own name, the manifest's wire.
+        // The app's provider: its own connection, its own name, the manifest's wire.
         let provider_connection = bus.connect().await;
-        let manifest: ValidManifest = parse(MAIL_MANIFEST).expect("the mail manifest");
+        let manifest: ValidManifest = parse(options.app.manifest()).expect("the app's manifest");
         let space = prov::SpaceId::parse("work").expect("space");
-        let (mail, log) = AcceptMail::new(manifest, space);
-        let mail = mail.focused(options.focus);
         let quiet = QuietWindow {
-            app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
+            app: porter_core::AppName::parse(options.app.name()).expect("app"),
             focus: options.focus,
+            window: options.app.window(),
         };
-        docket_client::serve_on(&provider_connection, mail, quiet.clone(), quiet)
-            .await
-            .expect("the mail provider serves");
+        let log = match options.app {
+            App::Mail => {
+                let (mail, log) = AcceptMail::new(manifest, space);
+                let mail = mail.focused(options.focus);
+                docket_client::serve_on(&provider_connection, mail, quiet.clone(), quiet)
+                    .await
+                    .expect("the mail provider serves");
+                log
+            }
+            other => {
+                let (things, log) = AcceptThings::new(other, manifest, space);
+                docket_client::serve_on(&provider_connection, things, quiet.clone(), quiet)
+                    .await
+                    .expect("the app's provider serves");
+                log
+            }
+        };
 
         start("readerd", &binaries.readerd, "org.quire.Reader1").await;
         start("companiond", &binaries.companiond, "org.quire.Companion1").await;
@@ -581,7 +597,7 @@ impl World {
             daemons,
             sheet,
             confirms,
-            mail: log,
+            app: log,
             sill,
             _helpers: vec![provider_connection],
             dir,

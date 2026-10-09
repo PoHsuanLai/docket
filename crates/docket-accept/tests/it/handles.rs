@@ -34,7 +34,7 @@ async fn forwarded_over(cassette: Cassette) {
             &format!("the answer ended {:?}\n{history:#?}", last.phase),
         );
     }
-    let messages = world.mail.messages();
+    let messages = world.app.messages();
     assert_eq!(messages.len(), 1, "{messages:#?}");
     assert_eq!(messages[0].to, "accounting");
     assert_eq!(messages[0].threads, ["lisbon-1", "lisbon-2"]);

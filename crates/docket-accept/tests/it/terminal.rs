@@ -89,7 +89,7 @@ async fn quire_do_ask_leaves_a_confirmation_to_the_shell() {
         .expect("a sheet");
     assert_eq!(sheet.action.as_str(), "Forward", "{sheet:#?}");
     assert!(
-        world.mail.messages().is_empty(),
+        world.app.messages().is_empty(),
         "nothing was sent: quire-do answers nothing"
     );
 }

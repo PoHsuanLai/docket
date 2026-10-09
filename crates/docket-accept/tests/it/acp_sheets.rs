@@ -64,7 +64,7 @@ async fn the_editor_sees_the_sheet_as_a_permission_request_and_its_allow_once_pe
     assert!(offered[0].contains(&"allow_once".to_owned()), "{offered:?}");
     assert_eq!(permissions(&editor), 2);
     assert!(world.sheet.shown().is_empty(), "sill was not asked");
-    assert_eq!(world.mail.messages().len(), 1);
+    assert_eq!(world.app.messages().len(), 1);
     assert!(titles(&editor.updates()).contains(&"mail.message.forward".to_owned()));
 }
 
@@ -83,12 +83,12 @@ async fn the_editors_reject_on_the_sheet_refuses_the_call() {
         .await;
     assert!(reply.get("error").is_none(), "{reply}");
     assert_eq!(offered.len(), 1, "{offered:?}");
-    let performed = world.mail.performed();
+    let performed = world.app.performed();
     assert!(
         !performed.iter().any(|a| a.contains("forward")),
         "{performed:?}"
     );
-    assert!(world.mail.messages().is_empty());
+    assert!(world.app.messages().is_empty());
     assert!(world.sheet.shown().is_empty(), "sill was not asked");
 }
 

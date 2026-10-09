@@ -74,7 +74,7 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
 
     // Mailo's side: the forward went out as held, to the contact, for the two Lisbon threads,
     // and the actor was the companion.
-    let messages = world.mail.messages();
+    let messages = world.app.messages();
     assert_eq!(messages.len(), 1, "{messages:#?}");
     assert_eq!(messages[0].to, "accounting");
     assert_eq!(messages[0].threads, ["lisbon-1", "lisbon-2"]);
@@ -106,7 +106,7 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
         .await
         .expect("undo request")
         .expect("undone");
-    assert_eq!(world.mail.messages()[0].state, Sending::Cancelled);
+    assert_eq!(world.app.messages()[0].state, Sending::Cancelled);
     let after = launcher
         .intents
         .journal(JournalFilter {
@@ -166,18 +166,18 @@ async fn flow_a_the_person_refuses_the_sheet_and_nothing_is_sent() {
     // The sheet was shown, the person said no, and the app never held anything.
     assert_eq!(world.sheet.shown().len(), 1);
     assert!(
-        world.mail.messages().is_empty(),
+        world.app.messages().is_empty(),
         "{:?}",
-        world.mail.messages()
+        world.app.messages()
     );
     assert!(
         !world
-            .mail
+            .app
             .performed()
             .iter()
             .any(|a| a == "mail.message.forward"),
         "the app was never asked to forward: {:?}",
-        world.mail.performed()
+        world.app.performed()
     );
     // The planner was told, as a coarse step, that the call was not confirmed: the cassette's
     // closing words answer only a view that says so (`flow-a-refused`), so the turn is Done
@@ -257,7 +257,7 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
         "{:?}",
         ask.taint
     );
-    assert!(world.mail.messages().is_empty());
+    assert!(world.app.messages().is_empty());
 }
 
 /// SPEC 5(a) steps 7 and 8: a plan card streams, and while the sheet is up the answer shows
@@ -307,14 +307,14 @@ async fn first_use_of_mail_in_a_space_asks_once_and_the_second_call_does_not() {
     // Both reads ran; only the first asked, and it said why.
     assert_eq!(
         world
-            .mail
+            .app
             .performed()
             .iter()
             .filter(|a| *a == "mail.thread.search")
             .count(),
         2,
         "{:?}",
-        world.mail.performed()
+        world.app.performed()
     );
     let sheets = world.sheet.shown();
     assert_eq!(sheets.len(), 1, "{sheets:#?}");

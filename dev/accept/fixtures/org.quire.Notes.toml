@@ -1,0 +1,98 @@
+# The acceptance run's second app: a notes app. Notes are things (`notes.note`) whose words may
+# have come from elsewhere (pasted pages, forwarded text), so titles and bodies are third-party
+# content. It has no outbound action: its writes are all taken back with an undo token.
+vocab = 1
+app = "org.quire.Notes"
+
+[[entities]]
+kind = "notes.note"
+label = "Note"
+plural = "Notes"
+icon = "note"
+class = "notes"
+index = "not_indexed"
+titles = { kind = "third_party", v = { kind = "notes" } }
+props = []
+
+# Finds notes by words in the title.
+[[actions]]
+name = "notes.note.search"
+label = "Find notes"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["notes"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "entities", v = "notes.note" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "query"
+label = "Words in the title"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+# Reads one note. Its text may have been pasted from anywhere.
+[[actions]]
+name = "notes.note.read"
+label = "Read"
+on = { kind = "one", v = "notes.note" }
+effect = "read"
+classes = ["notes"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 20000, lines = "many" } }, trust = { kind = "third_party", v = { kind = "notes" } } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+# Puts notes in the archive; the archive can be undone.
+[[actions]]
+name = "notes.note.archive"
+label = "Archive"
+on = { kind = "many", v = "notes.note" }
+effect = "undoable_write"
+classes = ["notes"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+# Makes a new note; undoing it takes the note away again.
+[[actions]]
+name = "notes.note.create"
+label = "New note"
+on = { kind = "nothing" }
+effect = "undoable_write"
+classes = ["notes"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "title"
+label = "Title"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "body"
+label = "Text"
+ty = { kind = "text", v = { max = 20000, lines = "many" } }
+need = { kind = "required" }
+sink = "body"

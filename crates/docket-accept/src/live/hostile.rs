@@ -181,6 +181,7 @@ pub async fn run_planner_case(
         },
         by_effect: None,
         focus: Focus::Nowhere,
+        app: crate::things::App::Mail,
         prompt: &case.prompt,
     };
     let played = observe(binaries, script, model, dirs, cloud, patience, at_rest).await;

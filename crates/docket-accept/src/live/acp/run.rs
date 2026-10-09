@@ -115,9 +115,9 @@ fn evidence(played: &Played, world: &World, undo: crate::live::flows::UndoCheck)
     Evidence {
         answer: if settled { Ok(views) } else { Err(views) },
         sheets: world.sheet.shown(),
-        messages: world.mail.messages(),
-        performed: world.mail.performed(),
-        threads_read: world.mail.threads_read(),
+        messages: world.app.messages(),
+        performed: world.app.performed(),
+        threads_read: world.app.threads_read(),
         exchanges: exchanges_of(world),
         undo,
     }
@@ -161,6 +161,7 @@ pub async fn run_flow_acp(
         catalog,
         acp: AcpSetting::Agents,
         focus: flow.focus(),
+        app: flow.app(),
     };
     let world = World::start_model(binaries, flow.consent(), model, &options).await;
     if let Err(fault) = warm_world(&world, model, patience).await {
@@ -258,6 +259,7 @@ pub async fn list_models_acp(
         catalog,
         acp: AcpSetting::Agents,
         focus: Flow::ALL[0].focus(),
+        app: Flow::ALL[0].app(),
     };
     let world = World::start_model(binaries, Flow::ALL[0].consent(), model, &options).await;
     let offered = offered_models(&world, binaries, spec).await?;

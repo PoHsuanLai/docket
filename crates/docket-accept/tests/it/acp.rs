@@ -95,7 +95,7 @@ async fn one_session_initialize_new_prompt_a_permission_round_and_done() {
     // The router's own gate still ran: its sheet went to the editor, not the desktop, and the app
     // did the work.
     assert!(world.sheet.shown().is_empty());
-    let sent = world.mail.messages();
+    let sent = world.app.messages();
     assert_eq!(sent.len(), 1, "{sent:#?}");
     assert!(matches!(sent[0].actor, prov::Actor::Companion { .. }));
 }
@@ -122,12 +122,12 @@ async fn an_editors_reject_means_the_app_never_runs_the_call() {
         .count();
     assert_eq!(failed, 1, "{updates:#?}");
     // The fake app's call log: the two reads, and no forward. No sheet, no message.
-    let performed = world.mail.performed();
+    let performed = world.app.performed();
     assert!(
         !performed.iter().any(|a| a.contains("forward")),
         "{performed:?}"
     );
-    assert!(world.mail.messages().is_empty());
+    assert!(world.app.messages().is_empty());
     assert!(world.sheet.shown().is_empty());
 }
 
@@ -176,7 +176,7 @@ async fn two_turns(restart: bool) -> (Vec<Value>, Vec<String>, Vec<String>) {
     assert_eq!(two["result"]["stopReason"], "end_turn", "{two}");
     let after = editor.updates().split_off(before);
     assert!(world.sheet.shown().is_empty(), "the desktop was not asked");
-    (after, world.mail.performed(), sheet_titles(&editor))
+    (after, world.app.performed(), sheet_titles(&editor))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

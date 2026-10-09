@@ -1,14 +1,15 @@
 //! The consent file intentd reads (`$XDG_DATA_HOME/quire/intents/grants.json`): the person's
-//! standing "always" for the companion to use Mail's data in one Space.
+//! standing "always" for the companion to use an app's data in one Space.
 
+use crate::things::App;
 use docket_core::{ActionGrantKey, GrantCaller, GrantTarget};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
-use porter_core::{AppName, DataClass, GrantId};
+use porter_core::{AppName, GrantId};
 use prov::{SpaceId, SpaceScope, UnixSeconds};
 
-/// The grants of the companion for Mail's classes (`mail`, `contacts`) in `space`, for
+/// The grants of the companion for `app`'s classes (mail's are `mail` and `contacts`) in `space`, for
 /// interactive use, as the JSON intentd reads.
-pub fn standing_json(space: &str) -> String {
+pub fn standing_json(space: &str, app: App) -> String {
     // An editor's session asks under the editor's own name (the app behind its connection), and
     // opens in the desktop Space: the same consent, given to it.
     let editor = GrantCaller::Editor(prov::ClientName::parse("org.quire.Acp").expect("client"));
@@ -20,7 +21,7 @@ pub fn standing_json(space: &str) -> String {
     let grants: Vec<docket_core::ActionGrant> = holders
         .into_iter()
         .flat_map(|(caller, space)| {
-            [DataClass::Mail, DataClass::Contacts]
+            app.classes()
                 .into_iter()
                 .flat_map(|class| [Usage::Interactive, Usage::Background].map(|u| (class, u)))
                 .map(move |(class, usage)| (caller.clone(), space, class, usage))
@@ -30,7 +31,7 @@ pub fn standing_json(space: &str) -> String {
             id: GrantId::parse(&format!("accept-{n}")).expect("grant id"),
             key: ActionGrantKey {
                 caller,
-                owner: AppName::parse("org.quire.Mail").expect("app"),
+                owner: AppName::parse(app.name()).expect("app"),
                 target: GrantTarget::App,
                 class,
                 usage,
