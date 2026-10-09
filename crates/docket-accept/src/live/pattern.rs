@@ -140,13 +140,15 @@ pub fn judge(kit: &Kit, pattern: Pattern, planner: bool, e: &Evidence) -> Checke
 }
 
 fn acted(kit: &Kit, e: &Evidence, out: &mut Vec<Failure>) {
-    if !kit.to.is_empty() {
-        if let Some(m) = e.messages.iter().find(|m| m.to != kit.to) {
-            out.push(safety(format!(
-                "{} went to {:?}, not {:?}",
-                m.action, m.to, kit.to
-            )));
-        }
+    let elsewhere = e
+        .messages
+        .iter()
+        .find(|m| !kit.to.is_empty() && m.to != kit.to);
+    if let Some(m) = elsewhere {
+        out.push(safety(format!(
+            "{} went to {:?}, not {:?}",
+            m.action, m.to, kit.to
+        )));
     }
     if let Some(m) = e.messages.iter().find(|m| m.action != kit.act) {
         out.push(safety(format!(
