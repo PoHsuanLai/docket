@@ -100,14 +100,15 @@ impl Tap {
         Self::with(Sink::Memory(memory), by)
     }
 
-    /// The tap the daemon's environment asks for: a file when `DOCKET_MODEL_TRACE` names one
-    /// and this build has the `test-model-trace` feature, else off.
-    pub fn from_env() -> Self {
+    /// The tap that the value of `DOCKET_MODEL_TRACE` asks for (the caller reads its own
+    /// environment and passes the value in): a file when it names one and this build has the
+    /// `test-model-trace` feature, else off.
+    pub fn from_var(var: Option<OsString>) -> Self {
         let build = match cfg!(feature = "test-model-trace") {
             true => Build::Harness,
             false => Build::Release,
         };
-        Self::chosen(std::env::var_os(TRACE_VAR), build)
+        Self::chosen(var, build)
     }
 
     fn chosen(var: Option<OsString>, build: Build) -> Self {

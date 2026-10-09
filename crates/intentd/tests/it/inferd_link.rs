@@ -19,7 +19,7 @@ async fn the_link_is_the_dbus_transport_and_an_absent_inferd_is_unreachable() {
     let bus = PrivateBus::start(scratch.path());
     let connection = bus.connect().await;
 
-    let link = inferd_transport(&connection);
+    let link = inferd_transport(&connection, docket_dbus::tap::Tap::off());
     assert!(matches!(link.inner(), AnyTransport::Dbus(_)), "{link:?}");
     let need = Need::Llm(LlmNeed {
         features: BTreeSet::from([LlmFeature::Chat]),
@@ -45,9 +45,9 @@ async fn the_models_and_the_writer_are_built_on_the_bus() {
         billing: porter_core::Billing::Free,
         capabilities: vec![],
     };
-    let model = InferdModel::on_bus(&connection, card.clone());
+    let model = InferdModel::on_bus(&connection, card.clone(), docket_dbus::tap::Tap::off());
     assert_eq!(model.card(), &card);
     assert!(format!("{model:?}").contains("Dbus"), "{model:?}");
-    let writer = InferdWriter::on_bus(&connection);
+    let writer = InferdWriter::on_bus(&connection, docket_dbus::tap::Tap::off());
     assert!(format!("{writer:?}").contains("Dbus"), "{writer:?}");
 }

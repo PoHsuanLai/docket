@@ -89,7 +89,12 @@ pub async fn serve(permit: Permit) -> Result<(), LiveFault> {
     let shell = AppName::parse(SHELL).map_err(|_| LiveFault::App(SHELL.to_owned()))?;
     let companion = Companion::new(
         Intents::over(DbusTransport::new(connection.clone())),
-        PlannerModel::new(docket_dbus::inferd_transport(&connection)),
+        PlannerModel::new(docket_dbus::inferd_transport(
+            &connection,
+            docket_dbus::tap::Tap::from_var(
+                env(docket_dbus::tap::TRACE_VAR).map(std::ffi::OsString::from),
+            ),
+        )),
         AgentConfig::default(),
         Wall,
         shell,

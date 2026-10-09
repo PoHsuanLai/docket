@@ -12,6 +12,11 @@ async fn the_service_is_built_on_the_bus() {
     let bus = PrivateBus::start(scratch.path());
     let connection = bus.connect().await;
     let intents = Intents::over(DbusTransport::new(connection.clone()));
-    let service = ReaderService::on_bus(ReaderHost::start(), &connection, intents);
+    let service = ReaderService::on_bus(
+        ReaderHost::start(),
+        &connection,
+        intents,
+        docket_dbus::tap::Tap::off(),
+    );
     assert!(format!("{service:?}").contains("Dbus"), "{service:?}");
 }

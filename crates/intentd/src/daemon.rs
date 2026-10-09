@@ -21,6 +21,7 @@ use crate::space_watch::{RemovedMemories, SpaceKeeper};
 use crate::system::{DaemonLog, SystemClock, SystemSeams};
 use docket_core::AuditRecord;
 use docket_dbus::BusConnection;
+use docket_dbus::tap::{TRACE_VAR, Tap};
 use docket_memory::QueuedSink;
 use docket_memory::{AlmanacMemory, AlmanacSessionLog};
 use docket_router::{Router, Seams};
@@ -28,6 +29,7 @@ use docket_settings::{AgentSettings, Locator, REVIEW_CEILING};
 use docket_skills::{Roots, discover};
 use policy_point::Pdp;
 use prov::SpaceId;
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -73,6 +75,8 @@ pub struct Setup {
     pub proc_root: ProcRoot,
     /// Where the person's settings file is (`docket/settings.toml`, design/22 section 3.27).
     pub settings: Locator,
+    /// What is kept of the exchanges with inferd (`DOCKET_MODEL_TRACE`, a test build only).
+    pub trace: Tap,
 }
 
 fn home(env: &impl Fn(&str) -> Option<String>) -> PathBuf {
@@ -139,6 +143,7 @@ impl Setup {
             signals: Cadence::default(),
             proc_root,
             settings: Locator::from_env(env),
+            trace: Tap::from_var(env(TRACE_VAR).map(OsString::from)),
         })
     }
 }
@@ -183,6 +188,7 @@ pub async fn start(
         signals,
         proc_root,
         settings,
+        trace,
     } = setup;
     for (file, why) in &manifests.skipped {
         eprintln!("intentd: skipped {}: {why}", file.display());
@@ -203,13 +209,13 @@ pub async fn start(
         link,
         confirmer,
         // The router enforces the person's review times, live; the cascade's own are the ceiling.
-        reviewer: reviewer(session, config.reviewers.as_ref(), REVIEW_CEILING)
+        reviewer: reviewer(session, config.reviewers.as_ref(), REVIEW_CEILING, &trace)
             .ok_or_else(|| DaemonFault::Policy("no reviewer set".into()))?,
         grants: FileGrants::at(grants).with_defaults(&data_dirs),
         sink: QueuedSink::new(),
         clock: SystemClock,
         memory: AlmanacMemory::over(almanac_client::DbusTransport::new(session.clone())),
-        writer: InferdWriter::on_bus(session),
+        writer: InferdWriter::on_bus(session, trace.clone()),
         reader: ReaderClient::new(session.clone()),
         log: DaemonLog::Almanac(AlmanacSessionLog::over(
             almanac_client::DbusTransport::new(session.clone()),

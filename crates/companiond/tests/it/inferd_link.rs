@@ -10,6 +10,9 @@ async fn the_planner_is_built_on_the_bus() {
     let scratch = tempfile::tempdir().expect("scratch");
     let bus = PrivateBus::start(scratch.path());
     let connection = bus.connect().await;
-    let planner = PlannerModel::new(docket_dbus::inferd_transport(&connection));
+    let planner = PlannerModel::new(docket_dbus::inferd_transport(
+        &connection,
+        docket_dbus::tap::Tap::off(),
+    ));
     assert!(format!("{planner:?}").contains("Dbus"), "{planner:?}");
 }

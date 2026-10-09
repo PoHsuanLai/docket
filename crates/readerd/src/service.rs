@@ -24,8 +24,13 @@ impl<I: IntentsTransport> ReaderService<InferLink, I> {
         host: ReaderHost,
         connection: &docket_dbus::BusConnection,
         intents: Intents<I>,
+        tap: docket_dbus::tap::Tap,
     ) -> Self {
-        Self::new(host, docket_dbus::inferd_transport(connection), intents)
+        Self::new(
+            host,
+            docket_dbus::inferd_transport(connection, tap),
+            intents,
+        )
     }
 }
 

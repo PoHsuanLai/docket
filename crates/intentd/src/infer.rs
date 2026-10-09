@@ -3,6 +3,7 @@
 //! is `docket-models`' (portable, over any transport); what is here is the bus constructor.
 
 use docket_dbus::InferLink;
+use docket_dbus::tap::Tap;
 use docket_models::TransportModel;
 use porter_client::Transport;
 use porter_infer::{
@@ -14,8 +15,8 @@ pub use crate::writer::InferdWriter;
 
 /// inferd over the session bus: the one link every daemon of this repo makes, on `connection`
 /// (see `docket_dbus::inferd_transport`).
-pub fn inferd_transport(connection: &docket_dbus::BusConnection) -> InferLink {
-    docket_dbus::inferd_transport(connection)
+pub fn inferd_transport(connection: &docket_dbus::BusConnection, tap: Tap) -> InferLink {
+    docket_dbus::inferd_transport(connection, tap)
 }
 
 /// A chat model reached through an inferd session.
@@ -31,8 +32,8 @@ impl<T: Transport> InferdModel<T> {
 
 impl InferdModel<InferLink> {
     /// Asks inferd over the session bus; `card` says who answers.
-    pub fn on_bus(connection: &docket_dbus::BusConnection, card: ModelCard) -> Self {
-        Self::new(inferd_transport(connection), card)
+    pub fn on_bus(connection: &docket_dbus::BusConnection, card: ModelCard, tap: Tap) -> Self {
+        Self::new(inferd_transport(connection, tap), card)
     }
 }
 

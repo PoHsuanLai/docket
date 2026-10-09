@@ -6,6 +6,7 @@ use crate::clock::Clock;
 use crate::config::CompaniondConfig;
 use crate::serve::serve_on;
 use docket_client::{DbusTransport, Intents};
+use docket_dbus::tap::Tap;
 use docket_dbus::{BusConnection, InferLink};
 use docket_planner::PlannerModel;
 use docket_skills::{Roots, discover};
@@ -25,7 +26,7 @@ pub async fn start(
     connection: &BusConnection,
     config: CompaniondConfig,
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
-    start_with(connection, config, &Roots::default()).await
+    start_with(connection, config, &Roots::default(), Tap::off()).await
 }
 
 /// [`start`] with the skill directories the daemon's `main` found: the only place skill text
@@ -34,6 +35,7 @@ pub async fn start_with(
     connection: &BusConnection,
     config: CompaniondConfig,
     skills: &Roots,
+    trace: Tap,
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
     let found = discover(skills);
     for rejected in &found.rejected {
@@ -44,7 +46,7 @@ pub async fn start_with(
         );
     }
     let intents = Intents::over(DbusTransport::new(connection.clone()));
-    let planner = PlannerModel::new(docket_dbus::inferd_transport(connection));
+    let planner = PlannerModel::new(docket_dbus::inferd_transport(connection, trace));
     let mut companion = Companiond::new(
         intents,
         planner,
@@ -67,7 +69,8 @@ pub async fn run() -> Result<(), ServeFault> {
     let connection = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| ServeFault::Bus(e.to_string()))?;
-    let _running = start_with(&connection, config, &Roots::from_env(&env)).await?;
+    let trace = Tap::from_var(env(docket_dbus::tap::TRACE_VAR).map(std::ffi::OsString::from));
+    let _running = start_with(&connection, config, &Roots::from_env(&env), trace).await?;
     let mut messages = zbus::MessageStream::from(&connection);
     while messages.next().await.is_some() {}
     Ok(())
