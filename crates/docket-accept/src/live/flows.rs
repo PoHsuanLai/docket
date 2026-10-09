@@ -8,6 +8,7 @@
 
 use crate::confirm::{ByEffect, Verdict};
 use crate::drive::Launcher;
+use crate::live::accountd_home::Cloud;
 use crate::live::hostile::at_rest;
 use crate::live::stage::{Asker, asker};
 use crate::live::warm::WarmFault;
@@ -598,13 +599,15 @@ pub(crate) async fn observe(
     script: Script<'_>,
     model: &ModelSource,
     (keep_in, catalog): (Option<std::path::PathBuf>, Option<std::path::PathBuf>),
+    cloud: Option<&Cloud>,
     patience: Duration,
     stop: impl Fn(&AnswerWire) -> bool,
 ) -> Result<Played, WarmFault> {
     let options = Options {
         keep_in,
         tap: TapMode::On,
-        accountd: None,
+        accountd: cloud.map(|c| c.accountd.clone()),
+        accountd_home: cloud.map(|c| c.home.clone()),
         catalog,
         focus: script.focus,
         ..Options::default()
@@ -649,6 +652,7 @@ pub async fn run_flow(
     model: &ModelSource,
     keep_in: Option<std::path::PathBuf>,
     catalog: Option<std::path::PathBuf>,
+    cloud: Option<&Cloud>,
     patience: Duration,
 ) -> FlowReport {
     let script = Script {
@@ -663,6 +667,7 @@ pub async fn run_flow(
         script,
         model,
         (keep_in, catalog),
+        cloud,
         patience,
         at_rest,
     )

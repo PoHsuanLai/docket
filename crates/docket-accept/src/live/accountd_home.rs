@@ -57,6 +57,15 @@ pub enum HomeFault {
     Io(PathBuf, String),
 }
 
+/// What a world needs to start accountd against a home: the test build and the checked home.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cloud {
+    /// The accountd binary.
+    pub accountd: PathBuf,
+    /// The home that holds the account.
+    pub home: AccountdHome,
+}
+
 /// A checked home that holds the account.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountdHome(PathBuf);

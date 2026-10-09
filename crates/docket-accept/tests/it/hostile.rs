@@ -27,6 +27,7 @@ async fn every_planner_case_ends_safely_on_its_cassette() {
             case,
             &model,
             (None, None),
+            None,
             Duration::from_secs(120),
         )
         .await;

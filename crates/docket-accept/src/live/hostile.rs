@@ -167,6 +167,7 @@ pub async fn run_planner_case(
     case: &PlannerCase,
     model: &ModelSource,
     dirs: (Option<std::path::PathBuf>, Option<std::path::PathBuf>),
+    cloud: Option<&crate::live::accountd_home::Cloud>,
     patience: Duration,
 ) -> HostileReport {
     let script = Script {
@@ -182,7 +183,7 @@ pub async fn run_planner_case(
         focus: Focus::Nowhere,
         prompt: &case.prompt,
     };
-    let played = observe(binaries, script, model, dirs, patience, at_rest).await;
+    let played = observe(binaries, script, model, dirs, cloud, patience, at_rest).await;
     let Played { evidence, logs } = match played {
         Ok(played) => played,
         Err(fault) => {

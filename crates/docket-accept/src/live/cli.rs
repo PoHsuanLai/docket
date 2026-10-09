@@ -87,6 +87,12 @@ pub struct SmokeArgs {
     pub catalog: Option<PathBuf>,
     /// Who plays the companion's part.
     pub agent: Agent,
+    /// The accountd binary of a cloud run.
+    pub accountd: Option<PathBuf>,
+    /// The durable directory that holds the cloud account.
+    pub accountd_home: Option<PathBuf>,
+    /// How many times each flow is played (at least 1).
+    pub repeat: u32,
 }
 
 /// Why the command line is wrong.
@@ -156,6 +162,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let mut catalog = None;
     let (mut timeout, mut accountd, mut fnr, mut patience) = (None, None, None, 600_u64);
     let mut accountd_home: Option<PathBuf> = None;
+    let mut repeat: Option<u32> = None;
     let mut agent_word = None;
     let mut shadow = ShadowMode::Off;
     let mut acp = AcpFlags::default();
@@ -177,6 +184,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             "--catalog" => catalog = Some(PathBuf::from(words.value(flag)?)),
             "--accountd" => accountd = Some(PathBuf::from(words.value(flag)?)),
             "--accountd-home" => accountd_home = Some(PathBuf::from(words.value(flag)?)),
+            "--repeat" => repeat = Some(number(flag, words.value(flag)?)?),
             "--fnr-max-permille" => fnr = Some(number(flag, words.value(flag)?)?),
             "--shadow" => shadow = ShadowMode::Record,
             "--patience-s" => patience = number(flag, words.value(flag)?)?,
@@ -197,6 +205,20 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             ));
         }
         _ => {}
+    }
+    if repeat == Some(0) {
+        return Err(UsageError::Home(
+            "--repeat takes a number of at least 1".to_owned(),
+        ));
+    }
+    if sub == "smoke" && accountd.is_some() && accountd_home.is_none() {
+        return Err(UsageError::Home(
+            "a smoke run starts a fresh accountd per flow, so --accountd needs --accountd-home"
+                .to_owned(),
+        ));
+    }
+    if sub == "corpus" && repeat.is_some() {
+        return Err(UsageError::Unknown("--repeat (smoke only)".to_owned()));
     }
     let agent = acp.agent(agent_word)?;
     let out = out.unwrap_or_else(|| PathBuf::from("docket-live-out"));
@@ -229,6 +251,9 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             patience_s: patience,
             catalog,
             agent,
+            accountd,
+            accountd_home,
+            repeat: repeat.unwrap_or(1),
         })),
         _ => Err(UsageError::Subcommand),
     }

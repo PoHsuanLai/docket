@@ -530,16 +530,31 @@ impl World {
             TapMode::On => Some(root.join("model.jsonl")),
             TapMode::Off => None,
         };
+        let keys = options
+            .accountd_home
+            .as_ref()
+            .map(crate::live::accountd_home::AccountdHome::keys_setting);
         let mut daemons = Vec::new();
         let mut start = async |name: &'static str, binary: &Path, owns: &str| {
-            let daemon =
-                spawn(root, &address, name, binary, tap.as_deref(), None).expect("daemon starts");
+            let daemon = spawn(
+                root,
+                &address,
+                name,
+                binary,
+                tap.as_deref(),
+                keys.as_deref(),
+            )
+            .expect("daemon starts");
             place(root, daemon.1.pid(), Cgroup::Unit(name));
             daemons.push(daemon);
             until_owned(&sill, owns).await;
         };
         if let Some(accountd) = &options.accountd {
             write(&root.join("config/porter/callers.toml"), ACCOUNTD_CALLERS);
+            if let Some(home) = &options.accountd_home {
+                home.seed(root)
+                    .expect("the account home's records are copied");
+            }
             start("accountd", accountd, "org.quire.Accounts1").await;
         }
         start("inferd", &binaries.inferd, "org.quire.Inference1").await;

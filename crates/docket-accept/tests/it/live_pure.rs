@@ -420,4 +420,29 @@ mod accountd_home {
         assert!(world.join(".local/state/porter/registry.json").is_file());
         assert!(!world.join("accountd.keys").exists());
     }
+
+    #[test]
+    fn smoke_takes_the_cloud_options_and_a_repeat() {
+        let Ok(Command::Smoke(s)) = parse(&words(
+            "smoke --engine cloud --accountd /a --accountd-home /h --repeat 5",
+        )) else {
+            panic!("parses");
+        };
+        assert_eq!(
+            (s.repeat, s.accountd_home.as_deref()),
+            (5, Some(Path::new("/h")))
+        );
+        let Ok(Command::Smoke(plain)) = parse(&words("smoke --engine scripted")) else {
+            panic!("parses");
+        };
+        assert_eq!(plain.repeat, 1);
+        for line in [
+            "smoke --engine cloud --accountd /a",
+            "smoke --engine cloud --accountd /a --accountd-home rel",
+            "smoke --engine cloud --repeat 0",
+            "corpus --engine cloud --repeat 2",
+        ] {
+            assert!(parse(&words(line)).is_err(), "{line}");
+        }
+    }
 }

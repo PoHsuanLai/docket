@@ -152,7 +152,10 @@ world and waits for Enter. In `inferd.cloud.toml` each run pins all three tiers
 (`[ai.model.text]` fast, balanced, best) to one model, so a run measures that model alone;
 `dev/live/inferd.cloud.example.toml` leaves the ids for you to fill (`cloud/<entry id>`, OpenRouter
 reaches them through the catalogue's `openrouter` rows; the provider id accountd uses is
-`openrouter`). `dev/live-smoke.sh` accepts the flag but its flows do not start accountd yet.
+`openrouter`). `dev/live-smoke.sh --engine cloud --accountd <accountd> --accountd-home DIR` does the same for the
+flows (every flow's world starts accountd against the home; `--accountd` without `--accountd-home`
+is refused). `--repeat N` (smoke only) plays each acceptance flow N times; with N above 1 the
+traces are named `<flow>.runKofN.trace.txt` and the PASS/FAIL lines carry the same name.
 
 ### Warm-up
 

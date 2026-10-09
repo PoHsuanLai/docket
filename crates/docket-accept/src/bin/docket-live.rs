@@ -5,7 +5,7 @@
 //! `--engine cloud`, and that is said before anything starts. Start it through
 //! `scripts/eval-release.sh` or `dev/live-smoke.sh`.
 
-use docket_accept::live::accountd_home::AccountdHome;
+use docket_accept::live::accountd_home::{AccountdHome, Cloud};
 use docket_accept::live::acp::{
     AcpSpec, Redactor, Task, agent_cassette, list_models_acp, run_flow_acp,
 };
@@ -234,6 +234,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
 
 /// What a smoke run plays: one of the acceptance flows, or one planner case of the hostile-model
 /// corpus.
+#[derive(Clone)]
 enum Play {
     Flow(Flow),
     Hostile(Box<PlannerCase>),
@@ -388,21 +389,55 @@ async fn smoke(args: SmokeArgs) -> Result<ExitCode, String> {
     std::fs::create_dir_all(&traces).map_err(|e| e.to_string())?;
     let patience = Duration::from_secs(args.patience_s);
     let dirs = || (Some(args.out.join("scratch")), Some(smoke_catalog.clone()));
+    let cloud = match (&args.accountd, &args.accountd_home) {
+        (Some(accountd), Some(home)) => Some(Cloud {
+            accountd: accountd.clone(),
+            home: AccountdHome::open(home, accountd).map_err(|e| e.to_string())?,
+        }),
+        _ => None,
+    };
     let mut failed = false;
-    for play in plays(&args)? {
+    let plays: Vec<(Play, u32)> = plays(&args)?
+        .into_iter()
+        .flat_map(|play| {
+            let times = if matches!(play, Play::Flow(_)) {
+                args.repeat
+            } else {
+                1
+            };
+            (1..=times)
+                .map(move |run| (play.clone(), run))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    for (play, run) in plays {
         let model: ModelSource = args
             .engine
             .source(play.cassette(), args.inferd_config.as_deref())
             .map_err(|e: EngineError| e.to_string())?;
         let (name, transcript, failures) = match &play {
             Play::Flow(flow) => {
-                let r = run_flow(&binaries, *flow, &model, dirs().0, dirs().1, patience).await;
+                let r = run_flow(
+                    &binaries,
+                    *flow,
+                    &model,
+                    dirs().0,
+                    dirs().1,
+                    cloud.as_ref(),
+                    patience,
+                )
+                .await;
                 (play.name(), r.transcript, r.failures)
             }
             Play::Hostile(case) => {
-                let r = run_planner_case(&binaries, case, &model, dirs(), patience).await;
+                let r = run_planner_case(&binaries, case, &model, dirs(), cloud.as_ref(), patience)
+                    .await;
                 (play.name(), r.transcript, r.failures)
             }
+        };
+        let name = match (&play, args.repeat) {
+            (Play::Flow(_), n) if n > 1 => format!("{name}.run{run}of{n}"),
+            _ => name,
         };
         let file = traces.join(format!("{name}.trace.txt"));
         let header = format!("{}\n\n", catalog::describe(&smoke_catalog));
