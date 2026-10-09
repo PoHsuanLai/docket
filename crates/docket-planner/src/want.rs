@@ -17,7 +17,7 @@ const QUOTED: usize = 60;
 pub(crate) fn want_schema() -> Json {
     serde_json::json!({
         "type": "object",
-        "description": "The shape of the answer, as {\"kind\": ..., \"v\": ...}. Kinds: choice (v: list of option ids, each lowercase letters, digits and _, such as \"lisbon_receipts\"), integer (v: {min, max}), date, datetime, text (v: {max}), record (v: list of [name, shape]), list (v: {of: shape, max}). Example: {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}.",
+        "description": "The shape of the answer, as {\"kind\": ..., \"v\": ...}. Kinds: choice (v: list of option ids, each lowercase letters, digits and _, such as \"lisbon_receipts\"), integer (v: {min, max}), date, datetime, text (v: {max}), record (v: list of [name, shape]), list (v: {of: shape, max}). Example: {\"kind\": \"choice\", \"v\": [\"forward\", \"skip\"]}. To decide something, ask for choice, integer, date or datetime: text, and a record or list holding text, comes back as a handle you cannot read.",
         "properties": {
             "kind": { "enum": ["choice", "integer", "date", "datetime", "text", "record", "list"] },
             "v": {
@@ -130,6 +130,15 @@ mod tests {
     fn an_option_with_nothing_to_make_an_id_of_is_named() {
         let got = ids(json!({ "kind": "choice", "v": ["forward", "???"] }));
         assert_eq!(got, Err(ReadFault::WantOption("???".to_owned())));
+    }
+
+    #[test]
+    fn the_schema_says_which_answers_come_back_readable() {
+        let schema = want_schema().to_string();
+        assert!(
+            schema.contains("comes back as a handle you cannot read"),
+            "{schema}"
+        );
     }
 
     #[test]

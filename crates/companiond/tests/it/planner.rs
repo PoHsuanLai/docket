@@ -289,6 +289,24 @@ async fn the_request_is_the_view_in_two_messages_and_the_tools_of_the_cards() {
     assert_eq!(fewer.tools.len(), 1 + 3);
 }
 
+#[tokio::test]
+async fn the_planner_is_told_that_an_answer_in_words_comes_back_as_a_handle() {
+    let (planner, _) = planner(vec![]);
+    let request = planner.request(&view(catalogue().cards()));
+    let read = request
+        .tools
+        .iter()
+        .find(|t| t.name.as_str() == TOOL_READ)
+        .expect("quire_read");
+    let told = [RULES.to_owned(), read.description.clone()];
+    for text in told {
+        assert!(
+            text.contains("handle") && text.contains("choice, integer, date"),
+            "{text}"
+        );
+    }
+}
+
 fn view_of_first_card() -> PlannerView {
     view(catalogue().cards().into_iter().take(1).collect())
 }
