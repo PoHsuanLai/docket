@@ -6,7 +6,7 @@
 use crate::device::{
     AudioDevice, CaptureFormat, CaptureStream, SNAPSHOT_BUDGET, choose_capture, snapshot_before,
 };
-use crate::hear::Dictation;
+use crate::frames::{Dictation, FRAME, Framer};
 use crate::link::fault_of as link_fault;
 use crate::warm::stt_need;
 use porter_client::{InferSession, Transport};
@@ -16,7 +16,6 @@ use porter_infer::{
     AudioFrame, AudioRate, Base64Bytes, ClientFrame, InferEvent, InferReply, InferRequest,
     LangPick, ModelError, ServedBy, TranscribeBegin, TranscribeMode,
 };
-use speech_provider::Frame512;
 use voice_loop::CAPTURE_RATE;
 use voice_wire::{HeardText, VoiceFault};
 
@@ -80,19 +79,15 @@ async fn listen<C: CaptureStream, S: InferSession>(
     capture: &mut C,
     session: &mut S,
 ) -> Result<(), VoiceFault> {
-    let (mut dictation, mut carry, mut sent) = (Dictation::new(), Vec::<i16>::new(), 0u64);
+    let (mut dictation, mut framer, mut sent) = (Dictation::new(), Framer::default(), 0u64);
     while let Some(samples) = capture.next().await {
-        carry.extend(samples);
-        while carry.len() >= 512 {
-            let frame: Vec<i16> = carry.drain(..512).collect();
-            let Ok(framed) = Frame512::new(&frame) else {
-                continue;
-            };
+        framer.push(samples);
+        while let Some((frame, framed)) = framer.next_frame() {
             let audio = AudioFrame {
                 at: sent,
                 pcm: Base64Bytes(pcm_bytes(&frame)),
             };
-            sent += 512;
+            sent += FRAME as u64;
             session
                 .send(ClientFrame::Audio(audio))
                 .await

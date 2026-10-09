@@ -9,6 +9,7 @@ use crate::device::{
 };
 use crate::engine::{Core, EndOfAudio, SttLink, Utt};
 use crate::error::VoiceError;
+use crate::frames::Framer;
 use crate::link;
 use crate::playback;
 use crate::sink::EventSink;
@@ -142,14 +143,14 @@ where
             committed: Vec::new(),
             partial: None,
             ended: None,
-            carry: Vec::new(),
+            carry: Framer::default(),
             pcm: PcmBuffer::new(),
             tail_left: None,
             sent: 0,
             engine: SttLink::Cold {
                 end: EndOfAudio::NotYet,
             },
-            dictation: (begin.intent == VoiceIntent::Dictate).then(crate::hear::Dictation::new),
+            dictation: (begin.intent == VoiceIntent::Dictate).then(crate::frames::Dictation::new),
         });
         let (speech, state, steps) =
             begin_utterance(self.say.state.clone(), UtteranceState::Idle, probe);

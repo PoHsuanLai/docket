@@ -4,46 +4,16 @@
 
 use crate::device::AudioDevice;
 use crate::engine::{Core, EndOfAudio, SttLink};
+use crate::frames::FRAME;
 use crate::link::LinkEvent;
 use crate::usage::UseSource;
 use crate::warm::Warm;
 use porter_client::Transport;
 use porter_infer::{HeardDelta, InferEvent, InferReply, ModelError};
-use speech_provider::{Frame512, SampleIndex, VoiceActivity, Voiced};
-use speech_vad::{Endpoint, EndpointParams, EnergyGate, EnergyGateParams, endpoint, level_of};
+use speech_provider::Frame512;
+use speech_vad::level_of;
 use voice_loop::{EngineGate, Transcript, UtteranceEvent, UtteranceState};
 use voice_wire::{HeardSegment, HeardTail, HeardText, Level, VoiceFault};
-
-/// The silence detector of a dictation: it ends the utterance after the silence it is told.
-#[derive(Debug)]
-pub(crate) struct Dictation {
-    gate: EnergyGate,
-    state: Endpoint,
-    at: u64,
-}
-
-impl Dictation {
-    pub fn new() -> Self {
-        Self {
-            gate: EnergyGate::new(EnergyGateParams::default()),
-            state: Endpoint::Waiting,
-            at: 0,
-        }
-    }
-
-    /// Whether this frame ended it (after speech or never any).
-    pub(crate) fn ended(&mut self, frame: &Frame512) -> bool {
-        let (voiced, _): (Voiced, _) = self.gate.push(frame);
-        self.state = endpoint(
-            self.state,
-            voiced,
-            SampleIndex(self.at),
-            &EndpointParams::default(),
-        );
-        self.at += 512;
-        matches!(self.state, Endpoint::Ended(_))
-    }
-}
 
 impl<D: AudioDevice + 'static, T: Transport + 'static, W: Warm, U: UseSource> Core<D, T, W, U>
 where
@@ -65,22 +35,18 @@ where
             return;
         };
         if let Some(utt) = self.utt.as_mut() {
-            utt.carry.extend(samples);
+            utt.carry.push(samples);
         }
         loop {
             let Some(utt) = self.utt.as_mut() else { return };
-            if utt.carry.len() < 512 {
+            let Some((frame, framed)) = utt.carry.next_frame() else {
                 return;
-            }
-            let frame: Vec<i16> = utt.carry.drain(..512).collect();
-            self.one_frame(frame).await;
+            };
+            self.one_frame(frame, framed).await;
         }
     }
 
-    async fn one_frame(&mut self, frame: Vec<i16>) {
-        let Ok(framed) = Frame512::new(&frame) else {
-            return;
-        };
+    async fn one_frame(&mut self, frame: Vec<i16>, framed: Frame512) {
         let level = Level(level_of(&framed).0);
         let engine = self
             .utt
@@ -96,7 +62,7 @@ where
         };
         let tail_over = match (utt.state, utt.tail_left) {
             (UtteranceState::Tail, Some(left)) => {
-                let left = left.saturating_sub(512);
+                let left = left.saturating_sub(FRAME);
                 utt.tail_left = Some(left);
                 left == 0
             }

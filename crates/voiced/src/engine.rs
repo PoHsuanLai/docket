@@ -8,6 +8,7 @@ use crate::command::{Caller, Command};
 use crate::config::Earcons;
 use crate::device::{AudioDevice, AudioNode, CaptureStream};
 use crate::error::VoiceError;
+use crate::frames::Framer;
 use crate::link::{Link, LinkEvent};
 use crate::peer::Peers;
 use crate::playback::{Played, Player};
@@ -66,12 +67,12 @@ pub(crate) struct Utt {
     pub committed: Vec<HeardSegment>,
     pub partial: Option<HeardTail>,
     pub ended: Option<UtteranceEnd>,
-    pub carry: Vec<i16>,
+    pub carry: Framer,
     pub pcm: PcmBuffer,
     pub tail_left: Option<usize>,
     pub sent: u64,
     pub engine: SttLink,
-    pub dictation: Option<crate::hear::Dictation>,
+    pub dictation: Option<crate::frames::Dictation>,
 }
 
 /// The loop's state.

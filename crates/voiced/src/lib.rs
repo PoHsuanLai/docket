@@ -11,6 +11,7 @@ mod device;
 mod dictate;
 mod engine;
 mod error;
+mod frames;
 mod hear;
 mod introspect;
 mod link;
