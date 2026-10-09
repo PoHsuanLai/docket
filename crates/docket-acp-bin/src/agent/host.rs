@@ -173,8 +173,13 @@ pub async fn host<A: Accounts + 'static>(
 fn said(fault: HostFault) -> String {
     match fault {
         HostFault::Backend(
-            sign_in @ (BackendFault::SignInNeeded | BackendFault::SignInUnsupported),
-        ) => sign_in.to_string(),
+            fault @ (BackendFault::SignInNeeded
+            | BackendFault::SignInUnsupported
+            | BackendFault::SignInChoose(_)
+            | BackendFault::ModelNotOffered(_)
+            | BackendFault::ModelNotChoosable
+            | BackendFault::ModelRefused),
+        ) => fault.to_string(),
         other => other.to_string(),
     }
 }

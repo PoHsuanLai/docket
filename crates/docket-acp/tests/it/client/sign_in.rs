@@ -61,7 +61,12 @@ async fn the_authenticate_reply_is_awaited_before_session_new_goes_out() {
 #[tokio::test]
 async fn without_a_method_an_agent_that_wants_signing_in_is_sign_in_needed_not_unavailable() {
     let (opened, agent) = open_with(Auth::Needed, None).await;
-    assert_eq!(opened, Err(HostFault::Backend(BackendFault::SignInNeeded)));
+    // The agent lists the ways it signs itself in by their names; the terminal one is not offered.
+    let Err(HostFault::Backend(BackendFault::SignInChoose(ways))) = opened else {
+        panic!("expected the list of ways to sign in, got {opened:?}");
+    };
+    let names: Vec<_> = ways.0.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(names, ["Personal sign-in", "API key"]);
     assert!(agent.authenticated().is_empty(), "nothing was sent for it");
 }
 

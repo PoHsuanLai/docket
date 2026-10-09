@@ -3,7 +3,7 @@
 //! audit); what is faked is the world around it: the agent process, the files, the sandbox, the
 //! person's answers, and the models.
 
-use super::agent::{Act, Auth, View, agent_signing};
+use super::agent::{Act, Auth, Offer, View, agent_offering};
 use crate::support::app;
 use bulkhead::fake::{FakeSandbox, Script, Seen};
 use bulkhead::{Network, NetworkMode};
@@ -142,6 +142,10 @@ pub struct Setup {
     pub auth: Auth,
     /// The way to sign in that `agents.toml` names, when a test has one.
     pub sign_in: Option<docket_acp::client::SignIn>,
+    /// The models the fake agent offers.
+    pub offer: Offer,
+    /// The model `agents.toml` names, when a test has one.
+    pub model: Option<docket_acp::client::ModelId>,
 }
 
 impl Default for Setup {
@@ -162,6 +166,8 @@ impl Default for Setup {
             session_meta: None,
             auth: Auth::Open,
             sign_in: None,
+            offer: Offer::None,
+            model: None,
         }
     }
 }
@@ -277,7 +283,7 @@ where
     );
     let router = Arc::new(router);
     let court = IntentsCourt::over(InProcess::new(router.clone(), host_caller()));
-    let (wire, view) = agent_signing(setup.turns, setup.auth);
+    let (wire, view) = agent_offering(setup.turns, setup.auth, setup.offer);
     let (spawn, spawned) = FakeSpawn::new(vec![wire]);
     let spawn = match setup.session_meta.clone() {
         Some(meta) => spawn.with_meta(meta),
@@ -285,6 +291,10 @@ where
     };
     let spawn = match setup.sign_in.clone() {
         Some(method) => spawn.with_sign_in(method),
+        None => spawn,
+    };
+    let spawn = match setup.model.clone() {
+        Some(model) => spawn.with_model(model),
         None => spawn,
     };
     let backend = AcpBackend::<X>::new(Parts {

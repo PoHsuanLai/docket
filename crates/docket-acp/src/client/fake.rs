@@ -79,6 +79,7 @@ pub struct FakeSpawn {
     seen: SpawnSeen,
     meta: Option<SessionMeta>,
     sign_in: Option<SignIn>,
+    model: Option<super::models::ModelId>,
 }
 
 impl FakeSpawn {
@@ -91,6 +92,7 @@ impl FakeSpawn {
                 seen: seen.clone(),
                 meta: None,
                 sign_in: None,
+                model: None,
             },
             seen,
         )
@@ -104,6 +106,12 @@ impl FakeSpawn {
 }
 
 impl FakeSpawn {
+    /// The same spawner, handing back a model to switch to with every start.
+    pub fn with_model(mut self, model: super::models::ModelId) -> Self {
+        self.model = Some(model);
+        self
+    }
+
     /// The same spawner, handing back a way to sign in with every start.
     pub fn with_sign_in(mut self, sign_in: SignIn) -> Self {
         self.sign_in = Some(sign_in);
@@ -156,6 +164,7 @@ impl Spawn for FakeSpawn {
             child,
             meta: self.meta.clone(),
             sign_in: self.sign_in.clone(),
+            model: self.model.clone(),
         })
     }
 }

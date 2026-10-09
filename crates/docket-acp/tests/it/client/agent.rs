@@ -29,6 +29,20 @@ pub enum Auth {
     Needed,
 }
 
+/// How the fake agent offers models in its `session/new` reply.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Offer {
+    /// No choice of model.
+    #[default]
+    None,
+    /// A session option in the model category (`flash` now; `flash`, `gemini-pro-agent`).
+    Option,
+    /// The older model list with the same models.
+    Older,
+    /// The option, but the agent refuses to switch.
+    Stubborn,
+}
+
 /// One thing the agent does during a prompt.
 pub enum Act {
     /// Sends a `session/update` notification with this update.
@@ -193,6 +207,8 @@ pub struct Seen {
     pub raced: usize,
     /// Every line the agent wrote.
     pub sent: Vec<Value>,
+    /// Model switches asked for: the method and its parameters, in order.
+    pub switches: Vec<(String, Value)>,
 }
 
 #[derive(Clone, Default)]
@@ -239,6 +255,10 @@ impl View {
 
     pub fn authenticated(&self) -> Vec<Value> {
         locked(&self.0).authenticated.clone()
+    }
+
+    pub fn switches(&self) -> Vec<(String, Value)> {
+        locked(&self.0).switches.clone()
     }
 
     pub fn raced(&self) -> usize {
@@ -384,6 +404,29 @@ async fn play(
 
 const METHODS: &str = "oauth-personal";
 
+fn models_part(offer: Offer) -> Value {
+    let list = json!([
+        {"value": "flash", "name": "Gemini Flash"},
+        {"value": "gemini-pro-agent", "name": "Gemini 3.1 Pro"},
+    ]);
+    match offer {
+        Offer::None => json!({}),
+        Offer::Option | Offer::Stubborn => json!({"configOptions": [
+            {"id": "mode", "name": "Mode", "category": "mode", "type": "select",
+             "currentValue": "a", "options": [{"value": "a", "name": "A"}]},
+            {"id": "model", "name": "Model", "category": "model", "type": "select",
+             "currentValue": "flash", "options": list},
+        ]}),
+        Offer::Older => json!({"models": {
+            "currentModelId": "flash",
+            "availableModels": [
+                {"modelId": "flash", "name": "Gemini Flash"},
+                {"modelId": "gemini-pro-agent", "name": "Gemini 3.1 Pro"},
+            ],
+        }}),
+    }
+}
+
 fn advertised(auth: Auth) -> Value {
     match auth {
         Auth::Open => json!([]),
@@ -418,7 +461,7 @@ async fn run(
     mut wire: ChannelWire,
     view: View,
     mut turns: std::collections::VecDeque<Vec<Act>>,
-    auth: Auth,
+    (auth, offer): (Auth, Offer),
 ) {
     let mut offered = None;
     let mut signed_in = auth == Auth::Open;
@@ -461,8 +504,21 @@ async fn run(
             Some("session/new") => {
                 locked(&view.0).new_session = Some(msg["params"].clone());
                 offered = Offered::from_params(&msg["params"]);
-                let result = json!({"sessionId": AGENT_SESSION});
+                let mut result = models_part(offer);
+                result["sessionId"] = json!(AGENT_SESSION);
                 put(&mut wire, &view, reply(&id, result)).await;
+            }
+            Some(method @ ("session/set_config_option" | "session/set_model")) => {
+                locked(&view.0)
+                    .switches
+                    .push((method.to_owned(), msg["params"].clone()));
+                if offer == Offer::Stubborn {
+                    let error = json!({"code": -32602, "message": "no"});
+                    let line = json!({"jsonrpc": "2.0", "id": id, "error": error});
+                    put(&mut wire, &view, line.to_string()).await;
+                } else {
+                    put(&mut wire, &view, reply(&id, json!({"configOptions": []}))).await;
+                }
             }
             Some("session/prompt") => {
                 locked(&view.0).prompts.push(msg["params"].clone());
@@ -485,10 +541,15 @@ pub fn agent(turns: Vec<Vec<Act>>) -> (ChannelWire, View) {
 
 /// The same, with the sign-in it takes.
 pub fn agent_signing(turns: Vec<Vec<Act>>, auth: Auth) -> (ChannelWire, View) {
+    agent_offering(turns, auth, Offer::None)
+}
+
+/// The same, with the models it offers.
+pub fn agent_offering(turns: Vec<Vec<Act>>, auth: Auth, offer: Offer) -> (ChannelWire, View) {
     docket_testbus::hang_guard::arm();
     let (client, far) = pipe();
     let view = View::default();
-    tokio::spawn(run(far, view.clone(), turns.into(), auth));
+    tokio::spawn(run(far, view.clone(), turns.into(), (auth, offer)));
     (client, view)
 }
 

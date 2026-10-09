@@ -33,8 +33,8 @@ mod restore_rule;
 mod resume;
 
 pub use backend::{
-    BackendEvent, BackendFault, CallEvent, HostFault, Resumed, SessionBackend, SessionHost,
-    SheetChoice, StartSession, TurnEnd, UsageNote,
+    BackendEvent, BackendFault, CallEvent, Choice, Choices, HostFault, Resumed, SessionBackend,
+    SessionHost, SheetChoice, StartSession, TurnEnd, UsageNote,
 };
 pub use codec::{
     CURRENT, EncodeFault, Encoded, EntryVersion, Logged, Read, Unreadable, decode, encode, kind_tag,

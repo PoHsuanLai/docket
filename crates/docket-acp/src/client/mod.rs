@@ -33,6 +33,7 @@ mod handlers;
 mod host;
 mod intake;
 mod intents_court;
+mod models;
 mod names;
 mod own_edge;
 mod perform;
@@ -53,6 +54,7 @@ pub use edge::{EdgeBind, EdgeFault, SERVER_NAME, ToolsEdge, ToolsOffer};
 pub use files::{FileFault, Files, MAX_READ, MAX_WRITE, OsFiles};
 pub use host::{AgentHost, Fallback};
 pub use intents_court::IntentsCourt;
+pub use models::{ModelId, ModelIdRefused, Models};
 pub use names::{effect, permission, reported_action};
 pub use performer::{Performer, UndoNote};
 pub use spawn::{

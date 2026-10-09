@@ -12,8 +12,32 @@ use porter_core::{Count, MicroUsd};
 use prov::SessionId;
 use std::future::Future;
 
+/// One thing the person can choose: its id as it is written in settings, and its name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Choice {
+    /// The id, as `agents.toml` and the model flag write it.
+    pub id: String,
+    /// What the agent calls it, in words a person reads ("Gemini 3.1 Pro").
+    pub name: String,
+}
+
+/// The things on offer, for a refusal that asks the person to pick one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Choices(pub Vec<Choice>);
+
+impl std::fmt::Display for Choices {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let line: Vec<String> = self
+            .0
+            .iter()
+            .map(|c| format!("{} ({})", c.name, c.id))
+            .collect();
+        f.write_str(&line.join(", "))
+    }
+}
+
 /// Why a backend could not do what it was asked.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum BackendFault {
     /// Not started, or already closed.
     #[error("the backend is not running a session")]
@@ -30,6 +54,18 @@ pub enum BackendFault {
     /// The configured way of signing in is not one the agent offers.
     #[error("the agent does not offer the configured way of signing in")]
     SignInUnsupported,
+    /// The agent needs signing in and `agents.toml` names no way: these are the ways it offers.
+    #[error("the agent needs signing in; choose one of: {0}")]
+    SignInChoose(Choices),
+    /// The configured model is not one the agent offers: these are.
+    #[error("that model is not offered; choose one of: {0}")]
+    ModelNotOffered(Choices),
+    /// The agent offers no way of choosing a model, and one is configured.
+    #[error("the agent does not let a model be chosen")]
+    ModelNotChoosable,
+    /// The agent refused the model that was chosen.
+    #[error("the agent did not switch to the chosen model")]
+    ModelRefused,
 }
 
 /// How a resume went.

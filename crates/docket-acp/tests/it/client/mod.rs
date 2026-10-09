@@ -13,6 +13,7 @@ mod full;
 mod hostile;
 mod hostile_limits;
 mod labelled;
+mod models;
 mod osfiles;
 mod own_edge;
 mod rig;

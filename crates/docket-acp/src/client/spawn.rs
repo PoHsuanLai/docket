@@ -2,6 +2,7 @@
 //! `docket-launch`'s (accounts, sandbox, process); `fake::FakeSpawn` returns an in-memory pipe.
 
 use super::edge::EdgeBind;
+use super::models::ModelId;
 use crate::wire::Wire;
 use docket_core::AbsPath;
 use docket_session::ProgramName;
@@ -88,6 +89,8 @@ pub struct Spawned<W, C> {
     pub meta: Option<SessionMeta>,
     /// The way to sign in before `session/new`, when `agents.toml` names one.
     pub sign_in: Option<SignIn>,
+    /// The model to switch to after `session/new`, when `agents.toml` names one.
+    pub model: Option<ModelId>,
 }
 
 /// The process behind a wire.

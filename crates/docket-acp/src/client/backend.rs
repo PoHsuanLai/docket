@@ -22,6 +22,7 @@ use super::court::Court;
 use super::edge::{EdgeFault, ToolsEdge, ToolsOffer};
 use super::files::Files;
 use super::intake::{Intake, Work, intake};
+use super::models::{ModelId, Models};
 use super::performer::Performer;
 use super::reported::Reported;
 use super::rpc::{self, Ids};
@@ -38,8 +39,8 @@ use agent_client_protocol_schema::v1::{
 use bulkhead::Sandbox;
 use docket_core::{AbsPath, CallId, PermissionKind, UserTurn};
 use docket_session::{
-    BackendEvent, BackendFault, BackendKind, ProgramName, ResumePlan, Resumed, SessionBackend,
-    StartSession, Taint, TurnEnd,
+    BackendEvent, BackendFault, BackendKind, Choice, Choices, ProgramName, ResumePlan, Resumed,
+    SessionBackend, StartSession, Taint, TurnEnd,
 };
 use prov::Effect;
 use std::collections::VecDeque;
@@ -83,6 +84,10 @@ pub(super) struct Live<X: Seams> {
     pub meta: Option<SessionMeta>,
     /// The way to sign in before `session/new`, kept for the handshake.
     pub sign_in: Option<SignIn>,
+    /// The model to switch to after `session/new`, kept for the handshake.
+    pub model: Option<ModelId>,
+    /// The models the agent offered for this session.
+    pub models: Option<Models>,
     pub cwd: AbsPath,
     pub real_cwd: AbsPath,
     pub session: prov::SessionId,
@@ -221,6 +226,7 @@ impl<X: Seams> AcpBackend<X> {
             child,
             meta,
             sign_in,
+            model,
         } = self
             .spawn
             .spawn(&plan)
@@ -238,6 +244,8 @@ impl<X: Seams> AcpBackend<X> {
             agent: None,
             meta: meta.clone(),
             sign_in,
+            model,
+            models: None,
             cwd: cwd.clone(),
             real_cwd,
             session: session.clone(),
@@ -266,6 +274,7 @@ impl<X: Seams> AcpBackend<X> {
             return Err(BackendFault::Unavailable);
         }
         self.sign_in(&init).await?;
+        let methods = signable(&init);
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         let id = live.ids.next();
         let servers = live
@@ -277,14 +286,50 @@ impl<X: Seams> AcpBackend<X> {
         self.send(rpc::session_new(&id, cwd, servers, meta)).await?;
         let reply = match self.await_outcome(&id).await? {
             Ok(reply) => reply,
-            Err(error) => return Err(refusal_fault(&error)),
+            Err(error) => return Err(refusal_fault(&error, methods)),
         };
         let made: NewSessionResponse =
-            serde_json::from_value(reply).map_err(|_| BackendFault::Unavailable)?;
+            serde_json::from_value(reply.clone()).map_err(|_| BackendFault::Unavailable)?;
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
+        live.models = Models::of_reply(&reply, &made);
         live.agent = Some(made.session_id);
+        self.choose_model().await?;
         self.phase = Phase::Idle;
         Ok(())
+    }
+
+    /// Switches to the model `agents.toml` names, when it names one: only one the agent offered,
+    /// and the reply is awaited before the first turn. No model named leaves the agent's own.
+    async fn choose_model(&mut self) -> Result<(), BackendFault> {
+        let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
+        let Some(wanted) = live.model.clone() else {
+            return Ok(());
+        };
+        let agent = live.agent.clone().ok_or(BackendFault::NotRunning)?;
+        let offer = live.models.clone().ok_or(BackendFault::ModelNotChoosable)?;
+        if !offer.offers(&wanted) {
+            return Err(BackendFault::ModelNotOffered(offer.choices()));
+        }
+        if offer.current.as_deref() == Some(wanted.as_str()) {
+            return Ok(());
+        }
+        let id = live.ids.next();
+        self.send(offer.switch(&id, &agent, &wanted)).await?;
+        match self.await_outcome(&id).await? {
+            Ok(_) => {
+                let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
+                if let Some(models) = live.models.as_mut() {
+                    models.current = Some(wanted.as_str().to_owned());
+                }
+                Ok(())
+            }
+            Err(_) => Err(BackendFault::ModelRefused),
+        }
+    }
+
+    /// The models the agent offered for the session, once it is open and when it offers a choice.
+    pub fn models(&self) -> Option<&Models> {
+        self.live.as_ref().and_then(|l| l.models.as_ref())
     }
 
     /// Signs in the way `agents.toml` names, when it names one: only a way the agent advertised
@@ -355,11 +400,28 @@ impl<X: Seams> AcpBackend<X> {
 
 /// The fault for an error the agent answered `session/new` with: "authentication required"
 /// (-32000) is its own fault, everything else is the agent being unavailable.
-fn refusal_fault(error: &serde_json::Value) -> BackendFault {
+fn refusal_fault(error: &serde_json::Value, methods: Choices) -> BackendFault {
     match serde_json::from_value::<Error>(error.clone()) {
-        Ok(e) if e.code == ErrorCode::AuthRequired => BackendFault::SignInNeeded,
+        Ok(e) if e.code == ErrorCode::AuthRequired && methods.0.is_empty() => {
+            BackendFault::SignInNeeded
+        }
+        Ok(e) if e.code == ErrorCode::AuthRequired => BackendFault::SignInChoose(methods),
         _ => BackendFault::Unavailable,
     }
+}
+
+/// The ways of signing in the agent runs itself, by their names.
+fn signable(init: &InitializeResponse) -> Choices {
+    Choices(
+        init.auth_methods
+            .iter()
+            .filter(|m| matches!(m, AuthMethod::Agent(_)))
+            .map(|m| Choice {
+                id: m.id().0.to_string(),
+                name: m.name().to_owned(),
+            })
+            .collect(),
+    )
 }
 
 fn stop(reason: StopReason) -> TurnEnd {
