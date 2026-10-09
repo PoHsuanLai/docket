@@ -59,17 +59,18 @@ fn where_intentd_is_not_the_exit_is_6_and_nothing_is_sent() {
         );
         assert_eq!(text(&out.stdout), "");
     }
-}
-
-#[test]
-fn a_bus_that_is_not_there_is_exit_6_too() {
-    let dir = tempfile::tempdir().expect("scratch dir");
+    // Last step: a bus address that is not there at all is exit 6 too.
     let nowhere = format!("unix:path={}", dir.path().join("nothing.sock").display());
     let out = quire_do(dir.path(), &nowhere, &["apps"]);
-    assert_eq!(out.status.code(), Some(6), "{}", text(&out.stderr));
+    assert_eq!(
+        out.status.code(),
+        Some(6),
+        "no bus at all: {}",
+        text(&out.stderr)
+    );
     assert!(
         text(&out.stderr).contains("the bus failed"),
-        "{}",
+        "no bus at all: {}",
         text(&out.stderr)
     );
 }

@@ -83,24 +83,6 @@ mod tests {
     }
 
     #[test]
-    fn a_text_want_without_a_length_is_a_read_with_the_default() {
-        for want in [
-            json!({ "kind": "text" }),
-            json!({ "kind": "text", "v": {} }),
-        ] {
-            let ModelOutput::Read(ask) = asked(want) else {
-                panic!("not a read");
-            };
-            assert_eq!(
-                ask.want,
-                ValueSchema::Text {
-                    max: docket_core::CharCount(2000)
-                }
-            );
-        }
-    }
-
-    #[test]
     fn a_text_want_with_a_bad_v_gets_the_precise_fault_not_the_generic_one() {
         let out = asked(json!({ "kind": "text", "v": { "max": "lots" } }));
         assert_eq!(

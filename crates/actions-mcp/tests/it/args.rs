@@ -253,10 +253,12 @@ fn every_argument_is_labelled_untrusted_from_this_client() {
     assert_eq!(args.len(), 2);
     for held in args.values() {
         assert_eq!(held.label.integrity, Integrity::Untrusted);
-        assert!(matches!(
-            held.label.sources.iter().next(),
-            Some(Source::Mcp(client)) if client.as_str() == "Claude Desktop"
-        ));
+        assert_eq!(
+            held.label.sources.iter().collect::<Vec<_>>(),
+            [&Source::Mcp(
+                ClientName::parse("Claude Desktop").expect("client")
+            )]
+        );
     }
 }
 

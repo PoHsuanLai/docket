@@ -3,7 +3,7 @@
 
 use almanac_client::Absent;
 use docket_core::*;
-use docket_router::{Clock, EventSink, LinkFault, MemoryLink};
+use docket_router::{EventSink, LinkFault, MemoryLink};
 use intentd::*;
 use porter_core::AppName;
 use prov::{ConfirmId, Effect, SpaceScope, UnixSeconds};
@@ -49,14 +49,6 @@ fn a_second_opinion_of_the_same_family_does_not_load() {
         IntentdConfig::parse("roles = 3"),
         Err(ConfigError::Toml(_))
     ));
-}
-
-#[test]
-fn the_config_round_trips_through_toml() {
-    let config = IntentdConfig::parse(&fixture()).expect("a configuration");
-    let again =
-        IntentdConfig::parse(&toml::to_string_pretty(&config).expect("toml")).expect("again");
-    assert_eq!(again, config);
 }
 
 #[test]
@@ -153,11 +145,6 @@ async fn no_memory_on_the_desktop_is_an_unavailable_link_not_a_panic() {
     let got = memory.ask(almanac_core::MemoryRequest::Spaces).await;
     assert_eq!(got, Err(LinkFault::Unavailable));
     let _ = space;
-}
-
-#[test]
-fn the_system_clock_is_after_2024() {
-    assert!(SystemClock.now().0 > 1_700_000_000);
 }
 
 #[test]

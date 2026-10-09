@@ -157,25 +157,51 @@ mod tests {
 
     #[test]
     fn a_text_without_a_length_is_read_with_the_default() {
-        let default = json!({ "kind": "text", "v": { "max": 2000 } });
-        assert_eq!(ids(json!({ "kind": "text" })), Ok(default.clone()));
-        assert_eq!(ids(json!({ "kind": "text", "v": {} })), Ok(default.clone()));
-        assert_eq!(ids(json!({ "kind": "text", "v": null })), Ok(default));
-        assert_eq!(
-            ids(json!({ "kind": "text", "v": { "max": 300 } })),
-            Ok(json!({ "kind": "text", "v": { "max": 300 } }))
-        );
-    }
-
-    #[test]
-    fn a_text_inside_a_record_or_a_list_gets_the_default_too() {
-        let got = ids(json!({ "kind": "record", "v": [
-            ["summary", { "kind": "text" }],
-            ["parts", { "kind": "list", "v": { "of": { "kind": "text", "v": {} }, "max": 3 } }],
-        ] }))
-        .expect("ids");
-        assert_eq!(got["v"][0][1]["v"]["max"], json!(2000));
-        assert_eq!(got["v"][1][1]["v"]["of"]["v"]["max"], json!(2000));
+        let default = || json!({ "kind": "text", "v": { "max": 2000 } });
+        let nested = || {
+            json!({ "kind": "record", "v": [
+                ["summary", { "kind": "text" }],
+                ["parts", { "kind": "list", "v": { "of": { "kind": "text", "v": {} }, "max": 3 } }],
+            ] })
+        };
+        // (row, input, where to look in the settled want ("" is the whole), expected)
+        let cases = [
+            (
+                "no v at the top level",
+                json!({ "kind": "text" }),
+                "",
+                default(),
+            ),
+            (
+                "empty v at the top level",
+                json!({ "kind": "text", "v": {} }),
+                "",
+                default(),
+            ),
+            (
+                "null v at the top level",
+                json!({ "kind": "text", "v": null }),
+                "",
+                default(),
+            ),
+            (
+                "an explicit length is kept",
+                json!({ "kind": "text", "v": { "max": 300 } }),
+                "",
+                json!({ "kind": "text", "v": { "max": 300 } }),
+            ),
+            ("a text in a record", nested(), "/v/0/1/v/max", json!(2000)),
+            (
+                "a text in a list in a record",
+                nested(),
+                "/v/1/1/v/of/v/max",
+                json!(2000),
+            ),
+        ];
+        for (row, input, at, expected) in cases {
+            let got = ids(input).expect("ids");
+            assert_eq!(got.pointer(at), Some(&expected), "{row}");
+        }
     }
 
     #[test]

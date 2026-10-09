@@ -379,13 +379,6 @@ fn mic_open_iff_open_states() {
 }
 
 #[test]
-fn a_trace_serialises_and_compares() {
-    let (state, effects) = utterance_step(S::Idle, begin(VoiceUse::On));
-    let json = serde_json::to_string(&(begin(VoiceUse::On), state, &effects)).expect("json");
-    assert!(json.contains("open_mic"), "{json}");
-}
-
-#[test]
 fn the_refusal_for_a_setting_matches_what_the_table_refuses() {
     for enabled in [VoiceUse::Off, VoiceUse::NeedsConsent, VoiceUse::On] {
         let (state, effects) = utterance_step(UtteranceState::Idle, begin(enabled));

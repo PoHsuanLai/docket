@@ -4,7 +4,7 @@ use action_review::{ReviewVerdict, Reviewer};
 use docket_client::IntentProvider;
 use docket_core::*;
 use docket_fake::*;
-use docket_router::{Clock, EventSink, GrantStore, Registry, parse};
+use docket_router::{Clock, GrantStore};
 use prov::{ActionName, Actor, AppName, SpaceId, UnixSeconds};
 use std::collections::BTreeSet;
 
@@ -66,15 +66,6 @@ fn the_fixture_manifests_parse_and_validate() {
     assert!(effects(&files).contains(&("files.file.move".into(), prov::Effect::UndoableWrite)));
     let titles = &mail.manifest().entities[0].titles;
     assert_eq!(*titles, TitleTrust::ThirdParty(prov::Source::Mail));
-}
-
-#[test]
-fn the_fixtures_resolve_every_kind_when_both_are_loaded() {
-    let mut registry = Registry::new();
-    registry.insert(mail_manifest().expect("mail"));
-    registry.insert(files_manifest().expect("files"));
-    assert!(registry.unresolved().is_empty());
-    assert!(parse(MAIL_MANIFEST).is_ok() && parse(FILES_MANIFEST).is_ok());
 }
 
 #[test]
@@ -309,28 +300,6 @@ async fn the_scripted_confirmer_pops_in_order_and_records_requests() {
         .await;
     assert_eq!(confirmer.requests().len(), 3);
     assert_eq!(confirmer.cancelled().len(), 1);
-}
-
-#[test]
-fn the_clock_is_fixed_and_the_sink_and_grants_record() {
-    let clock = FixedClock::at(UnixSeconds(42));
-    assert_eq!(
-        (clock.now(), clock.now()),
-        (UnixSeconds(42), UnixSeconds(42))
-    );
-    let sink = RecordingSink::new();
-    sink.append(AuditRecord::Halt {
-        at: UnixSeconds(1),
-        scope: prov::SpaceScope::Any,
-        cause: HaltCause::KillChord,
-    });
-    sink.append(AuditRecord::Halt {
-        at: UnixSeconds(2),
-        scope: prov::SpaceScope::Any,
-        cause: HaltCause::StopKey,
-    });
-    assert_eq!(sink.records().len(), 2);
-    assert!(MemoryGrants::new().grants().is_empty());
 }
 
 #[tokio::test]

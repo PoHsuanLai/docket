@@ -145,6 +145,19 @@ fn standing_grant(prefix: &str) -> docket_core::StandingGrant {
     )
 }
 
+fn read_grant() -> docket_core::StandingGrant {
+    docket_core::StandingGrant::new(
+        GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
+        docket_core::StandingScope::Reads {
+            action: docket_core::ActionRef {
+                app: AppName::parse("org.quire.Mail").expect("app"),
+                name: ActionName::parse("mail.thread.search").expect("action"),
+            },
+        },
+        UnixSeconds(1),
+    )
+}
+
 #[test]
 fn standing_grants_survive_a_restart_and_a_revocation_is_seen_by_the_next_reader() {
     use docket_core::Revocation;
@@ -156,13 +169,19 @@ fn standing_grants_survive_a_restart_and_a_revocation_is_seen_by_the_next_reader
     store.add_standing(a.clone());
     store.add_standing(b.clone());
     store.add_standing(a.clone());
+    let read = read_grant();
+    store.add_standing(read.clone());
     let reopened = FileGrantStore::open(path.clone()).expect("open");
-    assert_eq!(reopened.standing(), vec![b.clone(), a.clone()]);
+    assert_eq!(
+        reopened.standing(),
+        vec![b.clone(), a.clone(), read.clone()],
+        "a read grant survives a restart like the other standing grants"
+    );
     assert_eq!(reopened.revoke_standing(&a.id), Revocation::Revoked);
     assert_eq!(reopened.revoke_standing(&a.id), Revocation::NotHeld);
     assert_eq!(
         FileGrantStore::open(path.clone()).expect("open").standing(),
-        vec![b.clone()],
+        vec![b.clone(), read.clone()],
         "a third process reads the revocation"
     );
     assert!(
@@ -219,25 +238,4 @@ fn a_failed_write_keeps_the_old_file() {
         Some(GrantFileError::Write { .. })
     ));
     assert_eq!(std::fs::read_to_string(&path).expect("read"), before);
-}
-
-#[test]
-fn a_read_grant_survives_a_restart_like_the_other_standing_grants() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let path = dir.path().join("grants.json");
-    let held = docket_core::StandingGrant::new(
-        GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
-        docket_core::StandingScope::Reads {
-            action: docket_core::ActionRef {
-                app: AppName::parse("org.quire.Mail").expect("app"),
-                name: ActionName::parse("mail.thread.search").expect("action"),
-            },
-        },
-        UnixSeconds(1),
-    );
-    FileGrantStore::open(path.clone())
-        .expect("open")
-        .add_standing(held.clone());
-    let reopened = FileGrantStore::open(path).expect("reopen");
-    assert_eq!(reopened.standing(), vec![held]);
 }

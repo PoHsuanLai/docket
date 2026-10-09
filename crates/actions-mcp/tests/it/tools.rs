@@ -4,7 +4,7 @@
 use actions_mcp::*;
 use docket_core::*;
 use porter_core::AppName;
-use prov::{ClientName, Effect, Integrity, Source};
+use prov::Effect;
 use std::path::PathBuf;
 
 fn manifest(file: &str) -> ValidManifest {
@@ -78,17 +78,6 @@ fn tool_hints_follow_effect() {
     for (effect, want) in cases {
         assert_eq!(hints_of(effect), want, "{effect:?}");
     }
-}
-
-#[test]
-fn every_argument_from_a_client_is_untrusted_and_says_whose() {
-    let client = ClientName::parse("Claude Desktop").expect("client");
-    let label = mcp_label(&client);
-    assert_eq!(label.integrity, Integrity::Untrusted);
-    assert_eq!(
-        label.sources.iter().collect::<Vec<_>>(),
-        [&Source::Mcp(client)]
-    );
 }
 
 #[test]

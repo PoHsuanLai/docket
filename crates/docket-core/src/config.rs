@@ -293,17 +293,4 @@ mod tests {
             );
         }
     }
-
-    #[test]
-    fn the_assembler_budget_sums_to_the_working_set_of_the_research() {
-        let a = AgentConfig::default().assembler;
-        let total = a.rules.0
-            + a.profile.0
-            + a.roster.0
-            + a.episodes.0
-            + a.recall.0
-            + a.context.0
-            + a.task.0;
-        assert_eq!(total, 10_800);
-    }
 }

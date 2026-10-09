@@ -429,17 +429,22 @@ mod tests {
     }
 
     #[test]
-    fn a_release_build_ignores_the_trace_variable() {
-        let var = Some(OsString::from("/scratch/model.jsonl"));
-        assert!(Tap::chosen(var, Build::Release).is_off());
-    }
-
-    #[test]
-    fn a_harness_build_follows_the_trace_variable() {
-        let var = Some(OsString::from("/scratch/model.jsonl"));
-        assert!(!Tap::chosen(var, Build::Harness).is_off());
-        assert!(Tap::chosen(Some(OsString::new()), Build::Harness).is_off());
-        assert!(Tap::chosen(None, Build::Harness).is_off());
+    fn the_trace_variable_only_counts_in_a_harness_build() {
+        let path = || Some(OsString::from("/scratch/model.jsonl"));
+        let rows: [(&str, Option<OsString>, Build, bool); 4] = [
+            ("release with a path", path(), Build::Release, true),
+            ("harness with a path", path(), Build::Harness, false),
+            (
+                "harness with an empty value",
+                Some(OsString::new()),
+                Build::Harness,
+                true,
+            ),
+            ("harness with no variable", None, Build::Harness, true),
+        ];
+        for (row, var, build, off) in rows {
+            assert_eq!(Tap::chosen(var, build).is_off(), off, "{row}");
+        }
     }
 
     #[test]

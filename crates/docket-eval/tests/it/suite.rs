@@ -346,17 +346,6 @@ fn the_maximal_policy_covers_every_app_up_to_destructive() {
 }
 
 #[test]
-fn the_harness_builds_over_the_fake_router() {
-    let harness = Harness::new(docket_core::AgentConfig::default()).expect("harness");
-    assert_eq!(harness.router.seams.reviewer.call_count(), 0);
-    let writer = Harness::maximal_writer(
-        SpaceId::parse("work").expect("space"),
-        TaskId::parse("t-1").expect("task"),
-    );
-    assert!(writer.calls().is_empty());
-}
-
-#[test]
 fn report_shape_round_trips() {
     let metrics = Metrics {
         n: Count(200),

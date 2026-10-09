@@ -364,7 +364,8 @@ fn with_relations(relations: Vec<RelationDecl>, actions: Vec<ActionDecl>) -> Man
 }
 
 #[test]
-fn a_kind_with_relations_gets_a_derived_read_action_that_asks_for_the_classes_of_both() {
+fn a_kind_with_relations_gets_a_derived_read_action_that_asks_for_the_classes_of_both_and_one_with_none_gets_none()
+ {
     let from = relation("from", "mail.contact", TitleTrust::AppAuthored);
     let valid = validate(with_relations(vec![from], vec![])).expect("valid");
     let derived = valid
@@ -398,12 +399,12 @@ fn a_kind_with_relations_gets_a_derived_read_action_that_asks_for_the_classes_of
             .map(|e| &e.kind),
         Some(&kind("mail.thread"))
     );
-}
-
-#[test]
-fn a_kind_with_no_relation_gets_no_derived_action() {
-    let valid = validate(with_relations(vec![], vec![])).expect("valid");
-    assert!(valid.manifest().actions.is_empty());
+    // Step two: the same kind with no relation gets no derived action.
+    let bare = validate(with_relations(vec![], vec![])).expect("valid");
+    assert!(
+        bare.manifest().actions.is_empty(),
+        "step two: no relation, no derived action"
+    );
 }
 
 #[test]

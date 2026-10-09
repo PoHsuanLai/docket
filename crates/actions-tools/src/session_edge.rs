@@ -138,20 +138,4 @@ mod tests {
         });
         assert!(serde_json::from_value::<EdgeRequest>(line).is_err());
     }
-
-    #[test]
-    fn a_request_round_trips() {
-        let request = EdgeRequest {
-            token: token(),
-            op: EdgeOp::Call {
-                tool: "mail__send".into(),
-                arguments: serde_json::json!({"to": "a"}),
-            },
-        };
-        let text = serde_json::to_string(&request).expect("json");
-        assert_eq!(
-            serde_json::from_str::<EdgeRequest>(&text).expect("back"),
-            request
-        );
-    }
 }

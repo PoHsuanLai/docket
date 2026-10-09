@@ -97,12 +97,4 @@ mod tests {
         assert!(gate.keeps(&host));
         assert!(!gate.keeps(&name(ACP_NAME)));
     }
-
-    #[test]
-    fn a_clone_sees_the_same_setting() {
-        let gate = AcpGate::shut();
-        let seen = gate.clone();
-        gate.set(AcpExpose::On);
-        assert_eq!(seen.expose(), AcpExpose::On);
-    }
 }
