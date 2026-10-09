@@ -1,0 +1,34 @@
+[package]
+name = "docket-kit"
+description = "Declaring an internal agent in a few lines: a builder over the existing machines (agent_step, the assembler, the planner, the Intents1 link), with typed choices for role, actions, memory, tier and limits. It runs nothing itself: every action is a CallRequest through the router. Portable: no bus, no runtime."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+agent-loop = { workspace = true }
+almanac-core = { workspace = true }
+companion-wire = { workspace = true }
+docket-client = { workspace = true }
+docket-core = { workspace = true }
+docket-planner = { workspace = true }
+docket-tasks = { workspace = true }
+porter-client = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+docket-client = { workspace = true, features = ["in_process"] }
+docket-fake = { workspace = true }
+docket-router = { workspace = true }
+docket-session = { workspace = true }
+porter-infer = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true
