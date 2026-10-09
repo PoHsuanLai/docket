@@ -1365,6 +1365,7 @@ dependencies = [
  "docket-fake",
  "docket-session",
  "docket-skills",
+ "futures-channel",
  "futures-util",
  "policy-point",
  "porter-core",

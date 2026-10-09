@@ -1,6 +1,7 @@
 //! Driving one call through its lifecycle: the pure step decides, this carries out what it
 //! asks (the reviewers, the app's dry run, the sheet, the app itself) and keeps the audit.
 
+use crate::asks::{AskKey, Seat, Settled, seat, settled};
 use crate::call::{CallEffect, CallEvent, CallState, call_step};
 use crate::confirm::confirm_request;
 use crate::deadline::within;
@@ -365,10 +366,26 @@ impl<S: Seams> Router<S> {
 
     async fn confirm(&self, p: &Prepared, run: &mut Run, request: &ConfirmRequest) -> Next {
         let id = request.id.clone();
-        self.locked().pending.insert(id.clone(), p.space.clone());
-        run.confirm = Some(id.clone());
-        let answer = self.seams.confirmer().confirm(request.clone()).await;
-        self.locked().pending.remove(&id);
+        let mut opened = None;
+        let answer = loop {
+            match seat(&self.state, AskKey::of(request, p.who.session.as_ref())) {
+                Seat::Waiter(rx) => match settled(rx).await {
+                    Settled::Take(answer) => return self.taken(p, run, answer),
+                    Settled::AskAgain => continue,
+                },
+                Seat::Asker(seat) => opened = Some(seat),
+                Seat::Alone => {}
+            }
+            self.locked().pending.insert(id.clone(), p.space.clone());
+            run.confirm = Some(id.clone());
+            let answer = self.seams.confirmer().confirm(request.clone()).await;
+            self.locked().pending.remove(&id);
+            if let Some(seat) = opened.as_mut() {
+                seat.settle(&answer);
+            }
+            break answer;
+        };
+        drop(opened);
         if self.halt_scope(&p.space).is_some() {
             self.seams.confirmer().cancel(&id).await;
             return Next::Event(CallEvent::Halted);
@@ -390,6 +407,18 @@ impl<S: Seams> Router<S> {
                 answer: kind,
                 input: Some(receipt.input),
             });
+        }
+        Next::Event(CallEvent::Answered(answer))
+    }
+
+    /// A call that waited on another's sheet takes that sheet's answer: the person's yes is
+    /// the receipt it runs on, and a refusal refuses it too.
+    fn taken(&self, p: &Prepared, run: &mut Run, answer: ConfirmAnswer) -> Next {
+        if self.halt_scope(&p.space).is_some() {
+            return Next::Event(CallEvent::Halted);
+        }
+        if let ConfirmAnswer::Allowed { receipt, .. } = &answer {
+            run.receipt = Some(receipt.clone());
         }
         Next::Event(CallEvent::Answered(answer))
     }

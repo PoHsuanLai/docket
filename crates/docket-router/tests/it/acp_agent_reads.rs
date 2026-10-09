@@ -19,7 +19,7 @@ fn files_app() -> porter_core::AppName {
     porter_core::AppName::parse("org.quire.Files").expect("app")
 }
 
-fn files_read() -> CallRequest {
+pub(crate) fn files_read() -> CallRequest {
     let mut request = call("mail.thread.read", &[], vec![]);
     request.action = ActionRef {
         app: files_app(),
@@ -34,7 +34,7 @@ fn files_read() -> CallRequest {
 }
 
 /// Opens an agent session whose task covers Mail and Files up to a destructive effect.
-async fn open_wide(w: &World, program: &str) -> prov::SessionId {
+pub(crate) async fn open_wide(w: &World, program: &str) -> prov::SessionId {
     let session = w.open(program, SheetSurface::Desktop).await;
     let mut policy = {
         let st = w.router.state.lock().expect("lock");
@@ -55,7 +55,7 @@ async fn open_wide(w: &World, program: &str) -> prov::SessionId {
     session
 }
 
-fn grants_of(w: &World) -> Vec<StandingGrant> {
+pub(crate) fn grants_of(w: &World) -> Vec<StandingGrant> {
     w.router.standing_grants()
 }
 

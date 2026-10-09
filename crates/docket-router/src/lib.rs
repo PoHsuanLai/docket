@@ -8,6 +8,7 @@
 //! No clock, bus, file or runtime is reached here; the daemon (`intentd`) passes them in.
 
 mod argcheck;
+mod asks;
 mod assess;
 mod auth;
 mod call;

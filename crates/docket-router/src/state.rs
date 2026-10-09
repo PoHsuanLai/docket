@@ -132,6 +132,8 @@ pub struct RouterState {
     pub inboxes: BTreeMap<Address, Vec<Message>>,
     /// Confirmations on a sheet right now, by Space, so a halt can withdraw them.
     pub pending: BTreeMap<ConfirmId, SpaceId>,
+    /// The sheets open now, with the calls waiting on each.
+    pub(crate) asks: crate::asks::Asks,
     /// The counter every minted id draws from.
     pub minted: Count,
     /// The installed skills (valid files; which are offered is checked against the registry at
@@ -160,6 +162,7 @@ impl RouterState {
             implicit: BTreeMap::new(),
             inboxes: BTreeMap::new(),
             pending: BTreeMap::new(),
+            asks: crate::asks::Asks::default(),
             minted: Count(0),
             skills: Vec::new(),
             lanes: BTreeMap::new(),

@@ -2,6 +2,7 @@ mod acp_agent;
 mod acp_agent_exec;
 mod acp_agent_grants;
 mod acp_agent_label;
+mod acp_agent_one_sheet;
 mod acp_agent_paths;
 mod acp_agent_reads;
 mod acp_agent_tools;

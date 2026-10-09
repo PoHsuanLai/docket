@@ -28,9 +28,40 @@ fn with<T, R>(m: &Mutex<T>, f: impl FnOnce(&mut T) -> R) -> R {
     }
 }
 
+/// Whether a scripted confirmer answers at once or lets other work run first.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Pace {
+    /// Answer in the same poll.
+    #[default]
+    Instant,
+    /// Give way once after the request is shown, as a person's sheet would, so calls issued
+    /// together are all waiting before the answer comes.
+    Yielding,
+}
+
+/// A future that is pending once and then ready.
+#[derive(Debug, Default)]
+struct YieldOnce(bool);
+
+impl std::future::Future for YieldOnce {
+    type Output = ();
+    fn poll(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<()> {
+        if self.0 {
+            return std::task::Poll::Ready(());
+        }
+        self.0 = true;
+        cx.waker().wake_by_ref();
+        std::task::Poll::Pending
+    }
+}
+
 /// Answers confirmations from a queue and records every request and cancel.
 #[derive(Debug, Default)]
 pub struct ScriptedConfirmer {
+    pace: Pace,
     answers: Mutex<VecDeque<ConfirmAnswer>>,
     requests: Mutex<Vec<ConfirmRequest>>,
     cancelled: Mutex<Vec<ConfirmId>>,
@@ -42,6 +73,14 @@ impl ScriptedConfirmer {
         Self {
             answers: Mutex::new(answers.into()),
             ..Self::default()
+        }
+    }
+
+    /// As `answering`, but the answer comes only after other work has had a turn.
+    pub fn yielding(answers: Vec<ConfirmAnswer>) -> Self {
+        Self {
+            pace: Pace::Yielding,
+            ..Self::answering(answers)
         }
     }
 
@@ -66,6 +105,9 @@ impl ScriptedConfirmer {
 impl Confirmer for ScriptedConfirmer {
     async fn confirm(&self, request: ConfirmRequest) -> ConfirmAnswer {
         with(&self.requests, |r| r.push(request));
+        if self.pace == Pace::Yielding {
+            YieldOnce::default().await;
+        }
         with(&self.answers, VecDeque::pop_front)
             .unwrap_or(ConfirmAnswer::Ended(ConfirmEnd::Dismissed))
     }
