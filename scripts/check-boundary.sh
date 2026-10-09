@@ -28,6 +28,9 @@ RULES=(
   # The tools an outside agent is offered, as pure data: shared by the MCP edge and the ACP host.
   "actions-tools: $EFFECTS toml"
   "companion-wire: $EFFECTS toml"
+  # Installs agents from the registry: reads files and runs curl and npm as processes, so no bus,
+  # runtime, network library or Cedar. It reads its own records as TOML.
+  "docket-agents: $EFFECTS"
   "agent-loop: $EFFECTS toml"
   # The planner is portable: it asks any porter-client Transport (porter-client without its
   # `dbus` and `socket` features reaches no runtime), so inferd over D-Bus is companiond's
@@ -157,7 +160,8 @@ EDGES=(
   "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-session docket-skills porter-client porter-core porter-infer prov"
   "docket-session: companion-wire docket-core porter-core prov"
   "docket-acp: actions-tools bulkhead companion-wire docket-client docket-core docket-session docket-settings porter-core prov"
-  "docket-launch: bulkhead docket-acp docket-core docket-session docket-settings porter-client porter-core porter-dbus prov"
+  "docket-agents:"
+  "docket-launch: bulkhead docket-acp docket-agents docket-core docket-session docket-settings porter-client porter-core porter-dbus prov"
   "docket-acp-bin: bulkhead docket-acp docket-client docket-core docket-dbus docket-inapp docket-launch docket-planner docket-router docket-session docket-settings docket-tasks porter-core prov"
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
@@ -173,7 +177,7 @@ EDGES=(
   "intentd: action-review almanac-client almanac-core docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-session docket-settings docket-skills policy-point porter-client porter-core porter-dbus porter-infer prov"
   "companiond: companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills docket-tasks porter-client porter-core prov"
   "readerd: docket-client docket-core docket-dbus docket-reader porter-client porter-core porter-infer prov"
-  "docket-accept: action-review actions-mcp almanac-client almanac-core bulkhead companion-wire companiond docket-acp docket-acp-bin docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-inapp docket-launch docket-router docket-session docket-settings docket-testbus intentd porter-client porter-core porter-infer prov readerd"
+  "docket-accept: action-review actions-mcp almanac-client almanac-core bulkhead companion-wire companiond docket-acp docket-acp-bin docket-agents docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-inapp docket-launch docket-router docket-session docket-settings docket-testbus intentd porter-client porter-core porter-infer prov readerd"
   "companion-client: companion-wire docket-client docket-core docket-dbus prov"
   "docket-cli: companion-client companion-wire docket-client docket-core docket-session docket-skills model-provider porter-core prov"
   "docket-settings: docket-core porter-core"
