@@ -15,7 +15,10 @@ use crate::role::RoleText;
 use crate::want::want_schema;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
-use docket_core::{CallRequest, Origin, PlannerView, ReplyFault};
+use docket_core::{
+    ActionCard, Args, CallRequest, Handle, HandleShape, Origin, ParamName, PlannerView,
+    RELATION_ARG, ReplyFault, TargetValue, Value, Why,
+};
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
@@ -38,6 +41,9 @@ pub const TOOL_ASK: &str = "quire_ask";
 pub const TOOL_READ: &str = "quire_read";
 /// The tool that ends the task.
 pub const TOOL_FINISH: &str = "quire_finish";
+/// The tool that asks for the thing related to a thing it holds (the sender of a thread), as a
+/// handle. Offered only when some app declares a relation.
+pub const TOOL_RELATED: &str = "quire_related";
 
 /// Why the planner gave nothing usable.
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
@@ -92,8 +98,47 @@ fn meta_tool(name: &str, description: &str, params: &Json) -> Option<ToolDecl> {
     })
 }
 
-/// The three tools every task has beside the actions.
-fn meta_tools() -> Vec<ToolDecl> {
+/// The relations the view's actions resolve, each name once, in the view's order.
+fn relation_names(actions: &[ActionCard]) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for relation in actions.iter().flat_map(|card| &card.related) {
+        if !names.iter().any(|n| n == relation.name.as_str()) {
+            names.push(relation.name.as_str().to_owned());
+        }
+    }
+    names
+}
+
+/// `quire_related`, when some action of the view resolves a relation.
+fn related_tool(actions: &[ActionCard]) -> Option<ToolDecl> {
+    let names = relation_names(actions);
+    if names.is_empty() {
+        return None;
+    }
+    let params = json!({
+        "type": "object",
+        "properties": {
+            "of": {
+                "type": "object",
+                "properties": { "handle": { "type": "integer", "minimum": 0 } },
+                "required": ["handle"],
+                "additionalProperties": false,
+            },
+            "relation": { "enum": names },
+        },
+        "required": ["of", "relation"],
+        "additionalProperties": false,
+    });
+    meta_tool(
+        TOOL_RELATED,
+        "Get a thing related to a thing you hold, as a handle: \"of\" is the handle of the thing and \"relation\" is one of the relations shown beside it (\"related: ...\"). Use it when an action needs a thing of another kind that you cannot read from the one you hold, such as who sent a thread.",
+        &params,
+    )
+}
+
+/// The tools every task has beside the actions (`quire_related` first, where it is offered, so
+/// the last three are always ask, read and finish).
+fn meta_tools(actions: &[ActionCard]) -> Vec<ToolDecl> {
     let ask = json!({
         "type": "object",
         "properties": {
@@ -115,6 +160,7 @@ fn meta_tools() -> Vec<ToolDecl> {
     });
     let finish = json!({ "type": "object", "properties": {}, "additionalProperties": false });
     [
+        related_tool(actions),
         meta_tool(TOOL_ASK, "Ask the person a question and wait for the answer.", &ask),
         meta_tool(
             TOOL_READ,
@@ -184,9 +230,10 @@ impl<P: Transport> PlannerModel<P> {
     fn tools(&self, view: &PlannerView) -> Vec<ToolDecl> {
         view.actions
             .iter()
+            .filter(|card| card.related.is_empty())
             .filter_map(|card| self.catalogue.of(&card.action))
             .filter_map(CatalogueTool::declaration)
-            .chain(meta_tools())
+            .chain(meta_tools(&view.actions))
             .collect()
     }
 
@@ -211,7 +258,7 @@ impl<P: Transport> PlannerModel<P> {
     /// One planner step: what the model said, and what the loop does next.
     pub async fn converse(&self, view: &PlannerView) -> Result<PlannerReply, PlanFault> {
         let (reply, route) = self.chat_routed(self.request(view)).await?;
-        let mut said = self.read(reply)?;
+        let mut said = self.read(reply, view)?;
         said.route = route;
         Ok(said)
     }
@@ -268,7 +315,7 @@ impl<P: Transport> PlannerModel<P> {
     }
 
     /// The reply as the loop's output.
-    fn read(&self, reply: ChatReply) -> Result<PlannerReply, PlanFault> {
+    fn read(&self, reply: ChatReply, view: &PlannerView) -> Result<PlannerReply, PlanFault> {
         if matches!(
             reply.stop,
             StopReason::MaxTokens | StopReason::ContentFilter
@@ -301,7 +348,7 @@ impl<P: Transport> PlannerModel<P> {
             ModelOutput::Unread(fault)
         } else {
             match meta.first() {
-                Some(call) => meta_output(call)?,
+                Some(call) => meta_output(call, view)?,
                 None if said.is_some() => ModelOutput::Finish,
                 None => return Err(PlanFault::Unreadable),
             }
@@ -390,21 +437,104 @@ fn bounded(text: &str) -> String {
 type AnyOrP<P> = <P as Transport>::Session;
 
 fn is_meta(name: &str) -> bool {
-    matches!(name, TOOL_ASK | TOOL_READ | TOOL_FINISH)
+    matches!(name, TOOL_ASK | TOOL_READ | TOOL_FINISH | TOOL_RELATED)
 }
 
-fn meta_output(call: &ToolCallPart) -> Result<ModelOutput, PlanFault> {
+fn meta_output(call: &ToolCallPart, view: &PlannerView) -> Result<ModelOutput, PlanFault> {
     let Ok(args) = serde_json::from_str::<Json>(call.args.as_str()) else {
         return match call.name.as_str() {
-            TOOL_READ => Ok(ModelOutput::Unread(ReplyFault::NotJson)),
+            TOOL_READ | TOOL_RELATED => Ok(ModelOutput::Unread(ReplyFault::NotJson)),
             _ => Err(PlanFault::Unreadable),
         };
     };
     match call.name.as_str() {
         TOOL_FINISH => Ok(ModelOutput::Finish),
         TOOL_ASK => question(&args),
+        TOOL_RELATED => Ok(related_output(&args, view)),
         _ => Ok(read_output(&args)),
     }
+}
+
+fn param(name: &str) -> Option<ParamName> {
+    ParamName::parse(name).ok()
+}
+
+fn wrong(name: &str, why: Why) -> ModelOutput {
+    match param(name) {
+        Some(param) => ModelOutput::Unread(ReplyFault::Args(ArgsFault::Wrong { param, why })),
+        None => ModelOutput::Unread(ReplyFault::NotJson),
+    }
+}
+
+fn missing(name: &str) -> ModelOutput {
+    match param(name) {
+        Some(param) => ModelOutput::Unread(ReplyFault::Args(ArgsFault::Missing(param))),
+        None => ModelOutput::Unread(ReplyFault::NotJson),
+    }
+}
+
+/// A `quire_related` as the call of the related action of the thing's kind: the same call the
+/// router gates and records as any other read, so a planner gets a related thing no other way
+/// than through the gate. The handle must be a thing the view shows, of a kind with that
+/// relation.
+fn related_output(args: &Json, view: &PlannerView) -> ModelOutput {
+    let Some(of) = args.get("of") else {
+        return missing("of");
+    };
+    let Some(relation) = args.get("relation").and_then(Json::as_str) else {
+        return missing(RELATION_ARG);
+    };
+    let Some(held) = of
+        .as_object()
+        .filter(|o| o.len() == 1)
+        .and_then(|o| o.get("handle"))
+        .and_then(Json::as_u64)
+        .map(Handle)
+    else {
+        return wrong("of", Why::Type);
+    };
+    let Some(kind) = view.handles.iter().find_map(|c| match &c.shape {
+        HandleShape::Entity(kind) if c.handle == held => Some(kind),
+        _ => None,
+    }) else {
+        return wrong("of", Why::Type);
+    };
+    let Some(card) = view.actions.iter().find(|card| {
+        matches!(&card.on, docket_core::TargetKind::One(k) if k == kind)
+            && card.related.iter().any(|r| r.name.as_str() == relation)
+    }) else {
+        return wrong(RELATION_ARG, Why::Range);
+    };
+    let (Some(name), Some(choice)) = (
+        param(RELATION_ARG),
+        docket_core::ChoiceId::parse(relation).ok(),
+    ) else {
+        return wrong(RELATION_ARG, Why::Range);
+    };
+    let Some(tier) = choose_tier(&Availability {
+        typed: Offer::Offered,
+        hook: Offer::Absent,
+        cua: Offer::Absent,
+    }) else {
+        return ModelOutput::Unread(ReplyFault::NoSuchTool(String::new()));
+    };
+    let mut args = Args::new();
+    args.insert(
+        name,
+        prov::Labelled {
+            value: Value::Choice(choice),
+            label: crate::args::planner_label(),
+        },
+    );
+    ModelOutput::Calls(vec![PlannedCall {
+        call: CallRequest {
+            action: card.action.clone(),
+            target: TargetValue::Handles(vec![held]),
+            args,
+            origin: Origin::Companion,
+        },
+        tier,
+    }])
 }
 
 /// The longest question the planner may put to the person, and its choices: the limits the tool's

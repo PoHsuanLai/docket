@@ -4,8 +4,8 @@
 //! byte-stable until the app set changes.
 
 use docket_core::{
-    ActionCard, ActionDecl, ActionRef, AgentReach, TargetKind, ToolSchema, ValidManifest,
-    Visibility, tool_schema,
+    ActionCard, ActionDecl, ActionRef, AgentReach, RelationDecl, TargetKind, ToolSchema,
+    ValidManifest, Visibility, tool_schema,
 };
 use porter_core::AppName;
 use porter_infer::{JsonSchemaText, JsonText, ToolDecl, ToolName};
@@ -23,6 +23,9 @@ pub struct CatalogueTool {
     pub app: AppName,
     /// The declaration: the types its arguments are read by.
     pub decl: ActionDecl,
+    /// For a kind's related action, the relations it resolves (from the manifest); empty for
+    /// every other action. Such an action is reached through `quire_related`, not as a tool.
+    pub related: Vec<RelationDecl>,
 }
 
 impl CatalogueTool {
@@ -44,6 +47,7 @@ impl CatalogueTool {
             tool: tool_schema(&self.decl),
             reach: self.decl.reach,
             lasting: self.decl.lasting,
+            related: self.related.clone(),
         }
     }
 
@@ -144,6 +148,10 @@ impl Catalogue {
                         name,
                         app: manifest.app.clone(),
                         decl: decl.clone(),
+                        related: manifest
+                            .related_kind(&decl.name)
+                            .map(|e| e.relations.clone())
+                            .unwrap_or_default(),
                     });
                 }
             }

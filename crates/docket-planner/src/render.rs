@@ -7,7 +7,7 @@
 //!
 //! A handle is shown as `#n`; the model can name it and never read it.
 
-use crate::accepts::{text_used_as, used_as};
+use crate::accepts::{related_of, text_used_as, used_as};
 use crate::role::RoleText;
 use crate::step_text::{Seen, step_line, step_line_in};
 use docket_core::{
@@ -131,9 +131,11 @@ fn handle_line(card: &HandleCard, history: &[StepLine], actions: &[ActionCard]) 
         .map(|step| format!(", returned by {step}"))
         .unwrap_or_default();
     let uses = match &card.shape {
-        HandleShape::Entity(kind) => used_as(kind, actions)
-            .map(|u| format!(" \u{2014} use {u}"))
-            .unwrap_or_default(),
+        HandleShape::Entity(kind) => {
+            let used = used_as(kind, actions).map(|u| format!(" \u{2014} use {u}"));
+            let related = related_of(kind, actions).map(|r| format!(" \u{2014} related: {r}"));
+            used.into_iter().chain(related).collect::<String>()
+        }
         HandleShape::Text => text_used_as(u64::from(card.size.0), actions)
             .map(|u| format!(" \u{2014} use {u}"))
             .unwrap_or_default(),
@@ -355,6 +357,33 @@ mod tests {
             ),
             "the same on every turn"
         );
+    }
+
+    #[test]
+    fn a_thing_handle_says_which_related_things_can_be_had_from_it() {
+        let mut actions = mail();
+        actions.push(crate::accepts::fixtures::related_thread());
+        let line = handle_line(
+            &card(3, HandleShape::Entity(kind("mail.thread"))),
+            &[],
+            &actions,
+        );
+        assert!(
+            line.ends_with(
+                " \u{2014} related: from (mail.contact), participants (several mail.contact)"
+            ),
+            "{line}"
+        );
+        assert!(
+            line.contains(" \u{2014} use as target in mail.thread.read"),
+            "{line}"
+        );
+        let contact = handle_line(
+            &card(4, HandleShape::Entity(kind("mail.contact"))),
+            &[],
+            &actions,
+        );
+        assert!(!contact.contains("related:"), "{contact}");
     }
 
     #[test]

@@ -26,8 +26,8 @@ pub use config::{CompaniondConfig, ConfigError};
 pub use daemon::{Daemon, run, start, start_with};
 pub use docket_planner::{
     ArgsFault, Catalogue, CatalogueTool, PlanFault, PlannerModel, PlannerReply, RULES, ReadCall,
-    TARGET, TOOL_ASK, TOOL_FINISH, TOOL_READ, messages, planner_label, read_call, system_text,
-    user_text,
+    TARGET, TOOL_ASK, TOOL_FINISH, TOOL_READ, TOOL_RELATED, messages, planner_label, read_call,
+    system_text, user_text,
 };
 pub use docket_tasks::{
     Begun, Change, RecentSource, ReplayFault, RouterLog, RouterRecent, ServeFault, TaskRuntime,

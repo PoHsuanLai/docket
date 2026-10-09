@@ -414,3 +414,120 @@ async fn a_reply_is_read_into_calls_a_read_a_question_an_end_or_words() {
     // The script is spent: no model to ask.
     assert_eq!(planner.plan(&view).await, Err(PlanFault::Unavailable));
 }
+
+fn thread_handle() -> HandleCard {
+    HandleCard {
+        handle: Handle(1),
+        shape: HandleShape::Entity(EntityKind::parse("mail.thread").expect("kind")),
+        from: Source::Mail,
+        size: CharCount(0),
+    }
+}
+
+fn tool_names(request: &porter_infer::ChatRequest) -> Vec<String> {
+    request
+        .tools
+        .iter()
+        .map(|t| t.name.as_str().to_owned())
+        .collect()
+}
+
+#[tokio::test]
+async fn quire_related_is_offered_when_an_app_declares_a_relation_and_the_per_kind_action_is_not() {
+    let (planner, infer) = planner(vec![words("a"), words("b")]);
+    planner
+        .converse(&view(catalogue().cards()))
+        .await
+        .expect("a");
+    let asked = infer.asked();
+    let names = tool_names(&asked[0]);
+    assert!(names.contains(&TOOL_RELATED.to_owned()), "{names:?}");
+    assert!(
+        !names.iter().any(|n| n.contains("mail.thread.related")),
+        "reached through quire_related, not as a tool of its own: {names:?}"
+    );
+    let tool = asked[0]
+        .tools
+        .iter()
+        .find(|t| t.name.as_str() == TOOL_RELATED)
+        .expect("tool");
+    let schema: serde_json::Value = serde_json::from_str(tool.params.0.as_str()).expect("json");
+    assert_eq!(schema["properties"]["relation"]["enum"], json!(["from"]));
+
+    // No app declares a relation: the tool is not there, and the tools are what they were.
+    let plain: Vec<ActionCard> = catalogue()
+        .cards()
+        .into_iter()
+        .filter(|c| c.related.is_empty())
+        .collect();
+    planner.converse(&view(plain)).await.expect("b");
+    let names = tool_names(&infer.asked()[1]);
+    assert!(!names.contains(&TOOL_RELATED.to_owned()), "{names:?}");
+}
+
+#[tokio::test]
+async fn quire_related_is_read_into_the_call_of_the_related_action_of_the_things_kind() {
+    let (planner, _) = planner(vec![call(
+        TOOL_RELATED,
+        json!({ "of": { "handle": 1 }, "relation": "from" }),
+    )]);
+    let mut v = view(catalogue().cards());
+    v.handles = vec![thread_handle()];
+    let ModelOutput::Calls(calls) = planner.plan(&v).await.expect("a call") else {
+        panic!("a call")
+    };
+    let [planned] = calls.as_slice() else {
+        panic!("one call: {calls:?}")
+    };
+    assert_eq!(
+        planned.call.action.name,
+        ActionName::parse("mail.thread.related").expect("action")
+    );
+    assert_eq!(planned.call.target, TargetValue::Handles(vec![Handle(1)]));
+    assert_eq!(planned.call.origin, Origin::Companion);
+    assert_eq!(
+        planned.call.args[&param("relation")].value,
+        Value::Choice(ChoiceId::parse("from").expect("choice"))
+    );
+}
+
+#[tokio::test]
+async fn a_quire_related_that_cannot_be_a_call_is_told_what_was_wrong() {
+    let (planner, _) = planner(vec![
+        // A handle the view does not hold.
+        call(
+            TOOL_RELATED,
+            json!({ "of": { "handle": 9 }, "relation": "from" }),
+        ),
+        // A relation the thing's kind does not have.
+        call(
+            TOOL_RELATED,
+            json!({ "of": { "handle": 1 }, "relation": "owner" }),
+        ),
+        // No relation at all, and not an object.
+        call(TOOL_RELATED, json!({ "of": { "handle": 1 } })),
+        call(TOOL_RELATED, json!({ "of": 1, "relation": "from" })),
+    ]);
+    let mut v = view(catalogue().cards());
+    v.handles = vec![thread_handle()];
+    let fault = |why| Ok(ModelOutput::Unread(ReplyFault::Args(why)));
+    let wrong = |name: &str, why| ArgsFault::Wrong {
+        param: param(name),
+        why,
+    };
+    assert_eq!(planner.plan(&v).await, fault(wrong("of", Why::Type)));
+    assert_eq!(planner.plan(&v).await, fault(wrong("relation", Why::Range)));
+    assert_eq!(
+        planner.plan(&v).await,
+        fault(ArgsFault::Missing(param("relation")))
+    );
+    assert_eq!(planner.plan(&v).await, fault(wrong("of", Why::Type)));
+}
+
+#[test]
+fn a_handle_card_names_the_relations_its_kind_has_from_the_manifests_alone() {
+    let mut v = view(catalogue().cards());
+    v.handles = vec![thread_handle()];
+    let text = companiond::user_text(&v);
+    assert!(text.contains("related: from (mail.contact)"), "{text}");
+}

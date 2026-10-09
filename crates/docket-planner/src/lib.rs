@@ -22,6 +22,8 @@ mod want;
 
 pub use args::{ArgsFault, ReadCall, planner_label, read_call};
 pub use catalogue::{Catalogue, CatalogueTool, TARGET};
-pub use planner::{PlanFault, PlannerModel, PlannerReply, TOOL_ASK, TOOL_FINISH, TOOL_READ};
+pub use planner::{
+    PlanFault, PlannerModel, PlannerReply, TOOL_ASK, TOOL_FINISH, TOOL_READ, TOOL_RELATED,
+};
 pub use render::{RULES, messages, messages_with, system_text, system_text_with, user_text};
 pub use role::{ROLE_LIMIT, RoleFault, RoleText};
