@@ -18,6 +18,7 @@ name = "docket_launch"
 path = "src/lib.rs"
 
 [dependencies]
+docket-agents = { workspace = true }
 docket-acp = { workspace = true, features = ["client", "server"] }
 docket-core = { workspace = true }
 docket-session = { workspace = true }

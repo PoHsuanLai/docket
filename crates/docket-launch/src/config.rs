@@ -18,13 +18,29 @@
 //! tools = "offered"                  # offered (default) | off: the desktop's actions as an MCP server
 //! profile = "claude-code"            # optional: confine the program's own extras (see `managed`)
 //! sign_in = "oauth-personal"         # optional: the way the agent signs itself in at start
+//! model = "claude-sonnet-4"          # optional: the model to switch to, one the agent offers
 //! [agent.endpoint]
 //! kind = "account"
 //! id = "anthropic-main"
 //! ```
+//!
+//! An agent from the agent registry names the registry instead of a command; docket installed it
+//! (`docket-agents`) and gives it a home of its own, where it signs in:
+//!
+//! ```toml
+//! [[agent]]
+//! program = "antigravity"
+//! registry = "antigravity-acp"       # the registry's id for it
+//! version = "1.3.0"                  # the pinned version: a newer one is installed only by name
+//! route = "login"                    # the default for a registry agent
+//! sign_in = "google"                 # optional: which way to sign in, one the agent lists
+//! model = "gemini-pro-agent"         # optional: one the agent offers
+//! label = "Antigravity"
+//! ```
 
 use bulkhead::NetworkMode;
-use docket_acp::client::SignIn;
+use docket_acp::client::{ModelId, SignIn};
+use docket_agents::{AgentsDir, LaunchFault};
 use docket_core::AbsPath;
 use docket_session::ProgramName;
 use porter_core::DataClass;
@@ -108,10 +124,12 @@ pub enum EndpointKind {
 #[serde(deny_unknown_fields)]
 struct Raw {
     program: String,
-    command: String,
+    command: Option<String>,
+    registry: Option<String>,
+    version: Option<String>,
     #[serde(default)]
     args: Vec<String>,
-    route: Route,
+    route: Option<Route>,
     #[serde(default)]
     network: NetworkMode,
     key_env: Option<String>,
@@ -137,6 +155,7 @@ struct Raw {
     label: Option<String>,
     profile: Option<Profile>,
     sign_in: Option<String>,
+    model: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -163,6 +182,14 @@ pub enum ConfigFault {
     /// Two entries for one program.
     #[error("agent `{0}` is listed twice")]
     Twice(String),
+    /// A registry agent that cannot be started from the agents directory.
+    #[error("agent `{program}`: {why}")]
+    Registry {
+        /// The program as written.
+        program: String,
+        /// What is wrong.
+        why: LaunchFault,
+    },
 }
 
 /// One listed program, checked.
@@ -214,6 +241,8 @@ pub struct Entry {
     /// The way the agent signs itself in before a session opens, one of the ids it advertises.
     /// It signs in from the login it already holds; docket sends the id and nothing else.
     pub sign_in: Option<SignIn>,
+    /// The model to switch to after the session opens, one the agent offers.
+    pub model: Option<ModelId>,
 }
 
 /// The longest label, in characters.
@@ -268,7 +297,71 @@ fn forbidden(name: &str) -> bool {
         || name.starts_with("DOCKET_")
 }
 
-fn check(raw: Raw) -> Result<Entry, ConfigFault> {
+/// What starts the program and what it may see, from `command` or from the registry.
+struct Source {
+    command: AbsPath,
+    args: Vec<String>,
+    reads: Vec<AbsPath>,
+    state: Vec<AbsPath>,
+    home: Option<AbsPath>,
+    set: Vec<(String, String)>,
+}
+
+fn source(at: &str, raw: &Raw, dir: Option<&AgentsDir>) -> Result<Source, ConfigFault> {
+    let paths = |list: &[String]| -> Result<Vec<AbsPath>, ConfigFault> {
+        list.iter().map(|p| abs(at, p)).collect()
+    };
+    let args = raw.args.clone();
+    let set = raw.set.clone().into_iter().collect::<Vec<_>>();
+    match (&raw.command, &raw.registry, &raw.version) {
+        (Some(command), None, None) => Ok(Source {
+            command: abs(at, command)?,
+            args,
+            reads: paths(&raw.reads)?,
+            state: paths(&raw.state)?,
+            home: raw.home.as_deref().map(|p| abs(at, p)).transpose()?,
+            set,
+        }),
+        (None, Some(_), Some(_)) if !raw.state.is_empty() || raw.home.is_some() => Err(bad(
+            at,
+            "a registry agent has a home of its own: no state or home",
+        )),
+        (None, Some(id), Some(version)) => {
+            let dir = dir.ok_or_else(|| bad(at, "a registry agent needs the agents directory"))?;
+            let launch = dir
+                .launch(id, version)
+                .map_err(|why| ConfigFault::Registry {
+                    program: at.to_owned(),
+                    why,
+                })?;
+            let path = |p: &std::path::Path| {
+                p.to_str()
+                    .ok_or_else(|| bad(at, "the agents directory is not UTF-8"))
+                    .and_then(|t| abs(at, t))
+            };
+            let home = path(&launch.home)?;
+            let reads = [path(&launch.files)?]
+                .into_iter()
+                .chain(paths(&raw.reads)?)
+                .collect();
+            Ok(Source {
+                command: path(&launch.command)?,
+                args: launch.args.into_iter().chain(args).collect(),
+                reads,
+                state: vec![home.clone()],
+                home: Some(home),
+                set: launch.env.into_iter().chain(set).collect(),
+            })
+        }
+        (None, Some(_), None) => Err(bad(at, "a registry agent needs a pinned version")),
+        _ => Err(bad(
+            at,
+            "name either command, or registry with version (not both)",
+        )),
+    }
+}
+
+fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFault> {
     let at = raw.program.clone();
     let name = ProgramName::parse(&raw.program).map_err(|_| bad(&at, "not a program name"))?;
     let program = AgentProgram::parse(&raw.program).map_err(|_| {
@@ -277,13 +370,18 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
             "a program is lower-case letters, digits and - (porter's grammar)",
         )
     })?;
-    if raw.args.iter().any(|a| a.contains('\0')) {
+    let src = source(&at, &raw, dir)?;
+    let route = raw
+        .route
+        .or_else(|| raw.registry.as_ref().map(|_| Route::Login))
+        .ok_or_else(|| bad(&at, "route is required"))?;
+    if src.args.iter().any(|a| a.contains('\0')) {
         return Err(bad(&at, "an argument holds a NUL"));
     }
     let label = label(&at, raw.label.clone())?;
     let key_env = env(&at, raw.key_env.as_ref())?;
     let base_url_env = env(&at, raw.base_url_env.as_ref())?;
-    let set = raw
+    let set = src
         .set
         .iter()
         .map(|(k, v)| {
@@ -304,7 +402,7 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
         })
         .collect::<Result<Vec<_>, _>>()?;
     // The route decides what the entry must say, and what network makes sense.
-    match (raw.route, raw.network) {
+    match (route, raw.network) {
         (Route::Endpoint, NetworkMode::None) => {
             return Err(bad(
                 &at,
@@ -317,32 +415,32 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
                 "a handed-off key is for a program that reaches its provider: network host",
             ));
         }
-        (_, NetworkMode::EndpointOnly) if raw.route != Route::Endpoint => {
+        (_, NetworkMode::EndpointOnly) if route != Route::Endpoint => {
             return Err(bad(&at, "endpoint_only is for the endpoint route"));
         }
         _ => {}
     }
-    if raw.route == Route::Endpoint && (raw.base_url_env.is_none() || raw.key_env.is_none()) {
+    if route == Route::Endpoint && (raw.base_url_env.is_none() || raw.key_env.is_none()) {
         return Err(bad(
             &at,
             "the endpoint route needs base_url_env and key_env",
         ));
     }
-    if raw.route == Route::Endpoint && raw.endpoint.is_none() {
+    if route == Route::Endpoint && raw.endpoint.is_none() {
         return Err(bad(
             &at,
             "the endpoint route needs an [agent.endpoint] table",
         ));
     }
-    if raw.route == Route::Handoff && raw.key_env.is_none() {
+    if route == Route::Handoff && raw.key_env.is_none() {
         return Err(bad(&at, "the handoff route needs key_env"));
     }
     Ok(Entry {
         name,
         program,
-        command: abs(&at, &raw.command)?,
-        args: raw.args,
-        route: raw.route,
+        command: src.command,
+        args: src.args,
+        route,
         network: raw.network,
         key_env,
         base_url_env,
@@ -350,17 +448,9 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
         class: raw.class.unwrap_or(DataClass::Files),
         delivery: raw.delivery,
         endpoint: raw.endpoint,
-        reads: raw
-            .reads
-            .iter()
-            .map(|p| abs(&at, p))
-            .collect::<Result<_, _>>()?,
-        state: raw
-            .state
-            .iter()
-            .map(|p| abs(&at, p))
-            .collect::<Result<_, _>>()?,
-        home: raw.home.as_deref().map(|p| abs(&at, p)).transpose()?,
+        reads: src.reads,
+        state: src.state,
+        home: src.home,
         set,
         login: raw.login,
         logout: raw.logout,
@@ -373,6 +463,12 @@ fn check(raw: Raw) -> Result<Entry, ConfigFault> {
             .map(SignIn::parse)
             .transpose()
             .map_err(|_| bad(&at, "sign_in is 1 to 64 letters, digits, - _ or ."))?,
+        model: raw
+            .model
+            .as_deref()
+            .map(ModelId::parse)
+            .transpose()
+            .map_err(|_| bad(&at, "a model id has no spaces or control characters"))?,
     })
 }
 
@@ -386,12 +482,17 @@ impl AgentsFile {
     /// Reads the text of `agents.toml`. Any wrong entry refuses the whole file: a half-read
     /// list of what may run is worse than none.
     pub fn parse(text: &str) -> Result<Self, ConfigFault> {
+        Self::parse_in(text, None)
+    }
+
+    /// Like `parse`, with the agents directory a registry agent is installed in.
+    pub fn parse_in(text: &str, dir: Option<&AgentsDir>) -> Result<Self, ConfigFault> {
         let file: File =
             toml::from_str(text).map_err(|e| ConfigFault::Syntax(e.message().to_owned()))?;
         let mut entries = BTreeMap::new();
         for raw in file.agent {
             let written = raw.program.clone();
-            let entry = check(raw)?;
+            let entry = check(raw, dir)?;
             if entries.insert(entry.program.clone(), entry).is_some() {
                 return Err(ConfigFault::Twice(written));
             }

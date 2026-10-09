@@ -271,3 +271,79 @@ fn a_sign_in_method_that_is_empty_long_or_odd_is_refused_naming_the_program() {
         }
     }
 }
+
+// ---- agents from the registry ----
+
+fn installed_agy(root: &std::path::Path) -> docket_agents::AgentsDir {
+    use docket_agents::record::{Check, FILES, Record};
+    let dir = docket_agents::AgentsDir::at(root);
+    let slug = |t: &str| docket_agents::slug::Slug::parse(t).expect("slug");
+    let at = dir.installed(&slug("agy-acp"), &slug("1.3.0"));
+    std::fs::create_dir_all(at.join(FILES)).expect("dir");
+    let record = Record {
+        id: "agy-acp".to_owned(),
+        version: "1.3.0".to_owned(),
+        command: "agy".to_owned(),
+        args: vec!["--uid=".to_owned()],
+        env: Default::default(),
+        digest: None,
+        check: Check::FirstUse,
+    };
+    record.write(&at).expect("record");
+    dir
+}
+
+const REGISTRY_ENTRY: &str = r#"
+[[agent]]
+program = "antigravity"
+registry = "agy-acp"
+version = "1.3.0"
+network = "host"
+sign_in = "google"
+model = "gemini-pro-agent"
+label = "Antigravity"
+"#;
+
+#[test]
+fn a_registry_agent_runs_from_its_install_with_a_home_of_its_own() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let dir = installed_agy(tmp.path());
+    let file = AgentsFile::parse_in(REGISTRY_ENTRY, Some(&dir)).expect("file");
+    let entry = file
+        .get(&docket_session::ProgramName::parse("antigravity").expect("name"))
+        .expect("entry");
+    let root = tmp.path().to_str().expect("utf-8");
+    assert_eq!(entry.route, Route::Login);
+    assert_eq!(entry.args, ["--uid="]);
+    assert_eq!(
+        entry.command.as_str(),
+        format!("{root}/installed/agy-acp/1.3.0/files/agy")
+    );
+    let home = format!("{root}/state/agy-acp/home");
+    assert_eq!(entry.home.as_ref().map(|h| h.as_str()), Some(home.as_str()));
+    assert_eq!(entry.state[0].as_str(), home);
+    assert_eq!(entry.reads.len(), 1);
+    assert_eq!(entry.model.as_ref().map(|m| m.as_str()), Some("gemini-pro-agent"));
+    assert_eq!(entry.sign_in.as_ref().map(|m| m.as_str()), Some("google"));
+}
+
+#[test]
+fn a_registry_agent_that_is_not_installed_or_not_pinned_is_refused() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let dir = docket_agents::AgentsDir::at(tmp.path());
+    let fault = AgentsFile::parse_in(REGISTRY_ENTRY, Some(&dir)).expect_err("not installed");
+    assert!(matches!(fault, ConfigFault::Registry { .. }));
+    let unpinned = REGISTRY_ENTRY.replace("version = \"1.3.0\"\n", "");
+    assert!(AgentsFile::parse_in(&unpinned, Some(&dir)).is_err());
+    // Without the agents directory a registry entry cannot be placed at all.
+    assert!(AgentsFile::parse(REGISTRY_ENTRY).is_err());
+    let both = REGISTRY_ENTRY.replace("registry =", "command = \"/usr/bin/x\"\nregistry =");
+    assert!(AgentsFile::parse_in(&both, Some(&dir)).is_err());
+}
+
+#[test]
+fn a_model_id_with_a_space_is_refused() {
+    refused(&entry("route = \"login\"\nmodel = \"two words\""));
+    let ok = entry("route = \"login\"\nmodel = \"flash\"");
+    assert!(AgentsFile::parse(&ok).is_ok());
+}
