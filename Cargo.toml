@@ -14,6 +14,7 @@ members = [
   "crates/docket-session",
   "crates/docket-acp",
   "crates/docket-launch",
+  "crates/docket-agents",
   "crates/docket-acp-bin",
   "crates/docket-models",
   "crates/docket-reader",
@@ -51,6 +52,7 @@ publish = false
 
 [workspace.dependencies]
 actions-tools  = { path = "crates/actions-tools" }
+docket-agents  = { path = "crates/docket-agents" }
 docket-core    = { path = "crates/docket-core" }
 docket-skills  = { path = "crates/docket-skills" }
 policy-point   = { path = "crates/policy-point" }
@@ -140,6 +142,11 @@ proptest = "1"
 # docket-acp tests: validate our messages against the protocol-v1 JSON Schema kept in the repo (MIT).
 jsonschema = { version = "0.58", default-features = false }
 tempfile = "3"
+# docket-agents: verify and unpack an agent from the registry (MIT/Apache-2.0 each).
+sha2 = "0.11"
+flate2 = "1"
+tar = "0.4"
+zip = { version = "8", default-features = false, features = ["deflate-flate2"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

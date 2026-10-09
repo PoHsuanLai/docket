@@ -1,0 +1,33 @@
+[package]
+name = "docket-agents"
+description = "Coding agents from the agent registry: read a registry snapshot, install a pinned version (checked against its digest) into a directory docket owns, and say what to run. Nothing here runs an agent, and the network is reached only by the install and update commands."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+name = "docket_agents"
+path = "src/lib.rs"
+
+[[bin]]
+name = "docket-agents"
+path = "src/main.rs"
+
+[dependencies]
+flate2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
