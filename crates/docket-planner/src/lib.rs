@@ -5,7 +5,8 @@
 //!
 //! - `PlannerModel`: the planner; `converse` turns a view into one `PlannerReply`.
 //! - `Catalogue`: the actions it may call, as tools.
-//! - `messages`, `system_text`, `user_text`, `RULES`: the prompt.
+//! - `messages`, `system_text`, `user_text`, `RULES`: the prompt; `RoleText`: an agent's own
+//!   instructions, which follow the rules and never replace them.
 //! - `read_call`, `planner_label`: the planner's own steps and labels.
 
 mod args;
@@ -13,10 +14,12 @@ mod catalogue;
 mod planner;
 mod read_ask;
 mod render;
+mod role;
 mod step_text;
 mod unconfirmed;
 
 pub use args::{ArgsFault, ReadCall, planner_label, read_call};
 pub use catalogue::{Catalogue, CatalogueTool, TARGET};
 pub use planner::{PlanFault, PlannerModel, PlannerReply, TOOL_ASK, TOOL_FINISH, TOOL_READ};
-pub use render::{RULES, messages, system_text, user_text};
+pub use render::{RULES, messages, messages_with, system_text, system_text_with, user_text};
+pub use role::{ROLE_LIMIT, RoleFault, RoleText};

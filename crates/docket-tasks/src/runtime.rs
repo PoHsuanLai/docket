@@ -103,7 +103,8 @@ pub(crate) enum Notes {
     Silent,
 }
 
-pub(crate) fn idle_state() -> LoopState {
+/// The loop of a task nothing has been asked of.
+pub fn idle_state() -> LoopState {
     LoopState {
         phase: LoopPhase::Idle,
         turn: None,

@@ -10,7 +10,8 @@
 use crate::args::{ArgsFault, read_call};
 use crate::catalogue::{Catalogue, CatalogueTool};
 use crate::read_ask::{read_output, want_schema};
-use crate::render::messages;
+use crate::render::messages_with;
+use crate::role::RoleText;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
 use docket_core::{CallRequest, Origin, PlannerView, ReplyFault};
@@ -73,6 +74,8 @@ pub struct PlannerReply {
 pub struct PlannerModel<P: Transport> {
     infer: P,
     catalogue: Catalogue,
+    role: Option<RoleText>,
+    tier: Tier,
 }
 
 fn schema_text(schema: &Json) -> Option<JsonSchemaText> {
@@ -142,7 +145,22 @@ impl<P: Transport> PlannerModel<P> {
         Self {
             infer,
             catalogue: Catalogue::default(),
+            role: None,
+            tier: Tier::Balanced,
         }
+    }
+
+    /// The same planner with an agent's role after the fixed rules.
+    pub fn with_role(self, role: RoleText) -> Self {
+        Self {
+            role: Some(role),
+            ..self
+        }
+    }
+
+    /// The same planner asking for `tier` of model (the companion's is `Balanced`).
+    pub fn with_tier(self, tier: Tier) -> Self {
+        Self { tier, ..self }
     }
 
     /// The actions this planner offers and reads calls by (the installed manifests).
@@ -179,9 +197,9 @@ impl<P: Transport> PlannerModel<P> {
 
     fn request_for(&self, view: &PlannerView, usage: Usage) -> ChatRequest {
         ChatRequest {
-            messages: messages(view),
+            messages: messages_with(view, self.role.as_ref()),
             shape: ReplyShape::Text,
-            tier: Tier::Balanced,
+            tier: self.tier,
             class: DataClass::Prompt,
             usage,
             tools: self.tools(view),

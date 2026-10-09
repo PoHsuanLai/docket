@@ -7,6 +7,7 @@
 //!
 //! A handle is shown as `#n`; the model can name it and never read it.
 
+use crate::role::RoleText;
 use crate::step_text::step_line;
 use docket_core::{
     EpisodeLine, Handle, HandleCard, HandleShape, InboundLine, InboundPart, PlannerView,
@@ -197,8 +198,17 @@ fn section(into: &mut String, heading: &str, lines: impl IntoIterator<Item = Str
 
 /// The system message: rules, then what is pinned and changes at most daily.
 pub fn system_text(view: &PlannerView) -> String {
+    system_text_with(view, None)
+}
+
+/// [`system_text`] with an agent's role between the rules and the pinned sections. The rules are
+/// always first and always whole.
+pub fn system_text_with(view: &PlannerView, role: Option<&RoleText>) -> String {
     let mut text = String::from(RULES);
     text.push_str("\n\n");
+    if let Some(role) = role {
+        let _ = writeln!(text, "Your role in this task:\n{}\n", role.as_str());
+    }
     section(
         &mut text,
         "What the person has told you about themselves",
@@ -280,8 +290,13 @@ fn message(role: Role, text: String) -> ChatMessage {
 
 /// The two messages of one planner turn.
 pub fn messages(view: &PlannerView) -> Vec<ChatMessage> {
+    messages_with(view, None)
+}
+
+/// [`messages`] for an agent with a role.
+pub fn messages_with(view: &PlannerView, role: Option<&RoleText>) -> Vec<ChatMessage> {
     vec![
-        message(Role::System, system_text(view)),
+        message(Role::System, system_text_with(view, role)),
         message(Role::User, user_text(view)),
     ]
 }

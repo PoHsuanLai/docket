@@ -15,6 +15,8 @@
 //!   through `Recent` with `BodyMode::Json`.
 //! - [`NativeBackend`], [`NativeHost`]: the planner loop behind the durable-session traits
 //!   (`docket-session`), the ACP edge's host.
+//! - [`primer_of`], [`profile_of`], [`hits_of`], [`episodes_of`], [`answer_read`]: the router's
+//!   memory and reader, one step at a time, for any smaller agent built on the same machines.
 //! - [`Tap`]: how a turn is told as it runs and a call is held at its gate.
 //! - [`completion_effects`]: how a finished worker or run reaches the front task.
 
@@ -27,8 +29,10 @@ mod held;
 mod idle;
 mod inbox;
 mod linger;
+mod memory;
 mod native;
 mod plan;
+mod read;
 mod records;
 mod recover;
 mod resume;
@@ -44,14 +48,17 @@ pub use act::{Acting, card_id};
 pub use completion::completion_effects;
 pub use drive::refusal_of;
 pub use fault::ServeFault;
+pub use memory::{episodes_of, hits_of, primer_of, profile_of};
 pub use native::{Core, NativeBackend, NativeHost, RouterLog};
+pub use read::answer_read;
 pub use recover::{
     RecentSource, ReplayFault, RouterRecent, rebuild_from, recent_events, recover, replay_of,
     restart_query,
 };
-pub use runtime::{Begun, Companion};
+pub use runtime::{Begun, Companion, idle_state};
 pub use seams::{Now, Quiet, Surface};
 pub use shared::{Change, Shared};
+pub use sources::nowhere;
 pub use stored_roster::{events_of, stored_events};
 pub use tap::{Go, NoTap, Tap};
 pub use task::{Failure, TaskRuntime, kept_all};

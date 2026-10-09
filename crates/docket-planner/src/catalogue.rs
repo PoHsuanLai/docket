@@ -151,6 +151,11 @@ impl Catalogue {
         Self { tools }
     }
 
+    /// A catalogue of exactly these tools, in this order: a narrowed copy of another.
+    pub fn from_tools(tools: Vec<CatalogueTool>) -> Self {
+        Self { tools }
+    }
+
     /// Every tool, in order.
     pub fn tools(&self) -> &[CatalogueTool] {
         &self.tools

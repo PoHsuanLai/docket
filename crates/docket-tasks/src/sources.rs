@@ -3,6 +3,7 @@
 //! already a handle by the time it is here. The sections are the assembler's (`agent-loop`); this
 //! only fills them, and the assembler cuts each to its budget.
 
+use crate::memory::{episodes_of, hits_of, primer_of, profile_of};
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
 use crate::task::TaskRuntime;
@@ -10,9 +11,8 @@ use agent_loop::Sources;
 use almanac_core::{BodyMode, InjectQuery, RecallOver, RecentQuery, TrustFilter, UserText};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
-    ActionCard, ContextView, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine, RecallAsk,
-    RecallView, RecalledLine, Reveal, SelectionView, SkillCard, SkillText, TextTargetView,
-    VisibleView,
+    ActionCard, ContextView, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine,
+    RecalledLine, Reveal, SelectionView, SkillCard, SkillText, TextTargetView, VisibleView,
 };
 use docket_skills::{BODY_BUDGET_BYTES, Situation, Skill, preselect, uses_first};
 use porter_client::Transport as InferTransport;
@@ -27,7 +27,7 @@ const RECENT_LIMIT: Count = Count(20);
 const RECENT_WINDOW: i64 = 24 * 3600;
 
 /// The view of where the person is when no app was named: nowhere in particular.
-fn nowhere(app: porter_core::AppName) -> ContextView {
+pub fn nowhere(app: porter_core::AppName) -> ContextView {
     ContextView {
         app,
         window: Reveal::Plain(String::new()),
@@ -193,23 +193,10 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     /// The Space's primer and the person's own profile, which the router reads from memory: an
     /// answer that does not come leaves its section empty.
     async fn memory_sections(&self, rt: &TaskRuntime) -> (Option<PrimerText>, Vec<ProfileLine>) {
-        let primer = match self
-            .intents
-            .session_recall(rt.session.clone(), RecallAsk::Primer)
-            .await
-        {
-            Ok(RecallView::Primer(text)) if !text.0.is_empty() => Some(text),
-            _ => None,
-        };
-        let profile = match self
-            .intents
-            .session_recall(rt.session.clone(), RecallAsk::Profile)
-            .await
-        {
-            Ok(RecallView::Profile(lines)) => lines,
-            _ => Vec::new(),
-        };
-        (primer, profile)
+        (
+            primer_of(&self.intents, &rt.session).await,
+            profile_of(&self.intents, &rt.session).await,
+        )
     }
 
     /// What recently ended in the task's Space: this run's own episodes, then what the router
@@ -228,18 +215,13 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             limit: RECENT_LIMIT,
             bodies: BodyMode::Json,
         };
-        if let Ok(RecallView::Episodes(older)) = self
-            .intents
-            .session_recall(rt.session.clone(), RecallAsk::Episodes(query))
-            .await
-        {
-            let known: Vec<_> = lines.iter().map(|l| l.id.clone()).collect();
-            lines.extend(
-                older
-                    .into_iter()
-                    .filter(|l| l.ended < self.booted && !known.contains(&l.id)),
-            );
-        }
+        let older = episodes_of(&self.intents, &rt.session, query).await;
+        let known: Vec<_> = lines.iter().map(|l| l.id.clone()).collect();
+        lines.extend(
+            older
+                .into_iter()
+                .filter(|l| l.ended < self.booted && !known.contains(&l.id)),
+        );
         lines
     }
 
@@ -259,25 +241,18 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     /// Automatic recall (Q3): the hits that bear on what the person said, trusted ones only and
     /// cut to the budget.
     async fn recall_for(&self, rt: &TaskRuntime) -> Vec<RecalledLine> {
-        let mut lines = Vec::new();
         let words = words_of(rt);
-        if !words.is_empty() {
-            let inject = InjectQuery {
-                space: rt.space.clone(),
-                text: UserText::new(words),
-                budget: self.config.assembler.recall,
-                k: RECALL_K,
-                over: RecallOver::Both,
-                trust: TrustFilter::TrustedOnly,
-            };
-            if let Ok(RecallView::Hits(hits)) = self
-                .intents
-                .session_recall(rt.session.clone(), RecallAsk::Inject(inject))
-                .await
-            {
-                lines.extend(hits);
-            }
+        if words.is_empty() {
+            return Vec::new();
         }
-        lines
+        let inject = InjectQuery {
+            space: rt.space.clone(),
+            text: UserText::new(words),
+            budget: self.config.assembler.recall,
+            k: RECALL_K,
+            over: RecallOver::Both,
+            trust: TrustFilter::TrustedOnly,
+        };
+        hits_of(&self.intents, &rt.session, inject).await
     }
 }

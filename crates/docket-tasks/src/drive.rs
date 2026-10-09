@@ -5,6 +5,7 @@
 
 use crate::fault::ServeFault;
 use crate::plan::phase_of;
+use crate::read::{COMPANION_APP, answer_read};
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
 use crate::tap::{Go, NoTap, Tap};
@@ -16,18 +17,16 @@ use agent_loop::{
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
 use docket_core::{
-    ActionRef, CallId, CallProgress, CallRefusal, CallRequest, ReadAsk, ReadFault, ReaderAsk,
-    ReplyFault, Reveal, StepEnd, WireRefusal,
+    CallId, CallProgress, CallRefusal, CallRequest, ReaderAsk, StepEnd, WireRefusal,
 };
 use docket_planner::PlanFault;
 use docket_session::CallOpen;
 use porter_client::Transport as InferTransport;
-use prov::{ActionName, Effect, Labelled, TaskId};
+use prov::{Effect, TaskId};
 use std::collections::VecDeque;
 
-/// The built-in provider whose two actions companiond carries out itself: it runs the loops of
-/// the tasks they start.
-const COMPANION_APP: &str = "org.quire.Companion";
+/// The task-starting action of the built-in provider; companiond carries it out itself: it runs
+/// the loops of the tasks it starts.
 const TASK_START: &str = "companion.task.start";
 
 /// What a call to the router came to, as the loop is told.
@@ -443,63 +442,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         Ok(vec![self.ended(task, &call, Effect::Read, id, result)])
     }
 
-    /// One read of the quarantined reader: a closed-set answer is plain, text a handle. It is a
-    /// step in the task's history so the planner is shown what came back.
+    /// One read of the quarantined reader (`answer_read`), for the task.
     async fn read(&mut self, task: &TaskId, ask: ReaderAsk) -> Result<Vec<LoopInput>, ServeFault> {
-        let Some(session) = self.runtimes.get(task).map(|rt| rt.session.clone()) else {
+        let Some(rt) = self.runtimes.get_mut(task) else {
             return Err(ServeFault::UnknownSession);
         };
-        let answer = self.intents.session_read(session, ReadAsk { ask }).await;
-        match answer {
-            Err(ClientError::Refused(WireRefusal::Read(fault)))
-                if !matches!(fault, ReadFault::Unavailable) =>
-            {
-                Ok(vec![LoopInput::ReadFailed(ReplyFault::Read(fault))])
-            }
-            Err(_) => {
-                if let Some(rt) = self.runtimes.get_mut(task) {
-                    rt.failure = Some(Failure::Reader);
-                }
-                Ok(vec![LoopInput::ModelFailed])
-            }
-            Ok(reveal) => {
-                if let Some(rt) = self.runtimes.get_mut(task) {
-                    let held = match &reveal {
-                        Reveal::Plain(v) => Labelled {
-                            value: v.clone(),
-                            label: docket_planner::planner_label(),
-                        },
-                        Reveal::Handle(h) => Labelled {
-                            value: docket_core::Value::Handle(*h),
-                            label: docket_planner::planner_label(),
-                        },
-                    };
-                    let outcome = docket_core::Outcome {
-                        value: Some(held),
-                        said: None,
-                        show: docket_core::Preview::None,
-                        undo: docket_core::Undoable::No,
-                        follow: docket_core::Follow::Nothing,
-                    };
-                    if let Some(call) = read_call() {
-                        rt.record_call(&call, Effect::Read, Ok(outcome));
-                    }
-                }
-                Ok(vec![LoopInput::ReadAnswered(reveal)])
-            }
-        }
+        Ok(answer_read(&self.intents, rt, ask).await)
     }
-}
-
-/// The step the planner is shown for a read: the reader is a step like any other.
-fn read_call() -> Option<CallRequest> {
-    Some(CallRequest {
-        action: ActionRef {
-            app: porter_core::AppName::parse(COMPANION_APP).ok()?,
-            name: ActionName::parse("companion.read").ok()?,
-        },
-        target: docket_core::TargetValue::Nothing,
-        args: docket_core::Args::new(),
-        origin: docket_core::Origin::Companion,
-    })
 }
