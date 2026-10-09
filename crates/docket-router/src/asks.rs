@@ -126,10 +126,10 @@ pub(crate) fn seat<'a>(state: &'a Mutex<RouterState>, shared: Shared) -> Seat<'a
     match st.asks.join(&key) {
         Some(rx) => Seat::Waiter(rx),
         None => {
-            st.asks.open.push((*key.clone(), Vec::new()));
+            st.asks.open.push(((*key).clone(), Vec::new()));
             Seat::Asker(Opened {
                 state,
-                key: *key,
+                key,
                 answer: None,
             })
         }
@@ -140,7 +140,7 @@ pub(crate) fn seat<'a>(state: &'a Mutex<RouterState>, shared: Shared) -> Seat<'a
 /// call that is dropped mid-sheet frees its waiters to ask for themselves.
 pub(crate) struct Opened<'a> {
     state: &'a Mutex<RouterState>,
-    key: AskKey,
+    key: Box<AskKey>,
     answer: Option<ConfirmAnswer>,
 }
 
