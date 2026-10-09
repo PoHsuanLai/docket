@@ -13,6 +13,15 @@ index = "indexed"
 titles = { kind = "third_party", v = { kind = "mail" } }
 props = []
 
+# The sender is decided by the message, which somebody else wrote: whatever the app says, the
+# thing this names is untrusted.
+[[entities.relations]]
+name = "from"
+label = "Sender"
+to = "mail.contact"
+many = "one"
+trust = { kind = "third_party", v = { kind = "mail" } }
+
 [[entities]]
 kind = "mail.contact"
 label = "Contact"

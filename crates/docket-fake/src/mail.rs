@@ -170,6 +170,15 @@ impl FakeMail {
         UndoToken::parse(&format!("mail-undo-{}", s.next)).ok()
     }
 
+    /// The relation a related action was asked for.
+    fn relation(inv: &Invocation) -> Option<String> {
+        let name = ParamName::parse(docket_core::RELATION_ARG).ok()?;
+        match &inv.args.get(&name)?.value {
+            Value::Choice(id) => Some(id.as_str().to_owned()),
+            _ => None,
+        }
+    }
+
     fn contact_key(inv: &Invocation) -> Option<String> {
         let name = ParamName::parse("to").ok()?;
         match &inv.args.get(&name)?.value {
@@ -200,6 +209,33 @@ impl IntentProvider for FakeMail {
                 out.value = Some(Labelled {
                     value: Value::Text(thread.body.clone()),
                     label,
+                });
+                Ok(out)
+            }
+            "mail.thread.related" => {
+                let key = keys.first().ok_or(AppRefusal::Unsupported)?;
+                let thread = s.threads.get(key).ok_or_else(|| {
+                    entity(&app, "mail.thread", key)
+                        .map_or(AppRefusal::Unsupported, AppRefusal::NotFound)
+                })?;
+                if Self::relation(&inv).as_deref() != Some("from") {
+                    return Err(AppRefusal::Unsupported);
+                }
+                // The sender is the contact with that address, or the address itself as the key
+                // of a sender who is nobody's contact.
+                let sender = s
+                    .contacts
+                    .values()
+                    .find(|c| c.address == thread.from)
+                    .map_or(thread.from.as_str(), |c| c.key.as_str());
+                let mut out = outcome(None, Undoable::No, Preview::None);
+                // Labelled as the app's own on purpose: the router, not the app, makes it
+                // untrusted (the relation says its answer comes from the message).
+                out.value = Some(Labelled {
+                    value: Value::Entities(
+                        entity(&app, "mail.contact", sender).into_iter().collect(),
+                    ),
+                    label: app_label(&app),
                 });
                 Ok(out)
             }
@@ -291,19 +327,25 @@ impl IntentProvider for FakeMail {
 
     async fn dry_run(&self, inv: Invocation) -> Result<Preview, AppRefusal> {
         let app = self.app.clone();
+        let space = self.space.clone();
         self.edit(|s| match inv.action.as_str() {
             "mail.message.send" | "mail.message.forward" => {
                 let key = Self::contact_key(&inv).ok_or(AppRefusal::Unsupported)?;
-                let contact = s.contacts.get(&key).ok_or_else(|| {
-                    entity(&app, "mail.contact", &key)
-                        .map_or(AppRefusal::Unsupported, AppRefusal::NotFound)
-                })?;
                 let own = |t: &str| Labelled {
                     value: t.to_owned(),
                     label: app_label(&app),
                 };
+                // A contact shows its saved address; a sender who is nobody's contact is named by
+                // the address itself, which the message wrote.
+                let to = match s.contacts.get(&key) {
+                    Some(contact) => own(&contact.address),
+                    None => Labelled {
+                        value: key.clone(),
+                        label: third_party(Source::Mail, DataClass::Mail, space.clone()),
+                    },
+                };
                 Ok(Preview::Message {
-                    to: vec![own(&contact.address)],
+                    to: vec![to],
                     subject: own("(subject)"),
                     body: own("(body)"),
                 })

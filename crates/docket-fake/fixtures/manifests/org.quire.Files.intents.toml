@@ -12,6 +12,24 @@ index = "not_indexed"
 titles = { kind = "third_party", v = { kind = "file" } }
 props = []
 
+# Who owns a file is the app's own record, not the file's content.
+[[entities.relations]]
+name = "owner"
+label = "Owner"
+to = "files.person"
+many = "one"
+trust = { kind = "app_authored" }
+
+[[entities]]
+kind = "files.person"
+label = "Person"
+plural = "People"
+icon = "person"
+class = "files"
+index = "not_indexed"
+titles = { kind = "app_authored" }
+props = []
+
 [[actions]]
 name = "files.file.move"
 label = "Move"

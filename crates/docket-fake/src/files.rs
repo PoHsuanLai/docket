@@ -16,6 +16,8 @@ struct State {
     /// Where each file lives: key to path.
     files: BTreeMap<String, String>,
     content: BTreeMap<String, String>,
+    /// Who owns each file: key to the owner's key.
+    owners: BTreeMap<String, String>,
     undo: BTreeMap<String, Vec<(String, String)>>,
     next: u64,
 }
@@ -52,6 +54,13 @@ impl FakeFiles {
         self.edit(|s| {
             s.files.insert(key.into(), path.into());
             s.content.insert(key.into(), content.into());
+        });
+    }
+
+    /// Records who owns the file `key`.
+    pub fn add_owner(&self, key: &str, owner: &str) {
+        self.edit(|s| {
+            s.owners.insert(key.into(), owner.into());
         });
     }
 
@@ -111,6 +120,35 @@ impl IntentProvider for FakeFiles {
                 out.value = Some(Labelled {
                     value: Value::Text(text.clone()),
                     label,
+                });
+                Ok(out)
+            }
+            "files.file.related" => {
+                let key = keys.first().ok_or(AppRefusal::Unsupported)?;
+                if !s.files.contains_key(key) {
+                    return Err(entity(&app, "files.file", key)
+                        .map_or(AppRefusal::Unsupported, AppRefusal::NotFound));
+                }
+                let chosen = ParamName::parse(docket_core::RELATION_ARG)
+                    .ok()
+                    .and_then(|n| inv.args.get(&n))
+                    .map(|a| &a.value);
+                let Some(Value::Choice(relation)) = chosen else {
+                    return Err(AppRefusal::Unsupported);
+                };
+                if relation.as_str() != "owner" {
+                    return Err(AppRefusal::Unsupported);
+                }
+                let owners = s
+                    .owners
+                    .get(key)
+                    .and_then(|o| entity(&app, "files.person", o))
+                    .into_iter()
+                    .collect();
+                let mut out = outcome(None, Undoable::No, Preview::None);
+                out.value = Some(Labelled {
+                    value: Value::Entities(owners),
+                    label: crate::labels::app_label(&app),
                 });
                 Ok(out)
             }
