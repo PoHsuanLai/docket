@@ -78,3 +78,5 @@ What docket adds or decides differently, each with its reason:
     once after the session opens, and only one the agent offers; switching a session's *mode* stays
     a destructive action through the normal sheet. Text a person sees never names the protocol
     ("sign in with Google", "Gemini 3.1 Pro").
+
+- Where the assistant may run: a place with no row in the settings is Off, a value the reader cannot read is Off, and the privacy floor filters in `docket_settings::route` before any setting is looked at; a cloud place is never chosen unless its row says On or AskEachTime (owner decision 2026-10-09).

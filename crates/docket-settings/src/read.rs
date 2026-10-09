@@ -165,7 +165,7 @@ pub fn read(text: &str, base: AgentSettings) -> Loaded {
     leaves("", &doc, &mut seen);
     let unknown = seen
         .into_iter()
-        .filter(|path| !known.contains(path.as_str()))
+        .filter(|path| !known.contains(path.as_str()) && !path.starts_with("assistant."))
         .collect();
     Loaded {
         value,

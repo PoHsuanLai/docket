@@ -7,6 +7,7 @@
 mod expose;
 mod keys;
 mod locate;
+mod places;
 mod read;
 #[cfg(test)]
 mod tests;
@@ -15,6 +16,7 @@ use docket_core::AgentConfig;
 
 pub use expose::{AcpAgents, AcpExpose, McpExpose};
 pub use locate::Locator;
+pub use places::*;
 pub use read::{Fallback, Loaded, Why, read};
 
 /// The schema docket ships for its settings (design/22 section 9.2).

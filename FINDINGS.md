@@ -3296,3 +3296,9 @@ clears the link (`FakeLink::clear`: mail, files, menu, unreachable apps, window,
 harness cannot reach them through `Rig`: `ScriptedWriter` calls, `FakeMemory` and `ScriptedReader` queues; apps a test
 `host`s stay, like the manifests. `docket-live corpus --regress` reports every pair, not the last. A bad model card is
 `CorpusError::ModelCard`, not `router: space`. Audit waits compare `KindTag::as_str`, not `Debug` text.
+
+## runwhere (2026-10-09): where the assistant may run
+
+- Model routing is not in docket-router (that is the action router); it is porter's `route` plus the `ai.*` keys of inferd's own config. docket had no setting of its own, so the places setting lives in docket-settings (`places/`), table `assistant` in `docket/settings.toml`.
+- Nothing older says yes to a particular computer or account (`ai.local_only` is one switch for every cloud model), so migration leaves every known place Off.
+- Needs porter: a call listing own computers and signed-in cloud accounts (name, provider) and the models each offers, implementing `PlaceSource`; and `route` at inferd honouring the allowed set docket sends. Not built here.
