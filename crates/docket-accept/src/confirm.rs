@@ -45,10 +45,29 @@ impl ByEffect {
     }
 }
 
+/// When the person's answer reaches intentd.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Release {
+    /// As soon as the sheet is shown.
+    AtOnce,
+    /// Only when the test calls [`Sheet::release`]: the sheet is seen waiting first.
+    WhenReleased,
+}
+
+/// An answer the test holds back until [`Sheet::release`].
+#[derive(Debug)]
+struct Held {
+    connection: zbus::Connection,
+    caller: zbus::names::UniqueName<'static>,
+    path: String,
+    reply: String,
+}
+
 #[derive(Debug, Default)]
 struct Inner {
     by_effect: Option<ByEffect>,
-    verdicts: VecDeque<Verdict>,
+    verdicts: VecDeque<(Verdict, Release)>,
+    held: Vec<Held>,
     shown: Vec<ConfirmRequest>,
     cancelled: Vec<String>,
     next: u32,
@@ -58,6 +77,7 @@ struct Inner {
 #[derive(Debug, Clone)]
 pub struct Sheet {
     inner: Arc<Mutex<Inner>>,
+    held: Arc<tokio::sync::Notify>,
 }
 
 impl Sheet {
@@ -67,7 +87,37 @@ impl Sheet {
 
     /// Queues what the person does with the next sheet that has no verdict yet.
     pub fn will(&self, verdict: Verdict) {
-        self.edit(|i| i.verdicts.push_back(verdict));
+        self.edit(|i| i.verdicts.push_back((verdict, Release::AtOnce)));
+    }
+
+    /// Queues what the person does with the next sheet, but holds the answer until
+    /// [`Sheet::release`], so the test can see the turn waiting on the sheet first.
+    pub fn will_when_released(&self, verdict: Verdict) {
+        self.edit(|i| i.verdicts.push_back((verdict, Release::WhenReleased)));
+    }
+
+    /// Sends every answer held back by [`Sheet::will_when_released`], first waiting for one to be
+    /// held: the turn shows that it waits on the sheet a moment before the sheet is asked.
+    pub async fn release(&self) {
+        let all = loop {
+            let all = self.edit(|i| std::mem::take(&mut i.held));
+            if !all.is_empty() {
+                break all;
+            }
+            self.held.notified().await;
+        };
+        for held in all {
+            let _ = held
+                .connection
+                .emit_signal(
+                    Some(held.caller),
+                    held.path,
+                    "org.quire.Intents1.Request",
+                    "Response",
+                    &(0_u32, held.reply),
+                )
+                .await;
+        }
     }
 
     /// Sets what the person does with each sheet the queue does not answer, by effect.
@@ -124,9 +174,10 @@ impl ConfirmObject {
             i.next += 1;
             (
                 i.next,
-                i.verdicts
-                    .pop_front()
-                    .or_else(|| i.by_effect.map(|r| r.verdict_for(&parsed))),
+                i.verdicts.pop_front().or_else(|| {
+                    i.by_effect
+                        .map(|r| (r.verdict_for(&parsed), Release::AtOnce))
+                }),
             )
         });
         let _ = self.seen.send(parsed.clone());
@@ -136,10 +187,22 @@ impl ConfirmObject {
             .into();
         let caller = header.sender().map(|s| s.to_owned());
         // No verdict queued: the sheet stays open until intentd withdraws it.
-        if let (Some(verdict), Some(caller)) = (verdict, caller) {
+        if let (Some((verdict, release)), Some(caller)) = (verdict, caller) {
             let reply = serde_json::to_string(&answer_of(verdict, &parsed))
                 .map_err(|e| fdo::Error::Failed(e.to_string()))?;
             let connection = connection.clone();
+            if release == Release::WhenReleased {
+                self.sheet.edit(|i| {
+                    i.held.push(Held {
+                        connection,
+                        caller,
+                        path,
+                        reply,
+                    })
+                });
+                self.sheet.held.notify_one();
+                return Ok(object);
+            }
             tokio::spawn(async move {
                 let _ = connection
                     .emit_signal(
@@ -167,6 +230,7 @@ pub async fn serve(
 ) -> zbus::Result<(Sheet, mpsc::UnboundedReceiver<ConfirmRequest>)> {
     let sheet = Sheet {
         inner: Arc::default(),
+        held: Arc::default(),
     };
     let (seen, requests) = mpsc::unbounded_channel();
     connection

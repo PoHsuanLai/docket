@@ -286,13 +286,17 @@ async fn flow_a_the_answer_shows_the_sheet_while_it_waits() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn first_use_of_mail_in_a_space_asks_once_and_the_second_call_does_not() {
     let world = World::start(&binaries(), Consent::FirstUse, FIRST_USE).await;
-    world.sheet.will(Verdict::AllowAlways);
+    // The answer is held until the turn is seen waiting on the sheet, so that phase cannot pass
+    // between two looks.
+    world.sheet.will_when_released(Verdict::AllowAlways);
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
     let mut answer = launcher
         .say(&opened, "look for Lisbon and Porto mail")
         .await;
-    let history = answer.history_until(settled).await;
+    let mut history = answer.history_until(waiting_on_sheet).await;
+    world.sheet.release().await;
+    history.extend(answer.history_until(settled).await);
     assert_eq!(
         history.last().map(|v| v.phase.clone()),
         Some(AnswerPhase::Done),
