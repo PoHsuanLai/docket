@@ -9,6 +9,7 @@ mod hostile;
 mod live_eval;
 mod live_pure;
 mod live_warm;
+mod pattern_pure;
 mod support;
 mod terminal;
 mod warm_identity;

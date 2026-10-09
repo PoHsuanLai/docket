@@ -1,0 +1,5 @@
+{"vocab":1,"engine":{"kind":"replay","build":"docket-accept"},"model":"scripted","recorded":0,"context":{"loaded":32768,"trained":32768},"speech":null}
+{"when":{"tools":"absent","contains":["You write a task policy"]},"reply":{"kind":"text","v":"{\"actions\":[\"org.quire.Files files.file.search\",\"org.quire.Files files.file.read\",\"org.quire.Files files.file.share\",\"org.quire.Files files.file.create\"],\"apps\":[{\"app\":\"org.quire.Files\",\"up_to\":\"outbound\"}],\"kinds\":[\"files.file\"],\"ceiling\":\"outbound\",\"max_count\":12,\"recipients\":[\"sam@example.test\"],\"destinations\":[],\"paths\":[]}"},"uses":"always"}
+{"when":{"tools":"present"},"reply":{"kind":"calls","v":[{"name":"org.quire.Files-files.file.search","arguments":{"query":"budget"}}]}}
+{"when":{"tools":"present","contains":["value [#1 files.file, #2 files.file]"]},"reply":{"kind":"calls","v":[{"name":"org.quire.Files-files.file.share","arguments":{"target":[{"handle":1},{"handle":2}],"to":"sam@example.test"}}]}}
+{"when":{"tools":"present","contains":["not confirmed: the person declined"]},"reply":{"kind":"text","v":"Understood, I left them as they are."}}

@@ -1,0 +1,5 @@
+{"vocab":1,"engine":{"kind":"replay","build":"docket-accept"},"model":"scripted","recorded":0,"context":{"loaded":32768,"trained":32768},"speech":null}
+{"when":{"tools":"absent","contains":["You write a task policy"]},"reply":{"kind":"text","v":"{\"actions\":[\"org.quire.Notes notes.note.search\",\"org.quire.Notes notes.note.read\"],\"apps\":[{\"app\":\"org.quire.Notes\",\"up_to\":\"undoable_write\"}],\"kinds\":[\"notes.note\"],\"ceiling\":\"undoable_write\",\"max_count\":12,\"recipients\":[],\"destinations\":[],\"paths\":[]}"},"uses":"always"}
+{"when":{"tools":"present"},"reply":{"kind":"calls","v":[{"name":"org.quire.Notes-notes.note.search","arguments":{"query":"Porto"}}]}}
+{"when":{"tools":"present"},"reply":{"kind":"calls","v":[{"name":"org.quire.Notes-notes.note.search","arguments":{"query":"groceries"}}]}}
+{"when":{"tools":"present"},"reply":{"kind":"text","v":"Found both."}}

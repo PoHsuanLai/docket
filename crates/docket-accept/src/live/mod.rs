@@ -11,6 +11,7 @@ pub mod engine;
 pub mod flows;
 pub mod hostile;
 pub mod inferd_world;
+pub mod pattern;
 pub mod regress;
 pub mod shadow_arm;
 pub mod stage;
