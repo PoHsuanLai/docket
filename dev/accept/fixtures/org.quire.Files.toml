@@ -1,0 +1,104 @@
+# The acceptance run's third app: a files app. Files are things (`files.file`) whose content
+# was written by somebody else. Its outbound action shares files with an address the person
+# types; its other write makes a new file and is taken back with an undo token.
+vocab = 1
+app = "org.quire.Files"
+
+[[entities]]
+kind = "files.file"
+label = "File"
+plural = "Files"
+icon = "file"
+class = "files"
+index = "not_indexed"
+titles = { kind = "third_party", v = { kind = "file" } }
+props = []
+
+# Finds files by words in the name.
+[[actions]]
+name = "files.file.search"
+label = "Find files"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "entities", v = "files.file" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "query"
+label = "Words in the name"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+# Reads one file; the content is somebody else's words.
+[[actions]]
+name = "files.file.read"
+label = "Read"
+on = { kind = "one", v = "files.file" }
+effect = "read"
+classes = ["files"]
+undo = "not_undoable"
+reach = "offered"
+latency = "quick"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 20000, lines = "many" } }, trust = { kind = "third_party", v = { kind = "file" } } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+params = []
+
+# Shares files with an address; the app holds the share for an undo window, so it has a token.
+[[actions]]
+name = "files.file.share"
+label = "Share"
+on = { kind = "many", v = "files.file" }
+effect = "outbound"
+classes = ["files"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "preview"
+
+[[actions.params]]
+name = "to"
+label = "Share with"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "recipient"
+
+# Makes a new file; undoing it takes the file away again.
+[[actions]]
+name = "files.file.create"
+label = "New file"
+on = { kind = "nothing" }
+effect = "undoable_write"
+classes = ["files"]
+undo = "token"
+reach = "offered"
+latency = "quick"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "name"
+label = "Name"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "body"
+label = "Content"
+ty = { kind = "text", v = { max = 20000, lines = "many" } }
+need = { kind = "required" }
+sink = "body"
