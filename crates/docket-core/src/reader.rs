@@ -248,6 +248,8 @@ pub enum ReadFault {
     WantOption(String),
     /// Two options of a `choice` came to the same id.
     WantClash(ChoiceId),
+    /// A `text` shape had a `v` that is not `{"max": N}` with N a whole number of at least 1.
+    WantText,
     /// An input is a handle this session does not hold.
     NotHeld,
     /// An input is held but is a thing or a file, not text: the planner reads it first, through

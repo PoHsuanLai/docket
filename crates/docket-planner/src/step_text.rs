@@ -585,6 +585,7 @@ mod tests {
                 ReadFault::WantClash(docket_core::ChoiceId::parse("a_b").expect("id")),
                 "both \"a_b\"",
             ),
+            (ReadFault::WantText, "text needs v: {\"max\": N}"),
             (ReadFault::NotHeld, "not a handle you were shown"),
             (
                 ReadFault::NotText {
