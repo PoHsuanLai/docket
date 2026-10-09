@@ -1,7 +1,7 @@
 //! The router's memory seam over memoryd.
 
 use almanac_client::{ClientError, Memory, Transport};
-use almanac_core::{MemoryFate, MemoryReply, MemoryRequest};
+use almanac_core::{HistoryFate, MemoryFate, MemoryReply, MemoryRequest, Removal};
 use docket_router::{LinkFault, MemoryLink, SpaceMemories};
 use prov::SpaceId;
 
@@ -36,7 +36,12 @@ impl<T: Transport> MemoryLink for AlmanacMemory<T> {
         match self
             .ask(MemoryRequest::RemoveSpace(
                 space.clone(),
-                MemoryFate::Delete,
+                // The person chose to delete the memories; the history is a separate choice,
+                // made in the removal sheet, and is kept here.
+                Removal {
+                    memories: MemoryFate::Delete,
+                    history: HistoryFate::Keep,
+                },
             ))
             .await
         {
