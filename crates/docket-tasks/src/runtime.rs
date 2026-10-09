@@ -48,6 +48,58 @@ pub(crate) struct Narration {
 }
 
 /// The companion.
+///
+/// Over the router in this process, with the neutral fake apps and a model that only talks: it
+/// opens a task, and the task is the one running on its session.
+///
+/// ```
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use docket_client::{InProcess, Intents};
+/// use docket_core::{AgentConfig, AgentRef, CallerId, CallerRole, SessionOpen};
+/// use docket_fake::{WordsModel, fake_router};
+/// use docket_planner::PlannerModel;
+/// use docket_tasks::{Companion, Now, Quiet};
+/// use porter_core::{AppId, AppName, Isolation};
+/// use prov::{SpaceId, UnixSeconds};
+/// use std::{collections::BTreeSet, sync::Arc};
+///
+/// struct Still;
+/// impl Now for Still {
+///     fn now(&self) -> UnixSeconds {
+///         UnixSeconds(1_000)
+///     }
+/// }
+///
+/// let router = Arc::new(fake_router(AgentConfig::default())?);
+/// let shell = AppName::parse("org.quire.Shell")?;
+/// let caller = CallerId {
+///     app: AppId {
+///         name: shell.clone(),
+///         isolation: Isolation::Unsandboxed,
+///     },
+///     roles: BTreeSet::from([CallerRole::Companion]),
+/// };
+/// let mut companion: Companion<_, _, Still, Quiet> = Companion::new(
+///     Intents::over(InProcess::new(router, caller)),
+///     PlannerModel::new(WordsModel::says("Done.")),
+///     AgentConfig::default(),
+///     Still,
+///     shell,
+/// );
+/// let opened = companion
+///     .open(SessionOpen {
+///         space: SpaceId::parse("work")?,
+///         agent: AgentRef::Companion,
+///         parent: None,
+///         cwd: None,
+///         started_from: None,
+///         external: None,
+///     })
+///     .await?;
+/// assert_eq!(companion.task_of(&opened.session), Some(opened.task));
+/// # Ok(()) }
+/// ```
 #[derive(Debug)]
 pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     /// The router, as role `companion`.

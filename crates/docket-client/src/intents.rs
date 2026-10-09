@@ -32,6 +32,33 @@ impl From<TransportError> for ClientError {
 }
 
 /// A caller of the router.
+///
+/// Over the router in this process (the `in_process` feature), with the neutral fake apps:
+///
+/// ```
+/// # #[cfg(feature = "in_process")]
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use docket_client::{InProcess, Intents};
+/// use docket_core::{AgentConfig, CallerId, CallerRole};
+/// use docket_fake::fake_router;
+/// use porter_core::{AppId, AppName, Isolation};
+/// use std::{collections::BTreeSet, sync::Arc};
+///
+/// let router = Arc::new(fake_router(AgentConfig::default())?);
+/// let caller = CallerId {
+///     app: AppId {
+///         name: AppName::parse("org.quire.Shell")?,
+///         isolation: Isolation::Unsandboxed,
+///     },
+///     roles: BTreeSet::from([CallerRole::Editor]),
+/// };
+/// let link = Intents::over(InProcess::new(router, caller));
+/// assert!(!link.manifests().await?.is_empty());
+/// # Ok(()) }
+/// # #[cfg(not(feature = "in_process"))]
+/// # fn main() {}
+/// ```
 #[derive(Debug)]
 pub struct Intents<T: Transport> {
     transport: T,

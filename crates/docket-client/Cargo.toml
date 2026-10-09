@@ -21,6 +21,8 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 cua-action = { workspace = true }
+docket-fake = { workspace = true }
+porter-core = { workspace = true }
 tokio = { workspace = true }
 
 [features]

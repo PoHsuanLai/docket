@@ -82,6 +82,58 @@ pub struct PlannerReply {
 }
 
 /// The planner model.
+///
+/// Over a model that only talks, a turn that makes no call ends in the words:
+///
+/// ```
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use agent_loop::{ModelOutput, Sources, assemble};
+/// use docket_core::*;
+/// use docket_fake::WordsModel;
+/// use docket_planner::PlannerModel;
+/// use porter_core::{AppName, Count};
+/// use prov::Integrity;
+///
+/// let view = assemble(
+///     &AgentConfig::default().assembler,
+///     &Sources {
+///         cards: vec![],
+///         profile: vec![],
+///         primer: None,
+///         rollup: None,
+///         roster: Roster::default(),
+///         episodes: vec![],
+///         recalled: vec![],
+///         context: ContextView {
+///             app: AppName::parse("org.quire.Shell")?,
+///             window: Reveal::Plain(String::new()),
+///             here: HereView::Nowhere,
+///             selection: SelectionView::Nothing,
+///             visible: VisibleView {
+///                 kind: None,
+///                 items: vec![],
+///                 total: Count(0),
+///             },
+///             text_target: TextTargetView::None,
+///         },
+///         turns: vec![],
+///         history: vec![],
+///         handles: vec![],
+///         inbox: vec![],
+///         skills: vec![],
+///         skill_texts: vec![],
+///         taint: Integrity::Trusted,
+///         task_policy: None,
+///     },
+/// );
+/// let planner = PlannerModel::new(WordsModel::says("Nothing to do."));
+/// assert_eq!(
+///     planner.plan(&view).await?,
+///     ModelOutput::Say("Nothing to do.".into())
+/// );
+/// # Ok(()) }
+/// ```
 #[derive(Debug)]
 pub struct PlannerModel<P: Transport> {
     infer: P,

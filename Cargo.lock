@@ -1133,8 +1133,10 @@ dependencies = [
  "cua-action",
  "docket-core",
  "docket-dbus",
+ "docket-fake",
  "docket-router",
  "futures-util",
+ "porter-core",
  "prov",
  "serde",
  "serde_json",
@@ -1356,6 +1358,7 @@ dependencies = [
  "almanac-core",
  "companion-wire",
  "docket-core",
+ "docket-fake",
  "porter-client",
  "porter-core",
  "porter-infer",
@@ -1363,6 +1366,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

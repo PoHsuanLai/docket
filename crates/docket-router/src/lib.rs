@@ -6,6 +6,29 @@
 //! manifest registry (`registry`). `Router` ties them to the seams (`seams`).
 //!
 //! No clock, bus, file or runtime is reached here; the daemon (`intentd`) passes them in.
+//!
+//! A router over the neutral fake apps, asked what is installed (any caller may ask):
+//!
+//! ```
+//! # #[tokio::main(flavor = "current_thread")]
+//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! use docket_core::{AgentConfig, CallerId, CallerRole, IntentsReply, IntentsRequest};
+//! use docket_fake::fake_router;
+//! use porter_core::{AppId, AppName, Isolation};
+//! use std::collections::BTreeSet;
+//!
+//! let router = fake_router(AgentConfig::default())?;
+//! let caller = CallerId {
+//!     app: AppId {
+//!         name: AppName::parse("org.quire.Shell")?,
+//!         isolation: Isolation::Unsandboxed,
+//!     },
+//!     roles: BTreeSet::from([CallerRole::Editor]),
+//! };
+//! let reply = router.handle(&caller, IntentsRequest::Manifests).await;
+//! assert!(matches!(reply, IntentsReply::Manifests(ref all) if !all.is_empty()));
+//! # Ok(()) }
+//! ```
 
 mod argcheck;
 mod asks;
