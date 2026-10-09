@@ -1483,7 +1483,7 @@ dependencies = [
 [[package]]
 name = "ds-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=960ac8faa0166eba83f5f09a72ba063f79d35c06#960ac8faa0166eba83f5f09a72ba063f79d35c06"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5#b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5"
 dependencies = [
  "ds-core-derive",
  "futures-timer",
@@ -1495,7 +1495,7 @@ dependencies = [
 [[package]]
 name = "ds-core-derive"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=960ac8faa0166eba83f5f09a72ba063f79d35c06#960ac8faa0166eba83f5f09a72ba063f79d35c06"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5#b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1506,7 +1506,7 @@ dependencies = [
 [[package]]
 name = "ds-intents"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=960ac8faa0166eba83f5f09a72ba063f79d35c06#960ac8faa0166eba83f5f09a72ba063f79d35c06"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5#b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5"
 dependencies = [
  "ds-core",
 ]
