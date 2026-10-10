@@ -7,8 +7,8 @@ use crate::seams::Seams;
 use docket_checkpoint::{CheckpointStore, PlanAsk, StoreFault, WorkRoot};
 use docket_core::{
     CallerId, CallerRole, CheckpointEvent, CheckpointFault, CheckpointId, CheckpointList,
-    CheckpointNote, CheckpointRow, IntentsReply, RestorePlan, Retention, SavedState, TurnState,
-    WireRefusal, Workspace,
+    CheckpointNote, CheckpointRow, IntentsReply, RestorePlan, Retention, SavedState, WireRefusal,
+    Workspace,
 };
 use docket_session::{Claimant, may_restore, note_rows};
 use prov::SessionId;
@@ -104,7 +104,7 @@ impl<S: Seams> Router<S> {
                 last: cfg.checkpoint_keep,
                 days: cfg.checkpoint_days,
             },
-            turn: TurnState::Idle,
+            turn: self.turn_state(session),
         }))
     }
 

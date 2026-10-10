@@ -84,6 +84,7 @@ mod state;
 mod stored;
 mod tasks;
 mod terminal;
+mod turn_running;
 mod wal;
 mod watch;
 mod who;

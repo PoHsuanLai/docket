@@ -147,6 +147,8 @@ pub struct RouterState {
     pub(crate) lanes: BTreeMap<SessionId, Lane>,
     /// The sessions whose workspace is being saved or restored right now.
     pub(crate) stepping: BTreeSet<SessionId>,
+    /// The turn each session's agent is working on now.
+    pub(crate) running: BTreeMap<SessionId, crate::turn_running::RunningTurn>,
 }
 
 impl RouterState {
@@ -173,6 +175,7 @@ impl RouterState {
             skills: Vec::new(),
             lanes: BTreeMap::new(),
             stepping: BTreeSet::new(),
+            running: BTreeMap::new(),
         }
     }
 

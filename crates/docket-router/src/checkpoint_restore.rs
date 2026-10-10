@@ -16,7 +16,7 @@ use docket_checkpoint::{
 use docket_core::{
     AppRefusal, Args, CallRequest, CallerId, CallerRole, CheckpointEvent, CheckpointFault,
     CheckpointId, CheckpointNote, FailText, Follow, Invocation, LabelText, Outcome, ParamName,
-    PlanDigest, Preview, TurnId, Undoable, Value, WireRefusal,
+    PlanDigest, Preview, TurnId, TurnState, Undoable, Value, WireRefusal,
 };
 use docket_session::{Claimant, may_restore};
 use porter_core::AppName;
@@ -167,12 +167,23 @@ impl<S: Seams> Router<S> {
         Ok((root, record.checkpoints.clone()))
     }
 
+    /// Refuses `TurnRunning` while the session's agent is working or a save or a restore of its
+    /// workspace is in flight.
+    fn restore_clear(&self, session: &SessionId) -> Result<(), AppRefusal> {
+        let stepping = self.locked().stepping.contains(session);
+        match (self.turn_state(session), stepping) {
+            (TurnState::Idle, false) => Ok(()),
+            _ => Err(say(CheckpointFault::TurnRunning)),
+        }
+    }
+
     /// `DryRun` of `checkpoints.restore`: the sheet's lines for the plan as the folder is now.
     /// A plan that is not the one the call carries is refused, so the sheet never shows one
     /// thing while another is confirmed.
     pub async fn checkpoints_dry_run(&self, inv: Invocation) -> Result<Preview, AppRefusal> {
         let ask = ask_of(&inv)?;
         let (root, notes) = self.restore_target(&ask.session)?;
+        self.restore_clear(&ask.session)?;
         if !crate::checkpoint_read::was_saved(&notes, ask.point) {
             return Err(say(CheckpointFault::NoSuchPoint));
         }
@@ -206,6 +217,10 @@ impl<S: Seams> Router<S> {
         let Some(_step) = self.begin_step(&ask.session) else {
             return Err(say(CheckpointFault::TurnRunning));
         };
+        // The mark is taken first, so no turn's save starts while this checks the turn.
+        if self.turn_state(&ask.session) == TurnState::Running {
+            return Err(say(CheckpointFault::TurnRunning));
+        }
         if !crate::checkpoint_read::was_saved(&notes, ask.point) {
             return Err(say(CheckpointFault::NoSuchPoint));
         }

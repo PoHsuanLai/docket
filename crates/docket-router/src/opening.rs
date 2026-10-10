@@ -240,6 +240,7 @@ impl<S: Seams> Router<S> {
         record.apply(SessionEvent::Close);
         let task = record.task.clone();
         let policy_ended = record.policy.is_some();
+        st.running.remove(id);
         let Some(t) = st.tasks.get_mut(&task) else {
             return IntentsReply::Done;
         };

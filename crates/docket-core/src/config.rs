@@ -85,6 +85,10 @@ fn checkpoint_wait() -> Seconds {
     Seconds(10)
 }
 
+fn checkpoint_turn_max() -> Seconds {
+    Seconds(1800)
+}
+
 /// Every proposed value in one place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AgentConfig {
@@ -124,6 +128,10 @@ pub struct AgentConfig {
     /// without one (10 s).
     #[serde(default = "checkpoint_wait")]
     pub checkpoint_wait: Seconds,
+    /// `agent.checkpoints.turn_max_s`: a turn the host never reported as ended counts as ended
+    /// after this long, so a host that died does not block a restore for good (1800 s).
+    #[serde(default = "checkpoint_turn_max")]
+    pub checkpoint_turn_max: Seconds,
     /// `companion.budget.*`.
     pub assembler: AssemblerBudget,
     /// `companion.idle_s` and `companion.side_close_s`.
@@ -167,6 +175,7 @@ impl Default for AgentConfig {
             checkpoint_days: checkpoint_days(),
             checkpoint_max_files: checkpoint_max_files(),
             checkpoint_wait: checkpoint_wait(),
+            checkpoint_turn_max: checkpoint_turn_max(),
             assembler: AssemblerBudget {
                 rules: Tokens(2500),
                 profile: Tokens(1200),
@@ -244,6 +253,7 @@ pub const SETTING_ROWS: &[SettingRow] = &[
     n("agent.checkpoints.days", 14),
     n("agent.checkpoints.max_files", 50_000),
     n("agent.checkpoints.wait_s", 10),
+    n("agent.checkpoints.turn_max_s", 1800),
     n("companion.budget.rules", 2500),
     n("companion.budget.profile", 1200),
     n("companion.budget.roster", 400),
@@ -295,6 +305,7 @@ impl AgentConfig {
             "agent.checkpoints.days" => num(i64::from(self.checkpoint_days.0)),
             "agent.checkpoints.max_files" => num(c(self.checkpoint_max_files)),
             "agent.checkpoints.wait_s" => num(i64::from(self.checkpoint_wait.0)),
+            "agent.checkpoints.turn_max_s" => num(i64::from(self.checkpoint_turn_max.0)),
             "companion.budget.rules" => num(t(self.assembler.rules)),
             "companion.budget.profile" => num(t(self.assembler.profile)),
             "companion.budget.roster" => num(t(self.assembler.roster)),

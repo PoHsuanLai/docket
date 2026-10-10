@@ -1,7 +1,7 @@
 //! A virtual clock: it says the same instant until a test moves it, and the router's timers
 //! (`Clock::after`) complete only when the test has advanced it far enough. No wall time passes.
 
-use docket_core::Millis;
+use docket_core::{Millis, Seconds};
 use docket_router::{Clock, Flag, Queue};
 use prov::UnixSeconds;
 use std::sync::{Arc, Mutex};
@@ -14,6 +14,8 @@ struct Sky {
     timers: Vec<(u64, Arc<Flag>)>,
     /// Every wait the router asked for, in order.
     asked: Vec<Millis>,
+    /// Seconds `pass` has added to the instant `now` reports.
+    passed: i64,
 }
 
 /// A clock that says the same instant until `advance` moves it. `after(Millis(0))` completes at
@@ -54,6 +56,13 @@ impl FixedClock {
         due.iter().for_each(|flag| flag.raise());
     }
 
+    /// Moves the instant `now` reports forward by `by`. Timers are not touched (`advance`
+    /// moves those): this is for a rule that reads how old something is.
+    pub fn pass(&self, by: Seconds) {
+        let mut sky = self.sky();
+        sky.passed = sky.passed.saturating_add(i64::from(by.0));
+    }
+
     /// Every wait the router has asked for so far, in order.
     pub fn asked(&self) -> Vec<Millis> {
         self.sky().asked.clone()
@@ -68,7 +77,7 @@ impl FixedClock {
 
 impl Clock for FixedClock {
     fn now(&self) -> UnixSeconds {
-        self.start
+        UnixSeconds(self.start.0.saturating_add(self.sky().passed))
     }
 
     async fn after(&self, wait: Millis) {

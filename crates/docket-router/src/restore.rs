@@ -157,7 +157,6 @@ fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         R::Context { session, .. }
         | R::SessionTurn { session, .. }
         | R::SessionClose { session }
-        | R::SessionTurnEnded { session, .. }
         | R::SessionResolve { session, .. }
         | R::SessionDisplay { session, .. }
         | R::SessionDisplayLabelled { session, .. }
@@ -181,6 +180,8 @@ fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         | R::Undo(_)
         | R::UndoAll(_)
         | R::SessionOpen(_)
+        // A turn that ended names a session that is live, or has no running turn at all.
+        | R::SessionTurnEnded { .. }
         | R::MessageInbox(_)
         | R::GateGrant(_)
         | R::GateCheck(_)

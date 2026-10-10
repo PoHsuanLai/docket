@@ -112,6 +112,20 @@ fn restore_call(session: &SessionId, point: i64, plan: &str) -> Invocation {
     }
 }
 
+fn running_words() -> AppRefusal {
+    AppRefusal::Failed(FailText("Wait for this turn to finish".to_owned()))
+}
+
+/// The host of `session` says `turn` is over.
+async fn ended(router: &Router<FakeSeams>, session: &SessionId, turn: TurnId) {
+    let request = IntentsRequest::SessionTurnEnded {
+        session: session.clone(),
+        turn,
+        how: TurnEnd::Answered,
+    };
+    assert_eq!(ask(router, &launcher(), request).await, IntentsReply::Done);
+}
+
 fn stale_words() -> AppRefusal {
     AppRefusal::Failed(FailText(
         "Files changed while you were deciding. Look again.".to_owned(),
@@ -213,7 +227,8 @@ async fn restoring_saves_a_safety_point_writes_the_files_back_and_is_logged() {
     let router = router();
     put(&router, "a.txt", "one");
     let session = open_in(&router, &companion(), Some(WORK), None).await;
-    say(&router, &session, "first").await;
+    let first = say(&router, &session, "first").await;
+    ended(&router, &session, first).await;
     put(&router, "a.txt", "two");
     put(&router, "b.txt", "made since");
 
@@ -267,7 +282,8 @@ async fn a_plan_that_is_not_the_one_the_person_saw_is_refused_and_nothing_is_wri
     let router = router();
     put(&router, "a.txt", "one");
     let session = open_in(&router, &companion(), Some(WORK), None).await;
-    say(&router, &session, "first").await;
+    let first = say(&router, &session, "first").await;
+    ended(&router, &session, first).await;
     put(&router, "a.txt", "two");
     let plan = planned(&router, &session, 1).await;
     put(&router, "a.txt", "three, after the sheet was drawn");
@@ -370,4 +386,120 @@ async fn an_agent_cannot_list_plan_or_restore_and_a_surface_sees_only_its_own_se
     )
     .await;
     assert_eq!(reply, IntentsReply::Refused(WireRefusal::NoSuchSession));
+}
+
+/// How a running turn stops being one, or does not.
+#[derive(Clone, Copy)]
+enum Way {
+    /// The host reports that turn.
+    Reported,
+    /// The host reports a turn that is not the running one.
+    ReportedOther,
+    /// The session closes.
+    Closed,
+    /// The turn has run exactly as long as `turn_max_s`.
+    AtTheLimit,
+    /// The turn has run longer than `turn_max_s`.
+    PastTheLimit,
+}
+
+/// Whether a restore may go ahead after `Way`.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Then {
+    Allowed,
+    Refused,
+}
+
+#[tokio::test]
+async fn a_restore_is_refused_while_a_turn_runs_and_allowed_once_it_has_ended() {
+    let rows = [
+        (Way::Reported, Then::Allowed),
+        (Way::ReportedOther, Then::Refused),
+        (Way::Closed, Then::Allowed),
+        (Way::AtTheLimit, Then::Refused),
+        (Way::PastTheLimit, Then::Allowed),
+    ];
+    for (index, (way, then)) in rows.into_iter().enumerate() {
+        let router = router();
+        put(&router, "a.txt", "one");
+        let session = open_in(&router, &companion(), Some(WORK), None).await;
+        let turn = say(&router, &session, "go").await;
+        put(&router, "a.txt", "two");
+        let plan = planned(&router, &session, 1).await;
+        let call = restore_call(&session, 1, &plan.digest.0);
+        assert_eq!(
+            router.checkpoints_dry_run(call.clone()).await,
+            Err(running_words()),
+            "row {index}: the sheet"
+        );
+        assert_eq!(
+            router.checkpoints_perform(call.clone()).await,
+            Err(running_words()),
+            "row {index}: the restore"
+        );
+        assert_eq!(
+            read(&router, "a.txt").as_deref(),
+            Some("two"),
+            "row {index}"
+        );
+        match way {
+            Way::Reported => ended(&router, &session, turn).await,
+            Way::ReportedOther => ended(&router, &session, TurnId(turn.0 + 100)).await,
+            Way::Closed => {
+                let close = IntentsRequest::SessionClose {
+                    session: session.clone(),
+                };
+                assert_eq!(ask(&router, &launcher(), close).await, IntentsReply::Done);
+            }
+            Way::AtTheLimit => router.seams.clock.pass(Seconds(1800)),
+            Way::PastTheLimit => router.seams.clock.pass(Seconds(1801)),
+        }
+        let performed = router.checkpoints_perform(call).await;
+        match then {
+            Then::Allowed => assert!(performed.is_ok(), "row {index}: {performed:?}"),
+            Then::Refused => assert_eq!(performed, Err(running_words()), "row {index}"),
+        }
+    }
+}
+
+#[tokio::test]
+async fn the_list_says_running_from_the_turn_until_it_ends() {
+    let router = router();
+    let session = open_in(&router, &companion(), Some(WORK), None).await;
+    assert_eq!(listed(&router, &session).await.turn, TurnState::Idle);
+    let turn = say(&router, &session, "go").await;
+    assert_eq!(listed(&router, &session).await.turn, TurnState::Running);
+    ended(&router, &session, turn).await;
+    assert_eq!(listed(&router, &session).await.turn, TurnState::Idle);
+}
+
+#[tokio::test]
+async fn only_the_opener_of_a_session_ends_its_turn_and_an_agent_cannot() {
+    let router = router();
+    let external = ExternalAgent {
+        program: program("claude-code"),
+        sheets: SheetSurface::Desktop,
+        label: None,
+        rewind: Rewind::Agent,
+    };
+    let session = open_in(&router, &host(), Some(WORK), Some(external)).await;
+    let turn = say_as(&router, &host(), &session, "go").await;
+    let end = IntentsRequest::SessionTurnEnded {
+        session: session.clone(),
+        turn,
+        how: TurnEnd::Failed,
+    };
+    let other = caller("org.zed.Zed", CallerRole::Editor);
+    assert_eq!(
+        ask(&router, &other, end.clone()).await,
+        IntentsReply::Refused(WireRefusal::NotAllowed)
+    );
+    let mcp = caller("org.zed.Zed", CallerRole::Mcp);
+    assert_eq!(
+        ask(&router, &mcp, end.clone()).await,
+        IntentsReply::Refused(WireRefusal::NotAllowed)
+    );
+    assert_eq!(listed(&router, &session).await.turn, TurnState::Running);
+    assert_eq!(ask(&router, &host(), end).await, IntentsReply::Done);
+    assert_eq!(listed(&router, &session).await.turn, TurnState::Idle);
 }

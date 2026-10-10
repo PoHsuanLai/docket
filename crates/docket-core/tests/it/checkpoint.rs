@@ -136,6 +136,7 @@ fn the_checkpoint_settings_rows_carry_the_defaults() {
         ("agent.checkpoints.days", 14),
         ("agent.checkpoints.max_files", 50_000),
         ("agent.checkpoints.wait_s", 10),
+        ("agent.checkpoints.turn_max_s", 1800),
     ] {
         assert_eq!(config.value(key), Some(SettingValue::Number(want)), "{key}");
     }

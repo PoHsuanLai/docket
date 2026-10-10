@@ -172,6 +172,7 @@ impl<S: Seams> Router<S> {
                     Ok(recorded) => {
                         // The restore point is saved before the agent is told of the turn.
                         self.checkpoint_step(&session, recorded.id).await;
+                        self.begin_turn(&session, recorded.id);
                         self.derive_policy(&session).await;
                         IntentsReply::TurnRecorded(recorded.id)
                     }
@@ -179,6 +180,9 @@ impl<S: Seams> Router<S> {
                 }
             }
             R::SessionClose { session } => self.session_close(caller, role, &session),
+            R::SessionTurnEnded { session, turn, .. } => {
+                self.session_turn_ended(caller, role, &session, turn)
+            }
             R::SessionResolve { session, handle } => self.session_resolve(&session, handle).await,
             R::SessionDisplay { session, handle } => self.session_display(&session, handle),
             R::SessionDisplayLabelled { session, handle } => {
