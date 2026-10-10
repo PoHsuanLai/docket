@@ -564,7 +564,16 @@ async fn the_interfaces_intentd_serves_are_the_declared_ones() {
     // interface but `Request`, which lives at the request objects.
     let declared = introspection(Bus::Intents);
     for interface in [
-        "Registry", "Index", "Search", "Run", "Context", "Session", "Message", "Gate", "Control",
+        "Registry",
+        "Index",
+        "Search",
+        "Run",
+        "Context",
+        "Session",
+        "Checkpoint",
+        "Message",
+        "Gate",
+        "Control",
     ] {
         let name = format!("org.quire.Intents1.{interface}");
         let theirs = block(&declared, &name);
