@@ -175,6 +175,55 @@ where
 
 /// One app's agent: `ask` runs a turn end to end through the router, in the front task or a task
 /// the app names.
+///
+/// Over the neutral fake Files app and a model that only talks:
+///
+/// ```
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # use docket_client::ContextSource;
+/// # use docket_core::{AgentConfig, ConfirmRequest, ContextScope, ContextSnapshot};
+/// # use docket_core::{Here, Selection, TextTarget, Visible, WindowPrivacy};
+/// # use docket_fake::{FakeFiles, FixedClock, ScriptedReviewer, WordsModel, files_manifest};
+/// # use porter_core::{AppName, Count};
+/// # use prov::{Label, Labelled, SpaceId, UnixSeconds};
+/// use docket_inapp::{ConfirmSheet, Ending, InAppAgent, InAppParts, SheetAnswer};
+/// # struct Nobody;
+/// # impl ConfirmSheet for Nobody {
+/// #     async fn ask(&self, _: &ConfirmRequest) -> SheetAnswer { SheetAnswer::Dismissed }
+/// # }
+/// # struct Nowhere(AppName);
+/// # impl ContextSource for Nowhere {
+/// #     fn snapshot(&self, _: ContextScope) -> ContextSnapshot {
+/// #         ContextSnapshot {
+/// #             app: self.0.clone(),
+/// #             window: Labelled { value: String::new(), label: Label::trusted_user() },
+/// #             here: Here::Nowhere,
+/// #             selection: Selection::Nothing,
+/// #             visible: Visible { kind: None, items: vec![], total: Count(0) },
+/// #             text_target: TextTarget::None,
+/// #             privacy: WindowPrivacy::Normal,
+/// #         }
+/// #     }
+/// # }
+/// # let space = SpaceId::parse("work")?;
+/// # let manifest = files_manifest()?;
+/// # let app = manifest.manifest().app.clone();
+/// let parts = InAppParts {
+///     provider: FakeFiles::new(manifest, space.clone()),
+///     context: Nowhere(app),
+///     sheet: Nobody,
+///     reviewer: ScriptedReviewer::always_allow(),
+///     model: WordsModel::says("Nothing to change."),
+///     clock: FixedClock::at(UnixSeconds(1_000)),
+///     space,
+///     config: AgentConfig::default(),
+/// };
+/// let mut agent = InAppAgent::new(parts)?;
+/// let reply = agent.ask("Anything to tidy?").await?;
+/// assert_eq!(reply.ending, Ending::Done);
+/// # Ok(()) }
+/// ```
 pub struct InAppAgent<
     P,
     C,

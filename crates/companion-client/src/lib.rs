@@ -3,6 +3,25 @@
 //! written against; [`DbusCompanion`] is the session bus.
 //! Recording the person's turn is not here: that is `Intents1.Session.Turn`, which the caller
 //! makes through [`docket_client::Intents`] before it asks.
+//!
+//! Open a conversation, ask, follow the answer until it ends, close:
+//!
+//! ```no_run
+//! use companion_client::{CompanionTransport, DbusCompanion, Follow};
+//! use companion_wire::AskWire;
+//! use docket_client::TransportError;
+//! use docket_core::SessionOpen;
+//!
+//! async fn converse(open: &SessionOpen, ask: &AskWire) -> Result<(), TransportError> {
+//!     let companion = DbusCompanion::connect().await?;
+//!     let opened = companion.open(open).await?;
+//!     let mut answer = companion.ask(ask).await?;
+//!     while let Some(view) = answer.next().await? {
+//!         let _ = view; // each view of the answer as it changes
+//!     }
+//!     companion.close(&opened.session).await
+//! }
+//! ```
 
 use companion_wire::{AnswerWire, AskWire};
 use docket_client::TransportError;
