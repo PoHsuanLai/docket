@@ -205,6 +205,8 @@ impl<S: Seams> Router<S> {
                 self.revoke_standing(&id);
                 IntentsReply::Done
             }
+            // A request this router does not know is refused, never run.
+            _ => IntentsReply::Refused(WireRefusal::Malformed),
         }
     }
 

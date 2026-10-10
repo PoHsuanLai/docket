@@ -189,5 +189,7 @@ fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         | R::ControlStandingGrants
         | R::ControlStandingRevoke(_)
         | R::SessionStored { .. } => None,
+        // A request of an unknown kind names no session, so no session is restored for it.
+        _ => None,
     }
 }

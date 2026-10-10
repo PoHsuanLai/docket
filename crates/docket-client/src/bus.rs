@@ -455,5 +455,9 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
             let proxy = ControlProxy::new(c).await.map_err(bus)?;
             nothing(proxy.revoke_standing_grant(&to_json(&id)?).await)
         }
+        // A request with no bus member is an error, never a silent success.
+        _ => Err(TransportError::Malformed(
+            "a request the bus has no member for".to_owned(),
+        )),
     }
 }
