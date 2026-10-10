@@ -48,9 +48,7 @@ async fn asks_for_voice_speech_to_text_at_the_tier() {
     assert_eq!(
         asked,
         vec![Opened {
-            need: Need::Speech(SpeechNeed {
-                modes: BTreeSet::from([SpeechMode::Stt])
-            }),
+            need: Need::Speech(SpeechNeed::new(BTreeSet::from([SpeechMode::Stt]))),
             class: DataClass::Voice,
             tier: Tier::Balanced,
         }]

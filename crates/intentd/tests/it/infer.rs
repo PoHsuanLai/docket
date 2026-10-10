@@ -28,30 +28,27 @@ fn card() -> ModelCard {
 }
 
 fn control() -> ChatControl {
-    ChatControl {
-        tool_choice: ToolChoice::Never,
-        tool_calls: ToolParallelism::One,
-        max_output: Knob::Off,
-        reasoning: porter_infer::Reasoning::Off,
-        sampling: Knob::Off,
-        stop: Vec::new(),
-        scores: Knob::Off,
-    }
+    ChatControl::new()
+        .with_tool_choice(ToolChoice::Never)
+        .with_tool_calls(ToolParallelism::One)
+        .with_max_output(Knob::Off)
+        .with_reasoning(porter_infer::Reasoning::Off)
+        .with_sampling(Knob::Off)
 }
 
 fn chat(shape: ReplyShape, tools: Vec<ToolDecl>) -> ChatRequest {
-    ChatRequest {
-        messages: vec![ChatMessage {
+    ChatRequest::new(
+        vec![ChatMessage {
             role: Role::User,
             parts: vec![MessagePart::Text("is this fine?".into())],
         }],
-        shape,
-        tier: Tier::Balanced,
-        class: DataClass::Prompt,
-        usage: Usage::Interactive,
-        tools,
-        control: control(),
-    }
+        Tier::Balanced,
+        DataClass::Prompt,
+        Usage::Interactive,
+    )
+    .with_shape(shape)
+    .with_tools(tools)
+    .with_control(control())
 }
 
 #[derive(Default)]
@@ -185,11 +182,11 @@ async fn every_way_inferd_can_fail_is_a_model_error_and_never_a_reply() {
         ),
         (
             "an answer of another kind",
-            finish(InferReply::Embed(porter_infer::EmbedReply {
-                vectors: vec![],
-                usage: usage(),
-                served: served(),
-            })),
+            finish(InferReply::Embed(porter_infer::EmbedReply::new(
+                vec![],
+                usage(),
+                served(),
+            ))),
             ModelError::Unparseable,
         ),
         (
@@ -219,21 +216,21 @@ async fn every_way_inferd_can_fail_is_a_model_error_and_never_a_reply() {
 async fn embeddings_open_an_embedding_session_for_the_indexs_length() {
     let session = finishing(
         RequestKind::Embed,
-        InferReply::Embed(porter_infer::EmbedReply {
-            vectors: vec![porter_infer::EmbedVector(vec![0.5, 0.25])],
-            usage: usage(),
-            served: served(),
-        }),
+        InferReply::Embed(porter_infer::EmbedReply::new(
+            vec![porter_infer::EmbedVector(vec![0.5, 0.25])],
+            usage(),
+            served(),
+        )),
     );
     let inferd = ScriptedInferd::new([session]);
     let model = InferdModel::new(inferd.clone(), card());
-    let request = EmbedRequest {
-        inputs: vec!["lisbon".into()],
-        role: EmbedRole::Query,
-        dims: DimsNeed::Exactly(Dims(2)),
-        class: DataClass::Notes,
-        usage: Usage::Background,
-    };
+    let request = EmbedRequest::new(
+        vec!["lisbon".into()],
+        EmbedRole::Query,
+        DimsNeed::Exactly(Dims(2)),
+        DataClass::Notes,
+        Usage::Background,
+    );
 
     let reply = model.embed(&request).await.expect("vectors");
 
@@ -242,10 +239,10 @@ async fn embeddings_open_an_embedding_session_for_the_indexs_length() {
     assert_eq!(opened[0].class, DataClass::Notes);
     assert_eq!(
         opened[0].need,
-        Need::Embeddings(EmbedNeed {
-            dims: DimsNeed::Exactly(Dims(2)),
-            modalities: BTreeSet::from([Modality::Text]),
-        })
+        Need::Embeddings(EmbedNeed::new(
+            DimsNeed::Exactly(Dims(2)),
+            BTreeSet::from([Modality::Text]),
+        ))
     );
 }
 

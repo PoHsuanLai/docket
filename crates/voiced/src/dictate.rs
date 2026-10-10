@@ -56,12 +56,12 @@ pub async fn dictate<D: AudioDevice, T: Transport>(
         .open(&stt_need(), DataClass::Voice, Tier::Balanced)
         .await
         .map_err(|e| link_fault(&e))?;
-    let begin = TranscribeBegin {
-        mode: TranscribeMode::Streaming,
-        lang: LangPick::Auto,
-        rate: AudioRate(CAPTURE_RATE),
-        usage: Usage::Interactive,
-    };
+    let begin = TranscribeBegin::new(
+        TranscribeMode::Streaming,
+        LangPick::Auto,
+        AudioRate(CAPTURE_RATE),
+        Usage::Interactive,
+    );
     session
         .send(ClientFrame::Request(InferRequest::Transcribe(begin)))
         .await

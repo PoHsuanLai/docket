@@ -143,32 +143,30 @@ fn message(role: Role, text: String) -> ChatMessage {
 /// validation, repair and retry). The class is the strictest of the inputs' classes, and the
 /// request is interactive.
 pub fn reader_request(ask: &ReaderAsk, inputs: &[Labelled<String>]) -> ChatRequest {
-    ChatRequest {
-        messages: vec![
+    ChatRequest::new(
+        vec![
             message(Role::System, task_instruction(ask.task).to_owned()),
             message(Role::User, fenced(inputs)),
         ],
-        shape: reply_shape(&ask.want),
-        tier: tier_of(ask.task),
-        class: class_of(inputs.iter().map(|i| &i.label)),
-        usage: Usage::Interactive,
-        tools: Vec::new(),
-        control: ChatControl {
-            tool_choice: ToolChoice::Never,
-            tool_calls: ToolParallelism::One,
-            max_output: Knob::Set(output_cap(&ask.want)),
-            reasoning: Reasoning::Off,
-            sampling: Knob::Set(Sampling {
+        tier_of(ask.task),
+        class_of(inputs.iter().map(|i| &i.label)),
+        Usage::Interactive,
+    )
+    .with_shape(reply_shape(&ask.want))
+    .with_control(
+        ChatControl::new()
+            .with_tool_choice(ToolChoice::Never)
+            .with_tool_calls(ToolParallelism::One)
+            .with_max_output(Knob::Set(output_cap(&ask.want)))
+            .with_reasoning(Reasoning::Off)
+            .with_sampling(Knob::Set(Sampling {
                 temperature: Permille(0),
                 top_p: Knob::Off,
                 top_k: Knob::Off,
                 min_p: Knob::Off,
                 seed: Knob::Off,
-            }),
-            stop: Vec::new(),
-            scores: Knob::Off,
-        },
-    }
+            })),
+    )
 }
 
 #[cfg(test)]

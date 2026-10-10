@@ -226,13 +226,7 @@ where
         let Some(rec) = self.say.active.last().cloned() else {
             return;
         };
-        let request = SpeakRequest {
-            text,
-            voice: None,
-            lang: rec.lang,
-            class: rec.class,
-            usage: Usage::Interactive,
-        };
+        let request = SpeakRequest::new(text, rec.lang, rec.class, Usage::Interactive);
         let frame = ClientFrame::Request(InferRequest::Speak(request));
         match &self.say.link {
             Some(link) => {

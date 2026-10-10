@@ -184,6 +184,7 @@ pub fn declined_text(declined: &Declined) -> String {
         DeclinedBecause::NotInstalled => "it is not installed on this computer".to_owned(),
         DeclinedBecause::Unavailable => "it cannot run right now".to_owned(),
         DeclinedBecause::NoRoom => "it does not fit in memory".to_owned(),
+        _ => "it cannot answer".to_owned(),
     };
     format!("{name} cannot answer: {reason}.")
 }
@@ -196,5 +197,6 @@ fn blocked_text(refusal: InferRefusal) -> &'static str {
         InferRefusal::Denied => "you refused it for this app",
         InferRefusal::OverBudget => "its spend cap is reached",
         InferRefusal::Unsupported => "it does not fit this request",
+        _ => "it was refused",
     }
 }

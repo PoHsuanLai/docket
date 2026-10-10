@@ -108,21 +108,18 @@ fn control(stage: Stage) -> ChatControl {
         Stage::Quick => Tokens(8),
         Stage::Deliberate | Stage::SecondOpinion => Tokens(320),
     };
-    ChatControl {
-        tool_choice: ToolChoice::Never,
-        tool_calls: ToolParallelism::One,
-        max_output: Knob::Set(max_output),
-        reasoning: Reasoning::Off,
-        sampling: Knob::Set(Sampling {
+    ChatControl::new()
+        .with_tool_choice(ToolChoice::Never)
+        .with_tool_calls(ToolParallelism::One)
+        .with_max_output(Knob::Set(max_output))
+        .with_reasoning(Reasoning::Off)
+        .with_sampling(Knob::Set(Sampling {
             temperature: Permille(0),
             top_p: Knob::Off,
             top_k: Knob::Off,
             min_p: Knob::Off,
             seed: Knob::Off,
-        }),
-        stop: Vec::new(),
-        scores: Knob::Off,
-    }
+        }))
 }
 
 fn message(role: Role, text: String) -> ChatMessage {
@@ -141,18 +138,17 @@ pub const REVIEW_CLASS: DataClass = DataClass::Prompt;
 /// The chat request for one stage of one review.
 pub(crate) fn chat_request(stage: Stage, request: &ReviewRequest) -> ChatRequest {
     let prompt = render(request, stage);
-    ChatRequest {
-        messages: vec![
+    ChatRequest::new(
+        vec![
             message(Role::System, prompt.system),
             message(Role::User, prompt.user),
         ],
-        shape: shape(stage),
-        tier: tier(stage),
-        class: REVIEW_CLASS,
-        usage: Usage::Interactive,
-        tools: Vec::new(),
-        control: control(stage),
-    }
+        tier(stage),
+        REVIEW_CLASS,
+        Usage::Interactive,
+    )
+    .with_shape(shape(stage))
+    .with_control(control(stage))
 }
 
 fn model_failed(error: ModelError, heard: Heard) -> ReviewError {
@@ -162,17 +158,11 @@ fn model_failed(error: ModelError, heard: Heard) -> ReviewError {
             ReviewError::OnlyThought
         }
         ModelError::Unparseable | ModelError::Unreadable => ReviewError::Unparseable,
-        ModelError::Unreachable
-        | ModelError::RateLimited(_)
-        | ModelError::Unauthorized
-        // The account needs payment (top up or pick another model) or the company refused the
-        // sign-in: the reviewer is out of reach either way, retrying cannot help, and nothing
-        // is allowed because of it.
-        | ModelError::PaymentRequired
-        | ModelError::SignInRefused
-        | ModelError::Refused
-        | ModelError::NotReady
-        | ModelError::ContextOverflow => ReviewError::Unavailable,
+        // Unreachable, rate limited, unauthorized, payment required (top up or pick another
+        // model), a refused sign-in, refused, not ready, context overflow, and any error a later
+        // porter adds: the reviewer is out of reach, retrying cannot help, and nothing is
+        // allowed because of it.
+        _ => ReviewError::Unavailable,
     }
 }
 
@@ -192,7 +182,8 @@ fn complete(reply: ChatReply) -> Result<String, ReviewError> {
         // Out of room is a limit too small, not a model that refused; it fails closed all the
         // same (the person is asked), and the audit says which it was.
         StopReason::MaxTokens => Err(ReviewError::OutOfRoom),
-        StopReason::ContentFilter | StopReason::ToolUse => Err(ReviewError::Unparseable),
+        // A filter, a tool call, and any stop a later porter adds: not a verdict.
+        _ => Err(ReviewError::Unparseable),
     }
 }
 

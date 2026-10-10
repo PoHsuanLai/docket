@@ -343,12 +343,12 @@ where
     }
 
     fn open_stt(&mut self) {
-        let first = ClientFrame::Request(InferRequest::Transcribe(TranscribeBegin {
-            mode: TranscribeMode::Streaming,
-            lang: LangPick::Auto,
-            rate: AudioRate(CAPTURE_RATE),
-            usage: Usage::Interactive,
-        }));
+        let first = ClientFrame::Request(InferRequest::Transcribe(TranscribeBegin::new(
+            TranscribeMode::Streaming,
+            LangPick::Auto,
+            AudioRate(CAPTURE_RATE),
+            Usage::Interactive,
+        )));
         self.stt = Some(link::spawn(
             self.transport.clone(),
             stt_need(),

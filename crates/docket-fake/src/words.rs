@@ -26,23 +26,20 @@ impl WordsModel {
 
     fn reply(&self) -> Result<InferEvent, SessionError> {
         let malformed = |what: &str| SessionError::Malformed(what.to_owned());
-        Ok(InferEvent::Finished(InferReply::Chat(ChatReply {
-            text: self.says.clone(),
-            tool_calls: vec![],
-            stop: StopReason::EndTurn,
-            thought: None,
-            usage: TokenUsage {
+        Ok(InferEvent::Finished(InferReply::Chat(ChatReply::new(
+            self.says.clone(),
+            StopReason::EndTurn,
+            TokenUsage {
                 input: Tokens(0),
                 output: Tokens(0),
                 cached: Tokens(0),
             },
-            served: ServedBy {
+            ServedBy {
                 account: AccountId::parse("local").map_err(|_| malformed("account"))?,
                 model: ModelId::parse("words").map_err(|_| malformed("model"))?,
                 locality: Locality::OnDevice,
             },
-            scores: None,
-        })))
+        ))))
     }
 }
 

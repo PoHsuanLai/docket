@@ -18,14 +18,14 @@ use std::collections::BTreeSet;
 /// What the model must be able to do and how much it must hold: chat with structured output, and
 /// room for the inputs (three bytes a token) and a page of reply.
 fn need_of(inputs: &[Labelled<String>]) -> Need {
-    Need::Llm(LlmNeed {
-        features: BTreeSet::from([LlmFeature::Chat, LlmFeature::StructuredOutput]),
-        context: Tokens(
+    Need::Llm(LlmNeed::new(
+        BTreeSet::from([LlmFeature::Chat, LlmFeature::StructuredOutput]),
+        Tokens(
             u32::try_from(inputs.iter().map(|i| i.value.len()).sum::<usize>() / 3)
                 .unwrap_or(u32::MAX)
                 .saturating_add(1024),
         ),
-    })
+    ))
 }
 
 /// Asks the reader model through `transport` and reads the reply under `ask.want`. A schema with
@@ -49,21 +49,15 @@ pub async fn read<T: Transport>(
     match reply {
         InferReply::Chat(chat) => match chat.stop {
             StopReason::EndTurn | StopReason::StopSequence => answer_of(&chat.text, &ask.want),
-            StopReason::MaxTokens | StopReason::ContentFilter | StopReason::ToolUse => {
-                Err(ReaderError::Unparseable)
-            }
+            // MaxTokens, ContentFilter, ToolUse and any stop a later porter adds: not an answer.
+            _ => Err(ReaderError::Unparseable),
         },
         InferReply::Failed(ModelError::Refused) => Err(ReaderError::Refused),
         InferReply::Failed(ModelError::Unparseable | ModelError::Unreadable) => {
             Err(ReaderError::Unparseable)
         }
-        InferReply::Failed(_)
-        | InferReply::Refused(_)
-        | InferReply::Cancelled
-        | InferReply::Embed(_)
-        | InferReply::CuaStep(_)
-        | InferReply::Transcribed(_)
-        | InferReply::Spoke(_) => Err(ReaderError::ModelUnavailable),
+        // Failed, Refused, Cancelled, a reply of another kind, and any a later porter adds.
+        _ => Err(ReaderError::ModelUnavailable),
     }
 }
 

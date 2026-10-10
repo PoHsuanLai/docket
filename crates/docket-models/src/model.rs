@@ -49,10 +49,7 @@ pub fn chat_need(request: &ChatRequest) -> Need {
     if !request.tools.is_empty() {
         features.insert(LlmFeature::Tools);
     }
-    Need::Llm(LlmNeed {
-        features,
-        context: context_of(request),
-    })
+    Need::Llm(LlmNeed::new(features, context_of(request)))
 }
 
 /// A rough size of the prompt and the reply it asks for, in tokens: three bytes a token for the
@@ -64,10 +61,9 @@ fn context_of(request: &ChatRequest) -> Tokens {
         .flat_map(|m| &m.parts)
         .map(|part| match part {
             MessagePart::Text(text) => text.len(),
-            MessagePart::Image(_)
-            | MessagePart::ToolCall(_)
-            | MessagePart::ToolResult(_)
-            | MessagePart::Thought(_) => 0,
+            // Images, tool calls, results and thoughts (and any part a later porter adds) count no
+            // text.
+            _ => 0,
         })
         .sum();
     let reply = match request.control.max_output {
@@ -154,10 +150,10 @@ impl<T: Transport> Model for TransportModel<T> {
     }
 
     async fn embed(&self, request: &EmbedRequest) -> Result<EmbedReply, ModelError> {
-        let need = Need::Embeddings(EmbedNeed {
-            dims: request.dims,
-            modalities: BTreeSet::from([Modality::Text]),
-        });
+        let need = Need::Embeddings(EmbedNeed::new(
+            request.dims,
+            BTreeSet::from([Modality::Text]),
+        ));
         let mut session = self
             .transport
             .open(&need, request.class, porter_core::Tier::Fast)

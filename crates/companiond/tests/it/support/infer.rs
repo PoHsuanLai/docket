@@ -144,19 +144,19 @@ fn reply(text: String, calls: Vec<(String, Json)>) -> InferEvent {
     } else {
         StopReason::ToolUse
     };
-    InferEvent::Finished(InferReply::Chat(ChatReply {
-        text,
-        tool_calls,
-        stop,
-        thought: None,
-        usage: TokenUsage {
-            input: Tokens(0),
-            output: Tokens(0),
-            cached: Tokens(0),
-        },
-        served: served(),
-        scores: None,
-    }))
+    InferEvent::Finished(InferReply::Chat(
+        ChatReply::new(
+            text,
+            stop,
+            TokenUsage {
+                input: Tokens(0),
+                output: Tokens(0),
+                cached: Tokens(0),
+            },
+            served(),
+        )
+        .with_tool_calls(tool_calls),
+    ))
 }
 
 impl InferSession for ScriptedSession {

@@ -21,10 +21,10 @@ async fn the_link_is_the_dbus_transport_and_an_absent_inferd_is_unreachable() {
 
     let link = inferd_transport(&connection, docket_dbus::tap::Tap::off());
     assert!(matches!(link.inner(), AnyTransport::Dbus(_)), "{link:?}");
-    let need = Need::Llm(LlmNeed {
-        features: BTreeSet::from([LlmFeature::Chat]),
-        context: Tokens(4096),
-    });
+    let need = Need::Llm(LlmNeed::new(
+        BTreeSet::from([LlmFeature::Chat]),
+        Tokens(4096),
+    ));
     let opened = link.open(&need, DataClass::Prompt, Tier::Fast).await;
     assert!(
         matches!(opened, Err(TransportError::Unreachable)),

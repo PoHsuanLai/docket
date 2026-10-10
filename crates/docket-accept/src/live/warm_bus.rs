@@ -30,10 +30,10 @@ impl BusPrepare {
 }
 
 fn need() -> Need {
-    Need::Llm(LlmNeed {
-        features: BTreeSet::from([LlmFeature::Chat, LlmFeature::StructuredOutput]),
-        context: Tokens(2_000),
-    })
+    Need::Llm(LlmNeed::new(
+        BTreeSet::from([LlmFeature::Chat, LlmFeature::StructuredOutput]),
+        Tokens(2_000),
+    ))
 }
 
 impl Prepare for BusPrepare {

@@ -13,16 +13,12 @@ use std::future::Future;
 
 /// The speech-to-text need: the one thing voiced asks of inferd for hearing.
 pub(crate) fn stt_need() -> Need {
-    Need::Speech(SpeechNeed {
-        modes: BTreeSet::from([SpeechMode::Stt]),
-    })
+    Need::Speech(SpeechNeed::new(BTreeSet::from([SpeechMode::Stt])))
 }
 
 /// The text-to-speech need.
 pub(crate) fn tts_need() -> Need {
-    Need::Speech(SpeechNeed {
-        modes: BTreeSet::from([SpeechMode::Tts]),
-    })
+    Need::Speech(SpeechNeed::new(BTreeSet::from([SpeechMode::Tts])))
 }
 
 /// How hot the engine is.

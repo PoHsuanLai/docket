@@ -199,6 +199,7 @@ fn words(part: &MessagePart) -> Option<String> {
             Some(format!("[result {:?}: {}]", result.status, inner.join(" ")))
         }
         MessagePart::Thought(_) => None,
+        _ => Some("[part]".to_owned()),
     }
 }
 
@@ -215,6 +216,7 @@ fn shape(shape: &ReplyShape) -> &'static str {
         ReplyShape::Text => "text",
         ReplyShape::Json(_) => "json",
         ReplyShape::Choice(_) => "choice",
+        _ => "other",
     }
 }
 
@@ -410,23 +412,21 @@ mod tests {
     }
 
     fn sample() -> ChatRequest {
-        ChatRequest {
-            messages: vec![],
-            shape: ReplyShape::Text,
-            tier: Tier::Fast,
-            class: DataClass::Prompt,
-            usage: porter_core::consent::Usage::Interactive,
-            tools: vec![],
-            control: porter_infer::ChatControl {
-                tool_choice: porter_infer::ToolChoice::Never,
-                tool_calls: porter_infer::ToolParallelism::One,
-                max_output: porter_infer::Knob::Off,
-                reasoning: porter_infer::Reasoning::Off,
-                sampling: porter_infer::Knob::Off,
-                stop: vec![],
-                scores: porter_infer::Knob::Off,
-            },
-        }
+        ChatRequest::new(
+            vec![],
+            Tier::Fast,
+            DataClass::Prompt,
+            porter_core::consent::Usage::Interactive,
+        )
+        .with_shape(ReplyShape::Text)
+        .with_control(
+            porter_infer::ChatControl::new()
+                .with_tool_choice(porter_infer::ToolChoice::Never)
+                .with_tool_calls(porter_infer::ToolParallelism::One)
+                .with_max_output(porter_infer::Knob::Off)
+                .with_reasoning(porter_infer::Reasoning::Off)
+                .with_sampling(porter_infer::Knob::Off),
+        )
     }
 
     #[test]

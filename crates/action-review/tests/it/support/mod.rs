@@ -89,19 +89,16 @@ impl Scripted {
 }
 
 pub fn reply(card: &ModelCard, text: &str, stop: StopReason) -> ChatReply {
-    ChatReply {
-        text: text.to_owned(),
-        tool_calls: vec![],
+    ChatReply::new(
+        text.to_owned(),
         stop,
-        thought: None,
-        usage: TokenUsage {
+        TokenUsage {
             input: Tokens(1),
             output: Tokens(1),
             cached: Tokens(0),
         },
-        served: served(card),
-        scores: None,
-    }
+        served(card),
+    )
 }
 
 impl Model for Scripted {

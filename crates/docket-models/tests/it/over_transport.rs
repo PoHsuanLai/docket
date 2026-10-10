@@ -18,26 +18,24 @@ use prov::{SpaceId, TaskId, UnixSeconds};
 use serde_json::json;
 
 fn chat() -> ChatRequest {
-    ChatRequest {
-        messages: vec![ChatMessage {
+    ChatRequest::new(
+        vec![ChatMessage {
             role: Role::User,
             parts: vec![MessagePart::Text("hello".to_owned())],
         }],
-        shape: ReplyShape::Text,
-        tier: porter_core::Tier::Fast,
-        class: DataClass::Prompt,
-        usage: porter_core::consent::Usage::Interactive,
-        tools: Vec::new(),
-        control: ChatControl {
-            tool_choice: ToolChoice::Never,
-            tool_calls: ToolParallelism::One,
-            max_output: Knob::Off,
-            reasoning: Reasoning::Off,
-            sampling: Knob::Off,
-            stop: Vec::new(),
-            scores: Knob::Off,
-        },
-    }
+        porter_core::Tier::Fast,
+        DataClass::Prompt,
+        porter_core::consent::Usage::Interactive,
+    )
+    .with_shape(ReplyShape::Text)
+    .with_control(
+        ChatControl::new()
+            .with_tool_choice(ToolChoice::Never)
+            .with_tool_calls(ToolParallelism::One)
+            .with_max_output(Knob::Off)
+            .with_reasoning(Reasoning::Off)
+            .with_sampling(Knob::Off),
+    )
 }
 
 fn model(script: Vec<Say>) -> TransportModel<ScriptedInfer> {

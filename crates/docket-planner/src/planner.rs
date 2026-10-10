@@ -258,15 +258,12 @@ fn meta_tools(actions: &[ActionCard]) -> Vec<ToolDecl> {
 
 /// The planner is deterministic enough to repeat: no sampling noise it does not need.
 fn control() -> ChatControl {
-    ChatControl {
-        tool_choice: ToolChoice::Auto,
-        tool_calls: ToolParallelism::Many,
-        max_output: Knob::Off,
-        reasoning: Reasoning::EngineDefault,
-        sampling: Knob::Off,
-        stop: Vec::new(),
-        scores: Knob::Off,
-    }
+    ChatControl::new()
+        .with_tool_choice(ToolChoice::Auto)
+        .with_tool_calls(ToolParallelism::Many)
+        .with_max_output(Knob::Off)
+        .with_reasoning(Reasoning::EngineDefault)
+        .with_sampling(Knob::Off)
 }
 
 impl<P: Transport> PlannerModel<P> {
@@ -327,15 +324,15 @@ impl<P: Transport> PlannerModel<P> {
     }
 
     fn request_for(&self, view: &PlannerView, usage: Usage) -> ChatRequest {
-        ChatRequest {
-            messages: messages_with(view, self.role.as_ref()),
-            shape: ReplyShape::Text,
-            tier: self.tier,
-            class: DataClass::Prompt,
+        ChatRequest::new(
+            messages_with(view, self.role.as_ref()),
+            self.tier,
+            DataClass::Prompt,
             usage,
-            tools: self.tools(view),
-            control: control(),
-        }
+        )
+        .with_shape(ReplyShape::Text)
+        .with_tools(self.tools(view))
+        .with_control(control())
     }
 
     /// One planner step: what the model said, and what the loop does next.
@@ -366,10 +363,10 @@ impl<P: Transport> PlannerModel<P> {
         &self,
         request: ChatRequest,
     ) -> Result<(ChatReply, Vec<RouteNote>), PlanFault> {
-        let need = Need::Llm(LlmNeed {
-            features: BTreeSet::from([LlmFeature::Chat, LlmFeature::Tools]),
-            context: CONTEXT,
-        });
+        let need = Need::Llm(LlmNeed::new(
+            BTreeSet::from([LlmFeature::Chat, LlmFeature::Tools]),
+            CONTEXT,
+        ));
         let (class, tier) = (request.class, request.tier);
         let mut session: AnyOrP<P> = self
             .infer

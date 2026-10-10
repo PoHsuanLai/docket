@@ -62,46 +62,45 @@ pub(crate) fn request(turns: &[UserTurn], catalogue: &[ActionCard]) -> ChatReque
         role,
         parts: vec![MessagePart::Text(text)],
     };
-    ChatRequest {
-        messages: vec![
+    ChatRequest::new(
+        vec![
             message(Role::System, INSTRUCTION.to_owned()),
             message(Role::User, prompt(turns, catalogue)),
         ],
-        shape: ReplyShape::Json(schema(catalogue)),
-        tier: Tier::Fast,
+        Tier::Fast,
         // The person's own words: their floor is this computer.
-        class: DataClass::Prompt,
-        usage: Usage::Interactive,
-        tools: Vec::new(),
-        control: ChatControl {
-            tool_choice: ToolChoice::Never,
-            tool_calls: ToolParallelism::One,
-            // The model's own limit, from its catalogue entry: a model that must reason before it
-            // answers spends part of it on thought, which a fixed few hundred tokens cannot hold.
-            max_output: Knob::Off,
-            reasoning: Reasoning::Off,
-            sampling: Knob::Set(Sampling {
+        DataClass::Prompt,
+        Usage::Interactive,
+    )
+    .with_shape(ReplyShape::Json(schema(catalogue)))
+    .with_control(
+        // No `max_output`: the model's own limit, from its catalogue entry. A model that must
+        // reason before it answers spends part of it on thought, which a fixed few hundred
+        // tokens cannot hold.
+        ChatControl::new()
+            .with_tool_choice(ToolChoice::Never)
+            .with_tool_calls(ToolParallelism::One)
+            .with_max_output(Knob::Off)
+            .with_reasoning(Reasoning::Off)
+            .with_sampling(Knob::Set(Sampling {
                 temperature: Permille(0),
                 top_p: Knob::Off,
                 top_k: Knob::Off,
                 min_p: Knob::Off,
                 seed: Knob::Off,
-            }),
-            stop: Vec::new(),
-            scores: Knob::Off,
-        },
-    }
+            })),
+    )
 }
 
 fn need(request: &ChatRequest) -> Need {
-    Need::Llm(LlmNeed {
-        features: BTreeSet::from([LlmFeature::Chat, LlmFeature::StructuredOutput]),
-        context: Tokens(
+    Need::Llm(LlmNeed::new(
+        BTreeSet::from([LlmFeature::Chat, LlmFeature::StructuredOutput]),
+        Tokens(
             u32::try_from(request.messages.iter().map(message_len).sum::<usize>() / 3)
                 .unwrap_or(u32::MAX)
                 .saturating_add(REPLY_ROOM),
         ),
-    })
+    ))
 }
 
 fn message_len(message: &ChatMessage) -> usize {
@@ -119,17 +118,11 @@ fn failed(error: ModelError) -> ReviewError {
     match error {
         ModelError::OnlyThought { .. } => ReviewError::OnlyThought,
         ModelError::Unparseable | ModelError::Unreadable => ReviewError::Unparseable,
-        ModelError::Unreachable
-        | ModelError::RateLimited(_)
-        | ModelError::Unauthorized
-        // The account needs payment (top up or pick another model) or the company refused the
-        // sign-in: the reviewer is out of reach either way, retrying cannot help, and nothing
-        // is allowed because of it.
-        | ModelError::PaymentRequired
-        | ModelError::SignInRefused
-        | ModelError::Refused
-        | ModelError::NotReady
-        | ModelError::ContextOverflow => ReviewError::Unavailable,
+        // Unreachable, rate limited, unauthorized, payment required (top up or pick another
+        // model), a refused sign-in, refused, not ready, context overflow, and any error a later
+        // porter adds: the reviewer is out of reach, retrying cannot help, and nothing is
+        // allowed because of it.
+        _ => ReviewError::Unavailable,
     }
 }
 

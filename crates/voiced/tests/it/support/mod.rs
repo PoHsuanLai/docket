@@ -77,11 +77,11 @@ pub fn transcript(partial: &str, segment: &str, whole: &str) -> Vec<Script> {
             },
             ScriptStep::AfterAudio {
                 samples: u64::MAX,
-                event: InferEvent::Finished(InferReply::Transcribed(TranscribeReply {
-                    text: whole.to_owned(),
-                    audio_ms: 0,
-                    served: served(),
-                })),
+                event: InferEvent::Finished(InferReply::Transcribed(TranscribeReply::new(
+                    whole.to_owned(),
+                    0,
+                    served(),
+                ))),
             },
         ],
     }]
@@ -108,10 +108,10 @@ pub fn sentence_script(samples: usize) -> Script {
                 at: 0,
                 pcm: Base64Bytes(vec![1; samples * 2]),
             })),
-            ScriptStep::Emit(InferEvent::Finished(InferReply::Spoke(SpeakReply {
-                audio_ms: 0,
-                served: served(),
-            }))),
+            ScriptStep::Emit(InferEvent::Finished(InferReply::Spoke(SpeakReply::new(
+                0,
+                served(),
+            )))),
         ],
     }
 }

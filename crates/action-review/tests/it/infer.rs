@@ -110,10 +110,7 @@ fn the_messages_are_the_rendered_prompt() {
         .flat_map(|m| m.parts.iter())
         .filter_map(|p| match p {
             MessagePart::Text(t) => Some(t.clone()),
-            MessagePart::Image(_)
-            | MessagePart::ToolCall(_)
-            | MessagePart::ToolResult(_)
-            | MessagePart::Thought(_) => None,
+            _ => None,
         })
         .collect();
     assert_eq!(texts, vec![prompt.system, prompt.user]);

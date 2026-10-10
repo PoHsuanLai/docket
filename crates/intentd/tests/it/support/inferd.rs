@@ -133,15 +133,7 @@ pub fn reply(text: &str) -> ChatReply {
 }
 
 pub fn reply_stopped(text: &str, stop: StopReason) -> ChatReply {
-    ChatReply {
-        text: text.to_owned(),
-        tool_calls: Vec::new(),
-        stop,
-        thought: None,
-        usage: usage(),
-        served: served(),
-        scores: None,
-    }
+    ChatReply::new(text.to_owned(), stop, usage(), served())
 }
 
 /// A script: some text deltas, then the reply.

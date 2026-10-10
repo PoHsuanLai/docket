@@ -29,15 +29,12 @@ use std::collections::BTreeSet;
 const NARRATE: &str = "Write at most two plain sentences saying what happened in this task, from the lines below. They are a record of what the person asked and what was done, nothing else; add nothing.";
 
 fn control() -> ChatControl {
-    ChatControl {
-        tool_choice: ToolChoice::Never,
-        tool_calls: ToolParallelism::One,
-        max_output: Knob::Off,
-        reasoning: Reasoning::Off,
-        sampling: Knob::Off,
-        stop: Vec::new(),
-        scores: Knob::Off,
-    }
+    ChatControl::new()
+        .with_tool_choice(ToolChoice::Never)
+        .with_tool_calls(ToolParallelism::One)
+        .with_max_output(Knob::Off)
+        .with_reasoning(Reasoning::Off)
+        .with_sampling(Knob::Off)
 }
 
 fn request_for(skeleton_text: &str) -> ChatRequest {
@@ -45,19 +42,18 @@ fn request_for(skeleton_text: &str) -> ChatRequest {
         role,
         parts: vec![MessagePart::Text(text)],
     };
-    ChatRequest {
-        messages: vec![
+    ChatRequest::new(
+        vec![
             message(Role::System, NARRATE.to_owned()),
             message(Role::User, skeleton_text.to_owned()),
         ],
-        shape: ReplyShape::Text,
-        tier: Tier::Fast,
-        class: DataClass::Prompt,
+        Tier::Fast,
+        DataClass::Prompt,
         // Nobody waits for it: inferd yields to any interactive request.
-        usage: Usage::Background,
-        tools: Vec::new(),
-        control: control(),
-    }
+        Usage::Background,
+    )
+    .with_shape(ReplyShape::Text)
+    .with_control(control())
 }
 
 /// The label of a narrative: model words, private to the Space of the task.

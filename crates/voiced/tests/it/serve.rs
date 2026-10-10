@@ -20,9 +20,7 @@ use voice_wire::{
 use voiced::{DeviceError, NodeKind, VoiceProxy};
 
 fn stt_need() -> Need {
-    Need::Speech(SpeechNeed {
-        modes: BTreeSet::from([SpeechMode::Stt]),
-    })
+    Need::Speech(SpeechNeed::new(BTreeSet::from([SpeechMode::Stt])))
 }
 
 fn audio_frames(frames: &[ClientFrame]) -> Vec<(u64, usize)> {

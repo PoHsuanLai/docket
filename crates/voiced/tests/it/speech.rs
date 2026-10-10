@@ -12,9 +12,7 @@ use voice_wire::{SpeechEnd, VoiceEvent, VoiceRefusal};
 use voiced::{SpeechProxy, VoiceProxy};
 
 fn tts_need() -> Need {
-    Need::Speech(SpeechNeed {
-        modes: BTreeSet::from([SpeechMode::Tts]),
-    })
+    Need::Speech(SpeechNeed::new(BTreeSet::from([SpeechMode::Tts])))
 }
 
 fn spoken_texts(frames: &[ClientFrame]) -> Vec<String> {
