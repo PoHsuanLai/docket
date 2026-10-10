@@ -69,6 +69,7 @@ impl<'a, P: InferTransport, I: IntentsTransport> Driver<'a, P, I> {
         Run {
             ended,
             said: self.rt.said,
+            shown: self.rt.shown,
             steps: self.rt.history,
             failure: self.rt.failure,
             close: None,
@@ -143,6 +144,7 @@ impl<'a, P: InferTransport, I: IntentsTransport> Driver<'a, P, I> {
         if let Some(words) = &reply.said {
             self.rt.said.push(words.clone());
         }
+        self.rt.show(&reply.show);
         let said = reply.said.map(|w| LoopInput::Planned(ModelOutput::Say(w)));
         said.into_iter()
             .chain([LoopInput::Planned(reply.then)])

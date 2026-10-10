@@ -135,3 +135,34 @@ async fn a_question_ends_the_ask_asking() {
         }
     );
 }
+
+/// A finish that names a handle the agent holds comes back in `Run::shown` (`ask` and
+/// `ask_recorded` share the one driver that fills it); the
+/// content itself is never in the run.
+#[tokio::test]
+async fn a_finish_that_shows_a_handle_hands_it_to_the_host() {
+    let read = || {
+        call(
+            "org.quire.Mail-mail.thread.read",
+            json!({ "target": { "app": "org.quire.Mail", "kind": "mail.thread", "key": "t1" } }),
+        )
+    };
+    let finish = || call(docket_planner::TOOL_FINISH, json!({ "show": [1] }));
+    let world = World::new(vec![read(), finish()]);
+    let agent = mail_agent(&world).await.build().expect("agent");
+    let run = agent
+        .ask(&asker(), "Find the invoice and show me.")
+        .await
+        .expect("ask");
+    assert_eq!(run.ended, Ended::Done);
+    assert_eq!(run.shown, [docket_core::Handle(1)]);
+    assert!(!format!("{run:?}").contains("IGNORE"), "a handle, not text");
+
+    let world = World::new(vec![archive(), words("Archived.")]);
+    let agent = mail_agent(&world).await.build().expect("agent");
+    let run = agent
+        .ask(&asker(), "Archive the digest.")
+        .await
+        .expect("ask");
+    assert!(run.shown.is_empty(), "a finish that names none shows none");
+}

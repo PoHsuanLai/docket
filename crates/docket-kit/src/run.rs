@@ -1,7 +1,7 @@
 //! What one ask came to.
 
 use docket_client::ClientError;
-use docket_core::StepLine;
+use docket_core::{Handle, StepLine};
 use docket_tasks::Failure;
 
 /// How an ask ended.
@@ -36,6 +36,12 @@ pub struct Run {
     pub ended: Ended,
     /// What the agent said, in order.
     pub said: Vec<String>,
+    /// The text handles its finish named to show the person, in the order named, each once and
+    /// only a handle its session holds. They are handles, never text: the host resolves each
+    /// through `Session.DisplayLabelled` (the label says whether to mark it as not the person's
+    /// own) while the session is open. [`crate::Agent::ask`] closes its session, so a host that
+    /// shows handles runs [`crate::Agent::ask_recorded`] and closes the session after it has.
+    pub shown: Vec<Handle>,
     /// The calls it made and how each ended, oldest first. A refusal is the router's coarse
     /// code (`CallRefusal`), never a policy id or a reviewer's words.
     pub steps: Vec<StepLine>,
