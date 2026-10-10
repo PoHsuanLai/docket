@@ -1118,6 +1118,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-checkpoint"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "porter-core",
+ "prov",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
 name = "docket-cli"
 version = "0.1.0"
 dependencies = [
