@@ -6,6 +6,7 @@ use super::model::{
 use docket_agents::AgentsDir;
 use docket_agents::offered::{Offered, Start};
 use docket_agents::slug::Slug;
+use docket_core::Rewind;
 
 fn text(t: &toml::Table, key: &str) -> Option<String> {
     t.get(key)?
@@ -62,6 +63,18 @@ fn seen(record: Option<Offered>) -> (Offers, SignInState) {
     (offers, sign_in)
 }
 
+/// What `checkpoints` says; unwritten (or not a word we know), the profile decides.
+fn rewind(entry: &toml::Table) -> Rewind {
+    match text(entry, "checkpoints").as_deref() {
+        Some("docket") => Rewind::Docket,
+        Some("agent") => Rewind::Agent,
+        _ => match text(entry, "profile").as_deref() {
+            Some("claude-code") => Rewind::Agent,
+            _ => Rewind::Docket,
+        },
+    }
+}
+
 fn row(entry: &toml::Table, dir: &AgentsDir) -> Option<AgentRow> {
     let program = text(entry, "program")?;
     let source = source(entry, dir);
@@ -74,6 +87,7 @@ fn row(entry: &toml::Table, dir: &AgentsDir) -> Option<AgentRow> {
         label: text(entry, "label").unwrap_or_else(|| program.clone()),
         model: model(text(entry, "model"), &offers),
         way: text(entry, "sign_in"),
+        rewind: rewind(entry),
         program,
         source,
         offers,

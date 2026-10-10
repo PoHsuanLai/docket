@@ -1,6 +1,8 @@
 //! Person-facing text of the agent rows: plain words, no protocol names, no developer terms. The
 //! Settings app draws these strings as they are.
 
+use docket_core::Rewind;
+
 use super::model::{AgentRow, Availability, Install, ModelState, Offers, SignInState, Source};
 
 impl AgentRow {
@@ -34,6 +36,14 @@ impl AgentRow {
                 Availability::NoLongerOffered => format!("Model: {id} (no longer offered)"),
                 Availability::NotCheckedYet => format!("Model: {id} (not checked yet)"),
             },
+        }
+    }
+
+    /// Who keeps the history of the files it changes: "Restore points: kept by docket".
+    pub fn rewind_line(&self) -> &'static str {
+        match self.rewind {
+            Rewind::Docket => "Restore points: kept by docket",
+            Rewind::Agent => "Restore points: kept by the agent",
         }
     }
 

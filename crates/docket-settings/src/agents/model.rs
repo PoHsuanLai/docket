@@ -2,6 +2,7 @@
 //! model is chosen or it is the agent's own, and only one that needs signing in lists ways.
 
 use docket_agents::offered::Named;
+use docket_core::Rewind;
 
 /// Where an agent's program came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,6 +101,9 @@ pub struct AgentRow {
     pub sign_in: SignInState,
     /// The way of signing in the person chose, by id.
     pub way: Option<String>,
+    /// Who keeps the history of the files it changes: what `checkpoints` says, else `Agent` for
+    /// the `claude-code` profile and `Docket` for any other.
+    pub rewind: Rewind,
 }
 
 /// Every agent in `agents.toml`, in the order listed.

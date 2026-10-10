@@ -350,3 +350,29 @@ fn a_model_id_with_a_space_is_refused() {
     let ok = entry("route = \"login\"\nmodel = \"flash\"");
     assert!(AgentsFile::parse(&ok).is_ok());
 }
+
+#[test]
+fn checkpoints_say_who_keeps_the_history_and_the_claude_code_profile_defaults_to_the_agent() {
+    use docket_core::Rewind;
+    let rows = [
+        ("nothing written", "", Rewind::Docket),
+        ("docket", "checkpoints = \"docket\"", Rewind::Docket),
+        ("agent", "checkpoints = \"agent\"", Rewind::Agent),
+        ("the preset", "profile = \"claude-code\"", Rewind::Agent),
+        (
+            "the preset, overruled",
+            "profile = \"claude-code\"\ncheckpoints = \"docket\"",
+            Rewind::Docket,
+        ),
+    ];
+    for (name, extra, want) in rows {
+        let text = format!(
+            "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/true\"\nroute = \"login\"\n{extra}\n"
+        );
+        let file = AgentsFile::parse(&text).expect(name);
+        let entry = file.by_program(&"plain".parse_program()).expect("entry");
+        assert_eq!(entry.rewind, want, "{name}");
+    }
+    let odd = "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/true\"\nroute = \"login\"\ncheckpoints = \"git\"\n";
+    assert!(matches!(refused(odd), ConfigFault::Syntax(_)));
+}

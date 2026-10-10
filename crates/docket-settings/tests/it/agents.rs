@@ -192,3 +192,46 @@ fn the_file_is_replaced_whole_and_a_refresh_names_only_the_agent() {
     let ask = RefreshRequest::of(rows.get("mine").expect("row"));
     assert_eq!(ask.arguments(), ["mine", "--refresh"]);
 }
+
+#[test]
+fn who_keeps_the_history_is_read_with_the_profile_as_default_and_edited_in_place() {
+    use docket_core::Rewind;
+    let text = format!(
+        "{FILE}\n[[agent]]\nprogram = \"claude-code\"\ncommand = \"/opt/c\"\nroute = \"login\"\nprofile = \"claude-code\"\n"
+    );
+    let tmp = tempfile::tempdir().expect("tmp");
+    let dir = AgentsDir::at(tmp.path());
+    let read = |text: &str, program: &str| {
+        read_agents(text, &dir)
+            .get(program)
+            .map(|row| (row.rewind, row.rewind_line()))
+    };
+    let kept_by_agent = (Rewind::Agent, "Restore points: kept by the agent");
+    let kept_by_docket = (Rewind::Docket, "Restore points: kept by docket");
+    assert_eq!(read(&text, "antigravity"), Some(kept_by_docket));
+    assert_eq!(read(&text, "mine"), Some(kept_by_docket));
+    assert_eq!(read(&text, "claude-code"), Some(kept_by_agent));
+
+    // A choice is written out in full and moves nothing else; it beats the profile's default.
+    let out = edit_agent_rewind(&text, "mine", Rewind::Agent).expect("edit");
+    assert!(out.contains("# my agents") && out.contains("model = \"pro\"   # keep me"));
+    assert!(out.contains("checkpoints = \"agent\""));
+    assert_eq!(read(&out, "mine"), Some(kept_by_agent));
+    let out = edit_agent_rewind(&text, "claude-code", Rewind::Docket).expect("edit");
+    assert_eq!(read(&out, "claude-code"), Some(kept_by_docket));
+
+    assert_eq!(
+        edit_agent_rewind(&text, "nobody", Rewind::Agent),
+        Err(ChoiceFault::NoSuchAgent)
+    );
+    assert_eq!(
+        edit_agent_rewind("[[", "a", Rewind::Agent),
+        Err(ChoiceFault::Unreadable)
+    );
+
+    let path = tmp.path().join("agents.toml");
+    std::fs::write(&path, &text).expect("file");
+    write_agent_rewind(&path, "mine", Rewind::Agent).expect("write");
+    let written = std::fs::read_to_string(&path).expect("read");
+    assert_eq!(read(&written, "mine"), Some(kept_by_agent));
+}

@@ -1,7 +1,7 @@
-//! Writes the person's choices into `agents.toml`: the model and the way of signing in of one
-//! entry, and nothing else. The file is edited in place, so comments and every other field stay.
+//! Writes the person's choices into `agents.toml`: the model, the way of signing in and who keeps
+//! the history of the files of one entry, and nothing else. The file is edited in place, so comments and every other field stay.
 
-use docket_core::write_atomic;
+use docket_core::{Rewind, write_atomic};
 use std::path::Path;
 use toml_edit::{DocumentMut, Item, value};
 
@@ -84,17 +84,45 @@ pub fn edit_agent_choice(
         return Err(ChoiceFault::BadWay);
     }
     let mut doc: DocumentMut = text.parse().map_err(|_| ChoiceFault::Unreadable)?;
-    let entry = doc
-        .get_mut("agent")
+    let entry = entry_of(&mut doc, program)?;
+    apply(entry, "model", &choice.model);
+    apply(entry, "sign_in", &choice.way);
+    Ok(doc.to_string())
+}
+
+fn entry_of<'a>(
+    doc: &'a mut DocumentMut,
+    program: &str,
+) -> Result<&'a mut toml_edit::Table, ChoiceFault> {
+    doc.get_mut("agent")
         .and_then(Item::as_array_of_tables_mut)
         .and_then(|list| {
             list.iter_mut()
                 .find(|t| t.get("program").and_then(Item::as_str) == Some(program))
         })
-        .ok_or(ChoiceFault::NoSuchAgent)?;
-    apply(entry, "model", &choice.model);
-    apply(entry, "sign_in", &choice.way);
+        .ok_or(ChoiceFault::NoSuchAgent)
+}
+
+/// `text` with `checkpoints` (who keeps the history of the files the agent changes) set in the
+/// entry listed as `program`. Written out in full, so a later change of the default does not
+/// move a choice the person made. Pure.
+pub fn edit_agent_rewind(text: &str, program: &str, rewind: Rewind) -> Result<String, ChoiceFault> {
+    let mut doc: DocumentMut = text.parse().map_err(|_| ChoiceFault::Unreadable)?;
+    let entry = entry_of(&mut doc, program)?;
+    let word = match rewind {
+        Rewind::Docket => "docket",
+        Rewind::Agent => "agent",
+    };
+    entry.insert("checkpoints", value(word));
     Ok(doc.to_string())
+}
+
+/// Sets `checkpoints` in the entry of `program` in the file at `path`; the file is replaced
+/// whole or not at all.
+pub fn write_agent_rewind(path: &Path, program: &str, rewind: Rewind) -> Result<(), ChoiceFault> {
+    let text = std::fs::read_to_string(path).map_err(|_| ChoiceFault::Io)?;
+    let edited = edit_agent_rewind(&text, program, rewind)?;
+    write_atomic(path, edited.as_bytes()).map_err(|_| ChoiceFault::Io)
 }
 
 /// Sets the choices in the entry of `program` in the file at `path`; the file is replaced whole

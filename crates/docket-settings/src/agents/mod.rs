@@ -14,4 +14,7 @@ mod write;
 pub use model::{AgentRow, Agents, Availability, Install, ModelState, Offers, SignInState, Source};
 pub use read::read_agents;
 pub use refresh::{REFRESH_PROGRAM, RefreshRequest};
-pub use write::{AgentChoice, ChoiceFault, Pick, edit_agent_choice, write_agent_choice};
+pub use write::{
+    AgentChoice, ChoiceFault, Pick, edit_agent_choice, edit_agent_rewind, write_agent_choice,
+    write_agent_rewind,
+};

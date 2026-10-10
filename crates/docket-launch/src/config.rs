@@ -19,6 +19,7 @@
 //! profile = "claude-code"            # optional: confine the program's own extras (see `managed`)
 //! sign_in = "oauth-personal"         # optional: the way the agent signs itself in at start
 //! model = "claude-sonnet-4"          # optional: the model to switch to, one the agent offers
+//! checkpoints = "agent"              # optional: docket | agent, who keeps the history of its file changes
 //! [agent.endpoint]
 //! kind = "account"
 //! id = "anthropic-main"
@@ -41,7 +42,7 @@
 use bulkhead::NetworkMode;
 use docket_acp::client::{ModelId, SignIn};
 use docket_agents::{AgentsDir, LaunchFault};
-use docket_core::AbsPath;
+use docket_core::{AbsPath, Rewind};
 use docket_session::ProgramName;
 use porter_core::DataClass;
 use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
@@ -156,6 +157,7 @@ struct Raw {
     profile: Option<Profile>,
     sign_in: Option<String>,
     model: Option<String>,
+    checkpoints: Option<Rewind>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -246,6 +248,11 @@ pub struct Entry {
     /// The registry id it was installed under, when it came from the registry: its record of
     /// what it offered is kept under that name.
     pub registry: Option<String>,
+    /// Who keeps the history of the files it changes (`checkpoints`): `Docket` saves a restore
+    /// point before each turn, `Agent` leaves it to the agent's own. Unwritten, it is `Agent`
+    /// for the `claude-code` profile (whose own rewind the person expects) and `Docket` for any
+    /// other. The host passes it to the router when the session opens; the agent never says it.
+    pub rewind: Rewind,
 }
 
 /// The longest label, in characters.
@@ -473,6 +480,10 @@ fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFault> {
             .transpose()
             .map_err(|_| bad(&at, "a model id has no spaces or control characters"))?,
         registry: raw.registry.clone(),
+        rewind: raw.checkpoints.unwrap_or(match raw.profile {
+            Some(Profile::ClaudeCode) => Rewind::Agent,
+            None => Rewind::Docket,
+        }),
     })
 }
 

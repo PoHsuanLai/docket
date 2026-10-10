@@ -19,8 +19,8 @@ use docket_core::AgentConfig;
 #[cfg(feature = "agents")]
 pub use agents::{
     AgentChoice, AgentRow, Agents, Availability, ChoiceFault, Install, ModelState, Offers, Pick,
-    REFRESH_PROGRAM, RefreshRequest, SignInState, Source, edit_agent_choice, read_agents,
-    write_agent_choice,
+    REFRESH_PROGRAM, RefreshRequest, SignInState, Source, edit_agent_choice, edit_agent_rewind,
+    read_agents, write_agent_choice, write_agent_rewind,
 };
 pub use expose::{AcpAgents, AcpExpose, McpExpose};
 pub use locate::Locator;
