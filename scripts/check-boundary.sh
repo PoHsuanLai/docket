@@ -164,7 +164,7 @@ EDGES=(
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
   "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-session docket-skills porter-client porter-core porter-infer prov"
-  "docket-kit: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-tasks porter-client porter-core porter-daemon prov"
+  "docket-kit: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-tasks porter-client porter-core prov"
   "docket-session: companion-wire docket-core porter-core prov"
   "docket-acp: actions-tools bulkhead companion-wire docket-client docket-core docket-session docket-settings porter-core prov"
   "docket-agents: docket-core"
