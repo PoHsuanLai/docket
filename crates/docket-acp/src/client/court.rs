@@ -9,7 +9,7 @@
 //! the router should be asked to weigh.
 
 use super::call::AgentCall;
-use docket_core::{CallRefusal, ExternalAgent, Outcome, SheetSurface, ValidManifest};
+use docket_core::{CallRefusal, ExternalAgent, Outcome, Rewind, SheetSurface, ValidManifest};
 use docket_session::{ProgramName, Workspace};
 use prov::{SessionId, SpaceId};
 use std::future::Future;
@@ -59,6 +59,9 @@ impl OpenAgent {
             program: self.program.clone(),
             sheets: self.sheets,
             label: self.label.clone(),
+            // The launching host passes the agent's `checkpoints` choice with the session open
+            // (a later step); until then the default over-saves rather than under-saves.
+            rewind: Rewind::default(),
         }
     }
 }

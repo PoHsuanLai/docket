@@ -114,6 +114,7 @@ impl World {
                     program: program(name),
                     sheets,
                     label,
+                    rewind: Default::default(),
                 }),
             }),
         )
@@ -360,6 +361,7 @@ async fn a_session_the_launcher_opened_is_not_an_agents_even_if_it_says_so() {
                 program: program(CLAUDE),
                 sheets: SheetSurface::Desktop,
                 label: None,
+                rewind: Default::default(),
             }),
         }),
     )

@@ -21,6 +21,10 @@ unit!(
     Millis(u32)
 );
 unit!(
+    /// A length of time in whole days (how long a restore point is kept).
+    Days(u32)
+);
+unit!(
     /// A number of characters (a text limit, a size shown to a reviewer).
     CharCount(u32)
 );

@@ -5,7 +5,7 @@
 
 use crate::budget::Budget;
 use crate::review::{ShadowMode, Strictness};
-use crate::units::{Depth, Millis, Seconds};
+use crate::units::{Days, Depth, Millis, Seconds};
 use porter_core::{Count, MicroUsd, Tokens};
 use serde::{Deserialize, Serialize};
 
@@ -69,6 +69,22 @@ fn proceed_within() -> Millis {
     Millis(10_000)
 }
 
+fn checkpoint_keep() -> Count {
+    Count(20)
+}
+
+fn checkpoint_days() -> Days {
+    Days(14)
+}
+
+fn checkpoint_max_files() -> Count {
+    Count(50_000)
+}
+
+fn checkpoint_wait() -> Seconds {
+    Seconds(10)
+}
+
 /// Every proposed value in one place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AgentConfig {
@@ -95,6 +111,19 @@ pub struct AgentConfig {
     /// `agent.review.shadow`: a second scorer recorded beside the quick judge (off).
     #[serde(default)]
     pub shadow: ShadowMode,
+    /// `agent.checkpoints.keep`: restore points kept per session (20).
+    #[serde(default = "checkpoint_keep")]
+    pub checkpoint_keep: Count,
+    /// `agent.checkpoints.days`: how long a restore point is kept (14 days).
+    #[serde(default = "checkpoint_days")]
+    pub checkpoint_days: Days,
+    /// `agent.checkpoints.max_files`: a folder with more files than this is not saved (50 000).
+    #[serde(default = "checkpoint_max_files")]
+    pub checkpoint_max_files: Count,
+    /// `agent.checkpoints.wait_s`: how long a turn waits for its restore point before going on
+    /// without one (10 s).
+    #[serde(default = "checkpoint_wait")]
+    pub checkpoint_wait: Seconds,
     /// `companion.budget.*`.
     pub assembler: AssemblerBudget,
     /// `companion.idle_s` and `companion.side_close_s`.
@@ -134,6 +163,10 @@ impl Default for AgentConfig {
                 second: Millis(3000),
             },
             shadow: ShadowMode::Off,
+            checkpoint_keep: checkpoint_keep(),
+            checkpoint_days: checkpoint_days(),
+            checkpoint_max_files: checkpoint_max_files(),
+            checkpoint_wait: checkpoint_wait(),
             assembler: AssemblerBudget {
                 rules: Tokens(2500),
                 profile: Tokens(1200),
@@ -207,6 +240,10 @@ pub const SETTING_ROWS: &[SettingRow] = &[
         key: "agent.review.shadow",
         default: SettingValue::Word("off"),
     },
+    n("agent.checkpoints.keep", 20),
+    n("agent.checkpoints.days", 14),
+    n("agent.checkpoints.max_files", 50_000),
+    n("agent.checkpoints.wait_s", 10),
     n("companion.budget.rules", 2500),
     n("companion.budget.profile", 1200),
     n("companion.budget.roster", 400),
@@ -254,6 +291,10 @@ impl AgentConfig {
                 ShadowMode::Off => "off",
                 ShadowMode::Record => "on",
             })),
+            "agent.checkpoints.keep" => num(c(self.checkpoint_keep)),
+            "agent.checkpoints.days" => num(i64::from(self.checkpoint_days.0)),
+            "agent.checkpoints.max_files" => num(c(self.checkpoint_max_files)),
+            "agent.checkpoints.wait_s" => num(i64::from(self.checkpoint_wait.0)),
             "companion.budget.rules" => num(t(self.assembler.rules)),
             "companion.budget.profile" => num(t(self.assembler.profile)),
             "companion.budget.roster" => num(t(self.assembler.roster)),

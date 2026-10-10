@@ -2,6 +2,7 @@
 //! process that launched it opens the session and says which program it is; the router never
 //! takes the name from the agent, which is a model's.
 
+use crate::checkpoint::Rewind;
 use crate::grant::ProgramName;
 use serde::{Deserialize, Serialize};
 
@@ -29,4 +30,8 @@ pub struct ExternalAgent {
     /// Never read from the agent, which is a model's: it is shown in the audit and the journal.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<prov::AgentLabel>,
+    /// Who keeps the history of its file changes (`checkpoints` in `agents.toml`), as the host
+    /// that launched it says. Never read from the agent. Absent in older records: `Docket`.
+    #[serde(default)]
+    pub rewind: Rewind,
 }

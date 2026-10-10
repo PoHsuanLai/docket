@@ -16,6 +16,7 @@ mod audit;
 mod budget;
 mod call;
 mod caller;
+mod checkpoint;
 mod classify;
 mod config;
 mod confirm;
@@ -78,6 +79,10 @@ pub use call::{
     CallRequest, FailText, Follow, Invocation, Origin, Outcome, Undoable,
 };
 pub use caller::{CallerId, CallerRole, Member, is_terminal_scope};
+pub use checkpoint::{
+    CheckpointEvent, CheckpointFault, CheckpointId, CheckpointList, CheckpointNote, CheckpointRow,
+    PlanDigest, RestorePlan, Retention, Rewind, SavedState, SkipReason, WorkPath, WorkPathError,
+};
 pub use classify::{
     CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd, PerCall,
 };
@@ -173,7 +178,7 @@ pub use task_policy::{
 };
 pub use trace::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
-pub use units::{CharCount, Depth, Generation, Millis, Scale, Seconds};
+pub use units::{CharCount, Days, Depth, Generation, Millis, Scale, Seconds};
 pub use validate::{ManifestError, ValidManifest, fits, open_name, validate};
 pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
 pub use wire::{

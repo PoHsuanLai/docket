@@ -15,8 +15,8 @@ use crate::tasks::{TaskRecord, TaskState};
 use crate::wal::Wal;
 use almanac_core::EpisodeId;
 use docket_core::{
-    ExternalAgent, Ledger, Reveal, Saw, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger,
-    UserTurn,
+    ExternalAgent, Ledger, Reveal, Rewind, Saw, SheetSurface, StepEnd, StepLine, StepShown,
+    TaskLedger, UserTurn,
 };
 use docket_session::{
     ResumeFault, ResumePlan, SessionEntry, Standing, Taint as Written, TaintCause, TaintNote,
@@ -147,6 +147,8 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
             program: program.clone(),
             sheets: SheetSurface::Desktop,
             label: opening.label.clone(),
+            // The log does not keep it; the host says it again at the next open.
+            rewind: Rewind::default(),
         }),
         _ => None,
     };
