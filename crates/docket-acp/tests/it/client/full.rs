@@ -425,7 +425,7 @@ async fn router_says_working(rig: &super::rig::Rig<super::rig::Fakes>) -> TurnSt
 #[tokio::test]
 async fn every_way_a_turn_ends_tells_the_router_it_is_over() {
     let rows = [
-        ("answered", vec![say("done")]),
+        ("answered", vec![say("done"), Act::Stop("end_turn")]),
         ("cancelled", vec![Act::Stop("cancelled")]),
         ("refused", vec![Act::Stop("refusal")]),
         ("failed", vec![say("starting"), Act::Exit]),
