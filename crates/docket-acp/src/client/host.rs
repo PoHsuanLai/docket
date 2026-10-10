@@ -15,7 +15,8 @@
 
 use super::backend::{AcpBackend, Seams};
 use super::court::{Court, OpenAgent};
-use docket_core::{ConfirmId, Rewind, SheetSurface, UserTurn};
+use super::running::RunningTurn;
+use docket_core::{ConfirmId, Rewind, SheetSurface, TurnEnd as Ended, TurnId, UserTurn};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, EndCause, HostFault, Opening, ResumePlan,
     SessionBackend, SessionExport, SessionHost, SheetChoice, SheetDesk, StartSession, TurnEnd,
@@ -43,7 +44,7 @@ impl Fallback {
     }
 }
 
-type Recording = Pin<Box<dyn Future<Output = Result<(), super::court::CourtFault>> + Send>>;
+type Recording = Pin<Box<dyn Future<Output = Result<TurnId, super::court::CourtFault>> + Send>>;
 
 /// A turn the router is recording and the agent has not yet been given.
 struct Opening2 {
@@ -60,6 +61,8 @@ pub struct AgentHost<X: Seams, D: SheetDesk> {
     rewind: Rewind,
     session: Option<SessionId>,
     pending: Option<Opening2>,
+    /// The turn the agent is working on; the router hears when it ends, whichever way.
+    running: Option<RunningTurn<X::Court>>,
 }
 
 impl<X: Seams, D: SheetDesk> std::fmt::Debug for AgentHost<X, D> {
@@ -81,6 +84,7 @@ impl<X: Seams, D: SheetDesk> AgentHost<X, D> {
             rewind: Rewind::default(),
             session: None,
             pending: None,
+            running: None,
         }
     }
 
@@ -105,6 +109,19 @@ impl<X: Seams, D: SheetDesk> AgentHost<X, D> {
 
     fn is_terminal(&self) -> bool {
         self.fallback == Fallback::Terminal
+    }
+}
+
+/// Tells the router the turn ended, if `event` is the end of one (or the backend has nothing
+/// more to say, which ends it too). Any other event leaves the turn running.
+async fn settle<C: Court>(running: &mut Option<RunningTurn<C>>, event: &Option<BackendEvent>) {
+    let how = match event {
+        Some(BackendEvent::TurnEnd(end)) => Ended::from(*end),
+        None => Ended::Failed,
+        Some(_) => return,
+    };
+    if let Some(turn) = running.take() {
+        turn.end(how).await;
     }
 }
 
@@ -185,19 +202,32 @@ impl<X: Seams, D: SheetDesk> SessionHost for AgentHost<X, D> {
                 let Some(Opening2 { turn, .. }) = self.pending.take() else {
                     continue;
                 };
-                if recorded.is_err() {
+                let Ok(recorded) = recorded else {
                     return Ok(Some(BackendEvent::TurnEnd(TurnEnd::Failed)));
+                };
+                // From here the router counts the turn as running; the guard says when it is not.
+                let guard = RunningTurn::begin(self.court.clone(), session.clone(), recorded);
+                self.running = Some(guard);
+                if let Err(fault) = self.backend.turn(turn).await {
+                    if let Some(turn) = self.running.take() {
+                        turn.end(Ended::Failed).await;
+                    }
+                    return Err(fault.into());
                 }
-                self.backend.turn(turn).await?;
                 continue;
             }
             if !self.is_terminal() {
-                return Ok(self.backend.next_event().await);
+                let event = self.backend.next_event().await;
+                settle(&mut self.running, &event).await;
+                return Ok(event);
             }
             let event = pin!(self.backend.next_event());
             let sheet = pin!(self.desk.next_sheet(session));
             return Ok(match select(event, sheet).await {
-                Either::Left((event, _)) => event,
+                Either::Left((event, _)) => {
+                    settle(&mut self.running, &event).await;
+                    event
+                }
                 Either::Right((Some(request), _)) => Some(BackendEvent::Sheet(Box::new(request))),
                 // A desk with nothing to hand out ends the race: the backend's event is what is
                 // left, and the next pull asks for it again.
@@ -226,6 +256,9 @@ impl<X: Seams, D: SheetDesk> SessionHost for AgentHost<X, D> {
     async fn close(&mut self, session: &SessionId, _cause: EndCause) -> Result<(), HostFault> {
         self.mine(session)?;
         self.pending = None;
+        if let Some(turn) = self.running.take() {
+            turn.end(Ended::Cancelled).await;
+        }
         self.backend.close().await;
         self.court.close(session).await;
         self.session = None;

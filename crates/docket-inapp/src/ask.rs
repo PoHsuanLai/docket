@@ -5,13 +5,14 @@
 
 use crate::agent::{AgentFault, Ending, InAppAgent, Reply};
 use crate::sheet::ConfirmSheet;
+use crate::turn_watch::TurnWatch;
 use action_review::Reviewer;
 use agent_loop::{FinishedAs, LoopPhase, LoopState};
 use companion_wire::{AnswerPhase, AskWire, NeedsYou};
 use docket_client::{ContextSource, IntentProvider};
 use docket_core::{
-    ContextKeep, Keep, Origin, PolicyWriter, Reader, SessionOpen, TurnIn, TurnSource, TurnVia,
-    UserTurn, WindowKey,
+    ContextKeep, Keep, Origin, PolicyWriter, Reader, SessionOpen, TurnEnd, TurnIn, TurnSource,
+    TurnVia, UserTurn, WindowKey,
 };
 use docket_planner::PlanFault;
 use docket_router::{Clock, GrantStore, MemoryLink};
@@ -125,6 +126,7 @@ where
             via: TurnVia::Typed,
         };
         let parent_window = own_window().ok_or(AgentFault::Manifest)?;
+        let watch = TurnWatch::begin(&self.person, session.clone(), id);
         let asked = self
             .tasks
             .ask(AskWire {
@@ -136,6 +138,12 @@ where
             })
             .await;
         let reply = self.reply_of(task, said, steps);
+        let how = match (&asked, reply.as_ref().map(|r| &r.ending)) {
+            (Err(_), _) | (_, Some(Ending::Failed(_))) => TurnEnd::Failed,
+            (_, Some(Ending::Cancelled)) => TurnEnd::Cancelled,
+            _ => TurnEnd::Answered,
+        };
+        watch.end(how).await;
         // A task that is over is dismissed: its router session closes (the episode was left).
         if matches!(
             reply.as_ref().map(|r| &r.ending),

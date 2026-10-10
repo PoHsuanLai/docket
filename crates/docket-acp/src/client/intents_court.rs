@@ -9,7 +9,9 @@
 use super::call::AgentCall;
 use super::court::{Court, CourtFault, OpenAgent, Ruled};
 use docket_client::{Intents, Transport};
-use docket_core::{CallRefusal, ContextKeep, DenyCode, Keep, Origin, SessionOpen, TurnIn, TurnVia};
+use docket_core::{
+    CallRefusal, ContextKeep, DenyCode, Keep, Origin, SessionOpen, TurnEnd, TurnId, TurnIn, TurnVia,
+};
 use prov::{AgentRef, SessionId};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -109,7 +111,7 @@ impl<T: Transport + 'static> Court for IntentsCourt<T> {
         Ok(opened.session)
     }
 
-    async fn turn(&mut self, session: &SessionId, text: &str) -> Result<(), CourtFault> {
+    async fn turn(&mut self, session: &SessionId, text: &str) -> Result<TurnId, CourtFault> {
         let said = TurnIn {
             text: text.to_owned(),
             origin: Origin::InWindowField,
@@ -119,8 +121,14 @@ impl<T: Transport + 'static> Court for IntentsCourt<T> {
         self.intents
             .session_turn(session.clone(), said)
             .await
-            .map(|_| ())
             .map_err(|_| CourtFault::Refused)
+    }
+
+    async fn turn_ended(&mut self, session: &SessionId, turn: TurnId, how: TurnEnd) {
+        let _ = self
+            .intents
+            .session_turn_ended(session.clone(), turn, how)
+            .await;
     }
 
     async fn call(&mut self, session: &SessionId, n: u64, call: &AgentCall) -> Ruled {

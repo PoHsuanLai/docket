@@ -102,6 +102,17 @@ pub enum TurnEnd {
     Paused(BreakerTrip),
 }
 
+impl From<TurnEnd> for docket_core::TurnEnd {
+    /// How the router is told a turn ended: a breaker pause stops the turn like a cancel.
+    fn from(end: TurnEnd) -> Self {
+        match end {
+            TurnEnd::Done => Self::Answered,
+            TurnEnd::Failed | TurnEnd::Refused => Self::Failed,
+            TurnEnd::Cancelled | TurnEnd::Paused(_) => Self::Cancelled,
+        }
+    }
+}
+
 /// What the person chose on a sheet an edge put to them. The edge reports the click; it mints no
 /// receipt and names no scope: the router's own offer says what "always" would cover.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

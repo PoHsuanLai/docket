@@ -38,6 +38,7 @@ mod seams;
 mod sheet;
 mod skills;
 mod tasks;
+mod turn_watch;
 
 pub use agent::{AgentFault, Ending, Failure, HostClock, InAppAgent, InAppParts, Reply};
 pub use audit_file::{AuditFile, AuditFileError};

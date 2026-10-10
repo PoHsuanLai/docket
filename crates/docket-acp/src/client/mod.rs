@@ -40,6 +40,7 @@ mod perform;
 mod performer;
 mod reported;
 mod rpc;
+mod running;
 mod serve;
 mod spawn;
 mod strikes;

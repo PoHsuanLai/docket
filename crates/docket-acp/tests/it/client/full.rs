@@ -6,10 +6,15 @@ use super::agent::{AGENT_SESSION, Act, call, call_with, fire_with, say};
 use super::rig::{
     CWD, Setup, abs, always, no, once, program, read, run_turn, selected, started, tool, write,
 };
+use crate::support::app;
 use bulkhead::fake::Script;
 use docket_acp::client::TaintSource;
-use docket_core::{AuditRecord, FILES_READ, FILES_WRITE, GrantCaller, StandingScope, TERMINAL_RUN};
+use docket_core::{
+    AuditRecord, CallerId, CallerRole, FILES_READ, FILES_WRITE, GrantCaller, IntentsReply,
+    IntentsRequest, StandingScope, TERMINAL_RUN, TurnState,
+};
 use docket_session::{BackendEvent, CallEvent, EndCause, SessionHost, TurnEnd};
+use porter_core::{AppId, Isolation};
 use prov::Actor;
 use serde_json::json;
 
@@ -397,4 +402,46 @@ async fn session_new_has_no_meta_without_one() {
     })
     .await;
     assert!(rig.agent.new_session().get("_meta").is_none());
+}
+
+/// Whether the router counts the agent of `rig` as working, asked as the person's launcher.
+async fn router_says_working(rig: &super::rig::Rig<super::rig::Fakes>) -> TurnState {
+    let launcher = CallerId {
+        app: AppId {
+            name: app("org.quire.Shell"),
+            isolation: Isolation::Unsandboxed,
+        },
+        roles: std::collections::BTreeSet::from([CallerRole::Launcher]),
+    };
+    let request = IntentsRequest::CheckpointList {
+        session: rig.session.clone(),
+    };
+    match rig.router.handle(&launcher, request).await {
+        IntentsReply::Checkpoints(list) => list.turn,
+        other => panic!("list: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn every_way_a_turn_ends_tells_the_router_it_is_over() {
+    let rows = [
+        ("answered", vec![say("done")]),
+        ("cancelled", vec![Act::Stop("cancelled")]),
+        ("refused", vec![Act::Stop("refusal")]),
+        ("failed", vec![say("starting"), Act::Exit]),
+    ];
+    for (name, acts) in rows {
+        let (mut rig, _files) = started(Setup {
+            turns: vec![acts],
+            ..Setup::default()
+        })
+        .await;
+        let events = run_turn(&mut rig, "go").await;
+        assert!(
+            matches!(events.last(), Some(BackendEvent::TurnEnd(_))),
+            "{name}"
+        );
+        // The router heard it: no restore is held back by this turn.
+        assert_eq!(router_says_working(&rig).await, TurnState::Idle, "{name}");
+    }
 }

@@ -11,7 +11,7 @@ use docket_acp::client::{
     AcpBackend, AgentCall, Court, CourtFault, EdgeFault, OpenAgent, Parts, Performer, Ruled, Seams,
     StageId, ToolsOffer,
 };
-use docket_core::ValidManifest;
+use docket_core::{TurnId, ValidManifest};
 use docket_session::{SessionBackend, StartSession};
 use futures_util::future::pending;
 use prov::SessionId;
@@ -34,8 +34,8 @@ impl Court for Silent {
         Err(CourtFault::Unavailable)
     }
 
-    async fn turn(&mut self, _session: &SessionId, _text: &str) -> Result<(), CourtFault> {
-        Ok(())
+    async fn turn(&mut self, _session: &SessionId, _text: &str) -> Result<TurnId, CourtFault> {
+        Ok(TurnId(1))
     }
 
     async fn call(&mut self, _session: &SessionId, _n: u64, call: &AgentCall) -> Ruled {

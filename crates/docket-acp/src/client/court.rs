@@ -9,7 +9,9 @@
 //! the router should be asked to weigh.
 
 use super::call::AgentCall;
-use docket_core::{CallRefusal, ExternalAgent, Outcome, Rewind, SheetSurface, ValidManifest};
+use docket_core::{
+    CallRefusal, ExternalAgent, Outcome, Rewind, SheetSurface, TurnEnd, TurnId, ValidManifest,
+};
 use docket_session::{ProgramName, Workspace};
 use prov::{SessionId, SpaceId};
 use std::future::Future;
@@ -81,13 +83,24 @@ pub trait Court: Send + Clone + 'static {
         open: OpenAgent,
     ) -> impl Future<Output = Result<SessionId, CourtFault>> + Send;
 
-    /// Records the person's turn, from which the task policy derives. May wait for the person
-    /// (a turn that widens the task asks).
+    /// Records the person's turn, from which the task policy derives, and says which turn it is.
+    /// May wait for the person (a turn that widens the task asks).
     fn turn(
         &mut self,
         session: &SessionId,
         text: &str,
-    ) -> impl Future<Output = Result<(), CourtFault>> + Send;
+    ) -> impl Future<Output = Result<TurnId, CourtFault>> + Send;
+
+    /// Says the agent's turn is over, however it ended (`Session.TurnEnded`). A router that
+    /// cannot be told ends the turn by time. The default says nothing.
+    fn turn_ended(
+        &mut self,
+        _session: &SessionId,
+        _turn: TurnId,
+        _how: TurnEnd,
+    ) -> impl Future<Output = ()> + Send {
+        async {}
+    }
 
     /// Makes one call as the router rules.
     fn call(

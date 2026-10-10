@@ -5,7 +5,7 @@
 
 use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EnvVar, agent_bwrap_args, present_hidden};
 use docket_acp::client::{AgentCall, Court, CourtFault, OpenAgent, Ruled, ToolsEdge, ToolsOffer};
-use docket_core::{AbsPath, ValidManifest};
+use docket_core::{AbsPath, TurnId, ValidManifest};
 use prov::SessionId;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -17,7 +17,7 @@ impl Court for Stand {
     async fn open(&mut self, _open: OpenAgent) -> Result<SessionId, CourtFault> {
         Err(CourtFault::Unavailable)
     }
-    async fn turn(&mut self, _session: &SessionId, _text: &str) -> Result<(), CourtFault> {
+    async fn turn(&mut self, _session: &SessionId, _text: &str) -> Result<TurnId, CourtFault> {
         Err(CourtFault::Unavailable)
     }
     async fn call(&mut self, _session: &SessionId, _n: u64, _call: &AgentCall) -> Ruled {

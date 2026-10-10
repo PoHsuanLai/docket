@@ -33,7 +33,11 @@ impl Court for Nobody {
         Err(CourtFault::Unavailable)
     }
 
-    async fn turn(&mut self, _session: &SessionId, _text: &str) -> Result<(), CourtFault> {
+    async fn turn(
+        &mut self,
+        _session: &SessionId,
+        _text: &str,
+    ) -> Result<docket_core::TurnId, CourtFault> {
         Err(CourtFault::Unavailable)
     }
 

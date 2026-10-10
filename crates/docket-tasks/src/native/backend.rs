@@ -135,23 +135,35 @@ where
                         Err(_) => return TurnEnd::Failed,
                     }
                 }
-                core.reopen(&task);
-                let Ok(begun) = core.begin_ask(AskWire {
-                    session,
-                    turn,
-                    keep: kept_nothing(),
-                    parent_window: window,
-                    app: None,
-                }) else {
-                    return TurnEnd::Failed;
+                let (turn_id, ending_session) = (turn.id, session.clone());
+                let end = 'run: {
+                    core.reopen(&task);
+                    let Ok(begun) = core.begin_ask(AskWire {
+                        session,
+                        turn,
+                        keep: kept_nothing(),
+                        parent_window: window,
+                        app: None,
+                    }) else {
+                        break 'run TurnEnd::Failed;
+                    };
+                    match core.run_begun_tapped(begun, &mut tap).await {
+                        Ok(()) => end_of(
+                            core.tasks.get(&task),
+                            core.runtimes.get(&task).and_then(|rt| rt.failure.as_ref()),
+                        ),
+                        Err(_) => TurnEnd::Failed,
+                    }
                 };
-                match core.run_begun_tapped(begun, &mut tap).await {
-                    Ok(()) => end_of(
-                        core.tasks.get(&task),
-                        core.runtimes.get(&task).and_then(|rt| rt.failure.as_ref()),
-                    ),
-                    Err(_) => TurnEnd::Failed,
-                }
+                // The router hears the turn is over on every way out of the flight. A flight
+                // dropped before it ends is closed by `Session.Close`, or by the router's own
+                // time limit (`agent.checkpoints.turn_max_s`): this crate has no runtime to
+                // send from a drop.
+                let _ = core
+                    .intents
+                    .session_turn_ended(ending_session, turn_id, end.into())
+                    .await;
+                end
             }
             .boxed()
         }));
