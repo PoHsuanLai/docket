@@ -52,6 +52,10 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::CheckpointList | Member::CheckpointPlan => {
             &[Launcher, Field, Editor, Companion, Control, Cli]
         }
+        // A terminal watching an agent it does not host: it opens a restore-point-only session
+        // and marks the agent's turns. Never `Mcp` or `AcpAgent`; the router lets only the
+        // opener use the session (`watched.rs`).
+        Member::CheckpointWatch | Member::CheckpointMark => &[Cli],
         Member::SessionTaskPolicy | Member::SessionWiden => &[Launcher, Field, Companion],
         // The person talks to a subagent through the launcher; agents and runs report.
         Member::MessageSend => &[Launcher, Field, Companion, Cua],

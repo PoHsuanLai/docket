@@ -5,6 +5,7 @@ use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
 use docket_core::{
     CheckpointFault, CheckpointId, CheckpointList, IntentsReply, IntentsRequest, RestorePlan,
+    Rewind, Workspace,
 };
 use prov::SessionId;
 
@@ -32,6 +33,36 @@ impl<T: Transport> Intents<T> {
                 _ => None,
             },
         )
+        .await
+    }
+
+    /// Opens a session that only keeps restore points for an agent the caller watches but does
+    /// not host (`Checkpoint.Watch`). `label` is display text. A terminal only.
+    pub async fn checkpoint_watch(
+        &self,
+        workspace: Workspace,
+        label: String,
+        rewind: Rewind,
+    ) -> Result<SessionId, ClientError> {
+        let request = IntentsRequest::CheckpointWatch {
+            workspace,
+            label,
+            rewind,
+        };
+        self.ask(request, |r| match r {
+            IntentsReply::CheckpointWatching(session) => Some(session),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The watched agent started working: takes a restore point and starts the running turn
+    /// (`Checkpoint.Mark`). End it with `session_turn_ended`.
+    pub async fn checkpoint_mark(&self, session: SessionId) -> Result<(), ClientError> {
+        self.ask(IntentsRequest::CheckpointMark { session }, |r| match r {
+            IntentsReply::Done => Some(()),
+            _ => None,
+        })
         .await
     }
 }

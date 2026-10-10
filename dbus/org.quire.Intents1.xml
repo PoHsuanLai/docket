@@ -152,6 +152,15 @@
      <arg name="point" type="u" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="Watch">
+     <arg name="workspace" type="s" direction="in"/>
+     <arg name="label" type="s" direction="in"/>
+     <arg name="rewind" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Mark">
+     <arg name="session" type="s" direction="in"/>
+   </method>
  </interface>
  <interface name="org.quire.Intents1.Message">
    <method name="Send">

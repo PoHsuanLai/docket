@@ -67,6 +67,8 @@ fn every_intents_member_is_declared() {
         "interface name=\"org.quire.Intents1.Checkpoint\"",
         "<method name=\"List\">",
         "<method name=\"Plan\">",
+        "<method name=\"Watch\">",
+        "<method name=\"Mark\">",
         "interface name=\"org.quire.Intents1.Message\"",
         "<method name=\"Send\">",
         "<method name=\"Inbox\">",

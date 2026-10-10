@@ -15,6 +15,13 @@ pub trait Checkpoint {
 
     /// What restoring `point` would change (`Result<RestorePlan, CheckpointFault>` JSON). Read-only.
     fn plan(&self, session: &str, point: u32) -> zbus::Result<String>;
+
+    /// Opens a session that only keeps restore points for an agent the caller watches
+    /// (`rewind` is `Rewind` JSON; `label` is display text). The new session id as JSON.
+    fn watch(&self, workspace: &str, label: &str, rewind: &str) -> zbus::Result<String>;
+
+    /// The watched agent started working: takes a restore point and starts the running turn.
+    fn mark(&self, session: &str) -> zbus::Result<()>;
 }
 
 /// The daemon's side.
@@ -30,6 +37,16 @@ impl CheckpointSkeleton {
 
     fn plan(&self, session: String, point: u32) -> fdo::Result<String> {
         let _ = (session, point);
+        Err(crate::introspect::frozen())
+    }
+
+    fn watch(&self, workspace: String, label: String, rewind: String) -> fdo::Result<String> {
+        let _ = (workspace, label, rewind);
+        Err(crate::introspect::frozen())
+    }
+
+    fn mark(&self, session: String) -> fdo::Result<()> {
+        let _ = (session,);
         Err(crate::introspect::frozen())
     }
 }

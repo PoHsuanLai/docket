@@ -172,6 +172,21 @@ fn the_checkpoint_requests_and_replies_round_trip_and_name_their_members() {
     };
     assert_eq!(ended.member(), Member::SessionTurnEnded);
     round(&ended);
+    let watch = IntentsRequest::CheckpointWatch {
+        workspace: Workspace::parse("/work/project").expect("workspace"),
+        label: "claude in pane 2".into(),
+        rewind: Rewind::Agent,
+    };
+    let mark = IntentsRequest::CheckpointMark {
+        session: SessionId::parse("s-2").expect("session"),
+    };
+    assert_eq!(watch.member(), Member::CheckpointWatch);
+    assert_eq!(mark.member(), Member::CheckpointMark);
+    round(&watch);
+    round(&mark);
+    round(&IntentsReply::CheckpointWatching(
+        SessionId::parse("s-2").expect("session"),
+    ));
     round(&IntentsReply::CheckpointPlan(Ok(RestorePlan::default())));
     round(&IntentsReply::CheckpointPlan(Err(CheckpointFault::Gone)));
 }

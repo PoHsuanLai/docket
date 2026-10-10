@@ -89,6 +89,13 @@ fn restore_points_are_for_the_persons_surfaces_and_never_an_agent() {
 }
 
 #[test]
+fn only_a_terminal_watches_an_agent_and_marks_its_turns() {
+    for member in [Member::CheckpointWatch, Member::CheckpointMark] {
+        assert_eq!(role_set(member), [CallerRole::Cli], "{member:?}");
+    }
+}
+
+#[test]
 fn only_the_reader_resolves_a_handle_and_never_a_planner() {
     assert_eq!(role_set(Member::SessionResolve), [CallerRole::Reader]);
     assert!(!permits(CallerRole::Companion, Member::SessionResolve));
@@ -201,6 +208,9 @@ fn a_terminal_gets_exactly_the_members_quire_do_uses() {
             // The terminal shows its own sessions' restore points (owner, 2026-10-10).
             Member::CheckpointList,
             Member::CheckpointPlan,
+            // It watches the agents in its panes (never hosts them).
+            Member::CheckpointWatch,
+            Member::CheckpointMark,
             Member::ControlJournal,
         ]
     );

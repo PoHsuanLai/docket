@@ -115,6 +115,10 @@ async fn the_request_the_router_sees_is_the_one_asked_for() {
     let transport = std::sync::Arc::new(Scripted::answering(vec![
         Ok(IntentsReply::Done),
         Ok(IntentsReply::Done),
+        Ok(IntentsReply::CheckpointWatching(
+            SessionId::parse("s-5").expect("session"),
+        )),
+        Ok(IntentsReply::Done),
     ]));
     let intents = Intents::over(Shared(transport.clone()));
     let session = SessionId::parse("s-4").expect("session");
@@ -126,15 +130,35 @@ async fn the_request_the_router_sees_is_the_one_asked_for() {
         .session_turn_ended(session.clone(), TurnId(2), TurnEnd::Failed)
         .await
         .expect("ended");
+    let workspace = Workspace::parse("/work/project").expect("workspace");
+    let watching = intents
+        .checkpoint_watch(workspace.clone(), "an agent".into(), Rewind::Agent)
+        .await
+        .expect("watching");
+    intents
+        .checkpoint_mark(watching.clone())
+        .await
+        .expect("marked");
     let seen = transport.seen.lock().expect("lock");
     let ended = IntentsRequest::SessionTurnEnded {
         session: session.clone(),
         turn: TurnId(2),
         how: TurnEnd::Failed,
     };
-    assert_eq!(*seen, [IntentsRequest::SessionClose { session }, ended]);
+    let watch = IntentsRequest::CheckpointWatch {
+        workspace,
+        label: "an agent".into(),
+        rewind: Rewind::Agent,
+    };
+    let mark = IntentsRequest::CheckpointMark { session: watching };
+    assert_eq!(
+        *seen,
+        [IntentsRequest::SessionClose { session }, ended, watch, mark]
+    );
     assert_eq!(seen[0].member(), Member::SessionClose);
     assert_eq!(seen[1].member(), Member::SessionTurnEnded);
+    assert_eq!(seen[2].member(), Member::CheckpointWatch);
+    assert_eq!(seen[3].member(), Member::CheckpointMark);
 }
 
 #[tokio::test]

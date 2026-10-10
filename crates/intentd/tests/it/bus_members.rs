@@ -335,8 +335,18 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     })
     .await;
     pair.both(IntentsRequest::CheckpointPlan {
-        session: missing_session,
+        session: missing_session.clone(),
         id: CheckpointId(1),
+    })
+    .await;
+    pair.both(IntentsRequest::CheckpointWatch {
+        workspace: Workspace::parse("/tmp/watched").expect("workspace"),
+        label: "an agent in pane 2".into(),
+        rewind: Rewind::Docket,
+    })
+    .await;
+    pair.both(IntentsRequest::CheckpointMark {
+        session: missing_session,
     })
     .await;
     pair.both(IntentsRequest::MessageSend {

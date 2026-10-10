@@ -5,7 +5,9 @@
 
 use crate::budget::{HaltCause, KillSwitch};
 use crate::call::{CallRefusal, CallRequest, Outcome};
-use crate::checkpoint::{CheckpointFault, CheckpointId, CheckpointList, RestorePlan, TurnEnd};
+use crate::checkpoint::{
+    CheckpointFault, CheckpointId, CheckpointList, RestorePlan, Rewind, TurnEnd,
+};
 use crate::confirm::ConfirmEnd;
 use crate::context::EntityRef;
 use crate::context::{ContextView, Reveal};
@@ -24,6 +26,7 @@ use crate::task::{SessionOpen, SessionOpened};
 use crate::task_policy::TaskPolicy;
 use crate::undo::{UndoEntry, UndoFault, UndoScope};
 use crate::value::Value;
+use crate::workspace::Workspace;
 use almanac_core::{
     Episode, EpisodeId, EventSummary, InjectQuery, JsonText, Narrative, RecentQuery,
 };
@@ -409,6 +412,25 @@ pub enum IntentsRequest {
         /// The point.
         id: CheckpointId,
     },
+    /// `.Checkpoint.Watch`: opens a session that only keeps restore points, for an agent the
+    /// caller watches but does not host (a CLI agent in a terminal pane). The session has no
+    /// task, planner or policy and reaches no action: it can only be marked, listed, planned,
+    /// restored and closed. Only a terminal may ask, and only it may use the session after.
+    CheckpointWatch {
+        /// The folder the watched agent works in.
+        workspace: Workspace,
+        /// What the person calls the agent here ("claude in pane 2"). Display text, never trusted.
+        label: String,
+        /// Who keeps the agent's own history (`Agent`: docket saves nothing and says so).
+        rewind: Rewind,
+    },
+    /// `.Checkpoint.Mark`: the watched agent started working. Takes a restore point (unless the
+    /// agent keeps its own) and starts the running turn; `Session.TurnEnded` ends it. Records no
+    /// words of the person's.
+    CheckpointMark {
+        /// The watch session.
+        session: SessionId,
+    },
     /// `.Message.Send`.
     MessageSend {
         /// The session the sender speaks from.
@@ -587,6 +609,8 @@ pub enum IntentsReply {
     Checkpoints(Box<CheckpointList>),
     /// What restoring a point would change, or why that cannot be said.
     CheckpointPlan(Result<RestorePlan, CheckpointFault>),
+    /// A watch session was opened (`Checkpoint.Watch`).
+    CheckpointWatching(SessionId),
     /// A message was delivered.
     Delivered(Delivery),
     /// Messages that wait.
