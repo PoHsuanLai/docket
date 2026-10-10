@@ -72,7 +72,10 @@ pub async fn run<S: CheckpointStore, W: Workbench>(store: &S, bench: &W) {
     bench.write_ignored(&ignored, "noise");
 
     // A point is saved under the number and time asked, and listed.
-    let saved = store.take(take(&root, &session, 1, 100)).await.expect("take");
+    let saved = store
+        .take(take(&root, &session, 1, 100))
+        .await
+        .expect("take");
     assert_eq!((saved.id, saved.at), (CheckpointId(1), UnixSeconds(100)));
     assert_eq!(store.held(&root, &session).await, Ok(vec![saved.clone()]));
     // Numbers are create-only, and sessions keep their own points.
@@ -117,9 +120,7 @@ pub async fn run<S: CheckpointStore, W: Workbench>(store: &S, bench: &W) {
     assert_eq!(bench.read(&ignored).as_deref(), Some("more noise"));
     assert_eq!(store.plan(plan(&root, &session, 1)).await, Ok(same));
     // The same confirmation is stale once the folder has moved on.
-    let late = store
-        .apply(apply(&root, &session, 1, change.digest))
-        .await;
+    let late = store.apply(apply(&root, &session, 1, change.digest)).await;
     assert_eq!(late, Err(StoreFault::PlanStale));
 
     // A point that is not held is not a plan.
@@ -140,7 +141,10 @@ pub async fn run<S: CheckpointStore, W: Workbench>(store: &S, bench: &W) {
     assert_eq!(store.held(&root, &session).await, Ok(vec![saved]));
 
     // Dropping forgets the points held and skips the others.
-    let second = store.take(take(&root, &session, 2, 100)).await.expect("take");
+    let second = store
+        .take(take(&root, &session, 2, 100))
+        .await
+        .expect("take");
     let dropping = DropAsk {
         root: root.clone(),
         session: session.clone(),

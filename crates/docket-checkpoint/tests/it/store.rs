@@ -31,7 +31,8 @@ fn the_memory_store_keeps_the_store_contract() {
             Some(bare)
         }
         fn write(&self, path: &WorkPath, content: &str) {
-            self.0.write(&self.root(), path, content, Tracking::Followed);
+            self.0
+                .write(&self.root(), path, content, Tracking::Followed);
         }
         fn write_ignored(&self, path: &WorkPath, content: &str) {
             self.0.write(&self.root(), path, content, Tracking::Ignored);

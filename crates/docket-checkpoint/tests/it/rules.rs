@@ -25,7 +25,9 @@ fn held(points: &[(u32, i64)]) -> Vec<Saved> {
 #[test]
 fn retention_drops_what_is_beyond_the_last_n_or_older_than_the_days() {
     let fresh_21: Vec<(u32, i64)> = (1..=21).map(|id| (id, 1)).collect();
-    let mixed: Vec<(u32, i64)> = (1..=21).map(|id| (id, if id == 5 { 20 } else { 1 })).collect();
+    let mixed: Vec<(u32, i64)> = (1..=21)
+        .map(|id| (id, if id == 5 { 20 } else { 1 }))
+        .collect();
     // (name, held, last, days, dropped)
     let rows: [(&str, Vec<(u32, i64)>, u32, u32, Vec<u32>); 9] = [
         ("the 21st point drops the first", fresh_21, 20, 14, vec![1]),
@@ -36,7 +38,13 @@ fn retention_drops_what_is_beyond_the_last_n_or_older_than_the_days() {
             14,
             vec![1],
         ),
-        ("a 14 day old point stays", vec![(1, 14), (2, 0)], 20, 14, vec![]),
+        (
+            "a 14 day old point stays",
+            vec![(1, 14), (2, 0)],
+            20,
+            14,
+            vec![],
+        ),
         ("both limits at once", mixed, 20, 14, vec![1, 5]),
         ("nothing held, nothing dropped", vec![], 20, 14, vec![]),
         (
@@ -46,8 +54,20 @@ fn retention_drops_what_is_beyond_the_last_n_or_older_than_the_days() {
             14,
             vec![1],
         ),
-        ("a limit of none drops all", vec![(1, 0), (2, 0)], 0, 14, vec![1, 2]),
-        ("zero days drops all but today's", vec![(1, 1), (2, 0)], 20, 0, vec![1]),
+        (
+            "a limit of none drops all",
+            vec![(1, 0), (2, 0)],
+            0,
+            14,
+            vec![1, 2],
+        ),
+        (
+            "zero days drops all but today's",
+            vec![(1, 1), (2, 0)],
+            20,
+            0,
+            vec![1],
+        ),
         ("a clock behind keeps", vec![(1, -3)], 20, 14, vec![]),
     ];
     for (name, points, last, days, want) in rows {
@@ -106,15 +126,30 @@ fn a_turn_takes_a_point_unless_there_is_no_workspace_or_the_agent_keeps_its_own(
     let root = WorkRoot::new(AbsPath::parse("/work/app").expect("path"));
     let stepping = Workspace::parse("/work/../app").expect("workspace");
     let rows: [(&str, Rewind, Option<&Workspace>, Decision); 5] = [
-        ("docket keeps", Rewind::Docket, Some(&work), Decision::Take(root)),
+        (
+            "docket keeps",
+            Rewind::Docket,
+            Some(&work),
+            Decision::Take(root),
+        ),
         (
             "the agent keeps its own",
             Rewind::Agent,
             Some(&work),
             Decision::Skip(SkipReason::AgentKeepsOwn),
         ),
-        ("no workspace, docket", Rewind::Docket, None, Decision::Nothing),
-        ("no workspace, agent", Rewind::Agent, None, Decision::Nothing),
+        (
+            "no workspace, docket",
+            Rewind::Docket,
+            None,
+            Decision::Nothing,
+        ),
+        (
+            "no workspace, agent",
+            Rewind::Agent,
+            None,
+            Decision::Nothing,
+        ),
         (
             "a workspace that cannot be normalised",
             Rewind::Docket,

@@ -3,9 +3,7 @@
 //! restore touches.
 
 use crate::ids::{EntryId, Saved, TreeId, WorkRoot};
-use crate::store::{
-    ApplyAsk, CheckpointStore, DropAsk, PlanAsk, StoreFault, TakeAsk,
-};
+use crate::store::{ApplyAsk, CheckpointStore, DropAsk, PlanAsk, StoreFault, TakeAsk};
 use crate::tree::{TreeListing, plan_restore};
 use docket_core::{CheckpointId, RestorePlan, WorkPath};
 use porter_core::Count;

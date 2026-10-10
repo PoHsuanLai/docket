@@ -22,7 +22,5 @@ mod tree;
 pub use ids::{EntryId, Saved, TreeId, WorkRoot};
 pub use memory::{MemoryStore, Tracking};
 pub use rules::{Decision, decide, next_id, retention};
-pub use store::{
-    ApplyAsk, CheckpointStore, DropAsk, NoStore, PlanAsk, StoreFault, TakeAsk,
-};
+pub use store::{ApplyAsk, CheckpointStore, DropAsk, NoStore, PlanAsk, StoreFault, TakeAsk};
 pub use tree::{TreeListing, plan_restore};

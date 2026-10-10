@@ -67,11 +67,23 @@ fn the_digest_is_stable_under_order_and_differs_on_any_change() {
     let then = &[("a", "9"), ("d", "4")][..];
     // Each variant changes one thing a person would care about.
     let variants: [(&str, &[(&str, &str)], &[(&str, &str)]); 6] = [
-        ("another file is changed", &[("a", "1"), ("b", "2"), ("c", "3"), ("e", "5")], then),
+        (
+            "another file is changed",
+            &[("a", "1"), ("b", "2"), ("c", "3"), ("e", "5")],
+            then,
+        ),
         ("a file made since is gone", &[("a", "1"), ("b", "2")], then),
         ("the saved content differs", now, &[("a", "8"), ("d", "4")]),
-        ("the current content differs", &[("a", "7"), ("b", "2"), ("c", "3")], then),
-        ("a file is moved", &[("a", "1"), ("b", "2"), ("c", "3")], &[("a", "9"), ("e", "4")]),
+        (
+            "the current content differs",
+            &[("a", "7"), ("b", "2"), ("c", "3")],
+            then,
+        ),
+        (
+            "a file is moved",
+            &[("a", "1"), ("b", "2"), ("c", "3")],
+            &[("a", "9"), ("e", "4")],
+        ),
         ("nothing to do", &[("a", "1")], &[("a", "1")]),
     ];
     for (name, now, then) in variants {
