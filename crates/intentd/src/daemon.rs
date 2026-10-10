@@ -18,7 +18,8 @@ use crate::sheet::SheetConfirmer;
 use crate::signals::{Cadence, pump};
 use crate::space_watch::{RemovedMemories, SpaceKeeper};
 use crate::system::{DaemonLog, SystemClock, SystemSeams};
-use docket_core::AuditRecord;
+use docket_checkpoint_git::{GitStore, StdGitRun};
+use docket_core::{AbsPath, AuditRecord};
 use docket_dbus::BusConnection;
 use docket_dbus::tap::{TRACE_VAR, Tap};
 use docket_memory::QueuedSink;
@@ -63,6 +64,9 @@ pub enum DaemonFault {
     /// The shipped policy set does not load.
     #[error("policy: {0}")]
     Policy(String),
+    /// A directory the daemon keeps its files in is not an absolute path.
+    #[error("not an absolute path: {0}")]
+    State(String),
 }
 
 /// What a daemon starts from: the files it reads, found through the environment.
@@ -74,6 +78,9 @@ pub struct Setup {
     pub manifests: Loaded,
     /// The consent file.
     pub grants: PathBuf,
+    /// Where the private files of the restore points are kept (`quire/checkpoints` under the
+    /// person's data directory, beside the consent file): never inside a repository.
+    pub checkpoints: PathBuf,
     /// The person's login session, when known (`XDG_SESSION_ID`).
     pub session: Option<String>,
     /// How often the audit queue is written to memoryd.
@@ -150,6 +157,7 @@ impl Setup {
             config,
             manifests: load_manifests(&data),
             grants,
+            checkpoints: data[0].join("quire").join("checkpoints"),
             session: env("XDG_SESSION_ID").filter(|v| !v.is_empty()),
             audit_every: DRAIN_EVERY,
             data_dirs: data,
@@ -195,6 +203,7 @@ pub async fn start(
         config,
         manifests,
         grants,
+        checkpoints,
         session: login,
         audit_every,
         data_dirs,
@@ -218,6 +227,8 @@ pub async fn start(
         port.clone(),
     )
     .map_err(|e| DaemonFault::Policy(e.to_string()))?;
+    let kept = AbsPath::parse(&checkpoints.to_string_lossy())
+        .map_err(|_| DaemonFault::State(checkpoints.display().to_string()))?;
     let seams = SystemSeams {
         link,
         confirmer,
@@ -235,6 +246,7 @@ pub async fn start(
             SpaceId::desktop(),
             SystemClock,
         )),
+        checkpoints: GitStore::new(StdGitRun, kept),
     };
     let pdp = Pdp::standard().map_err(|e| DaemonFault::Policy(e.to_string()))?;
     let mut router = Router::new(seams, config.agent, pdp);

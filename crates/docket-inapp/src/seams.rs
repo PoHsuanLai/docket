@@ -16,7 +16,7 @@ use docket_core::{
     held_without,
 };
 use docket_memory::QueuedSink;
-use docket_router::{Clock, EventSink, GrantStore, LinkFault, MemoryLink, NoLog, Seams};
+use docket_router::{Clock, EventSink, GrantStore, LinkFault, MemoryLink, NoLog, NoStore, Seams};
 use prov::{Quarantined, SessionId, SpaceId, TaskId};
 use std::sync::Mutex;
 
@@ -179,6 +179,7 @@ where
     type Writer = W;
     type Reading = D;
     type Log = NoLog;
+    type Checkpoints = NoStore;
 
     fn link(&self) -> &Self::Link {
         &self.link
@@ -209,5 +210,8 @@ where
     }
     fn log(&self) -> &NoLog {
         &NoLog
+    }
+    fn checkpoints(&self) -> &NoStore {
+        &NoStore
     }
 }

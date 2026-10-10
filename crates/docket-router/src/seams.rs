@@ -6,6 +6,7 @@
 
 use action_review::Reviewer;
 use almanac_core::{MemoryReply, MemoryRequest};
+use docket_checkpoint::CheckpointStore;
 use docket_core::EntityRef;
 use docket_core::{
     ActionGrant, AppRefusal, AuditRecord, Confirmer, ContextScope, ContextSnapshot, Generation,
@@ -251,6 +252,9 @@ pub trait Seams: Send + Sync {
     type Reading: Reader;
     /// The durable record of sessions.
     type Log: SessionLog;
+    /// Where restore points of a session's workspace are kept (`NoStore` for a build that
+    /// cannot keep history).
+    type Checkpoints: CheckpointStore;
 
     /// The apps.
     fn link(&self) -> &Self::Link;
@@ -272,4 +276,6 @@ pub trait Seams: Send + Sync {
     fn reader(&self) -> &Self::Reading;
     /// The session log.
     fn log(&self) -> &Self::Log;
+    /// The restore-point store.
+    fn checkpoints(&self) -> &Self::Checkpoints;
 }

@@ -71,7 +71,7 @@ impl<S: Seams> Router<S> {
 
     /// `restore_session` for a request: with a claimant, only the opener, the shell or the
     /// companion gets the session (`may_restore_opening`); without one the daemon itself is asking.
-    async fn restore_for(
+    pub(crate) async fn restore_for(
         &self,
         id: &SessionId,
         claimant: Option<Claimant<'_>>,
@@ -87,7 +87,8 @@ impl<S: Seams> Router<S> {
             return Err(RestoreFault::NotYours);
         }
         let now = self.seams.clock().now();
-        let rebuilt = rebuild(id, &plan, now);
+        let mut rebuilt = rebuild(id, &plan, now);
+        rebuilt.record.checkpoints = crate::checkpoint_turn::notes_of(&rows);
         let next = rows.last().map_or(Seq(0), |r| r.seq.next());
         let restored = Restored {
             standing: plan.standing.clone(),
@@ -166,6 +167,8 @@ fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         | R::SessionRecall { session, .. }
         | R::SessionNarrow { session, .. }
         | R::SessionHandles { session }
+        | R::CheckpointList { session }
+        | R::CheckpointPlan { session, .. }
         | R::MessageSend { session, .. } => Some(session),
         R::Manifests
         | R::IndexPush(_)

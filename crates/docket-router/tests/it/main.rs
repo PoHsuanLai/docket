@@ -10,6 +10,7 @@ mod activation;
 mod auth;
 mod behaviour;
 mod call_step;
+mod checkpoints;
 mod companion;
 mod control;
 mod crossspace;

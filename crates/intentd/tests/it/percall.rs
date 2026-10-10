@@ -87,6 +87,7 @@ impl Seams for BusSeams {
     type Writer = ScriptedWriter;
     type Reading = ScriptedReader;
     type Log = docket_router::NoLog;
+    type Checkpoints = docket_router::NoStore;
     fn link(&self) -> &DbusLink {
         &self.link
     }
@@ -116,6 +117,9 @@ impl Seams for BusSeams {
     }
     fn log(&self) -> &docket_router::NoLog {
         &docket_router::NoLog
+    }
+    fn checkpoints(&self) -> &docket_router::NoStore {
+        &docket_router::NoStore
     }
 }
 

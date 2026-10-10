@@ -52,6 +52,11 @@ pub(crate) fn model_label() -> Label {
     label(Integrity::Untrusted, Source::Model(ModelRole::Planner))
 }
 
+/// The name of a file in a workspace: written by an agent or by the person, so third-party text.
+pub(crate) fn path_label() -> Label {
+    label(Integrity::Untrusted, Source::File)
+}
+
 /// What an app authored about its own things.
 pub(crate) fn app_label(app: &AppName) -> Label {
     label(Integrity::Trusted, Source::App(app.clone()))

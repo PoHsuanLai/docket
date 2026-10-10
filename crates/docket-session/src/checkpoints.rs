@@ -17,11 +17,17 @@ pub fn checkpoint_rows(rows: &[Logged]) -> Vec<CheckpointRow> {
             },
             Read::Legacy(_) | Read::Unreadable(_) => None,
         })
-        .flat_map(rows_of)
+        .flat_map(note_row)
         .collect()
 }
 
-fn rows_of(note: &CheckpointNote) -> Vec<CheckpointRow> {
+/// The rows of a list from the notes themselves, oldest first: `checkpoint_rows` for a holder
+/// that kept the notes it wrote (the router keeps each live session's).
+pub fn note_rows(notes: &[CheckpointNote]) -> Vec<CheckpointRow> {
+    notes.iter().flat_map(note_row).collect()
+}
+
+fn note_row(note: &CheckpointNote) -> Vec<CheckpointRow> {
     let saved = |id| CheckpointRow::Saved {
         id,
         turn: note.turn,

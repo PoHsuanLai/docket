@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+docket-checkpoint = { workspace = true }
 docket-core = { workspace = true }
 docket-session = { workspace = true }
 docket-skills = { workspace = true }

@@ -164,6 +164,7 @@ pub fn fake_router_over<
         writer,
         reader: ScriptedReader::default(),
         log,
+        checkpoints: docket_checkpoint::MemoryStore::new(),
     };
     let pdp = Pdp::standard().map_err(FakeError::Policy)?;
     let router = Router::new(seams, config, pdp);

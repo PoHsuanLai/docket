@@ -5,6 +5,7 @@ use crate::grants::FileGrants;
 use crate::infer::{InferdModel, InferdWriter, ReaderClient};
 use crate::sheet::SheetConfirmer;
 use action_review::InferReviewer;
+use docket_checkpoint_git::{GitStore, StdGitRun};
 use docket_core::Millis;
 use docket_memory::QueuedSink;
 use docket_memory::{AlmanacMemory, AlmanacSessionLog};
@@ -99,6 +100,8 @@ pub struct SystemSeams<P: porter_client::Transport, M: almanac_client::Transport
     pub reader: ReaderClient,
     /// The sessions' durable log, in memoryd.
     pub log: DaemonLog<M>,
+    /// The restore points of the workspaces sessions work in, kept in their git repositories.
+    pub checkpoints: GitStore<StdGitRun>,
 }
 
 impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for SystemSeams<P, M> {
@@ -112,6 +115,7 @@ impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for System
     type Writer = InferdWriter<P>;
     type Reading = ReaderClient;
     type Log = DaemonLog<M>;
+    type Checkpoints = GitStore<StdGitRun>;
 
     fn link(&self) -> &HostedLink<M> {
         &self.link
@@ -142,5 +146,8 @@ impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for System
     }
     fn log(&self) -> &Self::Log {
         &self.log
+    }
+    fn checkpoints(&self) -> &GitStore<StdGitRun> {
+        &self.checkpoints
     }
 }

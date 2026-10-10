@@ -35,6 +35,10 @@ mod asks;
 mod assess;
 mod auth;
 mod call;
+mod checkpoint_read;
+mod checkpoint_restore;
+mod checkpoint_sheet;
+mod checkpoint_turn;
 mod classify;
 mod companion;
 mod confirm;
@@ -86,8 +90,12 @@ mod who;
 
 pub use auth::{acting_role, permits};
 pub use call::{ArgsRefused, CallEffect, CallEvent, CallState, call_step};
+pub use checkpoint_restore::{CHECKPOINTS_APP, CHECKPOINTS_RESTORE};
+pub use checkpoint_sheet::restore_sheet;
 pub use classify::{at_ceiling, classify_step, delegation_end};
 pub use companion::COMPANION_APP;
+// The store of a build that cannot keep history, for the seams of a portable host.
+pub use docket_checkpoint::NoStore;
 pub use gate::{GateInputs, Pending, gate};
 pub use handles::{HandleEntry, HandleTable, HandleValue, ViewInputs, context_view, planner_view};
 pub use index::{IndexAction, IndexEvent, index_step};

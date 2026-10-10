@@ -120,6 +120,9 @@ impl<S: Seams> Router<S> {
                 parent_window,
                 activation,
             } => {
+                if let Err(why) = self.checkpoint_reach(caller, role, &call).await {
+                    return IntentsReply::Refused(why);
+                }
                 let now = self.seams.clock().now();
                 let who = self.locked().who_for(caller, role, session.as_ref(), now);
                 // Only the launcher's token means anything: it is the person's own click.
@@ -135,6 +138,9 @@ impl<S: Seams> Router<S> {
                 }
             }
             R::DryRun { call, session } => {
+                if let Err(why) = self.checkpoint_reach(caller, role, &call).await {
+                    return IntentsReply::Refused(why);
+                }
                 let now = self.seams.clock().now();
                 let who = self.locked().who_for(caller, role, session.as_ref(), now);
                 match who {
@@ -164,6 +170,8 @@ impl<S: Seams> Router<S> {
             R::SessionTurn { session, turn } => {
                 match self.record_turn(caller, role, &session, turn) {
                     Ok(recorded) => {
+                        // The restore point is saved before the agent is told of the turn.
+                        self.checkpoint_step(&session, recorded.id).await;
                         self.derive_policy(&session).await;
                         IntentsReply::TurnRecorded(recorded.id)
                     }
@@ -205,9 +213,9 @@ impl<S: Seams> Router<S> {
                 self.revoke_standing(&id);
                 IntentsReply::Done
             }
-            // The restore points are not served yet; refused, never guessed.
-            R::CheckpointList { .. } | R::CheckpointPlan { .. } => {
-                IntentsReply::Refused(WireRefusal::Malformed)
+            R::CheckpointList { session } => self.checkpoint_list(caller, role, &session).await,
+            R::CheckpointPlan { session, id } => {
+                self.checkpoint_plan(caller, role, &session, id).await
             }
             // A request this router does not know is refused, never run.
             _ => IntentsReply::Refused(WireRefusal::Malformed),

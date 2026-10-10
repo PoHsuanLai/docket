@@ -9,6 +9,7 @@ use crate::scripted::{
 };
 use crate::simple::{MemoryGrants, RecordingSink};
 use action_review::Reviewer;
+use docket_checkpoint::MemoryStore;
 use docket_client::IntentProvider;
 use docket_core::PolicyWriter;
 use docket_core::{
@@ -347,6 +348,8 @@ pub struct FakeSeams<
     /// The sessions' durable log. Shared by default, so a test can drop the router and restore
     /// from it.
     pub log: L,
+    /// The restore points of every workspace, held in memory.
+    pub checkpoints: MemoryStore,
 }
 
 impl<
@@ -367,6 +370,7 @@ impl<
     type Writer = W;
     type Reading = ScriptedReader;
     type Log = L;
+    type Checkpoints = MemoryStore;
 
     fn link(&self) -> &FakeLink {
         &self.link
@@ -397,5 +401,8 @@ impl<
     }
     fn log(&self) -> &L {
         &self.log
+    }
+    fn checkpoints(&self) -> &MemoryStore {
+        &self.checkpoints
     }
 }

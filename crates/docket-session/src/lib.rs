@@ -40,7 +40,7 @@ pub use backend::{
     BackendEvent, BackendFault, CallEvent, Choice, Choices, HostFault, Resumed, SessionBackend,
     SessionHost, SheetChoice, StartSession, TurnEnd, UsageNote,
 };
-pub use checkpoints::checkpoint_rows;
+pub use checkpoints::{checkpoint_rows, note_rows};
 pub use codec::{
     CURRENT, EncodeFault, Encoded, EntryVersion, Logged, Read, Unreadable, decode, encode, kind_tag,
 };

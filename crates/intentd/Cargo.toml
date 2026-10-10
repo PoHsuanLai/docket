@@ -24,6 +24,7 @@ path = "src/main.rs"
 test-proc-root = []
 
 [dependencies]
+docket-checkpoint-git = { workspace = true }
 porter-dbus = { workspace = true }
 porter-daemon = { workspace = true }
 docket-core = { workspace = true, features = ["atomic-file"] }

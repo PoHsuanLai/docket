@@ -10,8 +10,8 @@ use crate::tasks::TaskTable;
 use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
-    CallFacts, CallerRole, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState, KillSwitch,
-    Ledger, SessionSaw, StepLine, Strictness, TaskPolicy, UserTurn,
+    CallFacts, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState,
+    KillSwitch, Ledger, SessionSaw, StepLine, Strictness, TaskPolicy, UserTurn,
 };
 use porter_core::{AppName, Count};
 use prov::{
@@ -68,6 +68,9 @@ pub struct SessionRecord {
     /// Permission requests the person said yes to, each good for one matching call; cleared when
     /// the person speaks again.
     pub approvals: Vec<CallFacts>,
+    /// What the session's log says about its restore points (taken, skipped, restored), oldest
+    /// first: where the next point's number and the list come from.
+    pub checkpoints: Vec<CheckpointNote>,
 }
 
 impl SessionRecord {
@@ -103,6 +106,7 @@ impl SessionRecord {
             external: None,
             cwd: None,
             approvals: Vec::new(),
+            checkpoints: Vec::new(),
         }
     }
 }
@@ -141,6 +145,8 @@ pub struct RouterState {
     pub skills: Vec<docket_skills::Skill>,
     /// The writer of each recorded session's log.
     pub(crate) lanes: BTreeMap<SessionId, Lane>,
+    /// The sessions whose workspace is being saved or restored right now.
+    pub(crate) stepping: BTreeSet<SessionId>,
 }
 
 impl RouterState {
@@ -166,6 +172,7 @@ impl RouterState {
             minted: Count(0),
             skills: Vec::new(),
             lanes: BTreeMap::new(),
+            stepping: BTreeSet::new(),
         }
     }
 
