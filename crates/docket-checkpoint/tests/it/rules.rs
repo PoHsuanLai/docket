@@ -29,7 +29,8 @@ fn retention_drops_what_is_beyond_the_last_n_or_older_than_the_days() {
         .map(|id| (id, if id == 5 { 20 } else { 1 }))
         .collect();
     // (name, held, last, days, dropped)
-    let rows: [(&str, Vec<(u32, i64)>, u32, u32, Vec<u32>); 9] = [
+    type Held = Vec<(u32, i64)>;
+    let rows: [(&str, Held, u32, u32, Vec<u32>); 9] = [
         ("the 21st point drops the first", fresh_21, 20, 14, vec![1]),
         (
             "a 15 day old point drops",

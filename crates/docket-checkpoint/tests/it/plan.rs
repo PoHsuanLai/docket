@@ -7,7 +7,16 @@ use docket_checkpoint::plan_restore;
 fn files_are_split_into_changed_added_and_removed() {
     // (name, now, then, changed, added, removed)
     type Files<'a> = &'a [(&'a str, &'a str)];
-    let rows: [(&str, Files, Files, &[&str], &[&str], &[&str]); 5] = [
+    type Paths<'a> = &'a [&'a str];
+    type Row<'a> = (
+        &'a str,
+        Files<'a>,
+        Files<'a>,
+        Paths<'a>,
+        Paths<'a>,
+        Paths<'a>,
+    );
+    let rows: [Row; 5] = [
         ("nothing moved", &[("a", "1")], &[("a", "1")], &[], &[], &[]),
         (
             "content differs",
@@ -66,7 +75,8 @@ fn the_digest_is_stable_under_order_and_differs_on_any_change() {
     let now = &[("a", "1"), ("b", "2"), ("c", "3")][..];
     let then = &[("a", "9"), ("d", "4")][..];
     // Each variant changes one thing a person would care about.
-    let variants: [(&str, &[(&str, &str)], &[(&str, &str)]); 6] = [
+    type Files<'a> = &'a [(&'a str, &'a str)];
+    let variants: [(&str, Files, Files); 6] = [
         (
             "another file is changed",
             &[("a", "1"), ("b", "2"), ("c", "3"), ("e", "5")],
