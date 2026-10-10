@@ -2,7 +2,8 @@
 
 use super::{Gateway, json, parsed};
 use docket_core::{
-    Handle, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, TurnId, WidenAsk, WireRefusal,
+    Displayed, Handle, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, TurnId, WidenAsk,
+    WireRefusal,
 };
 use docket_dbus::{Details, IntentsError};
 use prov::SessionId;
@@ -89,6 +90,19 @@ impl SessionBus {
             handle: Handle(handle),
         };
         self.0.ask(&header, request, text).await
+    }
+
+    async fn display_labelled(
+        &self,
+        session: String,
+        handle: u64,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<String, IntentsError> {
+        let request = IntentsRequest::SessionDisplayLabelled {
+            session: session_of(&session)?,
+            handle: Handle(handle),
+        };
+        self.0.answer(&header, request, displayed).await
     }
 
     async fn read(
@@ -227,6 +241,13 @@ impl SessionBus {
 fn resolved(reply: IntentsReply) -> Option<Resolved> {
     match reply {
         IntentsReply::Resolved(resolved) => Some(resolved),
+        _ => None,
+    }
+}
+
+fn displayed(reply: IntentsReply) -> Option<Displayed> {
+    match reply {
+        IntentsReply::Displayed(shown) => Some(shown),
         _ => None,
     }
 }

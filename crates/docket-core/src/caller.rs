@@ -121,6 +121,8 @@ pub enum Member {
     SessionResolve,
     /// `.Session.Display`.
     SessionDisplay,
+    /// `.Session.DisplayLabelled`.
+    SessionDisplayLabelled,
     /// `.Session.Read`.
     SessionRead,
     /// `.Session.TaskPolicy`.
@@ -183,6 +185,7 @@ impl Member {
         Member::SessionClose,
         Member::SessionResolve,
         Member::SessionDisplay,
+        Member::SessionDisplayLabelled,
         Member::SessionRead,
         Member::SessionTaskPolicy,
         Member::SessionWiden,
@@ -228,6 +231,7 @@ impl crate::wire::IntentsRequest {
             R::SessionClose { .. } => Member::SessionClose,
             R::SessionResolve { .. } => Member::SessionResolve,
             R::SessionDisplay { .. } => Member::SessionDisplay,
+            R::SessionDisplayLabelled { .. } => Member::SessionDisplayLabelled,
             R::SessionRead { .. } => Member::SessionRead,
             R::SessionTaskPolicy { .. } => Member::SessionTaskPolicy,
             R::SessionWiden { .. } => Member::SessionWiden,

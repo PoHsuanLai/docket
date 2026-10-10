@@ -33,7 +33,7 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::SessionTurn => &[Launcher, Field, Editor, Cli, AcpAgent],
         Member::SessionResolve => &[Reader],
         // Text for the screen, never for a model.
-        Member::SessionDisplay => &[Launcher, Field],
+        Member::SessionDisplay | Member::SessionDisplayLabelled => &[Launcher, Field],
         Member::SessionRead
         | Member::SessionNote
         | Member::SessionRecall

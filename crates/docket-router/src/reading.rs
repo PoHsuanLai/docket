@@ -8,8 +8,8 @@ use crate::router::Router;
 use crate::seams::{AppLink, LinkFault, Seams};
 use crate::session::SessionState;
 use docket_core::{
-    CallRefusal, ContextScope, ContextSnapshot, Handle, IntentsReply, ReadAsk, ReadFault, Reader,
-    Resolved, Reveal, Selection, Value, WireRefusal, conforms,
+    CallRefusal, ContextScope, ContextSnapshot, Displayed, Handle, IntentsReply, ReadAsk,
+    ReadFault, Reader, Resolved, Reveal, Selection, Value, WireRefusal, conforms,
 };
 use porter_core::AppName;
 use prov::{Integrity, Label, Labelled, Quarantined, SessionId, Source};
@@ -87,15 +87,34 @@ impl<S: Seams> Router<S> {
     /// `.Session.Display`: a handle's text for the screen, never for a model. A closed session
     /// shows nothing: the handles of an answer live until the answer is dismissed.
     pub(crate) fn session_display(&self, id: &SessionId, handle: Handle) -> IntentsReply {
+        match self.displayed(id, handle) {
+            Ok(shown) => IntentsReply::Text(shown.text),
+            Err(why) => refuse(why),
+        }
+    }
+
+    /// `.Session.DisplayLabelled`: the same text, with the label the session holds for it, so
+    /// the screen keeps the trust mark of what it shows. The same rules as `Session.Display`.
+    pub(crate) fn session_display_labelled(&self, id: &SessionId, handle: Handle) -> IntentsReply {
+        match self.displayed(id, handle) {
+            Ok(shown) => IntentsReply::Displayed(shown),
+            Err(why) => refuse(why),
+        }
+    }
+
+    fn displayed(&self, id: &SessionId, handle: Handle) -> Result<Displayed, WireRefusal> {
         let st = self.locked();
         match st.sessions.get(id) {
-            None => refuse(WireRefusal::NoSuchSession),
+            None => Err(WireRefusal::NoSuchSession),
             Some(record) if matches!(record.state, SessionState::Closed(_)) => {
-                refuse(WireRefusal::NoSuchSession)
+                Err(WireRefusal::NoSuchSession)
             }
-            Some(record) => match record.handles.display(handle) {
-                Some(text) => IntentsReply::Text(text.to_owned()),
-                None => refuse(WireRefusal::Malformed),
+            Some(record) => match (record.handles.display(handle), record.handles.label(handle)) {
+                (Some(text), Some(label)) => Ok(Displayed {
+                    text: text.to_owned(),
+                    label: label.clone(),
+                }),
+                _ => Err(WireRefusal::Malformed),
             },
         }
     }

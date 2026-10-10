@@ -57,6 +57,7 @@ fn every_intents_member_is_declared() {
         "<method name=\"Close\">",
         "<method name=\"Resolve\">",
         "<method name=\"Display\">",
+        "<method name=\"DisplayLabelled\">",
         "<method name=\"Read\">",
         "<method name=\"TaskPolicy\">",
         "<method name=\"Widen\">",

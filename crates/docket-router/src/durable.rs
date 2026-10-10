@@ -156,6 +156,7 @@ fn carries_text(reply: &IntentsReply) -> bool {
         | IntentsReply::Recalled(_)
         | IntentsReply::Inbox(_)
         | IntentsReply::Text(_)
+        | IntentsReply::Displayed(_)
         | IntentsReply::Handles(_) => true,
         _ => false,
     }

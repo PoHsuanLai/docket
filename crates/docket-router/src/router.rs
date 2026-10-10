@@ -173,6 +173,9 @@ impl<S: Seams> Router<S> {
             R::SessionClose { session } => self.session_close(caller, role, &session),
             R::SessionResolve { session, handle } => self.session_resolve(&session, handle).await,
             R::SessionDisplay { session, handle } => self.session_display(&session, handle),
+            R::SessionDisplayLabelled { session, handle } => {
+                self.session_display_labelled(&session, handle)
+            }
             R::SessionRead { session, ask } => self.session_read(&session, ask).await,
             R::SessionTaskPolicy { session } => match self.locked().sessions.get(&session) {
                 Some(record) => IntentsReply::TaskPolicy(record.policy.clone().map(Box::new)),

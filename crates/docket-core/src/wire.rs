@@ -323,6 +323,14 @@ pub enum IntentsRequest {
         /// The handle.
         handle: Handle,
     },
+    /// `.Session.DisplayLabelled` (the same roles as `SessionDisplay`): the text for the screen
+    /// with the label the session holds for it, so the screen can show how far to trust it.
+    SessionDisplayLabelled {
+        /// The session.
+        session: SessionId,
+        /// The handle.
+        handle: Handle,
+    },
     /// `.Session.Read`.
     SessionRead {
         /// The session.
@@ -443,6 +451,16 @@ pub struct Resolved {
     pub label: prov::Label,
 }
 
+/// A handle's content as the screen receives it: the text, and the label the router holds for it
+/// so the screen can mark content that is not the person's own. Never for a model.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Displayed {
+    /// The text.
+    pub text: String,
+    /// Its label in the session's table.
+    pub label: prov::Label,
+}
+
 /// What `.Session.Stored` is asked.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
@@ -524,6 +542,8 @@ pub enum IntentsReply {
     Text(String),
     /// A handle's text and its label, for the quarantined reader (`Session.Resolve`).
     Resolved(Resolved),
+    /// A handle's text and its label, for the screen (`Session.DisplayLabelled`).
+    Displayed(Displayed),
     /// What the reader answered: a plain closed-set value, or a handle.
     Read(Reveal<Value>),
     /// The task policy, if there is one.

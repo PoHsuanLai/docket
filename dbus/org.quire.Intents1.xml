@@ -93,6 +93,11 @@
      <arg name="handle" type="t" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="DisplayLabelled">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="handle" type="t" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
    <method name="Read">
      <arg name="session" type="s" direction="in"/>
      <arg name="ask" type="s" direction="in"/>

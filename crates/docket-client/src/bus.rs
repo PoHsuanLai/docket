@@ -326,6 +326,13 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
                 Err(error) => refused(error),
             }
         }
+        Q::SessionDisplayLabelled { session, handle } => {
+            let proxy = SessionProxy::new(c).await.map_err(bus)?;
+            body(
+                proxy.display_labelled(session.as_str(), handle.0).await,
+                IntentsReply::Displayed,
+            )
+        }
         Q::SessionRead { session, ask } => {
             let proxy = SessionProxy::new(c).await.map_err(bus)?;
             let answer = proxy

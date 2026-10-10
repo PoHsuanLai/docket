@@ -3,11 +3,11 @@
 
 use crate::transport::{Transport, TransportError};
 use docket_core::{
-    ActionRef, ActivationToken, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, EntityRef,
-    GateAnswer, GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk, IntentsReply,
-    IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Outcome, Preview, Resolved, SearchAsk,
-    SessionOpen, SessionOpened, SuggestAsk, TurnId, TurnIn, UndoEntry, UndoId, UndoReport,
-    UndoScope, ValidManifest, WidenAnswer, WidenAsk, WindowKey, WireRefusal,
+    ActionRef, ActivationToken, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, Displayed,
+    EntityRef, GateAnswer, GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk,
+    IntentsReply, IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Outcome, Preview,
+    Resolved, SearchAsk, SessionOpen, SessionOpened, SuggestAsk, TurnId, TurnIn, UndoEntry, UndoId,
+    UndoReport, UndoScope, ValidManifest, WidenAnswer, WidenAsk, WindowKey, WireRefusal,
 };
 use prov::{AppName, EntityId, SessionId, SpaceScope};
 
@@ -339,6 +339,23 @@ impl<T: Transport> Intents<T> {
             IntentsRequest::SessionDisplay { session, handle },
             |r| match r {
                 IntentsReply::Text(text) => Some(text),
+                _ => None,
+            },
+        )
+        .await
+    }
+
+    /// The text behind a handle with its label, for the screen: the label says whether the
+    /// content is the person's own or came from outside, so the screen can mark it.
+    pub async fn session_display_labelled(
+        &self,
+        session: SessionId,
+        handle: Handle,
+    ) -> Result<Displayed, ClientError> {
+        self.ask(
+            IntentsRequest::SessionDisplayLabelled { session, handle },
+            |r| match r {
+                IntentsReply::Displayed(shown) => Some(shown),
                 _ => None,
             },
         )

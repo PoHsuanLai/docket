@@ -177,8 +177,8 @@ pub use units::{CharCount, Depth, Generation, Millis, Scale, Seconds};
 pub use validate::{ManifestError, ValidManifest, fits, open_name, validate};
 pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
 pub use wire::{
-    Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, NoteAsk,
-    NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved, SessionNote,
-    StoredAsk, StoredRow, StoredView, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
+    Displayed, Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter,
+    NoteAsk, NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved,
+    SessionNote, StoredAsk, StoredRow, StoredView, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
 };
 pub use workspace::{Workspace, WorkspaceError};

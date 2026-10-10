@@ -380,6 +380,43 @@ async fn only_the_reader_may_resolve_a_handle_and_the_screen_may_display_it() {
 }
 
 #[tokio::test]
+async fn the_screen_gets_each_shown_handle_with_its_own_label_and_a_planner_gets_nothing() {
+    let router = router();
+    let s = ready(&router).await;
+    let outside = hold(&router, &s.session, "from outside", mail_label("work"));
+    let own = hold(&router, &s.session, "my words", prov::Label::trusted_user());
+    let labelled = |handle| IntentsRequest::SessionDisplayLabelled {
+        session: s.session.clone(),
+        handle,
+    };
+    assert_eq!(
+        ask(&router, &launcher(), labelled(outside)).await,
+        IntentsReply::Displayed(Displayed {
+            text: "from outside".into(),
+            label: mail_label("work"),
+        }),
+        "an untrusted handle keeps its label"
+    );
+    assert_eq!(
+        ask(&router, &launcher(), labelled(own)).await,
+        IntentsReply::Displayed(Displayed {
+            text: "my words".into(),
+            label: prov::Label::trusted_user(),
+        }),
+        "a trusted handle keeps its label"
+    );
+    assert_eq!(
+        ask(&router, &companion(), labelled(own)).await,
+        IntentsReply::Refused(WireRefusal::NotAllowed),
+        "a planner never gets the text, labelled or not"
+    );
+    assert_eq!(
+        ask(&router, &launcher(), labelled(Handle(999))).await,
+        IntentsReply::Refused(WireRefusal::Malformed)
+    );
+}
+
+#[tokio::test]
 async fn the_reader_answers_a_closed_set_plainly_and_any_text_as_a_handle() {
     let mut router = router();
     let s = ready(&router).await;

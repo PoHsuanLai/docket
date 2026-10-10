@@ -256,6 +256,11 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         handle: Handle(1),
     })
     .await;
+    pair.both(IntentsRequest::SessionDisplayLabelled {
+        session: session.clone(),
+        handle: Handle(1),
+    })
+    .await;
     pair.both(IntentsRequest::SessionRead {
         session: session.clone(),
         ask: ReadAsk {

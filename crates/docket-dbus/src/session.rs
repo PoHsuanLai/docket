@@ -26,6 +26,10 @@ pub trait Session {
     /// The text behind a handle, for the screen: never for a model.
     fn display(&self, session: &str, handle: u64) -> zbus::Result<String>;
 
+    /// The text behind a handle with its label, for the screen: never for a model (`Displayed`
+    /// JSON). Same roles as `Display`; the label lets the screen keep the trust mark.
+    fn display_labelled(&self, session: &str, handle: u64) -> zbus::Result<String>;
+
     /// The planner asks the reader (`ReaderAsk` JSON; answers `Reveal<Value>` JSON).
     fn read(&self, session: &str, ask: &str, options: &Details) -> zbus::Result<String>;
 
@@ -78,6 +82,11 @@ impl SessionSkeleton {
     }
 
     fn display(&self, session: String, handle: u64) -> fdo::Result<String> {
+        let _ = (session, handle);
+        Err(crate::introspect::frozen())
+    }
+
+    fn display_labelled(&self, session: String, handle: u64) -> fdo::Result<String> {
         let _ = (session, handle);
         Err(crate::introspect::frozen())
     }

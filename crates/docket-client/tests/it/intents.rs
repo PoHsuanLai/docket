@@ -154,6 +154,30 @@ async fn text_for_the_screen_comes_back_as_text() {
 }
 
 #[tokio::test]
+async fn text_for_the_screen_can_come_back_with_its_label() {
+    let shown = Displayed {
+        text: "hello".into(),
+        label: prov::Label::trusted_user(),
+    };
+    let intents = Intents::over(Scripted::answering(vec![
+        Ok(IntentsReply::Displayed(shown.clone())),
+        Ok(IntentsReply::Text("hello".into())),
+    ]));
+    let session = SessionId::parse("s-1").expect("s");
+    assert_eq!(
+        intents
+            .session_display_labelled(session.clone(), Handle(1))
+            .await,
+        Ok(shown)
+    );
+    assert_eq!(
+        intents.session_display_labelled(session, Handle(1)).await,
+        Err(ClientError::Unexpected),
+        "plain text is not a labelled reply"
+    );
+}
+
+#[tokio::test]
 async fn a_transport_that_cannot_watch_gives_the_verdict_alone_and_proceed_does_nothing() {
     use docket_client::GateEvent;
     let intents = Intents::over(Scripted::answering(vec![
