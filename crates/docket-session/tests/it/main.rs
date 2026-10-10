@@ -1,5 +1,6 @@
 mod backend;
 mod codec;
+#[cfg(feature = "testing")]
 mod contract;
 mod fork_export;
 mod legacy;
