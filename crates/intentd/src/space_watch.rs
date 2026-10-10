@@ -5,7 +5,7 @@
 //! subscription is made, so a restart drops what the removal left behind.
 
 use crate::grants::FileGrants;
-use docket_core::{AuditRecord, Ended, KnownSpaces};
+use docket_core::{AuditRecord, Ended, GrantFileError, KnownSpaces};
 use docket_dbus::BusConnection;
 use docket_router::{Clock, EventSink, MemoryLink, Router, Seams};
 use futures_util::StreamExt;

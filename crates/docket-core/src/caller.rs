@@ -167,7 +167,7 @@ pub enum Member {
 
 impl Member {
     /// Every member, in the order the interface table lists them.
-    pub const ALL: [Member; 37] = [
+    pub const ALL: [Member; 38] = [
         Member::Manifests,
         Member::IndexPush,
         Member::IndexReset,
