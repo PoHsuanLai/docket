@@ -215,10 +215,13 @@ async fn a_default_build_ignores_the_proc_root_variable_and_says_so() {
     let fixture = tempfile::tempdir().expect("fixture");
     let said = said_about_the_proc_root(fixture.path()).await;
     assert!(
-        said.contains("INTENTD_PROC_ROOT is set but this build has no test-proc-root feature"),
+        said.contains(&format!(
+            "intentd: INTENTD_PROC_ROOT={} ignored: not a test-proc-root build",
+            fixture.path().display()
+        )),
         "{said}"
     );
-    assert!(!said.contains("TEST BUILD"), "{said}");
+    assert!(!said.contains("test proc root"), "{said}");
 }
 
 #[cfg(feature = "test-proc-root")]
@@ -229,8 +232,18 @@ async fn a_test_build_honours_the_proc_root_variable_and_names_the_root() {
     let root = fixture.path().display().to_string();
     assert!(
         said.contains(&format!(
-            "TEST BUILD: reading callers from the proc root {root}"
+            "intentd: test proc root {root}: callers are read from it, not /proc"
         )),
         "{said}"
     );
+}
+
+#[test]
+fn the_proc_gate_follows_the_test_proc_root_feature() {
+    let expected = if cfg!(feature = "test-proc-root") {
+        intentd::ProcGate::Honour
+    } else {
+        intentd::ProcGate::Ignore
+    };
+    assert_eq!(intentd::PROC_GATE, expected);
 }

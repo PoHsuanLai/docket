@@ -35,7 +35,7 @@ pub use docket_tasks::{
     stored_events,
 };
 pub use serve::{serve, serve_on, serve_on_rooted};
-pub use speaker::{Call, PROC_ROOT_VAR, Speaker, permits, proc_root_from};
+pub use speaker::{Call, PROC_GATE, PROC_ROOT_VAR, Speaker, permits};
 
 /// The shared view as the bus reads it.
 pub type Shared = docket_tasks::Shared<Bell>;

@@ -359,7 +359,14 @@ where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
 {
-    let proc_root = speaker::proc_root_from(std::env::var(speaker::PROC_ROOT_VAR).ok().as_deref());
+    let choice =
+        porter_daemon::ProcRoot::choose(speaker::PROC_GATE, speaker::PROC_ROOT_VAR, |name| {
+            std::env::var_os(name)
+        });
+    if let Some(line) = choice.notice("companiond", speaker::PROC_ROOT_VAR) {
+        eprintln!("{line}");
+    }
+    let proc_root = choice.path().to_path_buf();
     serve_on_rooted(connection, companion, proc_root).await
 }
 

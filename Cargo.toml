@@ -92,15 +92,16 @@ voice-loop     = { path = "crates/voice-loop" }
 # porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout
 # overrides it through a [patch], FINDINGS.md "Cross-repo dependencies"). porter has no docket dependency, so there is
 # no cycle.
-porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
-prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
+porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "6b1adee23a4bb515e63ccc1bcc89b6eee3aef802" }
+prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "6b1adee23a4bb515e63ccc1bcc89b6eee3aef802" }
 # The confined shell and agent sandbox (bubblewrap as a separate process).
 bulkhead        = { git = "https://github.com/PoHsuanLai/bulkhead", rev = "e647c4f95d6fff94e504471056a89929d096b50b" }
-porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
-porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
-porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
+porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "6b1adee23a4bb515e63ccc1bcc89b6eee3aef802" }
+porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "6b1adee23a4bb515e63ccc1bcc89b6eee3aef802" }
+porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "6b1adee23a4bb515e63ccc1bcc89b6eee3aef802" }
+porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "6b1adee23a4bb515e63ccc1bcc89b6eee3aef802" }
 # Test-only: the scripted inference session (dev-dependencies of the daemons that ask inferd).
-porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
+porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "6b1adee23a4bb515e63ccc1bcc89b6eee3aef802" }
 
 # almanac's frozen interfaces, by git at a pinned rev. docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
@@ -116,10 +117,10 @@ almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "a3a8a1
 
 # stoker's pure vocabulary, by git at a pinned rev: the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
-cua-action      = { git = "https://github.com/PoHsuanLai/stoker", rev = "916da297d564e35cee9302d2d1e6607ae45962a7" }
-model-provider  = { git = "https://github.com/PoHsuanLai/stoker", rev = "916da297d564e35cee9302d2d1e6607ae45962a7" }
-speech-vad      = { git = "https://github.com/PoHsuanLai/stoker", rev = "916da297d564e35cee9302d2d1e6607ae45962a7" }
-speech-provider = { git = "https://github.com/PoHsuanLai/stoker", rev = "916da297d564e35cee9302d2d1e6607ae45962a7" }
+cua-action      = { git = "https://github.com/PoHsuanLai/stoker", rev = "9e4ba527e368a57c40b73c59da2de0cd867e5e03" }
+model-provider  = { git = "https://github.com/PoHsuanLai/stoker", rev = "9e4ba527e368a57c40b73c59da2de0cd867e5e03" }
+speech-vad      = { git = "https://github.com/PoHsuanLai/stoker", rev = "9e4ba527e368a57c40b73c59da2de0cd867e5e03" }
+speech-provider = { git = "https://github.com/PoHsuanLai/stoker", rev = "9e4ba527e368a57c40b73c59da2de0cd867e5e03" }
 
 # quire's view-only context seams, for `docket-ds` alone (by git at a pinned rev).
 ds-intents      = { git = "https://github.com/PoHsuanLai/quire.git", rev = "e0d1ed4880c55557326261bcb8d3091ee8a66f89" }

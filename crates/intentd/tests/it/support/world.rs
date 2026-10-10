@@ -81,7 +81,7 @@ impl World {
         let bus = PrivateBus::start(dir.path());
         let daemon = bus.connect().await;
         let router = Arc::new(router);
-        let root = ProcRoot::Fixture(dir.path().join("proc"));
+        let root = ProcRoot::Fake(dir.path().join("proc"));
         serve_on_gated(&daemon, router.clone(), Arc::new(config), &root, acp)
             .await
             .expect("intentd serves");

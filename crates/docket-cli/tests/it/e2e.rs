@@ -106,7 +106,7 @@ impl Desk {
         let mut setup = Setup::from_env(&env).expect("the shipped configuration and the manifests");
         setup.audit_every = std::time::Duration::from_millis(100);
         setup.signals.every = std::time::Duration::from_millis(30);
-        setup.proc_root = ProcRoot::Fixture(dir.path().join("proc"));
+        setup.proc_root = ProcRoot::Fake(dir.path().join("proc"));
         let daemon_connection = bus.connect().await;
         let intentd = start(&daemon_connection, None, setup)
             .await

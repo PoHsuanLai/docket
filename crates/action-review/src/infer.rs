@@ -165,6 +165,11 @@ fn model_failed(error: ModelError, heard: Heard) -> ReviewError {
         ModelError::Unreachable
         | ModelError::RateLimited(_)
         | ModelError::Unauthorized
+        // The account needs payment (top up or pick another model) or the company refused the
+        // sign-in: the reviewer is out of reach either way, retrying cannot help, and nothing
+        // is allowed because of it.
+        | ModelError::PaymentRequired
+        | ModelError::SignInRefused
         | ModelError::Refused
         | ModelError::NotReady
         | ModelError::ContextOverflow => ReviewError::Unavailable,

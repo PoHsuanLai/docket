@@ -16,10 +16,10 @@
 use crate::acp_gate::AcpGate;
 use crate::config::IntentdConfig;
 use crate::peer::Peers;
-use crate::procroot::ProcRoot;
 use docket_core::{CallerRole, ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmRequest, Confirmer};
 use docket_dbus::{BusConnection, CONFIRM_BUS, ConfirmProxy};
 use porter_core::AppName;
+use porter_daemon::ProcRoot;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;

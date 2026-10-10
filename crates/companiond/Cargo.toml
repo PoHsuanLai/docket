@@ -29,6 +29,7 @@ futures-util = { workspace = true }
 prov = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }
 porter-core = { workspace = true }
+porter-daemon = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

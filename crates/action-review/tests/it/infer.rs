@@ -121,7 +121,7 @@ fn the_messages_are_the_rendered_prompt() {
 
 #[test]
 fn a_failure_is_an_error_and_never_an_allow() {
-    let rows: [(&str, Result<ChatReply, ModelError>, ReviewError); 9] = [
+    let rows: [(&str, Result<ChatReply, ModelError>, ReviewError); 11] = [
         (
             "unreachable",
             Err(ModelError::Unreachable),
@@ -140,6 +140,16 @@ fn a_failure_is_an_error_and_never_an_allow() {
         (
             "unauthorized",
             Err(ModelError::Unauthorized),
+            ReviewError::Unavailable,
+        ),
+        (
+            "needs payment",
+            Err(ModelError::PaymentRequired),
+            ReviewError::Unavailable,
+        ),
+        (
+            "sign-in refused",
+            Err(ModelError::SignInRefused),
             ReviewError::Unavailable,
         ),
         (

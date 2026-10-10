@@ -53,7 +53,7 @@ impl Fixture {
             .expect("sill");
         sill.will(Verdict::Allow);
         let config = Arc::new(IntentdConfig::shipped().expect("shipped"));
-        let proc = ProcRoot::Fixture(dir.path().join("proc"));
+        let proc = ProcRoot::Fake(dir.path().join("proc"));
         let confirmer = SheetConfirmer::trusting(intentd.clone(), config).gated(gate, &proc);
         let stranger = bus.connect().await;
         Fixture {

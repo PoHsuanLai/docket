@@ -11,7 +11,6 @@ use crate::infer::{InferdWriter, ReaderClient};
 use crate::link::DbusLink;
 use crate::logout::watch_logind;
 use crate::manifests::{Loaded, intents_dir, load_manifests};
-use crate::procroot::{PROC_ROOT_VAR, ProcRoot, TestProcRoot, proc_root_choice};
 use crate::reviewers::reviewer;
 use crate::serve::{ServeFault, closed, serve_on_gated};
 use crate::settings_watch::{SettingsWatch, WatchState, apply, apply_next};
@@ -28,6 +27,7 @@ use docket_router::{Router, Seams};
 use docket_settings::{AgentSettings, Locator, REVIEW_CEILING};
 use docket_skills::{Roots, discover};
 use policy_point::Pdp;
+use porter_daemon::{ProcGate, ProcRoot};
 use prov::SpaceId;
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -39,6 +39,17 @@ const DRAIN_EVERY: Duration = Duration::from_secs(5);
 
 /// How long the daemon waits before following accountd's Spaces again after losing it.
 const SPACES_RETRY: Duration = Duration::from_secs(10);
+
+/// The environment variable the test-only fixture `/proc` switch reads.
+pub const PROC_ROOT_VAR: &str = "INTENTD_PROC_ROOT";
+
+/// Whether this build honours [`PROC_ROOT_VAR`]: only one built with the `test-proc-root` feature.
+/// A release build ignores the variable and says so.
+pub const PROC_GATE: ProcGate = if cfg!(feature = "test-proc-root") {
+    ProcGate::Honour
+} else {
+    ProcGate::Ignore
+};
 
 /// Why the daemon did not start or stopped.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -127,9 +138,11 @@ impl Setup {
             None => IntentdConfig::shipped(),
         }
         .map_err(DaemonFault::Config)?;
-        let proc_root = proc_root_choice(env(PROC_ROOT_VAR).as_deref(), TestProcRoot::THIS_BUILD);
-        if let Some(line) = proc_root.said() {
-            eprintln!("intentd: {line}");
+        let proc_root = ProcRoot::choose(PROC_GATE, PROC_ROOT_VAR, |name| {
+            env(name).map(OsString::from)
+        });
+        if let Some(line) = proc_root.notice("intentd", PROC_ROOT_VAR) {
+            eprintln!("{line}");
         }
         let data = data_dirs(env);
         let grants = intents_dir(&data[0]).join("grants.json");

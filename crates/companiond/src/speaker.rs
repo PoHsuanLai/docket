@@ -12,8 +12,9 @@
 use docket_core::TerminalScope;
 use docket_dbus::BusConnection;
 use porter_core::{AppName, CgroupPath};
+use porter_daemon::ProcGate;
 use std::os::unix::fs::MetadataExt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use zbus::fdo::{self, DBusProxy};
 use zbus::message::Header;
 use zbus::names::BusName;
@@ -21,24 +22,14 @@ use zbus::names::BusName;
 /// The variable that moves the `/proc` the daemon reads, in a build with `test-proc-root`.
 pub const PROC_ROOT_VAR: &str = "COMPANIOND_PROC_ROOT";
 
-/// The `/proc` to read: the system's, unless a test build is told otherwise. In a normal build
-/// the variable is ignored (and said so on stderr), so an environment cannot make a production
-/// daemon believe a caller is a terminal.
-pub fn proc_root_from(var: Option<&str>) -> PathBuf {
-    match (
-        var.filter(|v| !v.is_empty()),
-        cfg!(feature = "test-proc-root"),
-    ) {
-        (Some(dir), true) => PathBuf::from(dir),
-        (Some(_), false) => {
-            eprintln!(
-                "companiond: {PROC_ROOT_VAR} is set but this build has no test-proc-root feature; ignoring it and reading /proc"
-            );
-            PathBuf::from("/proc")
-        }
-        (None, _) => PathBuf::from("/proc"),
-    }
-}
+/// Whether this build honours [`PROC_ROOT_VAR`]: only one built with the `test-proc-root`
+/// feature. In a normal build the variable is ignored (and said so on stderr), so an environment
+/// cannot make a production daemon believe a caller is a terminal.
+pub const PROC_GATE: ProcGate = if cfg!(feature = "test-proc-root") {
+    ProcGate::Honour
+} else {
+    ProcGate::Ignore
+};
 
 /// Who a caller is, as far as the person's voice goes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -205,14 +196,12 @@ mod tests {
     }
 
     #[test]
-    fn the_proc_root_is_the_system_unless_a_test_build_says_otherwise() {
-        assert_eq!(proc_root_from(None), PathBuf::from("/proc"));
-        assert_eq!(proc_root_from(Some("")), PathBuf::from("/proc"));
-        let moved = proc_root_from(Some("/x"));
-        if cfg!(feature = "test-proc-root") {
-            assert_eq!(moved, PathBuf::from("/x"));
+    fn the_proc_gate_follows_the_test_proc_root_feature() {
+        let expected = if cfg!(feature = "test-proc-root") {
+            ProcGate::Honour
         } else {
-            assert_eq!(moved, PathBuf::from("/proc"));
-        }
+            ProcGate::Ignore
+        };
+        assert_eq!(PROC_GATE, expected);
     }
 }

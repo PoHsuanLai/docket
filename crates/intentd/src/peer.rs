@@ -18,10 +18,10 @@
 
 use crate::acp_gate::AcpGate;
 use crate::config::IntentdConfig;
-use crate::procroot::ProcRoot;
 use docket_core::{CallerId, is_terminal_scope};
 use docket_dbus::BusConnection;
 use porter_core::{AppId, AppName, CgroupPath, Isolation};
+use porter_daemon::ProcRoot;
 use porter_dbus::{CallerTable, ProcCallers};
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -154,7 +154,7 @@ impl Peers {
         Self {
             connection,
             config,
-            proc_root: proc_root.path(),
+            proc_root: proc_root.path().to_path_buf(),
             acp,
         }
     }
