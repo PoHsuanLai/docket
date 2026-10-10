@@ -105,15 +105,15 @@ porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "0e98f8d
 
 # almanac's frozen interfaces, by git at a pinned rev. docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
-almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "5ac24f92022d308ea3a1746a7cf3ecfde70665a1" }
+almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "a1afc1ac016f7053d4cae30b621276eee0c026fd" }
 # Without its default desktop switch (`quire-desktop`, which pulls the bus): the portable crates name
 # no feature, the daemons name `dbus`.
-almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "5ac24f92022d308ea3a1746a7cf3ecfde70665a1", default-features = false }
+almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "a1afc1ac016f7053d4cae30b621276eee0c026fd", default-features = false }
 # Test-only: a MemoryService over in-memory seams, the backend of the in-process memory tests.
-almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "5ac24f92022d308ea3a1746a7cf3ecfde70665a1" }
-almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "5ac24f92022d308ea3a1746a7cf3ecfde70665a1" }
+almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "a1afc1ac016f7053d4cae30b621276eee0c026fd" }
+almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "a1afc1ac016f7053d4cae30b621276eee0c026fd" }
 # Test-only: the fake memoryd of intentd's audit tests serves the real wire (dev-dependency).
-almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "5ac24f92022d308ea3a1746a7cf3ecfde70665a1" }
+almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "a1afc1ac016f7053d4cae30b621276eee0c026fd" }
 
 # stoker's pure vocabulary, by git at a pinned rev: the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
