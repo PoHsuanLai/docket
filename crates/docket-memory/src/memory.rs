@@ -29,6 +29,8 @@ impl<T: Transport> MemoryLink for AlmanacMemory<T> {
             Err(ClientError::Refused(refusal)) => Ok(MemoryReply::Refused(refusal)),
             Err(ClientError::Transport(_)) => Err(LinkFault::Unavailable),
             Err(ClientError::Unexpected) => Err(LinkFault::Malformed),
+            // A failure this link does not know yet: the link cannot be trusted to have worked.
+            Err(_) => Err(LinkFault::Unavailable),
         }
     }
 
