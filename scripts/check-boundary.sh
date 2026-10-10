@@ -50,6 +50,9 @@ RULES=(
   "docket-session: $EFFECTS toml"
   # Restore points: the rules and the store seam, pure; the git store is another crate (a process).
   "docket-checkpoint: $EFFECTS toml"
+  # The git store runs git as a process through tokio: no bus, HTTP, desktop stack, database,
+  # Cedar, MCP SDK or toml.
+  "docket-checkpoint-git: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy toml"
   # The ACP server edge: the lib is portable (the runtime is only the `server` feature's binary);
   # no bus, HTTP, Cedar or MCP SDK. The protocol's types come from agent-client-protocol-schema.
   # The client edge reaches the router only through docket-client (its `InProcess` transport is a
@@ -169,6 +172,7 @@ EDGES=(
   "docket-kit: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-tasks porter-client porter-core prov"
   "docket-session: companion-wire docket-core porter-core prov"
   "docket-checkpoint: docket-core porter-core prov"
+  "docket-checkpoint-git: docket-checkpoint docket-core porter-core prov"
   "docket-acp: actions-tools bulkhead companion-wire docket-client docket-core docket-session docket-settings porter-core prov"
   "docket-agents: docket-core"
   "docket-launch: bulkhead docket-acp docket-agents docket-core docket-session docket-settings porter-client porter-core porter-dbus prov"
