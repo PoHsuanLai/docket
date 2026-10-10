@@ -1,11 +1,10 @@
 //! The person's standing consent for actions, in a file under the user's data directory.
 
 use crate::defaults::{default_grants_file, read_defaults};
-use crate::grant_file::{GrantFileFault, read_list, read_with, write_list};
 use docket_core::{
-    ActionGrant, Ended, KnownSpaces, Reconciled, Revocation, SpaceAccess, StandingGrant,
-    StandingGrantId, decode_grants, decode_standing, encode_standing, held_with, held_without,
-    reconcile, without_space,
+    ActionGrant, Ended, GrantFileError, KnownSpaces, Reconciled, Revocation, SpaceAccess,
+    StandingGrant, StandingGrantId, decode_grants, decode_standing, encode_standing, held_with,
+    held_without, read_grant_file, read_grant_list, reconcile, without_space, write_grant_list,
 };
 use docket_router::GrantStore;
 use prov::SpaceId;
@@ -46,12 +45,12 @@ impl FileGrants {
     /// What the file holds: nothing when it is missing. A file that cannot be read or is not a
     /// list of grants is a fault, never an empty list. An entry for a Space porter does not read
     /// is not in the answer (it is dropped, and counted in `ended`).
-    fn read(&self) -> Result<Reconciled, GrantFileFault> {
-        read_with(&self.path, Reconciled::default(), decode_grants)
+    fn read(&self) -> Result<Reconciled, GrantFileError> {
+        read_grant_file(&self.path, Reconciled::default(), decode_grants)
     }
 
     /// The grants that stay: those no other app's Space is under.
-    fn kept(&self) -> Result<Vec<ActionGrant>, GrantFileFault> {
+    fn kept(&self) -> Result<Vec<ActionGrant>, GrantFileError> {
         self.read().map(|read| reconcile(read.kept, None).kept)
     }
 
@@ -60,7 +59,7 @@ impl FileGrants {
     fn settle(
         &self,
         settle: impl FnOnce(Vec<ActionGrant>) -> Reconciled,
-    ) -> Result<Vec<Ended>, GrantFileFault> {
+    ) -> Result<Vec<Ended>, GrantFileError> {
         let _one_at_a_time = WRITING
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -76,12 +75,12 @@ impl FileGrants {
     /// Drops every grant over a desktop-wide Space `known` does not hold (and any over another
     /// app's own Space), and those the file holds for a Space porter does not read. Run at
     /// start: a Space removed while the daemon was away ends its grants here.
-    pub fn reconcile_with(&self, known: &KnownSpaces) -> Result<Vec<Ended>, GrantFileFault> {
+    pub fn reconcile_with(&self, known: &KnownSpaces) -> Result<Vec<Ended>, GrantFileError> {
         self.settle(|grants| reconcile(grants, Some(known)))
     }
 
     /// Drops every grant scoped to exactly `gone`: the Space was removed.
-    pub fn end_space(&self, gone: &SpaceId) -> Result<Vec<Ended>, GrantFileFault> {
+    pub fn end_space(&self, gone: &SpaceId) -> Result<Vec<Ended>, GrantFileError> {
         self.settle(|grants| without_space(grants, gone))
     }
 
@@ -89,22 +88,22 @@ impl FileGrants {
         self.path.with_file_name("standing.json")
     }
 
-    fn read_standing(&self) -> Result<Vec<StandingGrant>, GrantFileFault> {
-        read_list(&self.standing_path(), decode_standing)
+    fn read_standing(&self) -> Result<Vec<StandingGrant>, GrantFileError> {
+        read_grant_list(&self.standing_path(), decode_standing)
     }
 
-    fn write_standing(&self, grants: &[StandingGrant]) -> Result<(), GrantFileFault> {
-        write_list(&self.standing_path(), encode_standing(grants))
+    fn write_standing(&self, grants: &[StandingGrant]) -> Result<(), GrantFileError> {
+        write_grant_list(&self.standing_path(), encode_standing(grants))
     }
 
-    fn write(&self, grants: &[ActionGrant]) -> Result<(), GrantFileFault> {
-        write_list(&self.path, serde_json::to_string_pretty(grants))
+    fn write(&self, grants: &[ActionGrant]) -> Result<(), GrantFileError> {
+        write_grant_list(&self.path, serde_json::to_string_pretty(grants))
     }
 }
 
 /// What a store does with a fault: the person is asked again (no grants held), and the line says
 /// why. The damaged file is left alone for the person to look at.
-fn logged<T>(done: Result<T, GrantFileFault>) -> Option<T> {
+fn logged<T>(done: Result<T, GrantFileError>) -> Option<T> {
     done.map_err(|why| eprintln!("intentd: {why}")).ok()
 }
 

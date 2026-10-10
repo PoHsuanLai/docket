@@ -9,112 +9,37 @@
 //! ([`FileGrantStore::take_fault`]); the grant still counts for this run.
 
 use docket_core::{
-    ActionGrant, Revocation, StandingGrant, StandingGrantId, decode_standing, encode_standing,
-    held_with, held_without, read_optional, write_atomic,
+    ActionGrant, GrantFileError, Revocation, StandingGrant, StandingGrantId, decode_standing,
+    encode_standing, held_with, held_without, read_grant_list, write_grant_list,
 };
 use docket_router::GrantStore;
-use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-/// Why the grant file could not be read or written.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum GrantFileError {
-    /// The file exists and could not be read.
-    #[error("cannot read {path}: {kind}")]
-    Read {
-        /// The file.
-        path: PathBuf,
-        /// What the system said.
-        kind: ErrorKind,
-    },
-    /// The file is not a list of grants. The app decides: start over ([`FileGrantStore::fresh`])
-    /// or ask the person.
-    #[error("{path} is not a list of grants: {why}")]
-    Corrupt {
-        /// The file.
-        path: PathBuf,
-        /// What the parser said.
-        why: String,
-    },
-    /// The grants could not be turned into text, so the file is left as it was.
-    #[error("grants for {path} could not be encoded: {why}")]
-    Encode {
-        /// The file.
-        path: PathBuf,
-        /// What the encoder said.
-        why: String,
-    },
-    /// The file (or its temporary) could not be written.
-    #[error("cannot write {path}: {kind}")]
-    Write {
-        /// The file.
-        path: PathBuf,
-        /// What the system said.
-        kind: ErrorKind,
-    },
-}
-
-/// The grants a file's text holds: an empty text is no grants.
-pub fn decode(text: &str) -> Result<Vec<ActionGrant>, String> {
-    match text.trim() {
-        "" => Ok(Vec::new()),
-        json => serde_json::from_str(json).map_err(|why| why.to_string()),
-    }
+/// The grants a file's text holds.
+fn decode(text: &str) -> Result<Vec<ActionGrant>, serde_json::Error> {
+    serde_json::from_str(text)
 }
 
 /// The text of a list of grants. An error is never turned into an empty list: that would
 /// overwrite every grant held.
-pub fn encode(grants: &[ActionGrant]) -> Result<String, String> {
-    serde_json::to_string_pretty(grants).map_err(|why| why.to_string())
+fn encode(grants: &[ActionGrant]) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(grants)
 }
 
 /// `grants` with `grant` recorded: a grant for the same key replaces the earlier one.
-pub fn recorded(mut grants: Vec<ActionGrant>, grant: ActionGrant) -> Vec<ActionGrant> {
+fn recorded(mut grants: Vec<ActionGrant>, grant: ActionGrant) -> Vec<ActionGrant> {
     grants.retain(|held| held.key != grant.key);
     grants.push(grant);
     grants
 }
 
-/// The grants the text holds, or why the file is not a list of them.
-fn read_list<T, E: std::fmt::Display>(
-    path: &Path,
-    decode: impl FnOnce(&str) -> Result<Vec<T>, E>,
-) -> Result<Vec<T>, GrantFileError> {
-    match read_optional(path) {
-        Ok(Some(text)) => decode(&text).map_err(|why| GrantFileError::Corrupt {
-            path: path.to_owned(),
-            why: why.to_string(),
-        }),
-        Ok(None) => Ok(Vec::new()),
-        Err(why) => Err(GrantFileError::Read {
-            path: path.to_owned(),
-            kind: why.kind(),
-        }),
-    }
-}
-
-/// Replaces the file with `text`; a text that could not be encoded writes nothing.
-fn write_text<E: std::fmt::Display>(
-    path: &Path,
-    text: Result<String, E>,
-) -> Result<(), GrantFileError> {
-    let text = text.map_err(|why| GrantFileError::Encode {
-        path: path.to_owned(),
-        why: why.to_string(),
-    })?;
-    write_atomic(path, text.as_bytes()).map_err(|why| GrantFileError::Write {
-        path: path.to_owned(),
-        kind: why.kind(),
-    })
-}
-
 fn read_file(path: &Path) -> Result<Vec<ActionGrant>, GrantFileError> {
-    read_list(path, decode)
+    read_grant_list(path, decode)
 }
 
 fn write_file(path: &Path, grants: &[ActionGrant]) -> Result<(), GrantFileError> {
-    write_text(path, encode(grants))
+    write_grant_list(path, encode(grants))
 }
 
 #[derive(Debug, Default)]
@@ -259,11 +184,11 @@ fn standing_path(path: &Path) -> PathBuf {
 }
 
 fn read_standing(path: &Path) -> Result<Vec<StandingGrant>, GrantFileError> {
-    read_list(path, decode_standing)
+    read_grant_list(path, decode_standing)
 }
 
 fn write_standing(path: &Path, grants: &[StandingGrant]) -> Result<(), GrantFileError> {
-    write_text(path, encode_standing(grants))
+    write_grant_list(path, encode_standing(grants))
 }
 
 impl FileGrantStore {

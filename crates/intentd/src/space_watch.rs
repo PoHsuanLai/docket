@@ -4,7 +4,6 @@
 //! bus was) is found by comparing the grant file with the registry's list each time the
 //! subscription is made, so a restart drops what the removal left behind.
 
-use crate::grant_file::GrantFileFault;
 use crate::grants::FileGrants;
 use docket_core::{AuditRecord, Ended, KnownSpaces};
 use docket_dbus::BusConnection;
@@ -52,7 +51,7 @@ impl<S: Seams<Grants = FileGrants>> SpaceKeeper<S> {
         }
     }
 
-    fn said(&self, settled: Result<Vec<Ended>, GrantFileFault>) {
+    fn said(&self, settled: Result<Vec<Ended>, GrantFileError>) {
         match settled {
             Ok(ended) => {
                 let at = self.router.seams.clock().now();

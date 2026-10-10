@@ -1,8 +1,10 @@
-//! The consent file: grants survive a restart, one decision per key, a damaged file is a typed
+//! The consent file, past the rules every store shares (`docket_fake::check_grant_file_contract`):
+//! a damaged file is a typed
 //! error the app decides about, a failed write is kept for the app to ask for, and the file is
 //! the one intentd's `FileGrants` reads. Every file is in a scratch directory the test makes.
 
 use docket_core::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
+use docket_fake::check_grant_file_contract;
 use docket_inapp::{FileGrantStore, GrantFileError};
 use docket_router::GrantStore;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
@@ -24,42 +26,6 @@ fn grant(id: &str, action: &str, scope: GrantScope) -> ActionGrant {
         scope,
         at: UnixSeconds(1),
     }
-}
-
-#[test]
-fn grants_survive_a_restart_and_one_decision_per_key() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let path = dir.path().join("app/grants.json");
-    let store = FileGrantStore::open(&path).expect("no file is a fresh store");
-    assert!(store.grants().is_empty());
-    store.record(grant("g-1", "mail.thread.archive", GrantScope::Once));
-    store.record(grant("g-2", "mail.draft.create", GrantScope::Always));
-    let reopened = FileGrantStore::open(&path).expect("reopen");
-    assert_eq!(reopened.grants().len(), 2);
-    reopened.record(grant("g-3", "mail.thread.archive", GrantScope::Always));
-    let all = reopened.grants();
-    assert_eq!(all.len(), 2, "the same key is one grant: {all:?}");
-    assert!(all.iter().any(|g| g.id.as_str() == "g-3"));
-    assert_eq!(store.take_fault(), None);
-    let names: Vec<_> = std::fs::read_dir(path.parent().expect("dir"))
-        .expect("dir")
-        .map(|e| e.expect("entry").file_name())
-        .collect();
-    assert_eq!(names, ["grants.json"], "the temporary file is renamed away");
-}
-
-#[test]
-fn two_stores_on_one_file_see_each_others_grants() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let path = dir.path().join("grants.json");
-    let (a, b) = (
-        FileGrantStore::open(&path).expect("a"),
-        FileGrantStore::open(&path).expect("b"),
-    );
-    a.record(grant("g-1", "mail.thread.archive", GrantScope::Always));
-    b.record(grant("g-2", "mail.draft.create", GrantScope::Always));
-    assert_eq!(a.grants().len(), 2, "b's grant did not overwrite a's");
-    assert_eq!(b.grants().len(), 2);
 }
 
 #[test]
@@ -159,55 +125,6 @@ fn read_grant() -> docket_core::StandingGrant {
 }
 
 #[test]
-fn standing_grants_survive_a_restart_and_a_revocation_is_seen_by_the_next_reader() {
-    use docket_core::Revocation;
-    let dir = tempfile::tempdir().expect("scratch");
-    let path = dir.path().join("app/grants.json");
-    let store = FileGrantStore::open(path.clone()).expect("open");
-    assert!(store.standing().is_empty());
-    let (a, b) = (standing_grant("/w/a"), standing_grant("/w/b"));
-    store.add_standing(a.clone());
-    store.add_standing(b.clone());
-    store.add_standing(a.clone());
-    let read = read_grant();
-    store.add_standing(read.clone());
-    let reopened = FileGrantStore::open(path.clone()).expect("open");
-    assert_eq!(
-        reopened.standing(),
-        vec![b.clone(), a.clone(), read.clone()],
-        "a read grant survives a restart like the other standing grants"
-    );
-    assert_eq!(reopened.revoke_standing(&a.id), Revocation::Revoked);
-    assert_eq!(reopened.revoke_standing(&a.id), Revocation::NotHeld);
-    assert_eq!(
-        FileGrantStore::open(path.clone()).expect("open").standing(),
-        vec![b.clone(), read.clone()],
-        "a third process reads the revocation"
-    );
-    assert!(
-        store.grants().is_empty(),
-        "class grants are a separate list"
-    );
-    std::fs::write(path.with_file_name("grants.json.standing"), "{").expect("damage");
-    let reader = FileGrantStore::open(path).expect("open");
-    assert!(
-        reader.standing().is_empty(),
-        "a damaged file holds none: the person is asked again"
-    );
-    // ... and is not written over: a new grant keeps the fault instead.
-    reader.add_standing(standing_grant("/w/c"));
-    assert!(matches!(
-        reader.take_fault(),
-        Some(GrantFileError::Corrupt { .. })
-    ));
-    assert_eq!(
-        std::fs::read_to_string(reader.path().with_file_name("grants.json.standing"))
-            .expect("read"),
-        "{"
-    );
-}
-
-#[test]
 fn a_store_opened_over_a_damaged_file_never_overwrites_it_but_fresh_does() {
     let dir = tempfile::tempdir().expect("scratch");
     let path = dir.path().join("grants.json");
@@ -238,4 +155,36 @@ fn a_failed_write_keeps_the_old_file() {
         Some(GrantFileError::Write { .. })
     ));
     assert_eq!(std::fs::read_to_string(&path).expect("read"), before);
+}
+
+#[test]
+fn the_consent_file_follows_the_shared_store_rules() {
+    let dir = tempfile::tempdir().expect("scratch");
+    check_grant_file_contract(
+        dir.path(),
+        |path| FileGrantStore::open(path).expect("open"),
+        "grants.json.standing",
+    );
+}
+
+#[test]
+fn a_read_grant_survives_a_restart_and_a_damaged_standing_file_keeps_its_fault() {
+    let dir = tempfile::tempdir().expect("scratch");
+    let path = dir.path().join("app/grants.json");
+    let store = FileGrantStore::open(path.clone()).expect("open");
+    let (a, read) = (standing_grant("/w/a"), read_grant());
+    store.add_standing(a.clone());
+    store.add_standing(read.clone());
+    assert_eq!(
+        FileGrantStore::open(path.clone()).expect("open").standing(),
+        vec![a, read],
+        "a read grant survives a restart like the other standing grants"
+    );
+    std::fs::write(path.with_file_name("grants.json.standing"), "{").expect("damage");
+    let reader = FileGrantStore::open(path).expect("open");
+    reader.add_standing(standing_grant("/w/c"));
+    assert!(matches!(
+        reader.take_fault(),
+        Some(GrantFileError::Corrupt { .. })
+    ));
 }

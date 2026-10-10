@@ -7,6 +7,7 @@
 
 mod clock;
 mod files;
+mod grant_contract;
 mod hosted;
 mod labels;
 mod mail;
@@ -21,6 +22,7 @@ mod words;
 
 pub use clock::FixedClock;
 pub use files::FakeFiles;
+pub use grant_contract::{check_grant_file_contract, contract_grant, contract_standing};
 pub use hosted::{BoxFut, HostedApp};
 pub use mail::{FakeMail, MailContact, MailThread, SentMail};
 pub use menu::{FakeMenu, MenuItem, MenuPerform};

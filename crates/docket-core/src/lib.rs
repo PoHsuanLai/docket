@@ -28,6 +28,8 @@ mod execute;
 mod external;
 mod gate;
 mod grant;
+#[cfg(feature = "atomic-file")]
+mod grant_file;
 mod grant_space;
 mod ids;
 mod index;
@@ -105,6 +107,8 @@ pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass,
 pub use grant::{
     ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, ProgramName, ProgramNameError,
 };
+#[cfg(feature = "atomic-file")]
+pub use grant_file::{GrantFileError, read_grant_file, read_grant_list, write_grant_list};
 pub use grant_space::{
     Ended, GrantEnd, GrantListFault, KnownSpaces, Reconciled, decode_grants, reconcile,
     without_space,

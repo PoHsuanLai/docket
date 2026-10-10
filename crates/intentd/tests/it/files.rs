@@ -2,6 +2,7 @@
 //! and the environment that says where they are.
 
 use docket_core::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
+use docket_fake::check_grant_file_contract;
 use docket_router::GrantStore;
 use intentd::{FileGrants, Setup, load_manifests};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
@@ -24,110 +25,6 @@ fn grant(id: &str, action: &str, scope: GrantScope) -> ActionGrant {
         scope,
         at: UnixSeconds(1),
     }
-}
-
-#[test]
-fn grants_survive_a_restart_and_a_second_decision_for_the_same_key_replaces_the_first() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let path = dir.path().join("quire/intents/grants.json");
-    let store = FileGrants::at(path.clone());
-    assert!(store.grants().is_empty(), "no file is no grants");
-    store.record(grant("g-1", "mail.thread.archive", GrantScope::Once));
-    store.record(grant("g-2", "mail.draft.create", GrantScope::Always));
-    let reopened = FileGrants::at(path.clone());
-    assert_eq!(reopened.grants().len(), 2);
-    reopened.record(grant("g-3", "mail.thread.archive", GrantScope::Always));
-    let all = reopened.grants();
-    assert_eq!(all.len(), 2, "the same key is one grant: {all:?}");
-    assert!(
-        all.iter()
-            .any(|g| g.id.as_str() == "g-3" && g.scope == GrantScope::Always)
-    );
-    assert!(
-        !path.with_extension("json.tmp").exists(),
-        "the temporary file is renamed away"
-    );
-}
-
-#[test]
-fn a_damaged_file_is_no_grants_and_is_never_written_over() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let path = dir.path().join("grants.json");
-    for text in ["{", "{\"not\": \"a list\"}", "[{\"id\": 3}]"] {
-        std::fs::write(&path, text).expect("write");
-        let store = FileGrants::at(path.clone());
-        assert!(store.grants().is_empty(), "{text:?}");
-        // A new decision does not replace the file: it may hold every grant the person gave.
-        store.record(grant("g-1", "mail.thread.archive", GrantScope::Always));
-        assert_eq!(std::fs::read_to_string(&path).expect("read"), text);
-        assert!(store.grants().is_empty(), "{text:?}");
-    }
-    // A blank file is no grants, and a decision is kept.
-    std::fs::write(&path, "  \n").expect("write");
-    let store = FileGrants::at(path);
-    store.record(grant("g-1", "mail.thread.archive", GrantScope::Always));
-    assert_eq!(store.grants().len(), 1);
-}
-
-fn standing(prefix: &str) -> docket_core::StandingGrant {
-    docket_core::StandingGrant::new(
-        GrantCaller::Companion,
-        docket_core::StandingScope::Files {
-            action: docket_core::ActionRef {
-                app: AppName::parse("org.quire.Files").expect("app"),
-                name: ActionName::parse("files.file.move").expect("action"),
-            },
-            under: docket_core::AbsPath::parse(prefix).expect("path"),
-        },
-        UnixSeconds(1),
-    )
-}
-
-#[test]
-fn a_damaged_standing_file_holds_none_and_is_never_written_over() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let path = dir.path().join("grants.json");
-    let damaged = dir.path().join("standing.json");
-    let store = FileGrants::at(path);
-    for text in ["{", "[1]"] {
-        std::fs::write(&damaged, text).expect("damage");
-        assert!(store.standing().is_empty(), "{text:?}");
-        let held = standing("/w/a");
-        store.add_standing(held.clone());
-        assert_eq!(std::fs::read_to_string(&damaged).expect("read"), text);
-        assert_eq!(
-            store.revoke_standing(&held.id),
-            docket_core::Revocation::NotHeld
-        );
-        assert_eq!(std::fs::read_to_string(&damaged).expect("read"), text);
-    }
-}
-
-#[test]
-fn an_unreadable_standing_file_is_not_an_empty_one() {
-    let dir = tempfile::tempdir().expect("scratch");
-    // A directory where the file belongs: it exists and cannot be read as text.
-    std::fs::create_dir(dir.path().join("standing.json")).expect("blocker");
-    let store = FileGrants::at(dir.path().join("grants.json"));
-    store.add_standing(standing("/w/a"));
-    assert!(dir.path().join("standing.json").is_dir(), "left alone");
-    assert!(store.standing().is_empty());
-}
-
-#[test]
-fn standing_grants_survive_a_restart_and_leave_no_temporary() {
-    let dir = tempfile::tempdir().expect("scratch");
-    let path = dir.path().join("quire/grants.json");
-    let (a, b) = (standing("/w/a"), standing("/w/b"));
-    FileGrants::at(path.clone()).add_standing(a.clone());
-    FileGrants::at(path.clone()).add_standing(b.clone());
-    assert_eq!(FileGrants::at(path.clone()).standing(), vec![a.clone(), b]);
-    assert_eq!(
-        FileGrants::at(path.clone()).revoke_standing(&a.id),
-        docket_core::Revocation::Revoked
-    );
-    assert_eq!(FileGrants::at(path.clone()).standing().len(), 1);
-    assert!(!dir.path().join("quire/standing.json.tmp").exists());
 }
 
 fn write(dir: &Path, name: &str, text: &str) {
@@ -364,47 +261,12 @@ fn a_damaged_defaults_file_grants_nothing() {
     }
 }
 
-fn standing_grant(prefix: &str) -> docket_core::StandingGrant {
-    docket_core::StandingGrant::new(
-        GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
-        docket_core::StandingScope::Files {
-            action: docket_core::ActionRef {
-                app: AppName::parse("org.quire.Files").expect("app"),
-                name: ActionName::parse("files.file.move").expect("action"),
-            },
-            under: docket_core::AbsPath::parse(prefix).expect("path"),
-        },
-        UnixSeconds(1),
-    )
-}
-
 #[test]
-fn standing_grants_survive_a_restart_and_a_revocation_is_seen_by_the_next_reader() {
-    use docket_core::Revocation;
+fn the_consent_file_follows_the_shared_store_rules() {
     let dir = tempfile::tempdir().expect("scratch");
-    let path = dir.path().join("quire/intents/grants.json");
-    let store = FileGrants::at(path.clone());
-    assert!(store.standing().is_empty());
-    let (a, b) = (standing_grant("/w/a"), standing_grant("/w/b"));
-    store.add_standing(a.clone());
-    store.add_standing(b.clone());
-    store.add_standing(a.clone());
-    let reopened = FileGrants::at(path.clone());
-    assert_eq!(reopened.standing(), vec![b.clone(), a.clone()]);
-    assert_eq!(reopened.revoke_standing(&a.id), Revocation::Revoked);
-    assert_eq!(reopened.revoke_standing(&a.id), Revocation::NotHeld);
-    assert_eq!(
-        FileGrants::at(path.clone()).standing(),
-        vec![b.clone()],
-        "a third process reads the revocation"
-    );
-    assert!(
-        store.grants().is_empty(),
-        "class grants are a separate list"
-    );
-    std::fs::write(path.with_file_name("standing.json"), "{").expect("damage");
-    assert!(
-        FileGrants::at(path).standing().is_empty(),
-        "a damaged file holds none: the person is asked again"
+    check_grant_file_contract(
+        dir.path(),
+        |path| FileGrants::at(path.to_owned()),
+        "standing.json",
     );
 }

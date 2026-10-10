@@ -43,10 +43,11 @@ pub use agent::{AgentFault, Ending, Failure, HostClock, InAppAgent, InAppParts, 
 pub use audit_file::{AuditFile, AuditFileError};
 pub use clock::SystemClock;
 pub use desk::EditorDesk;
+pub use docket_core::GrantFileError;
 pub use docket_memory::{AlmanacMemory, AuditState, Flushed, QueuedSink, Report};
 pub use docket_models::{TransportModel, TransportWriter, placeholder_set, reviewer_over};
 pub use docket_reader::TransportReader;
-pub use grants::{FileGrantStore, GrantFileError};
+pub use grants::FileGrantStore;
 pub use kit::{AuditTo, InAppKit};
 pub use link::ProviderLink;
 pub use record::RecordedTurn;
