@@ -1,6 +1,6 @@
 [roles]
 launcher = ["org.quire.Sill"]
-cli = ["org.quire.Do"]
+cli = ["org.quire.Do", "org.quire.Temor"]
 companion = ["org.quire.Companion1"]
 reader = ["org.quire.Reader1"]
 cua = ["org.quire.Cua1"]

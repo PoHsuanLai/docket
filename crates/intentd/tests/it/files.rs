@@ -122,6 +122,11 @@ fn the_shipped_configuration_gives_a_terminal_the_cli_role_and_sill_the_rest() {
     use docket_core::CallerRole as R;
     assert_eq!(roles("org.quire.Do"), [R::Cli]);
     assert_eq!(
+        roles("org.quire.Temor"),
+        [R::Cli],
+        "a terminal in an app scope"
+    );
+    assert_eq!(
         roles("org.quire.Shell"),
         [R::Launcher, R::Confirm, R::Control]
     );

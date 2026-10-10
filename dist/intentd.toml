@@ -10,7 +10,8 @@
 # would be reviewed asks instead.
 [roles]
 launcher = ["org.quire.Shell"]
-cli = ["org.quire.Do"]
+# temor is a terminal that runs in an app scope: it plays `cli` itself (and watches the agents in its panes).
+cli = ["org.quire.Do", "org.quire.Temor"]
 companion = ["org.quire.Companion1", "org.quire.Acp"]
 # docket-acp (an editor drives the companion over ACP; off unless agent.acp.expose = "on") opens
 # sessions and records the editor's turns as an editor, and its planner calls as the companion.
