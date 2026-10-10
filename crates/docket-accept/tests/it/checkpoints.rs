@@ -7,9 +7,10 @@
 use crate::support::*;
 use docket_accept::drive::{Launcher, keep_nothing};
 use docket_accept::world::{Consent, World};
+use docket_client::{DbusTransport, Intents};
 use docket_core::{
-    ActionRef, CallRequest, CheckpointId, CheckpointRow, Origin, Preview, SavedState, SessionOpen,
-    TargetValue, TurnEnd, TurnIn, TurnState, TurnVia, Value, WorkPath, Workspace,
+    ActionRef, CallRequest, CheckpointId, CheckpointRow, Origin, Preview, Rewind, SavedState,
+    SessionOpen, TargetValue, TurnEnd, TurnIn, TurnState, TurnVia, Value, WorkPath, Workspace,
 };
 use porter_core::AppName;
 use prov::{ActionName, AgentRef, Label, Labelled, SpaceId};
@@ -222,4 +223,77 @@ async fn a_turn_saves_a_point_and_the_person_restores_it_after_the_plan_and_the_
         list.rows,
         world.logs()
     );
+
+    // A pane the terminal watches: an agent docket does not host. The terminal (Temor, one of
+    // the shipped `cli` names) opens a watch session, marks the agent's turn, says it ended, and
+    // the person restores from the list, the plan and the sheet as for any session.
+    let pane = world.dir.path().join("pane");
+    std::fs::create_dir_all(&pane).expect("pane folder");
+    git_init(&pane, world.dir.path());
+    std::fs::write(pane.join("code.txt"), "before").expect("write");
+    let terminal = world.connect().await;
+    terminal
+        .request_name("org.quire.Temor")
+        .await
+        .expect("the terminal's name");
+    let temor = Intents::over(DbusTransport::new(terminal));
+    let watched = temor
+        .checkpoint_watch(
+            Workspace::parse(&pane.to_string_lossy()).expect("workspace"),
+            "claude in pane 2".into(),
+            Rewind::Docket,
+        )
+        .await
+        .expect("Checkpoint.Watch");
+    let marked = temor
+        .checkpoint_mark(watched.clone())
+        .await
+        .expect("Checkpoint.Mark");
+    let list = launcher
+        .intents
+        .checkpoint_list(watched.clone())
+        .await
+        .expect("Checkpoint.List");
+    assert!(
+        matches!(
+            list.rows.as_slice(),
+            [CheckpointRow::Saved {
+                id: CheckpointId(1),
+                state: SavedState::Available,
+                ..
+            }]
+        ),
+        "{:#?}\n{}",
+        list.rows,
+        world.logs()
+    );
+    assert_eq!(list.turn, TurnState::Running);
+
+    std::fs::write(pane.join("code.txt"), "after").expect("write");
+    temor
+        .session_turn_ended(watched.clone(), marked, TurnEnd::Answered)
+        .await
+        .expect("Session.TurnEnded");
+    let plan = launcher
+        .intents
+        .checkpoint_plan(watched.clone(), CheckpointId(1))
+        .await
+        .expect("Checkpoint.Plan")
+        .expect("a plan");
+    assert_eq!(plan.changed, [file("code.txt")]);
+    let call = restore_call(&watched, 1, &plan.digest.0);
+    launcher
+        .intents
+        .perform(call, None, None)
+        .await
+        .expect("Run.Perform")
+        .expect("restored");
+    assert_eq!(
+        std::fs::read_to_string(pane.join("code.txt")).expect("read"),
+        "before"
+    );
+    temor
+        .session_close(watched)
+        .await
+        .expect("Session.Close by the terminal that opened it");
 }
