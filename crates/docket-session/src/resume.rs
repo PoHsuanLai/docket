@@ -7,7 +7,8 @@
 //! 2. A `Call` with no `Step` is interrupted and never re-run.
 //! 3. The policy is the last `Policy` entry as stored; nothing derives it again.
 //! 4. Handles come back as labels.
-//! 5. `Closed` stays closed; a breaker trip holds until a `Turn`; a gap or an entry that cannot
+//! 5. `Checkpoint` and entries of a kind this build does not know are ignored.
+//! 6. `Closed` stays closed; a breaker trip holds until a `Turn`; a gap or an entry that cannot
 //!    be read blocks new turns and taints.
 
 use crate::codec::{Logged, Read};
@@ -110,6 +111,9 @@ impl Fold {
             SessionEntry::Closed(cause) => {
                 self.closed.get_or_insert(cause);
             }
+            // Restore points do not touch the tail of a resumed session; a kind a newer build
+            // wrote is kept in the log and read as nothing here.
+            SessionEntry::Checkpoint(_) | SessionEntry::Unknown(_) => {}
         }
     }
 

@@ -3,7 +3,7 @@
 //! first, so a body from a future docket is `Unreadable::UnknownVersion`, never a guess. A body
 //! with no version is a record companiond wrote before this crate (`legacy`).
 
-use crate::entry::{Seq, SessionEntry};
+use crate::entry::{Seq, SessionEntry, UnknownEntry};
 use crate::legacy::read_legacy;
 use companion_wire::{SESSION_KIND_PREFIX, SessionRecord};
 use serde::{Deserialize, Serialize};
@@ -46,6 +46,9 @@ pub struct EncodeFault;
 
 /// An entry at position `seq` in the stored form.
 pub fn encode(seq: Seq, entry: &SessionEntry) -> Result<Encoded, EncodeFault> {
+    if matches!(entry, SessionEntry::Unknown(_)) {
+        return Err(EncodeFault);
+    }
     let envelope = Envelope {
         version: CURRENT,
         seq,
@@ -68,7 +71,8 @@ pub enum Unreadable {
     UnknownVersion(EntryVersion),
     /// A version that is not a number.
     BadVersion,
-    /// A version it knows, a kind it does not.
+    /// A version it knows, but a body whose kind is missing or disagrees with its tag. (A kind
+    /// it does not know that agrees with its tag reads as `SessionEntry::Unknown`.)
     UnknownKind,
     /// The kind tag and the body disagree.
     KindMismatch,
@@ -97,9 +101,19 @@ pub struct Logged {
     pub read: Read,
 }
 
-const KINDS: [&str; 11] = [
-    "opened", "turn", "policy", "call", "step", "handle", "taint", "breaker", "budget", "skill",
+const KINDS: [&str; 12] = [
+    "opened",
+    "turn",
+    "policy",
+    "call",
+    "step",
+    "handle",
+    "taint",
+    "breaker",
+    "budget",
+    "skill",
     "closed",
+    "checkpoint",
 ];
 
 /// Reads a stored body of kind `companion.session.<slug>`; `place` is the row's position in the
@@ -133,12 +147,19 @@ fn current(slug: &str, mut body: Map<String, Value>, place: Seq) -> Logged {
         seq,
         read: Read::Unreadable(why),
     };
-    let known = body
-        .get("kind")
-        .and_then(Value::as_str)
-        .is_some_and(|k| KINDS.contains(&k));
-    if !known {
+    let Some(kind) = body.get("kind").and_then(Value::as_str).map(str::to_owned) else {
         return unread(Unreadable::UnknownKind);
+    };
+    if !KINDS.contains(&kind.as_str()) {
+        // A kind a newer build wrote: keep it, so an older build still resumes the session.
+        if kind != slug {
+            return unread(Unreadable::UnknownKind);
+        }
+        let v = body.remove("v").unwrap_or(Value::Null);
+        return Logged {
+            seq,
+            read: Read::Entry(Box::new(SessionEntry::Unknown(UnknownEntry { kind, v }))),
+        };
     }
     match serde_json::from_value::<SessionEntry>(Value::Object(body)) {
         Ok(entry) if entry.slug() == slug => Logged {

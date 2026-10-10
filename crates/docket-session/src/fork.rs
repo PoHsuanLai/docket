@@ -46,8 +46,8 @@ pub fn forks_of(parent: &SessionId, all: &[SessionId]) -> usize {
 
 /// The child's log from position 0: `Opened` (naming `task` and the fork point), a `Taint` when
 /// the parent's plan is tainted (first, so write-ahead holds for every handle after it), then
-/// the parent's entries up to and including `at`, minus `Opened`, `Taint`, `Budget` and
-/// `Closed`.
+/// the parent's entries up to and including `at`, minus `Opened`, `Taint`, `Budget`,
+/// `Closed`, `Checkpoint` (the child owns none of the parent's restore points) and `Unknown`.
 pub fn fork(
     parent: &SessionId,
     rows: &[Logged],
@@ -86,6 +86,8 @@ pub fn fork(
                 | SessionEntry::Taint(_)
                 | SessionEntry::Budget(_)
                 | SessionEntry::Closed(_)
+                | SessionEntry::Checkpoint(_)
+                | SessionEntry::Unknown(_)
         )
     }));
     Ok(child)

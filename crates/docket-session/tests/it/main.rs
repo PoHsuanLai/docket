@@ -1,4 +1,5 @@
 mod backend;
+mod checkpoints;
 mod codec;
 #[cfg(feature = "testing")]
 mod contract;

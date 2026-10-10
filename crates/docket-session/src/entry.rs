@@ -7,8 +7,8 @@
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
 use docket_core::{
-    ActionRef, CallId, Handle, HandleShape, SkillId, SkillVersion, StartedFrom, StepLine,
-    TaskPolicy, UserTurn,
+    ActionRef, CallId, CheckpointNote, Handle, HandleShape, SkillId, SkillVersion, StartedFrom,
+    StepLine, TaskPolicy, UserTurn,
 };
 use docket_core::{BreakerTrip, Ledger};
 use porter_core::AppName;
@@ -182,10 +182,22 @@ pub enum EndCause {
     WallExhausted,
 }
 
+/// An entry of a kind this build does not know, as a newer build wrote it: read, kept for the
+/// export, and ignored by every fold. It is never written, and nothing treats it as a taint, a
+/// close or anything else it might have been.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnknownEntry {
+    /// The kind tag's slug, as stored.
+    pub kind: String,
+    /// The body (`v`), as stored; null when the line had none.
+    pub v: serde_json::Value,
+}
+
 /// One thing that happened to a session. The kind tag in the eventlog is
-/// `companion.session.<slug>`.
+/// `companion.session.<slug>`. New kinds are added over time: match with a wildcard.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum SessionEntry {
     /// The session opened. First, once.
     Opened(Opening),
@@ -209,6 +221,11 @@ pub enum SessionEntry {
     Skill(SkillUse),
     /// The session closed.
     Closed(EndCause),
+    /// A restore point was saved, skipped or restored (`checkpoint_rows` folds them). A resume
+    /// ignores it.
+    Checkpoint(CheckpointNote),
+    /// A kind a newer build wrote. Only the reader makes one; `encode` refuses it.
+    Unknown(UnknownEntry),
 }
 
 impl SessionEntry {
@@ -226,6 +243,8 @@ impl SessionEntry {
             SessionEntry::Budget(_) => "budget",
             SessionEntry::Skill(_) => "skill",
             SessionEntry::Closed(_) => "closed",
+            SessionEntry::Checkpoint(_) => "checkpoint",
+            SessionEntry::Unknown(_) => "unknown",
         }
     }
 }

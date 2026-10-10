@@ -6,6 +6,7 @@
 //! - `resume_plan`: entries in, a `ResumePlan` out. Taint never goes down, a call that was
 //!   in flight ends interrupted and is never run again, the policy comes back as stored, handles
 //!   come back as labels, and a gap or an unreadable entry fails closed.
+//! - `checkpoint_rows`: the log's restore-point notes folded into a list's rows.
 //! - `fork` and `export`: a child's first entries, and a stable JSON document.
 //! - `legacy`: the records companiond wrote before (`companion_wire::SessionRecord`) read as
 //!   entries.
@@ -19,6 +20,7 @@
 //! Nothing here reaches a bus, a runtime or a clock: every time and every id is passed in.
 
 mod backend;
+mod checkpoints;
 mod codec;
 #[cfg(feature = "testing")]
 pub mod contract;
@@ -38,14 +40,15 @@ pub use backend::{
     BackendEvent, BackendFault, CallEvent, Choice, Choices, HostFault, Resumed, SessionBackend,
     SessionHost, SheetChoice, StartSession, TurnEnd, UsageNote,
 };
+pub use checkpoints::checkpoint_rows;
 pub use codec::{
     CURRENT, EncodeFault, Encoded, EntryVersion, Logged, Read, Unreadable, decode, encode, kind_tag,
 };
 pub use desk::{DeskFault, NoDesk, SheetDesk};
 pub use entry::{
     BackendKind, BreakerNote, CallOpen, EndCause, ForkPoint, HandleLabel, Opening, ProgramName,
-    ProgramNameError, Seq, SessionEntry, SkillUse, Taint, TaintCause, TaintNote, Workspace,
-    WorkspaceError,
+    ProgramNameError, Seq, SessionEntry, SkillUse, Taint, TaintCause, TaintNote, UnknownEntry,
+    Workspace, WorkspaceError,
 };
 pub use export::{EXPORT_VERSION, ExportFault, SessionExport, export, from_json, to_json};
 pub use fork::{ForkFault, child_names, fork, forks_of};
