@@ -6,6 +6,7 @@ use docket_tasks::Failure;
 
 /// How an ask ended.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub enum Ended {
     /// The agent finished.
     Done,

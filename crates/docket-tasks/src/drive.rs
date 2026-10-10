@@ -33,9 +33,8 @@ const TASK_START: &str = "companion.task.start";
 pub fn refusal_of(error: ClientError) -> CallRefusal {
     match error {
         ClientError::Refused(WireRefusal::Call(refusal)) => refusal,
-        ClientError::Refused(_) | ClientError::Transport(_) | ClientError::Unexpected => {
-            CallRefusal::Timeout
-        }
+        // Any other failure, known or not yet known, is a call that got no answer.
+        _ => CallRefusal::Timeout,
     }
 }
 
@@ -47,7 +46,8 @@ fn refusal_text(fault: &PlanFault) -> Option<String> {
         PlanFault::CallInText => Some(
             "The model wrote a step as text instead of making it, so nothing was done.".to_owned(),
         ),
-        PlanFault::Unavailable | PlanFault::Unreadable => None,
+        // Nothing more to say for these, nor for a fault added later.
+        _ => None,
     }
 }
 

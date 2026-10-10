@@ -42,9 +42,8 @@ impl<'a, I: IntentsTransport> RouterLog<I, &'a Intents<I>> {
 fn fault_of(error: &ClientError) -> LogFault {
     match error {
         ClientError::Refused(WireRefusal::NotAllowed) => LogFault::Refused,
-        ClientError::Refused(_) | ClientError::Transport(_) | ClientError::Unexpected => {
-            LogFault::Unavailable
-        }
+        // Any other failure, known or not yet known, leaves the log unavailable.
+        _ => LogFault::Unavailable,
     }
 }
 

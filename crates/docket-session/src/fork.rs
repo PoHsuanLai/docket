@@ -12,6 +12,7 @@ use prov::{SessionId, TaskId};
 
 /// Why a log cannot be forked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum ForkFault {
     /// The parent has no entry at that position.
     #[error("the parent has no entry at that position")]

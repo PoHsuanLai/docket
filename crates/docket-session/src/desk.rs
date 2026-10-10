@@ -10,6 +10,7 @@ use std::future::Future;
 
 /// Why a sheet could not be answered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum DeskFault {
     /// The desk holds no open sheet by that id (answered, withdrawn, or never its own).
     #[error("no such sheet")]

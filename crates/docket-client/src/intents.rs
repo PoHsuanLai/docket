@@ -13,6 +13,7 @@ use prov::{AppName, EntityId, SessionId, SpaceScope};
 
 /// Why a request did not give the reply its caller wanted.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum ClientError {
     /// The request did not reach the router, or its reply did not come back.
     #[error("transport: {0}")]

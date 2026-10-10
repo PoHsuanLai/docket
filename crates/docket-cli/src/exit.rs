@@ -198,6 +198,8 @@ pub fn of_client(error: &ClientError) -> Failure {
         ClientError::Refused(WireRefusal::Send(_) | WireRefusal::Read(_)) => {
             Failure::new(Exit::AppFailed, "the request was refused")
         }
+        // A failure this build does not know yet: report the link as not answering properly.
+        _ => Failure::new(Exit::Unavailable, "intentd answered something unexpected"),
     }
 }
 

@@ -6,6 +6,7 @@ pub const ROLE_LIMIT: usize = 4_000;
 
 /// Why a text is not a role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum RoleFault {
     /// Nothing but whitespace.
     #[error("the role is empty")]

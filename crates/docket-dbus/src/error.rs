@@ -7,6 +7,7 @@ use docket_core::WireRefusal;
 /// The errors the router's members return.
 #[derive(Debug, zbus::DBusError)]
 #[zbus(prefix = "org.quire.Intents1.Error")]
+#[non_exhaustive]
 pub enum IntentsError {
     /// zbus's own failures.
     #[zbus(error)]

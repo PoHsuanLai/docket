@@ -45,6 +45,10 @@ fn refusal_of(error: zbus::Error) -> Result<WireRefusal, TransportError> {
         IntentsError::NoSuchSession(_) => Ok(WireRefusal::NoSuchSession),
         IntentsError::Malformed(_) => Ok(WireRefusal::Malformed),
         IntentsError::ZBus(error) => Err(fault_of(error)),
+        // An error this build does not know yet is the bus's, not a refusal of the request.
+        _ => Err(TransportError::Bus(
+            "an error the bus library does not name".to_owned(),
+        )),
     }
 }
 

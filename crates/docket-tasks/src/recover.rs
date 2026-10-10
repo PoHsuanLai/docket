@@ -39,6 +39,7 @@ const RESTART_LIMIT: u32 = 5000;
 
 /// Why the stored records could not be read.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum ReplayFault {
     /// The router or memoryd is not there.
     #[error("the record is not available")]

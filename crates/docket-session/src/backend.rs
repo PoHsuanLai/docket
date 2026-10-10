@@ -38,6 +38,7 @@ impl std::fmt::Display for Choices {
 
 /// Why a backend could not do what it was asked.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum BackendFault {
     /// Not started, or already closed.
     #[error("the backend is not running a session")]
@@ -184,6 +185,7 @@ pub trait SessionBackend: Send {
 
 /// Why the host could not do what it was asked.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum HostFault {
     /// No such session.
     #[error("no such session")]

@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 
 /// Why the file could not be read or written.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum AuditFileError {
     /// The file exists and could not be read.
     #[error("cannot read {path}: {kind}")]

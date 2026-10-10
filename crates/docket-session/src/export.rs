@@ -26,6 +26,7 @@ pub struct SessionExport {
 
 /// Why an export or an import failed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum ExportFault {
     /// A row could not be read; an export that dropped it would say less than the log.
     #[error("the entry at {0:?} cannot be read")]

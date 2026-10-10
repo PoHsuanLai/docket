@@ -6,6 +6,7 @@ use docket_planner::RoleFault;
 
 /// Why a builder did not make an agent.
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[non_exhaustive]
 pub enum BuildFault {
     /// The role text is not usable.
     #[error("role: {0}")]
@@ -17,6 +18,7 @@ pub enum BuildFault {
 
 /// Why an ask did not run at all. Once it runs, every way it can end is a [`crate::Ended`].
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
 pub enum KitFault {
     /// The router did not open the session or record the turn.
     #[error("the router: {0}")]

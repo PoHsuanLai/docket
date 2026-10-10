@@ -49,6 +49,7 @@ pub const TOOL_RELATED: &str = "quire_related";
 
 /// Why the planner gave nothing usable.
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[non_exhaustive]
 pub enum PlanFault {
     /// No model could be reached or it refused.
     #[error("no planner model")]
