@@ -42,6 +42,11 @@ fn roles(member: Member) -> &'static [CallerRole] {
         // The durable log, for the edges that list, load and fork sessions; the router lists only
         // what the caller may bring back (a terminal: what a terminal opened).
         Member::SessionStored => &[Launcher, Editor, Companion, Cli],
+        // A session's restore points and what restoring one would change: the person's own
+        // surfaces only, never an agent (Mcp, AcpAgent): it cannot read or restore its own.
+        Member::CheckpointList | Member::CheckpointPlan => {
+            &[Launcher, Field, Editor, Companion, Control, Cli]
+        }
         Member::SessionTaskPolicy | Member::SessionWiden => &[Launcher, Field, Companion],
         // The person talks to a subagent through the launcher; agents and runs report.
         Member::MessageSend => &[Launcher, Field, Companion, Cua],

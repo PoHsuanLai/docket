@@ -328,6 +328,17 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         kind: MessageKind::Note,
         parts: vec![DraftPart::Text(prov::MessageText::new("all done"))],
     };
+    // The restore points: refused until the router serves them, the same over the bus.
+    let missing_session = SessionId::parse("s-none").expect("session");
+    pair.both(IntentsRequest::CheckpointList {
+        session: missing_session.clone(),
+    })
+    .await;
+    pair.both(IntentsRequest::CheckpointPlan {
+        session: missing_session,
+        id: CheckpointId(1),
+    })
+    .await;
     pair.both(IntentsRequest::MessageSend {
         session: session.clone(),
         draft,

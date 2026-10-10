@@ -2,9 +2,10 @@
 //! equal it.
 
 use crate::{
-    CompanionAnswerSkeleton, CompanionSkeleton, ConfirmSkeleton, ContextSkeleton, ControlSkeleton,
-    GateSkeleton, IndexSkeleton, IntentProviderSkeleton, MessageSkeleton, ReaderSkeleton,
-    RegistrySkeleton, RequestSkeleton, RunSkeleton, SearchSkeleton, SessionSkeleton,
+    CheckpointSkeleton, CompanionAnswerSkeleton, CompanionSkeleton, ConfirmSkeleton,
+    ContextSkeleton, ControlSkeleton, GateSkeleton, IndexSkeleton, IntentProviderSkeleton,
+    MessageSkeleton, ReaderSkeleton, RegistrySkeleton, RequestSkeleton, RunSkeleton,
+    SearchSkeleton, SessionSkeleton,
 };
 use zbus::fdo;
 use zbus::object_server::Interface;
@@ -56,6 +57,7 @@ pub fn introspection(bus: Bus) -> String {
             &RunSkeleton,
             &ContextSkeleton,
             &SessionSkeleton,
+            &CheckpointSkeleton,
             &MessageSkeleton,
             &GateSkeleton,
             &ControlSkeleton,

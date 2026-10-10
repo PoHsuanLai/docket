@@ -5,6 +5,7 @@
 
 use crate::budget::{HaltCause, KillSwitch};
 use crate::call::{CallRefusal, CallRequest, Outcome};
+use crate::checkpoint::{CheckpointFault, CheckpointId, CheckpointList, RestorePlan};
 use crate::confirm::ConfirmEnd;
 use crate::context::EntityRef;
 use crate::context::{ContextView, Reveal};
@@ -384,6 +385,20 @@ pub enum IntentsRequest {
         /// What to read.
         ask: StoredAsk,
     },
+    /// `.Checkpoint.List`: a session's restore points, oldest first, joined with what the store
+    /// still holds. Never for an agent: it cannot read its own restore points.
+    CheckpointList {
+        /// The session.
+        session: SessionId,
+    },
+    /// `.Checkpoint.Plan`: what restoring one point would change. Read-only; the restore itself
+    /// is the destructive action `checkpoints.restore`, through the gate.
+    CheckpointPlan {
+        /// The session.
+        session: SessionId,
+        /// The point.
+        id: CheckpointId,
+    },
     /// `.Message.Send`.
     MessageSend {
         /// The session the sender speaks from.
@@ -558,6 +573,10 @@ pub enum IntentsReply {
     Handles(Vec<HandleCard>),
     /// What the durable log of sessions holds.
     Stored(StoredView),
+    /// A session's restore points.
+    Checkpoints(Box<CheckpointList>),
+    /// What restoring a point would change, or why that cannot be said.
+    CheckpointPlan(Result<RestorePlan, CheckpointFault>),
     /// A message was delivered.
     Delivered(Delivery),
     /// Messages that wait.

@@ -135,3 +135,29 @@ fn the_checkpoint_settings_rows_carry_the_defaults() {
         assert_eq!(config.value(key), Some(SettingValue::Number(want)), "{key}");
     }
 }
+
+#[test]
+fn the_checkpoint_requests_and_replies_round_trip_and_name_their_members() {
+    let session = SessionId::parse("s-1").expect("session");
+    let list = IntentsRequest::CheckpointList {
+        session: session.clone(),
+    };
+    let plan = IntentsRequest::CheckpointPlan {
+        session: session.clone(),
+        id: CheckpointId(2),
+    };
+    assert_eq!(list.member(), Member::CheckpointList);
+    assert_eq!(plan.member(), Member::CheckpointPlan);
+    round(&list);
+    round(&plan);
+    round(&IntentsReply::Checkpoints(Box::new(CheckpointList {
+        session,
+        rows: vec![],
+        keeps: Retention {
+            last: Count(20),
+            days: Days(14),
+        },
+    })));
+    round(&IntentsReply::CheckpointPlan(Ok(RestorePlan::default())));
+    round(&IntentsReply::CheckpointPlan(Err(CheckpointFault::Gone)));
+}

@@ -8,6 +8,7 @@
 mod awaiting;
 #[cfg(feature = "dbus")]
 mod bus;
+mod checkpoint_calls;
 mod intents;
 mod provider;
 #[cfg(feature = "dbus")]

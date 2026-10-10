@@ -5,6 +5,7 @@
 //! are the JSON of the typed values `docket-client`'s transport reads. No member here carries a
 //! doc comment: zbus would copy it into the introspection.
 
+mod checkpoint;
 mod control;
 mod query;
 mod request;
@@ -24,6 +25,7 @@ use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 use zbus::message::Header;
 
+pub(crate) use checkpoint::CheckpointBus;
 pub(crate) use control::ControlBus;
 pub(crate) use query::{ContextBus, IndexBus, MessageBus, RegistryBus, SearchBus};
 pub(crate) use run::{GateBus, RunBus};
@@ -243,6 +245,9 @@ pub(crate) async fn export(connection: &zbus::Connection, gateway: &Gateway) -> 
     server.at(INTENTS_PATH, RunBus(gateway.clone())).await?;
     server.at(INTENTS_PATH, ContextBus(gateway.clone())).await?;
     server.at(INTENTS_PATH, SessionBus(gateway.clone())).await?;
+    server
+        .at(INTENTS_PATH, CheckpointBus(gateway.clone()))
+        .await?;
     server.at(INTENTS_PATH, MessageBus(gateway.clone())).await?;
     server.at(INTENTS_PATH, GateBus(gateway.clone())).await?;
     server.at(INTENTS_PATH, ControlBus(gateway.clone())).await?;

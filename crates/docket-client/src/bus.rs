@@ -16,8 +16,8 @@ use docket_core::{
     RecallView, SessionOpened, StoredView, TurnId, UndoFault, UndoReport, WidenAnswer, WireRefusal,
 };
 use docket_dbus::{
-    BusConnection, ContextProxy, ControlProxy, Details, GateProxy, INTENTS_BUS, IndexProxy,
-    IntentsError, MessageProxy, RegistryProxy, RunProxy, SearchProxy, SessionProxy,
+    BusConnection, CheckpointProxy, ContextProxy, ControlProxy, Details, GateProxy, INTENTS_BUS,
+    IndexProxy, IntentsError, MessageProxy, RegistryProxy, RunProxy, SearchProxy, SessionProxy,
 };
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -391,6 +391,20 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
             body(proxy.stored(&to_json(&ask)?).await, |view: StoredView| {
                 IntentsReply::Stored(view)
             })
+        }
+        Q::CheckpointList { session } => {
+            let proxy = CheckpointProxy::new(c).await.map_err(bus)?;
+            body(
+                proxy.list(session.as_str()).await,
+                |list: docket_core::CheckpointList| IntentsReply::Checkpoints(Box::new(list)),
+            )
+        }
+        Q::CheckpointPlan { session, id } => {
+            let proxy = CheckpointProxy::new(c).await.map_err(bus)?;
+            body(
+                proxy.plan(session.as_str(), id.0).await,
+                IntentsReply::CheckpointPlan,
+            )
         }
         Q::MessageSend { session, draft } => {
             let proxy = MessageProxy::new(c).await.map_err(bus)?;

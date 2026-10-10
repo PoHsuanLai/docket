@@ -55,9 +55,31 @@ fn an_editor_opens_speaks_and_reads_the_log_but_confirms_halts_and_performs_noth
             Member::SessionOpen,
             Member::SessionTurn,
             Member::SessionClose,
-            Member::SessionStored
+            Member::SessionStored,
+            Member::CheckpointList,
+            Member::CheckpointPlan
         ]
     );
+}
+
+#[test]
+fn restore_points_are_for_the_persons_surfaces_and_never_an_agent() {
+    for member in [Member::CheckpointList, Member::CheckpointPlan] {
+        assert_eq!(
+            role_set(member),
+            [
+                CallerRole::Launcher,
+                CallerRole::Field,
+                CallerRole::Editor,
+                CallerRole::Companion,
+                CallerRole::Cli,
+                CallerRole::Control
+            ],
+            "{member:?}"
+        );
+        assert!(!permits(CallerRole::Mcp, member), "{member:?}");
+        assert!(!permits(CallerRole::AcpAgent, member), "{member:?}");
+    }
 }
 
 #[test]

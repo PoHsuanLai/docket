@@ -63,6 +63,9 @@ fn every_intents_member_is_declared() {
         "<method name=\"Widen\">",
         "<method name=\"Note\">",
         "<method name=\"Recall\">",
+        "interface name=\"org.quire.Intents1.Checkpoint\"",
+        "<method name=\"List\">",
+        "<method name=\"Plan\">",
         "interface name=\"org.quire.Intents1.Message\"",
         "<method name=\"Send\">",
         "<method name=\"Inbox\">",
@@ -90,7 +93,7 @@ fn every_intents_member_is_declared() {
     for w in want {
         assert!(xml.contains(w), "missing {w}");
     }
-    // One method per `Member` of docket-core (32), plus the Request object's Close and Proceed.
+    // One method per `Member` of docket-core, plus the Request object's Close and Proceed.
     assert_eq!(
         xml.matches("<method ").count(),
         docket_core::Member::ALL.len() + 2

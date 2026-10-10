@@ -9,6 +9,7 @@
 //! `Voice1` lives in `voiced`, which serves it.
 
 mod answer;
+mod checkpoint;
 mod companion;
 mod confirm;
 mod context;
@@ -32,6 +33,7 @@ mod session;
 pub mod tap;
 
 pub use answer::{CompanionAnswerProxy, CompanionAnswerSkeleton};
+pub use checkpoint::{CheckpointProxy, CheckpointSkeleton};
 pub use companion::{CompanionProxy, CompanionSkeleton};
 pub use confirm::{ConfirmProxy, ConfirmSkeleton};
 pub use context::{ContextProxy, ContextSkeleton};

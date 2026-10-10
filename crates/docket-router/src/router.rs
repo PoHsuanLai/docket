@@ -205,6 +205,10 @@ impl<S: Seams> Router<S> {
                 self.revoke_standing(&id);
                 IntentsReply::Done
             }
+            // The restore points are not served yet; refused, never guessed.
+            R::CheckpointList { .. } | R::CheckpointPlan { .. } => {
+                IntentsReply::Refused(WireRefusal::Malformed)
+            }
             // A request this router does not know is refused, never run.
             _ => IntentsReply::Refused(WireRefusal::Malformed),
         }
