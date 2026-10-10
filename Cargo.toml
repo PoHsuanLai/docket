@@ -92,16 +92,16 @@ voice-loop     = { path = "crates/voice-loop" }
 # porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout
 # overrides it through a [patch], FINDINGS.md "Cross-repo dependencies"). porter has no docket dependency, so there is
 # no cycle.
-porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "3356848b51bc87d9d3ed05f84a49b99714f0971e" }
-prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "3356848b51bc87d9d3ed05f84a49b99714f0971e" }
+porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "0e98f8d26952b6a18a3546f7618782c682d21b10" }
+prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "0e98f8d26952b6a18a3546f7618782c682d21b10" }
 # The confined shell and agent sandbox (bubblewrap as a separate process).
 bulkhead        = { git = "https://github.com/PoHsuanLai/bulkhead", rev = "e647c4f95d6fff94e504471056a89929d096b50b" }
-porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "3356848b51bc87d9d3ed05f84a49b99714f0971e" }
-porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "3356848b51bc87d9d3ed05f84a49b99714f0971e" }
-porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "3356848b51bc87d9d3ed05f84a49b99714f0971e" }
-porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "3356848b51bc87d9d3ed05f84a49b99714f0971e" }
+porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "0e98f8d26952b6a18a3546f7618782c682d21b10" }
+porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "0e98f8d26952b6a18a3546f7618782c682d21b10" }
+porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "0e98f8d26952b6a18a3546f7618782c682d21b10" }
+porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "0e98f8d26952b6a18a3546f7618782c682d21b10" }
 # Test-only: the scripted inference session (dev-dependencies of the daemons that ask inferd).
-porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "3356848b51bc87d9d3ed05f84a49b99714f0971e" }
+porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "0e98f8d26952b6a18a3546f7618782c682d21b10" }
 
 # almanac's frozen interfaces, by git at a pinned rev. docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
@@ -117,13 +117,13 @@ almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "5ac24f
 
 # stoker's pure vocabulary, by git at a pinned rev: the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
-cua-action      = { git = "https://github.com/PoHsuanLai/stoker", rev = "5c24634c15448e077d3c8233fef4dffbc38ba6cb" }
-model-provider  = { git = "https://github.com/PoHsuanLai/stoker", rev = "5c24634c15448e077d3c8233fef4dffbc38ba6cb" }
-speech-vad      = { git = "https://github.com/PoHsuanLai/stoker", rev = "5c24634c15448e077d3c8233fef4dffbc38ba6cb" }
-speech-provider = { git = "https://github.com/PoHsuanLai/stoker", rev = "5c24634c15448e077d3c8233fef4dffbc38ba6cb" }
+cua-action      = { git = "https://github.com/PoHsuanLai/stoker", rev = "4a0bd9ec1f01a4c9398d106a92c2e4bdc0824815" }
+model-provider  = { git = "https://github.com/PoHsuanLai/stoker", rev = "4a0bd9ec1f01a4c9398d106a92c2e4bdc0824815" }
+speech-vad      = { git = "https://github.com/PoHsuanLai/stoker", rev = "4a0bd9ec1f01a4c9398d106a92c2e4bdc0824815" }
+speech-provider = { git = "https://github.com/PoHsuanLai/stoker", rev = "4a0bd9ec1f01a4c9398d106a92c2e4bdc0824815" }
 
 # quire's view-only context seams, for `docket-ds` alone (by git at a pinned rev).
-ds-intents      = { git = "https://github.com/PoHsuanLai/quire.git", rev = "4289e369cb62066d3ce9b80058f659a8c0f98b03" }
+ds-intents      = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9de2409fe45384f095b5d18d139fbee7115c06ab" }
 
 # From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines docket
 # names itself.
