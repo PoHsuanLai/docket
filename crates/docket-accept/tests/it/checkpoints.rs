@@ -9,7 +9,7 @@ use docket_accept::drive::{Launcher, keep_nothing};
 use docket_accept::world::{Consent, World};
 use docket_core::{
     ActionRef, CallRequest, CheckpointId, CheckpointRow, Origin, Preview, SavedState, SessionOpen,
-    TargetValue, TurnIn, TurnVia, Value, WorkPath, Workspace,
+    TargetValue, TurnEnd, TurnIn, TurnState, TurnVia, Value, WorkPath, Workspace,
 };
 use porter_core::AppName;
 use prov::{ActionName, AgentRef, Label, Labelled, SpaceId};
@@ -96,7 +96,7 @@ async fn a_turn_saves_a_point_and_the_person_restores_it_after_the_plan_and_the_
         .await
         .expect("Session.Open");
     let session = opened.session;
-    launcher
+    let turn = launcher
         .intents
         .session_turn(
             session.clone(),
@@ -129,6 +129,7 @@ async fn a_turn_saves_a_point_and_the_person_restores_it_after_the_plan_and_the_
         list.rows,
         world.logs()
     );
+    assert_eq!(list.turn, TurnState::Running, "the turn has not ended");
 
     // The agent changes a file and makes another.
     std::fs::write(work.join("notes.txt"), "second").expect("write");
@@ -143,8 +144,31 @@ async fn a_turn_saves_a_point_and_the_person_restores_it_after_the_plan_and_the_
     assert_eq!(plan.removed, [file("extra.txt")]);
     assert!(plan.added.is_empty());
 
-    // The sheet says the same, in the sheet's words.
+    // A restore asked while the turn runs is refused, the sheet as well as the act.
     let call = restore_call(&session, 1, &plan.digest.0);
+    let early = launcher.intents.dry_run(call.clone(), None).await;
+    assert!(!matches!(early, Ok(Preview::Facts(_))), "{early:?}");
+    let early = launcher.intents.perform(call.clone(), None, None).await;
+    assert!(!matches!(early, Ok(Ok(_))), "{early:?}");
+    assert_eq!(
+        std::fs::read_to_string(work.join("notes.txt")).expect("read"),
+        "second"
+    );
+
+    // The host says the turn is over: the list says so, and the restore can go on.
+    launcher
+        .intents
+        .session_turn_ended(session.clone(), turn, TurnEnd::Answered)
+        .await
+        .expect("Session.TurnEnded");
+    let idle = launcher
+        .intents
+        .checkpoint_list(session.clone())
+        .await
+        .expect("Checkpoint.List");
+    assert_eq!(idle.turn, TurnState::Idle);
+
+    // The sheet says the same, in the sheet's words.
     let Preview::Facts(lines) = launcher
         .intents
         .dry_run(call.clone(), None)
