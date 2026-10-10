@@ -184,9 +184,10 @@ fn complete(reply: ChatReply) -> Result<String, ReviewError> {
     }
     match reply.stop {
         StopReason::EndTurn | StopReason::StopSequence => Ok(reply.text),
-        StopReason::MaxTokens | StopReason::ContentFilter | StopReason::ToolUse => {
-            Err(ReviewError::Unparseable)
-        }
+        // Out of room is a limit too small, not a model that refused; it fails closed all the
+        // same (the person is asked), and the audit says which it was.
+        StopReason::MaxTokens => Err(ReviewError::OutOfRoom),
+        StopReason::ContentFilter | StopReason::ToolUse => Err(ReviewError::Unparseable),
     }
 }
 

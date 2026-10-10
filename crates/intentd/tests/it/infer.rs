@@ -342,5 +342,5 @@ async fn a_reply_cut_short_is_not_a_verdict() {
         reply_stopped("pass", StopReason::MaxTokens),
     )])]);
     let verdict = reviewer(cut).review(Stage::Quick, &review_request()).await;
-    assert_eq!(verdict.map(|_| ()), Err(ReviewError::Unparseable));
+    assert_eq!(verdict.map(|_| ()), Err(ReviewError::OutOfRoom));
 }

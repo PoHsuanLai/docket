@@ -165,7 +165,7 @@ fn a_failure_is_an_error_and_never_an_allow() {
         (
             "cut by the limit",
             Ok(reply(&silent().card, "pass", StopReason::MaxTokens)),
-            ReviewError::Unparseable,
+            ReviewError::OutOfRoom,
         ),
     ];
     for (name, scripted, want) in rows {
