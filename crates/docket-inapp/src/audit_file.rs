@@ -56,19 +56,28 @@ pub enum AuditFileError {
     },
 }
 
+/// Why the records and their text did not turn into each other.
+#[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
+pub(crate) enum CodecFault {
+    /// The JSON codec said no.
+    #[error("{0}")]
+    Json(#[from] serde_json::Error),
+}
+
 /// The records a file's text holds: an empty text is none.
-pub fn decode(text: &str) -> Result<Vec<AuditRecord>, String> {
+pub(crate) fn decode(text: &str) -> Result<Vec<AuditRecord>, CodecFault> {
     match text.trim() {
         "" => Ok(Vec::new()),
-        json => serde_json::from_str(json).map_err(|why| why.to_string()),
+        json => Ok(serde_json::from_str(json)?),
     }
 }
 
 /// The text of a list of records, the newest `limit` of them.
 /// An error is never turned into an empty list: that would overwrite every record waiting.
-pub fn encode(records: &[AuditRecord], limit: usize) -> Result<String, String> {
+pub(crate) fn encode(records: &[AuditRecord], limit: usize) -> Result<String, CodecFault> {
     let skip = records.len().saturating_sub(limit);
-    serde_json::to_string(&records[skip..]).map_err(|why| why.to_string())
+    Ok(serde_json::to_string(&records[skip..])?)
 }
 
 /// The queue file at a path, and the records it held when it was opened.
@@ -126,7 +135,7 @@ fn read_file(path: &Path) -> Result<Vec<AuditRecord>, AuditFileError> {
     match std::fs::read_to_string(path) {
         Ok(text) => decode(&text).map_err(|why| AuditFileError::Corrupt {
             path: path.to_owned(),
-            why,
+            why: why.to_string(),
         }),
         Err(why) if why.kind() == ErrorKind::NotFound => Ok(Vec::new()),
         Err(why) => Err(AuditFileError::Read {
@@ -149,7 +158,7 @@ fn write_file(path: &Path, records: &[AuditRecord], limit: usize) -> Result<(), 
     }
     let text = encode(records, limit).map_err(|why| AuditFileError::Encode {
         path: path.to_owned(),
-        why,
+        why: why.to_string(),
     })?;
     write_atomic(path, text.as_bytes()).map_err(failed)
 }

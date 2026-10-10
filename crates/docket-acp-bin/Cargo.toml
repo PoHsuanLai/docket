@@ -10,7 +10,6 @@ publish.workspace = true
 
 [lib]
 name = "docket_acp_bin"
-path = "src/live.rs"
 
 [[bin]]
 name = "docket-acp"

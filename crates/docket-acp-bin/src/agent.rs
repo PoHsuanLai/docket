@@ -17,6 +17,7 @@
 //! 1 for anything else.
 
 pub mod args;
+pub mod fault;
 pub mod host;
 pub mod provider;
 pub mod remember;
@@ -33,6 +34,7 @@ use docket_launch::login::VisibleLogin;
 use docket_launch::{AgentsFile, AgentsPermit, ChildProc, Registry, Supervisor, ToolsMode};
 use docket_session::{BackendEvent, SessionHost};
 use docket_settings::{AgentSettings, Locator};
+use fault::AgentFault;
 use host::{Hosted, Wiring, host};
 use prov::UnixSeconds;
 use std::path::PathBuf;
@@ -80,20 +82,23 @@ fn sibling(name: &str) -> Option<AbsPath> {
 }
 
 /// Runs the host until the person quits.
-pub async fn run(args: Args) -> Result<(), String> {
+pub async fn run(args: Args) -> Result<(), AgentFault> {
     let loaded = Locator::from_env(&env).read(AgentSettings::default());
-    let permit = AgentsPermit::from_setting(loaded.value.agents).map_err(|e| e.to_string())?;
+    let permit = AgentsPermit::from_setting(loaded.value.agents)
+        .map_err(|e| AgentFault::Permit(e.to_string()))?;
     let text = std::fs::read_to_string(config_dir().join("docket/agents.toml"))
-        .map_err(|_| "no agents.toml under the configuration directory".to_owned())?;
+        .map_err(|_| AgentFault::NoAgentsFile)?;
     let agents = agents_dir();
-    let file = Arc::new(AgentsFile::parse_in(&text, Some(&agents)).map_err(|e| e.to_string())?);
+    let file = Arc::new(
+        AgentsFile::parse_in(&text, Some(&agents))
+            .map_err(|e| AgentFault::Agents(e.to_string()))?,
+    );
     let path = env("PATH").unwrap_or_default();
     let Detected::Bwrap(bwrap) = Detected::probe(&path) else {
-        return Err("no sandbox (bubblewrap) here: no agent is started unconfined".to_owned());
+        return Err(AgentFault::NoSandbox);
     };
-    let forwarder = sibling("docket-net-forward")
-        .ok_or("cannot find docket-net-forward beside this program")?;
-    let run_dir = PathBuf::from(env("XDG_RUNTIME_DIR").ok_or("no XDG_RUNTIME_DIR")?);
+    let forwarder = sibling("docket-net-forward").ok_or(AgentFault::NoForwarder)?;
+    let run_dir = PathBuf::from(env("XDG_RUNTIME_DIR").ok_or(AgentFault::NoRuntimeDir)?);
     // The desktop's actions go to the agent as an MCP server it starts itself: the `actions-mcp`
     // program beside this one, as the bridge to this host. An entry can switch it off.
     let tools = file
@@ -113,11 +118,11 @@ pub async fn run(args: Args) -> Result<(), String> {
 
     let bus = docket_dbus::session_connection(&env)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AgentFault::Bus(e.to_string()))?;
     let accounts = Arc::new(
         DbusAccounts::connect(&bus)
             .await
-            .map_err(|e| e.to_string())?,
+            .map_err(|e| AgentFault::Bus(e.to_string()))?,
     );
     let registry: Registry<ChildProc> = Registry::default();
     let login_env: Vec<(String, String)> = [
@@ -137,7 +142,10 @@ pub async fn run(args: Args) -> Result<(), String> {
         registry.clone(),
         VisibleLogin::new(login_env),
     );
-    supervisor.register().await.map_err(|e| e.to_string())?;
+    supervisor
+        .register()
+        .await
+        .map_err(|e| AgentFault::Bus(e.to_string()))?;
     tokio::spawn(async move { supervisor.run().await });
 
     if data_dir().join("acp-agent-grants.json").exists() {
@@ -147,8 +155,8 @@ pub async fn run(args: Args) -> Result<(), String> {
              \"always\" again where you want one"
         );
     }
-    let cwd = std::fs::canonicalize(&args.cwd).map_err(|e| e.to_string())?;
-    let cwd = cwd.to_str().ok_or("the directory is not UTF-8")?.to_owned();
+    let cwd = std::fs::canonicalize(&args.cwd).map_err(|e| AgentFault::Directory(e.to_string()))?;
+    let cwd = cwd.to_str().ok_or(AgentFault::DirectoryNotUtf8)?.to_owned();
     let desk = EditorDesk::new();
     let Hosted {
         mut host, session, ..
@@ -171,11 +179,12 @@ pub async fn run(args: Args) -> Result<(), String> {
         &cwd,
         args.space,
     )
-    .await?;
+    .await
+    .map_err(AgentFault::Open)?;
     if args.mode == Mode::Refresh {
         host.close(&session, docket_session::EndCause::Closed)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| AgentFault::Session(e.to_string()))?;
         return Ok(());
     }
     eprintln!("agent started in {cwd}. Type a request; an empty line or ctrl-d quits.");
@@ -196,15 +205,21 @@ pub async fn run(args: Args) -> Result<(), String> {
             from: docket_core::TurnSource::Launcher,
             via: docket_core::TurnVia::Typed,
         };
-        host.turn(&session, turn).await.map_err(|e| e.to_string())?;
-        while let Some(event) = host.next_event(&session).await.map_err(|e| e.to_string())? {
+        host.turn(&session, turn)
+            .await
+            .map_err(|e| AgentFault::Session(e.to_string()))?;
+        while let Some(event) = host
+            .next_event(&session)
+            .await
+            .map_err(|e| AgentFault::Session(e.to_string()))?
+        {
             if let BackendEvent::Sheet(request) = &event {
                 let (words, always) = tty::render(request);
                 eprint!("{words}");
                 let typed = lines.lock().await.next_line().await.ok().flatten();
                 host.answer_sheet(&session, &request.id, tty::choice(typed.as_deref(), always))
                     .await
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| AgentFault::Session(e.to_string()))?;
             }
             tty::print(&event);
             if matches!(event, BackendEvent::TurnEnd(_)) {
@@ -214,6 +229,6 @@ pub async fn run(args: Args) -> Result<(), String> {
     }
     host.close(&session, docket_session::EndCause::Closed)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AgentFault::Session(e.to_string()))?;
     Ok(())
 }

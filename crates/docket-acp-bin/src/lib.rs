@@ -1,3 +1,12 @@
+//! The library behind docket's two agent-facing programs, so the acceptance harness can run them
+//! under its own name.
+//!
+//! - [`serve`], [`LiveFault`], [`BUS_NAME`]: `docket-acp`, the ACP server edge on stdio. It hosts
+//!   its own companion over the session bus and serves the editor's connection.
+//! - [`agent`]: `docket-agent`, the host that runs one configured coding agent as a docket
+//!   session under the launcher's sandbox ([`agent::run`], [`agent::host`], [`agent::fault`]).
+//! - [`confirm`]: the confirm object the editor's sheets reach the person through.
+//!
 //! The docket-acp process's live host: what the binary builds so a served connection has a session host. docket-acp
 //! reaches docket the way companiond does, over the session bus: the router as `Intents1`
 //! (`DbusTransport`), the model through inferd, stored sessions read through the router. It hosts its own
