@@ -13,7 +13,7 @@ use docket_core::{
     AgentConfig, CheckpointEvent, CheckpointId, CheckpointNote, Millis, Retention, Rewind,
     SkipReason, TurnId,
 };
-use docket_session::{Logged, Read, SessionEntry, resume_plan};
+use docket_session::{Logged, Read, SessionEntry, SessionLog, resume_plan};
 use porter_core::Count;
 use prov::SessionId;
 use std::future::Future;

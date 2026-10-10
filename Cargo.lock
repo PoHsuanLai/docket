@@ -1129,6 +1129,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-checkpoint-git"
+version = "0.1.0"
+dependencies = [
+ "docket-checkpoint",
+ "docket-core",
+ "porter-core",
+ "prov",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "docket-cli"
 version = "0.1.0"
 dependencies = [
@@ -1251,6 +1264,7 @@ dependencies = [
  "action-review",
  "almanac-core",
  "cua-action",
+ "docket-checkpoint",
  "docket-client",
  "docket-core",
  "docket-router",
@@ -1424,6 +1438,7 @@ dependencies = [
  "action-review",
  "almanac-core",
  "cua-action",
+ "docket-checkpoint",
  "docket-client",
  "docket-core",
  "docket-fake",
@@ -2105,6 +2120,7 @@ dependencies = [
  "almanac-core",
  "almanac-dbus",
  "cua-action",
+ "docket-checkpoint-git",
  "docket-client",
  "docket-core",
  "docket-dbus",

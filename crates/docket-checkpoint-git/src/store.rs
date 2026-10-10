@@ -22,7 +22,8 @@ const NAME: &str = "Docket";
 const MAIL: &str = "docket@localhost";
 
 fn authorship(at: i64) -> Vec<(String, String)> {
-    let when = format!("{} +0000", at.max(0));
+    // `@` marks raw seconds: without it git reads a small number as some other date form.
+    let when = format!("@{} +0000", at.max(0));
     let var = |name: &str, value: &str| (name.to_owned(), value.to_owned());
     vec![
         var("GIT_AUTHOR_NAME", NAME),
