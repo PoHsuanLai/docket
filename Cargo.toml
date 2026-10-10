@@ -92,27 +92,27 @@ voice-loop     = { path = "crates/voice-loop" }
 # porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout
 # overrides it through a [patch], FINDINGS.md "Cross-repo dependencies"). porter has no docket dependency, so there is
 # no cycle.
-porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "b12886e4d047d9763a4dccfa9fa3ce92084483ca" }
-prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "b12886e4d047d9763a4dccfa9fa3ce92084483ca" }
+porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
+prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
 # The confined shell and agent sandbox (bubblewrap as a separate process).
 bulkhead        = { git = "https://github.com/PoHsuanLai/bulkhead", rev = "e647c4f95d6fff94e504471056a89929d096b50b" }
-porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "b12886e4d047d9763a4dccfa9fa3ce92084483ca" }
-porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "b12886e4d047d9763a4dccfa9fa3ce92084483ca" }
-porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "b12886e4d047d9763a4dccfa9fa3ce92084483ca" }
+porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
+porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
+porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
 # Test-only: the scripted inference session (dev-dependencies of the daemons that ask inferd).
-porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "b12886e4d047d9763a4dccfa9fa3ce92084483ca" }
+porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "43f9c7e99fe528806eb5c4cbda261a6be79e0f1f" }
 
 # almanac's frozen interfaces, by git at a pinned rev. docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
-almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "7af8f0bf8200f39e2455ea19fbbb6bbde2c51e5f" }
+almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "a3a8a105c808ac54eb037083fb1a0217e9d6fbb1" }
 # Without its default desktop switch (`quire-desktop`, which pulls the bus): the portable crates name
 # no feature, the daemons name `dbus`.
-almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "7af8f0bf8200f39e2455ea19fbbb6bbde2c51e5f", default-features = false }
+almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "a3a8a105c808ac54eb037083fb1a0217e9d6fbb1", default-features = false }
 # Test-only: a MemoryService over in-memory seams, the backend of the in-process memory tests.
-almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "7af8f0bf8200f39e2455ea19fbbb6bbde2c51e5f" }
-almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "7af8f0bf8200f39e2455ea19fbbb6bbde2c51e5f" }
+almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "a3a8a105c808ac54eb037083fb1a0217e9d6fbb1" }
+almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "a3a8a105c808ac54eb037083fb1a0217e9d6fbb1" }
 # Test-only: the fake memoryd of intentd's audit tests serves the real wire (dev-dependency).
-almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "7af8f0bf8200f39e2455ea19fbbb6bbde2c51e5f" }
+almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "a3a8a105c808ac54eb037083fb1a0217e9d6fbb1" }
 
 # stoker's pure vocabulary, by git at a pinned rev: the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
@@ -122,7 +122,7 @@ speech-vad      = { git = "https://github.com/PoHsuanLai/stoker", rev = "916da29
 speech-provider = { git = "https://github.com/PoHsuanLai/stoker", rev = "916da297d564e35cee9302d2d1e6607ae45962a7" }
 
 # quire's view-only context seams, for `docket-ds` alone (by git at a pinned rev).
-ds-intents      = { git = "https://github.com/PoHsuanLai/quire.git", rev = "b9b9c03bf166f0e2be834518b2dd1ee76b4de7f5" }
+ds-intents      = { git = "https://github.com/PoHsuanLai/quire.git", rev = "e0d1ed4880c55557326261bcb8d3091ee8a66f89" }
 
 # From quire's pinned block (`docs/workspace-deps.toml`), copied verbatim: only the lines docket
 # names itself.
