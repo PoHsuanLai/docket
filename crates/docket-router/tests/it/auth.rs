@@ -203,6 +203,7 @@ fn a_terminal_gets_exactly_the_members_quire_do_uses() {
             Member::Undo,
             Member::Context,
             Member::SessionTurn,
+            Member::SessionClose,
             Member::SessionTurnEnded,
             Member::SessionStored,
             // The terminal shows its own sessions' restore points (owner, 2026-10-10).

@@ -11,7 +11,7 @@ use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
     CallFacts, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState,
-    KillSwitch, Ledger, SessionSaw, StepLine, Strictness, TaskPolicy, UserTurn,
+    KillSwitch, Ledger, Rewind, SessionSaw, StepLine, Strictness, TaskPolicy, UserTurn,
 };
 use porter_core::{AppName, Count};
 use prov::{
@@ -21,6 +21,17 @@ use prov::{
 use std::collections::{BTreeMap, BTreeSet};
 
 use docket_core::Saw;
+
+/// What a session is for.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum SessionKind {
+    /// An agent's or an app's session: it takes turns and calls.
+    #[default]
+    Agent,
+    /// Only restore points, for an agent a terminal watches (`Checkpoint.Watch`): no task, no
+    /// planner, no policy, no action. `Rewind` is who keeps the agent's own history.
+    Watch(Rewind),
+}
 
 /// One session as the router keeps it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,6 +82,8 @@ pub struct SessionRecord {
     /// What the session's log says about its restore points (taken, skipped, restored), oldest
     /// first: where the next point's number and the list come from.
     pub checkpoints: Vec<CheckpointNote>,
+    /// What the session is for.
+    pub kind: SessionKind,
 }
 
 impl SessionRecord {
@@ -107,6 +120,7 @@ impl SessionRecord {
             cwd: None,
             approvals: Vec::new(),
             checkpoints: Vec::new(),
+            kind: SessionKind::Agent,
         }
     }
 }

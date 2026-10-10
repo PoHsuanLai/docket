@@ -10,7 +10,7 @@
 use crate::handles::HandleTable;
 use crate::opening::actor_of;
 use crate::session::{CloseCause, SessionState, Taint};
-use crate::state::SessionRecord;
+use crate::state::{SessionKind, SessionRecord};
 use crate::tasks::{TaskRecord, TaskState};
 use crate::wal::Wal;
 use almanac_core::EpisodeId;
@@ -22,7 +22,7 @@ use docket_session::{
     ResumeFault, ResumePlan, SessionEntry, Standing, Taint as Written, TaintCause, TaintNote,
 };
 use porter_core::{AppName, Count};
-use prov::{AgentRef, Label, SessionId, UnixSeconds};
+use prov::{Actor, AgentRef, Label, SessionId, UnixSeconds};
 
 /// The app a session is attributed to when its log never said who opened it (a record from
 /// before the durable log).
@@ -152,13 +152,22 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         }),
         _ => None,
     };
+    // A watch session is a terminal's, whatever agent its opening names.
+    let (kind, actor) = match &opening.backend {
+        docket_session::BackendKind::Watch(rewind) => (SessionKind::Watch(*rewind), Actor::Cli),
+        _ => (
+            SessionKind::Agent,
+            actor_of(&agent, external.as_ref(), id, &opener),
+        ),
+    };
     let mut record = SessionRecord::new(
         opening.task.clone(),
-        actor_of(&agent, external.as_ref(), id, &opener),
+        actor,
         opener,
         opening.space.clone(),
         now,
     );
+    record.kind = kind;
     record.external = external;
     record.cwd = opening.cwd.clone();
     record.state = state;

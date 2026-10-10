@@ -7,8 +7,8 @@
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
 use docket_core::{
-    ActionRef, CallId, CheckpointNote, Handle, HandleShape, SkillId, SkillVersion, StartedFrom,
-    StepLine, TaskPolicy, UserTurn,
+    ActionRef, CallId, CheckpointNote, Handle, HandleShape, Rewind, SkillId, SkillVersion,
+    StartedFrom, StepLine, TaskPolicy, UserTurn,
 };
 use docket_core::{BreakerTrip, Ledger};
 use porter_core::AppName;
@@ -48,6 +48,9 @@ pub enum BackendKind {
     Acp(ProgramName),
     /// The test backend.
     Fake,
+    /// No backend at all: a watch session, which only keeps restore points for an agent a
+    /// terminal watches. Runs nothing; `Rewind` says who keeps the agent's own history.
+    Watch(Rewind),
 }
 
 /// Where a fork was cut: the parent and the last entry it kept.

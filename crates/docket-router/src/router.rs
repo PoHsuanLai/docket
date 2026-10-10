@@ -95,6 +95,10 @@ impl<S: Seams> Router<S> {
                 return IntentsReply::Refused(WireRefusal::NotAllowed);
             };
             self.restore_named(caller, role, &request).await;
+            // One place refuses whatever would run something in a watch session.
+            if let Err(why) = self.watch_gate(caller, role, &request) {
+                return IntentsReply::Refused(why);
+            }
             let reply = self.answer(caller, role, request, &watch).await;
             self.settle(reply).await
         }
@@ -221,6 +225,12 @@ impl<S: Seams> Router<S> {
             R::CheckpointPlan { session, id } => {
                 self.checkpoint_plan(caller, role, &session, id).await
             }
+            R::CheckpointWatch {
+                workspace,
+                label,
+                rewind,
+            } => self.checkpoint_watch(caller, workspace, &label, rewind),
+            R::CheckpointMark { session } => self.checkpoint_mark(&session).await,
             // A request this router does not know is refused, never run.
             _ => IntentsReply::Refused(WireRefusal::Malformed),
         }

@@ -4,6 +4,7 @@
 use crate::rebuild::{number_of, rebuild};
 use crate::router::Router;
 use crate::seams::{Clock, Seams};
+use crate::state::SessionKind;
 use crate::wal::Writer;
 use docket_core::{CallerId, CallerRole, IntentsRequest};
 use docket_session::{
@@ -109,7 +110,10 @@ impl<S: Seams> Router<S> {
                 ))),
             );
         }
-        if st.tasks.get(&rebuilt.task.task).is_none() {
+        // A watch session has no task.
+        if matches!(rebuilt.record.kind, SessionKind::Agent)
+            && st.tasks.get(&rebuilt.task.task).is_none()
+        {
             st.tasks.insert(rebuilt.task);
         }
         st.sessions.insert(id.clone(), rebuilt.record);
@@ -150,7 +154,7 @@ impl<S: Seams> Router<S> {
 }
 
 /// The session a request names, if it names one.
-fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
+pub(crate) fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
     use IntentsRequest as R;
     match request {
         R::Perform { session, .. } | R::DryRun { session, .. } => session.as_ref(),

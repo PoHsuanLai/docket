@@ -5,6 +5,7 @@
 use crate::deadline::within;
 use crate::router::Router;
 use crate::seams::{Clock, Seams};
+use crate::state::SessionKind;
 use docket_checkpoint::{
     CheckpointStore, Decision, DropAsk, Saved, StoreFault, TakeAsk, WorkRoot, decide, next_id,
     retention,
@@ -117,13 +118,14 @@ impl<S: Seams> Router<S> {
             let Some(record) = st.sessions.get(session) else {
                 return;
             };
-            (
-                record
+            let rewind = match record.kind {
+                SessionKind::Watch(rewind) => rewind,
+                SessionKind::Agent => record
                     .external
                     .as_ref()
                     .map_or(Rewind::Docket, |agent| agent.rewind),
-                record.cwd.clone(),
-            )
+            };
+            (rewind, record.cwd.clone())
         };
         let cfg = self.agent_config();
         match decide(rewind, cwd.as_ref()) {

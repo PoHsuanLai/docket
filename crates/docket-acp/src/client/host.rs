@@ -128,7 +128,7 @@ async fn settle<C: Court>(running: &mut Option<RunningTurn<C>>, event: &Option<B
 fn program_of(opening: &Opening) -> Option<docket_session::ProgramName> {
     match &opening.backend {
         BackendKind::Acp(program) => Some(program.clone()),
-        BackendKind::Native | BackendKind::Fake => None,
+        BackendKind::Native | BackendKind::Fake | BackendKind::Watch(_) => None,
     }
 }
 

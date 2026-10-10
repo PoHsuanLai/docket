@@ -87,6 +87,7 @@ mod terminal;
 mod turn_running;
 mod wal;
 mod watch;
+mod watched;
 mod who;
 
 pub use auth::{acting_role, permits};
@@ -112,7 +113,7 @@ pub use seams::{
 pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
 pub use skills::SKILL_LOAD;
 pub use spacing::{SpaceOf, relation_of};
-pub use state::{RouterState, SessionRecord};
+pub use state::{RouterState, SessionKind, SessionRecord};
 pub use tasks::{TaskRecord, TaskState, TaskTable, child_policy, roster_of};
 pub use terminal::Revoked;
 pub use wal::{Reveals, Wal};

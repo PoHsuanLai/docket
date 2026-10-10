@@ -24,9 +24,10 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::Context => &[Launcher, Companion, Cli],
         // The computer-use daemon opens and closes the session of its own run (`opening.rs`
         // refuses it any other kind), so the run is ruled in a session before its first step.
-        Member::SessionOpen | Member::SessionClose => {
-            &[Launcher, Field, Editor, Companion, Cua, AcpAgent]
-        }
+        Member::SessionOpen => &[Launcher, Field, Editor, Companion, Cua, AcpAgent],
+        // A terminal closes the watch session it opened and no other (`watched.rs` refuses it
+        // anything else).
+        Member::SessionClose => &[Launcher, Field, Editor, Companion, Cua, Cli, AcpAgent],
         // Only the person's own surfaces record a turn: a model cannot say what the person said.
         // A terminal is one of them for `quire-do ask` (the person at a keyboard, the same user),
         // and its turns are recorded as `TurnSource::Terminal`, never as the launcher's.

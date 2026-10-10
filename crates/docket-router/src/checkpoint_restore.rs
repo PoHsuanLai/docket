@@ -266,7 +266,11 @@ impl<S: Seams> Router<S> {
             .locked()
             .sessions
             .get(&ask.session)
-            .and_then(|record| record.turns.last().map(|turn| turn.id))
+            .and_then(|record| {
+                // A watch session has no turns of the person's: the last mark stands in.
+                let marked = record.checkpoints.last().map(|note| note.turn);
+                record.turns.last().map(|turn| turn.id).or(marked)
+            })
             .unwrap_or(TurnId(0));
         let event = CheckpointEvent::Restored {
             to: ask.point,
