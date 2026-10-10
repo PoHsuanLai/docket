@@ -181,6 +181,16 @@ when { context.grant == "denied" && principal.kind != "user" };
 forbid (principal, action, resource)
 when { principal.kind == "mcp" && context.target_space == "other" };
 
+// Putting a workspace back is the person's. An MCP client and an external coding agent never
+// restore, whatever the strictness (the router's role table refuses them first; this holds if a
+// role were ever added to it).
+@id("checkpoints-not-for-agents")
+forbid (principal, action, resource)
+when {
+  (principal.kind == "mcp" || principal.kind == "acp") &&
+  resource in Quire::App::"org.quire.Checkpoints"
+};
+
 // ---- Forbids that ask --------------------------------------------------------------------
 
 // Rule of Two: private data, untrusted input and an outbound channel never meet in one

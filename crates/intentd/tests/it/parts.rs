@@ -63,7 +63,8 @@ fn the_built_in_manifests_validate_and_carry_their_prefixes() {
         [
             "org.quire.Memory",
             "org.quire.Companion",
-            "org.quire.AcpAgent"
+            "org.quire.AcpAgent",
+            "org.quire.Checkpoints"
         ]
     );
     let companion = &manifests[1];

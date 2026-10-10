@@ -99,11 +99,12 @@ async fn the_binary_serves_the_scratch_manifests_to_the_roles_the_shipped_config
         names,
         [
             "org.quire.AcpAgent",
+            "org.quire.Checkpoints",
             "org.quire.Companion",
             "org.quire.Mail",
             "org.quire.Memory"
         ],
-        "the data dir's one app, the two providers intentd hosts itself, and the external \
+        "the data dir's one app, the three providers intentd hosts itself, and the external \
          agents' pseudo-app"
     );
 

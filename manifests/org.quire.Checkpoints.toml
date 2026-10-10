@@ -1,0 +1,53 @@
+# The built-in `org.quire.Checkpoints` provider, served by intentd: putting a session's workspace
+# back to one of its restore points. The declarations are intentd's own (no installed file may
+# declare them).
+#
+# Notes on the declaration:
+# - Destructive, never undoable by the journal: the undo is the safety point the restore saves
+#   first, which is a restore point like any other (restore to it).
+# - `reach = "ask_always"`: the person is asked every time, whoever calls, and is never offered
+#   "always". The sheet is hold-to-confirm and once-only. The planner and a terminal may offer it
+#   (the sheet is the person's yes); an MCP client and the host of an external agent may not
+#   (policy and the role table forbid them), and neither is told it exists.
+# - `plan` is the digest of the plan the person saw (`Checkpoint.Plan`): a folder that changed
+#   since is refused, so the sheet never shows one thing while another is confirmed.
+# - The sheet's lines are the dry run's `Preview::Facts`: how many files are put back, brought
+#   back and deleted, and the first of each. Files the folder ignores are not covered.
+vocab = 1
+app = "org.quire.Checkpoints"
+entities = []
+
+[[actions]]
+name = "checkpoints.restore"
+label = "Restore to before this turn"
+on = { kind = "nothing" }
+effect = "destructive"
+classes = ["files"]
+undo = "not_undoable"
+reach = "ask_always"
+latency = "long"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "preview"
+
+[[actions.params]]
+name = "session"
+label = "Session"
+ty = { kind = "text", v = { max = 64, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "point"
+label = "Restore point"
+ty = { kind = "integer", v = { min = 1, max = 4294967295 } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "plan"
+label = "What was shown"
+ty = { kind = "text", v = { max = 64, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"

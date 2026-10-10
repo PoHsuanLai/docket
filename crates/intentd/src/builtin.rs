@@ -4,6 +4,7 @@
 //! `AppLink` with the two answered in process and every other app over D-Bus, and
 //! `builtin_manifests` are what `quire-do apps` lists for them.
 
+use crate::builtin_checkpoints::{CheckpointsPort, CheckpointsProvider};
 use crate::builtin_companion::{CompanionPort, CompanionProvider};
 use crate::builtin_memory::{MEMORY_APP, MemoryProvider};
 use crate::link::DbusLink;
@@ -13,34 +14,42 @@ use docket_core::{
     ACP_AGENT_APP, AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit,
     Invocation, Latency, Outcome, Preview, SuggestAsk, UndoFault, UndoToken, ValidManifest,
 };
-use docket_router::{AppFault, AppLink, COMPANION_APP, LinkFault, RegistryError, parse};
+use docket_router::{
+    AppFault, AppLink, CHECKPOINTS_APP, COMPANION_APP, LinkFault, RegistryError, parse,
+};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 
 const MEMORY: &str = include_str!("../../../manifests/org.quire.Memory.toml");
 const COMPANION: &str = include_str!("../../../manifests/org.quire.Companion.toml");
 const ACP_AGENT: &str = include_str!("../../../manifests/org.quire.AcpAgent.toml");
+const CHECKPOINTS: &str = include_str!("../../../manifests/org.quire.Checkpoints.toml");
 
-/// The built-in manifests, validated: Memory, Companion, then the external agents' pseudo-app.
+/// The built-in manifests, validated: Memory, Companion, the external agents' pseudo-app, then
+/// Checkpoints.
 pub fn builtin_manifests() -> Result<Vec<ValidManifest>, RegistryError> {
-    [MEMORY, COMPANION, ACP_AGENT]
+    [MEMORY, COMPANION, ACP_AGENT, CHECKPOINTS]
         .into_iter()
         .map(parse)
         .collect()
 }
 
-/// Whether `app` is one of the three names whose declarations are the built-in ones: no
-/// installed file may declare them. Memory and Companion are answered in process; the external
+/// Whether `app` is one of the four names whose declarations are the built-in ones: no
+/// installed file may declare them. Memory, Companion and Checkpoints are answered in process; the external
 /// agents' pseudo-app (`org.quire.AcpAgent`) is answered by the host that launched the agent, on
 /// that bus name, like an installed app.
 pub fn is_builtin(app: &AppName) -> bool {
-    matches!(app.as_str(), MEMORY_APP | COMPANION_APP | ACP_AGENT_APP)
+    matches!(
+        app.as_str(),
+        MEMORY_APP | COMPANION_APP | CHECKPOINTS_APP | ACP_AGENT_APP
+    )
 }
 
 /// Which provider an app name is.
 enum Host {
     Memory,
     Companion,
+    Checkpoints,
     Installed,
 }
 
@@ -48,6 +57,7 @@ fn host_of(app: &AppName) -> Host {
     match app.as_str() {
         MEMORY_APP => Host::Memory,
         COMPANION_APP => Host::Companion,
+        CHECKPOINTS_APP => Host::Checkpoints,
         _ => Host::Installed,
     }
 }
@@ -58,23 +68,37 @@ pub struct HostedLink<T: MemoryTransport> {
     apps: DbusLink,
     memory: MemoryProvider<T>,
     companion: CompanionProvider,
+    checkpoints: CheckpointsProvider,
 }
 
 impl<T: MemoryTransport> HostedLink<T> {
-    /// Hosts the built-ins beside `apps`: Memory over `transport`, Companion through `port`.
-    pub fn new(apps: DbusLink, transport: T, port: CompanionPort) -> Result<Self, RegistryError> {
-        let [memory, companion, _agents] = <[ValidManifest; 3]>::try_from(builtin_manifests()?)
-            .map_err(|_| RegistryError::Toml("the built-in manifests are not three".to_owned()))?;
+    /// Hosts the built-ins beside `apps`: Memory over `transport`, Companion through `port`,
+    /// Checkpoints through `checkpoints`.
+    pub fn new(
+        apps: DbusLink,
+        transport: T,
+        port: CompanionPort,
+        checkpoints: CheckpointsPort,
+    ) -> Result<Self, RegistryError> {
+        let [memory, companion, _agents, restore] =
+            <[ValidManifest; 4]>::try_from(builtin_manifests()?).map_err(|_| {
+                RegistryError::Toml("the built-in manifests are not four".to_owned())
+            })?;
         Ok(Self {
             apps,
             memory: MemoryProvider::new(memory, transport),
             companion: CompanionProvider::new(companion, port),
+            checkpoints: CheckpointsProvider::new(restore, checkpoints),
         })
     }
 
     /// The manifests of what is hosted, for the registry.
-    pub fn manifests(&self) -> [&ValidManifest; 2] {
-        [self.memory.manifest(), self.companion.manifest()]
+    pub fn manifests(&self) -> [&ValidManifest; 3] {
+        [
+            self.memory.manifest(),
+            self.companion.manifest(),
+            self.checkpoints.manifest(),
+        ]
     }
 }
 
@@ -92,6 +116,7 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         match host_of(app) {
             Host::Memory => self.memory.perform(inv).await.map_err(faulted),
             Host::Companion => self.companion.perform(inv).await.map_err(faulted),
+            Host::Checkpoints => self.checkpoints.perform(inv).await.map_err(faulted),
             Host::Installed => self.apps.perform(app, inv, within).await,
         }
     }
@@ -109,7 +134,9 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
                     .perform_activated(app, inv, activation, within)
                     .await
             }
-            Host::Memory | Host::Companion => self.perform(app, inv, within).await,
+            Host::Memory | Host::Companion | Host::Checkpoints => {
+                self.perform(app, inv, within).await
+            }
         }
     }
 
@@ -127,7 +154,9 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
                     .perform_classified(app, inv, activation, classified, within)
                     .await
             }
-            Host::Memory | Host::Companion => self.perform(app, inv, within).await,
+            Host::Memory | Host::Companion | Host::Checkpoints => {
+                self.perform(app, inv, within).await
+            }
         }
     }
 
@@ -139,7 +168,9 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         match host_of(app) {
             Host::Installed => self.apps.classify(app, inv).await,
             // The built-in providers declare every effect outright.
-            Host::Memory | Host::Companion => Err(docket_core::ClassifyFault::Unsupported),
+            Host::Memory | Host::Companion | Host::Checkpoints => {
+                Err(docket_core::ClassifyFault::Unsupported)
+            }
         }
     }
 
@@ -147,6 +178,7 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         match host_of(app) {
             Host::Memory => self.memory.dry_run(inv).await,
             Host::Companion => self.companion.dry_run(inv).await,
+            Host::Checkpoints => self.checkpoints.dry_run(inv).await,
             Host::Installed => self.apps.dry_run(app, inv).await,
         }
     }
@@ -155,6 +187,7 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         match host_of(app) {
             Host::Memory => self.memory.undo(token.clone(), actor.clone()).await,
             Host::Companion => self.companion.undo(token.clone(), actor.clone()).await,
+            Host::Checkpoints => self.checkpoints.undo(token.clone(), actor.clone()).await,
             Host::Installed => self.apps.undo(app, token, actor).await,
         }
     }
@@ -166,7 +199,7 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
     ) -> Result<ContextSnapshot, LinkFault> {
         match host_of(app) {
             // Neither has a window: there is nothing on screen to report.
-            Host::Memory | Host::Companion => Err(LinkFault::Unavailable),
+            Host::Memory | Host::Companion | Host::Checkpoints => Err(LinkFault::Unavailable),
             Host::Installed => self.apps.context(app, scope).await,
         }
     }
@@ -180,6 +213,7 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         match host_of(app) {
             Host::Memory => Ok(self.memory.search(text).await),
             Host::Companion => Ok(self.companion.search(text).await),
+            Host::Checkpoints => Ok(self.checkpoints.search(text).await),
             Host::Installed => self.apps.search(app, text, generation).await,
         }
     }
@@ -188,6 +222,7 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         match host_of(app) {
             Host::Memory => Ok(self.memory.preview(id).await),
             Host::Companion => Ok(self.companion.preview(id).await),
+            Host::Checkpoints => Ok(self.checkpoints.preview(id).await),
             Host::Installed => self.apps.preview(app, id).await,
         }
     }
@@ -196,6 +231,7 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         match host_of(app) {
             Host::Memory => Ok(self.memory.suggest(ask).await),
             Host::Companion => Ok(self.companion.suggest(ask).await),
+            Host::Checkpoints => Ok(self.checkpoints.suggest(ask).await),
             Host::Installed => self.apps.suggest(app, ask).await,
         }
     }

@@ -210,6 +210,7 @@ async fn the_built_in_providers_are_listed_with_their_manifests() {
         listed,
         [
             "org.quire.AcpAgent",
+            "org.quire.Checkpoints",
             "org.quire.Companion",
             "org.quire.Memory"
         ]

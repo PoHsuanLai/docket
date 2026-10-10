@@ -15,6 +15,7 @@
 mod acp_gate;
 mod audit;
 mod builtin;
+mod builtin_checkpoints;
 mod builtin_companion;
 mod builtin_memory;
 mod bus;
@@ -40,6 +41,7 @@ mod writer;
 pub use acp_gate::{ACP_NAME, AcpGate};
 pub use audit::{AuditLog, Flushed};
 pub use builtin::{HostedLink, builtin_manifests, is_builtin};
+pub use builtin_checkpoints::{CheckpointsPort, CheckpointsProvider};
 pub use builtin_companion::{CompanionPort, CompanionProvider};
 pub use builtin_memory::{MEMORY_APP, MemoryProvider};
 pub use config::{ConfigError, IntentdConfig};

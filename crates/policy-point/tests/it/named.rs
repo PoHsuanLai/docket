@@ -116,6 +116,24 @@ fn the_named_rules_of_the_table_ask_or_deny() {
             Cell::Deny,
             None,
         ),
+        (
+            "an MCP client restoring a workspace",
+            with(Effect::Destructive, |r| {
+                r.principal.kind = ActorKind::Mcp;
+                r.resource.app = porter_core::AppName::parse("org.quire.Checkpoints").expect("app");
+            }),
+            Cell::Deny,
+            None,
+        ),
+        (
+            "an external agent restoring a workspace",
+            with(Effect::Destructive, |r| {
+                r.principal.kind = ActorKind::Acp;
+                r.resource.app = porter_core::AppName::parse("org.quire.Checkpoints").expect("app");
+            }),
+            Cell::Deny,
+            None,
+        ),
     ];
     for (name, request, want, reason) in rows {
         let got = pdp().decide(&request);

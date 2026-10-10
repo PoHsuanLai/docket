@@ -4,6 +4,7 @@
 use crate::acp_gate::AcpGate;
 use crate::audit::AuditLog;
 use crate::builtin::{HostedLink, builtin_manifests};
+use crate::builtin_checkpoints::CheckpointsPort;
 use crate::builtin_companion::CompanionPort;
 use crate::config::{ConfigError, IntentdConfig};
 use crate::grants::FileGrants;
@@ -37,6 +38,9 @@ use std::time::Duration;
 
 /// How often the audit queue is drained into memoryd, unless the setup says otherwise.
 const DRAIN_EVERY: Duration = Duration::from_secs(5);
+
+/// How often the restore points past their keeping are forgotten (once at start, then daily).
+const PRUNE_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// How long the daemon waits before following accountd's Spaces again after losing it.
 const SPACES_RETRY: Duration = Duration::from_secs(10);
@@ -221,10 +225,12 @@ pub async fn start(
     let confirmer = SheetConfirmer::trusting(session.clone(), Arc::new(config.clone()))
         .gated(acp.clone(), &proc_root);
     let port = CompanionPort::new();
+    let restore_port = CheckpointsPort::new();
     let link = HostedLink::new(
         DbusLink::new(session.clone()),
         almanac_client::DbusTransport::new(session.clone()),
         port.clone(),
+        restore_port.clone(),
     )
     .map_err(|e| DaemonFault::Policy(e.to_string()))?;
     let kept = AbsPath::parse(&checkpoints.to_string_lossy())
@@ -293,6 +299,7 @@ pub async fn start(
     }
     let router = Arc::new(router);
     port.attach(&router);
+    restore_port.attach(&router);
     acp.set(watched.current().value.acp);
     acp.set_agents(watched.current().value.agents);
     serve_on_gated(
@@ -322,6 +329,7 @@ pub async fn start(
         SpaceKeeper::new(router.clone(), RemovedMemories::LeaveToMemory, SPACES_RETRY)
             .run(session.clone()),
     ));
+    tasks.push(tokio::spawn(prune_checkpoints(router.clone())));
     let queue = router.clone();
     let mut audit = AuditLog::over(almanac_client::DbusTransport::new(session.clone()));
     tasks.push(tokio::spawn(async move {
@@ -347,6 +355,18 @@ pub async fn start(
         tasks,
         session: session.clone(),
     })
+}
+
+/// Forgets the restore points that are past their keeping, now and then every day: the newest
+/// few of each session stay, and nothing older than the days the person keeps them.
+async fn prune_checkpoints<S: Seams + 'static>(router: Arc<Router<S>>) {
+    loop {
+        let forgotten = router.prune_checkpoints().await;
+        if forgotten.0 > 0 {
+            eprintln!("intentd: forgot {} old restore points", forgotten.0);
+        }
+        tokio::time::sleep(PRUNE_EVERY).await;
+    }
 }
 
 /// Adds records the log lost to the counter `Control.State` shows.
