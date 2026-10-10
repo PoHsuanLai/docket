@@ -20,8 +20,9 @@ pub trait Checkpoint {
     /// (`rewind` is `Rewind` JSON; `label` is display text). The new session id as JSON.
     fn watch(&self, workspace: &str, label: &str, rewind: &str) -> zbus::Result<String>;
 
-    /// The watched agent started working: takes a restore point and starts the running turn.
-    fn mark(&self, session: &str) -> zbus::Result<()>;
+    /// The watched agent started working: takes a restore point and starts the running turn;
+    /// answers the `TurnId` for `Session.TurnEnded`.
+    fn mark(&self, session: &str) -> zbus::Result<u64>;
 }
 
 /// The daemon's side.
@@ -45,7 +46,7 @@ impl CheckpointSkeleton {
         Err(crate::introspect::frozen())
     }
 
-    fn mark(&self, session: String) -> fdo::Result<()> {
+    fn mark(&self, session: String) -> fdo::Result<u64> {
         let _ = (session,);
         Err(crate::introspect::frozen())
     }

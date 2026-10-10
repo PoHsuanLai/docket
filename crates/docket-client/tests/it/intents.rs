@@ -118,7 +118,7 @@ async fn the_request_the_router_sees_is_the_one_asked_for() {
         Ok(IntentsReply::CheckpointWatching(
             SessionId::parse("s-5").expect("session"),
         )),
-        Ok(IntentsReply::Done),
+        Ok(IntentsReply::TurnRecorded(TurnId(7))),
     ]));
     let intents = Intents::over(Shared(transport.clone()));
     let session = SessionId::parse("s-4").expect("session");
@@ -135,10 +135,11 @@ async fn the_request_the_router_sees_is_the_one_asked_for() {
         .checkpoint_watch(workspace.clone(), "an agent".into(), Rewind::Agent)
         .await
         .expect("watching");
-    intents
+    let marked = intents
         .checkpoint_mark(watching.clone())
         .await
         .expect("marked");
+    assert_eq!(marked, TurnId(7));
     let seen = transport.seen.lock().expect("lock");
     let ended = IntentsRequest::SessionTurnEnded {
         session: session.clone(),

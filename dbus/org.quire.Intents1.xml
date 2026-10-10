@@ -160,6 +160,7 @@
    </method>
    <method name="Mark">
      <arg name="session" type="s" direction="in"/>
+     <arg type="t" direction="out"/>
    </method>
  </interface>
  <interface name="org.quire.Intents1.Message">

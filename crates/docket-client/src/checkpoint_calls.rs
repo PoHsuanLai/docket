@@ -5,7 +5,7 @@ use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
 use docket_core::{
     CheckpointFault, CheckpointId, CheckpointList, IntentsReply, IntentsRequest, RestorePlan,
-    Rewind, Workspace,
+    Rewind, TurnId, Workspace,
 };
 use prov::SessionId;
 
@@ -57,10 +57,10 @@ impl<T: Transport> Intents<T> {
     }
 
     /// The watched agent started working: takes a restore point and starts the running turn
-    /// (`Checkpoint.Mark`). End it with `session_turn_ended`.
-    pub async fn checkpoint_mark(&self, session: SessionId) -> Result<(), ClientError> {
+    /// (`Checkpoint.Mark`). End the turn it answers with `session_turn_ended`.
+    pub async fn checkpoint_mark(&self, session: SessionId) -> Result<TurnId, ClientError> {
         self.ask(IntentsRequest::CheckpointMark { session }, |r| match r {
-            IntentsReply::Done => Some(()),
+            IntentsReply::TurnRecorded(turn) => Some(turn),
             _ => None,
         })
         .await

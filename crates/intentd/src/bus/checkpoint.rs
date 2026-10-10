@@ -1,7 +1,7 @@
 //! `Checkpoint`: a session's restore points and what restoring one changes.
 
 use super::{Gateway, json, parsed};
-use docket_core::{CheckpointId, IntentsReply, IntentsRequest, Workspace};
+use docket_core::{CheckpointId, IntentsReply, IntentsRequest, TurnId, Workspace};
 use docket_dbus::IntentsError;
 use prov::SessionId;
 use zbus::message::Header;
@@ -68,10 +68,15 @@ impl CheckpointBus {
         &self,
         session: String,
         #[zbus(header)] header: Header<'_>,
-    ) -> Result<(), IntentsError> {
+    ) -> Result<u64, IntentsError> {
         let request = IntentsRequest::CheckpointMark {
             session: parsed(&session, SessionId::parse)?,
         };
-        self.0.done(&header, request).await
+        self.0
+            .ask(&header, request, |r| match r {
+                IntentsReply::TurnRecorded(TurnId(id)) => Some(id),
+                _ => None,
+            })
+            .await
     }
 }

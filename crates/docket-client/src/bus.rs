@@ -429,7 +429,10 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
         }
         Q::CheckpointMark { session } => {
             let proxy = CheckpointProxy::new(c).await.map_err(bus)?;
-            nothing(proxy.mark(session.as_str()).await)
+            match proxy.mark(session.as_str()).await {
+                Ok(id) => Ok(IntentsReply::TurnRecorded(TurnId(id))),
+                Err(error) => refused(error),
+            }
         }
         Q::MessageSend { session, draft } => {
             let proxy = MessageProxy::new(c).await.map_err(bus)?;

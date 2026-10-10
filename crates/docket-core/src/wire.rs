@@ -425,8 +425,8 @@ pub enum IntentsRequest {
         rewind: Rewind,
     },
     /// `.Checkpoint.Mark`: the watched agent started working. Takes a restore point (unless the
-    /// agent keeps its own) and starts the running turn; `Session.TurnEnded` ends it. Records no
-    /// words of the person's.
+    /// agent keeps its own) and starts the running turn, answering `TurnRecorded` with the number
+    /// of that turn; `Session.TurnEnded` for it ends it. Records no words of the person's.
     CheckpointMark {
         /// The watch session.
         session: SessionId,

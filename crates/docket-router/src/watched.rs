@@ -165,13 +165,14 @@ impl<S: Seams> Router<S> {
 
     /// `.Checkpoint.Mark`: the watched agent started working. What `Session.Turn` does about a
     /// restore point (decide by the watch's rewind, take, prune) and the running turn, with no
-    /// turn of the person's recorded. The opener-only rule is `watch_gate`'s.
+    /// turn of the person's recorded. Answers the turn's number, which the terminal passes to
+    /// `Session.TurnEnded`. The opener-only rule is `watch_gate`'s.
     pub(crate) async fn checkpoint_mark(&self, session: &SessionId) -> IntentsReply {
         match self.mark_turn(session) {
             Ok(turn) => {
                 self.checkpoint_step(session, turn).await;
                 self.begin_turn(session, turn);
-                IntentsReply::Done
+                IntentsReply::TurnRecorded(turn)
             }
             Err(why) => IntentsReply::Refused(why),
         }
