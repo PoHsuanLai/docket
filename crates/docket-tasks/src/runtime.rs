@@ -56,12 +56,12 @@ pub(crate) struct Narration {
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use docket_client::{InProcess, Intents};
-/// use docket_core::{AgentConfig, AgentRef, CallerId, CallerRole, SessionOpen};
+/// use docket_core::{AgentConfig, CallerId, CallerRole, SessionOpen};
 /// use docket_fake::{WordsModel, fake_router};
 /// use docket_planner::PlannerModel;
 /// use docket_tasks::{Companion, Now, Quiet};
 /// use porter_core::{AppId, AppName, Isolation};
-/// use prov::{SpaceId, UnixSeconds};
+/// use prov::{AgentRef, SpaceId, UnixSeconds};
 /// use std::{collections::BTreeSet, sync::Arc};
 ///
 /// struct Still;
