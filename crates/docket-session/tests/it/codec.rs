@@ -159,3 +159,21 @@ fn an_opening_written_before_the_label_reads_back_with_none_and_a_label_round_tr
     let read: Opening = serde_json::from_value(old).expect("an old opening reads");
     assert_eq!(read.label, None);
 }
+
+#[test]
+fn a_watch_opening_round_trips_with_its_rewind_and_an_ordinary_one_is_unchanged() {
+    let watch = Opening {
+        backend: BackendKind::Watch(docket_core::Rewind::Agent),
+        ..opening()
+    };
+    let text = serde_json::to_string(&watch).expect("json");
+    assert!(
+        text.contains(r#""backend":{"kind":"watch","v":"agent"}"#),
+        "{text}"
+    );
+    let back: Opening = serde_json::from_str(&text).expect("reads");
+    assert_eq!(back, watch);
+    // A log written before watch openings existed names the same backends as ever.
+    let old = serde_json::to_string(&opening()).expect("json");
+    assert!(!old.contains("watch"), "{old}");
+}

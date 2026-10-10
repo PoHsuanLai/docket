@@ -503,3 +503,244 @@ async fn only_the_opener_of_a_session_ends_its_turn_and_an_agent_cannot() {
     assert_eq!(ask(&router, &host(), end).await, IntentsReply::Done);
     assert_eq!(listed(&router, &session).await.turn, TurnState::Idle);
 }
+
+// ---- watched agents (Checkpoint.Watch, Checkpoint.Mark) ----
+
+/// The terminal app that watches the agents in its panes.
+fn terminal() -> CallerId {
+    caller("org.quire.Temor", CallerRole::Cli)
+}
+
+/// Another terminal, which did not open the watch session.
+fn stranger() -> CallerId {
+    caller("org.quire.Do", CallerRole::Cli)
+}
+
+async fn watch_in(router: &Router<FakeSeams>, who: &CallerId, rewind: Rewind) -> SessionId {
+    let request = IntentsRequest::CheckpointWatch {
+        workspace: Workspace::parse(WORK).expect("workspace"),
+        label: "claude in pane 2".into(),
+        rewind,
+    };
+    match ask(router, who, request).await {
+        IntentsReply::CheckpointWatching(session) => session,
+        other => panic!("watch: {other:?}"),
+    }
+}
+
+fn mark_request(session: &SessionId) -> IntentsRequest {
+    IntentsRequest::CheckpointMark {
+        session: session.clone(),
+    }
+}
+
+async fn marked(router: &Router<FakeSeams>, who: &CallerId, session: &SessionId) -> TurnId {
+    match ask(router, who, mark_request(session)).await {
+        IntentsReply::TurnRecorded(turn) => turn,
+        other => panic!("mark: {other:?}"),
+    }
+}
+
+fn end_request(session: &SessionId, turn: TurnId) -> IntentsRequest {
+    IntentsRequest::SessionTurnEnded {
+        session: session.clone(),
+        turn,
+        how: TurnEnd::Answered,
+    }
+}
+
+fn close_request(session: &SessionId) -> IntentsRequest {
+    IntentsRequest::SessionClose {
+        session: session.clone(),
+    }
+}
+
+fn not_allowed() -> IntentsReply {
+    IntentsReply::Refused(WireRefusal::NotAllowed)
+}
+
+#[tokio::test]
+async fn a_watched_agent_gets_a_point_at_each_mark_and_its_files_can_be_restored() {
+    let router = router();
+    put(&router, "a.txt", "one");
+    let session = watch_in(&router, &terminal(), Rewind::Docket).await;
+    let before = listed(&router, &session).await;
+    assert_eq!((before.rows.len(), before.turn), (0, TurnState::Idle));
+
+    let turn = marked(&router, &terminal(), &session).await;
+    let list = listed(&router, &session).await;
+    assert!(matches!(
+        list.rows.as_slice(),
+        [CheckpointRow::Saved { id: CheckpointId(1), turn: t, state: SavedState::Available, .. }]
+            if *t == turn
+    ));
+    assert_eq!(list.turn, TurnState::Running);
+
+    // The agent works; a restore is refused until the terminal says the turn ended.
+    put(&router, "a.txt", "two");
+    let plan = planned(&router, &session, 1).await;
+    assert_eq!(plan.changed, [file("a.txt")]);
+    let call = restore_call(&session, 1, &plan.digest.0);
+    assert_eq!(
+        router.checkpoints_perform(call.clone()).await,
+        Err(running_words())
+    );
+    let end = end_request(&session, turn);
+    assert_eq!(ask(&router, &terminal(), end).await, IntentsReply::Done);
+    assert_eq!(listed(&router, &session).await.turn, TurnState::Idle);
+
+    router.checkpoints_perform(call).await.expect("restore");
+    assert_eq!(read(&router, "a.txt").as_deref(), Some("one"));
+    // A second mark is a second turn with its own point, not a recorded turn of the person's.
+    let again = marked(&router, &terminal(), &session).await;
+    assert_ne!(again, turn);
+    let saved = listed(&router, &session)
+        .await
+        .rows
+        .iter()
+        .filter(|row| matches!(row, CheckpointRow::Saved { .. }))
+        .count();
+    assert_eq!(
+        saved, 3,
+        "the first point, the safety point, the second mark's"
+    );
+}
+
+#[tokio::test]
+async fn an_agent_that_keeps_its_own_history_is_watched_without_a_point() {
+    let router = router();
+    let session = watch_in(&router, &terminal(), Rewind::Agent).await;
+    let turn = marked(&router, &terminal(), &session).await;
+    let list = listed(&router, &session).await;
+    assert!(matches!(
+        list.rows.as_slice(),
+        [CheckpointRow::NotSaved { turn: t, why: SkipReason::AgentKeepsOwn, .. }] if *t == turn
+    ));
+    assert_eq!(list.turn, TurnState::Running);
+    assert_eq!(
+        router.seams.checkpoints.held(&root(), &session).await,
+        Ok(Vec::new())
+    );
+}
+
+#[tokio::test]
+async fn only_the_terminal_that_opened_a_watch_marks_ends_or_closes_it() {
+    let router = router();
+    let session = watch_in(&router, &terminal(), Rewind::Docket).await;
+    let turn = marked(&router, &terminal(), &session).await;
+    for who in [stranger(), launcher()] {
+        for request in [
+            mark_request(&session),
+            end_request(&session, turn),
+            close_request(&session),
+        ] {
+            assert_eq!(ask(&router, &who, request.clone()).await, not_allowed());
+        }
+    }
+    // Nothing of it happened: the turn still runs, and the session is open.
+    assert_eq!(listed(&router, &session).await.turn, TurnState::Running);
+    let end = end_request(&session, turn);
+    assert_eq!(ask(&router, &terminal(), end).await, IntentsReply::Done);
+    let close = close_request(&session);
+    assert_eq!(ask(&router, &terminal(), close).await, IntentsReply::Done);
+    // A closed watch cannot be marked again.
+    assert_eq!(
+        ask(&router, &terminal(), mark_request(&session)).await,
+        not_allowed()
+    );
+    // A terminal closes no session but a watch session of its own.
+    let hosted = open_in(&router, &companion(), Some(WORK), None).await;
+    assert_eq!(
+        ask(&router, &terminal(), close_request(&hosted)).await,
+        not_allowed()
+    );
+}
+
+#[tokio::test]
+async fn nothing_runs_in_a_watch_session() {
+    let router = router();
+    let session = watch_in(&router, &terminal(), Rewind::Docket).await;
+    let words = IntentsRequest::SessionTurn {
+        session: session.clone(),
+        turn: TurnIn {
+            text: "run this".into(),
+            origin: Origin::Launcher,
+            keep: ContextKeep {
+                query: Keep::Dropped,
+                results: Keep::Dropped,
+                selection: Keep::Dropped,
+                window: Keep::Dropped,
+            },
+            via: TurnVia::Typed,
+        },
+    };
+    let perform = IntentsRequest::Perform {
+        call: call("mail.thread.read", &["t1"], vec![]),
+        session: Some(session.clone()),
+        parent_window: None,
+        activation: None,
+    };
+    let dry_run = IntentsRequest::DryRun {
+        call: call("mail.thread.read", &["t1"], vec![]),
+        session: Some(session.clone()),
+    };
+    let rows = [
+        (launcher(), words.clone()),
+        (terminal(), words),
+        (launcher(), perform.clone()),
+        (terminal(), perform),
+        (launcher(), dry_run.clone()),
+        (terminal(), dry_run),
+        (
+            launcher(),
+            IntentsRequest::SessionTaskPolicy {
+                session: session.clone(),
+            },
+        ),
+        (
+            companion(),
+            IntentsRequest::SessionHandles {
+                session: session.clone(),
+            },
+        ),
+    ];
+    for (index, (who, request)) in rows.into_iter().enumerate() {
+        assert_eq!(
+            ask(&router, &who, request).await,
+            not_allowed(),
+            "row {index}"
+        );
+    }
+    // It has no turns of the person's, and no point was taken by any of that.
+    assert!(listed(&router, &session).await.rows.is_empty());
+}
+
+#[tokio::test]
+async fn an_agent_cannot_watch_mark_or_close_a_watch_session() {
+    let router = router();
+    let session = watch_in(&router, &terminal(), Rewind::Docket).await;
+    let watch = IntentsRequest::CheckpointWatch {
+        workspace: Workspace::parse(WORK).expect("workspace"),
+        label: "a sneaky one".into(),
+        rewind: Rewind::Agent,
+    };
+    for agent in [
+        caller("org.zed.Zed", CallerRole::Mcp),
+        caller("org.quire.AcpAgent", CallerRole::AcpAgent),
+    ] {
+        for request in [
+            watch.clone(),
+            mark_request(&session),
+            close_request(&session),
+        ] {
+            assert_eq!(
+                ask(&router, &agent, request).await,
+                not_allowed(),
+                "{agent:?}"
+            );
+        }
+    }
+    // The refused calls took no point and left the session open for its opener.
+    assert!(listed(&router, &session).await.rows.is_empty());
+    marked(&router, &terminal(), &session).await;
+}
