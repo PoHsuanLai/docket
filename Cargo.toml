@@ -13,6 +13,7 @@ members = [
   "crates/docket-tasks",
   "crates/docket-kit",
   "crates/docket-session",
+  "crates/docket-checkpoint",
   "crates/docket-acp",
   "crates/docket-launch",
   "crates/docket-agents",
@@ -67,6 +68,7 @@ docket-planner = { path = "crates/docket-planner" }
 docket-tasks   = { path = "crates/docket-tasks" }
 docket-kit     = { path = "crates/docket-kit" }
 docket-session = { path = "crates/docket-session" }
+docket-checkpoint = { path = "crates/docket-checkpoint" }
 docket-acp     = { path = "crates/docket-acp" }
 docket-launch  = { path = "crates/docket-launch" }
 docket-acp-bin = { path = "crates/docket-acp-bin" }

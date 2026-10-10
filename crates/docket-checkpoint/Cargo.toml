@@ -1,0 +1,23 @@
+[package]
+name = "docket-checkpoint"
+description = "Restore points of an agent's workspace, pure plus one seam: the CheckpointStore trait, retention, the restore plan and its digest, the per-turn decision, a MemoryStore fake and the contract every store keeps. No file, process or bus; the git store is another crate."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# The store contract (`contract`): test code, which asserts by panicking.
+testing = []
+
+[dependencies]
+docket-core = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
