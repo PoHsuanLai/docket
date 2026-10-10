@@ -5,7 +5,7 @@
 
 use crate::budget::{HaltCause, KillSwitch};
 use crate::call::{CallRefusal, CallRequest, Outcome};
-use crate::checkpoint::{CheckpointFault, CheckpointId, CheckpointList, RestorePlan};
+use crate::checkpoint::{CheckpointFault, CheckpointId, CheckpointList, RestorePlan, TurnEnd};
 use crate::confirm::ConfirmEnd;
 use crate::context::EntityRef;
 use crate::context::{ContextView, Reveal};
@@ -310,6 +310,16 @@ pub enum IntentsRequest {
     SessionClose {
         /// The session.
         session: SessionId,
+    },
+    /// `.Session.TurnEnded`: the host says the agent's turn is over, however it ended. It can
+    /// only mark a turn ended; it never starts, allows or skips anything else.
+    SessionTurnEnded {
+        /// The session.
+        session: SessionId,
+        /// The turn that ended.
+        turn: TurnId,
+        /// How it ended.
+        how: TurnEnd,
     },
     /// `.Session.Resolve` (the reader only).
     SessionResolve {

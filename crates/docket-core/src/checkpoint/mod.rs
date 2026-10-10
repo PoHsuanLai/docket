@@ -10,9 +10,11 @@ mod id;
 mod list;
 mod path;
 mod plan;
+mod turn;
 
 pub use event::{CheckpointEvent, CheckpointNote, Rewind, SkipReason};
 pub use id::CheckpointId;
 pub use list::{CheckpointList, CheckpointRow, Retention, SavedState};
 pub use path::{WorkPath, WorkPathError};
 pub use plan::{CheckpointFault, PlanDigest, RestorePlan};
+pub use turn::{TurnEnd, TurnState};

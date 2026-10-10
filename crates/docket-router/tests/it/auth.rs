@@ -11,17 +11,21 @@ fn role_set(member: Member) -> Vec<CallerRole> {
 }
 
 #[test]
-fn only_the_persons_surfaces_record_a_turn() {
-    assert_eq!(
-        role_set(Member::SessionTurn),
-        [
-            CallerRole::Launcher,
-            CallerRole::Field,
-            CallerRole::Editor,
-            CallerRole::Cli,
-            CallerRole::AcpAgent
-        ]
-    );
+fn only_the_persons_surfaces_record_a_turn_and_the_same_roles_end_it() {
+    for member in [Member::SessionTurn, Member::SessionTurnEnded] {
+        assert_eq!(
+            role_set(member),
+            [
+                CallerRole::Launcher,
+                CallerRole::Field,
+                CallerRole::Editor,
+                CallerRole::Cli,
+                CallerRole::AcpAgent
+            ],
+            "{member:?}"
+        );
+        assert!(!permits(CallerRole::Mcp, member), "{member:?}");
+    }
 }
 
 #[test]
@@ -37,7 +41,8 @@ fn the_host_of_an_external_agent_opens_speaks_and_performs_and_nothing_else() {
             Member::Perform,
             Member::SessionOpen,
             Member::SessionTurn,
-            Member::SessionClose
+            Member::SessionClose,
+            Member::SessionTurnEnded
         ]
     );
 }
@@ -55,6 +60,7 @@ fn an_editor_opens_speaks_and_reads_the_log_but_confirms_halts_and_performs_noth
             Member::SessionOpen,
             Member::SessionTurn,
             Member::SessionClose,
+            Member::SessionTurnEnded,
             Member::SessionStored,
             Member::CheckpointList,
             Member::CheckpointPlan
@@ -190,6 +196,7 @@ fn a_terminal_gets_exactly_the_members_quire_do_uses() {
             Member::Undo,
             Member::Context,
             Member::SessionTurn,
+            Member::SessionTurnEnded,
             Member::SessionStored,
             // The terminal shows its own sessions' restore points (owner, 2026-10-10).
             Member::CheckpointList,

@@ -456,6 +456,12 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         docket_core::StandingGrantId::parse("sg-0000000000000000").expect("id"),
     ))
     .await;
+    pair.both(IntentsRequest::SessionTurnEnded {
+        session: session.clone(),
+        turn: docket_core::TurnId(1),
+        how: docket_core::TurnEnd::Answered,
+    })
+    .await;
     pair.both(IntentsRequest::SessionClose { session }).await;
 
     let missing: Vec<Member> = Member::ALL

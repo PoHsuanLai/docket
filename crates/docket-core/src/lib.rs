@@ -81,7 +81,8 @@ pub use call::{
 pub use caller::{CallerId, CallerRole, Member, is_terminal_scope};
 pub use checkpoint::{
     CheckpointEvent, CheckpointFault, CheckpointId, CheckpointList, CheckpointNote, CheckpointRow,
-    PlanDigest, RestorePlan, Retention, Rewind, SavedState, SkipReason, WorkPath, WorkPathError,
+    PlanDigest, RestorePlan, Retention, Rewind, SavedState, SkipReason, TurnEnd, TurnState,
+    WorkPath, WorkPathError,
 };
 pub use classify::{
     CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd, PerCall,

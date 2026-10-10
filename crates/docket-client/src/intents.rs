@@ -6,8 +6,9 @@ use docket_core::{
     ActionRef, ActivationToken, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, Displayed,
     EntityRef, GateAnswer, GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk,
     IntentsReply, IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Outcome, Preview,
-    Resolved, SearchAsk, SessionOpen, SessionOpened, SuggestAsk, TurnId, TurnIn, UndoEntry, UndoId,
-    UndoReport, UndoScope, ValidManifest, WidenAnswer, WidenAsk, WindowKey, WireRefusal,
+    Resolved, SearchAsk, SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnId, TurnIn,
+    UndoEntry, UndoId, UndoReport, UndoScope, ValidManifest, WidenAnswer, WidenAsk, WindowKey,
+    WireRefusal,
 };
 use prov::{AppName, EntityId, SessionId, SpaceScope};
 
@@ -324,6 +325,21 @@ impl<T: Transport> Intents<T> {
     /// Closes a session.
     pub async fn session_close(&self, session: SessionId) -> Result<(), ClientError> {
         self.ask(IntentsRequest::SessionClose { session }, |r| match r {
+            IntentsReply::Done => Some(()),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Says the agent's turn is over, however it ended (the same roles as `session_turn`).
+    pub async fn session_turn_ended(
+        &self,
+        session: SessionId,
+        turn: TurnId,
+        how: TurnEnd,
+    ) -> Result<(), ClientError> {
+        let request = IntentsRequest::SessionTurnEnded { session, turn, how };
+        self.ask(request, |r| match r {
             IntentsReply::Done => Some(()),
             _ => None,
         })

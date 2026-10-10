@@ -83,6 +83,11 @@
    <method name="Close">
      <arg name="session" type="s" direction="in"/>
    </method>
+   <method name="TurnEnded">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="turn" type="t" direction="in"/>
+     <arg name="how" type="s" direction="in"/>
+   </method>
    <method name="Resolve">
      <arg name="session" type="s" direction="in"/>
      <arg name="handle" type="t" direction="in"/>

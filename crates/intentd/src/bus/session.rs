@@ -66,6 +66,21 @@ impl SessionBus {
         self.0.done(&header, request).await
     }
 
+    async fn turn_ended(
+        &self,
+        session: String,
+        turn: u64,
+        how: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<(), IntentsError> {
+        let request = IntentsRequest::SessionTurnEnded {
+            session: session_of(&session)?,
+            turn: TurnId(turn),
+            how: json(&how)?,
+        };
+        self.0.done(&header, request).await
+    }
+
     async fn resolve(
         &self,
         session: String,

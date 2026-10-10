@@ -112,16 +112,29 @@ impl Transport for Shared {
 
 #[tokio::test]
 async fn the_request_the_router_sees_is_the_one_asked_for() {
-    let transport = std::sync::Arc::new(Scripted::answering(vec![Ok(IntentsReply::Done)]));
+    let transport = std::sync::Arc::new(Scripted::answering(vec![
+        Ok(IntentsReply::Done),
+        Ok(IntentsReply::Done),
+    ]));
     let intents = Intents::over(Shared(transport.clone()));
     let session = SessionId::parse("s-4").expect("session");
     intents
         .session_close(session.clone())
         .await
         .expect("closed");
+    intents
+        .session_turn_ended(session.clone(), TurnId(2), TurnEnd::Failed)
+        .await
+        .expect("ended");
     let seen = transport.seen.lock().expect("lock");
-    assert_eq!(*seen, [IntentsRequest::SessionClose { session }]);
+    let ended = IntentsRequest::SessionTurnEnded {
+        session: session.clone(),
+        turn: TurnId(2),
+        how: TurnEnd::Failed,
+    };
+    assert_eq!(*seen, [IntentsRequest::SessionClose { session }, ended]);
     assert_eq!(seen[0].member(), Member::SessionClose);
+    assert_eq!(seen[1].member(), Member::SessionTurnEnded);
 }
 
 #[tokio::test]

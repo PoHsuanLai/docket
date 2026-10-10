@@ -60,6 +60,7 @@ fn every_intents_member_is_declared() {
         "<method name=\"DisplayLabelled\">",
         "<method name=\"Read\">",
         "<method name=\"TaskPolicy\">",
+        "<method name=\"TurnEnded\">",
         "<method name=\"Widen\">",
         "<method name=\"Note\">",
         "<method name=\"Recall\">",

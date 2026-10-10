@@ -20,6 +20,9 @@ pub trait Session {
     /// Closes a session.
     fn close(&self, session: &str) -> zbus::Result<()>;
 
+    /// The host says the agent's turn is over (`TurnEnd` JSON for how it ended). Same roles as `Turn`.
+    fn turn_ended(&self, session: &str, turn: u64, how: &str) -> zbus::Result<()>;
+
     /// The text behind a handle, for the reader only.
     fn resolve(&self, session: &str, handle: u64) -> zbus::Result<String>;
 
@@ -73,6 +76,11 @@ impl SessionSkeleton {
 
     fn close(&self, session: String) -> fdo::Result<()> {
         let _ = (session,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn turn_ended(&self, session: String, turn: u64, how: String) -> fdo::Result<()> {
+        let _ = (session, turn, how);
         Err(crate::introspect::frozen())
     }
 

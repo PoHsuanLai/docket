@@ -157,6 +157,7 @@ fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         R::Context { session, .. }
         | R::SessionTurn { session, .. }
         | R::SessionClose { session }
+        | R::SessionTurnEnded { session, .. }
         | R::SessionResolve { session, .. }
         | R::SessionDisplay { session, .. }
         | R::SessionDisplayLabelled { session, .. }

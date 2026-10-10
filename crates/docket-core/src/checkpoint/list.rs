@@ -1,6 +1,6 @@
 //! A session's list of restore points.
 
-use super::{CheckpointId, SkipReason};
+use super::{CheckpointId, SkipReason, TurnState};
 use crate::ids::TurnId;
 use crate::units::Days;
 use porter_core::{Count, UnixSeconds};
@@ -69,4 +69,7 @@ pub struct CheckpointList {
     pub rows: Vec<CheckpointRow>,
     /// What is kept.
     pub keeps: Retention,
+    /// Whether the session's agent is working now: edges grey out Restore while it is.
+    #[serde(default)]
+    pub turn: TurnState,
 }

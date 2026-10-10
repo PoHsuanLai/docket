@@ -31,6 +31,9 @@ fn roles(member: Member) -> &'static [CallerRole] {
         // A terminal is one of them for `quire-do ask` (the person at a keyboard, the same user),
         // and its turns are recorded as `TurnSource::Terminal`, never as the launcher's.
         Member::SessionTurn => &[Launcher, Field, Editor, Cli, AcpAgent],
+        // The host that recorded a turn says when it ended: the same roles. An external agent
+        // itself is not a caller of the router, only its host is (`AcpAgent` is the host).
+        Member::SessionTurnEnded => &[Launcher, Field, Editor, Cli, AcpAgent],
         Member::SessionResolve => &[Reader],
         // Text for the screen, never for a model.
         Member::SessionDisplay | Member::SessionDisplayLabelled => &[Launcher, Field],

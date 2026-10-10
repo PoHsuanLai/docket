@@ -316,6 +316,14 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
             let proxy = SessionProxy::new(c).await.map_err(bus)?;
             nothing(proxy.close(session.as_str()).await)
         }
+        Q::SessionTurnEnded { session, turn, how } => {
+            let proxy = SessionProxy::new(c).await.map_err(bus)?;
+            nothing(
+                proxy
+                    .turn_ended(session.as_str(), turn.0, &to_json(&how)?)
+                    .await,
+            )
+        }
         Q::SessionResolve { session, handle } => {
             let proxy = SessionProxy::new(c).await.map_err(bus)?;
             body(

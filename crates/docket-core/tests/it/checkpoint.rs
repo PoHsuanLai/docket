@@ -82,8 +82,13 @@ fn every_checkpoint_type_round_trips_in_its_pinned_shape() {
             last: Count(20),
             days: Days(14),
         },
+        turn: TurnState::Running,
     };
-    round(&list);
+    assert!(round(&list).contains(r#""turn":"running""#));
+    // A list from an older writer has no turn: it reads as idle.
+    let old = r#"{"session":"s-1","rows":[],"keeps":{"last":20,"days":14}}"#;
+    let old: CheckpointList = serde_json::from_str(old).expect("old list");
+    assert_eq!(old.turn, TurnState::Idle);
     round(&RestorePlan {
         changed: vec![path("a")],
         added: vec![path("b")],
@@ -157,7 +162,15 @@ fn the_checkpoint_requests_and_replies_round_trip_and_name_their_members() {
             last: Count(20),
             days: Days(14),
         },
+        turn: TurnState::Idle,
     })));
+    let ended = IntentsRequest::SessionTurnEnded {
+        session: SessionId::parse("s-1").expect("session"),
+        turn: TurnId(3),
+        how: TurnEnd::Cancelled,
+    };
+    assert_eq!(ended.member(), Member::SessionTurnEnded);
+    round(&ended);
     round(&IntentsReply::CheckpointPlan(Ok(RestorePlan::default())));
     round(&IntentsReply::CheckpointPlan(Err(CheckpointFault::Gone)));
 }
