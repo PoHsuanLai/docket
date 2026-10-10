@@ -45,6 +45,7 @@ impl Harness for Acp {
                 sheets: SheetSurface::Desktop,
                 space: opened.space.clone(),
                 label: opened.label.clone(),
+                rewind: Default::default(),
             })
             .await
             .expect("the router opens the session");

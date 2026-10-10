@@ -136,6 +136,9 @@ pub struct Setup {
     pub tools: Option<ToolsOffer>,
     /// What the person calls the agent in `agents.toml`; the host says it when it opens.
     pub label: Option<prov::AgentLabel>,
+    /// Who keeps the agent's file history (`checkpoints` in `agents.toml`); the host says it when
+    /// it opens.
+    pub rewind: docket_core::Rewind,
     /// The launcher's `_meta` for `session/new`, when a test has one.
     pub session_meta: Option<docket_acp::client::SessionMeta>,
     /// How the fake agent treats sign-in.
@@ -163,6 +166,7 @@ impl Default for Setup {
             agent_network: NetworkMode::None,
             tools: None,
             label: None,
+            rewind: Default::default(),
             session_meta: None,
             auth: Auth::Open,
             sign_in: None,
@@ -324,14 +328,15 @@ where
     X: Seams<Court = TheCourt, Sandbox = FakeSandbox, Spawn = FakeSpawn>,
     X::Files: Clone + 'static,
 {
-    let label = setup.label.clone();
+    let (label, rewind) = (setup.label.clone(), setup.rewind);
     let wired = wired_over::<X>(files, setup);
     let mut host = AgentHost::new(
         wired.backend,
         wired.court.clone(),
         wired.desk.clone(),
         wired.fallback,
-    );
+    )
+    .with_rewind(rewind);
     let session = host
         .open(Opening {
             label,

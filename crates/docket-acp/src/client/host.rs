@@ -15,7 +15,7 @@
 
 use super::backend::{AcpBackend, Seams};
 use super::court::{Court, OpenAgent};
-use docket_core::{ConfirmId, SheetSurface, UserTurn};
+use docket_core::{ConfirmId, Rewind, SheetSurface, UserTurn};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, EndCause, HostFault, Opening, ResumePlan,
     SessionBackend, SessionExport, SessionHost, SheetChoice, SheetDesk, StartSession, TurnEnd,
@@ -57,6 +57,7 @@ pub struct AgentHost<X: Seams, D: SheetDesk> {
     court: X::Court,
     desk: D,
     fallback: Fallback,
+    rewind: Rewind,
     session: Option<SessionId>,
     pending: Option<Opening2>,
 }
@@ -77,9 +78,18 @@ impl<X: Seams, D: SheetDesk> AgentHost<X, D> {
             court,
             desk,
             fallback,
+            rewind: Rewind::default(),
             session: None,
             pending: None,
         }
+    }
+
+    /// Says who keeps the history of the agent's file changes (its `checkpoints` in
+    /// `agents.toml`); the router is told when the session opens. Without it the default over-saves
+    /// rather than under-saves.
+    pub fn with_rewind(mut self, rewind: Rewind) -> Self {
+        self.rewind = rewind;
+        self
     }
 
     /// The backend, for what only it knows (the taint's cause).
@@ -120,6 +130,7 @@ impl<X: Seams, D: SheetDesk> SessionHost for AgentHost<X, D> {
                 sheets: self.fallback.surface(),
                 space: opening.space.clone(),
                 label: opening.label.clone(),
+                rewind: self.rewind,
             })
             .await
             .map_err(|_| BackendFault::Unavailable)?;

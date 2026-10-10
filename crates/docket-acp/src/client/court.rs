@@ -50,6 +50,9 @@ pub struct OpenAgent {
     /// What the person calls the agent (`agents.toml`), which only the host says: never the
     /// agent's own title from `initialize`.
     pub label: Option<prov::AgentLabel>,
+    /// Who keeps the history of the agent's file changes (`checkpoints` in `agents.toml`), which
+    /// only the host says: never the agent.
+    pub rewind: Rewind,
 }
 
 impl OpenAgent {
@@ -59,9 +62,7 @@ impl OpenAgent {
             program: self.program.clone(),
             sheets: self.sheets,
             label: self.label.clone(),
-            // The launching host passes the agent's `checkpoints` choice with the session open
-            // (a later step); until then the default over-saves rather than under-saves.
-            rewind: Rewind::default(),
+            rewind: self.rewind,
         }
     }
 }

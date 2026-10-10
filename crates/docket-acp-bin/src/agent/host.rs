@@ -111,6 +111,12 @@ pub async fn host<A: Accounts + 'static>(
     // The agent process's own network counts for the commands it runs (R12). A program the file
     // does not list cannot be started at all; until then assume the widest.
     let label = file.get(&program).and_then(|entry| entry.label.clone());
+    // Who keeps the agent's file history is the person's choice in `agents.toml`; a program the
+    // file does not list gets docket's own (it over-saves rather than under-saves).
+    let rewind = file
+        .get(&program)
+        .map(|entry| entry.rewind)
+        .unwrap_or_default();
     let installed_as = file.get(&program).and_then(|entry| entry.registry.clone());
     let agent_network = file
         .get(&program)
@@ -156,7 +162,7 @@ pub async fn host<A: Accounts + 'static>(
         court: court.clone(),
         tools,
     });
-    let mut host = AgentHost::new(backend, court, desk, fallback);
+    let mut host = AgentHost::new(backend, court, desk, fallback).with_rewind(rewind);
     let opened = host
         .open(Opening {
             task: TaskId::parse("agent-task-1").map_err(|e| e.to_string())?,
