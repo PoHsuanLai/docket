@@ -359,18 +359,17 @@ fn cloud_is_opt_in_and_an_uninstall_removes_it() {
     let jail = Jail::new();
     jail.ok(&[]);
     let offline = jail.tree();
-    // The packaged unit stays as shipped: it has no network.
-    assert!(
-        jail.read(".config/systemd/user/inferd.service")
-            .contains("PrivateNetwork=yes")
-    );
+    // The packaged unit stays as shipped: this computer's own addresses only.
+    let unit = jail.read(".config/systemd/user/inferd.service");
+    assert!(unit.contains("IPAddressDeny=any"), "{unit}");
+    assert!(unit.contains("IPAddressAllow=localhost"), "{unit}");
     let dry = jail.ok(&["--cloud", "--dry-run"]);
     assert!(dry.contains("inferd.service.d/cloud.conf"), "{dry}");
     assert_eq!(jail.tree(), offline, "a dry run writes nothing");
     jail.ok(&["--cloud"]);
     let dropin = jail.read(".config/systemd/user/inferd.service.d/cloud.conf");
-    assert!(dropin.contains("PrivateNetwork=no"), "{dropin}");
-    assert!(dropin.contains("AF_INET AF_INET6"), "{dropin}");
+    // porter's drop-in opens every address (the families are already open in the unit).
+    assert!(dropin.contains("IPAddressAllow=any"), "{dropin}");
     jail.ok(&["--uninstall"]);
     assert!(jail.tree().is_empty(), "{:#?}", jail.tree());
 }
