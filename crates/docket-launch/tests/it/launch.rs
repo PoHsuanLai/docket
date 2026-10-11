@@ -388,3 +388,81 @@ async fn the_tool_edge_is_bound_in_the_bridge_read_only_and_its_socket_read_writ
     );
     spawned.child.close().await;
 }
+
+/// Whether a path inside the sandbox is the session bus socket, the system bus socket, or a
+/// directory above one: binding any of them back would hand the agent a bus.
+fn reaches_a_bus(inside: &str) -> bool {
+    let session = inside
+        .strip_prefix("/run/user/")
+        .is_some_and(|rest| rest.split_once('/').is_none_or(|(_, below)| below == "bus"));
+    let system = ["/run/dbus", "/run/dbus/system_bus_socket"].contains(&inside);
+    ["/", "/run", "/run/user"].contains(&inside) || session || system
+}
+
+/// The line the owner set (2026-10-11): an agent never gets a bus. The real keys sit in the
+/// Secret Service, which answers on the session bus, so hiding key files is not enough on its
+/// own. In every network mode, with a tool edge bound under the person's runtime directory: `/run`
+/// is emptied after the host is shown, nothing bound afterwards is a bus socket or a directory
+/// above one, and the environment names no bus address.
+#[tokio::test]
+async fn no_network_mode_gives_the_agent_a_bus() {
+    let quiet = LOGIN.replace("network = \"host\"\n", "");
+    let cases = [
+        (ENDPOINT, "claude-code"),
+        (HANDOFF, "gemini-cli"),
+        (HANDOFF_FILE, "gemini-cli"),
+        (LOGIN, "claude-code"),
+        (quiet.as_str(), "claude-code"),
+    ];
+    assert!(bulkhead::HIDDEN.contains(&"/run"), "/run is always emptied");
+    let mut nets = Vec::new();
+    for (n, (toml, program)) in cases.into_iter().enumerate() {
+        let mut rig = rig(toml, Mood::Working, true);
+        let mut with_edge = plan(program, &format!("s-{n}"));
+        with_edge.edge = Some(docket_acp::client::EdgeBind {
+            socket: super::support::abs("/run/user/1000/docket-edge-x/tools.sock"),
+            bridge: super::support::abs("/opt/docket/actions-mcp"),
+        });
+        let mut spawned = rig.spawn.spawn(&with_edge).await.expect("spawned");
+        let run = rig.procs.runs()[0].clone();
+        nets.push(run.net.clone());
+
+        for var in &run.env {
+            assert!(!var.name.starts_with("DBUS_"), "{}: {}", n, var.name);
+            assert!(!var.value.contains("unix:path="), "{}: {}", n, var.name);
+        }
+
+        let args = agent_bwrap_args(&run, bulkhead::HIDDEN);
+        let host = args
+            .windows(3)
+            .position(|w| w == ["--ro-bind", "/", "/"])
+            .expect("the host is shown read-only");
+        let emptied = args
+            .windows(2)
+            .position(|w| w == ["--tmpfs", "/run"])
+            .expect("/run is emptied");
+        assert!(
+            host < emptied,
+            "{n}: /run is emptied after the host is shown"
+        );
+        let binds = [
+            "--bind",
+            "--ro-bind",
+            "--bind-try",
+            "--ro-bind-try",
+            "--dev-bind",
+        ];
+        let end = args.iter().position(|a| a == "--").expect("the command");
+        for (i, word) in args[..end].iter().enumerate().skip(emptied) {
+            if binds.contains(&word.as_str()) {
+                let inside = &args[i + 2];
+                assert!(!reaches_a_bus(inside), "{n}: {inside} is bound: {args:?}");
+            }
+        }
+        spawned.child.close().await;
+    }
+    // Every network mode was covered.
+    assert!(nets.iter().any(|n| matches!(n, AgentNet::Endpoint(_))));
+    assert!(nets.contains(&AgentNet::Host));
+    assert!(nets.contains(&AgentNet::None));
+}
