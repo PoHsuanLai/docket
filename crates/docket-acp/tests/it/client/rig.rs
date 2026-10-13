@@ -64,6 +64,7 @@ pub fn opening(cwd: &str) -> Opening {
         started_from: None,
         cwd: Some(Workspace::parse(cwd).expect("cwd")),
         label: None,
+        rewind: Default::default(),
     }
 }
 

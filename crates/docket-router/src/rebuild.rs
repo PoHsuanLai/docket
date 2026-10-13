@@ -147,8 +147,7 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
             program: program.clone(),
             sheets: SheetSurface::Desktop,
             label: opening.label.clone(),
-            // The log does not keep it; the host says it again at the next open.
-            rewind: Rewind::default(),
+            rewind: opening.rewind,
         }),
         _ => None,
     };
@@ -277,6 +276,7 @@ mod tests {
                 cwd: None,
                 started_from: None,
                 label: None,
+                rewind: Default::default(),
             },
             standing,
             taint: Written::Clean,
@@ -305,9 +305,12 @@ mod tests {
         p.opening.backend =
             BackendKind::Acp(docket_session::ProgramName::parse("claude-code").expect("program"));
         p.opening.label = Some(prov::AgentLabel("Claude Code".to_owned()));
+        p.opening.rewind = Rewind::Agent;
         let record = rebuild(&id(), &p, UnixSeconds(1)).record;
         let external = record.external.expect("external");
         assert_eq!(external.label, p.opening.label);
+        // The host's rewind setting is read back from the log, not reset.
+        assert_eq!(external.rewind, Rewind::Agent);
         assert!(matches!(
             record.actor,
             prov::Actor::Acp { label: Some(_), .. }

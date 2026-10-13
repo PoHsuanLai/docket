@@ -25,6 +25,7 @@ fn opening() -> Opening {
         cwd: Some(Workspace::parse("/work/a").expect("cwd")),
         started_from: None,
         label: None,
+        rewind: Default::default(),
     }
 }
 

@@ -113,6 +113,7 @@ mod tests {
             cwd: cwd.map(|c| Workspace::parse(c).expect("workspace")),
             started_from: None,
             label: None,
+            rewind: Default::default(),
         })
     }
 

@@ -143,6 +143,8 @@ impl<S: Seams> Router<S> {
             cwd: Some(workspace),
             started_from: None,
             label: Some(label),
+            // A watch opening's backend says it.
+            rewind: Rewind::default(),
         }));
         st.sessions.insert(session.clone(), record);
         IntentsReply::CheckpointWatching(session)

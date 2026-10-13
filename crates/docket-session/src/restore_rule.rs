@@ -215,6 +215,7 @@ mod tests {
             cwd: None,
             started_from,
             label: None,
+            rewind: Default::default(),
         }
     }
 

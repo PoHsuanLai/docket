@@ -70,6 +70,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
             cwd: Some(cwd.clone()),
             started_from: None,
             label: None,
+            rewind: Default::default(),
         };
         let session = self
             .host

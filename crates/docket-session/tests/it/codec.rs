@@ -161,6 +161,28 @@ fn an_opening_written_before_the_label_reads_back_with_none_and_a_label_round_tr
 }
 
 #[test]
+fn an_opening_keeps_the_rewind_the_host_said_and_an_old_one_reads_as_docket() {
+    let agent = Opening {
+        rewind: docket_core::Rewind::Agent,
+        ..opening()
+    };
+    let text = serde_json::to_string(&agent).expect("json");
+    assert!(text.contains(r#""rewind":"agent""#), "{text}");
+    let back: Opening = serde_json::from_str(&text).expect("reads");
+    assert_eq!(back, agent);
+    // The default is not written, and a log without the key reads as the default.
+    let mut old = serde_json::to_value(opening()).expect("value");
+    assert!(
+        old.as_object_mut()
+            .expect("object")
+            .remove("rewind")
+            .is_none()
+    );
+    let read: Opening = serde_json::from_value(old).expect("an old opening reads");
+    assert_eq!(read.rewind, docket_core::Rewind::Docket);
+}
+
+#[test]
 fn a_watch_opening_round_trips_with_its_rewind_and_an_ordinary_one_is_unchanged() {
     let watch = Opening {
         backend: BackendKind::Watch(docket_core::Rewind::Agent),

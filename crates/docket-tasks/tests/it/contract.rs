@@ -67,6 +67,7 @@ impl Harness for Native {
                     cwd: None,
                     started_from: None,
                     label: None,
+                    rewind: Default::default(),
                 },
             })
             .await

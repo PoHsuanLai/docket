@@ -105,6 +105,17 @@ pub struct Opening {
     /// Never the agent's own claim.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<prov::AgentLabel>,
+    /// Who keeps the history of the external agent's file changes (`checkpoints` in
+    /// `agents.toml`), which the host that launched it said. `Docket` for every other session,
+    /// for a watch session (its `BackendKind` carries it) and for every log written before this
+    /// field. Never the agent's own claim.
+    #[serde(default, skip_serializing_if = "keeps_docket")]
+    pub rewind: Rewind,
+}
+
+/// Whether `rewind` is the default, which a log leaves out.
+fn keeps_docket(rewind: &Rewind) -> bool {
+    *rewind == Rewind::Docket
 }
 
 /// A call the router accepted, written before its end: a `Call` with no `Step` after it is a call

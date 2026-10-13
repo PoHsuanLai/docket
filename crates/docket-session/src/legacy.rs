@@ -28,6 +28,7 @@ pub fn entry_of(record: &SessionRecord) -> Option<SessionEntry> {
             cwd: None,
             started_from: None,
             label: None,
+            rewind: Default::default(),
         })),
         SessionRecord::Asked { turn, .. } => Some(SessionEntry::Turn(turn.clone())),
         SessionRecord::SkillLoaded { id, version, .. } => Some(SessionEntry::Skill(SkillUse {

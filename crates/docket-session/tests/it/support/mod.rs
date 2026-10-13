@@ -59,6 +59,7 @@ pub fn opening() -> Opening {
         cwd: None,
         started_from: None,
         label: None,
+        rewind: Default::default(),
     }
 }
 

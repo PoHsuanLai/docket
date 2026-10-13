@@ -175,6 +175,7 @@ pub async fn host<A: Accounts + 'static>(
             started_from: None,
             label,
             cwd: Some(Workspace::parse(cwd).map_err(|e| e.to_string())?),
+            rewind: Default::default(),
         })
         .await;
     if let (Some(dir), Some(id)) = (&agents, &installed_as) {
