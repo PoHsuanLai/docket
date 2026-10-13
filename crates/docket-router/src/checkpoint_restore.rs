@@ -19,7 +19,7 @@ use docket_core::{
     PlanDigest, Preview, TurnId, TurnState, Undoable, Value, WireRefusal,
 };
 use docket_session::{Claimant, may_restore};
-use porter_core::AppName;
+use porter_core::{AppName, Count};
 use prov::{Actor, AgentRole, SessionId};
 
 /// The name the built-in provider answers to.
@@ -27,6 +27,12 @@ pub const CHECKPOINTS_APP: &str = "org.quire.Checkpoints";
 
 /// The one action it declares.
 pub const CHECKPOINTS_RESTORE: &str = "checkpoints.restore";
+
+/// The size limit of the safety point: none. A turn's save is skipped over `max_files`, which
+/// only costs a row in the list; the safety point is the way back from a restore the person
+/// confirmed, so failing it on size would leave the restore undone for good, and saving only
+/// part of the folder would make "undo" delete the files left out. It saves the whole folder.
+const SAFETY_FILES: Count = Count(u32::MAX);
 
 fn app() -> Option<AppName> {
     AppName::parse(CHECKPOINTS_APP).ok()
@@ -240,7 +246,7 @@ impl<S: Seams> Router<S> {
                 session: ask.session.clone(),
                 id: safety,
                 at: self.seams.clock().now(),
-                max: cfg.checkpoint_max_files,
+                max: SAFETY_FILES,
             })
             .await
             .map_err(|fault| say(crate::checkpoint_read::fault_of(fault)))?;

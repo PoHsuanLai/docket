@@ -279,6 +279,33 @@ async fn restoring_saves_a_safety_point_writes_the_files_back_and_is_logged() {
 }
 
 #[tokio::test]
+async fn a_restore_in_a_folder_over_the_size_limit_still_saves_the_whole_folder_first() {
+    let router = router();
+    put(&router, "a.txt", "one");
+    let session = open_in(&router, &companion(), Some(WORK), None).await;
+    let first = say(&router, &session, "first").await;
+    ended(&router, &session, first).await;
+    put(&router, "a.txt", "two");
+    put(&router, "b.txt", "made since");
+    put(&router, "c.txt", "made since");
+    // The limit now is below the folder's size: a turn's save would be skipped.
+    router.apply_settings(AgentConfig {
+        checkpoint_max_files: Count(2),
+        ..AgentConfig::default()
+    });
+
+    let plan = planned(&router, &session, 1).await;
+    let call = restore_call(&session, 1, &plan.digest.0);
+    router.checkpoints_perform(call).await.expect("restore");
+    assert_eq!(read(&router, "a.txt").as_deref(), Some("one"));
+    assert_eq!(read(&router, "b.txt"), None);
+    // The safety point has every file, so the restore can be undone completely.
+    let undo = planned(&router, &session, 2).await;
+    assert_eq!(undo.changed, [file("a.txt")]);
+    assert_eq!(undo.added, [file("b.txt"), file("c.txt")]);
+}
+
+#[tokio::test]
 async fn a_plan_that_is_not_the_one_the_person_saw_is_refused_and_nothing_is_written() {
     let router = router();
     put(&router, "a.txt", "one");
