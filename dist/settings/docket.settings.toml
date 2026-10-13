@@ -3,8 +3,8 @@
 # for a local install. The values live in $XDG_CONFIG_HOME/docket/settings.toml, for example
 # `[agent.mcp] expose = "on"`; the daemons read them live (crates/docket-settings). Every row is
 # hands-off for an agent (no `agent = "settable"`): agent.* is never agent-settable, so the
-# companion can never loosen its own limits. The rows design/22 section 5 puts on the Intelligence
-# page are Privacy's three; the others are Advanced.
+# companion can never loosen its own limits. The main page has four rows (Assistant); the rest
+# are Advanced (Limits).
 app = "docket"
 file = "docket/settings.toml"
 version = 1
@@ -12,9 +12,9 @@ version = 1
 [[key]]
 path = "agent.strictness"
 default = "default"
-label = "How much the assistant asks first"
-help = "Ask more makes the assistant check with you more often. Trust more lets it send or delete inside a task you approved once two reviewers agree. Default sits between."
-section = "Privacy"
+label = "Asks first"
+help = "Choose how often the assistant checks with you. Asks more checks more often; Asks less lets it carry on inside a task you approved once. Usual is the safe default."
+section = "Assistant"
 exposure = "basic"
 
 [key.kind]
@@ -27,16 +27,16 @@ variants = ["ask_more", "default", "trust_more"]
 kind = "intelligence"
 
 [key.labels]
-ask_more = "Ask more"
-default = "Default"
-trust_more = "Trust more"
+ask_more = "Asks more"
+default = "Usual"
+trust_more = "Asks less"
 
 [[key]]
 path = "agent.mcp.expose"
 default = "off"
-label = "Let other apps use my apps' actions (MCP)"
-help = "Whether an external MCP client, such as a coding agent, may list and call the actions apps offer. Off by default; every call still goes through the same checks and asks before anything is sent or deleted."
-section = "Privacy"
+label = "Other apps"
+help = "Lets other apps, such as coding agents, use the actions your apps offer. Off by default. Every action still asks before anything is sent or deleted."
+section = "Assistant"
 exposure = "basic"
 
 [key.kind]
@@ -55,9 +55,9 @@ on = "On"
 [[key]]
 path = "agent.acp.expose"
 default = "off"
-label = "Let a code editor drive the assistant (ACP)"
-help = "Whether an editor such as Zed may open sessions with the assistant and send it prompts over the Agent Client Protocol. Off by default; the editor's permission prompts come on top of the usual checks, never instead of them."
-section = "Privacy"
+label = "Code editors"
+help = "Lets a code editor such as Zed talk to the assistant. Off by default. The editor's own prompts add to the usual checks, never replace them."
+section = "Assistant"
 exposure = "advanced"
 
 [key.kind]
@@ -76,10 +76,10 @@ on = "On"
 [[key]]
 path = "agent.acp.agents"
 default = "off"
-label = "Let the assistant use coding agents (Claude Code, Gemini CLI)"
-help = "Whether docket may start the coding agents you list in agents.toml and run them as its helpers, inside a sandbox, with every file write, command and permission request going through the usual checks. Off by default. An agent's own sign-in stays its own; docket never reads it."
-section = "Privacy"
-exposure = "advanced"
+label = "Coding helpers"
+help = "Lets the assistant use coding agents such as Claude Code as helpers, in a sandbox. Off by default. Their sign-ins stay theirs."
+section = "Assistant"
+exposure = "basic"
 
 [key.kind]
 kind = "toggle"
@@ -97,9 +97,9 @@ on = "On"
 [[key]]
 path = "agent.undo.keep_h"
 default = 24
-label = "Keep undo for"
-help = "How long the undo journal keeps what the assistant did, so you can take it back."
-section = "Privacy"
+label = "Undo history"
+help = "How long you can take back what the assistant did."
+section = "Assistant"
 exposure = "basic"
 
 [key.kind]
@@ -116,9 +116,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.review.quick_ms"
 default = 300
-label = "Quick review time"
-help = "How long the quick reviewer may take. A review that runs out of time asks you; it never allows."
-section = "Review time"
+label = "Quick check time"
+help = "How long a quick check may take. If it runs out of time, it asks you."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -135,9 +135,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.review.deliberate_ms"
 default = 3000
-label = "Careful review time"
-help = "How long the careful reviewer may take before the step asks you."
-section = "Review time"
+label = "Careful check time"
+help = "How long a careful check may take before it asks you."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -154,9 +154,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.review.second_ms"
 default = 3000
-label = "Second opinion time"
-help = "How long the second reviewer may take before the step asks you."
-section = "Review time"
+label = "Second check time"
+help = "How long the second check may take before it asks you."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -173,9 +173,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.review.shadow"
 default = "off"
-label = "Compare quick checks with a second scorer"
-help = "Keeps a private record of how a second scorer would have judged each quick check, so the two can be compared later. It never changes what the assistant does, and nothing in the record leaves this computer."
-section = "Review time"
+label = "Compare checks"
+help = "Keeps a private record comparing a second way of judging each quick check. It changes nothing and never leaves this computer."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -194,9 +194,9 @@ on = "On"
 [[key]]
 path = "agent.budget.calls"
 default = 200
-label = "Calls per session"
-help = "The most actions the assistant may run in one session."
-section = "Session budgets"
+label = "Actions per task"
+help = "The most actions the assistant may run in one task."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -213,9 +213,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.budget.writes"
 default = 100
-label = "Changes per session"
-help = "The most changes of any kind the assistant may make in one session."
-section = "Session budgets"
+label = "Changes per task"
+help = "The most changes the assistant may make in one task."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -232,9 +232,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.budget.outbound"
 default = 10
-label = "Sends per session"
-help = "The most things the assistant may send out (mail, messages, posts) in one session."
-section = "Session budgets"
+label = "Sends per task"
+help = "The most things the assistant may send out, such as mail, messages or posts, in one task."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -251,9 +251,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.budget.destructive"
 default = 5
-label = "Deletions per session"
-help = "The most deletions the assistant may make in one session."
-section = "Session budgets"
+label = "Deletions per task"
+help = "The most deletions the assistant may make in one task."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -270,9 +270,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.budget.per_minute"
 default = 30
-label = "Calls per minute"
+label = "Actions per minute"
 help = "The most actions the assistant may run in a minute."
-section = "Session budgets"
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -289,9 +289,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.budget.fan_out"
 default = 50
-label = "Items per call"
+label = "Items per action"
 help = "The most items one action may touch."
-section = "Session budgets"
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -310,7 +310,7 @@ path = "agent.budget.chain"
 default = 4
 label = "Follow-up depth"
 help = "How many actions one action may start in turn."
-section = "Session budgets"
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -327,9 +327,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.budget.wall_s"
 default = 1800
-label = "Session length"
-help = "How long one session may run before it stops."
-section = "Session budgets"
+label = "Task length"
+help = "How long one task may run before it stops."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -346,9 +346,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.budget.reviews"
 default = 300
-label = "Reviews per session"
-help = "The most reviews one session may use."
-section = "Session budgets"
+label = "Checks per task"
+help = "The most checks one task may use."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -366,8 +366,8 @@ kind = "intelligence"
 path = "agent.budget.denials_in_a_row"
 default = 3
 label = "Refusals before a pause"
-help = "After this many refusals in a row the session pauses and waits for you."
-section = "Session budgets"
+help = "After this many refusals in a row, the task pauses and waits for you."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -384,9 +384,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.budget.spend_microusd"
 default = 0
-label = "Spend per session"
-help = "The most a session may spend on paid models, in millionths of a dollar. 0 keeps it on this computer."
-section = "Session budgets"
+label = "Spending per task"
+help = "The most a task may spend on paid models, in millionths of a dollar. 0 keeps it on this computer."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
@@ -403,9 +403,9 @@ kind = "intelligence"
 [[key]]
 path = "agent.task_policy.max_min"
 default = 60
-label = "Longest task approval"
-help = "A task approval lasts until the task ends, and no longer than this."
-section = "Task approvals"
+label = "Approval length"
+help = "An approval lasts until its task ends, and no longer than this."
+section = "Limits"
 exposure = "advanced"
 
 [key.kind]
