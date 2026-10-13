@@ -210,7 +210,12 @@ async fn a_file_that_became_ignored_leaves_later_points_and_an_older_point_still
     store.take(small).await.expect("take under the limit");
     let tree = scratch.git(
         &repo,
-        &["ls-tree", "-r", "--name-only", "refs/docket/checkpoints/s-git/2"],
+        &[
+            "ls-tree",
+            "-r",
+            "--name-only",
+            "refs/docket/checkpoints/s-git/2",
+        ],
     );
     assert_eq!(tree, "a.txt\n");
     // A restore to that point leaves the ignored file alone.
