@@ -183,6 +183,54 @@ async fn a_workspace_below_the_top_of_a_repository_is_saved_and_restored_by_its_
     );
 }
 
+#[tokio::test]
+async fn a_file_that_became_ignored_leaves_later_points_and_an_older_point_still_brings_it_back() {
+    let Some(scratch) = Scratch::new() else {
+        return;
+    };
+    let repo = scratch.repo("repo");
+    let (kept, later) = (repo.join("a.txt"), repo.join("later.txt"));
+    std::fs::write(&kept, "one").expect("write");
+    std::fs::write(&later, "saved").expect("write");
+    let (store, there) = (scratch.store(), root(&repo));
+    store.take(take(&there, 1)).await.expect("take");
+    let ask = |id: u32| PlanAsk {
+        root: there.clone(),
+        session: session(),
+        id: CheckpointId(id),
+    };
+    // The plan index has seen the file too, before it is ignored.
+    store.plan(ask(1)).await.expect("plan");
+
+    let exclude = repo.join(".git/info/exclude");
+    std::fs::write(exclude, "*.log\nlater.txt\n").expect("exclude");
+    // Only `a.txt` counts now: the limit is met, and the next point leaves the file out.
+    let mut small = take(&there, 2);
+    small.max = Count(1);
+    store.take(small).await.expect("take under the limit");
+    let tree = scratch.git(
+        &repo,
+        &["ls-tree", "-r", "--name-only", "refs/docket/checkpoints/s-git/2"],
+    );
+    assert_eq!(tree, "a.txt\n");
+    // A restore to that point leaves the ignored file alone.
+    let plan = store.plan(ask(2)).await.expect("plan");
+    assert!(plan.changed.is_empty() && plan.added.is_empty() && plan.removed.is_empty());
+
+    // The older point still brings back what it saved, even over a file ignored now.
+    std::fs::remove_file(&later).expect("remove");
+    let plan = store.plan(ask(1)).await.expect("plan");
+    assert_eq!(plan.added, vec![path("later.txt")]);
+    let restore = ApplyAsk {
+        root: there.clone(),
+        session: session(),
+        id: CheckpointId(1),
+        expect: plan.digest,
+    };
+    store.apply(restore).await.expect("apply");
+    assert_eq!(std::fs::read_to_string(later).expect("read"), "saved");
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn a_restore_does_not_write_through_a_link_that_took_the_place_of_a_folder() {

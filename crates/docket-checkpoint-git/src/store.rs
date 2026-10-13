@@ -100,6 +100,7 @@ impl<R: GitRun> CheckpointStore for GitStore<R> {
         } = ask;
         self.require_repository(&root).await?;
         let env = self.index_env(&session, IndexKind::Taken).await?;
+        self.drop_ignored(&root, &env).await?;
         let listed = self
             .ok(
                 &root,

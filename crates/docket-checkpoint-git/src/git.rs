@@ -104,6 +104,29 @@ impl<R: GitRun> GitStore<R> {
         }
     }
 
+    /// Removes from the private index (`env`) the files the folder ignores now. An index keeps
+    /// what it was given, so a file that became ignored after it was saved would stay in every
+    /// later point, count against the size limit, and show as a file a restore deletes.
+    pub(crate) async fn drop_ignored(
+        &self,
+        root: &WorkRoot,
+        env: &[(String, String)],
+    ) -> Result<(), StoreFault> {
+        let ignored = self
+            .ok(
+                root,
+                &["ls-files", "-c", "-i", "--exclude-standard", "-z"],
+                env,
+            )
+            .await?;
+        if ignored.is_empty() {
+            return Ok(());
+        }
+        let args = strings(&["update-index", "--force-remove", "-z", "--stdin"]);
+        self.ok_with(root, args, env, Some(ignored)).await?;
+        Ok(())
+    }
+
     /// `GIT_INDEX_FILE` for a private index of `session`, with its folder made.
     pub(crate) async fn index_env(
         &self,
@@ -167,6 +190,7 @@ impl<R: GitRun> GitStore<R> {
         session: &SessionId,
     ) -> Result<TreeListing, StoreFault> {
         let env = self.index_env(session, IndexKind::Planned).await?;
+        self.drop_ignored(root, &env).await?;
         self.ok(root, &["add", "-A", "--", "."], &env).await?;
         let out = self.ok(root, &["ls-files", "-s", "-z"], &env).await?;
         staged_listing(&out).map_err(|_| StoreFault::Failed)
