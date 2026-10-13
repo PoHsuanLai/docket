@@ -97,7 +97,7 @@ fn the_schema_has_the_shape_the_settings_app_loads() {
 }
 
 #[test]
-fn the_intelligence_page_shows_privacy_and_the_rest_is_advanced() {
+fn the_intelligence_page_shows_the_assistant_rows_and_the_rest_is_advanced() {
     let shown: Vec<String> = rows()
         .iter()
         .filter(|r| r["exposure"].as_str() == Some("basic"))
@@ -105,7 +105,12 @@ fn the_intelligence_page_shows_privacy_and_the_rest_is_advanced() {
         .collect();
     assert_eq!(
         shown,
-        ["agent.strictness", "agent.mcp.expose", "agent.undo.keep_h"]
+        [
+            "agent.strictness",
+            "agent.mcp.expose",
+            "agent.acp.agents",
+            "agent.undo.keep_h"
+        ]
     );
 }
 
