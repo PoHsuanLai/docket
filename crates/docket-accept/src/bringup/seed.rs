@@ -33,7 +33,7 @@ pub fn inferd_toml(root: &Path, extra: &str) -> Result<String, ExtraFault> {
         .parse()
         .map_err(|e: toml::de::Error| ExtraFault::Toml(e.to_string()))?;
     if let Some(owned) = OWNED_TABLES.iter().find(|name| table.contains_key(**name)) {
-        return Err(ExtraFault::Owned(*owned));
+        return Err(ExtraFault::Owned(owned));
     }
     let body = format!("{NO_LOCAL_ENGINE}\n{extra}");
     let model = crate::world::ModelSource::Live(body);
