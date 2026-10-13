@@ -1,42 +1,42 @@
-//! A durable, test-only home for the cloud account: one directory outside every repository that
-//! holds what accountd needs to know the OpenRouter account across worlds, so the owner types the
+//! A durable, test-only home for the cloud AI key: one directory outside every repository that
+//! holds what inferd needs to know the OpenRouter account across worlds, so the owner types the
 //! key once (`dev/live/cloud-key.sh`) and every fresh world reuses it.
 //!
 //! ```text
-//! DIR/                      0700
-//!   accountd.keys           0600  the key file; only accountd opens it (ACCOUNTD_KEYS=file:...)
-//!   accountd.keys.lock            accountd's advisory lock
-//!   state/porter/...              the registry and grants accountd wrote (no secrets)
-//!   data/porter/providers/        the provider files `add` used
+//! DIR/                           0700
+//!   inferd.keys                  0600  the key file; only inferd opens it (INFERD_KEYS=file:...)
+//!   inferd.keys.lock                   the key file's advisory lock
+//!   state/quire/inferd/keys/...        the registry (accounts and key permits; no secrets)
+//!   data/porter/providers/             the provider files `inferd add` used
 //! ```
 //!
-//! This process never opens the key file: it only looks at its metadata. A world points accountd's
-//! `ACCOUNTD_KEYS` at it and copies the non-secret `state` and `data` trees into its scratch
+//! This process never opens the key file: it only looks at its metadata. A world points inferd's
+//! `INFERD_KEYS` at it and copies the non-secret `state` and `data` trees into its scratch
 //! root, so a run never changes the home.
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 /// The key file's name inside the home.
-pub const KEYS_FILE: &str = "accountd.keys";
-/// The registry accountd keeps, relative to the home.
-const REGISTRY: &str = "state/porter/registry.json";
+pub const KEYS_FILE: &str = "inferd.keys";
+/// The registry inferd keeps (accounts and key permits), relative to the home.
+const REGISTRY: &str = "state/quire/inferd/keys/registry.json";
 
 /// Why a directory cannot be the home.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum HomeFault {
     /// The path is not absolute.
-    #[error("--accountd-home {0} is not an absolute path")]
+    #[error("--keys-home {0} is not an absolute path")]
     NotAbsolute(PathBuf),
     /// The directory is missing or is not one.
-    #[error("--accountd-home {0} is not a directory")]
+    #[error("--keys-home {0} is not a directory")]
     NotADirectory(PathBuf),
     /// Group or other can use the directory or the key file.
     #[error("{0} has group or other permission bits ({1:o}); chmod it to 0700 (the key file 0600)")]
     LooseMode(PathBuf, u32),
     /// The directory is inside a git work tree.
     #[error(
-        "--accountd-home {0} is inside a git work tree ({1}); keys must live outside every repository"
+        "--keys-home {0} is inside a git work tree ({1}); keys must live outside every repository"
     )]
     InsideGit(PathBuf, PathBuf),
     /// The key file is not a plain file.
@@ -44,31 +44,17 @@ pub enum HomeFault {
     NotAFile(PathBuf),
     /// The home does not hold the account yet.
     #[error(
-        "{home} does not hold the cloud account yet. Fill it once, in your own terminal (the key is typed at accountd's own prompt, echo off):\n  dev/live/cloud-key.sh {home} {accountd}\nthen run again."
+        "{0} does not hold the cloud key yet. Fill it once, in your own terminal (the key is typed at inferd's own prompt, echo off):\n  dev/live/cloud-key.sh {0} <inferd built with --features test-keys>\nthen run again."
     )]
-    Empty {
-        /// The directory.
-        home: PathBuf,
-        /// The accountd binary the run was given.
-        accountd: PathBuf,
-    },
+    Empty(PathBuf),
     /// The directory could not be read.
     #[error("{0}: {1}")]
     Io(PathBuf, String),
 }
 
-/// What a world needs to start accountd against a home: the test build and the checked home.
+/// A checked home that holds the cloud key.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Cloud {
-    /// The accountd binary.
-    pub accountd: PathBuf,
-    /// The home that holds the account.
-    pub home: AccountdHome,
-}
-
-/// A checked home that holds the account.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AccountdHome(PathBuf);
+pub struct KeysHome(PathBuf);
 
 fn meta_of(path: &Path) -> Result<std::fs::Metadata, HomeFault> {
     std::fs::symlink_metadata(path).map_err(|e| HomeFault::Io(path.to_owned(), e.to_string()))
@@ -108,16 +94,12 @@ pub fn check_dir(dir: &Path) -> Result<PathBuf, HomeFault> {
     }
 }
 
-impl AccountdHome {
-    /// Checks `dir` and that it holds the account. `accountd` only names the binary in the
-    /// message that tells the owner how to fill an empty home.
-    pub fn open(dir: &Path, accountd: &Path) -> Result<Self, HomeFault> {
+impl KeysHome {
+    /// Checks `dir` and that it holds the account.
+    pub fn open(dir: &Path) -> Result<Self, HomeFault> {
         let real = check_dir(dir)?;
         let keys = real.join(KEYS_FILE);
-        let empty = || HomeFault::Empty {
-            home: dir.to_owned(),
-            accountd: accountd.to_owned(),
-        };
+        let empty = || HomeFault::Empty(dir.to_owned());
         // Metadata only: the harness never opens the key file.
         let meta = std::fs::symlink_metadata(&keys).map_err(|_| empty())?;
         if !meta.is_file() {
@@ -128,13 +110,13 @@ impl AccountdHome {
         Ok(Self(real))
     }
 
-    /// The value for `ACCOUNTD_KEYS`.
+    /// The value for `INFERD_KEYS`.
     pub fn keys_setting(&self) -> String {
         format!("file:{}", self.0.join(KEYS_FILE).display())
     }
 
-    /// Copies the non-secret records into a world's scratch root: accountd's state under
-    /// `.local/state` and its provider files under `data/porter/providers`.
+    /// Copies the non-secret records into a world's scratch root: inferd's state under
+    /// `.local/state` and the provider files under `data/porter/providers`.
     pub fn seed(&self, root: &Path) -> std::io::Result<()> {
         copy_tree(&self.0.join("state"), &root.join(".local/state"))?;
         copy_tree(&self.0.join("data"), &root.join("data"))

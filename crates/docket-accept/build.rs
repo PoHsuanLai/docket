@@ -1,5 +1,5 @@
 //! Builds the two daemons the acceptance runs as the packaged binaries: porter's `inferd`
-//! and almanac's `memoryd` (with `test-keys`, because the private bus has no Secret Service, and `test-proc-root`
+//! and almanac's `memoryd` (both with `test-keys`, because the private bus has no Secret Service, and `test-proc-root`
 //! on both, so callers are named from a fake proc root). Each is built from its own workspace and lock file, into a target
 //! directory inside this build's (`<target>/accept-siblings/<repo>`), so the nextest archive's
 //! target directory, which the jail binds, holds them and `cargo clean` removes them.
@@ -22,7 +22,7 @@ const SIBLINGS: [Sibling; 2] = [
     Sibling {
         repo: "porter",
         package: "inferd",
-        features: &["test-proc-root"],
+        features: &["test-proc-root", "test-keys"],
     },
     Sibling {
         repo: "almanac",

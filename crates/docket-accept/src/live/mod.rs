@@ -2,7 +2,6 @@
 //! safety the owner's machine needs: a private bus, scratch HOME and XDG directories, no real
 //! mail or memory, and the network only when the engine is `cloud`. See `docs/live-eval.md`.
 
-pub mod accountd_home;
 pub mod acp;
 pub mod catalog;
 pub mod cli;
@@ -11,6 +10,7 @@ pub mod engine;
 pub mod flows;
 pub mod hostile;
 pub mod inferd_world;
+pub mod keys_home;
 pub mod pattern;
 pub mod regress;
 pub mod shadow_arm;

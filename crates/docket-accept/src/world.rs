@@ -101,13 +101,10 @@ pub struct Options {
     /// sends a model and its answer, appended to `<scratch>/model.jsonl`. THIS WRITES PROMPTS TO
     /// DISK, in the scratch root.
     pub tap: TapMode,
-    /// The accountd binary to run on the private bus (a cloud run's key store): a build with the
-    /// `test-proc-root` and `test-keys` features, as `ACCEPT_ACCOUNTD` names it.
-    pub accountd: Option<PathBuf>,
-    /// A durable home that already holds the cloud account (`--accountd-home`): accountd's keys
-    /// are the file in it and its non-secret records are copied into the scratch root, so no key
-    /// is typed per world.
-    pub accountd_home: Option<crate::live::accountd_home::AccountdHome>,
+    /// A durable home that already holds the cloud key (`--keys-home`): inferd's keys are the
+    /// file in it and its non-secret records are copied into the scratch root, so no key is
+    /// typed per world.
+    pub keys_home: Option<crate::live::keys_home::KeysHome>,
     /// A catalogue directory whose `*.toml` entries are copied into the scratch root before
     /// inferd starts (see `live::catalog`).
     pub catalog: Option<PathBuf>,
@@ -258,22 +255,21 @@ fn extra_env(dir: &Path, name: &str, keys: Option<&str>) -> Vec<(&'static str, S
             ),
             ("MEMORYD_PROC_ROOT", proc_root),
         ],
-        "inferd" => [("INFERD_PROC_ROOT", proc_root)]
-            .into_iter()
-            .chain(engine_cache())
-            .collect(),
-        // A cloud run's key store: its caller table is the scratch one, and its keys a file in
-        // the scratch root (a build with the `test-keys` feature; see docs/live-eval.md).
-        "accountd" => vec![
+        // inferd holds the AI keys: the home's key file for a cloud run, else a file in the
+        // scratch root (a build with the `test-keys` feature; see docs/live-eval.md).
+        "inferd" => [
+            ("INFERD_PROC_ROOT", proc_root),
             (
-                "ACCOUNTD_KEYS",
+                "INFERD_KEYS",
                 keys.map_or_else(
-                    || format!("file:{}", dir.join("keys/accountd.keys").display()),
+                    || format!("file:{}", dir.join("keys/inferd.keys").display()),
                     str::to_owned,
                 ),
             ),
-            ("ACCOUNTD_PROC_ROOT", proc_root),
-        ],
+        ]
+        .into_iter()
+        .chain(engine_cache())
+        .collect(),
         // intentd and companiond tell a terminal from its cgroup, read from the scratch root.
         "intentd" => vec![("INTENTD_PROC_ROOT", proc_root)],
         "companiond" => vec![("COMPANIOND_PROC_ROOT", proc_root)],
@@ -353,13 +349,6 @@ pub fn inferd_toml(root: &Path, model: &ModelSource, record: Option<&Path>) -> S
     };
     format!("{engines}{CALLERS}")
 }
-
-/// accountd's caller table for a cloud run: inferd is the one porter daemon, and may resolve keys.
-pub(crate) const ACCOUNTD_CALLERS: &str = r#"[[caller]]
-app = "org.quire.Inference"
-unit = "inferd.service"
-role = "porter_daemon"
-"#;
 
 /// memoryd's callers file: the units that may call it, with the roles the router and the shell
 /// are told apart by. The shell has both rows (sill.service, or the scope sill-session starts);
@@ -544,9 +533,9 @@ impl World {
             TapMode::Off => None,
         };
         let keys = options
-            .accountd_home
+            .keys_home
             .as_ref()
-            .map(crate::live::accountd_home::AccountdHome::keys_setting);
+            .map(crate::live::keys_home::KeysHome::keys_setting);
         let mut daemons = Vec::new();
         let mut start = async |name: &'static str, binary: &Path, owns: &str| {
             let daemon = spawn(
@@ -562,13 +551,8 @@ impl World {
             daemons.push(daemon);
             until_owned(&sill, owns).await;
         };
-        if let Some(accountd) = &options.accountd {
-            write(&root.join("config/porter/callers.toml"), ACCOUNTD_CALLERS);
-            if let Some(home) = &options.accountd_home {
-                home.seed(root)
-                    .expect("the account home's records are copied");
-            }
-            start("accountd", accountd, "org.quire.Accounts1").await;
+        if let Some(home) = &options.keys_home {
+            home.seed(root).expect("the key home's records are copied");
         }
         start("inferd", &binaries.inferd, "org.quire.Inference1").await;
         start("memoryd", &binaries.memoryd, "org.quire.Memory1").await;

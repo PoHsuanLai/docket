@@ -337,10 +337,10 @@ fn a_question_at_rest_is_asking_instead_of_finishing_never_an_unsettled_answer()
     );
 }
 
-mod accountd_home {
+mod keys_home {
     use super::words;
-    use docket_accept::live::accountd_home::{AccountdHome, HomeFault, check_dir};
     use docket_accept::live::cli::{Command, UsageError, parse};
+    use docket_accept::live::keys_home::{HomeFault, KeysHome, check_dir};
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
 
@@ -349,17 +349,16 @@ mod accountd_home {
     }
 
     #[test]
-    fn the_option_needs_an_absolute_path_and_an_accountd() {
-        let Ok(Command::Corpus(c)) = parse(&words(
-            "corpus --engine cloud --accountd /a/accountd --accountd-home /h",
-        )) else {
+    fn the_option_needs_an_absolute_path_and_the_old_flags_say_where_they_went() {
+        let Ok(Command::Corpus(c)) = parse(&words("corpus --engine cloud --keys-home /h")) else {
             panic!("parses");
         };
-        assert_eq!(c.accountd_home.as_deref(), Some(Path::new("/h")));
+        assert_eq!(c.keys_home.as_deref(), Some(Path::new("/h")));
         let no_flag = parse(&words("corpus --engine scripted"));
-        assert!(matches!(no_flag, Ok(Command::Corpus(c)) if c.accountd_home.is_none()));
+        assert!(matches!(no_flag, Ok(Command::Corpus(c)) if c.keys_home.is_none()));
         for line in [
-            "corpus --engine cloud --accountd /a --accountd-home rel",
+            "corpus --engine cloud --keys-home rel",
+            "corpus --engine cloud --accountd /a --keys-home /h",
             "corpus --engine cloud --accountd-home /h",
         ] {
             assert!(
@@ -367,6 +366,10 @@ mod accountd_home {
                 "{line}"
             );
         }
+        let moved = parse(&words("corpus --engine cloud --accountd-home /h"))
+            .expect_err("moved")
+            .to_string();
+        assert!(moved.contains("--keys-home"), "{moved}");
     }
 
     #[test]
@@ -396,40 +399,38 @@ mod accountd_home {
         let home = tmp.path().join("home");
         std::fs::create_dir(&home).expect("dir");
         mode(&home, 0o700);
-        let accountd = Path::new("/bin/accountd");
-        let why = AccountdHome::open(&home, accountd)
-            .expect_err("empty")
-            .to_string();
-        assert!(
-            why.contains("dev/live/cloud-key.sh") && why.contains("/bin/accountd"),
-            "{why}"
-        );
-        std::fs::write(home.join("accountd.keys"), "fake").expect("keys");
-        mode(&home.join("accountd.keys"), 0o644);
+        let why = KeysHome::open(&home).expect_err("empty").to_string();
+        assert!(why.contains("dev/live/cloud-key.sh"), "{why}");
+        std::fs::write(home.join("inferd.keys"), "fake").expect("keys");
+        mode(&home.join("inferd.keys"), 0o644);
         assert!(matches!(
-            AccountdHome::open(&home, accountd),
+            KeysHome::open(&home),
             Err(HomeFault::LooseMode(..))
         ));
-        mode(&home.join("accountd.keys"), 0o600);
-        std::fs::create_dir_all(home.join("state/porter")).expect("state");
-        std::fs::write(home.join("state/porter/registry.json"), "{}").expect("registry");
-        let open = AccountdHome::open(&home, accountd).expect("filled");
-        assert!(open.keys_setting().ends_with("/accountd.keys"));
+        mode(&home.join("inferd.keys"), 0o600);
+        let registry = home.join("state/quire/inferd/keys");
+        std::fs::create_dir_all(&registry).expect("state");
+        std::fs::write(registry.join("registry.json"), "{}").expect("registry");
+        let open = KeysHome::open(&home).expect("filled");
+        assert!(open.keys_setting().ends_with("/inferd.keys"));
         let world = tmp.path().join("world");
         open.seed(&world).expect("seed");
-        assert!(world.join(".local/state/porter/registry.json").is_file());
-        assert!(!world.join("accountd.keys").exists());
+        assert!(
+            world
+                .join(".local/state/quire/inferd/keys/registry.json")
+                .is_file()
+        );
+        assert!(!world.join("inferd.keys").exists());
     }
 
     #[test]
     fn smoke_takes_the_cloud_options_and_a_repeat() {
-        let Ok(Command::Smoke(s)) = parse(&words(
-            "smoke --engine cloud --accountd /a --accountd-home /h --repeat 5",
-        )) else {
+        let Ok(Command::Smoke(s)) = parse(&words("smoke --engine cloud --keys-home /h --repeat 5"))
+        else {
             panic!("parses");
         };
         assert_eq!(
-            (s.repeat, s.accountd_home.as_deref()),
+            (s.repeat, s.keys_home.as_deref()),
             (5, Some(Path::new("/h")))
         );
         let Ok(Command::Smoke(plain)) = parse(&words("smoke --engine scripted")) else {
@@ -438,7 +439,7 @@ mod accountd_home {
         assert_eq!(plain.repeat, 1);
         for line in [
             "smoke --engine cloud --accountd /a",
-            "smoke --engine cloud --accountd /a --accountd-home rel",
+            "smoke --engine cloud --keys-home rel",
             "smoke --engine cloud --repeat 0",
             "corpus --engine cloud --repeat 2",
         ] {

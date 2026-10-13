@@ -28,8 +28,7 @@ fn options(out: &Path, cassette: Option<String>) -> CorpusOptions {
         // A bound nothing in a healthy run reaches: the test asserts no time.
         timeouts: Timeouts::Every(Millis(600_000)),
         out: out.to_owned(),
-        accountd: None,
-        accountd_home: None,
+        keys_home: None,
         catalog: None,
         patience: std::time::Duration::from_secs(1),
     }

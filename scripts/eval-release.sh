@@ -5,11 +5,11 @@
 #
 #   scripts/eval-release.sh --engine scripted
 #   scripts/eval-release.sh --engine local --inferd-config dev/live/inferd.local.toml
-#   scripts/eval-release.sh --engine cloud --inferd-config dev/live/inferd.cloud.toml --accountd <bin>
+#   scripts/eval-release.sh --engine cloud --inferd-config dev/live/inferd.cloud.toml --keys-home <dir>
 #
 # The model source is a flag. `scripted` plays a cassette (the gate's hijacked judge): no model, no
 # network. `local` is inferd's configured local engines (the inferd.toml you name). `cloud` is
-# inferd with network and a hosted model named by catalogue id in that file; the key is accountd's
+# inferd with network and a hosted model named by catalogue id in that file; the key is inferd's
 # (docs/live-eval.md says how it gets there). The script reads no key, from no variable and no file.
 #
 # What it does, and what it never does:

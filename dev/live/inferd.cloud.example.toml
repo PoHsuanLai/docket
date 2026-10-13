@@ -1,5 +1,5 @@
 # An inferd.toml for `--engine cloud`. Copy it to dev/live/inferd.cloud.toml (git ignores that) and
-# pass it with --inferd-config. No key is in it or may be: inferd gets the key from accountd on the
+# pass it with --inferd-config. No key is in it or may be: inferd gets the key from its own key store on the
 # private bus (docs/live-eval.md, "Cloud"). It must not hold a [callers] table.
 [ai]
 # Prompts may leave this computer. The writer, the reviewers and the planner send the class

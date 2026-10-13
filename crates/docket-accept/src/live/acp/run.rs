@@ -156,8 +156,7 @@ pub async fn run_flow_acp(
     let options = Options {
         keep_in,
         tap: TapMode::On,
-        accountd: None,
-        accountd_home: None,
+        keys_home: None,
         catalog,
         acp: AcpSetting::Agents,
         focus: flow.focus(),
@@ -254,8 +253,7 @@ pub async fn list_models_acp(
     let options = Options {
         keep_in,
         tap: TapMode::On,
-        accountd: None,
-        accountd_home: None,
+        keys_home: None,
         catalog,
         acp: AcpSetting::Agents,
         focus: Flow::ALL[0].focus(),

@@ -8,8 +8,8 @@
 //! started here; `dev/live-smoke.sh` runs all of them.
 
 use crate::world::{
-    ACCOUNTD_CALLERS, Binaries, Cgroup, GIVE_UP, ModelSource, Options, Scratch, env_of,
-    inferd_toml, place, spawn, until_owned, write,
+    Binaries, Cgroup, GIVE_UP, ModelSource, Options, Scratch, env_of, inferd_toml, place, spawn,
+    until_owned, write,
 };
 use docket_dbus::BusConnection;
 use docket_testbus::{PrivateBus, Reaped};
@@ -19,7 +19,6 @@ use std::path::{Path, PathBuf};
 pub struct InferdWorld {
     // Declared first: inferd is killed before the bus it talks on goes.
     inferd: Reaped,
-    _accountd: Option<Reaped>,
     /// The scratch root.
     pub dir: Scratch,
     bus: PrivateBus,
@@ -56,67 +55,22 @@ impl InferdWorld {
             &root.join("config/quire/inferd.toml"),
             &inferd_toml(root, model, None),
         );
-        let accountd = match &options.accountd {
-            Some(binary) => {
-                write(&root.join("config/porter/callers.toml"), ACCOUNTD_CALLERS);
-                let keys = options.accountd_home.as_ref().map(|home| {
-                    home.seed(root)
-                        .expect("the account home's records are copied");
-                    home.keys_setting()
-                });
-                let (name, daemon) = spawn(
-                    root,
-                    bus.address(),
-                    "accountd",
-                    binary,
-                    None,
-                    keys.as_deref(),
-                )
-                .expect("accountd starts");
-                place(root, daemon.pid(), Cgroup::Unit(name));
-                until_owned(&client, "org.quire.Accounts1").await;
-                Some(daemon)
-            }
-            None => None,
-        };
-        let (name, inferd) = spawn(root, bus.address(), "inferd", &binaries.inferd, None, None)
-            .expect("inferd starts");
+        let keys = options.keys_home.as_ref().map(|home| {
+            home.seed(root).expect("the key home's records are copied");
+            home.keys_setting()
+        });
+        let (name, inferd) = spawn(
+            root,
+            bus.address(),
+            "inferd",
+            &binaries.inferd,
+            None,
+            keys.as_deref(),
+        )
+        .expect("inferd starts");
         place(root, inferd.pid(), Cgroup::Unit(name));
         until_owned(&client, "org.quire.Inference1").await;
-        let world = Self {
-            inferd,
-            _accountd: accountd,
-            dir,
-            bus,
-        };
-        if let (Some(binary), None) = (&options.accountd, &options.accountd_home) {
-            world.wait_for_key(binary).await;
-        }
-        world
-    }
-
-    /// A cloud run's one manual step: the key goes into accountd, typed by the owner at accountd's
-    /// own prompt with echo off. This process never sees it. Prints the command and waits for Enter.
-    async fn wait_for_key(&self, accountd: &Path) {
-        let env: Vec<String> = self
-            .env()
-            .into_iter()
-            .chain([(
-                "ACCOUNTD_KEYS".to_owned(),
-                format!("file:{}", self.root().join("keys/accountd.keys").display()),
-            )])
-            .map(|(k, v)| format!("{k}={v}"))
-            .collect();
-        eprintln!(
-            "docket-live: accountd runs on the private bus. Add the key in another terminal (echo is off):\n  env -i PATH=\"$PATH\" {} {} add openrouter --allow org.quire.Intents --allow org.quire.Companion --allow org.quire.Reader\nthen press Enter here.",
-            env.join(" "),
-            accountd.display()
-        );
-        let _ = tokio::task::spawn_blocking(|| {
-            let mut line = String::new();
-            std::io::stdin().read_line(&mut line)
-        })
-        .await;
+        Self { inferd, dir, bus }
     }
 
     /// A fresh connection to the private bus: the corpus run's link to inferd.

@@ -5,13 +5,13 @@
 //! `--engine cloud`, and that is said before anything starts. Start it through
 //! `scripts/eval-release.sh` or `dev/live-smoke.sh`.
 
-use docket_accept::live::accountd_home::{AccountdHome, Cloud};
 use docket_accept::live::acp::{
     AcpSpec, Redactor, Task, agent_cassette, list_models_acp, run_flow_acp,
 };
 use docket_accept::live::cli::{Agent, Command, CorpusArgs, SmokeArgs, UsageError, parse};
 use docket_accept::live::flows::{Flow, Kind, run_flow};
 use docket_accept::live::hostile::run_planner_case;
+use docket_accept::live::keys_home::KeysHome;
 use docket_accept::live::{
     CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_shadowed,
 };
@@ -136,12 +136,12 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
         return corpus_agent(&args, spec);
     }
     let binaries = packaged_binaries().map_err(|e| e.to_string())?;
-    let accountd_home = match (&args.accountd_home, &args.accountd) {
-        (Some(home), Some(binary)) => {
-            Some(AccountdHome::open(home, binary).map_err(|e| e.to_string())?)
-        }
-        _ => None,
-    };
+    let keys_home = args
+        .keys_home
+        .as_deref()
+        .map(KeysHome::open)
+        .transpose()
+        .map_err(|e| e.to_string())?;
     let mut options = CorpusOptions {
         label: args.label.clone(),
         engine: args.engine,
@@ -149,8 +149,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
         cassette: None,
         timeouts: timeouts(&args),
         out: args.out.clone(),
-        accountd: args.accountd.clone(),
-        accountd_home,
+        keys_home,
         catalog: Some(
             args.catalog
                 .clone()
@@ -389,13 +388,12 @@ async fn smoke(args: SmokeArgs) -> Result<ExitCode, String> {
     std::fs::create_dir_all(&traces).map_err(|e| e.to_string())?;
     let patience = Duration::from_secs(args.patience_s);
     let dirs = || (Some(args.out.join("scratch")), Some(smoke_catalog.clone()));
-    let cloud = match (&args.accountd, &args.accountd_home) {
-        (Some(accountd), Some(home)) => Some(Cloud {
-            accountd: accountd.clone(),
-            home: AccountdHome::open(home, accountd).map_err(|e| e.to_string())?,
-        }),
-        _ => None,
-    };
+    let keys_home = args
+        .keys_home
+        .as_deref()
+        .map(KeysHome::open)
+        .transpose()
+        .map_err(|e| e.to_string())?;
     let mut failed = false;
     let plays: Vec<(Play, u32)> = plays(&args)?
         .into_iter()
@@ -423,15 +421,22 @@ async fn smoke(args: SmokeArgs) -> Result<ExitCode, String> {
                     &model,
                     dirs().0,
                     dirs().1,
-                    cloud.as_ref(),
+                    keys_home.as_ref(),
                     patience,
                 )
                 .await;
                 (play.name(), r.transcript, r.failures)
             }
             Play::Hostile(case) => {
-                let r = run_planner_case(&binaries, case, &model, dirs(), cloud.as_ref(), patience)
-                    .await;
+                let r = run_planner_case(
+                    &binaries,
+                    case,
+                    &model,
+                    dirs(),
+                    keys_home.as_ref(),
+                    patience,
+                )
+                .await;
                 (play.name(), r.transcript, r.failures)
             }
         };

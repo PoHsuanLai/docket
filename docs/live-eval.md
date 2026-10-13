@@ -122,40 +122,41 @@ thought-free answer and the milliseconds each stage took.
 
 ### Cloud
 
-The key comes from accountd, as in `docs/demo-cloud.md`: accountd holds it, only inferd (a porter
-daemon) may fetch it. On the private bus there is no Secret Service, so the run uses a porter
-accountd built with `test-keys` (a 0600 key file, `ACCOUNTD_KEYS=file:<path>`; test builds only).
+The key comes from inferd, which holds the AI keys and the permits ("may this app use my AI keys"). On
+the private bus there is no Secret Service, so the run uses a porter inferd built with `test-keys` (a
+0600 key file, `INFERD_KEYS=file:<path>`; test builds only). The packaged `docket-live` already builds
+its own inferd that way; `inferd add` below needs one too.
 
-The key is entered ONCE into a durable home outside every repository, and every world reuses it
-(`--accountd-home DIR`: absolute, 0700, never inside a git work tree; the harness refuses a loose
-mode or a git work tree). The home holds `accountd.keys` (0600, opened only by accountd; this
-harness only looks at its metadata), accountd's non-secret records (`state/porter/registry.json`
-and the grants, copied into each scratch world, so a run never changes the home) and the provider
-file (`data/porter/providers/openrouter.toml`).
+The key is entered ONCE into a durable key home outside every repository, and every world reuses it
+(`--keys-home DIR`: absolute, 0700, never inside a git work tree; the harness refuses a loose mode or a
+git work tree). The home holds `inferd.keys` (0600, opened only by inferd; this harness only looks at
+its metadata), inferd's non-secret records (`state/quire/inferd/keys/registry.json`, which also holds
+the key permits, copied into each scratch world's `.local/state/quire/inferd/keys/`, so a run never
+changes the home) and the provider file (`data/porter/providers/openrouter.toml`).
 
 ```sh
-# 1. a test build of accountd (features test-proc-root, test-keys), from porter
-(cd ~/porter && cargo build -p accountd --features test-proc-root,test-keys)
-# 2. once, in your own terminal: typed at accountd's own prompt with echo off, on a private bus
-dev/live/cloud-key.sh ~/.local/share/quire-test/accountd <accountd>
-#    or from a 0600 key file outside every repository (piped to accountd's stdin, never in argv):
-dev/live/cloud-key.sh ~/.local/share/quire-test/accountd <accountd> \
+# 1. a test build of inferd (feature test-keys), from porter
+(cd ~/porter && cargo build -p inferd --features test-keys)
+# 2. once, in your own terminal: typed at inferd's own prompt with echo off, on a private bus
+dev/live/cloud-key.sh ~/.local/share/quire-test/keys <inferd>
+#    or from a 0600 key file outside every repository (piped to inferd's stdin, never in argv):
+dev/live/cloud-key.sh ~/.local/share/quire-test/keys <inferd> \
   --key-file ~/.local/share/quire-test/openrouter.key
 # 3. any number of runs, no prompt
 scripts/eval-release.sh --engine cloud --inferd-config dev/live/inferd.cloud.toml \
-  --accountd <accountd> --accountd-home ~/.local/share/quire-test/accountd
+  --keys-home ~/.local/share/quire-test/keys
 ```
 
-With an empty home the run stops with the command of step 2 instead of waiting. Without
-`--accountd-home` the old per-world flow stays: the run prints the `accountd add` line for that
-world and waits for Enter. In `inferd.cloud.toml` each run pins all three tiers
+With an empty home the run stops with the command of step 2 instead of waiting. `--accountd` and
+`--accountd-home` are gone (accountd keeps identities only) and are refused with a pointer to
+`--keys-home`. In `inferd.cloud.toml` each run pins all three tiers
 (`[ai.model.text]` fast, balanced, best) to one model, so a run measures that model alone;
 `dev/live/inferd.cloud.example.toml` leaves the ids for you to fill (`cloud/<entry id>`, OpenRouter
-reaches them through the catalogue's `openrouter` rows; the provider id accountd uses is
-`openrouter`). `dev/live-smoke.sh --engine cloud --accountd <accountd> --accountd-home DIR` does the same for the
-flows (every flow's world starts accountd against the home; `--accountd` without `--accountd-home`
-is refused). `--repeat N` (smoke only) plays each acceptance flow N times; with N above 1 the
-traces are named `<flow>.runKofN.trace.txt` and the PASS/FAIL lines carry the same name.
+reaches them through the catalogue's `openrouter` rows; the provider id inferd uses is
+`openrouter`). `dev/live-smoke.sh --engine cloud --keys-home DIR` does the same for the flows (every
+flow's world starts inferd against the home). `--repeat N` (smoke only) plays each acceptance flow N
+times; with N above 1 the traces are named `<flow>.runKofN.trace.txt` and the PASS/FAIL lines carry the
+same name.
 
 ### Warm-up
 

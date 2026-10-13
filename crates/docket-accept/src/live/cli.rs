@@ -51,10 +51,8 @@ pub struct CorpusArgs {
     pub regress: Option<PathBuf>,
     /// One bound in milliseconds for every review stage; the shipped ones when absent.
     pub timeout_ms: Option<u32>,
-    /// The accountd binary of a cloud run.
-    pub accountd: Option<PathBuf>,
-    /// The durable directory that holds the cloud account (`dev/live/cloud-key.sh` fills it).
-    pub accountd_home: Option<PathBuf>,
+    /// The durable directory that holds the cloud key (`dev/live/cloud-key.sh` fills it).
+    pub keys_home: Option<PathBuf>,
     /// Fail when a corpus's false-negative rate (the Wilson upper end) exceeds this, in
     /// thousandths.
     pub fnr_max_permille: Option<u32>,
@@ -87,10 +85,8 @@ pub struct SmokeArgs {
     pub catalog: Option<PathBuf>,
     /// Who plays the companion's part.
     pub agent: Agent,
-    /// The accountd binary of a cloud run.
-    pub accountd: Option<PathBuf>,
-    /// The durable directory that holds the cloud account.
-    pub accountd_home: Option<PathBuf>,
+    /// The durable directory that holds the cloud key.
+    pub keys_home: Option<PathBuf>,
     /// How many times each flow is played (at least 1).
     pub repeat: u32,
 }
@@ -119,7 +115,7 @@ pub enum UsageError {
     /// The external agent's options are wrong or incomplete.
     #[error("{0}")]
     Acp(String),
-    /// `--accountd-home` is relative, or has no `--accountd` to go with.
+    /// `--keys-home` is relative, `--repeat` is zero, or a flag that moved was used.
     #[error("{0}")]
     Home(String),
 }
@@ -160,8 +156,8 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let (mut label, mut report, mut eval_dir, mut regress) = (None, None, None, None);
     let (mut corpora, mut cases, mut flows) = (Vec::new(), Vec::new(), Vec::new());
     let mut catalog = None;
-    let (mut timeout, mut accountd, mut fnr, mut patience) = (None, None, None, 600_u64);
-    let mut accountd_home: Option<PathBuf> = None;
+    let (mut timeout, mut fnr, mut patience) = (None, None, 600_u64);
+    let mut keys_home: Option<PathBuf> = None;
     let mut repeat: Option<u32> = None;
     let mut agent_word = None;
     let mut shadow = ShadowMode::Off;
@@ -182,8 +178,12 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             "--flow" => flows.push(words.value(flag)?.clone()),
             "--timeout-ms" => timeout = Some(number(flag, words.value(flag)?)?),
             "--catalog" => catalog = Some(PathBuf::from(words.value(flag)?)),
-            "--accountd" => accountd = Some(PathBuf::from(words.value(flag)?)),
-            "--accountd-home" => accountd_home = Some(PathBuf::from(words.value(flag)?)),
+            "--keys-home" => keys_home = Some(PathBuf::from(words.value(flag)?)),
+            "--accountd" | "--accountd-home" => {
+                return Err(UsageError::Home(format!(
+                    "{flag} is gone: inferd holds the AI keys now, not accountd. Use --keys-home DIR (dev/live/cloud-key.sh fills it)"
+                )));
+            }
             "--repeat" => repeat = Some(number(flag, words.value(flag)?)?),
             "--fnr-max-permille" => fnr = Some(number(flag, words.value(flag)?)?),
             "--shadow" => shadow = ShadowMode::Record,
@@ -192,29 +192,15 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
         }
     }
     let engine = engine(engine_text)?;
-    match (&accountd_home, &accountd) {
-        (Some(home), _) if !home.is_absolute() => {
-            return Err(UsageError::Home(format!(
-                "--accountd-home {} is not an absolute path",
-                home.display()
-            )));
-        }
-        (Some(_), None) => {
-            return Err(UsageError::Home(
-                "--accountd-home needs --accountd (the test build of accountd)".to_owned(),
-            ));
-        }
-        _ => {}
+    if let Some(home) = keys_home.as_ref().filter(|home| !home.is_absolute()) {
+        return Err(UsageError::Home(format!(
+            "--keys-home {} is not an absolute path",
+            home.display()
+        )));
     }
     if repeat == Some(0) {
         return Err(UsageError::Home(
             "--repeat takes a number of at least 1".to_owned(),
-        ));
-    }
-    if sub == "smoke" && accountd.is_some() && accountd_home.is_none() {
-        return Err(UsageError::Home(
-            "a smoke run starts a fresh accountd per flow, so --accountd needs --accountd-home"
-                .to_owned(),
         ));
     }
     if sub == "corpus" && repeat.is_some() {
@@ -234,8 +220,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             cases,
             regress,
             timeout_ms: timeout,
-            accountd,
-            accountd_home,
+            keys_home,
             fnr_max_permille: fnr,
             patience_s: patience,
             catalog,
@@ -251,8 +236,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             patience_s: patience,
             catalog,
             agent,
-            accountd,
-            accountd_home,
+            keys_home,
             repeat: repeat.unwrap_or(1),
         })),
         _ => Err(UsageError::Subcommand),

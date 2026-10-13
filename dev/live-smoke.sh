@@ -4,7 +4,7 @@
 #
 #   dev/live-smoke.sh --engine scripted                       # the cassettes: proves the harness
 #   dev/live-smoke.sh --engine local --inferd-config dev/live/inferd.local.toml
-#   dev/live-smoke.sh --engine cloud --inferd-config dev/live/inferd.cloud.toml --accountd <bin>
+#   dev/live-smoke.sh --engine cloud --inferd-config dev/live/inferd.cloud.toml --keys-home <dir>
 #   dev/live-smoke.sh --engine local --inferd-config F --flow flow-c --patience-s 900
 #   dev/live-smoke.sh --engine scripted --agent acp --acp-command ABS ...   # an external ACP agent plays the
 #     companion (docs/live-eval.md, "An external agent instead of the planner"); its own network is said first;
