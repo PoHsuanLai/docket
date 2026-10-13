@@ -15,8 +15,8 @@ use crate::tasks::{TaskRecord, TaskState};
 use crate::wal::Wal;
 use almanac_core::EpisodeId;
 use docket_core::{
-    ExternalAgent, Ledger, Reveal, Rewind, Saw, SheetSurface, StepEnd, StepLine, StepShown,
-    TaskLedger, UserTurn,
+    ExternalAgent, Ledger, Reveal, Saw, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger,
+    UserTurn,
 };
 use docket_session::{
     ResumeFault, ResumePlan, SessionEntry, Standing, Taint as Written, TaintCause, TaintNote,
@@ -257,6 +257,7 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+    use docket_core::Rewind;
     use docket_core::{BreakerTrip, CallId};
     use docket_session::{
         BackendKind, CallOpen, EndCause, Interrupted, Opening, ResumedBudget, TaintCause,
