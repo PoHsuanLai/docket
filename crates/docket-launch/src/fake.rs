@@ -11,7 +11,7 @@ use docket_acp::client::fake::ChannelWire;
 use docket_core::AbsPath;
 use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
 use porter_core::{
-    DataClass, GrantId, LauncherSession, LoginOutcome, ProcessCredentialId, SecretText,
+    DataClass, KeyPermitId, LauncherSession, LoginOutcome, ProcessCredentialId, SecretText,
 };
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -33,8 +33,8 @@ pub enum Call {
     Open(String, String),
     /// `close_endpoint`.
     Close(String),
-    /// `request_grant`.
-    Grant(String),
+    /// `request_key`.
+    Permit(String),
     /// `issue`: program and how it was to be delivered.
     Issue(String, Delivery),
     /// `revoke`.
@@ -172,19 +172,19 @@ impl Accounts for FakeAccounts {
         self.note(Call::Close(session.to_owned()))
     }
 
-    async fn request_grant(
+    async fn request_key(
         &self,
         program: &AgentProgram,
         _class: DataClass,
         _session: &LauncherSession,
-    ) -> Result<GrantId, AccountFault> {
-        self.note(Call::Grant(program.as_str().to_owned()))?;
-        GrantId::parse("grant-1").map_err(|_| AccountFault::Other)
+    ) -> Result<KeyPermitId, AccountFault> {
+        self.note(Call::Permit(program.as_str().to_owned()))?;
+        KeyPermitId::parse("permit-1").map_err(|_| AccountFault::Other)
     }
 
     async fn issue(
         &self,
-        _grant: &GrantId,
+        _permit: &KeyPermitId,
         program: &AgentProgram,
         _key_env: &EnvName,
         delivery: Delivery,

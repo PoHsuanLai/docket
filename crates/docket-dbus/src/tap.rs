@@ -13,8 +13,8 @@
 //! [`MemoryTap`] and reads the exchanges itself.
 
 use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
-use porter_client::{Relayed, Transport, TransportError};
-use porter_core::{AccountsReply, AccountsRequest, DataClass, EndpointUrl, GrantId, Need, Tier};
+use porter_client::{Transport, TransportError};
+use porter_core::{AccountsReply, AccountsRequest, DataClass, Need, Tier};
 use porter_infer::{
     ChatRequest, ClientFrame, InferEvent, InferReply, InferRequest, InferSession, MessagePart,
     OpenOptions, Readiness, ReplyShape, Role, SessionError,
@@ -355,22 +355,6 @@ impl<T: Transport> Transport for Tapped<T> {
 
     async fn call(&self, request: AccountsRequest) -> Result<AccountsReply, TransportError> {
         self.inner.call(request).await
-    }
-
-    async fn open_authenticated(
-        &self,
-        grant: &GrantId,
-        endpoint: &EndpointUrl,
-    ) -> Result<Relayed, TransportError> {
-        self.inner.open_authenticated(grant, endpoint).await
-    }
-
-    async fn open_linked(
-        &self,
-        grant: &GrantId,
-        origin: &EndpointUrl,
-    ) -> Result<Relayed, TransportError> {
-        self.inner.open_linked(grant, origin).await
     }
 
     async fn open_with(

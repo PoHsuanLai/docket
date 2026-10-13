@@ -127,7 +127,7 @@ async fn a_handed_off_key_goes_to_the_child_only_and_is_revoked_with_it() {
         rig.accounts.calls(),
         [
             Call::Begin("acp-s-2".into()),
-            Call::Grant("gemini-cli".into()),
+            Call::Permit("gemini-cli".into()),
             Call::Issue("gemini-cli".into(), docket_launch::Delivery::Value)
         ]
     );

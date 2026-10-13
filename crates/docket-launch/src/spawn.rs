@@ -311,12 +311,12 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             }
             Route::Handoff => {
                 let key_env = entry.key_env.as_ref().ok_or(SpawnFault::NotAllowed)?;
-                let grant = accounts
-                    .request_grant(&entry.program, entry.class, session)
+                let permit = accounts
+                    .request_key(&entry.program, entry.class, session)
                     .await
                     .map_err(|_| SpawnFault::Accounts)?;
                 let issued = accounts
-                    .issue(&grant, &entry.program, key_env, entry.delivery)
+                    .issue(&permit, &entry.program, key_env, entry.delivery)
                     .await
                     .map_err(|_| SpawnFault::Accounts)?;
                 release.credential = Some(issued.id);

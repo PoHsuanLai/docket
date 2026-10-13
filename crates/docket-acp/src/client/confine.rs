@@ -25,6 +25,8 @@ const SECRET_PAIRS: &[(&str, &str)] = &[
     (".config", "chromium"),
     (".config", "google-chrome"),
     (".local", "share/keyrings"),
+    // inferd's state: the AI key registry and, in a test-keys build, the plain key file.
+    (".local", "state/quire/inferd"),
 ];
 /// File names that are credentials.
 const SECRET_FILES: &[&str] = &[
@@ -92,16 +94,14 @@ fn parts(path: &AbsPath) -> Vec<&str> {
 
 fn secret(path: &AbsPath) -> bool {
     let p = parts(path);
-    let pair = |a: &str, b: &str| {
-        SECRET_PAIRS
-            .iter()
-            .any(|(first, rest)| *first == a && *rest == b)
+    // `first` then every component of `rest`, in a row anywhere in the path.
+    let below = |first: &str, rest: &str| {
+        let want: Vec<&str> = std::iter::once(first).chain(rest.split('/')).collect();
+        p.windows(want.len()).any(|w| w == want.as_slice())
     };
     p.iter()
         .any(|c| SECRET_DIRS.contains(c) || SECRET_FILES.contains(c))
-        || p.windows(2).any(|w| pair(w[0], w[1]))
-        || p.windows(3)
-            .any(|w| pair(w[0], &format!("{}/{}", w[1], w[2])))
+        || SECRET_PAIRS.iter().any(|(first, rest)| below(first, rest))
 }
 
 fn care(path: &AbsPath) -> Care {
@@ -185,11 +185,18 @@ mod tests {
             "/home/u/proj/.netrc",
             "/home/u/proj/.config/accountd/keys",
             "/home/u/proj/.local/share/keyrings/login.keyring",
+            "/home/u/proj/.local/state/quire/inferd/keys/registry.json",
+            "/home/u/proj/.local/state/quire/inferd",
         ] {
             assert_eq!(confine(&scope, abs(p), abs(p)), Err(Refusal::Secret), "{p}");
         }
-        let fine = abs("/home/u/proj/.config/app/x");
-        assert!(confine(&scope, fine.clone(), fine).is_ok());
+        for fine in [
+            "/home/u/proj/.config/app/x",
+            "/home/u/proj/.local/state/quire/notes/x",
+        ] {
+            let fine = abs(fine);
+            assert!(confine(&scope, fine.clone(), fine).is_ok());
+        }
     }
 
     #[test]

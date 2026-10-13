@@ -1,4 +1,4 @@
-//! The real porter link: accountd's launcher interface (`porter_client::Launcher`) and inferd's
+//! The real porter link: inferd's launcher interface (`porter_client::Launcher`) and its
 //! `org.quire.Inference1.Agents` (`OpenEndpoint`, `CloseEndpoint`) over the bus. Built only with
 //! the `dbus` feature. A secret passes through here once, from the bus reply into the caller's
 //! hands, and is in no log: `SecretText`'s `Debug` shows nothing, and no error carries a value.
@@ -14,7 +14,7 @@ use porter_client::{Requests, Revocations};
 use porter_core::audit::Handoff;
 use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
 use porter_core::{
-    DataClass, GrantId, LauncherSession, LoginOutcome, ProcessCredentialId, SecretText,
+    DataClass, KeyPermitId, LauncherSession, LoginOutcome, ProcessCredentialId, SecretText,
 };
 use porter_dbus::{
     AgentsProxy, BusConnection, MODELS_ANY, MODELS_LISTED, ROUTE_ACCOUNT, ROUTE_MODEL,
@@ -155,22 +155,22 @@ impl Accounts for DbusAccounts {
             .map_err(|e| bus_fault(&e))
     }
 
-    async fn request_grant(
+    async fn request_key(
         &self,
         program: &AgentProgram,
         class: DataClass,
         session: &LauncherSession,
-    ) -> Result<GrantId, AccountFault> {
+    ) -> Result<KeyPermitId, AccountFault> {
         self.launcher
-            .request_agent_grant(program, class, Some(session))
+            .request_agent_key(program, class, Some(session))
             .await
-            .map(|candidate| candidate.grant)
+            .map(|candidate| candidate.permit)
             .map_err(|e| fault(&e))
     }
 
     async fn issue(
         &self,
-        grant: &GrantId,
+        permit: &KeyPermitId,
         program: &AgentProgram,
         key_env: &EnvName,
         delivery: Delivery,
@@ -182,7 +182,7 @@ impl Accounts for DbusAccounts {
         };
         let credential = self
             .launcher
-            .issue_credential(grant, program, handoff)
+            .issue_credential(permit, program, handoff)
             .await
             .map_err(|e| fault(&e))?;
         let key = match credential

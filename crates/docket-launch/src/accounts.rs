@@ -10,7 +10,7 @@ use crate::config::Delivery;
 use docket_core::AbsPath;
 use porter_core::capability::{AgentProgram, AgentProtocol};
 use porter_core::{
-    AccountId, DataClass, GrantId, LauncherSession, LoginOutcome, LoginRequestId,
+    AccountId, DataClass, KeyPermitId, LauncherSession, LoginOutcome, LoginRequestId,
     ProcessCredentialId, SecretText,
 };
 use std::future::Future;
@@ -140,17 +140,17 @@ pub trait Accounts: Send + Sync {
     ) -> impl Future<Output = Result<(), AccountFault>> + Send;
 
     /// Asks the person which account `program` may use for this session (P2).
-    fn request_grant(
+    fn request_key(
         &self,
         program: &AgentProgram,
         class: DataClass,
         session: &LauncherSession,
-    ) -> impl Future<Output = Result<GrantId, AccountFault>> + Send;
+    ) -> impl Future<Output = Result<KeyPermitId, AccountFault>> + Send;
 
-    /// A key for one process under `grant`, handed over as `delivery` says.
+    /// A key for one process under `permit`, handed over as `delivery` says.
     fn issue(
         &self,
-        grant: &GrantId,
+        permit: &KeyPermitId,
         program: &AgentProgram,
         key_env: &porter_core::capability::EnvName,
         delivery: Delivery,
