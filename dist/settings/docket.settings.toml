@@ -13,7 +13,7 @@ version = 1
 path = "agent.strictness"
 default = "default"
 label = "Asks first"
-help = "Choose how often the assistant checks with you. Asks more checks more often; Asks less lets it carry on inside a task you approved once. Usual is the safe default."
+help = "Choose how often the assistant checks with you. Asks less lets it send or delete inside a task you approved, once two checks agree. Usual is the safe default."
 section = "Assistant"
 exposure = "basic"
 
