@@ -4,6 +4,7 @@
 
 mod backend;
 mod end;
+mod ending;
 mod flight;
 mod host;
 mod log;

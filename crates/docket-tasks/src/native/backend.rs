@@ -8,6 +8,7 @@
 //! `Started` event, so a reader that stops the turn in between stops the call before it runs.
 
 use crate::native::end::end_of;
+use crate::native::ending::Ending;
 use crate::native::flight::Flight;
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
@@ -127,11 +128,19 @@ where
         let session = self.session.clone();
         self.flight = Some(Flight::of(|mut tap| {
             async move {
+                // Before the lock, so a drop lets the lock go first (see `ending`).
+                let mut ending = Ending::new(core.clone(), session.clone());
+                if matches!(recording, Recording::Done) {
+                    ending.arm(turn.id);
+                }
                 let mut core = core.lock().await;
                 let mut turn = turn;
                 if let Recording::Pending(said) = recording {
                     match core.intents.session_turn(session.clone(), said).await {
-                        Ok(id) => turn.id = id,
+                        Ok(id) => {
+                            turn.id = id;
+                            ending.arm(id);
+                        }
                         Err(_) => return TurnEnd::Failed,
                     }
                 }
@@ -156,13 +165,12 @@ where
                     }
                 };
                 // The router hears the turn is over on every way out of the flight. A flight
-                // dropped before it ends is closed by `Session.Close`, or by the router's own
-                // time limit (`agent.checkpoints.turn_max_s`): this crate has no runtime to
-                // send from a drop.
+                // dropped before it ends is covered by `ending`.
                 let _ = core
                     .intents
                     .session_turn_ended(ending_session, turn_id, end.into())
                     .await;
+                ending.disarm();
                 end
             }
             .boxed()

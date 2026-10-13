@@ -3,12 +3,16 @@
 
 use crate::support::infer::{call, words};
 use crate::support::*;
-use docket_core::{TurnId, TurnSource, TurnVia, UserTurn};
+use docket_core::{
+    CallerId, CallerRole, IntentsReply, IntentsRequest, TurnId, TurnSource, TurnState, TurnVia,
+    UserTurn,
+};
 use docket_session::fake::MemoryLog;
 use docket_session::{
     BackendEvent, BackendKind, CallEvent, DeskFault, EndCause, Opening, Read, Seq, SessionEntry,
     SessionHost, SheetChoice, SheetDesk, Standing, TurnEnd, Workspace, read_all,
 };
+use porter_core::{AppId, Isolation};
 use prov::{AgentRef, UnixSeconds};
 use serde_json::json;
 use std::sync::Arc;
@@ -96,6 +100,43 @@ async fn a_turn_is_announced_made_and_told_and_the_router_records_it() {
     ));
     assert!(log.iter().any(|e| matches!(e, SessionEntry::Call(_))));
     assert!(log.iter().any(|e| matches!(e, SessionEntry::Step(_))));
+}
+
+/// Whether the router counts the agent of `s` as working, asked as the person's launcher.
+async fn router_says_working(
+    router: &docket_router::Router<docket_fake::FakeSeams>,
+    s: &prov::SessionId,
+) -> TurnState {
+    let launcher = CallerId {
+        app: AppId {
+            name: app("org.quire.Shell"),
+            isolation: Isolation::Unsandboxed,
+        },
+        roles: std::collections::BTreeSet::from([CallerRole::Launcher]),
+    };
+    let request = IntentsRequest::CheckpointList { session: s.clone() };
+    match router.handle(&launcher, request).await {
+        IntentsReply::Checkpoints(list) => list.turn,
+        other => panic!("list: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn a_host_dropped_in_the_middle_of_a_turn_tells_the_router_the_turn_is_over() {
+    let mut w = World::new(vec![archive(), words("unused")]);
+    let s = w.host.open(opening()).await.expect("open");
+    w.host
+        .turn(&s, said("archive the digest"))
+        .await
+        .expect("turn");
+    assert!(matches!(
+        pull(&mut w, &s).await,
+        BackendEvent::Call(CallEvent::Started(_))
+    ));
+    assert_eq!(router_says_working(&w.router, &s).await, TurnState::Running);
+    // The turn is cut off, not closed: no `Session.Close`, no answer, no cancel.
+    drop(w.host);
+    assert_eq!(router_says_working(&w.router, &s).await, TurnState::Idle);
 }
 
 #[tokio::test]
