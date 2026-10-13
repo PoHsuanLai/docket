@@ -72,4 +72,8 @@ pub struct CheckpointList {
     /// Whether the session's agent is working now: edges grey out Restore while it is.
     #[serde(default)]
     pub turn: TurnState,
+    /// What the person calls the watched agent ("claude in pane 2"), for a watch session; none
+    /// for any other, and in a list from an older writer. Display text, never trusted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<prov::AgentLabel>,
 }

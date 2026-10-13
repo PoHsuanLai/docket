@@ -83,12 +83,15 @@ fn every_checkpoint_type_round_trips_in_its_pinned_shape() {
             days: Days(14),
         },
         turn: TurnState::Running,
+        label: Some(prov::AgentLabel("claude in pane 2".into())),
     };
-    assert!(round(&list).contains(r#""turn":"running""#));
+    let text = round(&list);
+    assert!(text.contains(r#""turn":"running""#));
+    assert!(text.contains(r#""label":"claude in pane 2""#));
     // A list from an older writer has no turn: it reads as idle.
     let old = r#"{"session":"s-1","rows":[],"keeps":{"last":20,"days":14}}"#;
     let old: CheckpointList = serde_json::from_str(old).expect("old list");
-    assert_eq!(old.turn, TurnState::Idle);
+    assert_eq!((old.turn, old.label), (TurnState::Idle, None));
     round(&RestorePlan {
         changed: vec![path("a")],
         added: vec![path("b")],
@@ -164,6 +167,7 @@ fn the_checkpoint_requests_and_replies_round_trip_and_name_their_members() {
             days: Days(14),
         },
         turn: TurnState::Idle,
+        label: None,
     })));
     let ended = IntentsRequest::SessionTurnEnded {
         session: SessionId::parse("s-1").expect("session"),

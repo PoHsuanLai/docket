@@ -84,6 +84,9 @@ pub struct SessionRecord {
     pub checkpoints: Vec<CheckpointNote>,
     /// What the session is for.
     pub kind: SessionKind,
+    /// What the person calls the agent a watch session watches, as its opener said (display
+    /// text); none for every other session.
+    pub label: Option<prov::AgentLabel>,
 }
 
 impl SessionRecord {
@@ -121,6 +124,7 @@ impl SessionRecord {
             approvals: Vec::new(),
             checkpoints: Vec::new(),
             kind: SessionKind::Agent,
+            label: None,
         }
     }
 }

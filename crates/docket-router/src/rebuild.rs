@@ -168,6 +168,10 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         now,
     );
     record.kind = kind;
+    record.label = match kind {
+        SessionKind::Watch(_) => opening.label.clone(),
+        SessionKind::Agent => None,
+    };
     record.external = external;
     record.cwd = opening.cwd.clone();
     record.state = state;

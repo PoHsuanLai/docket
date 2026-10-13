@@ -129,6 +129,8 @@ impl<S: Seams> Router<S> {
             SessionRecord::new(task.clone(), Actor::Cli, opener.clone(), space.clone(), now);
         record.kind = SessionKind::Watch(rewind);
         record.cwd = Some(workspace.clone());
+        let label = label_text(label);
+        record.label = Some(label.clone());
         record.wal = Wal::on(Written::Clean);
         record.wal.note(SessionEntry::Opened(Opening {
             task,
@@ -140,7 +142,7 @@ impl<S: Seams> Router<S> {
             forked_from: None,
             cwd: Some(workspace),
             started_from: None,
-            label: Some(label_text(label)),
+            label: Some(label),
         }));
         st.sessions.insert(session.clone(), record);
         IntentsReply::CheckpointWatching(session)

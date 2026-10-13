@@ -149,6 +149,7 @@ async fn a_turn_saves_a_point_before_it_is_recorded_and_the_list_shows_it() {
         state: SavedState::Available,
     };
     assert_eq!(list.rows, [saved(1, first), saved(2, second)]);
+    assert_eq!(list.label, None);
     // The point of the first turn holds the file as it was then.
     let plan = planned(&router, &session, 1).await;
     assert_eq!(plan.changed, [file("a.txt")]);
@@ -566,6 +567,11 @@ async fn a_watched_agent_gets_a_point_at_each_mark_and_its_files_can_be_restored
     let session = watch_in(&router, &terminal(), Rewind::Docket).await;
     let before = listed(&router, &session).await;
     assert_eq!((before.rows.len(), before.turn), (0, TurnState::Idle));
+    // The label the opener gave is shown in the list; other sessions have none.
+    assert_eq!(
+        before.label,
+        Some(prov::AgentLabel("claude in pane 2".into()))
+    );
 
     let turn = marked(&router, &terminal(), &session).await;
     let list = listed(&router, &session).await;

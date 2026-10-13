@@ -11,12 +11,13 @@ use docket_core::{
     Workspace,
 };
 use docket_session::{Claimant, may_restore, note_rows};
-use prov::SessionId;
+use prov::{AgentLabel, SessionId};
 
 /// What a surface may know of one session's restore points.
 struct View {
     cwd: Option<Workspace>,
     notes: Vec<CheckpointNote>,
+    label: Option<AgentLabel>,
 }
 
 /// Whether the log names point `id` as one that was saved (a turn's, or a restore's safety).
@@ -58,6 +59,7 @@ impl<S: Seams> Router<S> {
         Ok(View {
             cwd: record.cwd.clone(),
             notes: record.checkpoints.clone(),
+            label: record.label.clone(),
         })
     }
 
@@ -105,6 +107,7 @@ impl<S: Seams> Router<S> {
                 days: cfg.checkpoint_days,
             },
             turn: self.turn_state(session),
+            label: view.label,
         }))
     }
 
