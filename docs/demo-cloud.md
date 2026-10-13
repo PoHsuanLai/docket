@@ -2,7 +2,7 @@
 
 For the owner, on this machine, with sill not running. Everything is installed for your user; the one
 root step is a copy of one file. The companion talks to inferd, inferd to OpenRouter with a key that only
-accountd holds. About ten minutes.
+inferd holds (accountd keeps your identities, not AI keys). About ten minutes.
 
 Run the first step from the checkouts the installer builds from: `~/docket`, `~/porter`, `~/almanac` and
 `~/stoker` (the model catalogue inferd reads).
@@ -25,26 +25,34 @@ does not run it; run that yourself:
 sudo install -D -m644 ~/porter/dist/callers.toml /etc/porter/callers.toml
 ```
 
-(accountd's caller table. inferd.service is named a porter daemon there, which is what lets it fetch the
-key. Rows in `~/.config/porter/callers.toml` win over it, but this is the file the dist ships.)
+(the caller table that accountd and inferd read. It names the Settings app, the shell and inferd.service
+itself. Rows in `~/.config/porter/callers.toml` win over it, but this is the file the dist ships.) Both
+daemons read the table only when they start, so the next step restarts them.
 
 ## 2. Reload systemd
 
 ```sh
 systemctl --user daemon-reload
+systemctl --user restart accountd inferd   # they read /etc/porter/callers.toml only at startup
 ```
 
 ## 3. Add the key
 
-You need an OpenRouter API key (openrouter.ai, Keys). accountd keeps it in the Secret Service (KWallet) and
-checks it with one call to OpenRouter.
+You need an OpenRouter API key (openrouter.ai, Keys). inferd keeps AI keys, not accountd: it files the key in
+the Secret Service (KWallet, under `porter.inferd`) and checks it with one call to OpenRouter. Each `--allow`
+is a permit: the app named may use your AI keys. Typing the command is your consent. inferd writes its own
+key list, so it must be stopped while you add a key (the command refuses to run beside a running inferd).
 
 ```sh
-systemctl --user stop accountd.service
-accountd add openrouter --allow org.quire.Companion --allow org.quire.Intents
+systemctl --user stop inferd.service
+inferd add openrouter --allow org.quire.Companion --allow org.quire.Intents
 # paste the key; echo is off
-systemctl --user start accountd.service inferd.service
+systemctl --user start inferd.service
 ```
+
+`inferd` is in `~/.local/bin` (or the `--prefix` you gave the installer). Add `--class <class>` (repeatable)
+to narrow a permit to some kinds of data; without it, every class is allowed, and `ai.floor` in step 4 still
+decides which may leave the computer.
 
 `org.quire.Companion` is the planner. `org.quire.Intents` is intentd's policy writer and reviewers, which
 also ask inferd; without it a write cannot get a task policy (reads still work). Add `--allow org.quire.Reader`
@@ -116,4 +124,5 @@ systemctl --user daemon-reload
 ```
 
 `--uninstall` keeps `~/.config/quire/inferd.toml` because you edited it (delete it by hand), and does not touch your
-account or key: remove the account in Settings later, or delete the OpenRouter key at openrouter.ai.
+key: remove the AI account in Settings later (inferd's list under `~/.local/state/quire/inferd/keys`, and the
+`porter.inferd` entry in KWallet), or delete the OpenRouter key at openrouter.ai.

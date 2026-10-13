@@ -191,6 +191,11 @@ fn an_install_puts_every_piece_where_the_session_reads_it() {
             && out.contains("/dist/callers.toml /etc/porter/callers.toml"),
         "{out}"
     );
+    // The daemons read the table only at startup, so the printed steps restart them.
+    assert!(
+        out.contains("systemctl --user restart accountd inferd"),
+        "{out}"
+    );
 }
 
 #[test]

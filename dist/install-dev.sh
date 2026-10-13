@@ -17,7 +17,7 @@
 #                                             for inferd and accountd (see "dev-only changes")
 #   ~/.local/share/dbus-1/services/           D-Bus activation files, Exec pointed at $PREFIX/bin
 #   ~/.local/share/quire/{intents,skills,settings}/   manifests, skills, settings schemas
-#   ~/.local/share/porter/providers/          account provider files (openrouter, ...), for accountd
+#   ~/.local/share/porter/providers/          provider files (openrouter, ...): the AI keys inferd holds and the identities accountd keeps
 #   ~/.local/share/stoker/catalog/            the model catalogue, for inferd
 #   ~/.config/quire/*.toml                    default configs, ONLY where absent (never overwritten)
 #   ~/.local/state/quire-dev/install-dev.manifest   what was installed, for --uninstall
@@ -30,7 +30,10 @@
 # memoryd has no unit in almanac/dist: almanac/dbus/memoryd.service is its unit, started by D-Bus
 # activation (org.quire.Memory1.service names it), and that is what is installed.
 #
-# Needs root, and is printed but never run: /etc/porter/callers.toml (accountd's caller table).
+# Needs root, and is printed but never run: /etc/porter/callers.toml (the caller table accountd and
+# inferd read, at startup only). After it, restart both: systemctl --user restart accountd inferd.
+# AI keys are inferd's, not accountd's: add one with `inferd add <provider> --allow <app>` while
+# inferd is stopped (accountd keeps identities only).
 #
 # INSTALL_DEV_BIN_DIR=DIR installs prebuilt binaries from DIR instead of building (the test does).
 set -euo pipefail
@@ -256,13 +259,17 @@ preflight() {
 sudo_step() {
   cat <<EOF
 
-One step needs root, and is not run here. accountd reads its caller table from
+One step needs root, and is not run here. accountd and inferd read their caller table from
 /etc/porter/callers.toml (rows of \$XDG_CONFIG_HOME/porter/callers.toml win, but the system
-file is where inferd.service is named a porter daemon, which lets it resolve API keys):
+file is where inferd.service is named a porter daemon). They read it only when they start:
 
   sudo install -D -m644 $PORTER/dist/callers.toml /etc/porter/callers.toml
 
 Then:  systemctl --user daemon-reload
+       systemctl --user restart accountd inferd
+
+To add an AI key (inferd holds them, not accountd), with inferd stopped:
+       systemctl --user stop inferd; inferd add <provider> --allow <app>; systemctl --user start inferd
 EOF
 }
 
