@@ -3,6 +3,7 @@
 //! with a mail provider and a `Confirm1` server around them (see `dev/accept/README.md`).
 
 pub mod acp;
+pub mod bringup;
 pub mod confirm;
 pub mod drive;
 pub mod grants;

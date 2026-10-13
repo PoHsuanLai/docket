@@ -3,6 +3,7 @@ mod acp_confirm;
 mod acp_engine;
 mod acp_pure;
 mod acp_sheets;
+mod bringup;
 mod checkpoints;
 mod flows;
 mod handles;

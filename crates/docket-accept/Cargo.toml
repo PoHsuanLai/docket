@@ -44,6 +44,10 @@ path = "src/bin/accept-fake-agent.rs"
 name = "docket-live"
 path = "src/bin/docket-live.rs"
 
+[[bin]]
+name = "docket-bringup"
+path = "src/bin/docket-bringup.rs"
+
 [dependencies]
 actions-mcp = { path = "../actions-mcp" }
 action-review = { workspace = true }

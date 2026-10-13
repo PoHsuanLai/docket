@@ -245,7 +245,7 @@ fn engine_cache() -> Vec<(&'static str, String)> {
 /// What only one daemon is told. memoryd's packaged binary runs a test build: its keys are a file
 /// (there is no Secret Service on the private bus), its sandbox stays ON, and both daemons read
 /// their callers from the scratch fake proc root instead of `/proc`.
-fn extra_env(dir: &Path, name: &str, keys: Option<&str>) -> Vec<(&'static str, String)> {
+pub(crate) fn extra_env(dir: &Path, name: &str, keys: Option<&str>) -> Vec<(&'static str, String)> {
     let proc_root = dir.join("proc").display().to_string();
     match name {
         "memoryd" => vec![
@@ -290,7 +290,7 @@ pub enum Cgroup<'a> {
 
 impl Cgroup<'_> {
     /// The one line of `/proc/<pid>/cgroup`.
-    fn line(self) -> String {
+    pub(crate) fn line(self) -> String {
         let slice = "0::/user.slice/user-1000.slice/user@1000.service/app.slice";
         match self {
             Cgroup::Unit(name) => format!("{slice}/{name}.service\n"),
@@ -329,7 +329,7 @@ pub fn restore_unit(root: &Path, name: &str, main: Option<String>) {
     }
 }
 
-const CALLERS: &str = "[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
+pub(crate) const CALLERS: &str = "[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
 
 /// inferd's configuration. A cassette: the replay engine `scripted` playing the scratch cassette
 /// (recording its requests when `record` names a file). A live source: the owner's body as it is.
@@ -353,7 +353,7 @@ pub fn inferd_toml(root: &Path, model: &ModelSource, record: Option<&Path>) -> S
 /// memoryd's callers file: the units that may call it, with the roles the router and the shell
 /// are told apart by. The shell has both rows (sill.service, or the scope sill-session starts);
 /// the run places the test process in the scope.
-const MEMORY_CALLERS: &str = r#"[[caller]]
+pub(crate) const MEMORY_CALLERS: &str = r#"[[caller]]
 app = "org.quire.Intents"
 unit = "intentd.service"
 role = "agent"
@@ -437,7 +437,7 @@ pub(crate) fn write(path: &Path, text: &str) {
 
 /// `spaces.toml`: the Space `work`, and `desktop` where intentd places the records that name no
 /// Space (a confirmation, an undo), both sealed with fixed replicas.
-const SPACES: &str = r#"[[spaces]]
+pub(crate) const SPACES: &str = r#"[[spaces]]
 id = "work"
 created = 0
 replica = "00000000000000000000000000000001"
