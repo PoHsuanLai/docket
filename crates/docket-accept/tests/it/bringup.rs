@@ -18,7 +18,9 @@ fn words(line: &str) -> Vec<String> {
 #[test]
 fn the_command_line_is_checked() {
     let up = "up --bus unix:path=/tmp/b --root /tmp/r --shell-pid 7";
-    let Ok(Command::Up(args)) = parse(&words(&format!("{up} --keys-home /k --catalog /c"))) else {
+    let Ok(Command::Up(args)) = parse(&words(&format!(
+        "{up} --keys-home /k --catalog /c --providers /p"
+    ))) else {
         panic!("up parses");
     };
     assert_eq!(args.bus, "unix:path=/tmp/b");
@@ -26,6 +28,7 @@ fn the_command_line_is_checked() {
     assert_eq!(args.shell_pid, 7);
     assert_eq!(args.keys_home, Some(PathBuf::from("/k")));
     assert_eq!(args.catalog, Some(PathBuf::from("/c")));
+    assert_eq!(args.providers, Some(PathBuf::from("/p")));
     assert_eq!(args.inferd_config, None);
     assert!(matches!(
         parse(&words("down --root /tmp/r")),

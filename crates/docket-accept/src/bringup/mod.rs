@@ -100,6 +100,11 @@ fn say_up(args: &cli::UpArgs, binaries: &Binaries, started: &[up::Started]) {
             args.root.display(),
             add_command(&args.root, &binaries.inferd)
         );
+        if args.providers.is_none() {
+            println!(
+                "The root has no provider files, so inferd add will not know OpenRouter: run up with --providers (an install keeps them in ~/.local/share/porter/providers) first."
+            );
+        }
     }
 }
 

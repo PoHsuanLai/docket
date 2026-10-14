@@ -27,6 +27,9 @@ pub struct UpArgs {
     pub keys_home: Option<PathBuf>,
     /// A catalogue directory whose `*.toml` entries are copied in.
     pub catalog: Option<PathBuf>,
+    /// A directory of provider files (`*.toml`, no secrets) copied into `data/porter/providers`:
+    /// `inferd add` and the daemon serve only the providers named there.
+    pub providers: Option<PathBuf>,
     /// A file of extra `inferd.toml` rows (`[ai]` only: the person's data and model choices).
     pub inferd_config: Option<PathBuf>,
 }
@@ -43,7 +46,7 @@ pub struct RootArgs {
 pub enum UsageError {
     /// No subcommand, or one that does not exist.
     #[error(
-        "usage: docket-bringup up --bus ADDRESS --root DIR --shell-pid PID [--keys-home DIR] [--catalog DIR] [--inferd-config FILE]\n       docket-bringup down --root DIR\n       docket-bringup status --root DIR"
+        "usage: docket-bringup up --bus ADDRESS --root DIR --shell-pid PID [--keys-home DIR] [--catalog DIR] [--providers DIR] [--inferd-config FILE]\n       docket-bringup down --root DIR\n       docket-bringup status --root DIR"
     )]
     Subcommand,
     /// A flag needs a value.
@@ -63,12 +66,13 @@ pub enum UsageError {
     Relative(&'static str, PathBuf),
 }
 
-const UP_FLAGS: [&str; 6] = [
+const UP_FLAGS: [&str; 7] = [
     "--bus",
     "--root",
     "--shell-pid",
     "--keys-home",
     "--catalog",
+    "--providers",
     "--inferd-config",
 ];
 const ROOT_FLAGS: [&str; 1] = ["--root"];
@@ -92,6 +96,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let mut words = rest.iter();
     let (mut bus, mut root, mut shell) = (None, None, None);
     let (mut keys_home, mut catalog, mut inferd_config) = (None, None, None);
+    let mut providers = None;
     while let Some(flag) = words.next() {
         if !allowed.contains(&flag.as_str()) {
             return Err(UsageError::Unknown(flag.clone()));
@@ -105,6 +110,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             "--shell-pid" => shell = Some(value.clone()),
             "--keys-home" => keys_home = Some(PathBuf::from(value)),
             "--catalog" => catalog = Some(PathBuf::from(value)),
+            "--providers" => providers = Some(PathBuf::from(value)),
             _ => inferd_config = Some(PathBuf::from(value)),
         }
     }
@@ -129,6 +135,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
         shell_pid,
         keys_home: keep("--keys-home", keys_home).transpose()?,
         catalog: keep("--catalog", catalog).transpose()?,
+        providers: keep("--providers", providers).transpose()?,
         inferd_config: keep("--inferd-config", inferd_config).transpose()?,
     }))
 }

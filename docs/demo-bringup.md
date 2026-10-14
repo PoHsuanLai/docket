@@ -20,7 +20,7 @@ cd ~/docket && cargo build -p docket-accept --bins     # the daemons must sit be
 
 ```sh
 docket-bringup up --bus <dbus address> --root <abs scratch dir> --shell-pid <pid> \
-    [--keys-home <abs dir>] [--catalog <abs dir>] [--inferd-config <abs file>]
+    [--keys-home <abs dir>] [--catalog <abs dir>] [--providers <abs dir>] [--inferd-config <abs file>]
 docket-bringup status --root <dir>
 docket-bringup down --root <dir>
 ```
@@ -43,6 +43,9 @@ prints `name pid stopped|killed|gone`, last started first, and leaves the root o
   into this root. Stop the services first (`down`), run it in your own terminal (the key is typed at inferd's
   prompt), then `up` again.
 - `--catalog DIR` copies the stoker catalogue entries (`*.toml`) in; cloud models need them.
+- `--providers DIR` copies porter's provider files (`*.toml`, no secrets; an install keeps them in
+  `~/.local/share/porter/providers`) into `<root>/data/porter/providers`. Without `--keys-home`, pass it before
+  the `inferd add` step: inferd adds a key only for a provider it serves.
 - `--inferd-config FILE` adds your own `[ai]` rows (data floors, model choices, caps; see
   `dev/live/inferd.cloud.example.toml`). Nothing is added by default, so no class of data may leave the computer
   until you say so. The file may not hold `[engines]`, `[probe]` or `[callers]`.

@@ -128,6 +128,10 @@ pub async fn up(
         crate::live::catalog::copy_entries(from, &crate::live::catalog::world_dir(root))
             .map_err(|e| BringupError::Config(format!("catalogue {}: {e}", from.display())))?;
     }
+    if let Some(from) = &args.providers {
+        crate::live::catalog::copy_entries(from, &root.join("data/porter/providers"))
+            .map_err(|e| BringupError::Config(format!("providers {}: {e}", from.display())))?;
+    }
     if let Some(home) = &keys {
         home.seed(root)?;
     }
