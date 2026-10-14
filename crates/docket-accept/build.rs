@@ -70,6 +70,7 @@ fn build(sibling: &Sibling, manifest: &str, target: &Path) -> PathBuf {
             .arg(Path::new(dir).join("crates").join(sibling.package)),
         None => {
             let (url, rev) = pin(manifest, sibling.repo);
+            fresh_for(target, &rev);
             command
                 .args(["--git", &url, "--rev", &rev])
                 .arg(sibling.package)
@@ -103,6 +104,22 @@ fn build(sibling: &Sibling, manifest: &str, target: &Path) -> PathBuf {
         );
     }
     target.join("bin").join(sibling.package)
+}
+
+/// Clears the sibling's build directory when the pinned rev moved: artifacts of the old rev
+/// once made the new one fail to compile. `<target>/rev` records the rev the directory holds.
+fn fresh_for(target: &Path, rev: &str) {
+    let stamp = target.join("rev");
+    if std::fs::read_to_string(&stamp).ok().as_deref() == Some(rev) {
+        return;
+    }
+    let build = target.join("build");
+    if build.exists() {
+        std::fs::remove_dir_all(&build)
+            .unwrap_or_else(|e| panic!("clearing {}: {e}", build.display()));
+    }
+    std::fs::create_dir_all(target).unwrap_or_else(|e| panic!("{}: {e}", target.display()));
+    std::fs::write(&stamp, rev).unwrap_or_else(|e| panic!("{}: {e}", stamp.display()));
 }
 
 fn main() {

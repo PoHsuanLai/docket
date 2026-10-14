@@ -249,7 +249,7 @@ fn meta_tools(actions: &[ActionCard]) -> Vec<ToolDecl> {
         related_tool(actions),
         meta_tool(
             TOOL_ANSWER,
-            "Give the person your reply. It is the final answer: the turn ends with it.",
+            "Give the person your reply: the answer itself, short, as they would want to read it, with nothing about how you found it. The turn ends with it.",
             &answer,
         ),
         meta_tool(TOOL_ASK, "Ask the person a question and wait for the answer.", &ask),

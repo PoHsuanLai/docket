@@ -96,7 +96,7 @@ fn say_up(args: &cli::UpArgs, binaries: &Binaries, started: &[up::Started]) {
         .for_each(|s| println!("{} {} ok", s.name, s.pid));
     if args.keys_home.is_none() {
         println!(
-            "inferd has no cloud key: cloud models are unavailable until you add one. To add it, stop the services (docket-bringup down --root {}), then type the key at inferd's own prompt:\n  {}\nthen run up again.",
+            "Cloud models need a key in this root; skip this if you already added one. To add it, stop the services (docket-bringup down --root {}), then type the key at inferd's own prompt:\n  {}\nthen run up again.",
             args.root.display(),
             add_command(&args.root, &binaries.inferd)
         );
