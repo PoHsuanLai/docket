@@ -219,6 +219,10 @@ fn inferd_is_never_given_a_local_engine() {
         assert!(ports.is_empty(), "{runtime} is probed");
     }
     assert!(table["callers"]["apps"]["org.quire.Companion"].is_array());
+    // The shell (the fake proc root's `sill.service`) is a caller, as on an install.
+    let shell = table["callers"]["shell"].as_array().expect("a shell row");
+    assert_eq!(shell[0].as_str(), Some("sill.service"));
+    assert!(table["callers"]["places"].is_array());
 
     // The person's own rows are kept, but cannot bring an engine, a probe or other callers back.
     let extra = "[ai]\nlocal_only = \"off\"\n";

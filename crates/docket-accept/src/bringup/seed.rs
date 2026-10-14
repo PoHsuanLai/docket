@@ -37,8 +37,14 @@ pub fn inferd_toml(root: &Path, extra: &str) -> Result<String, ExtraFault> {
     }
     let body = format!("{NO_LOCAL_ENGINE}\n{extra}");
     let model = crate::world::ModelSource::Live(body);
-    Ok(crate::world::inferd_toml(root, &model, None))
+    let toml = crate::world::inferd_toml(root, &model, None);
+    Ok(toml.replacen("[callers.apps]", SHELL_CALLERS, 1))
 }
+
+/// The rows an install gives inferd beside the apps: the shell's unit (here `sill.service`, the
+/// unit the fake proc root puts the shell in) and the daemons that may choose where the
+/// assistant runs.
+const SHELL_CALLERS: &str = "[callers]\nshell = [\"sill.service\"]\nplaces = [\"companiond.service\", \"readerd.service\", \"intentd.service\"]\n\n[callers.apps]";
 
 /// The directories of a root, as a World makes them.
 pub fn layout(root: &Path) -> std::io::Result<()> {

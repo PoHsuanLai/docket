@@ -16,6 +16,18 @@ use docket_core::{DraftPart, EpisodeLine, NoteAsk, SkeletonText, TaskLedger, clo
 use porter_client::Transport as InferTransport;
 use prov::{Address, AgentRef, MessageKind, MessageText, ReportStatus, TaskId};
 
+/// Why a task failed, for the daemon's log: the kind of failure, never the person's words.
+fn failed_why(failure: Option<&crate::task::Failure>) -> String {
+    use crate::task::Failure;
+    match failure {
+        Some(Failure::Model(fault)) => format!("the planner model: {fault}"),
+        Some(Failure::Refused(refusal)) => format!("a call was refused: {refusal:?}"),
+        Some(Failure::Reader) => "the reader could not answer".to_owned(),
+        Some(Failure::Budget) => "the step budget ran out".to_owned(),
+        None => "the planner ended without a call".to_owned(),
+    }
+}
+
 fn outcome_of(how: FinishedAs) -> EpisodeOutcome {
     match how {
         FinishedAs::Done => EpisodeOutcome::Done,
@@ -68,6 +80,13 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let Some(rt) = self.runtimes.get(task).cloned() else {
             return Err(ServeFault::UnknownSession);
         };
+        if how == FinishedAs::Failed {
+            eprintln!(
+                "companiond: task {} failed: {}",
+                task.as_str(),
+                failed_why(rt.failure.as_ref())
+            );
+        }
         // A worker answers whoever spawned it, in the one message model: a final report in the
         // thread of the request that gave it its goal. The router moves its task to ended on it.
         if matches!(rt.agent, AgentRef::Worker { .. }) {

@@ -372,18 +372,22 @@ impl<P: Transport> PlannerModel<P> {
             .infer
             .open(&need, class, tier)
             .await
-            .map_err(|_| PlanFault::Unavailable)?;
+            .map_err(|e| unavailable("opening a model", &e))?;
         session
             .send(ClientFrame::Request(InferRequest::Chat(request)))
             .await
-            .map_err(|_| PlanFault::Unavailable)?;
+            .map_err(|e| unavailable("sending the request", &e))?;
         let mut route = RouteLog::default();
         loop {
-            let event = session.next().await.map_err(|_| PlanFault::Unavailable)?;
+            let event = session
+                .next()
+                .await
+                .map_err(|e| unavailable("reading the reply", &e))?;
             route.event(&event);
             match event {
                 InferEvent::Finished(InferReply::Chat(reply)) => return Ok((reply, route.notes())),
                 InferEvent::Finished(_) => {
+                    eprintln!("docket-planner: the model finished without a chat reply");
                     return Err(match route.declined() {
                         Some(declined) => PlanFault::Declined(Box::new(declined.clone())),
                         None => PlanFault::Unavailable,
@@ -400,6 +404,7 @@ impl<P: Transport> PlannerModel<P> {
             reply.stop,
             StopReason::MaxTokens | StopReason::ContentFilter
         ) {
+            eprintln!("docket-planner: the reply stopped early: {:?}", reply.stop);
             return Err(PlanFault::Unreadable);
         }
         let said = Some(bounded(reply.text.trim())).filter(|t| !t.is_empty());
@@ -431,7 +436,10 @@ impl<P: Transport> PlannerModel<P> {
                 Some(call) if call.name.as_str() == TOOL_FINISH => finish_output(call, view)?,
                 Some(call) => (meta_output(call, view)?, Vec::new()),
                 None if said.is_some() => (ModelOutput::Finish, Vec::new()),
-                None => return Err(PlanFault::Unreadable),
+                None => {
+                    eprintln!("docket-planner: the reply had no words and no call");
+                    return Err(PlanFault::Unreadable);
+                }
             }
         };
         Ok(PlannerReply {
@@ -660,4 +668,11 @@ fn related_subject(of: &Json, view: &PlannerView) -> Option<(TargetValue, Entity
         key: EntityKey::parse(text("key")?).ok()?,
     };
     (object.len() == 3).then(|| (TargetValue::Entities(vec![id.clone()]), id.kind))
+}
+
+/// A model that could not be used: the daemon's log says at which stage and why (the porter
+/// error, never the prompt), the loop sees [`PlanFault::Unavailable`].
+fn unavailable(stage: &str, error: &dyn std::fmt::Display) -> PlanFault {
+    eprintln!("docket-planner: {stage}: {error}");
+    PlanFault::Unavailable
 }
