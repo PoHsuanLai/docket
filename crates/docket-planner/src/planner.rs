@@ -386,8 +386,11 @@ impl<P: Transport> PlannerModel<P> {
             route.event(&event);
             match event {
                 InferEvent::Finished(InferReply::Chat(reply)) => return Ok((reply, route.notes())),
-                InferEvent::Finished(_) => {
-                    eprintln!("docket-planner: the model finished without a chat reply");
+                InferEvent::Finished(other) => {
+                    eprintln!(
+                        "docket-planner: the model finished without a chat reply: {}",
+                        not_chat(&other)
+                    );
                     return Err(match route.declined() {
                         Some(declined) => PlanFault::Declined(Box::new(declined.clone())),
                         None => PlanFault::Unavailable,
@@ -668,6 +671,17 @@ fn related_subject(of: &Json, view: &PlannerView) -> Option<(TargetValue, Entity
         key: EntityKey::parse(text("key")?).ok()?,
     };
     (object.len() == 3).then(|| (TargetValue::Entities(vec![id.clone()]), id.kind))
+}
+
+/// What a reply that is not a chat was, for the log: a refusal or a failure with porter's own
+/// words for it (never the prompt), any other kind by name.
+fn not_chat(reply: &InferReply) -> String {
+    match reply {
+        InferReply::Refused(why) => format!("refused: {why:?}"),
+        InferReply::Failed(error) => format!("failed: {error}"),
+        InferReply::Cancelled => "cancelled".to_owned(),
+        _ => "another kind of reply".to_owned(),
+    }
 }
 
 /// A model that could not be used: the daemon's log says at which stage and why (the porter
