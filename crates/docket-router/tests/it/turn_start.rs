@@ -1,7 +1,7 @@
 //! The start of a person's turn may read memory unasked, and nothing else may: the claim
 //! (`Origin::TurnStart`) is checked against the action, the session's newest turn and the
 //! caller, and a claim that fails is refused, never turned into a sheet. The planner's own
-//! call of the same action still asks.
+//! reads of memory (recall, facts) run unasked on such a turn too, and ask without one.
 
 use crate::support::*;
 use docket_core::*;
@@ -40,14 +40,18 @@ fn recall(origin: Origin, action: &str) -> CallRequest {
             name: ActionName::parse(action).expect("action"),
         },
         target: TargetValue::Nothing,
-        args: [(
-            param("query"),
-            Labelled {
-                value: Value::Text("capital of Taiwan".into()),
-                label: trusted(),
-            },
-        )]
-        .into(),
+        // memory.facts takes no arguments; recall takes the search text.
+        args: match action {
+            RECALL_ACTION => [(
+                param("query"),
+                Labelled {
+                    value: Value::Text("capital of Taiwan".into()),
+                    label: trusted(),
+                },
+            )]
+            .into(),
+            _ => Args::new(),
+        },
         origin,
     }
 }
@@ -59,11 +63,13 @@ fn memory_router() -> docket_router::Router<docket_fake::FakeSeams> {
 }
 
 #[tokio::test]
-async fn only_the_search_on_a_turn_the_person_typed_runs_unasked_and_the_planners_own_call_asks() {
+async fn memory_reads_on_a_turn_the_person_typed_run_unasked_and_ask_without_one() {
     // (what is said first, the call, what comes of it)
     let table = [
         (true, Origin::TurnStart, RECALL_ACTION, "runs"),
-        (true, Origin::Companion, RECALL_ACTION, "asks"),
+        (true, Origin::Companion, RECALL_ACTION, "runs"),
+        (true, Origin::Companion, "memory.facts", "runs"),
+        (false, Origin::Companion, RECALL_ACTION, "asks"),
         (false, Origin::TurnStart, RECALL_ACTION, "refused"),
         (true, Origin::TurnStart, "memory.facts", "refused"),
     ];
@@ -82,7 +88,7 @@ async fn only_the_search_on_a_turn_the_person_typed_runs_unasked_and_the_planner
             }
             "asks" => {
                 assert_eq!(end, Err(CallRefusal::Unconfirmed(ConfirmEnd::Dismissed)));
-                assert_eq!(sheets, 1, "the model's call asks as before");
+                assert_eq!(sheets, 1, "no turn the person typed: it asks");
             }
             _ => {
                 assert_eq!(

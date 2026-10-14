@@ -8,6 +8,9 @@
 //! session's newest turn was recorded by a launcher, a field or an editor (the person's own
 //! surfaces; a terminal and an external agent's host are not). A claim that fails the checks is
 //! refused outright, never turned into a question. A recorded denial of the person still stands.
+//!
+//! The same pass covers the main planner's own `memory.recall` and `memory.facts` on such a turn:
+//! reading the person's own memory for their own request does not ask either.
 
 use crate::who::Who;
 use docket_core::{
@@ -35,13 +38,14 @@ fn person_typed(turns: &[UserTurn]) -> bool {
     )
 }
 
-/// Rules on a call's claim to be a turn start.
+/// The memory app's reads of the person's own memory that the main planner may make unasked
+/// while it works on a request the person typed (the owner's decision: reading their own
+/// memory for their own question needs no sheet). Writes and every other app still ask.
+const OWN_READS: [&str; 2] = [RECALL_ACTION, "memory.facts"];
+
+/// Rules on a call's claim to be a turn start, and on the planner's own reads of memory.
 pub(crate) fn rule(who: &Who, request: &CallRequest, turns: &[UserTurn]) -> TurnStart {
-    if request.origin != Origin::TurnStart {
-        return TurnStart::Unclaimed;
-    }
-    let the_search =
-        request.action.app.as_str() == RECALL_APP && request.action.name.as_str() == RECALL_ACTION;
+    let memory = request.action.app.as_str() == RECALL_APP;
     let main_planner = who.role == CallerRole::Companion
         && matches!(
             who.actor,
@@ -50,10 +54,18 @@ pub(crate) fn rule(who: &Who, request: &CallRequest, turns: &[UserTurn]) -> Turn
                 ..
             }
         );
-    if the_search && main_planner && person_typed(turns) {
-        TurnStart::Preapproved
-    } else {
-        TurnStart::Refused
+    let allowed = main_planner && person_typed(turns);
+    match request.origin {
+        Origin::TurnStart if memory && request.action.name.as_str() == RECALL_ACTION && allowed => {
+            TurnStart::Preapproved
+        }
+        Origin::TurnStart => TurnStart::Refused,
+        Origin::Companion
+            if memory && OWN_READS.contains(&request.action.name.as_str()) && allowed =>
+        {
+            TurnStart::Preapproved
+        }
+        _ => TurnStart::Unclaimed,
     }
 }
 
