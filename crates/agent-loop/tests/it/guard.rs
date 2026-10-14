@@ -126,7 +126,11 @@ fn the_second_identical_call_after_nothing_is_held_and_the_third_asks_the_person
     assert_eq!(s.phase, LoopPhase::Idle, "asking, not finished");
     assert_eq!(calls_in(&e), 0);
     let question = asks_person(&e).expect("a question for the person");
-    assert!(question.contains("couldn't find anything with mail.thread.search"));
+    assert!(question.contains("couldn't find anything"));
+    assert!(
+        !question.contains("mail.thread.search"),
+        "no action id in the person's words"
+    );
     assert!(!e.contains(&LoopEffect::AskPlanner));
 }
 
@@ -351,7 +355,7 @@ fn a_held_repeat_of_handles_is_followed_by_a_question_when_it_is_repeated_again(
     assert_eq!(s.phase, LoopPhase::Idle, "then the person is asked");
     let question = asks_person(&e).expect("a question for the person");
     assert!(
-        question.contains("same answer from mail.contact.search"),
+        question.contains("same answer") && !question.contains("mail.contact.search"),
         "{question}"
     );
 }

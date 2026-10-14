@@ -85,19 +85,11 @@ impl Stuck {
     /// What the person is asked when the turn stops: what could not be found, or that the
     /// assistant is going round in circles, and what it needs from them.
     pub fn question(&self) -> String {
+        // The person's words: never an action's id, which is a developer word.
         match self {
-            Stuck::Repeating(Held::Empty, action) => format!(
-                "I couldn't find anything with {}, and asking again will not change that. What should I look for instead?",
-                action.name.as_str()
-            ),
-            Stuck::Repeating(Held::Unchanged, action) => format!(
-                "I keep getting the same answer from {}. How would you like me to go on?",
-                action.name.as_str()
-            ),
-            Stuck::Repeating(Held::Refused, action) => format!(
-                "{} keeps being refused with what I give it. How would you like me to go on?",
-                action.name.as_str()
-            ),
+            Stuck::Repeating(Held::Empty, _) => "I couldn't find anything, and looking again won't change that. What should I look for instead?".to_owned(),
+            Stuck::Repeating(Held::Unchanged, _) => "I keep getting the same answer. How would you like me to go on?".to_owned(),
+            Stuck::Repeating(Held::Refused, _) => "That step keeps being refused. How would you like me to go on?".to_owned(),
             Stuck::Unreadable => "I keep writing steps I cannot get right, though I was told what was wrong. How would you like me to go on?".to_owned(),
             Stuck::Circling => "I am going round in circles without getting anywhere. How would you like me to go on?".to_owned(),
         }
