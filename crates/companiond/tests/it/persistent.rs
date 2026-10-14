@@ -13,7 +13,7 @@ use docket_core::*;
 use prov::{Actor, Integrity, Label, Source, UnixSeconds};
 use serde_json::json;
 
-const READ: &str = "org.quire.Mail-mail.thread.read";
+const READ: &str = "org_quire_Mail-mail_thread_read";
 
 fn read_t1() -> crate::support::infer::Say {
     call(
@@ -334,7 +334,7 @@ async fn a_finished_task_takes_no_follow_up_and_an_unknown_session_is_refused() 
 
 fn draft_from(handle: u64) -> crate::support::infer::Say {
     call(
-        "org.quire.Mail-mail.draft.create",
+        "org_quire_Mail-mail_draft_create",
         json!({ "body": { "handle": handle } }),
     )
 }

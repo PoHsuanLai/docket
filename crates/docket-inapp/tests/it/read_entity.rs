@@ -19,8 +19,8 @@ use porter_core::AppName;
 use prov::{ActionName, Actor, EntityId, EntityKey, EntityKind, Labelled};
 use serde_json::{Value as Json, json};
 
-const READ: &str = "org.quire.Mail-mail.thread.read";
-const SEARCH_CALL: &str = "org.quire.Mail-mail.thread.search";
+const READ: &str = "org_quire_Mail-mail_thread_read";
+const SEARCH_CALL: &str = "org_quire_Mail-mail_thread_search";
 
 /// The fixture mail app with one more action, `mail.thread.search`, which answers every thread
 /// as a thing (the fixture manifest has none): the way a planner comes to hold a thread.

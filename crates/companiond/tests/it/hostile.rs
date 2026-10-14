@@ -8,7 +8,7 @@ use agent_loop::ModelOutput;
 use companiond::*;
 use serde_json::json;
 
-const READ: &str = "org.quire.Mail-mail.thread.read";
+const READ: &str = "org_quire_Mail-mail_thread_read";
 
 async fn plan(say: Say) -> Result<ModelOutput, PlanFault> {
     let (planner, _) = planner(vec![say]);
@@ -158,7 +158,7 @@ async fn a_question_past_what_its_tool_allows_is_unreadable() {
 fn a_tool_name_with_a_homoglyph_is_not_a_name_at_all() {
     // The wire type refuses it before the planner could compare it: a Cyrillic letter is not in
     // the grammar of a tool name.
-    assert!(porter_infer::ToolName::parse("org.quire.Mail-mail.thr\u{0435}ad.read").is_err());
+    assert!(porter_infer::ToolName::parse("org_quire_Mail-mail_thr\u{0435}ad.read").is_err());
 }
 
 #[tokio::test]
@@ -168,9 +168,9 @@ async fn made_up_and_wrong_typed_calls_are_unread_with_a_typed_fault_not_run() {
     let target = |fault| ReplyFault::Args(ArgsFault::Target(fault));
     for (name, args, fault) in [
         (
-            "org.quire.Mail-mail.thread.nuke",
+            "org_quire_Mail-mail_thread_nuke",
             json!({ "target": thread }),
-            ReplyFault::NoSuchTool("org.quire.Mail-mail.thread.nuke".into()),
+            ReplyFault::NoSuchTool("org_quire_Mail-mail_thread_nuke".into()),
         ),
         (READ, json!({ "target": 5 }), target(TargetFault::Malformed)),
         (READ, json!({}), target(TargetFault::Missing)),

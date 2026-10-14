@@ -13,7 +13,7 @@ use serde_json::json;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
-pub const ARCHIVE: &str = "org.quire.Mail-mail.thread.archive";
+pub const ARCHIVE: &str = "org_quire_Mail-mail_thread_archive";
 
 pub fn work() -> SpaceId {
     SpaceId::parse("work").expect("space")

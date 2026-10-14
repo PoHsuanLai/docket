@@ -22,7 +22,7 @@ use prov::{DataClass, Effect, EntityKind, SessionId, SpaceId, TaskId, UnixSecond
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-pub const ARCHIVE: &str = "org.quire.Mail-mail.thread.archive";
+pub const ARCHIVE: &str = "org_quire_Mail-mail_thread_archive";
 
 #[derive(Debug, Clone, Copy)]
 pub struct Still;

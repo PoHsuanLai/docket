@@ -23,8 +23,8 @@ use prov::{SpaceId, UnixSeconds};
 use serde_json::json;
 use std::sync::Arc;
 
-const ARCHIVE: &str = "org.quire.Mail-mail.thread.archive";
-const READ: &str = "org.quire.Mail-mail.thread.read";
+const ARCHIVE: &str = "org_quire_Mail-mail_thread_archive";
+const READ: &str = "org_quire_Mail-mail_thread_read";
 
 fn work() -> SpaceId {
     SpaceId::parse("work").expect("space")

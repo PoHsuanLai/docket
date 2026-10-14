@@ -11,7 +11,7 @@ use docket_core::{ChoiceId, Handle, ReaderAsk, ReaderTask, ValueSchema};
 use docket_inapp::{Ending, Failure, InAppAgent, InAppKit, TransportReader};
 use serde_json::{Value, json};
 
-const READ: &str = "org.quire.Mail-mail.thread.read";
+const READ: &str = "org_quire_Mail-mail_thread_read";
 
 fn good_ask() -> Value {
     let ask = ReaderAsk {

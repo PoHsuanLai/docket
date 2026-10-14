@@ -8,8 +8,8 @@ use docket_core::{AuditRecord, CallEnd};
 use docket_skills::{Origin, Skill, parse};
 use serde_json::json;
 
-const LOAD: &str = "org.quire.Companion-companion.skill.load";
-const ARCHIVE: &str = "org.quire.Mail-mail.thread.archive";
+const LOAD: &str = "org_quire_Companion-companion_skill_load";
+const ARCHIVE: &str = "org_quire_Mail-mail_thread_archive";
 
 fn skill(id: &str, uses: &str, when: &str, body: &str) -> Skill {
     let toml = format!(

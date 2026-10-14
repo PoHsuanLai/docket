@@ -32,8 +32,8 @@ fn mail_tool(name: &str) -> CatalogueTool {
 fn only_actions_an_agent_may_offer_are_tools_with_unique_short_names() {
     let c = catalogue();
     let names: Vec<&str> = c.tools().iter().map(|t| t.name.as_str()).collect();
-    assert!(names.contains(&"org.quire.Mail-mail.thread.read"));
-    assert!(names.contains(&"org.quire.Memory-memory.recall"));
+    assert!(names.contains(&"org_quire_Mail-mail_thread_read"));
+    assert!(names.contains(&"org_quire_Memory-memory_recall"));
     assert!(
         !names.iter().any(|n| n.contains("memory.forget")),
         "hidden: {names:?}"
@@ -44,7 +44,7 @@ fn only_actions_an_agent_may_offer_are_tools_with_unique_short_names() {
     assert_eq!(sorted.len(), names.len(), "unique");
     assert!(names.iter().all(|n| n.len() <= 64));
     // The registry's order: mail first.
-    assert_eq!(names[0], "org.quire.Mail-mail.thread.read");
+    assert_eq!(names[0], "org_quire_Mail-mail_thread_read");
     assert_eq!(c.cards().len(), names.len());
 }
 
@@ -276,7 +276,7 @@ async fn the_request_is_the_view_in_two_messages_and_the_tools_of_the_cards() {
     assert!(system.contains("Prefers short answers"));
     assert!(system.contains("Eve is the landlord"));
     let names: Vec<&str> = request.tools.iter().map(|t| t.name.as_str()).collect();
-    assert!(names.contains(&"org.quire.Mail-mail.thread.read"));
+    assert!(names.contains(&"org_quire_Mail-mail_thread_read"));
     assert_eq!(
         &names[names.len() - 3..],
         [TOOL_ASK, TOOL_READ, TOOL_FINISH]
@@ -319,7 +319,7 @@ async fn a_reply_is_read_into_calls_a_read_a_question_an_end_or_words() {
         Say::Reply(
             "Reading it.".into(),
             vec![(
-                "org.quire.Mail-mail.thread.read".into(),
+                "org_quire_Mail-mail_thread_read".into(),
                 json!({ "target": thread }),
             )],
         ),
@@ -329,7 +329,7 @@ async fn a_reply_is_read_into_calls_a_read_a_question_an_end_or_words() {
             vec![
                 ("nothing-here".into(), json!({})),
                 (
-                    "org.quire.Mail-mail.thread.read".into(),
+                    "org_quire_Mail-mail_thread_read".into(),
                     json!({ "target": thread }),
                 ),
             ],
@@ -346,7 +346,7 @@ async fn a_reply_is_read_into_calls_a_read_a_question_an_end_or_words() {
         words("Just words."),
         // Only an unknown tool, only bad arguments, nothing at all, and words cut off.
         call("nothing-here", json!({})),
-        call("org.quire.Mail-mail.thread.read", json!({ "target": 5 })),
+        call("org_quire_Mail-mail_thread_read", json!({ "target": 5 })),
         words(""),
         Say::Cut("Half of a sen".into()),
     ]);

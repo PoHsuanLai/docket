@@ -190,11 +190,12 @@ impl Catalogue {
     }
 }
 
-/// A name for the model: the app and the action, which carry only `[A-Za-z0-9_.-]`. One that is
-/// too long, or taken, is `a<n>` by its place in the catalogue, which is stable while the
-/// manifests are.
+/// A name for the model: the app and the action, their dots made `_`, since Anthropic's and
+/// OpenAI's tool names allow only `[A-Za-z0-9_-]` and refuse the whole request otherwise. One
+/// that is too long, or taken, is `a<n>` by its place in the catalogue, which is stable while
+/// the manifests are.
 fn unique_name(tools: &[CatalogueTool], app: &AppName, decl: &ActionDecl) -> Option<ToolName> {
-    let long = format!("{}-{}", app.as_str(), decl.name.as_str());
+    let long = format!("{}-{}", app.as_str(), decl.name.as_str()).replace('.', "_");
     let taken = |n: &str| tools.iter().any(|t| t.name.as_str() == n);
     let name = if long.len() <= NAME_LIMIT && !taken(&long) {
         long

@@ -76,7 +76,7 @@ async fn a_call_outside_the_chosen_set_never_reaches_the_router() {
 #[tokio::test]
 async fn a_refusal_comes_back_as_a_coarse_code() {
     let delete = call(
-        "org.quire.Files-files.file.delete",
+        "org_quire_Files-files_file_delete",
         json!({ "target": [{ "app": "org.quire.Files", "kind": "files.file", "key": "f1" }] }),
     );
     let world = World::new(vec![delete, words("It was not allowed.")]);
@@ -143,7 +143,7 @@ async fn a_question_ends_the_ask_asking() {
 async fn a_finish_that_shows_a_handle_hands_it_to_the_host() {
     let read = || {
         call(
-            "org.quire.Mail-mail.thread.read",
+            "org_quire_Mail-mail_thread_read",
             json!({ "target": { "app": "org.quire.Mail", "kind": "mail.thread", "key": "t1" } }),
         )
     };

@@ -13,7 +13,7 @@ use prov::{
 };
 use serde_json::json;
 
-const START: &str = "org.quire.Companion-companion.task.start";
+const START: &str = "org_quire_Companion-companion_task_start";
 
 fn worker(id: &str) -> AgentRef {
     AgentRef::Worker { task: task(id) }
@@ -302,7 +302,7 @@ async fn a_message_across_spaces_carries_its_labels_shows_presence_only_and_gran
     let mut w = world(vec![
         // home: read the thread, then wait for the person.
         call(
-            "org.quire.Mail-mail.thread.read",
+            "org_quire_Mail-mail_thread_read",
             json!({ "target": { "app": "org.quire.Mail", "kind": "mail.thread", "key": "t1" } }),
         ),
         call("quire_ask", json!({ "text": "which one?" })),
@@ -388,7 +388,7 @@ async fn a_request_in_a_message_is_still_gated_by_the_receivers_own_policy() {
         // The receiver, asked by the sender's message, plans to archive: the router refuses, as
         // it would had the receiver thought of it itself.
         call(
-            "org.quire.Mail-mail.thread.archive",
+            "org_quire_Mail-mail_thread_archive",
             json!({ "target": [{ "app": "org.quire.Mail", "kind": "mail.thread", "key": "t2" }] }),
         ),
         words("That was refused."),

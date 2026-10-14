@@ -12,7 +12,7 @@ use serde_json::json;
 
 fn read_t1() -> Say {
     call(
-        "org.quire.Mail-mail.thread.read",
+        "org_quire_Mail-mail_thread_read",
         json!({ "target": { "app": "org.quire.Mail", "kind": "mail.thread", "key": "t1" } }),
     )
 }
