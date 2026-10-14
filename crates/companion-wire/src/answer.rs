@@ -18,6 +18,11 @@ pub struct AnswerWire {
     pub phase: AnswerPhase,
     /// What it shows.
     pub body: AnswerBody,
+    /// What the companion said on the way, beside its calls ("I'll check what I remember"),
+    /// oldest first. Progress, not the answer: a screen may show the newest while the task
+    /// works. The body's text lines hold only the reply. Absent from older senders.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub progress: Vec<String>,
     /// What it was made of.
     pub footer: FooterWire,
 }

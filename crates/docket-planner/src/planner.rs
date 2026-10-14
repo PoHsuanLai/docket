@@ -41,6 +41,8 @@ const CONTEXT: Tokens = Tokens(12_000);
 pub const TOOL_ASK: &str = "quire_ask";
 /// The tool that has the quarantined reader answer a question about handles.
 pub const TOOL_READ: &str = "quire_read";
+/// The tool that gives the person the reply and ends the turn.
+pub const TOOL_ANSWER: &str = "quire_answer";
 /// The tool that ends the task.
 pub const TOOL_FINISH: &str = "quire_finish";
 /// The tool that asks for the thing related to a thing it holds (the sender of a thread), as a
@@ -209,8 +211,14 @@ fn related_tool(actions: &[ActionCard]) -> Option<ToolDecl> {
 }
 
 /// The tools every task has beside the actions (`quire_related` first, where it is offered, so
-/// the last three are always ask, read and finish).
+/// the last four are always answer, ask, read and finish).
 fn meta_tools(actions: &[ActionCard]) -> Vec<ToolDecl> {
+    let answer = json!({
+        "type": "object",
+        "properties": { "text": { "type": "string", "maxLength": MOST_WORDS } },
+        "required": ["text"],
+        "additionalProperties": false,
+    });
     let ask = json!({
         "type": "object",
         "properties": {
@@ -239,6 +247,11 @@ fn meta_tools(actions: &[ActionCard]) -> Vec<ToolDecl> {
     });
     [
         related_tool(actions),
+        meta_tool(
+            TOOL_ANSWER,
+            "Give the person your reply. It is the final answer: the turn ends with it.",
+            &answer,
+        ),
         meta_tool(TOOL_ASK, "Ask the person a question and wait for the answer.", &ask),
         meta_tool(
             TOOL_READ,
@@ -410,10 +423,10 @@ impl<P: Transport> PlannerModel<P> {
             eprintln!("docket-planner: the reply stopped early: {:?}", reply.stop);
             return Err(PlanFault::Unreadable);
         }
-        let said = Some(bounded(reply.text.trim())).filter(|t| !t.is_empty());
+        let mut said = Some(bounded(reply.text.trim())).filter(|t| !t.is_empty());
         // A call left in the words is never a call, and its markup is not an answer: with real
         // calls beside it the words are dropped, alone the turn fails with a name for it.
-        let said = match (said, reply.tool_calls.is_empty()) {
+        said = match (said, reply.tool_calls.is_empty()) {
             (Some(words), true) if leaked_call(&words).is_some() => {
                 return Err(PlanFault::CallInText);
             }
@@ -437,6 +450,12 @@ impl<P: Transport> PlannerModel<P> {
         } else {
             match meta.first() {
                 Some(call) if call.name.as_str() == TOOL_FINISH => finish_output(call, view)?,
+                Some(call) if call.name.as_str() == TOOL_ANSWER => {
+                    // The reply is the words: whatever else the model wrote beside it was not.
+                    let reply = answer_text(call)?;
+                    said = Some(reply);
+                    (ModelOutput::Finish, Vec::new())
+                }
                 Some(call) => (meta_output(call, view)?, Vec::new()),
                 None if said.is_some() => (ModelOutput::Finish, Vec::new()),
                 None => {
@@ -530,7 +549,26 @@ fn bounded(text: &str) -> String {
 type AnyOrP<P> = <P as Transport>::Session;
 
 fn is_meta(name: &str) -> bool {
-    matches!(name, TOOL_ASK | TOOL_READ | TOOL_FINISH | TOOL_RELATED)
+    matches!(
+        name,
+        TOOL_ANSWER | TOOL_ASK | TOOL_READ | TOOL_FINISH | TOOL_RELATED
+    )
+}
+
+/// The words of a `quire_answer`: plain, not empty, and not a call written as words. A reply
+/// that is none of these is unreadable, like a question that is none of them.
+fn answer_text(call: &ToolCallPart) -> Result<String, PlanFault> {
+    let args: Json = serde_json::from_str(call.args.as_str()).map_err(|_| PlanFault::Unreadable)?;
+    let text = args
+        .get("text")
+        .and_then(Json::as_str)
+        .map(|t| bounded(t.trim()))
+        .filter(|t| !t.is_empty())
+        .ok_or(PlanFault::Unreadable)?;
+    match leaked_call(&text) {
+        Some(_) => Err(PlanFault::CallInText),
+        None => Ok(text),
+    }
 }
 
 fn meta_output(call: &ToolCallPart, view: &PlannerView) -> Result<ModelOutput, PlanFault> {

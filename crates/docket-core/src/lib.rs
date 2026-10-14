@@ -76,7 +76,8 @@ pub use budget::{
 };
 pub use call::{
     ActivatedInvocation, ActivationToken, AppRefusal, ArgFault, CallEnd, CallProgress, CallRefusal,
-    CallRequest, FailText, Follow, Invocation, Origin, Outcome, Undoable,
+    CallRequest, FailText, Follow, Invocation, Origin, Outcome, RECALL_ACTION, RECALL_APP,
+    Undoable,
 };
 pub use caller::{CallerId, CallerRole, Member, is_terminal_scope};
 pub use checkpoint::{

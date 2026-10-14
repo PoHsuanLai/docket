@@ -358,6 +358,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         rt.keep = ask.keep;
         rt.window = Some(ask.parent_window);
         rt.phase = AnswerPhase::Thinking;
+        rt.progress.clear();
         rt.plan = crate::plan::Plan::default();
         rt.acts = crate::plan::Plan::default();
         rt.proposal = None;

@@ -97,6 +97,7 @@ fn view(end: &AgentEnd, words: &[String]) -> AnswerWire {
         body: AnswerBody::Text {
             lines: words.iter().cloned().map(Reveal::Plain).collect(),
         },
+        progress: Vec::new(),
         footer: FooterWire {
             served: Vec::new(),
             sources: Vec::new(),

@@ -253,6 +253,7 @@ fn evidence(messages: Vec<Message>) -> Evidence {
         task: prov::TaskId::parse("t-1").expect("task"),
         phase: AnswerPhase::Done,
         body: AnswerBody::Text { lines: vec![] },
+        progress: Vec::new(),
         footer: FooterWire {
             served: vec![],
             sources: vec![],

@@ -51,6 +51,21 @@ fn refusal_text(fault: &PlanFault) -> Option<String> {
     }
 }
 
+/// What the words a planner turn carried are to the person.
+enum Words {
+    /// Said beside a step it is taking: where the work stands, not the answer.
+    Progress,
+    /// Said as the turn's own end or question: the reply.
+    Reply,
+}
+
+fn words_are(then: &ModelOutput) -> Words {
+    match then {
+        ModelOutput::Calls(_) | ModelOutput::Read(_) | ModelOutput::Unread(_) => Words::Progress,
+        ModelOutput::Say(_) | ModelOutput::Ask { .. } | ModelOutput::Finish => Words::Reply,
+    }
+}
+
 fn idle_loop() -> LoopState {
     LoopState {
         phase: LoopPhase::Idle,
@@ -155,6 +170,10 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     ) -> Result<(), ServeFault> {
         self.shared.interrupt();
         self.idle_apply(IdleInput::InteractiveStarted);
+        // Memory comes to the planner on the person's own turn, before its first call.
+        if matches!(first, LoopInput::Asked(_)) {
+            self.prefetch(task).await;
+        }
         let ran = self.run_tapped(task, first, tap).await;
         self.replied(task).await;
         let ended = self.clock.now();
@@ -255,7 +274,10 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 rt.route = reply.route.clone();
             }
             if let Some(words) = &reply.said {
-                rt.said.push(words.clone());
+                match words_are(&reply.then) {
+                    Words::Progress => rt.progress.push(words.clone()),
+                    Words::Reply => rt.said.push(words.clone()),
+                }
                 tap.said(words);
             }
             rt.show(&reply.show);

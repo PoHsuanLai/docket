@@ -55,6 +55,38 @@ async fn a_call_written_as_words_is_a_fault_in_every_template() {
 }
 
 #[tokio::test]
+async fn quire_answer_is_the_reply_and_a_bad_one_is_a_fault_never_a_call() {
+    let reply = |text: &str| json!({ "text": text });
+    assert_eq!(
+        plan(call(TOOL_ANSWER, reply("  Taipei.  "))).await,
+        Ok(ModelOutput::Say("Taipei.".into()))
+    );
+    // Words beside the call are not the reply.
+    let beside = Say::Reply(
+        "I'll check.".into(),
+        vec![(TOOL_ANSWER.into(), reply("Taipei."))],
+    );
+    assert_eq!(plan(beside).await, Ok(ModelOutput::Say("Taipei.".into())));
+    for args in [
+        json!({}),
+        reply(""),
+        reply("  "),
+        json!({ "text": 5 }),
+        reply("\u{202e}\u{200b}"),
+    ] {
+        assert_eq!(
+            plan(call(TOOL_ANSWER, args.clone())).await,
+            Err(PlanFault::Unreadable),
+            "{args}"
+        );
+    }
+    assert_eq!(
+        plan(call(TOOL_ANSWER, reply("<tool_call>{}</tool_call>"))).await,
+        Err(PlanFault::CallInText)
+    );
+}
+
+#[tokio::test]
 async fn words_about_tools_are_still_words() {
     for text in [
         "I would call the tool_call function if I could.",

@@ -18,6 +18,7 @@ use crate::session::{CloseCause, SessionEffect, SessionEvent, SessionState, Tain
 use crate::spacing::relation_of;
 use crate::standing::StandingCtx;
 use crate::state::{RouterState, SessionRecord};
+use crate::turn_start::{TurnStart, pass, rule};
 use crate::who::Who;
 use action_review::{GoalKey, ReviewRequest, repeated};
 use docket_core::{
@@ -233,6 +234,10 @@ impl<S: Seams> Router<S> {
         {
             return Err(end(CallRefusal::Denied(DenyCode::NotAllowed)));
         }
+        let turn_start = rule(who, &request, &record.turns);
+        if turn_start == TurnStart::Refused {
+            return Err(end(CallRefusal::Denied(DenyCode::NotAllowed)));
+        }
         let named = request.handles();
         let target = resolve_target(record, request.target.clone()).map_err(|why| {
             end(CallRefusal::BadArgs {
@@ -263,6 +268,10 @@ impl<S: Seams> Router<S> {
             usage_of(&who.actor),
             taint,
         );
+        let consent = match turn_start {
+            TurnStart::Preapproved => pass(consent),
+            TurnStart::Unclaimed | TurnStart::Refused => consent,
+        };
         let labels = arg_labels(&request.args, record);
         let cover = coverage(record.policy.as_ref(), &decl, &request, &labels, now);
         let strictness = st

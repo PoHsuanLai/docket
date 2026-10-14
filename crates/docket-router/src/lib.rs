@@ -85,6 +85,7 @@ mod stored;
 mod tasks;
 mod terminal;
 mod turn_running;
+mod turn_start;
 mod wal;
 mod watch;
 mod watched;

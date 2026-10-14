@@ -7,6 +7,7 @@ mod idle;
 mod inferd_link;
 mod persistent;
 mod planner;
+mod prefetch;
 mod records;
 mod resume;
 mod serve;

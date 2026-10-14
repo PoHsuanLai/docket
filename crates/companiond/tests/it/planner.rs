@@ -278,15 +278,15 @@ async fn the_request_is_the_view_in_two_messages_and_the_tools_of_the_cards() {
     let names: Vec<&str> = request.tools.iter().map(|t| t.name.as_str()).collect();
     assert!(names.contains(&"org_quire_Mail-mail_thread_read"));
     assert_eq!(
-        &names[names.len() - 3..],
-        [TOOL_ASK, TOOL_READ, TOOL_FINISH]
+        &names[names.len() - 4..],
+        [TOOL_ANSWER, TOOL_ASK, TOOL_READ, TOOL_FINISH]
     );
     // The same view gives the same request, byte for byte.
     assert_eq!(request, planner.request(&view));
     // A card the budget cut is not a tool.
     let some = view_of_first_card();
     let fewer = planner.request(&some);
-    assert_eq!(fewer.tools.len(), 1 + 3);
+    assert_eq!(fewer.tools.len(), 1 + 4);
 }
 
 #[tokio::test]

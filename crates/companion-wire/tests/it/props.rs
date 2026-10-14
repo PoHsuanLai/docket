@@ -22,6 +22,7 @@ fn answer(phase: AnswerPhase, body: AnswerBody) -> String {
         task: TaskId::parse("t-1").expect("task"),
         phase,
         body,
+        progress: Vec::new(),
         footer: FooterWire {
             served: vec![],
             sources: vec![],

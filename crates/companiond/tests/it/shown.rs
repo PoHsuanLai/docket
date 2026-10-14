@@ -85,6 +85,44 @@ async fn a_finish_shows_a_handle_as_content_in_its_own_session_only() {
     );
 }
 
+/// Words said beside a call are progress, kept apart on the wire; the body holds the reply, and
+/// `quire_answer` is the reply, word for word, ending the turn done.
+#[tokio::test]
+async fn progress_words_are_not_the_body_and_quire_answer_is_exactly_the_reply() {
+    let aside = Say::Reply(
+        "I'll read it.".into(),
+        vec![(
+            "org_quire_Mail-mail_thread_read".into(),
+            json!({ "target": { "app": "org.quire.Mail", "kind": "mail.thread", "key": "t1" } }),
+        )],
+    );
+    let scripts = [
+        (
+            vec![aside.clone(), words("It is an invoice.")],
+            "It is an invoice.",
+        ),
+        (
+            vec![
+                aside,
+                call(companiond::TOOL_ANSWER, json!({ "text": "It is a bill." })),
+            ],
+            "It is a bill.",
+        ),
+    ];
+    for (script, reply) in scripts {
+        let mut w = world(script);
+        let opened = w.open("work").await;
+        w.say(&opened.session, "what is in the invoice").await;
+        let answer = w.companion.shared.answer(&opened.task).expect("answer");
+        assert_eq!(answer.phase, AnswerPhase::Done);
+        assert_eq!(answer.progress, ["I'll read it."]);
+        let companion_wire::AnswerBody::Text { lines } = answer.body else {
+            panic!("text")
+        };
+        assert_eq!(lines, [Reveal::Plain(reply.into())]);
+    }
+}
+
 #[tokio::test]
 async fn the_ninth_finished_task_closes_the_oldest_and_each_leaves_one_episode() {
     let script: Vec<Say> = (0..9).flat_map(|_| [read_t1(), words("Done.")]).collect();

@@ -47,8 +47,12 @@ pub struct TaskRuntime {
     pub handles: Vec<HandleCard>,
     /// Messages that landed, oldest first.
     pub inbox: Vec<InboundLine>,
-    /// What the planner said to the person, in order.
+    /// What the planner said to the person as its reply, in order: the words of a turn that
+    /// ended, not the words said beside its calls.
     pub said: Vec<String>,
+    /// What the planner said beside its calls this turn ("I'll check"), in order. Progress: the
+    /// answer carries it apart from the reply.
+    pub progress: Vec<String>,
     /// The text handles the planner finished by showing, in order: the answer lists them after
     /// its words as handles, which the screen resolves as quoted content.
     pub shown: Vec<Handle>,
@@ -125,6 +129,7 @@ impl TaskRuntime {
             handles: Vec::new(),
             inbox: Vec::new(),
             said: Vec::new(),
+            progress: Vec::new(),
             shown: Vec::new(),
             phase: AnswerPhase::Thinking,
             plan: Plan::default(),
@@ -259,6 +264,16 @@ impl TaskRuntime {
         }
     }
 
+    /// The words of the reply. A turn that is done and ended with no words of its own (it said
+    /// what it did beside the last call and finished in silence) is shown those words, so the
+    /// answer is not empty; nothing else of the progress is the reply.
+    fn reply_lines(&self) -> Vec<String> {
+        match (&self.phase, self.said.is_empty(), self.shown.is_empty()) {
+            (AnswerPhase::Done, true, true) => self.progress.last().cloned().into_iter().collect(),
+            _ => self.said.clone(),
+        }
+    }
+
     /// The answer as the bus shows it.
     pub fn answer(&self, task: &TaskId) -> AnswerWire {
         let card = match &self.phase {
@@ -278,9 +293,8 @@ impl TaskRuntime {
                 .unwrap_or(AnswerBody::Text { lines: Vec::new() }),
             _ => AnswerBody::Text {
                 lines: self
-                    .said
-                    .iter()
-                    .cloned()
+                    .reply_lines()
+                    .into_iter()
                     .map(Reveal::Plain)
                     .chain(self.shown.iter().copied().map(Reveal::Handle))
                     .collect(),
@@ -290,6 +304,7 @@ impl TaskRuntime {
             task: task.clone(),
             phase: self.phase.clone(),
             body,
+            progress: self.progress.clone(),
             footer: FooterWire {
                 served: self.served.iter().cloned().collect(),
                 sources: Vec::new(),
@@ -429,6 +444,27 @@ mod tests {
             choices: vec![],
         });
         assert!(matches!(rt.answer(&task()).body, AnswerBody::Text { .. }));
+    }
+
+    /// Words said beside calls are progress, apart from the body; the body holds the reply. A
+    /// turn that is done with no reply of its own shows the last progress words instead of an
+    /// empty body, and a turn still working shows none of them in the body.
+    #[test]
+    fn progress_is_not_the_body_and_the_last_of_it_stands_in_for_a_silent_finish() {
+        let mut rt = runtime();
+        rt.progress = vec!["I'll check.".to_owned(), "Looking again.".to_owned()];
+        let lines = |rt: &TaskRuntime| match rt.answer(&task()).body {
+            AnswerBody::Text { lines } => lines,
+            other => panic!("text, not {other:?}"),
+        };
+        assert_eq!(rt.answer(&task()).progress, rt.progress);
+        assert!(lines(&rt).is_empty(), "working: the body is only the reply");
+
+        rt.phase = AnswerPhase::Done;
+        assert_eq!(lines(&rt), [Reveal::Plain("Looking again.".to_owned())]);
+
+        rt.said.push("Taipei.".to_owned());
+        assert_eq!(lines(&rt), [Reveal::Plain("Taipei.".to_owned())]);
     }
 
     fn card(n: u64, shape: HandleShape, from: Source) -> HandleCard {

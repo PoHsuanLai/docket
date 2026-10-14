@@ -31,7 +31,17 @@ pub enum Origin {
     Cli,
     /// An app calling itself.
     AppInternal,
+    /// The companion's read of memory at the start of a turn the person typed, for the words
+    /// they typed. The router honours it for one action only ([`RECALL_APP`], [`RECALL_ACTION`]),
+    /// for the main planner, on a turn recorded from a launcher, a field or an editor; any other
+    /// use is refused, never asked.
+    TurnStart,
 }
+
+/// The app whose search the start of a person's turn may run unasked.
+pub const RECALL_APP: &str = "org.quire.Memory";
+/// The one action of [`RECALL_APP`] a turn start may run unasked.
+pub const RECALL_ACTION: &str = "memory.recall";
 
 /// What a caller asks the router for (the app is in `action`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

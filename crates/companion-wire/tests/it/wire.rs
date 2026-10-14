@@ -130,14 +130,29 @@ fn bodies_round_trip() {
             actions: vec![],
         },
     ];
-    for body in bodies {
+    for (n, body) in bodies.into_iter().enumerate() {
+        // Progress is additive: an answer without it writes none and reads from an older sender.
+        let progress = if n == 0 {
+            vec!["Checking.".to_owned()]
+        } else {
+            Vec::new()
+        };
         let answer = AnswerWire {
             task: task("t-1"),
             phase: AnswerPhase::Done,
             body,
+            progress,
             footer: footer(),
         };
-        round(&answer);
+        let json = round(&answer);
+        assert_eq!(
+            json.contains(r#""progress":["Checking."]"#),
+            n == 0,
+            "{json}"
+        );
+        if n != 0 {
+            assert!(!json.contains("progress"), "{json}");
+        }
     }
     round(&NeedsYou::Form(form));
 }

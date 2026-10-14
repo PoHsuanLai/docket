@@ -39,6 +39,7 @@ mod tasks;
 mod terminal;
 mod terminal_sessions;
 mod terminal_surface;
+mod turn_start;
 mod watching;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its

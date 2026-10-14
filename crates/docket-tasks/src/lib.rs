@@ -32,6 +32,7 @@ mod linger;
 mod memory;
 mod native;
 mod plan;
+mod prefetch;
 mod read;
 mod records;
 mod recover;

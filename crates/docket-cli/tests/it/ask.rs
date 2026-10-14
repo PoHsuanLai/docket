@@ -101,6 +101,7 @@ fn view(phase: AnswerPhase, body: AnswerBody) -> AnswerWire {
         task: prov::TaskId::parse("t-1").expect("task"),
         phase,
         body,
+        progress: Vec::new(),
         footer: footer(),
     }
 }

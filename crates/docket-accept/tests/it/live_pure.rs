@@ -268,6 +268,7 @@ fn resting_as(phase: companion_wire::AnswerPhase) -> Evidence {
         task: prov::TaskId::parse("t-1").expect("task"),
         phase,
         body: AnswerBody::Text { lines: vec![] },
+        progress: Vec::new(),
         footer: FooterWire {
             served: vec![],
             sources: vec![],
