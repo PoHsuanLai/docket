@@ -10,8 +10,8 @@ use companion_wire::{
 };
 use docket_core::{
     CallEnd, CallId, CallRefusal, CallRequest, CharCount, ContextKeep, Handle, HandleCard,
-    HandleShape, InboundLine, InboundPart, Keep, LedgerStep, Outcome, Reveal, StepEnd, StepLine,
-    StepShown, TargetValue, Undoable, UserTurn, Value, WindowKey,
+    HandleShape, InboundLine, InboundPart, Keep, LedgerStep, Origin, Outcome, Reveal, StepEnd,
+    StepLine, StepShown, TargetValue, Undoable, UserTurn, Value, WindowKey,
 };
 use porter_core::AppName;
 use porter_infer::ServedBy;
@@ -228,14 +228,18 @@ impl TaskRuntime {
             shown: StepShown::Full,
             with: call.handles(),
         });
-        self.steps.push(LedgerStep {
-            call: id,
-            action: call.action.name.clone(),
-            targets: targets_of(call),
-            effect,
-            end: ended,
-            undo: undone,
-        });
+        // The turn-start memory read is context the companion brought, not a step it took: the
+        // planner sees it in its history, the episode does not remember it as work done.
+        if call.origin != Origin::TurnStart {
+            self.steps.push(LedgerStep {
+                call: id,
+                action: call.action.name.clone(),
+                targets: targets_of(call),
+                effect,
+                end: ended,
+                undo: undone,
+            });
+        }
         end
     }
 

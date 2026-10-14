@@ -12,8 +12,8 @@ use crate::state::SessionRecord;
 use crate::tasks::TaskState;
 use action_review::note;
 use docket_core::{
-    AuditRecord, CallEnd, CallRefusal, DecidedBy, LedgerStep, Outcome, Preview, StepEnd, StepLine,
-    StepShown, Undoable, Value, approves,
+    AuditRecord, CallEnd, CallRefusal, DecidedBy, LedgerStep, Origin, Outcome, Preview, StepEnd,
+    StepLine, StepShown, Undoable, Value, approves,
 };
 use docket_session::{BreakerNote, SessionEntry};
 use prov::{Integrity, Labelled, Source};
@@ -149,19 +149,27 @@ impl<S: Seams> Router<S> {
                 // The handles this call minted go on the record before the step that names them.
                 record.gather();
                 let line = record.history.last().cloned();
-                if let Some(line) = &line {
+                // The turn-start memory read is not stored as a step either: a replay (an
+                // editor's `session/load`) shows the steps the task took, and this was context.
+                if let Some(line) = line
+                    .as_ref()
+                    .filter(|_| p.request.origin != Origin::TurnStart)
+                {
                     record.wal.note(SessionEntry::Step(line.clone()));
                 }
                 let task = record.task.clone();
                 if let Some(t) = st.tasks.get_mut(&task) {
-                    t.ledger.steps.push(LedgerStep {
-                        call: p.id,
-                        action: p.decl.name.clone(),
-                        targets: p.targets.clone(),
-                        effect: p.decl.effect,
-                        end: driven.end.clone(),
-                        undo: driven.undo,
-                    });
+                    // The turn-start memory read is context, not work the task did.
+                    if p.request.origin != Origin::TurnStart {
+                        t.ledger.steps.push(LedgerStep {
+                            call: p.id,
+                            action: p.decl.name.clone(),
+                            targets: p.targets.clone(),
+                            effect: p.decl.effect,
+                            end: driven.end.clone(),
+                            undo: driven.undo,
+                        });
+                    }
                     t.last = line;
                     if tripped.is_some() {
                         t.state = TaskState::NeedsYou;

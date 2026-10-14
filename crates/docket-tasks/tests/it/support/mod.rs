@@ -207,8 +207,17 @@ impl World {
     }
 
     /// How many times the mail app was asked to perform anything.
+    /// The app calls made, leaving out the turn-start memory read (context, not the task's work).
     pub fn performed(&self) -> usize {
-        self.router.seams.link.performed.lock().expect("lock").len()
+        self.router
+            .seams
+            .link
+            .performed
+            .lock()
+            .expect("lock")
+            .iter()
+            .filter(|i| i.invocation.action.as_str() != docket_core::RECALL_ACTION)
+            .count()
     }
 }
 

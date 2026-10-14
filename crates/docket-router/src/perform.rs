@@ -442,11 +442,15 @@ impl<S: Seams> Router<S> {
         };
         let ledger = charge(&record.ledger, &self.agent_config().budget, &cost, now)?;
         let before = std::mem::replace(&mut record.ledger, ledger);
-        record.wal.note(SessionEntry::Call(CallOpen {
-            call: p.id,
-            action: p.request.action.clone(),
-            effect: p.decl.effect,
-        }));
+        // The turn-start memory read is a read the companion brought as context: nothing to
+        // recover after a crash, and no step a replay shows (see `finish`).
+        if p.request.origin != docket_core::Origin::TurnStart {
+            record.wal.note(SessionEntry::Call(CallOpen {
+                call: p.id,
+                action: p.request.action.clone(),
+                effect: p.decl.effect,
+            }));
+        }
         if record.ledger.calls.0 % BUDGET_EVERY == 0 {
             record.wal.note(SessionEntry::Budget(record.ledger));
         }
