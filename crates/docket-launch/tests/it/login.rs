@@ -115,6 +115,41 @@ async fn a_login_request_runs_the_agents_own_command_and_reports_only_the_outcom
     );
 }
 
+/// A login the person never finishes.
+struct Hangs;
+
+impl LoginRunner for Hangs {
+    async fn run(&self, _entry: &Entry, _kind: AskKind) -> LoginOutcome {
+        std::future::pending().await
+    }
+}
+
+#[tokio::test]
+async fn a_login_nobody_finishes_neither_blocks_the_loop_nor_outlives_its_deadline() {
+    let accounts = FakeAccounts::new();
+    let file = Arc::new(AgentsFile::parse(LOGIN).expect("file"));
+    let supervisor = Supervisor::new(
+        Arc::new(accounts.clone()),
+        file,
+        Registry::<docket_launch::fake::FakeProc>::default(),
+        Hangs,
+    )
+    .with_login_span(std::time::Duration::from_millis(20));
+    accounts.say(Heard::Ask(ask(AskKind::Login, "claude-code")));
+    // The step returns while the login is still going: whatever is heard next is not behind it.
+    assert!(supervisor.step().await);
+    supervisor.run().await;
+    let reports: Vec<_> = accounts
+        .calls()
+        .into_iter()
+        .filter_map(|c| match c {
+            Call::Report(_, outcome) => Some(outcome),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(reports, [LoginOutcome::Failed(LoginFault::TimedOut)]);
+}
+
 fn entry_with(login: &str, logout: &str) -> Entry {
     let text = format!(
         "[[agent]]\nprogram = \"a\"\ncommand = \"/usr/bin/a\"\nroute = \"login\"\nlogin = {login}\nlogout = {logout}\n"
