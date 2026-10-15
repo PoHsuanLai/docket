@@ -3,6 +3,7 @@
 use crate::support::device::{OnOpen, ScriptedDevice, node};
 use crate::support::infer::ScriptedInfer;
 use crate::support::*;
+use docket_dbus::callers::Role;
 use futures_util::FutureExt;
 use futures_util::StreamExt;
 use porter_core::capability::SpeechMode;
@@ -36,9 +37,15 @@ fn audio_frames(frames: &[ClientFrame]) -> Vec<(u64, usize)> {
 #[tokio::test]
 async fn only_the_shell_begins_and_nothing_opens_for_anyone_else() {
     let world = world(Options::new(ScriptedInfer::new(vec![]))).await;
+    // An unknown process, a plain app, a scope that claims the shell's app (a plain app: only
+    // the system's table gives `sheet_host`, and only to a unit) and an agent that claims it.
     let stranger = world.bus.connect().await;
-    let app = named(&world.bus, MAILO).await;
-    for connection in [&stranger, &app] {
+    let app = world.app(MAILO).await;
+    let scope = world.bus.connect().await;
+    world.who.introduce_app(&scope, SHELL, Role::App);
+    let agent = world.bus.connect().await;
+    world.who.introduce_app(&agent, SHELL, Role::Agent);
+    for connection in [&stranger, &app, &scope, &agent] {
         let voice = VoiceProxy::new(connection).await.expect("proxy");
         let refused = voice
             .begin(&begin(VoiceIntent::Ask))
@@ -119,7 +126,7 @@ async fn hold_to_ask_hears_the_words_and_the_mic_closes_after_the_tail() {
         "hello world",
     )])))
     .await;
-    let bystander = named(&world.bus, "org.example.Bystander").await;
+    let bystander = world.app("org.example.Bystander").await;
     let mut ended = ended_stream(&world.shell).await;
     let mut bystander_ended = ended_stream(&bystander).await;
     let mut changes = status_stream(&bystander).await;
@@ -476,7 +483,7 @@ async fn a_second_voiced_on_the_same_bus_is_refused() {
         transport: ScriptedInfer::new(vec![]),
         warm: voiced::FixedWarm(Readiness::Ready),
         usage: voiced::FixedUse(VoiceUse::On),
-        proc_root: std::path::PathBuf::from("/nonexistent-proc"),
+        callers: world.who.clone(),
     };
     let second = voiced::start(world.bus.connect().await, config(), seams).await;
     assert!(second.is_err(), "the name is taken");

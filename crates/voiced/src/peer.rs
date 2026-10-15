@@ -1,41 +1,26 @@
-//! Who is on the other end of a bus connection. The identity is derived from what the bus says
-//! about the connection and never from anything the caller sends: the application-shaped
-//! well-known names it owns and, for a process that owns none, the app scope its cgroup names
-//! (`porter_dbus::ProcCallers`: only `/proc/<pid>/cgroup`, never `exe`). The roles are
-//! `voiced.toml`'s. This is advisory on a desktop where every process runs as the person: what a
-//! process cannot do is be more than the role its name plays, and only the shell begins.
+//! Who is on the other end of a bus connection. The identity is derived from what the bus and
+//! `/proc` say about the process behind the connection and never from anything the caller sends,
+//! and never from a name it owns: porter's `ProcCallers` (through [`Identity`]) names the unit or
+//! app scope (the bus gives the pid, `/proc/<pid>/cgroup` names the unit or app, `voiced-callers.toml`
+//! gives the role). The roles are `voiced.toml`'s: the shell is the app that file lists as `shell`
+//! when the callers table gives it the system's `sheet_host` role, which only a unit's main
+//! process has (a scope claiming the app is a plain app). An app that an utterance is routed to
+//! attaches as the app its scope or Flatpak metadata names. This is advisory on a desktop where
+//! every process runs as the person: what a process cannot do is be more than the role its unit
+//! plays, and only the shell begins.
 
 use crate::config::{VoiceRole, VoicedConfig};
+use docket_dbus::callers::{Caller, Callers, Identity, Role};
 use porter_core::AppName;
-use porter_dbus::{CallerTable, ProcCallers};
 use std::os::unix::fs::MetadataExt;
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use zbus::fdo::DBusProxy;
 use zbus::names::BusName;
 
-/// What the bus told about one connection.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub(crate) struct Facts {
-    /// The application-shaped well-known names it owns.
-    pub names: Vec<AppName>,
-    /// The app its cgroup names, if it names one.
-    pub scope: Option<AppName>,
-}
-
-/// The role `facts` give: a connection that owns a name the config lists as the shell is the
-/// shell; a connection that owns none is named by its cgroup. `App` is never derived: it is
-/// whoever a route names.
-pub(crate) fn derive(config: &VoicedConfig, facts: &Facts) -> Option<VoiceRole> {
-    let by_scope: Vec<&AppName> = facts.scope.iter().collect();
-    let names: Vec<&AppName> = if facts.names.is_empty() {
-        by_scope
-    } else {
-        facts.names.iter().collect()
-    };
-    names
-        .into_iter()
-        .any(|name| config.role_of(name) == Some(VoiceRole::Shell))
+/// The role `caller` has: the shell when the table gives it `sheet_host` and the configuration
+/// lists its app as the shell. `App` is never derived: it is whoever a route names.
+pub(crate) fn derive(config: &VoicedConfig, caller: &Caller) -> Option<VoiceRole> {
+    (caller.role == Role::SheetHost && config.role_of(&caller.app.name) == Some(VoiceRole::Shell))
         .then_some(VoiceRole::Shell)
 }
 
@@ -43,85 +28,72 @@ fn own_uid() -> Option<u32> {
     std::fs::metadata("/proc/self").ok().map(|m| m.uid())
 }
 
-fn scope_of(root: &Path, pid: u32) -> Option<AppName> {
-    ProcCallers::caller_of_pid(root, pid, &CallerTable::default()).map(|found| found.app.name)
-}
-
 /// Derives the roles of the connections on one bus.
 #[derive(Debug, Clone)]
 pub struct Peers {
     connection: zbus::Connection,
     config: Arc<VoicedConfig>,
-    proc_root: PathBuf,
+    who: Arc<Identity>,
 }
 
 impl Peers {
-    /// Roles on `connection` by `config`, reading `proc_root` (the system's `/proc` in the
-    /// daemon, a fixture tree in a test).
+    /// Roles on `connection` by `config`, naming the processes through `who`.
     pub fn new(
         connection: zbus::Connection,
         config: Arc<VoicedConfig>,
-        proc_root: PathBuf,
+        who: Arc<Identity>,
     ) -> Self {
         Self {
             connection,
             config,
-            proc_root,
+            who,
         }
     }
 
-    async fn facts(&self, unique: &str) -> zbus::Result<Option<Facts>> {
-        let dbus = DBusProxy::new(&self.connection).await?;
-        let who = BusName::try_from(unique)?;
-        let credentials = dbus.get_connection_credentials(who).await?;
-        if own_uid().is_some_and(|ours| credentials.unix_user_id() != Some(ours)) {
-            return Ok(None);
+    /// Whether the connection `unique` is the same user's: a session bus is one user's, and a
+    /// connection of another is nobody here.
+    async fn ours(&self, unique: &str) -> bool {
+        let Ok(dbus) = DBusProxy::new(&self.connection).await else {
+            return false;
+        };
+        let Ok(name) = BusName::try_from(unique) else {
+            return false;
+        };
+        let Ok(credentials) = dbus.get_connection_credentials(name).await else {
+            return false;
+        };
+        own_uid().is_none_or(|ours| credentials.unix_user_id() == Some(ours))
+    }
+
+    /// The caller behind the connection `unique`: none for a stranger, another user's, or one
+    /// that vanished.
+    async fn caller(&self, unique: &str) -> Option<Caller> {
+        if !self.ours(unique).await {
+            return None;
         }
-        let mut names = Vec::new();
-        for name in dbus.list_names().await? {
-            let text = name.as_str();
-            let Ok(app) = AppName::parse(text) else {
-                continue;
-            };
-            if text.starts_with(':') {
-                continue;
-            }
-            let owner = dbus.get_name_owner(BusName::try_from(text)?).await;
-            if owner.is_ok_and(|o| o.as_str() == unique) {
-                names.push(app);
-            }
-        }
-        names.sort();
-        let scope = credentials
-            .process_id()
-            .and_then(|pid| scope_of(&self.proc_root, pid));
-        Ok(Some(Facts { names, scope }))
+        self.who.caller_of(unique).await
     }
 
     /// The role of the connection `unique`: none for a stranger, another user's, or one that
     /// vanished.
     pub async fn role(&self, unique: &str) -> Option<VoiceRole> {
-        let facts = self.facts(unique).await.ok().flatten()?;
-        derive(&self.config, &facts)
+        let caller = self.caller(unique).await?;
+        derive(&self.config, &caller)
     }
 
-    /// Whether `unique` owns the well-known name `name` right now.
-    pub async fn owns(&self, unique: &str, name: &AppName) -> bool {
-        let Ok(dbus) = DBusProxy::new(&self.connection).await else {
-            return false;
-        };
-        let Ok(well_known) = BusName::try_from(name.as_str()) else {
-            return false;
-        };
-        dbus.get_name_owner(well_known)
+    /// Whether the connection `unique` is the app `name`: its process is identified as that app.
+    pub async fn is_app(&self, unique: &str, name: &AppName) -> bool {
+        self.caller(unique)
             .await
-            .is_ok_and(|owner| owner.as_str() == unique)
+            .is_some_and(|caller| &caller.app.name == name)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use docket_dbus::callers::{CallerTable, ProcCallers, table_from_toml};
+    use std::path::Path;
 
     fn config() -> VoicedConfig {
         VoicedConfig::parse(
@@ -130,28 +102,81 @@ mod tests {
         .expect("config")
     }
 
-    fn name(text: &str) -> AppName {
-        AppName::parse(text).expect("name")
+    /// Process `pid` in the fake proc root, in the cgroup `leaf`; a service's process is also its
+    /// unit's main process when `main` says so.
+    fn put(root: &Path, pid: u32, leaf: &str, main: bool) {
+        let at = root.join(pid.to_string());
+        std::fs::create_dir_all(&at).expect("dir");
+        std::fs::write(
+            at.join("cgroup"),
+            format!("0::/user.slice/user-1000.slice/user@1000.service/app.slice/{leaf}\n"),
+        )
+        .expect("cgroup");
+        if main {
+            std::fs::create_dir_all(root.join("units")).expect("units");
+            std::fs::write(root.join("units").join(leaf), pid.to_string()).expect("main pid");
+        }
+    }
+
+    fn role_of(root: &Path, pid: u32, table: &CallerTable) -> Option<VoiceRole> {
+        ProcCallers::caller_of_pid(root, pid, table).and_then(|c| derive(&config(), &c))
     }
 
     #[test]
-    fn only_the_shell_name_gives_a_role() {
-        let table = [
-            (vec!["org.quire.Shell"], None, Some(VoiceRole::Shell)),
-            (vec!["org.quire.Mailo"], None, None),
-            (vec!["org.other.Thing"], None, None),
-            (vec![], Some("org.quire.Shell"), Some(VoiceRole::Shell)),
-            (vec![], Some("org.quire.Mailo"), None),
-            (vec![], None, None),
-            // A name decides over the cgroup: owning a name that is nobody makes it nobody.
-            (vec!["org.other.Thing"], Some("org.quire.Shell"), None),
-        ];
-        for (names, scope, want) in table {
-            let facts = Facts {
-                names: names.into_iter().map(name).collect(),
-                scope: scope.map(name),
-            };
-            assert_eq!(derive(&config(), &facts), want, "{facts:?}");
+    fn only_the_shells_unit_is_the_shell() {
+        let root = tempfile::tempdir().expect("scratch");
+        let root = root.path();
+        let table = crate::callers::shipped();
+        for (pid, leaf, main) in [
+            (1, "sill.service", true),
+            (2, "sill.service", false),
+            (3, "sill-shell.scope", false),
+            (4, "app-org.quire.Shell-1.scope", false),
+            (5, "app-org.quire.Mailo-1.scope", false),
+            (6, "curl.service", true),
+            (7, "vte-spawn-1.scope", false),
+        ] {
+            put(root, pid, leaf, main);
         }
+        let rows = [
+            ("the shell's unit", 1, Some(VoiceRole::Shell)),
+            (
+                "a process of the shell's unit that is not its main process",
+                2,
+                None,
+            ),
+            ("a scope the table does not name", 3, None),
+            ("an app scope called like the shell", 4, None),
+            ("the routed app", 5, None),
+            ("a unit the table does not name", 6, None),
+            ("a terminal's child", 7, None),
+            ("no such process", 99, None),
+        ];
+        for (what, pid, expected) in rows {
+            assert_eq!(role_of(root, pid, &table), expected, "{what}");
+        }
+    }
+
+    #[test]
+    fn a_users_row_cannot_make_an_app_the_shell() {
+        let user = table_from_toml(
+            "[[caller]]\napp = \"org.quire.Shell\"\nunit = \"mine.service\"\nrole = \"sheet_host\"\n",
+        )
+        .expect("user");
+        let table = CallerTable::layered(crate::callers::shipped(), user);
+        let root = tempfile::tempdir().expect("scratch");
+        put(root.path(), 1, "mine.service", true);
+        assert_eq!(role_of(root.path(), 1, &table), None);
+    }
+
+    #[test]
+    fn a_shell_in_the_table_that_the_configuration_does_not_list_is_no_shell() {
+        let table = table_from_toml(
+            "[[caller]]\napp = \"org.example.Other\"\nunit = \"other.service\"\nrole = \"sheet_host\"\n",
+        )
+        .expect("table");
+        let root = tempfile::tempdir().expect("scratch");
+        put(root.path(), 1, "other.service", true);
+        assert_eq!(role_of(root.path(), 1, &table), None);
     }
 }

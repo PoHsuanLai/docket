@@ -29,7 +29,7 @@ async fn the_routed_app_attaches_once_and_is_replayed_what_was_heard() {
         "hello world",
     )])))
     .await;
-    let app = named(&world.bus, MAILO).await;
+    let app = world.app(MAILO).await;
     let stranger = world.bus.connect().await;
     let mut shell_ended = ended_stream(&world.shell).await;
     let mut app_ended = ended_stream(&app).await;
@@ -115,7 +115,7 @@ async fn the_attached_app_may_cancel_and_may_speak_to_its_utterance() {
         "a", "b", "c",
     )])))
     .await;
-    let app = named(&world.bus, MAILO).await;
+    let app = world.app(MAILO).await;
     let mut app_ended = ended_stream(&app).await;
     let mut finished = finished_stream(&app).await;
     let (utterance, mut events) = start_utterance(&world, VoiceIntent::Ask).await;

@@ -82,7 +82,7 @@ async fn an_answer_is_spoken_sentence_by_sentence_and_finishes_done() {
 async fn only_the_shell_or_the_attached_app_may_speak() {
     let world = world(Options::new(ScriptedInfer::new(vec![]))).await;
     let stranger = world.bus.connect().await;
-    let app = named(&world.bus, MAILO).await;
+    let app = world.app(MAILO).await;
     for (connection, utterance) in [(&stranger, None), (&app, None), (&app, Some("u-1"))] {
         let refused = VoiceProxy::new(connection)
             .await

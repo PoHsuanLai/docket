@@ -4,6 +4,7 @@
 //! seams (`Seams`), so tests serve the whole daemon on a private bus with no real device.
 
 mod bus;
+mod callers;
 mod command;
 mod config;
 mod default_source;
@@ -29,6 +30,7 @@ mod watch;
 mod wire;
 
 pub use bus::{SpeechSkeleton, UtteranceSkeleton, VoiceSkeleton};
+pub use callers::{FILE as CALLERS_FILE, read as read_callers, shipped as shipped_callers};
 pub use config::{ConfigError, Earcons, VoiceRole, VoicedConfig};
 pub use default_source::{CONFIGURED_KEY, DefaultSources, RESOLVED_KEY, name_in};
 pub use device::{

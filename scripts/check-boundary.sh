@@ -201,7 +201,7 @@ EDGES=(
   "voice-loop: docket-core porter-core porter-infer voice-wire"
   "voice-dbus: "
   "docket-log: "
-  "voiced: docket-core docket-log porter-client porter-core porter-dbus porter-infer speech-provider speech-vad voice-dbus voice-loop voice-wire"
+  "voiced: docket-core docket-dbus docket-log porter-client porter-core porter-infer speech-provider speech-vad voice-dbus voice-loop voice-wire"
 )
 for edge in "${EDGES[@]}"; do
   crate="${edge%%:*}"

@@ -1,0 +1,14 @@
+# Who may call voiced (org.quire.Voice1), and as what. A caller is the systemd unit behind the bus
+# connection (the bus names its process, /proc/<pid>/cgroup names the unit or app scope, and a
+# service's role goes only to the unit's main process). Install as /etc/quire/voiced-callers.toml;
+# the user's ~/.config/quire/voiced-callers.toml is laid over it, and its fixed-role rows are ignored.
+#
+#   role "sheet_host" + an app voiced.toml lists as `shell` -> sill: begins utterances and speech
+#
+# An app that an utterance is routed to attaches as the app its scope names; it has no row. A scope
+# never carries a fixed role, so the shell is sill.service and nothing else.
+
+[[caller]]
+app = "org.quire.Shell"
+unit = "sill.service"
+role = "sheet_host"

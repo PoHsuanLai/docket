@@ -11,18 +11,18 @@ use crate::talk::Say;
 use crate::usage::{FileUse, UseSource};
 use crate::warm::{BusWarm, Warm};
 use crate::watch::{Deadline, Leaving};
+use docket_dbus::callers::{CallerTable, Identity};
 use futures_util::StreamExt;
 use porter_client::{DbusTransport, Transport};
 use porter_core::Tier;
 use porter_infer::Readiness;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use voice_dbus::{VOICE_BUS, VOICE_PATH};
 use zbus::fdo::RequestNameFlags;
 
 /// Everything outside the bus that voiced leans on, as seams: the audio device, inferd, the
-/// engine warmer, the person's consent, and the `/proc` the callers' cgroups are read from.
+/// engine warmer, the person's consent, and who the callers are.
 #[derive(Debug)]
 pub struct Seams<D, T, W, U> {
     /// PipeWire in the shipped build.
@@ -33,8 +33,9 @@ pub struct Seams<D, T, W, U> {
     pub warm: W,
     /// Whether voice may be used.
     pub usage: U,
-    /// The `/proc` tree callers' cgroups are read from.
-    pub proc_root: PathBuf,
+    /// Who is which unit or app: porter's `ProcCallers` over the daemon's table (a test's fake
+    /// proc root, and the connections it introduces).
+    pub callers: Arc<Identity>,
 }
 
 /// A serving daemon: the loop runs until the bus closes.
@@ -115,7 +116,7 @@ where
     let earcons = config.earcons;
     let input = config.input.clone();
     let max_hold = std::time::Duration::from_millis(config.max_hold_ms.max(1));
-    let peers = Peers::new(connection.clone(), Arc::new(config), seams.proc_root);
+    let peers = Peers::new(connection.clone(), Arc::new(config), seams.callers);
     let (tx, inbox) = mpsc::channel(32);
     let handle = Handle::new(tx, peers.clone());
     let device = Arc::new(seams.device);
@@ -170,6 +171,7 @@ where
 /// when the bus closes, or with an error if the loop dies first.
 pub async fn serve<D: AudioDevice + 'static>(
     config: VoicedConfig,
+    callers: CallerTable,
     device: D,
     usage: FileUse,
 ) -> Result<(), ServeError> {
@@ -179,7 +181,7 @@ pub async fn serve<D: AudioDevice + 'static>(
         transport: DbusTransport::over(connection.clone()),
         warm: BusWarm::new(connection.clone(), Tier::Balanced),
         usage,
-        proc_root: PathBuf::from("/proc"),
+        callers: Arc::new(Identity::on_system(connection.clone(), callers)),
     };
     start(connection, config, seams).await?.wait().await
 }

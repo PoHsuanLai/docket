@@ -201,7 +201,7 @@ where
         let Some(VoiceTarget::App { app, .. }) = utt.route.clone() else {
             return Err(VoiceRefusal::NotAllowed.into());
         };
-        if !self.peers.owns(&caller.unique, &app).await {
+        if !self.peers.is_app(&caller.unique, &app).await {
             return Err(VoiceRefusal::NotAllowed.into());
         }
         if utt.attached.is_some() {

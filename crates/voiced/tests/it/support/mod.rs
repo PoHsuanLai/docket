@@ -7,6 +7,7 @@ pub mod device;
 pub mod infer;
 
 use device::{Hand, ScriptedDevice};
+use docket_dbus::callers::{Identity, Role};
 use docket_testbus::PrivateBus;
 use infer::{ScriptedInfer, Seen};
 use porter_core::{AccountId, Locality, ModelId};
@@ -153,6 +154,8 @@ pub struct World {
     pub seen: Arc<Seen>,
     pub running: Running,
     pub shell: zbus::Connection,
+    /// Who voiced sees: every connection of a test is this process, so a test says which is which.
+    pub who: Arc<Identity>,
     pub home: TempDir,
     pub voice: VoiceProxy<'static>,
 }
@@ -184,16 +187,21 @@ pub async fn world_with(options: Options, config: VoicedConfig) -> World {
     let bus = PrivateBus::start(home.path());
     let (device, hand) = options.device;
     let seen = options.infer.seen.clone();
+    let daemon = bus.connect().await;
+    let who = Arc::new(Identity::on_fixture(
+        daemon.clone(),
+        voiced::shipped_callers(),
+        PathBuf::from("/nonexistent-proc"),
+    ));
     let seams = Seams {
         device,
         transport: options.infer,
         warm: FixedWarm(options.warm),
         usage: FixedUse(options.usage),
-        proc_root: PathBuf::from("/nonexistent-proc"),
+        callers: who.clone(),
     };
-    let daemon = bus.connect().await;
     let running = voiced::start(daemon, config, seams).await.expect("serves");
-    let shell = named(&bus, SHELL).await;
+    let shell = named(&bus, &who, SHELL, Role::SheetHost).await;
     let voice = VoiceProxy::new(&shell).await.expect("proxy");
     World {
         bus,
@@ -201,16 +209,31 @@ pub async fn world_with(options: Options, config: VoicedConfig) -> World {
         seen,
         running,
         shell,
+        who,
         home,
         voice,
     }
 }
 
-/// A client that owns `name`.
-pub async fn named(bus: &PrivateBus, name: &str) -> zbus::Connection {
+/// A client that owns `name` and is introduced as the app `name` with `role` (the shell's unit
+/// is `SheetHost`, an app's scope a plain `App`).
+pub async fn named(bus: &PrivateBus, who: &Identity, name: &str, role: Role) -> zbus::Connection {
     let connection = bus.connect().await;
     connection.request_name(name).await.expect("name");
+    who.introduce_app(&connection, name, role);
     connection
+}
+
+impl World {
+    /// A plain app's connection.
+    pub async fn app(&self, name: &str) -> zbus::Connection {
+        named(&self.bus, &self.who, name, Role::App).await
+    }
+
+    /// A connection that is a shell's unit (another than the first).
+    pub async fn shell_named(&self, name: &str) -> zbus::Connection {
+        named(&self.bus, &self.who, name, Role::SheetHost).await
+    }
 }
 
 pub fn begin(intent: VoiceIntent) -> String {

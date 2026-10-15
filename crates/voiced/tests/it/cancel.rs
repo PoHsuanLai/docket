@@ -45,7 +45,7 @@ async fn the_attached_app_cancels_with_each_allowed_cause() {
             "a", "b", "c",
         )])))
         .await;
-        let app = named(&world.bus, MAILO).await;
+        let app = world.app(MAILO).await;
         let mut app_ended = ended_stream(&app).await;
         let (utterance, mut events) = start_utterance(&world, VoiceIntent::Ask).await;
         let path = utterance.inner().path().to_owned();
@@ -165,7 +165,7 @@ async fn a_begin_caller_that_leaves_the_bus_closes_the_mic() {
         config_with_hold(600_000),
     )
     .await;
-    let second = named(&world.bus, SECOND_SHELL).await;
+    let second = world.shell_named(SECOND_SHELL).await;
     let voice = voiced::VoiceProxy::new(&second).await.expect("proxy");
     let (_path, fd) = voice.begin(&begin(VoiceIntent::Ask)).await.expect("begin");
     let mut events = Events::new(fd);

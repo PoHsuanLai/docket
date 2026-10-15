@@ -40,9 +40,17 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    let table = match voiced::read_callers(&|name: &str| std::env::var(name).ok()) {
+        Ok(table) => table,
+        Err(why) => {
+            tracing::error!("callers not read: {why}");
+            eprintln!("voiced: {why}");
+            return ExitCode::FAILURE;
+        }
+    };
     let usage = FileUse::sill_default(|name| std::env::var(name).ok());
     tracing::info!("serving");
-    match runtime.block_on(voiced::serve(config, PipeWireDevice, usage)) {
+    match runtime.block_on(voiced::serve(config, table, PipeWireDevice, usage)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             tracing::error!("stopped: {why}");
