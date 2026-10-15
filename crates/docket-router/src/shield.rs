@@ -4,57 +4,63 @@
 //! (a leaf that is not a closed-set value never passes), never left to pass because nothing
 //! matched it.
 
-use crate::handles::HandleValue;
+use crate::handles::{HandleLimit, HandleValue};
 use crate::state::SessionRecord;
 use docket_core::Value;
 use prov::{Label, Labelled, Source};
 
 /// `value` with every leaf that can carry somebody's words held as a handle in `record`, under
-/// `label`. Closed-set leaves (numbers, dates, choices) and handles pass as they are.
+/// `label`. Closed-set leaves (numbers, dates, choices) and handles pass as they are. A session
+/// at its limit refuses (`HandleLimit`) instead of dropping an older handle.
 pub(crate) fn shield(
     record: &mut SessionRecord,
     label: &Label,
     source: &Source,
     value: Value,
-) -> Value {
-    match value {
-        Value::Text(t) | Value::Url(t) => Value::Handle(record.handles.mint(
+) -> Result<Value, HandleLimit> {
+    Ok(match value {
+        Value::Text(t) | Value::Url(t) => Value::Handle(record.handles.try_mint(
             Labelled {
                 value: HandleValue::Text(t),
                 label: label.clone(),
             },
             source.clone(),
-        )),
-        Value::File(f) => Value::Handle(record.handles.mint(
+        )?),
+        Value::File(f) => Value::Handle(record.handles.try_mint(
             Labelled {
                 value: HandleValue::File(f),
                 label: label.clone(),
             },
             source.clone(),
-        )),
+        )?),
         Value::Entity(e) => {
-            record.known.insert(e.clone());
-            Value::Handle(record.handles.mint_entity(e, label.clone()))
+            record.know([e.clone()])?;
+            Value::Handle(record.handles.try_mint_entity(e, label.clone())?)
         }
         Value::Entities(es) => {
-            record.known.extend(es.iter().cloned());
+            record.know(es.iter().cloned())?;
             Value::List(
                 es.into_iter()
-                    .map(|e| Value::Handle(record.handles.mint_entity(e, label.clone())))
-                    .collect(),
+                    .map(|e| {
+                        record
+                            .handles
+                            .try_mint_entity(e, label.clone())
+                            .map(Value::Handle)
+                    })
+                    .collect::<Result<_, _>>()?,
             )
         }
         Value::List(items) => Value::List(
             items
                 .into_iter()
                 .map(|v| shield(record, label, source, v))
-                .collect(),
+                .collect::<Result<_, _>>()?,
         ),
         Value::Record(fields) => Value::Record(
             fields
                 .into_iter()
-                .map(|(k, v)| (k, shield(record, label, source, v)))
-                .collect(),
+                .map(|(k, v)| Ok((k, shield(record, label, source, v)?)))
+                .collect::<Result<_, HandleLimit>>()?,
         ),
         closed @ (Value::Integer(_)
         | Value::Decimal(_)
@@ -63,7 +69,7 @@ pub(crate) fn shield(
         | Value::Duration(_)
         | Value::Choice(_)
         | Value::Handle(_)) => closed,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -94,7 +100,7 @@ mod tests {
             ),
             Value::Integer(3),
         ]);
-        let shown = shield(&mut record, &label, &Source::File, nested);
+        let shown = shield(&mut record, &label, &Source::File, nested).expect("room");
         let Value::List(items) = shown else {
             panic!("a list stays a list")
         };

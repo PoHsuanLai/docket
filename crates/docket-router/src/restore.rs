@@ -18,6 +18,11 @@ use std::sync::Arc;
 /// Rows read from the log at a time.
 const PAGE: PageSize = PageSize(Count(200));
 
+/// The most pages one session's log is read in, so at most `MAX_LOG_PAGES * 200` rows (about
+/// 100,000). A log that goes on longer, or whose `next` never ends, is not restored:
+/// [`RestoreFault::TooLong`].
+pub(crate) const MAX_LOG_PAGES: usize = 512;
+
 /// Why a session was not restored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum RestoreFault {
@@ -27,6 +32,9 @@ pub enum RestoreFault {
     /// The log could not be read; nothing was restored.
     #[error("the session log could not be read")]
     Log(LogFault),
+    /// The log is longer than a restore reads (`MAX_LOG_PAGES` pages), or never ends.
+    #[error("the session log is too long to restore")]
+    TooLong,
     /// The log holds no session of this name, or no longer holds its opening.
     #[error("the log holds no such session")]
     Unknown(PlanRefusal),
@@ -48,18 +56,9 @@ pub struct Restored {
 }
 
 impl<S: Seams> Router<S> {
-    /// Every row of `id`'s log, oldest first.
-    pub(crate) async fn rows_of(&self, id: &SessionId) -> Result<Vec<Logged>, LogFault> {
-        let mut rows = Vec::new();
-        let mut from: Option<Seq> = None;
-        loop {
-            let page = self.seams.log().page(id, from, PAGE).await?;
-            rows.extend(page.rows);
-            match page.next {
-                Some(next) => from = Some(next),
-                None => return Ok(rows),
-            }
-        }
+    /// Every row of `id`'s log, oldest first, in at most `MAX_LOG_PAGES` pages.
+    pub(crate) async fn rows_of(&self, id: &SessionId) -> Result<Vec<Logged>, RestoreFault> {
+        read_pages(self.seams.log(), id, MAX_LOG_PAGES).await
     }
 
     /// Rebuilds `id` from its log and holds it. The policy writer is not asked, the taint is the
@@ -80,7 +79,7 @@ impl<S: Seams> Router<S> {
         if self.locked().sessions.contains_key(id) {
             return Err(RestoreFault::Live);
         }
-        let rows = self.rows_of(id).await.map_err(RestoreFault::Log)?;
+        let rows = self.rows_of(id).await?;
         let plan = resume_plan(&rows).map_err(RestoreFault::Unknown)?;
         if let Some(claim) = claimant
             && !may_restore_opening(claim, &plan.opening)
@@ -150,6 +149,71 @@ impl<S: Seams> Router<S> {
             app: &caller.app.name,
         };
         let _ = self.restore_for(id, Some(claim)).await;
+    }
+}
+
+/// Every row of `id`'s log, oldest first, read `PAGE` rows at a time; a log that has not ended
+/// after `most` pages is `TooLong` (a store whose `next` repeats would otherwise never end).
+async fn read_pages<L: SessionLog>(
+    log: &L,
+    id: &SessionId,
+    most: usize,
+) -> Result<Vec<Logged>, RestoreFault> {
+    let mut rows = Vec::new();
+    let mut from: Option<Seq> = None;
+    for _ in 0..most {
+        let page = log.page(id, from, PAGE).await.map_err(RestoreFault::Log)?;
+        rows.extend(page.rows);
+        match page.next {
+            Some(next) => from = Some(next),
+            None => return Ok(rows),
+        }
+    }
+    Err(RestoreFault::TooLong)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use docket_session::{Appended, LogPage, SessionEntry};
+
+    /// A log whose every page says there is another.
+    struct Endless;
+
+    impl SessionLog for Endless {
+        async fn append(
+            &self,
+            _session: &SessionId,
+            seq: Seq,
+            _entry: &SessionEntry,
+        ) -> Result<Appended, LogFault> {
+            Ok(Appended { seq })
+        }
+
+        async fn page(
+            &self,
+            _session: &SessionId,
+            _from: Option<Seq>,
+            _size: PageSize,
+        ) -> Result<LogPage, LogFault> {
+            Ok(LogPage {
+                rows: Vec::new(),
+                next: Some(Seq(1)),
+            })
+        }
+
+        async fn sessions(&self) -> Result<Vec<SessionId>, LogFault> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_log_that_never_ends_is_too_long_not_a_hang() {
+        let id = SessionId::parse("s-1").expect("session");
+        assert_eq!(
+            read_pages(&Endless, &id, 3).await,
+            Err(RestoreFault::TooLong)
+        );
     }
 }
 

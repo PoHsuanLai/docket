@@ -103,7 +103,10 @@ pub use companion::COMPANION_APP;
 // The store of a build that cannot keep history, for the seams of a portable host.
 pub use docket_checkpoint::NoStore;
 pub use gate::{GateInputs, Pending, gate};
-pub use handles::{HandleEntry, HandleTable, HandleValue, ViewInputs, context_view, planner_view};
+pub use handles::{
+    HandleEntry, HandleLimit, HandleTable, HandleValue, MAX_HANDLES, MAX_KNOWN, ViewInputs,
+    context_view, planner_view,
+};
 pub use index::{IndexAction, IndexEvent, index_step};
 pub use journal::UndoJournal;
 pub use messages::{assemble, check_stamped, inbound_line, intake_label, report_status};

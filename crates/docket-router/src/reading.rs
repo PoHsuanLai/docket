@@ -216,7 +216,9 @@ impl<S: Seams> Router<S> {
         let Some(record) = st.sessions.get_mut(id) else {
             return refuse(WireRefusal::NoSuchSession);
         };
-        record.known.extend(entities_of(&snapshot));
+        if let Err(limit) = record.know(entities_of(&snapshot)) {
+            tracing::warn!(task = %record.task, %limit, "things shown were not noted");
+        }
         IntentsReply::Context(Box::new(context_view(&snapshot, &mut record.handles)))
     }
 }

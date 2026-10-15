@@ -14,6 +14,28 @@ use docket_session::HandleLabel;
 use prov::{EntityId, Integrity, Label, Labelled, Measured, Quarantined, Source};
 use std::collections::BTreeMap;
 
+/// The most handles one session holds. An app is the source of what fills a table (a search can
+/// return thousands of things); a session that reaches this refuses the next result with
+/// [`HandleLimit::Handles`] rather than dropping an older handle a planner may still name. A task
+/// that needs more starts a new session.
+pub const MAX_HANDLES: usize = 4096;
+
+/// The most things one session may have been shown (`SessionRecord::known`), for the same
+/// reason and with the same refusal ([`HandleLimit::Known`]).
+pub const MAX_KNOWN: usize = 4096;
+
+/// Why a session cannot take in one more result. Both read, to a planner, as a call that
+/// returned too many things (`BudgetKind::FanOut`), and the daemon logs which.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum HandleLimit {
+    /// The session holds as many handles as it may.
+    #[error("the session holds as many handles as it may")]
+    Handles,
+    /// The session has been shown as many things as it may.
+    #[error("the session has been shown as many things as it may")]
+    Known,
+}
+
 /// What a handle holds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HandleValue {
@@ -52,6 +74,9 @@ pub struct HandleEntry {
 pub struct HandleTable {
     next: u64,
     entries: BTreeMap<Handle, HandleEntry>,
+    /// The handles that hold each thing (one per distinct label), so a thing is found without
+    /// a scan of `entries`.
+    things: BTreeMap<EntityId, Vec<Handle>>,
     /// Handles minted since the session's record last took them (see `take_fresh`).
     fresh: Vec<Handle>,
 }
@@ -62,13 +87,34 @@ impl HandleTable {
         Self::default()
     }
 
-    /// Holds a value and returns its handle.
+    /// Holds a value and returns its handle, past [`MAX_HANDLES`] too: for the router's own
+    /// bounded values. What an app returns goes through [`try_mint`](Self::try_mint).
     pub fn mint(&mut self, value: Labelled<HandleValue>, from: Source) -> Handle {
         self.next += 1;
         let handle = Handle(self.next);
+        if let HandleValue::Entity(thing) = &value.value {
+            self.things.entry(thing.clone()).or_default().push(handle);
+        }
         self.entries.insert(handle, HandleEntry { value, from });
         self.fresh.push(handle);
         handle
+    }
+
+    /// Whether the table holds [`MAX_HANDLES`] already.
+    pub fn is_full(&self) -> bool {
+        self.entries.len() >= MAX_HANDLES
+    }
+
+    /// [`mint`](Self::mint), refused when the table is full. Nothing is evicted.
+    pub fn try_mint(
+        &mut self,
+        value: Labelled<HandleValue>,
+        from: Source,
+    ) -> Result<Handle, HandleLimit> {
+        if self.is_full() {
+            return Err(HandleLimit::Handles);
+        }
+        Ok(self.mint(value, from))
     }
 
     /// Holds a handle a restart brought back as a label: the number is kept (a new handle never
@@ -132,20 +178,45 @@ impl HandleTable {
             .collect()
     }
 
+    /// The handle that already holds `thing` under `label`, if any.
+    fn handle_of(&self, thing: &EntityId, label: &Label) -> Option<Handle> {
+        self.things
+            .get(thing)?
+            .iter()
+            .copied()
+            .find(|h| self.entries.get(h).is_some_and(|e| &e.value.label == label))
+    }
+
     /// Holds a thing and returns its handle: the one it already has when the same thing is held
     /// with the same label, so the same search twice names the same `#n` and a planner can see
     /// it got nothing new.
     pub fn mint_entity(&mut self, thing: EntityId, label: Label) -> Handle {
-        let held = HandleValue::Entity(thing.clone());
-        let known = self
-            .entries
-            .iter()
-            .find(|(_, e)| e.value.value == held && e.value.label == label)
-            .map(|(h, _)| *h);
-        known.unwrap_or_else(|| {
-            let from = Source::App(thing.app.clone());
-            self.mint(Labelled { value: held, label }, from)
-        })
+        match self.handle_of(&thing, &label) {
+            Some(known) => known,
+            None => {
+                let from = Source::App(thing.app.clone());
+                self.mint(
+                    Labelled {
+                        value: HandleValue::Entity(thing),
+                        label,
+                    },
+                    from,
+                )
+            }
+        }
+    }
+
+    /// [`mint_entity`](Self::mint_entity), refused when the thing is new and the table is full.
+    pub fn try_mint_entity(
+        &mut self,
+        thing: EntityId,
+        label: Label,
+    ) -> Result<Handle, HandleLimit> {
+        match self.handle_of(&thing, &label) {
+            Some(known) => Ok(known),
+            None if self.is_full() => Err(HandleLimit::Handles),
+            None => Ok(self.mint_entity(thing, label)),
+        }
     }
 
     /// Words for a planner: plain when trusted, a handle when not.

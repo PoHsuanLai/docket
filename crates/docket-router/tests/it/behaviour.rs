@@ -352,3 +352,33 @@ fn delivery_joins_the_message_label_into_the_receivers_taint() {
         Confidentiality::Private(BTreeSet::from([space("home")]))
     );
 }
+
+#[test]
+fn a_thing_is_held_once_per_label_and_a_full_table_refuses_a_new_one_not_an_old_one() {
+    use crate::support::entity;
+    let mut table = HandleTable::new();
+    let first = table.mint_entity(entity("mail.thread", "t0"), trusted());
+    assert_eq!(
+        table.mint_entity(entity("mail.thread", "t0"), trusted()),
+        first
+    );
+    let other_label = table.mint_entity(entity("mail.thread", "t0"), mail("work"));
+    assert_ne!(
+        other_label, first,
+        "the same thing under another label is another handle"
+    );
+    for n in table.cards().len()..MAX_HANDLES {
+        let held = table.try_mint_entity(entity("mail.thread", &format!("t{}", n + 1)), trusted());
+        assert!(held.is_ok(), "room for {n}: {held:?}");
+    }
+    assert!(table.is_full());
+    assert_eq!(
+        table.try_mint_entity(entity("mail.thread", "onemore"), trusted()),
+        Err(HandleLimit::Handles)
+    );
+    assert_eq!(
+        table.try_mint_entity(entity("mail.thread", "t0"), trusted()),
+        Ok(first),
+        "a thing already held is still found at the limit"
+    );
+}

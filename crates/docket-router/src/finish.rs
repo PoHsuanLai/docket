@@ -2,7 +2,7 @@
 //! session's history and the task's ledger, and the outcome as its caller may read it.
 
 use crate::driven::{Driven, decision_of, step_end};
-use crate::handles::HandleValue;
+use crate::handles::{HandleLimit, HandleValue};
 use crate::labels::{Voice, absorb};
 use crate::prepared::{Early, Prepared};
 use crate::router::Router;
@@ -13,8 +13,8 @@ use crate::state::SessionRecord;
 use crate::tasks::TaskState;
 use action_review::note;
 use docket_core::{
-    AuditRecord, CallEnd, CallRefusal, DecidedBy, LedgerStep, Origin, Outcome, Preview, StepEnd,
-    StepLine, StepShown, Undoable, Value, approves,
+    AuditRecord, BudgetKind, CallEnd, CallRefusal, DecidedBy, LedgerStep, Origin, Outcome, Preview,
+    StepEnd, StepLine, StepShown, Undoable, Value, approves,
 };
 use docket_session::{BreakerNote, SessionEntry};
 use prov::{Integrity, Labelled, Source};
@@ -22,12 +22,16 @@ use prov::{Integrity, Labelled, Source};
 /// An outcome as the caller named by `voice` may read it: a planner gets untrusted text, and
 /// every thing an app returns, as a handle the session holds, and never the app's preview,
 /// which may quote content. Things are handles because a planner names them by `{"handle": n}`.
-fn present(record: &mut SessionRecord, voice: &Voice, mut outcome: Outcome) -> Outcome {
+fn present(
+    record: &mut SessionRecord,
+    voice: &Voice,
+    mut outcome: Outcome,
+) -> Result<Outcome, HandleLimit> {
     if *voice != Voice::Model {
-        return outcome;
+        return Ok(outcome);
     }
     outcome.show = Preview::None;
-    outcome.value = outcome.value.map(|held| {
+    let held = outcome.value.take().map(|held| -> Result<_, HandleLimit> {
         let source = held
             .label
             .sources
@@ -35,36 +39,41 @@ fn present(record: &mut SessionRecord, voice: &Voice, mut outcome: Outcome) -> O
             .next()
             .cloned()
             .unwrap_or(Source::Model(prov::ModelRole::Planner));
-        match (&held.value, held.label.integrity) {
+        Ok(match (&held.value, held.label.integrity) {
             (Value::Text(t) | Value::Url(t), Integrity::Untrusted) => {
-                let handle = record.handles.mint(
+                let handle = record.handles.try_mint(
                     Labelled {
                         value: HandleValue::Text(t.clone()),
                         label: held.label.clone(),
                     },
                     source,
-                );
+                )?;
                 Labelled {
                     value: Value::Handle(handle),
                     label: held.label,
                 }
             }
             (Value::Entity(e), _) => {
-                record.known.insert(e.clone());
-                let handle = record.handles.mint_entity(e.clone(), held.label.clone());
+                record.know([e.clone()])?;
+                let handle = record
+                    .handles
+                    .try_mint_entity(e.clone(), held.label.clone())?;
                 Labelled {
                     value: Value::Handle(handle),
                     label: held.label,
                 }
             }
             (Value::Entities(es), _) if !es.is_empty() => {
-                record.known.extend(es.iter().cloned());
+                record.know(es.iter().cloned())?;
                 let handles = es
                     .iter()
                     .map(|e| {
-                        Value::Handle(record.handles.mint_entity(e.clone(), held.label.clone()))
+                        record
+                            .handles
+                            .try_mint_entity(e.clone(), held.label.clone())
+                            .map(Value::Handle)
                     })
-                    .collect();
+                    .collect::<Result<_, _>>()?;
                 Labelled {
                     value: Value::List(handles),
                     label: held.label,
@@ -73,16 +82,17 @@ fn present(record: &mut SessionRecord, voice: &Voice, mut outcome: Outcome) -> O
             // Words hide inside a file's name, a list and a record as well: they are held the
             // same way, leaf by leaf.
             (Value::File(_) | Value::List(_) | Value::Record(_), Integrity::Untrusted) => {
-                let value = shield(record, &held.label, &source, held.value.clone());
+                let value = shield(record, &held.label, &source, held.value.clone())?;
                 Labelled {
                     value,
                     label: held.label,
                 }
             }
             _ => held,
-        }
+        })
     });
-    outcome
+    outcome.value = held.transpose()?;
+    Ok(outcome)
 }
 
 impl<S: Seams> Router<S> {
@@ -113,6 +123,7 @@ impl<S: Seams> Router<S> {
             Some(_) => None,
             None => driven.outcome.clone(),
         };
+        let mut limited: Option<CallRefusal> = None;
         if let Some(session) = &p.who.session {
             let mut st = self.locked();
             let breaker = self.agent_config().breaker;
@@ -155,7 +166,22 @@ impl<S: Seams> Router<S> {
                 {
                     record.approvals.push(held);
                 }
-                presented = presented.map(|o| present(record, &p.who.voice, o));
+                presented = match presented
+                    .map(|o| present(record, &p.who.voice, o))
+                    .transpose()
+                {
+                    Ok(presented) => presented,
+                    Err(limit) => {
+                        // The call ran; its result is withheld, not partly shown, and nothing
+                        // older is dropped to make room.
+                        tracing::warn!(task = %record.task, %limit, "a call's result was refused");
+                        limited = Some(CallRefusal::OverBudget(BudgetKind::FanOut));
+                        if let Some(last) = record.history.last_mut() {
+                            last.end = StepEnd::Interrupted;
+                        }
+                        None
+                    }
+                };
                 // The handles this call minted go on the record before the step that names them.
                 record.gather();
                 let line = record.history.last().cloned();
@@ -195,7 +221,7 @@ impl<S: Seams> Router<S> {
                 });
             }
         }
-        if let Some(refusal) = withheld {
+        if let Some(refusal) = withheld.or(limited) {
             return Err(refusal);
         }
         match driven.end {
