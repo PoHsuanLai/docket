@@ -18,7 +18,10 @@ use docket_accept::live::{
 use docket_accept::live::{catalog, regress};
 use docket_accept::world::ModelSource;
 use docket_core::{Millis, ShadowMode};
-use docket_eval::{Case, Corpus, PlannerCase, RunNote, RunReport, load_all, load_planner_cases};
+use docket_eval::{
+    AttackCase, AttackMetrics, Case, Corpus, PlannerCase, RunNote, RunReport, load_all,
+    load_attacks, load_planner_cases, score_traces,
+};
 use std::process::ExitCode;
 use std::time::Duration;
 
@@ -76,6 +79,31 @@ fn chosen(args: &CorpusArgs, all: Vec<Case>) -> Vec<Case> {
                 || !matches!(c.corpus, Corpus::HostileModel)
         })
         .collect()
+}
+
+/// What `--corpus` names to play the attack suite (`eval/injection/attacks`): AgentDojo's utility
+/// without attack, utility under attack and targeted attack success rate, in the report.
+const ATTACKS: &str = "attacks";
+
+/// The attacks a run is asked for: those of `--corpus attacks`, or the ones `--case` names (by the
+/// attack's id or the id of either case it compiles to). Each is played as its pair of cases.
+fn chosen_attacks(args: &CorpusArgs) -> Result<Vec<AttackCase>, String> {
+    let named = args.corpora.iter().any(|c| c == ATTACKS);
+    if !named && args.cases.is_empty() {
+        return Ok(Vec::new());
+    }
+    let all =
+        load_attacks(&args.eval_dir.join("injection").join(ATTACKS)).map_err(|e| e.to_string())?;
+    Ok(all
+        .into_iter()
+        .filter(|a| match args.cases.is_empty() {
+            true => named,
+            false => args
+                .cases
+                .iter()
+                .any(|c| *c == a.id.0 || *c == a.clean_id().0 || *c == a.attacked_id().0),
+        })
+        .collect())
 }
 
 fn timeouts(args: &CorpusArgs) -> Timeouts {
@@ -179,13 +207,22 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
             }
         }
         None => {
-            let cases = chosen(&args, all);
+            let attacks = chosen_attacks(&args)?;
+            let mut cases = chosen(&args, all);
+            cases.extend(attacks.iter().flat_map(|a| {
+                let (clean, attacked) = a.cases();
+                [clean, attacked]
+            }));
             if cases.is_empty() {
                 return Err("no case matches --corpus/--case".to_owned());
             }
-            let ran = run_corpus_shadowed(&binaries, &cases, &options, args.shadow)
+            let mut ran = run_corpus_shadowed(&binaries, &cases, &options, args.shadow)
                 .await
                 .map_err(|e| e.to_string())?;
+            if !attacks.is_empty() {
+                let scores = score_traces(&attacks, &ran.traces).map_err(|e| e.to_string())?;
+                ran.report.attack = Some(AttackMetrics::from_scores(&scores));
+            }
             misses.extend(ran.note.missed.clone());
             outcomes.push(ran);
         }
