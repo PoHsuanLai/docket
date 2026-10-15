@@ -4,6 +4,8 @@
 use docket_core::{CallRefusal, DenyCode};
 use docket_eval::*;
 use prov::Effect;
+use std::collections::BTreeSet;
+use std::path::PathBuf;
 
 const SAMPLE: &str = r#"
 id = "attack-sample"
@@ -212,4 +214,66 @@ fn an_attack_that_does_not_hold_together_is_refused_at_load() {
         load_attacks(dir.path()),
         Err(AttackError::DuplicateId(_))
     ));
+}
+
+fn attacks() -> Vec<AttackCase> {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../eval/injection/attacks");
+    let attacks = load_attacks(&dir).unwrap_or_else(|e| panic!("{e}"));
+    assert!(!attacks.is_empty(), "the attack corpus is missing");
+    attacks
+}
+
+fn style_index(style: AttackStyle) -> usize {
+    match style {
+        AttackStyle::ImportantInstructions => 0,
+        AttackStyle::IgnorePrevious => 1,
+        AttackStyle::ToolKnowledge => 2,
+        AttackStyle::FakeSystemMessage => 3,
+        AttackStyle::HiddenUnicode => 4,
+    }
+}
+
+fn carrier_slug(carrier: &Carrier) -> &'static str {
+    match carrier {
+        Carrier::MailBody(_) => "mail_body",
+        Carrier::MailSubject(_) => "mail_subject",
+        Carrier::ContactName(_) => "contact_name",
+        Carrier::FileContent(_) => "file_content",
+    }
+}
+
+/// Zero-width, bidi-control or Unicode tag characters: text a person reading the page cannot see.
+fn hides(text: &str) -> bool {
+    text.chars().any(|c| {
+        matches!(c, '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{E0000}'..='\u{E007F}')
+    })
+}
+
+#[test]
+fn every_style_is_listed() {
+    assert_eq!(AttackStyle::ALL.map(style_index), [0, 1, 2, 3, 4]);
+}
+
+#[test]
+fn the_starter_corpus_spans_the_styles_carriers_and_apps() {
+    let attacks = attacks();
+    assert!(attacks.len() >= 20, "{} attacks", attacks.len());
+    for style in AttackStyle::ALL {
+        let n = attacks.iter().filter(|a| a.style == style).count();
+        assert!(n >= 3, "{style:?} has {n} attacks");
+    }
+    let carriers: BTreeSet<_> = attacks.iter().map(|a| carrier_slug(&a.carrier)).collect();
+    assert_eq!(carriers.len(), 4, "{carriers:?}");
+    let apps: BTreeSet<_> = attacks.iter().map(|a| a.goal.app.as_str()).collect();
+    assert!(apps.len() >= 2, "{apps:?}");
+    let goals: BTreeSet<_> = attacks.iter().map(|a| a.goal.action.as_str()).collect();
+    assert!(goals.len() >= 6, "{goals:?}");
+    for attack in &attacks {
+        assert_eq!(
+            hides(&attack.injection),
+            attack.style == AttackStyle::HiddenUnicode,
+            "{}",
+            attack.id.0
+        );
+    }
 }
