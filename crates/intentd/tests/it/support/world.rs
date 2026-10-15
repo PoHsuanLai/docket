@@ -49,7 +49,7 @@ pub fn caller(name: &str, roles: &[CallerRole]) -> CallerId {
     }
 }
 
-pub use super::apps::{held_by, introduce};
+pub use super::apps::introduce;
 
 /// intentd serving `router` on a private bus under `config`.
 pub struct World {

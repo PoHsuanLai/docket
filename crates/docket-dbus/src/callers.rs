@@ -15,9 +15,8 @@
 //! feature or an environment variable, that does it for a shipped binary.
 
 use crate::BusConnection;
-use porter_dbus::ProcCallers;
 pub use porter_dbus::{
-    Caller, CallerFileError, CallerRole as Role, CallerTable, Callers, load_callers,
+    Caller, CallerFileError, CallerRole as Role, CallerTable, Callers, ProcCallers, load_callers,
     table_from_toml,
 };
 use std::path::{Path, PathBuf};
