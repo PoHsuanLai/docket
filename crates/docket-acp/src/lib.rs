@@ -52,7 +52,7 @@ pub use permission::{
 pub use scope_words::always_words;
 pub use server::{Server, Ticks};
 #[cfg(feature = "server")]
-pub use stdio::{LineWire, SystemTicks};
+pub use stdio::{LINE_MAX, LineFault, LineWire, SystemTicks, read_capped};
 pub use terminals::Terminals;
 pub use turn::{Finish, Order, Turn, Wants};
 pub use wire::{Incoming, NotJsonRpc, Wire, WireClosed};
