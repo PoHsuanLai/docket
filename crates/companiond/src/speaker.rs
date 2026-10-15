@@ -1,11 +1,12 @@
 //! Who speaks for the person. Two callers may: the shell (sill, the owner of the bus name
 //! `companiond.toml` gives it), and a terminal (`quire-do ask`: a process in a terminal's scope
-//! that owns no bus name, run by the same user), which may only open, ask and close.
+//! that owns no bus name, run by the same user), which may only open, ask and close, stop its
+//! own answer and read answers.
 //!
 //! The terminal is identified the way intentd identifies the cli role (`docket_core::
 //! is_terminal_scope` over the cgroup behind the pid the bus names for the connection); it is
 //! the person at a keyboard, or whatever is typing in one, and that is why it gets no more than
-//! the three calls: it cannot press a card (`Act`) and cannot tell a subagent anything (`Told`).
+//! the conversation: it cannot press a card (`Act`) and cannot tell a subagent anything (`Told`).
 //! Every call the companion then makes goes through intentd's gate in the role `companion`, and
 //! a confirmation is still answered on the sheet by the person.
 
@@ -40,13 +41,20 @@ pub enum Call {
     Told,
     /// `Act`: presses a card.
     Act,
+    /// `Answer.Cancel`: stops the task.
+    Cancel,
+    /// Reading an answer: `View`, `Session` and `Routing`.
+    Read,
 }
 
 /// Whether `speaker` may make `call`: the shell anything, a terminal only the conversation.
 pub fn permits(speaker: &Speaker, call: Call) -> bool {
     match speaker {
         Speaker::Shell => true,
-        Speaker::Terminal(_) => matches!(call, Call::Open | Call::Ask | Call::Close),
+        Speaker::Terminal(_) => matches!(
+            call,
+            Call::Open | Call::Ask | Call::Close | Call::Cancel | Call::Read
+        ),
     }
 }
 
@@ -132,9 +140,20 @@ pub async fn require(
         Ok(speaker)
     } else {
         Err(fdo::Error::AccessDenied(
-            "a terminal may open, ask and close, nothing else".into(),
+            "a terminal may open, ask, close, cancel and read, nothing else".into(),
         ))
     }
+}
+
+/// [`require`] for a property read, where the bus may hand no header: that caller is nobody.
+pub async fn require_read(
+    connection: &BusConnection,
+    shell: &AppName,
+    root: &Path,
+    header: Option<&Header<'_>>,
+) -> fdo::Result<Speaker> {
+    let header = header.ok_or_else(denied)?;
+    require(connection, shell, root, header, Call::Read).await
 }
 
 #[cfg(test)]
@@ -147,12 +166,23 @@ mod tests {
 
     #[test]
     fn the_shell_may_do_everything_and_a_terminal_only_the_conversation() {
-        let all = [Call::Open, Call::Ask, Call::Close, Call::Told, Call::Act];
+        let all = [
+            Call::Open,
+            Call::Ask,
+            Call::Close,
+            Call::Told,
+            Call::Act,
+            Call::Cancel,
+            Call::Read,
+        ];
         let terminal: Vec<Call> = all
             .into_iter()
             .filter(|c| permits(&Speaker::Terminal(scope()), *c))
             .collect();
-        assert_eq!(terminal, [Call::Open, Call::Ask, Call::Close]);
+        assert_eq!(
+            terminal,
+            [Call::Open, Call::Ask, Call::Close, Call::Cancel, Call::Read]
+        );
         assert!(all.into_iter().all(|c| permits(&Speaker::Shell, c)));
     }
 

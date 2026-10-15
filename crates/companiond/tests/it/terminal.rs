@@ -1,5 +1,5 @@
 //! A terminal speaks for the person on `Companion1` for the conversation only: it may open, ask
-//! and close, it may not tell a subagent or press a card, and a process that is not in a
+//! and close, stop and read its answers, it may not tell a subagent or press a card, and a process that is not in a
 //! terminal's scope, or that owns a bus name of its own, may do none of it. The terminal is the
 //! test process, placed in a fake proc root (`serve_on_rooted`), on a private bus.
 
@@ -93,7 +93,7 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
         .await
         .expect("a terminal may ask");
     let answers = CompanionAnswerProxy::builder(&client)
-        .path(path)
+        .path(path.clone())
         .expect("path")
         .cache_properties(zbus::proxy::CacheProperties::No)
         .build()
@@ -121,6 +121,26 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
         )
         .await;
     assert!(denied(told), "Told");
+
+    // It may stop its own answer; a peer that is neither the shell nor a terminal may neither
+    // stop it nor read it.
+    answers.cancel().await.expect("a terminal may cancel");
+    let stranger = bus.connect().await;
+    stranger
+        .request_name("org.quire.Mail")
+        .await
+        .expect("a name of its own");
+    let theirs = CompanionAnswerProxy::builder(&stranger)
+        .path(path)
+        .expect("path")
+        .cache_properties(zbus::proxy::CacheProperties::No)
+        .build()
+        .await
+        .expect("answer proxy");
+    assert!(theirs.view().await.is_err(), "View");
+    assert!(theirs.session().await.is_err(), "Session");
+    assert!(theirs.routing().await.is_err(), "Routing");
+    assert!(denied(theirs.cancel().await), "Cancel");
 
     proxy.close(opened.session.as_str()).await.expect("close");
 }

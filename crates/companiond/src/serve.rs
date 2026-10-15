@@ -196,6 +196,16 @@ struct AnswerObject<P: InferTransport, I: IntentsTransport> {
     proc_root: PathBuf,
 }
 
+impl<P: InferTransport, I: IntentsTransport> AnswerObject<P, I> {
+    /// An answer is the person's words and what the router showed of them: only the shell or a
+    /// terminal reads it.
+    async fn readable(&self, header: Option<&Header<'_>>) -> fdo::Result<()> {
+        speaker::require_read(&self.connection, &self.shell, &self.proc_root, header)
+            .await
+            .map(|_| ())
+    }
+}
+
 #[zbus::interface(name = "org.quire.Companion1.Answer")]
 impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P, I> {
     async fn act(
@@ -229,7 +239,15 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
         Ok(path)
     }
 
-    async fn cancel(&self) -> fdo::Result<()> {
+    async fn cancel(&self, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
+        speaker::require(
+            &self.connection,
+            &self.shell,
+            &self.proc_root,
+            &header,
+            Call::Cancel,
+        )
+        .await?;
         self.shared.cancel(&self.task);
         Ok(())
     }
@@ -238,7 +256,8 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
     async fn updated(emitter: &SignalEmitter<'_>, view: &str) -> zbus::Result<()>;
 
     #[zbus(property)]
-    async fn routing(&self) -> fdo::Result<String> {
+    async fn routing(&self, #[zbus(header)] header: Option<Header<'_>>) -> fdo::Result<String> {
+        self.readable(header.as_ref()).await?;
         let notes = self
             .shared
             .route_of(&self.task)
@@ -247,7 +266,8 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
     }
 
     #[zbus(property)]
-    async fn session(&self) -> fdo::Result<String> {
+    async fn session(&self, #[zbus(header)] header: Option<Header<'_>>) -> fdo::Result<String> {
+        self.readable(header.as_ref()).await?;
         match self.shared.session_of(&self.task) {
             Some(session) => Ok(session.as_str().to_owned()),
             None => Err(fdo::Error::Failed("no such answer".into())),
@@ -255,7 +275,8 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
     }
 
     #[zbus(property)]
-    async fn view(&self) -> fdo::Result<String> {
+    async fn view(&self, #[zbus(header)] header: Option<Header<'_>>) -> fdo::Result<String> {
+        self.readable(header.as_ref()).await?;
         match self.shared.answer(&self.task) {
             Some(answer) => json(&answer),
             None => Err(fdo::Error::Failed("no such answer".into())),
