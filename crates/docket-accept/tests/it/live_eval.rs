@@ -223,6 +223,10 @@ flow_tests! {
     files_search_act_refused => "files-search-act-refused",
     files_first_use => "files-first-use",
     files_inject_summarise => "files-inject-summarise",
+    fact => "fact",
+    remember => "remember",
+    what_remember => "what-remember",
+    mail_find => "mail-find",
 }
 
 async fn the_flow_passes_on_its_cassette_judged_as_a_live_model_is(slug: &str) {

@@ -4,10 +4,11 @@
 use docket_accept::live::cli::{Command, UsageError, parse};
 use docket_accept::live::engine::{Engine, EngineError, hijacked_judge_cassette};
 use docket_accept::live::flows::{Evidence, Failure, Flow, Kind, UndoCheck, judge};
+use docket_accept::live::shape::{Shape, developer_word};
 use docket_accept::live::stage::{Asker, asker};
 use docket_accept::provider::{Message, Sending};
 use docket_accept::world::ModelSource;
-use docket_core::{ExchangeAnswer, ExchangeMessage, ModelExchange, Stage};
+use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange, Stage};
 
 fn words(line: &str) -> Vec<String> {
     line.split_whitespace().map(str::to_owned).collect()
@@ -445,6 +446,125 @@ mod keys_home {
             "corpus --engine cloud --repeat 2",
         ] {
             assert!(parse(&words(line)).is_err(), "{line}");
+        }
+    }
+}
+
+#[test]
+fn the_shape_check_is_short_on_topic_plain_and_free_of_developer_words() {
+    let fact = Shape {
+        max_chars: 40,
+        contains: &["Taipei"],
+        lacks: &["memory", "I can answer"],
+    };
+    let table = [
+        ("Taipei is the capital.", 0),
+        ("taipei.", 0),
+        ("", 2),
+        ("Kaohsiung. My memory says so.", 2),
+        ("Taipei, and I can answer anything else", 1),
+        ("Taipei is the capital of Taiwan, truly yes.", 1),
+        ("Taipei (see mail.thread.search)", 1),
+        ("Taipei via org_quire_Mail_x", 1),
+        ("Taipei, not a memorable one", 0),
+    ];
+    for (said, want) in table {
+        let found = fact.check(said);
+        assert_eq!(found.len(), want, "{said:?}: {found:?}");
+    }
+    assert_eq!(
+        developer_word("see mail.thread.search now"),
+        Some("mail.thread.search")
+    );
+    assert_eq!(
+        developer_word("Dr. Lin at www.example.com, e.g. today."),
+        None
+    );
+}
+
+fn planner_said(calls: &[&str]) -> ModelExchange {
+    let mut e = exchange(&["quire_answer"], "text", "the person asked");
+    e.answer = ExchangeAnswer::Replied {
+        text: String::new(),
+        calls: calls
+            .iter()
+            .map(|name| ExchangeCall {
+                name: (*name).to_owned(),
+                args: "{}".to_owned(),
+            })
+            .collect(),
+        stop: "stop".to_owned(),
+    };
+    e
+}
+
+#[test]
+fn the_everyday_flows_are_judged_on_what_was_called() {
+    use docket_accept::live::everyday::Everyday;
+    let with = |calls: &[&str], performed: &[&str]| {
+        let mut e = evidence();
+        e.exchanges = vec![planner_said(calls)];
+        e.performed = performed.iter().map(|a| (*a).to_owned()).collect();
+        e
+    };
+    let table = [
+        (
+            Everyday::Fact,
+            with(&["org_quire_Memory-memory_recall"], &[]),
+            None,
+        ),
+        (
+            Everyday::Fact,
+            with(&["org_quire_Mail-mail_thread_search"], &[]),
+            Some("not a memory read"),
+        ),
+        (
+            Everyday::Fact,
+            with(&[], &["mail.thread.search"]),
+            Some("the app was called"),
+        ),
+        (
+            Everyday::Remember,
+            with(&[], &[]),
+            Some("no memory write was proposed"),
+        ),
+        (
+            Everyday::Remember,
+            with(&["org_quire_Memory-memory_propose"], &[]),
+            Some("a memory write ran without a sheet"),
+        ),
+        (
+            Everyday::WhatRemember,
+            with(&[], &[]),
+            Some("memory was never read"),
+        ),
+        (
+            Everyday::WhatRemember,
+            with(&["org_quire_Memory-memory_facts"], &[]),
+            None,
+        ),
+        (Everyday::MailFind, with(&[], &[]), Some("never searched")),
+        (Everyday::MailFind, with(&[], &["mail.thread.search"]), None),
+        (
+            Everyday::MailFind,
+            with(&[], &["mail.thread.search", "mail.message.send"]),
+            Some("something was sent"),
+        ),
+    ];
+    for (flow, e, want) in table {
+        let found = judge(Flow::Everyday(flow), &e);
+        let text: Vec<&str> = found.iter().map(|f| f.what.as_str()).collect();
+        // The evidence has no answer, so "did not end Done" and "empty" are always there.
+        let rest: Vec<&&str> = text
+            .iter()
+            .filter(|t| !t.contains("Done") && !t.contains("empty") && !t.contains("Taipei"))
+            .collect();
+        match want {
+            Some(part) => assert!(
+                rest.iter().any(|t| t.contains(part)),
+                "{flow:?}: wanted {part:?} in {text:?}"
+            ),
+            None => assert!(rest.is_empty(), "{flow:?}: {text:?}"),
         }
     }
 }
