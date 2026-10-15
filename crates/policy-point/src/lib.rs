@@ -7,9 +7,11 @@
 //! crate.
 
 mod eval;
+mod fault;
 mod pdp;
 mod request;
 
+pub use fault::{EvalFault, FaultCause, Ruled};
 pub use pdp::{DEFAULT_POLICIES, Pdp, PolicyError, SCHEMA};
 pub use request::{
     ActionFacts, CoverageState, GrantState, Op, PolicyContext, PolicyRequest, PrincipalFacts,

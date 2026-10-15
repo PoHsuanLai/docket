@@ -247,7 +247,7 @@ impl<S: Seams> Router<S> {
                     Impact::Low
                 },
             };
-            let ruling = self.pdp.decide(&PolicyRequest {
+            let ruled = self.pdp.decide_checked(&PolicyRequest {
                 principal: PrincipalFacts {
                     kind: record.actor.kind(),
                     caller: ask.app.clone(),
@@ -265,6 +265,8 @@ impl<S: Seams> Router<S> {
                 },
                 context: ctx.clone(),
             });
+            crate::policylog::log_faults(&ruled, &record.task);
+            let ruling = ruled.ruling;
             let cost = Cost {
                 effect: ask.effect,
                 entities: Count(1),

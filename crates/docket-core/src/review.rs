@@ -60,6 +60,9 @@ pub enum AskReason {
     Disagreement,
     /// A named Cedar rule.
     Rule(PolicyId),
+    /// The policy point could not evaluate the call, so it asks rather than guess (the cause is
+    /// in the log, with the task).
+    EvaluationFailed,
 }
 
 /// What policy rules before any reviewer: four outcomes, from three Cedar queries

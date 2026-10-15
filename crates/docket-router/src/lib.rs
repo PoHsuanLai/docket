@@ -63,6 +63,7 @@ mod notes;
 mod opening;
 mod perform;
 mod policy;
+mod policylog;
 mod prepare;
 mod prepared;
 mod reading;

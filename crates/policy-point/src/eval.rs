@@ -2,6 +2,7 @@
 //! Every context value is the slug of its Rust type, so the policies read the words the wire
 //! does; nothing here decides, it only translates.
 
+use crate::fault::{EvalFault, FaultCause, Ruled};
 use crate::request::{Op, PolicyContext, PolicyRequest};
 use cedar_policy::{
     Authorizer, Context, Decision, Entities, Entity, EntityId, EntityTypeName, EntityUid,
@@ -70,11 +71,15 @@ fn string(value: String) -> RestrictedExpression {
 }
 
 /// The entities of one request: the caller, the action's app and the action itself.
-fn entities(request: &PolicyRequest, schema: &Schema) -> Option<(EntityUid, EntityUid, Entities)> {
+fn entities(
+    request: &PolicyRequest,
+    schema: &Schema,
+) -> Result<(EntityUid, EntityUid, Entities), FaultCause> {
     let facts = &request.resource;
-    let caller = uid("Quire::Caller", request.principal.caller.as_str())?;
-    let app = uid("Quire::App", facts.app.as_str())?;
-    let act = uid("Quire::Act", facts.action.as_str())?;
+    let named = || FaultCause::Entities;
+    let caller = uid("Quire::Caller", request.principal.caller.as_str()).ok_or_else(named)?;
+    let app = uid("Quire::App", facts.app.as_str()).ok_or_else(named)?;
+    let act = uid("Quire::Act", facts.action.as_str()).ok_or_else(named)?;
     let classes = facts
         .classes
         .iter()
@@ -85,7 +90,7 @@ fn entities(request: &PolicyRequest, schema: &Schema) -> Option<(EntityUid, Enti
         HashMap::from([("kind".to_owned(), string(slug(&request.principal.kind)))]),
         HashSet::new(),
     )
-    .ok()?;
+    .map_err(|_| FaultCause::Entities)?;
     let act_entity = Entity::new(
         act.clone(),
         HashMap::from([
@@ -96,11 +101,11 @@ fn entities(request: &PolicyRequest, schema: &Schema) -> Option<(EntityUid, Enti
         ]),
         HashSet::from([app.clone()]),
     )
-    .ok()?;
+    .map_err(|_| FaultCause::Entities)?;
     let app_entity = Entity::new_no_attrs(app, HashSet::new());
-    let all =
-        Entities::from_entities([caller_entity, act_entity, app_entity], Some(schema)).ok()?;
-    Some((caller, act, all))
+    let all = Entities::from_entities([caller_entity, act_entity, app_entity], Some(schema))
+        .map_err(|_| FaultCause::Entities)?;
+    Ok((caller, act, all))
 }
 
 /// What one query said.
@@ -110,19 +115,31 @@ struct Answer {
     ids: Vec<PolicyId>,
 }
 
+/// One query. A query that Cedar could not set up, or whose policies raised an evaluation
+/// error (a policy that errors is skipped, so a forbid could silently not apply), is a fault:
+/// the caller treats it as not permitted.
 fn query(
     policies: &PolicySet,
     schema: &Schema,
     request: &PolicyRequest,
-    action: &str,
-) -> Option<Answer> {
-    let (caller, act, entities) = entities(request, schema)?;
-    let action_uid = uid("Quire::Action", action)?;
+    action: &'static str,
+) -> Result<Answer, EvalFault> {
+    let fault = |cause: FaultCause| EvalFault {
+        query: action,
+        cause,
+    };
+    let (caller, act, entities) = entities(request, schema).map_err(fault)?;
+    let action_uid = uid("Quire::Action", action).ok_or_else(|| fault(FaultCause::Action))?;
     let context =
         Context::from_json_value(context_json(&request.context), Some((schema, &action_uid)))
-            .ok()?;
-    let cedar = Request::new(caller, action_uid, act, context, Some(schema)).ok()?;
+            .map_err(|_| fault(FaultCause::Context))?;
+    let cedar = Request::new(caller, action_uid, act, context, Some(schema))
+        .map_err(|_| fault(FaultCause::Request))?;
     let response = Authorizer::new().is_authorized(&cedar, policies, &entities);
+    let errors = response.diagnostics().errors().count();
+    if errors > 0 {
+        return Err(fault(FaultCause::Policies(errors)));
+    }
     let ids = response
         .diagnostics()
         .reason()
@@ -132,7 +149,7 @@ fn query(
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
-    Some(Answer {
+    Ok(Answer {
         decision: response.decision(),
         ids,
     })
@@ -181,6 +198,34 @@ fn cell_reason(effect: Effect, c: &PolicyContext) -> AskReason {
     }
 }
 
+/// The queries of one request, with the faults they met.
+struct Queries<'a> {
+    policies: &'a PolicySet,
+    schema: &'a Schema,
+    request: &'a PolicyRequest,
+    faults: Vec<EvalFault>,
+}
+
+impl Queries<'_> {
+    /// Runs one query; a fault is kept and the answer is "not permitted, no ids".
+    fn run(&mut self, action: &'static str) -> Option<Answer> {
+        match query(self.policies, self.schema, self.request, action) {
+            Ok(answer) => Some(answer),
+            Err(fault) => {
+                self.faults.push(fault);
+                None
+            }
+        }
+    }
+
+    fn done(self, ruling: Ruling) -> Ruled {
+        Ruled {
+            ruling,
+            faults: self.faults,
+        }
+    }
+}
+
 fn permitted(answer: &Option<Answer>) -> bool {
     matches!(answer, Some(a) if a.decision == Decision::Allow)
 }
@@ -189,11 +234,19 @@ fn ids_of(answer: Option<Answer>) -> Vec<PolicyId> {
     answer.map(|a| a.ids).unwrap_or_default()
 }
 
-/// The ruling for one request.
-pub(crate) fn decide(policies: &PolicySet, schema: &Schema, request: &PolicyRequest) -> Ruling {
-    let run = |action: &str| query(policies, schema, request, action);
+/// The ruling for one request, and every fault met on the way. A fault never permits: a query
+/// that faulted is not permitted, so it is a `Deny` for `perform` and the one-query operations,
+/// an `Ask` (with [`AskReason::EvaluationFailed`]) for `perform_unasked`, and a reviewed allow
+/// for `perform_unjudged`.
+pub(crate) fn decide(policies: &PolicySet, schema: &Schema, request: &PolicyRequest) -> Ruled {
+    let mut q = Queries {
+        policies,
+        schema,
+        request,
+        faults: Vec::new(),
+    };
     if request.op != Op::Perform {
-        let answer = run(match request.op {
+        let answer = q.run(match request.op {
             Op::Perform => "perform",
             Op::Search => "search",
             Op::Preview => "preview",
@@ -202,30 +255,36 @@ pub(crate) fn decide(policies: &PolicySet, schema: &Schema, request: &PolicyRequ
             Op::Undo => "undo",
             Op::IndexPush => "index_push",
         });
-        return if permitted(&answer) {
+        let ruling = if permitted(&answer) {
             Ruling::AllowFinal(ids_of(answer))
         } else {
             Ruling::Deny(ids_of(answer))
         };
+        return q.done(ruling);
     }
-    let perform = run("perform");
+    let perform = q.run("perform");
     if !permitted(&perform) {
-        return Ruling::Deny(ids_of(perform));
+        return q.done(Ruling::Deny(ids_of(perform)));
     }
-    let unasked = run("perform_unasked");
+    let unasked = q.run("perform_unasked");
     if !permitted(&unasked) {
         let c = &request.context;
+        let faulted = q.faults.iter().any(|f| f.query == "perform_unasked");
         let reasons: Vec<AskReason> = ids_of(unasked).iter().map(|id| ask_reason(id, c)).collect();
-        return Ruling::Ask(if reasons.is_empty() {
+        let why = if faulted {
+            vec![AskReason::EvaluationFailed]
+        } else if reasons.is_empty() {
             vec![cell_reason(request.resource.effect, c)]
         } else {
             reasons
-        });
+        };
+        return q.done(Ruling::Ask(why));
     }
-    let unjudged = run("perform_unjudged");
-    if permitted(&unjudged) {
+    let unjudged = q.run("perform_unjudged");
+    let ruling = if permitted(&unjudged) {
         Ruling::AllowFinal(ids_of(unjudged))
     } else {
         Ruling::AllowJudged(ids_of(unasked))
-    }
+    };
+    q.done(ruling)
 }

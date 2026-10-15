@@ -346,6 +346,11 @@ fn the_offer_rule_table() {
             Some(Withheld::StillAsks(R::CrossSpace)),
         ),
         (
+            "evaluation failed",
+            facts(Effect::UndoableWrite, &[R::EvaluationFailed], &[]),
+            Some(Withheld::StillAsks(R::EvaluationFailed)),
+        ),
+        (
             "named rule",
             facts(Effect::UndoableWrite, &rule, &[]),
             Some(Withheld::StillAsks(R::Rule(PolicyId("x".into())))),
@@ -430,6 +435,7 @@ fn any_reason() -> impl Strategy<Value = AskReason> {
         Just(AskReason::RuleOfTwo),
         Just(AskReason::LastingFromUntrusted),
         Just(AskReason::Disagreement),
+        Just(AskReason::EvaluationFailed),
         Just(AskReason::Effect(Effect::Outbound)),
         Just(AskReason::UntrustedSink(ArgSink::Path)),
         Just(AskReason::UntrustedSink(ArgSink::Recipient)),

@@ -280,7 +280,7 @@ impl<S: Seams> Router<S> {
             .copied()
             .unwrap_or(self.agent_config().strictness);
         let impact = impact_of(&decl, count, self.agent_config().mass_at);
-        let ruling = self.pdp.decide(&self.policy_request(&Facts {
+        let ruled = self.pdp.decide_checked(&self.policy_request(&Facts {
             who,
             decl: &decl,
             request: &request,
@@ -292,6 +292,8 @@ impl<S: Seams> Router<S> {
             impact,
             relation: relation_of(st, &space, &decl.on, &targets),
         }));
+        crate::policylog::log_faults(&ruled, &record.task);
+        let ruling = ruled.ruling;
         let goal = GoalKey {
             app: request.action.app.clone(),
             action: decl.name.clone(),

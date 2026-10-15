@@ -1,5 +1,6 @@
 //! The shipped schema and default policies load and validate strictly.
 
+use crate::support;
 use docket_core::PolicyId;
 use policy_point::{DEFAULT_POLICIES, Pdp, PolicyError, SCHEMA};
 
@@ -64,4 +65,35 @@ fn the_rules_apply_to_both_unasked_and_unjudged_queries() {
         );
         assert!(rule.starts_with(&format!("@id(\"{id}\")\nforbid")), "{id}");
     }
+}
+
+#[test]
+fn a_policy_that_errors_asks_with_the_failure_and_never_permits() {
+    // `count + max` overflows for any count above zero: Cedar skips the policy and reports it.
+    let erroring = r#"
+        @id("attempt")
+        permit (principal, action == Quire::Action::"perform", resource);
+        @id("overflow")
+        permit (principal, action == Quire::Action::"perform_unasked", resource)
+        when { context.count + 9223372036854775807 > 0 };
+    "#;
+    let pdp = Pdp::load(SCHEMA, erroring).expect("validates");
+    let ruled = pdp.decide_checked(&support::base(prov::Effect::Read));
+    assert_eq!(
+        ruled.ruling,
+        docket_core::Ruling::Ask(vec![docket_core::AskReason::EvaluationFailed])
+    );
+    assert_eq!(
+        ruled.faults,
+        [policy_point::EvalFault {
+            query: "perform_unasked",
+            cause: policy_point::FaultCause::Policies(1),
+        }]
+    );
+    assert!(
+        support::pdp()
+            .decide_checked(&support::base(prov::Effect::Read))
+            .faults
+            .is_empty()
+    );
 }

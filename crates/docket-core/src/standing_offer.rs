@@ -135,6 +135,7 @@ fn reason(reason: &AskReason, effect: Effect, undo: UndoSupport) -> Result<(), W
         | AskReason::Mass(_)
         | AskReason::LastingFromUntrusted
         | AskReason::Disagreement
+        | AskReason::EvaluationFailed
         | AskReason::Rule(_)) => Err(Withheld::StillAsks(other.clone())),
     }
 }

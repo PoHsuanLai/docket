@@ -1,5 +1,6 @@
 //! The policy decision point over Cedar.
 
+use crate::fault::Ruled;
 use crate::request::PolicyRequest;
 use cedar_policy::{PolicySet, Schema, ValidationMode, Validator};
 use docket_core::{PolicyId, Ruling};
@@ -76,8 +77,15 @@ impl Pdp {
     /// none when no policy permitted it); else `perform_unasked` not permitted is `Ask` with
     /// the reasons the forbids name; else `perform_unjudged` not permitted is `AllowJudged`;
     /// else `AllowFinal`. Any other operation is one query: permitted is `AllowFinal`, else
-    /// `Deny`. A request Cedar cannot evaluate is a `Deny` with no ids: failure never permits.
+    /// `Deny`. A query Cedar cannot evaluate counts as not permitted: failure never permits.
     pub fn decide(&self, request: &PolicyRequest) -> Ruling {
+        self.decide_checked(request).ruling
+    }
+
+    /// [`decide`](Self::decide), with the evaluation faults it met. A query that faulted counts as
+    /// not permitted, so the ruling is never looser for it; `perform_unasked` faulting asks with
+    /// `AskReason::EvaluationFailed`. The caller logs the faults with the task it knows.
+    pub fn decide_checked(&self, request: &PolicyRequest) -> Ruled {
         crate::eval::decide(&self.policies, &self.schema, request)
     }
 }
