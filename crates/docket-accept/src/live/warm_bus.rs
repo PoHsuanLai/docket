@@ -29,9 +29,16 @@ impl BusPrepare {
     }
 }
 
-fn need() -> Need {
+/// What a tier's callers ask of their model: the planner (balanced) calls tools, the policy
+/// writer and the reviewers (fast, best) want structured output. Asking every tier for both would
+/// call a planner that has no structured output unavailable, though it serves the planner.
+fn need(tier: Tier) -> Need {
+    let feature = match tier {
+        Tier::Balanced => LlmFeature::Tools,
+        _ => LlmFeature::StructuredOutput,
+    };
     Need::Llm(LlmNeed::new(
-        BTreeSet::from([LlmFeature::Chat, LlmFeature::StructuredOutput]),
+        BTreeSet::from([LlmFeature::Chat, feature]),
         Tokens(2_000),
     ))
 }
@@ -40,7 +47,7 @@ impl Prepare for BusPrepare {
     async fn prepare(&self, tier: Tier) -> Option<Readiness> {
         self.transport
             .prepare(
-                &need(),
+                &need(tier),
                 DataClass::Prompt,
                 tier,
                 &OpenOptions::default().with_usage(Usage::Interactive),
