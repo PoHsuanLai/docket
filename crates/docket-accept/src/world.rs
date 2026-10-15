@@ -362,8 +362,8 @@ pub fn inferd_toml(root: &Path, model: &ModelSource, record: Option<&Path>) -> S
 }
 
 /// memoryd's callers file: the units that may call it, with the roles the router and the shell
-/// are told apart by. The shell has both rows (sill.service, or the scope sill-session starts);
-/// the run places the test process in the scope.
+/// are told apart by. The shell is `sill.service` only; the run places the test process
+/// in that unit, as its main process.
 pub(crate) const MEMORY_CALLERS: &str = r#"[[caller]]
 app = "org.quire.Intents"
 unit = "intentd.service"
@@ -372,11 +372,6 @@ role = "agent"
 [[caller]]
 app = "org.quire.Shell"
 unit = "sill.service"
-role = "sheet_host"
-
-[[caller]]
-app = "org.quire.Shell"
-unit = "sill-shell.scope"
 role = "sheet_host"
 
 [[caller]]
@@ -510,7 +505,7 @@ impl World {
         // Files the daemons read: memoryd's callers, its Spaces, intentd's manifest and consent.
         // The test process is the shell (sill): the fake proc root says so.
         let record = std::env::var_os("ACCEPT_RECORD").map(|_| root.join("record.jsonl"));
-        place(root, std::process::id(), Cgroup::Scope("sill-shell"));
+        place(root, std::process::id(), Cgroup::Unit("sill"));
         write(
             &root.join("config/quire/memory-callers.toml"),
             MEMORY_CALLERS,

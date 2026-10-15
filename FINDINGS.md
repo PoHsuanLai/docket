@@ -849,13 +849,10 @@ builds the connection first and passes it here.
    Tests: `docket-router/tests/it/activation.rs` (launcher gets it through; cli, field, companion, mcp dropped; wire
    form), `intentd/tests/it/identity.rs` (launcher token crosses the real bus; the cli's is dropped),
    `intentd/tests/it/link.rs` (the token reaches a real provider through `DbusLink`).
-4. **The shell's scope row follows sill-session.** In a real login sill-session will start sill as
-   `sill-shell.scope` (`systemd-run --user --scope --unit=sill-shell`). porter-dbus supports an exact named
-   non-`app-` scope unit row as of porter 4c2e696, but sill-session's scope change is not on sill master yet, so
-   intentd keeps the bus-name rule for the shell's roles (owner of `org.quire.Shell` is launcher/control, owner of
-   `org.quire.Confirm1` is confirm) and adds no scope rule and no callers file. When sill-session lands, intentd
-   gains a one-row callers table (`org.quire.Shell` = `sill-shell.scope`) and docket-accept's fake proc root puts
-   the shell at `0::/user.slice/user-1000.slice/user@1000.service/app.slice/sill-shell.scope`.
+4. **The shell is `sill.service`.** porter's caller table names the shell by that service unit alone (a scope never
+   carries a fixed role; there is no `sill-shell.scope`). docket-accept's fake proc root puts the fake shell in
+   `sill.service` with its main pid registered (`proc/units/sill.service`), and memoryd's callers fixture has the one
+   `sill.service` row. The daemons' own caller checks move onto porter's `ProcCallers` (see the callers entry).
 
 ## f4-docket-skills: skills (agent-spec skills.md)
 

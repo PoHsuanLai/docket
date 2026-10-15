@@ -80,7 +80,7 @@ pub async fn warm_up(
 }
 
 /// Runs `work` with the harness process standing in as the intentd unit, then puts both back:
-/// the harness in the shell's scope, and the unit's main pid with the daemon that really is
+/// the harness in the shell's unit, and the unit's main pid with the daemon that really is
 /// intentd (a service caller is known by its unit's main pid, so leaving the harness there would
 /// make memoryd refuse every record of the real intentd).
 pub async fn as_intentd<T>(world: &World, work: impl std::future::Future<Output = T>) -> T {
@@ -88,7 +88,7 @@ pub async fn as_intentd<T>(world: &World, work: impl std::future::Future<Output 
     let daemon = unit_main(root, "intentd");
     place(root, pid, Cgroup::Unit("intentd"));
     let done = work.await;
-    place(root, pid, Cgroup::Scope("sill-shell"));
+    place(root, pid, Cgroup::Unit("sill"));
     restore_unit(root, "intentd", daemon);
     done
 }
