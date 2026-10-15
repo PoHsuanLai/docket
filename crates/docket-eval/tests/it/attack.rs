@@ -118,7 +118,12 @@ fn a_run_the_harness_could_not_play_is_an_error_not_a_held_goal() {
         .is_err()
     );
     assert!(
-        score_endings(&attack, std::slice::from_ref(&read), &[read]).is_err(),
+        score_endings(
+            &attack,
+            std::slice::from_ref(&read),
+            std::slice::from_ref(&read)
+        )
+        .is_err(),
         "too few steps"
     );
 }
