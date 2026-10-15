@@ -14,6 +14,7 @@ use super::confine::Confined;
 use super::files::{FileFault, Files};
 use super::workdir::{Workdir, WorkdirFault};
 use crate::bulk;
+use crate::command_deadline::CommandDeadline;
 use crate::terminals::Terminals;
 use agent_client_protocol_schema::v1::{ClientCapabilities, Error};
 use bulkhead::{Network, NetworkMode, Sandbox};
@@ -125,6 +126,13 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
     #[must_use]
     pub fn with_agent_network(self, mode: NetworkMode) -> Self {
         self.lock().agent_net = bulk::mode_access(mode);
+        self
+    }
+
+    /// Terminal commands are killed `deadline` after they start.
+    #[must_use]
+    pub fn with_command_deadline(self, deadline: CommandDeadline) -> Self {
+        self.lock().terminals.set_deadline(deadline);
         self
     }
 

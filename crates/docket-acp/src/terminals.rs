@@ -12,6 +12,7 @@
 
 use crate::bulk;
 use crate::client::Workdir;
+use crate::command_deadline::CommandDeadline;
 use crate::fault;
 use agent_client_protocol_schema::v1::{
     CLIENT_METHOD_NAMES, ClientCapabilities, CreateTerminalRequest, CreateTerminalResponse, Error,
@@ -24,13 +25,21 @@ use docket_core::{AbsPath, CannotSandbox, Cover, NetAccess, SandboxState};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::time::{Duration, Instant};
 
 /// The terminal methods for one connection.
 #[derive(Debug)]
 pub struct Terminals<S: Sandbox> {
     shell: Shell<S>,
     owners: BTreeMap<TermId, String>,
+    deadline: CommandDeadline,
+    /// When each running command is killed. Looked at on every terminal call, since nothing else
+    /// here runs between calls.
+    due: BTreeMap<TermId, Instant>,
 }
+
+/// How often a wait for a command with a deadline looks at the clock.
+const WAIT_STEP: Duration = Duration::from_millis(25);
 
 fn out(value: &impl Serialize) -> Result<Value, Error> {
     serde_json::to_value(value).map_err(|_| fault::internal("could not answer"))
@@ -64,6 +73,46 @@ impl<S: Sandbox> Terminals<S> {
         Self {
             shell: Shell::with_network(sandbox, network),
             owners: BTreeMap::new(),
+            deadline: CommandDeadline::DEFAULT,
+            due: BTreeMap::new(),
+        }
+    }
+
+    /// Commands started from now on are killed `deadline` after they start.
+    pub fn set_deadline(&mut self, deadline: CommandDeadline) {
+        self.deadline = deadline;
+    }
+
+    /// Kills every command still running past its deadline.
+    fn reap(&mut self) {
+        let now = Instant::now();
+        let late: Vec<TermId> = self
+            .due
+            .iter()
+            .filter(|(_, due)| **due <= now)
+            .map(|(id, _)| *id)
+            .collect();
+        for id in late {
+            self.due.remove(&id);
+            // A command that already ended is left alone; a kill that finds no terminal is a
+            // terminal released meanwhile.
+            if self.shell.output(id).is_ok_and(|snap| snap.exit.is_none()) {
+                let _ = self.shell.kill(id);
+            }
+        }
+    }
+
+    /// The exit of `id`, waiting for it, but never past its deadline: then it is killed.
+    fn wait_until_due(&mut self, id: TermId) -> Result<ExitReport, ShellFault> {
+        loop {
+            self.reap();
+            if let Some(report) = self.shell.output(id)?.exit {
+                return Ok(report);
+            }
+            let Some(due) = self.due.get(&id).copied() else {
+                return self.shell.wait(id);
+            };
+            std::thread::sleep(due.saturating_duration_since(Instant::now()).min(WAIT_STEP));
         }
     }
 
@@ -89,6 +138,7 @@ impl<S: Sandbox> Terminals<S> {
     /// Answers one `terminal/*` request other than `create` (which needs the session's scope and
     /// the router's yes: `create`); `None` for any other method.
     pub fn handle(&mut self, method: &str, params: Value) -> Option<Result<Value, Error>> {
+        self.reap();
         let names = CLIENT_METHOD_NAMES;
         let answer = match method {
             m if m == names.terminal_output => self.output(params),
@@ -141,6 +191,7 @@ impl<S: Sandbox> Terminals<S> {
     }
 
     fn start(&mut self, asked: &CreateTerminalRequest, cwd: &AbsPath) -> Result<Value, Error> {
+        self.reap();
         let argv = Argv::new(&asked.command, &asked.args)
             .ok_or_else(|| fault::invalid("the command is empty or holds a NUL"))?;
         // We never run unsandboxed: a command that cannot be confined is refused here, with the
@@ -163,6 +214,7 @@ impl<S: Sandbox> Terminals<S> {
         };
         let id = self.shell.create(&launch).map_err(|f| shell_error(&f))?;
         self.owners.insert(id, asked.session_id.0.to_string());
+        self.due.insert(id, Instant::now() + self.deadline.limit());
         out(&CreateTerminalResponse::new(TerminalId::new(format!(
             "term-{}",
             id.0
@@ -181,13 +233,14 @@ impl<S: Sandbox> Terminals<S> {
     fn wait(&mut self, params: Value) -> Result<Value, Error> {
         let asked: WaitForTerminalExitRequest = fault::params(params)?;
         let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
-        let report = self.shell.wait(id).map_err(|f| shell_error(&f))?;
+        let report = self.wait_until_due(id).map_err(|f| shell_error(&f))?;
         out(&WaitForTerminalExitResponse::new(exit_status(report)))
     }
 
     /// `terminal/wait_for_exit` without blocking: the answer if the command has ended, `None`
     /// while it runs. A host that cannot block polls this.
     pub fn poll_wait(&mut self, params: Value) -> Result<Option<Value>, Error> {
+        self.reap();
         let asked: WaitForTerminalExitRequest = fault::params(params)?;
         let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
         let snap = self.shell.output(id).map_err(|f| shell_error(&f))?;
@@ -208,6 +261,7 @@ impl<S: Sandbox> Terminals<S> {
         let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
         self.shell.release(id).map_err(|f| shell_error(&f))?;
         self.owners.remove(&id);
+        self.due.remove(&id);
         out(&ReleaseTerminalResponse::new())
     }
 }

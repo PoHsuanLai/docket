@@ -121,7 +121,9 @@ pub async fn host<A: Accounts + 'static>(
     let agent_network = file
         .get(&program)
         .map_or(NetworkMode::Host, |entry| entry.network);
-    let performer = Performer::new(OsFiles, bwrap).with_agent_network(agent_network);
+    let performer = Performer::new(OsFiles, bwrap)
+        .with_agent_network(agent_network)
+        .with_command_deadline(docket_acp::CommandDeadline::DEFAULT);
     let manifest: ValidManifest =
         docket_router::parse(MANIFEST).map_err(|e| format!("the agent manifest: {e}"))?;
     let quiet = Quiet(docket_core::acp_agent_app().ok_or("no app name for the agent host")?);

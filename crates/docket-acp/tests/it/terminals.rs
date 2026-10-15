@@ -3,7 +3,7 @@
 
 use bulkhead::CannotSandbox;
 use bulkhead::fake::{FakeSandbox, Fate, Script, Seen};
-use docket_acp::Terminals;
+use docket_acp::{CommandDeadline, Terminals};
 use docket_core::AbsPath;
 use serde_json::{Value, json};
 
@@ -263,4 +263,27 @@ async fn other_methods_are_not_ours() {
         b.terminals.handle("terminal/create", json!({})).is_none(),
         "create needs the session's scope, and the router's yes: it is not a plain method"
     );
+}
+
+#[tokio::test]
+async fn a_command_past_its_deadline_is_killed_and_its_terminal_stays_readable() {
+    let mut b = bench(vec![Script::hangs("tick\n")]);
+    b.terminals
+        .set_deadline(CommandDeadline::new(std::time::Duration::ZERO));
+    let id = b
+        .create("sleep", &["99"], "/work/app")
+        .await
+        .expect("created");
+    let waited = b
+        .on(
+            "terminal/wait_for_exit",
+            &id,
+            "WaitForTerminalExitRequest",
+            "WaitForTerminalExitResponse",
+        )
+        .await
+        .expect("wait");
+    assert_eq!(waited["signal"], "KILL");
+    assert_eq!(b.seen.fates(), [Fate::Killed]);
+    assert_eq!(b.output(&id).await["output"], "tick\n");
 }

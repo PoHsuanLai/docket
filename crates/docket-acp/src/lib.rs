@@ -20,6 +20,7 @@
 pub mod bulk;
 mod calls;
 pub mod client;
+mod command_deadline;
 mod covered;
 mod expose;
 mod fault;
@@ -39,6 +40,7 @@ mod turn;
 mod wire;
 
 pub use calls::{Outcome, outcome};
+pub use command_deadline::CommandDeadline;
 pub use covered::Covered;
 pub use expose::{Permit, Refusal};
 pub use history::rfc3339;
