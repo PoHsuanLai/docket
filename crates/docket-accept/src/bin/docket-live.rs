@@ -19,8 +19,8 @@ use docket_accept::live::{catalog, regress};
 use docket_accept::world::ModelSource;
 use docket_core::{Millis, ShadowMode};
 use docket_eval::{
-    AttackCase, AttackMetrics, Case, Corpus, PlannerCase, RunNote, RunReport, load_all,
-    load_attacks, load_planner_cases, score_traces,
+    AttackCase, AttackMetrics, AttackSummary, Case, Corpus, PlannerCase, RunNote, RunReport,
+    load_all, load_attacks, load_planner_cases, score_traces,
 };
 use std::process::ExitCode;
 use std::time::Duration;
@@ -158,6 +158,22 @@ fn corpus_agent(args: &CorpusArgs, spec: &AcpSpec) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
+/// Keeps the attack suite's numbers of this run under `dir`, named by day and commit.
+fn write_attack_summary(
+    args: &CorpusArgs,
+    outcomes: &[docket_accept::live::CorpusOutcome],
+    dir: &std::path::Path,
+) -> Result<(), String> {
+    let Some(metrics) = outcomes.iter().find_map(|o| o.report.attack.clone()) else {
+        return Err("--attack-summary: this run played no attacks (--corpus attacks)".to_owned());
+    };
+    let summary = AttackSummary::stamp(args.engine.slug(), metrics, &args.eval_dir)
+        .map_err(|e| e.to_string())?;
+    let path = summary.write_to(dir).map_err(|e| e.to_string())?;
+    eprintln!("docket-live: attack summary written to {}", path.display());
+    Ok(())
+}
+
 async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
     say_reach(args.engine);
     say_agent(&args.agent);
@@ -245,6 +261,9 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
     if let Some(path) = &args.report {
         std::fs::write(path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
         eprintln!("docket-live: report written to {}", path.display());
+    }
+    if let Some(dir) = &args.attack_summary {
+        write_attack_summary(&args, &outcomes, dir)?;
     }
     for outcome in &outcomes {
         eprintln!(

@@ -64,6 +64,9 @@ pub struct CorpusArgs {
     pub agent: Agent,
     /// Whether to run the shadow flagger beside the quick judge and report it.
     pub shadow: ShadowMode,
+    /// Where to write the attack suite's per-commit JSON summary (`eval/results`), when the run
+    /// played the attacks (`--corpus attacks`).
+    pub attack_summary: Option<PathBuf>,
 }
 
 /// `docket-live smoke`.
@@ -161,6 +164,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let mut repeat: Option<u32> = None;
     let mut agent_word = None;
     let mut shadow = ShadowMode::Off;
+    let mut attack_summary: Option<PathBuf> = None;
     let mut acp = AcpFlags::default();
     while let Some(flag) = words.0.next() {
         match flag.as_str() {
@@ -187,6 +191,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             "--repeat" => repeat = Some(number(flag, words.value(flag)?)?),
             "--fnr-max-permille" => fnr = Some(number(flag, words.value(flag)?)?),
             "--shadow" => shadow = ShadowMode::Record,
+            "--attack-summary" => attack_summary = Some(PathBuf::from(words.value(flag)?)),
             "--patience-s" => patience = number(flag, words.value(flag)?)?,
             other => return Err(UsageError::Unknown(other.to_owned())),
         }
@@ -226,6 +231,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             catalog,
             agent,
             shadow,
+            attack_summary,
         })),
         "smoke" => Ok(Command::Smoke(SmokeArgs {
             engine,

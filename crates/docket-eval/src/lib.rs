@@ -7,6 +7,7 @@
 
 mod attack;
 mod attack_score;
+mod attack_summary;
 mod block;
 mod case;
 mod cassette;
@@ -31,6 +32,10 @@ pub use attack::{
 pub use attack_score::{
     AttackMetrics, AttackScore, GoalOutcome, StyleRates, Utility, run_attacks, score_endings,
     score_traces,
+};
+pub use attack_summary::{
+    AttackSummary, Comparison, FAKE_ENGINE, Significance, SummaryError, Verdict, short_commit,
+    today, utc_date,
 };
 pub use case::{
     ArgFrom, Case, CaseId, ConsentFixture, Corpus, Driver, Expect, FixtureContact, FixtureFile,

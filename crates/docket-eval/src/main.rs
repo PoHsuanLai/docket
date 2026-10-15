@@ -5,11 +5,13 @@
 //! `intents` directory beside a `skills` directory) or in a `--manifests` directory. Exit 0 when it conforms, 1 when it does not, 2 when the
 //! command line or a directory is wrong.
 
+mod attack_cli;
+
 use docket_eval::{CheckError, CheckReport, check_app, check_skills};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-const USAGE: &str = "usage: docket-eval --check-app <repository dir>\n       docket-eval --check-skills <dir>... [--manifests <dir>]...\n";
+const USAGE: &str = "usage: docket-eval --check-app <repository dir>\n       docket-eval --check-skills <dir>... [--manifests <dir>]...\n       docket-eval --attacks <eval dir> [--summary-dir <dir>] [--commit <sha>] [--date <day>]\n       docket-eval --attack-diff <before.json> <after.json>\n";
 
 /// The directories to check and the extra manifest directories, from what follows
 /// `--check-skills`. `None` when no directory is named or `--manifests` has no value.
@@ -30,6 +32,10 @@ fn skill_args(words: &[String]) -> Option<(Vec<PathBuf>, Vec<PathBuf>)> {
 fn main() -> ExitCode {
     let words: Vec<String> = std::env::args().skip(1).collect();
     let (what, checked) = match words.split_first() {
+        Some((flag, rest)) if flag == "--attacks" => return attack_cli::attacks(rest, USAGE),
+        Some((flag, [before, after])) if flag == "--attack-diff" => {
+            return attack_cli::diff(&PathBuf::from(before), &PathBuf::from(after));
+        }
         Some((flag, [dir])) if flag == "--check-app" => {
             ("cli.md section 6", check_app(&PathBuf::from(dir)))
         }

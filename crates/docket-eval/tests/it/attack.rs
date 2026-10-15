@@ -348,3 +348,108 @@ fn traced_runs_score_the_same_as_direct_ones() {
         "an attack with one of its two cases missing was not run"
     );
 }
+
+#[test]
+fn utc_date_table() {
+    for (secs, want) in [
+        (0, "1970-01-01"),
+        (951_782_400, "2000-02-29"),
+        (1_000_000_000, "2001-09-09"),
+        (1_709_251_199, "2024-02-29"),
+        (1_792_022_400, "2026-10-15"),
+        (1_798_761_599, "2026-12-31"),
+    ] {
+        assert_eq!(utc_date(secs), want, "{secs}");
+    }
+}
+
+fn summary(engine: &str, reached: &[&str], of: usize) -> AttackSummary {
+    let scores: Vec<AttackScore> = (0..of)
+        .map(|i| {
+            let id = format!("a{i}");
+            let goal = match reached.contains(&id.as_str()) {
+                true => GoalOutcome::Reached,
+                false => GoalOutcome::Held,
+            };
+            score(&id, AttackStyle::IgnorePrevious, goal, None)
+        })
+        .collect();
+    AttackSummary {
+        date: "2026-10-15".into(),
+        commit: "abc1234".into(),
+        engine: engine.into(),
+        metrics: AttackMetrics::from_scores(&scores),
+    }
+}
+
+#[test]
+fn a_summary_is_named_by_day_and_commit_and_reads_back() {
+    let dir = tempfile::tempdir().expect("dir");
+    let fake = summary(FAKE_ENGINE, &[], 28);
+    let path = fake.write_to(&dir.path().join("results")).expect("write");
+    assert_eq!(
+        path.file_name().and_then(|n| n.to_str()),
+        Some("2026-10-15-abc1234.json")
+    );
+    assert_eq!(AttackSummary::read(&path).expect("read"), fake);
+    let live = summary("local", &[], 28);
+    assert_eq!(
+        live.file_name().expect("name"),
+        "2026-10-15-abc1234-local.json"
+    );
+    let mut odd = fake.clone();
+    odd.commit = "../abc".into();
+    assert!(matches!(odd.file_name(), Err(SummaryError::Name(_))));
+}
+
+#[test]
+fn the_diff_flags_a_rise_in_attack_success() {
+    let table = [
+        (
+            "no change",
+            summary(FAKE_ENGINE, &[], 28),
+            summary(FAKE_ENGINE, &[], 28),
+            Verdict::Held,
+            vec![],
+        ),
+        (
+            "one attack gets through: a rise, within noise at 28",
+            summary(FAKE_ENGINE, &[], 28),
+            summary(FAKE_ENGINE, &["a3"], 28),
+            Verdict::Rose,
+            vec!["a3".to_owned()],
+        ),
+        (
+            "another attack gets through at the same rate: still flagged",
+            summary(FAKE_ENGINE, &["a1"], 28),
+            summary(FAKE_ENGINE, &["a2"], 28),
+            Verdict::Rose,
+            vec!["a2".to_owned()],
+        ),
+        (
+            "a hole closes",
+            summary(FAKE_ENGINE, &["a1"], 28),
+            summary(FAKE_ENGINE, &[], 28),
+            Verdict::Held,
+            vec![],
+        ),
+    ];
+    for (name, before, after, want, newly) in table {
+        let got = Comparison::of(before, after);
+        assert_eq!(got.verdict(), want, "case: {name}");
+        assert_eq!(got.newly_reached, newly, "case: {name}");
+    }
+    let ten: Vec<String> = (0..10).map(|i| format!("a{i}")).collect();
+    let ten: Vec<&str> = ten.iter().map(String::as_str).collect();
+    let big = Comparison::of(
+        summary(FAKE_ENGINE, &[], 28),
+        summary(FAKE_ENGINE, &ten, 28),
+    );
+    assert_eq!(big.significance(), Significance::Clear);
+    let small = Comparison::of(
+        summary(FAKE_ENGINE, &[], 28),
+        summary(FAKE_ENGINE, &["a0"], 28),
+    );
+    assert_eq!(small.significance(), Significance::WithinNoise);
+    assert!(big.render().contains("ROSE (clearly"), "{}", big.render());
+}
