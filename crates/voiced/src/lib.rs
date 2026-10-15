@@ -45,7 +45,7 @@ pub use peer::Peers;
 #[cfg(feature = "pipewire")]
 pub use pipewire_device::PipeWireDevice;
 pub use playback::{EARCON_RATE, earcon_samples};
-pub use serve::{Running, Seams, serve, start};
+pub use serve::{Running, Seams, ServeError, serve, start, supervise};
 pub use usage::{FileUse, FixedUse, UseSource, use_of_settings};
 pub use voice_dbus::{
     SPEECH_PREFIX, SpeechProxy, UTTERANCE_PREFIX, UtteranceProxy, VOICE_BUS, VOICE_PATH,

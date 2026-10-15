@@ -50,16 +50,50 @@ impl Running {
         &self.connection
     }
 
-    /// Serves until the bus closes.
-    pub async fn wait(self) {
+    /// Serves until the bus closes. A loop that panics or ends first is an error: the name would
+    /// otherwise stay owned by a daemon that answers every call with `Gone`.
+    pub async fn wait(self) -> Result<(), ServeError> {
         let mut messages = zbus::MessageStream::from(&self.connection);
-        while messages.next().await.is_some() {}
-        self.task.abort();
+        let closed = async { while messages.next().await.is_some() {} };
+        supervise(self.task, closed).await
     }
 
     /// Stops the loop now.
     pub fn stop(self) {
         self.task.abort();
+    }
+}
+
+/// Why serving stopped other than the bus closing.
+#[derive(Debug, thiserror::Error)]
+pub enum ServeError {
+    /// The bus failed.
+    #[error("bus: {0}")]
+    Bus(#[from] zbus::Error),
+    /// The daemon's loop panicked.
+    #[error("the voice loop panicked")]
+    LoopPanicked,
+    /// The daemon's loop ended while the bus was open.
+    #[error("the voice loop ended")]
+    LoopEnded,
+}
+
+/// Waits for `closed` (the bus going away) while watching the loop's `task`: the task ending
+/// first, by panic or not, is the error; `closed` first stops the task and is `Ok`.
+pub async fn supervise(
+    mut task: tokio::task::JoinHandle<()>,
+    closed: impl std::future::Future<Output = ()>,
+) -> Result<(), ServeError> {
+    let abort = task.abort_handle();
+    tokio::select! {
+        () = closed => {
+            abort.abort();
+            Ok(())
+        }
+        ended = &mut task => match ended {
+            Err(error) if error.is_panic() => Err(ServeError::LoopPanicked),
+            Ok(()) | Err(_) => Err(ServeError::LoopEnded),
+        },
     }
 }
 
@@ -133,12 +167,12 @@ where
 /// Serves `org.quire.Voice1` on the session bus over a device: registers the three
 /// interfaces, derives each caller's role from the connection, runs `voice-loop` and talks to
 /// inferd through porter-client. `usage` is where the person's voice settings are read. Returns
-/// when the bus closes.
+/// when the bus closes, or with an error if the loop dies first.
 pub async fn serve<D: AudioDevice + 'static>(
     config: VoicedConfig,
     device: D,
     usage: FileUse,
-) -> Result<(), zbus::Error> {
+) -> Result<(), ServeError> {
     let connection = zbus::Connection::session().await?;
     let seams = Seams {
         device,
@@ -147,6 +181,5 @@ pub async fn serve<D: AudioDevice + 'static>(
         usage,
         proc_root: PathBuf::from("/proc"),
     };
-    start(connection, config, seams).await?.wait().await;
-    Ok(())
+    start(connection, config, seams).await?.wait().await
 }

@@ -10,6 +10,10 @@ Description=Quire voice daemon (org.quire.Voice1)
 Type=dbus
 BusName=org.quire.Voice1
 ExecStart=/usr/libexec/quire/voiced --config /etc/quire/voiced.toml
+# A panic in the voice loop ends the process with a failure (the daemon joins its loop), and
+# systemd starts it again; a clean exit (the bus closing with the session) is not restarted.
+Restart=on-failure
+RestartSec=2
 
 # --- Sandbox ---
 # Only Unix sockets: the PipeWire socket and the session bus. Nothing can reach the network, so

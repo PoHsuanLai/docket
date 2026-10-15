@@ -562,3 +562,22 @@ async fn dictation_runs_in_process_over_the_device_seam_with_no_bus() {
     let sent = audio_frames(&seen.frames_of(0));
     assert_eq!(sent, [(0, 512), (512, 512), (1024, 512), (1536, 512)]);
 }
+
+#[tokio::test]
+async fn a_panic_in_the_loop_is_an_error_not_a_silent_daemon() {
+    let panicked = tokio::spawn(async { panic!("the loop broke") });
+    let outcome = voiced::supervise(panicked, std::future::pending()).await;
+    assert!(
+        matches!(outcome, Err(voiced::ServeError::LoopPanicked)),
+        "{outcome:?}"
+    );
+    let ended = tokio::spawn(async {});
+    let outcome = voiced::supervise(ended, std::future::pending()).await;
+    assert!(
+        matches!(outcome, Err(voiced::ServeError::LoopEnded)),
+        "{outcome:?}"
+    );
+    let running = tokio::spawn(std::future::pending::<()>());
+    let outcome = voiced::supervise(running, std::future::ready(())).await;
+    assert!(outcome.is_ok(), "the bus closing is a clean end");
+}
