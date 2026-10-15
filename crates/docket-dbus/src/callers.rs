@@ -9,12 +9,17 @@
 //! ([`read_table`]). Only the system's file can give a fixed role (`sheet_host`, `cua`, ...), and
 //! a scope row is never more than a plain app, so the shell is `sill.service` and nothing else.
 //!
-//! A test names the callers of its private bus with [`Identity::introduce`] (feature `testing`),
-//! because every connection of a test is one process, and reads a fake proc root for the rest.
+//! A test (or a host that knows its own clients) names the callers of its private bus with
+//! [`Identity::introduce_app`], because every connection of a test is one process; the rest are
+//! read from a fake proc root. No daemon's main introduces anyone: there is no switch, in a cargo
+//! feature or an environment variable, that does it for a shipped binary.
 
 use crate::BusConnection;
-use porter_dbus::{Caller, CallerRole, CallerTable, Callers, ProcCallers};
-pub use porter_dbus::{CallerFileError, load_callers, table_from_toml};
+use porter_dbus::ProcCallers;
+pub use porter_dbus::{
+    Caller, CallerFileError, CallerRole as Role, CallerTable, Callers, load_callers,
+    table_from_toml,
+};
 use std::path::{Path, PathBuf};
 use zbus::fdo;
 
@@ -46,6 +51,16 @@ pub fn read_table(
     )
 }
 
+/// As [`read_table`], with the system's file at `system` instead of under `/etc/quire`: the
+/// acceptance harness is its own system, and a fixed role comes from no other file.
+pub fn read_table_at(
+    system: &Path,
+    file: &str,
+    env: &impl Fn(&str) -> Option<String>,
+) -> Result<CallerTable, CallerFileError> {
+    load_callers(system, &config_home(env).join("quire").join(file))
+}
+
 /// What a method asks of its caller: the app its row names and the role the system's table gives
 /// it. Both: a row cannot make an app the router by naming it, and an app scope that is called
 /// like the router is only a plain app.
@@ -54,12 +69,12 @@ pub struct Standing {
     /// The app of the caller's row.
     pub app: &'static str,
     /// The role of the caller's row.
-    pub role: CallerRole,
+    pub role: Role,
 }
 
 impl Standing {
     /// The standing of `role` in the app `app`.
-    pub const fn new(app: &'static str, role: CallerRole) -> Self {
+    pub const fn new(app: &'static str, role: Role) -> Self {
         Self { app, role }
     }
 
@@ -70,15 +85,20 @@ impl Standing {
 }
 
 /// intentd, the router: the `agent` role of the app `org.quire.Intents`.
-pub const INTENTD: Standing = Standing::new("org.quire.Intents", CallerRole::Agent);
+pub const INTENTD: Standing = Standing::new("org.quire.Intents", Role::Agent);
 /// sill, the shell and the sheet host: the `sheet_host` role of the app `org.quire.Shell`.
-pub const SHELL: Standing = Standing::new("org.quire.Shell", CallerRole::SheetHost);
+pub const SHELL: Standing = Standing::new("org.quire.Shell", Role::SheetHost);
 
 /// The table of a process that answers intentd alone and reads no file: one row, intentd's unit.
 /// An app serving `IntentProvider1` has no `/etc/quire` file of its own to keep, and the router is
 /// the same on every machine.
 pub const INTENTD_ONLY: &str =
     "[[caller]]\napp = \"org.quire.Intents\"\nunit = \"intentd.service\"\nrole = \"agent\"\n";
+
+/// The table of [`INTENTD_ONLY`]: one row, intentd's unit.
+pub fn intentd_only() -> CallerTable {
+    table_from_toml(INTENTD_ONLY).unwrap_or_default()
+}
 
 /// Why a caller was refused.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -119,7 +139,6 @@ pub async fn require(
 #[derive(Debug)]
 pub struct Identity {
     procs: ProcCallers,
-    #[cfg(feature = "testing")]
     introduced: std::sync::Mutex<std::collections::BTreeMap<String, Caller>>,
 }
 
@@ -147,13 +166,25 @@ impl Identity {
     fn over(procs: ProcCallers) -> Self {
         Self {
             procs,
-            #[cfg(feature = "testing")]
             introduced: std::sync::Mutex::default(),
         }
     }
 
+    /// Says that the connection `connection` is the app `app` with `role`, ahead of what `/proc`
+    /// says: a test's stand-in for the unit or scope its process would be in.
+    pub fn introduce_app(&self, connection: &BusConnection, app: &str, role: Role) {
+        use porter_core::{AppId, AppName, Isolation};
+        let (Some(unique), Ok(name)) = (connection.unique_name(), AppName::parse(app)) else {
+            return;
+        };
+        let app = AppId {
+            name,
+            isolation: Isolation::Unsandboxed,
+        };
+        self.introduce(unique.as_str(), Caller { app, role });
+    }
+
     /// Says that the connection `unique` is `caller`, ahead of what `/proc` says.
-    #[cfg(feature = "testing")]
     pub fn introduce(&self, unique: &str, caller: Caller) {
         self.introduced
             .lock()
@@ -164,18 +195,15 @@ impl Identity {
 
 impl Callers for Identity {
     async fn caller_of(&self, sender: &str) -> Option<Caller> {
-        #[cfg(feature = "testing")]
-        {
-            let told = self
-                .introduced
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .get(sender)
-                .cloned();
-            if told.is_some() {
-                return told;
-            }
+        let told = self
+            .introduced
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(sender)
+            .cloned();
+        match told {
+            Some(caller) => Some(caller),
+            None => self.procs.caller_of(sender).await,
         }
-        self.procs.caller_of(sender).await
     }
 }

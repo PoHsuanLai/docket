@@ -13,7 +13,7 @@ docket-core = { workspace = true }
 prov = { workspace = true }
 porter-dbus = { workspace = true, features = ["callers-file"] }
 porter-client = { workspace = true, features = ["dbus"], optional = true }
-porter-core = { workspace = true, optional = true }
+porter-core = { workspace = true }
 porter-infer = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
@@ -22,12 +22,9 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 [features]
-# `Identity::introduce`: a test names the caller behind a connection of its private bus, since every
-# connection of a test is one process. Never on in a shipped build.
-testing = []
 # `inferd_transport`: the one place a daemon makes its inferd link (intentd, companiond, readerd),
 # and the tap on it that a live run turns on (`tap`).
-inferd = ["dep:porter-client", "dep:porter-core", "dep:porter-infer", "dep:serde", "dep:serde_json"]
+inferd = ["dep:porter-client", "dep:porter-infer", "dep:serde", "dep:serde_json"]
 
 [lints]
 workspace = true
