@@ -18,6 +18,9 @@ fn main() -> ExitCode {
     let seams = companiond::HarnessSeams {
         proc_root: docket_accept::seams::proc_root(docket_accept::seams::COMPANIOND_PROC_ROOT_VAR)
             .unwrap_or(defaults.proc_root),
+        system_callers: docket_accept::seams::system_callers(
+            docket_accept::seams::COMPANIOND_SYSTEM_CALLERS_VAR,
+        ),
         trace: docket_accept::seams::trace(),
     };
     match runtime.block_on(companiond::run_with(seams)) {

@@ -20,7 +20,17 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(docket_acp_bin::serve(permit, docket_accept::seams::trace())) {
+    let seams = docket_acp_bin::HarnessSeams {
+        proc_root: docket_accept::seams::proc_root(docket_accept::seams::ACP_PROC_ROOT_VAR),
+        system_callers: docket_accept::seams::system_callers(
+            docket_accept::seams::ACP_SYSTEM_CALLERS_VAR,
+        ),
+    };
+    match runtime.block_on(docket_acp_bin::serve_with(
+        permit,
+        docket_accept::seams::trace(),
+        seams,
+    )) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("docket-acp: {why}");

@@ -6,7 +6,7 @@
 
 use crate::support::*;
 use docket_accept::drive::{Launcher, keep_nothing};
-use docket_accept::world::{Consent, World};
+use docket_accept::world::{Consent, World, as_app};
 use docket_client::{DbusTransport, Intents};
 use docket_core::{
     ActionRef, CallRequest, CheckpointId, CheckpointRow, Origin, Preview, Rewind, SavedState,
@@ -231,24 +231,25 @@ async fn a_turn_saves_a_point_and_the_person_restores_it_after_the_plan_and_the_
     std::fs::create_dir_all(&pane).expect("pane folder");
     git_init(&pane, world.dir.path());
     std::fs::write(pane.join("code.txt"), "before").expect("write");
+    // The harness is one process: it stands in as the terminal's app for these calls.
     let terminal = world.connect().await;
-    terminal
-        .request_name("org.quire.Temor")
-        .await
-        .expect("the terminal's name");
     let temor = Intents::over(DbusTransport::new(terminal));
-    let watched = temor
-        .checkpoint_watch(
-            Workspace::parse(&pane.to_string_lossy()).expect("workspace"),
-            "claude in pane 2".into(),
-            Rewind::Docket,
-        )
-        .await
-        .expect("Checkpoint.Watch");
-    let marked = temor
-        .checkpoint_mark(watched.clone())
-        .await
-        .expect("Checkpoint.Mark");
+    let (watched, marked) = as_app(&world, "org.quire.Temor", async {
+        let watched = temor
+            .checkpoint_watch(
+                Workspace::parse(&pane.to_string_lossy()).expect("workspace"),
+                "claude in pane 2".into(),
+                Rewind::Docket,
+            )
+            .await
+            .expect("Checkpoint.Watch");
+        let marked = temor
+            .checkpoint_mark(watched.clone())
+            .await
+            .expect("Checkpoint.Mark");
+        (watched, marked)
+    })
+    .await;
     let list = launcher
         .intents
         .checkpoint_list(watched.clone())
@@ -270,10 +271,13 @@ async fn a_turn_saves_a_point_and_the_person_restores_it_after_the_plan_and_the_
     assert_eq!(list.turn, TurnState::Running);
 
     std::fs::write(pane.join("code.txt"), "after").expect("write");
-    temor
-        .session_turn_ended(watched.clone(), marked, TurnEnd::Answered)
-        .await
-        .expect("Session.TurnEnded");
+    as_app(&world, "org.quire.Temor", async {
+        temor
+            .session_turn_ended(watched.clone(), marked, TurnEnd::Answered)
+            .await
+            .expect("Session.TurnEnded");
+    })
+    .await;
     let plan = launcher
         .intents
         .checkpoint_plan(watched.clone(), CheckpointId(1))
@@ -292,8 +296,11 @@ async fn a_turn_saves_a_point_and_the_person_restores_it_after_the_plan_and_the_
         std::fs::read_to_string(pane.join("code.txt")).expect("read"),
         "before"
     );
-    temor
-        .session_close(watched)
-        .await
-        .expect("Session.Close by the terminal that opened it");
+    as_app(&world, "org.quire.Temor", async {
+        temor
+            .session_close(watched)
+            .await
+            .expect("Session.Close by the terminal that opened it");
+    })
+    .await;
 }

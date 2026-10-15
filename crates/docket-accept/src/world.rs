@@ -11,6 +11,7 @@ use crate::confirm::{self, Sheet};
 use crate::provider::{AcceptMail, AppLog, Focus, QuietWindow};
 use crate::things::{AcceptThings, App};
 use docket_core::{ConfirmRequest, ValidManifest};
+use docket_dbus::callers::Identity;
 use docket_router::parse;
 use docket_testbus::{PrivateBus, Reaped};
 use futures_util::StreamExt;
@@ -258,6 +259,12 @@ fn engine_cache() -> Vec<(&'static str, String)> {
 /// their callers from the scratch fake proc root instead of `/proc`.
 pub(crate) fn extra_env(dir: &Path, name: &str, keys: Option<&str>) -> Vec<(&'static str, String)> {
     let proc_root = dir.join("proc").display().to_string();
+    let system = |daemon: &str| {
+        dir.join("system")
+            .join(format!("{daemon}-callers.toml"))
+            .display()
+            .to_string()
+    };
     match name {
         "memoryd" => vec![
             (
@@ -265,6 +272,10 @@ pub(crate) fn extra_env(dir: &Path, name: &str, keys: Option<&str>) -> Vec<(&'st
                 format!("file:{}", dir.join("keys/memoryd.keys").display()),
             ),
             ("MEMORYD_PROC_ROOT", proc_root),
+            // The shell's `sheet_host` role is a fixed one: memoryd's table gives it from the
+            // system's file alone, never the user's. memoryd reads `/etc/quire` for that file
+            // until it honours this variable (a test build, with the fixture `/proc`).
+            ("MEMORYD_SYSTEM_CALLERS", system("memory")),
         ],
         // inferd holds the AI keys: the home's key file for a cloud run, else a file in the
         // scratch root (a build with the `test-keys` feature; see docs/live-eval.md).
@@ -281,9 +292,28 @@ pub(crate) fn extra_env(dir: &Path, name: &str, keys: Option<&str>) -> Vec<(&'st
         .into_iter()
         .chain(engine_cache())
         .collect(),
-        // intentd and companiond tell a terminal from its cgroup, read from the scratch root.
-        "intentd" => vec![(crate::seams::INTENTD_PROC_ROOT_VAR, proc_root)],
-        "companiond" => vec![(crate::seams::COMPANIOND_PROC_ROOT_VAR, proc_root)],
+        // intentd, companiond, readerd and docket-acp name their callers by the units and cgroups of
+        // the scratch root's fake proc, and read the system's callers file from the scratch
+        // root's own system directory.
+        "intentd" => vec![
+            (crate::seams::INTENTD_PROC_ROOT_VAR, proc_root),
+            (crate::seams::INTENTD_SYSTEM_CALLERS_VAR, system("intentd")),
+        ],
+        "companiond" => vec![
+            (crate::seams::COMPANIOND_PROC_ROOT_VAR, proc_root),
+            (
+                crate::seams::COMPANIOND_SYSTEM_CALLERS_VAR,
+                system("companiond"),
+            ),
+        ],
+        "readerd" => vec![
+            (crate::seams::READERD_PROC_ROOT_VAR, proc_root),
+            (crate::seams::READERD_SYSTEM_CALLERS_VAR, system("readerd")),
+        ],
+        "docket-acp" => vec![
+            (crate::seams::ACP_PROC_ROOT_VAR, proc_root),
+            (crate::seams::ACP_SYSTEM_CALLERS_VAR, system("acp")),
+        ],
         _ => Vec::new(),
     }
 }
@@ -324,6 +354,17 @@ pub fn place(root: &Path, pid: u32, cgroup: Cgroup<'_>) {
     }
 }
 
+/// Runs `work` with the harness process standing in as the app `app` (it is in the app's scope,
+/// a plain app of that name), then puts it back as the shell: every connection of the harness is
+/// one process, so who it is for the daemons is what the fake proc root says when they ask.
+pub async fn as_app<T>(world: &World, app: &str, work: impl std::future::Future<Output = T>) -> T {
+    let (root, pid) = (world.dir.path(), std::process::id());
+    place(root, pid, Cgroup::AppScope(app));
+    let done = work.await;
+    place(root, pid, Cgroup::Unit("sill"));
+    done
+}
+
 /// The pid the fake proc root names as the main process of service unit `name`, if any.
 pub fn unit_main(root: &Path, name: &str) -> Option<String> {
     std::fs::read_to_string(root.join(format!("proc/units/{name}.service"))).ok()
@@ -340,7 +381,40 @@ pub fn restore_unit(root: &Path, name: &str, main: Option<String>) {
     }
 }
 
-pub(crate) const CALLERS: &str = "[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
+pub(crate) const CALLERS: &str = "[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\", \"docket-acp.scope\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
+
+/// The shipped callers files of the daemons that read their own, by file name.
+const SYSTEM_CALLERS: [(&str, &str); 5] = [
+    ("memory-callers.toml", MEMORY_CALLERS),
+    (
+        "intentd-callers.toml",
+        include_str!("../../../dist/intentd-callers.toml"),
+    ),
+    (
+        "companiond-callers.toml",
+        include_str!("../../../dist/companiond-callers.toml"),
+    ),
+    (
+        "readerd-callers.toml",
+        include_str!("../../../dist/readerd-callers.toml"),
+    ),
+    (
+        "acp-callers.toml",
+        include_str!("../../../dist/acp-callers.toml"),
+    ),
+];
+
+/// Writes the shipped callers files into `<root>/system/`: the harness is its own system, and only
+/// the system's file can give a fixed role (the shell's `sheet_host`), so these are the daemons'
+/// system files, not the person's (`<root>/config/quire`).
+pub(crate) fn write_system_callers(root: &Path) -> std::io::Result<()> {
+    let dir = root.join("system");
+    std::fs::create_dir_all(&dir)?;
+    for (file, text) in SYSTEM_CALLERS {
+        std::fs::write(dir.join(file), text)?;
+    }
+    Ok(())
+}
 
 /// inferd's configuration. A cassette: the replay engine `scripted` playing the scratch cassette
 /// (recording its requests when `record` names a file). A live source: the owner's body as it is.
@@ -380,6 +454,11 @@ unit = "companiond.service"
 role = "agent"
 
 [[caller]]
+app = "org.quire.Acp"
+unit = "docket-acp.scope"
+role = "agent"
+
+[[caller]]
 app = "org.quire.Reader"
 unit = "readerd.service"
 role = "agent"
@@ -415,6 +494,15 @@ impl Drop for World {
             eprintln!("---- planner and reader requests (ACCEPT_RECORD)\n{text}");
         }
     }
+}
+
+/// Who the app's provider answers: the process the scratch root's fake proc has as intentd's unit.
+fn intentd_only(connection: &zbus::Connection, root: &Path) -> std::sync::Arc<Identity> {
+    std::sync::Arc::new(Identity::on_fixture(
+        connection.clone(),
+        docket_dbus::callers::intentd_only(),
+        root.join("proc"),
+    ))
 }
 
 /// Waits until `name` has an owner on the bus. Subscribes first, so an owner that appears
@@ -511,6 +599,7 @@ impl World {
             MEMORY_CALLERS,
         );
         write(&root.join("data/quire/memory/spaces.toml"), SPACES);
+        write_system_callers(root).expect("the system callers files");
         if let ModelSource::Scripted(cassette) = model {
             write(&root.join("cassette.jsonl"), cassette);
         }
@@ -580,7 +669,13 @@ impl World {
                 let mail = mail.focused(options.focus);
                 within(
                     "the mail provider to serve",
-                    docket_client::serve_on(&provider_connection, mail, quiet.clone(), quiet),
+                    docket_client::serve_on_with(
+                        &provider_connection,
+                        mail,
+                        quiet.clone(),
+                        quiet,
+                        intentd_only(&provider_connection, root),
+                    ),
                 )
                 .await
                 .expect("the mail provider serves");
@@ -590,7 +685,13 @@ impl World {
                 let (things, log) = AcceptThings::new(other, manifest, space);
                 within(
                     "the app's provider to serve",
-                    docket_client::serve_on(&provider_connection, things, quiet.clone(), quiet),
+                    docket_client::serve_on_with(
+                        &provider_connection,
+                        things,
+                        quiet.clone(),
+                        quiet,
+                        intentd_only(&provider_connection, root),
+                    ),
                 )
                 .await
                 .expect("the app's provider serves");

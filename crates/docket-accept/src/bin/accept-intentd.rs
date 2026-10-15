@@ -16,6 +16,9 @@ fn main() -> ExitCode {
     let seams = intentd::HarnessSeams {
         proc_root: docket_accept::seams::proc_root(docket_accept::seams::INTENTD_PROC_ROOT_VAR)
             .map_or(intentd::ProcRoot::System, intentd::ProcRoot::Fake),
+        system_callers: docket_accept::seams::system_callers(
+            docket_accept::seams::INTENTD_SYSTEM_CALLERS_VAR,
+        ),
         trace: docket_accept::seams::trace(),
     };
     match runtime.block_on(intentd::run_with(seams)) {

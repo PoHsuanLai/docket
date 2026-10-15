@@ -95,5 +95,6 @@ pub fn files(root: &Path, shell_pid: u32, inferd_toml: &str) -> std::io::Result<
         MEMORY_CALLERS,
     )?;
     put(&root.join("data/quire/memory/spaces.toml"), SPACES)?;
+    crate::world::write_system_callers(root)?;
     put(&root.join("config/quire/inferd.toml"), inferd_toml)
 }

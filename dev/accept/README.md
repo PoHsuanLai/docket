@@ -21,7 +21,7 @@ quoted).
 | intentd, companiond, readerd | their own `run()`, one process each (`src/bin/accept-*.rs` are the packaged mains under names that cannot collide in one target dir), `env_clear`, scratch HOME and XDG dirs, the private bus |
 | memoryd (almanac) | the packaged binary, built by `crates/docket-accept/build.rs` from `../almanac` with `--features test-keys,test-proc-root` into `<target>/accept-siblings/almanac`; `env_clear`, scratch dirs, `MEMORYD_KEYS=file:<scratch>/keys/memoryd.keys` (no Secret Service on the bus), `MEMORYD_PROC_ROOT=<scratch>/proc`; its Landlock sandbox stays ON. Callers by unit in `<config>/quire/memory-callers.toml` (intentd agent, sill sheet_host, companiond, readerd) |
 | inferd (porter) | the packaged binary, built the same way from `../porter` with `--features test-proc-root`; `INFERD_PROC_ROOT=<scratch>/proc`; `inferd.toml` in the scratch config names the replay engine `scripted` (the cassette) and the callers by unit (`[callers.apps]`: memoryd, intentd, companiond, readerd) |
-| caller identity | both daemons read the callers' `<scratch>/proc/<pid>/cgroup`, which `World` writes for each daemon it spawns (`.../app.slice/<name>.service`) and for the test process as the shell (`sill.service`); an app provider would be `.../app-<App>-1.scope` (`Cgroup::AppScope`) |
+| caller identity | every daemon reads the callers' `<scratch>/proc/<pid>/cgroup` and the unit's main pid in `<scratch>/proc/units/`, which `World` writes for each daemon it spawns (`.../app.slice/<name>.service`) and for the test process as the shell (`sill.service`, its main process); the daemons' system callers files are the shipped `dist/*-callers.toml` copied to `<scratch>/system/`; an app is `.../app-<App>-1.scope` (`Cgroup::AppScope`, `as_app`), docket-acp is `docket-acp.scope` |
 | the bus | `docket-testbus`'s `dbus-daemon`, killed by PID on drop, with a watchdog if the test dies |
 
 ## What is scripted
@@ -39,7 +39,7 @@ full view is `ACCEPT_RECORD=1`'s output.
 
 | Piece | Why | File |
 |---|---|---|
-| `org.quire.Confirm1` (sill's sheet) | owns `org.quire.Confirm1` and `org.quire.Shell`, so intentd derives sill's `confirm`, `launcher` and `control` roles from `intentd.toml` as it would for sill; answers Allow (with a receipt) or Refuse from a queue the test fills | `src/confirm.rs` |
+| `org.quire.Confirm1` (sill's sheet) | owns `org.quire.Confirm1` and `org.quire.Shell` (where intentd sends the sheet), and the test process is `sill.service`, so intentd derives sill's `confirm`, `launcher` and `control` roles from `intentd.toml` as it would for sill; answers Allow (with a receipt) or Refuse from a queue the test fills | `src/confirm.rs` |
 | `org.quire.Mail` provider | `org.quire.IntentProvider1` served with `docket_client::serve_on` for the manifest `fixtures/org.quire.Mail.toml`; holds a forward or send for an undo window like mailo | `src/provider.rs` |
 
 ## What mailo's real provider must match

@@ -97,8 +97,16 @@ async fn open(
     let permit = AgentsPermit::from_text("[agent.acp]\nagents = \"on\"\n")
         .map_err(|_| "agents are off".to_owned())?;
     let program = ProgramName::parse(&spec.program).map_err(|_| "the program name".to_owned())?;
+    let bus = world.connect().await;
     let wiring = Wiring {
-        bus: world.connect().await,
+        // The pseudo-app's provider answers the process of intentd's unit, as the world's fake
+        // proc root has it (the world places each daemon it starts).
+        callers: Arc::new(docket_dbus::callers::Identity::on_fixture(
+            bus.clone(),
+            docket_acp_bin::callers::shipped(),
+            world.dir.path().join("proc"),
+        )),
+        bus,
         accounts: Arc::new(LoginOnly),
         file: Arc::new(file),
         permit,

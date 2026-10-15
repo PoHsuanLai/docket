@@ -9,6 +9,7 @@ use docket_core::{
     Anchor, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmParts,
     ConfirmRequest, Confirmer, EditorRoute, Gesture, GrantScope, LabelText, Seconds, TaintNote,
 };
+use docket_dbus::callers::{Identity, Role};
 use docket_dbus::{CONFIRM_PATH, ConfirmProxy, INTENTS_BUS};
 use docket_inapp::EditorDesk;
 use docket_session::{SheetChoice, SheetDesk};
@@ -41,9 +42,21 @@ impl Fixture {
         let intentd = bus.connect().await;
         intentd.request_name(INTENTS_BUS).await.expect("name");
         let acp = bus.connect().await;
+        // Every connection here is this one process, so the test says who each is. The acp
+        // process answers the process its callers file names as intentd.
+        let proc = dir.path().join("proc");
+        let acp_who = Arc::new(Identity::on_fixture(
+            acp.clone(),
+            docket_acp_bin::callers::shipped(),
+            proc.clone(),
+        ));
+        acp_who.introduce_app(&intentd, "org.quire.Intents", Role::Agent);
         let desk = EditorDesk::new();
         acp.object_server()
-            .at(CONFIRM_PATH, ConfirmObject::new(desk.clone(), FixedClock))
+            .at(
+                CONFIRM_PATH,
+                ConfirmObject::new(desk.clone(), FixedClock, acp_who),
+            )
             .await
             .expect("served");
         acp.request_name(ACP).await.expect("name");
@@ -53,8 +66,16 @@ impl Fixture {
             .expect("sill");
         sill.will(Verdict::Allow);
         let config = Arc::new(IntentdConfig::shipped().expect("shipped"));
-        let proc = ProcRoot::Fake(dir.path().join("proc"));
-        let confirmer = SheetConfirmer::trusting(intentd.clone(), config).gated(gate, &proc);
+        // intentd trusts the sheet host and the editor's process by the callers table.
+        let who = Arc::new(Identity::on_fixture(
+            intentd.clone(),
+            intentd::callers::shipped(),
+            proc.clone(),
+        ));
+        who.introduce_app(&sill_connection, "org.quire.Shell", Role::SheetHost);
+        who.introduce_app(&acp, ACP, Role::Agent);
+        let confirmer = SheetConfirmer::trusting(intentd.clone(), config, who)
+            .gated(gate, &ProcRoot::Fake(proc));
         let stranger = bus.connect().await;
         Fixture {
             _dir: dir,
