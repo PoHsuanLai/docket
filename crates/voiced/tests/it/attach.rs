@@ -128,7 +128,11 @@ async fn the_attached_app_may_cancel_and_may_speak_to_its_utterance() {
     // Its own utterance: it may speak, queued behind the open mic.
     let voice = VoiceProxy::new(&app).await.expect("proxy");
     voice
-        .speak(&speak_wire(FIRST, Some("u-1")))
+        .speak(&speak_wire_as(
+            FIRST,
+            Some("u-1"),
+            porter_core::DataClass::Public,
+        ))
         .await
         .expect("speak to u-1");
     assert_eq!(
@@ -157,4 +161,8 @@ async fn the_attached_app_may_cancel_and_may_speak_to_its_utterance() {
         matches!(end, SpeechEnd::Failed(_) | SpeechEnd::Done),
         "{end:?}"
     );
+    // The app called its text Public; an app's claim never lowers the floor, so it went out as
+    // the person's own words.
+    let speech = world.seen.opens().pop().expect("a speech session opened");
+    assert_eq!(speech.class, porter_core::DataClass::Prompt);
 }

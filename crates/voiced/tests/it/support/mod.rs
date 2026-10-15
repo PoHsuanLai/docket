@@ -435,10 +435,14 @@ pub fn refusal(error: zbus::Error) -> voice_wire::VoiceRefusal {
 }
 
 pub fn speak_wire(text: &str, utterance: Option<&str>) -> String {
+    speak_wire_as(text, utterance, porter_core::DataClass::Mail)
+}
+
+pub fn speak_wire_as(text: &str, utterance: Option<&str>, class: porter_core::DataClass) -> String {
     seal(&voice_wire::SpeakWire {
         utterance: utterance.map(|u| docket_core::UtteranceId::parse(u).expect("utterance id")),
         text: voice_wire::SpokenText(text.to_owned()),
-        class: porter_core::DataClass::Mail,
+        class,
         lang: porter_core::capability::LanguageTag::parse("en").expect("language"),
     })
     .expect("seal")

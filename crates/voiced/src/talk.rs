@@ -28,6 +28,17 @@ pub(crate) const MAX_SPOKEN_BYTES: usize = 16 * 1024;
 /// How many requests may be spoken together before the next is refused as `Busy`.
 pub(crate) const MAX_ACTIVE_SPEECHES: usize = 8;
 
+/// The class a request is spoken under. The shell's word stands; an app's claim of `Public` does
+/// not (voiced has no manifest floor for the app, and a cloud voice may take `Public` text), so
+/// it is the person's own words, whose floor is this computer. Any other claim is already
+/// restrictive and stands.
+fn class_for(caller: &Caller, claimed: DataClass) -> DataClass {
+    match (caller.is_shell(), claimed) {
+        (false, DataClass::Public) => DataClass::Prompt,
+        _ => claimed,
+    }
+}
+
 /// One request to speak, as the loop holds it.
 #[derive(Debug, Clone)]
 pub(crate) struct Rec {
@@ -93,7 +104,7 @@ where
     pub(crate) async fn speak(
         &mut self,
         caller: &Caller,
-        wire: SpeakWire,
+        mut wire: SpeakWire,
     ) -> Result<String, VoiceError> {
         if !self.may_speak(caller, &wire) {
             return Err(VoiceRefusal::NotAllowed.into());
@@ -101,6 +112,7 @@ where
         if self.usage.now() == VoiceUse::Off {
             return Err(VoiceRefusal::Disabled.into());
         }
+        wire.class = class_for(caller, wire.class);
         if wire.text.0.len() > MAX_SPOKEN_BYTES {
             return Err(VoiceError::Malformed(format!(
                 "text of {} bytes (at most {MAX_SPOKEN_BYTES})",
