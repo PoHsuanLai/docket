@@ -487,7 +487,7 @@ dependencies = [
 [[package]]
 name = "bulkhead"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/bulkhead?rev=579297ef37334e166b52d64d167c8baf4c3161eb#579297ef37334e166b52d64d167c8baf4c3161eb"
+source = "git+https://github.com/PoHsuanLai/bulkhead?rev=054c9bc809eba7f284de8751fd6082d45aa6a12a#054c9bc809eba7f284de8751fd6082d45aa6a12a"
 dependencies = [
  "serde",
  "thiserror",
