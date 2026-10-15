@@ -80,6 +80,12 @@ async fn the_endpoint_route_gives_the_child_a_base_url_and_a_token_and_nothing_e
     // The sandbox: the session's directory, the program's directory and install read-only, its
     // own state read-write, and the network is the endpoint and nothing else.
     assert_eq!(run.cwd.as_str(), "/work/app");
+    let guarded: Vec<&str> = run.protect.iter().map(|p| p.as_str()).collect();
+    assert_eq!(
+        guarded,
+        ["/work/app/.git"],
+        "the workspace's .git is protected"
+    );
     let bound = |path: &str, access: Access| {
         run.binds
             .iter()
@@ -460,4 +466,36 @@ async fn no_network_mode_gives_the_agent_a_bus() {
     assert!(nets.iter().any(|n| matches!(n, AgentNet::Endpoint(_))));
     assert!(nets.contains(&AgentNet::Host));
     assert!(nets.contains(&AgentNet::None));
+}
+
+/// Every `.git` in the writable workspace (its own and a nested one) is bound read-only after the
+/// workspace is bound writable, so the agent cannot plant a hook that runs outside.
+#[tokio::test]
+async fn every_git_directory_in_the_workspace_is_read_only_over_the_writable_bind() {
+    let mut rig = rig(LOGIN, Mood::Working, true);
+    let work = rig.dir.path().join("proj");
+    std::fs::create_dir_all(work.join(".git")).expect("git");
+    std::fs::create_dir_all(work.join("vendor/lib/.git")).expect("nested git");
+    let mut with_cwd = plan("claude-code", "s-9");
+    with_cwd.cwd = super::support::abs(work.to_str().expect("utf8"));
+    let mut spawned = rig.spawn.spawn(&with_cwd).await.expect("spawned");
+    let run = rig.procs.runs()[0].clone();
+    let args = agent_bwrap_args(&run, &Profile::bare());
+    let cwd = work.to_str().expect("utf8");
+    let writable = args
+        .windows(3)
+        .position(|w| w == ["--bind", cwd, cwd])
+        .expect("the workspace is writable");
+    for git in [work.join(".git"), work.join("vendor/lib/.git")] {
+        let git = git.to_str().expect("utf8");
+        let layered = args
+            .windows(3)
+            .position(|w| w == ["--ro-bind", git, git])
+            .unwrap_or_else(|| panic!("{git} is read-only: {args:?}"));
+        assert!(
+            layered > writable,
+            "{git} is layered over the writable bind"
+        );
+    }
+    spawned.child.close().await;
 }

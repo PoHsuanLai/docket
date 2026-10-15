@@ -27,6 +27,7 @@ pub mod managed;
 mod names;
 mod permit;
 pub mod procs;
+mod protect;
 pub mod spawn;
 pub mod supervise;
 

@@ -19,6 +19,7 @@ use crate::env::{Lent, child_env};
 use crate::names::launcher_session;
 use crate::permit::AgentsPermit;
 use crate::procs::{Proc, Procs};
+use crate::protect;
 use bulkhead::forward::{Bridge, Loopback};
 use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
 use docket_acp::bulk;
@@ -154,6 +155,7 @@ pub struct AgentSpawn<A: Accounts + 'static, P: Procs> {
     run_dir: PathBuf,
     forwarder: AbsPath,
     registry: Registry<P::Proc>,
+    protected: Vec<AbsPath>,
 }
 
 impl<A: Accounts + 'static, P: Procs> std::fmt::Debug for AgentSpawn<A, P> {
@@ -183,7 +185,17 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             run_dir,
             forwarder,
             registry,
+            protected: Vec::new(),
         }
+    }
+
+    /// Paths kept read-only wherever they fall inside an agent's writable workspace, on top of
+    /// every `.git` directory (always protected): the checkpoint repository, say. A path
+    /// outside the workspace is not the agent's to write anyway and is ignored.
+    #[must_use]
+    pub fn with_protected(mut self, paths: Vec<AbsPath>) -> Self {
+        self.protected = paths;
+        self
     }
 }
 
@@ -354,6 +366,23 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         AgentNet::of(NetworkMode::EndpointOnly, Some(bind)).map_err(|_| SpawnFault::Sandbox)
     }
 
+    /// `run` with every `.git` directory of the workspace, and the named extra paths that lie
+    /// in it, bound read-only over the writable workspace. A `.git` that cannot be protected
+    /// stops the start; an extra outside the workspace is not the agent's and is left out.
+    fn guarded(&self, run: AgentRun, cwd: &bulkhead::AbsPath) -> Result<AgentRun, SpawnFault> {
+        let run = protect::git_dirs(cwd)
+            .into_iter()
+            .try_fold(run, AgentRun::with_protect)
+            .map_err(|_| SpawnFault::Sandbox)?;
+        Ok(self
+            .protected
+            .iter()
+            .filter_map(|path| bulk::to_shell(path).ok())
+            .fold(run, |run, path| {
+                run.clone().with_protect(path).unwrap_or(run)
+            }))
+    }
+
     async fn launch(
         &mut self,
         entry: &Entry,
@@ -370,18 +399,20 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         };
         let built = child_env(entry, &lent).map_err(|_| SpawnFault::Sandbox)?;
         let command = entry.command.as_str();
+        let cwd = bulk::to_shell(&plan.cwd).map_err(|_| SpawnFault::Sandbox)?;
         let run = binds(entry, built.key_file.as_ref(), plan.edge.as_ref())
             .map_err(|_| SpawnFault::Sandbox)?
             .into_iter()
             .fold(
                 AgentRun::new(
                     Argv::new(command, &entry.args).ok_or(SpawnFault::Process)?,
-                    bulk::to_shell(&plan.cwd).map_err(|_| SpawnFault::Sandbox)?,
+                    cwd.clone(),
                     built.vars,
                     net,
                 ),
                 AgentRun::with_bind,
             );
+        let run = self.guarded(run, &cwd)?;
         let (wire, proc) = self
             .procs
             .start(&run)
