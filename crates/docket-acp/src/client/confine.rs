@@ -92,7 +92,8 @@ fn parts(path: &AbsPath) -> Vec<&str> {
     path.as_str().split('/').filter(|p| !p.is_empty()).collect()
 }
 
-fn secret(path: &AbsPath) -> bool {
+/// Whether `path` is, or lies in, a place that holds the person's secrets.
+pub fn is_secret(path: &AbsPath) -> bool {
     let p = parts(path);
     // `first` then every component of `rest`, in a row anywhere in the path.
     let below = |first: &str, rest: &str| {
@@ -128,7 +129,7 @@ pub fn confine(real_scope: &AbsPath, path: AbsPath, real: AbsPath) -> Result<Con
     if real_scope.covers(&real) != Cover::Covers {
         return Err(Refusal::Link);
     }
-    if secret(&path) || secret(&real) {
+    if is_secret(&path) || is_secret(&real) {
         return Err(Refusal::Secret);
     }
     let care = if care(&path) == Care::Sensitive || care(&real) == Care::Sensitive {

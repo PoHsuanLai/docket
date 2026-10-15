@@ -345,9 +345,19 @@ impl<X: Seams> AcpBackend<X> {
                 "the working directory is outside the session",
             ));
         };
+        // A directory that is a link, holds secrets or is the home folder is refused before
+        // anyone is asked; the sandbox is shown the real directory.
+        let workdir = match self.performer.workdir(&scope, &cwd) {
+            Ok(workdir) => workdir,
+            Err(why) => {
+                return self.denied(fault::invalid(&format!(
+                    "the working directory is refused: {why}"
+                )));
+            }
+        };
         // We never run unsandboxed: a command that cannot be confined is refused before anyone
         // is asked, with the reason; there is nothing for an approval to unlock.
-        if let SandboxState::Cannot(why) = self.performer.check(&cwd) {
+        if let SandboxState::Cannot(why) = self.performer.check(workdir.real()) {
             return self.denied(fault::not_now(&format!("cannot sandbox: {why}")));
         }
         let line = argv.line();

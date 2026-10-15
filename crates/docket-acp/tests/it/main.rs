@@ -5,6 +5,7 @@ mod session;
 mod sheets;
 mod support;
 mod terminals;
+mod workdir;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its
 /// own, and a `tests/it/` file or directory without a `mod` line would never run.

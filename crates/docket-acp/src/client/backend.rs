@@ -209,6 +209,12 @@ impl<X: Seams> AcpBackend<X> {
         cwd: AbsPath,
         taint: Taint,
     ) -> Result<(), BackendFault> {
+        // The agent's writable folder is confined like a terminal's: no link on the way, not the
+        // home folder, no place of secrets. The sandbox is given the real directory.
+        let workdir = self
+            .performer
+            .workdir(&cwd, &cwd)
+            .map_err(|_| BackendFault::Unavailable)?;
         // The edge is made first: the launcher binds its socket into the sandbox. A host that
         // offers none, or one that cannot make it, runs the agent with its own tools and ours.
         let made = self
@@ -220,7 +226,7 @@ impl<X: Seams> AcpBackend<X> {
         let plan = LaunchPlan {
             program: self.program.clone(),
             session: session.clone(),
-            cwd: cwd.clone(),
+            cwd: workdir.real().clone(),
             edge: edge.as_ref().map(|e| e.bind().clone()),
         };
         let Spawned {

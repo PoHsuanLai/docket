@@ -46,10 +46,11 @@ mod spawn;
 mod strikes;
 mod taint;
 mod tool_req;
+mod workdir;
 
 pub use backend::{AcpBackend, Parts, Seams};
 pub use call::{AgentCall, Command, PermissionAsk, RunFacts, StageId};
-pub use confine::{Care, Confined, Refusal, confine, named};
+pub use confine::{Care, Confined, Refusal, confine, is_secret, named};
 pub use court::{Court, CourtFault, OpenAgent, Ruled};
 pub use edge::{EdgeBind, EdgeFault, SERVER_NAME, ToolsEdge, ToolsOffer};
 pub use files::{FileFault, Files, MAX_READ, MAX_WRITE, OsFiles};
@@ -64,3 +65,4 @@ pub use spawn::{
 pub use strikes::{STRIKES_MAX, Strikes};
 pub use taint::{TaintSource, brings_content};
 pub use tool_req::{Asked, tool_req};
+pub use workdir::{Workdir, WorkdirFault};

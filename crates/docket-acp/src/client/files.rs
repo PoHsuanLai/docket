@@ -8,6 +8,7 @@
 //! the open (the agent can write in its directory and make links) is caught before any byte is
 //! read or changed.
 
+use super::workdir::{Workdir, WorkdirFault};
 use docket_core::{AbsPath, Cover};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
@@ -43,6 +44,15 @@ pub trait Files: Send {
     /// Where `path` really leads, links followed. A missing last part is allowed (a new file):
     /// the nearest existing parent is resolved and the rest appended.
     fn real(&self, path: &AbsPath) -> Result<AbsPath, FileFault>;
+
+    /// `asked`, a directory inside `scope`, as a confined directory a sandbox may write. This
+    /// default resolves both through `real` and applies the pure rules, which suits a file system
+    /// without links to walk; `OsFiles` looks at every part and refuses links and the home folder.
+    fn workdir(&self, scope: &AbsPath, asked: &AbsPath) -> Result<Workdir, WorkdirFault> {
+        let real_scope = self.real(scope).map_err(|_| WorkdirFault::NotFolder)?;
+        let real = self.real(asked).map_err(|_| WorkdirFault::NotFolder)?;
+        Workdir::from_resolved(&real_scope, real, None)
+    }
 
     /// The text of the file at `real`, which must still lie inside `within`.
     fn read(&mut self, real: &AbsPath, within: &AbsPath) -> Result<String, FileFault>;
@@ -132,6 +142,11 @@ fn read_text(file: &mut File) -> Result<String, FileFault> {
 }
 
 impl Files for OsFiles {
+    fn workdir(&self, scope: &AbsPath, asked: &AbsPath) -> Result<Workdir, WorkdirFault> {
+        let home = std::env::var_os("HOME").map(PathBuf::from);
+        Workdir::resolve(scope, asked, home.as_deref())
+    }
+
     fn real(&self, path: &AbsPath) -> Result<AbsPath, FileFault> {
         let resolved = resolve(Path::new(path.as_str()))?;
         // `Component` keeps only normal parts: a resolved path has no `..` left.

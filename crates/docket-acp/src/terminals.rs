@@ -11,6 +11,7 @@
 //! with other work uses `poll_wait`.
 
 use crate::bulk;
+use crate::client::Workdir;
 use crate::fault;
 use agent_client_protocol_schema::v1::{
     CLIENT_METHOD_NAMES, ClientCapabilities, CreateTerminalRequest, CreateTerminalResponse, Error,
@@ -111,8 +112,11 @@ impl<S: Sandbox> Terminals<S> {
         }
     }
 
-    /// Starts the command a `terminal/create` asked for, in `scope` or below it. The router has
-    /// ruled on it; this only refuses what cannot be confined or runs outside the session.
+    /// Starts the command a `terminal/create` asked for, in `scope` or below it, by the words
+    /// of the request alone (no file system is asked: the directory is only compared by name).
+    /// The router has ruled on it; this only refuses what cannot be confined or runs outside the
+    /// session. The host that has a file system confines the directory first and calls
+    /// [`Terminals::create_in`].
     pub fn create(&mut self, scope: &AbsPath, params: Value) -> Result<Value, Error> {
         let asked: CreateTerminalRequest = fault::params(params)?;
         let cwd = match &asked.cwd {
@@ -125,11 +129,23 @@ impl<S: Sandbox> Terminals<S> {
                 "the working directory is outside the session",
             ));
         }
+        self.start(&asked, &cwd)
+    }
+
+    /// Starts the command a `terminal/create` asked for in `workdir`, a directory already
+    /// confined (links resolved, inside the session, not home): the request's own `cwd` is not
+    /// used, and the sandbox is given the real path.
+    pub fn create_in(&mut self, workdir: &Workdir, params: Value) -> Result<Value, Error> {
+        let asked: CreateTerminalRequest = fault::params(params)?;
+        self.start(&asked, workdir.real())
+    }
+
+    fn start(&mut self, asked: &CreateTerminalRequest, cwd: &AbsPath) -> Result<Value, Error> {
         let argv = Argv::new(&asked.command, &asked.args)
             .ok_or_else(|| fault::invalid("the command is empty or holds a NUL"))?;
         // We never run unsandboxed: a command that cannot be confined is refused here, with the
         // reason.
-        let shell_cwd = bulk::to_shell(&cwd)
+        let shell_cwd = bulk::to_shell(cwd)
             .map_err(|_| fault::invalid("the working directory must be absolute"))?;
         if let bulkhead::SandboxState::Cannot(why) = self.shell.check(&shell_cwd) {
             return Err(shell_error(&ShellFault::CannotSandbox(why)));

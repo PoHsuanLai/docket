@@ -190,11 +190,18 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
         if !asked_line || !asked_cwd {
             return Err(failed("the call does not match its held request"));
         }
-        let answer = self
-            .lock()
+        // Confined again now, at the moment of starting: a link made since the router was asked
+        // is caught, and the sandbox is given the real directory.
+        let mut inner = self.lock();
+        let workdir = inner
+            .files
+            .workdir(&scope.cwd, &cwd)
+            .map_err(|e| failed(&format!("the working directory is refused: {e}")))?;
+        let answer = inner
             .terminals
-            .create(&scope.cwd, params)
+            .create_in(&workdir, params)
             .map_err(|e| failed(&e.message))?;
+        drop(inner);
         let id = answer
             .get("terminalId")
             .and_then(Json::as_str)

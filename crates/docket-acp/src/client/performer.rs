@@ -12,6 +12,7 @@
 use super::call::StageId;
 use super::confine::Confined;
 use super::files::{FileFault, Files};
+use super::workdir::{Workdir, WorkdirFault};
 use crate::bulk;
 use crate::terminals::Terminals;
 use agent_client_protocol_schema::v1::{ClientCapabilities, Error};
@@ -139,6 +140,11 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
     /// Where `path` really leads (links followed).
     pub fn real(&self, path: &AbsPath) -> Result<AbsPath, FileFault> {
         self.lock().files.real(path)
+    }
+
+    /// `asked` as a directory a sandbox may write, inside the session folder `scope`.
+    pub fn workdir(&self, scope: &AbsPath, asked: &AbsPath) -> Result<Workdir, WorkdirFault> {
+        self.lock().files.workdir(scope, asked)
     }
 
     /// Whether a command can be confined in `cwd`.
