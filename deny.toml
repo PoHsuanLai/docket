@@ -1,7 +1,8 @@
-# cargo-deny licence gate. Run: cargo deny check licenses
+# cargo-deny supply-chain gate. Run: cargo deny check licenses advisories bans sources
 #
 # A dependency whose licence is not listed fails the gate rather than being noticed later by
-# someone reading Cargo.lock.
+# someone reading Cargo.lock. So does a known advisory or yanked release, a wildcard version
+# requirement, and a dependency from anywhere but crates.io or the owner's GitHub organisation.
 
 [graph]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -38,3 +39,29 @@ confidence-threshold = 0.9
 #
 # What stays out of that list is strong copyleft: GPL, AGPL, EUPL. Those would change what this
 # project may be distributed as, and a dependency arriving under one should stop the build.
+
+[advisories]
+# Fails on a RUSTSEC vulnerability, unsound crate or yanked release. An unmaintained crate fails
+# only when a workspace member depends on it directly. An advisory that has no fix yet is
+# ignored by id here, with the reason beside it, never by turning the check off.
+unmaintained = "workspace"
+yanked = "deny"
+ignore = []
+
+[bans]
+# Two versions of one crate are common in a graph this size and are reported, not failed.
+multiple-versions = "warn"
+# `*` accepts any release. Path dependencies between our own private crates carry no version.
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+# crates.io is the only registry, and the only git host is the owner's GitHub organisation
+# (porter, almanac, stoker, bulkhead, quire, chordkit). A new git source is a decision made here.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
+
+[sources.allow-org]
+github = ["PoHsuanLai"]

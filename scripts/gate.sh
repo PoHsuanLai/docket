@@ -12,5 +12,5 @@ cargo test --workspace --all-features --doc
 cargo test -p policy-point -p docket-eval
 ./scripts/check-boundary.sh
 ./scripts/check-portable.sh
-cargo deny check licenses
+cargo deny check licenses advisories bans sources
 echo "GATE GREEN"
