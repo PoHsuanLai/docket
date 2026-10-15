@@ -43,5 +43,6 @@ pub fn packaged_binaries() -> std::io::Result<Binaries> {
         inferd: PathBuf::from(env!("ACCEPT_INFERD")),
         quire_do: beside("accept-quire-do"),
         actions_mcp: beside("accept-actions-mcp"),
+        relay: beside("accept-bus-relay"),
     })
 }

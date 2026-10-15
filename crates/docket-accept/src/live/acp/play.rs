@@ -8,7 +8,7 @@
 use super::spec::AcpSpec;
 use crate::live::acp::secret::Credentials;
 use crate::runlink::short_run;
-use crate::world::{Binaries, World};
+use crate::world::{Binaries, Cgroup, World};
 use bulkhead::Detected;
 use docket_acp::client::{Fallback, Models, ToolsOffer};
 use docket_acp_bin::agent::host::{Hosted, Wiring, host};
@@ -97,7 +97,11 @@ async fn open(
     let permit = AgentsPermit::from_text("[agent.acp]\nagents = \"on\"\n")
         .map_err(|_| "agents are off".to_owned())?;
     let program = ProgramName::parse(&spec.program).map_err(|_| "the program name".to_owned())?;
-    let bus = world.connect().await;
+    // The agent host is its own process to the daemons (docket-agent's scope), as it is on a
+    // desktop; the harness process stays the shell.
+    let bus = world
+        .connect_as(&binaries.relay, Cgroup::Scope("docket-agent"))
+        .await;
     let wiring = Wiring {
         // The pseudo-app's provider answers the process of intentd's unit, as the world's fake
         // proc root has it (the world places each daemon it starts).

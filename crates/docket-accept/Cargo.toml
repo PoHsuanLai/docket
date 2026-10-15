@@ -37,6 +37,10 @@ name = "accept-actions-mcp"
 path = "src/bin/accept-actions-mcp.rs"
 
 [[bin]]
+name = "accept-bus-relay"
+path = "src/bin/accept-bus-relay.rs"
+
+[[bin]]
 name = "accept-fake-agent"
 path = "src/bin/accept-fake-agent.rs"
 

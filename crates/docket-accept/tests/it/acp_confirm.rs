@@ -45,8 +45,11 @@ impl Fixture {
         // Every connection here is this one process, so the test says who each is. The acp
         // process answers the process its callers file names as intentd.
         let proc = dir.path().join("proc");
+        // Its lookups go over a connection of their own: the served object holds them, and on
+        // `acp` itself they would keep the connection alive after the test lets it go.
+        let lookups = bus.connect().await;
         let acp_who = Arc::new(Identity::on_fixture(
-            acp.clone(),
+            lookups.clone(),
             docket_acp_bin::callers::shipped(),
             proc.clone(),
         ));
@@ -85,7 +88,7 @@ impl Fixture {
             acp: Some(acp),
             sill,
             stranger,
-            _keep: vec![intentd, sill_connection],
+            _keep: vec![intentd, sill_connection, lookups],
         }
     }
 

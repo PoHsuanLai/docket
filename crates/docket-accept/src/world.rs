@@ -55,6 +55,8 @@ pub struct Binaries {
     pub quire_do: PathBuf,
     /// `accept-actions-mcp`: the bridge an external agent starts.
     pub actions_mcp: PathBuf,
+    /// `accept-bus-relay`: a bus connection that is a process of its own ([`World::connect_as`]).
+    pub relay: PathBuf,
 }
 
 /// The model's script: the text of a cassette file (`dev/accept/cassettes`), written into the
@@ -209,6 +211,8 @@ pub struct World {
     /// A connection that owns `org.quire.Shell` and `org.quire.Confirm1`: sill.
     pub sill: zbus::Connection,
     _helpers: Vec<zbus::Connection>,
+    /// The relays behind [`World::connect_as`]'s connections, ended with the world.
+    relays: std::sync::Mutex<Vec<Reaped>>,
     /// The scratch root.
     pub dir: Scratch,
     bus: PrivateBus,
@@ -708,6 +712,7 @@ impl World {
             app: log,
             sill,
             _helpers: vec![provider_connection],
+            relays: std::sync::Mutex::default(),
             dir,
             bus,
         }
@@ -716,6 +721,38 @@ impl World {
     /// A fresh connection to the private bus.
     pub async fn connect(&self) -> zbus::Connection {
         self.bus.connect().await
+    }
+
+    /// A connection to the bus that is a process of its own, placed in `cgroup`: through
+    /// `accept-bus-relay`, so the daemons identify it apart from the harness process (which is
+    /// the shell). An agent host the harness runs in-process connects this way.
+    pub async fn connect_as(&self, relay: &Path, cgroup: Cgroup<'_>) -> zbus::Connection {
+        let socket = self
+            .address()
+            .strip_prefix("unix:path=")
+            .and_then(|rest| rest.split(',').next())
+            .expect("the private bus listens on a path");
+        let (ours, theirs) = std::os::unix::net::UnixStream::pair().expect("a socket pair");
+        let relayed = Reaped::spawn(
+            Command::new(relay)
+                .arg(socket)
+                .env_clear()
+                .stdin(Stdio::from(std::os::fd::OwnedFd::from(theirs)))
+                .stdout(Stdio::null())
+                .stderr(Stdio::null()),
+        )
+        .expect("the relay starts");
+        place(self.dir.path(), relayed.pid(), cgroup);
+        self.relays
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(relayed);
+        ours.set_nonblocking(true).expect("non-blocking");
+        let stream = tokio::net::UnixStream::from_std(ours).expect("a tokio stream");
+        zbus::connection::Builder::unix_stream(stream)
+            .build()
+            .await
+            .expect("connect through the relay")
     }
 
     /// The bus address.
