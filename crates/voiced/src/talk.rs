@@ -331,6 +331,7 @@ where
 
     /// Synthesis or playback failed: everything being spoken ends `Failed`, and speech is quiet.
     async fn speech_failed(&mut self, fault: VoiceFault) {
+        tracing::warn!(?fault, "speech failed");
         self.say.link = None;
         self.say.state.phase = SpeechPhase::Quiet;
         self.say.state.queue.clear();

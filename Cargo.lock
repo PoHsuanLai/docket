@@ -1138,6 +1138,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1359,6 +1360,13 @@ dependencies = [
  "tokio",
  "toml",
  "zbus",
+]
+
+[[package]]
+name = "docket-log"
+version = "0.1.0"
+dependencies = [
+ "tracing",
 ]
 
 [[package]]
@@ -3246,6 +3254,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-fake",
+ "docket-log",
  "docket-reader",
  "docket-router",
  "docket-testbus",
@@ -3260,6 +3269,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tracing",
  "zbus",
 ]
 
@@ -4260,6 +4270,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "docket-core",
+ "docket-log",
  "docket-testbus",
  "futures-util",
  "pipewire",
@@ -4276,6 +4287,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+ "tracing",
  "voice-dbus",
  "voice-loop",
  "voice-wire",

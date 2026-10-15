@@ -31,7 +31,9 @@ pub enum VoiceError {
 }
 
 impl From<VoiceRefusal> for VoiceError {
+    /// Every refusal a call gets passes through here, so this is where it is logged.
     fn from(refusal: VoiceRefusal) -> Self {
+        tracing::info!(?refusal, "voice call refused");
         let why = refusal.to_string();
         match refusal {
             VoiceRefusal::Disabled => VoiceError::Disabled(why),

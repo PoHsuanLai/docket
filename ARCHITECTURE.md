@@ -58,6 +58,7 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `voice-wire` | the bodies of `org.quire.Voice1`: `VoiceBegin`, `VoiceEvent`, `UtteranceEnd`, `VoiceStatus`, `VoiceRefusal` and its 1:1 error names, `SpeakWire` | none |
 | `voice-loop` | the voice machines: `utterance_step` (the microphone is open exactly in Opening, Listening and Tail), `speech_step` (barge-in), `sentences`, `PcmBuffer` | none |
 | `voiced` | the microphone's owner: `VoicedConfig`, the `AudioDevice` seam and `choose_capture` (never a monitor), the `Voice1` interfaces and their introspection, `serve` (roles from the connection, one loop over the two `voice-loop` machines, inferd through porter-client), the PipeWire device | everything |
+| `docket-log` | the daemons' one log setup: `init(name)` starts a `tracing` subscriber that writes a line per event to standard error (the journal keeps it; with the journal's `<priority>` prefix when `JOURNAL_STREAM` is set). voiced, readerd and docket-checkpoint-git log refusals and faults through `tracing` events: kinds and typed reasons only, never a prompt, an utterance or a key | `tracing` |
 
 Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it):
 
@@ -96,12 +97,12 @@ Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies a
 | `actions-mcp` | `actions-tools`, `docket-core`, `docket-client`, `docket-dbus`, `docket-settings`, `prov`, `porter-core` (+ `rmcp`) |
 | `intentd` | `docket-core`, `docket-checkpoint-git`, `docket-memory`, `docket-session`, `docket-models`, `docket-skills`, `docket-settings`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
 | `companiond` | `companion-wire`, `docket-core`, `docket-planner`, `docket-skills`, `docket-tasks`, `docket-settings`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core` |
-| `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `docket-reader`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
+| `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `docket-log`, `docket-reader`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
 | `docket-cli` | `companion-client`, `companion-wire`, `docket-core`, `docket-session`, `docket-skills`, `docket-client` (feature `dbus`), `model-provider`, `prov`, `porter-core` |
 | `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
 | `voice-wire` | `docket-core`, `porter-core`, `porter-infer` |
 | `voice-loop` | `voice-wire`, `docket-core`, `porter-core`, `porter-infer` |
-| `voiced` | `voice-loop`, `voice-wire`, `docket-core`, `porter-core`, `porter-dbus`, `porter-infer`, `porter-client`, `speech-provider`, `speech-vad` |
+| `voiced` | `voice-loop`, `voice-wire`, `docket-core`, `docket-log`, `porter-core`, `porter-dbus`, `porter-infer`, `porter-client`, `speech-provider`, `speech-vad` |
 
 The repo order is stoker, porter, almanac, docket, cua, sill. docket reaches stoker's pure
 crates (`cua-action`, `model-provider`, `speech-vad`), porter (`prov`, `porter-core`,

@@ -64,15 +64,30 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> ReaderObject<P,
         let _ = options;
         let sender = header.sender().map(ToString::to_string).unwrap_or_default();
         if !self.is_intentd(&sender).await {
+            tracing::warn!("refused a caller that is not intentd");
             return Err(fdo::Error::AccessDenied(
                 "only intentd may ask the reader".into(),
             ));
         }
-        let session = SessionId::parse(&session)
-            .map_err(|_| fdo::Error::InvalidArgs("not a session id".into()))?;
-        let ask: ReaderAsk = serde_json::from_str(&ask)
-            .map_err(|_| fdo::Error::InvalidArgs("not a reader ask".into()))?;
+        let session = SessionId::parse(&session).map_err(|_| {
+            tracing::warn!("refused a request whose session is not an id");
+            fdo::Error::InvalidArgs("not a session id".into())
+        })?;
+        let ask: ReaderAsk = serde_json::from_str(&ask).map_err(|_| {
+            tracing::warn!("refused a request that is not a reader ask");
+            fdo::Error::InvalidArgs("not a reader ask".into())
+        })?;
         let answer: Result<Value, ReaderError> = self.service.extract_in(&session, ask).await;
+        // Which way it failed, never what was read or said.
+        if let Err(error) = &answer {
+            let reason = match error {
+                ReaderError::OutOfSchema(_) => "out_of_schema",
+                ReaderError::Unparseable => "unparseable",
+                ReaderError::Refused => "refused",
+                ReaderError::ModelUnavailable => "model_unavailable",
+            };
+            tracing::warn!(reason, "the reader gave no answer");
+        }
         serde_json::to_string(&answer).map_err(|e| fdo::Error::Failed(e.to_string()))
     }
 }

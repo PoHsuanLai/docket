@@ -30,6 +30,8 @@ serde_json = { workspace = true }
 futures-util = { workspace = true }
 zbus = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
+docket-log = { workspace = true }
 
 [dev-dependencies]
 docket-testbus = { workspace = true }

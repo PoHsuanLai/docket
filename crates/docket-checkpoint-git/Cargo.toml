@@ -15,6 +15,7 @@ porter-core = { workspace = true }
 prov = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 docket-checkpoint = { workspace = true, features = ["testing"] }

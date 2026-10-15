@@ -41,6 +41,7 @@ members = [
   "crates/voice-dbus",
   "crates/voice-loop",
   "crates/voiced",
+  "crates/docket-log",
 ]
 # cargo-fuzz needs nightly and stays out of the workspace and the gate (dev/fuzz.sh).
 exclude = ["fuzz"]
@@ -92,6 +93,9 @@ docket-ds      = { path = "crates/docket-ds" }
 voice-wire     = { path = "crates/voice-wire" }
 voice-dbus     = { path = "crates/voice-dbus" }
 voice-loop     = { path = "crates/voice-loop" }
+docket-log     = { path = "crates/docket-log" }
+# The events the daemons log (already in the build through zbus and tokio); docket-log is the subscriber.
+tracing = "0.1"
 
 # porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout
 # overrides it through a [patch], FINDINGS.md "Cross-repo dependencies"). porter has no docket dependency, so there is

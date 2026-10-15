@@ -166,10 +166,14 @@ impl GitRun for StdGitRun {
         }
         process.env("GIT_TERMINAL_PROMPT", "0");
         process.envs(cmd.env.iter().map(|(k, v)| (k, v)));
-        let mut child = process.spawn().map_err(|_| GitFault::Spawn)?;
+        let mut child = process.spawn().map_err(|why| {
+            tracing::warn!(kind = ?why.kind(), "git could not be started");
+            GitFault::Spawn
+        })?;
         let (Some(mut stdout), Some(mut stderr)) = (child.stdout.take(), child.stderr.take())
         else {
             let _ = child.kill().await;
+            tracing::warn!("git's pipes were not set up");
             return Err(GitFault::Io);
         };
         let pipe = child.stdin.take();
@@ -189,7 +193,10 @@ impl GitRun for StdGitRun {
                 read_bounded(&mut stdout, limits.stdout_max),
                 read_tail(&mut stderr)
             )?;
-            let status = child.wait().await.map_err(|_| GitFault::Io)?;
+            let status = child.wait().await.map_err(|why| {
+                tracing::warn!(kind = ?why.kind(), "git could not be waited for");
+                GitFault::Io
+            })?;
             Ok::<GitOut, GitFault>(GitOut {
                 status,
                 stdout: out,

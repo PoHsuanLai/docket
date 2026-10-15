@@ -20,10 +20,12 @@ fn load(path: &std::path::Path) -> Result<VoicedConfig, String> {
 }
 
 fn main() -> ExitCode {
+    docket_log::init("voiced");
     let args = Args::parse();
     let config = match load(&args.config) {
         Ok(config) => config,
         Err(why) => {
+            tracing::error!("configuration not read: {why}");
             eprintln!("voiced: {why}");
             return ExitCode::FAILURE;
         }
@@ -39,9 +41,11 @@ fn main() -> ExitCode {
         }
     };
     let usage = FileUse::sill_default(|name| std::env::var(name).ok());
+    tracing::info!("serving");
     match runtime.block_on(voiced::serve(config, PipeWireDevice, usage)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
+            tracing::error!("stopped: {why}");
             eprintln!("voiced: {why}");
             ExitCode::FAILURE
         }

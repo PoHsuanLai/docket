@@ -30,6 +30,12 @@ pub(crate) struct Link {
 
 /// How a failed open reads to the person.
 pub(crate) fn fault_of(error: &TransportError) -> VoiceFault {
+    // The kind of failure only: a transport error may carry text of its own.
+    tracing::warn!(
+        denied = matches!(error, TransportError::Denied(_)),
+        unreachable = matches!(error, TransportError::Unreachable),
+        "inferd session could not be opened"
+    );
     match error {
         TransportError::Denied(_) => VoiceFault::Refused(InferRefusal::Denied),
         TransportError::Unreachable => VoiceFault::Engine(ModelError::Unreachable),

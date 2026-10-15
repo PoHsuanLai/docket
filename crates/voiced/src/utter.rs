@@ -38,6 +38,7 @@ use voice_wire::{
 use zbus::object_server::SignalEmitter;
 
 pub(crate) fn fault_of(error: DeviceError) -> VoiceFault {
+    tracing::warn!(?error, "microphone fault");
     match error {
         DeviceError::Denied => VoiceFault::MicDenied,
         DeviceError::NoSource | DeviceError::Closed | DeviceError::TimedOut => {
@@ -133,6 +134,7 @@ where
             .await
             .map_err(VoiceError::from)?;
         self.node = Some(node);
+        tracing::info!(utterance = n, "utterance started");
         self.utt = Some(Utt {
             n,
             caller: caller.unique.clone(),
@@ -432,6 +434,12 @@ where
     /// end of the inferd session.
     async fn ended(&mut self, end: UtteranceEnd) {
         self.stt = None;
+        // The kind of ending only: what was heard is never logged.
+        match &end {
+            UtteranceEnd::Failed(fault) => tracing::warn!(?fault, "utterance failed"),
+            UtteranceEnd::Cancelled(cause) => tracing::info!(?cause, "utterance cancelled"),
+            _ => tracing::info!("utterance ended"),
+        }
         let Some(utt) = self.utt.as_ref() else { return };
         let end = match end {
             UtteranceEnd::Heard { served, .. } => UtteranceEnd::Heard {

@@ -4,6 +4,7 @@
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    docket_log::init("readerd");
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -17,6 +18,7 @@ fn main() -> ExitCode {
     match runtime.block_on(readerd::run()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
+            tracing::error!("stopped: {why}");
             eprintln!("readerd: {why}");
             ExitCode::FAILURE
         }

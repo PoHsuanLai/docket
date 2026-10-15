@@ -1,0 +1,15 @@
+[package]
+name = "docket-log"
+description = "The one log setup of the daemons: a tracing subscriber that writes one line per event to standard error, which the journal keeps, with the journal's priority prefix when it is the journal that is listening."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+tracing = { workspace = true }
+
+[lints]
+workspace = true
