@@ -5,6 +5,8 @@
 use docket_accept::world::{Binaries, Cassette, World};
 
 pub fn binaries() -> Binaries {
+    // Every test starts here: a test that waits for ever ends the process after 20 minutes.
+    docket_testbus::hang_guard::arm();
     Binaries {
         intentd: env!("CARGO_BIN_EXE_accept-intentd").into(),
         companiond: env!("CARGO_BIN_EXE_accept-companiond").into(),

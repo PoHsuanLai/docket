@@ -3414,3 +3414,37 @@ Evidence: `/tmp/docket-live.xYM2Fo/out/smoke/flow-c.run*of5.trace.txt` (Kimi K3,
 - **`quire_answer {text}`** (planner meta tool, listed before `quire_ask`): the reply, bounded and plain like any words, a call written as words is `CallInText`, empty or non-string is `Unreadable`. Words beside it are dropped. Words alone and `quire_finish` still end a turn.
 - **Progress.** Words the planner says beside calls, a read or an unreadable reply are `TaskRuntime::progress` and `AnswerWire.progress` (additive, `serde(default)`, not written when empty); words that end the turn, or come with a question, are `TaskRuntime::said`, the body's text lines. A turn that finishes done with no reply of its own shows its last progress words as the body.
 - **Open.** Not wired: the footer's `sources` still lists nothing for a memory read; terminal turns get no read; `docket-kit`'s driver keeps all words in `said`.
+
+## docket-accept hostile hang (2026-10-15): `hostile::hermes_call_in_text` ran 9 hours once
+
+Seen once in a full `cargo nextest run --workspace --all-features` on a loaded machine: nextest,
+the `it` binary (`--exact hostile::hermes_call_in_text`), a live `accept-companiond`. Alone it takes
+0.7 s; later full runs took 15 s. Not reproduced, so this is the likely cause from the code, not a
+proof.
+
+Likely cause: a wait in the harness with no deadline, on a peer that stopped answering.
+- `drive.rs` made every call to companiond and intentd bare: `Companion1.Open`, `Session.Turn`,
+  `Companion1.Ask`, the answer's `View`, the proxy builds. zbus has no method timeout of its own, so
+  a daemon that never replies holds the test for ever. Only the later wait on `Updated` had a limit.
+- That limit was per change: `try_history_until` restarted `patience` (120 s) at every `Updated`, so
+  an answer that keeps changing without coming to rest never ended it.
+- `world.rs`: the bus connection, `Confirm1` serving and the provider's `serve_on` had no limit; the
+  `Sheet::release` wait for a held sheet and `undo_held`'s journal and undo calls neither.
+- No hang guard was armed in docket-accept (docket-acp, voiced have one), so nothing ended the
+  process either; nextest had no `slow-timeout`.
+- Checked and sound: `until_owned` subscribes before it checks and is bounded; `requested` in
+  docket-client subscribes to `Response` before `Confirm`, so a quick sheet answer is not lost;
+  `Notify::notify_one` keeps its permit for `Sheet::release`; `Answer::watch` subscribes to `Updated`
+  before the first `View`.
+- Candidate not changed: `place(root, pid, ...)` puts a daemon in the fake proc root only after
+  `spawn` returns. A daemon that reaches intentd or memoryd first (a loaded machine can delay the
+  harness thread) is seen as an unknown caller. If that shows up as a retry loop in a daemon, place
+  the pid before exec as `quire_do` does.
+
+Changed: `world::within(what, wait)` (60 s, `GIVE_UP`) wraps every bus call and wait in the harness
+and panics naming what it waited for; `try_history_until` has a total of four patiences; the
+hostile planner tests use 20 s patience; `binaries()` arms `docket_testbus::hang_guard`;
+`.config/nextest.toml` (`slow-timeout` 30 s, terminate after 4) and `scripts/gate.sh` runs
+`cargo nextest run --profile default` (plus `cargo test --doc`). Closes when a loaded full run has
+passed a week of gates, or the next hang names its wait.
+

@@ -591,18 +591,19 @@ pub(crate) async fn undo_held(launcher: &Launcher, world: &World) -> UndoCheck {
     if world.app.messages().is_empty() {
         return UndoCheck::NothingHeld;
     }
-    let journal = launcher
-        .intents
-        .journal(JournalFilter {
+    let journal = crate::world::within(
+        "intentd's journal",
+        launcher.intents.journal(JournalFilter {
             run: None,
             session: None,
             limit: porter_core::Count(10),
-        })
-        .await;
+        }),
+    )
+    .await;
     let Some(entry) = journal.ok().and_then(|j| j.into_iter().next()) else {
         return UndoCheck::Failed("the journal has no row for the held message".to_owned());
     };
-    match launcher.intents.undo(entry.id).await {
+    match crate::world::within("intentd's undo", launcher.intents.undo(entry.id)).await {
         Ok(Ok(_))
             if world
                 .app

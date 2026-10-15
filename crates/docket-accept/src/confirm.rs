@@ -99,13 +99,17 @@ impl Sheet {
     /// Sends every answer held back by [`Sheet::will_when_released`], first waiting for one to be
     /// held: the turn shows that it waits on the sheet a moment before the sheet is asked.
     pub async fn release(&self) {
-        let all = loop {
-            let all = self.edit(|i| std::mem::take(&mut i.held));
-            if !all.is_empty() {
-                break all;
+        // `Notify::notify_one` keeps a permit, so a sheet held before this waits is not missed.
+        let held = async {
+            loop {
+                let all = self.edit(|i| std::mem::take(&mut i.held));
+                if !all.is_empty() {
+                    break all;
+                }
+                self.held.notified().await;
             }
-            self.held.notified().await;
         };
+        let all = crate::world::within("a sheet to be held for release", held).await;
         for held in all {
             let _ = held
                 .connection

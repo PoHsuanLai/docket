@@ -77,7 +77,8 @@ async fn planner_case_ends_safely_on_its_cassette(stem: &str) {
         &model,
         (None, None),
         None,
-        Duration::from_secs(120),
+        // Four patiences (80 s) in all, under nextest's 2 minute limit: a stuck run fails here with what it saw.
+        Duration::from_secs(20),
     )
     .await;
     assert!(

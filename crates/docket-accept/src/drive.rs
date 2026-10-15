@@ -2,7 +2,7 @@
 //! Open a conversation, record the turn with intentd, hand it to companiond, and watch the
 //! answer object until it is done. Every step is a call or a signal on the private bus.
 
-use crate::world::{GIVE_UP, World};
+use crate::world::{GIVE_UP, World, within};
 use companion_wire::{AnswerWire, AskWire};
 use docket_client::{DbusTransport, Intents};
 use docket_core::{
@@ -46,7 +46,9 @@ impl Launcher {
         let connection = world.sill.clone();
         Launcher {
             intents: Intents::over(DbusTransport::new(connection.clone())),
-            companion: CompanionProxy::new(&connection).await.expect("proxy"),
+            companion: within("the companion proxy", CompanionProxy::new(&connection))
+                .await
+                .expect("proxy"),
             connection,
             patience: GIVE_UP,
             summoned: None,
@@ -78,20 +80,22 @@ impl Launcher {
             started_from: None,
             external: None,
         };
-        let text = self
-            .companion
-            .open(&serde_json::to_string(&open).expect("json"))
-            .await
-            .expect("Companion1.Open");
+        let text = within(
+            "Companion1.Open to answer",
+            self.companion
+                .open(&serde_json::to_string(&open).expect("json")),
+        )
+        .await
+        .expect("Companion1.Open");
         serde_json::from_str(&text).expect("SessionOpened")
     }
 
     /// The person says `text`: intentd records the turn, companiond is asked. Returns the answer
     /// being watched, subscribed before the loop can say anything.
     pub async fn say(&self, opened: &SessionOpened, text: &str) -> Answer {
-        let id = self
-            .intents
-            .session_turn(
+        let id = within(
+            "Session.Turn to answer",
+            self.intents.session_turn(
                 opened.session.clone(),
                 TurnIn {
                     text: text.into(),
@@ -99,9 +103,10 @@ impl Launcher {
                     keep: keep_nothing(),
                     via: TurnVia::Typed,
                 },
-            )
-            .await
-            .expect("Session.Turn");
+            ),
+        )
+        .await
+        .expect("Session.Turn");
         let ask = AskWire {
             session: opened.session.clone(),
             turn: UserTurn {
@@ -115,17 +120,21 @@ impl Launcher {
             parent_window: WindowKey::parse("w1").expect("window"),
             app: self.summoned.clone(),
         };
-        let path: OwnedObjectPath = self
-            .companion
-            .ask(
+        let path: OwnedObjectPath = within(
+            "Companion1.Ask to answer",
+            self.companion.ask(
                 &serde_json::to_string(&ask).expect("json"),
                 &Default::default(),
-            )
-            .await
-            .expect("Companion1.Ask");
+            ),
+        )
+        .await
+        .expect("Companion1.Ask");
         Answer::watch(&self.connection, path, self.patience).await
     }
 }
+
+/// How many times its patience an answer may take in all, however often it changes.
+const TOTAL_PATIENCES: u32 = 4;
 
 /// One answer object, watched.
 pub struct Answer {
@@ -146,15 +155,18 @@ impl Answer {
         path: OwnedObjectPath,
         patience: Duration,
     ) -> Answer {
-        let proxy = CompanionAnswerProxy::builder(connection)
-            .path(path)
-            .expect("answer path")
-            .cache_properties(CacheProperties::No)
-            .build()
-            .await
-            .expect("answer proxy");
-        let updates = proxy
-            .receive_updated()
+        let proxy = within(
+            "the answer proxy",
+            CompanionAnswerProxy::builder(connection)
+                .path(path)
+                .expect("answer path")
+                .cache_properties(CacheProperties::No)
+                .build(),
+        )
+        .await
+        .expect("answer proxy");
+        // Subscribed before the first `View` is read, so a change between the two is replayed.
+        let updates = within("the Updated subscription", proxy.receive_updated())
             .await
             .expect("Updated signal")
             .filter_map(|signal| async move { signal.args().ok().map(|a| a.view().to_string()) });
@@ -167,7 +179,9 @@ impl Answer {
 
     /// The answer as it stands now.
     pub async fn view(&self) -> AnswerWire {
-        let text = self.proxy.view().await.expect("Answer.View");
+        let text = within("Answer.View to answer", self.proxy.view())
+            .await
+            .expect("Answer.View");
         serde_json::from_str(&text).expect("AnswerWire")
     }
 
@@ -182,7 +196,8 @@ impl Answer {
     }
 
     /// [`Answer::history_until`] that hands back what it saw, as the error, when nothing
-    /// changed for the answer's patience (or the signal stream ended).
+    /// changed for the answer's patience, when the whole wait passed [`TOTAL_PATIENCES`] of it (an
+    /// answer that keeps changing without coming to rest), or when the signal stream ended.
     pub async fn try_history_until(
         &mut self,
         stop: impl Fn(&AnswerWire) -> bool,
@@ -198,9 +213,10 @@ impl Answer {
         if take(self.view().await, &mut seen) {
             return Ok(seen);
         }
+        let last_moment = tokio::time::Instant::now() + self.patience * TOTAL_PATIENCES;
         loop {
-            let Ok(Some(next)) = tokio::time::timeout(self.patience, self.updates.next()).await
-            else {
+            let each = (tokio::time::Instant::now() + self.patience).min(last_moment);
+            let Ok(Some(next)) = tokio::time::timeout_at(each, self.updates.next()).await else {
                 return Err(seen);
             };
             let Ok(view) = serde_json::from_str::<AnswerWire>(&next) else {

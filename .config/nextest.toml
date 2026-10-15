@@ -1,0 +1,7 @@
+# A test that runs 30 s is flagged slow; after 4 such periods (2 minutes) it is killed. A hang
+# (see FINDINGS.md, "docket-accept hostile hang") then fails the run instead of idling for hours.
+# The acceptance harness has its own deadlines (`docket_accept::world::within`, 60 s) that fire
+# first and name what was waited for. Tests normally take under 5 s, so no crate needs a larger
+# limit.
+[profile.default]
+slow-timeout = { period = "30s", terminate-after = 4 }

@@ -20,8 +20,19 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use zbus::fdo::DBusProxy;
 
-/// How long a wait for a bus event may take before the test fails instead of hanging.
-pub const GIVE_UP: Duration = Duration::from_secs(120);
+/// How long a wait for a bus event may take before the test fails instead of hanging. Shorter than
+/// the 2 minutes nextest allows a test (`.config/nextest.toml`), so the failure names what was
+/// waited for instead of being a bare kill.
+pub const GIVE_UP: Duration = Duration::from_secs(60);
+
+/// Runs `wait`, failing the test, naming `what` it waited for, if it takes longer than [`GIVE_UP`].
+/// Every call over the bus and every wait on a peer goes through it: a zbus method call has no
+/// timeout of its own, and a peer that never answers would hold the test for ever.
+pub async fn within<T>(what: &str, wait: impl std::future::Future<Output = T>) -> T {
+    tokio::time::timeout(GIVE_UP, wait)
+        .await
+        .unwrap_or_else(|_| panic!("timed out after {GIVE_UP:?} waiting for {what}"))
+}
 
 /// The manifest the mail provider answers for, installed for intentd to read.
 pub const MAIL_MANIFEST: &str = include_str!("../../../dev/accept/fixtures/org.quire.Mail.toml");
@@ -425,9 +436,7 @@ pub async fn until_owned(connection: &zbus::Connection, name: &str) {
             changes.next().await;
         }
     };
-    tokio::time::timeout(GIVE_UP, wait)
-        .await
-        .unwrap_or_else(|_| panic!("{name} never appeared on the bus"));
+    within(&format!("{name} to appear on the bus"), wait).await;
 }
 
 pub(crate) fn write(path: &Path, text: &str) {
@@ -493,8 +502,10 @@ impl World {
         let address = bus.address().to_owned();
 
         // sill is on the bus before any daemon needs it.
-        let sill = bus.connect().await;
-        let (sheet, confirms) = confirm::serve(&sill).await.expect("Confirm1");
+        let sill = within("a connection to the private bus", bus.connect()).await;
+        let (sheet, confirms) = within("sill's Confirm1 to be served", confirm::serve(&sill))
+            .await
+            .expect("Confirm1");
 
         // Files the daemons read: memoryd's callers, its Spaces, intentd's manifest and consent.
         // The test process is the shell (sill): the fake proc root says so.
@@ -559,7 +570,8 @@ impl World {
         start("intentd", &binaries.intentd, "org.quire.Intents1").await;
 
         // The app's provider: its own connection, its own name, the manifest's wire.
-        let provider_connection = bus.connect().await;
+        let provider_connection =
+            within("the provider's connection to the bus", bus.connect()).await;
         let manifest: ValidManifest = parse(options.app.manifest()).expect("the app's manifest");
         let space = prov::SpaceId::parse("work").expect("space");
         let quiet = QuietWindow {
@@ -571,16 +583,22 @@ impl World {
             App::Mail => {
                 let (mail, log) = AcceptMail::new(manifest, space);
                 let mail = mail.focused(options.focus);
-                docket_client::serve_on(&provider_connection, mail, quiet.clone(), quiet)
-                    .await
-                    .expect("the mail provider serves");
+                within(
+                    "the mail provider to serve",
+                    docket_client::serve_on(&provider_connection, mail, quiet.clone(), quiet),
+                )
+                .await
+                .expect("the mail provider serves");
                 log
             }
             other => {
                 let (things, log) = AcceptThings::new(other, manifest, space);
-                docket_client::serve_on(&provider_connection, things, quiet.clone(), quiet)
-                    .await
-                    .expect("the app's provider serves");
+                within(
+                    "the app's provider to serve",
+                    docket_client::serve_on(&provider_connection, things, quiet.clone(), quiet),
+                )
+                .await
+                .expect("the app's provider serves");
                 log
             }
         };
