@@ -245,10 +245,10 @@ impl<S: Seams> Router<S> {
             .filter(|(_, r)| matches!(r.actor, prov::Actor::Companion { .. }))
             .max_by_key(|(id, _)| crate::messaging::age(id))
             .map(|(id, _)| id.clone());
-        if let Some(record) = newest.and_then(|id| st.sessions.get_mut(&id)) {
-            if let Err(limit) = record.know(ids) {
-                tracing::warn!(task = %record.task, %limit, "things shown were not noted");
-            }
+        if let Some(record) = newest.and_then(|id| st.sessions.get_mut(&id))
+            && let Err(limit) = record.know(ids)
+        {
+            tracing::warn!(task = %record.task, %limit, "things shown were not noted");
         }
     }
 }

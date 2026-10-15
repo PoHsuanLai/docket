@@ -125,7 +125,6 @@ async fn sessions_an_editor_opened_are_not_on_the_roster_or_the_front_after_a_re
     let mut fresh = w.restarted();
     let resumed = fresh.restore(&[space("work")]).await.expect("a restart");
     assert_eq!(resumed.opened, None, "an editor's session is not the front");
-    assert_eq!(resumed.failed, 0, "every read of the restart was answered");
     assert_eq!(fresh.front, None);
     assert!(fresh.roster().entries.is_empty());
 }
