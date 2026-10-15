@@ -1,10 +1,11 @@
-//! The real `readerd` binary on a private bus: it claims `org.quire.Reader1`, answers only the
-//! connection that owns intentd's name, and says "unavailable" (never a value) when the router it
-//! is to resolve handles through is not serving. Nothing of the real session is named: the bus,
-//! HOME and every XDG directory are scratch.
+//! The real `readerd` binary on a private bus: it claims `org.quire.Reader1`, refuses a caller that
+//! is not intentd's unit, claims the name once and frees it when it stops. Nothing of the real
+//! session is named: the bus, HOME and every XDG directory are scratch. The binary reads the
+//! system's `/proc`, which no test may move, so who it does answer (intentd's unit, as the
+//! callers file names it) is tested in process, over a fake proc root (`callers.rs`).
 
 use crate::support::bus::PrivateBus;
-use docket_core::{Handle, ReaderAsk, ReaderError, ReaderTask, Value, ValueSchema};
+use docket_core::{Handle, ReaderAsk, ReaderTask, ValueSchema};
 use docket_dbus::{Details, ReaderProxy};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
@@ -62,41 +63,25 @@ fn ask() -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn the_binary_serves_reader1_to_intentd_alone_and_is_unavailable_without_a_router() {
+async fn the_binary_refuses_a_stranger_claims_the_name_once_and_frees_it_when_it_stops() {
     let dir = tempfile::tempdir().expect("scratch");
     let bus = PrivateBus::start(dir.path());
     let me = bus.connect().await;
     let mut daemon = readerd(dir.path(), bus.address());
     until_served(&me).await;
 
-    // Anyone else is refused before the ask is read.
+    // A process that is not intentd's unit is refused before the ask is read, whatever the
+    // system's `/proc` says this test process is: only intentd.service's main process passes.
     let stranger = ReaderProxy::new(&me).await.expect("proxy");
     let refused = stranger
         .extract("s-1", &ask(), &Details::new())
         .await
         .expect_err("a stranger is not answered");
-    assert!(refused.to_string().contains("only intentd"), "{refused}");
-
-    // The owner of intentd's name is answered; with no router serving behind that name the handles
-    // cannot be resolved, and the reader says so: never a value.
-    let intentd = bus.connect().await;
-    // A router that answers every member with an error: it owns the name and has nothing to give.
-    intentd
-        .object_server()
-        .at(docket_dbus::INTENTS_PATH, docket_dbus::SessionSkeleton)
-        .await
-        .expect("a stand-in session object");
-    intentd
-        .request_name("org.quire.Intents1")
-        .await
-        .expect("intentd's name");
-    let proxy = ReaderProxy::new(&intentd).await.expect("proxy");
-    let answer = proxy
-        .extract("s-1", &ask(), &Details::new())
-        .await
-        .expect("an answer");
-    let answer: Result<Value, ReaderError> = serde_json::from_str(&answer).expect("json");
-    assert_eq!(answer, Err(ReaderError::ModelUnavailable));
+    assert!(
+        matches!(&refused, zbus::Error::MethodError(name, _, _)
+            if name.as_str() == "org.freedesktop.DBus.Error.AccessDenied"),
+        "{refused}"
+    );
 
     // A second readerd finds the name taken and stops, leaving the first serving.
     let mut second = readerd(dir.path(), bus.address());

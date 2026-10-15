@@ -1,0 +1,10 @@
+# Who may call readerd (org.quire.Reader1): intentd alone. A caller is the systemd unit behind the bus
+# connection (the bus names its process, /proc/<pid>/cgroup names the unit, and a service's role goes
+# only to the unit's main process). Install as /etc/quire/readerd-callers.toml; the user's
+# ~/.config/quire/readerd-callers.toml is laid over it, and its fixed-role rows are ignored. Anything
+# else, an app scope or a terminal's child included, is refused.
+
+[[caller]]
+app = "org.quire.Intents"
+unit = "intentd.service"
+role = "agent"

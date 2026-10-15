@@ -5,14 +5,15 @@ use crate::support::bus::PrivateBus;
 use crate::support::inferd::ScriptedInferd;
 use docket_client::{InProcess, Intents};
 use docket_core::{AgentConfig, CallerId, CallerRole};
-use docket_dbus::{Bus, introspection};
+use docket_dbus::callers::Identity;
+use docket_dbus::{Bus, BusConnection, introspection};
 use docket_fake::fake_router;
 use porter_core::{AppId, AppName, Isolation};
 use readerd::{ReaderHost, ReaderService, ServeFault, serve_on};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-fn service() -> Arc<ReaderService<ScriptedInferd, InProcess<docket_fake::FakeSeams>>> {
+pub(crate) fn service() -> Arc<ReaderService<ScriptedInferd, InProcess<docket_fake::FakeSeams>>> {
     let router = Arc::new(fake_router(AgentConfig::default()).expect("router"));
     let reader = CallerId {
         app: AppId {
@@ -25,6 +26,15 @@ fn service() -> Arc<ReaderService<ScriptedInferd, InProcess<docket_fake::FakeSea
         ReaderHost::start(),
         ScriptedInferd::away(),
         Intents::over(InProcess::new(router, reader)),
+    ))
+}
+
+/// Who readerd would answer on `connection`: the shipped table over an empty fake proc root.
+fn nobody(connection: &BusConnection, scratch: &std::path::Path) -> Arc<Identity> {
+    Arc::new(Identity::on_fixture(
+        connection.clone(),
+        readerd::shipped_callers(),
+        scratch.join("proc"),
     ))
 }
 
@@ -46,7 +56,9 @@ async fn the_served_interface_is_the_declared_one_and_the_name_is_claimed_once()
     let scratch = tempfile::tempdir().expect("scratch");
     let bus = PrivateBus::start(scratch.path());
     let first = bus.connect().await;
-    serve_on(&first, service()).await.expect("serves");
+    serve_on(&first, service(), nobody(&first, scratch.path()))
+        .await
+        .expect("serves");
     let proxy = zbus::fdo::IntrospectableProxy::builder(&first)
         .destination(docket_dbus::READER_BUS)
         .expect("destination")
@@ -62,6 +74,6 @@ async fn the_served_interface_is_the_declared_one_and_the_name_is_claimed_once()
     );
 
     let second = bus.connect().await;
-    let again = serve_on(&second, service()).await;
+    let again = serve_on(&second, service(), nobody(&second, scratch.path())).await;
     assert!(matches!(again, Err(ServeFault::Bus(_))), "{again:?}");
 }

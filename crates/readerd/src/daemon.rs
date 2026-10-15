@@ -1,36 +1,65 @@
 //! The daemon: the session bus, an inferd link and the router's `Intents1` as the reader (its
-//! connection owns `org.quire.Reader1`, which intentd's configuration names as the reader role),
-//! and the one `ReaderHost` of the process.
+//! unit is `readerd.service`, which intentd's callers file names as the reader), and the one
+//! `ReaderHost` of the process.
 
+use crate::callers;
 use crate::host::ReaderHost;
 use crate::serve::{ServeFault, serve_on};
 use crate::service::ReaderService;
 use docket_client::{DbusTransport, Intents};
 use docket_dbus::BusConnection;
+use docket_dbus::callers::Identity;
 use docket_dbus::tap::Tap;
 use futures_util::StreamExt;
+use std::path::PathBuf;
 use std::sync::Arc;
 
-/// Serves `org.quire.Reader1` on `connection` over the inferd and intentd it reaches through it.
-/// Returns once the name is ours; the connection keeps serving until it closes.
-pub async fn start(connection: &BusConnection, tap: Tap) -> Result<(), ServeFault> {
+/// Serves `org.quire.Reader1` on `connection` over the inferd and intentd it reaches through it,
+/// answering the process `who` names as intentd. Returns once the name is ours; the connection
+/// keeps serving until it closes.
+pub async fn start(
+    connection: &BusConnection,
+    tap: Tap,
+    who: Arc<Identity>,
+) -> Result<(), ServeFault> {
     let intents = Intents::over(DbusTransport::new(connection.clone()));
     let service = ReaderService::on_bus(ReaderHost::start(), connection, intents, tap);
-    serve_on(connection, Arc::new(service)).await
+    serve_on(connection, Arc::new(service), who).await
+}
+
+/// What only the acceptance harness's mains choose: the `/proc` callers are read from and the
+/// system's callers file. The shipped `main` passes the default (the system's `/proc`, the file
+/// under `/etc/quire`) and no environment variable can change either.
+#[derive(Debug, Clone, Default)]
+pub struct HarnessSeams {
+    /// A fixture `/proc`, else the system's.
+    pub proc_root: Option<PathBuf>,
+    /// The system's callers file, else `/etc/quire/readerd-callers.toml`.
+    pub system_callers: Option<PathBuf>,
 }
 
 /// The daemon: the session bus from the environment, served until it closes.
 pub async fn run() -> Result<(), ServeFault> {
-    run_with(Tap::off()).await
+    run_with(Tap::off(), HarnessSeams::default()).await
 }
 
-/// [`run`] with the model tap the acceptance harness's mains choose.
-pub async fn run_with(tap: Tap) -> Result<(), ServeFault> {
+/// [`run`] with the model tap and the seams the acceptance harness's mains choose.
+pub async fn run_with(tap: Tap, seams: HarnessSeams) -> Result<(), ServeFault> {
     let env = |key: &str| std::env::var(key).ok();
     let connection = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| ServeFault::Bus(e.to_string()))?;
-    start(&connection, tap).await?;
+    let table = match &seams.system_callers {
+        Some(system) => callers::read_at(system, &env),
+        None => callers::read(&env),
+    }
+    .map_err(|e| ServeFault::Callers(e.to_string()))?;
+    let who = Arc::new(Identity::on(
+        connection.clone(),
+        table,
+        seams.proc_root.as_deref(),
+    ));
+    start(&connection, tap, who).await?;
     let mut messages = zbus::MessageStream::from(&connection);
     while messages.next().await.is_some() {}
     Ok(())
