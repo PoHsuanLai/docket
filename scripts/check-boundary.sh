@@ -165,7 +165,7 @@ EDGES=(
   "docket-skills: docket-core porter-core prov"
   "policy-point: docket-core porter-core prov"
   "action-review: docket-core model-provider porter-core porter-infer prov"
-  "docket-router: action-review almanac-core docket-checkpoint docket-core docket-session docket-skills policy-point porter-core prov"
+  "docket-router: action-review almanac-core docket-checkpoint docket-core docket-session docket-skills genai-names policy-point porter-core prov"
   "companion-wire: almanac-core docket-core porter-core porter-infer prov"
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
