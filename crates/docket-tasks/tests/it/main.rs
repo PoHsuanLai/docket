@@ -1,3 +1,4 @@
+mod compaction;
 mod contract;
 mod native;
 mod support;

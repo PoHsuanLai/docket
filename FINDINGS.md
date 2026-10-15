@@ -3449,3 +3449,24 @@ hostile planner tests use 20 s patience; `binaries()` arms `docket_testbus::hang
 `cargo nextest run --profile default` (plus `cargo test --doc`). Closes when a loaded full run has
 passed a week of gates, or the next hang names its wait.
 
+
+## Context compaction and a stable prefix (industry gap 5)
+
+Landed: the `Compacted` session entry; `compaction_due` and `summary_input` (agent-loop); the
+summariser turn (`PlannerModel::summarise`); the companion summarises once before a planner turn;
+`PlannerModel::prefix` with a typed `CacheBreak`. Rules: a summary is built only from the person's
+turns, masked steps and held handles; it may cite only held handles; it is as untrusted as the task
+was when written and `resume_plan` joins its taint; covered turns and steps stay in the log.
+
+Open, each needs an interface another repo or the wire owns:
+- The companion keeps the summary in `TaskRuntime`, not the log: writing a `Compacted` entry needs a
+  router request (a `Session` note that the router checks, `covers` within what it logged and
+  `taint` at least the session's, then appends with `wal.note`). The same request is the "summarise
+  up to here" the person can ask for; it is a new typed request on the sill-facing session API, so it
+  waits for that wire change. The router's `rebuild` still restores whole `turns` and `history`; it
+  should keep `plan.summary` on the record and hand `live_*` to the view.
+- `CacheBreak` is not sent: porter's `ChatRequest` has no slot for it (stoker's `TurnRequest` has
+  `PromptCache` only as an on/off in `LlamaExtras`). It needs a typed `cache_break` field and a
+  provider mapping (a cache marker after the system message and the tools).
+- The tools follow the view's action order, which `uses_first` changes when a skill is loaded
+  mid-task; that turn's prefix differs.
