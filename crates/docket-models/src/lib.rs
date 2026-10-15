@@ -8,13 +8,16 @@
 //! - [`TransportModel`]: chat and embeddings through a session per request.
 //! - [`TransportWriter`]: the policy writer (`PolicyWriter`).
 //! - [`reviewer_over`], [`placeholder_set`], [`card_of`]: the cascade of `action-review`.
+//! - [`report_of`]: a turn's token usage as the router's ledger counts it.
 //! - [`turn`], [`chat_of`], [`chat_need`]: the pieces the quarantined reader shares.
 
 mod draft;
 mod model;
 mod reviewers;
+mod usage;
 mod writer;
 
 pub use model::{Discard, TransportModel, chat_need, chat_of, embed_of, turn, unwanted};
 pub use reviewers::{card_of, placeholder_set, reviewer_over};
+pub use usage::report_of;
 pub use writer::TransportWriter;

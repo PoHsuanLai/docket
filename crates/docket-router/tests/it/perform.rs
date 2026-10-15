@@ -573,6 +573,66 @@ async fn an_exhausted_budget_overrides_an_allow() {
 }
 
 #[tokio::test]
+async fn model_spend_past_the_cap_or_uncounted_stops_the_next_call() {
+    let tokens = TokenTotals {
+        input: porter_core::Tokens(10),
+        output: porter_core::Tokens(5),
+        cached: porter_core::Tokens(0),
+    };
+    let cap = router().config.budget.spend;
+    let cases = [
+        (
+            "a turn over the cap",
+            TurnReport::Reported {
+                tokens,
+                cost: porter_core::MicroUsd(cap.0 + 1),
+            },
+            Some(BudgetKind::Spend),
+        ),
+        (
+            "a turn within the cap",
+            TurnReport::Reported {
+                tokens,
+                cost: porter_core::MicroUsd(1),
+            },
+            None,
+        ),
+        (
+            "no usage and no worst case",
+            TurnReport::Missing { worst: None },
+            Some(BudgetKind::Spend),
+        ),
+        (
+            "no usage, worst case over the cap",
+            TurnReport::Missing {
+                worst: Some(porter_core::MicroUsd(cap.0 + 1)),
+            },
+            Some(BudgetKind::Spend),
+        ),
+    ];
+    for (name, report, over) in cases {
+        let router = router();
+        let s = ready(&router).await;
+        let counted = router.note_turn_usage(&s.session, &report);
+        let want = over.map_or(
+            docket_router::TurnBudget::Within,
+            docket_router::TurnBudget::Over,
+        );
+        assert_eq!(counted, want, "turn: {name}");
+        assert_eq!(router.turn_budget(&s.session), want, "next turn: {name}");
+        let got = perform(&router, call("mail.thread.read", &["t1"], vec![])).await;
+        match over {
+            Some(kind) => assert_eq!(
+                got.expect_err(name),
+                CallRefusal::OverBudget(kind),
+                "{name}"
+            ),
+            None => assert!(got.is_ok(), "{name}: {got:?}"),
+        }
+    }
+}
+
+#[tokio::test]
 async fn a_fan_out_over_the_mass_threshold_asks() {
     let router = router();
     ready(&router).await;

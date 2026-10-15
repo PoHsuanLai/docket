@@ -47,6 +47,7 @@ mod roster;
 mod schema;
 mod skill;
 mod space_access;
+mod spend;
 mod standing;
 mod standing_match;
 mod standing_offer;
@@ -163,6 +164,7 @@ pub use roster::{
 pub use schema::{ToolSchema, tool_schema};
 pub use skill::{SKILL_ID_MAX, SkillCard, SkillId, SkillIdError, SkillText, SkillVersion};
 pub use space_access::{SpaceAccess, SpaceRefusal, space_access};
+pub use spend::{Certainty, Spent, TokenTotals, TurnReport, charge_turn, check_turn};
 pub use standing::{
     AbsPath, AddressFault, CommandFault, CommandPrefix, Cover, Domain, DomainFault, NarrowState,
     PathFault, Recipient, Revocation, RootState, ScopeKind, StandingFileFault, StandingGrant,

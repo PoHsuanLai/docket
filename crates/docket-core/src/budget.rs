@@ -1,6 +1,7 @@
 //! Budgets, the ledger that spends them, and the kill switch. `charge` and `halted` are pure.
 
 use crate::review::BreakerTrip;
+use crate::spend::{Spent, check_turn};
 use crate::units::{Depth, Seconds};
 use porter_core::{Count, MicroUsd};
 use prov::{Effect, SpaceId, UnixSeconds};
@@ -78,6 +79,9 @@ pub struct Ledger {
     pub window_start: UnixSeconds,
     /// Calls in the current window.
     pub in_window: Count,
+    /// Tokens and money the model turns have used.
+    #[serde(default = "Spent::none")]
+    pub spent: Spent,
 }
 
 impl Ledger {
@@ -92,6 +96,7 @@ impl Ledger {
             reviews: Count(0),
             window_start: now,
             in_window: Count(0),
+            spent: Spent::NONE,
         }
     }
 }
@@ -121,7 +126,9 @@ pub struct Cost {
 
 const WINDOW_SECONDS: i64 = 60;
 
-/// Spends one call from the ledger, or names the budget that is out. The wall budget counts from
+/// Spends one call from the ledger, or names the budget that is out. Money the model turns have
+/// spent (`charge_turn`) counts against `spend` here, so a session over its cap, or whose
+/// spend cannot be counted, makes no more calls. The wall budget counts from
 /// the session's start; the per-minute budget counts calls in a one-minute window.
 pub fn charge(
     ledger: &Ledger,
@@ -158,6 +165,8 @@ pub fn charge(
         Err(BudgetKind::Destructive)
     } else if reviewed && over(ledger.reviews, budget.reviews) {
         Err(BudgetKind::Reviews)
+    } else if let Err(kind) = check_turn(ledger, budget) {
+        Err(kind)
     } else {
         let step = |n: Count, on: bool| Count(n.0.saturating_add(u32::from(on)));
         Ok(Ledger {
@@ -169,6 +178,7 @@ pub fn charge(
             reviews: step(ledger.reviews, reviewed),
             window_start,
             in_window: step(in_window, true),
+            spent: ledger.spent,
         })
     }
 }

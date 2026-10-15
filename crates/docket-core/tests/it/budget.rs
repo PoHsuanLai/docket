@@ -2,7 +2,7 @@
 
 use crate::support::*;
 use docket_core::*;
-use porter_core::{Count, MicroUsd};
+use porter_core::{Count, MicroUsd, Tokens};
 use prov::Effect;
 use std::collections::BTreeMap;
 
@@ -31,6 +31,10 @@ fn budget_charge_table() {
         per_minute: Count(2),
         reviews: Count(1),
         spend: MicroUsd(0),
+        ..budget()
+    };
+    let paid = Budget {
+        spend: MicroUsd(10),
         ..budget()
     };
     let used = |f: &dyn Fn(&mut Ledger)| {
@@ -136,6 +140,30 @@ fn budget_charge_table() {
             Ok(()),
         ),
         (
+            "spend at the cap still has room",
+            used(&|l| l.spent.cost = MicroUsd(10)),
+            paid,
+            cost(Effect::Read, 1, 0, Reviewed::No),
+            1_001,
+            Ok(()),
+        ),
+        (
+            "spend past the cap runs out",
+            used(&|l| l.spent.cost = MicroUsd(11)),
+            paid,
+            cost(Effect::Read, 1, 0, Reviewed::No),
+            1_001,
+            Err(BudgetKind::Spend),
+        ),
+        (
+            "spend that cannot be counted runs out",
+            used(&|l| l.spent.certainty = Certainty::Uncertain),
+            paid,
+            cost(Effect::Read, 1, 0, Reviewed::No),
+            1_001,
+            Err(BudgetKind::Spend),
+        ),
+        (
             "reviews run out",
             used(&|l| l.reviews = Count(1)),
             tight,
@@ -152,6 +180,102 @@ fn budget_charge_table() {
             "case: {name}"
         );
     }
+}
+
+#[test]
+fn turn_charge_table() {
+    let tokens = |i, o, c| TokenTotals {
+        input: Tokens(i),
+        output: Tokens(o),
+        cached: Tokens(c),
+    };
+    let paid = Budget {
+        spend: MicroUsd(100),
+        ..budget()
+    };
+    // (name, report, tokens after, cost after, certainty after, within the cap)
+    let cases = [
+        (
+            "a reported turn is counted by kind",
+            TurnReport::Reported {
+                tokens: tokens(10, 5, 4),
+                cost: MicroUsd(60),
+            },
+            tokens(10, 5, 4),
+            60,
+            Certainty::Known,
+            true,
+        ),
+        (
+            "a turn that costs more than the cap is recorded and stops the next",
+            TurnReport::Reported {
+                tokens: tokens(1, 1, 0),
+                cost: MicroUsd(101),
+            },
+            tokens(1, 1, 0),
+            101,
+            Certainty::Known,
+            false,
+        ),
+        (
+            "a missing report is charged its worst case",
+            TurnReport::Missing {
+                worst: Some(MicroUsd(70)),
+            },
+            TokenTotals::NONE,
+            70,
+            Certainty::Known,
+            true,
+        ),
+        (
+            "a worst case over the cap stops the next turn",
+            TurnReport::Missing {
+                worst: Some(MicroUsd(200)),
+            },
+            TokenTotals::NONE,
+            200,
+            Certainty::Known,
+            false,
+        ),
+        (
+            "a missing report with no worst case makes the cap uncertain",
+            TurnReport::Missing { worst: None },
+            TokenTotals::NONE,
+            0,
+            Certainty::Uncertain,
+            false,
+        ),
+    ];
+    for (name, report, want_tokens, want_cost, want_certainty, within) in cases {
+        let after = charge_turn(&Ledger::new(at(0)), &report);
+        assert_eq!(after.spent.tokens, want_tokens, "tokens: {name}");
+        assert_eq!(after.spent.cost, MicroUsd(want_cost), "cost: {name}");
+        assert_eq!(after.spent.certainty, want_certainty, "certainty: {name}");
+        assert_eq!(check_turn(&after, &paid).is_ok(), within, "cap: {name}");
+    }
+    let twice = charge_turn(
+        &charge_turn(
+            &Ledger::new(at(0)),
+            &TurnReport::Reported {
+                tokens: tokens(u32::MAX, 0, 0),
+                cost: MicroUsd(u64::MAX),
+            },
+        ),
+        &TurnReport::Reported {
+            tokens: tokens(1, 1, 1),
+            cost: MicroUsd(1),
+        },
+    );
+    assert_eq!(twice.spent.tokens.input, Tokens(u32::MAX), "saturates");
+    assert_eq!(twice.spent.cost, MicroUsd(u64::MAX), "saturates");
+}
+
+#[test]
+fn an_old_ledger_without_spend_reads_as_nothing_spent() {
+    let mut json = serde_json::to_value(Ledger::new(at(3))).expect("json");
+    json.as_object_mut().expect("object").remove("spent");
+    let back: Ledger = serde_json::from_value(json).expect("old ledger");
+    assert_eq!(back, Ledger::new(at(3)));
 }
 
 #[test]
