@@ -83,7 +83,8 @@ fn refused(why: &RefusalWire) -> Exit {
         RefusalWire::NeedsCloud(_)
         | RefusalWire::NotAllowed(_)
         | RefusalWire::NoWay { .. }
-        | RefusalWire::OverBudget(_) => Exit::Refused,
+        | RefusalWire::OverBudget(_)
+        | RefusalWire::NoModel => Exit::Refused,
         RefusalWire::Failed(_) => Exit::AppFailed,
     }
 }

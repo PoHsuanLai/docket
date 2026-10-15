@@ -55,6 +55,12 @@ fn every_phase_pins_its_json() {
     }
 }
 
+/// The shell opens the model picker on this refusal, matching its JSON.
+#[test]
+fn no_model_pins_its_json() {
+    assert_eq!(round(&RefusalWire::NoModel), r#"{"kind":"no_model"}"#);
+}
+
 #[test]
 fn bodies_round_trip() {
     let app = AppName::parse("org.quire.Mail").expect("app");
@@ -114,6 +120,7 @@ fn bodies_round_trip() {
         AnswerBody::Refused(RefusalWire::NeedsCloud(DataClass::Mail)),
         AnswerBody::Refused(RefusalWire::NoWay { app }),
         AnswerBody::Refused(RefusalWire::OverBudget(BudgetKind::Outbound)),
+        AnswerBody::Refused(RefusalWire::NoModel),
         AnswerBody::DraftReply {
             to: vec![],
             subject: Reveal::Handle(Handle(1)),

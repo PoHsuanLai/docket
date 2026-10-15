@@ -51,6 +51,7 @@ fn refusal(refusal: &RefusalWire) -> String {
         RefusalWire::NotAllowed(code) => format!("not allowed: {code:?}"),
         RefusalWire::NoWay { app } => format!("no way to do that in {app}"),
         RefusalWire::OverBudget(kind) => format!("over budget: {kind:?}"),
+        RefusalWire::NoModel => "choose a model for the assistant first".to_owned(),
         RefusalWire::Failed(why) => format!("failed: {why}"),
     }
 }

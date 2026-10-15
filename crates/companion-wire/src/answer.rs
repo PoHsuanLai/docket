@@ -194,6 +194,10 @@ pub enum RefusalWire {
     },
     /// A budget ran out.
     OverBudget(BudgetKind),
+    /// No model is chosen for the assistant, or the chosen one cannot run now: the person is
+    /// asked to choose one (the shell opens the model picker), never given a model they did not
+    /// choose.
+    NoModel,
     /// It failed.
     Failed(String),
 }
