@@ -97,6 +97,7 @@ impl<S: Seams> Router<S> {
             "companion.task.start" => self.task_start(&inv),
             "companion.task.message" => self.task_message(&inv),
             crate::skills::SKILL_LOAD => self.skill_load(&inv),
+            crate::limits::LIMIT_ADD => self.limit_add(&inv),
             _ => Err(AppRefusal::Unsupported),
         }
     }

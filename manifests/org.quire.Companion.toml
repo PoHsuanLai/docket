@@ -90,3 +90,73 @@ label = "Skill"
 ty = { kind = "text", v = { max = 48, lines = "one" } }
 need = { kind = "required" }
 sink = "inert"
+
+# Makes the person's word stricter: from now on the assistant's calls in this scope ask first, or
+# are refused. It can only tighten (the two levels below are the only ones the router reads, there
+# is no way to allow anything), so it needs no question. Removing what it adds is the person's act
+# alone, in Settings or from the sheet's Undo; the assistant has no action for it.
+[[actions]]
+name = "companion.limit.add"
+label = "Ask first, or never"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "level"
+label = "Ask first, or never"
+ty = { kind = "choice", v = [
+  { id = "ask", label = "Ask me first" },
+  { id = "never", label = "Never" },
+] }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "app"
+label = "Which app (leave out for every app)"
+ty = { kind = "text", v = { max = 128, lines = "one" } }
+need = { kind = "optional" }
+sink = "inert"
+
+[[actions.params]]
+name = "action"
+label = "Which action of that app"
+ty = { kind = "text", v = { max = 128, lines = "one" } }
+need = { kind = "optional" }
+sink = "inert"
+
+[[actions.params]]
+name = "reach"
+label = "What it covers"
+ty = { kind = "choice", v = [
+  { id = "changes", label = "Anything that changes things" },
+  { id = "removals", label = "Removing things only" },
+  { id = "anything", label = "Everything, even looking" },
+] }
+need = { kind = "defaulted", v = { kind = "choice", v = "changes" } }
+sink = "inert"
+
+[[actions.params]]
+name = "space"
+label = "Where"
+ty = { kind = "choice", v = [
+  { id = "here", label = "In this Space" },
+  { id = "everywhere", label = "In every Space" },
+] }
+need = { kind = "defaulted", v = { kind = "choice", v = "here" } }
+sink = "inert"
+
+[[actions.params]]
+name = "said"
+label = "The person's own words"
+ty = { kind = "text", v = { max = 160, lines = "one" } }
+need = { kind = "optional" }
+sink = "inert"

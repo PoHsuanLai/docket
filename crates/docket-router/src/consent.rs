@@ -66,6 +66,14 @@ pub(crate) fn consent_for(
                 scope: GrantScope::Always,
             }
         }
+        // The assistant tightening on the person's word needs no question: it can only make
+        // the next call ask or refuse.
+        GrantCaller::Companion if crate::limits::is_limit_add(app, &decl.name) => {
+            Verdict::Granted {
+                grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
+                scope: GrantScope::Always,
+            }
+        }
         _ => Verdict::Ask,
     };
     let per_class: Vec<Verdict> = decl
