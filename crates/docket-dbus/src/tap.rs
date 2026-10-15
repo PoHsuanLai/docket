@@ -4,12 +4,13 @@
 //! inferd's own audit never keeps content, and its replay `record` sees requests only.
 //!
 //! THIS WRITES PROMPTS TO DISK. Only a caller that builds a [`Tap::trace_file`] turns it on, and
-//! only the live harness's mains (`docket-accept`) do: they read `DOCKET_MODEL_TRACE=<file>` (the
-//! harness's scratch directory; the file is created 0600 and appended to, one JSON line per
-//! exchange) and pass the tap in. No daemon's `main` reads an environment variable for it, so a
-//! release daemon's environment cannot make it write prompts; `scripts/check-boundary.sh`
-//! checks that no shipped crate names the variable. A daemon that is not asked takes no copy of
-//! anything. A process that is not a daemon builds a [`MemoryTap`] and reads the exchanges itself.
+//! only the live harness's mains (`docket-accept`) do: they read the model-trace variable, which
+//! names a file (in the harness's scratch directory; the file is created 0600 and appended to, one
+//! JSON line per exchange) and pass the tap in. No daemon's `main` reads an environment variable
+//! for it, so a release daemon's environment cannot make it write prompts;
+//! `scripts/check-boundary.sh` checks that no shipped crate names the variable. A daemon that is
+//! not asked takes no copy of anything. A process that is not a daemon builds a [`MemoryTap`] and
+//! reads the exchanges itself.
 
 use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 use porter_client::{Transport, TransportError};
