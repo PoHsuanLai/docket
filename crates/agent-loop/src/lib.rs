@@ -5,6 +5,7 @@
 //! `Eq`, so a run can be traced and replayed.
 //!
 //! - `assemble`: the working-set assembler, sections from most to least stable.
+//! - `compaction_due`, `summary_input`: when a task is summarised, and what the summariser sees.
 //! - `agent_step`: the planner loop.
 //! - `Guard`: the turn's ledger of calls; it holds back a repeated call that got nothing and
 //!   stops a turn that will not change course.
@@ -17,6 +18,7 @@
 //! - `front_step`: where the launcher returns to.
 
 mod assemble;
+mod compact;
 mod completion;
 mod front;
 mod guard;
@@ -28,6 +30,7 @@ mod step;
 mod tier;
 
 pub use assemble::{Sources, TaskFit, assemble, mask_history, task_fit};
+pub use compact::{SUMMARY_RESERVE, SummaryInput, compaction_due, summarised, summary_input};
 pub use completion::{AskedPerson, Attention, CompletionNote, attention_of, completion_line};
 pub use front::{FrontEvent, front_step};
 pub use guard::{Guard, HOLDS_BEFORE_STOP, MOST_HOLDS_PER_TURN, MOST_REMEMBERED, Stuck, Verdict};

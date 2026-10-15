@@ -5,14 +5,16 @@
 //!
 //! Nothing here reads a clock or an order that changes between turns, so the first sections are
 //! byte-stable within a day. Compression is deterministic: masking old outcomes, and dropping the
-//! oldest masked steps; the model is never asked to summarise mid-task. A task that still
-//! overflows is split by the loop (finish or hand off), not squeezed.
+//! oldest masked steps. Before that last resort a task that outgrows its budget is compacted
+//! (`compaction_due`, `compact.rs`): the loop asks the model to summarise the oldest whole steps,
+//! writes the summary down, and the next assembly shows the summary in their place. A task that
+//! still overflows is split by the loop (finish or hand off), not squeezed.
 
 use almanac_core::{estimate_tokens, fit_budget};
 use docket_core::{
-    ActionCard, AssemblerBudget, ContextView, EpisodeLine, HandleCard, InboundLine, PlannerView,
-    PrimerText, ProfileLine, RecalledLine, Reveal, RollupLine, Roster, SkillCard, SkillText,
-    StepEnd, StepLine, StepShown, TaskPolicy, UserTurn, Value,
+    ActionCard, AssemblerBudget, ContextView, Covers, EpisodeLine, HandleCard, InboundLine,
+    PlannerView, PrimerText, ProfileLine, RecalledLine, Reveal, RollupLine, Roster, SkillCard,
+    SkillText, StepEnd, StepLine, StepShown, Summary, TaskPolicy, UserTurn, Value,
 };
 use porter_core::{Count, Tokens};
 use prov::Integrity;
@@ -53,6 +55,9 @@ pub struct Sources {
     pub skills: Vec<SkillCard>,
     /// Skills expanded for the task: preselected or loaded.
     pub skill_texts: Vec<SkillText>,
+    /// The latest summary of the task's oldest turns and steps. `turns` and `history` stay whole;
+    /// the assembler leaves out what the summary covers.
+    pub summary: Option<Summary>,
 }
 
 fn cost<T: Serialize>(value: &T) -> Tokens {
@@ -129,8 +134,17 @@ pub enum TaskFit {
     Overflows,
 }
 
-fn task_cost(view: &PlannerView) -> u32 {
-    cost(&view.turns).0 + cost(&view.history).0 + cost(&view.inbox).0 + cost(&view.handles).0
+/// The items after the first `covered` of them: what a summary does not stand for.
+fn live<T>(items: &[T], covered: Count) -> &[T] {
+    items.get(covered.0 as usize..).unwrap_or_default()
+}
+
+pub(crate) fn task_cost(view: &PlannerView) -> u32 {
+    cost(&view.turns).0
+        + cost(&view.history).0
+        + cost(&view.inbox).0
+        + cost(&view.handles).0
+        + view.summary.as_ref().map_or(0, |s| cost(s).0)
 }
 
 /// Whether the task section of `view` is within the budget.
@@ -142,9 +156,14 @@ pub fn task_fit(budget: &AssemblerBudget, view: &PlannerView) -> TaskFit {
     }
 }
 
-/// Builds the planner's view inside the budget. The person's turns are never cut; the oldest
-/// masked steps go first when the current task is over its budget.
-pub fn assemble(budget: &AssemblerBudget, sources: &Sources) -> PlannerView {
+/// The view with `covers` left out and `summary` in its place, before the last resort of dropping
+/// the oldest masked steps.
+pub(crate) fn view_of(
+    budget: &AssemblerBudget,
+    sources: &Sources,
+    covers: Covers,
+    summary: Option<Summary>,
+) -> PlannerView {
     let primer_room = Tokens(budget.profile.0.saturating_sub(cost(&sources.profile).0));
     let mut context = sources.context.clone();
     while cost(&context).0 > budget.context.0 && !context.visible.items.is_empty() {
@@ -156,12 +175,12 @@ pub fn assemble(budget: &AssemblerBudget, sources: &Sources) -> PlannerView {
         budget.recall,
         cost,
     );
-    let mut view = PlannerView {
-        turns: sources.turns.clone(),
+    PlannerView {
+        turns: live(&sources.turns, covers.turns).to_vec(),
         context,
         actions: take_within(&sources.cards, budget.rules),
         handles: sources.handles.clone(),
-        history: mask_history(&sources.history, budget.full_steps),
+        history: mask_history(live(&sources.history, covers.steps), budget.full_steps),
         taint: sources.taint,
         task_policy: sources.task_policy.clone(),
         primer: sources
@@ -178,8 +197,16 @@ pub fn assemble(budget: &AssemblerBudget, sources: &Sources) -> PlannerView {
         inbox: sources.inbox.clone(),
         skills: sources.skills.clone(),
         skill_texts: sources.skill_texts.clone(),
-        summary: None,
-    };
+        summary,
+    }
+}
+
+/// Builds the planner's view inside the budget. What the summary covers is left out and the
+/// summary shown in its place. The person's turns are never cut; the oldest masked steps go first
+/// when the current task is over its budget.
+pub fn assemble(budget: &AssemblerBudget, sources: &Sources) -> PlannerView {
+    let covers = sources.summary.as_ref().map_or(Covers::NONE, |s| s.covers);
+    let mut view = view_of(budget, sources, covers, sources.summary.clone());
     let keep = budget.full_steps.0 as usize;
     while task_fit(budget, &view) == TaskFit::Overflows && view.history.len() > keep {
         view.history.remove(0);

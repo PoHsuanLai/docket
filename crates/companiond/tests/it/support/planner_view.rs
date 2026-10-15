@@ -57,6 +57,7 @@ pub fn view(cards: Vec<ActionCard>) -> PlannerView {
             skill_texts: vec![],
             taint: Integrity::Trusted,
             task_policy: None,
+            summary: None,
         },
     )
 }

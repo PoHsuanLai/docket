@@ -128,6 +128,7 @@ pub struct PlannerReply {
 ///         skill_texts: vec![],
 ///         taint: Integrity::Trusted,
 ///         task_policy: None,
+///         summary: None,
 ///     },
 /// );
 /// let planner = PlannerModel::new(WordsModel::says("Nothing to do."));
@@ -141,8 +142,8 @@ pub struct PlannerReply {
 pub struct PlannerModel<P: Transport> {
     infer: P,
     catalogue: Catalogue,
-    role: Option<RoleText>,
-    tier: Tier,
+    pub(crate) role: Option<RoleText>,
+    pub(crate) tier: Tier,
 }
 
 fn schema_text(schema: &Json) -> Option<JsonSchemaText> {
@@ -320,7 +321,7 @@ impl<P: Transport> PlannerModel<P> {
 
     /// The tools of a view: the actions the budget kept, in the view's order, then the three
     /// every task has.
-    fn tools(&self, view: &PlannerView) -> Vec<ToolDecl> {
+    pub(crate) fn tools(&self, view: &PlannerView) -> Vec<ToolDecl> {
         view.actions
             .iter()
             .filter(|card| card.related.is_empty())

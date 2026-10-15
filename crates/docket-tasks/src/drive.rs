@@ -258,7 +258,10 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             }
             return Ok(vec![LoopInput::ModelFailed]);
         }
-        let sources = self.sources(task).await;
+        let mut sources = self.sources(task).await;
+        if let Some(summary) = self.compact(task, &sources).await {
+            sources.summary = Some(summary);
+        }
         let view = assemble(&self.config.assembler, &sources);
         let asked = bounded(
             &*self.shared,

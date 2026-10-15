@@ -22,6 +22,7 @@
 
 mod act;
 mod best_effort;
+mod compaction;
 mod completion;
 mod deadline;
 mod drive;

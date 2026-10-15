@@ -109,6 +109,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             task_policy,
             skills,
             skill_texts,
+            summary: rt.summary.clone(),
         }
     }
 
@@ -174,6 +175,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             task_policy: None,
             skills: Vec::new(),
             skill_texts: Vec::new(),
+            summary: None,
         }
     }
 

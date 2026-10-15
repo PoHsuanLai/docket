@@ -11,7 +11,7 @@ use companion_wire::{
 use docket_core::{
     CallEnd, CallId, CallRefusal, CallRequest, CharCount, ContextKeep, Handle, HandleCard,
     HandleShape, InboundLine, InboundPart, Keep, LedgerStep, Origin, Outcome, Reveal, StepEnd,
-    StepLine, StepShown, TargetValue, Undoable, UserTurn, Value, WindowKey,
+    StepLine, StepShown, Summary, TargetValue, Undoable, UserTurn, Value, WindowKey,
 };
 use porter_core::AppName;
 use porter_infer::ServedBy;
@@ -80,6 +80,9 @@ pub struct TaskRuntime {
     pub loaded: Vec<docket_core::SkillId>,
     /// Why the last turn failed, if it did.
     pub failure: Option<Failure>,
+    /// What stands for the task's oldest turns and steps once it outgrew its budget; `turns` and
+    /// `history` stay whole.
+    pub summary: Option<Summary>,
 }
 
 /// Why a task ended failed, as the host that runs it can tell the person (the answer's
@@ -142,6 +145,7 @@ impl TaskRuntime {
             acts: Plan::default(),
             loaded: Vec::new(),
             failure: None,
+            summary: None,
         }
     }
 

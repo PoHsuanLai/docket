@@ -7,6 +7,8 @@
 //! - `Catalogue`: the actions it may call, as tools.
 //! - `messages`, `system_text`, `user_text`, `RULES`: the prompt; `RoleText`: an agent's own
 //!   instructions, which follow the rules and never replace them.
+//! - `PlannerModel::summarise`: the model turn that writes a summary of a task's oldest steps, from
+//!   what the planner was shown alone.
 //! - `read_call`, `planner_label`: the planner's own steps and labels.
 
 mod accepts;
@@ -18,6 +20,7 @@ mod render;
 mod role;
 mod show;
 mod step_text;
+mod summarise;
 mod unconfirmed;
 mod want;
 
@@ -29,3 +32,4 @@ pub use planner::{
 };
 pub use render::{RULES, messages, messages_with, system_text, system_text_with, user_text};
 pub use role::{ROLE_LIMIT, RoleFault, RoleText};
+pub use summarise::{SUMMARY_RULES, SummariseFault, Summarised, summary_text};
