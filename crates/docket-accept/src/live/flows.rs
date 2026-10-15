@@ -322,6 +322,15 @@ impl Evidence {
         }
     }
 
+    /// Whether the last answer puts content in front of the person (a shown handle,
+    /// `quire_finish {show}`), which answers without words of its own.
+    pub(crate) fn shows_content(&self) -> bool {
+        matches!(
+            self.views().last().map(|v| &v.body),
+            Some(AnswerBody::Text { lines }) if lines.iter().any(|l| matches!(l, Reveal::Handle(_)))
+        )
+    }
+
     /// Whether a sheet was raised for an outbound action to `address`.
     pub(crate) fn asked_to_send_to(&self, address: &str) -> bool {
         self.sheets.iter().any(|s| match &s.detail {

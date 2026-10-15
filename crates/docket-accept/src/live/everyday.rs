@@ -95,8 +95,15 @@ impl Everyday {
         if !e.done() {
             out.failures.push(capability("the answer did not end Done"));
         }
-        for why in self.shape().check(&e.said()) {
-            out.failures.push(capability(why));
+        // Showing the found thing is an answer: no words of its own are needed then, unless the
+        // shape asks for some.
+        let said = e.said();
+        let shown_only =
+            said.trim().is_empty() && e.shows_content() && self.shape().contains.is_empty();
+        if !shown_only {
+            for why in self.shape().check(&said) {
+                out.failures.push(capability(why));
+            }
         }
         if !planner {
             out.not_applicable

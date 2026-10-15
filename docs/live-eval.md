@@ -268,7 +268,8 @@ Add an app by writing its manifest, its things in `things.rs`, a `Kit`, and one 
 Four small flows (`live::everyday`) cover what a person asks all day: `fact` ("What is the capital of Taiwan?":
 ends Done, no app call but memory reads, one short reply of at most 240 characters that says "Taipei" and none of
 memory, tool, history, recall, "I can answer", no sheet), `remember` (a memory write is proposed and the sheet
-allowed), `what-remember` (a memory read, then an answer, no sheet) and `mail-find` (a thread search, no send).
+allowed), `what-remember` (a memory read, then an answer, no sheet) and `mail-find` (a thread search, no send;
+showing the found thread with `quire_finish {show}` is an answer without words).
 The answer checks are one reusable `Shape` (`live::shape`: length, words it must and must not hold, and never an
 identifier such as an action id or a tool name), so any flow can ask for them. Each flow has a cassette, so the
 gate plays them; a live run is judged on the same expectations. Each trace now holds `answer chars:` and `answer:`.
@@ -280,7 +281,9 @@ dev/live/model-compare.sh --keys-home ~/.local/share/quire-test/keys \
   --models "cloud/claude-haiku-4.5 cloud/gemini-3.8-flash" --repeat 3
 ```
 
-For each model it writes an inferd config (all tiers pinned to it, `local_only` off, prompt and mail floored
+For each model it writes an inferd config (the planner's tier, `balanced`, pinned to it; `fast` and `best`
+pinned to `--helper`, default `cloud/gemini-3.8-flash`, because the policy writer and quick reviewer need
+structured output, which not every model offers, and so only the planner differs between rows; `local_only` off, prompt and mail floored
 anywhere, a spend cap, `--spend-cents`, default 500) into a scratch directory outside git, runs
 `dev/live-smoke.sh --engine cloud --keys-home DIR --repeat N` for the flows (`--flows`, default the four above),
 and prints a markdown table: model by flow, passes out of N, the median length of the `fact` answer, and the
