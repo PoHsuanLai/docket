@@ -21,7 +21,9 @@ pub(crate) async fn bounded<K: Now, S: Surface, T>(
 ) -> Result<T, Stop> {
     let cancel = shared.cancel_of(task);
     let stop = stop_after(clock.sleep(span), cancel.cancelled());
-    until(work, stop).await
+    // Boxed so the waited future lives on the heap: inline it would sit one more layer deep on the
+    // polling thread's stack, and the policy point's evaluator refuses to run below its stack floor.
+    until(Box::pin(work), stop).await
 }
 
 /// `work`, ended early by `span` running out.
@@ -30,5 +32,6 @@ pub(crate) async fn timed<K: Now, T>(
     span: Duration,
     work: impl Future<Output = T>,
 ) -> Result<T, Stop> {
-    within(clock.sleep(span), work).await
+    // Boxed for the same reason as in `bounded`.
+    within(clock.sleep(span), Box::pin(work)).await
 }
