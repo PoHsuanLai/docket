@@ -1,0 +1,181 @@
+//! Who is calling a daemon. One way, for every daemon of the agent tier: porter's
+//! [`ProcCallers`] (the bus names the process behind a connection, `/proc/<pid>/cgroup` names the
+//! unit or app scope, the daemon's callers file names the role) and a check of the [`Standing`] a
+//! method asks for. A daemon never decides that a name it can see on the bus, the well-known name
+//! someone owns, or a uid alone is a role; a caller nothing identifies is refused.
+//!
+//! The roles come from the daemon's own file, `<daemon>-callers.toml`: the system's under
+//! `/etc/quire` and the person's under their configuration directory, laid over it
+//! ([`read_table`]). Only the system's file can give a fixed role (`sheet_host`, `cua`, ...), and
+//! a scope row is never more than a plain app, so the shell is `sill.service` and nothing else.
+//!
+//! A test names the callers of its private bus with [`Identity::introduce`] (feature `testing`),
+//! because every connection of a test is one process, and reads a fake proc root for the rest.
+
+use crate::BusConnection;
+use porter_dbus::{Caller, CallerRole, CallerTable, Callers, ProcCallers};
+pub use porter_dbus::{CallerFileError, load_callers, table_from_toml};
+use std::path::{Path, PathBuf};
+use zbus::fdo;
+
+/// Where the system's callers files are installed.
+pub const SYSTEM_DIR: &str = "/etc/quire";
+
+/// The person's configuration directory: `$XDG_CONFIG_HOME`, else `$HOME/.config`.
+pub fn config_home(env: &impl Fn(&str) -> Option<String>) -> PathBuf {
+    env("XDG_CONFIG_HOME")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            env("HOME")
+                .map(PathBuf::from)
+                .unwrap_or_default()
+                .join(".config")
+        })
+}
+
+/// The daemon's table: `/etc/quire/<file>` with `<config>/quire/<file>` laid over it. A file that
+/// is missing is an empty table (nobody is identified); a file that does not parse is an error.
+pub fn read_table(
+    file: &str,
+    env: &impl Fn(&str) -> Option<String>,
+) -> Result<CallerTable, CallerFileError> {
+    load_callers(
+        &Path::new(SYSTEM_DIR).join(file),
+        &config_home(env).join("quire").join(file),
+    )
+}
+
+/// What a method asks of its caller: the app its row names and the role the system's table gives
+/// it. Both: a row cannot make an app the router by naming it, and an app scope that is called
+/// like the router is only a plain app.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Standing {
+    /// The app of the caller's row.
+    pub app: &'static str,
+    /// The role of the caller's row.
+    pub role: CallerRole,
+}
+
+impl Standing {
+    /// The standing of `role` in the app `app`.
+    pub const fn new(app: &'static str, role: CallerRole) -> Self {
+        Self { app, role }
+    }
+
+    /// Whether `caller` holds this standing.
+    pub fn held_by(&self, caller: &Caller) -> bool {
+        caller.app.name.as_str() == self.app && caller.role == self.role
+    }
+}
+
+/// intentd, the router: the `agent` role of the app `org.quire.Intents`.
+pub const INTENTD: Standing = Standing::new("org.quire.Intents", CallerRole::Agent);
+/// sill, the shell and the sheet host: the `sheet_host` role of the app `org.quire.Shell`.
+pub const SHELL: Standing = Standing::new("org.quire.Shell", CallerRole::SheetHost);
+
+/// The table of a process that answers intentd alone and reads no file: one row, intentd's unit.
+/// An app serving `IntentProvider1` has no `/etc/quire` file of its own to keep, and the router is
+/// the same on every machine.
+pub const INTENTD_ONLY: &str =
+    "[[caller]]\napp = \"org.quire.Intents\"\nunit = \"intentd.service\"\nrole = \"agent\"\n";
+
+/// Why a caller was refused.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum Refused {
+    /// The message names no sender.
+    #[error("no sender")]
+    NoSender,
+    /// Nothing identifies the process behind the connection.
+    #[error("an unknown caller")]
+    Unknown,
+    /// An identified caller that does not hold the standing the method asks for.
+    #[error("not the caller this method answers")]
+    NotAllowed,
+}
+
+impl From<Refused> for fdo::Error {
+    fn from(refused: Refused) -> Self {
+        fdo::Error::AccessDenied(refused.to_string())
+    }
+}
+
+/// The caller behind `sender`, if it holds one of the `allowed` standings.
+pub async fn require(
+    callers: &impl Callers,
+    sender: Option<&str>,
+    allowed: &[Standing],
+) -> Result<Caller, Refused> {
+    let sender = sender.ok_or(Refused::NoSender)?;
+    let caller = callers.caller_of(sender).await.ok_or(Refused::Unknown)?;
+    if allowed.iter().any(|standing| standing.held_by(&caller)) {
+        Ok(caller)
+    } else {
+        Err(Refused::NotAllowed)
+    }
+}
+
+/// Says who a bus connection is: porter's [`ProcCallers`] on the daemon's connection and table.
+#[derive(Debug)]
+pub struct Identity {
+    procs: ProcCallers,
+    #[cfg(feature = "testing")]
+    introduced: std::sync::Mutex<std::collections::BTreeMap<String, Caller>>,
+}
+
+impl Identity {
+    /// Reads the system's `/proc`, and asks the systemd manager for a service's main process.
+    pub fn on_system(connection: BusConnection, table: CallerTable) -> Self {
+        Self::over(ProcCallers::new(connection, table))
+    }
+
+    /// Reads the fixture tree `proc_root` instead of `/proc` (`<root>/<pid>/cgroup`, and a
+    /// service's main process in `<root>/units/<unit>`): how a test or the acceptance harness
+    /// presents its processes.
+    pub fn on_fixture(connection: BusConnection, table: CallerTable, proc_root: PathBuf) -> Self {
+        Self::over(ProcCallers::with_proc_root(connection, table, proc_root))
+    }
+
+    /// The fixture tree when there is one, else the system's `/proc`.
+    pub fn on(connection: BusConnection, table: CallerTable, fixture: Option<&Path>) -> Self {
+        match fixture {
+            Some(root) => Self::on_fixture(connection, table, root.to_owned()),
+            None => Self::on_system(connection, table),
+        }
+    }
+
+    fn over(procs: ProcCallers) -> Self {
+        Self {
+            procs,
+            #[cfg(feature = "testing")]
+            introduced: std::sync::Mutex::default(),
+        }
+    }
+
+    /// Says that the connection `unique` is `caller`, ahead of what `/proc` says.
+    #[cfg(feature = "testing")]
+    pub fn introduce(&self, unique: &str, caller: Caller) {
+        self.introduced
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(unique.to_owned(), caller);
+    }
+}
+
+impl Callers for Identity {
+    async fn caller_of(&self, sender: &str) -> Option<Caller> {
+        #[cfg(feature = "testing")]
+        {
+            let told = self
+                .introduced
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get(sender)
+                .cloned();
+            if told.is_some() {
+                return told;
+            }
+        }
+        self.procs.caller_of(sender).await
+    }
+}

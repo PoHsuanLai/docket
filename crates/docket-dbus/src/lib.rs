@@ -9,6 +9,7 @@
 //! `Voice1` lives in `voiced`, which serves it.
 
 mod answer;
+pub mod callers;
 mod checkpoint;
 mod companion;
 mod confirm;

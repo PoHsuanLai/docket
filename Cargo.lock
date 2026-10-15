@@ -1225,6 +1225,7 @@ dependencies = [
  "prov",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tracing",
  "zbus",
@@ -3027,6 +3028,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "toml",
  "zbus",
 ]
 
