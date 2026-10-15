@@ -53,9 +53,12 @@ pub struct GitProblem {
     pub cause: GitCause,
 }
 
+/// A function the daemon supplies to hear of problems.
+type Sink = Arc<dyn Fn(&GitProblem) + Send + Sync>;
+
 /// Where problems go: a function the daemon supplies, or nowhere.
 #[derive(Clone, Default)]
-pub(crate) struct Report(Option<Arc<dyn Fn(&GitProblem) + Send + Sync>>);
+pub(crate) struct Report(Option<Sink>);
 
 impl Report {
     pub(crate) fn to(sink: impl Fn(&GitProblem) + Send + Sync + 'static) -> Self {
