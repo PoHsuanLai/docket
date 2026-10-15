@@ -261,7 +261,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let sources = self.sources(task).await;
         let view = assemble(&self.config.assembler, &sources);
         let asked = bounded(
-            &self.shared,
+            &*self.shared,
             &self.clock,
             task,
             self.waits.model,
@@ -504,7 +504,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             return Err(ServeFault::UnknownSession);
         };
         let read = bounded(
-            &self.shared,
+            &*self.shared,
             &self.clock,
             task,
             self.waits.model,
