@@ -54,19 +54,26 @@ fn split(text: &str) -> Vec<String> {
 }
 
 fn cap(piece: String) -> Vec<String> {
+    let chars: Vec<char> = piece.chars().collect();
     let mut out = Vec::new();
-    let mut rest: Vec<char> = piece.chars().collect();
-    while rest.len() > MAX_SENTENCE_CHARS {
-        let window = &rest[..MAX_SENTENCE_CHARS];
+    let mut start = 0;
+    while chars.len() - start > MAX_SENTENCE_CHARS {
+        let window = &chars[start..start + MAX_SENTENCE_CHARS];
         let at = window
             .iter()
             .rposition(|c| c.is_whitespace())
             .filter(|&i| i > 0)
             .map_or(MAX_SENTENCE_CHARS, |i| i + 1);
-        out.push(rest[..at].iter().collect::<String>().trim().to_owned());
-        rest = rest[at..].to_vec();
+        out.push(
+            chars[start..start + at]
+                .iter()
+                .collect::<String>()
+                .trim()
+                .to_owned(),
+        );
+        start += at;
     }
-    let tail: String = rest.iter().collect::<String>().trim().to_owned();
+    let tail: String = chars[start..].iter().collect::<String>().trim().to_owned();
     if !tail.is_empty() {
         out.push(tail);
     }

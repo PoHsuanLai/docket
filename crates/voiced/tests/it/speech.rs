@@ -231,3 +231,28 @@ async fn synthesis_refused_ends_the_speech_failed() {
     let status = status_of(&world.voice.status().await.expect("status"));
     assert_eq!(status.speaking, voice_wire::Speaking::Quiet);
 }
+
+#[tokio::test]
+async fn too_much_text_and_too_many_speeches_are_refused() {
+    let world = world(Options::new(ScriptedInfer::new(vec![]))).await;
+    let huge = "word ".repeat(4_000);
+    let error = world
+        .voice
+        .speak(&speak_wire(&huge, None))
+        .await
+        .expect_err("refused");
+    assert!(
+        matches!(&error, zbus::Error::MethodError(name, _, _)
+            if name.as_str() == "org.quire.Voice1.Error.Malformed"),
+        "{error}"
+    );
+    let body = speak_wire(&"y".repeat(200_000), None);
+    assert!(
+        world.voice.speak(&body).await.is_err(),
+        "body past the limit"
+    );
+    assert!(
+        world.seen.opens().is_empty(),
+        "nothing was opened for either"
+    );
+}

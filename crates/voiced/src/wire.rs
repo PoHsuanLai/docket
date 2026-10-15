@@ -9,8 +9,18 @@ use voice_wire::{CancelCause, Envelope, VoiceVocab};
 pub use voice_wire::{FrameError, MAX_FRAME, Unframed, frame, seal, unframe};
 use zbus::zvariant::OwnedObjectPath;
 
-/// The body of an envelope the caller sent, refused when it is another vocabulary.
+/// The longest body any member takes, in bytes: room for `MAX_SPOKEN_BYTES` of text with every
+/// character escaped. Larger bodies are refused before they are parsed.
+pub(crate) const MAX_BODY_BYTES: usize = 128 * 1024;
+
+/// The body of an envelope the caller sent, refused when it is another vocabulary or too long.
 pub(crate) fn open<T: DeserializeOwned>(text: &str) -> Result<T, VoiceError> {
+    if text.len() > MAX_BODY_BYTES {
+        return Err(VoiceError::Malformed(format!(
+            "body of {} bytes (at most {MAX_BODY_BYTES})",
+            text.len()
+        )));
+    }
     let envelope: Envelope<T> =
         serde_json::from_str(text).map_err(|e| VoiceError::Malformed(e.to_string()))?;
     if envelope.vocab == VoiceVocab::CURRENT {

@@ -273,6 +273,14 @@ fn sentencer_table() {
         "{:?}",
         spaced.len()
     );
+    // Four million characters with no break cap in linear time (this finished only after minutes
+    // when each piece copied the rest of the text).
+    let huge = sentences(&"x".repeat(MAX_SENTENCE_CHARS * 13_000));
+    assert_eq!(huge.len(), 13_000);
+    assert!(
+        huge.iter()
+            .all(|x| x.0.chars().count() == MAX_SENTENCE_CHARS)
+    );
     let zh = sentences(&"好".repeat(10).repeat(40));
     assert!(zh.iter().all(|x| x.0.chars().count() <= 300));
 }

@@ -22,6 +22,12 @@ use voice_loop::{MicNow, SpeechEffect, SpeechEvent, SpeechPhase, SpeechState, sp
 use voice_wire::{SpeakWire, Speaking, SpeechEnd, VoiceFault, VoiceRefusal, VoiceUse};
 use zbus::object_server::SignalEmitter;
 
+/// The most text one `Speak` may carry, in bytes.
+pub(crate) const MAX_SPOKEN_BYTES: usize = 16 * 1024;
+
+/// How many requests may be spoken together before the next is refused as `Busy`.
+pub(crate) const MAX_ACTIVE_SPEECHES: usize = 8;
+
 /// One request to speak, as the loop holds it.
 #[derive(Debug, Clone)]
 pub(crate) struct Rec {
@@ -94,6 +100,15 @@ where
         }
         if self.usage.now() == VoiceUse::Off {
             return Err(VoiceRefusal::Disabled.into());
+        }
+        if wire.text.0.len() > MAX_SPOKEN_BYTES {
+            return Err(VoiceError::Malformed(format!(
+                "text of {} bytes (at most {MAX_SPOKEN_BYTES})",
+                wire.text.0.len()
+            )));
+        }
+        if self.say.active.len() >= MAX_ACTIVE_SPEECHES {
+            return Err(VoiceRefusal::Busy.into());
         }
         self.counter += 1;
         let n = self.counter;
