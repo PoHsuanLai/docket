@@ -24,6 +24,7 @@ use docket_core::{
 use docket_session::{CallOpen, SessionEntry};
 use porter_core::GrantId;
 use prov::{Actor, AgentRole, SessionId, SpaceScope};
+use tracing::Instrument;
 
 /// A ledger checkpoint is written when the session has made a multiple of this many calls.
 const BUDGET_EVERY: u32 = 5;
@@ -77,7 +78,10 @@ impl<S: Seams> Router<S> {
                     activation,
                     ..prepared
                 };
-                let driven = self.drive(&prepared, watch).await;
+                let driven = self
+                    .drive(&prepared, watch)
+                    .instrument(crate::spans::execute_tool(&prepared))
+                    .await;
                 self.note_delegation(&prepared, &driven);
                 let changed = Self::changed_since_classified(&prepared, &driven);
                 let first = self.finish(&prepared, driven).await;
@@ -93,7 +97,10 @@ impl<S: Seams> Router<S> {
                             activation: prepared.activation.clone(),
                             ..again
                         };
-                        let driven = self.drive(&again, watch).await;
+                        let driven = self
+                            .drive(&again, watch)
+                            .instrument(crate::spans::execute_tool(&again))
+                            .await;
                         self.finish(&again, driven).await
                     }
                 }

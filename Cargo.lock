@@ -1461,6 +1461,7 @@ dependencies = [
  "docket-skills",
  "futures-channel",
  "futures-util",
+ "genai-names",
  "policy-point",
  "porter-core",
  "proptest",

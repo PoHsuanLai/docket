@@ -3,6 +3,7 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
+use crate::spans;
 use docket_core::{BudgetKind, TurnReport, charge_turn, check_turn};
 use docket_session::SessionEntry;
 use prov::SessionId;
@@ -31,7 +32,11 @@ impl<S: Seams> Router<S> {
         };
         record.ledger = charge_turn(&record.ledger, report);
         record.wal.note(SessionEntry::Budget(record.ledger));
-        standing(check_turn(&record.ledger, &budget))
+        let task = record.task.clone();
+        let verdict = standing(check_turn(&record.ledger, &budget));
+        drop(st);
+        drop(spans::invoke_agent(session, &task, report));
+        verdict
     }
 
     /// Whether the session may start another model turn: asked before the model is.

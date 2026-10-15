@@ -127,6 +127,8 @@ almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "f35ed3
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
 cua-action      = { git = "https://github.com/PoHsuanLai/stoker", rev = "7537c6d2232ec95e7fd7236b6633ab5b7c59530c" }
 model-provider  = { git = "https://github.com/PoHsuanLai/stoker", rev = "7537c6d2232ec95e7fd7236b6633ab5b7c59530c" }
+# The OpenTelemetry GenAI names (no dependencies; no content attribute exists in it): the router's spans.
+genai-names     = { git = "https://github.com/PoHsuanLai/stoker", rev = "7537c6d2232ec95e7fd7236b6633ab5b7c59530c" }
 speech-vad      = { git = "https://github.com/PoHsuanLai/stoker", rev = "7537c6d2232ec95e7fd7236b6633ab5b7c59530c" }
 speech-provider = { git = "https://github.com/PoHsuanLai/stoker", rev = "7537c6d2232ec95e7fd7236b6633ab5b7c59530c" }
 

@@ -80,6 +80,7 @@ mod session;
 mod shield;
 mod skills;
 mod spacing;
+mod spans;
 mod spoken;
 mod standing;
 mod standing_facts;
