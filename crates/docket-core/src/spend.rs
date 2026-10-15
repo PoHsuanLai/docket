@@ -121,3 +121,26 @@ pub fn check_turn(ledger: &Ledger, budget: &Budget) -> Result<(), BudgetKind> {
         _ => Err(BudgetKind::Spend),
     }
 }
+
+/// A task's model spend, as the roster shows it: typed numbers for the shell to word.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TaskTotals {
+    /// Tokens used, by kind.
+    pub tokens: TokenTotals,
+    /// Money used, in millionths of a US dollar.
+    pub cost: MicroUsd,
+    /// Money left under the session's spend cap (zero when it is out).
+    pub remaining: MicroUsd,
+    /// Whether `cost` is the whole bill.
+    pub certainty: Certainty,
+}
+
+/// The totals of a session's ledger under its budget.
+pub fn totals_of(ledger: &Ledger, budget: &Budget) -> TaskTotals {
+    TaskTotals {
+        tokens: ledger.spent.tokens,
+        cost: ledger.spent.cost,
+        remaining: MicroUsd(budget.spend.0.saturating_sub(ledger.spent.cost.0)),
+        certainty: ledger.spent.certainty,
+    }
+}

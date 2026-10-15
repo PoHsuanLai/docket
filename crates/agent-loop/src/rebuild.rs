@@ -94,6 +94,7 @@ impl Rebuilt {
                             goal: docket_core::Reveal::Plain(String::new()),
                             last: None,
                             told: Some(told.clone()),
+                            used: None,
                         })),
                         None => RosterDetail::PresenceOnly,
                     },

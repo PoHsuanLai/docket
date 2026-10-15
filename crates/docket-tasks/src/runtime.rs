@@ -450,6 +450,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 goal: Reveal::Plain(goal),
                 last: rt.history.last().cloned(),
                 told: self.told.get(&rt.agent).cloned(),
+                used: None,
             })),
         }
     }

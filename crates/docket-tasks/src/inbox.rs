@@ -193,6 +193,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                         goal: Reveal::Plain(String::new()),
                         last: None,
                         told,
+                        used: None,
                     })),
                 },
             );

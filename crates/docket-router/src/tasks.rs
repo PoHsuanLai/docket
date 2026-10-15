@@ -1,9 +1,10 @@
 //! Tasks: each is its own session with its own taint, budget and task policy. The router keeps
 //! the table, the ledger of each task until it ends (it becomes an episode), and the roster.
 
+use crate::state::SessionRecord;
 use docket_core::{
-    LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine, RosterState, StepLine,
-    TaskLedger, TaskPolicy, intersection,
+    Budget, LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine, RosterState, StepLine,
+    TaskLedger, TaskPolicy, TaskTotals, intersection, totals_of,
 };
 use prov::{AgentRef, ReportStatus, SessionId, SpaceId, TaskId};
 use std::collections::BTreeMap;
@@ -104,6 +105,29 @@ impl TaskState {
 /// The roster as an agent working in `active` sees it: a task in the same Space shows its
 /// goal, last step and what the person told it; a task in another Space shows presence only.
 pub fn roster_of(table: &TaskTable, active: &SpaceId) -> Roster {
+    roster_by(table, active, |_| None)
+}
+
+/// `roster_of` with each task's model spend: its session's ledger under `budget`. A line seen
+/// from another Space still shows presence only.
+pub fn roster_with_totals(
+    table: &TaskTable,
+    sessions: &BTreeMap<SessionId, SessionRecord>,
+    budget: &Budget,
+    active: &SpaceId,
+) -> Roster {
+    roster_by(table, active, |t| {
+        sessions
+            .get(&t.session)
+            .map(|s| totals_of(&s.ledger, budget))
+    })
+}
+
+fn roster_by(
+    table: &TaskTable,
+    active: &SpaceId,
+    used: impl Fn(&TaskRecord) -> Option<TaskTotals>,
+) -> Roster {
     let entries = table
         .all()
         .map(|t| RosterLine {
@@ -114,6 +138,7 @@ pub fn roster_of(table: &TaskTable, active: &SpaceId) -> Roster {
                 goal: t.goal.clone(),
                 last: t.last.clone(),
                 told: t.ledger.asked.last().map(|turn| LeadText::of(&turn.text)),
+                used: used(t),
             })),
         })
         .collect();

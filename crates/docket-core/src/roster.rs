@@ -8,6 +8,7 @@
 use crate::context::Reveal;
 use crate::ids::Handle;
 use crate::planner::StepLine;
+use crate::spend::TaskTotals;
 use almanac_core::{EpisodeId, EpisodeOutcome, MemoryItem, RecallWhy};
 use prov::{AgentRef, SpaceId, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -70,6 +71,9 @@ pub struct RosterFull {
     /// What the person last told it directly, so the front thread knows at once, in trusted
     /// words, that they redirected it.
     pub told: Option<LeadText>,
+    /// What its model turns have used and what is left to spend, when the router counts it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub used: Option<TaskTotals>,
 }
 
 /// How much a roster line tells.
@@ -213,6 +217,7 @@ mod tests {
                 goal: Reveal::Plain("tidy the downloads".into()),
                 last: None::<StepLine>,
                 told: Some(LeadText::of("skip the newsletters")),
+                used: None,
             })),
         }
     }

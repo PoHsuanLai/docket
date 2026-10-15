@@ -633,6 +633,40 @@ async fn model_spend_past_the_cap_or_uncounted_stops_the_next_call() {
 }
 
 #[tokio::test]
+async fn the_roster_shows_a_tasks_spend_and_what_is_left() {
+    let router = router();
+    let s = ready(&router).await;
+    let report = TurnReport::Reported {
+        tokens: TokenTotals {
+            input: porter_core::Tokens(40),
+            output: porter_core::Tokens(10),
+            cached: porter_core::Tokens(8),
+        },
+        cost: porter_core::MicroUsd(1_000),
+    };
+    router.note_turn_usage(&s.session, &report);
+    let budget = router.agent_config().budget;
+    let st = router.state.lock().expect("lock");
+    let roster =
+        docket_router::roster_with_totals(&st.tasks, &st.sessions, &budget, &space("work"));
+    let used = roster
+        .entries
+        .iter()
+        .find_map(|line| match &line.detail {
+            RosterDetail::Full(full) => full.used,
+            RosterDetail::PresenceOnly => None,
+        })
+        .expect("a task with totals");
+    assert_eq!(used.cost, porter_core::MicroUsd(1_000));
+    assert_eq!(
+        used.remaining,
+        porter_core::MicroUsd(budget.spend.0 - 1_000)
+    );
+    assert_eq!(used.tokens.input, porter_core::Tokens(40));
+    assert_eq!(used.certainty, Certainty::Known);
+}
+
+#[tokio::test]
 async fn a_fan_out_over_the_mass_threshold_asks() {
     let router = router();
     ready(&router).await;

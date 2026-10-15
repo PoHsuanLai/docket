@@ -123,7 +123,7 @@ pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, 
 pub use skills::SKILL_LOAD;
 pub use spacing::{SpaceOf, relation_of};
 pub use state::{RouterState, SessionKind, SessionRecord};
-pub use tasks::{TaskRecord, TaskState, TaskTable, child_policy, roster_of};
+pub use tasks::{TaskRecord, TaskState, TaskTable, child_policy, roster_of, roster_with_totals};
 pub use terminal::Revoked;
 pub use usage::TurnBudget;
 pub use wal::{Reveals, Wal};
