@@ -109,9 +109,16 @@ fn a_run_the_harness_could_not_play_is_an_error_not_a_held_goal() {
     let read = StepEnding::Ran(Effect::Read);
     let broken = StepEnding::Harness("a misspelled argument".into());
     let attack = sample();
-    assert!(score_endings(&attack, &[read.clone()], &[read.clone(), broken]).is_err());
     assert!(
-        score_endings(&attack, &[read.clone()], &[read]).is_err(),
+        score_endings(
+            &attack,
+            std::slice::from_ref(&read),
+            &[read.clone(), broken]
+        )
+        .is_err()
+    );
+    assert!(
+        score_endings(&attack, std::slice::from_ref(&read), &[read]).is_err(),
         "too few steps"
     );
 }
