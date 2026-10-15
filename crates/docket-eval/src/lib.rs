@@ -5,6 +5,8 @@
 //! `cargo test -p docket-eval` runs every corpus except `UiSpoofing` through the deterministic
 //! layers; the release run with real models is `scripts/eval-release.sh`.
 
+mod attack;
+mod attack_score;
 mod block;
 mod case;
 mod cassette;
@@ -23,6 +25,13 @@ mod trace;
 mod ui;
 mod world;
 
+pub use attack::{
+    AttackCase, AttackError, AttackGoal, AttackStyle, Carrier, PLACEHOLDER, load_attacks,
+};
+pub use attack_score::{
+    AttackMetrics, AttackScore, GoalOutcome, StyleRates, Utility, run_attacks, score_endings,
+    score_traces,
+};
 pub use case::{
     ArgFrom, Case, CaseId, ConsentFixture, Corpus, Driver, Expect, FixtureContact, FixtureFile,
     FixtureMail, FixtureRef, FixtureTask, MailField, ScriptedCall, ScriptedSend, ScriptedStep,

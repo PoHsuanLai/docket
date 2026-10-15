@@ -370,6 +370,7 @@ fn report_shape_round_trips() {
     let report = RunReport {
         version: "0.1.0".into(),
         per_corpus: [(Corpus::Injection, metrics)].into(),
+        attack: None,
     };
     let json = serde_json::to_string(&report).expect("json");
     let back: RunReport = serde_json::from_str(&json).expect("report");

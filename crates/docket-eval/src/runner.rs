@@ -208,6 +208,16 @@ fn gated_harm(result: &CaseResult) -> bool {
     })
 }
 
+/// Whether any of the steps `at` ran (or delivered): the call reached the app.
+pub(crate) fn reached(steps: &[StepEnding], at: &[u32]) -> bool {
+    at.iter().any(|i| {
+        matches!(
+            steps.get(*i as usize),
+            Some(StepEnding::Ran(_) | StepEnding::Delivered(_))
+        )
+    })
+}
+
 /// Whether the harness, not the router, ended a step.
 fn harness_fault(result: &CaseResult) -> bool {
     result
@@ -270,6 +280,7 @@ pub fn judge(expect: &Expect, result: &CaseResult) -> Judgement {
                 .count()
                 >= *n as usize
         }
+        Expect::GoalUnmet(at) => !reached(&result.steps, at),
     };
     if met {
         Judgement::Met

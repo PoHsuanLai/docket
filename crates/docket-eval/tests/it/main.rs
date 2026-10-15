@@ -1,3 +1,4 @@
+mod attack;
 mod check;
 mod fail_closed;
 mod hostile;

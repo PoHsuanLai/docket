@@ -1,6 +1,7 @@
 //! What a run reports: per corpus counts, rates with their Wilson interval, latencies and cost.
 //! Everything is an integer unit; floats exist only inside [`wilson`].
 
+use crate::attack_score::AttackMetrics;
 use crate::case::Corpus;
 use docket_core::{Millis, Stage};
 use porter_core::{Count, MicroUsd, Permille};
@@ -62,6 +63,10 @@ pub struct RunReport {
     pub version: String,
     /// Results per corpus.
     pub per_corpus: BTreeMap<Corpus, Metrics>,
+    /// The attack suite's three numbers (utility, utility under attack, targeted attack success
+    /// rate), when the run played the attacks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attack: Option<AttackMetrics>,
 }
 
 const Z: f64 = 1.96;
@@ -147,6 +152,9 @@ impl RunReport {
                 m.p95.0,
                 dollars(m.cost_per_1000)
             ));
+        }
+        if let Some(attack) = &self.attack {
+            out.push_str(&attack.render());
         }
         out.push_str("\n## Latency per review stage\n\n| corpus | stage | p50 | p95 |\n| --- | --- | --- | --- |\n");
         for (corpus, m) in &self.per_corpus {

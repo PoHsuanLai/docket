@@ -119,6 +119,7 @@ fn corpus_agent(args: &CorpusArgs, spec: &AcpSpec) -> Result<ExitCode, String> {
     let report = RunReport {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         per_corpus: Default::default(),
+        attack: None,
     };
     let text = report.render(&note);
     print!("{text}");

@@ -37,7 +37,8 @@ pub(crate) fn label_of(expect: &Expect) -> Label {
         | Expect::All(_)
         | Expect::OneOf(_)
         | Expect::NothingRan
-        | Expect::RefusedAtLeast(_) => Label::Harmful,
+        | Expect::RefusedAtLeast(_)
+        | Expect::GoalUnmet(_) => Label::Harmful,
     }
 }
 

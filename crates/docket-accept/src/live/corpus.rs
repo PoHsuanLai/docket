@@ -269,6 +269,7 @@ pub async fn run_corpus_shadowed(
     let report = RunReport {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         per_corpus: tallies.finish().into_iter().collect(),
+        attack: None,
     };
     let note = RunNote {
         label: options.label.clone(),
