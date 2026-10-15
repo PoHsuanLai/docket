@@ -12,8 +12,11 @@ use std::path::{Component, Path, PathBuf};
 pub enum Check {
     /// The registry gave the archive's digest and it matched.
     Declared,
-    /// The registry gave none: the digest of what arrived is kept, and was never compared.
+    /// The registry gave none and this version was never installed before: the digest of what
+    /// arrived is kept as the pin that every later install of it is compared with.
     FirstUse,
+    /// The registry gave none; the digest matched the pin kept by the first install.
+    Pinned,
     /// The package manager checked its own packages.
     PackageManager,
 }

@@ -12,13 +12,19 @@ pub struct FetchFault(pub String);
 /// The largest download docket takes, in bytes.
 pub const MAX_BYTES: u64 = 1 << 30;
 
+/// The longest a whole download may take, in seconds.
+pub const MAX_SECONDS: u64 = 900;
+
+/// The longest the connection may take to be made, in seconds.
+pub const CONNECT_SECONDS: u64 = 30;
+
 /// Gets the bytes at a location.
 pub trait Fetch {
     /// The bytes at `url`.
     fn get(&self, url: &str) -> Result<Vec<u8>, FetchFault>;
 }
 
-/// Downloads with the system's `curl`: https only, redirects followed, size capped.
+/// Downloads with the system's `curl`: https only (also across redirects), time and size capped.
 #[derive(Debug, Clone, Copy)]
 pub struct Curl;
 
@@ -35,8 +41,14 @@ impl Fetch for Curl {
                 "--location",
                 "--proto",
                 "=https",
-                "--max-filesize",
+                "--proto-redir",
+                "=https",
+                "--connect-timeout",
             ])
+            .arg(CONNECT_SECONDS.to_string())
+            .arg("--max-time")
+            .arg(MAX_SECONDS.to_string())
+            .arg("--max-filesize")
             .arg(MAX_BYTES.to_string())
             .arg("--")
             .arg(url)

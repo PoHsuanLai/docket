@@ -169,6 +169,27 @@ fn no_declared_digest_is_said_to_be_first_use() {
 }
 
 #[test]
+fn a_reinstall_with_no_declared_digest_is_compared_with_the_first_one() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let dir = AgentsDir::at(tmp.path());
+    let snap = snapshot(None, "1.0.0");
+    let go = |body: &[u8]| {
+        std::fs::remove_dir_all(tmp.path().join("installed")).ok();
+        install(
+            &dir,
+            &snap,
+            want("agy-acp", "1.0.0"),
+            (&served("1.0.0", body), &FakeNpm),
+        )
+    };
+    assert_eq!(go(b"x").expect("first").check, Check::FirstUse);
+    assert_eq!(go(b"x").expect("same").check, Check::Pinned);
+    let fault = go(b"swapped").expect_err("changed");
+    assert!(matches!(fault, InstallFault::Digest { .. }));
+    assert!(dir.launch("agy-acp", "1.0.0").is_err());
+}
+
+#[test]
 fn only_the_listed_version_installs_and_a_newer_one_is_never_taken_alone() {
     let net = served("1.0.0", b"x");
     let tmp = tempfile::tempdir().expect("tmp");

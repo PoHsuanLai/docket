@@ -129,7 +129,8 @@ pub fn install(
     // into place afterwards. A directory without a record is not installed (see `AgentsDir::versions`).
     let _ = std::fs::remove_dir_all(&target);
     std::fs::create_dir_all(target.join(FILES)).map_err(|_| InstallFault::Disk)?;
-    let record = fill(listing, &target, (fetch, run)).and_then(|record| {
+    let pin = dir.pin(&id, &version);
+    let record = fill(listing, (&target, &pin), (fetch, run)).and_then(|record| {
         record.write(&target).map_err(|_| InstallFault::Disk)?;
         Ok(record)
     });
@@ -141,7 +142,7 @@ pub fn install(
 
 fn fill(
     listing: &Listing,
-    target: &Path,
+    (target, pin): (&Path, &Path),
     (fetch, run): (&dyn Fetch, &dyn Run),
 ) -> Result<Record, InstallFault> {
     let files = target.join(FILES);
@@ -157,7 +158,7 @@ fn fill(
         check,
     };
     if let Some(bin) = dist.binary.get(&Platform::current()) {
-        let (digest, check) = binary(bin, &files, fetch)?;
+        let (digest, check) = binary(bin, (&files, pin), fetch)?;
         let found = files.join(&bin.cmd);
         found
             .is_file()
@@ -193,26 +194,45 @@ fn fill(
     ))
 }
 
-fn binary(bin: &Binary, files: &Path, fetch: &dyn Fetch) -> Result<(String, Check), InstallFault> {
+fn binary(
+    bin: &Binary,
+    (files, pin): (&Path, &Path),
+    fetch: &dyn Fetch,
+) -> Result<(String, Check), InstallFault> {
     let bytes = fetch.get(&bin.archive)?;
     let got = Sha256Hex::of(&bytes);
+    let refused = |expected: &str| InstallFault::Digest {
+        expected: expected.to_owned(),
+        got: got.as_str().to_owned(),
+    };
     let check = match &bin.sha256 {
         Some(text) => {
-            let expected = Sha256Hex::parse(text).map_err(|_| InstallFault::Digest {
-                expected: text.clone(),
-                got: got.as_str().to_owned(),
-            })?;
+            let expected = Sha256Hex::parse(text).map_err(|_| refused(text))?;
             if expected != got {
-                return Err(InstallFault::Digest {
-                    expected: expected.as_str().to_owned(),
-                    got: got.as_str().to_owned(),
-                });
+                return Err(refused(expected.as_str()));
             }
             Check::Declared
         }
-        None => Check::FirstUse,
+        // No digest declared: the first install pins what arrived, every later one is compared
+        // with the pin. An unreadable pin is a refusal, never a fresh start.
+        None => match std::fs::read_to_string(pin) {
+            Ok(text) => {
+                let pinned = Sha256Hex::parse(&text).map_err(|_| refused(text.trim()))?;
+                if pinned != got {
+                    return Err(refused(pinned.as_str()));
+                }
+                Check::Pinned
+            }
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => Check::FirstUse,
+            Err(_) => return Err(InstallFault::Disk),
+        },
     };
     unpack(&bin.archive, &bytes, files)?;
+    if check == Check::FirstUse {
+        let dir = pin.parent().ok_or(InstallFault::Disk)?;
+        std::fs::create_dir_all(dir).map_err(|_| InstallFault::Disk)?;
+        std::fs::write(pin, got.as_str()).map_err(|_| InstallFault::Disk)?;
+    }
     Ok((got.as_str().to_owned(), check))
 }
 

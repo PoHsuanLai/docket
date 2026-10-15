@@ -3,6 +3,7 @@
 //! ```text
 //! <root>/installed/<id>/<version>/files/        what the archive unpacked to
 //! <root>/installed/<id>/<version>/installed.toml  what was installed and how it was checked
+//! <root>/pins/<id>/<version>.sha256               the digest first seen for a version with none declared
 //! <root>/state/<id>/home/                         the agent's own home inside its sandbox
 //! <root>/state/<id>/offered.toml                  what it last offered (see `offered`)
 //! ```
@@ -30,6 +31,15 @@ impl AgentsDir {
             .join("installed")
             .join(id.as_str())
             .join(version.as_str())
+    }
+
+    /// The file that keeps the digest first seen for version `version` of `id`, when the registry
+    /// declared none. It outlives the install, so a later install is compared with it.
+    pub fn pin(&self, id: &Slug, version: &Slug) -> PathBuf {
+        self.0
+            .join("pins")
+            .join(id.as_str())
+            .join(format!("{}.sha256", version.as_str()))
     }
 
     /// The versions of `id` that are installed.
