@@ -7,7 +7,7 @@ use tokio::process::Command;
 
 /// Variables that would point git at another repository, index or object store than the one
 /// the command names. They are never inherited: a command sets exactly the ones it needs.
-const REDIRECTING: [&str; 12] = [
+const REDIRECTING: [&str; 21] = [
     "GIT_DIR",
     "GIT_INDEX_FILE",
     "GIT_WORK_TREE",
@@ -20,6 +20,15 @@ const REDIRECTING: [&str; 12] = [
     "GIT_AUTHOR_DATE",
     "GIT_COMMITTER_DATE",
     "GIT_EXTERNAL_DIFF",
+    "GIT_CONFIG",
+    "GIT_CONFIG_COUNT",
+    "GIT_CONFIG_PARAMETERS",
+    "GIT_ATTR_SOURCE",
+    "GIT_EXEC_PATH",
+    "GIT_ASKPASS",
+    "GIT_SSH_COMMAND",
+    "GIT_PAGER",
+    "GIT_EDITOR",
 ];
 
 /// Why git could not be run at all (a command that ran and failed is a [`GitOut`]).

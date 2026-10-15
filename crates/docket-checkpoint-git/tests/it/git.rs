@@ -129,18 +129,17 @@ async fn taking_and_planning_leave_the_persons_index_head_branches_and_stash_as_
     let after = their_history(&scratch, &repo);
     assert!(after[0].contains("loose.txt"));
     assert_eq!(before[1..], after[1..]);
-    let points = scratch.git(&repo, &["for-each-ref", "refs/docket"]);
+    let points = scratch.points(&["for-each-ref", "refs/docket"]);
     assert!(points.contains(&ref_name(&session(), CheckpointId(1))));
+    // The points are in the store's own repository, not the person's.
+    assert_eq!(scratch.git(&repo, &["for-each-ref", "refs/docket"]), "");
     // The point holds the staged, edited and untracked files, none of them as the index has them.
-    let tree = scratch.git(
-        &repo,
-        &[
-            "ls-tree",
-            "-r",
-            "--name-only",
-            "refs/docket/checkpoints/s-git/1",
-        ],
-    );
+    let tree = scratch.points(&[
+        "ls-tree",
+        "-r",
+        "--name-only",
+        "refs/docket/checkpoints/s-git/1",
+    ]);
     assert_eq!(tree, "loose.txt\nstaged.txt\ntracked.txt\n");
 }
 
@@ -208,15 +207,12 @@ async fn a_file_that_became_ignored_leaves_later_points_and_an_older_point_still
     let mut small = take(&there, 2);
     small.max = Count(1);
     store.take(small).await.expect("take under the limit");
-    let tree = scratch.git(
-        &repo,
-        &[
-            "ls-tree",
-            "-r",
-            "--name-only",
-            "refs/docket/checkpoints/s-git/2",
-        ],
-    );
+    let tree = scratch.points(&[
+        "ls-tree",
+        "-r",
+        "--name-only",
+        "refs/docket/checkpoints/s-git/2",
+    ]);
     assert_eq!(tree, "a.txt\n");
     // A restore to that point leaves the ignored file alone.
     let plan = store.plan(ask(2)).await.expect("plan");

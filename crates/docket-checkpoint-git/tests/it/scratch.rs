@@ -71,6 +71,16 @@ impl Scratch {
         String::from_utf8_lossy(&out.stdout).into_owned()
     }
 
+    /// Runs git by hand against the store's own repository (`shadow.git` under the state folder),
+    /// where the restore points are; what it printed.
+    pub fn points(&self, args: &[&str]) -> String {
+        let state = self.path("state");
+        let shadow = state.join("shadow.git").to_string_lossy().into_owned();
+        let mut all = vec!["--git-dir", shadow.as_str()];
+        all.extend_from_slice(args);
+        self.git(&state, &all)
+    }
+
     /// A repository with no commits whose `*.log` files are ignored.
     pub fn repo(&self, name: &str) -> PathBuf {
         let repo = self.path(name);

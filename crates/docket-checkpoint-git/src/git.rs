@@ -1,28 +1,53 @@
 //! `GitStore`: the commands it runs and the listings it reads. The trait impl is in `store.rs`.
 
+use crate::files::{inside_repository, person_excludes};
 use crate::names::{IndexKind, index_file, ref_name};
 use crate::parse::{object_id, staged_listing, tree_listing};
 use crate::run::{GitCommand, GitOut, GitRun};
 use docket_checkpoint::{StoreFault, TreeListing, WorkRoot};
 use docket_core::{AbsPath, CheckpointId};
 use prov::SessionId;
+use std::path::{Path, PathBuf};
 
-/// Options before every command: no background refresh of the person's index, no file-system
-/// monitor hook, no signing.
-const BEFORE: [&str; 6] = [
+/// Options before every command, none of them from the folder: no background refresh, no pager,
+/// no hooks, no file-system monitor, no attributes file, no signing, no auto-maintenance, no
+/// network protocol. They are the second line behind the shadow repository (see the crate docs).
+const FIXED: [&str; 16] = [
     "--no-optional-locks",
+    "--no-pager",
+    "-c",
+    "core.bare=false",
+    "-c",
+    "core.hooksPath=/dev/null",
     "-c",
     "core.fsmonitor=false",
     "-c",
+    "core.attributesFile=/dev/null",
+    "-c",
     "commit.gpgsign=false",
-    "--no-pager",
+    "-c",
+    "gc.auto=0",
+    "-c",
+    "protocol.allow=never",
 ];
 
-/// Restore points in the git repository that holds the folder.
+/// Variables set after everything else, so no caller can undo them: no system or user git
+/// configuration, no system attributes, no prompt.
+const HARDENING: [(&str, &str); 5] = [
+    ("GIT_CONFIG_NOSYSTEM", "1"),
+    ("GIT_CONFIG_GLOBAL", "/dev/null"),
+    ("GIT_CONFIG_SYSTEM", "/dev/null"),
+    ("GIT_ATTR_NOSYSTEM", "1"),
+    ("GIT_TERMINAL_PROMPT", "0"),
+];
+
+/// Restore points of a folder that is in a git repository, kept in a repository of docket's own.
 ///
 /// Every point is a commit with no parent, made from a private index (a file under `index_dir`,
-/// one set per session), kept under `refs/docket/checkpoints/<session>/<n>`. The person's own
-/// index, HEAD, branches and stash are never named; only `apply` writes files of the folder.
+/// one set per session), kept under `refs/docket/checkpoints/<session>/<n>` in `shadow.git`
+/// under `index_dir`. The folder's own `.git` is never read by git: its config, hooks and
+/// attributes belong to whoever can write the folder. The person's own index, HEAD, branches and
+/// stash are never named; only `apply` writes files of the folder.
 #[derive(Debug)]
 pub struct GitStore<R: GitRun> {
     pub(crate) run: R,
@@ -55,10 +80,15 @@ impl<R: GitRun> GitStore<R> {
         env: &[(String, String)],
         stdin: Option<Vec<u8>>,
     ) -> Result<GitOut, crate::run::GitFault> {
-        let mut all: Vec<String> = BEFORE.iter().map(|part| (*part).to_owned()).collect();
+        let mut all = self.before(root);
         all.extend(args);
         let mut vars = self.env.clone();
         vars.extend(env.iter().cloned());
+        vars.extend(
+            HARDENING
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned())),
+        );
         self.run
             .run(GitCommand {
                 cwd: root.path().clone(),
@@ -93,14 +123,75 @@ impl<R: GitRun> GitStore<R> {
         }
     }
 
-    /// The folder is inside a repository's work tree; otherwise `NoHistory`.
+    /// The repository docket keeps every point in: under `index_dir`, never the folder's `.git`.
+    fn shadow(&self) -> String {
+        format!("{}/shadow.git", self.index_dir.as_str())
+    }
+
+    /// The options before every command: the shadow repository as `--git-dir`, the folder as
+    /// `--work-tree`, then [`FIXED`]. The person's `.git/info/exclude` is the one file of the
+    /// folder's repository that is read, and only as a list of patterns.
+    fn before(&self, root: &WorkRoot) -> Vec<String> {
+        let folder = root.path().as_str();
+        let excludes = person_excludes(Path::new(folder)).unwrap_or_else(|| "/dev/null".to_owned());
+        let mut all = vec![
+            format!("--git-dir={}", self.shadow()),
+            format!("--work-tree={folder}"),
+        ];
+        all.extend(FIXED.iter().map(|part| (*part).to_owned()));
+        all.push("-c".to_owned());
+        all.push(format!("core.excludesFile={excludes}"));
+        all
+    }
+
+    /// The folder is inside a repository's work tree (a `.git` in it or above it, looked for
+    /// without running git); otherwise `NoHistory`. Then the shadow repository exists.
     pub(crate) async fn require_repository(&self, root: &WorkRoot) -> Result<(), StoreFault> {
-        match self
-            .exec(root, strings(&["rev-parse", "--show-toplevel"]), &[], None)
+        let folder = PathBuf::from(root.path().as_str());
+        let inside = tokio::task::spawn_blocking(move || inside_repository(&folder))
             .await
-        {
+            .map_err(|_| StoreFault::Failed)?;
+        if !inside {
+            return Err(StoreFault::NoHistory);
+        }
+        self.ensure_shadow().await
+    }
+
+    /// Makes `shadow.git` (bare, no templates, so no hooks) if it is not there yet.
+    async fn ensure_shadow(&self) -> Result<(), StoreFault> {
+        let (dir, shadow) = (self.index_dir.as_str().to_owned(), self.shadow());
+        let ready = {
+            let shadow = shadow.clone();
+            tokio::task::spawn_blocking(move || {
+                std::fs::create_dir_all(&dir)?;
+                Ok::<bool, std::io::Error>(Path::new(&shadow).join("HEAD").is_file())
+            })
+            .await
+        };
+        match ready {
+            Ok(Ok(true)) => return Ok(()),
+            Ok(Ok(false)) => {}
+            _ => return Err(StoreFault::Failed),
+        }
+        let args = strings(&["init", "--bare", "--quiet", "--template=", &shadow]);
+        let mut env = self.env.clone();
+        env.extend(
+            HARDENING
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned())),
+        );
+        let made = self
+            .run
+            .run(GitCommand {
+                cwd: self.index_dir.clone(),
+                args,
+                env,
+                stdin: None,
+            })
+            .await;
+        match made {
             Ok(out) if out.succeeded() => Ok(()),
-            _ => Err(StoreFault::NoHistory),
+            _ => Err(StoreFault::Failed),
         }
     }
 

@@ -56,3 +56,31 @@ pub(crate) fn delete(root: &Path, paths: &[WorkPath]) -> std::io::Result<()> {
     }
     Ok(())
 }
+
+/// Whether `folder` or a folder above it has a `.git` (a folder or a file), looked at without
+/// following a link and without running git.
+pub(crate) fn inside_repository(folder: &Path) -> bool {
+    folder
+        .ancestors()
+        .any(|dir| std::fs::symlink_metadata(dir.join(".git")).is_ok())
+}
+
+/// The person's `.git/info/exclude` of a repository whose top is `root`, if every step on the way
+/// is a real folder and the file is a regular file: git reads it only as patterns. None when the
+/// folder is below the top of its repository, or when a link is in the way.
+pub(crate) fn person_excludes(root: &Path) -> Option<String> {
+    let mut here = root.to_path_buf();
+    for step in [".git", "info"] {
+        here.push(step);
+        if !std::fs::symlink_metadata(&here).ok()?.is_dir() {
+            return None;
+        }
+    }
+    here.push("exclude");
+    let meta = std::fs::symlink_metadata(&here).ok()?;
+    if meta.is_file() {
+        here.to_str().map(str::to_owned)
+    } else {
+        None
+    }
+}
