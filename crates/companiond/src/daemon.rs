@@ -4,7 +4,7 @@
 use crate::Companiond;
 use crate::clock::Clock;
 use crate::config::CompaniondConfig;
-use crate::serve::serve_on;
+use crate::serve::serve_on_rooted;
 use docket_client::{DbusTransport, Intents};
 use docket_dbus::tap::Tap;
 use docket_dbus::{BusConnection, InferLink};
@@ -13,7 +13,28 @@ use docket_skills::{Roots, discover};
 use docket_tasks::ServeFault;
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
+use std::path::PathBuf;
 use std::sync::Arc;
+
+/// What only the acceptance harness's mains choose: the `/proc` callers are read from and
+/// whether the model tap writes to a file. The shipped `main` passes the default (the system's
+/// `/proc`, no tap) and no environment variable can change either.
+#[derive(Debug, Clone)]
+pub struct HarnessSeams {
+    /// Where callers' cgroups are read.
+    pub proc_root: PathBuf,
+    /// What is kept of the exchanges with inferd.
+    pub trace: Tap,
+}
+
+impl Default for HarnessSeams {
+    fn default() -> Self {
+        Self {
+            proc_root: PathBuf::from("/proc"),
+            trace: Tap::off(),
+        }
+    }
+}
 
 /// The companion as the daemon runs it: inferd and the router over the session bus.
 pub type Daemon = Companiond<InferLink, DbusTransport>;
@@ -26,7 +47,13 @@ pub async fn start(
     connection: &BusConnection,
     config: CompaniondConfig,
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
-    start_with(connection, config, &Roots::default(), Tap::off()).await
+    start_with(
+        connection,
+        config,
+        &Roots::default(),
+        HarnessSeams::default(),
+    )
+    .await
 }
 
 /// [`start`] with the skill directories the daemon's `main` found: the only place skill text
@@ -35,7 +62,7 @@ pub async fn start_with(
     connection: &BusConnection,
     config: CompaniondConfig,
     skills: &Roots,
-    trace: Tap,
+    seams: HarnessSeams,
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
     let found = discover(skills);
     for rejected in &found.rejected {
@@ -46,7 +73,7 @@ pub async fn start_with(
         );
     }
     let intents = Intents::over(DbusTransport::new(connection.clone()));
-    let planner = PlannerModel::new(docket_dbus::inferd_transport(connection, trace));
+    let planner = PlannerModel::new(docket_dbus::inferd_transport(connection, seams.trace));
     let mut companion = Companiond::new(
         intents,
         planner,
@@ -57,20 +84,24 @@ pub async fn start_with(
     .with_skills(found.skills);
     let _ = companion.restore(&config.spaces).await;
     let companion = Arc::new(Mutex::new(companion));
-    serve_on(connection, companion.clone()).await?;
+    serve_on_rooted(connection, companion.clone(), seams.proc_root).await?;
     Ok(companion)
 }
 
 /// The daemon: its configuration and the session bus from the environment, served until the bus
 /// closes.
 pub async fn run() -> Result<(), ServeFault> {
+    run_with(HarnessSeams::default()).await
+}
+
+/// [`run`] with the seams the acceptance harness's mains choose.
+pub async fn run_with(seams: HarnessSeams) -> Result<(), ServeFault> {
     let env = |key: &str| std::env::var(key).ok();
     let config = CompaniondConfig::from_env(&env).map_err(|e| ServeFault::Config(e.to_string()))?;
     let connection = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| ServeFault::Bus(e.to_string()))?;
-    let trace = Tap::from_var(env(docket_dbus::tap::TRACE_VAR).map(std::ffi::OsString::from));
-    let _running = start_with(&connection, config, &Roots::from_env(&env), trace).await?;
+    let _running = start_with(&connection, config, &Roots::from_env(&env), seams).await?;
     let mut messages = zbus::MessageStream::from(&connection);
     while messages.next().await.is_some() {}
     Ok(())

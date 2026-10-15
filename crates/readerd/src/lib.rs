@@ -9,7 +9,7 @@ mod host;
 mod serve;
 mod service;
 
-pub use daemon::{run, start};
+pub use daemon::{run, run_with, start};
 pub use docket_reader::{answer_of, class_of, reader_request, reply_shape, task_instruction};
 pub use host::ReaderHost;
 pub use serve::{ServeFault, serve, serve_on};

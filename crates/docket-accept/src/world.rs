@@ -282,8 +282,8 @@ pub(crate) fn extra_env(dir: &Path, name: &str, keys: Option<&str>) -> Vec<(&'st
         .chain(engine_cache())
         .collect(),
         // intentd and companiond tell a terminal from its cgroup, read from the scratch root.
-        "intentd" => vec![("INTENTD_PROC_ROOT", proc_root)],
-        "companiond" => vec![("COMPANIOND_PROC_ROOT", proc_root)],
+        "intentd" => vec![(crate::seams::INTENTD_PROC_ROOT_VAR, proc_root)],
+        "companiond" => vec![(crate::seams::COMPANIOND_PROC_ROOT_VAR, proc_root)],
         _ => Vec::new(),
     }
 }
@@ -406,7 +406,7 @@ pub(crate) fn spawn(
         .envs(extra_env(dir, name, keys))
         .env("DBUS_SESSION_BUS_ADDRESS", bus)
         .env("DBUS_SYSTEM_BUS_ADDRESS", bus)
-        .envs(tap.map(|file| (docket_dbus::tap::TRACE_VAR, file.to_owned())))
+        .envs(tap.map(|file| (crate::seams::TRACE_VAR, file.to_owned())))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::from(log));

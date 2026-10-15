@@ -22,16 +22,15 @@ use crate::system::{DaemonLog, SystemClock, SystemSeams};
 use docket_checkpoint_git::{GitStore, StdGitRun};
 use docket_core::{AbsPath, AuditRecord};
 use docket_dbus::BusConnection;
-use docket_dbus::tap::{TRACE_VAR, Tap};
+use docket_dbus::tap::Tap;
 use docket_memory::QueuedSink;
 use docket_memory::{AlmanacMemory, AlmanacSessionLog};
 use docket_router::{Router, Seams};
 use docket_settings::{AgentSettings, Locator, REVIEW_CEILING};
 use docket_skills::{Roots, discover};
 use policy_point::Pdp;
-use porter_daemon::{ProcGate, ProcRoot};
+use porter_daemon::ProcRoot;
 use prov::SpaceId;
-use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -45,16 +44,25 @@ const PRUNE_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
 /// How long the daemon waits before following accountd's Spaces again after losing it.
 const SPACES_RETRY: Duration = Duration::from_secs(10);
 
-/// The environment variable the test-only fixture `/proc` switch reads.
-pub const PROC_ROOT_VAR: &str = "INTENTD_PROC_ROOT";
+/// What only the acceptance harness's mains choose: where callers' cgroups are read from and
+/// whether the model tap writes to a file. The shipped `main` passes the default (the system's
+/// `/proc`, no tap) and no environment variable can change either.
+#[derive(Debug, Clone)]
+pub struct HarnessSeams {
+    /// Where callers' cgroups are read.
+    pub proc_root: ProcRoot,
+    /// What is kept of the exchanges with inferd.
+    pub trace: Tap,
+}
 
-/// Whether this build honours [`PROC_ROOT_VAR`]: only one built with the `test-proc-root` feature.
-/// A release build ignores the variable and says so.
-pub const PROC_GATE: ProcGate = if cfg!(feature = "test-proc-root") {
-    ProcGate::Honour
-} else {
-    ProcGate::Ignore
-};
+impl Default for HarnessSeams {
+    fn default() -> Self {
+        Self {
+            proc_root: ProcRoot::System,
+            trace: Tap::off(),
+        }
+    }
+}
 
 /// Why the daemon did not start or stopped.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -93,11 +101,11 @@ pub struct Setup {
     pub data_dirs: Vec<PathBuf>,
     /// How often the router's state is looked at for signals, and the manifests rescanned.
     pub signals: Cadence,
-    /// Where callers' cgroups are read: `/proc`, unless a test build was told otherwise.
+    /// Where callers' cgroups are read: `/proc`, unless the harness's main passed another root.
     pub proc_root: ProcRoot,
     /// Where the person's settings file is (`docket/settings.toml`, design/22 section 3.27).
     pub settings: Locator,
-    /// What is kept of the exchanges with inferd (`DOCKET_MODEL_TRACE`, a test build only).
+    /// What is kept of the exchanges with inferd (off, unless the harness's main passed a tap).
     pub trace: Tap,
 }
 
@@ -149,12 +157,6 @@ impl Setup {
             None => IntentdConfig::shipped(),
         }
         .map_err(DaemonFault::Config)?;
-        let proc_root = ProcRoot::choose(PROC_GATE, PROC_ROOT_VAR, |name| {
-            env(name).map(OsString::from)
-        });
-        if let Some(line) = proc_root.notice("intentd", PROC_ROOT_VAR) {
-            eprintln!("{line}");
-        }
         let data = data_dirs(env);
         let grants = intents_dir(&data[0]).join("grants.json");
         Ok(Self {
@@ -166,9 +168,9 @@ impl Setup {
             audit_every: DRAIN_EVERY,
             data_dirs: data,
             signals: Cadence::default(),
-            proc_root,
+            proc_root: ProcRoot::System,
             settings: Locator::from_env(env),
-            trace: Tap::from_var(env(TRACE_VAR).map(OsString::from)),
+            trace: Tap::off(),
         })
     }
 }
@@ -407,8 +409,15 @@ fn placed_by<S: Seams>(router: &Router<S>, record: &AuditRecord) -> Option<Space
 /// The daemon: the session bus, the system bus for logind (absent, it is not watched), the
 /// environment's files. Returns when the bus closes.
 pub async fn run() -> Result<(), DaemonFault> {
+    run_with(HarnessSeams::default()).await
+}
+
+/// [`run`] with the seams the acceptance harness's mains choose.
+pub async fn run_with(seams: HarnessSeams) -> Result<(), DaemonFault> {
     let env = |key: &str| std::env::var(key).ok();
-    let setup = Setup::from_env(&env)?;
+    let mut setup = Setup::from_env(&env)?;
+    setup.proc_root = seams.proc_root;
+    setup.trace = seams.trace;
     let session = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| DaemonFault::Serve(ServeFault::Bus(e.to_string())))?;

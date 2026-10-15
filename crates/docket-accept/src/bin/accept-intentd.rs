@@ -13,7 +13,12 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(intentd::run()) {
+    let seams = intentd::HarnessSeams {
+        proc_root: docket_accept::seams::proc_root(docket_accept::seams::INTENTD_PROC_ROOT_VAR)
+            .map_or(intentd::ProcRoot::System, intentd::ProcRoot::Fake),
+        trace: docket_accept::seams::trace(),
+    };
+    match runtime.block_on(intentd::run_with(seams)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("intentd: {why}");

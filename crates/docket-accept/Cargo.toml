@@ -8,8 +8,8 @@ rust-version.workspace = true
 repository.workspace = true
 publish = false
 
-# The daemons run as their own processes from these thin mains: the same `run()` the packaged
-# binaries call, under names that cannot collide with theirs in one target directory. memoryd's
+# The daemons run as their own processes from these thin mains: the same daemon the packaged
+# binaries run (`run_with`, given the proc root and model tap from the environment), under names that cannot collide with theirs in one target directory. memoryd's
 # memoryd and inferd are not here: `build.rs` builds the packaged binaries of almanac (with its
 # `test-keys` feature) and porter, from git at the revs the workspace pins.
 [[bin]]
@@ -52,14 +52,14 @@ path = "src/bin/docket-bringup.rs"
 actions-mcp = { path = "../actions-mcp" }
 action-review = { workspace = true }
 companion-wire = { workspace = true }
-companiond = { path = "../companiond", features = ["test-proc-root"] }
+companiond = { path = "../companiond" }
 docket-agents = { workspace = true }
 docket-acp = { path = "../docket-acp" }
 docket-acp-bin = { path = "../docket-acp-bin" }
 docket-cli = { path = "../docket-cli" }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true }
-docket-dbus = { workspace = true, features = ["inferd", "test-model-trace"] }
+docket-dbus = { workspace = true, features = ["inferd"] }
 docket-eval = { workspace = true }
 docket-inapp = { workspace = true }
 docket-launch = { workspace = true }
@@ -70,7 +70,7 @@ docket-fake = { workspace = true }
 docket-router = { workspace = true }
 docket-testbus = { workspace = true }
 futures-util = { workspace = true }
-intentd = { path = "../intentd", features = ["test-proc-root"] }
+intentd = { path = "../intentd" }
 readerd = { path = "../readerd" }
 almanac-core = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }

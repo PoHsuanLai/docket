@@ -777,7 +777,6 @@ dependencies = [
  "futures-util",
  "porter-client",
  "porter-core",
- "porter-daemon",
  "porter-infer",
  "prov",
  "serde",

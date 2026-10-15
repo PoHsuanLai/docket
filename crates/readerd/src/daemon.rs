@@ -21,11 +21,15 @@ pub async fn start(connection: &BusConnection, tap: Tap) -> Result<(), ServeFaul
 
 /// The daemon: the session bus from the environment, served until it closes.
 pub async fn run() -> Result<(), ServeFault> {
+    run_with(Tap::off()).await
+}
+
+/// [`run`] with the model tap the acceptance harness's mains choose.
+pub async fn run_with(tap: Tap) -> Result<(), ServeFault> {
     let env = |key: &str| std::env::var(key).ok();
     let connection = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| ServeFault::Bus(e.to_string()))?;
-    let tap = Tap::from_var(env(docket_dbus::tap::TRACE_VAR).map(std::ffi::OsString::from));
     start(&connection, tap).await?;
     let mut messages = zbus::MessageStream::from(&connection);
     while messages.next().await.is_some() {}

@@ -182,7 +182,7 @@ async fn d_bus_activation_starts_the_binary_for_a_caller_and_a_second_intentd_ca
     assert!(has_owner(&me).await, "the first is still there");
 }
 
-/// The line intentd says about `INTENTD_PROC_ROOT` when it serves with it set to `fixture`.
+/// What intentd says on stderr when it serves with `INTENTD_PROC_ROOT` set to `fixture`.
 async fn said_about_the_proc_root(fixture: &Path) -> String {
     let dir = tempfile::tempdir().expect("scratch");
     let (_data, mut env) = scratch_world(dir.path());
@@ -210,41 +210,11 @@ async fn said_about_the_proc_root(fixture: &Path) -> String {
     std::fs::read_to_string(&log).expect("the log")
 }
 
-#[cfg(not(feature = "test-proc-root"))]
+/// No environment variable moves the proc root of the shipped daemon: it is silent about it.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_default_build_ignores_the_proc_root_variable_and_says_so() {
+async fn the_shipped_daemon_ignores_the_proc_root_variable_without_a_word() {
     let fixture = tempfile::tempdir().expect("fixture");
     let said = said_about_the_proc_root(fixture.path()).await;
-    assert!(
-        said.contains(&format!(
-            "intentd: INTENTD_PROC_ROOT={} ignored: not a test-proc-root build",
-            fixture.path().display()
-        )),
-        "{said}"
-    );
-    assert!(!said.contains("test proc root"), "{said}");
-}
-
-#[cfg(feature = "test-proc-root")]
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_test_build_honours_the_proc_root_variable_and_names_the_root() {
-    let fixture = tempfile::tempdir().expect("fixture");
-    let said = said_about_the_proc_root(fixture.path()).await;
-    let root = fixture.path().display().to_string();
-    assert!(
-        said.contains(&format!(
-            "intentd: test proc root {root}: callers are read from it, not /proc"
-        )),
-        "{said}"
-    );
-}
-
-#[test]
-fn the_proc_gate_follows_the_test_proc_root_feature() {
-    let expected = if cfg!(feature = "test-proc-root") {
-        intentd::ProcGate::Honour
-    } else {
-        intentd::ProcGate::Ignore
-    };
-    assert_eq!(intentd::PROC_GATE, expected);
+    assert!(!said.contains("proc root"), "{said}");
+    assert!(!said.contains("INTENTD_PROC_ROOT"), "{said}");
 }

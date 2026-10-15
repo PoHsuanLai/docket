@@ -12,24 +12,11 @@
 use docket_core::TerminalScope;
 use docket_dbus::BusConnection;
 use porter_core::{AppName, CgroupPath};
-use porter_daemon::ProcGate;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use zbus::fdo::{self, DBusProxy};
 use zbus::message::Header;
 use zbus::names::BusName;
-
-/// The variable that moves the `/proc` the daemon reads, in a build with `test-proc-root`.
-pub const PROC_ROOT_VAR: &str = "COMPANIOND_PROC_ROOT";
-
-/// Whether this build honours [`PROC_ROOT_VAR`]: only one built with the `test-proc-root`
-/// feature. In a normal build the variable is ignored (and said so on stderr), so an environment
-/// cannot make a production daemon believe a caller is a terminal.
-pub const PROC_GATE: ProcGate = if cfg!(feature = "test-proc-root") {
-    ProcGate::Honour
-} else {
-    ProcGate::Ignore
-};
 
 /// Who a caller is, as far as the person's voice goes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -193,15 +180,5 @@ mod tests {
                 "pid {pid}"
             );
         }
-    }
-
-    #[test]
-    fn the_proc_gate_follows_the_test_proc_root_feature() {
-        let expected = if cfg!(feature = "test-proc-root") {
-            ProcGate::Honour
-        } else {
-            ProcGate::Ignore
-        };
-        assert_eq!(PROC_GATE, expected);
     }
 }

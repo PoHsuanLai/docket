@@ -3,14 +3,13 @@
 //! into a cassette. It is the one place the words a model was sent and said can be read back:
 //! inferd's own audit never keeps content, and its replay `record` sees requests only.
 //!
-//! THIS WRITES PROMPTS TO DISK. The environment can switch it on only in a build with the
-//! `test-model-trace` feature, which only the live harness (`docket-accept`) enables: there the
-//! process must also be started with `DOCKET_MODEL_TRACE=<file>` (the harness's scratch
-//! directory; the file is created 0600 and appended to, one JSON line per exchange). In any
-//! other build the variable is ignored, with one stderr line, so a release daemon's environment
-//! cannot make it write prompts; `scripts/check-boundary.sh` checks that no daemon's default
-//! build enables the feature. A daemon that is not asked takes no copy of anything. A process that is not a daemon builds a
-//! [`MemoryTap`] and reads the exchanges itself.
+//! THIS WRITES PROMPTS TO DISK. Only a caller that builds a [`Tap::trace_file`] turns it on, and
+//! only the live harness's mains (`docket-accept`) do: they read `DOCKET_MODEL_TRACE=<file>` (the
+//! harness's scratch directory; the file is created 0600 and appended to, one JSON line per
+//! exchange) and pass the tap in. No daemon's `main` reads an environment variable for it, so a
+//! release daemon's environment cannot make it write prompts; `scripts/check-boundary.sh`
+//! checks that no shipped crate names the variable. A daemon that is not asked takes no copy of
+//! anything. A process that is not a daemon builds a [`MemoryTap`] and reads the exchanges itself.
 
 use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 use porter_client::{Transport, TransportError};
@@ -20,23 +19,12 @@ use porter_infer::{
     OpenOptions, Readiness, ReplyShape, Role, SessionError,
 };
 use serde::Serialize;
-use std::ffi::OsString;
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Instant;
-
-/// Whether this build may let the environment switch the tap on.
-#[derive(Debug, Clone, Copy)]
-enum Build {
-    Harness,
-    Release,
-}
-
-/// The variable that names the file the tap appends to.
-pub const TRACE_VAR: &str = "DOCKET_MODEL_TRACE";
 
 /// Exchanges kept in memory, for the process that runs the whole case itself.
 #[derive(Debug, Clone, Default)]
@@ -100,30 +88,9 @@ impl Tap {
         Self::with(Sink::Memory(memory), by)
     }
 
-    /// The tap that the value of `DOCKET_MODEL_TRACE` asks for (the caller reads its own
-    /// environment and passes the value in): a file when it names one and this build has the
-    /// `test-model-trace` feature, else off.
-    pub fn from_var(var: Option<OsString>) -> Self {
-        let build = match cfg!(feature = "test-model-trace") {
-            true => Build::Harness,
-            false => Build::Release,
-        };
-        Self::chosen(var, build)
-    }
-
-    fn chosen(var: Option<OsString>, build: Build) -> Self {
-        match (var, build) {
-            (Some(path), Build::Harness) if !path.is_empty() => {
-                Self::file(PathBuf::from(path), &process_label())
-            }
-            (Some(path), Build::Release) if !path.is_empty() => {
-                eprintln!(
-                    "docket: {TRACE_VAR} is set but this build has no test-model-trace feature; ignoring it"
-                );
-                Self::off()
-            }
-            _ => Self::off(),
-        }
+    /// A tap that appends to `path`, labelled with this process's executable name.
+    pub fn trace_file(path: PathBuf) -> Self {
+        Self::file(path, &process_label())
     }
 
     fn is_off(&self) -> bool {
@@ -411,25 +378,6 @@ mod tests {
                 .with_reasoning(porter_infer::Reasoning::Off)
                 .with_sampling(porter_infer::Knob::Off),
         )
-    }
-
-    #[test]
-    fn the_trace_variable_only_counts_in_a_harness_build() {
-        let path = || Some(OsString::from("/scratch/model.jsonl"));
-        let rows: [(&str, Option<OsString>, Build, bool); 4] = [
-            ("release with a path", path(), Build::Release, true),
-            ("harness with a path", path(), Build::Harness, false),
-            (
-                "harness with an empty value",
-                Some(OsString::new()),
-                Build::Harness,
-                true,
-            ),
-            ("harness with no variable", None, Build::Harness, true),
-        ];
-        for (row, var, build, off) in rows {
-            assert_eq!(Tap::chosen(var, build).is_off(), off, "{row}");
-        }
     }
 
     #[test]

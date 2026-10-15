@@ -4,9 +4,8 @@ use crate::tap::{Tap, Tapped};
 use porter_client::{AnyTransport, DbusTransport};
 
 /// What every daemon holds as its inferd link: porter-client's transport behind the tap that a
-/// live run turns on (`DOCKET_MODEL_TRACE`, honoured only by a build with `test-model-trace`, see
-/// [`crate::tap`]; the daemon's `main` reads the variable and passes [`Tap::from_var`]); with the
-/// tap off it is the transport and nothing else.
+/// live run turns on (see [`crate::tap`]; only the acceptance harness's mains pass a file tap);
+/// with the tap off it is the transport and nothing else.
 pub type InferLink = Tapped<AnyTransport>;
 
 /// inferd over the session bus: porter-client's D-Bus transport on the daemon's own

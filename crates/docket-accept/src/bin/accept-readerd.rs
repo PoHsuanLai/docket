@@ -13,7 +13,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(readerd::run()) {
+    match runtime.block_on(readerd::run_with(docket_accept::seams::trace())) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("readerd: {why}");

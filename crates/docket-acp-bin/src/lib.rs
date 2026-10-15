@@ -77,11 +77,12 @@ pub enum LiveFault {
     App(String),
 }
 
-/// Serves one editor on stdio until it closes the connection.
+/// Serves one editor on stdio until it closes the connection. `trace` is the model tap: the
+/// packaged binary passes `Tap::off()`, only the acceptance harness passes a file.
 ///
 /// The editor's app, which the edge checks a stored session's opener against, is the bus name:
 /// the router records the opener and the editor's turns under the app behind the connection.
-pub async fn serve(permit: Permit) -> Result<(), LiveFault> {
+pub async fn serve(permit: Permit, trace: docket_dbus::tap::Tap) -> Result<(), LiveFault> {
     let editor = AppName::parse(BUS_NAME).map_err(|_| LiveFault::App(BUS_NAME.to_owned()))?;
     let env = |key: &str| std::env::var(key).ok();
     let bus = |e: zbus::Error| LiveFault::Bus(e.to_string());
@@ -98,12 +99,7 @@ pub async fn serve(permit: Permit) -> Result<(), LiveFault> {
     let shell = AppName::parse(SHELL).map_err(|_| LiveFault::App(SHELL.to_owned()))?;
     let companion = Companion::new(
         Intents::over(DbusTransport::new(connection.clone())),
-        PlannerModel::new(docket_dbus::inferd_transport(
-            &connection,
-            docket_dbus::tap::Tap::from_var(
-                env(docket_dbus::tap::TRACE_VAR).map(std::ffi::OsString::from),
-            ),
-        )),
+        PlannerModel::new(docket_dbus::inferd_transport(&connection, trace)),
         AgentConfig::default(),
         Wall,
         shell,

@@ -13,7 +13,13 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(companiond::run()) {
+    let defaults = companiond::HarnessSeams::default();
+    let seams = companiond::HarnessSeams {
+        proc_root: docket_accept::seams::proc_root(docket_accept::seams::COMPANIOND_PROC_ROOT_VAR)
+            .unwrap_or(defaults.proc_root),
+        trace: docket_accept::seams::trace(),
+    };
+    match runtime.block_on(companiond::run_with(seams)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("companiond: {why}");

@@ -19,7 +19,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(docket_acp_bin::serve(permit)) {
+    match runtime.block_on(docket_acp_bin::serve(permit, docket_accept::seams::trace())) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("docket-acp: {why}");

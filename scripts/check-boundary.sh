@@ -189,7 +189,7 @@ EDGES=(
   "actions-tools: docket-core porter-core prov"
   "actions-mcp: actions-tools docket-client docket-core docket-dbus docket-settings porter-core prov"
   "intentd: action-review almanac-client almanac-core docket-checkpoint-git docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-session docket-settings docket-skills policy-point porter-client porter-core porter-daemon porter-dbus porter-infer prov"
-  "companiond: companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills docket-tasks porter-client porter-core porter-daemon prov"
+  "companiond: companion-wire docket-client docket-core docket-dbus docket-planner docket-settings docket-skills docket-tasks porter-client porter-core prov"
   "readerd: docket-client docket-core docket-dbus docket-reader porter-client porter-core porter-infer prov"
   "docket-accept: action-review actions-mcp almanac-client almanac-core bulkhead companion-wire companiond docket-acp docket-acp-bin docket-agents docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-inapp docket-launch docket-router docket-session docket-settings docket-testbus intentd porter-client porter-core porter-infer prov readerd"
   "companion-client: companion-wire docket-client docket-core docket-dbus prov"
@@ -215,21 +215,19 @@ for edge in "${EDGES[@]}"; do
   fi
 done
 
-# The test-only feature is never on in a default build (a dist build uses default features):
-# `test-model-trace` (DOCKET_MODEL_TRACE, in docket-dbus) and
-# `test-proc-root` (INTENTD_PROC_ROOT, COMPANIOND_PROC_ROOT), the only way to make a daemon read
-# callers from somewhere other than /proc. Neither the daemon's own default features nor any
-# dependent's enable it.
-for daemon in intentd companiond; do
-  enabled=$(cargo tree -p "$daemon" -e normal,build -f '{p} [{f}]' --prefix none 2>/dev/null \
-    | grep -E "^($daemon|docket-dbus) " | grep -oE '\[[^]]*\]' | tr ',[]' '\n\n\n')
-  if printf '%s\n' "$enabled" | grep -qE '^test-'; then
-    echo "TEST FEATURE: a default build of $daemon enables: $(printf '%s\n' "$enabled" | grep -E '^test-' | tr '\n' ' ')"
-    fail=1
-  else
-    echo "test features (test-proc-root, test-model-trace) are off in a default build of $daemon"
-  fi
-done
+# No shipped crate carries a test-only switch. The proc root of the callers and the model tap are
+# arguments (`HarnessSeams`) that only the docket-accept mains pass; there is no cargo feature and
+# no daemon source reads `*_PROC_ROOT` or `DOCKET_MODEL_TRACE`. (Cargo unifies features across a
+# workspace build, so a feature that exists at all could reach a release binary.)
+leaks=$(grep -rnE 'PROC_ROOT|DOCKET_MODEL_TRACE|test-proc-root|test-model-trace' crates \
+  --include='*.rs' --include=Cargo.toml --exclude-dir=docket-accept --exclude-dir=tests || true)
+if [ -n "$leaks" ]; then
+  echo "TEST SWITCH: a shipped crate names a harness switch:"
+  echo "$leaks"
+  fail=1
+else
+  echo "no shipped crate carries a proc-root or model-trace switch"
+fi
 
 # Every workspace member has a row above, so a new crate cannot slip in unchecked.
 for member in $(sed -n 's#^  "crates/\(.*\)",$#\1#p' Cargo.toml); do

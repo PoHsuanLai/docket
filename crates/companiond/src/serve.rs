@@ -359,20 +359,12 @@ where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
 {
-    let choice =
-        porter_daemon::ProcRoot::choose(speaker::PROC_GATE, speaker::PROC_ROOT_VAR, |name| {
-            std::env::var_os(name)
-        });
-    if let Some(line) = choice.notice("companiond", speaker::PROC_ROOT_VAR) {
-        eprintln!("{line}");
-    }
-    let proc_root = choice.path().to_path_buf();
+    let proc_root = PathBuf::from("/proc");
     serve_on_rooted(connection, companion, proc_root).await
 }
 
 /// [`serve_on`] reading callers' cgroups under `proc_root` instead of `/proc`: how a test
-/// presents its processes as a terminal. The daemon's own `serve_on` never takes a path from
-/// anything but a test build's environment.
+/// presents its processes as a terminal. The daemon's own `serve_on` always reads `/proc`.
 pub async fn serve_on_rooted<P, I>(
     connection: &BusConnection,
     companion: Arc<Mutex<Companiond<P, I>>>,
