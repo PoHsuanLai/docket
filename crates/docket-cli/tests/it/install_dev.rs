@@ -191,6 +191,18 @@ fn an_install_puts_every_piece_where_the_session_reads_it() {
             && out.contains("/dist/callers.toml /etc/porter/callers.toml"),
         "{out}"
     );
+    // The agent daemons' callers files are the system's: printed for root, never put in the
+    // person's configuration, where they could not give the shell its role.
+    assert!(
+        out.contains("/dist/intentd-callers.toml /etc/quire/intentd-callers.toml"),
+        "{out}"
+    );
+    assert!(
+        !tree
+            .iter()
+            .any(|p| p.contains("-callers.toml") && !p.contains("memory-callers")),
+        "{tree:#?}"
+    );
     // The daemons read the table only at startup, so the printed steps restart them.
     assert!(
         out.contains("systemctl --user restart accountd inferd"),

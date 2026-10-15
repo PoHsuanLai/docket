@@ -3467,3 +3467,35 @@ Open, each needs an interface another repo or the wire owns:
   provider mapping (a cache marker after the system message and the tools).
 - The tools follow the view's action order, which `uses_first` changes when a skill is loaded
   mid-task; that turn's prefix differs.
+
+## Callers by unit (w3-callers)
+
+Every agent daemon identifies a caller through porter's `ProcCallers` (the bus names the process, `/proc/<pid>/cgroup`
+names the unit or app scope, the daemon's callers file names the role) and checks the standing the method asks for
+(`docket_dbus::callers`: `Identity`, `Standing`, `require`). Nothing decides a caller's standing from a bus name it
+owns, `GetNameOwner` or a uid alone; an unidentified caller is refused.
+
+- **Role map per daemon** (app, role, in `dist/<daemon>-callers.toml`):
+  - intentd (`intentd-callers.toml`): `org.quire.Shell` `sheet_host` = `sill.service` (the roles `launcher`, `confirm`,
+    `control` need it); `org.quire.Cua1` `cua` = `cuad.service` (`cua`); `org.quire.Companion1`, `org.quire.Reader1`,
+    `org.quire.ActionsMcp` `agent` = their `.service` units (`companion`, `reader`, `mcp`); `org.quire.Acp`,
+    `org.quire.AcpAgent` `agent` = the scopes `docket-acp.scope`, `docket-agent.scope` (`editor`, `acp_agent`). `intentd.toml`
+    still says which app plays which role; the table says which process is that app. `Peers::backs` is the bridge: sheet
+    roles need `sheet_host`, `cua` and `compositor` their own, the daemons' and editors' roles any role above a plain app.
+    An app scope or Flatpak app is a plain app; a terminal's child (nothing names it) is the cli role.
+  - readerd (`readerd-callers.toml`) and docket-acp's / docket-agent's `Confirm1` (`acp-callers.toml`): `org.quire.Intents`
+    `agent` = `intentd.service`, the only caller (`INTENTD`). Provider apps (`docket_client::serve_on`) answer the same
+    one-row table, built in (`docket_dbus::callers::INTENTD_ONLY`); `serve_on_with` takes another `Identity`.
+  - companiond (`companiond-callers.toml`): `org.quire.Shell` `sheet_host` = `sill.service` speaks for the person; a
+    terminal's child that nothing names and that owns no name of its own may open, ask, close, cancel and read.
+  - voiced (`voiced-callers.toml`): `org.quire.Shell` `sheet_host` = `sill.service` begins; an app attaches as the app its
+    scope or Flatpak metadata names (it was the owner of the routed name).
+- **Addressing, not trust** (kept): `docket-client`'s `awaiting.rs` and `watch_bus.rs` resolve the owner of the service
+  they just called to accept its `Response` signal only from the connection the call went to; `intentd`'s
+  `Peers::owner_of` finds the unique name of `Confirm1` to send the sheet to, and then identifies the process behind it.
+- **Open**: the harness cannot give the shell a fixed role at memoryd (its system file path is fixed at
+  `/etc/quire/memory-callers.toml`, the user's file may not carry `sheet_host`); the harness already writes the system file
+  to `<scratch>/system/memory-callers.toml` and sets `MEMORYD_SYSTEM_CALLERS`, which memoryd honours under its fixture-`/proc` gate
+  (almanac 448f615); docket-acp and docket-agent need to be started in `docket-acp.scope` / `docket-agent.scope`
+  (`systemd-run --user --scope --unit=...`) and inferd's and memoryd's tables need rows for them; the MCP bridge an
+  external agent starts inside its sandbox cannot be placed in the fake proc root.

@@ -141,7 +141,9 @@ build_plan() {
   plan_tree data "$STOKER/catalog" "$DATA/stoker/catalog"
   local cfg
   for cfg in "$DOCKET"/dist/*.toml; do
-    case "$(basename "$cfg")" in voiced.toml) continue ;; esac
+    # The callers files are the system's (sudo_step prints them): a fixed role (sill's sheet_host)
+    # comes from /etc/quire alone, and the one in the person's config is ignored.
+    case "$(basename "$cfg")" in voiced.toml|*-callers.toml) continue ;; esac
     plan config "$cfg" "$QUIRE_CONFIG/$(basename "$cfg")"
   done
   if [ "$CLOUD" = 1 ]; then plan dropin "$PORTER/dist/inferd-cloud.conf" "$UNITS/inferd.service.d/cloud.conf"; fi
@@ -265,6 +267,17 @@ file is where inferd.service is named a porter daemon). They read it only when t
 
   sudo install -D -m644 $PORTER/dist/callers.toml /etc/porter/callers.toml
 
+The agent daemons name their callers the same way, by the unit behind a connection, from
+/etc/quire/<daemon>-callers.toml (the system's file alone can say which unit is sill, the shell;
+rows of ~/.config/quire/<daemon>-callers.toml are laid over it, but never give that role). Read
+at startup, too:
+
+  sudo install -D -m644 $DOCKET/dist/intentd-callers.toml /etc/quire/intentd-callers.toml
+  sudo install -D -m644 $DOCKET/dist/companiond-callers.toml /etc/quire/companiond-callers.toml
+  sudo install -D -m644 $DOCKET/dist/readerd-callers.toml /etc/quire/readerd-callers.toml
+  sudo install -D -m644 $DOCKET/dist/acp-callers.toml /etc/quire/acp-callers.toml
+  sudo install -D -m644 $ALMANAC/dbus/memory-callers.toml /etc/quire/memory-callers.toml
+
 Then:  systemctl --user daemon-reload
        systemctl --user restart accountd inferd
 
@@ -321,7 +334,7 @@ do_uninstall() {
     done <<<"$rows"
   done
   say "Then:  systemctl --user daemon-reload   (and stop what is running: systemctl --user stop intentd companiond readerd memoryd inferd accountd)"
-  say "Not removed: /etc/porter/callers.toml (sudo rm it), your accounts and keys, and ~/.local/state/quire."
+  say "Not removed: /etc/porter/callers.toml and /etc/quire/*-callers.toml (sudo rm them), your accounts and keys, and ~/.local/state/quire."
 }
 
 if [ "$UNINSTALL" = 1 ]; then do_uninstall; else do_install; fi
