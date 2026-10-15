@@ -138,6 +138,11 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
         self.require(&header, Call::Close).await?;
         let session =
             SessionId::parse(&session).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
+        // A turn that is still waiting on the model or the reader ends now, so the lock is free
+        // for the close instead of held until the peer answers.
+        if let Some(task) = self.shared.task_of(&session) {
+            self.shared.cancel(&task);
+        }
         self.companion
             .lock()
             .await
@@ -446,7 +451,11 @@ where
     let mut beat = tokio::time::interval(TICK);
     loop {
         beat.tick().await;
-        let _ = companion.lock().await.tick().await;
+        // A turn in flight holds the companion: time is told again on the next beat, never
+        // queued behind it.
+        if let Some(mut held) = companion.try_lock() {
+            let _ = held.tick().await;
+        }
     }
 }
 

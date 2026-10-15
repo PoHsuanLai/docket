@@ -16,7 +16,7 @@ use agent_client_protocol_schema::v1::{
     RequestPermissionResponse,
 };
 use docket_core::{
-    CallId, FILES_READ, FILES_WRITE, StepLine, StepShown, TERMINAL_RUN, acp_agent_action,
+    CallId, FILES_READ, FILES_WRITE, StepLine, StepShown, TERMINAL_RUN, acp_agent_action, within,
 };
 use docket_session::{BackendEvent, CallEvent, CallOpen, TurnEnd};
 use prov::Effect;
@@ -46,7 +46,13 @@ impl<X: Seams> AcpBackend<X> {
                 self.outbox.clear();
                 return;
             };
-            if live.wire.write_line(line).await.is_err() {
+            // A write the agent never reads ends the connection, like a closed one.
+            let sent = within(
+                tokio::time::sleep(self.waits.prompt),
+                live.wire.write_line(line),
+            )
+            .await;
+            if !matches!(sent, Ok(Ok(()))) {
                 self.dead = true;
                 self.outbox.clear();
                 return;
@@ -100,7 +106,10 @@ impl<X: Seams> AcpBackend<X> {
             }
             // Whatever we owe the agent goes out before we wait to hear from it.
             self.flush().await;
-            let heard = self.line().await;
+            // An agent silent for the whole span is gone, as if it had closed its output.
+            let heard = within(tokio::time::sleep(self.waits.person), self.line())
+                .await
+                .unwrap_or_default();
             self.adopt_trip();
             match heard {
                 None => self.dead = true,

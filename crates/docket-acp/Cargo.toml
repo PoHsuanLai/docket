@@ -25,7 +25,7 @@ actions-tools = { workspace = true, optional = true }
 agent-client-protocol-schema = { workspace = true }
 companion-wire = { workspace = true }
 docket-client = { workspace = true, optional = true }
-docket-core = { workspace = true }
+docket-core = { workspace = true, features = ["wait"] }
 docket-session = { workspace = true }
 bulkhead = { workspace = true }
 docket-settings = { workspace = true }

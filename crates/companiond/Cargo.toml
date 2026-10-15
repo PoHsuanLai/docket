@@ -18,7 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 companion-wire = { workspace = true }
-docket-core = { workspace = true }
+docket-core = { workspace = true, features = ["wait"] }
 docket-planner = { workspace = true }
 docket-skills = { workspace = true }
 docket-tasks = { workspace = true }

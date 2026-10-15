@@ -18,12 +18,14 @@ pub(crate) async fn follow<P, I>(
     I: IntentsTransport,
 {
     let result = loop {
-        match acting.event().await {
-            Ok(PerformEvent::Progress(progress)) => {
+        match tokio::time::timeout(acting.patience(), acting.event()).await {
+            Ok(Ok(PerformEvent::Progress(progress))) => {
                 companion.lock().await.act_progress(&acting, &progress);
             }
-            Ok(PerformEvent::Done(end)) => break *end,
-            Err(error) => break Err(refusal_of(error)),
+            Ok(Ok(PerformEvent::Done(end))) => break *end,
+            Ok(Err(error)) => break Err(refusal_of(error)),
+            // The router said nothing for the whole span: the card's call ends unanswered.
+            Err(_) => break Err(docket_core::CallRefusal::Timeout),
         }
     };
     companion.lock().await.act_end(&acting, result);

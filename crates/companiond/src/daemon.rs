@@ -82,7 +82,12 @@ pub async fn start_with(
         config.shell.clone(),
     )
     .with_skills(found.skills);
-    let _ = companion.restore(&config.spaces).await;
+    // A router or memoryd that hangs must not keep the name from being claimed.
+    match tokio::time::timeout(companion.waits.startup, companion.restore(&config.spaces)).await {
+        Ok(Ok(_)) => {}
+        Ok(Err(error)) => eprintln!("companiond: restart found nothing to resume: {error}"),
+        Err(_) => eprintln!("companiond: the restart did not finish in time; starting without it"),
+    }
     let companion = Arc::new(Mutex::new(companion));
     serve_on_rooted(connection, companion.clone(), seams.proc_root).await?;
     Ok(companion)

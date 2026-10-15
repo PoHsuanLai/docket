@@ -40,4 +40,8 @@ impl docket_tasks::Now for Clock {
     fn now(&self) -> UnixSeconds {
         Clock::now(self)
     }
+
+    fn sleep(&self, span: std::time::Duration) -> impl std::future::Future<Output = ()> + Send {
+        tokio::time::sleep(span)
+    }
 }

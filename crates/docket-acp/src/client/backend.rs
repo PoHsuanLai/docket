@@ -15,8 +15,9 @@
 //!   on the pull after the one that returned the announcement; a cancel in between answers the
 //!   agent "cancelled" and the call never runs.
 //!
-//! There is no clock here. A deadline for an agent that stops answering is the host's: it calls
-//! `cancel`, then `close`, which kills the process.
+//! Every await on the agent has a deadline (`Waits`, with defaults): its handshake, a write to its
+//! stdin, and the silence between its lines. One that runs out marks the agent dead, so the turn
+//! fails and the host's `close` kills the process. A host may still `cancel`, then `close`, sooner.
 
 use super::court::Court;
 use super::edge::{EdgeFault, ToolsEdge, ToolsOffer};
@@ -37,7 +38,7 @@ use agent_client_protocol_schema::v1::{
     PromptResponse, SessionId, StopReason,
 };
 use bulkhead::Sandbox;
-use docket_core::{AbsPath, CallId, PermissionKind, UserTurn};
+use docket_core::{AbsPath, CallId, PermissionKind, UserTurn, Waits, within};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, Choice, Choices, ProgramName, ResumePlan, Resumed,
     SessionBackend, StartSession, Taint, TurnEnd,
@@ -156,6 +157,8 @@ pub struct AcpBackend<X: Seams> {
     pub(super) owed: VecDeque<(u64, PermissionKind)>,
     /// Refusals that never reached the router.
     pub(super) strikes: Strikes,
+    /// How long the agent may take for each kind of wait.
+    pub(super) waits: Waits,
 }
 
 impl<X: Seams> AcpBackend<X> {
@@ -183,7 +186,13 @@ impl<X: Seams> AcpBackend<X> {
             next_ask: 0,
             owed: VecDeque::new(),
             strikes: Strikes::default(),
+            waits: Waits::default(),
         }
+    }
+
+    /// The same backend, waiting on its agent as `waits` says.
+    pub fn with_waits(self, waits: Waits) -> Self {
+        Self { waits, ..self }
     }
 
     /// Whether the session is tainted: it served the agent a file or heard its own tools bring
@@ -268,7 +277,18 @@ impl<X: Seams> AcpBackend<X> {
             self.performer.note_unseen(&session);
         }
         self.session = Some(session);
-        self.handshake(&cwd).await
+        // Signing in may be the person's own browser: that handshake gets the long span.
+        let span = match self.live.as_ref().is_some_and(|l| l.sign_in.is_some()) {
+            true => self.waits.person,
+            false => self.waits.handshake,
+        };
+        match within(tokio::time::sleep(span), self.handshake(&cwd)).await {
+            Ok(done) => done,
+            Err(_) => {
+                self.dead = true;
+                Err(BackendFault::Unavailable)
+            }
+        }
     }
 
     async fn handshake(&mut self, cwd: &AbsPath) -> Result<(), BackendFault> {
@@ -372,11 +392,16 @@ impl<X: Seams> AcpBackend<X> {
     }
 
     pub(super) async fn send(&mut self, line: String) -> Result<(), BackendFault> {
+        let span = self.waits.prompt;
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
-        live.wire.write_line(line).await.map_err(|_| {
-            self.dead = true;
-            BackendFault::Unavailable
-        })
+        // An agent that stops reading its stdin must not stall the turn for good.
+        match within(tokio::time::sleep(span), live.wire.write_line(line)).await {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(_)) | Err(_) => {
+                self.dead = true;
+                Err(BackendFault::Unavailable)
+            }
+        }
     }
 
     /// Reads until the reply to `id`. Before a session exists the agent may ask for nothing:

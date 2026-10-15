@@ -3,6 +3,7 @@
 //! task is waiting for the person or over. Nothing here decides what is allowed: every call goes
 //! to the router, which gates it, and a refusal comes back as a code.
 
+use crate::deadline::{bounded, timed};
 use crate::fault::ServeFault;
 use crate::plan::phase_of;
 use crate::read::{COMPANION_APP, answer_read};
@@ -16,6 +17,7 @@ use agent_loop::{
 };
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
+use docket_core::Stop;
 use docket_core::{
     CallId, CallProgress, CallRefusal, CallRequest, ReaderAsk, StepEnd, WireRefusal,
 };
@@ -94,6 +96,8 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         }
         let result = self.run_inputs(task, first, tap).await;
         self.running.remove(task);
+        // A cancel that came too late for this turn must not stop the next question.
+        self.shared.take_cancel(task);
         self.publish();
         result
     }
@@ -256,7 +260,22 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         }
         let sources = self.sources(task).await;
         let view = assemble(&self.config.assembler, &sources);
-        let reply = match self.planner.converse(&view).await {
+        let asked = bounded(
+            &self.shared,
+            &self.clock,
+            task,
+            self.waits.model,
+            self.planner.converse(&view),
+        )
+        .await;
+        let reply = match asked {
+            // The person stopped the task while the model was thinking: the turn is dropped.
+            Err(Stop::Cancelled) => return Ok(vec![LoopInput::Cancelled]),
+            // A model that never answers is a model that is not there.
+            Err(Stop::TimedOut) => Err(PlanFault::Unavailable),
+            Ok(reply) => reply,
+        };
+        let reply = match reply {
             Ok(reply) => reply,
             Err(fault) => {
                 if let Some(rt) = self.runtimes.get_mut(task) {
@@ -337,17 +356,25 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         window: Option<docket_core::WindowKey>,
         tap: &mut T,
     ) -> Result<docket_core::Outcome, CallRefusal> {
-        let mut watch = match self
-            .intents
-            .perform_watched(call.clone(), Some(session), window)
-            .await
-        {
-            Ok(watch) => watch,
-            Err(error) => return Err(refusal_of(error)),
+        let waits = self.waits;
+        let started = timed(
+            &self.clock,
+            waits.prompt,
+            self.intents
+                .perform_watched(call.clone(), Some(session), window),
+        )
+        .await;
+        let mut watch = match started {
+            Ok(Ok(watch)) => watch,
+            Ok(Err(error)) => return Err(refusal_of(error)),
+            Err(_) => return Err(CallRefusal::Timeout),
         };
         loop {
-            match watch.next().await {
-                Ok(PerformEvent::Progress(progress)) => {
+            // The router may be waiting on the person's sheet: that is the long span. A cancel
+            // is not raced here, so a call the router already carries out is never abandoned
+            // half way; it is seen when the call ends.
+            match timed(&self.clock, waits.person, watch.next()).await {
+                Ok(Ok(PerformEvent::Progress(progress))) => {
                     self.plan_progress(task, id, &progress);
                     if let Some(AnswerPhase::NeedsYou(need)) =
                         self.runtimes.get(task).map(|rt| &rt.phase)
@@ -355,8 +382,9 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                         tap.needs(need);
                     }
                 }
-                Ok(PerformEvent::Done(end)) => return *end,
-                Err(error) => return Err(refusal_of(error)),
+                Ok(Ok(PerformEvent::Done(end))) => return *end,
+                Ok(Err(error)) => return Err(refusal_of(error)),
+                Err(_) => return Err(CallRefusal::Timeout),
             }
         }
     }
@@ -447,11 +475,16 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         else {
             return Err(ServeFault::UnknownSession);
         };
-        let performed = self
-            .intents
-            .perform(call.clone(), Some(session), window)
-            .await
-            .unwrap_or_else(|error| Err(refusal_of(error)));
+        let performed = match timed(
+            &self.clock,
+            self.waits.person,
+            self.intents.perform(call.clone(), Some(session), window),
+        )
+        .await
+        {
+            Ok(performed) => performed.unwrap_or_else(|error| Err(refusal_of(error))),
+            Err(_) => Err(CallRefusal::Timeout),
+        };
         let result = match performed {
             Err(refusal) => Err(refusal),
             Ok(started) => match self.adopt_worker(task, &started).await {
@@ -470,6 +503,23 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let Some(rt) = self.runtimes.get_mut(task) else {
             return Err(ServeFault::UnknownSession);
         };
-        Ok(answer_read(&self.intents, rt, ask).await)
+        let read = bounded(
+            &self.shared,
+            &self.clock,
+            task,
+            self.waits.model,
+            answer_read(&self.intents, rt, ask),
+        )
+        .await;
+        Ok(match read {
+            Ok(inputs) => inputs,
+            Err(Stop::Cancelled) => vec![LoopInput::Cancelled],
+            Err(Stop::TimedOut) => {
+                if let Some(rt) = self.runtimes.get_mut(task) {
+                    rt.failure = Some(Failure::Reader);
+                }
+                vec![LoopInput::ModelFailed]
+            }
+        })
     }
 }

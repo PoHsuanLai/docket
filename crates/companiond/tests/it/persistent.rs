@@ -375,3 +375,50 @@ async fn a_masked_step_still_says_which_handle_came_from_which_call() {
         "a text handle says which step made it: {after}"
     );
 }
+
+#[tokio::test]
+async fn a_model_that_never_answers_ends_the_task_failed_when_its_span_runs_out() {
+    use crate::support::infer::Say;
+    let mut w = world(vec![Say::Hang]);
+    w.companion = w.companion.with_waits(Waits {
+        model: std::time::Duration::from_millis(50),
+        ..Waits::default()
+    });
+    let opened = w.open("work").await;
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        w.say(&opened.session, "hello"),
+    )
+    .await
+    .expect("the span ended the wait");
+    let answer = w.companion.shared.answer(&opened.task).expect("answer");
+    assert_eq!(answer.phase, AnswerPhase::Failed);
+}
+
+#[tokio::test]
+async fn a_cancel_ends_the_wait_on_the_model_at_once() {
+    use crate::support::infer::Say;
+    let mut w = world(vec![Say::Hang]);
+    let opened = w.open("work").await;
+    let (shared, task) = (w.companion.shared.clone(), opened.task.clone());
+    let cancels = async move {
+        tokio::task::yield_now().await;
+        shared.cancel(&task);
+    };
+    let (_, ()) = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        tokio::join!(w.say(&opened.session, "hello"), cancels)
+    })
+    .await
+    .expect("the cancel ended the wait, not the model's span");
+    let answer = w.companion.shared.answer(&opened.task).expect("answer");
+    assert_eq!(answer.phase, AnswerPhase::Cancelled);
+}
+
+#[tokio::test]
+async fn a_cancel_after_the_answer_is_over_does_not_stop_the_next_question() {
+    let mut w = world(vec![words("Done.")]);
+    let opened = w.open("work").await;
+    w.say(&opened.session, "hello").await;
+    w.companion.shared.cancel(&opened.task);
+    assert!(!w.companion.shared.take_cancel(&opened.task));
+}

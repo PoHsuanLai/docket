@@ -5,11 +5,19 @@
 use crate::shared::Change;
 use prov::{TaskId, UnixSeconds};
 use std::future::Future;
+use std::time::Duration;
 
-/// What tells the time.
+/// What tells the time, and waits it out.
 pub trait Now {
     /// Now.
     fn now(&self) -> UnixSeconds;
+
+    /// Resolves after `span`: what every deadline on a peer waits on. The default sleeps on a
+    /// thread of its own, so a host with no timer still gets its deadlines; one that has a timer
+    /// returns that.
+    fn sleep(&self, span: Duration) -> impl Future<Output = ()> + Send {
+        docket_core::thread_sleep(span)
+    }
 }
 
 /// Where the tasks are shown: what is told when state changes, how an interactive request cuts

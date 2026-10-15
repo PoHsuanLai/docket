@@ -4,12 +4,15 @@
 //! step, `Running` once dispatched, `NeedsYou(Confirm)` while the sheet is up, then
 //! `Done { undo }` or `Failed`. Nothing here decides what is allowed.
 
+use crate::deadline::timed;
 use crate::fault::ServeFault;
 use crate::plan::phase_of;
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
 use companion_wire::AnswerPhase;
-use docket_client::{ClientError, PerformEvent, PerformWatch, Transport as IntentsTransport};
+use docket_client::{
+    ClientError, PerformEvent, PerformWatch, Transport as IntentsTransport, TransportError,
+};
 use docket_core::{CallId, CallRequest, CardActionId};
 use porter_client::Transport as InferTransport;
 use prov::{Effect, TaskId};
@@ -21,6 +24,7 @@ pub struct Acting {
     call: CallRequest,
     effect: Effect,
     watch: PerformWatch,
+    patience: std::time::Duration,
 }
 
 impl std::fmt::Debug for Acting {
@@ -39,6 +43,11 @@ impl Acting {
     /// The call's number in its task.
     pub fn id(&self) -> CallId {
         self.id
+    }
+
+    /// How long the router may be silent on the call (a sheet may be up) before it is given up on.
+    pub fn patience(&self) -> std::time::Duration {
+        self.patience
     }
 
     /// The next thing the router says of the call.
@@ -64,11 +73,21 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let rt = self.runtimes.get(task).ok_or(ServeFault::UnknownSession)?;
         let card = rt.card(card).cloned().ok_or(ServeFault::NoSuchCard)?;
         let (session, window, id) = (rt.session.clone(), rt.window.clone(), rt.next_call);
-        let watch = self
-            .intents
-            .perform_watched(card.call.clone(), Some(session), window)
-            .await
-            .map_err(ServeFault::Router)?;
+        let started = timed(
+            &self.clock,
+            self.waits.prompt,
+            self.intents
+                .perform_watched(card.call.clone(), Some(session), window),
+        )
+        .await;
+        let watch = match started {
+            Ok(watch) => watch.map_err(ServeFault::Router)?,
+            Err(_) => {
+                return Err(ServeFault::Router(ClientError::Transport(
+                    TransportError::Bus("the router did not answer in time".to_owned()),
+                )));
+            }
+        };
         if let Some(rt) = self.runtimes.get_mut(task) {
             rt.acts.begin(
                 CallId(id),
@@ -85,6 +104,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             call: card.call,
             effect: card.effect,
             watch,
+            patience: self.waits.person,
         })
     }
 

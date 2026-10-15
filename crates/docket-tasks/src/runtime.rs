@@ -108,6 +108,8 @@ pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     pub planner: PlannerModel<P>,
     /// The proposed values.
     pub config: AgentConfig,
+    /// How long each kind of peer may take before the loop gives up on it.
+    pub waits: docket_core::Waits,
     /// The task the launcher returns to.
     pub front: Option<TaskId>,
     /// Each task's loop.
@@ -180,6 +182,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             intents,
             planner,
             config,
+            waits: docket_core::Waits::default(),
             front: None,
             tasks: BTreeMap::new(),
             side: SideTable::default(),
@@ -202,6 +205,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             notes: Notes::Written,
             manifests: Vec::new(),
         }
+    }
+
+    /// The same companion, waiting on its peers as `waits` says.
+    pub fn with_waits(self, waits: docket_core::Waits) -> Self {
+        Self { waits, ..self }
     }
 
     /// The same companion, writing no roster notes: the host of an editor's sessions.

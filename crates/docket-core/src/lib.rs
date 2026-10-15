@@ -58,6 +58,10 @@ mod undo;
 mod units;
 mod validate;
 mod value;
+#[cfg(feature = "wait")]
+mod wait;
+#[cfg(feature = "wait")]
+mod wait_timer;
 pub mod when;
 mod wire;
 mod workspace;
@@ -183,6 +187,8 @@ pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
 pub use units::{CharCount, Days, Depth, Generation, Millis, Scale, Seconds};
 pub use validate::{ManifestError, ValidManifest, fits, open_name, validate};
 pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
+#[cfg(feature = "wait")]
+pub use wait::{Cancel, Stop, ThreadSleep, Waits, stop_after, thread_sleep, until, within};
 pub use wire::{
     Displayed, Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter,
     NoteAsk, NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved,

@@ -4,10 +4,10 @@
 //! sit on a confirmation for minutes; `Roster()` and `Front()` must not.
 
 use crate::seams::Surface;
-use companion_wire::{AnswerWire, FrontTask, RouteNote};
-use docket_core::Roster;
+use companion_wire::{AnswerPhase, AnswerWire, FrontTask, RouteNote};
+use docket_core::{Cancel, Roster};
 use prov::{SessionId, TaskId};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 
 /// What changed, content-free: a reader asks for the content.
@@ -30,7 +30,7 @@ struct State {
     answers: BTreeMap<TaskId, AnswerWire>,
     sessions: BTreeMap<TaskId, SessionId>,
     routes: BTreeMap<TaskId, Vec<RouteNote>>,
-    cancels: BTreeSet<TaskId>,
+    cancels: BTreeMap<TaskId, Cancel>,
 }
 
 /// The shared view, over the surface that hears its changes.
@@ -121,6 +121,16 @@ impl<S: Surface> Shared<S> {
         self.with(|s| s.sessions.get(task).cloned())
     }
 
+    /// The task whose answer shows `session`'s handles.
+    pub fn task_of(&self, session: &SessionId) -> Option<TaskId> {
+        self.with(|s| {
+            s.sessions
+                .iter()
+                .find(|(_, held)| *held == session)
+                .map(|(task, _)| task.clone())
+        })
+    }
+
     /// Records the session of `task`'s answer. Set before the answer, so a reader told of the
     /// answer can already ask for it.
     pub fn set_session(&self, task: &TaskId, session: SessionId) {
@@ -141,20 +151,44 @@ impl<S: Surface> Shared<S> {
     pub fn drop_answer(&self, task: &TaskId) {
         self.with(|s| s.routes.remove(task));
         self.with(|s| s.sessions.remove(task));
+        self.with(|s| s.cancels.remove(task));
         if self.with(|s| s.answers.remove(task)).is_some() {
             self.tell(Change::AnswerRemoved(task.clone()));
         }
     }
 
-    /// The person (or the answer object's `Cancel`) stopped this task: the loop sees it between
-    /// effects.
+    /// The person (or the answer object's `Cancel`) stopped this task: the wait it is in ends at
+    /// once, and the loop sees it between effects.
+    /// A task whose answer is over has nothing to stop: a cancel then would only be left over
+    /// to stop the next question.
     pub fn cancel(&self, task: &TaskId) {
-        self.with(|s| s.cancels.insert(task.clone()));
+        let over = self.with(|s| {
+            s.answers.get(task).is_some_and(|a| {
+                matches!(
+                    a.phase,
+                    AnswerPhase::Done | AnswerPhase::Failed | AnswerPhase::Cancelled
+                )
+            })
+        });
+        if !over {
+            self.cancel_of(task).cancel();
+        }
+    }
+
+    /// The stop `task`'s waits listen for.
+    pub fn cancel_of(&self, task: &TaskId) -> Cancel {
+        self.with(|s| s.cancels.entry(task.clone()).or_default().clone())
     }
 
     /// Whether a cancel is waiting for `task`, taking it.
     pub fn take_cancel(&self, task: &TaskId) -> bool {
-        self.with(|s| s.cancels.remove(task))
+        self.with(|s| {
+            let set = s.cancels.get(task).is_some_and(Cancel::is_set);
+            if set {
+                s.cancels.remove(task);
+            }
+            set
+        })
     }
 
     /// An interactive request is starting: whatever background work runs yields now.

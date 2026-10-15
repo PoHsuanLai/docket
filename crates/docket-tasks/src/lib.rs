@@ -22,6 +22,7 @@
 
 mod act;
 mod completion;
+mod deadline;
 mod drive;
 mod fault;
 mod finish;
