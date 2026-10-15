@@ -22,7 +22,9 @@
 #   ~/.config/quire/*.toml                    default configs, ONLY where absent (never overwritten)
 #   ~/.local/state/quire-dev/install-dev.manifest   what was installed, for --uninstall
 #
-# Dev-only change to the packaged units: ProtectHome=yes becomes read-only for companiond and readerd
+# The units' mount-namespace protections are drop-ins (<unit>.service.d/sandbox.conf), installed unless
+# this system refuses them to user units (INSTALL_DEV_SANDBOX=auto, on or off). Dev-only change to
+# them: ProtectHome=yes becomes read-only for companiond and readerd
 # when the prefix is under $HOME (with `yes` the binary itself cannot be executed from $HOME, and
 # companiond could not read its config and skills). The porter units need nothing: they make their own
 # directories. --cloud installs porter's dist/inferd-cloud.conf as inferd.service.d/cloud.conf (network
@@ -97,12 +99,20 @@ repo_dir() { case "$1" in docket) echo "$DOCKET" ;; almanac) echo "$ALMANAC" ;; 
 PLAN=()
 plan() { PLAN+=("$1|$2|$3"); }
 
+# The units' mount-namespace protections are a drop-in beside each unit (<unit>.d/sandbox.conf); they
+# go in unless this system refuses them to user units (INSTALL_DEV_SANDBOX=on or off skips the test).
+plan_sandbox() {
+  [ "$SANDBOX_ON" = 1 ] || return 0
+  [ -f "$1.d/sandbox.conf" ] || return 0
+  plan sandbox "$1.d/sandbox.conf" "$UNITS/$(basename "$1").d/sandbox.conf"
+}
 plan_units() {
   local dir="$1" unit
   for unit in "$dir"/*.service; do
     [ -e "$unit" ] || continue
     case "$(basename "$unit")" in voiced.service|syncd.service|cuad.service) continue ;; esac
     plan unit "$unit" "$UNITS/$(basename "$unit")"
+    plan_sandbox "$unit"
   done
 }
 plan_dbus() {
@@ -128,6 +138,7 @@ build_plan() {
   done
   plan_units "$DOCKET/dist"; plan_units "$PORTER/dist"
   plan unit "$ALMANAC/dbus/memoryd.service" "$UNITS/memoryd.service"
+  plan_sandbox "$ALMANAC/dbus/memoryd.service"
   plan_dbus "$DOCKET/dist/dbus"; plan_dbus "$PORTER/dist/dbus"
   plan dbus "$ALMANAC/dbus/org.quire.Memory1.service" "$DBUS/org.quire.Memory1.service"
   plan_tree data "$DOCKET/dist/skills" "$DATA/quire/skills"
@@ -192,6 +203,7 @@ rewrite_unit() {
 render() { # kind source -> the text to install, on stdout
   case "$1" in
     unit) rewrite_unit "$2" ;;
+    sandbox) if under_home; then sed -E 's|^ProtectHome=yes$|ProtectHome=read-only|' "$2"; else cat "$2"; fi ;;
     dbus) rewrite_exec <"$2" ;;
     *) cat "$2" ;;
   esac
@@ -289,8 +301,23 @@ To add an AI key (inferd holds them, not accountd), with inferd stopped:
 EOF
 }
 
+# Do user units get a private view of the system here? Ubuntu 24.04 and later refuse it to programs
+# without an AppArmor profile; a unit that asks for it then fails to start. The drop-ins are left
+# out then (scripts/install.sh prints the remedy).
+SANDBOX_ON=1
+decide_sandbox() {
+  case "${INSTALL_DEV_SANDBOX:-auto}" in
+    on) return 0 ;;
+    off) SANDBOX_ON=0; return 0 ;;
+  esac
+  command -v systemd-run >/dev/null 2>&1 || return 0
+  systemctl --user show-environment >/dev/null 2>&1 || return 0
+  systemd-run --user --quiet --collect -p PrivateTmp=yes -p ProtectSystem=strict --wait true >/dev/null 2>&1 || SANDBOX_ON=0
+}
+
 do_install() {
   load_manifest
+  decide_sandbox
   build_plan
   say "install-dev: prefix $PREFIX, units in $UNITS"
   [ "$DRY" = 0 ] || say "(dry run: nothing is built or written)"
@@ -304,6 +331,7 @@ do_install() {
   drop_stale
   [ "$DRY" = 1 ] || write_manifest
   [ "$DRY" = 1 ] || say "manifest: $MANIFEST"
+  if [ "$SANDBOX_ON" = 0 ]; then say "note: this system does not let user units have a private view of the files, so the sandbox drop-ins were left out; see scripts/install.sh --help"; fi
   if under_home; then say "note: ProtectHome is read-only (not yes) on companiond and readerd, because $BIN is under \$HOME"; fi
   sudo_step
 }

@@ -42,7 +42,8 @@ impl Jail {
         let dir = tempfile::tempdir().expect("scratch");
         let fakes = dir.path().join("fakes");
         std::fs::create_dir_all(&fakes).expect("fakes");
-        for name in BINARIES {
+        // docket-acp is installed by scripts/install.sh only, not by install-dev.sh.
+        for name in BINARIES.iter().copied().chain(["docket-acp"]) {
             std::fs::write(fakes.join(name), format!("#!/bin/sh\necho fake {name}\n"))
                 .expect("fake");
         }
@@ -78,7 +79,28 @@ impl Jail {
             .env("XDG_DATA_HOME", home.join(".local/share"))
             .env("XDG_STATE_HOME", home.join(".local/state"))
             .env("PREFIX", home.join(".local"))
+            // No question put to the real user manager: the jail says yes.
+            .env("INSTALL_DEV_SANDBOX", "on")
+            // No question put to the real user manager: the jail says yes (or no, in the test that needs it).
+            .env("INSTALL_DEV_SANDBOX", "on")
             .env("INSTALL_DEV_BIN_DIR", self.dir.path().join("fakes"))
+            .output()
+            .expect("bash runs")
+    }
+
+    /// `scripts/install.sh` into a package root inside HOME: prefix `/opt/quire-test`, fake programs.
+    fn run_system(&self, args: &[&str]) -> Output {
+        let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/install.sh");
+        Command::new("bash")
+            .arg(script)
+            .args(["--prefix", "/opt/quire-test", "--destdir"])
+            .arg(self.home().join("root"))
+            .arg("--bin-dir")
+            .arg(self.dir.path().join("fakes"))
+            .args(args)
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("HOME", self.home())
             .output()
             .expect("bash runs")
     }
@@ -178,6 +200,12 @@ fn an_install_puts_every_piece_where_the_session_reads_it() {
         !tree.iter().any(|p| p.contains("inferd.service.d")),
         "{tree:#?}"
     );
+    // The mount-namespace protections ride along as drop-ins.
+    for unit in ["intentd", "companiond", "readerd", "actions-mcp", "memoryd"] {
+        has(&format!(
+            ".config/systemd/user/{unit}.service.d/sandbox.conf"
+        ));
+    }
     has(".local/state/quire-dev/install-dev.manifest");
     // Nothing for voiced (a skeleton), syncd or cuad, and nothing outside HOME.
     assert!(
@@ -244,7 +272,9 @@ fn the_exec_lines_name_the_prefix_and_a_home_prefix_keeps_the_binary_reachable()
     assert!(dbus.contains(&format!("Exec={bin}/companiond\n")), "{dbus}");
     // With the binary under HOME, `ProtectHome=yes` would hide it from its own unit.
     for unit in ["companiond", "readerd"] {
-        let text = jail.read(&format!(".config/systemd/user/{unit}.service"));
+        let text = jail.read(&format!(
+            ".config/systemd/user/{unit}.service.d/sandbox.conf"
+        ));
         assert!(!text.contains("\nProtectHome=yes"), "{unit}");
         assert!(text.contains("\nProtectHome=read-only"), "{unit}");
     }
@@ -392,5 +422,64 @@ fn cloud_is_opt_in_and_an_uninstall_removes_it() {
     // porter's drop-in opens every address (the families are already open in the unit).
     assert!(dropin.contains("IPAddressAllow=any"), "{dropin}");
     jail.ok(&["--uninstall"]);
+    assert!(jail.tree().is_empty(), "{:#?}", jail.tree());
+}
+
+#[test]
+fn the_system_installer_puts_each_piece_under_the_prefix_and_the_protections_are_a_choice() {
+    let jail = Jail::new();
+    let out = jail.run_system(&["--sandbox", "on"]);
+    assert!(out.status.success(), "{out:?}");
+    let tree = jail.tree();
+    let has = |rel: &str| assert!(tree.contains(rel), "missing {rel}\n{tree:#?}");
+    has("root/opt/quire-test/libexec/quire/intentd");
+    has("root/opt/quire-test/bin/quire-do");
+    has("root/opt/quire-test/lib/systemd/user/intentd.service");
+    has("root/opt/quire-test/lib/systemd/user/intentd.service.d/sandbox.conf");
+    has("root/opt/quire-test/share/dbus-1/services/org.quire.Intents1.service");
+    has("root/opt/quire-test/share/dbus-1/interfaces/org.quire.Intents1.xml");
+    has("root/opt/quire-test/share/quire/settings/docket.settings.toml");
+    has("root/etc/xdg/quire/intentd.toml");
+    has("root/etc/quire/intentd-callers.toml");
+    let unit = jail.read("root/opt/quire-test/lib/systemd/user/intentd.service");
+    assert!(
+        unit.contains("\nExecStart=/opt/quire-test/libexec/quire/intentd\n"),
+        "{unit}"
+    );
+    let activation =
+        jail.read("root/opt/quire-test/share/dbus-1/services/org.quire.Intents1.service");
+    assert!(
+        activation.contains("Exec=/opt/quire-test/libexec/quire/intentd\n"),
+        "{activation}"
+    );
+    // Off: the same install, with no drop-ins.
+    let bare = Jail::new();
+    let out = bare.run_system(&["--sandbox", "off"]);
+    assert!(out.status.success(), "{out:?}");
+    assert!(
+        bare.tree().iter().all(|p| !p.contains("sandbox.conf")),
+        "{:#?}",
+        bare.tree()
+    );
+    assert!(
+        bare.tree()
+            .contains("root/opt/quire-test/lib/systemd/user/intentd.service")
+    );
+}
+
+#[test]
+fn the_system_installer_dry_run_prints_every_action_and_writes_nothing() {
+    let jail = Jail::new();
+    let out = jail.run_system(&["--dry-run", "--sandbox", "on"]);
+    assert!(out.status.success(), "{out:?}");
+    let text = String::from_utf8_lossy(&out.stdout);
+    for expect in [
+        "install -m 755",
+        "intentd.service.d/sandbox.conf",
+        "/etc/quire/intentd-callers.toml",
+        "dry run",
+    ] {
+        assert!(text.contains(expect), "{expect}\n{text}");
+    }
     assert!(jail.tree().is_empty(), "{:#?}", jail.tree());
 }

@@ -188,8 +188,6 @@ fn every_unit_carries_the_sandbox_lines_and_every_activation_file_names_a_unit()
         let text = std::fs::read_to_string(path).expect("unit");
         for line in [
             "RestrictAddressFamilies=AF_UNIX",
-            "PrivateNetwork=yes",
-            "ProtectSystem=strict",
             "NoNewPrivileges=yes",
             "MemoryDenyWriteExecute=yes",
             "SystemCallFilter=@system-service",
@@ -198,6 +196,17 @@ fn every_unit_carries_the_sandbox_lines_and_every_activation_file_names_a_unit()
             assert!(
                 text.lines().any(|l| l == line),
                 "{} lacks {line}",
+                path.display()
+            );
+        }
+        // The settings that need a mount namespace are a drop-in, which the installer leaves out on
+        // a system that refuses one for user units.
+        let dropin = std::fs::read_to_string(format!("{}.d/sandbox.conf", path.display()))
+            .expect("sandbox drop-in");
+        for line in ["PrivateNetwork=yes", "ProtectSystem=strict"] {
+            assert!(
+                dropin.lines().any(|l| l == line),
+                "{}.d/sandbox.conf lacks {line}",
                 path.display()
             );
         }
@@ -232,7 +241,13 @@ fn intentds_unit_ends_with_the_graphical_session_and_makes_the_directory_it_may_
     assert!(has(
         "ExecStartPre=+/usr/bin/mkdir -p %h/.local/share/quire/intents"
     ));
-    assert!(has("ReadWritePaths=%h/.local/share/quire/intents"));
+    let dropin =
+        std::fs::read_to_string(dist.join("intentd.service.d/sandbox.conf")).expect("drop-in");
+    assert!(
+        dropin
+            .lines()
+            .any(|l| l == "ReadWritePaths=%h/.local/share/quire/intents")
+    );
     let activation = std::fs::read_to_string(dist.join("dbus/org.quire.Intents1.service"))
         .expect("activation file");
     assert!(activation.contains("Name=org.quire.Intents1"));

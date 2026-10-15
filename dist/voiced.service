@@ -16,23 +16,10 @@ Restart=on-failure
 RestartSec=2
 
 # --- Sandbox ---
-# Only Unix sockets: the PipeWire socket and the session bus. Nothing can reach the network, so
-# a compromised voiced cannot send audio out. (The PipeWire native protocol is a Unix socket, so
-# PrivateNetwork=yes below does not cut it off.)
+# Only Unix sockets: the PipeWire socket and the session bus. The rest (no network, no home folder
+# but three read-only paths, a read-only system, private temporary files, no kernel surfaces) is
+# voiced.service.d/sandbox.conf.
 RestrictAddressFamilies=AF_UNIX
-PrivateNetwork=yes
-# The person's files are out of reach: voiced never writes them and records no audio. /home, /root
-# and /run/user are empty tmpfs; only three paths are bound back in, read-only: the session bus
-# and the PipeWire socket (a socket connects through a read-only bind) and sill's settings
-# directory, where `voice.consent` says whether the mic may open at all.
-ProtectHome=tmpfs
-BindReadOnlyPaths=%t/bus
-BindReadOnlyPaths=%t/pipewire-0
-BindReadOnlyPaths=-%h/.config/sill
-# The whole file system is read-only; nothing is writable (audio is never stored).
-ProtectSystem=strict
-ReadWritePaths=
-PrivateTmp=yes
 # No setuid gain, no writable-and-executable memory (no JIT, no injected code).
 NoNewPrivileges=yes
 MemoryDenyWriteExecute=yes
@@ -40,13 +27,6 @@ LockPersonality=yes
 RestrictRealtime=no
 RestrictNamespaces=yes
 RestrictSUIDSGID=yes
-# No kernel, module or debug surfaces.
-ProtectKernelTunables=yes
-ProtectKernelModules=yes
-ProtectKernelLogs=yes
-ProtectControlGroups=yes
-ProtectClock=yes
-ProtectHostname=yes
 # A narrow syscall set: the system-service baseline, minus privileged and obsolete calls.
 SystemCallFilter=@system-service
 SystemCallFilter=~@privileged @resources @mount @debug @obsolete
