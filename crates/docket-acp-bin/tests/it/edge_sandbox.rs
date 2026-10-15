@@ -3,7 +3,7 @@
 //! with a printed reason, where bwrap, user namespaces or python are missing. Scratch directories
 //! only; the court is a stand-in that holds the mail fixture's manifest and never performs.
 
-use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EnvVar, agent_bwrap_args, present_hidden};
+use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EnvVar, Profile, agent_bwrap_args};
 use docket_acp::client::{AgentCall, Court, CourtFault, OpenAgent, Ruled, ToolsEdge, ToolsOffer};
 use docket_core::{AbsPath, TurnId, ValidManifest};
 use prov::SessionId;
@@ -97,7 +97,7 @@ async fn a_process_in_the_sandbox_with_no_network_reaches_its_sessions_edge_and_
             Access::ReadWrite,
         ));
         Command::new(&bwrap)
-            .args(agent_bwrap_args(&run, &present_hidden()))
+            .args(agent_bwrap_args(&run, &Profile::bare()))
             .env_clear()
             .envs(run.env.iter().map(|v| (&v.name, &v.value)))
             .stdin(Stdio::null())

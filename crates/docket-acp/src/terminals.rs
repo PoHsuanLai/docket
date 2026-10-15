@@ -58,6 +58,10 @@ fn shell_error(fault: &ShellFault) -> Error {
         ShellFault::CannotSandbox(why) => fault::not_now(&format!("cannot sandbox: {why}")),
         ShellFault::TooMany => fault::not_now("too many terminals are open"),
         ShellFault::Spawn => fault::internal("the sandbox did not start"),
+        ShellFault::InheritedFds => {
+            fault::not_now("the sandbox refused to start: a file descriptor would leak into it")
+        }
+        ShellFault::FilterFile => fault::internal("the sandbox's syscall filter was not given"),
         _ => fault::internal("the sandbox did not start"),
     }
 }

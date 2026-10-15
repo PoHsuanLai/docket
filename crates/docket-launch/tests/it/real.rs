@@ -2,14 +2,14 @@
 //! the one given. Skips, with a printed reason, where it does not. Scratch directories, an
 //! unreachable bus, a scratch home.
 
-use bulkhead::{AgentNet, AgentRun, Argv, Detected, EnvVar};
+use bulkhead::{AgentNet, AgentRun, Argv, BwrapSandbox, Detected, EnvVar};
 use docket_acp::Wire;
 use docket_launch::{BwrapProcs, Proc, Procs};
 
-fn bwrap() -> Option<std::path::PathBuf> {
+fn bwrap() -> Option<BwrapSandbox> {
     let path = std::env::var("PATH").unwrap_or_default();
     match Detected::probe(&path) {
-        Detected::Bwrap(found) => Some(found.program().to_owned()),
+        Detected::Bwrap(found) => Some(found),
         Detected::Missing(why) => {
             eprintln!("SKIP real process test: {why}");
             None
@@ -26,7 +26,7 @@ fn var(name: &str, value: &str) -> EnvVar {
 
 #[tokio::test]
 async fn a_confined_process_speaks_lines_over_its_stdio_with_exactly_the_environment_given() {
-    let Some(program) = bwrap() else { return };
+    let Some(sandbox) = bwrap() else { return };
     let root = tempfile::tempdir().expect("scratch");
     let cwd = root.path().join("work/app");
     std::fs::create_dir_all(&cwd).expect("cwd");
@@ -49,7 +49,7 @@ async fn a_confined_process_speaks_lines_over_its_stdio_with_exactly_the_environ
         ],
         AgentNet::None,
     );
-    let mut procs = BwrapProcs::new(program);
+    let mut procs = BwrapProcs::new(sandbox, root.path().to_owned());
     let Ok((mut wire, mut proc)) = procs.start(&run).await else {
         eprintln!("SKIP real process test: the sandbox did not start here");
         return;

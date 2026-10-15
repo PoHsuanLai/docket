@@ -22,6 +22,9 @@ pub const fn cannot(why: ShellCannot) -> CannotSandbox {
         ShellCannot::NamespacesDenied => CannotSandbox::NamespacesDenied,
         ShellCannot::Unsupported => CannotSandbox::Unsupported,
         ShellCannot::BadWorkingDir => CannotSandbox::BadWorkingDir,
+        ShellCannot::LimitsUnavailable => CannotSandbox::LimitsUnavailable,
+        ShellCannot::SeccompUnavailable => CannotSandbox::SeccompUnavailable,
+        ShellCannot::BadLimits => CannotSandbox::BadLimits,
         // A reason this build cannot name: the sandbox cannot run, so say unsupported.
         _ => CannotSandbox::Unsupported,
     }

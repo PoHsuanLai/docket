@@ -107,7 +107,7 @@ pub async fn host<A: Accounts + 'static>(
     let Detected::Bwrap(found) = &bwrap else {
         return Err("no sandbox (bubblewrap) here: no agent is started unconfined".to_owned());
     };
-    let program_path = found.program().to_owned();
+    let sandbox = found.clone();
     // The agent process's own network counts for the commands it runs (R12). A program the file
     // does not list cannot be started at all; until then assume the widest.
     let label = file.get(&program).and_then(|entry| entry.label.clone());
@@ -150,7 +150,7 @@ pub async fn host<A: Accounts + 'static>(
         permit,
         file,
         accounts,
-        BwrapProcs::new(program_path),
+        BwrapProcs::new(sandbox, run_dir.clone()),
         run_dir,
         forwarder,
         registry,

@@ -3,7 +3,7 @@
 //! close, on a failure, and when a credential is revoked.
 
 use super::support::{ENDPOINT, HANDOFF, HANDOFF_FILE, LOGIN, plan, rig};
-use bulkhead::{Access, AgentNet, AgentRun, NetworkMode, agent_bwrap_args};
+use bulkhead::{Access, AgentNet, AgentRun, NetworkMode, Profile, agent_bwrap_args};
 use docket_acp::client::{AgentChild, Spawn, SpawnFault};
 use docket_launch::fake::{Call, FakeAccounts, Mood};
 use docket_launch::{Heard, Supervisor};
@@ -24,7 +24,7 @@ fn names(run: &AgentRun) -> Vec<&str> {
 }
 
 fn args_text(run: &AgentRun) -> String {
-    agent_bwrap_args(run, &["/home", "/tmp"]).join(" ")
+    agent_bwrap_args(run, &Profile::bare()).join(" ")
 }
 
 #[tokio::test]
@@ -414,7 +414,6 @@ async fn no_network_mode_gives_the_agent_a_bus() {
         (LOGIN, "claude-code"),
         (quiet.as_str(), "claude-code"),
     ];
-    assert!(bulkhead::HIDDEN.contains(&"/run"), "/run is always emptied");
     let mut nets = Vec::new();
     for (n, (toml, program)) in cases.into_iter().enumerate() {
         let mut rig = rig(toml, Mood::Working, true);
@@ -432,19 +431,15 @@ async fn no_network_mode_gives_the_agent_a_bus() {
             assert!(!var.value.contains("unix:path="), "{}: {}", n, var.name);
         }
 
-        let args = agent_bwrap_args(&run, bulkhead::HIDDEN);
-        let host = args
-            .windows(3)
-            .position(|w| w == ["--ro-bind", "/", "/"])
-            .expect("the host is shown read-only");
+        let args = agent_bwrap_args(&run, &Profile::bare());
+        assert!(
+            !args.windows(3).any(|w| w == ["--ro-bind", "/", "/"]),
+            "{n}: the host's whole root is never shown"
+        );
         let emptied = args
             .windows(2)
             .position(|w| w == ["--tmpfs", "/run"])
             .expect("/run is emptied");
-        assert!(
-            host < emptied,
-            "{n}: /run is emptied after the host is shown"
-        );
         let binds = [
             "--bind",
             "--ro-bind",
