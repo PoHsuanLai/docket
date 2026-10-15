@@ -21,6 +21,7 @@
 //! - [`completion_effects`]: how a finished worker or run reaches the front task.
 
 mod act;
+mod best_effort;
 mod completion;
 mod deadline;
 mod drive;
@@ -57,6 +58,7 @@ pub use recover::{
     RecentSource, ReplayFault, RouterRecent, rebuild_from, recent_events, recover, replay_of,
     restart_query,
 };
+pub use resume::Restarted;
 pub use runtime::{Begun, Companion, idle_state};
 pub use seams::{Now, Quiet, Surface};
 pub use shared::{Change, Shared};

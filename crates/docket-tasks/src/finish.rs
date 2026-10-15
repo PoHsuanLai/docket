@@ -3,6 +3,7 @@
 //! the task did (the person's words, typed steps, entity ids); the narrative is written later,
 //! when the person is away, and never steers anything by itself.
 
+use crate::best_effort::best_effort;
 use crate::fault::ServeFault;
 use crate::linger::{LINGER, finished};
 use crate::runtime::{Companion, Narration, REMEMBERED};
@@ -102,10 +103,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             phase: rt.phase.clone(),
         };
         self.record(&rt.session, &record).await;
-        let _ = self
+        let ended = self
             .intents
             .session_note(rt.session.clone(), NoteAsk::End)
             .await;
+        best_effort("session.note.end", &rt.session, ended);
         if let Some(episode) = episode {
             self.remember(task, &rt.session, episode);
         }

@@ -92,6 +92,7 @@ async fn restore_rebuilds_from_the_stored_sessions_and_opens_the_front_afresh() 
         .restore(&[space("work")])
         .await
         .expect("a restart")
+        .opened
         .expect("the front task was open: it gets a fresh session");
     assert_ne!(resumed.task, before.task);
     assert_eq!(fresh.front.as_ref(), Some(&resumed.task));
@@ -123,7 +124,8 @@ async fn sessions_an_editor_opened_are_not_on_the_roster_or_the_front_after_a_re
         .await;
     let mut fresh = w.restarted();
     let resumed = fresh.restore(&[space("work")]).await.expect("a restart");
-    assert_eq!(resumed, None, "an editor's session is not the front");
+    assert_eq!(resumed.opened, None, "an editor's session is not the front");
+    assert_eq!(resumed.failed, 0, "every read of the restart was answered");
     assert_eq!(fresh.front, None);
     assert!(fresh.roster().entries.is_empty());
 }
@@ -191,6 +193,7 @@ async fn restore_reads_the_spaces_the_router_hands_over_and_not_only_the_configu
         .restore(&[])
         .await
         .expect("a restart")
+        .opened
         .expect("the front task of `home` was open");
     assert_ne!(resumed.task, before.task);
     let read: Vec<_> = w

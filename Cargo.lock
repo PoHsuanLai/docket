@@ -767,6 +767,7 @@ dependencies = [
  "docket-client",
  "docket-core",
  "docket-dbus",
+ "docket-log",
  "docket-fake",
  "docket-planner",
  "docket-router",
@@ -785,6 +786,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+ "tracing",
  "zbus",
 ]
 
@@ -1531,6 +1533,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

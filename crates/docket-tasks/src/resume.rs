@@ -3,6 +3,7 @@
 //! the roster again (their goals are not in the digest, so presence only, plus what the person last
 //! told them), and the front task gets a fresh session in the Space it was in.
 
+use crate::best_effort::best_effort;
 use crate::fault::ServeFault;
 use crate::native::RouterLog;
 use crate::recover::{RouterRecent, rebuild_from, recent_events};
@@ -14,6 +15,20 @@ use docket_client::Transport as IntentsTransport;
 use docket_core::{RecallAsk, RecallView, SessionOpen, SessionOpened};
 use porter_client::Transport as InferTransport;
 use prov::{AgentRef, SpaceId, UnixSeconds};
+
+/// What a restart found: the front task's fresh session, if it had one, and how many of the
+/// things it reads were read (`restored`) and how many were not (`failed`: the stored sessions,
+/// and each Space's open and read). A restart that read nothing and failed everything is the
+/// signal that the router or memoryd was away.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Restarted {
+    /// The front task's fresh session.
+    pub opened: Option<SessionOpened>,
+    /// Reads that succeeded.
+    pub restored: usize,
+    /// Reads that failed.
+    pub failed: usize,
+}
 
 /// How far back a restart reads: the retention window of `companion.*` records (30 days).
 const RETENTION: i64 = 30 * 24 * 3600;
@@ -42,7 +57,12 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             .intents
             .session_recall(asking.session.clone(), RecallAsk::Spaces)
             .await;
-        let _ = self.intents.session_close(asking.session).await;
+        let who = asking.session.clone();
+        let closed = self.intents.session_close(asking.session).await;
+        best_effort("session.close", &who, closed);
+        if let Err(cause) = &known {
+            tracing::warn!(%cause, "restart: the router would not list its Spaces");
+        }
         if let Ok(RecallView::Spaces(known)) = known {
             for space in known {
                 if !spaces.contains(&space) {
@@ -58,17 +78,23 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     /// purpose, which is closed again), rebuilds the roster and the front task, and takes them
     /// up. A Space the router or memoryd cannot answer for adds nothing; sessions an editor
     /// opened are not the companion's and are left out.
-    pub async fn restore(
-        &mut self,
-        spaces: &[SpaceId],
-    ) -> Result<Option<SessionOpened>, ServeFault> {
+    pub async fn restore(&mut self, spaces: &[SpaceId]) -> Result<Restarted, ServeFault> {
         let since = UnixSeconds(self.clock.now().0.saturating_sub(RETENTION));
-        let stored = stored_events(&RouterLog::reading(&self.intents))
-            .await
-            .unwrap_or_default();
+        let (mut restored, mut failed) = (0, 0);
+        let stored = match stored_events(&RouterLog::reading(&self.intents)).await {
+            Ok(stored) => {
+                restored += 1;
+                stored
+            }
+            Err(cause) => {
+                failed += 1;
+                tracing::warn!(%cause, "restart: the stored sessions could not be read");
+                None
+            }
+        };
         let mut recent = Vec::new();
         for space in &self.spaces_to_read(spaces).await {
-            let Ok(reading) = self
+            let reading = match self
                 .intents
                 .session_open(SessionOpen {
                     space: space.clone(),
@@ -79,20 +105,39 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                     external: None,
                 })
                 .await
-            else {
-                continue;
+            {
+                Ok(reading) => reading,
+                Err(cause) => {
+                    failed += 1;
+                    tracing::warn!(?space, %cause, "restart: no session to read the Space through");
+                    continue;
+                }
             };
             let found = recent_events(
                 &RouterRecent::new(&self.intents, reading.session.clone()),
                 since,
             )
             .await;
-            let _ = self.intents.session_close(reading.session).await;
-            if let Ok(found) = found {
-                recent.extend(found);
+            let who = reading.session.clone();
+            let closed = self.intents.session_close(reading.session).await;
+            best_effort("session.close", &who, closed);
+            match found {
+                Ok(found) => {
+                    restored += 1;
+                    recent.extend(found);
+                }
+                Err(cause) => {
+                    failed += 1;
+                    tracing::warn!(?space, %cause, "restart: the Space's records could not be read");
+                }
             }
         }
-        self.resume(rebuild_from(stored, recent)).await
+        let opened = self.resume(rebuild_from(stored, recent)).await?;
+        Ok(Restarted {
+            opened,
+            restored,
+            failed,
+        })
     }
 
     /// Takes up what a restart rebuilt. A front task that was open is opened again as a fresh

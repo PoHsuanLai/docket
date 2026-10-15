@@ -2,6 +2,7 @@
 //! through the router (`Session.Note`) so a restart can rebuild the roster and the front task.
 //! A record that cannot be written costs only that rebuild: nothing waits on it.
 
+use crate::best_effort::best_effort;
 use crate::runtime::{Companion, Notes};
 use crate::seams::{Now, Surface};
 use almanac_core::JsonText;
@@ -25,7 +26,8 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             return;
         }
         if let Some(note) = note_of(record) {
-            let _ = self.intents.session_note(session.clone(), note).await;
+            let written = self.intents.session_note(session.clone(), note).await;
+            best_effort("session.note.record", session, written);
         }
     }
 

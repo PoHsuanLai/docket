@@ -19,6 +19,7 @@ path = "src/main.rs"
 [dependencies]
 companion-wire = { workspace = true }
 docket-core = { workspace = true, features = ["wait"] }
+docket-log = { workspace = true }
 docket-planner = { workspace = true }
 docket-skills = { workspace = true }
 docket-tasks = { workspace = true }
@@ -34,6 +35,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 toml = { workspace = true }
+tracing = { workspace = true }
 zbus = { workspace = true }
 
 [lints]

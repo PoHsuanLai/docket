@@ -97,8 +97,8 @@ where
     /// opened, if there was one to pick up. Memory that does not answer leaves the agent as new.
     pub async fn restore(&mut self) -> Result<Option<TaskId>, AgentFault> {
         let space = self.space.clone();
-        let opened = self.tasks.restore(&[space]).await?;
-        Ok(opened.map(|o| o.task))
+        let restarted = self.tasks.restore(&[space]).await?;
+        Ok(restarted.opened.map(|o| o.task))
     }
 
     /// How many side conversations are open.

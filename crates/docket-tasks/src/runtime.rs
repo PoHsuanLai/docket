@@ -2,6 +2,7 @@
 //! identity over many tasks; each task is its own docket session, run by the pure loop of
 //! `agent-loop` whose effects `drive` carries out.
 
+use crate::best_effort::best_effort;
 use crate::fault::ServeFault;
 use crate::seams::{Now, Surface};
 use crate::shared::Shared;
@@ -314,7 +315,9 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         self.lingering = crate::linger::dismissed(std::mem::take(&mut self.lingering), task);
         if let Some(session) = self.runtimes.get(task).map(|rt| rt.session.clone()) {
             // The router answers either way (a session it already closed is not an error here).
-            let _ = self.intents.session_close(session).await;
+            let who = session.clone();
+            let closed = self.intents.session_close(session).await;
+            best_effort("session.close", &who, closed);
         }
         if let Some(rt) = self.runtimes.remove(task) {
             self.remember_ended(task, &rt);

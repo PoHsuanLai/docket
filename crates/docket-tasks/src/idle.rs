@@ -5,6 +5,7 @@
 //! A planner reads it only as a handle. The pass runs at background priority and is cancelled,
 //! to be tried again later, the moment an interactive request starts.
 
+use crate::best_effort::best_effort;
 use crate::fault::ServeFault;
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
@@ -129,10 +130,12 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 continue;
             };
             if let Some(episode) = side_episode(&conv, steps, vec![], now) {
-                let _ = self
+                let who = session.clone();
+                let written = self
                     .intents
                     .session_note(session, NoteAsk::Episode(Box::new(episode)))
                     .await;
+                best_effort("session.note.episode", &who, written);
             }
         }
     }
@@ -147,7 +150,9 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             .find(|rt| &rt.agent == agent && matches!(rt.agent, AgentRef::Worker { .. }))
             .map(|rt| rt.session.clone());
         if let Some(session) = session {
-            let _ = self.intents.session_narrow(session, turn).await;
+            let who = session.clone();
+            let narrowed = self.intents.session_narrow(session, turn).await;
+            best_effort("session.narrow", &who, narrowed);
         }
     }
 
