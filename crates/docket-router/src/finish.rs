@@ -8,6 +8,7 @@ use crate::prepared::{Early, Prepared};
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, Seams};
 use crate::session::{SessionEffect, SessionEvent};
+use crate::shield::shield;
 use crate::state::SessionRecord;
 use crate::tasks::TaskState;
 use action_review::note;
@@ -66,6 +67,15 @@ fn present(record: &mut SessionRecord, voice: &Voice, mut outcome: Outcome) -> O
                     .collect();
                 Labelled {
                     value: Value::List(handles),
+                    label: held.label,
+                }
+            }
+            // Words hide inside a file's name, a list and a record as well: they are held the
+            // same way, leaf by leaf.
+            (Value::File(_) | Value::List(_) | Value::Record(_), Integrity::Untrusted) => {
+                let value = shield(record, &held.label, &source, held.value.clone());
+                Labelled {
+                    value,
                     label: held.label,
                 }
             }

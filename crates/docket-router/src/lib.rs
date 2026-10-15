@@ -76,6 +76,7 @@ mod router;
 mod seams;
 mod search;
 mod session;
+mod shield;
 mod skills;
 mod spacing;
 mod spoken;
