@@ -4,11 +4,14 @@
 //! the server shows it to the editor as an ACP permission request, and the editor's choice comes
 //! back through the host as the answer, with a receipt minted here (`SheetConfirmer`).
 //!
-//! Only intentd may ask or withdraw: a call from any other connection is refused, so another
-//! process cannot put sheets on the editor or take them down.
+//! Only intentd may ask or withdraw: a call from any other process is refused, so another
+//! process cannot put sheets on the editor or take them down. Intentd is the process
+//! `acp-callers.toml` names as the router (the `agent` role of the app `org.quire.Intents`, by its
+//! unit's main process), never whoever owns a well-known name.
 
 use docket_core::{ConfirmId, ConfirmRequest, Confirmer};
-use docket_dbus::{CONFIRM_PATH, INTENTS_BUS};
+use docket_dbus::CONFIRM_PATH;
+use docket_dbus::callers::{INTENTD, Identity, require};
 use docket_inapp::{EditorDesk, SheetConfirmer};
 use std::sync::Arc;
 use zbus::fdo;
@@ -20,37 +23,27 @@ use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 pub struct ConfirmObject<K: docket_router::Clock + 'static> {
     sheets: Arc<SheetConfirmer<EditorDesk, K>>,
     next: std::sync::atomic::AtomicU64,
+    callers: Arc<Identity>,
 }
 
 impl<K: docket_router::Clock + 'static> ConfirmObject<K> {
-    /// Answers for the sheets on `desk`, stamping receipts with `clock`.
-    pub fn new(desk: EditorDesk, clock: K) -> Self {
+    /// Answers for the sheets on `desk`, stamping receipts with `clock`, to the process that
+    /// `callers` names as intentd.
+    pub fn new(desk: EditorDesk, clock: K, callers: Arc<Identity>) -> Self {
         Self {
             sheets: Arc::new(SheetConfirmer::new(desk, clock)),
             next: std::sync::atomic::AtomicU64::new(0),
+            callers,
         }
     }
 }
 
-/// Whether `header` is a message from the owner of intentd's name: the only connection that may
-/// ask or withdraw a sheet.
-async fn from_intentd(header: &Header<'_>, connection: &zbus::Connection) -> fdo::Result<()> {
-    let sender = header
-        .sender()
-        .ok_or_else(|| fdo::Error::AccessDenied("no sender".into()))?;
-    let dbus = fdo::DBusProxy::new(connection).await?;
-    let owner = dbus
-        .get_name_owner(
-            zbus::names::BusName::try_from(INTENTS_BUS)
-                .map_err(|e| fdo::Error::Failed(e.to_string()))?,
-        )
-        .await
-        .map_err(|_| fdo::Error::AccessDenied("intentd is not on the bus".into()))?;
-    if owner.as_str() == sender.as_str() {
-        Ok(())
-    } else {
-        Err(fdo::Error::AccessDenied("only intentd asks".into()))
-    }
+/// Whether `header` is a message from the process the callers table names as intentd: the only
+/// one that may ask or withdraw a sheet.
+async fn from_intentd(header: &Header<'_>, callers: &Identity) -> fdo::Result<()> {
+    let sender = header.sender().map(|s| s.as_str());
+    require(callers, sender, &[INTENTD]).await?;
+    Ok(())
 }
 
 #[zbus::interface(name = "org.quire.Confirm1")]
@@ -61,7 +54,7 @@ impl<K: docket_router::Clock + 'static> ConfirmObject<K> {
         #[zbus(header)] header: Header<'_>,
         #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<OwnedObjectPath> {
-        from_intentd(&header, connection).await?;
+        from_intentd(&header, &self.callers).await?;
         let parsed: ConfirmRequest =
             serde_json::from_str(&request).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
         let n = self.next.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
@@ -93,13 +86,8 @@ impl<K: docket_router::Clock + 'static> ConfirmObject<K> {
         Ok(object)
     }
 
-    async fn cancel(
-        &self,
-        id: String,
-        #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
-    ) -> fdo::Result<()> {
-        from_intentd(&header, connection).await?;
+    async fn cancel(&self, id: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
+        from_intentd(&header, &self.callers).await?;
         let id = ConfirmId::parse(&id).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
         self.sheets.cancel(&id).await;
         Ok(())

@@ -125,6 +125,8 @@ pub(crate) async fn watching(
 ) -> Result<Result<Watched, zbus::Error>, TransportError> {
     let dbus = DBusProxy::new(connection).await.map_err(bus)?;
     let name = zbus::names::BusName::try_from(INTENTS_BUS).map_err(bus)?;
+    // Addressing, not trust: the watch follows the connection the call goes to (the owner of
+    // intentd's name now), and ends when it leaves.
     let owner = dbus
         .get_name_owner(name)
         .await

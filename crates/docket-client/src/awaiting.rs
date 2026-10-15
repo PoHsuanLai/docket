@@ -16,7 +16,10 @@ fn bus<E: std::fmt::Display>(error: E) -> TransportError {
     TransportError::Bus(error.to_string())
 }
 
-/// The unique name that owns `service`, so a `Response` signal counts only from it.
+/// The unique name that owns `service`, so a `Response` signal counts only from it. This is
+/// addressing, not trust: the call goes to that connection and its answer is a signal from it, so
+/// the wait follows the connection the call was sent to (and ends when it leaves). Who the process
+/// behind it is was settled by the side that chose to call it (intentd's `Peers::owner_of`).
 async fn owner_of(connection: &BusConnection, service: &str) -> Result<String, TransportError> {
     let dbus = DBusProxy::new(connection).await.map_err(bus)?;
     let name = zbus::names::BusName::try_from(service).map_err(bus)?;

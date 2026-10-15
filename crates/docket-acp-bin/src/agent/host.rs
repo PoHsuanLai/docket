@@ -12,8 +12,9 @@ use docket_acp::client::{
     AcpBackend, AgentHost, Fallback, IntentsCourt, OsFiles, Parts, Performer, Seams, ToolsOffer,
 };
 use docket_agents::AgentsDir;
-use docket_client::{DbusTransport, serve_on};
+use docket_client::{DbusTransport, serve_on_with};
 use docket_core::{ACP_AGENT_APP, AbsPath, ValidManifest};
+use docket_dbus::callers::Identity;
 use docket_dbus::{BusConnection, CONFIRM_PATH};
 use docket_inapp::EditorDesk;
 use docket_launch::{
@@ -68,6 +69,9 @@ pub struct Wiring<A: Accounts + 'static> {
     pub fallback: Fallback,
     /// The desk those sheets land on, served as `Confirm1` by the caller when it is used.
     pub desk: EditorDesk,
+    /// Who is intentd on the bus: the only process that may ask or withdraw a sheet the host
+    /// serves as `Confirm1`.
+    pub callers: Arc<Identity>,
     /// The agents directory a registry agent was installed in: what an opening shows of the
     /// agent is written down there. None writes nothing.
     pub agents: Option<AgentsDir>,
@@ -102,6 +106,7 @@ pub async fn host<A: Accounts + 'static>(
         tools,
         fallback,
         desk,
+        callers,
         agents,
     } = wiring;
     let Detected::Bwrap(found) = &bwrap else {
@@ -132,16 +137,18 @@ pub async fn host<A: Accounts + 'static>(
         bus.object_server()
             .at(
                 CONFIRM_PATH,
-                crate::confirm::ConfirmObject::new(desk.clone(), Wall),
+                crate::confirm::ConfirmObject::new(desk.clone(), Wall, callers.clone()),
             )
             .await
             .map_err(|e| e.to_string())?;
     }
-    serve_on(
+    // The pseudo-app's provider answers the same process `Confirm1` does: intentd's unit.
+    serve_on_with(
         &bus,
         PerformerProvider::new(manifest, performer.clone()),
         quiet.clone(),
         quiet,
+        callers,
     )
     .await
     .map_err(|e| format!("{ACP_AGENT_APP}: {e}"))?;

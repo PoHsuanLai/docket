@@ -4,16 +4,20 @@
 //! (a test holds the introspection to `dbus/org.quire.IntentProvider1.xml`).
 //!
 //! The gate lives in intentd: a provider answers nothing but intentd, so a process that calls
-//! an app's bus name directly gets no way around it. `Summon` is the one member that also comes
+//! an app's bus name directly gets no way around it. Intentd is the process porter's callers table
+//! names as the router (its unit, `intentd.service`, by the main process the systemd manager
+//! reports), never whoever owns a well-known name. `Summon` is the one member that also comes
 //! from the shell.
 
 use crate::provider::{ContextSource, IntentProvider, SummonTarget};
 use crate::transport::TransportError;
 use docket_core::{SummonSerial, ValidManifest};
-use docket_dbus::{BusConnection, Details, INTENTS_BUS, PROVIDER_PATH};
+use docket_dbus::callers::{Callers, INTENTD, Identity, intentd_only, require};
+use docket_dbus::{BusConnection, Details, PROVIDER_PATH};
 use futures_util::StreamExt;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use std::sync::Arc;
 use zbus::fdo;
 use zbus::message::Header;
 use zbus::object_server::SignalEmitter;
@@ -27,42 +31,39 @@ fn render<T: Serialize>(value: &T) -> fdo::Result<String> {
 }
 
 /// One provider with the two seams ds answers for it.
-struct ProviderObject<P, C, S> {
+struct ProviderObject<P, C, S, K> {
     provider: P,
     context: C,
     summon: S,
+    callers: Arc<K>,
 }
 
-/// Whether the caller is intentd: the owner of its well-known name.
-async fn from_intentd(connection: &zbus::Connection, header: &Header<'_>) -> fdo::Result<()> {
-    let dbus = fdo::DBusProxy::new(connection).await?;
-    let name = zbus::names::BusName::try_from(INTENTS_BUS)
-        .map_err(|e| fdo::Error::Failed(e.to_string()))?;
-    let owner = dbus.get_name_owner(name).await;
-    match (owner, header.sender()) {
-        (Ok(owner), Some(sender)) if owner.as_str() == sender.as_str() => Ok(()),
-        _ => Err(fdo::Error::AccessDenied(
-            "only intentd calls a provider".into(),
-        )),
-    }
+/// Whether the caller is intentd: the process `callers` names as the router.
+async fn from_intentd(callers: &impl Callers, header: &Header<'_>) -> fdo::Result<()> {
+    require(callers, header.sender().map(|s| s.as_str()), &[INTENTD])
+        .await
+        .map(drop)
+        .map_err(|refused| {
+            fdo::Error::AccessDenied(format!("only intentd calls a provider ({refused})"))
+        })
 }
 
 #[zbus::interface(name = "org.quire.IntentProvider1")]
-impl<P, C, S> ProviderObject<P, C, S>
+impl<P, C, S, K> ProviderObject<P, C, S, K>
 where
     P: IntentProvider + 'static,
     C: ContextSource + 'static,
     S: SummonTarget + 'static,
+    K: Callers,
 {
     async fn perform(
         &self,
         invocation: String,
         options: Details,
         #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
         let _ = options;
-        from_intentd(connection, &header).await?;
+        from_intentd(self.callers.as_ref(), &header).await?;
         let delivered: docket_core::ActivatedInvocation = parse(&invocation)?;
         render(
             &self
@@ -81,10 +82,9 @@ where
         invocation: String,
         options: Details,
         #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
         let _ = options;
-        from_intentd(connection, &header).await?;
+        from_intentd(self.callers.as_ref(), &header).await?;
         render(&self.provider.classify(parse(&invocation)?).await)
     }
 
@@ -93,10 +93,9 @@ where
         invocation: String,
         options: Details,
         #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
         let _ = options;
-        from_intentd(connection, &header).await?;
+        from_intentd(self.callers.as_ref(), &header).await?;
         render(&self.provider.dry_run(parse(&invocation)?).await)
     }
 
@@ -105,9 +104,8 @@ where
         token: String,
         actor: String,
         #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
-        from_intentd(connection, &header).await?;
+        from_intentd(self.callers.as_ref(), &header).await?;
         render(&self.provider.undo(parse(&token)?, parse(&actor)?).await)
     }
 
@@ -115,9 +113,8 @@ where
         &self,
         scope: String,
         #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
-        from_intentd(connection, &header).await?;
+        from_intentd(self.callers.as_ref(), &header).await?;
         render(&self.context.snapshot(parse(&scope)?))
     }
 
@@ -130,10 +127,9 @@ where
         text: String,
         generation: u64,
         #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
         let _ = generation;
-        from_intentd(connection, &header).await?;
+        from_intentd(self.callers.as_ref(), &header).await?;
         render(&self.provider.search(&text).await)
     }
 
@@ -141,9 +137,8 @@ where
         &self,
         entity: String,
         #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
-        from_intentd(connection, &header).await?;
+        from_intentd(self.callers.as_ref(), &header).await?;
         render(&self.provider.preview(&parse(&entity)?).await)
     }
 
@@ -151,9 +146,8 @@ where
         &self,
         ask: String,
         #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
     ) -> fdo::Result<String> {
-        from_intentd(connection, &header).await?;
+        from_intentd(self.callers.as_ref(), &header).await?;
         render(&self.provider.suggest(parse(&ask)?).await)
     }
 
@@ -178,7 +172,8 @@ where
 }
 
 /// Exports `provider` at `/org/quire/IntentProvider1` on `connection` and claims the manifest's
-/// app as its bus name. Returns once the name is ours; the connection keeps serving.
+/// app as its bus name; only intentd's unit (`intentd.service`, by its main process, over the
+/// system's `/proc`) is answered. Returns once the name is ours; the connection keeps serving.
 pub async fn serve_on<P, C, S>(
     connection: &BusConnection,
     provider: P,
@@ -190,12 +185,32 @@ where
     C: ContextSource + 'static,
     S: SummonTarget + 'static,
 {
+    let callers = Arc::new(Identity::on_system(connection.clone(), intentd_only()));
+    serve_on_with(connection, provider, context, summon, callers).await
+}
+
+/// [`serve_on`], answering the process that `callers` names as intentd (a test's fake proc root,
+/// or a host with a table of its own).
+pub async fn serve_on_with<P, C, S, K>(
+    connection: &BusConnection,
+    provider: P,
+    context: C,
+    summon: S,
+    callers: Arc<K>,
+) -> Result<(), TransportError>
+where
+    P: IntentProvider + 'static,
+    C: ContextSource + 'static,
+    S: SummonTarget + 'static,
+    K: Callers,
+{
     let manifest: &ValidManifest = provider.manifest();
     let name = manifest.manifest().app.to_string();
     let object = ProviderObject {
         provider,
         context,
         summon,
+        callers,
     };
     let bus = |e: zbus::Error| TransportError::Bus(e.to_string());
     connection
@@ -257,6 +272,14 @@ mod tests {
         }
     }
 
+    /// Identifies nobody: the introspection needs the type, not a bus.
+    struct NoCallers;
+    impl Callers for NoCallers {
+        async fn caller_of(&self, _: &str) -> Option<docket_dbus::callers::Caller> {
+            None
+        }
+    }
+
     struct Blank;
     impl ContextSource for Blank {
         fn snapshot(&self, _: ContextScope) -> ContextSnapshot {
@@ -283,6 +306,7 @@ mod tests {
             provider: Nobody(manifest),
             context: Blank,
             summon: Blank,
+            callers: Arc::new(NoCallers),
         };
         let mut served = String::from(
             "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\"\n \"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\">\n<node>\n",

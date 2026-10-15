@@ -17,12 +17,14 @@
 //! (the planner's calls in them). Without those lines the router refuses everything this does.
 
 pub mod agent;
+pub mod callers;
 pub mod confirm;
 
 use confirm::ConfirmObject;
 use docket_acp::{LineWire, Permit, Server, SystemTicks, Ticks};
 use docket_client::{DbusTransport, Intents};
 use docket_core::{AgentConfig, Millis};
+use docket_dbus::callers::Identity;
 use docket_dbus::{CONFIRM_PATH, InferLink};
 use docket_inapp::EditorDesk;
 use docket_planner::PlannerModel;
@@ -75,6 +77,21 @@ pub enum LiveFault {
     /// The editor's app name is not one.
     #[error("not an app name: {0}")]
     App(String),
+    /// `acp-callers.toml` exists and cannot be used.
+    #[error("{0}")]
+    Callers(String),
+}
+
+/// What only the acceptance harness's mains choose: the `/proc` callers are read from (a fixture
+/// tree has each unit's main process in `<root>/units`) and the system's callers file. The
+/// packaged binary passes the default (the system's `/proc`, `/etc/quire`) and no environment
+/// variable can change either.
+#[derive(Debug, Clone, Default)]
+pub struct HarnessSeams {
+    /// A fixture `/proc`, else the system's.
+    pub proc_root: Option<std::path::PathBuf>,
+    /// The system's callers file, else `/etc/quire/acp-callers.toml`.
+    pub system_callers: Option<std::path::PathBuf>,
 }
 
 /// Serves one editor on stdio until it closes the connection. `trace` is the model tap: the
@@ -83,6 +100,15 @@ pub enum LiveFault {
 /// The editor's app, which the edge checks a stored session's opener against, is the bus name:
 /// the router records the opener and the editor's turns under the app behind the connection.
 pub async fn serve(permit: Permit, trace: docket_dbus::tap::Tap) -> Result<(), LiveFault> {
+    serve_with(permit, trace, HarnessSeams::default()).await
+}
+
+/// [`serve`] with the seams the acceptance harness's mains choose.
+pub async fn serve_with(
+    permit: Permit,
+    trace: docket_dbus::tap::Tap,
+    seams: HarnessSeams,
+) -> Result<(), LiveFault> {
     let editor = AppName::parse(BUS_NAME).map_err(|_| LiveFault::App(BUS_NAME.to_owned()))?;
     let env = |key: &str| std::env::var(key).ok();
     let bus = |e: zbus::Error| LiveFault::Bus(e.to_string());
@@ -90,9 +116,19 @@ pub async fn serve(permit: Permit, trace: docket_dbus::tap::Tap) -> Result<(), L
     // The sheets intentd hands this process for an editor's session wait on the desk the host
     // shows the editor. Served before the name is claimed, so the first sheet finds it.
     let desk = EditorDesk::new();
+    let table = match &seams.system_callers {
+        Some(system) => callers::read_at(system, &env),
+        None => callers::read(&env),
+    }
+    .map_err(|e| LiveFault::Callers(e.to_string()))?;
+    let who = Arc::new(Identity::on(
+        connection.clone(),
+        table,
+        seams.proc_root.as_deref(),
+    ));
     connection
         .object_server()
-        .at(CONFIRM_PATH, ConfirmObject::new(desk.clone(), Wall))
+        .at(CONFIRM_PATH, ConfirmObject::new(desk.clone(), Wall, who))
         .await
         .map_err(bus)?;
     connection.request_name(BUS_NAME).await.map_err(bus)?;

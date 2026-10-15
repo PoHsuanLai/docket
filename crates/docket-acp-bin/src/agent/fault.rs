@@ -26,6 +26,9 @@ pub enum AgentFault {
     /// The session bus, or the launcher on it, did not answer.
     #[error("{0}")]
     Bus(String),
+    /// `acp-callers.toml` exists and cannot be used.
+    #[error("{0}")]
+    Callers(String),
     /// The working directory cannot be used.
     #[error("{0}")]
     Directory(String),

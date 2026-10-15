@@ -1,0 +1,9 @@
+# Who may ask or withdraw a sheet of docket-acp and docket-agent (org.quire.Confirm1 under their own
+# names): intentd alone. Same rules as the other callers files: the unit behind the connection, its
+# main process only, the system's file alone gives a fixed role. Install as
+# /etc/quire/acp-callers.toml; the user's ~/.config/quire/acp-callers.toml is laid over it.
+
+[[caller]]
+app = "org.quire.Intents"
+unit = "intentd.service"
+role = "agent"

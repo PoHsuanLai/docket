@@ -28,6 +28,7 @@ use bulkhead::Detected;
 use docket_acp::client::{ToolsOffer, Workdir};
 use docket_agents::AgentsDir;
 use docket_core::AbsPath;
+use docket_dbus::callers::Identity;
 use docket_inapp::EditorDesk;
 use docket_launch::dbus::DbusAccounts;
 use docket_launch::login::VisibleLogin;
@@ -119,6 +120,8 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
     let bus = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| AgentFault::Bus(e.to_string()))?;
+    let table = crate::callers::read(&env).map_err(|e| AgentFault::Callers(e.to_string()))?;
+    let callers = Arc::new(Identity::on_system(bus.clone(), table));
     let accounts = Arc::new(
         DbusAccounts::connect(&bus)
             .await
@@ -179,6 +182,7 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
             tools,
             fallback: args.fallback,
             desk,
+            callers,
             agents: Some(agents),
         },
         args.program,

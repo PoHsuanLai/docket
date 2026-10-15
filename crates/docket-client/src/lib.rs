@@ -27,7 +27,7 @@ pub use awaiting::requested;
 pub use intents::{ClientError, Intents};
 pub use provider::{ContextSource, IntentProvider, SummonTarget};
 #[cfg(feature = "dbus")]
-pub use provider_bus::serve_on;
+pub use provider_bus::{serve_on, serve_on_with};
 pub use serve::serve;
 #[cfg(feature = "dbus")]
 pub use transport::DbusTransport;
