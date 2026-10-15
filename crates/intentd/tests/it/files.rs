@@ -73,8 +73,10 @@ fn the_environment_says_where_everything_is() {
     let env = |key: &str| match key {
         "XDG_CONFIG_HOME" => Some(config.display().to_string()),
         "XDG_DATA_HOME" => Some(data.display().to_string()),
-        "XDG_DATA_DIRS" => Some(String::new()),
-        "XDG_CONFIG_DIRS" => Some(String::new()),
+        // An empty value means the system defaults (/usr/local/share, /etc/xdg): name a missing
+        // directory instead, so the machine's own manifests are never read.
+        "XDG_DATA_DIRS" => Some(home.path().join("none").display().to_string()),
+        "XDG_CONFIG_DIRS" => Some(home.path().join("none").display().to_string()),
         "XDG_SESSION_ID" => Some("c3".into()),
         "HOME" => Some(home.path().display().to_string()),
         _ => None,
