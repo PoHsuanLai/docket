@@ -12,6 +12,19 @@ none, and no test is `#[ignore]`d. (The freeze had 37: `agent_step` was filled i
 `reader_request`, `ReaderService::{extract, extract_in}` and readerd's `serve`. w5-docket filled no stub: it
 changed signatures the asks named and filled the two daemons' `main`.)
 
+## Limits: "always ask" and "never" (never-grants)
+
+Two levels beside "allow always", precedence never > always ask > always allow > the default
+ruling. They live in `limits.json` beside the grants file (the same disk rules, the same revoke
+path: a limit's id is a `StandingGrantId`, so Undo on the sheet calls the existing
+`ControlStandingRevoke`). The router applies them after the gate, so no grant, standing grant or
+approval lifts one; only agents meet them. The administrator's floor is `/etc/quire/docket-floor.toml`
+(`dist/docket-floor.example.toml`, not installed): a loosest strictness and locked entries; a
+missing file is no floor, a file that does not parse stops intentd. Open: the D-Bus member
+`Gate.Grant` still takes only the app and the Space, so cua cannot yet send its allow level (CUA-14)
+over the bus although `GrantAsk` carries it; docket-inapp's in-process store keeps no limits (the
+trait default holds none); Settings has no list of limits yet; adding a limit is not audited.
+
 ## Stubs behind frozen interfaces
 
 | Where | Count | Closes when |
