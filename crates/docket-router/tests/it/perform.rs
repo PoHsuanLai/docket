@@ -579,7 +579,12 @@ async fn model_spend_past_the_cap_or_uncounted_stops_the_next_call() {
         output: porter_core::Tokens(5),
         cached: porter_core::Tokens(0),
     };
-    let cap = router().config.budget.spend;
+    let paying = || {
+        let mut config = AgentConfig::default();
+        config.budget.spend = porter_core::MicroUsd(5_000_000);
+        router_with(config)
+    };
+    let cap = paying().config.budget.spend;
     let cases = [
         (
             "a turn over the cap",
@@ -611,7 +616,7 @@ async fn model_spend_past_the_cap_or_uncounted_stops_the_next_call() {
         ),
     ];
     for (name, report, over) in cases {
-        let router = router();
+        let router = paying();
         let s = ready(&router).await;
         let counted = router.note_turn_usage(&s.session, &report);
         let want = over.map_or(
@@ -630,11 +635,24 @@ async fn model_spend_past_the_cap_or_uncounted_stops_the_next_call() {
             None => assert!(got.is_ok(), "{name}: {got:?}"),
         }
     }
+    // The default cap is zero: any paid turn is over it, so a task stays on this computer.
+    let router = router();
+    let s = ready(&router).await;
+    let paid = TurnReport::Reported {
+        tokens,
+        cost: porter_core::MicroUsd(1),
+    };
+    assert_eq!(
+        router.note_turn_usage(&s.session, &paid),
+        docket_router::TurnBudget::Over(BudgetKind::Spend)
+    );
 }
 
 #[tokio::test]
 async fn the_roster_shows_a_tasks_spend_and_what_is_left() {
-    let router = router();
+    let mut config = AgentConfig::default();
+    config.budget.spend = porter_core::MicroUsd(5_000_000);
+    let router = router_with(config);
     let s = ready(&router).await;
     let report = TurnReport::Reported {
         tokens: TokenTotals {

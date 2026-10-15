@@ -65,7 +65,12 @@ pub fn mail_label(in_space: &str) -> Label {
 
 /// A fake router in `work` with two threads and one contact installed.
 pub fn router() -> Router<FakeSeams> {
-    let router = fake_router(AgentConfig::default()).expect("router");
+    router_with(AgentConfig::default())
+}
+
+/// [`router`] over `config`.
+pub fn router_with(config: AgentConfig) -> Router<FakeSeams> {
+    let router = fake_router(config).expect("router");
     router.seams.link.mail.add_thread(MailThread {
         key: "t1".into(),
         subject: "Invoice".into(),
