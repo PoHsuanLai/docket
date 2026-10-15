@@ -15,8 +15,8 @@
 
 use crate::state::RouterState;
 use docket_core::{
-    AlwaysOffer, AskReason, ConfirmAnswer, ConfirmOffer, ConfirmRequest, GrantScope, LabelText,
-    TaintNote,
+    AlwaysOffer, AskReason, ConfirmAnswer, ConfirmEnd, ConfirmOffer, ConfirmRequest, GrantScope,
+    LabelText, TaintNote,
 };
 use futures_channel::oneshot::{Receiver, Sender, channel};
 use porter_core::AppName;
@@ -178,6 +178,8 @@ fn for_waiter(answer: ConfirmAnswer) -> Option<ConfirmAnswer> {
                 receipt,
             })
         }
+        // The "never" is recorded once, by the asker; a waiter is refused the same way.
+        ConfirmAnswer::Never { .. } => Some(ConfirmAnswer::Ended(ConfirmEnd::Refused)),
         ended @ ConfirmAnswer::Ended(_) => Some(ended),
     }
 }

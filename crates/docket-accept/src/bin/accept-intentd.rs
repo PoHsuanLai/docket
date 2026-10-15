@@ -20,6 +20,7 @@ fn main() -> ExitCode {
             docket_accept::seams::INTENTD_SYSTEM_CALLERS_VAR,
         ),
         trace: docket_accept::seams::trace(),
+        floor: None,
     };
     match runtime.block_on(intentd::run_with(seams)) {
         Ok(()) => ExitCode::SUCCESS,

@@ -9,6 +9,7 @@ use crate::gate::{GateInputs, Pending, gate};
 use crate::labels::{
     arg_labels, args_confidentiality, label_args, planner_integrity, resolve_target, sink_integrity,
 };
+use crate::limits::tightened;
 use crate::prepared::{
     Early, Prepared, digest, entities, grant_state, proposed, typed_history, usage_of,
 };
@@ -23,8 +24,8 @@ use crate::who::Who;
 use action_review::{GoalKey, ReviewRequest, repeated};
 use docket_core::{
     ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
-    CallRequest, CallerRole, Classification, Cost, DenyCode, Depth, Impact, Lasting, Reviewed,
-    Ruling, Saw, SpaceAccess, WindowKey, charge, is_agent_action, space_access,
+    CallRequest, CallerRole, Classification, Cost, DenyCode, Depth, Impact, Lasting, LimitCall,
+    Limited, Reviewed, Ruling, Saw, SpaceAccess, WindowKey, charge, is_agent_action, space_access,
 };
 use policy_point::{
     ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, SpaceRelation,
@@ -274,11 +275,13 @@ impl<S: Seams> Router<S> {
         };
         let labels = arg_labels(&request.args, record);
         let cover = coverage(record.policy.as_ref(), &decl, &request, &labels, now);
-        let strictness = st
-            .strictness
-            .get(&space)
-            .copied()
-            .unwrap_or(self.agent_config().strictness);
+        // The administrator's floor caps how loose any Space may be set.
+        let strictness = self.floor.clamp(
+            st.strictness
+                .get(&space)
+                .copied()
+                .unwrap_or(self.agent_config().strictness),
+        );
         let impact = impact_of(&decl, count, self.agent_config().mass_at);
         let ruled = self.pdp.decide_checked(&self.policy_request(&Facts {
             who,
@@ -331,14 +334,27 @@ impl<S: Seams> Router<S> {
             Ok(_) => BudgetState::Within,
             Err(_) => BudgetState::Over,
         };
-        let (pending, standing) =
-            StandingCtx::new(who.grant_caller(), &decl, &request, breaker, budget).lifted(
+        let caller = who.grant_caller();
+        let limit = self.limits_on(&LimitCall {
+            caller: &caller,
+            app: &request.action.app,
+            action: Some(&decl.name),
+            space: &space,
+            effect: decl.effect,
+        });
+        let ctx = StandingCtx::new(caller, &decl, &request, breaker, budget);
+        // A limit outranks every allowance: under one, no standing grant or approval stands in
+        // for the question, and a "never" is refused before anything is asked.
+        let (pending, standing) = match limit {
+            Limited::Free => ctx.lifted(
                 &self.seams.grants().standing(),
                 &record.approvals,
                 &decl,
                 impact,
                 gated,
-            );
+            ),
+            limit => (tightened(gated, &limit), ctx.limited(limit)),
+        };
         Ok(Prepared {
             id,
             who: who.clone(),

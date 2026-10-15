@@ -8,6 +8,7 @@ use crate::builtin_checkpoints::CheckpointsPort;
 use crate::builtin_companion::CompanionPort;
 use crate::callers;
 use crate::config::{ConfigError, IntentdConfig};
+use crate::floor::{FLOOR_FILE, read_floor};
 use crate::grants::FileGrants;
 use crate::infer::{InferdWriter, ReaderClient};
 use crate::link::DbusLink;
@@ -21,7 +22,7 @@ use crate::signals::{Cadence, pump};
 use crate::space_watch::{RemovedMemories, SpaceKeeper};
 use crate::system::{DaemonLog, SystemClock, SystemSeams};
 use docket_checkpoint_git::{GitStore, StdGitRun};
-use docket_core::{AbsPath, AuditRecord};
+use docket_core::{AbsPath, AuditRecord, Floor};
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{CallerTable, Identity};
 use docket_dbus::tap::Tap;
@@ -58,6 +59,8 @@ pub struct HarnessSeams {
     pub system_callers: Option<PathBuf>,
     /// What is kept of the exchanges with inferd.
     pub trace: Tap,
+    /// The administrator's floor file, when the harness's main chose another than `/etc/quire`'s.
+    pub floor: Option<PathBuf>,
 }
 
 impl Default for HarnessSeams {
@@ -66,6 +69,7 @@ impl Default for HarnessSeams {
             proc_root: ProcRoot::System,
             system_callers: None,
             trace: Tap::off(),
+            floor: None,
         }
     }
 }
@@ -89,6 +93,10 @@ pub enum DaemonFault {
     /// fewer or more callers than it was told to.
     #[error("{0}")]
     Callers(String),
+    /// The floor file exists and cannot be used. A daemon that skipped it would leave agents
+    /// looser than the administrator meant.
+    #[error("{0}")]
+    Floor(String),
 }
 
 /// What a daemon starts from: the files it reads, found through the environment.
@@ -122,6 +130,8 @@ pub struct Setup {
     pub settings: Locator,
     /// What is kept of the exchanges with inferd (off, unless the harness's main passed a tap).
     pub trace: Tap,
+    /// The administrator's floor: none unless the file exists (`run_with` reads it).
+    pub floor: Floor,
 }
 
 fn home(env: &impl Fn(&str) -> Option<String>) -> PathBuf {
@@ -189,6 +199,7 @@ impl Setup {
             proc_root: ProcRoot::System,
             settings: Locator::from_env(env),
             trace: Tap::off(),
+            floor: Floor::none(),
         })
     }
 }
@@ -237,6 +248,7 @@ pub async fn start(
         proc_root,
         settings,
         trace,
+        floor,
     } = setup;
     for (file, why) in &manifests.skipped {
         eprintln!("intentd: skipped {}: {why}", file.display());
@@ -281,6 +293,7 @@ pub async fn start(
     };
     let pdp = Pdp::standard().map_err(|e| DaemonFault::Policy(e.to_string()))?;
     let mut router = Router::new(seams, config.agent, pdp);
+    router.floor = floor;
     // The person's settings over intentd.toml's proposed values, now and whenever the file changes.
     let mut watched = SettingsWatch::start(settings, AgentSettings::over(config.agent));
     if let WatchState::Blind { reason } = watched.state() {
@@ -442,6 +455,8 @@ pub async fn run_with(seams: HarnessSeams) -> Result<(), DaemonFault> {
     let mut setup = Setup::from_env(&env)?;
     setup.proc_root = seams.proc_root;
     setup.trace = seams.trace;
+    let floor = seams.floor.unwrap_or_else(|| PathBuf::from(FLOOR_FILE));
+    setup.floor = read_floor(&floor).map_err(|e| DaemonFault::Floor(e.to_string()))?;
     if let Some(system) = &seams.system_callers {
         setup.callers =
             callers::read_at(system, &env).map_err(|e| DaemonFault::Callers(e.to_string()))?;

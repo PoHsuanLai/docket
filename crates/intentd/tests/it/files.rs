@@ -277,3 +277,79 @@ fn the_consent_file_follows_the_shared_store_rules() {
         "standing.json",
     );
 }
+
+#[test]
+fn the_floor_file_is_none_when_missing_and_an_error_when_it_does_not_read() {
+    use docket_core::Strictness;
+    use intentd::{FloorError, read_floor};
+    let dir = tempfile::tempdir().expect("scratch");
+    let path = dir.path().join("docket-floor.toml");
+    assert_eq!(
+        read_floor(&path).expect("no file is no floor"),
+        docket_core::Floor::none()
+    );
+    let rows = [
+        ("not toml at all", "this is = = not toml"),
+        ("an unknown key", "strictnes = \"default\""),
+        ("an unknown level", "[[locked]]\nlevel = \"always_allow\"\n"),
+        (
+            "an action without its app",
+            "[[locked]]\nlevel = \"never\"\naction = \"files.file.delete\"\n",
+        ),
+    ];
+    for (row, text) in rows {
+        std::fs::write(&path, text).expect("write");
+        assert!(
+            matches!(read_floor(&path), Err(FloorError::Parse { .. })),
+            "{row}"
+        );
+    }
+    std::fs::write(
+        &path,
+        "strictness = \"default\"\n[[locked]]\nlevel = \"never\"\napp = \"org.quire.Files\"\naction = \"files.file.delete\"\nfrom = \"destructive\"\n",
+    )
+    .expect("write");
+    let floor = read_floor(&path).expect("a floor");
+    assert_eq!(floor.clamp(Strictness::TrustMore), Strictness::Default);
+    assert_eq!(floor.locked().len(), 1);
+}
+
+#[test]
+fn limits_are_kept_beside_the_grants_and_removed_by_the_one_revoke_path() {
+    use docket_core::{
+        Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope, Revocation,
+    };
+    let dir = tempfile::tempdir().expect("scratch");
+    let path = dir.path().join("quire/grants.json");
+    let store = FileGrants::at(path.clone());
+    assert!(store.limits().is_empty(), "no file is no limits");
+    let limit = Limit::new(
+        LimitKey {
+            caller: LimitCaller::AnyAgent,
+            scope: LimitScope::App(AppName::parse("org.quire.Files").expect("app")),
+            space: SpaceScope::Any,
+            from: prov::Effect::UndoableWrite,
+            level: LimitLevel::Never,
+        },
+        LimitMaker::Person,
+        None,
+        UnixSeconds(1),
+    );
+    store.add_limit(limit.clone());
+    assert_eq!(FileGrants::at(path.clone()).limits(), vec![limit.clone()]);
+    // A grant file written before limits holds none and is not disturbed.
+    assert!(store.grants().is_empty());
+    assert_eq!(store.revoke_standing(&limit.id), Revocation::Revoked);
+    assert!(store.limits().is_empty());
+    // A damaged limits file asks about everything, and is not written over.
+    std::fs::create_dir_all(path.parent().expect("dir")).expect("dir");
+    std::fs::write(path.with_file_name("limits.json"), "{not a list").expect("write");
+    let held = store.limits();
+    assert_eq!(held.len(), 1);
+    assert_eq!(held[0].key.level, LimitLevel::AlwaysAsk);
+    store.add_limit(limit);
+    assert_eq!(
+        std::fs::read_to_string(path.with_file_name("limits.json")).expect("read"),
+        "{not a list"
+    );
+}

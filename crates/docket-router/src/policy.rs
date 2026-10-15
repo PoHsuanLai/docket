@@ -286,8 +286,13 @@ impl<S: Seams> Router<S> {
             let asked = asked_widenings(widenings, baseline);
             if !asked.is_empty() {
                 let answer = self.confirm_widening(id, &new, &asked).await;
-                if let ConfirmAnswer::Ended(end) = answer {
-                    return WidenAnswer::Refused(end);
+                match answer {
+                    ConfirmAnswer::Ended(end) => return WidenAnswer::Refused(end),
+                    // A widening sheet offers no "never": the answer counts as a no.
+                    ConfirmAnswer::Never { .. } => {
+                        return WidenAnswer::Refused(ConfirmEnd::Refused);
+                    }
+                    ConfirmAnswer::Allowed { .. } | ConfirmAnswer::AllowedFromTerminal { .. } => {}
                 }
             }
         }
@@ -349,6 +354,7 @@ impl<S: Seams> Router<S> {
                 taint: TaintNote::Clean,
                 offer: ConfirmOffer::OnceOnly,
                 always: Default::default(),
+                limits: Default::default(),
                 gesture: Gesture::Press,
                 anchor: Anchor::Launcher,
                 expires: self.agent_config().confirm_expiry,
@@ -376,6 +382,7 @@ impl<S: Seams> Router<S> {
             ConfirmAnswer::AllowedFromTerminal { receipt } => {
                 (ConfirmAnswerKind::AllowedFromTerminal, Some(receipt.input))
             }
+            ConfirmAnswer::Never { receipt } => (ConfirmAnswerKind::Never, Some(receipt.input)),
             ConfirmAnswer::Ended(end) => (ConfirmAnswerKind::Ended(*end), None),
         };
         self.seams.sink().append(AuditRecord::Confirm {

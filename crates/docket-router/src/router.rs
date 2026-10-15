@@ -5,7 +5,7 @@ use crate::seams::{Clock, Seams};
 use crate::state::RouterState;
 use crate::watch::Watch;
 use docket_core::{
-    AgentConfig, CallerId, CallerRole, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk,
+    AgentConfig, CallerId, CallerRole, Floor, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk,
     WireRefusal,
 };
 use policy_point::Pdp;
@@ -22,6 +22,9 @@ pub struct Router<S: Seams> {
     /// The values the person's settings give while the daemon runs (`apply_settings`); they win
     /// over `config` once set.
     live: RwLock<Option<AgentConfig>>,
+    /// The administrator's floor, read once at start by the daemon: `Floor::none()` unless it
+    /// sets one. Agents only; the person's own launcher acts never meet it.
+    pub floor: Floor,
     /// The policy point.
     pub pdp: Pdp,
     /// What it mutates.
@@ -35,6 +38,7 @@ impl<S: Seams> Router<S> {
             seams,
             config,
             live: RwLock::new(None),
+            floor: Floor::none(),
             pdp,
             state: Mutex::new(RouterState::new()),
         }

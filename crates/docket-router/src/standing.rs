@@ -12,9 +12,9 @@ use crate::standing_facts::{exec_of, facts_of};
 use action_review::plan;
 use docket_core::{
     ActionDecl, AlwaysOffer, ArgSink, AskFacts, AskReason, AuditRecord, BreakerState, BudgetState,
-    CallFacts, CallRequest, ExecFacts, GrantCaller, Impact, Revocation, Ruling, StandingGrant,
-    StandingGrantId, StandingScope, Withheld, blocker, covers_approval, find_standing_for,
-    holds_standing, may_offer,
+    CallFacts, CallRequest, ExecFacts, GrantCaller, Impact, Limited, Revocation, Ruling,
+    StandingGrant, StandingGrantId, StandingScope, Withheld, blocker, covers_approval,
+    find_standing_for, holds_standing, may_offer,
 };
 use prov::Integrity;
 
@@ -37,6 +37,9 @@ pub(crate) struct StandingCtx {
     pub applied: Option<StandingGrantId>,
     /// The permission request the person said yes to that stood in for the ask, if one did.
     pub approved: Option<CallFacts>,
+    /// The limit that covers the call, if one does: the reason it asks, or the reason it was
+    /// refused. No grant or approval stands in for the question while one does.
+    pub limited: Limited,
 }
 
 impl StandingCtx {
@@ -69,7 +72,13 @@ impl StandingCtx {
             budget,
             applied: None,
             approved: None,
+            limited: Limited::Free,
         }
+    }
+
+    /// The same context under `limited`.
+    pub(crate) fn limited(self, limited: Limited) -> Self {
+        Self { limited, ..self }
     }
 
     fn ask_facts<'a>(&'a self, decl: &ActionDecl, why: &'a [AskReason]) -> AskFacts<'a> {

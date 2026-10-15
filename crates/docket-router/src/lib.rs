@@ -57,6 +57,7 @@ mod handles;
 mod index;
 mod journal;
 mod labels;
+mod limits;
 mod messages;
 mod messaging;
 mod notes;
@@ -111,6 +112,7 @@ pub use handles::{
 };
 pub use index::{IndexAction, IndexEvent, index_step};
 pub use journal::UndoJournal;
+pub use limits::tightened;
 pub use messages::{assemble, check_stamped, inbound_line, intake_label, report_status};
 pub use registry::{Registry, RegistryError, parse};
 pub use restore::{RestoreFault, Restored};

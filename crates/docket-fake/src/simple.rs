@@ -1,7 +1,8 @@
 //! The small fakes: a recording event sink and an in-memory consent store.
 
 use docket_core::{
-    ActionGrant, AuditRecord, Revocation, StandingGrant, StandingGrantId, held_with, held_without,
+    ActionGrant, AuditRecord, Limit, Revocation, StandingGrant, StandingGrantId, held_with,
+    held_without, limits_with, limits_without,
 };
 use docket_router::{EventSink, GrantStore};
 use std::sync::Mutex;
@@ -44,6 +45,7 @@ impl EventSink for RecordingSink {
 pub struct MemoryGrants {
     grants: Mutex<Vec<ActionGrant>>,
     standing: Mutex<Vec<StandingGrant>>,
+    limits: Mutex<Vec<Limit>>,
 }
 
 impl MemoryGrants {
@@ -60,6 +62,9 @@ impl MemoryGrants {
         if let Ok(mut standing) = self.standing.lock() {
             standing.clear();
         }
+        if let Ok(mut limits) = self.limits.lock() {
+            limits.clear();
+        }
     }
 
     /// A store that starts with these grants.
@@ -67,6 +72,7 @@ impl MemoryGrants {
         Self {
             grants: Mutex::new(grants),
             standing: Mutex::default(),
+            limits: Mutex::default(),
         }
     }
 }
@@ -93,13 +99,30 @@ impl GrantStore for MemoryGrants {
     }
 
     fn revoke_standing(&self, id: &StandingGrantId) -> Revocation {
-        match self.standing.lock() {
+        if let Ok(mut held) = self.standing.lock() {
+            let (rest, done) = held_without(std::mem::take(&mut held), id);
+            *held = rest;
+            if done == Revocation::Revoked {
+                return done;
+            }
+        }
+        match self.limits.lock() {
             Ok(mut held) => {
-                let (rest, done) = held_without(std::mem::take(&mut held), id);
+                let (rest, done) = limits_without(std::mem::take(&mut held), id);
                 *held = rest;
                 done
             }
             Err(_) => Revocation::NotHeld,
+        }
+    }
+
+    fn limits(&self) -> Vec<Limit> {
+        self.limits.lock().map(|l| l.clone()).unwrap_or_default()
+    }
+
+    fn add_limit(&self, limit: Limit) {
+        if let Ok(mut held) = self.limits.lock() {
+            *held = limits_with(std::mem::take(&mut held), limit);
         }
     }
 }

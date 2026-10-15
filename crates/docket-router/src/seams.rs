@@ -8,6 +8,7 @@ use action_review::Reviewer;
 use almanac_core::{MemoryReply, MemoryRequest};
 use docket_checkpoint::CheckpointStore;
 use docket_core::EntityRef;
+use docket_core::Limit;
 use docket_core::{
     ActionGrant, AppRefusal, AuditRecord, Confirmer, ContextScope, ContextSnapshot, Generation,
     Hit, Invocation, Latency, Millis, Outcome, PolicyWriter, Preview, Reader, Revocation,
@@ -149,10 +150,17 @@ pub trait GrantStore: Send + Sync {
     }
     /// Holds a standing grant the person gave; the same id replaces the earlier one.
     fn add_standing(&self, _grant: StandingGrant) {}
-    /// Drops a standing grant; it takes effect on the next call.
+    /// Drops a standing grant, or a limit with that id (the one revoke path); it takes effect
+    /// on the next call.
     fn revoke_standing(&self, _id: &StandingGrantId) -> Revocation {
         Revocation::NotHeld
     }
+    /// Every "always ask" and "never" entry. A store that keeps none holds none.
+    fn limits(&self) -> Vec<Limit> {
+        Vec::new()
+    }
+    /// Holds a limit; the same id replaces the earlier one. Removing one is `revoke_standing`.
+    fn add_limit(&self, _limit: Limit) {}
 }
 
 /// The event log, as the router sees it.

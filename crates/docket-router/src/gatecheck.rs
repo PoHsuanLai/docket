@@ -13,8 +13,8 @@ use docket_core::{
     ActionGrantKey, Anchor, AskReason, AuditRecord, CallProgress, CallRefusal, ConfirmAnswer,
     ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest,
     Confirmer, Cost, CuaAsk, Depth, GateAnswer, Gesture, GrantAnswer, GrantAsk, GrantCaller,
-    GrantTarget, Impact, IntentsReply, LabelText, Reviewed, Saw, SessionSaw, SinkIntegrity,
-    TaintNote,
+    GrantTarget, Impact, IntentsReply, LabelText, Level, LimitCall, Reviewed, Saw, SessionSaw,
+    SinkIntegrity, TaintNote,
 };
 use docket_core::{AgentReach, Lasting, Origin};
 use policy_point::{
@@ -53,6 +53,7 @@ impl<S: Seams> Router<S> {
             ConfirmAnswer::AllowedFromTerminal { receipt } => {
                 (ConfirmAnswerKind::AllowedFromTerminal, Some(receipt.input))
             }
+            ConfirmAnswer::Never { receipt } => (ConfirmAnswerKind::Never, Some(receipt.input)),
             ConfirmAnswer::Ended(end) => (ConfirmAnswerKind::Ended(*end), None),
         };
         self.seams.sink().append(AuditRecord::Confirm {
@@ -89,6 +90,7 @@ impl<S: Seams> Router<S> {
             taint: TaintNote::Clean,
             offer: ConfirmOffer::OnceOnly,
             always: Default::default(),
+            limits: Default::default(),
             gesture: Gesture::Press,
             anchor: Anchor::Centre,
             expires: self.agent_config().confirm_expiry,
@@ -99,6 +101,19 @@ impl<S: Seams> Router<S> {
     /// `.Gate.Grant`: the person decides whether a run may use an app in a Space, once per
     /// data class the app declares.
     pub(crate) async fn gate_grant(&self, ask: GrantAsk) -> IntentsReply {
+        // The caller's own setting and what the router holds (the person's limits, the
+        // administrator's floor): the stronger wins, so a stored entry can only tighten a request.
+        let held = self.limits_on(&LimitCall {
+            caller: &GrantCaller::Cua,
+            app: &ask.app,
+            action: None,
+            space: &ask.space,
+            effect: Effect::UndoableWrite,
+        });
+        let level = ask.level.over(Level::from(&held));
+        if level == Level::Never {
+            return IntentsReply::Granted(GrantAnswer::Never);
+        }
         let Some(request) = self.sheet(
             &ask.app,
             &ask.space,
@@ -109,6 +124,9 @@ impl<S: Seams> Router<S> {
         };
         match self.ask_person(request).await {
             ConfirmAnswer::Ended(end) => IntentsReply::Granted(GrantAnswer::Refused(end)),
+            ConfirmAnswer::Never { .. } => {
+                IntentsReply::Granted(GrantAnswer::Refused(ConfirmEnd::Refused))
+            }
             ConfirmAnswer::Allowed { .. } | ConfirmAnswer::AllowedFromTerminal { .. } => {
                 let now = self.seams.clock().now();
                 let classes: BTreeSet<DataClass> = self
@@ -123,6 +141,11 @@ impl<S: Seams> Router<S> {
                             .collect()
                     })
                     .unwrap_or_default();
+                // Only an always-allow request is remembered; "ask every run" is asked again.
+                let classes = match level {
+                    Level::AlwaysAllow => classes,
+                    Level::AlwaysAsk | Level::Never => BTreeSet::new(),
+                };
                 for class in classes {
                     let n = self.locked().mint();
                     if let Ok(id) = GrantId::parse(&format!("g-{n}")) {
@@ -202,11 +225,12 @@ impl<S: Seams> Router<S> {
                 })
                 .max_by_key(|v| matches!(v, Verdict::Denied))
                 .unwrap_or(Verdict::Ask);
-            let strictness = st
-                .strictness
-                .get(&ask.space)
-                .copied()
-                .unwrap_or(self.agent_config().strictness);
+            let strictness = self.floor.clamp(
+                st.strictness
+                    .get(&ask.space)
+                    .copied()
+                    .unwrap_or(self.agent_config().strictness),
+            );
             let screen = screen.integrity;
             let ctx = PolicyContext {
                 space: ask.space.clone(),
@@ -323,6 +347,7 @@ impl<S: Seams> Router<S> {
             ConfirmAnswer::Allowed { .. } | ConfirmAnswer::AllowedFromTerminal { .. } => {
                 IntentsReply::Gate(GateAnswer::Run)
             }
+            ConfirmAnswer::Never { .. } => refused(ConfirmEnd::Refused),
             ConfirmAnswer::Ended(end) => refused(end),
         }
     }

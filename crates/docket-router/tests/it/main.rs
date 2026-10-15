@@ -18,6 +18,7 @@ mod editor_policy;
 mod gate;
 mod index;
 mod lifecycle;
+mod limits;
 mod live_settings;
 mod machines;
 mod messaging;

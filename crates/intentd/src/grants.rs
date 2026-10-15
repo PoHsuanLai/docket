@@ -2,12 +2,14 @@
 
 use crate::defaults::{default_grants_file, read_defaults};
 use docket_core::{
-    ActionGrant, Ended, GrantFileError, KnownSpaces, Reconciled, Revocation, SpaceAccess,
-    StandingGrant, StandingGrantId, decode_grants, decode_standing, encode_standing, held_with,
-    held_without, read_grant_file, read_grant_list, reconcile, without_space, write_grant_list,
+    ActionGrant, Ended, GrantFileError, KnownSpaces, Limit, LimitCaller, LimitKey, LimitLevel,
+    LimitMaker, LimitScope, Reconciled, Revocation, SpaceAccess, StandingGrant, StandingGrantId,
+    decode_grants, decode_limits, decode_standing, encode_limits, encode_standing, held_with,
+    held_without, limits_with, limits_without, read_grant_file, read_grant_list, reconcile,
+    without_space, write_grant_list,
 };
 use docket_router::GrantStore;
-use prov::SpaceId;
+use prov::{Effect, SpaceId, SpaceScope, UnixSeconds};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -96,9 +98,33 @@ impl FileGrants {
         write_grant_list(&self.standing_path(), encode_standing(grants))
     }
 
+    fn limits_path(&self) -> PathBuf {
+        self.path.with_file_name("limits.json")
+    }
+
+    fn read_limits(&self) -> Result<Vec<Limit>, GrantFileError> {
+        read_grant_list(&self.limits_path(), decode_limits)
+    }
+
+    fn write_limits(&self, limits: &[Limit]) -> Result<(), GrantFileError> {
+        write_grant_list(&self.limits_path(), encode_limits(limits))
+    }
+
     fn write(&self, grants: &[ActionGrant]) -> Result<(), GrantFileError> {
         write_grant_list(&self.path, serde_json::to_string_pretty(grants))
     }
+}
+
+/// The limit a damaged limits file stands for: every agent call asks.
+fn ask_about_everything() -> Limit {
+    let key = LimitKey {
+        caller: LimitCaller::AnyAgent,
+        scope: LimitScope::Everything,
+        space: SpaceScope::Any,
+        from: Effect::Read,
+        level: LimitLevel::AlwaysAsk,
+    };
+    Limit::new(key, LimitMaker::Person, None, UnixSeconds(0))
 }
 
 /// What a store does with a fault: the person is asked again (no grants held), and the line says
@@ -152,16 +178,42 @@ impl GrantStore for FileGrants {
         }
     }
 
+    // Limits ("always ask", "never") in `limits.json` beside them, read afresh on every call and
+    // never written over when damaged. Unlike a grant, a limit that is lost loosens things, so a
+    // file that cannot be read stands for one limit that asks about everything an agent does,
+    // until the person looks at the file.
+    fn limits(&self) -> Vec<Limit> {
+        logged(self.read_limits()).unwrap_or_else(|| vec![ask_about_everything()])
+    }
+
+    fn add_limit(&self, limit: Limit) {
+        let _one_at_a_time = WRITING
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(held) = logged(self.read_limits()) {
+            logged(self.write_limits(&limits_with(held, limit)));
+        }
+    }
+
+    // One revoke path for both: the id says which file it is in, and the administrator's locked
+    // entries are in neither.
     fn revoke_standing(&self, id: &StandingGrantId) -> Revocation {
         let _one_at_a_time = WRITING
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let Some(held) = logged(self.read_standing()) else {
+        if let Some(held) = logged(self.read_standing()) {
+            let (rest, done) = held_without(held, id);
+            if done == Revocation::Revoked {
+                logged(self.write_standing(&rest));
+                return done;
+            }
+        }
+        let Some(held) = logged(self.read_limits()) else {
             return Revocation::NotHeld;
         };
-        let (rest, done) = held_without(held, id);
+        let (rest, done) = limits_without(held, id);
         if done == Revocation::Revoked {
-            logged(self.write_standing(&rest));
+            logged(self.write_limits(&rest));
         }
         done
     }

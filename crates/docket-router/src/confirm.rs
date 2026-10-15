@@ -7,7 +7,8 @@ use crate::state::SessionRecord;
 use crate::terminal::offers_grant;
 use docket_core::{
     AlwaysOffer, Anchor, ArgLine, AskReason, ConfirmDetail, ConfirmId, ConfirmOffer,
-    ConfirmRequest, Gesture, Preview, Seconds, Shown, TaintNote, Value,
+    ConfirmRequest, Gesture, Limited, NeverOffer, Preview, Seconds, SheetLimits, Shown, TaintNote,
+    Value,
 };
 use docket_core::{ArgSink, CallerRole};
 use porter_core::Count;
@@ -106,7 +107,16 @@ pub(crate) fn confirm_request(
     let destructive = p.decl.effect == Effect::Destructive;
     // A caller that holds standing grants is offered the scoped one (`always`), never the broad
     // class grant.
-    let offer = if standing.is_some_and(|s| s.holds()) {
+    // "Never" is on every sheet for an agent's call. A call that asks because the person said
+    // always-ask carries that entry's reason, and "allow always" is not offered over it.
+    let limits = SheetLimits {
+        never: standing.map_or(NeverOffer::Withheld, |_| NeverOffer::Offered),
+        held: standing.and_then(|s| match &s.limited {
+            Limited::Ask(note) => Some(note.clone()),
+            Limited::Free | Limited::Never(_) => None,
+        }),
+    };
+    let offer = if limits.held.is_some() || standing.is_some_and(|s| s.holds()) {
         ConfirmOffer::OnceOnly
     } else if offers_grant(p, why) {
         ConfirmOffer::OnceOrFromTerminal
@@ -139,6 +149,7 @@ pub(crate) fn confirm_request(
         taint,
         offer,
         always,
+        limits,
         gesture: if destructive {
             Gesture::HoldToConfirm
         } else {

@@ -173,6 +173,10 @@ impl<S: Seams> Router<S> {
                 }
                 _ => self.record_class_grant(p),
             },
+            CallEffect::RecordNever => {
+                run.denied_by = Some(DeniedBy::User);
+                self.record_never(p);
+            }
             CallEffect::RecordTerminalGrant => {
                 let why = match &p.pending {
                     Pending::Confirm(why) => why.as_slice(),
@@ -404,10 +408,14 @@ impl<S: Seams> Router<S> {
             ConfirmAnswer::AllowedFromTerminal { receipt } => {
                 Some((ConfirmAnswerKind::AllowedFromTerminal, receipt))
             }
+            ConfirmAnswer::Never { receipt } => Some((ConfirmAnswerKind::Never, receipt)),
             ConfirmAnswer::Ended(_) => None,
         };
         if let Some((kind, receipt)) = yes {
-            run.receipt = Some(receipt.clone());
+            // A "never" proves the person said so; it is no proof for running the call.
+            if !matches!(answer, ConfirmAnswer::Never { .. }) {
+                run.receipt = Some(receipt.clone());
+            }
             self.seams.sink().append(AuditRecord::Confirm {
                 at: self.seams.clock().now(),
                 id: id.clone(),

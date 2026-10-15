@@ -132,6 +132,7 @@ impl GateBus {
         let ask = GrantAsk {
             app: parsed(&app, porter_core::AppName::parse)?,
             space: parsed(&space, prov::SpaceId::parse)?,
+            level: docket_core::Level::default(),
         };
         self.0
             .start(&header, connection, IntentsRequest::GateGrant(ask))

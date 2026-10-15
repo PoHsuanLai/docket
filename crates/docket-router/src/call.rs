@@ -89,6 +89,8 @@ pub enum CallEffect {
     RecordGrant,
     /// Remember "allow from the terminal until logout".
     RecordTerminalGrant,
+    /// Remember the person's "never" for this action, and count the refusal as theirs.
+    RecordNever,
     /// Charge the ledger and call the app.
     Dispatch,
     /// Count a denial against the breaker.
@@ -146,6 +148,12 @@ pub fn call_step(state: CallState, event: CallEvent) -> (CallState, Vec<CallEffe
                 CallEffect::Progress(CallProgress::Dispatched),
                 CallEffect::Dispatch,
             ],
+        ),
+        // "Never" refuses this call as a no does, and keeps the entry. The receipt was audited
+        // when the answer arrived, so no second record is made here.
+        (S::Confirming(_), V::Answered(ConfirmAnswer::Never { .. })) => (
+            refused(CallRefusal::Unconfirmed(ConfirmEnd::Refused)),
+            vec![CallEffect::RecordNever],
         ),
         (S::Confirming(_), V::Answered(ConfirmAnswer::Ended(end))) => (
             refused(CallRefusal::Unconfirmed(end)),
