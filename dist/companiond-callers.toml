@@ -1,0 +1,15 @@
+# Who may speak for the person to companiond (org.quire.Companion1). A caller is the systemd unit
+# behind the bus connection (the bus names its process, /proc/<pid>/cgroup names the unit, and a
+# service's role goes only to the unit's main process). Install as /etc/quire/companiond-callers.toml;
+# the user's ~/.config/quire/companiond-callers.toml is laid over it, and its fixed-role rows are
+# ignored (a scope never has one).
+#
+#   role "sheet_host" + app org.quire.Shell -> sill: opens, asks, closes, presses a card, tells a subagent
+#
+# A terminal's child (`quire-do ask`: a process in a vte-spawn-*, tmux-spawn-* or login session-* scope)
+# is not a row: it may open, ask, close, cancel and read, nothing else. Everything else is refused.
+
+[[caller]]
+app = "org.quire.Shell"
+unit = "sill.service"
+role = "sheet_host"

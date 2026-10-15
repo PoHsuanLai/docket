@@ -7,10 +7,11 @@
 
 use crate::Companiond;
 use crate::Shared;
-use crate::speaker::{self, Call, Speaker};
+use crate::speaker::{Call, Speaker, Speakers};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
 use docket_core::{SessionOpen, StartedFrom, UserTurn};
+use docket_dbus::callers::Identity;
 use docket_dbus::{
     BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
 };
@@ -18,7 +19,6 @@ use docket_tasks::Change;
 use docket_tasks::ServeFault;
 use futures_util::lock::Mutex;
 use porter_client::Transport as InferTransport;
-use porter_core::AppName;
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -57,9 +57,7 @@ fn path_of(task: &TaskId) -> fdo::Result<OwnedObjectPath> {
 struct Root<P: InferTransport, I: IntentsTransport> {
     companion: Arc<Mutex<Companiond<P, I>>>,
     shared: Arc<Shared>,
-    shell: AppName,
-    connection: BusConnection,
-    proc_root: PathBuf,
+    speakers: Speakers,
 }
 
 impl<P: InferTransport, I: IntentsTransport> Root<P, I> {
@@ -67,7 +65,7 @@ impl<P: InferTransport, I: IntentsTransport> Root<P, I> {
     /// `Ask`, `Close`): an ask carries the turn the router recorded, and a turn it never recorded
     /// must not be taken from anybody else. `Told` and `Act` are the shell's alone.
     async fn require(&self, header: &Header<'_>, call: Call) -> fdo::Result<Speaker> {
-        speaker::require(&self.connection, &self.shell, &self.proc_root, header, call).await
+        self.speakers.require(header, call).await
     }
 }
 
@@ -121,9 +119,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
                     companion: self.companion.clone(),
                     shared: self.shared.clone(),
                     task: begun.task.clone(),
-                    shell: self.shell.clone(),
-                    connection: self.connection.clone(),
-                    proc_root: self.proc_root.clone(),
+                    speakers: self.speakers.clone(),
                 },
             )
             .await?;
@@ -191,18 +187,14 @@ struct AnswerObject<P: InferTransport, I: IntentsTransport> {
     companion: Arc<Mutex<Companiond<P, I>>>,
     shared: Arc<Shared>,
     task: TaskId,
-    shell: AppName,
-    connection: BusConnection,
-    proc_root: PathBuf,
+    speakers: Speakers,
 }
 
 impl<P: InferTransport, I: IntentsTransport> AnswerObject<P, I> {
     /// An answer is the person's words and what the router showed of them: only the shell or a
     /// terminal reads it.
     async fn readable(&self, header: Option<&Header<'_>>) -> fdo::Result<()> {
-        speaker::require_read(&self.connection, &self.shell, &self.proc_root, header)
-            .await
-            .map(|_| ())
+        self.speakers.require_read(header).await.map(|_| ())
     }
 }
 
@@ -213,14 +205,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
         action: String,
         #[zbus(header)] header: Header<'_>,
     ) -> fdo::Result<OwnedObjectPath> {
-        speaker::require(
-            &self.connection,
-            &self.shell,
-            &self.proc_root,
-            &header,
-            Call::Act,
-        )
-        .await?;
+        self.speakers.require(&header, Call::Act).await?;
         let card = docket_tasks::card_id(&action).map_err(failed)?;
         let acting = self
             .companion
@@ -240,14 +225,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P,
     }
 
     async fn cancel(&self, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
-        speaker::require(
-            &self.connection,
-            &self.shell,
-            &self.proc_root,
-            &header,
-            Call::Cancel,
-        )
-        .await?;
+        self.speakers.require(&header, Call::Cancel).await?;
         self.shared.cancel(&self.task);
         Ok(())
     }
@@ -294,8 +272,7 @@ async fn forward<P, I>(
     connection: BusConnection,
     shared: Arc<Shared>,
     companion: Arc<Mutex<Companiond<P, I>>>,
-    shell: AppName,
-    proc_root: PathBuf,
+    speakers: Speakers,
 ) where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
@@ -310,9 +287,7 @@ async fn forward<P, I>(
                     companion: companion.clone(),
                     shared: shared.clone(),
                     task,
-                    shell: shell.clone(),
-                    connection: connection.clone(),
-                    proc_root: proc_root.clone(),
+                    speakers: speakers.clone(),
                 };
                 let _ = server.at(path.as_str(), object).await;
                 if let Ok(object) = ObjectPath::try_from(path.as_str()) {
@@ -375,25 +350,28 @@ async fn forward<P, I>(
 }
 
 /// Claims `org.quire.Companion1` on `connection`, serves the root object and one answer object
-/// per task, listens for `Message.Arrived` and keeps time. Returns once the name is ours; the
-/// connection keeps serving until it closes.
+/// per task, listens for `Message.Arrived` and keeps time. The callers are told apart by `who`
+/// (the shell is the process it names as the shell's unit; a terminal's child is read from the
+/// system's `/proc`). Returns once the name is ours; the connection keeps serving until it closes.
 pub async fn serve_on<P, I>(
     connection: &BusConnection,
     companion: Arc<Mutex<Companiond<P, I>>>,
+    who: Arc<Identity>,
 ) -> Result<(), ServeFault>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
 {
     let proc_root = PathBuf::from("/proc");
-    serve_on_rooted(connection, companion, proc_root).await
+    serve_on_rooted(connection, companion, who, proc_root).await
 }
 
-/// [`serve_on`] reading callers' cgroups under `proc_root` instead of `/proc`: how a test
+/// [`serve_on`] reading terminals' cgroups under `proc_root` instead of `/proc`: how a test
 /// presents its processes as a terminal. The daemon's own `serve_on` always reads `/proc`.
 pub async fn serve_on_rooted<P, I>(
     connection: &BusConnection,
     companion: Arc<Mutex<Companiond<P, I>>>,
+    who: Arc<Identity>,
     proc_root: PathBuf,
 ) -> Result<(), ServeFault>
 where
@@ -404,6 +382,7 @@ where
         let held = companion.lock().await;
         (held.shared.clone(), held.shell.clone())
     };
+    let speakers = Speakers::new(connection.clone(), who, shell, proc_root);
     connection
         .object_server()
         .at(
@@ -411,9 +390,7 @@ where
             Root {
                 companion: companion.clone(),
                 shared: shared.clone(),
-                shell: shell.clone(),
-                connection: connection.clone(),
-                proc_root: proc_root.clone(),
+                speakers: speakers.clone(),
             },
         )
         .await
@@ -432,8 +409,7 @@ where
         connection.clone(),
         shared,
         companion.clone(),
-        shell,
-        proc_root,
+        speakers,
     ));
     tokio::spawn(arrivals(connection.clone(), companion.clone()));
     tokio::spawn(ticking(companion));
@@ -480,7 +456,9 @@ where
     }
 }
 
-/// Claims `org.quire.Companion1` on the session bus and serves it until the connection closes.
+/// Claims `org.quire.Companion1` on the session bus and serves it until the connection closes,
+/// telling callers apart by `companiond-callers.toml` (the system's under `/etc/quire`, the
+/// person's over it).
 pub async fn serve<P, I>(companion: Arc<Mutex<Companiond<P, I>>>) -> Result<(), ServeFault>
 where
     P: InferTransport + 'static,
@@ -488,7 +466,10 @@ where
 {
     use futures_util::StreamExt;
     let connection = BusConnection::session().await.map_err(bus)?;
-    serve_on(&connection, companion).await?;
+    let table = crate::callers::read(&|key: &str| std::env::var(key).ok())
+        .map_err(|e| ServeFault::Config(e.to_string()))?;
+    let who = Arc::new(Identity::on_system(connection.clone(), table));
+    serve_on(&connection, companion, who).await?;
     let mut messages = zbus::MessageStream::from(&connection);
     while messages.next().await.is_some() {}
     Ok(())

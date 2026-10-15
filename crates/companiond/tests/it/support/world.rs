@@ -5,6 +5,8 @@ use super::infer::{Say, ScriptedInfer};
 use companiond::{Clock, Companiond, PlannerModel};
 use docket_client::{InProcess, Intents};
 use docket_core::*;
+use docket_dbus::BusConnection;
+use docket_dbus::callers::{Identity, Role};
 use docket_fake::{FakeSeams, MailContact, MailThread, fake_router};
 use docket_router::Router;
 use porter_core::{AppId, AppName, Isolation};
@@ -277,4 +279,20 @@ impl World {
             })
             .collect()
     }
+}
+
+/// Who companiond would see on `server`: the shipped table over the fake proc root `proc_root`.
+/// Every connection of a test is this one process; a test says which is the shell with `as_shell`.
+pub fn who(server: &BusConnection, proc_root: &std::path::Path) -> Arc<Identity> {
+    Arc::new(Identity::on_fixture(
+        server.clone(),
+        companiond::shipped_callers(),
+        proc_root.to_owned(),
+    ))
+}
+
+/// Says that `connection` is the shell's unit: the app `org.quire.Shell` with the `sheet_host`
+/// role of the system's table.
+pub fn as_shell(who: &Identity, connection: &BusConnection) {
+    who.introduce_app(connection, "org.quire.Shell", Role::SheetHost);
 }

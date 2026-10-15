@@ -74,7 +74,7 @@ fn worker() -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn the_binary_serves_companion1_for_the_shell_its_configuration_names() {
+async fn the_binary_serves_companion1_and_a_name_alone_is_not_the_shell() {
     let dir = tempfile::tempdir().expect("scratch");
     // The configuration names another shell than the shipped one.
     let config = dir.path().join("config/quire");
@@ -117,14 +117,20 @@ async fn the_binary_serves_companion1_for_the_shell_its_configuration_names() {
             .is_err(),
         "the shipped name is not the configured one"
     );
+    // Owning the configured shell's name does not make a process the shell either: the shell is
+    // the process in the unit the system's callers file names, which this binary reads from
+    // `/etc/quire` and no test may move (in process: `serve.rs`, `terminal.rs`, `speaker.rs`).
     let desk = bus.connect().await;
     desk.request_name("org.quire.Desk").await.expect("name");
-    CompanionProxy::new(&desk)
-        .await
-        .expect("proxy")
-        .told(&worker(), "work", &turn())
-        .await
-        .expect("the configured shell is heard");
+    assert!(
+        CompanionProxy::new(&desk)
+            .await
+            .expect("proxy")
+            .told(&worker(), "work", &turn())
+            .await
+            .is_err(),
+        "a name alone is not the shell"
+    );
 
     // A second companiond finds the name taken and stops, leaving the first serving.
     let mut second = companiond(dir.path(), bus.address());

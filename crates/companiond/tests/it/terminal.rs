@@ -9,6 +9,7 @@ use crate::support::world::*;
 use companion_wire::{AnswerPhase, AnswerWire, AskWire};
 use companiond::serve_on_rooted;
 use docket_core::*;
+use docket_dbus::callers::Role;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use futures_util::lock::Mutex;
 use prov::AgentRef;
@@ -56,9 +57,14 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
     let w = world(vec![words("Hello there.")]);
     let (launcher, hand) = (w.launcher, w.hand);
     let companion = Arc::new(Mutex::new(w.companion));
-    serve_on_rooted(&server, companion.clone(), proc_root)
-        .await
-        .expect("serving");
+    serve_on_rooted(
+        &server,
+        companion.clone(),
+        who(&server, &proc_root),
+        proc_root,
+    )
+    .await
+    .expect("serving");
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
 
     let opened: SessionOpened =
@@ -153,9 +159,14 @@ async fn a_process_that_is_not_a_terminal_or_owns_a_name_speaks_for_nobody() {
     let (server, client) = (bus.connect().await, bus.connect().await);
     let w = world(vec![]);
     let companion = Arc::new(Mutex::new(w.companion));
-    serve_on_rooted(&server, companion, proc_root.clone())
-        .await
-        .expect("serving");
+    serve_on_rooted(
+        &server,
+        companion,
+        who(&server, &proc_root),
+        proc_root.clone(),
+    )
+    .await
+    .expect("serving");
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
 
     // No cgroup in the fake proc root: nothing says it is a terminal.
@@ -205,7 +216,7 @@ async fn a_conversation_a_terminal_opens_records_the_terminal_and_the_shells_doe
     let w = world(vec![]);
     let router = w.router.clone();
     let companion = Arc::new(Mutex::new(w.companion));
-    serve_on_rooted(&server, companion, proc_root)
+    serve_on_rooted(&server, companion, who(&server, &proc_root), proc_root)
         .await
         .expect("serving");
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
@@ -253,4 +264,29 @@ async fn a_conversation_a_terminal_opens_records_the_terminal_and_the_shells_doe
         panic!("sessions")
     };
     assert!(!now.contains(&shells.session), "{now:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_process_the_table_names_as_less_than_the_shell_speaks_for_nobody() {
+    // Even in a terminal's scope: a process the table names is that app, never the person's
+    // keyboard. A scope that claims the shell's app is a plain app, and an agent is not the shell.
+    for (what, standing) in [
+        ("a scope that claims the shell", Role::App),
+        ("an agent that claims the shell", Role::Agent),
+    ] {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let proc_root = scratch.path().join("proc");
+        place(&proc_root, "vte-spawn-1.scope");
+        let bus = PrivateBus::start(scratch.path());
+        let (server, client) = (bus.connect().await, bus.connect().await);
+        let w = world(vec![]);
+        let companion = Arc::new(Mutex::new(w.companion));
+        let identity = who(&server, &proc_root);
+        serve_on_rooted(&server, companion, identity.clone(), proc_root)
+            .await
+            .expect("serving");
+        identity.introduce_app(&client, "org.quire.Shell", standing);
+        let proxy = CompanionProxy::new(&client).await.expect("proxy");
+        assert!(denied(proxy.open(&open_json()).await), "{what}");
+    }
 }

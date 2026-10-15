@@ -203,11 +203,11 @@ async fn the_answer_object_names_its_session_and_close_removes_it() {
     let w = world(vec![read_t1(), words("Read it.")]);
     let (launcher, hand) = (w.launcher, w.hand);
     let companion = Arc::new(Mutex::new(w.companion));
-    serve_on(&server, companion.clone()).await.expect("serving");
-    client
-        .request_name("org.quire.Shell")
+    let who = who(&server, scratch.path());
+    serve_on(&server, companion.clone(), who.clone())
         .await
-        .expect("the shell's name");
+        .expect("serving");
+    as_shell(&who, &client);
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
     let mut added = proxy.receive_answer_added().await.expect("signal");
 

@@ -6,6 +6,7 @@ use crate::clock::Clock;
 use crate::config::CompaniondConfig;
 use crate::serve::serve_on_rooted;
 use docket_client::{DbusTransport, Intents};
+use docket_dbus::callers::{CallerTable, Identity};
 use docket_dbus::tap::Tap;
 use docket_dbus::{BusConnection, InferLink};
 use docket_planner::PlannerModel;
@@ -13,16 +14,21 @@ use docket_skills::{Roots, discover};
 use docket_tasks::ServeFault;
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-/// What only the acceptance harness's mains choose: the `/proc` callers are read from and
-/// whether the model tap writes to a file. The shipped `main` passes the default (the system's
-/// `/proc`, no tap) and no environment variable can change either.
+/// What only the acceptance harness's mains choose: the `/proc` callers are read from (a tree
+/// other than `/proc` is a fixture, whose units' main processes are in `<root>/units`), the
+/// system's callers file, and whether the model tap writes to a file. The shipped `main` passes
+/// the default (the system's `/proc`, `/etc/quire`, no tap) and no environment variable can
+/// change any.
 #[derive(Debug, Clone)]
 pub struct HarnessSeams {
     /// Where callers' cgroups are read.
     pub proc_root: PathBuf,
+    /// The system's callers file, when the harness's main chose another than `/etc/quire`'s: the
+    /// harness is its own system, and a fixed role (the shell's) comes from no other file.
+    pub system_callers: Option<PathBuf>,
     /// What is kept of the exchanges with inferd.
     pub trace: Tap,
 }
@@ -31,6 +37,7 @@ impl Default for HarnessSeams {
     fn default() -> Self {
         Self {
             proc_root: PathBuf::from("/proc"),
+            system_callers: None,
             trace: Tap::off(),
         }
     }
@@ -46,12 +53,14 @@ pub type Daemon = Companiond<InferLink, DbusTransport>;
 pub async fn start(
     connection: &BusConnection,
     config: CompaniondConfig,
+    callers: CallerTable,
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
     start_with(
         connection,
         config,
         &Roots::default(),
         HarnessSeams::default(),
+        callers,
     )
     .await
 }
@@ -63,6 +72,7 @@ pub async fn start_with(
     config: CompaniondConfig,
     skills: &Roots,
     seams: HarnessSeams,
+    callers: CallerTable,
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
     let found = discover(skills);
     for rejected in &found.rejected {
@@ -94,7 +104,9 @@ pub async fn start_with(
         Err(_) => tracing::warn!("the restart did not finish in time; starting without it"),
     }
     let companion = Arc::new(Mutex::new(companion));
-    serve_on_rooted(connection, companion.clone(), seams.proc_root).await?;
+    let fixture = (seams.proc_root != Path::new("/proc")).then_some(seams.proc_root.as_path());
+    let who = Arc::new(Identity::on(connection.clone(), callers, fixture));
+    serve_on_rooted(connection, companion.clone(), who, seams.proc_root).await?;
     Ok(companion)
 }
 
@@ -111,7 +123,12 @@ pub async fn run_with(seams: HarnessSeams) -> Result<(), ServeFault> {
     let connection = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| ServeFault::Bus(e.to_string()))?;
-    let _running = start_with(&connection, config, &Roots::from_env(&env), seams).await?;
+    let callers = match &seams.system_callers {
+        Some(system) => crate::callers::read_at(system, &env),
+        None => crate::callers::read(&env),
+    }
+    .map_err(|e| ServeFault::Config(e.to_string()))?;
+    let _running = start_with(&connection, config, &Roots::from_env(&env), seams, callers).await?;
     let mut messages = zbus::MessageStream::from(&connection);
     while messages.next().await.is_some() {}
     Ok(())

@@ -81,8 +81,11 @@ async fn a_pressed_card_is_performed_in_the_answers_session_and_the_answer_follo
     let opened = w.open("work").await;
     let router = w.router.clone();
     let companion = Arc::new(Mutex::new(w.companion));
-    serve_on(&server, companion.clone()).await.expect("serving");
-    shell.request_name("org.quire.Shell").await.expect("shell");
+    let who = who(&server, scratch.path());
+    serve_on(&server, companion.clone(), who.clone())
+        .await
+        .expect("serving");
+    as_shell(&who, &shell);
     let proxy = CompanionProxy::new(&shell).await.expect("proxy");
     let mut added = proxy.receive_answer_added().await.expect("signal");
 

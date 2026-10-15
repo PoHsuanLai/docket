@@ -13,6 +13,7 @@
 //! - `serve`, `serve_on`: `org.quire.Companion1`.
 
 mod bell;
+mod callers;
 mod clock;
 mod config;
 mod daemon;
@@ -21,6 +22,7 @@ mod serve;
 mod speaker;
 
 pub use bell::Bell;
+pub use callers::{FILE as CALLERS_FILE, shipped as shipped_callers};
 pub use clock::Clock;
 pub use config::{CompaniondConfig, ConfigError};
 pub use daemon::{Daemon, HarnessSeams, run, run_with, start, start_with};
@@ -35,7 +37,7 @@ pub use docket_tasks::{
     stored_events,
 };
 pub use serve::{serve, serve_on, serve_on_rooted};
-pub use speaker::{Call, Speaker, permits};
+pub use speaker::{Call, Speaker, Speakers, permits};
 
 /// The shared view as the bus reads it.
 pub type Shared = docket_tasks::Shared<Bell>;

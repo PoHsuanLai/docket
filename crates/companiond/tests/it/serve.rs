@@ -66,12 +66,12 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
     let w = world(vec![words("Hello there.")]);
     let (launcher, hand) = (w.launcher, w.hand);
     let companion = Arc::new(Mutex::new(w.companion));
-    serve_on(&server, companion.clone()).await.expect("serving");
-    // The client is the shell: only it speaks for the person.
-    client
-        .request_name("org.quire.Shell")
+    let who = who(&server, scratch.path());
+    serve_on(&server, companion.clone(), who.clone())
         .await
-        .expect("the shell's name");
+        .expect("serving");
+    // The client is the shell: only it speaks for the person.
+    as_shell(&who, &client);
 
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
     let mut added = proxy.receive_answer_added().await.expect("signal");
@@ -191,12 +191,12 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
     let w = world(vec![Say::Hang]);
     let launcher = w.launcher;
     let companion = Arc::new(Mutex::new(w.companion));
-    serve_on(&server, companion.clone()).await.expect("serving");
-    // The client is the shell: only it speaks for the person.
-    client
-        .request_name("org.quire.Shell")
+    let who = who(&server, scratch.path());
+    serve_on(&server, companion.clone(), who.clone())
         .await
-        .expect("the shell's name");
+        .expect("serving");
+    // The client is the shell: only it speaks for the person.
+    as_shell(&who, &client);
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
 
     let open = SessionOpen {
@@ -268,8 +268,11 @@ async fn only_the_shell_speaks_for_the_person() {
     );
     let w = world(vec![words("Hello there.")]);
     let companion = Arc::new(Mutex::new(w.companion));
-    serve_on(&server, companion.clone()).await.expect("serving");
-    shell.request_name("org.quire.Shell").await.expect("name");
+    let who = who(&server, scratch.path());
+    serve_on(&server, companion.clone(), who.clone())
+        .await
+        .expect("serving");
+    as_shell(&who, &shell);
 
     let words_of_the_person = UserTurn {
         id: TurnId(1),
