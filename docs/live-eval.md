@@ -263,6 +263,30 @@ the answer ended Done. `flow-a`, `flow-a-refused` and `first-use` share the refu
 Add an app by writing its manifest, its things in `things.rs`, a `Kit`, and one cassette per pattern
 (`dev/accept/cassettes/<app>-<pattern>.jsonl`).
 
+### Everyday flows and comparing models
+
+Four small flows (`live::everyday`) cover what a person asks all day: `fact` ("What is the capital of Taiwan?":
+ends Done, no app call but memory reads, one short reply of at most 240 characters that says "Taipei" and none of
+memory, tool, history, recall, "I can answer", no sheet), `remember` (a memory write is proposed and the sheet
+allowed), `what-remember` (a memory read, then an answer, no sheet) and `mail-find` (a thread search, no send).
+The answer checks are one reusable `Shape` (`live::shape`: length, words it must and must not hold, and never an
+identifier such as an action id or a tool name), so any flow can ask for them. Each flow has a cassette, so the
+gate plays them; a live run is judged on the same expectations. Each trace now holds `answer chars:` and `answer:`.
+
+`dev/live/model-compare.sh` picks the planner model by measurement:
+
+```sh
+dev/live/model-compare.sh --keys-home ~/.local/share/quire-test/keys \
+  --models "cloud/claude-haiku-4.5 cloud/gemini-3.8-flash" --repeat 3
+```
+
+For each model it writes an inferd config (all tiers pinned to it, `local_only` off, prompt and mail floored
+anywhere, a spend cap, `--spend-cents`, default 500) into a scratch directory outside git, runs
+`dev/live-smoke.sh --engine cloud --keys-home DIR --repeat N` for the flows (`--flows`, default the four above),
+and prints a markdown table: model by flow, passes out of N, the median length of the `fact` answer, and the
+failing expectations. The table is also `<scratch>/comparison.md`. The key never passes through the script. The
+scratch directory holds traces, which contain prompts: delete it when done.
+
 ## The hostile-model corpus
 
 Model output is hostile input: `eval/hostile-model/` proves the agent stack ends safely when a model
