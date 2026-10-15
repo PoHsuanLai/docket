@@ -385,3 +385,16 @@ every type `Serialize + Eq`, a table test, and the effects carried out by a daem
   No crate is excluded: every crate builds and tests without hardware or network. (`voiced`
   links libpipewire but opens no device in a test, and `speech-vad-silero` is not a dependency, so
   neither needs the exclusion `recall-fastembed` needs in almanac.)
+
+## 8. Install
+
+`scripts/install.sh` installs the daemons, the units with their `<unit>.service.d/sandbox.conf`
+drop-ins, the D-Bus activation files and interface XML, the settings schema, skills, default
+configuration and the caller tables (`dist/*-callers.toml` go to `/etc/quire`). Flags:
+`--prefix DIR` (default `/usr/local`), `--destdir DIR` (for packages), `--user` (under `~/.local`,
+no root), `--no-build`, `--bin-dir DIR` (programs built elsewhere), `--dry-run` (print every
+action), `--sandbox auto|on|off`, `--distro debian|fedora|arch` and `--with-voice`. Root steps use
+`$SUDO`, else sudo, doas or pkexec, else they are printed. The sandbox keys that need a mount
+namespace live only in the drop-ins; `auto` tests whether `systemd --user` can use them and leaves
+them out where it cannot (Ubuntu 24.04+ by default). `dist/install-dev.sh` is still the way to
+install the whole agent stack, with porter and almanac, for one user.
