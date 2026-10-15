@@ -123,3 +123,59 @@ async fn a_stranger_may_not_cancel_whatever_the_cause() {
     assert_eq!(refusal(error), voice_wire::VoiceRefusal::NotAllowed);
     assert_eq!(world.hand.open_now(), 1);
 }
+
+#[tokio::test]
+async fn a_hold_that_is_never_released_ends_as_too_long_and_closes_the_mic() {
+    let world = world_with(
+        Options::new(ScriptedInfer::new(vec![transcript("a", "b", "c")])),
+        config_with_hold(300),
+    )
+    .await;
+    let (_utterance, mut events) = start_utterance(&world, VoiceIntent::Ask).await;
+    assert_eq!(events.next().await, Some(VoiceEvent::Opened));
+    assert_eq!(world.hand.open_now(), 1);
+    assert_eq!(
+        ended_of(&events.until_ended().await),
+        UtteranceEnd::Cancelled(CancelCause::TooLong)
+    );
+    assert_eq!(world.hand.open_now(), 0, "the mic closed with the hold");
+}
+
+#[tokio::test]
+async fn a_cold_engine_past_the_buffer_ends_the_utterance_as_too_long() {
+    let (infer, _gate) = ScriptedInfer::new(vec![transcript("a", "b", "c")]).cold();
+    let world = world(Options::new(infer)).await;
+    let (_utterance, mut events) = start_utterance(&world, VoiceIntent::Ask).await;
+    assert_eq!(events.next().await, Some(VoiceEvent::Opened));
+    // Eleven seconds of audio against a ten second buffer.
+    for _ in 0..(11 * 16_000 / 512) {
+        world.hand.feed(loud());
+    }
+    assert_eq!(
+        ended_of(&events.until_ended().await),
+        UtteranceEnd::Cancelled(CancelCause::TooLong)
+    );
+    assert_eq!(world.hand.open_now(), 0);
+}
+
+#[tokio::test]
+async fn a_begin_caller_that_leaves_the_bus_closes_the_mic() {
+    let world = world_with(
+        Options::new(ScriptedInfer::new(vec![transcript("a", "b", "c")])),
+        config_with_hold(600_000),
+    )
+    .await;
+    let second = named(&world.bus, SECOND_SHELL).await;
+    let voice = voiced::VoiceProxy::new(&second).await.expect("proxy");
+    let (_path, fd) = voice.begin(&begin(VoiceIntent::Ask)).await.expect("begin");
+    let mut events = Events::new(fd);
+    assert_eq!(events.next().await, Some(VoiceEvent::Opened));
+    assert_eq!(world.hand.open_now(), 1);
+    drop(voice);
+    drop(second);
+    assert_eq!(
+        ended_of(&events.until_ended().await),
+        UtteranceEnd::Cancelled(CancelCause::Shell)
+    );
+    assert_eq!(world.hand.open_now(), 0, "nobody was left to release it");
+}

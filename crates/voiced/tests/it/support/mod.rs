@@ -32,6 +32,7 @@ use zbus::zvariant::OwnedFd;
 pub use docket_core::VoiceIntent;
 
 pub const SHELL: &str = "org.quire.Shell";
+pub const SECOND_SHELL: &str = "org.quire.Shell2";
 pub const MAILO: &str = "org.quire.Mailo";
 
 pub fn served() -> ServedBy {
@@ -163,7 +164,20 @@ pub fn config() -> VoicedConfig {
     .expect("config")
 }
 
+/// The test configuration with a short hold and a second shell name, so a test can lose the
+/// caller that began the utterance while the first shell stays.
+pub fn config_with_hold(max_hold_ms: u64) -> VoicedConfig {
+    VoicedConfig::parse(&format!(
+        "earcons = \"off\"\nmax_hold_ms = {max_hold_ms}\n[roles]\nshell = [\"{SHELL}\", \"{SECOND_SHELL}\"]\napp = [\"{MAILO}\"]\n"
+    ))
+    .expect("config")
+}
+
 pub async fn world(options: Options) -> World {
+    world_with(options, config()).await
+}
+
+pub async fn world_with(options: Options, config: VoicedConfig) -> World {
     docket_testbus::hang_guard::arm();
     let home = TempDir::new().expect("scratch");
     // The daemon reads nothing of the person's: HOME and XDG point at the scratch directory.
@@ -178,9 +192,7 @@ pub async fn world(options: Options) -> World {
         proc_root: PathBuf::from("/nonexistent-proc"),
     };
     let daemon = bus.connect().await;
-    let running = voiced::start(daemon, config(), seams)
-        .await
-        .expect("serves");
+    let running = voiced::start(daemon, config, seams).await.expect("serves");
     let shell = named(&bus, SHELL).await;
     let voice = VoiceProxy::new(&shell).await.expect("proxy");
     World {

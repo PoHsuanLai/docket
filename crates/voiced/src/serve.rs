@@ -10,6 +10,7 @@ use crate::playback::Player;
 use crate::talk::Say;
 use crate::usage::{FileUse, UseSource};
 use crate::warm::{BusWarm, Warm};
+use crate::watch::{Deadline, Leaving};
 use futures_util::StreamExt;
 use porter_client::{DbusTransport, Transport};
 use porter_core::Tier;
@@ -79,6 +80,7 @@ where
 {
     let earcons = config.earcons;
     let input = config.input.clone();
+    let max_hold = std::time::Duration::from_millis(config.max_hold_ms.max(1));
     let peers = Peers::new(connection.clone(), Arc::new(config), seams.proc_root);
     let (tx, inbox) = mpsc::channel(32);
     let handle = Handle::new(tx, peers.clone());
@@ -94,6 +96,9 @@ where
         usage: seams.usage,
         earcons,
         input,
+        max_hold,
+        deadline: Deadline::default(),
+        leaving: Leaving::default(),
         counter: 0,
         utt: None,
         node: None,

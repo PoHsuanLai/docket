@@ -16,6 +16,7 @@ use crate::sink::EventSink;
 use crate::talk::Say;
 use crate::usage::UseSource;
 use crate::warm::Warm;
+use crate::watch::{Deadline, Leaving};
 use docket_core::VoiceIntent;
 use porter_client::Transport;
 use porter_infer::Readiness;
@@ -23,7 +24,7 @@ use std::future::pending;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use voice_loop::{PcmBuffer, UtteranceState};
-use voice_wire::{HeardSegment, HeardTail, UtteranceEnd, VoiceTarget};
+use voice_wire::{CancelCause, HeardSegment, HeardTail, UtteranceEnd, VoiceTarget};
 
 /// Whether the end of the audio is waiting for the engine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +90,9 @@ where
     pub usage: U,
     pub earcons: Earcons,
     pub input: Option<String>,
+    pub max_hold: std::time::Duration,
+    pub deadline: Deadline,
+    pub leaving: Leaving,
     pub counter: u64,
     pub utt: Option<Utt>,
     pub node: Option<AudioNode>,
@@ -132,6 +136,8 @@ where
                 event = link_next(&mut self.stt) => self.stt_event(event).await,
                 event = link_next(&mut self.say.link) => self.tts_event(event).await,
                 Some(played) = self.played.recv() => self.played(played).await,
+                () = self.deadline.expired() => self.hold_over(CancelCause::TooLong).await,
+                () = self.leaving.left() => self.hold_over(CancelCause::Shell).await,
             }
         }
     }

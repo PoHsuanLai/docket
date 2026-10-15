@@ -15,6 +15,7 @@ use crate::playback;
 use crate::sink::EventSink;
 use crate::usage::UseSource;
 use crate::warm::{Warm, stt_need};
+use crate::watch::{Deadline, Leaving};
 use crate::{UtteranceSkeleton, VoiceSkeleton};
 use docket_core::VoiceIntent;
 use porter_client::Transport;
@@ -118,6 +119,7 @@ where
             return Err(VoiceRefusal::MicUnavailable.into());
         };
         let (sink, fd) = EventSink::open().map_err(|e| VoiceError::Malformed(e.to_string()))?;
+        let leaving = Leaving::of(&self.conn, &caller.unique).await;
         self.utt_event(UtteranceEvent::Cancel(CancelCause::Superseded))
             .await;
         self.counter += 1;
@@ -152,6 +154,8 @@ where
             },
             dictation: (begin.intent == VoiceIntent::Dictate).then(crate::frames::Dictation::new),
         });
+        self.deadline = Deadline::after(self.max_hold);
+        self.leaving = leaving;
         let (speech, state, steps) =
             begin_utterance(self.say.state.clone(), UtteranceState::Idle, probe);
         self.say.state = speech;
@@ -235,6 +239,11 @@ where
         Ok(())
     }
 
+    /// A hold that ran out of time or lost its caller ends as `cause`.
+    pub(crate) async fn hold_over(&mut self, cause: CancelCause) {
+        self.utt_event(UtteranceEvent::Cancel(cause)).await;
+    }
+
     /// Runs one event through the utterance machine and carries out what it asks, then lets the
     /// speech machine know if the mic changed.
     pub(crate) async fn utt_event(&mut self, event: UtteranceEvent) {
@@ -254,6 +263,10 @@ where
                 .as_ref()
                 .map_or(MicNow::Closed, |u| mic_of(u.state));
             if before != after {
+                if after == MicNow::Closed {
+                    self.deadline = Deadline::default();
+                    self.leaving = Leaving::default();
+                }
                 self.speech_mic(after).await;
             }
         }
@@ -291,8 +304,11 @@ where
             UtteranceEffect::Buffer => {
                 let cur = std::mem::take(&mut self.cur);
                 if let Some(utt) = self.utt.as_mut() {
-                    // Past ten seconds the oldest audio goes (voice.md §4.2).
-                    let _: PushOutcome = utt.pcm.push(&cur);
+                    // Past ten seconds the oldest audio would go (voice.md §4.2): the
+                    // utterance is `TooLong` instead, and ends.
+                    if let PushOutcome::DroppedOldest { .. } = utt.pcm.push(&cur) {
+                        return Some(UtteranceEvent::Cancel(CancelCause::TooLong));
+                    }
                 }
             }
             UtteranceEffect::StatusChanged => self.status_changed().await,

@@ -47,6 +47,14 @@ pub struct VoicedConfig {
     /// person's default source. Absent: follow the default. (Sill's settings could carry it later.)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input: Option<String>,
+    /// `max_hold_ms`: the longest the mic stays open on one `Begin`, in milliseconds. Past it the
+    /// utterance is cancelled as `TooLong`. Absent: a minute.
+    #[serde(default = "default_max_hold_ms")]
+    pub max_hold_ms: u64,
+}
+
+fn default_max_hold_ms() -> u64 {
+    crate::watch::DEFAULT_MAX_HOLD_MS
 }
 
 impl VoicedConfig {

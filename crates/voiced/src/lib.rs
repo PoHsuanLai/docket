@@ -25,6 +25,7 @@ mod talk;
 mod usage;
 mod utter;
 mod warm;
+mod watch;
 mod wire;
 
 pub use bus::{SpeechSkeleton, UtteranceSkeleton, VoiceSkeleton};

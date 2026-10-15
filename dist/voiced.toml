@@ -5,3 +5,6 @@ earcons = "on"
 
 [roles]
 shell = ["org.quire.Shell"]
+# The longest the mic stays open on one Begin; past it the utterance ends as TooLong. The mic also
+# closes at once if the connection that began it leaves the bus.
+# max_hold_ms = 60000
