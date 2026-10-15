@@ -70,9 +70,11 @@ impl Future for ThreadSleep {
             None => {
                 let slot = Arc::new(Slot::default());
                 slot.waker.register(cx.waker());
-                // No thread to wait on: the span counts as run out, so a wait never hangs on it.
+                // No thread to wait on: the deadline never comes. A host that cannot make a
+                // thread must not see every wait on a peer end at once; the work it waits for
+                // still wakes it.
                 if !start(slot.clone(), span) {
-                    return Poll::Ready(());
+                    return Poll::Pending;
                 }
                 self.slot = Some(slot.clone());
                 slot
