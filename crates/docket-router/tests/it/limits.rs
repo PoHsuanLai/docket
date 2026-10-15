@@ -102,9 +102,12 @@ async fn always_ask_beats_the_persons_always_allow_and_says_why() {
     assert_eq!(shown[0].limits.never, NeverOffer::Offered);
     assert_eq!(shown[0].offer, ConfirmOffer::OnceOnly);
     assert!(matches!(shown[0].always, AlwaysOffer::Withheld(_)));
-    // Undo is the one revoke path.
+    // Undo is the one revoke path. Another thread, since the same call a third time is the
+    // repeat guard's.
     assert_eq!(router.revoke_standing(&ask.id), Revocation::Revoked);
-    perform(&router, archive()).await.expect("allowed again");
+    perform(&router, call("mail.thread.archive", &["t2"], vec![]))
+        .await
+        .expect("allowed again");
 }
 
 #[tokio::test]
