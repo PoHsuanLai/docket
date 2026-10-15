@@ -172,51 +172,6 @@ async fn read_pages<L: SessionLog>(
     Err(RestoreFault::TooLong)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use docket_session::{Appended, LogPage, SessionEntry};
-
-    /// A log whose every page says there is another.
-    struct Endless;
-
-    impl SessionLog for Endless {
-        async fn append(
-            &self,
-            _session: &SessionId,
-            seq: Seq,
-            _entry: &SessionEntry,
-        ) -> Result<Appended, LogFault> {
-            Ok(Appended { seq })
-        }
-
-        async fn page(
-            &self,
-            _session: &SessionId,
-            _from: Option<Seq>,
-            _size: PageSize,
-        ) -> Result<LogPage, LogFault> {
-            Ok(LogPage {
-                rows: Vec::new(),
-                next: Some(Seq(1)),
-            })
-        }
-
-        async fn sessions(&self) -> Result<Vec<SessionId>, LogFault> {
-            Ok(Vec::new())
-        }
-    }
-
-    #[tokio::test]
-    async fn a_log_that_never_ends_is_too_long_not_a_hang() {
-        let id = SessionId::parse("s-1").expect("session");
-        assert_eq!(
-            read_pages(&Endless, &id, 3).await,
-            Err(RestoreFault::TooLong)
-        );
-    }
-}
-
 /// The session a request names, if it names one.
 pub(crate) fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
     use IntentsRequest as R;
@@ -264,5 +219,50 @@ pub(crate) fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         | R::SessionStored { .. } => None,
         // A request of an unknown kind names no session, so no session is restored for it.
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use docket_session::{Appended, LogPage, SessionEntry};
+
+    /// A log whose every page says there is another.
+    struct Endless;
+
+    impl SessionLog for Endless {
+        async fn append(
+            &self,
+            _session: &SessionId,
+            seq: Seq,
+            _entry: &SessionEntry,
+        ) -> Result<Appended, LogFault> {
+            Ok(Appended { seq })
+        }
+
+        async fn page(
+            &self,
+            _session: &SessionId,
+            _from: Option<Seq>,
+            _size: PageSize,
+        ) -> Result<LogPage, LogFault> {
+            Ok(LogPage {
+                rows: Vec::new(),
+                next: Some(Seq(1)),
+            })
+        }
+
+        async fn sessions(&self) -> Result<Vec<SessionId>, LogFault> {
+            Ok(Vec::new())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_log_that_never_ends_is_too_long_not_a_hang() {
+        let id = SessionId::parse("s-1").expect("session");
+        assert_eq!(
+            read_pages(&Endless, &id, 3).await,
+            Err(RestoreFault::TooLong)
+        );
     }
 }
