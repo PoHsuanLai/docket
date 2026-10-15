@@ -152,9 +152,9 @@ impl Default for AgentConfig {
                 chain: Depth(4),
                 wall: Seconds(1800),
                 reviews: Count(300),
-                // Five US dollars a session; a local model costs nothing. Zero would stop a session
-                // after its first paid turn.
-                spend: MicroUsd(5_000_000),
+                // Zero keeps a task on this computer: a local model costs nothing, and a paid turn
+                // is over the cap until the person raises it (`agent.budget.spend_microusd`).
+                spend: MicroUsd(0),
             },
             mass_at: Count(20),
             confirm_expiry: Seconds(120),
