@@ -44,6 +44,8 @@ pub enum ConfirmAnswerKind {
     Allowed(GrantScope),
     /// Yes, and the terminal may run this action until logout.
     AllowedFromTerminal,
+    /// Never: refused, and a "never" kept for it.
+    Never,
     /// It ended without a yes.
     Ended(ConfirmEnd),
 }

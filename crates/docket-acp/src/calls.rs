@@ -26,6 +26,7 @@ fn denied(code: DenyCode) -> &'static str {
         DenyCode::NotAllowed => "Not something the assistant may do.",
         DenyCode::NeedsUser => "Needs your confirmation on the desktop.",
         DenyCode::Repeated => "Already refused.",
+        DenyCode::Never => "You said this is never allowed.",
     }
 }
 

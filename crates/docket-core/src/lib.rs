@@ -28,6 +28,7 @@ mod exec_facts;
 mod exec_reach;
 mod execute;
 mod external;
+mod floor;
 mod gate;
 mod grant;
 #[cfg(feature = "atomic-file")]
@@ -35,6 +36,7 @@ mod grant_file;
 mod grant_space;
 mod ids;
 mod index;
+mod limit;
 mod manifest;
 mod marks;
 mod message;
@@ -101,7 +103,8 @@ pub use config::{
 };
 pub use confirm::{
     Anchor, ArgLine, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer,
-    ConfirmParts, ConfirmRequest, Confirmer, EditorRoute, Gesture, GrantScope, Shown, TaintNote,
+    ConfirmParts, ConfirmRequest, Confirmer, EditorRoute, Gesture, GrantScope, NeverOffer,
+    SheetLimits, Shown, TaintNote,
 };
 pub use context::{
     CharRange, ContextKeep, ContextScope, ContextSnapshot, ContextView, EditTarget, EntityLine,
@@ -117,6 +120,7 @@ pub use exec_facts::{
 pub use exec_reach::{NetAccess, NetReach};
 pub use execute::{CannotSandbox, EXECUTE_AS, SandboxState};
 pub use external::{ExternalAgent, SheetSurface};
+pub use floor::{Floor, FloorEntry, FloorFault, FloorFile};
 pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};
 pub use grant::{
     ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, ProgramName, ProgramNameError,
@@ -133,6 +137,11 @@ pub use ids::{
     UtteranceId, ViewName, WindowKey, action_prefix,
 };
 pub use index::{Hit, IndexBatch, IndexEntry, IndexState, SearchAsk, SearchScope, SuggestAsk};
+pub use limit::{
+    Level, Limit, LimitCall, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitNote, LimitScope,
+    Limited, NotATightening, Said, SaidFault, Tighten, UndoOffer, decode_limits, encode_limits,
+    limited, limits_with, limits_without,
+};
 pub use manifest::{
     ActionDecl, AgentReach, ArgSink, Cardinality, DryRun, EntityDecl, IndexPolicy, KeyHint,
     Lasting, Latency, Manifest, ParamDecl, ParamNeed, PropDecl, RELATION_ARG, RelationDecl,

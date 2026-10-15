@@ -28,6 +28,7 @@ fn sheet(id: &str) -> ConfirmRequest {
         taint: TaintNote::Clean,
         offer: ConfirmOffer::OnceOnly,
         always: Default::default(),
+        limits: Default::default(),
         gesture: Gesture::Press,
         anchor: Anchor::Launcher,
         expires: Seconds(120),

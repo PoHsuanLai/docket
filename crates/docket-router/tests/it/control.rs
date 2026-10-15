@@ -85,6 +85,7 @@ async fn a_pixel_step_needs_the_persons_consent_for_the_app_and_then_a_read_runs
         IntentsRequest::GateGrant(GrantAsk {
             app: mail_app(),
             space: space("work"),
+            level: Default::default(),
         }),
     )
     .await;
@@ -121,6 +122,7 @@ async fn a_dismissed_grant_request_records_nothing() {
         IntentsRequest::GateGrant(GrantAsk {
             app: mail_app(),
             space: space("work"),
+            level: Default::default(),
         }),
     )
     .await;
@@ -361,6 +363,7 @@ async fn a_run_that_looked_at_a_screen_reports_with_the_screens_label() {
         IntentsRequest::GateGrant(GrantAsk {
             app: mail_app(),
             space: space("work"),
+            level: Default::default(),
         }),
     )
     .await;

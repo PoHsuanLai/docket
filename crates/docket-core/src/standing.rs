@@ -429,7 +429,16 @@ pub struct StandingIdFault;
 impl StandingGrantId {
     /// The id of the grant for `caller` and `scope`.
     pub fn of(caller: &GrantCaller, scope: &StandingScope) -> Self {
-        let bytes = serde_json::to_vec(&(caller, scope)).unwrap_or_default();
+        Self::hashed(&serde_json::to_vec(&(caller, scope)).unwrap_or_default())
+    }
+
+    /// The id of the limit with this key: the same hash over the key and a tag, so a limit is
+    /// revoked through the same path as a grant and the two never share an id in practice.
+    pub fn of_limit(key: &crate::limit::LimitKey) -> Self {
+        Self::hashed(&serde_json::to_vec(&("limit", key)).unwrap_or_default())
+    }
+
+    fn hashed(bytes: &[u8]) -> Self {
         let hash = bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
             (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
         });

@@ -4,6 +4,7 @@
 
 use crate::context::EntityRef;
 use crate::ids::{LabelText, WindowKey};
+use crate::limit::LimitNote;
 use crate::preview::{FileMove, Preview};
 use crate::review::AskReason;
 use crate::standing_offer::AlwaysOffer;
@@ -133,6 +134,29 @@ pub struct EditorRoute {
     pub session: SessionId,
 }
 
+/// Whether the sheet offers "never" beside its other answers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NeverOffer {
+    /// Not on the sheet (the person's own acts, a sheet that is not about an agent's call).
+    #[default]
+    Withheld,
+    /// On the sheet: the answer refuses this call and keeps a "never" for it.
+    Offered,
+}
+
+/// What the sheet says about limits: whether "never" is offered, and the limit that is the
+/// reason it asks, if one is.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct SheetLimits {
+    /// Whether "never" is offered.
+    pub never: NeverOffer,
+    /// The "always ask" entry that made this sheet appear, in plain words, with the id Undo
+    /// removes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub held: Option<LimitNote>,
+}
+
 /// What the compositor or the shell draws.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConfirmRequest {
@@ -165,6 +189,10 @@ pub struct ConfirmRequest {
     /// sheet from before it existed reads as none.
     #[serde(default)]
     pub always: AlwaysOffer,
+    /// Whether "never" is offered, and the limit behind the sheet, if one is. A sheet from
+    /// before limits reads as offering nothing.
+    #[serde(default)]
+    pub limits: SheetLimits,
     /// How to answer.
     pub gesture: Gesture,
     /// Where to draw it.
@@ -250,6 +278,7 @@ impl ConfirmRequest {
             taint,
             offer,
             always: AlwaysOffer::default(),
+            limits: SheetLimits::default(),
             gesture,
             anchor,
             expires,
@@ -260,6 +289,11 @@ impl ConfirmRequest {
     /// The same request for a call in a session an editor drives.
     pub fn for_editor(self, editor: Option<EditorRoute>) -> Self {
         ConfirmRequest { editor, ..self }
+    }
+
+    /// The same request with these limits.
+    pub fn limiting(self, limits: SheetLimits) -> Self {
+        ConfirmRequest { limits, ..self }
     }
 
     /// The same request with this "allow always" offer.
@@ -289,6 +323,14 @@ pub enum ConfirmAnswer {
         /// The proof.
         receipt: ConfirmReceipt,
     },
+    /// Never: refuse this call and keep a "never" for it. The receipt proves the person said so,
+    /// as it does for a yes. It is a new answer rather than a scope because a scope says how long
+    /// a yes lasts (`GrantScope` is porter's and has no no), and a no that is kept is not a
+    /// `ConfirmEnd`, which says no answer was given.
+    Never {
+        /// The proof.
+        receipt: ConfirmReceipt,
+    },
     /// No answer to act on.
     Ended(ConfirmEnd),
 }
@@ -301,6 +343,15 @@ impl ConfirmAnswer {
             ConfirmAnswer::AllowedFromTerminal { .. } => {
                 ConfirmAnswer::Ended(ConfirmEnd::Cancelled)
             }
+            other => other,
+        }
+    }
+
+    /// For a sheet that did not offer "never": that answer was never on it, so it counts as the
+    /// person saying no this once, and nothing is kept.
+    pub fn without_never(self) -> ConfirmAnswer {
+        match self {
+            ConfirmAnswer::Never { .. } => ConfirmAnswer::Ended(ConfirmEnd::Refused),
             other => other,
         }
     }

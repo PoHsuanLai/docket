@@ -92,6 +92,8 @@ pub enum DenyCode {
     NeedsUser,
     /// The same call was already refused.
     Repeated,
+    /// The person said never to this (or the administrator did); it is refused without asking.
+    Never,
 }
 
 /// Why the breaker tripped.

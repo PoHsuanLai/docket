@@ -277,6 +277,7 @@ async fn the_scripted_confirmer_pops_in_order_and_records_requests() {
         taint: TaintNote::Clean,
         offer: ConfirmOffer::OnceOnly,
         always: Default::default(),
+        limits: Default::default(),
         gesture: Gesture::Press,
         anchor: Anchor::Centre,
         expires: Seconds(120),

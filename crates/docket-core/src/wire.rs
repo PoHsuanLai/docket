@@ -223,6 +223,11 @@ pub struct GrantAsk {
     pub app: AppName,
     /// The Space.
     pub space: SpaceId,
+    /// What the caller's own setting for this app says: allow always (the default, and what a
+    /// request from before this field meant), ask every run, or never. The router keeps its own
+    /// store the last word: an entry it holds can only make this stricter.
+    #[serde(default)]
+    pub level: crate::limit::Level,
 }
 
 /// How a grant request ended.
@@ -233,6 +238,8 @@ pub enum GrantAnswer {
     Granted,
     /// They did not.
     Refused(ConfirmEnd),
+    /// Refused without asking: the person's "never" (or the administrator's) covers it.
+    Never,
 }
 
 /// How far an undo got.
