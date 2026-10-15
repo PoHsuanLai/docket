@@ -37,6 +37,9 @@ pub enum FileFault {
     /// What the path leads to changed between the check and the open.
     #[error("the path changed under the call")]
     Moved,
+    /// A directory, a pipe, a device or a socket: only a regular file is read.
+    #[error("not a regular file")]
+    NotRegular,
 }
 
 /// The seam.
@@ -109,6 +112,59 @@ fn resolve(path: &Path) -> Result<PathBuf, FileFault> {
     }
 }
 
+/// `O_NONBLOCK` where it is known: opening a pipe without it waits for a writer, and a pipe the
+/// agent made in its own directory would hold the caller (and the performer's lock) for good.
+/// Elsewhere 0: the regular-file check before the open is then the only guard.
+#[cfg(all(
+    target_os = "linux",
+    any(
+        target_arch = "x86",
+        target_arch = "x86_64",
+        target_arch = "arm",
+        target_arch = "aarch64",
+        target_arch = "riscv64",
+        target_arch = "powerpc64",
+        target_arch = "s390x",
+        target_arch = "loongarch64"
+    )
+))]
+const NONBLOCK: i32 = 0o4000;
+#[cfg(all(unix, target_vendor = "apple"))]
+const NONBLOCK: i32 = 0x0004;
+#[cfg(not(any(
+    all(
+        target_os = "linux",
+        any(
+            target_arch = "x86",
+            target_arch = "x86_64",
+            target_arch = "arm",
+            target_arch = "aarch64",
+            target_arch = "riscv64",
+            target_arch = "powerpc64",
+            target_arch = "s390x",
+            target_arch = "loongarch64"
+        )
+    ),
+    all(unix, target_vendor = "apple")
+)))]
+const NONBLOCK: i32 = 0;
+
+/// Opens `path` for reading without waiting for anyone on the other end.
+fn open_for_read(path: &str) -> std::io::Result<File> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        OpenOptions::new()
+            .read(true)
+            .custom_flags(NONBLOCK)
+            .open(path)
+    }
+    #[cfg(not(unix))]
+    {
+        File::open(path)
+    }
+}
+
 /// Whether the open descriptor still points inside `within`.
 #[cfg(unix)]
 fn still_inside(file: &File, within: &AbsPath) -> Result<(), FileFault> {
@@ -159,10 +215,22 @@ impl Files for OsFiles {
     }
 
     fn read(&mut self, real: &AbsPath, within: &AbsPath) -> Result<String, FileFault> {
-        let mut file = File::open(real.as_str()).map_err(|e| fault(&e))?;
+        // Looked at before the open, so a pipe is refused where the open cannot be made not to
+        // wait; and again on the descriptor, which is what is read.
+        if !std::fs::metadata(real.as_str())
+            .map_err(|e| fault(&e))?
+            .is_file()
+        {
+            return Err(FileFault::NotRegular);
+        }
+        let mut file = open_for_read(real.as_str()).map_err(|e| fault(&e))?;
         still_inside(&file, within)?;
-        if file.metadata().map_err(|e| fault(&e))?.is_dir() {
-            return Err(FileFault::Refused);
+        let meta = file.metadata().map_err(|e| fault(&e))?;
+        if !meta.is_file() {
+            return Err(FileFault::NotRegular);
+        }
+        if meta.len() > MAX_READ as u64 {
+            return Err(FileFault::TooBig);
         }
         read_text(&mut file)
     }
@@ -205,7 +273,7 @@ impl Files for OsFiles {
     }
 
     fn remove(&mut self, real: &AbsPath, within: &AbsPath) -> Result<(), FileFault> {
-        let file = File::open(real.as_str()).map_err(|e| fault(&e))?;
+        let file = open_for_read(real.as_str()).map_err(|e| fault(&e))?;
         still_inside(&file, within)?;
         std::fs::remove_file(real.as_str()).map_err(|e| fault(&e))
     }

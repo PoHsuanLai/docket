@@ -121,3 +121,27 @@ fn a_refused_write_leaves_no_new_file_and_spares_an_old_one() {
     assert!(files.write(&outside(&old), &within, "evil").is_err());
     assert_eq!(std::fs::read_to_string(&old).expect("old"), "kept");
 }
+
+/// Why: a pipe the agent made in its own directory has no writer; opening it plainly waits for
+/// one, forever, with the performer's lock held. Only a regular file is read, and a big one is
+/// refused before it is read.
+#[test]
+fn a_pipe_or_a_directory_is_refused_at_once_and_a_big_file_is_too_big() {
+    let root = tempfile::tempdir().expect("scratch");
+    let within = abs(root.path().to_str().expect("utf8"));
+    let at = |name: &str| abs(root.path().join(name).to_str().expect("utf8"));
+    let made = std::process::Command::new("mkfifo")
+        .arg(root.path().join("pipe"))
+        .status()
+        .expect("mkfifo runs");
+    assert!(made.success());
+    std::fs::create_dir(root.path().join("dir")).expect("dir");
+    let big = std::fs::File::create(root.path().join("big")).expect("big");
+    big.set_len(docket_acp::client::MAX_READ as u64 + 1)
+        .expect("sparse");
+
+    let mut files = OsFiles;
+    assert_eq!(files.read(&at("pipe"), &within), Err(FileFault::NotRegular));
+    assert_eq!(files.read(&at("dir"), &within), Err(FileFault::NotRegular));
+    assert_eq!(files.read(&at("big"), &within), Err(FileFault::TooBig));
+}
