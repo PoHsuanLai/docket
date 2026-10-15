@@ -8,13 +8,15 @@
 //! - `messages`, `system_text`, `user_text`, `RULES`: the prompt; `RoleText`: an agent's own
 //!   instructions, which follow the rules and never replace them.
 //! - `PlannerModel::summarise`: the model turn that writes a summary of a task's oldest steps, from
-//!   what the planner was shown alone.
+//!   what the planner was shown alone; `PlannerModel::prefix`: the part of a request that does
+//!   not change within a task, with the cache break after it.
 //! - `read_call`, `planner_label`: the planner's own steps and labels.
 
 mod accepts;
 mod args;
 mod catalogue;
 mod planner;
+mod prefix;
 mod read_ask;
 mod render;
 mod role;
@@ -30,6 +32,7 @@ pub use planner::{
     PlanFault, PlannerModel, PlannerReply, TOOL_ANSWER, TOOL_ASK, TOOL_FINISH, TOOL_READ,
     TOOL_RELATED,
 };
+pub use prefix::{CacheBreak, StablePrefix};
 pub use render::{RULES, messages, messages_with, system_text, system_text_with, user_text};
 pub use role::{ROLE_LIMIT, RoleFault, RoleText};
 pub use summarise::{SUMMARY_RULES, SummariseFault, Summarised, summary_text};
