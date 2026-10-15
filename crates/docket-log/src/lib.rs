@@ -10,6 +10,9 @@
 //! No subscriber crate is used: this is the whole of it, over the `tracing` the workspace
 //! already builds.
 
+#[cfg(feature = "otlp")]
+mod otlp;
+
 use std::fmt::{self, Write as _};
 use std::io::Write as _;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -109,6 +112,8 @@ pub fn init(daemon: &'static str) {
         spans: AtomicU64::new(0),
     };
     let _ = tracing::subscriber::set_global_default(lines);
+    #[cfg(feature = "otlp")]
+    otlp::note();
 }
 
 #[cfg(test)]

@@ -13,3 +13,15 @@ tracing = { workspace = true }
 
 [lints]
 workspace = true
+
+[features]
+# Telemetry export over OTLP, read from `OTEL_EXPORTER_OTLP_ENDPOINT` by `init` (so only a daemon's
+# `main` reads it). Off by default.
+#
+# TODO(otlp): the exporter itself is not written. `opentelemetry`, `opentelemetry-otlp`,
+# `tracing-opentelemetry` and `tracing-subscriber` are not in the offline cargo registry, so no
+# dependency is added. When they can be fetched: add them as optional dependencies behind this
+# feature, build the layer in `otlp::note`, install it beside `Lines` in `init`, add the crates'
+# licences to deny.toml if any is outside its allow list, and keep span content out (the router's
+# spans carry ids and counts only). Until then the feature only says, once, that no exporter ran.
+otlp = []
