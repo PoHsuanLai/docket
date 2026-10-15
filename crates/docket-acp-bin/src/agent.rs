@@ -25,7 +25,7 @@ pub mod tty;
 
 use args::{Args, Mode};
 use bulkhead::Detected;
-use docket_acp::client::ToolsOffer;
+use docket_acp::client::{ToolsOffer, Workdir};
 use docket_agents::AgentsDir;
 use docket_core::AbsPath;
 use docket_inapp::EditorDesk;
@@ -157,6 +157,12 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
     }
     let cwd = std::fs::canonicalize(&args.cwd).map_err(|e| AgentFault::Directory(e.to_string()))?;
     let cwd = cwd.to_str().ok_or(AgentFault::DirectoryNotUtf8)?.to_owned();
+    // The agent gets this folder read-write: never the home folder itself (its dot-directories
+    // hold the person's configuration), nor a place of secrets.
+    let folder = AbsPath::parse(&cwd).map_err(|e| AgentFault::Directory(e.to_string()))?;
+    let home = env("HOME").map(PathBuf::from);
+    Workdir::resolve(&folder, &folder, home.as_deref())
+        .map_err(|e| AgentFault::Directory(format!("{cwd}: {e}; give --cwd a project folder")))?;
     let desk = EditorDesk::new();
     let Hosted {
         mut host, session, ..
