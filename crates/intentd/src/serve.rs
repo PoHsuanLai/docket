@@ -2,9 +2,11 @@
 
 use crate::acp_gate::AcpGate;
 use crate::bus::{Gateway, Handler, SearchPort, export};
+use crate::callers;
 use crate::config::IntentdConfig;
 use crate::peer::Peers;
 use docket_core::{CallerId, IntentsReply, IntentsRequest, Member};
+use docket_dbus::callers::Identity;
 use docket_dbus::{BusConnection, INTENTS_BUS};
 use docket_router::{Router, Seams, Watch, acting_role};
 use porter_daemon::ProcRoot;
@@ -61,7 +63,8 @@ fn search_port<S: Seams + 'static>(router: Arc<Router<S>>) -> SearchPort {
 }
 
 /// Exports every interface of `org.quire.Intents1` on `connection` over `router` and claims the
-/// name; the roles of the callers are `config`'s. Returns once the name is ours and the
+/// name; the roles of the callers are `config`'s, and the processes behind them are named by the
+/// shipped `intentd-callers.toml` over the system's `/proc`. Returns once the name is ours and the
 /// connection keeps serving until it closes.
 pub async fn serve_on<S: Seams + 'static>(
     connection: &BusConnection,
@@ -79,21 +82,28 @@ pub async fn serve_on_with<S: Seams + 'static>(
     config: Arc<IntentdConfig>,
     proc_root: &ProcRoot,
 ) -> Result<(), ServeFault> {
-    serve_on_gated(connection, router, config, proc_root, AcpGate::shut()).await
+    let who = Arc::new(Identity::on(
+        connection.clone(),
+        callers::shipped(),
+        proc_root.fixture(),
+    ));
+    serve_on_gated(connection, router, config, who, proc_root, AcpGate::shut()).await
 }
 
-/// As [`serve_on_with`], with `org.quire.Acp` a name only while `acp` shows the setting on.
+/// As [`serve_on_with`], with callers named by `who` (the daemon's table) and `org.quire.Acp` an
+/// app only while `acp` shows the setting on.
 pub async fn serve_on_gated<S: Seams + 'static>(
     connection: &BusConnection,
     router: Arc<Router<S>>,
     config: Arc<IntentdConfig>,
+    who: Arc<Identity>,
     proc_root: &ProcRoot,
     acp: AcpGate,
 ) -> Result<(), ServeFault> {
     let gateway = Gateway::new(
         handler(router.clone()),
         search_port(router),
-        Peers::gated(connection.clone(), config, proc_root, acp),
+        Peers::gated(connection.clone(), config, who, proc_root, acp),
     );
     // Before the interfaces are exported, so no peer can leave unwatched.
     gateway.forget_leavers(connection).await.map_err(bus)?;

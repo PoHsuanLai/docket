@@ -1,6 +1,8 @@
-//! The sheet that asks the person: `org.quire.Confirm1`, served by sill. Only the process that
-//! owns the name and plays the `confirm` role in `intentd.toml` is trusted with a question: a
-//! name nobody trusted answers nothing, and an unanswered sheet is a dismissal, never an allow.
+//! The sheet that asks the person: `org.quire.Confirm1`, served by sill. Only a process that
+//! `intentd-callers.toml` names as the sheet host (the shell's unit, with the `sheet_host` role of
+//! the system's table) and that plays the `confirm` role in `intentd.toml` is trusted with a
+//! question: the well-known name only says where to send it, and a process nobody trusted answers
+//! nothing. An unanswered sheet is a dismissal, never an allow.
 //!
 //! A sheet for a call in a session an editor drives (`ConfirmRequest::editor`, set by the router)
 //! goes to that editor's process instead, which serves the same `Confirm1` under its own bus name
@@ -14,9 +16,11 @@
 //! names no route, and the agent's sheets are the desktop's like any other.
 
 use crate::acp_gate::AcpGate;
+use crate::callers;
 use crate::config::IntentdConfig;
 use crate::peer::Peers;
 use docket_core::{CallerRole, ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmRequest, Confirmer};
+use docket_dbus::callers::Identity;
 use docket_dbus::{BusConnection, CONFIRM_BUS, ConfirmProxy};
 use porter_core::AppName;
 use porter_daemon::ProcRoot;
@@ -55,7 +59,7 @@ impl Surface {
         }
     }
 
-    /// The roles of which the owner of the service must play one to be trusted with a question.
+    /// The roles of which the process behind the service must play one to be trusted with a question.
     fn roles(&self) -> &'static [CallerRole] {
         match self {
             Surface::Desktop => &[CallerRole::Confirm],
@@ -81,6 +85,7 @@ impl Surface {
 pub struct SheetConfirmer {
     connection: BusConnection,
     config: Arc<IntentdConfig>,
+    who: Arc<Identity>,
     peers: Peers,
     grace: Duration,
     /// The surface each open sheet went to, so a withdrawal finds it.
@@ -88,18 +93,25 @@ pub struct SheetConfirmer {
 }
 
 impl SheetConfirmer {
-    /// Asks over `connection`, trusting the `confirm` role of the shipped configuration.
+    /// Asks over `connection`, trusting the `confirm` role of the shipped configuration, held by
+    /// the processes the shipped `intentd-callers.toml` names.
     pub fn new(connection: BusConnection) -> Self {
         let config = IntentdConfig::shipped().unwrap_or_else(|_| IntentdConfig::empty());
-        Self::trusting(connection, Arc::new(config))
+        let who = Arc::new(Identity::on_system(connection.clone(), callers::shipped()));
+        Self::trusting(connection, Arc::new(config), who)
     }
 
-    /// Asks over `connection`, trusting the `confirm` role of `config`.
-    pub fn trusting(connection: BusConnection, config: Arc<IntentdConfig>) -> Self {
-        let peers = Peers::new(connection.clone(), config.clone());
+    /// Asks over `connection`, trusting the `confirm` role of `config` for the app `who` names.
+    pub fn trusting(
+        connection: BusConnection,
+        config: Arc<IntentdConfig>,
+        who: Arc<Identity>,
+    ) -> Self {
+        let peers = Peers::new(connection.clone(), config.clone(), who.clone());
         Self {
             connection,
             config,
+            who,
             peers,
             grace: GRACE,
             open: Arc::default(),
@@ -108,7 +120,13 @@ impl SheetConfirmer {
 
     /// Trusts the editor role of the name `org.quire.Acp` only while `acp` shows the setting on.
     pub fn gated(mut self, acp: AcpGate, proc_root: &ProcRoot) -> Self {
-        self.peers = Peers::gated(self.connection.clone(), self.config.clone(), proc_root, acp);
+        self.peers = Peers::gated(
+            self.connection.clone(),
+            self.config.clone(),
+            self.who.clone(),
+            proc_root,
+            acp,
+        );
         self
     }
 

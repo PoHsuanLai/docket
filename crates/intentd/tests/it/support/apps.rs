@@ -3,7 +3,8 @@
 //! `Confirm1` with scripted answers. Shared by intentd's tests and `quire-do`'s end-to-end test.
 #![allow(dead_code)]
 
-use docket_client::{ContextSource, IntentProvider, SummonTarget, serve_on};
+use docket_client::{ContextSource, IntentProvider, SummonTarget, serve_on_with};
+use docket_core::CallerRole;
 use docket_core::{
     AppRefusal, ConfirmAnswer, ConfirmEnd, ConfirmRequest, ContextScope, ContextSnapshot,
     EntityRef, Here, Hit, Invocation, Outcome, Preview, Selection, SuggestAsk, SummonAnswer,
@@ -11,13 +12,67 @@ use docket_core::{
     WindowPrivacy,
 };
 use docket_dbus::BusConnection;
+use docket_dbus::callers::{Identity, Role};
 use docket_fake::{FakeMail, MailThread};
-use porter_core::Count;
+use intentd::IntentdConfig;
+use porter_core::{AppName, Count};
 use prov::{Actor, EntityId, Label, SpaceId};
-use std::collections::VecDeque;
+use std::collections::{BTreeSet, VecDeque};
 use std::sync::{Arc, Mutex};
 use zbus::fdo;
 use zbus::zvariant::OwnedObjectPath;
+
+/// The role the callers table gives a process that plays `roles`: the sheet host for the sheet
+/// roles, `cua` and `compositor` for theirs, an agent for a daemon's or an editor's, a plain app
+/// for the rest.
+pub fn held_by(roles: &BTreeSet<CallerRole>) -> Role {
+    let plays = |wanted: &[CallerRole]| wanted.iter().any(|r| roles.contains(r));
+    if plays(&[
+        CallerRole::Launcher,
+        CallerRole::Confirm,
+        CallerRole::Control,
+    ]) {
+        Role::SheetHost
+    } else if plays(&[CallerRole::Cua]) {
+        Role::Cua
+    } else if plays(&[CallerRole::Compositor]) {
+        Role::Compositor
+    } else if plays(&[
+        CallerRole::Companion,
+        CallerRole::Reader,
+        CallerRole::Mcp,
+        CallerRole::Editor,
+        CallerRole::AcpAgent,
+    ]) {
+        Role::Agent
+    } else {
+        Role::App
+    }
+}
+
+/// Tells `who` that `connection` is the process that claims `names`: the app of the first name
+/// the configuration lists (else the first name), with the role its roles get. No names, no word:
+/// the fake proc root decides.
+pub fn introduce(
+    who: &Identity,
+    connection: &docket_dbus::BusConnection,
+    config: &IntentdConfig,
+    names: &[&str],
+) {
+    let listed = names.iter().find(|n| {
+        !config
+            .roles_of(&AppName::parse(n).expect("app name"))
+            .is_empty()
+    });
+    let Some(name) = listed.or_else(|| names.first()) else {
+        return;
+    };
+    who.introduce_app(
+        connection,
+        name,
+        held_by(&config.roles_of(&AppName::parse(name).expect("app name"))),
+    );
+}
 
 fn locked<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|p| p.into_inner())
@@ -81,8 +136,25 @@ impl SummonTarget for Blank {
     }
 }
 
-/// Starts the mail app on `connection` with the fixture's two threads.
-pub async fn serve_mail(connection: &BusConnection) -> SharedMail {
+/// Who a provider on `connection` answers: the process told to be intentd (`intentd`, a connection
+/// of the same process as everything in a test), by the table that names intentd's unit alone. The
+/// fake proc root under `dir` names nobody else.
+pub fn answering_intentd(
+    connection: &BusConnection,
+    intentd: &BusConnection,
+    dir: &std::path::Path,
+) -> Arc<Identity> {
+    let who = Arc::new(Identity::on_fixture(
+        connection.clone(),
+        docket_dbus::callers::intentd_only(),
+        dir.join("proc"),
+    ));
+    who.introduce_app(intentd, "org.quire.Intents", Role::Agent);
+    who
+}
+
+/// Starts the mail app on `connection` with the fixture's two threads, answering `who`'s intentd.
+pub async fn serve_mail(connection: &BusConnection, who: Arc<Identity>) -> SharedMail {
     let manifest = docket_fake::mail_manifest().expect("the fixture manifest");
     let mail = FakeMail::new(manifest, SpaceId::parse("work").expect("space"));
     for (key, subject, from, body) in [
@@ -103,9 +175,15 @@ pub async fn serve_mail(connection: &BusConnection) -> SharedMail {
     }
     let shared = SharedMail(Arc::new(mail));
     let app = shared.0.manifest().manifest().app.clone();
-    serve_on(connection, shared.clone(), Blank(app.clone()), Blank(app))
-        .await
-        .expect("the mail app serves");
+    serve_on_with(
+        connection,
+        shared.clone(),
+        Blank(app.clone()),
+        Blank(app),
+        who,
+    )
+    .await
+    .expect("the mail app serves");
     shared
 }
 

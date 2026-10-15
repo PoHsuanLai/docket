@@ -1,0 +1,51 @@
+# Who may call intentd (org.quire.Intents1), and as what. A caller is the systemd unit behind the bus
+# connection (the bus names its process, /proc/<pid>/cgroup names the unit or app scope, and a
+# service's role goes only to the unit's main process, as the systemd manager says). The roles of
+# intentd.toml belong to the app a caller is; a role that stands for more than an app needs the
+# role below too, and only THIS file (installed as /etc/quire/intentd-callers.toml) can give a fixed
+# one (sheet_host, cua, compositor); the user's ~/.config/quire/intentd-callers.toml is laid over it
+# and its fixed rows are ignored. An app scope (app-<id>-<n>.scope) or Flatpak app is an app without a
+# row here; a process in neither (a terminal's child apart, which is the cli role), is refused.
+#
+#   role "sheet_host" + app org.quire.Shell      -> sill: launcher, confirm and control
+#   role "cua"        + app org.quire.Cua1       -> cuad
+#   role "agent"      + the daemons' apps        -> companiond, readerd, actions-mcp, docket-acp, docket-agent
+#
+# A scope never carries a fixed role, so the shell is sill.service and nothing else. docket-acp and
+# docket-agent are started by an editor, not by systemd: their rows are scopes they are started in
+# (`systemd-run --user --scope --unit=docket-acp`), which is an agent and no more.
+
+[[caller]]
+app = "org.quire.Shell"
+unit = "sill.service"
+role = "sheet_host"
+
+[[caller]]
+app = "org.quire.Cua1"
+unit = "cuad.service"
+role = "cua"
+
+[[caller]]
+app = "org.quire.Companion1"
+unit = "companiond.service"
+role = "agent"
+
+[[caller]]
+app = "org.quire.Reader1"
+unit = "readerd.service"
+role = "agent"
+
+[[caller]]
+app = "org.quire.ActionsMcp"
+unit = "actions-mcp.service"
+role = "agent"
+
+[[caller]]
+app = "org.quire.Acp"
+unit = "docket-acp.scope"
+role = "agent"
+
+[[caller]]
+app = "org.quire.AcpAgent"
+unit = "docket-agent.scope"
+role = "agent"

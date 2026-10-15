@@ -9,7 +9,7 @@
 
 use crate::support::apps::Blank;
 use crate::support::bus::PrivateBus;
-use docket_client::{IntentProvider, serve_on};
+use docket_client::{IntentProvider, serve_on_with};
 use docket_core::*;
 use docket_dbus::INTENTS_BUS;
 use docket_fake::{
@@ -157,9 +157,16 @@ async fn desk(answers: usize) -> Desk {
     let app = bus.connect().await;
     let manifest = docket_fake::menu_manifest().expect("manifest");
     let menu = SharedMenu(Arc::new(FakeMenu::new(manifest.clone())));
-    serve_on(&app, menu.clone(), Blank(menu_app()), Blank(menu_app()))
-        .await
-        .expect("the menu serves");
+    let who = crate::support::apps::answering_intentd(&app, &daemon, dir.path());
+    serve_on_with(
+        &app,
+        menu.clone(),
+        Blank(menu_app()),
+        Blank(menu_app()),
+        who,
+    )
+    .await
+    .expect("the menu serves");
     let receipt = prov::ConfirmReceipt {
         id: prov::ConfirmId::parse("c-1").expect("id"),
         input: prov::InputProof::HardwareSeat,

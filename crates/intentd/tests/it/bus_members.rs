@@ -123,10 +123,17 @@ impl Pair {
 async fn every_member_over_the_bus_answers_what_the_router_answers() {
     let world = World::serving(mail_router(), everything_config()).await;
     let (everything, _keep) = world.client(&[EVERYTHING]).await;
+    // The connection is introduced as the sheet host, the highest standing one app holds: the roles
+    // that need `cua` or `compositor` in the table are not backed, and it has no more than that.
     let all_roles: Vec<CallerRole> = CallerRole::ALL
         .iter()
         .copied()
-        .filter(|r| *r != CallerRole::App)
+        .filter(|r| {
+            !matches!(
+                r,
+                CallerRole::App | CallerRole::Cua | CallerRole::Compositor
+            )
+        })
         .collect();
     let mut pair = Pair {
         transport: everything,

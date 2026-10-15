@@ -77,6 +77,7 @@ fn ask(handle: Handle) -> ReaderAsk {
 
 struct Rig {
     _dir: tempfile::TempDir,
+    who: Arc<docket_dbus::callers::Identity>,
     bus: PrivateBus,
     _server: docket_dbus::BusConnection,
     intentd: docket_dbus::BusConnection,
@@ -98,7 +99,14 @@ async fn rig(answer: &str) -> Rig {
         )),
     );
     let server = bus.connect().await;
-    serve_on(&server, Arc::new(service))
+    // readerd answers the process its callers file names as intentd; every connection of this test
+    // is one process, so the test says which one that is.
+    let who = Arc::new(docket_dbus::callers::Identity::on_fixture(
+        server.clone(),
+        readerd::shipped_callers(),
+        dir.path().join("proc"),
+    ));
+    serve_on(&server, Arc::new(service), who.clone())
         .await
         .expect("readerd serves");
     let intentd = bus.connect().await;
@@ -106,8 +114,14 @@ async fn rig(answer: &str) -> Rig {
         .request_name(docket_dbus::INTENTS_BUS)
         .await
         .expect("intentd's name");
+    who.introduce_app(
+        &intentd,
+        "org.quire.Intents",
+        docket_dbus::callers::Role::Agent,
+    );
     Rig {
         _dir: dir,
+        who,
         bus,
         _server: server,
         intentd,
@@ -138,13 +152,35 @@ async fn an_answer_out_of_schema_crosses_the_bus_as_the_error_it_is() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn only_the_owner_of_intentds_name_is_answered() {
+async fn only_the_process_in_intentds_unit_is_answered() {
+    use docket_dbus::callers::Role;
     let rig = rig("receipt").await;
-    let stranger = rig.bus.connect().await;
-    let value = ReaderClient::new(stranger)
-        .extract_in(&rig.session, &ask(rig.handle))
-        .await;
-    assert_eq!(value, Err(ReaderError::ModelUnavailable), "access denied");
+    // An unknown process, a scope that claims intentd's app (a plain app), and an agent of
+    // another app are all refused: the reader says it is unavailable.
+    for (what, standing) in [
+        ("an unknown process", None),
+        (
+            "a plain app called like intentd",
+            Some(("org.quire.Intents", Role::App)),
+        ),
+        (
+            "another app's agent",
+            Some(("org.quire.Companion1", Role::Agent)),
+        ),
+    ] {
+        let stranger = rig.bus.connect().await;
+        if let Some((app, role)) = standing {
+            rig.who.introduce_app(&stranger, app, role);
+        }
+        let value = ReaderClient::new(stranger)
+            .extract_in(&rig.session, &ask(rig.handle))
+            .await;
+        assert_eq!(
+            value,
+            Err(ReaderError::ModelUnavailable),
+            "{what}: access denied"
+        );
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

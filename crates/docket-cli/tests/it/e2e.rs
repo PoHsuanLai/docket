@@ -18,11 +18,12 @@ mod bus;
 #[path = "../../../intentd/tests/it/support/memoryd.rs"]
 mod memoryd;
 
-use apps::{Answer, FakeSill, SharedMail, serve_mail};
+use apps::{Answer, FakeSill, SharedMail, answering_intentd, introduce, serve_mail};
 use bus::PrivateBus;
 use docket_client::{DbusTransport, Intents};
 use docket_core::{ActionRef, AskReason, ConfirmAnswer, ConfirmEnd, ConfirmOffer, GrantScope};
-use intentd::{ProcRoot, Running, Setup, start};
+use docket_dbus::callers::Identity;
+use intentd::{IntentdConfig, ProcRoot, Running, Setup, start};
 use memoryd::FakeMemoryd;
 use prov::{Actor, ConfirmId, ConfirmReceipt, InputProof, SpaceScope, UnixSeconds};
 use std::path::Path;
@@ -85,8 +86,13 @@ impl Desk {
         .expect("files manifest");
         let bus = PrivateBus::start(dir.path());
 
+        let daemon_connection = bus.connect().await;
         let mail_connection = bus.connect().await;
-        let mail = serve_mail(&mail_connection).await;
+        let mail = serve_mail(
+            &mail_connection,
+            answering_intentd(&mail_connection, &daemon_connection, dir.path()),
+        )
+        .await;
         let memory_connection = bus.connect().await;
         let memoryd = FakeMemoryd::recording();
         memoryd.serve(&memory_connection).await;
@@ -107,7 +113,20 @@ impl Desk {
         setup.audit_every = std::time::Duration::from_millis(100);
         setup.signals.every = std::time::Duration::from_millis(30);
         setup.proc_root = ProcRoot::Fake(dir.path().join("proc"));
-        let daemon_connection = bus.connect().await;
+        // Every connection here is this process: the test says that the one that serves sill's
+        // names is the shell's unit. `quire-do` is told apart by its cgroup in the fake proc root.
+        let who = std::sync::Arc::new(Identity::on_fixture(
+            daemon_connection.clone(),
+            intentd::callers::shipped(),
+            dir.path().join("proc"),
+        ));
+        setup.identity = Some(who.clone());
+        introduce(
+            &who,
+            &sill_connection,
+            &IntentdConfig::shipped().expect("the shipped configuration"),
+            &["org.quire.Confirm1", "org.quire.Shell"],
+        );
         let intentd = start(&daemon_connection, None, setup)
             .await
             .expect("intentd starts");

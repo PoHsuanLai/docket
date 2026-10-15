@@ -6,12 +6,14 @@
 use crate::support::bus::PrivateBus;
 use crate::support::inferd::ScriptedInferd;
 use crate::support::memoryd::FakeMemoryd;
+use crate::support::world::introduce;
 use almanac_core::{
     InjectQuery, MemoryItem, MemoryReply, MemoryRequest, RecallHit, RecallOver, RecallWhy,
     TrustFilter, UserText,
 };
 use docket_client::{DbusTransport, Intents};
 use docket_core::*;
+use docket_dbus::callers::{Identity, Role};
 use intentd::{Cadence, FileGrants, IntentdConfig, Setup, start};
 use porter_core::{AppName, Count, DataClass, Tokens};
 use prov::{AgentRef, Label, Source, SpaceId};
@@ -57,8 +59,10 @@ fn receipt_hit() -> RecallHit {
 struct Desk {
     _dir: tempfile::TempDir,
     bus: PrivateBus,
+    intentd_connection: docket_dbus::BusConnection,
     companion: Intents<DbusTransport>,
     inferd: ScriptedInferd,
+    who: Arc<Identity>,
     _connections: Vec<docket_dbus::BusConnection>,
     _intentd: intentd::Running,
 }
@@ -86,11 +90,18 @@ impl Desk {
         let mut setup = Setup::from_env(&env).expect("setup");
         let _ = FileGrants::at(setup.grants.clone());
         setup.config = config();
+        let daemon_connection = bus.connect().await;
+        let who = Arc::new(Identity::on_fixture(
+            daemon_connection.clone(),
+            intentd::callers::shipped(),
+            dir.path().join("proc"),
+        ));
+        setup.identity = Some(who.clone());
+        setup.proc_root = intentd::ProcRoot::Fake(dir.path().join("proc"));
         setup.signals = Cadence {
             every: Duration::from_millis(30),
             rescan_every: 2,
         };
-        let daemon_connection = bus.connect().await;
         let intentd = start(&daemon_connection, None, setup)
             .await
             .expect("intentd");
@@ -99,11 +110,14 @@ impl Desk {
             .request_name(COMPANIOND)
             .await
             .expect("name");
+        introduce(&who, &companion_connection, &config(), &[COMPANIOND]);
         Desk {
             _dir: dir,
             bus,
+            intentd_connection: daemon_connection.clone(),
             companion: Intents::over(DbusTransport::new(companion_connection.clone())),
             inferd: ScriptedInferd::away(),
+            who,
             _connections: vec![memory_connection, daemon_connection, companion_connection],
             _intentd: intentd,
         }
@@ -113,13 +127,26 @@ impl Desk {
     async fn with_reader(mut self, answer: &str) -> Desk {
         self.inferd = ScriptedInferd::answering(answer);
         let connection = self.bus.connect().await;
-        // readerd's own Intents1 caller is the connection that is about to own its name.
+        // readerd's own Intents1 caller is this connection: it is readerd's unit for intentd, and
+        // intentd is the process readerd's callers file names as the router.
+        introduce(
+            &self.who,
+            &connection,
+            &config(),
+            &[docket_dbus::READER_BUS],
+        );
+        let reader_who = Arc::new(Identity::on_fixture(
+            connection.clone(),
+            readerd::shipped_callers(),
+            self._dir.path().join("proc-readerd"),
+        ));
+        reader_who.introduce_app(&self.intentd_connection, "org.quire.Intents", Role::Agent);
         let service = ReaderService::new(
             ReaderHost::start(),
             self.inferd.clone(),
             Intents::over(DbusTransport::new(connection.clone())),
         );
-        serve_on(&connection, Arc::new(service))
+        serve_on(&connection, Arc::new(service), reader_who)
             .await
             .expect("readerd serves");
         self._connections.push(connection);

@@ -1,11 +1,10 @@
-//! The real `intentd` binary on a private bus: it claims `org.quire.Intents1`, serves the
-//! manifests of the scratch data directory, takes its roles from the shipped configuration, and
-//! is started by D-Bus activation from an activation file shaped like `dist/dbus/`'s. Nothing
+//! The real `intentd` binary on a private bus: it claims `org.quire.Intents1`, gives no role to a
+//! mere name, and is started by D-Bus activation from an activation file shaped like `dist/dbus/`'s. Nothing
 //! of the real session is named: the bus, HOME and every XDG directory are scratch.
 
 use crate::support::bus::PrivateBus;
 use docket_client::Transport;
-use docket_core::{IntentsReply, IntentsRequest, KillSwitch, WireRefusal};
+use docket_core::{IntentsReply, IntentsRequest, WireRefusal};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
@@ -74,7 +73,7 @@ async fn until_served(connection: &zbus::Connection) {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn the_binary_serves_the_scratch_manifests_to_the_roles_the_shipped_configuration_names() {
+async fn the_binary_claims_the_name_and_a_name_alone_gives_no_role() {
     let dir = tempfile::tempdir().expect("scratch");
     let (_data, env) = scratch_world(dir.path());
     let bus = PrivateBus::start(dir.path());
@@ -82,49 +81,24 @@ async fn the_binary_serves_the_scratch_manifests_to_the_roles_the_shipped_config
     let mut daemon = intentd(&env, bus.address());
     until_served(&me).await;
 
-    // A connection that owns no name is nobody unless its cgroup names it; a plain app owns
-    // its name and may read the registry: the scratch manifest, and nothing from the real world.
-    let app = bus.connect().await;
-    app.request_name("org.quire.Mail").await.expect("name");
-    let transport = docket_client::DbusTransport::new(app);
-    let IntentsReply::Manifests(all) = transport
-        .call(IntentsRequest::Manifests)
-        .await
-        .expect("manifests")
-    else {
-        panic!("manifests");
-    };
-    let names: Vec<String> = all.iter().map(|m| m.manifest().app.to_string()).collect();
-    assert_eq!(
-        names,
-        [
-            "org.quire.AcpAgent",
-            "org.quire.Checkpoints",
-            "org.quire.Companion",
-            "org.quire.Mail",
-            "org.quire.Memory"
-        ],
-        "the data dir's one app, the three providers intentd hosts itself, and the external \
-         agents' pseudo-app"
-    );
-
-    // sill's name plays the control centre; a plain app does not.
-    let sill = bus.connect().await;
-    sill.request_name("org.quire.Shell").await.expect("name");
-    let control = docket_client::DbusTransport::new(sill);
-    let state = control
-        .call(IntentsRequest::ControlState)
-        .await
-        .expect("state");
-    assert!(
-        matches!(state, IntentsReply::State(KillSwitch { .. })),
-        "{state:?}"
-    );
-    let refused = transport
-        .call(IntentsRequest::ControlState)
-        .await
-        .expect("a reply");
-    assert_eq!(refused, IntentsReply::Refused(WireRefusal::NotAllowed));
+    // The binary reads the system's `/proc` and the callers file under `/etc/quire`, which no
+    // test may move: which role the process behind a connection has is tested in process, over a
+    // fake proc root (`identity.rs`, `bus_members.rs`). What holds whatever this test process is:
+    // owning sill's name makes it neither sill nor the control centre, and the same for a plain
+    // app's. Only the shell's unit, as the system's table names it, is the control centre.
+    for name in ["org.quire.Shell", "org.quire.Mail"] {
+        let connection = bus.connect().await;
+        connection.request_name(name).await.expect("name");
+        let refused = docket_client::DbusTransport::new(connection)
+            .call(IntentsRequest::ControlState)
+            .await
+            .expect("a reply");
+        assert_eq!(
+            refused,
+            IntentsReply::Refused(WireRefusal::NotAllowed),
+            "{name}"
+        );
+    }
 
     // Stopping it frees the name.
     daemon.0.kill().expect("kill");

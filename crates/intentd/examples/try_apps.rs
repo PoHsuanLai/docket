@@ -52,7 +52,14 @@ fn ask(request: &ConfirmRequest) -> Answer {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mail_connection = zbus::Connection::session().await?;
-    let mail = serve_mail(&mail_connection).await;
+    let mail = serve_mail(
+        &mail_connection,
+        std::sync::Arc::new(docket_dbus::callers::Identity::on_system(
+            mail_connection.clone(),
+            docket_dbus::callers::intentd_only(),
+        )),
+    )
+    .await;
     let sill_connection = zbus::Connection::session().await?;
     let _sill = FakeSill::start_asking(
         &sill_connection,

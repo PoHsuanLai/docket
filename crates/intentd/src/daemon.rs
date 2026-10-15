@@ -6,6 +6,7 @@ use crate::audit::AuditLog;
 use crate::builtin::{HostedLink, builtin_manifests};
 use crate::builtin_checkpoints::CheckpointsPort;
 use crate::builtin_companion::CompanionPort;
+use crate::callers;
 use crate::config::{ConfigError, IntentdConfig};
 use crate::grants::FileGrants;
 use crate::infer::{InferdWriter, ReaderClient};
@@ -22,6 +23,7 @@ use crate::system::{DaemonLog, SystemClock, SystemSeams};
 use docket_checkpoint_git::{GitStore, StdGitRun};
 use docket_core::{AbsPath, AuditRecord};
 use docket_dbus::BusConnection;
+use docket_dbus::callers::{CallerTable, Identity};
 use docket_dbus::tap::Tap;
 use docket_memory::QueuedSink;
 use docket_memory::{AlmanacMemory, AlmanacSessionLog};
@@ -51,6 +53,9 @@ const SPACES_RETRY: Duration = Duration::from_secs(10);
 pub struct HarnessSeams {
     /// Where callers' cgroups are read.
     pub proc_root: ProcRoot,
+    /// The system's callers file, when the harness's main chose another than `/etc/quire`'s: the
+    /// harness is its own system, and a fixed role (the shell's) comes from no other file.
+    pub system_callers: Option<PathBuf>,
     /// What is kept of the exchanges with inferd.
     pub trace: Tap,
 }
@@ -59,6 +64,7 @@ impl Default for HarnessSeams {
     fn default() -> Self {
         Self {
             proc_root: ProcRoot::System,
+            system_callers: None,
             trace: Tap::off(),
         }
     }
@@ -79,6 +85,10 @@ pub enum DaemonFault {
     /// A directory the daemon keeps its files in is not an absolute path.
     #[error("not an absolute path: {0}")]
     State(String),
+    /// `intentd-callers.toml` exists and cannot be used. A daemon that dropped it would identify
+    /// fewer or more callers than it was told to.
+    #[error("{0}")]
+    Callers(String),
 }
 
 /// What a daemon starts from: the files it reads, found through the environment.
@@ -101,6 +111,11 @@ pub struct Setup {
     pub data_dirs: Vec<PathBuf>,
     /// How often the router's state is looked at for signals, and the manifests rescanned.
     pub signals: Cadence,
+    /// Who is which unit: `intentd-callers.toml` of `/etc/quire` with the person's laid over it.
+    pub callers: CallerTable,
+    /// Says who a connection is, when a test names its own (`Identity::introduce_app`); otherwise
+    /// porter's `ProcCallers` over `callers` and `proc_root`.
+    pub identity: Option<Arc<Identity>>,
     /// Where callers' cgroups are read: `/proc`, unless the harness's main passed another root.
     pub proc_root: ProcRoot,
     /// Where the person's settings file is (`docket/settings.toml`, design/22 section 3.27).
@@ -157,6 +172,7 @@ impl Setup {
             None => IntentdConfig::shipped(),
         }
         .map_err(DaemonFault::Config)?;
+        let callers = callers::read(env).map_err(|e| DaemonFault::Callers(e.to_string()))?;
         let data = data_dirs(env);
         let grants = intents_dir(&data[0]).join("grants.json");
         Ok(Self {
@@ -168,6 +184,8 @@ impl Setup {
             audit_every: DRAIN_EVERY,
             data_dirs: data,
             signals: Cadence::default(),
+            callers,
+            identity: None,
             proc_root: ProcRoot::System,
             settings: Locator::from_env(env),
             trace: Tap::off(),
@@ -214,6 +232,8 @@ pub async fn start(
         audit_every,
         data_dirs,
         signals,
+        callers,
+        identity,
         proc_root,
         settings,
         trace,
@@ -224,8 +244,11 @@ pub async fn start(
     // The ACP name plays its roles only while the setting is on; the settings watch below keeps the
     // gate current, for the bus (who is an editor) and for the sheets (whose process is trusted).
     let acp = AcpGate::shut();
-    let confirmer = SheetConfirmer::trusting(session.clone(), Arc::new(config.clone()))
-        .gated(acp.clone(), &proc_root);
+    let who = identity
+        .unwrap_or_else(|| Arc::new(Identity::on(session.clone(), callers, proc_root.fixture())));
+    let confirmer =
+        SheetConfirmer::trusting(session.clone(), Arc::new(config.clone()), who.clone())
+            .gated(acp.clone(), &proc_root);
     let port = CompanionPort::new();
     let restore_port = CheckpointsPort::new();
     let link = HostedLink::new(
@@ -308,6 +331,7 @@ pub async fn start(
         session,
         router.clone(),
         Arc::new(config),
+        who,
         &proc_root,
         acp.clone(),
     )
@@ -418,6 +442,10 @@ pub async fn run_with(seams: HarnessSeams) -> Result<(), DaemonFault> {
     let mut setup = Setup::from_env(&env)?;
     setup.proc_root = seams.proc_root;
     setup.trace = seams.trace;
+    if let Some(system) = &seams.system_callers {
+        setup.callers =
+            callers::read_at(system, &env).map_err(|e| DaemonFault::Callers(e.to_string()))?;
+    }
     let session = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| DaemonFault::Serve(ServeFault::Bus(e.to_string())))?;

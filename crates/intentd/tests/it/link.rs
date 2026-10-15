@@ -2,10 +2,10 @@
 //! the app's, with docket-fake's mail app behind it. A provider answers nothing but intentd, an
 //! app that is away is "unavailable" rather than a panic, and a slow one is cut at its latency.
 
-use crate::support::apps::{Blank, serve_mail};
+use crate::support::apps::{Blank, answering_intentd, serve_mail};
 use crate::support::bus::PrivateBus;
 use crate::support::world::app;
-use docket_client::{ContextSource, IntentProvider, SummonTarget, serve_on};
+use docket_client::{ContextSource, IntentProvider, SummonTarget, serve_on_with};
 use docket_core::*;
 use docket_dbus::{INTENTS_BUS, IntentProviderProxy};
 use docket_router::{AppFault, AppLink, LinkFault};
@@ -57,9 +57,10 @@ async fn bus_with_intentd() -> (
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn every_member_reaches_the_app_and_comes_back_typed() {
-    let (_dir, bus, _daemon, link) = bus_with_intentd().await;
+    let (dir, bus, daemon, link) = bus_with_intentd().await;
     let app_connection = bus.connect().await;
-    let mail_app = serve_mail(&app_connection).await;
+    let who = answering_intentd(&app_connection, &daemon, dir.path());
+    let mail_app = serve_mail(&app_connection, who).await;
 
     // Perform, within the action's latency.
     let read = link
@@ -197,8 +198,9 @@ impl IntentProvider for Slow {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_slow_app_is_cut_at_its_latency() {
-    let (_dir, bus, _daemon, link) = bus_with_intentd().await;
+    let (dir, bus, daemon, link) = bus_with_intentd().await;
     let slow_connection = bus.connect().await;
+    let who = answering_intentd(&slow_connection, &daemon, dir.path());
     let manifest = validate(Manifest {
         vocab: IntentsVocab(1),
         app: app("org.quire.Slow"),
@@ -207,11 +209,12 @@ async fn a_slow_app_is_cut_at_its_latency() {
         visibility: Visibility::Everyone,
     })
     .expect("a manifest");
-    serve_on(
+    serve_on_with(
         &slow_connection,
         Slow(manifest),
         Blank(app("org.quire.Slow")),
         Blank(app("org.quire.Slow")),
+        who,
     )
     .await
     .expect("serves");
@@ -234,12 +237,40 @@ async fn a_slow_app_is_cut_at_its_latency() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_provider_answers_nobody_but_intentd() {
-    let (_dir, bus, _daemon, _link) = bus_with_intentd().await;
+    let (dir, bus, daemon, _link) = bus_with_intentd().await;
     let app_connection = bus.connect().await;
-    serve_mail(&app_connection).await;
-    // A terminal, another app, anything that is not the owner of intentd's name calling the
-    // app's bus name directly gets no way around the gate.
+    let who = answering_intentd(&app_connection, &daemon, dir.path());
+    serve_mail(&app_connection, who.clone()).await;
+    // A terminal, another app, a scope that claims intentd's app, anything that is not the process
+    // in intentd's unit calling the app's bus name directly gets no way around the gate.
     let stranger = bus.connect().await;
+    let lookalike = bus.connect().await;
+    who.introduce_app(
+        &lookalike,
+        "org.quire.Intents",
+        docket_dbus::callers::Role::App,
+    );
+    let agent = bus.connect().await;
+    who.introduce_app(
+        &agent,
+        "org.quire.Companion1",
+        docket_dbus::callers::Role::Agent,
+    );
+    for caller in [&lookalike, &agent] {
+        let proxy = IntentProviderProxy::builder(caller)
+            .destination("org.quire.Mail")
+            .expect("destination")
+            .build()
+            .await
+            .expect("proxy");
+        let direct = proxy
+            .perform(
+                &serde_json::to_string(&invocation("mail.thread.delete", "t1")).expect("json"),
+                &docket_dbus::Details::new(),
+            )
+            .await;
+        assert!(direct.is_err(), "{direct:?}");
+    }
     let proxy = IntentProviderProxy::builder(&stranger)
         .destination("org.quire.Mail")
         .expect("destination")
@@ -309,8 +340,9 @@ impl IntentProvider for Keeps {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_activation_token_rides_beside_the_invocation_to_the_provider() {
-    let (_dir, bus, _daemon, link) = bus_with_intentd().await;
+    let (dir, bus, daemon, link) = bus_with_intentd().await;
     let connection = bus.connect().await;
+    let who = answering_intentd(&connection, &daemon, dir.path());
     let manifest = validate(Manifest {
         vocab: IntentsVocab(1),
         app: app("org.quire.Keeps"),
@@ -320,11 +352,12 @@ async fn the_activation_token_rides_beside_the_invocation_to_the_provider() {
     })
     .expect("a manifest");
     let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
-    serve_on(
+    serve_on_with(
         &connection,
         Keeps(manifest, seen.clone()),
         Blank(app("org.quire.Keeps")),
         Blank(app("org.quire.Keeps")),
+        who,
     )
     .await
     .expect("serves");

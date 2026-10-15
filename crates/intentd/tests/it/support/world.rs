@@ -1,9 +1,13 @@
 //! A router over the fakes, served on a private bus by intentd's own `serve_on`, and callers
-//! that are connections of the same bus: each claims the well-known name the configuration
-//! gives the role it plays, so the identity intentd derives is the real one.
+//! that are connections of the same bus. Every connection of a test is this one process, so the
+//! test says which unit each would be: a client that claims the names the configuration lists is
+//! introduced as the app of the first, with the role the callers table gives the processes that
+//! play those roles (the sheet host for the sheet roles, an agent for a daemon's). The rest of the
+//! identification is intentd's own: its `Peers`, the configuration's roles, and the fake proc root.
 
 use docket_client::DbusTransport;
 use docket_core::{AgentConfig, CallerId, CallerRole};
+use docket_dbus::callers::Identity;
 use docket_fake::{FakeSeams, fake_router};
 use docket_router::Router;
 use intentd::{AcpGate, IntentdConfig, ProcRoot, serve_on_gated};
@@ -45,11 +49,15 @@ pub fn caller(name: &str, roles: &[CallerRole]) -> CallerId {
     }
 }
 
+pub use super::apps::{held_by, introduce};
+
 /// intentd serving `router` on a private bus under `config`.
 pub struct World {
     pub dir: tempfile::TempDir,
     pub bus: PrivateBus,
     pub router: Arc<Router<FakeSeams>>,
+    pub who: Arc<Identity>,
+    pub config: Arc<IntentdConfig>,
     daemon: docket_dbus::BusConnection,
 }
 
@@ -82,23 +90,39 @@ impl World {
         let daemon = bus.connect().await;
         let router = Arc::new(router);
         let root = ProcRoot::Fake(dir.path().join("proc"));
-        serve_on_gated(&daemon, router.clone(), Arc::new(config), &root, acp)
-            .await
-            .expect("intentd serves");
+        let who = Arc::new(Identity::on_fixture(
+            daemon.clone(),
+            intentd::callers::shipped(),
+            dir.path().join("proc"),
+        ));
+        let config = Arc::new(config);
+        serve_on_gated(
+            &daemon,
+            router.clone(),
+            config.clone(),
+            who.clone(),
+            &root,
+            acp,
+        )
+        .await
+        .expect("intentd serves");
         World {
             dir,
             bus,
             router,
+            who,
+            config,
             daemon,
         }
     }
 
-    /// A transport over a new connection that owns `names`.
+    /// A transport over a new connection that owns `names` and is introduced as their app.
     pub async fn client(&self, names: &[&str]) -> (DbusTransport, docket_dbus::BusConnection) {
         let connection = self.bus.connect().await;
         for name in names {
             connection.request_name(*name).await.expect("name");
         }
+        introduce(&self.who, &connection, &self.config, names);
         (DbusTransport::new(connection.clone()), connection)
     }
 

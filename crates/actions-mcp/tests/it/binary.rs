@@ -8,7 +8,7 @@ use docket_core::*;
 use docket_fake::{MailThread, fake_router};
 use docket_router::GrantStore;
 use docket_testbus::PrivateBus;
-use intentd::{IntentdConfig, serve_on};
+use intentd::{IntentdConfig, ProcRoot, serve_on_with};
 use porter_core::AppName;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use prov::{ClientName, DataClass, SpaceId, SpaceScope, UnixSeconds};
@@ -83,6 +83,22 @@ fn spawn(dir: &Path, bus: &str, extra: &[&str]) -> Edge {
     Edge { child }
 }
 
+/// `spawn`, with the edge's process placed in `actions-mcp.service` of the fake proc root intentd
+/// reads (the child is a process of its own, so intentd can tell it from this test): its main
+/// process, which is all a service's role goes to.
+fn spawn_as_the_unit(dir: &Path, bus: &str, extra: &[&str]) -> Edge {
+    let edge = spawn(dir, bus, extra);
+    let pid = edge.child.id().expect("a pid");
+    let slice = "0::/user.slice/user-1000.slice/user@1000.service/app.slice";
+    let at = dir.join("proc").join(pid.to_string());
+    std::fs::create_dir_all(&at).expect("fake proc");
+    std::fs::write(at.join("cgroup"), format!("{slice}/actions-mcp.service\n")).expect("cgroup");
+    let units = dir.join("proc/units");
+    std::fs::create_dir_all(&units).expect("units");
+    std::fs::write(units.join("actions-mcp.service"), pid.to_string()).expect("main pid");
+    edge
+}
+
 fn configure(dir: &Path, text: &str) {
     let config = dir.join("config/quire");
     std::fs::create_dir_all(&config).expect("dirs");
@@ -126,10 +142,11 @@ async fn desk() -> (tempfile::TempDir, PrivateBus, docket_dbus::BusConnection) {
     let dir = tempfile::tempdir().expect("scratch");
     let bus = PrivateBus::start(dir.path());
     let daemon = bus.connect().await;
-    serve_on(
+    serve_on_with(
         &daemon,
         Arc::new(router()),
         Arc::new(IntentdConfig::shipped().expect("shipped")),
+        &ProcRoot::Fake(dir.path().join("proc")),
     )
     .await
     .expect("intentd serves");
@@ -141,7 +158,7 @@ async fn over_stdio_a_switched_on_edge_serves_the_registry_as_the_mcp_role() {
     let (dir, bus, _intentd) = desk().await;
     switch_on(dir.path());
     configure(dir.path(), &format!("client = \"{CLIENT}\"\n"));
-    let mut edge = spawn(dir.path(), bus.address(), &[]);
+    let mut edge = spawn_as_the_unit(dir.path(), bus.address(), &[]);
     let client = client_over_stdio(&mut edge).await;
     let names: Vec<String> = client
         .list_all_tools()
@@ -168,7 +185,7 @@ async fn over_stdio_a_switched_on_edge_serves_the_registry_as_the_mcp_role() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn with_no_configuration_the_edge_is_off_and_lists_nothing() {
     let (dir, bus, _intentd) = desk().await;
-    let mut edge = spawn(dir.path(), bus.address(), &[]);
+    let mut edge = spawn_as_the_unit(dir.path(), bus.address(), &[]);
     let client = client_over_stdio(&mut edge).await;
     assert!(client.list_all_tools().await.expect("list").is_empty());
     let result = read_thread(&client).await;
@@ -181,7 +198,7 @@ async fn over_a_unix_socket_many_clients_share_one_edge() {
     switch_on(dir.path());
     configure(dir.path(), &format!("client = \"{CLIENT}\"\n"));
     let socket = dir.path().join("mcp.sock");
-    let mut edge = spawn(
+    let mut edge = spawn_as_the_unit(
         dir.path(),
         bus.address(),
         &["--socket", socket.to_str().expect("utf-8")],

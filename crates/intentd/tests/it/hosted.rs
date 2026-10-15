@@ -5,11 +5,13 @@
 use crate::support::apps::{Answer, FakeSill};
 use crate::support::bus::PrivateBus;
 use crate::support::memoryd::FakeMemoryd;
+use crate::support::world::introduce;
 use almanac_core::{
     FactState, MemoryItem, MemoryReply, MemoryRequest, RecallHit, RecallWhy, Record,
 };
 use docket_client::{DbusTransport, Intents};
 use docket_core::*;
+use docket_dbus::callers::Identity;
 use docket_router::GrantStore;
 use intentd::{Cadence, FileGrants, IntentdConfig, Setup, start};
 use porter_core::AppName;
@@ -108,22 +110,36 @@ impl Desk {
             });
         }
         setup.config = config();
+        let daemon_connection = bus.connect().await;
+        let who = Arc::new(Identity::on_fixture(
+            daemon_connection.clone(),
+            intentd::callers::shipped(),
+            dir.path().join("proc"),
+        ));
+        setup.identity = Some(who.clone());
+        setup.proc_root = intentd::ProcRoot::Fake(dir.path().join("proc"));
         setup.audit_every = Duration::from_millis(50);
         setup.signals = Cadence {
             every: Duration::from_millis(30),
             rescan_every: 2,
         };
-        let daemon_connection = bus.connect().await;
         let intentd = start(&daemon_connection, None, setup)
             .await
             .expect("intentd");
         let sill_connection = bus.connect().await;
         let sill = FakeSill::start(&sill_connection, &["org.quire.Confirm1", SILL]).await;
+        introduce(
+            &who,
+            &sill_connection,
+            &config(),
+            &["org.quire.Confirm1", SILL],
+        );
         let companion_connection = bus.connect().await;
         companion_connection
             .request_name(COMPANIOND)
             .await
             .expect("name");
+        introduce(&who, &companion_connection, &config(), &[COMPANIOND]);
         let companion = Intents::over(DbusTransport::new(companion_connection.clone()));
         Desk {
             dir,

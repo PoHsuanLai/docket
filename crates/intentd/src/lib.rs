@@ -19,6 +19,7 @@ mod builtin_checkpoints;
 mod builtin_companion;
 mod builtin_memory;
 mod bus;
+pub mod callers;
 mod config;
 mod daemon;
 mod defaults;

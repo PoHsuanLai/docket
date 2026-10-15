@@ -5,8 +5,9 @@
 
 use crate::support::apps::{Answer, FakeSill};
 use crate::support::bus::PrivateBus;
-use crate::support::world::app;
+use crate::support::world::{app, introduce};
 use docket_core::*;
+use docket_dbus::callers::{Identity, Role};
 use intentd::{IntentdConfig, SheetConfirmer};
 use porter_core::Count;
 use prov::{Actor, ConfirmId, ConfirmReceipt, Effect, InputProof, SpaceId, UnixSeconds};
@@ -55,6 +56,18 @@ struct Desk {
     _dir: tempfile::TempDir,
     bus: PrivateBus,
     sheet: SheetConfirmer,
+    who: Arc<Identity>,
+    config: IntentdConfig,
+}
+
+/// The table intentd reads, over a fake proc root in which this test process is in a unit nothing
+/// names: a connection is nobody unless the test introduces it.
+fn identity(dir: &tempfile::TempDir, daemon: &docket_dbus::BusConnection) -> Arc<Identity> {
+    Arc::new(Identity::on_fixture(
+        daemon.clone(),
+        intentd::callers::shipped(),
+        dir.path().join("proc"),
+    ))
 }
 
 async fn desk() -> Desk {
@@ -62,12 +75,15 @@ async fn desk() -> Desk {
     let bus = PrivateBus::start(dir.path());
     let daemon = bus.connect().await;
     let config = IntentdConfig::shipped().expect("the shipped configuration");
-    let sheet =
-        SheetConfirmer::trusting(daemon, Arc::new(config)).waiting(Duration::from_millis(100));
+    let who = identity(&dir, &daemon);
+    let sheet = SheetConfirmer::trusting(daemon, Arc::new(config.clone()), who.clone())
+        .waiting(Duration::from_millis(100));
     Desk {
         _dir: dir,
         bus,
         sheet,
+        who,
+        config,
     }
 }
 
@@ -77,6 +93,12 @@ async fn the_trusted_sill_is_asked_and_its_answer_is_the_answer() {
     let connection = desk.bus.connect().await;
     // The shipped configuration gives sill the name org.quire.Shell and the confirm role.
     let sill = FakeSill::start(&connection, &["org.quire.Confirm1", "org.quire.Shell"]).await;
+    introduce(
+        &desk.who,
+        &connection,
+        &desk.config,
+        &["org.quire.Confirm1", "org.quire.Shell"],
+    );
     sill.answer(vec![
         Answer::With(yes()),
         Answer::With(ConfirmAnswer::AllowedFromTerminal { receipt: receipt() }),
@@ -115,6 +137,12 @@ async fn a_name_nobody_trusted_is_never_asked_and_never_allows() {
     let connection = desk.bus.connect().await;
     // Owns org.quire.Confirm1 but plays no role in the configuration.
     let impostor = FakeSill::start(&connection, &["org.quire.Confirm1"]).await;
+    introduce(
+        &desk.who,
+        &connection,
+        &desk.config,
+        &["org.quire.Confirm1"],
+    );
     impostor.answer(vec![Answer::With(yes())]);
     assert_eq!(
         desk.sheet.confirm(request("c-1", 120)).await,
@@ -142,6 +170,12 @@ async fn a_sheet_nobody_answers_expires_and_a_sill_that_vanishes_dismisses() {
     let desk = desk().await;
     let connection = desk.bus.connect().await;
     let sill = FakeSill::start(&connection, &["org.quire.Confirm1", "org.quire.Shell"]).await;
+    introduce(
+        &desk.who,
+        &connection,
+        &desk.config,
+        &["org.quire.Confirm1", "org.quire.Shell"],
+    );
     sill.answer(vec![Answer::Never, Answer::Never]);
     // Its own expiry (0 s) plus the grace: expired, not allowed.
     assert_eq!(
@@ -180,13 +214,16 @@ async fn gated_desk(agents: docket_settings::AcpAgents) -> Desk {
     let config = IntentdConfig::shipped().expect("the shipped configuration");
     let gate = intentd::AcpGate::shut();
     gate.set_agents(agents);
-    let sheet = SheetConfirmer::trusting(daemon, Arc::new(config))
-        .gated(gate, &intentd::ProcRoot::System)
+    let who = identity(&dir, &daemon);
+    let sheet = SheetConfirmer::trusting(daemon, Arc::new(config.clone()), who.clone())
+        .gated(gate, &intentd::ProcRoot::Fake(dir.path().join("proc")))
         .waiting(Duration::from_millis(100));
     Desk {
         _dir: dir,
         bus,
         sheet,
+        who,
+        config,
     }
 }
 
@@ -195,7 +232,14 @@ async fn a_sheet_the_agent_host_asked_for_goes_to_its_confirm1_and_not_to_sill()
     let desk = gated_desk(docket_settings::AcpAgents::On).await;
     let (apart, other) = (desk.bus.connect().await, desk.bus.connect().await);
     let sill = FakeSill::start(&apart, &["org.quire.Confirm1", "org.quire.Shell"]).await;
+    introduce(
+        &desk.who,
+        &apart,
+        &desk.config,
+        &["org.quire.Confirm1", "org.quire.Shell"],
+    );
     let host = FakeSill::start(&other, &[ACP_AGENT_APP]).await;
+    introduce(&desk.who, &other, &desk.config, &[ACP_AGENT_APP]);
     host.answer(vec![Answer::With(yes())]);
     assert_eq!(desk.sheet.confirm(hosted("c-1")).await, yes());
     assert_eq!(host.shown().len(), 1);
@@ -208,7 +252,14 @@ async fn a_sheet_for_an_agent_host_that_is_off_or_gone_expires_and_is_not_moved_
     let off = gated_desk(docket_settings::AcpAgents::Off).await;
     let (apart, other) = (off.bus.connect().await, off.bus.connect().await);
     let sill = FakeSill::start(&apart, &["org.quire.Confirm1", "org.quire.Shell"]).await;
+    introduce(
+        &off.who,
+        &apart,
+        &off.config,
+        &["org.quire.Confirm1", "org.quire.Shell"],
+    );
     let host = FakeSill::start(&other, &[ACP_AGENT_APP]).await;
+    introduce(&off.who, &other, &off.config, &[ACP_AGENT_APP]);
     host.answer(vec![Answer::With(yes())]);
     assert_eq!(
         off.sheet.confirm(hosted("c-1")).await,
@@ -219,9 +270,45 @@ async fn a_sheet_for_an_agent_host_that_is_off_or_gone_expires_and_is_not_moved_
     let on = gated_desk(docket_settings::AcpAgents::On).await;
     let connection = on.bus.connect().await;
     let sill_on = FakeSill::start(&connection, &["org.quire.Confirm1", "org.quire.Shell"]).await;
+    introduce(
+        &on.who,
+        &connection,
+        &on.config,
+        &["org.quire.Confirm1", "org.quire.Shell"],
+    );
     assert_eq!(
         on.sheet.confirm(hosted("c-2")).await,
         ConfirmAnswer::Ended(ConfirmEnd::Expired)
     );
     assert!(sill.shown().is_empty() && sill_on.shown().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_process_that_is_not_the_shells_unit_is_never_asked() {
+    // Each owns org.quire.Confirm1 and the shell's name and answers yes. A scope that claims the
+    // shell is a plain app (porter gives a scope row no fixed role), an agent is not the sheet
+    // host, and a process nothing identifies is nobody: none is asked, none allows.
+    for (what, standing) in [
+        ("a scope claiming the shell", Some(Role::App)),
+        ("an agent claiming the shell", Some(Role::Agent)),
+        ("an unknown process", None),
+    ] {
+        let desk = desk().await;
+        let connection = desk.bus.connect().await;
+        let claimant =
+            FakeSill::start(&connection, &["org.quire.Confirm1", "org.quire.Shell"]).await;
+        if let Some(role) = standing {
+            desk.who.introduce_app(&connection, "org.quire.Shell", role);
+        }
+        claimant.answer(vec![Answer::With(yes())]);
+        assert_eq!(
+            desk.sheet.confirm(request("c-1", 120)).await,
+            ConfirmAnswer::Ended(ConfirmEnd::Dismissed),
+            "{what}"
+        );
+        assert!(
+            claimant.shown().is_empty(),
+            "{what}: the request never reached it"
+        );
+    }
 }

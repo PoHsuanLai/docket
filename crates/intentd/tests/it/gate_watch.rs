@@ -5,12 +5,15 @@
 
 use crate::support::apps::{Answer, FakeSill};
 use crate::support::bus::PrivateBus;
+use crate::support::world::introduce;
 use docket_client::{DbusTransport, GateEvent, Intents};
 use docket_core::*;
+use docket_dbus::callers::Identity;
 use intentd::{Cadence, IntentdConfig, Setup, start};
 use porter_core::AppName;
 use prov::{AgentRef, Effect, Label, RunId, SpaceId, UnixSeconds};
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 const CUAD: &str = "org.quire.Cuad";
@@ -76,7 +79,7 @@ impl Desk {
             _ => None,
         };
         let mut setup = Setup::from_env(&env).expect("setup");
-        setup.config = IntentdConfig {
+        let config = IntentdConfig {
             roles: BTreeMap::from([
                 (CallerRole::Cua, vec![app(CUAD)]),
                 (CallerRole::Confirm, vec![app(SILL)]),
@@ -84,16 +87,31 @@ impl Desk {
             reviewers: None,
             agent: AgentConfig::default(),
         };
+        setup.config = config.clone();
         setup.signals = Cadence {
             every: Duration::from_millis(30),
             rescan_every: 2,
         };
         let daemon = bus.connect().await;
+        let who = Arc::new(Identity::on_fixture(
+            daemon.clone(),
+            intentd::callers::shipped(),
+            dir.path().join("proc"),
+        ));
+        setup.identity = Some(who.clone());
+        setup.proc_root = intentd::ProcRoot::Fake(dir.path().join("proc"));
         let intentd = start(&daemon, None, setup).await.expect("intentd");
         let sill_connection = bus.connect().await;
         let sill = FakeSill::start(&sill_connection, &["org.quire.Confirm1", SILL]).await;
+        introduce(
+            &who,
+            &sill_connection,
+            &config,
+            &["org.quire.Confirm1", SILL],
+        );
         let cuad_connection = bus.connect().await;
         cuad_connection.request_name(CUAD).await.expect("name");
+        introduce(&who, &cuad_connection, &config, &[CUAD]);
         let cuad = Intents::over(DbusTransport::new(cuad_connection.clone()));
         let run = RunId::parse("r-1").expect("run");
         cuad.session_open(SessionOpen {

@@ -148,6 +148,8 @@ impl Desk {
             _ => None,
         };
         let mut setup = Setup::from_env(&env).expect("setup");
+        // Nothing of the real system's callers file: this test calls no one's methods.
+        setup.callers = Default::default();
         prefill(&setup.grants);
         setup.config = IntentdConfig {
             roles: BTreeMap::new(),
