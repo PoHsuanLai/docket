@@ -1,6 +1,7 @@
 mod git;
 #[cfg(unix)]
 mod hostile;
+mod limits;
 mod scratch;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its

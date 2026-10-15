@@ -3,7 +3,8 @@
 use crate::files::{inside_repository, person_excludes};
 use crate::names::{IndexKind, index_file, ref_name};
 use crate::parse::{object_id, staged_listing, tree_listing};
-use crate::run::{GitCommand, GitOut, GitRun};
+use crate::problem::{GitCause, GitProblem, Report};
+use crate::run::{GitCommand, GitFault, GitOut, GitRun, Limits};
 use docket_checkpoint::{StoreFault, TreeListing, WorkRoot};
 use docket_core::{AbsPath, CheckpointId};
 use prov::SessionId;
@@ -53,6 +54,8 @@ pub struct GitStore<R: GitRun> {
     pub(crate) run: R,
     index_dir: AbsPath,
     env: Vec<(String, String)>,
+    limits: Limits,
+    report: Report,
 }
 
 impl<R: GitRun> GitStore<R> {
@@ -63,7 +66,22 @@ impl<R: GitRun> GitStore<R> {
             run,
             index_dir,
             env: Vec::new(),
+            limits: Limits::default(),
+            report: Report::default(),
         }
+    }
+
+    /// The deadline and the output limit of every command (the defaults are generous).
+    pub fn with_limits(mut self, limits: Limits) -> Self {
+        self.limits = limits;
+        self
+    }
+
+    /// Where the cause of a failed command goes (the operator's log): the subcommand, how it
+    /// ended and the tail of its standard error. Never put it in front of a person.
+    pub fn with_problems(mut self, sink: impl Fn(&GitProblem) + Send + Sync + 'static) -> Self {
+        self.report = Report::to(sink);
+        self
     }
 
     /// Variables every command runs with, such as a `HOME` that is not the person's (tests).
@@ -95,6 +113,7 @@ impl<R: GitRun> GitStore<R> {
                 args: all,
                 env: vars,
                 stdin,
+                limits: self.limits,
             })
             .await
     }
@@ -117,10 +136,29 @@ impl<R: GitRun> GitStore<R> {
         env: &[(String, String)],
         stdin: Option<Vec<u8>>,
     ) -> Result<Vec<u8>, StoreFault> {
+        let command = args.first().cloned().unwrap_or_default();
         match self.exec(root, args, env, stdin).await {
             Ok(out) if out.succeeded() => Ok(out.stdout),
-            _ => Err(StoreFault::Failed),
+            Ok(out) => {
+                let (code, stderr) = (out.status.code(), lossy(&out.stderr));
+                self.tell(command, GitCause::Exit { code, stderr });
+                Err(StoreFault::Failed)
+            }
+            // Too many files to list is the folder being too large, not a git failure.
+            Err(GitFault::TooMuchOutput) => {
+                self.tell(command, GitCause::TooMuchOutput);
+                Err(StoreFault::TooLarge)
+            }
+            Err(fault) => {
+                self.tell(command, fault.into());
+                Err(StoreFault::Failed)
+            }
         }
+    }
+
+    /// Tells the sink why `command` failed.
+    fn tell(&self, command: String, cause: GitCause) {
+        self.report.tell(&GitProblem { command, cause });
     }
 
     /// The repository docket keeps every point in: under `index_dir`, never the folder's `.git`.
@@ -187,11 +225,20 @@ impl<R: GitRun> GitStore<R> {
                 args,
                 env,
                 stdin: None,
+                limits: self.limits,
             })
             .await;
         match made {
             Ok(out) if out.succeeded() => Ok(()),
-            _ => Err(StoreFault::Failed),
+            Ok(out) => {
+                let (code, stderr) = (out.status.code(), lossy(&out.stderr));
+                self.tell("init".to_owned(), GitCause::Exit { code, stderr });
+                Err(StoreFault::Failed)
+            }
+            Err(fault) => {
+                self.tell("init".to_owned(), fault.into());
+                Err(StoreFault::Failed)
+            }
         }
     }
 
@@ -253,7 +300,10 @@ impl<R: GitRun> GitStore<R> {
         match self.exec(root, args, &[], None).await {
             Ok(out) if out.succeeded() => object_id(&out.stdout).map_err(|_| StoreFault::Failed),
             Ok(_) => Err(StoreFault::NoSuchPoint),
-            Err(_) => Err(StoreFault::Failed),
+            Err(fault) => {
+                self.tell("rev-parse".to_owned(), fault.into());
+                Err(StoreFault::Failed)
+            }
         }
     }
 
@@ -286,6 +336,11 @@ impl<R: GitRun> GitStore<R> {
         let out = self.ok(root, &["ls-files", "-s", "-z"], &env).await?;
         staged_listing(&out).map_err(|_| StoreFault::Failed)
     }
+}
+
+/// Standard error as text, whatever bytes it holds.
+fn lossy(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).into_owned()
 }
 
 /// Owned arguments from literals.

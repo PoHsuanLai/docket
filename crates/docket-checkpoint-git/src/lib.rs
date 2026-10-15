@@ -31,9 +31,11 @@ mod files;
 mod git;
 mod names;
 mod parse;
+mod problem;
 mod run;
 mod store;
 
 pub use git::GitStore;
 pub use names::ref_name;
-pub use run::{GitCommand, GitFault, GitOut, GitRun, StdGitRun};
+pub use problem::{GitCause, GitProblem};
+pub use run::{GitCommand, GitFault, GitOut, GitRun, Limits, StdGitRun};
