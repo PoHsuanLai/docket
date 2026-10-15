@@ -82,10 +82,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             return Err(ServeFault::UnknownSession);
         };
         if how == FinishedAs::Failed {
-            eprintln!(
-                "companiond: task {} failed: {}",
-                task.as_str(),
-                failed_why(rt.failure.as_ref())
+            tracing::warn!(
+                %task,
+                session = %rt.session,
+                why = %failed_why(rt.failure.as_ref()),
+                "the task failed"
             );
         }
         // A worker answers whoever spawned it, in the one message model: a final report in the

@@ -272,12 +272,16 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             // The person stopped the task while the model was thinking: the turn is dropped.
             Err(Stop::Cancelled) => return Ok(vec![LoopInput::Cancelled]),
             // A model that never answers is a model that is not there.
-            Err(Stop::TimedOut) => Err(PlanFault::Unavailable),
+            Err(Stop::TimedOut) => {
+                tracing::warn!(%task, "the planner's model did not answer in time");
+                Err(PlanFault::Unavailable)
+            }
             Ok(reply) => reply,
         };
         let reply = match reply {
             Ok(reply) => reply,
             Err(fault) => {
+                tracing::warn!(%task, %fault, "the planner turn failed");
                 if let Some(rt) = self.runtimes.get_mut(task) {
                     if let Some(text) = refusal_text(&fault) {
                         rt.refused = Some(RefusalWire::Failed(text));

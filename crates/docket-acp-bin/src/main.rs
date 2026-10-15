@@ -14,6 +14,7 @@ fn main() -> ExitCode {
         eprintln!("docket-acp: {USAGE}");
         return ExitCode::from(2);
     }
+    docket_log::init("docket-acp");
     let permit = match Permit::from_env(&|k| std::env::var(k).ok()) {
         Ok(permit) => permit,
         Err(why) => {

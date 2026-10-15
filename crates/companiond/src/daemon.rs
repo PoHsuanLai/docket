@@ -66,10 +66,10 @@ pub async fn start_with(
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
     let found = discover(skills);
     for rejected in &found.rejected {
-        eprintln!(
-            "companiond: skill {}: {}",
-            rejected.dir.display(),
-            rejected.fault
+        tracing::warn!(
+            dir = %rejected.dir.display(),
+            fault = %rejected.fault,
+            "a skill directory did not load; left out"
         );
     }
     let intents = Intents::over(DbusTransport::new(connection.clone()));

@@ -108,7 +108,7 @@ impl Tap {
                 .push(exchange),
             Sink::File(path) => {
                 if let Err(why) = append(path, &exchange) {
-                    eprintln!("docket: model trace: {}: {why}", path.display());
+                    tracing::warn!(path = %path.display(), %why, "the model trace could not be written");
                 }
             }
         }

@@ -1026,6 +1026,7 @@ dependencies = [
  "docket-fake",
  "docket-inapp",
  "docket-launch",
+ "docket-log",
  "docket-router",
  "docket-session",
  "docket-settings",
@@ -1073,6 +1074,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1088,6 +1090,7 @@ dependencies = [
  "docket-fake",
  "docket-inapp",
  "docket-launch",
+ "docket-log",
  "docket-planner",
  "docket-router",
  "docket-session",
@@ -1223,6 +1226,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tracing",
  "zbus",
 ]
 
@@ -1423,6 +1427,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

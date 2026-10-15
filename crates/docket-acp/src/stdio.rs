@@ -101,7 +101,7 @@ impl<R: AsyncBufRead + Unpin + Send, W: AsyncWrite + Unpin + Send> Wire for Line
                 Ok(line) => return line,
                 Err(fault) => {
                     // The wire is closed on a line it cannot take; the peer is not told why.
-                    eprintln!("docket-acp: closing the wire: {fault}");
+                    tracing::warn!(%fault, "closing the wire");
                     return None;
                 }
             }

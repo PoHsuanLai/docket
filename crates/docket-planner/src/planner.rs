@@ -400,9 +400,9 @@ impl<P: Transport> PlannerModel<P> {
             match event {
                 InferEvent::Finished(InferReply::Chat(reply)) => return Ok((reply, route.notes())),
                 InferEvent::Finished(other) => {
-                    eprintln!(
-                        "docket-planner: the model finished without a chat reply: {}",
-                        not_chat(&other)
+                    tracing::warn!(
+                        got = not_chat(&other),
+                        "the planner's model finished without a chat reply"
                     );
                     return Err(match route.declined() {
                         Some(declined) => PlanFault::Declined(Box::new(declined.clone())),
@@ -420,7 +420,7 @@ impl<P: Transport> PlannerModel<P> {
             reply.stop,
             StopReason::MaxTokens | StopReason::ContentFilter
         ) {
-            eprintln!("docket-planner: the reply stopped early: {:?}", reply.stop);
+            tracing::warn!(stop = ?reply.stop, "the planner's reply stopped early");
             return Err(PlanFault::Unreadable);
         }
         let mut said = Some(bounded(reply.text.trim())).filter(|t| !t.is_empty());
@@ -459,7 +459,7 @@ impl<P: Transport> PlannerModel<P> {
                 Some(call) => (meta_output(call, view)?, Vec::new()),
                 None if said.is_some() => (ModelOutput::Finish, Vec::new()),
                 None => {
-                    eprintln!("docket-planner: the reply had no words and no call");
+                    tracing::warn!("the planner's reply had no words and no call");
                     return Err(PlanFault::Unreadable);
                 }
             }
@@ -725,6 +725,6 @@ fn not_chat(reply: &InferReply) -> String {
 /// A model that could not be used: the daemon's log says at which stage and why (the porter
 /// error, never the prompt), the loop sees [`PlanFault::Unavailable`].
 fn unavailable(stage: &str, error: &dyn std::fmt::Display) -> PlanFault {
-    eprintln!("docket-planner: {stage}: {error}");
+    tracing::warn!(stage, %error, "the planner's model could not be used");
     PlanFault::Unavailable
 }

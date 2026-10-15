@@ -31,6 +31,7 @@ docket-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd"] }
 docket-inapp = { workspace = true }
 docket-launch = { workspace = true, features = ["dbus"] }
+docket-log = { workspace = true }
 docket-planner = { workspace = true }
 docket-router = { workspace = true }
 docket-session = { workspace = true }

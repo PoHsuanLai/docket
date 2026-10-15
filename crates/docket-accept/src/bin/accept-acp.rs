@@ -6,6 +6,7 @@ use docket_acp::Permit;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    docket_log::init("docket-acp");
     let Ok(permit) = Permit::from_text("[agent.acp]\nexpose = \"on\"\n") else {
         return ExitCode::from(2);
     };
