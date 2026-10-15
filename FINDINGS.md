@@ -1825,7 +1825,8 @@ Decisions made (confirm or overrule):
   refuses a parent whose log is Blocked. Policy is copied as stored, never widened.
 - `Opening.opener` and `agent` are `Option` only because legacy `Opened` records name no opener.
   `BackendKind::Acp` holds a `ProgramName`, since `AgentRef` has no external-agent variant.
-- Not in S0 (the note lists them): `Words`, `Compacted`, `Pinned`, `Renamed`, `AgentSession`,
+- `Compacted` (industry gap 5) is in: a note on top of the turns and steps it covers (counts from the start, cumulative), which stay in the log; `resume_plan` gives `summary` plus `live_turns`/`live_history`, joins its taint and ignores one that covers more than was logged (`BadCompaction`).
+- Not in S0 (the note lists them): `Words`, `Pinned`, `Renamed`, `AgentSession`,
   `Usage` entries, `cwd`, and `SessionHost` has no implementation. Adding an entry kind is a new
   slug within version 1 for writers, but an older reader reports `UnknownKind`; bump `CURRENT` when
   an old reader must refuse instead.

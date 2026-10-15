@@ -177,3 +177,20 @@ pub fn canonical() -> Vec<SessionEntry> {
         SessionEntry::Closed(EndCause::Closed),
     ]
 }
+
+/// A summary of the oldest `turns` turns and `steps` steps, written by the balanced tier.
+pub fn compacted(turns: u32, steps: u32, taint: Taint) -> SessionEntry {
+    SessionEntry::Compacted(Compacted {
+        covers: docket_core::Covers {
+            turns: Count(turns),
+            steps: Count(steps),
+        },
+        text: docket_core::SummaryText::parse("looked for the newsletters (#1)", &[Handle(1)])
+            .expect("summary"),
+        taint,
+        by: CompactedBy {
+            tier: porter_core::Tier::Balanced,
+            model: None,
+        },
+    })
+}

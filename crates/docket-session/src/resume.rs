@@ -7,19 +7,24 @@
 //! 2. A `Call` with no `Step` is interrupted and never re-run.
 //! 3. The policy is the last `Policy` entry as stored; nothing derives it again.
 //! 4. Handles come back as labels.
-//! 5. `Checkpoint` and entries of a kind this build does not know are ignored.
-//! 6. `Closed` stays closed; a breaker trip holds until a `Turn`; a gap or an entry that cannot
+//! 5. `Compacted` is a note on top of the entries it covers, which stay in the plan; the latest
+//!    whole one is the summary. It never lowers taint, and a summary written while the session was
+//!    tainted is untrusted. A summary that covers more than the log held, or less than an earlier
+//!    one, is a fault and is ignored.
+//! 6. `Checkpoint` and entries of a kind this build does not know are ignored.
+//! 7. `Closed` stays closed; a breaker trip holds until a `Turn`; a gap or an entry that cannot
 //!    be read blocks new turns and taints.
 
 use crate::codec::{Logged, Read};
 use crate::entry::{
-    BreakerNote, CallOpen, EndCause, HandleLabel, Opening, Seq, SessionEntry, Taint,
+    BreakerNote, CallOpen, Compacted, EndCause, HandleLabel, Opening, Seq, SessionEntry, Taint,
 };
 use crate::plan::{
     Blocker, Interrupted, PlanRefusal, ResumeFault, ResumePlan, ResumedBudget, Standing,
 };
 use docket_core::{
-    BreakerTrip, CallId, Handle, Ledger, SkillId, SkillVersion, StepLine, TaskPolicy, UserTurn,
+    BreakerTrip, CallId, Handle, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy,
+    UserTurn,
 };
 use porter_core::Count;
 use prov::Integrity;
@@ -32,6 +37,7 @@ struct Fold {
     policy: Option<TaskPolicy>,
     turns: Vec<UserTurn>,
     history: Vec<StepLine>,
+    summary: Option<Summary>,
     open_calls: BTreeMap<CallId, CallOpen>,
     handles: BTreeMap<Handle, HandleLabel>,
     ledger: Option<Ledger>,
@@ -52,6 +58,7 @@ impl Fold {
             policy: None,
             turns: Vec::new(),
             history: Vec::new(),
+            summary: None,
             open_calls: BTreeMap::new(),
             handles: BTreeMap::new(),
             ledger: None,
@@ -111,10 +118,40 @@ impl Fold {
             SessionEntry::Closed(cause) => {
                 self.closed.get_or_insert(cause);
             }
+            SessionEntry::Compacted(note) => self.compact(at, note),
             // Restore points do not touch the tail of a resumed session; a kind a newer build
             // wrote is kept in the log and read as nothing here.
             SessionEntry::Checkpoint(_) | SessionEntry::Unknown(_) => {}
         }
+    }
+
+    /// A summary: kept when it covers no more than the log held before it and no less than the
+    /// last one. Its taint joins the session's, and a summary never reads as more trusted than
+    /// the session was.
+    fn compact(&mut self, at: Seq, note: Compacted) {
+        if note.taint == Taint::Tainted && self.taint == Taint::Clean {
+            self.faults.push(ResumeFault::MissingTaint { at });
+        }
+        self.taint = self.taint.join(note.taint);
+        let held = (self.turns.len(), self.history.len());
+        let covers = note.covers;
+        let before = self.summary.as_ref().map_or((0, 0), |s| {
+            (s.covers.turns.0 as usize, s.covers.steps.0 as usize)
+        });
+        let wants = (covers.turns.0 as usize, covers.steps.0 as usize);
+        if wants.0 > held.0 || wants.1 > held.1 || wants.0 < before.0 || wants.1 < before.1 {
+            self.faults.push(ResumeFault::BadCompaction { at });
+            return;
+        }
+        let integrity = match self.taint {
+            Taint::Clean => Integrity::Trusted,
+            Taint::Tainted => Integrity::Untrusted,
+        };
+        self.summary = Some(Summary {
+            covers,
+            text: note.text,
+            integrity,
+        });
     }
 
     fn standing(&self) -> Standing {
@@ -135,6 +172,7 @@ impl Fold {
             policy: self.policy,
             turns: self.turns,
             history: self.history,
+            summary: self.summary,
             interrupted: self
                 .open_calls
                 .into_iter()

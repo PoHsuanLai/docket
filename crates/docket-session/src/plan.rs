@@ -5,7 +5,7 @@
 use crate::codec::Unreadable;
 use crate::entry::{CallOpen, EndCause, HandleLabel, Opening, Seq, Taint};
 use docket_core::{
-    BreakerTrip, CallId, Ledger, SkillId, SkillVersion, StepLine, TaskPolicy, UserTurn,
+    BreakerTrip, CallId, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy, UserTurn,
 };
 use porter_core::Count;
 use serde::{Deserialize, Serialize};
@@ -84,6 +84,12 @@ pub enum ResumeFault {
         /// Where.
         at: Seq,
     },
+    /// A summary that covers more than the log held before it, or less than an earlier one did;
+    /// it was ignored.
+    BadCompaction {
+        /// Where.
+        at: Seq,
+    },
 }
 
 /// Why there is no plan at all.
@@ -112,6 +118,10 @@ pub struct ResumePlan {
     pub turns: Vec<UserTurn>,
     /// Calls that ended, as the planner's history.
     pub history: Vec<StepLine>,
+    /// The latest summary of the oldest turns and steps, if the session was compacted. `turns`
+    /// and `history` stay whole; [`ResumePlan::live_turns`] and [`ResumePlan::live_history`] are
+    /// what the planner is shown beside it.
+    pub summary: Option<Summary>,
     /// Calls that did not: ended interrupted, never re-run.
     pub interrupted: Vec<Interrupted>,
     /// Handles as labels only, by handle.
@@ -124,4 +134,24 @@ pub struct ResumePlan {
     pub legacy_skipped: Count,
     /// What was wrong with the log.
     pub faults: Vec<ResumeFault>,
+}
+
+impl ResumePlan {
+    /// The person's turns the summary does not stand for: all of them when there is none.
+    pub fn live_turns(&self) -> &[UserTurn] {
+        let from = self
+            .summary
+            .as_ref()
+            .map_or(0, |s| s.covers.turns.0 as usize);
+        self.turns.get(from..).unwrap_or_default()
+    }
+
+    /// The steps the summary does not stand for: all of them when there is none.
+    pub fn live_history(&self) -> &[StepLine] {
+        let from = self
+            .summary
+            .as_ref()
+            .map_or(0, |s| s.covers.steps.0 as usize);
+        self.history.get(from..).unwrap_or_default()
+    }
 }

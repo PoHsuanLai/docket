@@ -101,7 +101,7 @@ pub struct Logged {
     pub read: Read,
 }
 
-const KINDS: [&str; 12] = [
+const KINDS: [&str; 13] = [
     "opened",
     "turn",
     "policy",
@@ -114,6 +114,7 @@ const KINDS: [&str; 12] = [
     "skill",
     "closed",
     "checkpoint",
+    "compacted",
 ];
 
 /// Reads a stored body of kind `companion.session.<slug>`; `place` is the row's position in the

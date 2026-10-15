@@ -2,6 +2,7 @@ mod args_props;
 mod atomic_file;
 mod budget;
 mod checkpoint;
+mod compact;
 mod episodes;
 mod grant_space;
 mod manifests;

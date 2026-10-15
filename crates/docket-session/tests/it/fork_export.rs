@@ -119,3 +119,21 @@ fn an_import_checks_its_version() {
         Err(ExportFault::UnknownVersion(9))
     );
 }
+
+#[test]
+fn a_fork_carries_the_summary_and_the_whole_history_it_covers() {
+    let parent = rows(&[
+        SessionEntry::Opened(opening()),
+        SessionEntry::Turn(turn(1, "archive the newsletters")),
+        call(1, "mail.thread.search"),
+        step(1, "mail.thread.search"),
+        compacted(1, 1, Taint::Clean),
+    ]);
+    let child = fork(&session("s-1"), &parent, Seq(4), task("t-2")).expect("fork");
+    let (p, c) = (
+        resume_plan(&parent).expect("plan"),
+        resume_plan(&rows(&child)).expect("plan"),
+    );
+    assert_eq!((c.turns.len(), c.history.len()), (1, 1));
+    assert_eq!(c.summary, p.summary);
+}

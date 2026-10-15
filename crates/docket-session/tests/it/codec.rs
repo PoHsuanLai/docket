@@ -199,3 +199,14 @@ fn a_watch_opening_round_trips_with_its_rewind_and_an_ordinary_one_is_unchanged(
     let old = serde_json::to_string(&opening()).expect("json");
     assert!(!old.contains("watch"), "{old}");
 }
+
+#[test]
+fn a_summary_entry_round_trips_under_its_own_tag() {
+    let entry = compacted(2, 3, Taint::Tainted);
+    let enc = encode(Seq(7), &entry).expect("encode");
+    assert_eq!(enc.kind, "companion.session.compacted");
+    assert_eq!(
+        decode("compacted", &enc.json, Seq(0)).read,
+        Read::Entry(Box::new(entry))
+    );
+}

@@ -168,3 +168,87 @@ fn a_budget_checkpoint_resets_the_calls_since() {
     ]);
     assert_eq!(p.budget.calls_since.0, 1);
 }
+
+#[test]
+fn a_summary_is_a_note_on_top_of_a_whole_history() {
+    // Rows: opening, two turns, two steps, then the summary of the first turn and step.
+    let p = plan(&[
+        SessionEntry::Opened(opening()),
+        SessionEntry::Turn(turn(1, "archive the newsletters")),
+        call(1, "mail.thread.search"),
+        step(1, "mail.thread.search"),
+        SessionEntry::Turn(turn(2, "go on")),
+        call(2, "mail.thread.archive"),
+        step(2, "mail.thread.archive"),
+        compacted(1, 1, Taint::Clean),
+    ]);
+    assert_eq!(
+        (p.turns.len(), p.history.len()),
+        (2, 2),
+        "nothing is deleted"
+    );
+    assert_eq!(p.live_turns(), &p.turns[1..]);
+    assert_eq!(p.live_history(), &p.history[1..]);
+    let summary = p.summary.expect("summary");
+    assert_eq!(summary.integrity, prov::Integrity::Trusted);
+    assert!(p.faults.is_empty());
+}
+
+#[test]
+fn a_summary_never_lowers_taint_and_a_tainted_one_taints() {
+    // (entries before the summary, taint it says, the plan's taint, its integrity, faults)
+    let table = [
+        (
+            vec![],
+            Taint::Clean,
+            Taint::Clean,
+            prov::Integrity::Trusted,
+            0,
+        ),
+        (
+            vec![taint()],
+            Taint::Clean,
+            Taint::Tainted,
+            prov::Integrity::Untrusted,
+            0,
+        ),
+        (
+            vec![],
+            Taint::Tainted,
+            Taint::Tainted,
+            prov::Integrity::Untrusted,
+            1,
+        ),
+    ];
+    for (before, says, taint_is, integrity, faults) in table {
+        let mut entries = vec![SessionEntry::Opened(opening())];
+        entries.extend(before);
+        entries.push(compacted(0, 0, says));
+        let p = plan(&entries);
+        assert_eq!(p.taint, taint_is, "{says:?}");
+        assert_eq!(p.summary.expect("summary").integrity, integrity, "{says:?}");
+        assert_eq!(p.faults.len(), faults, "{says:?}");
+    }
+}
+
+#[test]
+fn a_summary_that_covers_more_than_was_logged_or_less_than_before_is_ignored() {
+    let over = plan(&[
+        SessionEntry::Opened(opening()),
+        compacted(1, 0, Taint::Clean),
+    ]);
+    assert_eq!(over.summary, None);
+    assert_eq!(over.faults, vec![ResumeFault::BadCompaction { at: Seq(1) }]);
+    let shrinks = plan(&[
+        SessionEntry::Opened(opening()),
+        SessionEntry::Turn(turn(1, "a")),
+        SessionEntry::Turn(turn(2, "b")),
+        compacted(2, 0, Taint::Clean),
+        compacted(1, 0, Taint::Clean),
+    ]);
+    assert_eq!(shrinks.summary.expect("kept").covers.turns.0, 2);
+    assert_eq!(
+        shrinks.faults,
+        vec![ResumeFault::BadCompaction { at: Seq(4) }]
+    );
+}

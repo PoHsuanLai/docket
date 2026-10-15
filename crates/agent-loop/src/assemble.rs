@@ -178,6 +178,7 @@ pub fn assemble(budget: &AssemblerBudget, sources: &Sources) -> PlannerView {
         inbox: sources.inbox.clone(),
         skills: sources.skills.clone(),
         skill_texts: sources.skill_texts.clone(),
+        summary: None,
     };
     let keep = budget.full_steps.0 as usize;
     while task_fit(budget, &view) == TaskFit::Overflows && view.history.len() > keep {

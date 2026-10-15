@@ -18,6 +18,7 @@ mod call;
 mod caller;
 mod checkpoint;
 mod classify;
+mod compact;
 mod config;
 mod confirm;
 mod context;
@@ -92,6 +93,7 @@ pub use checkpoint::{
 pub use classify::{
     CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd, PerCall,
 };
+pub use compact::{Covers, SUMMARY_MAX_CHARS, Summary, SummaryFault, SummaryText};
 pub use config::{
     AgentConfig, AssemblerBudget, BreakerLimits, IdleRules, ReviewTimeouts, SETTING_ROWS,
     SettingRow, SettingValue,

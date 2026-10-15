@@ -356,6 +356,7 @@ async fn a_resume_starts_a_new_agent_session_and_keeps_the_taint() {
         policy: None,
         turns: Vec::new(),
         history: Vec::new(),
+        summary: None,
         interrupted: Vec::new(),
         handles: Vec::new(),
         budget: docket_session::ResumedBudget {

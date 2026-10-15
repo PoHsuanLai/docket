@@ -7,11 +7,11 @@
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
 use docket_core::{
-    ActionRef, CallId, CheckpointNote, Handle, HandleShape, Rewind, SkillId, SkillVersion,
-    StartedFrom, StepLine, TaskPolicy, UserTurn,
+    ActionRef, CallId, CheckpointNote, Covers, Handle, HandleShape, Rewind, SkillId, SkillVersion,
+    StartedFrom, StepLine, SummaryText, TaskPolicy, UserTurn,
 };
 use docket_core::{BreakerTrip, Ledger};
-use porter_core::AppName;
+use porter_core::{AppName, Tier};
 use prov::{AgentRef, Effect, Label, SessionId, Source, SpaceId, TaskId};
 use serde::{Deserialize, Serialize};
 
@@ -196,6 +196,34 @@ pub enum EndCause {
     WallExhausted,
 }
 
+/// Who wrote a summary: the tier asked for and, when the reply said, the model that answered.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CompactedBy {
+    /// The tier the summary was asked of.
+    pub tier: Tier,
+    /// The model that served it, as the reply named it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+/// The oldest turns and steps of the session were summarised. The entries they cover stay in the
+/// log, whole and in place: this is a note on top of them, never a deletion, so restore points,
+/// undo, export and fork see the full history. A fold reads it as the summary the planner is
+/// shown in their place. It is cumulative: `covers` counts from the first turn and the first step,
+/// so the latest one stands for everything an earlier one did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Compacted {
+    /// The turns and steps it stands for, counted from the start.
+    pub covers: Covers,
+    /// What it says: built from what the planner was shown, handles kept as `#n`.
+    pub text: SummaryText,
+    /// The taint of what it covers. `Tainted` when the session was tainted when it was written,
+    /// and it stays so.
+    pub taint: Taint,
+    /// Who wrote it.
+    pub by: CompactedBy,
+}
+
 /// An entry of a kind this build does not know, as a newer build wrote it: read, kept for the
 /// export, and ignored by every fold. It is never written, and nothing treats it as a taint, a
 /// close or anything else it might have been.
@@ -238,6 +266,8 @@ pub enum SessionEntry {
     /// A restore point was saved, skipped or restored (`checkpoint_rows` folds them). A resume
     /// ignores it.
     Checkpoint(CheckpointNote),
+    /// The oldest turns and steps were summarised; they stay in the log.
+    Compacted(Compacted),
     /// A kind a newer build wrote. Only the reader makes one; `encode` refuses it.
     Unknown(UnknownEntry),
 }
@@ -258,6 +288,7 @@ impl SessionEntry {
             SessionEntry::Skill(_) => "skill",
             SessionEntry::Closed(_) => "closed",
             SessionEntry::Checkpoint(_) => "checkpoint",
+            SessionEntry::Compacted(_) => "compacted",
             SessionEntry::Unknown(_) => "unknown",
         }
     }

@@ -46,9 +46,9 @@ pub use codec::{
 };
 pub use desk::{DeskFault, NoDesk, SheetDesk};
 pub use entry::{
-    BackendKind, BreakerNote, CallOpen, EndCause, ForkPoint, HandleLabel, Opening, ProgramName,
-    ProgramNameError, Seq, SessionEntry, SkillUse, Taint, TaintCause, TaintNote, UnknownEntry,
-    Workspace, WorkspaceError,
+    BackendKind, BreakerNote, CallOpen, Compacted, CompactedBy, EndCause, ForkPoint, HandleLabel,
+    Opening, ProgramName, ProgramNameError, Seq, SessionEntry, SkillUse, Taint, TaintCause,
+    TaintNote, UnknownEntry, Workspace, WorkspaceError,
 };
 pub use export::{EXPORT_VERSION, ExportFault, SessionExport, export, from_json, to_json};
 pub use fork::{ForkFault, child_names, fork, forks_of};

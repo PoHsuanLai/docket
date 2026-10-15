@@ -284,6 +284,7 @@ mod tests {
             policy: None,
             turns: vec![],
             history: vec![],
+            summary: None,
             interrupted: vec![],
             handles: vec![],
             budget: ResumedBudget {
