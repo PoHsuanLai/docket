@@ -95,6 +95,8 @@ pub async fn serve_on_gated<S: Seams + 'static>(
         search_port(router),
         Peers::gated(connection.clone(), config, proc_root, acp),
     );
+    // Before the interfaces are exported, so no peer can leave unwatched.
+    gateway.forget_leavers(connection).await.map_err(bus)?;
     export(connection, &gateway).await.map_err(bus)?;
     // Never queued behind another intentd: two routers would be two breakers and two journals.
     let reply = connection

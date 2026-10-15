@@ -58,6 +58,11 @@ pub(crate) struct SearchPort {
 /// other generation are stale and are not sent.
 pub(crate) type LiveSearches = Arc<Mutex<BTreeMap<String, u64>>>;
 
+/// Forgets the live searches of `name`, a bus name that has no owner any more.
+fn forget(live: &LiveSearches, name: &str) {
+    live.lock().unwrap_or_else(|p| p.into_inner()).remove(name);
+}
+
 /// What every interface shares.
 #[derive(Clone)]
 pub(crate) struct Gateway {
@@ -117,6 +122,27 @@ impl Gateway {
             peers,
             requests: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    /// Drops a peer's live searches when its bus name goes away, so a late answer is never sent
+    /// to whoever takes the name next, and nothing is kept for a peer that left. Subscribes
+    /// before it returns, so no departure after this call is missed.
+    pub(crate) async fn forget_leavers(&self, connection: &zbus::Connection) -> zbus::Result<()> {
+        use futures_util::StreamExt;
+        let dbus = zbus::fdo::DBusProxy::new(connection).await?;
+        // Argument 2 is the new owner: empty when the name has none now.
+        let mut gone = dbus
+            .receive_name_owner_changed_with_args(&[(2, "")])
+            .await?;
+        let live = self.live.clone();
+        tokio::spawn(async move {
+            while let Some(signal) = gone.next().await {
+                if let Ok(args) = signal.args() {
+                    forget(&live, args.name().as_str());
+                }
+            }
+        });
+        Ok(())
     }
 
     /// Starts the part of a search that has to ask apps, for `sender` alone: its hits come as
@@ -252,4 +278,23 @@ pub(crate) async fn export(connection: &zbus::Connection, gateway: &Gateway) -> 
     server.at(INTENTS_PATH, GateBus(gateway.clone())).await?;
     server.at(INTENTS_PATH, ControlBus(gateway.clone())).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_peer_that_leaves_keeps_no_search_and_the_others_keep_theirs() {
+        let live = LiveSearches::default();
+        {
+            let mut all = live.lock().expect("lock");
+            all.insert(":1.5".to_owned(), 3);
+            all.insert(":1.6".to_owned(), 1);
+        }
+        forget(&live, ":1.5");
+        forget(&live, ":1.99");
+        let left: Vec<_> = live.lock().expect("lock").keys().cloned().collect();
+        assert_eq!(left, [":1.6".to_owned()]);
+    }
 }

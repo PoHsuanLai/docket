@@ -11,7 +11,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use tokio::task::AbortHandle;
 use zbus::message::Header;
 use zbus::zvariant::OwnedObjectPath;
 
@@ -39,10 +38,12 @@ struct Steer {
     closed: Arc<Flag>,
 }
 
-/// One request in flight. Only the connection that made it may close it.
+/// One request in flight. Only the connection that made it may close it. Closing never stops the
+/// work: the router's call is not cancel-safe (the app may have acted already, and the audit
+/// record is written after it), so a closed request runs to its end and its answer is dropped.
 pub(crate) struct RequestObject {
     owner: String,
-    work: AbortHandle,
+    closed: Arc<Flag>,
     steer: Option<Steer>,
 }
 
@@ -65,16 +66,13 @@ impl RequestObject {
     ) -> Result<(), IntentsError> {
         self.owned_by(&header)?;
         let _ = connection;
-        match &self.steer {
-            // A watched request ends itself: the router takes its sheet back, and no `Response`
-            // follows.
-            Some(steer) => steer.closed.raise(),
-            None => {
-                self.work.abort();
-                let path = header.path().map(|p| p.to_owned());
-                if let Some(path) = path {
-                    let _ = server.remove::<RequestObject, _>(path).await;
-                }
+        // No `Response` follows: the work sees the flag when it ends and drops its answer. A
+        // watched request also ends itself sooner: the router takes its sheet back.
+        self.closed.raise();
+        if self.steer.is_none() {
+            let path = header.path().map(|p| p.to_owned());
+            if let Some(path) = path {
+                let _ = server.remove::<RequestObject, _>(path).await;
             }
         }
         Ok(())
@@ -186,10 +184,11 @@ impl Gateway {
         let at = path.clone();
         let to = sender.clone();
         let (go, wait) = tokio::sync::oneshot::channel::<()>();
+        let closed = Flag::new();
         let steer = match watching {
             Watching::Yes => Some(Steer {
                 proceed: Flag::new(),
-                closed: Flag::new(),
+                closed: closed.clone(),
             }),
             Watching::Listening | Watching::No => None,
         };
@@ -200,15 +199,16 @@ impl Gateway {
             }
             (None, _) => Watch::none(),
         };
-        let withdrawn = steer.clone();
-        let work = tokio::spawn(async move {
+        let withdrawn = closed.clone();
+        tokio::spawn(async move {
             // The object is exported before the router is asked, so its removal below always
             // finds it.
-            if wait.await.is_err() {
+            if wait.await.is_err() || withdrawn.is_up() {
+                // Closed before the router was asked: nothing was done, so nothing is begun.
                 return;
             }
             let reply = handler(caller, request, watch).await;
-            if withdrawn.is_some_and(|s| s.closed.is_up()) {
+            if withdrawn.is_up() {
                 let _ = emitting
                     .object_server()
                     .remove::<RequestObject, _>(at.as_str())
@@ -232,7 +232,7 @@ impl Gateway {
         });
         let object = RequestObject {
             owner: sender.to_string(),
-            work: work.abort_handle(),
+            closed,
             steer,
         };
         connection
