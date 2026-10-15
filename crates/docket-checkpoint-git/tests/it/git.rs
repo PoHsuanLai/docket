@@ -269,3 +269,43 @@ async fn a_restore_does_not_write_through_a_link_that_took_the_place_of_a_folder
     );
     assert!(repo.join("dir").is_symlink());
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_restore_that_fails_while_writing_deletes_nothing_and_says_it_stopped_part_way() {
+    use std::os::unix::fs::PermissionsExt;
+    let Some(scratch) = Scratch::new() else {
+        return;
+    };
+    let repo = scratch.repo("repo");
+    let (shut, kept) = (repo.join("shut"), repo.join("kept.txt"));
+    std::fs::create_dir_all(&shut).expect("dir");
+    std::fs::write(shut.join("f.txt"), "saved").expect("write");
+    let (store, there) = (scratch.store(), root(&repo));
+    store.take(take(&there, 1)).await.expect("take");
+    // Now the point's file is gone, a file that is not in the point is there, and the folder the
+    // file must be written into cannot be written to.
+    std::fs::remove_file(shut.join("f.txt")).expect("remove");
+    std::fs::write(&kept, "only now").expect("write");
+    std::fs::set_permissions(&shut, std::fs::Permissions::from_mode(0o555)).expect("mode");
+    let plan = store
+        .plan(PlanAsk {
+            root: there.clone(),
+            session: session(),
+            id: CheckpointId(1),
+        })
+        .await
+        .expect("plan");
+    assert_eq!((plan.added.len(), plan.removed.len()), (1, 1));
+    let restore = ApplyAsk {
+        root: there,
+        session: session(),
+        id: CheckpointId(1),
+        expect: plan.digest,
+    };
+    let done = store.apply(restore).await;
+    std::fs::set_permissions(&shut, std::fs::Permissions::from_mode(0o755)).expect("mode");
+    assert_eq!(done, Err(StoreFault::Partial));
+    // The deletes come last, so the failed write cost nothing.
+    assert_eq!(std::fs::read_to_string(kept).expect("read"), "only now");
+}

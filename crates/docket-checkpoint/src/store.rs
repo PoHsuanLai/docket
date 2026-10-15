@@ -22,6 +22,10 @@ pub enum StoreFault {
     /// The folder is not what the plan was made from.
     #[error("the folder changed under the plan")]
     PlanStale,
+    /// A restore wrote or deleted some files and then stopped: the folder is part-way between
+    /// two states, and the caller must keep the point it saved before.
+    #[error("the restore stopped part-way")]
+    Partial,
     /// Anything else, including a point number that is already used.
     #[error("the store failed")]
     Failed,
@@ -94,7 +98,9 @@ pub trait CheckpointStore: Send + Sync {
     fn plan(&self, ask: PlanAsk) -> impl Future<Output = Result<RestorePlan, StoreFault>> + Send;
 
     /// Re-derives the plan, refuses `PlanStale` if its digest is not `expect`, then writes
-    /// `changed` and `added` from the point and deletes `removed`. Returns what it did.
+    /// `changed` and `added` from the point and, only after all are written, deletes `removed`.
+    /// A failure after the first file was touched is `Partial`; any other refusal changed
+    /// nothing. Returns what it did.
     fn apply(&self, ask: ApplyAsk) -> impl Future<Output = Result<RestorePlan, StoreFault>> + Send;
 
     /// Forgets points; how many were forgotten.

@@ -258,6 +258,13 @@ impl<S: Seams> Router<S> {
                 expect: ask.digest,
             })
             .await;
+        if matches!(applied, Err(StoreFault::Partial)) {
+            // Some files were written: the safety point is the way back, and it stays.
+            return Err(AppRefusal::Failed(FailText(
+                "The restore stopped part-way. Your files from before it are kept as a restore point."
+                    .to_owned(),
+            )));
+        }
         if let Err(fault) = applied {
             // Nothing was restored: the safety point is not needed, and not in the log.
             let forget = DropAsk {

@@ -76,6 +76,7 @@ impl<R: GitRun> GitStore<R> {
             None,
         )
         .await?;
+        // The index is staged; from here on files are written, so a failure is part-way.
         for chunk in paths.chunks(CHUNK) {
             let mut names = Vec::new();
             for path in chunk {
@@ -83,7 +84,9 @@ impl<R: GitRun> GitStore<R> {
                 names.push(0);
             }
             let args = strings(&["checkout-index", "-f", "-z", "--stdin"]);
-            self.ok_with(root, args, &env, Some(names)).await?;
+            self.ok_with(root, args, &env, Some(names))
+                .await
+                .map_err(|_| StoreFault::Partial)?;
         }
         Ok(())
     }
@@ -173,11 +176,14 @@ impl<R: GitRun> CheckpointStore for GitStore<R> {
             stay_inside(&check_root, &refs).map_err(|_| StoreFault::Failed)
         })
         .await?;
-        let (delete_root, gone) = (folder, plan.removed.clone());
-        blocking(move || delete(&delete_root, &gone).map_err(|_| StoreFault::Failed)).await?;
+        // Write first, delete last: the files the restore brings back are staged in a private
+        // index before the first one is written, and nothing is deleted until all are written.
+        // From the first write on a failure is `Partial`, and the caller keeps its safety point.
         let wanted: Vec<&WorkPath> = plan.changed.iter().chain(&plan.added).collect();
         self.write_back(&ask.root, &ask.session, &tree, &wanted)
             .await?;
+        let (delete_root, gone) = (folder, plan.removed.clone());
+        blocking(move || delete(&delete_root, &gone).map_err(|_| StoreFault::Partial)).await?;
         Ok(plan)
     }
 

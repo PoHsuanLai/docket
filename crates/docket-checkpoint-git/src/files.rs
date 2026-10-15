@@ -37,18 +37,34 @@ pub(crate) fn stay_inside(root: &Path, paths: &[&WorkPath]) -> Result<(), Unsafe
 }
 
 /// Deletes `paths` (a path already gone is fine) and then the folders that are left empty by it,
-/// never `root` itself.
+/// never `root` itself. Each file's folder is resolved (links followed) at the moment of its
+/// delete and must still be inside the resolved `root`, and the delete names the resolved folder,
+/// so a link put in place after `stay_inside` ran is caught; only a swap inside the few
+/// microseconds between that check and the unlink is left (closing it takes `openat`).
 pub(crate) fn delete(root: &Path, paths: &[WorkPath]) -> std::io::Result<()> {
+    let root = root.canonicalize()?;
     for path in paths {
         let file = root.join(path.as_str());
-        match std::fs::remove_file(&file) {
+        let (Some(parent), Some(name)) = (file.parent(), file.file_name()) else {
+            continue;
+        };
+        let real = match parent.canonicalize() {
+            Ok(real) => real,
+            // The folder is gone, and so is the file.
+            Err(why) if why.kind() == ErrorKind::NotFound => continue,
+            Err(why) => return Err(why),
+        };
+        if !real.starts_with(&root) {
+            return Err(ErrorKind::PermissionDenied.into());
+        }
+        match std::fs::remove_file(real.join(name)) {
             Ok(()) => {}
             Err(why) if why.kind() == ErrorKind::NotFound => {}
             Err(why) => return Err(why),
         }
-        let mut folder = file.parent();
+        let mut folder = Some(real.as_path());
         while let Some(dir) = folder {
-            if dir == root || !dir.starts_with(root) || std::fs::remove_dir(dir).is_err() {
+            if dir == root || !dir.starts_with(&root) || std::fs::remove_dir(dir).is_err() {
                 break;
             }
             folder = dir.parent();
