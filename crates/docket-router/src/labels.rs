@@ -4,6 +4,7 @@
 
 use crate::handles::HandleValue;
 use crate::session::SessionEvent;
+use crate::spoken::whole_in;
 use crate::state::SessionRecord;
 use docket_core::{
     ActionDecl, ArgFault, ArgLabels, ArgSink, Args, ParamName, Saw, SessionSaw, SinkIntegrity,
@@ -192,11 +193,11 @@ fn claim(session: &SessionRecord, voice: &Voice, value: &Value, given: Label) ->
     }
 }
 
-/// A model's value is trusted when it is words of the person's own turns, a thing the router
-/// showed the session, or a closed-set value; anything else is the model's own writing.
+/// A model's value is trusted when it is words of the person's own turns (whole tokens of them,
+/// see `spoken`), a thing the router showed the session, or a closed-set value; anything else is
+/// the model's own writing.
 fn trace(session: &SessionRecord, value: &Value) -> Label {
-    let spoken =
-        |text: &str| !text.is_empty() && session.turns.iter().any(|t| t.text.contains(text));
+    let spoken = |text: &str| session.turns.iter().any(|t| whole_in(&t.text, text));
     match value {
         Value::Text(t) | Value::Url(t) if spoken(t) => user_label(),
         Value::Text(_) | Value::Url(_) => model_label(),
