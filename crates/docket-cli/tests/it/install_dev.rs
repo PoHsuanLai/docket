@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-const BINARIES: [&str; 9] = [
+const BINARIES: [&str; 12] = [
     "intentd",
     "companiond",
     "readerd",
@@ -19,6 +19,9 @@ const BINARIES: [&str; 9] = [
     "memoryd",
     "inferd",
     "accountd",
+    "docket-agent",
+    "docket-net-forward",
+    "docket-net-enter",
 ];
 
 /// The script's sources are the sibling checkouts; without them there is nothing to install from.
@@ -195,13 +198,23 @@ fn an_install_puts_every_piece_where_the_session_reads_it() {
     ] {
         has(&format!(".config/quire/{config}.toml"));
     }
-    // Offline unless asked: no drop-in for inferd.
+    // Offline unless asked: no drop-in that opens inferd's network (its sandbox drop-in, which
+    // only narrows it, is checked below).
     assert!(
-        !tree.iter().any(|p| p.contains("inferd.service.d")),
+        !tree.iter().any(|p| p.contains("inferd.service.d/")
+            && !p.ends_with("inferd.service.d/")
+            && !p.ends_with("inferd.service.d/sandbox.conf")),
         "{tree:#?}"
     );
     // The mount-namespace protections ride along as drop-ins.
-    for unit in ["intentd", "companiond", "readerd", "actions-mcp", "memoryd"] {
+    for unit in [
+        "intentd",
+        "companiond",
+        "readerd",
+        "actions-mcp",
+        "memoryd",
+        "inferd",
+    ] {
         has(&format!(
             ".config/systemd/user/{unit}.service.d/sandbox.conf"
         ));
