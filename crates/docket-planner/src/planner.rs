@@ -69,6 +69,9 @@ pub enum PlanFault {
     /// The person has not chosen a model for the assistant, and none is chosen for them.
     #[error("no model is chosen")]
     NoModelChosen,
+    /// The person's choice is Automatic and none of its models showed it can use apps.
+    #[error("no model in Automatic can use apps")]
+    NoModelUsesApps,
 }
 
 /// What the planner said and did in one turn: words first, then the one thing the loop acts on.
@@ -412,6 +415,9 @@ impl<P: Transport> PlannerModel<P> {
                     return Err(match (&other, route.declined()) {
                         (InferReply::Refused(InferRefusal::NoModelChosen), _) => {
                             PlanFault::NoModelChosen
+                        }
+                        (InferReply::Refused(InferRefusal::NoModelUsesApps), _) => {
+                            PlanFault::NoModelUsesApps
                         }
                         (_, Some(declined)) => PlanFault::Declined(Box::new(declined.clone())),
                         (_, None) => PlanFault::Unavailable,

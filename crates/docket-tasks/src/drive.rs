@@ -55,6 +55,9 @@ fn model_refusal(fault: &PlanFault) -> Option<RefusalWire> {
 fn refusal_text(fault: &PlanFault) -> Option<String> {
     match fault {
         PlanFault::Declined(declined) => Some(declined_text(declined)),
+        PlanFault::NoModelUsesApps => {
+            Some("None of the models in Automatic can use apps. Add one in Settings.".to_owned())
+        }
         PlanFault::CallInText => Some(
             "The model wrote a step as text instead of making it, so nothing was done.".to_owned(),
         ),

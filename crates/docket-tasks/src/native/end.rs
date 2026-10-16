@@ -25,7 +25,10 @@ pub(crate) fn end_of(state: Option<&LoopState>, failure: Option<&Failure>) -> Tu
 fn failed(failure: Option<&Failure>) -> TurnEnd {
     match failure {
         Some(
-            Failure::Model(PlanFault::Declined(_) | PlanFault::NoModelChosen) | Failure::Refused(_),
+            Failure::Model(
+                PlanFault::Declined(_) | PlanFault::NoModelChosen | PlanFault::NoModelUsesApps,
+            )
+            | Failure::Refused(_),
         ) => TurnEnd::Refused,
         Some(Failure::Model(_) | Failure::Reader | Failure::Budget) | None => TurnEnd::Failed,
     }
