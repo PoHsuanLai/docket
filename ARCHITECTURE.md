@@ -397,4 +397,4 @@ action), `--sandbox auto|on|off`, `--distro debian|fedora|arch` and `--with-voic
 `$SUDO`, else sudo, doas or pkexec, else they are printed. The sandbox keys that need a mount
 namespace live only in the drop-ins; `auto` tests whether `systemd --user` can use them and leaves
 them out where it cannot (Ubuntu 24.04+ by default). `dist/install-dev.sh` is still the way to
-install the whole agent stack, with porter and almanac, for one user.
+install the whole agent stack, with porter and almanac, for one user. The build runs from `/` with `--manifest-path` and the pinned toolchain, so it is linked by the system's own linker; clang and mold (the repo's `.cargo/config.toml`) are for working on the code, and an install never needs them.

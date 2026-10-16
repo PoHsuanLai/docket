@@ -242,6 +242,24 @@ drop_stale() {
   done
 }
 
+# Linked by this system's own linker: a repo's .cargo/config.toml links with clang and mold, which
+# is how the code is worked on, not something an install may need. Cargo reads that file (and rustup
+# the toolchain file) from the directory it runs in, so the build runs from / with the manifest
+# named and the repo's pinned toolchain passed on.
+release_build() { # REPO_DIR cargo-args...
+  local dir="$1" toolchain
+  shift
+  toolchain="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$dir/rust-toolchain.toml" 2>/dev/null)" || true
+  (
+    cd / &&
+      if [ -n "$toolchain" ] && command -v rustup >/dev/null 2>&1; then
+        RUSTUP_TOOLCHAIN="$toolchain"
+        export RUSTUP_TOOLCHAIN
+      fi &&
+      cargo build --release --locked --manifest-path "$dir/Cargo.toml" "$@"
+  )
+}
+
 build_all() {
   [ -z "${INSTALL_DEV_BIN_DIR:-}" ] || { say "using prebuilt binaries from $INSTALL_DEV_BIN_DIR"; return 0; }
   local repo
@@ -252,9 +270,9 @@ build_all() {
       [ "$r" != "$repo" ] || packages+=(-p "$pkg")
     done
     if [ "$DRY" = 1 ]; then
-      act "cargo build --release --locked --manifest-path $(repo_dir "$repo")/Cargo.toml ${packages[*]}"
+      act "cargo build --release --locked --manifest-path $(repo_dir "$repo")/Cargo.toml ${packages[*]} (run from /, linked by this system's own linker)"
     else
-      cargo build --release --locked --manifest-path "$(repo_dir "$repo")/Cargo.toml" "${packages[@]}"
+      release_build "$(repo_dir "$repo")" "${packages[@]}"
     fi
   done
 }
