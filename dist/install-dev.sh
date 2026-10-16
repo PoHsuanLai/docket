@@ -261,11 +261,14 @@ preflight() {
 sudo_step() {
   cat <<EOF
 
-One step needs root, and is not run here. accountd and inferd read their caller table from
+One step needs root, and is not run here. accountd reads its caller table from
 /etc/porter/callers.toml (rows of \$XDG_CONFIG_HOME/porter/callers.toml win, but the system
-file is where inferd.service is named a porter daemon). They read it only when they start:
+file is where inferd.service is named a porter daemon). inferd reads who is calling from
+/etc/porter/inferd-callers.toml alone: a [callers] table in inferd.toml is ignored. They read them
+only when they start:
 
   sudo install -D -m644 $PORTER/dist/callers.toml /etc/porter/callers.toml
+  sudo install -D -m644 $PORTER/dist/inferd-callers.toml /etc/porter/inferd-callers.toml
 
 The agent daemons name their callers the same way, by the unit behind a connection, from
 /etc/quire/<daemon>-callers.toml (the system's file alone can say which unit is sill, the shell;
@@ -334,7 +337,7 @@ do_uninstall() {
     done <<<"$rows"
   done
   say "Then:  systemctl --user daemon-reload   (and stop what is running: systemctl --user stop intentd companiond readerd memoryd inferd accountd)"
-  say "Not removed: /etc/porter/callers.toml and /etc/quire/*-callers.toml (sudo rm them), your accounts and keys, and ~/.local/state/quire."
+  say "Not removed: /etc/porter/callers.toml, /etc/porter/inferd-callers.toml and /etc/quire/*-callers.toml (sudo rm them), your accounts and keys, and ~/.local/state/quire."
 }
 
 if [ "$UNINSTALL" = 1 ]; then do_uninstall; else do_install; fi

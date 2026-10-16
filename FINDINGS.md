@@ -1031,7 +1031,7 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
     removed on the next run.
   - The one root step (printed, never run): `sudo install -D -m644 <porter>/dist/callers.toml /etc/porter/callers.toml`.
     accountd and syncd read `/etc/porter/callers.toml` with `$XDG_CONFIG_HOME/porter/callers.toml` laid over it (user
-    rows win); inferd's own caller table is `[callers]` in `~/.config/quire/inferd.toml` (installed), and memoryd's is
+    rows win); inferd's own caller table is `/etc/porter/inferd-callers.toml` (root's; a `[callers]` table in `inferd.toml` is ignored), and memoryd's is
     `memory-callers.toml` (installed in the user config, which layers over `/etc/quire/`), so neither needs root.
 - **`quire-do ask [--space <id>] "<text>"`**: `Companion1.Open` in the Space (default `desktop`), `Session.Turn`
   through intentd, `Companion1.Ask`, then the answer object is followed (its current `View`, then each `Updated`)

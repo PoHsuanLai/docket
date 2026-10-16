@@ -48,6 +48,7 @@ impl InferdWorld {
         let bus = PrivateBus::start(root);
         let client = bus.connect().await;
         place(root, std::process::id(), Cgroup::Unit("intentd"));
+        crate::world::write_system_callers(root).expect("the system callers files");
         if let ModelSource::Scripted(cassette) = model {
             write(&root.join("cassette.jsonl"), cassette);
         }

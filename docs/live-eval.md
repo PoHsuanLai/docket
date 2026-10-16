@@ -24,7 +24,7 @@ Both scripts take `--engine`:
 | `cloud` | inferd with network and the hosted models that file names by catalogue id | yes, and it says so (and waits five seconds) before it starts |
 
 `--inferd-config FILE` is read from the path you give and nowhere else. It must not contain a
-`[callers]` table (the world writes the callers for intentd, companiond, readerd and memoryd). Examples:
+`[callers]` table (the world writes inferd's callers file for intentd, companiond, readerd and memoryd). Examples:
 `dev/live/inferd.local.example.toml` and `dev/live/inferd.cloud.example.toml`; copy one to
 `dev/live/inferd.local.toml` or `dev/live/inferd.cloud.toml` (git ignores both).
 

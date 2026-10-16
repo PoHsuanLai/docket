@@ -13,7 +13,8 @@ prompt = "anywhere"
 
 # Each run pins all three tiers to ONE model, so the run measures that model alone. Fill the ids
 # with `cloud/<entry id>` of ~/stoker/catalog (the file's own `id`); the account must reach them.
-# The ids are left empty here because the cloud set is being changed in stoker.
+# The ids are left empty here because the cloud set is being changed in stoker. A tier left empty
+# has no model chosen, and a request at that tier is refused: fill all three.
 [ai.model.text]
 fast = ""
 balanced = ""

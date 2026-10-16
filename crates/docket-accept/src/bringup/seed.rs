@@ -27,7 +27,7 @@ pub enum ExtraFault {
     Owned(&'static str),
 }
 
-/// The `inferd.toml` of a root: the fixed rows, then the person's `extra` rows, then the callers.
+/// The `inferd.toml` of a root: the fixed rows, then the person's `extra` rows.
 pub fn inferd_toml(root: &Path, extra: &str) -> Result<String, ExtraFault> {
     let table: toml::Table = extra
         .parse()
@@ -37,14 +37,18 @@ pub fn inferd_toml(root: &Path, extra: &str) -> Result<String, ExtraFault> {
     }
     let body = format!("{NO_LOCAL_ENGINE}\n{extra}");
     let model = crate::world::ModelSource::Live(body);
-    let toml = crate::world::inferd_toml(root, &model, None);
-    Ok(toml.replacen("[callers.apps]", SHELL_CALLERS, 1))
+    Ok(crate::world::inferd_toml(root, &model, None))
 }
 
 /// The rows an install gives inferd beside the apps: the shell's unit (here `sill.service`, the
 /// unit the fake proc root puts the shell in) and the daemons that may choose where the
 /// assistant runs.
-const SHELL_CALLERS: &str = "[callers]\nshell = [\"sill.service\"]\nplaces = [\"companiond.service\", \"readerd.service\", \"intentd.service\"]\n\n[callers.apps]";
+const SHELL_CALLERS: &str = "shell = [\"sill.service\"]\nplaces = [\"companiond.service\", \"readerd.service\", \"intentd.service\"]\n\n";
+
+/// inferd's system caller table for a root: the shell and the places rows, then the apps.
+pub fn inferd_callers() -> String {
+    format!("{SHELL_CALLERS}{}", crate::world::INFERD_CALLERS)
+}
 
 /// The directories of a root, as a World makes them.
 pub fn layout(root: &Path) -> std::io::Result<()> {
@@ -96,5 +100,6 @@ pub fn files(root: &Path, shell_pid: u32, inferd_toml: &str) -> std::io::Result<
     )?;
     put(&root.join("data/quire/memory/spaces.toml"), SPACES)?;
     crate::world::write_system_callers(root)?;
+    put(&root.join("system/inferd-callers.toml"), &inferd_callers())?;
     put(&root.join("config/quire/inferd.toml"), inferd_toml)
 }

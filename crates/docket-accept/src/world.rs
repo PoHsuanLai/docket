@@ -285,6 +285,8 @@ pub(crate) fn extra_env(dir: &Path, name: &str, keys: Option<&str>) -> Vec<(&'st
         // scratch root (a build with the `test-keys` feature; see docs/live-eval.md).
         "inferd" => [
             ("INFERD_PROC_ROOT", proc_root),
+            // Who is calling comes from this system file alone (not `inferd.toml`).
+            ("PORTER_INFERD_CALLERS", system("inferd")),
             (
                 "INFERD_KEYS",
                 keys.map_or_else(
@@ -385,11 +387,14 @@ pub fn restore_unit(root: &Path, name: &str, main: Option<String>) {
     }
 }
 
-pub(crate) const CALLERS: &str = "[callers.apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\", \"docket-acp.scope\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
+/// inferd's caller table, a system file: the apps by the units that run them. inferd reads who is
+/// calling from this file alone, never from `inferd.toml`.
+pub(crate) const INFERD_CALLERS: &str = "[apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\", \"docket-acp.scope\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
 
 /// The shipped callers files of the daemons that read their own, by file name.
-const SYSTEM_CALLERS: [(&str, &str); 5] = [
+const SYSTEM_CALLERS: [(&str, &str); 6] = [
     ("memory-callers.toml", MEMORY_CALLERS),
+    ("inferd-callers.toml", INFERD_CALLERS),
     (
         "intentd-callers.toml",
         include_str!("../../../dist/intentd-callers.toml"),
@@ -422,22 +427,28 @@ pub(crate) fn write_system_callers(root: &Path) -> std::io::Result<()> {
 
 /// inferd's configuration. A cassette: the replay engine `scripted` playing the scratch cassette
 /// (recording its requests when `record` names a file). A live source: the owner's body as it is.
-/// Either way, then the callers by unit, as `inferd.toml` names them.
+/// A cassette also names the replay engine's model for every tier of the text slot: with no
+/// default planner, a tier with no row is refused as no model chosen. The callers are not here:
+/// they are inferd's system file (`inferd-callers.toml`).
 pub fn inferd_toml(root: &Path, model: &ModelSource, record: Option<&Path>) -> String {
     let engines = match model {
         ModelSource::Scripted(_) => {
+            let chosen = SCRIPTED_TEXT;
             let record = record
                 .map(|p| format!("record = {:?}\n", p.display().to_string()))
                 .unwrap_or_default();
             format!(
-                "[engines.scripted]\nreplay = {:?}\n{record}\n",
+                "[engines.scripted]\nreplay = {:?}\n{record}\n{chosen}",
                 root.join("cassette.jsonl").display().to_string()
             )
         }
         ModelSource::Live(body) => format!("{body}\n"),
     };
-    format!("{engines}{CALLERS}")
+    engines
 }
+
+/// The person's choice for the replay engine's world: its model at every tier of the text slot.
+const SCRIPTED_TEXT: &str = "[ai.model.text]\nfast = \"local/scripted\"\nbalanced = \"local/scripted\"\nbest = \"local/scripted\"\n";
 
 /// memoryd's callers file: the units that may call it, with the roles the router and the shell
 /// are told apart by. The shell is `sill.service` only; the run places the test process

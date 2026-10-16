@@ -191,6 +191,10 @@ fn an_install_puts_every_piece_where_the_session_reads_it() {
             && out.contains("/dist/callers.toml /etc/porter/callers.toml"),
         "{out}"
     );
+    assert!(
+        out.contains("/dist/inferd-callers.toml /etc/porter/inferd-callers.toml"),
+        "{out}"
+    );
     // The agent daemons' callers files are the system's: printed for root, never put in the
     // person's configuration, where they could not give the shell its role.
     assert!(

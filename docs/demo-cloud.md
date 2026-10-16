@@ -23,11 +23,13 @@ does not run it; run that yourself:
 
 ```sh
 sudo install -D -m644 ~/porter/dist/callers.toml /etc/porter/callers.toml
+sudo install -D -m644 ~/porter/dist/inferd-callers.toml /etc/porter/inferd-callers.toml
 ```
 
-(the caller table that accountd and inferd read. It names the Settings app, the shell and inferd.service
-itself. Rows in `~/.config/porter/callers.toml` win over it, but this is the file the dist ships.) Both
-daemons read the table only when they start, so the next step restarts them.
+(the caller tables. accountd's names the Settings app, the shell and inferd.service itself; rows in
+`~/.config/porter/callers.toml` win over it. inferd reads who is calling from its own file alone, which only root
+can write; a `[callers]` table in `inferd.toml` is ignored.) The daemons read the tables only when they start, so
+the next step restarts them.
 
 ## 2. Reload systemd
 
@@ -62,8 +64,7 @@ if you will have it read mail.
 
 The defaults keep every class on this computer (`ai.local_only = "on"`, floors at `on_device`). The companion,
 the policy writer and the reviewers all send the class `prompt`, and only that; readerd sends the class of what
-it reads. Append this to `~/.config/quire/inferd.toml` (the installer put the `[callers]` tables there;
-inferd rereads the file within a moment, no restart):
+it reads. Append this to `~/.config/quire/inferd.toml` (inferd rereads the file within a moment, no restart):
 
 ```toml
 [ai]
@@ -119,7 +120,7 @@ To undo:
 ```sh
 systemctl --user stop companiond readerd intentd memoryd inferd accountd
 cd ~/docket && dist/install-dev.sh --uninstall   # removes exactly what the install put down; keeps an edited config
-sudo rm /etc/porter/callers.toml
+sudo rm /etc/porter/callers.toml /etc/porter/inferd-callers.toml
 systemctl --user daemon-reload
 ```
 
