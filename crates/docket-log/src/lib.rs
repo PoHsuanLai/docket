@@ -9,6 +9,20 @@
 //!
 //! No subscriber crate is used: this is the whole of it, over the `tracing` the workspace
 //! already builds.
+//!
+//! # Span export (feature `otlp`)
+//!
+//! With the `otlp` feature, `init` also reads `OTEL_EXPORTER_OTLP_ENDPOINT` (or
+//! `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, used as given), `OTEL_SERVICE_NAME` and
+//! `OTEL_SDK_DISABLED`, once. When an `http://` endpoint is named, spans are recorded and sent in
+//! batches as OTLP/HTTP JSON by a small exporter written here over `std` networking. An endpoint
+//! that is not `http://` is refused with one warning and export stays off; a person who wants TLS
+//! or a remote backend runs a local collector. Without the feature none of this is built.
+//!
+//! A span is exported as the fields it declared, by key and value, and nothing else: no events and
+//! no event messages. As for events, callers must never put content on a span: no prompt,
+//! utterance, message body, argument, result, key or token. Names, ids, counts and typed reasons
+//! only.
 
 #[cfg(feature = "otlp")]
 mod otlp;
@@ -35,6 +49,9 @@ struct Lines {
     daemon: &'static str,
     reader: Reader,
     spans: AtomicU64,
+    /// Records spans for export; none when export is off.
+    #[cfg(feature = "otlp")]
+    recorder: Option<otlp::Recorder>,
 }
 
 /// The `key=value` text of an event's fields; the message comes first and bare.
@@ -74,11 +91,25 @@ impl Subscriber for Lines {
         *metadata.level() <= Level::INFO
     }
 
-    fn new_span(&self, _: &Attributes<'_>) -> Id {
-        Id::from_u64(self.spans.fetch_add(1, Ordering::Relaxed) + 1)
+    fn new_span(&self, _attrs: &Attributes<'_>) -> Id {
+        let id = Id::from_u64(self.spans.fetch_add(1, Ordering::Relaxed) + 1);
+        #[cfg(feature = "otlp")]
+        {
+            if let Some(recorder) = &self.recorder {
+                recorder.new_span(_attrs, &id);
+            }
+        }
+        id
     }
 
-    fn record(&self, _: &Id, _: &Record<'_>) {}
+    fn record(&self, _id: &Id, _values: &Record<'_>) {
+        #[cfg(feature = "otlp")]
+        {
+            if let Some(recorder) = &self.recorder {
+                recorder.record(_id, _values);
+            }
+        }
+    }
 
     fn record_follows_from(&self, _: &Id, _: &Id) {}
 
@@ -94,9 +125,39 @@ impl Subscriber for Lines {
         let _ = writeln!(std::io::stderr().lock(), "{line}");
     }
 
-    fn enter(&self, _: &Id) {}
+    fn enter(&self, _id: &Id) {
+        #[cfg(feature = "otlp")]
+        {
+            if let Some(recorder) = &self.recorder {
+                recorder.enter(_id);
+            }
+        }
+    }
 
-    fn exit(&self, _: &Id) {}
+    fn exit(&self, _id: &Id) {
+        #[cfg(feature = "otlp")]
+        {
+            if let Some(recorder) = &self.recorder {
+                recorder.exit(_id);
+            }
+        }
+    }
+
+    #[cfg(feature = "otlp")]
+    fn clone_span(&self, id: &Id) -> Id {
+        if let Some(recorder) = &self.recorder {
+            recorder.clone_span(id);
+        }
+        id.clone()
+    }
+
+    #[cfg(feature = "otlp")]
+    fn try_close(&self, id: Id) -> bool {
+        match &self.recorder {
+            Some(recorder) => recorder.try_close(&id),
+            None => true,
+        }
+    }
 }
 
 /// Starts logging for the daemon `daemon` (its name begins every line). Events at `INFO` and
@@ -106,14 +167,22 @@ pub fn init(daemon: &'static str) {
         Some(_) => Reader::Journal,
         None => Reader::Plain,
     };
+    #[cfg(feature = "otlp")]
+    let (recorder, refused) = otlp::start(daemon);
     let lines = Lines {
         daemon,
         reader,
         spans: AtomicU64::new(0),
+        #[cfg(feature = "otlp")]
+        recorder,
     };
     let _ = tracing::subscriber::set_global_default(lines);
     #[cfg(feature = "otlp")]
-    otlp::note();
+    {
+        if let Some(why) = refused {
+            tracing::warn!(%why, "telemetry export is off");
+        }
+    }
 }
 
 #[cfg(test)]
