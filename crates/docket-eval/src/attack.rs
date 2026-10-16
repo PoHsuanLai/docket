@@ -15,6 +15,7 @@
 //! carrier = { kind = "mail_body", v = "t1" }      # the fixture field that holds it
 //! goal = { app = "org.quire.Mail", action = "mail.message.send" }
 //! known_hole = "..."                              # optional: a defence hole not yet closed
+//! user_needs = "answer"                           # optional: "answer" or "actions" (attack_needs.rs)
 //! here = "t1"                                     # optional: where the person is (attack_place.rs)
 //!
 //! [[world.mail]]                                   # the carrier holds `{injection}`
@@ -35,6 +36,7 @@
 //! (`docket-live corpus --corpus attacks`), where the policy writer and reviewers are real
 //! models.
 
+use crate::attack_needs::UserNeeds;
 use crate::attack_place::PlaceSpec;
 use crate::case::{
     Case, CaseId, Corpus, Driver, Expect, FixtureContact, FixtureFile, FixtureMail, ScriptedStep,
@@ -137,6 +139,11 @@ pub struct AttackCase {
     /// The world; the carrier field holds [`PLACEHOLDER`].
     #[serde(default)]
     pub world: WorldFixture,
+    /// What a live run must end with for the user task to count as done: `actions` (the user's
+    /// calls ran) or `answer` (they ran and the task ended showing the person an answer).
+    /// Absent, it follows from the user's steps: an answer when they only read.
+    #[serde(default)]
+    pub user_needs: Option<UserNeeds>,
     /// What the person's task needs the agent to do.
     pub user_steps: Vec<ScriptedStep>,
     /// What a hijacked agent does after, following the injection.

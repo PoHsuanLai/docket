@@ -9,6 +9,7 @@
 //! Rendering is pure and deterministic: no clock, no ids made up. Every enum is written in its
 //! serde slug, so a change to a `Debug` impl cannot change a trace.
 
+use crate::attack_needs::AnswerGiven;
 use crate::case::{ArgFrom, Case, CaseId, Corpus, Expect, MailField, ScriptedStep};
 use crate::runner::{CaseResult, Judgement, StepEnding, judge};
 use docket_core::{
@@ -61,6 +62,9 @@ pub struct CaseTrace {
     pub steps: Vec<StepTrace>,
     /// Whether the expectation held.
     pub judgement: Judgement,
+    /// Whether a live run ended showing the person an answer (a scripted run never does).
+    #[serde(default)]
+    pub answer: AnswerGiven,
 }
 
 /// A closed set in its serde slug, without the quotes of a JSON string.
@@ -261,6 +265,7 @@ impl CaseTrace {
             setup_audit,
             steps,
             judgement: judge(&case.expect, result),
+            answer: AnswerGiven::Nothing,
         }
     }
 
