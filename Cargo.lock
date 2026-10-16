@@ -8,10 +8,10 @@ version = "0.1.0"
 dependencies = [
  "docket-core",
  "model-provider",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "thiserror",
@@ -30,8 +30,8 @@ dependencies = [
  "docket-settings",
  "docket-testbus",
  "intentd",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "rmcp",
  "serde",
  "serde_json",
@@ -47,8 +47,8 @@ name = "actions-tools"
 version = "0.1.0"
 dependencies = [
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "serde",
  "serde_json",
  "thiserror",
@@ -91,9 +91,9 @@ dependencies = [
  "almanac-core",
  "companion-wire",
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
 ]
@@ -130,7 +130,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "almanac-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
  "almanac-core",
  "almanac-dbus",
@@ -141,10 +141,10 @@ dependencies = [
 [[package]]
 name = "almanac-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7)",
+ "porter-core",
+ "prov",
  "serde",
  "serde_json",
  "thiserror",
@@ -153,7 +153,7 @@ dependencies = [
 [[package]]
 name = "almanac-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
  "almanac-core",
  "serde",
@@ -165,7 +165,7 @@ dependencies = [
 [[package]]
 name = "almanac-fake"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -181,7 +181,7 @@ dependencies = [
 [[package]]
 name = "almanac-seal"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
  "almanac-core",
  "blake3",
@@ -194,7 +194,7 @@ dependencies = [
 [[package]]
 name = "almanac-service"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -212,7 +212,7 @@ dependencies = [
 [[package]]
 name = "almanac-store"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -738,7 +738,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "futures-util",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "zbus",
@@ -750,10 +750,10 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
 ]
@@ -778,9 +778,9 @@ dependencies = [
  "docket-testbus",
  "futures-util",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "tempfile",
@@ -1036,9 +1036,9 @@ dependencies = [
  "futures-util",
  "intentd",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "readerd",
  "serde",
  "serde_json",
@@ -1069,8 +1069,8 @@ dependencies = [
  "futures-util",
  "jsonschema",
  "policy-point",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "serde",
  "serde_json",
  "tempfile",
@@ -1098,8 +1098,8 @@ dependencies = [
  "docket-session",
  "docket-settings",
  "docket-tasks",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "serde_json",
  "tempfile",
  "thiserror",
@@ -1128,8 +1128,8 @@ name = "docket-checkpoint"
 version = "0.1.0"
 dependencies = [
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "sha2",
  "thiserror",
 ]
@@ -1140,8 +1140,8 @@ version = "0.1.0"
 dependencies = [
  "docket-checkpoint",
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "tempfile",
  "thiserror",
  "tokio",
@@ -1167,9 +1167,9 @@ dependencies = [
  "futures-util",
  "intentd",
  "model-provider",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "tempfile",
@@ -1188,8 +1188,8 @@ dependencies = [
  "docket-fake",
  "docket-router",
  "futures-util",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "serde",
  "serde_json",
  "thiserror",
@@ -1205,9 +1205,9 @@ dependencies = [
  "cua-action",
  "futures-util",
  "model-provider",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "tempfile",
@@ -1222,10 +1222,10 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-dbus",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "tempfile",
@@ -1242,9 +1242,9 @@ dependencies = [
  "docket-client",
  "docket-core",
  "ds-intents",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "thiserror",
  "voice-wire",
 ]
@@ -1258,9 +1258,9 @@ dependencies = [
  "docket-fake",
  "docket-router",
  "docket-skills",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "tempfile",
@@ -1282,9 +1282,9 @@ dependencies = [
  "docket-session",
  "policy-point",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "thiserror",
  "tokio",
 ]
@@ -1316,9 +1316,9 @@ dependencies = [
  "futures-util",
  "policy-point",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde_json",
  "tempfile",
  "thiserror",
@@ -1340,9 +1340,9 @@ dependencies = [
  "docket-session",
  "docket-tasks",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde_json",
  "thiserror",
  "tokio",
@@ -1361,9 +1361,9 @@ dependencies = [
  "docket-testbus",
  "futures-util",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-dbus",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "tempfile",
@@ -1395,8 +1395,8 @@ dependencies = [
  "docket-fake",
  "docket-router",
  "docket-session",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "serde_json",
  "tokio",
 ]
@@ -1409,9 +1409,9 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "tokio",
@@ -1427,9 +1427,9 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "thiserror",
@@ -1445,10 +1445,10 @@ dependencies = [
  "docket-fake",
  "docket-models",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde_json",
  "tokio",
 ]
@@ -1470,9 +1470,9 @@ dependencies = [
  "futures-util",
  "genai-names",
  "policy-point",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "thiserror",
@@ -1488,9 +1488,9 @@ dependencies = [
  "almanac-core",
  "companion-wire",
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde",
  "serde_json",
  "thiserror",
@@ -1502,7 +1502,7 @@ version = "0.1.0"
 dependencies = [
  "docket-agents",
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "serde",
  "tempfile",
  "thiserror",
@@ -1515,8 +1515,8 @@ name = "docket-skills"
 version = "0.1.0"
 dependencies = [
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "serde",
  "tempfile",
  "thiserror",
@@ -1540,9 +1540,9 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde_json",
  "thiserror",
  "tokio",
@@ -1718,7 +1718,7 @@ dependencies = [
 [[package]]
 name = "eventlog"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -2161,13 +2161,13 @@ dependencies = [
  "futures-util",
  "policy-point",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-daemon",
  "porter-dbus",
  "porter-fake",
  "porter-infer",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "readerd",
  "serde",
  "serde_json",
@@ -2553,7 +2553,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "memfiles"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -2996,8 +2996,8 @@ version = "0.1.0"
 dependencies = [
  "cedar-policy",
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
+ "prov",
  "serde",
  "serde_json",
  "thiserror",
@@ -3034,7 +3034,7 @@ name = "porter-client"
 version = "0.1.0"
 source = "git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd#ebbf1f641797ec128e94661e6ec512ecb5ccefbd"
 dependencies = [
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-dbus",
  "porter-infer",
  "porter-provider",
@@ -3046,17 +3046,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "zbus",
- "zeroize",
-]
-
-[[package]]
-name = "porter-core"
-version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7#3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror",
  "zeroize",
 ]
 
@@ -3088,7 +3077,7 @@ dependencies = [
  "peephole",
  "peephole-bus",
  "peephole-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "serde",
  "serde_json",
  "thiserror",
@@ -3102,7 +3091,7 @@ name = "porter-fake"
 version = "0.1.0"
 source = "git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd#ebbf1f641797ec128e94661e6ec512ecb5ccefbd"
 dependencies = [
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
  "porter-provider",
  "porter-secrets",
@@ -3121,7 +3110,7 @@ source = "git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6
 dependencies = [
  "base64 0.22.1",
  "cua-action",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "serde",
  "serde_json",
  "thiserror",
@@ -3132,7 +3121,7 @@ name = "porter-provider"
 version = "0.1.0"
 source = "git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd#ebbf1f641797ec128e94661e6ec512ecb5ccefbd"
 dependencies = [
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "serde",
  "thiserror",
  "toml",
@@ -3143,7 +3132,7 @@ name = "porter-secrets"
 version = "0.1.0"
 source = "git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd#ebbf1f641797ec128e94661e6ec512ecb5ccefbd"
 dependencies = [
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-fs",
  "rustix",
  "serde_json",
@@ -3155,7 +3144,7 @@ name = "porter-service"
 version = "0.1.0"
 source = "git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd#ebbf1f641797ec128e94661e6ec512ecb5ccefbd"
 dependencies = [
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-provider",
  "porter-secrets",
  "thiserror",
@@ -3233,19 +3222,9 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7#3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7"
-dependencies = [
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7)",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "prov"
-version = "0.1.0"
 source = "git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd#ebbf1f641797ec128e94661e6ec512ecb5ccefbd"
 dependencies = [
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "serde",
  "thiserror",
 ]
@@ -3348,11 +3327,11 @@ dependencies = [
  "docket-testbus",
  "futures-util",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-fake",
  "porter-infer",
  "proptest",
- "prov 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "prov",
  "serde_json",
  "tempfile",
  "thiserror",
@@ -3364,7 +3343,7 @@ dependencies = [
 [[package]]
 name = "recall"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=6f379cac7df8d98527d5ec483b3a6453d2215f22#6f379cac7df8d98527d5ec483b3a6453d2215f22"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=dd9f77e9694b48f41acf9182883d9d0ca68bdf8a#dd9f77e9694b48f41acf9182883d9d0ca68bdf8a"
 dependencies = [
  "almanac-store",
  "rusqlite",
@@ -3951,7 +3930,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -4332,7 +4311,7 @@ name = "voice-loop"
 version = "0.1.0"
 dependencies = [
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
  "serde",
  "serde_json",
@@ -4344,7 +4323,7 @@ name = "voice-wire"
 version = "0.1.0"
 dependencies = [
  "docket-core",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-infer",
  "proptest",
  "serde",
@@ -4364,7 +4343,7 @@ dependencies = [
  "futures-util",
  "pipewire",
  "porter-client",
- "porter-core 0.1.0 (git+https://github.com/PoHsuanLai/porter?rev=ebbf1f641797ec128e94661e6ec512ecb5ccefbd)",
+ "porter-core",
  "porter-fake",
  "porter-infer",
  "serde",
