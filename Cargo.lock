@@ -487,8 +487,9 @@ dependencies = [
 [[package]]
 name = "bulkhead"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/bulkhead?rev=0467c14c9d92dd224091629f4c4e4912ae612a3d#0467c14c9d92dd224091629f4c4e4912ae612a3d"
+source = "git+https://github.com/PoHsuanLai/bulkhead?rev=00df071bd6eb9eb729533d44b1a3fe9f3b790856#00df071bd6eb9eb729533d44b1a3fe9f3b790856"
 dependencies = [
+ "landlock",
  "serde",
  "thiserror",
 ]
@@ -2400,6 +2401,17 @@ checksum = "b5baa5e9ff84f1aefd264e6869907646538a52147a755d494517a8007fb48733"
 dependencies = [
  "regex-automata",
  "rustversion",
+]
+
+[[package]]
+name = "landlock"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cca98e95f35b29d469dade6724c6f96cec9236640f745a0e99b0334ec320ab1"
+dependencies = [
+ "enumflags2",
+ "libc",
+ "thiserror",
 ]
 
 [[package]]
