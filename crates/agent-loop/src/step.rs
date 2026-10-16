@@ -401,8 +401,19 @@ fn resumed(state: LoopState) -> (LoopState, Vec<LoopEffect>) {
     }
 }
 
+/// Why the assistant stopped, in the person's words.
+fn paused_because(trip: BreakerTrip) -> &'static str {
+    match trip {
+        BreakerTrip::Consecutive => "I paused because several of my steps in a row were refused.",
+        BreakerTrip::Recent => "I paused because many of my recent steps were refused.",
+        BreakerTrip::Probing => {
+            "I paused because I kept trying different ways to do the same thing and each was refused."
+        }
+    }
+}
+
 fn pause(state: LoopState, trip: BreakerTrip) -> (LoopState, Vec<LoopEffect>) {
-    let text = format!("Paused after repeated refusals ({trip:?}); say something to go on.");
+    let text = format!("{} Say something to go on.", paused_because(trip));
     (
         with_phase(state, LoopPhase::Paused(trip)),
         vec![LoopEffect::Publish(AnswerPhase::NeedsYou(

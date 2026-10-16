@@ -440,3 +440,26 @@ fn a_request_that_lands_while_idle_starts_planning_and_never_touches_another_pha
         );
     }
 }
+
+#[test]
+fn a_pause_says_why_in_plain_words() {
+    for trip in [
+        BreakerTrip::Consecutive,
+        BreakerTrip::Recent,
+        BreakerTrip::Probing,
+    ] {
+        let (_, e) = agent_step(
+            state(LoopPhase::AwaitingCalls, &[0]),
+            LoopInput::Tripped(trip),
+        );
+        let Some(LoopEffect::Publish(AnswerPhase::NeedsYou(NeedsYou::Question { text, .. }))) =
+            e.first()
+        else {
+            panic!("asks the person: {e:?}");
+        };
+        assert!(text.ends_with("Say something to go on."), "{text}");
+        for word in ["Probing", "Consecutive", "Recent", "breaker", "trip"] {
+            assert!(!text.contains(word), "{text}");
+        }
+    }
+}
