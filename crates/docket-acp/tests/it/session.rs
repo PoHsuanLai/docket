@@ -128,9 +128,14 @@ async fn the_editor_allowing_a_call_does_not_get_it_past_our_gate_and_the_failur
 }
 
 #[tokio::test]
-async fn each_refusal_reaches_the_editor_as_failed_with_a_coarse_sentence() {
-    use docket_core::{CallRefusal, ConfirmEnd};
+async fn each_refusal_reaches_the_editor_as_failed_with_a_sentence_and_an_app_with_its_own() {
+    use docket_core::{AppRefusal, CallRefusal, ConfirmEnd, FailText};
+    let own = "That app isn't allowed for on-screen control.";
     let ends = [
+        StepEnd::Refused(CallRefusal::App(AppRefusal::Failed(FailText(
+            own.to_owned(),
+        )))),
+        StepEnd::Refused(CallRefusal::App(AppRefusal::Busy)),
         denied(DenyCode::NotAllowed),
         denied(DenyCode::NeedsUser),
         denied(DenyCode::Repeated),
@@ -167,14 +172,16 @@ async fn each_refusal_reaches_the_editor_as_failed_with_a_coarse_sentence() {
                     .to_owned()
             })
             .collect();
-        assert_eq!(said.len(), 6);
+        assert_eq!(said.len(), 8);
+        assert_eq!(said[0], own, "the app's own reason, word for word");
+        assert_eq!(said[1], "The app declined.");
         assert!(
             said.iter().all(|s| s.ends_with('.') && s.len() < 60),
             "{said:?}"
         );
         assert_eq!(
             said.iter().collect::<std::collections::BTreeSet<_>>().len(),
-            6
+            8
         );
     };
     let (ran, ()) = tokio::join!(server.run(), script);

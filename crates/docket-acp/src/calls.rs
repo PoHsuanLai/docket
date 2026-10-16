@@ -1,13 +1,14 @@
 //! Our step lines as ACP tool calls. A refused or unconfirmed call is `failed` with one coarse
-//! sentence (the planner sees only a `DenyCode`; so does the editor). `rawInput` and `rawOutput`
-//! are never set: what a call returned may hold handles and private Space data the editor was not
-//! granted, so only the app's own `said` text goes out.
+//! sentence (the planner sees only a `DenyCode`; so does the editor), except an app's own refusal,
+//! which carries the app's words when it gave any. `rawInput` and `rawOutput` are never set: what a
+//! call returned may hold handles and private Space data the editor was not granted, so only the
+//! app's own words (`said`, or why it refused) go out.
 
 use agent_client_protocol_schema::v1::{
     Content, ContentBlock, ContentChunk, SessionUpdate, ToolCall, ToolCallContent, ToolCallId,
     ToolCallStatus, ToolCallUpdate, ToolCallUpdateFields, ToolKind,
 };
-use docket_core::{CallRefusal, DenyCode, StepEnd, StepLine};
+use docket_core::{AppRefusal, CallRefusal, DenyCode, StepEnd, StepLine};
 use docket_session::CallOpen;
 use prov::Effect;
 
@@ -16,8 +17,8 @@ use prov::Effect;
 pub enum Outcome {
     /// It ran; the app's own words, if it said any.
     Completed(Option<String>),
-    /// It did not run, or did not finish; one coarse sentence.
-    Failed(&'static str),
+    /// It did not run, or did not finish; one coarse sentence, or the app's own reason.
+    Failed(String),
 }
 
 fn denied(code: DenyCode) -> &'static str {
@@ -30,7 +31,14 @@ fn denied(code: DenyCode) -> &'static str {
     }
 }
 
-fn refused(why: &CallRefusal) -> &'static str {
+fn refused(why: &CallRefusal) -> String {
+    match why {
+        CallRefusal::App(AppRefusal::Failed(text)) if !text.0.trim().is_empty() => text.0.clone(),
+        other => coarse(other).to_owned(),
+    }
+}
+
+fn coarse(why: &CallRefusal) -> &'static str {
     match why {
         CallRefusal::Denied(code) => denied(*code),
         CallRefusal::App(_) => "The app declined.",
@@ -53,10 +61,14 @@ pub fn outcome(end: &StepEnd) -> Outcome {
             Outcome::Completed(said.as_ref().map(|s| s.as_str().to_owned()))
         }
         StepEnd::Refused(why) => Outcome::Failed(refused(why)),
-        StepEnd::Unconfirmed(_) => Outcome::Failed("Not confirmed."),
-        StepEnd::Held(_) => Outcome::Failed("Skipped: the same call was made before."),
-        StepEnd::Unread(_) => Outcome::Failed("The assistant's request could not be read."),
-        StepEnd::Interrupted => Outcome::Failed("Interrupted by a restart; it may have run."),
+        StepEnd::Unconfirmed(_) => Outcome::Failed("Not confirmed.".to_owned()),
+        StepEnd::Held(_) => Outcome::Failed("Skipped: the same call was made before.".to_owned()),
+        StepEnd::Unread(_) => {
+            Outcome::Failed("The assistant's request could not be read.".to_owned())
+        }
+        StepEnd::Interrupted => {
+            Outcome::Failed("Interrupted by a restart; it may have run.".to_owned())
+        }
     }
 }
 
@@ -110,7 +122,7 @@ pub fn ended(step: &StepLine) -> SessionUpdate {
             .content(said.map(text_content)),
         Outcome::Failed(why) => ToolCallUpdateFields::new()
             .status(ToolCallStatus::Failed)
-            .content(text_content(why.to_owned())),
+            .content(text_content(why)),
     };
     update(step.call, fields)
 }
