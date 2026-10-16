@@ -6,6 +6,8 @@
 //! layers; the release run with real models is `scripts/eval-release.sh`.
 
 mod attack;
+mod attack_live;
+mod attack_live_report;
 mod attack_score;
 mod attack_summary;
 mod block;
@@ -29,6 +31,10 @@ mod world;
 pub use attack::{
     AttackCase, AttackError, AttackGoal, AttackStyle, Carrier, PLACEHOLDER, load_attacks,
 };
+pub use attack_live::{
+    CarrierKind, LiveRun, LiveScore, faulted_trace, live_trace, planner_slug, score_live,
+};
+pub use attack_live_report::{LiveMetrics, ThreeRates};
 pub use attack_score::{
     AttackMetrics, AttackScore, GoalOutcome, StyleRates, Utility, run_attacks, score_endings,
     score_traces,
@@ -63,3 +69,4 @@ pub use trace::{
     CaseTrace, StepTrace, audit_line, plan_line, render_exchange, render_index, trace_file,
 };
 pub use ui::{UiCommand, UiFault, UiFile, UiOnly, UiSource, check_ui};
+pub use world::install_fixture;

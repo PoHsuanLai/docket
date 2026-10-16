@@ -3,14 +3,14 @@
 //! companion session whose planner the case plays.
 
 use crate::block::block_on;
-use crate::case::{Case, ConsentFixture, FixtureTask};
+use crate::case::{Case, ConsentFixture, FixtureTask, WorldFixture};
 use crate::runner::{Harness, PolicyMode, Rig, maximal_policy};
 use docket_core::{
     ActionGrantKey, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget, IntentsReply,
-    IntentsRequest, Keep, Origin, Reveal, SessionOpen, TurnIn, TurnVia,
+    IntentsRequest, Keep, Origin, Reveal, SessionOpen, Strictness, TurnIn, TurnVia,
 };
-use docket_fake::{MailContact, MailThread};
-use docket_router::{HandleValue, Router, RouterState};
+use docket_fake::{FakeLink, MailContact, MailThread, MemoryGrants};
+use docket_router::{HandleValue, Router, RouterState, Seams};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{AppId, AppName, DataClass, GrantId, Isolation};
 use prov::{AgentRef, Label, Labelled, SessionId, Source, SpaceId, TaskId, UnixSeconds};
@@ -32,7 +32,7 @@ pub(crate) struct Scene {
 }
 
 /// The state, even if a thread panicked while holding it.
-pub(crate) fn state_of<S: Rig>(router: &Router<S>) -> MutexGuard<'_, RouterState> {
+pub(crate) fn state_of<S: Seams>(router: &Router<S>) -> MutexGuard<'_, RouterState> {
     router
         .state
         .lock()
@@ -82,8 +82,13 @@ pub(crate) fn mail_label(in_space: SpaceId) -> Label {
 }
 
 fn install_world<S: Rig>(case: &Case, router: &Router<S>) {
+    put_world(&case.world, router);
+}
+
+/// Puts the fixture's mail, contacts and files into the router's fake apps.
+fn put_world<S: Seams<Link = FakeLink>>(world: &WorldFixture, router: &Router<S>) {
     let link = router.seams.link();
-    for m in &case.world.mail {
+    for m in &world.mail {
         link.mail.add_thread(MailThread {
             key: m.key.clone(),
             subject: m.subject.clone(),
@@ -91,21 +96,43 @@ fn install_world<S: Rig>(case: &Case, router: &Router<S>) {
             body: m.body.clone(),
         });
     }
-    for c in &case.world.contacts {
+    for c in &world.contacts {
         link.mail.add_contact(MailContact {
             key: c.key.clone(),
             name: c.name.clone(),
             address: c.address.clone(),
         });
     }
-    for f in &case.world.files {
+    for f in &world.files {
         link.files.add_file(&f.key, &f.name, &f.content);
     }
 }
 
+/// Builds a fixture world in a fresh router's fakes without a case: the apps' data, the person's
+/// standing consent when the fixture grants it, and the Space's strictness. A planner that is
+/// not scripted (a live one) then plays in the router; no session, turn or policy is made here.
+pub fn install_fixture<S: Seams<Link = FakeLink, Grants = MemoryGrants>>(
+    router: &Router<S>,
+    world: &WorldFixture,
+    in_space: &SpaceId,
+    strictness: Strictness,
+) -> Result<(), String> {
+    put_world(world, router);
+    if world.consent == ConsentFixture::Standing {
+        grant_consent(router, in_space).map_err(|e| e.to_string())?;
+    }
+    state_of(router)
+        .strictness
+        .insert(in_space.clone(), strictness);
+    Ok(())
+}
+
 /// The person's standing consent: the companion may use every installed app, in the case's
 /// Space, always. It narrows nothing the gate decides: first use is not what a case tests.
-fn grant_consent<S: Rig>(router: &Router<S>, in_space: &SpaceId) -> Result<(), SetupFault> {
+fn grant_consent<S: Seams<Grants = MemoryGrants>>(
+    router: &Router<S>,
+    in_space: &SpaceId,
+) -> Result<(), SetupFault> {
     use docket_router::GrantStore;
     let mut apps: BTreeMap<AppName, BTreeSet<DataClass>> = BTreeMap::new();
     for m in state_of(router).registry.all() {

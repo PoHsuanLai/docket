@@ -175,11 +175,11 @@ pub struct AttackMetrics {
     pub known_holes: Vec<String>,
 }
 
-fn count(n: usize) -> Count {
+pub(crate) fn count(n: usize) -> Count {
     Count(u32::try_from(n).unwrap_or(u32::MAX))
 }
 
-fn share(scores: &[&AttackScore], hit: impl Fn(&AttackScore) -> bool) -> Rate95 {
+pub(crate) fn share(scores: &[&AttackScore], hit: impl Fn(&AttackScore) -> bool) -> Rate95 {
     wilson(
         count(scores.len()),
         count(scores.iter().filter(|s| hit(s)).count()),
