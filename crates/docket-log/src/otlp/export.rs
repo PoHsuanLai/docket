@@ -237,7 +237,8 @@ mod tests {
         out.send(span("invoke_agent")).expect("queue");
         let request = collector.join().expect("collector");
         let (head, body) = request.split_once("\r\n\r\n").expect("head and body");
-        let head = head.to_ascii_lowercase();
+        // Every header line ends in CRLF; the split took the last one's.
+        let head = format!("{}\r\n", head.to_ascii_lowercase());
         assert!(head.starts_with("post /v1/traces http/1.1\r\n"), "{head}");
         assert!(
             head.contains("\r\ncontent-type: application/json\r\n"),
