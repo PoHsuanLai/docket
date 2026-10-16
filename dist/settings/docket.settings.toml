@@ -76,7 +76,7 @@ on = "On"
 [[key]]
 path = "agent.acp.agents"
 default = "off"
-label = "Coding helpers"
+label = "Coding Agents"
 help = "Lets the assistant use coding agents such as Claude Code as helpers, in a sandbox. Off by default. Their sign-ins stay theirs."
 section = "Assistant"
 exposure = "basic"
