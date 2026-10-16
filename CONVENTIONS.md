@@ -101,4 +101,17 @@ What docket adds or decides differently, each with its reason:
     but not read" section lists only the rest (what, and which step returned it), and what a kind of
     thing is for is said once per kind, not once per handle. The router still enforces where a handle
     may flow; the view does not repeat it. (e) A `wrong_type` for `target` names the kind it needs
-    and the handles held of it (numbers and kinds only, never content).
+    and the handles held of it (numbers and kinds only, never content). (f) The reader's answer
+    reads as the reader's: its history step is `companion.read.<task>` and names the handles it
+    read, shown as `quire_read summarise #10 → #11 (the reader's answer, text)`, and its handle is
+    listed as `#11 text (63 characters): the reader's summarise answer about #10` (task word and
+    inputs, never content). When the reader holds a text answer the task has not shown
+    (`PlannerView::shown`), the view says so from handle provenance alone, never an app's name:
+    `Ready to show: #11 (quire_finish {"show":[11]})`. (g) A call is not run again when its answer
+    is already held. The repeat guard (`agent-loop::guard`) holds a call whose effect is `Read`
+    and that returned a handle, and an identical `quire_read` (same inputs, task and want), with
+    `not run: you already hold its answer #n`; after `HOLDS_BEFORE_STOP_ANSWERED` (3) such holds
+    the turn ends saying "I could not finish this." A call that may write, or whose effect is not
+    known, is never held this way (a person may want two sends), and a call that wrote makes the
+    held reads stale. The effect travels on `PlannedCall::effect`; this is the one guard, not a
+    second mechanism beside it.
