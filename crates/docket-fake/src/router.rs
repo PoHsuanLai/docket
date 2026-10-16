@@ -129,6 +129,9 @@ pub fn fake_router_on<R: Reviewer, W: PolicyWriter, K: Clock, L: SessionLog>(
 /// The router [`fake_router_over`] builds.
 pub type Overed<R, W, K, L, C> = Router<FakeSeams<R, W, K, L, C>>;
 
+/// A fake router whose reader is a real one ([`fake_router_reading`]).
+pub type Reading<R, W, K, L, C, Rd> = Router<FakeSeams<R, W, K, L, C, Rd>>;
+
 /// [`fake_router_on`] with this confirmer in place of the scripted one: a test whose sheets are
 /// answered by something else (a desk the host of an external agent shows).
 pub fn fake_router_over<
@@ -173,7 +176,7 @@ pub fn fake_router_reading<
     clock: K,
     log: L,
     reader: Rd,
-) -> Result<Router<FakeSeams<R, W, K, L, C, Rd>>, FakeError> {
+) -> Result<Reading<R, W, K, L, C, Rd>, FakeError> {
     let space = SpaceId::parse("work").map_err(|_| FakeError::Space)?;
     let mail = mail_manifest().map_err(FakeError::Manifest)?;
     let files = files_manifest().map_err(FakeError::Manifest)?;

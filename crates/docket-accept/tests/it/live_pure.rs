@@ -384,8 +384,7 @@ fn a_question_at_rest_is_asking_instead_of_finishing_never_an_unsettled_answer()
 
 mod keys_home {
     use super::words;
-    use docket_accept::live::attack_planner::planner_model_name;
-    use docket_accept::live::cli::{Command, PlannerMode, UsageError, parse};
+    use docket_accept::live::cli::{Command, UsageError, parse};
     use docket_accept::live::keys_home::{HomeFault, KeysHome, check_dir};
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
