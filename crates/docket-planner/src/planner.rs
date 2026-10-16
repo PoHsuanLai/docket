@@ -8,7 +8,7 @@
 //! share every prompt token up to the first section that changed and the engine reuses its cache.
 
 use crate::args::{ArgsFault, read_call};
-use crate::catalogue::{Catalogue, CatalogueTool};
+use crate::catalogue::Catalogue;
 use crate::read_ask::read_output;
 use crate::render::messages_with;
 use crate::role::RoleText;
