@@ -137,9 +137,85 @@ fn planner_view_hides_untrusted_text() {
     assert!(json.contains("Inbox"), "trusted words stay plain: {json}");
     assert_eq!(
         table.cards().len(),
-        3,
-        "the title, subtitle and selection became handles"
+        4,
+        "the title, subtitle and selection became handles, and the thing has its own"
     );
+}
+
+#[test]
+fn a_thing_in_the_view_has_a_handle_of_its_own_and_handles_hold_across_views() {
+    let mut table = HandleTable::new();
+    let first = context_view(&snapshot(), &mut table);
+    let HereView::Entity(line) = &first.here else {
+        panic!("the person is looking at a thing")
+    };
+    let card = table.card(line.handle).expect("a card for the thing");
+    assert_eq!(card.shape, HandleShape::Entity(line.id.kind.clone()));
+    assert_eq!(
+        context_view(&snapshot(), &mut table),
+        first,
+        "the same context names the same handles"
+    );
+    assert_eq!(table.cards().len(), 4, "nothing new was minted");
+    assert_eq!(
+        context_view(&snapshot(), &mut HandleTable::new()),
+        first,
+        "a new task numbers from the start"
+    );
+}
+
+#[test]
+fn the_same_words_from_the_same_source_keep_their_handle_and_other_words_do_not() {
+    let mut table = HandleTable::new();
+    let held = |table: &mut HandleTable, text: &str, label: Label| {
+        table
+            .try_mint_text(lab(text, label), Source::Mail)
+            .expect("room")
+    };
+    let first = held(&mut table, "same", mail("work"));
+    assert_eq!(held(&mut table, "same", mail("work")), first);
+    assert_ne!(
+        held(&mut table, "same", mail("home")),
+        first,
+        "another label"
+    );
+    assert_ne!(
+        held(&mut table, "other", mail("work")),
+        first,
+        "other words"
+    );
+}
+
+#[test]
+fn a_full_view_evicts_the_oldest_text_the_current_view_does_not_use() {
+    let mut table = HandleTable::new();
+    table.begin_view();
+    let words = |table: &mut HandleTable, text: &str| {
+        table
+            .reveal(lab(text, mail("work")), Source::Mail)
+            .handle()
+            .expect("untrusted words are held")
+    };
+    let held: Vec<Handle> = (0..MAX_VIEW_TEXTS)
+        .map(|n| words(&mut table, &format!("text {n}")))
+        .collect();
+    table.begin_view();
+    assert_eq!(
+        words(&mut table, "text 1"),
+        held[1],
+        "the view uses it again"
+    );
+    let new = words(&mut table, "brand new");
+    assert!(
+        table.value(held[0]).is_none(),
+        "the oldest unused is evicted"
+    );
+    assert!(table.value(held[1]).is_some(), "one the view uses stays");
+    assert!(
+        new.0 > held[MAX_VIEW_TEXTS - 1].0,
+        "a number is never reused"
+    );
+    assert_eq!(table.cards().len(), MAX_VIEW_TEXTS);
 }
 
 #[test]

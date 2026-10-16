@@ -283,3 +283,58 @@ pub(crate) fn absorb(session: &mut SessionRecord, label: &Label) {
         session.seen.push(label.clone());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use docket_core::Handle;
+    use prov::{Actor, DataClass, EntityId, EntityKey, EntityKind, SpaceId, TaskId, UnixSeconds};
+
+    fn record() -> SessionRecord {
+        SessionRecord::new(
+            TaskId::parse("t-1").expect("task"),
+            Actor::Cli,
+            AppName::parse("org.quire.Mail").expect("app"),
+            SpaceId::desktop(),
+            UnixSeconds(0),
+        )
+    }
+
+    fn thing() -> EntityId {
+        EntityId {
+            app: AppName::parse("org.quire.Mail").expect("app"),
+            kind: EntityKind::parse("mail.thread").expect("kind"),
+            key: EntityKey::parse("t1").expect("key"),
+        }
+    }
+
+    #[test]
+    fn a_target_handle_is_its_thing_and_words_or_a_stranger_are_refused() {
+        let mut record = record();
+        let own = record.handles.mint_entity(thing(), app_label(&thing().app));
+        let words = record
+            .handles
+            .reveal(
+                Labelled {
+                    value: "hello".to_owned(),
+                    label: Label::untrusted(Source::Mail, DataClass::Mail, SpaceId::desktop()),
+                },
+                Source::Mail,
+            )
+            .handle()
+            .expect("untrusted words are held");
+        let resolved = resolve_target(&record, TargetValue::Handles(vec![own]));
+        assert!(
+            matches!(&resolved, Ok(TargetValue::Entities(found)) if *found == vec![thing()]),
+            "{resolved:?}"
+        );
+        assert!(matches!(
+            resolve_target(&record, TargetValue::Handles(vec![words])),
+            Err(ArgFault::WrongType)
+        ));
+        assert!(matches!(
+            resolve_target(&record, TargetValue::Handles(vec![Handle(999)])),
+            Err(ArgFault::UnknownHandle)
+        ));
+    }
+}

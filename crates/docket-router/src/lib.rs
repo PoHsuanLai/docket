@@ -107,8 +107,8 @@ pub use companion::COMPANION_APP;
 pub use docket_checkpoint::NoStore;
 pub use gate::{GateInputs, Pending, gate};
 pub use handles::{
-    HandleEntry, HandleLimit, HandleTable, HandleValue, MAX_HANDLES, MAX_KNOWN, ViewInputs,
-    context_view, planner_view,
+    HandleEntry, HandleLimit, HandleTable, HandleValue, MAX_HANDLES, MAX_KNOWN, MAX_VIEW_TEXTS,
+    ViewInputs, context_view, planner_view,
 };
 pub use index::{IndexAction, IndexEvent, index_step};
 pub use journal::UndoJournal;

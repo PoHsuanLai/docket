@@ -259,6 +259,7 @@ fn a_long_visible_list_is_shortened_to_the_context_budget() {
             kind: prov::EntityKind::parse("mail.thread").expect("kind"),
             key: prov::EntityKey::parse(&format!("t{n}")).expect("key"),
         },
+        handle: Handle(u64::from(n) + 2000),
         title: Reveal::Handle(Handle(u64::from(n))),
         subtitle: Reveal::Handle(Handle(u64::from(n) + 1000)),
     };

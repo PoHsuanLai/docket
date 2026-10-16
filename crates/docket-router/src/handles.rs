@@ -13,12 +13,19 @@ use docket_core::{Here, Selection, TextTarget};
 use docket_session::HandleLabel;
 use prov::{EntityId, Integrity, Label, Labelled, Measured, Quarantined, Source};
 use std::collections::BTreeMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 /// The most handles one session holds. An app is the source of what fills a table (a search can
 /// return thousands of things); a session that reaches this refuses the next result with
 /// [`HandleLimit::Handles`] rather than dropping an older handle a planner may still name. A task
 /// that needs more starts a new session.
 pub const MAX_HANDLES: usize = 4096;
+
+/// The most text handles the context view holds at once. Beyond this a new text of the view
+/// evicts the oldest text handle the current view does not use; the evicted number is never
+/// reused, and naming it refuses as an unknown handle. A view is bounded by what an app reports
+/// (a capped list of things), so the current view always fits.
+pub const MAX_VIEW_TEXTS: usize = 512;
 
 /// The most things one session may have been shown (`SessionRecord::known`), for the same
 /// reason and with the same refusal ([`HandleLimit::Known`]).
@@ -79,6 +86,20 @@ pub struct HandleTable {
     things: BTreeMap<EntityId, Vec<Handle>>,
     /// Handles minted since the session's record last took them (see `take_fresh`).
     fresh: Vec<Handle>,
+    /// The text handles that hold each text (by a hash of it), so the same text under the same
+    /// label and source keeps its number for the life of the task.
+    texts: BTreeMap<u64, Vec<Handle>>,
+    /// The text handles the context view minted, with the view (`epoch`) that last used them:
+    /// the ones eligible for eviction.
+    view_seen: BTreeMap<Handle, u64>,
+    /// Which context view is being built; see [`begin_view`](Self::begin_view).
+    epoch: u64,
+}
+
+fn text_key(text: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
 }
 
 impl HandleTable {
@@ -219,17 +240,91 @@ impl HandleTable {
         }
     }
 
-    /// Words for a planner: plain when trusted, a handle when not.
+    /// Starts a context view: texts the view then uses are kept, and an older view's texts that
+    /// it does not use may be evicted once the view holds [`MAX_VIEW_TEXTS`].
+    pub fn begin_view(&mut self) {
+        self.epoch += 1;
+    }
+
+    fn text_handle(&self, text: &Labelled<String>, from: &Source) -> Option<Handle> {
+        self.texts
+            .get(&text_key(&text.value))?
+            .iter()
+            .copied()
+            .find(|h| {
+                self.entries.get(h).is_some_and(|e| {
+                    e.from == *from
+                        && e.value.label == text.label
+                        && matches!(&e.value.value, HandleValue::Text(t) if *t == text.value)
+                })
+            })
+    }
+
+    fn mint_text(&mut self, text: Labelled<String>, from: Source) -> Handle {
+        let key = text_key(&text.value);
+        let handle = self.mint(
+            Labelled {
+                value: HandleValue::Text(text.value),
+                label: text.label,
+            },
+            from,
+        );
+        self.texts.entry(key).or_default().push(handle);
+        handle
+    }
+
+    /// Holds a text and returns its handle: the one it already has when the same text is held
+    /// with the same label and source, so a thing a planner was shown keeps its number across
+    /// turns. Refused when the text is new and the table is full.
+    pub fn try_mint_text(
+        &mut self,
+        text: Labelled<String>,
+        from: Source,
+    ) -> Result<Handle, HandleLimit> {
+        match self.text_handle(&text, &from) {
+            Some(known) => Ok(known),
+            None if self.is_full() => Err(HandleLimit::Handles),
+            None => Ok(self.mint_text(text, from)),
+        }
+    }
+
+    fn forget_oldest_unused_view_text(&mut self) {
+        if self.view_seen.len() < MAX_VIEW_TEXTS {
+            return;
+        }
+        let epoch = self.epoch;
+        let Some(oldest) = self
+            .view_seen
+            .iter()
+            .find(|(_, seen)| **seen < epoch)
+            .map(|(h, _)| *h)
+        else {
+            return;
+        };
+        self.view_seen.remove(&oldest);
+        self.entries.remove(&oldest);
+        self.texts
+            .values_mut()
+            .for_each(|hs| hs.retain(|h| *h != oldest));
+        self.texts.retain(|_, hs| !hs.is_empty());
+    }
+
+    /// Words for a planner: plain when trusted, a handle when not. The handle is the one the
+    /// same words already have (see [`try_mint_text`](Self::try_mint_text)).
     pub fn reveal(&mut self, text: Labelled<String>, from: Source) -> Reveal<String> {
         match text.label.integrity {
             Integrity::Trusted => Reveal::Plain(text.value),
-            Integrity::Untrusted => Reveal::Handle(self.mint(
-                Labelled {
-                    value: HandleValue::Text(text.value),
-                    label: text.label,
-                },
-                from,
-            )),
+            Integrity::Untrusted => {
+                let handle = match self.text_handle(&text, &from) {
+                    Some(known) => known,
+                    None => {
+                        self.forget_oldest_unused_view_text();
+                        self.mint_text(text, from)
+                    }
+                };
+                self.view_seen.insert(handle, self.epoch);
+                Reveal::Handle(handle)
+            }
         }
     }
 
@@ -301,16 +396,22 @@ fn source_of(label: &Label, fallback: &Source) -> Source {
 }
 
 fn line(table: &mut HandleTable, e: &EntityRef, fallback: &Source) -> EntityLine {
+    let title = table.reveal(e.title.clone(), source_of(&e.title.label, fallback));
+    let subtitle = table.reveal(e.subtitle.clone(), source_of(&e.subtitle.label, fallback));
     EntityLine {
+        // The thing's own handle carries what a `{app, kind, key}` for a shown thing carries:
+        // the app's label (see `labels::trace`).
+        handle: table.mint_entity(e.id.clone(), crate::labels::app_label(&e.id.app)),
         id: e.id.clone(),
-        title: table.reveal(e.title.clone(), source_of(&e.title.label, fallback)),
-        subtitle: table.reveal(e.subtitle.clone(), source_of(&e.subtitle.label, fallback)),
+        title,
+        subtitle,
     }
 }
 
 /// A snapshot as a planner may see it: every untrusted text a handle. A private window shows
 /// the app and nothing else.
 pub fn context_view(ctx: &ContextSnapshot, table: &mut HandleTable) -> ContextView {
+    table.begin_view();
     let app = Source::App(ctx.app.clone());
     if ctx.privacy == WindowPrivacy::Private {
         return ContextView {

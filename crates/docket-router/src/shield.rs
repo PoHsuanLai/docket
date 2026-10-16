@@ -19,9 +19,9 @@ pub(crate) fn shield(
     value: Value,
 ) -> Result<Value, HandleLimit> {
     Ok(match value {
-        Value::Text(t) | Value::Url(t) => Value::Handle(record.handles.try_mint(
+        Value::Text(t) | Value::Url(t) => Value::Handle(record.handles.try_mint_text(
             Labelled {
-                value: HandleValue::Text(t),
+                value: t,
                 label: label.clone(),
             },
             source.clone(),

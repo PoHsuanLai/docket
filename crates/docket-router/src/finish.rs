@@ -2,7 +2,7 @@
 //! session's history and the task's ledger, and the outcome as its caller may read it.
 
 use crate::driven::{Driven, decision_of, step_end};
-use crate::handles::{HandleLimit, HandleValue};
+use crate::handles::HandleLimit;
 use crate::labels::{Voice, absorb};
 use crate::prepared::{Early, Prepared};
 use crate::router::Router;
@@ -41,9 +41,9 @@ fn present(
             .unwrap_or(Source::Model(prov::ModelRole::Planner));
         Ok(match (&held.value, held.label.integrity) {
             (Value::Text(t) | Value::Url(t), Integrity::Untrusted) => {
-                let handle = record.handles.try_mint(
+                let handle = record.handles.try_mint_text(
                     Labelled {
-                        value: HandleValue::Text(t.clone()),
+                        value: t.clone(),
                         label: held.label.clone(),
                     },
                     source,

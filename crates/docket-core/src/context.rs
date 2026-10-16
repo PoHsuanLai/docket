@@ -196,6 +196,10 @@ pub struct ContextKeep {
 /// A thing with its words as a reader may see them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EntityLine {
+    /// The handle that names the thing itself (of its kind), beside the handles of its words.
+    /// A planner names the thing as `{"handle": n}`; the router resolves it as it resolves the
+    /// thing's `id`.
+    pub handle: Handle,
     /// The thing.
     pub id: EntityId,
     /// Its title.
