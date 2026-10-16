@@ -5,6 +5,7 @@
 
 use crate::deadline::{bounded, timed};
 use crate::fault::ServeFault;
+use crate::handoff::chosen_agent;
 use crate::plan::phase_of;
 use crate::read::{COMPANION_APP, answer_read};
 use crate::runtime::Companion;
@@ -299,6 +300,10 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let reply = match reply {
             Ok(reply) => reply,
             Err(fault) => {
+                // The person chose a coding agent for the assistant: it takes the turn.
+                if let Some(program) = chosen_agent(&fault) {
+                    return Ok(self.give_turn(task, program).await);
+                }
                 tracing::warn!(%task, %fault, "the planner turn failed");
                 if let Some(rt) = self.runtimes.get_mut(task) {
                     if let Some(refusal) = model_refusal(&fault) {

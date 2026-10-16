@@ -11,6 +11,7 @@
 //!   episodes, runs); `stored_events`, `events_of`: the sessions, from `Session.Stored`.
 //! - `completion_effects`: how a finished worker or run reaches the front task.
 //! - `serve`, `serve_on`: `org.quire.Companion1`.
+//! - `HostLink`: a turn handed to the coding agent the person chose, through the agent host.
 
 mod bell;
 mod callers;
@@ -18,6 +19,7 @@ mod clock;
 mod config;
 mod daemon;
 mod follow;
+mod handoff;
 mod serve;
 mod speaker;
 
@@ -36,6 +38,7 @@ pub use docket_tasks::{
     completion_effects, events_of, rebuild_from, recent_events, recover, replay_of, restart_query,
     stored_events,
 };
+pub use handoff::HostLink;
 pub use serve::{serve, serve_on, serve_on_rooted};
 pub use speaker::{Call, Speaker, Speakers, permits};
 

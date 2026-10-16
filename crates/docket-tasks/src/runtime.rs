@@ -4,6 +4,7 @@
 
 use crate::best_effort::best_effort;
 use crate::fault::ServeFault;
+use crate::handoff::Handoff;
 use crate::seams::{Now, Surface};
 use crate::shared::Shared;
 use crate::task::{TaskRuntime, roster_state};
@@ -145,6 +146,9 @@ pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     pub(crate) manifests: Vec<docket_core::ValidManifest>,
     /// Whether the companion writes its roster notes (`Session.Note`) for its sessions.
     pub(crate) notes: Notes,
+    /// What gives a turn to the coding agent the person chose as the assistant's model; none
+    /// where nothing hosts agents (a test, an app that hosts the companion in itself).
+    pub(crate) hand: Option<Arc<dyn Handoff>>,
 }
 
 /// Whether a companion writes the legacy session notes (`companion.session.*`) a restart used to
@@ -205,7 +209,21 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             skills: docket_skills::Library::default(),
             notes: Notes::Written,
             manifests: Vec::new(),
+            hand: None,
         }
+    }
+
+    /// The same companion, handing a turn to the coding agent the person chose through `hand`.
+    pub fn with_handoff(self, hand: Arc<dyn Handoff>) -> Self {
+        Self {
+            hand: Some(hand),
+            ..self
+        }
+    }
+
+    /// Sets what hands a turn to the coding agent the person chose.
+    pub fn set_handoff(&mut self, hand: Arc<dyn Handoff>) {
+        self.hand = Some(hand);
     }
 
     /// The same companion, waiting on its peers as `waits` says.

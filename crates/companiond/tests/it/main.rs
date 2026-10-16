@@ -1,6 +1,7 @@
 mod act;
 mod binary;
 mod companion;
+mod handoff;
 mod host_only;
 mod hostile;
 mod idle;

@@ -4,6 +4,7 @@
 use crate::Companiond;
 use crate::clock::Clock;
 use crate::config::CompaniondConfig;
+use crate::handoff::HostLink;
 use crate::serve::serve_on_rooted;
 use docket_client::{DbusTransport, Intents};
 use docket_dbus::callers::{CallerTable, Identity};
@@ -91,7 +92,10 @@ pub async fn start_with(
         Clock::System,
         config.shell.clone(),
     )
-    .with_skills(found.skills);
+    .with_skills(found.skills)
+    // The coding agent the person may choose as the assistant's model takes the turn through its
+    // host, which the bus starts on the first call.
+    .with_handoff(Arc::new(HostLink::new(connection.clone())));
     // A router or memoryd that hangs must not keep the name from being claimed.
     match tokio::time::timeout(companion.waits.startup, companion.restore(&config.spaces)).await {
         Ok(Ok(restarted)) => tracing::info!(
