@@ -12,7 +12,7 @@ mod refresh;
 mod words;
 mod write;
 
-pub use detect::{Found, KNOWN, Known, dirs_of, find_known, unlisted};
+pub use detect::{Found, KNOWN, KnownAgent, dirs_of, find_known, unlisted};
 pub use model::{AgentRow, Agents, Availability, Install, ModelState, Offers, SignInState, Source};
 pub use read::read_agents;
 pub use refresh::{REFRESH_PROGRAM, RefreshRequest};

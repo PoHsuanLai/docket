@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 /// A coding agent program known by the name it is installed under.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Known {
+pub struct KnownAgent {
     /// The file name.
     pub program: &'static str,
     /// What the person calls it.
@@ -16,20 +16,20 @@ pub struct Known {
 }
 
 /// The programs looked for.
-pub const KNOWN: [Known; 4] = [
-    Known {
+pub const KNOWN: [KnownAgent; 4] = [
+    KnownAgent {
         program: "claude-agent-acp",
         label: "Claude Code",
     },
-    Known {
+    KnownAgent {
         program: "claude",
         label: "Claude Code",
     },
-    Known {
+    KnownAgent {
         program: "gemini",
         label: "Gemini",
     },
-    Known {
+    KnownAgent {
         program: "codex",
         label: "Codex",
     },
@@ -39,7 +39,7 @@ pub const KNOWN: [Known; 4] = [
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Found {
     /// Which program.
-    pub known: Known,
+    pub known: KnownAgent,
     /// Where.
     pub at: PathBuf,
 }

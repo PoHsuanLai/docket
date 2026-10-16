@@ -18,7 +18,7 @@ use docket_core::AgentConfig;
 
 #[cfg(feature = "agents")]
 pub use agents::{
-    AgentChoice, AgentRow, Agents, Availability, ChoiceFault, Found, Install, KNOWN, Known,
+    AgentChoice, AgentRow, Agents, Availability, ChoiceFault, Found, Install, KNOWN, KnownAgent,
     ModelState, Offers, Pick, REFRESH_PROGRAM, RefreshRequest, SignInState, Source, dirs_of,
     edit_agent_choice, edit_agent_rewind, find_known, read_agents, unlisted, write_agent_choice,
     write_agent_rewind,
