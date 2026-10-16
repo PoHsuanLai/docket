@@ -346,41 +346,45 @@ async fn only_the_host_of_the_session_may_make_the_agents_calls() {
 }
 
 #[tokio::test]
-async fn a_session_the_launcher_opened_is_not_an_agents_even_if_it_says_so() {
+async fn a_session_another_role_opened_is_not_an_agents_even_if_it_says_so() {
     let w = world();
-    let reply = ask(
-        &w.router,
-        &launcher(),
-        IntentsRequest::SessionOpen(SessionOpen {
-            space: space("work"),
-            agent: AgentRef::Companion,
-            parent: None,
-            cwd: None,
-            started_from: None,
-            external: Some(ExternalAgent {
-                program: program(CLAUDE),
-                sheets: SheetSurface::Desktop,
-                label: None,
-                rewind: Default::default(),
+    // The launcher, and the companion (whose assistant may be handed to an outside agent: the
+    // host opens that agent's session, never the companion).
+    for opener in [launcher(), companion()] {
+        let reply = ask(
+            &w.router,
+            &opener,
+            IntentsRequest::SessionOpen(SessionOpen {
+                space: space("work"),
+                agent: AgentRef::Companion,
+                parent: None,
+                cwd: None,
+                started_from: None,
+                external: Some(ExternalAgent {
+                    program: program(CLAUDE),
+                    sheets: SheetSurface::Desktop,
+                    label: None,
+                    rewind: Default::default(),
+                }),
             }),
-        }),
-    )
-    .await;
-    let IntentsReply::SessionOpened(opened) = reply else {
-        panic!("{reply:?}")
-    };
-    let calls = ask(
-        &w.router,
-        &host(),
-        IntentsRequest::Perform {
-            activation: None,
-            call: read("/home/u/proj/a.rs"),
-            session: Some(opened.session),
-            parent_window: None,
-        },
-    )
-    .await;
-    assert_eq!(calls, IntentsReply::Refused(WireRefusal::NotAllowed));
+        )
+        .await;
+        let IntentsReply::SessionOpened(opened) = reply else {
+            panic!("{reply:?}")
+        };
+        let calls = ask(
+            &w.router,
+            &host(),
+            IntentsRequest::Perform {
+                activation: None,
+                call: read("/home/u/proj/a.rs"),
+                session: Some(opened.session),
+                parent_window: None,
+            },
+        )
+        .await;
+        assert_eq!(calls, IntentsReply::Refused(WireRefusal::NotAllowed));
+    }
     // And the host opens an agent's session or none.
     let bare = ask(
         &w.router,
