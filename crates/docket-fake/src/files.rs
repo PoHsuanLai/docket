@@ -1,6 +1,6 @@
 //! `FakeFiles`: an in-memory files app behind the fixture manifest, with real undo tokens.
 
-use crate::labels::{entity, outcome, third_party};
+use crate::labels::{app_label, entity, entity_ref, outcome, third_party};
 use docket_client::IntentProvider;
 use docket_core::{
     AppRefusal, FileMove, FileRef, Hit, Invocation, Outcome, ParamName, Preview, SuggestAsk,
@@ -74,6 +74,31 @@ impl FakeFiles {
             Ok(mut s) => f(&mut s),
             Err(p) => f(&mut p.into_inner()),
         }
+    }
+
+    /// What the app lists: every file by its path (somebody else's words), in key order.
+    pub fn shown(&self) -> Vec<docket_core::EntityRef> {
+        let (app, space) = (self.app.clone(), self.space.clone());
+        self.edit(|s| {
+            s.files
+                .iter()
+                .filter_map(|(key, path)| {
+                    let title = Labelled {
+                        value: path.clone(),
+                        label: third_party(Source::File, DataClass::Files, space.clone()),
+                    };
+                    let subtitle = Labelled {
+                        value: String::new(),
+                        label: app_label(&app),
+                    };
+                    Some(entity_ref(
+                        entity(&app, "files.file", key)?,
+                        title,
+                        subtitle,
+                    ))
+                })
+                .collect()
+        })
     }
 
     /// Where a file is now.

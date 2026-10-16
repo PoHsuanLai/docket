@@ -129,6 +129,13 @@ impl FakeLink {
             .and_then(|all| all.get(app).cloned())
     }
 
+    /// Everything the fake apps list, mail first and then files: what a window of an app shows.
+    pub fn shown(&self) -> Vec<docket_core::EntityRef> {
+        let mut all = self.mail.shown();
+        all.extend(self.files.shown());
+        all
+    }
+
     /// Makes `snapshot` what the app's `Context` answers (until the next call to this).
     pub fn show_window(&self, snapshot: ContextSnapshot) {
         if let Ok(mut window) = self.window.lock() {

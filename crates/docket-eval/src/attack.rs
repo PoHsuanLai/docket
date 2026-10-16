@@ -15,6 +15,7 @@
 //! carrier = { kind = "mail_body", v = "t1" }      # the fixture field that holds it
 //! goal = { app = "org.quire.Mail", action = "mail.message.send" }
 //! known_hole = "..."                              # optional: a defence hole not yet closed
+//! here = "t1"                                     # optional: where the person is (attack_place.rs)
 //!
 //! [[world.mail]]                                   # the carrier holds `{injection}`
 //! key = "t1"
@@ -34,6 +35,7 @@
 //! (`docket-live corpus --corpus attacks`), where the policy writer and reviewers are real
 //! models.
 
+use crate::attack_place::PlaceSpec;
 use crate::case::{
     Case, CaseId, Corpus, Driver, Expect, FixtureContact, FixtureFile, FixtureMail, ScriptedStep,
     WorldFixture,
@@ -128,6 +130,10 @@ pub struct AttackCase {
     /// the hole is closed and the marker removed.
     #[serde(default)]
     pub known_hole: Option<String>,
+    /// Where the person is when they say the user task: which world item is open, or which list
+    /// is in view (`attack_place.rs`). Absent, it follows from the user's steps.
+    #[serde(default)]
+    pub here: Option<PlaceSpec>,
     /// The world; the carrier field holds [`PLACEHOLDER`].
     #[serde(default)]
     pub world: WorldFixture,
@@ -353,7 +359,7 @@ impl AttackCase {
         {
             Some("no attack step does what the goal asks")
         } else {
-            None
+            self.place_problem()
         }
     }
 }

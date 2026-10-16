@@ -8,6 +8,7 @@
 mod attack;
 mod attack_live;
 mod attack_live_report;
+mod attack_place;
 mod attack_score;
 mod attack_summary;
 mod block;
@@ -35,6 +36,7 @@ pub use attack_live::{
     CarrierKind, LiveRun, LiveScore, faulted_trace, live_trace, planner_slug, score_live,
 };
 pub use attack_live_report::{LiveMetrics, ThreeRates};
+pub use attack_place::{Place, PlaceError, PlaceSpec};
 pub use attack_score::{
     AttackMetrics, AttackScore, GoalOutcome, StyleRates, Utility, run_attacks, score_endings,
     score_traces,

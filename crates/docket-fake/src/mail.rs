@@ -35,6 +35,20 @@ pub struct MailContact {
     pub address: String,
 }
 
+/// A thread as a list shows it: the subject and the sender, somebody else's words.
+fn thread_ref(app: &AppName, space: &SpaceId, t: &MailThread) -> Option<docket_core::EntityRef> {
+    let label = third_party(Source::Mail, DataClass::Mail, space.clone());
+    let say = |v: &str| Labelled {
+        value: v.to_owned(),
+        label: label.clone(),
+    };
+    Some(entity_ref(
+        entity(app, "mail.thread", &t.key)?,
+        say(&t.subject),
+        say(&t.from),
+    ))
+}
+
 /// A message the app sent or forwarded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SentMail {
@@ -123,6 +137,32 @@ impl FakeMail {
             Ok(mut s) => f(&mut s),
             Err(p) => f(&mut p.into_inner()),
         }
+    }
+
+    /// What the app lists: every thread that is not archived (subject and sender, somebody
+    /// else's words), then every contact (name and address, the app's own), each in key order.
+    pub fn shown(&self) -> Vec<docket_core::EntityRef> {
+        let (app, space) = (self.app.clone(), self.space.clone());
+        let own = app_label(&app);
+        self.edit(|s| {
+            let threads = s
+                .threads
+                .values()
+                .filter(|t| !s.archived.contains(&t.key))
+                .filter_map(|t| thread_ref(&app, &space, t));
+            let contacts = s.contacts.values().filter_map(|c| {
+                let say = |v: &str| Labelled {
+                    value: v.to_owned(),
+                    label: own.clone(),
+                };
+                Some(entity_ref(
+                    entity(&app, "mail.contact", &c.key)?,
+                    say(&c.name),
+                    say(&c.address),
+                ))
+            });
+            threads.chain(contacts).collect()
+        })
     }
 
     /// Whether a thread is archived.
@@ -379,25 +419,14 @@ impl IntentProvider for FakeMail {
     }
 
     async fn search(&self, text: &str) -> Vec<Hit> {
-        let app = self.app.clone();
-        let space = self.space.clone();
+        let (app, space) = (self.app.clone(), self.space.clone());
         self.edit(|s| {
             s.threads
                 .values()
                 .filter(|t| t.subject.contains(text))
                 .filter_map(|t| {
-                    let id = entity(&app, "mail.thread", &t.key)?;
-                    let label = third_party(Source::Mail, DataClass::Mail, space.clone());
-                    let title = Labelled {
-                        value: t.subject.clone(),
-                        label: label.clone(),
-                    };
-                    let sub = Labelled {
-                        value: t.from.clone(),
-                        label,
-                    };
                     Some(Hit {
-                        entity: entity_ref(id, title, sub),
+                        entity: thread_ref(&app, &space, t)?,
                         why: None,
                     })
                 })
