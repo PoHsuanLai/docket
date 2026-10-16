@@ -10,6 +10,9 @@ Description=Quire voice daemon (org.quire.Voice1)
 Type=dbus
 BusName=org.quire.Voice1
 ExecStart=/usr/libexec/quire/voiced --config /etc/quire/voiced.toml
+# No loader variables from the session reach the daemon: porter gives its fixed caller role only
+# to a unit that unsets them (applied after the manager environment and Environment=).
+UnsetEnvironment=LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT GCONV_PATH GIO_EXTRA_MODULES GTK_MODULES GTK_PATH GST_PLUGIN_PATH GST_PLUGIN_SYSTEM_PATH LIBGL_DRIVERS_PATH MESA_LOADER_DRIVER_OVERRIDE __EGL_VENDOR_LIBRARY_DIRS __EGL_VENDOR_LIBRARY_FILENAMES GBM_BACKENDS_PATH LIBVA_DRIVERS_PATH VK_ICD_FILENAMES VK_DRIVER_FILES VK_ADD_DRIVER_FILES VK_LAYER_PATH VK_ADD_LAYER_PATH VK_INSTANCE_LAYERS VK_LOADER_LAYERS_ENABLE
 # A panic in the voice loop ends the process with a failure (the daemon joins its loop), and
 # systemd starts it again; a clean exit (the bus closing with the session) is not restarted.
 Restart=on-failure
