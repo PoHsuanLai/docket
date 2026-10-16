@@ -6,9 +6,11 @@
 # agent's session at intentd and makes the agent's calls there, each ruled like any agent's.
 # Off unless agent.acp.agents = "on" in the settings; the programs come from agents.toml.
 #
-# No sandbox lines on purpose: the host starts each agent under bubblewrap itself, and a unit
-# that restricted namespaces or syscalls would stop that. The agent, not this unit, is what is
-# confined.
+# Fewer sandbox lines than the other units, on purpose (owner 2026-10-17): the limits of this unit
+# pass to the agents it starts, which reach their own service over the network and run a JIT, and
+# the host starts each agent under bubblewrap, which needs namespace syscalls. It keeps every line
+# that breaks none of that, here and in docket-agent.service.d/sandbox.conf; the agent itself is
+# confined by its bubblewrap sandbox.
 [Unit]
 Description=Quire host of coding agents (org.quire.AcpAgent)
 After=intentd.service

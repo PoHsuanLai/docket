@@ -186,13 +186,29 @@ fn every_unit_carries_the_sandbox_lines_and_every_activation_file_names_a_unit()
     );
     for path in &units {
         let text = std::fs::read_to_string(path).expect("unit");
-        for line in [
-            "RestrictAddressFamilies=AF_UNIX",
-            "NoNewPrivileges=yes",
-            "MemoryDenyWriteExecute=yes",
-            "SystemCallFilter=@system-service",
-            "CapabilityBoundingSet=",
-        ] {
+        // The host of coding agents is the one named exception (owner 2026-10-17): the limits of
+        // its unit pass to the agents it starts, which reach their own service over the network
+        // and run a JIT (Node), and bubblewrap needs namespace syscalls. It carries every line that
+        // breaks none of that, and the agent is confined by the sandbox the host starts it in.
+        let host = path
+            .file_name()
+            .is_some_and(|n| n == "docket-agent.service");
+        let lines: &[&str] = match host {
+            true => &[
+                "NoNewPrivileges=yes",
+                "RestrictSUIDSGID=yes",
+                "LockPersonality=yes",
+                "RestrictRealtime=yes",
+            ],
+            false => &[
+                "RestrictAddressFamilies=AF_UNIX",
+                "NoNewPrivileges=yes",
+                "MemoryDenyWriteExecute=yes",
+                "SystemCallFilter=@system-service",
+                "CapabilityBoundingSet=",
+            ],
+        };
+        for line in lines.iter().copied() {
             assert!(
                 text.lines().any(|l| l == line),
                 "{} lacks {line}",
@@ -203,7 +219,11 @@ fn every_unit_carries_the_sandbox_lines_and_every_activation_file_names_a_unit()
         // a system that refuses one for user units.
         let dropin = std::fs::read_to_string(format!("{}.d/sandbox.conf", path.display()))
             .expect("sandbox drop-in");
-        for line in ["PrivateNetwork=yes", "ProtectSystem=strict"] {
+        let dropin_lines: &[&str] = match host {
+            true => &["ProtectSystem=full", "PrivateTmp=yes", "PrivateDevices=yes"],
+            false => &["PrivateNetwork=yes", "ProtectSystem=strict"],
+        };
+        for line in dropin_lines.iter().copied() {
             assert!(
                 dropin.lines().any(|l| l == line),
                 "{}.d/sandbox.conf lacks {line}",
