@@ -635,3 +635,133 @@ async fn the_rules_and_the_finish_tool_say_how_to_show_a_handle() {
     assert!(RULES.contains("\"show\""));
     assert!(finish.description.contains("show"));
 }
+
+fn held_thing(n: u64, kind: &str) -> HandleCard {
+    HandleCard {
+        handle: Handle(n),
+        shape: HandleShape::Entity(EntityKind::parse(kind).expect("kind")),
+        from: Source::Mail,
+        size: CharCount(0),
+    }
+}
+
+/// The `target` schema of a mail tool as the request for `v` offers it.
+fn target_in(
+    planner: &PlannerModel<crate::support::infer::ScriptedInfer>,
+    v: &PlannerView,
+    tool: &str,
+) -> serde_json::Value {
+    let request = planner.request(v);
+    let decl = request
+        .tools
+        .iter()
+        .find(|t| t.name.as_str() == tool)
+        .expect("tool");
+    let schema: serde_json::Value = serde_json::from_str(decl.params.0.as_str()).expect("json");
+    schema["properties"]["target"].clone()
+}
+
+#[test]
+fn a_target_is_the_handle_of_a_held_thing_of_its_kind_and_nothing_else() {
+    let (planner, _) = planner(vec![]);
+    let mut v = view(catalogue().cards());
+    v.handles = vec![
+        held_thing(12, "mail.thread"),
+        held_thing(13, "mail.contact"),
+        held_thing(15, "mail.thread"),
+    ];
+    let one = target_in(&planner, &v, "org_quire_Mail-mail_thread_read");
+    assert_eq!(one["properties"]["handle"]["enum"], json!([12, 15]));
+    assert_eq!(one["required"], json!(["handle"]));
+    assert!(one.get("anyOf").is_none(), "one way to name it: {one}");
+    let said = one["description"].as_str().expect("described");
+    assert!(
+        said.contains("mail.thread") && said.contains("\"here\""),
+        "{said}"
+    );
+    let many = target_in(&planner, &v, "org_quire_Mail-mail_thread_archive");
+    assert_eq!(
+        many["items"]["properties"]["handle"]["enum"],
+        json!([12, 15])
+    );
+}
+
+#[test]
+fn a_target_with_many_held_things_is_a_handle_without_a_list_and_with_none_either_spelling() {
+    let (planner, _) = planner(vec![]);
+    let mut v = view(catalogue().cards());
+    v.handles = (1..=33).map(|n| held_thing(n, "mail.thread")).collect();
+    let crowded = target_in(&planner, &v, "org_quire_Mail-mail_thread_read");
+    assert!(
+        crowded["properties"]["handle"].get("enum").is_none(),
+        "{crowded}"
+    );
+    assert_eq!(crowded["properties"]["handle"]["minimum"], 0);
+    v.handles = vec![held_thing(13, "mail.contact")];
+    let none = target_in(&planner, &v, "org_quire_Mail-mail_thread_read");
+    assert_eq!(none["anyOf"].as_array().map(Vec::len), Some(2), "{none}");
+}
+
+/// The most characters the prompt may spend on where the person is and what is held, for a list
+/// of three things (it was over 3,000 before a thing had a handle of its own and the lists of
+/// uses were said once per kind).
+const THREE_ITEM_VIEW_BUDGET: usize = 1200;
+
+#[test]
+fn a_three_item_list_costs_a_short_prompt_with_each_things_handle_first() {
+    let mail = AppName::parse("org.quire.Mail").expect("app");
+    let thread = |n: u64| EntityLine {
+        handle: Handle(10 + n * 3),
+        id: EntityId {
+            app: mail.clone(),
+            kind: EntityKind::parse("mail.thread").expect("kind"),
+            key: EntityKey::parse(&format!("t{n}")).expect("key"),
+        },
+        title: Reveal::Handle(Handle(11 + n * 3)),
+        subtitle: Reveal::Handle(Handle(12 + n * 3)),
+    };
+    let mut v = view(catalogue().cards());
+    v.context = ContextView {
+        app: mail.clone(),
+        window: Reveal::Plain("org.quire.Mail".to_owned()),
+        here: HereView::Entity(thread(1)),
+        selection: SelectionView::Nothing,
+        visible: VisibleView {
+            kind: Some(EntityKind::parse("mail.thread").expect("kind")),
+            items: (1..=3).map(thread).collect(),
+            total: porter_core::Count(3),
+        },
+        text_target: TextTargetView::None,
+    };
+    v.handles = (1..=3)
+        .flat_map(|n| {
+            let text = |h: u64| HandleCard {
+                handle: Handle(h),
+                shape: HandleShape::Text,
+                from: Source::Mail,
+                size: CharCount(12),
+            };
+            [
+                text(11 + n * 3),
+                text(12 + n * 3),
+                held_thing(10 + n * 3, "mail.thread"),
+            ]
+        })
+        .collect();
+    let text = user_text(&v);
+    assert!(
+        text.contains(
+            "\"here\":{\"handle\":13,\"kind\":\"mail.thread\",\"title\":#14,\"subtitle\":#15}"
+        ),
+        "{text}"
+    );
+    assert!(
+        !text.contains("What you can name but not read"),
+        "the context already shows these handles: {text}"
+    );
+    assert!(
+        text.len() < THREE_ITEM_VIEW_BUDGET,
+        "{} characters: {text}",
+        text.len()
+    );
+}

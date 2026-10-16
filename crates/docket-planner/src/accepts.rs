@@ -69,33 +69,6 @@ fn said(place: &Place, names: &[String]) -> String {
     format!("{how} in {}{rest}", shown.join(", "))
 }
 
-/// The longest text a parameter takes from a handle, when its schema is a text with a place for
-/// a `{"handle": n}` (the shape `tool_schema` gives a text parameter): the text alternative
-/// carries `maxLength`, a file or a url does not.
-fn text_from_handle(schema: &Json) -> Option<u64> {
-    let options = schema.get("anyOf")?.as_array()?;
-    let by_handle = options
-        .iter()
-        .any(|o| o.get("properties").and_then(|p| p.get("handle")).is_some());
-    let longest = options
-        .iter()
-        .filter(|o| o.get("type").and_then(Json::as_str) == Some("string"))
-        .find_map(|o| o.get("maxLength").and_then(Json::as_u64));
-    by_handle.then_some(longest).flatten()
-}
-
-fn text_places(card: &ActionCard, size: u64) -> Vec<Place> {
-    card.tool
-        .0
-        .get("properties")
-        .and_then(Json::as_object)
-        .into_iter()
-        .flatten()
-        .filter(|(_, schema)| text_from_handle(schema).is_some_and(|max| size <= max))
-        .map(|(name, _)| Place::Param(name.clone()))
-        .collect()
-}
-
 fn gather(actions: &[ActionCard], places: impl Fn(&ActionCard) -> Vec<Place>) -> Option<String> {
     let mut by_place: BTreeMap<Place, Vec<String>> = BTreeMap::new();
     for card in actions {
@@ -140,13 +113,6 @@ pub(crate) fn related_of(kind: &EntityKind, actions: &[ActionCard]) -> Option<St
         })
         .collect();
     Some(said.join(", "))
-}
-
-/// Where a text handle of `size` characters can be used: the text parameters, by declared type
-/// and length, that take `{"handle": n}`. Whether the call is then let through (what the text is
-/// labelled, what the action may do with it) is the router's decision at call time, not said here.
-pub(crate) fn text_used_as(size: u64, actions: &[ActionCard]) -> Option<String> {
-    gather(actions, |card| text_places(card, size))
 }
 
 #[cfg(test)]
@@ -297,29 +263,6 @@ mod tests {
         assert_eq!(used_as(&kind("mail.draft"), &mail()), None);
         let none = [card("mail.contact.search", TargetKind::Nothing, &[])];
         assert_eq!(used_as(&kind("mail.contact"), &none), None);
-    }
-
-    #[test]
-    fn a_text_is_used_where_a_text_parameter_takes_a_handle_that_long() {
-        assert_eq!(
-            text_used_as(120, &mail()).as_deref(),
-            Some("as \"body\" in mail.message.send; as \"subject\" in mail.message.send")
-        );
-        assert_eq!(
-            text_used_as(5000, &mail()).as_deref(),
-            Some("as \"body\" in mail.message.send")
-        );
-        assert_eq!(text_used_as(30000, &mail()), None);
-    }
-
-    #[test]
-    fn a_text_with_no_parameter_for_it_is_not_said_to_be_used() {
-        let none = [card(
-            "mail.contact.search",
-            TargetKind::Nothing,
-            &[("query", serde_json::json!({ "type": "string" }))],
-        )];
-        assert_eq!(text_used_as(1, &none), None);
     }
 
     #[test]

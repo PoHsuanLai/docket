@@ -4,8 +4,8 @@
 //! byte-stable until the app set changes.
 
 use docket_core::{
-    ActionCard, ActionDecl, ActionRef, AgentReach, RelationDecl, TargetKind, ToolSchema,
-    ValidManifest, Visibility, tool_schema,
+    ActionCard, ActionDecl, ActionRef, AgentReach, HandleCard, HandleShape, RelationDecl,
+    TargetKind, ToolSchema, ValidManifest, Visibility, tool_schema,
 };
 use porter_core::AppName;
 use porter_infer::{JsonSchemaText, JsonText, ToolDecl, ToolName};
@@ -52,10 +52,19 @@ impl CatalogueTool {
     }
 
     /// The function declaration the model sees: the parameters as one object, and a `target`
-    /// beside them when the action acts on things.
+    /// beside them when the action acts on things. It holds no handles, so a target may be a
+    /// handle or a thing in full.
     pub fn declaration(&self) -> Option<ToolDecl> {
+        self.declaration_for(&[])
+    }
+
+    /// [`declaration`](Self::declaration) for a model that holds `held`: a target of a kind it
+    /// holds a handle for is `{"handle": n}` and nothing else, with `n` one of the handles held
+    /// for that kind when they are few, so a handle of the wrong kind cannot be written.
+    pub fn declaration_for(&self, held: &[HandleCard]) -> Option<ToolDecl> {
         let mut schema = tool_schema(&self.decl).0;
-        if let (Some(target), Json::Object(root)) = (target_schema(&self.decl.on), &mut schema)
+        if let (Some(target), Json::Object(root)) =
+            (target_schema(&self.decl.on, held), &mut schema)
             && let Some(Json::Object(properties)) = root.get_mut("properties")
         {
             properties.insert(TARGET.to_owned(), target);
@@ -95,30 +104,70 @@ fn entity_or_handle(kind: &str) -> Json {
     })
 }
 
+/// The most handles of one kind a target's schema lists as its only choices.
+const ENUM_LIMIT: usize = 32;
+
+/// The numbers of the handles in `held` that hold a thing of `kind`, in order.
+fn numbers_of(kind: &str, held: &[HandleCard]) -> Vec<u64> {
+    held.iter()
+        .filter(|c| matches!(&c.shape, HandleShape::Entity(k) if k.as_str() == kind))
+        .map(|c| c.handle.0)
+        .collect()
+}
+
+/// A thing as `{"handle": n}` alone, `n` one of `numbers` when they are few.
+fn handle_of_kind(numbers: &[u64]) -> Json {
+    let number = if numbers.len() <= ENUM_LIMIT {
+        json!({ "type": "integer", "enum": numbers })
+    } else {
+        json!({ "type": "integer", "minimum": 0 })
+    };
+    json!({
+        "type": "object",
+        "properties": { "handle": number },
+        "required": ["handle"],
+        "additionalProperties": false,
+    })
+}
+
+/// One target: the handle of a held thing of `kind`, or, when none is held, either spelling.
+fn one_target(kind: &str, held: &[HandleCard]) -> Json {
+    match numbers_of(kind, held).as_slice() {
+        [] => entity_or_handle(kind),
+        numbers => handle_of_kind(numbers),
+    }
+}
+
 /// Says what the target is: the kind, and that a handle you hold names it.
-fn described(mut schema: Json, kind: &str) -> Json {
+fn described(mut schema: Json, kind: &str, many: &str) -> Json {
     if let Json::Object(fields) = &mut schema {
         fields.insert(
             "description".to_owned(),
             json!(format!(
-                "What this acts on: a {kind}, named as {{\"handle\": n}} with a handle you hold"
+                "What this acts on: {many} {kind} you hold a handle for, as {{\"handle\": n}} \
+                 (for example the one in \"here\")"
             )),
         );
     }
     schema
 }
 
-fn target_schema(on: &TargetKind) -> Option<Json> {
+fn target_schema(on: &TargetKind, held: &[HandleCard]) -> Option<Json> {
     match on {
         TargetKind::Nothing | TargetKind::Text | TargetKind::Files => None,
-        TargetKind::One(kind) => Some(described(entity_or_handle(kind.as_str()), kind.as_str())),
+        TargetKind::One(kind) => Some(described(
+            one_target(kind.as_str(), held),
+            kind.as_str(),
+            "a",
+        )),
         TargetKind::Many(kind) => Some(described(
             json!({
                 "type": "array",
-                "items": entity_or_handle(kind.as_str()),
+                "items": one_target(kind.as_str(), held),
                 "minItems": 1,
             }),
             kind.as_str(),
+            "one or more",
         )),
     }
 }

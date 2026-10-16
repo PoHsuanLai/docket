@@ -329,7 +329,7 @@ impl<P: Transport> PlannerModel<P> {
             .iter()
             .filter(|card| card.related.is_empty())
             .filter_map(|card| self.catalogue.of(&card.action))
-            .filter_map(CatalogueTool::declaration)
+            .filter_map(|tool| tool.declaration_for(&view.handles))
             .chain(meta_tools(&view.actions))
             .collect()
     }

@@ -7,7 +7,7 @@ use crate::read_ask::read_fault_text;
 use crate::unconfirmed::unconfirmed_text;
 use docket_core::{
     ActionCard, ArgFault, ArgsFault, CallRefusal, Handle, HandleCard, HandleShape, Held,
-    ReplyFault, Reveal, StepEnd, StepLine, StepShown, TargetFault, Value, Why,
+    ReplyFault, Reveal, StepEnd, StepLine, StepShown, TargetFault, TargetKind, Value, Why,
 };
 
 fn json<T: serde::Serialize>(value: &T) -> String {
@@ -113,8 +113,13 @@ fn target_text(fault: TargetFault) -> String {
     match fault {
         TargetFault::Missing => "\"target\" is required: name what the action acts on".to_owned(),
         TargetFault::Unexpected => "this action takes no \"target\"".to_owned(),
-        TargetFault::NotNameable => "this action acts on a live text field, which you cannot name".to_owned(),
-        TargetFault::Malformed => "\"target\" is not of the shape this action acts on: a thing as {\"app\", \"kind\", \"key\"} or {\"handle\": n}".to_owned(),
+        TargetFault::NotNameable => {
+            "this action acts on a live text field, which you cannot name".to_owned()
+        }
+        TargetFault::Malformed => {
+            "\"target\" is not of the shape this action acts on: a thing as {\"handle\": n}"
+                .to_owned()
+        }
     }
 }
 
@@ -134,10 +139,50 @@ fn arg_hint(param: &str, why: ArgFault, handles: &[HandleCard]) -> String {
     }
 }
 
+/// The kind of thing the action of `step` acts on, from its offered card.
+fn target_kind<'a>(step: &StepLine, actions: &'a [ActionCard]) -> Option<&'a prov::EntityKind> {
+    actions
+        .iter()
+        .find(|c| c.action == step.action)
+        .and_then(|c| match &c.on {
+            TargetKind::One(kind) | TargetKind::Many(kind) => Some(kind),
+            TargetKind::Nothing | TargetKind::Text | TargetKind::Files => None,
+        })
+}
+
+/// What a target of `kind` must be, and which of the handles held are of that kind. Only handle
+/// numbers and the kind: never what a handle holds.
+fn target_hint(kind: &prov::EntityKind, handles: &[HandleCard]) -> String {
+    let of_kind: Vec<String> = handles
+        .iter()
+        .filter(|c| c.shape == HandleShape::Entity(kind.clone()))
+        .map(|c| format!("#{}", c.handle.0))
+        .collect();
+    let held = if of_kind.is_empty() {
+        "you hold none of that kind".to_owned()
+    } else {
+        format!("you hold {}", bounded(of_kind).join(", "))
+    };
+    format!("\"target\" needs a {kind}; {held}")
+}
+
 /// The reason after a refusal, where there is something to act on.
-fn refusal_hint(refusal: &CallRefusal, handles: &[HandleCard]) -> Option<String> {
+fn refusal_hint(refusal: &CallRefusal, step: &StepLine, seen: &Seen<'_>) -> Option<String> {
     match refusal {
-        CallRefusal::BadArgs { param, why } => Some(arg_hint(param.as_str(), *why, handles)),
+        CallRefusal::BadArgs { param, why } => {
+            let wrong_target =
+                param.as_str() == docket_core::TARGET_KEY && matches!(why, ArgFault::WrongType);
+            let kind = wrong_target
+                .then(|| target_kind(step, seen.actions))
+                .flatten();
+            Some(match kind {
+                Some(kind) => format!(
+                    "argument \"target\" has the wrong type: {}",
+                    target_hint(kind, seen.handles)
+                ),
+                None => arg_hint(param.as_str(), *why, seen.handles),
+            })
+        }
         CallRefusal::NoSuchAction(_) => {
             Some("there is no such action; call only the tools you were given".to_owned())
         }
@@ -328,7 +373,7 @@ pub(crate) fn step_line_in(step: &StepLine, seen: &Seen<'_>) -> String {
             format!("{head} done{said}{value}{undo}")
         }
         (_, StepEnd::Refused(refusal)) => {
-            let hint = refusal_hint(refusal, handles)
+            let hint = refusal_hint(refusal, step, seen)
                 .map(|h| format!(": {h}"))
                 .unwrap_or_default();
             format!("{head} refused {}{hint}", json(refusal))
@@ -384,6 +429,47 @@ mod tests {
         assert!(none.contains("you hold no handles yet"));
         let some = step_line(&step(end), &[card(3), card(4)]);
         assert!(some.ends_with("handles you hold: #3 #4"), "{some}");
+    }
+
+    #[test]
+    fn a_wrong_typed_target_says_the_kind_it_needs_and_the_handles_held_of_it() {
+        let end = StepEnd::Refused(CallRefusal::BadArgs {
+            param: docket_core::ParamName::parse("target").expect("param"),
+            why: ArgFault::WrongType,
+        });
+        // mail.message.forward acts on a mail.thread.
+        let actions = crate::accepts::fixtures::mail();
+        let handles = [
+            entity_card(12, "mail.thread"),
+            card(13),
+            entity_card(15, "mail.thread"),
+        ];
+        let seen = Seen {
+            handles: &handles,
+            earlier: &[],
+            actions: &actions,
+        };
+        let line = step_line_in(&step(end.clone()), &seen);
+        assert!(
+            line.ends_with(
+                "argument \"target\" has the wrong type: \"target\" needs a mail.thread; you hold #12, #15"
+            ),
+            "{line}"
+        );
+        let only_text = [card(13)];
+        let none = Seen {
+            handles: &only_text,
+            earlier: &[],
+            actions: &actions,
+        };
+        let line = step_line_in(&step(end.clone()), &none);
+        assert!(line.contains("you hold none of that kind"), "{line}");
+        // With no card for the action there is nothing to say of the kind.
+        let bare = step_line(&step(end), &handles);
+        assert!(
+            bare.ends_with("argument \"target\" has the wrong type"),
+            "{bare}"
+        );
     }
 
     #[test]
