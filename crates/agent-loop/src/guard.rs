@@ -12,6 +12,7 @@
 //! person can read. A call that wrote something makes the held reads of the world stale, and a
 //! call that may write is never held this way.
 
+use crate::declined::declined_words;
 use docket_core::{ActionRef, CallId, CallRefusal, CallRequest, Held, ReaderAsk, StepEnd, Value};
 use prov::Effect;
 use serde::{Deserialize, Serialize};
@@ -30,6 +31,9 @@ pub const MOST_HOLDS_PER_TURN: u8 = 4;
 /// How many replies in a row the planner may make that cannot be read as a call before the turn
 /// stops: the first and the second are told what was wrong, the third asks the person.
 pub const MOST_UNREADABLE: u8 = 3;
+/// How many times running the same call, the app refuses it before the turn stops: the planner is
+/// told why after the first, and the second ends the turn with the reason in words.
+pub const MOST_DECLINED: u8 = 2;
 /// How many distinct calls a turn remembers; the oldest are forgotten first.
 pub const MOST_REMEMBERED: usize = 32;
 
@@ -89,6 +93,12 @@ struct Seen {
     last: Option<Print>,
     /// How many times it has been held back since it last ran.
     held: u8,
+    /// How many times in a row the app has refused it (not the person, not the router).
+    #[serde(default)]
+    declined: u8,
+    /// What the app said of the last refusal.
+    #[serde(default)]
+    reason: String,
 }
 
 /// Why the turn stops.
@@ -103,6 +113,8 @@ pub enum Stuck {
     Unreadable,
     /// The planner kept asking for what it already holds, though each time it was told so.
     Answered,
+    /// The app refused the same call [`MOST_DECLINED`] times in a row; this is what it said.
+    Declined(String),
 }
 
 impl Stuck {
@@ -116,6 +128,8 @@ impl Stuck {
             Stuck::Repeating(Held::Refused, _) => "That step keeps being refused. How would you like me to go on?".to_owned(),
             Stuck::Unreadable => "I keep writing steps I cannot get right, though I was told what was wrong. How would you like me to go on?".to_owned(),
             Stuck::Answered => "I could not finish this. I kept going back to what I already had. How would you like me to go on?".to_owned(),
+            Stuck::Declined(reason) if reason.is_empty() => "Couldn't do that: the app wouldn't do it.".to_owned(),
+            Stuck::Declined(reason) => format!("Couldn't do that: {reason}"),
             Stuck::Circling => "I am going round in circles without getting anywhere. How would you like me to go on?".to_owned(),
         }
     }
@@ -239,11 +253,17 @@ impl Guard {
                     answer: Answer::Waiting(id),
                     last: None,
                     held: 0,
+                    declined: 0,
+                    reason: String::new(),
                 },
             );
             return (guard, Verdict::Run);
         };
         let entry = &mut guard.seen[at];
+        if entry.declined >= MOST_DECLINED {
+            let stuck = Stuck::Declined(entry.reason.clone());
+            return (guard, Verdict::Stop(stuck));
+        }
         match entry.answer.stale() {
             None => {
                 entry.answer = Answer::Waiting(id);
@@ -270,6 +290,8 @@ impl Guard {
                     answer: Answer::Opaque,
                     last: None,
                     held: 0,
+                    declined: 0,
+                    reason: String::new(),
                 },
             );
             return (guard, Verdict::Run);
@@ -347,7 +369,19 @@ impl Guard {
             .map(|s| match s.answer {
                 Answer::Waiting(w) if w == id => {
                     let (answer, last) = judged(end, &s.last, s.effect);
-                    Seen { answer, last, ..s }
+                    let (declined, reason) = match end {
+                        StepEnd::Refused(CallRefusal::App(refusal)) => {
+                            (s.declined.saturating_add(1), declined_words(refusal))
+                        }
+                        _ => (0, String::new()),
+                    };
+                    Seen {
+                        answer,
+                        last,
+                        declined,
+                        reason,
+                        ..s
+                    }
                 }
                 Answer::Answered if wrote && s.action.is_some() => Seen {
                     answer: Answer::Opaque,
@@ -357,6 +391,15 @@ impl Guard {
             })
             .collect();
         Guard { seen, ..self }
+    }
+
+    /// The call the app refused [`MOST_DECLINED`] times in a row, if any: the turn stops on it,
+    /// with what the app said.
+    pub fn declined(&self) -> Option<Stuck> {
+        self.seen
+            .iter()
+            .find(|s| s.declined >= MOST_DECLINED)
+            .map(|s| Stuck::Declined(s.reason.clone()))
     }
 
     /// The planner's reply could not be read as a call: tells it so, or, when it has done so

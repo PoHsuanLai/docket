@@ -533,3 +533,60 @@ fn a_read_failure_outside_a_read_changes_nothing() {
         (planning, vec![])
     );
 }
+
+fn declined(words: &str) -> StepEnd {
+    StepEnd::Refused(CallRefusal::App(AppRefusal::Failed(FailText(
+        words.to_owned(),
+    ))))
+}
+
+#[test]
+fn a_call_the_app_refuses_twice_ends_the_turn_saying_why() {
+    let why = "Notes isn't allowed for on-screen control. You can allow it in Settings.";
+    let go = || vec![doing(Some(Effect::Read), "desk.run.start", "x")];
+    let (s, e) = round(asked(), go(), &declined(why));
+    assert_eq!(
+        asks_person(&e),
+        None,
+        "the first refusal goes back to the planner"
+    );
+    assert_eq!(s.phase, LoopPhase::Planning);
+
+    let (s, e) = round(s, go(), &declined(why));
+    assert_eq!(s.phase, LoopPhase::Idle);
+    assert_eq!(
+        asks_person(&e),
+        Some(format!("Couldn't do that: {why}").as_str())
+    );
+    assert!(
+        e.iter()
+            .any(|e| matches!(e, LoopEffect::Refused(CallRefusal::App(_))))
+    );
+}
+
+#[test]
+fn an_app_refusal_is_counted_per_call_and_only_when_it_is_the_apps() {
+    let go = |query| vec![doing(Some(Effect::Read), "desk.run.start", query)];
+    // The person's no is not the app's refusal, however often it comes.
+    let no = StepEnd::Refused(CallRefusal::Unconfirmed(ConfirmEnd::Refused));
+    let (s, _) = round(asked(), go("x"), &no);
+    let (s, e) = round(s, go("x"), &no);
+    assert_eq!((s.phase, asks_person(&e)), (LoopPhase::Planning, None));
+    // A changed call starts again; a call that went through in between starts again too.
+    let (s, _) = round(asked(), go("x"), &declined("No."));
+    let (s, e) = round(s, go("y"), &declined("No."));
+    assert_eq!((s.phase, asks_person(&e)), (LoopPhase::Planning, None));
+    let (s, _) = round(s, go("x"), &text("fine"));
+    let (s, e) = round(s, go("x"), &declined("No."));
+    assert_eq!((s.phase, asks_person(&e)), (LoopPhase::Planning, None));
+    let _ = s;
+}
+
+#[test]
+fn an_app_refusal_without_words_still_gives_the_person_a_sentence() {
+    let go = || vec![doing(Some(Effect::Read), "desk.run.start", "x")];
+    let end = StepEnd::Refused(CallRefusal::App(AppRefusal::Busy));
+    let (s, _) = round(asked(), go(), &end);
+    let (_, e) = round(s, go(), &end);
+    assert_eq!(asks_person(&e), Some("Couldn't do that: The app is busy."));
+}

@@ -368,6 +368,13 @@ fn call_ended(state: LoopState, id: CallId, end: StepEnd) -> (LoopState, Vec<Loo
         | StepEnd::Interrupted => None,
     };
     let told: Vec<LoopEffect> = refusal.iter().cloned().map(LoopEffect::Refused).collect();
+    // The app refused the same call twice: the turn ends, saying why, once nothing is still out.
+    if matches!(refusal, Some(CallRefusal::App(_)))
+        && state.pending.is_empty()
+        && let Some(stuck) = state.guard.declined()
+    {
+        return stopped(state, told, &stuck.question());
+    }
     match refusal {
         Some(CallRefusal::Halted(_)) => finish(state, FinishedAs::Cancelled),
         Some(CallRefusal::OverBudget(_)) => finish_after(state, FinishedAs::Failed, told),

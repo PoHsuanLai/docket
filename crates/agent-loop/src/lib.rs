@@ -20,6 +20,7 @@
 mod assemble;
 mod compact;
 mod completion;
+mod declined;
 mod front;
 mod guard;
 mod idle;
@@ -34,8 +35,8 @@ pub use compact::{SUMMARY_RESERVE, SummaryInput, compaction_due, summarised, sum
 pub use completion::{AskedPerson, Attention, CompletionNote, attention_of, completion_line};
 pub use front::{FrontEvent, front_step};
 pub use guard::{
-    Guard, HOLDS_BEFORE_STOP, HOLDS_BEFORE_STOP_ANSWERED, MOST_HOLDS_PER_TURN, MOST_REMEMBERED,
-    Stuck, Verdict,
+    Guard, HOLDS_BEFORE_STOP, HOLDS_BEFORE_STOP_ANSWERED, MOST_DECLINED, MOST_HOLDS_PER_TURN,
+    MOST_REMEMBERED, Stuck, Verdict,
 };
 pub use idle::{
     EpisodeJob, IdleEffect, IdleInput, IdlePhase, IdleState, NarrativeJob, NarrativeVia,
