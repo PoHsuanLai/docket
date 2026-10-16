@@ -100,28 +100,28 @@ tracing = "0.1"
 # porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout
 # overrides it through a [patch], FINDINGS.md "Cross-repo dependencies"). porter has no docket dependency, so there is
 # no cycle.
-porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "8c8a0bc1663e6f9dde0b3495e8fa148a8ee7cfcc" }
-prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "8c8a0bc1663e6f9dde0b3495e8fa148a8ee7cfcc" }
+porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "3beb7a1dd67226a998c3a0bd817bba5c1b3a963e" }
+prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "3beb7a1dd67226a998c3a0bd817bba5c1b3a963e" }
 # The confined shell and agent sandbox (bubblewrap as a separate process).
 bulkhead        = { git = "https://github.com/PoHsuanLai/bulkhead", rev = "0467c14c9d92dd224091629f4c4e4912ae612a3d" }
-porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "8c8a0bc1663e6f9dde0b3495e8fa148a8ee7cfcc" }
-porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "8c8a0bc1663e6f9dde0b3495e8fa148a8ee7cfcc" }
-porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "8c8a0bc1663e6f9dde0b3495e8fa148a8ee7cfcc" }
-porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "8c8a0bc1663e6f9dde0b3495e8fa148a8ee7cfcc" }
+porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "3beb7a1dd67226a998c3a0bd817bba5c1b3a963e" }
+porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "3beb7a1dd67226a998c3a0bd817bba5c1b3a963e" }
+porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "3beb7a1dd67226a998c3a0bd817bba5c1b3a963e" }
+porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "3beb7a1dd67226a998c3a0bd817bba5c1b3a963e" }
 # Test-only: the scripted inference session (dev-dependencies of the daemons that ask inferd).
-porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "8c8a0bc1663e6f9dde0b3495e8fa148a8ee7cfcc" }
+porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "3beb7a1dd67226a998c3a0bd817bba5c1b3a963e" }
 
 # almanac's frozen interfaces, by git at a pinned rev. docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
-almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "75eb3b14658855906531a856a9ad1737a935d061" }
+almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "c19c148b59a28aa2ef9d9ef2e13e3e3262f751a3" }
 # Without its default desktop switch (`quire-desktop`, which pulls the bus): the portable crates name
 # no feature, the daemons name `dbus`.
-almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "75eb3b14658855906531a856a9ad1737a935d061", default-features = false }
+almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "c19c148b59a28aa2ef9d9ef2e13e3e3262f751a3", default-features = false }
 # Test-only: a MemoryService over in-memory seams, the backend of the in-process memory tests.
-almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "75eb3b14658855906531a856a9ad1737a935d061" }
-almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "75eb3b14658855906531a856a9ad1737a935d061" }
+almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "c19c148b59a28aa2ef9d9ef2e13e3e3262f751a3" }
+almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "c19c148b59a28aa2ef9d9ef2e13e3e3262f751a3" }
 # Test-only: the fake memoryd of intentd's audit tests serves the real wire (dev-dependency).
-almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "75eb3b14658855906531a856a9ad1737a935d061" }
+almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "c19c148b59a28aa2ef9d9ef2e13e3e3262f751a3" }
 
 # stoker's pure vocabulary, by git at a pinned rev: the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
