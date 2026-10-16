@@ -221,10 +221,10 @@ impl Service {
             })),
             Err(_) => None,
         };
-        if collected.is_some() {
-            if let Ok(mut turns) = self.turns.lock() {
-                turns.remove(&id);
-            }
+        if collected.is_some()
+            && let Ok(mut turns) = self.turns.lock()
+        {
+            turns.remove(&id);
         }
         Ok(collected)
     }

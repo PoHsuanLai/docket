@@ -29,6 +29,7 @@ pub enum Tools {
 
 /// What `agent.acp.agents` and `agents.toml` say, before anything starts: the proof the setting
 /// is on, and the programs that may start.
+#[derive(Debug)]
 pub struct Allowed {
     /// The proof that `agent.acp.agents` is on.
     pub permit: AgentsPermit,
