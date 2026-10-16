@@ -17,8 +17,10 @@
 
 pub mod accounts;
 pub mod config;
+mod confine;
 #[cfg(feature = "dbus")]
 pub mod dbus;
+mod egress;
 pub mod env;
 pub mod fake;
 pub mod login;
@@ -38,6 +40,7 @@ pub use accounts::{
 pub use config::{
     AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Profile, Route, ToolsMode,
 };
+pub use confine::Confinement;
 pub use login_only::LoginOnly;
 pub use names::launcher_session;
 pub use permit::{AgentsPermit, Refusal};

@@ -99,6 +99,13 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
         return Err(AgentFault::NoSandbox);
     };
     let forwarder = sibling("docket-net-forward").ok_or(AgentFault::NoForwarder)?;
+    // Without the exec stage the agent is held by the sandbox alone: say so, never hide it.
+    let enter = sibling("docket-net-enter").filter(|p| std::path::Path::new(p.as_str()).exists());
+    if enter.is_none() {
+        eprintln!(
+            "docket-agent: no docket-net-enter beside this program: the kernel does not limit the agent's files or network"
+        );
+    }
     let run_dir = PathBuf::from(env("XDG_RUNTIME_DIR").ok_or(AgentFault::NoRuntimeDir)?);
     // The desktop's actions go to the agent as an MCP server it starts itself: the `actions-mcp`
     // program beside this one, as the bridge to this host. An entry can switch it off.
@@ -177,6 +184,7 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
             permit,
             bwrap: Detected::Bwrap(bwrap),
             forwarder,
+            enter,
             run_dir,
             registry,
             tools,

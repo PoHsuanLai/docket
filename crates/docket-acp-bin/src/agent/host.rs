@@ -57,8 +57,11 @@ pub struct Wiring<A: Accounts + 'static> {
     pub permit: AgentsPermit,
     /// The sandbox program found by `Detected::probe`.
     pub bwrap: Detected,
-    /// `docket-net-forward`, for an `endpoint_only` entry.
+    /// `docket-net-forward`, for an `endpoint_only` or `allowlist` entry.
     pub forwarder: AbsPath,
+    /// `docket-net-enter`, the exec stage that limits what an agent does with its files and
+    /// network. None when it is not there: the agent is then held by the sandbox alone.
+    pub enter: Option<AbsPath>,
     /// A directory only the user can enter, for sockets.
     pub run_dir: PathBuf,
     /// What a revocation looks up: shared with the supervisor that ends a revoked process.
@@ -101,6 +104,7 @@ pub async fn host<A: Accounts + 'static>(
         permit,
         bwrap,
         forwarder,
+        enter,
         run_dir,
         registry,
         tools,
@@ -162,6 +166,10 @@ pub async fn host<A: Accounts + 'static>(
         forwarder,
         registry,
     );
+    let spawn = match enter {
+        Some(enter) => spawn.with_landlock(enter),
+        None => spawn,
+    };
     let court = IntentsCourt::over(DbusTransport::new(bus));
     let backend = AcpBackend::<Hosting<A>>::new(Parts {
         program: program.clone(),

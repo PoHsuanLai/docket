@@ -1,4 +1,5 @@
 mod config;
+mod confine;
 mod e2e;
 mod launch;
 mod login;

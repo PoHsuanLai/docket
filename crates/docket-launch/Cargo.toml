@@ -34,6 +34,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["io-std"] }
 toml = { workspace = true }
+tracing = { workspace = true }
 zbus = { workspace = true, optional = true }
 
 [dev-dependencies]

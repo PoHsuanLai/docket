@@ -2,15 +2,16 @@
 //! `BwrapProcs` is the real one (bubblewrap as a separate program, never linked); `fake::FakeProcs`
 //! records the run it was asked for and returns an in-memory pipe.
 
-use bulkhead::{AgentRun, BwrapSandbox, StartFault};
+use bulkhead::{AgentRun, BwrapSandbox, LandlockLevel, StartFault};
 use docket_acp::LineWire;
 use docket_acp::Wire;
 use std::future::Future;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
-use tokio::io::BufReader;
-use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+use std::sync::{Arc, OnceLock};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 
 /// Why a process did not start.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
@@ -31,6 +32,10 @@ pub enum ProcFault {
 pub trait Proc: Send {
     /// Ends it now. Safe to repeat.
     fn kill(&mut self);
+
+    /// The level the exec stage reported for it. None when the stage was not used or has not
+    /// reported: shown as not limited.
+    fn landlock(&self) -> Option<LandlockLevel>;
 }
 
 /// Starts confined agent processes.
@@ -86,12 +91,44 @@ impl BwrapProcs {
 pub struct ChildProc {
     child: Child,
     filter: Option<PathBuf>,
+    level: Arc<OnceLock<LandlockLevel>>,
 }
 
 impl Proc for ChildProc {
     fn kill(&mut self) {
         let _ = self.child.start_kill();
     }
+
+    fn landlock(&self) -> Option<LandlockLevel> {
+        self.level.get().copied()
+    }
+}
+
+/// The longest first line of standard error read as the exec stage's report.
+const REPORT_MAX: u64 = 128;
+
+/// The level in the first line of the exec stage's standard error, if that line is exactly its
+/// report. Anything else, or no line, is no level.
+pub fn level_in(first_line: &[u8]) -> Option<LandlockLevel> {
+    std::str::from_utf8(first_line)
+        .ok()
+        .and_then(LandlockLevel::from_report_line)
+}
+
+/// Reads the agent's standard error. Only its first line can be the exec stage's report, which it
+/// writes before it starts the agent; everything after is the agent's own logs, which can hold
+/// anything and go nowhere (but are read, so the agent never blocks on a full pipe).
+async fn watch(stderr: ChildStderr, level: Arc<OnceLock<LandlockLevel>>) {
+    let mut reader = BufReader::new(stderr);
+    let mut first = Vec::new();
+    let read = (&mut reader)
+        .take(REPORT_MAX)
+        .read_until(b'\n', &mut first)
+        .await;
+    if let (Ok(_), Some(found)) = (read, level_in(&first)) {
+        let _ = level.set(found);
+    }
+    let _ = tokio::io::copy(&mut reader, &mut tokio::io::sink()).await;
 }
 
 impl Drop for ChildProc {
@@ -134,17 +171,26 @@ impl Procs for BwrapProcs {
         command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            // Agent logs can hold anything; they go nowhere.
-            .stderr(Stdio::null())
+            // Agent logs can hold anything; they go nowhere. With the exec stage, its report is
+            // the first line of this pipe (see `watch`).
+            .stderr(match run.enter {
+                Some(_) => Stdio::piped(),
+                None => Stdio::null(),
+            })
             .kill_on_drop(true);
         let mut child = command.spawn().map_err(|_| ProcFault::Spawn)?;
         let stdin = child.stdin.take().ok_or(ProcFault::Spawn)?;
         let stdout = child.stdout.take().ok_or(ProcFault::Spawn)?;
+        let level = Arc::new(OnceLock::new());
+        if let Some(stderr) = child.stderr.take() {
+            tokio::spawn(watch(stderr, Arc::clone(&level)));
+        }
         Ok((
             LineWire::new(BufReader::new(stdout), stdin),
             ChildProc {
                 child,
                 filter: filter.0.take(),
+                level,
             },
         ))
     }

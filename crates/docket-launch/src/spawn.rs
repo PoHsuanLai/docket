@@ -3,7 +3,8 @@
 //!
 //! 1. open a launcher session at accountd (`begin_session`);
 //! 2. get the model by the entry's route: an inferd endpoint (P4, then a bridge to it if the
-//!    sandbox's network is endpoint-only), or a key handed to this one process (P2), or nothing
+//!    sandbox's network is endpoint-only; or, for an allowlist network, the filter that stands
+//!    between the agent and the sites it may reach), or a key handed to this one process (P2), or nothing
 //!    (the agent signs itself in);
 //! 3. build the environment from nothing (`env`), the binds from the entry, the network from the
 //!    entry's mode, and start the process confined (`Procs`);
@@ -15,11 +16,14 @@
 
 use crate::accounts::{Accounts, KeyHandoff, OpenedEndpoint, RouteWish};
 use crate::config::{AgentsFile, EndpointKind, Entry, Profile, Route};
+use crate::confine::Confinement;
+use crate::egress;
 use crate::env::{Lent, child_env};
 use crate::names::launcher_session;
 use crate::permit::AgentsPermit;
 use crate::procs::{Proc, Procs};
 use crate::protect;
+use bulkhead::egress::{Proxy, Resolver, SystemResolver};
 use bulkhead::forward::{Bridge, Loopback};
 use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
 use docket_acp::bulk;
@@ -90,6 +94,7 @@ struct Release<A, P> {
     endpoint: Option<String>,
     credential: Option<ProcessCredentialId>,
     bridge: Option<Bridge>,
+    proxy: Option<Proxy>,
     dir: Option<PathBuf>,
 }
 
@@ -105,6 +110,7 @@ impl<A: Accounts, P: Proc> Release<A, P> {
         }
         let _ = self.accounts.end_session(&self.session).await;
         drop(self.bridge.take());
+        drop(self.proxy.take());
         if let Some(dir) = self.dir.take() {
             let _ = std::fs::remove_dir_all(dir);
         }
@@ -115,6 +121,16 @@ impl<A: Accounts, P: Proc> Release<A, P> {
 pub struct Child<A: Accounts + 'static, P: Proc + 'static> {
     proc: Arc<Mutex<P>>,
     release: Option<Release<A, P>>,
+    net: NetworkMode,
+    sites: Vec<String>,
+}
+
+impl<A: Accounts + 'static, P: Proc + 'static> Child<A, P> {
+    /// How far this agent is held, as a person reads it: what the kernel limits (known once the
+    /// exec stage has reported, so ask after the session opens) and which network it has.
+    pub fn confinement(&self) -> Confinement {
+        Confinement::new(locked(&self.proc).landlock(), self.net, self.sites.clone())
+    }
 }
 
 impl<A: Accounts + 'static, P: Proc + 'static> std::fmt::Debug for Child<A, P> {
@@ -156,6 +172,8 @@ pub struct AgentSpawn<A: Accounts + 'static, P: Procs> {
     forwarder: AbsPath,
     registry: Registry<P::Proc>,
     protected: Vec<AbsPath>,
+    enter: Option<AbsPath>,
+    resolver: Arc<dyn Resolver>,
 }
 
 impl<A: Accounts + 'static, P: Procs> std::fmt::Debug for AgentSpawn<A, P> {
@@ -186,7 +204,26 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             forwarder,
             registry,
             protected: Vec::new(),
+            enter: None,
+            resolver: Arc::new(SystemResolver),
         }
+    }
+
+    /// Starts every agent through the exec stage at `enter` (`docket-net-enter`), which limits
+    /// what the agent may do with the files and the network it is given. Without it the agent
+    /// is held by the sandbox alone, and its confinement says so.
+    #[must_use]
+    pub fn with_landlock(mut self, enter: AbsPath) -> Self {
+        self.enter = Some(enter);
+        self
+    }
+
+    /// Resolves the names of an `allowlist` agent's requests with `resolver` instead of the
+    /// system's: for a test, which has no network.
+    #[must_use]
+    pub fn with_resolver(mut self, resolver: Arc<dyn Resolver>) -> Self {
+        self.resolver = resolver;
+        self
     }
 
     /// Paths kept read-only wherever they fall inside an agent's writable workspace, on top of
@@ -267,6 +304,7 @@ impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
             endpoint: None,
             credential: None,
             bridge: None,
+            proxy: None,
             dir: None,
         };
         match self.launch(entry, plan, &session, &mut release).await {
@@ -275,6 +313,12 @@ impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
                 child: Child {
                     proc,
                     release: Some(release),
+                    net: entry.network,
+                    sites: entry
+                        .reach
+                        .as_ref()
+                        .map(|r| r.sites().to_vec())
+                        .unwrap_or_default(),
                 },
                 meta: entry.profile.and_then(Profile::session_meta),
                 sign_in: entry.sign_in.clone(),
@@ -287,6 +331,10 @@ impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
         }
     }
 }
+
+/// The loopback port inside the sandbox where an allowlist agent finds its filter (the usual
+/// proxy port; the agent's network is its own, so nothing else of ours is there).
+const PROXY_PORT: u16 = 3128;
 
 /// What a route lent, kept alive until the process is built.
 enum Got {
@@ -338,7 +386,8 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     }
 
     /// The network plan: for endpoint-only a socket directory, a bridge to the endpoint, and the
-    /// forwarder's binds; for host and none nothing more.
+    /// forwarder's binds; for an allowlist the same socket directory with the filter on it; for
+    /// host and none nothing more. A mode this build does not know starts nothing.
     fn network(
         &self,
         entry: &Entry,
@@ -346,24 +395,65 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         session: &LauncherSession,
         release: &mut Release<A, P::Proc>,
     ) -> Result<AgentNet, SpawnFault> {
-        let (NetworkMode::EndpointOnly, Got::Endpoint(endpoint)) = (entry.network, got) else {
-            return AgentNet::of(entry.network, None).map_err(|_| SpawnFault::Sandbox);
-        };
-        let target =
-            Loopback::new(&endpoint.host, endpoint.port).map_err(|_| SpawnFault::Accounts)?;
+        match entry.network {
+            NetworkMode::EndpointOnly => self.endpoint_net(got, session, release),
+            NetworkMode::Allowlist => self.allowlist_net(entry, session, release),
+            NetworkMode::None | NetworkMode::Host => {
+                AgentNet::of(entry.network, None).map_err(|_| SpawnFault::Sandbox)
+            }
+            _ => Err(SpawnFault::Sandbox),
+        }
+    }
+
+    /// The session's socket (not yet listening) and the bind that has the forwarder reach it
+    /// from inside, on loopback `port`.
+    fn bind(
+        &self,
+        session: &LauncherSession,
+        release: &mut Release<A, P::Proc>,
+        port: u16,
+    ) -> Result<(PathBuf, EndpointBind), SpawnFault> {
         let dir = session_dir(&self.run_dir, session, release).map_err(|_| SpawnFault::Sandbox)?;
         let socket = dir.join("ep.sock");
-        release.bridge = Some(Bridge::start(&socket, target).map_err(|_| SpawnFault::Sandbox)?);
-        let socket = socket
+        let inside = socket
             .to_str()
             .and_then(|t| bulkhead::AbsPath::parse(t).ok())
             .ok_or(SpawnFault::Sandbox)?;
-        let bind = EndpointBind::new(
-            bulk::to_shell(&self.forwarder).map_err(|_| SpawnFault::Sandbox)?,
-            socket,
-            target.port(),
-        );
+        let forwarder = bulk::to_shell(&self.forwarder).map_err(|_| SpawnFault::Sandbox)?;
+        Ok((socket, EndpointBind::new(forwarder, inside, port)))
+    }
+
+    fn endpoint_net(
+        &self,
+        got: &Got,
+        session: &LauncherSession,
+        release: &mut Release<A, P::Proc>,
+    ) -> Result<AgentNet, SpawnFault> {
+        let Got::Endpoint(endpoint) = got else {
+            return Err(SpawnFault::Sandbox);
+        };
+        let target =
+            Loopback::new(&endpoint.host, endpoint.port).map_err(|_| SpawnFault::Accounts)?;
+        let (socket, bind) = self.bind(session, release, target.port())?;
+        release.bridge = Some(Bridge::start(&socket, target).map_err(|_| SpawnFault::Sandbox)?);
         AgentNet::of(NetworkMode::EndpointOnly, Some(bind)).map_err(|_| SpawnFault::Sandbox)
+    }
+
+    /// The filter listens on the socket for exactly the life of the session (`Release` holds
+    /// it); the agent finds it on loopback `PROXY_PORT` inside its own network.
+    fn allowlist_net(
+        &self,
+        entry: &Entry,
+        session: &LauncherSession,
+        release: &mut Release<A, P::Proc>,
+    ) -> Result<AgentNet, SpawnFault> {
+        let reach = entry.reach.as_ref().ok_or(SpawnFault::Sandbox)?;
+        let (socket, bind) = self.bind(session, release, PROXY_PORT)?;
+        release.proxy = Some(
+            egress::start(&socket, reach, Arc::clone(&self.resolver))
+                .map_err(|_| SpawnFault::Sandbox)?,
+        );
+        AgentNet::of(NetworkMode::Allowlist, Some(bind)).map_err(|_| SpawnFault::Sandbox)
     }
 
     /// `run` with every `.git` directory of the workspace, and the named extra paths that lie
@@ -413,6 +503,12 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
                 AgentRun::with_bind,
             );
         let run = self.guarded(run, &cwd)?;
+        let run = match &self.enter {
+            Some(enter) => {
+                run.with_landlock(bulk::to_shell(enter).map_err(|_| SpawnFault::Sandbox)?)
+            }
+            None => run,
+        };
         let (wire, proc) = self
             .procs
             .start(&run)

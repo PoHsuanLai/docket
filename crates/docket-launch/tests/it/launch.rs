@@ -2,7 +2,7 @@
 //! asked of porter and in what order, what the child is given and not given, what is undone on
 //! close, on a failure, and when a credential is revoked.
 
-use super::support::{ENDPOINT, HANDOFF, HANDOFF_FILE, LOGIN, plan, rig};
+use super::support::{ALLOWLIST, ENDPOINT, HANDOFF, HANDOFF_FILE, LOGIN, plan, rig};
 use bulkhead::{Access, AgentNet, AgentRun, NetworkMode, Profile, agent_bwrap_args};
 use docket_acp::client::{AgentChild, Spawn, SpawnFault};
 use docket_launch::fake::{Call, FakeAccounts, Mood};
@@ -202,6 +202,105 @@ async fn a_subscription_login_gets_no_key_at_all_and_host_network_only_because_i
         .expect("spawned");
     assert_eq!(rig.procs.runs()[0].net, AgentNet::None);
     assert_eq!(NetworkMode::default(), NetworkMode::None);
+}
+
+/// Names resolve to nothing: the test has no network, and the filter is never asked.
+#[derive(Debug)]
+struct NoNames;
+
+impl bulkhead::egress::Resolver for NoNames {
+    fn resolve(&self, _name: &str, _port: u16) -> std::io::Result<Vec<std::net::IpAddr>> {
+        Ok(Vec::new())
+    }
+}
+
+/// The allowlist twin of the endpoint test: the agent keeps its own network, the filter listens
+/// on the session's socket for exactly the session's life, the proxy variables point at the
+/// forwarder, and the exec stage is used when it is installed.
+#[tokio::test]
+async fn an_allowlist_agent_gets_a_filter_on_its_socket_for_the_life_of_the_session() {
+    let mut rig = rig(ALLOWLIST, Mood::Working, true);
+    rig.spawn = rig
+        .spawn
+        .with_resolver(std::sync::Arc::new(NoNames))
+        .with_landlock(super::support::abs("/opt/docket/docket-net-enter"));
+    let spawned = rig
+        .spawn
+        .spawn(&plan("claude-code", "s-6"))
+        .await
+        .expect("spawned");
+    let mut child = spawned.child;
+    assert_eq!(rig.accounts.calls(), [Call::Begin("acp-s-6".into())]);
+    let run = &rig.procs.runs()[0];
+
+    let AgentNet::Allowlist(bind) = &run.net else {
+        panic!("{:?}", run.net)
+    };
+    assert_eq!(bind.port, 3128);
+    assert_eq!(bind.forwarder.as_str(), "/opt/docket/docket-net-forward");
+    for name in ["HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"] {
+        assert_eq!(env_of(run, name), Some("http://127.0.0.1:3128"), "{name}");
+    }
+    assert_eq!(env_of(run, "NO_PROXY"), Some(""));
+    assert!(
+        !args_text(run).contains("--share-net"),
+        "the agent keeps its own network"
+    );
+    assert_eq!(
+        run.enter.as_ref().map(|p| p.as_str()),
+        Some("/opt/docket/docket-net-enter")
+    );
+
+    let dir = rig.dir.path().join("docket-agent-acp-s-6");
+    assert!(dir.join("ep.sock").exists(), "the filter is listening");
+    child.close().await;
+    assert!(rig.procs.killed(0));
+    assert!(!dir.exists(), "the socket goes with the session");
+}
+
+#[tokio::test]
+async fn without_the_exec_stage_an_agent_starts_unlimited_by_the_kernel_and_says_so() {
+    let mut rig = rig(LOGIN, Mood::Working, true);
+    let spawned = rig
+        .spawn
+        .spawn(&plan("claude-code", "s-7"))
+        .await
+        .expect("spawned");
+    assert_eq!(rig.procs.runs()[0].enter, None);
+    assert_eq!(
+        spawned.child.confinement().summary(),
+        "Not limited by the kernel"
+    );
+}
+
+#[tokio::test]
+async fn a_child_says_how_far_it_is_held_once_the_exec_stage_reported() {
+    use docket_launch::fake::FakeProcs;
+    let mut rig = rig(ALLOWLIST, Mood::Working, true);
+    let (near, _far) = docket_acp::client::fake::pipe();
+    let (procs, seen) = FakeProcs::new(vec![near]);
+    rig.spawn = docket_launch::AgentSpawn::new(
+        super::support::permit(),
+        rig.file.clone(),
+        std::sync::Arc::new(rig.accounts.clone()),
+        procs.reporting(bulkhead::LandlockLevel::Full),
+        rig.dir.path().to_owned(),
+        super::support::abs("/opt/docket/docket-net-forward"),
+        rig.registry.clone(),
+    )
+    .with_resolver(std::sync::Arc::new(NoNames));
+    let spawned = rig
+        .spawn
+        .spawn(&plan("claude-code", "s-8"))
+        .await
+        .expect("spawned");
+    assert_eq!(seen.runs().len(), 1);
+    let held = spawned.child.confinement();
+    assert_eq!(held.summary(), "Files and network limited");
+    assert_eq!(
+        held.network(),
+        "Can reach only: api.example.com, *.example.org"
+    );
 }
 
 fn rig_with(toml: &str) -> super::support::Rig {
@@ -418,6 +517,7 @@ async fn no_network_mode_gives_the_agent_a_bus() {
         (HANDOFF, "gemini-cli"),
         (HANDOFF_FILE, "gemini-cli"),
         (LOGIN, "claude-code"),
+        (ALLOWLIST, "claude-code"),
         (quiet.as_str(), "claude-code"),
     ];
     let mut nets = Vec::new();
@@ -464,6 +564,7 @@ async fn no_network_mode_gives_the_agent_a_bus() {
     }
     // Every network mode was covered.
     assert!(nets.iter().any(|n| matches!(n, AgentNet::Endpoint(_))));
+    assert!(nets.iter().any(|n| matches!(n, AgentNet::Allowlist(_))));
     assert!(nets.contains(&AgentNet::Host));
     assert!(nets.contains(&AgentNet::None));
 }

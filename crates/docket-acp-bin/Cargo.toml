@@ -23,6 +23,10 @@ path = "src/bin/docket-agent.rs"
 name = "docket-net-forward"
 path = "src/bin/docket-net-forward.rs"
 
+[[bin]]
+name = "docket-net-enter"
+path = "src/bin/docket-net-enter.rs"
+
 [dependencies]
 docket-acp = { workspace = true, features = ["client"] }
 docket-agents = { workspace = true }

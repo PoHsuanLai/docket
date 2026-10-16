@@ -116,6 +116,7 @@ async fn open(
         permit,
         bwrap: Detected::probe("/usr/bin:/bin:/usr/local/bin"),
         forwarder,
+        enter: None,
         run_dir: short_run(home),
         registry: Registry::default(),
         tools: abs(&binaries.actions_mcp).map(|bridge| ToolsOffer {

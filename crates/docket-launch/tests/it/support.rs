@@ -70,6 +70,19 @@ home = "/home/me"
 login = ["konsole", "-e", "claude", "login"]
 "#;
 
+/// A subscription login that reaches only the sites it names: a filter, not the host's network.
+pub const ALLOWLIST: &str = r#"
+[[agent]]
+program = "claude-code"
+command = "/home/me/.local/bin/claude-agent-acp"
+route = "login"
+network = "allowlist"
+allow = ["api.example.com", "*.example.org"]
+deny = ["private.example.org"]
+state = ["/home/me/.claude"]
+home = "/home/me"
+"#;
+
 pub fn permit() -> AgentsPermit {
     AgentsPermit::from_text("[agent.acp]\nagents = \"on\"\n").expect("on")
 }

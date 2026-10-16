@@ -6,7 +6,7 @@ use crate::accounts::{
 };
 use crate::config::Delivery;
 use crate::procs::{Proc, ProcFault, Procs};
-use bulkhead::AgentRun;
+use bulkhead::{AgentRun, LandlockLevel};
 use docket_acp::client::fake::ChannelWire;
 use docket_core::AbsPath;
 use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
@@ -243,6 +243,7 @@ impl ProcsSeen {
 pub struct FakeProc {
     seen: ProcsSeen,
     index: usize,
+    level: Option<LandlockLevel>,
 }
 
 impl Proc for FakeProc {
@@ -251,6 +252,10 @@ impl Proc for FakeProc {
             *k = true;
         }
     }
+
+    fn landlock(&self) -> Option<LandlockLevel> {
+        self.level
+    }
 }
 
 /// A `Procs` that records each run and returns the wires it was given.
@@ -258,6 +263,7 @@ impl Proc for FakeProc {
 pub struct FakeProcs {
     wires: VecDeque<ChannelWire>,
     seen: ProcsSeen,
+    level: Option<LandlockLevel>,
 }
 
 impl FakeProcs {
@@ -268,9 +274,17 @@ impl FakeProcs {
             Self {
                 wires: wires.into(),
                 seen: seen.clone(),
+                level: None,
             },
             seen,
         )
+    }
+
+    /// Every process it starts reports the exec stage's `level`.
+    #[must_use]
+    pub fn reporting(mut self, level: LandlockLevel) -> Self {
+        self.level = Some(level);
+        self
     }
 }
 
@@ -291,6 +305,7 @@ impl Procs for FakeProcs {
             FakeProc {
                 seen: self.seen.clone(),
                 index,
+                level: self.level,
             },
         ))
     }
