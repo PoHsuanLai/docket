@@ -13,3 +13,4 @@
 app = "org.quire.Shell"
 unit = "sill.service"
 role = "sheet_host"
+exe = ["/usr/bin/sill", "/usr/local/bin/sill", "/opt/quire/releases/*/bin/sill"]

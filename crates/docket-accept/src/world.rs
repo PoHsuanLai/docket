@@ -352,12 +352,27 @@ impl Cgroup<'_> {
 /// systemd manager's `MainPID`, which is all a caller table's service row names).
 pub fn place(root: &Path, pid: u32, cgroup: Cgroup<'_>) {
     write(&root.join(format!("proc/{pid}/cgroup")), &cgroup.line());
-    if let Cgroup::Unit(name) = cgroup {
-        write(
+    match cgroup {
+        Cgroup::Unit(name) => write(
             &root.join(format!("proc/units/{name}.service")),
             &pid.to_string(),
-        );
+        ),
+        Cgroup::Scope(name) => link_image(&root.join(format!("proc/{pid}")), name)
+            .unwrap_or_else(|e| panic!("{}: {e}", root.display())),
+        Cgroup::AppScope(_) => {}
     }
+}
+
+/// Links `<pid_dir>/exe` to `/usr/bin/<name>`: a named scope has no main process, so the program
+/// it runs is what its caller row matches (`exe`). A unit's main process needs none: the fixture
+/// gives it the image its row names.
+pub(crate) fn link_image(pid_dir: &Path, name: &str) -> std::io::Result<()> {
+    let link = pid_dir.join("exe");
+    match std::fs::remove_file(&link) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e),
+        _ => {}
+    }
+    std::os::unix::fs::symlink(format!("/usr/bin/{name}"), link)
 }
 
 /// Runs `work` with the harness process standing in as the app `app` (it is in the app's scope,
@@ -389,7 +404,7 @@ pub fn restore_unit(root: &Path, name: &str, main: Option<String>) {
 
 /// inferd's caller table, a system file: the apps by the units that run them. inferd reads who is
 /// calling from this file alone, never from `inferd.toml`.
-pub(crate) const INFERD_CALLERS: &str = "[apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\", \"docket-acp.scope\"]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
+pub(crate) const INFERD_CALLERS: &str = "[apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\", { unit = \"docket-acp.scope\", exe = [\"/usr/bin/docket-acp\"] }]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
 
 /// The shipped callers files of the daemons that read their own, by file name.
 const SYSTEM_CALLERS: [(&str, &str); 6] = [
@@ -471,6 +486,7 @@ role = "agent"
 app = "org.quire.Acp"
 unit = "docket-acp.scope"
 role = "agent"
+exe = ["/usr/bin/docket-acp"]
 
 [[caller]]
 app = "org.quire.Reader"

@@ -218,11 +218,13 @@ for edge in "${EDGES[@]}"; do
 done
 
 # No shipped crate carries a test-only switch. The proc root of the callers and the model tap are
-# arguments (`HarnessSeams`) that only the docket-accept mains pass; there is no cargo feature and
-# no daemon source reads `*_PROC_ROOT` or `DOCKET_MODEL_TRACE`. (Cargo unifies features across a
-# workspace build, so a feature that exists at all could reach a release binary.)
+# arguments (`HarnessSeams`) that only the docket-accept mains pass; no daemon source reads
+# `*_PROC_ROOT` or `DOCKET_MODEL_TRACE`. porter reads a fixture tree only with porter-dbus's
+# `test-proc-root`, which docket-dbus's `fixture-callers` forwards (that one line is the only
+# mention allowed); docket-accept and tests' dev-dependencies turn it on.
 leaks=$(grep -rnE 'PROC_ROOT|DOCKET_MODEL_TRACE|test-proc-root|test-model-trace' crates \
-  --include='*.rs' --include=Cargo.toml --exclude-dir=docket-accept --exclude-dir=tests || true)
+  --include='*.rs' --include=Cargo.toml --exclude-dir=docket-accept --exclude-dir=tests \
+  | grep -vE '^crates/docket-dbus/Cargo.toml:[0-9]+:fixture-callers = \["porter-dbus/test-proc-root"\]$' || true)
 if [ -n "$leaks" ]; then
   echo "TEST SWITCH: a shipped crate names a harness switch:"
   echo "$leaks"
@@ -230,6 +232,18 @@ if [ -n "$leaks" ]; then
 else
   echo "no shipped crate carries a proc-root or model-trace switch"
 fi
+
+# Built as the installer builds it (`-p` each shipped package, no dev-dependencies), no shipped
+# package turns on the fixture tree. (A whole-workspace build unifies docket-accept's features, so
+# the installer never builds one.)
+for pkg in intentd companiond readerd actions-mcp docket-cli docket-acp-bin voiced; do
+  if cargo tree -p "$pkg" -e features,normal,build 2>/dev/null | grep -qE 'fixture-callers|"test-proc-root"'; then
+    echo "TEST SWITCH: $pkg's build turns on the fixture tree"
+    fail=1
+  else
+    echo "fixture tree off in $pkg's build"
+  fi
+done
 
 # Every workspace member has a row above, so a new crate cannot slip in unchecked.
 for member in $(sed -n 's#^  "crates/\(.*\)",$#\1#p' Cargo.toml); do

@@ -137,32 +137,51 @@ pub async fn require(
 /// Says who a bus connection is: porter's [`ProcCallers`] on the daemon's connection and table.
 #[derive(Debug)]
 pub struct Identity {
-    procs: ProcCallers,
+    procs: Procs,
     introduced: std::sync::Mutex<std::collections::BTreeMap<String, Caller>>,
+}
+
+/// Where the callers a test did not introduce come from.
+#[derive(Debug)]
+enum Procs {
+    /// porter's reading of `/proc` and the unit manager, or of a fixture tree.
+    Read(ProcCallers),
+    /// Nobody: a fixture tree was named to a build that cannot read one (no `fixture-callers`),
+    /// so no caller is identified rather than the system's `/proc` being read in its place.
+    #[cfg(not(feature = "fixture-callers"))]
+    Nobody,
 }
 
 impl Identity {
     /// Reads the system's `/proc`, and asks the systemd manager for a service's main process.
     pub fn on_system(connection: BusConnection, table: CallerTable) -> Self {
-        Self::over(ProcCallers::new(connection, table))
+        Self::over(Procs::Read(ProcCallers::new(connection, table)))
     }
 
-    /// Reads the fixture tree `proc_root` instead of `/proc` (`<root>/<pid>/cgroup`, and a
-    /// service's main process in `<root>/units/<unit>`): how a test or the acceptance harness
-    /// presents its processes.
+    /// Reads the fixture tree `proc_root` instead of `/proc` and the unit manager
+    /// (`<root>/<pid>/cgroup`, `<root>/<pid>/exe`, and a service's main process in
+    /// `<root>/units/<unit>`): how a test or the acceptance harness presents its processes. Only
+    /// with the feature `fixture-callers`.
+    #[cfg(feature = "fixture-callers")]
     pub fn on_fixture(connection: BusConnection, table: CallerTable, proc_root: PathBuf) -> Self {
-        Self::over(ProcCallers::with_proc_root(connection, table, proc_root))
+        Self::over(Procs::Read(ProcCallers::with_proc_root(
+            connection, table, proc_root,
+        )))
     }
 
-    /// The fixture tree when there is one, else the system's `/proc`.
+    /// The fixture tree when there is one, else the system's `/proc`. A build without
+    /// `fixture-callers` that is handed a fixture tree identifies nobody.
     pub fn on(connection: BusConnection, table: CallerTable, fixture: Option<&Path>) -> Self {
         match fixture {
+            #[cfg(feature = "fixture-callers")]
             Some(root) => Self::on_fixture(connection, table, root.to_owned()),
+            #[cfg(not(feature = "fixture-callers"))]
+            Some(_) => Self::over(Procs::Nobody),
             None => Self::on_system(connection, table),
         }
     }
 
-    fn over(procs: ProcCallers) -> Self {
+    fn over(procs: Procs) -> Self {
         Self {
             procs,
             introduced: std::sync::Mutex::default(),
@@ -202,7 +221,11 @@ impl Callers for Identity {
             .cloned();
         match told {
             Some(caller) => Some(caller),
-            None => self.procs.caller_of(sender).await,
+            None => match &self.procs {
+                Procs::Read(procs) => procs.caller_of(sender).await,
+                #[cfg(not(feature = "fixture-callers"))]
+                Procs::Nobody => None,
+            },
         }
     }
 }

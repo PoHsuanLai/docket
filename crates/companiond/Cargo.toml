@@ -42,6 +42,7 @@ zbus = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+docket-dbus = { workspace = true, features = ["fixture-callers"] }
 agent-loop = { workspace = true }
 almanac-core = { workspace = true }
 porter-infer = { workspace = true }

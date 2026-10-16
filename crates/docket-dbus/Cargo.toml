@@ -25,9 +25,14 @@ tracing = { workspace = true }
 # `inferd_transport`: the one place a daemon makes its inferd link (intentd, companiond, readerd),
 # and the tap on it that a live run turns on (`tap`).
 inferd = ["dep:porter-client", "dep:porter-infer", "dep:serde", "dep:serde_json"]
+# Callers read from a fixture tree standing for /proc and the unit manager (`Identity::on_fixture`):
+# porter reads one only in a test build. Turned on by docket-accept and by tests' dev-dependencies,
+# never by a shipped crate (check-boundary.sh checks every shipped package's feature tree).
+fixture-callers = ["porter-dbus/test-proc-root"]
 
 [lints]
 workspace = true
 
 [dev-dependencies]
+docket-dbus = { path = ".", features = ["fixture-callers"] }
 tempfile = { workspace = true }

@@ -53,6 +53,7 @@ required-features = ["pipewire"]
 workspace = true
 
 [dev-dependencies]
+docket-dbus = { workspace = true, features = ["fixture-callers"] }
 docket-testbus = { workspace = true }
 porter-fake = { workspace = true }
 tempfile = { workspace = true }

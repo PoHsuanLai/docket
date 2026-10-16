@@ -185,6 +185,8 @@ fn a_process_is_identified_by_its_unit_and_a_scope_or_a_stranger_is_not_the_unit
     ] {
         put(root, pid, leaf, main);
     }
+    // A scope has no main process: the editor's host is matched by the program it runs.
+    std::os::unix::fs::symlink("/usr/bin/docket-acp", root.join("8").join("exe")).expect("exe");
     let on = AcpGate::new(docket_settings::AcpExpose::On);
     // A row: what it is, its pid, and the app and roles it is taken for (none: refused).
     type Row<'a> = (&'a str, u32, Option<(&'a str, &'a [CallerRole])>);

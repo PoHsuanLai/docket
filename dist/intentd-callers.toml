@@ -14,11 +14,15 @@
 # A scope never carries a fixed role, so the shell is sill.service and nothing else. docket-acp and
 # docket-agent are started by an editor, not by systemd: their rows are scopes they are started in
 # (`systemd-run --user --scope --unit=docket-acp`), which is an agent and no more.
+# A scope has no main process, so each row names the program it runs (`exe`): our own docket-acp
+# and docket-agent hosts, never the agent programs docket-agent starts (node, npx, ...), which
+# reach the desktop only through these hosts and actions-mcp.
 
 [[caller]]
 app = "org.quire.Shell"
 unit = "sill.service"
 role = "sheet_host"
+exe = ["/usr/bin/sill", "/usr/local/bin/sill", "/opt/quire/releases/*/bin/sill"]
 
 [[caller]]
 app = "org.quire.Cua1"
@@ -44,8 +48,10 @@ role = "agent"
 app = "org.quire.Acp"
 unit = "docket-acp.scope"
 role = "agent"
+exe = ["/usr/bin/docket-acp", "/usr/local/bin/docket-acp", "/opt/quire/releases/*/bin/docket-acp"]
 
 [[caller]]
 app = "org.quire.AcpAgent"
 unit = "docket-agent.scope"
 role = "agent"
+exe = ["/usr/bin/docket-agent", "/usr/local/bin/docket-agent", "/opt/quire/releases/*/bin/docket-agent"]

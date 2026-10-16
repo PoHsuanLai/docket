@@ -82,7 +82,8 @@ pub fn place(root: &Path, pid: u32, cgroup: Cgroup<'_>) -> std::io::Result<()> {
             &root.join(format!("proc/units/{name}.service")),
             &pid.to_string(),
         ),
-        _ => Ok(()),
+        Cgroup::Scope(name) => crate::world::link_image(&root.join(format!("proc/{pid}")), name),
+        Cgroup::AppScope(_) => Ok(()),
     }
 }
 
