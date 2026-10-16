@@ -83,12 +83,12 @@ pub fn needs_you(needs: &NeedsYou) -> Vec<String> {
                 .to_owned(),
         ],
         NeedsYou::Question { text, choices } => {
-            let mut lines = vec![format!("The companion asks: {text}")];
+            let mut lines = vec![format!("The assistant asks: {text}")];
             lines.extend(choices.iter().map(|c| format!("  - {c}")));
             lines
         }
         NeedsYou::Form(form) => vec![format!(
-            "The companion needs more for {}.",
+            "The assistant needs more for {}.",
             form.action.name
         )],
     }
@@ -124,7 +124,7 @@ pub fn human(answer: &AnswerWire) -> String {
     let mut lines = body(&answer.body);
     match &answer.phase {
         AnswerPhase::NeedsYou(needs) => lines.extend(needs_you(needs)),
-        AnswerPhase::Failed => lines.push("The companion could not finish.".to_owned()),
+        AnswerPhase::Failed => lines.push("The assistant could not finish.".to_owned()),
         AnswerPhase::Cancelled => lines.push("Stopped.".to_owned()),
         AnswerPhase::Thinking | AnswerPhase::Streaming | AnswerPhase::Done => {}
     }

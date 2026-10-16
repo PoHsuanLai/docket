@@ -9,7 +9,7 @@ use crate::exit::{Failure, of_client};
 use docket_client::{Intents, Transport};
 use docket_core::{IntentsVocab, StoredAsk, StoredView};
 use docket_session::{Logged, ResumePlan, SessionEntry, Standing, export, resume_plan, to_json};
-use prov::SessionId;
+use prov::{AgentRef, SessionId};
 use serde_json::{Value, json};
 
 /// What `quire-do sessions` was asked.
@@ -90,10 +90,10 @@ fn plan_json(session: &SessionId, plan: &ResumePlan) -> Value {
 }
 
 fn plan_line(session: &SessionId, plan: &ResumePlan) -> String {
-    let agent = plan.opening.agent.as_ref().map_or_else(
-        || "companion".to_owned(),
-        |a| format!("{a:?}").to_lowercase(),
-    );
+    let agent = match &plan.opening.agent {
+        None | Some(AgentRef::Companion) => "assistant".to_owned(),
+        Some(other) => format!("{other:?}").to_lowercase(),
+    };
     let turns = plan.turns.len();
     format!(
         "{session}  {}  {agent}  {turns} turn{}  {}",

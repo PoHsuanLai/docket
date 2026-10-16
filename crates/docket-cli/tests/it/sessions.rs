@@ -87,7 +87,7 @@ async fn the_list_holds_the_terminals_own_sessions_and_not_another_apps() {
     assert_eq!(tty.exit, Exit::Done, "{tty:?}");
     assert_eq!(
         tty.stdout,
-        format!("{mine}  work  companion  1 turn  open\n")
+        format!("{mine}  work  assistant  1 turn  open\n")
     );
     let listed = ids(&desk.quire(&["sessions"]).await);
     assert_eq!(listed, [mine.to_string()]);

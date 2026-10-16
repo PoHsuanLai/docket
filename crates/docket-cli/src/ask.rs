@@ -38,9 +38,9 @@ fn unavailable(error: &TransportError) -> Failure {
     match error {
         TransportError::Closed => Failure::new(
             Exit::Unavailable,
-            "the companion is not running (companiond is not installed, or did not start)",
+            "the assistant is not running (companiond is not installed, or did not start)",
         ),
-        other => Failure::new(Exit::Unavailable, format!("the companion: {other}")),
+        other => Failure::new(Exit::Unavailable, format!("the assistant: {other}")),
     }
 }
 
@@ -119,7 +119,7 @@ async fn settled(answer: &mut impl Follow) -> Result<AnswerWire, Failure> {
             break;
         }
     }
-    last.ok_or_else(|| Failure::new(Exit::Unavailable, "the companion dropped the answer"))
+    last.ok_or_else(|| Failure::new(Exit::Unavailable, "the assistant dropped the answer"))
 }
 
 async fn turn<T: Transport>(

@@ -57,7 +57,7 @@ pub fn attention_of(status: ReportStatus, asked: AskedPerson) -> Attention {
 /// not a completion and gets none.
 pub fn completion_line(note: &CompletionNote) -> Option<String> {
     let who = match &note.agent {
-        AgentRef::Companion => "companion".to_owned(),
+        AgentRef::Companion => "assistant".to_owned(),
         AgentRef::Worker { task } => format!("task {task}"),
         AgentRef::Cua { run } => format!("run {run}"),
         AgentRef::User => "you".to_owned(),

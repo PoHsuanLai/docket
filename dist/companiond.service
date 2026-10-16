@@ -4,7 +4,7 @@
 # rebuilt from the eventlog on start, and everything it does goes through intentd. It talks to
 # inferd for the planner. Each sandbox line says what it protects.
 [Unit]
-Description=Quire companion (org.quire.Companion1)
+Description=Quire assistant (org.quire.Companion1)
 After=intentd.service
 Wants=intentd.service
 

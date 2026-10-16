@@ -24,7 +24,7 @@ fn state(skill: &Skill, apps: &Apps) -> (&'static str, Option<String>) {
         ),
         Reach::Hidden(a) => (
             "not offered",
-            Some(format!("{}:{} is hidden from the companion", a.app, a.name)),
+            Some(format!("{}:{} is hidden from the assistant", a.app, a.name)),
         ),
     }
 }

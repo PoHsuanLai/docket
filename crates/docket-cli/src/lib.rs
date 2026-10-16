@@ -152,7 +152,7 @@ async fn command<T: Transport>(
         Command::Undo(which) => exec::undo(intents, *which).await,
         Command::Ask { .. } => Err(Failure::new(
             Exit::Unavailable,
-            "ask talks to the companion, not to intentd: it needs the companion's bus",
+            "ask talks to the assistant, not to intentd: it needs the assistant's bus",
         )),
         Command::Sessions(SessionsCmd::List) => sessions::list(intents).await,
         Command::Sessions(SessionsCmd::Load(id)) => sessions::load(intents, id).await,

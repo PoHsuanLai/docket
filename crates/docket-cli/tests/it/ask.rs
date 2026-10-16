@@ -256,7 +256,7 @@ async fn a_companion_that_is_not_there_is_unavailable() {
     assert!(
         run.report
             .stderr
-            .starts_with("quire-do: the companion is not running")
+            .starts_with("quire-do: the assistant is not running")
     );
     assert!(run.report.stdout.is_empty());
 }
