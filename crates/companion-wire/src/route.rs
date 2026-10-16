@@ -197,6 +197,7 @@ fn blocked_text(refusal: InferRefusal) -> &'static str {
         InferRefusal::Denied => "you refused it for this app",
         InferRefusal::OverBudget => "its spend cap is reached",
         InferRefusal::Unsupported => "it does not fit this request",
+        InferRefusal::NoModelChosen => "no model is chosen yet",
         _ => "it was refused",
     }
 }

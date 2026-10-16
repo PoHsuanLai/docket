@@ -304,6 +304,12 @@ fn a_declined_model_says_which_and_why() {
             "Kimi K2.6 cannot answer: its spend cap is reached.",
         ),
         (
+            DeclinedBecause::Blocked {
+                refusal: InferRefusal::NoModelChosen,
+            },
+            "Kimi K2.6 cannot answer: no model is chosen yet.",
+        ),
+        (
             DeclinedBecause::NotListed,
             "Kimi K2.6 cannot answer: no account offers it for this request.",
         ),

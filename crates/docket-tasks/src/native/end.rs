@@ -20,11 +20,13 @@ pub(crate) fn end_of(state: Option<&LoopState>, failure: Option<&Failure>) -> Tu
     }
 }
 
-/// A model that declined, or a call refused for the budget, is the backend saying no; anything
-/// else is a failure.
+/// A model that declined (or none chosen), or a call refused for the budget, is the backend saying
+/// no; anything else is a failure.
 fn failed(failure: Option<&Failure>) -> TurnEnd {
     match failure {
-        Some(Failure::Model(PlanFault::Declined(_)) | Failure::Refused(_)) => TurnEnd::Refused,
+        Some(
+            Failure::Model(PlanFault::Declined(_) | PlanFault::NoModelChosen) | Failure::Refused(_),
+        ) => TurnEnd::Refused,
         Some(Failure::Model(_) | Failure::Reader | Failure::Budget) | None => TurnEnd::Failed,
     }
 }

@@ -105,6 +105,16 @@ async fn a_named_model_that_cannot_serve_is_a_refusal_that_says_which_and_why() 
     );
 }
 
+#[tokio::test]
+async fn no_model_chosen_asks_the_person_to_choose_one() {
+    let mut w = world(vec![Say::Refuse(InferRefusal::NoModelChosen)]);
+    let opened = w.open("work").await;
+    w.say(&opened.session, "hello").await;
+    let view: AnswerWire = w.companion.shared.answer(&opened.task).expect("answer");
+    assert_eq!(view.phase, AnswerPhase::Failed);
+    assert_eq!(view.body, AnswerBody::Refused(RefusalWire::NoModel));
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_answer_object_serves_the_routing_property() {
     let scratch = tempfile::tempdir().expect("scratch");

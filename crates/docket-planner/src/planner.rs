@@ -26,8 +26,8 @@ use porter_core::consent::Usage;
 use porter_core::need::LlmNeed;
 use porter_core::{AppName, DataClass, Need, Tier, Tokens};
 use porter_infer::{
-    ChatControl, ChatReply, ChatRequest, ClientFrame, Declined, InferEvent, InferReply,
-    InferRequest, InferSession, JsonSchemaText, JsonText, Knob, Reasoning, ReplyShape, ServedBy,
+    ChatControl, ChatReply, ChatRequest, ClientFrame, Declined, InferEvent, InferRefusal,
+    InferReply, InferRequest, InferSession, JsonSchemaText, JsonText, Knob, Reasoning, ReplyShape, ServedBy,
     StopReason, ToolCallPart, ToolChoice, ToolDecl, ToolName, ToolParallelism,
 };
 use prov::{EntityId, EntityKey, EntityKind};
@@ -66,6 +66,9 @@ pub enum PlanFault {
     /// The model the person named cannot serve; no other model answered in its place.
     #[error("the named model cannot serve")]
     Declined(Box<Declined>),
+    /// The person has not chosen a model for the assistant, and none is chosen for them.
+    #[error("no model is chosen")]
+    NoModelChosen,
 }
 
 /// What the planner said and did in one turn: words first, then the one thing the loop acts on.
@@ -405,9 +408,12 @@ impl<P: Transport> PlannerModel<P> {
                         got = not_chat(&other),
                         "the planner's model finished without a chat reply"
                     );
-                    return Err(match route.declined() {
-                        Some(declined) => PlanFault::Declined(Box::new(declined.clone())),
-                        None => PlanFault::Unavailable,
+                    return Err(match (&other, route.declined()) {
+                        (InferReply::Refused(InferRefusal::NoModelChosen), _) => {
+                            PlanFault::NoModelChosen
+                        }
+                        (_, Some(declined)) => PlanFault::Declined(Box::new(declined.clone())),
+                        (_, None) => PlanFault::Unavailable,
                     });
                 }
                 _ => {}

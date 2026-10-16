@@ -40,6 +40,15 @@ pub fn refusal_of(error: ClientError) -> CallRefusal {
     }
 }
 
+/// The refusal the answer carries when the planner gave nothing usable and the person can act on
+/// it: no model chosen asks them to choose one, and the faults with words say them.
+fn model_refusal(fault: &PlanFault) -> Option<RefusalWire> {
+    match fault {
+        PlanFault::NoModelChosen => Some(RefusalWire::NoModel),
+        other => refusal_text(other).map(RefusalWire::Failed),
+    }
+}
+
 /// What the person is told when the planner gave nothing usable and there is more to say than
 /// "it failed".
 fn refusal_text(fault: &PlanFault) -> Option<String> {
@@ -286,8 +295,8 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             Err(fault) => {
                 tracing::warn!(%task, %fault, "the planner turn failed");
                 if let Some(rt) = self.runtimes.get_mut(task) {
-                    if let Some(text) = refusal_text(&fault) {
-                        rt.refused = Some(RefusalWire::Failed(text));
+                    if let Some(refusal) = model_refusal(&fault) {
+                        rt.refused = Some(refusal);
                     }
                     rt.failure = Some(Failure::Model(fault));
                 }
