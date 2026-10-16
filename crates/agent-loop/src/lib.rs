@@ -33,7 +33,10 @@ pub use assemble::{Sources, TaskFit, assemble, mask_history, task_fit};
 pub use compact::{SUMMARY_RESERVE, SummaryInput, compaction_due, summarised, summary_input};
 pub use completion::{AskedPerson, Attention, CompletionNote, attention_of, completion_line};
 pub use front::{FrontEvent, front_step};
-pub use guard::{Guard, HOLDS_BEFORE_STOP, MOST_HOLDS_PER_TURN, MOST_REMEMBERED, Stuck, Verdict};
+pub use guard::{
+    Guard, HOLDS_BEFORE_STOP, HOLDS_BEFORE_STOP_ANSWERED, MOST_HOLDS_PER_TURN, MOST_REMEMBERED,
+    Stuck, Verdict,
+};
 pub use idle::{
     EpisodeJob, IdleEffect, IdleInput, IdlePhase, IdleState, NarrativeJob, NarrativeVia,
     ReadUntrusted, idle_step,

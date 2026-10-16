@@ -4,13 +4,26 @@
 //! back (the planner is told so in its history), and on the third stops the turn so the person is
 //! asked. A call is never held until its last answer was empty, unchanged or refused for its
 //! arguments, so asking again after something changed is free.
+//!
+//! One more answer is held for good: a call known to only read (its effect is `Read`) that
+//! returned a handle, and a reader ask that was answered. Asking for the same thing again gets
+//! the same handle, so the repeat is not run: the planner is told it already holds the answer.
+//! Such a repeat is held [`HOLDS_BEFORE_STOP_ANSWERED`] times, then the turn ends in words the
+//! person can read. A call that wrote something makes the held reads of the world stale, and a
+//! call that may write is never held this way.
 
-use docket_core::{ActionRef, CallId, CallRefusal, CallRequest, Held, StepEnd, Value};
+use docket_core::{ActionRef, CallId, CallRefusal, CallRequest, Held, ReaderAsk, StepEnd, Value};
+use prov::Effect;
 use serde::{Deserialize, Serialize};
 
 /// How many times a stale call is held back, with a note, before the turn stops: the second
 /// identical call is held, the third stops the turn.
 pub const HOLDS_BEFORE_STOP: u8 = 1;
+/// How many times a call whose answer is already held (a read that returned a handle, or a reader
+/// ask that was answered) is skipped, with a note, before the turn stops: the person asked for an
+/// answer, and a model that keeps asking for what it holds is told three times, then the turn
+/// ends in words the person can read.
+pub const HOLDS_BEFORE_STOP_ANSWERED: u8 = 3;
 /// How many calls one turn may have held back, across all its calls, before it stops. This caps
 /// A,B,A,B and wider cycles whose every call is stale.
 pub const MOST_HOLDS_PER_TURN: u8 = 4;
@@ -42,7 +55,11 @@ enum Answer {
     Unchanged,
     /// It returned something new.
     Fresh,
-    /// It cannot be compared (a handle, a journaled change, another refusal).
+    /// A read-only call returned a handle: the answer is held and asking again gets nothing new
+    /// until something is written. (A reader ask that was answered is the same.)
+    Answered,
+    /// It cannot be compared (a journaled change, a handle from a call that may write, another
+    /// refusal).
     Opaque,
 }
 
@@ -50,7 +67,7 @@ impl Answer {
     fn stale(&self) -> Option<Held> {
         match self {
             Answer::Empty => Some(Held::Empty),
-            Answer::Unchanged => Some(Held::Unchanged),
+            Answer::Unchanged | Answer::Answered => Some(Held::Unchanged),
             Answer::Refused => Some(Held::Refused),
             Answer::Waiting(_) | Answer::Fresh | Answer::Opaque => None,
         }
@@ -61,7 +78,12 @@ impl Answer {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct Seen {
     key: CallKey,
-    action: ActionRef,
+    /// The action; none for a reader ask.
+    action: Option<ActionRef>,
+    /// What the action does, when the planner's catalogue says; a call of unknown effect is
+    /// taken to write.
+    #[serde(default)]
+    effect: Option<Effect>,
     answer: Answer,
     /// The last answer that could be compared.
     last: Option<Print>,
@@ -79,6 +101,8 @@ pub enum Stuck {
     Circling,
     /// Reply after reply that could not be read as a call, though each was told what was wrong.
     Unreadable,
+    /// The planner kept asking for what it already holds, though each time it was told so.
+    Answered,
 }
 
 impl Stuck {
@@ -91,6 +115,7 @@ impl Stuck {
             Stuck::Repeating(Held::Unchanged, _) => "I keep getting the same answer. How would you like me to go on?".to_owned(),
             Stuck::Repeating(Held::Refused, _) => "That step keeps being refused. How would you like me to go on?".to_owned(),
             Stuck::Unreadable => "I keep writing steps I cannot get right, though I was told what was wrong. How would you like me to go on?".to_owned(),
+            Stuck::Answered => "I could not finish this. I kept going back to what I already had. How would you like me to go on?".to_owned(),
             Stuck::Circling => "I am going round in circles without getting anywhere. How would you like me to go on?".to_owned(),
         }
     }
@@ -116,6 +141,9 @@ pub struct Guard {
     /// Replies in a row that could not be read as a call.
     #[serde(default)]
     unread: u8,
+    /// The reader ask in flight, until the reader answers it.
+    #[serde(default)]
+    reading: Option<CallKey>,
 }
 
 fn key_of(call: &CallRequest) -> CallKey {
@@ -128,6 +156,12 @@ fn key_of(call: &CallRequest) -> CallKey {
     CallKey(text)
 }
 
+fn read_key_of(ask: &ReaderAsk) -> CallKey {
+    let text =
+        serde_json::to_string(&("read", &ask.inputs, &ask.task, &ask.want)).unwrap_or_default();
+    CallKey(text)
+}
+
 fn nothing_in(value: &Value) -> bool {
     match value {
         Value::Text(text) => text.trim().is_empty(),
@@ -136,12 +170,17 @@ fn nothing_in(value: &Value) -> bool {
     }
 }
 
-/// What an end came to, given the last comparable answer; the new last answer comes with it.
-fn judged(end: &StepEnd, last: &Option<Print>) -> (Answer, Option<Print>) {
+/// What an end came to, given the last comparable answer; the new last answer comes with it. A
+/// handle returned by a call known to only read is an answer held; one from any other call
+/// cannot be compared.
+fn judged(end: &StepEnd, last: &Option<Print>, effect: Option<Effect>) -> (Answer, Option<Print>) {
     use docket_core::Reveal;
     match end {
         StepEnd::Done { said, value, undo } => {
             let plain = match value {
+                Some(Reveal::Handle(_)) if effect == Some(Effect::Read) && undo.is_none() => {
+                    return (Answer::Answered, last.clone());
+                }
                 Some(Reveal::Handle(_)) => return (Answer::Opaque, last.clone()),
                 Some(Reveal::Plain(v)) => Some(v),
                 None => None,
@@ -177,90 +216,143 @@ fn judged(end: &StepEnd, last: &Option<Print>) -> (Answer, Option<Print>) {
     }
 }
 
+/// Remembers `entry`, forgetting the oldest beyond [`MOST_REMEMBERED`].
+fn remember(seen: &mut Vec<Seen>, entry: Seen) {
+    seen.push(entry);
+    let excess = seen.len().saturating_sub(MOST_REMEMBERED);
+    seen.drain(..excess);
+}
+
 impl Guard {
     /// Whether `call`, wanted as position `id` of a batch, is made, held back or stops the turn.
-    pub fn admit(self, id: CallId, call: &CallRequest) -> (Guard, Verdict) {
+    /// `effect` is what the call's action does, when it is known.
+    pub fn admit(self, id: CallId, call: &CallRequest, effect: Option<Effect>) -> (Guard, Verdict) {
         let key = key_of(call);
-        let Guard {
-            mut seen,
-            holds,
-            unread,
-        } = self;
-        let Some(at) = seen.iter().position(|s| s.key == key) else {
-            seen.push(Seen {
-                key,
-                action: call.action.clone(),
-                answer: Answer::Waiting(id),
-                last: None,
-                held: 0,
-            });
-            let excess = seen.len().saturating_sub(MOST_REMEMBERED);
-            seen.drain(..excess);
-            return (
-                Guard {
-                    seen,
-                    holds,
-                    unread,
+        let mut guard = self;
+        let Some(at) = guard.seen.iter().position(|s| s.key == key) else {
+            remember(
+                &mut guard.seen,
+                Seen {
+                    key,
+                    action: Some(call.action.clone()),
+                    effect,
+                    answer: Answer::Waiting(id),
+                    last: None,
+                    held: 0,
                 },
-                Verdict::Run,
             );
+            return (guard, Verdict::Run);
         };
-        let entry = &mut seen[at];
-        let Some(why) = entry.answer.stale() else {
-            entry.answer = Answer::Waiting(id);
-            entry.held = 0;
-            return (
-                Guard {
-                    seen,
-                    holds,
-                    unread,
-                },
-                Verdict::Run,
-            );
-        };
-        if entry.held >= HOLDS_BEFORE_STOP {
-            let stuck = Stuck::Repeating(why, entry.action.clone());
-            return (
-                Guard {
-                    seen,
-                    holds,
-                    unread,
-                },
-                Verdict::Stop(stuck),
-            );
+        let entry = &mut guard.seen[at];
+        match entry.answer.stale() {
+            None => {
+                entry.answer = Answer::Waiting(id);
+                entry.effect = effect;
+                entry.held = 0;
+                (guard, Verdict::Run)
+            }
+            Some(why) => guard.stale(at, why),
         }
-        if holds >= MOST_HOLDS_PER_TURN {
-            return (
-                Guard {
-                    seen,
-                    holds,
-                    unread,
-                },
-                Verdict::Stop(Stuck::Circling),
-            );
-        }
-        entry.held += 1;
-        let holds = holds.saturating_add(1);
-        (
-            Guard {
-                seen,
-                holds,
-                unread,
-            },
-            Verdict::Hold(why),
-        )
     }
 
-    /// The call at position `id` ended.
+    /// Whether the reader ask is made, held back (it was answered already) or stops the turn.
+    pub fn admit_read(self, ask: &ReaderAsk) -> (Guard, Verdict) {
+        let key = read_key_of(ask);
+        let mut guard = self;
+        guard.reading = Some(key.clone());
+        let Some(at) = guard.seen.iter().position(|s| s.key == key) else {
+            remember(
+                &mut guard.seen,
+                Seen {
+                    key,
+                    action: None,
+                    effect: None,
+                    answer: Answer::Opaque,
+                    last: None,
+                    held: 0,
+                },
+            );
+            return (guard, Verdict::Run);
+        };
+        match guard.seen[at].answer.stale() {
+            None => (guard, Verdict::Run),
+            Some(why) => {
+                guard.reading = None;
+                guard.stale(at, why)
+            }
+        }
+    }
+
+    /// The reader answered the ask in flight.
+    pub fn read_answered(self) -> Guard {
+        let Guard {
+            seen,
+            holds,
+            unread,
+            reading,
+        } = self;
+        let seen = seen
+            .into_iter()
+            .map(|s| match &reading {
+                Some(key) if *key == s.key => Seen {
+                    answer: Answer::Answered,
+                    held: 0,
+                    ..s
+                },
+                _ => s,
+            })
+            .collect();
+        Guard {
+            seen,
+            holds,
+            unread,
+            reading: None,
+        }
+    }
+
+    /// The entry at `at` is stale for `why`: held back with a note, or the turn stops.
+    fn stale(self, at: usize, why: Held) -> (Guard, Verdict) {
+        let mut guard = self;
+        let entry = &mut guard.seen[at];
+        let limit = match entry.answer {
+            Answer::Answered => HOLDS_BEFORE_STOP_ANSWERED,
+            _ => HOLDS_BEFORE_STOP,
+        };
+        if entry.held >= limit {
+            let stuck = match (&entry.answer, &entry.action) {
+                (Answer::Answered, _) | (_, None) => Stuck::Answered,
+                (_, Some(action)) => Stuck::Repeating(why, action.clone()),
+            };
+            return (guard, Verdict::Stop(stuck));
+        }
+        if guard.holds >= MOST_HOLDS_PER_TURN {
+            return (guard, Verdict::Stop(Stuck::Circling));
+        }
+        entry.held += 1;
+        guard.holds = guard.holds.saturating_add(1);
+        (guard, Verdict::Hold(why))
+    }
+
+    /// The call at position `id` ended. A call that wrote something makes the answers held from
+    /// earlier reads of the world stale: they are asked again, once.
     pub fn ended(self, id: CallId, end: &StepEnd) -> Guard {
+        let wrote = matches!(end, StepEnd::Done { .. })
+            && self
+                .seen
+                .iter()
+                .any(|s| s.answer == Answer::Waiting(id) && s.effect != Some(Effect::Read));
         let seen = self
             .seen
             .into_iter()
             .map(|s| match s.answer {
                 Answer::Waiting(w) if w == id => {
-                    let (answer, last) = judged(end, &s.last);
+                    let (answer, last) = judged(end, &s.last, s.effect);
                     Seen { answer, last, ..s }
                 }
+                Answer::Answered if wrote && s.action.is_some() => Seen {
+                    answer: Answer::Opaque,
+                    ..s
+                },
                 _ => s,
             })
             .collect();

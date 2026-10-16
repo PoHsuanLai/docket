@@ -234,6 +234,12 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 self.hold(task, &call, why);
                 Ok(vec![])
             }
+            LoopEffect::HeldRead(ask, why) => {
+                if let Some(rt) = self.runtimes.get_mut(task) {
+                    rt.hold_read(&ask, why);
+                }
+                Ok(vec![])
+            }
             LoopEffect::Unread(fault) => {
                 self.unread(task, fault);
                 Ok(vec![])

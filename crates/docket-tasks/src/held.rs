@@ -2,11 +2,12 @@
 //! It is a line in the task's history, so the planner's next view says why it was not run, and
 //! nothing else: the router is not asked, no card is drawn and the ledger does not count it.
 
+use crate::read::read_call;
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
 use crate::task::TaskRuntime;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{CallId, CallRequest, Held, ReplyFault, StepEnd, StepLine, StepShown};
+use docket_core::{CallId, CallRequest, Held, ReaderAsk, ReplyFault, StepEnd, StepLine, StepShown};
 use porter_client::Transport as InferTransport;
 use prov::{Effect, TaskId};
 
@@ -23,6 +24,14 @@ impl TaskRuntime {
             shown: StepShown::Full,
             with: call.handles(),
         });
+    }
+
+    /// Tells the history that the reader was not asked `ask`, because it had answered that very
+    /// ask, and why.
+    pub fn hold_read(&mut self, ask: &ReaderAsk, why: Held) {
+        if let Some(call) = read_call(ask) {
+            self.hold(&call, Effect::Read, why);
+        }
     }
 
     /// Tells the history that the planner's last reply could not be read, and why.

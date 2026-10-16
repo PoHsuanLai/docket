@@ -505,6 +505,7 @@ impl<P: Transport> PlannerModel<P> {
                 origin: Origin::Companion,
             },
             tier,
+            effect: Some(tool.decl.effect),
         })
     }
 }
@@ -663,6 +664,7 @@ fn related_output(args: &Json, view: &PlannerView) -> ModelOutput {
             origin: Origin::Companion,
         },
         tier,
+        effect: Some(card.effect),
     }])
 }
 

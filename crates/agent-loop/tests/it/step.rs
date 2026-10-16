@@ -34,6 +34,7 @@ fn planned(n: usize) -> LoopInput {
     let call = || PlannedCall {
         call: request(),
         tier: Tier::Typed,
+        effect: None,
     };
     LoopInput::Planned(ModelOutput::Calls((0..n).map(|_| call()).collect()))
 }

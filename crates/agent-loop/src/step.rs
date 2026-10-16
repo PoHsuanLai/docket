@@ -10,6 +10,7 @@ use docket_core::{
     BreakerTrip, CallId, CallRefusal, CallRequest, Held, ReaderAsk, ReplyFault, Reveal, StepEnd,
     TurnId, Value,
 };
+use prov::Effect;
 use serde::{Deserialize, Serialize};
 
 /// Where a task's loop is.
@@ -66,6 +67,10 @@ pub struct PlannedCall {
     pub call: CallRequest,
     /// How it is reached.
     pub tier: Tier,
+    /// What its action does, when the planner's catalogue says; the guard dedupes a call only
+    /// when it is known to read.
+    #[serde(default)]
+    pub effect: Option<Effect>,
 }
 
 /// What the planner model produced.
@@ -135,6 +140,9 @@ pub enum LoopEffect {
     Call(Box<CallRequest>),
     /// Ask the reader through the router.
     Read(Box<ReaderAsk>),
+    /// The ask was not made, because the reader had answered it before: the history says so, and
+    /// the planner is asked again.
+    HeldRead(Box<ReaderAsk>, Held),
     /// Publish this phase to the answer object.
     Publish(AnswerPhase),
     /// Add a line to the task's history (a completion note).
@@ -173,7 +181,10 @@ pub fn agent_step(state: LoopState, input: LoopInput) -> (LoopState, Vec<LoopEff
         }),
         (Planning, LoopInput::Planned(output)) => planned(state, output),
         (Planning | AwaitingReader, LoopInput::ModelFailed) => finish(state, FinishedAs::Failed),
-        (AwaitingReader, LoopInput::ReadAnswered(_)) => replan(state),
+        (AwaitingReader, LoopInput::ReadAnswered(_)) => replan(LoopState {
+            guard: state.guard.clone().read_answered(),
+            ..state
+        }),
         (AwaitingReader, LoopInput::ReadFailed(fault)) => {
             unreadable(with_phase(state, Planning), fault)
         }
@@ -244,10 +255,7 @@ fn planned(state: LoopState, output: ModelOutput) -> (LoopState, Vec<LoopEffect>
         ModelOutput::Calls(calls) if calls.is_empty() => finish(state, FinishedAs::Failed),
         ModelOutput::Calls(calls) => admitted(state, calls),
         ModelOutput::Unread(fault) => unreadable(state, fault),
-        ModelOutput::Read(ask) => (
-            with_phase(state, LoopPhase::AwaitingReader),
-            vec![LoopEffect::Read(Box::new(ask))],
-        ),
+        ModelOutput::Read(ask) => read_asked(state, ask),
         ModelOutput::Say(_) => (state, vec![LoopEffect::Publish(AnswerPhase::Streaming)]),
         ModelOutput::Ask { text, choices } => (
             with_phase(state, LoopPhase::Idle),
@@ -256,6 +264,30 @@ fn planned(state: LoopState, output: ModelOutput) -> (LoopState, Vec<LoopEffect>
             ))],
         ),
         ModelOutput::Finish => finish(state, FinishedAs::Done),
+    }
+}
+
+/// A reader ask through the guard: made, or held back when the reader answered this very ask
+/// before, or the end of the turn when the planner will not take the answer it holds.
+fn read_asked(state: LoopState, ask: ReaderAsk) -> (LoopState, Vec<LoopEffect>) {
+    let (guard, verdict) = state.guard.clone().admit_read(&ask);
+    match verdict {
+        Verdict::Run => (
+            LoopState {
+                guard,
+                phase: LoopPhase::AwaitingReader,
+                ..state
+            },
+            vec![LoopEffect::Read(Box::new(ask))],
+        ),
+        Verdict::Hold(why) => {
+            let (next, effects) = replan(LoopState { guard, ..state });
+            (
+                next,
+                [vec![LoopEffect::HeldRead(Box::new(ask), why)], effects].concat(),
+            )
+        }
+        Verdict::Stop(stuck) => stopped(state, vec![], &stuck.question()),
     }
 }
 
@@ -280,7 +312,7 @@ fn admitted(state: LoopState, calls: Vec<PlannedCall>) -> (LoopState, Vec<LoopEf
     let mut run = Vec::new();
     let mut held = Vec::new();
     for planned in calls {
-        let (next, verdict) = guard.admit(CallId(run.len() as u64), &planned.call);
+        let (next, verdict) = guard.admit(CallId(run.len() as u64), &planned.call, planned.effect);
         guard = next;
         match verdict {
             Verdict::Run => run.push(planned.call),

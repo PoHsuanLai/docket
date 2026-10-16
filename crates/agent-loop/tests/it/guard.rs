@@ -5,7 +5,7 @@ use agent_loop::*;
 use companion_wire::{AnswerPhase, NeedsYou};
 use docket_core::*;
 use porter_core::AppName;
-use prov::{ActionName, Confidentiality, Integrity, Label};
+use prov::{ActionName, Confidentiality, Effect, Integrity, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
 fn idle() -> LoopState {
@@ -44,6 +44,15 @@ fn call(action: &str, query: &str) -> PlannedCall {
             origin: Origin::Companion,
         },
         tier: Tier::Typed,
+        effect: Some(Effect::Read),
+    }
+}
+
+/// `call` of an action with this effect (none: not known).
+fn doing(effect: Option<Effect>, action: &str, query: &str) -> PlannedCall {
+    PlannedCall {
+        effect,
+        ..call(action, query)
     }
 }
 
@@ -165,18 +174,137 @@ fn a_repeat_whose_answer_changed_is_not_stale() {
     assert_eq!((calls_in(&e), holds_in(&e).len()), (1, 0));
 }
 
-#[test]
-fn a_handle_answer_cannot_be_compared_so_it_is_never_stale() {
-    let handle = StepEnd::Done {
+fn handle_answer() -> StepEnd {
+    StepEnd::Done {
         said: None,
         value: Some(Reveal::Handle(Handle(3))),
         undo: None,
-    };
-    let search = || vec![call("mail.thread.read", "x")];
-    let (s, _) = round(asked(), search(), &handle);
-    let (s, _) = round(s, search(), &handle);
-    let (_, e) = agent_step(s, plan(search()));
+    }
+}
+
+#[test]
+fn a_read_that_returned_a_handle_is_held_three_times_then_the_turn_ends_in_words() {
+    let read = || vec![call("mail.thread.read", "x")];
+    let (mut s, e) = round(asked(), read(), &handle_answer());
     assert_eq!(calls_in(&e), 1);
+    for _ in 0..HOLDS_BEFORE_STOP_ANSWERED {
+        let (next, e) = agent_step(s, plan(read()));
+        assert_eq!((calls_in(&e), holds_in(&e)), (0, vec![Held::Unchanged]));
+        assert!(e.contains(&LoopEffect::AskPlanner));
+        s = next;
+    }
+    let (s, e) = agent_step(s, plan(read()));
+    assert_eq!((calls_in(&e), s.phase), (0, LoopPhase::Idle));
+    let question = asks_person(&e).expect("a question for the person");
+    assert!(
+        question.starts_with("I could not finish this."),
+        "{question}"
+    );
+    assert!(!question.contains("mail.thread.read"));
+}
+
+#[test]
+fn a_handle_from_a_call_that_may_write_or_is_not_known_is_never_stale() {
+    for effect in [Some(Effect::UndoableWrite), Some(Effect::Outbound), None] {
+        let go = || vec![doing(effect, "mail.thread.read", "x")];
+        let (s, _) = round(asked(), go(), &handle_answer());
+        let (s, _) = round(s, go(), &handle_answer());
+        let (_, e) = agent_step(s, plan(go()));
+        assert_eq!((calls_in(&e), holds_in(&e).len()), (1, 0), "{effect:?}");
+    }
+}
+
+#[test]
+fn a_read_is_asked_again_after_a_write_changed_the_world() {
+    let read = || vec![call("mail.thread.read", "x")];
+    let (s, _) = round(asked(), read(), &handle_answer());
+    let (s, e) = agent_step(s, plan(read()));
+    assert_eq!(holds_in(&e), [Held::Unchanged]);
+    let archive = vec![doing(
+        Some(Effect::UndoableWrite),
+        "mail.thread.archive",
+        "x",
+    )];
+    let (s, _) = round(s, archive, &done_plain());
+    let (_, e) = agent_step(s, plan(read()));
+    assert_eq!((calls_in(&e), holds_in(&e).len()), (1, 0));
+}
+
+fn done_plain() -> StepEnd {
+    StepEnd::Done {
+        said: None,
+        value: None,
+        undo: None,
+    }
+}
+
+#[test]
+fn a_write_repeated_after_it_ran_is_never_held() {
+    let send = || vec![doing(Some(Effect::Outbound), "mail.message.send", "x")];
+    let sent = StepEnd::Done {
+        said: None,
+        value: Some(Reveal::Handle(Handle(4))),
+        undo: None,
+    };
+    let (s, _) = round(asked(), send(), &sent);
+    let (s, _) = round(s, send(), &sent);
+    let (_, e) = agent_step(s, plan(send()));
+    assert_eq!((calls_in(&e), holds_in(&e).len()), (1, 0));
+}
+
+fn ask_to_read(task: ReaderTask, max: u32) -> ReaderAsk {
+    ReaderAsk {
+        inputs: vec![Handle(1)],
+        want: ValueSchema::Text {
+            max: CharCount(max),
+        },
+        task,
+    }
+}
+
+fn read_round(s: LoopState, ask: &ReaderAsk) -> (LoopState, Vec<LoopEffect>) {
+    let (s, mut effects) = agent_step(s, LoopInput::Planned(ModelOutput::Read(ask.clone())));
+    let (s, more) = agent_step(s, LoopInput::ReadAnswered(Reveal::Handle(Handle(2))));
+    effects.extend(more);
+    (s, effects)
+}
+
+#[test]
+fn an_identical_reader_ask_is_held_and_one_with_another_shape_is_not() {
+    let ask = ask_to_read(ReaderTask::Summarise, 1200);
+    let (s, e) = read_round(asked(), &ask);
+    assert!(e.contains(&LoopEffect::Read(Box::new(ask.clone()))));
+    let (s, e) = agent_step(s, LoopInput::Planned(ModelOutput::Read(ask.clone())));
+    assert_eq!(s.phase, LoopPhase::Planning);
+    assert_eq!(
+        e,
+        [
+            LoopEffect::HeldRead(Box::new(ask.clone()), Held::Unchanged),
+            LoopEffect::AskPlanner
+        ]
+    );
+    let shorter = ask_to_read(ReaderTask::Summarise, 600);
+    let (s, e) = agent_step(s, LoopInput::Planned(ModelOutput::Read(shorter.clone())));
+    assert_eq!(s.phase, LoopPhase::AwaitingReader);
+    assert_eq!(e, [LoopEffect::Read(Box::new(shorter))]);
+}
+
+#[test]
+fn a_reader_ask_held_three_times_ends_the_turn_in_words() {
+    let ask = ask_to_read(ReaderTask::Summarise, 1200);
+    let (mut s, _) = read_round(asked(), &ask);
+    for _ in 0..HOLDS_BEFORE_STOP_ANSWERED {
+        let (next, e) = agent_step(s, LoopInput::Planned(ModelOutput::Read(ask.clone())));
+        assert!(matches!(e[0], LoopEffect::HeldRead(_, Held::Unchanged)));
+        s = next;
+    }
+    let (s, e) = agent_step(s, LoopInput::Planned(ModelOutput::Read(ask)));
+    assert_eq!(s.phase, LoopPhase::Idle);
+    assert!(
+        asks_person(&e)
+            .expect("a question")
+            .starts_with("I could not finish this.")
+    );
 }
 
 #[test]

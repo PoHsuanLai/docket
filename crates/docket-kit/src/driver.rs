@@ -94,6 +94,10 @@ impl<'a, P: InferTransport, I: IntentsTransport> Driver<'a, P, I> {
                 self.rt.hold(&call, effect, why);
                 Vec::new()
             }
+            LoopEffect::HeldRead(ask, why) => {
+                self.rt.hold_read(&ask, why);
+                Vec::new()
+            }
             LoopEffect::Unread(fault) => {
                 self.rt.unread(fault);
                 Vec::new()
