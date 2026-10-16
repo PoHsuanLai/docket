@@ -23,6 +23,10 @@ pub const CONFIRM_PATH: &str = "/org/quire/Confirm1";
 pub const COMPANION_BUS: &str = "org.quire.Companion1";
 /// companiond's root object.
 pub const COMPANION_PATH: &str = "/org/quire/Companion1";
+/// The agent host's bus name: the name of the pseudo-app its agents' calls are made in.
+pub const AGENT_HOST_BUS: &str = "org.quire.AcpAgent";
+/// The agent host's object.
+pub const AGENT_HOST_PATH: &str = "/org/quire/AgentHost1";
 /// readerd's bus name.
 pub const READER_BUS: &str = "org.quire.Reader1";
 /// readerd's object.

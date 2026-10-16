@@ -85,6 +85,9 @@ impl Standing {
 
 /// intentd, the router: the `agent` role of the app `org.quire.Intents`.
 pub const INTENTD: Standing = Standing::new("org.quire.Intents", Role::Agent);
+/// companiond, the assistant: the `agent` role of the app `org.quire.Companion1`. It is the only
+/// caller of the agent host's `HandOver`.
+pub const COMPANIOND: Standing = Standing::new("org.quire.Companion1", Role::Agent);
 /// sill, the shell and the sheet host: the `sheet_host` role of the app `org.quire.Shell`.
 pub const SHELL: Standing = Standing::new("org.quire.Shell", Role::SheetHost);
 

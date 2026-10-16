@@ -8,6 +8,7 @@
 //!
 //! `Voice1` lives in `voiced`, which serves it.
 
+mod agent_host;
 mod answer;
 pub mod callers;
 mod checkpoint;
@@ -33,6 +34,7 @@ mod session;
 #[cfg(feature = "inferd")]
 pub mod tap;
 
+pub use agent_host::{AgentHostProxy, AgentHostSkeleton};
 pub use answer::{CompanionAnswerProxy, CompanionAnswerSkeleton};
 pub use checkpoint::{CheckpointProxy, CheckpointSkeleton};
 pub use companion::{CompanionProxy, CompanionSkeleton};
@@ -47,9 +49,9 @@ pub use inferd::{InferLink, inferd_transport};
 pub use introspect::{Bus, introspection};
 pub use message::{MessageProxy, MessageSkeleton};
 pub use names::{
-    COMPANION_BUS, COMPANION_PATH, CONFIRM_BUS, CONFIRM_PATH, INTENTS_BUS, INTENTS_PATH,
-    OPTION_ACTIVATION, OPTION_WATCH, PROVIDER_PATH, READER_BUS, READER_PATH, answer_path,
-    request_path, session_connection,
+    AGENT_HOST_BUS, AGENT_HOST_PATH, COMPANION_BUS, COMPANION_PATH, CONFIRM_BUS, CONFIRM_PATH,
+    INTENTS_BUS, INTENTS_PATH, OPTION_ACTIVATION, OPTION_WATCH, PROVIDER_PATH, READER_BUS,
+    READER_PATH, answer_path, request_path, session_connection,
 };
 /// The reserved key of the W3C trace context in an `options` vardict, and the vardict type:
 /// porter's, shared on every call that starts work.

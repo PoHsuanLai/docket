@@ -2,10 +2,10 @@
 //! equal it.
 
 use crate::{
-    CheckpointSkeleton, CompanionAnswerSkeleton, CompanionSkeleton, ConfirmSkeleton,
-    ContextSkeleton, ControlSkeleton, GateSkeleton, IndexSkeleton, IntentProviderSkeleton,
-    MessageSkeleton, ReaderSkeleton, RegistrySkeleton, RequestSkeleton, RunSkeleton,
-    SearchSkeleton, SessionSkeleton,
+    AgentHostSkeleton, CheckpointSkeleton, CompanionAnswerSkeleton, CompanionSkeleton,
+    ConfirmSkeleton, ContextSkeleton, ControlSkeleton, GateSkeleton, IndexSkeleton,
+    IntentProviderSkeleton, MessageSkeleton, ReaderSkeleton, RegistrySkeleton, RequestSkeleton,
+    RunSkeleton, SearchSkeleton, SessionSkeleton,
 };
 use zbus::fdo;
 use zbus::object_server::Interface;
@@ -23,16 +23,19 @@ pub enum Bus {
     Companion,
     /// `org.quire.Reader1` (readerd).
     Reader,
+    /// `org.quire.AgentHost1` (docket-agent).
+    AgentHost,
 }
 
 impl Bus {
     /// Every bus.
-    pub const ALL: [Bus; 5] = [
+    pub const ALL: [Bus; 6] = [
         Bus::Intents,
         Bus::IntentProvider,
         Bus::Confirm,
         Bus::Companion,
         Bus::Reader,
+        Bus::AgentHost,
     ];
 
     /// The file under `dbus/` holding its introspection.
@@ -43,6 +46,7 @@ impl Bus {
             Bus::Confirm => "org.quire.Confirm1.xml",
             Bus::Companion => "org.quire.Companion1.xml",
             Bus::Reader => "org.quire.Reader1.xml",
+            Bus::AgentHost => "org.quire.AgentHost1.xml",
         }
     }
 }
@@ -67,6 +71,7 @@ pub fn introspection(bus: Bus) -> String {
         Bus::Confirm => vec![&ConfirmSkeleton],
         Bus::Companion => vec![&CompanionSkeleton, &CompanionAnswerSkeleton],
         Bus::Reader => vec![&ReaderSkeleton],
+        Bus::AgentHost => vec![&AgentHostSkeleton],
     };
     let mut xml = String::from(
         "<!DOCTYPE node PUBLIC \"-//freedesktop//DTD D-BUS Object Introspection 1.0//EN\"\n \"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd\">\n<node>\n",
