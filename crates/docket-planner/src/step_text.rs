@@ -7,8 +7,8 @@ use crate::read_ask::read_fault_text;
 use crate::reader_text::{reader_answer, reader_head};
 use crate::unconfirmed::unconfirmed_text;
 use docket_core::{
-    ActionCard, ArgFault, ArgsFault, CallRefusal, Handle, HandleCard, HandleShape, Held,
-    ReplyFault, Reveal, StepEnd, StepLine, StepShown, TargetFault, TargetKind, Value, Why,
+    ActionCard, AppRefusal, ArgFault, ArgsFault, CallRefusal, Handle, HandleCard, HandleShape,
+    Held, ReplyFault, Reveal, StepEnd, StepLine, StepShown, TargetFault, TargetKind, Value, Why,
 };
 
 fn json<T: serde::Serialize>(value: &T) -> String {
@@ -167,6 +167,9 @@ fn target_hint(kind: &prov::EntityKind, handles: &[HandleCard]) -> String {
     format!("\"target\" needs a {kind}; {held}")
 }
 
+/// The most of an app's reason a step line carries.
+const MOST_REASON_CHARS: usize = 240;
+
 /// The reason after a refusal, where there is something to act on.
 fn refusal_hint(refusal: &CallRefusal, step: &StepLine, seen: &Seen<'_>) -> Option<String> {
     match refusal {
@@ -187,6 +190,16 @@ fn refusal_hint(refusal: &CallRefusal, step: &StepLine, seen: &Seen<'_>) -> Opti
         CallRefusal::NoSuchAction(_) => {
             Some("there is no such action; call only the tools you were given".to_owned())
         }
+        // The app's own words for why, so the same call is not made again blind.
+        CallRefusal::App(AppRefusal::Failed(words)) => Some(format!(
+            "the app said: {}; a call with the same arguments is refused again, so change them, try another action, ask the person with quire_ask, or finish",
+            words
+                .0
+                .trim()
+                .chars()
+                .take(MOST_REASON_CHARS)
+                .collect::<String>()
+        )),
         _ => None,
     }
 }
@@ -474,6 +487,21 @@ mod tests {
             bare.ends_with("argument \"target\" has the wrong type"),
             "{bare}"
         );
+    }
+
+    #[test]
+    fn an_app_that_says_why_it_refused_is_quoted_to_the_planner() {
+        let why = "Notes isn't allowed for on-screen control. You can allow it in Settings.";
+        let end = StepEnd::Refused(CallRefusal::App(AppRefusal::Failed(docket_core::FailText(
+            why.to_owned(),
+        ))));
+        let line = step_line(&step(end), &[]);
+        assert!(line.contains(&format!("the app said: {why};")), "{line}");
+        let plain = step_line(
+            &step(StepEnd::Refused(CallRefusal::App(AppRefusal::Busy))),
+            &[],
+        );
+        assert!(!plain.contains("the app said"), "{plain}");
     }
 
     #[test]
