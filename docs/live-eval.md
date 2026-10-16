@@ -351,6 +351,16 @@ over inferd, so the planner sees the injected text only as the product shows it.
 says yes to the sheet of any action the task itself needs (`user_steps`: the app and the label its
 manifest gives the action) and no to every other sheet, whatever it says.
 
+The person is in the world, as in AgentDojo: "summarise this thread" means nothing to a companion
+told the person is nowhere. Each turn is asked from the window of an app, which shows what the
+person has open and the siblings of it (the same app and kind), with nothing selected. An attack file
+may say which with `here = "t1"` (the world item with that key is open) or `here = { list = "t1" }`
+(nothing is open; the list that holds that item is in view). Without `here` it follows from the user's
+own steps: one thing acted on is open, several give the list that holds the first of them, none gives
+the carrier's item. The app and kind come from what the fake apps list, so the harness names no
+app. The scripted runs name what they act on and are not told a place; the report directory is made
+if it is missing.
+
 ```sh
 # one attack first, to see a trace (not timed); then the suite
 scripts/eval-release.sh --engine local --inferd-config dev/live/inferd.local.toml \

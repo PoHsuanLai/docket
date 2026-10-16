@@ -1,22 +1,26 @@
 //! The pure parts of the live harness: the command line, the model-source flag, which part of the
 //! stack an exchange belongs to, the judgement of a flow, and the hijacked judge's cassette.
 
-use docket_accept::live::attack_planner::planner_model_name;
+use docket_accept::live::attack_planner::{ask_of, planner_model_name};
 use docket_accept::live::cli::{Command, PlannerMode, UsageError, parse};
 use docket_accept::live::engine::{Engine, EngineError, hijacked_judge_cassette};
 use docket_accept::live::flows::{Evidence, Failure, Flow, Kind, UndoCheck, judge};
 use docket_accept::live::person::Person;
+use docket_accept::live::report_file::write_report;
 use docket_accept::live::shape::{Shape, developer_word};
 use docket_accept::live::stage::{Asker, asker};
 use docket_accept::provider::{Message, Sending};
 use docket_accept::world::ModelSource;
 use docket_core::{
     Anchor, AskReason, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmOffer, ConfirmParts,
-    ConfirmRequest, Confirmer, ExchangeAnswer, ExchangeCall, ExchangeMessage, Gesture, LabelText,
-    ModelExchange, Seconds, Stage, TaintNote,
+    ConfirmRequest, Confirmer, ContextSnapshot, ExchangeAnswer, ExchangeCall, ExchangeMessage,
+    Gesture, Here, LabelText, ModelExchange, Seconds, Selection, Stage, TaintNote, TextTarget,
+    TurnId, TurnSource, TurnVia, UserTurn, Visible, WindowPrivacy,
 };
+use docket_eval::Place;
 use futures_util::FutureExt;
-use porter_core::AppName;
+use porter_core::{AppName, Count};
+use prov::{Label, Labelled, SessionId, UnixSeconds};
 use std::collections::BTreeSet;
 
 fn words(line: &str) -> Vec<String> {
@@ -669,4 +673,50 @@ fn the_scripted_person_allows_only_the_sheets_of_the_tasks_own_actions() {
         3,
         "every sheet is kept for the trace"
     );
+}
+
+#[test]
+fn an_attack_turn_is_asked_from_the_place_the_case_names() {
+    let app = AppName::parse("org.quire.Mail").expect("app");
+    let place = Place {
+        app: app.clone(),
+        window: ContextSnapshot {
+            app: app.clone(),
+            window: Labelled {
+                value: "org.quire.Mail".to_owned(),
+                label: Label::trusted_user(),
+            },
+            here: Here::Nowhere,
+            selection: Selection::Nothing,
+            visible: Visible {
+                kind: None,
+                items: vec![],
+                total: Count(0),
+            },
+            text_target: TextTarget::None,
+            privacy: WindowPrivacy::Normal,
+        },
+    };
+    let turn = UserTurn {
+        id: TurnId(1),
+        text: "summarise this thread".to_owned(),
+        at: UnixSeconds(1),
+        from: TurnSource::Launcher,
+        via: TurnVia::Typed,
+    };
+    let ask = ask_of(SessionId::parse("s-1").expect("session"), turn, &place).expect("ask");
+    assert_eq!(ask.app, Some(app), "the companion reads this app's window");
+    assert_eq!(ask.turn.text, "summarise this thread");
+}
+
+#[test]
+fn a_report_is_written_into_a_directory_that_is_made_and_a_failure_names_the_path() {
+    let root = tempfile::tempdir().expect("dir");
+    let report = root.path().join("eval/reports/live-1.md");
+    write_report(&report, "numbers\n").expect("written");
+    assert_eq!(std::fs::read_to_string(&report).expect("read"), "numbers\n");
+    // A file where the directory should be: the error says where.
+    let blocked = report.join("deeper.md");
+    let why = write_report(&blocked, "x").expect_err("a file is not a directory");
+    assert!(why.contains("live-1.md"), "{why}");
 }

@@ -15,6 +15,7 @@ use docket_accept::live::cli::{
 use docket_accept::live::flows::{Flow, Kind, run_flow};
 use docket_accept::live::hostile::run_planner_case;
 use docket_accept::live::keys_home::KeysHome;
+use docket_accept::live::report_file::write_report;
 use docket_accept::live::{
     CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_shadowed,
 };
@@ -155,7 +156,7 @@ fn corpus_agent(args: &CorpusArgs, spec: &AcpSpec) -> Result<ExitCode, String> {
     let text = report.render(&note);
     print!("{text}");
     if let Some(path) = &args.report {
-        std::fs::write(path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
+        write_report(path, &text)?;
         eprintln!("docket-live: report written to {}", path.display());
     }
     Ok(ExitCode::SUCCESS)
@@ -213,7 +214,7 @@ async fn corpus_live_planner(
     let text = report.render(&ran.note) + &metrics.render();
     print!("{text}");
     if let Some(path) = &args.report {
-        std::fs::write(path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
+        write_report(path, &text)?;
         eprintln!("docket-live: report written to {}", path.display());
     }
     if let Some(dir) = &args.attack_summary {
@@ -328,7 +329,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
         .collect();
     print!("{text}");
     if let Some(path) = &args.report {
-        std::fs::write(path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
+        write_report(path, &text)?;
         eprintln!("docket-live: report written to {}", path.display());
     }
     if let Some(dir) = &args.attack_summary {

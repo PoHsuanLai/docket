@@ -16,6 +16,7 @@ pub mod keys_home;
 pub mod pattern;
 pub mod person;
 pub mod regress;
+pub mod report_file;
 pub mod shadow_arm;
 pub mod shape;
 pub mod stage;

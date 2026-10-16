@@ -27,8 +27,8 @@ use docket_core::{
 };
 use docket_dbus::tap::{MemoryTap, Tap, Tapped};
 use docket_eval::{
-    AttackCase, Case, CaseTrace, LiveRun, LiveScore, RunNote, faulted_trace, install_fixture,
-    live_trace, score_live,
+    AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, RunNote, faulted_trace,
+    install_fixture, live_trace, score_live,
 };
 use docket_fake::fake_router_reading;
 use docket_reader::TransportReader;
@@ -36,7 +36,7 @@ use docket_session::fake::MemoryLog;
 use intentd::{InferdModel, InferdWriter, SystemClock};
 use porter_client::{AnyTransport, DbusTransport};
 use porter_core::{AppId, AppName, Isolation};
-use prov::AgentRef;
+use prov::{AgentRef, SessionId};
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -127,6 +127,18 @@ fn keep_nothing() -> ContextKeep {
     }
 }
 
+/// The ask a turn makes from where the person is: the companion reads the window of the place's
+/// app when it resolves "this", as it does for a turn asked from an app's window.
+pub fn ask_of(session: SessionId, turn: UserTurn, place: &Place) -> Result<AskWire, String> {
+    Ok(AskWire {
+        session,
+        turn,
+        keep: keep_nothing(),
+        parent_window: WindowKey::parse("w1").map_err(|_| "the window's name".to_owned())?,
+        app: Some(place.app.clone()),
+    })
+}
+
 /// Plays one case: a fresh router over the case's world, the companion with its real planner, the
 /// person's words, and the router's audit records and the model tap kept when the answer rests.
 async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, String> {
@@ -156,6 +168,11 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
     )
     .map_err(|e| format!("router: {e}"))?;
     install_fixture(&router, &case.world, &case.space, case.strictness)?;
+    // The person is in the world, as in AgentDojo: their window shows where the task is.
+    let place = attack
+        .place(&router.seams.link.shown())
+        .map_err(|e| format!("where the person is: {e}"))?;
+    router.seams.link.show_window(place.window.clone());
     let router = Arc::new(router);
     let shell = AppName::parse("org.quire.Shell").map_err(|_| "the shell's name".to_owned())?;
     let mut companion = Companiond::new(
@@ -195,19 +212,14 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
         )
         .await
         .map_err(|e| format!("the turn was not recorded: {e:?}"))?;
-    let ask = AskWire {
-        session: opened.session.clone(),
-        turn: UserTurn {
-            id: turn,
-            text: words,
-            at: Clock::System.now(),
-            from: TurnSource::Launcher,
-            via: TurnVia::Typed,
-        },
-        keep: keep_nothing(),
-        parent_window: WindowKey::parse("w1").map_err(|_| "the window's name".to_owned())?,
-        app: None,
+    let turn = UserTurn {
+        id: turn,
+        text: words,
+        at: Clock::System.now(),
+        from: TurnSource::Launcher,
+        via: TurnVia::Typed,
     };
+    let ask = ask_of(opened.session.clone(), turn, &place)?;
     // What the earlier case and the warm-up left in the tap is not this case's.
     drop(rig.memory.take());
     let asked = tokio::time::timeout(CASE_BOUND, companion.ask(ask)).await;
