@@ -83,3 +83,22 @@ What docket adds or decides differently, each with its reason:
     agent only on an explicit refresh (`docket-agent PROGRAM --refresh`), never when a page opens.
 
 - Where the assistant may run: a place with no row in the settings is Off, a value the reader cannot read is Off, and the privacy floor filters in `docket_settings::route` before any setting is looked at; a cloud place is never chosen unless its row says On or AskEachTime (owner decision 2026-10-09).
+
+13. **Handles: one for every thing the view shows, the same number for the same thing, one way to name it.**
+    A model fixes its behaviour through the view, the tools and the wire, never a per-model prompt.
+    (a) Every thing the planner view shows (where the person is, the visible items, the selection,
+    a thing a tool returned) has a handle of its own, of its kind, beside the handles of its words;
+    the view shows it first (`"handle": 12`), and the router resolves it exactly as it resolves the
+    thing's `{app, kind, key}` (the same checks, the app's label). (b) The same text (same words,
+    label and source) and the same thing keep their handle for the whole task, across turns and
+    context refreshes (`HandleTable::reveal`, `try_mint_text`, `mint_entity`); new things get new
+    numbers, and a number is never reused. The context view holds at most `MAX_VIEW_TEXTS` texts: past
+    it the oldest text the current view does not use is evicted, and naming it later is
+    `unknown_handle`. (c) A tool's `target` names one way, `{"handle": n}`, with `n` constrained to the
+    handles held for that kind when there are at most 32 (`Catalogue::declaration_for`), so a handle
+    of the wrong kind cannot be written; with none held the schema still accepts `{app, kind, key}`.
+    (d) The prompt says a handle once: the context shows its own handles, the "What you can name
+    but not read" section lists only the rest (what, and which step returned it), and what a kind of
+    thing is for is said once per kind, not once per handle. The router still enforces where a handle
+    may flow; the view does not repeat it. (e) A `wrong_type` for `target` names the kind it needs
+    and the handles held of it (numbers and kinds only, never content).

@@ -3512,3 +3512,28 @@ owns, `GetNameOwner` or a uid alone; an unidentified caller is refused.
   (almanac 448f615); docket-acp and docket-agent need to be started in `docket-acp.scope` / `docket-agent.scope`
   (`systemd-run --user --scope --unit=...`) and inferd's and memoryd's tables need rows for them; the MCP bridge an
   external agent starts inside its sandbox cannot be placed in the fake proc root.
+
+## Planner entity handles (2026-10-17): a thing the view shows had no handle to name it by
+
+- **Evidence** (live run, local 4B model, a thread open, the person says "summarise this thread"). The view showed the thing
+  as a raw id with only its title and subtitle as handles (`"here":{"kind":"entity","v":{"id":{...},"title":{"kind":"handle","v":1},...}}`),
+  while the tool's `target` said "named as {\"handle\": n} with a handle you hold". The model did the reasonable thing,
+  `{"target": {"handle": 1}}`; #1 was the title text, so `refused bad_args target wrong_type`, then the repeat guard held the
+  same call, then it repeated; the task failed. Over three turns the same title was #1, then #9, then #17, so nothing the
+  model learned carried to the next turn, and every text handle carried the same "use as ... in ..." list (about 330
+  characters each; 16 handles, 6,791 input tokens on the third turn).
+- **Cause, three generic gaps.** (1) A thing the view shows had no handle of its own, so the description could not be followed.
+  (2) `HandleTable::reveal` minted a new number for the same words every context refresh. (3) The handle section repeated a
+  near-identical list for every text handle.
+- **Fix, through structure.** The router mints a handle for each thing it shows (`EntityLine::handle`, the app's label,
+  resolved by `resolve_target` as before); the same words with the same label and source keep their handle for the task
+  (`try_mint_text`, also for texts a tool returns) and the context's texts are bounded with eviction (`MAX_VIEW_TEXTS`); the
+  prompt shows the thing first (`"handle": 12`), lists only the handles the context does not show, and says what a kind is
+  for once per kind; the `target` schema names `{"handle": n}` only, constrained to the held handles of the kind when there
+  are at most 32 (an enum, so constrained decoding cannot write the wrong kind), and a `wrong_type` target says what kind it
+  needs and which handles are held of it.
+- **Cost.** The tool list is no longer byte-stable across turns when the held things change (the enum), so the cached
+  prefix ends at the tools in that case; stable numbering keeps it unchanged otherwise.
+- **Deferred.** Eviction considers only the current context view, not the task's history; a history step that names an
+  evicted handle reads as it did (its number), and naming it again refuses `unknown_handle`.
+

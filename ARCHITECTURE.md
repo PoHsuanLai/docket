@@ -166,7 +166,7 @@ missing" list in `FINDINGS.md` (portable-core).
 | `companion-wire` | `ask`, `answer` < `record` |
 | `companion-client` | `lib` (`CompanionTransport`, `Follow`) < `bus` (`DbusCompanion`, `BusAnswer`) |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `compact` < `step` |
-| `docket-planner` | `args`, `catalogue`, `read_ask` < `render` < `planner` < `summarise`, `prefix` |
+| `docket-planner` | `args`, `catalogue`, `context_text`, `read_ask` < `render` < `planner` < `summarise`, `prefix` |
 | `docket-models` | `model`, `draft` < `writer`, `reviewers` |
 | `docket-reader` | `request`, `answer` < `read` |
 | `docket-memory` | `memory`, `record`, `session_log` < `sink` < `audit` |
@@ -213,6 +213,7 @@ missing" list in `FINDINGS.md` (portable-core).
 | who is calling a daemon: `Identity` (porter's `ProcCallers` on the daemon's connection and callers table), `Standing` (the app and role a method asks of its caller), `require`, the callers files (`/etc/quire/<daemon>-callers.toml` under the person's own; only the system's gives a fixed role) | `docket-dbus::callers`; the shipped files are `dist/<daemon>-callers.toml`, read by each daemon's `callers` module; no daemon decides standing from a bus name it owns, `GetNameOwner` or a uid |
 | the conformance check of every app repo | `docket-eval --check-app` and `scripts/check-intents.sh` (cli.md section 6) |
 | the planner's view and its builders: the view type | `docket-core::planner`; the one builder, `planner_view`, and the `HandleTable`, `docket-router::handles` |
+| the handles of the planner's view: a thing's own handle (`EntityLine::handle`, minted by `docket-router::handles::line` from `mint_entity` under the app's label), the stable numbering of texts and things within a task (`HandleTable::reveal` / `try_mint_text` dedupe by words, label and source; `begin_view` and `MAX_VIEW_TEXTS` bound the context's texts by evicting the oldest one the current view does not use), the compact context line and the handle section of the prompt (`docket-planner::context_text`, `render`), the target schema constrained to the held handles of its kind (`Catalogue::declaration_for`), and the typed `wrong_type` hint for a target (`step_text::target_hint`) | `docket-router::handles`, `docket-planner` (conventions item 13) |
 | a past step as the planner reads it (`StepLine`: `with` the handles named, `end` with the handles returned; masked to `action #1 → #4 [outcome: ...]`, at most four handles per place) | `docket-core::planner`; the masking, `agent-loop::assemble::mask_history` (keeps only handle values); the text, `docket-planner::step_text` (pure: same step, same bytes). Reviewer stages never ask for reasoning (`action-review::infer::control`); a reply that was only thought is `ReviewError::OnlyThought` |
 | the roster and episode lines the planner reads | `docket-core::roster` (the view holds them) |
 | episodes and their skeleton | almanac `Episode`; docket builds the skeleton (`docket-core::task::skeleton_of`) and the router records it |
