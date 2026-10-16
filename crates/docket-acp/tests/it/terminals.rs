@@ -204,6 +204,18 @@ async fn a_withheld_sandbox_is_not_advertised_and_runs_nothing() {
     assert!(b.seen.started().is_empty());
 }
 
+#[test]
+fn a_security_policy_refusal_keeps_its_own_reason() {
+    use docket_core::CannotSandbox as Reason;
+    let reason = docket_acp::bulk::cannot(CannotSandbox::RestrictedByAppArmor);
+    assert_eq!(reason, Reason::RestrictedByAppArmor);
+    assert_ne!(reason, Reason::NamespacesDenied);
+    assert_eq!(
+        reason.to_string(),
+        "this computer's security settings stop the sandbox from starting"
+    );
+}
+
 #[tokio::test]
 async fn a_ready_sandbox_is_advertised() {
     let b = bench(Vec::new());

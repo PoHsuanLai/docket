@@ -23,6 +23,9 @@ pub enum CannotSandbox {
     /// The program is there but the kernel refuses it (user namespaces are off).
     #[error("the kernel refuses unprivileged sandboxes here")]
     NamespacesDenied,
+    /// The program is there but this computer's security settings stop it from starting.
+    #[error("this computer's security settings stop the sandbox from starting")]
+    RestrictedByAppArmor,
     /// This platform has no sandbox backend.
     #[error("this platform has no sandbox")]
     Unsupported,

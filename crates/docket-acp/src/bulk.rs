@@ -20,6 +20,7 @@ pub const fn cannot(why: ShellCannot) -> CannotSandbox {
     match why {
         ShellCannot::NotInstalled => CannotSandbox::NotInstalled,
         ShellCannot::NamespacesDenied => CannotSandbox::NamespacesDenied,
+        ShellCannot::RestrictedByAppArmor => CannotSandbox::RestrictedByAppArmor,
         ShellCannot::Unsupported => CannotSandbox::Unsupported,
         ShellCannot::BadWorkingDir => CannotSandbox::BadWorkingDir,
         ShellCannot::LimitsUnavailable => CannotSandbox::LimitsUnavailable,
