@@ -145,6 +145,35 @@ pub fn fake_router_over<
     clock: K,
     log: L,
 ) -> Result<Overed<R, W, K, L, C>, FakeError> {
+    fake_router_reading(
+        config,
+        confirmer,
+        reviewer,
+        writer,
+        clock,
+        log,
+        ScriptedReader::default(),
+    )
+}
+
+/// [`fake_router_over`] with this reader in place of the scripted one: a live run whose planner
+/// reads untrusted text through a real reader model.
+pub fn fake_router_reading<
+    R: Reviewer,
+    W: PolicyWriter,
+    K: Clock,
+    L: SessionLog,
+    C: docket_core::Confirmer,
+    Rd: docket_core::Reader,
+>(
+    config: AgentConfig,
+    confirmer: C,
+    reviewer: R,
+    writer: W,
+    clock: K,
+    log: L,
+    reader: Rd,
+) -> Result<Router<FakeSeams<R, W, K, L, C, Rd>>, FakeError> {
     let space = SpaceId::parse("work").map_err(|_| FakeError::Space)?;
     let mail = mail_manifest().map_err(FakeError::Manifest)?;
     let files = files_manifest().map_err(FakeError::Manifest)?;
@@ -162,7 +191,7 @@ pub fn fake_router_over<
         clock,
         memory: FakeMemory::default(),
         writer,
-        reader: ScriptedReader::default(),
+        reader,
         log,
         checkpoints: docket_checkpoint::MemoryStore::new(),
     };

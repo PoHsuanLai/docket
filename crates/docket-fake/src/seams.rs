@@ -326,6 +326,7 @@ pub struct FakeSeams<
     K = FixedClock,
     L = std::sync::Arc<docket_session::fake::MemoryLog>,
     C = ScriptedConfirmer,
+    Rd = ScriptedReader,
 > {
     /// The apps.
     pub link: FakeLink,
@@ -344,7 +345,7 @@ pub struct FakeSeams<
     /// The policy writer.
     pub writer: W,
     /// The reader.
-    pub reader: ScriptedReader,
+    pub reader: Rd,
     /// The sessions' durable log. Shared by default, so a test can drop the router and restore
     /// from it.
     pub log: L,
@@ -358,7 +359,8 @@ impl<
     K: Clock,
     L: docket_session::SessionLog,
     C: docket_core::Confirmer,
-> Seams for FakeSeams<R, W, K, L, C>
+    Rd: docket_core::Reader,
+> Seams for FakeSeams<R, W, K, L, C, Rd>
 {
     type Link = FakeLink;
     type Confirm = C;
@@ -368,7 +370,7 @@ impl<
     type Time = K;
     type Memory = FakeMemory;
     type Writer = W;
-    type Reading = ScriptedReader;
+    type Reading = Rd;
     type Log = L;
     type Checkpoints = MemoryStore;
 
@@ -396,7 +398,7 @@ impl<
     fn writer(&self) -> &W {
         &self.writer
     }
-    fn reader(&self) -> &ScriptedReader {
+    fn reader(&self) -> &Rd {
         &self.reader
     }
     fn log(&self) -> &L {

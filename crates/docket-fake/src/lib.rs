@@ -30,8 +30,8 @@ pub use parsed::ParsedReviewer;
 pub use readout::{BrokenReadout, FeatureReadout, FixedReadout};
 pub use router::{
     FILES_MANIFEST, FakeError, MAIL_MANIFEST, MENU_MANIFEST, fake_router, fake_router_on,
-    fake_router_over, fake_router_with, files_manifest, install_menu, mail_manifest, menu_manifest,
-    registry,
+    fake_router_over, fake_router_reading, fake_router_with, files_manifest, install_menu,
+    mail_manifest, menu_manifest, registry,
 };
 pub use scripted::{
     FakeMemory, Forget, ReviewMode, ScriptedConfirmer, ScriptedReader, ScriptedReviewer,
