@@ -79,7 +79,9 @@ pub struct Turn {
     state: State,
 }
 
-const WAITS: &str = "Waiting for you on the desktop.";
+// A confirmation is shown where the person is speaking from (the editor, for its own sessions), so
+// the words name no place.
+const WAITS: &str = "Waiting for your answer.";
 const PAUSED: &str = "The assistant paused and waits for you; send another message to go on.";
 const HIDDEN: &str = "[something the assistant holds]";
 

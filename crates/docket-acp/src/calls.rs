@@ -24,7 +24,7 @@ fn denied(code: DenyCode) -> &'static str {
     match code {
         DenyCode::OutsideTask => "Outside what you asked for.",
         DenyCode::NotAllowed => "Not something the assistant may do.",
-        DenyCode::NeedsUser => "Needs your confirmation on the desktop.",
+        DenyCode::NeedsUser => "Needs your confirmation.",
         DenyCode::Repeated => "Already refused.",
         DenyCode::Never => "You said this is never allowed.",
     }
@@ -53,7 +53,7 @@ pub fn outcome(end: &StepEnd) -> Outcome {
             Outcome::Completed(said.as_ref().map(|s| s.as_str().to_owned()))
         }
         StepEnd::Refused(why) => Outcome::Failed(refused(why)),
-        StepEnd::Unconfirmed(_) => Outcome::Failed("Not confirmed on the desktop."),
+        StepEnd::Unconfirmed(_) => Outcome::Failed("Not confirmed."),
         StepEnd::Held(_) => Outcome::Failed("Skipped: the same call was made before."),
         StepEnd::Unread(_) => Outcome::Failed("The assistant's request could not be read."),
         StepEnd::Interrupted => Outcome::Failed("Interrupted by a restart; it may have run."),
