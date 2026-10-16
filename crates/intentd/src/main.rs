@@ -3,6 +3,7 @@
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
+    docket_log::init("intentd");
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

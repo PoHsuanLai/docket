@@ -2150,6 +2150,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-fake",
+ "docket-log",
  "docket-memory",
  "docket-models",
  "docket-router",

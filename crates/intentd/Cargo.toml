@@ -21,6 +21,7 @@ docket-checkpoint-git = { workspace = true }
 porter-dbus = { workspace = true }
 porter-daemon = { workspace = true }
 docket-core = { workspace = true, features = ["atomic-file"] }
+docket-log = { workspace = true }
 docket-router = { workspace = true }
 docket-skills = { workspace = true }
 docket-settings = { workspace = true }
@@ -61,3 +62,7 @@ toml = { workspace = true }
 
 [lints]
 workspace = true
+
+[features]
+# Span export over OTLP (docket-log's `otlp`), switched on at run time by `OTEL_EXPORTER_OTLP_ENDPOINT`.
+otlp = ["docket-log/otlp"]

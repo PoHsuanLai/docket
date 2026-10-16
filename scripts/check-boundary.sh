@@ -189,7 +189,7 @@ EDGES=(
   "docket-testbus: docket-dbus"
   "actions-tools: docket-core porter-core prov"
   "actions-mcp: actions-tools docket-client docket-core docket-dbus docket-settings porter-core prov"
-  "intentd: action-review almanac-client almanac-core docket-checkpoint-git docket-client docket-core docket-dbus docket-memory docket-models docket-router docket-session docket-settings docket-skills policy-point porter-client porter-core porter-daemon porter-dbus porter-infer prov"
+  "intentd: action-review almanac-client almanac-core docket-checkpoint-git docket-client docket-core docket-dbus docket-log docket-memory docket-models docket-router docket-session docket-settings docket-skills policy-point porter-client porter-core porter-daemon porter-dbus porter-infer prov"
   "companiond: companion-wire docket-client docket-core docket-dbus docket-log docket-planner docket-settings docket-skills docket-tasks porter-client porter-core prov"
   "readerd: docket-client docket-core docket-dbus docket-log docket-reader porter-client porter-core porter-infer prov"
   "docket-accept: action-review actions-mcp almanac-client almanac-core bulkhead companion-wire companiond docket-acp docket-acp-bin docket-agents docket-cli docket-client docket-core docket-dbus docket-eval docket-fake docket-inapp docket-launch docket-log docket-reader docket-router docket-session docket-settings docket-testbus intentd porter-client porter-core porter-infer prov readerd"

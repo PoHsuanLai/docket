@@ -41,6 +41,10 @@ zbus = { workspace = true }
 [lints]
 workspace = true
 
+[features]
+# Span export over OTLP (docket-log's `otlp`), switched on at run time by `OTEL_EXPORTER_OTLP_ENDPOINT`.
+otlp = ["docket-log/otlp"]
+
 [dev-dependencies]
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 agent-loop = { workspace = true }
