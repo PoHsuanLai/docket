@@ -15,18 +15,18 @@
 #   $PREFIX/bin/                              the binaries
 #   ~/.config/systemd/user/                   the units, ExecStart pointed at $PREFIX/bin; a drop-in
 #                                             for inferd and accountd (see "dev-only changes")
-#   ~/.local/share/dbus-1/services/           D-Bus activation files, Exec pointed at $PREFIX/bin
+#   ~/.local/share/dbus-1/services/           the activation files that start a service on demand, pointed at $PREFIX/bin
 #   ~/.local/share/quire/{intents,skills,settings}/   manifests, skills, settings schemas
 #   ~/.local/share/porter/providers/          provider files (openrouter, ...): the AI keys inferd holds and the identities accountd keeps
 #   ~/.local/share/stoker/catalog/            the model catalogue, for inferd
 #   ~/.config/quire/*.toml                    default configs, ONLY where absent (never overwritten)
 #   ~/.local/state/quire-dev/install-dev.manifest   what was installed, for --uninstall
 #
-# The units' mount-namespace protections are drop-ins (<unit>.service.d/sandbox.conf), installed unless
-# this system refuses them to user units (INSTALL_DEV_SANDBOX=auto, on or off). Dev-only change to
-# them: ProtectHome=yes becomes read-only for companiond and readerd
-# when the prefix is under $HOME (with `yes` the binary itself cannot be executed from $HOME, and
-# companiond could not read its config and skills). The porter units need nothing: they make their own
+# The units' private-view protections are drop-ins (<unit>.service.d/sandbox.conf), installed unless
+# this computer refuses them to user services (INSTALL_DEV_SANDBOX=auto, on or off). When they are
+# left out, drop-ins an earlier install put down are removed. Dev-only change to them: when the
+# prefix is under $HOME, the home folder is made read-only instead of hidden (hidden, the programs
+# could not start from there, and companiond could not read its config and skills). The porter units need nothing: they make their own
 # directories. --cloud installs porter's dist/inferd-cloud.conf as inferd.service.d/cloud.conf (network
 # on); it is opt-in because local engines share inferd's sandbox, so an on-device-only setup keeps none.
 # memoryd has no unit in almanac/dist: almanac/dbus/memoryd.service is its unit, started by D-Bus
@@ -196,14 +196,16 @@ under_home() { case "$BIN" in "$HOME"|"$HOME"/*) return 0 ;; *) return 1 ;; esac
 rewrite_exec() { # the packaged /usr/libexec/quire/<name> is now $BIN/<name>
   sed -E -e "s|^(ExecStart=)/usr/libexec/quire/|\1$BIN/|" -e "s|^(Exec=)/usr/libexec/quire/|\1$BIN/|"
 }
+# ProtectHome=yes and =tmpfs both hide the home folder, and the binary with it.
+hide_home_off() { sed -E -e 's|^ProtectHome=yes$|ProtectHome=read-only|' -e 's|^ProtectHome=tmpfs$|ProtectHome=read-only|'; }
 rewrite_unit() {
   local unit="$1"
-  if under_home; then rewrite_exec | sed -E 's|^ProtectHome=yes$|ProtectHome=read-only|'; else rewrite_exec; fi <"$unit"
+  if under_home; then rewrite_exec | hide_home_off; else rewrite_exec; fi <"$unit"
 }
 render() { # kind source -> the text to install, on stdout
   case "$1" in
     unit) rewrite_unit "$2" ;;
-    sandbox) if under_home; then sed -E 's|^ProtectHome=yes$|ProtectHome=read-only|' "$2"; else cat "$2"; fi ;;
+    sandbox) if under_home; then hide_home_off <"$2"; else cat "$2"; fi ;;
     dbus) rewrite_exec <"$2" ;;
     *) cat "$2" ;;
   esac
@@ -242,6 +244,34 @@ drop_stale() {
   done
 }
 
+# With the private views off, a sandbox drop-in an earlier install put down would keep its unit
+# from starting. Only paths this install owns, and none that the plan writes, are removed.
+drop_stale_sandbox() {
+  local path row kind src dest planned
+  for path in "${!OWNED[@]}"; do
+    case "$path" in *.service.d/sandbox.conf) ;; *) continue ;; esac
+    planned=0
+    for row in "${PLAN[@]}"; do
+      IFS='|' read -r kind src dest <<<"$row"
+      if [ "$dest" = "$path" ]; then planned=1; fi
+    done
+    [ "$planned" = 0 ] || continue
+    if [ "$DRY" = 1 ]; then act "would remove the private-view drop-in an earlier install left: $path"
+    else rm -f "$path"; unset 'OWNED[$path]'; act "removed (an earlier install left it): $path"; fi
+  done
+}
+
+# The pinned toolchain may not be installed (rustup 1.28 and later does not fetch it by itself).
+ensure_toolchain() { # REPO_DIR
+  local toolchain
+  toolchain="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$1/rust-toolchain.toml" 2>/dev/null)" || true
+  if [ -z "$toolchain" ] || ! command -v rustup >/dev/null 2>&1; then return 0; fi
+  if rustup run "$toolchain" true >/dev/null 2>&1; then return 0; fi
+  if [ "$DRY" = 1 ]; then act "would install the Rust version $toolchain with rustup (needs the internet)"; return 0; fi
+  say "Installing the Rust version $toolchain with rustup (needs the internet)..."
+  rustup toolchain install "$toolchain" --profile minimal
+}
+
 # Linked by this system's own linker: a repo's .cargo/config.toml links with clang and mold, which
 # is how the code is worked on, not something an install may need. Cargo reads that file (and rustup
 # the toolchain file) from the directory it runs in, so the build runs from / with the manifest
@@ -249,6 +279,7 @@ drop_stale() {
 release_build() { # REPO_DIR cargo-args...
   local dir="$1" toolchain
   shift
+  ensure_toolchain "$dir"
   toolchain="$(sed -n 's/^channel *= *"\(.*\)"/\1/p' "$dir/rust-toolchain.toml" 2>/dev/null)" || true
   (
     cd / &&
@@ -262,6 +293,8 @@ release_build() { # REPO_DIR cargo-args...
 
 build_all() {
   [ -z "${INSTALL_DEV_BIN_DIR:-}" ] || { say "using prebuilt binaries from $INSTALL_DEV_BIN_DIR"; return 0; }
+  [ "$DRY" = 1 ] || command -v git >/dev/null 2>&1 || { echo "Building needs git (some libraries are downloaded with it). Install it with your system's package manager, then run this again." >&2; exit 1; }
+  [ "$DRY" = 1 ] || say "The first build downloads code, so it needs the internet, and it takes a while."
   local repo
   for repo in docket almanac porter; do
     local packages=() entry name r pkg
@@ -271,6 +304,7 @@ build_all() {
     done
     if [ "$DRY" = 1 ]; then
       act "cargo build --release --locked --manifest-path $(repo_dir "$repo")/Cargo.toml ${packages[*]} (run from /, linked by this system's own linker)"
+      ensure_toolchain "$(repo_dir "$repo")"
     else
       release_build "$(repo_dir "$repo")" "${packages[@]}"
     fi
@@ -321,15 +355,20 @@ EOF
 
 # Do user units get a private view of the system here? Ubuntu 24.04 and later refuse it to programs
 # without an AppArmor profile; a unit that asks for it then fails to start. The drop-ins are left
-# out then (scripts/install.sh prints the remedy).
+# out then (scripts/install.sh prints the remedy). Without a user manager to ask (over ssh, su) the
+# answer is no, and INSTALL_DEV_SANDBOX=on turns it back on.
 SANDBOX_ON=1
 decide_sandbox() {
   case "${INSTALL_DEV_SANDBOX:-auto}" in
     on) return 0 ;;
     off) SANDBOX_ON=0; return 0 ;;
   esac
-  command -v systemd-run >/dev/null 2>&1 || return 0
-  systemctl --user show-environment >/dev/null 2>&1 || return 0
+  if [ "$DRY" = 1 ]; then say "would test whether this computer allows the services' private views"; return 0; fi
+  if ! command -v systemd-run >/dev/null 2>&1 || ! systemctl --user show-environment >/dev/null 2>&1; then
+    SANDBOX_ON=0
+    say "Private views for the services are off: this session cannot test whether this computer allows them. To turn them on later, run this again from a desktop terminal with INSTALL_DEV_SANDBOX=on."
+    return 0
+  fi
   systemd-run --user --quiet --collect -p PrivateTmp=yes -p ProtectSystem=strict --wait true >/dev/null 2>&1 || SANDBOX_ON=0
 }
 
@@ -347,10 +386,11 @@ do_install() {
     install_file "$kind" "$src" "$dest"
   done
   drop_stale
+  [ "$SANDBOX_ON" = 1 ] || drop_stale_sandbox
   [ "$DRY" = 1 ] || write_manifest
   [ "$DRY" = 1 ] || say "manifest: $MANIFEST"
-  if [ "$SANDBOX_ON" = 0 ]; then say "note: this system does not let user units have a private view of the files, so the sandbox drop-ins were left out; see scripts/install.sh --help"; fi
-  if under_home; then say "note: ProtectHome is read-only (not yes) on companiond and readerd, because $BIN is under \$HOME"; fi
+  if [ "$SANDBOX_ON" = 0 ]; then say "note: this computer does not let user services have a private view of the files, so the private-view protections were left out; scripts/install.sh --help says how to turn them on"; fi
+  if under_home; then say "note: companiond and readerd see your home folder read-only instead of not at all, because $BIN is under \$HOME"; fi
   sudo_step
 }
 

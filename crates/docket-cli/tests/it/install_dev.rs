@@ -452,8 +452,8 @@ fn the_system_installer_puts_each_piece_under_the_prefix_and_the_protections_are
         activation.contains("Exec=/opt/quire-test/libexec/quire/intentd\n"),
         "{activation}"
     );
-    // Off: the same install, with no drop-ins.
-    let bare = Jail::new();
+    // Off: the same install again, with no drop-ins, and the ones the first left are removed.
+    let bare = &jail;
     let out = bare.run_system(&["--sandbox", "off"]);
     assert!(out.status.success(), "{out:?}");
     assert!(
