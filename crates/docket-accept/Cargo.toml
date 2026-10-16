@@ -61,12 +61,13 @@ docket-agents = { workspace = true }
 docket-acp = { path = "../docket-acp" }
 docket-acp-bin = { path = "../docket-acp-bin" }
 docket-cli = { path = "../docket-cli" }
-docket-client = { workspace = true, features = ["dbus"] }
+docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }
 docket-eval = { workspace = true }
 docket-inapp = { workspace = true }
 docket-launch = { workspace = true }
+docket-reader = { workspace = true }
 docket-log = { workspace = true }
 bulkhead = { workspace = true }
 docket-session = { workspace = true }

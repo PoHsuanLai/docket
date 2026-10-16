@@ -40,7 +40,7 @@ pub enum Timeouts {
 }
 
 impl Timeouts {
-    fn config(self) -> ReviewTimeouts {
+    pub(crate) fn config(self) -> ReviewTimeouts {
         match self {
             Self::Shipped => AgentConfig::default().review,
             Self::Every(ms) => ReviewTimeouts {
@@ -112,7 +112,7 @@ pub enum CorpusError {
 
 /// A reviewer the harness can forget between cases: the real cascade keeps no log.
 #[derive(Debug)]
-struct Judges<R>(R);
+pub(crate) struct Judges<R>(pub(crate) R);
 
 impl<R: Reviewer> Reviewer for Judges<R> {
     async fn review(
@@ -128,9 +128,9 @@ impl<R> Forget for Judges<R> {
     fn forget(&self) {}
 }
 
-type Link = Tapped<AnyTransport>;
+pub(crate) type Link = Tapped<AnyTransport>;
 
-fn card(model: &str) -> Option<ModelCard> {
+pub(crate) fn card(model: &str) -> Option<ModelCard> {
     Some(ModelCard {
         account: AccountId::parse("local").ok()?,
         model: ModelId::parse(model).ok()?,

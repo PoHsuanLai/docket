@@ -1027,6 +1027,7 @@ dependencies = [
  "docket-inapp",
  "docket-launch",
  "docket-log",
+ "docket-reader",
  "docket-router",
  "docket-session",
  "docket-settings",

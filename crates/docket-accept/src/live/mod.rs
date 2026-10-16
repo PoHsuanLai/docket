@@ -3,6 +3,7 @@
 //! mail or memory, and the network only when the engine is `cloud`. See `docs/live-eval.md`.
 
 pub mod acp;
+pub mod attack_planner;
 pub mod catalog;
 pub mod cli;
 pub mod corpus;
@@ -13,6 +14,7 @@ pub mod hostile;
 pub mod inferd_world;
 pub mod keys_home;
 pub mod pattern;
+pub mod person;
 pub mod regress;
 pub mod shadow_arm;
 pub mod shape;

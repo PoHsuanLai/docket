@@ -19,6 +19,18 @@ pub enum Agent {
     Acp(Box<AcpSpec>),
 }
 
+/// Who chooses the steps of an attack run (`--planner`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PlannerMode {
+    /// The attack's scripted steps: a hijacked agent that follows every injection, the worst
+    /// case the router has to hold against. The default, and the gate's.
+    #[default]
+    Scripted,
+    /// The companion's real planner, given the person's words over the attack's world: it chooses
+    /// its own steps, and the run is scored on what it did.
+    Live,
+}
+
 /// What the person asked for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -67,6 +79,8 @@ pub struct CorpusArgs {
     /// Where to write the attack suite's per-commit JSON summary (`eval/results`), when the run
     /// played the attacks (`--corpus attacks`).
     pub attack_summary: Option<PathBuf>,
+    /// Who chooses the steps of the attacks (`--corpus attacks`).
+    pub planner: PlannerMode,
 }
 
 /// `docket-live smoke`.
@@ -121,6 +135,9 @@ pub enum UsageError {
     /// `--keys-home` is relative, `--repeat` is zero, or a flag that moved was used.
     #[error("{0}")]
     Home(String),
+    /// `--planner` is not scripted or live, or does not go with the rest of the line.
+    #[error("{0}")]
+    Planner(String),
 }
 
 impl From<SpecFault> for UsageError {
@@ -165,6 +182,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let mut agent_word = None;
     let mut shadow = ShadowMode::Off;
     let mut attack_summary: Option<PathBuf> = None;
+    let mut planner_word: Option<String> = None;
     let mut acp = AcpFlags::default();
     while let Some(flag) = words.0.next() {
         match flag.as_str() {
@@ -192,6 +210,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             "--fnr-max-permille" => fnr = Some(number(flag, words.value(flag)?)?),
             "--shadow" => shadow = ShadowMode::Record,
             "--attack-summary" => attack_summary = Some(PathBuf::from(words.value(flag)?)),
+            "--planner" => planner_word = Some(words.value(flag)?.clone()),
             "--patience-s" => patience = number(flag, words.value(flag)?)?,
             other => return Err(UsageError::Unknown(other.to_owned())),
         }
@@ -211,7 +230,31 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     if sub == "corpus" && repeat.is_some() {
         return Err(UsageError::Unknown("--repeat (smoke only)".to_owned()));
     }
+    if sub == "smoke" && planner_word.is_some() {
+        return Err(UsageError::Unknown("--planner (corpus only)".to_owned()));
+    }
+    let planner = match planner_word.as_deref() {
+        None | Some("scripted") => PlannerMode::Scripted,
+        Some("live") => PlannerMode::Live,
+        Some(other) => {
+            return Err(UsageError::Planner(format!(
+                "--planner takes scripted or live, not {other:?}"
+            )));
+        }
+    };
     let agent = acp.agent(agent_word)?;
+    if planner == PlannerMode::Live && matches!(agent, Agent::Acp(_)) {
+        return Err(UsageError::Planner(
+            "--planner live plays the companion's own planner; it does not go with --agent acp"
+                .to_owned(),
+        ));
+    }
+    if planner == PlannerMode::Live && engine == Engine::Scripted {
+        return Err(UsageError::Planner(
+            "--planner live needs a live engine (--engine local or cloud): a cassette has no planner to play"
+                .to_owned(),
+        ));
+    }
     let out = out.unwrap_or_else(|| PathBuf::from("docket-live-out"));
     match sub.as_str() {
         "corpus" => Ok(Command::Corpus(CorpusArgs {
@@ -232,6 +275,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             agent,
             shadow,
             attack_summary,
+            planner,
         })),
         "smoke" => Ok(Command::Smoke(SmokeArgs {
             engine,

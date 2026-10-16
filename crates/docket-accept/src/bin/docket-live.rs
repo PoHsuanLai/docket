@@ -8,7 +8,10 @@
 use docket_accept::live::acp::{
     AcpSpec, Redactor, Task, agent_cassette, list_models_acp, run_flow_acp,
 };
-use docket_accept::live::cli::{Agent, Command, CorpusArgs, SmokeArgs, UsageError, parse};
+use docket_accept::live::attack_planner::run_attacks_planner;
+use docket_accept::live::cli::{
+    Agent, Command, CorpusArgs, PlannerMode, SmokeArgs, UsageError, parse,
+};
 use docket_accept::live::flows::{Flow, Kind, run_flow};
 use docket_accept::live::hostile::run_planner_case;
 use docket_accept::live::keys_home::KeysHome;
@@ -16,11 +19,11 @@ use docket_accept::live::{
     CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_shadowed,
 };
 use docket_accept::live::{catalog, regress};
-use docket_accept::world::ModelSource;
+use docket_accept::world::{Binaries, ModelSource};
 use docket_core::{Millis, ShadowMode};
 use docket_eval::{
-    AttackCase, AttackMetrics, AttackSummary, Case, Corpus, PlannerCase, RunNote, RunReport,
-    load_all, load_attacks, load_planner_cases, score_traces,
+    AttackCase, AttackMetrics, AttackSummary, Case, Corpus, LiveMetrics, PlannerCase, RunNote,
+    RunReport, load_all, load_attacks, load_planner_cases, planner_slug, score_traces,
 };
 use std::process::ExitCode;
 use std::time::Duration;
@@ -174,6 +177,69 @@ fn write_attack_summary(
     Ok(())
 }
 
+/// `--planner live`: the attack suite played by the companion's real planner (`--corpus attacks`).
+/// The report is the usual header and a section of its own for the live planner's numbers; the
+/// per-commit summary, when asked for, is a file of its own named for the planner model. A live
+/// run is a measurement, not a gate: only an attack the harness could not play fails it.
+async fn corpus_live_planner(
+    args: &CorpusArgs,
+    binaries: &Binaries,
+    options: &CorpusOptions,
+) -> Result<ExitCode, String> {
+    if args.regress.is_some() || args.corpora.iter().any(|c| c != ATTACKS) {
+        return Err(format!(
+            "--planner live plays the attack suite only: name --corpus {ATTACKS} (or --case <attack id>), and no other corpus or --regress"
+        ));
+    }
+    let attacks = chosen_attacks(args)?;
+    if attacks.is_empty() {
+        return Err(format!(
+            "--planner live plays the attack suite: name --corpus {ATTACKS} (or --case <attack id>)"
+        ));
+    }
+    eprintln!(
+        "docket-live: --planner live: {} attacks, two runs each, played by the companion's own planner model (a run takes a while)",
+        attacks.len()
+    );
+    let ran = run_attacks_planner(binaries, &attacks, options)
+        .await
+        .map_err(|e| e.to_string())?;
+    let metrics = LiveMetrics::from_scores(&ran.planner, &ran.scores);
+    let report = RunReport {
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+        per_corpus: Default::default(),
+        attack: None,
+    };
+    let text = report.render(&ran.note) + &metrics.render();
+    print!("{text}");
+    if let Some(path) = &args.report {
+        std::fs::write(path, &text).map_err(|e| format!("{}: {e}", path.display()))?;
+        eprintln!("docket-live: report written to {}", path.display());
+    }
+    if let Some(dir) = &args.attack_summary {
+        let engine = format!(
+            "{}-live-planner-{}",
+            args.engine.slug(),
+            planner_slug(&ran.planner)
+        );
+        let summary = AttackSummary::stamp(&engine, metrics.base.clone(), &args.eval_dir)
+            .map_err(|e| e.to_string())?;
+        let path = summary.write_to(dir).map_err(|e| e.to_string())?;
+        eprintln!("docket-live: attack summary written to {}", path.display());
+    }
+    eprintln!(
+        "docket-live: traces in {} (index.txt, one .trace.txt, .cassette.jsonl and .case.toml per case)",
+        ran.trace_dir.display()
+    );
+    ran.unscored
+        .iter()
+        .for_each(|(id, why)| eprintln!("docket-live: {id} was not scored: {why}"));
+    Ok(match ran.unscored.is_empty() {
+        true => ExitCode::SUCCESS,
+        false => ExitCode::from(1),
+    })
+}
+
 async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
     say_reach(args.engine);
     say_agent(&args.agent);
@@ -202,6 +268,9 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
         ),
         patience: Duration::from_secs(args.patience_s),
     };
+    if args.planner == PlannerMode::Live {
+        return corpus_live_planner(&args, &binaries, &options).await;
+    }
     let mut misses = Vec::new();
     let mut outcomes = Vec::new();
     let all = load_all(&args.eval_dir).map_err(|e| e.to_string())?;

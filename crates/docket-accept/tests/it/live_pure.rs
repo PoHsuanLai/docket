@@ -1,14 +1,23 @@
 //! The pure parts of the live harness: the command line, the model-source flag, which part of the
 //! stack an exchange belongs to, the judgement of a flow, and the hijacked judge's cassette.
 
-use docket_accept::live::cli::{Command, UsageError, parse};
+use docket_accept::live::attack_planner::planner_model_name;
+use docket_accept::live::cli::{Command, PlannerMode, UsageError, parse};
 use docket_accept::live::engine::{Engine, EngineError, hijacked_judge_cassette};
 use docket_accept::live::flows::{Evidence, Failure, Flow, Kind, UndoCheck, judge};
+use docket_accept::live::person::Person;
 use docket_accept::live::shape::{Shape, developer_word};
 use docket_accept::live::stage::{Asker, asker};
 use docket_accept::provider::{Message, Sending};
 use docket_accept::world::ModelSource;
-use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange, Stage};
+use docket_core::{
+    Anchor, AskReason, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmOffer, ConfirmParts,
+    ConfirmRequest, Confirmer, ExchangeAnswer, ExchangeCall, ExchangeMessage, Gesture, LabelText,
+    ModelExchange, Seconds, Stage, TaintNote,
+};
+use futures_util::FutureExt;
+use porter_core::AppName;
+use std::collections::BTreeSet;
 
 fn words(line: &str) -> Vec<String> {
     line.split_whitespace().map(str::to_owned).collect()
@@ -26,6 +35,21 @@ fn the_command_line_table() {
     assert_eq!(c.timeout_ms, Some(5000));
     assert_eq!(c.fnr_max_permille, Some(50));
     assert_eq!(c.label, "v1");
+    assert_eq!(c.planner, PlannerMode::Scripted, "scripted unless asked");
+    let Ok(Command::Corpus(p)) = parse(&words(
+        "corpus --engine local --inferd-config c.toml --corpus attacks --planner live",
+    )) else {
+        panic!("live planner")
+    };
+    assert_eq!(
+        (p.planner, p.corpora),
+        (PlannerMode::Live, vec!["attacks".to_owned()])
+    );
+    let Ok(Command::Corpus(q)) = parse(&words("corpus --engine scripted --planner scripted"))
+    else {
+        panic!("scripted planner")
+    };
+    assert_eq!(q.planner, PlannerMode::Scripted);
     let Ok(Command::Smoke(s)) = parse(&words("smoke --engine scripted --flow flow-c")) else {
         panic!("smoke")
     };
@@ -52,6 +76,25 @@ fn the_command_line_table() {
             UsageError::Number("--patience-s".to_owned(), "soon".to_owned()),
         ),
         ("run --engine scripted", UsageError::Subcommand),
+        (
+            "corpus --engine local --planner clever",
+            UsageError::Planner("--planner takes scripted or live, not \"clever\"".to_owned()),
+        ),
+        (
+            "corpus --engine local --planner",
+            UsageError::NoValue("--planner".to_owned()),
+        ),
+        (
+            "corpus --engine scripted --planner live",
+            UsageError::Planner(
+                "--planner live needs a live engine (--engine local or cloud): a cassette has no planner to play"
+                    .to_owned(),
+            ),
+        ),
+        (
+            "smoke --engine local --planner live",
+            UsageError::Unknown("--planner (corpus only)".to_owned()),
+        ),
     ];
     for (line, want) in cases {
         assert_eq!(parse(&words(line)).err(), Some(want), "{line}");
@@ -341,7 +384,8 @@ fn a_question_at_rest_is_asking_instead_of_finishing_never_an_unsettled_answer()
 
 mod keys_home {
     use super::words;
-    use docket_accept::live::cli::{Command, UsageError, parse};
+    use docket_accept::live::attack_planner::planner_model_name;
+    use docket_accept::live::cli::{Command, PlannerMode, UsageError, parse};
     use docket_accept::live::keys_home::{HomeFault, KeysHome, check_dir};
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
@@ -567,4 +611,63 @@ fn the_everyday_flows_are_judged_on_what_was_called() {
             None => assert!(rest.is_empty(), "{flow:?}: {text:?}"),
         }
     }
+}
+
+#[test]
+fn the_planner_model_is_the_one_the_config_names_for_its_tier() {
+    let config =
+        "[ai.model.text]\nfast = \"local/a\"\nbalanced = \"local/b\"\nbest = \"local/c\"\n";
+    assert_eq!(planner_model_name(config).as_deref(), Some("local/b"));
+    assert_eq!(planner_model_name("[ai]\nlocal_only = \"on\"\n"), None);
+    assert_eq!(planner_model_name("not toml ["), None);
+}
+
+fn sheet(app: &str, label: &str) -> ConfirmRequest {
+    ConfirmRequest::new(ConfirmParts {
+        id: prov::ConfirmId::parse("c-1").expect("id"),
+        space: prov::SpaceId::parse("work").expect("space"),
+        actor: prov::Actor::Unknown,
+        app: AppName::parse(app).expect("app"),
+        action: LabelText::parse(label).expect("label"),
+        effect: prov::Effect::UndoableWrite,
+        count: porter_core::Count(1),
+        detail: ConfirmDetail::Plain,
+        lines: vec![],
+        why: vec![AskReason::Tainted],
+        taint: TaintNote::Clean,
+        offer: ConfirmOffer::OnceOnly,
+        gesture: Gesture::Press,
+        anchor: Anchor::Launcher,
+        expires: Seconds(120),
+    })
+}
+
+#[test]
+fn the_scripted_person_allows_only_the_sheets_of_the_tasks_own_actions() {
+    let mail = AppName::parse("org.quire.Mail").expect("app");
+    let person = Person::saying_yes_to(BTreeSet::from([(mail.clone(), "Archive".to_owned())]));
+    assert!(person.says_yes(&mail, "Archive"));
+    assert!(!person.says_yes(&mail, "Send"));
+    assert!(!person.says_yes(&AppName::parse("org.quire.Files").expect("app"), "Archive"));
+    let asked = [
+        ("org.quire.Mail", "Archive", true),
+        ("org.quire.Mail", "Send", false),
+        ("org.quire.Files", "Archive", false),
+    ];
+    for (app, label, yes) in asked {
+        let answer = person
+            .confirm(sheet(app, label))
+            .now_or_never()
+            .expect("at once");
+        match (yes, answer) {
+            (true, ConfirmAnswer::Allowed { .. }) => {}
+            (false, ConfirmAnswer::Ended(ConfirmEnd::Refused)) => {}
+            (_, other) => panic!("{app} {label}: {other:?}"),
+        }
+    }
+    assert_eq!(
+        person.requests().len(),
+        3,
+        "every sheet is kept for the trace"
+    );
 }
