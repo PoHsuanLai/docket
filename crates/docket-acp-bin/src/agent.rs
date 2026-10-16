@@ -13,6 +13,7 @@
 //!
 //! The router tells this process by its bus name, `org.quire.AcpAgent`, which `intentd.toml`
 //! lists under `acp_agent` (it opens the agent's session, records its turns and makes its calls).
+//! `docket-agent --serve` is the same host as a service for the assistant (see [`serve`]).
 //! Exit codes: 2 for a bad command line, a setting that is off or a configuration that is wrong;
 //! 1 for anything else.
 
@@ -21,27 +22,25 @@ pub mod fault;
 pub mod host;
 pub mod provider;
 pub mod remember;
+pub mod serve;
 pub mod tty;
+pub mod wire;
 
 use args::{Args, Mode};
-use bulkhead::Detected;
-use docket_acp::client::{ToolsOffer, Workdir};
+use docket_acp::client::Workdir;
 use docket_agents::AgentsDir;
 use docket_core::AbsPath;
-use docket_dbus::callers::Identity;
-use docket_inapp::EditorDesk;
 use docket_launch::dbus::DbusAccounts;
-use docket_launch::login::VisibleLogin;
-use docket_launch::{AgentsFile, AgentsPermit, ChildProc, Registry, Supervisor, ToolsMode};
 use docket_session::{BackendEvent, SessionHost};
-use docket_settings::{AgentSettings, Locator};
+use docket_settings::Locator;
 use fault::AgentFault;
-use host::{Hosted, Wiring, host};
+use host::{Hosted, host};
 use prov::UnixSeconds;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader, Stdin};
 use tokio::sync::Mutex;
+use wire::{Tools, allowed};
 
 type Lines = Arc<Mutex<tokio::io::Lines<BufReader<Stdin>>>>;
 
@@ -84,87 +83,15 @@ fn sibling(name: &str) -> Option<AbsPath> {
 
 /// Runs the host until the person quits.
 pub async fn run(args: Args) -> Result<(), AgentFault> {
-    let loaded = Locator::from_env(&env).read(AgentSettings::default());
-    let permit = AgentsPermit::from_setting(loaded.value.agents)
-        .map_err(|e| AgentFault::Permit(e.to_string()))?;
-    let text = std::fs::read_to_string(config_dir().join("docket/agents.toml"))
-        .map_err(|_| AgentFault::NoAgentsFile)?;
-    let agents = agents_dir();
-    let file = Arc::new(
-        AgentsFile::parse_in(&text, Some(&agents))
-            .map_err(|e| AgentFault::Agents(e.to_string()))?,
-    );
-    let path = env("PATH").unwrap_or_default();
-    let Detected::Bwrap(bwrap) = Detected::probe(&path) else {
-        return Err(AgentFault::NoSandbox);
+    let tools = match args.mode {
+        Mode::Session => Tools::Wanted,
+        Mode::Refresh => Tools::Unwanted,
     };
-    let forwarder = sibling("docket-net-forward").ok_or(AgentFault::NoForwarder)?;
-    // Without the exec stage the agent is held by the sandbox alone: say so, never hide it.
-    let enter = sibling("docket-net-enter").filter(|p| std::path::Path::new(p.as_str()).exists());
-    if enter.is_none() {
-        eprintln!(
-            "docket-agent: no docket-net-enter beside this program: the kernel does not limit the agent's files or network"
-        );
-    }
-    let run_dir = PathBuf::from(env("XDG_RUNTIME_DIR").ok_or(AgentFault::NoRuntimeDir)?);
-    // The desktop's actions go to the agent as an MCP server it starts itself: the `actions-mcp`
-    // program beside this one, as the bridge to this host. An entry can switch it off.
-    let tools = file
-        .get(&args.program)
-        .filter(|entry| entry.tools == ToolsMode::Offered && args.mode == Mode::Session)
-        .and_then(|_| sibling("actions-mcp"))
-        .filter(|bridge| std::path::Path::new(bridge.as_str()).exists())
-        .map(|bridge| ToolsOffer {
-            run_dir: run_dir.clone(),
-            bridge,
-        });
-    if tools.is_none() && args.mode == Mode::Session {
-        eprintln!(
-            "docket-agent: the agent is not offered the desktop's actions (off, or no actions-mcp beside this program)"
-        );
-    }
-
     let bus = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| AgentFault::Bus(e.to_string()))?;
-    let table = crate::callers::read(&env).map_err(|e| AgentFault::Callers(e.to_string()))?;
-    let callers = Arc::new(Identity::on_system(bus.clone(), table));
-    let accounts = Arc::new(
-        DbusAccounts::connect(&bus)
-            .await
-            .map_err(|e| AgentFault::Bus(e.to_string()))?,
-    );
-    let registry: Registry<ChildProc> = Registry::default();
-    let login_env: Vec<(String, String)> = [
-        "HOME",
-        "PATH",
-        "DISPLAY",
-        "WAYLAND_DISPLAY",
-        "XDG_RUNTIME_DIR",
-        "DBUS_SESSION_BUS_ADDRESS",
-    ]
-    .iter()
-    .filter_map(|k| env(k).map(|v| ((*k).to_owned(), v)))
-    .collect();
-    let supervisor = Supervisor::new(
-        accounts.clone(),
-        file.clone(),
-        registry.clone(),
-        VisibleLogin::new(login_env),
-    );
-    supervisor
-        .register()
-        .await
-        .map_err(|e| AgentFault::Bus(e.to_string()))?;
-    tokio::spawn(async move { supervisor.run().await });
+    let wiring = wire::build(allowed()?, &args.program, tools, args.fallback, bus).await?;
 
-    if data_dir().join("acp-agent-grants.json").exists() {
-        eprintln!(
-            "docket-agent: ignoring the old acp-agent-grants.json in the data directory: \
-             an agent's grants are docket's now (Settings lists and revokes them); allow \
-             \"always\" again where you want one"
-        );
-    }
     let cwd = std::fs::canonicalize(&args.cwd).map_err(|e| AgentFault::Directory(e.to_string()))?;
     let cwd = cwd.to_str().ok_or(AgentFault::DirectoryNotUtf8)?.to_owned();
     // The agent gets this folder read-write: never the home folder itself (its dot-directories
@@ -173,32 +100,11 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
     let home = env("HOME").map(PathBuf::from);
     Workdir::resolve(&folder, &folder, home.as_deref())
         .map_err(|e| AgentFault::Directory(format!("{cwd}: {e}; give --cwd a project folder")))?;
-    let desk = EditorDesk::new();
     let Hosted {
         mut host, session, ..
-    } = host(
-        Wiring {
-            bus,
-            accounts,
-            file,
-            permit,
-            bwrap: Detected::Bwrap(bwrap),
-            forwarder,
-            enter,
-            run_dir,
-            registry,
-            tools,
-            fallback: args.fallback,
-            desk,
-            callers,
-            agents: Some(agents),
-        },
-        args.program,
-        &cwd,
-        args.space,
-    )
-    .await
-    .map_err(AgentFault::Open)?;
+    } = host(wiring, args.program, &cwd, args.space)
+        .await
+        .map_err(AgentFault::Open)?;
     if args.mode == Mode::Refresh {
         host.close(&session, docket_session::EndCause::Closed)
             .await

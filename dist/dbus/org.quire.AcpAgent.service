@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.quire.AcpAgent
+Exec=/usr/bin/docket-agent --serve
+SystemdService=docket-agent.service

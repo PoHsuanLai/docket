@@ -1,9 +1,19 @@
-# Who may ask or withdraw a sheet of docket-acp and docket-agent (org.quire.Confirm1 under their own
-# names): intentd alone. Same rules as the other callers files: the unit behind the connection, its
-# main process only, the system's file alone gives a fixed role. Install as
-# /etc/quire/acp-callers.toml; the user's ~/.config/quire/acp-callers.toml is laid over it.
+# Who may call docket-acp and docket-agent on the bus. Same rules as the other callers files: the
+# unit behind the connection, its main process only, the system's file alone gives a fixed role.
+# Install as /etc/quire/acp-callers.toml; the user's ~/.config/quire/acp-callers.toml is laid over it.
+#
+#   intentd     may ask or withdraw a sheet (org.quire.Confirm1, under their own names)
+#   companiond  may hand docket-agent a turn (org.quire.AgentHost1.HandOver): only what the person
+#               typed to the assistant, for the agent they chose. docket-agent, as
+#               org.quire.AcpAgent, opens that agent's session and makes its calls; companiond
+#               opens no session of an outside agent.
 
 [[caller]]
 app = "org.quire.Intents"
 unit = "intentd.service"
+role = "agent"
+
+[[caller]]
+app = "org.quire.Companion1"
+unit = "companiond.service"
 role = "agent"

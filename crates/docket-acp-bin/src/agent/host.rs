@@ -89,6 +89,37 @@ pub struct Hosted<A: Accounts + 'static> {
     pub session: SessionId,
 }
 
+/// Why a host did not start: something about this computer, or the session did not open.
+#[derive(Debug)]
+pub enum HostError {
+    /// The sandbox, the manifest or the bus: the words say what.
+    Setup(String),
+    /// The session did not open; the fault says why (a sign-in is needed, say).
+    Open(HostFault),
+}
+
+impl From<String> for HostError {
+    fn from(words: String) -> Self {
+        HostError::Setup(words)
+    }
+}
+
+impl From<&str> for HostError {
+    fn from(words: &str) -> Self {
+        HostError::Setup(words.to_owned())
+    }
+}
+
+impl HostError {
+    /// The words a person reads for it.
+    pub fn said(self) -> String {
+        match self {
+            HostError::Setup(words) => words,
+            HostError::Open(fault) => said(fault),
+        }
+    }
+}
+
 /// Serves the pseudo-app on the bus, starts the program named `program`, and opens its session in
 /// `space` working in `cwd`.
 pub async fn host<A: Accounts + 'static>(
@@ -97,6 +128,19 @@ pub async fn host<A: Accounts + 'static>(
     cwd: &str,
     space: SpaceId,
 ) -> Result<Hosted<A>, String> {
+    host_typed(wiring, program, cwd, space)
+        .await
+        .map_err(HostError::said)
+}
+
+/// [`host`], saying why it failed as a [`HostError`] so a caller can tell a missing sign-in from
+/// a broken setup.
+pub async fn host_typed<A: Accounts + 'static>(
+    wiring: Wiring<A>,
+    program: ProgramName,
+    cwd: &str,
+    space: SpaceId,
+) -> Result<Hosted<A>, HostError> {
     let Wiring {
         bus,
         accounts,
@@ -114,7 +158,7 @@ pub async fn host<A: Accounts + 'static>(
         agents,
     } = wiring;
     let Detected::Bwrap(found) = &bwrap else {
-        return Err("no sandbox (bubblewrap) here: no agent is started unconfined".to_owned());
+        return Err("no sandbox (bubblewrap) here: no agent is started unconfined".into());
     };
     let sandbox = found.clone();
     // The agent process's own network counts for the commands it runs (R12). A program the file
@@ -198,7 +242,7 @@ pub async fn host<A: Accounts + 'static>(
     if let (Some(dir), Some(id)) = (&agents, &installed_as) {
         remember(dir, id, host.backend(), opened.as_ref().map(|_| ()));
     }
-    let session = opened.map_err(said)?;
+    let session = opened.map_err(HostError::Open)?;
     Ok(Hosted { host, session })
 }
 

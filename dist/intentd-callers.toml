@@ -55,3 +55,11 @@ app = "org.quire.AcpAgent"
 unit = "docket-agent.scope"
 role = "agent"
 exe = ["/usr/bin/docket-agent", "/usr/local/bin/docket-agent", "/opt/quire/releases/*/bin/docket-agent"]
+
+# The same host as a service the bus starts for the assistant (`docket-agent --serve`): a unit with a
+# main process, so no program path is listed. It is the one program that opens an outside agent's
+# session; companiond only hands it a turn (acp-callers.toml).
+[[caller]]
+app = "org.quire.AcpAgent"
+unit = "docket-agent.service"
+role = "agent"
