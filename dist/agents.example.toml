@@ -62,6 +62,22 @@ sign_in = "oauth-personal"
 # that request itself for a call to its own server (the call is ruled when it arrives), so no `profile` is needed;
 # agy's command, file and subagent tools keep asking, through the desktop.
 
+# Gemini CLI reaching only the sites it needs, instead of the host's network. A filter outside its sandbox lets
+# through the hosts named in `allow` ("host" or "*.domain") and nothing else; `deny` wins over `allow`; ports 443
+# and 80 are open and `ports` adds more. The lists go with network = "allowlist" and no other network, and an
+# entry with nothing in `allow` is refused. The filter checks names, not content: a host you allow can still
+# receive whatever the agent sends it, so allow only what the agent needs.
+#
+# [[agent]]
+# program = "gemini-cli"
+# command = "/opt/gemini/bin/gemini-acp"
+# route = "handoff"
+# network = "allowlist"
+# allow = ["generativelanguage.googleapis.com", "*.googleapis.com"]
+# deny = ["upload.googleapis.com"]
+# ports = [8443]
+# key_env = "GEMINI_API_KEY"
+
 # The same program with inferd as its model (an API-key account in accountd): the agent gets a
 # base URL and a per-session token, the real key stays in porter, and the only network it has is
 # that endpoint. Use one entry or the other for a program name.

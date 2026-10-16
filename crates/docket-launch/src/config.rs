@@ -7,7 +7,7 @@
 //! program = "claude-code"
 //! command = "/home/me/.local/bin/claude-agent-acp"
 //! route = "endpoint"                 # endpoint (inferd, P4) | handoff (a key, P2) | login
-//! network = "endpoint_only"          # none | endpoint_only | host
+//! network = "endpoint_only"          # none | endpoint_only | allowlist | host
 //! key_env = "ANTHROPIC_API_KEY"
 //! base_url_env = "ANTHROPIC_BASE_URL"
 //! protocol = "anthropic_messages"
@@ -25,6 +25,23 @@
 //! id = "anthropic-main"
 //! ```
 //!
+//! An agent that has to reach its provider can be given just the sites it needs instead of the host's
+//! network (`network = "allowlist"`): a filter outside its sandbox lets through the named hosts and
+//! nothing else, and a deny entry beats an allow entry. `allow` is required; `deny` and `ports` are
+//! optional (ports 443 and 80 are always open, `ports` adds more). The lists only go with `allowlist`.
+//!
+//! ```toml
+//! [[agent]]
+//! program = "gemini-cli"
+//! command = "/opt/gemini/bin/gemini-acp"
+//! route = "handoff"
+//! network = "allowlist"
+//! allow = ["generativelanguage.googleapis.com", "*.googleapis.com"]   # a host, or *.domain
+//! deny = ["upload.googleapis.com"]                                    # optional; wins over allow
+//! ports = [8443]                                                      # optional; besides 443 and 80
+//! key_env = "GEMINI_API_KEY"
+//! ```
+//!
 //! An agent from the agent registry names the registry instead of a command; docket installed it
 //! (`docket-agents`) and gives it a home of its own, where it signs in:
 //!
@@ -39,7 +56,9 @@
 //! label = "Antigravity"
 //! ```
 
+use crate::reach::Reach;
 use bulkhead::NetworkMode;
+use bulkhead::egress::HostFault;
 use docket_acp::client::{ModelId, SignIn};
 use docket_agents::{AgentsDir, LaunchFault};
 use docket_core::{AbsPath, Rewind};
@@ -133,6 +152,12 @@ struct Raw {
     route: Option<Route>,
     #[serde(default)]
     network: NetworkMode,
+    #[serde(default)]
+    allow: Vec<String>,
+    #[serde(default)]
+    deny: Vec<String>,
+    #[serde(default)]
+    ports: Vec<u16>,
     key_env: Option<String>,
     base_url_env: Option<String>,
     protocol: Option<AgentProtocol>,
@@ -181,6 +206,18 @@ pub enum ConfigFault {
         /// What is wrong.
         why: &'static str,
     },
+    /// An `allow` or `deny` entry that is not a host or a `*.domain` pattern.
+    #[error("agent `{program}`: `{entry}` in {list} is not a usable site: {why}")]
+    Site {
+        /// The program as written.
+        program: String,
+        /// Which list: `allow` or `deny`.
+        list: &'static str,
+        /// The entry as written.
+        entry: String,
+        /// What is wrong with it.
+        why: HostFault,
+    },
     /// Two entries for one program.
     #[error("agent `{0}` is listed twice")]
     Twice(String),
@@ -209,6 +246,8 @@ pub struct Entry {
     pub route: Route,
     /// The network it gets.
     pub network: NetworkMode,
+    /// The sites it may reach: set exactly when `network` is `Allowlist`.
+    pub reach: Option<Reach>,
     /// The variable it reads a key from.
     pub key_env: Option<EnvName>,
     /// The variable that overrides its model endpoint.
@@ -413,7 +452,7 @@ fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFault> {
         .collect::<Result<Vec<_>, _>>()?;
     // The route decides what the entry must say, and what network makes sense.
     match (route, raw.network) {
-        (Route::Endpoint, NetworkMode::None) => {
+        (Route::Endpoint, NetworkMode::None | NetworkMode::Allowlist) => {
             return Err(bad(
                 &at,
                 "the endpoint route needs endpoint_only (or host) network",
@@ -422,14 +461,26 @@ fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFault> {
         (Route::Handoff, NetworkMode::None | NetworkMode::EndpointOnly) => {
             return Err(bad(
                 &at,
-                "a handed-off key is for a program that reaches its provider: network host",
+                "a handed-off key is for a program that reaches its provider: network allowlist or host",
             ));
         }
         (_, NetworkMode::EndpointOnly) if route != Route::Endpoint => {
             return Err(bad(&at, "endpoint_only is for the endpoint route"));
         }
-        _ => {}
+        (
+            _,
+            NetworkMode::None
+            | NetworkMode::EndpointOnly
+            | NetworkMode::Allowlist
+            | NetworkMode::Host,
+        ) => {}
+        _ => return Err(bad(&at, "a network this version does not know")),
     }
+    let reach = match raw.network {
+        NetworkMode::Allowlist => Some(Reach::new(&at, &raw.allow, &raw.deny, &raw.ports)?),
+        _ if raw.allow.is_empty() && raw.deny.is_empty() && raw.ports.is_empty() => None,
+        _ => return Err(bad(&at, "allow, deny and ports go with network allowlist")),
+    };
     if route == Route::Endpoint && (raw.base_url_env.is_none() || raw.key_env.is_none()) {
         return Err(bad(
             &at,
@@ -452,6 +503,7 @@ fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFault> {
         args: src.args,
         route,
         network: raw.network,
+        reach,
         key_env,
         base_url_env,
         protocol: raw.protocol.unwrap_or(AgentProtocol::AnthropicMessages),

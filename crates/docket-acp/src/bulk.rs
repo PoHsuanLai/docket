@@ -53,7 +53,8 @@ pub const fn access(network: Network) -> NetAccess {
 pub const fn mode_access(mode: NetworkMode) -> NetAccess {
     match mode {
         NetworkMode::None => NetAccess::Closed,
-        NetworkMode::EndpointOnly | NetworkMode::Host => NetAccess::Open,
+        // An allowlist reaches the named hosts: open, as far as a command is concerned.
+        NetworkMode::EndpointOnly | NetworkMode::Allowlist | NetworkMode::Host => NetAccess::Open,
         // Unknown mode: assume it reaches out, so every command is treated as net-capable.
         _ => NetAccess::Open,
     }

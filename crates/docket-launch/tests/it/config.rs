@@ -1,6 +1,7 @@
 //! `agents.toml`: what is accepted, and what is refused outright.
 
 use bulkhead::NetworkMode;
+use bulkhead::egress::{Host, HostFault, Refusal};
 use docket_launch::{AgentsFile, ConfigFault, Delivery, Route};
 
 use super::support::{ENDPOINT, HANDOFF, LOGIN};
@@ -162,18 +163,29 @@ fn the_shipped_example_reads_in_both_of_its_forms() {
         Some("Antigravity")
     );
     assert_eq!(agy.args, ["--uid="]);
-    // The commented endpoint entry, uncommented in place of the first, reads too.
-    let (_, endpoint) = text.split_once("# [[agent]]").expect("second form");
-    let uncommented: String = std::iter::once("[[agent]]\n".to_owned())
-        .chain(endpoint.lines().map(|l| {
-            format!(
-                "{}\n",
-                l.strip_prefix("# ").unwrap_or(l.trim_start_matches('#'))
-            )
-        }))
-        .collect();
-    let file = AgentsFile::parse(&uncommented).expect("the endpoint form");
+    // The commented entries, uncommented in place of the first, read too: the allowlist form
+    // and the endpoint form.
+    let uncomment = |block: &str| -> String {
+        std::iter::once("[[agent]]\n".to_owned())
+            .chain(block.lines().map(|l| {
+                format!(
+                    "{}\n",
+                    l.strip_prefix("# ").unwrap_or(l.trim_start_matches('#'))
+                )
+            }))
+            .collect()
+    };
+    let (rest, endpoint) = text.rsplit_once("# [[agent]]").expect("endpoint form");
+    let file = AgentsFile::parse(&uncomment(endpoint)).expect("the endpoint form");
     assert_eq!(file.len(), 1);
+    let (_, allowlist) = rest.rsplit_once("# [[agent]]").expect("allowlist form");
+    let allowlist = allowlist.split("\n\n").next().expect("block");
+    let file = AgentsFile::parse(&uncomment(allowlist)).expect("the allowlist form");
+    let gemini = file
+        .by_program(&"gemini-cli".parse_program())
+        .expect("gemini");
+    assert_eq!(gemini.network, NetworkMode::Allowlist);
+    assert_eq!(gemini.reach.as_ref().map(|r| r.sites().len()), Some(2));
 }
 
 #[test]
@@ -375,4 +387,139 @@ fn checkpoints_say_who_keeps_the_history_and_the_claude_code_profile_defaults_to
     }
     let odd = "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/true\"\nroute = \"login\"\ncheckpoints = \"git\"\n";
     assert!(matches!(refused(odd), ConfigFault::Syntax(_)));
+}
+
+const ALLOWLIST_LOGIN: &str = "route = \"login\"\nnetwork = \"allowlist\"\n";
+
+fn site(list: &'static str, text: &str, why: HostFault) -> ConfigFault {
+    ConfigFault::Site {
+        program: "x".to_owned(),
+        list,
+        entry: text.to_owned(),
+        why,
+    }
+}
+
+#[test]
+fn an_allowlist_entry_reads_its_lists_and_ports() {
+    let text = entry(&format!(
+        "{ALLOWLIST_LOGIN}allow = [\"api.example.com\", \"*.Example.org\", \"192.0.2.7\"]\ndeny = [\"bad.example.org\"]\nports = [8443]"
+    ));
+    let file = AgentsFile::parse(&text).expect("file");
+    let found = file.by_program(&"x".parse_program()).expect("entry");
+    assert_eq!(found.network, NetworkMode::Allowlist);
+    let reach = found.reach.as_ref().expect("reach");
+    assert_eq!(
+        reach.sites(),
+        ["api.example.com", "*.example.org", "192.0.2.7"]
+    );
+    let host = |t: &str| Host::parse(t).expect("host");
+    let policy = reach.policy();
+    assert_eq!(policy.check(&host("api.example.com"), 443), Ok(()));
+    assert_eq!(policy.check(&host("api.example.com"), 80), Ok(()));
+    assert_eq!(policy.check(&host("api.example.com"), 8443), Ok(()));
+    assert_eq!(policy.check(&host("a.example.org"), 443), Ok(()));
+    assert_eq!(
+        policy.check(&host("api.example.com"), 22),
+        Err(Refusal::Port)
+    );
+    assert_eq!(
+        policy.check(&host("bad.example.org"), 443),
+        Err(Refusal::Denied)
+    );
+    assert_eq!(
+        policy.check(&host("other.example.net"), 443),
+        Err(Refusal::NotListed)
+    );
+    // Only an allowlist entry has a reach; the other modes have none.
+    let plain = AgentsFile::parse(LOGIN).expect("login");
+    assert_eq!(
+        plain
+            .by_program(&"claude-code".parse_program())
+            .expect("entry")
+            .reach,
+        None
+    );
+}
+
+#[test]
+fn a_bad_site_names_the_program_and_the_entry() {
+    let with = |lists: &str| entry(&format!("{ALLOWLIST_LOGIN}{lists}"));
+    assert_eq!(
+        refused(&with("allow = [\"bad host\"]")),
+        site("allow", "bad host", HostFault::Whitespace)
+    );
+    assert_eq!(
+        refused(&with("allow = [\"a.example.com\"]\ndeny = [\"*\"]")),
+        site("deny", "*", HostFault::BareStar)
+    );
+    assert_eq!(
+        refused(&with("allow = [\"a*.example.com\"]")),
+        site("allow", "a*.example.com", HostFault::StarNotLeading)
+    );
+    assert_eq!(
+        refused(&with("allow = [\"127.1\"]")),
+        site("allow", "127.1", HostFault::Numeric)
+    );
+}
+
+#[test]
+fn an_allowlist_without_an_allow_entry_or_with_a_bad_port_or_in_the_wrong_place_refuses() {
+    // Nothing allowed reaches nothing: a mistake, not a closed network.
+    assert!(matches!(
+        refused(&entry(ALLOWLIST_LOGIN)),
+        ConfigFault::Entry { .. }
+    ));
+    assert!(matches!(
+        refused(&entry(&format!(
+            "{ALLOWLIST_LOGIN}allow = []\ndeny = [\"a.example.com\"]"
+        ))),
+        ConfigFault::Entry { .. }
+    ));
+    assert!(matches!(
+        refused(&entry(&format!(
+            "{ALLOWLIST_LOGIN}allow = [\"a.example.com\"]\nports = [0]"
+        ))),
+        ConfigFault::Entry { .. }
+    ));
+    assert!(matches!(
+        refused(&entry(&format!(
+            "{ALLOWLIST_LOGIN}allow = [\"a.example.com\"]\nports = [70000]"
+        ))),
+        ConfigFault::Syntax(_)
+    ));
+    // The lists belong to the allowlist network and no other.
+    for network in ["none", "host"] {
+        assert!(
+            matches!(
+                refused(&entry(&format!(
+                    "route = \"login\"\nnetwork = \"{network}\"\nallow = [\"a.example.com\"]"
+                ))),
+                ConfigFault::Entry { .. }
+            ),
+            "{network}"
+        );
+    }
+    // A model endpoint is on this computer's loopback, which a filter never lets through.
+    assert!(matches!(
+        refused(&entry(
+            "route = \"endpoint\"\nnetwork = \"allowlist\"\nallow = [\"a.example.com\"]\nkey_env = \"K\"\nbase_url_env = \"B\"\n[agent.endpoint]\nkind = \"account\"\nid = \"a\""
+        )),
+        ConfigFault::Entry { .. }
+    ));
+    // An unknown key is still refused.
+    assert!(matches!(
+        refused(&entry(&format!(
+            "{ALLOWLIST_LOGIN}allow = [\"a.example.com\"]\nallowed = [\"b.example.com\"]"
+        ))),
+        ConfigFault::Syntax(_)
+    ));
+}
+
+#[test]
+fn a_handed_off_key_may_reach_only_the_sites_it_names() {
+    let text = entry(
+        "route = \"handoff\"\nnetwork = \"allowlist\"\nkey_env = \"K\"\nallow = [\"api.example.com\"]",
+    );
+    assert!(AgentsFile::parse(&text).is_ok());
 }

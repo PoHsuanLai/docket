@@ -28,6 +28,7 @@ mod names;
 mod permit;
 pub mod procs;
 mod protect;
+mod reach;
 pub mod spawn;
 pub mod supervise;
 
@@ -41,5 +42,6 @@ pub use login_only::LoginOnly;
 pub use names::launcher_session;
 pub use permit::{AgentsPermit, Refusal};
 pub use procs::{BwrapProcs, ChildProc, Proc, ProcFault, Procs, StdioWire};
+pub use reach::Reach;
 pub use spawn::{AgentSpawn, Child, Registry};
 pub use supervise::Supervisor;
