@@ -487,7 +487,7 @@ dependencies = [
 [[package]]
 name = "bulkhead"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/bulkhead?rev=00df071bd6eb9eb729533d44b1a3fe9f3b790856#00df071bd6eb9eb729533d44b1a3fe9f3b790856"
+source = "git+https://github.com/PoHsuanLai/bulkhead?rev=30d2b993b1510ad9490c1d754c387521cdc9c352#30d2b993b1510ad9490c1d754c387521cdc9c352"
 dependencies = [
  "landlock",
  "serde",

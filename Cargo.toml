@@ -103,7 +103,7 @@ tracing = "0.1"
 porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "475dd65b8a289f3836b12cd90e367763f6c9e13f" }
 prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "475dd65b8a289f3836b12cd90e367763f6c9e13f" }
 # The confined shell and agent sandbox (bubblewrap as a separate process).
-bulkhead        = { git = "https://github.com/PoHsuanLai/bulkhead", rev = "00df071bd6eb9eb729533d44b1a3fe9f3b790856" }
+bulkhead        = { git = "https://github.com/PoHsuanLai/bulkhead", rev = "30d2b993b1510ad9490c1d754c387521cdc9c352" }
 porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "475dd65b8a289f3836b12cd90e367763f6c9e13f" }
 porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "475dd65b8a289f3836b12cd90e367763f6c9e13f" }
 porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "475dd65b8a289f3836b12cd90e367763f6c9e13f" }
