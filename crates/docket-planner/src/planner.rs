@@ -27,8 +27,8 @@ use porter_core::need::LlmNeed;
 use porter_core::{AppName, DataClass, Need, Tier, Tokens};
 use porter_infer::{
     ChatControl, ChatReply, ChatRequest, ClientFrame, Declined, InferEvent, InferRefusal,
-    InferReply, InferRequest, InferSession, JsonSchemaText, JsonText, Knob, Reasoning, ReplyShape, ServedBy,
-    StopReason, ToolCallPart, ToolChoice, ToolDecl, ToolName, ToolParallelism,
+    InferReply, InferRequest, InferSession, JsonSchemaText, JsonText, Knob, Reasoning, ReplyShape,
+    ServedBy, StopReason, ToolCallPart, ToolChoice, ToolDecl, ToolName, ToolParallelism,
 };
 use prov::{EntityId, EntityKey, EntityKind};
 use serde_json::{Value as Json, json};

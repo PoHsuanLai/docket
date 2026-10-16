@@ -431,7 +431,7 @@ pub(crate) fn write_system_callers(root: &Path) -> std::io::Result<()> {
 /// default planner, a tier with no row is refused as no model chosen. The callers are not here:
 /// they are inferd's system file (`inferd-callers.toml`).
 pub fn inferd_toml(root: &Path, model: &ModelSource, record: Option<&Path>) -> String {
-    let engines = match model {
+    match model {
         ModelSource::Scripted(_) => {
             let chosen = SCRIPTED_TEXT;
             let record = record
@@ -443,8 +443,7 @@ pub fn inferd_toml(root: &Path, model: &ModelSource, record: Option<&Path>) -> S
             )
         }
         ModelSource::Live(body) => format!("{body}\n"),
-    };
-    engines
+    }
 }
 
 /// The person's choice for the replay engine's world: its model at every tier of the text slot.
