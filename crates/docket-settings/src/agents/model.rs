@@ -17,7 +17,10 @@ pub enum Source {
         installed: Install,
     },
     /// A program the person named by its path.
-    Own,
+    Own {
+        /// Whether that file is there.
+        installed: Install,
+    },
 }
 
 /// Whether the pinned version is installed.
@@ -93,6 +96,8 @@ pub struct AgentRow {
     pub label: String,
     /// Where it came from.
     pub source: Source,
+    /// The program an entry of its own runs (`command`), as written; none for a registry agent.
+    pub command: Option<String>,
     /// The model chosen.
     pub model: ModelState,
     /// What it offered.

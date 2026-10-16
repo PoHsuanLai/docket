@@ -62,7 +62,12 @@ impl AgentRow {
     /// Whether its program is there: "Installed", "Not installed yet (version 1.3.0)".
     pub fn install_line(&self) -> String {
         match &self.source {
-            Source::Own => "Installed".to_owned(),
+            Source::Own {
+                installed: Install::Installed,
+            } => "Installed".to_owned(),
+            Source::Own {
+                installed: Install::NotInstalled,
+            } => "Not installed".to_owned(),
             Source::Registry {
                 installed: Install::Installed,
                 ..

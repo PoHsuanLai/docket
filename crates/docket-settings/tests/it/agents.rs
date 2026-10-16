@@ -69,6 +69,31 @@ fn an_agent_never_started_has_nothing_offered_and_says_so() {
 }
 
 #[test]
+fn a_program_of_your_own_is_there_when_its_file_is() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let program = tmp.path().join("my-agent");
+    let file = |command: &std::path::Path| {
+        format!(
+            "[[agent]]\nprogram = \"mine\"\ncommand = \"{}\"\nroute = \"login\"\n",
+            command.display()
+        )
+    };
+    let dir = AgentsDir::at(&tmp.path().join("agents"));
+    let row = read_agents(&file(&program), &dir).rows.remove(0);
+    assert_eq!(row.install_line(), "Not installed");
+    assert_eq!(
+        row.source,
+        Source::Own {
+            installed: Install::NotInstalled
+        }
+    );
+    std::fs::write(&program, "#!/bin/sh\n").expect("program");
+    let row = read_agents(&file(&program), &dir).rows.remove(0);
+    assert_eq!(row.install_line(), "Installed");
+    assert_eq!(row.command.as_deref(), program.to_str());
+}
+
+#[test]
 fn the_record_decides_the_models_and_whether_the_choice_is_still_offered() {
     let tmp = tempfile::tempdir().expect("tmp");
     let dir = AgentsDir::at(tmp.path());

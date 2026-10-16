@@ -17,7 +17,11 @@ fn text(t: &toml::Table, key: &str) -> Option<String> {
 
 fn source(entry: &toml::Table, dir: &AgentsDir) -> Source {
     let (Some(id), Some(version)) = (text(entry, "registry"), text(entry, "version")) else {
-        return Source::Own;
+        // The program the person named is there if the file is: nothing is run to find out.
+        let installed = text(entry, "command")
+            .filter(|command| std::path::Path::new(command).is_file())
+            .map_or(Install::NotInstalled, |_| Install::Installed);
+        return Source::Own { installed };
     };
     let installed = Slug::parse(&id)
         .ok()
@@ -80,10 +84,11 @@ fn row(entry: &toml::Table, dir: &AgentsDir) -> Option<AgentRow> {
     let source = source(entry, dir);
     let record = match &source {
         Source::Registry { id, .. } => Offered::read(dir, id).ok().flatten(),
-        Source::Own => None,
+        Source::Own { .. } => None,
     };
     let (offers, sign_in) = seen(record);
     Some(AgentRow {
+        command: text(entry, "command"),
         label: text(entry, "label").unwrap_or_else(|| program.clone()),
         model: model(text(entry, "model"), &offers),
         way: text(entry, "sign_in"),
