@@ -12,7 +12,7 @@
 
 use almanac_core::{estimate_tokens, fit_budget};
 use docket_core::{
-    ActionCard, AssemblerBudget, ContextView, Covers, EpisodeLine, HandleCard, InboundLine,
+    ActionCard, AssemblerBudget, ContextView, Covers, EpisodeLine, Handle, HandleCard, InboundLine,
     PlannerView, PrimerText, ProfileLine, RecalledLine, Reveal, RollupLine, Roster, SkillCard,
     SkillText, StepEnd, StepLine, StepShown, Summary, TaskPolicy, UserTurn, Value,
 };
@@ -55,6 +55,9 @@ pub struct Sources {
     pub skills: Vec<SkillCard>,
     /// Skills expanded for the task: preselected or loaded.
     pub skill_texts: Vec<SkillText>,
+    /// The text handles the task has already shown the person.
+    #[serde(default)]
+    pub shown: Vec<Handle>,
     /// The latest summary of the task's oldest turns and steps. `turns` and `history` stay whole;
     /// the assembler leaves out what the summary covers.
     pub summary: Option<Summary>,
@@ -197,6 +200,7 @@ pub(crate) fn view_of(
         inbox: sources.inbox.clone(),
         skills: sources.skills.clone(),
         skill_texts: sources.skill_texts.clone(),
+        shown: sources.shown.clone(),
         summary,
     }
 }

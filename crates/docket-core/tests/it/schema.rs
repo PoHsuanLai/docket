@@ -207,3 +207,31 @@ fn task_start_reads_its_arguments() {
         assert_eq!(got, want.map(|(g, k)| (g.to_owned(), k)), "case: {name}");
     }
 }
+
+#[test]
+fn the_readers_step_is_named_by_its_task_and_read_back_from_the_name() {
+    let step = |app_name: &str, name: &str| StepLine {
+        call: CallId(0),
+        action: ActionRef {
+            app: app(app_name),
+            name: action(name),
+        },
+        effect: prov::Effect::Read,
+        end: StepEnd::Interrupted,
+        shown: StepShown::Full,
+        with: Vec::new(),
+    };
+    for task in ReaderTask::ALL {
+        let line = step("org.quire.Companion", &task.step_name());
+        assert_eq!(line.reader_task(), Some(task));
+    }
+    assert_eq!(
+        step("org.quire.Companion", "companion.read.guess").reader_task(),
+        None
+    );
+    assert_eq!(
+        step("org.quire.Mail", "companion.read.summarise").reader_task(),
+        None,
+        "only the companion's own app has a reader step"
+    );
+}

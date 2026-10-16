@@ -4,6 +4,7 @@
 
 use crate::accepts::used_as;
 use crate::read_ask::read_fault_text;
+use crate::reader_text::{reader_answer, reader_head};
 use crate::unconfirmed::unconfirmed_text;
 use docket_core::{
     ActionCard, ArgFault, ArgsFault, CallRefusal, Handle, HandleCard, HandleShape, Held,
@@ -274,7 +275,7 @@ const INSTEAD: &str =
 const MASKED_HANDLES: usize = 4;
 
 /// The handles a value is made of, in order, and whether it was a list.
-fn returned(value: &Reveal<Value>) -> Option<(Vec<Handle>, bool)> {
+pub(crate) fn returned(value: &Reveal<Value>) -> Option<(Vec<Handle>, bool)> {
     match value {
         Reveal::Handle(h) | Reveal::Plain(Value::Handle(h)) => Some((vec![*h], false)),
         Reveal::Plain(Value::List(items)) => items
@@ -301,7 +302,7 @@ fn bounded(names: Vec<String>) -> Vec<String> {
 
 /// The handles a call named, as ` #1 #3` (a leading space), or nothing. Always plain `#n`: a
 /// masked line must read the same on every turn.
-fn with_text(with: &[Handle]) -> String {
+pub(crate) fn with_text(with: &[Handle]) -> String {
     let names = bounded(with.iter().map(|h| format!("#{}", h.0)).collect());
     if names.is_empty() {
         String::new()
@@ -349,7 +350,10 @@ pub(crate) fn step_line(step: &StepLine, handles: &[HandleCard]) -> String {
 pub(crate) fn step_line_in(step: &StepLine, seen: &Seen<'_>) -> String {
     let handles = seen.handles;
     let action = format!("{}.{}", step.action.app, step.action.name);
-    let head = format!("{action}{}", with_text(&step.with));
+    let head = reader_head(step).unwrap_or_else(|| format!("{action}{}", with_text(&step.with)));
+    if let Some(line) = reader_answer(&head, step, handles) {
+        return line;
+    }
     match (&step.shown, &step.end) {
         (StepShown::Masked, StepEnd::Done { said, undo, value }) => {
             let said = said.as_ref().map_or("done", |s| s.as_str());

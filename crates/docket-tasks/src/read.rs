@@ -20,6 +20,7 @@ pub async fn answer_read<I: IntentsTransport>(
     rt: &mut TaskRuntime,
     ask: ReaderAsk,
 ) -> Vec<LoopInput> {
+    let step = read_call(&ask);
     match intents
         .session_read(rt.session.clone(), ReadAsk { ask })
         .await
@@ -48,7 +49,7 @@ pub async fn answer_read<I: IntentsTransport>(
                 undo: Undoable::No,
                 follow: Follow::Nothing,
             };
-            if let Some(call) = read_call() {
+            if let Some(call) = step {
                 rt.record_call(&call, Effect::Read, Ok(outcome));
             }
             vec![LoopInput::ReadAnswered(reveal)]
@@ -56,14 +57,15 @@ pub async fn answer_read<I: IntentsTransport>(
     }
 }
 
-/// The step the planner is shown for a read: the reader is a step like any other.
-fn read_call() -> Option<CallRequest> {
+/// The step the planner is shown for a read: the reader is a step like any other, named for its
+/// task (`companion.read.summarise`) and naming the handles it read.
+pub(crate) fn read_call(ask: &ReaderAsk) -> Option<CallRequest> {
     Some(CallRequest {
         action: ActionRef {
             app: porter_core::AppName::parse(COMPANION_APP).ok()?,
-            name: ActionName::parse("companion.read").ok()?,
+            name: ActionName::parse(&ask.task.step_name()).ok()?,
         },
-        target: TargetValue::Nothing,
+        target: TargetValue::Handles(ask.inputs.clone()),
         args: Args::new(),
         origin: Origin::Companion,
     })

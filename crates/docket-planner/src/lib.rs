@@ -19,6 +19,7 @@ mod context_text;
 mod planner;
 mod prefix;
 mod read_ask;
+mod reader_text;
 mod render;
 mod role;
 mod show;

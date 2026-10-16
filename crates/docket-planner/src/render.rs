@@ -9,6 +9,7 @@
 
 use crate::accepts::{related_of, used_as};
 use crate::context_text::{context_text, shown_in};
+use crate::reader_text::{reader_origin, ready_line};
 use crate::role::RoleText;
 use crate::step_text::{Seen, step_line, step_line_in};
 use docket_core::{
@@ -131,9 +132,13 @@ fn handle_line(card: &HandleCard, history: &[StepLine]) -> String {
         HandleShape::Entity(kind) => format!("a {kind}"),
         HandleShape::File => "a file".to_owned(),
     };
-    let by = made_by(card.handle, history)
-        .map(|step| format!(", returned by {step}"))
-        .unwrap_or_default();
+    // The reader's answer says what it is; any other handle says which step returned it.
+    let by = match reader_origin(card.handle, history) {
+        Some(origin) => format!(": {origin}"),
+        None => made_by(card.handle, history)
+            .map(|step| format!(", returned by {step}"))
+            .unwrap_or_default(),
+    };
     format!("- #{} {shape}{by}", card.handle.0)
 }
 
@@ -308,6 +313,10 @@ pub fn user_text(view: &PlannerView) -> String {
             .into_iter()
             .filter_map(|kind| kind_line(kind, &view.actions)),
     );
+    // What can end the task with an answer, when the reader holds one the person has not seen.
+    if let Some(ready) = ready_line(view) {
+        let _ = writeln!(text, "{ready}\n");
+    }
     if let Some(summary) = &view.summary {
         let caution = match summary.integrity {
             Integrity::Trusted => "",

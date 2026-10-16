@@ -85,6 +85,7 @@ mod tests {
             inbox: vec![],
             skills: vec![],
             skill_texts: vec![],
+            shown: vec![],
             taint: Integrity::Trusted,
             task_policy: None,
             summary: None,

@@ -213,6 +213,7 @@ fn the_planner_view_and_the_roster_round_trip() {
         inbox: vec![],
         skills: vec![],
         skill_texts: vec![],
+        shown: vec![],
         summary: None,
     };
     let json = round(&view);

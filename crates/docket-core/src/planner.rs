@@ -276,6 +276,10 @@ pub struct PlannerView {
     pub skills: Vec<SkillCard>,
     /// The skills expanded for this task (preselected by the context, or loaded), trusted text.
     pub skill_texts: Vec<SkillText>,
+    /// The text handles this task has already shown the person (a finish named them), so the
+    /// view stops offering them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shown: Vec<Handle>,
     /// What stands for the start of the task once it outgrew its budget: the turns and steps it
     /// covers are not in `turns` or `history`. Written from what the planner was shown.
     #[serde(default, skip_serializing_if = "Option::is_none")]

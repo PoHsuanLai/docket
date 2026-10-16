@@ -194,6 +194,7 @@ impl<'a, P: InferTransport, I: IntentsTransport> Driver<'a, P, I> {
             task_policy,
             skills: Vec::new(),
             skill_texts: Vec::new(),
+            shown: self.rt.shown.clone(),
             summary: None,
         }
     }

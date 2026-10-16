@@ -80,6 +80,7 @@ fn sources(history: Vec<StepLine>, taint: Integrity, summary: Option<Summary>) -
         task_policy: None,
         skills: vec![],
         skill_texts: vec![],
+        shown: vec![],
         summary,
     }
 }

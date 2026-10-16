@@ -4,7 +4,7 @@
 //! planner as a new handle.
 
 use crate::ids::{ChoiceId, Handle, ParamName};
-use crate::planner::HandleShape;
+use crate::planner::{HandleShape, StepLine};
 use crate::units::CharCount;
 use crate::value::Value;
 use model_provider::{ChoiceText, Field, FieldName, Shape};
@@ -36,6 +36,55 @@ pub enum ReaderTask {
     Summarise,
     /// Compare.
     Compare,
+}
+
+impl ReaderTask {
+    /// Every task, in the order the planner is told of them.
+    pub const ALL: [ReaderTask; 4] = [
+        Self::Classify,
+        Self::Extract,
+        Self::Summarise,
+        Self::Compare,
+    ];
+
+    /// The task as one word, as the planner writes it and as the history names the reader's step.
+    pub const fn word(self) -> &'static str {
+        match self {
+            Self::Classify => "classify",
+            Self::Extract => "extract",
+            Self::Summarise => "summarise",
+            Self::Compare => "compare",
+        }
+    }
+
+    /// The name of the history step the reader's answer to this task is recorded under:
+    /// `companion.read.<word>`, a step of the companion's own app ([`READER_STEP_APP`]).
+    pub fn step_name(self) -> String {
+        format!("{READER_STEP}.{}", self.word())
+    }
+}
+
+/// The app whose steps the companion takes itself (the reader's answer is one).
+pub const READER_STEP_APP: &str = "org.quire.Companion";
+
+/// The stem of the reader's step names.
+const READER_STEP: &str = "companion.read";
+
+impl StepLine {
+    /// The task of the reader, when this step is the reader's answer (`quire_read`): the history
+    /// names such a step `companion.read.<word>`.
+    pub fn reader_task(&self) -> Option<ReaderTask> {
+        if self.action.app.as_str() != READER_STEP_APP {
+            return None;
+        }
+        let word = self
+            .action
+            .name
+            .as_str()
+            .strip_prefix(READER_STEP)?
+            .strip_prefix('.')?;
+        ReaderTask::ALL.into_iter().find(|t| t.word() == word)
+    }
 }
 
 /// The shape of an answer.
