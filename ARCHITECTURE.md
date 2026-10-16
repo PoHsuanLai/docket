@@ -41,7 +41,7 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `docket-reader` | the quarantined reader, portable (moved out of readerd): `reader_request` (the fixed instruction, the inputs fenced, no tools), `answer_of` (the reply read back under the ask's schema), `read` over a Transport and `TransportReader` (the in-process `Reader`: it opens the quarantined text itself, the session boundary standing in for readerd's process boundary). readerd re-exports the pure names and keeps `ReaderHost`, the bus and the Resolve calls | per transport |
 | `docket-memory` | the memory seam, portable (moved out of intentd): `AlmanacMemory<T: almanac_client::Transport>` (the router's `MemoryLink`), `AlmanacSessionLog<T, K: Clock>` (`SessionLog` over `RecordDurable` and `Entries`), `record_of` / `kind_tag_of` (audit records as almanac events), `QueuedSink` (bounded), `AuditState` (drains a sink into any `MemoryLink`, Space by Space, with retry accounting, and reports what changed without printing: intentd's `AuditLog` prints, the in-app agent does not). The transport is the caller's: memoryd over D-Bus, or almanac's `in_process` service | per transport |
 | `docket-inapp` | the in-app agent (design/36): `InAppAgent` hosts the router, policy point, reviewer and `docket-tasks`' `Companion` (the same task model companiond runs: many tasks, the front pointer, the roster, side conversations, the idle `tick`, restart `restore`, `new_task`, `ask_in`, `told`) inside one app over that app's own `IntentProvider`, with skills (`install_skills`, `install_skills_from`: the `docket-skills` format; text teaches and grants nothing) and a durable audit queue (`AuditFile`: records waiting for memory kept in a file the app names, atomic writes, bounded, typed `AuditFileError`, queued again by the next agent), with `EditorDesk` (a `ConfirmSheet` whose open sheets wait for an editor's choice, and a `SheetDesk` the session host reads them from), `ConfirmSheet` (the app's own sheet; `SheetConfirmer` mints the receipt), `ProviderLink`, `InAppSeams` and the stubs `SessionGrants`, `NoMemory`, `NoReader`, `NoWriter`. `InAppKit` swaps in the real parts: `FileGrantStore` (consent in a file the app names: atomic writes, typed `GrantFileError`, intentd's file format), `AlmanacMemory` (recall, primer, profile and episodes in the planner's view, and under `AuditTo::Memory` the turn's audit and the task's episode written at the end of each turn), `TransportWriter`, `TransportReader`; `reviewer_over` builds the model-backed reviewer for `InAppParts`; `SystemClock` is the router's `Clock` with no runtime (one timer thread, std only). `AuditBuffer` is a `QueuedSink`. No intentd, no bus, no daemon | none (the transports, the sheet and the grants file's path are passed in) |
-| `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`) and `Reader1` as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths, `session_connection` (the session bus of a daemon, from its environment); with feature `inferd`, `inferd_transport`, the one constructor of every daemon's inferd link (an `InferLink`: the transport behind `tap`, the model tap, off unless the acceptance harness's mains pass `Tap::trace_file`; no daemon reads an environment variable for it) | zbus |
+| `docket-dbus` | `org.quire.Intents1` (ten interfaces), `IntentProvider1`, `Confirm1`, `Companion1` (+ `.Answer`), `Reader1` and `AgentHost1` (the host of outside coding agents: `HandOver`, `Wait`) as zbus proxies and skeletons, `introspection`, `IntentsError`, bus names and paths, `session_connection` (the session bus of a daemon, from its environment); with feature `inferd`, `inferd_transport`, the one constructor of every daemon's inferd link (an `InferLink`: the transport behind `tap`, the model tap, off unless the acceptance harness's mains pass `Tap::trace_file`; no daemon reads an environment variable for it) | zbus |
 | `docket-client` | the app side (`IntentProvider`, `ContextSource`, `SummonTarget`, `serve`, `serve_on`: `IntentProvider1` on the app's own name, answering intentd alone) and the caller side (`Intents` over a `Transport`: `InProcess`, `DbusTransport` behind feature `dbus` (on by default for a consumer outside the workspace; the workspace declares the crate with `default-features = false` and each desktop crate names `dbus`), whose `connect` finds or activates intentd and whose `call` carries all 36 members, and `Transport::watch` / `Intents::gate_check_watched` (a gate check whose `Progress(Confirming)` is heard and whose `Proceed` and `Close` are said) and `Intents::perform_watched` (a `Run.Perform` whose `Progress` is heard: `Reviewing`, `Previewing`, `Confirming(id)`, `Dispatched`; nothing waits for the caller); `requested` waits for a Request object's `Response`) | per transport |
 | `docket-fake` | test only: fixture manifests, `FakeMail`, `FakeFiles`, `ScriptedConfirmer`, `ScriptedReviewer`, `ScriptedWriter`, `ParsedReviewer` (a reviewer whose replies are raw text read by `parse_verdict`), `ScriptedReader`, `FakeMemory`, `FixedClock` (a virtual clock: `advance`, `asked`, `next_ask`), `RecordingSink`, `MemoryGrants`, `FakeSeams`, `fake_router` | none |
 | `docket-testbus` | test only: `PrivateBus` (a private session bus from a scratch config; the daemon is killed by PID, and waited for, when it drops, and by a watchdog if the test process is killed) and `Reaped`, the guard under it; every daemon's bus tests use it | zbus |
@@ -354,6 +354,41 @@ cover is a new typed choice here, backed by the pure pieces in `agent-loop` and 
 Test it with `docket-fake`'s router and a scripted model: the calls reach the fake app only
 through the router, the rules start the system message, an unchosen action is absent from the
 declared tools (`crates/docket-kit/tests/it/`).
+
+**A coding agent as the assistant's model (the third choice).** Beside the models inferd runs
+(cloud, local), the person may pick an outside coding agent for the assistant: the word
+`agent/<program>` in inferd's `ai.model.text.<tier>` (the text slot only; Automatic's pool never
+holds one). The contract across the repos:
+
+- **porter owns the word and the refusal, not the agents.** inferd checks the word's shape
+  (`ModelRef::agent`, `AGENT_ACCOUNT`) and refuses it for any other slot and for the pool. A
+  session whose pick names an agent ends `Unavailable` with a `Declined` event whose reason is
+  `DeclinedBecause::AgentChosen`; that is not a failure but the instruction to hand the turn over.
+- **docket owns the agents** (`agents.toml`, `agent.acp.agents`). Which `agent/<program>` words
+  exist, and whether each can be chosen, is read by Settings from `docket-settings`
+  (`read_agents`, `Source::Own { installed }`, `SignInState`, `find_known`/`unlisted` for programs
+  found on `PATH` that no entry runs); detent lays those words over inferd's described rows
+  (`coding_agents::with_agents`) in a group "Coding Agents", each greyed with a plain reason ("Not
+  installed", "Sign in to X first", "Turned off", "Not set up yet"). Picking a turned-off one asks
+  to turn coding agents on in the same dialogue. inferd's picker never needs docket's files.
+- **companiond does not plan the turn.** `plan_turn` meets the `AgentChosen` decline and calls
+  `Companion::hand_over`: the person's own turn (the one the shell recorded) goes to the host
+  through the `Handoff` seam (`docket-tasks`); the agent's words are the reply, the route names it
+  ("Answered by Claude Code (you chose it)"), a host that refuses ends the turn as a model that
+  cannot answer does (`NoModel` for turned off / not set up, so the picker opens, else words).
+  `companiond::HostLink` is the bus side (`org.quire.AgentHost1`: `HandOver` starts a turn and
+  answers its id; `Wait` is asked again until it answers the `HandReply`, because a turn outlasts
+  what the bus lets one call wait).
+- **The host is `docket-agent --serve`** (`docket-acp-bin::agent::serve`), a service the bus
+  starts for `org.quire.AcpAgent` (`dist/docket-agent.service`, `dist/dbus/org.quire.AcpAgent.service`).
+  It, not companiond, opens the agent's session at the router, as the `acp_agent` role: the rule in
+  `opening.rs` that only that role may open an outside session is unchanged, and companiond gains
+  no way to open one. The only thing companiond can ask of it is a turn, and only companiond may
+  (`acp-callers.toml`). It builds the same wiring as the terminal command (`agent::wire`), one
+  agent's session at a time, in a folder of the agent's own under the data directory (never the
+  home folder), and ends after ten quiet minutes; a turn for another agent ends it and the next
+  call starts it again. Sheets, policy, grants and `actions-mcp` are exactly those of
+  `docket-agent` on a terminal.
 
 **Add a machine.** A pure `(state, input) -> (state, effects)` in `agent-loop` or `voice-loop`,
 every type `Serialize + Eq`, a table test, and the effects carried out by a daemon.
