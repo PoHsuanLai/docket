@@ -100,16 +100,16 @@ tracing = "0.1"
 # porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout
 # overrides it through a [patch], FINDINGS.md "Cross-repo dependencies"). porter has no docket dependency, so there is
 # no cycle.
-porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7" }
-prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7" }
+porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "ebbf1f641797ec128e94661e6ec512ecb5ccefbd" }
+prov            = { git = "https://github.com/PoHsuanLai/porter", rev = "ebbf1f641797ec128e94661e6ec512ecb5ccefbd" }
 # The confined shell and agent sandbox (bubblewrap as a separate process).
 bulkhead        = { git = "https://github.com/PoHsuanLai/bulkhead", rev = "30d2b993b1510ad9490c1d754c387521cdc9c352" }
-porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7" }
-porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7" }
-porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7" }
-porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7" }
+porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "ebbf1f641797ec128e94661e6ec512ecb5ccefbd" }
+porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "ebbf1f641797ec128e94661e6ec512ecb5ccefbd" }
+porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "ebbf1f641797ec128e94661e6ec512ecb5ccefbd" }
+porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "ebbf1f641797ec128e94661e6ec512ecb5ccefbd" }
 # Test-only: the scripted inference session (dev-dependencies of the daemons that ask inferd).
-porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "3bbbf4a525b8195ffbc4d68b793c73dcc05a16a7" }
+porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "ebbf1f641797ec128e94661e6ec512ecb5ccefbd" }
 
 # almanac's frozen interfaces, by git at a pinned rev. docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
