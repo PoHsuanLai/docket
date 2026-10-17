@@ -152,6 +152,7 @@ async fn the_answer_object_serves_the_routing_property() {
         cwd: None,
         started_from: None,
         external: None,
+        helper: None,
     };
     let opened: SessionOpened = serde_json::from_str(
         &proxy

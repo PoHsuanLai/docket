@@ -228,6 +228,7 @@ async fn the_companion_link_cannot_record_a_person_turn_but_the_host_can() {
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         })
         .await
         .expect("a companion may open a session");

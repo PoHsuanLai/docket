@@ -127,6 +127,7 @@ impl<S: Seams> Router<S> {
                 cwd: None,
                 started_from: None,
                 external: None,
+                helper: None,
             },
         );
         let IntentsReply::SessionOpened(SessionOpened {

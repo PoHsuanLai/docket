@@ -79,6 +79,7 @@ impl Launcher {
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         };
         let text = within(
             "Companion1.Open to answer",

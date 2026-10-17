@@ -49,6 +49,7 @@ where
                 cwd: None,
                 started_from: None,
                 external: None,
+                helper: None,
             })
             .await?;
         let id = self

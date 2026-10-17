@@ -127,7 +127,7 @@ pub fn restart_query(since: UnixSeconds) -> RecentQuery {
 /// The owner's form of a stored body. Memory's `Recent` is documented to answer an `Area` payload
 /// as its owner wrote it, but the service answers the whole body, `{"kind":"area","v":{..,
 /// "json":"<the owner's form>"}}`; both are read, so a record is rebuilt from either.
-fn owner_form(text: &str) -> std::borrow::Cow<'_, str> {
+pub(crate) fn owner_form(text: &str) -> std::borrow::Cow<'_, str> {
     let wrapped = serde_json::from_str::<serde_json::Value>(text)
         .ok()
         .filter(|body| body["kind"] == "area")

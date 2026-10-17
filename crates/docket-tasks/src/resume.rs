@@ -37,7 +37,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     /// The Spaces to read on a restart: the ones `named` (the configuration's, the floor) and
     /// every Space the router says it knows (`Recall::Spaces`, asked in a session of the desktop
     /// that is closed again). A router that does not answer leaves the named ones.
-    async fn spaces_to_read(&self, named: &[SpaceId]) -> Vec<SpaceId> {
+    pub(crate) async fn spaces_to_read(&self, named: &[SpaceId]) -> Vec<SpaceId> {
         let mut spaces = named.to_vec();
         let Ok(asking) = self
             .intents
@@ -48,6 +48,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 cwd: None,
                 started_from: None,
                 external: None,
+                helper: None,
             })
             .await
         else {
@@ -103,6 +104,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                     cwd: None,
                     started_from: None,
                     external: None,
+                    helper: None,
                 })
                 .await
             {
@@ -166,6 +168,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                     cwd: None,
                     started_from: None,
                     external: None,
+                    helper: None,
                 })
                 .await?,
             ),

@@ -20,8 +20,9 @@ use prov::{
 use std::collections::BTreeSet;
 
 /// The header kind of a record: `docket.<what>`, almanac's `companion.message` and
-/// `companion.episode` for the two typed bodies, and `companion.session.<slug>` for a record of
-/// the companion's own sessions.
+/// `companion.episode` for the two typed bodies, `companion.session.<slug>` for a record of
+/// the companion's own sessions and `helpers.card`, `helpers.job` or `helpers.post` for the
+/// helpers' own.
 pub fn kind_tag_of(record: &AuditRecord) -> Option<KindTag> {
     let text = match record {
         AuditRecord::Call { .. } => "docket.call".to_owned(),
@@ -43,6 +44,7 @@ pub fn kind_tag_of(record: &AuditRecord) -> Option<KindTag> {
         AuditRecord::Message(_) => "companion.message".to_owned(),
         AuditRecord::Episode(_) => "companion.episode".to_owned(),
         AuditRecord::Session { slug, .. } => format!("companion.session.{}", slug.as_str()),
+        AuditRecord::Helper { kind, .. } => kind.slug().to_owned(),
     };
     KindTag::parse(&text).ok()
 }
@@ -66,7 +68,8 @@ fn occurred(record: &AuditRecord) -> UnixSeconds {
         | AuditRecord::StandingRevoked { at, .. }
         | AuditRecord::GrantsEnded { at, .. }
         | AuditRecord::TaskStarted { at, .. }
-        | AuditRecord::Session { at, .. } => *at,
+        | AuditRecord::Session { at, .. }
+        | AuditRecord::Helper { at, .. } => *at,
         AuditRecord::Message(message) => message.sent,
         AuditRecord::Episode(episode) => episode.ended,
     }
@@ -78,7 +81,8 @@ pub fn space_named_by(record: &AuditRecord) -> Option<&SpaceId> {
     match record {
         AuditRecord::Call { space, .. }
         | AuditRecord::TaskStarted { space, .. }
-        | AuditRecord::Session { space, .. } => Some(space),
+        | AuditRecord::Session { space, .. }
+        | AuditRecord::Helper { space, .. } => Some(space),
         AuditRecord::Message(message) => Some(&message.from.space),
         AuditRecord::Episode(episode) => Some(&episode.space),
         AuditRecord::Review { .. }
@@ -200,7 +204,8 @@ fn who_and_how(record: &AuditRecord, space: &SpaceId) -> (Actor, Effect, Label) 
         | AuditRecord::StandingRevoked { .. }
         | AuditRecord::GrantsEnded { .. }
         | AuditRecord::TaskStarted { .. }
-        | AuditRecord::Session { .. } => (router(), Effect::Read, router_label(space)),
+        | AuditRecord::Session { .. }
+        | AuditRecord::Helper { .. } => (router(), Effect::Read, router_label(space)),
     }
 }
 
@@ -229,12 +234,23 @@ pub fn record_of(record: &AuditRecord, space: &SpaceId) -> Record {
 }
 
 /// The `Area` body of a record that has no typed body of its own: `Docket`'s, in this crate's
-/// serde form, or a companion session record's own JSON under `Companion`.
+/// serde form, a companion session record's own JSON under `Companion`, or a helper record's own
+/// JSON under `Helpers`.
 fn payload(record: &AuditRecord) -> EventBody {
     if let AuditRecord::Session { json, .. } = record {
         return EventBody::Area(AreaPayload {
             area: AreaTag::Companion,
             kind: kind_tag_of(record).expect("a note slug makes a valid `companion.session.` tag"),
+            json: json.clone(),
+            things: Vec::new(),
+        });
+    }
+    if let AuditRecord::Helper { json, .. } = record
+        && let Some(kind) = kind_tag_of(record)
+    {
+        return EventBody::Area(AreaPayload {
+            area: AreaTag::Helpers,
+            kind,
             json: json.clone(),
             things: Vec::new(),
         });

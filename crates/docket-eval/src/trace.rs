@@ -193,7 +193,8 @@ pub fn audit_line(record: &AuditRecord) -> Option<String> {
         | AuditRecord::TaskStarted { .. }
         | AuditRecord::Message(_)
         | AuditRecord::Episode(_)
-        | AuditRecord::Session { .. } => None,
+        | AuditRecord::Session { .. }
+        | AuditRecord::Helper { .. } => None,
     }
 }
 

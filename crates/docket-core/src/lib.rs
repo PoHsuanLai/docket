@@ -208,8 +208,9 @@ pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetVa
 #[cfg(feature = "wait")]
 pub use wait::{Cancel, Stop, ThreadSleep, Waits, stop_after, thread_sleep, until, within};
 pub use wire::{
-    Displayed, Envelope, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter,
-    NoteAsk, NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved,
-    SessionNote, StoredAsk, StoredRow, StoredView, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
+    Displayed, Envelope, GrantAnswer, GrantAsk, HelperNote, IntentsReply, IntentsRequest,
+    JournalFilter, NoteAsk, NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine,
+    Resolved, SessionNote, StoredAsk, StoredRow, StoredView, UndoReport, WidenAnswer, WidenAsk,
+    WireRefusal,
 };
 pub use workspace::{Workspace, WorkspaceError};

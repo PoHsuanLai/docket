@@ -274,4 +274,16 @@ pub enum AuditRecord {
         /// The record, in its owner's serde form.
         json: almanac_core::JsonText,
     },
+    /// A record of the helpers (`Session.Note`): stored as `Area { Helpers }` of the kind's tag,
+    /// trusted and private to its Space.
+    Helper {
+        /// When.
+        at: UnixSeconds,
+        /// The Space of the helper.
+        space: SpaceId,
+        /// Which kind of record.
+        kind: crate::helper::HelperRecordKind,
+        /// The record, in its owner's serde form.
+        json: almanac_core::JsonText,
+    },
 }

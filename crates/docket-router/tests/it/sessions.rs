@@ -232,6 +232,7 @@ async fn a_prompt_field_caps_the_policy_to_its_app_and_reads_elsewhere() {
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         }),
     )
     .await;
@@ -284,6 +285,7 @@ async fn a_child_task_is_never_wider_than_its_parent() {
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         }),
     )
     .await;
@@ -591,6 +593,7 @@ async fn closing_and_turns_belong_to_the_session_the_surface_opened() {
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         }),
     )
     .await

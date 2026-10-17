@@ -261,6 +261,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         };
         self.adopt(
             &SessionOpened {

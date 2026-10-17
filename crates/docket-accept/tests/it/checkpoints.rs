@@ -93,6 +93,7 @@ async fn a_turn_saves_a_point_and_the_person_restores_it_after_the_plan_and_the_
             cwd: Some(Workspace::parse(&work.to_string_lossy()).expect("workspace")),
             started_from: None,
             external: None,
+            helper: None,
         })
         .await
         .expect("Session.Open");

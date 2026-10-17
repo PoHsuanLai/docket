@@ -181,6 +181,7 @@ fn open<S: Rig>(
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         }),
     ));
     match reply {

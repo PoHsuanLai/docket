@@ -49,6 +49,7 @@ async fn open_in(
             cwd: cwd.map(|c| Workspace::parse(c).expect("cwd")),
             started_from: None,
             external,
+            helper: None,
         }),
     )
     .await;

@@ -82,6 +82,7 @@ impl<P: InferTransport, I: IntentsTransport> Agent<P, I> {
                 cwd: None,
                 started_from: None,
                 external: None,
+                helper: None,
             })
             .await
             .map_err(KitFault::Router)?;

@@ -197,6 +197,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         })
         .await
         .map_err(|e| format!("the companion did not open a session: {e:?}"))?;

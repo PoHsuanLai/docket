@@ -163,6 +163,7 @@ where
                 cwd: opening.cwd.clone(),
                 started_from: None,
                 external: None,
+                helper: None,
             })
             .await
             .map_err(|_| BackendFault::Unavailable)?

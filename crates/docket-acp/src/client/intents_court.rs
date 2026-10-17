@@ -105,6 +105,7 @@ impl<T: Transport + 'static> Court for IntentsCourt<T> {
                 cwd: Some(open.cwd.clone()),
                 started_from: None,
                 external: Some(open.external()),
+                helper: None,
             })
             .await
             .map_err(|_| CourtFault::Refused)?;

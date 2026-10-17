@@ -20,6 +20,7 @@ mod config;
 mod daemon;
 mod follow;
 mod handoff;
+mod helpers;
 mod serve;
 mod speaker;
 
@@ -39,6 +40,7 @@ pub use docket_tasks::{
     stored_events,
 };
 pub use handoff::HostLink;
+pub use helpers::{Hub, Told};
 pub use serve::{serve, serve_on, serve_on_rooted};
 pub use speaker::{Call, Speaker, Speakers, permits};
 

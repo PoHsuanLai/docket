@@ -218,6 +218,7 @@ async fn the_answer_object_names_its_session_and_close_removes_it() {
         cwd: None,
         started_from: None,
         external: None,
+        helper: None,
     };
     let opened: SessionOpened = serde_json::from_str(
         &proxy

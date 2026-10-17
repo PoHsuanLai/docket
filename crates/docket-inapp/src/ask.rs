@@ -82,6 +82,7 @@ where
                 cwd: None,
                 started_from: None,
                 external: None,
+                helper: None,
             })
             .await?;
         Ok(opened.task)

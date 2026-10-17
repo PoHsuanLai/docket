@@ -162,6 +162,7 @@ async fn the_persons_own_turn_to_a_subagent_is_a_trusted_event_the_roster_quotes
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         })
         .await
         .expect("a live subagent");
@@ -244,6 +245,7 @@ async fn a_report_from_a_run_is_a_typed_line_and_a_failure_makes_the_answer_wait
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         })
         .await
         .expect("a run's session");
@@ -404,6 +406,7 @@ async fn a_request_in_a_message_is_still_gated_by_the_receivers_own_policy() {
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         })
         .await
         .expect("a run in another Space");

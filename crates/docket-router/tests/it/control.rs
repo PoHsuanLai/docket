@@ -54,6 +54,7 @@ async fn run_session(router: &docket_router::Router<docket_fake::FakeSeams>, run
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         }),
     )
     .await;
@@ -330,6 +331,7 @@ async fn a_run_that_looked_at_a_screen_reports_with_the_screens_label() {
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         }),
     )
     .await;

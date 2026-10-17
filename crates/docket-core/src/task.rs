@@ -85,6 +85,11 @@ pub struct SessionOpen {
     /// router keeps it only from the `acp_agent` role.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external: Option<crate::external::ExternalAgent>,
+    /// The helper whose job the session is for, and the ceiling and the things that job owns,
+    /// said by the companion; the router keeps it only from the `companion` role and ignores it
+    /// from anyone else.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub helper: Option<crate::helper::HelperSeat>,
 }
 
 /// The session the router opened.

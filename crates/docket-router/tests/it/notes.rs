@@ -84,6 +84,38 @@ async fn a_record_of_the_companions_session_is_kept_for_the_sessions_own_space()
 }
 
 #[tokio::test]
+async fn a_record_of_the_helpers_is_kept_for_the_sessions_space_under_its_own_kind() {
+    use docket_core::helper::HelperRecordKind;
+    let router = router();
+    let s = open(&router, "work", AgentRef::Companion).await;
+    let json = JsonText::parse(r#"{"kind":"removed","v":"h-1"}"#).expect("json");
+    let helper_note = HelperNote {
+        kind: HelperRecordKind::Card,
+        json: json.clone(),
+    };
+    let reply = ask(
+        &router,
+        &companion(),
+        note(&s.session, NoteAsk::Helper(helper_note)),
+    )
+    .await;
+    assert_eq!(reply, IntentsReply::Done);
+    let kept: Vec<_> = router
+        .seams
+        .sink
+        .records()
+        .into_iter()
+        .filter_map(|r| match r {
+            AuditRecord::Helper {
+                space, kind, json, ..
+            } => Some((space, kind, json)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(kept, [(space("work"), HelperRecordKind::Card, json)]);
+}
+
+#[tokio::test]
 async fn an_episode_is_kept_only_for_the_space_of_the_session_that_hands_it_over() {
     let router = router();
     let s = open(&router, "work", AgentRef::Companion).await;

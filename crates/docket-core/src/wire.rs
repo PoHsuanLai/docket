@@ -181,6 +181,18 @@ pub struct SessionNote {
     pub json: JsonText,
 }
 
+/// A record of the helpers (a card, a job or a post) the companion hands the router to keep, in
+/// its serde form: the router stores it for the Space the session is in, as `Area { Helpers }`
+/// of the kind's tag (`helpers.card`, `helpers.job`, `helpers.post`), trusted and private to the
+/// Space.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HelperNote {
+    /// Which kind of record.
+    pub kind: crate::helper::HelperRecordKind,
+    /// The record's serde JSON.
+    pub json: JsonText,
+}
+
 /// What the companion hands the router to record (`Session.Note`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
@@ -203,6 +215,8 @@ pub enum NoteAsk {
     End,
     /// A record of the companion's sessions.
     Record(SessionNote),
+    /// A record of the helpers: a card, a job or a post.
+    Helper(HelperNote),
 }
 
 /// What to list of the undo journal.

@@ -97,6 +97,7 @@ pub(crate) struct Narration {
 ///         cwd: None,
 ///         started_from: None,
 ///         external: None,
+///         helper: None,
 ///     })
 ///     .await?;
 /// assert_eq!(companion.task_of(&opened.session), Some(opened.task));

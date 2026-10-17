@@ -113,6 +113,7 @@ mod tests {
                 cwd: None,
                 started_from: None,
                 external: None,
+                helper: None,
             })
             .await
             .expect("open");

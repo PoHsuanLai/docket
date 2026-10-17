@@ -407,6 +407,7 @@ async fn a_watched_gate_check_in_process_says_confirming_and_waits_for_proceed()
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         })
         .await
         .expect("cuad opens its run's session");

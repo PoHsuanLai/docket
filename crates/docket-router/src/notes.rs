@@ -80,6 +80,12 @@ impl<S: Seams> Router<S> {
                 slug: note.slug,
                 json: note.json,
             }),
+            NoteAsk::Helper(note) => self.seams.sink().append(AuditRecord::Helper {
+                at: now,
+                space,
+                kind: note.kind,
+                json: note.json,
+            }),
         }
         IntentsReply::Done
     }

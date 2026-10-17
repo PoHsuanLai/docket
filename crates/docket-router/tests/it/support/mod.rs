@@ -121,6 +121,7 @@ pub async fn open_as(
             cwd: None,
             started_from: None,
             external: None,
+            helper: None,
         }),
     )
     .await;

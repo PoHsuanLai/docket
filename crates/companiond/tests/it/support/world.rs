@@ -180,6 +180,7 @@ impl World {
                 cwd: None,
                 started_from: None,
                 external: None,
+                helper: None,
             })
             .await
             .expect("open")
@@ -248,6 +249,7 @@ impl World {
                 cwd: Some(Workspace::parse("/work/project").expect("workspace")),
                 started_from: None,
                 external: None,
+                helper: None,
             })
             .await
             .expect("open")
