@@ -32,8 +32,8 @@ fn tools_only_offered_actions() {
     );
     assert_eq!(
         names.len(),
-        3 + 4,
-        "three offered memory actions and the four companion actions"
+        3 + 5,
+        "three offered memory actions and the five offered companion actions"
     );
 }
 

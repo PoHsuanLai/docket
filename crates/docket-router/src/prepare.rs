@@ -458,6 +458,10 @@ fn may_make(
     action: &docket_core::ActionRef,
     decl: &ActionDecl,
 ) -> bool {
+    // Giving a job to a helper and proposing one are the companion's planners' alone.
+    if crate::companion::is_helper_action(action) {
+        return role == CallerRole::Companion;
+    }
     match (role == CallerRole::AcpAgent, is_agent_action(action)) {
         (_, true) => role == CallerRole::AcpAgent,
         (false, false) => true,

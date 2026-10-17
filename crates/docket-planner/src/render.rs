@@ -14,8 +14,9 @@ use crate::reader_text::{reader_origin, ready_line};
 use crate::role::RoleText;
 use crate::step_text::{Seen, step_line, step_line_in};
 use docket_core::{
-    ActionCard, EpisodeLine, Handle, HandleCard, HandleShape, InboundLine, InboundPart,
-    PlannerView, RecalledLine, Reveal, RosterDetail, RosterLine, StepEnd, StepLine, Value,
+    ActionCard, EpisodeLine, Handle, HandleCard, HandleShape, HelperRosterLine, InboundLine,
+    InboundPart, PlannerView, RecalledLine, Reveal, RosterDetail, RosterLine, StepEnd, StepLine,
+    Value,
 };
 use porter_infer::{ChatMessage, MessagePart, Role};
 use prov::EntityKind;
@@ -69,6 +70,21 @@ fn roster_line(line: &RosterLine) -> String {
                 .unwrap_or_default();
             without_ids(&format!("- {who}: {}{last}{told}", shown(&full.goal)))
         }
+    }
+}
+
+/// A helper the person keeps, by the name they gave it and what it is doing: the planner may give
+/// one a job by that name. Another Space shows the name and the state only.
+fn helper_line(line: &HelperRosterLine) -> String {
+    let who = format!(
+        "{} in {} [{}]",
+        line.name.as_str(),
+        line.space,
+        json(&line.state).trim_matches('"')
+    );
+    match &line.doing {
+        Some(doing) => without_ids(&format!("- {who}: {}", doing.as_str())),
+        None => format!("- {who}: in another Space, nothing more shown"),
     }
 }
 
@@ -277,6 +293,11 @@ pub fn user_text(view: &PlannerView) -> String {
     );
     section(
         &mut text,
+        "Helpers the person keeps (name one to give it a job)",
+        view.roster.helpers.iter().map(helper_line),
+    );
+    section(
+        &mut text,
         "What recently ended",
         view.episodes.iter().map(|e| episode_line(e, &view.actions)),
     );
@@ -458,6 +479,26 @@ mod tests {
         assert_eq!(
             kind_line(&kind("mail.contact"), &actions).map(|l| l.contains("related")),
             Some(false)
+        );
+    }
+
+    #[test]
+    fn a_helper_is_told_by_the_name_the_person_gave_it_and_another_space_shows_no_more() {
+        use docket_core::LeadText;
+        use docket_core::helper::{HelperName, HelperPhase};
+        let line = |space: &str, doing: Option<&str>| HelperRosterLine {
+            name: HelperName::parse("Research").expect("name"),
+            space: prov::SpaceId::parse(space).expect("space"),
+            state: HelperPhase::Working,
+            doing: doing.map(LeadText::of),
+        };
+        assert_eq!(
+            helper_line(&line("work", Some("compare the offers"))),
+            "- Research in work [working]: compare the offers"
+        );
+        assert_eq!(
+            helper_line(&line("home", None)),
+            "- Research in home [working]: in another Space, nothing more shown"
         );
     }
 

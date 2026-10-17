@@ -5,9 +5,10 @@ use crate::support::*;
 use docket_core::helper::HelperSeat;
 use docket_core::*;
 use docket_fake::ScriptedWriter;
+use docket_router::{COMPANION_APP, HELPER_POST_JOB, HELPER_PROPOSE};
 use prov::{
-    Actor, Address, AgentRef, AgentRole, Effect, HelperId, MessageKind, MessageText, SessionId,
-    UnixSeconds,
+    Actor, Address, AgentRef, AgentRole, Confidentiality, Effect, HelperId, Integrity, Label,
+    Labelled, MessageKind, MessageText, ModelRole, SessionId, Source, UnixSeconds,
 };
 use std::collections::BTreeSet;
 
@@ -372,4 +373,180 @@ async fn a_post_that_says_the_person_approved_confirms_nothing() {
         .into_iter()
         .any(|r| matches!(r, AuditRecord::Confirm { input: Some(_), .. }));
     assert!(!answered_yes, "no receipt came from a message");
+}
+
+// ---- the two helper actions of org.quire.Companion --------------------------------------------
+
+fn words_of(source: Source) -> Label {
+    Label {
+        integrity: Integrity::Untrusted,
+        confidentiality: Confidentiality::Public,
+        classes: BTreeSet::new(),
+        sources: BTreeSet::from([source]),
+    }
+}
+
+/// What the router labels a planner's own words.
+fn planners() -> Label {
+    words_of(Source::Model(ModelRole::Planner))
+}
+
+fn helper_call(name: &str, actor: Actor, args: &[(&str, Value, Label)]) -> Invocation {
+    Invocation {
+        call: CallId(1),
+        action: prov::ActionName::parse(name).expect("action"),
+        target: TargetValue::Nothing,
+        args: args
+            .iter()
+            .map(|(k, v, label)| {
+                (
+                    param(k),
+                    Labelled {
+                        value: v.clone(),
+                        label: label.clone(),
+                    },
+                )
+            })
+            .collect(),
+        actor,
+        origin: Origin::Companion,
+        space: space("work"),
+    }
+}
+
+fn planner_actor(session: &SessionId) -> Actor {
+    Actor::Companion {
+        session: session.clone(),
+        role: AgentRole::Planner,
+    }
+}
+
+fn text(s: &str) -> Value {
+    Value::Text(s.into())
+}
+
+#[tokio::test]
+async fn a_job_for_a_helper_is_allowed_only_when_a_planner_that_read_nothing_untrusted_wrote_it() {
+    let router = router();
+    let front = open(&router, "work", AgentRef::Companion).await;
+    let post = |goal: Label| {
+        helper_call(
+            HELPER_POST_JOB,
+            planner_actor(&front.session),
+            &[
+                ("helper", text("Research"), planners()),
+                ("goal", text("compare the offers"), goal),
+            ],
+        )
+    };
+
+    // A clean planner's own words are an instruction.
+    assert!(router.companion_perform(post(planners())).is_ok());
+    // Words from a handle (mail, say) never are, even from a clean planner...
+    let refused = router
+        .companion_perform(post(words_of(Source::Mail)))
+        .expect_err("data is not an instruction");
+    assert_eq!(
+        refused,
+        AppRefusal::Failed(FailText(
+            docket_core::helper::JobRefusal::UntrustedGoal.plain()
+        ))
+    );
+    // ...and nothing a planner writes after it has read something untrusted is.
+    hold(&router, &front.session, "an invoice", mail_label("work"));
+    router
+        .state
+        .lock()
+        .expect("lock")
+        .sessions
+        .get_mut(&front.session)
+        .expect("session")
+        .saw
+        .untrusted = Saw::Seen;
+    assert!(matches!(
+        router.companion_perform(post(planners())),
+        Err(AppRefusal::Failed(_))
+    ));
+}
+
+#[tokio::test]
+async fn a_helper_proposed_by_a_tainted_planner_has_no_name_and_no_role_to_take() {
+    let router = router();
+    let front = open(&router, "work", AgentRef::Companion).await;
+    let propose = |name: Label, role: Label| {
+        helper_call(
+            HELPER_PROPOSE,
+            planner_actor(&front.session),
+            &[
+                ("name", text("Inbox"), name),
+                ("role", text("Reads the mail."), role),
+                ("apps", text("org.quire.Mail"), planners()),
+            ],
+        )
+    };
+    assert!(
+        router
+            .companion_perform(propose(planners(), planners()))
+            .is_ok()
+    );
+    for (name, role) in [
+        (words_of(Source::Mail), planners()),
+        (planners(), words_of(Source::Mail)),
+    ] {
+        assert!(matches!(
+            router.companion_perform(propose(name, role)),
+            Err(AppRefusal::Failed(_))
+        ));
+    }
+}
+
+#[tokio::test]
+async fn only_the_companions_own_planners_can_call_the_helper_actions() {
+    let router = router();
+    open(&router, "work", AgentRef::Companion).await;
+    // Another kind of actor is not a planner of the companion.
+    let not_a_planner = helper_call(
+        HELPER_POST_JOB,
+        Actor::Cli,
+        &[
+            ("helper", text("Research"), planners()),
+            ("goal", text("go"), planners()),
+        ],
+    );
+    assert_eq!(
+        router
+            .companion_perform(not_a_planner)
+            .expect_err("not a planner"),
+        AppRefusal::Unsupported
+    );
+    // An outside client cannot even ask: the router refuses the call before the provider.
+    for name in [HELPER_POST_JOB, HELPER_PROPOSE] {
+        let reply = ask(
+            &router,
+            &caller("org.zed.Zed", CallerRole::Mcp),
+            IntentsRequest::Perform {
+                activation: None,
+                call: CallRequest {
+                    action: ActionRef {
+                        app: app(COMPANION_APP),
+                        name: prov::ActionName::parse(name).expect("action"),
+                    },
+                    target: TargetValue::Nothing,
+                    args: Default::default(),
+                    origin: Origin::Mcp,
+                },
+                session: None,
+                parent_window: None,
+            },
+        )
+        .await;
+        let IntentsReply::Performed(result) = reply else {
+            panic!("{name}: a performed reply")
+        };
+        assert_eq!(
+            result.as_ref().expect_err("refused"),
+            &CallRefusal::Denied(DenyCode::NotAllowed),
+            "{name}"
+        );
+    }
 }

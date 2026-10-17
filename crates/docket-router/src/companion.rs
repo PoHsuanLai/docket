@@ -11,15 +11,16 @@ use crate::handles::HandleValue;
 use crate::labels::{app_label, model_label};
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, Seams};
+use docket_core::helper::JobRefusal;
 use docket_core::{
-    AppRefusal, AuditRecord, CallerId, CallerRole, DraftPart, FailText, IntentsReply, Invocation,
-    LabelText, MessageDraft, Outcome, ParamName, Preview, Reveal, SendRefusal, SessionOpen,
-    SessionOpened, TargetValue, TaskStart, Undoable, Value, WireRefusal,
+    ActionRef, AppRefusal, AuditRecord, CallerId, CallerRole, DraftPart, FailText, IntentsReply,
+    Invocation, LabelText, MessageDraft, Outcome, ParamName, Preview, Reveal, Saw, SendRefusal,
+    SessionOpen, SessionOpened, TargetValue, TaskStart, Undoable, Value, WireRefusal,
 };
 use porter_core::{AppId, AppName, Isolation};
 use prov::{
-    Actor, Address, AgentRef, EntityId, Labelled, MessageKind, MessageText, SessionId, Source,
-    TaskId,
+    Actor, Address, AgentRef, EntityId, Labelled, MessageKind, MessageText, ModelRole, SessionId,
+    Source, TaskId,
 };
 use std::collections::BTreeMap;
 
@@ -28,6 +29,18 @@ pub const COMPANION_APP: &str = "org.quire.Companion";
 
 /// The kind of thing a task is.
 const TASK_KIND: &str = "companion.task";
+
+/// Gives a job to a helper by its name.
+pub const HELPER_POST_JOB: &str = "companion.helper.post_job";
+/// Proposes a helper to the person, who confirms it on a sheet.
+pub const HELPER_PROPOSE: &str = "companion.helper.propose";
+
+/// Whether `action` is one of the two helper actions: only the companion's own planners may call
+/// them, however an app or an outside client names them.
+pub fn is_helper_action(action: &ActionRef) -> bool {
+    action.app.as_str() == COMPANION_APP
+        && matches!(action.name.as_str(), HELPER_POST_JOB | HELPER_PROPOSE)
+}
 
 fn failed(why: &str) -> AppRefusal {
     AppRefusal::Failed(FailText(why.to_owned()))
@@ -79,6 +92,16 @@ fn said(text: &str) -> Option<LabelText> {
     LabelText::parse(text).ok()
 }
 
+fn nothing_back(words: &str) -> Outcome {
+    Outcome {
+        value: None,
+        said: said(words),
+        show: Preview::None,
+        undo: Undoable::No,
+        follow: docket_core::Follow::Nothing,
+    }
+}
+
 fn refused_send(why: IntentsReply) -> AppRefusal {
     match why {
         IntentsReply::Refused(WireRefusal::Send(SendRefusal::NoRecipient)) => {
@@ -98,8 +121,58 @@ impl<S: Seams> Router<S> {
             "companion.task.message" => self.task_message(&inv),
             crate::skills::SKILL_LOAD => self.skill_load(&inv),
             crate::limits::LIMIT_ADD => self.limit_add(&inv),
+            HELPER_POST_JOB => self.helper_post_job(&inv),
+            HELPER_PROPOSE => self.helper_propose(&inv),
             _ => Err(AppRefusal::Unsupported),
         }
+    }
+
+    /// The words of `param`, which must be a planner's own: written by a planner that had read
+    /// nothing untrusted, not taken from a handle. The labels are the router's, never the
+    /// planner's: a goal or a role it derived from content it read is data, and a helper is never
+    /// told to obey data.
+    fn clean_words(
+        &self,
+        inv: &Invocation,
+        session: &SessionId,
+        param: &str,
+        why: JobRefusal,
+    ) -> Result<String, AppRefusal> {
+        let text = text_arg(inv, param)?;
+        let written_by_a_clean_planner = self
+            .locked()
+            .sessions
+            .get(session)
+            .is_some_and(|record| record.saw.untrusted == Saw::NotSeen)
+            && inv
+                .args
+                .get(&ParamName::parse(param).map_err(|_| AppRefusal::Unsupported)?)
+                .is_some_and(|arg| {
+                    arg.label.sources.iter().all(|source| {
+                        matches!(source, Source::Model(ModelRole::Planner) | Source::User)
+                    })
+                });
+        if written_by_a_clean_planner {
+            Ok(text)
+        } else {
+            Err(failed(&why.plain()))
+        }
+    }
+
+    fn helper_post_job(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {
+        let session = spawner(inv)?;
+        text_arg(inv, "helper")?;
+        self.clean_words(inv, session, "goal", JobRefusal::UntrustedGoal)?;
+        Ok(nothing_back("Gave the job to a helper"))
+    }
+
+    fn helper_propose(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {
+        let session = spawner(inv)?;
+        let untrusted = JobRefusal::UntrustedGoal;
+        self.clean_words(inv, session, "name", untrusted.clone())?;
+        self.clean_words(inv, session, "role", untrusted)?;
+        text_arg(inv, "apps")?;
+        Ok(nothing_back("Proposed a helper"))
     }
 
     fn task_start(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {

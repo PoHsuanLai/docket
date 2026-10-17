@@ -3562,3 +3562,76 @@ owns, `GetNameOwner` or a uid alone; an unidentified caller is refused.
 - **Deferred.** A reader ask with another `want` is a different ask and runs; the "ready" line does not rank answers, so
   after several asks it lists the newest eight. Plain (non-handle) answers keep the earlier "run until the answer stops
   changing" rule. The scripted gate still scores utility from the steps alone (a hijacked scripted agent never speaks).
+
+## helpers-h0: the helpers the person keeps (agent-spec/swarm.md, phase H0, the docket side)
+
+Landed in six commits on `helpers-h0` (card, board and mailbox, rules, running jobs, the wire,
+the planner's view). Native helpers only, acting only through apps' actions; no screen, no
+routines, no agent apps (H1 and H2).
+
+**What it is.** A helper is a card (`docket_core::helper::HelperCard`: name, role, kind `Native`,
+space, model `Unset | Named(ModelRef)` with no default ever, `reach` as the ceiling of every job,
+budget, state). The board (`Board`, `step(board, event) -> (board, effects)`) holds jobs (goal,
+`GoalSource::{Person, PlannerOnTrusted}`, owner, status, the things it owns) and posts. companiond
+owns it (`helpers::Hub`), so taking a job needs no compare-and-set. Records are `helpers.card`,
+`helpers.job`, `helpers.post`, written through `Session.Note` as `NoteAsk::Helper` and stored as
+`Area { Helpers }` (`AuditRecord::Helper`); a restart reads them back per Space (`since` the
+beginning: a helper outlives the 30 days the session records are read for) and writes them again.
+A job that was running comes back open and marked "stopped unexpectedly", so it waits to be asked
+again (it may have done part of its work); the others start.
+
+**The rules, each at the router or in `step`.**
+- Authority only narrows: a helper's job opens with `SessionOpen::helper` (a `HelperSeat`: the
+  helper, its reach, the things the job owns), kept only from the `companion` role. Every policy
+  derivation (`bound_policy`: a turn, `Session.Narrow`, `Session.Widen`) and the policy inherited
+  from the giver is intersected with the reach. The person's goal gives the policy through
+  `Session.Narrow` (the companion cannot record a turn: "a model cannot say what the person
+  said"); a planner's goal gives none, so the job has its giver's policy cut to the reach.
+- Two channels: a goal is an instruction only from the person or from a planner that had read
+  nothing untrusted. The router decides (the session's `saw.untrusted` and the goal's label
+  sources: the planner's own words only, never a handle), the board decides again
+  (`admit_goal`). A post or a result reaches the receiving planner as a handle in the inbox
+  (one `Message`, labelled by what the sender read), never as text.
+- Nothing a helper writes confirms anything: a message is input; the confirm path takes only the
+  sheet's answer (test: `a_post_that_says_the_person_approved_confirms_nothing`).
+- One writer: `DenyCode::OwnedByAnotherJob`, checked in `prepare_agent` before consent, policy and
+  Cedar, for any non-read call touching a thing a live job of another session owns. The person's
+  own acts through an app are not router calls and are never held back. The plain sentence naming
+  the other helper ("Research is working on this.") is the hub's, from the board; the planner
+  sees the code.
+- Three refused calls in a row pause the helper (`Denied3`), three failed jobs in a row too
+  (`Failed3`); each is said once (`Told`, readable through `Helpers.List`). The calls are counted
+  when the job ends.
+
+**Running.** `Hub::launch` spawns the job (`work`) and a watcher that awaits its `JoinHandle`:
+`Ok` becomes `Finished`/`Failed`/`Stopped`, `JoinError` (panic) becomes `Failed(Crashed)` and a
+cancel `Stopped`. A pause or removal cancels the job's task through its own `Shared` and cuts it
+off after a short grace. A card with no model never runs: the board blocks its job on the choice.
+The planner's role (`RoleText`) is where the helper's role and the job's goal are trusted text;
+`docket_tasks::open_options` is where the asker and the one model are set (`Asker::Helper`,
+`with_model`).
+
+**Public API changes (who is affected).** `docket-core`: `helper` module; `SessionOpen::helper`
+(every literal gains `helper: None`); `DenyCode::OwnedByAnotherJob` (sill matches on
+`DenyCode`: it must handle it); `NoteAsk::Helper`, `AuditRecord::Helper` (a consumer that matches
+`AuditRecord` exhaustively: sill, cua); `Roster::helpers`, `HelperRosterLine`; new dependency
+`porter-infer`. `docket-router`: `HELPER_POST_JOB`, `HELPER_PROPOSE`, `SessionRecord::helper`.
+`docket-planner`: `PlannerModel::{with_open_options, set_role}`, a "Helpers the person keeps"
+section. `docket-tasks`: `HelperDesk`, `Companion::{with_desk, set_desk, open_job, run_job}`,
+`Change::HelpersChanged`. `docket-dbus`: `org.quire.Companion1.Helpers` (proxy, skeleton, the
+checked-in XML). `manifests/org.quire.Companion.toml`: `companion.helper.post_job`,
+`companion.helper.propose` (named under `companion.` because an action's first element must be
+its app's prefix; the brief said `helpers.*`).
+
+**Assumed from porter (the coordinator re-pins):** `prov::HelperId` (a serde string; only
+`docket_core::helper::ids` names its construction), `AgentRole::Helper { helper, task }`,
+`Asker`, `OpenOptions::{with_asker, with_model}`, `almanac_core::AreaTag::Helpers`. Messages to
+and from a job rely on `AgentRef::of(&Actor::Companion { role: Helper { task, .. }, .. })`
+being `Some(AgentRef::Worker { task })` and on `sender_matches` agreeing.
+
+**Deferred.** `HardwareNote` is not relayed (nothing surfaces it in H0). A person's turn to a
+running helper is the existing `Message.Send` + `Companion1.Told` with the agent
+`Helpers.List` gives; to an idle one it is `PostJob`. A question a job asks the person is the
+job's last word (it ends done); the answer is a new job. The seat is not written to the router's
+session log, so a router restart forgets a live job's seat (companiond marks the job to be asked
+again anyway). `Roster.helpers` is for the planner's view; the shell's list is `Helpers.List`.

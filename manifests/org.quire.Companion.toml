@@ -160,3 +160,94 @@ label = "The person's own words"
 ty = { kind = "text", v = { max = 160, lines = "one" } }
 need = { kind = "optional" }
 sink = "inert"
+
+# Gives a job to a helper the person keeps, by the name they gave it. The goal is an instruction
+# to that helper, so the router refuses it unless the planner wrote it having read nothing
+# untrusted (a goal it derived from content it read is data, which a helper never obeys). The job
+# runs under a policy cut from this task's and from what the helper may reach. A helper in another
+# Space is not reachable. `after` names a helper whose latest answer the job is handed as data.
+[[actions]]
+name = "companion.helper.post_job"
+label = "Give a job to a helper"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "helper"
+label = "Which helper"
+ty = { kind = "text", v = { max = 40, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "goal"
+label = "What it is to do"
+ty = { kind = "text", v = { max = 1000, lines = "many" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions.params]]
+name = "after"
+label = "Hand it the answer of this helper's last job"
+ty = { kind = "text", v = { max = 40, lines = "one" } }
+need = { kind = "optional" }
+sink = "inert"
+
+# Proposes a new helper. A helper is a standing grant of attention, so this always asks the person
+# on a sheet that shows the card; nothing exists until they say yes, and a standing "allow" never
+# stands in for it. The name and the role become the helper's, so they are refused unless the
+# planner wrote them having read nothing untrusted. The helper has no model until the person
+# chooses one.
+[[actions]]
+name = "companion.helper.propose"
+label = "Add a helper"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "ask_always"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "name"
+label = "Name"
+ty = { kind = "text", v = { max = 40, lines = "one" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions.params]]
+name = "role"
+label = "What it is for"
+ty = { kind = "text", v = { max = 600, lines = "many" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions.params]]
+name = "apps"
+label = "The apps it may use (separated by commas)"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "ceiling"
+label = "How far it may go in them"
+ty = { kind = "choice", v = [
+  { id = "look", label = "Look at things" },
+  { id = "change", label = "Look at things and change them" },
+  { id = "send", label = "Also send things out" },
+] }
+need = { kind = "defaulted", v = { kind = "choice", v = "look" } }
+sink = "inert"

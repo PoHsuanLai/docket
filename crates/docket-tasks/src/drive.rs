@@ -6,6 +6,7 @@
 use crate::deadline::{bounded, timed};
 use crate::fault::ServeFault;
 use crate::handoff::chosen_agent;
+use crate::helpers::is_helper_action;
 use crate::plan::phase_of;
 use crate::read::{COMPANION_APP, answer_read};
 use crate::runtime::Companion;
@@ -369,6 +370,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let result = self
             .perform_watched(task, &call, id, session.clone(), window, tap)
             .await;
+        // A helper action the router allowed is carried out by the host that keeps the helpers.
+        let result = match result {
+            Ok(outcome) if is_helper_action(&call) => self.through_desk(task, &call, outcome).await,
+            other => other,
+        };
         if result.is_ok() {
             self.skill_loaded(task, &session, &call).await;
         }
