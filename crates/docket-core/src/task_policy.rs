@@ -355,6 +355,38 @@ pub fn covers(
     call: &CallRequest,
     labels: &ArgLabels,
 ) -> Coverage {
+    judge(policy, decl, call, labels, Bodies::Outside)
+}
+
+/// Whether the call is inside a helper's reach: as [`covers`], except that words feeding a body
+/// are inside. The person set on the card what the helper may change in each app; what it writes
+/// there stays in the app, and a session that has read untrusted content still asks by the taint
+/// rule. Where things go (recipients, destinations, paths) is judged as for any policy.
+pub fn covers_reach(
+    reach: &TaskPolicy,
+    decl: &ActionDecl,
+    call: &CallRequest,
+    labels: &ArgLabels,
+) -> Coverage {
+    judge(reach, decl, call, labels, Bodies::Inside)
+}
+
+/// How untrusted words feeding a body are judged.
+#[derive(Debug, Clone, Copy)]
+enum Bodies {
+    /// Outside: no trusted pattern can vouch for them.
+    Outside,
+    /// Inside: they stay in the app the reach names.
+    Inside,
+}
+
+fn judge(
+    policy: &TaskPolicy,
+    decl: &ActionDecl,
+    call: &CallRequest,
+    labels: &ArgLabels,
+    bodies: Bodies,
+) -> Coverage {
     if policy.state != TaskPolicyState::Active {
         return Coverage::Outside(Widening::Expiry);
     }
@@ -401,7 +433,10 @@ pub fn covers(
                 .iter()
                 .find(|p| &p.name == name)
                 .map_or(ArgSink::Body, |p| p.sink);
-            uncovered_argument(policy, sink, &arg.value)
+            match (sink, bodies) {
+                (ArgSink::Body, Bodies::Inside) => None,
+                _ => uncovered_argument(policy, sink, &arg.value),
+            }
         })
         .map_or(Coverage::Inside, Coverage::Outside)
 }

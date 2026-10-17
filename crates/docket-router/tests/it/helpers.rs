@@ -28,6 +28,7 @@ fn reach(ceiling: Effect) -> TaskPolicy {
 fn seat(n: u64, reach: TaskPolicy, owns: &[&str]) -> HelperSeat {
     HelperSeat {
         helper: hid(n),
+        name: docket_core::helper::HelperName::parse("Inbox").expect("name"),
         reach,
         owns: owns.iter().map(|k| entity("mail.thread", k)).collect(),
     }
@@ -576,5 +577,33 @@ async fn the_reach_the_person_set_on_the_card_is_its_consent_and_nothing_beyond_
         .await
         .expect_err("a change beyond the reach asks");
     assert_eq!(beyond, CallRefusal::Unconfirmed(ConfirmEnd::Dismissed));
-    assert_eq!(router.seams.confirmer.requests().len(), 1);
+    let asked = router.seams.confirmer.requests();
+    assert_eq!(asked.len(), 1);
+    // The sheet says which helper asks.
+    assert_eq!(asked[0].helper.as_ref().map(|n| n.as_str()), Some("Inbox"));
+}
+
+#[tokio::test]
+async fn words_a_helper_writes_inside_its_reach_ask_nothing() {
+    let router = router();
+    let job = open_job(
+        &router,
+        &companion(),
+        Some(seat(1, reach(Effect::UndoableWrite), &[])),
+        None,
+    )
+    .await;
+    // The body is the planner's own words, untrusted like anything a model wrote.
+    let mut draft = call("mail.draft.create", &[], vec![]);
+    draft.args.insert(
+        param("body"),
+        Labelled {
+            value: Value::Text("The budget review moved to Friday at 3 pm.".into()),
+            label: words_of(Source::Model(ModelRole::Planner)),
+        },
+    );
+    perform_in(&router, &job.session, draft)
+        .await
+        .expect("a draft inside the reach runs");
+    assert!(router.seams.confirmer.requests().is_empty());
 }

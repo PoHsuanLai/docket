@@ -127,6 +127,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             external: None,
             helper: Some(HelperSeat {
                 helper: spec.card.id.clone(),
+                name: spec.card.name.clone(),
                 reach: spec.card.reach.clone(),
                 owns: spec.job.owns.iter().cloned().collect(),
             }),

@@ -286,7 +286,7 @@ impl<S: Seams> Router<S> {
         let consent = match &record.helper {
             Some(seat) => within_reach(
                 consent,
-                coverage(Some(&seat.reach), &decl, &request, &labels, now)
+                docket_core::covers_reach(&seat.reach, &decl, &request, &labels)
                     == docket_core::Coverage::Inside,
                 taint,
             ),

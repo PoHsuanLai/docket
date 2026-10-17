@@ -367,6 +367,7 @@ impl<S: Seams> Router<S> {
                     client,
                     session: id.clone(),
                 }),
+                helper: record.helper.as_ref().map(|seat| seat.name.clone()),
             };
             st.pending.insert(cid, new.space.clone());
             request

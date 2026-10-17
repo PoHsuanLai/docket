@@ -95,6 +95,7 @@ impl<S: Seams> Router<S> {
             anchor: Anchor::Centre,
             expires: self.agent_config().confirm_expiry,
             editor: None,
+            helper: None,
         })
     }
 

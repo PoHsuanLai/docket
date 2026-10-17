@@ -34,6 +34,7 @@ fn request(id: &str, expires: u32) -> ConfirmRequest {
         anchor: Anchor::Centre,
         expires: Seconds(expires),
         editor: None,
+        helper: None,
     }
 }
 

@@ -162,5 +162,8 @@ pub(crate) fn confirm_request(
         },
         expires,
         editor: crate::who::route_of(&p.who),
+        helper: record
+            .and_then(|r| r.helper.as_ref())
+            .map(|seat| seat.name.clone()),
     }
 }

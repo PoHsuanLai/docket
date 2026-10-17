@@ -3,6 +3,7 @@
 //! dry-run preview; agent prose is never shown, and untrusted values are drawn quoted.
 
 use crate::context::EntityRef;
+use crate::helper::HelperName;
 use crate::ids::{LabelText, WindowKey};
 use crate::limit::LimitNote;
 use crate::preview::{FileMove, Preview};
@@ -205,6 +206,10 @@ pub struct ConfirmRequest {
     /// from before it existed read as none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub editor: Option<EditorRoute>,
+    /// The helper the call is a job of, by the name the person gave it: the sheet says it is the
+    /// one asking. Sheets from before helpers read as none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub helper: Option<HelperName>,
 }
 
 /// What every sheet must say. A consumer outside docket builds a request from this with
@@ -283,12 +288,18 @@ impl ConfirmRequest {
             anchor,
             expires,
             editor: None,
+            helper: None,
         }
     }
 
     /// The same request for a call in a session an editor drives.
     pub fn for_editor(self, editor: Option<EditorRoute>) -> Self {
         ConfirmRequest { editor, ..self }
+    }
+
+    /// The same request for a call one of the person's helpers makes.
+    pub fn for_helper(self, helper: Option<HelperName>) -> Self {
+        ConfirmRequest { helper, ..self }
     }
 
     /// The same request with these limits.

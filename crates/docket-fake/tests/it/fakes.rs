@@ -282,6 +282,7 @@ async fn the_scripted_confirmer_pops_in_order_and_records_requests() {
         anchor: Anchor::Centre,
         expires: Seconds(120),
         editor: None,
+        helper: None,
     };
     use docket_core::Confirmer;
     assert!(matches!(

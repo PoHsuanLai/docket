@@ -33,6 +33,7 @@ fn sheet(id: &str) -> ConfirmRequest {
         anchor: Anchor::Launcher,
         expires: Seconds(120),
         editor: None,
+        helper: None,
     }
 }
 

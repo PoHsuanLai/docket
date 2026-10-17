@@ -198,7 +198,8 @@ pub use task::{
 };
 pub use task_policy::{
     ActionMatch, ArgLabels, Coverage, PolicyChange, PolicyWriter, Saw, SessionSaw, SinkIntegrity,
-    TaskPolicy, TaskPolicyState, TrustedPattern, Widening, compare, covers, intersection,
+    TaskPolicy, TaskPolicyState, TrustedPattern, Widening, compare, covers, covers_reach,
+    intersection,
 };
 pub use trace::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
