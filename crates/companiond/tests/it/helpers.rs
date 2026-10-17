@@ -275,8 +275,8 @@ async fn two_helpers_work_at_the_same_time_and_stopping_one_ends_only_its_job() 
         research_model.asked().len() == 1 && inbox_model.asked().len() == 1
     })
     .await;
-    // A helper's model is offered what its reach covers and nothing more: Mail up to undoable
-    // changes, and of the assistant's own actions only handing a job on.
+    // A helper's model is offered the apps on its card and nothing more: Mail (a send beyond its
+    // reach too, which asks), and of the assistant's own actions only handing a job on.
     let offered: Vec<String> = research_model.asked()[0]
         .tools
         .iter()
@@ -291,11 +291,10 @@ async fn two_helpers_work_at_the_same_time_and_stopping_one_ends_only_its_job() 
         );
     }
     assert!(
-        research_model.asked()[0]
-            .tools
+        offered
             .iter()
-            .all(|t| !t.description.ends_with("(Outbound)")),
-        "a send is beyond an undoable reach"
+            .any(|name| name.ends_with("mail_message_send")),
+        "going further in its own app is offered, and asks"
     );
 
     // The person pauses Research: its job is stopped and open again, nothing is held against it,
