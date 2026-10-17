@@ -8,6 +8,7 @@
 
 mod answer;
 mod ask;
+mod helpers;
 mod record;
 mod route;
 mod route_log;
@@ -17,6 +18,10 @@ pub use answer::{
     PlanWire, RefusalWire, StepWireState,
 };
 pub use ask::{AskWire, FrontTask};
+pub use helpers::{
+    HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply, HelpersView, JobLine,
+    JobShown, ToldWire, card_of, line_of,
+};
 pub use record::{SESSION_KIND_PREFIX, SessionRecord};
 pub use route::{
     Reached, RouteNote, WhySays, WhyWord, declined_text, footer_line, model_name, provider_name,

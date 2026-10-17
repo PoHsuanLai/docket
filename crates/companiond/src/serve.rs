@@ -8,18 +8,17 @@
 use crate::Companiond;
 use crate::Shared;
 use crate::speaker::{Call, Speaker, Speakers};
-use companion_wire::AskWire;
+use companion_wire::{AskWire, HelperForm};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{SessionOpen, StartedFrom, UserTurn};
 use docket_dbus::callers::Identity;
 use docket_dbus::{
     BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
 };
-use docket_tasks::Change;
-use docket_tasks::ServeFault;
+use docket_tasks::{Change, HelperDesk, PostFromPerson, ServeFault};
 use futures_util::lock::Mutex;
 use porter_client::Transport as InferTransport;
-use prov::{AgentRef, SessionId, SpaceId, TaskId};
+use prov::{AgentRef, EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -181,6 +180,114 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
 
     #[zbus(signal)]
     async fn roster_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
+/// The id of a helper as the shell sends it (the id's own text).
+fn helper_of(text: &str) -> fdo::Result<HelperId> {
+    serde_json::from_value(serde_json::Value::String(text.to_owned())).map_err(bad)
+}
+
+/// The helpers the person keeps, on the same object as `Companion1`. Only the shell speaks for the
+/// person here; every call goes to the desk the daemon was built with.
+struct HelpersObject {
+    desk: Arc<dyn HelperDesk>,
+    speakers: Speakers,
+}
+
+impl HelpersObject {
+    async fn require(&self, header: &Header<'_>) -> fdo::Result<()> {
+        self.speakers
+            .require(header, Call::Helpers)
+            .await
+            .map(|_| ())
+    }
+}
+
+#[zbus::interface(name = "org.quire.Companion1.Helpers")]
+impl HelpersObject {
+    async fn list(&self, after: u64, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
+        self.require(&header).await?;
+        json(&self.desk.view(after))
+    }
+
+    async fn card(
+        &self,
+        helper: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.require(&header).await?;
+        match self.desk.card(&helper_of(&helper)?) {
+            Some(card) => json(&card),
+            None => Err(fdo::Error::InvalidArgs("there is no such helper".into())),
+        }
+    }
+
+    async fn create(
+        &self,
+        form: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.require(&header).await?;
+        let form: HelperForm = serde_json::from_str(&form).map_err(bad)?;
+        json(&self.desk.create(form).await)
+    }
+
+    async fn edit(
+        &self,
+        helper: String,
+        form: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.require(&header).await?;
+        let form: HelperForm = serde_json::from_str(&form).map_err(bad)?;
+        json(&self.desk.edit(helper_of(&helper)?, form).await)
+    }
+
+    async fn pause(&self, helper: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
+        self.require(&header).await?;
+        self.desk.pause(helper_of(&helper)?).await;
+        Ok(())
+    }
+
+    async fn resume(&self, helper: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
+        self.require(&header).await?;
+        self.desk.resume(helper_of(&helper)?).await;
+        Ok(())
+    }
+
+    async fn remove(&self, helper: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
+        self.require(&header).await?;
+        self.desk.remove(helper_of(&helper)?).await;
+        Ok(())
+    }
+
+    async fn post_job(
+        &self,
+        helper: String,
+        goal: String,
+        things: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.require(&header).await?;
+        let things: Vec<EntityId> = if things.trim().is_empty() {
+            Vec::new()
+        } else {
+            serde_json::from_str(&things).map_err(bad)?
+        };
+        json(
+            &self
+                .desk
+                .post_job(PostFromPerson {
+                    helper: helper_of(&helper)?,
+                    goal,
+                    things,
+                })
+                .await,
+        )
+    }
+
+    #[zbus(signal)]
+    async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
 
 struct AnswerObject<P: InferTransport, I: IntentsTransport> {
@@ -345,6 +452,17 @@ async fn forward<P, I>(
                     )
                     .await;
             }
+            Change::HelpersChanged => {
+                let _ = connection
+                    .emit_signal(
+                        None::<&str>,
+                        COMPANION_PATH,
+                        "org.quire.Companion1.Helpers",
+                        "Changed",
+                        &(),
+                    )
+                    .await;
+            }
         }
     }
 }
@@ -378,9 +496,9 @@ where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
 {
-    let (shared, shell) = {
+    let (shared, shell, desk) = {
         let held = companion.lock().await;
-        (held.shared.clone(), held.shell.clone())
+        (held.shared.clone(), held.shell.clone(), held.desk())
     };
     let speakers = Speakers::new(connection.clone(), who, shell, proc_root);
     connection
@@ -395,6 +513,20 @@ where
         )
         .await
         .map_err(bus)?;
+    // The helpers are served beside the conversation when the daemon keeps any.
+    if let Some(desk) = desk {
+        connection
+            .object_server()
+            .at(
+                COMPANION_PATH,
+                HelpersObject {
+                    desk,
+                    speakers: speakers.clone(),
+                },
+            )
+            .await
+            .map_err(bus)?;
+    }
     let reply = connection
         .request_name_with_flags(COMPANION_BUS, RequestNameFlags::DoNotQueue.into())
         .await

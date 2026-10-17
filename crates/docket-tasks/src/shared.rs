@@ -21,6 +21,8 @@ pub enum Change {
     AnswerRemoved(TaskId),
     /// The roster changed.
     RosterChanged,
+    /// The helpers the person keeps changed.
+    HelpersChanged,
 }
 
 #[derive(Debug, Default)]

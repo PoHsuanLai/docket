@@ -207,6 +207,7 @@ fn the_planner_view_and_the_roster_round_trip() {
                 state: RosterState::Working,
                 detail: RosterDetail::PresenceOnly,
             }],
+            helpers: vec![],
         },
         episodes: vec![],
         recalled: vec![],

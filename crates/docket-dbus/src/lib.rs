@@ -18,6 +18,7 @@ mod context;
 mod control;
 mod error;
 mod gate;
+mod helpers;
 mod index;
 #[cfg(feature = "inferd")]
 mod inferd;
@@ -43,6 +44,7 @@ pub use context::{ContextProxy, ContextSkeleton};
 pub use control::{ControlProxy, ControlSkeleton};
 pub use error::IntentsError;
 pub use gate::{GateProxy, GateSkeleton};
+pub use helpers::{CompanionHelpersProxy, CompanionHelpersSkeleton};
 pub use index::{IndexProxy, IndexSkeleton};
 #[cfg(feature = "inferd")]
 pub use inferd::{InferLink, inferd_transport};

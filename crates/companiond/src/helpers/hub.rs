@@ -9,11 +9,12 @@
 use crate::Companiond;
 use crate::Shared;
 use docket_client::Transport as IntentsTransport;
+use docket_core::ValidManifest;
 use docket_core::helper::{
     Board, BoardEffect, BoardEvent, CallVerdict, CardRecord, HelperCard, HelperName, HelperRecord,
     JobFault, JobId, Launch, Notice, ResultHandle, TaskRef, owned_sentence, step,
 };
-use docket_tasks::{JobEnding, JobInput, JobReport, JobSpec, OpenedJob};
+use docket_tasks::{Change, JobEnding, JobInput, JobReport, JobSpec, OpenedJob, Surface};
 use futures_util::lock::Mutex as AsyncMutex;
 use porter_client::Transport as InferTransport;
 use prov::{EntityId, HelperId, SessionId, SpaceId, TaskId};
@@ -52,20 +53,20 @@ struct Answer {
 
 /// A job that is running: how to stop it, and where it runs.
 #[derive(Debug)]
-struct Running {
+pub(super) struct Running {
     helper: HelperId,
     abort: Option<AbortHandle>,
     task: Option<TaskId>,
     session: Option<SessionId>,
-    shared: Option<Arc<Shared>>,
+    pub(super) shared: Option<Arc<Shared>>,
 }
 
 #[derive(Debug, Default)]
-struct State {
-    board: Board,
+pub(super) struct State {
+    pub(super) board: Board,
     told: VecDeque<Told>,
     said: u64,
-    running: BTreeMap<JobId, Running>,
+    pub(super) running: BTreeMap<JobId, Running>,
     answers: BTreeMap<JobId, Answer>,
     kept: VecDeque<JobId>,
 }
@@ -234,11 +235,23 @@ where
         }
     }
 
-    fn with_state<R>(&self, f: impl FnOnce(&mut State) -> R) -> R {
+    pub(super) fn with_state<R>(&self, f: impl FnOnce(&mut State) -> R) -> R {
         match self.inner.state.lock() {
             Ok(mut state) => f(&mut state),
             Err(poisoned) => f(&mut poisoned.into_inner()),
         }
+    }
+
+    /// The manifests of the installed apps, as the router lists them; none when it does not answer.
+    pub(super) async fn manifests(&self) -> Vec<ValidManifest> {
+        self.inner
+            .service
+            .lock()
+            .await
+            .intents
+            .manifests()
+            .await
+            .unwrap_or_default()
     }
 
     /// The board as it stands.
@@ -315,6 +328,9 @@ where
                 | BoardEffect::Posted(_)
                 | BoardEffect::JobRefused(_) => {}
             }
+        }
+        if !effects.is_empty() {
+            self.inner.shared.surface().changed(Change::HelpersChanged);
         }
         effects
     }

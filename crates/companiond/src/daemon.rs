@@ -5,8 +5,10 @@ use crate::Companiond;
 use crate::clock::Clock;
 use crate::config::CompaniondConfig;
 use crate::handoff::HostLink;
+use crate::helpers::Hub;
 use crate::serve::serve_on_rooted;
 use docket_client::{DbusTransport, Intents};
+use docket_core::helper::HelperCard;
 use docket_dbus::callers::{CallerTable, Identity};
 use docket_dbus::tap::Tap;
 use docket_dbus::{BusConnection, InferLink};
@@ -84,11 +86,14 @@ pub async fn start_with(
         );
     }
     let intents = Intents::over(DbusTransport::new(connection.clone()));
-    let planner = PlannerModel::new(docket_dbus::inferd_transport(connection, seams.trace));
+    let planner = PlannerModel::new(docket_dbus::inferd_transport(
+        connection,
+        seams.trace.clone(),
+    ));
     let mut companion = Companiond::new(
         intents,
         planner,
-        config.agent,
+        config.agent.clone(),
         Clock::System,
         config.shell.clone(),
     )
@@ -96,6 +101,34 @@ pub async fn start_with(
     // The coding agent the person may choose as the assistant's model takes the turn through its
     // host, which the bus starts on the first call.
     .with_handoff(Arc::new(HostLink::new(connection.clone())));
+    // The helpers the person keeps: the board is owned here, and each job runs on a companion of
+    // its own, built over the same bus and asking inferd as its helper.
+    let hub = {
+        let (link, trace) = (connection.clone(), seams.trace.clone());
+        let (agent, shell) = (config.agent.clone(), config.shell.clone());
+        let make = move |card: &HelperCard| {
+            Companiond::new(
+                Intents::over(DbusTransport::new(link.clone())),
+                docket_tasks::planner_for(
+                    docket_dbus::inferd_transport(&link, trace.clone()),
+                    card,
+                ),
+                agent.clone(),
+                Clock::System,
+                shell.clone(),
+            )
+        };
+        // Reads and writes the helpers' records; it never asks a model.
+        let service = Companiond::new(
+            Intents::over(DbusTransport::new(connection.clone())),
+            PlannerModel::new(docket_dbus::inferd_transport(connection, Tap::off())),
+            config.agent.clone(),
+            Clock::System,
+            config.shell.clone(),
+        );
+        Hub::new(service, companion.shared.clone(), make)
+    };
+    companion.set_desk(Arc::new(hub.clone()));
     // A router or memoryd that hangs must not keep the name from being claimed.
     match tokio::time::timeout(companion.waits.startup, companion.restore(&config.spaces)).await {
         Ok(Ok(restarted)) => tracing::info!(
@@ -106,6 +139,12 @@ pub async fn start_with(
         ),
         Ok(Err(cause)) => tracing::warn!(%cause, "restart found nothing to resume"),
         Err(_) => tracing::warn!("the restart did not finish in time; starting without it"),
+    }
+    if tokio::time::timeout(companion.waits.startup, hub.restore(&config.spaces))
+        .await
+        .is_err()
+    {
+        tracing::warn!("the helpers did not come back in time; starting without them");
     }
     let companion = Arc::new(Mutex::new(companion));
     let fixture = (seams.proc_root != Path::new("/proc")).then_some(seams.proc_root.as_path());

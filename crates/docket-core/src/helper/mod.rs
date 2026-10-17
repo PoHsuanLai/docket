@@ -16,6 +16,7 @@
 //! - [`Post`], [`PostId`], [`PostTo`], [`PostPart`]: the mailbox.
 //! - [`Board`], [`BoardEvent`], [`BoardEffect`], [`step`]: the state machine.
 //! - [`HelperRecord`], [`HelperRecordKind`]: what is stored and restored.
+//! - [`Ceiling`], [`reach_policy`], [`reach_lines`]: a reach from the apps the person names.
 //! - [`HelperSeat`]: what the router is told when a job's session opens.
 
 mod board;
@@ -24,14 +25,15 @@ mod ids;
 mod job;
 mod notice;
 mod post;
+mod reach;
 mod records;
 mod rules;
 mod seat;
 
 pub use board::{Board, BoardEffect, BoardEvent, CallVerdict, Launch, NewJob, step};
 pub use card::{
-    CardDraft, HelperBudget, HelperCard, HelperKind, HelperModel, HelperName, HelperState,
-    HelperTextFault, Need, PauseWhy, Role, TaskRef,
+    CardDraft, HelperBudget, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase,
+    HelperState, HelperTextFault, Need, PauseWhy, Role, TaskRef,
 };
 pub use job::{
     GoalFault, GoalOrigin, GoalSource, GoalText, Job, JobFault, JobId, JobStatus, PlannerSaw,
@@ -39,6 +41,7 @@ pub use job::{
 };
 pub use notice::{Notice, owned_sentence};
 pub use post::{Post, PostId, PostPart, PostTo};
+pub use reach::{Ceiling, ReachFault, reach_lines, reach_policy};
 pub use records::{CardRecord, HelperRecord, HelperRecordKind};
 pub use rules::{JobRefusal, admit_goal};
 pub use seat::HelperSeat;

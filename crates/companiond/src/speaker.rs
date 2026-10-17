@@ -51,6 +51,9 @@ pub enum Call {
     Cancel,
     /// Reading an answer: `View`, `Session` and `Routing`.
     Read,
+    /// Anything on `Companion1.Helpers`: the helpers are the person's own, and the shell speaks
+    /// for them; a terminal does not.
+    Helpers,
 }
 
 /// Whether `speaker` may make `call`: the shell anything, a terminal only the conversation.
@@ -219,6 +222,7 @@ mod tests {
             Call::Act,
             Call::Cancel,
             Call::Read,
+            Call::Helpers,
         ];
         let terminal: Vec<Call> = all
             .into_iter()

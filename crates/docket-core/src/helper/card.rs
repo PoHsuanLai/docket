@@ -174,7 +174,31 @@ pub enum HelperState {
     Paused(PauseWhy),
 }
 
+/// Where a helper stands, in a few words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HelperPhase {
+    /// Ready for a job.
+    Idle,
+    /// Working on one.
+    Working,
+    /// Waiting for something only the person can give.
+    Waiting,
+    /// Not taking jobs.
+    Paused,
+}
+
 impl HelperState {
+    /// Where the helper stands, without the detail.
+    pub fn phase(&self) -> HelperPhase {
+        match self {
+            HelperState::Idle => HelperPhase::Idle,
+            HelperState::Working(_) => HelperPhase::Working,
+            HelperState::Waiting(_) => HelperPhase::Waiting,
+            HelperState::Paused(_) => HelperPhase::Paused,
+        }
+    }
+
     /// Whether the helper may be given a job now. A helper waiting for a model is asked again
     /// each time: the person may have chosen one.
     pub fn takes_jobs(&self) -> bool {

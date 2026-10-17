@@ -3,6 +3,7 @@
 //! `agent-loop` whose effects `drive` carries out.
 
 use crate::best_effort::best_effort;
+use crate::desk::HelperDesk;
 use crate::fault::ServeFault;
 use crate::handoff::Handoff;
 use crate::seams::{Now, Surface};
@@ -20,7 +21,7 @@ use docket_planner::Catalogue;
 use docket_planner::PlannerModel;
 use porter_client::Transport as InferTransport;
 use porter_core::AppName;
-use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
+use prov::{AgentRef, HelperId, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
 
@@ -150,6 +151,12 @@ pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     /// What gives a turn to the coding agent the person chose as the assistant's model; none
     /// where nothing hosts agents (a test, an app that hosts the companion in itself).
     pub(crate) hand: Option<Arc<dyn Handoff>>,
+    /// The helpers the host keeps: where the planner's two helper actions go, and where the roster
+    /// learns their names; none where nothing keeps helpers.
+    pub(crate) desk: Option<Arc<dyn HelperDesk>>,
+    /// The helper this companion runs a job for, when it is a helper's: the roster leaves it out
+    /// of the helpers its planner is told of.
+    pub as_helper: Option<HelperId>,
 }
 
 /// Whether a companion writes the legacy session notes (`companion.session.*`) a restart used to
@@ -211,7 +218,35 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             notes: Notes::Written,
             manifests: Vec::new(),
             hand: None,
+            desk: None,
+            as_helper: None,
         }
+    }
+
+    /// The same companion, with the helpers `desk` keeps.
+    pub fn with_desk(self, desk: Arc<dyn HelperDesk>) -> Self {
+        Self {
+            desk: Some(desk),
+            ..self
+        }
+    }
+
+    /// The helpers the host keeps, if it keeps any.
+    pub fn desk(&self) -> Option<Arc<dyn HelperDesk>> {
+        self.desk.clone()
+    }
+
+    /// Sets the helpers this companion's planner may give jobs to and propose.
+    pub fn set_desk(&mut self, desk: Arc<dyn HelperDesk>) {
+        self.desk = Some(desk);
+    }
+
+    /// The helpers the planner is told of: all but the one whose job this companion runs.
+    pub(crate) fn helper_lines(&self) -> Vec<docket_core::HelperRosterLine> {
+        self.desk
+            .as_ref()
+            .map(|desk| desk.roster_lines(self.as_helper.as_ref()))
+            .unwrap_or_default()
     }
 
     /// The same companion, handing a turn to the coding agent the person chose through `hand`.
@@ -430,7 +465,10 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             .map(|(task, rt)| self.line_of(task, rt))
             .collect();
         entries.extend(self.known.values().cloned());
-        Roster { entries }
+        Roster {
+            entries,
+            helpers: self.helper_lines(),
+        }
     }
 
     /// The Space the person is working in: the front task's.

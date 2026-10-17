@@ -2,10 +2,12 @@
 //! disk and over the bus.
 
 use crate::support::*;
+use docket_core::ActionMatch;
 use docket_core::helper::*;
 use porter_core::{AccountId, Count, ModelId};
 use porter_infer::choice::ModelRef;
-use prov::{HelperId, TaskId};
+use prov::{Effect, HelperId, TaskId};
+use std::collections::BTreeSet;
 
 pub(crate) fn hid(n: u64) -> HelperId {
     serde_json::from_str(&format!("\"h-{n}\"")).expect("helper id")
@@ -151,4 +153,55 @@ fn a_goal_is_words_that_fit_and_its_debug_shows_no_words() {
     );
     let shown = format!("{:?}", GoalText::parse("secret plan").expect("goal"));
     assert!(!shown.contains("secret"), "{shown}");
+}
+
+#[test]
+fn a_reach_is_the_named_apps_up_to_the_chosen_ceiling_and_nothing_else() {
+    let mail = manifest("org.quire.Mail", vec![]);
+    let files = manifest("org.quire.Files", vec![]);
+    let installed = [&mail, &files];
+    let policy = reach_policy(
+        &[app("org.quire.Mail")],
+        Ceiling::Change,
+        &space("work"),
+        &installed,
+    )
+    .expect("a reach");
+    assert_eq!(policy.ceiling, Effect::UndoableWrite);
+    assert_eq!(
+        policy.actions,
+        BTreeSet::from([ActionMatch::AppUpTo(
+            app("org.quire.Mail"),
+            Effect::UndoableWrite
+        )])
+    );
+    assert!(
+        policy.recipients.is_empty() && policy.destinations.is_empty() && policy.paths.is_empty()
+    );
+    assert_eq!(
+        reach_lines(&policy),
+        ["org.quire.Mail: look at things and change them (changes can be undone)"]
+    );
+
+    let ceilings = [
+        (Ceiling::Look, Effect::Read),
+        (Ceiling::Change, Effect::UndoableWrite),
+        (Ceiling::Send, Effect::Outbound),
+    ];
+    for (ceiling, effect) in ceilings {
+        assert_eq!(ceiling.effect(), effect);
+    }
+    assert_eq!(
+        reach_policy(&[], Ceiling::Look, &space("work"), &installed),
+        Err(ReachFault::NoApps)
+    );
+    assert_eq!(
+        reach_policy(
+            &[app("org.quire.Mail"), app("org.quire.Chat")],
+            Ceiling::Look,
+            &space("work"),
+            &installed
+        ),
+        Err(ReachFault::NoSuchApp("org.quire.Chat".to_owned()))
+    );
 }

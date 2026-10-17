@@ -6,6 +6,7 @@
 //! - [`Hub`], [`Told`]: the board, its records, the sentences the person is told and the tasks that
 //!   run the jobs, each on a companion of its own.
 
+mod desk;
 mod hub;
 
 pub use hub::{Hub, Told};

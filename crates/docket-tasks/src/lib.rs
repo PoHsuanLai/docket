@@ -25,6 +25,7 @@ mod best_effort;
 mod compaction;
 mod completion;
 mod deadline;
+mod desk;
 mod drive;
 mod fault;
 mod finish;
@@ -52,6 +53,7 @@ mod task;
 
 pub use act::{Acting, card_id};
 pub use completion::completion_effects;
+pub use desk::{HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal};
 pub use drive::refusal_of;
 pub use fault::ServeFault;
 pub use handoff::Handoff;

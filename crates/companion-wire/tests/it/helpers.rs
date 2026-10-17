@@ -1,0 +1,202 @@
+//! The helpers on the wire: the list the shell shows, a card, and the words in them.
+
+use companion_wire::*;
+use docket_core::helper::*;
+use docket_core::{ActionMatch, LabelText, TaskPolicy, TaskPolicyState};
+use porter_core::Count;
+use prov::{AgentRef, Effect, HelperId, SpaceId, TaskId};
+use std::collections::BTreeSet;
+
+fn hid(n: u64) -> HelperId {
+    serde_json::from_str(&format!("\"h-{n}\"")).expect("helper id")
+}
+
+fn reach() -> TaskPolicy {
+    TaskPolicy {
+        task: TaskId::parse("t-0").expect("task"),
+        space: SpaceId::parse("work").expect("space"),
+        from: vec![],
+        actions: BTreeSet::from([ActionMatch::AppUpTo(
+            porter_core::AppName::parse("org.quire.Mail").expect("app"),
+            Effect::Read,
+        )]),
+        kinds: BTreeSet::new(),
+        ceiling: Effect::Read,
+        max_count: Count(5),
+        recipients: vec![],
+        destinations: vec![],
+        paths: vec![],
+        expires: prov::UnixSeconds(i64::MAX),
+        rationale: LabelText::parse("what the helper may use").expect("words"),
+        state: TaskPolicyState::Active,
+    }
+}
+
+fn draft(name: &str, model: HelperModel) -> CardDraft {
+    CardDraft {
+        name: HelperName::parse(name).expect("name"),
+        role: Role::parse("Reads the mail.").expect("role"),
+        kind: HelperKind::Native,
+        space: SpaceId::parse("work").expect("space"),
+        model,
+        reach: reach(),
+        budget: HelperBudget { steps: Count(8) },
+    }
+}
+
+fn board_with(model: HelperModel) -> (Board, HelperId) {
+    let (board, effects) = step(
+        Board::new(),
+        BoardEvent::Create(Box::new(draft("Research", model))),
+    );
+    let id = effects
+        .iter()
+        .find_map(|e| match e {
+            BoardEffect::Created(id) => Some(id.clone()),
+            _ => None,
+        })
+        .expect("created");
+    (board, id)
+}
+
+fn job(to: &HelperId, text: &str) -> BoardEvent {
+    BoardEvent::Post(Box::new(NewJob {
+        to: to.clone(),
+        goal: GoalText::parse(text).expect("goal"),
+        origin: GoalOrigin::Person,
+        giver: None,
+        owns: vec![],
+        with: vec![],
+    }))
+}
+
+#[test]
+fn the_list_says_in_plain_words_what_each_helper_is_doing_and_what_it_needs() {
+    // No model and a job: it waits, and says what it needs.
+    let (board, id) = board_with(HelperModel::Unset);
+    let (board, _) = step(board, job(&id, "compare the three offers"));
+    let card = board.card(&id).expect("card");
+    let line = line_of(card, &board, None);
+    assert_eq!(line.state, HelperPhase::Waiting);
+    assert_eq!(line.needs_you, Some(HelperNeeds::ChooseModel));
+    assert_eq!(line.doing, "Needs a model before it can start");
+    assert!(line.agent.is_none());
+
+    // Idle with nothing to do.
+    let (board, id) = board_with(HelperModel::Unset);
+    let idle = line_of(board.card(&id).expect("card"), &board, None);
+    assert_eq!(
+        (idle.state, idle.doing.as_str()),
+        (HelperPhase::Idle, "Nothing to do")
+    );
+
+    // Paused, each way, with the reason.
+    let (board, id) = board_with(HelperModel::Unset);
+    for (why, text) in [
+        (PauseWhy::ByPerson, "Paused"),
+        (
+            PauseWhy::Denied3,
+            "Paused: three of its requests in a row were refused",
+        ),
+        (
+            PauseWhy::Failed3,
+            "Paused: three of its jobs in a row did not finish",
+        ),
+    ] {
+        let mut card = board.card(&id).expect("card").clone();
+        card.state = HelperState::Paused(why);
+        let line = line_of(&card, &board, None);
+        assert_eq!(
+            (line.state, line.doing.as_str()),
+            (HelperPhase::Paused, text)
+        );
+    }
+
+    // Working: the goal is the line, the agent to speak to is named, and a question open on its
+    // answer is what it needs.
+    let (board, id) = board_with(HelperModel::Unset);
+    let (board, effects) = step(board, job(&id, "compare the three offers"));
+    let posted = effects
+        .iter()
+        .find_map(|e| match e {
+            BoardEffect::Posted(job) => Some(*job),
+            _ => None,
+        })
+        .expect("posted");
+    let mut card = board.card(&id).expect("card").clone();
+    let task = TaskId::parse("t-9").expect("task");
+    card.state = HelperState::Working(TaskRef {
+        job: posted,
+        task: task.clone(),
+    });
+    let line = line_of(&card, &board, Some(HelperNeeds::Answer));
+    assert_eq!(line.state, HelperPhase::Working);
+    assert_eq!(line.doing, "compare the three offers");
+    assert_eq!(line.needs_you, Some(HelperNeeds::Answer));
+    assert_eq!(line.agent, Some(AgentRef::Worker { task }));
+}
+
+#[test]
+fn a_card_shows_its_reach_in_words_and_its_jobs_with_why_one_did_not_finish() {
+    let (board, id) = board_with(HelperModel::Unset);
+    let (board, _) = step(board, job(&id, "compare the offers"));
+    let view = card_of(board.card(&id).expect("card"), &board, None);
+    assert_eq!(view.role, "Reads the mail.");
+    assert_eq!(view.reach, ["org.quire.Mail: look at things"]);
+    assert_eq!(view.steps, Count(8));
+    assert_eq!(view.jobs.len(), 1);
+    assert_eq!(view.jobs[0].state, JobShown::NeedsModel);
+    assert_eq!(view.jobs[0].note, None);
+}
+
+#[test]
+fn what_the_shell_reads_and_sends_pins_its_json() {
+    let reply = [
+        (HelperReply::Done, r#"{"kind":"done"}"#.to_owned()),
+        (
+            HelperReply::Refused("There is no helper by that name.".into()),
+            r#"{"kind":"refused","v":"There is no helper by that name."}"#.to_owned(),
+        ),
+        (
+            HelperReply::Posted(JobId(4)),
+            r#"{"kind":"posted","v":4}"#.to_owned(),
+        ),
+        (
+            HelperReply::Made(hid(2)),
+            r#"{"kind":"made","v":"h-2"}"#.to_owned(),
+        ),
+    ];
+    for (value, json) in reply {
+        assert_eq!(serde_json::to_string(&value).expect("json"), json);
+        let back: HelperReply = serde_json::from_str(&json).expect("reply");
+        assert_eq!(back, value);
+    }
+    for (shown, slug) in [
+        (HelperPhase::Idle, "idle"),
+        (HelperPhase::Working, "working"),
+        (HelperPhase::Waiting, "waiting"),
+        (HelperPhase::Paused, "paused"),
+    ] {
+        assert_eq!(
+            serde_json::to_string(&shown).expect("json"),
+            format!("\"{slug}\"")
+        );
+    }
+    assert_eq!(
+        serde_json::to_string(&HelperNeeds::ChooseModel).expect("json"),
+        "\"choose_model\""
+    );
+    let form = HelperForm {
+        name: HelperName::parse("Research").expect("name"),
+        role: Role::parse("Reads.").expect("role"),
+        space: SpaceId::parse("work").expect("space"),
+        model: HelperModel::Unset,
+        apps: vec![porter_core::AppName::parse("org.quire.Mail").expect("app")],
+        ceiling: Ceiling::Change,
+        steps: Count(8),
+    };
+    let text = serde_json::to_string(&form).expect("json");
+    assert!(text.contains(r#""ceiling":"change""#), "{text}");
+    let back: HelperForm = serde_json::from_str(&text).expect("form");
+    assert_eq!(back, form);
+}

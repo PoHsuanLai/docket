@@ -142,5 +142,9 @@ fn roster_by(
             })),
         })
         .collect();
-    Roster { entries }.seen_from(active)
+    Roster {
+        entries,
+        helpers: Vec::new(),
+    }
+    .seen_from(active)
 }

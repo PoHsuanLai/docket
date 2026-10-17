@@ -5,12 +5,15 @@
 use crate::support::bus::PrivateBus;
 use crate::support::infer::{Say, words};
 use crate::support::world::*;
-use companion_wire::{AnswerPhase, AnswerWire, AskWire, FrontTask};
+use companion_wire::{
+    AnswerPhase, AnswerWire, AskWire, FrontTask, HelperForm, HelperReply, HelpersView,
+};
 use companiond::serve_on;
+use docket_core::helper::{Ceiling, HelperModel, HelperName, Role};
 use docket_core::*;
 use docket_dbus::{
-    Bus, COMPANION_BUS, COMPANION_PATH, CompanionAnswerProxy, CompanionProxy, Details,
-    introspection,
+    Bus, COMPANION_BUS, COMPANION_PATH, CompanionAnswerProxy, CompanionHelpersProxy,
+    CompanionProxy, Details, introspection,
 };
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
@@ -329,4 +332,78 @@ async fn only_the_shell_speaks_for_the_person() {
         .close(opened.session.as_str())
         .await
         .expect("the shell closes");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_helpers_are_served_beside_the_conversation_to_the_shell_alone() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let bus = PrivateBus::start(scratch.path());
+    let (server, shell, stranger) = (
+        bus.connect().await,
+        bus.connect().await,
+        bus.connect().await,
+    );
+    let mut w = world(vec![]);
+    let hub = hub_of(&w);
+    w.companion.set_desk(Arc::new(hub));
+    let companion = Arc::new(Mutex::new(w.companion));
+    let who = who(&server, scratch.path());
+    serve_on(&server, companion.clone(), who.clone())
+        .await
+        .expect("serving");
+    as_shell(&who, &shell);
+
+    // Served as declared, on the object the conversation is on.
+    let declared = introspection(Bus::Companion);
+    let served = introspect(&shell, COMPANION_PATH).await;
+    assert_eq!(
+        block(&served, "org.quire.Companion1.Helpers"),
+        block(&declared, "org.quire.Companion1.Helpers")
+    );
+
+    // The shell lists none, makes one, and hears that something changed.
+    let helpers = CompanionHelpersProxy::new(&shell).await.expect("proxy");
+    let mut changed = helpers.receive_changed().await.expect("signal");
+    let none: HelpersView =
+        serde_json::from_str(&helpers.list(0).await.expect("list")).expect("view");
+    assert!(none.helpers.is_empty());
+    let form = HelperForm {
+        name: HelperName::parse("Research").expect("name"),
+        role: Role::parse("Looks things up.").expect("role"),
+        space: space("work"),
+        model: HelperModel::Unset,
+        apps: vec![app("org.quire.Mail")],
+        ceiling: Ceiling::Look,
+        steps: porter_core::Count(8),
+    };
+    let form = serde_json::to_string(&form).expect("json");
+    let made: HelperReply =
+        serde_json::from_str(&helpers.create(&form).await.expect("create")).expect("reply");
+    let HelperReply::Made(id) = made else {
+        panic!("a helper is made: {made:?}")
+    };
+    tokio::time::timeout(Duration::from_secs(5), changed.next())
+        .await
+        .expect("the change is told")
+        .expect("a signal");
+    let listed: HelpersView =
+        serde_json::from_str(&helpers.list(0).await.expect("list")).expect("view");
+    assert_eq!(listed.helpers.len(), 1);
+    assert_eq!(listed.helpers[0].name.as_str(), "Research");
+
+    // Nobody else speaks for the person here: not to read, not to change.
+    let id_text = serde_json::to_value(&id)
+        .expect("json")
+        .as_str()
+        .expect("text")
+        .to_owned();
+    let refused = CompanionHelpersProxy::new(&stranger).await.expect("proxy");
+    assert!(refused.list(0).await.is_err());
+    assert!(refused.card(&id_text).await.is_err());
+    assert!(refused.create(&form).await.is_err());
+    assert!(refused.pause(&id_text).await.is_err());
+    assert!(refused.remove(&id_text).await.is_err());
+    // The shell reads a card, and a helper that is not there is an error, not a guess.
+    assert!(helpers.card(&id_text).await.is_ok());
+    assert!(helpers.card("h-404").await.is_err());
 }

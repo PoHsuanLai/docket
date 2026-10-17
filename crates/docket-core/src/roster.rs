@@ -6,6 +6,7 @@
 //! walls, and the companion learns that something runs elsewhere, never what.
 
 use crate::context::Reveal;
+use crate::helper::{HelperName, HelperPhase};
 use crate::ids::Handle;
 use crate::planner::StepLine;
 use crate::spend::TaskTotals;
@@ -99,11 +100,28 @@ pub struct RosterLine {
     pub detail: RosterDetail,
 }
 
+/// One helper on the roster, by the name the person gave it: what the planner is told of the
+/// helpers it may hand a job to. Another Space shows presence only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HelperRosterLine {
+    /// What the person calls it.
+    pub name: HelperName,
+    /// Its Space.
+    pub space: SpaceId,
+    /// Where it stands.
+    pub state: HelperPhase,
+    /// What it is doing, in one line; none in another Space.
+    pub doing: Option<LeadText>,
+}
+
 /// The agents that are working or just finished.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Roster {
     /// One line each.
     pub entries: Vec<RosterLine>,
+    /// The helpers the person keeps, by name, one line each. Absent from older senders.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub helpers: Vec<HelperRosterLine>,
 }
 
 impl Roster {
@@ -124,7 +142,21 @@ impl Roster {
                 }
             })
             .collect();
-        Roster { entries }
+        let helpers = self
+            .helpers
+            .iter()
+            .map(|line| {
+                if &line.space == active {
+                    line.clone()
+                } else {
+                    HelperRosterLine {
+                        doing: None,
+                        ..line.clone()
+                    }
+                }
+            })
+            .collect();
+        Roster { entries, helpers }
     }
 }
 
@@ -229,12 +261,30 @@ mod tests {
         };
         let roster = Roster {
             entries: vec![full(AgentRef::Companion, "work"), full(run.clone(), "home")],
+            helpers: vec![
+                HelperRosterLine {
+                    name: HelperName::parse("Research").expect("name"),
+                    space: space("work"),
+                    state: HelperPhase::Working,
+                    doing: Some(LeadText::of("compare the offers")),
+                },
+                HelperRosterLine {
+                    name: HelperName::parse("Inbox").expect("name"),
+                    space: space("home"),
+                    state: HelperPhase::Working,
+                    doing: Some(LeadText::of("sort the mail")),
+                },
+            ],
         };
         let seen = roster.seen_from(&space("work"));
         assert!(matches!(seen.entries[0].detail, RosterDetail::Full(_)));
         assert_eq!(seen.entries[1].detail, RosterDetail::PresenceOnly);
         assert_eq!(seen.entries[1].agent, run);
         assert_eq!(seen.entries[1].state, RosterState::Working);
+        // A helper in another Space is its name and its state, not what it is doing.
+        assert!(seen.helpers[0].doing.is_some());
+        assert_eq!(seen.helpers[1].doing, None);
+        assert_eq!(seen.helpers[1].name.as_str(), "Inbox");
         let json = serde_json::to_string(&seen.entries[1]).expect("json");
         assert!(
             !json.contains("downloads") && !json.contains("newsletters"),

@@ -2,16 +2,19 @@
 //! the launcher as another, a scripted planner model, and a clock the test moves by hand.
 
 use super::infer::{Say, ScriptedInfer};
-use companiond::{Clock, Companiond, PlannerModel};
+use companiond::{Clock, Companiond, Hub, PlannerModel};
 use docket_client::{InProcess, Intents};
+use docket_core::helper::HelperCard;
 use docket_core::*;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Identity, Role};
 use docket_fake::{FakeSeams, MailContact, MailThread, fake_router};
 use docket_router::Router;
 use porter_core::{AppId, AppName, Isolation};
-use prov::{AgentRef, DataClass, EntityId, EntityKey, EntityKind, SessionId, SpaceId, TaskId};
-use std::collections::BTreeSet;
+use prov::{
+    AgentRef, DataClass, EntityId, EntityKey, EntityKind, SessionId, SpaceId, TaskId, UnixSeconds,
+};
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
@@ -73,12 +76,27 @@ pub fn world_with_skills(script: Vec<Say>, skills: Vec<docket_skills::Skill>) ->
     world_full(script, vec![], skills)
 }
 
+/// The same, with the person answering the sheets they are shown with `answers`, in order.
+pub fn world_confirming(script: Vec<Say>, answers: Vec<ConfirmAnswer>) -> World {
+    world_all(script, vec![], vec![], answers)
+}
+
 fn world_full(
     script: Vec<Say>,
     memory: Vec<almanac_core::MemoryReply>,
     skills: Vec<docket_skills::Skill>,
 ) -> World {
+    world_all(script, memory, skills, vec![])
+}
+
+fn world_all(
+    script: Vec<Say>,
+    memory: Vec<almanac_core::MemoryReply>,
+    skills: Vec<docket_skills::Skill>,
+    answers: Vec<ConfirmAnswer>,
+) -> World {
     let mut router = fake_router(AgentConfig::default()).expect("router");
+    router.seams.confirmer = docket_fake::ScriptedConfirmer::answering(answers);
     router.seams.memory = docket_fake::FakeMemory::answering(memory);
     router.seams.link.mail.add_thread(MailThread {
         key: "t1".into(),
@@ -297,4 +315,44 @@ pub fn who(server: &BusConnection, proc_root: &std::path::Path) -> Arc<Identity>
 /// role of the system's table.
 pub fn as_shell(who: &Identity, connection: &BusConnection) {
     who.introduce_app(connection, "org.quire.Shell", Role::SheetHost);
+}
+
+pub type TestHub = companiond::Hub<ScriptedInfer, InProcess<FakeSeams>>;
+
+/// The companion a helper's job runs on: the router in process, and the helper's own scripted
+/// model, asked with the options `planner_for` gives it.
+pub fn companion_for(
+    router: &Arc<Router<FakeSeams>>,
+    infer: ScriptedInfer,
+    card: &HelperCard,
+) -> Companion {
+    let (clock, _hand) = Clock::manual(UnixSeconds(3_000));
+    Companiond::new(
+        Intents::over(InProcess::new(
+            router.clone(),
+            caller("org.quire.Companiond", CallerRole::Companion),
+        )),
+        docket_tasks::planner_for(infer, card),
+        AgentConfig::default(),
+        clock,
+        app("org.quire.Shell"),
+    )
+}
+
+/// A hub over the world, whose helpers' models are the scripts named (a helper with none has an
+/// empty script, which a model that is asked answers with a closed session).
+pub fn hub_with(w: &World, scripts: &[(&str, &ScriptedInfer)]) -> TestHub {
+    let router = w.router.clone();
+    let scripts: BTreeMap<String, ScriptedInfer> = scripts
+        .iter()
+        .map(|(name, infer)| ((*name).to_owned(), (*infer).clone()))
+        .collect();
+    Hub::new(w.restarted(), w.companion.shared.clone(), move |card| {
+        let infer = scripts.get(card.name.as_str()).cloned().unwrap_or_default();
+        companion_for(&router, infer, card)
+    })
+}
+
+pub fn hub_of(w: &World) -> TestHub {
+    hub_with(w, &[])
 }

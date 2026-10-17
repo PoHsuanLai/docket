@@ -6,62 +6,20 @@ use crate::support::world::*;
 use almanac_core::{
     EventRef, EventSummary, JsonText, KindTag, MemoryReply, RecentEntry, ReplicaId, Seq,
 };
-use companiond::{Clock, Companiond, Hub};
-use docket_client::{InProcess, Intents};
+use companion_wire::{HelperForm, HelperNeeds, HelperReply, JobShown};
 use docket_core::helper::*;
 use docket_core::{
-    ActionMatch, AgentConfig, AuditRecord, CallerRole, LabelText, TaskPolicy, TaskPolicyState,
+    ActionMatch, AuditRecord, ConfirmAnswer, LabelText, TaskPolicy, TaskPolicyState,
 };
-use docket_fake::FakeSeams;
-use docket_router::Router;
+use docket_tasks::{HelperDesk, PostFromPerson};
 use porter_core::{AccountId, Count, ModelId};
 use porter_infer::choice::ModelRef;
 use porter_infer::{Asker, OpenOptions};
 use prov::{Actor, Effect, EntityKind, HelperId, UnixSeconds};
 use serde_json::json;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Duration;
-
-type TestHub = Hub<ScriptedInfer, InProcess<FakeSeams>>;
-
-/// The companion a helper's job runs on: the router in process, and the helper's own scripted
-/// model, asked with the options `planner_for` gives it.
-fn companion_for(
-    router: &Arc<Router<FakeSeams>>,
-    infer: ScriptedInfer,
-    card: &HelperCard,
-) -> Companion {
-    let (clock, _hand) = Clock::manual(UnixSeconds(3_000));
-    Companiond::new(
-        Intents::over(InProcess::new(
-            router.clone(),
-            caller("org.quire.Companiond", CallerRole::Companion),
-        )),
-        docket_tasks::planner_for(infer, card),
-        AgentConfig::default(),
-        clock,
-        app("org.quire.Shell"),
-    )
-}
-
-/// A hub over the world, whose helpers' models are the scripts named (a helper with none has an
-/// empty script, which a model that is asked answers with a closed session).
-fn hub_with(w: &World, scripts: &[(&str, &ScriptedInfer)]) -> TestHub {
-    let router = w.router.clone();
-    let scripts: BTreeMap<String, ScriptedInfer> = scripts
-        .iter()
-        .map(|(name, infer)| ((*name).to_owned(), (*infer).clone()))
-        .collect();
-    Hub::new(w.restarted(), w.companion.shared.clone(), move |card| {
-        let infer = scripts.get(card.name.as_str()).cloned().unwrap_or_default();
-        companion_for(&router, infer, card)
-    })
-}
-
-fn hub_of(w: &World) -> TestHub {
-    hub_with(w, &[])
-}
 
 /// Waits (the jobs run on tasks of their own) until `ready` holds.
 async fn until(what: &str, mut ready: impl FnMut() -> bool) {
@@ -562,4 +520,95 @@ async fn three_refused_requests_in_a_row_pause_the_helper_and_name_who_owns_the_
         1,
         "{told:?}"
     );
+}
+
+fn work_form(name: &str, model: HelperModel) -> HelperForm {
+    HelperForm {
+        name: HelperName::parse(name).expect("name"),
+        role: Role::parse("Looks after the mail.").expect("role"),
+        space: space("work"),
+        model,
+        apps: vec![app("org.quire.Mail")],
+        ceiling: Ceiling::Change,
+        steps: Count(8),
+    }
+}
+
+#[tokio::test]
+async fn the_shell_makes_changes_pauses_and_removes_a_helper_and_reads_it_in_plain_words() {
+    let w = world(vec![]);
+    // Once it has a model its job runs, and waits on the model for ever.
+    let research_model = ScriptedInfer::new(vec![Say::Hang]);
+    let hub = hub_with(&w, &[("Research", &research_model)]);
+
+    // A card from the form: the apps it may use become its reach, and it has no model yet.
+    let HelperReply::Made(research) = hub.create(work_form("Research", HelperModel::Unset)).await
+    else {
+        panic!("a helper is made")
+    };
+    let card = hub.card(&research).expect("its card");
+    assert_eq!(card.model, HelperModel::Unset);
+    assert_eq!(
+        card.reach,
+        ["org.quire.Mail: look at things and change them (changes can be undone)"]
+    );
+    assert_eq!(card.line.doing, "Nothing to do");
+    assert_eq!(card.line.state, HelperPhase::Idle);
+
+    // The same name, or an app that is not there, is refused in plain words.
+    assert_eq!(
+        hub.create(work_form("research", HelperModel::Unset)).await,
+        HelperReply::Refused("There is already a helper called research.".to_owned())
+    );
+    let mut elsewhere = work_form("Notes", HelperModel::Unset);
+    elsewhere.apps = vec![app("org.quire.Chat")];
+    assert_eq!(
+        hub.create(elsewhere).await,
+        HelperReply::Refused("There is no app called org.quire.Chat.".to_owned())
+    );
+
+    // A job with no model: the list says what it needs, and the person is told once.
+    let HelperReply::Posted(job) = hub
+        .post_job(PostFromPerson {
+            helper: research.clone(),
+            goal: "compare the three offers".to_owned(),
+            things: vec![],
+        })
+        .await
+    else {
+        panic!("a job is posted")
+    };
+    let view = hub.view(0);
+    assert_eq!(view.helpers.len(), 1);
+    let line = &view.helpers[0];
+    assert_eq!(line.state, HelperPhase::Waiting);
+    assert_eq!(line.needs_you, Some(HelperNeeds::ChooseModel));
+    assert_eq!(view.told.len(), 1);
+    assert!(
+        view.told[0].text.contains("needs a model"),
+        "{:?}",
+        view.told
+    );
+    assert!(hub.view(view.told[0].n).told.is_empty(), "told once");
+    let card = hub.card(&research).expect("its card");
+    assert_eq!(card.jobs.len(), 1);
+    assert_eq!(card.jobs[0].id, job);
+    assert_eq!(card.jobs[0].state, JobShown::NeedsModel);
+
+    // Pause, resume and remove.
+    hub.pause(research.clone()).await;
+    assert_eq!(hub.view(0).helpers[0].state, HelperPhase::Paused);
+    assert_eq!(hub.view(0).helpers[0].doing, "Paused");
+    hub.resume(research.clone()).await;
+    assert_ne!(hub.view(0).helpers[0].state, HelperPhase::Paused);
+    let HelperReply::Done = hub
+        .edit(research.clone(), work_form("Research", model()))
+        .await
+    else {
+        panic!("edited")
+    };
+    assert_eq!(hub.card(&research).expect("card").model, model());
+    hub.remove(research.clone()).await;
+    assert!(hub.view(0).helpers.is_empty());
+    assert!(hub.card(&research).is_none());
 }

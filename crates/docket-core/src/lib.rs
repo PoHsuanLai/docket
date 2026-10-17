@@ -170,8 +170,8 @@ pub use review::{
     ReviewMark, Ruling, ShadowMode, Stage, Strictness, VerdictKind,
 };
 pub use roster::{
-    EpisodeLine, LeadText, PrimerText, ProfileLine, RecalledLine, RollupLine, Roster, RosterDetail,
-    RosterFull, RosterLine, RosterState, SkeletonText, TOLD_LEAD_CHARS,
+    EpisodeLine, HelperRosterLine, LeadText, PrimerText, ProfileLine, RecalledLine, RollupLine,
+    Roster, RosterDetail, RosterFull, RosterLine, RosterState, SkeletonText, TOLD_LEAD_CHARS,
 };
 pub use schema::{ToolSchema, tool_schema};
 pub use skill::{SKILL_ID_MAX, SkillCard, SkillId, SkillIdError, SkillText, SkillVersion};

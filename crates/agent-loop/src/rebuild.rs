@@ -100,6 +100,7 @@ impl Rebuilt {
                     },
                 })
                 .collect(),
+            helpers: Vec::new(),
         }
     }
 }

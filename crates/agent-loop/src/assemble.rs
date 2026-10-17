@@ -20,6 +20,9 @@ use porter_core::{Count, Tokens};
 use prov::Integrity;
 use serde::{Deserialize, Serialize};
 
+/// The most helper lines the roster section shows.
+const MOST_HELPER_LINES: usize = 24;
+
 /// What the router built for one turn, before the budget is applied.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Sources {
@@ -194,6 +197,13 @@ pub(crate) fn view_of(
         rollup: sources.rollup.clone(),
         roster: Roster {
             entries: take_within(&sources.roster.entries, budget.roster),
+            helpers: sources
+                .roster
+                .helpers
+                .iter()
+                .take(MOST_HELPER_LINES)
+                .cloned()
+                .collect(),
         },
         episodes: take_within(&sources.episodes, budget.episodes),
         recalled,
