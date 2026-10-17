@@ -212,7 +212,16 @@ pub fn line_of(card: &HelperCard, board: &Board, answer: Option<HelperNeeds>) ->
     }
 }
 
-fn job_line(job: &docket_core::helper::Job, answer: Option<String>) -> JobLine {
+/// What companiond kept of a finished job: its answer, or the sentence that said why it stopped.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct JobWords {
+    /// What it answered.
+    pub answer: Option<String>,
+    /// Why it stopped, as told ("Qwen3 4B cannot answer: it cannot run right now.").
+    pub why: Option<String>,
+}
+
+fn job_line(job: &docket_core::helper::Job, words: JobWords) -> JobLine {
     let state = match &job.status {
         JobStatus::Open => JobShown::Waiting,
         JobStatus::Taken(_) => JobShown::Working,
@@ -223,19 +232,22 @@ fn job_line(job: &docket_core::helper::Job, answer: Option<String>) -> JobLine {
         id: job.id,
         goal: job.goal.as_str().to_owned(),
         state,
-        note: job
-            .failed
-            .map(|fault| format!("It stopped: {}", fault.plain())),
-        answer,
+        // The sentence that said why names the model; the fault alone is the fallback.
+        note: job.failed.map(|fault| {
+            words
+                .why
+                .unwrap_or_else(|| format!("It stopped: {}", fault.plain()))
+        }),
+        answer: words.answer,
     }
 }
 
-/// A helper's card as the shell shows it; `answered` gives the kept words of a finished job.
+/// A helper's card as the shell shows it; `kept` gives what is kept of each job's words.
 pub fn card_of(
     card: &HelperCard,
     board: &Board,
     answer: Option<HelperNeeds>,
-    answered: impl Fn(JobId) -> Option<String>,
+    kept: impl Fn(JobId) -> JobWords,
 ) -> HelperCardView {
     HelperCardView {
         line: line_of(card, board, answer),
@@ -247,7 +259,7 @@ pub fn card_of(
             .jobs()
             .iter()
             .filter(|j| j.owner == card.id)
-            .map(|j| job_line(j, answered(j.id)))
+            .map(|j| job_line(j, kept(j.id)))
             .collect(),
     }
 }

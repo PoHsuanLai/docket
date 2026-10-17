@@ -152,7 +152,9 @@ fn the_list_says_in_plain_words_what_each_helper_is_doing_and_what_it_needs() {
 fn a_card_shows_its_reach_in_words_and_its_jobs_with_why_one_did_not_finish() {
     let (board, id) = board_with(HelperModel::Unset);
     let (board, _) = step(board, job(&id, "compare the offers"));
-    let view = card_of(board.card(&id).expect("card"), &board, None, |_| None);
+    let view = card_of(board.card(&id).expect("card"), &board, None, |_| {
+        JobWords::default()
+    });
     assert_eq!(view.role, "Reads the mail.");
     assert_eq!(view.reach, ["org.quire.Mail: look at things"]);
     assert_eq!(view.steps, Count(8));
@@ -162,11 +164,37 @@ fn a_card_shows_its_reach_in_words_and_its_jobs_with_why_one_did_not_finish() {
     assert_eq!(view.jobs[0].answer, None);
     let posted = view.jobs[0].id;
     let kept = card_of(board.card(&id).expect("card"), &board, None, |job| {
-        (job == posted).then(|| "The second offer is cheapest.".to_owned())
+        JobWords {
+            answer: (job == posted).then(|| "The second offer is cheapest.".to_owned()),
+            why: None,
+        }
     });
     assert_eq!(
         kept.jobs[0].answer.as_deref(),
         Some("The second offer is cheapest.")
+    );
+    // A job that stopped says why in the sentence that was told, which names the model; with
+    // none kept, in the fault's own words.
+    let (board, _) = step(
+        board,
+        BoardEvent::Failed {
+            job: posted,
+            fault: JobFault::NoAnswer,
+        },
+    );
+    let card = board.card(&id).expect("card");
+    let told = card_of(card, &board, None, |_| JobWords {
+        answer: None,
+        why: Some("Qwen3 4B cannot answer: it cannot run right now.".to_owned()),
+    });
+    assert_eq!(
+        told.jobs[0].note.as_deref(),
+        Some("Qwen3 4B cannot answer: it cannot run right now.")
+    );
+    let bare = card_of(card, &board, None, |_| JobWords::default());
+    assert_eq!(
+        bare.jobs[0].note.as_deref(),
+        Some("It stopped: the model gave no usable answer")
     );
 }
 

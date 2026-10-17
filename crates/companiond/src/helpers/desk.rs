@@ -257,7 +257,7 @@ where
         let board = self.board();
         let card = board.card(helper)?;
         Some(card_of(card, &board, self.needs_of(card), |job| {
-            self.answer_words(job)
+            self.job_words(job)
         }))
     }
 

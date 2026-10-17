@@ -69,6 +69,8 @@ pub(super) struct State {
     pub(super) running: BTreeMap<JobId, Running>,
     answers: BTreeMap<JobId, Answer>,
     kept: VecDeque<JobId>,
+    /// Why a job stopped, as it was told, for its line on the card (not across a restart).
+    whys: BTreeMap<JobId, String>,
 }
 
 /// What builds the companion a job runs on: its transports are the daemon's, its planner is
@@ -345,7 +347,7 @@ where
         // A failed job whose model said why is told with that sentence, which names the model.
         let text = match (notice, detail) {
             (Notice::Failed(_), Some(why)) => {
-                format!("{} stopped: {}.", name.as_str(), why.trim_end_matches('.'))
+                format!("{} stopped. {}.", name.as_str(), why.trim_end_matches('.'))
             }
             _ => notice.plain(name),
         };
@@ -481,6 +483,15 @@ where
         let evicted = answer
             .map(|answer| self.keep(job, answer))
             .unwrap_or_default();
+        if let Some(why) = &why {
+            self.with_state(|state| {
+                state.whys.insert(job, why.clone());
+                // As many as the answers kept: the oldest go first.
+                while state.whys.len() > KEPT_ANSWERS {
+                    state.whys.pop_first();
+                }
+            });
+        }
         self.apply_saying(event, why).await;
         for verdict in calls {
             self.apply(BoardEvent::Called {
@@ -508,6 +519,14 @@ where
     /// The words a finished job answered, while they are kept.
     pub fn answer_words(&self, job: JobId) -> Option<String> {
         self.with_state(|state| state.answers.get(&job).map(|a| a.words.clone()))
+    }
+
+    /// What is kept of a job's words: its answer, and why it stopped.
+    pub fn job_words(&self, job: JobId) -> companion_wire::JobWords {
+        self.with_state(|state| companion_wire::JobWords {
+            answer: state.answers.get(&job).map(|a| a.words.clone()),
+            why: state.whys.get(&job).cloned(),
+        })
     }
 
     /// Keeps a finished job's answer for the jobs that are handed it; the oldest answers beyond

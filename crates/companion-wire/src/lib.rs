@@ -20,7 +20,7 @@ pub use answer::{
 pub use ask::{AskWire, FrontTask};
 pub use helpers::{
     HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply, HelpersView, JobLine,
-    JobShown, ToldWire, card_of, line_of,
+    JobShown, JobWords, ToldWire, card_of, line_of,
 };
 pub use record::{SESSION_KIND_PREFIX, SessionRecord};
 pub use route::{
