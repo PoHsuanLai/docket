@@ -3,7 +3,7 @@
 use super::job::JobId;
 use crate::task_policy::TaskPolicy;
 use porter_core::Count;
-use porter_infer::choice::ModelRef;
+use porter_infer::ModelRef;
 use prov::{HelperId, SpaceId, TaskId};
 use serde::{Deserialize, Serialize};
 

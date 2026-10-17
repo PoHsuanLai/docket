@@ -5,7 +5,7 @@ use crate::support::*;
 use docket_core::ActionMatch;
 use docket_core::helper::*;
 use porter_core::{AccountId, Count, ModelId};
-use porter_infer::choice::ModelRef;
+use porter_infer::ModelRef;
 use prov::{Effect, HelperId, TaskId};
 use std::collections::BTreeSet;
 

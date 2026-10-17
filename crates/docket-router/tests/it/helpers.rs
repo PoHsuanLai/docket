@@ -543,10 +543,9 @@ async fn only_the_companions_own_planners_can_call_the_helper_actions() {
         let IntentsReply::Performed(result) = reply else {
             panic!("{name}: a performed reply")
         };
-        assert_eq!(
-            result.as_ref().expect_err("refused"),
-            &CallRefusal::Denied(DenyCode::NotAllowed),
-            "{name}"
+        assert!(
+            matches!(*result, Err(CallRefusal::Denied(DenyCode::NotAllowed))),
+            "{name}: {result:?}"
         );
     }
 }

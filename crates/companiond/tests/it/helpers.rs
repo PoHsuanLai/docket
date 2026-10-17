@@ -13,7 +13,7 @@ use docket_core::{
 };
 use docket_tasks::{HelperDesk, PostFromPerson};
 use porter_core::{AccountId, Count, ModelId};
-use porter_infer::choice::ModelRef;
+use porter_infer::ModelRef;
 use porter_infer::{Asker, OpenOptions};
 use prov::{Actor, Effect, EntityKind, HelperId, UnixSeconds};
 use serde_json::json;

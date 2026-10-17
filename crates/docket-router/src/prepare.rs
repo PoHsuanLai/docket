@@ -219,11 +219,12 @@ impl<S: Seams> Router<S> {
         classified: Option<Classification>,
     ) -> Result<Prepared, Box<Early>> {
         let space = record.space.clone();
+        let action = request.action.clone();
         let end = |refusal: CallRefusal| {
             Box::new(Early {
                 id,
                 who: who.clone(),
-                action: request.action.clone(),
+                action: action.clone(),
                 effect: decl.effect,
                 space: space.clone(),
                 refusal,

@@ -93,7 +93,7 @@ pub async fn start_with(
     let mut companion = Companiond::new(
         intents,
         planner,
-        config.agent.clone(),
+        config.agent,
         Clock::System,
         config.shell.clone(),
     )
@@ -105,7 +105,7 @@ pub async fn start_with(
     // its own, built over the same bus and asking inferd as its helper.
     let hub = {
         let (link, trace) = (connection.clone(), seams.trace.clone());
-        let (agent, shell) = (config.agent.clone(), config.shell.clone());
+        let (agent, shell) = (config.agent, config.shell.clone());
         let make = move |card: &HelperCard| {
             Companiond::new(
                 Intents::over(DbusTransport::new(link.clone())),
@@ -113,7 +113,7 @@ pub async fn start_with(
                     docket_dbus::inferd_transport(&link, trace.clone()),
                     card,
                 ),
-                agent.clone(),
+                agent,
                 Clock::System,
                 shell.clone(),
             )
@@ -122,7 +122,7 @@ pub async fn start_with(
         let service = Companiond::new(
             Intents::over(DbusTransport::new(connection.clone())),
             PlannerModel::new(docket_dbus::inferd_transport(connection, Tap::off())),
-            config.agent.clone(),
+            config.agent,
             Clock::System,
             config.shell.clone(),
         );
