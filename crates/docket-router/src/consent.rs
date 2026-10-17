@@ -106,3 +106,17 @@ pub(crate) fn consent_for(
         }
     }
 }
+
+/// A helper's call that is inside the reach the person set on its card: the card is a standing
+/// grant for it, so a first-use question is already answered. As with every standing grant, a
+/// session that read untrusted content asks once more before it writes (`taint`). A denial, a
+/// grant, or a call outside the reach is left as it is.
+pub(crate) fn within_reach(consent: Verdict, inside: bool, taint: Taint) -> Verdict {
+    match (consent, inside, taint) {
+        (Verdict::Ask, true, Taint::Clean) => Verdict::Granted {
+            grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
+            scope: GrantScope::Always,
+        },
+        (other, _, _) => other,
+    }
+}

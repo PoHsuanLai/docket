@@ -551,3 +551,30 @@ async fn only_the_companions_own_planners_can_call_the_helper_actions() {
         );
     }
 }
+
+#[tokio::test]
+async fn the_reach_the_person_set_on_the_card_is_its_consent_and_nothing_beyond_it() {
+    let router = router();
+    let job = open_job(
+        &router,
+        &companion(),
+        Some(seat(1, reach(Effect::Read), &[])),
+        None,
+    )
+    .await;
+    // No grant says the companion may use Mail, but the card does, for looking: no question.
+    perform_in(
+        &router,
+        &job.session,
+        call("mail.thread.read", &["t1"], vec![]),
+    )
+    .await
+    .expect("a look inside the reach runs");
+    assert!(router.seams.confirmer.requests().is_empty());
+    // Beyond the reach it asks as it always did.
+    let beyond = perform_in(&router, &job.session, archive("t2"))
+        .await
+        .expect_err("a change beyond the reach asks");
+    assert_eq!(beyond, CallRefusal::Unconfirmed(ConfirmEnd::Dismissed));
+    assert_eq!(router.seams.confirmer.requests().len(), 1);
+}

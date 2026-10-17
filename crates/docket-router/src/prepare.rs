@@ -3,7 +3,7 @@
 //! and where the gate sends the call. Pure over the router's state and its clock.
 
 use crate::argcheck::{check_call, target_name};
-use crate::consent::consent_for;
+use crate::consent::{consent_for, within_reach};
 use crate::coverage::coverage;
 use crate::gate::{GateInputs, Pending, gate};
 use crate::labels::{
@@ -281,6 +281,17 @@ impl<S: Seams> Router<S> {
             TurnStart::Unclaimed | TurnStart::Refused => consent,
         };
         let labels = arg_labels(&request.args, record);
+        // The person set a helper's reach on its card: a call inside it asks no first-use
+        // question. Outside it, and against a recorded denial, nothing changes.
+        let consent = match &record.helper {
+            Some(seat) => within_reach(
+                consent,
+                coverage(Some(&seat.reach), &decl, &request, &labels, now)
+                    == docket_core::Coverage::Inside,
+                taint,
+            ),
+            None => consent,
+        };
         let cover = coverage(record.policy.as_ref(), &decl, &request, &labels, now);
         // The administrator's floor caps how loose any Space may be set.
         let strictness = self.floor.clamp(
