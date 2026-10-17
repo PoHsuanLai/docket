@@ -102,6 +102,28 @@ async fn words_about_tools_are_still_words() {
 }
 
 #[tokio::test]
+async fn an_id_the_model_repeats_is_said_as_what_it_is() {
+    for (text, shown) in [
+        (
+            "The only task, t-179, is done.",
+            "The only task, the task, is done.",
+        ),
+        ("Run r-1 failed.", "Run the run failed."),
+        ("Kept in s-3 for you.", "Kept in the session for you."),
+        (
+            "Section 4-b and t-shirts stay.",
+            "Section 4-b and t-shirts stay.",
+        ),
+    ] {
+        assert_eq!(
+            plan(words(text)).await,
+            Ok(ModelOutput::Say(shown.into())),
+            "{text}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn markup_beside_real_calls_is_dropped_and_the_calls_stand() {
     let thread = json!({ "app": "org.quire.Mail", "kind": "mail.thread", "key": "t1" });
     let (planner, _) = planner(vec![Say::Reply(

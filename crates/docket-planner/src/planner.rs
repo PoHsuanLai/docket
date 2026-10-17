@@ -9,6 +9,7 @@
 
 use crate::args::{ArgsFault, read_call};
 use crate::catalogue::Catalogue;
+use crate::plain::without_ids;
 use crate::read_ask::read_output;
 use crate::render::messages_with;
 use crate::role::RoleText;
@@ -437,7 +438,8 @@ impl<P: Transport> PlannerModel<P> {
             tracing::warn!(stop = ?reply.stop, "the planner's reply stopped early");
             return Err(PlanFault::Unreadable);
         }
-        let mut said = Some(bounded(reply.text.trim())).filter(|t| !t.is_empty());
+        // The person never reads an id the model repeated from its view ("t-179"): said as what it is.
+        let mut said = Some(without_ids(&bounded(reply.text.trim()))).filter(|t| !t.is_empty());
         // A call left in the words is never a call, and its markup is not an answer: with real
         // calls beside it the words are dropped, alone the turn fails with a name for it.
         said = match (said, reply.tool_calls.is_empty()) {
@@ -582,7 +584,7 @@ fn answer_text(call: &ToolCallPart) -> Result<String, PlanFault> {
         .ok_or(PlanFault::Unreadable)?;
     match leaked_call(&text) {
         Some(_) => Err(PlanFault::CallInText),
-        None => Ok(text),
+        None => Ok(without_ids(&text)),
     }
 }
 
@@ -688,6 +690,7 @@ fn question(args: &Json) -> Result<ModelOutput, PlanFault> {
         .and_then(Json::as_str)
         .filter(|t| t.chars().count() <= ASK_TEXT)
         .map(plain)
+        .map(|t| without_ids(&t))
         .filter(|t| !t.trim().is_empty())
         .ok_or(PlanFault::Unreadable)?;
     let choices = match args.get("choices") {
@@ -698,6 +701,7 @@ fn question(args: &Json) -> Result<ModelOutput, PlanFault> {
                 c.as_str()
                     .filter(|c| c.chars().count() <= ASK_CHOICE_TEXT)
                     .map(plain)
+                    .map(|t| without_ids(&t))
                     .ok_or(PlanFault::Unreadable)
             })
             .collect::<Result<Vec<_>, _>>()?,

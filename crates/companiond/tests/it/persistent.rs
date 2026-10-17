@@ -367,7 +367,7 @@ async fn a_masked_step_still_says_which_handle_came_from_which_call() {
         "the first read is masked and still names what it returned: {after}"
     );
     assert!(
-        after.contains("mail.draft.create #1 "),
+        after.contains("Create draft #1 "),
         "a step shows the handles it was given: {after}"
     );
     assert!(

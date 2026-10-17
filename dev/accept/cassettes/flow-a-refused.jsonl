@@ -3,4 +3,4 @@
 {"when":{"tools":"present"},"reply":{"kind":"calls","v":[{"name":"org_quire_Mail-mail_thread_search","arguments":{"query":"Lisbon"}}]}}
 {"when":{"tools":"present"},"reply":{"kind":"calls","v":[{"name":"org_quire_Mail-mail_contact_search","arguments":{"query":"Accounting"}}]}}
 {"when":{"tools":"present"},"reply":{"kind":"calls","v":[{"name":"org_quire_Mail-mail_message_forward","arguments":{"target":[{"app":"org.quire.Mail","kind":"mail.thread","key":"lisbon-1"},{"app":"org.quire.Mail","kind":"mail.thread","key":"lisbon-2"}],"to":{"app":"org.quire.Mail","kind":"mail.contact","key":"accounting"}}}]}}
-{"when":{"tools":"present","contains":["mail.message.forward not confirmed"]},"reply":{"kind":"text","v":"Understood, I left them where they are."}}
+{"when":{"tools":"present","contains":["Forward not confirmed"]},"reply":{"kind":"text","v":"Understood, I left them where they are."}}

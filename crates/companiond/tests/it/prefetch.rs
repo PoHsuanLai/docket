@@ -81,9 +81,7 @@ async fn the_persons_words_are_searched_before_the_first_planner_call_with_no_sh
 
     assert_eq!(memory.asked(), ["What is the capital of Taiwan?"]);
     assert!(
-        w.infer
-            .user_text(0)
-            .contains("org.quire.Memory.memory.recall done"),
+        w.infer.user_text(0).contains("Recall done"),
         "the first planner call already holds the result: {}",
         w.infer.user_text(0)
     );
