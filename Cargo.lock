@@ -1206,6 +1206,7 @@ dependencies = [
  "futures-util",
  "model-provider",
  "porter-core",
+ "porter-infer",
  "proptest",
  "prov",
  "serde",

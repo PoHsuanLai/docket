@@ -161,7 +161,7 @@ fi
 # dependencies (all features), and nothing else. A dependency not listed is a leak; so is one
 # the crate no longer has, so the table stays exact. Dev dependencies are outside it.
 EDGES=(
-  "docket-core: almanac-core cua-action model-provider porter-core prov"
+  "docket-core: almanac-core cua-action model-provider porter-core porter-infer prov"
   "docket-skills: docket-core porter-core prov"
   "policy-point: docket-core porter-core prov"
   "action-review: docket-core model-provider porter-core porter-infer prov"

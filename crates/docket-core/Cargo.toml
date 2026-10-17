@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 porter-core = { workspace = true }
+porter-infer = { workspace = true }
 prov = { workspace = true }
 almanac-core = { workspace = true }
 cua-action = { workspace = true }

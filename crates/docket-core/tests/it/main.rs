@@ -5,6 +5,7 @@ mod checkpoint;
 mod compact;
 mod episodes;
 mod grant_space;
+mod helper;
 mod limits;
 mod manifests;
 mod records;
