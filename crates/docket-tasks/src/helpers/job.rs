@@ -117,7 +117,10 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     pub async fn open_job(&mut self, spec: &JobSpec) -> Result<OpenedJob, JobFault> {
         self.refresh_catalogue().await;
         self.config.budget.calls = spec.card.budget.steps;
-        self.as_helper = Some(spec.card.id.clone());
+        self.as_helper = Some(super::AsHelper {
+            id: spec.card.id.clone(),
+            reach: spec.card.reach.clone(),
+        });
         let open = SessionOpen {
             space: spec.card.space.clone(),
             agent: AgentRef::Companion,

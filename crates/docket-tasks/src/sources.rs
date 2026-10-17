@@ -3,7 +3,7 @@
 //! already a handle by the time it is here. The sections are the assembler's (`agent-loop`); this
 //! only fills them, and the assembler cuts each to its budget.
 
-use crate::helpers::{Keeps, offered_here};
+use crate::helpers::{Keeps, SKILL_LOAD, in_menu, offered_here, skill_in_menu};
 use crate::memory::{episodes_of, hits_of, primer_of, profile_of};
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
@@ -117,13 +117,37 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
 
     /// The skill catalogue, the bodies shown this turn (preselected by the context, then those the
     /// planner loaded) and the action cards with the loaded skills' actions first. A skill only
-    /// reorders and explains: no card is added or removed.
+    /// reorders and explains: no card is added or removed. A helper's planner is offered only the
+    /// cards its reach covers, and the skills that use nothing else.
     fn skill_sections(
         &self,
         rt: &TaskRuntime,
         context: &ContextView,
     ) -> (Vec<SkillCard>, Vec<SkillText>, Vec<ActionCard>) {
-        let offered = self.skills.offered(&self.manifests);
+        let keeps = match (&self.desk, self.helper_lines().is_empty()) {
+            (None, _) => Keeps::NoDesk,
+            (Some(_), true) => Keeps::NoHelpers,
+            (Some(_), false) => Keeps::Helpers,
+        };
+        let reach = self.as_helper.as_ref().map(|h| &h.reach);
+        let menu: Vec<ActionCard> = self
+            .planner
+            .catalogue()
+            .cards()
+            .into_iter()
+            .filter(|card| offered_here(card, keeps) && in_menu(card, reach))
+            .collect();
+        let offered: Vec<&Skill> = self
+            .skills
+            .offered(&self.manifests)
+            .into_iter()
+            .filter(|s| skill_in_menu(s, &menu))
+            .collect();
+        // Nothing to load: the loading card would only invite a call that can come to nothing.
+        let menu: Vec<ActionCard> = menu
+            .into_iter()
+            .filter(|c| !offered.is_empty() || c.action.name.as_str() != SKILL_LOAD)
+            .collect();
         let cards = offered.iter().map(|s| s.card()).collect();
         let loaded: Vec<&Skill> = rt
             .loaded
@@ -155,19 +179,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             .into_iter()
             .map(Skill::text)
             .collect();
-        let keeps = match (&self.desk, self.helper_lines().is_empty()) {
-            (None, _) => Keeps::NoDesk,
-            (Some(_), true) => Keeps::NoHelpers,
-            (Some(_), false) => Keeps::Helpers,
-        };
-        let action_cards: Vec<ActionCard> = self
-            .planner
-            .catalogue()
-            .cards()
-            .into_iter()
-            .filter(|card| offered_here(card, keeps))
-            .collect();
-        let actions = uses_first(action_cards, |c| &c.action, &loaded);
+        let actions = uses_first(menu, |c| &c.action, &loaded);
         (cards, texts, actions)
     }
 

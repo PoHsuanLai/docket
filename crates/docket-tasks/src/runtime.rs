@@ -6,6 +6,7 @@ use crate::best_effort::best_effort;
 use crate::desk::HelperDesk;
 use crate::fault::ServeFault;
 use crate::handoff::Handoff;
+use crate::helpers::AsHelper;
 use crate::seams::{Now, Surface};
 use crate::shared::Shared;
 use crate::task::{TaskRuntime, roster_state};
@@ -21,7 +22,7 @@ use docket_planner::Catalogue;
 use docket_planner::PlannerModel;
 use porter_client::Transport as InferTransport;
 use porter_core::AppName;
-use prov::{AgentRef, HelperId, SessionId, SpaceId, TaskId, UnixSeconds};
+use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Arc;
 
@@ -155,8 +156,9 @@ pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     /// learns their names; none where nothing keeps helpers.
     pub(crate) desk: Option<Arc<dyn HelperDesk>>,
     /// The helper this companion runs a job for, when it is a helper's: the roster leaves it out
-    /// of the helpers its planner is told of.
-    pub as_helper: Option<HelperId>,
+    /// of the helpers its planner is told of, and its planner is offered only what its reach
+    /// covers.
+    pub as_helper: Option<AsHelper>,
 }
 
 /// Whether a companion writes the legacy session notes (`companion.session.*`) a restart used to
@@ -245,7 +247,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     pub(crate) fn helper_lines(&self) -> Vec<docket_core::HelperRosterLine> {
         self.desk
             .as_ref()
-            .map(|desk| desk.roster_lines(self.as_helper.as_ref()))
+            .map(|desk| desk.roster_lines(self.as_helper.as_ref().map(|h| &h.id)))
             .unwrap_or_default()
     }
 
