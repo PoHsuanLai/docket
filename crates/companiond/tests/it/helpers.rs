@@ -241,6 +241,11 @@ fn thread(key: &str) -> serde_json::Value {
     json!({ "target": { "app": "org.quire.Mail", "kind": "mail.thread", "key": key } })
 }
 
+/// A target list of one thread, for the actions that act on many.
+fn threads(key: &str) -> serde_json::Value {
+    json!({ "target": [{ "app": "org.quire.Mail", "kind": "mail.thread", "key": key }] })
+}
+
 #[tokio::test]
 async fn two_helpers_work_at_the_same_time_and_stopping_one_ends_only_its_job() {
     let w = world(vec![]);
@@ -467,9 +472,9 @@ async fn three_refused_requests_in_a_row_pause_the_helper_and_name_who_owns_the_
     let w = world(vec![]);
     let inbox_model = ScriptedInfer::new(vec![Say::Hang]);
     let research_model = ScriptedInfer::new(vec![
-        call(ARCHIVE, thread("t1")),
-        call(DELETE, thread("t1")),
-        call(ARCHIVE, thread("t2")),
+        call(ARCHIVE, threads("t1")),
+        call(DELETE, threads("t1")),
+        call(ARCHIVE, threads("t2")),
         words("I could not."),
     ]);
     let hub = hub_with(
@@ -731,7 +736,9 @@ async fn the_assistant_only_proposes_a_helper_and_nothing_exists_until_the_perso
         "the person was asked"
     );
 
-    w.say(&front.session, "yes, set it up").await;
+    // A dismissed sheet ends that task: the person's follow-up is a new conversation.
+    let again = w.open("work").await;
+    w.say(&again.session, "yes, set it up").await;
     let board = hub.board();
     assert_eq!(board.cards().len(), 1);
     let card = &board.cards()[0];

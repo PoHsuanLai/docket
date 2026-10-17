@@ -10,7 +10,7 @@ use crate::seams::{Now, Surface};
 use companion_wire::HelperReply;
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::Ceiling;
-use docket_core::{AppRefusal, CallRefusal, CallRequest, FailText, Outcome, Value};
+use docket_core::{ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, Outcome, Value};
 use porter_client::Transport as InferTransport;
 use prov::TaskId;
 
@@ -18,6 +18,34 @@ use prov::TaskId;
 pub(crate) const POST_JOB: &str = "companion.helper.post_job";
 /// Proposes a helper to the person.
 pub(crate) const PROPOSE: &str = "companion.helper.propose";
+
+/// Whether the planner is offered `card` here: the two helper actions only where a host keeps
+/// helpers (proposing), and giving a job only once the person keeps at least one. Every other
+/// card is offered as before. Offering them nowhere else keeps the planner's action list short:
+/// the list is cut to a budget, and two long cards no one can use would push out the last apps'.
+pub(crate) fn offered_here(card: &ActionCard, keeps: Keeps) -> bool {
+    if card.action.app.as_str() != COMPANION_APP {
+        return true;
+    }
+    match (card.action.name.as_str(), keeps) {
+        (POST_JOB, Keeps::Helpers) => true,
+        (POST_JOB, Keeps::NoHelpers | Keeps::NoDesk) => false,
+        (PROPOSE, Keeps::Helpers | Keeps::NoHelpers) => true,
+        (PROPOSE, Keeps::NoDesk) => false,
+        _ => true,
+    }
+}
+
+/// What the host keeps, for which helper actions the planner is offered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Keeps {
+    /// No host keeps helpers here (a test, an app hosting the companion in itself).
+    NoDesk,
+    /// A host keeps helpers, and the person has none yet.
+    NoHelpers,
+    /// The person keeps at least one helper the planner is told of.
+    Helpers,
+}
 
 /// Whether `call` is one of the two helper actions.
 pub(crate) fn is_helper_action(call: &CallRequest) -> bool {

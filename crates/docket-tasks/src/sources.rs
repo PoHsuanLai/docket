@@ -3,6 +3,7 @@
 //! already a handle by the time it is here. The sections are the assembler's (`agent-loop`); this
 //! only fills them, and the assembler cuts each to its budget.
 
+use crate::helpers::{Keeps, offered_here};
 use crate::memory::{episodes_of, hits_of, primer_of, profile_of};
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
@@ -154,7 +155,19 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             .into_iter()
             .map(Skill::text)
             .collect();
-        let actions = uses_first(self.planner.catalogue().cards(), |c| &c.action, &loaded);
+        let keeps = match (&self.desk, self.helper_lines().is_empty()) {
+            (None, _) => Keeps::NoDesk,
+            (Some(_), true) => Keeps::NoHelpers,
+            (Some(_), false) => Keeps::Helpers,
+        };
+        let action_cards: Vec<ActionCard> = self
+            .planner
+            .catalogue()
+            .cards()
+            .into_iter()
+            .filter(|card| offered_here(card, keeps))
+            .collect();
+        let actions = uses_first(action_cards, |c| &c.action, &loaded);
         (cards, texts, actions)
     }
 

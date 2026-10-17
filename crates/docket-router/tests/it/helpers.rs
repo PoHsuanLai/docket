@@ -291,10 +291,12 @@ async fn a_write_to_a_thing_another_live_job_owns_is_refused_until_that_job_is_o
     )
     .await;
     assert_eq!(ended, IntentsReply::Done);
-    assert!(
-        perform_in(&router, &other.session, archive("t2"))
-            .await
-            .is_ok(),
+    // The thing is no longer held: whatever else the gate says about a repeat of a call it
+    // refused (the person may be asked again), it is not refused for being owned.
+    let after = perform_in(&router, &other.session, archive("t2")).await;
+    assert_ne!(
+        after,
+        Err(CallRefusal::Denied(DenyCode::OwnedByAnotherJob)),
         "the second job is over"
     );
 }

@@ -12,7 +12,7 @@ mod job;
 mod store;
 mod view;
 
-pub(crate) use desk_calls::is_helper_action;
+pub(crate) use desk_calls::{Keeps, is_helper_action, offered_here};
 pub use job::{JobEnding, JobInput, JobReport, JobSpec, OpenedJob};
 pub use store::{helper_query, helper_records_of};
 pub use view::{open_options, planner_for, role_text};
