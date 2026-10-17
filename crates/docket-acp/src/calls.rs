@@ -28,6 +28,7 @@ fn denied(code: DenyCode) -> &'static str {
         DenyCode::NeedsUser => "Needs your confirmation.",
         DenyCode::Repeated => "Already refused.",
         DenyCode::Never => "You said this is never allowed.",
+        DenyCode::OwnedByAnotherJob => "Another helper is working on this.",
     }
 }
 

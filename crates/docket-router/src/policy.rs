@@ -160,9 +160,14 @@ impl<S: Seams> Router<S> {
             .and_then(|t| t.parent.as_ref())
             .and_then(|p| st.sessions.values().find(|r| &r.task == p))
             .and_then(|r| r.policy.as_ref());
-        Some(match parent {
+        let bounded = match parent {
             Some(parent) => child_policy(parent, &policy),
             None => policy,
+        };
+        // A helper's job is cut to the helper's reach as well: authority only narrows.
+        Some(match &record.helper {
+            Some(seat) => intersection(&bounded, &seat.reach),
+            None => bounded,
         })
     }
 

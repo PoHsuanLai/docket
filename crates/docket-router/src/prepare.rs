@@ -10,6 +10,7 @@ use crate::labels::{
     arg_labels, args_confidentiality, label_args, planner_integrity, resolve_target, sink_integrity,
 };
 use crate::limits::tightened;
+use crate::owned::{owned_by_another, touched};
 use crate::prepared::{
     Early, Prepared, digest, entities, grant_state, proposed, typed_history, usage_of,
 };
@@ -255,6 +256,11 @@ impl<S: Seams> Router<S> {
             ..request
         };
         let targets = entities(&request.target);
+        // One writer per thing: a write to what another live job owns is refused, whatever the
+        // policy, the grants and the strictness say.
+        if decl.effect > Effect::Read && owned_by_another(st, record, &touched(&request)) {
+            return Err(end(CallRefusal::Denied(DenyCode::OwnedByAnotherJob)));
+        }
         let count = Count(u32::try_from(targets.len()).unwrap_or(u32::MAX));
         let taint = match (record.saw.untrusted, decl.effect) {
             (Saw::Seen, effect) if effect > Effect::Read => Taint::Tainted,

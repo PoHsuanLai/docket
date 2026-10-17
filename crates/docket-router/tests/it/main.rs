@@ -16,6 +16,7 @@ mod control;
 mod crossspace;
 mod editor_policy;
 mod gate;
+mod helpers;
 mod index;
 mod lifecycle;
 mod limits;

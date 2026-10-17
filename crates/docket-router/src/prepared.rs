@@ -96,7 +96,7 @@ pub(crate) fn grant_state(v: &Verdict) -> GrantState {
 pub(crate) fn usage_of(actor: &Actor) -> Usage {
     match actor {
         Actor::Companion {
-            role: AgentRole::Worker { .. } | AgentRole::Cua { .. },
+            role: AgentRole::Worker { .. } | AgentRole::Cua { .. } | AgentRole::Helper { .. },
             ..
         } => Usage::Background,
         _ => Usage::Interactive,

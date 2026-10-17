@@ -94,6 +94,8 @@ pub enum DenyCode {
     Repeated,
     /// The person said never to this (or the administrator did); it is refused without asking.
     Never,
+    /// Another helper's live job owns this thing, and one job writes a thing at a time.
+    OwnedByAnotherJob,
 }
 
 /// Why the breaker tripped.

@@ -12,6 +12,7 @@ use almanac_core::{EpisodeId, EpisodeKind, EpisodeOutcome};
 use docket_core::{
     AuditRecord, CallerId, CallerRole, ExternalAgent, IntentsReply, Reveal, Rewind, SessionOpen,
     SessionOpened, TaskLedger, TurnId, TurnIn, TurnSource, UserTurn, WireRefusal, close,
+    intersection,
 };
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use porter_core::AppName;
@@ -124,11 +125,18 @@ impl<S: Seams> Router<S> {
             .started_from
             .clone()
             .filter(|_| role == CallerRole::Companion);
+        // Only the companion may say a session is a helper's job: a seat from anyone else is
+        // ignored, so it can neither narrow nor protect anything it should not.
+        let helper = open
+            .helper
+            .clone()
+            .filter(|_| role == CallerRole::Companion);
         self.open_session(
             &caller.app.name,
             SessionOpen {
                 started_from,
                 external,
+                helper,
                 ..open
             },
         )
@@ -153,7 +161,16 @@ impl<S: Seams> Router<S> {
         if st.tasks.get(&task).is_some() {
             return refuse(WireRefusal::Malformed);
         }
-        let actor = actor_of(&open.agent, open.external.as_ref(), &session, opener);
+        let actor = match &open.helper {
+            Some(seat) => Actor::Companion {
+                session: session.clone(),
+                role: AgentRole::Helper {
+                    helper: seat.helper.clone(),
+                    task: task.clone(),
+                },
+            },
+            None => actor_of(&open.agent, open.external.as_ref(), &session, opener),
+        };
         let mut record =
             SessionRecord::new(task.clone(), actor, opener.clone(), open.space.clone(), now);
         record.external = open.external.clone();
@@ -174,6 +191,11 @@ impl<S: Seams> Router<S> {
             asked.space = open.space.clone();
             record.policy = Some(child_policy(&inherited, &asked));
         }
+        // A helper's job never has more than the helper's reach, whatever its parent allows.
+        if let Some(seat) = &open.helper {
+            record.policy = record.policy.take().map(|p| intersection(&p, &seat.reach));
+        }
+        record.helper = open.helper.clone();
         record.wal = Wal::on(Written::Clean);
         record.wal.note(SessionEntry::Opened(Opening {
             task: task.clone(),
