@@ -258,6 +258,21 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             (Ok(()), LoopPhase::Paused(_)) => (JobEnding::Failed(JobFault::Refused), None),
             (Ok(()), _) => (JobEnding::Failed(JobFault::Crashed), None),
         };
+        if let JobEnding::Failed(fault) = &ending {
+            tracing::info!(
+                ?fault,
+                loop_phase = ?state.phase,
+                answer = ?rt.phase,
+                failure = ?rt.failure,
+                refused = ?rt.refused,
+                steps = ?rt
+                    .history
+                    .iter()
+                    .map(|line| (line.action.name.as_str(), &line.end))
+                    .collect::<Vec<_>>(),
+                "a helper's job did not finish"
+            );
+        }
         JobReport {
             ending,
             calls,

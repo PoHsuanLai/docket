@@ -103,10 +103,17 @@ pub fn model_name(id: &str) -> String {
     let id = id.rsplit('/').next().unwrap_or(id);
     let mut out = String::new();
     let mut prev_digits = false;
-    for part in id.split(['-', '_']).filter(|p| !p.is_empty()) {
+    for part in id
+        .split(['-', '_'])
+        .filter(|p| !p.is_empty() && !is_weight_format(p))
+    {
         let digits = part.chars().all(|c| c.is_ascii_digit());
         out.push(if digits && prev_digits { '.' } else { ' ' });
         prev_digits = digits;
+        if is_size(part) {
+            out.push_str(&part.to_uppercase());
+            continue;
+        }
         let mut chars = part.chars();
         if let Some(first) = chars.next() {
             out.extend(first.to_uppercase());
@@ -114,6 +121,26 @@ pub fn model_name(id: &str) -> String {
         }
     }
     out.trim().to_owned()
+}
+
+/// How the weights are stored ("fp8", "awq", "gguf"): says nothing the person chooses by.
+fn is_weight_format(part: &str) -> bool {
+    matches!(
+        part.to_ascii_lowercase().as_str(),
+        "fp8" | "fp16" | "bf16" | "int4" | "int8" | "awq" | "gptq" | "gguf" | "mlx"
+    )
+}
+
+/// A parameter count ("4b", "70b", "1.5b", "a3b"): written as the makers write it, "4B".
+fn is_size(part: &str) -> bool {
+    let lower = part.to_ascii_lowercase();
+    let Some(count) = lower.strip_suffix('b') else {
+        return false;
+    };
+    let count = count.strip_prefix('a').unwrap_or(count);
+    !count.is_empty()
+        && count.chars().all(|c| c.is_ascii_digit() || c == '.')
+        && count.starts_with(|c: char| c.is_ascii_digit())
 }
 
 /// "OpenRouter" from `openrouter`: the known names, else the id capitalised.

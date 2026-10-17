@@ -86,6 +86,10 @@ pub struct JobLine {
     pub state: JobShown,
     /// Why its last try did not finish, in plain words.
     pub note: Option<String>,
+    /// What it answered, while the answer is kept (a finished job's words are held for the jobs
+    /// handed them, and not across a restart).
+    #[serde(default)]
+    pub answer: Option<String>,
 }
 
 /// A helper's card, as the shell shows it.
@@ -150,6 +154,14 @@ fn paused_text(why: PauseWhy) -> &'static str {
 /// (a question or a sheet): only the host knows, from the task's answer.
 pub fn line_of(card: &HelperCard, board: &Board, answer: Option<HelperNeeds>) -> HelperLine {
     let (state, doing, needs_you, agent) = match &card.state {
+        // A job it has taken whose session is still opening: it is working on it already.
+        HelperState::Idle if board.running(&card.id).is_some() => {
+            let doing = board
+                .running(&card.id)
+                .map(|j| LeadText::of(j.goal.as_str()).as_str().to_owned())
+                .unwrap_or_default();
+            (HelperPhase::Working, doing, answer, None)
+        }
         HelperState::Idle => {
             let again = board
                 .jobs()
@@ -200,7 +212,7 @@ pub fn line_of(card: &HelperCard, board: &Board, answer: Option<HelperNeeds>) ->
     }
 }
 
-fn job_line(job: &docket_core::helper::Job) -> JobLine {
+fn job_line(job: &docket_core::helper::Job, answer: Option<String>) -> JobLine {
     let state = match &job.status {
         JobStatus::Open => JobShown::Waiting,
         JobStatus::Taken(_) => JobShown::Working,
@@ -214,11 +226,17 @@ fn job_line(job: &docket_core::helper::Job) -> JobLine {
         note: job
             .failed
             .map(|fault| format!("It stopped: {}", fault.plain())),
+        answer,
     }
 }
 
-/// A helper's card as the shell shows it.
-pub fn card_of(card: &HelperCard, board: &Board, answer: Option<HelperNeeds>) -> HelperCardView {
+/// A helper's card as the shell shows it; `answered` gives the kept words of a finished job.
+pub fn card_of(
+    card: &HelperCard,
+    board: &Board,
+    answer: Option<HelperNeeds>,
+    answered: impl Fn(JobId) -> Option<String>,
+) -> HelperCardView {
     HelperCardView {
         line: line_of(card, board, answer),
         role: card.role.as_str().to_owned(),
@@ -229,7 +247,7 @@ pub fn card_of(card: &HelperCard, board: &Board, answer: Option<HelperNeeds>) ->
             .jobs()
             .iter()
             .filter(|j| j.owner == card.id)
-            .map(job_line)
+            .map(|j| job_line(j, answered(j.id)))
             .collect(),
     }
 }

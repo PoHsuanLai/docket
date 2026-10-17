@@ -256,7 +256,9 @@ where
     fn card(&self, helper: &HelperId) -> Option<HelperCardView> {
         let board = self.board();
         let card = board.card(helper)?;
-        Some(card_of(card, &board, self.needs_of(card)))
+        Some(card_of(card, &board, self.needs_of(card), |job| {
+            self.answer_words(job)
+        }))
     }
 
     fn create(&self, form: HelperForm) -> Pending<'_, HelperReply> {

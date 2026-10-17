@@ -125,17 +125,34 @@ pub fn restart_query(since: UnixSeconds) -> RecentQuery {
 }
 
 /// The owner's form of a stored body. Memory's `Recent` is documented to answer an `Area` payload
-/// as its owner wrote it, but the service answers the whole body, `{"kind":"area","v":{..,
-/// "json":"<the owner's form>"}}`; both are read, so a record is rebuilt from either.
+/// as its owner wrote it and a message or an episode in its own serde form, but the service may
+/// answer the whole body: `{"kind":"area","v":{.., "json":"<the owner's form>"}}`, or
+/// `{"kind":"message"|"episode","v":<its serde form>}`. Each is read, so a record is rebuilt from
+/// either.
 pub(crate) fn owner_form(text: &str) -> std::borrow::Cow<'_, str> {
-    let wrapped = serde_json::from_str::<serde_json::Value>(text)
-        .ok()
-        .filter(|body| body["kind"] == "area")
-        .and_then(|body| body["v"]["json"].as_str().map(str::to_owned));
-    match wrapped {
+    let body = serde_json::from_str::<serde_json::Value>(text).ok();
+    let enveloped = body.as_ref().filter(|body| {
+        body.as_object()
+            .is_some_and(|keys| keys.len() == 2 && keys.contains_key("v"))
+    });
+    let inner = enveloped.and_then(|body| match body["kind"].as_str() {
+        Some("area") => body["v"]["json"].as_str().map(str::to_owned),
+        Some("message" | "episode") => Some(body["v"].to_string()),
+        _ => None,
+    });
+    match inner {
         Some(inner) => std::borrow::Cow::Owned(inner),
         None => std::borrow::Cow::Borrowed(text),
     }
+}
+
+/// Whether a `companion.session.*` body is an entry of the router's own session log (versioned,
+/// `docket_session`'s form) rather than one of the legacy notes: the two share the kind, and the
+/// router's entries are read through `Session.Stored`, never here.
+fn is_session_log_entry(text: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .is_some_and(|body| body.get("version").is_some())
 }
 
 fn what_of(entry: &RecentEntry) -> Result<Option<ReplayWhat>, ReplayFault> {
@@ -154,7 +171,13 @@ fn what_of(entry: &RecentEntry) -> Result<Option<ReplayWhat>, ReplayFault> {
     };
     let text = owner_form(body.as_str());
     let text = text.as_ref();
-    let malformed = |_| ReplayFault::Malformed;
+    if kind != MESSAGE_KIND && kind != EPISODE_KIND && is_session_log_entry(text) {
+        return Ok(None);
+    }
+    let malformed = |cause: serde_json::Error| {
+        tracing::warn!(kind, %cause, "a stored record does not parse");
+        ReplayFault::Malformed
+    };
     let what = match kind {
         MESSAGE_KIND => ReplayWhat::Message(Box::new(
             serde_json::from_str::<Message>(text).map_err(malformed)?,
@@ -199,7 +222,10 @@ fn run_of(
     let Some(body) = &entry.body else {
         return Ok(None);
     };
-    let malformed = |_| ReplayFault::Malformed;
+    let malformed = |cause: serde_json::Error| {
+        tracing::warn!(kind, %cause, "a stored record does not parse");
+        ReplayFault::Malformed
+    };
     let record: serde_json::Value =
         serde_json::from_str(&owner_form(body.as_str())).map_err(malformed)?;
     let run = record["v"]["run"]
@@ -213,7 +239,10 @@ fn run_of(
             .ok_or(ReplayFault::Malformed)?;
         spaces.insert(run.clone(), space);
     }
-    let state = run_state(kind, &record).ok_or(ReplayFault::Malformed)?;
+    let Some(state) = run_state(kind, &record) else {
+        tracing::warn!(kind, "a stored run record names no state");
+        return Err(ReplayFault::Malformed);
+    };
     Ok(spaces.get(&run).map(|space| ReplayWhat::Run {
         run,
         space: space.clone(),
@@ -324,6 +353,9 @@ mod tests {
         .to_string();
         assert_eq!(owner_form(BARE), BARE);
         assert_eq!(owner_form(&wrapped), BARE);
+        let episode = r#"{"kind":"task","v":{"id":"e-1"}}"#;
+        let enveloped = format!(r#"{{"kind":"episode","v":{episode}}}"#);
+        assert_eq!(owner_form(&enveloped), episode);
     }
 
     #[test]

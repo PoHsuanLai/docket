@@ -344,7 +344,9 @@ where
     ) {
         // A failed job whose model said why is told with that sentence, which names the model.
         let text = match (notice, detail) {
-            (Notice::Failed(_), Some(why)) => format!("{} stopped: {why}.", name.as_str()),
+            (Notice::Failed(_), Some(why)) => {
+                format!("{} stopped: {}.", name.as_str(), why.trim_end_matches('.'))
+            }
             _ => notice.plain(name),
         };
         self.tell(helper, text);
@@ -501,6 +503,11 @@ where
         for session in close.into_iter().chain(evicted) {
             self.close_session(session).await;
         }
+    }
+
+    /// The words a finished job answered, while they are kept.
+    pub fn answer_words(&self, job: JobId) -> Option<String> {
+        self.with_state(|state| state.answers.get(&job).map(|a| a.words.clone()))
     }
 
     /// Keeps a finished job's answer for the jobs that are handed it; the oldest answers beyond

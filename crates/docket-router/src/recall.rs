@@ -48,10 +48,11 @@ fn episode_kind() -> Vec<KindPattern> {
 }
 
 impl<S: Seams> Router<S> {
-    /// The Spaces a restart should read: memory's list (the open and paused ones), with the Spaces
-    /// this router holds a session or a task in, and the desktop. Memory may refuse the list to
-    /// the router (its Spaces read is the shell's today): the router's own Spaces are then the
-    /// answer, so a restart still reaches every Space that has been used since the router began.
+    /// The Spaces a restart should read: memory's list (every Space it keeps, opened yet or not:
+    /// memory opens a Space on first use, so after a restart most read as locked until a session
+    /// opens them), with the Spaces this router holds a session or a task in, and the desktop.
+    /// Memory may refuse the list to the router: the router's own Spaces are then the answer, so
+    /// a restart still reaches every Space that has been used since the router began.
     async fn recall_spaces(&self) -> IntentsReply {
         let mut spaces: BTreeSet<SpaceId> = BTreeSet::from([SpaceId::desktop()]);
         if let Ok(MemoryReply::Spaces(listed)) =
@@ -60,7 +61,7 @@ impl<S: Seams> Router<S> {
             spaces.extend(
                 listed
                     .into_iter()
-                    .filter(|s| matches!(s.state, SpaceState::Open | SpaceState::Paused { .. }))
+                    .filter(|s| !matches!(s.state, SpaceState::Deleting | SpaceState::Gone))
                     .map(|s| s.id),
             );
         }

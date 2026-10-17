@@ -90,6 +90,18 @@ fn the_list_says_in_plain_words_what_each_helper_is_doing_and_what_it_needs() {
         (HelperPhase::Idle, "Nothing to do")
     );
 
+    // A job taken whose session is still opening: already working on it, nobody to speak to yet.
+    let model: HelperModel =
+        serde_json::from_str(r#"{"kind":"named","v":{"account":"local","model":"qwen3-4b"}}"#)
+            .expect("model");
+    let (board, id) = board_with(model);
+    let (board, _) = step(board, job(&id, "compare the three offers"));
+    let starting = line_of(board.card(&id).expect("card"), &board, None);
+    assert_eq!(
+        (starting.state, starting.doing.as_str(), starting.agent),
+        (HelperPhase::Working, "compare the three offers", None)
+    );
+
     // Paused, each way, with the reason.
     let (board, id) = board_with(HelperModel::Unset);
     for (why, text) in [
@@ -140,13 +152,22 @@ fn the_list_says_in_plain_words_what_each_helper_is_doing_and_what_it_needs() {
 fn a_card_shows_its_reach_in_words_and_its_jobs_with_why_one_did_not_finish() {
     let (board, id) = board_with(HelperModel::Unset);
     let (board, _) = step(board, job(&id, "compare the offers"));
-    let view = card_of(board.card(&id).expect("card"), &board, None);
+    let view = card_of(board.card(&id).expect("card"), &board, None, |_| None);
     assert_eq!(view.role, "Reads the mail.");
     assert_eq!(view.reach, ["org.quire.Mail: look at things"]);
     assert_eq!(view.steps, Count(8));
     assert_eq!(view.jobs.len(), 1);
     assert_eq!(view.jobs[0].state, JobShown::NeedsModel);
     assert_eq!(view.jobs[0].note, None);
+    assert_eq!(view.jobs[0].answer, None);
+    let posted = view.jobs[0].id;
+    let kept = card_of(board.card(&id).expect("card"), &board, None, |job| {
+        (job == posted).then(|| "The second offer is cheapest.".to_owned())
+    });
+    assert_eq!(
+        kept.jobs[0].answer.as_deref(),
+        Some("The second offer is cheapest.")
+    );
 }
 
 #[test]

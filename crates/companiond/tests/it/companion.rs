@@ -168,7 +168,7 @@ async fn restart_rebuilds_the_front_and_the_roster_from_recent_with_bodies() {
 }
 
 #[test]
-fn replay_reads_oldest_first_and_refuses_a_body_it_cannot_parse() {
+fn replay_reads_oldest_first_skips_the_routers_log_and_refuses_a_body_it_cannot_parse() {
     let task = TaskId::parse("t-1").expect("task");
     let two = vec![
         entry(2, "companion.session.opened", 20, Some(opened(&task))),
@@ -187,6 +187,10 @@ fn replay_reads_oldest_first_and_refuses_a_body_it_cannot_parse() {
         let bad = vec![entry(1, kind, 1, Some("{\"nope\":1}".into()))];
         assert_eq!(replay_of(&bad), Err(ReplayFault::Malformed), "{kind}");
     }
+    // The router's own session log shares the kind; its versioned entries are read elsewhere.
+    let logged = r#"{"version":1,"seq":4,"kind":"closed","v":"closed"}"#;
+    let routers = vec![entry(1, "companion.session.closed", 1, Some(logged.into()))];
+    assert_eq!(replay_of(&routers), Ok(vec![]));
 }
 
 /// A record of a run as cuad writes it (`cua-bus`'s `CuaRecord`: tag `kind`, content `v`).

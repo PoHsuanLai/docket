@@ -131,6 +131,11 @@ fn names_read_well() {
     assert_eq!(model_name("anthropic/claude-haiku-4-5"), "Claude Haiku 4.5");
     assert_eq!(model_name("kimi-k2.6"), "Kimi K2.6");
     assert_eq!(
+        model_name("qwen3-4b-instruct-2507-fp8"),
+        "Qwen3 4B Instruct 2507"
+    );
+    assert_eq!(model_name("Qwen/Qwen3-30B-A3B-AWQ"), "Qwen3 30B A3B");
+    assert_eq!(
         provider_name(&ProviderId("openrouter".into())),
         "OpenRouter"
     );

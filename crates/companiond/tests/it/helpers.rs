@@ -322,6 +322,9 @@ async fn a_helper_hands_its_answer_to_another_as_data_never_as_an_instruction() 
         matches!(status_of(&hub, first), JobStatus::Done(_))
     })
     .await;
+    // The person reads what it answered on its card.
+    let said = hub.answer_words(first).unwrap_or_default();
+    assert!(said.starts_with("Eve says:"), "{said}");
 
     // Inbox is given a job of the person's own words and Research's answer beside it.
     let second = posted(
