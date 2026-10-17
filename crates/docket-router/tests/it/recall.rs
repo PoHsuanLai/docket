@@ -5,9 +5,9 @@
 use crate::support::*;
 use almanac_core::{
     BodyMode, Episode, EpisodeId, EpisodeKind, EpisodeOutcome, EventRef, EventSummary, Fact,
-    FactId, FactState, FactText, FactView, JsonText, KindTag, MemoryReply, MemoryRequest,
-    Narrative, RecentEntry, RecentQuery, ReplicaId, Seq, Skeleton, TopicPath, TrustFilter,
-    UseCount, UserText, Validity,
+    FactId, FactState, FactText, FactView, JsonText, KindTag, MemoryItem, MemoryReply,
+    MemoryRequest, Narrative, RecallHit, RecallWhy, RecentEntry, RecentQuery, ReplicaId, Seq,
+    Skeleton, StepLine, StepOutcome, TopicPath, TrustFilter, UseCount, UserText, Validity,
 };
 use docket_core::*;
 use docket_fake::FakeMemory;
@@ -263,4 +263,84 @@ async fn the_profile_is_what_the_person_said_themselves_at_the_desktop_scope() {
         panic!("{asked:?}")
     };
     assert_eq!(facts.space, prov::SpaceId::desktop());
+}
+
+fn step(action: &str, outcome: StepOutcome) -> StepLine {
+    StepLine {
+        action: prov::ActionName::parse(action).expect("action"),
+        targets: vec![],
+        effect: prov::Effect::Read,
+        outcome,
+        undo: None,
+    }
+}
+
+#[tokio::test]
+async fn a_step_that_failed_in_an_earlier_turn_is_not_handed_to_the_planner() {
+    let mut router = router();
+    let mut earlier = episode("t-7", None, trusted());
+    earlier.skeleton.steps = vec![
+        step("files.item.open", StepOutcome::Done),
+        step("files.item.share", StepOutcome::Failed),
+    ];
+    let failed_line = "step: files.item.share  failed";
+    assert!(
+        earlier.skeleton.text().contains(failed_line),
+        "the fixture builds the line"
+    );
+    router.seams.memory = FakeMemory::answering(vec![
+        MemoryReply::Recent(vec![entry(
+            "companion.episode",
+            2,
+            trusted(),
+            Some(&json_of(&earlier)),
+            None,
+        )]),
+        MemoryReply::Hits(vec![RecallHit {
+            doc: MemoryItem::Event(EventRef {
+                space: space("work"),
+                replica: ReplicaId([1; 16]),
+                seq: Seq(2),
+            }),
+            text: UserText::new(earlier.skeleton.text()),
+            at: UnixSeconds(3),
+            label: trusted(),
+            links: vec![],
+            why: RecallWhy::Lexical { rank: 1 },
+        }]),
+    ]);
+    let s = open(&router, "work", AgentRef::Companion).await;
+    let RecallView::Episodes(lines) =
+        recall(&router, &s.session, RecallAsk::Episodes(query())).await
+    else {
+        panic!("episodes")
+    };
+    assert!(lines[0].skeleton.0.contains("asked: find the receipts"));
+    assert!(lines[0].skeleton.0.contains("files.item.open"));
+    assert!(
+        !lines[0].skeleton.0.contains("failed"),
+        "{:?}",
+        lines[0].skeleton
+    );
+    let RecallView::Hits(hits) = recall(
+        &router,
+        &s.session,
+        RecallAsk::Inject(almanac_core::InjectQuery {
+            space: space("work"),
+            text: UserText::new("receipts"),
+            budget: porter_core::Tokens(100),
+            k: Count(3),
+            over: almanac_core::RecallOver::Both,
+            trust: TrustFilter::Any,
+        }),
+    )
+    .await
+    else {
+        panic!("hits")
+    };
+    let Reveal::Plain(text) = &hits[0].text else {
+        panic!("a trusted hit is plain")
+    };
+    assert!(text.contains("asked: find the receipts"));
+    assert!(!text.contains("failed"), "{text}");
 }

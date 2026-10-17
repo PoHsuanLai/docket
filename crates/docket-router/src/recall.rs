@@ -4,6 +4,7 @@
 //! never comes back at all.
 
 use crate::handles::HandleValue;
+use crate::history::{without_failed_lines, without_failed_steps};
 use crate::labels::absorb;
 use crate::router::Router;
 use crate::seams::{MemoryLink, Seams};
@@ -156,7 +157,7 @@ impl<S: Seams> Router<S> {
             MemoryReply::Hits(hits) => IntentsReply::Recalled(RecallView::Hits(
                 hits.into_iter()
                     .map(|h| RecalledLine {
-                        text: reveal(h.text.as_str(), &h.label),
+                        text: reveal(&without_failed_lines(h.text.as_str()), &h.label),
                         doc: h.doc,
                         at: h.at,
                         why: h.why,
@@ -199,7 +200,8 @@ fn hands_out_untrusted(reply: &MemoryReply, episodes: bool) -> bool {
 
 /// The episodes of `entries` (newest first) as the planner reads them: one line per episode,
 /// the newest event of each (a narrated successor replaces its skeleton), the skeleton as
-/// trusted lines and a narrative only by handle. An entry that is not an episode of a trusted
+/// trusted lines (a step that failed is left out: it is history, not what works now) and a
+/// narrative only by handle. An entry that is not an episode of a trusted
 /// skeleton says nothing.
 fn episode_lines(
     entries: &[RecentEntry],
@@ -224,7 +226,7 @@ fn episode_lines(
             .as_ref()
             .map(|n| mint(n.text.as_str(), &n.label, Source::Model(n.by)));
         lines.push(EpisodeLine {
-            skeleton: SkeletonText(episode.skeleton.text()),
+            skeleton: SkeletonText(without_failed_steps(&episode.skeleton).text()),
             id: episode.id,
             agent: episode.agent,
             space: episode.space,
