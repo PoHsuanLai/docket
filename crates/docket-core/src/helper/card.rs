@@ -22,17 +22,18 @@ pub enum HelperTextFault {
     NotText,
 }
 
-/// The most characters of a helper's name.
-const NAME_MAX: usize = 40;
-/// The most characters of a role.
-const ROLE_MAX: usize = 1_000;
+/// The most characters of a helper's name, and of bytes.
+const NAME_MAX: (usize, usize) = (40, 120);
+/// The most characters of a role, and of bytes. A helper's planner reads the role and the job's
+/// goal at every turn in a text that is 4,000 bytes at most, so each is bounded in bytes too.
+const ROLE_MAX: (usize, usize) = (600, 1_400);
 
-fn checked(text: &str, max: usize, newlines: bool) -> Result<String, HelperTextFault> {
+fn checked(text: &str, max: (usize, usize), newlines: bool) -> Result<String, HelperTextFault> {
     let text = text.trim();
     if text.is_empty() {
         return Err(HelperTextFault::Empty);
     }
-    if text.chars().count() > max {
+    if text.chars().count() > max.0 || text.len() > max.1 {
         return Err(HelperTextFault::TooLong);
     }
     if text
@@ -74,7 +75,7 @@ impl From<HelperName> for String {
     }
 }
 
-/// What a helper is for, in the person's own words: trusted text, up to 1,000 characters.
+/// What a helper is for, in the person's own words: trusted text, up to 600 characters.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct Role(String);

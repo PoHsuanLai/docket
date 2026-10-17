@@ -30,6 +30,8 @@ pub enum Say {
     /// The inner reply, after the model has been waited on once: a pull of the planner's answer
     /// is pending on its first poll.
     Late(Box<Say>),
+    /// The model's session panics when asked.
+    Panic,
 }
 
 /// Words only.
@@ -46,6 +48,7 @@ pub fn call(name: &str, args: Json) -> Say {
 struct Inner {
     script: VecDeque<Say>,
     asked: Vec<ChatRequest>,
+    opened: Vec<OpenOptions>,
 }
 
 /// The transport: cloned into the planner, kept by the test.
@@ -76,6 +79,11 @@ impl ScriptedInfer {
     /// The text of the system message of the n-th request.
     pub fn system_text(&self, n: usize) -> String {
         text_of(&self.asked()[n], 0)
+    }
+
+    /// The options of every session opened so far, oldest first.
+    pub fn opened(&self) -> Vec<OpenOptions> {
+        self.0.lock().expect("lock").opened.clone()
     }
 
     /// How many scripted replies are left.
@@ -180,6 +188,10 @@ impl InferSession for ScriptedSession {
                 _ => break,
             }
         }
+        if matches!(next, Some(Say::Panic)) {
+            drop(inner);
+            panic!("the scripted model panicked");
+        }
         match next {
             Some(Say::Reply(text, calls)) => self.ready.push_back(reply(text, calls)),
             Some(Say::Cut(text)) => {
@@ -193,7 +205,9 @@ impl InferSession for ScriptedSession {
                 .ready
                 .push_back(InferEvent::Finished(InferReply::Refused(why))),
             Some(Say::Hang) => self.hang = true,
-            Some(Say::Routed(..) | Say::Late(_)) | None => return Err(SessionError::Closed),
+            Some(Say::Routed(..) | Say::Late(_) | Say::Panic) | None => {
+                return Err(SessionError::Closed);
+            }
         }
         Ok(())
     }
@@ -221,8 +235,9 @@ impl Transport for ScriptedInfer {
         _need: &Need,
         _class: DataClass,
         _tier: Tier,
-        _options: &OpenOptions,
+        options: &OpenOptions,
     ) -> Result<ScriptedSession, TransportError> {
+        self.0.lock().expect("lock").opened.push(options.clone());
         Ok(ScriptedSession {
             inner: self.clone(),
             ready: VecDeque::new(),

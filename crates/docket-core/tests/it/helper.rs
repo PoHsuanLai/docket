@@ -41,7 +41,7 @@ pub(crate) fn json<T: serde::Serialize>(value: &T) -> String {
 #[test]
 fn a_name_and_a_role_are_the_persons_words_and_bounded() {
     let long_name = "n".repeat(41);
-    let long_role = "r".repeat(1_001);
+    let long_role = "r".repeat(601);
     let names: Vec<(&str, &str, Result<&str, HelperTextFault>)> = vec![
         ("a plain name", "Research", Ok("Research")),
         ("trimmed", "  Inbox \n", Ok("Inbox")),
@@ -143,7 +143,12 @@ fn only_a_free_or_model_less_helper_takes_a_job() {
 fn a_goal_is_words_that_fit_and_its_debug_shows_no_words() {
     assert!(GoalText::parse("compare the three offers").is_ok());
     assert_eq!(GoalText::parse(" "), Err(GoalFault::Empty));
-    assert_eq!(GoalText::parse(&"g".repeat(2_001)), Err(GoalFault::TooLong));
+    assert_eq!(GoalText::parse(&"g".repeat(1_001)), Err(GoalFault::TooLong));
+    // A goal of fewer characters that is too many bytes is too long too.
+    assert_eq!(
+        GoalText::parse(&"\u{4e2d}".repeat(700)),
+        Err(GoalFault::TooLong)
+    );
     let shown = format!("{:?}", GoalText::parse("secret plan").expect("goal"));
     assert!(!shown.contains("secret"), "{shown}");
 }

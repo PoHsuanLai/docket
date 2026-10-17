@@ -3,7 +3,8 @@
 //! compare-and-set; this carries its effects out: the records written through the router (and
 //! read back at a restart), the notices the person is shown, and the tasks that run the jobs.
 //!
-//! - [`Hub`], [`Told`]: the board, its records and the sentences the person is told.
+//! - [`Hub`], [`Told`]: the board, its records, the sentences the person is told and the tasks that
+//!   run the jobs, each on a companion of its own.
 
 mod hub;
 

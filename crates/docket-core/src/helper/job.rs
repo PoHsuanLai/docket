@@ -30,8 +30,8 @@ pub enum GoalFault {
     TooLong,
 }
 
-/// The most characters of a goal.
-const GOAL_MAX: usize = 2_000;
+/// The most characters of a goal, and of bytes (see the role's note on why bytes are bounded).
+const GOAL_MAX: (usize, usize) = (1_000, 1_900);
 
 /// What a job is to do, in words: an instruction to the helper that takes it. It is created only
 /// from the person's words or from a planner that read nothing untrusted (see [`GoalSource`]).
@@ -46,7 +46,7 @@ impl GoalText {
         if text.is_empty() {
             return Err(GoalFault::Empty);
         }
-        if text.chars().count() > GOAL_MAX {
+        if text.chars().count() > GOAL_MAX.0 || text.len() > GOAL_MAX.1 {
             return Err(GoalFault::TooLong);
         }
         Ok(Self(text.to_owned()))

@@ -28,8 +28,9 @@ use porter_core::need::LlmNeed;
 use porter_core::{AppName, DataClass, Need, Tier, Tokens};
 use porter_infer::{
     ChatControl, ChatReply, ChatRequest, ClientFrame, Declined, InferEvent, InferRefusal,
-    InferReply, InferRequest, InferSession, JsonSchemaText, JsonText, Knob, Reasoning, ReplyShape,
-    ServedBy, StopReason, ToolCallPart, ToolChoice, ToolDecl, ToolName, ToolParallelism,
+    InferReply, InferRequest, InferSession, JsonSchemaText, JsonText, Knob, OpenOptions, Reasoning,
+    ReplyShape, ServedBy, StopReason, ToolCallPart, ToolChoice, ToolDecl, ToolName,
+    ToolParallelism,
 };
 use prov::{EntityId, EntityKey, EntityKind};
 use serde_json::{Value as Json, json};
@@ -152,6 +153,7 @@ pub struct PlannerModel<P: Transport> {
     catalogue: Catalogue,
     pub(crate) role: Option<RoleText>,
     pub(crate) tier: Tier,
+    options: OpenOptions,
 }
 
 fn schema_text(schema: &Json) -> Option<JsonSchemaText> {
@@ -296,7 +298,24 @@ impl<P: Transport> PlannerModel<P> {
             catalogue: Catalogue::default(),
             role: None,
             tier: Tier::Balanced,
+            options: OpenOptions::default(),
         }
+    }
+
+    /// The same planner opening its inference sessions with `options`: who asks (a helper), and
+    /// the one model it must run on. The assistant's own planner opens with none.
+    pub fn with_open_options(self, options: OpenOptions) -> Self {
+        Self { options, ..self }
+    }
+
+    /// The options every inference session of this planner opens with.
+    pub fn open_options(&self) -> &OpenOptions {
+        &self.options
+    }
+
+    /// Replaces the agent's role, for a task whose goal is only known once it opens.
+    pub fn set_role(&mut self, role: RoleText) {
+        self.role = Some(role);
     }
 
     /// The same planner with an agent's role after the fixed rules.
@@ -392,7 +411,7 @@ impl<P: Transport> PlannerModel<P> {
         let (class, tier) = (request.class, request.tier);
         let mut session: AnyOrP<P> = self
             .infer
-            .open(&need, class, tier)
+            .open_with(&need, class, tier, &self.options)
             .await
             .map_err(|e| unavailable("opening a model", &e))?;
         session

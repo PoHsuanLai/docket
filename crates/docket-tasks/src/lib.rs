@@ -55,7 +55,10 @@ pub use completion::completion_effects;
 pub use drive::refusal_of;
 pub use fault::ServeFault;
 pub use handoff::Handoff;
-pub use helpers::{helper_query, helper_records_of};
+pub use helpers::{
+    JobEnding, JobInput, JobReport, JobSpec, OpenedJob, helper_query, helper_records_of,
+    open_options, planner_for, role_text,
+};
 pub use memory::{episodes_of, hits_of, primer_of, profile_of};
 pub use native::{Core, NativeBackend, NativeHost, RouterLog};
 pub use read::answer_read;

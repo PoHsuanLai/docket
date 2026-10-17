@@ -26,7 +26,7 @@ pub fn app(s: &str) -> AppName {
 pub fn task(s: &str) -> TaskId {
     TaskId::parse(s).expect("task")
 }
-fn caller(name: &str, role: CallerRole) -> CallerId {
+pub fn caller(name: &str, role: CallerRole) -> CallerId {
     CallerId {
         app: AppId {
             name: app(name),
