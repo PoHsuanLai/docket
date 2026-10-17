@@ -113,11 +113,11 @@ fn completion_lines_are_typed_facts_and_attention_is_rare() {
     };
     assert_eq!(
         completion_line(&note(run, ReportStatus::Done, 9, 2)).as_deref(),
-        Some("run r-3 finished: Done, 9 steps, 2 values")
+        Some("the on-screen run finished: Done, 9 steps, 2 values")
     );
     assert_eq!(
         completion_line(&note(worker("t-4"), ReportStatus::Failed, 1, 0)).as_deref(),
-        Some("task t-4 finished: Failed, 1 step, 0 values")
+        Some("the background task finished: Failed, 1 step, 0 values")
     );
     assert_eq!(
         completion_line(&note(worker("t-4"), ReportStatus::Progress, 1, 0)),

@@ -351,7 +351,7 @@ fn a_completion_note_is_appended_and_never_starts_or_moves_the_loop() {
         assert_eq!(
             e,
             [LoopEffect::Note(
-                "task t-4 finished: Done, 2 steps, 1 value".into()
+                "the background task finished: Done, 2 steps, 1 value".into()
             )]
         );
     }

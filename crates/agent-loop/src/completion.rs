@@ -53,13 +53,14 @@ pub fn attention_of(status: ReportStatus, asked: AskedPerson) -> Attention {
     }
 }
 
-/// The one line the front task gets: `run r-3 finished: Done, 9 steps, 2 values`. Progress is
-/// not a completion and gets none.
+/// The one line the front task gets: `the on-screen run finished: Done, 9 steps, 2 values`. It
+/// names no id: the line is read by the planner and by the person, and an id is for neither.
+/// Progress is not a completion and gets none.
 pub fn completion_line(note: &CompletionNote) -> Option<String> {
     let who = match &note.agent {
         AgentRef::Companion => "assistant".to_owned(),
-        AgentRef::Worker { task } => format!("task {task}"),
-        AgentRef::Cua { run } => format!("run {run}"),
+        AgentRef::Worker { .. } => "the background task".to_owned(),
+        AgentRef::Cua { .. } => "the on-screen run".to_owned(),
         AgentRef::User => "you".to_owned(),
     };
     let how = match note.status {

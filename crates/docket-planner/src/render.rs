@@ -9,6 +9,7 @@
 
 use crate::accepts::{related_of, used_as};
 use crate::context_text::{context_text, shown_in};
+use crate::plain::{step_labels, without_ids};
 use crate::reader_text::{reader_origin, ready_line};
 use crate::role::RoleText;
 use crate::step_text::{Seen, step_line, step_line_in};
@@ -38,8 +39,8 @@ fn json<T: serde::Serialize>(value: &T) -> String {
 fn agent(agent: &AgentRef) -> String {
     match agent {
         AgentRef::Companion => "assistant".to_owned(),
-        AgentRef::Worker { task } => format!("task {task}"),
-        AgentRef::Cua { run } => format!("run {run}"),
+        AgentRef::Worker { .. } => "a background task".to_owned(),
+        AgentRef::Cua { .. } => "an on-screen run".to_owned(),
         AgentRef::User => "the person".to_owned(),
     }
 }
@@ -66,7 +67,7 @@ fn roster_line(line: &RosterLine) -> String {
                 .as_ref()
                 .map(|s| format!(" | last: {}", step_line(s, &[])))
                 .unwrap_or_default();
-            format!("- {who}: {}{last}{told}", shown(&full.goal))
+            without_ids(&format!("- {who}: {}{last}{told}", shown(&full.goal)))
         }
     }
 }
@@ -82,20 +83,19 @@ fn outcome_word(outcome: &almanac_core::EpisodeOutcome) -> String {
     }
 }
 
-fn episode_line(episode: &EpisodeLine) -> String {
+fn episode_line(episode: &EpisodeLine, actions: &[ActionCard]) -> String {
     let narrative = episode
         .narrative
         .as_ref()
         .map(|h| format!(" (account #{})", h.0))
         .unwrap_or_default();
-    format!(
-        "- {} {} in {} {}: {}{narrative}",
-        episode.id,
+    without_ids(&format!(
+        "- {} in {} {}: {}{narrative}",
         agent(&episode.agent),
         episode.space,
         outcome_word(&episode.outcome),
-        episode.skeleton.0.replace('\n', "; ")
-    )
+        step_labels(&episode.skeleton.0, actions).replace('\n', "; ")
+    ))
 }
 
 fn recalled_line(line: &RecalledLine) -> String {
@@ -278,7 +278,7 @@ pub fn user_text(view: &PlannerView) -> String {
     section(
         &mut text,
         "What recently ended",
-        view.episodes.iter().map(episode_line),
+        view.episodes.iter().map(|e| episode_line(e, &view.actions)),
     );
     section(
         &mut text,
@@ -383,6 +383,45 @@ mod tests {
             shape,
             from: Source::Mail,
             size: CharCount(0),
+        }
+    }
+
+    #[test]
+    fn a_task_and_a_run_are_told_by_what_they_are_never_by_id_or_action_name() {
+        use docket_core::{
+            ActionCard, EpisodeLine, LabelText, RosterDetail, RosterLine, RosterState, SkeletonText,
+        };
+        let labelled = ActionCard {
+            label: LabelText::parse("Do this on screen").expect("label"),
+            ..crate::accepts::fixtures::card("cua.run.start", docket_core::TargetKind::Nothing, &[])
+        };
+        let episode = EpisodeLine {
+            id: almanac_core::EpisodeId::parse("t-179").expect("id"),
+            agent: AgentRef::Worker {
+                task: prov::TaskId::parse("t-179").expect("task"),
+            },
+            space: prov::SpaceId::desktop(),
+            ended: prov::UnixSeconds(1),
+            outcome: almanac_core::EpisodeOutcome::Done,
+            skeleton: SkeletonText("asked: tidy up\nstep: cua.run.start  done".to_owned()),
+            narrative: None,
+        };
+        let roster = RosterLine {
+            agent: AgentRef::Cua {
+                run: prov::RunId::parse("r-1").expect("run"),
+            },
+            space: prov::SpaceId::desktop(),
+            state: RosterState::Failed,
+            detail: RosterDetail::PresenceOnly,
+        };
+        let text = format!(
+            "{}\n{}",
+            episode_line(&episode, &[labelled]),
+            roster_line(&roster)
+        );
+        assert!(text.contains("Do this on screen"), "{text}");
+        for banned in ["t-179", "r-1", "cua.run.start", "cua", "companion"] {
+            assert!(!text.to_lowercase().contains(banned), "{banned} in {text}");
         }
     }
 

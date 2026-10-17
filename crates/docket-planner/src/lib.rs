@@ -16,6 +16,7 @@ mod accepts;
 mod args;
 mod catalogue;
 mod context_text;
+mod plain;
 mod planner;
 mod prefix;
 mod read_ask;

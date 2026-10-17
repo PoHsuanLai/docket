@@ -3,6 +3,7 @@
 //! words: the router's coarse code is all that crosses, and a handle stays an opaque `#n`.
 
 use crate::accepts::used_as;
+use crate::plain::without_ids;
 use crate::read_ask::read_fault_text;
 use crate::reader_text::{reader_answer, reader_head};
 use crate::unconfirmed::unconfirmed_text;
@@ -361,8 +362,27 @@ pub(crate) fn step_line(step: &StepLine, handles: &[HandleCard]) -> String {
 
 /// One step, as one line of the planner's history.
 pub(crate) fn step_line_in(step: &StepLine, seen: &Seen<'_>) -> String {
+    without_ids(&step_line_raw(step, seen))
+}
+
+/// The action as the history says it: its label where it is offered and no other offered action
+/// has the same label, else its name (two "Read"s would not tell the planner which it called).
+fn action_text(step: &StepLine, actions: &[ActionCard]) -> String {
+    let name = || format!("{}.{}", step.action.app, step.action.name);
+    let Some(card) = actions.iter().find(|c| c.action == step.action) else {
+        return name();
+    };
+    let same = actions.iter().filter(|c| c.label == card.label).count();
+    if same == 1 {
+        card.label.as_str().to_owned()
+    } else {
+        name()
+    }
+}
+
+fn step_line_raw(step: &StepLine, seen: &Seen<'_>) -> String {
     let handles = seen.handles;
-    let action = format!("{}.{}", step.action.app, step.action.name);
+    let action = action_text(step, seen.actions);
     let head = reader_head(step).unwrap_or_else(|| format!("{action}{}", with_text(&step.with)));
     if let Some(line) = reader_answer(&head, step, handles) {
         return line;
@@ -502,6 +522,46 @@ mod tests {
             &[],
         );
         assert!(!plain.contains("the app said"), "{plain}");
+    }
+
+    #[test]
+    fn a_step_names_its_action_by_label_and_never_shows_an_id() {
+        let done = StepEnd::Done {
+            said: Some(docket_core::LabelText::parse("Started t-179").expect("said")),
+            value: Some(Reveal::Plain(Value::Text("r-1".to_owned()))),
+            undo: None,
+        };
+        let one = crate::accepts::fixtures::card("mail.message.forward", TargetKind::Nothing, &[]);
+        let own = ActionCard {
+            label: docket_core::LabelText::parse("Do this on screen").expect("label"),
+            ..one.clone()
+        };
+        let seen = |actions: &[ActionCard]| {
+            step_line_in(
+                &step(done.clone()),
+                &Seen {
+                    handles: &[],
+                    earlier: &[],
+                    actions,
+                },
+            )
+        };
+        let line = seen(std::slice::from_ref(&own));
+        assert!(line.starts_with("Do this on screen done"), "{line}");
+        assert!(!line.contains("t-179") && !line.contains("r-1"), "{line}");
+        // Two actions with one label: the name tells them apart.
+        let twin = ActionCard {
+            action: ActionRef {
+                name: ActionName::parse("mail.message.send").expect("name"),
+                ..one.action.clone()
+            },
+            ..own.clone()
+        };
+        let line = seen(&[own, twin]);
+        assert!(
+            line.starts_with("org.quire.Mail.mail.message.forward done"),
+            "{line}"
+        );
     }
 
     #[test]

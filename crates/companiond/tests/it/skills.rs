@@ -256,9 +256,9 @@ async fn a_load_over_the_byte_budget_is_refused_and_audited_as_nothing_loaded() 
         "big-one and small; the reload is not recorded again: {loaded:?}"
     );
     // The refusal is the planner's to read, in the history of its next turn.
+    let told = w.infer.user_text(4);
     assert!(
-        w.infer
-            .user_text(4)
-            .contains("companion.skill.load refused")
+        told.contains("Load a skill refused") || told.contains("companion.skill.load refused"),
+        "{told}"
     );
 }

@@ -41,7 +41,7 @@ fn a_quiet_completion_is_one_line_in_a_live_front_task() {
     assert_eq!(
         effects,
         [LoopEffect::Note(
-            "run r-3 finished: Done, 9 steps, 2 values".into()
+            "the on-screen run finished: Done, 9 steps, 2 values".into()
         )]
     );
 }

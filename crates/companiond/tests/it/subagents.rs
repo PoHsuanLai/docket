@@ -46,7 +46,6 @@ async fn a_worker_is_asked_in_a_message_runs_in_its_own_session_and_reports_back
     let AgentRef::Worker { task: wtask } = request.to.agent.clone() else {
         panic!("the request is for a worker: {:?}", request.to)
     };
-    let wid = wtask.as_str().to_owned();
     let worker = |_: &str| AgentRef::Worker {
         task: wtask.clone(),
     };
@@ -81,11 +80,11 @@ async fn a_worker_is_asked_in_a_message_runs_in_its_own_session_and_reports_back
     // roster, finished.
     let front_view = w.infer.user_text(2);
     assert!(
-        front_view.contains(&format!("task {wid} in work [report done]")),
+        front_view.contains("a background task in work [report done]"),
         "{front_view}"
     );
     assert!(
-        front_view.contains("companion.task.start done \"Started a task\" value"),
+        front_view.contains("done \"Started a task\" value"),
         "{front_view}"
     );
     let roster = w.companion.roster();
@@ -279,7 +278,7 @@ async fn a_report_from_a_run_is_a_typed_line_and_a_failure_makes_the_answer_wait
     let answer = w.companion.shared.answer(&front.task).expect("answer");
     assert!(
         matches!(&answer.phase, AnswerPhase::NeedsYou(NeedsYou::Question { text, .. })
-            if text == "run r-3 finished: Failed, 0 steps, 0 values"),
+            if text == "the on-screen run finished: Failed, 0 steps, 0 values"),
         "{:?}",
         answer.phase
     );
