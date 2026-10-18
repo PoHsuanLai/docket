@@ -221,7 +221,10 @@ async fn an_app_helper_takes_a_board_job_and_its_words_are_the_answer() {
     );
     assert!(w.infer.asked().is_empty());
     assert_eq!(state_of(&hub, &coder), HelperState::Idle);
-    assert_eq!(hub.card(&coder).expect("card").kind, HelperKind::AgentApp(program()));
+    assert_eq!(
+        hub.card(&coder).expect("card").kind,
+        HelperKind::AgentApp(program())
+    );
 }
 
 #[tokio::test]
@@ -238,7 +241,11 @@ async fn an_app_that_wants_signing_in_makes_its_helper_wait_and_fails_no_job() {
     })
     .await;
     assert_eq!(status_of(&hub, job), JobStatus::Blocked(Need::SignIn));
-    assert_eq!(hub.board().job(job).expect("job").failed, None, "not a failed job");
+    assert_eq!(
+        hub.board().job(job).expect("job").failed,
+        None,
+        "not a failed job"
+    );
 
     // The list says what it needs; the person is told once, in plain words.
     let view = hub.view(0);
@@ -254,7 +261,10 @@ async fn an_app_that_wants_signing_in_makes_its_helper_wait_and_fails_no_job() {
     assert_eq!(card.login, LoginShown::NeedsSignIn);
     assert_eq!(card.jobs[0].state, JobShown::NeedsSignIn);
     let names: Vec<_> = card.sign_in.iter().map(|c| c.name.as_str()).collect();
-    assert_eq!(names, ["Sign in with your Claude account", "Sign in in a terminal"]);
+    assert_eq!(
+        names,
+        ["Sign in with your Claude account", "Sign in in a terminal"]
+    );
 }
 
 #[tokio::test]
@@ -263,9 +273,15 @@ async fn choosing_an_agent_way_signs_in_and_the_job_proceeds() {
     let apps = Arc::new(Apps::default());
     apps.will_run(
         "Coder",
-        vec![AgentOutcome::NeedsSignIn(ways()), done("Signed in, and done.")],
+        vec![
+            AgentOutcome::NeedsSignIn(ways()),
+            done("Signed in, and done."),
+        ],
     );
-    apps.sign_ins.lock().expect("sign ins").push_back(SignInOutcome::SignedIn);
+    apps.sign_ins
+        .lock()
+        .expect("sign ins")
+        .push_back(SignInOutcome::SignedIn);
     let hub = hub(&w, &apps);
     let coder = make(&hub, "Coder").await;
     let job = give(&hub, &coder, "compare the three offers").await;
@@ -276,7 +292,10 @@ async fn choosing_an_agent_way_signs_in_and_the_job_proceeds() {
 
     let reply = hub.sign_in(coder.clone(), "claude-login".to_owned()).await;
     assert_eq!(reply, HelperReply::Done);
-    assert_eq!(apps.signed_with.lock().expect("ways").clone(), ["claude-login"]);
+    assert_eq!(
+        apps.signed_with.lock().expect("ways").clone(),
+        ["claude-login"]
+    );
     until("the job is done", || {
         matches!(status_of(&hub, job), JobStatus::Done(_))
     })
@@ -312,7 +331,9 @@ async fn a_terminal_way_asks_the_shell_to_open_one_and_resuming_asks_the_app_aga
     })
     .await;
 
-    let reply = hub.sign_in(coder.clone(), "terminal-login".to_owned()).await;
+    let reply = hub
+        .sign_in(coder.clone(), "terminal-login".to_owned())
+        .await;
     assert_eq!(
         reply,
         HelperReply::OpenTerminal(TerminalRequest {
@@ -336,9 +357,18 @@ async fn a_terminal_way_asks_the_shell_to_open_one_and_resuming_asks_the_app_aga
 async fn one_login_serves_every_helper_that_runs_the_same_app() {
     let w = world(vec![]);
     let apps = Arc::new(Apps::default());
-    apps.will_run("Coder", vec![AgentOutcome::NeedsSignIn(ways()), done("One.")]);
-    apps.will_run("Reviewer", vec![AgentOutcome::NeedsSignIn(ways()), done("Two.")]);
-    apps.sign_ins.lock().expect("sign ins").push_back(SignInOutcome::SignedIn);
+    apps.will_run(
+        "Coder",
+        vec![AgentOutcome::NeedsSignIn(ways()), done("One.")],
+    );
+    apps.will_run(
+        "Reviewer",
+        vec![AgentOutcome::NeedsSignIn(ways()), done("Two.")],
+    );
+    apps.sign_ins
+        .lock()
+        .expect("sign ins")
+        .push_back(SignInOutcome::SignedIn);
     let hub = hub(&w, &apps);
     let coder = make(&hub, "Coder").await;
     let reviewer = make(&hub, "Reviewer").await;
@@ -351,7 +381,10 @@ async fn one_login_serves_every_helper_that_runs_the_same_app() {
     .await;
 
     // Signing in for one releases the other: the app has one login.
-    assert_eq!(hub.sign_in(coder.clone(), "claude-login".to_owned()).await, HelperReply::Done);
+    assert_eq!(
+        hub.sign_in(coder.clone(), "claude-login".to_owned()).await,
+        HelperReply::Done
+    );
     until("both jobs are done", || {
         matches!(status_of(&hub, first), JobStatus::Done(_))
             && matches!(status_of(&hub, second), JobStatus::Done(_))

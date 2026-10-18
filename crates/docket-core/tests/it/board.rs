@@ -645,7 +645,10 @@ fn an_agent_app_helper_needs_no_model_because_the_app_brings_its_own() {
     let job = posted(&fx);
     assert_eq!(launched(&fx), [(coder.clone(), job)]);
     assert!(said(&fx).is_empty(), "no wait for a model: {fx:?}");
-    assert_eq!(board.job(job).map(|j| j.status.clone()), Some(JobStatus::Taken(coder)));
+    assert_eq!(
+        board.job(job).map(|j| j.status.clone()),
+        Some(JobStatus::Taken(coder))
+    );
 }
 
 #[test]
@@ -711,7 +714,10 @@ fn a_stored_card_and_its_new_kind_read_back() {
     let app = HelperKind::AgentApp(prov::AgentProgram::parse("claude-code").expect("program"));
     let text = serde_json::to_string(&app).expect("json");
     assert_eq!(text, r#"{"agent_app":"claude-code"}"#);
-    assert_eq!(serde_json::from_str::<HelperKind>(&text).expect("kind"), app);
+    assert_eq!(
+        serde_json::from_str::<HelperKind>(&text).expect("kind"),
+        app
+    );
     assert_eq!(
         serde_json::to_string(&Need::SignIn).expect("json"),
         r#""sign_in""#

@@ -759,7 +759,6 @@ async fn an_agent_cannot_watch_mark_or_close_a_watch_session() {
         workspace: Workspace::parse(WORK).expect("workspace"),
         label: "a sneaky one".into(),
         rewind: Rewind::Agent,
-        helper: None,
     };
     for agent in [
         caller("org.zed.Zed", CallerRole::Mcp),

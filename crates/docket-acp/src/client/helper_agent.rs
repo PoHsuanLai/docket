@@ -188,9 +188,7 @@ impl<H: Hosts> HelperAgent<H> {
     pub async fn close(&mut self) {
         if let Some(Link { mut host, session }) = self.link.take() {
             // The router hears the session end; an agent already gone has nothing to say.
-            let _ = host
-                .close(&session, docket_session::EndCause::Closed)
-                .await;
+            let _ = host.close(&session, docket_session::EndCause::Closed).await;
         }
     }
 
@@ -224,7 +222,10 @@ impl<H: Hosts> HelperAgent<H> {
         let played = Self::play(link, turn).await;
         match played {
             Played::Ended(TurnEnd::Done, said) => {
-                self.resume = self.link.as_ref().and_then(|l| l.host.backend().agent_session());
+                self.resume = self
+                    .link
+                    .as_ref()
+                    .and_then(|l| l.host.backend().agent_session());
                 AgentEnd::Done(UntrustedWords::new(said.concat()))
             }
             Played::Ended(TurnEnd::Cancelled, _) => AgentEnd::Stopped,

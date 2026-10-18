@@ -40,7 +40,9 @@ impl Notice {
                 format!("{name} needs a model before it can start. Choose one for it.")
             }
             Notice::WaitsForSignIn => {
-                format!("{name} needs you to sign in before it can start. Open its card to sign in.")
+                format!(
+                    "{name} needs you to sign in before it can start. Open its card to sign in."
+                )
             }
             Notice::Failed(fault) => format!("{name} stopped: {}.", fault.plain()),
             Notice::Refused(refusal) => refusal.plain(),

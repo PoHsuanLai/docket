@@ -717,10 +717,14 @@ where
     /// while (a call the router already carries out is not abandoned half way).
     fn stop(&self, at: &TaskRef) {
         let found = self.with_state(|state| {
-            state
-                .running
-                .get(&at.job)
-                .map(|r| (r.shared.clone(), r.task.clone(), r.abort.clone(), r.helper.clone()))
+            state.running.get(&at.job).map(|r| {
+                (
+                    r.shared.clone(),
+                    r.task.clone(),
+                    r.abort.clone(),
+                    r.helper.clone(),
+                )
+            })
         });
         let Some((shared, task, abort, helper)) = found else {
             return;

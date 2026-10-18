@@ -137,7 +137,10 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         };
         match reply {
             HelperReply::Refused(why) => Err(refused(&why)),
-            HelperReply::Done | HelperReply::Made(_) | HelperReply::Posted(_) => Ok(outcome),
+            HelperReply::Done
+            | HelperReply::Made(_)
+            | HelperReply::Posted(_)
+            | HelperReply::OpenTerminal(_) => Ok(outcome),
         }
     }
 }

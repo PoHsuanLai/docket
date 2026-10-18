@@ -4,7 +4,9 @@
 //! is the fakes: no process, no login, no network.
 
 use super::agent::{Act, Auth, View, call, say};
-use super::rig::{CWD, Setup, Wired, abs, always, once, opening, program, read, tool, wired_over, write};
+use super::rig::{
+    CWD, Setup, Wired, abs, always, once, opening, program, read, tool, wired_over, write,
+};
 use super::world::{Fakes, World};
 use docket_acp::client::fake::{FakeFiles, SpawnSeen};
 use docket_acp::client::{
@@ -77,10 +79,8 @@ fn agent_over(
     setups: Vec<Setup>,
     files: &FakeFiles,
 ) -> (HelperAgent<Worlds>, Vec<Kept>, Arc<Mutex<Vec<Start>>>) {
-    let (queue, kept): (VecDeque<_>, Vec<_>) = setups
-        .into_iter()
-        .map(|setup| world(files, setup))
-        .unzip();
+    let (queue, kept): (VecDeque<_>, Vec<_>) =
+        setups.into_iter().map(|setup| world(files, setup)).unzip();
     let starts = Arc::new(Mutex::new(Vec::new()));
     let worlds = Worlds {
         queue,
@@ -186,7 +186,11 @@ async fn an_agent_way_calls_authenticate_and_then_the_job_proceeds() {
 
     let ended = helper.run("Compare the offers", AT).await;
     assert!(matches!(ended, AgentEnd::Done(w) if w.as_untrusted_str() == "Signed in and done."));
-    assert_eq!(kept[0].spawned.plans().len(), 1, "the process that signed in took the job");
+    assert_eq!(
+        kept[0].spawned.plans().len(),
+        1,
+        "the process that signed in took the job"
+    );
 }
 
 #[tokio::test]
@@ -290,8 +294,8 @@ async fn a_standing_grant_belongs_to_the_helper_that_made_it() {
         answers: vec![once(), always()],
         ..Setup::default()
     };
-    let (mut helper, kept, _) = agent_over("h-1", vec![setup], &files);
-    let ended = helper.run("Tidy the notes", AT).await;
+    let (mut agent, kept, _) = agent_over("h-1", vec![setup], &files);
+    let ended = agent.run("Tidy the notes", AT).await;
     assert!(matches!(ended, AgentEnd::Done(_)), "{ended:?}");
 
     let held = kept[0].router.standing_grants();

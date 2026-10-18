@@ -8,10 +8,9 @@ use companion_wire::{
 };
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{
-    SignInOutcome, SignOutOutcome, TerminalRequest,
     Board, BoardEffect, BoardEvent, CardDraft, GoalOrigin, GoalText, HelperBudget, HelperCard,
     HelperKind, HelperModel, HelperName, HelperState, JobRefusal, JobStatus, NewJob, PlannerSaw,
-    ReachFault, Role, reach_policy,
+    ReachFault, Role, SignInOutcome, SignOutOutcome, TerminalRequest, reach_policy,
 };
 use docket_core::{HelperRosterLine, LeadText, Manifest};
 use docket_tasks::{HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal};
@@ -100,7 +99,9 @@ where
             return HelperReply::Refused(JobRefusal::NoSuchHelper.plain());
         };
         let Some(program) = card.kind.program().cloned() else {
-            return HelperReply::Refused("This helper does not run an app to sign in to.".to_owned());
+            return HelperReply::Refused(
+                "This helper does not run an app to sign in to.".to_owned(),
+            );
         };
         let Some(agents) = self.agents() else {
             return HelperReply::Refused("No apps can be signed in to here.".to_owned());
@@ -132,7 +133,9 @@ where
             return HelperReply::Refused(JobRefusal::NoSuchHelper.plain());
         };
         let (Some(program), Some(agents)) = (card.kind.program().cloned(), self.agents()) else {
-            return HelperReply::Refused("This helper does not run an app to sign out of.".to_owned());
+            return HelperReply::Refused(
+                "This helper does not run an app to sign out of.".to_owned(),
+            );
         };
         match agents.sign_out(&card).await {
             SignOutOutcome::SignedOut => {
@@ -150,9 +153,7 @@ where
                 });
                 HelperReply::Done
             }
-            SignOutOutcome::Failed => {
-                HelperReply::Refused("Signing out did not work.".to_owned())
-            }
+            SignOutOutcome::Failed => HelperReply::Refused("Signing out did not work.".to_owned()),
         }
     }
 
@@ -320,9 +321,7 @@ where
     fn card(&self, helper: &HelperId) -> Option<HelperCardView> {
         let board = self.board();
         let card = board.card(helper)?;
-        let mut view = card_of(card, &board, self.needs_of(card), |job| {
-            self.job_words(job)
-        });
+        let mut view = card_of(card, &board, self.needs_of(card), |job| self.job_words(job));
         let (signed, ways) = self.with_state(|state| {
             (
                 state.signed.contains(helper),

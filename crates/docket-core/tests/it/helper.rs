@@ -221,7 +221,10 @@ fn two_helpers_that_run_the_same_program_do_not_share_a_grant_caller() {
     assert_ne!(first, second);
     assert_ne!(first, GrantCaller::AcpAgent(program));
     assert_eq!(first.kind(), prov::ActorKind::Acp);
-    assert!(holds_standing(&first), "it holds standing grants like its program does");
+    assert!(
+        holds_standing(&first),
+        "it holds standing grants like its program does"
+    );
     let back: GrantCaller = serde_json::from_str(&json(&first)).expect("caller");
     assert_eq!(back, first);
     // A grant stored for the program as a whole still reads.

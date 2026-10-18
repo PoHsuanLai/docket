@@ -341,7 +341,11 @@ impl<X: Seams> AcpBackend<X> {
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         live.auth_ways = auth_ways(&init);
         live.can_log_out = init.agent_capabilities.auth.logout.is_some();
-        live.can_resume = init.agent_capabilities.session_capabilities.resume.is_some();
+        live.can_resume = init
+            .agent_capabilities
+            .session_capabilities
+            .resume
+            .is_some();
         self.sign_in(&init).await?;
         let methods = signable(&init);
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;

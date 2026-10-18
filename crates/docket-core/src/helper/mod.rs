@@ -36,7 +36,9 @@ mod rules;
 mod seat;
 
 pub use agent::{SignInHow, SignInWay, TerminalLogin, TerminalRequest, UntrustedWords};
-pub use apps::{AgentApps, AgentOutcome, CheckOutcome, Pending as AgentPending, SignInOutcome, SignOutOutcome};
+pub use apps::{
+    AgentApps, AgentOutcome, CheckOutcome, Pending as AgentPending, SignInOutcome, SignOutOutcome,
+};
 pub use board::{Board, BoardEffect, BoardEvent, CallVerdict, Launch, NewJob, step};
 pub use card::{
     CardDraft, HelperBudget, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase,
