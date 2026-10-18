@@ -119,6 +119,23 @@ where
         }
     }
 
+    /// Ends every helper's agent process: the host is stopping, and none may outlive it. A job
+    /// in progress is stopped first.
+    pub async fn shutdown(&self) {
+        let all = {
+            let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+            std::mem::take(&mut *slots)
+        };
+        for slot in all.into_values() {
+            if slot.running.load(Ordering::SeqCst) {
+                slot.cancel.notify_one();
+            }
+            let closing = async { slot.agent.lock().await.close().await };
+            // Ending the process may fail the same way a job does; the others still end.
+            let _ = caught(closing, ()).await;
+        }
+    }
+
     fn known(&self, helper: &HelperId) -> Option<Slot<H>> {
         let slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
         slots.get(helper).cloned()

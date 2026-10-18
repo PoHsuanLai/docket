@@ -10,15 +10,18 @@ use super::rig::{
 use super::world::{Fakes, World};
 use docket_acp::client::fake::{FakeFiles, SpawnSeen};
 use docket_acp::client::{
-    AgentEnd, AgentHost, HelperAgent, Hosts, SignInStep, SignOutStep, Start, Trouble,
+    AgentEnd, AgentHost, HelperAgent, HelperAgents, Hosts, SignInStep, SignOutStep, Start, Trouble,
 };
-use docket_core::GrantCaller;
-use docket_core::helper::{SignInHow, SignInWay};
+use docket_core::helper::{
+    AgentApps, AgentOutcome, CardDraft, GoalSource, GoalText, HelperBudget, HelperCard,
+    HelperKind, HelperModel, HelperName, Job, JobId, JobStatus, Role, SignInHow, SignInWay,
+};
+use docket_core::{ActionMatch, GrantCaller, LabelText, TaskPolicy, TaskPolicyState};
 use docket_inapp::EditorDesk;
 use docket_session::Opening;
 use prov::{HelperId, UnixSeconds};
 use serde_json::json;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::{Arc, Mutex};
 
 const AT: UnixSeconds = UnixSeconds(1_760_000_000);
@@ -74,11 +77,11 @@ fn world(files: &FakeFiles, setup: Setup) -> (Wired<Fakes>, Kept) {
     (wired, kept)
 }
 
-fn agent_over(
+fn worlds_for(
     id: &str,
     setups: Vec<Setup>,
     files: &FakeFiles,
-) -> (HelperAgent<Worlds>, Vec<Kept>, Arc<Mutex<Vec<Start>>>) {
+) -> (Worlds, Vec<Kept>, Arc<Mutex<Vec<Start>>>) {
     let (queue, kept): (VecDeque<_>, Vec<_>) =
         setups.into_iter().map(|setup| world(files, setup)).unzip();
     let starts = Arc::new(Mutex::new(Vec::new()));
@@ -87,6 +90,15 @@ fn agent_over(
         helper: helper(id),
         starts: starts.clone(),
     };
+    (worlds, kept, starts)
+}
+
+fn agent_over(
+    id: &str,
+    setups: Vec<Setup>,
+    files: &FakeFiles,
+) -> (HelperAgent<Worlds>, Vec<Kept>, Arc<Mutex<Vec<Start>>>) {
+    let (worlds, kept, starts) = worlds_for(id, setups, files);
     (HelperAgent::new(worlds), kept, starts)
 }
 
@@ -316,4 +328,86 @@ async fn a_standing_grant_belongs_to_the_helper_that_made_it() {
             helper: helper("h-2"),
         }
     );
+}
+
+fn card(id: &str) -> HelperCard {
+    let reach = TaskPolicy {
+        task: prov::TaskId::parse("t-0").expect("task"),
+        space: prov::SpaceId::parse("work").expect("space"),
+        from: vec![],
+        actions: BTreeSet::<ActionMatch>::new(),
+        kinds: BTreeSet::new(),
+        ceiling: prov::Effect::Read,
+        max_count: porter_core::Count(1),
+        recipients: vec![],
+        destinations: vec![],
+        paths: vec![],
+        expires: UnixSeconds(i64::MAX),
+        rationale: LabelText::parse("what the helper may use").expect("words"),
+        state: TaskPolicyState::Active,
+    };
+    let draft = CardDraft {
+        name: HelperName::parse(id).expect("name"),
+        role: Role::parse("Does the coding jobs.").expect("role"),
+        kind: HelperKind::AgentApp(prov::AgentProgram::parse("claude-code").expect("program")),
+        space: prov::SpaceId::parse("work").expect("space"),
+        model: HelperModel::Unset,
+        reach,
+        budget: HelperBudget {
+            steps: porter_core::Count(4),
+        },
+    };
+    HelperCard::new(helper(id), draft)
+}
+
+fn job_for(id: &str) -> Job {
+    Job {
+        id: JobId(1),
+        goal: GoalText::parse("Compare the offers").expect("goal"),
+        source: GoalSource::Person,
+        owner: helper(id),
+        status: JobStatus::Open,
+        owns: BTreeSet::new(),
+        giver: None,
+        with: vec![],
+        failed: None,
+        about: None,
+        steps: None,
+    }
+}
+
+#[tokio::test]
+async fn a_helpers_agent_ends_when_the_helper_is_removed_or_the_host_stops() {
+    let files = FakeFiles::new();
+    let said = || turns(vec![vec![say("Done."), Act::Stop("end_turn")]]);
+    let (first, kept_first, _) = worlds_for("h-1", vec![said()], &files);
+    let (second, kept_second, _) = worlds_for("h-2", vec![said()], &files);
+    let worlds: Mutex<BTreeMap<String, Worlds>> =
+        Mutex::new(BTreeMap::from([("h-1".to_owned(), first), ("h-2".to_owned(), second)]));
+    let apps = HelperAgents::new(
+        move |card: &HelperCard| {
+            worlds
+                .lock()
+                .expect("worlds")
+                .remove(card.id.as_str())
+                .expect("a world was prepared")
+        },
+        || AT,
+    );
+    for id in ["h-1", "h-2"] {
+        let ended = apps.run(&card(id), &job_for(id)).await;
+        assert!(matches!(ended, AgentOutcome::Done { .. }), "{id}: {ended:?}");
+    }
+    let ended = |kept: &Kept| kept.spawned.killed() + kept.spawned.closed();
+    // Both agents are running: the process of each stays between jobs.
+    assert_eq!((ended(&kept_first[0]), ended(&kept_second[0])), (0, 0));
+
+    // Removing one helper ends its process and no other.
+    apps.forget(&helper("h-1")).await;
+    assert!(ended(&kept_first[0]) > 0);
+    assert_eq!(ended(&kept_second[0]), 0);
+
+    // Stopping the host ends the rest.
+    apps.shutdown().await;
+    assert!(ended(&kept_second[0]) > 0);
 }
