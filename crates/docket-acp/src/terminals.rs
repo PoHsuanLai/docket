@@ -20,8 +20,10 @@ use agent_client_protocol_schema::v1::{
     TerminalExitStatus, TerminalId, TerminalOutputRequest, TerminalOutputResponse,
     WaitForTerminalExitRequest, WaitForTerminalExitResponse,
 };
-use bulkhead::{Argv, Cut, ExitReport, Launch, Network, Sandbox, Shell, ShellFault, TermId};
-use docket_core::{AbsPath, CannotSandbox, Cover, NetAccess, SandboxState};
+use bulkhead::{
+    Argv, Cut, ExitReport, Launch, Network, Sandbox, Shell, ShellFault, StartFault, TermId,
+};
+use docket_core::{AbsPath, Cover, NetAccess, SandboxState};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -55,13 +57,16 @@ fn exit_status(report: ExitReport) -> TerminalExitStatus {
 fn shell_error(fault: &ShellFault) -> Error {
     match fault {
         ShellFault::NoSuchTerminal => fault::invalid("no such terminal"),
-        ShellFault::CannotSandbox(why) => fault::not_now(&format!("cannot sandbox: {why}")),
         ShellFault::TooMany => fault::not_now("too many terminals are open"),
-        ShellFault::Spawn => fault::internal("the sandbox did not start"),
-        ShellFault::InheritedFds => {
+        ShellFault::Start(StartFault::Cannot(why)) => {
+            fault::not_now(&format!("cannot sandbox: {why}"))
+        }
+        ShellFault::Start(StartFault::InheritedFds) => {
             fault::not_now("the sandbox refused to start: a file descriptor would leak into it")
         }
-        ShellFault::FilterFile => fault::internal("the sandbox's syscall filter was not given"),
+        ShellFault::Start(StartFault::FilterFile) => {
+            fault::internal("the sandbox's syscall filter was not given")
+        }
         _ => fault::internal("the sandbox did not start"),
     }
 }
@@ -134,9 +139,7 @@ impl<S: Sandbox> Terminals<S> {
     /// Whether `cwd` can be confined, and if not why not: a command that cannot be sandboxed is
     /// refused before anyone is asked.
     pub fn check(&self, cwd: &AbsPath) -> SandboxState {
-        bulk::to_shell(cwd).map_or(SandboxState::Cannot(CannotSandbox::BadWorkingDir), |path| {
-            bulk::state(self.shell.check(&path))
-        })
+        bulk::state(self.shell.check(cwd))
     }
 
     /// Answers one `terminal/*` request other than `create` (which needs the session's scope and
@@ -200,10 +203,9 @@ impl<S: Sandbox> Terminals<S> {
             .ok_or_else(|| fault::invalid("the command is empty or holds a NUL"))?;
         // We never run unsandboxed: a command that cannot be confined is refused here, with the
         // reason.
-        let shell_cwd = bulk::to_shell(cwd)
-            .map_err(|_| fault::invalid("the working directory must be absolute"))?;
+        let shell_cwd = cwd.clone();
         if let bulkhead::SandboxState::Cannot(why) = self.shell.check(&shell_cwd) {
-            return Err(shell_error(&ShellFault::CannotSandbox(why)));
+            return Err(shell_error(&ShellFault::Start(StartFault::Cannot(why))));
         }
         let launch = Launch::new(argv, shell_cwd).with_env(
             asked

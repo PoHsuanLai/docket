@@ -7,7 +7,6 @@ use crate::Wall;
 use crate::agent::host::{Hosting, Wiring};
 use crate::agent::provider::{PerformerProvider, Quiet};
 use bulkhead::{BwrapSandbox, Detected, NetworkMode};
-use docket_acp::bulk;
 use docket_acp::client::{
     AcpBackend, EdgeMenu, Fallback, IntentsCourt, OsFiles, Parts, Performer, ToolsOffer,
 };
@@ -165,7 +164,7 @@ impl<A: Accounts + 'static> Live<A> {
         let cwd = AbsPath::parse(folder?).ok()?;
         let run = login_run(entry, &login.args, &login.env, &cwd)?;
         let run = match &self.enter {
-            Some(enter) => run.with_landlock(bulk::to_shell(enter).ok()?),
+            Some(enter) => run.with_landlock(enter.clone()),
             None => run,
         };
         let line = BwrapProcs::new(self.sandbox.clone(), self.run_dir.clone())

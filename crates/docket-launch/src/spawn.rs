@@ -26,7 +26,6 @@ use crate::protect;
 use bulkhead::egress::{Proxy, Resolver, SystemResolver};
 use bulkhead::forward::{Bridge, Loopback};
 use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
-use docket_acp::bulk;
 use docket_acp::client::{
     AgentChild, EdgeBind, LaunchPlan, SandboxStep, Spawn, SpawnFault, Spawned,
 };
@@ -242,7 +241,7 @@ pub(crate) fn binds(
     entry: &Entry,
     key_file: Option<&AbsPath>,
     edge: Option<&EdgeBind>,
-) -> Result<Vec<Bind>, bulkhead::PathFault> {
+) -> Vec<Bind> {
     let program_dir = entry.command.parent().into_iter();
     let read_only = entry
         .reads
@@ -264,7 +263,7 @@ pub(crate) fn binds(
                 .cloned()
                 .map(|path| (path, Access::ReadWrite)),
         )
-        .map(|(path, access)| Ok(Bind::new(bulk::to_shell(&path)?, access)))
+        .map(|(path, access)| Bind::new(path, access))
         .collect()
 }
 
@@ -421,9 +420,10 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             .to_str()
             .and_then(|t| bulkhead::AbsPath::parse(t).ok())
             .ok_or(SpawnFault::Sandbox(SandboxStep::SocketPath))?;
-        let forwarder = bulk::to_shell(&self.forwarder)
-            .map_err(|_| SpawnFault::Sandbox(SandboxStep::Forwarder))?;
-        Ok((socket, EndpointBind::new(forwarder, inside, port)))
+        Ok((
+            socket,
+            EndpointBind::new(self.forwarder.clone(), inside, port),
+        ))
     }
 
     fn endpoint_net(
@@ -474,13 +474,9 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             .into_iter()
             .try_fold(run, AgentRun::with_protect)
             .map_err(|_| SpawnFault::Sandbox(SandboxStep::Protect))?;
-        Ok(self
-            .protected
-            .iter()
-            .filter_map(|path| bulk::to_shell(path).ok())
-            .fold(run, |run, path| {
-                run.clone().with_protect(path).unwrap_or(run)
-            }))
+        Ok(self.protected.iter().cloned().fold(run, |run, path| {
+            run.clone().with_protect(path).unwrap_or(run)
+        }))
     }
 
     async fn launch(
@@ -500,10 +496,8 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         let built =
             child_env(entry, &lent).map_err(|_| SpawnFault::Sandbox(SandboxStep::Environment))?;
         let command = entry.command.as_str();
-        let cwd = bulk::to_shell(&plan.cwd)
-            .map_err(|_| SpawnFault::Sandbox(SandboxStep::WorkingFolder))?;
+        let cwd = plan.cwd.clone();
         let run = binds(entry, built.key_file.as_ref(), plan.edge.as_ref())
-            .map_err(|_| SpawnFault::Sandbox(SandboxStep::Binds))?
             .into_iter()
             .fold(
                 AgentRun::new(
@@ -516,9 +510,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             );
         let run = self.guarded(run, &cwd)?;
         let run = match &self.enter {
-            Some(enter) => run.with_landlock(
-                bulk::to_shell(enter).map_err(|_| SpawnFault::Sandbox(SandboxStep::Enter))?,
-            ),
+            Some(enter) => run.with_landlock(enter.clone()),
             None => run,
         };
         let (wire, proc) = self

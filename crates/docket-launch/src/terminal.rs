@@ -8,7 +8,6 @@ use crate::config::Entry;
 use crate::env::{Lent, child_env};
 use crate::spawn::binds;
 use bulkhead::{AgentNet, AgentRun, Argv, EnvVar, NetworkMode};
-use docket_acp::bulk;
 use docket_core::AbsPath;
 use std::collections::BTreeMap;
 
@@ -42,7 +41,7 @@ pub fn login_run(
     let all: Vec<String> = entry.args.iter().chain(args).cloned().collect();
     let argv = Argv::new(entry.command.as_str(), &all)?;
     let net = AgentNet::of(NetworkMode::Host, None).ok()?;
-    let run = AgentRun::new(argv, bulk::to_shell(folder).ok()?, vars, net);
-    let binds = binds(entry, None, None).ok()?;
+    let run = AgentRun::new(argv, folder.clone(), vars, net);
+    let binds = binds(entry, None, None);
     Some(binds.into_iter().fold(run, |run, bind| run.with_bind(bind)))
 }

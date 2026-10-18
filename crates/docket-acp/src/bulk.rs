@@ -1,19 +1,9 @@
-//! Where bulkhead's types meet docket-core's: bulkhead owns its own path, sandbox-state and
-//! network types (it depends on no docket crate), and these are the conversions at the edge.
+//! Where bulkhead's types meet docket-core's: bulkhead owns its sandbox-state and network types
+//! (it depends on no docket crate; the path is its own, shared), and these are the conversions at
+//! the edge.
 
 use bulkhead::{CannotSandbox as ShellCannot, Network, NetworkMode, SandboxState as ShellState};
-use docket_core::{AbsPath, CannotSandbox, NetAccess, SandboxState};
-
-/// A docket path as bulkhead's. Both hold absolute normalised text, so this fails only if one of
-/// the two ever disagrees with the other about what that means.
-pub fn to_shell(path: &AbsPath) -> Result<bulkhead::AbsPath, bulkhead::PathFault> {
-    bulkhead::AbsPath::parse(path.as_str())
-}
-
-/// A bulkhead path as docket's.
-pub fn from_shell(path: &bulkhead::AbsPath) -> Result<AbsPath, docket_core::PathFault> {
-    AbsPath::parse(path.as_str())
-}
+use docket_core::{CannotSandbox, NetAccess, SandboxState};
 
 /// Why bulkhead cannot confine, as docket-core words it.
 pub const fn cannot(why: ShellCannot) -> CannotSandbox {
