@@ -237,7 +237,9 @@ fi
 # package turns on the fixture tree. (A whole-workspace build unifies docket-accept's features, so
 # the installer never builds one.)
 for pkg in intentd companiond readerd actions-mcp docket-cli docket-acp-bin voiced; do
-  if cargo tree -p "$pkg" -e features,normal,build 2>/dev/null | grep -qE 'fixture-callers|"test-proc-root"'; then
+  # `-e features` elides the edge a package's own feature makes; the feature list per package
+  # (`{p} {f}`) shows it.
+  if cargo tree -p "$pkg" -e normal,build --prefix none --format '{p} {f}' 2>/dev/null | grep -qE 'fixture-callers|test-proc-root'; then
     echo "TEST SWITCH: $pkg's build turns on the fixture tree"
     fail=1
   else
