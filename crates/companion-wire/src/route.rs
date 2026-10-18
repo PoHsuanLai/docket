@@ -44,6 +44,8 @@ pub enum WhyWord {
     LeastCost,
     /// Nothing told them apart; the catalogue lists it first.
     CatalogueOrder,
+    /// Another helper is already using it, so nothing more is loaded.
+    SharedWithHelper,
     /// The named model could not serve and the person allowed a fallback.
     FallbackFrom {
         /// The model that could not serve.
@@ -84,6 +86,7 @@ pub fn why_says(why: &Why) -> WhySays {
         Why::Smallest => WhySays::Word(WhyWord::Smallest),
         Why::LeastCost => WhySays::Word(WhyWord::LeastCost),
         Why::CatalogueOrder => WhySays::Word(WhyWord::CatalogueOrder),
+        Why::SharedWithHelper => WhySays::Word(WhyWord::SharedWithHelper),
         Why::FallbackFrom { model } => WhySays::Word(WhyWord::FallbackFrom {
             model: model.clone(),
         }),
@@ -172,6 +175,7 @@ fn why_text(word: &WhyWord) -> String {
         WhyWord::Smallest => "quickest to load".to_owned(),
         WhyWord::LeastCost => "least cost".to_owned(),
         WhyWord::CatalogueOrder => "first listed".to_owned(),
+        WhyWord::SharedWithHelper => "another helper is using it".to_owned(),
         WhyWord::FallbackFrom { model } => {
             format!("{} could not answer", model_name(model.model.as_str()))
         }
