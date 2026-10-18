@@ -21,7 +21,7 @@ companion-wire = { path = "../crates/companion-wire" }
 docket-core = { path = "../crates/docket-core" }
 docket-eval = { path = "../crates/docket-eval" }
 docket-fake = { path = "../crates/docket-fake" }
-prov = { git = "https://github.com/PoHsuanLai/porter", rev = "5d4ef2dfb13d8cc24276f5e4971893874bfebb4f" }
+prov = { git = "https://github.com/PoHsuanLai/porter", rev = "125272e095943b6556a21994dc503171c795172b" }
 voice-wire = { path = "../crates/voice-wire" }
 
 [[bin]]
