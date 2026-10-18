@@ -664,7 +664,9 @@ async fn an_editor_speaks_in_a_helpers_conversation_and_in_no_other_session_it_d
         None,
     )
     .await;
-    assert!(router.state.lock().expect("lock").sessions[&seated.session]
-        .helper
-        .is_none());
+    assert!(
+        router.state.lock().expect("lock").sessions[&seated.session]
+            .helper
+            .is_none()
+    );
 }

@@ -119,7 +119,7 @@ impl HelperHost {
         });
         match run {
             Some(run) => SignInOutcome::OpenTerminal(TerminalLogin {
-                run: Some(run),
+                run: Some(Box::new(run)),
                 ..login
             }),
             None => SignInOutcome::Failed,

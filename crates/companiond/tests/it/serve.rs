@@ -597,7 +597,10 @@ async fn the_editor_bridge_reads_the_helpers_and_changes_nothing_and_a_stranger_
         _ => false,
     };
     assert!(refused(helpers.create(&form).await.map(drop)), "create");
-    assert!(refused(helpers.edit(&id_text, &form).await.map(drop)), "edit");
+    assert!(
+        refused(helpers.edit(&id_text, &form).await.map(drop)),
+        "edit"
+    );
     assert!(refused(helpers.remove(&id_text).await), "remove");
     assert!(
         refused(helpers.post_job(&id_text, "Do it.", "").await.map(drop)),
@@ -607,9 +610,15 @@ async fn the_editor_bridge_reads_the_helpers_and_changes_nothing_and_a_stranger_
         refused(helpers.sign_in(&id_text, "browser").await.map(drop)),
         "sign in"
     );
-    assert!(refused(helpers.sign_out(&id_text).await.map(drop)), "sign out");
+    assert!(
+        refused(helpers.sign_out(&id_text).await.map(drop)),
+        "sign out"
+    );
     assert!(refused(helpers.routines().await.map(drop)), "routines");
-    assert!(refused(helpers.remove_routine("r-1").await), "routine write");
+    assert!(
+        refused(helpers.remove_routine("r-1").await),
+        "routine write"
+    );
     assert!(refused(first.pause(&id_text).await), "pause");
 
     // A process nothing names reads nothing.

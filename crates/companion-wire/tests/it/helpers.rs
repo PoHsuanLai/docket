@@ -218,11 +218,11 @@ fn a_sign_in_terminal_carries_the_resolved_command_and_an_older_request_still_re
             args: vec!["/login".to_owned()],
             ..TerminalLogin::default()
         },
-        run: Some(TerminalRun {
+        run: Some(Box::new(TerminalRun {
             plain: line("/usr/bin/claude", &["/login"], &[("TERM", "xterm")]),
             folder: Some("/home/p/.local/share/docket/helpers/h-2".to_owned()),
             confined: Some(line("/usr/bin/systemd-run", &["--scope", "bwrap"], &[])),
-        }),
+        })),
     };
     let reply = HelperReply::OpenTerminal(request);
     let json = serde_json::to_string(&reply).expect("json");

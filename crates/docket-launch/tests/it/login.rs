@@ -209,7 +209,8 @@ async fn the_real_runner_reports_how_the_command_ended_and_gives_it_only_what_it
 }
 
 #[test]
-fn a_sign_in_in_a_terminal_runs_the_entrys_command_with_the_login_added_and_only_for_a_login_route() {
+fn a_sign_in_in_a_terminal_runs_the_entrys_command_with_the_login_added_and_only_for_a_login_route()
+{
     let file = AgentsFile::parse(LOGIN).expect("file");
     let name = docket_core::ProgramName::parse("claude-code").expect("name");
     let entry = file.get(&name).expect("entry");
@@ -220,7 +221,12 @@ fn a_sign_in_in_a_terminal_runs_the_entrys_command_with_the_login_added_and_only
     let words = run.argv.words();
     assert_eq!(words[0], "/home/me/.local/bin/claude-agent-acp");
     assert_eq!(words.last().map(String::as_str), Some("/login"));
-    let var = |name: &str| run.env.iter().find(|v| v.name == name).map(|v| v.value.as_str());
+    let var = |name: &str| {
+        run.env
+            .iter()
+            .find(|v| v.name == name)
+            .map(|v| v.value.as_str())
+    };
     assert_eq!(var("BROWSER"), Some("none"));
     assert_eq!(var("HOME"), Some("/home/me"));
     assert_eq!(var("TERM"), Some("xterm-256color"));

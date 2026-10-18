@@ -21,7 +21,7 @@ pub struct TerminalLogin {
     /// The command the agent host resolved from its list of coding agents, once the way is
     /// carried out. Absent when the agent itself asked and nobody has resolved it yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub run: Option<TerminalRun>,
+    pub run: Option<Box<TerminalRun>>,
 }
 
 /// One program to start: its absolute path, its arguments and its environment.
@@ -90,7 +90,7 @@ pub struct TerminalRequest {
     /// What to run, resolved: absolute paths, the folder, and the command inside the sandbox.
     /// Absent from an older request, where the shell works it out from `program` and `login`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub run: Option<TerminalRun>,
+    pub run: Option<Box<TerminalRun>>,
 }
 
 /// What an agent app said in answer to a job. It is the agent model's text: the board labels it
