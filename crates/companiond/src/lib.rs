@@ -13,7 +13,9 @@
 //! - `serve`, `serve_on`: `org.quire.Companion1`.
 //! - `Routines`, `RoutineDesk`: a helper's standing instructions, run by a small timer here.
 //! - `HostLink`: a turn handed to the coding agent the person chose, through the agent host.
+//! - `AppsLink`: the agent apps that are helpers, through the same host (`AgentApps` over the bus).
 
+mod apps_link;
 mod bell;
 mod callers;
 mod clock;
@@ -27,6 +29,7 @@ mod routines;
 mod serve;
 mod speaker;
 
+pub use apps_link::AppsLink;
 pub use bell::Bell;
 pub use callers::{FILE as CALLERS_FILE, shipped as shipped_callers};
 pub use clock::Clock;

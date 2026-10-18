@@ -2,6 +2,7 @@
 //! rebuilds the roster and the front task from the eventlog, and `Companion1` served.
 
 use crate::Companiond;
+use crate::apps_link::AppsLink;
 use crate::clock::Clock;
 use crate::config::CompaniondConfig;
 use crate::handoff::HostLink;
@@ -210,7 +211,18 @@ pub async fn run_with(seams: HarnessSeams) -> Result<(), ServeFault> {
         None => crate::callers::read(&env),
     }
     .map_err(|e| ServeFault::Config(e.to_string()))?;
-    let _running = start_with(&connection, config, &Roots::from_env(&env), seams, callers).await?;
+    // The agent apps that are helpers run in the host the bus starts (`docket-agent --serve`); the
+    // tests that start a daemon of their own pass a scripted host or none (`start_with_agents`).
+    let agents: Arc<dyn AgentApps> = Arc::new(AppsLink::new(connection.clone()));
+    let _running = start_with_agents(
+        &connection,
+        config,
+        &Roots::from_env(&env),
+        seams,
+        callers,
+        Some(agents),
+    )
+    .await?;
     let mut messages = zbus::MessageStream::from(&connection);
     while messages.next().await.is_some() {}
     Ok(())

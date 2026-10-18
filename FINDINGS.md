@@ -3635,3 +3635,18 @@ running helper is the existing `Message.Send` + `Companion1.Told` with the agent
 job's last word (it ends done); the answer is a new job. The seat is not written to the router's
 session log, so a router restart forgets a live job's seat (companiond marks the job to be asked
 again anyway). `Roster.helpers` is for the planner's view; the shell's list is `Helpers.List`.
+
+## Agent apps that are helpers: the host (swarm H1)
+
+- Helpers' agents run in `docket-agent --serve` (`agent::helper_host`), asked by companiond's
+  `AppsLink` over `AgentHost1.AppsBegin` / `AppsWait`. The host serves the pseudo-app for one use
+  at a time: while the assistant's coding agent has a turn a helper's job fails as "busy", and the
+  reverse. Open: serve the pseudo-app once for both uses (the performer is already shared in
+  `agent::live`), then drop the limit.
+- The helpers' agents are not offered the desktop's actions (`Tools::Unwanted` in
+  `HelperHost::start`): the per-session tool edge is per entry and per program today. Open.
+- An agent with no sign-out of its own is not signed out (`HelperAgents::with_logout` is not given
+  a `Logout` here): "Signing out did not work." Open: run the entry's logout command visibly.
+- The commands a helper's agent runs count against the widest network (`NetworkMode::Host`),
+  because one performer serves every program. Conservative: more commands ask.
+
