@@ -29,7 +29,7 @@ trait default holds none); Settings has no list of limits yet; adding a limit is
 
 | Where | Count | Closes when |
 | --- | --- | --- |
-| docket-ds `DsContextSource::snapshot` | 1 | fill wave 2 (quire apps): `ContextModel` to `Here`, `Selection`, `Visible` through `entity_ref`; a private window reports the app alone; password and PIN fields are never reported |
+| docket-ds `DsContextSource::snapshot` | 1 | fill wave 2 (quire apps): the `ContextModel` values to `Here`, `Selection`, `Visible` through `entity_ref`; a private window reports the app alone; password and PIN fields are never reported |
 
 | docket-eval runner and `scripts/eval-release.sh` | 0 | filled in live-eval (it was a script that exited 2, not a `todo!()`) |
 

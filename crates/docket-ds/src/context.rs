@@ -24,20 +24,20 @@ pub trait WindowFacts: Send + Sync {
 
 /// The `ContextSource` of a quire app, over ds's `ContextModel`.
 #[derive(Debug)]
-pub struct DsContextSource<M: ContextModel, W: WindowFacts> {
+pub struct DsContextSource<W: WindowFacts> {
     app: AppName,
-    model: M,
+    model: ContextModel,
     window: W,
 }
 
-impl<M: ContextModel, W: WindowFacts> DsContextSource<M, W> {
+impl<W: WindowFacts> DsContextSource<W> {
     /// Reports the context of `app` from `model` and `window`.
-    pub fn new(app: AppName, model: M, window: W) -> Self {
+    pub fn new(app: AppName, model: ContextModel, window: W) -> Self {
         Self { app, model, window }
     }
 }
 
-impl<M: ContextModel + Send + Sync, W: WindowFacts> ContextSource for DsContextSource<M, W> {
+impl<W: WindowFacts> ContextSource for DsContextSource<W> {
     /// Reports the app alone, as a private window does: the mapping from `ContextModel` to
     /// `Here`, `Selection` and `Visible` is not built yet, and until it is the source says
     /// nothing about the window rather than something wrong (or, as it once did, panic). The
