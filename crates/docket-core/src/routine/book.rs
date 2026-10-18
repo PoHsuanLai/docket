@@ -3,7 +3,7 @@
 //! tells the person what is worth telling, and feeds back what happened. Time and the zone are
 //! passed in, so a test moves them by hand.
 
-use super::routine::{
+use super::kept::{
     Missed, Routine, RoutineId, RoutinePause, RoutineState, RunBudget, RunOutcome, RunRecord,
 };
 use super::schedule::{Schedule, Zone};
@@ -367,13 +367,7 @@ impl RoutineBook {
         }
     }
 
-    fn resume(
-        &mut self,
-        id: RoutineId,
-        now: UnixSeconds,
-        zone: Zone,
-        fx: &mut Vec<RoutineEffect>,
-    ) {
+    fn resume(&mut self, id: RoutineId, now: UnixSeconds, zone: Zone, fx: &mut Vec<RoutineEffect>) {
         if let Some(routine) = self.find(id)
             && matches!(routine.state, RoutineState::Paused(_))
         {

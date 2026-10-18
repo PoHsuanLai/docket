@@ -61,11 +61,8 @@ pub trait Host: Send + Sync + 'static {
     fn read(&self, spaces: &[SpaceId]) -> impl Future<Output = Vec<RoutineRecord>> + Send;
 
     /// Stores records in a Space.
-    fn save(
-        &self,
-        space: &SpaceId,
-        records: Vec<RoutineRecord>,
-    ) -> impl Future<Output = ()> + Send;
+    fn save(&self, space: &SpaceId, records: Vec<RoutineRecord>)
+    -> impl Future<Output = ()> + Send;
 
     /// Tells the person a sentence about a helper, once.
     fn say(&self, helper: &HelperId, text: String);

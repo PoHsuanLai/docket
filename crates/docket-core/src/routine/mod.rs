@@ -14,7 +14,7 @@
 //! - [`RoutineRecord`]: what is stored and restored.
 
 mod book;
-mod routine;
+mod kept;
 mod schedule;
 mod trigger;
 
@@ -22,7 +22,7 @@ pub use book::{
     JobEnd, LATE, NewRoutine, RoutineBook, RoutineEffect, RoutineEvent, RoutineNotice,
     RoutineRecord, RunRequest, TimerEntry, step,
 };
-pub use routine::{
+pub use kept::{
     MOST_RUNS, Missed, Routine, RoutineId, RoutinePause, RoutineState, RunBudget, RunOutcome,
     RunRecord,
 };

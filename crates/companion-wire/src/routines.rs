@@ -141,7 +141,8 @@ pub enum RoutineReply {
 }
 
 /// Why a run did not run.
-const SKIPPED: &str = "Its time came while the computer was asleep, or the helper could not take it";
+const SKIPPED: &str =
+    "Its time came while the computer was asleep, or the helper could not take it";
 
 fn run_line(run: &RunRecord) -> RunLine {
     let (state, note) = match run.outcome {

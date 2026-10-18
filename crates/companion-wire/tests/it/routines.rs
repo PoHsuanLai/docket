@@ -1,9 +1,7 @@
 //! The routines on the wire: a form reads from the shell's JSON (a missed time is skipped unless
 //! the form says otherwise), and a card shows the last runs newest first in plain words.
 
-use companion_wire::{
-    RoutineForm, RoutineShown, RunShown, WhenForm, routine_card, routine_line,
-};
+use companion_wire::{RoutineForm, RoutineShown, RunShown, WhenForm, routine_card, routine_line};
 use docket_core::helper::{GoalText, HelperName, JobFault, JobId};
 use docket_core::routine::*;
 use porter_core::Count;
@@ -43,7 +41,13 @@ fn a_card_shows_its_runs_newest_first_and_says_why_one_did_not_finish() {
             zone,
         },
     );
-    let (book, _) = step(book, RoutineEvent::Tick { now: UnixSeconds(3_600), zone });
+    let (book, _) = step(
+        book,
+        RoutineEvent::Tick {
+            now: UnixSeconds(3_600),
+            zone,
+        },
+    );
     let (book, _) = step(
         book,
         RoutineEvent::Posted {
@@ -60,7 +64,13 @@ fn a_card_shows_its_runs_newest_first_and_says_why_one_did_not_finish() {
         },
     );
     // A day later: the time was missed.
-    let (book, _) = step(book, RoutineEvent::Tick { now: UnixSeconds(90_000), zone });
+    let (book, _) = step(
+        book,
+        RoutineEvent::Tick {
+            now: UnixSeconds(90_000),
+            zone,
+        },
+    );
 
     let routine = book.routine(RoutineId(1)).expect("routine");
     let card = routine_card(routine, inbox());
@@ -74,5 +84,8 @@ fn a_card_shows_its_runs_newest_first_and_says_why_one_did_not_finish() {
         Some("It stopped: it used up its steps")
     );
     assert_eq!(card.runs[1].job, Some(JobId(4)));
-    assert_eq!(routine_line(routine, inbox()).last, Some(card.runs[0].clone()));
+    assert_eq!(
+        routine_line(routine, inbox()).last,
+        Some(card.runs[0].clone())
+    );
 }

@@ -11,8 +11,8 @@ use companiond::{
 };
 use docket_core::helper::{HelperName, JobFault, JobId};
 use docket_core::routine::{
-    JobEnd, Missed, RoutineId, RoutinePause, RoutineRecord, RoutineState,
-    RunOutcome, RunRequest, Schedule, TimerEntry, Zone,
+    JobEnd, Missed, RoutineId, RoutinePause, RoutineRecord, RoutineState, RunOutcome, RunRequest,
+    Schedule, TimerEntry, Zone,
 };
 use prov::{HelperId, SpaceId, UnixSeconds};
 use std::collections::BTreeMap;
@@ -203,7 +203,9 @@ async fn a_time_that_passed_while_the_assistant_was_down_is_skipped_on_start() {
     let (again, host2, hand2) = start(7 * H);
     host2.log().stored = stored;
     set(&hand2, 10 * H);
-    again.restore(&[SpaceId::parse("work").expect("space")]).await;
+    again
+        .restore(&[SpaceId::parse("work").expect("space")])
+        .await;
     again.tick().await;
     assert!(host2.log().posted.is_empty());
     assert_eq!(outcomes(&again, id), [RunOutcome::Skipped]);
@@ -342,7 +344,10 @@ fn the_timer_text_is_a_calendar_that_does_not_make_up_missed_times() {
         ]
     );
     let timer = &units[0].text;
-    assert!(timer.contains("OnCalendar=Mon..Fri *-*-* 08:30:00\n"), "{timer}");
+    assert!(
+        timer.contains("OnCalendar=Mon..Fri *-*-* 08:30:00\n"),
+        "{timer}"
+    );
     assert!(timer.contains("Persistent=false\n"), "{timer}");
     assert!(timer.contains("Unit=quire-routine-3.service\n"), "{timer}");
     assert!(timer.contains("WantedBy=timers.target\n"), "{timer}");
@@ -381,6 +386,12 @@ fn the_unit_directory_is_made_to_hold_exactly_the_wanted_units() {
     }]);
     let mut changed = dir.install(&one).expect("install");
     changed.sort();
-    assert_eq!(changed, ["quire-routine-2.service", "quire-routine-2.timer"]);
-    assert!(dir.path().join("other.service").exists(), "not ours, not removed");
+    assert_eq!(
+        changed,
+        ["quire-routine-2.service", "quire-routine-2.timer"]
+    );
+    assert!(
+        dir.path().join("other.service").exists(),
+        "not ours, not removed"
+    );
 }

@@ -152,7 +152,13 @@ fn schedules_read_plain_words_and_say_the_next_time() {
 
 #[test]
 fn a_due_time_fires_one_job_with_the_persons_words() {
-    let (book, id) = made(RoutineBook::default(), &hid(1), eight(), Missed::Skip, 7 * H);
+    let (book, id) = made(
+        RoutineBook::default(),
+        &hid(1),
+        eight(),
+        Missed::Skip,
+        7 * H,
+    );
     let (book, fx) = tick(book, 7 * H + 59 * 60);
     assert!(runs(&fx).is_empty(), "not yet due");
 
@@ -175,7 +181,13 @@ fn a_due_time_fires_one_job_with_the_persons_words() {
 
 #[test]
 fn a_time_missed_while_asleep_is_skipped_and_recorded() {
-    let (book, id) = made(RoutineBook::default(), &hid(1), eight(), Missed::Skip, 7 * H);
+    let (book, id) = made(
+        RoutineBook::default(),
+        &hid(1),
+        eight(),
+        Missed::Skip,
+        7 * H,
+    );
     // The computer woke at ten.
     let (book, fx) = tick(book, 10 * H);
     assert!(runs(&fx).is_empty());
@@ -204,7 +216,13 @@ fn a_time_missed_runs_once_on_wake_when_the_person_said_so() {
 
 #[test]
 fn a_restart_after_the_time_skips_it_too() {
-    let (book, id) = made(RoutineBook::default(), &hid(1), eight(), Missed::Skip, 7 * H);
+    let (book, id) = made(
+        RoutineBook::default(),
+        &hid(1),
+        eight(),
+        Missed::Skip,
+        7 * H,
+    );
     let records = book.records();
     let back = RoutineBook::restore(records);
     let (back, fx) = tick(back, 9 * H);
@@ -214,7 +232,13 @@ fn a_restart_after_the_time_skips_it_too() {
 
 #[test]
 fn a_run_whose_job_was_never_posted_did_not_run_after_a_restart() {
-    let (book, id) = made(RoutineBook::default(), &hid(1), eight(), Missed::Skip, 7 * H);
+    let (book, id) = made(
+        RoutineBook::default(),
+        &hid(1),
+        eight(),
+        Missed::Skip,
+        7 * H,
+    );
     let book = tick(book, 8 * H).0;
     assert_eq!(book.running(), 1);
     let back = RoutineBook::restore(book.records());
@@ -334,7 +358,13 @@ fn a_job_ending_done_starts_what_waits_for_it_and_a_failure_does_not() {
 
 #[test]
 fn a_helper_that_cannot_take_the_job_is_a_skipped_run_not_a_failure() {
-    let (book, id) = made(RoutineBook::default(), &hid(1), eight(), Missed::Skip, 7 * H);
+    let (book, id) = made(
+        RoutineBook::default(),
+        &hid(1),
+        eight(),
+        Missed::Skip,
+        7 * H,
+    );
     let book = tick(book, 8 * H).0;
     let book = step(book, RoutineEvent::NotPosted(id)).0;
     assert_eq!(outcomes(&book, id), [RunOutcome::Skipped]);

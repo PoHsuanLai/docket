@@ -11,8 +11,8 @@ mod ask;
 mod helpers;
 mod record;
 mod route;
-mod routines;
 mod route_log;
+mod routines;
 
 pub use answer::{
     AnswerBody, AnswerPhase, AnswerWire, CardWire, FooterWire, FormWire, NeedsYou, PlanStepWire,
@@ -30,6 +30,6 @@ pub use route::{
 };
 pub use route_log::RouteLog;
 pub use routines::{
-    EventForm, RoutineCardView, RoutineForm, RoutineLine, RoutineReply, RoutineShown,
-    RoutinesView, RunLine, RunShown, WhenForm, routine_card, routine_line,
+    EventForm, RoutineCardView, RoutineForm, RoutineLine, RoutineReply, RoutineShown, RoutinesView,
+    RunLine, RunShown, WhenForm, routine_card, routine_line,
 };

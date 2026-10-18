@@ -17,8 +17,7 @@ use docket_core::helper::{
 use docket_core::routine::JobEnd;
 use docket_core::{SessionOpen, ValidManifest};
 use docket_tasks::{
-    Change, JobEnding, JobInput, JobReport, JobSpec, OpenedJob, RecentSource, RouterRecent,
-    Surface,
+    Change, JobEnding, JobInput, JobReport, JobSpec, OpenedJob, RecentSource, RouterRecent, Surface,
 };
 use futures_util::lock::Mutex as AsyncMutex;
 use porter_client::Transport as InferTransport;
@@ -125,6 +124,7 @@ fn space_of(record: &HelperRecord, before: &Board, after: &Board) -> Option<Spac
         HelperRecord::Card(CardRecord::Removed(id)) => card(id),
         HelperRecord::Job(job) => card(&job.owner),
         HelperRecord::Post(post) => card(&post.from),
+        HelperRecord::Routine(routine) => card(routine.helper()),
     }
 }
 

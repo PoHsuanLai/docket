@@ -146,7 +146,10 @@ where
         };
         match dir.install(units) {
             Ok(changed) if !changed.is_empty() => {
-                tracing::info!(?changed, "routine timers written; systemd reads them on reload");
+                tracing::info!(
+                    ?changed,
+                    "routine timers written; systemd reads them on reload"
+                );
             }
             Ok(_) => {}
             Err(cause) => tracing::warn!(%cause, "the routine timers could not be written"),

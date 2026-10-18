@@ -37,9 +37,7 @@ pub fn helper_query() -> RecentQuery {
 /// time.
 pub fn routine_query() -> RecentQuery {
     RecentQuery {
-        kinds: vec![
-            KindPattern::parse(HelperRecordKind::Routine.slug()).expect("a kind pattern"),
-        ],
+        kinds: vec![KindPattern::parse(HelperRecordKind::Routine.slug()).expect("a kind pattern")],
         ..helper_query()
     }
 }
