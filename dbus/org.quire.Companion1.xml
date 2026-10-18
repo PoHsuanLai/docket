@@ -87,4 +87,69 @@
    <signal name="Changed">
    </signal>
  </interface>
+ <interface name="org.quire.Companion1.Helpers2">
+   <method name="List">
+     <arg name="after" type="t" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Card">
+     <arg name="helper" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Create">
+     <arg name="form" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Edit">
+     <arg name="helper" type="s" direction="in"/>
+     <arg name="form" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Pause">
+     <arg name="helper" type="s" direction="in"/>
+   </method>
+   <method name="Resume">
+     <arg name="helper" type="s" direction="in"/>
+   </method>
+   <method name="Remove">
+     <arg name="helper" type="s" direction="in"/>
+   </method>
+   <method name="PostJob">
+     <arg name="helper" type="s" direction="in"/>
+     <arg name="goal" type="s" direction="in"/>
+     <arg name="things" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="SignIn">
+     <arg name="helper" type="s" direction="in"/>
+     <arg name="way" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="SignOut">
+     <arg name="helper" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="Routines">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="RoutineCard">
+     <arg name="routine" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="AddRoutine">
+     <arg name="form" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="PauseRoutine">
+     <arg name="routine" type="s" direction="in"/>
+   </method>
+   <method name="ResumeRoutine">
+     <arg name="routine" type="s" direction="in"/>
+   </method>
+   <method name="RemoveRoutine">
+     <arg name="routine" type="s" direction="in"/>
+   </method>
+   <signal name="Changed">
+   </signal>
+ </interface>
 </node>

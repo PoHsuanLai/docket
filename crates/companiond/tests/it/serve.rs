@@ -7,14 +7,17 @@ use crate::support::infer::{Say, words};
 use crate::support::world::*;
 use companion_wire::{
     AnswerPhase, AnswerWire, AskWire, FrontTask, HelperForm, HelperReply, HelpersView,
+    RoutineCardView, RoutineForm, RoutineReply, RoutinesView,
 };
-use companiond::serve_on;
+use companiond::{RoutineDesk, serve_on, serve_with_routines};
 use docket_core::helper::{Ceiling, HelperModel, HelperName, Role};
 use docket_core::*;
 use docket_dbus::{
-    Bus, COMPANION_BUS, COMPANION_PATH, CompanionAnswerProxy, CompanionHelpersProxy,
-    CompanionProxy, Details, introspection,
+    Bus, COMPANION_BUS, COMPANION_PATH, CompanionAnswerProxy, CompanionHelpers2Proxy,
+    CompanionHelpersProxy, CompanionProxy, Details, introspection,
 };
+use docket_core::routine::RoutineId;
+use docket_tasks::Pending;
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
 use prov::AgentRef;
@@ -407,4 +410,119 @@ async fn the_helpers_are_served_beside_the_conversation_to_the_shell_alone() {
     // The shell reads a card, and a helper that is not there is an error, not a guess.
     assert!(helpers.card(&id_text).await.is_ok());
     assert!(helpers.card("h-404").await.is_err());
+}
+
+/// Routines that hold nothing and make nothing: enough to see the calls reach the desk.
+#[derive(Debug)]
+struct EmptyRoutines;
+
+impl RoutineDesk for EmptyRoutines {
+    fn view(&self) -> RoutinesView {
+        RoutinesView::default()
+    }
+
+    fn card(&self, _routine: RoutineId) -> Option<RoutineCardView> {
+        None
+    }
+
+    fn create(&self, _form: RoutineForm) -> Pending<'_, RoutineReply> {
+        Box::pin(async { RoutineReply::Refused("Nothing can be made here.".to_owned()) })
+    }
+
+    fn pause(&self, _routine: RoutineId) -> Pending<'_, ()> {
+        Box::pin(async {})
+    }
+
+    fn resume(&self, _routine: RoutineId) -> Pending<'_, ()> {
+        Box::pin(async {})
+    }
+
+    fn remove(&self, _routine: RoutineId) -> Pending<'_, ()> {
+        Box::pin(async {})
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shell_alone() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let bus = PrivateBus::start(scratch.path());
+    let (server, shell, stranger) = (
+        bus.connect().await,
+        bus.connect().await,
+        bus.connect().await,
+    );
+    let mut w = world(vec![]);
+    let hub = hub_of(&w);
+    w.companion.set_desk(Arc::new(hub));
+    let companion = Arc::new(Mutex::new(w.companion));
+    let who = who(&server, scratch.path());
+    serve_with_routines(
+        &server,
+        companion.clone(),
+        who.clone(),
+        std::path::PathBuf::from("/proc"),
+        Some(Arc::new(EmptyRoutines)),
+    )
+    .await
+    .expect("serving");
+    as_shell(&who, &shell);
+
+    // Served as declared, and the first version is still there as it was.
+    let declared = introspection(Bus::Companion);
+    let served = introspect(&shell, COMPANION_PATH).await;
+    for name in ["org.quire.Companion1.Helpers", "org.quire.Companion1.Helpers2"] {
+        assert_eq!(block(&served, name), block(&declared, name));
+    }
+
+    let helpers = CompanionHelpers2Proxy::new(&shell).await.expect("proxy");
+    let none: HelpersView =
+        serde_json::from_str(&helpers.list(0).await.expect("list")).expect("view");
+    assert!(none.helpers.is_empty());
+
+    // A helper that runs no app has nothing to sign in to or out of, and says so in words.
+    let form = HelperForm {
+        name: HelperName::parse("Research").expect("name"),
+        role: Role::parse("Looks things up.").expect("role"),
+        space: space("work"),
+        model: HelperModel::Unset,
+        apps: vec![app("org.quire.Mail")],
+        ceiling: Ceiling::Look,
+        steps: porter_core::Count(8),
+        kind: Default::default(),
+    };
+    let form = serde_json::to_string(&form).expect("json");
+    let made: HelperReply =
+        serde_json::from_str(&helpers.create(&form).await.expect("create")).expect("reply");
+    let HelperReply::Made(id) = made else {
+        panic!("a helper is made: {made:?}")
+    };
+    let id_text = serde_json::to_value(&id)
+        .expect("json")
+        .as_str()
+        .expect("text")
+        .to_owned();
+    for reply in [
+        helpers.sign_in(&id_text, "browser").await.expect("sign in"),
+        helpers.sign_out(&id_text).await.expect("sign out"),
+    ] {
+        let reply: HelperReply = serde_json::from_str(&reply).expect("reply");
+        assert!(matches!(reply, HelperReply::Refused(_)), "{reply:?}");
+    }
+
+    // The routines reach their desk; one that is not there is an error, not a guess.
+    let listed: RoutinesView =
+        serde_json::from_str(&helpers.routines().await.expect("routines")).expect("view");
+    assert!(listed.routines.is_empty());
+    assert!(helpers.routine_card("r-1").await.is_err());
+    assert!(helpers.routine_card("not a routine").await.is_err());
+    helpers.pause_routine("r-1").await.expect("pause");
+    helpers.resume_routine("r-1").await.expect("resume");
+    helpers.remove_routine("r-1").await.expect("remove");
+
+    // Nobody else speaks for the person here.
+    let refused = CompanionHelpers2Proxy::new(&stranger).await.expect("proxy");
+    assert!(refused.list(0).await.is_err());
+    assert!(refused.sign_in(&id_text, "browser").await.is_err());
+    assert!(refused.routines().await.is_err());
+    assert!(refused.remove_routine("r-1").await.is_err());
 }

@@ -19,6 +19,7 @@ mod control;
 mod error;
 mod gate;
 mod helpers;
+mod helpers2;
 mod index;
 #[cfg(feature = "inferd")]
 mod inferd;
@@ -45,6 +46,7 @@ pub use control::{ControlProxy, ControlSkeleton};
 pub use error::IntentsError;
 pub use gate::{GateProxy, GateSkeleton};
 pub use helpers::{CompanionHelpersProxy, CompanionHelpersSkeleton};
+pub use helpers2::{CompanionHelpers2Proxy, CompanionHelpers2Skeleton};
 pub use index::{IndexProxy, IndexSkeleton};
 #[cfg(feature = "inferd")]
 pub use inferd::{InferLink, inferd_transport};

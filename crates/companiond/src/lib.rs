@@ -22,6 +22,7 @@ mod daemon;
 mod follow;
 mod handoff;
 mod helpers;
+mod helpers_bus;
 mod routines;
 mod serve;
 mod speaker;
@@ -30,7 +31,7 @@ pub use bell::Bell;
 pub use callers::{FILE as CALLERS_FILE, shipped as shipped_callers};
 pub use clock::Clock;
 pub use config::{CompaniondConfig, ConfigError};
-pub use daemon::{Daemon, HarnessSeams, run, run_with, start, start_with};
+pub use daemon::{Daemon, HarnessSeams, run, run_with, start, start_with, start_with_agents};
 pub use docket_planner::{
     ArgsFault, Catalogue, CatalogueTool, PlanFault, PlannerModel, PlannerReply, RULES, ReadCall,
     TARGET, TOOL_ANSWER, TOOL_ASK, TOOL_FINISH, TOOL_READ, TOOL_RELATED, messages, planner_label,
@@ -47,7 +48,7 @@ pub use routines::{
     Awake, EventAsk, Host, HubHost, RoutineDesk, Routines, Seen, SystemZone, Timers, UnitDir,
     UnitFile, units_of,
 };
-pub use serve::{serve, serve_on, serve_on_rooted};
+pub use serve::{serve, serve_on, serve_on_rooted, serve_with_routines};
 pub use speaker::{Call, Speaker, Speakers, permits};
 
 /// The shared view as the bus reads it.

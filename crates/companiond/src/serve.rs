@@ -6,19 +6,21 @@
 //! `dbus/org.quire.Companion1.xml`.
 
 use crate::Companiond;
+use crate::helpers_bus::{Helpers2Object, HelpersObject};
+use crate::routines::RoutineDesk;
 use crate::Shared;
 use crate::speaker::{Call, Speaker, Speakers};
-use companion_wire::{AskWire, HelperForm};
+use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
 use docket_core::{SessionOpen, StartedFrom, UserTurn};
 use docket_dbus::callers::Identity;
 use docket_dbus::{
     BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
 };
-use docket_tasks::{Change, HelperDesk, PostFromPerson, ServeFault};
+use docket_tasks::{Change, ServeFault};
 use futures_util::lock::Mutex;
 use porter_client::Transport as InferTransport;
-use prov::{AgentRef, EntityId, HelperId, SessionId, SpaceId, TaskId};
+use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -41,11 +43,11 @@ fn failed(error: ServeFault) -> fdo::Error {
     }
 }
 
-fn bad(error: serde_json::Error) -> fdo::Error {
+pub(crate) fn bad(error: serde_json::Error) -> fdo::Error {
     fdo::Error::InvalidArgs(error.to_string())
 }
 
-fn json<T: serde::Serialize>(value: &T) -> fdo::Result<String> {
+pub(crate) fn json<T: serde::Serialize>(value: &T) -> fdo::Result<String> {
     serde_json::to_string(value).map_err(|e| fdo::Error::Failed(e.to_string()))
 }
 
@@ -180,114 +182,6 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
 
     #[zbus(signal)]
     async fn roster_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
-}
-
-/// The id of a helper as the shell sends it (the id's own text).
-fn helper_of(text: &str) -> fdo::Result<HelperId> {
-    serde_json::from_value(serde_json::Value::String(text.to_owned())).map_err(bad)
-}
-
-/// The helpers the person keeps, on the same object as `Companion1`. Only the shell speaks for the
-/// person here; every call goes to the desk the daemon was built with.
-struct HelpersObject {
-    desk: Arc<dyn HelperDesk>,
-    speakers: Speakers,
-}
-
-impl HelpersObject {
-    async fn require(&self, header: &Header<'_>) -> fdo::Result<()> {
-        self.speakers
-            .require(header, Call::Helpers)
-            .await
-            .map(|_| ())
-    }
-}
-
-#[zbus::interface(name = "org.quire.Companion1.Helpers")]
-impl HelpersObject {
-    async fn list(&self, after: u64, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
-        self.require(&header).await?;
-        json(&self.desk.view(after))
-    }
-
-    async fn card(
-        &self,
-        helper: String,
-        #[zbus(header)] header: Header<'_>,
-    ) -> fdo::Result<String> {
-        self.require(&header).await?;
-        match self.desk.card(&helper_of(&helper)?) {
-            Some(card) => json(&card),
-            None => Err(fdo::Error::InvalidArgs("there is no such helper".into())),
-        }
-    }
-
-    async fn create(
-        &self,
-        form: String,
-        #[zbus(header)] header: Header<'_>,
-    ) -> fdo::Result<String> {
-        self.require(&header).await?;
-        let form: HelperForm = serde_json::from_str(&form).map_err(bad)?;
-        json(&self.desk.create(form).await)
-    }
-
-    async fn edit(
-        &self,
-        helper: String,
-        form: String,
-        #[zbus(header)] header: Header<'_>,
-    ) -> fdo::Result<String> {
-        self.require(&header).await?;
-        let form: HelperForm = serde_json::from_str(&form).map_err(bad)?;
-        json(&self.desk.edit(helper_of(&helper)?, form).await)
-    }
-
-    async fn pause(&self, helper: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
-        self.require(&header).await?;
-        self.desk.pause(helper_of(&helper)?).await;
-        Ok(())
-    }
-
-    async fn resume(&self, helper: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
-        self.require(&header).await?;
-        self.desk.resume(helper_of(&helper)?).await;
-        Ok(())
-    }
-
-    async fn remove(&self, helper: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<()> {
-        self.require(&header).await?;
-        self.desk.remove(helper_of(&helper)?).await;
-        Ok(())
-    }
-
-    async fn post_job(
-        &self,
-        helper: String,
-        goal: String,
-        things: String,
-        #[zbus(header)] header: Header<'_>,
-    ) -> fdo::Result<String> {
-        self.require(&header).await?;
-        let things: Vec<EntityId> = if things.trim().is_empty() {
-            Vec::new()
-        } else {
-            serde_json::from_str(&things).map_err(bad)?
-        };
-        json(
-            &self
-                .desk
-                .post_job(PostFromPerson {
-                    helper: helper_of(&helper)?,
-                    goal,
-                    things,
-                })
-                .await,
-        )
-    }
-
-    #[zbus(signal)]
-    async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
 
 struct AnswerObject<P: InferTransport, I: IntentsTransport> {
@@ -453,15 +347,14 @@ async fn forward<P, I>(
                     .await;
             }
             Change::HelpersChanged => {
-                let _ = connection
-                    .emit_signal(
-                        None::<&str>,
-                        COMPANION_PATH,
-                        "org.quire.Companion1.Helpers",
-                        "Changed",
-                        &(),
-                    )
-                    .await;
+                for interface in [
+                    "org.quire.Companion1.Helpers",
+                    "org.quire.Companion1.Helpers2",
+                ] {
+                    let _ = connection
+                        .emit_signal(None::<&str>, COMPANION_PATH, interface, "Changed", &())
+                        .await;
+                }
             }
         }
     }
@@ -496,6 +389,22 @@ where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
 {
+    serve_with_routines(connection, companion, who, proc_root, None).await
+}
+
+/// [`serve_on_rooted`] with the routines the daemon keeps, which `Companion1.Helpers2` lists and
+/// changes. With none, its routine calls say routines are not kept here.
+pub async fn serve_with_routines<P, I>(
+    connection: &BusConnection,
+    companion: Arc<Mutex<Companiond<P, I>>>,
+    who: Arc<Identity>,
+    proc_root: PathBuf,
+    routines: Option<Arc<dyn RoutineDesk>>,
+) -> Result<(), ServeFault>
+where
+    P: InferTransport + 'static,
+    I: IntentsTransport + 'static,
+{
     let (shared, shell, desk) = {
         let held = companion.lock().await;
         (held.shared.clone(), held.shell.clone(), held.desk())
@@ -520,7 +429,19 @@ where
             .at(
                 COMPANION_PATH,
                 HelpersObject {
+                    desk: desk.clone(),
+                    speakers: speakers.clone(),
+                },
+            )
+            .await
+            .map_err(bus)?;
+        connection
+            .object_server()
+            .at(
+                COMPANION_PATH,
+                Helpers2Object {
                     desk,
+                    routines,
                     speakers: speakers.clone(),
                 },
             )

@@ -20,7 +20,7 @@ pub struct DbusCompanion {
     companion: CompanionProxy<'static>,
 }
 
-fn fault_of(error: zbus::Error) -> TransportError {
+pub(crate) fn fault_of(error: zbus::Error) -> TransportError {
     match &error {
         zbus::Error::MethodError(name, _, _)
             if matches!(
@@ -41,7 +41,7 @@ fn fault_of(error: zbus::Error) -> TransportError {
     }
 }
 
-fn json<T: serde::Serialize>(value: &T) -> Result<String, TransportError> {
+pub(crate) fn json<T: serde::Serialize>(value: &T) -> Result<String, TransportError> {
     serde_json::to_string(value).map_err(|e| TransportError::Malformed(e.to_string()))
 }
 

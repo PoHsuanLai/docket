@@ -2,8 +2,8 @@
 //! equal it.
 
 use crate::{
-    AgentHostSkeleton, CheckpointSkeleton, CompanionAnswerSkeleton, CompanionHelpersSkeleton,
-    CompanionSkeleton, ConfirmSkeleton, ContextSkeleton, ControlSkeleton, GateSkeleton,
+    AgentHostSkeleton, CheckpointSkeleton, CompanionAnswerSkeleton, CompanionHelpers2Skeleton,
+    CompanionHelpersSkeleton, CompanionSkeleton, ConfirmSkeleton, ContextSkeleton, ControlSkeleton, GateSkeleton,
     IndexSkeleton, IntentProviderSkeleton, MessageSkeleton, ReaderSkeleton, RegistrySkeleton,
     RequestSkeleton, RunSkeleton, SearchSkeleton, SessionSkeleton,
 };
@@ -73,6 +73,7 @@ pub fn introspection(bus: Bus) -> String {
             &CompanionSkeleton,
             &CompanionAnswerSkeleton,
             &CompanionHelpersSkeleton,
+            &CompanionHelpers2Skeleton,
         ],
         Bus::Reader => vec![&ReaderSkeleton],
         Bus::AgentHost => vec![&AgentHostSkeleton],

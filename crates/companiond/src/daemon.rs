@@ -6,10 +6,10 @@ use crate::clock::Clock;
 use crate::config::CompaniondConfig;
 use crate::handoff::HostLink;
 use crate::helpers::Hub;
-use crate::routines::{HubHost, Routines, Timers};
-use crate::serve::serve_on_rooted;
+use crate::routines::{HubHost, RoutineDesk, Routines, Timers};
+use crate::serve::serve_with_routines;
 use docket_client::{DbusTransport, Intents};
-use docket_core::helper::HelperCard;
+use docket_core::helper::{AgentApps, HelperCard};
 use docket_dbus::callers::{CallerTable, Identity};
 use docket_dbus::tap::Tap;
 use docket_dbus::{BusConnection, InferLink};
@@ -78,6 +78,20 @@ pub async fn start_with(
     seams: HarnessSeams,
     callers: CallerTable,
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
+    start_with_agents(connection, config, skills, seams, callers, None).await
+}
+
+/// [`start_with`] with the host of the agent apps that are helpers: a helper whose kind is an
+/// agent app runs its jobs there, one agent process per helper. With none, such a job fails at
+/// once, and every other helper is unaffected.
+pub async fn start_with_agents(
+    connection: &BusConnection,
+    config: CompaniondConfig,
+    skills: &Roots,
+    seams: HarnessSeams,
+    callers: CallerTable,
+    agents: Option<Arc<dyn AgentApps>>,
+) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
     let found = discover(skills);
     for rejected in &found.rejected {
         tracing::warn!(
@@ -129,6 +143,9 @@ pub async fn start_with(
         );
         Hub::new(service, companion.shared.clone(), make)
     };
+    if let Some(agents) = agents {
+        hub.set_agents(agents);
+    }
     companion.set_desk(Arc::new(hub.clone()));
     // A router or memoryd that hangs must not keep the name from being claimed.
     match tokio::time::timeout(companion.waits.startup, companion.restore(&config.spaces)).await {
@@ -159,11 +176,19 @@ pub async fn start_with(
     {
         tracing::warn!("the routines did not come back in time; starting without them");
     }
-    tokio::spawn(routines.run());
+    tokio::spawn(routines.clone().run());
     let companion = Arc::new(Mutex::new(companion));
     let fixture = (seams.proc_root != Path::new("/proc")).then_some(seams.proc_root.as_path());
     let who = Arc::new(Identity::on(connection.clone(), callers, fixture));
-    serve_on_rooted(connection, companion.clone(), who, seams.proc_root).await?;
+    let kept: Arc<dyn RoutineDesk> = routines;
+    serve_with_routines(
+        connection,
+        companion.clone(),
+        who,
+        seams.proc_root,
+        Some(kept),
+    )
+    .await?;
     Ok(companion)
 }
 

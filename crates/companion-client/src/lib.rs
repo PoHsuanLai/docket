@@ -1,6 +1,7 @@
 //! The person's side of `org.quire.Companion1`, as a seam: open a conversation, ask, follow the
 //! answer object until it settles, close. [`CompanionTransport`] is what `quire-do ask` is
-//! written against; [`DbusCompanion`] is the session bus.
+//! written against; [`DbusCompanion`] is the session bus. [`HelpersTransport`] is the same for the
+//! helpers and their routines (`Companion1.Helpers2`); [`DbusHelpers`] is the session bus.
 //! Recording the person's turn is not here: that is `Intents1.Session.Turn`, which the caller
 //! makes through [`docket_client::Intents`] before it asks.
 //!
@@ -30,8 +31,10 @@ use prov::SessionId;
 use std::future::Future;
 
 mod bus;
+mod helpers;
 
 pub use bus::{BusAnswer, DbusCompanion};
+pub use helpers::{Changes, DbusHelpers, HelpersTransport};
 
 /// One answer object, followed: the view as it stands, then each change.
 pub trait Follow: Send {

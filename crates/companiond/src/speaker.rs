@@ -51,8 +51,8 @@ pub enum Call {
     Cancel,
     /// Reading an answer: `View`, `Session` and `Routing`.
     Read,
-    /// Anything on `Companion1.Helpers`: the helpers are the person's own, and the shell speaks
-    /// for them; a terminal does not.
+    /// Anything on `Companion1.Helpers` and `.Helpers2` (the helpers and their routines): they are
+    /// the person's own, and the shell speaks for them; a terminal does not.
     Helpers,
 }
 
