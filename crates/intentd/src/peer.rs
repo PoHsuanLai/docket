@@ -123,7 +123,7 @@ fn in_terminal(root: &Path, pid: u32) -> bool {
     let text =
         std::fs::read_to_string(root.join(pid.to_string()).join("cgroup")).unwrap_or_default();
     matches!(
-        CgroupPath::from_proc_cgroup(&text),
+        CgroupPath::from_proc(&text),
         Ok(cgroup) if is_terminal_scope(cgroup.as_str())
     )
 }

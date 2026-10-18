@@ -96,7 +96,7 @@ fn denied() -> fdo::Error {
 fn in_terminal(root: &Path, pid: u32) -> Option<TerminalScope> {
     let text =
         std::fs::read_to_string(root.join(pid.to_string()).join("cgroup")).unwrap_or_default();
-    let cgroup = CgroupPath::from_proc_cgroup(&text).ok()?;
+    let cgroup = CgroupPath::from_proc(&text).ok()?;
     TerminalScope::from_cgroup(cgroup.as_str()).ok()
 }
 
