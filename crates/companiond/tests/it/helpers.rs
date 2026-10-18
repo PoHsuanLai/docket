@@ -278,7 +278,8 @@ async fn two_helpers_work_at_the_same_time_and_stopping_one_ends_only_its_job() 
     })
     .await;
     // A helper's model is offered the apps on its card and nothing more: Mail (a send beyond its
-    // reach too, which asks), and of the assistant's own actions only handing a job on.
+    // reach too, which asks), and of the assistant's own actions only handing a job on and
+    // suggesting a routine.
     let offered: Vec<String> = research_model.asked()[0]
         .tools
         .iter()
@@ -288,7 +289,9 @@ async fn two_helpers_work_at_the_same_time_and_stopping_one_ends_only_its_job() 
     assert!(!offered.is_empty());
     for name in &offered {
         assert!(
-            name.starts_with("org_quire_Mail-") || name.ends_with("companion_helper_post_job"),
+            name.starts_with("org_quire_Mail-")
+                || name.ends_with("companion_helper_post_job")
+                || name.ends_with("companion_routine_propose"),
             "{name} is beyond the helper's reach"
         );
     }
@@ -297,6 +300,17 @@ async fn two_helpers_work_at_the_same_time_and_stopping_one_ends_only_its_job() 
             .iter()
             .any(|name| name.ends_with("mail_message_send")),
         "going further in its own app is offered, and asks"
+    );
+    // Inbox is on the board too, so Research may hand it a job: the board is its desk.
+    let all: Vec<String> = research_model.asked()[0]
+        .tools
+        .iter()
+        .map(|t| t.name.as_str().to_owned())
+        .collect();
+    assert!(
+        all.iter()
+            .any(|name| name.ends_with("companion_helper_post_job")),
+        "a helper with another on the board is offered handing a job on: {all:?}"
     );
 
     // The person pauses Research: its job is stopped and open again, nothing is held against it,

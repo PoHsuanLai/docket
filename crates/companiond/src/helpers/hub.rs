@@ -323,13 +323,23 @@ where
         })
     }
 
+    /// A companion for `card`'s own planner, on the planner and transports the daemon gives that
+    /// helper, with this board as its desk: the helper is told of the others, may hand one of them
+    /// a job, and may suggest a routine for its card (the router gates each). Without the desk its
+    /// planner was offered none of that.
+    fn helpers_companion(&self, card: &HelperCard) -> Companiond<P, I> {
+        let mut companion = (self.inner.make)(card);
+        companion.set_desk(Arc::new(self.clone()));
+        companion
+    }
+
     /// The companion that runs the turns of `card`'s conversation, made the first time, on the
     /// planner and transports the daemon gives that helper.
     pub(super) fn talker(&self, card: &HelperCard) -> Arc<AsyncMutex<Companiond<P, I>>> {
         self.with_talks(|talks| {
             talks
                 .entry(card.id.clone())
-                .or_insert_with(|| Arc::new(AsyncMutex::new((self.inner.make)(card))))
+                .or_insert_with(|| Arc::new(AsyncMutex::new(self.helpers_companion(card))))
                 .clone()
         })
     }
@@ -670,7 +680,7 @@ where
 
     async fn work_native(&self, spec: JobSpec) -> Finished {
         let job = spec.job.id;
-        let mut companion = (self.inner.make)(&spec.card);
+        let mut companion = self.helpers_companion(&spec.card);
         let opened = match companion.open_job(&spec).await {
             Ok(opened) => opened,
             Err(fault) => {
