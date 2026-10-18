@@ -20,6 +20,7 @@ use docket_core::{
     TurnSource, TurnVia, UserTurn,
 };
 use porter_client::Transport as InferTransport;
+use porter_core::Count;
 use prov::{Address, AgentRef, EntityId, MessageKind, MessageText, SessionId, TaskId};
 
 /// An earlier job's answer, handed to a job as data: the session the answer was given in, and its
@@ -95,6 +96,12 @@ impl JobReport {
     }
 }
 
+/// The steps a job may take: a routine's run may be given fewer than the helper's own job, never
+/// more. A job past them ends as `JobFault::OutOfSteps`, which reads "it used up its steps".
+fn steps_for(helper: Count, run: Option<Count>) -> Count {
+    run.map_or(helper, |run| run.min(helper))
+}
+
 fn fault_of(failure: Option<&Failure>) -> JobFault {
     match failure {
         Some(Failure::Budget | Failure::Refused(CallRefusal::OverBudget(_))) => {
@@ -120,7 +127,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     /// is closed again.
     pub async fn open_job(&mut self, spec: &JobSpec) -> Result<OpenedJob, JobFault> {
         self.refresh_catalogue().await;
-        self.config.budget.calls = spec.card.budget.steps;
+        self.config.budget.calls = steps_for(spec.card.budget.steps, spec.job.steps);
         self.as_helper = Some(super::AsHelper {
             id: spec.card.id.clone(),
             reach: spec.card.reach.clone(),
@@ -185,7 +192,19 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 .await;
             best_effort("session.narrow", &opened.session, narrowed);
         }
-        for input in &spec.inputs {
+        // The event that started a routine's run goes to the planner like any other thing it may
+        // name and not read: sent from the job's own session, so the router labels it as the
+        // planner's and delivers it as a handle.
+        let event = spec
+            .job
+            .about
+            .iter()
+            .filter_map(|about| serde_json::to_string(about).ok())
+            .map(|text| JobInput {
+                from: opened.session.clone(),
+                text,
+            });
+        for input in spec.inputs.iter().cloned().chain(event) {
             let draft = MessageDraft {
                 to: Address::new(
                     AgentRef::Worker {
@@ -287,5 +306,17 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             owned,
             why,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_runs_budget_only_ever_lowers_the_helpers() {
+        assert_eq!(steps_for(Count(12), None), Count(12));
+        assert_eq!(steps_for(Count(12), Some(Count(4))), Count(4));
+        assert_eq!(steps_for(Count(3), Some(Count(9))), Count(3));
     }
 }

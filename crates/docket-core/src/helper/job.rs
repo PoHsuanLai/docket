@@ -3,6 +3,7 @@
 
 use super::card::Need;
 use almanac_core::EventRef;
+use porter_core::Count;
 use prov::{EntityId, HelperId, SessionId, TaskId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -187,6 +188,10 @@ pub struct Job {
     /// The almanac event that started it, when a routine's run: a handle, never part of the goal.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub about: Option<EventRef>,
+    /// The most steps this job takes, when a routine's run sets a budget of its own: the job
+    /// stops at it, or at the helper's own, whichever is fewer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steps: Option<Count>,
 }
 
 impl Job {

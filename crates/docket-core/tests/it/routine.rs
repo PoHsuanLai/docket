@@ -168,6 +168,8 @@ fn a_due_time_fires_one_job_with_the_persons_words() {
     assert_eq!(asked[0].helper, hid(1));
     assert_eq!(asked[0].goal, goal());
     assert_eq!(asked[0].event, None);
+    // The run carries the routine's own budget, which the job is held to.
+    assert_eq!(asked[0].budget, RunBudget { steps: Count(8) });
     assert_eq!(outcomes(&book, id), [RunOutcome::Started]);
     assert_eq!(
         book.routine(id).expect("routine").next_due,

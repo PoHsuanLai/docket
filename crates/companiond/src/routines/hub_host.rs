@@ -78,9 +78,10 @@ where
             owns: Vec::new(),
             with: Vec::new(),
         });
-        let event = match run.event {
-            Some(about) => BoardEvent::PostAbout { job, about },
-            None => BoardEvent::Post(job),
+        let event = BoardEvent::PostRun {
+            job,
+            about: run.event,
+            steps: run.budget.steps,
         };
         self.hub
             .apply(event)

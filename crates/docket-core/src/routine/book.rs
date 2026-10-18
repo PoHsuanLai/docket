@@ -46,6 +46,8 @@ pub struct RunRequest {
     pub goal: GoalText,
     /// The event that started it.
     pub event: Option<EventRef>,
+    /// What the run may use: the job stops at its steps.
+    pub budget: RunBudget,
 }
 
 /// How a job on the board ended.
@@ -223,6 +225,7 @@ fn fire(
         helper: routine.helper.clone(),
         goal: routine.goal.clone(),
         event,
+        budget: routine.budget,
     }));
 }
 

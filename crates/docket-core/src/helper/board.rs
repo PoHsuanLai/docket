@@ -12,6 +12,7 @@ use super::post::{Post, PostId, PostPart, PostTo};
 use super::records::{CardRecord, HelperRecord};
 use super::rules::{JobRefusal, admit_goal};
 use almanac_core::EventRef;
+use porter_core::Count;
 use prov::{EntityId, HelperId, Label, TaskId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -55,6 +56,15 @@ pub struct NewJob {
     pub with: Vec<JobId>,
 }
 
+/// What a routine's run adds to the job it posts.
+#[derive(Debug, Default)]
+struct RunTerms {
+    /// The event that started it.
+    about: Option<EventRef>,
+    /// Its step budget.
+    steps: Option<Count>,
+}
+
 /// How a helper's call ended, as far as the breaker goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -86,13 +96,15 @@ pub enum BoardEvent {
     Remove(HelperId),
     /// A job is posted.
     Post(Box<NewJob>),
-    /// A job is posted for a routine's run that an almanac event started: the event goes with the
-    /// job as a handle, and no part of it is in the goal.
-    PostAbout {
+    /// A job is posted for a routine's run: the event that started it, if one did, goes with the
+    /// job as a handle (no part of it is in the goal), and the run's step budget bounds the job.
+    PostRun {
         /// The job.
         job: Box<NewJob>,
         /// The event.
-        about: EventRef,
+        about: Option<EventRef>,
+        /// The most steps the run takes.
+        steps: Count,
     },
     /// The helper is free: give it its oldest open job, unless that job failed before.
     Take(HelperId),
@@ -480,7 +492,7 @@ impl Board {
         }));
     }
 
-    fn post_job(&mut self, new: NewJob, about: Option<EventRef>, fx: &mut Vec<BoardEffect>) {
+    fn post_job(&mut self, new: NewJob, run: RunTerms, fx: &mut Vec<BoardEffect>) {
         let source = match admit_goal(new.origin) {
             Ok(source) => source,
             Err(refusal) => {
@@ -515,7 +527,8 @@ impl Board {
             giver: new.giver,
             with,
             failed: None,
-            about,
+            about: run.about,
+            steps: run.steps,
         };
         fx.push(save_job(&job));
         fx.push(BoardEffect::Posted(job.id));
@@ -751,8 +764,15 @@ pub fn step(mut board: Board, event: BoardEvent) -> (Board, Vec<BoardEffect>) {
         BoardEvent::Pause(helper) => board.pause(&helper, PauseWhy::ByPerson, &mut fx),
         BoardEvent::Resume(helper) => board.resume(&helper, &mut fx),
         BoardEvent::Remove(helper) => board.remove(&helper, &mut fx),
-        BoardEvent::Post(new) => board.post_job(*new, None, &mut fx),
-        BoardEvent::PostAbout { job, about } => board.post_job(*job, Some(about), &mut fx),
+        BoardEvent::Post(new) => board.post_job(*new, RunTerms::default(), &mut fx),
+        BoardEvent::PostRun { job, about, steps } => board.post_job(
+            *job,
+            RunTerms {
+                about,
+                steps: Some(steps),
+            },
+            &mut fx,
+        ),
         BoardEvent::Take(helper) => board.launch_next(&helper, Retry::Fresh, &mut fx),
         BoardEvent::Retry(helper) => board.launch_next(&helper, Retry::Again, &mut fx),
         BoardEvent::Started { job, task } => board.started(job, task, &mut fx),
