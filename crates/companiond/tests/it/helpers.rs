@@ -6,12 +6,14 @@ use crate::support::world::*;
 use almanac_core::{
     EventRef, EventSummary, JsonText, KindTag, MemoryReply, RecentEntry, ReplicaId, Seq,
 };
-use companion_wire::{HelperForm, HelperNeeds, HelperReply, JobShown};
+use companion_wire::{HelperForm, HelperNeeds, HelperReply, JobShown, SayReply};
+use docket_client::{InProcess, Intents};
 use docket_core::helper::*;
 use docket_core::{
-    ActionMatch, AuditRecord, ConfirmAnswer, LabelText, TaskPolicy, TaskPolicyState,
+    ActionMatch, AuditRecord, CallerRole, ConfirmAnswer, LabelText, Origin, TaskPolicy,
+    TaskPolicyState, TurnId, TurnIn, TurnSource, TurnVia,
 };
-use docket_tasks::{HelperDesk, PostFromPerson};
+use docket_tasks::{HelperDesk, PostFromPerson, SayFromPerson};
 use porter_core::{AccountId, Count, ModelId};
 use porter_infer::ModelRef;
 use porter_infer::{Asker, OpenOptions};
@@ -784,4 +786,103 @@ async fn the_assistant_only_proposes_a_helper_and_nothing_exists_until_the_perso
         ["org.quire.Mail: look at things and change them (changes can be undone)"]
     );
     assert_eq!(w.router.seams.confirmer.requests().len(), 2);
+}
+
+/// The editor records the person's words in `session` with the router, as its own surface, and
+/// asks the hub to run the turn.
+async fn editor_says(w: &World, hub: &TestHub, session: &prov::SessionId, text: &str) -> SayReply {
+    let editor = Intents::over(InProcess::new(
+        w.router.clone(),
+        caller("org.quire.Acp", CallerRole::Editor),
+    ));
+    let id = editor
+        .session_turn(
+            session.clone(),
+            TurnIn {
+                text: text.into(),
+                origin: Origin::InWindowField,
+                keep: keep_nothing(),
+                via: TurnVia::Typed,
+            },
+        )
+        .await
+        .expect("the router records the editor's turn in a conversation");
+    // By the trait: the hub's own `say` tells the person a sentence about a helper.
+    HelperDesk::say(
+        hub,
+        SayFromPerson {
+            session: session.clone(),
+            id,
+            text: text.into(),
+            from: TurnSource::Editor(app("org.quire.Acp")),
+        },
+    )
+    .await
+}
+
+#[tokio::test]
+async fn the_person_speaks_in_a_helpers_conversation_and_the_turn_runs_under_the_helper() {
+    let w = world(vec![]);
+    let research_model = ScriptedInfer::new(vec![
+        words("Offer B is the cheapest."),
+        words("Yes, by a little."),
+    ]);
+    let hub = hub_with(&w, &[("Research", &research_model)]);
+    let HelperReply::Made(research) = hub.create(work_form("Research", model())).await else {
+        panic!("a helper is made")
+    };
+    let talk = hub
+        .conversation_of(&research)
+        .expect("it has a conversation");
+
+    let first = editor_says(&w, &hub, &talk, "which offer is the cheapest?").await;
+    assert_eq!(first, SayReply::Said("Offer B is the cheapest.".to_owned()));
+    // The next turn is in the same conversation, and carries only its own words.
+    let second = editor_says(&w, &hub, &talk, "is it cheaper than A?").await;
+    assert_eq!(second, SayReply::Said("Yes, by a little.".to_owned()));
+
+    // The helper's planner took the turns, as the helper, on the model the person chose; the
+    // front conversation's model was not used.
+    let expected = OpenOptions::default()
+        .with_asker(Asker::Helper(research.clone()))
+        .with_model(chosen_ref());
+    let opened = research_model.opened();
+    assert!(!opened.is_empty());
+    assert!(opened.iter().all(|o| *o == expected), "{opened:?}");
+    assert!(
+        research_model
+            .user_text(0)
+            .contains("which offer is the cheapest?")
+    );
+    assert!(
+        w.infer.asked().is_empty(),
+        "the front conversation was not used"
+    );
+}
+
+#[tokio::test]
+async fn only_a_helpers_conversation_is_spoken_in_and_the_front_conversation_is_not() {
+    let mut w = world(vec![words("Front.")]);
+    let research_model = ScriptedInfer::new(vec![words("Hello.")]);
+    let hub = hub_with(&w, &[("Research", &research_model)]);
+    hub.create(work_form("Research", model())).await;
+    let front = w.open("work").await;
+
+    // A session that is not a helper's conversation is turned away in words, and no model is asked.
+    let refused = HelperDesk::say(
+        &hub,
+        SayFromPerson {
+            session: front.session.clone(),
+            id: TurnId(1),
+            text: "hello".into(),
+            from: TurnSource::Editor(app("org.quire.Acp")),
+        },
+    )
+    .await;
+    assert_eq!(
+        refused,
+        SayReply::Refused("That is not a conversation with a helper.".to_owned())
+    );
+    assert!(w.infer.asked().is_empty());
+    assert!(research_model.asked().is_empty());
 }

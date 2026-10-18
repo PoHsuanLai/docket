@@ -226,6 +226,16 @@ pub enum HelperReply {
     OpenTerminal(TerminalRequest),
 }
 
+/// What a helper answered in its conversation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+pub enum SayReply {
+    /// The helper's words when its turn ended.
+    Said(String),
+    /// It could not answer, and why, in plain words.
+    Refused(String),
+}
+
 fn paused_text(why: PauseWhy) -> &'static str {
     match why {
         PauseWhy::ByPerson => "Paused",

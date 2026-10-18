@@ -7,7 +7,7 @@
 use crate::bus::{fault_of, json};
 use companion_wire::{
     BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineCardView,
-    RoutineForm, RoutineProposal, RoutineReply, RoutinesView, TerminalSession,
+    RoutineForm, RoutineProposal, RoutineReply, RoutinesView, SayReply, TerminalSession,
 };
 use docket_client::TransportError;
 use docket_core::routine::RoutineId;
@@ -168,6 +168,23 @@ pub trait HelpersTransport: Send + Sync {
     fn terminal_changes(&self) -> impl Future<Output = Result<Changes, TransportError>> + Send {
         async { Err(not_offered()) }
     }
+
+    /// The person speaks in a helper's conversation: `turn` is the number the router gave the turn
+    /// the speaker recorded, and `text` what was said. The helper takes the turn where it lives
+    /// and answers with its words when the turn ends. A carrier without it refuses.
+    fn say(
+        &self,
+        session: &SessionId,
+        turn: u64,
+        text: &str,
+    ) -> impl Future<Output = Result<SayReply, TransportError>> + Send {
+        let _ = (session, turn, text);
+        async { Err(no_talk()) }
+    }
+}
+
+fn no_talk() -> TransportError {
+    TransportError::Bus("talking with a helper is not offered here".to_owned())
 }
 
 fn not_offered() -> TransportError {
@@ -415,5 +432,20 @@ impl HelpersTransport for DbusHelpers {
     async fn terminal_changes(&self) -> Result<Changes, TransportError> {
         let signals = self.terminals.receive_changed().await.map_err(fault_of)?;
         Ok(Box::pin(signals.map(|_| ())))
+    }
+
+    async fn say(
+        &self,
+        session: &SessionId,
+        turn: u64,
+        text: &str,
+    ) -> Result<SayReply, TransportError> {
+        read(
+            &self
+                .helpers
+                .say(session.as_str(), turn, text)
+                .await
+                .map_err(fault_of)?,
+        )
     }
 }

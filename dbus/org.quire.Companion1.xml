@@ -167,6 +167,12 @@
      <arg name="helper" type="s" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="Say">
+     <arg name="session" type="s" direction="in"/>
+     <arg name="turn" type="t" direction="in"/>
+     <arg name="text" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
    <signal name="Changed">
    </signal>
  </interface>

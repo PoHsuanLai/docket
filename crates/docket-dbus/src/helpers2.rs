@@ -1,7 +1,9 @@
 //! `org.quire.Companion1.Helpers2`: everything `Helpers` has, and the app helpers' sign-in and the
-//! routines. It is served beside `Helpers`, which stays as it was; a caller that knows this one
-//! uses it alone. Only the shell speaks for the person here. Every body is JSON of
-//! `companion-wire`'s helper and routine types, and every sentence in them is plain words.
+//! routines, and speaking in a helper's conversation. It is served beside `Helpers`, which stays
+//! as it was; a caller that knows this one uses it alone. Only the shell speaks for the person
+//! here, except that our own editor bridge may read the helpers and speak in a helper's
+//! conversation (`Say`). Every body is JSON of `companion-wire`'s helper and routine types, and
+//! every sentence in them is plain words.
 
 use zbus::fdo;
 use zbus::object_server::SignalEmitter;
@@ -88,6 +90,13 @@ pub trait CompanionHelpers2 {
     /// The person brings the helper's conversation back from the terminal (answers `HelperReply`
     /// JSON: done, or why not).
     fn bring_back(&self, helper: &str) -> zbus::Result<String>;
+
+    /// The person speaks in a helper's conversation (`session` is the conversation's session,
+    /// `turn` the number the router gave the recorded turn, `text` what was said). The helper takes
+    /// the turn under its own model and reach; the answer is `SayReply` JSON: its words when the
+    /// turn ends, or why it could not. The shell and our own editor bridge may; any session that
+    /// is not a helper's conversation is refused.
+    fn say(&self, session: &str, turn: u64, text: &str) -> zbus::Result<String>;
 
     /// Something about the helpers or their routines changed. Content-free: read `List`.
     #[zbus(signal)]
@@ -200,6 +209,11 @@ impl CompanionHelpers2Skeleton {
 
     fn bring_back(&self, helper: String) -> fdo::Result<String> {
         let _ = (helper,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn say(&self, session: String, turn: u64, text: String) -> fdo::Result<String> {
+        let _ = (session, turn, text);
         Err(crate::introspect::frozen())
     }
 

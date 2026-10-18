@@ -3,11 +3,12 @@
 //! waiting for the loop, and the answer object's view.
 
 use crate::support::bus::PrivateBus;
-use crate::support::infer::{Say, words};
+use crate::support::infer::{Say, ScriptedInfer, words};
 use crate::support::world::*;
 use companion_wire::{
     AnswerPhase, AnswerWire, AskWire, BroughtBack, FrontTask, HelperForm, HelperReply, HelpersView,
-    RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView, TerminalSession,
+    RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView, SayReply,
+    TerminalSession,
 };
 use companiond::{RoutineDesk, serve_on, serve_with_routines};
 use docket_core::helper::{Ceiling, HelperModel, HelperName, Role};
@@ -829,4 +830,135 @@ async fn a_proposed_routine_waits_for_the_shell_to_accept_or_decline_it() {
     .expect("reply");
     assert!(matches!(gone, RoutineReply::Refused(_)));
     assert!(helpers.accept_routine_proposal("nonsense").await.is_err());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_editor_bridge_speaks_in_a_helpers_conversation_and_a_stranger_or_another_session_is_refused()
+ {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let bus = PrivateBus::start(scratch.path());
+    let (server, shell, editor, stranger) = (
+        bus.connect().await,
+        bus.connect().await,
+        bus.connect().await,
+        bus.connect().await,
+    );
+    let mut w = world(vec![]);
+    let research_model = ScriptedInfer::new(vec![words("Offer B is the cheapest.")]);
+    let hub = hub_with(&w, &[("Research", &research_model)]);
+    w.companion.set_desk(Arc::new(hub));
+    let router = w.router.clone();
+    let companion = Arc::new(Mutex::new(w.companion));
+    let who = who(&server, scratch.path());
+    serve_with_routines(
+        &server,
+        companion,
+        who.clone(),
+        std::path::PathBuf::from("/proc"),
+        Some(Arc::new(EmptyRoutines)),
+    )
+    .await
+    .expect("serving");
+    as_shell(&who, &shell);
+    who.introduce_app(&editor, "org.quire.Acp", docket_dbus::callers::Role::Agent);
+
+    let form = HelperForm {
+        name: HelperName::parse("Research").expect("name"),
+        role: Role::parse("Looks things up.").expect("role"),
+        space: space("work"),
+        model: HelperModel::Named(porter_infer::ModelRef {
+            account: porter_core::AccountId::parse("local").expect("account"),
+            model: porter_core::ModelId::parse("tiny").expect("model"),
+        }),
+        apps: vec![app("org.quire.Mail")],
+        ceiling: Ceiling::Look,
+        steps: porter_core::Count(8),
+        kind: Default::default(),
+    };
+    let form = serde_json::to_string(&form).expect("json");
+    let theirs = CompanionHelpers2Proxy::new(&shell).await.expect("proxy");
+    let made: HelperReply =
+        serde_json::from_str(&theirs.create(&form).await.expect("create")).expect("reply");
+    let HelperReply::Made(_) = made else {
+        panic!("a helper is made: {made:?}")
+    };
+    let listed: HelpersView =
+        serde_json::from_str(&theirs.list(0).await.expect("list")).expect("view");
+    let talk = listed.helpers[0]
+        .conversation
+        .clone()
+        .expect("conversation");
+
+    // The editor records the person's words with the router, as its own surface.
+    let recorder = docket_client::Intents::over(docket_client::InProcess::new(
+        router.clone(),
+        caller("org.quire.Acp", CallerRole::Editor),
+    ));
+    let turn = recorder
+        .session_turn(
+            talk.clone(),
+            TurnIn {
+                text: "which offer is the cheapest?".into(),
+                origin: Origin::InWindowField,
+                keep: keep_nothing(),
+                via: TurnVia::Typed,
+            },
+        )
+        .await
+        .expect("turn");
+
+    // The bridge speaks in the conversation, and the helper's own model answers.
+    let helpers = CompanionHelpers2Proxy::new(&editor).await.expect("proxy");
+    let said: SayReply = serde_json::from_str(
+        &helpers
+            .say(talk.as_str(), turn.0, "which offer is the cheapest?")
+            .await
+            .expect("say"),
+    )
+    .expect("reply");
+    assert_eq!(said, SayReply::Said("Offer B is the cheapest.".to_owned()));
+    let asked = research_model.opened();
+    assert_eq!(
+        asked.len(),
+        1,
+        "the helper's model, and no other, was asked"
+    );
+
+    // A session that is not a helper's conversation is refused in words, and no model is asked.
+    let other = router_session(&router, "work").await;
+    let refused: SayReply =
+        serde_json::from_str(&helpers.say(other.as_str(), 1, "hello").await.expect("say"))
+            .expect("reply");
+    assert!(matches!(refused, SayReply::Refused(_)), "{refused:?}");
+    assert!(helpers.say("not a session", 1, "hello").await.is_err());
+    assert_eq!(research_model.opened().len(), 1);
+
+    // A process nothing names speaks nowhere.
+    let nobody = CompanionHelpers2Proxy::new(&stranger).await.expect("proxy");
+    assert!(nobody.say(talk.as_str(), turn.0, "hello").await.is_err());
+    assert_eq!(research_model.opened().len(), 1);
+}
+
+/// A session the companion's identity opens at the router, which is no helper's.
+async fn router_session(
+    router: &std::sync::Arc<docket_router::Router<docket_fake::FakeSeams>>,
+    in_space: &str,
+) -> prov::SessionId {
+    let companion = docket_client::Intents::over(docket_client::InProcess::new(
+        router.clone(),
+        caller("org.quire.Companiond", CallerRole::Companion),
+    ));
+    companion
+        .session_open(SessionOpen {
+            space: space(in_space),
+            agent: AgentRef::Companion,
+            parent: None,
+            cwd: None,
+            started_from: None,
+            external: None,
+            helper: None,
+        })
+        .await
+        .expect("open")
+        .session
 }

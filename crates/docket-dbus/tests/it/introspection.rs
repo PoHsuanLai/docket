@@ -143,6 +143,7 @@ fn provider_confirm_companion_and_reader_members() {
                 "<signal name=\"RosterChanged\">",
                 "interface name=\"org.quire.Companion1.Terminals\"",
                 "<method name=\"OpenInTerminal\">",
+                "<method name=\"Say\">",
                 "<method name=\"Sessions\">",
                 "<method name=\"Act\">",
                 "<signal name=\"Updated\">",
@@ -160,6 +161,39 @@ fn provider_confirm_companion_and_reader_members() {
     assert_eq!(members(&introspection(Bus::IntentProvider)), 12);
     assert_eq!(members(&introspection(Bus::Confirm)), 2);
     assert_eq!(members(&introspection(Bus::Reader)), 1);
+}
+
+/// The text of the interface `name` in `xml`.
+fn interface<'a>(xml: &'a str, name: &str) -> &'a str {
+    let from = xml
+        .find(&format!("interface name=\"{name}\""))
+        .unwrap_or_else(|| panic!("{name} is declared"));
+    let rest = &xml[from..];
+    &rest[..rest.find("</interface>").expect("the interface ends")]
+}
+
+#[test]
+fn say_comes_last_among_the_methods_of_helpers2_after_the_ones_it_already_had() {
+    let xml = introspection(Bus::Companion);
+    let block = interface(&xml, "org.quire.Companion1.Helpers2");
+    let methods: Vec<&str> = block
+        .split("<method name=\"")
+        .skip(1)
+        .filter_map(|m| m.split('"').next())
+        .collect();
+    // Added at the end, so a caller that knows the older order is not moved.
+    let tail: Vec<&str> = methods.iter().rev().take(3).rev().copied().collect();
+    assert_eq!(tail, ["OpenInTerminal", "BringBack", "Say"]);
+    for arg in [
+        "<arg name=\"session\" type=\"s\" direction=\"in\"/>",
+        "<arg name=\"turn\" type=\"t\" direction=\"in\"/>",
+        "<arg name=\"text\" type=\"s\" direction=\"in\"/>",
+    ] {
+        assert!(block.contains(arg), "Say is missing {arg}");
+    }
+    // The first version of the interface is served as it was.
+    let first = interface(&xml, "org.quire.Companion1.Helpers");
+    assert!(!first.contains("\"Say\""));
 }
 
 #[test]

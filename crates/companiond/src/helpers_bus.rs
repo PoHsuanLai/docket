@@ -6,10 +6,12 @@
 
 use crate::routines::RoutineDesk;
 use crate::serve::{bad, json};
-use crate::speaker::{Call, Speakers};
+use crate::speaker::{Call, EDITOR_APP, Speaker, Speakers};
 use companion_wire::{HelperForm, ProposalId, RoutineForm, RoutineReply};
 use docket_core::routine::RoutineId;
-use docket_tasks::{HelperDesk, PostFromPerson};
+use docket_core::{TurnId, TurnSource};
+use docket_tasks::{HelperDesk, PostFromPerson, SayFromPerson};
+use porter_core::AppName;
 use prov::{EntityId, HelperId, SessionId};
 use std::sync::Arc;
 use zbus::fdo;
@@ -30,6 +32,20 @@ fn routine_of(text: &str) -> fdo::Result<RoutineId> {
 fn proposal_of(text: &str) -> fdo::Result<ProposalId> {
     ProposalId::parse(text)
         .ok_or_else(|| fdo::Error::InvalidArgs("there is no such proposal".into()))
+}
+
+/// Where the router recorded a turn said by `speaker`: the editor bridge records as an editor,
+/// the shell as the launcher. No other speaker speaks in a conversation.
+fn turn_source(speaker: &Speaker) -> fdo::Result<TurnSource> {
+    match speaker {
+        Speaker::Shell => Ok(TurnSource::Launcher),
+        Speaker::Editor => AppName::parse(EDITOR_APP)
+            .map(TurnSource::Editor)
+            .map_err(|_| fdo::Error::Failed("the editor bridge has no app name".into())),
+        Speaker::Terminal(_) => Err(fdo::Error::AccessDenied(
+            "a terminal does not speak in a helper's conversation".into(),
+        )),
+    }
 }
 
 /// What the helpers' calls come to, once, for both interfaces.
@@ -381,6 +397,29 @@ impl Helpers2Object {
     ) -> fdo::Result<String> {
         self.require(&header).await?;
         json(&self.desk.bring_back(helper_of(&helper)?).await)
+    }
+
+    async fn say(
+        &self,
+        session: String,
+        turn: u64,
+        text: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        let speaker = self.speakers.require(&header, Call::Converse).await?;
+        let session = SessionId::parse(&session)
+            .map_err(|_| fdo::Error::InvalidArgs("there is no such conversation".into()))?;
+        json(
+            &self
+                .desk
+                .say(SayFromPerson {
+                    session,
+                    id: TurnId(turn),
+                    text,
+                    from: turn_source(&speaker)?,
+                })
+                .await,
+        )
     }
 
     #[zbus(signal)]

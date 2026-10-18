@@ -5,10 +5,10 @@
 
 use companion_wire::{
     BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineProposal,
-    TerminalSession,
+    SayReply, TerminalSession,
 };
-use docket_core::HelperRosterLine;
 use docket_core::helper::Ceiling;
+use docket_core::{HelperRosterLine, TurnId, TurnSource};
 use prov::{EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::fmt;
 use std::future::Future;
@@ -42,6 +42,21 @@ pub struct PostFromPerson {
     pub goal: String,
     /// The things it alone may write.
     pub things: Vec<EntityId>,
+}
+
+/// The person's words in a helper's conversation. The surface they were typed in recorded the turn
+/// with the router (`id`); the words are run by the helper's own planner.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SayFromPerson {
+    /// The helper's conversation session: the desk finds the helper from it, and refuses any
+    /// session that is not one.
+    pub session: SessionId,
+    /// The turn's number, as the router recorded it.
+    pub id: TurnId,
+    /// What the person said.
+    pub text: String,
+    /// Where it was recorded.
+    pub from: TurnSource,
 }
 
 /// A helper the assistant proposes. Nothing exists until the person confirms the sheet the router
@@ -111,6 +126,14 @@ pub trait HelperDesk: fmt::Debug + Send + Sync {
     /// The person gives a helper a job.
     fn post_job(&self, ask: PostFromPerson) -> Pending<'_, HelperReply>;
 
+    /// The person speaks in a helper's conversation: the helper's planner takes the turn, under its
+    /// own model, pool and reach, and answers with its words when the turn ends. A desk without
+    /// helpers' conversations refuses.
+    fn say(&self, say: SayFromPerson) -> Pending<'_, SayReply> {
+        let _ = say;
+        Box::pin(async { SayReply::Refused(NO_TALK.to_owned()) })
+    }
+
     /// A planner gives a helper a job.
     fn post_from_planner(&self, ask: PostFromPlanner) -> Pending<'_, HelperReply>;
 
@@ -164,6 +187,9 @@ pub trait HelperDesk: fmt::Debug + Send + Sync {
         Box::pin(async { BroughtBack::Refused(NO_APPS.to_owned()) })
     }
 }
+
+/// What a desk with no conversations says to someone who speaks in one.
+const NO_TALK: &str = "There is nobody to talk with here.";
 
 /// What a desk with no apps says to a call that needs one.
 const NO_APPS: &str = "No apps can be reached here.";

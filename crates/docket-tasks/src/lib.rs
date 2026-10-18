@@ -56,6 +56,7 @@ pub use act::{Acting, card_id};
 pub use completion::completion_effects;
 pub use desk::{
     HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk, RoutineFor,
+    SayFromPerson,
 };
 pub use drive::refusal_of;
 pub use fault::ServeFault;

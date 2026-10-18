@@ -4,7 +4,7 @@
 use super::hub::Hub;
 use companion_wire::{
     AnswerPhase, BroughtBack, HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply,
-    HelpersView, LoginShown, ProposalId, RoutineForm, RoutineProposal, SignInChoice,
+    HelpersView, LoginShown, ProposalId, RoutineForm, RoutineProposal, SayReply, SignInChoice,
     TerminalSession, ToldWire, WhenForm, card_of, line_of,
 };
 use docket_client::Transport as IntentsTransport;
@@ -16,7 +16,8 @@ use docket_core::helper::{
 use docket_core::routine::{Missed, Schedule};
 use docket_core::{HelperRosterLine, LeadText, Manifest};
 use docket_tasks::{
-    HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk, RoutineFor,
+    HelperDesk, JobEnding, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk,
+    RoutineFor, SayFromPerson,
 };
 use porter_client::Transport as InferTransport;
 use porter_core::{AppName, Count};
@@ -231,6 +232,37 @@ where
         job_reply(&effects)
     }
 
+    /// The person speaks in a helper's conversation. Only a helper's conversation is spoken in: a
+    /// session that is not one is refused. The turn runs on the companion kept for that helper,
+    /// in its voice, so its model, pool and reach are the card's and its calls go through the
+    /// router's gate under its seat.
+    async fn speak(&self, say: SayFromPerson) -> SayReply {
+        let Some((card, talk)) = self.conversation_at(&say.session) else {
+            return SayReply::Refused("That is not a conversation with a helper.".to_owned());
+        };
+        if card.kind.program().is_some() {
+            return SayReply::Refused(format!(
+                "{} runs its own app, so you talk with it there.",
+                card.name.as_str()
+            ));
+        }
+        let companion = self.talker(&card);
+        let report = companion.lock().await.talk(&card, &talk, say).await;
+        match report.ending {
+            JobEnding::Done { words } => SayReply::Said(words),
+            JobEnding::Failed(fault) => {
+                SayReply::Refused(report.why.unwrap_or_else(|| {
+                    format!("{} stopped: {}.", card.name.as_str(), fault.plain())
+                }))
+            }
+            JobEnding::Stopped => SayReply::Refused(format!("{} was stopped.", card.name.as_str())),
+            JobEnding::NeedsSignIn(_) => SayReply::Refused(format!(
+                "{} needs you to sign in first.",
+                card.name.as_str()
+            )),
+        }
+    }
+
     async fn give_for_planner(&self, ask: PostFromPlanner) -> HelperReply {
         let board = self.board();
         // A helper in another Space is not reachable from this one: Spaces are walls.
@@ -435,6 +467,10 @@ where
 
     fn post_job(&self, ask: PostFromPerson) -> Pending<'_, HelperReply> {
         Box::pin(self.give(ask))
+    }
+
+    fn say(&self, say: SayFromPerson) -> Pending<'_, SayReply> {
+        Box::pin(self.speak(say))
     }
 
     fn post_from_planner(&self, ask: PostFromPlanner) -> Pending<'_, HelperReply> {

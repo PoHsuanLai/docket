@@ -231,7 +231,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         self.job_report(&opened.task, ran)
     }
 
-    fn job_report(&self, task: &TaskId, ran: Result<(), ServeFault>) -> JobReport {
+    pub(super) fn job_report(&self, task: &TaskId, ran: Result<(), ServeFault>) -> JobReport {
         let (Some(state), Some(rt)) = (self.tasks.get(task), self.runtimes.get(task)) else {
             return JobReport::failed(JobFault::Crashed);
         };

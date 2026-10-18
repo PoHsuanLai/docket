@@ -306,6 +306,26 @@ fn a_conversation_in_a_terminal_pins_its_json_and_older_cards_read_as_in_docket(
 }
 
 #[test]
+fn what_a_helper_says_in_its_conversation_pins_its_json() {
+    for (value, json) in [
+        (
+            SayReply::Said("Offer B.".into()),
+            r#"{"kind":"said","v":"Offer B."}"#,
+        ),
+        (
+            SayReply::Refused("It needs a model.".into()),
+            r#"{"kind":"refused","v":"It needs a model."}"#,
+        ),
+    ] {
+        assert_eq!(serde_json::to_string(&value).expect("json"), json);
+        assert_eq!(
+            serde_json::from_str::<SayReply>(json).expect("reply"),
+            value
+        );
+    }
+}
+
+#[test]
 fn what_the_shell_reads_and_sends_pins_its_json() {
     let reply = [
         (HelperReply::Done, r#"{"kind":"done"}"#.to_owned()),

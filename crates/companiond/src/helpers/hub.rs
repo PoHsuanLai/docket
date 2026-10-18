@@ -92,7 +92,7 @@ pub(super) struct State {
     pub(super) signed: BTreeSet<HelperId>,
     /// The one session each helper has for the person to talk with it in, kept until the helper
     /// is removed. Not across a restart: the next pass opens it again.
-    conversations: BTreeMap<HelperId, SessionId>,
+    conversations: BTreeMap<HelperId, OpenedJob>,
     /// The routines proposed that wait for the person. Not across a restart.
     pub(super) proposals: super::proposals::Proposals,
     /// The helpers whose agent app said, after its last job, that the person could pick its
@@ -113,6 +113,9 @@ struct Inner<P: InferTransport, I: IntentsTransport> {
     /// never written behind a person's turn.
     service: AsyncMutex<Companiond<P, I>>,
     make: Box<Make<P, I>>,
+    /// The companion each helper's conversation runs its turns on, made when the person first
+    /// speaks and kept, so a turn sees the ones before it.
+    talks: Mutex<BTreeMap<HelperId, Arc<AsyncMutex<Companiond<P, I>>>>>,
     /// The host of the agent apps that are helpers, when the daemon has one.
     agents: std::sync::OnceLock<Arc<dyn AgentApps>>,
     /// The front companion's shared view: where the shell is told something changed.
@@ -281,6 +284,7 @@ where
                 state: Mutex::new(State::default()),
                 service: AsyncMutex::new(service),
                 make: Box::new(make),
+                talks: Mutex::new(BTreeMap::new()),
                 agents: std::sync::OnceLock::new(),
                 shared,
             }),
@@ -292,6 +296,39 @@ where
             Ok(mut state) => f(&mut state),
             Err(poisoned) => f(&mut poisoned.into_inner()),
         }
+    }
+
+    fn with_talks<R>(
+        &self,
+        f: impl FnOnce(&mut BTreeMap<HelperId, Arc<AsyncMutex<Companiond<P, I>>>>) -> R,
+    ) -> R {
+        match self.inner.talks.lock() {
+            Ok(mut talks) => f(&mut talks),
+            Err(poisoned) => f(&mut poisoned.into_inner()),
+        }
+    }
+
+    /// The helper whose conversation `session` is, with its card as it is now. None for any other
+    /// session, the front conversation's and a job's included.
+    pub(super) fn conversation_at(&self, session: &SessionId) -> Option<(HelperCard, OpenedJob)> {
+        self.with_state(|state| {
+            let (helper, talk) = state
+                .conversations
+                .iter()
+                .find(|(_, talk)| &talk.session == session)?;
+            Some((state.board.card(helper)?.clone(), talk.clone()))
+        })
+    }
+
+    /// The companion that runs the turns of `card`'s conversation, made the first time, on the
+    /// planner and transports the daemon gives that helper.
+    pub(super) fn talker(&self, card: &HelperCard) -> Arc<AsyncMutex<Companiond<P, I>>> {
+        self.with_talks(|talks| {
+            talks
+                .entry(card.id.clone())
+                .or_insert_with(|| Arc::new(AsyncMutex::new((self.inner.make)(card))))
+                .clone()
+        })
     }
 
     /// The manifests of the installed apps, as the router lists them; none when it does not answer.
@@ -403,7 +440,7 @@ where
 
     /// The session the person talks with `helper` in, when it has one.
     pub fn conversation_of(&self, helper: &HelperId) -> Option<SessionId> {
-        self.with_state(|state| state.conversations.get(helper).cloned())
+        self.with_state(|state| state.conversations.get(helper).map(|c| c.session.clone()))
     }
 
     /// Gives each helper on the board its one conversation (a session with the helper's seat, which
@@ -423,7 +460,7 @@ where
                 .conversations
                 .iter()
                 .filter(|(helper, _)| state.board.card(helper).is_none())
-                .map(|(helper, session)| (helper.clone(), session.clone()))
+                .map(|(helper, talk)| (helper.clone(), talk.session.clone()))
                 .collect();
             (missing, gone)
         });
@@ -445,7 +482,13 @@ where
             };
             match service.intents.session_open(open).await {
                 Ok(opened) => self.with_state(|state| {
-                    state.conversations.insert(card.id.clone(), opened.session);
+                    state.conversations.insert(
+                        card.id.clone(),
+                        OpenedJob {
+                            task: opened.task,
+                            session: opened.session,
+                        },
+                    );
                 }),
                 Err(cause) => {
                     tracing::warn!(%cause, "a helper's conversation could not be opened");
@@ -454,6 +497,7 @@ where
         }
         for (helper, session) in gone {
             self.with_state(|state| state.conversations.remove(&helper));
+            self.with_talks(|talks| talks.remove(&helper));
             if let Err(cause) = service.intents.session_close(session.clone()).await {
                 tracing::warn!(%session, %cause, "a helper's conversation would not close");
             }
