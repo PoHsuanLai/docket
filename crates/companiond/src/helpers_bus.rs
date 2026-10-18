@@ -276,24 +276,6 @@ impl Helpers2Object {
         json(&self.desk.sign_out(helper_of(&helper)?).await)
     }
 
-    async fn open_in_terminal(
-        &self,
-        helper: String,
-        #[zbus(header)] header: Header<'_>,
-    ) -> fdo::Result<String> {
-        self.require(&header).await?;
-        json(&self.desk.open_in_terminal(helper_of(&helper)?).await)
-    }
-
-    async fn bring_back(
-        &self,
-        helper: String,
-        #[zbus(header)] header: Header<'_>,
-    ) -> fdo::Result<String> {
-        self.require(&header).await?;
-        json(&self.desk.bring_back(helper_of(&helper)?).await)
-    }
-
     async fn routines(&self, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
         json(&self.kept(&header).await?.view())
     }
@@ -381,6 +363,24 @@ impl Helpers2Object {
         self.require(&header).await?;
         self.desk.take_routine_proposal(proposal_of(&id)?);
         Ok(())
+    }
+
+    async fn open_in_terminal(
+        &self,
+        helper: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.require(&header).await?;
+        json(&self.desk.open_in_terminal(helper_of(&helper)?).await)
+    }
+
+    async fn bring_back(
+        &self,
+        helper: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.require(&header).await?;
+        json(&self.desk.bring_back(helper_of(&helper)?).await)
     }
 
     #[zbus(signal)]

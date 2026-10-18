@@ -18,12 +18,12 @@ use super::wire;
 use docket_acp::client::{HelperAgent, HelperAgents};
 use docket_acp::{SystemTicks, Ticks};
 use docket_core::ProgramName;
+use docket_core::WatchedAgent;
 use docket_core::helper::{
     AgentApps, AgentOutcome, AppsAsk, AppsReply, BackOutcome, BroughtOutcome, CheckOutcome,
     HandFault, HelperCard, JobFault, SignInOutcome, SignOutOutcome, TerminalHand, TerminalLogin,
     ToTerminalOutcome,
 };
-use docket_core::WatchedAgent;
 use docket_launch::dbus::DbusAccounts;
 use docket_session::Workspace;
 use prov::SessionId;
@@ -252,9 +252,7 @@ impl HelperHost {
                 session,
                 agent,
                 folder,
-            } => AppsReply::BringBackWatched(
-                self.bring_back_watched(session, agent, folder).await,
-            ),
+            } => AppsReply::BringBackWatched(self.bring_back_watched(session, agent, folder).await),
         }
     }
 
@@ -284,15 +282,15 @@ impl HelperHost {
             AppsAsk::Check { .. } => AppsReply::Check(CheckOutcome::Failed),
             AppsAsk::SignOut { .. } => AppsReply::SignOut(SignOutOutcome::Failed),
             AppsAsk::Forget { .. } => AppsReply::Forget,
-            AppsAsk::ToTerminal { .. } => AppsReply::ToTerminal(ToTerminalOutcome::Refused(
-                HandFault::Failed,
-            )),
-            AppsAsk::BringBack { .. } => AppsReply::BringBack(BackOutcome::Refused(
-                HandFault::Failed,
-            )),
-            AppsAsk::BringBackWatched { .. } => AppsReply::BringBackWatched(
-                BroughtOutcome::Refused(HandFault::Failed),
-            ),
+            AppsAsk::ToTerminal { .. } => {
+                AppsReply::ToTerminal(ToTerminalOutcome::Refused(HandFault::Failed))
+            }
+            AppsAsk::BringBack { .. } => {
+                AppsReply::BringBack(BackOutcome::Refused(HandFault::Failed))
+            }
+            AppsAsk::BringBackWatched { .. } => {
+                AppsReply::BringBackWatched(BroughtOutcome::Refused(HandFault::Failed))
+            }
         }
     }
 }

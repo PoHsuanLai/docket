@@ -817,7 +817,12 @@ async fn a_conversation_goes_to_the_terminal_and_back_as_one_session() {
     // Only the host of the app, and only with the app's own id for the conversation.
     let to_terminal = hand_request(&session, HandTo::Terminal, Some(claude()));
     assert_eq!(
-        ask(&router, &host(), hand_request(&session, HandTo::Terminal, None)).await,
+        ask(
+            &router,
+            &host(),
+            hand_request(&session, HandTo::Terminal, None)
+        )
+        .await,
         IntentsReply::Refused(WireRefusal::Malformed)
     );
     let other_host = caller("org.quire.Other", CallerRole::AcpAgent);
@@ -826,7 +831,10 @@ async fn a_conversation_goes_to_the_terminal_and_back_as_one_session() {
         not_allowed()
     );
     // A terminal marks no agent session.
-    assert_eq!(ask(&router, &terminal(), mark_request(&session)).await, not_allowed());
+    assert_eq!(
+        ask(&router, &terminal(), mark_request(&session)).await,
+        not_allowed()
+    );
 
     assert_eq!(
         ask(&router, &host(), to_terminal).await,
@@ -840,7 +848,12 @@ async fn a_conversation_goes_to_the_terminal_and_back_as_one_session() {
     );
     assert_eq!(listed(&router, &session).await.rows.len(), 1);
     // The host takes it back: the same session, an agent's again, and the terminal can mark no more.
-    let back = ask(&router, &host(), hand_request(&session, HandTo::Desktop, None)).await;
+    let back = ask(
+        &router,
+        &host(),
+        hand_request(&session, HandTo::Desktop, None),
+    )
+    .await;
     assert_eq!(back, IntentsReply::HandedOver(Some(claude())));
     assert_eq!(
         ask(&router, &stranger(), mark_request(&session)).await,
@@ -879,7 +892,12 @@ async fn a_terminal_that_names_its_agent_is_listed_for_the_companion_and_handed_
         not_allowed()
     );
     assert_eq!(
-        ask(&router, &host(), hand_request(&session, HandTo::Desktop, None)).await,
+        ask(
+            &router,
+            &host(),
+            hand_request(&session, HandTo::Desktop, None)
+        )
+        .await,
         IntentsReply::HandedOver(Some(claude()))
     );
     assert_eq!(

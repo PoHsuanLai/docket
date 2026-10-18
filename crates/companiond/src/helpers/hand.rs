@@ -6,7 +6,7 @@
 
 use super::hub::Hub;
 use companion_wire::{
-    BroughtBack, HelperCardView, HelperLine, HelperReply, Handover, RunsIn, TerminalSession,
+    BroughtBack, Handover, HelperCardView, HelperLine, HelperReply, RunsIn, TerminalSession,
     app_name_of,
 };
 use docket_client::Transport as IntentsTransport;

@@ -20,7 +20,6 @@ mod error;
 mod gate;
 mod helpers;
 mod helpers2;
-mod terminals;
 mod index;
 #[cfg(feature = "inferd")]
 mod inferd;
@@ -36,6 +35,7 @@ mod search;
 mod session;
 #[cfg(feature = "inferd")]
 pub mod tap;
+mod terminals;
 
 pub use agent_host::{AgentHostProxy, AgentHostSkeleton};
 pub use answer::{CompanionAnswerProxy, CompanionAnswerSkeleton};
@@ -48,7 +48,6 @@ pub use error::IntentsError;
 pub use gate::{GateProxy, GateSkeleton};
 pub use helpers::{CompanionHelpersProxy, CompanionHelpersSkeleton};
 pub use helpers2::{CompanionHelpers2Proxy, CompanionHelpers2Skeleton};
-pub use terminals::{CompanionTerminalsProxy, CompanionTerminalsSkeleton};
 pub use index::{IndexProxy, IndexSkeleton};
 #[cfg(feature = "inferd")]
 pub use inferd::{InferLink, inferd_transport};
@@ -69,5 +68,6 @@ pub use request::{RequestProxy, RequestSkeleton};
 pub use run::{RunProxy, RunSkeleton};
 pub use search::{SearchProxy, SearchSkeleton};
 pub use session::{SessionProxy, SessionSkeleton};
+pub use terminals::{CompanionTerminalsProxy, CompanionTerminalsSkeleton};
 /// The session-bus connection transports and daemons hold.
 pub use zbus::Connection as BusConnection;

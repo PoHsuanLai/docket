@@ -1,9 +1,7 @@
 //! `Checkpoint`: a session's restore points and what restoring one changes.
 
 use super::{Gateway, json, parsed};
-use docket_core::{
-    CheckpointId, IntentsReply, IntentsRequest, TurnId, WatchedAgent, Workspace,
-};
+use docket_core::{CheckpointId, IntentsReply, IntentsRequest, TurnId, WatchedAgent, Workspace};
 use docket_dbus::IntentsError;
 use prov::SessionId;
 use zbus::message::Header;

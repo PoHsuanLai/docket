@@ -6,8 +6,8 @@
 
 use crate::bus::{fault_of, json};
 use companion_wire::{
-    BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId,
-    RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView, TerminalSession,
+    BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineCardView,
+    RoutineForm, RoutineProposal, RoutineReply, RoutinesView, TerminalSession,
 };
 use docket_client::TransportError;
 use docket_core::routine::RoutineId;
@@ -191,10 +191,7 @@ impl DbusHelpers {
         let terminals = CompanionTerminalsProxy::new(connection)
             .await
             .map_err(fault_of)?;
-        Ok(Self {
-            helpers,
-            terminals,
-        })
+        Ok(Self { helpers, terminals })
     }
 
     /// Connects to the session bus.

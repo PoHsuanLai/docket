@@ -45,12 +45,12 @@ pub use apps::{
     AgentApps, AgentOutcome, CheckOutcome, Pending as AgentPending, SignInOutcome, SignOutOutcome,
 };
 pub use apps_wire::{AppsAsk, AppsReply};
-pub use hand::{BackOutcome, BroughtOutcome, HandFault, TerminalHand, ToTerminalOutcome};
 pub use board::{Board, BoardEffect, BoardEvent, CallVerdict, Launch, NewJob, step};
 pub use card::{
     CardDraft, HelperBudget, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase,
     HelperState, HelperTextFault, Need, PauseWhy, Role, TaskRef,
 };
+pub use hand::{BackOutcome, BroughtOutcome, HandFault, TerminalHand, ToTerminalOutcome};
 pub use job::{
     GoalFault, GoalOrigin, GoalSource, GoalText, Job, JobFault, JobId, JobStatus, PlannerSaw,
     ResultHandle,

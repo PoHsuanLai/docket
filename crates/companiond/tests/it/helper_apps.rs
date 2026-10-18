@@ -245,7 +245,10 @@ fn terminal_hand() -> TerminalHand {
         run: TerminalRun {
             plain: line("/usr/bin/claude", &["--resume", "0a1b-2c3d"]),
             folder: Some("/home/p/.local/share/docket/helpers/h-1".to_owned()),
-            confined: Some(line("/usr/bin/bwrap", &["--", "claude", "--resume", "0a1b-2c3d"])),
+            confined: Some(line(
+                "/usr/bin/bwrap",
+                &["--", "claude", "--resume", "0a1b-2c3d"],
+            )),
         },
         session: SessionId::parse("s-9").expect("session"),
     }
@@ -524,7 +527,10 @@ async fn a_conversation_opens_in_the_terminal_pauses_its_helper_and_comes_back()
     })
     .await;
     let card = hub.card(&coder).expect("card");
-    assert_eq!((card.runs_in, card.handover), (RunsIn::Desktop, Handover::ToTerminal));
+    assert_eq!(
+        (card.runs_in, card.handover),
+        (RunsIn::Desktop, Handover::ToTerminal)
+    );
 
     // Open in Terminal: the window to open carries the resume line and names the session.
     let hand = terminal_hand();
@@ -547,7 +553,10 @@ async fn a_conversation_opens_in_the_terminal_pauses_its_helper_and_comes_back()
         })
     );
     let away = hub.card(&coder).expect("card");
-    assert_eq!((away.runs_in, away.handover), (RunsIn::Terminal, Handover::BringBack));
+    assert_eq!(
+        (away.runs_in, away.handover),
+        (RunsIn::Terminal, Handover::BringBack)
+    );
     assert_eq!(away.line.doing, "In its own terminal window");
     assert_eq!(hub.view(0).helpers[0].doing, "In its own terminal window");
 
@@ -595,12 +604,18 @@ async fn a_conversation_that_cannot_move_stays_put_and_says_why_in_plain_words()
         HelperReply::Refused("This app can't pick its conversation back up here.".to_owned())
     );
     let card = hub.card(&coder).expect("card");
-    assert_eq!((card.runs_in, card.handover), (RunsIn::Desktop, Handover::ToTerminal));
+    assert_eq!(
+        (card.runs_in, card.handover),
+        (RunsIn::Desktop, Handover::ToTerminal)
+    );
     assert_eq!(state_of(&hub, &coder), HelperState::Idle);
 
     // Bringing back what is not in the terminal, and one the app would not pick up, are refused.
     let not_there = hub.bring_back(coder.clone()).await;
-    assert!(matches!(&not_there, HelperReply::Refused(_)), "{not_there:?}");
+    assert!(
+        matches!(&not_there, HelperReply::Refused(_)),
+        "{not_there:?}"
+    );
 
     // A job whose app gave no conversation id of its own leaves nothing to take along.
     let second = give(&hub, &coder, "once more").await;
@@ -608,7 +623,10 @@ async fn a_conversation_that_cannot_move_stays_put_and_says_why_in_plain_words()
         matches!(status_of(&hub, second), JobStatus::Done(_))
     })
     .await;
-    assert_eq!(hub.card(&coder).expect("card").handover, Handover::Unavailable);
+    assert_eq!(
+        hub.card(&coder).expect("card").handover,
+        Handover::Unavailable
+    );
     let none = hub.open_in_terminal(coder.clone()).await;
     assert!(matches!(&none, HelperReply::Refused(_)), "{none:?}");
 

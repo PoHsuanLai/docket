@@ -231,5 +231,11 @@ fn a_conversation_moving_between_docket_and_a_terminal_has_its_members_and_shape
     }]));
     // The log's note reads without the agent when an older writer left it out.
     let note: HandNote = serde_json::from_str(r#"{"to":"desktop"}"#).expect("note");
-    assert_eq!(note, HandNote { to: HandTo::Desktop, agent: None });
+    assert_eq!(
+        note,
+        HandNote {
+            to: HandTo::Desktop,
+            agent: None
+        }
+    );
 }

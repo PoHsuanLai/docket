@@ -15,8 +15,8 @@ use crate::tasks::{TaskRecord, TaskState};
 use crate::wal::Wal;
 use almanac_core::EpisodeId;
 use docket_core::{
-    ExternalAgent, HandTo, Ledger, Reveal, Saw, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger,
-    UserTurn,
+    ExternalAgent, HandTo, Ledger, Reveal, Saw, SheetSurface, StepEnd, StepLine, StepShown,
+    TaskLedger, UserTurn,
 };
 use docket_session::{
     ResumeFault, ResumePlan, SessionEntry, Standing, Taint as Written, TaintCause, TaintNote,

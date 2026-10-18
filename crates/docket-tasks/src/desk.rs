@@ -4,8 +4,8 @@
 //! passes none, and the actions are refused.
 
 use companion_wire::{
-    BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId,
-    RoutineProposal, TerminalSession,
+    BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineProposal,
+    TerminalSession,
 };
 use docket_core::HelperRosterLine;
 use docket_core::helper::Ceiling;

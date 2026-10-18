@@ -5,11 +5,11 @@
 //! the typed outcome out.
 
 use super::agent::{SignInWay, TerminalLogin, UntrustedWords};
+use super::card::HelperCard;
 use super::hand::{BackOutcome, BroughtOutcome, HandFault, ToTerminalOutcome};
+use super::job::{Job, JobFault};
 use crate::hand::WatchedAgent;
 use crate::workspace::Workspace;
-use super::card::HelperCard;
-use super::job::{Job, JobFault};
 use prov::{HelperId, SessionId, TaskId};
 use serde::{Deserialize, Serialize};
 use std::future::Future;

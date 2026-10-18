@@ -279,7 +279,10 @@ fn a_conversation_in_a_terminal_pins_its_json_and_older_cards_read_as_in_docket(
     object.remove("runs_in");
     object.remove("handover");
     let older: HelperCardView = serde_json::from_value(value).expect("older");
-    assert_eq!((older.runs_in, older.handover), (RunsIn::Desktop, Handover::Unavailable));
+    assert_eq!(
+        (older.runs_in, older.handover),
+        (RunsIn::Desktop, Handover::Unavailable)
+    );
     // The shell's other words for it.
     let listed = TerminalSession {
         session: session.clone(),

@@ -112,7 +112,8 @@ fn resume_flag() -> Option<Vec<String>> {
 
 #[tokio::test]
 async fn a_conversation_goes_to_the_terminal_and_comes_back_on_the_same_session() {
-    let (mut helper, views, watching) = helper_over(Resumes::Yes, vec![Resumes::Yes], resume_flag());
+    let (mut helper, views, watching) =
+        helper_over(Resumes::Yes, vec![Resumes::Yes], resume_flag());
     let done = helper.run("Compare the offers", AT).await;
     assert!(matches!(done, AgentEnd::Done(_)), "{done:?}");
     assert_eq!(helper.terminal_ready().as_deref(), Some(AGENT_SESSION));
@@ -139,7 +140,13 @@ async fn a_conversation_goes_to_the_terminal_and_comes_back_on_the_same_session(
     helper.bring_back().await.expect("back");
     assert!(helper.is_open() && helper.away().is_none());
     assert_eq!(helper.handle().expect("open").1, router_session);
-    assert!(watching.checkpoint_watched().await.expect("watched").is_empty());
+    assert!(
+        watching
+            .checkpoint_watched()
+            .await
+            .expect("watched")
+            .is_empty()
+    );
     let resumed = views[1].resumed();
     assert_eq!(resumed.len(), 1);
     assert_eq!(resumed[0]["sessionId"], AGENT_SESSION);
@@ -174,5 +181,8 @@ async fn an_app_that_begins_another_conversation_leaves_this_one_in_the_terminal
     helper.to_terminal().await.expect("to the terminal");
     assert_eq!(helper.bring_back().await, Err(HandFault::NotResumable));
     assert!(helper.away().is_some() && !helper.is_open());
-    assert_eq!(watching.checkpoint_watched().await.expect("watched").len(), 1);
+    assert_eq!(
+        watching.checkpoint_watched().await.expect("watched").len(),
+        1
+    );
 }

@@ -30,7 +30,13 @@ fn the_latest_hand_note_says_where_the_conversation_is() {
         to(HandTo::Desktop),
         to(HandTo::Terminal),
     ]);
-    assert_eq!(moved.hand, Some(HandNote { to: HandTo::Terminal, agent: None }));
+    assert_eq!(
+        moved.hand,
+        Some(HandNote {
+            to: HandTo::Terminal,
+            agent: None
+        })
+    );
     assert_eq!(plan(&canonical()).hand, None);
 }
 

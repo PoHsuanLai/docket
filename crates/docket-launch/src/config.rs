@@ -353,15 +353,15 @@ fn resume_of(
     profile: Option<Profile>,
 ) -> Result<Option<Vec<String>>, ConfigFault> {
     let Some(args) = written else {
-        return Ok(match profile {
-            Some(Profile::ClaudeCode) => {
-                Some(vec!["--resume".to_owned(), SESSION_MARK.to_owned()])
-            }
-            None => None,
-        });
+        return Ok(
+            profile.map(|Profile::ClaudeCode| vec!["--resume".to_owned(), SESSION_MARK.to_owned()])
+        );
     };
     let names_it = args.iter().any(|arg| arg.contains(SESSION_MARK));
-    let fine = names_it && args.iter().all(|arg| !arg.is_empty() && !arg.contains('\0'));
+    let fine = names_it
+        && args
+            .iter()
+            .all(|arg| !arg.is_empty() && !arg.contains('\0'));
     match fine {
         true => Ok(Some(args)),
         false => Err(bad(

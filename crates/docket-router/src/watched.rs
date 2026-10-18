@@ -23,8 +23,8 @@ use crate::session::SessionState;
 use crate::state::{SessionKind, SessionRecord};
 use crate::wal::Wal;
 use docket_core::{
-    CallRequest, CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, TurnId,
-    WatchedAgent, WireRefusal, Workspace,
+    CallRequest, CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, TurnId, WatchedAgent,
+    WireRefusal, Workspace,
 };
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use prov::{Actor, AgentLabel, AgentRef, SessionId, SpaceId, TaskId};
@@ -77,9 +77,7 @@ fn watch_allows(
         IntentsRequest::CheckpointList { .. } | IntentsRequest::CheckpointPlan { .. } => true,
         IntentsRequest::CheckpointMark { .. }
         | IntentsRequest::SessionTurnEnded { .. }
-        | IntentsRequest::SessionClose { .. } => {
-            opener || (handed && role == CallerRole::Cli)
-        }
+        | IntentsRequest::SessionClose { .. } => opener || (handed && role == CallerRole::Cli),
         IntentsRequest::CheckpointHandover { .. } => handed && role == CallerRole::AcpAgent,
         IntentsRequest::Perform { call, .. } | IntentsRequest::DryRun { call, .. } => {
             is_restore(call)

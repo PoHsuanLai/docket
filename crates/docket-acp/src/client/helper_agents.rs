@@ -3,9 +3,7 @@
 //! agent is a fault in that helper's job and nothing else. It is the board's seam to the agent
 //! apps (`AgentApps`): a job in, a typed outcome out.
 
-use super::helper_agent::{
-    AgentEnd, Away, HelperAgent, Hosts, SignInStep, SignOutStep, Trouble,
-};
+use super::helper_agent::{AgentEnd, Away, HelperAgent, Hosts, SignInStep, SignOutStep, Trouble};
 use super::isolate::{Caught, caught};
 use docket_core::helper::{
     AgentApps, AgentOutcome, AgentPending, CheckOutcome, HandFault, HelperCard, Job, JobFault,

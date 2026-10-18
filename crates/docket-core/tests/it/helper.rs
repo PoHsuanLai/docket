@@ -2,8 +2,8 @@
 //! disk and over the bus.
 
 use crate::support::*;
-use docket_core::{ActionMatch, ProgramName, WatchedAgent};
 use docket_core::helper::*;
+use docket_core::{ActionMatch, ProgramName, WatchedAgent};
 use porter_core::{AccountId, Count, ModelId};
 use porter_infer::ModelRef;
 use prov::{Effect, HelperId, TaskId};

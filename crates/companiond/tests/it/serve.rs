@@ -550,7 +550,9 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
     assert!(refused.remove_routine("r-1").await.is_err());
     assert!(refused.open_in_terminal(&id_text).await.is_err());
     assert!(refused.bring_back(&id_text).await.is_err());
-    let nobody = CompanionTerminalsProxy::new(&stranger).await.expect("proxy");
+    let nobody = CompanionTerminalsProxy::new(&stranger)
+        .await
+        .expect("proxy");
     assert!(nobody.sessions().await.is_err());
     assert!(nobody.bring_back("s-1").await.is_err());
 }
