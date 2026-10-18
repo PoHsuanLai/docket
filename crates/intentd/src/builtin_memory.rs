@@ -15,8 +15,8 @@ use docket_core::{
 };
 use porter_core::{AppName, Count};
 use prov::{
-    Actor, Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled, Source,
-    SpaceId,
+    Actor, AgentRole, Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled,
+    Source, SpaceId,
 };
 use std::collections::BTreeSet;
 
@@ -52,6 +52,19 @@ fn app() -> AppName {
 
 fn failed(why: &str) -> AppRefusal {
     AppRefusal::Failed(FailText(why.to_owned()))
+}
+
+/// The actor to name as the author of a proposal: a helper's job, as the router seated it. The
+/// person's own assistant (and every other actor) names nobody and is stamped as the router, as
+/// before. memoryd takes this only from the router and only for a helper.
+fn helper_job(actor: &Actor) -> Option<Actor> {
+    match actor {
+        Actor::Companion {
+            role: AgentRole::Helper { .. },
+            ..
+        } => Some(actor.clone()),
+        _ => None,
+    }
 }
 
 /// What the router says about its own words: trusted metadata, private to the Space.
@@ -209,6 +222,7 @@ impl<T: Transport> MemoryProvider<T> {
             text: FactText::parse(&text).map_err(|_| failed("that is not one short paragraph"))?,
             links: Vec::new(),
             supersedes: Vec::new(),
+            on_behalf: helper_job(&inv.actor),
         };
         let (_, state) = self
             .memory

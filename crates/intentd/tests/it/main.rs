@@ -10,6 +10,7 @@ mod infer;
 mod inferd_link;
 mod link;
 mod logout;
+mod memory_behalf;
 mod parts;
 mod percall;
 mod perform_watch;
