@@ -361,6 +361,7 @@ async fn load_replays_the_recent_jobs_in_plain_words() {
             state: JobShown::Done,
             note: None,
             answer: Some("Offer B is the best.".to_owned()),
+            from: Default::default(),
         }],
     ));
     let (mut server, mut ed) = rig_with(&log, vec![], EDITOR, fake);

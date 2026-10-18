@@ -63,7 +63,8 @@ impl Calls {
         match record {
             AuditRecord::Review { call, .. }
             | AuditRecord::Classified { call, .. }
-            | AuditRecord::Delegation { call, .. } => self.spaces.get(call),
+            | AuditRecord::Delegation { call, .. }
+            | AuditRecord::BriefConfirmed { call, .. } => self.spaces.get(call),
             _ => None,
         }
     }

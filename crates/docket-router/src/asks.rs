@@ -174,6 +174,7 @@ fn for_waiter(answer: ConfirmAnswer) -> Option<ConfirmAnswer> {
         // The grant is recorded once, by the asker; the waiter runs on the same yes.
         ConfirmAnswer::Allowed { receipt, .. } | ConfirmAnswer::AllowedFromTerminal { receipt } => {
             Some(ConfirmAnswer::Allowed {
+                written: None,
                 scope: GrantScope::Once,
                 receipt,
             })

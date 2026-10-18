@@ -34,6 +34,7 @@ fn sheet(id: &str) -> ConfirmRequest {
         expires: Seconds(120),
         editor: None,
         helper: None,
+        brief: None,
     }
 }
 
@@ -94,6 +95,7 @@ fn refused(why: CallRefusal) -> CallState {
 
 fn answered(scope: GrantScope) -> CallEvent {
     CallEvent::Answered(ConfirmAnswer::Allowed {
+        written: None,
         scope,
         receipt: receipt(),
     })

@@ -441,6 +441,7 @@ async fn an_always_from_the_person_is_remembered() {
     };
     router.seams.confirmer =
         docket_fake::ScriptedConfirmer::answering(vec![ConfirmAnswer::Allowed {
+            written: None,
             scope: GrantScope::Always,
             receipt,
         }]);

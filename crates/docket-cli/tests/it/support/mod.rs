@@ -37,6 +37,7 @@ fn receipt() -> ConfirmReceipt {
 
 pub fn once() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: receipt(),
     }

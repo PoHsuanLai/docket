@@ -21,6 +21,7 @@ fn zed() -> GrantCaller {
 
 fn always() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Always,
         receipt: receipt(),
     }

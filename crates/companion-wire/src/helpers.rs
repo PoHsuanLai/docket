@@ -5,8 +5,8 @@
 use crate::handoff::{Handover, RunsIn};
 use docket_core::LeadText;
 use docket_core::helper::{
-    Board, Ceiling, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase, HelperState,
-    JobId, JobStatus, Need, PauseWhy, Role, SignInWay, TerminalRequest, reach_lines,
+    Board, Ceiling, GoalSource, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase,
+    HelperState, JobId, JobStatus, Need, PauseWhy, Role, SignInWay, TerminalRequest, reach_lines,
 };
 use porter_core::{AppName, Count};
 use prov::{AgentRef, HelperId, SessionId, SpaceId};
@@ -84,6 +84,18 @@ pub enum JobShown {
     NeedsSignIn,
 }
 
+/// Where a job's words came from, in the shell's few words.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum JobFrom {
+    /// The person's own words, or the assistant's; the card says nothing more.
+    #[default]
+    Plain,
+    /// A brief the person checked and changed if they wished: the card says "from your checked
+    /// brief".
+    CheckedBrief,
+}
+
 /// One job of a helper.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JobLine {
@@ -99,6 +111,9 @@ pub struct JobLine {
     /// handed them, and not across a restart).
     #[serde(default)]
     pub answer: Option<String>,
+    /// Where its words came from. A line stored before it existed reads as plain.
+    #[serde(default)]
+    pub from: JobFrom,
 }
 
 /// A helper's card, as the shell shows it.
@@ -341,6 +356,10 @@ fn job_line(job: &docket_core::helper::Job, words: JobWords) -> JobLine {
                 .unwrap_or_else(|| format!("It stopped: {}", fault.plain()))
         }),
         answer: words.answer,
+        from: match job.source {
+            GoalSource::Brief => JobFrom::CheckedBrief,
+            GoalSource::Person | GoalSource::PlannerOnTrusted => JobFrom::Plain,
+        },
     }
 }
 

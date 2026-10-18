@@ -193,11 +193,17 @@ fn claim(session: &SessionRecord, voice: &Voice, value: &Value, given: Label) ->
     }
 }
 
-/// A model's value is trusted when it is words of the person's own turns (whole tokens of them,
-/// see `spoken`), a thing the router showed the session, or a closed-set value; anything else is
+/// A model's value is trusted when it is words of the person's own turns or of a brief they
+/// confirmed (whole tokens of them, see `spoken`), a thing the router showed the session, or a closed-set value; anything else is
 /// the model's own writing.
 fn trace(session: &SessionRecord, value: &Value) -> Label {
-    let spoken = |text: &str| session.turns.iter().any(|t| whole_in(&t.text, text));
+    let spoken = |text: &str| {
+        session.turns.iter().any(|t| whole_in(&t.text, text))
+            || session
+                .briefs
+                .iter()
+                .any(|b| whole_in(b.text.as_str(), text))
+    };
     match value {
         Value::Text(t) | Value::Url(t) if spoken(t) => user_label(),
         Value::Text(_) | Value::Url(_) => model_label(),

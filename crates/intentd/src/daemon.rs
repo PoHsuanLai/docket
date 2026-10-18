@@ -429,7 +429,7 @@ fn placed_by<S: Seams>(router: &Router<S>, record: &AuditRecord) -> Option<Space
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     match record {
-        AuditRecord::Breaker { session, .. } => {
+        AuditRecord::Breaker { session, .. } | AuditRecord::BriefConfirmed { session, .. } => {
             state.sessions.get(session).map(|r| r.space.clone())
         }
         AuditRecord::TaskPolicy { task, .. } | AuditRecord::PolicyCorrected { task, .. } => {

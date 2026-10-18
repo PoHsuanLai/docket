@@ -50,6 +50,7 @@ impl Confirmer for HaltingConfirmer {
     async fn confirm(&self, request: ConfirmRequest) -> ConfirmAnswer {
         halt(&self.late);
         ConfirmAnswer::Allowed {
+            written: None,
             scope: GrantScope::Once,
             receipt: prov::ConfirmReceipt {
                 id: request.id,

@@ -174,6 +174,7 @@ async fn desk(answers: usize) -> Desk {
         covers: prov::Confidentiality::Secret,
     };
     let yes = ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt,
     };

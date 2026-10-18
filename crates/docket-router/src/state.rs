@@ -56,6 +56,9 @@ pub struct SessionRecord {
     pub saw: SessionSaw,
     /// The person's own words, as recorded.
     pub turns: Vec<UserTurn>,
+    /// The briefs the person confirmed on a sheet, oldest first. Kept in memory: a restart forgets
+    /// them and the planner must ask again, which is the safe direction.
+    pub briefs: Vec<crate::brief::ConfirmedBrief>,
     /// What this task may do.
     pub policy: Option<TaskPolicy>,
     /// How its calls ended.
@@ -120,6 +123,7 @@ impl SessionRecord {
                 untrusted: Saw::NotSeen,
             },
             turns: Vec::new(),
+            briefs: Vec::new(),
             policy: None,
             history: Vec::new(),
             known: BTreeSet::new(),

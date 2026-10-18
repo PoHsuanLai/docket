@@ -46,7 +46,7 @@ impl<S: Seams> Router<S> {
             .without_terminal_grant();
         self.locked().pending.remove(&id);
         let (kind, input) = match &answer {
-            ConfirmAnswer::Allowed { scope, receipt } => (
+            ConfirmAnswer::Allowed { scope, receipt, .. } => (
                 ConfirmAnswerKind::Allowed(scope.clone()),
                 Some(receipt.input),
             ),
@@ -96,6 +96,7 @@ impl<S: Seams> Router<S> {
             expires: self.agent_config().confirm_expiry,
             editor: None,
             helper: None,
+            brief: None,
         })
     }
 

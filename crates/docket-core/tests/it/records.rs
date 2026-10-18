@@ -283,10 +283,68 @@ fn the_terminal_words_are_pinned() {
         ConfirmAnswer::Ended(ConfirmEnd::Cancelled)
     );
     let plain = ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt,
     };
     assert_eq!(plain.clone().without_terminal_grant(), plain);
+}
+
+/// A sheet and an answer written before briefs existed still read, and the new fields stay out of
+/// the JSON when they are empty, so an older surface reads what a newer router writes.
+#[test]
+fn briefs_add_only_optional_fields_to_the_sheet_and_the_answer() {
+    let receipt = prov::ConfirmReceipt {
+        id: ConfirmId::parse("c-1").expect("id"),
+        input: prov::InputProof::HardwareSeat,
+        at: at(1),
+        covers: prov::Confidentiality::Secret,
+    };
+    let plain = ConfirmAnswer::Allowed {
+        scope: GrantScope::Once,
+        receipt: receipt.clone(),
+        written: None,
+    };
+    let json = round(&plain);
+    assert!(!json.contains("written"), "{json}");
+    let old: ConfirmAnswer = serde_json::from_str(&json).expect("an answer without words");
+    assert_eq!(old, plain);
+    let words = BriefText::parse("Seat 45 x 45 cm").expect("brief");
+    let with_words = ConfirmAnswer::Allowed {
+        scope: GrantScope::Once,
+        receipt,
+        written: Some(words.clone()),
+    };
+    assert!(round(&with_words).contains(r#""written":"Seat 45 x 45 cm""#));
+
+    let request = ConfirmRequest::new(ConfirmParts {
+        id: ConfirmId::parse("c-2").expect("id"),
+        space: prov::SpaceId::desktop(),
+        actor: prov::Actor::Unknown,
+        app: app("org.quire.Companion"),
+        action: LabelText::parse("Check what the helpers will work from").expect("label"),
+        effect: Effect::Read,
+        count: Count(1),
+        detail: ConfirmDetail::Plain,
+        lines: Vec::new(),
+        why: Vec::new(),
+        taint: TaintNote::Clean,
+        offer: ConfirmOffer::OnceOnly,
+        gesture: Gesture::Press,
+        anchor: Anchor::Centre,
+        expires: Seconds(120),
+    });
+    let json = round(&request);
+    assert!(!json.contains("brief"), "{json}");
+    let old: ConfirmRequest = serde_json::from_str(&json).expect("a sheet without a brief");
+    assert_eq!(old.brief, None);
+    let sheet = BriefSheet::of(
+        LabelText::parse("A garden chair").expect("label"),
+        words,
+        vec![LabelText::parse("legs").expect("label")],
+    );
+    let asked = request.for_brief(Some(sheet));
+    assert!(round(&asked).contains(r#""brief":{"#));
 }
 
 #[test]

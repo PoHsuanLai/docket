@@ -34,6 +34,7 @@ mod argcheck;
 mod asks;
 mod assess;
 mod auth;
+mod brief;
 mod call;
 mod checkpoint_read;
 mod checkpoint_restore;
@@ -108,7 +109,8 @@ pub use checkpoint_sheet::restore_sheet;
 pub use classify::{at_ceiling, classify_step, delegation_end};
 pub use companion::COMPANION_APP;
 // The store of a build that cannot keep history, for the seams of a portable host.
-pub use companion::{HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE};
+pub use brief::{BRIEFS_KEPT, ConfirmedBrief};
+pub use companion::{BRIEF_CONFIRM, HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE};
 pub use docket_checkpoint::NoStore;
 pub use gate::{GateInputs, Pending, gate};
 pub use handles::{

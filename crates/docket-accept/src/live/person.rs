@@ -44,6 +44,7 @@ impl Person {
     fn answer(&self, request: &ConfirmRequest) -> ConfirmAnswer {
         match self.says_yes(&request.app, request.action.as_str()) {
             true => ConfirmAnswer::Allowed {
+                written: None,
                 scope: GrantScope::Once,
                 receipt: ConfirmReceipt {
                     id: request.id.clone(),

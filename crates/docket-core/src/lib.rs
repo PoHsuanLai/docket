@@ -13,6 +13,7 @@ mod args;
 #[cfg(feature = "atomic-file")]
 mod atomic_file;
 mod audit;
+mod brief;
 mod budget;
 mod call;
 mod caller;
@@ -84,6 +85,10 @@ pub use args::{ArgsFault, TARGET_KEY, TargetFault, Why, args_from_json, target_f
 #[cfg(feature = "atomic-file")]
 pub use atomic_file::{read_optional, write_atomic};
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};
+pub use brief::{
+    BRIEF_MAX, BriefEdit, BriefFault, BriefFlag, BriefSheet, BriefText, BriefWhy,
+    FROM_CHECKED_BRIEF, flag_brief, from_checked_brief,
+};
 pub use budget::{
     Budget, BudgetKind, Cost, Halt, HaltCause, KillSwitch, Ledger, Reviewed, charge, halted,
 };

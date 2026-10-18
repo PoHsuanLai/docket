@@ -22,9 +22,9 @@ pub use answer::{
 pub use ask::{AskWire, FrontTask};
 pub use handoff::{BroughtBack, Handover, RunsIn, TerminalSession};
 pub use helpers::{
-    HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply, HelpersView, JobLine,
-    JobShown, JobWords, LoginShown, SayReply, SignInChoice, ToldWire, app_name_of, card_of,
-    line_of,
+    HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply, HelpersView, JobFrom,
+    JobLine, JobShown, JobWords, LoginShown, SayReply, SignInChoice, ToldWire, app_name_of,
+    card_of, line_of,
 };
 pub use record::{SESSION_KIND_PREFIX, SessionRecord};
 pub use route::{

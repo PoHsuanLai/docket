@@ -9,6 +9,7 @@ mod acp_agent_tools;
 mod activation;
 mod auth;
 mod behaviour;
+mod brief;
 mod call_step;
 mod checkpoints;
 mod companion;

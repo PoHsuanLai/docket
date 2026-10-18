@@ -45,6 +45,7 @@ fn step(run: &RunId) -> CuaAsk {
 
 fn yes() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: prov::ConfirmReceipt {
             id: prov::ConfirmId::parse("c-1").expect("id"),

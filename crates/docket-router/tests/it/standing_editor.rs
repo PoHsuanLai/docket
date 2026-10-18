@@ -22,6 +22,7 @@ fn client(app: &str) -> GrantCaller {
 
 fn always() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Always,
         receipt: receipt(),
     }

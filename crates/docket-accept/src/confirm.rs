@@ -148,6 +148,7 @@ struct ConfirmObject {
 fn answer_of(verdict: Verdict, request: &ConfirmRequest) -> ConfirmAnswer {
     match verdict {
         Verdict::Allow | Verdict::AllowAlways => ConfirmAnswer::Allowed {
+            written: None,
             scope: match verdict {
                 Verdict::AllowAlways => GrantScope::Always,
                 _ => GrantScope::Once,

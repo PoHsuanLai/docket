@@ -35,6 +35,7 @@ fn request(id: &str, expires: u32) -> ConfirmRequest {
         expires: Seconds(expires),
         editor: None,
         helper: None,
+        brief: None,
     }
 }
 
@@ -49,6 +50,7 @@ fn receipt() -> ConfirmReceipt {
 
 fn yes() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: receipt(),
     }

@@ -93,6 +93,7 @@ async fn the_companion_and_mcp_have_the_token_dropped() {
         // The companion is granted; an MCP client is asked, and the person allows it once.
         router.seams.confirmer =
             docket_fake::ScriptedConfirmer::answering(vec![docket_core::ConfirmAnswer::Allowed {
+                written: None,
                 scope: docket_core::GrantScope::Once,
                 receipt: receipt(),
             }]);

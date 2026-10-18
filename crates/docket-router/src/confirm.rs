@@ -116,7 +116,10 @@ pub(crate) fn confirm_request(
             Limited::Free | Limited::Never(_) => None,
         }),
     };
-    let offer = if limits.held.is_some() || standing.is_some_and(|s| s.holds()) {
+    let offer = if crate::brief::is_brief_confirm(&p.request.action) {
+        // A brief is checked every time and a "yes" for one is no grant for the next.
+        ConfirmOffer::OnceOnly
+    } else if limits.held.is_some() || standing.is_some_and(|s| s.holds()) {
         ConfirmOffer::OnceOnly
     } else if offers_grant(p, why) {
         ConfirmOffer::OnceOrFromTerminal
@@ -165,5 +168,6 @@ pub(crate) fn confirm_request(
         helper: record
             .and_then(|r| r.helper.as_ref())
             .map(|seat| seat.name.clone()),
+        brief: crate::brief::sheet_of(p),
     }
 }

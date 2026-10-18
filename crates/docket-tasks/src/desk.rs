@@ -7,7 +7,7 @@ use companion_wire::{
     BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineProposal,
     SayReply, TerminalSession,
 };
-use docket_core::helper::Ceiling;
+use docket_core::helper::{Ceiling, GoalOrigin};
 use docket_core::{HelperRosterLine, TurnId, TurnSource};
 use prov::{EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::fmt;
@@ -18,7 +18,8 @@ use std::pin::Pin;
 pub type Pending<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// A job the assistant (or another helper's planner) gives to a helper by its name. The router
-/// has already refused it unless the goal came from a planner that had read nothing untrusted.
+/// has already refused it unless the goal came from a planner that had read nothing untrusted, or
+/// lies inside a brief the person confirmed (`origin` says which).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PostFromPlanner {
     /// The name of the helper it is for.
@@ -31,6 +32,8 @@ pub struct PostFromPlanner {
     pub giver: TaskId,
     /// The Space the giver works in: a helper in another Space is not reachable from it.
     pub space: SpaceId,
+    /// Where the router found the goal to come from.
+    pub origin: GoalOrigin,
 }
 
 /// A job the person gives to a helper, through the shell.

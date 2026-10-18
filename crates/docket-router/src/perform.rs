@@ -2,6 +2,7 @@
 //! asks (the reviewers, the app's dry run, the sheet, the app itself) and keeps the audit.
 
 use crate::asks::{AskKey, Seat, Settled, seat, settled};
+use crate::brief::{brief_answer, is_brief_confirm};
 use crate::call::{CallEffect, CallEvent, CallState, call_step};
 use crate::confirm::confirm_request;
 use crate::deadline::within;
@@ -401,8 +402,9 @@ impl<S: Seams> Router<S> {
             self.seams.confirmer().cancel(&id).await;
             return Next::Event(CallEvent::Halted);
         }
+        let answer = Self::brief_settled(p, run, answer);
         let yes = match &answer {
-            ConfirmAnswer::Allowed { scope, receipt } => {
+            ConfirmAnswer::Allowed { scope, receipt, .. } => {
                 Some((ConfirmAnswerKind::Allowed(scope.clone()), receipt))
             }
             ConfirmAnswer::AllowedFromTerminal { receipt } => {
@@ -432,10 +434,25 @@ impl<S: Seams> Router<S> {
         if self.halt_scope(&p.space).is_some() {
             return Next::Event(CallEvent::Halted);
         }
+        let answer = Self::brief_settled(p, run, answer);
         if let ConfirmAnswer::Allowed { receipt, .. } = &answer {
             run.receipt = Some(receipt.clone());
         }
         Next::Event(CallEvent::Answered(answer))
+    }
+
+    /// A brief sheet's answer as it counts (see `brief_answer`), with the words the person
+    /// confirmed noted on the run.
+    fn brief_settled(p: &Prepared, run: &mut Run, answer: ConfirmAnswer) -> ConfirmAnswer {
+        let answer = brief_answer(p, answer);
+        if let ConfirmAnswer::Allowed {
+            written: Some(words),
+            ..
+        } = &answer
+        {
+            run.written = Some(words.clone());
+        }
+        answer
     }
 
     /// Charges the call to its session and queues its `Call` entry. Gives back the ledger as it
@@ -507,18 +524,22 @@ impl<S: Seams> Router<S> {
                 return Next::Stop;
             }
         }
-        let answer = self
-            .seams
-            .link()
-            .perform_classified(
-                &p.request.action.app,
-                self.invocation(p),
-                p.activation.clone(),
-                p.classified.as_ref().map(|c| c.sent.clone()),
-                p.decl.latency,
-            )
-            .await
-            .and_then(|outcome| self.related_outcome(p, outcome).map_err(AppFault::Refused));
+        let answer = if is_brief_confirm(&p.request.action) {
+            // Only the router sees the words the person confirmed, so no app is asked.
+            self.confirmed_brief(p, run).map_err(AppFault::Refused)
+        } else {
+            self.seams
+                .link()
+                .perform_classified(
+                    &p.request.action.app,
+                    self.invocation(p),
+                    p.activation.clone(),
+                    p.classified.as_ref().map(|c| c.sent.clone()),
+                    p.decl.latency,
+                )
+                .await
+                .and_then(|outcome| self.related_outcome(p, outcome).map_err(AppFault::Refused))
+        };
         run.outcome = answer.as_ref().ok().cloned();
         match answer {
             Err(AppFault::TimedOut) => Next::Event(CallEvent::AppTimedOut),

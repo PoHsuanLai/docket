@@ -197,6 +197,7 @@ fn only_the_persons_words_or_a_clean_planners_words_become_an_instruction() {
             GoalOrigin::Planner(PlannerSaw::Untrusted),
             Err(JobRefusal::UntrustedGoal),
         ),
+        (GoalOrigin::ConfirmedBrief, Ok(GoalSource::Brief)),
     ];
     for (origin, want) in table {
         assert_eq!(admit_goal(origin), want, "{origin:?}");
@@ -226,8 +227,9 @@ fn only_the_persons_words_or_a_clean_planners_words_become_an_instruction() {
     assert!(
         JobRefusal::UntrustedGoal
             .plain()
-            .contains("Tell the helper yourself")
+            .contains("tell the helper yourself")
     );
+    assert!(JobRefusal::UntrustedGoal.plain().contains("check it first"));
 }
 
 #[test]

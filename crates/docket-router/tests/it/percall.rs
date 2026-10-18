@@ -37,6 +37,7 @@ fn activate(item: &str) -> CallRequest {
 
 fn yes() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: receipt(),
     }

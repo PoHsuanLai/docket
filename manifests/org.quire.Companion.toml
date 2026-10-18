@@ -298,3 +298,45 @@ label = "Why, in one sentence"
 ty = { kind = "text", v = { max = 200, lines = "one" } }
 need = { kind = "required" }
 sink = "body"
+
+# Shows the person what the assistant understood, as text they can change, and gets back that
+# text as their own words. Page-derived text is allowed in `brief`: the person reads it before
+# anything uses it. Nothing runs before they confirm, and a confirmed brief may only become jobs
+# for helpers inside this task. The sheet is asked every time and a standing "allow" never stands
+# in for it. The router answers this action itself, because only it sees what the person
+# confirmed; it keeps those words in the session as the person's own, and a helper never inherits
+# them.
+[[actions]]
+name = "companion.brief.confirm"
+label = "Check what the helpers will work from"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "ask_always"
+latency = "instant"
+result = { kind = "value", v = { ty = { kind = "text", v = { max = 4000, lines = "many" } }, trust = { kind = "app_authored" } } }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "title"
+label = "What it is for"
+ty = { kind = "text", v = { max = 80, lines = "one" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions.params]]
+name = "brief"
+label = "The brief"
+ty = { kind = "text", v = { max = 4000, lines = "many" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions.params]]
+name = "parts"
+label = "Pieces of work (one per line)"
+ty = { kind = "text", v = { max = 1000, lines = "many" } }
+need = { kind = "optional" }
+sink = "inert"

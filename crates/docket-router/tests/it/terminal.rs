@@ -10,6 +10,7 @@ use prov::{Actor, Source};
 
 fn once() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: receipt(),
     }

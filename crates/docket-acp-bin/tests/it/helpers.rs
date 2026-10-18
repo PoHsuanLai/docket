@@ -44,6 +44,7 @@ fn done_job() -> JobLine {
         state: JobShown::Done,
         note: None,
         answer: Some("The second is best.".to_owned()),
+        from: Default::default(),
     }
 }
 

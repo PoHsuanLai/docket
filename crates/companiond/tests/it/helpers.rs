@@ -788,7 +788,7 @@ async fn a_goal_the_assistant_wrote_after_reading_something_untrusted_is_not_a_j
     // The assistant was told why, in words that name no machinery.
     let told_back = w.infer.user_text(2);
     assert!(
-        told_back.contains("Tell the helper yourself"),
+        told_back.contains("tell the helper yourself"),
         "{told_back}"
     );
 }
@@ -809,6 +809,7 @@ async fn the_assistant_only_proposes_a_helper_and_nothing_exists_until_the_perso
     };
     // The person dismisses the first sheet and accepts the second.
     let accept = ConfirmAnswer::Allowed {
+        written: None,
         scope: docket_core::GrantScope::Once,
         receipt: prov::ConfirmReceipt {
             id: prov::ConfirmId::parse("c-9").expect("id"),

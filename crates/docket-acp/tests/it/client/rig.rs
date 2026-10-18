@@ -81,6 +81,7 @@ pub fn turn(n: u64, text: &str) -> UserTurn {
 /// The person says yes, this once.
 pub fn once() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: porter_core::consent::GrantScope::Once,
         receipt: receipt(),
     }
@@ -89,6 +90,7 @@ pub fn once() -> ConfirmAnswer {
 /// The person says yes, always (honoured only where the sheet offered it).
 pub fn always() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: porter_core::consent::GrantScope::Always,
         receipt: receipt(),
     }

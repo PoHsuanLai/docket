@@ -10,8 +10,8 @@ use companion_wire::{
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{
     Board, BoardEffect, BoardEvent, CardDraft, GoalOrigin, GoalText, HelperBudget, HelperCard,
-    HelperKind, HelperModel, HelperName, HelperState, JobRefusal, JobStatus, NewJob, PlannerSaw,
-    ReachFault, Role, SignInOutcome, SignOutOutcome, TerminalRequest, reach_policy,
+    HelperKind, HelperModel, HelperName, HelperState, JobRefusal, JobStatus, NewJob, ReachFault,
+    Role, SignInOutcome, SignOutOutcome, TerminalRequest, reach_policy,
 };
 use docket_core::routine::{Missed, Schedule};
 use docket_core::{HelperRosterLine, LeadText, Manifest};
@@ -292,7 +292,7 @@ where
             .apply(BoardEvent::Post(Box::new(NewJob {
                 to: card.id.clone(),
                 goal,
-                origin: GoalOrigin::Planner(PlannerSaw::Nothing),
+                origin: ask.origin,
                 giver: Some(ask.giver),
                 owns: Vec::new(),
                 with,

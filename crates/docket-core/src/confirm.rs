@@ -2,6 +2,7 @@
 //! on it comes from the manifest, the router's own formatting of typed arguments, or the app's
 //! dry-run preview; agent prose is never shown, and untrusted values are drawn quoted.
 
+use crate::brief::{BriefSheet, BriefText};
 use crate::context::EntityRef;
 use crate::helper::HelperName;
 use crate::ids::{LabelText, WindowKey};
@@ -210,6 +211,11 @@ pub struct ConfirmRequest {
     /// one asking. Sheets from before helpers read as none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub helper: Option<HelperName>,
+    /// For a sheet that asks the person to check a brief: the draft as an editable field, with
+    /// the stretches to look at. A surface that does not know it draws a plain sheet from
+    /// `lines`, and its answer carries no words, so it confirms nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brief: Option<BriefSheet>,
 }
 
 /// What every sheet must say. A consumer outside docket builds a request from this with
@@ -289,7 +295,13 @@ impl ConfirmRequest {
             expires,
             editor: None,
             helper: None,
+            brief: None,
         }
+    }
+
+    /// The same request for a brief the person is to check.
+    pub fn for_brief(self, brief: Option<BriefSheet>) -> Self {
+        ConfirmRequest { brief, ..self }
     }
 
     /// The same request for a call in a session an editor drives.
@@ -326,6 +338,10 @@ pub enum ConfirmAnswer {
         scope: GrantScope,
         /// The proof.
         receipt: ConfirmReceipt,
+        /// For a brief sheet: the field's content when the person pressed the button. Every
+        /// other sheet answers none.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        written: Option<BriefText>,
     },
     /// Yes, and from now until logout the same action may run from the terminal without
     /// asking. Only a call made through `quire-do` honours it; the router drops it for any other

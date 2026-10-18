@@ -44,6 +44,7 @@ fn router_of(
     router.seams.grants = docket_fake::MemoryGrants::with(defaults);
     router.seams.confirmer = ScriptedConfirmer::answering(vec![
         ConfirmAnswer::Allowed {
+            written: None,
             scope: GrantScope::Once,
             receipt: receipt(),
         };

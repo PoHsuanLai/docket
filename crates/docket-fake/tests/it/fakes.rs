@@ -258,6 +258,7 @@ async fn the_scripted_confirmer_pops_in_order_and_records_requests() {
     };
     let confirmer = ScriptedConfirmer::answering(vec![
         ConfirmAnswer::Allowed {
+            written: None,
             scope: GrantScope::Once,
             receipt: receipt("c-1"),
         },
@@ -283,6 +284,7 @@ async fn the_scripted_confirmer_pops_in_order_and_records_requests() {
         expires: Seconds(120),
         editor: None,
         helper: None,
+        brief: None,
     };
     use docket_core::Confirmer;
     assert!(matches!(
@@ -382,6 +384,7 @@ async fn a_watched_gate_check_in_process_says_confirming_and_waits_for_proceed()
     use prov::{AgentRef, ConfirmReceipt, InputProof, RunId};
     let mut router = fake_router(AgentConfig::default()).expect("router");
     router.seams.confirmer = ScriptedConfirmer::answering(vec![ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: ConfirmReceipt {
             id: prov::ConfirmId::parse("c-1").expect("id"),

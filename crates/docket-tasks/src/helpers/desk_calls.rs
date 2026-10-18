@@ -1,5 +1,6 @@
 //! The planner's three helper actions, `companion.helper.post_job`, `companion.helper.propose` and
-//! `companion.routine.propose`.
+//! `companion.routine.propose`. (`companion.brief.confirm`, which checks a brief with the person,
+//! is the router's own and never reaches the host.)
 //! The router gates them like any call (and refuses a goal, a name or a role that came from
 //! something untrusted, and always asks the person about a proposal); once it has allowed one,
 //! the host that keeps the helpers carries it out here. A host with none refuses them.
@@ -10,9 +11,10 @@ use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
 use companion_wire::HelperReply;
 use docket_client::Transport as IntentsTransport;
-use docket_core::helper::{Ceiling, JobId};
+use docket_core::helper::{Ceiling, GoalOrigin, JobId, PlannerSaw};
 use docket_core::{
     ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, LabelText, NoteAsk, Outcome, Value,
+    from_checked_brief,
 };
 use porter_client::Transport as InferTransport;
 use prov::TaskId;
@@ -23,6 +25,10 @@ pub(crate) const PROPOSE: &str = "companion.helper.propose";
 
 /// Proposes a routine to the person.
 pub(crate) use docket_core::PROPOSE_ROUTINE;
+
+/// Asks the person to check a brief before helpers work from it. The router answers it itself,
+/// so it never goes through the desk.
+pub(crate) const CONFIRM_BRIEF: &str = "companion.brief.confirm";
 
 /// Whether the planner is offered `card` here: the three helper actions only where a host keeps
 /// helpers (proposing), and giving a job only once the person keeps at least one. Every other
@@ -39,6 +45,8 @@ pub(crate) fn offered_here(card: &ActionCard, keeps: Keeps) -> bool {
         (PROPOSE, Keeps::OnlyItself | Keeps::NoDesk) => false,
         (PROPOSE_ROUTINE, Keeps::Helpers | Keeps::OnlyItself) => true,
         (PROPOSE_ROUTINE, Keeps::NoHelpers | Keeps::NoDesk) => false,
+        (CONFIRM_BRIEF, Keeps::Helpers) => true,
+        (CONFIRM_BRIEF, Keeps::NoHelpers | Keeps::OnlyItself | Keeps::NoDesk) => false,
         _ => true,
     }
 }
@@ -167,12 +175,17 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             else {
                 return Err(refused("Say which helper and what it is to do."));
             };
+            let origin = match from_checked_brief(&outcome) {
+                true => GoalOrigin::ConfirmedBrief,
+                false => GoalOrigin::Planner(PlannerSaw::Nothing),
+            };
             desk.post_from_planner(PostFromPlanner {
                 helper,
                 goal,
                 after: text_of(call, "after"),
                 giver: task.clone(),
                 space,
+                origin,
             })
             .await
         } else {
@@ -208,12 +221,17 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     }
 }
 
-/// The outcome of giving a job, saying which helper has it and under what number, so the step
+/// The outcome of giving a job, saying which helper has it and under what number (and that it
+/// came from a brief the person checked), so the step
 /// reads as finished and not as something to do again. The router's own words stay when the
 /// helper's name is not at hand.
 fn posted(outcome: Outcome, helper: Option<String>, job: JobId) -> Outcome {
+    let from = match from_checked_brief(&outcome) {
+        true => ", from your checked brief",
+        false => "",
+    };
     let said = helper
-        .and_then(|name| LabelText::parse(&format!("Gave {name} the job {job}")).ok())
+        .and_then(|name| LabelText::parse(&format!("Gave {name} the job {job}{from}")).ok())
         .or(outcome.said);
     Outcome { said, ..outcome }
 }

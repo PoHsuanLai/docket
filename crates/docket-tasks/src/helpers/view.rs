@@ -55,6 +55,7 @@ pub fn role_text(card: &HelperCard, job: &Job) -> Result<RoleText, RoleFault> {
     let from = match job.source {
         GoalSource::Person => "the person",
         GoalSource::PlannerOnTrusted => "the assistant, which had read nothing untrusted",
+        GoalSource::Brief => "the assistant, from a brief the person checked",
     };
     let started = match job.about {
         Some(_) => {

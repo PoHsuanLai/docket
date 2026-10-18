@@ -80,7 +80,7 @@ impl From<GoalText> for String {
     }
 }
 
-/// Where a job's goal came from. Both reach the helper that takes the job as an instruction;
+/// Where a job's goal came from. Each reaches the helper that takes the job as an instruction;
 /// nothing else ever does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -89,6 +89,8 @@ pub enum GoalSource {
     Person,
     /// A planner wrote it, and nothing untrusted had reached that planner.
     PlannerOnTrusted,
+    /// A planner gave words from a brief the person read, changed if they wished, and confirmed.
+    Brief,
 }
 
 /// What a planner that gives a job had seen, as the router computed it (never as it said).
@@ -109,6 +111,8 @@ pub enum GoalOrigin {
     Person,
     /// A planner, having seen this.
     Planner(PlannerSaw),
+    /// A planner, giving words that lie inside a brief the person confirmed.
+    ConfirmedBrief,
 }
 
 /// What a finished job leaves: where its answer is held. The answer's words are the helper's own

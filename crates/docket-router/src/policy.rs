@@ -368,6 +368,7 @@ impl<S: Seams> Router<S> {
                     session: id.clone(),
                 }),
                 helper: record.helper.as_ref().map(|seat| seat.name.clone()),
+                brief: None,
             };
             st.pending.insert(cid, new.space.clone());
             request
@@ -381,7 +382,7 @@ impl<S: Seams> Router<S> {
             .without_terminal_grant();
         self.locked().pending.remove(&cid);
         let (kind, input) = match &answer {
-            ConfirmAnswer::Allowed { scope, receipt } => (
+            ConfirmAnswer::Allowed { scope, receipt, .. } => (
                 ConfirmAnswerKind::Allowed(scope.clone()),
                 Some(receipt.input),
             ),

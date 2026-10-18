@@ -18,6 +18,7 @@ fn from_terminal() -> ConfirmAnswer {
 
 fn once() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: receipt(),
     }

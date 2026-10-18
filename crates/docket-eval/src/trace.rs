@@ -191,6 +191,7 @@ pub fn audit_line(record: &AuditRecord) -> Option<String> {
         | AuditRecord::GrantsEnded { .. }
         | AuditRecord::Undo { .. }
         | AuditRecord::TaskStarted { .. }
+        | AuditRecord::BriefConfirmed { .. }
         | AuditRecord::Message(_)
         | AuditRecord::Episode(_)
         | AuditRecord::Session { .. }

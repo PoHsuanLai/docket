@@ -31,6 +31,8 @@ pub(crate) struct Run {
     pub denied_by: Option<DeniedBy>,
     pub undo: Option<UndoId>,
     pub confirm: Option<ConfirmId>,
+    /// For a brief sheet: the words the person confirmed.
+    pub written: Option<docket_core::BriefText>,
 }
 
 impl Run {
@@ -46,6 +48,7 @@ impl Run {
             denied_by: None,
             undo: None,
             confirm: None,
+            written: None,
         }
     }
 

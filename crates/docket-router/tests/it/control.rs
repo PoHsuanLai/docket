@@ -13,6 +13,7 @@ fn cuad() -> CallerId {
 
 fn yes() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: ConfirmReceipt {
             id: prov::ConfirmId::parse("c-1").expect("id"),

@@ -40,6 +40,7 @@ fn receipt() -> ConfirmReceipt {
 
 fn once() -> Answer {
     Answer::With(ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: receipt(),
     })

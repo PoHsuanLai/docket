@@ -41,6 +41,7 @@ fn ask(request: &ConfirmRequest) -> Answer {
     let _ = std::io::stdin().lock().read_line(&mut line);
     match line.trim() {
         "y" => Answer::With(ConfirmAnswer::Allowed {
+            written: None,
             scope: GrantScope::Once,
             receipt: receipt(),
         }),

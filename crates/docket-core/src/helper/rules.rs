@@ -23,20 +23,22 @@ impl JobRefusal {
         match self {
             JobRefusal::NoSuchHelper => "There is no helper by that name.".to_owned(),
             JobRefusal::UntrustedGoal => {
-                "That came from something the assistant read, so it can't be handed to a helper as an instruction. Tell the helper yourself what to do.".to_owned()
+                "That came from something the assistant read, so it can't be handed to a helper as an instruction. Ask the person to check it first, or tell the helper yourself what to do.".to_owned()
             }
             JobRefusal::Owned(name) => super::notice::owned_sentence(name),
         }
     }
 }
 
-/// The two channels, never mixed: a goal is an instruction only when the person wrote it or when
-/// the planner that wrote it had seen nothing untrusted. Everything else a helper derived from
-/// untrusted content travels as a handle and can never become another helper's instruction.
+/// The two channels, never mixed: a goal is an instruction only when the person wrote it, when
+/// the planner that wrote it had seen nothing untrusted, or when it lies inside a brief the person
+/// checked. Everything else a helper derived from untrusted content travels as a handle and can
+/// never become another helper's instruction.
 pub fn admit_goal(origin: GoalOrigin) -> Result<GoalSource, JobRefusal> {
     match origin {
         GoalOrigin::Person => Ok(GoalSource::Person),
         GoalOrigin::Planner(PlannerSaw::Nothing) => Ok(GoalSource::PlannerOnTrusted),
         GoalOrigin::Planner(PlannerSaw::Untrusted) => Err(JobRefusal::UntrustedGoal),
+        GoalOrigin::ConfirmedBrief => Ok(GoalSource::Brief),
     }
 }

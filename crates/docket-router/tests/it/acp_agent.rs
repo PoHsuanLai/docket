@@ -25,6 +25,7 @@ pub(crate) fn program(name: &str) -> ProgramName {
 
 pub(crate) fn always() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Always,
         receipt: receipt(),
     }
@@ -32,6 +33,7 @@ pub(crate) fn always() -> ConfirmAnswer {
 
 pub(crate) fn once() -> ConfirmAnswer {
     ConfirmAnswer::Allowed {
+        written: None,
         scope: GrantScope::Once,
         receipt: receipt(),
     }

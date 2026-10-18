@@ -11,16 +11,18 @@ use crate::handles::HandleValue;
 use crate::labels::{app_label, model_label};
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, Seams};
-use docket_core::helper::JobRefusal;
+use crate::spoken::whole_in;
+use docket_core::helper::{GoalOrigin, JobRefusal, PlannerSaw};
 use docket_core::{
-    ActionRef, AppRefusal, AuditRecord, CallerId, CallerRole, DraftPart, FailText, IntentsReply,
-    Invocation, LabelText, MessageDraft, Outcome, ParamName, Preview, Reveal, Saw, SendRefusal,
-    SessionOpen, SessionOpened, TargetValue, TaskStart, Undoable, Value, WireRefusal,
+    ActionRef, AppRefusal, AuditRecord, CallerId, CallerRole, ChoiceId, DraftPart,
+    FROM_CHECKED_BRIEF, FailText, IntentsReply, Invocation, LabelText, MessageDraft, Outcome,
+    ParamName, Preview, Reveal, Saw, SendRefusal, SessionOpen, SessionOpened, TargetValue,
+    TaskStart, Undoable, Value, WireRefusal,
 };
 use porter_core::{AppId, AppName, Isolation};
 use prov::{
-    Actor, Address, AgentRef, EntityId, Labelled, MessageKind, MessageText, ModelRole, SessionId,
-    Source, TaskId,
+    Actor, Address, AgentRef, EntityId, Integrity, Labelled, MessageKind, MessageText, ModelRole,
+    SessionId, Source, TaskId,
 };
 use std::collections::BTreeMap;
 
@@ -36,6 +38,9 @@ pub const HELPER_POST_JOB: &str = "companion.helper.post_job";
 pub const HELPER_PROPOSE: &str = "companion.helper.propose";
 /// Proposes a routine to the person, who accepts or declines it on a sheet.
 pub const ROUTINE_PROPOSE: &str = "companion.routine.propose";
+/// Shows the person a brief to check and change; what they confirm becomes their words in the
+/// session. The router answers it itself (see `brief`), since only it sees the sheet's words.
+pub const BRIEF_CONFIRM: &str = "companion.brief.confirm";
 
 /// Whether `action` is one of the helper actions: only the companion's own planners may call
 /// them, however an app or an outside client names them.
@@ -43,7 +48,7 @@ pub fn is_helper_action(action: &ActionRef) -> bool {
     action.app.as_str() == COMPANION_APP
         && matches!(
             action.name.as_str(),
-            HELPER_POST_JOB | HELPER_PROPOSE | ROUTINE_PROPOSE
+            HELPER_POST_JOB | HELPER_PROPOSE | ROUTINE_PROPOSE | BRIEF_CONFIRM
         )
 }
 
@@ -165,11 +170,52 @@ impl<S: Seams> Router<S> {
         }
     }
 
+    /// Whether the goal lies, as whole tokens, inside a brief the person confirmed in this
+    /// session, and carries nothing but their label. The router made that label (see `trace`),
+    /// never the planner.
+    fn in_confirmed_brief(&self, inv: &Invocation, session: &SessionId) -> bool {
+        let Ok(text) = text_arg(inv, "goal") else {
+            return false;
+        };
+        let theirs = inv.args.get(&param("goal")).is_some_and(|arg| {
+            arg.label.integrity == Integrity::Trusted
+                && !arg.label.sources.is_empty()
+                && arg.label.sources.iter().all(|s| *s == Source::User)
+        });
+        theirs
+            && self.locked().sessions.get(session).is_some_and(|record| {
+                record
+                    .briefs
+                    .iter()
+                    .any(|brief| whole_in(brief.text.as_str(), &text))
+            })
+    }
+
+    /// Where the goal of a job came from: a brief the person checked, or a planner that read
+    /// nothing untrusted. Anything else is refused.
+    fn goal_origin(&self, inv: &Invocation, session: &SessionId) -> Result<GoalOrigin, AppRefusal> {
+        if self.in_confirmed_brief(inv, session) {
+            return Ok(GoalOrigin::ConfirmedBrief);
+        }
+        self.clean_words(inv, session, "goal", JobRefusal::UntrustedGoal)
+            .map(|_| GoalOrigin::Planner(PlannerSaw::Nothing))
+    }
+
     fn helper_post_job(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {
         let session = spawner(inv)?;
         text_arg(inv, "helper")?;
-        self.clean_words(inv, session, "goal", JobRefusal::UntrustedGoal)?;
-        Ok(nothing_back("Gave the job to a helper"))
+        let origin = self.goal_origin(inv, session)?;
+        let mut outcome = nothing_back("Gave the job to a helper");
+        if origin == GoalOrigin::ConfirmedBrief {
+            // The host that keeps the helpers reads this to record where the goal came from.
+            outcome.value = ChoiceId::parse(FROM_CHECKED_BRIEF)
+                .ok()
+                .map(|mark| Labelled {
+                    value: Value::Choice(mark),
+                    label: app_label(&name()),
+                });
+        }
+        Ok(outcome)
     }
 
     fn helper_propose(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {

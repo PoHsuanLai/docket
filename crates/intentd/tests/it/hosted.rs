@@ -328,6 +328,7 @@ async fn a_proposal_from_a_companion_asks_the_person_then_goes_to_memory_and_lan
     );
 
     desk.sill.answer(vec![Answer::With(ConfirmAnswer::Allowed {
+        written: None,
         scope: docket_core::GrantScope::Once,
         receipt: prov::ConfirmReceipt {
             id: prov::ConfirmId::parse("c-1").expect("id"),

@@ -257,6 +257,20 @@ pub enum AuditRecord {
         /// The spawning call.
         by_call: CallId,
     },
+    /// The person confirmed a brief on a sheet. Never the words: they live in the session's own
+    /// record like a turn the person typed.
+    BriefConfirmed {
+        /// When.
+        at: UnixSeconds,
+        /// The call that asked.
+        call: CallId,
+        /// The session the brief was confirmed in.
+        session: SessionId,
+        /// Whether the person changed the planner's draft.
+        edit: crate::brief::BriefEdit,
+        /// How long the confirmed words are.
+        bytes: u32,
+    },
     /// A message was delivered. Stored as almanac's `EventBody::Message`.
     Message(Box<Message>),
     /// A task ended and left its skeleton, or the idle pass added its narrative. Stored as

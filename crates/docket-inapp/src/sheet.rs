@@ -73,6 +73,7 @@ impl<T: ConfirmSheet, K: Clock> Confirmer for SheetConfirmer<T, K> {
         let answer = self.sheet.ask(&request).await;
         match answer {
             SheetAnswer::Once | SheetAnswer::Always => ConfirmAnswer::Allowed {
+                written: None,
                 scope: if answer == SheetAnswer::Always
                     && matches!(request.always, AlwaysOffer::Offered(_))
                 {
