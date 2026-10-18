@@ -314,10 +314,10 @@ async fn an_editor_reads_a_helpers_conversation_the_companion_opened_but_not_a_j
         ask(&router, &zed, fork_at(&talk.session, 1)).await,
         IntentsReply::Refused(WireRefusal::NoSuchSession)
     );
-    // Another app's role gets nothing more.
+    // An app's role may not read stored sessions at all.
     let app = caller("org.example.App", CallerRole::App);
     assert_eq!(
         ask(&router, &app, read(&talk.session)).await,
-        IntentsReply::Refused(WireRefusal::NoSuchSession)
+        IntentsReply::Refused(WireRefusal::NotAllowed)
     );
 }
