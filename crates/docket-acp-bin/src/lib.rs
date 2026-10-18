@@ -21,9 +21,8 @@ pub mod callers;
 pub mod confirm;
 pub mod helpers;
 
-use confirm::ConfirmObject;
-use helpers::LiveHelpers;
 use companion_client::DbusHelpers;
+use confirm::ConfirmObject;
 use docket_acp::{LineWire, Permit, Server, SystemTicks, Ticks};
 use docket_client::{DbusTransport, Intents};
 use docket_core::{AgentConfig, Millis};
@@ -33,6 +32,7 @@ use docket_inapp::EditorDesk;
 use docket_planner::PlannerModel;
 use docket_router::Clock;
 use docket_tasks::{Companion, NativeHost, Now, Quiet, RouterLog};
+use helpers::LiveHelpers;
 use porter_core::AppName;
 use prov::UnixSeconds;
 use std::future::Future;

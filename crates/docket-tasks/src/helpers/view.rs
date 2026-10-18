@@ -33,7 +33,9 @@ pub fn role_text(card: &HelperCard, job: &Job) -> Result<RoleText, RoleFault> {
         GoalSource::PlannerOnTrusted => "the assistant, which had read nothing untrusted",
     };
     let started = match job.about {
-        Some(_) => "\n\nThis job started because something happened. It is in your notes as a handle you cannot read: name it in an argument when an action needs it.",
+        Some(_) => {
+            "\n\nThis job started because something happened. It is in your notes as a handle you cannot read: name it in an argument when an action needs it."
+        }
         None => "",
     };
     RoleText::parse(&format!(

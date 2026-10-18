@@ -11,12 +11,12 @@ use companion_wire::{
 };
 use companiond::{RoutineDesk, serve_on, serve_with_routines};
 use docket_core::helper::{Ceiling, HelperModel, HelperName, Role};
+use docket_core::routine::RoutineId;
 use docket_core::*;
 use docket_dbus::{
     Bus, COMPANION_BUS, COMPANION_PATH, CompanionAnswerProxy, CompanionHelpers2Proxy,
     CompanionHelpersProxy, CompanionProxy, Details, introspection,
 };
-use docket_core::routine::RoutineId;
 use docket_tasks::Pending;
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
@@ -470,7 +470,10 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
     // Served as declared, and the first version is still there as it was.
     let declared = introspection(Bus::Companion);
     let served = introspect(&shell, COMPANION_PATH).await;
-    for name in ["org.quire.Companion1.Helpers", "org.quire.Companion1.Helpers2"] {
+    for name in [
+        "org.quire.Companion1.Helpers",
+        "org.quire.Companion1.Helpers2",
+    ] {
         assert_eq!(block(&served, name), block(&declared, name));
     }
 

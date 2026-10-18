@@ -75,10 +75,7 @@ impl HelpersTransport for Daemon {
             }],
         };
         Ok(HelpersView {
-            helpers: vec![
-                line(1, "Research", Some("s-61")),
-                line(2, "Garden", None),
-            ],
+            helpers: vec![line(1, "Research", Some("s-61")), line(2, "Garden", None)],
             told,
         })
     }

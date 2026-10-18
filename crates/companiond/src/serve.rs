@@ -6,9 +6,9 @@
 //! `dbus/org.quire.Companion1.xml`.
 
 use crate::Companiond;
+use crate::Shared;
 use crate::helpers_bus::{Helpers2Object, HelpersObject};
 use crate::routines::RoutineDesk;
-use crate::Shared;
 use crate::speaker::{Call, Speaker, Speakers};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
