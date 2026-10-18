@@ -77,10 +77,11 @@ pub async fn build(
     tools: Tools,
     fallback: Fallback,
     bus: BusConnection,
+    limits: SandboxLimits,
 ) -> Result<Wiring<DbusAccounts>, AgentFault> {
     let Allowed { permit, file } = allowed;
     let path = env("PATH").unwrap_or_default();
-    let bwrap = match probe(&path) {
+    let bwrap = match limits.probe(&path) {
         Detected::Bwrap(bwrap) => bwrap,
         Detected::Missing(why) => return Err(AgentFault::NoSandbox(why)),
     };
@@ -155,18 +156,30 @@ pub async fn build(
     })
 }
 
-/// The sandbox here. A harness seam, as docket-acp's `HarnessSeams` is: a build with the feature
-/// `fixture-callers` (the acceptance harness's) asked for `DOCKET_AGENT_RLIMIT` limits the agent
-/// with per-process limits instead of a scope, for a jail with no user manager. The packaged
-/// program has no such code: it always probes for the scope's limits.
-fn probe(path: &str) -> Detected {
-    #[cfg(feature = "fixture-callers")]
-    if env("DOCKET_AGENT_RLIMIT").is_some() {
-        let hardening = bulkhead::Hardening {
-            limits: bulkhead::LimitPolicy::Rlimit(bulkhead::Limits::default()),
-            ..bulkhead::Hardening::default()
-        };
-        return Detected::probe_with(path, &hardening, &bulkhead::UserSession::from_env());
+/// How the sandbox bounds what an agent uses.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum SandboxLimits {
+    /// A scope of the person's systemd user manager holds the agent's memory and tasks: what the
+    /// packaged program always uses.
+    #[default]
+    Scope,
+    /// Per-process limits instead, for a machine with no user manager. Only the acceptance
+    /// harness's main passes it (its jail runs no systemd).
+    PerProcess,
+}
+
+impl SandboxLimits {
+    /// The sandbox here, bounded this way.
+    fn probe(self, path: &str) -> Detected {
+        match self {
+            SandboxLimits::Scope => Detected::probe(path),
+            SandboxLimits::PerProcess => {
+                let hardening = bulkhead::Hardening {
+                    limits: bulkhead::LimitPolicy::Rlimit(bulkhead::Limits::default()),
+                    ..bulkhead::Hardening::default()
+                };
+                Detected::probe_with(path, &hardening, &bulkhead::UserSession::from_env())
+            }
+        }
     }
-    Detected::probe(path)
 }

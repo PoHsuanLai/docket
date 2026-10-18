@@ -25,6 +25,10 @@ name = "accept-acp"
 path = "src/bin/accept-acp.rs"
 
 [[bin]]
+name = "accept-docket-agent"
+path = "src/bin/accept-docket-agent.rs"
+
+[[bin]]
 name = "accept-readerd"
 path = "src/bin/accept-readerd.rs"
 

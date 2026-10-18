@@ -35,6 +35,16 @@ pub const ACP_PROC_ROOT_VAR: &str = "DOCKET_ACP_PROC_ROOT";
 /// The variable that names the system's callers file docket-acp reads.
 pub const ACP_SYSTEM_CALLERS_VAR: &str = "DOCKET_ACP_SYSTEM_CALLERS";
 
+/// The variable that names the agent host's fixture `/proc`.
+pub const AGENT_PROC_ROOT_VAR: &str = "DOCKET_AGENT_PROC_ROOT";
+
+/// The variable that names the agent host's system callers file.
+pub const AGENT_SYSTEM_CALLERS_VAR: &str = "DOCKET_AGENT_SYSTEM_CALLERS";
+
+/// The variable that, set, bounds the agents' sandboxes per process: a world with no systemd user
+/// manager (the jail) has no scope to put them in.
+pub const AGENT_PER_PROCESS_LIMITS_VAR: &str = "DOCKET_AGENT_RLIMIT";
+
 /// A non-empty value of `name`.
 fn set(name: &str) -> Option<OsString> {
     std::env::var_os(name).filter(|value| !value.is_empty())
@@ -53,4 +63,9 @@ pub fn proc_root(name: &str) -> Option<PathBuf> {
 /// The file named by the variable `name`, if the world set one: a system callers file.
 pub fn system_callers(name: &str) -> Option<PathBuf> {
     set(name).map(PathBuf::from)
+}
+
+/// Whether the variable `name` is set (and not empty).
+pub fn switched_on(name: &str) -> bool {
+    set(name).is_some()
 }

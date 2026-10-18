@@ -46,7 +46,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader, Stdin};
 use tokio::sync::Mutex;
-use wire::{Tools, allowed};
+use wire::{SandboxLimits, Tools, allowed};
 
 type Lines = Arc<Mutex<tokio::io::Lines<BufReader<Stdin>>>>;
 
@@ -96,7 +96,7 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
     let bus = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| AgentFault::Bus(e.to_string()))?;
-    let wiring = wire::build(allowed()?, tools, args.fallback, bus).await?;
+    let wiring = wire::build(allowed()?, tools, args.fallback, bus, SandboxLimits::Scope).await?;
 
     let cwd = std::fs::canonicalize(&args.cwd).map_err(|e| AgentFault::Directory(e.to_string()))?;
     let cwd = cwd.to_str().ok_or(AgentFault::DirectoryNotUtf8)?.to_owned();

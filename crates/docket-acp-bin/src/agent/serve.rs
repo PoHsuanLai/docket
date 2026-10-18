@@ -21,7 +21,7 @@ use super::fault::AgentFault;
 use super::helper_host::HelperHost;
 use super::host::{HostError, Hosted, open_on};
 use super::live::Live;
-use super::wire::{self, Tools};
+use super::wire::{self, SandboxLimits, Tools};
 use super::{data_dir, env};
 use bulkhead::NetworkMode;
 use docket_acp::client::{Fallback, Workdir};
@@ -149,6 +149,7 @@ struct Active {
 /// the helpers' agents, and when it was last used.
 pub struct Service {
     bus: BusConnection,
+    limits: SandboxLimits,
     live: OnceCell<Arc<Live<DbusAccounts>>>,
     assistant: Mutex<Option<Box<Active>>>,
     helpers: OnceLock<Arc<HelperHost>>,
@@ -165,10 +166,11 @@ impl std::fmt::Debug for Service {
 }
 
 impl Service {
-    /// A service with nothing started, on `bus`.
-    pub fn new(bus: BusConnection) -> Self {
+    /// A service with nothing started, on `bus`, whose agents' sandboxes are bounded by `limits`.
+    pub fn new(bus: BusConnection, limits: SandboxLimits) -> Self {
         Self {
             bus,
+            limits,
             live: OnceCell::new(),
             assistant: Mutex::new(None),
             helpers: OnceLock::new(),
@@ -232,6 +234,7 @@ impl Service {
                     Tools::Wanted,
                     Fallback::Off,
                     self.bus.clone(),
+                    self.limits,
                 )
                 .await?;
                 let live = Live::serve(wiring, NetworkMode::Host)
@@ -518,46 +521,43 @@ impl Object {
     }
 }
 
-/// What only the acceptance harness chooses, as docket-acp's `HarnessSeams` does: the `/proc`
-/// the callers are read from (a fixture tree) and the system's callers file, named by
-/// `DOCKET_AGENT_PROC_ROOT` and `DOCKET_AGENT_SYSTEM_CALLERS`. They are read only by a build with
-/// the feature `fixture-callers`; the packaged program has neither the code nor the variables,
-/// and always reads the system's `/proc` and `/etc/quire`.
+/// What only the acceptance harness chooses, as docket-acp's `HarnessSeams` does: the `/proc` the
+/// callers are read from (a fixture tree), the system's callers file, and how the agents'
+/// sandboxes are bounded. The packaged program passes the defaults ([`run`]): the system's `/proc`
+/// and `/etc/quire`, and a scope of the user manager.
 #[derive(Debug, Default)]
-struct Seams {
-    proc_root: Option<PathBuf>,
-    system: Option<PathBuf>,
-}
-
-impl Seams {
-    #[cfg(feature = "fixture-callers")]
-    fn from_env(env: &impl Fn(&str) -> Option<String>) -> Self {
-        Self {
-            proc_root: env("DOCKET_AGENT_PROC_ROOT").map(PathBuf::from),
-            system: env("DOCKET_AGENT_SYSTEM_CALLERS").map(PathBuf::from),
-        }
-    }
-
-    #[cfg(not(feature = "fixture-callers"))]
-    fn from_env(_env: &impl Fn(&str) -> Option<String>) -> Self {
-        Self::default()
-    }
+pub struct HarnessSeams {
+    /// A fixture `/proc`, else the system's.
+    pub proc_root: Option<PathBuf>,
+    /// The system's callers file, else `/etc/quire/acp-callers.toml`.
+    pub system_callers: Option<PathBuf>,
+    /// How an agent's sandbox is bounded.
+    pub limits: SandboxLimits,
 }
 
 /// Serves `AgentHost1` under the host's name until it has been quiet for [`IDLE`].
 pub async fn run() -> Result<(), AgentFault> {
+    run_with(HarnessSeams::default()).await
+}
+
+/// [`run`] with the seams the acceptance harness's main chooses.
+pub async fn run_with(seams: HarnessSeams) -> Result<(), AgentFault> {
     let bus_fault = |e: zbus::Error| AgentFault::Bus(e.to_string());
     let bus = docket_dbus::session_connection(&env)
         .await
         .map_err(bus_fault)?;
-    let Seams { proc_root, system } = Seams::from_env(&env);
-    let table = match &system {
+    let HarnessSeams {
+        proc_root,
+        system_callers,
+        limits,
+    } = seams;
+    let table = match &system_callers {
         Some(system) => crate::callers::read_at(system, &env),
         None => crate::callers::read(&env),
     }
     .map_err(|e| AgentFault::Callers(e.to_string()))?;
     let callers = Arc::new(Identity::on(bus.clone(), table, proc_root.as_deref()));
-    let service = Arc::new(Service::new(bus.clone()));
+    let service = Arc::new(Service::new(bus.clone(), limits));
     // Served before the name is claimed, so the first call finds it.
     bus.object_server()
         .at(
