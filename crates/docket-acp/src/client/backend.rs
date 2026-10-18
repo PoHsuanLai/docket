@@ -19,6 +19,7 @@
 //! stdin, and the silence between its lines. One that runs out marks the agent dead, so the turn
 //! fails and the host's `close` kills the process. A host may still `cancel`, then `close`, sooner.
 
+use super::cause::Step;
 use super::court::Court;
 use super::edge::{EdgeFault, EdgeMenu, ToolsEdge, ToolsOffer};
 use super::files::Files;
@@ -264,7 +265,7 @@ impl<X: Seams> AcpBackend<X> {
         let workdir = self
             .performer
             .workdir(&cwd, &cwd)
-            .map_err(|_| BackendFault::Unavailable)?;
+            .map_err(|e| Step::Folder.unavailable(&e))?;
         // The edge is made first: the launcher binds its socket into the sandbox. A host that
         // offers none, or one that cannot make it, runs the agent with its own tools and ours.
         let made = self.tools.as_ref().map(|offer| {
@@ -294,11 +295,11 @@ impl<X: Seams> AcpBackend<X> {
             .spawn
             .spawn(&plan)
             .await
-            .map_err(|_| BackendFault::Unavailable)?;
+            .map_err(|e| Step::Spawn.unavailable(&e))?;
         let real_cwd = self
             .performer
             .real(&cwd)
-            .map_err(|_| BackendFault::Unavailable)?;
+            .map_err(|e| Step::Resolve.unavailable(&e))?;
         self.performer
             .open_scope(&session, cwd.clone(), real_cwd.clone());
         self.live = Some(Live {
@@ -335,7 +336,7 @@ impl<X: Seams> AcpBackend<X> {
             Ok(done) => done,
             Err(_) => {
                 self.dead = true;
-                Err(BackendFault::Unavailable)
+                Err(Step::Timeout.unavailable(&"no answer within the handshake span"))
             }
         }
     }
@@ -347,9 +348,9 @@ impl<X: Seams> AcpBackend<X> {
         self.send(rpc::initialize(&id, caps)).await?;
         let reply = self.await_reply(&id).await?;
         let init: InitializeResponse =
-            serde_json::from_value(reply).map_err(|_| BackendFault::Unavailable)?;
+            serde_json::from_value(reply).map_err(|e| Step::Initialize.unavailable(&e))?;
         if init.protocol_version != ProtocolVersion::V1 {
-            return Err(BackendFault::Unavailable);
+            return Err(Step::Initialize.unavailable(&"an unsupported protocol version"));
         }
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         live.auth_ways = auth_ways(&init);
@@ -381,7 +382,7 @@ impl<X: Seams> AcpBackend<X> {
             Err(error) => return Err(refusal_fault(&error, methods)),
         };
         let made: NewSessionResponse =
-            serde_json::from_value(reply.clone()).map_err(|_| BackendFault::Unavailable)?;
+            serde_json::from_value(reply.clone()).map_err(|e| Step::NewSession.unavailable(&e))?;
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         live.models = Models::of_reply(&reply, &made);
         live.agent = Some(made.session_id);
@@ -520,9 +521,13 @@ impl<X: Seams> AcpBackend<X> {
         // An agent that stops reading its stdin must not stall the turn for good.
         match within(tokio::time::sleep(span), live.wire.write_line(line)).await {
             Ok(Ok(())) => Ok(()),
-            Ok(Err(_)) | Err(_) => {
+            Ok(Err(e)) => {
                 self.dead = true;
-                Err(BackendFault::Unavailable)
+                Err(Step::Write.unavailable(&e))
+            }
+            Err(_) => {
+                self.dead = true;
+                Err(Step::Write.unavailable(&"the write timed out"))
             }
         }
     }
@@ -532,7 +537,7 @@ impl<X: Seams> AcpBackend<X> {
     async fn await_reply(&mut self, id: &RequestId) -> Result<serde_json::Value, BackendFault> {
         self.await_outcome(id)
             .await?
-            .map_err(|_| BackendFault::Unavailable)
+            .map_err(|error| Step::Reply.unavailable(&error))
     }
 
     /// Like `await_reply`, but an error the agent answers with is given back, not folded into
@@ -545,7 +550,7 @@ impl<X: Seams> AcpBackend<X> {
             let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
             let Some(line) = live.wire.read_line().await else {
                 self.dead = true;
-                return Err(BackendFault::Unavailable);
+                return Err(Step::Reply.unavailable(&"the agent closed its output"));
             };
             match intake(&line) {
                 Intake::Reply { id: got, outcome } if &got == id => {
@@ -569,7 +574,7 @@ fn refusal_fault(error: &serde_json::Value, methods: Choices) -> BackendFault {
             BackendFault::SignInNeeded
         }
         Ok(e) if e.code == ErrorCode::AuthRequired => BackendFault::SignInChoose(methods),
-        _ => BackendFault::Unavailable,
+        _ => Step::NewSession.unavailable(error),
     }
 }
 

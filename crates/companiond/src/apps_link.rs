@@ -29,13 +29,23 @@ impl AppsLink {
     /// The host's reply to `ask`, or `None` when the host could not be reached or answered
     /// something that is not a reply.
     async fn ask(&self, ask: &AppsAsk) -> Option<AppsReply> {
-        let body = serde_json::to_string(ask).ok()?;
-        let host = AgentHostProxy::new(&self.connection).await.ok()?;
-        let call = host.apps_begin(&body).await.ok()?;
+        let reply = self.asked(ask).await;
+        if let Err(cause) = &reply {
+            tracing::warn!(%cause, "the host of the agent apps did not answer");
+        }
+        reply.ok()
+    }
+
+    async fn asked(&self, ask: &AppsAsk) -> Result<AppsReply, String> {
+        let body = serde_json::to_string(ask).map_err(|e| e.to_string())?;
+        let host = AgentHostProxy::new(&self.connection)
+            .await
+            .map_err(|e| e.to_string())?;
+        let call = host.apps_begin(&body).await.map_err(|e| e.to_string())?;
         loop {
-            let text = host.apps_wait(&call).await.ok()?;
+            let text = host.apps_wait(&call).await.map_err(|e| e.to_string())?;
             if !text.is_empty() {
-                return serde_json::from_str(&text).ok();
+                return serde_json::from_str(&text).map_err(|e| e.to_string());
             }
         }
     }

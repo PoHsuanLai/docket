@@ -32,12 +32,62 @@ pub enum SpawnFault {
     /// The account service refused or is not there.
     #[error("the account service did not give the agent what it needs")]
     Accounts,
-    /// The sandbox could not be made.
-    #[error("the sandbox could not be made")]
-    Sandbox,
+    /// The sandbox could not be made, at this step.
+    #[error("the sandbox could not be made: {0}")]
+    Sandbox(SandboxStep),
     /// The process did not start.
     #[error("the process did not start")]
     Process,
+}
+
+/// The step of making a sandbox that failed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum SandboxStep {
+    /// The network mode is not one the launcher can make.
+    #[error("the network mode is not supported here")]
+    NetworkMode,
+    /// The network plan for the sandbox could not be made.
+    #[error("the network plan was refused")]
+    NetworkPlan,
+    /// The session's folder for its socket could not be made.
+    #[error("the session folder could not be made")]
+    SessionDir,
+    /// The socket's path is not one the sandbox can bind.
+    #[error("the socket path is not usable")]
+    SocketPath,
+    /// The network forwarder's path is not one the sandbox can bind.
+    #[error("the network forwarder path is not usable")]
+    Forwarder,
+    /// The account's endpoint was not lent where the agent needs it.
+    #[error("no endpoint was lent")]
+    NoEndpoint,
+    /// The agent's entry names no places it may reach.
+    #[error("the entry names no places to reach")]
+    NoReach,
+    /// The bridge to the endpoint did not start.
+    #[error("the bridge to the endpoint did not start")]
+    Bridge,
+    /// The filter for the allowed places did not start.
+    #[error("the filter for the allowed places did not start")]
+    Filter,
+    /// The agent's environment could not be built.
+    #[error("the agent's environment could not be built")]
+    Environment,
+    /// The working folder is not a path the sandbox can bind.
+    #[error("the working folder is not usable")]
+    WorkingFolder,
+    /// A folder the agent needs could not be bound.
+    #[error("a folder could not be bound")]
+    Binds,
+    /// A `.git` folder could not be protected.
+    #[error("a .git folder could not be protected")]
+    Protect,
+    /// The path of the landlock stage is not usable.
+    #[error("the exec stage path is not usable")]
+    Enter,
+    /// The sandbox did not start the process.
+    #[error("the sandbox did not start the process")]
+    Start,
 }
 
 /// Extra `_meta` for `session/new`, the launcher's: an agent-specific request the host writes

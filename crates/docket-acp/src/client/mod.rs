@@ -29,6 +29,7 @@
 
 mod backend;
 mod call;
+mod cause;
 mod confine;
 mod court;
 mod edge;
@@ -70,7 +71,7 @@ pub use models::{ModelId, ModelIdRefused, Models};
 pub use names::{effect, permission, reported_action};
 pub use performer::{Performer, UndoNote};
 pub use spawn::{
-    AgentChild, LaunchPlan, SessionMeta, SignIn, SignInRefused, Spawn, SpawnFault, Spawned,
+    AgentChild, LaunchPlan, SessionMeta, SignIn, SandboxStep, SignInRefused, Spawn, SpawnFault, Spawned,
 };
 pub use strikes::{STRIKES_MAX, Strikes};
 pub use taint::{TaintSource, brings_content};

@@ -177,7 +177,8 @@ impl<H: Hosts> HelperAgent<H> {
                 host.abandon().await;
                 Err(AgentEnd::NeedsSignIn(ways))
             }
-            Err(_) => {
+            Err(fault) => {
+                tracing::warn!(%fault, "a helper's agent app did not start");
                 host.abandon().await;
                 Err(AgentEnd::Failed(Trouble::CouldNotStart))
             }

@@ -14,6 +14,7 @@
 //! no fork, and a resumed agent session is always a new one, which the router restores itself).
 
 use super::backend::{AcpBackend, Seams};
+use super::cause::Step;
 use super::court::{Court, OpenAgent};
 use super::running::RunningTurn;
 use docket_core::{ConfirmId, Rewind, SheetSurface, TurnEnd as Ended, TurnId, UserTurn};
@@ -159,8 +160,12 @@ impl<X: Seams, D: SheetDesk> SessionHost for AgentHost<X, D> {
         if self.session.is_some() {
             return Err(BackendFault::Busy.into());
         }
-        let program = program_of(&opening).ok_or(BackendFault::Unavailable)?;
-        let cwd = opening.cwd.clone().ok_or(BackendFault::Unavailable)?;
+        let program = program_of(&opening)
+            .ok_or_else(|| Step::Opening.unavailable(&"it is not for an agent program"))?;
+        let cwd = opening
+            .cwd
+            .clone()
+            .ok_or_else(|| Step::Opening.unavailable(&"it names no folder"))?;
         let session = self
             .court
             .open(OpenAgent {
@@ -173,7 +178,7 @@ impl<X: Seams, D: SheetDesk> SessionHost for AgentHost<X, D> {
                 helper: self.helper.clone(),
             })
             .await
-            .map_err(|_| BackendFault::Unavailable)?;
+            .map_err(|e| Step::Router.unavailable(&e))?;
         let started = self
             .backend
             .start(StartSession {
