@@ -42,6 +42,7 @@ mod checkpoint_turn;
 mod classify;
 mod companion;
 mod confirm;
+mod conversation;
 mod consent;
 mod control;
 mod convert;

@@ -4,6 +4,7 @@
 
 use crate::codec::Unreadable;
 use crate::entry::{CallOpen, EndCause, HandleLabel, Opening, Seq, Taint};
+use docket_core::helper::HelperSeat;
 use docket_core::{
     BreakerTrip, CallId, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy, UserTurn,
 };
@@ -108,6 +109,8 @@ pub enum PlanRefusal {
 pub struct ResumePlan {
     /// How it began.
     pub opening: Opening,
+    /// The helper seat the session was given, when it has one.
+    pub seat: Option<HelperSeat>,
     /// Where it stands.
     pub standing: Standing,
     /// Never lower than any taint in the log, and Tainted when the log is not whole.

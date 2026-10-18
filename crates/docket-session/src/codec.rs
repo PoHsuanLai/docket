@@ -101,8 +101,9 @@ pub struct Logged {
     pub read: Read,
 }
 
-const KINDS: [&str; 13] = [
+const KINDS: [&str; 14] = [
     "opened",
+    "seat",
     "turn",
     "policy",
     "call",

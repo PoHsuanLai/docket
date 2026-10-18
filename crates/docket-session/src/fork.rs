@@ -83,6 +83,7 @@ pub fn fork(
         !matches!(
             e,
             SessionEntry::Opened(_)
+                | SessionEntry::Seat(_)
                 | SessionEntry::Taint(_)
                 | SessionEntry::Budget(_)
                 | SessionEntry::Closed(_)

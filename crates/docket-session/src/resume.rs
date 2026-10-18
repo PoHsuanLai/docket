@@ -22,6 +22,7 @@ use crate::entry::{
 use crate::plan::{
     Blocker, Interrupted, PlanRefusal, ResumeFault, ResumePlan, ResumedBudget, Standing,
 };
+use docket_core::helper::HelperSeat;
 use docket_core::{
     BreakerTrip, CallId, Handle, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy,
     UserTurn,
@@ -33,6 +34,7 @@ use std::collections::BTreeMap;
 /// The fold's running state.
 struct Fold {
     opening: Opening,
+    seat: Option<HelperSeat>,
     taint: Taint,
     policy: Option<TaskPolicy>,
     turns: Vec<UserTurn>,
@@ -54,6 +56,7 @@ impl Fold {
     fn new(opening: Opening) -> Self {
         Fold {
             opening,
+            seat: None,
             taint: Taint::Clean,
             policy: None,
             turns: Vec::new(),
@@ -82,6 +85,9 @@ impl Fold {
     fn apply(&mut self, at: Seq, entry: SessionEntry) {
         match entry {
             SessionEntry::Opened(_) => self.faults.push(ResumeFault::DuplicateOpened { at }),
+            SessionEntry::Seat(seat) => {
+                self.seat.get_or_insert(seat);
+            }
             SessionEntry::Turn(turn) => {
                 self.tripped = None;
                 self.turns.push(turn);
@@ -167,6 +173,7 @@ impl Fold {
         let standing = self.standing();
         ResumePlan {
             opening: self.opening,
+            seat: self.seat,
             standing,
             taint: self.taint,
             policy: self.policy,

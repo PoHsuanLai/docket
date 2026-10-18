@@ -351,6 +351,7 @@ async fn a_resume_starts_a_new_agent_session_and_keeps_the_taint() {
     });
     let plan = ResumePlan {
         opening: super::rig::opening(CWD),
+        seat: None,
         standing: Standing::Open,
         taint: Taint::Tainted,
         policy: None,

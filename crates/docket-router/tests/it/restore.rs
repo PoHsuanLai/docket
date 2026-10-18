@@ -612,3 +612,55 @@ mod property {
         }
     }
 }
+
+#[tokio::test]
+async fn a_helpers_conversation_keeps_its_seat_over_a_restart_and_is_not_made_twice() {
+    use docket_core::helper::{HelperName, HelperSeat, SeatPlace};
+    let log = Arc::new(MemoryLog::new());
+    let talk = HelperSeat {
+        helper: serde_json::from_str("\"h-1\"").expect("helper id"),
+        name: HelperName::parse("Inbox").expect("name"),
+        reach: the_policy(),
+        owns: Vec::new(),
+        place: SeatPlace::Conversation,
+    };
+    let open = |seat: &HelperSeat| {
+        IntentsRequest::SessionOpen(SessionOpen {
+            space: space("work"),
+            agent: AgentRef::Companion,
+            parent: None,
+            cwd: None,
+            started_from: None,
+            external: None,
+            helper: Some(seat.clone()),
+        })
+    };
+    let first = world(&log, None);
+    let IntentsReply::SessionOpened(old) = ask(&first, &companion(), open(&talk)).await else {
+        panic!("the conversation opens");
+    };
+    assert!(slugs(&entries(&log, &old.session).await).contains(&"seat"));
+    drop(first);
+    // After a restart the companion opens it again: it gets the same session, with its seat.
+    let again = world(&log, None);
+    again.adopt_sessions().await.expect("listed");
+    let IntentsReply::SessionOpened(kept) = ask(&again, &companion(), open(&talk)).await else {
+        panic!("the conversation opens");
+    };
+    assert_eq!(kept.session, old.session);
+    assert_eq!(kept.task, old.task);
+    let seat = again.state.lock().expect("lock").sessions[&old.session]
+        .helper
+        .clone();
+    assert_eq!(seat, Some(talk.clone()));
+    assert_eq!(
+        log.sessions().await.expect("listed").len(),
+        1,
+        "no second conversation"
+    );
+    // Asked once more with the session live, it is still the one.
+    let IntentsReply::SessionOpened(live) = ask(&again, &companion(), open(&talk)).await else {
+        panic!("the conversation opens");
+    };
+    assert_eq!(live.session, old.session);
+}

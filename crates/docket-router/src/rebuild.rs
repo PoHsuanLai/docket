@@ -22,7 +22,7 @@ use docket_session::{
     ResumeFault, ResumePlan, SessionEntry, Standing, Taint as Written, TaintCause, TaintNote,
 };
 use porter_core::{AppName, Count};
-use prov::{Actor, AgentRef, Label, SessionId, UnixSeconds};
+use prov::{Actor, AgentRef, AgentRole, Label, SessionId, UnixSeconds};
 
 /// The app a session is attributed to when its log never said who opened it (a record from
 /// before the durable log).
@@ -168,6 +168,16 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         now,
     );
     record.kind = kind;
+    if let Some(seat) = &plan.seat {
+        record.actor = Actor::Companion {
+            session: id.clone(),
+            role: AgentRole::Helper {
+                helper: seat.helper.clone(),
+                task: opening.task.clone(),
+            },
+        };
+        record.helper = Some(seat.clone());
+    }
     record.label = match kind {
         SessionKind::Watch(_) => opening.label.clone(),
         SessionKind::Agent => None,
@@ -280,6 +290,7 @@ mod tests {
                 label: None,
                 rewind: Default::default(),
             },
+            seat: None,
             standing,
             taint: Written::Clean,
             policy: None,

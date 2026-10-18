@@ -14,6 +14,7 @@ use docket_core::{
     SessionOpened, TaskLedger, TurnId, TurnIn, TurnSource, UserTurn, WireRefusal, close,
     intersection,
 };
+use docket_core::helper::SeatPlace;
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use porter_core::AppName;
 use prov::{Actor, AgentRef, AgentRole, ReportStatus, SessionId, TaskId};
@@ -213,6 +214,15 @@ impl<S: Seams> Router<S> {
             label: open.external.as_ref().and_then(|e| e.label.clone()),
             rewind: open.external.as_ref().map_or(Rewind::Docket, |e| e.rewind),
         }));
+        // A conversation's seat is kept in the log, so a restored session is still the helper's.
+        // A job's is not: it is the companion's to give again when the job is asked again.
+        if let Some(seat) = open
+            .helper
+            .as_ref()
+            .filter(|seat| seat.place == SeatPlace::Conversation)
+        {
+            record.wal.note(SessionEntry::Seat(seat.clone()));
+        }
         if let Some(policy) = &record.policy {
             record.wal.note(SessionEntry::Policy(policy.clone()));
         }

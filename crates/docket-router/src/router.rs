@@ -174,7 +174,10 @@ impl<S: Seams> Router<S> {
                 };
                 self.session_context(&session, app).await
             }
-            R::SessionOpen(open) => self.session_open(caller, role, open),
+            R::SessionOpen(open) => match self.existing_conversation(role, &open).await {
+                Some(kept) => kept,
+                None => self.session_open(caller, role, open),
+            },
             R::SessionTurn { session, turn } => {
                 match self.record_turn(caller, role, &session, turn) {
                     Ok(recorded) => {

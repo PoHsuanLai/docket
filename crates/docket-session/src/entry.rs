@@ -10,6 +10,7 @@ use docket_core::{
     ActionRef, CallId, CheckpointNote, Covers, Handle, HandleShape, Rewind, SkillId, SkillVersion,
     StartedFrom, StepLine, SummaryText, TaskPolicy, UserTurn,
 };
+use docket_core::helper::HelperSeat;
 use docket_core::{BreakerTrip, Ledger};
 use porter_core::{AppName, Tier};
 use prov::{AgentRef, Effect, Label, SessionId, Source, SpaceId, TaskId};
@@ -243,6 +244,9 @@ pub struct UnknownEntry {
 pub enum SessionEntry {
     /// The session opened. First, once.
     Opened(Opening),
+    /// The seat a helper has in the router, written right after the opening of a session that has
+    /// one, so a restored session keeps it. Absent from every older log: no seat.
+    Seat(HelperSeat),
     /// The person said something, verbatim and trusted.
     Turn(UserTurn),
     /// The checked task policy as written; resume never derives it again.
@@ -277,6 +281,7 @@ impl SessionEntry {
     pub fn slug(&self) -> &'static str {
         match self {
             SessionEntry::Opened(_) => "opened",
+            SessionEntry::Seat(_) => "seat",
             SessionEntry::Turn(_) => "turn",
             SessionEntry::Policy(_) => "policy",
             SessionEntry::Call(_) => "call",
