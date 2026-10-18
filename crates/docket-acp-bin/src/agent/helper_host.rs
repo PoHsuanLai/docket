@@ -153,14 +153,21 @@ impl HelperHost {
     }
 
     /// The reply to `ask` when the host could not start: the setting is off, the list is missing
-    /// or there is no sandbox. A call that only ends something has nothing to end.
+    /// or there is no sandbox (each told apart). A call that only ends something has nothing to end.
     pub fn unavailable(ask: &AppsAsk, fault: AgentFault) -> AppsReply {
-        let why = match fault {
+        // The person is told one sentence; the cause is kept here, where it would be dropped.
+        eprintln!("docket-agent: the helpers' agents cannot be hosted: {fault}");
+        Self::failed(ask, Self::told(&fault))
+    }
+
+    /// What the person is told of a host that could not start.
+    fn told(fault: &AgentFault) -> JobFault {
+        match fault {
             AgentFault::Permit(_) => JobFault::TurnedOff,
             AgentFault::NoAgentsFile | AgentFault::Agents(_) => JobFault::NotSetUp,
+            AgentFault::NoSandbox(_) => JobFault::NoSandbox,
             _ => JobFault::Crashed,
-        };
-        Self::failed(ask, why)
+        }
     }
 
     fn failed(ask: &AppsAsk, why: JobFault) -> AppsReply {
@@ -172,5 +179,19 @@ impl HelperHost {
             AppsAsk::SignOut { .. } => AppsReply::SignOut(SignOutOutcome::Failed),
             AppsAsk::Forget { .. } => AppsReply::Forget,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_sandbox_is_told_as_its_own_sentence() {
+        let none = AgentFault::NoSandbox(bulkhead::CannotSandbox::NotInstalled);
+        let why = HelperHost::told(&none);
+        assert_eq!(why, JobFault::NoSandbox);
+        assert!(!why.plain().contains("crash") && !why.plain().contains("bubblewrap"));
+        assert_ne!(why.plain(), JobFault::Crashed.plain());
     }
 }

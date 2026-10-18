@@ -15,8 +15,8 @@ pub enum AgentFault {
     #[error("{0}")]
     Agents(String),
     /// No sandbox: no agent is started unconfined.
-    #[error("no sandbox (bubblewrap) here: no agent is started unconfined")]
-    NoSandbox,
+    #[error("no sandbox (bubblewrap) here ({0}): no agent is started unconfined")]
+    NoSandbox(bulkhead::CannotSandbox),
     /// The network forwarder is not beside this program.
     #[error("cannot find docket-net-forward beside this program")]
     NoForwarder,

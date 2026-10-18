@@ -72,7 +72,7 @@ pub fn refusal_of_fault(fault: &AgentFault) -> HandRefusal {
             message: "The list of coding agents can't be read. Open Settings to check it."
                 .to_owned(),
         },
-        AgentFault::NoSandbox => HandRefusal::Failed {
+        AgentFault::NoSandbox(_) => HandRefusal::Failed {
             message: "This computer has no sandbox, so no coding agent is started.".to_owned(),
         },
         _ => HandRefusal::Failed {
@@ -518,14 +518,45 @@ impl Object {
     }
 }
 
+/// What only the acceptance harness chooses, as docket-acp's `HarnessSeams` does: the `/proc`
+/// the callers are read from (a fixture tree) and the system's callers file, named by
+/// `DOCKET_AGENT_PROC_ROOT` and `DOCKET_AGENT_SYSTEM_CALLERS`. They are read only by a build with
+/// the feature `fixture-callers`; the packaged program has neither the code nor the variables,
+/// and always reads the system's `/proc` and `/etc/quire`.
+#[derive(Debug, Default)]
+struct Seams {
+    proc_root: Option<PathBuf>,
+    system: Option<PathBuf>,
+}
+
+impl Seams {
+    #[cfg(feature = "fixture-callers")]
+    fn from_env(env: &impl Fn(&str) -> Option<String>) -> Self {
+        Self {
+            proc_root: env("DOCKET_AGENT_PROC_ROOT").map(PathBuf::from),
+            system: env("DOCKET_AGENT_SYSTEM_CALLERS").map(PathBuf::from),
+        }
+    }
+
+    #[cfg(not(feature = "fixture-callers"))]
+    fn from_env(_env: &impl Fn(&str) -> Option<String>) -> Self {
+        Self::default()
+    }
+}
+
 /// Serves `AgentHost1` under the host's name until it has been quiet for [`IDLE`].
 pub async fn run() -> Result<(), AgentFault> {
     let bus_fault = |e: zbus::Error| AgentFault::Bus(e.to_string());
     let bus = docket_dbus::session_connection(&env)
         .await
         .map_err(bus_fault)?;
-    let table = crate::callers::read(&env).map_err(|e| AgentFault::Callers(e.to_string()))?;
-    let callers = Arc::new(Identity::on_system(bus.clone(), table));
+    let Seams { proc_root, system } = Seams::from_env(&env);
+    let table = match &system {
+        Some(system) => crate::callers::read_at(system, &env),
+        None => crate::callers::read(&env),
+    }
+    .map_err(|e| AgentFault::Callers(e.to_string()))?;
+    let callers = Arc::new(Identity::on(bus.clone(), table, proc_root.as_deref()));
     let service = Arc::new(Service::new(bus.clone()));
     // Served before the name is claimed, so the first call finds it.
     bus.object_server()
@@ -577,7 +608,8 @@ mod tests {
         for (fault, expected) in rows {
             assert_eq!(refusal_of_fault(&fault), expected, "{fault:?}");
         }
-        let said = refusal_of_fault(&AgentFault::NoSandbox).sentence();
+        let none = AgentFault::NoSandbox(bulkhead::CannotSandbox::NotInstalled);
+        let said = refusal_of_fault(&none).sentence();
         assert!(!said.contains("bubblewrap"), "{said}");
     }
 

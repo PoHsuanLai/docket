@@ -268,4 +268,5 @@ fn the_calls_on_the_host_of_the_agent_apps_cross_a_bus_as_they_are() {
     }
     // A fault the host names for a missing app is a sentence the person can read.
     assert!(!JobFault::NotInstalled.plain().is_empty() && !JobFault::NotSetUp.plain().is_empty());
+    assert!(!JobFault::NoSandbox.plain().is_empty());
 }

@@ -139,6 +139,8 @@ pub enum JobFault {
     NotSetUp,
     /// Coding agents are turned off in Settings.
     TurnedOff,
+    /// This computer cannot keep the app in its own space, so the app was not started.
+    NoSandbox,
 }
 
 impl JobFault {
@@ -152,6 +154,9 @@ impl JobFault {
             JobFault::NotInstalled => "the app it runs is not installed on this computer",
             JobFault::NotSetUp => "the app it runs is not in the list of coding agents in Settings",
             JobFault::TurnedOff => "coding agents are turned off in Settings",
+            JobFault::NoSandbox => {
+                "this computer can't keep the app in its own space, so it was not started"
+            }
         }
     }
 }

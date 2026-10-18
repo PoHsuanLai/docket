@@ -27,6 +27,10 @@ path = "src/bin/docket-net-forward.rs"
 name = "docket-net-enter"
 path = "src/bin/docket-net-enter.rs"
 
+# Harness only: lets `docket-agent --serve` read its callers from a fixture /proc.
+[features]
+fixture-callers = ["docket-dbus/fixture-callers"]
+
 [dependencies]
 companion-client = { workspace = true }
 companion-wire = { workspace = true }

@@ -80,8 +80,9 @@ pub async fn build(
 ) -> Result<Wiring<DbusAccounts>, AgentFault> {
     let Allowed { permit, file } = allowed;
     let path = env("PATH").unwrap_or_default();
-    let Detected::Bwrap(bwrap) = Detected::probe(&path) else {
-        return Err(AgentFault::NoSandbox);
+    let bwrap = match probe(&path) {
+        Detected::Bwrap(bwrap) => bwrap,
+        Detected::Missing(why) => return Err(AgentFault::NoSandbox(why)),
     };
     let forwarder = sibling("docket-net-forward").ok_or(AgentFault::NoForwarder)?;
     // Without the exec stage the agent is held by the sandbox alone: say so, never hide it.
@@ -152,4 +153,20 @@ pub async fn build(
         callers,
         agents: Some(agents_dir()),
     })
+}
+
+/// The sandbox here. A harness seam, as docket-acp's `HarnessSeams` is: a build with the feature
+/// `fixture-callers` (the acceptance harness's) asked for `DOCKET_AGENT_RLIMIT` limits the agent
+/// with per-process limits instead of a scope, for a jail with no user manager. The packaged
+/// program has no such code: it always probes for the scope's limits.
+fn probe(path: &str) -> Detected {
+    #[cfg(feature = "fixture-callers")]
+    if env("DOCKET_AGENT_RLIMIT").is_some() {
+        let hardening = bulkhead::Hardening {
+            limits: bulkhead::LimitPolicy::Rlimit(bulkhead::Limits::default()),
+            ..bulkhead::Hardening::default()
+        };
+        return Detected::probe_with(path, &hardening, &bulkhead::UserSession::from_env());
+    }
+    Detected::probe(path)
 }

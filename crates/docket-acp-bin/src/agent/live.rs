@@ -91,8 +91,14 @@ impl<A: Accounts + 'static> Live<A> {
             callers,
             agents,
         } = wiring;
-        let Detected::Bwrap(found) = &bwrap else {
-            return Err("no sandbox (bubblewrap) here: no agent is started unconfined".into());
+        let found = match &bwrap {
+            Detected::Bwrap(found) => found,
+            Detected::Missing(why) => {
+                return Err(format!(
+                    "no sandbox (bubblewrap) here ({why}): no agent is started unconfined"
+                )
+                .into());
+            }
         };
         let sandbox = found.clone();
         let performer = Performer::new(OsFiles, bwrap)
