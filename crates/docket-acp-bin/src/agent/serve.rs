@@ -14,11 +14,14 @@
 //!
 //! Only companiond may call: the callers table (`acp-callers.toml`) names its unit.
 
+use super::calls::{Calls, NoSuchTurn};
 use super::fault::AgentFault;
+use super::helper_host::HelperHost;
 use super::host::{HostError, Hosted, host_typed};
 use super::wire::{self, Tools};
 use super::{data_dir, env};
 use docket_acp::client::{Fallback, Workdir};
+use docket_core::helper::{AppsAsk, AppsReply};
 use docket_core::{AbsPath, HandOver, HandRefusal, HandReply, Handed, Reveal, UserTurn};
 use docket_dbus::callers::{COMPANIOND, Identity, require};
 use docket_dbus::{AGENT_HOST_BUS, AGENT_HOST_PATH, BusConnection};
@@ -27,12 +30,10 @@ use docket_session::{
     BackendEvent, BackendFault, EndCause, HostFault, ProgramName, SessionHost, TurnEnd,
 };
 use prov::SpaceId;
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
-use tokio::sync::{Mutex, Notify, watch};
+use tokio::sync::{Mutex, Notify};
 use zbus::fdo;
 use zbus::message::Header;
 
@@ -42,23 +43,16 @@ pub const IDLE: Duration = Duration::from_secs(10 * 60);
 /// How often the host looks at the clock for that.
 const WATCH: Duration = Duration::from_secs(20);
 
-/// How long one `Wait` holds a call before telling the caller to ask again: well under what the
-/// bus lets a call wait for its reply.
-const WAIT: Duration = Duration::from_secs(60);
-
-/// The turns started and not yet collected; the oldest are forgotten beyond this.
-const KEPT: usize = 8;
-
-/// The turn asked about was never started, or was collected already.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-#[error("no such turn")]
-pub struct NoSuchTurn;
-
 /// The folder an agent works in when the assistant hands it a turn: its own, under docket's data
 /// directory, never the person's home or a project. `None` for a name that is not a plain slug,
 /// which cannot be the name of a folder.
 pub fn workspace_name(program: &ProgramName) -> Option<&str> {
-    let name = program.as_str();
+    plain_name(program.as_str())
+}
+
+/// `name` when it can be the name of a folder: letters, digits, `-`, `_` and `.`, not starting
+/// with a dot.
+pub fn plain_name(name: &str) -> Option<&str> {
     let plain = name
         .bytes()
         .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'));
@@ -152,16 +146,20 @@ enum State {
     Fresh,
     /// One agent's session is open.
     Active(Box<Active>),
+    /// The helpers' agents hold the host (`helpers` has them); the assistant's turn waits.
+    Helpers,
 }
 
 /// The service: who may call it, the agent's session, and when it was last used.
 pub struct Service {
     bus: BusConnection,
     state: Mutex<State>,
+    helpers: Mutex<Option<Arc<HelperHost>>>,
+    caller: std::sync::Mutex<Option<String>>,
     last: std::sync::Mutex<Instant>,
     done: Notify,
-    turns: std::sync::Mutex<BTreeMap<u64, watch::Receiver<Option<HandReply>>>>,
-    next: AtomicU64,
+    turns: Calls<HandReply>,
+    apps: Calls<AppsReply>,
 }
 
 impl std::fmt::Debug for Service {
@@ -176,57 +174,80 @@ impl Service {
         Self {
             bus,
             state: Mutex::new(State::Fresh),
+            helpers: Mutex::new(None),
+            caller: std::sync::Mutex::new(None),
             last: std::sync::Mutex::new(Instant::now()),
             done: Notify::new(),
-            turns: std::sync::Mutex::new(BTreeMap::new()),
-            next: AtomicU64::new(0),
+            turns: Calls::default(),
+            apps: Calls::default(),
         }
     }
 
     /// Starts handing `ask` over and answers the turn's id; [`Self::wait`] collects the reply.
     pub fn begin(self: &Arc<Self>, ask: HandOver) -> String {
-        let id = self.next.fetch_add(1, Ordering::Relaxed) + 1;
-        let (done, reply) = watch::channel(None);
-        if let Ok(mut turns) = self.turns.lock() {
-            turns.insert(id, reply);
-            while turns.len() > KEPT {
-                turns.pop_first();
-            }
-        }
         let service = Arc::clone(self);
-        tokio::spawn(async move {
-            let reply = service.hand_over(ask).await;
-            // The caller stopped asking after it; nothing to tell.
-            let _ = done.send(Some(reply));
-        });
-        id.to_string()
+        self.turns
+            .begin(async move { service.hand_over(ask).await })
     }
 
-    /// The reply of the turn `id` once it has ended, waiting up to [`WAIT`] for it: `None` while
+    /// The reply of the turn `id` once it has ended, waiting up to a minute for it: `None` while
     /// the agent is still working. A turn's reply is given once.
     pub async fn wait(&self, id: &str) -> Result<Option<HandReply>, NoSuchTurn> {
-        let id: u64 = id.parse().map_err(|_| NoSuchTurn)?;
-        let mut reply = self
-            .turns
-            .lock()
-            .ok()
-            .and_then(|turns| turns.get(&id).cloned())
-            .ok_or(NoSuchTurn)?;
-        let ended = tokio::time::timeout(WAIT, reply.wait_for(Option::is_some)).await;
-        let collected = match ended {
-            Ok(Ok(value)) => value.clone(),
-            // The turn's task ended without a reply: it stopped answering.
-            Ok(Err(_)) => Some(HandReply::Refused(HandRefusal::Failed {
-                message: "The coding agent stopped answering.".to_owned(),
-            })),
-            Err(_) => None,
+        // The turn's task ended without a reply: the agent stopped answering.
+        let lost = HandReply::Refused(HandRefusal::Failed {
+            message: "The coding agent stopped answering.".to_owned(),
+        });
+        self.turns.wait(id, lost).await
+    }
+
+    /// Starts one call on the helpers' agents and answers its id; [`Self::apps_wait`] collects
+    /// the reply.
+    pub fn apps_begin(self: &Arc<Self>, ask: AppsAsk) -> String {
+        let service = Arc::clone(self);
+        self.apps.begin(async move { service.apps(ask).await })
+    }
+
+    /// The reply of the call `id` once it has ended: `None` while it is still working.
+    pub async fn apps_wait(&self, id: &str) -> Result<Option<AppsReply>, NoSuchTurn> {
+        self.apps.wait(id, AppsReply::Forget).await
+    }
+
+    /// The call on the helpers' agents, if the host is free to hold them: while the assistant's
+    /// coding agent holds it, a helper's job fails as busy and the agent is left as it was.
+    async fn apps(&self, ask: AppsAsk) -> AppsReply {
+        self.touch();
+        let host = {
+            let mut state = self.state.lock().await;
+            if matches!(*state, State::Active(_)) {
+                None
+            } else {
+                let made = self.helper_host().await;
+                // A host that could not start holds nothing: the assistant's turn may still.
+                *state = if made.is_ok() {
+                    State::Helpers
+                } else {
+                    State::Fresh
+                };
+                Some(made)
+            }
         };
-        if collected.is_some()
-            && let Ok(mut turns) = self.turns.lock()
-        {
-            turns.remove(&id);
+        let reply = match host {
+            Some(Ok(host)) => host.ask(ask).await,
+            Some(Err(fault)) => HelperHost::unavailable(&ask, fault),
+            None => HelperHost::busy_with(&ask),
+        };
+        self.touch();
+        reply
+    }
+
+    async fn helper_host(&self) -> Result<Arc<HelperHost>, AgentFault> {
+        let mut held = self.helpers.lock().await;
+        if let Some(host) = &*held {
+            return Ok(Arc::clone(host));
         }
-        Ok(collected)
+        let host = Arc::new(HelperHost::start(self.bus.clone()).await?);
+        *held = Some(Arc::clone(&host));
+        Ok(host)
     }
 
     fn touch(&self) {
@@ -259,6 +280,12 @@ impl Service {
             space,
             turn,
         } = ask;
+        if matches!(*state, State::Helpers) {
+            return Err(HandRefusal::Failed {
+                message: "A helper is using the coding agent right now. Try again in a moment."
+                    .to_owned(),
+            });
+        }
         let switching = matches!(&*state, State::Active(held) if held.program != program);
         if switching {
             // The pseudo-app is served for one agent at a time: this one ends, and the bus
@@ -327,7 +354,13 @@ impl Service {
             tokio::select! {
                 () = self.done.notified() => return,
                 () = tokio::time::sleep(WATCH) => {
-                    if self.quiet_for() > IDLE && self.state.try_lock().is_ok() {
+                    if self.quiet_for() > IDLE
+                        && self.state.try_lock().is_ok()
+                        && !self.helpers_busy()
+                    {
+                        return;
+                    }
+                    if self.caller_gone().await {
                         return;
                     }
                 }
@@ -339,17 +372,52 @@ impl Service {
     /// left with a host that is gone: at most ten seconds.
     pub async fn drain(&self) {
         for _ in 0..20 {
-            if self.turns.lock().map_or(true, |turns| turns.is_empty()) {
+            if self.turns.is_empty() && self.apps.is_empty() {
                 return;
             }
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
     }
 
-    /// Closes the session still open, on the way out.
+    /// Closes the session still open and ends the helpers' agents, on the way out.
     pub async fn close(&self) {
-        let mut state = self.state.lock().await;
-        self.finish(&mut state).await;
+        {
+            let mut state = self.state.lock().await;
+            self.finish(&mut state).await;
+        }
+        let held = self.helpers.lock().await.take();
+        if let Some(helpers) = held {
+            helpers.shutdown().await;
+        }
+    }
+
+    /// Whether a call on the helpers' agents is running, or the host of them is being made.
+    fn helpers_busy(&self) -> bool {
+        self.helpers
+            .try_lock()
+            .map_or(true, |held| held.as_ref().is_some_and(|helpers| helpers.busy()))
+    }
+
+    /// Notes who asked for the helpers' agents, to end them when that caller is gone.
+    pub fn remember_caller(&self, sender: Option<&str>) {
+        if let (Some(sender), Ok(mut caller)) = (sender, self.caller.lock()) {
+            *caller = Some(sender.to_owned());
+        }
+    }
+
+    /// Whether the daemon that asked for the helpers' agents has left the bus: no agent process
+    /// outlives it.
+    async fn caller_gone(&self) -> bool {
+        let Some(name) = self.caller.lock().ok().and_then(|caller| caller.clone()) else {
+            return false;
+        };
+        let (Ok(bus), Ok(name)) = (
+            fdo::DBusProxy::new(&self.bus).await,
+            zbus::names::BusName::try_from(name),
+        ) else {
+            return false;
+        };
+        matches!(bus.name_has_owner(name).await, Ok(false))
     }
 }
 
@@ -386,7 +454,13 @@ impl Active {
 fn folder(program: &ProgramName) -> Result<String, String> {
     let name = workspace_name(program)
         .ok_or_else(|| "That coding agent can't be used by the assistant.".to_owned())?;
-    let dir: PathBuf = data_dir().join("assistant").join(name);
+    folder_under("assistant", name)
+}
+
+/// The folder `name` under `group` in docket's data directory, made if it is not there, and
+/// never the home folder or a place of secrets.
+pub fn folder_under(group: &str, name: &str) -> Result<String, String> {
+    let dir: PathBuf = data_dir().join(group).join(name);
     std::fs::create_dir_all(&dir).map_err(|_| "The agent's folder can't be made.".to_owned())?;
     let real =
         std::fs::canonicalize(&dir).map_err(|_| "The agent's folder can't be used.".to_owned())?;
@@ -425,6 +499,35 @@ impl Object {
         let sender = header.sender().map(|s| s.as_str());
         require(&*self.callers, sender, &[COMPANIOND]).await?;
         match self.service.wait(&turn).await {
+            Ok(Some(reply)) => {
+                serde_json::to_string(&reply).map_err(|e| fdo::Error::Failed(e.to_string()))
+            }
+            Ok(None) => Ok(String::new()),
+            Err(no_such) => Err(fdo::Error::InvalidArgs(no_such.to_string())),
+        }
+    }
+
+    async fn apps_begin(
+        &self,
+        ask: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        let sender = header.sender().map(|s| s.as_str());
+        require(&*self.callers, sender, &[COMPANIOND]).await?;
+        let ask: AppsAsk =
+            serde_json::from_str(&ask).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
+        self.service.remember_caller(sender);
+        Ok(self.service.apps_begin(ask))
+    }
+
+    async fn apps_wait(
+        &self,
+        call: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        let sender = header.sender().map(|s| s.as_str());
+        require(&*self.callers, sender, &[COMPANIOND]).await?;
+        match self.service.apps_wait(&call).await {
             Ok(Some(reply)) => {
                 serde_json::to_string(&reply).map_err(|e| fdo::Error::Failed(e.to_string()))
             }

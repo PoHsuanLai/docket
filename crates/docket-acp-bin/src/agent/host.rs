@@ -4,31 +4,24 @@
 //! accountd behind it; the live-eval harness hosts with `LoginOnly` on its private bus. Nothing
 //! here reads the environment or a file: everything is handed in.
 
-use crate::Wall;
-use crate::agent::provider::{PerformerProvider, Quiet};
+use crate::agent::live::Live;
 use crate::agent::remember::remember;
 use bulkhead::{Detected, NetworkMode};
-use docket_acp::client::{
-    AcpBackend, AgentHost, Fallback, IntentsCourt, OsFiles, Parts, Performer, Seams, ToolsOffer,
-};
+use docket_acp::client::{AgentHost, Fallback, IntentsCourt, OsFiles, Seams, ToolsOffer};
 use docket_agents::AgentsDir;
-use docket_client::{DbusTransport, serve_on_with};
-use docket_core::{ACP_AGENT_APP, AbsPath, ValidManifest};
+use docket_client::DbusTransport;
+use docket_core::AbsPath;
+use docket_dbus::BusConnection;
 use docket_dbus::callers::Identity;
-use docket_dbus::{BusConnection, CONFIRM_PATH};
 use docket_inapp::EditorDesk;
-use docket_launch::{
-    Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Registry,
-};
+use docket_launch::{Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Registry};
 use docket_session::{
     BackendFault, BackendKind, HostFault, Opening, ProgramName, SessionHost, Workspace,
 };
-use prov::{AgentRef, SessionId, SpaceId, TaskId};
+use prov::{AgentRef, SpaceId, TaskId};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::sync::Arc;
-
-const MANIFEST: &str = include_str!("../../../../manifests/org.quire.AcpAgent.toml");
 
 /// The seams of a live host over the account seam `A`.
 #[derive(Debug)]
@@ -141,89 +134,24 @@ pub async fn host_typed<A: Accounts + 'static>(
     cwd: &str,
     space: SpaceId,
 ) -> Result<Hosted<A>, HostError> {
-    let Wiring {
-        bus,
-        accounts,
-        file,
-        permit,
-        bwrap,
-        forwarder,
-        enter,
-        run_dir,
-        registry,
-        tools,
-        fallback,
-        desk,
-        callers,
-        agents,
-    } = wiring;
-    let Detected::Bwrap(found) = &bwrap else {
-        return Err("no sandbox (bubblewrap) here: no agent is started unconfined".into());
-    };
-    let sandbox = found.clone();
     // The agent process's own network counts for the commands it runs (R12). A program the file
-    // does not list cannot be started at all; until then assume the widest.
-    let label = file.get(&program).and_then(|entry| entry.label.clone());
-    // Who keeps the agent's file history is the person's choice in `agents.toml`; a program the
-    // file does not list gets docket's own (it over-saves rather than under-saves).
-    let rewind = file
-        .get(&program)
-        .map(|entry| entry.rewind)
-        .unwrap_or_default();
-    let installed_as = file.get(&program).and_then(|entry| entry.registry.clone());
-    let agent_network = file
-        .get(&program)
-        .map_or(NetworkMode::Host, |entry| entry.network);
-    let performer = Performer::new(OsFiles, bwrap)
-        .with_agent_network(agent_network)
-        .with_command_deadline(docket_acp::CommandDeadline::DEFAULT);
-    let manifest: ValidManifest =
-        docket_router::parse(MANIFEST).map_err(|e| format!("the agent manifest: {e}"))?;
-    let quiet = Quiet(docket_core::acp_agent_app().ok_or("no app name for the agent host")?);
-    if fallback == Fallback::Terminal {
-        // Served before the name is claimed, so the first sheet finds it.
-        bus.object_server()
-            .at(
-                CONFIRM_PATH,
-                crate::confirm::ConfirmObject::new(desk.clone(), Wall, callers.clone()),
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-    // The pseudo-app's provider answers the same process `Confirm1` does: intentd's unit.
-    serve_on_with(
-        &bus,
-        PerformerProvider::new(manifest, performer.clone()),
-        quiet.clone(),
-        quiet,
-        callers,
-    )
-    .await
-    .map_err(|e| format!("{ACP_AGENT_APP}: {e}"))?;
-
-    let spawn = AgentSpawn::new(
-        permit,
-        file,
-        accounts,
-        BwrapProcs::new(sandbox, run_dir.clone()),
-        run_dir,
-        forwarder,
-        registry,
-    );
-    let spawn = match enter {
-        Some(enter) => spawn.with_landlock(enter),
-        None => spawn,
+    // does not list cannot be started at all; until then assume the widest. Who keeps the agent's
+    // file history is the person's choice in `agents.toml`; a program the file does not list gets
+    // docket's own (it over-saves rather than under-saves).
+    let (label, rewind, installed_as, agent_network) = {
+        let entry = wiring.file.get(&program);
+        (
+            entry.and_then(|entry| entry.label.clone()),
+            entry.map(|entry| entry.rewind).unwrap_or_default(),
+            entry.and_then(|entry| entry.registry.clone()),
+            entry.map_or(NetworkMode::Host, |entry| entry.network),
+        )
     };
-    let court = IntentsCourt::over(DbusTransport::new(bus));
-    let backend = AcpBackend::<Hosting<A>>::new(Parts {
-        program: program.clone(),
-        session: SessionId::parse("s-0").map_err(|e| e.to_string())?,
-        spawn,
-        performer,
-        court: court.clone(),
-        tools,
-    });
-    let mut host = AgentHost::new(backend, court, desk, fallback).with_rewind(rewind);
+    let (fallback, agents) = (wiring.fallback, wiring.agents.clone());
+    let live = Live::serve(wiring, agent_network).await?;
+    let backend = live.backend(&program);
+    let mut host = AgentHost::new(backend, live.court.clone(), live.desk.clone(), fallback)
+        .with_rewind(rewind);
     let opened = host
         .open(Opening {
             task: TaskId::parse("agent-task-1").map_err(|e| e.to_string())?,

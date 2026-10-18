@@ -1,0 +1,181 @@
+//! What every session of a live host shares: the performer the router's `Perform` for the
+//! pseudo-app reaches, the pseudo-app served on the bus under `org.quire.AcpAgent`, and the parts
+//! a spawner is made of. One agent's session (`host_typed`) and the sessions of many helpers'
+//! agents (`helper_host`) both start from here, so both hold an agent to the same rules.
+
+use crate::Wall;
+use crate::agent::host::{Hosting, Wiring};
+use crate::agent::provider::{PerformerProvider, Quiet};
+use bulkhead::{BwrapSandbox, Detected, NetworkMode};
+use docket_acp::client::{
+    AcpBackend, Fallback, IntentsCourt, OsFiles, Parts, Performer, ToolsOffer,
+};
+use docket_client::{DbusTransport, serve_on_with};
+use docket_core::{ACP_AGENT_APP, AbsPath, ValidManifest};
+use docket_dbus::CONFIRM_PATH;
+use docket_inapp::EditorDesk;
+use docket_launch::{
+    Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Entry, Registry,
+};
+use docket_session::ProgramName;
+use prov::{HelperId, SessionId, TaskId};
+use std::path::PathBuf;
+use std::sync::Arc;
+
+const MANIFEST: &str = include_str!("../../../../manifests/org.quire.AcpAgent.toml");
+
+/// The pseudo-app served, and what a backend for any program is made of.
+#[allow(missing_debug_implementations)]
+pub struct Live<A: Accounts + 'static> {
+    file: Arc<AgentsFile>,
+    permit: AgentsPermit,
+    accounts: Arc<A>,
+    sandbox: BwrapSandbox,
+    forwarder: AbsPath,
+    enter: Option<AbsPath>,
+    run_dir: PathBuf,
+    registry: Registry<ChildProc>,
+    tools: Option<ToolsOffer>,
+    performer: Performer<OsFiles, Detected>,
+    /// The router.
+    pub court: IntentsCourt<DbusTransport>,
+    /// The desk the sheets routed to the host land on.
+    pub desk: EditorDesk,
+    placeholder: Placeholder,
+}
+
+/// Names that are made once, so that what needs one and has no better is never without: the
+/// backend's session before the router gives the real one, and a helper's task and program when
+/// its card has none that parses (a caller checks a card before it uses it).
+struct Placeholder {
+    session: SessionId,
+    task: TaskId,
+    program: ProgramName,
+}
+
+impl Placeholder {
+    fn new() -> Result<Self, String> {
+        Ok(Self {
+            session: SessionId::parse("s-0").map_err(|e| e.to_string())?,
+            task: TaskId::parse("helper-task").map_err(|e| e.to_string())?,
+            program: ProgramName::parse("agent").map_err(|e| e.to_string())?,
+        })
+    }
+}
+
+impl<A: Accounts + 'static> Live<A> {
+    /// Serves the pseudo-app on the bus. The performer counts the commands it runs against
+    /// `agent_network`, the network of the agent process.
+    pub async fn serve(wiring: Wiring<A>, agent_network: NetworkMode) -> Result<Self, String> {
+        let Wiring {
+            bus,
+            accounts,
+            file,
+            permit,
+            bwrap,
+            forwarder,
+            enter,
+            run_dir,
+            registry,
+            tools,
+            fallback,
+            desk,
+            callers,
+            agents: _,
+        } = wiring;
+        let Detected::Bwrap(found) = &bwrap else {
+            return Err("no sandbox (bubblewrap) here: no agent is started unconfined".into());
+        };
+        let sandbox = found.clone();
+        let performer = Performer::new(OsFiles, bwrap)
+            .with_agent_network(agent_network)
+            .with_command_deadline(docket_acp::CommandDeadline::DEFAULT);
+        let manifest: ValidManifest =
+            docket_router::parse(MANIFEST).map_err(|e| format!("the agent manifest: {e}"))?;
+        let quiet = Quiet(docket_core::acp_agent_app().ok_or("no app name for the agent host")?);
+        if fallback == Fallback::Terminal {
+            // Served before the name is claimed, so the first sheet finds it.
+            bus.object_server()
+                .at(
+                    CONFIRM_PATH,
+                    crate::confirm::ConfirmObject::new(desk.clone(), Wall, callers.clone()),
+                )
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+        // The pseudo-app's provider answers the same process `Confirm1` does: intentd's unit.
+        serve_on_with(
+            &bus,
+            PerformerProvider::new(manifest, performer.clone()),
+            quiet.clone(),
+            quiet,
+            callers,
+        )
+        .await
+        .map_err(|e| format!("{ACP_AGENT_APP}: {e}"))?;
+        let court = IntentsCourt::over(DbusTransport::new(bus));
+        Ok(Self {
+            file,
+            permit,
+            accounts,
+            sandbox,
+            forwarder,
+            enter,
+            run_dir,
+            registry,
+            tools,
+            performer,
+            court,
+            desk,
+            placeholder: Placeholder::new()?,
+        })
+    }
+
+    /// The entry of `agents.toml` that runs `program`.
+    pub fn entry(&self, program: &ProgramName) -> Option<&Entry> {
+        self.file.get(program)
+    }
+
+    /// The task a helper's agent session runs as.
+    pub fn task_of(&self, helper: &HelperId) -> TaskId {
+        let slug: String = helper
+            .as_str()
+            .chars()
+            .map(|c| c.to_ascii_lowercase())
+            .filter(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-')
+            .collect();
+        TaskId::parse(&format!("helper-{slug}")).unwrap_or_else(|_| self.placeholder.task.clone())
+    }
+
+    /// `program`, or a stand-in when there is none (a native helper's card, which no caller
+    /// sends here).
+    pub fn program_or_stand_in(&self, program: Option<ProgramName>) -> ProgramName {
+        program.unwrap_or_else(|| self.placeholder.program.clone())
+    }
+
+    /// A new backend for `program`, its process not yet started: its own spawner, the performer
+    /// every session of this host shares.
+    pub fn backend(&self, program: &ProgramName) -> AcpBackend<Hosting<A>> {
+        let spawn = AgentSpawn::new(
+            self.permit,
+            Arc::clone(&self.file),
+            Arc::clone(&self.accounts),
+            BwrapProcs::new(self.sandbox.clone(), self.run_dir.clone()),
+            self.run_dir.clone(),
+            self.forwarder.clone(),
+            self.registry.clone(),
+        );
+        let spawn = match &self.enter {
+            Some(enter) => spawn.with_landlock(enter.clone()),
+            None => spawn,
+        };
+        AcpBackend::<Hosting<A>>::new(Parts {
+            program: program.clone(),
+            session: self.placeholder.session.clone(),
+            spawn,
+            performer: self.performer.clone(),
+            court: self.court.clone(),
+            tools: self.tools.clone(),
+        })
+    }
+}
