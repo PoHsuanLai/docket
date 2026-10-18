@@ -11,9 +11,9 @@ use crate::seams::{Now, Surface};
 use agent_loop::{AskedPerson, CompletionNote, LoopInput, LoopPhase, SideInput, attention_of};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
-    Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft, Outcome,
-    Reveal, RosterDetail, RosterFull, RosterLine, RosterState, SessionOpen, SessionOpened, TurnId,
-    TurnSource, TurnVia, Value,
+    Delivery, DraftPart, Handle, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft,
+    Outcome, Reveal, RosterDetail, RosterFull, RosterLine, RosterState, SessionOpen, SessionOpened,
+    TurnId, TurnSource, TurnVia, Value,
 };
 use porter_client::Transport as InferTransport;
 use porter_core::{AppName, Count};
@@ -248,7 +248,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         parent: &TaskId,
         started: &Outcome,
     ) -> Result<TaskId, ServeFault> {
-        let (task, session) = started_of(started).ok_or(ServeFault::Malformed)?;
+        let Started { task, session, .. } = started_of(started).ok_or(ServeFault::Malformed)?;
         let space = self
             .runtimes
             .get(parent)
@@ -276,17 +276,15 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         Ok(task)
     }
 
-    /// The answer of `companion.task.start` as the planner reads it: the new task's id, in the
-    /// app's own trusted words, without the session it runs in.
-    pub(crate) fn outcome_text(&self, worker: &TaskId, started: Outcome) -> Outcome {
+    /// The answer of `companion.task.start` as the planner reads it: the new task as a handle of
+    /// kind `companion.task`, in the app's own trusted words, without the session it runs in.
+    pub(crate) fn outcome_text(&self, started: Outcome) -> Outcome {
         let label = AppName::parse("org.quire.Companion")
             .map(app_label)
             .unwrap_or_else(|_| docket_planner::planner_label());
+        let value = started_of(&started).map(|s| Value::Handle(s.handle));
         Outcome {
-            value: Some(Labelled {
-                value: Value::Text(worker.as_str().to_owned()),
-                label,
-            }),
+            value: value.map(|value| Labelled { value, label }),
             ..started
         }
     }
@@ -323,8 +321,15 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     }
 }
 
-/// The task and the session the router answered `companion.task.start` with: a record of both.
-fn started_of(outcome: &Outcome) -> Option<(TaskId, prov::SessionId)> {
+/// What the router answered `companion.task.start` with: a record of the task, the session it
+/// runs in, and the handle the spawner's planner names the task by.
+struct Started {
+    task: TaskId,
+    session: prov::SessionId,
+    handle: Handle,
+}
+
+fn started_of(outcome: &Outcome) -> Option<Started> {
     let Some(Labelled {
         value: Value::Record(fields),
         ..
@@ -332,17 +337,22 @@ fn started_of(outcome: &Outcome) -> Option<(TaskId, prov::SessionId)> {
     else {
         return None;
     };
-    let text = |name: &str| {
+    let field = |name: &str| {
         fields
             .iter()
             .find(|(k, _)| k.as_str() == name)
-            .and_then(|(_, v)| match v {
-                Value::Text(t) => Some(t.as_str()),
-                _ => None,
-            })
+            .map(|(_, v)| v)
     };
-    Some((
-        TaskId::parse(text("task")?).ok()?,
-        prov::SessionId::parse(text("session")?).ok()?,
-    ))
+    let text = |name: &str| match field(name)? {
+        Value::Text(t) => Some(t.as_str()),
+        _ => None,
+    };
+    let Some(Value::Handle(handle)) = field("handle") else {
+        return None;
+    };
+    Some(Started {
+        task: TaskId::parse(text("task")?).ok()?,
+        session: prov::SessionId::parse(text("session")?).ok()?,
+        handle: *handle,
+    })
 }

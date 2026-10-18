@@ -19,9 +19,9 @@ use agent_loop::{
 };
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
-use docket_core::Stop;
 use docket_core::{
-    CallId, CallProgress, CallRefusal, CallRequest, ReaderAsk, StepEnd, WireRefusal,
+    BudgetKind, CallId, CallProgress, CallRefusal, CallRequest, ReaderAsk, StepEnd, Stop,
+    TASK_START, WireRefusal,
 };
 use docket_planner::PlanFault;
 use docket_session::CallOpen;
@@ -29,9 +29,10 @@ use porter_client::Transport as InferTransport;
 use prov::{Effect, TaskId};
 use std::collections::VecDeque;
 
-/// The task-starting action of the built-in provider; companiond carries it out itself: it runs
-/// the loops of the tasks it starts.
-const TASK_START: &str = "companion.task.start";
+/// How many tasks may stand above one that starts a task. The router lets only the assistant start
+/// tasks, so this is never reached in a run; it keeps a bug elsewhere from nesting worker runs
+/// until the stack is gone.
+pub const MOST_TASK_DEPTH: usize = 3;
 
 /// What a call to the router came to, as the loop is told.
 pub fn refusal_of(error: ClientError) -> CallRefusal {
@@ -511,20 +512,26 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         else {
             return Err(ServeFault::UnknownSession);
         };
-        let performed = match timed(
-            &self.clock,
-            self.waits.person,
-            self.intents.perform(call.clone(), Some(session), window),
-        )
-        .await
-        {
-            Ok(performed) => performed.unwrap_or_else(|error| Err(refusal_of(error))),
-            Err(_) => Err(CallRefusal::Timeout),
+        // A worker is run from inside the future of the task that started it, so tasks that start
+        // tasks nest without end unless the depth is bounded here, whatever the router allows.
+        let performed = if self.depth_of(task) >= MOST_TASK_DEPTH {
+            Err(CallRefusal::OverBudget(BudgetKind::Chain))
+        } else {
+            match timed(
+                &self.clock,
+                self.waits.person,
+                self.intents.perform(call.clone(), Some(session), window),
+            )
+            .await
+            {
+                Ok(performed) => performed.unwrap_or_else(|error| Err(refusal_of(error))),
+                Err(_) => Err(CallRefusal::Timeout),
+            }
         };
         let result = match performed {
             Err(refusal) => Err(refusal),
             Ok(started) => match self.adopt_worker(task, &started).await {
-                Ok(worker) => Ok(self.outcome_text(&worker, started)),
+                Ok(_) => Ok(self.outcome_text(started)),
                 Err(error) => Err(match error {
                     ServeFault::Router(error) => refusal_of(error),
                     _ => CallRefusal::Timeout,
@@ -532,6 +539,18 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             },
         };
         Ok(vec![self.ended(task, &call, Effect::Read, id, result)])
+    }
+
+    /// How many tasks stand above `task`: its parent, that one's parent, and so on. The walk
+    /// stops at [`MOST_TASK_DEPTH`], so a chain deeper than that, or a record whose parents loop,
+    /// ends the walk instead of the process.
+    pub fn depth_of(&self, task: &TaskId) -> usize {
+        std::iter::successors(Some(task), |t| {
+            self.runtimes.get(*t).and_then(|rt| rt.parent.as_ref())
+        })
+        .skip(1)
+        .take(MOST_TASK_DEPTH)
+        .count()
     }
 
     /// One read of the quarantined reader (`answer_read`), for the task.

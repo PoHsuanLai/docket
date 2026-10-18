@@ -58,7 +58,7 @@ pub use desk::{
     HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk, RoutineFor,
     SayFromPerson,
 };
-pub use drive::refusal_of;
+pub use drive::{MOST_TASK_DEPTH, refusal_of};
 pub use fault::ServeFault;
 pub use handoff::Handoff;
 pub use helpers::{

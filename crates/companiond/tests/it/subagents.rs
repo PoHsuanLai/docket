@@ -84,9 +84,20 @@ async fn a_worker_is_asked_in_a_message_runs_in_its_own_session_and_reports_back
         "{front_view}"
     );
     assert!(
-        front_view.contains("done \"Started a task\" value"),
-        "{front_view}"
+        front_view.contains("done \"Started a task\" value #")
+            && front_view.contains("companion.task"),
+        "the started task is a handle of kind companion.task: {front_view}"
     );
+    // A task does its own goal: the worker is not offered the action that starts one, so it
+    // cannot start its goal again, while the assistant is.
+    let offers_start = |n: usize| {
+        w.infer.asked()[n]
+            .tools
+            .iter()
+            .any(|t| t.name.as_str() == START)
+    };
+    assert!(offers_start(0), "the assistant starts tasks");
+    assert!(!offers_start(1), "a worker does not");
     let roster = w.companion.roster();
     let line = roster
         .entries
@@ -438,5 +449,42 @@ async fn a_request_in_a_message_is_still_gated_by_the_receivers_own_policy() {
         ),
         "the router asked the person (nobody answered) or refused, and the planner was told only that: {:?}",
         step.end
+    );
+}
+
+#[tokio::test]
+async fn the_depth_of_a_task_stops_counting_on_a_deep_chain_and_on_a_loop_of_parents() {
+    let mut w = world(vec![]);
+    let at = UnixSeconds(0);
+    let session = SessionId::parse("s-1").expect("session");
+    let add = |w: &mut World, id: &str, parent: Option<&str>| {
+        w.companion.runtimes.insert(
+            task(id),
+            docket_tasks::TaskRuntime::new(
+                session.clone(),
+                space("work"),
+                AgentRef::Companion,
+                parent.map(task),
+                at,
+            ),
+        );
+    };
+    // 200 tasks, each the child of the one before: the walk ends at the bound.
+    add(&mut w, "t-0", None);
+    for n in 1..200 {
+        add(&mut w, &format!("t-{n}"), Some(&format!("t-{}", n - 1)));
+    }
+    assert_eq!(w.companion.depth_of(&task("t-0")), 0);
+    assert_eq!(w.companion.depth_of(&task("t-2")), 2);
+    assert_eq!(
+        w.companion.depth_of(&task("t-199")),
+        docket_tasks::MOST_TASK_DEPTH
+    );
+    // Two tasks that name each other as parent: the walk ends at the bound too.
+    add(&mut w, "t-a", Some("t-b"));
+    add(&mut w, "t-b", Some("t-a"));
+    assert_eq!(
+        w.companion.depth_of(&task("t-a")),
+        docket_tasks::MOST_TASK_DEPTH
     );
 }

@@ -24,7 +24,7 @@ classes = ["app_own"]
 undo = "not_undoable"
 reach = "offered"
 latency = "quick"
-result = { kind = "value", v = { ty = { kind = "text", v = { max = 64, lines = "one" } }, trust = { kind = "app_authored" } } }
+result = { kind = "entities", v = "companion.task" }
 keys = { kind = "none" }
 lasting = "no"
 dry_run = "none"

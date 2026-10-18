@@ -14,6 +14,7 @@ use docket_client::Transport as IntentsTransport;
 use docket_core::{
     ActionCard, ContextView, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine,
     RecalledLine, Reveal, SelectionView, SkillCard, SkillText, TextTargetView, VisibleView,
+    offered_to,
 };
 use docket_skills::{BODY_BUDGET_BYTES, Situation, Skill, preselect, uses_first};
 use porter_client::Transport as InferTransport;
@@ -136,7 +137,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             .catalogue()
             .cards()
             .into_iter()
-            .filter(|card| offered_here(card, keeps) && in_menu(card, reach))
+            .filter(|card| {
+                offered_here(card, keeps)
+                    && in_menu(card, reach)
+                    && offered_to(&card.action, &rt.agent)
+            })
             .collect();
         let offered: Vec<&Skill> = self
             .skills

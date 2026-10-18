@@ -3,7 +3,7 @@
 
 use crate::support::*;
 use docket_core::*;
-use docket_router::{COMPANION_APP, Router, TaskState};
+use docket_router::{COMPANION_APP, HandleValue, Router, TaskState};
 use prov::{
     Actor, AgentRef, AgentRole, EntityId, EntityKey, EntityKind, Labelled, MessageKind, SessionId,
 };
@@ -264,5 +264,77 @@ async fn a_message_to_a_task_is_delivered_as_input_and_an_unknown_task_is_not_fo
         worker.saw.untrusted,
         Saw::NotSeen,
         "what the planner wrote taints the worker that reads it"
+    );
+}
+
+/// The handle `companion.task.start` answers with, for the planner to pass as a target.
+fn started_handle(outcome: &Outcome) -> Handle {
+    let Some(Labelled {
+        value: Value::Record(fields),
+        ..
+    }) = &outcome.value
+    else {
+        panic!("{outcome:?}")
+    };
+    match fields.get(&param("handle")) {
+        Some(Value::Handle(h)) => *h,
+        other => panic!("handle: {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn a_started_task_comes_back_as_a_handle_of_kind_task_that_a_message_can_target() {
+    let router = router();
+    let front = open(&router, "work", AgentRef::Companion).await;
+    let outcome = router
+        .companion_perform(start("Find receipts", &front.session))
+        .expect("starts");
+    let (task, _) = started(&outcome);
+    let handle = started_handle(&outcome);
+
+    // The spawner holds the task as a thing of kind `companion.task`, which is what the
+    // router resolves a `{"handle": n}` target to.
+    let thing = {
+        let st = router.state.lock().expect("lock");
+        let record = &st.sessions[&front.session];
+        let card = record.handles.card(handle).expect("a card for the handle");
+        assert_eq!(
+            card.shape,
+            HandleShape::Entity(EntityKind::parse("companion.task").expect("kind"))
+        );
+        match record.handles.value(handle).map(|v| &v.value) {
+            Some(HandleValue::Entity(e)) => e.clone(),
+            other => panic!("{other:?}"),
+        }
+    };
+    assert_eq!(thing, task_entity(task.as_str()));
+    router
+        .companion_perform(invocation(
+            "companion.task.message",
+            &front.session,
+            TargetValue::Entities(vec![thing]),
+            args(&[("text", Value::Text("Also the Porto ones".into()))]),
+            "work",
+        ))
+        .expect("delivered to the started task");
+    assert_eq!(worker_inbox(&router, &task).await.len(), 2);
+}
+
+#[tokio::test]
+async fn a_worker_may_not_start_a_task() {
+    let router = router();
+    let front = open(&router, "work", AgentRef::Companion).await;
+    let outcome = router
+        .companion_perform(start("Find receipts", &front.session))
+        .expect("starts");
+    let (task, worker_session) = started(&outcome);
+    let mut from_the_worker = start("Find receipts", &worker_session);
+    from_the_worker.actor = Actor::Companion {
+        session: worker_session,
+        role: AgentRole::Worker { task },
+    };
+    assert_eq!(
+        router.companion_perform(from_the_worker).map(|_| ()),
+        Err(AppRefusal::Unsupported)
     );
 }

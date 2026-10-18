@@ -21,8 +21,8 @@ use docket_core::{
 };
 use porter_core::{AppId, AppName, Isolation};
 use prov::{
-    Actor, Address, AgentRef, EntityId, Integrity, Labelled, MessageKind, MessageText, ModelRole,
-    SessionId, Source, TaskId,
+    Actor, Address, AgentRef, AgentRole, EntityId, EntityKey, EntityKind, Integrity, Labelled,
+    MessageKind, MessageText, ModelRole, SessionId, Source, TaskId,
 };
 use std::collections::BTreeMap;
 
@@ -240,6 +240,17 @@ impl<S: Seams> Router<S> {
 
     fn task_start(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {
         let session = spawner(inv)?;
+        // A task does its own goal: only the person's assistant hands out work, so a worker
+        // that started tasks would start itself again, one nested run inside the last.
+        if matches!(
+            &inv.actor,
+            Actor::Companion {
+                role: AgentRole::Worker { .. },
+                ..
+            }
+        ) {
+            return Err(AppRefusal::Unsupported);
+        }
         let start = TaskStart::from_args(&inv.args).map_err(|_| failed("the goal is missing"))?;
         let (parent, worker) = {
             let mut st = self.locked();
@@ -317,8 +328,26 @@ impl<S: Seams> Router<S> {
             space: inv.space.clone(),
             by_call: inv.call,
         });
-        // The spawner is given the task and the session it runs in: acting as the child needs it.
+        // The planner is given the task as a thing of kind `companion.task`, a handle it can pass
+        // as the target of `companion.task.message`; the host that runs the worker is given the
+        // task and the session it runs in: acting as the child needs them.
+        let handle = {
+            let thing = task_entity(&task).ok_or_else(|| failed("no task id"))?;
+            let mut st = self.locked();
+            let record = st
+                .sessions
+                .get_mut(session)
+                .ok_or_else(|| failed("the session is gone"))?;
+            record
+                .know([thing.clone()])
+                .map_err(|_| failed("too many things are held"))?;
+            record
+                .handles
+                .try_mint_entity(thing, app_label(&name()))
+                .map_err(|_| failed("too many things are held"))?
+        };
         let answer = BTreeMap::from([
+            (param("handle"), Value::Handle(handle)),
             (param("task"), Value::Text(task.as_str().to_owned())),
             (
                 param("session"),
@@ -378,6 +407,15 @@ impl<S: Seams> Router<S> {
             other => Err(refused_send(other)),
         }
     }
+}
+
+/// The thing of kind `companion.task` that stands for `task`.
+fn task_entity(task: &TaskId) -> Option<EntityId> {
+    Some(EntityId {
+        app: name(),
+        kind: EntityKind::parse(TASK_KIND).ok()?,
+        key: EntityKey::parse(task.as_str()).ok()?,
+    })
 }
 
 /// The task an entity of kind `companion.task` names.

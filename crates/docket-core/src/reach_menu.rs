@@ -6,9 +6,13 @@
 
 use crate::ids::ActionRef;
 use crate::task_policy::{ActionMatch, TaskPolicy};
+use prov::AgentRef;
 
 /// The built-in provider whose actions the companion carries out itself.
 pub const COMPANION_APP: &str = "org.quire.Companion";
+
+/// Starts a task: a worker that does a goal of its own.
+pub const TASK_START: &str = "companion.task.start";
 
 /// Gives a job to a helper by its name.
 pub const HAND_ON_JOB: &str = "companion.helper.post_job";
@@ -42,4 +46,13 @@ pub(crate) fn kept_by_helpers(action: &ActionRef) -> bool {
             action.name.as_str(),
             HAND_ON_JOB | PROPOSE_ROUTINE | SKILL_LOAD
         )
+}
+
+/// Whether the planner of `agent` is offered `action` at all. A task does its own goal, so a worker
+/// is not offered `companion.task.start`: only the person's assistant hands out work, and a
+/// worker that did would start the goal it was given again, one run nested in the last.
+pub fn offered_to(action: &ActionRef, agent: &AgentRef) -> bool {
+    !(matches!(agent, AgentRef::Worker { .. })
+        && action.app.as_str() == COMPANION_APP
+        && action.name.as_str() == TASK_START)
 }
