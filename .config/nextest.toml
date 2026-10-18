@@ -5,3 +5,13 @@
 # limit.
 [profile.default]
 slow-timeout = { period = "30s", terminate-after = 4 }
+
+# The hostile corpus starts a whole world (companiond, intentd, the apps, inferd) per case. Thirty at
+# once starved the bus calls past the harness deadline in a full gate (Companion1.Open went unanswered
+# for 60 s, though it passes in about a second alone), so at most six of them run together.
+[test-groups]
+hostile-worlds = { max-threads = 6 }
+
+[[profile.default.overrides]]
+filter = "package(docket-accept) & test(/^hostile::/)"
+test-group = "hostile-worlds"
