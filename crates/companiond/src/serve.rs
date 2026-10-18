@@ -84,7 +84,7 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
         let open = SessionOpen {
             started_from: match speaker {
                 Speaker::Terminal(scope) => Some(StartedFrom::Terminal(scope)),
-                Speaker::Shell => None,
+                Speaker::Shell | Speaker::Editor => None,
             },
             ..open
         };

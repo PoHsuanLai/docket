@@ -5,6 +5,8 @@
 # ignored (a scope never has one).
 #
 #   role "sheet_host" + app org.quire.Shell -> sill: opens, asks, closes, presses a card, tells a subagent
+#   role "agent"      + app org.quire.Acp   -> our editor bridge (docket-acp): reads the helpers and their
+#                                              conversations, nothing else; its scope row names its program
 #
 # A terminal's child (`quire-do ask`: a process in a vte-spawn-*, tmux-spawn-* or login session-* scope)
 # is not a row: it may open, ask, close, cancel and read, nothing else. Everything else is refused.
@@ -14,3 +16,11 @@ app = "org.quire.Shell"
 unit = "sill.service"
 role = "sheet_host"
 exe = ["/usr/bin/sill", "/usr/local/bin/sill", "/opt/quire/releases/*/bin/sill"]
+
+# Our own editor bridge, started by an editor in a scope of its own (`systemd-run --user --scope
+# --unit=docket-acp`): a scope has no main process, so the row names the program it runs.
+[[caller]]
+app = "org.quire.Acp"
+unit = "docket-acp.scope"
+role = "agent"
+exe = ["/usr/bin/docket-acp", "/usr/local/bin/docket-acp", "/opt/quire/releases/*/bin/docket-acp"]

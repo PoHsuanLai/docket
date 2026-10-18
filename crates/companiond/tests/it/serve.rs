@@ -529,3 +529,96 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
     assert!(refused.routines().await.is_err());
     assert!(refused.remove_routine("r-1").await.is_err());
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_editor_bridge_reads_the_helpers_and_changes_nothing_and_a_stranger_reads_nothing() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let bus = PrivateBus::start(scratch.path());
+    let (server, shell, editor, stranger) = (
+        bus.connect().await,
+        bus.connect().await,
+        bus.connect().await,
+        bus.connect().await,
+    );
+    let mut w = world(vec![]);
+    let hub = hub_of(&w);
+    w.companion.set_desk(Arc::new(hub));
+    let companion = Arc::new(Mutex::new(w.companion));
+    let who = who(&server, scratch.path());
+    serve_with_routines(
+        &server,
+        companion,
+        who.clone(),
+        std::path::PathBuf::from("/proc"),
+        Some(Arc::new(EmptyRoutines)),
+    )
+    .await
+    .expect("serving");
+    as_shell(&who, &shell);
+    who.introduce_app(&editor, "org.quire.Acp", docket_dbus::callers::Role::Agent);
+
+    let form = HelperForm {
+        name: HelperName::parse("Research").expect("name"),
+        role: Role::parse("Looks things up.").expect("role"),
+        space: space("work"),
+        model: HelperModel::Unset,
+        apps: vec![app("org.quire.Mail")],
+        ceiling: Ceiling::Look,
+        steps: porter_core::Count(8),
+        kind: Default::default(),
+    };
+    let form = serde_json::to_string(&form).expect("json");
+    let theirs = CompanionHelpers2Proxy::new(&shell).await.expect("proxy");
+    let made: HelperReply =
+        serde_json::from_str(&theirs.create(&form).await.expect("create")).expect("reply");
+    let HelperReply::Made(id) = made else {
+        panic!("a helper is made: {made:?}")
+    };
+    let id_text = serde_json::to_value(&id)
+        .expect("json")
+        .as_str()
+        .expect("text")
+        .to_owned();
+
+    // The editor bridge can look, on either version of the interface.
+    let helpers = CompanionHelpers2Proxy::new(&editor).await.expect("proxy");
+    let listed: HelpersView =
+        serde_json::from_str(&helpers.list(0).await.expect("list")).expect("view");
+    assert_eq!(listed.helpers.len(), 1);
+    helpers.card(&id_text).await.expect("card");
+    let first = CompanionHelpersProxy::new(&editor).await.expect("proxy");
+    first.list(0).await.expect("list");
+
+    // It changes nothing: every other call is refused in words.
+    let refused = |result: zbus::Result<_>| match result {
+        Err(zbus::Error::MethodError(name, Some(text), _)) => {
+            name.as_str() == "org.freedesktop.DBus.Error.AccessDenied" && text.contains("helpers")
+        }
+        _ => false,
+    };
+    assert!(refused(helpers.create(&form).await.map(drop)), "create");
+    assert!(refused(helpers.edit(&id_text, &form).await.map(drop)), "edit");
+    assert!(refused(helpers.remove(&id_text).await), "remove");
+    assert!(
+        refused(helpers.post_job(&id_text, "Do it.", "").await.map(drop)),
+        "post job"
+    );
+    assert!(
+        refused(helpers.sign_in(&id_text, "browser").await.map(drop)),
+        "sign in"
+    );
+    assert!(refused(helpers.sign_out(&id_text).await.map(drop)), "sign out");
+    assert!(refused(helpers.routines().await.map(drop)), "routines");
+    assert!(refused(helpers.remove_routine("r-1").await), "routine write");
+    assert!(refused(first.pause(&id_text).await), "pause");
+
+    // A process nothing names reads nothing.
+    let nobody = CompanionHelpers2Proxy::new(&stranger).await.expect("proxy");
+    assert!(nobody.list(0).await.is_err());
+    assert!(nobody.card(&id_text).await.is_err());
+
+    // The helper is still there.
+    let after: HelpersView =
+        serde_json::from_str(&theirs.list(0).await.expect("list")).expect("view");
+    assert_eq!(after.helpers.len(), 1);
+}

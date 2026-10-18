@@ -1,6 +1,7 @@
 //! The helpers on the bus: `Companion1.Helpers` as it was, and `Companion1.Helpers2`, which adds
 //! signing in to an app a helper runs and the routines. Only the shell speaks for the person on
-//! either; every call goes to the desks the daemon was built with. Members carry no doc comments:
+//! either, except that our own editor bridge may read the list and a helper's card; every call
+//! goes to the desks the daemon was built with. Members carry no doc comments:
 //! zbus copies them into the introspection, which is held to `dbus/org.quire.Companion1.xml`.
 
 use crate::routines::RoutineDesk;
@@ -78,12 +79,19 @@ impl HelpersObject {
             .await
             .map(|_| ())
     }
+
+    async fn require_read(&self, header: &Header<'_>) -> fdo::Result<()> {
+        self.speakers
+            .require(header, Call::HelpersRead)
+            .await
+            .map(|_| ())
+    }
 }
 
 #[zbus::interface(name = "org.quire.Companion1.Helpers")]
 impl HelpersObject {
     async fn list(&self, after: u64, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
-        self.require(&header).await?;
+        self.require_read(&header).await?;
         json(&self.desk.view(after))
     }
 
@@ -92,7 +100,7 @@ impl HelpersObject {
         helper: String,
         #[zbus(header)] header: Header<'_>,
     ) -> fdo::Result<String> {
-        self.require(&header).await?;
+        self.require_read(&header).await?;
         card(self.desk.as_ref(), &helper)
     }
 
@@ -163,6 +171,13 @@ impl Helpers2Object {
             .map(|_| ())
     }
 
+    async fn require_read(&self, header: &Header<'_>) -> fdo::Result<()> {
+        self.speakers
+            .require(header, Call::HelpersRead)
+            .await
+            .map(|_| ())
+    }
+
     /// The routines, once the speaker may ask for them.
     async fn kept(&self, header: &Header<'_>) -> fdo::Result<&dyn RoutineDesk> {
         self.require(header).await?;
@@ -175,7 +190,7 @@ impl Helpers2Object {
 #[zbus::interface(name = "org.quire.Companion1.Helpers2")]
 impl Helpers2Object {
     async fn list(&self, after: u64, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
-        self.require(&header).await?;
+        self.require_read(&header).await?;
         json(&self.desk.view(after))
     }
 
@@ -184,7 +199,7 @@ impl Helpers2Object {
         helper: String,
         #[zbus(header)] header: Header<'_>,
     ) -> fdo::Result<String> {
-        self.require(&header).await?;
+        self.require_read(&header).await?;
         card(self.desk.as_ref(), &helper)
     }
 

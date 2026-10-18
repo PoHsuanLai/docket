@@ -11,6 +11,10 @@
 //! connection owns no name of its own; it is
 //! the person at a keyboard, or whatever is typing in one, and that is why it gets no more than
 //! the conversation: it cannot press a card (`Act`) and cannot tell a subagent anything (`Told`).
+//! A third caller reads the helpers and nothing else: our own editor bridge (`docket-acp`, the
+//! process the table names as the app `org.quire.Acp` in the role `agent`, by its scope and its
+//! program path), so an editor can show the helpers the person keeps. It is identified by the
+//! table alone, never by a name it sends or a bus name it owns.
 //! Every call the companion then makes goes through intentd's gate in the role `companion`, and
 //! a confirmation is still answered on the sheet by the person.
 
@@ -32,7 +36,12 @@ pub enum Speaker {
     Shell,
     /// A terminal's child, in this scope.
     Terminal(TerminalScope),
+    /// Our own editor bridge: it may read the helpers, nothing else.
+    Editor,
 }
+
+/// The app the table names for our own editor bridge.
+const EDITOR_APP: &str = "org.quire.Acp";
 
 /// What a caller asks for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,15 +60,21 @@ pub enum Call {
     Cancel,
     /// Reading an answer: `View`, `Session` and `Routing`.
     Read,
-    /// Anything on `Companion1.Helpers` and `.Helpers2` (the helpers and their routines): they are
-    /// the person's own, and the shell speaks for them; a terminal does not.
+    /// Anything on `Companion1.Helpers` and `.Helpers2` that changes something (making, editing,
+    /// pausing, removing a helper, giving a job, signing in or out, the routines and what they
+    /// read): they are the person's own, and the shell speaks for them; a terminal and the
+    /// editor bridge do not.
     Helpers,
+    /// Reading the helpers: the list and a helper's card. The shell and the editor bridge may.
+    HelpersRead,
 }
 
-/// Whether `speaker` may make `call`: the shell anything, a terminal only the conversation.
+/// Whether `speaker` may make `call`: the shell anything, a terminal only the conversation, the
+/// editor bridge only reading the helpers.
 pub fn permits(speaker: &Speaker, call: Call) -> bool {
     match speaker {
         Speaker::Shell => true,
+        Speaker::Editor => call == Call::HelpersRead,
         Speaker::Terminal(_) => matches!(
             call,
             Call::Open | Call::Ask | Call::Close | Call::Cancel | Call::Read
@@ -105,7 +120,7 @@ async fn owns_a_name(dbus: &DBusProxy<'_>, unique: &str) -> fdo::Result<bool> {
 
 /// Who the process is that the callers table names as `named` (or does not name, `None`) and whose
 /// cgroup is `terminal` (if it is a terminal's child): the shell is the table's `sheet_host` of the
-/// app `shell`; a process the table names as anything else is nobody here; a process the table
+/// app `shell`; the editor bridge is the table's `agent` of the app `org.quire.Acp`; a process the table names as anything else is nobody here; a process the table
 /// does not name is a terminal when its cgroup says so.
 pub(crate) fn speaker_of(
     shell: &AppName,
@@ -115,6 +130,9 @@ pub(crate) fn speaker_of(
     match named {
         Some(caller) if caller.role == Role::SheetHost && &caller.app.name == shell => {
             Some(Speaker::Shell)
+        }
+        Some(caller) if caller.role == Role::Agent && caller.app.name.as_str() == EDITOR_APP => {
+            Some(Speaker::Editor)
         }
         Some(_) => None,
         None => terminal.map(Speaker::Terminal),
@@ -189,9 +207,10 @@ impl Speakers {
         if permits(&speaker, call) {
             Ok(speaker)
         } else {
-            Err(fdo::Error::AccessDenied(
-                "a terminal may open, ask, close, cancel and read, nothing else".into(),
-            ))
+            Err(fdo::Error::AccessDenied(match speaker {
+                Speaker::Editor => "an editor may look at the helpers, nothing else".into(),
+                _ => "a terminal may open, ask, close, cancel and read, nothing else".into(),
+            }))
         }
     }
 
@@ -223,6 +242,7 @@ mod tests {
             Call::Cancel,
             Call::Read,
             Call::Helpers,
+            Call::HelpersRead,
         ];
         let terminal: Vec<Call> = all
             .into_iter()
@@ -233,6 +253,11 @@ mod tests {
             [Call::Open, Call::Ask, Call::Close, Call::Cancel, Call::Read]
         );
         assert!(all.into_iter().all(|c| permits(&Speaker::Shell, c)));
+        let editor: Vec<Call> = all
+            .into_iter()
+            .filter(|c| permits(&Speaker::Editor, *c))
+            .collect();
+        assert_eq!(editor, [Call::HelpersRead]);
     }
 
     /// Process `pid` in the fake proc root, in the cgroup `leaf`; a service's process is also its
