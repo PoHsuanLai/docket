@@ -239,7 +239,12 @@ fi
 for pkg in intentd companiond readerd actions-mcp docket-cli docket-acp-bin voiced; do
   # `-e features` elides the edge a package's own feature makes; the feature list per package
   # (`{p} {f}`) shows it.
-  if cargo tree -p "$pkg" -e normal,build --prefix none --format '{p} {f}' 2>/dev/null | grep -qE 'fixture-callers|test-proc-root'; then
+  # A tree cargo could not print would read as "off": that is an error, not a pass.
+  if ! tree=$(cargo tree -p "$pkg" -e normal,build --prefix none --format '{p} {f}' 2>&1); then
+    echo "ERROR: cargo tree failed for $pkg; the fixture tree was not checked"
+    echo "$tree" | tail -5
+    fail=1
+  elif grep -qE 'fixture-callers|test-proc-root' <<<"$tree"; then
     echo "TEST SWITCH: $pkg's build turns on the fixture tree"
     fail=1
   else
