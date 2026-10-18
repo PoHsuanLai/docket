@@ -49,8 +49,6 @@ pub enum HandRefusal {
         /// What the person calls it.
         label: String,
     },
-    /// The host is switching to another agent and starts again; the person asks again.
-    Switching,
     /// The agent could not be started or failed on the turn.
     Failed {
         /// Why, in words the person reads.
@@ -79,9 +77,6 @@ impl HandRefusal {
                 "The coding agent you chose is not set up on this computer any more. Choose another in Settings.".to_owned()
             }
             HandRefusal::NeedsSignIn { label } => format!("Sign in to {label} first."),
-            HandRefusal::Switching => {
-                "Switching to another coding agent. Ask again in a moment.".to_owned()
-            }
             HandRefusal::Failed { message } => message.clone(),
         }
     }
@@ -96,7 +91,6 @@ mod tests {
         let rows = [
             (HandRefusal::TurnedOff, "turned off"),
             (HandRefusal::NotSetUp, "not set up"),
-            (HandRefusal::Switching, "Ask again"),
             (
                 HandRefusal::NeedsSignIn {
                     label: "Claude Code".to_owned(),

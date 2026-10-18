@@ -139,8 +139,6 @@ pub enum JobFault {
     NotSetUp,
     /// Coding agents are turned off in Settings.
     TurnedOff,
-    /// The coding agent was busy with a request that cannot share it.
-    Busy,
 }
 
 impl JobFault {
@@ -154,7 +152,6 @@ impl JobFault {
             JobFault::NotInstalled => "the app it runs is not installed on this computer",
             JobFault::NotSetUp => "the app it runs is not in the list of coding agents in Settings",
             JobFault::TurnedOff => "coding agents are turned off in Settings",
-            JobFault::Busy => "the coding agent was busy with another request",
         }
     }
 }

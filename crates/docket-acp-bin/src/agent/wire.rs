@@ -12,8 +12,7 @@ use docket_dbus::callers::Identity;
 use docket_inapp::EditorDesk;
 use docket_launch::dbus::DbusAccounts;
 use docket_launch::login::VisibleLogin;
-use docket_launch::{AgentsFile, AgentsPermit, ChildProc, Registry, Supervisor, ToolsMode};
-use docket_session::ProgramName;
+use docket_launch::{AgentsFile, AgentsPermit, ChildProc, Registry, Supervisor};
 use docket_settings::{AgentSettings, Locator};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -21,7 +20,8 @@ use std::sync::Arc;
 /// Whether the agent is offered the desktop's actions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tools {
-    /// When its entry in `agents.toml` allows it and `actions-mcp` is beside this program.
+    /// When `actions-mcp` is beside this program; an entry in `agents.toml` can still switch it
+    /// off for its program.
     Wanted,
     /// Never: a start that only reads what the agent offers.
     Unwanted,
@@ -52,11 +52,28 @@ pub fn allowed() -> Result<Allowed, AgentFault> {
     Ok(Allowed { permit, file })
 }
 
-/// The wiring of a host for `program` on `bus`: the sandbox, the launcher registered on the bus
-/// and the tool edge. `fallback` says who answers the sheets of the agent's session.
+/// What runs an agent's own login or logout command: given the variables it needs to show
+/// itself, chosen here because the launcher crate reads no environment.
+pub fn login_runner() -> VisibleLogin {
+    let vars = [
+        "HOME",
+        "PATH",
+        "DISPLAY",
+        "WAYLAND_DISPLAY",
+        "XDG_RUNTIME_DIR",
+        "DBUS_SESSION_BUS_ADDRESS",
+    ];
+    VisibleLogin::new(
+        vars.iter()
+            .filter_map(|k| env(k).map(|v| ((*k).to_owned(), v)))
+            .collect(),
+    )
+}
+
+/// The wiring of a host on `bus`: the sandbox, the launcher registered on the bus and the tool
+/// edge. `fallback` says who answers the sheets of the agent's session.
 pub async fn build(
     allowed: Allowed,
-    program: &ProgramName,
     tools: Tools,
     fallback: Fallback,
     bus: BusConnection,
@@ -76,11 +93,11 @@ pub async fn build(
     }
     let run_dir = PathBuf::from(env("XDG_RUNTIME_DIR").ok_or(AgentFault::NoRuntimeDir)?);
     // The desktop's actions go to the agent as an MCP server it starts itself: the `actions-mcp`
-    // program beside this one, as the bridge to this host. An entry can switch it off.
-    let offered = file
-        .get(program)
-        .filter(|entry| entry.tools == ToolsMode::Offered && tools == Tools::Wanted)
-        .and_then(|_| sibling("actions-mcp"))
+    // program beside this one, as the bridge to this host. Whether a program is offered it (an
+    // entry can switch it off) and which of the actions is decided where its backend is made.
+    let offered = (tools == Tools::Wanted)
+        .then(|| sibling("actions-mcp"))
+        .flatten()
         .filter(|bridge| std::path::Path::new(bridge.as_str()).exists())
         .map(|bridge| ToolsOffer {
             run_dir: run_dir.clone(),
@@ -88,7 +105,7 @@ pub async fn build(
         });
     if offered.is_none() && tools == Tools::Wanted {
         eprintln!(
-            "docket-agent: the agent is not offered the desktop's actions (off, or no actions-mcp beside this program)"
+            "docket-agent: no agent is offered the desktop's actions (no actions-mcp beside this program)"
         );
     }
 
@@ -100,22 +117,11 @@ pub async fn build(
             .map_err(|e| AgentFault::Bus(e.to_string()))?,
     );
     let registry: Registry<ChildProc> = Registry::default();
-    let login_env: Vec<(String, String)> = [
-        "HOME",
-        "PATH",
-        "DISPLAY",
-        "WAYLAND_DISPLAY",
-        "XDG_RUNTIME_DIR",
-        "DBUS_SESSION_BUS_ADDRESS",
-    ]
-    .iter()
-    .filter_map(|k| env(k).map(|v| ((*k).to_owned(), v)))
-    .collect();
     let supervisor = Supervisor::new(
         accounts.clone(),
         file.clone(),
         registry.clone(),
-        VisibleLogin::new(login_env),
+        login_runner(),
     );
     supervisor
         .register()

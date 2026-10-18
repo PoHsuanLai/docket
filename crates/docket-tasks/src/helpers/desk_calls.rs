@@ -14,8 +14,7 @@ use docket_core::{ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, Ou
 use porter_client::Transport as InferTransport;
 use prov::TaskId;
 
-/// Gives a job to a helper by its name.
-pub(crate) const POST_JOB: &str = "companion.helper.post_job";
+pub(crate) use docket_core::HAND_ON_JOB as POST_JOB;
 /// Proposes a helper to the person.
 pub(crate) const PROPOSE: &str = "companion.helper.propose";
 

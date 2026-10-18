@@ -7,7 +7,9 @@
 use crate::agent::live::Live;
 use crate::agent::remember::remember;
 use bulkhead::{Detected, NetworkMode};
-use docket_acp::client::{AgentHost, Fallback, IntentsCourt, OsFiles, Seams, ToolsOffer};
+use docket_acp::client::{
+    AgentHost, EdgeMenu, Fallback, IntentsCourt, OsFiles, Seams, ToolsOffer,
+};
 use docket_agents::AgentsDir;
 use docket_client::DbusTransport;
 use docket_core::AbsPath;
@@ -137,22 +139,35 @@ pub async fn host_typed<A: Accounts + 'static>(
     space: SpaceId,
 ) -> Result<Hosted<A>, HostError> {
     // The agent process's own network counts for the commands it runs (R12). A program the file
-    // does not list cannot be started at all; until then assume the widest. Who keeps the agent's
-    // file history is the person's choice in `agents.toml`; a program the file does not list gets
-    // docket's own (it over-saves rather than under-saves).
-    let (label, rewind, installed_as, agent_network) = {
-        let entry = wiring.file.get(&program);
+    // does not list cannot be started at all; until then assume the widest.
+    let agent_network = wiring
+        .file
+        .get(&program)
+        .map_or(NetworkMode::Host, |entry| entry.network);
+    let live = Live::serve(wiring, agent_network).await?;
+    open_on(&live, program, cwd, space).await
+}
+
+/// Starts the program named `program` on a host already serving the pseudo-app, and opens its
+/// session in `space` working in `cwd`. Any number of sessions share one `live`.
+pub async fn open_on<A: Accounts + 'static>(
+    live: &Live<A>,
+    program: ProgramName,
+    cwd: &str,
+    space: SpaceId,
+) -> Result<Hosted<A>, HostError> {
+    // Who keeps the agent's file history is the person's choice in `agents.toml`; a program the
+    // file does not list gets docket's own (it over-saves rather than under-saves).
+    let (label, rewind, installed_as) = {
+        let entry = live.entry(&program);
         (
             entry.and_then(|entry| entry.label.clone()),
             entry.map(|entry| entry.rewind).unwrap_or_default(),
             entry.and_then(|entry| entry.registry.clone()),
-            entry.map_or(NetworkMode::Host, |entry| entry.network),
         )
     };
-    let (fallback, agents) = (wiring.fallback, wiring.agents.clone());
-    let live = Live::serve(wiring, agent_network).await?;
-    let backend = live.backend(&program);
-    let mut host = AgentHost::new(backend, live.court.clone(), live.desk.clone(), fallback)
+    let backend = live.backend(&program, EdgeMenu::Everything);
+    let mut host = AgentHost::new(backend, live.court.clone(), live.desk.clone(), live.fallback)
         .with_rewind(rewind);
     let opened = host
         .open(Opening {
@@ -169,7 +184,7 @@ pub async fn host_typed<A: Accounts + 'static>(
             rewind: Default::default(),
         })
         .await;
-    if let (Some(dir), Some(id)) = (&agents, &installed_as) {
+    if let (Some(dir), Some(id)) = (&live.agents, &installed_as) {
         remember(dir, id, host.backend(), opened.as_ref().map(|_| ()));
     }
     let session = opened.map_err(HostError::Open)?;

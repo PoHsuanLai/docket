@@ -12,16 +12,15 @@
 use super::fault::AgentFault;
 use super::helper_hosts::{HelperHosts, folder_of};
 use super::live::Live;
-use super::wire::{self, Tools};
-use bulkhead::NetworkMode;
-use docket_acp::client::{Fallback, HelperAgents};
+use super::logout::EntryLogout;
+use super::wire;
+use docket_acp::client::HelperAgents;
 use docket_acp::{SystemTicks, Ticks};
 use docket_core::ProgramName;
 use docket_core::helper::{
     AgentApps, AgentOutcome, AppsAsk, AppsReply, CheckOutcome, HelperCard, JobFault, SignInOutcome,
     SignOutOutcome, TerminalLogin,
 };
-use docket_dbus::BusConnection;
 use docket_launch::dbus::DbusAccounts;
 use std::path::Path;
 use std::sync::Arc;
@@ -59,25 +58,18 @@ impl Drop for Counted<'_> {
 }
 
 impl HelperHost {
-    /// Serves the pseudo-app on `bus` and gets ready to start agents when a helper needs one. The
-    /// setting and `agents.toml` must allow it. The commands an agent runs count against the
-    /// widest network, because one host serves the agents of every program.
-    pub async fn start(bus: BusConnection) -> Result<Self, AgentFault> {
-        let allowed = wire::allowed()?;
-        let wiring =
-            wire::build(allowed, &stand_in()?, Tools::Unwanted, Fallback::Off, bus).await?;
-        let live = Live::serve(wiring, NetworkMode::Host)
-            .await
-            .map_err(AgentFault::Bus)?;
-        let live = Arc::new(live);
+    /// Gets ready to start agents when a helper needs one, over the pseudo-app `live` serves for
+    /// every use of this process.
+    pub fn new(live: Arc<Live<DbusAccounts>>) -> Self {
         let hosts = Arc::clone(&live);
         let make: Maker = Box::new(move |card| HelperHosts::new(Arc::clone(&hosts), card));
-        let agents = HelperAgents::new(make, || SystemTicks.now());
-        Ok(Self {
+        let logout = Arc::new(EntryLogout::new(Arc::clone(&live), wire::login_runner()));
+        let agents = HelperAgents::new(make, || SystemTicks.now()).with_logout(logout);
+        Self {
             live,
             agents,
             running: AtomicUsize::new(0),
-        })
+        }
     }
 
     /// Whether a call is running.
@@ -171,11 +163,6 @@ impl HelperHost {
         Self::failed(ask, why)
     }
 
-    /// The reply to `ask` while the assistant's coding agent holds the host.
-    pub fn busy_with(ask: &AppsAsk) -> AppsReply {
-        Self::failed(ask, JobFault::Busy)
-    }
-
     fn failed(ask: &AppsAsk, why: JobFault) -> AppsReply {
         match ask {
             AppsAsk::Run { .. } => AppsReply::Run(AgentOutcome::Failed(why)),
@@ -186,10 +173,4 @@ impl HelperHost {
             AppsAsk::Forget { .. } => AppsReply::Forget,
         }
     }
-}
-
-/// The program the wiring is built for: it only decides whether the desktop's actions are
-/// offered, which helpers' agents are not yet.
-fn stand_in() -> Result<ProgramName, AgentFault> {
-    ProgramName::parse("agent").map_err(|e| AgentFault::Bus(e.to_string()))
 }

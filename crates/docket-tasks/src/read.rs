@@ -11,8 +11,7 @@ use docket_core::{
 };
 use prov::{ActionName, Effect, Labelled};
 
-/// The built-in provider whose actions the companion carries out itself.
-pub(crate) const COMPANION_APP: &str = "org.quire.Companion";
+pub(crate) use docket_core::COMPANION_APP;
 
 /// Asks the reader about `ask` for the task `rt`, and says what the loop is told.
 pub async fn answer_read<I: IntentsTransport>(

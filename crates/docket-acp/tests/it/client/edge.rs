@@ -5,11 +5,13 @@
 
 use super::agent::{Act, Offered, bridge_call, bridge_list};
 use super::rig::{Rig, Setup, abs, always, ended_with, no, once, program, run_turn, started};
-use docket_acp::client::{ToolsEdge, ToolsOffer};
-use docket_core::{AuditRecord, GrantCaller, Saw};
+use docket_acp::client::{EdgeMenu, ToolsEdge, ToolsOffer};
+use docket_core::{
+    ActionMatch, AuditRecord, GrantCaller, LabelText, Saw, TaskPolicy, TaskPolicyState,
+};
 use docket_fake::{MailContact, MailThread};
 use docket_session::{SessionHost, TurnEnd};
-use prov::{Actor, SessionId};
+use prov::{Actor, Effect, SessionId, SpaceId, TaskId, UnixSeconds};
 use serde_json::{Value, json};
 
 const THREAD: &str = "t1";
@@ -523,4 +525,61 @@ async fn garbage_and_oversized_lines_are_refused_without_effect() {
             .get("tools")
             .is_some()
     );
+}
+
+fn reach_of(app: &str) -> TaskPolicy {
+    TaskPolicy {
+        task: TaskId::parse("t-0").expect("task"),
+        space: SpaceId::parse("work").expect("space"),
+        from: Vec::new(),
+        actions: std::collections::BTreeSet::from([ActionMatch::AppUpTo(
+            porter_core::AppName::parse(app).expect("app"),
+            Effect::Read,
+        )]),
+        kinds: std::collections::BTreeSet::new(),
+        ceiling: Effect::Read,
+        max_count: porter_core::Count(1),
+        recipients: Vec::new(),
+        destinations: Vec::new(),
+        paths: Vec::new(),
+        expires: UnixSeconds(i64::MAX),
+        rationale: LabelText::parse("what the helper may use").expect("words"),
+        state: TaskPolicyState::Active,
+    }
+}
+
+/// The names a helper's edge lists for `app`'s reach, and what a call to a mail tool gets.
+async fn helper_menu(rig: &Rig<super::rig::Fakes>, dir: &tempfile::TempDir, app: &str) -> (Vec<String>, Value) {
+    let session = SessionId::parse("s-98").expect("session");
+    let menu = EdgeMenu::Helper(Box::new(reach_of(app)));
+    let edge = ToolsEdge::start_with(&offer(dir), &session, &program(), rig.court.clone(), menu)
+        .expect("edge");
+    let socket = edge.bind().socket.as_str().to_owned();
+    let line = |op: Value| json!({"token": edge.token().reveal(), "op": op});
+    let listed = super::agent::over_socket(&socket, &line(json!("list")))
+        .await
+        .expect("list");
+    let names = listed["tools"]
+        .as_array()
+        .expect("tools")
+        .iter()
+        .filter_map(|t| t["tool"]["name"].as_str().map(str::to_owned))
+        .collect();
+    let read = json!({"call": {"tool": "mail__mail_thread_read", "arguments": {"target": thread()}}});
+    let called = super::agent::over_socket(&socket, &line(read))
+        .await
+        .expect("call");
+    (names, called)
+}
+
+/// Why: a helper's agent app is offered what a native helper is: its card's apps, not the rest.
+#[tokio::test]
+async fn a_helpers_agent_is_offered_its_cards_actions_and_not_another_apps() {
+    let (rig, dir) = with_mail(Vec::new(), Vec::new()).await;
+    let (names, _) = helper_menu(&rig, &dir, "org.quire.Mail").await;
+    assert!(names.iter().any(|n| n == "mail__mail_thread_read"), "{names:?}");
+    let (names, called) = helper_menu(&rig, &dir, "org.quire.Notes").await;
+    assert!(!names.iter().any(|n| n.starts_with("mail__")), "{names:?}");
+    assert!(called.to_string().contains("unknown_tool"), "{called}");
+    assert_eq!(reached(&rig), 0);
 }

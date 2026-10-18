@@ -1,5 +1,6 @@
 //! The listening side of one session's tool edge.
 
+use super::menu::EdgeMenu;
 use super::offer::{EdgeBind, ToolsOffer};
 use super::token::{mint, nonce};
 use crate::client::call::AgentCall;
@@ -8,7 +9,9 @@ use actions_tools::{
     ArgsFault, EDGE_LINE_MAX, EdgeOp, EdgeReply, EdgeRequest, EdgeToken, EdgeTool, McpFault,
     McpRefusal, find, mcp_label, offered, outcome_json, read_call, tool_of,
 };
-use docket_core::{AbsPath, ActionRef, BreakerTrip, CallRefusal, CallRequest, Origin};
+use docket_core::{
+    AbsPath, ActionDecl, ActionRef, BreakerTrip, CallRefusal, CallRequest, Origin, ValidManifest,
+};
 use docket_session::ProgramName;
 use prov::{ClientName, SessionId};
 use serde_json::Value as Json;
@@ -59,6 +62,7 @@ struct Serving<C> {
     owner: u32,
     next: Arc<AtomicU64>,
     tripped: Tripped,
+    menu: EdgeMenu,
 }
 
 impl<C: Clone> Clone for Serving<C> {
@@ -71,6 +75,7 @@ impl<C: Clone> Clone for Serving<C> {
             owner: self.owner,
             next: self.next.clone(),
             tripped: self.tripped.clone(),
+            menu: self.menu.clone(),
         }
     }
 }
@@ -87,6 +92,13 @@ fn abs(path: &std::path::Path) -> Result<AbsPath, EdgeFault> {
         .ok_or(EdgeFault::Path)
 }
 
+fn ref_of(manifest: &ValidManifest, decl: &ActionDecl) -> ActionRef {
+    ActionRef {
+        app: manifest.manifest().app.clone(),
+        name: decl.name.clone(),
+    }
+}
+
 fn client_of(program: &ProgramName) -> ClientName {
     ClientName::parse(&format!("acp:{}", program.as_str()))
         .or_else(|_| ClientName::parse("acp-agent"))
@@ -101,6 +113,17 @@ impl ToolsEdge {
         session: &SessionId,
         program: &ProgramName,
         court: C,
+    ) -> Result<Self, EdgeFault> {
+        Self::start_with(offer, session, program, court, EdgeMenu::Everything)
+    }
+
+    /// [`Self::start`], offering only what `menu` allows.
+    pub fn start_with<C: Court>(
+        offer: &ToolsOffer,
+        session: &SessionId,
+        program: &ProgramName,
+        court: C,
+        menu: EdgeMenu,
     ) -> Result<Self, EdgeFault> {
         let io = |_| EdgeFault::Io;
         let owner = std::fs::metadata("/proc/self").map_err(io)?.uid();
@@ -130,6 +153,7 @@ impl ToolsEdge {
             owner,
             next: Arc::new(AtomicU64::new(FIRST_CALL)),
             tripped: tripped.clone(),
+            menu,
         };
         let task = tokio::spawn(accept(listener, serving));
         Ok(Self {
@@ -228,6 +252,7 @@ impl<C: Court> Serving<C> {
             EdgeOp::List => EdgeReply::Tools(
                 offered(&registry)
                     .into_iter()
+                    .filter(|(m, a)| self.menu.offers(&ref_of(m, a)))
                     .filter_map(|(m, a)| tool_of(m, a))
                     .map(|(tool, description)| EdgeTool { tool, description })
                     .collect(),
@@ -247,7 +272,9 @@ impl<C: Court> Serving<C> {
         tool: &str,
         arguments: Json,
     ) -> Result<Json, McpFault> {
-        let (manifest, decl) = find(registry, tool).ok_or(McpFault::UnknownTool)?;
+        let (manifest, decl) = find(registry, tool)
+            .filter(|(m, a)| self.menu.offers(&ref_of(m, a)))
+            .ok_or(McpFault::UnknownTool)?;
         let given = match &arguments {
             Json::Null => None,
             Json::Object(map) => Some(map),

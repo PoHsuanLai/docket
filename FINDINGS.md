@@ -3639,16 +3639,26 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 ## Agent apps that are helpers: the host (swarm H1)
 
 - Helpers' agents run in `docket-agent --serve` (`agent::helper_host`), asked by companiond's
-  `AppsLink` over `AgentHost1.AppsBegin` / `AppsWait`. The host serves the pseudo-app for one use
-  at a time: while the assistant's coding agent has a turn a helper's job fails as "busy", and the
-  reverse. Open: serve the pseudo-app once for both uses (the performer is already shared in
-  `agent::live`), then drop the limit.
-- The helpers' agents are not offered the desktop's actions (`Tools::Unwanted` in
-  `HelperHost::start`): the per-session tool edge is per entry and per program today. Open.
-- An agent with no sign-out of its own is not signed out (`HelperAgents::with_logout` is not given
-  a `Logout` here): "Signing out did not work." Open: run the entry's logout command visibly.
+  `AppsLink` over `AgentHost1.AppsBegin` / `AppsWait`. The pseudo-app is served once (`agent::live`)
+  and shared: the assistant's turns and every helper's jobs run at the same time. Only calls on one
+  session wait for each other (the assistant's own turns; one helper's own process, which queues
+  and never refuses). `JobFault::Busy` and `HandRefusal::Switching` are gone: handing a turn to
+  another agent closes the first one's session and opens the next in the same process.
+- A helper's agent app is offered the menu a native helper gets (`TaskPolicy::offers`, shared
+  with `docket-tasks`): its card's apps' actions, handing a job on, never another app's or the
+  assistant's own. The tool edge takes the menu per session (`EdgeMenu`, `AcpBackend::with_menu`).
+  Open: a call beyond the card's ceiling asks on the sheet the router names for the helper; the
+  edge lists no skills (an outside agent has no skill loader).
+- An agent with no sign-out of its own runs the `logout` command of its `agents.toml` entry
+  (`agent::logout`, outside the sandbox, output read by no one); "Signing out did not work." is
+  said only when the entry has none or it fails. No known entry has its logout command written in
+  the repo, so none was added.
+- The list of coding agents and the setting are read when the host starts (once, shared); an agent
+  added to `agents.toml` is seen after the host ends and starts again (it ends after ten quiet
+  minutes).
 - The commands a helper's agent runs count against the widest network (`NetworkMode::Host`),
-  because one performer serves every program. Conservative: more commands ask.
+  because one performer serves every program, the assistant's coding agent included now. Conservative:
+  more commands ask.
 
 
 ## The editor face of the helpers: what stays open

@@ -45,6 +45,7 @@ mod message;
 mod pattern;
 mod planner;
 mod preview;
+mod reach_menu;
 mod reader;
 mod review;
 mod roster;
@@ -197,6 +198,7 @@ pub use task::{
     LedgerStep, SessionOpen, SessionOpened, TaskKind, TaskLedger, TaskStart, close, skeleton_of,
     step_outcome,
 };
+pub use reach_menu::{COMPANION_APP, HAND_ON_JOB, SKILL_LOAD};
 pub use task_policy::{
     ActionMatch, ArgLabels, Coverage, PolicyChange, PolicyWriter, Saw, SessionSaw, SinkIntegrity,
     TaskPolicy, TaskPolicyState, TrustedPattern, Widening, compare, covers, covers_reach,

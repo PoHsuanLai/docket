@@ -416,3 +416,32 @@ async fn a_helpers_agent_ends_when_the_helper_is_removed_or_the_host_stops() {
     apps.shutdown().await;
     assert!(ended(&kept_second[0]) > 0);
 }
+
+#[tokio::test]
+async fn two_helpers_jobs_run_at_the_same_time_each_on_its_own_process() {
+    let files = FakeFiles::new();
+    let said = |words: &'static str| turns(vec![vec![say(words), Act::Stop("end_turn")]]);
+    let (first, kept_first, _) = worlds_for("h-1", vec![said("One.")], &files);
+    let (second, kept_second, _) = worlds_for("h-2", vec![said("Two.")], &files);
+    let worlds: Mutex<BTreeMap<String, Worlds>> = Mutex::new(BTreeMap::from([
+        ("h-1".to_owned(), first),
+        ("h-2".to_owned(), second),
+    ]));
+    let apps = HelperAgents::new(
+        move |card: &HelperCard| {
+            worlds
+                .lock()
+                .expect("worlds")
+                .remove(card.id.as_str())
+                .expect("a world was prepared")
+        },
+        || AT,
+    );
+    let (one, two) = (card("h-1"), card("h-2"));
+    let (job_one, job_two) = (job_for("h-1"), job_for("h-2"));
+    let (a, b) = tokio::join!(apps.run(&one, &job_one), apps.run(&two, &job_two));
+    assert!(matches!(a, AgentOutcome::Done { .. }), "{a:?}");
+    assert!(matches!(b, AgentOutcome::Done { .. }), "{b:?}");
+    assert_eq!(kept_first[0].spawned.plans().len(), 1);
+    assert_eq!(kept_second[0].spawned.plans().len(), 1);
+}

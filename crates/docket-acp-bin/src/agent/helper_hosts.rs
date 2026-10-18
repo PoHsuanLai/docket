@@ -1,11 +1,11 @@
 //! Where the hosts of one helper's agent processes come from on a live host: a new backend for
 //! the helper's program each time its process starts, made for this helper (its grants are its
-//! own), opening its session in a folder of the helper's own under docket's data directory.
+//! own, and so is the menu of actions its agent is offered), opening its session in a folder of the helper's own under docket's data directory.
 
 use super::host::Hosting;
 use super::live::Live;
-use docket_acp::client::{AgentHost, Fallback, Hosts, Start};
-use docket_core::ProgramName;
+use docket_acp::client::{AgentHost, EdgeMenu, Fallback, Hosts, Start};
+use docket_core::{ProgramName, TaskPolicy};
 use docket_core::helper::HelperCard;
 use docket_inapp::EditorDesk;
 use docket_launch::Accounts;
@@ -21,6 +21,8 @@ pub struct HelperHosts<A: Accounts + 'static> {
     space: SpaceId,
     task: TaskId,
     cwd: Option<Workspace>,
+    /// What the person let the helper use: the menu of its agent's tool edge.
+    reach: TaskPolicy,
 }
 
 impl<A: Accounts + 'static> std::fmt::Debug for HelperHosts<A> {
@@ -44,6 +46,7 @@ impl<A: Accounts + 'static> HelperHosts<A> {
             task: live.task_of(&card.id),
             program,
             cwd,
+            reach: card.reach.clone(),
             live,
         }
     }
@@ -60,7 +63,9 @@ impl<A: Accounts + 'static> Hosts for HelperHosts<A> {
     type Desk = EditorDesk;
 
     async fn host(&mut self, start: Start) -> AgentHost<Hosting<A>, EditorDesk> {
-        let mut backend = self.live.backend(&self.program);
+        let mut backend = self
+            .live
+            .backend(&self.program, EdgeMenu::Helper(Box::new(self.reach.clone())));
         if let Some(way) = start.sign_in {
             backend = backend.with_sign_in(way);
         }

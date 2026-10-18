@@ -12,15 +12,18 @@
 //!
 //! - `ToolsOffer`: what the host is given to offer (a directory for sockets, the bridge program).
 //! - `ToolsEdge`: the listening side of one session. Dropped, it stops, and its socket is gone.
+//! - `EdgeMenu`: which actions the edge lists and lets through: all, or a helper's own.
 //! - `EdgeBind`: what the launcher binds into the agent's sandbox for it.
 //!
 //! The binding is the host's, never the agent's: a request has no field that names a session,
 //! program or app (`actions_tools::EdgeRequest`), the socket serves one session, and the token
 //! is that session's. See FINDINGS, "acp-edge", for the threat model.
 
+mod menu;
 mod offer;
 mod serve;
 mod token;
 
+pub use menu::EdgeMenu;
 pub use offer::{EdgeBind, SERVER_NAME, ToolsOffer};
 pub use serve::{EdgeFault, ToolsEdge};

@@ -20,7 +20,7 @@
 //! fails and the host's `close` kills the process. A host may still `cancel`, then `close`, sooner.
 
 use super::court::Court;
-use super::edge::{EdgeFault, ToolsEdge, ToolsOffer};
+use super::edge::{EdgeFault, EdgeMenu, ToolsEdge, ToolsOffer};
 use super::files::Files;
 use super::intake::{Intake, Work, intake};
 use super::models::{ModelId, Models};
@@ -145,6 +145,7 @@ pub struct AcpBackend<X: Seams> {
     pub(super) performer: Performer<X::Files, X::Sandbox>,
     pub(super) court: X::Court,
     pub(super) tools: Option<ToolsOffer>,
+    pub(super) menu: EdgeMenu,
     pub(super) live: Option<Live<X>>,
     pub(super) session: Option<prov::SessionId>,
     pub(super) phase: Phase,
@@ -182,6 +183,7 @@ impl<X: Seams> AcpBackend<X> {
             performer: parts.performer,
             court: parts.court,
             tools: parts.tools,
+            menu: EdgeMenu::Everything,
             live: None,
             session: Some(parts.session),
             phase: Phase::Stopped,
@@ -212,6 +214,12 @@ impl<X: Seams> AcpBackend<X> {
             sign_in_choice: Some(way),
             ..self
         }
+    }
+
+    /// The same backend, its tool edge offering only what `menu` allows: a helper's agent gets
+    /// its card's menu, not the assistant's.
+    pub fn with_menu(self, menu: EdgeMenu) -> Self {
+        Self { menu, ..self }
     }
 
     /// The same backend, picking up the agent's own session `session` again when the agent
@@ -262,7 +270,15 @@ impl<X: Seams> AcpBackend<X> {
         let made = self
             .tools
             .as_ref()
-            .map(|offer| ToolsEdge::start(offer, &session, &self.program, self.court.clone()));
+            .map(|offer| {
+                ToolsEdge::start_with(
+                    offer,
+                    &session,
+                    &self.program,
+                    self.court.clone(),
+                    self.menu.clone(),
+                )
+            });
         self.edge_fault = made.as_ref().and_then(|m| m.as_ref().err().copied());
         let edge = made.and_then(Result::ok);
         let plan = LaunchPlan {

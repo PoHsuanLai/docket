@@ -8,19 +8,23 @@
 //! outside agent and gains no way to; the only thing it can ask here is a turn.
 //!
 //! It is started by the bus when companiond first calls (`org.quire.AcpAgent` is activatable),
-//! holds one agent's session open between turns so the conversation goes on, and ends after a
-//! quiet while. Handing a turn to another agent ends the process and the next call starts it
-//! again, because the host serves one agent's pseudo-app at a time.
+//! serves the pseudo-app once for every use, holds the assistant's agent session open between
+//! turns so the conversation goes on, runs the helpers' agents beside it, and ends after a quiet
+//! while. Handing a turn to another agent closes the first one's session and opens the next in the
+//! same process. The assistant's turns and every helper's jobs run at the same time; only calls
+//! on one session wait for each other.
 //!
 //! Only companiond may call: the callers table (`acp-callers.toml`) names its unit.
 
 use super::calls::{Calls, NoSuchTurn};
 use super::fault::AgentFault;
 use super::helper_host::HelperHost;
-use super::host::{HostError, Hosted, host_typed};
+use super::host::{HostError, Hosted, open_on};
+use super::live::Live;
 use super::wire::{self, Tools};
 use super::{data_dir, env};
 use docket_acp::client::{Fallback, Workdir};
+use bulkhead::NetworkMode;
 use docket_core::helper::{AppsAsk, AppsReply};
 use docket_core::{AbsPath, HandOver, HandRefusal, HandReply, Handed, Reveal, UserTurn};
 use docket_dbus::callers::{COMPANIOND, Identity, require};
@@ -31,9 +35,9 @@ use docket_session::{
 };
 use prov::SpaceId;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
-use tokio::sync::{Mutex, Notify};
+use tokio::sync::{Mutex, OnceCell};
 use zbus::fdo;
 use zbus::message::Header;
 
@@ -129,7 +133,7 @@ pub fn end_of(end: TurnEnd, said: &[String], label: &str) -> Result<Handed, Hand
 enum Health {
     /// It can.
     Sound,
-    /// It stopped answering: the host ends, and the bus starts it again for the next turn.
+    /// It stopped answering: its session is closed, and the next turn opens a new one.
     Broken,
 }
 
@@ -141,23 +145,15 @@ struct Active {
     health: Health,
 }
 
-enum State {
-    /// Nothing started.
-    Fresh,
-    /// One agent's session is open.
-    Active(Box<Active>),
-    /// The helpers' agents hold the host (`helpers` has them); the assistant's turn waits.
-    Helpers,
-}
-
-/// The service: who may call it, the agent's session, and when it was last used.
+/// The service: who may call it, the pseudo-app every use shares, the assistant's agent session,
+/// the helpers' agents, and when it was last used.
 pub struct Service {
     bus: BusConnection,
-    state: Mutex<State>,
-    helpers: Mutex<Option<Arc<HelperHost>>>,
+    live: OnceCell<Arc<Live<DbusAccounts>>>,
+    assistant: Mutex<Option<Box<Active>>>,
+    helpers: OnceLock<Arc<HelperHost>>,
     caller: std::sync::Mutex<Option<String>>,
     last: std::sync::Mutex<Instant>,
-    done: Notify,
     turns: Calls<HandReply>,
     apps: Calls<AppsReply>,
 }
@@ -173,11 +169,11 @@ impl Service {
     pub fn new(bus: BusConnection) -> Self {
         Self {
             bus,
-            state: Mutex::new(State::Fresh),
-            helpers: Mutex::new(None),
+            live: OnceCell::new(),
+            assistant: Mutex::new(None),
+            helpers: OnceLock::new(),
             caller: std::sync::Mutex::new(None),
             last: std::sync::Mutex::new(Instant::now()),
-            done: Notify::new(),
             turns: Calls::default(),
             apps: Calls::default(),
         }
@@ -212,42 +208,43 @@ impl Service {
         self.apps.wait(id, AppsReply::Forget).await
     }
 
-    /// The call on the helpers' agents, if the host is free to hold them: while the assistant's
-    /// coding agent holds it, a helper's job fails as busy and the agent is left as it was.
+    /// The call on the helpers' agents. It does not wait for the assistant's turn or another
+    /// helper's job; only a call on the same helper's own process queues behind it.
     async fn apps(&self, ask: AppsAsk) -> AppsReply {
         self.touch();
-        let host = {
-            let mut state = self.state.lock().await;
-            if matches!(*state, State::Active(_)) {
-                None
-            } else {
-                let made = self.helper_host().await;
-                // A host that could not start holds nothing: the assistant's turn may still.
-                *state = if made.is_ok() {
-                    State::Helpers
-                } else {
-                    State::Fresh
-                };
-                Some(made)
-            }
-        };
-        let reply = match host {
-            Some(Ok(host)) => host.ask(ask).await,
-            Some(Err(fault)) => HelperHost::unavailable(&ask, fault),
-            None => HelperHost::busy_with(&ask),
+        let reply = match self.helper_host().await {
+            Ok(host) => host.ask(ask).await,
+            Err(fault) => HelperHost::unavailable(&ask, fault),
         };
         self.touch();
         reply
     }
 
+    /// The pseudo-app and the parts agents are made of, made once for every use: the setting and
+    /// `agents.toml` must allow it. The commands an agent runs count against the widest network,
+    /// because one host serves the agents of every program.
+    async fn live(&self) -> Result<Arc<Live<DbusAccounts>>, AgentFault> {
+        let made = self
+            .live
+            .get_or_try_init(|| async {
+                let wiring =
+                    wire::build(wire::allowed()?, Tools::Wanted, Fallback::Off, self.bus.clone())
+                        .await?;
+                let live = Live::serve(wiring, NetworkMode::Host)
+                    .await
+                    .map_err(AgentFault::Bus)?;
+                Ok::<_, AgentFault>(Arc::new(live))
+            })
+            .await?;
+        Ok(Arc::clone(made))
+    }
+
     async fn helper_host(&self) -> Result<Arc<HelperHost>, AgentFault> {
-        let mut held = self.helpers.lock().await;
-        if let Some(host) = &*held {
-            return Ok(Arc::clone(host));
-        }
-        let host = Arc::new(HelperHost::start(self.bus.clone()).await?);
-        *held = Some(Arc::clone(&host));
-        Ok(host)
+        let live = self.live().await?;
+        let host = self
+            .helpers
+            .get_or_init(|| Arc::new(HelperHost::new(live)));
+        Ok(Arc::clone(host))
     }
 
     fn touch(&self) {
@@ -264,9 +261,8 @@ impl Service {
 
     /// The turn handed over: the agent's answer, or why it was not given.
     pub async fn hand_over(&self, ask: HandOver) -> HandReply {
-        let mut state = self.state.lock().await;
         self.touch();
-        let reply = self.take(&mut state, ask).await;
+        let reply = self.take(ask).await;
         self.touch();
         match reply {
             Ok(handed) => HandReply::Handed(handed),
@@ -274,58 +270,51 @@ impl Service {
         }
     }
 
-    async fn take(&self, state: &mut State, ask: HandOver) -> Result<Handed, HandRefusal> {
+    async fn take(&self, ask: HandOver) -> Result<Handed, HandRefusal> {
         let HandOver {
             program,
             space,
             turn,
         } = ask;
-        if matches!(*state, State::Helpers) {
+        let live = self
+            .live()
+            .await
+            .map_err(|fault| refusal_of_fault(&fault))?;
+        // The assistant has one agent session at a time; its turns wait for each other, never for
+        // a helper.
+        let mut held = self.assistant.lock().await;
+        if held.as_ref().is_some_and(|active| active.program != program) {
+            Self::finish(&mut held).await;
+        }
+        if held.is_none() {
+            *held = Some(Box::new(Self::start(&live, &program, space).await?));
+        }
+        let Some(active) = held.as_mut() else {
             return Err(HandRefusal::Failed {
-                message: "A helper is using the coding agent right now. Try again in a moment."
-                    .to_owned(),
+                message: "The coding agent could not be started.".to_owned(),
             });
-        }
-        let switching = matches!(&*state, State::Active(held) if held.program != program);
-        if switching {
-            // The pseudo-app is served for one agent at a time: this one ends, and the bus
-            // starts the host again for the next.
-            self.finish(state).await;
-            return Err(HandRefusal::Switching);
-        }
-        if matches!(*state, State::Fresh) {
-            *state = State::Active(Box::new(self.start(&program, space).await?));
-        }
-        let State::Active(active) = state else {
-            return Err(HandRefusal::Switching);
         };
         let answered = active.run(turn).await;
         if active.health == Health::Broken {
-            self.finish(state).await;
+            Self::finish(&mut held).await;
         }
         answered
     }
 
-    /// Starts the agent `program` for the assistant: the setting and `agents.toml` allow it, its
-    /// folder is its own, its session opens at the router as this process's role.
-    async fn start(&self, program: &ProgramName, space: SpaceId) -> Result<Active, HandRefusal> {
-        let allowed = wire::allowed().map_err(|fault| refusal_of_fault(&fault))?;
-        let entry = allowed.file.get(program).ok_or(HandRefusal::NotSetUp)?;
+    /// Starts the agent `program` for the assistant: `agents.toml` lists it, its folder is its
+    /// own, its session opens at the router as this process's role.
+    async fn start(
+        live: &Live<DbusAccounts>,
+        program: &ProgramName,
+        space: SpaceId,
+    ) -> Result<Active, HandRefusal> {
+        let entry = live.entry(program).ok_or(HandRefusal::NotSetUp)?;
         let label = entry
             .label
             .as_ref()
             .map_or_else(|| program.as_str().to_owned(), |label| label.0.clone());
         let cwd = folder(program).map_err(|why| HandRefusal::Failed { message: why })?;
-        let wiring = wire::build(
-            allowed,
-            program,
-            Tools::Wanted,
-            Fallback::Off,
-            self.bus.clone(),
-        )
-        .await
-        .map_err(|fault| refusal_of_fault(&fault))?;
-        let hosted = host_typed(wiring, program.clone(), &cwd, space)
+        let hosted = open_on(live, program.clone(), &cwd, space)
             .await
             .map_err(|error| refusal_of_open(error, &label))?;
         Ok(Active {
@@ -336,34 +325,27 @@ impl Service {
         })
     }
 
-    /// Closes the agent's session, if one is open, and asks the process to end.
-    async fn finish(&self, state: &mut State) {
-        if let State::Active(active) = std::mem::replace(state, State::Fresh) {
+    /// Closes the assistant's agent session, if one is open.
+    async fn finish(held: &mut Option<Box<Active>>) {
+        if let Some(active) = held.take() {
             let Active { hosted, .. } = *active;
             let Hosted { mut host, session } = hosted;
             // The router hears the session end; an agent that is already gone has nothing to say.
             let _ = host.close(&session, EndCause::Closed).await;
         }
-        self.done.notify_one();
     }
 
-    /// Returns when the host should end: it asked to, or nothing has been asked of it for
-    /// [`IDLE`] and no turn is running.
+    /// Returns when the host should end: nothing has been asked of it for [`IDLE`] and no turn
+    /// is running, or the daemon that asked for the helpers' agents has left.
     pub async fn until_done(&self) {
         loop {
-            tokio::select! {
-                () = self.done.notified() => return,
-                () = tokio::time::sleep(WATCH) => {
-                    if self.quiet_for() > IDLE
-                        && self.state.try_lock().is_ok()
-                        && !self.helpers_busy()
-                    {
-                        return;
-                    }
-                    if self.caller_gone().await {
-                        return;
-                    }
-                }
+            tokio::time::sleep(WATCH).await;
+            if self.quiet_for() > IDLE && self.assistant.try_lock().is_ok() && !self.helpers_busy()
+            {
+                return;
+            }
+            if self.caller_gone().await {
+                return;
             }
         }
     }
@@ -381,21 +363,15 @@ impl Service {
 
     /// Closes the session still open and ends the helpers' agents, on the way out.
     pub async fn close(&self) {
-        {
-            let mut state = self.state.lock().await;
-            self.finish(&mut state).await;
-        }
-        let held = self.helpers.lock().await.take();
-        if let Some(helpers) = held {
+        Self::finish(&mut *self.assistant.lock().await).await;
+        if let Some(helpers) = self.helpers.get() {
             helpers.shutdown().await;
         }
     }
 
-    /// Whether a call on the helpers' agents is running, or the host of them is being made.
+    /// Whether a call on the helpers' agents is running.
     fn helpers_busy(&self) -> bool {
-        self.helpers.try_lock().map_or(true, |held| {
-            held.as_ref().is_some_and(|helpers| helpers.busy())
-        })
+        self.helpers.get().is_some_and(|helpers| helpers.busy())
     }
 
     /// Notes who asked for the helpers' agents, to end them when that caller is gone.

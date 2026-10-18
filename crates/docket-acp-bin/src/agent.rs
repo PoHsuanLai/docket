@@ -24,6 +24,7 @@ pub mod helper_host;
 pub mod helper_hosts;
 pub mod host;
 pub mod live;
+pub mod logout;
 pub mod provider;
 pub mod remember;
 pub mod serve;
@@ -94,7 +95,7 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
     let bus = docket_dbus::session_connection(&env)
         .await
         .map_err(|e| AgentFault::Bus(e.to_string()))?;
-    let wiring = wire::build(allowed()?, &args.program, tools, args.fallback, bus).await?;
+    let wiring = wire::build(allowed()?, tools, args.fallback, bus).await?;
 
     let cwd = std::fs::canonicalize(&args.cwd).map_err(|e| AgentFault::Directory(e.to_string()))?;
     let cwd = cwd.to_str().ok_or(AgentFault::DirectoryNotUtf8)?.to_owned();

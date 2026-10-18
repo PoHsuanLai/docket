@@ -9,16 +9,17 @@ use crate::agent::provider::{PerformerProvider, Quiet};
 use bulkhead::{BwrapSandbox, Detected, NetworkMode};
 use docket_acp::bulk;
 use docket_acp::client::{
-    AcpBackend, Fallback, IntentsCourt, OsFiles, Parts, Performer, ToolsOffer,
+    AcpBackend, EdgeMenu, Fallback, IntentsCourt, OsFiles, Parts, Performer, ToolsOffer,
 };
 use docket_client::{DbusTransport, serve_on_with};
 use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};
+use docket_agents::AgentsDir;
 use docket_core::{ACP_AGENT_APP, AbsPath, ValidManifest};
 use docket_dbus::CONFIRM_PATH;
 use docket_inapp::EditorDesk;
 use docket_launch::{
     Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Entry, Registry,
-    login_run,
+    ToolsMode, login_run,
 };
 use docket_session::ProgramName;
 use prov::{HelperId, SessionId, TaskId};
@@ -44,6 +45,10 @@ pub struct Live<A: Accounts + 'static> {
     pub court: IntentsCourt<DbusTransport>,
     /// The desk the sheets routed to the host land on.
     pub desk: EditorDesk,
+    /// Who answers the sheets of an agent's session.
+    pub fallback: Fallback,
+    /// The agents directory a registry agent was installed in; none writes nothing.
+    pub agents: Option<AgentsDir>,
     placeholder: Placeholder,
 }
 
@@ -84,7 +89,7 @@ impl<A: Accounts + 'static> Live<A> {
             fallback,
             desk,
             callers,
-            agents: _,
+            agents,
         } = wiring;
         let Detected::Bwrap(found) = &bwrap else {
             return Err("no sandbox (bubblewrap) here: no agent is started unconfined".into());
@@ -130,6 +135,8 @@ impl<A: Accounts + 'static> Live<A> {
             performer,
             court,
             desk,
+            fallback,
+            agents,
             placeholder: Placeholder::new()?,
         })
     }
@@ -198,9 +205,18 @@ impl<A: Accounts + 'static> Live<A> {
         program.unwrap_or_else(|| self.placeholder.program.clone())
     }
 
+    /// The tool edge `program` is offered: none when its entry switches the desktop's actions off
+    /// or the host has no bridge to give.
+    fn tools_for(&self, program: &ProgramName) -> Option<ToolsOffer> {
+        self.file
+            .get(program)
+            .filter(|entry| entry.tools == ToolsMode::Offered)
+            .and_then(|_| self.tools.clone())
+    }
+
     /// A new backend for `program`, its process not yet started: its own spawner, the performer
-    /// every session of this host shares.
-    pub fn backend(&self, program: &ProgramName) -> AcpBackend<Hosting<A>> {
+    /// every session of this host shares, and a tool edge that offers what `menu` allows.
+    pub fn backend(&self, program: &ProgramName, menu: EdgeMenu) -> AcpBackend<Hosting<A>> {
         let spawn = AgentSpawn::new(
             self.permit,
             Arc::clone(&self.file),
@@ -220,7 +236,8 @@ impl<A: Accounts + 'static> Live<A> {
             spawn,
             performer: self.performer.clone(),
             court: self.court.clone(),
-            tools: self.tools.clone(),
+            tools: self.tools_for(program),
         })
+        .with_menu(menu)
     }
 }
