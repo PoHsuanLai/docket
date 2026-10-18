@@ -85,13 +85,8 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             .await
             .map_err(|_| fault::internal("the session could not be opened"))?;
         let mode = Mode::default();
-        self.roster.insert(
-            session.clone(),
-            Known {
-                mode,
-                helper: None,
-            },
-        );
+        self.roster
+            .insert(session.clone(), Known { mode, helper: None });
         json(&NewSessionResponse::new(out::wire_id(&session)).modes(mode.state()))
     }
 
@@ -125,13 +120,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
                 .map_err(|_| fault::internal("the session could not be resumed"))?;
         }
         let mode = Mode::default();
-        self.roster.insert(
-            session,
-            Known {
-                mode,
-                helper: None,
-            },
-        );
+        self.roster.insert(session, Known { mode, helper: None });
         json(&LoadSessionResponse::new().modes(mode.state()))
     }
 
@@ -153,7 +142,12 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             .unwrap_or_default();
         let helpers: Vec<SessionId> = wanted
             .as_ref()
-            .map(|w| self.helpers_in(w).into_iter().map(|row| row.session).collect())
+            .map(|w| {
+                self.helpers_in(w)
+                    .into_iter()
+                    .map(|row| row.session)
+                    .collect()
+            })
             .unwrap_or_default();
         let mut found = Vec::new();
         for session in stored {

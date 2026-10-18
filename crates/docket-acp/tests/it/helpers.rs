@@ -238,7 +238,9 @@ async fn new_with_a_helper_in_meta_opens_a_job_and_a_plain_new_stays_the_compani
         for name in ["Garden", "Nobody"] {
             let params = json!({"cwd": "/work/a", "mcpServers": [], "_meta": {"helper": name}});
             let id = ed.send("session/new", params, "NewSessionRequest").await;
-            let reply = ed.until_reply(id, "NewSessionResponse", &mut |_| None).await;
+            let reply = ed
+                .until_reply(id, "NewSessionResponse", &mut |_| None)
+                .await;
             assert_eq!(
                 reply["error"]["message"],
                 format!("There is no helper called {name} here.")
