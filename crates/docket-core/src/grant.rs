@@ -52,6 +52,9 @@ pub enum GrantCaller {
         /// The helper that runs it.
         helper: prov::HelperId,
     },
+    /// One of the person's own helpers, spoken to through an editor: its grants are that
+    /// helper's alone, so another helper of the same editor does not share them.
+    Helper(prov::HelperId),
 }
 
 impl GrantCaller {
@@ -64,7 +67,7 @@ impl GrantCaller {
             GrantCaller::Cli => ActorKind::Cli,
             GrantCaller::App(_) => ActorKind::App,
             // An editor drives us over ACP as an outside client; an agent we run is prov's `Acp`.
-            GrantCaller::Editor(_) => ActorKind::Mcp,
+            GrantCaller::Editor(_) | GrantCaller::Helper(_) => ActorKind::Mcp,
             GrantCaller::AcpAgent(_) | GrantCaller::AcpHelper { .. } => ActorKind::Acp,
         }
     }

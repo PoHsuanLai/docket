@@ -181,7 +181,10 @@ pub fn blocker(f: &AskFacts<'_>) -> Option<Withheld> {
 pub fn holds_standing(caller: &GrantCaller) -> bool {
     matches!(
         caller,
-        GrantCaller::Editor(_) | GrantCaller::AcpAgent(_) | GrantCaller::AcpHelper { .. }
+        GrantCaller::Editor(_)
+            | GrantCaller::Helper(_)
+            | GrantCaller::AcpAgent(_)
+            | GrantCaller::AcpHelper { .. }
     )
 }
 

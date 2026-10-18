@@ -28,9 +28,8 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             Reply::Heard(orders) => Ok(orders),
             Reply::Answer(reply) => {
                 let choice = choice_of_reply(reply, sheet);
-                let given = self.host_choice(session, sheet, choice).await;
                 // A host that cannot take it leaves the sheet to expire on its own terms.
-                let _ = self.host.answer_sheet(session, &sheet.id, given).await;
+                let _ = self.host.answer_sheet(session, &sheet.id, choice).await;
                 turn.sheet_answered(choice);
                 Ok(Vec::new())
             }

@@ -5,7 +5,6 @@
 //! a call and a sheet go the way they always do.
 
 use companion_wire::{JobLine, ToldWire};
-use docket_core::StandingScope;
 use docket_core::helper::HelperName;
 use prov::{HelperId, SessionId, SpaceId};
 use std::future::Future;
@@ -28,7 +27,8 @@ pub struct HelperRow {
 pub struct HelperRefusal(pub String);
 
 /// The person's helpers, as far as an editor may reach them. Nothing here lets the editor answer a
-/// sheet of ours or widen a helper: the only authority it can add is a grant for that helper.
+/// sheet of ours or widen a helper. An editor's "always" in a helper's session is the router's to
+/// record, under the helper's id (`GrantCaller::Helper`), so it is that helper's alone.
 pub trait Helpers: Send {
     /// Every helper there is. The server keeps those in the editor's workspace's Space.
     fn rows(&self) -> Vec<HelperRow>;
@@ -46,14 +46,6 @@ pub trait Helpers: Send {
     /// has a session for). It pends while there is none. The server drops it when a line from
     /// the editor comes first, so it must lose nothing when dropped.
     fn next_told(&mut self, watching: &[HelperId]) -> impl Future<Output = ToldWire> + Send;
-
-    /// The editor's person said "always" on a sheet of `helper`'s: a standing grant for exactly
-    /// `scope`, held for that helper alone.
-    fn always(
-        &mut self,
-        helper: &HelperId,
-        scope: StandingScope,
-    ) -> impl Future<Output = ()> + Send;
 }
 
 /// No helpers: the server as it was before they existed.
@@ -76,6 +68,4 @@ impl Helpers for NoHelpers {
     async fn next_told(&mut self, _watching: &[HelperId]) -> ToldWire {
         std::future::pending().await
     }
-
-    async fn always(&mut self, _helper: &HelperId, _scope: StandingScope) {}
 }

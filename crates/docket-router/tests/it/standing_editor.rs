@@ -292,3 +292,50 @@ async fn a_call_outside_the_task_is_never_offered() {
     );
     assert!(router.standing_grants().is_empty());
 }
+
+fn helper_id(n: u64) -> prov::HelperId {
+    serde_json::from_str(&format!("\"h-{n}\"")).expect("helper id")
+}
+
+/// Makes the editor's session the conversation of helper `n`, whose reach is to look only.
+fn seat_as(router: &Router<FakeSeams>, session: &SessionId, n: u64) {
+    let look = TaskPolicy {
+        actions: std::collections::BTreeSet::from([ActionMatch::AppUpTo(
+            mail_app(),
+            Effect::Read,
+        )]),
+        ceiling: Effect::Read,
+        ..wide_policy(&prov::TaskId::parse("t-0").expect("task"), "work")
+    };
+    let mut st = router.state.lock().expect("lock");
+    st.sessions.get_mut(session).expect("session").helper =
+        Some(docket_core::helper::HelperSeat {
+            helper: helper_id(n),
+            name: docket_core::helper::HelperName::parse("Inbox").expect("name"),
+            reach: look,
+            owns: Vec::new(),
+        });
+}
+
+#[tokio::test]
+async fn an_always_in_a_helpers_session_is_that_helpers_alone() {
+    let mut router = with_contact();
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![always()]);
+    let mine = editor_session(&router, ZED).await;
+    seat_as(&router, &mine, 2);
+    perform_in(&router, &mine, send()).await.expect("ran");
+    let held = router.standing_grants();
+    assert_eq!(held.len(), 1);
+    assert_eq!(held[0].caller, GrantCaller::Helper(helper_id(2)));
+    // The same helper is not asked again.
+    perform_in(&router, &mine, send()).await.expect("second");
+    assert_eq!(router.seams.confirmer.requests().len(), 1, "asked once");
+    // Another helper reached through the same editor is: the grant is not the editor's.
+    let theirs = editor_session(&router, ZED).await;
+    seat_as(&router, &theirs, 3);
+    perform_in(&router, &theirs, send())
+        .await
+        .expect_err("asks");
+    assert_eq!(router.seams.confirmer.requests().len(), 2);
+    assert_eq!(router.standing_grants().len(), 1);
+}

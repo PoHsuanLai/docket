@@ -1,7 +1,7 @@
 //! The editor's face of the helpers: `session/list` shows the helpers of the workspace's Space,
 //! `session/new` with `_meta.helper` opens a job, a prompt is the person's turn with the editor's
-//! caps, the board's sentences arrive as plain lines, and "always" is a grant for that helper
-//! alone. A scripted editor over the existing transport; the helpers are a fake seam.
+//! caps, the board's sentences arrive as plain lines, and "always" reaches the host as chosen.
+//! A scripted editor over the existing transport; the helpers are a fake seam.
 
 use crate::support::*;
 use companion_wire::{JobLine, JobShown, ToldWire};
@@ -47,7 +47,6 @@ fn row(n: u64, name: &str, space: &str, session_id: &str) -> HelperRow {
 #[derive(Debug, Default)]
 struct Seen {
     opened: Vec<HelperId>,
-    grants: Vec<(HelperId, StandingScope)>,
 }
 
 struct FakeHelpers {
@@ -95,14 +94,6 @@ impl Helpers for FakeHelpers {
             Some(at) => self.told.remove(at).expect("told"),
             None => std::future::pending().await,
         }
-    }
-
-    async fn always(&mut self, helper: &HelperId, scope: StandingScope) {
-        self.seen
-            .lock()
-            .expect("seen")
-            .grants
-            .push((helper.clone(), scope));
     }
 }
 
@@ -370,9 +361,9 @@ fn sheet(id: &str) -> BackendEvent {
 }
 
 #[tokio::test]
-async fn allow_always_in_a_helpers_session_is_a_grant_for_that_helper_only() {
+async fn allow_always_in_a_helpers_session_reaches_the_host_as_always() {
     let log = seeded().await;
-    let (fake, seen) = FakeHelpers::new(three());
+    let (fake, _) = FakeHelpers::new(three());
     let turn = vec![vec![vec![sheet("c-1"), end(TurnEnd::Done)]]];
     let (mut server, mut ed) = rig_with(&log, turn, EDITOR, fake);
     let script = async move {
@@ -385,13 +376,9 @@ async fn allow_always_in_a_helpers_session_is_a_grant_for_that_helper_only() {
     };
     let (ran, ()) = tokio::join!(server.run(), script);
     assert!(ran.is_ok());
-    // The grant is the helper's; the host was told "once", so nothing is held for the editor.
-    assert_eq!(
-        seen.lock().expect("seen").grants,
-        [(helper(2), files_scope())]
-    );
+    // The router records the grant under the helper's id, so the host is told what was chosen.
     let id = ConfirmId::parse("c-1").expect("id");
-    assert_eq!(server.into_host().sheets, vec![(id, SheetChoice::Once)]);
+    assert_eq!(server.into_host().sheets, vec![(id, SheetChoice::Always)]);
 }
 
 #[tokio::test]

@@ -25,6 +25,9 @@ pub(crate) struct Who {
     /// The external agent the call is made for, when its host makes it: the program the host
     /// named when it opened the session, never a name the agent sent.
     pub agent: Option<AgentSeat>,
+    /// The helper whose job or conversation the session is, when the companion opened it for
+    /// one: an editor's "always" in it is that helper's alone.
+    pub helper: Option<prov::HelperId>,
 }
 
 /// The external agent behind a host's call.
@@ -82,6 +85,9 @@ impl Who {
                 None => GrantCaller::AcpAgent(seat.program.clone()),
             };
         }
+        if let (Some(_), Some(helper)) = (&self.editor, &self.helper) {
+            return GrantCaller::Helper(helper.clone());
+        }
         if let Some(client) = &self.editor
             && !matches!(
                 self.actor,
@@ -136,6 +142,7 @@ impl RouterState {
                     voice: Voice::Person,
                     editor,
                     agent: None,
+                    helper: None,
                 });
             }
             CallerRole::Companion => {
@@ -147,7 +154,14 @@ impl RouterState {
                     Some(wanted) => companions.find(|(id, _)| *id == wanted),
                     None => companions.max_by_key(|(id, _)| crate::messaging::age(id)),
                 }
-                .map(|(id, r)| (id.clone(), r.actor.clone(), editor_of(r)))
+                .map(|(id, r)| {
+                    (
+                        id.clone(),
+                        r.actor.clone(),
+                        editor_of(r),
+                        r.helper.as_ref().map(|seat| seat.helper.clone()),
+                    )
+                })
                 .ok_or(WireRefusal::NoSuchSession)?;
                 return Ok(Who {
                     caller: caller.clone(),
@@ -157,6 +171,7 @@ impl RouterState {
                     voice: Voice::Model,
                     editor: session.2,
                     agent: None,
+                    helper: session.3,
                 });
             }
             CallerRole::Mcp => {
@@ -204,6 +219,7 @@ impl RouterState {
             voice,
             editor: None,
             agent: None,
+            helper: None,
         })
     }
 
@@ -233,6 +249,7 @@ impl RouterState {
             actor: record.actor.clone(),
             voice: Voice::Agent(client),
             editor: None,
+            helper: None,
             agent: Some(AgentSeat {
                 program: external.program.clone(),
                 host,

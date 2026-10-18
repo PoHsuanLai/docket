@@ -18,8 +18,8 @@ use agent_client_protocol_schema::v1::{
     SessionNotification, SessionUpdate,
 };
 use companion_wire::ToldWire;
-use docket_core::{AlwaysOffer, ConfirmRequest, Workspace};
-use docket_session::{SessionHost, SessionLog, SheetChoice};
+use docket_core::Workspace;
+use docket_session::{SessionHost, SessionLog};
 use prov::{HelperId, SessionId, SpaceId};
 use serde_json::Value;
 
@@ -153,25 +153,5 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
                 .await?;
         }
         Ok(())
-    }
-
-    /// What the host is told of the editor's `choice` on `sheet` in `session`. In a helper's
-    /// session "always" is a standing grant for that helper alone, which the helpers seam holds;
-    /// the host is told "once", so the grant the router would make for the editor's own app is
-    /// never made.
-    pub(crate) async fn host_choice(
-        &mut self,
-        session: &SessionId,
-        sheet: &ConfirmRequest,
-        choice: SheetChoice,
-    ) -> SheetChoice {
-        let helper = self.roster.get(session).and_then(|k| k.helper.clone());
-        match (helper, choice, &sheet.always) {
-            (Some(helper), SheetChoice::Always, AlwaysOffer::Offered(scope)) => {
-                self.helpers.always(&helper, scope.clone()).await;
-                SheetChoice::Once
-            }
-            _ => choice,
-        }
     }
 }

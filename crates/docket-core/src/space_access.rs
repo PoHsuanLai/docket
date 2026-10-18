@@ -52,7 +52,8 @@ impl GrantCaller {
             | GrantCaller::Cli
             | GrantCaller::Editor(_)
             | GrantCaller::AcpAgent(_)
-            | GrantCaller::AcpHelper { .. } => None,
+            | GrantCaller::AcpHelper { .. }
+            | GrantCaller::Helper(_) => None,
         }
     }
 }
