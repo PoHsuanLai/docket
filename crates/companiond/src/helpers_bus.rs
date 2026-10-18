@@ -22,11 +22,17 @@ fn helper_of(text: &str) -> fdo::Result<HelperId> {
 
 /// The id of a routine as the shell sends it (`r-3`).
 fn routine_of(text: &str) -> fdo::Result<RoutineId> {
-    RoutineId::parse(text).ok_or_else(|| fdo::Error::InvalidArgs("there is no such routine".into()))
+    RoutineId::parse(text)
+        .ok_or_else(|| fdo::Error::InvalidArgs("there is no such routine".into()))
 }
 
 /// What the helpers' calls come to, once, for both interfaces.
-async fn post(desk: &dyn HelperDesk, helper: &str, goal: String, things: &str) -> fdo::Result<String> {
+async fn post(
+    desk: &dyn HelperDesk,
+    helper: &str,
+    goal: String,
+    things: &str,
+) -> fdo::Result<String> {
     let things: Vec<EntityId> = if things.trim().is_empty() {
         Vec::new()
     } else {
