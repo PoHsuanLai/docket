@@ -302,6 +302,7 @@ impl<S: Seams> Router<S> {
             role,
             CallerRole::Field | CallerRole::Editor | CallerRole::AcpAgent
         ) && record.opener != caller.app.name
+            && !record.is_conversation_for(role)
         {
             return Err(WireRefusal::NotAllowed);
         }

@@ -133,6 +133,17 @@ impl SessionRecord {
         }
     }
 
+    /// Whether `role` may speak in this session without having opened it: an editor, in a
+    /// helper's conversation, which the companion opened for the person to talk in. A helper's
+    /// job is never one, and the seat is the companion's to give, not the editor's.
+    pub fn is_conversation_for(&self, role: CallerRole) -> bool {
+        role == CallerRole::Editor
+            && self
+                .helper
+                .as_ref()
+                .is_some_and(|seat| seat.place == docket_core::helper::SeatPlace::Conversation)
+    }
+
     /// Notes things the router showed this session, so a name for one is not a model's
     /// invention. Past [`MAX_KNOWN`] a new thing is refused and none after it is noted.
     pub fn know(&mut self, things: impl IntoIterator<Item = EntityId>) -> Result<(), HandleLimit> {

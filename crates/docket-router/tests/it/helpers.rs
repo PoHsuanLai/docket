@@ -31,6 +31,7 @@ fn seat(n: u64, reach: TaskPolicy, owns: &[&str]) -> HelperSeat {
         name: docket_core::helper::HelperName::parse("Inbox").expect("name"),
         reach,
         owns: owns.iter().map(|k| entity("mail.thread", k)).collect(),
+        place: docket_core::helper::SeatPlace::Job,
     }
 }
 
@@ -606,4 +607,64 @@ async fn words_a_helper_writes_inside_its_reach_ask_nothing() {
         .await
         .expect("a draft inside the reach runs");
     assert!(router.seams.confirmer.requests().is_empty());
+}
+
+#[tokio::test]
+async fn an_editor_speaks_in_a_helpers_conversation_and_in_no_other_session_it_did_not_open() {
+    let router = router();
+    let editor = caller("org.zed.Zed", CallerRole::Editor);
+    let talk = HelperSeat {
+        place: docket_core::helper::SeatPlace::Conversation,
+        ..seat(1, reach(Effect::Read), &[])
+    };
+    let conversation = open_job(&router, &companion(), Some(talk), None).await;
+    let job = open_job(
+        &router,
+        &companion(),
+        Some(seat(1, reach(Effect::Read), &[])),
+        None,
+    )
+    .await;
+    let plain = open_job(&router, &companion(), None, None).await;
+    // The editor's own words are recorded in the conversation, and only there.
+    say_as(&router, &editor, &conversation.session, "how is the inbox?").await;
+    for (what, session) in [("a job", &job.session), ("a plain session", &plain.session)] {
+        let reply = ask(
+            &router,
+            &editor,
+            IntentsRequest::SessionTurn {
+                session: session.clone(),
+                turn: TurnIn {
+                    text: "hello".into(),
+                    origin: Origin::Launcher,
+                    keep: ContextKeep {
+                        query: Keep::Dropped,
+                        results: Keep::Dropped,
+                        selection: Keep::Dropped,
+                        window: Keep::Dropped,
+                    },
+                    via: TurnVia::Typed,
+                },
+            },
+        )
+        .await;
+        assert!(
+            matches!(reply, IntentsReply::Refused(WireRefusal::NotAllowed)),
+            "{what}: {reply:?}"
+        );
+    }
+    // An editor cannot give a session a seat of its own.
+    let seated = open_job(
+        &router,
+        &editor,
+        Some(HelperSeat {
+            place: docket_core::helper::SeatPlace::Conversation,
+            ..seat(2, reach(Effect::Read), &[])
+        }),
+        None,
+    )
+    .await;
+    assert!(router.state.lock().expect("lock").sessions[&seated.session]
+        .helper
+        .is_none());
 }

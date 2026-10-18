@@ -152,7 +152,15 @@ impl RouterState {
                     .filter(|(_, r)| matches!(r.actor, Actor::Companion { .. }));
                 let session = match named {
                     Some(wanted) => companions.find(|(id, _)| *id == wanted),
-                    None => companions.max_by_key(|(id, _)| crate::messaging::age(id)),
+                    // A helper's conversation is the person's to talk in: a call that names no session is
+                    // never taken to be in it.
+                    None => companions
+                        .filter(|(_, r)| {
+                            !r.helper.as_ref().is_some_and(|seat| {
+                                seat.place == docket_core::helper::SeatPlace::Conversation
+                            })
+                        })
+                        .max_by_key(|(id, _)| crate::messaging::age(id)),
                 }
                 .map(|(id, r)| {
                     (

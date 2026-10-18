@@ -585,6 +585,10 @@ async fn the_shell_makes_changes_pauses_and_removes_a_helper_and_reads_it_in_pla
     assert_eq!(card.line.doing, "Nothing to do");
     assert_eq!(card.line.state, HelperPhase::Idle);
 
+    // It has one conversation session, kept while it lives.
+    let talk = hub.view(0).helpers[0].conversation.clone();
+    assert!(talk.is_some(), "the person can talk with it");
+
     // The same name, or an app that is not there, is refused in plain words.
     assert_eq!(
         hub.create(work_form("research", HelperModel::Unset)).await,
@@ -624,6 +628,7 @@ async fn the_shell_makes_changes_pauses_and_removes_a_helper_and_reads_it_in_pla
     assert_eq!(card.jobs.len(), 1);
     assert_eq!(card.jobs[0].id, job);
     assert_eq!(card.jobs[0].state, JobShown::NeedsModel);
+    assert_eq!(hub.view(0).helpers[0].conversation, talk, "one, kept");
 
     // Pause, resume and remove.
     hub.pause(research.clone()).await;

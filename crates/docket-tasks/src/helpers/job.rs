@@ -13,7 +13,7 @@ use agent_loop::{FinishedAs, LoopInput, LoopPhase};
 use companion_wire::{AnswerPhase, NeedsYou, RefusalWire};
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{
-    CallVerdict, GoalSource, HelperCard, HelperSeat, Job, JobFault, SignInWay,
+    CallVerdict, GoalSource, HelperCard, HelperSeat, Job, JobFault, SeatPlace, SignInWay,
 };
 use docket_core::{
     CallEnd, CallRefusal, DenyCode, DraftPart, MessageDraft, SessionOpen, StepEnd, TurnId,
@@ -144,6 +144,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 name: spec.card.name.clone(),
                 reach: spec.card.reach.clone(),
                 owns: spec.job.owns.iter().cloned().collect(),
+                place: SeatPlace::Job,
             }),
         };
         let router = self

@@ -12,8 +12,8 @@ use almanac_core::{RecentEntry, RecentQuery};
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{
     AgentApps, AgentOutcome, Board, BoardEffect, BoardEvent, CallVerdict, CardRecord, HelperCard,
-    HelperName, HelperRecord, HelperState, JobFault, JobId, JobStatus, Launch, Need, Notice,
-    ResultHandle, SignInWay, TaskRef, owned_sentence, step,
+    HelperName, HelperRecord, HelperSeat, HelperState, JobFault, JobId, JobStatus, Launch, Need,
+    Notice, ResultHandle, SeatPlace, SignInWay, TaskRef, owned_sentence, step,
 };
 use docket_core::routine::JobEnd;
 use docket_core::{SessionOpen, ValidManifest};
@@ -90,6 +90,9 @@ pub(super) struct State {
     pub(super) signins: BTreeMap<HelperId, Vec<SignInWay>>,
     /// The helpers whose agent app opened a session, so is signed in: known only from the app.
     pub(super) signed: BTreeSet<HelperId>,
+    /// The one session each helper has for the person to talk with it in, kept until the helper
+    /// is removed. Not across a restart: the next pass opens it again.
+    conversations: BTreeMap<HelperId, SessionId>,
 }
 
 /// What builds the companion a job runs on: its transports are the daemon's, its planner is
@@ -370,10 +373,70 @@ where
                 | BoardEffect::JobRefused(_) => {}
             }
         }
+        self.keep_conversations().await;
         if !effects.is_empty() {
             self.inner.shared.surface().changed(Change::HelpersChanged);
         }
         effects
+    }
+
+    /// The session the person talks with `helper` in, when it has one.
+    pub fn conversation_of(&self, helper: &HelperId) -> Option<SessionId> {
+        self.with_state(|state| state.conversations.get(helper).cloned())
+    }
+
+    /// Gives each helper on the board its one conversation (a session with the helper's seat, which
+    /// an editor may speak in) and ends the conversation of a helper that is gone. One pass at a
+    /// time, under the service companion's lock, so a helper never gets two.
+    async fn keep_conversations(&self) {
+        let service = self.inner.service.lock().await;
+        let (missing, gone) = self.with_state(|state| {
+            let missing: Vec<HelperCard> = state
+                .board
+                .cards()
+                .iter()
+                .filter(|card| !state.conversations.contains_key(&card.id))
+                .cloned()
+                .collect();
+            let gone: Vec<(HelperId, SessionId)> = state
+                .conversations
+                .iter()
+                .filter(|(helper, _)| state.board.card(helper).is_none())
+                .map(|(helper, session)| (helper.clone(), session.clone()))
+                .collect();
+            (missing, gone)
+        });
+        for card in missing {
+            let open = SessionOpen {
+                space: card.space.clone(),
+                agent: AgentRef::Companion,
+                parent: None,
+                cwd: None,
+                started_from: None,
+                external: None,
+                helper: Some(HelperSeat {
+                    helper: card.id.clone(),
+                    name: card.name.clone(),
+                    reach: card.reach.clone(),
+                    owns: Vec::new(),
+                    place: SeatPlace::Conversation,
+                }),
+            };
+            match service.intents.session_open(open).await {
+                Ok(opened) => self.with_state(|state| {
+                    state.conversations.insert(card.id.clone(), opened.session);
+                }),
+                Err(cause) => {
+                    tracing::warn!(%cause, "a helper's conversation could not be opened");
+                }
+            }
+        }
+        for (helper, session) in gone {
+            self.with_state(|state| state.conversations.remove(&helper));
+            if let Err(cause) = service.intents.session_close(session.clone()).await {
+                tracing::warn!(%session, %cause, "a helper's conversation would not close");
+            }
+        }
     }
 
     fn tell_notice(

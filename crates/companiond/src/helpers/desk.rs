@@ -304,7 +304,10 @@ where
             helpers: board
                 .cards()
                 .iter()
-                .map(|card| line_of(card, &board, self.needs_of(card)))
+                .map(|card| HelperLine {
+                    conversation: self.conversation_of(&card.id),
+                    ..line_of(card, &board, self.needs_of(card))
+                })
                 .collect::<Vec<HelperLine>>(),
             told: self
                 .told_since(after)

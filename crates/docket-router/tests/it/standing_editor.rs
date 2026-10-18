@@ -310,6 +310,7 @@ fn seat_as(router: &Router<FakeSeams>, session: &SessionId, n: u64) {
         name: docket_core::helper::HelperName::parse("Inbox").expect("name"),
         reach: look,
         owns: Vec::new(),
+        place: docket_core::helper::SeatPlace::Conversation,
     });
 }
 

@@ -56,4 +56,4 @@ pub use post::{Post, PostId, PostPart, PostTo};
 pub use reach::{Ceiling, ReachFault, reach_lines, reach_policy};
 pub use records::{CardRecord, HelperRecord, HelperRecordKind};
 pub use rules::{JobRefusal, admit_goal};
-pub use seat::HelperSeat;
+pub use seat::{HelperSeat, SeatPlace};
