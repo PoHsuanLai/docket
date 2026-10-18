@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use agent_client_protocol_schema::rpc::RequestId;
-use docket_acp::{LineWire, Permit, Server, Ticks};
+use docket_acp::{Helpers, LineWire, NoHelpers, Permit, Server, Ticks};
 use docket_core::{
     ActionRef, CallId, CallRefusal, DenyCode, LabelText, StepEnd, StepLine, StepShown,
 };
@@ -101,13 +101,24 @@ pub fn rig(
     scripts: Vec<Vec<Vec<BackendEvent>>>,
     editor_app: &str,
 ) -> (TestServer, Editor) {
+    rig_with(log, scripts, editor_app, NoHelpers)
+}
+
+/// [`rig`] with the person's `helpers` shown to the editor.
+pub fn rig_with<S: Helpers>(
+    log: &Arc<MemoryLog>,
+    scripts: Vec<Vec<Vec<BackendEvent>>>,
+    editor_app: &str,
+    helpers: S,
+) -> (Server<FakeHost, Arc<MemoryLog>, Wire, Fixed, S>, Editor) {
     docket_testbus::hang_guard::arm();
     let (client_end, server_end) = duplex(1 << 16);
     let (server_read, server_write) = split(server_end);
     let (client_read, client_write) = split(client_end);
     let wire = LineWire::new(BufReader::new(server_read), server_write);
     let host = FakeHost::new(log.clone(), scripts);
-    let server = Server::new(permit(), app(editor_app), host, log.clone(), wire, Fixed);
+    let server = Server::new(permit(), app(editor_app), host, log.clone(), wire, Fixed)
+        .with_helpers(helpers);
     let schema: Value =
         serde_json::from_str(include_str!("../../schema/schema.json")).expect("schema");
     let editor = Editor {

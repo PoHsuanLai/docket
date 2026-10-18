@@ -8,6 +8,10 @@
 //!   the mappings from our step lines, the editor's extra gate, the modes and the stored
 //!   sessions.
 //!
+//! - `Helpers`: the seam through which an editor sees the person's helpers (`session/list` shows
+//!   them, `session/load` replays their recent jobs, `session/new` with `_meta.helper` opens a job)
+//!   and the board's sentences reach it as plain lines. The editor never answers a helper's sheet
+//!   for the helper: its "always" is a grant for that helper alone.
 //! - `client` (feature `client`): the other direction (S4), an external agent as a session backend.
 //! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`bulkhead`),
 //!   ruled by the `Execute` rules. They run in our sandbox, never in an editor's terminal.
@@ -24,6 +28,9 @@ mod command_deadline;
 mod covered;
 mod expose;
 mod fault;
+mod helper_face;
+mod helper_replay;
+mod helpers;
 mod history;
 mod mode;
 mod out;
@@ -43,6 +50,7 @@ pub use calls::{Outcome, outcome};
 pub use command_deadline::CommandDeadline;
 pub use covered::Covered;
 pub use expose::{Permit, Refusal};
+pub use helpers::{HelperRefusal, HelperRow, Helpers, NoHelpers};
 pub use history::rfc3339;
 pub use mode::{Mode, Say};
 pub use permission::{

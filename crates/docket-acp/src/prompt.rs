@@ -3,6 +3,7 @@
 //! a call the mode says to ask about. The machine (`turn`) decides; this only carries.
 
 use crate::fault;
+use crate::helpers::Helpers;
 use crate::mode::Mode;
 use crate::out;
 use crate::permission::{self, verdict_of_reply};
@@ -57,7 +58,7 @@ enum Woke {
     Line(Option<String>),
 }
 
-impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
+impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, W, T, S> {
     pub(crate) async fn prompt(
         &mut self,
         id: RequestId,

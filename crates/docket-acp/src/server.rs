@@ -10,6 +10,7 @@
 use crate::covered::Covered;
 use crate::expose::Permit;
 use crate::fault;
+use crate::helpers::{Helpers, NoHelpers};
 use crate::mode::Mode;
 use crate::out;
 use crate::wire::{Incoming, Wire, WireClosed};
@@ -20,11 +21,14 @@ use agent_client_protocol_schema::v1::{
     InitializeResponse, PromptCapabilities, SessionCapabilities, SessionListCapabilities,
     SetSessionModeRequest, SetSessionModeResponse,
 };
+use companion_wire::ToldWire;
 use docket_session::{SessionHost, SessionLog};
+use futures_util::future::{Either, select};
 use porter_core::AppName;
-use prov::{SessionId, UnixSeconds};
+use prov::{HelperId, SessionId, UnixSeconds};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::pin::pin;
 
 /// The time, passed in: the lib reads no clock.
 pub trait Ticks: Send {
@@ -36,6 +40,14 @@ pub trait Ticks: Send {
 #[derive(Debug, Clone)]
 pub(crate) struct Known {
     pub mode: Mode,
+    /// The helper the session is a conversation or a job of; none for the companion's.
+    pub helper: Option<HelperId>,
+}
+
+/// What woke the serve loop.
+enum Heard {
+    Line(Option<String>),
+    Told(ToldWire),
 }
 
 /// Whether `initialize` has happened.
@@ -76,7 +88,7 @@ impl Method {
 
 /// The ACP server edge.
 #[derive(Debug)]
-pub struct Server<H, L, W, T> {
+pub struct Server<H, L, W, T, S = NoHelpers> {
     pub(crate) host: H,
     pub(crate) log: L,
     pub(crate) wire: W,
@@ -85,10 +97,11 @@ pub struct Server<H, L, W, T> {
     pub(crate) roster: BTreeMap<SessionId, Known>,
     pub(crate) minted: u64,
     pub(crate) covered: Covered,
+    pub(crate) helpers: S,
     readiness: Readiness,
 }
 
-impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
+impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T, NoHelpers> {
     /// A server for the editor `editor` (the opener its sessions record), allowed to serve by
     /// `permit`.
     pub fn new(_permit: Permit, editor: AppName, host: H, log: L, wire: W, ticks: T) -> Self {
@@ -101,10 +114,30 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
             roster: BTreeMap::new(),
             minted: 0,
             covered: Covered::default(),
+            helpers: NoHelpers,
             readiness: Readiness::Fresh,
         }
     }
 
+    /// The same server that also shows the person's `helpers` to the editor (`session/list`,
+    /// `session/load`, `session/new` with `_meta.helper`).
+    pub fn with_helpers<S: Helpers>(self, helpers: S) -> Server<H, L, W, T, S> {
+        Server {
+            host: self.host,
+            log: self.log,
+            wire: self.wire,
+            ticks: self.ticks,
+            editor: self.editor,
+            roster: self.roster,
+            minted: self.minted,
+            covered: self.covered,
+            helpers,
+            readiness: self.readiness,
+        }
+    }
+}
+
+impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, W, T, S> {
     /// The host, for the caller that built the server to look at after it ran.
     pub fn into_host(self) -> H {
         self.host
@@ -115,12 +148,26 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T> {
         self.minted
     }
 
-    /// Serves until the editor closes the connection.
+    /// Serves until the editor closes the connection. Between its requests, what the board says
+    /// of a helper the editor has a session for goes out as a plain line in that session. A
+    /// sentence that comes while a prompt runs waits for the prompt to end.
     pub async fn run(&mut self) -> Result<(), WireClosed> {
-        while let Some(line) = self.wire.read_line().await {
-            self.line(&line).await?;
+        loop {
+            let watching = self.watching();
+            let heard = {
+                let line = pin!(self.wire.read_line());
+                let told = pin!(self.helpers.next_told(&watching));
+                match select(line, told).await {
+                    Either::Left((line, _)) => Heard::Line(line),
+                    Either::Right((told, _)) => Heard::Told(told),
+                }
+            };
+            match heard {
+                Heard::Line(None) => return Ok(()),
+                Heard::Line(Some(line)) => self.line(&line).await?,
+                Heard::Told(told) => self.tell(told).await?,
+            }
         }
-        Ok(())
     }
 
     async fn line(&mut self, line: &str) -> Result<(), WireClosed> {

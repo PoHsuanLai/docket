@@ -1,5 +1,6 @@
 #[cfg(feature = "client")]
 mod client;
+mod helpers;
 mod restore;
 mod session;
 mod sheets;
