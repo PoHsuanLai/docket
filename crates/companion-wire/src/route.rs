@@ -210,6 +210,7 @@ pub fn footer_line(notes: &[RouteNote]) -> String {
 pub fn declined_text(declined: &Declined) -> String {
     let name = model_name(declined.model.model.as_str());
     let reason = match &declined.because {
+        DeclinedBecause::CannotSeeScreen => return porter_infer::cannot_see_screen(&name),
         DeclinedBecause::NotListed => "no account offers it for this request".to_owned(),
         DeclinedBecause::Blocked { refusal } => blocked_text(*refusal).to_owned(),
         DeclinedBecause::NotInstalled => "it is not installed on this computer".to_owned(),
@@ -230,6 +231,7 @@ fn blocked_text(refusal: InferRefusal) -> &'static str {
         InferRefusal::Unsupported => "it does not fit this request",
         InferRefusal::NoModelChosen => "no model is chosen yet",
         InferRefusal::NoModelUsesApps => "none of the models in Automatic can use apps",
+        InferRefusal::NoModelSeesScreen => "no model here can see the screen",
         _ => "it was refused",
     }
 }

@@ -322,6 +322,16 @@ fn a_declined_model_says_which_and_why() {
             DeclinedBecause::Unavailable,
             "Kimi K2.6 cannot answer: it cannot run right now.",
         ),
+        (
+            DeclinedBecause::CannotSeeScreen,
+            "Kimi K2.6 can't see the screen, so it can't use apps for you. Choose a model that reads images.",
+        ),
+        (
+            DeclinedBecause::Blocked {
+                refusal: InferRefusal::NoModelSeesScreen,
+            },
+            "Kimi K2.6 cannot answer: no model here can see the screen.",
+        ),
     ];
     for (because, text) in table {
         let declined = Declined {
