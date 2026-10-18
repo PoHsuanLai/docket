@@ -209,6 +209,24 @@ fn refusal_hint(refusal: &CallRefusal, step: &StepLine, seen: &Seen<'_>) -> Opti
                 .take(MOST_REASON_CHARS)
                 .collect::<String>()
         )),
+        // The app's choices by their keys, never their titles: a title can quote the person's content.
+        CallRefusal::App(AppRefusal::NeedsParam { param, options }) => {
+            let listed: Vec<String> = options
+                .iter()
+                .map(|o| format!("\"{}\"", o.id.key.as_str()))
+                .collect();
+            Some(match listed.is_empty() {
+                true => format!(
+                    "argument \"{}\" is needed; ask the person with quire_ask",
+                    param.as_str()
+                ),
+                false => format!(
+                    "argument \"{}\" must be one of {}; if none fits, ask the person with quire_ask",
+                    param.as_str(),
+                    listed.join(", ")
+                ),
+            })
+        }
         _ => None,
     }
 }
@@ -422,7 +440,12 @@ fn step_line_raw(step: &StepLine, seen: &Seen<'_>) -> String {
             let hint = refusal_hint(refusal, step, seen)
                 .map(|h| format!(": {h}"))
                 .unwrap_or_default();
-            format!("{head} refused {}{hint}", json(refusal))
+            // A needed argument's choices go in the hint by key; the whole refusal would carry titles.
+            let said = match refusal {
+                CallRefusal::App(AppRefusal::NeedsParam { .. }) => "needs_param".to_owned(),
+                _ => json(refusal),
+            };
+            format!("{head} refused {said}{hint}")
         }
         (_, StepEnd::Unconfirmed(end)) => {
             format!("{head} not confirmed: {}", unconfirmed_text(*end))
@@ -553,6 +576,41 @@ mod tests {
             &[],
         );
         assert!(!plain.contains("the app said"), "{plain}");
+    }
+
+    #[test]
+    fn an_app_that_needs_an_argument_lists_its_choices_by_key_and_never_by_title() {
+        let option = |key: &str| docket_core::EntityRef {
+            id: prov::EntityId {
+                app: porter_core::AppName::parse("org.quire.Cua").expect("app"),
+                kind: prov::EntityKind::parse("desktop.app").expect("kind"),
+                key: prov::EntityKey::parse(key).expect("key"),
+            },
+            title: prov::Labelled::new("secret title".to_owned(), prov::Label::trusted_user()),
+            subtitle: prov::Labelled::new(String::new(), prov::Label::trusted_user()),
+        };
+        let needs = |options| {
+            StepEnd::Refused(CallRefusal::App(AppRefusal::NeedsParam {
+                param: docket_core::ParamName::parse("app").expect("param"),
+                options,
+            }))
+        };
+        let line = step_line(
+            &step(needs(vec![option("app.draw"), option("app.web")])),
+            &[],
+        );
+        assert!(
+            line.ends_with(
+                "refused needs_param: argument \"app\" must be one of \"app.draw\", \"app.web\"; if none fits, ask the person with quire_ask"
+            ),
+            "{line}"
+        );
+        assert!(!line.contains("secret"), "{line}");
+        let bare = step_line(&step(needs(Vec::new())), &[]);
+        assert!(
+            bare.ends_with("argument \"app\" is needed; ask the person with quire_ask"),
+            "{bare}"
+        );
     }
 
     #[test]
