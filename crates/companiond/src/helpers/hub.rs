@@ -115,12 +115,15 @@ struct Inner<P: InferTransport, I: IntentsTransport> {
     make: Box<Make<P, I>>,
     /// The companion each helper's conversation runs its turns on, made when the person first
     /// speaks and kept, so a turn sees the ones before it.
-    talks: Mutex<BTreeMap<HelperId, Arc<AsyncMutex<Companiond<P, I>>>>>,
+    talks: Mutex<BTreeMap<HelperId, Talk<P, I>>>,
     /// The host of the agent apps that are helpers, when the daemon has one.
     agents: std::sync::OnceLock<Arc<dyn AgentApps>>,
     /// The front companion's shared view: where the shell is told something changed.
     shared: Arc<Shared>,
 }
+
+/// The companion one helper's conversation runs its turns on.
+type Talk<P, I> = Arc<AsyncMutex<Companiond<P, I>>>;
 
 /// The board and what carries it out. Cheap to clone: every clone is the same board.
 pub struct Hub<P: InferTransport, I: IntentsTransport> {

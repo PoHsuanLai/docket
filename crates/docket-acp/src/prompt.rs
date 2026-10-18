@@ -3,7 +3,6 @@
 //! a call the mode says to ask about. The machine (`turn`) decides; this only carries.
 
 use crate::calls;
-use crate::conversation::ConversationTurns;
 use crate::fault;
 use crate::helpers::Helpers;
 use crate::mode::Mode;
