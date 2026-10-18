@@ -18,6 +18,12 @@ pub struct EntryLogout<A: Accounts + 'static> {
     runner: VisibleLogin,
 }
 
+impl<A: Accounts + 'static> std::fmt::Debug for EntryLogout<A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EntryLogout").finish_non_exhaustive()
+    }
+}
+
 impl<A: Accounts + 'static> EntryLogout<A> {
     /// The logout commands of the entries `live` holds, run by `runner`.
     pub fn new(live: Arc<Live<A>>, runner: VisibleLogin) -> Self {

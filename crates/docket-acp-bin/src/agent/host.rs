@@ -7,9 +7,7 @@
 use crate::agent::live::Live;
 use crate::agent::remember::remember;
 use bulkhead::{Detected, NetworkMode};
-use docket_acp::client::{
-    AgentHost, EdgeMenu, Fallback, IntentsCourt, OsFiles, Seams, ToolsOffer,
-};
+use docket_acp::client::{AgentHost, EdgeMenu, Fallback, IntentsCourt, OsFiles, Seams, ToolsOffer};
 use docket_agents::AgentsDir;
 use docket_client::DbusTransport;
 use docket_core::AbsPath;
@@ -167,8 +165,13 @@ pub async fn open_on<A: Accounts + 'static>(
         )
     };
     let backend = live.backend(&program, EdgeMenu::Everything);
-    let mut host = AgentHost::new(backend, live.court.clone(), live.desk.clone(), live.fallback)
-        .with_rewind(rewind);
+    let mut host = AgentHost::new(
+        backend,
+        live.court.clone(),
+        live.desk.clone(),
+        live.fallback,
+    )
+    .with_rewind(rewind);
     let opened = host
         .open(Opening {
             task: TaskId::parse("agent-task-1").map_err(|e| e.to_string())?,

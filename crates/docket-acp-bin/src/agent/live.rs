@@ -11,9 +11,9 @@ use docket_acp::bulk;
 use docket_acp::client::{
     AcpBackend, EdgeMenu, Fallback, IntentsCourt, OsFiles, Parts, Performer, ToolsOffer,
 };
+use docket_agents::AgentsDir;
 use docket_client::{DbusTransport, serve_on_with};
 use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};
-use docket_agents::AgentsDir;
 use docket_core::{ACP_AGENT_APP, AbsPath, ValidManifest};
 use docket_dbus::CONFIRM_PATH;
 use docket_inapp::EditorDesk;

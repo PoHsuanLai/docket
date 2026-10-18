@@ -267,18 +267,15 @@ impl<X: Seams> AcpBackend<X> {
             .map_err(|_| BackendFault::Unavailable)?;
         // The edge is made first: the launcher binds its socket into the sandbox. A host that
         // offers none, or one that cannot make it, runs the agent with its own tools and ours.
-        let made = self
-            .tools
-            .as_ref()
-            .map(|offer| {
-                ToolsEdge::start_with(
-                    offer,
-                    &session,
-                    &self.program,
-                    self.court.clone(),
-                    self.menu.clone(),
-                )
-            });
+        let made = self.tools.as_ref().map(|offer| {
+            ToolsEdge::start_with(
+                offer,
+                &session,
+                &self.program,
+                self.court.clone(),
+                self.menu.clone(),
+            )
+        });
         self.edge_fault = made.as_ref().and_then(|m| m.as_ref().err().copied());
         let edge = made.and_then(Result::ok);
         let plan = LaunchPlan {

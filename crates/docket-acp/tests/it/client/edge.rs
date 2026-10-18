@@ -549,7 +549,11 @@ fn reach_of(app: &str) -> TaskPolicy {
 }
 
 /// The names a helper's edge lists for `app`'s reach, and what a call to a mail tool gets.
-async fn helper_menu(rig: &Rig<super::rig::Fakes>, dir: &tempfile::TempDir, app: &str) -> (Vec<String>, Value) {
+async fn helper_menu(
+    rig: &Rig<super::rig::Fakes>,
+    dir: &tempfile::TempDir,
+    app: &str,
+) -> (Vec<String>, Value) {
     let session = SessionId::parse("s-98").expect("session");
     let menu = EdgeMenu::Helper(Box::new(reach_of(app)));
     let edge = ToolsEdge::start_with(&offer(dir), &session, &program(), rig.court.clone(), menu)
@@ -565,7 +569,8 @@ async fn helper_menu(rig: &Rig<super::rig::Fakes>, dir: &tempfile::TempDir, app:
         .iter()
         .filter_map(|t| t["tool"]["name"].as_str().map(str::to_owned))
         .collect();
-    let read = json!({"call": {"tool": "mail__mail_thread_read", "arguments": {"target": thread()}}});
+    let read =
+        json!({"call": {"tool": "mail__mail_thread_read", "arguments": {"target": thread()}}});
     let called = super::agent::over_socket(&socket, &line(read))
         .await
         .expect("call");
@@ -577,7 +582,10 @@ async fn helper_menu(rig: &Rig<super::rig::Fakes>, dir: &tempfile::TempDir, app:
 async fn a_helpers_agent_is_offered_its_cards_actions_and_not_another_apps() {
     let (rig, dir) = with_mail(Vec::new(), Vec::new()).await;
     let (names, _) = helper_menu(&rig, &dir, "org.quire.Mail").await;
-    assert!(names.iter().any(|n| n == "mail__mail_thread_read"), "{names:?}");
+    assert!(
+        names.iter().any(|n| n == "mail__mail_thread_read"),
+        "{names:?}"
+    );
     let (names, called) = helper_menu(&rig, &dir, "org.quire.Notes").await;
     assert!(!names.iter().any(|n| n.starts_with("mail__")), "{names:?}");
     assert!(called.to_string().contains("unknown_tool"), "{called}");

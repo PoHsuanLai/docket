@@ -163,6 +163,7 @@ pub use planner::{
 pub use preview::{
     FactLine, FileFacts, FileMove, Markdownish, MessageSnip, PageIndex, Preview, TimeRange, size_of,
 };
+pub use reach_menu::{COMPANION_APP, HAND_ON_JOB, SKILL_LOAD};
 pub use reader::{
     ReadFault, Reader, ReaderAsk, ReaderError, ReaderTask, SchemaFault, ValueSchema, conforms,
     entity_choice_text,
@@ -198,7 +199,6 @@ pub use task::{
     LedgerStep, SessionOpen, SessionOpened, TaskKind, TaskLedger, TaskStart, close, skeleton_of,
     step_outcome,
 };
-pub use reach_menu::{COMPANION_APP, HAND_ON_JOB, SKILL_LOAD};
 pub use task_policy::{
     ActionMatch, ArgLabels, Coverage, PolicyChange, PolicyWriter, Saw, SessionSaw, SinkIntegrity,
     TaskPolicy, TaskPolicyState, TrustedPattern, Widening, compare, covers, covers_reach,

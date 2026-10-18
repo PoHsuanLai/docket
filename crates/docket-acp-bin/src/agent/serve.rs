@@ -23,8 +23,8 @@ use super::host::{HostError, Hosted, open_on};
 use super::live::Live;
 use super::wire::{self, Tools};
 use super::{data_dir, env};
-use docket_acp::client::{Fallback, Workdir};
 use bulkhead::NetworkMode;
+use docket_acp::client::{Fallback, Workdir};
 use docket_core::helper::{AppsAsk, AppsReply};
 use docket_core::{AbsPath, HandOver, HandRefusal, HandReply, Handed, Reveal, UserTurn};
 use docket_dbus::callers::{COMPANIOND, Identity, require};
@@ -227,9 +227,13 @@ impl Service {
         let made = self
             .live
             .get_or_try_init(|| async {
-                let wiring =
-                    wire::build(wire::allowed()?, Tools::Wanted, Fallback::Off, self.bus.clone())
-                        .await?;
+                let wiring = wire::build(
+                    wire::allowed()?,
+                    Tools::Wanted,
+                    Fallback::Off,
+                    self.bus.clone(),
+                )
+                .await?;
                 let live = Live::serve(wiring, NetworkMode::Host)
                     .await
                     .map_err(AgentFault::Bus)?;
@@ -241,9 +245,7 @@ impl Service {
 
     async fn helper_host(&self) -> Result<Arc<HelperHost>, AgentFault> {
         let live = self.live().await?;
-        let host = self
-            .helpers
-            .get_or_init(|| Arc::new(HelperHost::new(live)));
+        let host = self.helpers.get_or_init(|| Arc::new(HelperHost::new(live)));
         Ok(Arc::clone(host))
     }
 
@@ -283,7 +285,10 @@ impl Service {
         // The assistant has one agent session at a time; its turns wait for each other, never for
         // a helper.
         let mut held = self.assistant.lock().await;
-        if held.as_ref().is_some_and(|active| active.program != program) {
+        if held
+            .as_ref()
+            .is_some_and(|active| active.program != program)
+        {
             Self::finish(&mut held).await;
         }
         if held.is_none() {

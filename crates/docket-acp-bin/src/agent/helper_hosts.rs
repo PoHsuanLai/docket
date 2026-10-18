@@ -5,8 +5,8 @@
 use super::host::Hosting;
 use super::live::Live;
 use docket_acp::client::{AgentHost, EdgeMenu, Fallback, Hosts, Start};
-use docket_core::{ProgramName, TaskPolicy};
 use docket_core::helper::HelperCard;
+use docket_core::{ProgramName, TaskPolicy};
 use docket_inapp::EditorDesk;
 use docket_launch::Accounts;
 use docket_session::{BackendKind, Opening, Workspace};
@@ -63,9 +63,10 @@ impl<A: Accounts + 'static> Hosts for HelperHosts<A> {
     type Desk = EditorDesk;
 
     async fn host(&mut self, start: Start) -> AgentHost<Hosting<A>, EditorDesk> {
-        let mut backend = self
-            .live
-            .backend(&self.program, EdgeMenu::Helper(Box::new(self.reach.clone())));
+        let mut backend = self.live.backend(
+            &self.program,
+            EdgeMenu::Helper(Box::new(self.reach.clone())),
+        );
         if let Some(way) = start.sign_in {
             backend = backend.with_sign_in(way);
         }

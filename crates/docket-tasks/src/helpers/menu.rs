@@ -23,7 +23,7 @@ pub struct AsHelper {
 /// Whether the planner is offered `card` under `reach` (none: the front conversation, which is
 /// offered everything as before): an action of one of the reach's apps, at any effect.
 pub(crate) fn in_menu(card: &ActionCard, reach: Option<&TaskPolicy>) -> bool {
-    reach.map_or(true, |reach| reach.offers(&card.action))
+    reach.is_none_or(|reach| reach.offers(&card.action))
 }
 
 /// Whether `skill` is offered: everything it uses is on the menu `cards`.
