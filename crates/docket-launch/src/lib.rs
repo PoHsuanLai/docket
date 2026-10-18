@@ -39,7 +39,8 @@ pub use accounts::{
     AccountFault, Accounts, AskKind, Heard, Issued, KeyHandoff, LoginAsk, OpenedEndpoint, RouteWish,
 };
 pub use config::{
-    AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Profile, Route, ToolsMode,
+    AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Profile, Route, SESSION_MARK,
+    ToolsMode,
 };
 pub use confine::Confinement;
 pub use login_only::LoginOnly;

@@ -389,6 +389,40 @@ fn checkpoints_say_who_keeps_the_history_and_the_claude_code_profile_defaults_to
     assert!(matches!(refused(odd), ConfigFault::Syntax(_)));
 }
 
+#[test]
+fn resume_names_the_session_and_the_claude_code_profile_has_the_well_known_flag() {
+    let text = |extra: &str| {
+        format!(
+            "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/true\"\nroute = \"login\"\n{extra}\n"
+        )
+    };
+    let resume = |extra: &str| {
+        let file = AgentsFile::parse(&text(extra)).expect("parses");
+        file.by_program(&"plain".parse_program())
+            .expect("entry")
+            .resume
+            .clone()
+    };
+    assert_eq!(resume(""), None);
+    // The app's own id goes where `{session}` stands, and nowhere else.
+    let file = AgentsFile::parse(&text("profile = \"claude-code\"")).expect("parses");
+    let entry = file.by_program(&"plain".parse_program()).expect("entry");
+    assert_eq!(
+        entry.resume_line("0a1b-2c3d"),
+        Some(vec!["--resume".to_owned(), "0a1b-2c3d".to_owned()])
+    );
+    assert_eq!(
+        resume("profile = \"claude-code\""),
+        Some(vec!["--resume".to_owned(), "{session}".to_owned()])
+    );
+    assert_eq!(
+        resume("profile = \"claude-code\"\nresume = [\"-r={session}\"]"),
+        Some(vec!["-r={session}".to_owned()])
+    );
+    // Arguments that never name the session are no way to pick one up.
+    refused(&text("resume = [\"--continue\"]"));
+}
+
 const ALLOWLIST_LOGIN: &str = "route = \"login\"\nnetwork = \"allowlist\"\n";
 
 fn site(list: &'static str, text: &str, why: HostFault) -> ConfigFault {

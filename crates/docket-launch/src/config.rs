@@ -20,6 +20,7 @@
 //! sign_in = "oauth-personal"         # optional: the way the agent signs itself in at start
 //! model = "claude-sonnet-4"          # optional: the model to switch to, one the agent offers
 //! checkpoints = "agent"              # optional: docket | agent, who keeps the history of its file changes
+//! resume = ["--resume", "{session}"]  # optional: the app's own arguments to pick a conversation up in a terminal
 //! [agent.endpoint]
 //! kind = "account"
 //! id = "anthropic-main"
@@ -183,6 +184,7 @@ struct Raw {
     sign_in: Option<String>,
     model: Option<String>,
     checkpoints: Option<Rewind>,
+    resume: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -292,6 +294,27 @@ pub struct Entry {
     /// for the `claude-code` profile (whose own rewind the person expects) and `Docket` for any
     /// other. The host passes it to the router when the session opens; the agent never says it.
     pub rewind: Rewind,
+    /// The arguments that make the app's own command-line program pick one conversation up,
+    /// with `{session}` standing for the app's own id of it; none when the app has no such
+    /// flag. Unwritten, it is `--resume {session}` for the `claude-code` profile.
+    pub resume: Option<Vec<String>>,
+}
+
+/// What stands for the app's own id of a conversation in [`Entry::resume`].
+pub const SESSION_MARK: &str = "{session}";
+
+impl Entry {
+    /// The arguments that make the app's own command-line program pick the conversation `own`
+    /// up (the app's own id for it, put where `{session}` stands); none when the entry has no
+    /// such flag.
+    pub fn resume_line(&self, own: &str) -> Option<Vec<String>> {
+        let args = self.resume.as_ref()?;
+        Some(
+            args.iter()
+                .map(|arg| arg.replace(SESSION_MARK, own))
+                .collect(),
+        )
+    }
 }
 
 /// The longest label, in characters.
@@ -319,6 +342,32 @@ fn bad(program: &str, why: &'static str) -> ConfigFault {
     ConfigFault::Entry {
         program: program.to_owned(),
         why,
+    }
+}
+
+/// The arguments that pick a conversation up, as written, or the well-known flag of the
+/// `claude-code` profile. One argument at least names the conversation, and none is empty.
+fn resume_of(
+    at: &str,
+    written: Option<Vec<String>>,
+    profile: Option<Profile>,
+) -> Result<Option<Vec<String>>, ConfigFault> {
+    let Some(args) = written else {
+        return Ok(match profile {
+            Some(Profile::ClaudeCode) => {
+                Some(vec!["--resume".to_owned(), SESSION_MARK.to_owned()])
+            }
+            None => None,
+        });
+    };
+    let names_it = args.iter().any(|arg| arg.contains(SESSION_MARK));
+    let fine = names_it && args.iter().all(|arg| !arg.is_empty() && !arg.contains('\0'));
+    match fine {
+        true => Ok(Some(args)),
+        false => Err(bad(
+            at,
+            "resume needs arguments, one of them naming {session}",
+        )),
     }
 }
 
@@ -536,6 +585,7 @@ fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFault> {
             Some(Profile::ClaudeCode) => Rewind::Agent,
             None => Rewind::Docket,
         }),
+        resume: resume_of(&at, raw.resume, raw.profile)?,
     })
 }
 
