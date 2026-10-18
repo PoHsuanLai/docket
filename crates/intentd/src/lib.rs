@@ -9,6 +9,7 @@
 //! - `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `ReaderClient`: the
 //!   system implementations of the other seams.
 //! - `SystemSeams`: all of them behind `docket_router::Seams`.
+//! - `LiveReach`, `follow_reach`: which actions a provider says are on now (`IntentReach1`).
 //! - `serve`, `serve_on`: the bus (`bus`: one handler per `Intents1` interface); `Peers`: who is on
 //!   the other end of a connection; `end_terminals_at_logout`: logind; `start` and `run`: the daemon.
 
@@ -30,6 +31,7 @@ mod link;
 mod logout;
 mod manifests;
 mod peer;
+mod reach;
 mod reader_client;
 mod reviewers;
 mod serve;
@@ -61,10 +63,11 @@ pub use logout::{Logouts, end_terminals_at_logout, watch_logind};
 pub use manifests::{Loaded, intents_dir, load_manifests};
 pub use peer::{PeerFault, Peers};
 pub use porter_daemon::ProcRoot;
+pub use reach::{LiveReach, follow as follow_reach, parse_reach};
 pub use reviewers::{placeholder_set, reviewer};
 pub use serve::{ServeFault, serve, serve_on, serve_on_gated, serve_on_with};
 pub use settings_watch::{DEBOUNCE, SettingsWatch, WatchState, apply, apply_next};
 pub use sheet::SheetConfirmer;
-pub use signals::{Cadence, Changed, Marks, changes, emit, marks_of, pump, rescan};
+pub use signals::{Cadence, Changed, Marks, changes, emit, marks_of, pump, rescan, rescan_with};
 pub use space_watch::{RemovedMemories, SpaceKeeper};
 pub use system::{DaemonLog, SystemClock, SystemSeams};

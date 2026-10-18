@@ -5,7 +5,7 @@ use crate::{
     AgentHostSkeleton, CheckpointSkeleton, CompanionAnswerSkeleton, CompanionHelpers2Skeleton,
     CompanionHelpersSkeleton, CompanionSkeleton, CompanionTerminalsSkeleton, ConfirmSkeleton,
     ContextSkeleton, ControlSkeleton, GateSkeleton, IndexSkeleton, IntentProviderSkeleton,
-    MessageSkeleton, ReaderSkeleton, RegistrySkeleton, RequestSkeleton, RunSkeleton,
+    MessageSkeleton, ReachServer, ReaderSkeleton, RegistrySkeleton, RequestSkeleton, RunSkeleton,
     SearchSkeleton, SessionSkeleton,
 };
 use zbus::fdo;
@@ -18,6 +18,8 @@ pub enum Bus {
     Intents,
     /// `org.quire.IntentProvider1` (every provider).
     IntentProvider,
+    /// `org.quire.IntentReach1` (a provider whose actions' reach changes while it runs).
+    IntentReach,
     /// `org.quire.Confirm1` (sill).
     Confirm,
     /// `org.quire.Companion1` (companiond).
@@ -30,9 +32,10 @@ pub enum Bus {
 
 impl Bus {
     /// Every bus.
-    pub const ALL: [Bus; 6] = [
+    pub const ALL: [Bus; 7] = [
         Bus::Intents,
         Bus::IntentProvider,
+        Bus::IntentReach,
         Bus::Confirm,
         Bus::Companion,
         Bus::Reader,
@@ -44,6 +47,7 @@ impl Bus {
         match self {
             Bus::Intents => "org.quire.Intents1.xml",
             Bus::IntentProvider => "org.quire.IntentProvider1.xml",
+            Bus::IntentReach => "org.quire.IntentReach1.xml",
             Bus::Confirm => "org.quire.Confirm1.xml",
             Bus::Companion => "org.quire.Companion1.xml",
             Bus::Reader => "org.quire.Reader1.xml",
@@ -54,6 +58,7 @@ impl Bus {
 
 /// The introspection document of `bus`: every interface it serves, in one `<node>`.
 pub fn introspection(bus: Bus) -> String {
+    let reach = ReachServer::new();
     let interfaces: Vec<&dyn Interface> = match bus {
         Bus::Intents => vec![
             &RegistrySkeleton,
@@ -69,6 +74,7 @@ pub fn introspection(bus: Bus) -> String {
             &RequestSkeleton,
         ],
         Bus::IntentProvider => vec![&IntentProviderSkeleton],
+        Bus::IntentReach => vec![&reach],
         Bus::Confirm => vec![&ConfirmSkeleton],
         Bus::Companion => vec![
             &CompanionSkeleton,

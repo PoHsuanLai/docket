@@ -6,6 +6,9 @@
 //! `s` argument; the caller's identity is derived from the connection and never sent.
 //! Signatures only: every skeleton method answers `NotSupported`.
 //!
+//! `org.quire.IntentReach1` (`reach`) rides on a provider's `IntentProvider1` object: which of its
+//! actions are on now.
+//!
 //! `Voice1` lives in `voiced`, which serves it.
 
 mod agent_host;
@@ -27,6 +30,7 @@ mod introspect;
 mod message;
 mod names;
 mod provider;
+mod reach;
 mod reader;
 mod registry;
 mod request;
@@ -62,6 +66,7 @@ pub use names::{
 /// porter's, shared on every call that starts work.
 pub use porter_dbus::{Details, OPTION_TRACEPARENT};
 pub use provider::{IntentProviderProxy, IntentProviderSkeleton};
+pub use reach::{IntentReachProxy, ReachNow, ReachServer, Replaced};
 pub use reader::{ReaderProxy, ReaderSkeleton};
 pub use registry::{RegistryProxy, RegistrySkeleton};
 pub use request::{RequestProxy, RequestSkeleton};

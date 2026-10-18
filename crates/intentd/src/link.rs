@@ -77,6 +77,23 @@ fn own_uid() -> Option<u32> {
     std::fs::metadata("/proc/self").ok().map(|m| m.uid())
 }
 
+/// Checks that the owner of `name` is the person's own process: the identity every call to a
+/// provider (and every question about its live reach) is made on.
+pub(crate) async fn owned_by_us(dbus: &DBusProxy<'_>, name: &BusName<'_>) -> Result<(), LinkFault> {
+    let owner = dbus
+        .get_name_owner(name.clone())
+        .await
+        .map_err(|_| LinkFault::Unavailable)?;
+    let credentials = dbus
+        .get_connection_credentials(BusName::Unique(owner.into()))
+        .await
+        .map_err(|_| LinkFault::Unavailable)?;
+    match own_uid() {
+        Some(ours) if credentials.unix_user_id() != Some(ours) => Err(LinkFault::Unavailable),
+        _ => Ok(()),
+    }
+}
+
 impl DbusLink {
     /// Calls apps over `connection`.
     pub fn new(connection: BusConnection) -> Self {
@@ -101,17 +118,7 @@ impl DbusLink {
                 _ => return Err(LinkFault::Unavailable),
             }
         }
-        let owner = dbus
-            .get_name_owner(name.clone())
-            .await
-            .map_err(|_| LinkFault::Unavailable)?;
-        let credentials = dbus
-            .get_connection_credentials(BusName::Unique(owner.into()))
-            .await
-            .map_err(|_| LinkFault::Unavailable)?;
-        if own_uid().is_some_and(|ours| credentials.unix_user_id() != Some(ours)) {
-            return Err(LinkFault::Unavailable);
-        }
+        owned_by_us(&dbus, &name).await?;
         IntentProviderProxy::builder(&self.connection)
             .destination(app.to_string())
             .map_err(|_| LinkFault::Malformed)?

@@ -14,6 +14,7 @@ use crate::infer::{InferdWriter, ReaderClient};
 use crate::link::DbusLink;
 use crate::logout::watch_logind;
 use crate::manifests::{Loaded, intents_dir, load_manifests};
+use crate::reach::{LiveReach, follow as follow_reach};
 use crate::reviewers::reviewer;
 use crate::serve::{ServeFault, closed, serve_on_gated};
 use crate::settings_watch::{SettingsWatch, WatchState, apply, apply_next};
@@ -358,11 +359,19 @@ pub async fn start(
             acp.set_agents(loaded.value.agents);
         }
     }));
+    let live = LiveReach::none();
+    tasks.push(tokio::spawn(follow_reach(
+        router.clone(),
+        session.clone(),
+        data_dirs.clone(),
+        live.clone(),
+    )));
     tasks.push(tokio::spawn(pump(
         router.clone(),
         session.clone(),
         data_dirs,
         signals,
+        live,
     )));
     tasks.push(tokio::spawn(
         SpaceKeeper::new(router.clone(), RemovedMemories::LeaveToMemory, SPACES_RETRY)

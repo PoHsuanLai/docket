@@ -10,6 +10,7 @@
 
 use crate::builtin::{builtin_manifests, is_builtin};
 use crate::manifests::load_manifests;
+use crate::reach::LiveReach;
 use docket_core::ValidManifest;
 use docket_dbus::{BusConnection, INTENTS_PATH};
 use docket_router::{Router, Seams, SessionState};
@@ -176,9 +177,17 @@ pub async fn emit(connection: &BusConnection, change: &Changed) -> zbus::Result<
 /// changed file is installed, a file that is gone takes its app with it. The built-in providers
 /// are never replaced or removed by a file.
 pub fn rescan<S: Seams>(router: &Router<S>, data_dirs: &[PathBuf]) {
+    rescan_with(router, data_dirs, &LiveReach::none());
+}
+
+/// [`rescan`] with what the providers said about their actions' reach laid over each manifest
+/// (see `reach`). The reach is part of the manifest's digest, so a change in it is a
+/// `ManifestChanged` like any other.
+pub fn rescan_with<S: Seams>(router: &Router<S>, data_dirs: &[PathBuf], live: &LiveReach) {
     let loaded = load_manifests(data_dirs).manifests;
     let wanted: BTreeMap<AppName, ValidManifest> = loaded
         .into_iter()
+        .map(|m| live.overlay(m))
         .map(|m| (m.manifest().app.clone(), m))
         .collect();
     let mut st = router
@@ -226,12 +235,13 @@ impl Default for Cadence {
 }
 
 /// Looks at the router every `cadence.every`, rescans the manifests every few looks, and says
-/// each change on `connection`. Runs until the task is aborted.
+/// each change on `connection`; `live` is what the providers said about their reach. Runs until the task is aborted.
 pub async fn pump<S: Seams>(
     router: std::sync::Arc<Router<S>>,
     connection: BusConnection,
     data_dirs: Vec<PathBuf>,
     cadence: Cadence,
+    live: LiveReach,
 ) {
     let mut last = marks_of(&router);
     let mut tick = 0u32;
@@ -239,7 +249,7 @@ pub async fn pump<S: Seams>(
         tokio::time::sleep(cadence.every).await;
         tick = tick.wrapping_add(1);
         if cadence.rescan_every > 0 && tick.is_multiple_of(cadence.rescan_every) {
-            rescan(&router, &data_dirs);
+            rescan_with(&router, &data_dirs, &live);
         }
         let now = marks_of(&router);
         for change in changes(&last, &now) {
