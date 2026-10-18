@@ -17,6 +17,9 @@ fn status(name: &str, state: JobShown) -> String {
         JobShown::NeedsModel => {
             format!("{name} needs a model before it can start. Choose one for it.")
         }
+        JobShown::NeedsSignIn => {
+            format!("{name} is waiting for you to sign in to its app before it can start.")
+        }
     }
 }
 
