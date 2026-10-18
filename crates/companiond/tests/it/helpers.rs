@@ -686,8 +686,16 @@ async fn the_assistant_gives_a_job_to_a_helper_by_name_and_the_job_runs_under_th
         .await;
 
     // The front conversation saw the helper by name in its view, and its call went through.
-    assert!(w.infer.user_text(0).contains("Helpers the person keeps"));
-    assert!(w.infer.user_text(0).contains("Research in work [idle]"));
+    assert!(
+        w.infer
+            .user_text(0)
+            .contains("Other helpers the person keeps")
+    );
+    assert!(
+        w.infer
+            .user_text(0)
+            .contains("Research (Space: work; idle)")
+    );
     let board = hub.board();
     assert_eq!(board.jobs().len(), 1);
     let job = &board.jobs()[0];
@@ -705,6 +713,14 @@ async fn the_assistant_gives_a_job_to_a_helper_by_name_and_the_job_runs_under_th
         "given by the assistant, which had read nothing untrusted:\ncompare the three offers"
     ));
     assert_eq!(w.infer.asked().len(), 2);
+    // The step reads as finished, naming the helper and the job.
+    assert!(
+        w.infer
+            .user_text(1)
+            .contains("done \"Gave Research the job j-"),
+        "{}",
+        w.infer.user_text(1)
+    );
 }
 
 #[tokio::test]

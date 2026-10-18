@@ -2,6 +2,7 @@
 //! MCP. The planner supplies entity arguments as the `{app, kind, key}` object of an `EntityId`
 //! and handles as `{ "handle": n }`; the router labels everything it receives.
 
+use crate::ids::ParamName;
 use crate::manifest::{ActionDecl, ParamDecl, ParamNeed};
 use crate::value::{Lines, ParamType};
 use model_provider::{CharCount, ChoiceText, SchemaDialect, Shape};
@@ -36,6 +37,41 @@ pub fn tool_schema(action: &ActionDecl) -> ToolSchema {
         "required": required,
         "additionalProperties": false,
     }))
+}
+
+/// The values one text parameter may take on this turn, known from what the planner is shown:
+/// its schema lists exactly these, and a call naming another is refused before the router.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OneOf {
+    /// The parameter.
+    pub param: ParamName,
+    /// The values it may take, in the order they are offered.
+    pub values: Vec<String>,
+}
+
+impl OneOf {
+    /// Whether `text` is one of the values.
+    pub fn admits(&self, text: &str) -> bool {
+        self.values.iter().any(|v| v == text)
+    }
+
+    /// `schema` (an action's [`tool_schema`]) with this parameter narrowed to the values: a
+    /// string and nothing else, so a handle cannot stand in for a name.
+    pub fn narrow(&self, schema: &mut Value) {
+        let Some(slot) = schema
+            .get_mut("properties")
+            .and_then(|properties| properties.get_mut(self.param.as_str()))
+        else {
+            return;
+        };
+        let mut narrowed = json!({ "type": "string", "enum": self.values });
+        if let (Some(description), Value::Object(fields)) =
+            (slot.get("description").cloned(), &mut narrowed)
+        {
+            fields.insert("description".into(), description);
+        }
+        *slot = narrowed;
+    }
 }
 
 fn property(param: &ParamDecl) -> Value {

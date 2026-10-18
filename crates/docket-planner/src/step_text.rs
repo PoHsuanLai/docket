@@ -102,6 +102,14 @@ fn unread_text(fault: &ReplyFault) -> String {
             format!("argument \"{}\" {how}", param.as_str())
         }
         ReplyFault::Args(ArgsFault::Target(target)) => target_text(*target),
+        ReplyFault::NotOneOf { param, options } => {
+            let listed: Vec<String> = options.iter().map(|o| format!("\"{o}\"")).collect();
+            format!(
+                "argument \"{}\" must be one of {}",
+                param.as_str(),
+                listed.join(", ")
+            )
+        }
         ReplyFault::Read(fault) => read_fault_text(fault),
     };
     let lead = match fault {
@@ -456,6 +464,28 @@ mod tests {
     }
 
     #[test]
+    fn a_step_the_desk_refused_reads_as_refused_with_its_reason() {
+        let why = docket_core::FailText("There is no helper by that name.".to_owned());
+        let end = StepEnd::Refused(CallRefusal::App(docket_core::AppRefusal::Failed(why)));
+        let line = step_line(&step(end), &[]);
+        assert!(line.contains(" refused "), "{line}");
+        assert!(line.contains("There is no helper by that name."), "{line}");
+        assert!(!line.contains(" done"), "{line}");
+    }
+
+    #[test]
+    fn a_step_that_gave_a_job_says_to_whom_and_which() {
+        let said = docket_core::LabelText::parse("Gave Coder the job j-4").expect("said");
+        let end = StepEnd::Done {
+            said: Some(said),
+            value: None,
+            undo: None,
+        };
+        let line = step_line(&step(end), &[]);
+        assert!(line.ends_with(" done \"Gave Coder the job j-4\""), "{line}");
+    }
+
+    #[test]
     fn an_unknown_handle_is_told_with_the_handles_held() {
         let end = StepEnd::Refused(CallRefusal::BadArgs {
             param: docket_core::ParamName::parse("recipient").expect("param"),
@@ -712,6 +742,13 @@ mod tests {
                 "no tool by that name",
             ),
             (ReplyFault::NotJson, "not valid JSON"),
+            (
+                ReplyFault::NotOneOf {
+                    param: docket_core::ParamName::parse("helper").expect("p"),
+                    options: vec!["Coder".into(), "Scout".into()],
+                },
+                "argument \"helper\" must be one of \"Coder\", \"Scout\"",
+            ),
             (
                 ReplyFault::Args(ArgsFault::Missing(
                     docket_core::ParamName::parse("to").expect("p"),

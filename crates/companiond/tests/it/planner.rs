@@ -765,3 +765,64 @@ fn a_three_item_list_costs_a_short_prompt_with_each_things_handle_first() {
         text.len()
     );
 }
+
+const POST_JOB: &str = "org_quire_Companion-companion_helper_post_job";
+
+/// A view that lists these helpers, all idle in the desktop Space.
+fn view_with_helpers(names: &[&str]) -> PlannerView {
+    use docket_core::helper::{HelperName, HelperPhase};
+    let mut view = view(catalogue().cards());
+    view.roster.helpers = names
+        .iter()
+        .map(|name| HelperRosterLine {
+            name: HelperName::parse(name).expect("name"),
+            space: prov::SpaceId::parse("desktop").expect("space"),
+            state: HelperPhase::Idle,
+            doing: Some(LeadText::of("Nothing to do")),
+        })
+        .collect();
+    view
+}
+
+#[test]
+fn giving_a_job_offers_exactly_the_helpers_the_view_lists() {
+    let (planner, _) = planner(vec![]);
+    let request = planner.request(&view_with_helpers(&["Coder", "Scout", "Coder"]));
+    let decl = request
+        .tools
+        .iter()
+        .find(|t| t.name.as_str() == POST_JOB)
+        .expect("the tool");
+    let schema: serde_json::Value = serde_json::from_str(decl.params.0.as_str()).expect("json");
+    for name in ["helper", "after"] {
+        assert_eq!(
+            schema["properties"][name]["enum"],
+            json!(["Coder", "Scout"]),
+            "{name}"
+        );
+    }
+    assert!(schema["properties"]["goal"].get("enum").is_none());
+}
+
+#[tokio::test]
+async fn a_helper_named_outside_the_list_is_refused_with_the_names_before_the_router() {
+    let (planner, _) = planner(vec![
+        call(
+            POST_JOB,
+            json!({ "helper": "Coder in desktop", "goal": "Say hello." }),
+        ),
+        call(POST_JOB, json!({ "helper": "Coder", "goal": "Say hello." })),
+    ]);
+    let view = view_with_helpers(&["Coder", "Scout"]);
+    assert_eq!(
+        planner.plan(&view).await,
+        Ok(ModelOutput::Unread(ReplyFault::NotOneOf {
+            param: param("helper"),
+            options: vec!["Coder".to_owned(), "Scout".to_owned()],
+        }))
+    );
+    let ModelOutput::Calls(calls) = planner.plan(&view).await.expect("a call") else {
+        panic!("a name in the list is a call")
+    };
+    assert_eq!(calls.len(), 1);
+}

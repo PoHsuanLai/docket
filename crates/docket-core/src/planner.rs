@@ -187,6 +187,14 @@ pub enum ReplyFault {
     NotJson,
     /// Its arguments did not fit the action's manifest.
     Args(crate::args::ArgsFault),
+    /// An argument named a value the planner was not offered for this turn (`options` are the
+    /// ones it was).
+    NotOneOf {
+        /// The parameter.
+        param: crate::ids::ParamName,
+        /// The values it may take.
+        options: Vec<String>,
+    },
     /// A `quire_read` that could not be answered, or its arguments did not fit.
     Read(crate::reader::ReadFault),
 }

@@ -9,6 +9,7 @@
 
 use crate::args::{ArgsFault, read_call};
 use crate::catalogue::Catalogue;
+use crate::known::known_values;
 use crate::plain::without_ids;
 use crate::read_ask::read_output;
 use crate::render::messages_with;
@@ -19,7 +20,7 @@ use crate::want::want_schema;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
 use docket_core::{
-    ActionCard, Args, CallRequest, Handle, HandleShape, Origin, ParamName, PlannerView,
+    ActionCard, Args, CallRequest, Handle, HandleShape, OneOf, Origin, ParamName, PlannerView,
     RELATION_ARG, ReplyFault, TargetValue, Value, Why,
 };
 use porter_client::Transport;
@@ -368,7 +369,9 @@ impl<P: Transport> PlannerModel<P> {
             .iter()
             .filter(|card| card.related.is_empty())
             .filter_map(|card| self.catalogue.of(&card.action))
-            .filter_map(|tool| tool.declaration_for(&view.handles))
+            .filter_map(|tool| {
+                tool.declaration_for(&view.handles, &known_values(&tool.action(), view))
+            })
             .chain(meta_tools(&view.actions))
             .collect()
     }
@@ -489,7 +492,7 @@ impl<P: Transport> PlannerModel<P> {
             .partition(|c| !is_meta(c.name.as_str()));
         let (calls, faults): (Vec<_>, Vec<_>) = actions
             .iter()
-            .map(|c| self.planned(c))
+            .map(|c| self.planned(c, view))
             .partition(Result::is_ok);
         let calls: Vec<PlannedCall> = calls.into_iter().flatten().collect();
         let (then, show) = if !calls.is_empty() {
@@ -525,13 +528,16 @@ impl<P: Transport> PlannerModel<P> {
 
     /// One action call, if the model named a tool of the catalogue and its arguments fit; else
     /// what was wrong with it.
-    fn planned(&self, call: &ToolCallPart) -> Result<PlannedCall, ReplyFault> {
+    fn planned(&self, call: &ToolCallPart, view: &PlannerView) -> Result<PlannedCall, ReplyFault> {
         let tool = self
             .catalogue
             .named(call.name.as_str())
             .ok_or_else(|| ReplyFault::NoSuchTool(plain_name(call.name.as_str())))?;
         let json: Json =
             serde_json::from_str(call.args.as_str()).map_err(|_| ReplyFault::NotJson)?;
+        if let Some(fault) = outside_known(&known_values(&tool.action(), view), &json) {
+            return Err(fault);
+        }
         let read = read_call(tool, &json).map_err(|fault| ReplyFault::Args(plain_fault(fault)))?;
         let tier = choose_tier(&Availability {
             typed: Offer::Offered,
@@ -550,6 +556,17 @@ impl<P: Transport> PlannerModel<P> {
             effect: Some(tool.decl.effect),
         })
     }
+}
+
+/// The first argument of `json` that names a value outside what this turn allows it.
+fn outside_known(known: &[OneOf], json: &Json) -> Option<ReplyFault> {
+    known.iter().find_map(|one_of| {
+        let given = json.get(one_of.param.as_str())?.as_str()?;
+        (!one_of.admits(given)).then(|| ReplyFault::NotOneOf {
+            param: one_of.param.clone(),
+            options: one_of.values.clone(),
+        })
+    })
 }
 
 /// A name the model wrote, as far as it is plain enough to say back: letters, digits and `._-`,

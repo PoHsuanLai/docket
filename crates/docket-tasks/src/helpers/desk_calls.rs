@@ -10,8 +10,10 @@ use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
 use companion_wire::HelperReply;
 use docket_client::Transport as IntentsTransport;
-use docket_core::helper::Ceiling;
-use docket_core::{ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, Outcome, Value};
+use docket_core::helper::{Ceiling, JobId};
+use docket_core::{
+    ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, LabelText, Outcome, Value,
+};
 use porter_client::Transport as InferTransport;
 use prov::TaskId;
 
@@ -171,10 +173,18 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         };
         match reply {
             HelperReply::Refused(why) => Err(refused(&why)),
-            HelperReply::Done
-            | HelperReply::Made(_)
-            | HelperReply::Posted(_)
-            | HelperReply::OpenTerminal(_) => Ok(outcome),
+            HelperReply::Posted(job) => Ok(posted(outcome, text_of(call, "helper"), job)),
+            HelperReply::Done | HelperReply::Made(_) | HelperReply::OpenTerminal(_) => Ok(outcome),
         }
     }
+}
+
+/// The outcome of giving a job, saying which helper has it and under what number, so the step
+/// reads as finished and not as something to do again. The router's own words stay when the
+/// helper's name is not at hand.
+fn posted(outcome: Outcome, helper: Option<String>, job: JobId) -> Outcome {
+    let said = helper
+        .and_then(|name| LabelText::parse(&format!("Gave {name} the job {job}")).ok())
+        .or(outcome.said);
+    Outcome { said, ..outcome }
 }

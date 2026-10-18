@@ -4,7 +4,7 @@
 //! byte-stable until the app set changes.
 
 use docket_core::{
-    ActionCard, ActionDecl, ActionRef, AgentReach, HandleCard, HandleShape, RelationDecl,
+    ActionCard, ActionDecl, ActionRef, AgentReach, HandleCard, HandleShape, OneOf, RelationDecl,
     TargetKind, ToolSchema, ValidManifest, Visibility, tool_schema,
 };
 use porter_core::AppName;
@@ -55,14 +55,19 @@ impl CatalogueTool {
     /// beside them when the action acts on things. It holds no handles, so a target may be a
     /// handle or a thing in full.
     pub fn declaration(&self) -> Option<ToolDecl> {
-        self.declaration_for(&[])
+        self.declaration_for(&[], &[])
     }
 
     /// [`declaration`](Self::declaration) for a model that holds `held`: a target of a kind it
     /// holds a handle for is `{"handle": n}` and nothing else, with `n` one of the handles held
-    /// for that kind when they are few, so a handle of the wrong kind cannot be written.
-    pub fn declaration_for(&self, held: &[HandleCard]) -> Option<ToolDecl> {
+    /// for that kind when they are few, so a handle of the wrong kind cannot be written. A
+    /// parameter in `known` lists the values this turn allows, so a name outside them cannot be
+    /// written either.
+    pub fn declaration_for(&self, held: &[HandleCard], known: &[OneOf]) -> Option<ToolDecl> {
         let mut schema = tool_schema(&self.decl).0;
+        for one_of in known {
+            one_of.narrow(&mut schema);
+        }
         if let (Some(target), Json::Object(root)) =
             (target_schema(&self.decl.on, held), &mut schema)
             && let Some(Json::Object(properties)) = root.get_mut("properties")

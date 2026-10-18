@@ -73,11 +73,12 @@ fn roster_line(line: &RosterLine) -> String {
     }
 }
 
-/// A helper the person keeps, by the name they gave it and what it is doing: the planner may give
-/// one a job by that name. Another Space shows the name and the state only.
+/// A helper the person keeps, by the name they gave it, alone before the parentheses, and what it is
+/// doing: the planner may give one a job by that name. Another Space shows the name and the
+/// state only.
 fn helper_line(line: &HelperRosterLine) -> String {
     let who = format!(
-        "{} in {} [{}]",
+        "{} (Space: {}; {})",
         line.name.as_str(),
         line.space,
         json(&line.state).trim_matches('"')
@@ -293,7 +294,7 @@ pub fn user_text(view: &PlannerView) -> String {
     );
     section(
         &mut text,
-        "Helpers the person keeps (name one to give it a job)",
+        "Other helpers the person keeps",
         view.roster.helpers.iter().map(helper_line),
     );
     section(
@@ -494,11 +495,11 @@ mod tests {
         };
         assert_eq!(
             helper_line(&line("work", Some("compare the offers"))),
-            "- Research in work [working]: compare the offers"
+            "- Research (Space: work; working): compare the offers"
         );
         assert_eq!(
             helper_line(&line("home", None)),
-            "- Research in home [working]: in another Space, nothing more shown"
+            "- Research (Space: home; working): in another Space, nothing more shown"
         );
     }
 
