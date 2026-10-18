@@ -6,7 +6,8 @@
 //! The rule is never looser than the one for a live session (`opening.rs`: a prompt field or the
 //! computer-use daemon touches only the session its own app opened).
 
-use crate::Opening;
+use crate::{Opening, ResumePlan};
+use docket_core::helper::SeatPlace;
 use docket_core::{CallerRole, StartedFrom};
 use prov::AppName;
 
@@ -63,6 +64,23 @@ pub fn may_restore_opening(claimant: Claimant<'_>, opening: &Opening) -> bool {
     may_restore(claimant, opening.opener.as_ref())
         || (claimant.role == CallerRole::Cli
             && matches!(opening.started_from, Some(StartedFrom::Terminal(_))))
+}
+
+/// [`may_restore_opening`] for a whole plan, which also carries the helper seat: an editor may
+/// also restore a helper's conversation (a seat whose place is [`SeatPlace::Conversation`]),
+/// which the companion opened for the person to talk in. A helper's job (any other place) stays
+/// the companion's, and the other roles gain nothing. This is the one rule for a stored session
+/// read or resumed, and it agrees with the live one (`SessionRecord::is_conversation_for`).
+///
+/// A fork is not asked here: it copies the log, seat included, and would be a second
+/// conversation for the helper, so a fork keeps asking [`may_restore_opening`].
+pub fn may_restore_plan(claimant: Claimant<'_>, plan: &ResumePlan) -> bool {
+    may_restore_opening(claimant, &plan.opening)
+        || (claimant.role == CallerRole::Editor
+            && plan
+                .seat
+                .as_ref()
+                .is_some_and(|seat| seat.place == SeatPlace::Conversation))
 }
 
 #[cfg(test)]

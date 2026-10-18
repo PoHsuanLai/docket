@@ -1,6 +1,6 @@
 //! `session/new`, `session/load` and `session/list`. An editor sees and restores only the sessions
-//! it opened: the same rule the router applies to a stored session (`may_restore`, the editor
-//! under `Own`), asked here before anything is listed or replayed, and answered with the same
+//! it opened, and a helper's conversation: the same rule the router applies to a stored session
+//! (`may_restore_plan`, the editor under `Own` plus the conversation seat), asked here before anything is listed or replayed, and answered with the same
 //! "no such session" whether the session is another app's or does not exist.
 
 use crate::fault;
@@ -17,8 +17,8 @@ use agent_client_protocol_schema::v1::{
 };
 use docket_core::CallerRole;
 use docket_session::{
-    BackendKind, Claimant, Opening, ResumePlan, SessionHost, SessionLog, Workspace, may_restore,
-    read_all, resume_plan,
+    BackendKind, Claimant, Opening, ResumePlan, SessionHost, SessionLog, Workspace,
+    may_restore_plan, read_all, resume_plan,
 };
 use prov::{AgentRef, SessionId, TaskId};
 use serde_json::Value;
@@ -51,7 +51,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             role: CallerRole::Editor,
             app: &self.editor,
         };
-        may_restore(claim, plan.opening.opener.as_ref())
+        may_restore_plan(claim, &plan)
             .then_some((rows, plan))
             .ok_or_else(fault::unknown_session)
     }
@@ -117,7 +117,10 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             self.host
                 .resume(&session)
                 .await
-                .map_err(|_| fault::internal("the session could not be resumed"))?;
+                .map_err(|why| {
+                tracing::warn!(?why, %session, "session/load: the host could not resume the session");
+                fault::internal("the session could not be resumed")
+            })?;
         }
         let mode = Mode::default();
         self.roster.insert(session, Known { mode, helper: None });
@@ -157,6 +160,10 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             let Ok((_, plan)) = self.mine(&session).await else {
                 continue;
             };
+            // A helper's conversation is listed with the helpers, not as a session of its own.
+            if plan.seat.is_some() {
+                continue;
+            }
             if wanted
                 .as_ref()
                 .is_some_and(|w| plan.opening.cwd.as_ref() != Some(w))

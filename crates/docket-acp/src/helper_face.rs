@@ -120,7 +120,10 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             self.host
                 .resume(&row.session)
                 .await
-                .map_err(|_| fault::internal("the session could not be resumed"))?;
+                .map_err(|why| {
+                    tracing::warn!(?why, session = %row.session, "session/load: the host could not resume the helper's conversation");
+                    fault::internal("the session could not be resumed")
+                })?;
         }
         let mode = Mode::default();
         let helper = Some(row.id);

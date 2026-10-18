@@ -247,3 +247,77 @@ async fn a_fork_is_written_by_the_router_for_whoever_may_bring_the_parent_back()
     let second = forked(ask(&router, &zed, fork_at(&mine.session, 0)).await);
     assert_eq!(second.as_str(), format!("{}-f2", mine.session));
 }
+
+#[tokio::test]
+async fn an_editor_reads_a_helpers_conversation_the_companion_opened_but_not_a_job_and_cannot_fork_it()
+ {
+    use docket_core::helper::{HelperName, HelperSeat, SeatPlace};
+    let router = router();
+    let zed = caller("org.zed.Zed", CallerRole::Editor);
+    let seat = |place| HelperSeat {
+        helper: serde_json::from_str("\"h-1\"").expect("helper id"),
+        name: HelperName::parse("Inbox").expect("name"),
+        reach: wide_policy(&prov::TaskId::parse("t-0").expect("task"), "work"),
+        owns: Vec::new(),
+        place,
+    };
+    let open = |place| {
+        IntentsRequest::SessionOpen(SessionOpen {
+            space: space("work"),
+            agent: AgentRef::Companion,
+            parent: None,
+            cwd: None,
+            started_from: None,
+            external: None,
+            helper: Some(seat(place)),
+        })
+    };
+    let IntentsReply::SessionOpened(talk) =
+        ask(&router, &companion(), open(SeatPlace::Conversation)).await
+    else {
+        panic!("the conversation opens");
+    };
+    // A job's seat is not written to the log, so its stored session is the companion's alone.
+    let IntentsReply::SessionOpened(job) = ask(&router, &companion(), open(SeatPlace::Job)).await
+    else {
+        panic!("the job opens");
+    };
+    let read = |session: &prov::SessionId| IntentsRequest::SessionStored {
+        ask: StoredAsk::Rows {
+            session: session.clone(),
+            from: None,
+            size: 10,
+        },
+    };
+    let (held, _) = rows(ask(&router, &zed, read(&talk.session)).await);
+    assert!(
+        held.iter().any(|r| r.json.contains("seat")),
+        "the seat is in the log"
+    );
+    assert_eq!(
+        ask(&router, &zed, read(&job.session)).await,
+        IntentsReply::Refused(WireRefusal::NoSuchSession)
+    );
+    let listed = sessions(
+        ask(
+            &router,
+            &zed,
+            IntentsRequest::SessionStored {
+                ask: StoredAsk::List,
+            },
+        )
+        .await,
+    );
+    assert_eq!(listed, std::slice::from_ref(&talk.session));
+    // A fork would be a second conversation for the helper: refused.
+    assert_eq!(
+        ask(&router, &zed, fork_at(&talk.session, 1)).await,
+        IntentsReply::Refused(WireRefusal::NoSuchSession)
+    );
+    // Another app's role gets nothing more.
+    let app = caller("org.example.App", CallerRole::App);
+    assert_eq!(
+        ask(&router, &app, read(&talk.session)).await,
+        IntentsReply::Refused(WireRefusal::NoSuchSession)
+    );
+}

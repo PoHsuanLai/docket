@@ -10,7 +10,7 @@ use docket_core::{
 };
 use docket_session::{
     Claimant, Logged, PageSize, Seq, SessionLog, child_names, fork, forks_of, may_restore_opening,
-    resume_plan,
+    may_restore_plan, resume_plan,
 };
 use porter_core::Count;
 use prov::SessionId;
@@ -19,12 +19,13 @@ use prov::SessionId;
 const MOST: u32 = 200;
 
 impl<S: Seams> Router<S> {
-    /// Whether `claim` may bring `session` back, from its whole log.
+    /// Whether `claim` may bring `session` back, from its whole log: the opener rule, and for an
+    /// editor also a helper's conversation (`may_restore_plan`).
     async fn claimable(&self, session: &SessionId, claim: Claimant<'_>) -> bool {
         let Ok(rows) = self.rows_of(session).await else {
             return false;
         };
-        resume_plan(&rows).is_ok_and(|plan| may_restore_opening(claim, &plan.opening))
+        resume_plan(&rows).is_ok_and(|plan| may_restore_plan(claim, &plan))
     }
 
     pub(crate) async fn session_stored(
@@ -74,14 +75,13 @@ impl<S: Seams> Router<S> {
 
 impl<S: Seams> Router<S> {
     /// Writes a new session that keeps the parent's log up to and including row `at`. The caller
-    /// must be able to bring the parent back; the child is the parent's in everything the
+    /// must be able to bring the parent back by the opener rule alone (`may_restore_opening`), so
+    /// an editor cannot fork a helper's conversation: the child would carry the seat and be a
+    /// second conversation for the helper, and a helper has one. The child is the parent's in everything the
     /// restore rule reads (the opener is copied), so whoever may restore the one may restore the
     /// other. The router writes the child's whole log before it names it.
     async fn stored_fork(&self, parent: &SessionId, at: u64, claim: Claimant<'_>) -> IntentsReply {
         let gone = IntentsReply::Refused(WireRefusal::NoSuchSession);
-        if !self.claimable(parent, claim).await {
-            return gone;
-        }
         let (Ok(rows), Ok(all)) = (
             self.rows_of(parent).await,
             self.seams.log().sessions().await,
@@ -91,6 +91,9 @@ impl<S: Seams> Router<S> {
         let Ok(plan) = resume_plan(&rows) else {
             return gone;
         };
+        if !may_restore_opening(claim, &plan.opening) {
+            return gone;
+        }
         let Some((child, task)) = child_names(parent, &plan.opening.task, forks_of(parent, &all))
         else {
             return IntentsReply::Refused(WireRefusal::Malformed);
