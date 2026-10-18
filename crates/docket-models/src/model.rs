@@ -10,7 +10,7 @@ use porter_core::{Need, Tokens};
 use porter_infer::{
     ChatReply, ChatRequest, ChatSink, ClientFrame, EmbedReply, EmbedRequest, Flow, InferEvent,
     InferReply, InferRequest, InferSession, Knob, MessagePart, Model, ModelCard, ModelError,
-    ReplyShape,
+    ReplyShape, TaskRequest, TurnError,
 };
 use std::collections::BTreeSet;
 
@@ -115,6 +115,25 @@ pub fn unwanted(reply: InferReply) -> ModelError {
     }
 }
 
+/// The chat reply of a turn's last event, or why the turn gave none: a refusal of inferd is
+/// `Refused`, anything else is a failed call.
+pub fn chat_turn(reply: InferReply) -> Result<ChatReply, TurnError> {
+    match reply {
+        InferReply::Chat(chat) => Ok(chat),
+        InferReply::Refused(refusal) => Err(refusal.into()),
+        other => Err(unwanted(other).into()),
+    }
+}
+
+/// The embeddings of a turn's last event, or why the turn gave none (as `chat_turn`).
+pub fn embed_turn(reply: InferReply) -> Result<EmbedReply, TurnError> {
+    match reply {
+        InferReply::Embed(embedded) => Ok(embedded),
+        InferReply::Refused(refusal) => Err(refusal.into()),
+        other => Err(unwanted(other).into()),
+    }
+}
+
 /// The chat reply of a turn's last event.
 pub fn chat_of(reply: InferReply) -> Result<ChatReply, ModelError> {
     match reply {
@@ -140,16 +159,40 @@ impl<T: Transport> Model for TransportModel<T> {
         &self,
         request: &ChatRequest,
         sink: &mut impl ChatSink,
-    ) -> Result<ChatReply, ModelError> {
+    ) -> Result<ChatReply, TurnError> {
         let mut session = self
             .transport
             .open(&chat_need(request), request.class, request.tier)
             .await
             .map_err(|_| ModelError::Unreachable)?;
-        chat_of(turn(&mut session, InferRequest::Chat(request.clone()), sink).await?)
+        chat_turn(turn(&mut session, InferRequest::Chat(request.clone()), sink).await?)
     }
 
-    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedReply, ModelError> {
+    /// A task runs as a chat does: one session on a chat need, the task sent as the request. A
+    /// task names no tier, so it asks for the fast one, as embeddings do.
+    async fn task(
+        &self,
+        request: &TaskRequest,
+        sink: &mut impl ChatSink,
+    ) -> Result<ChatReply, TurnError> {
+        let need = Need::Llm(LlmNeed::new(
+            BTreeSet::from([LlmFeature::Chat]),
+            // Three bytes a token for the input, and a page for the reply, as `chat_need` counts.
+            Tokens(
+                u32::try_from(request.input.len() / 3)
+                    .unwrap_or(u32::MAX)
+                    .saturating_add(1024),
+            ),
+        ));
+        let mut session = self
+            .transport
+            .open(&need, request.class, porter_core::Tier::Fast)
+            .await
+            .map_err(|_| ModelError::Unreachable)?;
+        chat_turn(turn(&mut session, InferRequest::Task(request.clone()), sink).await?)
+    }
+
+    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedReply, TurnError> {
         let need = Need::Embeddings(EmbedNeed::new(
             request.dims,
             BTreeSet::from([Modality::Text]),
@@ -165,6 +208,6 @@ impl<T: Transport> Model for TransportModel<T> {
             &mut Discard,
         )
         .await?;
-        embed_of(reply)
+        embed_turn(reply)
     }
 }

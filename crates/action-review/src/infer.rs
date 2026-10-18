@@ -17,7 +17,7 @@ use porter_core::{DataClass, Permille, Tier, Tokens};
 use porter_infer::{
     ChatControl, ChatMessage, ChatReply, ChatRequest, ChatSink, Flow, InferEvent, Knob,
     MessagePart, Model, ModelError, Reasoning, ReplyShape, Role, Sampling, StopReason, ToolChoice,
-    ToolParallelism,
+    ToolParallelism, TurnError,
 };
 use serde_json::json;
 
@@ -166,6 +166,15 @@ fn model_failed(error: ModelError, heard: Heard) -> ReviewError {
     }
 }
 
+/// A turn that gave no reply: a refusal of inferd is the reviewer's cascade asking the person (as
+/// an unavailable model), and a failed call is judged by `model_failed`.
+fn turn_failed(error: TurnError, heard: Heard) -> ReviewError {
+    match error {
+        TurnError::Refused(_) => ReviewError::Unavailable,
+        TurnError::Failed(error) => model_failed(error, heard),
+    }
+}
+
 /// A reply cut short by its limit or a filter is not a verdict, whatever its text says.
 fn complete(reply: ChatReply) -> Result<String, ReviewError> {
     let only_thought = reply.text.trim().is_empty()
@@ -211,7 +220,7 @@ impl<M: Model> Reviewer for InferReviewer<M> {
         let reply = model
             .chat(&chat_request(stage, request), &mut watch)
             .await
-            .map_err(|error| model_failed(error, watch.0))?;
+            .map_err(|error| turn_failed(error, watch.0))?;
         parse_verdict(&complete(reply)?, stage)
     }
 }

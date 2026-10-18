@@ -7,7 +7,8 @@ use docket_dbus::tap::Tap;
 use docket_models::TransportModel;
 use porter_client::Transport;
 use porter_infer::{
-    ChatReply, ChatRequest, ChatSink, EmbedReply, EmbedRequest, Model, ModelCard, ModelError,
+    ChatReply, ChatRequest, ChatSink, EmbedReply, EmbedRequest, Model, ModelCard, TaskRequest,
+    TurnError,
 };
 
 pub use crate::reader_client::ReaderClient;
@@ -46,11 +47,19 @@ impl<T: Transport> Model for InferdModel<T> {
         &self,
         request: &ChatRequest,
         sink: &mut impl ChatSink,
-    ) -> Result<ChatReply, ModelError> {
+    ) -> Result<ChatReply, TurnError> {
         self.0.chat(request, sink).await
     }
 
-    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedReply, ModelError> {
+    async fn task(
+        &self,
+        request: &TaskRequest,
+        sink: &mut impl ChatSink,
+    ) -> Result<ChatReply, TurnError> {
+        self.0.task(request, sink).await
+    }
+
+    async fn embed(&self, request: &EmbedRequest) -> Result<EmbedReply, TurnError> {
         self.0.embed(request).await
     }
 }

@@ -5,8 +5,8 @@ use action_review::*;
 use docket_core::*;
 use porter_core::{AccountId, Billing, Locality, ModelId, Tokens};
 use porter_infer::{
-    ChatReply, ChatRequest, ChatSink, EmbedReply, EmbedRequest, InferEvent, Model, ModelCard,
-    ModelError, ServedBy, StopReason, TokenUsage,
+    ChatReply, ChatRequest, ChatSink, EmbedReply, EmbedRequest, InferEvent, InferRefusal, Model,
+    ModelCard, ModelError, ServedBy, StopReason, TaskRequest, TokenUsage, TurnError,
 };
 use prov::{ActionName, Effect, Integrity, SpaceId};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -110,20 +110,31 @@ impl Model for Scripted {
         &self,
         request: &ChatRequest,
         sink: &mut impl ChatSink,
-    ) -> Result<ChatReply, ModelError> {
+    ) -> Result<ChatReply, TurnError> {
         for event in &self.events {
             let _ = sink.event(event.clone());
         }
         self.seen.lock().expect("lock").push(request.clone());
-        self.replies
+        let next = self
+            .replies
             .lock()
             .expect("lock")
             .pop_front()
-            .unwrap_or(Err(ModelError::Unreachable))
+            .unwrap_or(Err(ModelError::Unreachable));
+        next.map_err(TurnError::from)
     }
 
-    async fn embed(&self, _request: &EmbedRequest) -> Result<EmbedReply, ModelError> {
-        Err(ModelError::Unreachable)
+    /// The scripted replies are chat replies; a task is not scripted.
+    async fn task(
+        &self,
+        _request: &TaskRequest,
+        _sink: &mut impl ChatSink,
+    ) -> Result<ChatReply, TurnError> {
+        Err(InferRefusal::Unsupported.into())
+    }
+
+    async fn embed(&self, _request: &EmbedRequest) -> Result<EmbedReply, TurnError> {
+        Err(ModelError::Unreachable.into())
     }
 }
 

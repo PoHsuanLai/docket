@@ -12,7 +12,7 @@ use infer::{Say, ScriptedInfer, words};
 use porter_core::DataClass;
 use porter_infer::{
     ChatControl, ChatMessage, ChatRequest, Knob, MessagePart, Model, ModelError, Reasoning,
-    ReplyShape, Role, ToolChoice, ToolParallelism,
+    ReplyShape, Role, ToolChoice, ToolParallelism, TurnError,
 };
 use prov::{SpaceId, TaskId, UnixSeconds};
 use serde_json::json;
@@ -63,12 +63,12 @@ async fn a_refusal_and_a_silence_are_errors_the_cascade_turns_into_asking() {
     let refused = model(vec![Say::Refuse(porter_infer::InferRefusal::Unavailable)]);
     assert_eq!(
         refused.chat(&chat(), &mut Quiet).await.err(),
-        Some(ModelError::Refused)
+        Some(TurnError::Refused(porter_infer::InferRefusal::Unavailable))
     );
     let silent = model(vec![]);
     assert_eq!(
         silent.chat(&chat(), &mut Quiet).await.err(),
-        Some(ModelError::Unreachable)
+        Some(TurnError::Failed(ModelError::Unreachable))
     );
 }
 

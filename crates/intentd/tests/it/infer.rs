@@ -13,7 +13,7 @@ use porter_core::{DataClass, Dims, Need, Tier};
 use porter_infer::{
     ChatControl, ChatMessage, ChatRequest, ChatSink, EmbedRequest, EmbedRole, Flow, InferEvent,
     InferRefusal, InferReply, Knob, MessagePart, Model, ModelCard, ModelError, ReplyShape,
-    RequestKind, Role, StopReason, ToolChoice, ToolDecl, ToolParallelism,
+    RequestKind, Role, StopReason, ToolChoice, ToolDecl, ToolParallelism, TurnError,
 };
 use std::collections::BTreeSet;
 
@@ -147,38 +147,38 @@ async fn the_features_a_chat_needs_follow_its_shape_and_its_tools() {
 async fn every_way_inferd_can_fail_is_a_model_error_and_never_a_reply() {
     let request = chat(ReplyShape::Text, vec![]);
     let finish = |reply: InferReply| ScriptedInferd::new([finishing(RequestKind::Chat, reply)]);
-    let rows: Vec<(&str, ScriptedInferd, ModelError)> = vec![
+    let rows: Vec<(&str, ScriptedInferd, TurnError)> = vec![
         (
             "nobody home",
             ScriptedInferd::away(),
-            ModelError::Unreachable,
+            TurnError::Failed(ModelError::Unreachable),
         ),
         (
             "this class may not leave the computer",
             finish(InferReply::Refused(InferRefusal::RequiresCloud(
                 DataClass::Prompt,
             ))),
-            ModelError::Refused,
+            TurnError::Refused(InferRefusal::RequiresCloud(DataClass::Prompt)),
         ),
         (
             "no grant",
             finish(InferReply::Refused(InferRefusal::NeedsGrant)),
-            ModelError::Refused,
+            TurnError::Refused(InferRefusal::NeedsGrant),
         ),
         (
             "no model",
             finish(InferReply::Refused(InferRefusal::Unavailable)),
-            ModelError::Refused,
+            TurnError::Refused(InferRefusal::Unavailable),
         ),
         (
             "the call failed",
             finish(InferReply::Failed(ModelError::RateLimited(7))),
-            ModelError::RateLimited(7),
+            TurnError::Failed(ModelError::RateLimited(7)),
         ),
         (
             "cancelled",
             finish(InferReply::Cancelled),
-            ModelError::Unreachable,
+            TurnError::Failed(ModelError::Unreachable),
         ),
         (
             "an answer of another kind",
@@ -187,7 +187,7 @@ async fn every_way_inferd_can_fail_is_a_model_error_and_never_a_reply() {
                 usage(),
                 served(),
             ))),
-            ModelError::Unparseable,
+            TurnError::Failed(ModelError::Unparseable),
         ),
         (
             "the session ends with no answer",
@@ -197,12 +197,12 @@ async fn every_way_inferd_can_fail_is_a_model_error_and_never_a_reply() {
                     steps: vec![],
                 },
             ])]),
-            ModelError::Unreachable,
+            TurnError::Failed(ModelError::Unreachable),
         ),
         (
             "a script for another kind of request",
             ScriptedInferd::new([porter_fake::FakeInferSession::scripted([])]),
-            ModelError::Refused,
+            TurnError::Refused(InferRefusal::Unsupported),
         ),
     ];
     for (name, inferd, want) in rows {
