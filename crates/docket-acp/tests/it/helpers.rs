@@ -435,19 +435,32 @@ fn sheet(id: &str) -> BackendEvent {
     BackendEvent::Sheet(Box::new(request))
 }
 
+/// Opens a job session for Research (`s-70`): a job still runs in the editor's own host.
+async fn open_job(ed: &mut Editor) {
+    let job = ed
+        .call(
+            "session/new",
+            json!({"cwd": "/work/a", "mcpServers": [], "_meta": {"helper": "Research"}}),
+            "NewSessionRequest",
+            "NewSessionResponse",
+        )
+        .await;
+    assert_eq!(job["result"]["sessionId"], "s-70");
+}
+
 #[tokio::test]
-async fn allow_always_in_a_helpers_session_reaches_the_host_as_always() {
+async fn allow_always_in_a_helpers_job_session_reaches_the_host_as_always() {
     let log = seeded().await;
     let (fake, _) = FakeHelpers::new(three());
     let turn = vec![vec![vec![sheet("c-1"), end(TurnEnd::Done)]]];
     let (mut server, mut ed) = rig_with(&log, turn, EDITOR, fake);
     let script = async move {
         ed.initialize().await;
-        load(&mut ed, "s-61").await;
+        open_job(&mut ed).await;
         let mut always = |_: &Value| {
             Some(json!({"outcome": {"outcome": "selected", "optionId": "allow_always"}}))
         };
-        ed.prompt("s-61", "archive them", &mut always).await;
+        ed.prompt("s-70", "archive them", &mut always).await;
     };
     let (ran, ()) = tokio::join!(server.run(), script);
     assert!(ran.is_ok());
@@ -457,7 +470,7 @@ async fn allow_always_in_a_helpers_session_reaches_the_host_as_always() {
 }
 
 #[tokio::test]
-async fn a_refusal_from_the_helpers_app_reaches_the_editor_with_the_apps_own_sentence() {
+async fn a_refusal_from_the_helpers_app_in_a_job_reaches_the_editor_with_the_apps_own_sentence() {
     let own = "That folder is locked by another account.";
     let log = seeded().await;
     let (fake, _) = FakeHelpers::new(three());
@@ -476,8 +489,8 @@ async fn a_refusal_from_the_helpers_app_reaches_the_editor_with_the_apps_own_sen
     let (mut server, mut ed) = rig_with(&log, turn, EDITOR, fake);
     let script = async move {
         ed.initialize().await;
-        load(&mut ed, "s-61").await;
-        ed.prompt("s-61", "archive them", &mut allow).await;
+        open_job(&mut ed).await;
+        ed.prompt("s-70", "archive them", &mut allow).await;
         let failed: Vec<Value> = ed
             .updates()
             .into_iter()
