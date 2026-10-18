@@ -19,8 +19,11 @@
 pub mod agent;
 pub mod callers;
 pub mod confirm;
+pub mod helpers;
 
 use confirm::ConfirmObject;
+use helpers::LiveHelpers;
+use companion_client::DbusHelpers;
 use docket_acp::{LineWire, Permit, Server, SystemTicks, Ticks};
 use docket_client::{DbusTransport, Intents};
 use docket_core::{AgentConfig, Millis};
@@ -146,11 +149,15 @@ pub async fn serve_with(
     // Stored sessions are read through the router: memoryd answers log reads for the router and
     // the shell only.
     let log: Log = Arc::new(RouterLog::new(Intents::over(DbusTransport::new(
-        connection,
+        connection.clone(),
     ))));
+    // The person's helpers, if companiond answers this process; the editor goes without them if
+    // it does not.
+    let helpers = LiveHelpers::over(DbusHelpers::over(&connection).await.ok()).await;
     let host: LiveHost = NativeHost::over(companion, log.clone()).with_desk(desk);
     let wire = LineWire::new(BufReader::new(stdin()), stdout());
-    let mut server = Server::new(permit, editor, host, log, wire, SystemTicks);
+    let mut server =
+        Server::new(permit, editor, host, log, wire, SystemTicks).with_helpers(helpers);
     // The editor closing the pipe is the normal end.
     let _ = server.run().await;
     Ok(())

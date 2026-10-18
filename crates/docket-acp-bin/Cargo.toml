@@ -28,6 +28,8 @@ name = "docket-net-enter"
 path = "src/bin/docket-net-enter.rs"
 
 [dependencies]
+companion-client = { workspace = true }
+companion-wire = { workspace = true }
 docket-acp = { workspace = true, features = ["client"] }
 docket-agents = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
@@ -42,6 +44,7 @@ docket-session = { workspace = true }
 docket-settings = { workspace = true }
 bulkhead = { workspace = true, features = ["landlock"] }
 docket-tasks = { workspace = true }
+futures-util = { workspace = true }
 porter-core = { workspace = true }
 serde_json = { workspace = true }
 prov = { workspace = true }

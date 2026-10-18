@@ -250,3 +250,18 @@ fn what_the_shell_reads_and_sends_pins_its_json() {
     let back: HelperForm = serde_json::from_str(&text).expect("form");
     assert_eq!(back, form);
 }
+
+#[test]
+fn a_line_without_a_conversation_reads_from_an_older_list_and_is_not_written_with_one() {
+    let (board, id) = board_with(HelperModel::Unset);
+    let mut line = line_of(board.card(&id).expect("card"), &board, None);
+    assert_eq!(line.conversation, None);
+    let text = serde_json::to_string(&line).expect("json");
+    assert!(!text.contains("conversation"), "{text}");
+    let back: HelperLine = serde_json::from_str(&text).expect("an older list reads");
+    assert_eq!(back, line);
+
+    line.conversation = Some(prov::SessionId::parse("s-61").expect("session"));
+    let text = serde_json::to_string(&line).expect("json");
+    assert!(text.contains("\"conversation\":\"s-61\""), "{text}");
+}

@@ -8,7 +8,7 @@ use docket_core::helper::{
     JobId, JobStatus, Need, PauseWhy, Role, SignInWay, TerminalRequest, reach_lines,
 };
 use porter_core::{AppName, Count};
-use prov::{AgentRef, HelperId, SpaceId};
+use prov::{AgentRef, HelperId, SessionId, SpaceId};
 use serde::{Deserialize, Serialize};
 
 /// What a helper needs from the person.
@@ -41,6 +41,10 @@ pub struct HelperLine {
     /// While it works, the agent the person's words to it are addressed to: a message to it
     /// goes through `Message.Send`, and `Companion1.Told` keeps their words on the roster.
     pub agent: Option<AgentRef>,
+    /// The session the person's words to it are recorded on, when the companion keeps one: an
+    /// editor lists the helper only with it. Absent from older lists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub conversation: Option<SessionId>,
 }
 
 /// A sentence the person is told, once. The shell remembers the number of the last it showed.
@@ -271,6 +275,7 @@ pub fn line_of(card: &HelperCard, board: &Board, answer: Option<HelperNeeds>) ->
         state,
         needs_you,
         agent,
+        conversation: None,
     }
 }
 

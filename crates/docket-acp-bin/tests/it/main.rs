@@ -1,5 +1,6 @@
 mod binary;
 mod edge_sandbox;
+mod helpers;
 mod remember;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its

@@ -177,7 +177,7 @@ EDGES=(
   "docket-acp: actions-tools bulkhead companion-wire docket-client docket-core docket-session docket-settings porter-core prov"
   "docket-agents: docket-core"
   "docket-launch: bulkhead docket-acp docket-agents docket-core docket-session docket-settings porter-client porter-core porter-dbus prov"
-  "docket-acp-bin: bulkhead docket-acp docket-agents docket-client docket-core docket-dbus docket-inapp docket-launch docket-log docket-planner docket-router docket-session docket-settings docket-tasks porter-core prov"
+  "docket-acp-bin: bulkhead companion-client companion-wire docket-acp docket-agents docket-client docket-core docket-dbus docket-inapp docket-launch docket-log docket-planner docket-router docket-session docket-settings docket-tasks porter-core prov"
   "docket-models: action-review docket-core porter-client porter-core porter-infer prov"
   "docket-reader: docket-core docket-models porter-client porter-core porter-infer prov"
   "docket-memory: almanac-client almanac-core docket-core docket-router docket-session porter-core prov"
