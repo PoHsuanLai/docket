@@ -3650,3 +3650,18 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - The commands a helper's agent runs count against the widest network (`NetworkMode::Host`),
   because one performer serves every program. Conservative: more commands ask.
 
+
+## The editor face of the helpers: what stays open
+
+- The conversation session of a helper is opened by companiond with the helper's seat
+  (`SeatPlace::Conversation`) and kept until the helper is removed. A router restart forgets its
+  seat (the seat is not in the session log, as for a job), and companiond opens a new one on the
+  next change of the board only for a helper that has none; a conversation from before the restart
+  stays in the list of stored sessions without a seat. Open: write the seat to the log.
+- The editor's native host drives a helper's conversation with the assistant's own planner, not
+  the helper's: the helper's role and model are used for its jobs only. Open.
+- A sign-in in a terminal carries the command inside the sandbox (`TerminalRun::confined`) with the
+  host network, because a sign-in has to reach the site that signs the person in; the files it can
+  write are the agent's own state and the helper's folder. Open: the allowlist of the entry for a
+  sign-in. The seccomp filter file it names stays in the runtime directory until the user's session
+  ends.

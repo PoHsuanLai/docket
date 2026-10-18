@@ -183,6 +183,7 @@ fn ways() -> Vec<SignInWay> {
             how: SignInHow::Terminal(TerminalLogin {
                 args: vec!["/login".to_owned()],
                 env: BTreeMap::new(),
+                run: None,
             }),
         },
     ]
@@ -318,6 +319,7 @@ async fn a_terminal_way_asks_the_shell_to_open_one_and_resuming_asks_the_app_aga
     let login = TerminalLogin {
         args: vec!["/login".to_owned()],
         env: BTreeMap::new(),
+        run: None,
     };
     apps.sign_ins
         .lock()
@@ -339,6 +341,7 @@ async fn a_terminal_way_asks_the_shell_to_open_one_and_resuming_asks_the_app_aga
         HelperReply::OpenTerminal(TerminalRequest {
             helper: coder.clone(),
             program: program(),
+            run: login.run.clone(),
             login,
         })
     );

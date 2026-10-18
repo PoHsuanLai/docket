@@ -118,6 +118,7 @@ where
             SignInOutcome::OpenTerminal(login) => HelperReply::OpenTerminal(TerminalRequest {
                 helper,
                 program,
+                run: login.run.clone(),
                 login,
             }),
             SignInOutcome::Refused => HelperReply::Refused(

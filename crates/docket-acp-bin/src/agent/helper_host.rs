@@ -19,7 +19,7 @@ use docket_acp::{SystemTicks, Ticks};
 use docket_core::ProgramName;
 use docket_core::helper::{
     AgentApps, AgentOutcome, AppsAsk, AppsReply, CheckOutcome, HelperCard, JobFault, SignInOutcome,
-    SignOutOutcome,
+    SignOutOutcome, TerminalLogin,
 };
 use docket_dbus::BusConnection;
 use docket_launch::dbus::DbusAccounts;
@@ -103,6 +103,29 @@ impl HelperHost {
         folder_of(&card.id).map(|_| ()).ok_or(JobFault::Crashed)
     }
 
+    /// A sign-in that is to run in a terminal, with the command resolved from the list of coding
+    /// agents and put in the sandbox. If that cannot be done the sign-in fails: the person is never
+    /// sent to run the agent unconfined, or to guess its command.
+    fn resolved(&self, card: &HelperCard, outcome: SignInOutcome) -> SignInOutcome {
+        let SignInOutcome::OpenTerminal(login) = outcome else {
+            return outcome;
+        };
+        let run = card.kind.program().and_then(|program| {
+            self.live.terminal_run(
+                &ProgramName::from(program),
+                &login,
+                folder_of(&card.id).as_deref(),
+            )
+        });
+        match run {
+            Some(run) => SignInOutcome::OpenTerminal(TerminalLogin {
+                run: Some(run),
+                ..login
+            }),
+            None => SignInOutcome::Failed,
+        }
+    }
+
     /// Carries out one call on the helpers' agents.
     pub async fn ask(&self, ask: AppsAsk) -> AppsReply {
         let _counted = Counted::start(&self.running);
@@ -116,7 +139,10 @@ impl HelperHost {
                 AppsReply::Stop
             }
             AppsAsk::SignIn { card, way } => match self.ready(&card) {
-                Ok(()) => AppsReply::SignIn(self.agents.sign_in(&card, &way).await),
+                Ok(()) => {
+                    let outcome = self.agents.sign_in(&card, &way).await;
+                    AppsReply::SignIn(self.resolved(&card, outcome))
+                }
                 Err(_) => AppsReply::SignIn(SignInOutcome::Failed),
             },
             AppsAsk::Check { card } => match self.ready(&card) {

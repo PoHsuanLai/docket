@@ -18,6 +18,40 @@ pub struct TerminalLogin {
     /// Variables to set over the agent's own.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub env: BTreeMap<String, String>,
+    /// The command the agent host resolved from its list of coding agents, once the way is
+    /// carried out. Absent when the agent itself asked and nobody has resolved it yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run: Option<TerminalRun>,
+}
+
+/// One program to start: its absolute path, its arguments and its environment.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TerminalLine {
+    /// The program, an absolute path.
+    pub program: String,
+    /// Its arguments, in order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub args: Vec<String>,
+    /// Its environment.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub env: BTreeMap<String, String>,
+}
+
+/// What a terminal is to run for a sign-in, resolved from the agent's entry in the list of coding
+/// agents, so the shell guesses nothing. `plain` is the agent's own command with the login added;
+/// `confined` is the same program inside the sandbox the agent host would put it in, and is what
+/// to run whenever it is present.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TerminalRun {
+    /// The command as the list names it. Its environment is set over the terminal's own.
+    pub plain: TerminalLine,
+    /// The folder to start in: the helper's own. Absent when it has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub folder: Option<String>,
+    /// The command inside the sandbox. Its environment is the whole environment: start the
+    /// program with nothing else. Absent when no sandbox was used to resolve it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confined: Option<TerminalLine>,
 }
 
 /// How a way of signing in is carried out.
@@ -53,6 +87,10 @@ pub struct TerminalRequest {
     pub program: AgentProgram,
     /// What to add to its command.
     pub login: TerminalLogin,
+    /// What to run, resolved: absolute paths, the folder, and the command inside the sandbox.
+    /// Absent from an older request, where the shell works it out from `program` and `login`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run: Option<TerminalRun>,
 }
 
 /// What an agent app said in answer to a job. It is the agent model's text: the board labels it

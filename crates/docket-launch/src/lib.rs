@@ -33,6 +33,7 @@ mod protect;
 mod reach;
 pub mod spawn;
 pub mod supervise;
+mod terminal;
 
 pub use accounts::{
     AccountFault, Accounts, AskKind, Heard, Issued, KeyHandoff, LoginAsk, OpenedEndpoint, RouteWish,
@@ -44,7 +45,8 @@ pub use confine::Confinement;
 pub use login_only::LoginOnly;
 pub use names::launcher_session;
 pub use permit::{AgentsPermit, Refusal};
-pub use procs::{BwrapProcs, ChildProc, Proc, ProcFault, Procs, StdioWire};
+pub use procs::{BwrapProcs, ChildProc, CommandLine, Proc, ProcFault, Procs, StdioWire};
 pub use reach::Reach;
 pub use spawn::{AgentSpawn, Child, Registry};
 pub use supervise::Supervisor;
+pub use terminal::login_run;

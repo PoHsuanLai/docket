@@ -198,6 +198,57 @@ fn a_card_shows_its_reach_in_words_and_its_jobs_with_why_one_did_not_finish() {
     );
 }
 
+fn line(program: &str, args: &[&str], env: &[(&str, &str)]) -> TerminalLine {
+    TerminalLine {
+        program: program.to_owned(),
+        args: args.iter().map(|a| (*a).to_owned()).collect(),
+        env: env
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect(),
+    }
+}
+
+#[test]
+fn a_sign_in_terminal_carries_the_resolved_command_and_an_older_request_still_reads() {
+    let request = TerminalRequest {
+        helper: hid(2),
+        program: prov::AgentProgram::parse("claude-code").expect("program"),
+        login: TerminalLogin {
+            args: vec!["/login".to_owned()],
+            ..TerminalLogin::default()
+        },
+        run: Some(TerminalRun {
+            plain: line("/usr/bin/claude", &["/login"], &[("TERM", "xterm")]),
+            folder: Some("/home/p/.local/share/docket/helpers/h-2".to_owned()),
+            confined: Some(line("/usr/bin/systemd-run", &["--scope", "bwrap"], &[])),
+        }),
+    };
+    let reply = HelperReply::OpenTerminal(request);
+    let json = serde_json::to_string(&reply).expect("json");
+    assert_eq!(
+        json,
+        concat!(
+            r#"{"kind":"open_terminal","v":{"helper":"h-2","program":"claude-code","#,
+            r#""login":{"args":["/login"]},"run":{"plain":{"program":"/usr/bin/claude","#,
+            r#""args":["/login"],"env":{"TERM":"xterm"}},"#,
+            r#""folder":"/home/p/.local/share/docket/helpers/h-2","#,
+            r#""confined":{"program":"/usr/bin/systemd-run","args":["--scope","bwrap"]}}}}"#
+        )
+    );
+    assert_eq!(
+        serde_json::from_str::<HelperReply>(&json).expect("reply"),
+        reply
+    );
+    // A request from before the command was resolved has no `run`, and reads as one.
+    let older = r#"{"kind":"open_terminal","v":{"helper":"h-2","program":"claude-code","login":{"args":["/login"]}}}"#;
+    let HelperReply::OpenTerminal(old) = serde_json::from_str(older).expect("older") else {
+        panic!("a terminal request")
+    };
+    assert_eq!(old.run, None);
+    assert_eq!(old.login.args, ["/login"]);
+}
+
 #[test]
 fn what_the_shell_reads_and_sends_pins_its_json() {
     let reply = [

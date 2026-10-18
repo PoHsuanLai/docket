@@ -7,15 +7,18 @@ use crate::Wall;
 use crate::agent::host::{Hosting, Wiring};
 use crate::agent::provider::{PerformerProvider, Quiet};
 use bulkhead::{BwrapSandbox, Detected, NetworkMode};
+use docket_acp::bulk;
 use docket_acp::client::{
     AcpBackend, Fallback, IntentsCourt, OsFiles, Parts, Performer, ToolsOffer,
 };
 use docket_client::{DbusTransport, serve_on_with};
+use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};
 use docket_core::{ACP_AGENT_APP, AbsPath, ValidManifest};
 use docket_dbus::CONFIRM_PATH;
 use docket_inapp::EditorDesk;
 use docket_launch::{
     Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Entry, Registry,
+    login_run,
 };
 use docket_session::ProgramName;
 use prov::{HelperId, SessionId, TaskId};
@@ -134,6 +137,48 @@ impl<A: Accounts + 'static> Live<A> {
     /// The entry of `agents.toml` that runs `program`.
     pub fn entry(&self, program: &ProgramName) -> Option<&Entry> {
         self.file.get(program)
+    }
+
+    /// The run of `program`'s sign-in in a terminal, resolved from its entry: the command as the
+    /// list names it with the login added, the folder, and the same command inside the sandbox
+    /// this host puts agents in. None when the list does not have the program, the folder is no
+    /// path, or the sandbox will not build the command (nothing is then run unconfined).
+    pub fn terminal_run(
+        &self,
+        program: &ProgramName,
+        login: &TerminalLogin,
+        folder: Option<&str>,
+    ) -> Option<TerminalRun> {
+        let entry = self.entry(program)?;
+        let cwd = AbsPath::parse(folder?).ok()?;
+        let run = login_run(entry, &login.args, &login.env, &cwd)?;
+        let run = match &self.enter {
+            Some(enter) => run.with_landlock(bulk::to_shell(enter).ok()?),
+            None => run,
+        };
+        let line = BwrapProcs::new(self.sandbox.clone(), self.run_dir.clone())
+            .command_line(&run)
+            .ok()?;
+        let env_of = |pairs: Vec<(String, String)>| pairs.into_iter().collect();
+        let plain_env = entry
+            .set
+            .iter()
+            .map(|(name, value)| (name.as_str().to_owned(), value.clone()))
+            .chain(login.env.clone())
+            .collect();
+        Some(TerminalRun {
+            plain: TerminalLine {
+                program: entry.command.as_str().to_owned(),
+                args: entry.args.iter().chain(&login.args).cloned().collect(),
+                env: plain_env,
+            },
+            folder: Some(cwd.as_str().to_owned()),
+            confined: Some(TerminalLine {
+                program: line.program,
+                args: line.args,
+                env: env_of(line.env),
+            }),
+        })
     }
 
     /// The task a helper's agent session runs as.

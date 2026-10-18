@@ -16,8 +16,8 @@
 //! - [`Post`], [`PostId`], [`PostTo`], [`PostPart`]: the mailbox.
 //! - [`Board`], [`BoardEvent`], [`BoardEffect`], [`step`]: the state machine.
 //! - [`HelperRecord`], [`HelperRecordKind`]: what is stored and restored.
-//! - [`SignInWay`], [`SignInHow`], [`TerminalLogin`], [`TerminalRequest`], [`UntrustedWords`]: what an
-//!   agent-app helper adds to the card.
+//! - [`SignInWay`], [`SignInHow`], [`TerminalLogin`], [`TerminalRequest`], [`TerminalRun`],
+//!   [`TerminalLine`], [`UntrustedWords`]: what an agent-app helper adds to the card.
 //! - [`AgentApps`], [`AgentOutcome`]: the seam to the host of agent-app helpers; [`AppsAsk`] and
 //!   [`AppsReply`] carry its calls to a host in another process.
 //! - [`Ceiling`], [`reach_policy`], [`reach_lines`]: a reach from the apps the person names.
@@ -37,7 +37,9 @@ mod records;
 mod rules;
 mod seat;
 
-pub use agent::{SignInHow, SignInWay, TerminalLogin, TerminalRequest, UntrustedWords};
+pub use agent::{
+    SignInHow, SignInWay, TerminalLine, TerminalLogin, TerminalRequest, TerminalRun, UntrustedWords,
+};
 pub use apps::{
     AgentApps, AgentOutcome, CheckOutcome, Pending as AgentPending, SignInOutcome, SignOutOutcome,
 };

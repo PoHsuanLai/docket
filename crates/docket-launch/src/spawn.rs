@@ -236,7 +236,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     }
 }
 
-fn binds(
+pub(crate) fn binds(
     entry: &Entry,
     key_file: Option<&AbsPath>,
     edge: Option<&EdgeBind>,

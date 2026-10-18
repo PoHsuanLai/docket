@@ -572,6 +572,7 @@ fn auth_ways(init: &InitializeResponse) -> Vec<SignInWay> {
                 AuthMethod::Terminal(t) => SignInHow::Terminal(TerminalLogin {
                     args: t.args.clone(),
                     env: t.env.clone().into_iter().collect(),
+                    run: None,
                 }),
                 _ => SignInHow::Agent,
             },

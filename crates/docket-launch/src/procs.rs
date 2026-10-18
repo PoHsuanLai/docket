@@ -196,6 +196,43 @@ impl Procs for BwrapProcs {
     }
 }
 
+/// A program to start: the command line of a confined run, for a process some other program
+/// (a terminal) starts. `env` is the whole environment, not additions to one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandLine {
+    /// The program.
+    pub program: String,
+    /// Its arguments.
+    pub args: Vec<String>,
+    /// Its environment, whole.
+    pub env: Vec<(String, String)>,
+}
+
+impl BwrapProcs {
+    /// The command line that runs `run` confined, as `start` would, without starting it. The
+    /// filter file it names is written to `filter_dir` and stays there: it is small, private to
+    /// the user and goes with the runtime directory.
+    pub fn command_line(&self, run: &AgentRun) -> Result<CommandLine, ProcFault> {
+        let file = self.filter_path().ok_or(ProcFault::Spawn)?;
+        self.sandbox
+            .write_filter(&file)
+            .map_err(|_| ProcFault::Spawn)?;
+        let command = self
+            .sandbox
+            .agent_command(run, Some(&file))
+            .map_err(refused)?;
+        let text = |s: &std::ffi::OsStr| s.to_string_lossy().into_owned();
+        Ok(CommandLine {
+            program: text(command.get_program()),
+            args: command.get_args().map(text).collect(),
+            env: command
+                .get_envs()
+                .filter_map(|(k, v)| v.map(|v| (text(k), text(v))))
+                .collect(),
+        })
+    }
+}
+
 /// A filter file that is removed unless it is handed on.
 struct ChildFilter(Option<PathBuf>);
 
