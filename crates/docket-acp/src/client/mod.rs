@@ -23,6 +23,8 @@
 //! - `helper_agent`: `HelperAgent`, an agent app as one helper's: its process kept across the
 //!   helper's jobs, a job as a turn, the agent's words back as untrusted text, and the agent's
 //!   own sign-in and sign-out.
+//! - `helper_agents`: `HelperAgents`, the agent apps of every helper at once, one process each; a
+//!   panic in one helper's agent ends that helper's process and job and nobody else's (`isolate`).
 //! - `fake`: an in-memory pipe, a scripted spawner and the like, for tests.
 
 mod backend;
@@ -38,6 +40,7 @@ mod helper_agents;
 mod host;
 mod intake;
 mod intents_court;
+mod isolate;
 mod models;
 mod names;
 mod own_edge;

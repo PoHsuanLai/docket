@@ -3,6 +3,7 @@
 //! agent is a fault in that helper's job and nothing else. It is the board's seam to the agent
 //! apps (`AgentApps`): a job in, a typed outcome out.
 
+use super::isolate::{Caught, caught};
 use super::helper_agent::{AgentEnd, HelperAgent, Hosts, SignInStep, SignOutStep, Trouble};
 use docket_core::helper::{
     AgentApps, AgentOutcome, AgentPending, CheckOutcome, HelperCard, Job, JobFault, SignInOutcome,
@@ -10,6 +11,7 @@ use docket_core::helper::{
 };
 use prov::{AgentProgram, HelperId, UnixSeconds};
 use std::collections::BTreeMap;
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::{Mutex as AsyncMutex, Notify};
@@ -94,6 +96,29 @@ where
             .clone()
     }
 
+    /// Runs `work` for `helper`'s agent such that a panic in it is that helper's failure and
+    /// nobody else's: the agent's process and slot are dropped (the next job starts a new one)
+    /// and `lost` is the answer. The other helpers' agents never see it.
+    async fn isolated<T>(&self, helper: &HelperId, lost: T, work: impl Future<Output = T>) -> T {
+        match caught(work, lost).await {
+            Caught::Done(done) => done,
+            Caught::Lost(lost) => {
+                tracing::warn!("a helper's agent failed unexpectedly; its process is ended");
+                let gone = {
+                    let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+                    slots.remove(helper)
+                };
+                if let Some(slot) = gone {
+                    slot.running.store(false, Ordering::SeqCst);
+                    let closing = async { slot.agent.lock().await.close().await };
+                    // Ending the process may fail the same way; nothing more is done about it.
+                    let _ = caught(closing, ()).await;
+                }
+                lost
+            }
+        }
+    }
+
     fn known(&self, helper: &HelperId) -> Option<Slot<H>> {
         let slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
         slots.get(helper).cloned()
@@ -106,7 +131,8 @@ where
     F: Fn(&HelperCard) -> H + Send + Sync,
 {
     fn run<'a>(&'a self, card: &'a HelperCard, job: &'a Job) -> AgentPending<'a, AgentOutcome> {
-        Box::pin(async move {
+        let lost = AgentOutcome::Failed(JobFault::Crashed);
+        Box::pin(self.isolated(&card.id, lost, async move {
             let slot = self.slot(card);
             let mut agent = slot.agent.lock().await;
             slot.running.store(true, Ordering::SeqCst);
@@ -140,7 +166,7 @@ where
                 AgentEnd::Failed(trouble) => AgentOutcome::Failed(fault_of(trouble)),
                 AgentEnd::Stopped => AgentOutcome::Stopped,
             }
-        })
+        }))
     }
 
     fn stop<'a>(&'a self, helper: &'a HelperId) -> AgentPending<'a, ()> {
@@ -158,7 +184,7 @@ where
         card: &'a HelperCard,
         way: &'a SignInWay,
     ) -> AgentPending<'a, SignInOutcome> {
-        Box::pin(async move {
+        Box::pin(self.isolated(&card.id, SignInOutcome::Failed, async move {
             let slot = self.slot(card);
             let mut agent = slot.agent.lock().await;
             match agent.sign_in(way).await {
@@ -167,11 +193,11 @@ where
                 SignInStep::Refused => SignInOutcome::Refused,
                 SignInStep::Failed(_) => SignInOutcome::Failed,
             }
-        })
+        }))
     }
 
     fn check<'a>(&'a self, card: &'a HelperCard) -> AgentPending<'a, CheckOutcome> {
-        Box::pin(async move {
+        Box::pin(self.isolated(&card.id, CheckOutcome::Failed, async move {
             let slot = self.slot(card);
             let mut agent = slot.agent.lock().await;
             match agent.check().await {
@@ -179,11 +205,11 @@ where
                 Err(AgentEnd::NeedsSignIn(ways)) => CheckOutcome::StillNeedsSignIn(ways),
                 Err(_) => CheckOutcome::Failed,
             }
-        })
+        }))
     }
 
     fn sign_out<'a>(&'a self, card: &'a HelperCard) -> AgentPending<'a, SignOutOutcome> {
-        Box::pin(async move {
+        Box::pin(self.isolated(&card.id, SignOutOutcome::Failed, async move {
             let slot = self.slot(card);
             let mut agent = slot.agent.lock().await;
             match agent.sign_out().await {
@@ -199,7 +225,7 @@ where
                     }
                 }
             }
-        })
+        }))
     }
 
     fn forget<'a>(&'a self, helper: &'a HelperId) -> AgentPending<'a, ()> {
