@@ -81,6 +81,14 @@ pub trait CompanionHelpers2 {
     /// The person declines a proposal (`p-3`): it is gone and nothing is made.
     fn decline_routine_proposal(&self, id: &str) -> zbus::Result<()>;
 
+    /// The person opens the helper's conversation in the app's own program in a terminal
+    /// (answers `HelperReply` JSON: the terminal window the shell is to open, or why not).
+    fn open_in_terminal(&self, helper: &str) -> zbus::Result<String>;
+
+    /// The person brings the helper's conversation back from the terminal (answers `HelperReply`
+    /// JSON: done, or why not).
+    fn bring_back(&self, helper: &str) -> zbus::Result<String>;
+
     /// Something about the helpers or their routines changed. Content-free: read `List`.
     #[zbus(signal)]
     fn changed(&self) -> zbus::Result<()>;
@@ -182,6 +190,16 @@ impl CompanionHelpers2Skeleton {
 
     fn decline_routine_proposal(&self, id: String) -> fdo::Result<()> {
         let _ = (id,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn open_in_terminal(&self, helper: String) -> fdo::Result<String> {
+        let _ = (helper,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn bring_back(&self, helper: String) -> fdo::Result<String> {
+        let _ = (helper,);
         Err(crate::introspect::frozen())
     }
 

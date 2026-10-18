@@ -7,7 +7,7 @@
 
 use crate::Companiond;
 use crate::Shared;
-use crate::helpers_bus::{Helpers2Object, HelpersObject};
+use crate::helpers_bus::{Helpers2Object, HelpersObject, TerminalsObject};
 use crate::routines::RoutineDesk;
 use crate::speaker::{Call, Speaker, Speakers};
 use companion_wire::AskWire;
@@ -350,6 +350,7 @@ async fn forward<P, I>(
                 for interface in [
                     "org.quire.Companion1.Helpers",
                     "org.quire.Companion1.Helpers2",
+                    "org.quire.Companion1.Terminals",
                 ] {
                     let _ = connection
                         .emit_signal(None::<&str>, COMPANION_PATH, interface, "Changed", &())
@@ -440,8 +441,19 @@ where
             .at(
                 COMPANION_PATH,
                 Helpers2Object {
-                    desk,
+                    desk: desk.clone(),
                     routines,
+                    speakers: speakers.clone(),
+                },
+            )
+            .await
+            .map_err(bus)?;
+        connection
+            .object_server()
+            .at(
+                COMPANION_PATH,
+                TerminalsObject {
+                    desk,
                     speakers: speakers.clone(),
                 },
             )

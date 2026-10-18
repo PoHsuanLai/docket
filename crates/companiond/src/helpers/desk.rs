@@ -3,9 +3,9 @@
 
 use super::hub::Hub;
 use companion_wire::{
-    AnswerPhase, HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply, HelpersView,
-    LoginShown, ProposalId, RoutineForm, RoutineProposal, SignInChoice, ToldWire, WhenForm,
-    card_of, line_of,
+    AnswerPhase, BroughtBack, HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply,
+    HelpersView, LoginShown, ProposalId, RoutineForm, RoutineProposal, SignInChoice,
+    TerminalSession, ToldWire, WhenForm, card_of, line_of,
 };
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{
@@ -20,7 +20,7 @@ use docket_tasks::{
 };
 use porter_client::Transport as InferTransport;
 use porter_core::{AppName, Count};
-use prov::{HelperId, SpaceId};
+use prov::{HelperId, SessionId, SpaceId};
 
 /// How many steps a helper the assistant proposed may take in one job, until the person says.
 const PROPOSED_STEPS: Count = Count(12);
@@ -127,6 +127,7 @@ where
                 program,
                 run: login.run.clone(),
                 login,
+                handoff: None,
             }),
             SignInOutcome::Refused => HelperReply::Refused(
                 "It did not sign you in. Try again, or choose another way.".to_owned(),
@@ -354,9 +355,11 @@ where
             helpers: board
                 .cards()
                 .iter()
-                .map(|card| HelperLine {
-                    conversation: self.conversation_of(&card.id),
-                    ..line_of(card, &board, self.needs_of(card))
+                .map(|card| {
+                    self.line_shown(HelperLine {
+                        conversation: self.conversation_of(&card.id),
+                        ..line_of(card, &board, self.needs_of(card))
+                    })
                 })
                 .collect::<Vec<HelperLine>>(),
             told: self
@@ -385,7 +388,7 @@ where
             view.login = LoginShown::SignedIn;
         }
         view.sign_in = ways.iter().map(SignInChoice::from).collect();
-        Some(view)
+        Some(self.card_shown(view, card))
     }
 
     fn create(&self, form: HelperForm) -> Pending<'_, HelperReply> {
@@ -464,6 +467,22 @@ where
 
     fn sign_out(&self, helper: HelperId) -> Pending<'_, HelperReply> {
         Box::pin(self.sign_out_of(helper))
+    }
+
+    fn open_in_terminal(&self, helper: HelperId) -> Pending<'_, HelperReply> {
+        Box::pin(self.open_terminal_for(helper))
+    }
+
+    fn bring_back(&self, helper: HelperId) -> Pending<'_, HelperReply> {
+        Box::pin(self.bring_back_for(helper))
+    }
+
+    fn terminal_sessions(&self) -> Pending<'_, Vec<TerminalSession>> {
+        Box::pin(self.terminal_sessions_now())
+    }
+
+    fn bring_back_terminal(&self, session: SessionId) -> Pending<'_, BroughtBack> {
+        Box::pin(self.bring_in(session))
     }
 
     fn roster_lines(&self, except: Option<&HelperId>) -> Vec<HelperRosterLine> {

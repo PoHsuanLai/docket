@@ -6,14 +6,14 @@
 
 use crate::bus::{fault_of, json};
 use companion_wire::{
-    HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineCardView, RoutineForm,
-    RoutineProposal, RoutineReply, RoutinesView,
+    BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId,
+    RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView, TerminalSession,
 };
 use docket_client::TransportError;
 use docket_core::routine::RoutineId;
-use docket_dbus::{BusConnection, CompanionHelpers2Proxy};
+use docket_dbus::{BusConnection, CompanionHelpers2Proxy, CompanionTerminalsProxy};
 use futures_util::{Stream, StreamExt};
-use prov::{EntityId, HelperId};
+use prov::{EntityId, HelperId, SessionId};
 use serde::de::DeserializeOwned;
 use std::future::Future;
 use std::pin::Pin;
@@ -128,12 +128,57 @@ pub trait HelpersTransport: Send + Sync {
 
     /// A stream of the times something changed, subscribed from now.
     fn changes(&self) -> impl Future<Output = Result<Changes, TransportError>> + Send;
+
+    /// The person opens the helper's conversation in the app's own program in a terminal: the
+    /// reply is the window the shell is to open, or why not. A carrier without it refuses.
+    fn open_in_terminal(
+        &self,
+        helper: &HelperId,
+    ) -> impl Future<Output = Result<HelperReply, TransportError>> + Send {
+        let _ = helper;
+        async { Err(not_offered()) }
+    }
+
+    /// The person brings the helper's conversation back from the terminal.
+    fn bring_back(
+        &self,
+        helper: &HelperId,
+    ) -> impl Future<Output = Result<HelperReply, TransportError>> + Send {
+        let _ = helper;
+        async { Err(not_offered()) }
+    }
+
+    /// The conversations a terminal started that can be brought into docket.
+    fn terminal_sessions(
+        &self,
+    ) -> impl Future<Output = Result<Vec<TerminalSession>, TransportError>> + Send {
+        async { Err(not_offered()) }
+    }
+
+    /// The person brings one of them into docket.
+    fn bring_back_session(
+        &self,
+        session: &SessionId,
+    ) -> impl Future<Output = Result<BroughtBack, TransportError>> + Send {
+        let _ = session;
+        async { Err(not_offered()) }
+    }
+
+    /// A stream of the times the terminals' conversations changed, subscribed from now.
+    fn terminal_changes(&self) -> impl Future<Output = Result<Changes, TransportError>> + Send {
+        async { Err(not_offered()) }
+    }
+}
+
+fn not_offered() -> TransportError {
+    TransportError::Bus("moving a conversation to a terminal is not offered here".to_owned())
 }
 
 /// companiond's helpers over D-Bus, as the connection's caller.
 #[derive(Debug)]
 pub struct DbusHelpers {
     helpers: CompanionHelpers2Proxy<'static>,
+    terminals: CompanionTerminalsProxy<'static>,
 }
 
 impl DbusHelpers {
@@ -143,7 +188,13 @@ impl DbusHelpers {
         let helpers = CompanionHelpers2Proxy::new(connection)
             .await
             .map_err(fault_of)?;
-        Ok(Self { helpers })
+        let terminals = CompanionTerminalsProxy::new(connection)
+            .await
+            .map_err(fault_of)?;
+        Ok(Self {
+            helpers,
+            terminals,
+        })
     }
 
     /// Connects to the session bus.
@@ -327,6 +378,45 @@ impl HelpersTransport for DbusHelpers {
 
     async fn changes(&self) -> Result<Changes, TransportError> {
         let signals = self.helpers.receive_changed().await.map_err(fault_of)?;
+        Ok(Box::pin(signals.map(|_| ())))
+    }
+
+    async fn open_in_terminal(&self, helper: &HelperId) -> Result<HelperReply, TransportError> {
+        read(
+            &self
+                .helpers
+                .open_in_terminal(&helper_text(helper)?)
+                .await
+                .map_err(fault_of)?,
+        )
+    }
+
+    async fn bring_back(&self, helper: &HelperId) -> Result<HelperReply, TransportError> {
+        read(
+            &self
+                .helpers
+                .bring_back(&helper_text(helper)?)
+                .await
+                .map_err(fault_of)?,
+        )
+    }
+
+    async fn terminal_sessions(&self) -> Result<Vec<TerminalSession>, TransportError> {
+        read(&self.terminals.sessions().await.map_err(fault_of)?)
+    }
+
+    async fn bring_back_session(&self, session: &SessionId) -> Result<BroughtBack, TransportError> {
+        read(
+            &self
+                .terminals
+                .bring_back(session.as_str())
+                .await
+                .map_err(fault_of)?,
+        )
+    }
+
+    async fn terminal_changes(&self) -> Result<Changes, TransportError> {
+        let signals = self.terminals.receive_changed().await.map_err(fault_of)?;
         Ok(Box::pin(signals.map(|_| ())))
     }
 }

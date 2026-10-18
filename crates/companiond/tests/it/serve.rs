@@ -6,8 +6,8 @@ use crate::support::bus::PrivateBus;
 use crate::support::infer::{Say, words};
 use crate::support::world::*;
 use companion_wire::{
-    AnswerPhase, AnswerWire, AskWire, FrontTask, HelperForm, HelperReply, HelpersView,
-    RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView,
+    AnswerPhase, AnswerWire, AskWire, BroughtBack, FrontTask, HelperForm, HelperReply, HelpersView,
+    RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView, TerminalSession,
 };
 use companiond::{RoutineDesk, serve_on, serve_with_routines};
 use docket_core::helper::{Ceiling, HelperModel, HelperName, Role};
@@ -15,7 +15,7 @@ use docket_core::routine::RoutineId;
 use docket_core::*;
 use docket_dbus::{
     Bus, COMPANION_BUS, COMPANION_PATH, CompanionAnswerProxy, CompanionHelpers2Proxy,
-    CompanionHelpersProxy, CompanionProxy, Details, introspection,
+    CompanionHelpersProxy, CompanionProxy, CompanionTerminalsProxy, Details, introspection,
 };
 use docket_tasks::{HelperDesk, Pending, RoutineAsk, RoutineFor};
 use futures_util::StreamExt;
@@ -473,6 +473,7 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
     for name in [
         "org.quire.Companion1.Helpers",
         "org.quire.Companion1.Helpers2",
+        "org.quire.Companion1.Terminals",
     ] {
         assert_eq!(block(&served, name), block(&declared, name));
     }
@@ -512,6 +513,25 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
         assert!(matches!(reply, HelperReply::Refused(_)), "{reply:?}");
     }
 
+    // A helper that runs no app has no conversation to move, and says so in words.
+    for reply in [
+        helpers.open_in_terminal(&id_text).await.expect("open"),
+        helpers.bring_back(&id_text).await.expect("back"),
+    ] {
+        let reply: HelperReply = serde_json::from_str(&reply).expect("reply");
+        assert!(matches!(reply, HelperReply::Refused(_)), "{reply:?}");
+    }
+    // Conversations a terminal started: none yet, and one that is not there is refused.
+    let terminals = CompanionTerminalsProxy::new(&shell).await.expect("proxy");
+    let listed: Vec<TerminalSession> =
+        serde_json::from_str(&terminals.sessions().await.expect("sessions")).expect("list");
+    assert!(listed.is_empty());
+    let gone: BroughtBack =
+        serde_json::from_str(&terminals.bring_back("s-404").await.expect("bring back"))
+            .expect("reply");
+    assert!(matches!(gone, BroughtBack::Refused(_)), "{gone:?}");
+    assert!(terminals.bring_back("not a session").await.is_err());
+
     // The routines reach their desk; one that is not there is an error, not a guess.
     let listed: RoutinesView =
         serde_json::from_str(&helpers.routines().await.expect("routines")).expect("view");
@@ -528,6 +548,11 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
     assert!(refused.sign_in(&id_text, "browser").await.is_err());
     assert!(refused.routines().await.is_err());
     assert!(refused.remove_routine("r-1").await.is_err());
+    assert!(refused.open_in_terminal(&id_text).await.is_err());
+    assert!(refused.bring_back(&id_text).await.is_err());
+    let nobody = CompanionTerminalsProxy::new(&stranger).await.expect("proxy");
+    assert!(nobody.sessions().await.is_err());
+    assert!(nobody.bring_back("s-1").await.is_err());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -609,6 +634,19 @@ async fn the_editor_bridge_reads_the_helpers_and_changes_nothing_and_a_stranger_
     assert!(
         refused(helpers.sign_in(&id_text, "browser").await.map(drop)),
         "sign in"
+    );
+    assert!(
+        refused(helpers.open_in_terminal(&id_text).await.map(drop)),
+        "open in terminal"
+    );
+    assert!(
+        refused(helpers.bring_back(&id_text).await.map(drop)),
+        "bring back"
+    );
+    let terminals = CompanionTerminalsProxy::new(&editor).await.expect("proxy");
+    assert!(
+        refused(terminals.sessions().await.map(drop)),
+        "the terminals' conversations"
     );
     assert!(
         refused(helpers.sign_out(&id_text).await.map(drop)),

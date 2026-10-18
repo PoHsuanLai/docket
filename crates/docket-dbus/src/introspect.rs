@@ -3,9 +3,10 @@
 
 use crate::{
     AgentHostSkeleton, CheckpointSkeleton, CompanionAnswerSkeleton, CompanionHelpers2Skeleton,
-    CompanionHelpersSkeleton, CompanionSkeleton, ConfirmSkeleton, ContextSkeleton, ControlSkeleton,
-    GateSkeleton, IndexSkeleton, IntentProviderSkeleton, MessageSkeleton, ReaderSkeleton,
-    RegistrySkeleton, RequestSkeleton, RunSkeleton, SearchSkeleton, SessionSkeleton,
+    CompanionHelpersSkeleton, CompanionSkeleton, CompanionTerminalsSkeleton, ConfirmSkeleton,
+    ContextSkeleton, ControlSkeleton, GateSkeleton, IndexSkeleton, IntentProviderSkeleton,
+    MessageSkeleton, ReaderSkeleton, RegistrySkeleton, RequestSkeleton, RunSkeleton,
+    SearchSkeleton, SessionSkeleton,
 };
 use zbus::fdo;
 use zbus::object_server::Interface;
@@ -74,6 +75,7 @@ pub fn introspection(bus: Bus) -> String {
             &CompanionAnswerSkeleton,
             &CompanionHelpersSkeleton,
             &CompanionHelpers2Skeleton,
+            &CompanionTerminalsSkeleton,
         ],
         Bus::Reader => vec![&ReaderSkeleton],
         Bus::AgentHost => vec![&AgentHostSkeleton],

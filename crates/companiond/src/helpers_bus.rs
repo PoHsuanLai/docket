@@ -10,7 +10,7 @@ use crate::speaker::{Call, Speakers};
 use companion_wire::{HelperForm, ProposalId, RoutineForm, RoutineReply};
 use docket_core::routine::RoutineId;
 use docket_tasks::{HelperDesk, PostFromPerson};
-use prov::{EntityId, HelperId};
+use prov::{EntityId, HelperId, SessionId};
 use std::sync::Arc;
 use zbus::fdo;
 use zbus::message::Header;
@@ -276,6 +276,24 @@ impl Helpers2Object {
         json(&self.desk.sign_out(helper_of(&helper)?).await)
     }
 
+    async fn open_in_terminal(
+        &self,
+        helper: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.require(&header).await?;
+        json(&self.desk.open_in_terminal(helper_of(&helper)?).await)
+    }
+
+    async fn bring_back(
+        &self,
+        helper: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.require(&header).await?;
+        json(&self.desk.bring_back(helper_of(&helper)?).await)
+    }
+
     async fn routines(&self, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
         json(&self.kept(&header).await?.view())
     }
@@ -363,6 +381,35 @@ impl Helpers2Object {
         self.require(&header).await?;
         self.desk.take_routine_proposal(proposal_of(&id)?);
         Ok(())
+    }
+
+    #[zbus(signal)]
+    async fn changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
+/// The conversations a terminal started with an agent app, which the person can bring in. Only the
+/// shell speaks for the person here.
+pub(crate) struct TerminalsObject {
+    pub(crate) desk: Arc<dyn HelperDesk>,
+    pub(crate) speakers: Speakers,
+}
+
+#[zbus::interface(name = "org.quire.Companion1.Terminals")]
+impl TerminalsObject {
+    async fn sessions(&self, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
+        self.speakers.require(&header, Call::Helpers).await?;
+        json(&self.desk.terminal_sessions().await)
+    }
+
+    async fn bring_back(
+        &self,
+        session: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.speakers.require(&header, Call::Helpers).await?;
+        let session = SessionId::parse(&session)
+            .map_err(|_| fdo::Error::InvalidArgs("there is no such conversation".into()))?;
+        json(&self.desk.bring_back_terminal(session).await)
     }
 
     #[zbus(signal)]

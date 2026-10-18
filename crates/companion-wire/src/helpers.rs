@@ -7,6 +7,7 @@ use docket_core::helper::{
     Board, Ceiling, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase, HelperState,
     JobId, JobStatus, Need, PauseWhy, Role, SignInWay, TerminalRequest, reach_lines,
 };
+use crate::handoff::{Handover, RunsIn};
 use porter_core::{AppName, Count};
 use prov::{AgentRef, HelperId, SessionId, SpaceId};
 use serde::{Deserialize, Serialize};
@@ -130,6 +131,13 @@ pub struct HelperCardView {
     /// one we know the name of. The shell falls back to the program's own name when it is none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_name: Option<String>,
+    /// For a helper that runs an app: whether the conversation is running in docket or in the
+    /// app's own program in a terminal.
+    #[serde(default)]
+    pub runs_in: RunsIn,
+    /// What the person can do about where the conversation is.
+    #[serde(default)]
+    pub handover: Handover,
 }
 
 /// What the person calls a coding agent program we know ("claude-code" is "Claude Code").
@@ -352,5 +360,7 @@ pub fn card_of(
             _ => LoginShown::Unknown,
         },
         sign_in: Vec::new(),
+        runs_in: RunsIn::Desktop,
+        handover: Handover::Unavailable,
     }
 }

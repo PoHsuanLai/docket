@@ -4,11 +4,12 @@
 //! passes none, and the actions are refused.
 
 use companion_wire::{
-    HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineProposal,
+    BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId,
+    RoutineProposal, TerminalSession,
 };
 use docket_core::HelperRosterLine;
 use docket_core::helper::Ceiling;
-use prov::{EntityId, HelperId, SpaceId, TaskId};
+use prov::{EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
@@ -137,4 +138,32 @@ pub trait HelperDesk: fmt::Debug + Send + Sync {
     /// The helpers a planner is told of, except `except` (the helper whose job it is, if it is
     /// one).
     fn roster_lines(&self, except: Option<&HelperId>) -> Vec<HelperRosterLine>;
+
+    /// The person opens the helper's conversation in the app's own program in a terminal. Answers
+    /// `OpenTerminal` with the window to open, or `Refused` with why not. A desk without apps
+    /// refuses.
+    fn open_in_terminal(&self, helper: HelperId) -> Pending<'_, HelperReply> {
+        let _ = helper;
+        Box::pin(async { HelperReply::Refused(NO_APPS.to_owned()) })
+    }
+
+    /// The person brings the helper's conversation back from the terminal.
+    fn bring_back(&self, helper: HelperId) -> Pending<'_, HelperReply> {
+        let _ = helper;
+        Box::pin(async { HelperReply::Refused(NO_APPS.to_owned()) })
+    }
+
+    /// The conversations a terminal started with an agent app that can be brought in.
+    fn terminal_sessions(&self) -> Pending<'_, Vec<TerminalSession>> {
+        Box::pin(async { Vec::new() })
+    }
+
+    /// The person brings one of them in.
+    fn bring_back_terminal(&self, session: SessionId) -> Pending<'_, BroughtBack> {
+        let _ = session;
+        Box::pin(async { BroughtBack::Refused(NO_APPS.to_owned()) })
+    }
 }
+
+/// What a desk with no apps says to a call that needs one.
+const NO_APPS: &str = "No apps can be reached here.";

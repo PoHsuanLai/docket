@@ -7,6 +7,7 @@
 //!   run the jobs, each on a companion of its own.
 
 mod desk;
+mod hand;
 mod hub;
 mod proposals;
 

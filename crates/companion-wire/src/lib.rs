@@ -8,6 +8,7 @@
 
 mod answer;
 mod ask;
+mod handoff;
 mod helpers;
 mod record;
 mod route;
@@ -19,9 +20,10 @@ pub use answer::{
     PlanWire, RefusalWire, StepWireState,
 };
 pub use ask::{AskWire, FrontTask};
+pub use handoff::{BroughtBack, Handover, RunsIn, TerminalSession};
 pub use helpers::{
     HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply, HelpersView, JobLine,
-    JobShown, JobWords, LoginShown, SignInChoice, ToldWire, card_of, line_of,
+    JobShown, JobWords, LoginShown, SignInChoice, ToldWire, app_name_of, card_of, line_of,
 };
 pub use record::{SESSION_KIND_PREFIX, SessionRecord};
 pub use route::{

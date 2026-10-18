@@ -159,6 +159,25 @@
    <method name="DeclineRoutineProposal">
      <arg name="id" type="s" direction="in"/>
    </method>
+   <method name="OpenInTerminal">
+     <arg name="helper" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="BringBack">
+     <arg name="helper" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <signal name="Changed">
+   </signal>
+ </interface>
+ <interface name="org.quire.Companion1.Terminals">
+   <method name="Sessions">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="BringBack">
+     <arg name="session" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
    <signal name="Changed">
    </signal>
  </interface>

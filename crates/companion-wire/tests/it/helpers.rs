@@ -223,6 +223,7 @@ fn a_sign_in_terminal_carries_the_resolved_command_and_an_older_request_still_re
             folder: Some("/home/p/.local/share/docket/helpers/h-2".to_owned()),
             confined: Some(line("/usr/bin/systemd-run", &["--scope", "bwrap"], &[])),
         })),
+        handoff: None,
     };
     let reply = HelperReply::OpenTerminal(request);
     let json = serde_json::to_string(&reply).expect("json");
@@ -247,6 +248,58 @@ fn a_sign_in_terminal_carries_the_resolved_command_and_an_older_request_still_re
     };
     assert_eq!(old.run, None);
     assert_eq!(old.login.args, ["/login"]);
+}
+
+#[test]
+fn a_conversation_in_a_terminal_pins_its_json_and_older_cards_read_as_in_docket() {
+    let session = prov::SessionId::parse("s-3").expect("session");
+    // The request to open a conversation in a terminal names the session that keeps its points.
+    let request = TerminalRequest {
+        helper: hid(2),
+        program: prov::AgentProgram::parse("claude-code").expect("program"),
+        login: TerminalLogin::default(),
+        run: None,
+        handoff: Some(session.clone()),
+    };
+    let json = serde_json::to_string(&HelperReply::OpenTerminal(request.clone())).expect("json");
+    assert_eq!(
+        json,
+        r#"{"kind":"open_terminal","v":{"helper":"h-2","program":"claude-code","login":{},"handoff":"s-3"}}"#
+    );
+    assert_eq!(
+        serde_json::from_str::<HelperReply>(&json).expect("reply"),
+        HelperReply::OpenTerminal(request)
+    );
+    // A card from before the move reads as one that runs in docket with nothing to do.
+    let (board, id) = board_with(HelperModel::Unset);
+    let kept = board.card(&id).expect("card");
+    let card = card_of(kept, &board, None, |_| JobWords::default());
+    let mut value = serde_json::to_value(&card).expect("json");
+    let object = value.as_object_mut().expect("object");
+    object.remove("runs_in");
+    object.remove("handover");
+    let older: HelperCardView = serde_json::from_value(value).expect("older");
+    assert_eq!((older.runs_in, older.handover), (RunsIn::Desktop, Handover::Unavailable));
+    // The shell's other words for it.
+    let listed = TerminalSession {
+        session: session.clone(),
+        program: prov::AgentProgram::parse("claude-code").expect("program"),
+        app_name: Some("Claude Code".into()),
+        folder: Some("/work/project".into()),
+        handover: Handover::BringBack,
+    };
+    assert_eq!(
+        serde_json::to_string(&listed).expect("json"),
+        r#"{"session":"s-3","program":"claude-code","app_name":"Claude Code","folder":"/work/project","handover":"bring_back"}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&BroughtBack::Session(session)).expect("json"),
+        r#"{"kind":"session","v":"s-3"}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&BroughtBack::Refused("No.".into())).expect("json"),
+        r#"{"kind":"refused","v":"No."}"#
+    );
 }
 
 #[test]

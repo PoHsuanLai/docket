@@ -61,8 +61,9 @@ pub enum Call {
     /// Reading an answer: `View`, `Session` and `Routing`.
     Read,
     /// Anything on `Companion1.Helpers` and `.Helpers2` that changes something (making, editing,
-    /// pausing, removing a helper, giving a job, signing in or out, the routines and what they
-    /// read): they are the person's own, and the shell speaks for them; a terminal and the
+    /// pausing, removing a helper, giving a job, signing in or out, opening a conversation in a
+    /// terminal or bringing it back, the routines and what they read), and `.Terminals`: they are
+    /// the person's own, and the shell speaks for them; a terminal and the
     /// editor bridge do not.
     Helpers,
     /// Reading the helpers: the list and a helper's card. The shell and the editor bridge may.

@@ -8,11 +8,13 @@
 //! says so and the others go on.
 
 use docket_core::helper::{
-    AgentApps, AgentOutcome, AgentPending, AppsAsk, AppsReply, CheckOutcome, HelperCard, Job,
-    JobFault, SignInOutcome, SignInWay, SignOutOutcome,
+    AgentApps, AgentOutcome, AgentPending, AppsAsk, AppsReply, BackOutcome, BroughtOutcome,
+    CheckOutcome, HandFault, HelperCard, Job, JobFault, SignInOutcome, SignInWay, SignOutOutcome,
+    ToTerminalOutcome,
 };
+use docket_core::{WatchedAgent, Workspace};
 use docket_dbus::{AgentHostProxy, BusConnection};
-use prov::HelperId;
+use prov::{HelperId, SessionId};
 
 /// The host of the agent apps, on the session bus.
 #[derive(Debug, Clone)]
@@ -117,6 +119,49 @@ impl AgentApps for AppsLink {
         Box::pin(async move {
             let helper = helper.clone();
             let _ = self.ask(&AppsAsk::Forget { helper }).await;
+        })
+    }
+
+    fn to_terminal<'a>(&'a self, card: &'a HelperCard) -> AgentPending<'a, ToTerminalOutcome> {
+        Box::pin(async move {
+            let ask = AppsAsk::ToTerminal {
+                card: Box::new(card.clone()),
+            };
+            match self.ask(&ask).await {
+                Some(AppsReply::ToTerminal(outcome)) => outcome,
+                _ => ToTerminalOutcome::Refused(HandFault::Failed),
+            }
+        })
+    }
+
+    fn bring_back<'a>(&'a self, card: &'a HelperCard) -> AgentPending<'a, BackOutcome> {
+        Box::pin(async move {
+            let ask = AppsAsk::BringBack {
+                card: Box::new(card.clone()),
+            };
+            match self.ask(&ask).await {
+                Some(AppsReply::BringBack(outcome)) => outcome,
+                _ => BackOutcome::Refused(HandFault::Failed),
+            }
+        })
+    }
+
+    fn bring_back_watched<'a>(
+        &'a self,
+        session: &'a SessionId,
+        agent: &'a WatchedAgent,
+        folder: &'a Workspace,
+    ) -> AgentPending<'a, BroughtOutcome> {
+        Box::pin(async move {
+            let ask = AppsAsk::BringBackWatched {
+                session: session.clone(),
+                agent: agent.clone(),
+                folder: folder.clone(),
+            };
+            match self.ask(&ask).await {
+                Some(AppsReply::BringBackWatched(outcome)) => outcome,
+                _ => BroughtOutcome::Refused(HandFault::Failed),
+            }
         })
     }
 }

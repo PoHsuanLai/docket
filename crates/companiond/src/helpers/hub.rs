@@ -95,6 +95,12 @@ pub(super) struct State {
     conversations: BTreeMap<HelperId, SessionId>,
     /// The routines proposed that wait for the person. Not across a restart.
     pub(super) proposals: super::proposals::Proposals,
+    /// The helpers whose agent app said, after its last job, that the person could pick its
+    /// conversation up in the app's own terminal program.
+    pub(super) can_hand: BTreeSet<HelperId>,
+    /// The helpers whose conversation is in the app's own terminal program: the session at the
+    /// router that is a watch session meanwhile. Not across a restart.
+    pub(super) away: BTreeMap<HelperId, SessionId>,
 }
 
 /// What builds the companion a job runs on: its transports are the daemon's, its planner is
@@ -382,6 +388,19 @@ where
         effects
     }
 
+    /// The open watch sessions whose agent app a terminal named, as the router lists them; none
+    /// when it does not answer.
+    pub(super) async fn watched_sessions(&self) -> Vec<docket_core::WatchedLine> {
+        self.inner
+            .service
+            .lock()
+            .await
+            .intents
+            .checkpoint_watched()
+            .await
+            .unwrap_or_default()
+    }
+
     /// The session the person talks with `helper` in, when it has one.
     pub fn conversation_of(&self, helper: &HelperId) -> Option<SessionId> {
         self.with_state(|state| state.conversations.get(helper).cloned())
@@ -573,12 +592,19 @@ where
                 words,
                 task,
                 session,
-            } => (
-                JobEnding::Done {
-                    words: words.into_inner(),
-                },
-                Some(OpenedJob { task, session }),
-            ),
+                own_session,
+            } => {
+                self.with_state(|state| match own_session {
+                    Some(_) => state.can_hand.insert(spec.card.id.clone()),
+                    None => state.can_hand.remove(&spec.card.id),
+                });
+                (
+                    JobEnding::Done {
+                        words: words.into_inner(),
+                    },
+                    Some(OpenedJob { task, session }),
+                )
+            }
             AgentOutcome::NeedsSignIn(ways) => (JobEnding::NeedsSignIn(ways), None),
             AgentOutcome::Failed(fault) => (JobEnding::Failed(fault), None),
             AgentOutcome::Stopped => (JobEnding::Stopped, None),
