@@ -715,9 +715,8 @@ async fn a_proposed_routine_waits_for_the_shell_to_accept_or_decline_it() {
         why: "You read the news every morning.".to_owned(),
         space: space("work"),
     };
-    let proposals = |text: String| -> Vec<RoutineProposal> {
-        serde_json::from_str(&text).expect("proposals")
-    };
+    let proposals =
+        |text: String| -> Vec<RoutineProposal> { serde_json::from_str(&text).expect("proposals") };
 
     // A time nobody can read, and a helper that is not there, are refused in words.
     assert!(matches!(

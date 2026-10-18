@@ -4,8 +4,8 @@
 use super::hub::Hub;
 use companion_wire::{
     AnswerPhase, HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply, HelpersView,
-    LoginShown, ProposalId, RoutineForm, RoutineProposal, SignInChoice, ToldWire, WhenForm, card_of,
-    line_of,
+    LoginShown, ProposalId, RoutineForm, RoutineProposal, SignInChoice, ToldWire, WhenForm,
+    card_of, line_of,
 };
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{

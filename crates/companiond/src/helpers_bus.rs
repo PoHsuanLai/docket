@@ -28,7 +28,8 @@ fn routine_of(text: &str) -> fdo::Result<RoutineId> {
 
 /// The id of a proposed routine as the shell sends it (`p-3`).
 fn proposal_of(text: &str) -> fdo::Result<ProposalId> {
-    ProposalId::parse(text).ok_or_else(|| fdo::Error::InvalidArgs("there is no such proposal".into()))
+    ProposalId::parse(text)
+        .ok_or_else(|| fdo::Error::InvalidArgs("there is no such proposal".into()))
 }
 
 /// What the helpers' calls come to, once, for both interfaces.

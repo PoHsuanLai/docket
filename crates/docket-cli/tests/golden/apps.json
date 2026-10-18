@@ -10,7 +10,7 @@
     {
       "slug": "companion",
       "app": "org.quire.Companion",
-      "actions": 6,
+      "actions": 7,
       "kinds": [
         "companion.task"
       ]

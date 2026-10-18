@@ -339,7 +339,11 @@ fn a_helper_that_runs_a_known_app_carries_the_name_people_call_it() {
     // An app we do not know the name of has none, and the field is left out of the JSON.
     let unknown = app("mine");
     assert_eq!(unknown.app_name, None);
-    assert!(!serde_json::to_string(&unknown).expect("json").contains("app_name"));
+    assert!(
+        !serde_json::to_string(&unknown)
+            .expect("json")
+            .contains("app_name")
+    );
     let (board, id) = board_with(HelperModel::Unset);
     let native = card_of(board.card(&id).expect("card"), &board, None, |_| {
         JobWords::default()

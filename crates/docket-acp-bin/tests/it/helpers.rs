@@ -6,7 +6,8 @@
 use companion_client::{Changes, HelpersTransport};
 use companion_wire::{
     HelperCardView, HelperForm, HelperLine, HelperReply, HelpersView, JobLine, JobShown,
-    ProposalId, RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView, ToldWire,
+    ProposalId, RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView,
+    ToldWire,
 };
 use docket_acp::Helpers;
 use docket_acp_bin::helpers::{BusHelpers, LiveHelpers};

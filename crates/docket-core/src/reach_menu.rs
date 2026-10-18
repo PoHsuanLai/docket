@@ -24,7 +24,10 @@ impl TaskPolicy {
     /// apps at any effect, or one of the companion actions a helper keeps.
     pub fn offers(&self, action: &ActionRef) -> bool {
         if action.app.as_str() == COMPANION_APP {
-            return matches!(action.name.as_str(), HAND_ON_JOB | PROPOSE_ROUTINE | SKILL_LOAD);
+            return matches!(
+                action.name.as_str(),
+                HAND_ON_JOB | PROPOSE_ROUTINE | SKILL_LOAD
+            );
         }
         self.actions.iter().any(|m| match m {
             ActionMatch::One(a) => a.app == action.app,

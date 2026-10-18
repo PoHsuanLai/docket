@@ -6,8 +6,8 @@
 
 use crate::bus::{fault_of, json};
 use companion_wire::{
-    HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineCardView,
-    RoutineForm, RoutineProposal, RoutineReply, RoutinesView,
+    HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineCardView, RoutineForm,
+    RoutineProposal, RoutineReply, RoutinesView,
 };
 use docket_client::TransportError;
 use docket_core::routine::RoutineId;
