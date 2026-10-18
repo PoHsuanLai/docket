@@ -9,12 +9,12 @@ use crate::state::SessionRecord;
 use crate::tasks::{TaskRecord, TaskState, child_policy};
 use crate::wal::Wal;
 use almanac_core::{EpisodeId, EpisodeKind, EpisodeOutcome};
+use docket_core::helper::SeatPlace;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, ExternalAgent, IntentsReply, Reveal, Rewind, SessionOpen,
     SessionOpened, TaskLedger, TurnId, TurnIn, TurnSource, UserTurn, WireRefusal, close,
     intersection,
 };
-use docket_core::helper::SeatPlace;
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use porter_core::AppName;
 use prov::{Actor, AgentRef, AgentRole, ReportStatus, SessionId, TaskId};

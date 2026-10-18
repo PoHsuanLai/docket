@@ -72,9 +72,9 @@ pub use recover::{
 pub use resume::Restarted;
 pub use runtime::{Begun, Companion, idle_state};
 pub use seams::{Now, Quiet, Surface};
-pub use voices::Voices;
 pub use shared::{Change, Shared};
 pub use sources::nowhere;
 pub use stored_roster::{events_of, stored_events};
 pub use tap::{Go, NoTap, Tap};
 pub use task::{Failure, TaskRuntime, kept_all};
+pub use voices::Voices;

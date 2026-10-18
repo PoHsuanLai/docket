@@ -6,11 +6,11 @@
 //! Named apart from `docket_router::SessionRecord` (the router's in-memory session) and
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
+use docket_core::helper::HelperSeat;
 use docket_core::{
     ActionRef, CallId, CheckpointNote, Covers, Handle, HandleShape, Rewind, SkillId, SkillVersion,
     StartedFrom, StepLine, SummaryText, TaskPolicy, UserTurn,
 };
-use docket_core::helper::HelperSeat;
 use docket_core::{BreakerTrip, Ledger};
 use porter_core::{AppName, Tier};
 use prov::{AgentRef, Effect, Label, SessionId, Source, SpaceId, TaskId};
