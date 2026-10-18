@@ -34,12 +34,17 @@ const TASK_KIND: &str = "companion.task";
 pub const HELPER_POST_JOB: &str = "companion.helper.post_job";
 /// Proposes a helper to the person, who confirms it on a sheet.
 pub const HELPER_PROPOSE: &str = "companion.helper.propose";
+/// Proposes a routine to the person, who accepts or declines it on a sheet.
+pub const ROUTINE_PROPOSE: &str = "companion.routine.propose";
 
-/// Whether `action` is one of the two helper actions: only the companion's own planners may call
+/// Whether `action` is one of the helper actions: only the companion's own planners may call
 /// them, however an app or an outside client names them.
 pub fn is_helper_action(action: &ActionRef) -> bool {
     action.app.as_str() == COMPANION_APP
-        && matches!(action.name.as_str(), HELPER_POST_JOB | HELPER_PROPOSE)
+        && matches!(
+            action.name.as_str(),
+            HELPER_POST_JOB | HELPER_PROPOSE | ROUTINE_PROPOSE
+        )
 }
 
 fn failed(why: &str) -> AppRefusal {
@@ -123,6 +128,7 @@ impl<S: Seams> Router<S> {
             crate::limits::LIMIT_ADD => self.limit_add(&inv),
             HELPER_POST_JOB => self.helper_post_job(&inv),
             HELPER_PROPOSE => self.helper_propose(&inv),
+            ROUTINE_PROPOSE => Self::routine_propose(&inv),
             _ => Err(AppRefusal::Unsupported),
         }
     }
@@ -173,6 +179,17 @@ impl<S: Seams> Router<S> {
         self.clean_words(inv, session, "role", untrusted)?;
         text_arg(inv, "apps")?;
         Ok(nothing_back("Proposed a helper"))
+    }
+
+    /// A routine proposed: nothing is made here, the person accepts it on a sheet. A planner that
+    /// read untrusted text may still propose, since nothing runs before they say yes; its `why`
+    /// is carried as data, and so are the goal and the time.
+    fn routine_propose(inv: &Invocation) -> Result<Outcome, AppRefusal> {
+        spawner(inv)?;
+        text_arg(inv, "goal")?;
+        text_arg(inv, "when")?;
+        text_arg(inv, "why")?;
+        Ok(nothing_back("Proposed a routine"))
     }
 
     fn task_start(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {

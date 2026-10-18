@@ -7,7 +7,7 @@
 use crate::routines::RoutineDesk;
 use crate::serve::{bad, json};
 use crate::speaker::{Call, Speakers};
-use companion_wire::{HelperForm, RoutineForm};
+use companion_wire::{HelperForm, ProposalId, RoutineForm, RoutineReply};
 use docket_core::routine::RoutineId;
 use docket_tasks::{HelperDesk, PostFromPerson};
 use prov::{EntityId, HelperId};
@@ -24,6 +24,11 @@ fn helper_of(text: &str) -> fdo::Result<HelperId> {
 /// The id of a routine as the shell sends it (`r-3`).
 fn routine_of(text: &str) -> fdo::Result<RoutineId> {
     RoutineId::parse(text).ok_or_else(|| fdo::Error::InvalidArgs("there is no such routine".into()))
+}
+
+/// The id of a proposed routine as the shell sends it (`p-3`).
+fn proposal_of(text: &str) -> fdo::Result<ProposalId> {
+    ProposalId::parse(text).ok_or_else(|| fdo::Error::InvalidArgs("there is no such proposal".into()))
 }
 
 /// What the helpers' calls come to, once, for both interfaces.
@@ -326,6 +331,36 @@ impl Helpers2Object {
             .await?
             .remove(routine_of(&routine)?)
             .await;
+        Ok(())
+    }
+
+    async fn routine_proposals(&self, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
+        self.require_read(&header).await?;
+        json(&self.desk.routine_proposals())
+    }
+
+    async fn accept_routine_proposal(
+        &self,
+        id: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        let routines = self.kept(&header).await?;
+        let found = self.desk.take_routine_proposal(proposal_of(&id)?);
+        match found {
+            Some(proposal) => json(&routines.create(proposal.form).await),
+            None => json(&RoutineReply::Refused(
+                "That suggestion is no longer there.".to_owned(),
+            )),
+        }
+    }
+
+    async fn decline_routine_proposal(
+        &self,
+        id: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<()> {
+        self.require(&header).await?;
+        self.desk.take_routine_proposal(proposal_of(&id)?);
         Ok(())
     }
 

@@ -251,3 +251,50 @@ ty = { kind = "choice", v = [
 ] }
 need = { kind = "defaulted", v = { kind = "choice", v = "look" } }
 sink = "inert"
+
+# Proposes a routine: something a helper does by itself at a time. Nothing is made and nothing
+# runs: the person accepts or declines on a sheet in the Helpers window, which shows the goal,
+# the time and the helper. A planner that read untrusted text may still propose, because the
+# person confirms; the sentence of why, the goal and the time are shown as data, never obeyed.
+# A helper's own planner proposes for its own card only, whatever `helper` says.
+[[actions]]
+name = "companion.routine.propose"
+label = "Suggest a routine"
+on = { kind = "nothing" }
+effect = "read"
+classes = ["app_own"]
+undo = "not_undoable"
+reach = "offered"
+latency = "instant"
+result = { kind = "nothing" }
+keys = { kind = "none" }
+lasting = "no"
+dry_run = "none"
+
+[[actions.params]]
+name = "helper"
+label = "Which helper"
+ty = { kind = "text", v = { max = 40, lines = "one" } }
+need = { kind = "optional" }
+sink = "inert"
+
+[[actions.params]]
+name = "goal"
+label = "What it is to do"
+ty = { kind = "text", v = { max = 1000, lines = "many" } }
+need = { kind = "required" }
+sink = "body"
+
+[[actions.params]]
+name = "when"
+label = "When (daily 08:00, weekdays 08:00, every 2 hours)"
+ty = { kind = "text", v = { max = 40, lines = "one" } }
+need = { kind = "required" }
+sink = "inert"
+
+[[actions.params]]
+name = "why"
+label = "Why, in one sentence"
+ty = { kind = "text", v = { max = 200, lines = "one" } }
+need = { kind = "required" }
+sink = "body"

@@ -6,7 +6,7 @@
 use companion_client::{Changes, HelpersTransport};
 use companion_wire::{
     HelperCardView, HelperForm, HelperLine, HelperReply, HelpersView, JobLine, JobShown,
-    RoutineCardView, RoutineForm, RoutineReply, RoutinesView, ToldWire,
+    ProposalId, RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView, ToldWire,
 };
 use docket_acp::Helpers;
 use docket_acp_bin::helpers::{BusHelpers, LiveHelpers};
@@ -99,6 +99,7 @@ impl HelpersTransport for Daemon {
             kind: Default::default(),
             login: Default::default(),
             sign_in: Vec::new(),
+            app_name: None,
         })
     }
 
@@ -164,6 +165,18 @@ impl HelpersTransport for Daemon {
     }
 
     async fn remove_routine(&self, _: RoutineId) -> Result<(), TransportError> {
+        nobody()
+    }
+
+    async fn routine_proposals(&self) -> Result<Vec<RoutineProposal>, TransportError> {
+        nobody()
+    }
+
+    async fn accept_routine_proposal(&self, _: ProposalId) -> Result<RoutineReply, TransportError> {
+        nobody()
+    }
+
+    async fn decline_routine_proposal(&self, _: ProposalId) -> Result<(), TransportError> {
         nobody()
     }
 }

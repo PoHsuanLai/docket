@@ -93,6 +93,8 @@ pub(super) struct State {
     /// The one session each helper has for the person to talk with it in, kept until the helper
     /// is removed. Not across a restart: the next pass opens it again.
     conversations: BTreeMap<HelperId, SessionId>,
+    /// The routines proposed that wait for the person. Not across a restart.
+    pub(super) proposals: super::proposals::Proposals,
 }
 
 /// What builds the companion a job runs on: its transports are the daemon's, its planner is
@@ -843,6 +845,11 @@ where
     /// Tells the person a sentence about a helper, once, and the shell that something changed.
     pub(crate) fn say(&self, helper: &HelperId, text: String) {
         self.tell(helper, text);
+        self.inner.shared.surface().changed(Change::HelpersChanged);
+    }
+
+    /// Tells the shell that something about the helpers changed.
+    pub(super) fn changed(&self) {
         self.inner.shared.surface().changed(Change::HelpersChanged);
     }
 

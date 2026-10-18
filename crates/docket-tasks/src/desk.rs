@@ -3,7 +3,9 @@
 //! the planner's two helper actions and the shell's helper calls reach it. A host with no helpers
 //! passes none, and the actions are refused.
 
-use companion_wire::{HelperCardView, HelperForm, HelperReply, HelpersView};
+use companion_wire::{
+    HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineProposal,
+};
 use docket_core::HelperRosterLine;
 use docket_core::helper::Ceiling;
 use prov::{EntityId, HelperId, SpaceId, TaskId};
@@ -57,6 +59,31 @@ pub struct Proposal {
     pub space: SpaceId,
 }
 
+/// Which helper a proposed routine is for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RoutineFor {
+    /// The one the assistant named, by the name the person gave it.
+    Named(String),
+    /// The helper whose planner is proposing: a helper proposes for its own card only.
+    Itself(HelperId),
+}
+
+/// A routine the assistant or a helper proposes. Nothing is made: it waits on a sheet for the
+/// person, and `why` is the proposer's sentence, a model's words, kept as data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RoutineAsk {
+    /// Who it is for.
+    pub helper: RoutineFor,
+    /// What it is to do.
+    pub goal: String,
+    /// When, in plain words ("daily 08:00", "every 2 hours").
+    pub when: String,
+    /// The proposer's one sentence on why.
+    pub why: String,
+    /// The Space of the conversation that proposed it: a helper in another Space is not reachable.
+    pub space: SpaceId,
+}
+
 /// What the task model asks of the helpers a host keeps.
 pub trait HelperDesk: fmt::Debug + Send + Sync {
     /// The list, with what was told after the sentence numbered `after`.
@@ -88,6 +115,15 @@ pub trait HelperDesk: fmt::Debug + Send + Sync {
 
     /// The assistant proposes a helper, and the person has confirmed it.
     fn propose(&self, proposal: Proposal) -> Pending<'_, HelperReply>;
+
+    /// The assistant or a helper proposes a routine; it waits for the person. Kept in memory only.
+    fn propose_routine(&self, ask: RoutineAsk) -> Pending<'_, HelperReply>;
+
+    /// The routines proposed that wait for the person.
+    fn routine_proposals(&self) -> Vec<RoutineProposal>;
+
+    /// Takes a proposal off the list, to accept or to decline it.
+    fn take_routine_proposal(&self, id: ProposalId) -> Option<RoutineProposal>;
 
     /// The person chooses one of the ways of signing in to the app the helper runs (`way` is the
     /// id of a `SignInChoice` on its card). Answers `Done` once the app is signed in, or

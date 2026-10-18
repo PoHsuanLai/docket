@@ -5,7 +5,7 @@ use crate::support::*;
 use docket_core::helper::HelperSeat;
 use docket_core::*;
 use docket_fake::ScriptedWriter;
-use docket_router::{COMPANION_APP, HELPER_POST_JOB, HELPER_PROPOSE};
+use docket_router::{COMPANION_APP, HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE};
 use prov::{
     Actor, Address, AgentRef, AgentRole, Confidentiality, Effect, HelperId, Integrity, Label,
     Labelled, MessageKind, MessageText, ModelRole, SessionId, Source, UnixSeconds,
@@ -505,6 +505,35 @@ async fn a_helper_proposed_by_a_tainted_planner_has_no_name_and_no_role_to_take(
 }
 
 #[tokio::test]
+async fn a_routine_may_be_proposed_after_reading_untrusted_text_because_the_person_confirms() {
+    let router = router();
+    let front = open(&router, "work", AgentRef::Companion).await;
+    let propose = |actor: Actor| {
+        helper_call(
+            ROUTINE_PROPOSE,
+            actor,
+            &[
+                ("goal", text("Tidy the inbox."), words_of(Source::Mail)),
+                ("when", text("daily 08:00"), planners()),
+                ("why", text("The mail asked."), words_of(Source::Mail)),
+            ],
+        )
+    };
+    assert!(
+        router
+            .companion_perform(propose(planner_actor(&front.session)))
+            .is_ok()
+    );
+    // Only a planner of the companion can ask at all.
+    assert_eq!(
+        router
+            .companion_perform(propose(Actor::Cli))
+            .expect_err("not a planner"),
+        AppRefusal::Unsupported
+    );
+}
+
+#[tokio::test]
 async fn only_the_companions_own_planners_can_call_the_helper_actions() {
     let router = router();
     open(&router, "work", AgentRef::Companion).await;
@@ -524,7 +553,7 @@ async fn only_the_companions_own_planners_can_call_the_helper_actions() {
         AppRefusal::Unsupported
     );
     // An outside client cannot even ask: the router refuses the call before the provider.
-    for name in [HELPER_POST_JOB, HELPER_PROPOSE] {
+    for name in [HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE] {
         let reply = ask(
             &router,
             &caller("org.zed.Zed", CallerRole::Mcp),

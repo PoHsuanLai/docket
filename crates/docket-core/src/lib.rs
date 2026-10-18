@@ -163,7 +163,7 @@ pub use planner::{
 pub use preview::{
     FactLine, FileFacts, FileMove, Markdownish, MessageSnip, PageIndex, Preview, TimeRange, size_of,
 };
-pub use reach_menu::{COMPANION_APP, HAND_ON_JOB, SKILL_LOAD};
+pub use reach_menu::{COMPANION_APP, HAND_ON_JOB, PROPOSE_ROUTINE, SKILL_LOAD};
 pub use reader::{
     ReadFault, Reader, ReaderAsk, ReaderError, ReaderTask, SchemaFault, ValueSchema, conforms,
     entity_choice_text,

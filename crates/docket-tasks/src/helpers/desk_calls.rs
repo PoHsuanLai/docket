@@ -1,9 +1,10 @@
-//! The planner's two helper actions, `companion.helper.post_job` and `companion.helper.propose`.
+//! The planner's three helper actions, `companion.helper.post_job`, `companion.helper.propose` and
+//! `companion.routine.propose`.
 //! The router gates them like any call (and refuses a goal, a name or a role that came from
 //! something untrusted, and always asks the person about a proposal); once it has allowed one,
 //! the host that keeps the helpers carries it out here. A host with none refuses them.
 
-use crate::desk::{PostFromPlanner, Proposal};
+use crate::desk::{PostFromPlanner, Proposal, RoutineAsk, RoutineFor};
 use crate::read::COMPANION_APP;
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
@@ -18,7 +19,10 @@ pub(crate) use docket_core::HAND_ON_JOB as POST_JOB;
 /// Proposes a helper to the person.
 pub(crate) const PROPOSE: &str = "companion.helper.propose";
 
-/// Whether the planner is offered `card` here: the two helper actions only where a host keeps
+/// Proposes a routine to the person.
+pub(crate) use docket_core::PROPOSE_ROUTINE;
+
+/// Whether the planner is offered `card` here: the three helper actions only where a host keeps
 /// helpers (proposing), and giving a job only once the person keeps at least one. Every other
 /// card is offered as before. Offering them nowhere else keeps the planner's action list short:
 /// the list is cut to a budget, and two long cards no one can use would push out the last apps'.
@@ -28,9 +32,11 @@ pub(crate) fn offered_here(card: &ActionCard, keeps: Keeps) -> bool {
     }
     match (card.action.name.as_str(), keeps) {
         (POST_JOB, Keeps::Helpers) => true,
-        (POST_JOB, Keeps::NoHelpers | Keeps::NoDesk) => false,
+        (POST_JOB, Keeps::NoHelpers | Keeps::OnlyItself | Keeps::NoDesk) => false,
         (PROPOSE, Keeps::Helpers | Keeps::NoHelpers) => true,
-        (PROPOSE, Keeps::NoDesk) => false,
+        (PROPOSE, Keeps::OnlyItself | Keeps::NoDesk) => false,
+        (PROPOSE_ROUTINE, Keeps::Helpers | Keeps::OnlyItself) => true,
+        (PROPOSE_ROUTINE, Keeps::NoHelpers | Keeps::NoDesk) => false,
         _ => true,
     }
 }
@@ -42,14 +48,20 @@ pub(crate) enum Keeps {
     NoDesk,
     /// A host keeps helpers, and the person has none yet.
     NoHelpers,
+    /// The planner is a helper's own and the person keeps no other: it can propose a routine for
+    /// its card and nothing else of the helpers' actions.
+    OnlyItself,
     /// The person keeps at least one helper the planner is told of.
     Helpers,
 }
 
-/// Whether `call` is one of the two helper actions.
+/// Whether `call` is one of the helper actions.
 pub(crate) fn is_helper_action(call: &CallRequest) -> bool {
     call.action.app.as_str() == COMPANION_APP
-        && matches!(call.action.name.as_str(), POST_JOB | PROPOSE)
+        && matches!(
+            call.action.name.as_str(),
+            POST_JOB | PROPOSE | PROPOSE_ROUTINE
+        )
 }
 
 fn refused(why: &str) -> CallRefusal {
@@ -96,7 +108,30 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let Some(space) = self.runtimes.get(task).map(|rt| rt.space.clone()) else {
             return Err(CallRefusal::Timeout);
         };
-        let reply = if call.action.name.as_str() == POST_JOB {
+        let reply = if call.action.name.as_str() == PROPOSE_ROUTINE {
+            let (Some(goal), Some(when), Some(why)) = (
+                text_of(call, "goal"),
+                text_of(call, "when"),
+                text_of(call, "why"),
+            ) else {
+                return Err(refused("Say what it is to do, when, and why."));
+            };
+            let helper = match self.as_helper.as_ref() {
+                Some(own) => RoutineFor::Itself(own.id.clone()),
+                None => match text_of(call, "helper") {
+                    Some(name) => RoutineFor::Named(name),
+                    None => return Err(refused("Say which helper it is for.")),
+                },
+            };
+            desk.propose_routine(RoutineAsk {
+                helper,
+                goal,
+                when,
+                why,
+                space,
+            })
+            .await
+        } else if call.action.name.as_str() == POST_JOB {
             let (Some(helper), Some(goal)) = (text_of(call, "helper"), text_of(call, "goal"))
             else {
                 return Err(refused("Say which helper and what it is to do."));

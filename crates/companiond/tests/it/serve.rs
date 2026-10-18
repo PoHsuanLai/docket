@@ -7,7 +7,7 @@ use crate::support::infer::{Say, words};
 use crate::support::world::*;
 use companion_wire::{
     AnswerPhase, AnswerWire, AskWire, FrontTask, HelperForm, HelperReply, HelpersView,
-    RoutineCardView, RoutineForm, RoutineReply, RoutinesView,
+    RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView,
 };
 use companiond::{RoutineDesk, serve_on, serve_with_routines};
 use docket_core::helper::{Ceiling, HelperModel, HelperName, Role};
@@ -17,7 +17,7 @@ use docket_dbus::{
     Bus, COMPANION_BUS, COMPANION_PATH, CompanionAnswerProxy, CompanionHelpers2Proxy,
     CompanionHelpersProxy, CompanionProxy, Details, introspection,
 };
-use docket_tasks::Pending;
+use docket_tasks::{HelperDesk, Pending, RoutineAsk, RoutineFor};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
 use prov::AgentRef;
@@ -630,4 +630,164 @@ async fn the_editor_bridge_reads_the_helpers_and_changes_nothing_and_a_stranger_
     let after: HelpersView =
         serde_json::from_str(&theirs.list(0).await.expect("list")).expect("view");
     assert_eq!(after.helpers.len(), 1);
+}
+
+/// Routines that remember the forms they were asked to make.
+#[derive(Debug, Default)]
+struct RecordingRoutines {
+    made: std::sync::Mutex<Vec<RoutineForm>>,
+}
+
+impl RoutineDesk for RecordingRoutines {
+    fn view(&self) -> RoutinesView {
+        RoutinesView::default()
+    }
+
+    fn card(&self, _routine: RoutineId) -> Option<RoutineCardView> {
+        None
+    }
+
+    fn create(&self, form: RoutineForm) -> Pending<'_, RoutineReply> {
+        self.made.lock().expect("made").push(form);
+        Box::pin(async { RoutineReply::Made(RoutineId(1)) })
+    }
+
+    fn pause(&self, _routine: RoutineId) -> Pending<'_, ()> {
+        Box::pin(async {})
+    }
+
+    fn resume(&self, _routine: RoutineId) -> Pending<'_, ()> {
+        Box::pin(async {})
+    }
+
+    fn remove(&self, _routine: RoutineId) -> Pending<'_, ()> {
+        Box::pin(async {})
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_proposed_routine_waits_for_the_shell_to_accept_or_decline_it() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let bus = PrivateBus::start(scratch.path());
+    let (server, shell, editor, stranger) = (
+        bus.connect().await,
+        bus.connect().await,
+        bus.connect().await,
+        bus.connect().await,
+    );
+    let mut w = world(vec![]);
+    let hub = hub_of(&w);
+    w.companion.set_desk(Arc::new(hub.clone()));
+    let companion = Arc::new(Mutex::new(w.companion));
+    let who = who(&server, scratch.path());
+    let routines = Arc::new(RecordingRoutines::default());
+    serve_with_routines(
+        &server,
+        companion,
+        who.clone(),
+        std::path::PathBuf::from("/proc"),
+        Some(routines.clone()),
+    )
+    .await
+    .expect("serving");
+    as_shell(&who, &shell);
+    who.introduce_app(&editor, "org.quire.Acp", docket_dbus::callers::Role::Agent);
+
+    let form = HelperForm {
+        name: HelperName::parse("Research").expect("name"),
+        role: Role::parse("Looks things up.").expect("role"),
+        space: space("work"),
+        model: HelperModel::Unset,
+        apps: vec![app("org.quire.Mail")],
+        ceiling: Ceiling::Look,
+        steps: porter_core::Count(8),
+        kind: Default::default(),
+    };
+    let helpers = CompanionHelpers2Proxy::new(&shell).await.expect("proxy");
+    helpers
+        .create(&serde_json::to_string(&form).expect("json"))
+        .await
+        .expect("create");
+    let propose = |when: &str| RoutineAsk {
+        helper: RoutineFor::Named("Research".to_owned()),
+        goal: "Look up the news.".to_owned(),
+        when: when.to_owned(),
+        why: "You read the news every morning.".to_owned(),
+        space: space("work"),
+    };
+    let proposals = |text: String| -> Vec<RoutineProposal> {
+        serde_json::from_str(&text).expect("proposals")
+    };
+
+    // A time nobody can read, and a helper that is not there, are refused in words.
+    assert!(matches!(
+        hub.propose_routine(propose("whenever")).await,
+        HelperReply::Refused(_)
+    ));
+    let nobody = RoutineAsk {
+        helper: RoutineFor::Named("Nobody".to_owned()),
+        ..propose("daily 08:00")
+    };
+    assert!(matches!(
+        hub.propose_routine(nobody).await,
+        HelperReply::Refused(_)
+    ));
+    assert!(proposals(helpers.routine_proposals().await.expect("none")).is_empty());
+
+    // Two proposals are listed, and nothing is made before the shell answers.
+    for when in ["daily 08:00", "every 2 hours"] {
+        assert_eq!(hub.propose_routine(propose(when)).await, HelperReply::Done);
+    }
+    let listed = proposals(helpers.routine_proposals().await.expect("list"));
+    assert_eq!(listed.len(), 2);
+    assert_eq!(listed[0].id.to_string(), "p-1");
+    assert_eq!(listed[0].why, "You read the news every morning.");
+    assert!(routines.made.lock().expect("made").is_empty());
+
+    // The editor bridge may look and may not answer; a stranger may do neither.
+    let theirs = CompanionHelpers2Proxy::new(&editor).await.expect("proxy");
+    assert_eq!(
+        proposals(theirs.routine_proposals().await.expect("read")).len(),
+        2
+    );
+    assert!(theirs.accept_routine_proposal("p-1").await.is_err());
+    assert!(theirs.decline_routine_proposal("p-1").await.is_err());
+    let nobody = CompanionHelpers2Proxy::new(&stranger).await.expect("proxy");
+    assert!(nobody.routine_proposals().await.is_err());
+    assert!(nobody.accept_routine_proposal("p-1").await.is_err());
+    assert_eq!(
+        proposals(helpers.routine_proposals().await.expect("list")).len(),
+        2
+    );
+
+    // Accepting makes the routine, skipping a missed time, and takes it off the list.
+    let reply: RoutineReply = serde_json::from_str(
+        &helpers
+            .accept_routine_proposal("p-1")
+            .await
+            .expect("accept"),
+    )
+    .expect("reply");
+    assert_eq!(reply, RoutineReply::Made(RoutineId(1)));
+    let made = routines.made.lock().expect("made").clone();
+    assert_eq!(made.len(), 1);
+    assert_eq!(made[0].missed, docket_core::routine::Missed::Skip);
+    assert_eq!(made[0].goal, "Look up the news.");
+
+    // Declining removes the other and makes nothing; a proposal already answered is not there.
+    helpers
+        .decline_routine_proposal("p-2")
+        .await
+        .expect("decline");
+    assert!(proposals(helpers.routine_proposals().await.expect("list")).is_empty());
+    assert_eq!(routines.made.lock().expect("made").len(), 1);
+    let gone: RoutineReply = serde_json::from_str(
+        &helpers
+            .accept_routine_proposal("p-2")
+            .await
+            .expect("answered"),
+    )
+    .expect("reply");
+    assert!(matches!(gone, RoutineReply::Refused(_)));
+    assert!(helpers.accept_routine_proposal("nonsense").await.is_err());
 }

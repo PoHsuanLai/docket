@@ -149,6 +149,16 @@
    <method name="RemoveRoutine">
      <arg name="routine" type="s" direction="in"/>
    </method>
+   <method name="RoutineProposals">
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="AcceptRoutineProposal">
+     <arg name="id" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="DeclineRoutineProposal">
+     <arg name="id" type="s" direction="in"/>
+   </method>
    <signal name="Changed">
    </signal>
  </interface>

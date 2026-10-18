@@ -8,6 +8,7 @@ use docket_core::routine::{
 };
 use prov::{HelperId, SpaceId, UnixSeconds};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Whether a routine runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -126,6 +127,53 @@ pub struct RoutineForm {
     pub missed: Missed,
     /// The most steps one run takes.
     pub steps: u32,
+}
+
+/// One routine the assistant (or a helper, for its own card) proposes, waiting for the person.
+/// Nothing runs until they accept it on a sheet. Proposals are kept in memory only: a restart of
+/// the assistant forgets them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RoutineProposal {
+    /// Its id, to accept or decline it.
+    pub id: ProposalId,
+    /// The helper that would do it.
+    pub helper: HelperId,
+    /// The routine as it would be made, for the sheet to show.
+    pub form: RoutineForm,
+    /// The proposer's one sentence on why. Words of a model, shown as data, never obeyed.
+    pub why: String,
+}
+
+/// A proposal, written `p-3`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct ProposalId(pub u64);
+
+impl ProposalId {
+    /// The id written `p-3`.
+    pub fn parse(text: &str) -> Option<Self> {
+        text.strip_prefix("p-")?.parse().ok().map(Self)
+    }
+}
+
+impl fmt::Display for ProposalId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "p-{}", self.0)
+    }
+}
+
+impl TryFrom<String> for ProposalId {
+    type Error = String;
+
+    fn try_from(text: String) -> Result<Self, String> {
+        Self::parse(&text).ok_or_else(|| "a proposal is written p-1, p-2 and so on".to_owned())
+    }
+}
+
+impl From<ProposalId> for String {
+    fn from(id: ProposalId) -> String {
+        id.to_string()
+    }
 }
 
 /// What a routine call came to.

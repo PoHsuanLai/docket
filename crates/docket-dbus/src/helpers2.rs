@@ -70,6 +70,17 @@ pub trait CompanionHelpers2 {
     /// The person removes a routine.
     fn remove_routine(&self, routine: &str) -> zbus::Result<()>;
 
+    /// The routines the assistant or a helper proposed that wait for the person
+    /// (`RoutineProposal` JSON list). Kept in memory only.
+    fn routine_proposals(&self) -> zbus::Result<String>;
+
+    /// The person accepts a proposal (`p-3`) on the sheet: the routine is made, skipping a time
+    /// that is missed (answers `RoutineReply` JSON).
+    fn accept_routine_proposal(&self, id: &str) -> zbus::Result<String>;
+
+    /// The person declines a proposal (`p-3`): it is gone and nothing is made.
+    fn decline_routine_proposal(&self, id: &str) -> zbus::Result<()>;
+
     /// Something about the helpers or their routines changed. Content-free: read `List`.
     #[zbus(signal)]
     fn changed(&self) -> zbus::Result<()>;
@@ -157,6 +168,20 @@ impl CompanionHelpers2Skeleton {
 
     fn remove_routine(&self, routine: String) -> fdo::Result<()> {
         let _ = (routine,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn routine_proposals(&self) -> fdo::Result<String> {
+        Err(crate::introspect::frozen())
+    }
+
+    fn accept_routine_proposal(&self, id: String) -> fdo::Result<String> {
+        let _ = (id,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn decline_routine_proposal(&self, id: String) -> fdo::Result<()> {
+        let _ = (id,);
         Err(crate::introspect::frozen())
     }
 

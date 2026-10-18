@@ -2,8 +2,9 @@
 //! may use and how far: the apps bound what it is offered (a job once waited out a sheet's two
 //! minutes to load a skill it never needed), while going further in one of them is offered and
 //! asks the person on a sheet that names the helper, so a job beyond its reach says so rather
-//! than ending as if done. Of the companion's own actions it keeps handing a job on, which the
-//! router gates by its own rules, and loading a skill when one fits its apps.
+//! than ending as if done. Of the companion's own actions it keeps handing a job on and proposing
+//! a routine for its own card, which the router gates by its own rules, and loading a skill when
+//! one fits its apps.
 
 pub(crate) use docket_core::SKILL_LOAD;
 

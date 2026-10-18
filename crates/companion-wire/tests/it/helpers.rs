@@ -316,3 +316,33 @@ fn a_line_without_a_conversation_reads_from_an_older_list_and_is_not_written_wit
     let text = serde_json::to_string(&line).expect("json");
     assert!(text.contains("\"conversation\":\"s-61\""), "{text}");
 }
+
+#[test]
+fn a_helper_that_runs_a_known_app_carries_the_name_people_call_it() {
+    let app = |program: &str| {
+        let mut draft = draft("Coder", HelperModel::Unset);
+        draft.kind = HelperKind::AgentApp(prov::AgentProgram::parse(program).expect("program"));
+        let (board, effects) = step(Board::new(), BoardEvent::Create(Box::new(draft)));
+        let id = effects
+            .iter()
+            .find_map(|e| match e {
+                BoardEffect::Created(id) => Some(id.clone()),
+                _ => None,
+            })
+            .expect("created");
+        card_of(board.card(&id).expect("card"), &board, None, |_| {
+            JobWords::default()
+        })
+    };
+    assert_eq!(app("claude-code").app_name.as_deref(), Some("Claude Code"));
+    assert_eq!(app("gemini-cli").app_name.as_deref(), Some("Gemini CLI"));
+    // An app we do not know the name of has none, and the field is left out of the JSON.
+    let unknown = app("mine");
+    assert_eq!(unknown.app_name, None);
+    assert!(!serde_json::to_string(&unknown).expect("json").contains("app_name"));
+    let (board, id) = board_with(HelperModel::Unset);
+    let native = card_of(board.card(&id).expect("card"), &board, None, |_| {
+        JobWords::default()
+    });
+    assert_eq!(native.app_name, None);
+}

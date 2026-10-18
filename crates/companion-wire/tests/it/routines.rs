@@ -1,7 +1,10 @@
 //! The routines on the wire: a form reads from the shell's JSON (a missed time is skipped unless
 //! the form says otherwise), and a card shows the last runs newest first in plain words.
 
-use companion_wire::{RoutineForm, RoutineShown, RunShown, WhenForm, routine_card, routine_line};
+use companion_wire::{
+    ProposalId, RoutineForm, RoutineProposal, RoutineShown, RunShown, WhenForm, routine_card,
+    routine_line,
+};
 use docket_core::helper::{GoalText, HelperName, JobFault, JobId};
 use docket_core::routine::*;
 use porter_core::Count;
@@ -88,4 +91,15 @@ fn a_card_shows_its_runs_newest_first_and_says_why_one_did_not_finish() {
         routine_line(routine, inbox()).last,
         Some(card.runs[0].clone())
     );
+}
+
+#[test]
+fn a_proposal_is_written_p_and_a_number_and_pins_its_json() {
+    let text = r#"{"id":"p-3","helper":"h-1","form":{"helper":"h-1","goal":"Tidy my mail","when":{"kind":"at","v":"daily 08:00"},"missed":"skip","steps":5},"why":"You asked for a tidy inbox."}"#;
+    let proposal: RoutineProposal = serde_json::from_str(text).expect("proposal");
+    assert_eq!(proposal.id, ProposalId(3));
+    assert_eq!(proposal.form.missed, Missed::Skip);
+    assert_eq!(serde_json::to_string(&proposal).expect("json"), text);
+    assert_eq!(ProposalId::parse("r-3"), None);
+    assert!(serde_json::from_str::<ProposalId>("\"3\"").is_err());
 }

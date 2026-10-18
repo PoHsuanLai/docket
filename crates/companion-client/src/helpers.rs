@@ -6,8 +6,8 @@
 
 use crate::bus::{fault_of, json};
 use companion_wire::{
-    HelperCardView, HelperForm, HelperReply, HelpersView, RoutineCardView, RoutineForm,
-    RoutineReply, RoutinesView,
+    HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineCardView,
+    RoutineForm, RoutineProposal, RoutineReply, RoutinesView,
 };
 use docket_client::TransportError;
 use docket_core::routine::RoutineId;
@@ -107,6 +107,23 @@ pub trait HelpersTransport: Send + Sync {
     fn remove_routine(
         &self,
         routine: RoutineId,
+    ) -> impl Future<Output = Result<(), TransportError>> + Send;
+
+    /// The routines proposed that wait for the person.
+    fn routine_proposals(
+        &self,
+    ) -> impl Future<Output = Result<Vec<RoutineProposal>, TransportError>> + Send;
+
+    /// The person accepts a proposal: the routine is made.
+    fn accept_routine_proposal(
+        &self,
+        id: ProposalId,
+    ) -> impl Future<Output = Result<RoutineReply, TransportError>> + Send;
+
+    /// The person declines a proposal.
+    fn decline_routine_proposal(
+        &self,
+        id: ProposalId,
     ) -> impl Future<Output = Result<(), TransportError>> + Send;
 
     /// A stream of the times something changed, subscribed from now.
@@ -280,6 +297,30 @@ impl HelpersTransport for DbusHelpers {
     async fn remove_routine(&self, routine: RoutineId) -> Result<(), TransportError> {
         self.helpers
             .remove_routine(&routine.to_string())
+            .await
+            .map_err(fault_of)
+    }
+
+    async fn routine_proposals(&self) -> Result<Vec<RoutineProposal>, TransportError> {
+        read(&self.helpers.routine_proposals().await.map_err(fault_of)?)
+    }
+
+    async fn accept_routine_proposal(
+        &self,
+        id: ProposalId,
+    ) -> Result<RoutineReply, TransportError> {
+        read(
+            &self
+                .helpers
+                .accept_routine_proposal(&id.to_string())
+                .await
+                .map_err(fault_of)?,
+        )
+    }
+
+    async fn decline_routine_proposal(&self, id: ProposalId) -> Result<(), TransportError> {
+        self.helpers
+            .decline_routine_proposal(&id.to_string())
             .await
             .map_err(fault_of)
     }

@@ -126,6 +126,22 @@ pub struct HelperCardView {
     /// For a helper that runs an app that wants signing in: the ways to, by the app's own names.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sign_in: Vec<SignInChoice>,
+    /// For a helper that runs an app: what the person calls that app ("Claude Code"), when it is
+    /// one we know the name of. The shell falls back to the program's own name when it is none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_name: Option<String>,
+}
+
+/// What the person calls a coding agent program we know ("claude-code" is "Claude Code").
+pub fn app_name_of(kind: &HelperKind) -> Option<String> {
+    let name = match kind.program()?.as_str() {
+        "claude-code" => "Claude Code",
+        "gemini-cli" => "Gemini CLI",
+        "codex" => "Codex",
+        "antigravity" | "agy" => "Antigravity",
+        _ => return None,
+    };
+    Some(name.to_owned())
 }
 
 /// Whether the person is signed in to the app a helper runs.
@@ -330,6 +346,7 @@ pub fn card_of(
             .map(|j| job_line(j, kept(j.id)))
             .collect(),
         kind: card.kind.clone(),
+        app_name: app_name_of(&card.kind),
         login: match card.state {
             HelperState::Waiting(Need::SignIn) => LoginShown::NeedsSignIn,
             _ => LoginShown::Unknown,

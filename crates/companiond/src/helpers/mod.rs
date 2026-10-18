@@ -8,5 +8,6 @@
 
 mod desk;
 mod hub;
+mod proposals;
 
 pub use hub::{Hub, Told};

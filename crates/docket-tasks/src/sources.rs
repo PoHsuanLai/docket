@@ -124,10 +124,11 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         rt: &TaskRuntime,
         context: &ContextView,
     ) -> (Vec<SkillCard>, Vec<SkillText>, Vec<ActionCard>) {
-        let keeps = match (&self.desk, self.helper_lines().is_empty()) {
-            (None, _) => Keeps::NoDesk,
-            (Some(_), true) => Keeps::NoHelpers,
-            (Some(_), false) => Keeps::Helpers,
+        let keeps = match (&self.desk, self.helper_lines().is_empty(), &self.as_helper) {
+            (None, _, _) => Keeps::NoDesk,
+            (Some(_), true, Some(_)) => Keeps::OnlyItself,
+            (Some(_), true, None) => Keeps::NoHelpers,
+            (Some(_), false, _) => Keeps::Helpers,
         };
         let reach = self.as_helper.as_ref().map(|h| &h.reach);
         let menu: Vec<ActionCard> = self

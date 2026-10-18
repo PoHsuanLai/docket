@@ -4,7 +4,8 @@
 use super::hub::Hub;
 use companion_wire::{
     AnswerPhase, HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply, HelpersView,
-    LoginShown, SignInChoice, ToldWire, card_of, line_of,
+    LoginShown, ProposalId, RoutineForm, RoutineProposal, SignInChoice, ToldWire, WhenForm, card_of,
+    line_of,
 };
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{
@@ -12,14 +13,20 @@ use docket_core::helper::{
     HelperKind, HelperModel, HelperName, HelperState, JobRefusal, JobStatus, NewJob, PlannerSaw,
     ReachFault, Role, SignInOutcome, SignOutOutcome, TerminalRequest, reach_policy,
 };
+use docket_core::routine::{Missed, Schedule};
 use docket_core::{HelperRosterLine, LeadText, Manifest};
-use docket_tasks::{HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal};
+use docket_tasks::{
+    HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk, RoutineFor,
+};
 use porter_client::Transport as InferTransport;
 use porter_core::{AppName, Count};
 use prov::{HelperId, SpaceId};
 
 /// How many steps a helper the assistant proposed may take in one job, until the person says.
 const PROPOSED_STEPS: Count = Count(12);
+
+/// The longest sentence of why a proposer may give.
+const LONGEST_WHY: usize = 200;
 
 fn reach_sentence(fault: &ReachFault) -> String {
     match fault {
@@ -261,6 +268,48 @@ where
         job_reply(&effects)
     }
 
+    /// Keeps a proposed routine for the person to accept. Nothing is made: the goal, the time and
+    /// the why are a model's words, shown to the person as data.
+    fn routine_proposed(&self, ask: RoutineAsk) -> HelperReply {
+        let board = self.board();
+        // A helper in another Space is not reachable from this one: Spaces are walls.
+        let card = match &ask.helper {
+            RoutineFor::Named(name) => board.by_name(name).filter(|card| card.space == ask.space),
+            RoutineFor::Itself(id) => board.card(id),
+        };
+        let Some(card) = card else {
+            return HelperReply::Refused(JobRefusal::NoSuchHelper.plain());
+        };
+        let Ok(goal) = GoalText::parse(&ask.goal) else {
+            return HelperReply::Refused("Say what it is to do, in a few sentences.".to_owned());
+        };
+        let when = ask.when.trim();
+        if let Err(fault) = Schedule::parse(when) {
+            return HelperReply::Refused(fault.to_string());
+        }
+        let why = ask.why.trim();
+        if why.is_empty() || why.chars().count() > LONGEST_WHY {
+            return HelperReply::Refused("Say why in one short sentence.".to_owned());
+        }
+        let form = RoutineForm {
+            helper: card.id.clone(),
+            goal: goal.as_str().to_owned(),
+            when: WhenForm::At(when.to_owned()),
+            missed: Missed::Skip,
+            steps: PROPOSED_STEPS.0,
+        };
+        let kept = self.with_state(|state| state.proposals.add(form, why.to_owned()));
+        match kept {
+            Some(_) => {
+                self.changed();
+                HelperReply::Done
+            }
+            None => HelperReply::Refused(
+                "Too many routines are waiting for an answer. Answer some first.".to_owned(),
+            ),
+        }
+    }
+
     async fn proposed(&self, proposal: Proposal) -> HelperReply {
         let (Ok(name), Ok(role)) = (
             HelperName::parse(&proposal.name),
@@ -391,6 +440,22 @@ where
 
     fn propose(&self, proposal: Proposal) -> Pending<'_, HelperReply> {
         Box::pin(self.proposed(proposal))
+    }
+
+    fn propose_routine(&self, ask: RoutineAsk) -> Pending<'_, HelperReply> {
+        Box::pin(async move { self.routine_proposed(ask) })
+    }
+
+    fn routine_proposals(&self) -> Vec<RoutineProposal> {
+        self.with_state(|state| state.proposals.list())
+    }
+
+    fn take_routine_proposal(&self, id: ProposalId) -> Option<RoutineProposal> {
+        let taken = self.with_state(|state| state.proposals.take(id));
+        if taken.is_some() {
+            self.changed();
+        }
+        taken
     }
 
     fn sign_in(&self, helper: HelperId, way: String) -> Pending<'_, HelperReply> {
