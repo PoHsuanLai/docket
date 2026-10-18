@@ -16,10 +16,10 @@
 use super::backend::Seams;
 use super::host::AgentHost;
 use super::spawn::SignIn;
-use docket_core::helper::{SignInHow, SignInWay, TerminalLogin, UntrustedWords};
-use docket_core::{Reveal, TurnId, TurnSource, TurnVia, UserTurn};
+use docket_core::helper::{HandFault, SignInHow, SignInWay, TerminalLogin, UntrustedWords};
+use docket_core::{Reveal, TurnId, TurnSource, TurnVia, UserTurn, WatchedAgent};
 use docket_session::{
-    BackendEvent, BackendFault, HostFault, Opening, SessionHost, SheetDesk, TurnEnd,
+    BackendEvent, BackendFault, BackendKind, HostFault, Opening, SessionHost, SheetDesk, TurnEnd,
 };
 use prov::{SessionId, UnixSeconds};
 use std::future::Future;
@@ -50,6 +50,12 @@ pub trait Hosts: Send {
 
     /// How the helper's session opens at the router: its Space and the folder it works in.
     fn opening(&self) -> Opening;
+
+    /// The arguments with which the app's own command-line program picks one conversation up
+    /// (`{session}` stands for its id of it), when the app has such a flag. None by default.
+    fn resume_args(&self) -> Option<Vec<String>> {
+        None
+    }
 }
 
 /// Why a job of an agent app did not finish, in the few ways the board tells apart.
@@ -109,12 +115,31 @@ struct Link<H: Hosts> {
     session: SessionId,
 }
 
+/// Whether the app's own id for a conversation is safe to put on a command line: the agent says
+/// it, so it must be one plain word that no program takes for an option.
+fn plain_id(id: &str) -> bool {
+    let word = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':');
+    !id.is_empty() && id.len() <= 128 && !id.starts_with('-') && id.chars().all(word)
+}
+
+/// A conversation that went to the app's own terminal program: the session at the router, which
+/// is a watch session meanwhile, and the app's id for the conversation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Away {
+    /// The session at the router.
+    pub session: SessionId,
+    /// The app and its own id for the conversation.
+    pub agent: WatchedAgent,
+}
+
 /// One helper's agent app.
 pub struct HelperAgent<H: Hosts> {
     hosts: H,
     link: Option<Link<H>>,
     /// The agent's own id for its last session.
     resume: Option<String>,
+    /// The conversation, while it is in the app's terminal program.
+    away: Option<Away>,
     turns: u64,
 }
 
@@ -142,8 +167,106 @@ impl<H: Hosts> HelperAgent<H> {
             hosts,
             link: None,
             resume: None,
+            away: None,
             turns: 0,
         }
+    }
+
+    /// The same agent, its conversation already in a terminal: `session` is the watch session at
+    /// the router and `agent` names the app and its id for it. [`HelperAgent::bring_back`] brings
+    /// it into docket.
+    #[must_use]
+    pub fn already_away(self, session: SessionId, agent: WatchedAgent) -> Self {
+        Self {
+            away: Some(Away { session, agent }),
+            ..self
+        }
+    }
+
+    /// Where the conversation is, while it is in a terminal.
+    pub fn away(&self) -> Option<&Away> {
+        self.away.as_ref()
+    }
+
+    /// The app's own id for the conversation, when the person could pick it up in the app's own
+    /// terminal program: the app has such a flag, can pick a conversation up again, and has
+    /// opened one.
+    pub fn terminal_ready(&self) -> Option<String> {
+        let link = self.link.as_ref()?;
+        self.hosts.resume_args()?;
+        let backend = link.host.backend();
+        backend
+            .picks_up_again()
+            .then(|| backend.agent_session())
+            .flatten()
+            .filter(|id| plain_id(id))
+    }
+
+    /// Closes the agent and turns its session at the router into a watch session, so the
+    /// conversation can go on in the app's own terminal program. Needs the agent open (a job
+    /// has run), idle, and able to pick the conversation up again later.
+    pub async fn to_terminal(&mut self) -> Result<Away, HandFault> {
+        let own = self.terminal_ready().ok_or(match self.link {
+            Some(_) => HandFault::NotResumable,
+            None => HandFault::NoConversation,
+        })?;
+        let BackendKind::Acp(program) = self.hosts.opening().backend else {
+            return Err(HandFault::Failed);
+        };
+        let Some(link) = self.link.as_mut() else {
+            return Err(HandFault::NoConversation);
+        };
+        let away = Away {
+            session: link.session.clone(),
+            agent: WatchedAgent {
+                program,
+                session: own,
+            },
+        };
+        link.host
+            .hand_to_terminal(&away.session, away.agent.clone())
+            .await
+            .map_err(|_| HandFault::Busy)?;
+        self.link = None;
+        self.resume = Some(away.agent.session.clone());
+        self.away = Some(away.clone());
+        Ok(away)
+    }
+
+    /// Starts the agent again on the session it left, on the conversation of its own that the
+    /// terminal went on with. An agent that cannot pick the conversation up, or begins another
+    /// instead, leaves it in the terminal.
+    pub async fn bring_back(&mut self) -> Result<(), HandFault> {
+        let Some(away) = self.away.clone() else {
+            return Err(HandFault::NotThere);
+        };
+        let start = Start {
+            sign_in: None,
+            resume: Some(away.agent.session.clone()),
+        };
+        let mut host = self.hosts.host(start).await;
+        let taken = host
+            .take_back(away.session.clone(), self.hosts.opening())
+            .await;
+        if taken.is_err() {
+            host.abandon().await;
+            return Err(HandFault::Failed);
+        }
+        // An agent that opened a conversation of its own instead did not pick this one up.
+        if !host.backend().picked_up() {
+            let _ = host
+                .hand_to_terminal(&away.session, away.agent.clone())
+                .await;
+            host.abandon().await;
+            return Err(HandFault::NotResumable);
+        }
+        self.resume = host.backend().agent_session();
+        self.link = Some(Link {
+            host,
+            session: away.session,
+        });
+        self.away = None;
+        Ok(())
     }
 
     /// Whether an agent process is running for the helper.

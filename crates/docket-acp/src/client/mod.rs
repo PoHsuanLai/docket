@@ -63,7 +63,9 @@ pub use confine::{Care, Confined, Refusal, confine, is_secret, named};
 pub use court::{Court, CourtFault, OpenAgent, Ruled};
 pub use edge::{EdgeBind, EdgeFault, EdgeMenu, SERVER_NAME, ToolsEdge, ToolsOffer};
 pub use files::{FileFault, Files, MAX_READ, MAX_WRITE, OsFiles};
-pub use helper_agent::{AgentEnd, HelperAgent, Hosts, SignInStep, SignOutStep, Start, Trouble};
+pub use helper_agent::{
+    AgentEnd, Away, HelperAgent, Hosts, SignInStep, SignOutStep, Start, Trouble,
+};
 pub use helper_agents::{HelperAgents, Logout};
 pub use host::{AgentHost, Fallback};
 pub use intents_court::IntentsCourt;

@@ -10,6 +10,7 @@ mod contract;
 mod edge;
 mod exec_taint;
 mod full;
+mod handover;
 mod helper_agent;
 mod hostile;
 mod hostile_limits;

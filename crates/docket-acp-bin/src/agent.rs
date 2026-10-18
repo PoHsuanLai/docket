@@ -18,6 +18,7 @@
 //! 1 for anything else.
 
 pub mod args;
+pub mod brought_hosts;
 pub mod calls;
 pub mod fault;
 pub mod helper_host;

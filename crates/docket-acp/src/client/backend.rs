@@ -99,6 +99,11 @@ pub(super) struct Live<X: Seams> {
     pub can_log_out: bool,
     /// Whether it advertised `session/resume`.
     pub can_resume: bool,
+    /// Whether it advertised `session/load`, which replays the conversation to us as it picks
+    /// it up.
+    pub can_load: bool,
+    /// Whether this start picked a session of its own up again instead of making a new one.
+    pub picked_up: bool,
     pub cwd: AbsPath,
     pub real_cwd: AbsPath,
     pub session: prov::SessionId,
@@ -314,6 +319,8 @@ impl<X: Seams> AcpBackend<X> {
             auth_ways: Vec::new(),
             can_log_out: false,
             can_resume: false,
+            can_load: false,
+            picked_up: false,
             cwd: cwd.clone(),
             real_cwd,
             session: session.clone(),
@@ -360,6 +367,7 @@ impl<X: Seams> AcpBackend<X> {
             .session_capabilities
             .resume
             .is_some();
+        live.can_load = init.agent_capabilities.load_session;
         self.sign_in(&init).await?;
         let methods = signable(&init);
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
@@ -398,7 +406,10 @@ impl<X: Seams> AcpBackend<X> {
             return Ok(false);
         };
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
-        if !live.can_resume {
+        // `session/resume` when the agent has it, else `session/load`, which also replays the
+        // conversation to us: that replay is the agent's own history, not words of a new turn.
+        let (can_resume, can_load) = (live.can_resume, live.can_load);
+        if !can_resume && !can_load {
             return Ok(false);
         }
         let id = live.ids.next();
@@ -407,16 +418,35 @@ impl<X: Seams> AcpBackend<X> {
             .iter()
             .map(|e| e.bind().server(e.token()))
             .collect();
-        self.send(rpc::session_resume(&id, &old, cwd, servers))
-            .await?;
+        let line = match can_resume {
+            true => rpc::session_resume(&id, &old, cwd, servers),
+            false => rpc::session_load(&id, &old, cwd, servers),
+        };
+        self.send(line).await?;
         match self.await_outcome(&id).await? {
             Ok(_) => {
+                self.ready.clear();
                 let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
                 live.agent = Some(old);
+                live.picked_up = true;
                 Ok(true)
             }
             Err(_) => Ok(false),
         }
+    }
+
+    /// Whether this start picked the agent's own session up again, as asked by
+    /// [`AcpBackend::resuming`], instead of making a new one.
+    pub fn picked_up(&self) -> bool {
+        self.live.as_ref().is_some_and(|live| live.picked_up)
+    }
+
+    /// Whether the agent can pick a conversation of its own up again (`session/resume` or
+    /// `session/load`), once it has said so at `initialize`.
+    pub fn picks_up_again(&self) -> bool {
+        self.live
+            .as_ref()
+            .is_some_and(|live| live.can_resume || live.can_load)
     }
 
     /// Every way of signing in the agent listed when it started, the ones that need a terminal

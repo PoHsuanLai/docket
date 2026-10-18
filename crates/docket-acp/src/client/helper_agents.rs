@@ -3,11 +3,13 @@
 //! agent is a fault in that helper's job and nothing else. It is the board's seam to the agent
 //! apps (`AgentApps`): a job in, a typed outcome out.
 
-use super::helper_agent::{AgentEnd, HelperAgent, Hosts, SignInStep, SignOutStep, Trouble};
+use super::helper_agent::{
+    AgentEnd, Away, HelperAgent, Hosts, SignInStep, SignOutStep, Trouble,
+};
 use super::isolate::{Caught, caught};
 use docket_core::helper::{
-    AgentApps, AgentOutcome, AgentPending, CheckOutcome, HelperCard, Job, JobFault, SignInOutcome,
-    SignInWay, SignOutOutcome,
+    AgentApps, AgentOutcome, AgentPending, CheckOutcome, HandFault, HelperCard, Job, JobFault,
+    SignInOutcome, SignInWay, SignOutOutcome,
 };
 use prov::{AgentProgram, HelperId, UnixSeconds};
 use std::collections::BTreeMap;
@@ -136,6 +138,34 @@ where
         }
     }
 
+    /// Closes the helper's agent and turns its session at the router into a watch session, so the
+    /// conversation can go on in the app's own terminal program. Refused while a job runs, or when
+    /// the agent has no conversation of its own to take along or cannot pick it up again.
+    pub async fn to_terminal(&self, card: &HelperCard) -> Result<Away, HandFault> {
+        let Some(slot) = self.known(&card.id) else {
+            return Err(HandFault::NoConversation);
+        };
+        if slot.running.load(Ordering::SeqCst) {
+            return Err(HandFault::Busy);
+        }
+        let work = async {
+            let mut agent = slot.agent.lock().await;
+            agent.to_terminal().await
+        };
+        self.isolated(&card.id, Err(HandFault::Failed), work).await
+    }
+
+    /// Starts the helper's agent again on the session it left, on the conversation the terminal
+    /// went on with.
+    pub async fn bring_back(&self, card: &HelperCard) -> Result<(), HandFault> {
+        let slot = self.slot(card);
+        let work = async {
+            let mut agent = slot.agent.lock().await;
+            agent.bring_back().await
+        };
+        self.isolated(&card.id, Err(HandFault::Failed), work).await
+    }
+
     fn known(&self, helper: &HelperId) -> Option<Slot<H>> {
         let slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
         slots.get(helper).cloned()
@@ -176,6 +206,7 @@ where
                         words,
                         task,
                         session,
+                        own_session: agent.terminal_ready(),
                     },
                     None => AgentOutcome::Failed(JobFault::Crashed),
                 },

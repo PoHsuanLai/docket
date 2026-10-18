@@ -101,6 +101,8 @@ impl HelpersTransport for Daemon {
             login: Default::default(),
             sign_in: Vec::new(),
             app_name: None,
+            runs_in: Default::default(),
+            handover: Default::default(),
         })
     }
 

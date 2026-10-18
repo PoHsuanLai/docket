@@ -88,6 +88,12 @@ impl<A: Accounts + 'static> Hosts for HelperHosts<A> {
         .for_helper(self.helper.clone())
     }
 
+    fn resume_args(&self) -> Option<Vec<String>> {
+        self.live
+            .entry(&self.program)
+            .and_then(|entry| entry.resume.clone())
+    }
+
     fn opening(&self) -> Opening {
         Opening {
             task: self.task.clone(),

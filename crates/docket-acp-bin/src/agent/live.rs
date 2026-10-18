@@ -195,13 +195,35 @@ impl<A: Accounts + 'static> Live<A> {
 
     /// The task a helper's agent session runs as.
     pub fn task_of(&self, helper: &HelperId) -> TaskId {
-        let slug: String = helper
-            .as_str()
+        self.task_named("helper", helper.as_str())
+    }
+
+    /// The task named `kind` and `name` in lower-case letters, digits and dashes.
+    pub fn task_named(&self, kind: &str, name: &str) -> TaskId {
+        let slug: String = name
             .chars()
             .map(|c| c.to_ascii_lowercase())
             .filter(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '-')
             .collect();
-        TaskId::parse(&format!("helper-{slug}")).unwrap_or_else(|_| self.placeholder.task.clone())
+        TaskId::parse(&format!("{kind}-{slug}")).unwrap_or_else(|_| self.placeholder.task.clone())
+    }
+
+    /// The command that picks one conversation up in `program`'s own command-line program, from
+    /// its entry's `resume` arguments with `own` (the app's own id for the conversation) put in,
+    /// run the way a sign-in is: the plain line, the line in the sandbox, and the folder. None
+    /// when the entry has no such arguments or the line cannot be built (nothing is then run
+    /// unconfined).
+    pub fn resume_run(
+        &self,
+        program: &ProgramName,
+        own: &str,
+        folder: Option<&str>,
+    ) -> Option<TerminalRun> {
+        let login = TerminalLogin {
+            args: self.entry(program)?.resume_line(own)?,
+            ..TerminalLogin::default()
+        };
+        self.terminal_run(program, &login, folder)
     }
 
     /// `program`, or a stand-in when there is none (a native helper's card, which no caller

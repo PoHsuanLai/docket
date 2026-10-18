@@ -9,29 +9,40 @@
 //! come from `agents.toml` (the person's list, written from what Settings found on the `PATH`);
 //! nothing here knows a path.
 
+use super::brought_hosts::BroughtHosts;
 use super::fault::AgentFault;
 use super::helper_hosts::{HelperHosts, folder_of};
 use super::live::Live;
 use super::logout::EntryLogout;
 use super::wire;
-use docket_acp::client::HelperAgents;
+use docket_acp::client::{HelperAgent, HelperAgents};
 use docket_acp::{SystemTicks, Ticks};
 use docket_core::ProgramName;
 use docket_core::helper::{
-    AgentApps, AgentOutcome, AppsAsk, AppsReply, CheckOutcome, HelperCard, JobFault, SignInOutcome,
-    SignOutOutcome, TerminalLogin,
+    AgentApps, AgentOutcome, AppsAsk, AppsReply, BackOutcome, BroughtOutcome, CheckOutcome,
+    HandFault, HelperCard, JobFault, SignInOutcome, SignOutOutcome, TerminalHand, TerminalLogin,
+    ToTerminalOutcome,
 };
+use docket_core::WatchedAgent;
 use docket_launch::dbus::DbusAccounts;
+use docket_session::Workspace;
+use prov::SessionId;
+use std::collections::BTreeMap;
 use std::path::Path;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use tokio::sync::Mutex as AsyncMutex;
 
 type Maker = Box<dyn Fn(&HelperCard) -> HelperHosts<DbusAccounts> + Send + Sync>;
+
+/// An agent app a terminal started that the person brought into docket.
+type Brought = Arc<AsyncMutex<HelperAgent<BroughtHosts<DbusAccounts>>>>;
 
 /// The helpers' agent apps, running.
 pub struct HelperHost {
     live: Arc<Live<DbusAccounts>>,
     agents: HelperAgents<HelperHosts<DbusAccounts>, Maker>,
+    brought: Mutex<BTreeMap<SessionId, Brought>>,
     running: AtomicUsize,
 }
 
@@ -68,6 +79,7 @@ impl HelperHost {
         Self {
             live,
             agents,
+            brought: Mutex::new(BTreeMap::new()),
             running: AtomicUsize::new(0),
         }
     }
@@ -80,6 +92,91 @@ impl HelperHost {
     /// Ends every helper's agent process, on the way out.
     pub async fn shutdown(&self) {
         self.agents.shutdown().await;
+        let all = std::mem::take(&mut *self.brought.lock().unwrap_or_else(|e| e.into_inner()));
+        for agent in all.into_values() {
+            agent.lock().await.close().await;
+        }
+    }
+
+    /// The helper's conversation, opened in the app's own terminal program: its command is built
+    /// before anything is closed, and the app is brought back if it cannot be built after.
+    async fn to_terminal(&self, card: &HelperCard) -> ToTerminalOutcome {
+        let refused = ToTerminalOutcome::Refused;
+        let (Ok(()), Some(program)) = (self.ready(card), card.kind.program()) else {
+            return refused(HandFault::Failed);
+        };
+        let program = ProgramName::from(program);
+        let folder = folder_of(&card.id);
+        // A line that cannot be built stops here, with the app still open.
+        if self
+            .live
+            .resume_run(&program, "check", folder.as_deref())
+            .is_none()
+        {
+            return refused(HandFault::NotResumable);
+        }
+        let away = match self.agents.to_terminal(card).await {
+            Ok(away) => away,
+            Err(why) => return refused(why),
+        };
+        match self
+            .live
+            .resume_run(&program, &away.agent.session, folder.as_deref())
+        {
+            Some(run) => ToTerminalOutcome::Ready(Box::new(TerminalHand {
+                run,
+                session: away.session,
+            })),
+            None => {
+                let _ = self.agents.bring_back(card).await;
+                refused(HandFault::Failed)
+            }
+        }
+    }
+
+    async fn bring_back(&self, card: &HelperCard) -> BackOutcome {
+        match self.ready(card) {
+            Ok(()) => match self.agents.bring_back(card).await {
+                Ok(()) => BackOutcome::Back,
+                Err(why) => BackOutcome::Refused(why),
+            },
+            Err(_) => BackOutcome::Refused(HandFault::Failed),
+        }
+    }
+
+    /// Starts `agent` on the watch session `session` a terminal opened, in the folder the
+    /// terminal ran in, as a conversation of docket's.
+    async fn bring_back_watched(
+        &self,
+        session: SessionId,
+        agent: WatchedAgent,
+        folder: Workspace,
+    ) -> BroughtOutcome {
+        let refused = BroughtOutcome::Refused;
+        let Some(entry) = self.live.entry(&agent.program) else {
+            return refused(HandFault::NotResumable);
+        };
+        if !Path::new(entry.command.as_str()).exists() {
+            return refused(HandFault::Failed);
+        }
+        let hosts = BroughtHosts::new(
+            Arc::clone(&self.live),
+            agent.program.clone(),
+            &session,
+            folder,
+        );
+        let mut conversation = HelperAgent::new(hosts).already_away(session.clone(), agent);
+        match conversation.bring_back().await {
+            Ok(()) => {
+                let kept = Arc::new(AsyncMutex::new(conversation));
+                self.brought
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(session.clone(), kept);
+                BroughtOutcome::Brought(session)
+            }
+            Err(why) => refused(why),
+        }
     }
 
     /// Why the helper's app cannot start, or nothing if it can.
@@ -149,6 +246,15 @@ impl HelperHost {
                 self.agents.forget(&helper).await;
                 AppsReply::Forget
             }
+            AppsAsk::ToTerminal { card } => AppsReply::ToTerminal(self.to_terminal(&card).await),
+            AppsAsk::BringBack { card } => AppsReply::BringBack(self.bring_back(&card).await),
+            AppsAsk::BringBackWatched {
+                session,
+                agent,
+                folder,
+            } => AppsReply::BringBackWatched(
+                self.bring_back_watched(session, agent, folder).await,
+            ),
         }
     }
 
@@ -178,6 +284,15 @@ impl HelperHost {
             AppsAsk::Check { .. } => AppsReply::Check(CheckOutcome::Failed),
             AppsAsk::SignOut { .. } => AppsReply::SignOut(SignOutOutcome::Failed),
             AppsAsk::Forget { .. } => AppsReply::Forget,
+            AppsAsk::ToTerminal { .. } => AppsReply::ToTerminal(ToTerminalOutcome::Refused(
+                HandFault::Failed,
+            )),
+            AppsAsk::BringBack { .. } => AppsReply::BringBack(BackOutcome::Refused(
+                HandFault::Failed,
+            )),
+            AppsAsk::BringBackWatched { .. } => AppsReply::BringBackWatched(
+                BroughtOutcome::Refused(HandFault::Failed),
+            ),
         }
     }
 }

@@ -7,7 +7,8 @@ use agent_client_protocol_schema::rpc::RequestId;
 use agent_client_protocol_schema::v1::{
     AGENT_METHOD_NAMES, AuthCapabilities, AuthenticateRequest, CancelNotification,
     ClientCapabilities, ContentBlock, FileSystemCapabilities, Implementation, InitializeRequest,
-    LogoutRequest, McpServer, NewSessionRequest, PromptRequest, ResumeSessionRequest, SessionId,
+    LoadSessionRequest, LogoutRequest, McpServer, NewSessionRequest, PromptRequest,
+    ResumeSessionRequest, SessionId,
 };
 use docket_core::AbsPath;
 use std::path::PathBuf;
@@ -66,6 +67,19 @@ pub fn session_resume(
     let request = ResumeSessionRequest::new(session.clone(), PathBuf::from(cwd.as_str()))
         .mcp_servers(servers);
     out::ask(id, AGENT_METHOD_NAMES.session_resume, &request)
+}
+
+/// `session/load`: the agent picks up its own session `session` again, in `cwd`, and replays it to
+/// us. Sent only when it advertised the capability and not `session/resume`.
+pub fn session_load(
+    id: &RequestId,
+    session: &SessionId,
+    cwd: &AbsPath,
+    servers: Vec<McpServer>,
+) -> String {
+    let request =
+        LoadSessionRequest::new(session.clone(), PathBuf::from(cwd.as_str())).mcp_servers(servers);
+    out::ask(id, AGENT_METHOD_NAMES.session_load, &request)
 }
 
 /// `session/new` in `cwd`, offering `servers`: the one tool edge of this session when there is

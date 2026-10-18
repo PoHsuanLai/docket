@@ -3,7 +3,7 @@
 //! audit); what is faked is the world around it: the agent process, the files, the sandbox, the
 //! person's answers, and the models.
 
-use super::agent::{Act, Auth, Offer, View, agent_offering};
+use super::agent::{Act, Auth, Offer, View};
 use crate::support::app;
 use bulkhead::fake::{FakeSandbox, Script, Seen};
 use bulkhead::{Network, NetworkMode};
@@ -150,6 +150,8 @@ pub struct Setup {
     pub offer: Offer,
     /// The model `agents.toml` names, when a test has one.
     pub model: Option<docket_acp::client::ModelId>,
+    /// Whether the fake agent can pick a session of its own up again.
+    pub resumes: super::agent::Resumes,
 }
 
 impl Default for Setup {
@@ -173,6 +175,7 @@ impl Default for Setup {
             sign_in: None,
             offer: Offer::None,
             model: None,
+            resumes: Default::default(),
         }
     }
 }
@@ -288,7 +291,8 @@ where
     );
     let router = Arc::new(router);
     let court = IntentsCourt::over(InProcess::new(router.clone(), host_caller()));
-    let (wire, view) = agent_offering(setup.turns, setup.auth, setup.offer);
+    let (wire, view) =
+        super::agent::agent_resuming(setup.turns, (setup.auth, setup.offer), setup.resumes);
     let (spawn, spawned) = FakeSpawn::new(vec![wire]);
     let spawn = match setup.session_meta.clone() {
         Some(meta) => spawn.with_meta(meta),

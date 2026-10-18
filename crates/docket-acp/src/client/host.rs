@@ -17,7 +17,9 @@ use super::backend::{AcpBackend, Seams};
 use super::cause::Step;
 use super::court::{Court, OpenAgent};
 use super::running::RunningTurn;
-use docket_core::{ConfirmId, Rewind, SheetSurface, TurnEnd as Ended, TurnId, UserTurn};
+use docket_core::{
+    ConfirmId, HandTo, Rewind, SheetSurface, TurnEnd as Ended, TurnId, UserTurn, WatchedAgent,
+};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, EndCause, HostFault, Opening, ResumePlan,
     SessionBackend, SessionExport, SessionHost, SheetChoice, SheetDesk, StartSession, TurnEnd,
@@ -117,6 +119,64 @@ impl<X: Seams, D: SheetDesk> AgentHost<X, D> {
     /// did not, or would not. The agent clears its own login.
     pub async fn log_out(&mut self) -> Result<bool, BackendFault> {
         self.backend.log_out().await
+    }
+
+    /// Leaves the open session at the router as a watch session that a terminal marks, and ends
+    /// the agent's process: the conversation goes on in the app's own terminal program. `agent` is
+    /// the app and its own id for the conversation. The router refuses while a turn is running.
+    pub async fn hand_to_terminal(
+        &mut self,
+        session: &SessionId,
+        agent: WatchedAgent,
+    ) -> Result<(), HostFault> {
+        self.mine(session)?;
+        self.court
+            .hand(session, HandTo::Terminal, Some(agent))
+            .await
+            .map_err(|_| BackendFault::Unavailable)?;
+        self.pending = None;
+        self.running = None;
+        self.backend.close().await;
+        self.session = None;
+        Ok(())
+    }
+
+    /// Takes a session back that the router holds as a watch session, and starts the agent on it
+    /// (`opening` says where; the backend was made to resume the agent's own session). Answers
+    /// the app and its own id for the conversation. A start that fails leaves the session a watch
+    /// session, as it was.
+    pub async fn take_back(
+        &mut self,
+        session: SessionId,
+        opening: Opening,
+    ) -> Result<WatchedAgent, HostFault> {
+        if self.session.is_some() {
+            return Err(BackendFault::Busy.into());
+        }
+        let agent = self
+            .court
+            .hand(&session, HandTo::Desktop, None)
+            .await
+            .ok()
+            .flatten()
+            .ok_or(BackendFault::Unavailable)?;
+        let started = self
+            .backend
+            .start(StartSession {
+                session: session.clone(),
+                opening,
+            })
+            .await;
+        if let Err(fault) = started {
+            self.backend.close().await;
+            let _ = self
+                .court
+                .hand(&session, HandTo::Terminal, Some(agent))
+                .await;
+            return Err(fault.into());
+        }
+        self.session = Some(session);
+        Ok(agent)
     }
 
     /// The backend, for what only it knows (the taint's cause).

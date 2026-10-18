@@ -10,7 +10,8 @@
 
 use super::call::AgentCall;
 use docket_core::{
-    CallRefusal, ExternalAgent, Outcome, Rewind, SheetSurface, TurnEnd, TurnId, ValidManifest,
+    CallRefusal, ExternalAgent, HandTo, Outcome, Rewind, SheetSurface, TurnEnd, TurnId,
+    ValidManifest, WatchedAgent,
 };
 use docket_session::{ProgramName, Workspace};
 use prov::{SessionId, SpaceId};
@@ -119,4 +120,16 @@ pub trait Court: Send + Clone + 'static {
 
     /// Ends the session.
     fn close(&mut self, session: &SessionId) -> impl Future<Output = ()> + Send;
+
+    /// Moves the session's conversation to the app's own terminal program (`agent` names the app
+    /// and its own id for the conversation) or back, and answers what the router holds for it.
+    /// The session stays one session. The default cannot reach the router.
+    fn hand(
+        &mut self,
+        _session: &SessionId,
+        _to: HandTo,
+        _agent: Option<WatchedAgent>,
+    ) -> impl Future<Output = Result<Option<WatchedAgent>, CourtFault>> + Send {
+        async { Err(CourtFault::Unavailable) }
+    }
 }

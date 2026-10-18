@@ -10,7 +10,8 @@ use super::call::AgentCall;
 use super::court::{Court, CourtFault, OpenAgent, Ruled};
 use docket_client::{Intents, Transport};
 use docket_core::{
-    CallRefusal, ContextKeep, DenyCode, Keep, Origin, SessionOpen, TurnEnd, TurnId, TurnIn, TurnVia,
+    CallRefusal, ContextKeep, DenyCode, HandTo, Keep, Origin, SessionOpen, TurnEnd, TurnId, TurnIn,
+    TurnVia, WatchedAgent,
 };
 use prov::{AgentRef, SessionId};
 use std::collections::BTreeMap;
@@ -149,5 +150,17 @@ impl<T: Transport + 'static> Court for IntentsCourt<T> {
 
     async fn close(&mut self, session: &SessionId) {
         let _ = self.intents.session_close(session.clone()).await;
+    }
+
+    async fn hand(
+        &mut self,
+        session: &SessionId,
+        to: HandTo,
+        agent: Option<WatchedAgent>,
+    ) -> Result<Option<WatchedAgent>, CourtFault> {
+        self.intents
+            .checkpoint_handover(session.clone(), to, agent)
+            .await
+            .map_err(|_| CourtFault::Refused)
     }
 }

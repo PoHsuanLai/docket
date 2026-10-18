@@ -43,6 +43,16 @@ pub enum Offer {
     Stubborn,
 }
 
+/// Whether the fake agent can pick a session of its own up again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Resumes {
+    /// Advertises nothing: `session/resume` is never sent to it.
+    #[default]
+    No,
+    /// Advertises `session/resume` and answers it for any session.
+    Yes,
+}
+
 /// One thing the agent does during a prompt.
 pub enum Act {
     /// Sends a `session/update` notification with this update.
@@ -209,6 +219,8 @@ pub struct Seen {
     pub sent: Vec<Value>,
     /// Model switches asked for: the method and its parameters, in order.
     pub switches: Vec<(String, Value)>,
+    /// The `session/resume` parameters, in order.
+    pub resumed: Vec<Value>,
 }
 
 #[derive(Clone, Default)]
@@ -259,6 +271,10 @@ impl View {
 
     pub fn switches(&self) -> Vec<(String, Value)> {
         locked(&self.0).switches.clone()
+    }
+
+    pub fn resumed(&self) -> Vec<Value> {
+        locked(&self.0).resumed.clone()
     }
 
     pub fn raced(&self) -> usize {
@@ -462,7 +478,7 @@ async fn run(
     mut wire: ChannelWire,
     view: View,
     mut turns: std::collections::VecDeque<Vec<Act>>,
-    (auth, offer): (Auth, Offer),
+    (auth, offer, resumes): (Auth, Offer, Resumes),
 ) {
     let mut offered = None;
     let mut signed_in = auth == Auth::Open;
@@ -474,7 +490,10 @@ async fn run(
                 // The agent calls itself something grand: that is its claim, and no label of ours.
                 let result = json!({
                     "protocolVersion": 1,
-                    "agentCapabilities": {},
+                    "agentCapabilities": match resumes {
+                        Resumes::No => json!({}),
+                        Resumes::Yes => json!({"sessionCapabilities": {"resume": {}}}),
+                    },
                     "authMethods": advertised(auth),
                     "agentInfo": {"name": "grand", "title": "The Desktop Itself", "version": "1"},
                 });
@@ -508,6 +527,11 @@ async fn run(
                 let mut result = models_part(offer);
                 result["sessionId"] = json!(AGENT_SESSION);
                 put(&mut wire, &view, reply(&id, result)).await;
+            }
+            Some("session/resume") => {
+                locked(&view.0).resumed.push(msg["params"].clone());
+                offered = Offered::from_params(&msg["params"]);
+                put(&mut wire, &view, reply(&id, json!({}))).await;
             }
             Some(method @ ("session/set_config_option" | "session/set_model")) => {
                 locked(&view.0)
@@ -547,10 +571,19 @@ pub fn agent_signing(turns: Vec<Vec<Act>>, auth: Auth) -> (ChannelWire, View) {
 
 /// The same, with the models it offers.
 pub fn agent_offering(turns: Vec<Vec<Act>>, auth: Auth, offer: Offer) -> (ChannelWire, View) {
+    agent_resuming(turns, (auth, offer), Resumes::No)
+}
+
+/// The same, with whether it can pick a session of its own up again.
+pub fn agent_resuming(
+    turns: Vec<Vec<Act>>,
+    (auth, offer): (Auth, Offer),
+    resumes: Resumes,
+) -> (ChannelWire, View) {
     docket_testbus::hang_guard::arm();
     let (client, far) = pipe();
     let view = View::default();
-    tokio::spawn(run(far, view.clone(), turns.into(), (auth, offer)));
+    tokio::spawn(run(far, view.clone(), turns.into(), (auth, offer, resumes)));
     (client, view)
 }
 
