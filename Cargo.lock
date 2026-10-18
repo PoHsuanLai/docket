@@ -644,7 +644,7 @@ dependencies = [
 [[package]]
 name = "chordkit"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/chordkit.git?rev=934a2d71f6516bee5919ee29278003702a4ea5e1#934a2d71f6516bee5919ee29278003702a4ea5e1"
+source = "git+https://github.com/PoHsuanLai/chordkit.git?rev=7b80eddb86559909eeb63b882d5563d36f5bad37#7b80eddb86559909eeb63b882d5563d36f5bad37"
 dependencies = [
  "thiserror",
 ]
@@ -1566,7 +1566,7 @@ dependencies = [
 [[package]]
 name = "ds-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=3882bc95979b9fcb65aa17d596f6628c1bb982b8#3882bc95979b9fcb65aa17d596f6628c1bb982b8"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=9ddcbceecbb2490526a2f5a2f3344334333d72be#9ddcbceecbb2490526a2f5a2f3344334333d72be"
 dependencies = [
  "chordkit",
  "ds-core-derive",
@@ -1579,7 +1579,7 @@ dependencies = [
 [[package]]
 name = "ds-core-derive"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=3882bc95979b9fcb65aa17d596f6628c1bb982b8#3882bc95979b9fcb65aa17d596f6628c1bb982b8"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=9ddcbceecbb2490526a2f5a2f3344334333d72be#9ddcbceecbb2490526a2f5a2f3344334333d72be"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1590,7 +1590,7 @@ dependencies = [
 [[package]]
 name = "ds-intents"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/quire.git?rev=3882bc95979b9fcb65aa17d596f6628c1bb982b8#3882bc95979b9fcb65aa17d596f6628c1bb982b8"
+source = "git+https://github.com/PoHsuanLai/quire.git?rev=9ddcbceecbb2490526a2f5a2f3344334333d72be#9ddcbceecbb2490526a2f5a2f3344334333d72be"
 dependencies = [
  "ds-core",
 ]
