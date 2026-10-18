@@ -639,6 +639,47 @@ async fn words_a_helper_writes_inside_its_reach_ask_nothing() {
 }
 
 #[tokio::test]
+async fn handing_a_job_on_is_inside_every_helpers_reach() {
+    let router = router();
+    // The card names Mail alone; handing a job to another helper is still the helper's to do.
+    let job = open_job(
+        &router,
+        &companion(),
+        Some(seat(1, reach(Effect::Read), &[])),
+        None,
+    )
+    .await;
+    let mut hand_on = CallRequest {
+        action: ActionRef {
+            app: app(COMPANION_APP),
+            name: prov::ActionName::parse(HELPER_POST_JOB).expect("action"),
+        },
+        target: TargetValue::Nothing,
+        args: Default::default(),
+        origin: Origin::Companion,
+    };
+    for (name, value) in [
+        ("helper", "Coder"),
+        ("goal", "Say that you got the answer."),
+    ] {
+        hand_on.args.insert(
+            param(name),
+            Labelled {
+                value: text(value),
+                label: planners(),
+            },
+        );
+    }
+    // The fake link carries no companion provider, so the call stops at dispatch: past consent.
+    let result = perform_in(&router, &job.session, hand_on).await;
+    assert!(
+        !matches!(result, Err(CallRefusal::Unconfirmed(_))),
+        "{result:?}"
+    );
+    assert!(router.seams.confirmer.requests().is_empty());
+}
+
+#[tokio::test]
 async fn an_editor_speaks_in_a_helpers_conversation_and_in_no_other_session_it_did_not_open() {
     let router = router();
     let editor = caller("org.zed.Zed", CallerRole::Editor);

@@ -355,11 +355,12 @@ pub fn covers(
     call: &CallRequest,
     labels: &ArgLabels,
 ) -> Coverage {
-    judge(policy, decl, call, labels, Bodies::Outside)
+    judge(policy, decl, call, labels, Judged::Task)
 }
 
 /// Whether the call is inside a helper's reach: as [`covers`], except that words feeding a body
-/// are inside. The person set on the card what the helper may change in each app; what it writes
+/// are inside, and so are the companion actions every helper keeps (handing a job on, suggesting
+/// a routine, loading a skill), which no card names. The person set on the card what the helper may change in each app; what it writes
 /// there stays in the app, and a session that has read untrusted content still asks by the taint
 /// rule. Where things go (recipients, destinations, paths) is judged as for any policy.
 pub fn covers_reach(
@@ -368,16 +369,18 @@ pub fn covers_reach(
     call: &CallRequest,
     labels: &ArgLabels,
 ) -> Coverage {
-    judge(reach, decl, call, labels, Bodies::Inside)
+    judge(reach, decl, call, labels, Judged::Reach)
 }
 
-/// How untrusted words feeding a body are judged.
+/// What the policy is judged as.
 #[derive(Debug, Clone, Copy)]
-enum Bodies {
-    /// Outside: no trusted pattern can vouch for them.
-    Outside,
-    /// Inside: they stay in the app the reach names.
-    Inside,
+enum Judged {
+    /// A task's policy: untrusted words feeding a body are outside, no trusted pattern can vouch
+    /// for them.
+    Task,
+    /// A helper's reach: body words are inside (they stay in the app the reach names), and so are
+    /// the companion actions a helper keeps.
+    Reach,
 }
 
 fn judge(
@@ -385,7 +388,7 @@ fn judge(
     decl: &ActionDecl,
     call: &CallRequest,
     labels: &ArgLabels,
-    bodies: Bodies,
+    judged: Judged,
 ) -> Coverage {
     if policy.state != TaskPolicyState::Active {
         return Coverage::Outside(Widening::Expiry);
@@ -393,10 +396,12 @@ fn judge(
     if decl.effect > policy.ceiling {
         return Coverage::Outside(Widening::Ceiling(decl.effect));
     }
-    let named = policy.actions.iter().any(|m| match m {
-        ActionMatch::One(a) => *a == call.action,
-        ActionMatch::AppUpTo(app, cap) => *app == call.action.app && decl.effect <= *cap,
-    });
+    let kept = matches!(judged, Judged::Reach) && crate::reach_menu::kept_by_helpers(&call.action);
+    let named = kept
+        || policy.actions.iter().any(|m| match m {
+            ActionMatch::One(a) => *a == call.action,
+            ActionMatch::AppUpTo(app, cap) => *app == call.action.app && decl.effect <= *cap,
+        });
     if !named {
         return Coverage::Outside(Widening::Action(ActionMatch::One(call.action.clone())));
     }
@@ -433,8 +438,8 @@ fn judge(
                 .iter()
                 .find(|p| &p.name == name)
                 .map_or(ArgSink::Body, |p| p.sink);
-            match (sink, bodies) {
-                (ArgSink::Body, Bodies::Inside) => None,
+            match (sink, judged) {
+                (ArgSink::Body, Judged::Reach) => None,
                 _ => uncovered_argument(policy, sink, &arg.value),
             }
         })

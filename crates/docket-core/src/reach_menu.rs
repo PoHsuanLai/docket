@@ -24,14 +24,22 @@ impl TaskPolicy {
     /// apps at any effect, or one of the companion actions a helper keeps.
     pub fn offers(&self, action: &ActionRef) -> bool {
         if action.app.as_str() == COMPANION_APP {
-            return matches!(
-                action.name.as_str(),
-                HAND_ON_JOB | PROPOSE_ROUTINE | SKILL_LOAD
-            );
+            return kept_by_helpers(action);
         }
         self.actions.iter().any(|m| match m {
             ActionMatch::One(a) => a.app == action.app,
             ActionMatch::AppUpTo(app, _) => *app == action.app,
         })
     }
+}
+
+/// Whether `action` is one of the companion actions every helper keeps, whatever its card names:
+/// handing a job on (the job runs under the other helper's own reach), suggesting a routine (the
+/// person accepts it on its own sheet) and loading a skill.
+pub(crate) fn kept_by_helpers(action: &ActionRef) -> bool {
+    action.app.as_str() == COMPANION_APP
+        && matches!(
+            action.name.as_str(),
+            HAND_ON_JOB | PROPOSE_ROUTINE | SKILL_LOAD
+        )
 }
