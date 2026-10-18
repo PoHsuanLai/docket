@@ -96,8 +96,7 @@ impl<A: Accounts + 'static> Live<A> {
             Detected::Missing(why) => {
                 return Err(format!(
                     "no sandbox (bubblewrap) here ({why}): no agent is started unconfined"
-                )
-                .into());
+                ));
             }
         };
         let sandbox = found.clone();

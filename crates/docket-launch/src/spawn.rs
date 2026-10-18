@@ -400,9 +400,8 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         match entry.network {
             NetworkMode::EndpointOnly => self.endpoint_net(got, session, release),
             NetworkMode::Allowlist => self.allowlist_net(entry, session, release),
-            NetworkMode::None | NetworkMode::Host => {
-                AgentNet::of(entry.network, None).map_err(|_| SpawnFault::Sandbox(SandboxStep::NetworkPlan))
-            }
+            NetworkMode::None | NetworkMode::Host => AgentNet::of(entry.network, None)
+                .map_err(|_| SpawnFault::Sandbox(SandboxStep::NetworkPlan)),
             _ => Err(SpawnFault::Sandbox(SandboxStep::NetworkMode)),
         }
     }
@@ -422,7 +421,8 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             .to_str()
             .and_then(|t| bulkhead::AbsPath::parse(t).ok())
             .ok_or(SpawnFault::Sandbox(SandboxStep::SocketPath))?;
-        let forwarder = bulk::to_shell(&self.forwarder).map_err(|_| SpawnFault::Sandbox(SandboxStep::Forwarder))?;
+        let forwarder = bulk::to_shell(&self.forwarder)
+            .map_err(|_| SpawnFault::Sandbox(SandboxStep::Forwarder))?;
         Ok((socket, EndpointBind::new(forwarder, inside, port)))
     }
 
@@ -438,7 +438,9 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         let target =
             Loopback::new(&endpoint.host, endpoint.port).map_err(|_| SpawnFault::Accounts)?;
         let (socket, bind) = self.bind(session, release, target.port())?;
-        release.bridge = Some(Bridge::start(&socket, target).map_err(|_| SpawnFault::Sandbox(SandboxStep::Bridge))?);
+        release.bridge = Some(
+            Bridge::start(&socket, target).map_err(|_| SpawnFault::Sandbox(SandboxStep::Bridge))?,
+        );
         AgentNet::of(NetworkMode::EndpointOnly, Some(bind))
             .map_err(|_| SpawnFault::Sandbox(SandboxStep::NetworkPlan))
     }
@@ -451,7 +453,10 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         session: &LauncherSession,
         release: &mut Release<A, P::Proc>,
     ) -> Result<AgentNet, SpawnFault> {
-        let reach = entry.reach.as_ref().ok_or(SpawnFault::Sandbox(SandboxStep::NoReach))?;
+        let reach = entry
+            .reach
+            .as_ref()
+            .ok_or(SpawnFault::Sandbox(SandboxStep::NoReach))?;
         let (socket, bind) = self.bind(session, release, PROXY_PORT)?;
         release.proxy = Some(
             egress::start(&socket, reach, Arc::clone(&self.resolver))
@@ -492,9 +497,11 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             Got::Endpoint(e) => Lent::Endpoint(e),
             Got::Key(k) => Lent::Key(k),
         };
-        let built = child_env(entry, &lent).map_err(|_| SpawnFault::Sandbox(SandboxStep::Environment))?;
+        let built =
+            child_env(entry, &lent).map_err(|_| SpawnFault::Sandbox(SandboxStep::Environment))?;
         let command = entry.command.as_str();
-        let cwd = bulk::to_shell(&plan.cwd).map_err(|_| SpawnFault::Sandbox(SandboxStep::WorkingFolder))?;
+        let cwd = bulk::to_shell(&plan.cwd)
+            .map_err(|_| SpawnFault::Sandbox(SandboxStep::WorkingFolder))?;
         let run = binds(entry, built.key_file.as_ref(), plan.edge.as_ref())
             .map_err(|_| SpawnFault::Sandbox(SandboxStep::Binds))?
             .into_iter()
@@ -509,11 +516,9 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             );
         let run = self.guarded(run, &cwd)?;
         let run = match &self.enter {
-            Some(enter) => {
-                run.with_landlock(
-                    bulk::to_shell(enter).map_err(|_| SpawnFault::Sandbox(SandboxStep::Enter))?,
-                )
-            }
+            Some(enter) => run.with_landlock(
+                bulk::to_shell(enter).map_err(|_| SpawnFault::Sandbox(SandboxStep::Enter))?,
+            ),
             None => run,
         };
         let (wire, proc) = self
