@@ -13,8 +13,8 @@ use docket_acp::client::{
     AgentEnd, AgentHost, HelperAgent, HelperAgents, Hosts, SignInStep, SignOutStep, Start, Trouble,
 };
 use docket_core::helper::{
-    AgentApps, AgentOutcome, CardDraft, GoalSource, GoalText, HelperBudget, HelperCard,
-    HelperKind, HelperModel, HelperName, Job, JobId, JobStatus, Role, SignInHow, SignInWay,
+    AgentApps, AgentOutcome, CardDraft, GoalSource, GoalText, HelperBudget, HelperCard, HelperKind,
+    HelperModel, HelperName, Job, JobId, JobStatus, Role, SignInHow, SignInWay,
 };
 use docket_core::{ActionMatch, GrantCaller, LabelText, TaskPolicy, TaskPolicyState};
 use docket_inapp::EditorDesk;
@@ -382,8 +382,10 @@ async fn a_helpers_agent_ends_when_the_helper_is_removed_or_the_host_stops() {
     let said = || turns(vec![vec![say("Done."), Act::Stop("end_turn")]]);
     let (first, kept_first, _) = worlds_for("h-1", vec![said()], &files);
     let (second, kept_second, _) = worlds_for("h-2", vec![said()], &files);
-    let worlds: Mutex<BTreeMap<String, Worlds>> =
-        Mutex::new(BTreeMap::from([("h-1".to_owned(), first), ("h-2".to_owned(), second)]));
+    let worlds: Mutex<BTreeMap<String, Worlds>> = Mutex::new(BTreeMap::from([
+        ("h-1".to_owned(), first),
+        ("h-2".to_owned(), second),
+    ]));
     let apps = HelperAgents::new(
         move |card: &HelperCard| {
             worlds
@@ -396,7 +398,10 @@ async fn a_helpers_agent_ends_when_the_helper_is_removed_or_the_host_stops() {
     );
     for id in ["h-1", "h-2"] {
         let ended = apps.run(&card(id), &job_for(id)).await;
-        assert!(matches!(ended, AgentOutcome::Done { .. }), "{id}: {ended:?}");
+        assert!(
+            matches!(ended, AgentOutcome::Done { .. }),
+            "{id}: {ended:?}"
+        );
     }
     let ended = |kept: &Kept| kept.spawned.killed() + kept.spawned.closed();
     // Both agents are running: the process of each stays between jobs.

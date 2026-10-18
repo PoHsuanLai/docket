@@ -261,7 +261,10 @@ fn the_calls_on_the_host_of_the_agent_apps_cross_a_bus_as_they_are() {
     ];
     for reply in replies {
         let text = serde_json::to_string(&reply).expect("text");
-        assert_eq!(serde_json::from_str::<AppsReply>(&text).expect("reply"), reply);
+        assert_eq!(
+            serde_json::from_str::<AppsReply>(&text).expect("reply"),
+            reply
+        );
     }
     // A fault the host names for a missing app is a sentence the person can read.
     assert!(!JobFault::NotInstalled.plain().is_empty() && !JobFault::NotSetUp.plain().is_empty());

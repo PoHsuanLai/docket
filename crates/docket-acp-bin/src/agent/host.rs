@@ -14,11 +14,13 @@ use docket_core::AbsPath;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::Identity;
 use docket_inapp::EditorDesk;
-use docket_launch::{Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Registry};
+use docket_launch::{
+    Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Registry,
+};
 use docket_session::{
     BackendFault, BackendKind, HostFault, Opening, ProgramName, SessionHost, Workspace,
 };
-use prov::{AgentRef, SpaceId, TaskId};
+use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::sync::Arc;

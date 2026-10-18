@@ -64,7 +64,8 @@ impl HelperHost {
     /// widest network, because one host serves the agents of every program.
     pub async fn start(bus: BusConnection) -> Result<Self, AgentFault> {
         let allowed = wire::allowed()?;
-        let wiring = wire::build(allowed, &stand_in()?, Tools::Unwanted, Fallback::Off, bus).await?;
+        let wiring =
+            wire::build(allowed, &stand_in()?, Tools::Unwanted, Fallback::Off, bus).await?;
         let live = Live::serve(wiring, NetworkMode::Host)
             .await
             .map_err(AgentFault::Bus)?;

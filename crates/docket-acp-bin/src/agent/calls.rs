@@ -86,6 +86,8 @@ impl<T: Clone + Send + Sync + 'static> Calls<T> {
 
     /// Whether every reply has been collected.
     pub fn is_empty(&self) -> bool {
-        self.running.lock().map_or(true, |running| running.is_empty())
+        self.running
+            .lock()
+            .map_or(true, |running| running.is_empty())
     }
 }

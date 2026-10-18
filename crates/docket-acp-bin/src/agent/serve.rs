@@ -393,9 +393,9 @@ impl Service {
 
     /// Whether a call on the helpers' agents is running, or the host of them is being made.
     fn helpers_busy(&self) -> bool {
-        self.helpers
-            .try_lock()
-            .map_or(true, |held| held.as_ref().is_some_and(|helpers| helpers.busy()))
+        self.helpers.try_lock().map_or(true, |held| {
+            held.as_ref().is_some_and(|helpers| helpers.busy())
+        })
     }
 
     /// Notes who asked for the helpers' agents, to end them when that caller is gone.
