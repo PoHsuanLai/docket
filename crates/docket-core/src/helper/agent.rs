@@ -3,7 +3,7 @@
 //! untrusted. Sign-in is the agent's own: we know a helper is signed in only because the agent
 //! opened a session, and we never read its login.
 
-use prov::{AgentProgram, HelperId};
+use prov::{AgentProgram, HelperId, SessionId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -91,6 +91,11 @@ pub struct TerminalRequest {
     /// Absent from an older request, where the shell works it out from `program` and `login`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run: Option<Box<TerminalRun>>,
+    /// For a conversation taken to the terminal ("Open in Terminal"): the session at the router
+    /// that goes on keeping its restore points while the person works there. The terminal marks
+    /// the agent's turns on it. Absent for a sign-in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff: Option<SessionId>,
 }
 
 /// What an agent app said in answer to a job. It is the agent model's text: the board labels it

@@ -12,6 +12,7 @@ use crate::confirm::ConfirmEnd;
 use crate::context::EntityRef;
 use crate::context::{ContextView, Reveal};
 use crate::gate::{CuaAsk, GateAnswer};
+use crate::hand::{HandTo, WatchedAgent, WatchedLine};
 use crate::ids::{ActionRef, UndoId};
 use crate::ids::{Handle, IntentsVocab, TurnId, WindowKey};
 use crate::index::{Hit, IndexBatch, SearchAsk, SuggestAsk};
@@ -452,6 +453,33 @@ pub enum IntentsRequest {
         /// The watch session.
         session: SessionId,
     },
+    /// `.Checkpoint.WatchAgent`: `Checkpoint.Watch` for a terminal that also knows which agent
+    /// app it is and the app's own id for the conversation, so the person can bring the
+    /// conversation into docket later.
+    CheckpointWatchAgent {
+        /// The folder the watched agent works in.
+        workspace: Workspace,
+        /// What the person calls the agent here. Display text, never trusted.
+        label: String,
+        /// Who keeps the agent's own history.
+        rewind: Rewind,
+        /// The app and its own id for the conversation.
+        agent: WatchedAgent,
+    },
+    /// `.Checkpoint.Handover`: where a session's conversation is now. The host of the agent apps
+    /// hands its session to a terminal (`Terminal`: it becomes a watch session that the
+    /// terminal marks) and takes it back (`Desktop`). Answers `HandedOver`.
+    CheckpointHandover {
+        /// The session.
+        session: SessionId,
+        /// Where the conversation goes.
+        to: HandTo,
+        /// The app and its own id for the conversation, said by the host when it goes to the
+        /// terminal (the router cannot know it); not needed to bring it back.
+        agent: Option<WatchedAgent>,
+    },
+    /// `.Checkpoint.Watched`: the watch sessions whose agent app a terminal named.
+    CheckpointWatched,
     /// `.Message.Send`.
     MessageSend {
         /// The session the sender speaks from.
@@ -632,6 +660,11 @@ pub enum IntentsReply {
     CheckpointPlan(Result<RestorePlan, CheckpointFault>),
     /// A watch session was opened (`Checkpoint.Watch`).
     CheckpointWatching(SessionId),
+    /// A session's conversation moved (`Checkpoint.Handover`); the app and its own id for the
+    /// conversation, when the router has them.
+    HandedOver(Option<WatchedAgent>),
+    /// The watch sessions whose agent app a terminal named (`Checkpoint.Watched`).
+    Watched(Vec<WatchedLine>),
     /// A message was delivered.
     Delivered(Delivery),
     /// Messages that wait.

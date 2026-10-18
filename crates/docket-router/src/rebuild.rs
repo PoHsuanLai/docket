@@ -15,7 +15,7 @@ use crate::tasks::{TaskRecord, TaskState};
 use crate::wal::Wal;
 use almanac_core::EpisodeId;
 use docket_core::{
-    ExternalAgent, Ledger, Reveal, Saw, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger,
+    ExternalAgent, HandTo, Ledger, Reveal, Saw, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger,
     UserTurn,
 };
 use docket_session::{
@@ -142,19 +142,40 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         .map(|i| interrupted_line(&i.open))
         .collect();
 
-    let external = match &opening.backend {
-        docket_session::BackendKind::Acp(program) => Some(ExternalAgent {
+    // The agent app and its own id for the conversation, while it is in a terminal's hands.
+    let in_terminal = plan
+        .hand
+        .as_ref()
+        .filter(|note| note.to == HandTo::Terminal)
+        .and_then(|note| note.agent.as_ref());
+    let rewind = match &opening.backend {
+        docket_session::BackendKind::Watch(rewind) => *rewind,
+        _ => opening.rewind,
+    };
+    let external = match (&opening.backend, in_terminal) {
+        (docket_session::BackendKind::Acp(program), _) => Some(ExternalAgent {
             program: program.clone(),
             sheets: SheetSurface::Desktop,
             label: opening.label.clone(),
             rewind: opening.rewind,
             helper: None,
         }),
+        (_, Some(named)) => Some(ExternalAgent {
+            program: named.program.clone(),
+            sheets: SheetSurface::Desktop,
+            label: opening.label.clone(),
+            rewind,
+            helper: None,
+        }),
         _ => None,
     };
-    // A watch session is a terminal's, whatever agent its opening names.
-    let (kind, actor) = match &opening.backend {
-        docket_session::BackendKind::Watch(rewind) => (SessionKind::Watch(*rewind), Actor::Cli),
+    // A watch session is a terminal's, whatever agent its opening names; so is a conversation
+    // that went to a terminal and has not come back.
+    let (kind, actor) = match (&opening.backend, in_terminal) {
+        (docket_session::BackendKind::Watch(rewind), _) => {
+            (SessionKind::Watch(*rewind), Actor::Cli)
+        }
+        (_, Some(_)) => (SessionKind::Watch(rewind), Actor::Cli),
         _ => (
             SessionKind::Agent,
             actor_of(&agent, external.as_ref(), id, &opener),
@@ -168,6 +189,7 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         now,
     );
     record.kind = kind;
+    record.agent_session = in_terminal.map(|named| named.session.clone());
     if let Some(seat) = &plan.seat {
         record.actor = Actor::Companion {
             session: id.clone(),
@@ -291,6 +313,7 @@ mod tests {
                 rewind: Default::default(),
             },
             seat: None,
+            hand: None,
             standing,
             taint: Written::Clean,
             policy: None,

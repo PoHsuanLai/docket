@@ -238,6 +238,16 @@ impl<S: Seams> Router<S> {
                 rewind,
             } => self.checkpoint_watch(caller, workspace, &label, rewind),
             R::CheckpointMark { session } => self.checkpoint_mark(&session).await,
+            R::CheckpointWatchAgent {
+                workspace,
+                label,
+                rewind,
+                agent,
+            } => self.checkpoint_watch_agent(caller, workspace, &label, rewind, agent),
+            R::CheckpointHandover { session, to, agent } => {
+                self.checkpoint_handover(caller, &session, to, agent)
+            }
+            R::CheckpointWatched => self.checkpoint_watched(),
             // A request this router does not know is refused, never run.
             _ => IntentsReply::Refused(WireRefusal::Malformed),
         }

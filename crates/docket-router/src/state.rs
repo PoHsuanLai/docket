@@ -91,6 +91,10 @@ pub struct SessionRecord {
     /// things the job owns are written by no other session while it lives. Said by the companion
     /// when it opened the session.
     pub helper: Option<docket_core::helper::HelperSeat>,
+    /// The agent app's own id for the conversation, while the session is a watch session that
+    /// came from an agent app (a terminal named it, or the host handed the conversation to a
+    /// terminal). Said by the host or the terminal, never read from a model.
+    pub agent_session: Option<String>,
 }
 
 impl SessionRecord {
@@ -130,6 +134,7 @@ impl SessionRecord {
             kind: SessionKind::Agent,
             label: None,
             helper: None,
+            agent_session: None,
         }
     }
 

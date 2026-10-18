@@ -6,6 +6,7 @@
 //! Named apart from `docket_router::SessionRecord` (the router's in-memory session) and
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
+use docket_core::HandNote;
 use docket_core::helper::HelperSeat;
 use docket_core::{
     ActionRef, CallId, CheckpointNote, Covers, Handle, HandleShape, Rewind, SkillId, SkillVersion,
@@ -247,6 +248,10 @@ pub enum SessionEntry {
     /// The seat a helper has in the router, written right after the opening of a session that has
     /// one, so a restored session keeps it. Absent from every older log: no seat.
     Seat(HelperSeat),
+    /// The conversation moved between docket and the app's own terminal program, or a terminal
+    /// named the agent it watches. The latest one says where it is. Absent from every older log:
+    /// the conversation is where the opening put it.
+    Hand(HandNote),
     /// The person said something, verbatim and trusted.
     Turn(UserTurn),
     /// The checked task policy as written; resume never derives it again.
@@ -282,6 +287,7 @@ impl SessionEntry {
         match self {
             SessionEntry::Opened(_) => "opened",
             SessionEntry::Seat(_) => "seat",
+            SessionEntry::Hand(_) => "hand",
             SessionEntry::Turn(_) => "turn",
             SessionEntry::Policy(_) => "policy",
             SessionEntry::Call(_) => "call",

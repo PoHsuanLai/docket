@@ -21,6 +21,20 @@ fn a_whole_session_restores_what_was_stored() {
 }
 
 #[test]
+fn the_latest_hand_note_says_where_the_conversation_is() {
+    use docket_core::{HandNote, HandTo};
+    let to = |to| SessionEntry::Hand(HandNote { to, agent: None });
+    let moved = plan(&[
+        SessionEntry::Opened(opening()),
+        to(HandTo::Terminal),
+        to(HandTo::Desktop),
+        to(HandTo::Terminal),
+    ]);
+    assert_eq!(moved.hand, Some(HandNote { to: HandTo::Terminal, agent: None }));
+    assert_eq!(plan(&canonical()).hand, None);
+}
+
+#[test]
 fn refusals_name_what_is_missing() {
     assert_eq!(resume_plan(&[]), Err(PlanRefusal::Empty));
     let no_opening = rows(&[SessionEntry::Turn(turn(1, "hi"))]);

@@ -192,6 +192,7 @@ pub(crate) fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         | R::SessionHandles { session }
         | R::CheckpointList { session }
         | R::CheckpointPlan { session, .. }
+        | R::CheckpointHandover { session, .. }
         | R::MessageSend { session, .. } => Some(session),
         R::Manifests
         | R::IndexPush(_)

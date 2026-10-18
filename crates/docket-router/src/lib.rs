@@ -55,6 +55,7 @@ mod finish;
 mod gate;
 mod gatecheck;
 mod handles;
+mod handover;
 mod history;
 mod index;
 mod journal;

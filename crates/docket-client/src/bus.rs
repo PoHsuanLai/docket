@@ -434,6 +434,42 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
                 Err(error) => refused(error),
             }
         }
+        Q::CheckpointWatchAgent {
+            workspace,
+            label,
+            rewind,
+            agent,
+        } => {
+            let proxy = CheckpointProxy::new(c).await.map_err(bus)?;
+            body(
+                proxy
+                    .watch_agent(
+                        workspace.as_str(),
+                        &label,
+                        &to_json(&rewind)?,
+                        &to_json(&agent)?,
+                    )
+                    .await,
+                IntentsReply::CheckpointWatching,
+            )
+        }
+        Q::CheckpointHandover { session, to, agent } => {
+            let proxy = CheckpointProxy::new(c).await.map_err(bus)?;
+            let agent = match agent {
+                Some(agent) => to_json(&agent)?,
+                None => String::new(),
+            };
+            body(
+                proxy
+                    .handover(session.as_str(), &to_json(&to)?, &agent)
+                    .await,
+                IntentsReply::HandedOver,
+            )
+        }
+        Q::CheckpointWatched => {
+            let proxy = CheckpointProxy::new(c).await.map_err(bus)?;
+            body(proxy.watched().await, IntentsReply::Watched)
+        }
         Q::MessageSend { session, draft } => {
             let proxy = MessageProxy::new(c).await.map_err(bus)?;
             let answer = proxy

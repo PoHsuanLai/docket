@@ -4,6 +4,7 @@
 
 use crate::codec::Unreadable;
 use crate::entry::{CallOpen, EndCause, HandleLabel, Opening, Seq, Taint};
+use docket_core::HandNote;
 use docket_core::helper::HelperSeat;
 use docket_core::{
     BreakerTrip, CallId, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy, UserTurn,
@@ -111,6 +112,8 @@ pub struct ResumePlan {
     pub opening: Opening,
     /// The helper seat the session was given, when it has one.
     pub seat: Option<HelperSeat>,
+    /// Where the conversation is, when the log moved it or named the agent a terminal watches.
+    pub hand: Option<HandNote>,
     /// Where it stands.
     pub standing: Standing,
     /// Never lower than any taint in the log, and Tainted when the log is not whole.

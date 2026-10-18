@@ -780,3 +780,110 @@ async fn an_agent_cannot_watch_mark_or_close_a_watch_session() {
     assert!(listed(&router, &session).await.rows.is_empty());
     marked(&router, &terminal(), &session).await;
 }
+
+// ---- a conversation moving between docket and the app's terminal program ----
+
+fn claude() -> WatchedAgent {
+    WatchedAgent {
+        program: program("claude-code"),
+        session: "0a1b-2c3d".into(),
+    }
+}
+
+fn hand_request(session: &SessionId, to: HandTo, agent: Option<WatchedAgent>) -> IntentsRequest {
+    IntentsRequest::CheckpointHandover {
+        session: session.clone(),
+        to,
+        agent,
+    }
+}
+
+/// The session of an agent app, as the host opens it.
+async fn app_session(router: &Router<FakeSeams>) -> SessionId {
+    let external = ExternalAgent {
+        program: program("claude-code"),
+        sheets: SheetSurface::Desktop,
+        label: Some(prov::AgentLabel("Claude Code".into())),
+        rewind: Rewind::Agent,
+        helper: None,
+    };
+    open_in(router, &host(), Some(WORK), Some(external)).await
+}
+
+#[tokio::test]
+async fn a_conversation_goes_to_the_terminal_and_back_as_one_session() {
+    let router = router();
+    let session = app_session(&router).await;
+    // Only the host of the app, and only with the app's own id for the conversation.
+    let to_terminal = hand_request(&session, HandTo::Terminal, Some(claude()));
+    assert_eq!(
+        ask(&router, &host(), hand_request(&session, HandTo::Terminal, None)).await,
+        IntentsReply::Refused(WireRefusal::Malformed)
+    );
+    let other_host = caller("org.quire.Other", CallerRole::AcpAgent);
+    assert_eq!(
+        ask(&router, &other_host, to_terminal.clone()).await,
+        not_allowed()
+    );
+    // A terminal marks no agent session.
+    assert_eq!(ask(&router, &terminal(), mark_request(&session)).await, not_allowed());
+
+    assert_eq!(
+        ask(&router, &host(), to_terminal).await,
+        IntentsReply::HandedOver(Some(claude()))
+    );
+    // Now any terminal marks its turns, and a restore point is kept as for a watched agent.
+    let turn = marked(&router, &stranger(), &session).await;
+    assert_eq!(
+        ask(&router, &stranger(), end_request(&session, turn)).await,
+        IntentsReply::Done
+    );
+    assert_eq!(listed(&router, &session).await.rows.len(), 1);
+    // The host takes it back: the same session, an agent's again, and the terminal can mark no more.
+    let back = ask(&router, &host(), hand_request(&session, HandTo::Desktop, None)).await;
+    assert_eq!(back, IntentsReply::HandedOver(Some(claude())));
+    assert_eq!(
+        ask(&router, &stranger(), mark_request(&session)).await,
+        not_allowed()
+    );
+    assert_eq!(listed(&router, &session).await.rows.len(), 1);
+}
+
+#[tokio::test]
+async fn a_terminal_that_names_its_agent_is_listed_for_the_companion_and_handed_to_the_host() {
+    let router = router();
+    let named = IntentsRequest::CheckpointWatchAgent {
+        workspace: Workspace::parse(WORK).expect("workspace"),
+        label: "claude in pane 2".into(),
+        rewind: Rewind::Agent,
+        agent: claude(),
+    };
+    let IntentsReply::CheckpointWatching(session) = ask(&router, &terminal(), named).await else {
+        panic!("watching")
+    };
+    // The plain watch of an agent that is not named is not offered.
+    watch_in(&router, &terminal(), Rewind::Docket).await;
+    let listed_for = ask(&router, &companion(), IntentsRequest::CheckpointWatched).await;
+    assert_eq!(
+        listed_for,
+        IntentsReply::Watched(vec![WatchedLine {
+            session: session.clone(),
+            agent: claude(),
+            label: Some(prov::AgentLabel("claude in pane 2".into())),
+            folder: Some(Workspace::parse(WORK).expect("workspace")),
+        }])
+    );
+    // Only the companion lists them; only the host takes one back.
+    assert_eq!(
+        ask(&router, &terminal(), IntentsRequest::CheckpointWatched).await,
+        not_allowed()
+    );
+    assert_eq!(
+        ask(&router, &host(), hand_request(&session, HandTo::Desktop, None)).await,
+        IntentsReply::HandedOver(Some(claude()))
+    );
+    assert_eq!(
+        ask(&router, &companion(), IntentsRequest::CheckpointWatched).await,
+        IntentsReply::Watched(Vec::new())
+    );
+}

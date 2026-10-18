@@ -34,6 +34,7 @@ mod grant;
 #[cfg(feature = "atomic-file")]
 mod grant_file;
 mod grant_space;
+mod hand;
 mod handover;
 pub mod helper;
 mod ids;
@@ -135,6 +136,7 @@ pub use grant_space::{
     Ended, GrantEnd, GrantListFault, KnownSpaces, Reconciled, decode_grants, reconcile,
     without_space,
 };
+pub use hand::{HandNote, HandTo, WatchedAgent, WatchedLine};
 pub use handover::{HandOver, HandRefusal, HandReply, Handed};
 pub use ids::{
     ActionRef, CallId, CardActionId, ChoiceId, EntityRef, FileRef, Handle, IconName, IntentsVocab,

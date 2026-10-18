@@ -149,6 +149,12 @@ pub enum Member {
     CheckpointWatch,
     /// `.Checkpoint.Mark`.
     CheckpointMark,
+    /// `.Checkpoint.WatchAgent`.
+    CheckpointWatchAgent,
+    /// `.Checkpoint.Handover`.
+    CheckpointHandover,
+    /// `.Checkpoint.Watched`.
+    CheckpointWatched,
     /// `.Message.Send`.
     MessageSend,
     /// `.Message.Inbox`.
@@ -177,7 +183,7 @@ pub enum Member {
 
 impl Member {
     /// Every member, in the order the interface table lists them.
-    pub const ALL: [Member; 43] = [
+    pub const ALL: [Member; 46] = [
         Member::Manifests,
         Member::IndexPush,
         Member::IndexReset,
@@ -209,6 +215,9 @@ impl Member {
         Member::CheckpointPlan,
         Member::CheckpointWatch,
         Member::CheckpointMark,
+        Member::CheckpointWatchAgent,
+        Member::CheckpointHandover,
+        Member::CheckpointWatched,
         Member::MessageSend,
         Member::MessageInbox,
         Member::GateGrant,
@@ -260,6 +269,9 @@ impl crate::wire::IntentsRequest {
             R::CheckpointPlan { .. } => Member::CheckpointPlan,
             R::CheckpointWatch { .. } => Member::CheckpointWatch,
             R::CheckpointMark { .. } => Member::CheckpointMark,
+            R::CheckpointWatchAgent { .. } => Member::CheckpointWatchAgent,
+            R::CheckpointHandover { .. } => Member::CheckpointHandover,
+            R::CheckpointWatched => Member::CheckpointWatched,
             R::MessageSend { .. } => Member::MessageSend,
             R::MessageInbox(_) => Member::MessageInbox,
             R::GateGrant(_) => Member::GateGrant,

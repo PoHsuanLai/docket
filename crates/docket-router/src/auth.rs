@@ -57,6 +57,12 @@ fn roles(member: Member) -> &'static [CallerRole] {
         // and marks the agent's turns. Never `Mcp` or `AcpAgent`; the router lets only the
         // opener use the session (`watched.rs`).
         Member::CheckpointWatch | Member::CheckpointMark => &[Cli],
+        // The same terminal, naming the agent app it runs and the app's id for the conversation.
+        Member::CheckpointWatchAgent => &[Cli],
+        // The host of the agent apps moves a conversation to a terminal and back; the companion
+        // lists the terminals' conversations for the person to bring back.
+        Member::CheckpointHandover => &[AcpAgent],
+        Member::CheckpointWatched => &[Companion],
         Member::SessionTaskPolicy | Member::SessionWiden => &[Launcher, Field, Companion],
         // The person talks to a subagent through the launcher; agents and runs report.
         Member::MessageSend => &[Launcher, Field, Companion, Cua],

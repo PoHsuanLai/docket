@@ -23,8 +23,8 @@ use crate::session::SessionState;
 use crate::state::{SessionKind, SessionRecord};
 use crate::wal::Wal;
 use docket_core::{
-    CallRequest, CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, TurnId, WireRefusal,
-    Workspace,
+    CallRequest, CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, TurnId,
+    WatchedAgent, WireRefusal, Workspace,
 };
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use prov::{Actor, AgentLabel, AgentRef, SessionId, SpaceId, TaskId};
@@ -52,7 +52,8 @@ fn is_restore(call: &CallRequest) -> bool {
 fn session_named(request: &IntentsRequest) -> Option<&SessionId> {
     match request {
         IntentsRequest::SessionTurnEnded { session, .. }
-        | IntentsRequest::CheckpointMark { session } => Some(session),
+        | IntentsRequest::CheckpointMark { session }
+        | IntentsRequest::CheckpointHandover { session, .. } => Some(session),
         other => named_session(other),
     }
 }
@@ -60,13 +61,26 @@ fn session_named(request: &IntentsRequest) -> Option<&SessionId> {
 /// Whether a request that names a watch session may go on. Reading its points and restoring
 /// them is for any surface that may bring the session back (checked where it is answered);
 /// marking, ending a turn and closing are the opener's alone.
-fn watch_allows(request: &IntentsRequest, record: &SessionRecord, caller: &CallerId) -> bool {
+///
+/// A watch session that came from an agent app (it has an agent app's id for the conversation)
+/// is also a terminal's to mark, end turns on and close, whichever terminal opens the app's own
+/// program, and the host of the agent apps may take the conversation back.
+fn watch_allows(
+    request: &IntentsRequest,
+    record: &SessionRecord,
+    caller: &CallerId,
+    role: CallerRole,
+) -> bool {
     let opener = record.opener == caller.app.name;
+    let handed = record.agent_session.is_some();
     match request {
         IntentsRequest::CheckpointList { .. } | IntentsRequest::CheckpointPlan { .. } => true,
         IntentsRequest::CheckpointMark { .. }
         | IntentsRequest::SessionTurnEnded { .. }
-        | IntentsRequest::SessionClose { .. } => opener,
+        | IntentsRequest::SessionClose { .. } => {
+            opener || (handed && role == CallerRole::Cli)
+        }
+        IntentsRequest::CheckpointHandover { .. } => handed && role == CallerRole::AcpAgent,
         IntentsRequest::Perform { call, .. } | IntentsRequest::DryRun { call, .. } => {
             is_restore(call)
         }
@@ -93,7 +107,7 @@ impl<S: Seams> Router<S> {
             .get(session)
             .filter(|record| matches!(record.kind, SessionKind::Watch(_)));
         match watched {
-            Some(record) if watch_allows(request, record, caller) => Ok(()),
+            Some(record) if watch_allows(request, record, caller, role) => Ok(()),
             Some(_) => Err(WireRefusal::NotAllowed),
             None if role == CallerRole::Cli
                 && matches!(request, IntentsRequest::SessionClose { .. }) =>
@@ -148,6 +162,23 @@ impl<S: Seams> Router<S> {
         }));
         st.sessions.insert(session.clone(), record);
         IntentsReply::CheckpointWatching(session)
+    }
+
+    /// `.Checkpoint.WatchAgent`: `.Checkpoint.Watch` for a terminal that also names the agent app
+    /// and the app's own id for the conversation, so the shell can offer to bring it into docket.
+    pub(crate) fn checkpoint_watch_agent(
+        &self,
+        caller: &CallerId,
+        workspace: Workspace,
+        label: &str,
+        rewind: Rewind,
+        agent: WatchedAgent,
+    ) -> IntentsReply {
+        let opened = self.checkpoint_watch(caller, workspace, label, rewind);
+        if let IntentsReply::CheckpointWatching(session) = &opened {
+            self.name_watched_agent(session, agent);
+        }
+        opened
     }
 
     /// The number of a new turn of a watch session, or why it has none. The number comes from

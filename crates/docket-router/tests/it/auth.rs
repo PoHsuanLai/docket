@@ -42,7 +42,8 @@ fn the_host_of_an_external_agent_opens_speaks_and_performs_and_nothing_else() {
             Member::SessionOpen,
             Member::SessionTurn,
             Member::SessionClose,
-            Member::SessionTurnEnded
+            Member::SessionTurnEnded,
+            Member::CheckpointHandover
         ]
     );
 }
@@ -89,8 +90,18 @@ fn restore_points_are_for_the_persons_surfaces_and_never_an_agent() {
 }
 
 #[test]
+fn a_conversation_moves_by_the_host_and_is_listed_for_the_companion_alone() {
+    assert_eq!(role_set(Member::CheckpointHandover), [CallerRole::AcpAgent]);
+    assert_eq!(role_set(Member::CheckpointWatched), [CallerRole::Companion]);
+}
+
+#[test]
 fn only_a_terminal_watches_an_agent_and_marks_its_turns() {
-    for member in [Member::CheckpointWatch, Member::CheckpointMark] {
+    for member in [
+        Member::CheckpointWatch,
+        Member::CheckpointMark,
+        Member::CheckpointWatchAgent,
+    ] {
         assert_eq!(role_set(member), [CallerRole::Cli], "{member:?}");
     }
 }
@@ -212,6 +223,7 @@ fn a_terminal_gets_exactly_the_members_quire_do_uses() {
             // It watches the agents in its panes (never hosts them).
             Member::CheckpointWatch,
             Member::CheckpointMark,
+            Member::CheckpointWatchAgent,
             Member::ControlJournal,
         ]
     );

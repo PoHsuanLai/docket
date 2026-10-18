@@ -1,7 +1,9 @@
 //! `Checkpoint`: a session's restore points and what restoring one changes.
 
 use super::{Gateway, json, parsed};
-use docket_core::{CheckpointId, IntentsReply, IntentsRequest, TurnId, Workspace};
+use docket_core::{
+    CheckpointId, IntentsReply, IntentsRequest, TurnId, WatchedAgent, Workspace,
+};
 use docket_dbus::IntentsError;
 use prov::SessionId;
 use zbus::message::Header;
@@ -75,6 +77,61 @@ impl CheckpointBus {
         self.0
             .ask(&header, request, |r| match r {
                 IntentsReply::TurnRecorded(TurnId(id)) => Some(id),
+                _ => None,
+            })
+            .await
+    }
+
+    async fn watch_agent(
+        &self,
+        workspace: String,
+        label: String,
+        rewind: String,
+        agent: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<String, IntentsError> {
+        let request = IntentsRequest::CheckpointWatchAgent {
+            workspace: parsed(&workspace, Workspace::parse)?,
+            label,
+            rewind: json(&rewind)?,
+            agent: json(&agent)?,
+        };
+        self.0
+            .answer(&header, request, |r| match r {
+                IntentsReply::CheckpointWatching(session) => Some(session),
+                _ => None,
+            })
+            .await
+    }
+
+    async fn handover(
+        &self,
+        session: String,
+        to: String,
+        agent: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<String, IntentsError> {
+        let agent: Option<WatchedAgent> = match agent.is_empty() {
+            true => None,
+            false => json(&agent)?,
+        };
+        let request = IntentsRequest::CheckpointHandover {
+            session: parsed(&session, SessionId::parse)?,
+            to: json(&to)?,
+            agent,
+        };
+        self.0
+            .answer(&header, request, |r| match r {
+                IntentsReply::HandedOver(agent) => Some(agent),
+                _ => None,
+            })
+            .await
+    }
+
+    async fn watched(&self, #[zbus(header)] header: Header<'_>) -> Result<String, IntentsError> {
+        self.0
+            .answer(&header, IntentsRequest::CheckpointWatched, |r| match r {
+                IntentsReply::Watched(lines) => Some(lines),
                 _ => None,
             })
             .await

@@ -22,6 +22,7 @@ use crate::entry::{
 use crate::plan::{
     Blocker, Interrupted, PlanRefusal, ResumeFault, ResumePlan, ResumedBudget, Standing,
 };
+use docket_core::HandNote;
 use docket_core::helper::HelperSeat;
 use docket_core::{
     BreakerTrip, CallId, Handle, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy,
@@ -35,6 +36,7 @@ use std::collections::BTreeMap;
 struct Fold {
     opening: Opening,
     seat: Option<HelperSeat>,
+    hand: Option<HandNote>,
     taint: Taint,
     policy: Option<TaskPolicy>,
     turns: Vec<UserTurn>,
@@ -57,6 +59,7 @@ impl Fold {
         Fold {
             opening,
             seat: None,
+            hand: None,
             taint: Taint::Clean,
             policy: None,
             turns: Vec::new(),
@@ -88,6 +91,7 @@ impl Fold {
             SessionEntry::Seat(seat) => {
                 self.seat.get_or_insert(seat);
             }
+            SessionEntry::Hand(note) => self.hand = Some(note),
             SessionEntry::Turn(turn) => {
                 self.tripped = None;
                 self.turns.push(turn);
@@ -174,6 +178,7 @@ impl Fold {
         ResumePlan {
             opening: self.opening,
             seat: self.seat,
+            hand: self.hand,
             standing,
             taint: self.taint,
             policy: self.policy,

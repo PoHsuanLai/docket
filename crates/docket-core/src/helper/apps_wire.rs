@@ -6,8 +6,11 @@
 use super::agent::SignInWay;
 use super::apps::{AgentOutcome, CheckOutcome, SignInOutcome, SignOutOutcome};
 use super::card::HelperCard;
+use super::hand::{BackOutcome, BroughtOutcome, ToTerminalOutcome};
 use super::job::Job;
-use prov::HelperId;
+use crate::hand::WatchedAgent;
+use crate::workspace::Workspace;
+use prov::{HelperId, SessionId};
 use serde::{Deserialize, Serialize};
 
 /// One call on the host of the agent apps.
@@ -48,6 +51,25 @@ pub enum AppsAsk {
         /// The helper.
         helper: HelperId,
     },
+    /// [`AgentApps::to_terminal`](super::AgentApps::to_terminal).
+    ToTerminal {
+        /// The helper.
+        card: Box<HelperCard>,
+    },
+    /// [`AgentApps::bring_back`](super::AgentApps::bring_back).
+    BringBack {
+        /// The helper.
+        card: Box<HelperCard>,
+    },
+    /// [`AgentApps::bring_back_watched`](super::AgentApps::bring_back_watched).
+    BringBackWatched {
+        /// The watch session.
+        session: SessionId,
+        /// The app and its own id for the conversation.
+        agent: WatchedAgent,
+        /// The folder the terminal ran the app in.
+        folder: Workspace,
+    },
 }
 
 /// What the host answers, one reply for each call.
@@ -66,4 +88,10 @@ pub enum AppsReply {
     SignOut(SignOutOutcome),
     /// The agent ended.
     Forget,
+    /// How opening the conversation in a terminal went.
+    ToTerminal(ToTerminalOutcome),
+    /// How bringing the conversation back went.
+    BringBack(BackOutcome),
+    /// How bringing back a terminal's conversation went.
+    BringBackWatched(BroughtOutcome),
 }

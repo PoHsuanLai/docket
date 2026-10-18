@@ -194,3 +194,42 @@ fn the_checkpoint_requests_and_replies_round_trip_and_name_their_members() {
     round(&IntentsReply::CheckpointPlan(Ok(RestorePlan::default())));
     round(&IntentsReply::CheckpointPlan(Err(CheckpointFault::Gone)));
 }
+
+#[test]
+fn a_conversation_moving_between_docket_and_a_terminal_has_its_members_and_shapes() {
+    let session = SessionId::parse("s-2").expect("session");
+    let agent = WatchedAgent {
+        program: ProgramName::parse("claude-code").expect("program"),
+        session: "0a1b-2c3d".into(),
+    };
+    let watch = IntentsRequest::CheckpointWatchAgent {
+        workspace: Workspace::parse("/work/project").expect("workspace"),
+        label: "claude in pane 2".into(),
+        rewind: Rewind::Agent,
+        agent: agent.clone(),
+    };
+    let hand = IntentsRequest::CheckpointHandover {
+        session: session.clone(),
+        to: HandTo::Terminal,
+        agent: Some(agent.clone()),
+    };
+    assert_eq!(watch.member(), Member::CheckpointWatchAgent);
+    assert_eq!(hand.member(), Member::CheckpointHandover);
+    assert_eq!(
+        IntentsRequest::CheckpointWatched.member(),
+        Member::CheckpointWatched
+    );
+    round(&watch);
+    round(&hand);
+    round(&IntentsRequest::CheckpointWatched);
+    round(&IntentsReply::HandedOver(Some(agent.clone())));
+    round(&IntentsReply::Watched(vec![WatchedLine {
+        session,
+        agent,
+        label: None,
+        folder: Some(Workspace::parse("/work/project").expect("workspace")),
+    }]));
+    // The log's note reads without the agent when an older writer left it out.
+    let note: HandNote = serde_json::from_str(r#"{"to":"desktop"}"#).expect("note");
+    assert_eq!(note, HandNote { to: HandTo::Desktop, agent: None });
+}

@@ -84,6 +84,7 @@ pub fn fork(
             e,
             SessionEntry::Opened(_)
                 | SessionEntry::Seat(_)
+                | SessionEntry::Hand(_)
                 | SessionEntry::Taint(_)
                 | SessionEntry::Budget(_)
                 | SessionEntry::Closed(_)

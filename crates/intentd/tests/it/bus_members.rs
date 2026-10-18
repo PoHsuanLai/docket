@@ -357,6 +357,23 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         session: missing_session,
     })
     .await;
+    pair.both(IntentsRequest::CheckpointWatchAgent {
+        workspace: Workspace::parse("/tmp/watched").expect("workspace"),
+        label: "an agent in pane 2".into(),
+        rewind: Rewind::Docket,
+        agent: docket_core::WatchedAgent {
+            program: docket_core::ProgramName::parse("claude-code").expect("program"),
+            session: "0a1b-2c3d".into(),
+        },
+    })
+    .await;
+    pair.both(IntentsRequest::CheckpointHandover {
+        session: SessionId::parse("s-none").expect("session"),
+        to: docket_core::HandTo::Desktop,
+        agent: None,
+    })
+    .await;
+    pair.both(IntentsRequest::CheckpointWatched).await;
     pair.both(IntentsRequest::MessageSend {
         session: session.clone(),
         draft,

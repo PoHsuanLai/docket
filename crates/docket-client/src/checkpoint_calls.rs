@@ -4,8 +4,8 @@
 use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
 use docket_core::{
-    CheckpointFault, CheckpointId, CheckpointList, IntentsReply, IntentsRequest, RestorePlan,
-    Rewind, TurnId, Workspace,
+    CheckpointFault, CheckpointId, CheckpointList, HandTo, IntentsReply, IntentsRequest,
+    RestorePlan, Rewind, TurnId, WatchedAgent, WatchedLine, Workspace,
 };
 use prov::SessionId;
 
@@ -61,6 +61,58 @@ impl<T: Transport> Intents<T> {
     pub async fn checkpoint_mark(&self, session: SessionId) -> Result<TurnId, ClientError> {
         self.ask(IntentsRequest::CheckpointMark { session }, |r| match r {
             IntentsReply::TurnRecorded(turn) => Some(turn),
+            _ => None,
+        })
+        .await
+    }
+
+    /// `checkpoint_watch` for a terminal that also names the agent app it watches and the app's
+    /// own id for the conversation, so the shell can offer to bring it into docket
+    /// (`Checkpoint.WatchAgent`). A terminal only.
+    pub async fn checkpoint_watch_agent(
+        &self,
+        workspace: Workspace,
+        label: String,
+        rewind: Rewind,
+        agent: WatchedAgent,
+    ) -> Result<SessionId, ClientError> {
+        let request = IntentsRequest::CheckpointWatchAgent {
+            workspace,
+            label,
+            rewind,
+            agent,
+        };
+        self.ask(request, |r| match r {
+            IntentsReply::CheckpointWatching(session) => Some(session),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Moves a session's conversation to the app's own terminal program or back
+    /// (`Checkpoint.Handover`). `agent` names the app and its own id for the conversation when it
+    /// goes to the terminal. Answers what the router holds for it. The host of the agent apps only.
+    pub async fn checkpoint_handover(
+        &self,
+        session: SessionId,
+        to: HandTo,
+        agent: Option<WatchedAgent>,
+    ) -> Result<Option<WatchedAgent>, ClientError> {
+        self.ask(
+            IntentsRequest::CheckpointHandover { session, to, agent },
+            |r| match r {
+                IntentsReply::HandedOver(agent) => Some(agent),
+                _ => None,
+            },
+        )
+        .await
+    }
+
+    /// The open watch sessions whose agent app a terminal named (`Checkpoint.Watched`). The
+    /// companion only.
+    pub async fn checkpoint_watched(&self) -> Result<Vec<WatchedLine>, ClientError> {
+        self.ask(IntentsRequest::CheckpointWatched, |r| match r {
+            IntentsReply::Watched(lines) => Some(lines),
             _ => None,
         })
         .await

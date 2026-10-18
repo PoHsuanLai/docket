@@ -5,6 +5,9 @@
 //! the typed outcome out.
 
 use super::agent::{SignInWay, TerminalLogin, UntrustedWords};
+use super::hand::{BackOutcome, BroughtOutcome, HandFault, ToTerminalOutcome};
+use crate::hand::WatchedAgent;
+use crate::workspace::Workspace;
 use super::card::HelperCard;
 use super::job::{Job, JobFault};
 use prov::{HelperId, SessionId, TaskId};
@@ -27,6 +30,10 @@ pub enum AgentOutcome {
         task: TaskId,
         /// Its session at the router.
         session: SessionId,
+        /// The app's own id for its conversation, when the person could pick it up in the
+        /// app's own terminal program. Absent from an older host's answer.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        own_session: Option<String>,
     },
     /// The agent wants the person to sign in first. The job did not fail.
     NeedsSignIn(Vec<SignInWay>),
@@ -95,4 +102,31 @@ pub trait AgentApps: Send + Sync {
 
     /// The helper was removed: its agent process ends.
     fn forget<'a>(&'a self, helper: &'a HelperId) -> Pending<'a, ()>;
+
+    /// Closes the helper's agent and turns its session at the router into a watch session, and
+    /// answers the command that picks the conversation up in the app's own terminal program.
+    /// A host without the means refuses.
+    fn to_terminal<'a>(&'a self, card: &'a HelperCard) -> Pending<'a, ToTerminalOutcome> {
+        let _ = card;
+        Box::pin(async { ToTerminalOutcome::Refused(HandFault::Failed) })
+    }
+
+    /// Starts the helper's agent again on the session it left, on the conversation the
+    /// terminal went on with.
+    fn bring_back<'a>(&'a self, card: &'a HelperCard) -> Pending<'a, BackOutcome> {
+        let _ = card;
+        Box::pin(async { BackOutcome::Refused(HandFault::Failed) })
+    }
+
+    /// Starts `agent` on the watch session `session`, which a terminal opened for it in `folder`,
+    /// as a conversation of docket's.
+    fn bring_back_watched<'a>(
+        &'a self,
+        session: &'a prov::SessionId,
+        agent: &'a WatchedAgent,
+        folder: &'a Workspace,
+    ) -> Pending<'a, BroughtOutcome> {
+        let _ = (session, agent, folder);
+        Box::pin(async { BroughtOutcome::Refused(HandFault::Failed) })
+    }
 }
