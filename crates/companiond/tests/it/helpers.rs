@@ -721,6 +721,49 @@ async fn the_assistant_gives_a_job_to_a_helper_by_name_and_the_job_runs_under_th
         "{}",
         w.infer.user_text(1)
     );
+    // The router's own record of the turn says the same.
+    let skeleton = w
+        .episodes()
+        .pop()
+        .expect("the turn left an episode")
+        .skeleton
+        .text();
+    assert!(
+        skeleton.contains("step: companion.helper.post_job  done"),
+        "{skeleton}"
+    );
+}
+
+#[tokio::test]
+async fn a_job_the_desk_refuses_is_failed_in_the_routers_record_and_not_done() {
+    const POST: &str = "org_quire_Companion-companion_helper_post_job";
+    let mut w = world(vec![
+        call(
+            POST,
+            json!({ "helper": "Nobody", "goal": "compare the offers" }),
+        ),
+        words("There is no such helper."),
+    ]);
+    let hub = hub_with(&w, &[]);
+    w.companion.set_desk(Arc::new(hub.clone()));
+
+    let front = w.open("work").await;
+    w.say(&front.session, "ask Nobody to compare the offers")
+        .await;
+
+    assert!(hub.board().jobs().is_empty(), "nothing was handed on");
+    // The companion's own history and the router's record agree: the desk refused it.
+    let skeleton = w
+        .episodes()
+        .pop()
+        .expect("the turn left an episode")
+        .skeleton
+        .text();
+    assert!(
+        skeleton.contains("step: companion.helper.post_job  failed"),
+        "{skeleton}"
+    );
+    assert!(!skeleton.contains("post_job  done"), "{skeleton}");
 }
 
 #[tokio::test]

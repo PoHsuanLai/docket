@@ -218,6 +218,16 @@ pub enum NoteAsk {
     Record(SessionNote),
     /// A record of the helpers: a card, a job or a post.
     Helper(HelperNote),
+    /// The host's desk refused a helper action the router had allowed and recorded as done (the
+    /// router answers `companion.helper.post_job` and its two kin before the desk acts). The
+    /// router amends its own record of the session's latest such call to end in `why`, so its
+    /// ledger and the episode made from it never say done for what was not.
+    DeskRefused {
+        /// The helper action.
+        action: ActionRef,
+        /// What the desk said, as the call's refusal.
+        why: CallRefusal,
+    },
 }
 
 /// What to list of the undo journal.

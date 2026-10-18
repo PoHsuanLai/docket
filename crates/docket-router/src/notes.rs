@@ -7,7 +7,7 @@ use crate::router::Router;
 use crate::seams::{Clock, EventSink, Seams};
 use crate::tasks::{TaskRecord, TaskState};
 use almanac_core::{Episode, EpisodeId, EpisodeKind, EpisodeOutcome, Narrative};
-use docket_core::{AuditRecord, IntentsReply, NoteAsk, WireRefusal, close};
+use docket_core::{AuditRecord, CallEnd, IntentsReply, NoteAsk, WireRefusal, close};
 use prov::{Integrity, ReportStatus, SessionId};
 
 fn refuse(why: WireRefusal) -> IntentsReply {
@@ -74,6 +74,9 @@ impl<S: Seams> Router<S> {
                         .append(AuditRecord::Episode(Box::new(episode)));
                 }
             }
+            NoteAsk::DeskRefused { action, why } => {
+                return self.desk_refused(id, &action, why);
+            }
             NoteAsk::Record(note) => self.seams.sink().append(AuditRecord::Session {
                 at: now,
                 space,
@@ -88,6 +91,40 @@ impl<S: Seams> Router<S> {
             }),
         }
         IntentsReply::Done
+    }
+
+    /// The desk refused a helper action of this session's task that the router recorded as done:
+    /// the latest such step of its ledger ends in `why`. Only the three helper actions can be
+    /// amended, and only a step that stands as done.
+    fn desk_refused(
+        &self,
+        id: &SessionId,
+        action: &docket_core::ActionRef,
+        why: docket_core::CallRefusal,
+    ) -> IntentsReply {
+        if !crate::companion::is_helper_action(action) {
+            return refuse(WireRefusal::NotAllowed);
+        }
+        let mut st = self.locked();
+        let Some(task) = st.sessions.get(id).map(|r| r.task.clone()) else {
+            return refuse(WireRefusal::NoSuchSession);
+        };
+        let step = st.tasks.get_mut(&task).and_then(|t| {
+            t.ledger
+                .steps
+                .iter_mut()
+                .rev()
+                .find(|s| s.action == action.name)
+                .filter(|s| s.end == CallEnd::Done)
+        });
+        match step {
+            Some(step) => {
+                step.end = CallEnd::Refused(why);
+                step.undo = None;
+                IntentsReply::Done
+            }
+            None => refuse(WireRefusal::Malformed),
+        }
     }
 
     /// The router's own skeleton of an ended task of `space`, with `narrative` added: the

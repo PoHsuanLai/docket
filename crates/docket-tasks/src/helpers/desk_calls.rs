@@ -12,7 +12,7 @@ use companion_wire::HelperReply;
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{Ceiling, JobId};
 use docket_core::{
-    ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, LabelText, Outcome, Value,
+    ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, LabelText, NoteAsk, Outcome, Value,
 };
 use porter_client::Transport as InferTransport;
 use prov::TaskId;
@@ -97,8 +97,37 @@ fn ceiling_of(call: &CallRequest) -> Option<Ceiling> {
 
 impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
     /// Carries out a helper action the router allowed, through the host's desk. The call ends as
-    /// the router's outcome when the desk did it, and as the desk's plain refusal when it did not.
+    /// the router's outcome when the desk did it, and as the desk's plain refusal when it did not;
+    /// the router, which answered before the desk acted, is told of a refusal so that its own
+    /// record of the call does not say done.
     pub(crate) async fn through_desk(
+        &mut self,
+        task: &TaskId,
+        call: &CallRequest,
+        outcome: Outcome,
+    ) -> Result<Outcome, CallRefusal> {
+        let result = self.at_desk(task, call, outcome).await;
+        if let Err(why) = &result {
+            self.tell_desk_refused(task, call, why).await;
+        }
+        result
+    }
+
+    /// Amends the router's record of a helper action the desk refused.
+    async fn tell_desk_refused(&self, task: &TaskId, call: &CallRequest, why: &CallRefusal) {
+        let Some(session) = self.runtimes.get(task).map(|rt| rt.session.clone()) else {
+            return;
+        };
+        let note = NoteAsk::DeskRefused {
+            action: call.action.clone(),
+            why: why.clone(),
+        };
+        if let Err(error) = self.intents.session_note(session, note).await {
+            tracing::warn!(%task, %error, "the router was not told the desk refused a call");
+        }
+    }
+
+    async fn at_desk(
         &mut self,
         task: &TaskId,
         call: &CallRequest,

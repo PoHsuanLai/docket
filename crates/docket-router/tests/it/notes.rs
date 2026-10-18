@@ -406,3 +406,119 @@ async fn narrowing_a_subagent_never_widens_what_it_has() {
     );
     assert_eq!(held(&router), after);
 }
+
+fn helper_action(name: &str) -> ActionRef {
+    ActionRef {
+        app: app(docket_router::COMPANION_APP),
+        name: prov::ActionName::parse(name).expect("action"),
+    }
+}
+
+/// The router's answer for a helper action is already in the task's ledger as done.
+fn ledger_done(
+    router: &docket_router::Router<docket_fake::FakeSeams>,
+    task: &prov::TaskId,
+    name: &str,
+) {
+    let mut st = router.state.lock().expect("lock");
+    let ledger = &mut st.tasks.get_mut(task).expect("task").ledger;
+    let call = CallId(ledger.steps.len() as u64);
+    ledger.steps.push(LedgerStep {
+        call,
+        action: prov::ActionName::parse(name).expect("action"),
+        targets: vec![],
+        effect: prov::Effect::Read,
+        end: CallEnd::Done,
+        undo: None,
+    });
+}
+
+async fn end_and_skeleton_text(
+    router: &docket_router::Router<docket_fake::FakeSeams>,
+    session: &SessionId,
+) -> String {
+    let ended = ask(router, &companion(), note(session, NoteAsk::End)).await;
+    assert_eq!(ended, IntentsReply::Done);
+    episodes(router)
+        .pop()
+        .expect("the task left an episode")
+        .skeleton
+        .text()
+}
+
+#[tokio::test]
+async fn a_helper_action_the_desk_refused_ends_the_tasks_record_refused_and_not_done() {
+    let router = router();
+    let s = open(&router, "work", AgentRef::Companion).await;
+    ledger_done(&router, &s.task, docket_router::HELPER_POST_JOB);
+    let refused = CallRefusal::App(AppRefusal::Failed(FailText(
+        "There is no helper by that name.".to_owned(),
+    )));
+    let reply = ask(
+        &router,
+        &companion(),
+        note(
+            &s.session,
+            NoteAsk::DeskRefused {
+                action: helper_action(docket_router::HELPER_POST_JOB),
+                why: refused.clone(),
+            },
+        ),
+    )
+    .await;
+    assert_eq!(reply, IntentsReply::Done);
+    let skeleton = end_and_skeleton_text(&router, &s.session).await;
+    // The line recalled in later turns reads failed, which a planner's recall leaves out
+    // (`recall.rs` holds that test).
+    let line = "step: companion.helper.post_job  failed";
+    assert!(skeleton.contains(line), "{skeleton}");
+    assert!(!skeleton.contains("post_job  done"), "{skeleton}");
+}
+
+#[tokio::test]
+async fn a_helper_action_the_desk_did_not_refuse_stays_done_in_the_record() {
+    let router = router();
+    let s = open(&router, "work", AgentRef::Companion).await;
+    ledger_done(&router, &s.task, docket_router::HELPER_POST_JOB);
+    let skeleton = end_and_skeleton_text(&router, &s.session).await;
+    assert!(
+        skeleton.contains("step: companion.helper.post_job  done"),
+        "{skeleton}"
+    );
+}
+
+#[tokio::test]
+async fn only_a_helper_action_recorded_as_done_can_be_amended_by_the_desk() {
+    let router = router();
+    let s = open(&router, "work", AgentRef::Companion).await;
+    let why = CallRefusal::Timeout;
+    let amend = |action: ActionRef| {
+        note(
+            &s.session,
+            NoteAsk::DeskRefused {
+                action,
+                why: why.clone(),
+            },
+        )
+    };
+    // No such step yet.
+    assert_eq!(
+        ask(
+            &router,
+            &companion(),
+            amend(helper_action(docket_router::HELPER_PROPOSE))
+        )
+        .await,
+        IntentsReply::Refused(WireRefusal::Malformed)
+    );
+    // Another action is not the desk's to amend, even with a step standing.
+    ledger_done(&router, &s.task, "mail.thread.archive");
+    let other = ActionRef {
+        app: app("org.quire.Mail"),
+        name: prov::ActionName::parse("mail.thread.archive").expect("action"),
+    };
+    assert_eq!(
+        ask(&router, &companion(), amend(other)).await,
+        IntentsReply::Refused(WireRefusal::NotAllowed)
+    );
+}
