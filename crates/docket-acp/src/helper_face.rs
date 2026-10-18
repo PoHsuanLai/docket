@@ -2,7 +2,8 @@
 //! editor sees in a workspace, opening and loading their sessions, and the board's sentences
 //! streamed as plain agent lines. A helper's turns, calls and sheets are the ordinary ones: its
 //! session is in the same host, and the person's words to it are the editor's, with the `Editor`
-//! role's caps, like any other prompt.
+//! role's caps, like any other prompt. A helper's conversation is the exception: its turns run
+//! with the helper (`ConversationTurns`).
 
 use crate::calls;
 use crate::fault;
@@ -10,7 +11,7 @@ use crate::helper_replay;
 use crate::helpers::{HelperRow, Helpers};
 use crate::mode::Mode;
 use crate::out;
-use crate::server::{Known, Server, Ticks};
+use crate::server::{Known, Server, Ticks, Turns};
 use crate::sessions::json;
 use crate::wire::{Wire, WireClosed};
 use agent_client_protocol_schema::v1::{
@@ -92,7 +93,15 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             .map_err(|_| fault::internal("the job could not be started"))?;
         let mode = Mode::default();
         let helper = Some(row.id);
-        self.roster.insert(session.clone(), Known { mode, helper });
+        let turns = Turns::Here;
+        self.roster.insert(
+            session.clone(),
+            Known {
+                mode,
+                helper,
+                turns,
+            },
+        );
         json(&NewSessionResponse::new(out::wire_id(&session)).modes(mode.state()))
     }
 
@@ -127,7 +136,15 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
         }
         let mode = Mode::default();
         let helper = Some(row.id);
-        self.roster.insert(row.session, Known { mode, helper });
+        let turns = Turns::AtHelper;
+        self.roster.insert(
+            row.session,
+            Known {
+                mode,
+                helper,
+                turns,
+            },
+        );
         json(&LoadSessionResponse::new().modes(mode.state()))
     }
 

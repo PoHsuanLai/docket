@@ -36,12 +36,23 @@ pub trait Ticks: Send {
     fn now(&self) -> UnixSeconds;
 }
 
+/// Where the turns of a session run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Turns {
+    /// In this connection's own host.
+    Here,
+    /// With the helper whose conversation it is, through [`crate::ConversationTurns`].
+    AtHelper,
+}
+
 /// What the server holds of a session this connection may use.
 #[derive(Debug, Clone)]
 pub(crate) struct Known {
     pub mode: Mode,
     /// The helper the session is a conversation or a job of; none for the companion's.
     pub helper: Option<HelperId>,
+    /// Where its turns run.
+    pub turns: Turns,
 }
 
 /// What woke the serve loop.

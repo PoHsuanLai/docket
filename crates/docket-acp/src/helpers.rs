@@ -4,7 +4,9 @@
 //! conversation and job sessions live in the same `SessionHost` as every other session, so a turn,
 //! a call and a sheet go the way they always do.
 
+use crate::conversation::ConversationTurns;
 use companion_wire::{JobLine, ToldWire};
+use docket_core::UserTurn;
 use docket_core::helper::HelperName;
 use prov::{HelperId, SessionId, SpaceId};
 use std::future::Future;
@@ -29,7 +31,7 @@ pub struct HelperRefusal(pub String);
 /// The person's helpers, as far as an editor may reach them. Nothing here lets the editor answer a
 /// sheet of ours or widen a helper. An editor's "always" in a helper's session is the router's to
 /// record, under the helper's id (`GrantCaller::Helper`), so it is that helper's alone.
-pub trait Helpers: Send {
+pub trait Helpers: ConversationTurns + Send {
     /// Every helper there is. The server keeps those in the editor's workspace's Space.
     fn rows(&self) -> Vec<HelperRow>;
 
@@ -67,5 +69,15 @@ impl Helpers for NoHelpers {
 
     async fn next_told(&mut self, _watching: &[HelperId]) -> ToldWire {
         std::future::pending().await
+    }
+}
+
+impl ConversationTurns for NoHelpers {
+    async fn say(
+        &mut self,
+        _session: &SessionId,
+        _turn: UserTurn,
+    ) -> Result<String, HelperRefusal> {
+        Err(HelperRefusal("There are no helpers here.".to_owned()))
     }
 }

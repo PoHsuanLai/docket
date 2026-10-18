@@ -9,7 +9,7 @@ use crate::helpers::Helpers;
 use crate::history;
 use crate::mode::Mode;
 use crate::out;
-use crate::server::{Known, Server, Ticks};
+use crate::server::{Known, Server, Ticks, Turns};
 use crate::wire::Wire;
 use agent_client_protocol_schema::v1::{
     Error, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest, LoadSessionResponse,
@@ -85,8 +85,15 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             .await
             .map_err(|_| fault::internal("the session could not be opened"))?;
         let mode = Mode::default();
-        self.roster
-            .insert(session.clone(), Known { mode, helper: None });
+        let (helper, turns) = (None, Turns::Here);
+        self.roster.insert(
+            session.clone(),
+            Known {
+                mode,
+                helper,
+                turns,
+            },
+        );
         json(&NewSessionResponse::new(out::wire_id(&session)).modes(mode.state()))
     }
 
@@ -123,7 +130,15 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             })?;
         }
         let mode = Mode::default();
-        self.roster.insert(session, Known { mode, helper: None });
+        let (helper, turns) = (None, Turns::Here);
+        self.roster.insert(
+            session,
+            Known {
+                mode,
+                helper,
+                turns,
+            },
+        );
         json(&LoadSessionResponse::new().modes(mode.state()))
     }
 

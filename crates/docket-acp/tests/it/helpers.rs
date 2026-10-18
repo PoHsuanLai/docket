@@ -5,12 +5,12 @@
 
 use crate::support::*;
 use companion_wire::{JobLine, JobShown, ToldWire};
-use docket_acp::{HelperRefusal, HelperRow, Helpers};
+use docket_acp::{ConversationTurns, HelperRefusal, HelperRow, Helpers};
 use docket_core::helper::{HelperName, JobId};
 use docket_core::{
     AbsPath, AlwaysOffer, Anchor, AppRefusal, CallRefusal, ConfirmDetail, ConfirmId, ConfirmOffer,
     ConfirmParts, ConfirmRequest, FailText, Gesture, LabelText, Seconds, StandingScope, StepEnd,
-    TaintNote, TurnSource,
+    TaintNote, TurnSource, UserTurn,
 };
 use docket_session::fake::MemoryLog;
 use docket_session::{BackendEvent, BackendKind, Opening, Seq, SessionEntry, SessionLog};
@@ -47,6 +47,8 @@ fn row(n: u64, name: &str, space: &str, session_id: &str) -> HelperRow {
 #[derive(Debug, Default)]
 struct Seen {
     opened: Vec<HelperId>,
+    /// The turns taken to a helper's conversation, with the session they were said in.
+    said: Vec<(SessionId, UserTurn)>,
 }
 
 struct FakeHelpers {
@@ -55,6 +57,8 @@ struct FakeHelpers {
     job_session: SessionId,
     told: VecDeque<ToldWire>,
     seen: Arc<Mutex<Seen>>,
+    /// What the helper answers in its conversation: its words, or why it could not.
+    answer: Result<String, String>,
 }
 
 impl FakeHelpers {
@@ -66,8 +70,20 @@ impl FakeHelpers {
             job_session: session("s-70"),
             told: VecDeque::new(),
             seen: seen.clone(),
+            answer: Ok("Offer B is the best.".to_owned()),
         };
         (fake, seen)
+    }
+}
+
+impl ConversationTurns for FakeHelpers {
+    async fn say(&mut self, session: &SessionId, turn: UserTurn) -> Result<String, HelperRefusal> {
+        self.seen
+            .lock()
+            .expect("seen")
+            .said
+            .push((session.clone(), turn));
+        self.answer.clone().map_err(HelperRefusal)
     }
 }
 
@@ -244,7 +260,7 @@ async fn new_with_a_helper_in_meta_opens_a_job_and_a_plain_new_stays_the_compani
 }
 
 #[tokio::test]
-async fn a_prompt_to_a_helper_is_the_persons_turn_with_the_editors_caps() {
+async fn a_prompt_in_a_helpers_job_session_is_the_persons_turn_with_the_editors_caps() {
     let log = seeded().await;
     let (fake, _) = FakeHelpers::new(three());
     let turn = vec![vec![vec![
@@ -256,9 +272,17 @@ async fn a_prompt_to_a_helper_is_the_persons_turn_with_the_editors_caps() {
     let (mut server, mut ed) = rig_with(&log, turn, EDITOR, fake);
     let script = async move {
         ed.initialize().await;
-        load(&mut ed, "s-61").await;
+        let job = ed
+            .call(
+                "session/new",
+                json!({"cwd": "/work/a", "mcpServers": [], "_meta": {"helper": "Research"}}),
+                "NewSessionRequest",
+                "NewSessionResponse",
+            )
+            .await;
+        assert_eq!(job["result"]["sessionId"], "s-70");
         let reply = ed
-            .prompt("s-61", "compare the three offers", &mut allow)
+            .prompt("s-70", "compare the three offers", &mut allow)
             .await;
         assert_eq!(reply["result"]["stopReason"], "end_turn");
         // Editor caps: the editor's own prompt still stands before a change.
@@ -269,9 +293,60 @@ async fn a_prompt_to_a_helper_is_the_persons_turn_with_the_editors_caps() {
     let host = server.into_host();
     assert_eq!(host.turns.len(), 1);
     let (at, turn) = &host.turns[0];
-    assert_eq!(at, &session("s-61"));
+    assert_eq!(at, &session("s-70"));
     assert_eq!(turn.text, "compare the three offers");
     assert!(matches!(&turn.from, TurnSource::Editor(a) if *a == app(EDITOR)));
+}
+
+#[tokio::test]
+async fn a_prompt_in_a_helpers_conversation_goes_to_the_helper_and_streams_its_words_back() {
+    let log = seeded().await;
+    let (fake, seen) = FakeHelpers::new(three());
+    let (mut server, mut ed) = rig_with(&log, vec![], EDITOR, fake);
+    let script = async move {
+        ed.initialize().await;
+        load(&mut ed, "s-61").await;
+        let reply = ed
+            .prompt("s-61", "compare the three offers", &mut allow)
+            .await;
+        assert_eq!(reply["result"]["stopReason"], "end_turn");
+        // The helper's words are one plain agent line, and the editor was asked nothing.
+        assert_eq!(
+            texts(&ed.updates(), "agent_message_chunk"),
+            ["Offer B is the best."]
+        );
+        assert!(ed.permission_requests().is_empty());
+    };
+    let (ran, ()) = tokio::join!(server.run(), script);
+    assert!(ran.is_ok());
+    // The turn did not run in this host: it went through the seam, as the editor's words.
+    let said = seen.lock().expect("seen").said.clone();
+    assert_eq!(said.len(), 1);
+    assert_eq!(said[0].0, session("s-61"));
+    assert_eq!(said[0].1.text, "compare the three offers");
+    assert!(matches!(&said[0].1.from, TurnSource::Editor(a) if *a == app(EDITOR)));
+    assert!(server.into_host().turns.is_empty());
+}
+
+#[tokio::test]
+async fn a_helper_that_cannot_answer_in_its_conversation_is_a_plain_error() {
+    let log = seeded().await;
+    let (mut fake, _) = FakeHelpers::new(three());
+    fake.answer = Err("Research needs a model before you can talk with it.".to_owned());
+    let (mut server, mut ed) = rig_with(&log, vec![], EDITOR, fake);
+    let script = async move {
+        ed.initialize().await;
+        load(&mut ed, "s-61").await;
+        let params = json!({"sessionId": "s-61", "prompt": [{"type": "text", "text": "hello"}]});
+        let id = ed.send("session/prompt", params, "PromptRequest").await;
+        let reply = ed.until_reply(id, "PromptResponse", &mut |_| None).await;
+        assert_eq!(
+            reply["error"]["message"],
+            "Research needs a model before you can talk with it."
+        );
+    };
+    let (ran, ()) = tokio::join!(server.run(), script);
+    assert!(ran.is_ok());
 }
 
 #[tokio::test]

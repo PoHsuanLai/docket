@@ -7,13 +7,14 @@ use companion_client::{Changes, HelpersTransport};
 use companion_wire::{
     HelperCardView, HelperForm, HelperLine, HelperReply, HelpersView, JobLine, JobShown,
     ProposalId, RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView,
-    ToldWire,
+    SayReply, ToldWire,
 };
-use docket_acp::Helpers;
-use docket_acp_bin::helpers::{BusHelpers, LiveHelpers};
+use docket_acp::{ConversationTurns, HelperRefusal, Helpers};
+use docket_acp_bin::helpers::{BusHelpers, LiveHelpers, Records};
 use docket_client::TransportError;
 use docket_core::helper::{HelperModel, HelperName, HelperPhase, JobId};
 use docket_core::routine::RoutineId;
+use docket_core::{TurnEnd, TurnId, TurnSource, TurnVia, UserTurn};
 use futures_util::stream;
 use porter_core::Count;
 use prov::{EntityId, HelperId, SessionId, SpaceId};
@@ -108,6 +109,17 @@ impl HelpersTransport for Daemon {
 
     async fn changes(&self) -> Result<Changes, TransportError> {
         Ok(Box::pin(stream::iter([()])))
+    }
+
+    async fn say(
+        &self,
+        session: &SessionId,
+        turn: u64,
+        text: &str,
+    ) -> Result<SayReply, TransportError> {
+        Ok(SayReply::Said(format!(
+            "{session} heard turn {turn}: {text}"
+        )))
     }
 
     async fn create(&self, _: &HelperForm) -> Result<HelperReply, TransportError> {
@@ -223,16 +235,46 @@ async fn a_job_cannot_be_started_from_the_editor_and_the_refusal_is_in_plain_wor
     assert!(refusal.0.contains("Helpers window"), "{}", refusal.0);
 }
 
+/// A router that writes down what it was asked.
+struct WrittenDown(std::sync::Arc<std::sync::Mutex<Vec<String>>>);
+
+impl Records for WrittenDown {
+    async fn record(&self, _: &SessionId, _: &UserTurn) -> Result<TurnId, HelperRefusal> {
+        self.0.lock().expect("seen").push("record".to_owned());
+        Ok(TurnId(7))
+    }
+
+    async fn ended(&self, _: &SessionId, _: TurnId, end: TurnEnd) {
+        self.0.lock().expect("seen").push(format!("ended {end:?}"));
+    }
+}
+
+fn spoken(text: &str) -> UserTurn {
+    UserTurn {
+        id: TurnId(1),
+        text: text.to_owned(),
+        at: prov::UnixSeconds(0),
+        from: TurnSource::Editor(porter_core::AppName::parse("org.quire.Acp").expect("app")),
+        via: TurnVia::Typed,
+    }
+}
+
 #[tokio::test]
-async fn a_session_is_in_a_helpers_voice_only_when_it_is_that_helpers_conversation() {
-    use docket_acp_bin::voices::BusVoices;
-    use docket_tasks::Voices;
-    let voices = BusVoices::over(Daemon::new());
-    let theirs = SessionId::parse("s-61").expect("session");
-    let voice = voices.voice_of(&theirs).await.expect("the helper's voice");
-    let role = voice.role.expect("a role");
-    assert!(role.as_str().contains("You are Research"), "{role:?}");
-    assert!(role.as_str().contains("Looks things up."), "{role:?}");
-    let other = SessionId::parse("s-62").expect("session");
-    assert_eq!(voices.voice_of(&other).await, None);
+async fn the_persons_words_are_recorded_then_taken_to_the_daemon_and_the_turn_is_ended() {
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let mut helpers = BusHelpers::connect_recording(Daemon::new(), WrittenDown(seen.clone()))
+        .await
+        .expect("connected");
+    let talk = SessionId::parse("s-61").expect("session");
+    let words = helpers.say(&talk, spoken("hello")).await.expect("said");
+    assert_eq!(words, "s-61 heard turn 7: hello");
+    assert_eq!(*seen.lock().expect("seen"), ["record", "ended Answered"]);
+
+    // Without a router to record with, nothing is sent, and the person is told so.
+    let mut unrecorded = BusHelpers::connect(Daemon::new()).await.expect("connected");
+    let refusal = unrecorded
+        .say(&talk, spoken("hello"))
+        .await
+        .expect_err("refused");
+    assert!(refusal.0.contains("nothing was sent"), "{}", refusal.0);
 }

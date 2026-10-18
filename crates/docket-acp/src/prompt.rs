@@ -2,18 +2,20 @@
 //! a `session/cancel` is heard while the assistant works, and it asks the editor's person before
 //! a call the mode says to ask about. The machine (`turn`) decides; this only carries.
 
+use crate::calls;
+use crate::conversation::ConversationTurns;
 use crate::fault;
 use crate::helpers::Helpers;
 use crate::mode::Mode;
 use crate::out;
 use crate::permission::{self, verdict_of_reply};
-use crate::server::{Server, Ticks};
+use crate::server::{Server, Ticks, Turns};
 use crate::turn::{Finish, Order, Turn, Wants};
 use crate::wire::{Incoming, Wire, WireClosed};
 use agent_client_protocol_schema::rpc::RequestId;
 use agent_client_protocol_schema::v1::{
     AGENT_METHOD_NAMES, CLIENT_METHOD_NAMES, CancelNotification, ContentBlock, Error,
-    PromptRequest, PromptResponse, RequestPermissionRequest, SessionNotification,
+    PromptRequest, PromptResponse, RequestPermissionRequest, SessionNotification, StopReason,
 };
 use docket_core::{TurnId, TurnSource, TurnVia, UserTurn};
 use docket_session::{BackendEvent, HostFault, SessionHost, SessionLog, TurnEnd};
@@ -44,6 +46,14 @@ fn refused(fault: HostFault) -> Error {
     }
 }
 
+/// A prompt that was accepted, and where its turn runs.
+enum Begun {
+    /// In this connection's host, in this mode.
+    Here(SessionId, Mode),
+    /// With the helper, whose conversation it is.
+    AtHelper(SessionId, UserTurn),
+}
+
 /// What came of asking the editor.
 pub(crate) enum Reply {
     /// Its answer.
@@ -66,7 +76,8 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
     ) -> Result<(), WireClosed> {
         match self.begin(params).await {
             Err(error) => self.wire.write_line(out::failure(&id, &error)).await,
-            Ok((session, mode)) => {
+            Ok(Begun::AtHelper(session, turn)) => self.converse(id, session, turn).await,
+            Ok(Begun::Here(session, mode)) => {
                 let mut turn = Turn::new(mode, self.covered.clone());
                 let finish = self.drive(&session, &mut turn).await;
                 self.covered = turn.covered();
@@ -80,16 +91,17 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
         }
     }
 
-    /// Records the person's turn and hands it to the host.
-    async fn begin(&mut self, params: serde_json::Value) -> Result<(SessionId, Mode), Error> {
+    /// Reads the prompt, and either hands the person's turn to the host or, for a helper's
+    /// conversation, keeps it to be taken to the helper.
+    async fn begin(&mut self, params: serde_json::Value) -> Result<Begun, Error> {
         let asked: PromptRequest = fault::params(params)?;
         let session =
             SessionId::parse(&asked.session_id.0).map_err(|_| fault::unknown_session())?;
-        let mode = self
+        let known = self
             .roster
             .get(&session)
-            .ok_or_else(fault::unknown_session)?
-            .mode;
+            .ok_or_else(fault::unknown_session)?;
+        let (mode, turns) = (known.mode, known.turns);
         let text = spoken(&asked.prompt).ok_or_else(|| fault::invalid("a prompt needs text"))?;
         let turn = UserTurn {
             id: TurnId(self.mint()),
@@ -98,8 +110,34 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             from: TurnSource::Editor(self.editor.clone()),
             via: TurnVia::Typed,
         };
+        if turns == Turns::AtHelper {
+            return Ok(Begun::AtHelper(session, turn));
+        }
         self.host.turn(&session, turn).await.map_err(refused)?;
-        Ok((session, mode))
+        Ok(Begun::Here(session, mode))
+    }
+
+    /// A turn in a helper's conversation: the person's words go to the helper, whose words come
+    /// back as one agent line, and the prompt ends. A helper that could not answer is a plain
+    /// error in its own sentence.
+    async fn converse(
+        &mut self,
+        id: RequestId,
+        session: SessionId,
+        turn: UserTurn,
+    ) -> Result<(), WireClosed> {
+        let line = match self.helpers.say(&session, turn).await {
+            Ok(words) => {
+                if !words.trim().is_empty() {
+                    let note = SessionNotification::new(out::wire_id(&session), calls::say(words));
+                    let update = out::notify(CLIENT_METHOD_NAMES.session_update, &note);
+                    self.wire.write_line(update).await?;
+                }
+                out::reply(&id, &PromptResponse::new(StopReason::EndTurn))
+            }
+            Err(refusal) => out::failure(&id, &fault::internal(&refusal.0)),
+        };
+        self.wire.write_line(line).await
     }
 
     async fn drive(&mut self, session: &SessionId, turn: &mut Turn) -> Result<Finish, WireClosed> {

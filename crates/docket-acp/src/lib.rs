@@ -12,6 +12,8 @@
 //!   them, `session/load` replays their recent jobs, `session/new` with `_meta.helper` opens a job)
 //!   and the board's sentences reach it as plain lines. The editor never answers a helper's sheet
 //!   for the helper: its "always" is a grant for that helper alone.
+//! - `ConversationTurns`: the seam through which the person's words in a helper's conversation reach
+//!   the daemon that keeps the helper, which runs the turn; the editor carries words in and out.
 //! - `client` (feature `client`): the other direction (S4), an external agent as a session backend.
 //! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`bulkhead`),
 //!   ruled by the `Execute` rules. They run in our sandbox, never in an editor's terminal.
@@ -25,6 +27,7 @@ pub mod bulk;
 mod calls;
 pub mod client;
 mod command_deadline;
+mod conversation;
 mod covered;
 mod expose;
 mod fault;
@@ -48,6 +51,7 @@ mod wire;
 
 pub use calls::{Outcome, outcome};
 pub use command_deadline::CommandDeadline;
+pub use conversation::ConversationTurns;
 pub use covered::Covered;
 pub use expose::{Permit, Refusal};
 pub use helpers::{HelperRefusal, HelperRow, Helpers, NoHelpers};
