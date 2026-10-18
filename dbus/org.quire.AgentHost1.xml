@@ -10,5 +10,13 @@
      <arg name="turn" type="s" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="AppsBegin">
+     <arg name="ask" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
+   <method name="AppsWait">
+     <arg name="call" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
  </interface>
 </node>

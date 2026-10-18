@@ -133,6 +133,14 @@ pub enum JobFault {
     Refused,
     /// It used up its steps.
     OutOfSteps,
+    /// The app it runs is in the list of coding agents but is not installed here.
+    NotInstalled,
+    /// The app it runs is not in the list of coding agents yet.
+    NotSetUp,
+    /// Coding agents are turned off in Settings.
+    TurnedOff,
+    /// The coding agent was busy with a request that cannot share it.
+    Busy,
 }
 
 impl JobFault {
@@ -143,6 +151,10 @@ impl JobFault {
             JobFault::NoAnswer => "the model gave no usable answer",
             JobFault::Refused => "a step was refused and it could not go on",
             JobFault::OutOfSteps => "it used up its steps",
+            JobFault::NotInstalled => "the app it runs is not installed on this computer",
+            JobFault::NotSetUp => "the app it runs is not in the list of coding agents in Settings",
+            JobFault::TurnedOff => "coding agents are turned off in Settings",
+            JobFault::Busy => "the coding agent was busy with another request",
         }
     }
 }

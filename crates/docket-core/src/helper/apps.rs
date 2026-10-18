@@ -8,6 +8,7 @@ use super::agent::{SignInWay, TerminalLogin, UntrustedWords};
 use super::card::HelperCard;
 use super::job::{Job, JobFault};
 use prov::{HelperId, SessionId, TaskId};
+use serde::{Deserialize, Serialize};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -15,7 +16,7 @@ use std::pin::Pin;
 pub type Pending<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// How a board job ended on an agent app.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AgentOutcome {
     /// The agent answered. Its words are the agent model's: untrusted. The task and session are
     /// the agent's own at the router, from which the answer's label comes.
@@ -36,7 +37,7 @@ pub enum AgentOutcome {
 }
 
 /// What choosing a way of signing in came to.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignInOutcome {
     /// The agent signed in.
     SignedIn,
@@ -50,7 +51,7 @@ pub enum SignInOutcome {
 
 /// What signing out came to. An agent with no sign-out of its own is signed out with the logout
 /// command of its entry in the agent list, which the implementation runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SignOutOutcome {
     /// Signed out.
     SignedOut,
@@ -59,7 +60,7 @@ pub enum SignOutOutcome {
 }
 
 /// What asking the agent again after a sign-in in a terminal came to.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CheckOutcome {
     /// The agent is signed in.
     SignedIn,

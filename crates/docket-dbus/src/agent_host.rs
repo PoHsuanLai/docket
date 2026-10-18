@@ -18,6 +18,14 @@ pub trait AgentHost {
     /// working (ask again), and once it has finished, the `HandReply` JSON (once: the turn is
     /// then forgotten).
     fn wait(&self, turn: &str) -> zbus::Result<String>;
+
+    /// Starts one call on the agent apps that are helpers (`AppsAsk` JSON) and answers at once
+    /// with its id. Only companiond may call.
+    fn apps_begin(&self, ask: &str) -> zbus::Result<String>;
+
+    /// Waits a while for the call `call` to end. Answers the empty text while it is still
+    /// working (ask again), and once it has ended, the `AppsReply` JSON (once).
+    fn apps_wait(&self, call: &str) -> zbus::Result<String>;
 }
 
 /// The daemon's side.
@@ -33,6 +41,16 @@ impl AgentHostSkeleton {
 
     fn wait(&self, turn: String) -> fdo::Result<String> {
         let _ = (turn,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn apps_begin(&self, ask: String) -> fdo::Result<String> {
+        let _ = (ask,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn apps_wait(&self, call: String) -> fdo::Result<String> {
+        let _ = (call,);
         Err(crate::introspect::frozen())
     }
 }

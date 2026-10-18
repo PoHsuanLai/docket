@@ -18,12 +18,14 @@
 //! - [`HelperRecord`], [`HelperRecordKind`]: what is stored and restored.
 //! - [`SignInWay`], [`SignInHow`], [`TerminalLogin`], [`TerminalRequest`], [`UntrustedWords`]: what an
 //!   agent-app helper adds to the card.
-//! - [`AgentApps`], [`AgentOutcome`]: the seam to the host of agent-app helpers.
+//! - [`AgentApps`], [`AgentOutcome`]: the seam to the host of agent-app helpers; [`AppsAsk`] and
+//!   [`AppsReply`] carry its calls to a host in another process.
 //! - [`Ceiling`], [`reach_policy`], [`reach_lines`]: a reach from the apps the person names.
 //! - [`HelperSeat`]: what the router is told when a job's session opens.
 
 mod agent;
 mod apps;
+mod apps_wire;
 mod board;
 mod card;
 mod ids;
@@ -39,6 +41,7 @@ pub use agent::{SignInHow, SignInWay, TerminalLogin, TerminalRequest, UntrustedW
 pub use apps::{
     AgentApps, AgentOutcome, CheckOutcome, Pending as AgentPending, SignInOutcome, SignOutOutcome,
 };
+pub use apps_wire::{AppsAsk, AppsReply};
 pub use board::{Board, BoardEffect, BoardEvent, CallVerdict, Launch, NewJob, step};
 pub use card::{
     CardDraft, HelperBudget, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase,

@@ -58,7 +58,10 @@ pub struct TerminalRequest {
 /// What an agent app said in answer to a job. It is the agent model's text: the board labels it
 /// untrusted, a planner reads it only as a handle and never as an instruction, and it never
 /// becomes another helper's goal.
-#[derive(Clone, PartialEq, Eq)]
+///
+/// It crosses the bus between the board and the host of the agent apps as the plain text it is.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct UntrustedWords(String);
 
 impl UntrustedWords {

@@ -234,3 +234,35 @@ fn two_helpers_that_run_the_same_program_do_not_share_a_grant_caller() {
         Ok(GrantCaller::AcpAgent(_))
     ));
 }
+
+#[test]
+fn the_calls_on_the_host_of_the_agent_apps_cross_a_bus_as_they_are() {
+    let asks = [
+        AppsAsk::Stop { helper: hid(1) },
+        AppsAsk::Forget { helper: hid(2) },
+    ];
+    for ask in asks {
+        let text = serde_json::to_string(&ask).expect("text");
+        assert_eq!(serde_json::from_str::<AppsAsk>(&text).expect("ask"), ask);
+    }
+    let replies = [
+        AppsReply::Stop,
+        AppsReply::Forget,
+        AppsReply::Run(AgentOutcome::Stopped),
+        AppsReply::Run(AgentOutcome::Failed(JobFault::NotInstalled)),
+        AppsReply::Run(AgentOutcome::Done {
+            words: UntrustedWords::new("Three offers.".to_owned()),
+            task: TaskId::parse("t-1").expect("task"),
+            session: prov::SessionId::parse("s-1").expect("session"),
+        }),
+        AppsReply::SignIn(SignInOutcome::SignedIn),
+        AppsReply::Check(CheckOutcome::Failed),
+        AppsReply::SignOut(SignOutOutcome::SignedOut),
+    ];
+    for reply in replies {
+        let text = serde_json::to_string(&reply).expect("text");
+        assert_eq!(serde_json::from_str::<AppsReply>(&text).expect("reply"), reply);
+    }
+    // A fault the host names for a missing app is a sentence the person can read.
+    assert!(!JobFault::NotInstalled.plain().is_empty() && !JobFault::NotSetUp.plain().is_empty());
+}
