@@ -13,6 +13,7 @@ use crate::plain::without_ids;
 use crate::read_ask::read_output;
 use crate::render::messages_with;
 use crate::role::RoleText;
+use crate::voice::Voice;
 use crate::show::{MOST_SHOWN, finish_output};
 use crate::want::want_schema;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
@@ -311,6 +312,20 @@ impl<P: Transport> PlannerModel<P> {
     /// The options every inference session of this planner opens with.
     pub fn open_options(&self) -> &OpenOptions {
         &self.options
+    }
+
+    /// The voice this planner speaks in now.
+    pub fn voice(&self) -> Voice {
+        Voice {
+            role: self.role.clone(),
+            options: self.options.clone(),
+        }
+    }
+
+    /// Speaks in `voice` from now on: its role and the options its sessions open with.
+    pub fn set_voice(&mut self, voice: Voice) {
+        self.role = voice.role;
+        self.options = voice.options;
     }
 
     /// Replaces the agent's role, for a task whose goal is only known once it opens.

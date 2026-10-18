@@ -146,6 +146,9 @@ where
                 }
                 let (turn_id, ending_session) = (turn.id, session.clone());
                 let end = 'run: {
+                    // A helper's conversation is driven in the helper's voice, any other session in
+                    // the assistant's.
+                    core.speak_as(&session).await;
                     core.reopen(&task);
                     let Ok(begun) = core.begin_ask(AskWire {
                         session,

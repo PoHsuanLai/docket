@@ -159,6 +159,8 @@ pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     /// of the helpers its planner is told of, and its planner is offered only what its reach
     /// covers.
     pub as_helper: Option<AsHelper>,
+    /// Which sessions are a helper's conversation, when the host has any.
+    pub(crate) speaking: Option<crate::voices::Speaking>,
 }
 
 /// Whether a companion writes the legacy session notes (`companion.session.*`) a restart used to
@@ -222,6 +224,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             hand: None,
             desk: None,
             as_helper: None,
+            speaking: None,
         }
     }
 

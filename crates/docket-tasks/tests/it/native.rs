@@ -312,3 +312,42 @@ async fn a_sheet_the_router_asks_reaches_the_edge_as_a_sheet_and_its_answer_goes
     );
     assert_eq!(*desk.0.lock().expect("lock"), [SheetChoice::Refused]);
 }
+
+/// Every session is a helper's conversation.
+#[derive(Debug)]
+struct Everyone(docket_planner::Voice);
+
+impl docket_tasks::Voices for Everyone {
+    fn voice_of(
+        &self,
+        _: &prov::SessionId,
+    ) -> docket_tasks::Pending<'_, Option<docket_planner::Voice>> {
+        let voice = self.0.clone();
+        Box::pin(async move { Some(voice) })
+    }
+}
+
+#[tokio::test]
+async fn a_turn_in_a_helpers_conversation_asks_as_the_helper_and_in_its_role() {
+    let helper: prov::HelperId = serde_json::from_str("\"h-1\"").expect("helper id");
+    let name = docket_core::helper::HelperName::parse("Inbox").expect("name");
+    let model = docket_core::helper::HelperModel::Unset;
+    let voice = docket_tasks::conversation_voice(&helper, &name, "Tidies the mail.", &model)
+        .expect("a voice");
+    let mut w = World::new(vec![words("All tidy.")]);
+    w.host = docket_tasks::NativeHost::over(
+        companion(&w.router, &w.infer).with_voices(Arc::new(Everyone(voice))),
+        Arc::clone(&w.log),
+    );
+    let s = w.host.open(opening()).await.expect("open");
+    w.host.turn(&s, said("how is it?")).await.expect("turn");
+    while !matches!(pull(&mut w, &s).await, BackendEvent::TurnEnd(_)) {}
+    let asked_as =
+        porter_infer::OpenOptions::default().with_asker(porter_infer::Asker::Helper(helper));
+    let opened = w.infer.opened();
+    assert!(!opened.is_empty());
+    assert!(opened.iter().all(|o| *o == asked_as), "{opened:?}");
+    let system = w.infer.system_text(0);
+    assert!(system.contains("You are Inbox"), "{system}");
+    assert!(system.contains("Tidies the mail."), "{system}");
+}

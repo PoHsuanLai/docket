@@ -3663,13 +3663,20 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 
 ## The editor face of the helpers: what stays open
 
-- The conversation session of a helper is opened by companiond with the helper's seat
-  (`SeatPlace::Conversation`) and kept until the helper is removed. A router restart forgets its
-  seat (the seat is not in the session log, as for a job), and companiond opens a new one on the
-  next change of the board only for a helper that has none; a conversation from before the restart
-  stays in the list of stored sessions without a seat. Open: write the seat to the log.
-- The editor's native host drives a helper's conversation with the assistant's own planner, not
-  the helper's: the helper's role and model are used for its jobs only. Open.
+- DONE (hd2). The conversation session of a helper is opened by companiond with the helper's seat
+  (`SeatPlace::Conversation`) and kept until the helper is removed. The router writes the seat to
+  the session log (`SessionEntry::Seat`, right after the opening; an older log has none and reads
+  as before), a restored session keeps it, and a second open of a helper's conversation (companiond
+  after a restart has forgotten its first) gets the live or stored one back (`conversation.rs`), so
+  no helper has two. Only a conversation's seat is written: a job's is still the companion's to
+  give again, so a restored job has none. A forked session does not carry the seat.
+- DONE (hd2). The editor's native host drives a helper's conversation in the helper's voice: its
+  role, and its model asked for by the helper (`docket_tasks::Voices`, `Companion::speak_as` at the
+  start of each turn; `docket-acp-bin` reads the helper's line and card from companiond). Its reach
+  and ceiling were already the router's, through the seat. Open: the editor's planner is still
+  offered the actions of every app, not only the helper's (the router refuses beyond the reach, as
+  it asks beyond it for a job); the steps of a turn are the assistant's; a daemon that does not
+  answer within two seconds leaves the turn in the assistant's voice.
 - A sign-in in a terminal carries the command inside the sandbox (`TerminalRun::confined`) with the
   host network, because a sign-in has to reach the site that signs the person in; the files it can
   write are the agent's own state and the helper's folder. Open: the allowlist of the entry for a

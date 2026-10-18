@@ -50,6 +50,7 @@ mod sources;
 mod stored_roster;
 mod tap;
 mod task;
+mod voices;
 
 pub use act::{Acting, card_id};
 pub use completion::completion_effects;
@@ -58,8 +59,8 @@ pub use drive::refusal_of;
 pub use fault::ServeFault;
 pub use handoff::Handoff;
 pub use helpers::{
-    JobEnding, JobInput, JobReport, JobSpec, OpenedJob, helper_query, helper_records_of,
-    open_options, planner_for, role_text,
+    JobEnding, JobInput, JobReport, JobSpec, OpenedJob, conversation_voice, helper_query,
+    helper_records_of, open_options, planner_for, role_text,
 };
 pub use memory::{episodes_of, hits_of, primer_of, profile_of};
 pub use native::{Core, NativeBackend, NativeHost, RouterLog};
@@ -71,6 +72,7 @@ pub use recover::{
 pub use resume::Restarted;
 pub use runtime::{Begun, Companion, idle_state};
 pub use seams::{Now, Quiet, Surface};
+pub use voices::Voices;
 pub use shared::{Change, Shared};
 pub use sources::nowhere;
 pub use stored_roster::{events_of, stored_events};

@@ -20,6 +20,7 @@ pub mod agent;
 pub mod callers;
 pub mod confirm;
 pub mod helpers;
+pub mod voices;
 
 use companion_client::DbusHelpers;
 use confirm::ConfirmObject;
@@ -39,6 +40,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{BufReader, stdin, stdout};
+use voices::BusVoices;
 
 /// The bus name the router knows this process by.
 pub const BUS_NAME: &str = "org.quire.Acp";
@@ -136,6 +138,7 @@ pub async fn serve_with(
         .map_err(bus)?;
     connection.request_name(BUS_NAME).await.map_err(bus)?;
     let shell = AppName::parse(SHELL).map_err(|_| LiveFault::App(SHELL.to_owned()))?;
+    let voices = DbusHelpers::over(&connection).await.ok();
     let companion = Companion::new(
         Intents::over(DbusTransport::new(connection.clone())),
         PlannerModel::new(docket_dbus::inferd_transport(&connection, trace)),
@@ -146,6 +149,11 @@ pub async fn serve_with(
     // An editor's sessions are not the companion's: no roster notes, so a restart of companiond
     // does not list them.
     .without_notes();
+    // A helper's conversation is driven in that helper's voice, when companiond answers.
+    let companion = match voices {
+        Some(transport) => companion.with_voices(Arc::new(BusVoices::over(transport))),
+        None => companion,
+    };
     // Stored sessions are read through the router: memoryd answers log reads for the router and
     // the shell only.
     let log: Log = Arc::new(RouterLog::new(Intents::over(DbusTransport::new(

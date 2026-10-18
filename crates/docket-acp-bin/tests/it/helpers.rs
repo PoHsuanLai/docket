@@ -206,3 +206,17 @@ async fn a_job_cannot_be_started_from_the_editor_and_the_refusal_is_in_plain_wor
     let refusal = helpers.open_job(&helper(1)).await.expect_err("refused");
     assert!(refusal.0.contains("Helpers window"), "{}", refusal.0);
 }
+
+#[tokio::test]
+async fn a_session_is_in_a_helpers_voice_only_when_it_is_that_helpers_conversation() {
+    use docket_acp_bin::voices::BusVoices;
+    use docket_tasks::Voices;
+    let voices = BusVoices::over(Daemon::new());
+    let theirs = SessionId::parse("s-61").expect("session");
+    let voice = voices.voice_of(&theirs).await.expect("the helper's voice");
+    let role = voice.role.expect("a role");
+    assert!(role.as_str().contains("You are Research"), "{role:?}");
+    assert!(role.as_str().contains("Looks things up."), "{role:?}");
+    let other = SessionId::parse("s-62").expect("session");
+    assert_eq!(voices.voice_of(&other).await, None);
+}
