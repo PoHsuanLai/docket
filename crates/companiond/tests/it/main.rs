@@ -12,6 +12,7 @@ mod planner;
 mod prefetch;
 mod records;
 mod resume;
+mod routines;
 mod serve;
 mod shown;
 mod skills;

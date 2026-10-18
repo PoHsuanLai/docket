@@ -11,6 +11,7 @@ use super::notice::Notice;
 use super::post::{Post, PostId, PostPart, PostTo};
 use super::records::{CardRecord, HelperRecord};
 use super::rules::{JobRefusal, admit_goal};
+use almanac_core::EventRef;
 use prov::{EntityId, HelperId, Label, TaskId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -85,6 +86,14 @@ pub enum BoardEvent {
     Remove(HelperId),
     /// A job is posted.
     Post(Box<NewJob>),
+    /// A job is posted for a routine's run that an almanac event started: the event goes with the
+    /// job as a handle, and no part of it is in the goal.
+    PostAbout {
+        /// The job.
+        job: Box<NewJob>,
+        /// The event.
+        about: EventRef,
+    },
     /// The helper is free: give it its oldest open job, unless that job failed before.
     Take(HelperId),
     /// The person asks the helper to try again: give it its oldest open job, even one that
@@ -235,6 +244,8 @@ impl Board {
                         None => board.posts.push(*post),
                     }
                 }
+                // Routines are the routine book's, read back by their own query.
+                HelperRecord::Routine(_) => {}
             }
         }
         for card in &mut board.cards {
@@ -458,7 +469,7 @@ impl Board {
         }));
     }
 
-    fn post_job(&mut self, new: NewJob, fx: &mut Vec<BoardEffect>) {
+    fn post_job(&mut self, new: NewJob, about: Option<EventRef>, fx: &mut Vec<BoardEffect>) {
         let source = match admit_goal(new.origin) {
             Ok(source) => source,
             Err(refusal) => {
@@ -493,6 +504,7 @@ impl Board {
             giver: new.giver,
             with,
             failed: None,
+            about,
         };
         fx.push(save_job(&job));
         fx.push(BoardEffect::Posted(job.id));
@@ -686,7 +698,8 @@ pub fn step(mut board: Board, event: BoardEvent) -> (Board, Vec<BoardEffect>) {
         BoardEvent::Pause(helper) => board.pause(&helper, PauseWhy::ByPerson, &mut fx),
         BoardEvent::Resume(helper) => board.resume(&helper, &mut fx),
         BoardEvent::Remove(helper) => board.remove(&helper, &mut fx),
-        BoardEvent::Post(new) => board.post_job(*new, &mut fx),
+        BoardEvent::Post(new) => board.post_job(*new, None, &mut fx),
+        BoardEvent::PostAbout { job, about } => board.post_job(*job, Some(about), &mut fx),
         BoardEvent::Take(helper) => board.launch_next(&helper, Retry::Fresh, &mut fx),
         BoardEvent::Retry(helper) => board.launch_next(&helper, Retry::Again, &mut fx),
         BoardEvent::Started { job, task } => board.started(job, task, &mut fx),

@@ -11,6 +11,7 @@
 //!   episodes, runs); `stored_events`, `events_of`: the sessions, from `Session.Stored`.
 //! - `completion_effects`: how a finished worker or run reaches the front task.
 //! - `serve`, `serve_on`: `org.quire.Companion1`.
+//! - `Routines`, `RoutineDesk`: a helper's standing instructions, run by a small timer here.
 //! - `HostLink`: a turn handed to the coding agent the person chose, through the agent host.
 
 mod bell;
@@ -21,6 +22,7 @@ mod daemon;
 mod follow;
 mod handoff;
 mod helpers;
+mod routines;
 mod serve;
 mod speaker;
 
@@ -41,6 +43,10 @@ pub use docket_tasks::{
 };
 pub use handoff::HostLink;
 pub use helpers::{Hub, Told};
+pub use routines::{
+    Awake, EventAsk, Host, HubHost, RoutineDesk, Routines, Seen, SystemZone, Timers, UnitDir,
+    UnitFile, units_of,
+};
 pub use serve::{serve, serve_on, serve_on_rooted};
 pub use speaker::{Call, Speaker, Speakers, permits};
 

@@ -11,6 +11,7 @@ mod ask;
 mod helpers;
 mod record;
 mod route;
+mod routines;
 mod route_log;
 
 pub use answer::{
@@ -28,3 +29,7 @@ pub use route::{
     why_says,
 };
 pub use route_log::RouteLog;
+pub use routines::{
+    EventForm, RoutineCardView, RoutineForm, RoutineLine, RoutineReply, RoutineShown,
+    RoutinesView, RunLine, RunShown, WhenForm, routine_card, routine_line,
+};

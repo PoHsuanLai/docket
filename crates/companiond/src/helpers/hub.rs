@@ -8,16 +8,21 @@
 
 use crate::Companiond;
 use crate::Shared;
+use almanac_core::{RecentEntry, RecentQuery};
 use docket_client::Transport as IntentsTransport;
-use docket_core::ValidManifest;
 use docket_core::helper::{
     Board, BoardEffect, BoardEvent, CallVerdict, CardRecord, HelperCard, HelperName, HelperRecord,
-    JobFault, JobId, Launch, Notice, ResultHandle, TaskRef, owned_sentence, step,
+    JobFault, JobId, JobStatus, Launch, Notice, ResultHandle, TaskRef, owned_sentence, step,
 };
-use docket_tasks::{Change, JobEnding, JobInput, JobReport, JobSpec, OpenedJob, Surface};
+use docket_core::routine::JobEnd;
+use docket_core::{SessionOpen, ValidManifest};
+use docket_tasks::{
+    Change, JobEnding, JobInput, JobReport, JobSpec, OpenedJob, RecentSource, RouterRecent,
+    Surface,
+};
 use futures_util::lock::Mutex as AsyncMutex;
 use porter_client::Transport as InferTransport;
-use prov::{EntityId, HelperId, SessionId, SpaceId, TaskId};
+use prov::{AgentRef, EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -576,5 +581,94 @@ where
                 abort.abort();
             });
         }
+    }
+}
+
+/// What the routines need of the hub: where a helper works, what its jobs came to, the sentences
+/// the person is told, and the records and events of the Spaces.
+impl<P, I> Hub<P, I>
+where
+    P: InferTransport + 'static,
+    I: IntentsTransport + 'static,
+{
+    /// The Space of a helper.
+    pub(crate) fn helper_space(&self, helper: &HelperId) -> Option<SpaceId> {
+        self.with_state(|state| state.board.card(helper).map(|c| c.space.clone()))
+    }
+
+    /// What the person calls a helper.
+    pub(crate) fn helper_name(&self, helper: &HelperId) -> Option<HelperName> {
+        self.with_state(|state| state.board.card(helper).map(|c| c.name.clone()))
+    }
+
+    /// How a job ended, once it has: done, or open again after a failure. A job the board no
+    /// longer holds did not finish.
+    pub(crate) fn job_end(&self, job: JobId) -> Option<JobEnd> {
+        self.with_state(|state| {
+            let Some(found) = state.board.job(job) else {
+                return Some(JobEnd::Failed(JobFault::Crashed));
+            };
+            match (&found.status, found.failed) {
+                (JobStatus::Done(_), _) => Some(JobEnd::Done),
+                (_, Some(fault)) => Some(JobEnd::Failed(fault)),
+                _ => None,
+            }
+        })
+    }
+
+    /// Tells the person a sentence about a helper, once, and the shell that something changed.
+    pub(crate) fn say(&self, helper: &HelperId, text: String) {
+        self.tell(helper, text);
+        self.inner.shared.surface().changed(Change::HelpersChanged);
+    }
+
+    /// Writes `records` of the Space `space`.
+    pub(crate) async fn write_records(&self, space: &SpaceId, records: &[HelperRecord]) {
+        self.inner
+            .service
+            .lock()
+            .await
+            .write_helper_records(space, records)
+            .await;
+    }
+
+    /// The routines' records the Spaces hold.
+    pub(crate) async fn read_routine_records(&self, spaces: &[SpaceId]) -> Vec<HelperRecord> {
+        self.inner
+            .service
+            .lock()
+            .await
+            .read_routine_records(spaces)
+            .await
+    }
+
+    /// The events `query` asks for in `space`, newest first, through a session opened there for
+    /// the purpose. A router that does not answer gives none.
+    pub(crate) async fn recent_in(&self, space: &SpaceId, query: RecentQuery) -> Vec<RecentEntry> {
+        let service = self.inner.service.lock().await;
+        let opened = service
+            .intents
+            .session_open(SessionOpen {
+                space: space.clone(),
+                agent: AgentRef::Companion,
+                parent: None,
+                cwd: None,
+                started_from: None,
+                external: None,
+                helper: None,
+            })
+            .await;
+        let Ok(opened) = opened else {
+            tracing::warn!(?space, "no session to read events through");
+            return Vec::new();
+        };
+        let found = RouterRecent::new(&service.intents, opened.session.clone())
+            .recent(query)
+            .await;
+        let closed = service.intents.session_close(opened.session.clone()).await;
+        if let Err(cause) = closed {
+            tracing::warn!(session = %opened.session, %cause, "a session would not close");
+        }
+        found.unwrap_or_default()
     }
 }

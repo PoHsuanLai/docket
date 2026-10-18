@@ -48,6 +48,7 @@ mod preview;
 mod reader;
 mod review;
 mod roster;
+pub mod routine;
 mod schema;
 mod skill;
 mod space_access;

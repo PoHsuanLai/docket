@@ -593,3 +593,31 @@ fn records_keep_their_tags_and_read_back_from_their_payload() {
         assert_eq!(&back, record);
     }
 }
+
+#[test]
+fn a_job_about_an_event_carries_the_event_as_a_handle_and_keeps_the_goal_the_persons() {
+    let (board, inbox) = create(Board::default(), "Inbox", chosen());
+    let about = almanac_core::EventRef {
+        space: space("work"),
+        replica: almanac_core::ReplicaId([2; 16]),
+        seq: almanac_core::Seq(3),
+    };
+    let new = NewJob {
+        to: inbox,
+        goal: goal("Tidy the new mail"),
+        origin: GoalOrigin::Person,
+        giver: None,
+        owns: vec![],
+        with: vec![],
+    };
+    let (board, fx) = step(
+        board,
+        BoardEvent::PostAbout {
+            job: Box::new(new),
+            about: about.clone(),
+        },
+    );
+    let job = board.job(posted(&fx)).expect("job");
+    assert_eq!(job.about, Some(about));
+    assert_eq!(job.goal.as_str(), "Tidy the new mail");
+}

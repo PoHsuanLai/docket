@@ -17,8 +17,9 @@ name = "companiond"
 path = "src/main.rs"
 
 [dependencies]
+almanac-core = { workspace = true }
 companion-wire = { workspace = true }
-docket-core = { workspace = true, features = ["wait"] }
+docket-core = { workspace = true, features = ["wait", "atomic-file"] }
 docket-log = { workspace = true }
 docket-planner = { workspace = true }
 docket-skills = { workspace = true }
@@ -48,7 +49,6 @@ otlp = ["docket-log/otlp"]
 [dev-dependencies]
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 agent-loop = { workspace = true }
-almanac-core = { workspace = true }
 porter-infer = { workspace = true }
 docket-testbus = { workspace = true }
 docket-client = { workspace = true, features = ["in_process"] }

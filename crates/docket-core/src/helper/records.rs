@@ -7,6 +7,7 @@
 use super::card::HelperCard;
 use super::job::Job;
 use super::post::Post;
+use crate::routine::RoutineRecord;
 use prov::HelperId;
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +21,9 @@ pub enum HelperRecordKind {
     Job,
     /// A post.
     Post,
+    /// A routine. Not one of [`HelperRecordKind::ALL`], the board's kinds: routines are read back
+    /// by their own query.
+    Routine,
 }
 
 impl HelperRecordKind {
@@ -36,12 +40,16 @@ impl HelperRecordKind {
             HelperRecordKind::Card => "helpers.card",
             HelperRecordKind::Job => "helpers.job",
             HelperRecordKind::Post => "helpers.post",
+            HelperRecordKind::Routine => "helpers.routine",
         }
     }
 
     /// The kind a tag names.
     pub fn of_slug(slug: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|kind| kind.slug() == slug)
+        Self::ALL
+            .into_iter()
+            .chain([HelperRecordKind::Routine])
+            .find(|kind| kind.slug() == slug)
     }
 }
 
@@ -65,6 +73,8 @@ pub enum HelperRecord {
     Job(Box<Job>),
     /// A post.
     Post(Box<Post>),
+    /// A routine.
+    Routine(Box<RoutineRecord>),
 }
 
 impl HelperRecord {
@@ -74,6 +84,7 @@ impl HelperRecord {
             HelperRecord::Card(_) => HelperRecordKind::Card,
             HelperRecord::Job(_) => HelperRecordKind::Job,
             HelperRecord::Post(_) => HelperRecordKind::Post,
+            HelperRecord::Routine(_) => HelperRecordKind::Routine,
         }
     }
 
@@ -83,6 +94,7 @@ impl HelperRecord {
             HelperRecord::Card(card) => serde_json::to_string(card),
             HelperRecord::Job(job) => serde_json::to_string(job),
             HelperRecord::Post(post) => serde_json::to_string(post),
+            HelperRecord::Routine(routine) => serde_json::to_string(routine),
         }
     }
 
@@ -92,6 +104,9 @@ impl HelperRecord {
             HelperRecordKind::Card => HelperRecord::Card(serde_json::from_str(text)?),
             HelperRecordKind::Job => HelperRecord::Job(Box::new(serde_json::from_str(text)?)),
             HelperRecordKind::Post => HelperRecord::Post(Box::new(serde_json::from_str(text)?)),
+            HelperRecordKind::Routine => {
+                HelperRecord::Routine(Box::new(serde_json::from_str(text)?))
+            }
         })
     }
 }

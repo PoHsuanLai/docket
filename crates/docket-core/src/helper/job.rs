@@ -2,6 +2,7 @@
 //! where those words came from.
 
 use super::card::Need;
+use almanac_core::EventRef;
 use prov::{EntityId, HelperId, SessionId, TaskId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -183,6 +184,9 @@ pub struct Job {
     /// Why its last try did not finish; it is open again.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failed: Option<JobFault>,
+    /// The almanac event that started it, when a routine's run: a handle, never part of the goal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub about: Option<EventRef>,
 }
 
 impl Job {

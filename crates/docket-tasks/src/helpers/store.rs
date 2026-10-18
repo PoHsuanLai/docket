@@ -33,6 +33,17 @@ pub fn helper_query() -> RecentQuery {
     }
 }
 
+/// What a restart asks memory for to bring the routines back: their records, from the beginning of
+/// time.
+pub fn routine_query() -> RecentQuery {
+    RecentQuery {
+        kinds: vec![
+            KindPattern::parse(HelperRecordKind::Routine.slug()).expect("a kind pattern"),
+        ],
+        ..helper_query()
+    }
+}
+
 /// The helper records in `entries` (newest first, as `Recent` answers), oldest first. An entry
 /// that is not one of ours, has no body or does not parse is left out.
 pub fn helper_records_of(entries: &[RecentEntry]) -> Vec<HelperRecord> {
@@ -102,6 +113,19 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     /// Every helper record memory holds for the Spaces `named` and the ones the router knows,
     /// oldest first within a Space. A Space that cannot be read adds nothing.
     pub async fn read_helper_records(&self, named: &[SpaceId]) -> Vec<HelperRecord> {
+        self.read_records(named, helper_query).await
+    }
+
+    /// The routines' records, read the same way.
+    pub async fn read_routine_records(&self, named: &[SpaceId]) -> Vec<HelperRecord> {
+        self.read_records(named, routine_query).await
+    }
+
+    async fn read_records(
+        &self,
+        named: &[SpaceId],
+        query: fn() -> RecentQuery,
+    ) -> Vec<HelperRecord> {
         let mut records = Vec::new();
         for space in &self.spaces_to_read(named).await {
             let reading = self
@@ -121,7 +145,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 continue;
             };
             let found = RouterRecent::new(&self.intents, reading.session.clone())
-                .recent(helper_query())
+                .recent(query())
                 .await;
             let who = reading.session.clone();
             let closed = self.intents.session_close(reading.session).await;

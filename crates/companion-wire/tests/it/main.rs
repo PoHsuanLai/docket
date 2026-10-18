@@ -1,6 +1,7 @@
 mod helpers;
 mod props;
 mod route;
+mod routines;
 mod wire;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its

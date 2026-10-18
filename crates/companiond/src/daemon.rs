@@ -6,6 +6,7 @@ use crate::clock::Clock;
 use crate::config::CompaniondConfig;
 use crate::handoff::HostLink;
 use crate::helpers::Hub;
+use crate::routines::{HubHost, Routines, Timers};
 use crate::serve::serve_on_rooted;
 use docket_client::{DbusTransport, Intents};
 use docket_core::helper::HelperCard;
@@ -146,6 +147,19 @@ pub async fn start_with(
     {
         tracing::warn!("the helpers did not come back in time; starting without them");
     }
+    // The helpers' routines: a small timer here runs them. The systemd timers are not written until
+    // the unit's sandbox lets the daemon reach the user's unit directory (`Timers::Dir`).
+    let routines = Arc::new(Routines::new(
+        Arc::new(HubHost::new(hub.clone(), Timers::Off)),
+        Clock::System,
+    ));
+    if tokio::time::timeout(companion.waits.startup, routines.restore(&config.spaces))
+        .await
+        .is_err()
+    {
+        tracing::warn!("the routines did not come back in time; starting without them");
+    }
+    tokio::spawn(routines.run());
     let companion = Arc::new(Mutex::new(companion));
     let fixture = (seams.proc_root != Path::new("/proc")).then_some(seams.proc_root.as_path());
     let who = Arc::new(Identity::on(connection.clone(), callers, fixture));
