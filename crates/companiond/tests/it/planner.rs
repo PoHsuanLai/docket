@@ -794,14 +794,14 @@ fn giving_a_job_offers_exactly_the_helpers_the_view_lists() {
         .find(|t| t.name.as_str() == POST_JOB)
         .expect("the tool");
     let schema: serde_json::Value = serde_json::from_str(decl.params.0.as_str()).expect("json");
-    for name in ["helper", "after"] {
-        assert_eq!(
-            schema["properties"][name]["enum"],
-            json!(["Coder", "Scout"]),
-            "{name}"
-        );
+    assert_eq!(
+        schema["properties"]["helper"]["enum"],
+        json!(["Coder", "Scout"])
+    );
+    // `after` may name the helper whose planner this is, which the view does not list.
+    for free in ["after", "goal"] {
+        assert!(schema["properties"][free].get("enum").is_none(), "{free}");
     }
-    assert!(schema["properties"]["goal"].get("enum").is_none());
 }
 
 #[tokio::test]

@@ -5,8 +5,10 @@
 
 use docket_core::{ActionRef, COMPANION_APP, HAND_ON_JOB, OneOf, ParamName, PlannerView};
 
-/// The parameters of giving a job that name a helper.
-const HELPER_PARAMS: [&str; 2] = ["helper", "after"];
+/// The parameter of giving a job that names the helper to give it to. `after` (whose last answer
+/// is handed on) is left free: it may name the helper whose planner this is, which the view does
+/// not list, and the desk answers a name it does not know in words.
+const HELPER_PARAMS: [&str; 1] = ["helper"];
 
 /// The names of the helpers the view lists, each once, in the order listed.
 fn helper_names(view: &PlannerView) -> Vec<String> {

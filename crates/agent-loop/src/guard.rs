@@ -11,6 +11,12 @@
 //! Such a repeat is held [`HOLDS_BEFORE_STOP_ANSWERED`] times, then the turn ends in words the
 //! person can read. A call that wrote something makes the held reads of the world stale, and a
 //! call that may write is never held this way.
+//!
+//! A call that may change something (its effect is not `Read`, or is not known) and was done is
+//! held too, and so is one that answered in words with no value (the companion's own actions,
+//! declared `Read` because they touch none of the person's data: giving a job, starting a task):
+//! the same call again would do it twice, and its words may differ each time (a new job number),
+//! so comparing answers cannot catch it.
 
 use crate::declined::declined_words;
 use docket_core::{ActionRef, CallId, CallRefusal, CallRequest, Held, ReaderAsk, StepEnd, Value};
@@ -65,6 +71,9 @@ enum Answer {
     /// It cannot be compared (a journaled change, a handle from a call that may write, another
     /// refusal).
     Opaque,
+    /// A call that changes something was done: the same call again would do it twice, whatever
+    /// it would answer.
+    Done,
 }
 
 impl Answer {
@@ -73,6 +82,7 @@ impl Answer {
             Answer::Empty => Some(Held::Empty),
             Answer::Unchanged | Answer::Answered => Some(Held::Unchanged),
             Answer::Refused => Some(Held::Refused),
+            Answer::Done => Some(Held::Done),
             Answer::Waiting(_) | Answer::Fresh | Answer::Opaque => None,
         }
     }
@@ -126,6 +136,7 @@ impl Stuck {
             Stuck::Repeating(Held::Empty, _) => "I couldn't find anything, and looking again won't change that. What should I look for instead?".to_owned(),
             Stuck::Repeating(Held::Unchanged, _) => "I keep getting the same answer. How would you like me to go on?".to_owned(),
             Stuck::Repeating(Held::Refused, _) => "That step keeps being refused. How would you like me to go on?".to_owned(),
+            Stuck::Repeating(Held::Done, _) => "That is done, and I kept trying to do it again. Is there anything more you want?".to_owned(),
             Stuck::Unreadable => "I keep writing steps I cannot get right, though I was told what was wrong. How would you like me to go on?".to_owned(),
             Stuck::Answered => "I could not finish this. I kept going back to what I already had. How would you like me to go on?".to_owned(),
             Stuck::Declined(reason) if reason.is_empty() => "Couldn't do that: the app wouldn't do it.".to_owned(),
@@ -190,6 +201,15 @@ fn nothing_in(value: &Value) -> bool {
 fn judged(end: &StepEnd, last: &Option<Print>, effect: Option<Effect>) -> (Answer, Option<Print>) {
     use docket_core::Reveal;
     match end {
+        // A call that may change something (any effect but `Read`, or one not known) is done once;
+        // so is one that answered in words and gave no value back, which was made for what it
+        // does (gave a job, started a task) and not for an answer to read.
+        StepEnd::Done { .. } if effect != Some(Effect::Read) => (Answer::Done, last.clone()),
+        StepEnd::Done {
+            said: Some(_),
+            value: None,
+            ..
+        } => (Answer::Done, last.clone()),
         StepEnd::Done { said, value, undo } => {
             let plain = match value {
                 Some(Reveal::Handle(_)) if effect == Some(Effect::Read) && undo.is_none() => {

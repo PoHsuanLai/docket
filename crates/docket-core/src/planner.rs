@@ -209,6 +209,8 @@ pub enum Held {
     Unchanged,
     /// The same call had been refused for its arguments.
     Refused,
+    /// The same call had already changed what it changes: running it again would do it twice.
+    Done,
 }
 
 /// One call of the session, as history.

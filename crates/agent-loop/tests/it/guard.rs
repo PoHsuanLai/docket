@@ -204,13 +204,17 @@ fn a_read_that_returned_a_handle_is_held_three_times_then_the_turn_ends_in_words
 }
 
 #[test]
-fn a_handle_from_a_call_that_may_write_or_is_not_known_is_never_stale() {
+fn a_call_that_may_write_or_is_not_known_is_done_once_whatever_it_answered() {
     for effect in [Some(Effect::UndoableWrite), Some(Effect::Outbound), None] {
         let go = || vec![doing(effect, "mail.thread.read", "x")];
-        let (s, _) = round(asked(), go(), &handle_answer());
-        let (s, _) = round(s, go(), &handle_answer());
+        let (s, e) = round(asked(), go(), &handle_answer());
+        assert_eq!(calls_in(&e), 1, "{effect:?}");
         let (_, e) = agent_step(s, plan(go()));
-        assert_eq!((calls_in(&e), holds_in(&e).len()), (1, 0), "{effect:?}");
+        assert_eq!(
+            (calls_in(&e), holds_in(&e)),
+            (0, vec![Held::Done]),
+            "{effect:?}"
+        );
     }
 }
 
@@ -238,18 +242,30 @@ fn done_plain() -> StepEnd {
     }
 }
 
+/// Seen live: each run of giving a job answered with a new job number, so comparing answers
+/// never caught the repeat, and one helper gave another the same job eight times.
 #[test]
-fn a_write_repeated_after_it_ran_is_never_held() {
-    let send = || vec![doing(Some(Effect::Outbound), "mail.message.send", "x")];
-    let sent = StepEnd::Done {
-        said: None,
-        value: Some(Reveal::Handle(Handle(4))),
+fn a_write_repeated_after_it_ran_is_held_as_done_then_the_turn_asks_the_person() {
+    // Declared `Read` (it touches none of the person's data), answered in words with no value.
+    let give = || vec![doing(Some(Effect::Read), "helper.post_job", "x")];
+    let given = |n: u64| StepEnd::Done {
+        said: Some(LabelText::parse(&format!("Gave Coder the job j-{n}")).expect("said")),
+        value: None,
         undo: None,
     };
-    let (s, _) = round(asked(), send(), &sent);
-    let (s, _) = round(s, send(), &sent);
-    let (_, e) = agent_step(s, plan(send()));
-    assert_eq!((calls_in(&e), holds_in(&e).len()), (1, 0));
+    let (s, e) = round(asked(), give(), &given(6));
+    assert_eq!(calls_in(&e), 1);
+    let (s, e) = agent_step(s, plan(give()));
+    assert_eq!((calls_in(&e), holds_in(&e)), (0, vec![Held::Done]));
+    let (s, e) = agent_step(s, plan(give()));
+    assert_eq!(calls_in(&e), 0);
+    assert_eq!(s.phase, LoopPhase::Idle);
+    let question = asks_person(&e).expect("a question for the person");
+    assert!(question.starts_with("That is done"), "{question}");
+    // Another write, or the same action with other arguments, still runs.
+    let other = vec![doing(Some(Effect::Read), "helper.post_job", "y")];
+    let (_, e) = agent_step(asked(), plan(other));
+    assert_eq!(calls_in(&e), 1);
 }
 
 fn ask_to_read(task: ReaderTask, max: u32) -> ReaderAsk {

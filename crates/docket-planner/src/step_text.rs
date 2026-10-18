@@ -219,6 +219,7 @@ fn held_text(held: Held) -> &'static str {
         Held::Empty => "you already called it with these arguments and got nothing",
         Held::Unchanged => "you already called it with these arguments and got the same answer",
         Held::Refused => "you already called it with these arguments and it was refused",
+        Held::Done => "you already made this call and it was done; it is not done twice",
     }
 }
 
