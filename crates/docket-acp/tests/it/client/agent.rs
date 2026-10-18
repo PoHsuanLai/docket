@@ -433,7 +433,8 @@ fn advertised(auth: Auth) -> Value {
         Auth::Needed => json!([
             {"id": METHODS, "name": "Personal sign-in"},
             {"id": "gemini-api-key", "name": "API key"},
-            {"type": "terminal", "id": "login-terminal", "name": "Terminal sign-in"},
+            {"type": "terminal", "id": "login-terminal", "name": "Terminal sign-in",
+             "args": ["--login"], "env": {"BROWSER": "none"}},
         ]),
     }
 }

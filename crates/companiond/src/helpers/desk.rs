@@ -4,10 +4,11 @@
 use super::hub::Hub;
 use companion_wire::{
     AnswerPhase, HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply, HelpersView,
-    ToldWire, card_of, line_of,
+    LoginShown, SignInChoice, ToldWire, card_of, line_of,
 };
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{
+    SignInOutcome, SignOutOutcome, TerminalRequest,
     Board, BoardEffect, BoardEvent, CardDraft, GoalOrigin, GoalText, HelperBudget, HelperCard,
     HelperKind, HelperModel, HelperName, HelperState, JobRefusal, JobStatus, NewJob, PlannerSaw,
     ReachFault, Role, reach_policy,
@@ -83,7 +84,7 @@ where
         Ok(CardDraft {
             name: form.name,
             role: form.role,
-            kind: HelperKind::Native,
+            kind: form.kind,
             space: space.clone(),
             model: form.model,
             reach,
@@ -91,6 +92,68 @@ where
                 steps: Count(form.steps.0.max(1)),
             },
         })
+    }
+
+    /// The person chose a way of signing in to the app the helper runs.
+    async fn sign_in_with(&self, helper: HelperId, way: String) -> HelperReply {
+        let Some(card) = self.board().card(&helper).cloned() else {
+            return HelperReply::Refused(JobRefusal::NoSuchHelper.plain());
+        };
+        let Some(program) = card.kind.program().cloned() else {
+            return HelperReply::Refused("This helper does not run an app to sign in to.".to_owned());
+        };
+        let Some(agents) = self.agents() else {
+            return HelperReply::Refused("No apps can be signed in to here.".to_owned());
+        };
+        let listed = self.with_state(|state| state.signins.get(&helper).cloned());
+        let Some(way) = listed.and_then(|ways| ways.into_iter().find(|w| w.id == way)) else {
+            return HelperReply::Refused("That is not one of the ways to sign in.".to_owned());
+        };
+        match agents.sign_in(&card, &way).await {
+            SignInOutcome::SignedIn => {
+                self.signed_in_to_app_of(&helper).await;
+                HelperReply::Done
+            }
+            SignInOutcome::OpenTerminal(login) => HelperReply::OpenTerminal(TerminalRequest {
+                helper,
+                program,
+                login,
+            }),
+            SignInOutcome::Refused => HelperReply::Refused(
+                "It did not sign you in. Try again, or choose another way.".to_owned(),
+            ),
+            SignInOutcome::Failed => HelperReply::Refused("It could not be started.".to_owned()),
+        }
+    }
+
+    /// The person signed out of the app the helper runs; every helper that runs it is signed out.
+    async fn sign_out_of(&self, helper: HelperId) -> HelperReply {
+        let Some(card) = self.board().card(&helper).cloned() else {
+            return HelperReply::Refused(JobRefusal::NoSuchHelper.plain());
+        };
+        let (Some(program), Some(agents)) = (card.kind.program().cloned(), self.agents()) else {
+            return HelperReply::Refused("This helper does not run an app to sign out of.".to_owned());
+        };
+        match agents.sign_out(&card).await {
+            SignOutOutcome::SignedOut => {
+                self.with_state(|state| {
+                    let same: Vec<HelperId> = state
+                        .board
+                        .cards()
+                        .iter()
+                        .filter(|c| c.kind.program() == Some(&program))
+                        .map(|c| c.id.clone())
+                        .collect();
+                    for id in same {
+                        state.signed.remove(&id);
+                    }
+                });
+                HelperReply::Done
+            }
+            SignOutOutcome::Failed => {
+                HelperReply::Refused("Signing out did not work.".to_owned())
+            }
+        }
     }
 
     fn name_taken(&self, name: &HelperName, except: Option<&HelperId>) -> bool {
@@ -220,6 +283,7 @@ where
                     apps,
                     ceiling: proposal.ceiling,
                     steps: PROPOSED_STEPS,
+                    kind: HelperKind::Native,
                 })
                 .await
             }
@@ -256,9 +320,20 @@ where
     fn card(&self, helper: &HelperId) -> Option<HelperCardView> {
         let board = self.board();
         let card = board.card(helper)?;
-        Some(card_of(card, &board, self.needs_of(card), |job| {
+        let mut view = card_of(card, &board, self.needs_of(card), |job| {
             self.job_words(job)
-        }))
+        });
+        let (signed, ways) = self.with_state(|state| {
+            (
+                state.signed.contains(helper),
+                state.signins.get(helper).cloned().unwrap_or_default(),
+            )
+        });
+        if signed && view.login == LoginShown::Unknown {
+            view.login = LoginShown::SignedIn;
+        }
+        view.sign_in = ways.iter().map(SignInChoice::from).collect();
+        Some(view)
     }
 
     fn create(&self, form: HelperForm) -> Pending<'_, HelperReply> {
@@ -291,7 +366,15 @@ where
 
     fn remove(&self, helper: HelperId) -> Pending<'_, ()> {
         Box::pin(async move {
-            self.apply(BoardEvent::Remove(helper)).await;
+            self.apply(BoardEvent::Remove(helper.clone())).await;
+            self.with_state(|state| {
+                state.signed.remove(&helper);
+                state.signins.remove(&helper);
+            });
+            // The helper's agent process ends with it.
+            if let Some(agents) = self.agents() {
+                agents.forget(&helper).await;
+            }
         })
     }
 
@@ -305,6 +388,14 @@ where
 
     fn propose(&self, proposal: Proposal) -> Pending<'_, HelperReply> {
         Box::pin(self.proposed(proposal))
+    }
+
+    fn sign_in(&self, helper: HelperId, way: String) -> Pending<'_, HelperReply> {
+        Box::pin(self.sign_in_with(helper, way))
+    }
+
+    fn sign_out(&self, helper: HelperId) -> Pending<'_, HelperReply> {
+        Box::pin(self.sign_out_of(helper))
     }
 
     fn roster_lines(&self, except: Option<&HelperId>) -> Vec<HelperRosterLine> {

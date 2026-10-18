@@ -5,9 +5,9 @@ use crate::out;
 use agent_client_protocol_schema::ProtocolVersion;
 use agent_client_protocol_schema::rpc::RequestId;
 use agent_client_protocol_schema::v1::{
-    AGENT_METHOD_NAMES, AuthenticateRequest, CancelNotification, ClientCapabilities, ContentBlock,
-    FileSystemCapabilities, Implementation, InitializeRequest, McpServer, NewSessionRequest,
-    PromptRequest, SessionId,
+    AGENT_METHOD_NAMES, AuthCapabilities, AuthenticateRequest, CancelNotification,
+    ClientCapabilities, ContentBlock, FileSystemCapabilities, Implementation, InitializeRequest,
+    LogoutRequest, McpServer, NewSessionRequest, PromptRequest, ResumeSessionRequest, SessionId,
 };
 use docket_core::AbsPath;
 use std::path::PathBuf;
@@ -24,12 +24,15 @@ impl Ids {
     }
 }
 
-/// What we offer the agent: file reads and writes through us, and a terminal when `terminal`
-/// says the sandbox is there. Nothing else (no elicitation, no auth terminal).
+/// What we offer the agent: file reads and writes through us, a terminal when `terminal` says the
+/// sandbox is there, and a terminal for the agent's own sign-in (the shell opens it, running the
+/// agent's command in the helper's sandbox). Nothing else (no elicitation).
 pub fn capabilities(terminal: ClientCapabilities) -> ClientCapabilities {
-    terminal.fs(FileSystemCapabilities::new()
-        .read_text_file(true)
-        .write_text_file(true))
+    terminal
+        .fs(FileSystemCapabilities::new()
+            .read_text_file(true)
+            .write_text_file(true))
+        .auth(AuthCapabilities::new().terminal(true))
 }
 
 /// `initialize`.
@@ -45,6 +48,24 @@ pub fn initialize(id: &RequestId, caps: ClientCapabilities) -> String {
 pub fn authenticate(id: &RequestId, method: &SignIn) -> String {
     let request = AuthenticateRequest::new(method.as_str().to_owned());
     out::ask(id, AGENT_METHOD_NAMES.authenticate, &request)
+}
+
+/// `logout`: the agent forgets its signed-in state. Sent only when it advertised the method.
+pub fn logout(id: &RequestId) -> String {
+    out::ask(id, AGENT_METHOD_NAMES.logout, &LogoutRequest::new())
+}
+
+/// `session/resume`: the agent picks up its own session `session` again, in `cwd`, offering
+/// `servers` as `session/new` does. Sent only when it advertised the capability.
+pub fn session_resume(
+    id: &RequestId,
+    session: &SessionId,
+    cwd: &AbsPath,
+    servers: Vec<McpServer>,
+) -> String {
+    let request = ResumeSessionRequest::new(session.clone(), PathBuf::from(cwd.as_str()))
+        .mcp_servers(servers);
+    out::ask(id, AGENT_METHOD_NAMES.session_resume, &request)
 }
 
 /// `session/new` in `cwd`, offering `servers`: the one tool edge of this session when there is

@@ -89,6 +89,15 @@ pub trait HelperDesk: fmt::Debug + Send + Sync {
     /// The assistant proposes a helper, and the person has confirmed it.
     fn propose(&self, proposal: Proposal) -> Pending<'_, HelperReply>;
 
+    /// The person chooses one of the ways of signing in to the app the helper runs (`way` is the
+    /// id of a `SignInChoice` on its card). Answers `Done` once the app is signed in, or
+    /// `OpenTerminal` when the way runs in a terminal window the shell opens.
+    fn sign_in(&self, helper: HelperId, way: String) -> Pending<'_, HelperReply>;
+
+    /// The person signs out of the app the helper runs. Every helper that runs the same app is
+    /// signed out with it: the app has one login.
+    fn sign_out(&self, helper: HelperId) -> Pending<'_, HelperReply>;
+
     /// The helpers a planner is told of, except `except` (the helper whose job it is, if it is
     /// one).
     fn roster_lines(&self, except: Option<&HelperId>) -> Vec<HelperRosterLine>;

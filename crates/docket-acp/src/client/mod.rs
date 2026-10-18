@@ -20,6 +20,9 @@
 //!   never read as instructions.
 //! - `host`: `AgentHost`, the `SessionHost` that opens the agent's session at the router,
 //!   records the person's turns there, and hands the router's sheets to the person.
+//! - `helper_agent`: `HelperAgent`, an agent app as one helper's: its process kept across the
+//!   helper's jobs, a job as a turn, the agent's words back as untrusted text, and the agent's
+//!   own sign-in and sign-out.
 //! - `fake`: an in-memory pipe, a scripted spawner and the like, for tests.
 
 mod backend;
@@ -30,6 +33,8 @@ mod edge;
 pub mod fake;
 mod files;
 mod handlers;
+mod helper_agent;
+mod helper_agents;
 mod host;
 mod intake;
 mod intents_court;
@@ -54,6 +59,8 @@ pub use confine::{Care, Confined, Refusal, confine, is_secret, named};
 pub use court::{Court, CourtFault, OpenAgent, Ruled};
 pub use edge::{EdgeBind, EdgeFault, SERVER_NAME, ToolsEdge, ToolsOffer};
 pub use files::{FileFault, Files, MAX_READ, MAX_WRITE, OsFiles};
+pub use helper_agent::{AgentEnd, HelperAgent, Hosts, SignInStep, SignOutStep, Start, Trouble};
+pub use helper_agents::{HelperAgents, Logout};
 pub use host::{AgentHost, Fallback};
 pub use intents_court::IntentsCourt;
 pub use models::{ModelId, ModelIdRefused, Models};

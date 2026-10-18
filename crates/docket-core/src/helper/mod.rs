@@ -16,9 +16,14 @@
 //! - [`Post`], [`PostId`], [`PostTo`], [`PostPart`]: the mailbox.
 //! - [`Board`], [`BoardEvent`], [`BoardEffect`], [`step`]: the state machine.
 //! - [`HelperRecord`], [`HelperRecordKind`]: what is stored and restored.
+//! - [`SignInWay`], [`SignInHow`], [`TerminalLogin`], [`TerminalRequest`], [`UntrustedWords`]: what an
+//!   agent-app helper adds to the card.
+//! - [`AgentApps`], [`AgentOutcome`]: the seam to the host of agent-app helpers.
 //! - [`Ceiling`], [`reach_policy`], [`reach_lines`]: a reach from the apps the person names.
 //! - [`HelperSeat`]: what the router is told when a job's session opens.
 
+mod agent;
+mod apps;
 mod board;
 mod card;
 mod ids;
@@ -30,6 +35,8 @@ mod records;
 mod rules;
 mod seat;
 
+pub use agent::{SignInHow, SignInWay, TerminalLogin, TerminalRequest, UntrustedWords};
+pub use apps::{AgentApps, AgentOutcome, CheckOutcome, Pending as AgentPending, SignInOutcome, SignOutOutcome};
 pub use board::{Board, BoardEffect, BoardEvent, CallVerdict, Launch, NewJob, step};
 pub use card::{
     CardDraft, HelperBudget, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase,

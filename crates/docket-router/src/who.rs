@@ -34,6 +34,9 @@ pub(crate) struct AgentSeat {
     pub program: ProgramName,
     /// The host that shows this session's sheets itself, when the session asked for that.
     pub host: Option<ClientName>,
+    /// The helper this agent app is, when the session was opened for one: its grants are that
+    /// helper's alone.
+    pub helper: Option<prov::HelperId>,
 }
 
 /// How an external agent program is named as an actor: `acp:<program>`, cut to a client name's
@@ -71,7 +74,13 @@ impl Who {
     /// The consent a grant for this party is keyed by.
     pub(crate) fn grant_caller(&self) -> GrantCaller {
         if let Some(seat) = &self.agent {
-            return GrantCaller::AcpAgent(seat.program.clone());
+            return match &seat.helper {
+                Some(helper) => GrantCaller::AcpHelper {
+                    program: seat.program.clone(),
+                    helper: helper.clone(),
+                },
+                None => GrantCaller::AcpAgent(seat.program.clone()),
+            };
         }
         if let Some(client) = &self.editor
             && !matches!(
@@ -227,6 +236,7 @@ impl RouterState {
             agent: Some(AgentSeat {
                 program: external.program.clone(),
                 host,
+                helper: external.helper.clone(),
             }),
         })
     }

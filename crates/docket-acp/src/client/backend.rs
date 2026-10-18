@@ -38,6 +38,7 @@ use agent_client_protocol_schema::v1::{
     PromptResponse, SessionId, StopReason,
 };
 use bulkhead::Sandbox;
+use docket_core::helper::{SignInHow, SignInWay, TerminalLogin};
 use docket_core::{AbsPath, CallId, PermissionKind, UserTurn, Waits, within};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, Choice, Choices, ProgramName, ResumePlan, Resumed,
@@ -91,6 +92,12 @@ pub(super) struct Live<X: Seams> {
     pub models: Option<Models>,
     /// The ways of signing in the agent listed at `initialize`.
     pub ways: Choices,
+    /// Every way it listed, the ones that need a terminal too, with what each needs.
+    pub auth_ways: Vec<SignInWay>,
+    /// Whether it advertised `logout`.
+    pub can_log_out: bool,
+    /// Whether it advertised `session/resume`.
+    pub can_resume: bool,
     pub cwd: AbsPath,
     pub real_cwd: AbsPath,
     pub session: prov::SessionId,
@@ -159,6 +166,11 @@ pub struct AcpBackend<X: Seams> {
     pub(super) strikes: Strikes,
     /// How long the agent may take for each kind of wait.
     pub(super) waits: Waits,
+    /// A way of signing in the person chose for this start, over the one `agents.toml` names.
+    pub(super) sign_in_choice: Option<SignIn>,
+    /// The agent's own session to pick up again, when it can: a helper's process that was
+    /// restarted goes on with the session it had.
+    pub(super) resume_id: Option<SessionId>,
 }
 
 impl<X: Seams> AcpBackend<X> {
@@ -187,6 +199,27 @@ impl<X: Seams> AcpBackend<X> {
             owed: VecDeque::new(),
             strikes: Strikes::default(),
             waits: Waits::default(),
+            sign_in_choice: None,
+            resume_id: None,
+        }
+    }
+
+    /// The same backend, signing in with `way` before it opens its session: the person chose it
+    /// on the helper's card, from the ways the agent listed. Only a way the agent runs itself;
+    /// one that needs a terminal is never passed to `authenticate`.
+    pub fn with_sign_in(self, way: SignIn) -> Self {
+        Self {
+            sign_in_choice: Some(way),
+            ..self
+        }
+    }
+
+    /// The same backend, picking up the agent's own session `session` again when the agent
+    /// advertises `session/resume`, and opening a new one when it does not or will not.
+    pub fn resuming(self, session: &str) -> Self {
+        Self {
+            resume_id: Some(SessionId::new(session)),
+            ..self
         }
     }
 
@@ -260,10 +293,13 @@ impl<X: Seams> AcpBackend<X> {
             child,
             agent: None,
             meta: meta.clone(),
-            sign_in,
+            sign_in: self.sign_in_choice.clone().or(sign_in),
             model,
             models: None,
             ways: Choices(Vec::new()),
+            auth_ways: Vec::new(),
+            can_log_out: false,
+            can_resume: false,
             cwd: cwd.clone(),
             real_cwd,
             session: session.clone(),
@@ -302,10 +338,19 @@ impl<X: Seams> AcpBackend<X> {
         if init.protocol_version != ProtocolVersion::V1 {
             return Err(BackendFault::Unavailable);
         }
+        let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
+        live.auth_ways = auth_ways(&init);
+        live.can_log_out = init.agent_capabilities.auth.logout.is_some();
+        live.can_resume = init.agent_capabilities.session_capabilities.resume.is_some();
         self.sign_in(&init).await?;
         let methods = signable(&init);
         let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         live.ways = methods.clone();
+        if self.resume_session(cwd).await? {
+            self.phase = Phase::Idle;
+            return Ok(());
+        }
+        let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
         let id = live.ids.next();
         let servers = live
             .edge
@@ -326,6 +371,67 @@ impl<X: Seams> AcpBackend<X> {
         self.choose_model().await?;
         self.phase = Phase::Idle;
         Ok(())
+    }
+
+    /// Picks up the agent's own session again, when one was asked for and the agent can. False
+    /// when there was nothing to resume or the agent would not: a new session is then made.
+    async fn resume_session(&mut self, cwd: &AbsPath) -> Result<bool, BackendFault> {
+        let Some(old) = self.resume_id.clone() else {
+            return Ok(false);
+        };
+        let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
+        if !live.can_resume {
+            return Ok(false);
+        }
+        let id = live.ids.next();
+        let servers = live
+            .edge
+            .iter()
+            .map(|e| e.bind().server(e.token()))
+            .collect();
+        self.send(rpc::session_resume(&id, &old, cwd, servers))
+            .await?;
+        match self.await_outcome(&id).await? {
+            Ok(_) => {
+                let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
+                live.agent = Some(old);
+                Ok(true)
+            }
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Every way of signing in the agent listed when it started, the ones that need a terminal
+    /// too, by the agent's own names. Empty before it has answered `initialize`.
+    pub fn auth_ways(&self) -> &[SignInWay] {
+        match self.live.as_ref() {
+            Some(live) => live.auth_ways.as_slice(),
+            None => &[],
+        }
+    }
+
+    /// Whether the agent advertised `logout`.
+    pub fn can_log_out(&self) -> bool {
+        self.live.as_ref().is_some_and(|l| l.can_log_out)
+    }
+
+    /// The agent's own id for its session, once it is open: what a restarted process resumes.
+    pub fn agent_session(&self) -> Option<String> {
+        let live = self.live.as_ref()?;
+        live.agent.as_ref().map(|id| id.0.to_string())
+    }
+
+    /// Asks the agent to forget that it is signed in (`logout`), when it advertised the method.
+    /// The agent clears its own login; nothing of it passes through us. A `false` is a signed-in
+    /// state the agent would not end, or one it cannot end this way.
+    pub async fn log_out(&mut self) -> Result<bool, BackendFault> {
+        let live = self.live.as_mut().ok_or(BackendFault::NotRunning)?;
+        if !live.can_log_out || self.phase != Phase::Idle {
+            return Ok(false);
+        }
+        let id = live.ids.next();
+        self.send(rpc::logout(&id)).await?;
+        Ok(self.await_outcome(&id).await?.is_ok())
     }
 
     /// Switches to the model `agents.toml` names, when it names one: only one the agent offered,
@@ -448,6 +554,25 @@ fn refusal_fault(error: &serde_json::Value, methods: Choices) -> BackendFault {
         Ok(e) if e.code == ErrorCode::AuthRequired => BackendFault::SignInChoose(methods),
         _ => BackendFault::Unavailable,
     }
+}
+
+/// Every way of signing in the agent listed, by its own name. A way the client runs in a terminal
+/// carries the arguments and variables the agent asked for.
+fn auth_ways(init: &InitializeResponse) -> Vec<SignInWay> {
+    init.auth_methods
+        .iter()
+        .map(|m| SignInWay {
+            id: m.id().0.to_string(),
+            name: m.name().to_owned(),
+            how: match m {
+                AuthMethod::Terminal(t) => SignInHow::Terminal(TerminalLogin {
+                    args: t.args.clone(),
+                    env: t.env.clone().into_iter().collect(),
+                }),
+                _ => SignInHow::Agent,
+            },
+        })
+        .collect()
 }
 
 /// The ways of signing in the agent runs itself, by their names.

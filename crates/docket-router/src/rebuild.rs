@@ -148,6 +148,7 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
             sheets: SheetSurface::Desktop,
             label: opening.label.clone(),
             rewind: opening.rewind,
+            helper: None,
         }),
         _ => None,
     };

@@ -4,8 +4,8 @@
 
 use docket_core::LeadText;
 use docket_core::helper::{
-    Board, Ceiling, HelperCard, HelperModel, HelperName, HelperPhase, HelperState, JobId,
-    JobStatus, Need, PauseWhy, Role, reach_lines,
+    Board, Ceiling, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase, HelperState,
+    JobId, JobStatus, Need, PauseWhy, Role, SignInWay, TerminalRequest, reach_lines,
 };
 use porter_core::{AppName, Count};
 use prov::{AgentRef, HelperId, SpaceId};
@@ -17,6 +17,8 @@ use serde::{Deserialize, Serialize};
 pub enum HelperNeeds {
     /// A model to be chosen for it.
     ChooseModel,
+    /// The person to sign in to the app it runs, from its card.
+    SignIn,
     /// An answer to a question, or a yes on a sheet.
     Answer,
 }
@@ -73,6 +75,8 @@ pub enum JobShown {
     Done,
     /// Waiting for a model to be chosen.
     NeedsModel,
+    /// Waiting for the person to sign in to the app the helper runs.
+    NeedsSignIn,
 }
 
 /// One job of a helper.
@@ -107,6 +111,49 @@ pub struct HelperCardView {
     pub steps: Count,
     /// Its jobs, oldest first.
     pub jobs: Vec<JobLine>,
+    /// How it works: its own planner, or an app (Claude Code, say) that does its jobs. A card
+    /// stored by a companion that knew only the first reads as it.
+    #[serde(default)]
+    pub kind: HelperKind,
+    /// For a helper that runs an app: whether the person is signed in to it, as far as the
+    /// companion knows. It is only ever known from the app: a session opened.
+    #[serde(default)]
+    pub login: LoginShown,
+    /// For a helper that runs an app that wants signing in: the ways to, by the app's own names.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sign_in: Vec<SignInChoice>,
+}
+
+/// Whether the person is signed in to the app a helper runs.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LoginShown {
+    /// Not asked yet, or not an app that has a sign-in.
+    #[default]
+    Unknown,
+    /// The app opened a session: it is signed in.
+    SignedIn,
+    /// The app wants the person to sign in; a job waits.
+    NeedsSignIn,
+}
+
+/// One way of signing in to the app a helper runs, as the app names it ("Sign in with your
+/// Claude account"). The shell shows the name; choosing it sends the id back.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SignInChoice {
+    /// The id to send back.
+    pub id: String,
+    /// The app's own name for it.
+    pub name: String,
+}
+
+impl From<&SignInWay> for SignInChoice {
+    fn from(way: &SignInWay) -> Self {
+        Self {
+            id: way.id.clone(),
+            name: way.name.clone(),
+        }
+    }
 }
 
 /// What the person fills in to make or change a helper.
@@ -126,6 +173,10 @@ pub struct HelperForm {
     pub ceiling: Ceiling,
     /// The most steps one job takes.
     pub steps: Count,
+    /// How it works: its own planner unless the person picks an app. A form from a shell that
+    /// knew only the first reads as it.
+    #[serde(default)]
+    pub kind: HelperKind,
 }
 
 /// What a helper call came to.
@@ -140,6 +191,11 @@ pub enum HelperReply {
     Posted(JobId),
     /// It was not done, and why, in plain words.
     Refused(String),
+    /// The shell is to open a terminal window running the app the helper runs, with what the app
+    /// asked for added, inside the helper's sandbox and with the app's login folder, so the
+    /// sign-in lands where the app reads it. When the window closes the shell asks the companion
+    /// to check again (`Helpers.Resume` on the helper).
+    OpenTerminal(TerminalRequest),
 }
 
 fn paused_text(why: PauseWhy) -> &'static str {
@@ -194,6 +250,12 @@ pub fn line_of(card: &HelperCard, board: &Board, answer: Option<HelperNeeds>) ->
             Some(HelperNeeds::ChooseModel),
             None,
         ),
+        HelperState::Waiting(Need::SignIn) => (
+            HelperPhase::Waiting,
+            "Needs you to sign in before it can start".to_owned(),
+            Some(HelperNeeds::SignIn),
+            None,
+        ),
         HelperState::Paused(why) => (
             HelperPhase::Paused,
             paused_text(*why).to_owned(),
@@ -227,6 +289,7 @@ fn job_line(job: &docket_core::helper::Job, words: JobWords) -> JobLine {
         JobStatus::Taken(_) => JobShown::Working,
         JobStatus::Done(_) => JobShown::Done,
         JobStatus::Blocked(Need::ChooseModel) => JobShown::NeedsModel,
+        JobStatus::Blocked(Need::SignIn) => JobShown::NeedsSignIn,
     };
     JobLine {
         id: job.id,
@@ -261,5 +324,11 @@ pub fn card_of(
             .filter(|j| j.owner == card.id)
             .map(|j| job_line(j, kept(j.id)))
             .collect(),
+        kind: card.kind.clone(),
+        login: match card.state {
+            HelperState::Waiting(Need::SignIn) => LoginShown::NeedsSignIn,
+            _ => LoginShown::Unknown,
+        },
+        sign_in: Vec::new(),
     }
 }

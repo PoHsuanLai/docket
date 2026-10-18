@@ -120,6 +120,11 @@ pub enum BoardEvent {
         /// Why.
         fault: JobFault,
     },
+    /// A job could not start because the agent app its helper runs is not signed in. Nothing
+    /// failed: the job waits, and so does the helper, until the person signs in.
+    NeedsSignIn(JobId),
+    /// The agent app of this helper is signed in: its waiting job is open again.
+    SignedIn(HelperId),
     /// A job was stopped before it finished, at the person's word: it is open again, and
     /// nothing went wrong.
     Stopped(JobId),
@@ -430,7 +435,13 @@ impl Board {
         if !card.state.takes_jobs() || self.running(helper).is_some() {
             return;
         }
-        let model_unset = card.model == HelperModel::Unset;
+        // A helper that waits for the person to sign in takes nothing until they have, unless
+        // they ask it to try again.
+        if card.state == HelperState::Waiting(Need::SignIn) && retry == Retry::Fresh {
+            return;
+        }
+        // An agent app brings its own model.
+        let model_unset = card.model == HelperModel::Unset && card.kind.program().is_none();
         let Some(at) = self.jobs.iter().position(|j| {
             &j.owner == helper
                 && matches!(j.status, JobStatus::Open | JobStatus::Blocked(_))
@@ -570,6 +581,48 @@ impl Board {
         }
     }
 
+    /// The job waits for the person to sign in, and so does its helper. The person is told once.
+    fn needs_sign_in(&mut self, job: JobId, fx: &mut Vec<BoardEffect>) {
+        let Some(found) = self.job_mut(job) else {
+            return;
+        };
+        let owner = found.owner.clone();
+        found.status = JobStatus::Blocked(Need::SignIn);
+        fx.push(save_job(found));
+        let first_time = match self.card_mut(&owner) {
+            Some(card) if !matches!(card.state, HelperState::Paused(_)) => {
+                let first = card.state != HelperState::Waiting(Need::SignIn);
+                card.state = HelperState::Waiting(Need::SignIn);
+                fx.push(save_card(card));
+                first
+            }
+            _ => false,
+        };
+        if first_time {
+            self.say(&owner, Notice::WaitsForSignIn, fx);
+        }
+    }
+
+    /// The helper's agent app is signed in: its blocked jobs are open, and it takes the oldest.
+    fn signed_in(&mut self, helper: &HelperId, fx: &mut Vec<BoardEffect>) {
+        let Some(card) = self.card_mut(helper) else {
+            return;
+        };
+        if card.state == HelperState::Waiting(Need::SignIn) {
+            card.state = HelperState::Idle;
+            fx.push(save_card(card));
+        }
+        for job in self
+            .jobs
+            .iter_mut()
+            .filter(|j| &j.owner == helper && j.status == JobStatus::Blocked(Need::SignIn))
+        {
+            job.status = JobStatus::Open;
+            fx.push(save_job(job));
+        }
+        self.launch_next(helper, Retry::Fresh, fx);
+    }
+
     fn stopped(&mut self, job: JobId, fx: &mut Vec<BoardEffect>) {
         if let Some(found) = self.job_mut(job)
             && matches!(found.status, JobStatus::Taken(_))
@@ -705,6 +758,8 @@ pub fn step(mut board: Board, event: BoardEvent) -> (Board, Vec<BoardEffect>) {
         BoardEvent::Started { job, task } => board.started(job, task, &mut fx),
         BoardEvent::Finished { job, result } => board.finished(job, result, &mut fx),
         BoardEvent::Failed { job, fault } => board.failed(job, fault, &mut fx),
+        BoardEvent::NeedsSignIn(job) => board.needs_sign_in(job, &mut fx),
+        BoardEvent::SignedIn(helper) => board.signed_in(&helper, &mut fx),
         BoardEvent::Stopped(job) => board.stopped(job, &mut fx),
         BoardEvent::Called { helper, verdict } => board.called(&helper, verdict, &mut fx),
         BoardEvent::Hand {

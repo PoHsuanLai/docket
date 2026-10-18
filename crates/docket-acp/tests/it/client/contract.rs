@@ -46,6 +46,7 @@ impl Harness for Acp {
                 space: opened.space.clone(),
                 label: opened.label.clone(),
                 rewind: Default::default(),
+                helper: None,
             })
             .await
             .expect("the router opens the session");

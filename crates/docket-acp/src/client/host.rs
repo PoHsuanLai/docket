@@ -59,6 +59,7 @@ pub struct AgentHost<X: Seams, D: SheetDesk> {
     desk: D,
     fallback: Fallback,
     rewind: Rewind,
+    helper: Option<prov::HelperId>,
     session: Option<SessionId>,
     pending: Option<Opening2>,
     /// The turn the agent is working on; the router hears when it ends, whichever way.
@@ -82,6 +83,7 @@ impl<X: Seams, D: SheetDesk> AgentHost<X, D> {
             desk,
             fallback,
             rewind: Rewind::default(),
+            helper: None,
             session: None,
             pending: None,
             running: None,
@@ -94,6 +96,26 @@ impl<X: Seams, D: SheetDesk> AgentHost<X, D> {
     pub fn with_rewind(mut self, rewind: Rewind) -> Self {
         self.rewind = rewind;
         self
+    }
+
+    /// Says that the agent is one helper's: the router keeps its grants apart from every other
+    /// helper's, even one that runs the same program.
+    pub fn for_helper(mut self, helper: prov::HelperId) -> Self {
+        self.helper = Some(helper);
+        self
+    }
+
+    /// Ends the agent's process after a start that failed (the agent wanted signing in, say): the
+    /// session never opened, so [`SessionHost::close`] has nothing to close, but the process is
+    /// running and must not be left so.
+    pub async fn abandon(&mut self) {
+        self.backend.close().await;
+    }
+
+    /// Asks the agent to sign out (`logout`), when it advertised the method. `Ok(false)` when it
+    /// did not, or would not. The agent clears its own login.
+    pub async fn log_out(&mut self) -> Result<bool, BackendFault> {
+        self.backend.log_out().await
     }
 
     /// The backend, for what only it knows (the taint's cause).
@@ -148,6 +170,7 @@ impl<X: Seams, D: SheetDesk> SessionHost for AgentHost<X, D> {
                 space: opening.space.clone(),
                 label: opening.label.clone(),
                 rewind: self.rewind,
+                helper: self.helper.clone(),
             })
             .await
             .map_err(|_| BackendFault::Unavailable)?;

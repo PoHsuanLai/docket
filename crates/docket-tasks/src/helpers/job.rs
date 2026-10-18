@@ -12,7 +12,9 @@ use crate::task::Failure;
 use agent_loop::{FinishedAs, LoopInput, LoopPhase};
 use companion_wire::{AnswerPhase, NeedsYou, RefusalWire};
 use docket_client::Transport as IntentsTransport;
-use docket_core::helper::{CallVerdict, GoalSource, HelperCard, HelperSeat, Job, JobFault};
+use docket_core::helper::{
+    CallVerdict, GoalSource, HelperCard, HelperSeat, Job, JobFault, SignInWay,
+};
 use docket_core::{
     CallEnd, CallRefusal, DenyCode, DraftPart, MessageDraft, SessionOpen, StepEnd, TurnId,
     TurnSource, TurnVia, UserTurn,
@@ -59,6 +61,8 @@ pub enum JobEnding {
         /// The answer's words.
         words: String,
     },
+    /// The agent app the helper runs wants the person to sign in first. The job did not fail.
+    NeedsSignIn(Vec<SignInWay>),
     /// It did not finish.
     Failed(JobFault),
     /// It was stopped before it finished.

@@ -34,4 +34,9 @@ pub struct ExternalAgent {
     /// that launched it says. Never read from the agent. Absent in older records: `Docket`.
     #[serde(default)]
     pub rewind: Rewind,
+    /// The helper this agent app is, when it runs as one: its grants are that helper's alone.
+    /// Said by the host that launched it, never by the agent. Absent in older records and for an
+    /// agent the person runs on its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub helper: Option<prov::HelperId>,
 }

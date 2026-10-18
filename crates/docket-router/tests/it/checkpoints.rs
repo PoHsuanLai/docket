@@ -168,6 +168,7 @@ async fn no_workspace_writes_no_entry_and_an_agent_that_keeps_its_own_history_sa
         sheets: SheetSurface::Desktop,
         label: None,
         rewind: Rewind::Agent,
+        helper: None,
     };
     let agent = open_in(&router, &host(), Some(WORK), Some(external)).await;
     let turn = say_as(&router, &host(), &agent, "go").await;
@@ -510,6 +511,7 @@ async fn only_the_opener_of_a_session_ends_its_turn_and_an_agent_cannot() {
         sheets: SheetSurface::Desktop,
         label: None,
         rewind: Rewind::Agent,
+        helper: None,
     };
     let session = open_in(&router, &host(), Some(WORK), Some(external)).await;
     let turn = say_as(&router, &host(), &session, "go").await;
@@ -757,6 +759,7 @@ async fn an_agent_cannot_watch_mark_or_close_a_watch_session() {
         workspace: Workspace::parse(WORK).expect("workspace"),
         label: "a sneaky one".into(),
         rewind: Rewind::Agent,
+        helper: None,
     };
     for agent in [
         caller("org.zed.Zed", CallerRole::Mcp),

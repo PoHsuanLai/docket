@@ -51,7 +51,8 @@ impl GrantCaller {
             | GrantCaller::Mcp(_)
             | GrantCaller::Cli
             | GrantCaller::Editor(_)
-            | GrantCaller::AcpAgent(_) => None,
+            | GrantCaller::AcpAgent(_)
+            | GrantCaller::AcpHelper { .. } => None,
         }
     }
 }

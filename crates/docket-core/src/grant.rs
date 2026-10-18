@@ -43,6 +43,15 @@ pub enum GrantCaller {
     Editor(prov::ClientName),
     /// An external agent program the companion drives over ACP (`claude-code`).
     AcpAgent(ProgramName),
+    /// An agent app that is one helper's: its grants are that helper's alone, so two helpers
+    /// that run the same program do not share them. A grant made for the program as a whole
+    /// (`AcpAgent`) before it was a helper is not this one's.
+    AcpHelper {
+        /// The program.
+        program: ProgramName,
+        /// The helper that runs it.
+        helper: prov::HelperId,
+    },
 }
 
 impl GrantCaller {
@@ -56,7 +65,7 @@ impl GrantCaller {
             GrantCaller::App(_) => ActorKind::App,
             // An editor drives us over ACP as an outside client; an agent we run is prov's `Acp`.
             GrantCaller::Editor(_) => ActorKind::Mcp,
-            GrantCaller::AcpAgent(_) => ActorKind::Acp,
+            GrantCaller::AcpAgent(_) | GrantCaller::AcpHelper { .. } => ActorKind::Acp,
         }
     }
 }

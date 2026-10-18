@@ -560,6 +560,7 @@ fn work_form(name: &str, model: HelperModel) -> HelperForm {
         apps: vec![app("org.quire.Mail")],
         ceiling: Ceiling::Change,
         steps: Count(8),
+        kind: Default::default(),
     }
 }
 

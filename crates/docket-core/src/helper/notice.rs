@@ -14,6 +14,8 @@ pub enum Notice {
     Paused(PauseWhy),
     /// It has a job and no model.
     WaitsForModel,
+    /// It has a job and its agent app is not signed in.
+    WaitsForSignIn,
     /// A job of its ended without finishing and is open again.
     Failed(JobFault),
     /// A job for it was refused.
@@ -36,6 +38,9 @@ impl Notice {
             ),
             Notice::WaitsForModel => {
                 format!("{name} needs a model before it can start. Choose one for it.")
+            }
+            Notice::WaitsForSignIn => {
+                format!("{name} needs you to sign in before it can start. Open its card to sign in.")
             }
             Notice::Failed(fault) => format!("{name} stopped: {}.", fault.plain()),
             Notice::Refused(refusal) => refusal.plain(),

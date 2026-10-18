@@ -179,7 +179,10 @@ pub fn blocker(f: &AskFacts<'_>) -> Option<Withheld> {
 /// Whether a caller can hold standing grants: an editor or an ACP agent. The terminal, the
 /// companion, computer use and apps have their own consent; this model leaves them as they are.
 pub fn holds_standing(caller: &GrantCaller) -> bool {
-    matches!(caller, GrantCaller::Editor(_) | GrantCaller::AcpAgent(_))
+    matches!(
+        caller,
+        GrantCaller::Editor(_) | GrantCaller::AcpAgent(_) | GrantCaller::AcpHelper { .. }
+    )
 }
 
 /// The narrowest scope that covers this call, or why there is none.
@@ -254,8 +257,10 @@ fn command_prefix(line: &str) -> Option<CommandPrefix> {
 /// the one case scoped by the action alone, since a search or a read has no path or recipient to
 /// name. The agent pseudo-app keeps its files and terminal scopes.
 fn reads_only(caller: &GrantCaller, call: &CallFacts, f: &AskFacts<'_>) -> bool {
-    matches!(caller, GrantCaller::AcpAgent(_))
-        && f.effect == Effect::Read
+    matches!(
+        caller,
+        GrantCaller::AcpAgent(_) | GrantCaller::AcpHelper { .. }
+    ) && f.effect == Effect::Read
         && f.reach == AgentReach::Offered
         && !crate::agent_app::is_agent_action(&call.action)
 }

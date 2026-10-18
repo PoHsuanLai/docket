@@ -55,6 +55,9 @@ pub struct OpenAgent {
     /// Who keeps the history of the agent's file changes (`checkpoints` in `agents.toml`), which
     /// only the host says: never the agent.
     pub rewind: Rewind,
+    /// The helper this agent app is, when it runs as one: its grants are that helper's alone.
+    /// Only the host says it, never the agent.
+    pub helper: Option<prov::HelperId>,
 }
 
 impl OpenAgent {
@@ -65,6 +68,7 @@ impl OpenAgent {
             sheets: self.sheets,
             label: self.label.clone(),
             rewind: self.rewind,
+            helper: self.helper.clone(),
         }
     }
 }

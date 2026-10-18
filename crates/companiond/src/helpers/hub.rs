@@ -11,8 +11,9 @@ use crate::Shared;
 use almanac_core::{RecentEntry, RecentQuery};
 use docket_client::Transport as IntentsTransport;
 use docket_core::helper::{
-    Board, BoardEffect, BoardEvent, CallVerdict, CardRecord, HelperCard, HelperName, HelperRecord,
-    JobFault, JobId, JobStatus, Launch, Notice, ResultHandle, TaskRef, owned_sentence, step,
+    AgentApps, AgentOutcome, Board, BoardEffect, BoardEvent, CallVerdict, CardRecord, HelperCard,
+    HelperName, HelperRecord, HelperState, JobFault, JobId, JobStatus, Launch, Need, Notice,
+    ResultHandle, SignInWay, TaskRef, owned_sentence, step,
 };
 use docket_core::routine::JobEnd;
 use docket_core::{SessionOpen, ValidManifest};
@@ -21,7 +22,7 @@ use docket_tasks::{
 };
 use futures_util::lock::Mutex as AsyncMutex;
 use porter_client::Transport as InferTransport;
-use prov::{AgentRef, EntityId, HelperId, SessionId, SpaceId, TaskId};
+use prov::{AgentProgram, AgentRef, EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::sync::{Arc, Mutex};
@@ -47,12 +48,22 @@ pub struct Told {
     pub text: String,
 }
 
+/// Whether the hub closes the session an answer was given in when the answer is let go. A native
+/// job's session is the hub's to close; an agent app's session is its process's, kept open across
+/// the helper's jobs, and ends with that process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Hold {
+    Close,
+    Leave,
+}
+
 /// What a finished job's answer is, while the process lives: the session it was given in and its
 /// words. It is never written down: a handle to it expires with the session.
 #[derive(Debug, Clone)]
 struct Answer {
     session: SessionId,
     words: String,
+    hold: Hold,
 }
 
 /// A job that is running: how to stop it, and where it runs.
@@ -75,6 +86,10 @@ pub(super) struct State {
     kept: VecDeque<JobId>,
     /// Why a job stopped, as it was told, for its line on the card (not across a restart).
     whys: BTreeMap<JobId, String>,
+    /// For a helper whose agent app wants signing in: the ways the app listed, by its own names.
+    pub(super) signins: BTreeMap<HelperId, Vec<SignInWay>>,
+    /// The helpers whose agent app opened a session, so is signed in: known only from the app.
+    pub(super) signed: BTreeSet<HelperId>,
 }
 
 /// What builds the companion a job runs on: its transports are the daemon's, its planner is
@@ -87,6 +102,8 @@ struct Inner<P: InferTransport, I: IntentsTransport> {
     /// never written behind a person's turn.
     service: AsyncMutex<Companiond<P, I>>,
     make: Box<Make<P, I>>,
+    /// The host of the agent apps that are helpers, when the daemon has one.
+    agents: std::sync::OnceLock<Arc<dyn AgentApps>>,
     /// The front companion's shared view: where the shell is told something changed.
     shared: Arc<Shared>,
 }
@@ -152,6 +169,7 @@ fn by_space(
 struct Finished {
     opened: Option<OpenedJob>,
     report: JobReport,
+    hold: Hold,
 }
 
 /// What a job's end means for the board and for the router.
@@ -162,6 +180,8 @@ struct Conclusion {
     calls: Vec<CallVerdict>,
     owned: Vec<EntityId>,
     why: Option<String>,
+    /// The ways to sign in, when the job ended because its agent app wants the person to.
+    ways: Option<Vec<SignInWay>>,
 }
 
 fn failure(job: JobId, fault: JobFault, close: Option<SessionId>) -> Conclusion {
@@ -172,13 +192,18 @@ fn failure(job: JobId, fault: JobFault, close: Option<SessionId>) -> Conclusion 
         calls: Vec::new(),
         owned: Vec::new(),
         why: None,
+        ways: None,
     }
 }
 
 /// How a job's end is told to the board. A run that ended in a words answer keeps its session open
 /// for its answer to be handed on; every other end closes it.
 fn conclude(job: JobId, done: Finished) -> Conclusion {
-    let Finished { opened, report } = done;
+    let Finished {
+        opened,
+        report,
+        hold,
+    } = done;
     let JobReport {
         ending,
         calls,
@@ -198,11 +223,19 @@ fn conclude(job: JobId, done: Finished) -> Conclusion {
             answer: Some(Answer {
                 session: opened.session,
                 words,
+                hold,
             }),
             close: None,
             calls: Vec::new(),
             owned: Vec::new(),
             why: None,
+            ways: None,
+        },
+        // Nothing failed: the job waits for the person to sign in, and so does its helper.
+        (JobEnding::NeedsSignIn(ways), _) => Conclusion {
+            event: BoardEvent::NeedsSignIn(job),
+            ways: Some(ways),
+            ..failure(job, JobFault::Crashed, close)
         },
         (JobEnding::Done { .. }, None) => failure(job, JobFault::Crashed, None),
         (JobEnding::Failed(fault), _) => failure(job, fault, close),
@@ -237,6 +270,7 @@ where
                 state: Mutex::new(State::default()),
                 service: AsyncMutex::new(service),
                 make: Box::new(make),
+                agents: std::sync::OnceLock::new(),
                 shared,
             }),
         }
@@ -426,8 +460,77 @@ where
         });
     }
 
+    /// Gives the hub the host of the agent apps that are helpers. A helper whose kind is an app
+    /// has its jobs run there; without one such a job fails at once, and nothing else changes.
+    pub fn set_agents(&self, agents: Arc<dyn AgentApps>) {
+        // Set once: a second host is ignored rather than swapped under running jobs.
+        let _ = self.inner.agents.set(agents);
+    }
+
+    pub(super) fn agents(&self) -> Option<Arc<dyn AgentApps>> {
+        self.inner.agents.get().cloned()
+    }
+
     /// One job, from its session to its report: the body of the task that runs it.
     async fn work(&self, spec: JobSpec) -> Finished {
+        match spec.card.kind.program() {
+            Some(_) => self.work_agent(spec).await,
+            None => self.work_native(spec).await,
+        }
+    }
+
+    /// A job of a helper that runs an agent app: the goal is the app's one turn, and what it says
+    /// comes back as the job's answer. The app's session at the router is the app process's, so
+    /// the hub never closes it. A job that cannot start because the app is not signed in is the
+    /// board's `NeedsSignIn`, never a failure.
+    async fn work_agent(&self, spec: JobSpec) -> Finished {
+        let job = spec.job.id;
+        let unstarted = |fault| Finished {
+            opened: None,
+            report: JobReport::failed(fault),
+            hold: Hold::Leave,
+        };
+        let Some(agents) = self.agents() else {
+            return unstarted(JobFault::Crashed);
+        };
+        // The app has no task of ours; the card still names one, so a pause finds the job.
+        let Ok(task) = TaskId::parse(&format!("agent-job-{}", job.0)) else {
+            return unstarted(JobFault::Crashed);
+        };
+        self.with_state(|state| {
+            if let Some(running) = state.running.get_mut(&job) {
+                running.task = Some(task.clone());
+            }
+        });
+        self.apply(BoardEvent::Started { job, task }).await;
+        let (ending, opened) = match agents.run(&spec.card, &spec.job).await {
+            AgentOutcome::Done {
+                words,
+                task,
+                session,
+            } => (
+                JobEnding::Done {
+                    words: words.into_inner(),
+                },
+                Some(OpenedJob { task, session }),
+            ),
+            AgentOutcome::NeedsSignIn(ways) => (JobEnding::NeedsSignIn(ways), None),
+            AgentOutcome::Failed(fault) => (JobEnding::Failed(fault), None),
+            AgentOutcome::Stopped => (JobEnding::Stopped, None),
+        };
+        Finished {
+            opened,
+            report: JobReport {
+                ending,
+                calls: Vec::new(),
+                owned: Vec::new(),
+                why: None,
+            },
+            hold: Hold::Leave,
+        }
+    }
+
+    async fn work_native(&self, spec: JobSpec) -> Finished {
         let job = spec.job.id;
         let mut companion = (self.inner.make)(&spec.card);
         let opened = match companion.open_job(&spec).await {
@@ -436,6 +539,7 @@ where
                 return Finished {
                     opened: None,
                     report: JobReport::failed(fault),
+                    hold: Hold::Close,
                 };
             }
         };
@@ -456,6 +560,7 @@ where
         Finished {
             opened: Some(opened),
             report,
+            hold: Hold::Close,
         }
     }
 
@@ -484,10 +589,19 @@ where
             calls,
             owned,
             why,
+            ways,
         } = conclusion;
+        // An agent app that answered is signed in: the agent said so by opening its session.
+        let answered_by_app = answer.as_ref().is_some_and(|a| a.hold == Hold::Leave);
         let evicted = answer
             .map(|answer| self.keep(job, answer))
             .unwrap_or_default();
+        if let Some(ways) = ways {
+            self.with_state(|state| {
+                state.signed.remove(&running.helper);
+                state.signins.insert(running.helper.clone(), ways);
+            });
+        }
         if let Some(why) = &why {
             self.with_state(|state| {
                 state.whys.insert(job, why.clone());
@@ -498,6 +612,9 @@ where
             });
         }
         self.apply_saying(event, why).await;
+        if answered_by_app {
+            self.signed_in_to_app_of(&running.helper).await;
+        }
         for verdict in calls {
             self.apply(BoardEvent::Called {
                 helper: running.helper.clone(),
@@ -534,6 +651,41 @@ where
         })
     }
 
+    /// The agent app `helper` runs is signed in. It has one login, so every helper that runs the
+    /// same app is: those that waited for it take their jobs now.
+    pub(super) async fn signed_in_to_app_of(&self, helper: &HelperId) {
+        let Some(program) = self.program_of(helper) else {
+            return;
+        };
+        let waiting: Vec<HelperId> = self.with_state(|state| {
+            let same: Vec<&HelperCard> = state
+                .board
+                .cards()
+                .iter()
+                .filter(|card| card.kind.program() == Some(&program))
+                .collect();
+            let waiting = same
+                .iter()
+                .filter(|card| card.state == HelperState::Waiting(Need::SignIn))
+                .map(|card| card.id.clone())
+                .collect();
+            let ids: Vec<HelperId> = same.iter().map(|card| card.id.clone()).collect();
+            for id in ids {
+                state.signins.remove(&id);
+                state.signed.insert(id);
+            }
+            waiting
+        });
+        for id in waiting {
+            self.apply(BoardEvent::SignedIn(id)).await;
+        }
+    }
+
+    /// The agent app `helper` runs, if it runs one.
+    pub(super) fn program_of(&self, helper: &HelperId) -> Option<AgentProgram> {
+        self.with_state(|state| state.board.card(helper)?.kind.program().cloned())
+    }
+
     /// Keeps a finished job's answer for the jobs that are handed it; the oldest answers beyond
     /// the most kept are dropped and their sessions are returned to be closed.
     fn keep(&self, job: JobId, answer: Answer) -> Vec<SessionId> {
@@ -544,6 +696,7 @@ where
             while state.kept.len() > KEPT_ANSWERS {
                 if let Some(oldest) = state.kept.pop_front()
                     && let Some(gone) = state.answers.remove(&oldest)
+                    && gone.hold == Hold::Close
                 {
                     old.push(gone.session);
                 }
@@ -567,13 +720,17 @@ where
             state
                 .running
                 .get(&at.job)
-                .map(|r| (r.shared.clone(), r.task.clone(), r.abort.clone()))
+                .map(|r| (r.shared.clone(), r.task.clone(), r.abort.clone(), r.helper.clone()))
         });
-        let Some((shared, task, abort)) = found else {
+        let Some((shared, task, abort, helper)) = found else {
             return;
         };
         if let (Some(shared), Some(task)) = (shared, task) {
             shared.cancel(&task);
+        }
+        // A job on an agent app is stopped at the app; for any other helper this finds nothing.
+        if let Some(agents) = self.agents() {
+            tokio::spawn(async move { agents.stop(&helper).await });
         }
         if let Some(abort) = abort {
             tokio::spawn(async move {

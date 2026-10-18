@@ -60,7 +60,9 @@ pub(crate) fn consent_for(
         // content asks again for anything that writes (below). Only for the pseudo-app: the
         // person launched the agent in a directory, not into their mail, so an action of another
         // app that the agent calls over its tool edge is asked about like a planner's.
-        GrantCaller::AcpAgent(_) if app.as_str() == docket_core::ACP_AGENT_APP => {
+        GrantCaller::AcpAgent(_) | GrantCaller::AcpHelper { .. }
+            if app.as_str() == docket_core::ACP_AGENT_APP =>
+        {
             Verdict::Granted {
                 grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
                 scope: GrantScope::Always,

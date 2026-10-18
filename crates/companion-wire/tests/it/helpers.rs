@@ -243,6 +243,7 @@ fn what_the_shell_reads_and_sends_pins_its_json() {
         apps: vec![porter_core::AppName::parse("org.quire.Mail").expect("app")],
         ceiling: Ceiling::Change,
         steps: Count(8),
+        kind: Default::default(),
     };
     let text = serde_json::to_string(&form).expect("json");
     assert!(text.contains(r#""ceiling":"change""#), "{text}");

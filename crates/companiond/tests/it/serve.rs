@@ -375,6 +375,7 @@ async fn the_helpers_are_served_beside_the_conversation_to_the_shell_alone() {
         apps: vec![app("org.quire.Mail")],
         ceiling: Ceiling::Look,
         steps: porter_core::Count(8),
+        kind: Default::default(),
     };
     let form = serde_json::to_string(&form).expect("json");
     let made: HelperReply =

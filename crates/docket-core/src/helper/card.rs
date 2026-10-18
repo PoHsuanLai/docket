@@ -4,7 +4,7 @@ use super::job::JobId;
 use crate::task_policy::TaskPolicy;
 use porter_core::Count;
 use porter_infer::ModelRef;
-use prov::{HelperId, SpaceId, TaskId};
+use prov::{AgentProgram, HelperId, SpaceId, TaskId};
 use serde::{Deserialize, Serialize};
 
 /// Why a name or a role is not one.
@@ -105,13 +105,28 @@ impl From<Role> for String {
     }
 }
 
-/// How a helper works. Only our own planner is built; coding agents and on-screen helpers come
-/// as further kinds when they are built, not before.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// How a helper works. On-screen helpers come as a further kind when they are built, not before.
+/// A card stored before a kind was added reads as it was written: `"native"` stays `Native`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum HelperKind {
     /// Our planner, on a model the person chose, acting only through apps' actions.
+    #[default]
     Native,
+    /// An agent app (Claude Code, Codex, any coding agent in the agent list) that does the jobs
+    /// with its own model and its own sign-in. Its jobs reach it as turns and its words come back
+    /// as untrusted text; every effect it asks for is ruled like a native helper's.
+    AgentApp(AgentProgram),
+}
+
+impl HelperKind {
+    /// The agent app this helper runs, when it is one.
+    pub fn program(&self) -> Option<&AgentProgram> {
+        match self {
+            HelperKind::Native => None,
+            HelperKind::AgentApp(program) => Some(program),
+        }
+    }
 }
 
 /// The model a helper's jobs run on. There is no default: a helper with no model does not run.
@@ -137,6 +152,8 @@ pub struct HelperBudget {
 pub enum Need {
     /// A model: the person has to choose one for it.
     ChooseModel,
+    /// The agent app it runs is not signed in: the person signs in to it from the helper's card.
+    SignIn,
 }
 
 /// The job a helper is working on, and the task it runs as.
