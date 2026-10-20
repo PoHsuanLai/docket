@@ -13,7 +13,7 @@ use docket_acp::client::{
 use docket_agents::AgentsDir;
 use docket_client::{DbusTransport, serve_on_with};
 use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};
-use docket_core::{ACP_AGENT_APP, AbsPath, ValidManifest};
+use docket_core::{ACP_AGENT_APP, AbsPath, SeenCommand, ValidManifest, WatchedAgent};
 use docket_dbus::CONFIRM_PATH;
 use docket_inapp::EditorDesk;
 use docket_launch::{
@@ -148,6 +148,11 @@ impl<A: Accounts + 'static> Live<A> {
     /// The entry of `agents.toml` that runs `program`.
     pub fn entry(&self, program: &ProgramName) -> Option<&Entry> {
         self.file.get(program)
+    }
+
+    /// The listed app and conversation `seen` picks up, when it is one of the list's.
+    pub fn recognise(&self, seen: &SeenCommand) -> Option<WatchedAgent> {
+        self.file.recognise(seen)
     }
 
     /// The run of `program`'s sign-in in a terminal, resolved from its entry: the command as the

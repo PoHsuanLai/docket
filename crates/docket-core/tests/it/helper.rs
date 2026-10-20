@@ -240,11 +240,15 @@ fn the_calls_on_the_host_of_the_agent_apps_cross_a_bus_as_they_are() {
     let asks = [
         AppsAsk::Stop { helper: hid(1) },
         AppsAsk::Forget { helper: hid(2) },
+        AppsAsk::Recognise {
+            seen: docket_core::SeenCommand::parse(vec!["claude".to_owned(), "--resume".to_owned()])
+                .expect("seen"),
+        },
         AppsAsk::BringBackWatched {
             session: prov::SessionId::parse("s-3").expect("session"),
             agent: WatchedAgent {
                 program: ProgramName::parse("claude-code").expect("program"),
-                session: "abc".to_owned(),
+                session: docket_core::AppSessionId::parse("abc").expect("id"),
             },
             folder: docket_core::Workspace::parse("/work/project").expect("folder"),
         },
@@ -262,11 +266,12 @@ fn the_calls_on_the_host_of_the_agent_apps_cross_a_bus_as_they_are() {
             words: UntrustedWords::new("Three offers.".to_owned()),
             task: TaskId::parse("t-1").expect("task"),
             session: prov::SessionId::parse("s-1").expect("session"),
-            own_session: Some("abc".to_owned()),
+            own_session: docket_core::AppSessionId::parse("abc").ok(),
         }),
         AppsReply::ToTerminal(ToTerminalOutcome::Refused(HandFault::Busy)),
         AppsReply::BringBack(BackOutcome::Back),
         AppsReply::BringBackWatched(BroughtOutcome::Refused(HandFault::NotResumable)),
+        AppsReply::Recognise(None),
         AppsReply::SignIn(SignInOutcome::SignedIn),
         AppsReply::Check(CheckOutcome::Failed),
         AppsReply::SignOut(SignOutOutcome::SignedOut),

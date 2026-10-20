@@ -12,7 +12,7 @@ use docket_core::helper::{
     CheckOutcome, HandFault, HelperCard, Job, JobFault, SignInOutcome, SignInWay, SignOutOutcome,
     ToTerminalOutcome,
 };
-use docket_core::{WatchedAgent, Workspace};
+use docket_core::{SeenCommand, WatchedAgent, Workspace};
 use docket_dbus::{AgentHostProxy, BusConnection};
 use prov::{HelperId, SessionId};
 
@@ -161,6 +161,16 @@ impl AgentApps for AppsLink {
             match self.ask(&ask).await {
                 Some(AppsReply::BringBackWatched(outcome)) => outcome,
                 _ => BroughtOutcome::Refused(HandFault::Failed),
+            }
+        })
+    }
+
+    fn recognise<'a>(&'a self, seen: &'a SeenCommand) -> AgentPending<'a, Option<WatchedAgent>> {
+        Box::pin(async move {
+            let ask = AppsAsk::Recognise { seen: seen.clone() };
+            match self.ask(&ask).await {
+                Some(AppsReply::Recognise(agent)) => agent,
+                _ => None,
             }
         })
     }

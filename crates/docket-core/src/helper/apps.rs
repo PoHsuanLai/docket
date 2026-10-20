@@ -8,7 +8,7 @@ use super::agent::{SignInWay, TerminalLogin, UntrustedWords};
 use super::card::HelperCard;
 use super::hand::{BackOutcome, BroughtOutcome, HandFault, ToTerminalOutcome};
 use super::job::{Job, JobFault};
-use crate::hand::WatchedAgent;
+use crate::hand::{AppSessionId, SeenCommand, WatchedAgent};
 use crate::workspace::Workspace;
 use prov::{HelperId, SessionId, TaskId};
 use serde::{Deserialize, Serialize};
@@ -33,7 +33,7 @@ pub enum AgentOutcome {
         /// The app's own id for its conversation, when the person could pick it up in the
         /// app's own terminal program. Absent from an older host's answer.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        own_session: Option<String>,
+        own_session: Option<AppSessionId>,
     },
     /// The agent wants the person to sign in first. The job did not fail.
     NeedsSignIn(Vec<SignInWay>),
@@ -116,6 +116,14 @@ pub trait AgentApps: Send + Sync {
     fn bring_back<'a>(&'a self, card: &'a HelperCard) -> Pending<'a, BackOutcome> {
         let _ = card;
         Box::pin(async { BackOutcome::Refused(HandFault::Failed) })
+    }
+
+    /// The agent app and its own id for the conversation that `seen`, the command line a terminal
+    /// saw running in a pane, is the app's own program picking up. None when it is no app this
+    /// host runs, or names no conversation.
+    fn recognise<'a>(&'a self, seen: &'a SeenCommand) -> Pending<'a, Option<WatchedAgent>> {
+        let _ = seen;
+        Box::pin(async { None })
     }
 
     /// Starts `agent` on the watch session `session`, which a terminal opened for it in `folder`,

@@ -627,6 +627,11 @@ impl AgentsFile {
         self.entries.get(program)
     }
 
+    /// Every entry, in the order of their programs.
+    pub(crate) fn entries(&self) -> impl Iterator<Item = &Entry> {
+        self.entries.values()
+    }
+
     /// The programs, for `Launcher::register`.
     pub fn programs(&self) -> Vec<AgentProgram> {
         self.entries.keys().cloned().collect()

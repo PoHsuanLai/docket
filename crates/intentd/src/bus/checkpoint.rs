@@ -96,7 +96,7 @@ impl CheckpointBus {
         };
         self.0
             .answer(&header, request, |r| match r {
-                IntentsReply::CheckpointWatching(session) => Some(session),
+                IntentsReply::CheckpointWatchingAgent(watching) => Some(watching),
                 _ => None,
             })
             .await

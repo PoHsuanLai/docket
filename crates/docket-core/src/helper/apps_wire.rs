@@ -8,7 +8,7 @@ use super::apps::{AgentOutcome, CheckOutcome, SignInOutcome, SignOutOutcome};
 use super::card::HelperCard;
 use super::hand::{BackOutcome, BroughtOutcome, ToTerminalOutcome};
 use super::job::Job;
-use crate::hand::WatchedAgent;
+use crate::hand::{SeenCommand, WatchedAgent};
 use crate::workspace::Workspace;
 use prov::{HelperId, SessionId};
 use serde::{Deserialize, Serialize};
@@ -70,6 +70,11 @@ pub enum AppsAsk {
         /// The folder the terminal ran the app in.
         folder: Workspace,
     },
+    /// [`AgentApps::recognise`](super::AgentApps::recognise).
+    Recognise {
+        /// The command line a terminal saw in a pane.
+        seen: SeenCommand,
+    },
 }
 
 /// What the host answers, one reply for each call.
@@ -94,4 +99,6 @@ pub enum AppsReply {
     BringBack(BackOutcome),
     /// How bringing back a terminal's conversation went.
     BringBackWatched(BroughtOutcome),
+    /// The app and conversation the command line picks up, when it is one.
+    Recognise(Option<WatchedAgent>),
 }

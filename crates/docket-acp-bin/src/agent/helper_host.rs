@@ -18,12 +18,12 @@ use super::wire;
 use docket_acp::client::{HelperAgent, HelperAgents};
 use docket_acp::{SystemTicks, Ticks};
 use docket_core::ProgramName;
-use docket_core::WatchedAgent;
 use docket_core::helper::{
     AgentApps, AgentOutcome, AppsAsk, AppsReply, BackOutcome, BroughtOutcome, CheckOutcome,
     HandFault, HelperCard, JobFault, SignInOutcome, SignOutOutcome, TerminalHand, TerminalLogin,
     ToTerminalOutcome,
 };
+use docket_core::{SeenCommand, WatchedAgent};
 use docket_launch::dbus::DbusAccounts;
 use docket_session::Workspace;
 use prov::SessionId;
@@ -121,7 +121,7 @@ impl HelperHost {
         };
         match self
             .live
-            .resume_run(&program, &away.agent.session, folder.as_deref())
+            .resume_run(&program, away.agent.session.as_str(), folder.as_deref())
         {
             Some(run) => ToTerminalOutcome::Ready(Box::new(TerminalHand {
                 run,
@@ -177,6 +177,11 @@ impl HelperHost {
             }
             Err(why) => refused(why),
         }
+    }
+
+    /// The app and conversation a terminal's command line picks up, by the live agents list.
+    fn recognise(&self, seen: &SeenCommand) -> Option<WatchedAgent> {
+        self.live.recognise(seen)
     }
 
     /// Why the helper's app cannot start, or nothing if it can.
@@ -253,6 +258,7 @@ impl HelperHost {
                 agent,
                 folder,
             } => AppsReply::BringBackWatched(self.bring_back_watched(session, agent, folder).await),
+            AppsAsk::Recognise { seen } => AppsReply::Recognise(self.recognise(&seen)),
         }
     }
 
@@ -291,6 +297,7 @@ impl HelperHost {
             AppsAsk::BringBackWatched { .. } => {
                 AppsReply::BringBackWatched(BroughtOutcome::Refused(HandFault::Failed))
             }
+            AppsAsk::Recognise { .. } => AppsReply::Recognise(None),
         }
     }
 }

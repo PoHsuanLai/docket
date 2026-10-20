@@ -23,8 +23,8 @@ use crate::session::SessionState;
 use crate::state::{SessionKind, SessionRecord};
 use crate::wal::Wal;
 use docket_core::{
-    CallRequest, CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, TurnId, WatchedAgent,
-    WireRefusal, Workspace,
+    CallRequest, CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, TurnId, WatchOwner,
+    WatchedAgent, Watching, WireRefusal, Workspace,
 };
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use prov::{Actor, AgentLabel, AgentRef, SessionId, SpaceId, TaskId};
@@ -162,8 +162,27 @@ impl<S: Seams> Router<S> {
         IntentsReply::CheckpointWatching(session)
     }
 
+    /// The open watch session the companion handed to a terminal for this very conversation of
+    /// `agent`, if there is one: the terminal marks turns on it instead of opening another.
+    fn handed_session(&self, agent: &WatchedAgent) -> Option<SessionId> {
+        let st = self.locked();
+        st.sessions.iter().find_map(|(id, record)| {
+            let open = matches!(record.state, SessionState::Open(_));
+            let same = record.agent_session.as_ref() == Some(&agent.session);
+            // Only an app session the host opened for one of the companion's helpers is the
+            // companion's; the host said so when it opened it (`ExternalAgent::helper`).
+            let companions = record
+                .external
+                .as_ref()
+                .is_some_and(|e| e.program == agent.program && e.helper.is_some());
+            (open && same && companions).then(|| id.clone())
+        })
+    }
+
     /// `.Checkpoint.WatchAgent`: `.Checkpoint.Watch` for a terminal that also names the agent app
     /// and the app's own id for the conversation, so the shell can offer to bring it into docket.
+    /// A conversation the companion handed over is already a watch session: that one is answered
+    /// (`WatchOwner::Companion`, which the terminal never closes) and nothing is created.
     pub(crate) fn checkpoint_watch_agent(
         &self,
         caller: &CallerId,
@@ -172,11 +191,18 @@ impl<S: Seams> Router<S> {
         rewind: Rewind,
         agent: WatchedAgent,
     ) -> IntentsReply {
-        let opened = self.checkpoint_watch(caller, workspace, label, rewind);
-        if let IntentsReply::CheckpointWatching(session) = &opened {
-            self.name_watched_agent(session, agent);
+        if let Some(session) = self.handed_session(&agent) {
+            let owner = WatchOwner::Companion;
+            return IntentsReply::CheckpointWatchingAgent(Watching { session, owner });
         }
-        opened
+        match self.checkpoint_watch(caller, workspace, label, rewind) {
+            IntentsReply::CheckpointWatching(session) => {
+                self.name_watched_agent(&session, agent);
+                let owner = WatchOwner::Terminal;
+                IntentsReply::CheckpointWatchingAgent(Watching { session, owner })
+            }
+            other => other,
+        }
     }
 
     /// The number of a new turn of a watch session, or why it has none. The number comes from

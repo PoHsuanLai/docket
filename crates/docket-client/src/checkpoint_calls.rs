@@ -5,7 +5,7 @@ use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
 use docket_core::{
     CheckpointFault, CheckpointId, CheckpointList, HandTo, IntentsReply, IntentsRequest,
-    RestorePlan, Rewind, TurnId, WatchedAgent, WatchedLine, Workspace,
+    RestorePlan, Rewind, TurnId, WatchedAgent, WatchedLine, Watching, Workspace,
 };
 use prov::SessionId;
 
@@ -68,14 +68,15 @@ impl<T: Transport> Intents<T> {
 
     /// `checkpoint_watch` for a terminal that also names the agent app it watches and the app's
     /// own id for the conversation, so the shell can offer to bring it into docket
-    /// (`Checkpoint.WatchAgent`). A terminal only.
+    /// (`Checkpoint.WatchAgent`). Answers the watch session and who closes it: the companion's
+    /// own session when it handed this conversation over, else a new one. A terminal only.
     pub async fn checkpoint_watch_agent(
         &self,
         workspace: Workspace,
         label: String,
         rewind: Rewind,
         agent: WatchedAgent,
-    ) -> Result<SessionId, ClientError> {
+    ) -> Result<Watching, ClientError> {
         let request = IntentsRequest::CheckpointWatchAgent {
             workspace,
             label,
@@ -83,7 +84,7 @@ impl<T: Transport> Intents<T> {
             agent,
         };
         self.ask(request, |r| match r {
-            IntentsReply::CheckpointWatching(session) => Some(session),
+            IntentsReply::CheckpointWatchingAgent(watching) => Some(watching),
             _ => None,
         })
         .await

@@ -450,7 +450,7 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
                         &to_json(&agent)?,
                     )
                     .await,
-                IntentsReply::CheckpointWatching,
+                IntentsReply::CheckpointWatchingAgent,
             )
         }
         Q::CheckpointHandover { session, to, agent } => {

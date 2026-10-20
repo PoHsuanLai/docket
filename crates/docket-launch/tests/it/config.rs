@@ -423,6 +423,57 @@ fn resume_names_the_session_and_the_claude_code_profile_has_the_well_known_flag(
     refused(&text("resume = [\"--continue\"]"));
 }
 
+#[test]
+fn a_command_line_a_terminal_saw_is_the_app_and_conversation_it_picks_up() {
+    use docket_core::SeenCommand;
+    let file = AgentsFile::parse(concat!(
+        "[[agent]]\nprogram = \"claude-code\"\ncommand = \"/usr/bin/claude\"\nroute = \"login\"\n",
+        "profile = \"claude-code\"\n",
+        "[[agent]]\nprogram = \"plain\"\ncommand = \"/usr/bin/plain\"\nroute = \"login\"\n",
+        "[[agent]]\nprogram = \"flagged\"\ncommand = \"/opt/flagged\"\nroute = \"login\"\n",
+        "resume = [\"--session={session}\", \"--go\"]\n",
+    ))
+    .expect("parses");
+    // The line, and the program (or none) and id it must give.
+    const CASES: &[(&str, Option<(&str, &str)>)] = &[
+        (
+            "/usr/bin/claude --resume ab-1",
+            Some(("claude-code", "ab-1")),
+        ),
+        (
+            "/usr/bin/env -i K=V /usr/bin/bwrap --die-with-parent -- claude --resume ab-1",
+            Some(("claude-code", "ab-1")),
+        ),
+        ("/opt/flagged --session=x_9 --go", Some(("flagged", "x_9"))),
+        ("/opt/flagged --session=x_9", None),
+        ("/usr/bin/other --resume ab-1", None),
+        ("/usr/bin/claude --continue", None),
+        ("/usr/bin/claude --resume", None),
+        ("/usr/bin/claude --resume -x", None),
+        ("/usr/bin/plain --resume ab-1", None),
+    ];
+    for (line, want) in CASES {
+        let seen = SeenCommand::parse(line.split(' ').map(str::to_owned).collect()).expect(line);
+        let got = file
+            .recognise(&seen)
+            .map(|agent| (agent.program.as_str().to_owned(), agent.session.to_string()));
+        let want = want.map(|(program, id)| (program.to_owned(), id.to_owned()));
+        assert_eq!(got, want, "{line}");
+    }
+    // What the host builds to resume is what it recognises.
+    for entry in ["claude-code", "flagged"] {
+        let entry = file
+            .get(&docket_session::ProgramName::parse(entry).expect("name"))
+            .expect("entry");
+        let mut words = vec![entry.command.as_str().to_owned()];
+        words.extend(entry.resume_line("0a1b-2c3d").expect("line"));
+        let seen = SeenCommand::parse(words).expect("seen");
+        let agent = file.recognise(&seen).expect("recognised");
+        assert_eq!(agent.program, entry.name);
+        assert_eq!(agent.session.as_str(), "0a1b-2c3d");
+    }
+}
+
 const ALLOWLIST_LOGIN: &str = "route = \"login\"\nnetwork = \"allowlist\"\n";
 
 fn site(list: &'static str, text: &str, why: HostFault) -> ConfigFault {

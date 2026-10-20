@@ -12,7 +12,7 @@ use crate::confirm::ConfirmEnd;
 use crate::context::EntityRef;
 use crate::context::{ContextView, Reveal};
 use crate::gate::{CuaAsk, GateAnswer};
-use crate::hand::{HandTo, WatchedAgent, WatchedLine};
+use crate::hand::{HandTo, WatchedAgent, WatchedLine, Watching};
 use crate::ids::{ActionRef, UndoId};
 use crate::ids::{Handle, IntentsVocab, TurnId, WindowKey};
 use crate::index::{Hit, IndexBatch, SearchAsk, SuggestAsk};
@@ -670,6 +670,9 @@ pub enum IntentsReply {
     CheckpointPlan(Result<RestorePlan, CheckpointFault>),
     /// A watch session was opened (`Checkpoint.Watch`).
     CheckpointWatching(SessionId),
+    /// A terminal named the agent app it watches (`Checkpoint.WatchAgent`): the watch session
+    /// to mark turns on, which is the companion's own when the conversation was handed over.
+    CheckpointWatchingAgent(Watching),
     /// A session's conversation moved (`Checkpoint.Handover`); the app and its own id for the
     /// conversation, when the router has them.
     HandedOver(Option<WatchedAgent>),

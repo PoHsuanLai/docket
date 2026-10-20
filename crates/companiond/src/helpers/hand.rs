@@ -14,6 +14,7 @@ use docket_core::helper::{
     BackOutcome, BoardEvent, BroughtOutcome, HandFault, HelperCard, HelperKind, HelperState,
     JobRefusal, TerminalLogin, TerminalRequest, ToTerminalOutcome,
 };
+use docket_core::{SeenCommand, WatchedAgent};
 use porter_client::Transport as InferTransport;
 use prov::{AgentProgram, HelperId, SessionId};
 
@@ -202,5 +203,11 @@ where
             }
             BroughtOutcome::Refused(why) => refused(why.plain()),
         }
+    }
+
+    /// The app and conversation a terminal's command line picks up, as the host of the apps
+    /// reads its list. None when there is no host, or it knows no such app.
+    pub(super) async fn recognise_seen(&self, seen: SeenCommand) -> Option<WatchedAgent> {
+        self.agents()?.recognise(&seen).await
     }
 }

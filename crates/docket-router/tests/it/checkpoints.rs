@@ -786,7 +786,7 @@ async fn an_agent_cannot_watch_mark_or_close_a_watch_session() {
 fn claude() -> WatchedAgent {
     WatchedAgent {
         program: program("claude-code"),
-        session: "0a1b-2c3d".into(),
+        session: AppSessionId::parse("0a1b-2c3d").expect("id"),
     }
 }
 
@@ -798,16 +798,24 @@ fn hand_request(session: &SessionId, to: HandTo, agent: Option<WatchedAgent>) ->
     }
 }
 
-/// The session of an agent app, as the host opens it.
-async fn app_session(router: &Router<FakeSeams>) -> SessionId {
+/// The session of an agent app, as the host opens it; `helper` is the helper it runs as, if any.
+async fn helper_app_session(
+    router: &Router<FakeSeams>,
+    helper: Option<prov::HelperId>,
+) -> SessionId {
     let external = ExternalAgent {
         program: program("claude-code"),
         sheets: SheetSurface::Desktop,
         label: Some(prov::AgentLabel("Claude Code".into())),
         rewind: Rewind::Agent,
-        helper: None,
+        helper,
     };
     open_in(router, &host(), Some(WORK), Some(external)).await
+}
+
+/// The session of an agent app the person runs on its own, as the host opens it.
+async fn app_session(router: &Router<FakeSeams>) -> SessionId {
+    helper_app_session(router, None).await
 }
 
 #[tokio::test]
@@ -871,9 +879,12 @@ async fn a_terminal_that_names_its_agent_is_listed_for_the_companion_and_handed_
         rewind: Rewind::Agent,
         agent: claude(),
     };
-    let IntentsReply::CheckpointWatching(session) = ask(&router, &terminal(), named).await else {
+    let IntentsReply::CheckpointWatchingAgent(Watching { session, owner }) =
+        ask(&router, &terminal(), named).await
+    else {
         panic!("watching")
     };
+    assert_eq!(owner, WatchOwner::Terminal);
     // The plain watch of an agent that is not named is not offered.
     watch_in(&router, &terminal(), Rewind::Docket).await;
     let listed_for = ask(&router, &companion(), IntentsRequest::CheckpointWatched).await;
@@ -904,4 +915,70 @@ async fn a_terminal_that_names_its_agent_is_listed_for_the_companion_and_handed_
         ask(&router, &companion(), IntentsRequest::CheckpointWatched).await,
         IntentsReply::Watched(Vec::new())
     );
+}
+
+#[tokio::test]
+async fn a_terminal_naming_a_conversation_the_companion_handed_over_gets_that_session() {
+    let router = router();
+    let named = || IntentsRequest::CheckpointWatchAgent {
+        workspace: Workspace::parse(WORK).expect("workspace"),
+        label: "claude in pane 2".into(),
+        rewind: Rewind::Agent,
+        agent: claude(),
+    };
+    let helper = serde_json::from_str("\"h-1\"").expect("helper id");
+    let session = helper_app_session(&router, Some(helper)).await;
+    // Before it is handed over there is no watch session for it: a new one is created.
+    let IntentsReply::CheckpointWatchingAgent(fresh) = ask(&router, &terminal(), named()).await
+    else {
+        panic!("watching")
+    };
+    assert_eq!(fresh.owner, WatchOwner::Terminal);
+    assert_ne!(fresh.session, session);
+    assert_eq!(
+        ask(
+            &router,
+            &host(),
+            hand_request(&session, HandTo::Terminal, Some(claude()))
+        )
+        .await,
+        IntentsReply::HandedOver(Some(claude()))
+    );
+    // Now the terminal is given the companion's own session, and nothing new is created.
+    let before = watched_count(&router).await;
+    assert_eq!(
+        ask(&router, &terminal(), named()).await,
+        IntentsReply::CheckpointWatchingAgent(Watching {
+            session: session.clone(),
+            owner: WatchOwner::Companion,
+        })
+    );
+    assert_eq!(watched_count(&router).await, before);
+    // A conversation the person ran on its own, handed over, is no one's but a terminal's: a
+    // terminal naming it opens its own.
+    let own_router = router_with_own_handed().await;
+    let IntentsReply::CheckpointWatchingAgent(own) = ask(&own_router, &terminal(), named()).await
+    else {
+        panic!("watching")
+    };
+    assert_eq!(own.owner, WatchOwner::Terminal);
+}
+
+async fn watched_count(router: &Router<FakeSeams>) -> usize {
+    match ask(router, &companion(), IntentsRequest::CheckpointWatched).await {
+        IntentsReply::Watched(lines) => lines.len(),
+        other => panic!("watched: {other:?}"),
+    }
+}
+
+/// A router holding a handed-over conversation of an app that is no helper's.
+async fn router_with_own_handed() -> Router<FakeSeams> {
+    let router = router();
+    let session = app_session(&router).await;
+    let to_terminal = hand_request(&session, HandTo::Terminal, Some(claude()));
+    assert_eq!(
+        ask(&router, &host(), to_terminal).await,
+        IntentsReply::HandedOver(Some(claude()))
+    );
+    router
 }

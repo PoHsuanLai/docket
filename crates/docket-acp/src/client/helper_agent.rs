@@ -17,7 +17,7 @@ use super::backend::Seams;
 use super::host::AgentHost;
 use super::spawn::SignIn;
 use docket_core::helper::{HandFault, SignInHow, SignInWay, TerminalLogin, UntrustedWords};
-use docket_core::{Reveal, TurnId, TurnSource, TurnVia, UserTurn, WatchedAgent};
+use docket_core::{AppSessionId, Reveal, TurnId, TurnSource, TurnVia, UserTurn, WatchedAgent};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, HostFault, Opening, SessionHost, SheetDesk, TurnEnd,
 };
@@ -115,13 +115,6 @@ struct Link<H: Hosts> {
     session: SessionId,
 }
 
-/// Whether the app's own id for a conversation is safe to put on a command line: the agent says
-/// it, so it must be one plain word that no program takes for an option.
-fn plain_id(id: &str) -> bool {
-    let word = |c: char| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | ':');
-    !id.is_empty() && id.len() <= 128 && !id.starts_with('-') && id.chars().all(word)
-}
-
 /// A conversation that went to the app's own terminal program: the session at the router, which
 /// is a watch session meanwhile, and the app's id for the conversation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -191,7 +184,7 @@ impl<H: Hosts> HelperAgent<H> {
     /// The app's own id for the conversation, when the person could pick it up in the app's own
     /// terminal program: the app has such a flag, can pick a conversation up again, and has
     /// opened one.
-    pub fn terminal_ready(&self) -> Option<String> {
+    pub fn terminal_ready(&self) -> Option<AppSessionId> {
         let link = self.link.as_ref()?;
         self.hosts.resume_args()?;
         let backend = link.host.backend();
@@ -199,7 +192,7 @@ impl<H: Hosts> HelperAgent<H> {
             .picks_up_again()
             .then(|| backend.agent_session())
             .flatten()
-            .filter(|id| plain_id(id))
+            .and_then(|id| AppSessionId::parse(&id).ok())
     }
 
     /// Closes the agent and turns its session at the router into a watch session, so the
@@ -228,7 +221,7 @@ impl<H: Hosts> HelperAgent<H> {
             .await
             .map_err(|_| HandFault::Busy)?;
         self.link = None;
-        self.resume = Some(away.agent.session.clone());
+        self.resume = Some(away.agent.session.to_string());
         self.away = Some(away.clone());
         Ok(away)
     }
@@ -242,7 +235,7 @@ impl<H: Hosts> HelperAgent<H> {
         };
         let start = Start {
             sign_in: None,
-            resume: Some(away.agent.session.clone()),
+            resume: Some(away.agent.session.to_string()),
         };
         let mut host = self.hosts.host(start).await;
         let taken = host

@@ -9,7 +9,7 @@ use crate::serve::{bad, json};
 use crate::speaker::{Call, EDITOR_APP, Speaker, Speakers};
 use companion_wire::{HelperForm, ProposalId, RoutineForm, RoutineReply};
 use docket_core::routine::RoutineId;
-use docket_core::{TurnId, TurnSource};
+use docket_core::{SeenCommand, TurnId, TurnSource};
 use docket_tasks::{HelperDesk, PostFromPerson, SayFromPerson};
 use porter_core::AppName;
 use prov::{EntityId, HelperId, SessionId};
@@ -449,6 +449,17 @@ impl TerminalsObject {
         let session = SessionId::parse(&session)
             .map_err(|_| fdo::Error::InvalidArgs("there is no such conversation".into()))?;
         json(&self.desk.bring_back_terminal(session).await)
+    }
+
+    async fn recognise(
+        &self,
+        seen: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> fdo::Result<String> {
+        self.speakers.require(&header, Call::Recognise).await?;
+        let seen: SeenCommand = serde_json::from_str(&seen)
+            .map_err(|_| fdo::Error::InvalidArgs("that is not a command line".into()))?;
+        json(&self.desk.recognise(seen).await)
     }
 
     #[zbus(signal)]

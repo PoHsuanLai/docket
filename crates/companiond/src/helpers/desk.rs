@@ -14,7 +14,7 @@ use docket_core::helper::{
     Role, SignInOutcome, SignOutOutcome, TerminalRequest, reach_policy,
 };
 use docket_core::routine::{Missed, Schedule};
-use docket_core::{HelperRosterLine, LeadText, Manifest};
+use docket_core::{HelperRosterLine, LeadText, Manifest, SeenCommand, WatchedAgent};
 use docket_tasks::{
     HelperDesk, JobEnding, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk,
     RoutineFor, SayFromPerson,
@@ -519,6 +519,10 @@ where
 
     fn bring_back_terminal(&self, session: SessionId) -> Pending<'_, BroughtBack> {
         Box::pin(self.bring_in(session))
+    }
+
+    fn recognise(&self, seen: SeenCommand) -> Pending<'_, Option<WatchedAgent>> {
+        Box::pin(self.recognise_seen(seen))
     }
 
     fn roster_lines(&self, except: Option<&HelperId>) -> Vec<HelperRosterLine> {

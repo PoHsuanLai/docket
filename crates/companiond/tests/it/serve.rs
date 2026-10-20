@@ -532,6 +532,11 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
             .expect("reply");
     assert!(matches!(gone, BroughtBack::Refused(_)), "{gone:?}");
     assert!(terminals.bring_back("not a session").await.is_err());
+    // A command line is recognised by the host of the apps, and with none the answer is null.
+    let line = serde_json::to_string(&["/usr/bin/claude", "--resume", "ab-1"]).expect("json");
+    assert_eq!(terminals.recognise(&line).await.expect("recognise"), "null");
+    assert!(terminals.recognise("[]").await.is_err());
+    assert!(terminals.recognise("not json").await.is_err());
 
     // The routines reach their desk; one that is not there is an error, not a guess.
     let listed: RoutinesView =
@@ -556,6 +561,7 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
         .expect("proxy");
     assert!(nobody.sessions().await.is_err());
     assert!(nobody.bring_back("s-1").await.is_err());
+    assert!(nobody.recognise(&line).await.is_err());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -650,6 +656,10 @@ async fn the_editor_bridge_reads_the_helpers_and_changes_nothing_and_a_stranger_
     assert!(
         refused(terminals.sessions().await.map(drop)),
         "the terminals' conversations"
+    );
+    assert!(
+        refused(terminals.recognise("[\"claude\"]").await.map(drop)),
+        "recognise"
     );
     assert!(
         refused(helpers.sign_out(&id_text).await.map(drop)),

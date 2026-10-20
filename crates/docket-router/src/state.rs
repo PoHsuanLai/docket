@@ -97,7 +97,7 @@ pub struct SessionRecord {
     /// The agent app's own id for the conversation, while the session is a watch session that
     /// came from an agent app (a terminal named it, or the host handed the conversation to a
     /// terminal). Said by the host or the terminal, never read from a model.
-    pub agent_session: Option<String>,
+    pub agent_session: Option<docket_core::AppSessionId>,
 }
 
 impl SessionRecord {

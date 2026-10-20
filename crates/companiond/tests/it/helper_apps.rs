@@ -10,8 +10,8 @@ use companion_wire::{
 use docket_client::{InProcess, Intents};
 use docket_core::helper::*;
 use docket_core::{
-    ActionMatch, CallerRole, LabelText, ProgramName, Rewind, TaskPolicy, TaskPolicyState,
-    WatchedAgent, Workspace,
+    ActionMatch, AppSessionId, CallerRole, LabelText, ProgramName, Rewind, SeenCommand, TaskPolicy,
+    TaskPolicyState, WatchedAgent, Workspace,
 };
 use docket_tasks::{HelperDesk, PostFromPerson};
 use porter_core::Count;
@@ -114,6 +114,21 @@ impl AgentApps for Apps {
         })
     }
 
+    /// Knows one app: a line that ends in its conversation `0a1b-2c3d`.
+    fn recognise<'a>(&'a self, seen: &'a SeenCommand) -> AgentPending<'a, Option<WatchedAgent>> {
+        Box::pin(async move {
+            let id = seen
+                .tokens()
+                .last()
+                .and_then(|t| AppSessionId::parse(t).ok())?;
+            let program = ProgramName::parse("claude-code").ok()?;
+            (id.as_str() == "0a1b-2c3d").then_some(WatchedAgent {
+                program,
+                session: id,
+            })
+        })
+    }
+
     fn bring_back_watched<'a>(
         &'a self,
         session: &'a SessionId,
@@ -123,7 +138,7 @@ impl AgentApps for Apps {
         Box::pin(async move {
             self.brought_with.lock().expect("brought with").push((
                 session.clone(),
-                agent.session.clone(),
+                agent.session.to_string(),
                 folder.clone(),
             ));
             let next = self.brought.lock().expect("brought").pop_front();
@@ -224,7 +239,7 @@ fn done_resumable(words: &str) -> AgentOutcome {
             words,
             task,
             session,
-            own_session: Some("0a1b-2c3d".to_owned()),
+            own_session: AppSessionId::parse("0a1b-2c3d").ok(),
         },
         other => other,
     }
@@ -651,6 +666,32 @@ async fn a_conversation_that_cannot_move_stays_put_and_says_why_in_plain_words()
 }
 
 #[tokio::test]
+async fn a_command_line_a_terminal_saw_is_recognised_by_the_host_of_the_apps() {
+    let w = world(vec![]);
+    let apps = Arc::new(Apps::default());
+    let seen = |line: &str| {
+        SeenCommand::parse(line.split(' ').map(str::to_owned).collect()).expect("seen")
+    };
+    // With no host of apps there is nothing to recognise.
+    assert_eq!(
+        hub_of(&w)
+            .recognise(seen("claude --resume 0a1b-2c3d"))
+            .await,
+        None
+    );
+    let hub = hub(&w, &apps);
+    let want = WatchedAgent {
+        program: ProgramName::parse("claude-code").expect("program"),
+        session: AppSessionId::parse("0a1b-2c3d").expect("id"),
+    };
+    assert_eq!(
+        hub.recognise(seen("claude --resume 0a1b-2c3d")).await,
+        Some(want)
+    );
+    assert_eq!(hub.recognise(seen("vim notes.txt")).await, None);
+}
+
+#[tokio::test]
 async fn a_conversation_a_terminal_started_is_listed_and_brought_into_docket() {
     let w = world(vec![]);
     let apps = Arc::new(Apps::default());
@@ -667,11 +708,12 @@ async fn a_conversation_a_terminal_started_is_listed_and_brought_into_docket() {
             Rewind::Agent,
             WatchedAgent {
                 program: ProgramName::parse("claude-code").expect("program"),
-                session: "0a1b-2c3d".to_owned(),
+                session: AppSessionId::parse("0a1b-2c3d").expect("id"),
             },
         )
         .await
-        .expect("watching");
+        .expect("watching")
+        .session;
     // One that does not name its agent is not offered.
     temor
         .checkpoint_watch(

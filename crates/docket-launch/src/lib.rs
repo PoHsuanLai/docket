@@ -31,6 +31,7 @@ mod permit;
 pub mod procs;
 mod protect;
 mod reach;
+mod recognise;
 pub mod spawn;
 pub mod supervise;
 mod terminal;

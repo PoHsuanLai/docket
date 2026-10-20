@@ -8,7 +8,7 @@ use companion_wire::{
     SayReply, TerminalSession,
 };
 use docket_core::helper::{Ceiling, GoalOrigin};
-use docket_core::{HelperRosterLine, TurnId, TurnSource};
+use docket_core::{HelperRosterLine, SeenCommand, TurnId, TurnSource, WatchedAgent};
 use prov::{EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::fmt;
 use std::future::Future;
@@ -188,6 +188,13 @@ pub trait HelperDesk: fmt::Debug + Send + Sync {
     fn bring_back_terminal(&self, session: SessionId) -> Pending<'_, BroughtBack> {
         let _ = session;
         Box::pin(async { BroughtBack::Refused(NO_APPS.to_owned()) })
+    }
+
+    /// The agent app and conversation that `seen`, a command line a terminal saw in a pane, is
+    /// picking up. None when it is no listed app, or no app can be reached.
+    fn recognise(&self, seen: SeenCommand) -> Pending<'_, Option<WatchedAgent>> {
+        let _ = seen;
+        Box::pin(async { None })
     }
 }
 

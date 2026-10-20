@@ -363,7 +363,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         rewind: Rewind::Docket,
         agent: docket_core::WatchedAgent {
             program: docket_core::ProgramName::parse("claude-code").expect("program"),
-            session: "0a1b-2c3d".into(),
+            session: docket_core::AppSessionId::parse("0a1b-2c3d").expect("id"),
         },
     })
     .await;

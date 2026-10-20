@@ -184,6 +184,10 @@
      <arg name="session" type="s" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
+   <method name="Recognise">
+     <arg name="seen" type="s" direction="in"/>
+     <arg type="s" direction="out"/>
+   </method>
    <signal name="Changed">
    </signal>
  </interface>

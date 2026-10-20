@@ -19,6 +19,12 @@ pub trait CompanionTerminals {
     /// `BroughtBack` JSON).
     fn bring_back(&self, session: &str) -> zbus::Result<String>;
 
+    /// Which listed app a command line a terminal saw in a pane is picking a conversation up
+    /// of (`seen` is `SeenCommand` JSON, the words of the line; answers the `WatchedAgent` JSON,
+    /// or `null` when it is no listed app). Read-only: a terminal may ask it, and nothing is
+    /// stored. The line can hold secrets, so it is matched and dropped.
+    fn recognise(&self, seen: &str) -> zbus::Result<String>;
+
     /// Something about the terminals' conversations changed. Content-free: read `Sessions`.
     #[zbus(signal)]
     fn changed(&self) -> zbus::Result<()>;
@@ -36,6 +42,11 @@ impl CompanionTerminalsSkeleton {
 
     fn bring_back(&self, session: String) -> fdo::Result<String> {
         let _ = (session,);
+        Err(crate::introspect::frozen())
+    }
+
+    fn recognise(&self, seen: String) -> fdo::Result<String> {
+        let _ = (seen,);
         Err(crate::introspect::frozen())
     }
 

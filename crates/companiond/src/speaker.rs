@@ -63,8 +63,8 @@ pub enum Call {
     Read,
     /// Anything on `Companion1.Helpers` and `.Helpers2` that changes something (making, editing,
     /// pausing, removing a helper, giving a job, signing in or out, opening a conversation in a
-    /// terminal or bringing it back, the routines and what they read), and `.Terminals`: they are
-    /// the person's own, and the shell speaks for them; a terminal and the
+    /// terminal or bringing it back, the routines and what they read), and `.Terminals` but
+    /// `Recognise`: they are the person's own, and the shell speaks for them; a terminal and the
     /// editor bridge do not.
     Helpers,
     /// Reading the helpers: the list and a helper's card. The shell and the editor bridge may.
@@ -73,6 +73,9 @@ pub enum Call {
     /// and the editor bridge may, and only for the conversation (the daemon refuses any other
     /// session): the editor carries the person's words, and the helper's own gate rules the turn.
     Converse,
+    /// `Terminals.Recognise`: which listed app a command line is, and which conversation. Reads
+    /// the list of apps only; the shell and a terminal may, the editor bridge may not.
+    Recognise,
 }
 
 /// Whether `speaker` may make `call`: the shell anything, a terminal only the conversation, the
@@ -83,7 +86,7 @@ pub fn permits(speaker: &Speaker, call: Call) -> bool {
         Speaker::Editor => matches!(call, Call::HelpersRead | Call::Converse),
         Speaker::Terminal(_) => matches!(
             call,
-            Call::Open | Call::Ask | Call::Close | Call::Cancel | Call::Read
+            Call::Open | Call::Ask | Call::Close | Call::Cancel | Call::Read | Call::Recognise
         ),
     }
 }
@@ -250,6 +253,7 @@ mod tests {
             Call::Helpers,
             Call::HelpersRead,
             Call::Converse,
+            Call::Recognise,
         ];
         let terminal: Vec<Call> = all
             .into_iter()
@@ -257,7 +261,14 @@ mod tests {
             .collect();
         assert_eq!(
             terminal,
-            [Call::Open, Call::Ask, Call::Close, Call::Cancel, Call::Read]
+            [
+                Call::Open,
+                Call::Ask,
+                Call::Close,
+                Call::Cancel,
+                Call::Read,
+                Call::Recognise
+            ]
         );
         assert!(all.into_iter().all(|c| permits(&Speaker::Shell, c)));
         let editor: Vec<Call> = all

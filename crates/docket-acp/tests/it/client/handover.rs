@@ -12,7 +12,7 @@ use docket_acp::client::{
 };
 use docket_client::{InProcess, Intents};
 use docket_core::helper::HandFault;
-use docket_core::{CallerId, CallerRole, WatchedAgent};
+use docket_core::{AppSessionId, CallerId, CallerRole, WatchedAgent};
 use docket_inapp::EditorDesk;
 use docket_session::Opening;
 use prov::{SessionId, UnixSeconds};
@@ -116,7 +116,10 @@ async fn a_conversation_goes_to_the_terminal_and_comes_back_on_the_same_session(
         helper_over(Resumes::Yes, vec![Resumes::Yes], resume_flag());
     let done = helper.run("Compare the offers", AT).await;
     assert!(matches!(done, AgentEnd::Done(_)), "{done:?}");
-    assert_eq!(helper.terminal_ready().as_deref(), Some(AGENT_SESSION));
+    assert_eq!(
+        helper.terminal_ready().as_ref().map(AppSessionId::as_str),
+        Some(AGENT_SESSION)
+    );
     let (_, router_session) = helper.handle().expect("open");
 
     // Open in Terminal: the app is closed, and the session is a watch session that names the app
@@ -127,7 +130,7 @@ async fn a_conversation_goes_to_the_terminal_and_comes_back_on_the_same_session(
         away.agent,
         WatchedAgent {
             program: program(),
-            session: AGENT_SESSION.to_owned(),
+            session: AppSessionId::parse(AGENT_SESSION).expect("id"),
         }
     );
     assert!(!helper.is_open());
