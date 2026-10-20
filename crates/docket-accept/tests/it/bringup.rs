@@ -226,6 +226,8 @@ fn inferd_is_never_given_a_local_engine() {
     let shell = callers["shell"].as_array().expect("a shell row");
     assert_eq!(shell[0].as_str(), Some("sill.service"));
     assert!(callers["places"].is_array());
+    // cuad may open a computer-use session, as on an install.
+    assert_eq!(callers["cua"][0].as_str(), Some("cuad.service"));
 
     // The person's own rows are kept, but cannot bring an engine, a probe or other callers back.
     let extra = "[ai]\nlocal_only = \"off\"\n";
