@@ -9,9 +9,9 @@ use super::spec::AcpSpec;
 use crate::live::acp::secret::Credentials;
 use crate::runlink::short_run;
 use crate::world::{Binaries, Cgroup, World};
-use bulkhead::Detected;
 use docket_acp::client::{Fallback, Models, ToolsOffer};
 use docket_acp_bin::agent::host::{Hosted, Wiring, host};
+use docket_acp_bin::agent::wire::SandboxLimits;
 use docket_core::{AbsPath, TurnId, TurnSource, TurnVia, UserTurn};
 use docket_inapp::EditorDesk;
 use docket_launch::{AgentsFile, AgentsPermit, LoginOnly, Registry};
@@ -114,7 +114,9 @@ async fn open(
         accounts: Arc::new(LoginOnly),
         file: Arc::new(file),
         permit,
-        bwrap: Detected::probe("/usr/bin:/bin:/usr/local/bin"),
+        // The world is `env -i` with a scratch runtime dir: no user manager holds a scope, so the
+        // agent is bounded per process, as in the acceptance jail.
+        bwrap: SandboxLimits::PerProcess.probe("/usr/bin:/bin:/usr/local/bin"),
         forwarder,
         enter: None,
         run_dir: short_run(home),

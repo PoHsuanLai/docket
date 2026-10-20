@@ -164,13 +164,13 @@ pub enum SandboxLimits {
     #[default]
     Scope,
     /// Per-process limits instead, for a machine with no user manager. Only the acceptance
-    /// harness's main passes it (its jail runs no systemd).
+    /// harness passes it (its jail and its live worlds run no systemd).
     PerProcess,
 }
 
 impl SandboxLimits {
     /// The sandbox here, bounded this way.
-    fn probe(self, path: &str) -> Detected {
+    pub fn probe(self, path: &str) -> Detected {
         match self {
             SandboxLimits::Scope => Detected::probe(path),
             SandboxLimits::PerProcess => {
