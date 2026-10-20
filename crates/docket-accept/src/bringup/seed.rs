@@ -40,10 +40,10 @@ pub fn inferd_toml(root: &Path, extra: &str) -> Result<String, ExtraFault> {
     Ok(crate::world::inferd_toml(root, &model, None))
 }
 
-/// The rows an install gives inferd beside the apps: the shell's unit (here `sill.service`, the
-/// unit the fake proc root puts the shell in) and the daemons that may choose where the
-/// assistant runs.
-const SHELL_CALLERS: &str = "shell = [\"sill.service\"]\nplaces = [\"companiond.service\", \"readerd.service\", \"intentd.service\"]\n\n";
+/// The rows an install gives inferd beside the apps: `cua` (cuad, the only caller that may open a
+/// computer-use session), the shell's unit (here `sill.service`, the unit the fake proc root puts
+/// the shell in) and the daemons that may choose where the assistant runs.
+const SHELL_CALLERS: &str = "cua = [\"cuad.service\"]\nshell = [\"sill.service\"]\nplaces = [\"companiond.service\", \"readerd.service\", \"intentd.service\"]\n\n";
 
 /// inferd's system caller table for a root: the shell and the places rows, then the apps.
 pub fn inferd_callers() -> String {
