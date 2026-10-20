@@ -4,12 +4,14 @@
 //! refused here, before the call is made: no sheet, no call, and the history says busy, which the
 //! planner is told with the same hint as the daemon's own refusal.
 //!
-//! The run is live by the structure the task already keeps: a start that was done is a run, and a
-//! report from a run in the task's inbox (anything but progress) is its end. Another task's runs
-//! are not this task's; the daemon's own refusal still covers those.
+//! The runs are counted as they happen ([`LiveRuns`]): a start that was done adds one, a report
+//! from a run that lands (anything but progress) takes one away. The count is not stored, so a
+//! task brought back after a restart holds no run: a report that fell out of the restart window
+//! can never leave it refused for good, and the daemon's own refusal still covers a run that
+//! outlived the restart. Another task's runs are not this task's.
 
 use crate::task::TaskRuntime;
-use docket_core::{ActionRef, StepEnd};
+use docket_core::{ActionRef, InboundLine, StepEnd};
 use prov::{AgentRef, MessageKind, ReportStatus};
 
 /// The app whose runs are on screen.
@@ -17,29 +19,39 @@ const CUA_APP: &str = "org.quire.Cua";
 /// The action that starts one.
 const RUN_START: &str = "cua.run.start";
 
+/// How many runs a task started in this process that have not reported back.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LiveRuns(u32);
+
 /// Whether `action` starts a run in an app that has one run at a time.
 fn starts_screen_run(action: &ActionRef) -> bool {
     action.app.as_str() == CUA_APP && action.name.as_str() == RUN_START
 }
 
+/// Whether `line` is a run's last word: a report from a run that is not progress.
+fn ends_run(line: &InboundLine) -> bool {
+    matches!(line.from.agent, AgentRef::Cua { .. })
+        && matches!(line.kind, MessageKind::Report { status } if status != ReportStatus::Progress)
+}
+
 impl TaskRuntime {
-    /// Whether `action` starts a run this task already has live: more starts done than runs that
-    /// have reported back.
+    /// Whether `action` starts a run while this task already has one live.
     pub fn holds_run(&self, action: &ActionRef) -> bool {
-        let started = self
-            .history
-            .iter()
-            .filter(|s| s.action == *action && matches!(s.end, StepEnd::Done { .. }))
-            .count();
-        let ended = self
-            .inbox
-            .iter()
-            .filter(|m| matches!(m.from.agent, AgentRef::Cua { .. }))
-            .filter(|m| {
-                matches!(m.kind, MessageKind::Report { status } if status != ReportStatus::Progress)
-            })
-            .count();
-        starts_screen_run(action) && started > ended
+        starts_screen_run(action) && self.live_runs != LiveRuns::default()
+    }
+
+    /// Counts a step that just ended: a run start that was done is a live run.
+    pub(crate) fn note_step(&mut self, action: &ActionRef, end: &StepEnd) {
+        if starts_screen_run(action) && matches!(end, StepEnd::Done { .. }) {
+            self.live_runs = LiveRuns(self.live_runs.0.saturating_add(1));
+        }
+    }
+
+    /// Counts a message that just landed: a run's report ends one live run.
+    pub(crate) fn note_message(&mut self, line: &InboundLine) {
+        if ends_run(line) {
+            self.live_runs = LiveRuns(self.live_runs.0.saturating_sub(1));
+        }
     }
 }
 
@@ -107,8 +119,12 @@ mod tests {
             None,
             prov::UnixSeconds(0),
         );
-        rt.history = history;
-        rt.inbox = inbox;
+        for step in &history {
+            rt.note_step(&step.action, &step.end);
+        }
+        for message in &inbox {
+            rt.note_message(message);
+        }
         rt
     }
 
@@ -163,5 +179,10 @@ mod tests {
         assert!(!live.holds_run(&action("org.quire.Mail", "mail.thread.archive")));
         // Another task has no run of its own: this task's run does not block it.
         assert!(!task(vec![], vec![]).holds_run(&start()));
+        // A task brought back after a restart has its history but no count: a start whose report
+        // fell out of the restart window does not hold it.
+        let mut restored = task(vec![], vec![]);
+        restored.history = vec![line(start(), done())];
+        assert!(!restored.holds_run(&start()));
     }
 }

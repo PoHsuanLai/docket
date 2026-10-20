@@ -69,6 +69,7 @@ pub use helpers::{
 };
 pub use memory::{episodes_of, hits_of, primer_of, profile_of};
 pub use native::{Core, NativeBackend, NativeHost, RouterLog};
+pub use one_run::LiveRuns;
 pub use read::answer_read;
 pub use recover::{
     RecentSource, ReplayFault, RouterRecent, rebuild_from, recent_events, recover, replay_of,

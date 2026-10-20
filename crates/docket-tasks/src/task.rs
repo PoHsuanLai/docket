@@ -83,6 +83,8 @@ pub struct TaskRuntime {
     /// What stands for the task's oldest turns and steps once it outgrew its budget; `turns` and
     /// `history` stay whole.
     pub summary: Option<Summary>,
+    /// The runs this task started in this process that have not reported back (`one_run`).
+    pub live_runs: crate::one_run::LiveRuns,
 }
 
 /// Why a task ended failed, as the host that runs it can tell the person (the answer's
@@ -146,6 +148,7 @@ impl TaskRuntime {
             loaded: Vec::new(),
             failure: None,
             summary: None,
+            live_runs: crate::one_run::LiveRuns::default(),
         }
     }
 
@@ -224,6 +227,7 @@ impl TaskRuntime {
                 (StepEnd::Refused(refusal.clone()), CallEnd::Refused(refusal))
             }
         };
+        self.note_step(&call.action, &end);
         self.history.push(StepLine {
             call: id,
             action: call.action.clone(),

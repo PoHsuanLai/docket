@@ -331,7 +331,10 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         if open.agent == AgentRef::Companion {
             // Messages that came while no task of the companion could take them wait for it.
             if let Some(rt) = self.runtimes.get_mut(&opened.task) {
-                rt.inbox.extend(self.unplaced.drain(..));
+                for line in self.unplaced.drain(..) {
+                    rt.note_message(&line);
+                    rt.inbox.push(line);
+                }
             }
             self.front = front_step(self.front.take(), &FrontEvent::Asked(opened.task.clone()));
         }

@@ -154,6 +154,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let Some(rt) = self.runtimes.get_mut(&task) else {
             return;
         };
+        rt.note_message(&line);
         rt.inbox.push(line.clone());
         let (space, is_worker) = (
             rt.space.clone(),
