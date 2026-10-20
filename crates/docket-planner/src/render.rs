@@ -20,7 +20,7 @@ use docket_core::{
 };
 use porter_infer::{ChatMessage, MessagePart, Role};
 use prov::EntityKind;
-use prov::{AgentRef, Crossing, Integrity, MessageKind};
+use prov::{AgentRef, Crossing, Integrity, MessageKind, ReportStatus};
 use std::fmt::Write;
 
 /// What the model is told about itself and its tools. Fixed text.
@@ -185,6 +185,11 @@ fn kind_word(kind: &MessageKind) -> String {
     match kind {
         MessageKind::Note => "note".to_owned(),
         MessageKind::Request => "request".to_owned(),
+        MessageKind::Report {
+            status: status @ (ReportStatus::Failed | ReportStatus::Cancelled),
+        } => {
+            format!("report {}, not done", json(status).trim_matches('"'))
+        }
         MessageKind::Report { status } => {
             format!("report {}", json(status).trim_matches('"'))
         }
@@ -500,6 +505,40 @@ mod tests {
         assert_eq!(
             helper_line(&line("home", None)),
             "- Research (Space: home; working): in another Space, nothing more shown"
+        );
+    }
+
+    #[test]
+    fn a_failed_or_cancelled_report_reads_as_not_done_and_a_done_one_does_not() {
+        use prov::{Address, MessageId, SpaceId, ThreadId};
+        let report = |status, text: &str| InboundLine {
+            id: MessageId::parse("m-1").expect("id"),
+            thread: ThreadId::parse("m-1").expect("thread"),
+            to: Address {
+                agent: AgentRef::Companion,
+                space: SpaceId::desktop(),
+            },
+            from: Address {
+                agent: AgentRef::Cua {
+                    run: prov::RunId::parse("r-1").expect("run"),
+                },
+                space: SpaceId::desktop(),
+            },
+            crossing: Crossing::Within,
+            kind: MessageKind::Report { status },
+            parts: vec![InboundPart::Text(Reveal::Plain(text.to_owned()))],
+        };
+        assert_eq!(
+            inbound_line(&report(ReportStatus::Failed, "This needs more.")),
+            "- m-1 from an on-screen run in desktop [report failed, not done]: This needs more."
+        );
+        assert_eq!(
+            inbound_line(&report(ReportStatus::Cancelled, "Stopped.")),
+            "- m-1 from an on-screen run in desktop [report cancelled, not done]: Stopped."
+        );
+        assert_eq!(
+            inbound_line(&report(ReportStatus::Done, "Found it.")),
+            "- m-1 from an on-screen run in desktop [report done]: Found it."
         );
     }
 
