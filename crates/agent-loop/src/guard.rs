@@ -74,6 +74,9 @@ enum Answer {
     /// A call that changes something was done: the same call again would do it twice, whatever
     /// it would answer.
     Done,
+    /// The call was not made because the task's own run is still going: the turn rests, and the
+    /// call may be made again once the run has reported.
+    Parked,
 }
 
 impl Answer {
@@ -83,7 +86,7 @@ impl Answer {
             Answer::Unchanged | Answer::Answered => Some(Held::Unchanged),
             Answer::Refused => Some(Held::Refused),
             Answer::Done => Some(Held::Done),
-            Answer::Waiting(_) | Answer::Fresh | Answer::Opaque => None,
+            Answer::Waiting(_) | Answer::Fresh | Answer::Opaque | Answer::Parked => None,
         }
     }
 }
@@ -137,6 +140,7 @@ impl Stuck {
             Stuck::Repeating(Held::Unchanged, _) => "I keep getting the same answer. How would you like me to go on?".to_owned(),
             Stuck::Repeating(Held::Refused, _) => "That step keeps being refused. How would you like me to go on?".to_owned(),
             Stuck::Repeating(Held::Done, _) => "That is done, and I kept trying to do it again. Is there anything more you want?".to_owned(),
+            Stuck::Repeating(Held::Running, _) => "I am waiting for the on-screen work to finish.".to_owned(),
             Stuck::Unreadable => "I keep writing steps I cannot get right, though I was told what was wrong. How would you like me to go on?".to_owned(),
             Stuck::Answered => "I could not finish this. I kept going back to what I already had. How would you like me to go on?".to_owned(),
             Stuck::Declined(reason) if reason.is_empty() => "Couldn't do that: the app wouldn't do it.".to_owned(),
@@ -242,6 +246,7 @@ fn judged(end: &StepEnd, last: &Option<Print>, effect: Option<Effect>) -> (Answe
         StepEnd::Refused(CallRefusal::BadArgs { .. } | CallRefusal::NoSuchAction(_)) => {
             (Answer::Refused, last.clone())
         }
+        StepEnd::Held(Held::Running) => (Answer::Parked, last.clone()),
         StepEnd::Refused(_)
         | StepEnd::Unconfirmed(_)
         | StepEnd::Held(_)
@@ -413,6 +418,11 @@ impl Guard {
         Guard { seen, ..self }
     }
 
+    /// Whether a call of this turn was not made because the task's own run is still going.
+    pub fn parked(&self) -> bool {
+        self.seen.iter().any(|s| s.answer == Answer::Parked)
+    }
+
     /// The call the app refused [`MOST_DECLINED`] times in a row, if any: the turn stops on it,
     /// with what the app said.
     pub fn declined(&self) -> Option<Stuck> {
@@ -437,7 +447,7 @@ impl Guard {
             .seen
             .into_iter()
             .map(|s| match s.answer {
-                Answer::Waiting(_) => Seen {
+                Answer::Waiting(_) | Answer::Parked => Seen {
                     answer: Answer::Opaque,
                     ..s
                 },

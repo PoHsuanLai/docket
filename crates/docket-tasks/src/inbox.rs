@@ -6,9 +6,12 @@
 //! that task's taint (the router joined it at delivery).
 
 use crate::fault::ServeFault;
+use crate::one_run::RunEnd;
 use crate::runtime::Companion;
 use crate::seams::{Now, Surface};
-use agent_loop::{AskedPerson, CompletionNote, LoopInput, LoopPhase, SideInput, attention_of};
+use agent_loop::{
+    AskedPerson, Attention, CompletionNote, LoopInput, LoopPhase, SideInput, attention_of,
+};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
     Delivery, DraftPart, Handle, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft,
@@ -154,7 +157,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let Some(rt) = self.runtimes.get_mut(&task) else {
             return;
         };
-        rt.note_message(&line);
+        let run = rt.note_message(&line);
         rt.inbox.push(line.clone());
         let (space, is_worker) = (
             rt.space.clone(),
@@ -165,7 +168,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             self.told_by_message(&to, &space, &line);
         }
         match line.kind {
-            MessageKind::Report { status } => self.reported(&task, &line, status),
+            MessageKind::Report { status } => self.reported(&task, &line, status, run),
             MessageKind::Request => self.trigger(&task, LoopInput::Messaged),
             MessageKind::Note => {}
         }
@@ -177,8 +180,9 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         }
     }
 
-    /// A subagent's report: its roster line moves, and the front task gets a typed note.
-    fn reported(&mut self, task: &TaskId, line: &InboundLine, status: ReportStatus) {
+    /// A subagent's report: its roster line moves, and the task gets a typed note (and, for a run
+    /// it started itself, a planner turn).
+    fn reported(&mut self, task: &TaskId, line: &InboundLine, status: ReportStatus, run: RunEnd) {
         let from = line.from.agent.clone();
         let (steps, values) = counts(line);
         let ours = self.runtimes.values().any(|rt| rt.agent == from);
@@ -201,17 +205,29 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 },
             );
         }
-        self.trigger(
-            task,
-            LoopInput::Completed(CompletionNote {
-                agent: from,
-                status,
-                steps,
-                values,
-                why,
-                attention: attention_of(status, AskedPerson::No),
-            }),
-        );
+        // The run this task started reports to the task that decides what comes next; any other
+        // report is a note, and a failure asks the person.
+        let attention = match run {
+            RunEnd::Ours => Attention::Starter,
+            RunEnd::Others => attention_of(status, AskedPerson::No),
+        };
+        let note = CompletionNote {
+            agent: from,
+            status,
+            steps,
+            values,
+            why,
+            attention,
+        };
+        match (run, self.running.contains(task)) {
+            // Mid-turn, the report waits for the loop to come to rest instead of being lost.
+            (RunEnd::Ours, true) => {
+                if let Some(rt) = self.runtimes.get_mut(task) {
+                    rt.wake_after(note);
+                }
+            }
+            _ => self.trigger(task, LoopInput::Completed(note)),
+        }
         self.publish();
     }
 

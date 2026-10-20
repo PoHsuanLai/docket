@@ -171,6 +171,9 @@ pub fn agent_step(state: LoopState, input: LoopInput) -> (LoopState, Vec<LoopEff
     match (state.phase, input) {
         (Finished(_), _) => stay(state),
         (_, LoopInput::Cancelled | LoopInput::Halted) => finish(state, FinishedAs::Cancelled),
+        (Idle, LoopInput::Completed(note)) if note.attention == Attention::Starter => {
+            woken(state, &note)
+        }
         (_, LoopInput::Completed(note)) => (state, completion_effects(&note)),
         (Idle, LoopInput::Messaged) => ask_for_message(state),
         (Idle, LoopInput::Asked(turn)) => ask_planner(state, turn),
@@ -236,6 +239,31 @@ fn ask_for_message(state: LoopState) -> (LoopState, Vec<LoopEffect>) {
             LoopEffect::Publish(AnswerPhase::Thinking),
             LoopEffect::AskPlanner,
         ],
+    )
+}
+
+/// The run this task started reported: its note goes into the history and the planner is asked
+/// again, as for a message, so the task decides what comes next and what the person hears.
+fn woken(state: LoopState, note: &CompletionNote) -> (LoopState, Vec<LoopEffect>) {
+    let noted = completion_effects(note);
+    if noted.is_empty() {
+        return stay(state);
+    }
+    let (next, effects) = ask_for_message(state);
+    (next, [noted, effects].concat())
+}
+
+/// The turn comes to rest while the task's own run goes on: not a question, and not over. The
+/// planner is asked again when the run reports back.
+fn waiting(state: LoopState, told: Vec<LoopEffect>) -> (LoopState, Vec<LoopEffect>) {
+    let next = LoopState {
+        phase: LoopPhase::Idle,
+        pending: vec![],
+        ..state
+    };
+    (
+        next,
+        [told, vec![LoopEffect::Publish(AnswerPhase::Thinking)]].concat(),
     )
 }
 
@@ -383,6 +411,12 @@ fn call_ended(state: LoopState, id: CallId, end: StepEnd) -> (LoopState, Vec<Loo
             effects.splice(0..0, told);
             (next, effects)
         }
+        _ if state.pending.is_empty()
+            && state.phase == LoopPhase::AwaitingCalls
+            && state.guard.parked() =>
+        {
+            waiting(state, told)
+        }
         _ if matches!(state.phase, LoopPhase::Paused(_)) || !state.pending.is_empty() => {
             (state, told)
         }
@@ -453,7 +487,8 @@ fn finish_after(
 }
 
 /// A completion note is a line in the task, and the answer waits for the person only when the
-/// result needs them. It never starts anything.
+/// result needs them. It starts nothing itself; the one run that wakes a task is its own (see
+/// `woken`), and then the planner, not the answer, decides whether the person is asked.
 fn completion_effects(note: &CompletionNote) -> Vec<LoopEffect> {
     let Some(line) = completion_line(note) else {
         return vec![];
@@ -465,7 +500,7 @@ fn completion_effects(note: &CompletionNote) -> Vec<LoopEffect> {
                 choices: vec![],
             },
         ))),
-        Attention::Quiet => None,
+        Attention::Quiet | Attention::Starter => None,
     };
     std::iter::once(LoopEffect::Note(line))
         .chain(waits)

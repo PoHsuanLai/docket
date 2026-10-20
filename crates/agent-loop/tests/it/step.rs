@@ -208,6 +208,7 @@ fn a_finished_loop_ignores_everything() {
         LoopInput::Cancelled,
         LoopInput::ModelFailed,
         LoopInput::Completed(note(ReportStatus::Done, Attention::Quiet)),
+        LoopInput::Completed(note(ReportStatus::Failed, Attention::Starter)),
     ];
     for input in inputs {
         assert_eq!(agent_step(over.clone(), input), (over.clone(), vec![]));
@@ -366,6 +367,61 @@ fn a_completion_note_is_appended_and_never_starts_or_moves_the_loop() {
         LoopInput::Completed(note(ReportStatus::Progress, Attention::Quiet)),
     );
     assert!(e.is_empty(), "progress is not a completion");
+}
+
+#[test]
+fn the_report_of_a_run_the_task_started_gives_it_a_planner_turn_and_asks_nobody() {
+    for status in [
+        ReportStatus::Done,
+        ReportStatus::Failed,
+        ReportStatus::Cancelled,
+    ] {
+        let (s, e) = agent_step(
+            state(LoopPhase::Idle, &[]),
+            LoopInput::Completed(note(status, Attention::Starter)),
+        );
+        assert_eq!(s.phase, LoopPhase::Planning, "{status:?}");
+        assert!(matches!(e[0], LoopEffect::Note(_)));
+        assert_eq!(
+            e[1..],
+            [
+                LoopEffect::Publish(AnswerPhase::Thinking),
+                LoopEffect::AskPlanner
+            ]
+        );
+    }
+    // Mid-turn or paused it is a note only: the host asks again once the loop is at rest.
+    for phase in [
+        LoopPhase::Planning,
+        LoopPhase::AwaitingCalls,
+        LoopPhase::Paused(BreakerTrip::Recent),
+    ] {
+        let at = state(phase, &[0]);
+        let (after, e) = agent_step(
+            at.clone(),
+            LoopInput::Completed(note(ReportStatus::Failed, Attention::Starter)),
+        );
+        assert_eq!((after, e.len()), (at, 1), "{phase:?}");
+    }
+    // Progress wakes nobody.
+    let (_, e) = agent_step(
+        state(LoopPhase::Idle, &[]),
+        LoopInput::Completed(note(ReportStatus::Progress, Attention::Starter)),
+    );
+    assert!(e.is_empty());
+}
+
+#[test]
+fn a_call_held_for_the_tasks_own_run_rests_the_turn_without_a_question_or_a_decline() {
+    let (s, _) = run(state(LoopPhase::Planning, &[]), vec![planned(1)]);
+    let held = StepEnd::Held(Held::Running);
+    let (s, e) = agent_step(s, LoopInput::CallEnded(CallId(0), held));
+    assert_eq!((s.phase, s.pending.is_empty()), (LoopPhase::Idle, true));
+    assert_eq!(e, [LoopEffect::Publish(AnswerPhase::Thinking)]);
+    assert_eq!(s.guard.declined(), None);
+    // Asked again, the same call is made, not held.
+    let (_, e) = run(s, vec![LoopInput::Messaged, planned(1)]);
+    assert!(e.iter().any(|x| matches!(x, LoopEffect::Call(_))));
 }
 
 #[test]

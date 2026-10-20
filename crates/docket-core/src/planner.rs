@@ -211,6 +211,9 @@ pub enum Held {
     Refused,
     /// The same call had already changed what it changes: running it again would do it twice.
     Done,
+    /// The task's own on-screen run is still going, so the call to start another was not made:
+    /// the task rests until that run reports back.
+    Running,
 }
 
 /// One call of the session, as history.

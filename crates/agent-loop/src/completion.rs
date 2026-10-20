@@ -14,6 +14,9 @@ pub enum Attention {
     Quiet,
     /// The orb shows Waiting.
     NeedsYou,
+    /// The task that started the run is asked again and decides what the person hears: the
+    /// answer shows nothing of its own.
+    Starter,
 }
 
 /// Whether the report asked the person something.

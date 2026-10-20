@@ -85,6 +85,9 @@ pub struct TaskRuntime {
     pub summary: Option<Summary>,
     /// The runs this task started in this process that have not reported back (`one_run`).
     pub live_runs: crate::one_run::LiveRuns,
+    /// The report of a run this task started that landed while its loop was running: the
+    /// planner is asked again once the loop is at rest (`one_run`).
+    pub woken: Option<agent_loop::CompletionNote>,
 }
 
 /// Why a task ended failed, as the host that runs it can tell the person (the answer's
@@ -149,6 +152,7 @@ impl TaskRuntime {
             failure: None,
             summary: None,
             live_runs: crate::one_run::LiveRuns::default(),
+            woken: None,
         }
     }
 

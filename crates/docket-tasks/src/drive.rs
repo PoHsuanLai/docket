@@ -20,8 +20,8 @@ use agent_loop::{
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
 use docket_core::{
-    AppRefusal, BudgetKind, CallId, CallProgress, CallRefusal, CallRequest, ReaderAsk, StepEnd,
-    Stop, TASK_START, WireRefusal,
+    BudgetKind, CallId, CallProgress, CallRefusal, CallRequest, Held, ReaderAsk, StepEnd, Stop,
+    TASK_START, WireRefusal,
 };
 use docket_planner::PlanFault;
 use docket_session::CallOpen;
@@ -124,7 +124,8 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         tap: &mut T,
     ) -> Result<(), ServeFault> {
         let mut queue = VecDeque::from([first]);
-        while let Some(input) = queue.pop_front() {
+        // At rest, a run's report that landed mid-turn is the next input.
+        while let Some(input) = queue.pop_front().or_else(|| self.woken_input(task)) {
             let input = if self.shared.take_cancel(task) {
                 queue.clear();
                 LoopInput::Cancelled
@@ -141,6 +142,12 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             }
         }
         Ok(())
+    }
+
+    /// The report of an own run that landed while the loop ran, as the input that wakes the task.
+    fn woken_input(&mut self, task: &TaskId) -> Option<LoopInput> {
+        let note = self.runtimes.get_mut(task)?.woken.take()?;
+        Some(LoopInput::Completed(note))
     }
 
     /// An answer reached a phase: the record of what the turn left, for a restart.
@@ -367,17 +374,18 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             .catalogue()
             .of(&call.action)
             .map(|t| t.decl.label.clone());
-        self.plan_begin(task, &call, label, effect, id);
         // An app with one run at a time is not asked again while this task's run in it is live:
-        // refused as busy here, before the router, so no sheet is shown for a call that cannot go.
+        // the call is not made, before the router, so no sheet is shown for a call that cannot go.
+        // The history says so and the loop rests until the run reports back.
         if self
             .runtimes
             .get(task)
             .is_some_and(|rt| rt.holds_run(&call.action))
         {
-            let busy = Err(CallRefusal::App(AppRefusal::Busy));
-            return Ok(vec![self.ended(task, &call, effect, id, busy)]);
+            self.hold(task, &call, Held::Running);
+            return Ok(vec![LoopInput::CallEnded(id, StepEnd::Held(Held::Running))]);
         }
+        self.plan_begin(task, &call, label, effect, id);
         let result = self
             .perform_watched(task, &call, id, session.clone(), window, tap)
             .await;

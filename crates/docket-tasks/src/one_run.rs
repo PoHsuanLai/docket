@@ -9,8 +9,14 @@
 //! task brought back after a restart holds no run: a report that fell out of the restart window
 //! can never leave it refused for good, and the daemon's own refusal still covers a run that
 //! outlived the restart. Another task's runs are not this task's.
+//!
+//! A start refused this way is not a refusal the planner must reason about: the call is not
+//! made, the history says the task's own run is still going (`Held::Running`), and the turn rests
+//! until that run reports. The report of a run the task started wakes it (`RunEnd::Ours`): the
+//! planner is asked again, whatever the run came to.
 
 use crate::task::TaskRuntime;
+use agent_loop::CompletionNote;
 use docket_core::{ActionRef, InboundLine, StepEnd};
 use prov::{AgentRef, MessageKind, ReportStatus};
 
@@ -22,6 +28,15 @@ const RUN_START: &str = "cua.run.start";
 /// How many runs a task started in this process that have not reported back.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct LiveRuns(u32);
+
+/// Whose run a landed message ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunEnd {
+    /// A run this task started and counted: its report wakes the task.
+    Ours,
+    /// Not a run's last word, or a run this task did not start (or lost count of in a restart).
+    Others,
+}
 
 /// Whether `action` starts a run in an app that has one run at a time.
 fn starts_screen_run(action: &ActionRef) -> bool {
@@ -47,11 +62,24 @@ impl TaskRuntime {
         }
     }
 
-    /// Counts a message that just landed: a run's report ends one live run.
-    pub(crate) fn note_message(&mut self, line: &InboundLine) {
-        if ends_run(line) {
-            self.live_runs = LiveRuns(self.live_runs.0.saturating_sub(1));
+    /// Counts a message that just landed: a run's report ends one live run, and says whether it
+    /// was one this task held.
+    pub(crate) fn note_message(&mut self, line: &InboundLine) -> RunEnd {
+        if !ends_run(line) {
+            return RunEnd::Others;
         }
+        let run = if self.live_runs == LiveRuns::default() {
+            RunEnd::Others
+        } else {
+            RunEnd::Ours
+        };
+        self.live_runs = LiveRuns(self.live_runs.0.saturating_sub(1));
+        run
+    }
+
+    /// Keeps the report of an own run for after the loop's current turn.
+    pub(crate) fn wake_after(&mut self, note: CompletionNote) {
+        self.woken = Some(note);
     }
 }
 
@@ -126,6 +154,42 @@ mod tests {
             rt.note_message(message);
         }
         rt
+    }
+
+    #[test]
+    fn a_report_wakes_the_task_only_for_a_run_it_started() {
+        let mut rt = task(vec![line(start(), done())], vec![]);
+        let table = [
+            (
+                "progress",
+                report(ReportStatus::Progress, cua()),
+                RunEnd::Others,
+            ),
+            (
+                "another sender",
+                report(ReportStatus::Done, AgentRef::Companion),
+                RunEnd::Others,
+            ),
+            (
+                "its run failed",
+                report(ReportStatus::Failed, cua()),
+                RunEnd::Ours,
+            ),
+            (
+                "none left",
+                report(ReportStatus::Done, cua()),
+                RunEnd::Others,
+            ),
+        ];
+        for (name, message, want) in table {
+            assert_eq!(rt.note_message(&message), want, "case {name}");
+        }
+        // A task that started nothing (or lost count in a restart) is not woken by a report.
+        let mut other = task(vec![], vec![]);
+        assert_eq!(
+            other.note_message(&report(ReportStatus::Done, cua())),
+            RunEnd::Others
+        );
     }
 
     #[test]

@@ -242,6 +242,9 @@ fn held_text(held: Held) -> &'static str {
         Held::Unchanged => "you already called it with these arguments and got the same answer",
         Held::Refused => "you already called it with these arguments and it was refused",
         Held::Done => "you already made this call and it was done; it is not done twice",
+        Held::Running => {
+            "your own on-screen run is still going, so another was not started; you are asked again when it reports back"
+        }
     }
 }
 
@@ -308,6 +311,7 @@ fn held_line(head: &str, step: &StepLine, held: Held, seen: &Seen<'_>) -> String
                 next_use(&hs, seen)
             )
         }
+        (Held::Running, _) => format!("{head} not run: {}", held_text(held)),
         _ => format!("{head} not run: {}; {INSTEAD}", held_text(held)),
     }
 }
@@ -680,6 +684,12 @@ mod tests {
         let line = step_line(&step(StepEnd::Held(Held::Empty)), &[]);
         assert!(line.contains("got nothing"));
         assert!(line.contains("quire_ask"));
+        let waiting = step_line(&step(StepEnd::Held(Held::Running)), &[]);
+        assert!(waiting.contains("still going"), "{waiting}");
+        assert!(
+            !waiting.contains("quire_ask"),
+            "no question to the person: {waiting}"
+        );
     }
 
     fn searched(action: &str, end: StepEnd) -> StepLine {
