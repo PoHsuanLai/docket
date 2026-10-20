@@ -20,8 +20,8 @@ use agent_loop::{
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
 use docket_core::{
-    BudgetKind, CallId, CallProgress, CallRefusal, CallRequest, ReaderAsk, StepEnd, Stop,
-    TASK_START, WireRefusal,
+    AppRefusal, BudgetKind, CallId, CallProgress, CallRefusal, CallRequest, ReaderAsk, StepEnd,
+    Stop, TASK_START, WireRefusal,
 };
 use docket_planner::PlanFault;
 use docket_session::CallOpen;
@@ -368,6 +368,16 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             .of(&call.action)
             .map(|t| t.decl.label.clone());
         self.plan_begin(task, &call, label, effect, id);
+        // An app with one run at a time is not asked again while this task's run in it is live:
+        // refused as busy here, before the router, so no sheet is shown for a call that cannot go.
+        if self
+            .runtimes
+            .get(task)
+            .is_some_and(|rt| rt.holds_run(&call.action))
+        {
+            let busy = Err(CallRefusal::App(AppRefusal::Busy));
+            return Ok(vec![self.ended(task, &call, effect, id, busy)]);
+        }
         let result = self
             .perform_watched(task, &call, id, session.clone(), window, tap)
             .await;
