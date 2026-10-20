@@ -473,6 +473,11 @@ unit = "intentd.service"
 role = "agent"
 
 [[caller]]
+app = "org.quire.Cua"
+unit = "cuad.service"
+role = "cua"
+
+[[caller]]
 app = "org.quire.Shell"
 unit = "sill.service"
 role = "sheet_host"
