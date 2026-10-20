@@ -233,6 +233,9 @@ pub enum ArgFault {
     UnknownHandle,
     /// A thing from another Space.
     CrossSpace,
+    /// A handle's name (`#3`) given as the whole of a text value: the name is not the words it
+    /// stands for, and only a reader may read them.
+    HandleAsText,
 }
 
 /// Everything a caller can get back instead of an [`Outcome`].

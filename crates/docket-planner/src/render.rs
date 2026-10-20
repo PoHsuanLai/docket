@@ -47,11 +47,17 @@ fn agent(agent: &AgentRef) -> String {
 }
 
 fn roster_line(line: &RosterLine) -> String {
+    // Why a run ended is the daemon's enumerated kind in fixed words, never the run's own text.
+    let why = match &line.detail {
+        RosterDetail::Full(full) => full.why.map(|w| format!(": {}", w.words())),
+        RosterDetail::PresenceOnly => None,
+    };
     let who = format!(
-        "{} in {} [{}]",
+        "{} in {} [{}{}]",
         agent(&line.agent),
         line.space,
-        json(&line.state).trim_matches('"')
+        json(&line.state).trim_matches('"'),
+        why.unwrap_or_default()
     );
     match &line.detail {
         RosterDetail::PresenceOnly => {
@@ -367,6 +373,7 @@ pub fn user_text(view: &PlannerView) -> String {
                 handles: &view.handles,
                 earlier: &view.history[..at],
                 actions: &view.actions,
+                roster: &view.roster.entries,
             };
             format!("- {}", step_line_in(s, &seen))
         }),
@@ -447,6 +454,21 @@ mod tests {
             roster_line(&roster)
         );
         assert!(text.contains("Do this on screen"), "{text}");
+        // A run that ended says why in fixed words, in its brackets.
+        let refused = RosterLine {
+            detail: RosterDetail::Full(Box::new(docket_core::RosterFull {
+                goal: Reveal::Plain(String::new()),
+                last: None,
+                told: None,
+                used: None,
+                why: Some(docket_core::EndWhy::WindowRefused),
+            })),
+            ..roster.clone()
+        };
+        assert_eq!(
+            roster_line(&refused),
+            "- an on-screen run in desktop [failed: could not take the window]: "
+        );
         for banned in ["t-179", "r-1", "cua.run.start", "cua", "companion"] {
             assert!(!text.to_lowercase().contains(banned), "{banned} in {text}");
         }

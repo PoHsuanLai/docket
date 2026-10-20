@@ -106,6 +106,7 @@ fn completion_lines_are_typed_facts_and_attention_is_rare() {
         status,
         steps: Count(steps),
         values: Count(values),
+        why: None,
         attention: Attention::Quiet,
     };
     let run = AgentRef::Cua {
@@ -122,6 +123,22 @@ fn completion_lines_are_typed_facts_and_attention_is_rare() {
     assert_eq!(
         completion_line(&note(worker("t-4"), ReportStatus::Progress, 1, 0)),
         None
+    );
+    // A reason is a fixed phrase chosen from the enumerated outcome, never the run's own words.
+    let refused = CompletionNote {
+        why: Some(docket_core::EndWhy::WindowRefused),
+        ..note(
+            AgentRef::Cua {
+                run: RunId::parse("r-3").expect("run"),
+            },
+            ReportStatus::Failed,
+            0,
+            0,
+        )
+    };
+    assert_eq!(
+        completion_line(&refused).as_deref(),
+        Some("the on-screen run finished: Failed (could not take the window), 0 steps, 0 values")
     );
     let cases = [
         (ReportStatus::Done, AskedPerson::No, Attention::Quiet),

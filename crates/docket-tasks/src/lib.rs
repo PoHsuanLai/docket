@@ -43,6 +43,7 @@ mod read;
 mod records;
 mod recover;
 mod resume;
+mod run_ends;
 mod runtime;
 mod seams;
 mod shared;
@@ -73,6 +74,7 @@ pub use recover::{
     restart_query,
 };
 pub use resume::Restarted;
+pub use run_ends::report_end;
 pub use runtime::{Begun, Companion, idle_state};
 pub use seams::{Now, Quiet, Surface};
 pub use shared::{Change, Shared};

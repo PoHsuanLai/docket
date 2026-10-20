@@ -14,6 +14,7 @@
 
 mod accepts;
 mod args;
+mod busy_text;
 mod catalogue;
 mod context_text;
 mod known;

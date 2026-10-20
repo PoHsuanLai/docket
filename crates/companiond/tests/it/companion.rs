@@ -18,6 +18,7 @@ fn note(status: ReportStatus, attention: Attention) -> CompletionNote {
         status,
         steps: porter_count(9),
         values: porter_count(2),
+        why: None,
         attention,
     }
 }

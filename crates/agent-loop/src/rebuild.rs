@@ -95,6 +95,7 @@ impl Rebuilt {
                             last: None,
                             told: Some(told.clone()),
                             used: None,
+                            why: None,
                         })),
                         None => RosterDetail::PresenceOnly,
                     },

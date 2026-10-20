@@ -295,6 +295,7 @@ mod tests {
             handles: &handles,
             earlier: &earlier,
             actions: &[],
+            roster: &[],
         };
         assert_eq!(
             crate::step_text::step_line_in(&again, &seen),

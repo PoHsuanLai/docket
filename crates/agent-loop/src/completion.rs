@@ -37,6 +37,9 @@ pub struct CompletionNote {
     pub steps: Count,
     /// How many values it returned.
     pub values: Count,
+    /// Why it did not finish, when the run daemon said it by an enumerated kind.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub why: Option<docket_core::EndWhy>,
     /// Whether the person is needed.
     pub attention: Attention,
 }
@@ -76,8 +79,12 @@ pub fn completion_line(note: &CompletionNote) -> Option<String> {
             format!("{n} {word}s")
         }
     };
+    let because = note
+        .why
+        .map(|why| format!(" ({})", why.words()))
+        .unwrap_or_default();
     Some(format!(
-        "{who} finished: {how}, {}, {}",
+        "{who} finished: {how}{because}, {}, {}",
         plural(note.steps.0, "step"),
         plural(note.values.0, "value")
     ))

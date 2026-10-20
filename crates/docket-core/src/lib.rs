@@ -52,6 +52,7 @@ mod reader;
 mod review;
 mod roster;
 pub mod routine;
+mod run_end;
 mod schema;
 mod skill;
 mod space_access;
@@ -188,6 +189,7 @@ pub use roster::{
     EpisodeLine, HelperRosterLine, LeadText, PrimerText, ProfileLine, RecalledLine, RollupLine,
     Roster, RosterDetail, RosterFull, RosterLine, RosterState, SkeletonText, TOLD_LEAD_CHARS,
 };
+pub use run_end::EndWhy;
 pub use schema::{OneOf, ToolSchema, tool_schema};
 pub use skill::{SKILL_ID_MAX, SkillCard, SkillId, SkillIdError, SkillText, SkillVersion};
 pub use space_access::{SpaceAccess, SpaceRefusal, space_access};

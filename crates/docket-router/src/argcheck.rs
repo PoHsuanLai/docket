@@ -4,7 +4,8 @@
 
 use crate::labels::app_label;
 use docket_core::{
-    ActionDecl, ArgFault, Args, ParamName, ParamNeed, TargetKind, TargetValue, fits,
+    ActionDecl, ArgFault, Args, ParamName, ParamNeed, ParamType, TargetKind, TargetValue, Value,
+    fits,
 };
 use porter_core::AppName;
 use prov::Labelled;
@@ -12,6 +13,26 @@ use prov::Labelled;
 /// The name a fault about the target carries.
 pub(crate) fn target_name() -> ParamName {
     ParamName::parse("target").expect("`target` is a valid parameter name")
+}
+
+/// Whether `text` is nothing but a handle's name, as `#3`.
+fn is_handle_name(text: &str) -> bool {
+    text.trim()
+        .strip_prefix('#')
+        .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+}
+
+/// The first text parameter whose whole value is a handle's name, as given (before handles are
+/// resolved): a handle goes in as `{"handle": n}`, and its name as words searches for the name.
+pub(crate) fn no_handle_names(decl: &ActionDecl, args: &Args) -> Result<(), (ParamName, ArgFault)> {
+    let named = decl.params.iter().find(|p| {
+        matches!(p.ty, ParamType::Text { .. })
+            && matches!(args.get(&p.name), Some(given) if matches!(&given.value, Value::Text(t) if is_handle_name(t)))
+    });
+    match named {
+        Some(p) => Err((p.name.clone(), ArgFault::HandleAsText)),
+        None => Ok(()),
+    }
 }
 
 /// The arguments with defaults filled in, or the first parameter that is wrong and why.

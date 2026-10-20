@@ -146,6 +146,9 @@ fn arg_hint(param: &str, why: ArgFault, handles: &[HandleCard]) -> String {
         ArgFault::CrossSpace => {
             format!("argument \"{param}\" is from another Space; use only what this Space gave you")
         }
+        ArgFault::HandleAsText => format!(
+            "argument \"{param}\" is words, and a #n is only the name of something you hold, not the words in it; you cannot put it in text. To learn what a text handle says, read it with quire_read; to act on a thing, name it as {{\"handle\": n}}"
+        ),
     }
 }
 
@@ -209,6 +212,7 @@ fn refusal_hint(refusal: &CallRefusal, step: &StepLine, seen: &Seen<'_>) -> Opti
                 .take(MOST_REASON_CHARS)
                 .collect::<String>()
         )),
+        CallRefusal::App(AppRefusal::Busy) => Some(crate::busy_text::busy_hint(step, seen)),
         // The app's choices by their keys, never their titles: a title can quote the person's content.
         CallRefusal::App(AppRefusal::NeedsParam { param, options }) => {
             let listed: Vec<String> = options
@@ -373,6 +377,8 @@ pub(crate) struct Seen<'a> {
     pub(crate) handles: &'a [HandleCard],
     pub(crate) earlier: &'a [StepLine],
     pub(crate) actions: &'a [ActionCard],
+    /// Who else is working, for a refusal that is about them.
+    pub(crate) roster: &'a [docket_core::RosterLine],
 }
 
 /// One step, as one line of the planner's history, with nothing before it to look back on.
@@ -383,6 +389,7 @@ pub(crate) fn step_line(step: &StepLine, handles: &[HandleCard]) -> String {
             handles,
             earlier: &[],
             actions: &[],
+            roster: &[],
         },
     )
 }
@@ -539,6 +546,7 @@ mod tests {
             handles: &handles,
             earlier: &[],
             actions: &actions,
+            roster: &[],
         };
         let line = step_line_in(&step(end.clone()), &seen);
         assert!(
@@ -552,6 +560,7 @@ mod tests {
             handles: &only_text,
             earlier: &[],
             actions: &actions,
+            roster: &[],
         };
         let line = step_line_in(&step(end.clone()), &none);
         assert!(line.contains("you hold none of that kind"), "{line}");
@@ -576,6 +585,10 @@ mod tests {
             &[],
         );
         assert!(!plain.contains("the app said"), "{plain}");
+        assert!(
+            plain.contains("another run is already in progress"),
+            "{plain}"
+        );
     }
 
     #[test]
@@ -632,6 +645,7 @@ mod tests {
                     handles: &[],
                     earlier: &[],
                     actions,
+                    roster: &[],
                 },
             )
         };
@@ -697,6 +711,7 @@ mod tests {
             handles: &cards,
             earlier: &earlier,
             actions: &actions,
+            roster: &[],
         };
         assert_eq!(
             step_line_in(&again, &seen),
@@ -720,6 +735,7 @@ mod tests {
             handles: &[],
             earlier: &earlier,
             actions: &[],
+            roster: &[],
         };
         let line = step_line_in(&again, &seen);
         assert!(

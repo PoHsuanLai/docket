@@ -136,6 +136,7 @@ pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     /// Finished tasks whose router session is still open, oldest finish first.
     pub(crate) lingering: crate::linger::Lingering,
     pub(crate) known: BTreeMap<AgentRef, RosterLine>,
+    pub(crate) run_ends: crate::run_ends::RunEnds,
     pub(crate) told: BTreeMap<AgentRef, LeadText>,
     pub(crate) triggers: VecDeque<(TaskId, LoopInput)>,
     pub(crate) unplaced: VecDeque<docket_core::InboundLine>,
@@ -212,6 +213,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             narration: BTreeMap::new(),
             lingering: crate::linger::Lingering::default(),
             known: BTreeMap::new(),
+            run_ends: crate::run_ends::RunEnds::default(),
             told: BTreeMap::new(),
             triggers: VecDeque::new(),
             unplaced: VecDeque::new(),
@@ -513,6 +515,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 last: rt.history.last().cloned(),
                 told: self.told.get(&rt.agent).cloned(),
                 used: None,
+                why: None,
             })),
         }
     }

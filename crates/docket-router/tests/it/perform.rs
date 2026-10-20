@@ -363,6 +363,18 @@ async fn bad_arguments_end_the_call_with_the_parameter_named() {
             },
         ),
         (
+            "a handle's name given as words",
+            call(
+                "mail.draft.create",
+                &[],
+                vec![("body", Value::Text(" #1 ".into()))],
+            ),
+            CallRefusal::BadArgs {
+                param: param("body"),
+                why: ArgFault::HandleAsText,
+            },
+        ),
+        (
             "no target for an action on threads",
             call("mail.thread.archive", &[], vec![]),
             CallRefusal::BadArgs {
@@ -382,7 +394,7 @@ async fn bad_arguments_end_the_call_with_the_parameter_named() {
     }
     assert_eq!(
         calls(&router).len(),
-        5,
+        6,
         "every call, refused or not, leaves one record"
     );
 }

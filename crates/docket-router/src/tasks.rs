@@ -139,6 +139,7 @@ fn roster_by(
                 last: t.last.clone(),
                 told: t.ledger.asked.last().map(|turn| LeadText::of(&turn.text)),
                 used: used(t),
+                why: None,
             })),
         })
         .collect();

@@ -330,6 +330,7 @@ fn note(status: ReportStatus, attention: Attention) -> CompletionNote {
         status,
         steps: Count(2),
         values: Count(1),
+        why: None,
         attention,
     }
 }

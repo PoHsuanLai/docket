@@ -9,6 +9,7 @@ use crate::context::Reveal;
 use crate::helper::{HelperName, HelperPhase};
 use crate::ids::Handle;
 use crate::planner::StepLine;
+use crate::run_end::EndWhy;
 use crate::spend::TaskTotals;
 use almanac_core::{EpisodeId, EpisodeOutcome, MemoryItem, RecallWhy};
 use prov::{AgentRef, SpaceId, UnixSeconds};
@@ -75,6 +76,10 @@ pub struct RosterFull {
     /// What its model turns have used and what is left to spend, when the router counts it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub used: Option<TaskTotals>,
+    /// Why a run that did not finish ended, when the run daemon said it by an enumerated kind.
+    /// Fixed words only; what the run wrote in its report is never here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub why: Option<EndWhy>,
 }
 
 /// How much a roster line tells.
@@ -250,6 +255,7 @@ mod tests {
                 last: None::<StepLine>,
                 told: Some(LeadText::of("skip the newsletters")),
                 used: None,
+                why: None,
             })),
         }
     }

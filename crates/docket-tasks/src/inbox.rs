@@ -181,6 +181,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let from = line.from.agent.clone();
         let (steps, values) = counts(line);
         let ours = self.runtimes.values().any(|rt| rt.agent == from);
+        let why = self.run_ends.reported(line.id.clone(), from.clone());
         if !ours {
             let told = self.told.get(&from).cloned();
             self.known.insert(
@@ -194,6 +195,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                         last: None,
                         told,
                         used: None,
+                        why,
                     })),
                 },
             );
@@ -205,9 +207,22 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 status,
                 steps,
                 values,
+                why,
                 attention: attention_of(status, AskedPerson::No),
             }),
         );
+        self.publish();
+    }
+
+    /// The run daemon said why the run that sent `report` ended: its roster line says it now, when
+    /// the report was already seen (otherwise the report finds the reason when it comes).
+    pub fn run_ended(&mut self, report: prov::MessageId, why: docket_core::EndWhy) {
+        let Some(agent) = self.run_ends.learned(report, why) else {
+            return;
+        };
+        if let Some(RosterDetail::Full(full)) = self.known.get_mut(&agent).map(|l| &mut l.detail) {
+            full.why = Some(why);
+        }
         self.publish();
     }
 

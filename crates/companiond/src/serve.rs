@@ -477,6 +477,10 @@ where
         speakers,
     ));
     tokio::spawn(arrivals(connection.clone(), companion.clone()));
+    tokio::spawn(crate::run_signals::watch(
+        connection.clone(),
+        companion.clone(),
+    ));
     tokio::spawn(ticking(companion));
     Ok(())
 }

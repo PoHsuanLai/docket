@@ -2,7 +2,7 @@
 //! and what they are worth, what standing consent and the task policy say, what Cedar rules,
 //! and where the gate sends the call. Pure over the router's state and its clock.
 
-use crate::argcheck::{check_call, target_name};
+use crate::argcheck::{check_call, no_handle_names, target_name};
 use crate::consent::{consent_for, within_reach};
 use crate::coverage::coverage;
 use crate::gate::{GateInputs, Pending, gate};
@@ -248,7 +248,8 @@ impl<S: Seams> Router<S> {
                 why,
             })
         })?;
-        let args = label_args(record, &who.voice, request.args.clone())
+        let args = no_handle_names(&decl, &request.args)
+            .and_then(|()| label_args(record, &who.voice, request.args.clone()))
             .and_then(|a| check_call(&decl, &request.action.app, &target, a))
             .map_err(|(param, why)| end(CallRefusal::BadArgs { param, why }))?;
         let request = CallRequest {
