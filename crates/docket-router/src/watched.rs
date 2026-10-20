@@ -167,7 +167,8 @@ impl<S: Seams> Router<S> {
     fn handed_session(&self, agent: &WatchedAgent) -> Option<SessionId> {
         let st = self.locked();
         st.sessions.iter().find_map(|(id, record)| {
-            let open = matches!(record.state, SessionState::Open(_));
+            let open = matches!(record.state, SessionState::Open(_))
+                && matches!(record.kind, SessionKind::Watch(_));
             let same = record.agent_session.as_ref() == Some(&agent.session);
             // Only an app session the host opened for one of the companion's helpers is the
             // companion's; the host said so when it opened it (`ExternalAgent::helper`).
