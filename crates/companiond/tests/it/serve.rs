@@ -10,7 +10,7 @@ use companion_wire::{
     RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView, SayReply,
     TerminalSession,
 };
-use companiond::{RoutineDesk, serve_on, serve_with_routines};
+use companiond::{RoutineDesk, serve_on_rooted, serve_with_routines};
 use docket_core::helper::{Ceiling, HelperModel, HelperName, Role};
 use docket_core::routine::RoutineId;
 use docket_core::*;
@@ -74,9 +74,14 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
     let (launcher, hand) = (w.launcher, w.hand);
     let companion = Arc::new(Mutex::new(w.companion));
     let who = who(&server, scratch.path());
-    serve_on(&server, companion.clone(), who.clone())
-        .await
-        .expect("serving");
+    serve_on_rooted(
+        &server,
+        companion.clone(),
+        who.clone(),
+        scratch.path().to_owned(),
+    )
+    .await
+    .expect("serving");
     // The client is the shell: only it speaks for the person.
     as_shell(&who, &client);
 
@@ -200,9 +205,14 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
     let launcher = w.launcher;
     let companion = Arc::new(Mutex::new(w.companion));
     let who = who(&server, scratch.path());
-    serve_on(&server, companion.clone(), who.clone())
-        .await
-        .expect("serving");
+    serve_on_rooted(
+        &server,
+        companion.clone(),
+        who.clone(),
+        scratch.path().to_owned(),
+    )
+    .await
+    .expect("serving");
     // The client is the shell: only it speaks for the person.
     as_shell(&who, &client);
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
@@ -278,9 +288,14 @@ async fn only_the_shell_speaks_for_the_person() {
     let w = world(vec![words("Hello there.")]);
     let companion = Arc::new(Mutex::new(w.companion));
     let who = who(&server, scratch.path());
-    serve_on(&server, companion.clone(), who.clone())
-        .await
-        .expect("serving");
+    serve_on_rooted(
+        &server,
+        companion.clone(),
+        who.clone(),
+        scratch.path().to_owned(),
+    )
+    .await
+    .expect("serving");
     as_shell(&who, &shell);
 
     let words_of_the_person = UserTurn {
@@ -352,9 +367,14 @@ async fn the_helpers_are_served_beside_the_conversation_to_the_shell_alone() {
     w.companion.set_desk(Arc::new(hub));
     let companion = Arc::new(Mutex::new(w.companion));
     let who = who(&server, scratch.path());
-    serve_on(&server, companion.clone(), who.clone())
-        .await
-        .expect("serving");
+    serve_on_rooted(
+        &server,
+        companion.clone(),
+        who.clone(),
+        scratch.path().to_owned(),
+    )
+    .await
+    .expect("serving");
     as_shell(&who, &shell);
 
     // Served as declared, on the object the conversation is on.
@@ -461,7 +481,7 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
         &server,
         companion.clone(),
         who.clone(),
-        std::path::PathBuf::from("/proc"),
+        scratch.path().to_owned(),
         Some(Arc::new(EmptyRoutines)),
     )
     .await
@@ -583,7 +603,7 @@ async fn the_editor_bridge_reads_the_helpers_and_changes_nothing_and_a_stranger_
         &server,
         companion,
         who.clone(),
-        std::path::PathBuf::from("/proc"),
+        scratch.path().to_owned(),
         Some(Arc::new(EmptyRoutines)),
     )
     .await
@@ -736,7 +756,7 @@ async fn a_proposed_routine_waits_for_the_shell_to_accept_or_decline_it() {
         &server,
         companion,
         who.clone(),
-        std::path::PathBuf::from("/proc"),
+        scratch.path().to_owned(),
         Some(routines.clone()),
     )
     .await
@@ -864,7 +884,7 @@ async fn the_editor_bridge_speaks_in_a_helpers_conversation_and_a_stranger_or_an
         &server,
         companion,
         who.clone(),
-        std::path::PathBuf::from("/proc"),
+        scratch.path().to_owned(),
         Some(Arc::new(EmptyRoutines)),
     )
     .await

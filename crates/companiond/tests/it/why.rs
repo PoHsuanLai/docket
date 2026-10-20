@@ -8,7 +8,7 @@ use crate::support::world::*;
 use companion_wire::{
     AnswerBody, AnswerPhase, AnswerWire, AskWire, RefusalWire, RouteNote, WhyWord, footer_line,
 };
-use companiond::serve_on;
+use companiond::serve_on_rooted;
 use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use futures_util::StreamExt;
@@ -139,9 +139,14 @@ async fn the_answer_object_serves_the_routing_property() {
     let (launcher, hand) = (w.launcher, w.hand);
     let companion = Arc::new(Mutex::new(w.companion));
     let who = who(&server, scratch.path());
-    serve_on(&server, companion.clone(), who.clone())
-        .await
-        .expect("serving");
+    serve_on_rooted(
+        &server,
+        companion.clone(),
+        who.clone(),
+        scratch.path().to_owned(),
+    )
+    .await
+    .expect("serving");
     as_shell(&who, &client);
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
     let mut added = proxy.receive_answer_added().await.expect("signal");

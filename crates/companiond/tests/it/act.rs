@@ -4,7 +4,7 @@
 use crate::support::bus::PrivateBus;
 use crate::support::world::*;
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, CardWire, StepWireState};
-use companiond::serve_on;
+use companiond::serve_on_rooted;
 use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy};
 use futures_util::StreamExt;
@@ -82,9 +82,14 @@ async fn a_pressed_card_is_performed_in_the_answers_session_and_the_answer_follo
     let router = w.router.clone();
     let companion = Arc::new(Mutex::new(w.companion));
     let who = who(&server, scratch.path());
-    serve_on(&server, companion.clone(), who.clone())
-        .await
-        .expect("serving");
+    serve_on_rooted(
+        &server,
+        companion.clone(),
+        who.clone(),
+        scratch.path().to_owned(),
+    )
+    .await
+    .expect("serving");
     as_shell(&who, &shell);
     let proxy = CompanionProxy::new(&shell).await.expect("proxy");
     let mut added = proxy.receive_answer_added().await.expect("signal");
