@@ -258,6 +258,7 @@ fn review_request() -> action_review::ReviewRequest {
             at: prov::UnixSeconds(1),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         }],
         proposed: action_review::ProposedAction {
             app: porter_core::AppName::parse("org.quire.Mail").expect("app"),

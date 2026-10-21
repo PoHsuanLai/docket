@@ -209,7 +209,7 @@ async fn rig(strictness: Strictness) -> (Arc<Router<Rig>>, SessionOpened) {
         reader: ScriptedReader::default(),
     };
     let config = AgentConfig {
-        permissions: strictness.into(),
+        start_mode: strictness.into(),
         ..AgentConfig::default()
     };
     let router = Arc::new(Router::new(

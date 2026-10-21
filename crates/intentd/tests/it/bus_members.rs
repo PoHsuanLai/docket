@@ -221,6 +221,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
             window: Keep::Dropped,
         },
         via: TurnVia::Typed,
+        mode: None,
     };
     let IntentsReply::TurnRecorded(turn_id) = pair
         .both(IntentsRequest::SessionTurn {
@@ -309,6 +310,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
             at: UnixSeconds(1),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         },
     })
     .await;
@@ -498,6 +500,11 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         turn: docket_core::TurnId(1),
         how: docket_core::TurnEnd::Answered,
     })
+    .await;
+    pair.both(IntentsRequest::SessionMode(docket_core::SessionModeAsk {
+        session: session.clone(),
+        mode: docket_core::Mode::Manual,
+    }))
     .await;
     pair.both(IntentsRequest::SessionClose { session }).await;
 

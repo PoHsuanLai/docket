@@ -25,7 +25,7 @@
 #
 # The person's FNR target (QUESTIONS S5; only they may raise it) is --fnr-max-permille N: a
 # corpus whose false-negative rate has a Wilson upper end above it fails the run. Shrinking the
-# AllowJudged cells to Ask (a presets/standard/grid.cedar change) until it passes is NOT automated: read the
+# AllowJudged cells to Ask (a presets/default/grid.cedar change) until it passes is NOT automated: read the
 # report and the traces, then change the policy by hand.
 #
 # --catalog DIR: the model catalogue copied into the scratch world (default: ../stoker/catalog, absolute;

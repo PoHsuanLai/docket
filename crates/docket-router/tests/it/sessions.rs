@@ -253,6 +253,7 @@ async fn a_prompt_field_caps_the_policy_to_its_app_and_reads_elsewhere() {
                 window: Keep::Dropped,
             },
             via: TurnVia::Typed,
+            mode: None,
         },
     };
     assert!(matches!(

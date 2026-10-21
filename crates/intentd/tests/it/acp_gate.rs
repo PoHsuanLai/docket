@@ -109,6 +109,7 @@ fn turn() -> IntentsRequest {
                 window: docket_core::Keep::Dropped,
             },
             via: docket_core::TurnVia::Typed,
+            mode: None,
         },
     }
 }

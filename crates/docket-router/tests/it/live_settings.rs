@@ -9,12 +9,11 @@ async fn a_settings_change_applies_to_the_next_call_without_a_restart() {
     ready(&router).await;
     assert_eq!(router.agent_config(), AgentConfig::default());
 
-    // The person moves Permissions to Manual while the router is serving: the next change asks,
-    // where under Auto an archive inside the person's request ran.
-    router.apply_settings(AgentConfig {
-        permissions: Permissions::Manual,
-        ..AgentConfig::default()
-    });
+    // The person sets Auto's "inside" row to Asks while the router is serving: the next change
+    // asks, where an archive inside the person's request ran.
+    let mut asking = AgentConfig::default();
+    asking.rows.auto.inside = InsideRow::Asks;
+    router.apply_settings(asking);
     let archive = |thread: &str| call("mail.thread.archive", &[thread], vec![]);
     let refused = perform(&router, archive("t1")).await.expect_err("asked");
     assert!(

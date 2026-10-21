@@ -94,6 +94,7 @@ fn turn() -> UserTurn {
         at: UnixSeconds(1),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     }
 }
 
@@ -714,6 +715,7 @@ async fn an_editor_speaks_in_a_helpers_conversation_and_in_no_other_session_it_d
                         window: Keep::Dropped,
                     },
                     via: TurnVia::Typed,
+                    mode: None,
                 },
             },
         )

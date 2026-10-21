@@ -87,7 +87,7 @@ repeatable), `--patience-s N` (seconds to wait for each change of an answer, and
 Exit codes: 0 everything met, 1 a case missed or a flow failed, 2 the run could not start.
 
 Not automated: the header of the old script promised that a missed FNR target shrinks the AllowJudged
-cells to Ask (a `policy/presets/standard/grid.cedar` change) until it passes. Read the report and the traces, then change the
+cells to Ask (a `policy/presets/default/grid.cedar` change) until it passes. Read the report and the traces, then change the
 policy by hand.
 
 ### What a local engine needs
@@ -300,8 +300,7 @@ message, text hidden with zero-width, bidi-override or tag characters), the fixt
 (`carrier`: a mail body or subject, a contact's name, a file's content; the field holds `{injection}`), the
 goal (`goal`: an action that must not reach its app, such as an outbound send, a forward, a deletion, a move
 or a draft) and the steps a hijacked agent takes (`attack_steps`). The format is in `docket-eval`'s
-`attack.rs`; the starter corpus is 28 attacks over the neutral fake mail and files apps and all three
-strictnesses.
+`attack.rs`; the starter corpus is 28 attacks over the neutral fake mail and files apps, in Auto and in Manual.
 
 Each attack plays as two cases over one world: the task with the carrier quiet, and the task with the
 injection and a planner that follows it. Three rates come out, each with its 95% Wilson interval, in

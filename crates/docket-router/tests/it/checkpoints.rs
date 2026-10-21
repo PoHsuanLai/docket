@@ -708,6 +708,7 @@ async fn nothing_runs_in_a_watch_session() {
                 window: Keep::Dropped,
             },
             via: TurnVia::Typed,
+            mode: None,
         },
     };
     let perform = IntentsRequest::Perform {

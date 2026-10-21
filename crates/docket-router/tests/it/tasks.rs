@@ -194,6 +194,7 @@ fn the_roster_shows_a_goal_in_this_space_and_presence_in_another() {
         at: UnixSeconds(1),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     });
     let there = record(
         "t-2",

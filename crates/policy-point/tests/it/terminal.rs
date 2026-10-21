@@ -8,7 +8,7 @@ use docket_core::*;
 use policy_point::{GrantState, PolicyRequest, TerminalGrant};
 use prov::{ActorKind, Effect, Integrity};
 
-fn every_preset() -> [(&'static str, policy_point::Pdp); 2] {
+fn every_preset() -> [(&'static str, InMode); 2] {
     [("auto", pdp()), ("manual", manual())]
 }
 

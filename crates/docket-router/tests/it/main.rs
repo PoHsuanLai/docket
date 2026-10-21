@@ -24,6 +24,7 @@ mod limits;
 mod live_settings;
 mod machines;
 mod messaging;
+mod mode;
 mod notes;
 mod percall;
 mod perform;

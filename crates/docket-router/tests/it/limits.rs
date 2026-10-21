@@ -97,6 +97,7 @@ async fn a_locked_floor_entry_beats_the_persons_always_allow() {
             action: Some(action("mail.thread.archive").name),
             from: Effect::Read,
         }],
+        rows: Vec::new(),
     })
     .expect("floor");
     let refused = perform(&router, archive()).await.expect_err("locked");

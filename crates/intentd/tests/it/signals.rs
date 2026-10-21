@@ -158,6 +158,57 @@ async fn a_session_the_breaker_pauses_is_said_once_and_again_after_it_is_resumed
 }
 
 #[tokio::test]
+async fn a_conversation_switched_to_another_mode_is_said_whoever_switched_it() {
+    let router = router();
+    let front = open(&router, AgentRef::Companion).await;
+    assert_eq!(front.mode, Mode::Auto, "the mode it opens in");
+    let shell = crate::support::world::caller("org.quire.Shell", &[CallerRole::Launcher]);
+    let switch = |mode: Mode| IntentsRequest::SessionMode(SessionModeAsk {
+        session: front.session.clone(),
+        mode,
+    });
+    let before = marks_of(&router);
+    let reply = router.handle(&shell, switch(Mode::Manual)).await;
+    assert_eq!(reply, IntentsReply::Done);
+    let manual = marks_of(&router);
+    assert_eq!(
+        changes(&before, &manual),
+        vec![Changed::Mode(front.session.clone(), Mode::Manual)]
+    );
+    assert_eq!(changes(&manual, &marks_of(&router)), vec![], "said once");
+    // A switch to the mode it is in says nothing.
+    router.handle(&shell, switch(Mode::Manual)).await;
+    assert_eq!(changes(&manual, &marks_of(&router)), vec![]);
+    // A switch by a turn says it too.
+    let turn = TurnIn {
+        text: "back to it".into(),
+        origin: Origin::Launcher,
+        keep: ContextKeep {
+            query: Keep::Dropped,
+            results: Keep::Dropped,
+            selection: Keep::Dropped,
+            window: Keep::Dropped,
+        },
+        via: TurnVia::Typed,
+        mode: Some(Mode::Auto),
+    };
+    let recorded = router
+        .handle(
+            &shell,
+            IntentsRequest::SessionTurn {
+                session: front.session.clone(),
+                turn,
+            },
+        )
+        .await;
+    assert!(matches!(recorded, IntentsReply::TurnRecorded(_)), "{recorded:?}");
+    assert_eq!(
+        changes(&manual, &marks_of(&router)),
+        vec![Changed::Mode(front.session, Mode::Auto)]
+    );
+}
+
+#[tokio::test]
 async fn a_message_for_an_agent_is_an_arrival_for_that_agent_only_while_it_waits() {
     let router = router();
     let front = open(&router, AgentRef::Companion).await;

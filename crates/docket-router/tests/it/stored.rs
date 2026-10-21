@@ -118,6 +118,7 @@ async fn an_editor_closes_and_speaks_only_in_sessions_its_own_app_opened() {
                 window: Keep::Dropped,
             },
             via: TurnVia::Typed,
+            mode: None,
         },
     };
     assert_eq!(

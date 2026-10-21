@@ -332,6 +332,7 @@ fn turn() -> UserTurn {
         at: UnixSeconds(5),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     }
 }
 

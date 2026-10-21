@@ -30,7 +30,7 @@ fn router_of(
         .replace("classes = [\"files\"]", &format!("classes = [\"{class}\"]"));
     let manifest = parse(&text).expect("manifest");
     let config = AgentConfig {
-        permissions: strictness.into(),
+        start_mode: strictness.into(),
         ..AgentConfig::default()
     };
     let mut router = docket_fake::fake_router(config).expect("router");

@@ -158,6 +158,7 @@ pub async fn say_as(
                     window: Keep::Dropped,
                 },
                 via: TurnVia::Typed,
+                mode: None,
             },
         },
     )

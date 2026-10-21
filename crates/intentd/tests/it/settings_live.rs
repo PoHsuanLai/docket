@@ -1,7 +1,7 @@
 //! The person's settings file reaches a router that is already serving: a change in the file
 //! applies to the next decision without a restart. The wait is the watch's own event, never a sleep.
 
-use docket_core::{AgentConfig, Permissions};
+use docket_core::{AgentConfig, InsideRow, Mode};
 use docket_fake::fake_router;
 use docket_settings::{AgentSettings, Locator};
 use intentd::{SettingsWatch, WatchState, apply, apply_next};
@@ -37,15 +37,16 @@ async fn a_change_in_the_file_applies_to_the_router_without_a_restart() {
 
     write_atomically(
         home.path(),
-        "[agent]\npermissions = \"manual\"\n[agent.budget]\ncalls = 7\n",
+        "[agent]\nstart_mode = \"manual\"\n[agent.auto]\ninside = \"asks\"\n[agent.budget]\ncalls = 7\n",
     );
-    while router.agent_config().permissions == Permissions::Auto {
+    while router.agent_config().start_mode == Mode::Auto {
         let loaded = apply_next(&router, &mut watch)
             .await
             .expect("the watch is live");
         assert_eq!(loaded.fallbacks, vec![]);
     }
-    assert_eq!(router.agent_config().permissions, Permissions::Manual);
+    assert_eq!(router.agent_config().start_mode, Mode::Manual);
+    assert_eq!(router.agent_config().rows.auto.inside, InsideRow::Asks);
     assert_eq!(router.agent_config().budget.calls, Count(7));
 
     // A bad value falls back to the base for that key; the good key beside it still applies.
@@ -54,7 +55,7 @@ async fn a_change_in_the_file_applies_to_the_router_without_a_restart() {
         // The old key still reads: trust_more is Auto.
         "[agent]\nstrictness = \"trust_more\"\n[agent.budget]\ncalls = 0\n",
     );
-    while router.agent_config().permissions != Permissions::Auto {
+    while router.agent_config().start_mode != Mode::Auto {
         apply_next(&router, &mut watch)
             .await
             .expect("the watch is live");

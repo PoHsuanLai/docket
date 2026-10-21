@@ -315,7 +315,7 @@ async fn strictness_still_rules_on_the_effect_used() {
 
 fn fake_router_with(strictness: Strictness) -> Router<docket_fake::FakeSeams> {
     let config = AgentConfig {
-        permissions: strictness.into(),
+        start_mode: strictness.into(),
         ..AgentConfig::default()
     };
     docket_fake::fake_router(config).expect("router")

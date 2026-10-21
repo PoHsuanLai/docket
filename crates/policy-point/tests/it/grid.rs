@@ -208,3 +208,134 @@ fn a_rule_with_a_why_asks_with_its_own_sentence_and_one_without_is_named() {
     let bare = set(rule("mine", "")).decide(&base(Effect::Read));
     assert_eq!(asks(&bare), [AskReason::Rule(PolicyId("mine".to_owned()))]);
 }
+
+type Edit = fn(&mut policy_point::PolicyRequest);
+
+/// One row of the table: the name, the effect, the rows in force, what to change in the request,
+/// and the cell it must reach.
+type Row = (&'static str, Effect, ModeRows, Edit, Cell);
+
+fn row(name: &'static str, effect: Effect, rows: ModeRows, edit: Edit, want: Cell) -> Row {
+    (name, effect, rows, edit, want)
+}
+
+fn nothing(_: &mut policy_point::PolicyRequest) {}
+
+fn screen_step(r: &mut policy_point::PolicyRequest) {
+    r.context.grant = policy_point::GrantState::None;
+    outside(r);
+    untrust_planner(r);
+    r.context.taint = policy_point::TaintFact::Tainted;
+    allowed_run(r);
+}
+
+fn untrusted_path(r: &mut policy_point::PolicyRequest) {
+    r.context.sinks.path = prov::Integrity::Untrusted;
+}
+
+fn both_legs(r: &mut policy_point::PolicyRequest) {
+    r.context.saw = SessionSaw {
+        private: Saw::Seen,
+        untrusted: Saw::Seen,
+    };
+}
+
+fn tainted(r: &mut policy_point::PolicyRequest) {
+    r.context.taint = policy_point::TaintFact::Tainted;
+}
+
+fn never(r: &mut policy_point::PolicyRequest) {
+    r.context.limit = policy_point::LimitFact::Never;
+}
+
+fn halted(r: &mut policy_point::PolicyRequest) {
+    r.context.halt = policy_point::HaltFact::Halted;
+}
+
+#[test]
+fn each_row_value_decides_its_cell_in_either_mode() {
+    use Cell::{Ask, Deny, Final, Judged};
+    use Effect::{Destructive, Outbound, Read, UndoableWrite};
+    let auto = ModeRows::AUTO;
+    let sends = ModeRows {
+        send: SendRow::Runs,
+        ..auto
+    };
+    let deletes = ModeRows {
+        delete: DeleteRow::Runs,
+        ..auto
+    };
+    let inside_asks = ModeRows {
+        inside: InsideRow::Asks,
+        ..auto
+    };
+    let other_asks = ModeRows {
+        other: OtherRow::Asks,
+        ..auto
+    };
+    let rows = [
+        row("inside runs", UndoableWrite, auto, nothing, Final),
+        row("inside asks beats other checked", UndoableWrite, inside_asks, nothing, Ask),
+        row("inside asks, outside the task", UndoableWrite, inside_asks, outside, Judged),
+        row("other asks, outside the task", UndoableWrite, other_asks, outside, Ask),
+        row("other asks, inside the task", UndoableWrite, other_asks, nothing, Final),
+        row("send runs", Outbound, sends, nothing, Final),
+        row("send asks", Outbound, auto, nothing, Ask),
+        row("send runs, untrusted recipient", Outbound, sends, untrust_recipient, Ask),
+        row("send runs, untrusted planner", Outbound, sends, untrust_planner, Ask),
+        row("send runs, Rule of Two", Outbound, sends, both_legs, Ask),
+        row("send runs, tainted with an always grant", Outbound, sends, tainted, Ask),
+        row("send runs, a limit says never", Outbound, sends, never, Deny),
+        row("delete runs", Destructive, deletes, nothing, Final),
+        row("delete asks", Destructive, auto, nothing, Ask),
+        row("delete runs, untrusted path", Destructive, deletes, untrusted_path, Ask),
+        row("delete runs, halted", Destructive, deletes, halted, Deny),
+        row("screen once, an undoable step", UndoableWrite, auto, screen_step, Final),
+        row(
+            "screen each, an undoable step",
+            UndoableWrite,
+            ModeRows {
+                screen: ScreenRow::Each,
+                ..auto
+            },
+            screen_step,
+            Ask,
+        ),
+        row("screen once, a send step", Outbound, sends, screen_step, Ask),
+        row("a read, whatever the rows", Read, ModeRows::MANUAL, nothing, Final),
+    ];
+    let pdp = policy_point::Pdp::built_in().expect("loads");
+    for (name, effect, row_set, edit, want) in rows {
+        // The rows decide, not the mode: the same rows reach the same cell in both.
+        for mode in [Mode::Auto, Mode::Manual] {
+            let request = with(effect, |r| {
+                r.context.mode = mode;
+                r.context.rows = row_set;
+                edit(r);
+            });
+            let got = pdp.decide(&request);
+            assert_eq!(cell(&got), want, "{name} in {mode:?}: {got:?}");
+        }
+    }
+}
+
+#[test]
+fn a_rule_of_the_person_may_name_the_mode() {
+    use policy_point::{Layer, PolicySource, SCHEMA};
+    let only_manual = r#"
+        @id("manual-reads-ask")
+        forbid (principal, action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"], resource)
+        when { context.mode == "manual" && resource.effect == "read" };
+    "#;
+    let sources = [
+        PolicySource::core(),
+        PolicySource::preset(),
+        PolicySource::file(Layer::Person, "mine.cedar".into(), only_manual.to_owned()),
+    ];
+    let layered = policy_point::Pdp::layered(SCHEMA, &sources).expect("loads");
+    assert!(layered.skipped.is_empty(), "{:?}", layered.skipped);
+    for (mode, want) in [(Mode::Auto, Cell::Final), (Mode::Manual, Cell::Ask)] {
+        let got = layered.pdp.decide(&with(Effect::Read, |r| in_mode(r, mode)));
+        assert_eq!(cell(&got), want, "{mode:?}: {got:?}");
+    }
+}

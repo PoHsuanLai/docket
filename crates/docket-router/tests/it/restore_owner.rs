@@ -42,6 +42,7 @@ async fn turn(router: &World, who: &CallerId, session: &SessionId) -> IntentsRep
                     window: Keep::Dropped,
                 },
                 via: TurnVia::Typed,
+                mode: None,
             },
         },
     )

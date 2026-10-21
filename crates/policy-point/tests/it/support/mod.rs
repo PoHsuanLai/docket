@@ -60,6 +60,8 @@ pub fn base(effect: Effect) -> PolicyRequest {
             limit: LimitFact::Free,
             taint: TaintFact::Clean,
             run: RunFact::NotAsked,
+            mode: Mode::Auto,
+            rows: ModeRows::AUTO,
         },
     }
 }
@@ -70,12 +72,44 @@ pub fn with(effect: Effect, edit: impl FnOnce(&mut PolicyRequest)) -> PolicyRequ
     request
 }
 
-pub fn pdp() -> Pdp {
-    Pdp::built_in(Permissions::Auto).expect("loads")
+/// Puts the request in `mode`, with the rows that mode starts with.
+pub fn in_mode(r: &mut PolicyRequest, mode: Mode) {
+    r.context.mode = mode;
+    r.context.rows = match mode {
+        Mode::Auto => ModeRows::AUTO,
+        Mode::Manual => ModeRows::MANUAL,
+    };
 }
 
-pub fn manual() -> Pdp {
-    Pdp::built_in(Permissions::Manual).expect("loads")
+/// The one built-in set, asked in one mode: `decide` puts each request in that mode first, so a
+/// table can run the same rows under both.
+pub struct InMode {
+    pub pdp: Pdp,
+    pub mode: Mode,
+}
+
+impl InMode {
+    pub fn decide(&self, request: &PolicyRequest) -> Ruling {
+        let mut request = request.clone();
+        in_mode(&mut request, self.mode);
+        self.pdp.decide(&request)
+    }
+}
+
+/// The built-in set, asked in Auto.
+pub fn pdp() -> InMode {
+    InMode {
+        pdp: Pdp::built_in().expect("loads"),
+        mode: Mode::Auto,
+    }
+}
+
+/// The built-in set, asked in Manual.
+pub fn manual() -> InMode {
+    InMode {
+        pdp: Pdp::built_in().expect("loads"),
+        mode: Mode::Manual,
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
