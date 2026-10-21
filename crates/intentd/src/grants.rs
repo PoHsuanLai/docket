@@ -5,10 +5,10 @@ use crate::policies::{PolicyDirs, load_policies};
 use docket_core::{
     ActionGrant, Ended, GrantFileError, KnownSpaces, Limit, LimitCaller, LimitKey, LimitLevel,
     LimitMaker, LimitScope, Reconciled, Revocation, RuleFile, SpaceAccess, StandingGrant,
-    StandingGrantId, decode_grants, decode_limits, decode_standing, encode_limits,
-    encode_standing, held_with, held_without, limits_with, limits_without, read_grant_file,
-    read_grant_list, read_optional, reconcile, with_rule, without_rule, without_space,
-    write_atomic, write_grant_list,
+    StandingGrantId, decode_grants, decode_limits, decode_standing, encode_limits, encode_standing,
+    held_with, held_without, limits_with, limits_without, read_grant_file, read_grant_list,
+    read_optional, reconcile, with_rule, without_rule, without_space, write_atomic,
+    write_grant_list,
 };
 use docket_router::GrantStore;
 use policy_point::Presets;

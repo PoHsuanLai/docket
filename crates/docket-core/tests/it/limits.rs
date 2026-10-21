@@ -296,11 +296,20 @@ fn a_limit_is_a_rule_in_a_file_that_is_added_replaced_and_removed_by_id() {
     }
     .limit(at(5));
     let rule = rule_text(&made);
-    assert!(rule.starts_with(&format!("@id(\"{}\")", made.id.as_str())), "{rule}");
-    assert!(rule.contains("perform_unasked") && rule.contains("perform_unjudged"), "{rule}");
+    assert!(
+        rule.starts_with(&format!("@id(\"{}\")", made.id.as_str())),
+        "{rule}"
+    );
+    assert!(
+        rule.contains("perform_unasked") && rule.contains("perform_unjudged"),
+        "{rule}"
+    );
     assert!(rule.contains("context.space == \"work\""), "{rule}");
     assert!(rule.contains("[\"undoable_write\", \"outbound\""), "{rule}");
-    assert!(rule.contains("say \\\"ask\\\" first"), "the quote is escaped: {rule}");
+    assert!(
+        rule.contains("say \\\"ask\\\" first"),
+        "the quote is escaped: {rule}"
+    );
     let never = Tighten {
         level: LimitLevel::Never,
         scope: LimitScope::Everything,

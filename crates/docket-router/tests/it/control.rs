@@ -552,7 +552,8 @@ async fn the_start_sheet_covers_the_run_it_names_and_not_another_run_in_the_spac
         IntentsRequest::GateGrant(GrantAsk {
             app: mail_app(),
             space: space("work"),
-            level: Default::default(),
+            // "Ask every run": nothing standing is remembered, so only the named run is allowed.
+            level: Level::AlwaysAsk,
             run: Some(first.clone()),
         }),
     )

@@ -182,8 +182,17 @@ async fn the_assistant_can_tighten_but_never_loosen() {
     .expect("tightened");
     // A forbid in the assistant's file, for this Space, in plain words; nothing in the person's.
     let written = router.seams.grants.rule_texts();
-    assert_eq!(rule_ids(&written.assistant).len(), 1, "{}", written.assistant);
-    assert!(written.assistant.contains("forbid"), "{}", written.assistant);
+    assert_eq!(
+        rule_ids(&written.assistant).len(),
+        1,
+        "{}",
+        written.assistant
+    );
+    assert!(
+        written.assistant.contains("forbid"),
+        "{}",
+        written.assistant
+    );
     assert!(written.assistant.contains("context.space == \"work\""));
     assert!(written.assistant.contains("You said never to do this."));
     assert!(!written.assistant.contains("something nobody said"));
@@ -212,7 +221,10 @@ async fn an_ask_first_rule_makes_the_next_call_ask_and_removing_it_by_id_restore
     tighten(
         &router,
         &opened.session,
-        &[("level", choice("ask")), ("app", Value::Text("org.quire.Mail".into()))],
+        &[
+            ("level", choice("ask")),
+            ("app", Value::Text("org.quire.Mail".into())),
+        ],
     )
     .expect("tightened");
     let ids = rule_ids(&router.seams.grants.rule_texts().assistant);
@@ -222,7 +234,11 @@ async fn an_ask_first_rule_makes_the_next_call_ask_and_removing_it_by_id_restore
         .expect_err("asks, then dismissed");
     let shown = router.seams.confirmer.requests();
     assert_eq!(shown.len(), 1, "the rule made it ask");
-    let held = shown[0].limits.held.as_ref().expect("the sheet names the rule");
+    let held = shown[0]
+        .limits
+        .held
+        .as_ref()
+        .expect("the sheet names the rule");
     assert_eq!(held.id, ids[0]);
     assert_eq!(held.undo, UndoOffer::Offered);
     assert!(matches!(shown[0].always, AlwaysOffer::Withheld(_)));

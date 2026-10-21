@@ -289,7 +289,9 @@ fn a_generated_rule_loads_in_its_layer_and_asks_or_refuses_where_its_limit_cover
     let elsewhere = with(Effect::UndoableWrite, |r| {
         r.context.space = prov::SpaceId::parse("home").expect("space");
     });
-    let by_person = with(Effect::UndoableWrite, |r| r.principal.kind = prov::ActorKind::User);
+    let by_person = with(Effect::UndoableWrite, |r| {
+        r.principal.kind = prov::ActorKind::User
+    });
     for uncovered in [elsewhere, base(Effect::Read), by_person] {
         assert_eq!(layered.pdp.decide(&uncovered), pdp().decide(&uncovered));
     }

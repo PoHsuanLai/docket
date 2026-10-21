@@ -34,7 +34,11 @@ impl Presets {
         let build = |preset: Permissions| {
             let sources = [
                 PolicySource::core(),
-                PolicySource::file(Layer::Person, PathBuf::from("never.cedar"), person.to_owned()),
+                PolicySource::file(
+                    Layer::Person,
+                    PathBuf::from("never.cedar"),
+                    person.to_owned(),
+                ),
                 PolicySource::file(
                     Layer::Assistant,
                     PathBuf::from("assistant.cedar"),
