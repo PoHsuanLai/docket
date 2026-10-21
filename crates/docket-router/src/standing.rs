@@ -194,6 +194,8 @@ impl<S: Seams> Router<S> {
     pub fn revoke_standing(&self, id: &StandingGrantId) -> Revocation {
         let done = self.seams.grants().revoke_standing(id);
         if done == Revocation::Revoked {
+            // It may have been a rule: the policy then drops it at once.
+            self.reload_rules();
             self.seams.sink().append(AuditRecord::StandingRevoked {
                 at: self.seams.clock().now(),
                 grant: id.clone(),

@@ -65,15 +65,10 @@ async fn a_never_answer_refuses_and_is_kept() {
         ScriptedConfirmer::answering(vec![ConfirmAnswer::Never { receipt: receipt() }]);
     let refused = perform(&router, archive()).await.expect_err("never");
     assert_eq!(refused, CallRefusal::Unconfirmed(ConfirmEnd::Refused));
-    let kept: Vec<_> = router
-        .seams
-        .grants
-        .limits()
-        .into_iter()
-        .filter(|l| l.key.level == LimitLevel::Never)
-        .collect();
-    assert_eq!(kept.len(), 1, "the entry is stored");
-    assert_eq!(kept[0].by, LimitMaker::Person);
+    // The person's "never" is a rule in the person's file, not in the assistant's.
+    let written = router.seams.grants.rule_texts();
+    assert_eq!(rule_ids(&written.never).len(), 1, "{}", written.never);
+    assert!(written.assistant.is_empty(), "{}", written.assistant);
     assert!(router.seams.sink.records().iter().any(|r| matches!(
         r,
         AuditRecord::Confirm {
@@ -173,6 +168,7 @@ async fn the_assistant_can_tighten_but_never_loosen() {
     let loosened = tighten(&router, &opened.session, &[("level", choice("allow"))]);
     assert!(loosened.is_err(), "{loosened:?}");
     assert!(router.seams.grants.limits().is_empty());
+    assert!(router.seams.grants.rule_texts().assistant.is_empty());
     // A quote the person did not say is dropped; one they said is kept.
     tighten(
         &router,
@@ -184,11 +180,14 @@ async fn the_assistant_can_tighten_but_never_loosen() {
         ],
     )
     .expect("tightened");
-    let made = router.seams.grants.limits();
-    assert_eq!(made.len(), 1);
-    assert_eq!(made[0].by, LimitMaker::Assistant);
-    assert_eq!(made[0].said, None);
-    assert_eq!(made[0].key.space, SpaceScope::Only(space("work")));
+    // A forbid in the assistant's file, for this Space, in plain words; nothing in the person's.
+    let written = router.seams.grants.rule_texts();
+    assert_eq!(rule_ids(&written.assistant).len(), 1, "{}", written.assistant);
+    assert!(written.assistant.contains("forbid"), "{}", written.assistant);
+    assert!(written.assistant.contains("context.space == \"work\""));
+    assert!(written.assistant.contains("You said never to do this."));
+    assert!(!written.assistant.contains("something nobody said"));
+    assert!(written.never.is_empty());
     let refused = perform(&router, archive()).await.expect_err("never");
     assert_eq!(refused, CallRefusal::Denied(DenyCode::Never));
     router.seams.grants.clear();
@@ -201,10 +200,37 @@ async fn the_assistant_can_tighten_but_never_loosen() {
         ],
     )
     .expect("tightened");
-    let kept = router.seams.grants.limits();
-    assert_eq!(
-        kept[0].said.as_ref().map(|s| s.as_str()),
-        Some("tidy my inbox")
-    );
-    assert_eq!(kept[0].key.level, LimitLevel::AlwaysAsk);
+    let kept = router.seams.grants.rule_texts().assistant;
+    assert!(kept.contains("tidy my inbox"), "{kept}");
+    assert!(kept.contains("perform_unasked"), "{kept}");
+}
+
+#[tokio::test]
+async fn an_ask_first_rule_makes_the_next_call_ask_and_removing_it_by_id_restores_the_old_way() {
+    let router = router();
+    let opened = ready(&router).await;
+    tighten(
+        &router,
+        &opened.session,
+        &[("level", choice("ask")), ("app", Value::Text("org.quire.Mail".into()))],
+    )
+    .expect("tightened");
+    let ids = rule_ids(&router.seams.grants.rule_texts().assistant);
+    assert_eq!(ids.len(), 1);
+    perform(&router, archive())
+        .await
+        .expect_err("asks, then dismissed");
+    let shown = router.seams.confirmer.requests();
+    assert_eq!(shown.len(), 1, "the rule made it ask");
+    let held = shown[0].limits.held.as_ref().expect("the sheet names the rule");
+    assert_eq!(held.id, ids[0]);
+    assert_eq!(held.undo, UndoOffer::Offered);
+    assert!(matches!(shown[0].always, AlwaysOffer::Withheld(_)));
+    // Undo is the one revoke path: the rule leaves the file and the next call runs unasked.
+    assert_eq!(router.revoke_standing(&ids[0]), Revocation::Revoked);
+    assert!(rule_ids(&router.seams.grants.rule_texts().assistant).is_empty());
+    perform(&router, call("mail.thread.archive", &["t2"], vec![]))
+        .await
+        .expect("allowed again");
+    assert_eq!(router.seams.confirmer.requests().len(), 1);
 }

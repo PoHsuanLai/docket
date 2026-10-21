@@ -25,6 +25,8 @@ namespace Quire {
   };
 
   type Ctx = {
+    // The session's Space, by its id.
+    space: String,
     // "same", "other" or "unbound".
     target_space: String,
     // The join of the argument labels and the planner's integrity: "trusted" or "untrusted".

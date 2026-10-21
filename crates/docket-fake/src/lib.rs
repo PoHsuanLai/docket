@@ -39,5 +39,5 @@ pub use scripted::{
 };
 pub use seams::Answering;
 pub use seams::{FakeLink, FakeSeams, host_companion};
-pub use simple::{MemoryGrants, RecordingSink};
+pub use simple::{MemoryGrants, RecordingSink, RuleTexts};
 pub use words::{WordsModel, WordsSession};

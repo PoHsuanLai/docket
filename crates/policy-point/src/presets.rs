@@ -1,7 +1,10 @@
 //! The two permissions presets, each built into its own policy set.
 
-use crate::pdp::{Pdp, PolicyError};
+use crate::layered::LayerError;
+use crate::layers::{Layer, PolicySource};
+use crate::pdp::{Pdp, PolicyError, SCHEMA};
 use docket_core::Permissions;
+use std::path::PathBuf;
 
 /// One policy set per preset. Each is the core, that preset's folder and the person's,
 /// assistant's and administrator's layers; they are kept apart so a preset stays a folder the
@@ -21,6 +24,28 @@ impl Presets {
         Ok(Presets {
             auto: Pdp::built_in(Permissions::Auto)?,
             manual: Pdp::built_in(Permissions::Manual)?,
+        })
+    }
+
+    /// The built-in core and presets with the text of the person's and the assistant's rules
+    /// files on top: what the files make when they hold exactly this. A source the layers refuse
+    /// is left out, like a file on disk would be.
+    pub fn with_rules(person: &str, assistant: &str) -> Result<Presets, LayerError> {
+        let build = |preset: Permissions| {
+            let sources = [
+                PolicySource::core(),
+                PolicySource::file(Layer::Person, PathBuf::from("never.cedar"), person.to_owned()),
+                PolicySource::file(
+                    Layer::Assistant,
+                    PathBuf::from("assistant.cedar"),
+                    assistant.to_owned(),
+                ),
+            ];
+            Pdp::layered_for(SCHEMA, preset, &sources).map(|layered| layered.pdp)
+        };
+        Ok(Presets {
+            auto: build(Permissions::Auto)?,
+            manual: build(Permissions::Manual)?,
         })
     }
 

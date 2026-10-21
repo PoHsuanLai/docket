@@ -15,6 +15,7 @@ use docket_core::{
     StandingGrant, StandingGrantId, SuggestAsk, UndoFault, UndoToken,
 };
 use docket_session::{Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog};
+use policy_point::Presets;
 use porter_core::AppName;
 use prov::{Actor, EntityId, SessionId, SpaceId, UnixSeconds};
 use std::future::Future;
@@ -160,7 +161,17 @@ pub trait GrantStore: Send + Sync {
         Vec::new()
     }
     /// Holds a limit; the same id replaces the earlier one. Removing one is `revoke_standing`.
+    /// This is the older store, still read; a new limit is a rule (`add_rule`).
     fn add_limit(&self, _limit: Limit) {}
+    /// Writes the forbid rule for `limit` into its rules file (the person's `never.cedar` or the
+    /// assistant's `assistant.cedar`); the same id replaces the earlier rule, and the one revoke
+    /// path removes it. A store that keeps no rules files writes none.
+    fn add_rule(&self, _limit: &Limit) {}
+    /// The policy sets the rules files make now, after a rule was added or removed; none when the
+    /// store keeps no rules files or the files do not load (the sets in force then stay).
+    fn rebuilt(&self) -> Option<Presets> {
+        None
+    }
 }
 
 /// The event log, as the router sees it.

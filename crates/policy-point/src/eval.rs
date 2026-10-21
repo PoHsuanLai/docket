@@ -44,6 +44,7 @@ fn budget_slug(budget: &BudgetFact) -> String {
 
 fn context_json(c: &PolicyContext) -> Value {
     json!({
+        "space": c.space.as_str(),
         "target_space": slug(&c.target_space),
         "args": slug(&c.args),
         "planner": slug(&c.planner),

@@ -280,3 +280,46 @@ fn the_floor_clamps_strictness_and_locks_entries() {
     };
     assert_eq!(Floor::from_file(bad), Err(FloorFault::ActionWithoutApp));
 }
+
+#[test]
+fn a_limit_is_a_rule_in_a_file_that_is_added_replaced_and_removed_by_id() {
+    let made = Tighten {
+        level: LimitLevel::AlwaysAsk,
+        scope: LimitScope::Action(ActionRef {
+            app: app("org.quire.Mail"),
+            name: name("mail.thread.archive"),
+        }),
+        space: SpaceScope::Only(space("work")),
+        from: Effect::UndoableWrite,
+        said: Some(Said::parse("say \"ask\" first").expect("words")),
+    }
+    .limit(at(5));
+    let rule = rule_text(&made);
+    assert!(rule.starts_with(&format!("@id(\"{}\")", made.id.as_str())), "{rule}");
+    assert!(rule.contains("perform_unasked") && rule.contains("perform_unjudged"), "{rule}");
+    assert!(rule.contains("context.space == \"work\""), "{rule}");
+    assert!(rule.contains("[\"undoable_write\", \"outbound\""), "{rule}");
+    assert!(rule.contains("say \\\"ask\\\" first"), "the quote is escaped: {rule}");
+    let never = Tighten {
+        level: LimitLevel::Never,
+        scope: LimitScope::Everything,
+        space: SpaceScope::Any,
+        from: Effect::Read,
+        said: None,
+    }
+    .limit(at(6));
+    assert!(rule_text(&never).contains("action == Quire::Action::\"perform\""));
+    // Added twice is one rule; a hand-written rule beside it stays; removal is by id.
+    let by_hand = "forbid (principal, action, resource) when { false };";
+    let file = with_rule(&with_rule(by_hand, &made), &made);
+    assert_eq!(rule_ids(&file), vec![made.id.clone()]);
+    let both = with_rule(&file, &never);
+    assert_eq!(rule_ids(&both).len(), 2);
+    let (left, done) = without_rule(&both, &made.id);
+    assert_eq!(done, Revocation::Revoked);
+    assert_eq!(rule_ids(&left), vec![never.id.clone()]);
+    assert!(left.contains(by_hand));
+    let (_, none) = without_rule(&left, &made.id);
+    assert_eq!(none, Revocation::NotHeld);
+    assert_eq!(RuleFile::of(LimitMaker::Floor), None);
+}

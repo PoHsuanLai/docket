@@ -386,6 +386,10 @@ impl<S: Seams> Router<S> {
         let ctx = StandingCtx::new(caller, &decl, &request, breaker, budget);
         // A limit outranks every allowance: under one, no standing grant or approval stands in
         // for the question (the policy has already asked or refused for it).
+        let limited = match limited {
+            Limited::Free => crate::limits::rule_limit(&ruling),
+            held => held,
+        };
         let (pending, standing) = match limited {
             Limited::Free => ctx.lifted(
                 &self.seams.grants().standing(),

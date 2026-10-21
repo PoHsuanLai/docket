@@ -8,9 +8,9 @@ use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::{Clock, GrantStore, Seams};
 use docket_core::{
-    ActionRef, AppRefusal, FailText, Follow, Invocation, LabelText, Limit, LimitCall, LimitCaller,
-    LimitKey, LimitLevel, LimitMaker, LimitScope, Limited, Outcome, ParamName, Preview, Said,
-    Tighten, Undoable, Value, limited,
+    ActionRef, AppRefusal, AskReason, FailText, Follow, Invocation, LabelText, Limit, LimitCall,
+    LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitNote, LimitScope, Limited, Outcome,
+    ParamName, Preview, Ruling, Said, StandingGrantId, Tighten, Undoable, UndoOffer, Value, limited,
 };
 use porter_core::AppName;
 use prov::{ActionName, Actor, Effect, SpaceScope};
@@ -66,8 +66,23 @@ impl<S: Seams> Router<S> {
         limited(&self.seams.grants().limits(), self.floor.locked(), call)
     }
 
+    /// Writes `limit` as a rule in its file and puts the rebuilt policy in force, so the next call
+    /// meets it.
+    fn write_rule(&self, limit: &Limit) {
+        self.seams.grants().add_rule(limit);
+        self.reload_rules();
+    }
+
+    /// Puts in force the policy sets the rules files make now, after a rule was added or removed.
+    pub(crate) fn reload_rules(&self) {
+        if let Some(presets) = self.seams.grants().rebuilt() {
+            self.set_presets(presets);
+        }
+    }
+
     /// The person said "never" on the sheet of `p`: the call is refused (the caller ends it)
-    /// and the action is never asked about again in this Space, until the person removes it.
+    /// and the action is never asked about again in this Space, until the person removes it. It
+    /// is a rule in the person's `never.cedar`.
     pub(crate) fn record_never(&self, p: &Prepared) {
         let key = LimitKey {
             caller: LimitCaller::Only(p.who.grant_caller()),
@@ -77,12 +92,13 @@ impl<S: Seams> Router<S> {
             level: LimitLevel::Never,
         };
         let limit = Limit::new(key, LimitMaker::Person, None, self.seams.clock().now());
-        self.seams.grants().add_limit(limit);
+        self.write_rule(&limit);
     }
 
     /// `companion.limit.add`: the assistant tightens on the person's word. Ask first or never,
     /// for an app, an action or everything, here or everywhere. There is no allow to give and no
-    /// removal to ask for: only the person removes a limit, through the revoke path.
+    /// removal to ask for: only the person removes a limit, through the revoke path. The limit is
+    /// a forbid rule in the assistant's rules file, which the loader holds to forbids.
     pub(crate) fn limit_add(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {
         let Actor::Companion { session, .. } = &inv.actor else {
             return Err(AppRefusal::Unsupported);
@@ -126,7 +142,7 @@ impl<S: Seams> Router<S> {
             said,
         }
         .limit(self.seams.clock().now());
-        self.seams.grants().add_limit(limit);
+        self.write_rule(&limit);
         Ok(Outcome {
             value: None,
             said: LabelText::parse(match level {
@@ -158,6 +174,27 @@ impl<S: Seams> Router<S> {
             .any(|t| t.text.to_lowercase().contains(&wanted))
             .then_some(said)
     }
+}
+
+/// The "ask first" a generated rule put into `ruling`, as the sheet shows it: the rule's own
+/// sentence and the id Undo removes. Like a stored limit, it outranks every standing grant.
+pub(crate) fn rule_limit(ruling: &Ruling) -> Limited {
+    let Ruling::Ask(why) = ruling else {
+        return Limited::Free;
+    };
+    why.iter()
+        .find_map(|reason| match reason {
+            AskReason::Said { rule, why } => {
+                StandingGrantId::parse(&rule.0).ok().map(|id| LimitNote {
+                    id,
+                    level: LimitLevel::AlwaysAsk,
+                    why: why.clone(),
+                    undo: UndoOffer::Offered,
+                })
+            }
+            _ => None,
+        })
+        .map_or(Limited::Free, Limited::Ask)
 }
 
 /// Whether a call is the assistant's own `companion.limit.add`: the one action that needs no

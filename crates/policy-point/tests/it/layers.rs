@@ -2,9 +2,12 @@
 //! a bad source is handled by its layer without ever loosening the set.
 
 use crate::support::*;
-use docket_core::{AskReason, Permissions, PolicyId, Ruling};
+use docket_core::{
+    ActionRef, AskReason, Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope,
+    Permissions, PolicyId, Ruling, rule_text, with_rule,
+};
 use policy_point::{Layer, LayerError, Pdp, PolicyOrigin, PolicySource, SCHEMA};
-use prov::Effect;
+use prov::{ActionName, Effect, SpaceScope};
 use std::path::PathBuf;
 
 const CORE_IDS: [&str; 13] = [
@@ -238,4 +241,79 @@ fn a_bad_core_is_an_error() {
         Pdp::layered(SCHEMA, &sources),
         Err(LayerError::Core(_))
     ));
+}
+
+fn generated(level: LimitLevel, scope: LimitScope, space: SpaceScope, by: LimitMaker) -> Limit {
+    let key = LimitKey {
+        caller: LimitCaller::AnyAgent,
+        scope,
+        space,
+        from: Effect::UndoableWrite,
+        level,
+    };
+    Limit::new(key, by, None, prov::UnixSeconds(1))
+}
+
+fn mail_send() -> LimitScope {
+    LimitScope::Action(ActionRef {
+        app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
+        name: ActionName::parse("mail.message.send").expect("action"),
+    })
+}
+
+#[test]
+fn a_generated_rule_loads_in_its_layer_and_asks_or_refuses_where_its_limit_covers() {
+    let work = SpaceScope::Only(prov::SpaceId::parse("work").expect("space"));
+    let ask = generated(
+        LimitLevel::AlwaysAsk,
+        mail_send(),
+        work.clone(),
+        LimitMaker::Assistant,
+    );
+    let never = generated(LimitLevel::Never, mail_send(), work, LimitMaker::Person);
+    let sources: Vec<PolicySource> = built_in()
+        .into_iter()
+        .chain([
+            file(Layer::Assistant, "assistant.cedar", &with_rule("", &ask)),
+            file(Layer::Person, "never.cedar", &with_rule("", &never)),
+        ])
+        .collect();
+    let layered = Pdp::layered(SCHEMA, &sources).expect("loads");
+    assert!(layered.skipped.is_empty(), "{:?}", layered.skipped);
+    // The person's never refuses; the assistant's ask-first only asks.
+    assert_eq!(
+        layered.pdp.decide(&base(Effect::UndoableWrite)),
+        Ruling::Deny(vec![PolicyId(never.id.as_str().to_owned())])
+    );
+    // Outside its Space, below its effect and from the person's own launcher, neither covers.
+    let elsewhere = with(Effect::UndoableWrite, |r| {
+        r.context.space = prov::SpaceId::parse("home").expect("space");
+    });
+    let by_person = with(Effect::UndoableWrite, |r| r.principal.kind = prov::ActorKind::User);
+    for uncovered in [elsewhere, base(Effect::Read), by_person] {
+        assert_eq!(layered.pdp.decide(&uncovered), pdp().decide(&uncovered));
+    }
+    // The ask-first rule alone asks, in its own words, and a permit written as a rule is not one.
+    let only_ask: Vec<PolicySource> = built_in()
+        .into_iter()
+        .chain([file(Layer::Assistant, "assistant.cedar", &rule_text(&ask))])
+        .collect();
+    let layered = Pdp::layered(SCHEMA, &only_ask).expect("loads");
+    assert!(layered.skipped.is_empty());
+    let ruling = layered.pdp.decide(&base(Effect::UndoableWrite));
+    assert!(
+        matches!(&ruling, Ruling::Ask(why) if why.iter().any(
+            |w| matches!(w, AskReason::Said { rule, .. } if rule.0 == ask.id.as_str()))),
+        "{ruling:?}"
+    );
+    let sneaked = rule_text(&ask).replace("forbid", "permit");
+    let rejected = Pdp::layered(
+        SCHEMA,
+        &built_in()
+            .into_iter()
+            .chain([file(Layer::Assistant, "assistant.cedar", &sneaked)])
+            .collect::<Vec<_>>(),
+    )
+    .expect("loads");
+    assert_eq!(rejected.skipped.len(), 1);
 }

@@ -5,7 +5,9 @@
 
 use crate::facts::RunFacts;
 use action_review::plan;
-use docket_core::{AskReason, CallRefusal, DenyCode, Impact, PolicyId, Ruling, Stage};
+use docket_core::{
+    AskReason, CallRefusal, DenyCode, Impact, PolicyId, Ruling, Stage, StandingGrantId,
+};
 use policy_point::BudgetFact;
 
 /// The core rules whose Deny the router words by their facts. Their ids are `policy/core.cedar`'s.
@@ -45,15 +47,21 @@ fn named(ids: &[PolicyId], rule: &str) -> bool {
     ids.iter().any(|id| id.0 == rule)
 }
 
+/// Whether `id` is a "never" that said so: the core rule, or a rule written for a limit (named by
+/// the limit's id, which a standing grant's id shares the form of).
+fn says_never(id: &PolicyId) -> bool {
+    id.0 == LIMIT_NEVER || StandingGrantId::parse(&id.0).is_ok()
+}
+
 /// The refusal for the rules that denied: a halt first, then a budget, a repeat, and any other
 /// rule as "not allowed"; a limit's "never" only when nothing else denied.
 fn refusal(ids: &[PolicyId], facts: &RunFacts) -> CallRefusal {
-    let other = ids.iter().any(|id| id.0 != LIMIT_NEVER);
+    let other = ids.iter().any(|id| !says_never(id));
     match facts.budget {
         _ if named(ids, HALTED) => CallRefusal::Halted(facts.scope.clone()),
         BudgetFact::Over(kind) if named(ids, OVER_BUDGET) => CallRefusal::OverBudget(kind),
         _ if named(ids, REPEATED) => CallRefusal::Denied(DenyCode::Repeated),
-        _ if !other && named(ids, LIMIT_NEVER) => CallRefusal::Denied(DenyCode::Never),
+        _ if !other && ids.iter().any(says_never) => CallRefusal::Denied(DenyCode::Never),
         _ => CallRefusal::Denied(DenyCode::NotAllowed),
     }
 }
