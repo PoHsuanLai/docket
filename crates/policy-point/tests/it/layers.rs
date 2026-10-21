@@ -303,3 +303,59 @@ fn a_generated_rule_loads_in_its_layer_and_asks_or_refuses_where_its_limit_cover
     .expect("loads");
     assert_eq!(rejected.skipped.len(), 1);
 }
+
+#[test]
+fn a_rules_file_that_does_not_load_still_holds_the_nevers_it_wrote() {
+    let work = SpaceScope::Only(prov::SpaceId::parse("work").expect("space"));
+    let never = generated(LimitLevel::Never, mail_send(), work, LimitMaker::Person);
+    let asks = generated(
+        LimitLevel::AlwaysAsk,
+        mail_send(),
+        SpaceScope::Any,
+        LimitMaker::Assistant,
+    );
+    // A hand edit that does not parse, once above the generated rule and once below it.
+    let hand_edited = format!(
+        "forbid (this is not a rule\n{}\nforbid (also not",
+        rule_text(&never)
+    );
+    // The assistant's file has a permit by hand, which its layer refuses whole.
+    let permitted = format!("{A_PERMIT}\n\n{}", rule_text(&asks));
+    let sources: Vec<PolicySource> = built_in()
+        .into_iter()
+        .chain([
+            file(Layer::Person, "never.cedar", &hand_edited),
+            file(Layer::Assistant, "assistant.cedar", &permitted),
+        ])
+        .collect();
+    let layered = Pdp::layered(SCHEMA, &sources).expect("loads");
+    // Both files are reported, by name.
+    let named: Vec<String> = layered.skipped.iter().map(|r| r.origin.to_string()).collect();
+    assert_eq!(named, ["never.cedar", "assistant.cedar"], "{:?}", layered.skipped);
+    // The "never" still refuses and the "ask first" still asks.
+    assert!(ids(&layered.pdp).contains(&never.id.as_str().to_owned()));
+    assert_eq!(
+        layered.pdp.decide(&base(Effect::UndoableWrite)),
+        Ruling::Deny(vec![PolicyId(never.id.as_str().to_owned())])
+    );
+    let elsewhere = with(Effect::UndoableWrite, |r| {
+        r.context.space = prov::SpaceId::parse("home").expect("space");
+    });
+    assert!(
+        matches!(layered.pdp.decide(&elsewhere), Ruling::Ask(why) if why.iter().any(|reason| matches!(reason, AskReason::Said { rule, .. } if rule.0 == asks.id.as_str()))),
+        "the assistant's ask-first still asks"
+    );
+    // The hand-written permit did not load.
+    assert!(!ids(&layered.pdp).contains(&"let-all".to_owned()));
+    // A generated rule that is bad by itself is left out, and the good one beside it stays.
+    let broken = rule_text(&never).replace("forbid (", "forbid (((");
+    let both = format!("{broken}\n\n{}", rule_text(&asks));
+    let sources: Vec<PolicySource> = built_in()
+        .into_iter()
+        .chain([file(Layer::Person, "never.cedar", &both)])
+        .collect();
+    let layered = Pdp::layered(SCHEMA, &sources).expect("loads");
+    assert_eq!(layered.skipped.len(), 1);
+    assert!(ids(&layered.pdp).contains(&asks.id.as_str().to_owned()));
+    assert!(!ids(&layered.pdp).contains(&never.id.as_str().to_owned()));
+}

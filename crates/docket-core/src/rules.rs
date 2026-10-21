@@ -172,10 +172,32 @@ pub fn with_rule(file: &str, limit: &Limit) -> String {
     format!("{head}\n\n{}\n", rule_text(limit))
 }
 
+/// The limit id a generated rule's first line names, if `line` is one.
+fn generated_id(line: &str) -> Option<StandingGrantId> {
+    let id = line.trim_start().strip_prefix("@id(\"")?.split('"').next()?;
+    StandingGrantId::parse(id).ok()
+}
+
 /// The ids of the generated rules `file` holds.
 pub fn rule_ids(file: &str) -> Vec<StandingGrantId> {
     blocks(file)
-        .filter_map(|b| b.strip_prefix("@id(\"")?.split('"').next())
-        .filter_map(|id| StandingGrantId::parse(id).ok())
+        .filter_map(|b| b.lines().next())
+        .filter_map(generated_id)
+        .collect()
+}
+
+/// How many lines a generated rule takes: its `@id`, its `@why`, its `forbid` and its `when`.
+const RULE_LINES: usize = 4;
+
+/// The generated rules `file` holds, each cut out of the file on its own, however the rest of the
+/// file reads. A rules file the loader rejects (a hand edit that does not parse) must not take
+/// the person's "never" with it: the loader keeps each of these that is good by itself.
+pub fn generated_rules(file: &str) -> Vec<String> {
+    let lines: Vec<&str> = file.lines().collect();
+    lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| generated_id(line).is_some())
+        .map(|(at, _)| lines[at..lines.len().min(at + RULE_LINES)].join("\n"))
         .collect()
 }

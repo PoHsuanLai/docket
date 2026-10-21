@@ -5,6 +5,7 @@
 use crate::layers::{Layer, PolicyOrigin, PolicySource, Rejected};
 use crate::pdp::{Pdp, PolicyError};
 use cedar_policy::{Effect, PolicySet, Schema, ValidationMode, Validator};
+use docket_core::generated_rules;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
@@ -87,6 +88,25 @@ impl Book {
         Ok(())
     }
 
+    /// Keeps the generated limit rules of a source that was refused, each admitted on its own, so
+    /// a file with a bad hand edit beside them does not lift a "never" or an "ask first". A rule
+    /// that is bad by itself is left out with the rest. A file that could not be read has none
+    /// to keep.
+    fn keep_generated(&mut self, source: &PolicySource) {
+        let Ok(text) = &source.text else {
+            return;
+        };
+        for rule in generated_rules(text) {
+            let part = PolicySource {
+                layer: source.layer,
+                origin: source.origin.clone(),
+                text: Ok(rule),
+            };
+            // The refusal of the whole file is already reported, by name.
+            let _ = self.admit(&part);
+        }
+    }
+
     fn admit_all<'a>(
         &mut self,
         sources: impl IntoIterator<Item = &'a PolicySource>,
@@ -102,7 +122,7 @@ impl Pdp {
     /// preset stands, unreported.
     ///
     /// A source that is refused is handled by its layer: person and assistant sources are left
-    /// out and listed in `skipped`; any bad preset source drops the whole preset for the built-in
+    /// out and listed in `skipped` (the limit rules Quire generated in them are kept one by one); any bad preset source drops the whole preset for the built-in
     /// one (listed too); a bad core, built-in or administrator source is an error.
     pub fn layered(schema: &str, sources: &[PolicySource]) -> Result<Layered, LayerError> {
         let (schema, _warnings) =
@@ -133,6 +153,7 @@ impl Pdp {
         for source in in_layer(Layer::Person).chain(in_layer(Layer::Assistant)) {
             if let Err(rejected) = book.admit(source) {
                 skipped.push(rejected);
+                book.keep_generated(source);
             }
         }
         book.admit_all(in_layer(Layer::Admin))

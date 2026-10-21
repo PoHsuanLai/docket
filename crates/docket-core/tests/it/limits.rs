@@ -351,3 +351,23 @@ fn a_limit_is_a_rule_in_a_file_that_is_added_replaced_and_removed_by_id() {
     assert_eq!(none, Revocation::NotHeld);
     assert_eq!(RuleFile::of(LimitMaker::Floor), None);
 }
+
+#[test]
+fn words_kept_with_a_limit_refuse_what_hides_reorders_or_breaks_the_line() {
+    let long = "a".repeat(161);
+    let rows = [
+        ("plain words", "don't touch my Work folder", true),
+        ("a quote", "say \"ask\" first", true),
+        ("empty", "   ", false),
+        ("a new line", "one\ntwo", false),
+        ("a bidirectional override", "never send to \u{202E}moc.live", false),
+        ("a bidirectional isolate", "never send \u{2066}here", false),
+        ("a zero-width space", "never\u{200B}send", false),
+        ("a byte order mark", "\u{FEFF}never send", false),
+        ("a word joiner", "never\u{2060}send", false),
+        ("too long", long.as_str(), false),
+    ];
+    for (name, text, ok) in rows {
+        assert_eq!(Said::parse(text).is_ok(), ok, "{name}");
+    }
+}

@@ -8,6 +8,7 @@
 
 use crate::grant::GrantCaller;
 use crate::ids::ActionRef;
+use crate::marks::plain_text;
 use crate::standing::{Cover, Revocation, StandingGrantId};
 use porter_core::AppName;
 use prov::{ActionName, Effect, SpaceId, SpaceScope, UnixSeconds};
@@ -166,7 +167,10 @@ impl Said {
     /// `text` as a saying.
     pub fn parse(text: &str) -> Result<Self, SaidFault> {
         let text = text.trim();
-        if text.is_empty() || text.chars().count() > 160 || text.chars().any(char::is_control) {
+        // The words are drawn on a sheet and in the activity view: the same marks that a
+        // reviewer's reason may not hold (controls, bidirectional overrides, hidden marks) are
+        // refused here too.
+        if text.is_empty() || text.chars().count() > 160 || !plain_text(text, &[]) {
             Err(SaidFault)
         } else {
             Ok(Self(text.to_owned()))
