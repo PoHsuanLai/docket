@@ -14,6 +14,8 @@ use crate::infer::{InferdWriter, ReaderClient};
 use crate::link::DbusLink;
 use crate::logout::watch_logind;
 use crate::manifests::{Loaded, intents_dir, load_manifests};
+use crate::policies::{ADMIN_DIR, PolicyDirs, load_policies};
+use crate::policies_watch::follow as follow_policies;
 use crate::reach::{LiveReach, follow as follow_reach};
 use crate::reviewers::reviewer;
 use crate::serve::{ServeFault, closed, serve_on_gated};
@@ -32,7 +34,6 @@ use docket_memory::{AlmanacMemory, AlmanacSessionLog};
 use docket_router::{Router, Seams};
 use docket_settings::{AgentSettings, Locator, REVIEW_CEILING};
 use docket_skills::{Roots, discover};
-use policy_point::Pdp;
 use porter_daemon::ProcRoot;
 use prov::SpaceId;
 use std::path::PathBuf;
@@ -62,6 +63,9 @@ pub struct HarnessSeams {
     pub trace: Tap,
     /// The administrator's floor file, when the harness's main chose another than `/etc/quire`'s.
     pub floor: Option<PathBuf>,
+    /// The administrator's policy directory, when the harness's main chose another than
+    /// `/etc/quire/permissions`.
+    pub admin_permissions: Option<PathBuf>,
 }
 
 impl Default for HarnessSeams {
@@ -71,6 +75,7 @@ impl Default for HarnessSeams {
             system_callers: None,
             trace: Tap::off(),
             floor: None,
+            admin_permissions: None,
         }
     }
 }
@@ -84,7 +89,8 @@ pub enum DaemonFault {
     /// The bus.
     #[error("{0}")]
     Serve(ServeFault),
-    /// The shipped policy set does not load.
+    /// The policy set does not load: the shipped files, or an administrator's policy file, which
+    /// is never skipped (a daemon that did would leave agents looser than the administrator meant).
     #[error("policy: {0}")]
     Policy(String),
     /// A directory the daemon keeps its files in is not an absolute path.
@@ -133,6 +139,8 @@ pub struct Setup {
     pub trace: Tap,
     /// The administrator's floor: none unless the file exists (`run_with` reads it).
     pub floor: Floor,
+    /// Where the policy files are read from, and watched.
+    pub permissions: PolicyDirs,
 }
 
 fn home(env: &impl Fn(&str) -> Option<String>) -> PathBuf {
@@ -159,13 +167,17 @@ pub fn data_dirs(env: &impl Fn(&str) -> Option<String>) -> Vec<PathBuf> {
     dirs
 }
 
-/// `$XDG_CONFIG_HOME` then `$XDG_CONFIG_DIRS`, with their defaults.
-fn config_dirs(env: &impl Fn(&str) -> Option<String>) -> Vec<PathBuf> {
-    let first = env("XDG_CONFIG_HOME")
+/// `$XDG_CONFIG_HOME`, with its default.
+fn config_home(env: &impl Fn(&str) -> Option<String>) -> PathBuf {
+    env("XDG_CONFIG_HOME")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| home(env).join(".config"));
-    let mut dirs = vec![first];
+        .unwrap_or_else(|| home(env).join(".config"))
+}
+
+/// `$XDG_CONFIG_HOME` then `$XDG_CONFIG_DIRS`, with their defaults.
+fn config_dirs(env: &impl Fn(&str) -> Option<String>) -> Vec<PathBuf> {
+    let mut dirs = vec![config_home(env)];
     dirs.extend(listed(env("XDG_CONFIG_DIRS"), "/etc/xdg"));
     dirs
 }
@@ -185,6 +197,11 @@ impl Setup {
         .map_err(DaemonFault::Config)?;
         let callers = callers::read(env).map_err(|e| DaemonFault::Callers(e.to_string()))?;
         let data = data_dirs(env);
+        let permissions = PolicyDirs {
+            data_dirs: data.clone(),
+            person: config_home(env).join("quire").join("permissions"),
+            admin: PathBuf::from(ADMIN_DIR),
+        };
         let grants = intents_dir(&data[0]).join("grants.json");
         Ok(Self {
             config,
@@ -201,6 +218,7 @@ impl Setup {
             settings: Locator::from_env(env),
             trace: Tap::off(),
             floor: Floor::none(),
+            permissions,
         })
     }
 }
@@ -250,6 +268,7 @@ pub async fn start(
         settings,
         trace,
         floor,
+        permissions,
     } = setup;
     for (file, why) in &manifests.skipped {
         eprintln!("intentd: skipped {}: {why}", file.display());
@@ -292,8 +311,13 @@ pub async fn start(
         )),
         checkpoints: GitStore::new(StdGitRun, kept),
     };
-    let pdp = Pdp::standard().map_err(|e| DaemonFault::Policy(e.to_string()))?;
-    let mut router = Router::new(seams, config.agent, pdp);
+    // The policy files, layered: a bad person or assistant file is skipped and a bad preset falls
+    // back to the built-in one (both logged); a bad administrator file stops the daemon.
+    let layered = load_policies(&permissions).map_err(|e| DaemonFault::Policy(e.to_string()))?;
+    for rejected in &layered.skipped {
+        eprintln!("intentd: skipped policy {rejected}");
+    }
+    let mut router = Router::new(seams, config.agent, layered.pdp);
     router.floor = floor;
     // The person's settings over intentd.toml's proposed values, now and whenever the file changes.
     let mut watched = SettingsWatch::start(settings, AgentSettings::over(config.agent));
@@ -378,6 +402,7 @@ pub async fn start(
             .run(session.clone()),
     ));
     tasks.push(tokio::spawn(prune_checkpoints(router.clone())));
+    tasks.push(tokio::spawn(follow_policies(router.clone(), permissions)));
     let queue = router.clone();
     let mut audit = AuditLog::over(almanac_client::DbusTransport::new(session.clone()));
     tasks.push(tokio::spawn(async move {
@@ -466,6 +491,9 @@ pub async fn run_with(seams: HarnessSeams) -> Result<(), DaemonFault> {
     setup.trace = seams.trace;
     let floor = seams.floor.unwrap_or_else(|| PathBuf::from(FLOOR_FILE));
     setup.floor = read_floor(&floor).map_err(|e| DaemonFault::Floor(e.to_string()))?;
+    setup.permissions.admin = seams
+        .admin_permissions
+        .unwrap_or_else(|| PathBuf::from(ADMIN_DIR));
     if let Some(system) = &seams.system_callers {
         setup.callers =
             callers::read_at(system, &env).map_err(|e| DaemonFault::Callers(e.to_string()))?;

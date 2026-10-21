@@ -335,6 +335,7 @@ where
             writer: kit.writer,
             reader: kit.reader,
         };
+        // The built-in core and standard preset: an app-hosted agent reads no policy files.
         let pdp = Pdp::standard().map_err(AgentFault::Policy)?;
         let router = Router::new(seams, parts.config, pdp);
         let mut registry = Registry::new();

@@ -273,7 +273,7 @@ impl<S: Seams> Router<S> {
                     Impact::Low
                 },
             };
-            let ruled = self.pdp.decide_checked(&PolicyRequest {
+            let ruled = self.pdp().decide_checked(&PolicyRequest {
                 principal: PrincipalFacts {
                     kind: record.actor.kind(),
                     caller: ask.app.clone(),

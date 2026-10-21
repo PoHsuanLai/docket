@@ -87,7 +87,7 @@ repeatable), `--patience-s N` (seconds to wait for each change of an answer, and
 Exit codes: 0 everything met, 1 a case missed or a flow failed, 2 the run could not start.
 
 Not automated: the header of the old script promised that a missed FNR target shrinks the AllowJudged
-cells to Ask (a `default.cedar` change) until it passes. Read the report and the traces, then change the
+cells to Ask (a `policy/presets/standard/grid.cedar` change) until it passes. Read the report and the traces, then change the
 policy by hand.
 
 ### What a local engine needs

@@ -29,7 +29,7 @@
 #   PREFIX/lib/systemd/user/             the units, pointed at the prefix, and
 #                                        <unit>.service.d/sandbox.conf, their protections
 #   PREFIX/share/dbus-1/services/        activation files; interfaces/ has the interface XML
-#   PREFIX/share/quire/{settings,skills,intents}/
+#   PREFIX/share/quire/{settings,skills,intents,permissions}/
 #   SYSCONFDIR/xdg/quire/                default configuration (never replaces a file already there)
 #   SYSCONFDIR/quire/*-callers.toml      which units may call each daemon. They are the machine's
 #                                        security tables: always replaced, reset on every install.
@@ -84,6 +84,7 @@ install_rest() {
   put_tree 644 "$ROOT/dist/settings" "$SHARE/quire/settings"
   put_tree 644 "$ROOT/dist/skills" "$SHARE/quire/skills"
   put_tree 644 "$ROOT/dist/intents" "$SHARE/quire/intents"
+  put_tree 644 "$ROOT/policy/presets" "$SHARE/quire/permissions"
   for name in intentd companiond actions-mcp; do
     put 644 "$ROOT/dist/$name.toml" "$CONF_DIR/$name.toml" copy keep
   done

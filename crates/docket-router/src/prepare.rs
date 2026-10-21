@@ -302,7 +302,7 @@ impl<S: Seams> Router<S> {
                 .unwrap_or(self.agent_config().strictness),
         );
         let impact = impact_of(&decl, count, self.agent_config().mass_at);
-        let ruled = self.pdp.decide_checked(&self.policy_request(&Facts {
+        let ruled = self.pdp().decide_checked(&self.policy_request(&Facts {
             who,
             decl: &decl,
             request: &request,

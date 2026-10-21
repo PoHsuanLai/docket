@@ -1,6 +1,7 @@
 //! The policy decision point over Cedar.
 
 use crate::fault::Ruled;
+use crate::layers::PolicySource;
 use crate::request::PolicyRequest;
 use cedar_policy::{PolicySet, Schema, ValidationMode, Validator};
 use docket_core::{PolicyId, Ruling};
@@ -8,8 +9,11 @@ use std::str::FromStr;
 
 /// The schema, as shipped.
 pub const SCHEMA: &str = include_str!("../../../policy/quire.cedarschema");
-/// The default policies, as shipped.
-pub const DEFAULT_POLICIES: &str = include_str!("../../../policy/default.cedar");
+/// The core policies, as shipped: the safety invariants of every preset.
+pub const CORE_POLICIES: &str = include_str!("../../../policy/core.cedar");
+/// The standard preset, as shipped: today's grid. Also what stands in for an installed preset
+/// that is missing or does not load.
+pub const STANDARD_PRESET: &str = include_str!("../../../policy/presets/standard/grid.cedar");
 
 /// Why a schema or policy set could not be loaded.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -46,6 +50,11 @@ impl Pdp {
             Schema::from_cedarschema_str(schema).map_err(|e| PolicyError::Schema(e.to_string()))?;
         let policies =
             PolicySet::from_str(policies).map_err(|e| PolicyError::Parse(e.to_string()))?;
+        Pdp::checked(policies, schema)
+    }
+
+    /// Validates `policies` strictly against `schema` and holds them.
+    pub(crate) fn checked(policies: PolicySet, schema: Schema) -> Result<Pdp, PolicyError> {
         let result = Validator::new(schema.clone()).validate(&policies, ValidationMode::Strict);
         if result.validation_passed() {
             Ok(Pdp { policies, schema })
@@ -55,9 +64,13 @@ impl Pdp {
         }
     }
 
-    /// Loads the shipped schema and default policies.
+    /// Loads the shipped schema with the built-in core and standard preset: no files are read,
+    /// so tests and the fake router get the same grid whatever is installed.
     pub fn standard() -> Result<Pdp, PolicyError> {
-        Pdp::load(SCHEMA, DEFAULT_POLICIES)
+        let sources = [PolicySource::core(), PolicySource::standard_preset()];
+        Pdp::layered(SCHEMA, &sources)
+            .map(|layered| layered.pdp)
+            .map_err(|e| PolicyError::Invalid(e.to_string()))
     }
 
     /// The `@id` of every policy, in file order.

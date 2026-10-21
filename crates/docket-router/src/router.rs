@@ -10,7 +10,7 @@ use docket_core::{
 };
 use policy_point::Pdp;
 use std::future::Future;
-use std::sync::{Mutex, MutexGuard, RwLock};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
 /// The router over one set of seams.
 #[derive(Debug)]
@@ -25,8 +25,9 @@ pub struct Router<S: Seams> {
     /// The administrator's floor, read once at start by the daemon: `Floor::none()` unless it
     /// sets one. Agents only; the person's own launcher acts never meet it.
     pub floor: Floor,
-    /// The policy point.
-    pub pdp: Pdp,
+    /// The policy point, swapped whole when the policy files change (`set_pdp`): a call in flight
+    /// keeps the set it started with.
+    pdp: RwLock<Arc<Pdp>>,
     /// What it mutates.
     pub state: Mutex<RouterState>,
 }
@@ -39,7 +40,7 @@ impl<S: Seams> Router<S> {
             config,
             live: RwLock::new(None),
             floor: Floor::none(),
-            pdp,
+            pdp: RwLock::new(Arc::new(pdp)),
             state: Mutex::new(RouterState::new()),
         }
     }
@@ -58,6 +59,23 @@ impl<S: Seams> Router<S> {
         match self.live.write() {
             Ok(mut live) => *live = Some(config),
             Err(poisoned) => *poisoned.into_inner() = Some(config),
+        }
+    }
+
+    /// The policy set in force now. Every decision reads it afresh.
+    pub fn pdp(&self) -> Arc<Pdp> {
+        match self.pdp.read() {
+            Ok(pdp) => pdp.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        }
+    }
+
+    /// Puts a rebuilt policy set in force for every call after this one.
+    pub fn set_pdp(&self, pdp: Pdp) {
+        let pdp = Arc::new(pdp);
+        match self.pdp.write() {
+            Ok(mut held) => *held = pdp,
+            Err(poisoned) => *poisoned.into_inner() = pdp,
         }
     }
 

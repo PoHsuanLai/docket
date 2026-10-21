@@ -198,6 +198,7 @@ pub fn fake_router_reading<
         log,
         checkpoints: docket_checkpoint::MemoryStore::new(),
     };
+    // The built-in core and standard preset: the fake reads no policy files, so tests are the same everywhere.
     let pdp = Pdp::standard().map_err(FakeError::Policy)?;
     let router = Router::new(seams, config, pdp);
     let installed = registry().map_err(FakeError::Manifest)?;

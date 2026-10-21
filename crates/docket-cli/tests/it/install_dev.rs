@@ -184,6 +184,7 @@ fn an_install_puts_every_piece_where_the_session_reads_it() {
         ));
     }
     has(".local/share/quire/skills/desktop-basics/SKILL.md");
+    has(".local/share/quire/permissions/standard/grid.cedar");
     has(".local/share/quire/settings/docket.settings.toml");
     has(".local/share/quire/settings/almanac.settings.toml");
     has(".local/share/quire/settings/inferd.settings.toml");

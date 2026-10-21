@@ -21,6 +21,7 @@ fn main() -> ExitCode {
         ),
         trace: docket_accept::seams::trace(),
         floor: None,
+        admin_permissions: None,
     };
     match runtime.block_on(intentd::run_with(seams)) {
         Ok(()) => ExitCode::SUCCESS,

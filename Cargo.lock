@@ -2164,6 +2164,7 @@ dependencies = [
  "docket-skills",
  "docket-testbus",
  "futures-util",
+ "notify",
  "policy-point",
  "porter-client",
  "porter-core",

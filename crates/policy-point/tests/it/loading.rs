@@ -1,8 +1,8 @@
-//! The shipped schema and default policies load and validate strictly.
+//! The shipped schema and built-in policies load and validate strictly.
 
 use crate::support;
 use docket_core::PolicyId;
-use policy_point::{DEFAULT_POLICIES, Pdp, PolicyError, SCHEMA};
+use policy_point::{CORE_POLICIES, Pdp, PolicyError, SCHEMA};
 
 #[test]
 fn schema_and_default_policies_validate() {
@@ -45,7 +45,7 @@ fn a_policy_that_does_not_parse_does_not_load() {
 #[test]
 fn a_broken_schema_does_not_load() {
     assert!(matches!(
-        Pdp::load("namespace {", DEFAULT_POLICIES),
+        Pdp::load("namespace {", CORE_POLICIES),
         Err(PolicyError::Schema(_))
     ));
 }
@@ -55,8 +55,8 @@ fn the_rules_apply_to_both_unasked_and_unjudged_queries() {
     // The rules forbid the two stricter queries, so no strictness and no reviewer reaches an
     // allow: the text names both action ids.
     for id in ["rule-of-two", "untrusted-sink"] {
-        let at = DEFAULT_POLICIES.find(&format!("@id(\"{id}\")")).expect(id);
-        let rule = &DEFAULT_POLICIES[at..];
+        let at = CORE_POLICIES.find(&format!("@id(\"{id}\")")).expect(id);
+        let rule = &CORE_POLICIES[at..];
         let end = rule.find("};").expect("end of rule");
         let rule = &rule[..end];
         assert!(

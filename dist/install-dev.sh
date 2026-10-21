@@ -16,7 +16,7 @@
 #   ~/.config/systemd/user/                   the units, ExecStart pointed at $PREFIX/bin; a drop-in
 #                                             for inferd and accountd (see "dev-only changes")
 #   ~/.local/share/dbus-1/services/           the activation files that start a service on demand, pointed at $PREFIX/bin
-#   ~/.local/share/quire/{intents,skills,settings}/   manifests, skills, settings schemas
+#   ~/.local/share/quire/{intents,skills,settings,permissions}/   manifests, skills, settings schemas, policy presets
 #   ~/.local/share/porter/providers/          provider files (openrouter, ...): the AI keys inferd holds and the identities accountd keeps
 #   ~/.local/share/stoker/catalog/            the model catalogue, for inferd
 #   ~/.config/quire/*.toml                    default configs, ONLY where absent (never overwritten)
@@ -145,6 +145,7 @@ build_plan() {
   plan_dbus "$DOCKET/dist/dbus"; plan_dbus "$PORTER/dist/dbus"
   plan dbus "$ALMANAC/dbus/org.quire.Memory1.service" "$DBUS/org.quire.Memory1.service"
   plan_tree data "$DOCKET/dist/skills" "$DATA/quire/skills"
+  plan_tree data "$DOCKET/policy/presets" "$DATA/quire/permissions"
   local dir
   for dir in "$DOCKET" "$ALMANAC" "$PORTER" "$CUA"; do
     plan_tree data "$dir/dist/intents" "$DATA/quire/intents"
