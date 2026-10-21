@@ -83,7 +83,11 @@ fn the_schema_has_the_shape_the_settings_app_loads() {
                     .iter()
                     .filter_map(toml::Value::as_str)
                     .collect();
-                assert_eq!(words.len() == 2, kind == "toggle", "{p}");
+                if kind == "toggle" {
+                    assert_eq!(words.len(), 2, "{p}");
+                } else {
+                    assert!(words.len() >= 2, "{p}");
+                }
                 assert!(
                     words.contains(&row["default"].as_str().expect("a word default")),
                     "{p}"

@@ -424,7 +424,7 @@ async fn a_watched_gate_check_in_process_says_confirming_and_waits_for_proceed()
         space: space(),
         action: cua_action::CuaAction::<cua_action::WindowSpace>::Observe,
         node: None,
-        effect: prov::Effect::Read,
+        effect: prov::Effect::Outbound,
         basis: EffectBasis::DefaultTable,
         screen: prov::Label::trusted_user(),
     };

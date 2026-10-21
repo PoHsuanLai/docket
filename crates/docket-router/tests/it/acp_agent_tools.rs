@@ -16,10 +16,9 @@ async fn an_offered_action_is_a_call_of_the_agents_program_in_its_session() {
     let w = world();
     let session = w.open(CLAUDE, SheetSurface::Desktop).await;
     let done = w.call(&session, read_thread()).await;
-    // The class is the person's data, not the directory the agent was launched in: it asks, as a
-    // planner's first use does, and the answer here is none.
-    assert!(matches!(done, Err(CallRefusal::Unconfirmed(_))), "{done:?}");
-    assert_eq!(w.sheets().len(), 1);
+    // A read runs for every caller under Auto: connecting the program is the permission.
+    assert!(done.is_ok(), "{done:?}");
+    assert!(w.sheets().is_empty());
     let program = prov::AgentProgram::parse(CLAUDE).expect("program");
     let actors: Vec<Actor> = w
         .records()

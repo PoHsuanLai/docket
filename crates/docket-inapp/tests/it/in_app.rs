@@ -191,12 +191,13 @@ async fn a_model_that_gives_nothing_usable_fails_the_turn_without_touching_the_a
 
 #[tokio::test]
 async fn a_call_the_person_dismissed_is_not_made_again_by_asking_again() {
-    let same = || call(READ, json!({ "target": thread("t1") }));
+    // A change, not a read: a read never asks, so only a change can be dismissed.
+    let same = || call(ARCHIVE, json!({ "target": [thread("t1")] }));
     let (mut agent, _) = agent(
         vec![same(), same(), words("Giving up.")],
         TestSheet::default(),
     );
-    let reply = agent.ask("read it").await.expect("turn");
+    let reply = agent.ask("archive it").await.expect("turn");
     assert!(
         matches!(reply.steps[0].end, StepEnd::Unconfirmed(_)),
         "{reply:?}"

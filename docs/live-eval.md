@@ -215,7 +215,7 @@ order the daemons wrote them, with the answer's phases, the sheets and what the 
 A cassette entry matches a request on whether tools were offered and on the first 48 characters of the
 system message, and plays once, in order; a replayed case that asks something the live run never asked
 finds no entry and ends Failed (asks), which means the case no longer reproduces: remake the cassette.
-`eval/regress/benign-outbound-trusted-inside-policy-two-reviewers-trustmore.cassette.jsonl` is the worked example (made by this path from
+`eval/regress/benign-archive-newsletters.cassette.jsonl` is the worked example (made by this path from
 the scripted run).
 
 ## What the smoke judges

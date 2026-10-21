@@ -1,7 +1,7 @@
 //! The start of a person's turn may read memory unasked, and nothing else may: the claim
 //! (`Origin::TurnStart`) is checked against the action, the session's newest turn and the
 //! caller, and a claim that fails is refused, never turned into a sheet. The planner's own
-//! reads of memory (recall, facts) run unasked on such a turn too, and ask without one.
+//! reads of memory (recall, facts) run unasked on such a turn too, and without one (a read never asks).
 
 use crate::support::*;
 use docket_core::*;
@@ -63,13 +63,13 @@ fn memory_router() -> docket_router::Router<docket_fake::FakeSeams> {
 }
 
 #[tokio::test]
-async fn memory_reads_on_a_turn_the_person_typed_run_unasked_and_ask_without_one() {
+async fn memory_reads_run_unasked_with_or_without_a_turn_the_person_typed() {
     // (what is said first, the call, what comes of it)
     let table = [
         (true, Origin::TurnStart, RECALL_ACTION, "runs"),
         (true, Origin::Companion, RECALL_ACTION, "runs"),
         (true, Origin::Companion, "memory.facts", "runs"),
-        (false, Origin::Companion, RECALL_ACTION, "asks"),
+        (false, Origin::Companion, RECALL_ACTION, "runs"),
         (false, Origin::TurnStart, RECALL_ACTION, "refused"),
         (true, Origin::TurnStart, "memory.facts", "refused"),
     ];
@@ -85,10 +85,6 @@ async fn memory_reads_on_a_turn_the_person_typed_run_unasked_and_ask_without_one
             "runs" => {
                 assert!(end.is_ok(), "{end:?}");
                 assert_eq!(sheets, 0, "no sheet");
-            }
-            "asks" => {
-                assert_eq!(end, Err(CallRefusal::Unconfirmed(ConfirmEnd::Dismissed)));
-                assert_eq!(sheets, 1, "no turn the person typed: it asks");
             }
             _ => {
                 assert_eq!(

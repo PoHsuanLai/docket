@@ -1,11 +1,10 @@
-//! An external agent's "always" on a read-only action of an app's own: a standing grant for the
-//! program and that one action, so a search or a read is asked about once. It never covers a write,
-//! another action, another app or another program, and only the person's answer creates it.
+//! An external agent's reads under Auto run unasked, in every app and for every program. A read
+//! grant (the scope of a read-only action) stands only for a read, is never offered on a write or a
+//! destructive action, and only the person's answer creates a grant.
 
 use crate::acp_agent::*;
 use crate::support::*;
 use docket_core::*;
-use docket_fake::ScriptedConfirmer;
 use prov::{Effect, EntityId, EntityKey, EntityKind};
 use std::collections::BTreeSet;
 
@@ -60,64 +59,23 @@ pub(crate) fn grants_of(w: &World) -> Vec<StandingGrant> {
 }
 
 #[tokio::test]
-async fn an_always_on_a_read_is_a_grant_for_that_action_and_the_next_read_asks_nothing() {
-    let mut w = world();
-    w.router.seams.confirmer = ScriptedConfirmer::answering(vec![always()]);
+async fn an_external_agents_reads_run_unasked_in_every_app_and_leave_no_grant() {
+    // Under Auto a read never asks, for any caller: connecting the program is the permission.
+    let w = world();
     let claude = open_wide(&w, CLAUDE).await;
     w.call(&claude, call("mail.thread.read", &["t2"], vec![]))
         .await
-        .expect("asked, always");
-    let sheets = w.sheets();
-    assert_eq!(sheets.len(), 1);
-    let read = action("mail.thread.read");
-    assert_eq!(sheets[0].always, AlwaysOffer::Offered(read_scope(&read)));
-    let held = grants_of(&w);
-    assert_eq!(held.len(), 1);
-    assert_eq!(held[0].caller, GrantCaller::AcpAgent(program(CLAUDE)));
-    assert_eq!(held[0].scope, read_scope(&read));
-    // Another thread, same action: quiet, audited.
-    w.call(&claude, call("mail.thread.read", &["t1"], vec![]))
-        .await
-        .expect("on the grant");
-    assert_eq!(w.sheets().len(), 1);
-    assert_eq!(w.used(), 1);
-}
-
-#[tokio::test]
-async fn the_grant_covers_no_other_program_app_or_action() {
-    let mut w = world();
-    w.router.seams.confirmer = ScriptedConfirmer::answering(vec![always()]);
-    let claude = open_wide(&w, CLAUDE).await;
-    w.call(&claude, call("mail.thread.read", &["t2"], vec![]))
-        .await
-        .expect("always");
-    // Another program asks.
-    let gemini = open_wide(&w, "gemini-cli").await;
-    w.call(&gemini, call("mail.thread.read", &["t2"], vec![]))
-        .await
-        .expect_err("another program asks");
-    assert_eq!(w.sheets().len(), 2);
-    // Another app's read asks.
+        .expect("a mail read runs");
     w.call(&claude, files_read())
         .await
-        .expect_err("another app asks");
-    assert_eq!(w.sheets().len(), 3);
-    // A write of the same app asks, and its sheet offers no read grant.
-    w.call(&claude, call("mail.thread.archive", &["t2"], vec![]))
+        .expect("a files read runs");
+    let gemini = open_wide(&w, "gemini-cli").await;
+    w.call(&gemini, call("mail.thread.read", &["t1"], vec![]))
         .await
-        .expect_err("a write asks");
-    let sheets = w.sheets();
-    assert_eq!(sheets.len(), 4);
-    assert!(
-        !matches!(
-            &sheets[3].always,
-            AlwaysOffer::Offered(StandingScope::Reads { .. })
-        ),
-        "{:?}",
-        sheets[3].always
-    );
+        .expect("another program's read runs too");
+    assert!(w.sheets().is_empty(), "{:?}", w.sheets());
+    assert!(grants_of(&w).is_empty());
     assert_eq!(w.used(), 0);
-    assert_eq!(grants_of(&w).len(), 1);
 }
 
 #[tokio::test]
@@ -144,35 +102,11 @@ async fn an_agent_is_offered_no_read_grant_on_a_write_or_a_destructive_action() 
 }
 
 #[tokio::test]
-async fn revoking_the_grant_makes_the_next_read_ask_again() {
-    let mut w = world();
-    w.router.seams.confirmer = ScriptedConfirmer::answering(vec![always()]);
-    let claude = open_wide(&w, CLAUDE).await;
-    w.call(&claude, call("mail.thread.read", &["t2"], vec![]))
-        .await
-        .expect("always");
-    let held = grants_of(&w);
-    let listed = ask(&w.router, &control(), IntentsRequest::ControlStandingGrants).await;
-    assert_eq!(listed, IntentsReply::StandingGrants(held.clone()));
-    let gone = ask(
-        &w.router,
-        &control(),
-        IntentsRequest::ControlStandingRevoke(held[0].id.clone()),
-    )
-    .await;
-    assert_eq!(gone, IntentsReply::Done);
-    w.call(&claude, call("mail.thread.read", &["t1"], vec![]))
-        .await
-        .expect_err("asks again");
-    assert_eq!(w.sheets().len(), 2);
-}
-
-#[tokio::test]
-async fn the_agent_cannot_create_the_grant_only_the_persons_answer_does() {
+async fn the_agent_cannot_create_a_grant_only_the_persons_answer_does() {
     let w = world();
     let claude = open_wide(&w, CLAUDE).await;
     // No answer: the sheet is dismissed, nothing is held.
-    w.call(&claude, call("mail.thread.read", &["t2"], vec![]))
+    w.call(&claude, call("mail.thread.archive", &["t2"], vec![]))
         .await
         .expect_err("dismissed");
     assert!(grants_of(&w).is_empty());

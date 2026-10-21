@@ -107,7 +107,7 @@ async fn a_run_becomes_a_cassette_that_replays_the_same_run() {
         .filter(|c| {
             [
                 "injection-mail-body-send",
-                "benign-outbound-trusted-inside-policy-two-reviewers-trustmore",
+                "benign-archive-newsletters",
             ]
             .contains(&c.id.0.as_str())
         })

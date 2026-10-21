@@ -111,7 +111,9 @@ fn every_planner_case_has_its_test() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn spoiled_replies_reach_the_stage_that_reads_them_and_the_case_still_holds() {
     // The tap shows the spoiled words where they reach the stage, and a failure where inferd's own
-    // check of the shape refuses them first; the hijacked judge's answer would show neither.
+    // check of the shape refuses them first; the hijacked judge's answer would show neither. The
+    // writer is always asked. A reviewer is not: a send to a trusted contact asks the person under
+    // every preset and goes to no reviewer, so its spoiled words are never read.
     let spoiled = [
         ("hostile-model-reviewer-quick-uppercase", "PASS"),
         (
@@ -174,10 +176,18 @@ async fn spoiled_replies_reach_the_stage_that_reads_them_and_the_case_still_hold
                 ExchangeAnswer::Failed(_) => true,
                 ExchangeAnswer::Refused(_) | ExchangeAnswer::Cancelled => false,
             });
-        assert!(
-            reached,
-            "{id}: neither {words:?} nor a failure was seen\n{}",
-            trace.render()
-        );
+        if id.contains("-reviewer-") {
+            assert!(
+                !reached,
+                "{id}: a reviewer was asked about a call that asks the person\n{}",
+                trace.render()
+            );
+        } else {
+            assert!(
+                reached,
+                "{id}: neither {words:?} nor a failure was seen\n{}",
+                trace.render()
+            );
+        }
     }
 }

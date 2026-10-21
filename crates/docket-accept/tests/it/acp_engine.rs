@@ -101,7 +101,7 @@ async fn a_refusal_stops_the_forward_and_the_agent_is_told_so() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn the_first_use_of_mail_asks_once_and_the_persons_always_quiets_the_next_search() {
+async fn the_first_use_of_mail_asks_nothing_for_a_search_and_the_second_search_runs_too() {
     if !sandbox_here() {
         return;
     }
@@ -113,15 +113,14 @@ async fn the_first_use_of_mail_asks_once_and_the_persons_always_quiets_the_next_
         report.failures,
         said(&report)
     );
-    // The person's "always" on the first search is a read-only grant for the action: the second
-    // search asks nothing, and the check (for an agent, one sheet per read action, each once) holds.
+    // A read never asks, for an outside program too: neither search put a sheet to the person.
     assert!(
         report.not_applicable.is_empty(),
         "{:?}",
         report.not_applicable
     );
     let t = said(&report);
-    assert_eq!(t.matches("Find threads effect=").count(), 1, "{t}");
+    assert_eq!(t.matches("Find threads effect=").count(), 0, "{t}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

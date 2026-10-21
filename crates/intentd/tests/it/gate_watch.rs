@@ -37,7 +37,7 @@ fn step(run: &RunId) -> CuaAsk {
         space: space(),
         action: cua_action::CuaAction::<cua_action::WindowSpace>::Observe,
         node: None,
-        effect: Effect::Read,
+        effect: Effect::Outbound,
         basis: EffectBasis::DefaultTable,
         screen: Label::trusted_user(),
     }

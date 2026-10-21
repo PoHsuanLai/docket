@@ -63,14 +63,21 @@ async fn run_session(router: &docket_router::Router<docket_fake::FakeSeams>, run
 }
 
 #[tokio::test]
-async fn a_pixel_step_needs_the_persons_consent_for_the_app_and_then_a_read_runs() {
+async fn a_pixel_step_that_changes_needs_the_persons_consent_for_the_app_and_then_an_undoable_one_runs() {
     let mut router = router();
     let run = RunId::parse("r-1").expect("run");
     run_session(&router, &run).await;
-    let first = ask(
+    let looked = ask(
         &router,
         &cuad(),
         IntentsRequest::GateCheck(step(&run, Effect::Read)),
+    )
+    .await;
+    assert_eq!(looked, IntentsReply::Gate(GateAnswer::Run), "a read never asks");
+    let first = ask(
+        &router,
+        &cuad(),
+        IntentsRequest::GateCheck(step(&run, Effect::UndoableWrite)),
     )
     .await;
     assert_eq!(
@@ -96,7 +103,7 @@ async fn a_pixel_step_needs_the_persons_consent_for_the_app_and_then_a_read_runs
     let second = ask(
         &router,
         &cuad(),
-        IntentsRequest::GateCheck(step(&run, Effect::Read)),
+        IntentsRequest::GateCheck(step(&run, Effect::UndoableWrite)),
     )
     .await;
     assert_eq!(second, IntentsReply::Gate(GateAnswer::Run));
@@ -269,7 +276,7 @@ fn launcher_with(role: CallerRole) -> CallerId {
 }
 
 #[tokio::test]
-async fn an_mcp_clients_arguments_are_untrusted_and_its_writes_ask() {
+async fn an_mcp_clients_arguments_are_untrusted_and_its_reads_run_but_its_writes_ask() {
     let router = router();
     let mcp = caller("claude-desktop.example", CallerRole::Mcp);
     // A client name is not a reverse-DNS app name, so the connection layer gives it one.
@@ -292,8 +299,8 @@ async fn an_mcp_clients_arguments_are_untrusted_and_its_writes_ask() {
     )
     .await;
     assert!(
-        matches!(read, IntentsReply::Performed(ref r) if r.is_err()),
-        "no grant yet: {read:?}"
+        matches!(read, IntentsReply::Performed(ref r) if r.is_ok()),
+        "a read runs for an outside program with no sheet: {read:?}"
     );
     let archive = ask(
         &router,

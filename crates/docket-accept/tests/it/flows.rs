@@ -335,30 +335,25 @@ async fn flow_a_the_answer_shows_the_sheet_while_it_waits() {
     );
 }
 
-/// The first use of Mail's classes in a Space asks (a sheet that says so); the person says
-/// "always", and the second call of the same kind does not ask.
+/// The first use of Mail's classes in a Space does not ask for a read: both searches run, no sheet
+/// is drawn. (Only a change asks on first use.)
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn first_use_of_mail_in_a_space_asks_once_and_the_second_call_does_not() {
+async fn first_use_of_mail_in_a_space_asks_nothing_for_a_read() {
     let world = World::start(&binaries(), Consent::FirstUse, FIRST_USE).await;
-    // The answer is held until the turn is seen waiting on the sheet, so that phase cannot pass
-    // between two looks.
-    world.sheet.will_when_released(Verdict::AllowAlways);
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
     let mut answer = launcher
         .say(&opened, "look for Lisbon and Porto mail")
         .await;
-    let mut history = answer.history_until(waiting_on_sheet).await;
-    world.sheet.release().await;
-    history.extend(answer.history_until(settled).await);
+    let history = answer.history_until(settled).await;
     assert_eq!(
         history.last().map(|v| v.phase.clone()),
         Some(AnswerPhase::Done),
         "{history:#?}"
     );
-    assert!(history.iter().any(waiting_on_sheet), "{history:#?}");
+    assert!(!history.iter().any(waiting_on_sheet), "{history:#?}");
 
-    // Both reads ran; only the first asked, and it said why.
+    // Both reads ran, and nobody was asked.
     assert_eq!(
         world
             .app
@@ -371,11 +366,6 @@ async fn first_use_of_mail_in_a_space_asks_once_and_the_second_call_does_not() {
         world.app.performed()
     );
     let sheets = world.sheet.shown();
-    assert_eq!(sheets.len(), 1, "{sheets:#?}");
-    assert!(
-        sheets[0].why.contains(&docket_core::AskReason::FirstUse),
-        "{:?}",
-        sheets[0].why
-    );
+    assert!(sheets.is_empty(), "{sheets:#?}");
     assert_eq!(turns_of(&world, "org.quire.Companion"), 3);
 }

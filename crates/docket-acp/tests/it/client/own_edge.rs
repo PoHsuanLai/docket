@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 
 const ASK: &str = "session/request_permission";
 const READ: &str = "mail__mail_thread_read";
+const ARCHIVE: &str = "mail__mail_thread_archive";
 
 fn ours(tool: &str) -> Option<Value> {
     Some(json!({"tool": tool, "server": "quire"}))
@@ -110,20 +111,20 @@ async fn listing_our_own_servers_resources_is_answered_once_and_nothing_wider_is
 
 #[tokio::test]
 async fn the_edge_still_gates_the_call_that_follows_the_door() {
-    let request = mcp_request("other", ours(READ), json!({}), agy_options());
+    let request = mcp_request("other", ours(ARCHIVE), json!({}), agy_options());
     let (mut rig, _dir) = with_mail(
         vec![vec![
             call("perm", ASK, request),
-            bridge_call("read", READ, json!({"target": thread()})),
+            bridge_call("archive", ARCHIVE, json!({"target": [thread()]})),
             Act::Stop("end_turn"),
         ]],
         // The person refuses the one sheet: the call's own, at the edge.
         vec![no()],
     )
     .await;
-    run_turn(&mut rig, "read the lunch mail").await;
+    run_turn(&mut rig, "archive the lunch mail").await;
     assert_eq!(once_option(&rig).as_deref(), Some("a-once"));
-    let reply = rig.agent.reply("read").expect("reply");
+    let reply = rig.agent.reply("archive").expect("reply");
     assert!(reply.get("failed").is_some(), "{reply}");
     assert_eq!(rig.sheets().len(), 1, "one sheet for the one action");
 }

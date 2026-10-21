@@ -92,7 +92,7 @@ fn first_use_of(app: &str, effect: Effect) -> policy_point::PolicyRequest {
 
 #[test]
 fn auto_asks_for_a_first_use_only_for_a_change() {
-    use Cell::{Ask, Final, Judged};
+    use Cell::{Ask, Final};
     let auto = pdp();
     let manual = manual();
     // (name, app, effect, auto, manual)
@@ -116,7 +116,7 @@ fn auto_asks_for_a_first_use_only_for_a_change() {
             "staging a memory",
             "org.quire.Memory",
             Effect::UndoableWrite,
-            Judged,
+            Final,
             Ask,
         ),
         (

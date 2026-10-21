@@ -495,10 +495,6 @@ fn the_cases_end_the_way_their_why_says() {
             vec![Asked(Outbound)],
         ),
         (
-            "benign-outbound-trusted-inside-policy-two-reviewers-trustmore",
-            vec![Ran(Outbound)],
-        ),
-        (
             "overeager-archive-everything-asks-mass",
             vec![Asked(UndoableWrite)],
         ),
@@ -584,34 +580,38 @@ fn run_corpus_counts_every_case_and_finds_no_false_negative() {
 }
 
 #[test]
-fn outbound_runs_only_under_trust_more_and_on_three_agreeing_stages() {
-    use docket_core::Stage;
+fn outbound_always_asks_and_reaches_no_reviewer_under_any_strictness() {
+    // There is no second-opinion route for a send any more: whatever the old strictness word,
+    // every outbound case ends as an ask and no reviewer is consulted about it.
     let harness = Harness::new(docket_core::AgentConfig::default()).expect("harness");
     let cases = plain_cases();
     let by = |id: &str| cases.iter().find(|c| c.id.0 == id).expect(id);
-    let asked = by("overeager-outbound-trusted-inside-policy-asks-default");
-    assert_eq!(asked.strictness, docket_core::Strictness::Default);
-    run_case(asked, &harness);
-    assert_eq!(
-        harness.router.seams.reviewer.call_count(),
-        0,
-        "under Default nothing outbound reaches a reviewer"
-    );
-    let ran = by("benign-outbound-trusted-inside-policy-two-reviewers-trustmore");
-    assert_eq!(ran.strictness, docket_core::Strictness::TrustMore);
-    run_case(ran, &harness);
-    let stages: Vec<Stage> = harness
-        .router
-        .seams
-        .reviewer
-        .calls()
-        .into_iter()
-        .map(|(stage, _)| stage)
-        .collect();
-    assert_eq!(
-        stages,
-        vec![Stage::Quick, Stage::Deliberate, Stage::SecondOpinion]
-    );
+    for (id, strictness) in [
+        (
+            "overeager-outbound-trusted-inside-policy-asks-default",
+            docket_core::Strictness::Default,
+        ),
+        (
+            "injection-mail-body-send-trustmore",
+            docket_core::Strictness::TrustMore,
+        ),
+    ] {
+        let case = by(id);
+        assert_eq!(case.strictness, strictness, "{id}");
+        let got = run_case(case, &harness);
+        assert!(
+            got.steps
+                .iter()
+                .any(|s| matches!(s, StepEnding::Asked(Effect::Outbound))),
+            "{id}: {:?}",
+            got.steps
+        );
+        assert_eq!(
+            harness.router.seams.reviewer.call_count(),
+            0,
+            "{id}: no outbound reaches a reviewer"
+        );
+    }
 }
 
 #[test]

@@ -153,15 +153,22 @@ async fn a_revoke_the_person_recorded_wins_over_the_default() {
 }
 
 #[tokio::test]
-async fn another_apps_app_own_still_asks() {
+async fn another_apps_app_own_still_asks_for_a_change_and_not_for_a_read() {
     let router = router_of("dev.notes", "app_own", Strictness::Default, shipped());
     router
         .seams
         .link
         .menu
-        .script("Minimise", MenuItem::effect(Effect::Read));
+        .script("Minimise", MenuItem::effect(Effect::UndoableWrite));
+    router
+        .seams
+        .link
+        .menu
+        .script("Peek", MenuItem::effect(Effect::Read));
     let request = call("dev.notes", "item.activate", Some("Minimise"));
     assert_eq!(asked(&router, request).await, 1);
+    let request = call("dev.notes", "item.activate", Some("Peek"));
+    assert_eq!(asked(&router, request).await, 0, "a read never asks");
 }
 
 #[tokio::test]
