@@ -108,6 +108,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, 
             at: self.ticks.now(),
             from: TurnSource::Editor(self.editor.clone()),
             via: TurnVia::Typed,
+            mode: None,
         };
         if turns == Turns::AtHelper {
             return Ok(Begun::AtHelper(session, turn));

@@ -73,6 +73,7 @@ where
             at: self.clock.now(),
             from: TurnSource::Field(self.app.clone()),
             via: TurnVia::Typed,
+            mode: None,
         };
         self.tasks.told(to, self.space.clone(), turn);
     }

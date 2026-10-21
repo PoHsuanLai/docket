@@ -211,4 +211,7 @@ pub struct FooterWire {
     pub sources: Vec<EntityRef>,
     /// The chips of context the person kept.
     pub keep: ContextKeep,
+    /// The mode the conversation was in, so an answer shown again names the mode it ran under.
+    #[serde(default)]
+    pub mode: docket_core::Mode,
 }

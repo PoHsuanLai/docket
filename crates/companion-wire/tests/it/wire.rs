@@ -27,6 +27,7 @@ fn footer() -> FooterWire {
             selection: Keep::Kept,
             window: Keep::Kept,
         },
+        mode: docket_core::Mode::Auto,
     }
 }
 
@@ -174,6 +175,7 @@ fn asks_and_the_front_pointer_round_trip() {
             at: prov::UnixSeconds(5),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         },
         keep: ContextKeep {
             query: Keep::Kept,
@@ -229,6 +231,7 @@ fn session_records_carry_the_turn_verbatim_and_pin_their_tags() {
         at: prov::UnixSeconds(5),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     };
     let records = vec![
         (
@@ -281,6 +284,7 @@ fn an_asked_record_holds_the_persons_words_and_the_target_agent() {
         at: prov::UnixSeconds(9),
         from: TurnSource::Launcher,
         via: TurnVia::Spoken,
+        mode: None,
     };
     let record = SessionRecord::Asked {
         turn,

@@ -44,6 +44,7 @@ mod limit;
 mod manifest;
 mod marks;
 mod message;
+mod mode;
 mod pattern;
 mod planner;
 mod preview;
@@ -132,7 +133,7 @@ pub use exec_facts::{
 pub use exec_reach::{NetAccess, NetReach};
 pub use execute::{CannotSandbox, EXECUTE_AS, SandboxState};
 pub use external::{ExternalAgent, SheetSurface};
-pub use floor::{Floor, FloorEntry, FloorFault, FloorFile};
+pub use floor::{Floor, FloorEntry, FloorFault, FloorFile, LockedRow};
 pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};
 pub use grant::{
     ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, ProgramName, ProgramNameError,
@@ -168,6 +169,7 @@ pub use marks::{hides, plain_text, reorders};
 pub use message::{
     Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, MessageDraft, SendRefusal,
 };
+pub use mode::{DeleteRow, InsideRow, Mode, ModeRows, OtherRow, RowSets, ScreenRow, SendRow};
 pub use planner::{
     ActionCard, HandleCard, HandleShape, Held, PlannerView, ReplyFault, StepEnd, StepLine,
     StepShown, TurnIn, TurnSource, TurnVia, UserTurn,
@@ -183,7 +185,7 @@ pub use reader::{
     entity_choice_text,
 };
 pub use review::{
-    AskReason, BreakerTrip, DenyCode, Impact, Permissions, PolicyId, ReasonCode, ReasonText,
+    AskReason, BreakerTrip, DenyCode, Impact, PolicyId, ReasonCode, ReasonText,
     ReviewError, ReviewMark, Ruling, ShadowMode, Stage, Strictness, VerdictKind,
 };
 pub use roster::{
@@ -230,7 +232,7 @@ pub use wait::{Cancel, Stop, ThreadSleep, Waits, stop_after, thread_sleep, until
 pub use wire::{
     Displayed, Envelope, GrantAnswer, GrantAsk, HelperNote, IntentsReply, IntentsRequest,
     JournalFilter, NoteAsk, NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine,
-    Resolved, SessionNote, StoredAsk, StoredRow, StoredView, UndoReport, WidenAnswer, WidenAsk,
-    WireRefusal,
+    Resolved, SessionModeAsk, SessionNote, StoredAsk, StoredRow, StoredView, UndoReport,
+    WidenAnswer, WidenAsk, WireRefusal,
 };
 pub use workspace::{Workspace, WorkspaceError};

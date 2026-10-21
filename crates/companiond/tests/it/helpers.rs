@@ -877,6 +877,7 @@ async fn editor_says(w: &World, hub: &TestHub, session: &prov::SessionId, text: 
                 origin: Origin::InWindowField,
                 keep: keep_nothing(),
                 via: TurnVia::Typed,
+                mode: None,
             },
         )
         .await

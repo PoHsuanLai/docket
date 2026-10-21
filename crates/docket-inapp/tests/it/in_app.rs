@@ -243,6 +243,7 @@ async fn the_companion_link_cannot_record_a_person_turn_but_the_host_can() {
             window: Keep::Dropped,
         },
         via: TurnVia::Typed,
+        mode: None,
     };
     let refused = link.session_turn(opened.session, turn).await;
     assert!(

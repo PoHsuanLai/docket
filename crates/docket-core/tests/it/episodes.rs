@@ -20,6 +20,7 @@ fn ledger() -> TaskLedger {
             at: at(100),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         }],
         steps: vec![
             LedgerStep {

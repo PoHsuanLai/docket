@@ -186,6 +186,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 at: self.clock.now(),
                 from: TurnSource::Launcher,
                 via: TurnVia::Typed,
+                mode: None,
             };
             let narrowed = self
                 .intents

@@ -70,6 +70,7 @@ pub fn turn(id: u64, text: &str) -> UserTurn {
         at: UnixSeconds(id as i64),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     }
 }
 

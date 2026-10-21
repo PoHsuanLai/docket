@@ -4,7 +4,9 @@
 
 use crate::AgentSettings;
 use crate::expose::{AcpAgents, AcpExpose, McpExpose};
-use docket_core::{Depth, Millis, Permissions, Seconds, ShadowMode};
+use docket_core::{
+    DeleteRow, Depth, InsideRow, Millis, Mode, OtherRow, ScreenRow, Seconds, SendRow, ShadowMode,
+};
 use porter_core::{Count, MicroUsd};
 use std::ops::RangeInclusive;
 
@@ -53,11 +55,15 @@ fn seconds(v: i64, per: i64) -> Seconds {
     Seconds(u32::try_from(v.saturating_mul(per)).unwrap_or(u32::MAX))
 }
 
-const PERMISSIONS: [Permissions; 2] = [Permissions::Auto, Permissions::Manual];
+const MODES: [Mode; 2] = [Mode::Auto, Mode::Manual];
 /// What each old `agent.strictness` word (`ask_more`, `default`, `trust_more`) means: `ask_more` is
 /// Manual, `default` and `trust_more` are Auto.
-const LEGACY_STRICTNESS: [Permissions; 3] =
-    [Permissions::Manual, Permissions::Auto, Permissions::Auto];
+const LEGACY_STRICTNESS: [Mode; 3] = [Mode::Manual, Mode::Auto, Mode::Auto];
+const INSIDE: [InsideRow; 2] = [InsideRow::Runs, InsideRow::Asks];
+const OTHER: [OtherRow; 2] = [OtherRow::Check, OtherRow::Asks];
+const SEND: [SendRow; 2] = [SendRow::Asks, SendRow::Runs];
+const DELETE: [DeleteRow; 2] = [DeleteRow::Asks, DeleteRow::Runs];
+const SCREEN: [ScreenRow; 2] = [ScreenRow::Once, ScreenRow::Each];
 const EXPOSE: [McpExpose; 2] = [McpExpose::Off, McpExpose::On];
 const ACP: [AcpExpose; 2] = [AcpExpose::Off, AcpExpose::On];
 const SHADOW: [ShadowMode; 2] = [ShadowMode::Off, ShadowMode::Record];
@@ -66,25 +72,88 @@ const AGENTS: [AcpAgents; 2] = [AcpAgents::Off, AcpAgents::On];
 /// Keys an older settings file may still hold, read before the table so a new key beside them
 /// wins. They are not schema rows.
 pub(crate) fn legacy() -> Vec<Key> {
-    vec![Key {
-        path: "agent.strictness",
-        rule: Rule::Word {
-            words: &["ask_more", "default", "trust_more"],
-            set: |s, i| s.agent.permissions = LEGACY_STRICTNESS[i],
-        },
-    }]
-}
-
-/// Every key, in the order the schema lists them.
-pub(crate) fn table() -> Vec<Key> {
     vec![
+        Key {
+            path: "agent.strictness",
+            rule: Rule::Word {
+                words: &["ask_more", "default", "trust_more"],
+                set: |s, i| s.agent.start_mode = LEGACY_STRICTNESS[i],
+            },
+        },
+        // The single row of the first permissions release: its word is the start mode.
         Key {
             path: "agent.permissions",
             rule: Rule::Word {
                 words: &["auto", "manual"],
-                set: |s, i| s.agent.permissions = PERMISSIONS[i],
+                set: |s, i| s.agent.start_mode = MODES[i],
             },
         },
+    ]
+}
+
+const fn word(
+    path: &'static str,
+    words: &'static [&'static str],
+    set: fn(&mut AgentSettings, usize),
+) -> Key {
+    Key {
+        path,
+        rule: Rule::Word { words, set },
+    }
+}
+
+/// The start mode and the ten rows of the two modes.
+fn mode_keys() -> Vec<Key> {
+    let inside: &[&str] = &["runs", "asks"];
+    let other: &[&str] = &["check", "asks"];
+    let ask_or_runs: &[&str] = &["asks", "runs"];
+    let screen: &[&str] = &["once", "each"];
+    vec![
+        word("agent.start_mode", &["auto", "manual"], |s, i| {
+            s.agent.start_mode = MODES[i]
+        }),
+        word("agent.auto.inside", inside, |s, i| {
+            s.agent.rows.auto.inside = INSIDE[i]
+        }),
+        word("agent.auto.other", other, |s, i| {
+            s.agent.rows.auto.other = OTHER[i]
+        }),
+        word("agent.auto.send", ask_or_runs, |s, i| {
+            s.agent.rows.auto.send = SEND[i]
+        }),
+        word("agent.auto.delete", ask_or_runs, |s, i| {
+            s.agent.rows.auto.delete = DELETE[i]
+        }),
+        word("agent.auto.screen", screen, |s, i| {
+            s.agent.rows.auto.screen = SCREEN[i]
+        }),
+        word("agent.manual.inside", inside, |s, i| {
+            s.agent.rows.manual.inside = INSIDE[i]
+        }),
+        word("agent.manual.other", other, |s, i| {
+            s.agent.rows.manual.other = OTHER[i]
+        }),
+        word("agent.manual.send", ask_or_runs, |s, i| {
+            s.agent.rows.manual.send = SEND[i]
+        }),
+        word("agent.manual.delete", ask_or_runs, |s, i| {
+            s.agent.rows.manual.delete = DELETE[i]
+        }),
+        word("agent.manual.screen", screen, |s, i| {
+            s.agent.rows.manual.screen = SCREEN[i]
+        }),
+    ]
+}
+
+/// Every key, in the order the schema lists them.
+pub(crate) fn table() -> Vec<Key> {
+    let mut keys = mode_keys();
+    keys.extend(rest());
+    keys
+}
+
+fn rest() -> Vec<Key> {
+    vec![
         Key {
             path: "agent.mcp.expose",
             rule: Rule::Word {

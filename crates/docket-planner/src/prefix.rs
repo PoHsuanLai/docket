@@ -104,6 +104,7 @@ mod tests {
             at: UnixSeconds(9),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         }];
         later.handles = vec![HandleCard {
             handle: Handle(1),

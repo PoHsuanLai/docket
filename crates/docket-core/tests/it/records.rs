@@ -164,6 +164,7 @@ fn the_planner_view_and_the_roster_round_trip() {
             at: at(1),
             from: TurnSource::Field(app("org.quire.Mail")),
             via: TurnVia::Spoken,
+            mode: None,
         }],
         context: ContextView {
             app: app("org.quire.Mail"),

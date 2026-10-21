@@ -78,6 +78,7 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
                 origin: Origin::Cli,
                 keep: keep_nothing(),
                 via: TurnVia::Typed,
+                mode: None,
             },
         )
         .await
@@ -90,6 +91,7 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
             at: prov::UnixSeconds(hand.load(std::sync::atomic::Ordering::SeqCst)),
             from: TurnSource::Terminal,
             via: TurnVia::Typed,
+            mode: None,
         },
         keep: keep_nothing(),
         parent_window: WindowKey::parse("w1").expect("window"),

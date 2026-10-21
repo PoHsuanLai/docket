@@ -318,6 +318,7 @@ async fn a_finished_task_takes_no_follow_up_and_an_unknown_session_is_refused() 
             at: prov::UnixSeconds(0),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         },
         keep: keep_nothing(),
         parent_window: WindowKey::parse("w1").expect("window"),

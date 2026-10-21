@@ -335,6 +335,7 @@ impl<H: Hosts> HelperAgent<H> {
             at,
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         };
         let played = Self::play(link, turn).await;
         match played {

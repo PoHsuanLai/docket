@@ -60,6 +60,9 @@ pub struct TurnIn {
     pub keep: ContextKeep,
     /// Typed or spoken.
     pub via: TurnVia,
+    /// The mode the conversation switches to with this turn; none keeps the current one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<crate::mode::Mode>,
 }
 
 /// A recorded turn: the person's own words, trusted, verbatim.
@@ -75,6 +78,9 @@ pub struct UserTurn {
     pub from: TurnSource,
     /// Typed or spoken.
     pub via: TurnVia,
+    /// The mode the conversation was switched to with this turn; none when it kept its mode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<crate::mode::Mode>,
 }
 
 macro_rules! redact_turn {

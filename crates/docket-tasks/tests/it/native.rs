@@ -40,6 +40,7 @@ fn said(text: &str) -> UserTurn {
         at: UnixSeconds(1_000),
         from: TurnSource::Editor(app("org.quire.Acp")),
         via: TurnVia::Typed,
+        mode: None,
     }
 }
 

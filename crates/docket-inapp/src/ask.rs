@@ -116,6 +116,7 @@ where
                     origin: Origin::InWindowField,
                     keep: keep_nothing(),
                     via: TurnVia::Typed,
+                    mode: None,
                 },
             )
             .await?;
@@ -125,6 +126,7 @@ where
             at: self.clock.now(),
             from: TurnSource::Field(self.app.clone()),
             via: TurnVia::Typed,
+            mode: None,
         };
         let parent_window = own_window().ok_or(AgentFault::Manifest)?;
         let watch = TurnWatch::begin(&self.person, session.clone(), id);

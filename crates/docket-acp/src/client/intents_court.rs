@@ -119,6 +119,7 @@ impl<T: Transport + 'static> Court for IntentsCourt<T> {
             origin: Origin::InWindowField,
             keep: kept_nothing(),
             via: TurnVia::Typed,
+            mode: None,
         };
         self.intents
             .session_turn(session.clone(), said)

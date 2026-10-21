@@ -431,6 +431,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
         let session = rt.session.clone();
         rt.turns.push(turn.clone());
         rt.keep = ask.keep;
+        rt.mode = turn.mode.unwrap_or(rt.mode);
         rt.window = Some(ask.parent_window);
         rt.phase = AnswerPhase::Thinking;
         rt.progress.clear();

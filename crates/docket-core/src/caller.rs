@@ -119,6 +119,8 @@ pub enum Member {
     SessionClose,
     /// `.Session.TurnEnded`.
     SessionTurnEnded,
+    /// `.Session.SetMode`.
+    SessionMode,
     /// `.Session.Resolve`.
     SessionResolve,
     /// `.Session.Display`.
@@ -183,7 +185,7 @@ pub enum Member {
 
 impl Member {
     /// Every member, in the order the interface table lists them.
-    pub const ALL: [Member; 46] = [
+    pub const ALL: [Member; 47] = [
         Member::Manifests,
         Member::IndexPush,
         Member::IndexReset,
@@ -200,6 +202,7 @@ impl Member {
         Member::SessionTurn,
         Member::SessionClose,
         Member::SessionTurnEnded,
+        Member::SessionMode,
         Member::SessionResolve,
         Member::SessionDisplay,
         Member::SessionDisplayLabelled,
@@ -254,6 +257,7 @@ impl crate::wire::IntentsRequest {
             R::SessionTurn { .. } => Member::SessionTurn,
             R::SessionClose { .. } => Member::SessionClose,
             R::SessionTurnEnded { .. } => Member::SessionTurnEnded,
+            R::SessionMode(_) => Member::SessionMode,
             R::SessionResolve { .. } => Member::SessionResolve,
             R::SessionDisplay { .. } => Member::SessionDisplay,
             R::SessionDisplayLabelled { .. } => Member::SessionDisplayLabelled,

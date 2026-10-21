@@ -216,6 +216,7 @@ impl World {
                     origin: Origin::Launcher,
                     keep: keep_nothing(),
                     via: TurnVia::Typed,
+                    mode: None,
                 },
             )
             .await
@@ -230,6 +231,7 @@ impl World {
                     at,
                     from: TurnSource::Launcher,
                     via: TurnVia::Typed,
+                    mode: None,
                 },
                 keep: keep_nothing(),
                 parent_window: WindowKey::parse("w1").expect("window"),

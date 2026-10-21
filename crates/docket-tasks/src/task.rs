@@ -37,6 +37,8 @@ pub struct TaskRuntime {
     pub turns: Vec<UserTurn>,
     /// The chips of context the person kept with the latest turn.
     pub keep: ContextKeep,
+    /// The mode the latest turn named, for the answer's footer; Auto until a turn names one.
+    pub mode: docket_core::Mode,
     /// The window the person asked from, to anchor a confirmation.
     pub window: Option<WindowKey>,
     /// The calls and how they ended, oldest first.
@@ -131,6 +133,7 @@ impl TaskRuntime {
             started,
             turns: Vec::new(),
             keep: kept_all(),
+            mode: docket_core::Mode::Auto,
             window: None,
             history: Vec::new(),
             steps: Vec::new(),
@@ -325,6 +328,7 @@ impl TaskRuntime {
                 served: self.served.iter().cloned().collect(),
                 sources: Vec::new(),
                 keep: self.keep,
+                mode: self.mode,
             },
         }
     }

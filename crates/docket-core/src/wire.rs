@@ -260,6 +260,15 @@ pub struct GrantAsk {
     pub run: Option<prov::RunId>,
 }
 
+/// The switch of one conversation's mode (`Session.SetMode`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionModeAsk {
+    /// The conversation.
+    pub session: SessionId,
+    /// The mode to switch to.
+    pub mode: crate::mode::Mode,
+}
+
 /// How a grant request ended.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
@@ -346,6 +355,9 @@ pub enum IntentsRequest {
         /// What the person said.
         turn: TurnIn,
     },
+    /// `.Session.SetMode` (the shell and control roles only): switches a conversation between
+    /// Auto and Manual without a turn.
+    SessionMode(SessionModeAsk),
     /// `.Session.Close`.
     SessionClose {
         /// The session.
@@ -550,6 +562,8 @@ pub enum WireRefusal {
     Send(SendRefusal),
     /// A read gave no answer.
     Read(crate::reader::ReadFault),
+    /// The administrator holds every conversation in Manual, so the mode cannot be switched.
+    Locked,
 }
 
 /// A handle's content as the reader receives it: the text and the label the router holds for it,

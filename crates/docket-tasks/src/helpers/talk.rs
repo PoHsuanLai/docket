@@ -55,6 +55,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             let opened = SessionOpened {
                 session: talk.session.clone(),
                 task: talk.task.clone(),
+                mode: docket_core::Mode::default(),
             };
             self.adopt(&opened, &open);
         }
@@ -77,6 +78,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             at: self.clock.now(),
             from: said.from,
             via: TurnVia::Typed,
+            mode: None,
         };
         let Ok(window) = WindowKey::parse(WINDOW) else {
             return JobReport::failed(JobFault::Crashed);

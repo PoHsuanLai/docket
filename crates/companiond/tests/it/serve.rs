@@ -119,6 +119,7 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
                 origin: Origin::Launcher,
                 keep: keep_nothing(),
                 via: TurnVia::Typed,
+                mode: None,
             },
         )
         .await
@@ -131,6 +132,7 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
             at: prov::UnixSeconds(hand.load(std::sync::atomic::Ordering::SeqCst)),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         },
         keep: keep_nothing(),
         parent_window: WindowKey::parse("w1").expect("window"),
@@ -241,6 +243,7 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
                 origin: Origin::Launcher,
                 keep: keep_nothing(),
                 via: TurnVia::Typed,
+                mode: None,
             },
         )
         .await
@@ -253,6 +256,7 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
             at: prov::UnixSeconds(0),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         },
         keep: keep_nothing(),
         parent_window: WindowKey::parse("w1").expect("window"),
@@ -304,6 +308,7 @@ async fn only_the_shell_speaks_for_the_person() {
         at: prov::UnixSeconds(0),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     };
     let ask = AskWire {
         session: prov::SessionId::parse("s-1").expect("session"),
@@ -932,6 +937,7 @@ async fn the_editor_bridge_speaks_in_a_helpers_conversation_and_a_stranger_or_an
                 origin: Origin::InWindowField,
                 keep: keep_nothing(),
                 via: TurnVia::Typed,
+                mode: None,
             },
         )
         .await

@@ -32,6 +32,7 @@ fn answer(phase: AnswerPhase, body: AnswerBody) -> String {
                 selection: Keep::Kept,
                 window: Keep::Kept,
             },
+            mode: docket_core::Mode::Auto,
         },
     };
     serde_json::to_string(&wire).expect("json")

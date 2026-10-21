@@ -85,6 +85,7 @@ mod tests {
             at: UnixSeconds(0),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         }
     }
 

@@ -124,6 +124,7 @@ mod tests {
             at: UnixSeconds(at),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         })
     }
 

@@ -66,6 +66,7 @@ where
                         window: Keep::Dropped,
                     },
                     via: TurnVia::Typed,
+                    mode: None,
                 },
             )
             .await?;
@@ -77,6 +78,7 @@ where
                 at: self.clock.now(),
                 from: TurnSource::Field(self.app.clone()),
                 via: TurnVia::Typed,
+                mode: None,
             },
         })
     }

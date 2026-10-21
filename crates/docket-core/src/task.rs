@@ -99,6 +99,10 @@ pub struct SessionOpened {
     pub session: SessionId,
     /// The task it runs.
     pub task: TaskId,
+    /// The mode the conversation starts in. An old reader ignores it; an old writer's reply
+    /// reads as Auto.
+    #[serde(default)]
+    pub mode: crate::mode::Mode,
 }
 
 /// One step of a task, as the router remembers it for the episode.

@@ -206,6 +206,7 @@ where
             origin: Origin::InWindowField,
             keep: kept_nothing(),
             via: turn.via,
+            mode: None,
         };
         self.backend(session)?.record_and_turn(turn, said)?;
         Ok(())

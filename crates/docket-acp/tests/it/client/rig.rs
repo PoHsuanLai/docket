@@ -75,6 +75,7 @@ pub fn turn(n: u64, text: &str) -> UserTurn {
         at: UnixSeconds(1_760_000_000),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     }
 }
 

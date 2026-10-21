@@ -92,6 +92,7 @@ fn turn(text: &str) -> UserTurn {
         at: UnixSeconds(1),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     }
 }
 

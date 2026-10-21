@@ -3,17 +3,17 @@
 # for a local install. The values live in $XDG_CONFIG_HOME/docket/settings.toml, for example
 # `[agent.mcp] expose = "on"`; the daemons read them live (crates/docket-settings). Every row is
 # hands-off for an agent (no `agent = "settable"`): agent.* is never agent-settable, so the
-# companion can never loosen its own limits. The main page has four rows (Assistant); the rest
-# are Advanced (Limits).
+# companion can never loosen its own limits. The main page has the Assistant rows and the Auto and Manual
+# sections; the rest are Advanced (Limits).
 app = "docket"
 file = "docket/settings.toml"
 version = 1
 
 [[key]]
-path = "agent.permissions"
+path = "agent.start_mode"
 default = "auto"
-label = "Permissions"
-help = "Auto does what you allowed and asks before sending or deleting. Manual asks before each change, for when you are watching."
+label = "New conversations start in"
+help = "You can switch any conversation between Auto and Manual from where you type. This is how a new one starts."
 section = "Assistant"
 exposure = "basic"
 
@@ -29,6 +29,216 @@ kind = "intelligence"
 [key.labels]
 auto = "Auto"
 manual = "Manual"
+
+[[key]]
+path = "agent.auto.inside"
+default = "runs"
+label = "Changes it can undo, within what you asked"
+help = "Changes like archiving or moving, made only to the things you asked about."
+section = "Auto"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["runs", "asks"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+runs = "Goes ahead"
+asks = "Asks"
+
+[[key]]
+path = "agent.auto.other"
+default = "check"
+label = "Other changes it can undo"
+help = "Changes it could undo that reach past what you asked about. Checked first means another model looks before it goes ahead."
+section = "Auto"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["check", "asks"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+check = "Checked first"
+asks = "Asks"
+
+[[key]]
+path = "agent.auto.send"
+default = "asks"
+label = "Sending"
+help = "Mail and messages that leave this computer. When it asks, you can say Always for that person."
+section = "Auto"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["asks", "runs"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+asks = "Asks"
+runs = "Goes ahead"
+
+[[key]]
+path = "agent.auto.delete"
+default = "asks"
+label = "Deleting"
+help = "Things that cannot be brought back."
+section = "Auto"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["asks", "runs"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+asks = "Asks"
+runs = "Goes ahead"
+
+[[key]]
+path = "agent.auto.screen"
+default = "once"
+label = "Using another app's window"
+help = "When it works in an app by looking at the screen and using the mouse and keys."
+section = "Auto"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["once", "each"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+once = "Asks once"
+each = "Asks at each change"
+
+[[key]]
+path = "agent.manual.inside"
+default = "asks"
+label = "Changes it can undo, within what you asked"
+help = "Changes like archiving or moving, made only to the things you asked about."
+section = "Manual"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["runs", "asks"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+runs = "Goes ahead"
+asks = "Asks"
+
+[[key]]
+path = "agent.manual.other"
+default = "asks"
+label = "Other changes it can undo"
+help = "Changes it could undo that reach past what you asked about. Checked first means another model looks before it goes ahead."
+section = "Manual"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["check", "asks"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+check = "Checked first"
+asks = "Asks"
+
+[[key]]
+path = "agent.manual.send"
+default = "asks"
+label = "Sending"
+help = "Mail and messages that leave this computer. When it asks, you can say Always for that person."
+section = "Manual"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["asks", "runs"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+asks = "Asks"
+runs = "Goes ahead"
+
+[[key]]
+path = "agent.manual.delete"
+default = "asks"
+label = "Deleting"
+help = "Things that cannot be brought back."
+section = "Manual"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["asks", "runs"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+asks = "Asks"
+runs = "Goes ahead"
+
+[[key]]
+path = "agent.manual.screen"
+default = "each"
+label = "Using another app's window"
+help = "When it works in an app by looking at the screen and using the mouse and keys."
+section = "Manual"
+exposure = "basic"
+
+[key.kind]
+kind = "segmented"
+
+[key.kind.v]
+variants = ["once", "each"]
+
+[key.page]
+kind = "intelligence"
+
+[key.labels]
+once = "Asks once"
+each = "Asks at each change"
 
 [[key]]
 path = "agent.mcp.expose"

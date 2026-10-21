@@ -101,7 +101,7 @@ fn the_schema_has_the_shape_the_settings_app_loads() {
 }
 
 #[test]
-fn the_intelligence_page_shows_the_assistant_rows_and_the_rest_is_advanced() {
+fn the_intelligence_page_shows_the_assistant_rows_and_the_two_modes_and_the_rest_is_advanced() {
     let shown: Vec<String> = rows()
         .iter()
         .filter(|r| r["exposure"].as_str() == Some("basic"))
@@ -110,7 +110,17 @@ fn the_intelligence_page_shows_the_assistant_rows_and_the_rest_is_advanced() {
     assert_eq!(
         shown,
         [
-            "agent.permissions",
+            "agent.start_mode",
+            "agent.auto.inside",
+            "agent.auto.other",
+            "agent.auto.send",
+            "agent.auto.delete",
+            "agent.auto.screen",
+            "agent.manual.inside",
+            "agent.manual.other",
+            "agent.manual.send",
+            "agent.manual.delete",
+            "agent.manual.screen",
             "agent.mcp.expose",
             "agent.acp.agents",
             "agent.undo.keep_h"
@@ -223,37 +233,63 @@ fn every_schema_key_is_read_by_the_daemon() {
 
 #[test]
 fn each_key_lands_in_the_typed_value_the_design_names() {
-    use docket_core::{Depth, Millis, Permissions, Seconds};
+    use docket_core::{
+        DeleteRow, Depth, InsideRow, Millis, Mode, OtherRow, ScreenRow, Seconds, SendRow,
+    };
     use porter_core::{Count, MicroUsd};
     let read_one = |p: &str, v: toml::Value| read(&doc(p, v), AgentSettings::default()).value;
     let int = toml::Value::Integer;
     let word = |w: &str| toml::Value::String(w.to_owned());
     assert_eq!(
-        read_one("agent.permissions", word("manual"))
-            .agent
-            .permissions,
-        Permissions::Manual
+        read_one("agent.start_mode", word("manual")).agent.start_mode,
+        Mode::Manual
     );
-    // An old file's `agent.strictness` still reads: ask_more is Manual; default and trust_more
-    // are Auto. The new key beside it wins.
-    let old = |w: &str| {
-        let loaded = read(&doc("agent.strictness", word(w)), AgentSettings::default());
-        assert_eq!((loaded.fallbacks, loaded.unknown), (vec![], vec![]), "{w}");
-        loaded.value.agent.permissions
+    // Each row of each mode lands in its own place.
+    let rows_of = |mode: &str, row: &str, value: &str| {
+        read_one(&format!("agent.{mode}.{row}"), word(value)).agent.rows
     };
-    assert_eq!(old("ask_more"), Permissions::Manual);
-    assert_eq!(old("default"), Permissions::Auto);
-    assert_eq!(old("trust_more"), Permissions::Auto);
+    assert_eq!(rows_of("auto", "inside", "asks").auto.inside, InsideRow::Asks);
+    assert_eq!(rows_of("auto", "other", "asks").auto.other, OtherRow::Asks);
+    assert_eq!(rows_of("auto", "send", "runs").auto.send, SendRow::Runs);
+    assert_eq!(rows_of("auto", "delete", "runs").auto.delete, DeleteRow::Runs);
+    assert_eq!(rows_of("auto", "screen", "each").auto.screen, ScreenRow::Each);
+    assert_eq!(
+        rows_of("manual", "inside", "runs").manual.inside,
+        InsideRow::Runs
+    );
+    assert_eq!(
+        rows_of("manual", "other", "check").manual.other,
+        OtherRow::Check
+    );
+    assert_eq!(rows_of("manual", "send", "runs").manual.send, SendRow::Runs);
+    assert_eq!(
+        rows_of("manual", "delete", "runs").manual.delete,
+        DeleteRow::Runs
+    );
+    assert_eq!(
+        rows_of("manual", "screen", "once").manual.screen,
+        ScreenRow::Once
+    );
+    // An old file's `agent.strictness` and the first release's `agent.permissions` still read
+    // into the start mode: ask_more is Manual; default and trust_more are Auto. The new key
+    // beside them wins.
+    let old = |key: &str, w: &str| {
+        let loaded = read(&doc(key, word(w)), AgentSettings::default());
+        assert_eq!((loaded.fallbacks, loaded.unknown), (vec![], vec![]), "{w}");
+        loaded.value.agent.start_mode
+    };
+    assert_eq!(old("agent.strictness", "ask_more"), Mode::Manual);
+    assert_eq!(old("agent.strictness", "default"), Mode::Auto);
+    assert_eq!(old("agent.strictness", "trust_more"), Mode::Auto);
+    assert_eq!(old("agent.permissions", "manual"), Mode::Manual);
+    assert_eq!(old("agent.permissions", "auto"), Mode::Auto);
     let both = merged(&[
         ("agent.strictness", word("ask_more")),
-        ("agent.permissions", word("auto")),
+        ("agent.start_mode", word("auto")),
     ]);
     assert_eq!(
-        read(&both, AgentSettings::default())
-            .value
-            .agent
-            .permissions,
-        Permissions::Auto
+        read(&both, AgentSettings::default()).value.agent.start_mode,
+        Mode::Auto
     );
     assert_eq!(
         read_one("agent.mcp.expose", word("on")).expose,

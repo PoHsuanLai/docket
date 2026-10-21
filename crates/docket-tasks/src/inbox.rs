@@ -255,6 +255,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             at: self.clock.now(),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         };
         self.told(to.clone(), space.clone(), turn);
     }
@@ -299,6 +300,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             &SessionOpened {
                 session,
                 task: task.clone(),
+                mode: docket_core::Mode::default(),
             },
             &open,
         );

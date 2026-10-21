@@ -17,6 +17,7 @@ fn request() -> ReviewRequest {
             at: prov::UnixSeconds(1),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         }],
         proposed: ProposedAction {
             app: AppName::parse("org.quire.Mail").expect("app"),

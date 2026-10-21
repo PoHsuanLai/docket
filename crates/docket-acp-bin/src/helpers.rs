@@ -97,6 +97,7 @@ impl<T: IntentsTransport> Records for RouterRecords<T> {
             origin: Origin::InWindowField,
             keep: kept_nothing(),
             via: turn.via,
+            mode: None,
         };
         self.intents
             .session_turn(session.clone(), said)

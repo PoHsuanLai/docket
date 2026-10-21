@@ -5,12 +5,17 @@
 # The floor binds agents only. It never touches what the person does themselves from the
 # launcher, and nothing in the person's own files or settings can loosen it.
 #
-# The loosest setting any Space may be given for how much the assistant asks: "ask_more",
-# "default" or "trust_more". A person's setting looser than this is held at it. Permissions has
-# two presets, Auto and Manual: "ask_more" forces Manual (it asks before every change), and the
-# other two leave the person free to choose either.
+# The loosest setting for how much the assistant asks: "ask_more", "default" or "trust_more". A
+# person's setting looser than this is held at it. A conversation is in Auto or Manual:
+# "ask_more" holds every conversation in Manual (it asks before every change, and the mode cannot
+# be switched), and the other two leave the person free to choose either.
 #
 # strictness = "default"
+
+# Rows of the two modes that always ask, whatever the person's settings say: "inside", "other",
+# "send", "delete" or "screen". A locked row is shown in Settings and cannot be changed.
+#
+# rows = ["send", "delete"]
 
 # Entries no one removes. "level" is "always_ask" (the action always gets a confirmation, even
 # where it would otherwise run) or "never" (it is refused without asking). "app" and "action"

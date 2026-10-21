@@ -25,6 +25,7 @@ pub fn turn(id: u64, text: &str, t: i64) -> UserTurn {
         at: at(t),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     }
 }
 pub fn session(record: SessionRecord) -> ReplayWhat {

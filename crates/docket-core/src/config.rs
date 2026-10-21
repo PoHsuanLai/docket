@@ -4,7 +4,8 @@
 //! [`AgentConfig`].
 
 use crate::budget::Budget;
-use crate::review::{Permissions, ShadowMode};
+use crate::mode::{Mode, RowSets};
+use crate::review::ShadowMode;
 use crate::units::{Days, Depth, Millis, Seconds};
 use porter_core::{Count, MicroUsd, Tokens};
 use serde::{Deserialize, Serialize};
@@ -92,9 +93,13 @@ fn checkpoint_turn_max() -> Seconds {
 /// Every proposed value in one place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AgentConfig {
-    /// `agent.permissions` (an old `strictness` still reads).
-    #[serde(default, alias = "strictness")]
-    pub permissions: Permissions,
+    /// `agent.start_mode`: the mode a new conversation starts in (an old `strictness` or
+    /// `permissions` still reads).
+    #[serde(default, alias = "strictness", alias = "permissions")]
+    pub start_mode: Mode,
+    /// `agent.auto.*` and `agent.manual.*`: what each mode does without asking.
+    #[serde(default)]
+    pub rows: RowSets,
     /// `agent.budget.*`.
     pub budget: Budget,
     /// `agent.mass_at`: more things than this in one call asks (20).
@@ -142,7 +147,8 @@ pub struct AgentConfig {
 impl Default for AgentConfig {
     fn default() -> Self {
         Self {
-            permissions: Permissions::Auto,
+            start_mode: Mode::Auto,
+            rows: RowSets::default(),
             budget: Budget {
                 calls: Count(200),
                 writes: Count(100),
@@ -222,13 +228,27 @@ const fn n(key: &'static str, v: i64) -> SettingRow {
     }
 }
 
+const fn w(key: &'static str, v: &'static str) -> SettingRow {
+    SettingRow {
+        key,
+        default: SettingValue::Word(v),
+    }
+}
+
 /// Every row, in the order the Intelligence page lists them. The retention row `companion.*`
 /// (30 days) is almanac's `RuleSet::standard()`; the desktop-scope join rule is `prov`'s.
 pub const SETTING_ROWS: &[SettingRow] = &[
-    SettingRow {
-        key: "agent.permissions",
-        default: SettingValue::Word("auto"),
-    },
+    w("agent.start_mode", "auto"),
+    w("agent.auto.inside", "runs"),
+    w("agent.auto.other", "check"),
+    w("agent.auto.send", "asks"),
+    w("agent.auto.delete", "asks"),
+    w("agent.auto.screen", "once"),
+    w("agent.manual.inside", "asks"),
+    w("agent.manual.other", "asks"),
+    w("agent.manual.send", "asks"),
+    w("agent.manual.delete", "asks"),
+    w("agent.manual.screen", "each"),
     n("agent.budget.calls", 200),
     n("agent.budget.writes", 100),
     n("agent.budget.outbound", 10),
@@ -276,10 +296,17 @@ impl AgentConfig {
         let c = |count: Count| i64::from(count.0);
         let t = |tokens: Tokens| i64::from(tokens.0);
         match key {
-            "agent.permissions" => Some(SettingValue::Word(match self.permissions {
-                Permissions::Auto => "auto",
-                Permissions::Manual => "manual",
-            })),
+            "agent.start_mode" => Some(SettingValue::Word(self.start_mode.word())),
+            "agent.auto.inside" => Some(SettingValue::Word(self.rows.auto.inside.word())),
+            "agent.auto.other" => Some(SettingValue::Word(self.rows.auto.other.word())),
+            "agent.auto.send" => Some(SettingValue::Word(self.rows.auto.send.word())),
+            "agent.auto.delete" => Some(SettingValue::Word(self.rows.auto.delete.word())),
+            "agent.auto.screen" => Some(SettingValue::Word(self.rows.auto.screen.word())),
+            "agent.manual.inside" => Some(SettingValue::Word(self.rows.manual.inside.word())),
+            "agent.manual.other" => Some(SettingValue::Word(self.rows.manual.other.word())),
+            "agent.manual.send" => Some(SettingValue::Word(self.rows.manual.send.word())),
+            "agent.manual.delete" => Some(SettingValue::Word(self.rows.manual.delete.word())),
+            "agent.manual.screen" => Some(SettingValue::Word(self.rows.manual.screen.word())),
             "agent.budget.calls" => num(c(self.budget.calls)),
             "agent.budget.writes" => num(c(self.budget.writes)),
             "agent.budget.outbound" => num(c(self.budget.outbound)),

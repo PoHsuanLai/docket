@@ -134,6 +134,7 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
             at: UnixSeconds(0),
             from: docket_core::TurnSource::Launcher,
             via: docket_core::TurnVia::Typed,
+            mode: None,
         };
         host.turn(&session, turn)
             .await

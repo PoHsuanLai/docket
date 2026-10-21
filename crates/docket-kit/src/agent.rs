@@ -95,6 +95,7 @@ impl<P: InferTransport, I: IntentsTransport> Agent<P, I> {
                     origin: Origin::AppInternal,
                     keep: keep_nothing(),
                     via: TurnVia::Typed,
+                    mode: None,
                 },
             )
             .await
@@ -105,6 +106,7 @@ impl<P: InferTransport, I: IntentsTransport> Agent<P, I> {
             at: asker.at,
             from: asker.from.clone(),
             via: TurnVia::Typed,
+            mode: None,
         };
         let run = self.run_turn(asker, opened.session.clone(), turn).await;
         let close = self.intents.session_close(opened.session).await.err();

@@ -259,8 +259,25 @@ fn the_floor_clamps_strictness_and_locks_entries() {
             action: Some(name("files.file.delete")),
             from: Effect::Destructive,
         }],
+        rows: vec![LockedRow::Send, LockedRow::Screen],
     };
     let floor = Floor::from_file(file).expect("floor");
+    // The strictness the floor allows holds a conversation in Auto; the locked rows ask.
+    assert_eq!(floor.clamp_mode(Mode::Auto), Mode::Auto);
+    let rows = floor.clamp_rows(ModeRows {
+        send: SendRow::Runs,
+        screen: ScreenRow::Once,
+        ..ModeRows::AUTO
+    });
+    assert_eq!((rows.send, rows.screen), (SendRow::Asks, ScreenRow::Each));
+    assert_eq!(rows.inside, InsideRow::Runs);
+    let manual_floor = Floor::from_file(FloorFile {
+        strictness: Some(Strictness::AskMore),
+        ..FloorFile::default()
+    })
+    .expect("floor");
+    assert_eq!(manual_floor.clamp_mode(Mode::Auto), Mode::Manual);
+    assert!(manual_floor.holds_manual());
     for (wanted, want) in [
         (Strictness::TrustMore, Strictness::Default),
         (Strictness::Default, Strictness::Default),
@@ -278,6 +295,7 @@ fn the_floor_clamps_strictness_and_locks_entries() {
             action: Some(name("files.file.delete")),
             from: Effect::Read,
         }],
+        rows: Vec::new(),
     };
     assert_eq!(Floor::from_file(bad), Err(FloorFault::ActionWithoutApp));
 }

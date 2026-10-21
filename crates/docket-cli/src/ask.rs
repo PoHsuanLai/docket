@@ -59,6 +59,7 @@ fn ask_of(
             at: now,
             from: TurnSource::Terminal,
             via: TurnVia::Typed,
+            mode: None,
         },
         keep: keep_nothing(),
         parent_window: WindowKey::parse(WINDOW).expect("`terminal` is a window key"),
@@ -135,6 +136,7 @@ async fn turn<T: Transport>(
                 origin: Origin::Cli,
                 keep: keep_nothing(),
                 via: TurnVia::Typed,
+                mode: None,
             },
         )
         .await

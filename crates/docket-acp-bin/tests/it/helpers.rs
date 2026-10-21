@@ -257,6 +257,7 @@ fn spoken(text: &str) -> UserTurn {
         at: prov::UnixSeconds(0),
         from: TurnSource::Editor(porter_core::AppName::parse("org.quire.Acp").expect("app")),
         via: TurnVia::Typed,
+        mode: None,
     }
 }
 

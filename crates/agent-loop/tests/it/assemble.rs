@@ -84,6 +84,7 @@ fn sources() -> Sources {
             at: UnixSeconds(5),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         }],
         history: vec![],
         handles: vec![],
@@ -288,6 +289,7 @@ fn the_stable_sections_do_not_change_between_turns() {
         at: UnixSeconds(99),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     });
     b.history = vec![step(1, None)];
     b.context.window = Reveal::Plain("Another window".into());
@@ -367,6 +369,7 @@ fn long_turn(n: u64) -> UserTurn {
         at: UnixSeconds(n as i64),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     }
 }
 

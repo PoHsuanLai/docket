@@ -68,6 +68,7 @@ fn turn(n: u64) -> SessionEntry {
         at: UnixSeconds(0),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     })
 }
 
@@ -383,6 +384,7 @@ async fn a_session_is_restored_from_almanac_after_the_router_is_dropped() {
                         window: Keep::Dropped,
                     },
                     via: TurnVia::Typed,
+                    mode: None,
                 },
             },
         )

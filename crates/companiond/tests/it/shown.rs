@@ -240,6 +240,7 @@ async fn the_answer_object_names_its_session_and_close_removes_it() {
                 origin: Origin::Launcher,
                 keep: keep_nothing(),
                 via: TurnVia::Typed,
+                mode: None,
             },
         )
         .await
@@ -252,6 +253,7 @@ async fn the_answer_object_names_its_session_and_close_removes_it() {
             at: prov::UnixSeconds(hand.load(std::sync::atomic::Ordering::SeqCst)),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         },
         keep: keep_nothing(),
         parent_window: WindowKey::parse("w1").expect("window"),

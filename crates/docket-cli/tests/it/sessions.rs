@@ -52,6 +52,7 @@ async fn session_of(desk: &Desk, app: &str, words: &str) -> SessionId {
                     origin: Origin::Launcher,
                     keep: keep_nothing(),
                     via: TurnVia::Typed,
+                    mode: None,
                 },
             },
         )

@@ -93,6 +93,7 @@ fn footer() -> FooterWire {
         }],
         sources: vec![],
         keep: keep(),
+        mode: docket_core::Mode::Auto,
     }
 }
 

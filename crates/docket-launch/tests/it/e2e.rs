@@ -113,6 +113,7 @@ async fn a_session_through_the_launcher_asks_porter_in_order_and_gives_it_all_ba
             at: UnixSeconds(1),
             from: docket_core::TurnSource::Launcher,
             via: docket_core::TurnVia::Typed,
+            mode: None,
         })
         .await
         .expect("turn");

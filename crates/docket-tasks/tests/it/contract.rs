@@ -84,6 +84,7 @@ impl Harness for Native {
             at: UnixSeconds(1_000),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         }
     }
 

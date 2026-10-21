@@ -169,6 +169,7 @@ pub fn request() -> ReviewRequest {
             at: prov::UnixSeconds(1),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
+            mode: None,
         }],
         proposed: ProposedAction {
             app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
