@@ -2,7 +2,7 @@
 //! first sheet and takes its answer. Different actions never share a sheet.
 
 use crate::acp_agent::*;
-use crate::acp_agent_reads::{grants_of, open_wide};
+use crate::acp_agent_reads::grants_of;
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
 use futures_util::future::join;
@@ -11,19 +11,29 @@ fn refused() -> ConfirmAnswer {
     ConfirmAnswer::Ended(ConfirmEnd::Refused)
 }
 
-/// A change of a thread: under Auto an external agent's first change in an app asks.
-fn archive(thread: &str) -> CallRequest {
-    crate::support::call("mail.thread.archive", &[thread], vec![])
+/// A file change in one directory: the sheet offers "always" for that directory, so two at once
+/// share it.
+fn change(name: &str) -> CallRequest {
+    write(&format!("/home/u/proj/src/{name}"))
+}
+
+/// A session that has read a file, so its writes ask.
+async fn after_a_read(w: &World) -> prov::SessionId {
+    let claude = w.open(CLAUDE, SheetSurface::Desktop).await;
+    w.call(&claude, read("/home/u/proj/a.rs"))
+        .await
+        .expect("read");
+    claude
 }
 
 #[tokio::test]
 async fn two_changes_at_once_raise_one_sheet_and_both_run_on_an_always() {
     let mut w = world();
     w.router.seams.confirmer = ScriptedConfirmer::yielding(vec![always()]);
-    let claude = open_wide(&w, CLAUDE).await;
+    let claude = after_a_read(&w).await;
     let (a, b) = join(
-        w.call(&claude, archive("t1")),
-        w.call(&claude, archive("t2")),
+        w.call(&claude, change("a.rs")),
+        w.call(&claude, change("b.rs")),
     )
     .await;
     a.expect("asker runs");
@@ -35,10 +45,10 @@ async fn two_changes_at_once_raise_one_sheet_and_both_run_on_an_always() {
 async fn a_refusal_refuses_the_waiting_call_too() {
     let mut w = world();
     w.router.seams.confirmer = ScriptedConfirmer::yielding(vec![refused()]);
-    let claude = open_wide(&w, CLAUDE).await;
+    let claude = after_a_read(&w).await;
     let (a, b) = join(
-        w.call(&claude, archive("t1")),
-        w.call(&claude, archive("t2")),
+        w.call(&claude, change("a.rs")),
+        w.call(&claude, change("b.rs")),
     )
     .await;
     let want = CallRefusal::Unconfirmed(ConfirmEnd::Refused);
@@ -51,10 +61,10 @@ async fn a_refusal_refuses_the_waiting_call_too() {
 async fn an_allow_once_covers_only_the_asker_and_the_waiter_gets_its_own_sheet() {
     let mut w = world();
     w.router.seams.confirmer = ScriptedConfirmer::yielding(vec![once(), refused()]);
-    let claude = open_wide(&w, CLAUDE).await;
+    let claude = after_a_read(&w).await;
     let (a, b) = join(
-        w.call(&claude, archive("t1")),
-        w.call(&claude, archive("t2")),
+        w.call(&claude, change("a.rs")),
+        w.call(&claude, change("b.rs")),
     )
     .await;
     a.expect("asker runs once");
@@ -70,10 +80,13 @@ async fn an_allow_once_covers_only_the_asker_and_the_waiter_gets_its_own_sheet()
 async fn different_actions_each_get_their_own_sheet() {
     let mut w = world();
     w.router.seams.confirmer = ScriptedConfirmer::yielding(vec![once(), once()]);
-    let claude = open_wide(&w, CLAUDE).await;
-    let delete = crate::support::call("mail.thread.delete", &["t2"], vec![]);
-    let (a, b) = join(w.call(&claude, archive("t1")), w.call(&claude, delete)).await;
-    a.expect("the archive");
+    let claude = after_a_read(&w).await;
+    let (a, b) = join(
+        w.call(&claude, change("a.rs")),
+        w.call(&claude, run("cargo test")),
+    )
+    .await;
+    a.expect("the write");
     assert!(!matches!(b, Err(CallRefusal::Unconfirmed(_))), "{b:?}");
     assert_eq!(w.sheets().len(), 2);
 }

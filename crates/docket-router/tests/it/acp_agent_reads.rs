@@ -66,9 +66,12 @@ async fn an_external_agents_reads_run_unasked_in_every_app_and_leave_no_grant() 
     w.call(&claude, call("mail.thread.read", &["t2"], vec![]))
         .await
         .expect("a mail read runs");
-    w.call(&claude, files_read())
-        .await
-        .expect("a files read runs");
+    // The fake Files app holds no such file: the read got past the gate and the app answered.
+    let files = w.call(&claude, files_read()).await;
+    assert!(
+        matches!(files, Ok(_) | Err(CallRefusal::App(_))),
+        "{files:?}"
+    );
     let gemini = open_wide(&w, "gemini-cli").await;
     w.call(&gemini, call("mail.thread.read", &["t1"], vec![]))
         .await
