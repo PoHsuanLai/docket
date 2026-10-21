@@ -2,8 +2,8 @@
 
 use super::{Gateway, json, parsed};
 use docket_core::{
-    Displayed, Handle, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, TurnId, WidenAsk,
-    WireRefusal,
+    Displayed, Handle, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, SessionModeAsk,
+    TurnId, WidenAsk, WireRefusal,
 };
 use docket_dbus::{Details, IntentsError};
 use prov::SessionId;
@@ -63,6 +63,19 @@ impl SessionBus {
         let request = IntentsRequest::SessionClose {
             session: session_of(&session)?,
         };
+        self.0.done(&header, request).await
+    }
+
+    async fn set_mode(
+        &self,
+        session: String,
+        mode: String,
+        #[zbus(header)] header: Header<'_>,
+    ) -> Result<(), IntentsError> {
+        let request = IntentsRequest::SessionMode(SessionModeAsk {
+            session: session_of(&session)?,
+            mode: json(&serde_json::Value::String(mode).to_string())?,
+        });
         self.0.done(&header, request).await
     }
 

@@ -1,5 +1,6 @@
 //! The signals of `org.quire.Intents1` that say something changed inside the router: a manifest,
-//! the undo journal, a session the breaker paused, a message that arrived. The router is pure
+//! the undo journal, a session the breaker paused, a conversation whose mode changed, a message
+//! that arrived. The router is pure
 //! and answers requests; it does not push. Each signal is therefore the difference between two
 //! looks at its state (`Marks`), taken a moment apart by the daemon (`pump`), so every way the
 //! state can change (a call finishing, a message sent by the hosted Companion provider, a rescan
@@ -11,7 +12,7 @@
 use crate::builtin::{builtin_manifests, is_builtin};
 use crate::manifests::load_manifests;
 use crate::reach::LiveReach;
-use docket_core::ValidManifest;
+use docket_core::{Mode, ValidManifest};
 use docket_dbus::{BusConnection, INTENTS_PATH};
 use docket_router::{Router, Seams, SessionState};
 use porter_core::AppName;
@@ -28,6 +29,8 @@ pub struct Marks {
     journal: (u64, u64),
     /// The sessions the breaker has paused.
     paused: BTreeSet<SessionId>,
+    /// The mode of each conversation.
+    modes: BTreeMap<SessionId, Mode>,
     /// The messages waiting for each agent.
     waiting: BTreeSet<(AgentRef, MessageId)>,
     /// A digest of each installed manifest.
@@ -43,6 +46,8 @@ pub enum Changed {
     Journal(u64),
     /// The breaker paused this session (`Control.BreakerTripped`).
     Breaker(SessionId),
+    /// A conversation's mode changed, whoever changed it (`Session.ModeChanged`).
+    Mode(SessionId, Mode),
     /// A message arrived for this agent (`Message.Arrived`).
     Arrived(AgentRef),
 }
@@ -88,6 +93,7 @@ pub fn marks_of<S: Seams>(router: &Router<S>) -> Marks {
             .filter(|(_, r)| matches!(r.state, SessionState::Paused { .. }))
             .map(|(id, _)| id.clone())
             .collect(),
+        modes: st.sessions.iter().map(|(id, r)| (id.clone(), r.mode)).collect(),
         waiting,
         manifests: st
             .registry
@@ -97,8 +103,8 @@ pub fn marks_of<S: Seams>(router: &Router<S>) -> Marks {
     }
 }
 
-/// What changed between two looks, in a fixed order: manifests, the journal, the breaker, then
-/// arrivals. A thing that was there before and is there still says nothing.
+/// What changed between two looks, in a fixed order: manifests, the journal, the breaker, modes,
+/// then arrivals. A thing that was there before and is there still says nothing.
 pub fn changes(before: &Marks, after: &Marks) -> Vec<Changed> {
     let apps: BTreeSet<&AppName> = before
         .manifests
@@ -114,6 +120,13 @@ pub fn changes(before: &Marks, after: &Marks) -> Vec<Changed> {
         .paused
         .difference(&before.paused)
         .map(|s| Changed::Breaker(s.clone()));
+    // A session that was there before and is in another mode now; a new one says its mode when
+    // it opens.
+    let moded = after
+        .modes
+        .iter()
+        .filter(|(id, mode)| before.modes.get(*id).is_some_and(|was| was != *mode))
+        .map(|(id, mode)| Changed::Mode(id.clone(), *mode));
     let agents: BTreeSet<&AgentRef> = after
         .waiting
         .difference(&before.waiting)
@@ -123,6 +136,7 @@ pub fn changes(before: &Marks, after: &Marks) -> Vec<Changed> {
     manifests
         .chain(journal)
         .chain(paused)
+        .chain(moded)
         .chain(arrived)
         .collect()
 }
@@ -145,6 +159,11 @@ pub async fn emit(connection: &BusConnection, change: &Changed) -> zbus::Result<
             "BreakerTripped",
             serde_json::Value::String(session.to_string()),
         ),
+        Changed::Mode(..) => (
+            "org.quire.Intents1.Session",
+            "ModeChanged",
+            serde_json::Value::Null,
+        ),
         Changed::Arrived(agent) => (
             "org.quire.Intents1.Message",
             "Arrived",
@@ -152,6 +171,17 @@ pub async fn emit(connection: &BusConnection, change: &Changed) -> zbus::Result<
         ),
     };
     let none = None::<zbus::names::BusName<'_>>;
+    if let Changed::Mode(session, mode) = change {
+        return connection
+            .emit_signal(
+                none,
+                INTENTS_PATH,
+                "org.quire.Intents1.Session",
+                "ModeChanged",
+                &(session.to_string(), mode.word()),
+            )
+            .await;
+    }
     match body {
         serde_json::Value::String(text) => {
             connection

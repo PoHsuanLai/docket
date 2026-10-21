@@ -44,6 +44,7 @@ fn refusal_of(error: zbus::Error) -> Result<WireRefusal, TransportError> {
         IntentsError::NotAllowed(_) => Ok(WireRefusal::NotAllowed),
         IntentsError::NoSuchSession(_) => Ok(WireRefusal::NoSuchSession),
         IntentsError::Malformed(_) => Ok(WireRefusal::Malformed),
+        IntentsError::Locked(_) => Ok(WireRefusal::Locked),
         IntentsError::ZBus(error) => Err(fault_of(error)),
         // An error this build does not know yet is the bus's, not a refusal of the request.
         _ => Err(TransportError::Bus(
@@ -311,6 +312,14 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
                 Ok(id) => Ok(IntentsReply::TurnRecorded(TurnId(id))),
                 Err(error) => refused(error),
             }
+        }
+        Q::SessionMode(ask) => {
+            let proxy = SessionProxy::new(c).await.map_err(bus)?;
+            nothing(
+                proxy
+                    .set_mode(ask.session.as_str(), ask.mode.word())
+                    .await,
+            )
         }
         Q::SessionClose { session } => {
             let proxy = SessionProxy::new(c).await.map_err(bus)?;

@@ -61,6 +61,8 @@ fn every_intents_member_is_declared() {
         "<method name=\"Read\">",
         "<method name=\"TaskPolicy\">",
         "<method name=\"TurnEnded\">",
+        "<method name=\"SetMode\">",
+        "<signal name=\"ModeChanged\">",
         "<method name=\"Widen\">",
         "<method name=\"Note\">",
         "<method name=\"Recall\">",

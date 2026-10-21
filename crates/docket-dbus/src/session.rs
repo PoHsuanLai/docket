@@ -2,6 +2,7 @@
 
 use porter_dbus::Details;
 use zbus::fdo;
+use zbus::object_server::SignalEmitter;
 use zbus::zvariant::OwnedObjectPath;
 
 /// The caller's side.
@@ -19,6 +20,14 @@ pub trait Session {
 
     /// Closes a session.
     fn close(&self, session: &str) -> zbus::Result<()>;
+
+    /// Switches a conversation between `auto` and `manual`, from the next step. Shell and
+    /// control roles only; refused with `Locked` when the administrator holds Manual.
+    fn set_mode(&self, session: &str, mode: &str) -> zbus::Result<()>;
+
+    /// A conversation's mode changed, whoever changed it.
+    #[zbus(signal)]
+    fn mode_changed(&self, session: &str, mode: &str) -> zbus::Result<()>;
 
     /// The host says the agent's turn is over (`TurnEnd` JSON for how it ended). Same roles as `Turn`.
     fn turn_ended(&self, session: &str, turn: u64, how: &str) -> zbus::Result<()>;
@@ -78,6 +87,15 @@ impl SessionSkeleton {
         let _ = (session,);
         Err(crate::introspect::frozen())
     }
+
+    fn set_mode(&self, session: String, mode: String) -> fdo::Result<()> {
+        let _ = (session, mode);
+        Err(crate::introspect::frozen())
+    }
+
+    #[zbus(signal)]
+    async fn mode_changed(emitter: &SignalEmitter<'_>, session: &str, mode: &str)
+    -> zbus::Result<()>;
 
     fn turn_ended(&self, session: String, turn: u64, how: String) -> fdo::Result<()> {
         let _ = (session, turn, how);

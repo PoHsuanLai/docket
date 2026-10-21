@@ -6,7 +6,7 @@ use docket_core::{
     ActionRef, ActivationToken, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, Displayed,
     EntityRef, GateAnswer, GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk,
     IntentsReply, IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Outcome, Preview,
-    Resolved, SearchAsk, SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnId, TurnIn,
+    Mode, Resolved, SearchAsk, SessionModeAsk, SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnId, TurnIn,
     UndoEntry, UndoId, UndoReport, UndoScope, ValidManifest, WidenAnswer, WidenAsk, WindowKey,
     WireRefusal,
 };
@@ -317,6 +317,17 @@ impl<T: Transport> Intents<T> {
     ) -> Result<TurnId, ClientError> {
         self.ask(IntentsRequest::SessionTurn { session, turn }, |r| match r {
             IntentsReply::TurnRecorded(id) => Some(id),
+            _ => None,
+        })
+        .await
+    }
+
+    /// Switches a conversation between Auto and Manual from the next step (the shell and the
+    /// control centre only; refused as `Locked` when the administrator holds Manual).
+    pub async fn session_mode(&self, session: SessionId, mode: Mode) -> Result<(), ClientError> {
+        let ask = SessionModeAsk { session, mode };
+        self.ask(IntentsRequest::SessionMode(ask), |r| match r {
+            IntentsReply::Done => Some(()),
             _ => None,
         })
         .await

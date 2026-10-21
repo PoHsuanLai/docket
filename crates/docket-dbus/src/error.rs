@@ -18,6 +18,8 @@ pub enum IntentsError {
     NoSuchSession(String),
     /// The request is malformed.
     Malformed(String),
+    /// The administrator holds every conversation in Manual, so the mode cannot be switched.
+    Locked(String),
 }
 
 impl IntentsError {
@@ -28,6 +30,7 @@ impl IntentsError {
             IntentsError::NotAllowed(_) => Some(WireRefusal::NotAllowed),
             IntentsError::NoSuchSession(_) => Some(WireRefusal::NoSuchSession),
             IntentsError::Malformed(_) => Some(WireRefusal::Malformed),
+            IntentsError::Locked(_) => Some(WireRefusal::Locked),
         }
     }
 
@@ -39,6 +42,7 @@ impl IntentsError {
             WireRefusal::NotAllowed => Some(IntentsError::NotAllowed(text)),
             WireRefusal::NoSuchSession => Some(IntentsError::NoSuchSession(text)),
             WireRefusal::Malformed => Some(IntentsError::Malformed(text)),
+            WireRefusal::Locked => Some(IntentsError::Locked(text)),
             WireRefusal::Call(_) | WireRefusal::Send(_) | WireRefusal::Read(_) => None,
         }
     }
@@ -56,6 +60,7 @@ mod tests {
             WireRefusal::NotAllowed,
             WireRefusal::NoSuchSession,
             WireRefusal::Malformed,
+            WireRefusal::Locked,
         ] {
             let error = IntentsError::from_refusal(&refusal).expect("an error");
             assert_eq!(error.refusal(), Some(refusal));
@@ -74,6 +79,7 @@ mod tests {
             IntentsError::NotAllowed(String::new()),
             IntentsError::NoSuchSession(String::new()),
             IntentsError::Malformed(String::new()),
+            IntentsError::Locked(String::new()),
         ]
         .iter()
         .map(|e| e.name().to_string())
@@ -83,7 +89,8 @@ mod tests {
             [
                 "org.quire.Intents1.Error.NotAllowed",
                 "org.quire.Intents1.Error.NoSuchSession",
-                "org.quire.Intents1.Error.Malformed"
+                "org.quire.Intents1.Error.Malformed",
+                "org.quire.Intents1.Error.Locked"
             ]
         );
     }
