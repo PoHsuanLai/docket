@@ -198,7 +198,8 @@ impl Setup {
         let callers = callers::read(env).map_err(|e| DaemonFault::Callers(e.to_string()))?;
         let data = data_dirs(env);
         let permissions = PolicyDirs {
-            data_dirs: data.clone(),
+            data_home: data[0].clone(),
+            system_data: data[1..].to_vec(),
             person: config_home(env).join("quire").join("permissions"),
             admin: PathBuf::from(ADMIN_DIR),
         };

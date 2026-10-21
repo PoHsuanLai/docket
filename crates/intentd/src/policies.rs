@@ -44,8 +44,10 @@ impl fmt::Display for PresetOrigin {
 /// The directories the policy files are read from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PolicyDirs {
-    /// The data directories, the person's first; each may hold `quire/permissions/<preset>`.
-    pub data_dirs: Vec<PathBuf>,
+    /// The person's data directory: a preset copied here is the person's own edit.
+    pub data_home: PathBuf,
+    /// The system data directories, in search order after the person's.
+    pub system_data: Vec<PathBuf>,
     /// The person's `quire/permissions` under the configuration directory.
     pub person: PathBuf,
     /// The administrator's directory.
@@ -53,11 +55,16 @@ pub struct PolicyDirs {
 }
 
 impl PolicyDirs {
-    /// The directories that may hold `preset`, in search order.
-    fn presets(&self, preset: Permissions) -> impl Iterator<Item = PathBuf> + '_ {
-        self.data_dirs
-            .iter()
-            .map(move |d| d.join("quire").join("permissions").join(preset.folder()))
+    /// The directories that may hold `preset`, in search order, each with whose it is.
+    fn presets(&self, preset: Permissions) -> impl Iterator<Item = (PathBuf, PresetOrigin)> + '_ {
+        let mine = std::iter::once((&self.data_home, PresetOrigin::EditedByYou));
+        let system = self.system_data.iter().map(|d| (d, PresetOrigin::System));
+        mine.chain(system).map(move |(d, origin)| {
+            (
+                d.join("quire").join("permissions").join(preset.folder()),
+                origin,
+            )
+        })
     }
 
     /// The assistant's directory, inside the person's.
@@ -68,15 +75,7 @@ impl PolicyDirs {
     /// The directory `preset` is read from, and whose it is: the first that holds a policy file.
     pub fn preset(&self, preset: Permissions) -> Option<(PathBuf, PresetOrigin)> {
         self.presets(preset)
-            .enumerate()
-            .find(|(_, d)| !cedar_files(d).is_empty())
-            .map(|(at, dir)| {
-                let origin = match at {
-                    0 => PresetOrigin::EditedByYou,
-                    _ => PresetOrigin::System,
-                };
-                (dir, origin)
-            })
+            .find(|(d, _)| !cedar_files(d).is_empty())
     }
 
     /// The preset directories that exist, for the watch.

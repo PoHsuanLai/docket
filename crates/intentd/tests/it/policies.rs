@@ -38,10 +38,8 @@ impl Scratch {
 
     fn dirs(&self) -> PolicyDirs {
         PolicyDirs {
-            data_dirs: vec![
-                self.mine.path().to_path_buf(),
-                self.system.path().to_path_buf(),
-            ],
+            data_home: self.mine.path().to_path_buf(),
+            system_data: vec![self.system.path().to_path_buf()],
             person: self.config.path().join("quire/permissions"),
             admin: self.admin.path().to_path_buf(),
         }
