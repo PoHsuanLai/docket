@@ -94,6 +94,7 @@ async fn a_turn_saves_a_point_and_the_person_restores_it_after_the_plan_and_the_
             started_from: None,
             external: None,
             helper: None,
+            acts_for: None,
         })
         .await
         .expect("Session.Open");

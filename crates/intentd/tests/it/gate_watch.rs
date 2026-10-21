@@ -123,6 +123,7 @@ impl Desk {
             started_from: None,
             external: None,
             helper: None,
+            acts_for: None,
         })
         .await
         .expect("cuad opens the session of its own run");

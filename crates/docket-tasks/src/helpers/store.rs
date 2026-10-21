@@ -80,6 +80,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 started_from: None,
                 external: None,
                 helper: None,
+                acts_for: None,
             })
             .await;
         let Ok(opened) = opened else {
@@ -136,6 +137,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                     started_from: None,
                     external: None,
                     helper: None,
+                    acts_for: None,
                 })
                 .await;
             let Ok(reading) = reading else {

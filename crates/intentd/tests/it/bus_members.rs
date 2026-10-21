@@ -205,6 +205,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         started_from: None,
         external: None,
         helper: None,
+        acts_for: None,
     };
     let IntentsReply::SessionOpened(opened) = pair.both(IntentsRequest::SessionOpen(open)).await
     else {

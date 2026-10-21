@@ -492,6 +492,7 @@ where
                     owns: Vec::new(),
                     place: SeatPlace::Conversation,
                 }),
+                acts_for: None,
             };
             match service.intents.session_open(open).await {
                 Ok(opened) => self.with_state(|state| {
@@ -970,6 +971,7 @@ where
                 started_from: None,
                 external: None,
                 helper: None,
+                acts_for: None,
             })
             .await;
         let Ok(opened) = opened else {

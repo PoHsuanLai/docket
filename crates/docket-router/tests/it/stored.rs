@@ -271,6 +271,7 @@ async fn an_editor_reads_a_helpers_conversation_the_companion_opened_but_not_a_j
             started_from: None,
             external: None,
             helper: Some(seat(place)),
+            acts_for: None,
         })
     };
     let IntentsReply::SessionOpened(talk) =

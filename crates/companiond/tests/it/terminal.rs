@@ -36,6 +36,7 @@ fn open_json() -> String {
         started_from: None,
         external: None,
         helper: None,
+        acts_for: None,
     })
     .expect("json")
 }

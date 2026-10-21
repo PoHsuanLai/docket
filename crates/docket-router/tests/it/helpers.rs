@@ -52,6 +52,7 @@ async fn open_job(
             started_from: None,
             external: None,
             helper: seat,
+            acts_for: None,
         }),
     )
     .await;

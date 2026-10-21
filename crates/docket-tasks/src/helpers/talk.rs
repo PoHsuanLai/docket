@@ -51,6 +51,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 started_from: None,
                 external: None,
                 helper: None,
+                acts_for: None,
             };
             let opened = SessionOpened {
                 session: talk.session.clone(),

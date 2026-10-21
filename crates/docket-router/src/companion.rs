@@ -275,6 +275,7 @@ impl<S: Seams> Router<S> {
                 started_from: None,
                 external: None,
                 helper: None,
+                acts_for: None,
             },
         );
         let IntentsReply::SessionOpened(SessionOpened {

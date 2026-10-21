@@ -120,6 +120,7 @@ impl World {
                     helper: None,
                 }),
                 helper: None,
+                acts_for: None,
             }),
         )
         .await;
@@ -372,6 +373,7 @@ async fn a_session_another_role_opened_is_not_an_agents_even_if_it_says_so() {
                     helper: None,
                 }),
                 helper: None,
+                acts_for: None,
             }),
         )
         .await;
@@ -403,6 +405,7 @@ async fn a_session_another_role_opened_is_not_an_agents_even_if_it_says_so() {
             started_from: None,
             external: None,
             helper: None,
+            acts_for: None,
         }),
     )
     .await;

@@ -83,6 +83,7 @@ async fn world() -> (Arc<Router<docket_fake::FakeSeams>>, SessionId, Vec<Handle>
                 started_from: None,
                 external: None,
                 helper: None,
+                acts_for: None,
             }),
         )
         .await;

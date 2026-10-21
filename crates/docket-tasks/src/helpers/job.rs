@@ -146,6 +146,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
                 owns: spec.job.owns.iter().cloned().collect(),
                 place: SeatPlace::Job,
             }),
+            acts_for: None,
         };
         let router = self
             .intents

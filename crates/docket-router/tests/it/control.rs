@@ -56,6 +56,7 @@ async fn run_session(router: &docket_router::Router<docket_fake::FakeSeams>, run
             started_from: None,
             external: None,
             helper: None,
+            acts_for: None,
         }),
     )
     .await;
@@ -347,6 +348,7 @@ async fn a_run_that_looked_at_a_screen_reports_with_the_screens_label() {
             started_from: None,
             external: None,
             helper: None,
+            acts_for: None,
         }),
     )
     .await;

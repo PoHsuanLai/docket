@@ -35,6 +35,7 @@ async fn session_of(desk: &Desk, app: &str, words: &str) -> SessionId {
                 started_from: None,
                 external: None,
                 helper: None,
+                acts_for: None,
             }),
         )
         .await;

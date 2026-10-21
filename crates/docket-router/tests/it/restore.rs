@@ -633,6 +633,7 @@ async fn a_helpers_conversation_keeps_its_seat_over_a_restart_and_is_not_made_tw
             started_from: None,
             external: None,
             helper: Some(seat.clone()),
+            acts_for: None,
         })
     };
     let first = world(&log, None);

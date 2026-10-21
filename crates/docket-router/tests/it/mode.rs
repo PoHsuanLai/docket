@@ -229,6 +229,7 @@ async fn a_child_takes_its_parents_mode_and_follows_its_changes() {
             started_from: None,
             external: None,
             helper: None,
+            acts_for: None,
         }),
     )
     .await;
@@ -282,6 +283,27 @@ async fn open_run(router: &Router, run: &RunId, parent: Option<prov::TaskId>) {
             started_from: None,
             external: None,
             helper: None,
+            acts_for: None,
+        }),
+    )
+    .await;
+    assert!(matches!(reply, IntentsReply::SessionOpened(_)), "{reply:?}");
+}
+
+/// Opens a run's session as `who`, naming the conversation it works for.
+async fn open_run_for(router: &Router, who: &CallerId, run: &RunId, conversation: &SessionId) {
+    let reply = ask(
+        router,
+        who,
+        IntentsRequest::SessionOpen(SessionOpen {
+            space: space("work"),
+            agent: AgentRef::Cua { run: run.clone() },
+            parent: None,
+            cwd: None,
+            started_from: None,
+            external: None,
+            helper: None,
+            acts_for: Some(conversation.clone()),
         }),
     )
     .await;
@@ -392,4 +414,43 @@ async fn a_row_the_floor_locks_asks_in_both_modes() {
     let front = ready_in(&router, None).await;
     let end = perform_in(&router, &front.session, archive("t1")).await;
     assert!(asked(&end), "Auto's inside row is locked to asks: {end:?}");
+}
+
+#[tokio::test]
+async fn a_run_follows_the_conversation_the_screen_daemon_names_and_nobody_else_may_name_one() {
+    let mut router = router();
+    let front = ready_in(&router, Some(Mode::Manual)).await;
+    let named = RunId::parse("r-1").expect("run");
+    let borrowed = RunId::parse("r-2").expect("run");
+    let cuad = caller("org.quire.Cuad", CallerRole::Cua);
+    open_run_for(&router, &cuad, &named, &front.session).await;
+    // The companion may open a run's session, but its word on the conversation is ignored.
+    open_run_for(&router, &companion(), &borrowed, &front.session).await;
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![yes()]);
+    let granted = ask(
+        &router,
+        &cuad,
+        IntentsRequest::GateGrant(GrantAsk {
+            app: mail_app(),
+            space: space("work"),
+            level: Default::default(),
+            run: None,
+        }),
+    )
+    .await;
+    assert_eq!(granted, IntentsReply::Granted(GrantAnswer::Granted));
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![]);
+    let step = gate(&router, &named, Effect::UndoableWrite).await;
+    assert!(
+        matches!(
+            step,
+            IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(_)))
+        ),
+        "the run works for a Manual conversation, so each change asks: {step:?}"
+    );
+    assert_eq!(
+        gate(&router, &borrowed, Effect::UndoableWrite).await,
+        IntentsReply::Gate(GateAnswer::Run),
+        "a conversation named by anyone but the screen daemon is ignored: the start mode, Auto"
+    );
 }

@@ -35,6 +35,7 @@ async fn open(router: &Router<docket_fake::FakeSeams>, agent: AgentRef) -> Sessi
                 started_from: None,
                 external: None,
                 helper: None,
+                acts_for: None,
             }),
         )
         .await;

@@ -132,12 +132,20 @@ impl<S: Seams> Router<S> {
             .helper
             .clone()
             .filter(|_| role == CallerRole::Companion);
+        // Only the computer-use daemon may say which conversation a run works for, and only for
+        // the run's own session: from anyone else it is ignored, so no session can borrow a looser
+        // conversation's mode.
+        let acts_for = open
+            .acts_for
+            .clone()
+            .filter(|_| role == CallerRole::Cua && matches!(open.agent, AgentRef::Cua { .. }));
         self.open_session(
             &caller.app.name,
             SessionOpen {
                 started_from,
                 external,
                 helper,
+                acts_for,
                 ..open
             },
         )
@@ -177,11 +185,21 @@ impl<S: Seams> Router<S> {
         // A session that works for a conversation (a worker, a helper's job, a screen run whose
         // opener named the task that started it) follows that conversation's mode; any other
         // starts in the person's start mode.
-        let parent_session = open.parent.as_ref().and_then(|p| {
-            st.sessions
-                .iter()
-                .find(|(_, r)| &r.task == p)
-                .map(|(id, _)| id.clone())
+        // A screen run names the conversation it works for itself (the daemon knows the session
+        // that started the run, not its task; `session_open` kept it only from that daemon). It
+        // must be a conversation the router holds, in the same Space.
+        let acts_for = open
+            .acts_for
+            .as_ref()
+            .filter(|c| st.sessions.get(*c).is_some_and(|r| r.space == open.space))
+            .cloned();
+        let parent_session = acts_for.or_else(|| {
+            open.parent.as_ref().and_then(|p| {
+                st.sessions
+                    .iter()
+                    .find(|(_, r)| &r.task == p)
+                    .map(|(id, _)| id.clone())
+            })
         });
         record.mode = match &parent_session {
             Some(id) => st.mode_of(id).unwrap_or_else(|| self.start_mode()),

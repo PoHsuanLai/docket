@@ -362,6 +362,7 @@ async fn a_session_is_restored_from_almanac_after_the_router_is_dropped() {
                 started_from: None,
                 external: None,
                 helper: None,
+                acts_for: None,
             }),
         )
         .await

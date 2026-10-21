@@ -38,6 +38,7 @@ async fn world() -> (Arc<Router<FakeSeams>>, SessionId, Handle) {
                 started_from: None,
                 external: None,
                 helper: None,
+                acts_for: None,
             }),
         )
         .await;
