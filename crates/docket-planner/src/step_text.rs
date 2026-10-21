@@ -243,7 +243,7 @@ fn held_text(held: Held) -> &'static str {
         Held::Refused => "you already called it with these arguments and it was refused",
         Held::Done => "you already made this call and it was done; it is not done twice",
         Held::Running => {
-            "your own on-screen run is still going, so another was not started; you are asked again when it reports back"
+            "your own on-screen run is still going, so another was not started; you wait for its report and are asked again when it comes"
         }
     }
 }

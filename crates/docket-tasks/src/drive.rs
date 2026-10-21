@@ -7,6 +7,7 @@ use crate::deadline::{bounded, timed};
 use crate::fault::ServeFault;
 use crate::handoff::chosen_agent;
 use crate::helpers::is_helper_action;
+use crate::one_run::loop_end;
 use crate::plan::phase_of;
 use crate::read::{COMPANION_APP, answer_read};
 use crate::runtime::Companion;
@@ -511,7 +512,8 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             None => StepEnd::Refused(CallRefusal::Timeout),
         };
         self.publish_answer(task);
-        LoopInput::CallEnded(id, end)
+        // A started on-screen run rests the loop: it is told held, the history keeps it done.
+        LoopInput::CallEnded(id, loop_end(&call.action, end))
     }
 
     /// `companion.task.start`: a call like any other (gated, budgeted, audited): the router opens

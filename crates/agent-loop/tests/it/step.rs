@@ -420,8 +420,23 @@ fn a_call_held_for_the_tasks_own_run_rests_the_turn_without_a_question_or_a_decl
     assert_eq!(e, [LoopEffect::Publish(AnswerPhase::Thinking)]);
     assert_eq!(s.guard.declined(), None);
     // Asked again, the same call is made, not held.
-    let (_, e) = run(s, vec![LoopInput::Messaged, planned(1)]);
+    let (_, e) = run(s.clone(), vec![LoopInput::Messaged, planned(1)]);
     assert!(e.iter().any(|x| matches!(x, LoopEffect::Call(_))));
+    // At rest it takes no turn of its own; the run's report gives it exactly one, and so does a
+    // message from the person.
+    let report = LoopInput::Completed(note(ReportStatus::Done, Attention::Starter));
+    let (woken, e) = agent_step(s.clone(), report);
+    assert_eq!(woken.phase, LoopPhase::Planning);
+    assert_eq!(
+        e.iter().filter(|x| **x == LoopEffect::AskPlanner).count(),
+        1
+    );
+    let (woken, e) = agent_step(s, LoopInput::Messaged);
+    assert_eq!(woken.phase, LoopPhase::Planning);
+    assert_eq!(
+        e.iter().filter(|x| **x == LoopEffect::AskPlanner).count(),
+        1
+    );
 }
 
 #[test]

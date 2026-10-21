@@ -14,10 +14,15 @@
 //! made, the history says the task's own run is still going (`Held::Running`), and the turn rests
 //! until that run reports. The report of a run the task started wakes it (`RunEnd::Ours`): the
 //! planner is asked again, whatever the run came to.
+//!
+//! A start that was done rests the turn the same way, at once (`loop_end`): the history keeps it
+//! as done, but the loop is told the call ended held as running, so the planner makes no other
+//! call while the run drives the screen (each would raise a sheet over the run's own window). The
+//! task is asked again when the run reports, or when the person sends it a message.
 
 use crate::task::TaskRuntime;
 use agent_loop::CompletionNote;
-use docket_core::{ActionRef, InboundLine, StepEnd};
+use docket_core::{ActionRef, Held, InboundLine, StepEnd};
 use prov::{AgentRef, MessageKind, ReportStatus};
 
 /// The app whose runs are on screen.
@@ -47,6 +52,16 @@ fn starts_screen_run(action: &ActionRef) -> bool {
 fn ends_run(line: &InboundLine) -> bool {
     matches!(line.from.agent, AgentRef::Cua { .. })
         && matches!(line.kind, MessageKind::Report { status } if status != ReportStatus::Progress)
+}
+
+/// How a call that ended with `end` is told to the loop: a start of a run that was done leaves
+/// the task resting until the run reports, so it reaches the loop as held running; every other
+/// end is told as it is. The history keeps the end as it was.
+pub(crate) fn loop_end(action: &ActionRef, end: StepEnd) -> StepEnd {
+    match end {
+        StepEnd::Done { .. } if starts_screen_run(action) => StepEnd::Held(Held::Running),
+        other => other,
+    }
 }
 
 impl TaskRuntime {
@@ -190,6 +205,35 @@ mod tests {
             other.note_message(&report(ReportStatus::Done, cua())),
             RunEnd::Others
         );
+    }
+
+    #[test]
+    fn a_started_run_rests_the_loop_and_nothing_else_does() {
+        let other = action("org.quire.Mail", "mail.thread.archive");
+        let table = [
+            (
+                "a start done",
+                start(),
+                done(),
+                StepEnd::Held(Held::Running),
+            ),
+            (
+                "a start that did not run",
+                start(),
+                StepEnd::Interrupted,
+                StepEnd::Interrupted,
+            ),
+            ("another action done", other, done(), done()),
+            (
+                "another action of the app",
+                action(CUA_APP, "cua.run.stop"),
+                done(),
+                done(),
+            ),
+        ];
+        for (name, action, end, want) in table {
+            assert_eq!(loop_end(&action, end), want, "case {name}");
+        }
     }
 
     #[test]
