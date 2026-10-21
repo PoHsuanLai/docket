@@ -292,6 +292,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             sources.summary = Some(summary);
         }
         let view = assemble(&self.config.assembler, &sources);
+        self.offer_choices(&view).await;
         let asked = bounded(
             &*self.shared,
             &self.clock,

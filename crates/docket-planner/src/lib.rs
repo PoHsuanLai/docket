@@ -4,7 +4,8 @@
 //! `InProcess` elsewhere). Nothing here reaches a bus or a runtime.
 //!
 //! - `PlannerModel`: the planner; `converse` turns a view into one `PlannerReply`.
-//! - `Catalogue`: the actions it may call, as tools.
+//! - `Catalogue`: the actions it may call, as tools; `ParamChoices`: the options an app offered for
+//!   a dynamic parameter, which the schema lists.
 //! - `messages`, `system_text`, `user_text`, `RULES`: the prompt; `RoleText`: an agent's own
 //!   instructions, which follow the rules and never replace them.
 //! - `PlannerModel::summarise`: the model turn that writes a summary of a task's oldest steps, from
@@ -16,6 +17,7 @@ mod accepts;
 mod args;
 mod busy_text;
 mod catalogue;
+mod choices;
 mod context_text;
 mod known;
 mod plain;
@@ -34,6 +36,7 @@ mod want;
 
 pub use args::{ArgsFault, ReadCall, planner_label, read_call};
 pub use catalogue::{Catalogue, CatalogueTool, TARGET};
+pub use choices::ParamChoices;
 pub use planner::{
     PlanFault, PlannerModel, PlannerReply, TOOL_ANSWER, TOOL_ASK, TOOL_FINISH, TOOL_READ,
     TOOL_RELATED,

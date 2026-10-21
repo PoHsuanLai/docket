@@ -9,6 +9,7 @@
 
 use crate::args::{ArgsFault, read_call};
 use crate::catalogue::Catalogue;
+use crate::choices::ParamChoices;
 use crate::known::known_values;
 use crate::plain::without_ids;
 use crate::read_ask::read_output;
@@ -20,8 +21,8 @@ use crate::want::want_schema;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
 use companion_wire::{RouteLog, RouteNote};
 use docket_core::{
-    ActionCard, Args, CallRequest, Handle, HandleShape, OneOf, Origin, ParamName, PlannerView,
-    RELATION_ARG, ReplyFault, TargetValue, Value, Why,
+    ActionCard, ActionRef, Args, CallRequest, Handle, HandleShape, OneOf, Origin, ParamName,
+    PlannerView, RELATION_ARG, ReplyFault, TargetValue, Value, Why,
 };
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;
@@ -153,6 +154,7 @@ pub struct PlannerReply {
 pub struct PlannerModel<P: Transport> {
     infer: P,
     catalogue: Catalogue,
+    choices: Vec<ParamChoices>,
     pub(crate) role: Option<RoleText>,
     pub(crate) tier: Tier,
     options: OpenOptions,
@@ -298,6 +300,7 @@ impl<P: Transport> PlannerModel<P> {
         Self {
             infer,
             catalogue: Catalogue::default(),
+            choices: Vec::new(),
             role: None,
             tier: Tier::Balanced,
             options: OpenOptions::default(),
@@ -357,6 +360,22 @@ impl<P: Transport> PlannerModel<P> {
         self.catalogue = catalogue;
     }
 
+    /// The options apps offered for their dynamic parameters, as of now: the schema lists them
+    /// until they are replaced. The caller asks the router; this crate reaches no bus.
+    pub fn set_choices(&mut self, choices: Vec<ParamChoices>) {
+        self.choices = choices;
+    }
+
+    /// What this turn lists for `action`'s parameters: the view's known values, then the
+    /// options its app offered.
+    fn listed(&self, action: &ActionRef, view: &PlannerView) -> Vec<OneOf> {
+        let offered = self.choices.iter().filter(|c| c.is_of(action));
+        known_values(action, view)
+            .into_iter()
+            .chain(offered.map(ParamChoices::one_of))
+            .collect()
+    }
+
     /// The actions offered.
     pub fn catalogue(&self) -> &Catalogue {
         &self.catalogue
@@ -370,7 +389,7 @@ impl<P: Transport> PlannerModel<P> {
             .filter(|card| card.related.is_empty())
             .filter_map(|card| self.catalogue.of(&card.action))
             .filter_map(|tool| {
-                tool.declaration_for(&view.handles, &known_values(&tool.action(), view))
+                tool.declaration_for(&view.handles, &self.listed(&tool.action(), view))
             })
             .chain(meta_tools(&view.actions))
             .collect()

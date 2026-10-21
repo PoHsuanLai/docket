@@ -110,7 +110,7 @@ fn entity_or_handle(kind: &str) -> Json {
 }
 
 /// The most handles of one kind a target's schema lists as its only choices.
-const ENUM_LIMIT: usize = 32;
+pub(crate) const ENUM_LIMIT: usize = 32;
 
 /// The numbers of the handles in `held` that hold a thing of `kind`, in order.
 fn numbers_of(kind: &str, held: &[HandleCard]) -> Vec<u64> {
