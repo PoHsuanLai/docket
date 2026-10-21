@@ -126,6 +126,7 @@ impl RouterState {
         role: CallerRole,
         named: Option<&SessionId>,
         now: prov::UnixSeconds,
+        start: docket_core::Mode,
     ) -> Result<Who, WireRefusal> {
         let app = caller.app.name.clone();
         let (actor, voice) = match role {
@@ -212,8 +213,10 @@ impl RouterState {
                 let session =
                     SessionId::parse(&format!("s-{n}")).map_err(|_| WireRefusal::Malformed)?;
                 let task = TaskId::parse(&format!("t-{n}")).map_err(|_| WireRefusal::Malformed)?;
-                let record =
+                let mut record =
                     SessionRecord::new(task, actor.clone(), app, prov::SpaceId::desktop(), now);
+                // A program that opened no session acts in one that starts in the start mode.
+                record.mode = start;
                 self.sessions.insert(session.clone(), record);
                 self.implicit.insert(key, session.clone());
                 session

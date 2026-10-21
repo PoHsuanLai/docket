@@ -26,7 +26,7 @@ use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
 use docket_core::{
     ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
     CallRequest, CallerRole, Classification, Cost, DenyCode, Depth, Impact, Lasting, LimitCall,
-    Limited, Reviewed, Ruling, SpaceAccess, WindowKey, is_agent_action, space_access,
+    Limited, Mode, ModeRows, Reviewed, Ruling, SpaceAccess, WindowKey, is_agent_action, space_access,
 };
 use policy_point::{
     ActionFacts, BudgetFact, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
@@ -82,6 +82,8 @@ struct Facts<'a> {
     run: &'a RunFacts,
     repeat: RepeatState,
     taint: TaintFact,
+    mode: Mode,
+    rows: ModeRows,
 }
 
 impl<S: Seams> Router<S> {
@@ -138,6 +140,8 @@ impl<S: Seams> Router<S> {
                 limit: f.run.limit,
                 taint: f.taint,
                 run: policy_point::RunFact::NotAsked,
+                mode: f.mode,
+                rows: f.rows,
             },
         }
     }
@@ -298,13 +302,9 @@ impl<S: Seams> Router<S> {
             None => consent,
         };
         let cover = coverage(record.policy.as_ref(), &decl, &request, &labels, now);
-        // The administrator's floor caps how loose any Space may be set.
-        let permissions = self.floor.clamp_permissions(
-            st.permissions
-                .get(&space)
-                .copied()
-                .unwrap_or(self.agent_config().permissions),
-        );
+        // The conversation's mode, read afresh for every call, so a switch applies from the next
+        // step; the administrator's floor holds it, and locks rows to "asks".
+        let (mode, rows) = self.mode_in_force(st, who.session.as_ref());
         let impact = impact_of(&decl, count, self.agent_config().mass_at);
         // Everything stateful is gathered here and ruled on by Cedar: the kill switch, the budgets,
         // the breaker, the limits (the person's, the assistant's and the floor's) and the taint.
@@ -341,7 +341,7 @@ impl<S: Seams> Router<S> {
         let repeat = repeated(&record.breaker, &goal, digest);
         let presets = self.presets();
         let ruled = presets
-            .pick(permissions)
+            .pdp()
             .decide_checked(&self.policy_request(&Facts {
                 who,
                 decl: &decl,
@@ -355,6 +355,8 @@ impl<S: Seams> Router<S> {
                 run: &run,
                 repeat,
                 taint,
+                mode,
+                rows,
             }));
         crate::policylog::log_faults(&ruled, &record.task);
         let ruling = ruled.ruling;
@@ -406,7 +408,7 @@ impl<S: Seams> Router<S> {
             space: space.clone(),
             review: Some(ReviewRequest {
                 space,
-                strictness: permissions.strictness(),
+                strictness: mode.strictness(),
                 turns: record.turns.clone(),
                 proposed: proposed(&decl, &request, &targets),
                 labels,

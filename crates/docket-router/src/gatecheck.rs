@@ -243,10 +243,10 @@ impl<S: Seams> Router<S> {
         }
         let decided = {
             let st = self.locked();
-            let Some(record) = st
+            let Some((run_session, record)) = st
                 .sessions
-                .values()
-                .find(|r| matches!(&r.actor, Actor::Companion { role: AgentRole::Cua { run }, .. } if *run == ask.run))
+                .iter()
+                .find(|(_, r)| matches!(&r.actor, Actor::Companion { role: AgentRole::Cua { run }, .. } if *run == ask.run))
             else {
                 return IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Halted(SpaceScope::Any)));
             };
@@ -269,12 +269,9 @@ impl<S: Seams> Router<S> {
                 })
                 .max_by_key(|v| matches!(v, Verdict::Denied))
                 .unwrap_or(Verdict::Ask);
-            let permissions = self.floor.clamp_permissions(
-                st.permissions
-                    .get(&ask.space)
-                    .copied()
-                    .unwrap_or(self.agent_config().permissions),
-            );
+            // The run takes the mode of the conversation that started it (the session its opener
+            // named); a run the router cannot link starts in the start mode.
+            let (mode, rows) = self.mode_in_force(&st, Some(run_session));
             // The person said yes to this run: at its start sheet, or earlier with a standing
             // grant for the app. Its steps then read the screen without a question of their own.
             let allowed = if record.screen_apps.contains(&ask.app)
@@ -349,9 +346,11 @@ impl<S: Seams> Router<S> {
                 limit: run.limit,
                 taint,
                 run: allowed,
+                mode,
+                rows,
             };
             let presets = self.presets();
-            let ruled = presets.pick(permissions).decide_checked(&PolicyRequest {
+            let ruled = presets.pdp().decide_checked(&PolicyRequest {
                 principal: PrincipalFacts {
                     kind: record.actor.kind(),
                     caller: ask.app.clone(),

@@ -280,6 +280,7 @@ impl<S: Seams> Router<S> {
         let IntentsReply::SessionOpened(SessionOpened {
             task,
             session: worker_session,
+            ..
         }) = opened
         else {
             return Err(failed("the task could not be opened"));

@@ -11,7 +11,7 @@ use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
     CallFacts, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState,
-    KillSwitch, Ledger, Permissions, Rewind, SessionSaw, StepLine, TaskPolicy, UserTurn,
+    KillSwitch, Ledger, Mode, Rewind, SessionSaw, StepLine, TaskPolicy, UserTurn,
 };
 use porter_core::{AppName, Count};
 use prov::{
@@ -42,6 +42,12 @@ pub struct SessionRecord {
     pub handles: HandleTable,
     /// The task it runs.
     pub task: TaskId,
+    /// How its changes are handled: Auto or Manual. The person (the shell) switches it; a child
+    /// session follows its parent's through [`RouterState::mode_of`].
+    pub mode: Mode,
+    /// The conversation this session works for, whose mode it follows: a worker, a helper job or
+    /// a screen run takes the mode of the session that started it. None for a conversation.
+    pub parent: Option<SessionId>,
     /// Who acts in it, as calls and the undo journal name them.
     pub actor: Actor,
     /// The app that opened it.
@@ -116,6 +122,8 @@ impl SessionRecord {
             state: SessionState::Open(crate::session::Taint::Clean),
             handles: HandleTable::new(),
             task,
+            mode: Mode::Auto,
+            parent: None,
             actor,
             opener,
             space,
@@ -187,8 +195,6 @@ pub struct RouterState {
     pub index: BTreeMap<AppName, IndexState>,
     /// The entries each app pushed.
     pub shadow: BTreeMap<AppName, BTreeMap<(EntityKind, EntityKey), IndexEntry>>,
-    /// Which preset rules each Space; a Space not listed uses the configured default.
-    pub permissions: BTreeMap<SpaceId, Permissions>,
     /// The session an app or MCP client that opened none acts in.
     pub implicit: BTreeMap<(CallerRole, AppName), SessionId>,
     /// Messages for a party with no session of its own (the person), by address.
@@ -225,7 +231,6 @@ impl RouterState {
             },
             index: BTreeMap::new(),
             shadow: BTreeMap::new(),
-            permissions: BTreeMap::new(),
             implicit: BTreeMap::new(),
             inboxes: BTreeMap::new(),
             pending: BTreeMap::new(),

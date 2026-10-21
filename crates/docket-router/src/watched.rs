@@ -139,6 +139,7 @@ impl<S: Seams> Router<S> {
         let opener = caller.app.name.clone();
         let mut record =
             SessionRecord::new(task.clone(), Actor::Cli, opener.clone(), space.clone(), now);
+        record.mode = self.start_mode();
         record.kind = SessionKind::Watch(rewind);
         record.cwd = Some(workspace.clone());
         let label = label_text(label);

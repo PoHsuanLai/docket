@@ -4,15 +4,14 @@
 //! person adds to it, the assistant and the administrator may only add rules that ask or refuse.
 //! Reading files is the caller's: this crate is pure and takes the text.
 
-use crate::pdp::{CORE_POLICIES, preset_text};
-use docket_core::Permissions;
+use crate::pdp::{CORE_POLICIES, PRESET};
 use std::fmt;
 use std::path::PathBuf;
 
 /// One layer of the policy set, in loading order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Layer {
-    /// The safety invariants that hold in every preset (compiled in).
+    /// The safety invariants that hold in every mode (compiled in).
     Core,
     /// The grid: which calls are final, judged or asked.
     Preset,
@@ -80,12 +79,8 @@ impl PolicySource {
     }
 
     /// The compiled-in preset: what stands in for a preset that is missing or bad.
-    pub fn preset(preset: Permissions) -> Self {
-        let name = match preset {
-            Permissions::Auto => "Auto preset",
-            Permissions::Manual => "Manual preset",
-        };
-        Self::built_in(Layer::Preset, name, preset_text(preset))
+    pub fn preset() -> Self {
+        Self::built_in(Layer::Preset, "preset", PRESET)
     }
 
     /// A file's text.

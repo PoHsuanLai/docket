@@ -1,8 +1,8 @@
-// The core policy set: the safety invariants that hold in every preset and that no later layer
+// The core policy set: the safety invariants that hold in every mode and that no later layer
 // (preset, person, assistant, administrator) may lift. It is compiled in. Cedar is default-deny
 // and forbid overrides permit, so a rule here cannot be undone by a permit written anywhere else.
 // Three queries run per call (see quire.cedarschema); the grid that says how far each cell gets
-// is the preset's (`presets/auto/grid.cedar`, `presets/manual/grid.cedar`).
+// is the preset's (`presets/default/grid.cedar`, keyed on `context.rows`).
 
 // ---- Forbids that refuse (Deny) ----------------------------------------------------------
 

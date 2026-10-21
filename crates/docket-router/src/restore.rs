@@ -89,6 +89,14 @@ impl<S: Seams> Router<S> {
         let now = self.seams.clock().now();
         let mut rebuilt = rebuild(id, &plan, now);
         rebuilt.record.checkpoints = crate::checkpoint_turn::notes_of(&rows);
+        // The last mode a turn named stands; a log that names none starts in the start mode.
+        rebuilt.record.mode = self.floor.clamp_mode(
+            plan.turns
+                .iter()
+                .rev()
+                .find_map(|turn| turn.mode)
+                .unwrap_or_else(|| self.agent_config().start_mode),
+        );
         let next = rows.last().map_or(Seq(0), |r| r.seq.next());
         let restored = Restored {
             standing: plan.standing.clone(),
@@ -194,6 +202,7 @@ pub(crate) fn named_session(request: &IntentsRequest) -> Option<&SessionId> {
         | R::CheckpointPlan { session, .. }
         | R::CheckpointHandover { session, .. }
         | R::MessageSend { session, .. } => Some(session),
+        R::SessionMode(ask) => Some(&ask.session),
         R::Manifests
         | R::IndexPush(_)
         | R::IndexReset { .. }

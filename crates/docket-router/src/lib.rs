@@ -65,6 +65,7 @@ mod labels;
 mod limits;
 mod messages;
 mod messaging;
+mod mode;
 mod notes;
 mod opening;
 mod owned;

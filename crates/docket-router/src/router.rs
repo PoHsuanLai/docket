@@ -25,8 +25,8 @@ pub struct Router<S: Seams> {
     /// The administrator's floor, read once at start by the daemon: `Floor::none()` unless it
     /// sets one. Agents only; the person's own launcher acts never meet it.
     pub floor: Floor,
-    /// The policy points, one per preset, swapped whole when the policy files change
-    /// (`set_presets`): a call in flight keeps the sets it started with.
+    /// The policy point, swapped whole when the policy files change (`set_presets`): a call in
+    /// flight keeps the set it started with.
     presets: RwLock<Arc<Presets>>,
     /// What it mutates.
     pub state: Mutex<RouterState>,
@@ -150,7 +150,7 @@ impl<S: Seams> Router<S> {
                     return IntentsReply::Refused(why);
                 }
                 let now = self.seams.clock().now();
-                let who = self.locked().who_for(caller, role, session.as_ref(), now);
+                let who = self.locked().who_for(caller, role, session.as_ref(), now, self.start_mode());
                 // Only the launcher's token means anything: it is the person's own click.
                 let activation = activation.filter(|_| role == CallerRole::Launcher);
                 match who {
@@ -168,7 +168,7 @@ impl<S: Seams> Router<S> {
                     return IntentsReply::Refused(why);
                 }
                 let now = self.seams.clock().now();
-                let who = self.locked().who_for(caller, role, session.as_ref(), now);
+                let who = self.locked().who_for(caller, role, session.as_ref(), now, self.start_mode());
                 match who {
                     Ok(who) => self.run_dry(who, call).await,
                     Err(why) => IntentsReply::Refused(why),
@@ -183,7 +183,7 @@ impl<S: Seams> Router<S> {
                 let session = match role {
                     CallerRole::Cli => {
                         let now = self.seams.clock().now();
-                        match self.locked().who_for(caller, role, None, now) {
+                        match self.locked().who_for(caller, role, None, now, self.start_mode()) {
                             Ok(who) => who.session.unwrap_or(session),
                             Err(why) => return IntentsReply::Refused(why),
                         }
@@ -208,6 +208,7 @@ impl<S: Seams> Router<S> {
                     Err(why) => IntentsReply::Refused(why),
                 }
             }
+            R::SessionMode(ask) => self.session_mode(ask),
             R::SessionClose { session } => self.session_close(caller, role, &session),
             R::SessionTurnEnded { session, turn, .. } => {
                 self.session_turn_ended(caller, role, &session, turn)

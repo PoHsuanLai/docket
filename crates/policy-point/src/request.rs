@@ -228,6 +228,10 @@ pub struct PolicyContext {
     pub taint: TaintFact,
     /// Whether the person allowed the screen run this step belongs to.
     pub run: RunFact,
+    /// The mode of the conversation the call belongs to.
+    pub mode: docket_core::Mode,
+    /// What that mode does without asking, from the settings and the administrator's floor.
+    pub rows: docket_core::ModeRows,
 }
 
 /// One question for the policy point.

@@ -22,10 +22,10 @@ pub fn reload<S: Seams>(router: &Router<S>, dirs: &PolicyDirs) {
             for rejected in &loaded.skipped {
                 eprintln!("intentd: skipped policy {rejected}");
             }
-            eprintln!(
-                "intentd: permissions: Auto {}, Manual {}",
-                loaded.auto, loaded.manual
-            );
+            eprintln!("intentd: permissions: {}", loaded.preset);
+            for dir in &loaded.unused {
+                eprintln!("intentd: unused policy folder {}", dir.display());
+            }
             router.set_presets(loaded.presets);
         }
         Err(why) => eprintln!("intentd: policies not reloaded, the set in force stays: {why}"),

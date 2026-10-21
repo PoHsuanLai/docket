@@ -37,6 +37,9 @@ fn roles(member: Member) -> &'static [CallerRole] {
         // records turns), never `Mcp`. Safe: it can only end the running-turn window; a restore
         // still needs the person's confirmation on the sheet.
         Member::SessionTurnEnded => &[Launcher, Field, Editor, Cli, AcpAgent],
+        // The mode of a conversation is the person's: the shell and the control centre switch it.
+        // No agent, run, outside program or terminal can, so the assistant never changes its own.
+        Member::SessionMode => &[Launcher, Control],
         Member::SessionResolve => &[Reader],
         // Text for the screen, never for a model.
         Member::SessionDisplay | Member::SessionDisplayLabelled => &[Launcher, Field],

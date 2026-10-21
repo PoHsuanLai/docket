@@ -174,6 +174,20 @@ impl<S: Seams> Router<S> {
         };
         let mut record =
             SessionRecord::new(task.clone(), actor, opener.clone(), open.space.clone(), now);
+        // A session that works for a conversation (a worker, a helper's job, a screen run whose
+        // opener named the task that started it) follows that conversation's mode; any other
+        // starts in the person's start mode.
+        let parent_session = open.parent.as_ref().and_then(|p| {
+            st.sessions
+                .iter()
+                .find(|(_, r)| &r.task == p)
+                .map(|(id, _)| id.clone())
+        });
+        record.mode = match &parent_session {
+            Some(id) => st.mode_of(id).unwrap_or_else(|| self.start_mode()),
+            None => self.start_mode(),
+        };
+        record.parent = parent_session;
         record.external = open.external.clone();
         record.cwd = open.cwd.clone();
         let parent_episode = open
@@ -226,6 +240,7 @@ impl<S: Seams> Router<S> {
         if let Some(policy) = &record.policy {
             record.wal.note(SessionEntry::Policy(policy.clone()));
         }
+        let mode = record.mode;
         st.sessions.insert(session.clone(), record);
         st.tasks.insert(TaskRecord {
             task: task.clone(),
@@ -248,7 +263,11 @@ impl<S: Seams> Router<S> {
                 results: vec![],
             },
         });
-        IntentsReply::SessionOpened(SessionOpened { session, task })
+        IntentsReply::SessionOpened(SessionOpened {
+            session,
+            task,
+            mode,
+        })
     }
 
     /// `.Session.Close`: the task ends and leaves its skeleton.
@@ -317,12 +336,22 @@ impl<S: Seams> Router<S> {
             return Err(WireRefusal::NotAllowed);
         }
         let from = turn_source(role, caller);
+        // The mode travels with the turn, but only the shell can say it: the same words from an
+        // editor, a terminal or an agent's host change nothing.
+        let mode = turn
+            .mode
+            .filter(|_| role == CallerRole::Launcher)
+            .map(|wanted| self.floor.clamp_mode(wanted));
+        if let Some(mode) = mode {
+            record.mode = mode;
+        }
         let recorded = UserTurn {
             id: TurnId(number),
             text: turn.text,
             at: now,
             from,
             via: turn.via,
+            mode,
         };
         record.apply(SessionEvent::UserTurn);
         // A new turn ends the one-use yeses of the last.

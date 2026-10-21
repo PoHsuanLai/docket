@@ -24,6 +24,17 @@ namespace Quire {
     path: String,
   };
 
+  // What the conversation's mode does without asking, one word per row of Settings:
+  // inside "runs"|"asks", other "check"|"asks", send "asks"|"runs", delete "asks"|"runs",
+  // screen "once"|"each".
+  type Rows = {
+    inside: String,
+    other: String,
+    send: String,
+    delete: String,
+    screen: String,
+  };
+
   type Ctx = {
     // The session's Space, by its id.
     space: String,
@@ -69,6 +80,9 @@ namespace Quire {
     // "allowed" when the person said yes to the screen run this step belongs to (the start sheet
     // or a standing grant for the app), else "not_asked".
     run: String,
+    // The conversation's mode: "auto" or "manual".
+    mode: String,
+    rows: Rows,
   };
 
   action "perform" appliesTo { principal: [Caller], resource: [Act], context: Ctx };

@@ -320,11 +320,11 @@ pub async fn start(
     for rejected in &loaded.skipped {
         eprintln!("intentd: skipped policy {rejected}");
     }
-    // The Settings page has no read-only row, so where each preset came from is said here.
-    eprintln!(
-        "intentd: permissions: Auto {}, Manual {}",
-        loaded.auto, loaded.manual
-    );
+    // The Settings page has no read-only row, so where the preset came from is said here.
+    eprintln!("intentd: permissions: {}", loaded.preset);
+    for dir in &loaded.unused {
+        eprintln!("intentd: unused policy folder {}", dir.display());
+    }
     let mut router = Router::new(seams, config.agent, loaded.presets);
     router.floor = floor;
     // The person's settings over intentd.toml's proposed values, now and whenever the file changes.

@@ -48,6 +48,7 @@ impl<S: Seams> Router<S> {
             kept.then(|| SessionOpened {
                 session: id.clone(),
                 task: record.task.clone(),
+                mode: record.mode,
             })
         })
     }
@@ -63,8 +64,16 @@ impl<S: Seams> Router<S> {
                 continue;
             };
             if matches!(restored.standing, Standing::Open | Standing::Paused(_)) {
-                let task = self.locked().sessions.get(&id)?.task.clone();
-                return Some(SessionOpened { session: id, task });
+                let (task, mode) = {
+                    let st = self.locked();
+                    let record = st.sessions.get(&id)?;
+                    (record.task.clone(), record.mode)
+                };
+                return Some(SessionOpened {
+                    session: id,
+                    task,
+                    mode,
+                });
             }
         }
         None

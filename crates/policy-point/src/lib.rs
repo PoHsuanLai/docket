@@ -20,7 +20,7 @@ mod request;
 pub use fault::{EvalFault, FaultCause, Ruled};
 pub use layered::{LayerError, Layered};
 pub use layers::{Layer, PolicyOrigin, PolicySource, Rejected};
-pub use pdp::{AUTO_PRESET, CORE_POLICIES, MANUAL_PRESET, Pdp, PolicyError, SCHEMA, preset_text};
+pub use pdp::{CORE_POLICIES, PRESET, Pdp, PolicyError, SCHEMA};
 pub use presets::Presets;
 pub use request::{
     ActionFacts, BudgetFact, CoverageState, GrantState, HaltFact, LimitFact, Op, PolicyContext,

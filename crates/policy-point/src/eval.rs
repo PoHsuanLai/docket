@@ -72,6 +72,14 @@ fn context_json(c: &PolicyContext) -> Value {
         "limit": slug(&c.limit),
         "taint": slug(&c.taint),
         "run": slug(&c.run),
+        "mode": c.mode.word(),
+        "rows": {
+            "inside": c.rows.inside.word(),
+            "other": c.rows.other.word(),
+            "send": c.rows.send.word(),
+            "delete": c.rows.delete.word(),
+            "screen": c.rows.screen.word(),
+        },
     })
 }
 

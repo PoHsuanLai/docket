@@ -1,21 +1,31 @@
-// The Auto preset (the default): the person allowed things once and it gets on with them. Cedar is
-// default-deny and forbid overrides permit. Three queries run per call (see quire.cedarschema):
-// `perform` not permitted is Deny, `perform_unasked` not permitted is Ask, `perform_unjudged` not
-// permitted is AllowJudged, all permitted is AllowFinal.
+// The permissions grid, one for both modes. A conversation is in Auto or Manual, and Settings
+// holds five rows for each mode (`agent.auto.*`, `agent.manual.*`). The router resolves the rows
+// of the call's mode and hands them to Cedar as `context.rows`; this grid permits on them, so
+// there is one set of rules and the rows pick the rules that apply. `context.mode` is there for
+// a person's own rule that should hold in one mode only.
+//
+// Cedar is default-deny and forbid overrides permit. Three queries run per call (see
+// quire.cedarschema): `perform` not permitted is Deny, `perform_unasked` not permitted is Ask,
+// `perform_unjudged` not permitted is AllowJudged, all permitted is AllowFinal. A row that
+// "asks" is the absence of a permit; "check" permits `perform_unasked` only, so a reviewer
+// judges the call; "runs" permits both.
 //
 // Layout: the permit rules say how far each cell gets (every permit names the strictest query it
-// satisfies); the forbid rules below ask. The invariants that refuse or hold in every preset
+// satisfies); the forbid rules below ask. The invariants that refuse or hold in every mode
 // (Rule of Two, untrusted sinks, hidden actions, denied consent, lasting memory, limits) are
-// `core.cedar`'s; no task policy and no reviewer can lift them. "T" below means the planner and
+// `core.cedar`'s; no row, task policy or reviewer can lift them. "T" below means the planner and
 // every sink argument are trusted; "In" means the call is inside the task policy.
 //
-//   Effect / condition                                   Auto
-//   Read                                                 final, with no question
-//   Undoable write, T, In                                final
-//   Undoable write, otherwise                            judged (a reviewer may tighten)
-//   Undoable write, a step of a screen run the person allowed   final
-//   Outbound, any                                        ask
-//   Destructive, any                                     ask
+//   Effect / condition                       Row                        Result
+//   Read                                     (none)                     final, with no question
+//   Undoable write, T, In                    inside = runs              final
+//   Undoable write, anything else            other = check              judged (a reviewer may tighten)
+//   Undoable write, a step of a screen run
+//     the person allowed                     screen = once              final
+//   Outbound, T recipient and planner        send = runs                final
+//   Destructive, T path and planner          delete = runs              final
+//   Any change in a screen run               screen = each              ask
+//   Any other cell                           (a row that asks)          ask
 //
 // The assistant's own bookkeeping (the Companion and Memory apps) never asks for a first use.
 // First use asks only for a change, never for a read. The terminal (`quire-do`, principal kind
@@ -82,6 +92,7 @@ permit (
 )
 when {
   resource.effect == "undoable_write" &&
+  context.rows.inside == "runs" &&
   context.coverage == "inside" &&
   context.planner == "trusted" &&
   context.sinks.recipient == "trusted" &&
@@ -90,17 +101,66 @@ when {
   context.sinks.path == "trusted"
 };
 
-// Any other undoable write is judged.
+// Any other undoable write is judged when "other" says check. What the inside row would have
+// let through, that row asks about instead: it is not "other".
 @id("undoable-judged")
 permit (
   principal,
   action == Quire::Action::"perform_unasked",
   resource
 )
-when { resource.effect == "undoable_write" };
+when {
+  resource.effect == "undoable_write" &&
+  context.rows.other == "check"
+}
+unless {
+  context.coverage == "inside" &&
+  context.planner == "trusted" &&
+  context.sinks.recipient == "trusted" &&
+  context.sinks.destination == "trusted" &&
+  context.sinks.body == "trusted" &&
+  context.sinks.path == "trusted"
+};
+
+// Sending, when the person said it goes ahead: the planner and the recipient are trusted. An
+// untrusted sink, the Rule of Two and the first-use question still ask (core and the forbids
+// below).
+@id("outbound-final")
+permit (
+  principal,
+  action in [
+    Quire::Action::"perform_unasked",
+    Quire::Action::"perform_unjudged"
+  ],
+  resource
+)
+when {
+  resource.effect == "outbound" &&
+  context.rows.send == "runs" &&
+  context.planner == "trusted" &&
+  context.sinks.recipient == "trusted"
+};
+
+// Deleting, when the person said it goes ahead: the planner and the path are trusted.
+@id("destructive-final")
+permit (
+  principal,
+  action in [
+    Quire::Action::"perform_unasked",
+    Quire::Action::"perform_unjudged"
+  ],
+  resource
+)
+when {
+  resource.effect == "destructive" &&
+  context.rows.delete == "runs" &&
+  context.planner == "trusted" &&
+  context.sinks.path == "trusted"
+};
 
 // A step of a screen run the person allowed (the start sheet, or a standing grant for the app)
-// that only does something undoable runs. A step that sends or deletes gets no permit here and asks.
+// that only does something undoable runs, when the screen row says it asks once. A step that sends
+// or deletes gets no permit here and asks.
 @id("screen-step-final")
 permit (
   principal,
@@ -110,7 +170,11 @@ permit (
   ],
   resource
 )
-when { resource.effect == "undoable_write" && context.run == "allowed" };
+when {
+  resource.effect == "undoable_write" &&
+  context.run == "allowed" &&
+  context.rows.screen == "once"
+};
 
 // The terminal: the person gave a standing grant for this action ("allow from the terminal: this
 // action, until logout"), so it is final. No reviewer sits between a terminal and the app. The
@@ -191,10 +255,26 @@ forbid (
 )
 when { principal.kind == "cli" && resource.effect == "destructive" };
 
+// A screen run on a row that asks at each change: every change of the run asks, whatever else
+// would let it through.
+@id("screen-each-asks")
+@why("You chose to be asked at each change in another app's window.")
+forbid (
+  principal,
+  action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
+  resource
+)
+when {
+  context.run == "allowed" &&
+  context.rows.screen == "each" &&
+  resource.effect != "read" &&
+  principal.kind != "user"
+};
+
 // First use of this app, class and Space, or a grant that asks once, asks for a change, never for a
 // read. It does not apply to the assistant's own bookkeeping (the Companion and Memory apps: a
 // task start or message, a recall, a staged memory; anything that sends or deletes is not
-// covered), nor to a step of a screen run the person already allowed. The terminal has no class
+// covered), nor to a step of a screen run the person already allowed when the screen row asks once. The terminal has no class
 // grants: a read from it is allowed and everything else asks by the rules above.
 @id("first-use")
 @why("This is the first time it has been allowed to do this here.")
@@ -210,7 +290,7 @@ when {
   principal.kind != "cli"
 }
 unless {
-  context.run == "allowed" ||
+  (context.run == "allowed" && context.rows.screen == "once") ||
   ((resource in Quire::App::"org.quire.Companion" ||
     resource in Quire::App::"org.quire.Memory") &&
    (resource.effect == "undoable_write"))
