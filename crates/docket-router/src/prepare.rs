@@ -26,7 +26,8 @@ use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
 use docket_core::{
     ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
     CallRequest, CallerRole, Classification, Cost, DenyCode, Depth, Impact, Lasting, LimitCall,
-    Limited, Mode, ModeRows, Reviewed, Ruling, SpaceAccess, WindowKey, is_agent_action, space_access,
+    Limited, Mode, ModeRows, Reviewed, Ruling, SpaceAccess, WindowKey, is_agent_action,
+    space_access,
 };
 use policy_point::{
     ActionFacts, BudgetFact, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
@@ -340,24 +341,22 @@ impl<S: Seams> Router<S> {
         );
         let repeat = repeated(&record.breaker, &goal, digest);
         let presets = self.presets();
-        let ruled = presets
-            .pdp()
-            .decide_checked(&self.policy_request(&Facts {
-                who,
-                decl: &decl,
-                request: &request,
-                record,
-                consent: &consent,
-                coverage: CoverageState::from(&cover),
-                count,
-                impact,
-                relation: relation_of(st, &space, &decl.on, &targets),
-                run: &run,
-                repeat,
-                taint,
-                mode,
-                rows,
-            }));
+        let ruled = presets.pdp().decide_checked(&self.policy_request(&Facts {
+            who,
+            decl: &decl,
+            request: &request,
+            record,
+            consent: &consent,
+            coverage: CoverageState::from(&cover),
+            count,
+            impact,
+            relation: relation_of(st, &space, &decl.on, &targets),
+            run: &run,
+            repeat,
+            taint,
+            mode,
+            rows,
+        }));
         crate::policylog::log_faults(&ruled, &record.task);
         let ruling = ruled.ruling;
         // A reviewed call also spends the reviews budget.

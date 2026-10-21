@@ -5,10 +5,10 @@ use crate::transport::{Transport, TransportError};
 use docket_core::{
     ActionRef, ActivationToken, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, Displayed,
     EntityRef, GateAnswer, GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk,
-    IntentsReply, IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Outcome, Preview,
-    Mode, Resolved, SearchAsk, SessionModeAsk, SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnId, TurnIn,
-    UndoEntry, UndoId, UndoReport, UndoScope, ValidManifest, WidenAnswer, WidenAsk, WindowKey,
-    WireRefusal,
+    IntentsReply, IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Mode, Outcome, Preview,
+    Resolved, SearchAsk, SessionModeAsk, SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnId,
+    TurnIn, UndoEntry, UndoId, UndoReport, UndoScope, ValidManifest, WidenAnswer, WidenAsk,
+    WindowKey, WireRefusal,
 };
 use prov::{AppName, EntityId, SessionId, SpaceScope};
 

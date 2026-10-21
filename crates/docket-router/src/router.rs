@@ -150,7 +150,9 @@ impl<S: Seams> Router<S> {
                     return IntentsReply::Refused(why);
                 }
                 let now = self.seams.clock().now();
-                let who = self.locked().who_for(caller, role, session.as_ref(), now, self.start_mode());
+                let who =
+                    self.locked()
+                        .who_for(caller, role, session.as_ref(), now, self.start_mode());
                 // Only the launcher's token means anything: it is the person's own click.
                 let activation = activation.filter(|_| role == CallerRole::Launcher);
                 match who {
@@ -168,7 +170,9 @@ impl<S: Seams> Router<S> {
                     return IntentsReply::Refused(why);
                 }
                 let now = self.seams.clock().now();
-                let who = self.locked().who_for(caller, role, session.as_ref(), now, self.start_mode());
+                let who =
+                    self.locked()
+                        .who_for(caller, role, session.as_ref(), now, self.start_mode());
                 match who {
                     Ok(who) => self.run_dry(who, call).await,
                     Err(why) => IntentsReply::Refused(why),
@@ -183,7 +187,10 @@ impl<S: Seams> Router<S> {
                 let session = match role {
                     CallerRole::Cli => {
                         let now = self.seams.clock().now();
-                        match self.locked().who_for(caller, role, None, now, self.start_mode()) {
+                        match self
+                            .locked()
+                            .who_for(caller, role, None, now, self.start_mode())
+                        {
                             Ok(who) => who.session.unwrap_or(session),
                             Err(why) => return IntentsReply::Refused(why),
                         }

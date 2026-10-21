@@ -94,8 +94,11 @@ impl SessionSkeleton {
     }
 
     #[zbus(signal)]
-    async fn mode_changed(emitter: &SignalEmitter<'_>, session: &str, mode: &str)
-    -> zbus::Result<()>;
+    async fn mode_changed(
+        emitter: &SignalEmitter<'_>,
+        session: &str,
+        mode: &str,
+    ) -> zbus::Result<()>;
 
     fn turn_ended(&self, session: String, turn: u64, how: String) -> fdo::Result<()> {
         let _ = (session, turn, how);

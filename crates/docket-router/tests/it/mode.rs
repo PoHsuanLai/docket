@@ -104,7 +104,11 @@ type Router = docket_router::Router<docket_fake::FakeSeams>;
 async fn a_turn_that_names_manual_makes_the_next_change_ask() {
     let router = router();
     let auto = ready_in(&router, None).await;
-    assert_eq!(auto.mode, Mode::Auto, "a new conversation starts in the start mode");
+    assert_eq!(
+        auto.mode,
+        Mode::Auto,
+        "a new conversation starts in the start mode"
+    );
     perform_in(&router, &auto.session, archive("t1"))
         .await
         .expect("Auto: an archive inside the request runs");
@@ -195,9 +199,10 @@ async fn a_sheet_that_is_waiting_keeps_its_answer_when_the_mode_switches() {
     let mut router = router();
     let front = ready_in(&router, Some(Mode::Manual)).await;
     router.seams.confirmer = ScriptedConfirmer::yielding(vec![yes()]);
+    let shell = launcher();
     let (end, switched) = tokio::join!(
         perform_in(&router, &front.session, archive("t1")),
-        switch(&router, &launcher(), &front.session, Mode::Auto),
+        switch(&router, &shell, &front.session, Mode::Auto),
     );
     assert_eq!(switched, IntentsReply::Done);
     end.expect("the sheet was shown under Manual and its yes stands");

@@ -12,9 +12,7 @@ fn schema_and_default_policies_validate() {
 
 #[test]
 fn the_two_named_hard_rules_are_present_by_id() {
-    let ids = Pdp::built_in()
-        .expect("loads")
-        .policy_ids();
+    let ids = Pdp::built_in().expect("loads").policy_ids();
     for want in ["rule-of-two", "untrusted-sink"] {
         assert!(
             ids.contains(&PolicyId(want.to_owned())),

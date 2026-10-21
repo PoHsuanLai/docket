@@ -93,12 +93,7 @@ impl PolicyDirs {
     pub fn unused_presets(&self) -> Vec<PathBuf> {
         OLD_FOLDERS
             .iter()
-            .map(|name| {
-                self.data_home
-                    .join("quire")
-                    .join("permissions")
-                    .join(name)
-            })
+            .map(|name| self.data_home.join("quire").join("permissions").join(name))
             .filter(|dir| !cedar_files(dir).is_empty())
             .collect()
     }

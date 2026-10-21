@@ -87,6 +87,10 @@
      <arg name="session" type="s" direction="in"/>
      <arg name="mode" type="s" direction="in"/>
    </method>
+   <signal name="ModeChanged">
+     <arg name="session" type="s"/>
+     <arg name="mode" type="s"/>
+   </signal>
    <method name="TurnEnded">
      <arg name="session" type="s" direction="in"/>
      <arg name="turn" type="t" direction="in"/>
@@ -145,10 +149,6 @@
      <arg name="ask" type="s" direction="in"/>
      <arg type="s" direction="out"/>
    </method>
-   <signal name="ModeChanged">
-     <arg name="session" type="s"/>
-     <arg name="mode" type="s"/>
-   </signal>
  </interface>
  <interface name="org.quire.Intents1.Checkpoint">
    <method name="List">

@@ -275,22 +275,82 @@ fn each_row_value_decides_its_cell_in_either_mode() {
     };
     let rows = [
         row("inside runs", UndoableWrite, auto, nothing, Final),
-        row("inside asks beats other checked", UndoableWrite, inside_asks, nothing, Ask),
-        row("inside asks, outside the task", UndoableWrite, inside_asks, outside, Judged),
-        row("other asks, outside the task", UndoableWrite, other_asks, outside, Ask),
-        row("other asks, inside the task", UndoableWrite, other_asks, nothing, Final),
+        row(
+            "inside asks beats other checked",
+            UndoableWrite,
+            inside_asks,
+            nothing,
+            Ask,
+        ),
+        row(
+            "inside asks, outside the task",
+            UndoableWrite,
+            inside_asks,
+            outside,
+            Judged,
+        ),
+        row(
+            "other asks, outside the task",
+            UndoableWrite,
+            other_asks,
+            outside,
+            Ask,
+        ),
+        row(
+            "other asks, inside the task",
+            UndoableWrite,
+            other_asks,
+            nothing,
+            Final,
+        ),
         row("send runs", Outbound, sends, nothing, Final),
         row("send asks", Outbound, auto, nothing, Ask),
-        row("send runs, untrusted recipient", Outbound, sends, untrust_recipient, Ask),
-        row("send runs, untrusted planner", Outbound, sends, untrust_planner, Ask),
+        row(
+            "send runs, untrusted recipient",
+            Outbound,
+            sends,
+            untrust_recipient,
+            Ask,
+        ),
+        row(
+            "send runs, untrusted planner",
+            Outbound,
+            sends,
+            untrust_planner,
+            Ask,
+        ),
         row("send runs, Rule of Two", Outbound, sends, both_legs, Ask),
-        row("send runs, tainted with an always grant", Outbound, sends, tainted, Ask),
-        row("send runs, a limit says never", Outbound, sends, never, Deny),
+        row(
+            "send runs, tainted with an always grant",
+            Outbound,
+            sends,
+            tainted,
+            Ask,
+        ),
+        row(
+            "send runs, a limit says never",
+            Outbound,
+            sends,
+            never,
+            Deny,
+        ),
         row("delete runs", Destructive, deletes, nothing, Final),
         row("delete asks", Destructive, auto, nothing, Ask),
-        row("delete runs, untrusted path", Destructive, deletes, untrusted_path, Ask),
+        row(
+            "delete runs, untrusted path",
+            Destructive,
+            deletes,
+            untrusted_path,
+            Ask,
+        ),
         row("delete runs, halted", Destructive, deletes, halted, Deny),
-        row("screen once, an undoable step", UndoableWrite, auto, screen_step, Final),
+        row(
+            "screen once, an undoable step",
+            UndoableWrite,
+            auto,
+            screen_step,
+            Final,
+        ),
         row(
             "screen each, an undoable step",
             UndoableWrite,
@@ -301,8 +361,20 @@ fn each_row_value_decides_its_cell_in_either_mode() {
             screen_step,
             Ask,
         ),
-        row("screen once, a send step", Outbound, sends, screen_step, Ask),
-        row("a read, whatever the rows", Read, ModeRows::MANUAL, nothing, Final),
+        row(
+            "screen once, a send step",
+            Outbound,
+            sends,
+            screen_step,
+            Ask,
+        ),
+        row(
+            "a read, whatever the rows",
+            Read,
+            ModeRows::MANUAL,
+            nothing,
+            Final,
+        ),
     ];
     let pdp = policy_point::Pdp::built_in().expect("loads");
     for (name, effect, row_set, edit, want) in rows {
@@ -335,7 +407,9 @@ fn a_rule_of_the_person_may_name_the_mode() {
     let layered = policy_point::Pdp::layered(SCHEMA, &sources).expect("loads");
     assert!(layered.skipped.is_empty(), "{:?}", layered.skipped);
     for (mode, want) in [(Mode::Auto, Cell::Final), (Mode::Manual, Cell::Ask)] {
-        let got = layered.pdp.decide(&with(Effect::Read, |r| in_mode(r, mode)));
+        let got = layered
+            .pdp
+            .decide(&with(Effect::Read, |r| in_mode(r, mode)));
         assert_eq!(cell(&got), want, "{mode:?}: {got:?}");
     }
 }

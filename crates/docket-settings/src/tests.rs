@@ -241,18 +241,31 @@ fn each_key_lands_in_the_typed_value_the_design_names() {
     let int = toml::Value::Integer;
     let word = |w: &str| toml::Value::String(w.to_owned());
     assert_eq!(
-        read_one("agent.start_mode", word("manual")).agent.start_mode,
+        read_one("agent.start_mode", word("manual"))
+            .agent
+            .start_mode,
         Mode::Manual
     );
     // Each row of each mode lands in its own place.
     let rows_of = |mode: &str, row: &str, value: &str| {
-        read_one(&format!("agent.{mode}.{row}"), word(value)).agent.rows
+        read_one(&format!("agent.{mode}.{row}"), word(value))
+            .agent
+            .rows
     };
-    assert_eq!(rows_of("auto", "inside", "asks").auto.inside, InsideRow::Asks);
+    assert_eq!(
+        rows_of("auto", "inside", "asks").auto.inside,
+        InsideRow::Asks
+    );
     assert_eq!(rows_of("auto", "other", "asks").auto.other, OtherRow::Asks);
     assert_eq!(rows_of("auto", "send", "runs").auto.send, SendRow::Runs);
-    assert_eq!(rows_of("auto", "delete", "runs").auto.delete, DeleteRow::Runs);
-    assert_eq!(rows_of("auto", "screen", "each").auto.screen, ScreenRow::Each);
+    assert_eq!(
+        rows_of("auto", "delete", "runs").auto.delete,
+        DeleteRow::Runs
+    );
+    assert_eq!(
+        rows_of("auto", "screen", "each").auto.screen,
+        ScreenRow::Each
+    );
     assert_eq!(
         rows_of("manual", "inside", "runs").manual.inside,
         InsideRow::Runs

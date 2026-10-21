@@ -79,6 +79,14 @@ impl SessionBus {
         self.0.done(&header, request).await
     }
 
+    // A conversation's mode changed, whoever changed it; `signals.rs` emits it.
+    #[zbus(signal)]
+    async fn mode_changed(
+        emitter: &zbus::object_server::SignalEmitter<'_>,
+        session: &str,
+        mode: &str,
+    ) -> zbus::Result<()>;
+
     async fn turn_ended(
         &self,
         session: String,

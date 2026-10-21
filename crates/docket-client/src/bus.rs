@@ -315,11 +315,7 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
         }
         Q::SessionMode(ask) => {
             let proxy = SessionProxy::new(c).await.map_err(bus)?;
-            nothing(
-                proxy
-                    .set_mode(ask.session.as_str(), ask.mode.word())
-                    .await,
-            )
+            nothing(proxy.set_mode(ask.session.as_str(), ask.mode.word()).await)
         }
         Q::SessionClose { session } => {
             let proxy = SessionProxy::new(c).await.map_err(bus)?;

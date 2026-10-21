@@ -61,10 +61,7 @@ fn file(layer: Layer, name: &str, text: &str) -> PolicySource {
 }
 
 fn built_in() -> Vec<PolicySource> {
-    vec![
-        PolicySource::core(),
-        PolicySource::preset(),
-    ]
+    vec![PolicySource::core(), PolicySource::preset()]
 }
 
 fn with_extra(extra: PolicySource) -> Vec<PolicySource> {
@@ -95,10 +92,7 @@ fn want(preset: &[&str]) -> Vec<String> {
 
 #[test]
 fn core_and_the_preset_make_exactly_their_rules() {
-    assert_eq!(
-        ids(&Pdp::built_in().expect("loads")),
-        want(&PRESET_IDS)
-    );
+    assert_eq!(ids(&Pdp::built_in().expect("loads")), want(&PRESET_IDS));
 }
 
 #[test]
@@ -330,8 +324,17 @@ fn a_rules_file_that_does_not_load_still_holds_the_nevers_it_wrote() {
         .collect();
     let layered = Pdp::layered(SCHEMA, &sources).expect("loads");
     // Both files are reported, by name.
-    let named: Vec<String> = layered.skipped.iter().map(|r| r.origin.to_string()).collect();
-    assert_eq!(named, ["never.cedar", "assistant.cedar"], "{:?}", layered.skipped);
+    let named: Vec<String> = layered
+        .skipped
+        .iter()
+        .map(|r| r.origin.to_string())
+        .collect();
+    assert_eq!(
+        named,
+        ["never.cedar", "assistant.cedar"],
+        "{:?}",
+        layered.skipped
+    );
     // The "never" still refuses and the "ask first" still asks.
     assert!(ids(&layered.pdp).contains(&never.id.as_str().to_owned()));
     assert_eq!(

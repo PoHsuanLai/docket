@@ -93,7 +93,11 @@ pub fn marks_of<S: Seams>(router: &Router<S>) -> Marks {
             .filter(|(_, r)| matches!(r.state, SessionState::Paused { .. }))
             .map(|(id, _)| id.clone())
             .collect(),
-        modes: st.sessions.iter().map(|(id, r)| (id.clone(), r.mode)).collect(),
+        modes: st
+            .sessions
+            .iter()
+            .map(|(id, r)| (id.clone(), r.mode))
+            .collect(),
         waiting,
         manifests: st
             .registry

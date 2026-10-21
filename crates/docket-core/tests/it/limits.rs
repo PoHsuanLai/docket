@@ -360,7 +360,11 @@ fn words_kept_with_a_limit_refuse_what_hides_reorders_or_breaks_the_line() {
         ("a quote", "say \"ask\" first", true),
         ("empty", "   ", false),
         ("a new line", "one\ntwo", false),
-        ("a bidirectional override", "never send to \u{202E}moc.live", false),
+        (
+            "a bidirectional override",
+            "never send to \u{202E}moc.live",
+            false,
+        ),
         ("a bidirectional isolate", "never send \u{2066}here", false),
         ("a zero-width space", "never\u{200B}send", false),
         ("a byte order mark", "\u{FEFF}never send", false),

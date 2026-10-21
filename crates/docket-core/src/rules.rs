@@ -174,7 +174,11 @@ pub fn with_rule(file: &str, limit: &Limit) -> String {
 
 /// The limit id a generated rule's first line names, if `line` is one.
 fn generated_id(line: &str) -> Option<StandingGrantId> {
-    let id = line.trim_start().strip_prefix("@id(\"")?.split('"').next()?;
+    let id = line
+        .trim_start()
+        .strip_prefix("@id(\"")?
+        .split('"')
+        .next()?;
     StandingGrantId::parse(id).ok()
 }
 

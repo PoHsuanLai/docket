@@ -56,10 +56,7 @@ fn has_rule<S: Seams>(router: &Router<S>) -> bool {
 }
 
 fn layers(dirs: &PolicyDirs) -> Vec<Layer> {
-    read_sources(dirs)
-        .iter()
-        .map(|s| s.layer)
-        .collect()
+    read_sources(dirs).iter().map(|s| s.layer).collect()
 }
 
 #[test]
@@ -142,13 +139,25 @@ fn the_preset_is_read_from_its_folder_and_says_whose_it_is() {
     let folder = |root: &Path, name: &str| root.join("quire/permissions").join(name);
     let loaded = load_policies(&dirs).expect("loads");
     assert_eq!(loaded.preset, PresetOrigin::BuiltIn);
-    put(&folder(scratch.system.path(), "default"), "grid.cedar", PRESET);
+    put(
+        &folder(scratch.system.path(), "default"),
+        "grid.cedar",
+        PRESET,
+    );
     let loaded = load_policies(&dirs).expect("loads");
     assert_eq!(loaded.preset, PresetOrigin::System);
-    put(&folder(scratch.mine.path(), "default"), "grid.cedar", PRESET);
+    put(
+        &folder(scratch.mine.path(), "default"),
+        "grid.cedar",
+        PRESET,
+    );
     let loaded = load_policies(&dirs).expect("loads");
     assert_eq!(loaded.preset, PresetOrigin::EditedByYou);
-    put(&folder(scratch.mine.path(), "default"), "grid.cedar", "permit (");
+    put(
+        &folder(scratch.mine.path(), "default"),
+        "grid.cedar",
+        "permit (",
+    );
     let loaded = load_policies(&dirs).expect("loads");
     assert_eq!(
         loaded.preset,

@@ -163,10 +163,12 @@ async fn a_conversation_switched_to_another_mode_is_said_whoever_switched_it() {
     let front = open(&router, AgentRef::Companion).await;
     assert_eq!(front.mode, Mode::Auto, "the mode it opens in");
     let shell = crate::support::world::caller("org.quire.Shell", &[CallerRole::Launcher]);
-    let switch = |mode: Mode| IntentsRequest::SessionMode(SessionModeAsk {
-        session: front.session.clone(),
-        mode,
-    });
+    let switch = |mode: Mode| {
+        IntentsRequest::SessionMode(SessionModeAsk {
+            session: front.session.clone(),
+            mode,
+        })
+    };
     let before = marks_of(&router);
     let reply = router.handle(&shell, switch(Mode::Manual)).await;
     assert_eq!(reply, IntentsReply::Done);
@@ -201,7 +203,10 @@ async fn a_conversation_switched_to_another_mode_is_said_whoever_switched_it() {
             },
         )
         .await;
-    assert!(matches!(recorded, IntentsReply::TurnRecorded(_)), "{recorded:?}");
+    assert!(
+        matches!(recorded, IntentsReply::TurnRecorded(_)),
+        "{recorded:?}"
+    );
     assert_eq!(
         changes(&manual, &marks_of(&router)),
         vec![Changed::Mode(front.session, Mode::Auto)]
