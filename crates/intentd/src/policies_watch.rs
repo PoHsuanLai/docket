@@ -18,11 +18,15 @@ use tokio::sync::mpsc;
 /// Builds the set again and puts it in force on `router`, logging what was left out.
 pub fn reload<S: Seams>(router: &Router<S>, dirs: &PolicyDirs) {
     match load_policies(dirs) {
-        Ok(layered) => {
-            for rejected in &layered.skipped {
+        Ok(loaded) => {
+            for rejected in &loaded.skipped {
                 eprintln!("intentd: skipped policy {rejected}");
             }
-            router.set_pdp(layered.pdp);
+            eprintln!(
+                "intentd: permissions: Auto {}, Manual {}",
+                loaded.auto, loaded.manual
+            );
+            router.set_presets(loaded.presets);
         }
         Err(why) => eprintln!("intentd: policies not reloaded, the set in force stays: {why}"),
     }
@@ -37,7 +41,7 @@ fn watched(dirs: &PolicyDirs) -> Vec<PathBuf> {
         let _ = std::fs::create_dir_all(dir);
     }
     mine.into_iter()
-        .chain(dirs.preset())
+        .chain(dirs.preset_dirs())
         .chain([dirs.admin.clone()])
         .filter(|d| d.is_dir())
         .collect()

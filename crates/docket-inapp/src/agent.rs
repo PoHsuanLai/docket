@@ -14,7 +14,7 @@ use docket_memory::AuditState;
 use docket_planner::{PlanFault, PlannerModel};
 use docket_router::{Clock, GrantStore, MemoryLink, Registry, Router};
 use docket_tasks::{Companion, Now, Quiet, ServeFault};
-use policy_point::Pdp;
+use policy_point::Presets;
 use porter_client::Transport as ModelTransport;
 use porter_core::{AppId, AppName, Isolation};
 use prov::{SpaceId, TaskId, UnixSeconds};
@@ -336,8 +336,8 @@ where
             reader: kit.reader,
         };
         // The built-in core and standard preset: an app-hosted agent reads no policy files.
-        let pdp = Pdp::standard().map_err(AgentFault::Policy)?;
-        let router = Router::new(seams, parts.config, pdp);
+        let presets = Presets::built_in().map_err(AgentFault::Policy)?;
+        let router = Router::new(seams, parts.config, presets);
         let mut registry = Registry::new();
         registry.insert(manifest);
         match router.state.lock() {

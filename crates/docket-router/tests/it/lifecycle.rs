@@ -9,7 +9,7 @@ use docket_fake::{
     FakeMemory, FixedClock, MemoryGrants, RecordingSink, ScriptedReader, ScriptedWriter,
 };
 use docket_router::{AppLink, LinkFault, Router, Seams};
-use policy_point::Pdp;
+use policy_point::Presets;
 use prov::{AgentRef, SpaceScope, UnixSeconds};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -209,13 +209,13 @@ async fn rig(strictness: Strictness) -> (Arc<Router<Rig>>, SessionOpened) {
         reader: ScriptedReader::default(),
     };
     let config = AgentConfig {
-        strictness,
+        permissions: strictness.into(),
         ..AgentConfig::default()
     };
     let router = Arc::new(Router::new(
         seams,
         config,
-        Pdp::standard().expect("policies"),
+        Presets::built_in().expect("policies"),
     ));
     router.state.lock().expect("lock").registry = docket_fake::registry().expect("registry");
     late.set(router.clone()).ok().expect("set once");

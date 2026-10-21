@@ -64,7 +64,9 @@ pub use link::DbusLink;
 pub use logout::{Logouts, end_terminals_at_logout, watch_logind};
 pub use manifests::{Loaded, intents_dir, load_manifests};
 pub use peer::{PeerFault, Peers};
-pub use policies::{ADMIN_DIR, PolicyDirs, load_policies, read_sources};
+pub use policies::{
+    ADMIN_DIR, LoadedPolicies, PolicyDirs, PresetOrigin, load_policies, read_sources,
+};
 pub use policies_watch::{follow as follow_policies, reload as reload_policies};
 pub use porter_daemon::ProcRoot;
 pub use reach::{LiveReach, follow as follow_reach, parse_reach};

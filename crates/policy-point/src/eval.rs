@@ -12,7 +12,7 @@ use docket_core::{ArgSink, AskReason, PolicyId, Ruling};
 use prov::{Effect, Integrity};
 use serde::Serialize;
 use serde_json::{Value, json};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::str::FromStr;
 
 /// The serde slug of a closed set: a bare string, or the `kind` of a tagged one.
@@ -56,7 +56,6 @@ fn context_json(c: &PolicyContext) -> Value {
         "terminal": slug(&c.terminal),
         "coverage": slug(&c.coverage),
         "task_ceiling": slug(&c.task_ceiling),
-        "strictness": slug(&c.strictness),
         "saw_private": slug(&c.saw.private),
         "saw_untrusted": slug(&c.saw.untrusted),
         "sinks": {
@@ -71,6 +70,7 @@ fn context_json(c: &PolicyContext) -> Value {
         "repeat": slug(&c.repeat),
         "limit": slug(&c.limit),
         "taint": slug(&c.taint),
+        "run": slug(&c.run),
     })
 }
 
@@ -126,6 +126,8 @@ struct Answer {
     decision: Decision,
     /// The `@id`s of the policies that determined it.
     ids: Vec<PolicyId>,
+    /// The `@why` sentence of each of those that has one.
+    whys: BTreeMap<PolicyId, String>,
 }
 
 /// One query. A query that Cedar could not set up, or whose policies raised an evaluation
@@ -153,18 +155,29 @@ fn query(
     if errors > 0 {
         return Err(fault(FaultCause::Policies(errors)));
     }
-    let ids = response
+    let decided: Vec<_> = response
         .diagnostics()
         .reason()
         .filter_map(|id| policies.policy(id))
-        .filter_map(|p| p.annotation("id"))
-        .map(|id| PolicyId(id.to_owned()))
+        .filter_map(|p| {
+            let id = PolicyId(p.annotation("id")?.to_owned());
+            Some((id, p.annotation("why").map(str::to_owned)))
+        })
+        .collect();
+    let ids = decided
+        .iter()
+        .map(|(id, _)| id.clone())
         .collect::<BTreeSet<_>>()
         .into_iter()
+        .collect();
+    let whys = decided
+        .into_iter()
+        .filter_map(|(id, why)| Some((id, why?)))
         .collect();
     Ok(Answer {
         decision: response.decision(),
         ids,
+        whys,
     })
 }
 
@@ -181,8 +194,9 @@ fn untrusted_sink(c: &PolicyContext) -> Option<ArgSink> {
     .map(|(sink, _)| sink)
 }
 
-/// A named forbid as the reason the person is asked.
-fn ask_reason(id: &PolicyId, c: &PolicyContext) -> AskReason {
+/// A forbid as the reason the person is asked: the typed reason of our own rules, else the rule's
+/// own sentence (its `@why`), else the bare rule.
+fn ask_reason(id: &PolicyId, c: &PolicyContext, whys: &BTreeMap<PolicyId, String>) -> AskReason {
     match id.0.as_str() {
         "rule-of-two" => AskReason::RuleOfTwo,
         "untrusted-sink" => {
@@ -197,7 +211,13 @@ fn ask_reason(id: &PolicyId, c: &PolicyContext) -> AskReason {
         "cli-asks" => AskReason::FromTerminal,
         "cli-destructive-asks" => AskReason::Effect(Effect::Destructive),
         "lasting-from-untrusted" => AskReason::LastingFromUntrusted,
-        _ => AskReason::Rule(id.clone()),
+        _ => whys.get(id).map_or_else(
+            || AskReason::Rule(id.clone()),
+            |why| AskReason::Said {
+                rule: id.clone(),
+                why: why.clone(),
+            },
+        ),
     }
 }
 
@@ -245,6 +265,10 @@ fn permitted(answer: &Option<Answer>) -> bool {
     matches!(answer, Some(a) if a.decision == Decision::Allow)
 }
 
+fn whys_of(answer: &Option<Answer>) -> BTreeMap<PolicyId, String> {
+    answer.as_ref().map(|a| a.whys.clone()).unwrap_or_default()
+}
+
 fn ids_of(answer: Option<Answer>) -> Vec<PolicyId> {
     answer.map(|a| a.ids).unwrap_or_default()
 }
@@ -285,8 +309,11 @@ pub(crate) fn decide(policies: &PolicySet, schema: &Schema, request: &PolicyRequ
     if !permitted(&unasked) {
         let c = &request.context;
         let faulted = q.faults.iter().any(|f| f.query == "perform_unasked");
-        let mut reasons: Vec<AskReason> =
-            ids_of(unasked).iter().map(|id| ask_reason(id, c)).collect();
+        let whys = whys_of(&unasked);
+        let mut reasons: Vec<AskReason> = ids_of(unasked)
+            .iter()
+            .map(|id| ask_reason(id, c, &whys))
+            .collect();
         // Two rules can give one reason (`ask-always` and `limit-ask`): say it once.
         let mut seen = Vec::new();
         reasons.retain(|reason| {

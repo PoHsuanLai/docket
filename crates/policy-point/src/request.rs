@@ -1,7 +1,7 @@
 //! What the router asks the policy point: a principal, an operation, the action, and the
 //! context that Cedar's rules read. Every context field has a slug form in the schema.
 
-use docket_core::{BudgetKind, Impact, Origin, Saw, SessionSaw, SinkIntegrity, Strictness};
+use docket_core::{BudgetKind, Impact, Origin, Saw, SessionSaw, SinkIntegrity};
 use porter_core::consent::Usage;
 use porter_core::{AppName, Count, DataClass, Isolation};
 use prov::{ActionName, ActorKind, Confidentiality, Effect, Integrity, SpaceId};
@@ -169,6 +169,18 @@ pub enum TaintFact {
     Tainted,
 }
 
+/// Whether the person already allowed the screen run this step belongs to: by the sheet that
+/// opened the run ("Let it use this app"), or by a standing grant for the app. Every call that
+/// is not a screen step is `NotAsked`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RunFact {
+    /// The person said yes to this run.
+    Allowed,
+    /// Nobody asked the person about a run (the call is not a step of one, or it was not allowed).
+    NotAsked,
+}
+
 /// Everything about the call that Cedar's rules read.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyContext {
@@ -198,8 +210,6 @@ pub struct PolicyContext {
     pub coverage: CoverageState,
     /// The task policy's effect ceiling.
     pub task_ceiling: Effect,
-    /// The Space's strictness.
-    pub strictness: Strictness,
     /// What the session has seen, computed by the router.
     pub saw: SessionSaw,
     /// The integrity of each sink.
@@ -216,6 +226,8 @@ pub struct PolicyContext {
     pub limit: LimitFact,
     /// Whether the session is tainted for this call.
     pub taint: TaintFact,
+    /// Whether the person allowed the screen run this step belongs to.
+    pub run: RunFact,
 }
 
 /// One question for the policy point.

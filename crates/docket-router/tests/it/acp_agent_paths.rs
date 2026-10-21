@@ -31,10 +31,10 @@ async fn a_write_outside_the_policy_paths_asks_and_one_inside_runs() {
         .expect("inside the paths: the grid lets a covered write run");
     assert!(w.sheets().is_empty(), "{:?}", w.sheets());
 
-    // The grid sends an outside, untrusted-free write to the reviewers under Default strictness
-    // and asks under Ask more: the sheet below is that cell, reached because the path left the task.
+    // The grid sends an outside, untrusted-free write to the reviewers under Auto
+    // and asks under Manual: the sheet below is that cell, reached because the path left the task.
     w.router.apply_settings(AgentConfig {
-        strictness: Strictness::AskMore,
+        permissions: Permissions::Manual,
         ..AgentConfig::default()
     });
 

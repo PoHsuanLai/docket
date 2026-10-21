@@ -1,5 +1,5 @@
 //! The policy point: a Cedar wrapper. It holds the entity schema and the built-in policies (the
-//! core and the standard preset), the shape of a policy request, `Pdp::layered`, which builds one
+//! core and the two presets), the shape of a policy request, `Pdp::layered`, which builds one
 //! set from the layers (core, preset, person, assistant, administrator) and decides what to do
 //! with a source that is bad, and `Pdp::decide`, which maps three Cedar queries onto the four
 //! [`Ruling`](docket_core::Ruling)s. Pure: no I/O, no runtime; the caller reads the files and
@@ -14,13 +14,15 @@ mod fault;
 mod layered;
 mod layers;
 mod pdp;
+mod presets;
 mod request;
 
 pub use fault::{EvalFault, FaultCause, Ruled};
 pub use layered::{LayerError, Layered};
 pub use layers::{Layer, PolicyOrigin, PolicySource, Rejected};
-pub use pdp::{CORE_POLICIES, Pdp, PolicyError, SCHEMA, STANDARD_PRESET};
+pub use pdp::{AUTO_PRESET, CORE_POLICIES, MANUAL_PRESET, Pdp, PolicyError, SCHEMA, preset_text};
+pub use presets::Presets;
 pub use request::{
     ActionFacts, BudgetFact, CoverageState, GrantState, HaltFact, LimitFact, Op, PolicyContext,
-    PolicyRequest, PrincipalFacts, RepeatFact, SpaceRelation, TaintFact, TerminalGrant,
+    PolicyRequest, PrincipalFacts, RepeatFact, RunFact, SpaceRelation, TaintFact, TerminalGrant,
 };

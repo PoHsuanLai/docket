@@ -1,10 +1,11 @@
 //! Building one policy set from layers. Failure never loosens: a bad person or assistant source
-//! is left out and reported, a bad preset is replaced by the compiled-in standard preset, and a
+//! is left out and reported, a bad preset is replaced by the compiled-in copy of that preset, and a
 //! bad core or administrator source is an error the caller must answer by asking for everything.
 
 use crate::layers::{Layer, PolicyOrigin, PolicySource, Rejected};
 use crate::pdp::{Pdp, PolicyError};
 use cedar_policy::{Effect, PolicySet, Schema, ValidationMode, Validator};
+use docket_core::Permissions;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
@@ -96,15 +97,24 @@ impl Book {
 }
 
 impl Pdp {
+    /// [`layered_for`](Self::layered_for) the Auto preset.
+    pub fn layered(schema: &str, sources: &[PolicySource]) -> Result<Layered, LayerError> {
+        Pdp::layered_for(schema, Permissions::Auto, sources)
+    }
+
     /// Builds one set from `sources`, in layer order (files of one layer in the order given),
     /// against the schema text `schema`. The built-in core and preset come from
-    /// [`PolicySource::core`] and [`PolicySource::standard_preset`]; with no preset source the
-    /// built-in preset stands, unreported.
+    /// [`PolicySource::core`] and [`PolicySource::preset`]; with no preset source the built-in
+    /// copy of `preset` stands, unreported.
     ///
     /// A source that is refused is handled by its layer: person and assistant sources are left
     /// out and listed in `skipped`; any bad preset source drops the whole preset for the built-in
     /// one (listed too); a bad core, built-in or administrator source is an error.
-    pub fn layered(schema: &str, sources: &[PolicySource]) -> Result<Layered, LayerError> {
+    pub fn layered_for(
+        schema: &str,
+        preset: Permissions,
+        sources: &[PolicySource],
+    ) -> Result<Layered, LayerError> {
         let (schema, _warnings) =
             Schema::from_cedarschema_str(schema).map_err(|e| LayerError::Schema(e.to_string()))?;
         let in_layer = |layer: Layer| sources.iter().filter(move |s| s.layer == layer);
@@ -122,11 +132,11 @@ impl Pdp {
                 book = trial;
             }
             Ok(()) => book
-                .admit(&PolicySource::standard_preset())
+                .admit(&PolicySource::preset(preset))
                 .map_err(LayerError::BuiltIn)?,
             Err(rejected) => {
                 skipped.push(rejected);
-                book.admit(&PolicySource::standard_preset())
+                book.admit(&PolicySource::preset(preset))
                     .map_err(LayerError::BuiltIn)?;
             }
         }

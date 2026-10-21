@@ -46,8 +46,6 @@ namespace Quire {
     // "inside" or "outside" the task policy.
     coverage: String,
     task_ceiling: String,
-    // "ask_more", "default" or "trust_more".
-    strictness: String,
     // What the router saw this session: "seen" or "not_seen".
     saw_private: String,
     saw_untrusted: String,
@@ -66,6 +64,9 @@ namespace Quire {
     // "tainted" when the session read untrusted content and this call changes something, else
     // "clean".
     taint: String,
+    // "allowed" when the person said yes to the screen run this step belongs to (the start sheet
+    // or a standing grant for the app), else "not_asked".
+    run: String,
   };
 
   action "perform" appliesTo { principal: [Caller], resource: [Act], context: Ctx };

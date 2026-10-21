@@ -6,13 +6,15 @@ use policy_point::{CORE_POLICIES, Pdp, PolicyError, SCHEMA};
 
 #[test]
 fn schema_and_default_policies_validate() {
-    let pdp = Pdp::standard().unwrap_or_else(|e| panic!("{e}"));
+    let pdp = Pdp::built_in(docket_core::Permissions::Auto).unwrap_or_else(|e| panic!("{e}"));
     assert!(!pdp.policy_ids().is_empty());
 }
 
 #[test]
 fn the_two_named_hard_rules_are_present_by_id() {
-    let ids = Pdp::standard().expect("loads").policy_ids();
+    let ids = Pdp::built_in(docket_core::Permissions::Auto)
+        .expect("loads")
+        .policy_ids();
     for want in ["rule-of-two", "untrusted-sink"] {
         assert!(
             ids.contains(&PolicyId(want.to_owned())),

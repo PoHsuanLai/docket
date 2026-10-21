@@ -14,7 +14,7 @@ use docket_core::{AgentConfig, PolicyWriter, ValidManifest};
 use docket_router::{Clock, Registry, RegistryError, Router, parse};
 use docket_session::SessionLog;
 use docket_session::fake::MemoryLog;
-use policy_point::{Pdp, PolicyError};
+use policy_point::{PolicyError, Presets};
 use prov::{SpaceId, UnixSeconds};
 use std::sync::Arc;
 
@@ -198,9 +198,9 @@ pub fn fake_router_reading<
         log,
         checkpoints: docket_checkpoint::MemoryStore::new(),
     };
-    // The built-in core and standard preset: the fake reads no policy files, so tests are the same everywhere.
-    let pdp = Pdp::standard().map_err(FakeError::Policy)?;
-    let router = Router::new(seams, config, pdp);
+    // The built-in core and both presets: the fake reads no policy files, so tests are the same everywhere.
+    let presets = Presets::built_in().map_err(FakeError::Policy)?;
+    let router = Router::new(seams, config, presets);
     let installed = registry().map_err(FakeError::Manifest)?;
     match router.state.lock() {
         Ok(mut state) => state.registry = installed,

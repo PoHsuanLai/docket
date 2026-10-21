@@ -298,35 +298,16 @@ async fn a_perform_tells_a_watcher_how_far_it_is_and_waits_for_nothing() {
 
 #[tokio::test]
 async fn a_judged_call_says_reviewing_and_then_dispatched() {
-    // Under TrustMore an outbound act with every sink trusted is judged by every stage, then runs.
-    let mut router = router();
-    router.config.strictness = Strictness::TrustMore;
-    ready(&router).await;
-    let suggested = ask(
-        &router,
-        &companion(),
-        IntentsRequest::Suggest(SuggestAsk {
-            action: action("mail.message.send"),
-            param: param("to"),
-            typed: String::new(),
-        }),
-    )
-    .await;
-    assert!(
-        matches!(suggested, IntentsReply::Suggestions(_)),
-        "{suggested:?}"
-    );
-    let mut send = send_to_a_stranger();
-    send.args.insert(
-        param("to"),
-        prov::Labelled {
-            value: Value::Entity(entity("mail.contact", "c1")),
-            label: trusted(),
-        },
-    );
+    // An undoable change outside the task is judged by the reviewers, then runs.
+    let router = router();
+    ready_outside(&router).await;
     let (watch, remote) = watched();
     let answer = router
-        .handle_watched(&companion(), performing(send), watch)
+        .handle_watched(
+            &companion(),
+            performing(call("mail.thread.archive", &["t1"], vec![])),
+            watch,
+        )
         .await;
     assert!(matches!(answer, IntentsReply::Performed(_)), "{answer:?}");
     let progress = said(&remote);

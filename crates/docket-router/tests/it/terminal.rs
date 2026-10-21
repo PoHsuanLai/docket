@@ -78,12 +78,8 @@ async fn an_undoable_write_asks_as_the_terminal_and_never_goes_to_a_reviewer() {
 }
 
 #[tokio::test]
-async fn every_effect_asks_in_every_strictness_and_no_reviewer_runs() {
-    for strictness in [
-        Strictness::AskMore,
-        Strictness::Default,
-        Strictness::TrustMore,
-    ] {
+async fn every_effect_asks_in_every_preset_and_no_reviewer_runs() {
+    for strictness in [Permissions::Auto, Permissions::Manual] {
         for (name, targets, args) in [
             ("mail.thread.archive", vec!["t2"], vec![]),
             ("mail.thread.delete", vec!["t2"], vec![]),
@@ -98,7 +94,7 @@ async fn every_effect_asks_in_every_strictness_and_no_reviewer_runs() {
                 .state
                 .lock()
                 .expect("lock")
-                .strictness
+                .permissions
                 .insert(space("work"), strictness);
             let end = run(&router, from_cli(name, &targets, args)).await;
             assert_eq!(

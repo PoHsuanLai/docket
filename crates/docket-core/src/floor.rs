@@ -9,7 +9,7 @@
 
 use crate::ids::ActionRef;
 use crate::limit::{Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope};
-use crate::review::Strictness;
+use crate::review::{Permissions, Strictness};
 use porter_core::AppName;
 use prov::{ActionName, Effect, SpaceScope, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -103,6 +103,12 @@ impl Floor {
             Some(loosest) => wanted.min(loosest),
             None => wanted,
         }
+    }
+
+    /// `wanted`, or `Manual` when the floor's loosest strictness is `ask_more`: a floor that asks
+    /// for more asking forces the preset that asks before every change.
+    pub fn clamp_permissions(&self, wanted: Permissions) -> Permissions {
+        Permissions::from(self.clamp(wanted.strictness()))
     }
 
     /// The locked entries.

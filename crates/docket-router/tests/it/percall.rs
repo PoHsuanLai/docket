@@ -300,8 +300,8 @@ async fn strictness_still_rules_on_the_effect_used() {
         perform(&router, activate("Move")).await.expect("runs");
         assert_eq!(asks(&router), expected, "{strictness:?}");
     }
-    // A destructive effect asks even under TrustMore when it is not inside a task policy.
-    let mut router = fake_router_with(Strictness::TrustMore);
+    // A destructive effect asks even under Auto when it is not inside a task policy.
+    let mut router = fake_router_with(Strictness::Default);
     with_answers(&mut router, 1);
     router
         .seams
@@ -315,7 +315,7 @@ async fn strictness_still_rules_on_the_effect_used() {
 
 fn fake_router_with(strictness: Strictness) -> Router<docket_fake::FakeSeams> {
     let config = AgentConfig {
-        strictness,
+        permissions: strictness.into(),
         ..AgentConfig::default()
     };
     docket_fake::fake_router(config).expect("router")

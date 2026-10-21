@@ -123,63 +123,39 @@ async fn under_default_an_outbound_act_always_asks_whatever_is_trusted() {
     assert!(router.seams.link.mail.sent().is_empty());
 }
 
-#[tokio::test]
-async fn under_trust_more_an_outbound_act_with_every_sink_trusted_is_reviewed_by_every_stage_then_runs()
- {
-    let mut router = router();
-    router.config.strictness = Strictness::TrustMore;
-    ready(&router).await;
-    show_contacts(&router).await;
-    perform(&router, send(contact())).await.expect("ran");
-    assert_eq!(
-        router.seams.reviewer.call_count(),
-        3,
-        "quick, deliberate, second opinion"
-    );
-    assert_eq!(router.seams.link.mail.sent().len(), 1);
-    let reviews = router
-        .seams
-        .sink
-        .records()
-        .iter()
-        .filter(|r| matches!(r, AuditRecord::Review { .. }))
-        .count();
-    assert_eq!(reviews, 3, "every verdict is logged");
+fn archive() -> CallRequest {
+    call("mail.thread.archive", &["t1"], vec![])
 }
 
 #[tokio::test]
 async fn a_reviewer_that_asks_sends_the_call_to_the_person() {
     let mut router = router();
-    router.config.strictness = Strictness::TrustMore;
     router.seams.reviewer = ScriptedReviewer::always_ask();
-    ready(&router).await;
-    show_contacts(&router).await;
-    let refused = perform(&router, send(contact()))
+    ready_outside(&router).await;
+    let refused = perform(&router, archive())
         .await
         .expect_err("asked, then dismissed");
     assert_eq!(refused, CallRefusal::Unconfirmed(ConfirmEnd::Dismissed));
     assert_eq!(router.seams.confirmer.requests().len(), 1);
-    assert!(router.seams.link.mail.sent().is_empty());
+    assert!(!router.seams.link.mail.is_archived("t1"));
 }
 
 #[tokio::test]
 async fn a_reviewer_that_hangs_past_its_deadline_is_a_timeout_that_asks() {
     let mut router = router();
-    router.config.strictness = Strictness::TrustMore;
     router.config.review = docket_core::ReviewTimeouts {
         quick: docket_core::Millis(0),
         deliberate: docket_core::Millis(0),
         second: docket_core::Millis(0),
     };
     router.seams.reviewer = ScriptedReviewer::hanging();
-    ready(&router).await;
-    show_contacts(&router).await;
-    let refused = perform(&router, send(contact()))
+    ready_outside(&router).await;
+    let refused = perform(&router, archive())
         .await
         .expect_err("timed out, asked, then dismissed");
     assert_eq!(refused, CallRefusal::Unconfirmed(ConfirmEnd::Dismissed));
     assert_eq!(router.seams.confirmer.requests().len(), 1);
-    assert!(router.seams.link.mail.sent().is_empty());
+    assert!(!router.seams.link.mail.is_archived("t1"));
     let timed_out = router.seams.sink.records().iter().any(|r| {
         matches!(r, AuditRecord::Review { mark, .. }
             if mark.stage == Stage::Quick && mark.verdict == Err(ReviewError::Timeout))
@@ -499,8 +475,7 @@ async fn an_action_hidden_from_agents_is_denied_with_only_a_coarse_code() {
 async fn an_exact_repeat_after_a_denial_is_refused_without_review() {
     let mut router = router();
     router.seams.reviewer = ScriptedReviewer::queued(vec![deny()], ReviewMode::AlwaysAllow);
-    router.config.strictness = Strictness::AskMore;
-    ready(&router).await;
+    ready_outside(&router).await;
     let first = perform(&router, call("mail.thread.archive", &["t1"], vec![]))
         .await
         .expect_err("denied");

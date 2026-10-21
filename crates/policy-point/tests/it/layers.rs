@@ -2,20 +2,12 @@
 //! a bad source is handled by its layer without ever loosening the set.
 
 use crate::support::*;
-use docket_core::{AskReason, PolicyId, Ruling};
+use docket_core::{AskReason, Permissions, PolicyId, Ruling};
 use policy_point::{Layer, LayerError, Pdp, PolicyOrigin, PolicySource, SCHEMA};
 use prov::Effect;
 use std::path::PathBuf;
 
-const TODAYS_IDS: [&str; 28] = [
-    "attempt",
-    "read-final",
-    "user-launcher",
-    "undoable-trusted-inside-final",
-    "undoable-judged",
-    "outbound-trusted-inside-judged",
-    "destructive-trusted-inside-judged",
-    "cli-granted-final",
+const CORE_IDS: [&str; 13] = [
     "hidden-from-agents",
     "grant-denied",
     "halted",
@@ -27,14 +19,38 @@ const TODAYS_IDS: [&str; 28] = [
     "rule-of-two",
     "untrusted-sink",
     "lasting-from-untrusted",
+    "limit-ask",
+    "tainted-always-asks",
+];
+
+const AUTO_IDS: [&str; 14] = [
+    "attempt",
+    "read-final",
+    "user-launcher",
+    "undoable-trusted-inside-final",
+    "undoable-judged",
+    "screen-step-final",
+    "cli-granted-final",
     "cross-space",
     "mass",
     "ask-always",
     "cli-asks",
     "cli-destructive-asks",
     "first-use",
-    "tainted-always-asks",
-    "limit-ask",
+    "mcp-asks",
+];
+
+const MANUAL_IDS: [&str; 11] = [
+    "attempt",
+    "read-final",
+    "user-launcher",
+    "cli-granted-final",
+    "cross-space",
+    "mass",
+    "ask-always",
+    "cli-asks",
+    "cli-destructive-asks",
+    "first-use",
     "mcp-asks",
 ];
 
@@ -53,7 +69,10 @@ fn file(layer: Layer, name: &str, text: &str) -> PolicySource {
 }
 
 fn built_in() -> Vec<PolicySource> {
-    vec![PolicySource::core(), PolicySource::standard_preset()]
+    vec![
+        PolicySource::core(),
+        PolicySource::preset(Permissions::Auto),
+    ]
 }
 
 fn with_extra(extra: PolicySource) -> Vec<PolicySource> {
@@ -72,11 +91,26 @@ fn ids(pdp: &Pdp) -> Vec<String> {
     ids
 }
 
-#[test]
-fn core_and_standard_preset_are_exactly_todays_set_and_the_fact_rules() {
-    let mut want: Vec<String> = TODAYS_IDS.iter().map(|s| (*s).to_owned()).collect();
+fn want(preset: &[&str]) -> Vec<String> {
+    let mut want: Vec<String> = CORE_IDS
+        .iter()
+        .chain(preset)
+        .map(|s| (*s).to_owned())
+        .collect();
     want.sort();
-    assert_eq!(ids(&Pdp::standard().expect("loads")), want);
+    want
+}
+
+#[test]
+fn core_and_each_preset_make_exactly_their_rules() {
+    assert_eq!(
+        ids(&Pdp::built_in(Permissions::Auto).expect("loads")),
+        want(&AUTO_IDS)
+    );
+    assert_eq!(
+        ids(&Pdp::built_in(Permissions::Manual).expect("loads")),
+        want(&MANUAL_IDS)
+    );
 }
 
 #[test]
@@ -107,7 +141,7 @@ fn a_permit_in_the_assistant_layer_is_left_out_and_in_the_admin_layer_is_an_erro
     .expect("loads");
     assert_eq!(assistant.skipped.len(), 1);
     assert_eq!(assistant.skipped[0].layer, Layer::Assistant);
-    assert_eq!(ids(&assistant.pdp).len(), TODAYS_IDS.len());
+    assert_eq!(ids(&assistant.pdp).len(), CORE_IDS.len() + AUTO_IDS.len());
     let admin = Pdp::layered(
         SCHEMA,
         &with_extra(file(Layer::Admin, "/etc/a.cedar", A_PERMIT)),
@@ -177,11 +211,24 @@ fn a_bad_preset_falls_back_to_the_built_in_one() {
     let layered = Pdp::layered(SCHEMA, &sources).expect("loads");
     assert_eq!(layered.skipped.len(), 1);
     assert_eq!(layered.skipped[0].layer, Layer::Preset);
-    assert_eq!(ids(&layered.pdp).len(), TODAYS_IDS.len());
+    assert_eq!(ids(&layered.pdp).len(), CORE_IDS.len() + AUTO_IDS.len());
     // No preset at all is the built-in one, and nothing is reported.
     let none = Pdp::layered(SCHEMA, &[PolicySource::core()]).expect("loads");
     assert!(none.skipped.is_empty());
-    assert_eq!(ids(&none.pdp).len(), TODAYS_IDS.len());
+    assert_eq!(ids(&none.pdp).len(), CORE_IDS.len() + AUTO_IDS.len());
+}
+
+#[test]
+fn a_bad_manual_preset_falls_back_to_the_built_in_manual_one() {
+    let sources = [
+        PolicySource::core(),
+        file(Layer::Preset, "grid.cedar", "permit ("),
+    ];
+    let layered = Pdp::layered_for(SCHEMA, Permissions::Manual, &sources).expect("loads");
+    assert_eq!(layered.skipped.len(), 1);
+    assert!(!ids(&layered.pdp).contains(&"undoable-judged".to_owned()));
+    // The prompt-injection guard is core's: no preset, edited or built in, can drop it.
+    assert!(ids(&layered.pdp).contains(&"tainted-always-asks".to_owned()));
 }
 
 #[test]

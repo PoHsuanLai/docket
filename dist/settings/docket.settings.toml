@@ -10,10 +10,10 @@ file = "docket/settings.toml"
 version = 1
 
 [[key]]
-path = "agent.strictness"
-default = "default"
-label = "Asks first"
-help = "Choose how often the assistant checks with you. Asks less lets it send or delete inside a task you approved, once two checks agree. Usual is the safe default."
+path = "agent.permissions"
+default = "auto"
+label = "Permissions"
+help = "Auto does what you allowed and asks before sending or deleting. Manual asks before each change, for when you are watching."
 section = "Assistant"
 exposure = "basic"
 
@@ -21,15 +21,14 @@ exposure = "basic"
 kind = "segmented"
 
 [key.kind.v]
-variants = ["ask_more", "default", "trust_more"]
+variants = ["auto", "manual"]
 
 [key.page]
 kind = "intelligence"
 
 [key.labels]
-ask_more = "Asks more"
-default = "Usual"
-trust_more = "Asks less"
+auto = "Auto"
+manual = "Manual"
 
 [[key]]
 path = "agent.mcp.expose"

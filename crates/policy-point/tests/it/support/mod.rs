@@ -13,7 +13,7 @@ pub const CLEAN: SessionSaw = SessionSaw {
     untrusted: Saw::NotSeen,
 };
 
-/// A call that is trusted, inside the task policy, in Default strictness: the starting point
+/// A call that is trusted, inside the task policy, under Auto: the starting point
 /// every row edits.
 pub fn base(effect: Effect) -> PolicyRequest {
     let mail = AppName::parse("org.quire.Mail").expect("app");
@@ -46,7 +46,6 @@ pub fn base(effect: Effect) -> PolicyRequest {
             terminal: TerminalGrant::NotGranted,
             coverage: CoverageState::Inside,
             task_ceiling: Effect::Destructive,
-            strictness: Strictness::Default,
             saw: CLEAN,
             sinks: SinkIntegrity {
                 recipient: Integrity::Trusted,
@@ -60,6 +59,7 @@ pub fn base(effect: Effect) -> PolicyRequest {
             repeat: RepeatFact::Fresh,
             limit: LimitFact::Free,
             taint: TaintFact::Clean,
+            run: RunFact::NotAsked,
         },
     }
 }
@@ -71,7 +71,11 @@ pub fn with(effect: Effect, edit: impl FnOnce(&mut PolicyRequest)) -> PolicyRequ
 }
 
 pub fn pdp() -> Pdp {
-    Pdp::standard().expect("loads")
+    Pdp::built_in(Permissions::Auto).expect("loads")
+}
+
+pub fn manual() -> Pdp {
+    Pdp::built_in(Permissions::Manual).expect("loads")
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -110,6 +114,6 @@ pub fn outside(r: &mut PolicyRequest) {
     r.context.coverage = CoverageState::Outside;
 }
 
-pub fn strictness(s: Strictness) -> impl FnOnce(&mut PolicyRequest) {
-    move |r| r.context.strictness = s
+pub fn allowed_run(r: &mut PolicyRequest) {
+    r.context.run = RunFact::Allowed;
 }

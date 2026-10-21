@@ -1,23 +1,45 @@
 //! The policy files on disk: `quire/permissions/` under the data, configuration and system
 //! directories. The loader and its rules are `policy-point`'s (pure); this reads the files.
 //!
-//! - preset `standard`: `<data dir>/quire/permissions/standard/*.cedar`; the first data directory
-//!   that has one wins, like the manifests.
+//! - presets `auto` and `manual`: `<data dir>/quire/permissions/<preset>/*.cedar`; the first data
+//!   directory that has one wins, like the manifests, so a copy under `$XDG_DATA_HOME` is the
+//!   person's own edit of it.
 //! - person: `$XDG_CONFIG_HOME/quire/permissions/*.cedar`.
 //! - assistant: `$XDG_CONFIG_HOME/quire/permissions/assistant/*.cedar` (forbids only).
 //! - administrator: `/etc/quire/permissions/*.cedar` (forbids only, never skipped).
 //!
 //! Files are read in name order. A file that cannot be read is handed to the loader as an
-//! unreadable source, so its layer decides what that means.
+//! unreadable source, so its layer decides what that means. One policy set is built per preset,
+//! each from the same core, person, assistant and administrator layers.
 
-use policy_point::{Layer, LayerError, Layered, Pdp, PolicySource, SCHEMA};
+use docket_core::Permissions;
+use policy_point::{Layer, LayerError, Pdp, PolicySource, Presets, Rejected, SCHEMA};
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 /// Where the administrator's policy files are on a real machine.
 pub const ADMIN_DIR: &str = "/etc/quire/permissions";
 
-/// The preset in force. There is no setting yet; the next phase adds one.
-const PRESET: &str = "standard";
+/// Where the rules of a preset in force came from, in words for the person.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PresetOrigin {
+    /// The copy built into the program: no folder is installed, or the one there did not load.
+    BuiltIn,
+    /// The folder installed for the whole system.
+    System,
+    /// A folder under the person's own data directory: theirs to edit.
+    EditedByYou,
+}
+
+impl fmt::Display for PresetOrigin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            PresetOrigin::BuiltIn => "built in",
+            PresetOrigin::System => "from the system",
+            PresetOrigin::EditedByYou => "edited by you",
+        })
+    }
+}
 
 /// The directories the policy files are read from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,11 +53,11 @@ pub struct PolicyDirs {
 }
 
 impl PolicyDirs {
-    /// The preset directories, in search order.
-    fn presets(&self) -> impl Iterator<Item = PathBuf> + '_ {
+    /// The directories that may hold `preset`, in search order.
+    fn presets(&self, preset: Permissions) -> impl Iterator<Item = PathBuf> + '_ {
         self.data_dirs
             .iter()
-            .map(|d| d.join("quire").join("permissions").join(PRESET))
+            .map(move |d| d.join("quire").join("permissions").join(preset.folder()))
     }
 
     /// The assistant's directory, inside the person's.
@@ -43,9 +65,26 @@ impl PolicyDirs {
         self.person.join("assistant")
     }
 
-    /// The directory the preset is read from: the first that holds a policy file.
-    pub fn preset(&self) -> Option<PathBuf> {
-        self.presets().find(|d| !cedar_files(d).is_empty())
+    /// The directory `preset` is read from, and whose it is: the first that holds a policy file.
+    pub fn preset(&self, preset: Permissions) -> Option<(PathBuf, PresetOrigin)> {
+        self.presets(preset)
+            .enumerate()
+            .find(|(_, d)| !cedar_files(d).is_empty())
+            .map(|(at, dir)| {
+                let origin = match at {
+                    0 => PresetOrigin::EditedByYou,
+                    _ => PresetOrigin::System,
+                };
+                (dir, origin)
+            })
+    }
+
+    /// The preset directories that exist, for the watch.
+    pub fn preset_dirs(&self) -> Vec<PathBuf> {
+        [Permissions::Auto, Permissions::Manual]
+            .into_iter()
+            .filter_map(|p| self.preset(p).map(|(dir, _)| dir))
+            .collect()
     }
 }
 
@@ -74,21 +113,71 @@ fn read_layer(layer: Layer, dir: &Path) -> Vec<PolicySource> {
         .collect()
 }
 
-/// Every source on disk, with the built-in core. No preset on disk leaves the built-in one.
-pub fn read_sources(dirs: &PolicyDirs) -> Vec<PolicySource> {
-    let preset = dirs
-        .preset()
-        .map(|dir| read_layer(Layer::Preset, &dir))
+/// Every source on disk for `preset`, with the built-in core. No preset on disk leaves the
+/// built-in one.
+pub fn read_sources(dirs: &PolicyDirs, preset: Permissions) -> Vec<PolicySource> {
+    let folder = dirs
+        .preset(preset)
+        .map(|(dir, _)| read_layer(Layer::Preset, &dir))
         .unwrap_or_default();
     std::iter::once(PolicySource::core())
-        .chain(preset)
+        .chain(folder)
         .chain(read_layer(Layer::Person, &dirs.person))
         .chain(read_layer(Layer::Assistant, &dirs.assistant()))
         .chain(read_layer(Layer::Admin, &dirs.admin))
         .collect()
 }
 
-/// The policy set the files make now, with what was left out.
-pub fn load_policies(dirs: &PolicyDirs) -> Result<Layered, LayerError> {
-    Pdp::layered(SCHEMA, &read_sources(dirs))
+/// The policy sets the files make now, with what was left out and where each preset came from.
+#[derive(Debug)]
+pub struct LoadedPolicies {
+    /// One set per preset.
+    pub presets: Presets,
+    /// The sources left out, each once.
+    pub skipped: Vec<Rejected>,
+    /// Where the Auto preset in force came from.
+    pub auto: PresetOrigin,
+    /// Where the Manual preset in force came from.
+    pub manual: PresetOrigin,
+}
+
+/// The origin a preset has once the loader has had its say: a folder that was skipped is the
+/// built-in copy.
+fn origin(dirs: &PolicyDirs, preset: Permissions, skipped: &[Rejected]) -> PresetOrigin {
+    let dropped = skipped.iter().any(|r| r.layer == Layer::Preset);
+    match dirs.preset(preset) {
+        Some((_, origin)) if !dropped => origin,
+        Some(_) | None => PresetOrigin::BuiltIn,
+    }
+}
+
+/// The policy sets the files make now.
+pub fn load_policies(dirs: &PolicyDirs) -> Result<LoadedPolicies, LayerError> {
+    let auto = Pdp::layered_for(
+        SCHEMA,
+        Permissions::Auto,
+        &read_sources(dirs, Permissions::Auto),
+    )?;
+    let manual = Pdp::layered_for(
+        SCHEMA,
+        Permissions::Manual,
+        &read_sources(dirs, Permissions::Manual),
+    )?;
+    let auto_origin = origin(dirs, Permissions::Auto, &auto.skipped);
+    let manual_origin = origin(dirs, Permissions::Manual, &manual.skipped);
+    let mut skipped = auto.skipped;
+    for rejected in manual.skipped {
+        if !skipped.contains(&rejected) {
+            skipped.push(rejected);
+        }
+    }
+    Ok(LoadedPolicies {
+        presets: Presets {
+            auto: auto.pdp,
+            manual: manual.pdp,
+        },
+        skipped,
+        auto: auto_origin,
+        manual: manual_origin,
+    })
 }

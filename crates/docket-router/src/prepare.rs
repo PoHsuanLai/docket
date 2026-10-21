@@ -76,7 +76,6 @@ struct Facts<'a> {
     record: &'a SessionRecord,
     consent: &'a Verdict,
     coverage: CoverageState,
-    strictness: docket_core::Strictness,
     count: Count,
     impact: Impact,
     relation: SpaceRelation,
@@ -130,7 +129,6 @@ impl<S: Seams> Router<S> {
                 ),
                 coverage: f.coverage,
                 task_ceiling: f.record.policy.as_ref().map_or(Effect::Read, |p| p.ceiling),
-                strictness: f.strictness,
                 saw,
                 sinks: sink_integrity(f.decl, &f.request.args),
                 impact: f.impact,
@@ -139,6 +137,7 @@ impl<S: Seams> Router<S> {
                 repeat: repeat_fact(f.repeat),
                 limit: f.run.limit,
                 taint: f.taint,
+                run: policy_point::RunFact::NotAsked,
             },
         }
     }
@@ -268,7 +267,7 @@ impl<S: Seams> Router<S> {
         };
         let targets = entities(&request.target);
         // One writer per thing: a write to what another live job owns is refused, whatever the
-        // policy, the grants and the strictness say.
+        // policy, the grants and the permissions say.
         if decl.effect > Effect::Read && owned_by_another(st, record, &touched(&request)) {
             return Err(end(CallRefusal::Denied(DenyCode::OwnedByAnotherJob)));
         }
@@ -300,11 +299,11 @@ impl<S: Seams> Router<S> {
         };
         let cover = coverage(record.policy.as_ref(), &decl, &request, &labels, now);
         // The administrator's floor caps how loose any Space may be set.
-        let strictness = self.floor.clamp(
-            st.strictness
+        let permissions = self.floor.clamp_permissions(
+            st.permissions
                 .get(&space)
                 .copied()
-                .unwrap_or(self.agent_config().strictness),
+                .unwrap_or(self.agent_config().permissions),
         );
         let impact = impact_of(&decl, count, self.agent_config().mass_at);
         // Everything stateful is gathered here and ruled on by Cedar: the kill switch, the budgets,
@@ -340,21 +339,23 @@ impl<S: Seams> Router<S> {
             &limited,
         );
         let repeat = repeated(&record.breaker, &goal, digest);
-        let ruled = self.pdp().decide_checked(&self.policy_request(&Facts {
-            who,
-            decl: &decl,
-            request: &request,
-            record,
-            consent: &consent,
-            coverage: CoverageState::from(&cover),
-            strictness,
-            count,
-            impact,
-            relation: relation_of(st, &space, &decl.on, &targets),
-            run: &run,
-            repeat,
-            taint,
-        }));
+        let presets = self.presets();
+        let ruled = presets
+            .pick(permissions)
+            .decide_checked(&self.policy_request(&Facts {
+                who,
+                decl: &decl,
+                request: &request,
+                record,
+                consent: &consent,
+                coverage: CoverageState::from(&cover),
+                count,
+                impact,
+                relation: relation_of(st, &space, &decl.on, &targets),
+                run: &run,
+                repeat,
+                taint,
+            }));
         crate::policylog::log_faults(&ruled, &record.task);
         let ruling = ruled.ruling;
         // A reviewed call also spends the reviews budget.
@@ -401,7 +402,7 @@ impl<S: Seams> Router<S> {
             space: space.clone(),
             review: Some(ReviewRequest {
                 space,
-                strictness,
+                strictness: permissions.strictness(),
                 turns: record.turns.clone(),
                 proposed: proposed(&decl, &request, &targets),
                 labels,

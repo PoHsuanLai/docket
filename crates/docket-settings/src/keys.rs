@@ -4,7 +4,7 @@
 
 use crate::AgentSettings;
 use crate::expose::{AcpAgents, AcpExpose, McpExpose};
-use docket_core::{Depth, Millis, Seconds, ShadowMode, Strictness};
+use docket_core::{Depth, Millis, Permissions, Seconds, ShadowMode};
 use porter_core::{Count, MicroUsd};
 use std::ops::RangeInclusive;
 
@@ -53,24 +53,36 @@ fn seconds(v: i64, per: i64) -> Seconds {
     Seconds(u32::try_from(v.saturating_mul(per)).unwrap_or(u32::MAX))
 }
 
-const STRICTNESS: [Strictness; 3] = [
-    Strictness::AskMore,
-    Strictness::Default,
-    Strictness::TrustMore,
-];
+const PERMISSIONS: [Permissions; 2] = [Permissions::Auto, Permissions::Manual];
+/// What each old `agent.strictness` word (`ask_more`, `default`, `trust_more`) means: `ask_more` is
+/// Manual, `default` and `trust_more` are Auto.
+const LEGACY_STRICTNESS: [Permissions; 3] =
+    [Permissions::Manual, Permissions::Auto, Permissions::Auto];
 const EXPOSE: [McpExpose; 2] = [McpExpose::Off, McpExpose::On];
 const ACP: [AcpExpose; 2] = [AcpExpose::Off, AcpExpose::On];
 const SHADOW: [ShadowMode; 2] = [ShadowMode::Off, ShadowMode::Record];
 const AGENTS: [AcpAgents; 2] = [AcpAgents::Off, AcpAgents::On];
 
+/// Keys an older settings file may still hold, read before the table so a new key beside them
+/// wins. They are not schema rows.
+pub(crate) fn legacy() -> Vec<Key> {
+    vec![Key {
+        path: "agent.strictness",
+        rule: Rule::Word {
+            words: &["ask_more", "default", "trust_more"],
+            set: |s, i| s.agent.permissions = LEGACY_STRICTNESS[i],
+        },
+    }]
+}
+
 /// Every key, in the order the schema lists them.
 pub(crate) fn table() -> Vec<Key> {
     vec![
         Key {
-            path: "agent.strictness",
+            path: "agent.permissions",
             rule: Rule::Word {
-                words: &["ask_more", "default", "trust_more"],
-                set: |s, i| s.agent.strictness = STRICTNESS[i],
+                words: &["auto", "manual"],
+                set: |s, i| s.agent.permissions = PERMISSIONS[i],
             },
         },
         Key {

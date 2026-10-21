@@ -24,7 +24,7 @@ model = "second-opinion"
 family = "other"
 
 [agent]
-strictness = "default"
+permissions = "auto"
 mass_at = 20
 confirm_expiry = 120
 task_policy_max = 3600

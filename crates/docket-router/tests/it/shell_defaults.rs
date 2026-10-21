@@ -30,7 +30,7 @@ fn router_of(
         .replace("classes = [\"files\"]", &format!("classes = [\"{class}\"]"));
     let manifest = parse(&text).expect("manifest");
     let config = AgentConfig {
-        strictness,
+        permissions: strictness.into(),
         ..AgentConfig::default()
     };
     let mut router = docket_fake::fake_router(config).expect("router");
@@ -97,7 +97,7 @@ fn minimise(router: &Router<docket_fake::FakeSeams>) -> CallRequest {
         .seams
         .link
         .menu
-        .script("Minimise", MenuItem::effect(Effect::Read));
+        .script("Minimise", MenuItem::effect(Effect::UndoableWrite));
     call(SHELL, "item.activate", Some("Minimise"))
 }
 
@@ -119,7 +119,7 @@ fn the_shipped_file_is_exactly_the_companion_and_the_shell_for_app_own_in_both_u
 }
 
 #[tokio::test]
-async fn a_read_row_of_the_shell_does_not_ask_on_first_use_with_the_defaults() {
+async fn a_write_row_of_the_shell_does_not_ask_on_first_use_with_the_defaults() {
     let router = router_of(SHELL, "app_own", Strictness::Default, shipped());
     let request = minimise(&router);
     assert_eq!(asked(&router, request).await, 0);
@@ -172,12 +172,8 @@ async fn the_shells_other_classes_still_ask() {
 }
 
 #[tokio::test]
-async fn strictness_still_rules_the_shells_writes_and_destructive_acts() {
-    // A read is final in every strictness once consent is there.
-    let router = router_of(SHELL, "app_own", Strictness::AskMore, shipped());
-    let request = minimise(&router);
-    assert_eq!(asked(&router, request).await, 0);
-    // An undoable write with no task policy: judged by default, asked under AskMore.
+async fn the_preset_still_rules_the_shells_writes_and_destructive_acts() {
+    // An undoable write with no task policy: judged under Auto, asked under Manual.
     for (strictness, expected) in [(Strictness::Default, 0), (Strictness::AskMore, 1)] {
         let router = router_of(SHELL, "app_own", strictness, shipped());
         router
@@ -188,8 +184,8 @@ async fn strictness_still_rules_the_shells_writes_and_destructive_acts() {
         let request = call(SHELL, "item.activate", Some("Move"));
         assert_eq!(asked(&router, request).await, expected, "{strictness:?}");
     }
-    // A destructive act asks even under TrustMore.
-    let router = router_of(SHELL, "app_own", Strictness::TrustMore, shipped());
+    // A destructive act asks even under Auto.
+    let router = router_of(SHELL, "app_own", Strictness::Default, shipped());
     router
         .seams
         .link

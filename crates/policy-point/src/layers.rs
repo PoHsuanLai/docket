@@ -4,7 +4,8 @@
 //! person adds to it, the assistant and the administrator may only add rules that ask or refuse.
 //! Reading files is the caller's: this crate is pure and takes the text.
 
-use crate::pdp::{CORE_POLICIES, STANDARD_PRESET};
+use crate::pdp::{CORE_POLICIES, preset_text};
+use docket_core::Permissions;
 use std::fmt;
 use std::path::PathBuf;
 
@@ -78,9 +79,13 @@ impl PolicySource {
         Self::built_in(Layer::Core, "core", CORE_POLICIES)
     }
 
-    /// The compiled-in standard preset: what stands in for a preset that is missing or bad.
-    pub fn standard_preset() -> Self {
-        Self::built_in(Layer::Preset, "standard preset", STANDARD_PRESET)
+    /// The compiled-in preset: what stands in for a preset that is missing or bad.
+    pub fn preset(preset: Permissions) -> Self {
+        let name = match preset {
+            Permissions::Auto => "Auto preset",
+            Permissions::Manual => "Manual preset",
+        };
+        Self::built_in(Layer::Preset, name, preset_text(preset))
     }
 
     /// A file's text.

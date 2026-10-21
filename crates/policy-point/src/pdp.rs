@@ -4,16 +4,27 @@ use crate::fault::Ruled;
 use crate::layers::PolicySource;
 use crate::request::PolicyRequest;
 use cedar_policy::{PolicySet, Schema, ValidationMode, Validator};
-use docket_core::{PolicyId, Ruling};
+use docket_core::{Permissions, PolicyId, Ruling};
 use std::str::FromStr;
 
 /// The schema, as shipped.
 pub const SCHEMA: &str = include_str!("../../../policy/quire.cedarschema");
 /// The core policies, as shipped: the safety invariants of every preset.
 pub const CORE_POLICIES: &str = include_str!("../../../policy/core.cedar");
-/// The standard preset, as shipped: today's grid. Also what stands in for an installed preset
-/// that is missing or does not load.
-pub const STANDARD_PRESET: &str = include_str!("../../../policy/presets/standard/grid.cedar");
+/// The Auto preset, as shipped. Also what stands in for an installed Auto preset that is missing
+/// or does not load.
+pub const AUTO_PRESET: &str = include_str!("../../../policy/presets/auto/grid.cedar");
+/// The Manual preset, as shipped. Also what stands in for an installed Manual preset that is
+/// missing or does not load.
+pub const MANUAL_PRESET: &str = include_str!("../../../policy/presets/manual/grid.cedar");
+
+/// The built-in text of a preset.
+pub fn preset_text(preset: Permissions) -> &'static str {
+    match preset {
+        Permissions::Auto => AUTO_PRESET,
+        Permissions::Manual => MANUAL_PRESET,
+    }
+}
 
 /// Why a schema or policy set could not be loaded.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -64,11 +75,11 @@ impl Pdp {
         }
     }
 
-    /// Loads the shipped schema with the built-in core and standard preset: no files are read,
-    /// so tests and the fake router get the same grid whatever is installed.
-    pub fn standard() -> Result<Pdp, PolicyError> {
-        let sources = [PolicySource::core(), PolicySource::standard_preset()];
-        Pdp::layered(SCHEMA, &sources)
+    /// Loads the shipped schema with the built-in core and the built-in `preset`: no files are
+    /// read, so tests and the fake router get the same grid whatever is installed.
+    pub fn built_in(preset: Permissions) -> Result<Pdp, PolicyError> {
+        let sources = [PolicySource::core(), PolicySource::preset(preset)];
+        Pdp::layered_for(SCHEMA, preset, &sources)
             .map(|layered| layered.pdp)
             .map_err(|e| PolicyError::Invalid(e.to_string()))
     }

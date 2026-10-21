@@ -182,8 +182,8 @@ pub use reader::{
     entity_choice_text,
 };
 pub use review::{
-    AskReason, BreakerTrip, DenyCode, Impact, PolicyId, ReasonCode, ReasonText, ReviewError,
-    ReviewMark, Ruling, ShadowMode, Stage, Strictness, VerdictKind,
+    AskReason, BreakerTrip, DenyCode, Impact, Permissions, PolicyId, ReasonCode, ReasonText,
+    ReviewError, ReviewMark, Ruling, ShadowMode, Stage, Strictness, VerdictKind,
 };
 pub use roster::{
     EpisodeLine, HelperRosterLine, LeadText, PrimerText, ProfileLine, RecalledLine, RollupLine,

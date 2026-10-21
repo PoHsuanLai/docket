@@ -20,8 +20,8 @@ use docket_core::{
 };
 use docket_core::{AgentReach, Lasting, Origin};
 use policy_point::{
-    ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, SpaceRelation,
-    TerminalGrant,
+    ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, RunFact,
+    SpaceRelation, TerminalGrant,
 };
 use porter_core::consent::{Decision, Grant, GrantScope, Usage, Verdict};
 use porter_core::{Count, DataClass, GrantId};
@@ -73,6 +73,7 @@ impl<S: Seams> Router<S> {
         space: &prov::SpaceId,
         what: &str,
         effect: Effect,
+        why: Vec<AskReason>,
     ) -> Option<ConfirmRequest> {
         let n = self.locked().mint();
         let id = ConfirmId::parse(&format!("c-{n}")).ok()?;
@@ -88,7 +89,7 @@ impl<S: Seams> Router<S> {
             count: Count(1),
             detail: ConfirmDetail::Plain,
             lines: vec![],
-            why: vec![AskReason::FirstUse],
+            why,
             taint: TaintNote::Clean,
             offer: ConfirmOffer::OnceOnly,
             always: Default::default(),
@@ -123,6 +124,7 @@ impl<S: Seams> Router<S> {
             &ask.space,
             "Let it use this app",
             Effect::UndoableWrite,
+            vec![AskReason::FirstUse],
         ) else {
             return IntentsReply::Granted(GrantAnswer::Refused(ConfirmEnd::Cancelled));
         };
@@ -169,9 +171,32 @@ impl<S: Seams> Router<S> {
                         });
                     }
                 }
+                self.allow_screen_runs(&ask);
                 IntentsReply::Granted(GrantAnswer::Granted)
             }
         }
+    }
+
+    /// Remembers on the screen runs of the Space that the person allowed them to use the app, so
+    /// the policy sees the steps of those runs as allowed (`run`). It ends with each run's
+    /// session. The ask names no run, so every live screen run in the Space is covered.
+    fn allow_screen_runs(&self, ask: &GrantAsk) {
+        let mut st = self.locked();
+        st.sessions
+            .values_mut()
+            .filter(|r| {
+                r.space == ask.space
+                    && matches!(
+                        &r.actor,
+                        Actor::Companion {
+                            role: AgentRole::Cua { .. },
+                            ..
+                        }
+                    )
+            })
+            .for_each(|r| {
+                r.screen_apps.insert(ask.app.clone());
+            });
     }
 
     /// `.Gate.Check`: may this pixel step run? A step that Cedar leaves to a reviewer is asked
@@ -229,12 +254,24 @@ impl<S: Seams> Router<S> {
                 })
                 .max_by_key(|v| matches!(v, Verdict::Denied))
                 .unwrap_or(Verdict::Ask);
-            let strictness = self.floor.clamp(
-                st.strictness
+            let permissions = self.floor.clamp_permissions(
+                st.permissions
                     .get(&ask.space)
                     .copied()
-                    .unwrap_or(self.agent_config().strictness),
+                    .unwrap_or(self.agent_config().permissions),
             );
+            // The person said yes to this run: at its start sheet, or earlier with a standing
+            // grant for the app. Its steps then read the screen without a question of their own.
+            let allowed = if record.screen_apps.contains(&ask.app)
+                || matches!(consent, Verdict::Granted { .. })
+            {
+                RunFact::Allowed
+            } else {
+                RunFact::NotAsked
+            };
+            // A step always reads the screen; the policy decides what that means for a run the
+            // person allowed (core `tainted-always-asks`).
+            let taint = taint_fact(Saw::Seen, ask.effect);
             let screen = screen.integrity;
             let saw = SessionSaw {
                 private: Saw::NotSeen,
@@ -279,7 +316,6 @@ impl<S: Seams> Router<S> {
                 terminal: TerminalGrant::NotGranted,
                 coverage: CoverageState::Outside,
                 task_ceiling: Effect::Read,
-                strictness,
                 saw,
                 sinks: SinkIntegrity {
                     recipient: Integrity::Trusted,
@@ -296,9 +332,11 @@ impl<S: Seams> Router<S> {
                 budget: run.budget,
                 repeat: repeat_fact(RepeatState::Fresh),
                 limit: run.limit,
-                taint: taint_fact(saw.untrusted, ask.effect),
+                taint,
+                run: allowed,
             };
-            let ruled = self.pdp().decide_checked(&PolicyRequest {
+            let presets = self.presets();
+            let ruled = presets.pick(permissions).decide_checked(&PolicyRequest {
                 principal: PrincipalFacts {
                     kind: record.actor.kind(),
                     caller: ask.app.clone(),
@@ -328,14 +366,19 @@ impl<S: Seams> Router<S> {
         match decided {
             Pending::Run => IntentsReply::Gate(GateAnswer::Run),
             Pending::Refuse(why) => IntentsReply::Gate(GateAnswer::Refused(why)),
-            Pending::NeedsReview(_) | Pending::Confirm(_) => self.confirm_step(&ask, watch).await,
+            Pending::NeedsReview(_) => {
+                self.confirm_step(&ask, watch, vec![AskReason::FirstUse])
+                    .await
+            }
+            Pending::Confirm(why) => self.confirm_step(&ask, watch, why).await,
         }
     }
 
     /// Asks the person about one step, once a watching requester has stopped its own input.
-    async fn confirm_step(&self, ask: &CuaAsk, watch: &Watch) -> IntentsReply {
+    async fn confirm_step(&self, ask: &CuaAsk, watch: &Watch, why: Vec<AskReason>) -> IntentsReply {
         let refused = |end| IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(end)));
-        let Some(request) = self.sheet(&ask.app, &ask.space, "Let it do this step", ask.effect)
+        let Some(request) =
+            self.sheet(&ask.app, &ask.space, "Let it do this step", ask.effect, why)
         else {
             return IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Timeout));
         };

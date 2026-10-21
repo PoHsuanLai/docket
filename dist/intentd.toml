@@ -27,7 +27,7 @@ confirm = ["org.quire.Shell"]
 control = ["org.quire.Shell"]
 
 [agent]
-strictness = "default"
+permissions = "auto"
 mass_at = 20
 confirm_expiry = 120
 confirm_proceed = 10000

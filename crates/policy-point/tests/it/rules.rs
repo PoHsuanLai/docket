@@ -6,23 +6,16 @@ use docket_core::*;
 use prov::{Effect, Integrity};
 
 #[test]
-fn rule_of_two_requires_confirm_in_every_strictness() {
+fn rule_of_two_requires_confirm_in_every_preset() {
     let seen = SessionSaw {
         private: Saw::Seen,
         untrusted: Saw::Seen,
     };
-    for s in [
-        Strictness::AskMore,
-        Strictness::Default,
-        Strictness::TrustMore,
-    ] {
-        let got = pdp().decide(&with(Effect::Outbound, |r| {
-            strictness(s)(r);
-            r.context.saw = seen;
-        }));
+    for (name, set) in [("auto", pdp()), ("manual", manual())] {
+        let got = set.decide(&with(Effect::Outbound, |r| r.context.saw = seen));
         assert!(
             matches!(&got, Ruling::Ask(why) if why.contains(&AskReason::RuleOfTwo)),
-            "{s:?}: {got:?}"
+            "{name}: {got:?}"
         );
     }
 }
@@ -35,13 +28,8 @@ fn rule_of_two_off_when_only_two_legs() {
         ("neither", Saw::NotSeen, Saw::NotSeen),
     ];
     for (name, private, untrusted) in rows {
-        // Outbound is judged only under TrustMore (QUESTIONS S1); under Default it asks for
-        // the effect alone, never for the Rule of Two.
-        let got = pdp().decide(&with(Effect::Outbound, |r| {
-            strictness(Strictness::TrustMore)(r);
-            r.context.saw = SessionSaw { private, untrusted };
-        }));
-        assert_eq!(cell(&got), Cell::Judged, "{name}: {got:?}");
+        // Outbound always asks; with fewer than three legs it asks for the effect alone, never
+        // for the Rule of Two.
         let got = pdp().decide(&with(Effect::Outbound, |r| {
             r.context.saw = SessionSaw { private, untrusted };
         }));
@@ -67,7 +55,6 @@ fn rule_of_two_does_not_apply_to_other_effects() {
 fn untrusted_recipient_asks_even_inside_task_policy() {
     for effect in [Effect::Outbound, Effect::Destructive] {
         let got = pdp().decide(&with(effect, |r| {
-            strictness(Strictness::TrustMore)(r);
             untrust_recipient(r);
         }));
         assert!(

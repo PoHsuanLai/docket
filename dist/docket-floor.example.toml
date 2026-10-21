@@ -6,7 +6,9 @@
 # launcher, and nothing in the person's own files or settings can loosen it.
 #
 # The loosest setting any Space may be given for how much the assistant asks: "ask_more",
-# "default" or "trust_more". A person's setting looser than this is held at it.
+# "default" or "trust_more". A person's setting looser than this is held at it. Permissions has
+# two presets, Auto and Manual: "ask_more" forces Manual (it asks before every change), and the
+# other two leave the person free to choose either.
 #
 # strictness = "default"
 

@@ -2,7 +2,7 @@
 // (preset, person, assistant, administrator) may lift. It is compiled in. Cedar is default-deny
 // and forbid overrides permit, so a rule here cannot be undone by a permit written anywhere else.
 // Three queries run per call (see quire.cedarschema); the grid that says how far each cell gets
-// is the preset's (`presets/standard/grid.cedar`).
+// is the preset's (`presets/auto/grid.cedar`, `presets/manual/grid.cedar`).
 
 // ---- Forbids that refuse (Deny) ----------------------------------------------------------
 
@@ -111,3 +111,24 @@ forbid (
   resource
 )
 when { context.limit == "ask" };
+
+// A session that read untrusted content cannot lean on an "always" grant for anything that
+// changes something: it asks once more. Reading stays free, or one mail read would put a
+// question on every read after. (The terminal is held to the same: a recorded always-grant for
+// it is no more standing than an agent's.) It lives here so an edited preset cannot drop it.
+@id("tainted-always-asks")
+@why("It read something you did not write, so it asks again before changing anything.")
+forbid (
+  principal,
+  action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
+  resource
+)
+when {
+  context.grant == "always" &&
+  context.taint == "tainted" &&
+  resource.effect != "read" &&
+  principal.kind != "user"
+}
+// A screen run reads the screen at every step. A run the person allowed may still make an
+// undoable change; sending or deleting asks again.
+unless { context.run == "allowed" && resource.effect == "undoable_write" };

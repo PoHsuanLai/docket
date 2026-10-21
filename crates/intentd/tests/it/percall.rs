@@ -18,7 +18,7 @@ use docket_fake::{
 };
 use docket_router::{Router, Seams};
 use intentd::DbusLink;
-use policy_point::Pdp;
+use policy_point::Presets;
 use porter_core::{AppId, AppName, Isolation};
 use prov::{ActionName, AgentRef, Effect, SpaceId, UnixSeconds};
 use std::collections::BTreeSet;
@@ -215,7 +215,7 @@ async fn desk(answers: usize) -> Desk {
     let router = Router::new(
         seams,
         AgentConfig::default(),
-        Pdp::standard().expect("policy"),
+        Presets::built_in().expect("policy"),
     );
     router.state.lock().expect("lock").registry.insert(manifest);
     let opened = router

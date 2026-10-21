@@ -11,7 +11,7 @@ use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
     CallFacts, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState,
-    KillSwitch, Ledger, Rewind, SessionSaw, StepLine, Strictness, TaskPolicy, UserTurn,
+    KillSwitch, Ledger, Permissions, Rewind, SessionSaw, StepLine, TaskPolicy, UserTurn,
 };
 use porter_core::{AppName, Count};
 use prov::{
@@ -67,6 +67,9 @@ pub struct SessionRecord {
     pub known: BTreeSet<EntityId>,
     /// The distinct labels of everything delivered to it: a message it sends carries their join.
     pub seen: Vec<Label>,
+    /// The apps the person allowed this screen run to use (the start sheet), for a session that
+    /// is a screen run's. It lives and ends with the session.
+    pub screen_apps: BTreeSet<AppName>,
     /// Messages that landed for it and have not been read.
     pub inbox: Vec<Message>,
     /// The skills this task has loaded (`companion.skill.load`), at most three.
@@ -129,6 +132,7 @@ impl SessionRecord {
             known: BTreeSet::new(),
             seen: Vec::new(),
             inbox: Vec::new(),
+            screen_apps: BTreeSet::new(),
             skill_loads: docket_skills::Loaded::default(),
             wal: Wal::Off,
             external: None,
@@ -183,8 +187,8 @@ pub struct RouterState {
     pub index: BTreeMap<AppName, IndexState>,
     /// The entries each app pushed.
     pub shadow: BTreeMap<AppName, BTreeMap<(EntityKind, EntityKey), IndexEntry>>,
-    /// How much each Space asks; a Space not listed uses the configured default.
-    pub strictness: BTreeMap<SpaceId, Strictness>,
+    /// Which preset rules each Space; a Space not listed uses the configured default.
+    pub permissions: BTreeMap<SpaceId, Permissions>,
     /// The session an app or MCP client that opened none acts in.
     pub implicit: BTreeMap<(CallerRole, AppName), SessionId>,
     /// Messages for a party with no session of its own (the person), by address.
@@ -221,7 +225,7 @@ impl RouterState {
             },
             index: BTreeMap::new(),
             shadow: BTreeMap::new(),
-            strictness: BTreeMap::new(),
+            permissions: BTreeMap::new(),
             implicit: BTreeMap::new(),
             inboxes: BTreeMap::new(),
             pending: BTreeMap::new(),

@@ -295,6 +295,15 @@ pub async fn ready(router: &Router<FakeSeams>) -> SessionOpened {
     opened
 }
 
+/// [`ready`] with no task policy: the person's words are on record and the mail is granted, but
+/// no call is inside the task, so an undoable change goes to the reviewers.
+pub async fn ready_outside(router: &Router<FakeSeams>) -> SessionOpened {
+    let opened = open(router, "work", AgentRef::Companion).await;
+    say(router, &opened.session, "tidy my inbox").await;
+    grant_mail(router, "work");
+    opened
+}
+
 pub fn cli() -> CallerId {
     caller("org.quire.Do", CallerRole::Cli)
 }

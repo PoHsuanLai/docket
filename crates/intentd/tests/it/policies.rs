@@ -1,11 +1,11 @@
 //! The policy files the daemon reads: the preset of the first data directory that has one, the
 //! person's and the assistant's, and the administrator's; and a rebuild put in force on a router.
 
-use docket_core::AgentConfig;
+use docket_core::{AgentConfig, Permissions};
 use docket_fake::fake_router;
 use docket_router::{Router, Seams};
-use intentd::{PolicyDirs, load_policies, read_sources, reload_policies};
-use policy_point::{Layer, LayerError, STANDARD_PRESET};
+use intentd::{PolicyDirs, PresetOrigin, load_policies, read_sources, reload_policies};
+use policy_point::{AUTO_PRESET, Layer, LayerError};
 use std::path::Path;
 
 const NO_READS: &str = r#"
@@ -49,15 +49,17 @@ impl Scratch {
 }
 
 fn has_rule<S: Seams>(router: &Router<S>) -> bool {
-    router
-        .pdp()
-        .policy_ids()
+    let presets = router.presets();
+    [&presets.auto, &presets.manual]
         .iter()
-        .any(|id| id.0 == "no-reads")
+        .all(|pdp| pdp.policy_ids().iter().any(|id| id.0 == "no-reads"))
 }
 
 fn layers(dirs: &PolicyDirs) -> Vec<Layer> {
-    read_sources(dirs).iter().map(|s| s.layer).collect()
+    read_sources(dirs, Permissions::Auto)
+        .iter()
+        .map(|s| s.layer)
+        .collect()
 }
 
 #[test]
@@ -69,23 +71,19 @@ fn every_layer_is_read_in_name_order_and_the_first_preset_wins() {
         [Layer::Core],
         "nothing installed: the built-in preset stands"
     );
-    let preset = |root: &Path| root.join("quire/permissions/standard");
-    put(
-        &preset(scratch.system.path()),
-        "grid.cedar",
-        STANDARD_PRESET,
-    );
+    let preset = |root: &Path| root.join("quire/permissions/auto");
+    put(&preset(scratch.system.path()), "grid.cedar", AUTO_PRESET);
     put(
         &preset(scratch.mine.path()),
         "notes.txt",
         "not a policy file",
     );
-    put(&preset(scratch.mine.path()), "grid.cedar", STANDARD_PRESET);
+    put(&preset(scratch.mine.path()), "grid.cedar", AUTO_PRESET);
     put(&dirs.person, "b.cedar", NO_READS);
     put(&dirs.person, "a.cedar", NO_READS);
     put(&dirs.assistant(), "x.cedar", NO_READS);
     put(&dirs.admin, "floor.cedar", NO_READS);
-    let sources = read_sources(&dirs);
+    let sources = read_sources(&dirs, Permissions::Auto);
     let files: Vec<String> = sources.iter().map(|s| s.origin.to_string()).collect();
     assert!(
         files[1].starts_with(&scratch.mine.path().display().to_string()),
@@ -134,5 +132,43 @@ fn a_rebuild_is_put_in_force_on_the_router_and_a_failed_one_leaves_it_alone() {
     assert!(
         has_rule(&router),
         "the set in force stays when the administrator's file does not load"
+    );
+}
+
+#[test]
+fn each_preset_is_read_from_its_own_folder_and_says_whose_it_is() {
+    let scratch = Scratch::new();
+    let dirs = scratch.dirs();
+    let folder = |root: &Path, name: &str| root.join("quire/permissions").join(name);
+    let loaded = load_policies(&dirs).expect("loads");
+    assert_eq!(
+        (loaded.auto, loaded.manual),
+        (PresetOrigin::BuiltIn, PresetOrigin::BuiltIn)
+    );
+    put(
+        &folder(scratch.system.path(), "auto"),
+        "grid.cedar",
+        AUTO_PRESET,
+    );
+    put(
+        &folder(scratch.mine.path(), "manual"),
+        "grid.cedar",
+        policy_point::MANUAL_PRESET,
+    );
+    let loaded = load_policies(&dirs).expect("loads");
+    assert_eq!(
+        (loaded.auto, loaded.manual),
+        (PresetOrigin::System, PresetOrigin::EditedByYou)
+    );
+    put(
+        &folder(scratch.mine.path(), "manual"),
+        "grid.cedar",
+        "permit (",
+    );
+    let loaded = load_policies(&dirs).expect("loads");
+    assert_eq!(
+        loaded.manual,
+        PresetOrigin::BuiltIn,
+        "a bad folder is the built-in copy"
     );
 }

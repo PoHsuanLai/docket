@@ -1,5 +1,5 @@
 //! The terminal rows of the decision grid (cli.md section 3): `Actor::Cli`, the same in every
-//! strictness. A read is final; an undoable, outbound or destructive act asks and never goes to
+//! preset. A read is final; an undoable, outbound or destructive act asks and never goes to
 //! a reviewer; an action that asks every time asks; a hidden action is denied. A standing grant
 //! the person gave from the sheet is the only way to skip the ask, and it lifts nothing else.
 
@@ -8,11 +8,9 @@ use docket_core::*;
 use policy_point::{GrantState, PolicyRequest, TerminalGrant};
 use prov::{ActorKind, Effect, Integrity};
 
-const EVERY_STRICTNESS: [Strictness; 3] = [
-    Strictness::AskMore,
-    Strictness::Default,
-    Strictness::TrustMore,
-];
+fn every_preset() -> [(&'static str, policy_point::Pdp); 2] {
+    [("auto", pdp()), ("manual", manual())]
+}
 
 /// A call from `quire-do`: arguments are untrusted (the person or an agent typed them), no
 /// class grants exist for a terminal, and the call is outside any derived task policy.
@@ -39,7 +37,6 @@ use policy_point::CoverageState;
 fn terminal_grid() {
     use Cell::{Ask, Deny, Final};
     use Effect::{Destructive, Outbound, Read, UndoableWrite};
-    let pdp = pdp();
     // (row, effect, edit, want)
     type Edit = fn(&mut PolicyRequest);
     let rows: Vec<(&str, Effect, Edit, Cell)> = vec![
@@ -139,25 +136,12 @@ fn terminal_grid() {
         ),
         ("read with a standing grant", Read, granted, Final),
     ];
-    println!(
-        "{:<52} {:>9} {:>9} {:>9}",
-        "row", "ask_more", "default", "trust_more"
-    );
     for (name, effect, edit, want) in &rows {
-        let got: Vec<Cell> = EVERY_STRICTNESS
-            .iter()
-            .map(|strictness| {
-                let request = cli(*effect, |r| {
-                    r.context.strictness = *strictness;
-                    edit(r);
-                });
-                let ruling = pdp.decide(&request);
-                let cell = cell(&ruling);
-                assert_eq!(cell, *want, "{name} ({strictness:?}): {ruling:?}");
-                cell
-            })
-            .collect();
-        println!("{name:<52} {:>9?} {:>9?} {:>9?}", got[0], got[1], got[2]);
+        for (preset, set) in every_preset() {
+            let request = cli(*effect, |r| edit(r));
+            let ruling = set.decide(&request);
+            assert_eq!(cell(&ruling), *want, "{name} ({preset}): {ruling:?}");
+        }
     }
 }
 
@@ -181,17 +165,15 @@ fn trusted_inside(r: &mut PolicyRequest) {
 
 #[test]
 fn a_terminal_never_goes_to_review() {
-    // Every non-read row, in every strictness, trusted or not, inside or not: Ask or Final,
+    // Every non-read row, in every preset, trusted or not, inside or not: Ask or Final,
     // never `AllowJudged`.
-    let pdp = pdp();
-    for strictness in EVERY_STRICTNESS {
+    for (preset, pdp) in every_preset() {
         for effect in [Effect::UndoableWrite, Effect::Outbound, Effect::Destructive] {
             for terminal in [TerminalGrant::NotGranted, TerminalGrant::Granted] {
                 for (inside, trusted) in
                     [(true, true), (true, false), (false, true), (false, false)]
                 {
                     let request = cli(effect, |r| {
-                        r.context.strictness = strictness;
                         r.context.terminal = terminal;
                         if inside {
                             r.context.coverage = CoverageState::Inside;
@@ -205,7 +187,7 @@ fn a_terminal_never_goes_to_review() {
                     assert_ne!(
                         cell(&got),
                         Cell::Judged,
-                        "{effect:?} {strictness:?} {terminal:?} inside={inside} trusted={trusted}: {got:?}"
+                        "{effect:?} {preset} {terminal:?} inside={inside} trusted={trusted}: {got:?}"
                     );
                 }
             }

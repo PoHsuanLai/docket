@@ -11,7 +11,9 @@ use std::fmt;
 
 use crate::manifest::ArgSink;
 
-/// How much the router asks, per Space (setting `agent.strictness`).
+/// How much the reviewers are told to be careful. The router's own asking is the preset's
+/// ([`Permissions`]); this is what a reviewer is handed, and what old eval cases and settings
+/// files call it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Strictness {
@@ -22,6 +24,51 @@ pub enum Strictness {
     /// Let two reviewers of different families decide outbound and destructive acts inside a
     /// task policy.
     TrustMore,
+}
+
+/// Which permissions preset rules the assistant's calls, per Space (setting `agent.permissions`).
+/// Each is one fixed grid of rules, a folder of policy files the person may copy and edit.
+/// The old words `ask_more`, `default` and `trust_more` of `agent.strictness` still read: the
+/// first is `Manual`, the others `Auto`.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum Permissions {
+    /// It does what you allowed and asks before sending or deleting.
+    #[default]
+    #[serde(alias = "default", alias = "trust_more")]
+    Auto,
+    /// It asks before every change, for when you are watching.
+    #[serde(alias = "ask_more")]
+    Manual,
+}
+
+impl From<Strictness> for Permissions {
+    fn from(strictness: Strictness) -> Self {
+        match strictness {
+            Strictness::AskMore => Permissions::Manual,
+            Strictness::Default | Strictness::TrustMore => Permissions::Auto,
+        }
+    }
+}
+
+impl Permissions {
+    /// What a reviewer is told: Manual reviews with the most care, Auto with the usual.
+    pub fn strictness(self) -> Strictness {
+        match self {
+            Permissions::Auto => Strictness::Default,
+            Permissions::Manual => Strictness::AskMore,
+        }
+    }
+
+    /// The folder name of the preset under `quire/permissions/`.
+    pub fn folder(self) -> &'static str {
+        match self {
+            Permissions::Auto => "auto",
+            Permissions::Manual => "manual",
+        }
+    }
 }
 
 /// The id of one Cedar policy (`@id("rule-of-two")`).
@@ -58,8 +105,15 @@ pub enum AskReason {
     OutsideTask,
     /// Reviewers of different families disagreed.
     Disagreement,
-    /// A named Cedar rule.
+    /// A named Cedar rule with no sentence of its own.
     Rule(PolicyId),
+    /// A named Cedar rule that says why, in its own plain sentence (its `@why`).
+    Said {
+        /// The rule's id.
+        rule: PolicyId,
+        /// The sentence the sheet shows.
+        why: String,
+    },
     /// The policy point could not evaluate the call, so it asks rather than guess (the cause is
     /// in the log, with the task).
     EvaluationFailed,

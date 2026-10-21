@@ -47,10 +47,10 @@ mod tests {
             ("[agent.mcp]\nexpose = \"off\"\n", McpExpose::Off),
             ("[agent.mcp]\nexpose = \"maybe\"\n", McpExpose::Off),
             ("[agent.mcp]\nexpose = true\n", McpExpose::Off),
-            ("[agent]\nstrictness = \"default\"\n", McpExpose::Off),
+            ("[agent]\npermissions = \"auto\"\n", McpExpose::Off),
             ("[agent.mcp\nexpose = \"on\"", McpExpose::Off),
             (
-                "[agent]\nstrictness = \"default\"\n[agent.mcp]\nexpose = \"on\"\n",
+                "[agent]\npermissions = \"auto\"\n[agent.mcp]\nexpose = \"on\"\n",
                 McpExpose::On,
             ),
         ];

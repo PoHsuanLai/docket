@@ -76,14 +76,24 @@ fn the_named_rules_of_the_table_ask_or_deny() {
             Some(AskReason::AskAlways),
         ),
         (
-            "first use",
+            "first use of a read",
             with(Effect::Read, |r| r.context.grant = GrantState::None),
+            Cell::Final,
+            None,
+        ),
+        (
+            "first use",
+            with(Effect::UndoableWrite, |r| {
+                r.context.grant = GrantState::None
+            }),
             Cell::Ask,
             Some(AskReason::FirstUse),
         ),
         (
             "grant once",
-            with(Effect::Read, |r| r.context.grant = GrantState::Once),
+            with(Effect::UndoableWrite, |r| {
+                r.context.grant = GrantState::Once
+            }),
             Cell::Ask,
             Some(AskReason::FirstUse),
         ),
@@ -228,28 +238,20 @@ fn other_operations_are_one_query() {
 
 #[test]
 fn nothing_loosens_what_a_hijacked_reviewer_or_wide_policy_would() {
-    // Whatever the task policy and strictness, the hard rules never reach AllowJudged or Final.
+    // Whatever the task policy and preset, the hard rules never reach AllowJudged or Final.
     let seen = SessionSaw {
         private: Saw::Seen,
         untrusted: Saw::Seen,
     };
-    for s in [
-        Strictness::AskMore,
-        Strictness::Default,
-        Strictness::TrustMore,
-    ] {
+    for (name, set) in [("auto", pdp()), ("manual", manual())] {
         for effect in [Effect::Outbound, Effect::Destructive] {
-            let bad_sink = pdp().decide(&with(effect, |r| {
-                strictness(s)(r);
+            let bad_sink = set.decide(&with(effect, |r| {
                 r.context.sinks.path = Integrity::Untrusted;
             }));
-            assert_eq!(cell(&bad_sink), Cell::Ask, "{s:?} {effect:?}");
+            assert_eq!(cell(&bad_sink), Cell::Ask, "{name} {effect:?}");
         }
-        let two = pdp().decide(&with(Effect::Outbound, |r| {
-            strictness(s)(r);
-            r.context.saw = seen;
-        }));
-        assert_eq!(cell(&two), Cell::Ask, "{s:?}");
+        let two = set.decide(&with(Effect::Outbound, |r| r.context.saw = seen));
+        assert_eq!(cell(&two), Cell::Ask, "{name}");
     }
 }
 
@@ -299,7 +301,6 @@ fn a_limit_of_ask_asks_a_call_that_would_run_or_be_reviewed() {
         assert_eq!(asks(&got), [AskReason::AskAlways], "{effect:?}: {got:?}");
     }
     let got = pdp().decide(&with(Effect::UndoableWrite, |r| {
-        strictness(Strictness::AskMore)(r);
         r.context.limit = LimitFact::Ask;
         r.context.grant = GrantState::None;
     }));

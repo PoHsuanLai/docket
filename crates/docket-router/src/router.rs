@@ -8,7 +8,7 @@ use docket_core::{
     AgentConfig, CallerId, CallerRole, Floor, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk,
     WireRefusal,
 };
-use policy_point::Pdp;
+use policy_point::Presets;
 use std::future::Future;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 
@@ -25,22 +25,22 @@ pub struct Router<S: Seams> {
     /// The administrator's floor, read once at start by the daemon: `Floor::none()` unless it
     /// sets one. Agents only; the person's own launcher acts never meet it.
     pub floor: Floor,
-    /// The policy point, swapped whole when the policy files change (`set_pdp`): a call in flight
-    /// keeps the set it started with.
-    pdp: RwLock<Arc<Pdp>>,
+    /// The policy points, one per preset, swapped whole when the policy files change
+    /// (`set_presets`): a call in flight keeps the sets it started with.
+    presets: RwLock<Arc<Presets>>,
     /// What it mutates.
     pub state: Mutex<RouterState>,
 }
 
 impl<S: Seams> Router<S> {
     /// A router with nothing installed.
-    pub fn new(seams: S, config: AgentConfig, pdp: Pdp) -> Self {
+    pub fn new(seams: S, config: AgentConfig, presets: Presets) -> Self {
         Self {
             seams,
             config,
             live: RwLock::new(None),
             floor: Floor::none(),
-            pdp: RwLock::new(Arc::new(pdp)),
+            presets: RwLock::new(Arc::new(presets)),
             state: Mutex::new(RouterState::new()),
         }
     }
@@ -62,20 +62,20 @@ impl<S: Seams> Router<S> {
         }
     }
 
-    /// The policy set in force now. Every decision reads it afresh.
-    pub fn pdp(&self) -> Arc<Pdp> {
-        match self.pdp.read() {
-            Ok(pdp) => pdp.clone(),
+    /// The policy sets in force now. Every decision reads them afresh.
+    pub fn presets(&self) -> Arc<Presets> {
+        match self.presets.read() {
+            Ok(presets) => presets.clone(),
             Err(poisoned) => poisoned.into_inner().clone(),
         }
     }
 
-    /// Puts a rebuilt policy set in force for every call after this one.
-    pub fn set_pdp(&self, pdp: Pdp) {
-        let pdp = Arc::new(pdp);
-        match self.pdp.write() {
-            Ok(mut held) => *held = pdp,
-            Err(poisoned) => *poisoned.into_inner() = pdp,
+    /// Puts rebuilt policy sets in force for every call after this one.
+    pub fn set_presets(&self, presets: Presets) {
+        let presets = Arc::new(presets);
+        match self.presets.write() {
+            Ok(mut held) => *held = presets,
+            Err(poisoned) => *poisoned.into_inner() = presets,
         }
     }
 

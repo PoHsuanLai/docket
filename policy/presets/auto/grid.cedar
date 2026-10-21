@@ -1,27 +1,28 @@
-// The standard preset: the grid. Cedar is default-deny and forbid overrides permit. Three queries run per
-// call (see quire.cedarschema): `perform` not permitted is Deny, `perform_unasked` not permitted
-// is Ask, `perform_unjudged` not permitted is AllowJudged, all permitted is AllowFinal.
+// The Auto preset (the default): the person allowed things once and it gets on with them. Cedar is
+// default-deny and forbid overrides permit. Three queries run per call (see quire.cedarschema):
+// `perform` not permitted is Deny, `perform_unasked` not permitted is Ask, `perform_unjudged` not
+// permitted is AllowJudged, all permitted is AllowFinal.
 //
-// Layout: the permit rules say how far each cell of the grid of actions-addendum A2 gets (every
-// permit names the strictest query it satisfies); the forbid rules below ask. The invariants that
-// refuse or hold in every preset (Rule of Two, untrusted sinks, hidden actions, denied consent,
-// lasting memory) are `core.cedar`'s; no task policy and no reviewer can lift them. "T" below means
-// the planner and every sink argument are trusted; "In" means the call is inside the task policy.
+// Layout: the permit rules say how far each cell gets (every permit names the strictest query it
+// satisfies); the forbid rules below ask. The invariants that refuse or hold in every preset
+// (Rule of Two, untrusted sinks, hidden actions, denied consent, lasting memory, limits) are
+// `core.cedar`'s; no task policy and no reviewer can lift them. "T" below means the planner and
+// every sink argument are trusted; "In" means the call is inside the task policy.
 //
-//   Effect / condition           AskMore       Default                      TrustMore
-//   Read, same Space             AllowFinal    AllowFinal                   AllowFinal
-//   UndoableWrite, T, In         AllowJudged   AllowFinal                   AllowFinal
-//   UndoableWrite, otherwise     Ask           AllowJudged                  AllowJudged
-//   Outbound, T, In              Ask           Ask (QUESTIONS S1)           AllowJudged + second opinion
-//   Outbound, otherwise          Ask           Ask                          Ask
-//   Destructive, T, In           Ask           Ask                          AllowJudged + second opinion
-//   Destructive, otherwise       Ask           Ask                          Ask
+//   Effect / condition                                   Auto
+//   Read                                                 final, with no question
+//   Undoable write, T, In                                final
+//   Undoable write, otherwise                            judged (a reviewer may tighten)
+//   Undoable write, a step of a screen run the person allowed   final
+//   Outbound, any                                        ask
+//   Destructive, any                                     ask
 //
-// The terminal (`quire-do`, principal kind "cli") has its own rows, the same in every strictness:
-// a read is final; an undoable, outbound or destructive act asks and never goes to a reviewer
-// ("no auto-approval for a terminal"), unless the person gave a standing grant for that action
-// from the terminal, in which case it is final (the named rules below still ask); a destructive
-// act always asks; a hidden action is denied (hidden-from-agents).
+// The assistant's own bookkeeping (the Companion and Memory apps) never asks for a first use.
+// First use asks only for a change, never for a read. The terminal (`quire-do`, principal kind
+// "cli") has its own rows: a read is final; an undoable, outbound or destructive act asks and
+// never goes to a reviewer ("no auto-approval for a terminal"), unless the person gave a standing
+// grant for that action from the terminal, in which case it is final; a destructive act always
+// asks; a hidden action is denied (hidden-from-agents).
 //
 // The second opinion is the cascade's business (`action_review::plan`), not Cedar's.
 
@@ -69,8 +70,7 @@ permit (
 )
 when { principal.kind == "user" && context.origin == "launcher" };
 
-// An undoable write with trusted arguments inside the task policy is final in Default and
-// TrustMore.
+// An undoable write with trusted arguments inside the task policy is final.
 @id("undoable-trusted-inside-final")
 permit (
   principal,
@@ -87,65 +87,30 @@ when {
   context.sinks.recipient == "trusted" &&
   context.sinks.destination == "trusted" &&
   context.sinks.body == "trusted" &&
-  context.sinks.path == "trusted" &&
-  (context.strictness == "default" || context.strictness == "trust_more")
+  context.sinks.path == "trusted"
 };
 
-// An undoable write is judged: always in Default and TrustMore, and in AskMore when it is
-// trusted and inside.
+// Any other undoable write is judged.
 @id("undoable-judged")
 permit (
   principal,
   action == Quire::Action::"perform_unasked",
   resource
 )
-when {
-  resource.effect == "undoable_write" &&
-  (context.strictness != "ask_more" ||
-   (context.coverage == "inside" &&
-    context.planner == "trusted" &&
-    context.sinks.recipient == "trusted" &&
-    context.sinks.destination == "trusted" &&
-    context.sinks.body == "trusted" &&
-    context.sinks.path == "trusted"))
-};
+when { resource.effect == "undoable_write" };
 
-// Outbound, trusted and inside the task policy, is judged (with a second opinion) only under
-// TrustMore. QUESTIONS S1: under Default and AskMore, Outbound always asks.
-@id("outbound-trusted-inside-judged")
+// A step of a screen run the person allowed (the start sheet, or a standing grant for the app)
+// that only does something undoable runs. A step that sends or deletes gets no permit here and asks.
+@id("screen-step-final")
 permit (
   principal,
-  action == Quire::Action::"perform_unasked",
+  action in [
+    Quire::Action::"perform_unasked",
+    Quire::Action::"perform_unjudged"
+  ],
   resource
 )
-when {
-  resource.effect == "outbound" &&
-  context.strictness == "trust_more" &&
-  context.coverage == "inside" &&
-  context.planner == "trusted" &&
-  context.sinks.recipient == "trusted" &&
-  context.sinks.destination == "trusted" &&
-  context.sinks.body == "trusted" &&
-  context.sinks.path == "trusted"
-};
-
-// Destructive, trusted and inside the task policy, is judged only under TrustMore.
-@id("destructive-trusted-inside-judged")
-permit (
-  principal,
-  action == Quire::Action::"perform_unasked",
-  resource
-)
-when {
-  resource.effect == "destructive" &&
-  context.strictness == "trust_more" &&
-  context.coverage == "inside" &&
-  context.planner == "trusted" &&
-  context.sinks.recipient == "trusted" &&
-  context.sinks.destination == "trusted" &&
-  context.sinks.body == "trusted" &&
-  context.sinks.path == "trusted"
-};
+when { resource.effect == "undoable_write" && context.run == "allowed" };
 
 // The terminal: the person gave a standing grant for this action ("allow from the terminal: this
 // action, until logout"), so it is final. No reviewer sits between a terminal and the app. The
@@ -169,6 +134,7 @@ when {
 
 // The target lives in another Space.
 @id("cross-space")
+@why("This reaches into a different Space than the one you are working in.")
 forbid (
   principal,
   action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
@@ -178,6 +144,7 @@ when { context.target_space == "other" && principal.kind != "user" };
 
 // More things than the mass threshold (a read touches nothing).
 @id("mass")
+@why("This changes a lot of things at once.")
 forbid (
   principal,
   action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
@@ -191,6 +158,7 @@ when {
 
 // An action the manifest says asks every time.
 @id("ask-always")
+@why("This app asks every time before it does this.")
 forbid (
   principal,
   action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
@@ -201,6 +169,7 @@ when { resource.reach == "ask_always" && principal.kind != "user" };
 // A terminal cannot tell the person from an agent typing in it: anything but a read asks unless
 // the person gave a standing grant for this action from the terminal.
 @id("cli-asks")
+@why("A terminal cannot tell you from a program typing in it, so it asks.")
 forbid (
   principal,
   action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
@@ -214,6 +183,7 @@ when {
 
 // A standing terminal grant never covers a destructive act.
 @id("cli-destructive-asks")
+@why("Deleting from a terminal always asks.")
 forbid (
   principal,
   action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
@@ -221,9 +191,13 @@ forbid (
 )
 when { principal.kind == "cli" && resource.effect == "destructive" };
 
-// First use of this app, class and Space, or a grant that asks once. The terminal has no class
+// First use of this app, class and Space, or a grant that asks once, asks for a change, never for a
+// read. It does not apply to the assistant's own bookkeeping (the Companion and Memory apps: a
+// task start or message, a recall, a staged memory; anything that sends or deletes is not
+// covered), nor to a step of a screen run the person already allowed. The terminal has no class
 // grants: a read from it is allowed and everything else asks by the rules above.
 @id("first-use")
+@why("This is the first time it has been allowed to do this here.")
 forbid (
   principal,
   action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
@@ -231,25 +205,15 @@ forbid (
 )
 when {
   (context.grant == "none" || context.grant == "once") &&
+  resource.effect != "read" &&
   principal.kind != "user" &&
   principal.kind != "cli"
-};
-
-// A session that read untrusted content cannot lean on an "always" grant for anything that
-// changes something: it asks once more. Reading stays free, or one mail read would put a
-// question on every read after. (The terminal is held to the same: a recorded always-grant for
-// it is no more standing than an agent's.)
-@id("tainted-always-asks")
-forbid (
-  principal,
-  action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
-  resource
-)
-when {
-  context.grant == "always" &&
-  context.taint == "tainted" &&
-  resource.effect != "read" &&
-  principal.kind != "user"
+}
+unless {
+  context.run == "allowed" ||
+  ((resource in Quire::App::"org.quire.Companion" ||
+    resource in Quire::App::"org.quire.Memory") &&
+   (resource.effect == "undoable_write"))
 };
 
 // An external MCP client may read; anything else asks. An external coding agent's host is not an
@@ -257,6 +221,7 @@ when {
 // ruled by the grid above and by taint, so a standing grant of the program can stand in for the
 // ask where the named rules allow.
 @id("mcp-asks")
+@why("Another app asked for this, so it checks with you before changing anything.")
 forbid (
   principal,
   action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],

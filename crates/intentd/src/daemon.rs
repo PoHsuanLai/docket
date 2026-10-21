@@ -313,11 +313,16 @@ pub async fn start(
     };
     // The policy files, layered: a bad person or assistant file is skipped and a bad preset falls
     // back to the built-in one (both logged); a bad administrator file stops the daemon.
-    let layered = load_policies(&permissions).map_err(|e| DaemonFault::Policy(e.to_string()))?;
-    for rejected in &layered.skipped {
+    let loaded = load_policies(&permissions).map_err(|e| DaemonFault::Policy(e.to_string()))?;
+    for rejected in &loaded.skipped {
         eprintln!("intentd: skipped policy {rejected}");
     }
-    let mut router = Router::new(seams, config.agent, layered.pdp);
+    // The Settings page has no read-only row, so where each preset came from is said here.
+    eprintln!(
+        "intentd: permissions: Auto {}, Manual {}",
+        loaded.auto, loaded.manual
+    );
+    let mut router = Router::new(seams, config.agent, loaded.presets);
     router.floor = floor;
     // The person's settings over intentd.toml's proposed values, now and whenever the file changes.
     let mut watched = SettingsWatch::start(settings, AgentSettings::over(config.agent));

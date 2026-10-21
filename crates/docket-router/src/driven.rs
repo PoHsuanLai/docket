@@ -78,7 +78,7 @@ fn ruling_ids(ruling: &Ruling) -> Vec<PolicyId> {
         Ruling::Ask(reasons) => reasons
             .iter()
             .filter_map(|r| match r {
-                AskReason::Rule(id) => Some(id.clone()),
+                AskReason::Rule(id) | AskReason::Said { rule: id, .. } => Some(id.clone()),
                 _ => None,
             })
             .collect(),

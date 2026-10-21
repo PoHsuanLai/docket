@@ -7,7 +7,7 @@ use crate::case::{Case, ConsentFixture, FixtureTask, WorldFixture};
 use crate::runner::{Harness, PolicyMode, Rig, maximal_policy};
 use docket_core::{
     ActionGrantKey, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget, IntentsReply,
-    IntentsRequest, Keep, Origin, Reveal, SessionOpen, Strictness, TurnIn, TurnVia,
+    IntentsRequest, Keep, Origin, Permissions, Reveal, SessionOpen, Strictness, TurnIn, TurnVia,
 };
 use docket_fake::{FakeLink, MailContact, MailThread, MemoryGrants};
 use docket_router::{HandleValue, Router, RouterState, Seams};
@@ -122,8 +122,8 @@ pub fn install_fixture<S: Seams<Link = FakeLink, Grants = MemoryGrants>>(
         grant_consent(router, in_space).map_err(|e| e.to_string())?;
     }
     state_of(router)
-        .strictness
-        .insert(in_space.clone(), strictness);
+        .permissions
+        .insert(in_space.clone(), Permissions::from(strictness));
     Ok(())
 }
 
@@ -230,8 +230,8 @@ pub(crate) fn install<S: Rig>(
         grant_consent(router, &case.space)?;
     }
     state_of(router)
-        .strictness
-        .insert(case.space.clone(), case.strictness);
+        .permissions
+        .insert(case.space.clone(), Permissions::from(case.strictness));
     // Other agents first: the companion's session is the newest, which is where its calls land.
     let others = other_agents(case, router)?;
     let front = open(router, &case.space, AgentRef::Companion)?;

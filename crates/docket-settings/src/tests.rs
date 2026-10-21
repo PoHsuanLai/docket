@@ -106,7 +106,7 @@ fn the_intelligence_page_shows_the_assistant_rows_and_the_rest_is_advanced() {
     assert_eq!(
         shown,
         [
-            "agent.strictness",
+            "agent.permissions",
             "agent.mcp.expose",
             "agent.acp.agents",
             "agent.undo.keep_h"
@@ -219,16 +219,37 @@ fn every_schema_key_is_read_by_the_daemon() {
 
 #[test]
 fn each_key_lands_in_the_typed_value_the_design_names() {
-    use docket_core::{Depth, Millis, Seconds, Strictness};
+    use docket_core::{Depth, Millis, Permissions, Seconds};
     use porter_core::{Count, MicroUsd};
     let read_one = |p: &str, v: toml::Value| read(&doc(p, v), AgentSettings::default()).value;
     let int = toml::Value::Integer;
     let word = |w: &str| toml::Value::String(w.to_owned());
     assert_eq!(
-        read_one("agent.strictness", word("trust_more"))
+        read_one("agent.permissions", word("manual"))
             .agent
-            .strictness,
-        Strictness::TrustMore
+            .permissions,
+        Permissions::Manual
+    );
+    // An old file's `agent.strictness` still reads: ask_more is Manual; default and trust_more
+    // are Auto. The new key beside it wins.
+    let old = |w: &str| {
+        let loaded = read(&doc("agent.strictness", word(w)), AgentSettings::default());
+        assert_eq!((loaded.fallbacks, loaded.unknown), (vec![], vec![]), "{w}");
+        loaded.value.agent.permissions
+    };
+    assert_eq!(old("ask_more"), Permissions::Manual);
+    assert_eq!(old("default"), Permissions::Auto);
+    assert_eq!(old("trust_more"), Permissions::Auto);
+    let both = merged(&[
+        ("agent.strictness", word("ask_more")),
+        ("agent.permissions", word("auto")),
+    ]);
+    assert_eq!(
+        read(&both, AgentSettings::default())
+            .value
+            .agent
+            .permissions,
+        Permissions::Auto
     );
     assert_eq!(
         read_one("agent.mcp.expose", word("on")).expose,

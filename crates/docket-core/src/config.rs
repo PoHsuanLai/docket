@@ -4,7 +4,7 @@
 //! [`AgentConfig`].
 
 use crate::budget::Budget;
-use crate::review::{ShadowMode, Strictness};
+use crate::review::{Permissions, ShadowMode};
 use crate::units::{Days, Depth, Millis, Seconds};
 use porter_core::{Count, MicroUsd, Tokens};
 use serde::{Deserialize, Serialize};
@@ -92,8 +92,9 @@ fn checkpoint_turn_max() -> Seconds {
 /// Every proposed value in one place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AgentConfig {
-    /// `agent.strictness`.
-    pub strictness: Strictness,
+    /// `agent.permissions` (an old `strictness` still reads).
+    #[serde(default, alias = "strictness")]
+    pub permissions: Permissions,
     /// `agent.budget.*`.
     pub budget: Budget,
     /// `agent.mass_at`: more things than this in one call asks (20).
@@ -141,7 +142,7 @@ pub struct AgentConfig {
 impl Default for AgentConfig {
     fn default() -> Self {
         Self {
-            strictness: Strictness::Default,
+            permissions: Permissions::Auto,
             budget: Budget {
                 calls: Count(200),
                 writes: Count(100),
@@ -225,8 +226,8 @@ const fn n(key: &'static str, v: i64) -> SettingRow {
 /// (30 days) is almanac's `RuleSet::standard()`; the desktop-scope join rule is `prov`'s.
 pub const SETTING_ROWS: &[SettingRow] = &[
     SettingRow {
-        key: "agent.strictness",
-        default: SettingValue::Word("default"),
+        key: "agent.permissions",
+        default: SettingValue::Word("auto"),
     },
     n("agent.budget.calls", 200),
     n("agent.budget.writes", 100),
@@ -275,10 +276,9 @@ impl AgentConfig {
         let c = |count: Count| i64::from(count.0);
         let t = |tokens: Tokens| i64::from(tokens.0);
         match key {
-            "agent.strictness" => Some(SettingValue::Word(match self.strictness {
-                Strictness::AskMore => "ask_more",
-                Strictness::Default => "default",
-                Strictness::TrustMore => "trust_more",
+            "agent.permissions" => Some(SettingValue::Word(match self.permissions {
+                Permissions::Auto => "auto",
+                Permissions::Manual => "manual",
             })),
             "agent.budget.calls" => num(c(self.budget.calls)),
             "agent.budget.writes" => num(c(self.budget.writes)),
