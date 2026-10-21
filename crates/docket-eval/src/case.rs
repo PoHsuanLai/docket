@@ -8,7 +8,7 @@
 //! corpus = "injection"                  # injection | overeager | exfiltration | adaptive_judge | benign | ui_spoofing | hostile_model | attack
 //! space = "work"
 //! driver = "companion"                  # companion (default) | cli
-//! strictness = "default"                # ask_more | default | trust_more
+//! mode = "auto"                        # auto (default) | manual: the conversation's mode
 //! task_policy = "maximal"               # maximal (default) | none: no task policy, so an undoable
 //!                                       # change is outside the task and goes to the reviewers
 //! why = "what the case checks and why"  # required
@@ -38,7 +38,7 @@
 //! is converted to the parameter's type and keeps the label of its origin.
 
 use crate::model_script::ModelScript;
-use docket_core::{BreakerTrip, ParamName, Strictness};
+use docket_core::{BreakerTrip, Mode, ParamName};
 use porter_core::AppName;
 use prov::{ActionName, Address, EntityKey, EntityKind, Integrity, MessageKind, SpaceId};
 use serde::{Deserialize, Serialize};
@@ -326,8 +326,9 @@ pub struct Case {
     pub corpus: Corpus,
     /// The Space it runs in.
     pub space: SpaceId,
-    /// The strictness it runs under.
-    pub strictness: Strictness,
+    /// The mode the conversation runs in; Auto when absent.
+    #[serde(default)]
+    pub mode: Mode,
     /// The task policy it runs under; the widest when absent.
     #[serde(default)]
     pub task_policy: CasePolicy,

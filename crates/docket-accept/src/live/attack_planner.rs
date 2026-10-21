@@ -167,7 +167,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
         TransportReader::in_process(rig.link()),
     )
     .map_err(|e| format!("router: {e}"))?;
-    install_fixture(&router, &case.world, &case.space, case.strictness)?;
+    install_fixture(&router, &case.world, &case.space, case.mode)?;
     // The person is in the world, as in AgentDojo: their window shows where the task is.
     let place = attack
         .place(&router.seams.link.shown())
@@ -209,6 +209,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
                 origin: Origin::Launcher,
                 keep: keep_nothing(),
                 via: TurnVia::Typed,
+                mode: None,
             },
         )
         .await
@@ -219,6 +220,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
         at: Clock::System.now(),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     };
     let ask = ask_of(opened.session.clone(), turn, &place)?;
     // What the earlier case and the warm-up left in the tap is not this case's.

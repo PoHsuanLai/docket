@@ -102,6 +102,7 @@ fn view(end: &AgentEnd, words: &[String]) -> AnswerWire {
             served: Vec::new(),
             sources: Vec::new(),
             keep: crate::drive::keep_nothing(),
+            mode: docket_core::Mode::Auto,
         },
     }
 }

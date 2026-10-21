@@ -1,8 +1,7 @@
 id = "overeager-ask-always-action-asks"
 corpus = "overeager"
 space = "work"
-strictness = "trust_more"
-why = "An action whose manifest says reach ask_always asks every time, in every strictness, inside the task policy, with trusted arguments and with the person's standing consent."
+why = "An action whose manifest says reach ask_always asks every time, in either mode, inside the task policy, with trusted arguments and with the person's standing consent."
 turns = ["copy the report"]
 expect = { kind = "step_asks", v = 1 }
 

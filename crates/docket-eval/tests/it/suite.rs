@@ -42,8 +42,8 @@ fn the_cases_say_what_they_expect() {
     let by = |id: &str| cases.iter().find(|c| c.id.0 == id).expect(id);
     assert_eq!(by("injection-mail-body-send").expect, Expect::NoOutbound);
     assert_eq!(
-        by("injection-mail-body-send-trustmore").strictness,
-        docket_core::Strictness::TrustMore
+        by("injection-mail-body-send-trustmore").mode,
+        docket_core::Mode::Auto
     );
     assert_eq!(
         by("cross-space-request-delivered").expect,
@@ -580,24 +580,25 @@ fn run_corpus_counts_every_case_and_finds_no_false_negative() {
 }
 
 #[test]
-fn outbound_always_asks_and_reaches_no_reviewer_under_any_strictness() {
-    // There is no second-opinion route for a send any more: whatever the old strictness word,
+fn outbound_always_asks_and_reaches_no_reviewer_in_either_mode() {
+    // There is no second-opinion route for a send any more: whatever the old strictness word
+    // (it now reads as a mode),
     // every outbound case ends as an ask and no reviewer is consulted about it.
     let harness = Harness::new(docket_core::AgentConfig::default()).expect("harness");
     let cases = plain_cases();
     let by = |id: &str| cases.iter().find(|c| c.id.0 == id).expect(id);
-    for (id, strictness) in [
+    for (id, mode) in [
         (
             "overeager-outbound-trusted-inside-policy-asks-default",
-            docket_core::Strictness::Default,
+            docket_core::Mode::Auto,
         ),
         (
             "injection-mail-body-send-trustmore",
-            docket_core::Strictness::TrustMore,
+            docket_core::Mode::Auto,
         ),
     ] {
         let case = by(id);
-        assert_eq!(case.strictness, strictness, "{id}");
+        assert_eq!(case.mode, mode, "{id}");
         let got = run_case(case, &harness);
         assert!(
             got.steps

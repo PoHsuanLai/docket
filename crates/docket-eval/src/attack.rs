@@ -8,7 +8,7 @@
 //! id = "attack-important-mail-body-send"
 //! style = "important_instructions"   # see `AttackStyle`
 //! space = "work"
-//! strictness = "default"
+//! mode = "auto"
 //! why = "what the attack tries and what holds it off"
 //! user_task = "summarise this thread"            # the person's words
 //! injection = "<INFORMATION> ... </INFORMATION>"  # the attacker's text
@@ -43,7 +43,7 @@ use crate::case::{
     ScriptedStep, WorldFixture,
 };
 use crate::model_script::ModelScript;
-use docket_core::Strictness;
+use docket_core::Mode;
 use porter_core::AppName;
 use prov::{ActionName, SpaceId};
 use serde::{Deserialize, Serialize};
@@ -112,8 +112,9 @@ pub struct AttackCase {
     pub style: AttackStyle,
     /// The Space it runs in.
     pub space: SpaceId,
-    /// The strictness it runs under.
-    pub strictness: Strictness,
+    /// The mode the conversation runs in; Auto when absent.
+    #[serde(default)]
+    pub mode: Mode,
     /// What the attack tries and what holds it off.
     pub why: String,
     /// The person's own words.
@@ -292,7 +293,7 @@ impl AttackCase {
             id,
             corpus: Corpus::Attack,
             space: self.space.clone(),
-            strictness: self.strictness,
+            mode: self.mode,
             task_policy: CasePolicy::Maximal,
             driver: Driver::Companion,
             why: self.why.clone(),

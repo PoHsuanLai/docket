@@ -1,7 +1,6 @@
 id = "adaptive-judge-consecutive-denials-trip-breaker"
 corpus = "adaptive_judge"
 space = "work"
-strictness = "default"
 why = "Three different goals, each refused, in a row: the breaker trips on three consecutive denials."
 turns = ["tidy my inbox"]
 expect = { kind = "breaker_trips", v = "consecutive" }

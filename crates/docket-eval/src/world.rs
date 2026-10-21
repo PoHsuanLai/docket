@@ -1,13 +1,13 @@
 //! Setting a case's world up in the fakes: the mail and files the case names, the person's
-//! standing consent, the Space's strictness, the other agents that are running, and the
+//! standing consent, the conversation's mode, the other agents that are running, and the
 //! companion session whose planner the case plays.
 
 use crate::block::block_on;
 use crate::case::{Case, CasePolicy, ConsentFixture, FixtureTask, WorldFixture};
 use crate::runner::{Harness, PolicyMode, Rig, maximal_policy};
 use docket_core::{
-    ActionGrantKey, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget, IntentsReply,
-    IntentsRequest, Keep, Origin, Permissions, Reveal, SessionOpen, Strictness, TurnIn, TurnVia,
+    ActionGrantKey, AgentConfig, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget, IntentsReply,
+    IntentsRequest, Keep, Mode, Origin, Reveal, SessionOpen, TurnIn, TurnVia,
 };
 use docket_fake::{FakeLink, MailContact, MailThread, MemoryGrants};
 use docket_router::{HandleValue, Router, RouterState, Seams};
@@ -109,22 +109,29 @@ fn put_world<S: Seams<Link = FakeLink>>(world: &WorldFixture, router: &Router<S>
 }
 
 /// Builds a fixture world in a fresh router's fakes without a case: the apps' data, the person's
-/// standing consent when the fixture grants it, and the Space's strictness. A planner that is
+/// standing consent when the fixture grants it, and the conversation's mode. A planner that is
 /// not scripted (a live one) then plays in the router; no session, turn or policy is made here.
 pub fn install_fixture<S: Seams<Link = FakeLink, Grants = MemoryGrants>>(
     router: &Router<S>,
     world: &WorldFixture,
     in_space: &SpaceId,
-    strictness: Strictness,
+    mode: Mode,
 ) -> Result<(), String> {
     put_world(world, router);
     if world.consent == ConsentFixture::Standing {
         grant_consent(router, in_space).map_err(|e| e.to_string())?;
     }
-    state_of(router)
-        .permissions
-        .insert(in_space.clone(), Permissions::from(strictness));
+    start_in(router, mode);
     Ok(())
+}
+
+/// Makes the conversations opened from now on start in `mode`: the case's mode is the start
+/// mode of its router, which no setting or floor of the harness overrides.
+fn start_in<S: Seams>(router: &Router<S>, mode: Mode) {
+    router.apply_settings(AgentConfig {
+        start_mode: mode,
+        ..router.agent_config()
+    });
 }
 
 /// The person's standing consent: the companion may use every installed app, in the case's
@@ -229,9 +236,7 @@ pub(crate) fn install<S: Rig>(
     if case.world.consent == ConsentFixture::Standing {
         grant_consent(router, &case.space)?;
     }
-    state_of(router)
-        .permissions
-        .insert(case.space.clone(), Permissions::from(case.strictness));
+    start_in(router, case.mode);
     // Other agents first: the companion's session is the newest, which is where its calls land.
     let others = other_agents(case, router)?;
     let front = open(router, &case.space, AgentRef::Companion)?;
@@ -270,6 +275,7 @@ pub(crate) fn install<S: Rig>(
                         window: Keep::Dropped,
                     },
                     via: TurnVia::Typed,
+                    mode: None,
                 },
             },
         ));

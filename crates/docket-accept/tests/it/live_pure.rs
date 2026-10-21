@@ -326,6 +326,7 @@ fn resting_as(phase: companion_wire::AnswerPhase) -> Evidence {
                 selection: Keep::Kept,
                 window: Keep::Kept,
             },
+            mode: docket_core::Mode::Auto,
         },
     }]);
     e
@@ -703,6 +704,7 @@ fn an_attack_turn_is_asked_from_the_place_the_case_names() {
         at: UnixSeconds(1),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     };
     let ask = ask_of(SessionId::parse("s-1").expect("session"), turn, &place).expect("ask");
     assert_eq!(ask.app, Some(app), "the companion reads this app's window");

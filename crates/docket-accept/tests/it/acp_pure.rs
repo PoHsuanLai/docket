@@ -263,6 +263,7 @@ fn evidence(messages: Vec<Message>) -> Evidence {
                 selection: docket_core::Keep::Dropped,
                 window: docket_core::Keep::Dropped,
             },
+            mode: docket_core::Mode::Auto,
         },
     };
     Evidence {

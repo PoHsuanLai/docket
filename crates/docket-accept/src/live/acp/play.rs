@@ -166,6 +166,7 @@ pub async fn play(
         at: UnixSeconds(1),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
+        mode: None,
     };
     let mut played = Played {
         end: AgentEnd::Silent,
