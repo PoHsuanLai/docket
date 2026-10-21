@@ -115,3 +115,9 @@ What docket adds or decides differently, each with its reason:
     known, is never held this way (a person may want two sends), and a call that wrote makes the
     held reads stale. The effect travels on `PlannedCall::effect`; this is the one guard, not a
     second mechanism beside it.
+
+14. **A check script never pipes into `grep -q` under `pipefail`.** `grep -q` leaves at its first
+    match, the writer dies of SIGPIPE, and the pipeline's status is the writer's, not grep's. A
+    check written `cmd | grep -q x` then fails at random, and one written `if cmd | grep -q .` can
+    read a hit as a miss and pass what it should fail. Match from a here-string
+    (`grep -q x <<<"$rows"`) or test captured output (`[ -n "$(cmd)" ]`).
