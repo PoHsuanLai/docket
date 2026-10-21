@@ -3,7 +3,7 @@
 //! companion session whose planner the case plays.
 
 use crate::block::block_on;
-use crate::case::{Case, ConsentFixture, FixtureTask, WorldFixture};
+use crate::case::{Case, CasePolicy, ConsentFixture, FixtureTask, WorldFixture};
 use crate::runner::{Harness, PolicyMode, Rig, maximal_policy};
 use docket_core::{
     ActionGrantKey, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget, IntentsReply,
@@ -277,8 +277,13 @@ pub(crate) fn install<S: Rig>(
             return Err(SetupFault("a turn was not recorded"));
         }
     }
-    if mode == PolicyMode::Maximal {
-        install_policy(router, &front.session, &case.space, front.task.clone());
+    // A case with no task policy has none whatever wrote one on the turns (a live writer did).
+    match (case.task_policy, mode) {
+        (CasePolicy::Maximal, PolicyMode::Maximal) => {
+            install_policy(router, &front.session, &case.space, front.task.clone());
+        }
+        (CasePolicy::None, _) => drop_policy(router, &front.session),
+        (CasePolicy::Maximal, PolicyMode::Written) => {}
     }
     Ok(Scene {
         space: case.space.clone(),
@@ -286,6 +291,13 @@ pub(crate) fn install<S: Rig>(
         workers: others.into_iter().map(|(a, (s, _))| (a, s)).collect(),
         turns: case.turns.clone(),
     })
+}
+
+/// Takes the task policy off the session: every change is then outside the task.
+fn drop_policy<S: Rig>(router: &Router<S>, session: &SessionId) {
+    if let Some(record) = state_of(router).sessions.get_mut(session) {
+        record.policy = None;
+    }
 }
 
 /// The widest policy a writer could produce, stamped with the person's turns.

@@ -9,6 +9,8 @@
 //! space = "work"
 //! driver = "companion"                  # companion (default) | cli
 //! strictness = "default"                # ask_more | default | trust_more
+//! task_policy = "maximal"               # maximal (default) | none: no task policy, so an undoable
+//!                                       # change is outside the task and goes to the reviewers
 //! why = "what the case checks and why"  # required
 //! turns = ["summarise this thread"]     # the person's own words, in order
 //! [model]                               # optional: what the models behind the writer and the
@@ -130,6 +132,19 @@ pub enum ConsentFixture {
     Standing,
     /// Nothing granted: every first use asks.
     Withheld,
+}
+
+/// The task policy a case runs under.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CasePolicy {
+    /// The widest policy a writer could produce (the gate's deterministic layers: nothing a
+    /// writer says can matter), so an undoable change is inside the task and runs.
+    #[default]
+    Maximal,
+    /// No task policy, whatever the writer says: every change is outside the task. An undoable
+    /// one is judged, so the reviewers read it; an outbound or destructive one asks.
+    None,
 }
 
 /// The world a case runs in.
@@ -313,6 +328,9 @@ pub struct Case {
     pub space: SpaceId,
     /// The strictness it runs under.
     pub strictness: Strictness,
+    /// The task policy it runs under; the widest when absent.
+    #[serde(default)]
+    pub task_policy: CasePolicy,
     /// Who plays the steps; the companion when absent.
     #[serde(default)]
     pub driver: Driver,

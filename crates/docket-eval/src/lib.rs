@@ -48,7 +48,7 @@ pub use attack_summary::{
     today, utc_date,
 };
 pub use case::{
-    ArgFrom, Case, CaseId, ConsentFixture, Corpus, Driver, Expect, FixtureContact, FixtureFile,
+    ArgFrom, Case, CaseId, CasePolicy, ConsentFixture, Corpus, Driver, Expect, FixtureContact, FixtureFile,
     FixtureMail, FixtureRef, FixtureTask, MailField, ScriptedCall, ScriptedSend, ScriptedStep,
     WorldFixture,
 };

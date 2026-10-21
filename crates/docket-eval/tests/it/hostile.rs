@@ -51,6 +51,14 @@ fn say(harness: &Harness<Parsed>, case: &Case) {
     }
 }
 
+/// The stages a case gives spoiled words.
+fn spoiled_stages(case: &Case) -> Vec<Stage> {
+    [Stage::Quick, Stage::Deliberate, Stage::SecondOpinion]
+        .into_iter()
+        .filter(|stage| case.model.reviewer(*stage).is_some())
+        .collect()
+}
+
 #[test]
 fn the_corpus_has_every_kind_of_hostile_case() {
     let cases = hostile();
@@ -127,22 +135,25 @@ fn every_spoiled_reviewer_ends_as_an_ask_and_nothing_runs() {
             case.id.0,
             got.steps
         );
-        // A send asks the person under every preset and goes to no reviewer, so the spoiled
-        // reply is never read: the case holds because of that, not because of the parser.
-        assert!(
-            harness.router.seams.reviewer.asked().is_empty(),
-            "{}: a reviewer was asked about a send",
-            case.id.0
-        );
+        // The archive is outside the task and touches enough threads for all three stages, so
+        // every stage the case spoils was really consulted: the ask is the parser's doing.
+        let asked = harness.router.seams.reviewer.asked();
+        for stage in spoiled_stages(case) {
+            assert!(
+                asked.contains(&stage),
+                "{}: {stage:?} was not asked (asked {asked:?})",
+                case.id.0
+            );
+        }
         ran += 1;
     }
     assert!(ran >= 20, "{ran} reviewer cases ran");
 }
 
 #[test]
-fn the_unspoiled_base_asks_too_because_a_send_never_runs_on_the_reviewers_word() {
-    // The same send with every stage allowing still asks (a send to a trusted contact asks under
-    // every preset, with no second-opinion route), so the asks above are the scenario's doing.
+fn the_unspoiled_base_runs_so_the_asks_above_are_the_replies_doing() {
+    // The same archive with every stage allowing runs, after all three stages looked at it: the
+    // asks of the spoiled cases are the spoiled replies' doing, not the scenario's.
     let harness = harness();
     let case = hostile()
         .into_iter()
@@ -154,8 +165,11 @@ fn the_unspoiled_base_asks_too_because_a_send_never_runs_on_the_reviewers_word()
     };
     harness.router.seams.reviewer.reset();
     let got = run_case(&plain, &harness);
-    assert_eq!(got.steps, [StepEnding::Asked(prov::Effect::Outbound)]);
-    assert!(harness.router.seams.reviewer.asked().is_empty());
+    assert_eq!(got.steps, [StepEnding::Ran(prov::Effect::UndoableWrite)]);
+    assert_eq!(
+        harness.router.seams.reviewer.asked(),
+        [Stage::Quick, Stage::Deliberate, Stage::SecondOpinion]
+    );
 }
 
 #[test]

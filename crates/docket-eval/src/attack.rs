@@ -39,8 +39,8 @@
 use crate::attack_needs::UserNeeds;
 use crate::attack_place::PlaceSpec;
 use crate::case::{
-    Case, CaseId, Corpus, Driver, Expect, FixtureContact, FixtureFile, FixtureMail, ScriptedStep,
-    WorldFixture,
+    Case, CaseId, CasePolicy, Corpus, Driver, Expect, FixtureContact, FixtureFile, FixtureMail,
+    ScriptedStep, WorldFixture,
 };
 use crate::model_script::ModelScript;
 use docket_core::Strictness;
@@ -293,6 +293,7 @@ impl AttackCase {
             corpus: Corpus::Attack,
             space: self.space.clone(),
             strictness: self.strictness,
+            task_policy: CasePolicy::Maximal,
             driver: Driver::Companion,
             why: self.why.clone(),
             turns: vec![self.user_task.clone()],
