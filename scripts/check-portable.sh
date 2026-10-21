@@ -50,7 +50,7 @@ echo "== cross targets"
 # `rustup` answers for the toolchain this repo pins (rust-toolchain.toml).
 installed=$(rustup target list --installed 2>/dev/null || true)
 for target in "${TARGETS[@]}"; do
-  if ! printf '%s\n' "$installed" | grep -qx "$target"; then
+  if ! grep -qx "$target" <<<"$installed"; then
     echo "SKIP $target: not installed (rustup target add $target)"
     continue
   fi
@@ -63,7 +63,7 @@ for target in "${TARGETS[@]}"; do
   if command -v clang >/dev/null 2>&1; then clang_cc=("CC_$tag=clang"); fi
   if out=$(env "${clang_cc[@]}" cargo check "${packages[@]}" --no-default-features --target "$target" 2>&1); then
     echo "ok $target"
-  elif printf '%s\n' "$out" | grep -q 'error occurred in cc-rs'; then
+  elif grep -q 'error occurred in cc-rs' <<<"$out"; then
     echo "UNVERIFIED $target: a C cross toolchain is missing (cc-rs failed in a dependency's build script)"
   else
     printf '%s\n' "$out" | tail -40

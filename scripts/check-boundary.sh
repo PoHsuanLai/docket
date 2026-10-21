@@ -124,7 +124,7 @@ for rule in "${RULES[@]}"; do
   nodef=()
   [ "$crate" = docket-client ] && nodef=(--no-default-features)
   for dep in "${forbidden[@]}"; do
-    if cargo tree -p "$crate" "${nodef[@]}" -i "$dep" -e normal,build 2>/dev/null | grep -q .; then
+    if [ -n "$(cargo tree -p "$crate" "${nodef[@]}" -i "$dep" -e normal,build 2>/dev/null)" ]; then
       echo "LEAK: $crate depends on $dep"
       cargo tree -p "$crate" "${nodef[@]}" -i "$dep" -e normal,build 2>/dev/null | head -20
       leaked=1
@@ -142,13 +142,13 @@ THEIRS="cuad cua-bus cua-run cua-desktop cua-dbus cua-fake a11y-tree seat-input 
 workspace_tree=$(cargo tree --workspace -e normal,build,dev --prefix none --all-features 2>/dev/null | awk '{print $1}' | sort -u)
 theirs_found=0
 for name in $THEIRS; do
-  if printf '%s\n' "$workspace_tree" | grep -qx "$name"; then
+  if grep -qx "$name" <<<"$workspace_tree"; then
     echo "LEAK: the workspace depends on $name (cua), which sits above docket"
     theirs_found=1
     fail=1
   fi
 done
-if printf '%s\n' "$workspace_tree" | grep -q '^sill-'; then
+if grep -q '^sill-' <<<"$workspace_tree"; then
   echo "LEAK: the workspace depends on a sill crate, which sits above docket"
   theirs_found=1
   fail=1
@@ -252,10 +252,14 @@ for pkg in intentd companiond readerd actions-mcp docket-cli docket-acp-bin voic
   fi
 done
 
-# Every workspace member has a row above, so a new crate cannot slip in unchecked.
+# Every workspace member has a row above, so a new crate cannot slip in unchecked. The rows are
+# matched from a here-string, not a pipe: under pipefail, `grep -q` leaving early would kill printf
+# and fail the check at random.
+edge_rows=$(printf '%s\n' "${EDGES[@]}")
+rule_rows=$(printf '%s\n' "${RULES[@]}")
 for member in $(sed -n 's#^  "crates/\(.*\)",$#\1#p' Cargo.toml); do
-  printf '%s\n' "${EDGES[@]}" | grep -q "^$member:" || { echo "ERROR: $member has no row in EDGES"; fail=1; }
-  printf '%s\n' "${RULES[@]}" | grep -q "^$member:" || { echo "ERROR: $member has no row in RULES"; fail=1; }
+  grep -q "^$member:" <<<"$edge_rows" || { echo "ERROR: $member has no row in EDGES"; fail=1; }
+  grep -q "^$member:" <<<"$rule_rows" || { echo "ERROR: $member has no row in RULES"; fail=1; }
 done
 
 exit "$fail"
