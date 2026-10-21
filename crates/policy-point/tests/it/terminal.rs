@@ -138,7 +138,7 @@ fn terminal_grid() {
     ];
     for (name, effect, edit, want) in &rows {
         for (preset, set) in every_preset() {
-            let request = cli(*effect, |r| edit(r));
+            let request = cli(*effect, edit);
             let ruling = set.decide(&request);
             assert_eq!(cell(&ruling), *want, "{name} ({preset}): {ruling:?}");
         }

@@ -105,11 +105,7 @@ async fn a_run_becomes_a_cassette_that_replays_the_same_run() {
         .expect("corpus")
         .into_iter()
         .filter(|c| {
-            [
-                "injection-mail-body-send",
-                "benign-archive-newsletters",
-            ]
-            .contains(&c.id.0.as_str())
+            ["injection-mail-body-send", "benign-archive-newsletters"].contains(&c.id.0.as_str())
         })
         .collect();
     assert_eq!(cases.len(), 2, "both cases exist");

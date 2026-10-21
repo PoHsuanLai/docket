@@ -117,7 +117,9 @@ fn a_read_in_a_new_space_runs_unasked_in_every_app_and_a_flow_that_never_searche
         assert!(failures.is_empty(), "{}: {failures:?}", kit.search);
         let failures = judge(flow(kit, Pattern::FirstUse), &evidence());
         assert!(
-            failures.iter().any(|f| f.what == "the model never searched"),
+            failures
+                .iter()
+                .any(|f| f.what == "the model never searched"),
             "{failures:?}"
         );
     }

@@ -63,7 +63,8 @@ async fn run_session(router: &docket_router::Router<docket_fake::FakeSeams>, run
 }
 
 #[tokio::test]
-async fn a_pixel_step_that_changes_needs_the_persons_consent_for_the_app_and_then_an_undoable_one_runs() {
+async fn a_pixel_step_that_changes_needs_the_persons_consent_for_the_app_and_then_an_undoable_one_runs()
+ {
     let mut router = router();
     let run = RunId::parse("r-1").expect("run");
     run_session(&router, &run).await;
@@ -73,7 +74,11 @@ async fn a_pixel_step_that_changes_needs_the_persons_consent_for_the_app_and_the
         IntentsRequest::GateCheck(step(&run, Effect::Read)),
     )
     .await;
-    assert_eq!(looked, IntentsReply::Gate(GateAnswer::Run), "a read never asks");
+    assert_eq!(
+        looked,
+        IntentsReply::Gate(GateAnswer::Run),
+        "a read never asks"
+    );
     let first = ask(
         &router,
         &cuad(),
