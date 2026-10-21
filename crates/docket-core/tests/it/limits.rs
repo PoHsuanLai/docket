@@ -194,6 +194,7 @@ fn a_file_with_no_level_still_reads_as_always_allow() {
         app: app("org.quire.Mail"),
         space: space("work"),
         level: Level::Never,
+        run: None,
     };
     let mut old = serde_json::to_value(&now).expect("json");
     old.as_object_mut().expect("object").remove("level");

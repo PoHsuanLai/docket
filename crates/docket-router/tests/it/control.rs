@@ -100,6 +100,7 @@ async fn a_pixel_step_that_changes_needs_the_persons_consent_for_the_app_and_the
             app: mail_app(),
             space: space("work"),
             level: Default::default(),
+            run: None,
         }),
     )
     .await;
@@ -137,6 +138,7 @@ async fn a_dismissed_grant_request_records_nothing() {
             app: mail_app(),
             space: space("work"),
             level: Default::default(),
+            run: None,
         }),
     )
     .await;
@@ -379,6 +381,7 @@ async fn a_run_that_looked_at_a_screen_reports_with_the_screens_label() {
             app: mail_app(),
             space: space("work"),
             level: Default::default(),
+            run: None,
         }),
     )
     .await;
@@ -530,5 +533,49 @@ async fn a_limit_of_never_refuses_a_pixel_step_and_one_of_ask_asks() {
     assert_eq!(
         refused,
         IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Denied(DenyCode::Never)))
+    );
+}
+
+#[tokio::test]
+async fn the_start_sheet_covers_the_run_it_names_and_not_another_run_in_the_space() {
+    let mut router = router();
+    let (first, second) = (
+        RunId::parse("r-1").expect("run"),
+        RunId::parse("r-2").expect("run"),
+    );
+    run_session(&router, &first).await;
+    run_session(&router, &second).await;
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![yes()]);
+    let granted = ask(
+        &router,
+        &cuad(),
+        IntentsRequest::GateGrant(GrantAsk {
+            app: mail_app(),
+            space: space("work"),
+            level: Default::default(),
+            run: Some(first.clone()),
+        }),
+    )
+    .await;
+    assert_eq!(granted, IntentsReply::Granted(GrantAnswer::Granted));
+    let allowed = ask(
+        &router,
+        &cuad(),
+        IntentsRequest::GateCheck(step(&first, Effect::UndoableWrite)),
+    )
+    .await;
+    assert_eq!(allowed, IntentsReply::Gate(GateAnswer::Run));
+    let other = ask(
+        &router,
+        &cuad(),
+        IntentsRequest::GateCheck(step(&second, Effect::UndoableWrite)),
+    )
+    .await;
+    assert!(
+        matches!(
+            other,
+            IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(_)))
+        ),
+        "the other run was not asked, so its change still asks: {other:?}"
     );
 }

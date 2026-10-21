@@ -466,6 +466,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         app: mail(),
         space: space("work"),
         level: Default::default(),
+        run: None,
     }))
     .await;
     pair.both(IntentsRequest::GateCheck(cua_ask())).await;

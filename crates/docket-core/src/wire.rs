@@ -253,6 +253,11 @@ pub struct GrantAsk {
     /// store the last word: an entry it holds can only make this stricter.
     #[serde(default)]
     pub level: crate::limit::Level,
+    /// The screen run this request is for. With it, the person's yes covers that run alone; a
+    /// request from before this field names no run, and covers every live screen run in the
+    /// Space. `cuad` should send it, so two runs in one Space each get their own start sheet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run: Option<prov::RunId>,
 }
 
 /// How a grant request ended.

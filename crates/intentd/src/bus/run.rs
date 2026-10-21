@@ -133,6 +133,7 @@ impl GateBus {
             app: parsed(&app, porter_core::AppName::parse)?,
             space: parsed(&space, prov::SpaceId::parse)?,
             level: docket_core::Level::default(),
+            run: None,
         };
         self.0
             .start(&header, connection, IntentsRequest::GateGrant(ask))

@@ -26,9 +26,32 @@ use policy_point::{
 use porter_core::consent::{Decision, Grant, GrantScope, Usage, Verdict};
 use porter_core::{Count, DataClass, GrantId};
 use prov::{
-    ActionName, Actor, AgentRole, Confidentiality, Effect, Integrity, Label, Source, SpaceScope,
+    ActionName, Actor, AgentRole, Confidentiality, Effect, Integrity, Label, RunId, Source,
+    SpaceScope,
 };
 use std::collections::BTreeSet;
+
+/// Whether `actor` is a screen run the ask is for: the run it names, or any screen run when it
+/// names none.
+fn is_asked_run(actor: &Actor, named: Option<&RunId>) -> bool {
+    match (actor, named) {
+        (
+            Actor::Companion {
+                role: AgentRole::Cua { run },
+                ..
+            },
+            Some(want),
+        ) => run == want,
+        (
+            Actor::Companion {
+                role: AgentRole::Cua { .. },
+                ..
+            },
+            None,
+        ) => true,
+        _ => false,
+    }
+}
 
 fn words(text: &str) -> LabelText {
     LabelText::parse(text).expect("fixed sheet words are valid label text")
@@ -177,23 +200,15 @@ impl<S: Seams> Router<S> {
         }
     }
 
-    /// Remembers on the screen runs of the Space that the person allowed them to use the app, so
-    /// the policy sees the steps of those runs as allowed (`run`). It ends with each run's
-    /// session. The ask names no run, so every live screen run in the Space is covered.
+    /// Remembers on the screen runs the person allowed to use the app, so the policy sees the
+    /// steps of those runs as allowed (`run`). It ends with each run's session. The ask names the
+    /// run it is for; one that names none (an older `cuad`) covers every live screen run in the
+    /// Space.
     fn allow_screen_runs(&self, ask: &GrantAsk) {
         let mut st = self.locked();
         st.sessions
             .values_mut()
-            .filter(|r| {
-                r.space == ask.space
-                    && matches!(
-                        &r.actor,
-                        Actor::Companion {
-                            role: AgentRole::Cua { .. },
-                            ..
-                        }
-                    )
-            })
+            .filter(|r| r.space == ask.space && is_asked_run(&r.actor, ask.run.as_ref()))
             .for_each(|r| {
                 r.screen_apps.insert(ask.app.clone());
             });
