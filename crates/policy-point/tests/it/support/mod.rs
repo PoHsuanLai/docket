@@ -55,6 +55,11 @@ pub fn base(effect: Effect) -> PolicyRequest {
                 path: Integrity::Trusted,
             },
             impact: Impact::High,
+            halt: HaltFact::Running,
+            budget: BudgetFact::Within,
+            repeat: RepeatFact::Fresh,
+            limit: LimitFact::Free,
+            taint: TaintFact::Clean,
         },
     }
 }

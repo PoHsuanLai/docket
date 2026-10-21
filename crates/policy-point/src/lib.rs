@@ -21,6 +21,6 @@ pub use layered::{LayerError, Layered};
 pub use layers::{Layer, PolicyOrigin, PolicySource, Rejected};
 pub use pdp::{CORE_POLICIES, Pdp, PolicyError, SCHEMA, STANDARD_PRESET};
 pub use request::{
-    ActionFacts, CoverageState, GrantState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
-    SpaceRelation, TerminalGrant,
+    ActionFacts, BudgetFact, CoverageState, GrantState, HaltFact, LimitFact, Op, PolicyContext,
+    PolicyRequest, PrincipalFacts, RepeatFact, SpaceRelation, TaintFact, TerminalGrant,
 };

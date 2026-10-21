@@ -54,6 +54,18 @@ namespace Quire {
     sinks: Sinks,
     // "low" or "high".
     impact: String,
+    // "none" or "halted": the kill switch for the call's Space.
+    halt: String,
+    // "ok", or the slug of the budget the call would put over (calls, writes, wall, ...).
+    budget: String,
+    // "fresh", or "repeated" when the exact call was denied before.
+    repeat: String,
+    // "none", "ask" or "never": the strongest limit that covers the call (the person's, the
+    // assistant's, the administrator's floor).
+    limit: String,
+    // "tainted" when the session read untrusted content and this call changes something, else
+    // "clean".
+    taint: String,
   };
 
   action "perform" appliesTo { principal: [Caller], resource: [Act], context: Ctx };

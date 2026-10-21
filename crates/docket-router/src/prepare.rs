@@ -5,31 +5,32 @@
 use crate::argcheck::{check_call, no_handle_names, target_name};
 use crate::consent::{consent_for, within_reach};
 use crate::coverage::coverage;
+use crate::facts::{RunFacts, budget_fact, repeat_fact, run_facts, taint_fact};
 use crate::gate::{GateInputs, Pending, gate};
 use crate::labels::{
     arg_labels, args_confidentiality, label_args, planner_integrity, resolve_target, sink_integrity,
 };
-use crate::limits::tightened;
 use crate::owned::{owned_by_another, touched};
 use crate::prepared::{
     Early, Prepared, digest, entities, grant_state, proposed, typed_history, usage_of,
 };
 use crate::router::Router;
 use crate::seams::{Clock, GrantStore, Seams};
-use crate::session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
+use crate::session::{CloseCause, SessionEffect, SessionEvent, SessionState, session_step};
 use crate::spacing::relation_of;
 use crate::standing::StandingCtx;
 use crate::state::{RouterState, SessionRecord};
 use crate::turn_start::{TurnStart, pass, rule};
 use crate::who::Who;
-use action_review::{GoalKey, ReviewRequest, repeated};
+use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
 use docket_core::{
     ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
     CallRequest, CallerRole, Classification, Cost, DenyCode, Depth, Impact, Lasting, LimitCall,
-    Limited, Reviewed, Ruling, Saw, SpaceAccess, WindowKey, charge, is_agent_action, space_access,
+    Limited, Reviewed, Ruling, SpaceAccess, WindowKey, is_agent_action, space_access,
 };
 use policy_point::{
-    ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, SpaceRelation,
+    ActionFacts, BudgetFact, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
+    SpaceRelation, TaintFact,
 };
 use porter_core::Count;
 use porter_core::consent::Verdict;
@@ -79,6 +80,9 @@ struct Facts<'a> {
     count: Count,
     impact: Impact,
     relation: SpaceRelation,
+    run: &'a RunFacts,
+    repeat: RepeatState,
+    taint: TaintFact,
 }
 
 impl<S: Seams> Router<S> {
@@ -130,6 +134,11 @@ impl<S: Seams> Router<S> {
                 saw,
                 sinks: sink_integrity(f.decl, &f.request.args),
                 impact: f.impact,
+                halt: f.run.halt,
+                budget: f.run.budget,
+                repeat: repeat_fact(f.repeat),
+                limit: f.run.limit,
+                taint: f.taint,
             },
         }
     }
@@ -264,10 +273,7 @@ impl<S: Seams> Router<S> {
             return Err(end(CallRefusal::Denied(DenyCode::OwnedByAnotherJob)));
         }
         let count = Count(u32::try_from(targets.len()).unwrap_or(u32::MAX));
-        let taint = match (record.saw.untrusted, decl.effect) {
-            (Saw::Seen, effect) if effect > Effect::Read => Taint::Tainted,
-            _ => Taint::Clean,
-        };
+        let taint = taint_fact(record.saw.untrusted, decl.effect);
         let consent = consent_for(
             grants,
             &who.grant_caller(),
@@ -275,7 +281,6 @@ impl<S: Seams> Router<S> {
             &request.action.app,
             &space,
             usage_of(&who.actor),
-            taint,
         );
         let consent = match turn_start {
             TurnStart::Preapproved => pass(consent),
@@ -302,6 +307,39 @@ impl<S: Seams> Router<S> {
                 .unwrap_or(self.agent_config().strictness),
         );
         let impact = impact_of(&decl, count, self.agent_config().mass_at);
+        // Everything stateful is gathered here and ruled on by Cedar: the kill switch, the budgets,
+        // the breaker, the limits (the person's, the assistant's and the floor's) and the taint.
+        let caller = who.grant_caller();
+        let limited = self.limits_on(&LimitCall {
+            caller: &caller,
+            app: &request.action.app,
+            action: Some(&decl.name),
+            space: &space,
+            effect: decl.effect,
+        });
+        let goal = GoalKey {
+            app: request.action.app.clone(),
+            action: decl.name.clone(),
+            kind: targets.first().map(|e| e.kind.clone()),
+        };
+        let digest = digest(&request.target, &request.args);
+        let cost = Cost {
+            effect: decl.effect,
+            entities: count,
+            depth,
+            review: Reviewed::No,
+        };
+        let budget = &self.agent_config().budget;
+        let run = run_facts(
+            &st.kill,
+            &space,
+            &record.ledger,
+            budget,
+            &cost,
+            now,
+            &limited,
+        );
+        let repeat = repeated(&record.breaker, &goal, digest);
         let ruled = self.pdp().decide_checked(&self.policy_request(&Facts {
             who,
             decl: &decl,
@@ -313,35 +351,26 @@ impl<S: Seams> Router<S> {
             count,
             impact,
             relation: relation_of(st, &space, &decl.on, &targets),
+            run: &run,
+            repeat,
+            taint,
         }));
         crate::policylog::log_faults(&ruled, &record.task);
         let ruling = ruled.ruling;
-        let goal = GoalKey {
-            app: request.action.app.clone(),
-            action: decl.name.clone(),
-            kind: targets.first().map(|e| e.kind.clone()),
-        };
-        let digest = digest(&request.target, &request.args);
+        // A reviewed call also spends the reviews budget.
         let cost = Cost {
-            effect: decl.effect,
-            entities: count,
-            depth,
             review: match ruling {
                 Ruling::AllowJudged(_) => Reviewed::Yes,
                 _ => Reviewed::No,
             },
+            ..cost
         };
+        let charged = budget_fact(&record.ledger, budget, &cost, now);
         let gated = gate(&GateInputs {
-            halt: &st.kill,
-            space: &space,
-            ledger: &record.ledger,
-            budget: &self.agent_config().budget,
-            cost: &cost,
-            now,
-            consent: &consent,
             ruling: &ruling,
             impact,
-            repeat: repeated(&record.breaker, &goal, digest),
+            facts: &run,
+            charged,
         });
         // A standing grant replaces only the ask: the refusals above have already run, and the
         // reviewers still look at what it lets through.
@@ -349,22 +378,14 @@ impl<S: Seams> Router<S> {
             Ok(()) => BreakerState::Running,
             Err(_) => BreakerState::Tripped,
         };
-        let budget = match charge(&record.ledger, &self.agent_config().budget, &cost, now) {
-            Ok(_) => BudgetState::Within,
-            Err(_) => BudgetState::Over,
+        let budget = match charged {
+            BudgetFact::Within => BudgetState::Within,
+            BudgetFact::Over(_) => BudgetState::Over,
         };
-        let caller = who.grant_caller();
-        let limit = self.limits_on(&LimitCall {
-            caller: &caller,
-            app: &request.action.app,
-            action: Some(&decl.name),
-            space: &space,
-            effect: decl.effect,
-        });
         let ctx = StandingCtx::new(caller, &decl, &request, breaker, budget);
         // A limit outranks every allowance: under one, no standing grant or approval stands in
-        // for the question, and a "never" is refused before anything is asked.
-        let (pending, standing) = match limit {
+        // for the question (the policy has already asked or refused for it).
+        let (pending, standing) = match limited {
             Limited::Free => ctx.lifted(
                 &self.seams.grants().standing(),
                 &record.approvals,
@@ -372,7 +393,7 @@ impl<S: Seams> Router<S> {
                 impact,
                 gated,
             ),
-            limit => (tightened(gated, &limit), ctx.limited(limit)),
+            limit => (gated, ctx.limited(limit)),
         };
         Ok(Prepared {
             id,

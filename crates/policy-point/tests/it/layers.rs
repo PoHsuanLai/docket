@@ -7,7 +7,7 @@ use policy_point::{Layer, LayerError, Pdp, PolicyOrigin, PolicySource, SCHEMA};
 use prov::Effect;
 use std::path::PathBuf;
 
-const TODAYS_IDS: [&str; 22] = [
+const TODAYS_IDS: [&str; 28] = [
     "attempt",
     "read-final",
     "user-launcher",
@@ -18,6 +18,10 @@ const TODAYS_IDS: [&str; 22] = [
     "cli-granted-final",
     "hidden-from-agents",
     "grant-denied",
+    "halted",
+    "over-budget",
+    "repeated",
+    "limit-never",
     "mcp-other-space",
     "checkpoints-not-for-agents",
     "rule-of-two",
@@ -29,6 +33,8 @@ const TODAYS_IDS: [&str; 22] = [
     "cli-asks",
     "cli-destructive-asks",
     "first-use",
+    "tainted-always-asks",
+    "limit-ask",
     "mcp-asks",
 ];
 
@@ -67,7 +73,7 @@ fn ids(pdp: &Pdp) -> Vec<String> {
 }
 
 #[test]
-fn core_and_standard_preset_are_exactly_todays_set() {
+fn core_and_standard_preset_are_exactly_todays_set_and_the_fact_rules() {
     let mut want: Vec<String> = TODAYS_IDS.iter().map(|s| (*s).to_owned()).collect();
     want.sort();
     assert_eq!(ids(&Pdp::standard().expect("loads")), want);

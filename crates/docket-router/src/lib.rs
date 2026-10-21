@@ -52,6 +52,7 @@ mod deadline;
 mod driven;
 mod dryrun;
 mod durable;
+mod facts;
 mod finish;
 mod gate;
 mod gatecheck;
@@ -112,6 +113,7 @@ pub use companion::COMPANION_APP;
 pub use brief::{BRIEFS_KEPT, ConfirmedBrief};
 pub use companion::{BRIEF_CONFIRM, HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE};
 pub use docket_checkpoint::NoStore;
+pub use facts::{RunFacts, budget_fact, repeat_fact, run_facts, taint_fact};
 pub use gate::{GateInputs, Pending, gate};
 pub use handles::{
     HandleEntry, HandleLimit, HandleTable, HandleValue, MAX_HANDLES, MAX_KNOWN, MAX_VIEW_TEXTS,
@@ -119,7 +121,6 @@ pub use handles::{
 };
 pub use index::{IndexAction, IndexEvent, index_step};
 pub use journal::UndoJournal;
-pub use limits::tightened;
 pub use messages::{assemble, check_stamped, inbound_line, intake_label, report_status};
 pub use registry::{Registry, RegistryError, parse};
 pub use restore::{RestoreFault, Restored};

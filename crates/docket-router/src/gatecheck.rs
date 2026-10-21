@@ -3,8 +3,10 @@
 //! same Cedar policy and the same breaker.
 
 use crate::deadline::within;
+use crate::facts::{budget_fact, repeat_fact, run_facts, taint_fact};
 use crate::gate::{GateInputs, Pending, gate};
 use crate::labels::absorb;
+use crate::prepared::grant_state;
 use crate::router::Router;
 use crate::seams::{Clock, EventSink, GrantStore, Seams};
 use crate::watch::Watch;
@@ -18,8 +20,8 @@ use docket_core::{
 };
 use docket_core::{AgentReach, Lasting, Origin};
 use policy_point::{
-    ActionFacts, CoverageState, GrantState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
-    SpaceRelation, TerminalGrant,
+    ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, SpaceRelation,
+    TerminalGrant,
 };
 use porter_core::consent::{Decision, Grant, GrantScope, Usage, Verdict};
 use porter_core::{Count, DataClass, GrantId};
@@ -234,6 +236,35 @@ impl<S: Seams> Router<S> {
                     .unwrap_or(self.agent_config().strictness),
             );
             let screen = screen.integrity;
+            let saw = SessionSaw {
+                private: Saw::NotSeen,
+                untrusted: Saw::Seen,
+            };
+            let cost = Cost {
+                effect: ask.effect,
+                entities: Count(1),
+                depth: Depth(0),
+                review: Reviewed::No,
+            };
+            // The same facts as an agent's call: the limits (the person's, the assistant's and the
+            // floor's) cover a pixel step like any other change.
+            let limited = self.limits_on(&LimitCall {
+                caller: &GrantCaller::Cua,
+                app: &ask.app,
+                action: None,
+                space: &ask.space,
+                effect: ask.effect,
+            });
+            let budget = &self.agent_config().budget;
+            let run = run_facts(
+                &st.kill,
+                &ask.space,
+                &record.ledger,
+                budget,
+                &cost,
+                now,
+                &limited,
+            );
             let ctx = PolicyContext {
                 space: ask.space.clone(),
                 target_space: SpaceRelation::Same,
@@ -244,23 +275,12 @@ impl<S: Seams> Router<S> {
                 origin: Origin::Companion,
                 count: Count(1),
                 mass_at: self.agent_config().mass_at,
-                grant: match &consent {
-                    Verdict::Granted {
-                        scope: GrantScope::Always,
-                        ..
-                    } => GrantState::Always,
-                    Verdict::Granted { .. } => GrantState::Once,
-                    Verdict::Ask => GrantState::None,
-                    Verdict::Denied => GrantState::Denied,
-                },
+                grant: grant_state(&consent),
                 terminal: TerminalGrant::NotGranted,
                 coverage: CoverageState::Outside,
                 task_ceiling: Effect::Read,
                 strictness,
-                saw: SessionSaw {
-                    private: Saw::NotSeen,
-                    untrusted: Saw::Seen,
-                },
+                saw,
                 sinks: SinkIntegrity {
                     recipient: Integrity::Trusted,
                     destination: Integrity::Trusted,
@@ -272,6 +292,11 @@ impl<S: Seams> Router<S> {
                 } else {
                     Impact::Low
                 },
+                halt: run.halt,
+                budget: run.budget,
+                repeat: repeat_fact(RepeatState::Fresh),
+                limit: run.limit,
+                taint: taint_fact(saw.untrusted, ask.effect),
             };
             let ruled = self.pdp().decide_checked(&PolicyRequest {
                 principal: PrincipalFacts {
@@ -293,23 +318,11 @@ impl<S: Seams> Router<S> {
             });
             crate::policylog::log_faults(&ruled, &record.task);
             let ruling = ruled.ruling;
-            let cost = Cost {
-                effect: ask.effect,
-                entities: Count(1),
-                depth: Depth(0),
-                review: Reviewed::No,
-            };
             gate(&GateInputs {
-                halt: &st.kill,
-                space: &ask.space,
-                ledger: &record.ledger,
-                budget: &self.agent_config().budget,
-                cost: &cost,
-                now,
-                consent: &consent,
                 ruling: &ruling,
                 impact: ctx.impact,
-                repeat: RepeatState::Fresh,
+                facts: &run,
+                charged: budget_fact(&record.ledger, budget, &cost, now),
             })
         };
         match decided {

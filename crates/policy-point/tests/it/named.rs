@@ -252,3 +252,112 @@ fn nothing_loosens_what_a_hijacked_reviewer_or_wide_policy_would() {
         assert_eq!(cell(&two), Cell::Ask, "{s:?}");
     }
 }
+
+fn denied_by(ruling: &Ruling) -> Vec<String> {
+    match ruling {
+        Ruling::Deny(ids) => ids.iter().map(|id| id.0.clone()).collect(),
+        Ruling::Ask(_) | Ruling::AllowJudged(_) | Ruling::AllowFinal(_) => vec![],
+    }
+}
+
+#[test]
+fn a_fact_that_refuses_denies_by_its_rule_whatever_else_is_granted() {
+    let rows: Vec<(&str, PolicyRequest, &str)> = vec![
+        (
+            "a halt",
+            with(Effect::Read, |r| r.context.halt = HaltFact::Halted),
+            "halted",
+        ),
+        (
+            "a budget that is out",
+            with(Effect::Read, |r| {
+                r.context.budget = BudgetFact::Over(BudgetKind::Calls)
+            }),
+            "over-budget",
+        ),
+        (
+            "an exact repeat",
+            with(Effect::Read, |r| r.context.repeat = RepeatFact::Repeated),
+            "repeated",
+        ),
+        (
+            "a limit of never",
+            with(Effect::Read, |r| r.context.limit = LimitFact::Never),
+            "limit-never",
+        ),
+    ];
+    for (name, request, rule) in rows {
+        let got = pdp().decide(&request);
+        assert_eq!(denied_by(&got), [rule], "row {name}: {got:?}");
+    }
+}
+
+#[test]
+fn a_limit_of_ask_asks_a_call_that_would_run_or_be_reviewed() {
+    for effect in [Effect::Read, Effect::UndoableWrite] {
+        let got = pdp().decide(&with(effect, |r| r.context.limit = LimitFact::Ask));
+        assert_eq!(asks(&got), [AskReason::AskAlways], "{effect:?}: {got:?}");
+    }
+    let got = pdp().decide(&with(Effect::UndoableWrite, |r| {
+        strictness(Strictness::AskMore)(r);
+        r.context.limit = LimitFact::Ask;
+        r.context.grant = GrantState::None;
+    }));
+    assert_eq!(
+        asks(&got),
+        [AskReason::FirstUse, AskReason::AskAlways],
+        "{got:?}"
+    );
+}
+
+#[test]
+fn a_tainted_always_grant_asks_with_the_taint_reason_and_only_for_a_change() {
+    let rows = [
+        (
+            "tainted change",
+            Effect::UndoableWrite,
+            GrantState::Always,
+            TaintFact::Tainted,
+            Cell::Ask,
+        ),
+        (
+            "tainted but only a read",
+            Effect::Read,
+            GrantState::Always,
+            TaintFact::Tainted,
+            Cell::Final,
+        ),
+        (
+            "clean change",
+            Effect::UndoableWrite,
+            GrantState::Always,
+            TaintFact::Clean,
+            Cell::Final,
+        ),
+    ];
+    for (name, effect, grant, taint, want) in rows {
+        let got = pdp().decide(&with(effect, |r| {
+            r.context.grant = grant;
+            r.context.taint = taint;
+        }));
+        assert_eq!(cell(&got), want, "row {name}: {got:?}");
+        if want == Cell::Ask {
+            assert_eq!(asks(&got), [AskReason::Tainted], "row {name}");
+        }
+    }
+    let user = pdp().decide(&with(Effect::UndoableWrite, |r| {
+        r.principal.kind = ActorKind::User;
+        r.context.origin = Origin::Launcher;
+        r.context.taint = TaintFact::Tainted;
+    }));
+    assert_eq!(cell(&user), Cell::Final, "the person's own act: {user:?}");
+}
+
+#[test]
+fn a_first_use_still_says_first_use_when_the_session_is_tainted() {
+    let got = pdp().decide(&with(Effect::UndoableWrite, |r| {
+        r.context.grant = GrantState::None;
+        r.context.taint = TaintFact::Tainted;
+    }));
+    assert_eq!(asks(&got), [AskReason::FirstUse], "{got:?}");
+}

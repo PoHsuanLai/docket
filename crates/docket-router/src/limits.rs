@@ -1,42 +1,22 @@
-//! "Always ask" and "never" in the router. A limit only tightens: after the gate has decided,
-//! a covering limit turns a call that would run into one that asks, or into a refusal, and no
-//! grant, standing grant or approval lifts it back. The administrator's floor is consulted with
+//! "Always ask" and "never" in the router. A limit only tightens: the strongest covering limit
+//! reaches the policy as a fact (`limit`), which asks or refuses, and no grant, standing grant or
+//! approval lifts it back. The administrator's floor is consulted with
 //! the person's own entries; the strongest wins. Only agents meet limits: the person's own
 //! launcher acts never reach this file.
 
-use crate::gate::Pending;
 use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::{Clock, GrantStore, Seams};
 use docket_core::{
-    ActionRef, AppRefusal, AskReason, CallRefusal, DenyCode, FailText, Follow, Invocation,
-    LabelText, Limit, LimitCall, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope,
-    Limited, Outcome, ParamName, Preview, Said, Tighten, Undoable, Value, limited,
+    ActionRef, AppRefusal, FailText, Follow, Invocation, LabelText, Limit, LimitCall, LimitCaller,
+    LimitKey, LimitLevel, LimitMaker, LimitScope, Limited, Outcome, ParamName, Preview, Said,
+    Tighten, Undoable, Value, limited,
 };
 use porter_core::AppName;
 use prov::{ActionName, Actor, Effect, SpaceScope};
 
 /// The assistant's one action that adds a limit.
 pub(crate) const LIMIT_ADD: &str = "companion.limit.add";
-
-/// `pending` under what the limits say. A refusal that came first stands (a halt, a budget): the
-/// limit adds nothing to it.
-pub fn tightened(pending: Pending, limit: &Limited) -> Pending {
-    match (limit, pending) {
-        (_, refused @ Pending::Refuse(_)) => refused,
-        (Limited::Free, other) => other,
-        (Limited::Never(_), _) => Pending::Refuse(CallRefusal::Denied(DenyCode::Never)),
-        (Limited::Ask(_), Pending::Confirm(mut why)) => {
-            if !why.contains(&AskReason::AskAlways) {
-                why.push(AskReason::AskAlways);
-            }
-            Pending::Confirm(why)
-        }
-        (Limited::Ask(_), Pending::Run | Pending::NeedsReview(_)) => {
-            Pending::Confirm(vec![AskReason::AskAlways])
-        }
-    }
-}
 
 fn failed(why: &str) -> AppRefusal {
     AppRefusal::Failed(FailText(why.to_owned()))

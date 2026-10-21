@@ -1,8 +1,8 @@
 //! Standing consent for one call: the person's grants, looked up per data class the action
-//! touches, and what a tainted session does to an `Always`.
+//! touches. What a tainted session does to an `Always` is the policy's (`tainted-always-asks`).
 
-use crate::session::Taint;
 use docket_core::{ActionDecl, ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
+use policy_point::TaintFact;
 use porter_core::consent::{GrantScope, Usage, Verdict, decide};
 use porter_core::{DataClass, GrantId};
 use prov::{SpaceId, SpaceScope};
@@ -36,8 +36,7 @@ fn keys(
 
 /// What standing consent says about `decl` for `caller` in `space`: denied if any class is, to
 /// ask if any is not yet granted, else granted. An action that touches no class needs none. A
-/// session that read untrusted content cannot lean on an `Always` for anything that writes: it
-/// asks once more. Reading stays free, or one mail read would put a question on every read after.
+/// tainted session's `Always` stays an `Always` here: the policy asks once more.
 pub(crate) fn consent_for(
     grants: &[ActionGrant],
     caller: &GrantCaller,
@@ -45,7 +44,6 @@ pub(crate) fn consent_for(
     app: &porter_core::AppName,
     space: &SpaceId,
     usage: Usage,
-    taint: Taint,
 ) -> Verdict {
     // A terminal has no class grants (a read from it is allowed and everything else asks by the
     // policy's own rule), but a denial the person recorded for it still stands.
@@ -57,7 +55,7 @@ pub(crate) fn consent_for(
         // Launching an external agent in a directory is the person's own act: what it does there
         // is judged by the rest of the gate and by standing grants, not by a class question on
         // every first use. A recorded denial still stands, and a session that read untrusted
-        // content asks again for anything that writes (below). Only for the pseudo-app: the
+        // content asks again for anything that writes (the policy's `tainted-always-asks`). Only for the pseudo-app: the
         // person launched the agent in a directory, not into their mail, so an action of another
         // app that the agent calls over its tool edge is asked about like a planner's.
         GrantCaller::AcpAgent(_) | GrantCaller::AcpHelper { .. }
@@ -99,7 +97,6 @@ pub(crate) fn consent_for(
         Verdict::Ask
     } else {
         match granted {
-            Some((_, GrantScope::Always)) if taint == Taint::Tainted => Verdict::Ask,
             Some((grant, scope)) => Verdict::Granted { grant, scope },
             None => Verdict::Granted {
                 grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
@@ -111,11 +108,11 @@ pub(crate) fn consent_for(
 
 /// A helper's call that is inside the reach the person set on its card: the card is a standing
 /// grant for it, so a first-use question is already answered. As with every standing grant, a
-/// session that read untrusted content asks once more before it writes (`taint`). A denial, a
-/// grant, or a call outside the reach is left as it is.
-pub(crate) fn within_reach(consent: Verdict, inside: bool, taint: Taint) -> Verdict {
+/// session that read untrusted content asks once more before it writes (`taint`: the question
+/// stays a question). A denial, a grant, or a call outside the reach is left as it is.
+pub(crate) fn within_reach(consent: Verdict, inside: bool, taint: TaintFact) -> Verdict {
     match (consent, inside, taint) {
-        (Verdict::Ask, true, Taint::Clean) => Verdict::Granted {
+        (Verdict::Ask, true, TaintFact::Clean) => Verdict::Granted {
             grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
             scope: GrantScope::Always,
         },

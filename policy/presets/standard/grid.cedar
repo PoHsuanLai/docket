@@ -235,6 +235,23 @@ when {
   principal.kind != "cli"
 };
 
+// A session that read untrusted content cannot lean on an "always" grant for anything that
+// changes something: it asks once more. Reading stays free, or one mail read would put a
+// question on every read after. (The terminal is held to the same: a recorded always-grant for
+// it is no more standing than an agent's.)
+@id("tainted-always-asks")
+forbid (
+  principal,
+  action in [Quire::Action::"perform_unasked", Quire::Action::"perform_unjudged"],
+  resource
+)
+when {
+  context.grant == "always" &&
+  context.taint == "tainted" &&
+  resource.effect != "read" &&
+  principal.kind != "user"
+};
+
 // An external MCP client may read; anything else asks. An external coding agent's host is not an
 // MCP client: its calls (the `org.quire.AcpAgent` pseudo-app, which only that role may call) are
 // ruled by the grid above and by taint, so a standing grant of the program can stand in for the

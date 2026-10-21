@@ -5,7 +5,7 @@
 use crate::support::*;
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
-use docket_router::{COMPANION_APP, GrantStore, Pending, tightened};
+use docket_router::{COMPANION_APP, GrantStore};
 use prov::{Actor, AgentRole, Effect, Labelled, SpaceScope};
 
 fn archive() -> CallRequest {
@@ -25,63 +25,6 @@ fn on_mail(level: LimitLevel, by: LimitMaker) -> Limit {
         None,
         prov::UnixSeconds(1),
     )
-}
-
-fn note() -> LimitNote {
-    on_mail(LimitLevel::Never, LimitMaker::Person).note()
-}
-
-#[test]
-fn a_limit_only_tightens_a_pending_step() {
-    let confirm = || Pending::Confirm(vec![AskReason::FirstUse]);
-    let refuse = || Pending::Refuse(CallRefusal::Halted(SpaceScope::Any));
-    let rows = [
-        (
-            "free changes nothing",
-            Pending::Run,
-            Limited::Free,
-            Pending::Run,
-        ),
-        (
-            "ask turns a run into a question",
-            Pending::Run,
-            Limited::Ask(note()),
-            Pending::Confirm(vec![AskReason::AskAlways]),
-        ),
-        (
-            "ask turns a review into a question",
-            Pending::NeedsReview(vec![Stage::Quick]),
-            Limited::Ask(note()),
-            Pending::Confirm(vec![AskReason::AskAlways]),
-        ),
-        (
-            "ask adds its reason to a question already asked",
-            confirm(),
-            Limited::Ask(note()),
-            Pending::Confirm(vec![AskReason::FirstUse, AskReason::AskAlways]),
-        ),
-        (
-            "never refuses a run",
-            Pending::Run,
-            Limited::Never(note()),
-            Pending::Refuse(CallRefusal::Denied(DenyCode::Never)),
-        ),
-        (
-            "never refuses a question",
-            confirm(),
-            Limited::Never(note()),
-            Pending::Refuse(CallRefusal::Denied(DenyCode::Never)),
-        ),
-        (
-            "an earlier refusal stands",
-            refuse(),
-            Limited::Never(note()),
-            refuse(),
-        ),
-    ];
-    for (row, pending, limit, want) in rows {
-        assert_eq!(tightened(pending, &limit), want, "{row}");
-    }
 }
 
 #[tokio::test]

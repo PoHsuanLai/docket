@@ -1,10 +1,10 @@
-//! The order in which a call is refused, reviewed, asked or let through.
+//! How a ruling becomes the next step: refused (worded from the facts), reviewed, asked or let
+//! through. Cedar decides; the gate only maps.
 
-use action_review::RepeatState;
 use docket_core::*;
 use docket_router::*;
-use porter_core::consent::{GrantScope, Verdict};
-use porter_core::{Count, GrantId};
+use policy_point::BudgetFact;
+use porter_core::Count;
 use prov::{Effect, SpaceId, SpaceScope, UnixSeconds};
 use std::collections::BTreeMap;
 
@@ -33,33 +33,44 @@ fn world() -> World {
     }
 }
 
-fn granted() -> Verdict {
-    Verdict::Granted {
-        grant: GrantId::parse("g-1").expect("grant"),
-        scope: GrantScope::Always,
-    }
+fn ids(names: &[&str]) -> Vec<PolicyId> {
+    names.iter().map(|n| PolicyId((*n).to_owned())).collect()
 }
 
-fn decide(w: &World, consent: &Verdict, ruling: &Ruling, repeat: RepeatState) -> Pending {
+fn denied_by(w: &World, names: &[&str]) -> Pending {
+    decide(w, &Ruling::Deny(ids(names)))
+}
+
+fn decide(w: &World, ruling: &Ruling) -> Pending {
     let space = SpaceId::parse("work").expect("space");
+    let now = UnixSeconds(1);
+    let judged = Cost {
+        review: Reviewed::Yes,
+        ..w.cost
+    };
+    let facts = run_facts(
+        &w.halt,
+        &space,
+        &w.ledger,
+        &w.budget,
+        &w.cost,
+        now,
+        &Limited::Free,
+    );
+    let charged = match ruling {
+        Ruling::AllowJudged(_) => budget_fact(&w.ledger, &w.budget, &judged, now),
+        _ => facts.budget,
+    };
     gate(&GateInputs {
-        halt: &w.halt,
-        space: &space,
-        ledger: &w.ledger,
-        budget: &w.budget,
-        cost: &w.cost,
-        now: UnixSeconds(1),
-        consent,
         ruling,
         impact: Impact::Low,
-        repeat,
+        facts: &facts,
+        charged,
     })
 }
 
 #[test]
-fn the_gate_decides_in_a_fixed_order() {
-    let judged = Ruling::AllowJudged(vec![]);
-    let fin = Ruling::AllowFinal(vec![]);
+fn the_gate_maps_a_ruling_to_the_next_step() {
     let halted = {
         let mut w = world();
         w.halt.all = Halt::Halted {
@@ -73,76 +84,87 @@ fn the_gate_decides_in_a_fixed_order() {
         w.ledger.calls = w.budget.calls;
         w
     };
+    let reviews_spent = {
+        let mut w = world();
+        w.ledger.reviews = w.budget.reviews;
+        w
+    };
+    let w = world();
     let cases: Vec<(&str, Pending, Pending)> = vec![
         (
-            "final and granted runs",
-            decide(&world(), &granted(), &fin, RepeatState::Fresh),
+            "final runs",
+            decide(&w, &Ruling::AllowFinal(vec![])),
             Pending::Run,
         ),
         (
             "judged goes to the quick stage",
-            decide(&world(), &granted(), &judged, RepeatState::Fresh),
+            decide(&w, &Ruling::AllowJudged(vec![])),
             Pending::NeedsReview(vec![Stage::Quick]),
         ),
         (
-            "ask confirms with its reasons",
-            decide(
-                &world(),
-                &granted(),
-                &Ruling::Ask(vec![AskReason::Tainted]),
-                RepeatState::Fresh,
-            ),
+            "ask confirms with its reasons, as ruled",
+            decide(&w, &Ruling::Ask(vec![AskReason::Tainted])),
             Pending::Confirm(vec![AskReason::Tainted]),
         ),
         (
             "deny refuses",
-            decide(
-                &world(),
-                &granted(),
-                &Ruling::Deny(vec![]),
-                RepeatState::Fresh,
-            ),
+            denied_by(&w, &[]),
             Pending::Refuse(CallRefusal::Denied(DenyCode::NotAllowed)),
         ),
         (
-            "a first use asks even when policy allows",
-            decide(&world(), &Verdict::Ask, &fin, RepeatState::Fresh),
-            Pending::Confirm(vec![AskReason::FirstUse]),
-        ),
-        (
-            "a first use adds its reason to an ask",
-            decide(
-                &world(),
-                &Verdict::Ask,
-                &Ruling::Ask(vec![AskReason::Tainted]),
-                RepeatState::Fresh,
-            ),
-            Pending::Confirm(vec![AskReason::Tainted, AskReason::FirstUse]),
-        ),
-        (
-            "a denied consent refuses even a final allow",
-            decide(&world(), &Verdict::Denied, &fin, RepeatState::Fresh),
+            "a denied grant is not allowed",
+            denied_by(&w, &["grant-denied"]),
             Pending::Refuse(CallRefusal::Denied(DenyCode::NotAllowed)),
         ),
         (
-            "an exact repeat is refused before consent or policy",
-            decide(&world(), &granted(), &fin, RepeatState::Repeated),
+            "a repeat is worded as one",
+            denied_by(&w, &["repeated"]),
             Pending::Refuse(CallRefusal::Denied(DenyCode::Repeated)),
         ),
         (
-            "a halt wins over everything",
-            decide(&halted, &granted(), &fin, RepeatState::Repeated),
+            "a limit's never is worded as one",
+            denied_by(&w, &["limit-never"]),
+            Pending::Refuse(CallRefusal::Denied(DenyCode::Never)),
+        ),
+        (
+            "another rule's deny outranks a limit's never",
+            denied_by(&w, &["hidden-from-agents", "limit-never"]),
+            Pending::Refuse(CallRefusal::Denied(DenyCode::NotAllowed)),
+        ),
+        (
+            "a halt is worded by its scope and wins over a repeat",
+            denied_by(&halted, &["repeated", "halted"]),
             Pending::Refuse(CallRefusal::Halted(SpaceScope::Any)),
         ),
         (
-            "a budget wins over an allow",
-            decide(&spent, &granted(), &fin, RepeatState::Fresh),
+            "a budget is worded by its kind",
+            denied_by(&spent, &["over-budget"]),
             Pending::Refuse(CallRefusal::OverBudget(BudgetKind::Calls)),
+        ),
+        (
+            "a review the reviews budget cannot afford is refused",
+            decide(&reviews_spent, &Ruling::AllowJudged(vec![])),
+            Pending::Refuse(CallRefusal::OverBudget(BudgetKind::Reviews)),
         ),
     ];
     for (name, got, want) in cases {
         assert_eq!(got, want, "case: {name}");
     }
+}
+
+#[test]
+fn the_budget_fact_names_the_kind_that_is_out() {
+    let w = world();
+    let mut spent = w.ledger;
+    spent.calls = w.budget.calls;
+    assert_eq!(
+        budget_fact(&w.ledger, &w.budget, &w.cost, UnixSeconds(1)),
+        BudgetFact::Within
+    );
+    assert_eq!(
+        budget_fact(&spent, &w.budget, &w.cost, UnixSeconds(1)),
+        BudgetFact::Over(BudgetKind::Calls)
+    );
 }
 
 #[test]
@@ -156,14 +178,8 @@ fn a_halt_of_one_space_names_that_space() {
             by: HaltCause::StopKey,
         },
     );
-    let got = decide(
-        &w,
-        &granted(),
-        &Ruling::AllowFinal(vec![]),
-        RepeatState::Fresh,
-    );
     assert_eq!(
-        got,
+        denied_by(&w, &["halted"]),
         Pending::Refuse(CallRefusal::Halted(SpaceScope::Only(work)))
     );
 }

@@ -441,3 +441,82 @@ async fn context_looks_in_the_window_of_the_app_the_caller_names() {
         "{named:?}"
     );
 }
+
+fn limit_on_mail(level: LimitLevel) -> Limit {
+    Limit::new(
+        LimitKey {
+            caller: LimitCaller::AnyAgent,
+            scope: LimitScope::App(mail_app()),
+            space: SpaceScope::Any,
+            from: Effect::Read,
+            level,
+        },
+        LimitMaker::Person,
+        None,
+        UnixSeconds(1),
+    )
+}
+
+async fn granted_run(router: &docket_router::Router<docket_fake::FakeSeams>) -> RunId {
+    let run = RunId::parse("r-1").expect("run");
+    run_session(router, &run).await;
+    router.seams.grants.record(porter_core::consent::Grant {
+        id: porter_core::GrantId::parse("g-1").expect("grant"),
+        key: ActionGrantKey {
+            caller: GrantCaller::Cua,
+            owner: mail_app(),
+            target: GrantTarget::App,
+            class: porter_core::DataClass::Screen,
+            usage: porter_core::consent::Usage::Interactive,
+            space: SpaceScope::Only(space("work")),
+        },
+        decision: porter_core::consent::Decision::Allow,
+        scope: GrantScope::Always,
+        at: UnixSeconds(1),
+    });
+    run
+}
+
+#[tokio::test]
+async fn a_limit_of_never_refuses_a_pixel_step_and_one_of_ask_asks() {
+    let router = router();
+    let run = granted_run(&router).await;
+    let first = ask(
+        &router,
+        &cuad(),
+        IntentsRequest::GateCheck(step(&run, Effect::Read)),
+    )
+    .await;
+    assert_eq!(first, IntentsReply::Gate(GateAnswer::Run), "granted read");
+    router
+        .seams
+        .grants
+        .add_limit(limit_on_mail(LimitLevel::AlwaysAsk));
+    let asked = ask(
+        &router,
+        &cuad(),
+        IntentsRequest::GateCheck(step(&run, Effect::Read)),
+    )
+    .await;
+    assert!(
+        matches!(
+            asked,
+            IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Unconfirmed(_)))
+        ),
+        "a limit to ask covers the step: {asked:?}"
+    );
+    router
+        .seams
+        .grants
+        .add_limit(limit_on_mail(LimitLevel::Never));
+    let refused = ask(
+        &router,
+        &cuad(),
+        IntentsRequest::GateCheck(step(&run, Effect::Read)),
+    )
+    .await;
+    assert_eq!(
+        refused,
+        IntentsReply::Gate(GateAnswer::Refused(CallRefusal::Denied(DenyCode::Never)))
+    );
+}

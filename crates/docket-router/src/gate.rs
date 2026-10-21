@@ -1,13 +1,18 @@
-//! The pure decision that sits before dispatch: the order in which a call is refused, sent to
-//! review, sent to the person, or let through (call lifecycle §4.1, with the addendum's rows).
+//! The pure mapping from what policy ruled to what the router does next (call lifecycle §4.1).
+//! Cedar decides everything: the halt, the budgets, an exact repeat, a limit and a recorded
+//! denial reach it as facts (`facts.rs`) and come back as a ruling. This file only words a
+//! refusal and picks the next step; it never overrides a ruling.
 
-use action_review::{RepeatState, plan};
-use docket_core::{
-    AskReason, Budget, CallRefusal, Cost, DenyCode, Impact, KillSwitch, Ledger, Ruling, Stage,
-    charge, halted,
-};
-use porter_core::consent::Verdict;
-use prov::{SpaceId, SpaceScope, UnixSeconds};
+use crate::facts::RunFacts;
+use action_review::plan;
+use docket_core::{AskReason, CallRefusal, DenyCode, Impact, PolicyId, Ruling, Stage};
+use policy_point::BudgetFact;
+
+/// The core rules whose Deny the router words by their facts. Their ids are `policy/core.cedar`'s.
+const HALTED: &str = "halted";
+const OVER_BUDGET: &str = "over-budget";
+const REPEATED: &str = "repeated";
+const LIMIT_NEVER: &str = "limit-never";
 
 /// What the router does next.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,67 +27,50 @@ pub enum Pending {
     Refuse(CallRefusal),
 }
 
-/// Everything the decision reads.
+/// Everything the mapping reads.
 #[derive(Debug, Clone, Copy)]
 pub struct GateInputs<'a> {
-    /// The kill switch.
-    pub halt: &'a KillSwitch,
-    /// The call's Space.
-    pub space: &'a SpaceId,
-    /// What the session has used.
-    pub ledger: &'a Ledger,
-    /// What it may use.
-    pub budget: &'a Budget,
-    /// What this call costs.
-    pub cost: &'a Cost,
-    /// Now.
-    pub now: UnixSeconds,
-    /// What standing consent says.
-    pub consent: &'a Verdict,
     /// What policy ruled.
     pub ruling: &'a Ruling,
     /// How much is at stake.
     pub impact: Impact,
-    /// Whether the exact call was denied before.
-    pub repeat: RepeatState,
+    /// The facts a refusal is worded from (the halt's scope, the budget that ran out).
+    pub facts: &'a RunFacts,
+    /// Whether the call, with the review it needs, fits the budgets: a reviewer is asked only
+    /// while the reviews budget has room.
+    pub charged: BudgetFact,
 }
 
-fn scope_of(space: &SpaceId, switch: &KillSwitch) -> SpaceScope {
-    match switch.all {
-        docket_core::Halt::Halted { .. } => SpaceScope::Any,
-        docket_core::Halt::Running => SpaceScope::Only(space.clone()),
+fn named(ids: &[PolicyId], rule: &str) -> bool {
+    ids.iter().any(|id| id.0 == rule)
+}
+
+/// The refusal for the rules that denied: a halt first, then a budget, a repeat, and any other
+/// rule as "not allowed"; a limit's "never" only when nothing else denied.
+fn refusal(ids: &[PolicyId], facts: &RunFacts) -> CallRefusal {
+    let other = ids.iter().any(|id| id.0 != LIMIT_NEVER);
+    match facts.budget {
+        _ if named(ids, HALTED) => CallRefusal::Halted(facts.scope.clone()),
+        BudgetFact::Over(kind) if named(ids, OVER_BUDGET) => CallRefusal::OverBudget(kind),
+        _ if named(ids, REPEATED) => CallRefusal::Denied(DenyCode::Repeated),
+        _ if !other && named(ids, LIMIT_NEVER) => CallRefusal::Denied(DenyCode::Never),
+        _ => CallRefusal::Denied(DenyCode::NotAllowed),
     }
 }
 
-/// Decides, in this order: a halt, a budget, an exact repeat of a denial, a consent denial,
-/// then the ruling (`Deny` refuses; `Ask`, or consent still to ask, confirms; `AllowJudged`
-/// goes to review; `AllowFinal` runs). The ledger is not charged here; the router charges when
-/// it dispatches.
+/// `Deny` refuses; `Ask` confirms; `AllowJudged` goes to review (unless the reviews budget is
+/// spent); `AllowFinal` runs. The ledger is not charged here; the router charges when it
+/// dispatches.
 pub fn gate(i: &GateInputs<'_>) -> Pending {
-    if halted(i.halt, i.space).is_some() {
-        return Pending::Refuse(CallRefusal::Halted(scope_of(i.space, i.halt)));
-    }
-    if let Err(kind) = charge(i.ledger, i.budget, i.cost, i.now) {
-        return Pending::Refuse(CallRefusal::OverBudget(kind));
-    }
-    if i.repeat == RepeatState::Repeated {
-        return Pending::Refuse(CallRefusal::Denied(DenyCode::Repeated));
-    }
-    if *i.consent == Verdict::Denied {
-        return Pending::Refuse(CallRefusal::Denied(DenyCode::NotAllowed));
-    }
-    let first_use = matches!(i.consent, Verdict::Ask);
-    match i.ruling {
-        Ruling::Deny(_) => Pending::Refuse(CallRefusal::Denied(DenyCode::NotAllowed)),
-        Ruling::Ask(why) => {
-            let mut why = why.clone();
-            if first_use && !why.contains(&AskReason::FirstUse) {
-                why.push(AskReason::FirstUse);
-            }
-            Pending::Confirm(why)
+    match (i.ruling, i.charged) {
+        (Ruling::Deny(ids), _) => Pending::Refuse(refusal(ids, i.facts)),
+        (Ruling::Ask(why), _) => Pending::Confirm(why.clone()),
+        (Ruling::AllowJudged(_), BudgetFact::Over(kind)) => {
+            Pending::Refuse(CallRefusal::OverBudget(kind))
         }
-        _ if first_use => Pending::Confirm(vec![AskReason::FirstUse]),
-        Ruling::AllowJudged(_) => Pending::NeedsReview(plan(i.ruling, i.impact)),
-        Ruling::AllowFinal(_) => Pending::Run,
+        (Ruling::AllowJudged(_), BudgetFact::Within) => {
+            Pending::NeedsReview(plan(i.ruling, i.impact))
+        }
+        (Ruling::AllowFinal(_), _) => Pending::Run,
     }
 }

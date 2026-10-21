@@ -415,10 +415,10 @@ async fn a_tainted_session_voids_an_always_grant() {
     assert_eq!(refused, CallRefusal::Unconfirmed(ConfirmEnd::Dismissed));
     let requests = router.seams.confirmer.requests();
     assert_eq!(requests.len(), 1);
-    assert!(
-        requests[0].why.contains(&AskReason::FirstUse),
-        "{:?}",
-        requests[0].why
+    assert_eq!(
+        requests[0].why,
+        [AskReason::Tainted],
+        "the sheet says why: the taint, not a first use"
     );
     assert_eq!(requests[0].offer, ConfirmOffer::OnceOnly);
     assert!(matches!(requests[0].taint, TaintNote::ReadUntrusted(_)));

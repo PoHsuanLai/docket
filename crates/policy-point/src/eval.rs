@@ -3,7 +3,7 @@
 //! does; nothing here decides, it only translates.
 
 use crate::fault::{EvalFault, FaultCause, Ruled};
-use crate::request::{Op, PolicyContext, PolicyRequest};
+use crate::request::{BudgetFact, Op, PolicyContext, PolicyRequest};
 use cedar_policy::{
     Authorizer, Context, Decision, Entities, Entity, EntityId, EntityTypeName, EntityUid,
     PolicySet, Request, RestrictedExpression, Schema,
@@ -34,6 +34,14 @@ fn number<T: Serialize>(value: &T) -> u64 {
         .unwrap_or(0)
 }
 
+/// "ok", or the slug of the budget that would be over.
+fn budget_slug(budget: &BudgetFact) -> String {
+    match budget {
+        BudgetFact::Within => "ok".to_owned(),
+        BudgetFact::Over(kind) => slug(kind),
+    }
+}
+
 fn context_json(c: &PolicyContext) -> Value {
     json!({
         "target_space": slug(&c.target_space),
@@ -58,6 +66,11 @@ fn context_json(c: &PolicyContext) -> Value {
             "path": slug(&c.sinks.path),
         },
         "impact": slug(&c.impact),
+        "halt": slug(&c.halt),
+        "budget": budget_slug(&c.budget),
+        "repeat": slug(&c.repeat),
+        "limit": slug(&c.limit),
+        "taint": slug(&c.taint),
     })
 }
 
@@ -179,6 +192,8 @@ fn ask_reason(id: &PolicyId, c: &PolicyContext) -> AskReason {
         "mass" => AskReason::Mass(c.count),
         "ask-always" => AskReason::AskAlways,
         "first-use" => AskReason::FirstUse,
+        "tainted-always-asks" => AskReason::Tainted,
+        "limit-ask" => AskReason::AskAlways,
         "cli-asks" => AskReason::FromTerminal,
         "cli-destructive-asks" => AskReason::Effect(Effect::Destructive),
         "lasting-from-untrusted" => AskReason::LastingFromUntrusted,
@@ -270,7 +285,15 @@ pub(crate) fn decide(policies: &PolicySet, schema: &Schema, request: &PolicyRequ
     if !permitted(&unasked) {
         let c = &request.context;
         let faulted = q.faults.iter().any(|f| f.query == "perform_unasked");
-        let reasons: Vec<AskReason> = ids_of(unasked).iter().map(|id| ask_reason(id, c)).collect();
+        let mut reasons: Vec<AskReason> =
+            ids_of(unasked).iter().map(|id| ask_reason(id, c)).collect();
+        // Two rules can give one reason (`ask-always` and `limit-ask`): say it once.
+        let mut seen = Vec::new();
+        reasons.retain(|reason| {
+            let new = !seen.contains(reason);
+            seen.push(reason.clone());
+            new
+        });
         let why = if faulted {
             vec![AskReason::EvaluationFailed]
         } else if reasons.is_empty() {

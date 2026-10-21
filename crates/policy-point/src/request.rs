@@ -1,7 +1,7 @@
 //! What the router asks the policy point: a principal, an operation, the action, and the
 //! context that Cedar's rules read. Every context field has a slug form in the schema.
 
-use docket_core::{Impact, Origin, Saw, SessionSaw, SinkIntegrity, Strictness};
+use docket_core::{BudgetKind, Impact, Origin, Saw, SessionSaw, SinkIntegrity, Strictness};
 use porter_core::consent::Usage;
 use porter_core::{AppName, Count, DataClass, Isolation};
 use prov::{ActionName, ActorKind, Confidentiality, Effect, Integrity, SpaceId};
@@ -113,6 +113,62 @@ pub enum TerminalGrant {
     NotGranted,
 }
 
+/// Whether the kill switch has stopped the call's Space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HaltFact {
+    /// Running.
+    #[serde(rename = "none")]
+    Running,
+    /// The Space, or everything, is halted.
+    Halted,
+}
+
+/// Whether the call fits the session's budgets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BudgetFact {
+    /// It fits.
+    Within,
+    /// This budget would be over.
+    Over(BudgetKind),
+}
+
+/// Whether the exact call was denied before.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RepeatFact {
+    /// New.
+    Fresh,
+    /// Denied earlier, with the same arguments.
+    Repeated,
+}
+
+/// The strongest limit that covers the call: the person's, the assistant's or the
+/// administrator's floor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LimitFact {
+    /// None covers it.
+    #[serde(rename = "none")]
+    Free,
+    /// It always asks.
+    Ask,
+    /// It is refused without asking.
+    Never,
+}
+
+/// Whether the session read untrusted content before a call that changes something. Reading
+/// stays clean, or one mail read would put a question on every read after.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaintFact {
+    /// Nothing untrusted was read, or the call only reads.
+    Clean,
+    /// Untrusted content was read and this call changes something.
+    Tainted,
+}
+
 /// Everything about the call that Cedar's rules read.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PolicyContext {
@@ -150,6 +206,16 @@ pub struct PolicyContext {
     pub sinks: SinkIntegrity,
     /// How much is at stake.
     pub impact: Impact,
+    /// Whether the call's Space is halted.
+    pub halt: HaltFact,
+    /// Whether the call fits the budgets.
+    pub budget: BudgetFact,
+    /// Whether the exact call was denied before.
+    pub repeat: RepeatFact,
+    /// What the limits say.
+    pub limit: LimitFact,
+    /// Whether the session is tainted for this call.
+    pub taint: TaintFact,
 }
 
 /// One question for the policy point.
