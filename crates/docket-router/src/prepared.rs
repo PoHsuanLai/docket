@@ -53,6 +53,10 @@ pub(crate) struct Prepared {
     pub classified: Option<docket_core::Classification>,
     /// What standing grants say about the call; none for the person's own calls.
     pub standing: Option<crate::standing::StandingCtx>,
+    /// The arguments the router fills itself (`ParamDecl::filled`), put in just before the app
+    /// is called; empty until then. Kept apart from `request.args` so the sheet, the digest and
+    /// the gate never see them.
+    pub filled: Args,
 }
 
 pub(crate) fn entities(target: &TargetValue) -> Vec<EntityId> {

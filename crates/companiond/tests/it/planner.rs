@@ -87,6 +87,7 @@ fn tool_with(ty: ParamType, need: ParamNeed) -> CatalogueTool {
         ty,
         need,
         sink: ArgSink::Inert,
+        filled: None,
     }];
     tool
 }

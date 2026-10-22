@@ -3683,3 +3683,14 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
   write are the agent's own state and the helper's folder. Open: the allowlist of the entry for a
   sign-in. The seccomp filter file it names stays in the runtime directory until the user's session
   ends.
+
+
+## Router-filled arguments
+
+- A filled parameter that the caller sends is refused as `ArgFault::WrongType`; no separate fault
+  was added (the enum is closed and a row per fault is pinned elsewhere). A call that sends it
+  reads to the person as a wrong argument, which it is.
+- `own_history` is bounded by the router, not by the parameter's `max`: a very long history is
+  passed whole (the newest 200 records). The app that declares it sizes its `max` for that.
+- Filled values are put in after the gate, so the review and the sheet never read them; the app
+  receives them with their labels. Not verified by a build in the lane that added them.

@@ -15,14 +15,16 @@ use serde_json::{Map, Value, json};
 #[serde(transparent)]
 pub struct ToolSchema(pub serde_json::Value);
 
-/// The schema of `action`'s arguments: an object with one property per parameter, the required
-/// ones listed, no additional properties. A parameter a planner may fill from something it
+/// The schema of `action`'s arguments: an object with one property per parameter the caller
+/// gives (a parameter the router fills is not offered), the required ones listed, no additional
+/// properties. A parameter a planner may fill from something it
 /// holds only by handle also accepts `{ "handle": n }`; entities are the `{app, kind, key}`
 /// object of an `EntityId`.
 pub fn tool_schema(action: &ActionDecl) -> ToolSchema {
     let properties: Map<String, Value> = action
         .params
         .iter()
+        .filter(|p| p.filled.is_none())
         .map(|p| (p.name.as_str().to_owned(), property(p)))
         .collect();
     let required: Vec<&str> = action

@@ -12,6 +12,7 @@ fn param_of(name: &str, ty: ParamType, need: ParamNeed, sink: ArgSink) -> ParamD
         ty,
         need,
         sink,
+        filled: None,
     }
 }
 
@@ -232,4 +233,23 @@ fn an_action_with_no_parameters_takes_an_empty_object() {
             "additionalProperties": false
         })
     );
+}
+
+#[test]
+fn a_parameter_the_router_fills_is_not_in_the_planners_schema() {
+    let mut a = send();
+    let mut said = param_of(
+        "said",
+        ParamType::Text {
+            max: CharCount(500),
+            lines: Lines::Many,
+        },
+        ParamNeed::Optional,
+        ArgSink::Inert,
+    );
+    said.filled = Some(Filled::PersonWords);
+    a.params.push(said);
+    let schema = tool_schema(&a).0;
+    assert!(schema["properties"].get("said").is_none(), "{schema}");
+    assert_eq!(schema["properties"], tool_schema(&send()).0["properties"]);
 }

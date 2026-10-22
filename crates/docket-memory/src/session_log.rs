@@ -15,20 +15,16 @@ use almanac_core::{
 };
 use docket_router::Clock;
 use docket_session::{
-    Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog, decode, encode,
+    Appended, LogFault, LogPage, PageSize, SESSION_KIND, Seq, SessionEntry, SessionLog, decode,
+    encode, session_thing,
 };
 use porter_core::{AppName, Count};
 use prov::{
-    Actor, Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, SessionId, Source,
-    SpaceId, SystemPart,
+    Actor, Confidentiality, EntityId, Integrity, Label, SessionId, Source, SpaceId, SystemPart,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Mutex;
 
-/// The app whose things the sessions are.
-const SESSION_APP: &str = "org.quire.Companion";
-/// The kind of the thing a session names itself as.
-const SESSION_KIND: &str = "companion.session";
 /// The kind of the entry every session starts with.
 const OPENED_KIND: &str = "companion.session.opened";
 /// The kinds a session's entries have.
@@ -68,11 +64,7 @@ impl<T: Transport, K: Clock> AlmanacSessionLog<T, K> {
     }
 
     fn thing(session: &SessionId) -> Result<EntityId, LogFault> {
-        Ok(EntityId {
-            app: AppName::parse(SESSION_APP).map_err(|_| LogFault::Encode)?,
-            kind: EntityKind::parse(SESSION_KIND).map_err(|_| LogFault::Encode)?,
-            key: EntityKey::parse(session.as_str()).map_err(|_| LogFault::Encode)?,
-        })
+        session_thing(session).ok_or(LogFault::Encode)
     }
 
     /// What the router says about its own record: trusted, private to the Space.

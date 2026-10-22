@@ -427,6 +427,7 @@ impl<S: Seams> Router<S> {
             activation: None,
             classified,
             standing: Some(standing),
+            filled: docket_core::Args::new(),
         })
     }
 
@@ -484,6 +485,7 @@ impl<S: Seams> Router<S> {
             // The person's own calls are not gated, so they are not classified.
             classified: None,
             standing: None,
+            filled: docket_core::Args::new(),
         }
     }
 }

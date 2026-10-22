@@ -209,6 +209,27 @@ pub struct ParamDecl {
     pub need: ParamNeed,
     /// Where its value goes: the router gates arguments by the integrity of the sinks they feed.
     pub sink: ArgSink,
+    /// Set when the router fills this parameter itself: the planner is not shown it and a call
+    /// that sends it is refused. Absent from a file means the caller gives it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filled: Option<Filled>,
+}
+
+/// What the router fills a parameter with, just before the app is called. The parameter is
+/// optional text: left out of the planner's schema, and empty when the router has nothing to put.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
+pub enum Filled {
+    /// The newest turn the person typed in the conversation the call works for, as their
+    /// trusted words.
+    PersonWords,
+    /// The app's own records in memory about the conversation the call works for: a JSON array of
+    /// their bodies, oldest first, labelled with the join of the records' labels. `kinds` is the
+    /// kind pattern the app's records have (`cua.*`).
+    OwnHistory {
+        /// Which of the app's record kinds are its history.
+        kinds: String,
+    },
 }
 
 /// Whether a parameter must be given.
@@ -360,6 +381,7 @@ impl EntityDecl {
                 ty: ParamType::Choice(options),
                 need: ParamNeed::Required,
                 sink: ArgSink::Inert,
+                filled: None,
             }],
             effect: Effect::Read,
             per_call: PerCall::default(),

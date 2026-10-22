@@ -16,6 +16,7 @@ mod companion;
 mod control;
 mod crossspace;
 mod editor_policy;
+mod filled;
 mod gate;
 mod helpers;
 mod index;

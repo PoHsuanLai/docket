@@ -35,6 +35,7 @@ mod log;
 mod plan;
 mod restore_rule;
 mod resume;
+mod thing;
 
 pub use backend::{
     BackendEvent, BackendFault, CallEvent, Choice, Choices, HostFault, Resumed, SessionBackend,
@@ -58,3 +59,4 @@ pub use plan::{
 };
 pub use restore_rule::{Claimant, may_restore, may_restore_opening, may_restore_plan};
 pub use resume::resume_plan;
+pub use thing::{SESSION_KIND, session_thing};

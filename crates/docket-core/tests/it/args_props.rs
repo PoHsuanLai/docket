@@ -26,6 +26,7 @@ fn decl_under_test() -> ActionDecl {
             },
             need: ParamNeed::Optional,
             sink: ArgSink::Body,
+            filled: None,
         },
         ParamDecl {
             name: param("count"),
@@ -33,6 +34,7 @@ fn decl_under_test() -> ActionDecl {
             ty: ParamType::Integer { min: 0, max: 9 },
             need: ParamNeed::Optional,
             sink: ArgSink::Inert,
+            filled: None,
         },
     ];
     d

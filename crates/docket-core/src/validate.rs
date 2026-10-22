@@ -2,7 +2,8 @@
 
 use crate::ids::{IntentsVocab, ParamName, RelationName, action_prefix};
 use crate::manifest::{
-    ActionDecl, ArgSink, IndexPolicy, Manifest, ParamNeed, TargetKind, UndoSupport,
+    ActionDecl, ArgSink, Filled, IndexPolicy, Manifest, ParamDecl, ParamNeed, TargetKind,
+    UndoSupport,
 };
 use crate::value::{ParamType, Value};
 use prov::{ActionName, Effect, EntityKind};
@@ -47,6 +48,15 @@ pub enum ManifestError {
     /// A defaulted parameter whose default does not fit its type.
     #[error("action {action}: the default of {param} does not fit its type")]
     DefaultOutOfType {
+        /// The action.
+        action: ActionName,
+        /// The parameter.
+        param: ParamName,
+    },
+    /// A parameter the router fills that is not optional text, or whose history pattern is not a
+    /// kind pattern.
+    #[error("action {action}: the filled parameter {param} must be optional text")]
+    BadFilled {
         /// The action.
         action: ActionName,
         /// The parameter.
@@ -203,15 +213,34 @@ fn check_action(prefix: &str, a: &ActionDecl) -> Result<(), ManifestError> {
                 param: p.name.clone(),
             });
         }
+        if !filled_fits(p) {
+            return Err(ManifestError::BadFilled {
+                action: a.name.clone(),
+                param: p.name.clone(),
+            });
+        }
     }
     Ok(())
+}
+
+/// Whether a parameter the router fills is optional text, with a real kind pattern when it
+/// names its history; a parameter nobody fills always fits.
+fn filled_fits(p: &ParamDecl) -> bool {
+    let Some(filled) = &p.filled else {
+        return true;
+    };
+    let pattern_ok = match filled {
+        Filled::PersonWords => true,
+        Filled::OwnHistory { kinds } => almanac_core::KindPattern::parse(kinds).is_ok(),
+    };
+    pattern_ok && p.need == ParamNeed::Optional && matches!(p.ty, ParamType::Text { .. })
 }
 
 /// Checks a manifest. The rules: the vocabulary is not newer; names are unique; every action
 /// carries its app's prefix; a read declares no undo; an undoable write declares a token (a
 /// write without undo is declared destructive, and an outbound action may declare a token when
 /// the app holds the send); an outbound action declares a recipient or destination parameter;
-/// a defaulted value fits its type; every indexed kind declares `<kind>.open` (one read of one
+/// a defaulted value fits its type; a parameter the router fills is optional text; every indexed kind declares `<kind>.open` (one read of one
 /// thing of the kind, nothing required), and any `<kind>.open` has that shape. Kinds named by an action are checked by the registry.
 pub fn validate(manifest: Manifest) -> Result<ValidManifest, ManifestError> {
     if manifest.vocab > IntentsVocab::CURRENT {

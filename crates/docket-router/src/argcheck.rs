@@ -35,7 +35,8 @@ pub(crate) fn no_handle_names(decl: &ActionDecl, args: &Args) -> Result<(), (Par
     }
 }
 
-/// The arguments with defaults filled in, or the first parameter that is wrong and why.
+/// The arguments with defaults filled in (a parameter the router fills is not the caller's to
+/// send: `WrongType`), or the first parameter that is wrong and why.
 pub(crate) fn check_call(
     decl: &ActionDecl,
     app: &AppName,
@@ -51,6 +52,10 @@ pub(crate) fn check_call(
     }
     for p in &decl.params {
         match (args.get(&p.name), &p.need) {
+            // The router fills these itself, after the check: a caller that sends one is wrong.
+            (Some(_), _) if p.filled.is_some() => {
+                return Err((p.name.clone(), ArgFault::WrongType));
+            }
             (Some(given), _) if fits(&given.value, &p.ty) => {}
             (Some(_), _) => return Err((p.name.clone(), ArgFault::WrongType)),
             (None, ParamNeed::Required) => return Err((p.name.clone(), ArgFault::Missing)),

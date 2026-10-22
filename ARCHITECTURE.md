@@ -162,7 +162,7 @@ missing" list in `FINDINGS.md` (portable-core).
 | `docket-skills` | `fault`, `skill` < `discover`, `library` |
 | `policy-point` | `request` < `pdp` |
 | `action-review` | `verdict` < `request`, `breaker` < `cascade`, `infer` |
-| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks`, `convert`, `wal` < `facts` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `who`, `companion`, `skills`, `turn_start` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck`, `watch`, `notes`, `recall` < `recording`, `durable`, `rebuild` < `restore` < `router` |
+| `docket-router` | `auth`, `registry`, `session`, `index`, `journal`, `handles`, `messages`, `tasks`, `convert`, `wal` < `facts` < `gate`, `call` < `seams` < `state`, `labels`, `argcheck`, `consent`, `coverage`, `filled`, `who`, `companion`, `skills`, `turn_start` < `prepared`, `prepare`, `driven`, `confirm`, `perform`, `finish` < `policy`, `terminal`, `dryrun`, `opening`, `reading`, `messaging`, `search`, `control`, `gatecheck`, `watch`, `notes`, `recall` < `recording`, `durable`, `rebuild` < `restore` < `router` |
 | `companion-wire` | `ask`, `answer` < `record`, `helpers`, `routines` |
 | `companion-client` | `lib` (`CompanionTransport`, `Follow`) < `bus` (`DbusCompanion`, `BusAnswer`) |
 | `agent-loop` | `tier`, `front`, `completion`, `side`, `idle`, `rebuild`, `assemble` < `compact` < `step` |
@@ -180,7 +180,7 @@ missing" list in `FINDINGS.md` (portable-core).
 | `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `shadow`, `check` < `ui` (the binary `docket-eval` runs `check`) |
 | `docket-agents` | `slug`, `platform`, `hash`, `snapshot`, `dirs`, `record`, `offered`, `fetch`, `run`, `unpack`, `uv` < `install`, `launch` |
 | `docket-launch` | `config`, `accounts`, `names`, `recognise`, `permit`, `env`, `procs`, `fake`, `login` < `spawn` < `supervise`, `dbus` (feature) |
-| `docket-session` | `entry`, `plan` < `codec`, `legacy` < `resume` < `fork`, `export`, `log`, `backend`, `desk` < `fake`, `contract` |
+| `docket-session` | `entry`, `thing`, `plan` < `codec`, `legacy` < `resume` < `fork`, `export`, `log`, `backend`, `desk` < `fake`, `contract` |
 | `docket-checkpoint` | `ids`, `store`, `tree`, `rules` < `memory`, `contract` |
 | `docket-checkpoint-git` | `names`, `parse`, `run`, `files` < `git` < `store` |
 | `docket-acp` (`client`) | `names`, `taint`, `strikes`, `confine` < `files`, `court` < `tool_req`, `performer`, `reported`, `rpc`, `intake` < `backend` < `handlers` < `serve`, `host`, `intents_court`, `spawn`, `fake` |
@@ -200,6 +200,8 @@ missing" list in `FINDINGS.md` (portable-core).
 | --- | --- |
 | who acted, effects, labels, ids of sessions, runs, tasks, messages and entities, the confirmation receipt, `Message`, `AgentRef`, `Address` | porter `prov` (never redefined here) |
 | the manifest and `validate`, `ActionDecl`, `ParamDecl`, `ArgSink`, `Value`, `Args` | `docket-core::{manifest, validate, value}` |
+| a parameter the router fills (`Filled`) | `docket-core::manifest`; the filling is `docket-router::filled` (section 5a) |
+| the thing a conversation is in memory (`session_thing`), shared by the session log and the router's reads | `docket-session::thing` |
 | restore points: `CheckpointId`, `WorkPath`, `Rewind` (who keeps an agent's file history: `agents.toml` `checkpoints`), `SkipReason`, `CheckpointNote`, `CheckpointRow`, `RestorePlan`, `PlanDigest`, `CheckpointFault` | `docket-core::checkpoint` (data only); the log entry is `docket-session`, the rules and the store seam `docket-checkpoint` |
 | the person's `agent.*` settings: the file, the key table, the schema, the lenient reader | `docket-settings` (one table; the schema `dist/settings/docket.settings.toml` and the table are held to each other by its tests). The values reach the router as an `AgentConfig` (`Router::apply_settings`, read afresh by every decision) |
 | the four rulings of policy (`Ruling`), the reasons to ask (`AskReason`), the coarse `DenyCode`, `Stage`, `Impact`, `ReasonCode`, `BreakerTrip`, `Strictness` (what a reviewer is told), and in `docket-core::mode` `Mode` (`Auto` or `Manual`: how a conversation's changes are handled, set per conversation; the setting `agent.start_mode` says how a new one starts, and the old `agent.strictness` and `agent.permissions` words still read into it: `ask_more` is Manual, `default` and `trust_more` are Auto) and `ModeRows` (the five rows of a mode: `agent.auto.*`, `agent.manual.*`) | `docket-core::review`: the refusals and the audit name them, so they sit below the crates that decide |
@@ -325,6 +327,28 @@ its sheet shows (`AskReason::Said`).
 A message never skips this: a `Request` in a `prov::Message` is evaluated under the receiver's
 own task policy and the same pipeline. The label travels with the message and joins into the
 receiver's taint; a message across Spaces is delivered and never grants a memory read.
+
+## 5a. Router-filled arguments
+
+A parameter may declare `filled` in its manifest (`docket_core::Filled`); the router then fills it
+and the caller never gives it. It must be optional text (`validate` refuses anything else), it is
+left out of `tool_schema` (so the planner is not shown it), and `check_call` refuses a call that
+sends it (`BadArgs` with `ArgFault::WrongType`). Two sources:
+
+- `person_words`: the newest turn the person typed in the conversation the call works for
+  (`RouterState::conversation_of` of the caller's session, so a screen run's session reads its
+  parent's turn), labelled as the person's own words.
+- `own_history`, `kinds = "<pattern>"`: the app's own records about that conversation, read
+  through `MemoryLink` as `Entries` in the call's Space (`about` = the conversation thing,
+  `docket_session::session_thing`, the one home the session log shares; limit 200, the newest
+  200 when there are more). The value is a JSON array of the stored bodies, oldest first, labelled
+  with the join of the records' labels, so an untrusted screen label stays untrusted. Memory audits
+  its own reads (`Memory.Read`), as it does the recall reads.
+
+Filling happens in `perform_once` (`filled.rs`, after `prepare`, before the app is called),
+into `Prepared::filled`, and `Router::invocation` merges it over `request.args`. The sheet, the
+digest, the policy and the review therefore see what the caller sent and nothing more. A value that
+cannot be had (no turns, memory refuses or fails, no records) is left out; the call still runs.
 
 ## 6. Recipes
 

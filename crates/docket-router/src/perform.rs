@@ -75,10 +75,12 @@ impl<S: Seams> Router<S> {
         {
             Err(early) => Err(self.finish_early(*early)),
             Ok(prepared) => {
-                let prepared = Prepared {
-                    activation,
-                    ..prepared
-                };
+                let prepared = self
+                    .with_filled(Prepared {
+                        activation,
+                        ..prepared
+                    })
+                    .await;
                 let driven = self
                     .drive(&prepared, watch)
                     .instrument(crate::spans::execute_tool(&prepared))
@@ -96,6 +98,7 @@ impl<S: Seams> Router<S> {
                     Ok(again) => {
                         let again = Prepared {
                             activation: prepared.activation.clone(),
+                            filled: prepared.filled.clone(),
                             ..again
                         };
                         let driven = self
@@ -351,7 +354,14 @@ impl<S: Seams> Router<S> {
             call: p.id,
             action: p.decl.name.clone(),
             target: p.request.target.clone(),
-            args: p.request.args.clone(),
+            // What the caller sent, then what the router filled (`check_call` kept the two apart).
+            args: p
+                .request
+                .args
+                .iter()
+                .chain(&p.filled)
+                .map(|(name, arg)| (name.clone(), arg.clone()))
+                .collect(),
             actor: p.who.actor.clone(),
             origin: p.request.origin,
             space: p.space.clone(),

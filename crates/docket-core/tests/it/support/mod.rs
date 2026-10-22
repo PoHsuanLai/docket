@@ -82,6 +82,7 @@ pub fn text_param(name: &str, sink: ArgSink, need: ParamNeed) -> ParamDecl {
         },
         need,
         sink,
+        filled: None,
     }
 }
 pub fn manifest(app_name: &str, actions: Vec<ActionDecl>) -> Manifest {

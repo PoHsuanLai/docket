@@ -14,7 +14,7 @@ use docket_fake::FakeMemory;
 use porter_core::Count;
 use prov::{Actor, AgentRef, Label, Source, UnixSeconds};
 
-fn entry(
+pub(crate) fn entry(
     kind: &str,
     seq: u64,
     label: Label,

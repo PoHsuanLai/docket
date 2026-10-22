@@ -82,6 +82,17 @@ fn validate_rejects_one_row_per_rule() {
     let mut no_sink = decl("mail.message.forward", Effect::Outbound, UndoSupport::Token);
     no_sink.params = vec![text_param("note", ArgSink::Body, ParamNeed::Optional)];
 
+    let filled = |need: ParamNeed, how: Filled| {
+        let mut a = decl("mail.thread.list", Effect::Read, UndoSupport::NotUndoable);
+        let mut p = text_param("said", ArgSink::Inert, need);
+        p.filled = Some(how);
+        a.params = vec![p];
+        manifest("org.quire.Mail", vec![a])
+    };
+    let history = |kinds: &str| Filled::OwnHistory {
+        kinds: kinds.to_owned(),
+    };
+
     let mut newer = manifest("org.quire.Mail", vec![]);
     newer.vocab = IntentsVocab(IntentsVocab::CURRENT.0 + 1);
 
@@ -168,6 +179,43 @@ fn validate_rejects_one_row_per_rule() {
             Some(E::DuplicateParam {
                 action: action("mail.thread.tag2"),
                 param: param("x"),
+            }),
+        ),
+        (
+            "ok: an optional filled parameter",
+            filled(ParamNeed::Optional, Filled::PersonWords),
+            None,
+        ),
+        (
+            "ok: an optional parameter filled from the app's history",
+            filled(ParamNeed::Optional, history("cua.*")),
+            None,
+        ),
+        (
+            "a filled parameter that is required",
+            filled(ParamNeed::Required, Filled::PersonWords),
+            Some(E::BadFilled {
+                action: action("mail.thread.list"),
+                param: param("said"),
+            }),
+        ),
+        (
+            "a filled parameter that is defaulted",
+            filled(
+                ParamNeed::Defaulted(Value::Text("x".into())),
+                Filled::PersonWords,
+            ),
+            Some(E::BadFilled {
+                action: action("mail.thread.list"),
+                param: param("said"),
+            }),
+        ),
+        (
+            "a history that names no kind pattern",
+            filled(ParamNeed::Optional, history("has space")),
+            Some(E::BadFilled {
+                action: action("mail.thread.list"),
+                param: param("said"),
             }),
         ),
         (
