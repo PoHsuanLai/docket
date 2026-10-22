@@ -11,8 +11,9 @@ use zbus::zvariant::OwnedObjectPath;
     default_path = "/org/quire/Intents1"
 )]
 pub trait Gate {
-    /// Asks for the per-app consent. Answers a Request.
-    fn grant(&self, app: &str, space: &str) -> zbus::Result<OwnedObjectPath>;
+    /// Asks for the per-app consent (`GrantAsk` JSON: the app, the Space, the caller's own level
+    /// and the run it is for). Answers a Request whose `Response` carries a `GrantAnswer`.
+    fn grant(&self, ask: &str) -> zbus::Result<OwnedObjectPath>;
 
     /// Checks one pixel step (`CuaAsk` JSON). Answers a Request whose `Response` carries a `GateAnswer`.
     fn check(&self, ask: &str, options: &Details) -> zbus::Result<OwnedObjectPath>;
@@ -24,8 +25,8 @@ pub struct GateSkeleton;
 
 #[zbus::interface(name = "org.quire.Intents1.Gate")]
 impl GateSkeleton {
-    fn grant(&self, app: String, space: String) -> fdo::Result<OwnedObjectPath> {
-        let _ = (app, space);
+    fn grant(&self, ask: String) -> fdo::Result<OwnedObjectPath> {
+        let _ = ask;
         Err(crate::introspect::frozen())
     }
 

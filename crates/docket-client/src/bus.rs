@@ -494,7 +494,8 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
         }
         Q::GateGrant(ask) => {
             let proxy = GateProxy::new(c).await.map_err(bus)?;
-            let start = proxy.grant(ask.app.as_str(), ask.space.as_str());
+            let ask = to_json(&ask)?;
+            let start = proxy.grant(&ask);
             response(requested(c, start).await, IntentsReply::Granted)
         }
         Q::GateCheck(ask) => {

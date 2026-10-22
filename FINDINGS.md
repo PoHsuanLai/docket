@@ -20,9 +20,10 @@ path: a limit's id is a `StandingGrantId`, so Undo on the sheet calls the existi
 `ControlStandingRevoke`). The router applies them after the gate, so no grant, standing grant or
 approval lifts one; only agents meet them. The administrator's floor is `/etc/quire/docket-floor.toml`
 (`dist/docket-floor.example.toml`, not installed): a loosest strictness and locked entries; a
-missing file is no floor, a file that does not parse stops intentd. Open: the D-Bus member
-`Gate.Grant` still takes only the app and the Space, so cua cannot yet send its allow level (CUA-14)
-over the bus although `GrantAsk` carries it; docket-inapp's in-process store keeps no limits (the
+missing file is no floor, a file that does not parse stops intentd. `Gate.Grant` takes the whole
+`GrantAsk` as JSON, so cua's allow level and the run it asks for cross the bus (CUA-14; before,
+only the app and the Space did, and a later run of a conversation was asked again). Open:
+docket-inapp's in-process store keeps no limits (the
 trait default holds none); Settings has no list of limits yet; adding a limit is not audited.
 
 ## Stubs behind frozen interfaces

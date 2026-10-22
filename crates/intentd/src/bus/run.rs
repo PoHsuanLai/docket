@@ -1,8 +1,8 @@
 //! `Run` and `Gate`: the members that act, most of them through a Request object.
 
 use super::request::Watching;
-use super::{Gateway, json, parsed};
-use docket_core::{ActivationToken, GrantAsk, IntentsReply, IntentsRequest, UndoId};
+use super::{Gateway, json};
+use docket_core::{ActivationToken, IntentsReply, IntentsRequest, UndoId};
 use docket_dbus::{Details, IntentsError};
 use zbus::message::Header;
 use zbus::zvariant::OwnedObjectPath;
@@ -124,19 +124,12 @@ pub(crate) struct GateBus(pub(crate) Gateway);
 impl GateBus {
     async fn grant(
         &self,
-        app: String,
-        space: String,
+        ask: String,
         #[zbus(header)] header: Header<'_>,
         #[zbus(connection)] connection: &zbus::Connection,
     ) -> Result<OwnedObjectPath, IntentsError> {
-        let ask = GrantAsk {
-            app: parsed(&app, porter_core::AppName::parse)?,
-            space: parsed(&space, prov::SpaceId::parse)?,
-            level: docket_core::Level::default(),
-            run: None,
-        };
         self.0
-            .start(&header, connection, IntentsRequest::GateGrant(ask))
+            .start(&header, connection, IntentsRequest::GateGrant(json(&ask)?))
             .await
     }
 

@@ -464,12 +464,12 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     pair.both(IntentsRequest::UndoAll(UndoScope::Entry(entry)))
         .await;
 
-    // The computer-use gate.
+    // The computer-use gate, its ask whole: the caller's own level and the run.
     pair.both(IntentsRequest::GateGrant(GrantAsk {
         app: mail(),
         space: space("work"),
-        level: Default::default(),
-        run: None,
+        level: Level::Never,
+        run: Some(prov::RunId::parse("r-1").expect("run")),
     }))
     .await;
     pair.both(IntentsRequest::GateCheck(cua_ask())).await;

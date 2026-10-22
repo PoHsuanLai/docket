@@ -204,8 +204,7 @@
  </interface>
  <interface name="org.quire.Intents1.Gate">
    <method name="Grant">
-     <arg name="app" type="s" direction="in"/>
-     <arg name="space" type="s" direction="in"/>
+     <arg name="ask" type="s" direction="in"/>
      <arg type="o" direction="out"/>
    </method>
    <method name="Check">
