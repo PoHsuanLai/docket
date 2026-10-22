@@ -138,6 +138,9 @@ impl From<ValidManifest> for Manifest {
     }
 }
 
+/// The longest text a dynamic parameter takes, as `args.rs` reads one.
+pub(crate) const DYNAMIC_TEXT_MAX: u32 = 512;
+
 /// Whether `value` is a legal value of `ty`: what a default must satisfy.
 pub fn fits(value: &Value, ty: &ParamType) -> bool {
     match (value, ty) {
@@ -156,6 +159,11 @@ pub fn fits(value: &Value, ty: &ParamType) -> bool {
         (Value::Entity(e), ParamType::Entity(kind)) => &e.kind == kind,
         (Value::Entities(es), ParamType::Entities(kind)) => es.iter().all(|e| &e.kind == kind),
         (Value::Choice(_) | Value::Entity(_), ParamType::Dynamic(_)) => true,
+        // An offered key comes back as the text it is (`args.rs` reads a dynamic parameter so), and
+        // a key outside the offer is still read as text: the app decides what it names.
+        (Value::Text(t), ParamType::Dynamic(_)) => {
+            t.chars().count() <= DYNAMIC_TEXT_MAX as usize && !t.contains('\n')
+        }
         _ => false,
     }
 }

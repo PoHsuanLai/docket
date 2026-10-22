@@ -180,7 +180,12 @@ fn value(ty: &ParamType, json: &Json) -> Read<Value> {
     }
     match ty {
         ParamType::Text { max, lines } => text(*max, *lines, json).map(Value::Text),
-        ParamType::Dynamic(_) => text(CharCount(512), Lines::One, json).map(Value::Text),
+        ParamType::Dynamic(_) => text(
+            CharCount(crate::validate::DYNAMIC_TEXT_MAX),
+            Lines::One,
+            json,
+        )
+        .map(Value::Text),
         ParamType::Integer { min, max } => integer(json)
             .and_then(|n| (*min..=*max).contains(&n).then_some(n).ok_or(Why::Range))
             .map(Value::Integer),
