@@ -311,7 +311,10 @@ only for a change, never for a read, and never for the assistant's own bookkeepi
 and Memory apps). A screen run asks once at its start (`.Gate.Grant`, "Let it use this app": the one
 sheet; `cua.run.start` itself is a read and does not ask) when `screen = once`; the router remembers
 the answer on the run's session (`screen_apps`) and a standing grant for the app counts the same, and
-each step carries it as the context fact `run` (`allowed` or `not_asked`). An undoable step of an
+each step carries it as the context fact `run` (`allowed` or `not_asked`). The yes also lasts for the
+conversation the run works for (`conversation_apps` on the end of its chain of parents): a later run
+of that conversation in the same app is not asked again, unless a limit or the floor asks every time;
+a new conversation asks again. An undoable step of an
 allowed run runs; a step that sends or deletes asks; `screen = each` asks at every change of the run.
 Manual's rows all ask, and it reviews nothing silently. The core rules (Never, limits, taint, Rule
 of Two, untrusted sinks, halt, budget, mass, the administrator's floor) hold whatever the rows say.

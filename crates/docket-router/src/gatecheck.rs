@@ -24,10 +24,10 @@ use policy_point::{
     SpaceRelation, TerminalGrant,
 };
 use porter_core::consent::{Decision, Grant, GrantScope, Usage, Verdict};
-use porter_core::{Count, DataClass, GrantId};
+use porter_core::{AppName, Count, DataClass, GrantId};
 use prov::{
-    ActionName, Actor, AgentRole, Confidentiality, Effect, Integrity, Label, RunId, Source,
-    SpaceScope,
+    ActionName, Actor, AgentRole, Confidentiality, Effect, Integrity, Label, RunId, SessionId,
+    Source, SpaceScope,
 };
 use std::collections::BTreeSet;
 
@@ -142,6 +142,17 @@ impl<S: Seams> Router<S> {
         if level == Level::Never {
             return IntentsReply::Granted(GrantAnswer::Never);
         }
+        // The person already let this conversation's runs use the app: a later run is not asked
+        // again, unless a limit or the floor says to ask every time.
+        let conversation = self.conversation_of_run(&ask);
+        if Level::from(&held) == Level::AlwaysAllow
+            && conversation
+                .as_ref()
+                .is_some_and(|c| self.conversation_allowed(c, &ask.app))
+        {
+            self.allow_screen_runs(&ask);
+            return IntentsReply::Granted(GrantAnswer::Granted);
+        }
         let Some(request) = self.sheet(
             &ask.app,
             &ask.space,
@@ -195,8 +206,38 @@ impl<S: Seams> Router<S> {
                     }
                 }
                 self.allow_screen_runs(&ask);
+                if let Some(conversation) = &conversation {
+                    self.allow_conversation(conversation, &ask.app);
+                }
                 IntentsReply::Granted(GrantAnswer::Granted)
             }
+        }
+    }
+
+    /// The conversation the run an ask names works for (the run's session's chain of parents).
+    /// None for an ask that names no run, or a run the router does not hold.
+    fn conversation_of_run(&self, ask: &GrantAsk) -> Option<SessionId> {
+        let run = ask.run.as_ref()?;
+        let st = self.locked();
+        let (session, _) = st
+            .sessions
+            .iter()
+            .find(|(_, r)| is_asked_run(&r.actor, Some(run)))?;
+        st.conversation_of(session)
+    }
+
+    /// Whether the person let `conversation`'s screen runs use `app`.
+    fn conversation_allowed(&self, conversation: &SessionId, app: &AppName) -> bool {
+        self.locked()
+            .sessions
+            .get(conversation)
+            .is_some_and(|r| r.conversation_apps.contains(app))
+    }
+
+    /// Remembers on `conversation` that the person let its screen runs use `app`.
+    fn allow_conversation(&self, conversation: &SessionId, app: &AppName) {
+        if let Some(record) = self.locked().sessions.get_mut(conversation) {
+            record.conversation_apps.insert(app.clone());
         }
     }
 

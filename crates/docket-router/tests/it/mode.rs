@@ -454,3 +454,52 @@ async fn a_run_follows_the_conversation_the_screen_daemon_names_and_nobody_else_
         "a conversation named by anyone but the screen daemon is ignored: the start mode, Auto"
     );
 }
+
+#[tokio::test]
+async fn a_conversation_that_let_a_run_use_an_app_is_not_asked_again_by_its_next_run() {
+    let mut router = router();
+    let front = ready_in(&router, Some(Mode::Auto)).await;
+    let other = ready_in(&router, Some(Mode::Auto)).await;
+    let cuad = caller("org.quire.Cuad", CallerRole::Cua);
+    let (first, second, elsewhere) = (
+        RunId::parse("r-1").expect("run"),
+        RunId::parse("r-2").expect("run"),
+        RunId::parse("r-3").expect("run"),
+    );
+    open_run_for(&router, &cuad, &first, &front.session).await;
+    open_run_for(&router, &cuad, &second, &front.session).await;
+    open_run_for(&router, &cuad, &elsewhere, &other.session).await;
+    // The screen daemon's own setting asks every run; the person's yes still covers the
+    // conversation.
+    let start = |run: &RunId| {
+        IntentsRequest::GateGrant(GrantAsk {
+            app: mail_app(),
+            space: space("work"),
+            level: Level::AlwaysAsk,
+            run: Some(run.clone()),
+        })
+    };
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![yes()]);
+    assert_eq!(
+        ask(&router, &cuad, start(&first)).await,
+        IntentsReply::Granted(GrantAnswer::Granted)
+    );
+    router.seams.confirmer = ScriptedConfirmer::answering(vec![]);
+    assert_eq!(
+        ask(&router, &cuad, start(&second)).await,
+        IntentsReply::Granted(GrantAnswer::Granted),
+        "the same conversation's next run is not asked"
+    );
+    assert_eq!(
+        gate(&router, &second, Effect::UndoableWrite).await,
+        IntentsReply::Gate(GateAnswer::Run),
+        "and its steps run as the first run's did"
+    );
+    assert!(
+        matches!(
+            ask(&router, &cuad, start(&elsewhere)).await,
+            IntentsReply::Granted(GrantAnswer::Refused(_))
+        ),
+        "another conversation is asked, and nobody answers here"
+    );
+}

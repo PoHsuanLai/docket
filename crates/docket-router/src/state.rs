@@ -76,6 +76,10 @@ pub struct SessionRecord {
     /// The apps the person allowed this screen run to use (the start sheet), for a session that
     /// is a screen run's. It lives and ends with the session.
     pub screen_apps: BTreeSet<AppName>,
+    /// The apps the person let this conversation's screen runs use (a start sheet answered
+    /// Allow), for a session that is a conversation: a later run of the conversation in the same
+    /// app is not asked again. It lives and ends with the session.
+    pub conversation_apps: BTreeSet<AppName>,
     /// Messages that landed for it and have not been read.
     pub inbox: Vec<Message>,
     /// The skills this task has loaded (`companion.skill.load`), at most three.
@@ -141,6 +145,7 @@ impl SessionRecord {
             seen: Vec::new(),
             inbox: Vec::new(),
             screen_apps: BTreeSet::new(),
+            conversation_apps: BTreeSet::new(),
             skill_loads: docket_skills::Loaded::default(),
             wal: Wal::Off,
             external: None,
