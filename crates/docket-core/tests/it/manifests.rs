@@ -2,7 +2,7 @@
 
 use crate::support::*;
 use docket_core::*;
-use prov::Effect;
+use prov::{ActionName, Effect};
 use std::path::PathBuf;
 
 fn shipped(name: &str) -> Manifest {
@@ -329,6 +329,18 @@ fn defaults_must_fit_their_type() {
             "entity of another kind",
             Value::Entity(entity("mail.draft", "a")),
             ParamType::Entity(kind("mail.thread")),
+            false,
+        ),
+        (
+            "an offered key as text",
+            Value::Text("app.zen_browser.zen".to_owned()),
+            ParamType::Dynamic(ActionName::parse("cua.run.start").expect("name")),
+            true,
+        ),
+        (
+            "text of two lines for an offered key",
+            Value::Text("app.one\napp.two".to_owned()),
+            ParamType::Dynamic(ActionName::parse("cua.run.start").expect("name")),
             false,
         ),
     ];
