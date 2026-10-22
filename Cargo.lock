@@ -874,6 +874,16 @@ dependencies = [
 [[package]]
 name = "cua-action"
 version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11#26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11"
+dependencies = [
+ "keyboard-types",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cua-action"
+version = "0.1.0"
 source = "git+https://github.com/PoHsuanLai/stoker?rev=bb6da201eec8beffc9559ce8644c8ad560aa531a#bb6da201eec8beffc9559ce8644c8ad560aa531a"
 dependencies = [
  "keyboard-types",
@@ -1185,7 +1195,7 @@ dependencies = [
 name = "docket-client"
 version = "0.1.0"
 dependencies = [
- "cua-action",
+ "cua-action 0.1.0 (git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11)",
  "docket-core",
  "docket-dbus",
  "docket-fake",
@@ -1206,7 +1216,7 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "bulkhead",
- "cua-action",
+ "cua-action 0.1.0 (git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11)",
  "futures-util",
  "model-provider",
  "porter-core",
@@ -1279,7 +1289,7 @@ version = "0.1.0"
 dependencies = [
  "action-review",
  "almanac-core",
- "cua-action",
+ "cua-action 0.1.0 (git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11)",
  "docket-checkpoint",
  "docket-client",
  "docket-core",
@@ -1304,7 +1314,7 @@ dependencies = [
  "almanac-core",
  "almanac-fake",
  "companion-wire",
- "cua-action",
+ "cua-action 0.1.0 (git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11)",
  "docket-client",
  "docket-core",
  "docket-fake",
@@ -1464,7 +1474,7 @@ version = "0.1.0"
 dependencies = [
  "action-review",
  "almanac-core",
- "cua-action",
+ "cua-action 0.1.0 (git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11)",
  "docket-checkpoint",
  "docket-client",
  "docket-core",
@@ -1949,7 +1959,7 @@ dependencies = [
 [[package]]
 name = "genai-names"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=bb6da201eec8beffc9559ce8644c8ad560aa531a#bb6da201eec8beffc9559ce8644c8ad560aa531a"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11#26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11"
 
 [[package]]
 name = "generic-array"
@@ -2149,7 +2159,7 @@ dependencies = [
  "almanac-client",
  "almanac-core",
  "almanac-dbus",
- "cua-action",
+ "cua-action 0.1.0 (git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11)",
  "docket-checkpoint-git",
  "docket-client",
  "docket-core",
@@ -2639,10 +2649,10 @@ dependencies = [
 [[package]]
 name = "model-provider"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=bb6da201eec8beffc9559ce8644c8ad560aa531a#bb6da201eec8beffc9559ce8644c8ad560aa531a"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11#26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11"
 dependencies = [
  "base64 0.22.1",
- "cua-action",
+ "cua-action 0.1.0 (git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11)",
  "genai-names",
  "serde",
  "serde_json",
@@ -3130,7 +3140,7 @@ version = "0.1.0"
 source = "git+https://github.com/PoHsuanLai/porter?rev=5f100f284aa557d770b529af5edfcb3afbdaae8a#5f100f284aa557d770b529af5edfcb3afbdaae8a"
 dependencies = [
  "base64 0.22.1",
- "cua-action",
+ "cua-action 0.1.0 (git+https://github.com/PoHsuanLai/stoker?rev=bb6da201eec8beffc9559ce8644c8ad560aa531a)",
  "porter-core",
  "serde",
  "serde_json",
@@ -3802,7 +3812,7 @@ dependencies = [
 [[package]]
 name = "speech-provider"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=bb6da201eec8beffc9559ce8644c8ad560aa531a#bb6da201eec8beffc9559ce8644c8ad560aa531a"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11#26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11"
 dependencies = [
  "base64 0.22.1",
  "model-provider",
@@ -3815,7 +3825,7 @@ dependencies = [
 [[package]]
 name = "speech-vad"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=bb6da201eec8beffc9559ce8644c8ad560aa531a#bb6da201eec8beffc9559ce8644c8ad560aa531a"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11#26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11"
 dependencies = [
  "serde",
  "speech-provider",
@@ -4313,9 +4323,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vision-prep"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=bb6da201eec8beffc9559ce8644c8ad560aa531a#bb6da201eec8beffc9559ce8644c8ad560aa531a"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11#26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11"
 dependencies = [
- "cua-action",
+ "cua-action 0.1.0 (git+https://github.com/PoHsuanLai/stoker?rev=26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11)",
  "serde",
  "thiserror",
 ]

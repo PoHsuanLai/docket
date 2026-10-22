@@ -125,12 +125,12 @@ almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "d753b7
 
 # stoker's pure vocabulary, by git at a pinned rev: the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
-cua-action      = { git = "https://github.com/PoHsuanLai/stoker", rev = "bb6da201eec8beffc9559ce8644c8ad560aa531a" }
-model-provider  = { git = "https://github.com/PoHsuanLai/stoker", rev = "bb6da201eec8beffc9559ce8644c8ad560aa531a" }
+cua-action      = { git = "https://github.com/PoHsuanLai/stoker", rev = "26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11" }
+model-provider  = { git = "https://github.com/PoHsuanLai/stoker", rev = "26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11" }
 # The OpenTelemetry GenAI names (no dependencies; no content attribute exists in it): the router's spans.
-genai-names     = { git = "https://github.com/PoHsuanLai/stoker", rev = "bb6da201eec8beffc9559ce8644c8ad560aa531a" }
-speech-vad      = { git = "https://github.com/PoHsuanLai/stoker", rev = "bb6da201eec8beffc9559ce8644c8ad560aa531a" }
-speech-provider = { git = "https://github.com/PoHsuanLai/stoker", rev = "bb6da201eec8beffc9559ce8644c8ad560aa531a" }
+genai-names     = { git = "https://github.com/PoHsuanLai/stoker", rev = "26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11" }
+speech-vad      = { git = "https://github.com/PoHsuanLai/stoker", rev = "26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11" }
+speech-provider = { git = "https://github.com/PoHsuanLai/stoker", rev = "26ba00d5a999c8f1c0774b5da1fdeb06ffbb7d11" }
 
 # quire's view-only context seams, for `docket-ds` alone (by git at a pinned rev).
 ds-intents      = { git = "https://github.com/PoHsuanLai/quire.git", rev = "9ddcbceecbb2490526a2f5a2f3344334333d72be" }
