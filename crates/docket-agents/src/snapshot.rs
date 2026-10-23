@@ -19,6 +19,9 @@ pub struct Listing {
     pub id: String,
     /// What the registry calls it.
     pub name: String,
+    /// The registry's line about it; empty when it gives none.
+    #[serde(default)]
+    pub description: String,
     /// The version on offer.
     pub version: String,
     /// How to get it.

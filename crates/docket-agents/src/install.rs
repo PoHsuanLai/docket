@@ -104,6 +104,37 @@ pub fn standing(dir: &AgentsDir, snapshot: &Snapshot, id: &str) -> Standing {
     }
 }
 
+/// One agent the list offers, as the Settings app shows it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Offer {
+    /// The registry id.
+    pub id: String,
+    /// What the registry calls it.
+    pub name: String,
+    /// The registry's line about it; may be empty.
+    pub description: String,
+    /// The version on offer.
+    pub version: String,
+    /// Whether that version is installed.
+    pub installed: bool,
+}
+
+/// Every agent in the list, in the list's order, with whether its offered version is installed.
+/// Reads only.
+pub fn offers(dir: &AgentsDir, snapshot: &Snapshot) -> Vec<Offer> {
+    snapshot
+        .agents
+        .iter()
+        .map(|listing| Offer {
+            id: listing.id.clone(),
+            name: listing.name.clone(),
+            description: listing.description.clone(),
+            version: listing.version.clone(),
+            installed: matches!(standing(dir, snapshot, &listing.id), Standing::Current(_)),
+        })
+        .collect()
+}
+
 /// Installs `want` from `snapshot`. Already installed is not an error and reaches nothing.
 pub fn install(
     dir: &AgentsDir,

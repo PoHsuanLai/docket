@@ -8,7 +8,9 @@ use docket_agents::record::Check;
 use docket_agents::run::{Run, RunFault};
 use docket_agents::slug::Slug;
 use docket_agents::uv::PythonPackage;
-use docket_agents::{AgentsDir, InstallFault, Snapshot, Standing, Want, install, standing};
+use docket_agents::{
+    AgentsDir, InstallFault, Offer, Snapshot, Standing, Want, install, offers, standing,
+};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -97,7 +99,7 @@ fn snapshot(sha: Option<&str>, version: &str) -> Snapshot {
     let sha = sha.map_or(String::new(), |s| format!(r#", "sha256": "{s}""#));
     Snapshot::parse(&format!(
         r#"{{"version": "1", "extensions": [], "agents": [
-        {{"id": "agy-acp", "name": "Agy", "version": "{version}", "extra": 1,
+        {{"id": "agy-acp", "name": "Agy", "description": "Writes code", "version": "{version}", "extra": 1,
           "distribution": {{"binary": {{"{key}": {{"archive": "https://dl.test/agy-{version}.zip",
             "cmd": "./agy", "args": ["--uid="]{sha}}}}}}}}},
         {{"id": "claude-acp", "name": "Claude", "version": "0.1.0",
@@ -219,6 +221,33 @@ fn only_the_listed_version_installs_and_a_newer_one_is_never_taken_alone() {
         install(&dir, &newer, want("agy-acp", "0.9.0"), (&net, &FakeNpm)).expect_err("stale");
     assert!(matches!(stale, InstallFault::Version { .. }));
     assert_eq!(standing(&dir, &newer, "nope"), Standing::Unknown);
+
+    // The list in its own order, with what is installed of each; a missing line is empty.
+    let shown = |snap: &Snapshot| -> Vec<(String, String, bool)> {
+        offers(&dir, snap)
+            .into_iter()
+            .map(|o| (o.id, o.version, o.installed))
+            .collect()
+    };
+    let row = |id: &str, v: &str, installed| (id.to_owned(), v.to_owned(), installed);
+    assert_eq!(
+        shown(&old),
+        [
+            row("agy-acp", "1.0.0", true),
+            row("claude-acp", "0.1.0", false),
+            row("py", "1", false)
+        ]
+    );
+    assert_eq!(shown(&newer)[0], row("agy-acp", "1.1.0", false));
+    let first: Offer = offers(&dir, &old).remove(0);
+    assert_eq!(
+        (first.name.as_str(), first.description.as_str()),
+        ("Agy", "Writes code")
+    );
+    assert_eq!(offers(&dir, &old)[1].description, "");
+    // What is installed is known without the list.
+    let ids: Vec<String> = dir.agents().iter().map(|s| s.as_str().to_owned()).collect();
+    assert_eq!(ids, ["agy-acp"]);
 }
 
 #[test]

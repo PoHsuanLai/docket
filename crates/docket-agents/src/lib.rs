@@ -3,8 +3,8 @@
 //! gives) into a directory it owns, and says how to start it.
 //!
 //! - `snapshot`: the registry's JSON, typed.
-//! - `install`: `install` (a named version) and `standing` (what the list offers against what is
-//!   installed). Updating is installing the newer version the person names; nothing runs by
+//! - `install`: `install` (a named version), and `standing` and `offers` (what the list offers
+//!   against what is installed). Updating is installing the newer version the person names; nothing runs by
 //!   itself, and the network is reached only through `fetch::Fetch` in these two.
 //! - `dirs`, `record`, `launch`: where agents live, what was installed, how to start it. Each
 //!   agent has its own home inside its sandbox, where it signs in.
@@ -26,7 +26,7 @@ pub mod unpack;
 pub mod uv;
 
 pub use dirs::AgentsDir;
-pub use install::{InstallFault, Standing, Want, install, standing};
+pub use install::{InstallFault, Offer, Standing, Want, install, offers, standing};
 pub use launch::{Launch, LaunchFault};
 pub use offered::{Offered, OfferedFault, Start};
 pub use snapshot::{Listing, Snapshot, SnapshotFault};

@@ -42,6 +42,22 @@ impl AgentsDir {
             .join(format!("{}.sha256", version.as_str()))
     }
 
+    /// The agents with at least one version installed, by id. Reads only this directory.
+    pub fn agents(&self) -> Vec<Slug> {
+        let Ok(read) = std::fs::read_dir(self.0.join("installed")) else {
+            return Vec::new();
+        };
+        let mut found: Vec<Slug> = read
+            .filter_map(|e| {
+                let name = e.ok()?.file_name();
+                Slug::parse(name.to_str()?).ok()
+            })
+            .filter(|id| !self.versions(id).is_empty())
+            .collect();
+        found.sort();
+        found
+    }
+
     /// The versions of `id` that are installed.
     pub fn versions(&self, id: &Slug) -> Vec<Slug> {
         let dir = self.0.join("installed").join(id.as_str());
