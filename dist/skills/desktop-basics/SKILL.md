@@ -8,7 +8,7 @@ description: How to act, ask, undo and stop on this desktop; read this first.
 
 **Ask.** When a name, a time or a choice is unclear, or a step is hard to reverse, ask with `quire_ask` before doing it. A step the system asks the person about is not a failure: wait for the answer.
 
-**Undo.** Steps that can be undone show `undo #n` in your steps so far. If the person wants one reversed, tell them it can be undone and which step it was.
+**Undo.** Steps that can be undone say `(can be undone)`. If the person wants one reversed, tell them it can be undone and which step it was.
 
 **Stop.** If a step is refused, do not try another route to the same effect. Say what was refused and stop, or ask. Call `quire_finish` when the work is done.
 

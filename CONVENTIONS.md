@@ -107,7 +107,9 @@ What docket adds or decides differently, each with its reason:
     listed as `#11 text (63 characters): the reader's summarise answer about #10` (task word and
     inputs, never content). When the reader holds a text answer the task has not shown
     (`PlannerView::shown`), the view says so from handle provenance alone, never an app's name:
-    `Ready to show: #11 (quire_finish {"show":[11]})`. (g) A call is not run again when its answer
+    `Ready to show: #11 (quire_finish {"show":[11]})`; an answer a done step took as an input (the
+    body of a file that was made) is not offered. A step that can be undone ends `(can be undone)`,
+    never with the undo id, which read as a handle. (g) A call is not run again when its answer
     is already held. The repeat guard (`agent-loop::guard`) holds a call whose effect is `Read`
     and that returned a handle, and an identical `quire_read` (same inputs, task and want), with
     `not run: you already hold its answer #n`; after `HOLDS_BEFORE_STOP_ANSWERED` (3) such holds

@@ -428,7 +428,7 @@ fn step_line_raw(step: &StepLine, seen: &Seen<'_>) -> String {
     match (&step.shown, &step.end) {
         (StepShown::Masked, StepEnd::Done { said, undo, value }) => {
             let said = said.as_ref().map_or("done", |s| s.as_str());
-            let undo = undo.map(|u| format!(", undo #{}", u.0)).unwrap_or_default();
+            let undo = undo.map(|_| ", can be undone").unwrap_or_default();
             let got = returned_text(value.as_ref(), handles);
             format!("{head}{got} [outcome: {said}{undo}]")
         }
@@ -444,7 +444,9 @@ fn step_line_raw(step: &StepLine, seen: &Seen<'_>) -> String {
                     Reveal::Handle(h) => format!(" value {}", named(*h, handles)),
                 })
                 .unwrap_or_default();
-            let undo = undo.map(|u| format!(" undo #{}", u.0)).unwrap_or_default();
+            // The undo token is not a handle: a number here read as one (`undo #1` beside a
+            // thing #1).
+            let undo = undo.map(|_| " (can be undone)").unwrap_or_default();
             format!("{head} done{said}{value}{undo}")
         }
         (_, StepEnd::Refused(refusal)) => {
@@ -727,6 +729,18 @@ mod tests {
             step_line_in(&again, &seen),
             "org.quire.Mail.mail.contact.search not run: you already hold its answer [#5 mail.contact] (1 item); #5 can be used as \"to\" in mail.message.forward, mail.message.send; repeating it again asks the person"
         );
+    }
+
+    #[test]
+    fn a_done_step_that_can_be_undone_says_so_without_a_number() {
+        let end = StepEnd::Done {
+            said: Some(docket_core::LabelText::parse("Made it").expect("text")),
+            value: None,
+            undo: Some(docket_core::UndoId(1)),
+        };
+        let line = step_line(&step(end), &[]);
+        assert!(line.ends_with("done \"Made it\" (can be undone)"), "{line}");
+        assert!(!line.contains("#1"), "{line}");
     }
 
     #[test]

@@ -33,7 +33,7 @@ impl Cause {
     }
 }
 
-const NEXT: &str = "do not retry it, offer to retry it or work around it; finish, saying what was not done. Ask the person with quire_ask only about a different way to what they wanted, never about this call";
+const NEXT: &str = "do not retry it, offer to retry it, work around it or offer something else instead; finish, saying what was not done, and wait for the person to say how to go on";
 
 /// The words after `not confirmed` on a step line: the reason and what to do next.
 pub(crate) fn unconfirmed_text(end: ConfirmEnd) -> String {
@@ -51,8 +51,9 @@ mod tests {
             text.starts_with("the person declined this; do not retry it"),
             "{text}"
         );
-        assert!(text.contains("finish, saying what was not done."), "{text}");
-        assert!(text.contains("never about this call"), "{text}");
+        assert!(text.contains("offer something else instead"), "{text}");
+        assert!(text.contains("finish, saying what was not done"), "{text}");
+        assert!(text.contains("wait for the person"), "{text}");
         assert_eq!(text, unconfirmed_text(ConfirmEnd::Dismissed));
     }
 

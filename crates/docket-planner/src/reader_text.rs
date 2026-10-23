@@ -78,8 +78,16 @@ pub(crate) fn reader_origin(handle: Handle, history: &[StepLine]) -> Option<Stri
     ))
 }
 
-/// The reader's text answers the person has not been shown, oldest first, at most
-/// [`MOST_SHOWN`] of the newest: what `quire_finish` can show to answer them.
+/// Whether a step that ended done took `handle` as an input: an answer already put to use (the
+/// body of a file that was made, of a message that was sent) is not waiting to be shown.
+fn put_to_use(handle: Handle, history: &[StepLine]) -> bool {
+    history
+        .iter()
+        .any(|s| matches!(s.end, StepEnd::Done { .. }) && s.with.contains(&handle))
+}
+
+/// The reader's text answers the person has not been shown and no done step has used, oldest
+/// first, at most [`MOST_SHOWN`] of the newest: what `quire_finish` can show to answer them.
 pub(crate) fn ready_to_show(view: &PlannerView) -> Vec<Handle> {
     let mut ready: Vec<Handle> = view
         .history
@@ -87,6 +95,7 @@ pub(crate) fn ready_to_show(view: &PlannerView) -> Vec<Handle> {
         .filter_map(answered_by)
         .map(|(handle, _)| handle)
         .filter(|handle| !view.shown.contains(handle))
+        .filter(|handle| !put_to_use(*handle, &view.history))
         .filter(|handle| {
             view.handles
                 .iter()
@@ -240,6 +249,18 @@ mod tests {
         assert!(!viewed(summarised(), vec![Handle(11)]).contains("Ready to show"));
         let only_read = summarised().into_iter().take(1).collect();
         assert!(!viewed(only_read, vec![]).contains("Ready to show"));
+    }
+
+    #[test]
+    fn a_reader_answer_already_put_to_use_is_not_offered() {
+        let mut steps = summarised();
+        let made = StepEnd::Done {
+            said: None,
+            value: None,
+            undo: None,
+        };
+        steps.push(step("org.quire.Files", "files.file.create", &[11], made));
+        assert!(!viewed(steps, vec![]).contains("Ready to show"));
     }
 
     #[test]
