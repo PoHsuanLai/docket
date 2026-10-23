@@ -5,6 +5,7 @@
 //! agent. Starting one to refresh the record is an explicit [`RefreshRequest`], never a page
 //! opening.
 
+mod add;
 mod detect;
 mod model;
 mod read;
@@ -12,6 +13,9 @@ mod refresh;
 mod words;
 mod write;
 
+pub use add::{
+    AddFault, NewAgent, edit_agent_add, edit_agent_remove, write_agent_add, write_agent_remove,
+};
 pub use detect::{Found, KNOWN, KnownAgent, dirs_of, find_known, unlisted};
 pub use model::{AgentRow, Agents, Availability, Install, ModelState, Offers, SignInState, Source};
 pub use read::read_agents;

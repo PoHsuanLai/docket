@@ -260,3 +260,84 @@ fn who_keeps_the_history_is_read_with_the_profile_as_default_and_edited_in_place
     let written = std::fs::read_to_string(&path).expect("read");
     assert_eq!(read(&written, "mine"), Some(kept_by_agent));
 }
+
+fn agy(program: &str) -> NewAgent {
+    NewAgent {
+        program: program.to_owned(),
+        registry: "antigravity-acp".to_owned(),
+        version: "1.3.0".to_owned(),
+        label: "Antigravity".to_owned(),
+    }
+}
+
+#[test]
+fn an_agent_from_the_registry_is_added_after_the_others_and_taken_out_again() {
+    let out = edit_agent_add(FILE, &agy("agy")).expect("add");
+    assert!(out.starts_with(FILE), "nothing before it moves: {out}");
+    let added = &out[FILE.len()..];
+    for line in [
+        "program = \"agy\"",
+        "registry = \"antigravity-acp\"",
+        "version = \"1.3.0\"",
+        "route = \"login\"",
+        "network = \"host\"",
+        "label = \"Antigravity\"",
+    ] {
+        assert!(added.contains(line), "{line} in {added}");
+    }
+    let rows = read_agents(&out, &AgentsDir::at(std::path::Path::new("/nonexistent")));
+    assert!(rows.get("agy").is_some());
+
+    let back = edit_agent_remove(&out, "agy").expect("remove");
+    assert_eq!(back.trim_end(), FILE.trim_end());
+    let without = edit_agent_remove(FILE, "mine").expect("remove");
+    assert!(without.contains("model = \"pro\"   # keep me") && !without.contains("/opt/mine"));
+}
+
+#[test]
+fn a_listed_name_an_odd_name_or_an_unlisted_agent_writes_nothing() {
+    assert_eq!(
+        edit_agent_add(FILE, &agy("antigravity")),
+        Err(AddFault::Listed)
+    );
+    assert_eq!(
+        edit_agent_add(FILE, &agy("two words")),
+        Err(AddFault::BadName)
+    );
+    let mut odd = agy("agy");
+    odd.version = "1.3.0\nmodel = \"x\"".to_owned();
+    assert_eq!(edit_agent_add(FILE, &odd), Err(AddFault::BadName));
+    let mut unnamed = agy("agy");
+    unnamed.label = "  ".to_owned();
+    assert_eq!(edit_agent_add(FILE, &unnamed), Err(AddFault::BadLabel));
+    assert_eq!(edit_agent_add("[[", &agy("agy")), Err(AddFault::Unreadable));
+    assert_eq!(
+        edit_agent_add("agent = 1", &agy("agy")),
+        Err(AddFault::Unreadable)
+    );
+    assert_eq!(
+        edit_agent_remove(FILE, "nobody"),
+        Err(ChoiceFault::NoSuchAgent)
+    );
+    assert_eq!(edit_agent_remove("", "agy"), Err(ChoiceFault::NoSuchAgent));
+}
+
+#[test]
+fn the_first_agent_makes_the_file_and_the_last_one_out_leaves_it_valid() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let path = tmp.path().join("docket").join("agents.toml");
+    write_agent_add(&path, &agy("agy")).expect("add");
+    let text = std::fs::read_to_string(&path).expect("read");
+    assert!(text.contains("[[agent]]") && text.contains("program = \"agy\""));
+    write_agent_remove(&path, "agy").expect("remove");
+    let text = std::fs::read_to_string(&path).expect("read");
+    assert!(
+        read_agents(&text, &AgentsDir::at(tmp.path()))
+            .get("agy")
+            .is_none()
+    );
+    assert_eq!(
+        write_agent_remove(&tmp.path().join("none.toml"), "agy"),
+        Err(ChoiceFault::Io)
+    );
+}

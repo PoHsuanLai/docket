@@ -343,6 +343,25 @@ fn a_registry_agent_runs_from_its_install_with_a_home_of_its_own() {
 }
 
 #[test]
+fn a_registry_agent_added_in_settings_is_one_docket_starts() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    let dir = installed_agy(tmp.path());
+    let agent = docket_settings::NewAgent {
+        program: "antigravity".to_owned(),
+        registry: "agy-acp".to_owned(),
+        version: "1.3.0".to_owned(),
+        label: "Antigravity".to_owned(),
+    };
+    let text = docket_settings::edit_agent_add("", &agent).expect("add");
+    let file = AgentsFile::parse_in(&text, Some(&dir)).expect("file");
+    let entry = file
+        .get(&docket_session::ProgramName::parse("antigravity").expect("name"))
+        .expect("entry");
+    assert_eq!(entry.route, Route::Login);
+    assert_eq!(entry.network, NetworkMode::Host);
+}
+
+#[test]
 fn a_registry_agent_that_is_not_installed_or_not_pinned_is_refused() {
     let tmp = tempfile::tempdir().expect("tmp");
     let dir = docket_agents::AgentsDir::at(tmp.path());
