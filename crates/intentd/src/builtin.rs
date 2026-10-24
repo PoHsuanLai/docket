@@ -11,8 +11,8 @@ use crate::link::DbusLink;
 use almanac_client::Transport as MemoryTransport;
 use docket_client::IntentProvider;
 use docket_core::{
-    ACP_AGENT_APP, AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit,
-    Invocation, Latency, Outcome, Preview, SuggestAsk, UndoFault, UndoToken, ValidManifest,
+    ACP_AGENT_APP, AppRefusal, ContextScope, ContextSnapshot, EntityRef, Invocation, Latency,
+    Outcome, Preview, SuggestAsk, UndoFault, UndoToken, ValidManifest,
 };
 use docket_router::{
     AppFault, AppLink, CHECKPOINTS_APP, COMPANION_APP, LinkFault, RegistryError, parse,
@@ -209,20 +209,6 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
             // Neither has a window: there is nothing on screen to report.
             Host::Memory | Host::Companion | Host::Checkpoints => Err(LinkFault::Unavailable),
             Host::Installed => self.apps.context(app, scope).await,
-        }
-    }
-
-    async fn search(
-        &self,
-        app: &AppName,
-        text: &str,
-        generation: Generation,
-    ) -> Result<Vec<Hit>, LinkFault> {
-        match host_of(app) {
-            Host::Memory => Ok(self.memory.search(text).await),
-            Host::Companion => Ok(self.companion.search(text).await),
-            Host::Checkpoints => Ok(self.checkpoints.search(text).await),
-            Host::Installed => self.apps.search(app, text, generation).await,
         }
     }
 

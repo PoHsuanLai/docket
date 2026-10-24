@@ -3,6 +3,8 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_fake::FakeSeams;
+use docket_router::Router;
 use prov::{EntityKey, EntityKind, Integrity, SpaceScope, UnixSeconds};
 
 fn mail_caller() -> CallerId {
@@ -176,29 +178,162 @@ async fn a_removal_drops_a_thing_and_a_reset_forgets_everything() {
     assert!(after_reset.iter().all(|h| h.entity.id.key.as_str() != "t9"));
 }
 
+async fn found(router: &Router<FakeSeams>, text: &str) -> Vec<String> {
+    let IntentsReply::Hits(hits) = ask(router, &launcher(), query(text)).await else {
+        panic!("hits")
+    };
+    hits.iter()
+        .map(|h| h.entity.id.key.as_str().to_owned())
+        .collect()
+}
+
+async fn push(router: &Router<FakeSeams>, epoch: u64, entries: Vec<IndexEntry>) {
+    let reset = IntentsRequest::IndexReset { epoch };
+    assert_eq!(ask(router, &mail_caller(), reset).await, IntentsReply::Done);
+    assert_eq!(
+        ask(router, &mail_caller(), batch(epoch, entries)).await,
+        IntentsReply::Done
+    );
+}
+
 #[tokio::test]
-async fn search_also_asks_the_apps_for_what_they_do_not_index() {
+async fn a_search_answers_from_the_index_and_asks_no_app() {
+    use docket_fake::Answering;
     let router = router();
-    // The files kind of the fixture is searched live; the fake finds nothing by this word, the
-    // mail threads are found by their subject through the shadow index only.
-    let IntentsReply::Hits(hits) = ask(&router, &launcher(), query("Invoice")).await else {
-        panic!()
+    router
+        .seams
+        .link
+        .answer_from(&mail_app(), Answering::Stopped);
+    router
+        .seams
+        .link
+        .answer_from(&app("org.quire.Files"), Answering::Stopped);
+    push(&router, 1, vec![entry("mail.thread", "t1", "Invoice")]).await;
+    assert_eq!(found(&router, "invoice").await, ["t1"]);
+    assert!(found(&router, "zzz").await.is_empty());
+    assert!(
+        router.seams.link.performed.lock().expect("lock").is_empty(),
+        "a search performs nothing"
+    );
+}
+
+#[tokio::test]
+async fn a_preview_of_an_app_that_is_not_running_is_refused() {
+    use docket_fake::Answering;
+    let router = router();
+    let files = app("org.quire.Files");
+    router.seams.link.answer_from(&files, Answering::Stopped);
+    let file = prov::EntityId {
+        app: files,
+        kind: EntityKind::parse("files.file").expect("kind"),
+        key: EntityKey::parse("f1").expect("key"),
     };
     assert!(
-        hits.iter()
-            .all(|h| h.entity.id.kind.as_str() != "mail.thread"),
-        "mail is indexed, not searched live"
+        matches!(
+            ask(&router, &launcher(), IntentsRequest::Preview(file)).await,
+            IntentsReply::Refused(WireRefusal::Call(CallRefusal::AppUnavailable(_)))
+        ),
+        "nor is it started for a preview"
     );
-    let IntentsReply::Manifests(manifests) = ask(
+}
+
+#[tokio::test]
+async fn hits_are_ranked_by_how_they_match_then_newest_first() {
+    let router = router();
+    let with =
+        |key: &str, title: &str, subtitle: &str, keywords: &[&str], updated: i64| IndexEntry {
+            subtitle: subtitle.into(),
+            keywords: keywords.iter().map(|k| (*k).to_owned()).collect(),
+            updated: UnixSeconds(updated),
+            ..entry("mail.thread", key, title)
+        };
+    push(
         &router,
-        &caller("org.quire.Anything", CallerRole::App),
-        IntentsRequest::Manifests,
+        1,
+        vec![
+            with("sub", "Else", "about REC", &[], 99),
+            with("kw", "Other", "x", &["Recipe"], 98),
+            with("has", "Lisbon receipts", "x", &[], 97),
+            with("old", "Receipts", "x", &[], 1),
+            with("new", "RECEIPTS 2", "x", &[], 5),
+        ],
     )
-    .await
-    else {
-        panic!("manifests")
+    .await;
+    assert_eq!(
+        found(&router, "rec").await,
+        ["new", "old", "has", "kw", "sub"]
+    );
+}
+
+#[tokio::test]
+async fn shipped_entries_survive_a_reset_and_a_pushed_one_wins_the_same_key() {
+    let router = router();
+    let shipped = vec![
+        entry("mail.thread", "s1", "Shipped page"),
+        entry("mail.thread", "t1", "Shipped twin"),
+    ];
+    router.ship_index(&mail_app(), shipped);
+    assert_eq!(
+        found(&router, "shipped").await,
+        ["s1", "t1"],
+        "found unpushed"
+    );
+    push(&router, 1, vec![entry("mail.thread", "t1", "Pushed twin")]).await;
+    assert_eq!(found(&router, "shipped").await, ["s1"]);
+    assert_eq!(found(&router, "twin").await, ["t1"]);
+    let IntentsReply::Hits(hits) = ask(&router, &launcher(), query("twin")).await else {
+        panic!("hits")
     };
-    assert_eq!(manifests.len(), 5);
+    assert_eq!(hits[0].entity.title.value, "Pushed twin");
+    ask(
+        &router,
+        &mail_caller(),
+        IntentsRequest::IndexReset { epoch: 2 },
+    )
+    .await;
+    // The reset wipes what was pushed and keeps what was shipped, so the shipped twin is back.
+    assert_eq!(
+        found(&router, "shipped").await,
+        ["s1", "t1"],
+        "a reset keeps them"
+    );
+    let IntentsReply::Hits(hits) = ask(&router, &launcher(), query("twin")).await else {
+        panic!("hits")
+    };
+    assert_eq!(hits[0].entity.title.value, "Shipped twin");
+}
+
+#[tokio::test]
+async fn shipped_entries_of_a_kind_that_is_not_indexed_are_dropped() {
+    let router = router();
+    let files = app("org.quire.Files");
+    router.ship_index(&files, vec![entry("files.file", "f1", "Lisbon receipts")]);
+    router.ship_index(
+        &app("com.evil.Tool"),
+        vec![entry("mail.thread", "e1", "Lisbon")],
+    );
+    assert!(found(&router, "lisbon").await.is_empty());
+}
+
+#[tokio::test]
+async fn restored_entries_are_found_and_the_app_can_reset_as_usual() {
+    let router = router();
+    router.restore_index(
+        &mail_app(),
+        vec![
+            entry("mail.thread", "t1", "Invoice"),
+            entry("files.file", "f1", "Invoice file"),
+        ],
+    );
+    assert_eq!(
+        found(&router, "invoice").await,
+        ["t1"],
+        "only indexed kinds"
+    );
+    assert_eq!(router.pushed_entries(&mail_app()).len(), 1);
+    push(&router, 1, vec![entry("mail.thread", "t2", "Digest")]).await;
+    assert_eq!(found(&router, "invoice").await.len(), 0);
+    assert_eq!(found(&router, "digest").await, ["t2"]);
 }
 
 #[tokio::test]
@@ -249,41 +384,5 @@ async fn a_hit_is_opened_by_its_kinds_open_action_performed_as_the_launcher() {
     assert!(
         router.seams.confirmer.requests().is_empty(),
         "opening reads: nothing asks"
-    );
-}
-
-#[tokio::test]
-async fn a_search_or_a_preview_asks_only_the_apps_already_running() {
-    use docket_fake::Answering;
-    let router = router();
-    let mail = app("org.quire.Mail");
-    let files = app("org.quire.Files");
-    router.seams.link.answer_from(&mail, Answering::Stopped);
-    router.seams.link.answer_from(&files, Answering::Stopped);
-    // Typing in the launcher starts no app: neither is running, so neither is asked.
-    ask(&router, &launcher(), query("lisbon")).await;
-    let searched = router.seams.link.searched.lock().expect("lock").clone();
-    assert!(
-        !searched.contains(&mail) && !searched.contains(&files),
-        "an app without an owner is not searched: {searched:?}"
-    );
-    let file = prov::EntityId {
-        app: files.clone(),
-        kind: EntityKind::parse("files.file").expect("kind"),
-        key: EntityKey::parse("f1").expect("key"),
-    };
-    assert!(
-        matches!(
-            ask(&router, &launcher(), IntentsRequest::Preview(file)).await,
-            IntentsReply::Refused(WireRefusal::Call(CallRefusal::AppUnavailable(_)))
-        ),
-        "nor is it started for a preview"
-    );
-    router.seams.link.answer_from(&files, Answering::Normal);
-    ask(&router, &launcher(), query("lisbon")).await;
-    let searched = router.seams.link.searched.lock().expect("lock").clone();
-    assert!(
-        searched.contains(&files) && !searched.contains(&mail),
-        "a running app is searched: {searched:?}"
     );
 }

@@ -10,9 +10,9 @@ use docket_checkpoint::CheckpointStore;
 use docket_core::EntityRef;
 use docket_core::Limit;
 use docket_core::{
-    ActionGrant, AppRefusal, AuditRecord, Confirmer, ContextScope, ContextSnapshot, Generation,
-    Hit, Invocation, Latency, Millis, Outcome, PolicyWriter, Preview, Reader, Revocation,
-    StandingGrant, StandingGrantId, SuggestAsk, UndoFault, UndoToken,
+    ActionGrant, AppRefusal, AuditRecord, Confirmer, ContextScope, ContextSnapshot, Invocation,
+    Latency, Millis, Outcome, PolicyWriter, Preview, Reader, Revocation, StandingGrant,
+    StandingGrantId, SuggestAsk, UndoFault, UndoToken,
 };
 use docket_session::{Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog};
 use policy_point::Presets;
@@ -120,13 +120,6 @@ pub trait AppLink: Send + Sync {
         app: &AppName,
         scope: ContextScope,
     ) -> impl Future<Output = Result<ContextSnapshot, LinkFault>> + Send;
-    /// `Search`, for kinds the app does not index.
-    fn search(
-        &self,
-        app: &AppName,
-        text: &str,
-        generation: Generation,
-    ) -> impl Future<Output = Result<Vec<Hit>, LinkFault>> + Send;
     /// `Preview`.
     fn preview(
         &self,

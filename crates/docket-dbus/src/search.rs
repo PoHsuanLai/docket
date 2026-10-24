@@ -1,4 +1,4 @@
-//! `org.quire.Intents1.Search`: search over the index and the apps that do not index.
+//! `org.quire.Intents1.Search`: search over the index.
 
 use zbus::fdo;
 use zbus::object_server::SignalEmitter;
@@ -10,13 +10,14 @@ use zbus::object_server::SignalEmitter;
     default_path = "/org/quire/Intents1"
 )]
 pub trait Search {
-    /// Starts a search (`SearchScope` JSON); answers the indexed hits (`Vec<Hit>` JSON); late app hits come as `Hits`.
+    /// Searches the index (`SearchScope` JSON); answers all the hits (`Vec<Hit>` JSON), best first.
     fn query(&self, text: &str, scope: &str, generation: u64) -> zbus::Result<String>;
 
     /// Cancels a search.
     fn cancel(&self, generation: u64) -> zbus::Result<()>;
 
-    /// Late hits for a generation (`Vec<Hit>` JSON).
+    /// No longer sent: a search is answered whole by `Query`. Declared until the interface moves
+    /// on.
     #[zbus(signal)]
     fn hits(&self, generation: u64, hits: &str) -> zbus::Result<()>;
 }

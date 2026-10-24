@@ -10,6 +10,7 @@ use crate::callers;
 use crate::config::{ConfigError, IntentdConfig};
 use crate::floor::{FLOOR_FILE, read_floor};
 use crate::grants::FileGrants;
+use crate::index_files::IndexStore;
 use crate::infer::{InferdWriter, ReaderClient};
 use crate::link::DbusLink;
 use crate::logout::watch_logind;
@@ -18,6 +19,7 @@ use crate::policies::{ADMIN_DIR, PolicyDirs, load_policies};
 use crate::policies_watch::follow as follow_policies;
 use crate::reach::{LiveReach, follow as follow_reach};
 use crate::reviewers::reviewer;
+use crate::search_files::ship_search_files;
 use crate::serve::{ServeFault, closed, serve_on_gated};
 use crate::settings_watch::{SettingsWatch, WatchState, apply, apply_next};
 use crate::sheet::SheetConfirmer;
@@ -120,6 +122,8 @@ pub struct Setup {
     pub checkpoints: PathBuf,
     /// The person's login session, when known (`XDG_SESSION_ID`).
     pub session: Option<String>,
+    /// Where what the apps pushed to the index is kept between logins.
+    pub index: IndexStore,
     /// How often the audit queue is written to memoryd.
     pub audit_every: Duration,
     /// The data directories the manifests are read from, rescanned while the daemon runs.
@@ -210,6 +214,7 @@ impl Setup {
             grants,
             checkpoints: data[0].join("quire").join("checkpoints"),
             session: env("XDG_SESSION_ID").filter(|v| !v.is_empty()),
+            index: IndexStore::under(&data[0]),
             audit_every: DRAIN_EVERY,
             data_dirs: data,
             signals: Cadence::default(),
@@ -259,6 +264,7 @@ pub async fn start(
         manifests,
         grants,
         checkpoints,
+        index,
         session: login,
         audit_every,
         data_dirs,
@@ -346,6 +352,9 @@ pub async fn start(
             state.registry.insert(manifest);
         }
     }
+    // What the apps ship and what they pushed in earlier logins is searchable from the start.
+    ship_search_files(&router, &data_dirs);
+    index.restore(&router);
     // The skills the data directories ship: valid files only; which are offered is checked against
     // the registry at each load. What did not load, or is hidden for a missing action, is logged.
     let found = discover(&Roots::from_dirs(&data_dirs));
@@ -380,6 +389,7 @@ pub async fn start(
         who,
         &proc_root,
         acp.clone(),
+        Some(index),
     )
     .await
     .map_err(DaemonFault::Serve)?;

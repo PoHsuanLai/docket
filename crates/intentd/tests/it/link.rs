@@ -114,16 +114,12 @@ async fn every_member_reaches_the_app_and_comes_back_typed() {
         "an undo the app no longer holds is gone"
     );
 
-    // Context, search, preview and suggestions.
+    // Context, preview and suggestions.
     let context = link
         .context(&mail(), ContextScope::ActiveWindow)
         .await
         .expect("a snapshot");
     assert_eq!(context.app, mail());
-    assert!(
-        link.search(&mail(), "invoice", Generation(1)).await.is_ok(),
-        "search"
-    );
     assert!(
         link.preview(&mail(), &thread("t1")).await.is_ok(),
         "preview"
@@ -162,7 +158,7 @@ async fn an_app_that_is_away_is_unavailable_and_never_a_panic() {
         Err(LinkFault::Unavailable)
     );
     assert_eq!(
-        link.search(&gone, "x", Generation(1)).await,
+        link.preview(&gone, &thread("x")).await,
         Err(LinkFault::Unavailable)
     );
 }
@@ -185,7 +181,6 @@ impl IntentProvider for Slow {
         Ok(())
     }
     async fn search(&self, _: &str) -> Vec<Hit> {
-        tokio::time::sleep(Duration::from_secs(3)).await;
         vec![]
     }
     async fn preview(&self, _: &EntityId) -> Preview {
@@ -228,10 +223,6 @@ async fn a_slow_app_is_cut_at_its_latency() {
         started.elapsed() < Duration::from_secs(2),
         "cut at 250 ms, not left to finish: {:?}",
         started.elapsed()
-    );
-    assert_eq!(
-        link.search(&slow, "x", Generation(1)).await,
-        Err(LinkFault::Timeout)
     );
 }
 

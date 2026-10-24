@@ -289,9 +289,9 @@ Built in the w4-docket fill (each with tests on a private bus, a scripted inferd
 4. **The signals.** `ManifestChanged`, `JournalChanged`, `BreakerTripped` and `Arrived` are the difference between two
    looks at the router's state (`Marks`, `changes`, every 200 ms; table-tested), so every way the state can change says
    so the same way; the manifest directories are rescanned every few looks (polling, since `notify` is outside the
-   boundary) and a changed or removed file takes its app with it. `Hits` is the late part of a search: `Search.Query`
-   over the bus answers the shadow index at once and the apps that hold kinds they do not index send their hits to the
-   asker alone as `Hits` (not if the asker cancelled or asked again). `Halted` and `Resumed` are as before.
+   boundary) and a changed or removed file takes its app with it. `Hits` was the late part of a search; it is
+   no longer sent (a search is answered whole from the index, see "Launcher search: one index" below). `Halted` and
+   `Resumed` are as before.
 5. **A missing app is `AppFault::Unavailable`** (ask 105): `call_step` turns it into `CallRefusal::AppUnavailable`, and
    `quire-do` exits 6 (the end-to-end test installs the Files manifest and runs no Files app). **`serve(router, config)`**
    takes the configuration (ask 106).
@@ -3694,3 +3694,19 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
   passed whole (the newest 200 records). The app that declares it sizes its `max` for that.
 - Filled values are put in after the gate, so the review and the sheet never read them; the app
   receives them with their labels. Not verified by a build in the lane that added them.
+
+
+## Launcher search: one index
+
+- A search is answered from the router's index alone and never asks an app, so typing in the launcher starts
+  nothing. The index has two sources: what a running app pushes (`Index.Reset` / `Push`; intentd keeps each app's
+  entries in `quire/intents/index/<App>.json`, restores them at start and drops the file of an app with no manifest)
+  and what an app ships in `quire/search/<App>.toml` (read at start; a `Reset` never touches them). Hits are ranked:
+  title starts with the text, title contains it, a keyword does, the subtitle does; ties newest first.
+  `index = "not_indexed"` now means the launcher does not find the kind.
+- The built-in Memory and Companion kinds are `not_indexed`. Nothing is lost: their providers' `search` always
+  answered nothing.
+- Shipped files are read at start only; a manifest rescan that adds an app does not read its search file until the
+  next start.
+- `IntentProvider1.Search`, `docket-client`'s `IntentProvider::search` and the `Search.Hits` signal are unused. They
+  go in the next batched quire release (the wire and proxy are quire's); the signal stays declared until then.

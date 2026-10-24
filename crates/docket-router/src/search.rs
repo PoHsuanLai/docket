@@ -1,11 +1,13 @@
-//! The registry, the shadow index and what is found through it: an app pushes titles so the
-//! launcher can search without waking it. The owner is the connection, never a field; the
+//! The registry, the shadow index and what is found through it: an app pushes titles (or ships
+//! them in a file) so the launcher can search without waking it, and a search is answered from
+//! the index alone: it never asks an app. The owner is the connection, never a field; the
 //! router labels each title from its kind's declared trust, so an app cannot call somebody
 //! else's words its own.
 
 use crate::index::IndexAction;
 use crate::index::IndexEvent;
 use crate::labels::app_label;
+use crate::rank::{Rank, rank_of};
 use crate::reading::link_refusal;
 use crate::router::Router;
 use crate::seams::{AppLink, LinkFault, Seams};
@@ -15,7 +17,7 @@ use docket_core::{
     SearchAsk, SearchScope, SuggestAsk, TitleTrust, WireRefusal,
 };
 use porter_core::AppName;
-use prov::{EntityId, EntityKind, Label, Labelled, SpaceId, SpaceScope};
+use prov::{EntityId, EntityKind, Label, Labelled, SpaceId, SpaceScope, UnixSeconds};
 use std::collections::BTreeSet;
 
 fn refuse(why: WireRefusal) -> IntentsReply {
@@ -42,14 +44,27 @@ fn title_label(st: &RouterState, app: &AppName, entry: &IndexEntry) -> Label {
     }
 }
 
-fn matches(entry: &IndexEntry, text: &str) -> bool {
-    let needle = text.to_lowercase();
-    entry.title.to_lowercase().contains(&needle)
-        || entry.subtitle.to_lowercase().contains(&needle)
-        || entry
-            .keywords
-            .iter()
-            .any(|k| k.to_lowercase().contains(&needle))
+/// The hit for an entry of `app`, its title labelled from the kind's declared trust.
+fn hit_of(st: &RouterState, app: &AppName, entry: &IndexEntry) -> Hit {
+    let label = title_label(st, app, entry);
+    Hit {
+        entity: EntityRef {
+            id: EntityId {
+                app: app.clone(),
+                kind: entry.kind.clone(),
+                key: entry.key.clone(),
+            },
+            title: Labelled {
+                value: entry.title.clone(),
+                label: label.clone(),
+            },
+            subtitle: Labelled {
+                value: entry.subtitle.clone(),
+                label,
+            },
+        },
+        why: None,
+    }
 }
 
 impl<S: Seams> Router<S> {
@@ -103,32 +118,15 @@ impl<S: Seams> Router<S> {
         }
     }
 
-    /// `.Search.Query`: the shadow index first, then each app that holds kinds it does not
-    /// index. A caller that can wait for the second part (a transport with no late signal)
-    /// gets both in one answer; the bus answers the first at once and sends the second as
-    /// `Hits` (see [`Router::search_indexed`] and [`Router::search_late`]).
-    pub(crate) async fn search_query(&self, role: CallerRole, ask: SearchAsk) -> IntentsReply {
-        let mut hits = self.indexed_hits(&ask);
-        hits.extend(self.live_hits(&ask).await);
-        if role == CallerRole::Companion {
-            self.show_entities(hits.iter().map(|h| h.entity.id.clone()));
-        }
-        IntentsReply::Hits(hits)
+    /// `.Search.Query`: the hits of the index, best match first.
+    pub(crate) fn search_query(&self, role: CallerRole, ask: SearchAsk) -> IntentsReply {
+        IntentsReply::Hits(self.search_indexed(role, &ask))
     }
 
-    /// The hits of the shadow index alone: what a search can answer without waking an app.
+    /// The hits of the index: pushed and shipped entries, best match first and newest first
+    /// among equals. No app is asked.
     pub fn search_indexed(&self, role: CallerRole, ask: &SearchAsk) -> Vec<Hit> {
         let hits = self.indexed_hits(ask);
-        if role == CallerRole::Companion {
-            self.show_entities(hits.iter().map(|h| h.entity.id.clone()));
-        }
-        hits
-    }
-
-    /// The hits of the apps that hold kinds they do not index: the part of a search that has to
-    /// ask each app, and so may come late. Only apps already running are asked.
-    pub async fn search_late(&self, role: CallerRole, ask: &SearchAsk) -> Vec<Hit> {
-        let hits = self.live_hits(ask).await;
         if role == CallerRole::Companion {
             self.show_entities(hits.iter().map(|h| h.entity.id.clone()));
         }
@@ -141,79 +139,26 @@ impl<S: Seams> Router<S> {
             SearchScope::Everything => true,
             SearchScope::Kind(k) => k == kind,
         };
-        st.shadow
-            .iter()
-            .flat_map(|(app, entries)| {
-                entries
-                    .values()
-                    .filter(|e| wanted(&e.kind) && matches(e, &ask.text))
-                    .map(|e| {
-                        let label = title_label(&st, app, e);
-                        Hit {
-                            entity: EntityRef {
-                                id: EntityId {
-                                    app: app.clone(),
-                                    kind: e.kind.clone(),
-                                    key: e.key.clone(),
-                                },
-                                title: Labelled {
-                                    value: e.title.clone(),
-                                    label: label.clone(),
-                                },
-                                subtitle: Labelled {
-                                    value: e.subtitle.clone(),
-                                    label,
-                                },
-                            },
-                            why: None,
-                        }
-                    })
+        let apps: BTreeSet<&AppName> = st.shadow.keys().chain(st.shipped.keys()).collect();
+        let mut found: Vec<(Rank, UnixSeconds, Hit)> = apps
+            .into_iter()
+            .flat_map(|app| {
+                let pushed = st.shadow.get(app);
+                // A shipped entry gives way to a pushed one of the same kind and key.
+                let own = st.shipped.get(app).into_iter().flat_map(|all| all.iter());
+                let own = own.filter(|(id, _)| !pushed.is_some_and(|p| p.contains_key(*id)));
+                pushed
+                    .into_iter()
+                    .flat_map(|p| p.values())
+                    .chain(own.map(|(_, e)| e))
+                    .filter(|e| wanted(&e.kind))
+                    .filter_map(|e| Some((rank_of(e, &ask.text)?, e)))
+                    .map(|(rank, e)| (rank, e.updated, hit_of(&st, app, e)))
                     .collect::<Vec<_>>()
             })
-            .collect()
-    }
-
-    async fn live_hits(&self, ask: &SearchAsk) -> Vec<Hit> {
-        let live: Vec<(AppName, BTreeSet<EntityKind>)> = {
-            let st = self.locked();
-            let wanted = |kind: &EntityKind| match &ask.scope {
-                SearchScope::Everything => true,
-                SearchScope::Kind(k) => k == kind,
-            };
-            st.registry
-                .all()
-                .map(|m| {
-                    let kinds: BTreeSet<EntityKind> = m
-                        .manifest()
-                        .entities
-                        .iter()
-                        .filter(|e| e.index == IndexPolicy::NotIndexed && wanted(&e.kind))
-                        .map(|e| e.kind.clone())
-                        .collect();
-                    (m.manifest().app.clone(), kinds)
-                })
-                .filter(|(_, kinds)| !kinds.is_empty())
-                .collect()
-        };
-        let mut hits = Vec::new();
-        for (app, kinds) in live {
-            if !self.seams.link().running(&app).await {
-                continue;
-            }
-            if let Ok(found) = self
-                .seams
-                .link()
-                .search(&app, &ask.text, ask.generation)
-                .await
-            {
-                hits.extend(
-                    found
-                        .into_iter()
-                        .filter(|h| kinds.contains(&h.entity.id.kind)),
-                );
-            }
-        }
-        hits
+            .collect();
+        found.sort_by_key(|(rank, updated, _)| (*rank, std::cmp::Reverse(*updated)));
+        found.into_iter().map(|(_, _, hit)| hit).collect()
     }
 
     /// `.Run.Preview`.

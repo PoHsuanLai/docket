@@ -110,14 +110,6 @@ impl AppLink for ChainLink {
     ) -> Result<ContextSnapshot, LinkFault> {
         Err(LinkFault::Unavailable)
     }
-    async fn search(
-        &self,
-        _: &porter_core::AppName,
-        _: &str,
-        _: Generation,
-    ) -> Result<Vec<Hit>, LinkFault> {
-        Err(LinkFault::Unavailable)
-    }
     async fn preview(
         &self,
         _: &porter_core::AppName,

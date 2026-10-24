@@ -238,7 +238,7 @@ impl<T: Transport> Intents<T> {
         .await
     }
 
-    /// Searches; late hits arrive on the transport's signal path.
+    /// Searches the router's index; the answer is complete, no hits come later.
     pub async fn search(&self, ask: SearchAsk) -> Result<Vec<Hit>, ClientError> {
         self.ask(IntentsRequest::Search(ask), |r| match r {
             IntentsReply::Hits(h) => Some(h),

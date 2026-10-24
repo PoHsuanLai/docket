@@ -69,7 +69,6 @@ impl SearchBus {
         scope: String,
         generation: u64,
         #[zbus(header)] header: Header<'_>,
-        #[zbus(connection)] connection: &zbus::Connection,
     ) -> Result<String, IntentsError> {
         let ask = docket_core::SearchAsk {
             text,
@@ -77,12 +76,9 @@ impl SearchBus {
             generation: Generation(generation),
         };
         let caller = self.0.caller(&header).await?;
-        let indexed = (self.0.search.indexed)(caller.clone(), &ask)
+        let hits = (self.0.search)(caller, &ask)
             .ok_or_else(|| IntentsError::NotAllowed("not for this caller".into()))?;
-        if let Some(sender) = header.sender().map(|s| s.to_string()) {
-            self.0.late_hits(connection.clone(), sender, caller, ask);
-        }
-        super::render(&indexed)
+        super::render(&hits)
     }
 
     async fn cancel(
@@ -90,9 +86,6 @@ impl SearchBus {
         generation: u64,
         #[zbus(header)] header: Header<'_>,
     ) -> Result<(), IntentsError> {
-        if let Some(sender) = header.sender().map(|s| s.to_string()) {
-            self.0.cancel_search(&sender, generation);
-        }
         self.0
             .done(
                 &header,

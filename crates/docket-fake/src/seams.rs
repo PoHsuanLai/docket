@@ -13,8 +13,8 @@ use docket_checkpoint::MemoryStore;
 use docket_client::IntentProvider;
 use docket_core::PolicyWriter;
 use docket_core::{
-    AppRefusal, ContextScope, ContextSnapshot, EntityRef, Generation, Hit, Invocation, Latency,
-    Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
+    AppRefusal, ContextScope, ContextSnapshot, EntityRef, Invocation, Latency, Outcome, Preview,
+    SuggestAsk, UndoFault, UndoToken,
 };
 use docket_router::{AppFault, AppLink, Clock, LinkFault, Seams};
 use porter_core::AppName;
@@ -51,8 +51,6 @@ pub struct FakeLink {
     pub window: Mutex<Option<ContextSnapshot>>,
     /// Every invocation the router sent to `Perform`, in order.
     pub performed: Mutex<Vec<docket_core::ActivatedInvocation>>,
-    /// Every app the router asked to `Search`, in order.
-    pub searched: Mutex<Vec<AppName>>,
     /// The built-in `org.quire.Companion` provider, once a test has attached the router that
     /// hosts it (`host_companion`); until then the app is unavailable.
     companion: Hosted,
@@ -97,15 +95,13 @@ impl FakeLink {
             answering: Mutex::new(BTreeMap::new()),
             window: Mutex::new(None),
             performed: Mutex::new(Vec::new()),
-            searched: Mutex::new(Vec::new()),
             companion: Hosted::default(),
             hosted: Mutex::new(BTreeMap::new()),
         }
     }
 
     /// Forgets what a case left in the apps and in the link itself: the mail, files and menu
-    /// data, the apps made unreachable, the window, the invocations performed and the apps
-    /// searched. Apps a test
+    /// data, the apps made unreachable, the window and the invocations performed. Apps a test
     /// hosts stay, like the manifests do.
     pub fn clear(&self) {
         self.mail.clear();
@@ -119,9 +115,6 @@ impl FakeLink {
         }
         if let Ok(mut performed) = self.performed.lock() {
             performed.clear();
-        }
-        if let Ok(mut searched) = self.searched.lock() {
-            searched.clear();
         }
     }
 
@@ -304,24 +297,6 @@ impl AppLink for FakeLink {
             .and_then(|window| window.clone())
             .filter(|snapshot| snapshot.app == *app)
             .ok_or(LinkFault::Unavailable)
-    }
-
-    async fn search(
-        &self,
-        app: &AppName,
-        text: &str,
-        _generation: Generation,
-    ) -> Result<Vec<Hit>, LinkFault> {
-        if let Ok(mut searched) = self.searched.lock() {
-            searched.push(app.clone());
-        }
-        if self.is_mail(app) {
-            Ok(self.mail.search(text).await)
-        } else if self.is_files(app) {
-            Ok(self.files.search(text).await)
-        } else {
-            Err(LinkFault::Unavailable)
-        }
     }
 
     async fn preview(&self, app: &AppName, id: &EntityId) -> Result<Preview, LinkFault> {

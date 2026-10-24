@@ -118,9 +118,11 @@ pub const RELATION_ARG: &str = "relation";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IndexPolicy {
-    /// Searched live through the app.
+    /// Not found by the launcher: nothing is pushed or shipped for it, and a search never asks
+    /// the app.
     NotIndexed,
-    /// Pushed to the router, per app opt-out.
+    /// Pushed to the router while the app runs, or shipped in its search file, and found by the
+    /// launcher from the index.
     Indexed,
 }
 

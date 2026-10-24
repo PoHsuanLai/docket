@@ -138,7 +138,7 @@ impl<S: Seams> Router<S> {
             R::Manifests => self.manifests(),
             R::IndexPush(batch) => self.index_push(caller, batch),
             R::IndexReset { epoch } => self.index_reset(caller, epoch),
-            R::Search(ask) => self.search_query(role, ask).await,
+            R::Search(ask) => self.search_query(role, ask),
             R::SearchCancel(_) => IntentsReply::Done,
             R::Perform {
                 call,

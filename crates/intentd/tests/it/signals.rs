@@ -1,7 +1,7 @@
 //! The signals that say something changed inside the router: the difference between two looks at
 //! its state (`changes`), and what a running daemon says on a private bus when a manifest file
-//! appears, a task starts, the breaker pauses a session and a search has late hits. Signals are
-//! content-free: a name, a count, an id.
+//! appears, a task starts, the breaker pauses a session. Signals are content-free: a name, a
+//! count, an id. (Also: a caller that may not search is refused.)
 
 use crate::support::world::{World, everything_config, mail_router};
 use docket_core::*;
@@ -262,57 +262,7 @@ async fn a_message_for_an_agent_is_an_arrival_for_that_agent_only_while_it_waits
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn late_hits_come_to_the_asker_alone_as_the_hits_signal() {
-    let router = mail_router();
-    // Mail's threads are not indexed here, so a search has to ask the app.
-    let unindexed =
-        docket_fake::MAIL_MANIFEST.replace("index = \"indexed\"", "index = \"not_indexed\"");
-    router
-        .state
-        .lock()
-        .expect("lock")
-        .registry
-        .insert(docket_router::parse(&unindexed).expect("manifest"));
-    let world = World::serving(router, everything_config()).await;
-    let (_, asker) = world.client(&[crate::support::world::EVERYTHING]).await;
-    let (_, bystander) = world.client(&["org.quire.Bystander"]).await;
-
-    let mine = docket_dbus::SearchProxy::new(&asker).await.expect("proxy");
-    let theirs = docket_dbus::SearchProxy::new(&bystander)
-        .await
-        .expect("proxy");
-    let mut late = mine.receive_hits().await.expect("subscribed");
-    let mut not_for_me = theirs.receive_hits().await.expect("subscribed");
-
-    let scope = serde_json::to_string(&SearchScope::Everything).expect("scope");
-    let at_once = mine.query("Invoice", &scope, 7).await.expect("the answer");
-    let indexed: Vec<Hit> = serde_json::from_str(&at_once).expect("hits");
-    assert!(
-        indexed.is_empty(),
-        "nothing is indexed; the app is asked: {indexed:?}"
-    );
-
-    use futures_util::StreamExt;
-    let signal = tokio::time::timeout(std::time::Duration::from_secs(5), late.next())
-        .await
-        .expect("late hits arrive")
-        .expect("a signal");
-    let args = signal.args().expect("args");
-    assert_eq!(*args.generation(), 7);
-    let hits: Vec<Hit> = serde_json::from_str(args.hits()).expect("hits");
-    assert_eq!(hits.len(), 1);
-    assert_eq!(hits[0].entity.id.key.as_str(), "t1");
-
-    assert!(
-        tokio::time::timeout(std::time::Duration::from_millis(300), not_for_me.next())
-            .await
-            .is_err(),
-        "somebody else's search results are not for the bystander"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_caller_that_may_not_search_gets_no_hits_early_or_late() {
+async fn a_caller_that_may_not_search_gets_no_hits() {
     // The reader may resolve a handle and do nothing else: searching is not its business.
     let mut config = everything_config();
     config.roles.insert(

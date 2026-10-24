@@ -2,8 +2,8 @@
 //! after checking that the name's owner is the person's own process.
 
 use docket_core::{
-    AppRefusal, ContextScope, ContextSnapshot, EntityRef, FailText, Generation, Hit, Invocation,
-    Latency, Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
+    AppRefusal, ContextScope, ContextSnapshot, EntityRef, FailText, Invocation, Latency, Outcome,
+    Preview, SuggestAsk, UndoFault, UndoToken,
 };
 use docket_dbus::{BusConnection, Details, IntentProviderProxy};
 use docket_router::{AppFault, AppLink, LinkFault};
@@ -26,7 +26,7 @@ const QUICK: Duration = Duration::from_secs(5);
 const LONG: Duration = Duration::from_secs(600);
 /// How long starting an app that is not running may take.
 const ACTIVATION: Duration = Duration::from_secs(10);
-/// What a search, a preview, a suggestion or a context may take.
+/// What a preview, a suggestion or a context may take.
 const READ: Duration = Duration::from_secs(5);
 
 /// Whether a call may start an app that is not running: an action may, a lookup never does.
@@ -287,21 +287,6 @@ impl AppLink for DbusLink {
             })
             .await?;
         read(&text)
-    }
-
-    async fn search(
-        &self,
-        app: &AppName,
-        text: &str,
-        generation: Generation,
-    ) -> Result<Vec<Hit>, LinkFault> {
-        let text = text.to_owned();
-        let answered = self
-            .ask(app, Wake::IfRunning, INSTANT, |p| async move {
-                p.search(&text, generation.0).await
-            })
-            .await?;
-        read(&answered)
     }
 
     async fn preview(&self, app: &AppName, id: &EntityId) -> Result<Preview, LinkFault> {

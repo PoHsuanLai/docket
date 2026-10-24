@@ -200,6 +200,8 @@ pub struct RouterState {
     pub index: BTreeMap<AppName, IndexState>,
     /// The entries each app pushed.
     pub shadow: BTreeMap<AppName, BTreeMap<(EntityKind, EntityKey), IndexEntry>>,
+    /// The entries each app ships in its search file: a `Reset` never touches them.
+    pub shipped: BTreeMap<AppName, BTreeMap<(EntityKind, EntityKey), IndexEntry>>,
     /// The session an app or MCP client that opened none acts in.
     pub implicit: BTreeMap<(CallerRole, AppName), SessionId>,
     /// Messages for a party with no session of its own (the person), by address.
@@ -236,6 +238,7 @@ impl RouterState {
             },
             index: BTreeMap::new(),
             shadow: BTreeMap::new(),
+            shipped: BTreeMap::new(),
             implicit: BTreeMap::new(),
             inboxes: BTreeMap::new(),
             pending: BTreeMap::new(),

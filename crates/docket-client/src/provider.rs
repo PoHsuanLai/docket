@@ -56,7 +56,8 @@ pub trait IntentProvider: Send + Sync {
         token: UndoToken,
         actor: Actor,
     ) -> impl Future<Output = Result<(), UndoFault>> + Send;
-    /// Searches kinds the app does not index.
+    /// Searches kinds the app does not index. The router no longer calls this: the launcher
+    /// searches its index only.
     fn search(&self, text: &str) -> impl Future<Output = Vec<Hit>> + Send;
     /// A preview of one thing.
     fn preview(&self, id: &EntityId) -> impl Future<Output = Preview> + Send;

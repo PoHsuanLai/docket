@@ -1,9 +1,10 @@
 //! Serving the bus.
 
 use crate::acp_gate::AcpGate;
-use crate::bus::{Gateway, Handler, SearchPort, export};
+use crate::bus::{Gateway, Handler, IndexedSearch, export};
 use crate::callers;
 use crate::config::IntentdConfig;
+use crate::index_files::IndexStore;
 use crate::peer::Peers;
 use docket_core::{CallerId, IntentsReply, IntentsRequest, Member};
 use docket_dbus::callers::Identity;
@@ -27,39 +28,36 @@ fn bus(error: zbus::Error) -> ServeFault {
     ServeFault::Bus(error.to_string())
 }
 
-/// The router as the bus hands it requests.
-fn handler<S: Seams + 'static>(router: Arc<Router<S>>) -> Handler {
+/// The router as the bus hands it requests. After an app's `Index.Reset` or `Index.Push` is done,
+/// what it has pushed is kept in `store`, outside the router's lock.
+fn handler<S: Seams + 'static>(router: Arc<Router<S>>, store: Option<IndexStore>) -> Handler {
     Arc::new(
         move |caller: CallerId, request: IntentsRequest, watch: Watch| {
-            let router = router.clone();
-            let reply: Pin<Box<dyn Future<Output = IntentsReply> + Send>> =
-                Box::pin(async move { router.handle_watched(&caller, request, watch).await });
+            let (router, store) = (router.clone(), store.clone());
+            let pushes = matches!(
+                request,
+                IntentsRequest::IndexPush(_) | IntentsRequest::IndexReset { .. }
+            );
+            let reply: Pin<Box<dyn Future<Output = IntentsReply> + Send>> = Box::pin(async move {
+                let reply = router.handle_watched(&caller, request, watch).await;
+                if let (true, IntentsReply::Done, Some(store)) = (pushes, &reply, store) {
+                    let (router, app) = (router.clone(), caller.app.name.clone());
+                    // A failed join is a panic in the write; the reply stands either way.
+                    let _ = tokio::task::spawn_blocking(move || store.save(&*router, &app)).await;
+                }
+                reply
+            });
             reply
         },
     )
 }
 
-/// The router's search as the bus asks it: the index at once, the apps that hold kinds they do
-/// not index afterwards.
-fn search_port<S: Seams + 'static>(router: Arc<Router<S>>) -> SearchPort {
-    let now = router.clone();
-    SearchPort {
-        indexed: Arc::new(move |caller, ask| {
-            let role = acting_role(&caller.roles, Member::SearchQuery)?;
-            Some(now.search_indexed(role, ask))
-        }),
-        late: Arc::new(move |caller, ask| {
-            let router = router.clone();
-            let work: Pin<Box<dyn Future<Output = Vec<docket_core::Hit>> + Send>> =
-                Box::pin(async move {
-                    match acting_role(&caller.roles, Member::SearchQuery) {
-                        Some(role) => router.search_late(role, &ask).await,
-                        None => Vec::new(),
-                    }
-                });
-            work
-        }),
-    }
+/// The router's search as the bus asks it: the index, for a caller whose role may search.
+fn search_port<S: Seams + 'static>(router: Arc<Router<S>>) -> IndexedSearch {
+    Arc::new(move |caller, ask| {
+        let role = acting_role(&caller.roles, Member::SearchQuery)?;
+        Some(router.search_indexed(role, ask))
+    })
 }
 
 /// Exports every interface of `org.quire.Intents1` on `connection` over `router` and claims the
@@ -87,11 +85,21 @@ pub async fn serve_on_with<S: Seams + 'static>(
         callers::shipped(),
         proc_root.fixture(),
     ));
-    serve_on_gated(connection, router, config, who, proc_root, AcpGate::shut()).await
+    serve_on_gated(
+        connection,
+        router,
+        config,
+        who,
+        proc_root,
+        AcpGate::shut(),
+        None,
+    )
+    .await
 }
 
 /// As [`serve_on_with`], with callers named by `who` (the daemon's table) and `org.quire.Acp` an
-/// app only while `acp` shows the setting on.
+/// app only while `acp` shows the setting on. With an `index` store, what each app pushes is kept
+/// in it.
 pub async fn serve_on_gated<S: Seams + 'static>(
     connection: &BusConnection,
     router: Arc<Router<S>>,
@@ -99,14 +107,13 @@ pub async fn serve_on_gated<S: Seams + 'static>(
     who: Arc<Identity>,
     proc_root: &ProcRoot,
     acp: AcpGate,
+    index: Option<IndexStore>,
 ) -> Result<(), ServeFault> {
     let gateway = Gateway::new(
-        handler(router.clone()),
+        handler(router.clone(), index),
         search_port(router),
         Peers::gated(connection.clone(), config, who, proc_root, acp),
     );
-    // Before the interfaces are exported, so no peer can leave unwatched.
-    gateway.forget_leavers(connection).await.map_err(bus)?;
     export(connection, &gateway).await.map_err(bus)?;
     // Never queued behind another intentd: two routers would be two breakers and two journals.
     let reply = connection

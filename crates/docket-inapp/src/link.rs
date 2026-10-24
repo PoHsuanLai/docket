@@ -3,8 +3,8 @@
 
 use docket_client::{ContextSource, IntentProvider};
 use docket_core::{
-    AppRefusal, ClassifyFault, ContextScope, ContextSnapshot, EntityRef, Generation, Hit,
-    Invocation, Latency, Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
+    AppRefusal, ClassifyFault, ContextScope, ContextSnapshot, EntityRef, Invocation, Latency,
+    Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
 };
 use docket_router::{AppFault, AppLink, LinkFault};
 use porter_core::AppName;
@@ -102,18 +102,6 @@ impl<P: IntentProvider, C: ContextSource> AppLink for ProviderLink<P, C> {
             return Err(LinkFault::Unavailable);
         }
         Ok(self.context.snapshot(scope))
-    }
-
-    async fn search(
-        &self,
-        app: &AppName,
-        text: &str,
-        _generation: Generation,
-    ) -> Result<Vec<Hit>, LinkFault> {
-        if !self.is_ours(app) {
-            return Err(LinkFault::Unavailable);
-        }
-        Ok(self.provider.search(text).await)
     }
 
     async fn preview(&self, app: &AppName, id: &EntityId) -> Result<Preview, LinkFault> {
