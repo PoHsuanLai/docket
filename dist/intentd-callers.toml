@@ -10,6 +10,7 @@
 #   role "sheet_host" + app org.quire.Shell      -> sill: launcher, confirm and control
 #   role "cua"        + app org.quire.Cua1       -> cuad
 #   role "agent"      + the daemons' apps        -> companiond, readerd, actions-mcp, docket-acp, docket-agent
+#   role "app"        + an app's own service -> org.quire.Mail.service (mailo intents)
 #
 # A scope never carries a fixed role, so the shell is sill.service and nothing else. docket-acp and
 # docket-agent are started by an editor, not by systemd: their rows are scopes they are started in
@@ -63,3 +64,11 @@ exe = ["/usr/bin/docket-agent", "/usr/local/bin/docket-agent", "/opt/quire/relea
 app = "org.quire.AcpAgent"
 unit = "docket-agent.service"
 role = "agent"
+
+# An app's own service the bus starts (D-Bus `SystemdService=`): Mail's `mailo intents`, which
+# answers the router and pushes Mail's things to the launcher's index. A plain app and no more; its
+# window is the same app through its app scope (`app-…-org.quire.Mail-<n>.scope`) and needs no row.
+[[caller]]
+app = "org.quire.Mail"
+unit = "org.quire.Mail.service"
+role = "app"
