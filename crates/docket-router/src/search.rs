@@ -8,7 +8,7 @@ use crate::index::IndexEvent;
 use crate::labels::app_label;
 use crate::reading::link_refusal;
 use crate::router::Router;
-use crate::seams::{AppLink, Seams};
+use crate::seams::{AppLink, LinkFault, Seams};
 use crate::state::RouterState;
 use docket_core::{
     CallerId, CallerRole, EntityRef, Hit, IndexBatch, IndexEntry, IndexPolicy, IntentsReply,
@@ -126,7 +126,7 @@ impl<S: Seams> Router<S> {
     }
 
     /// The hits of the apps that hold kinds they do not index: the part of a search that has to
-    /// ask each app, and so may come late.
+    /// ask each app, and so may come late. Only apps already running are asked.
     pub async fn search_late(&self, role: CallerRole, ask: &SearchAsk) -> Vec<Hit> {
         let hits = self.live_hits(ask).await;
         if role == CallerRole::Companion {
@@ -197,6 +197,9 @@ impl<S: Seams> Router<S> {
         };
         let mut hits = Vec::new();
         for (app, kinds) in live {
+            if !self.seams.link().running(&app).await {
+                continue;
+            }
             if let Ok(found) = self
                 .seams
                 .link()
@@ -215,6 +218,12 @@ impl<S: Seams> Router<S> {
 
     /// `.Run.Preview`.
     pub(crate) async fn run_preview(&self, id: &EntityId) -> IntentsReply {
+        if !self.seams.link().running(&id.app).await {
+            return refuse(WireRefusal::Call(link_refusal(
+                LinkFault::Unavailable,
+                &id.app,
+            )));
+        }
         match self.seams.link().preview(&id.app, id).await {
             Ok(preview) => IntentsReply::Preview(preview),
             Err(fault) => refuse(WireRefusal::Call(link_refusal(fault, &id.app))),

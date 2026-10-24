@@ -29,6 +29,15 @@ const ACTIVATION: Duration = Duration::from_secs(10);
 /// What a search, a preview, a suggestion or a context may take.
 const READ: Duration = Duration::from_secs(5);
 
+/// Whether a call may start an app that is not running: an action may, a lookup never does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Wake {
+    /// Start the app by bus activation if its name has no owner.
+    Start,
+    /// Ask only an app that is running; one that is not is unavailable.
+    IfRunning,
+}
+
 /// `AppLink` over the session bus.
 #[derive(Debug, Clone)]
 pub struct DbusLink {
@@ -100,14 +109,21 @@ impl DbusLink {
         Self { connection }
     }
 
-    /// Starts the app if its name has no owner, and checks that the owner is the person's own
-    /// process.
-    async fn proxy(&self, app: &AppName) -> Result<IntentProviderProxy<'static>, LinkFault> {
+    /// Starts the app if its name has no owner and `wake` allows it, and checks that the owner
+    /// is the person's own process.
+    async fn proxy(
+        &self,
+        app: &AppName,
+        wake: Wake,
+    ) -> Result<IntentProviderProxy<'static>, LinkFault> {
         let dbus = DBusProxy::new(&self.connection)
             .await
             .map_err(|_| LinkFault::Unavailable)?;
         let name = BusName::try_from(app.to_string()).map_err(|_| LinkFault::Malformed)?;
         let owned = dbus.name_has_owner(name.clone()).await.unwrap_or(false);
+        if !owned && wake == Wake::IfRunning {
+            return Err(LinkFault::Unavailable);
+        }
         if !owned {
             let started = dbus.start_service_by_name(
                 name.clone().try_into().map_err(|_| LinkFault::Malformed)?,
@@ -131,6 +147,7 @@ impl DbusLink {
     async fn ask<F, Fut>(
         &self,
         app: &AppName,
+        wake: Wake,
         within: Duration,
         call: F,
     ) -> Result<String, LinkFault>
@@ -138,7 +155,7 @@ impl DbusLink {
         F: FnOnce(IntentProviderProxy<'static>) -> Fut,
         Fut: Future<Output = zbus::Result<String>>,
     {
-        let proxy = self.proxy(app).await?;
+        let proxy = self.proxy(app, wake).await?;
         match tokio::time::timeout(within, call(proxy)).await {
             Ok(Ok(text)) => Ok(text),
             Ok(Err(error)) => Err(fault_of(&error)),
@@ -176,7 +193,7 @@ impl AppLink for DbusLink {
         use docket_core::ClassifyFault as Fault;
         let text = json(&inv).map_err(|_| Fault::Unavailable)?;
         let answered = self
-            .ask(app, READ, |p| async move {
+            .ask(app, Wake::Start, READ, |p| async move {
                 p.classify(&text, &Details::new()).await
             })
             .await;
@@ -204,7 +221,7 @@ impl AppLink for DbusLink {
         };
         let text = json(&delivered).map_err(|_| AppRefusal::Unsupported)?;
         let answered = self
-            .ask(app, budget(within), |p| async move {
+            .ask(app, Wake::Start, budget(within), |p| async move {
                 p.perform(&text, &Details::new()).await
             })
             .await;
@@ -221,7 +238,7 @@ impl AppLink for DbusLink {
     async fn dry_run(&self, app: &AppName, inv: Invocation) -> Result<Preview, AppRefusal> {
         let text = json(&inv).map_err(|_| AppRefusal::Unsupported)?;
         let answered = self
-            .ask(app, QUICK, |p| async move {
+            .ask(app, Wake::Start, QUICK, |p| async move {
                 p.dry_run(&text, &Details::new()).await
             })
             .await;
@@ -236,13 +253,25 @@ impl AppLink for DbusLink {
             return Err(UndoFault::AppUnavailable);
         };
         let answered = self
-            .ask(app, QUICK, |p| async move { p.undo(&token, &actor).await })
+            .ask(app, Wake::Start, QUICK, |p| async move {
+                p.undo(&token, &actor).await
+            })
             .await;
         match answered {
             Ok(text) => {
                 read::<Result<(), UndoFault>>(&text).map_err(|_| UndoFault::AppUnavailable)?
             }
             Err(_) => Err(UndoFault::AppUnavailable),
+        }
+    }
+
+    async fn running(&self, app: &AppName) -> bool {
+        let Ok(name) = BusName::try_from(app.to_string()) else {
+            return false;
+        };
+        match DBusProxy::new(&self.connection).await {
+            Ok(dbus) => dbus.name_has_owner(name).await.unwrap_or(false),
+            Err(_) => false,
         }
     }
 
@@ -253,7 +282,9 @@ impl AppLink for DbusLink {
     ) -> Result<ContextSnapshot, LinkFault> {
         let scope = json(&scope)?;
         let text = self
-            .ask(app, READ, |p| async move { p.context(&scope).await })
+            .ask(app, Wake::IfRunning, READ, |p| async move {
+                p.context(&scope).await
+            })
             .await?;
         read(&text)
     }
@@ -266,7 +297,7 @@ impl AppLink for DbusLink {
     ) -> Result<Vec<Hit>, LinkFault> {
         let text = text.to_owned();
         let answered = self
-            .ask(app, INSTANT, |p| async move {
+            .ask(app, Wake::IfRunning, INSTANT, |p| async move {
                 p.search(&text, generation.0).await
             })
             .await?;
@@ -276,7 +307,9 @@ impl AppLink for DbusLink {
     async fn preview(&self, app: &AppName, id: &EntityId) -> Result<Preview, LinkFault> {
         let id = json(id)?;
         let text = self
-            .ask(app, READ, |p| async move { p.preview(&id).await })
+            .ask(app, Wake::IfRunning, READ, |p| async move {
+                p.preview(&id).await
+            })
             .await?;
         read(&text)
     }
@@ -284,7 +317,12 @@ impl AppLink for DbusLink {
     async fn suggest(&self, app: &AppName, ask: SuggestAsk) -> Result<Vec<EntityRef>, LinkFault> {
         let ask = json(&ask)?;
         let text = self
-            .ask(app, READ, |p| async move { p.suggest(&ask).await })
+            .ask(
+                app,
+                Wake::Start,
+                READ,
+                |p| async move { p.suggest(&ask).await },
+            )
             .await?;
         read(&text)
     }

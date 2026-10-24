@@ -31,6 +31,9 @@ pub enum Answering {
     Silent,
     /// It is not there (not installed, or it does not start): the call is refused as unavailable.
     Absent,
+    /// It is installed but not running: a lookup (search, preview, context) skips it, and an
+    /// action starts it and is answered.
+    Stopped,
 }
 
 /// Routes the router's calls to the fake apps by bus name.
@@ -48,6 +51,8 @@ pub struct FakeLink {
     pub window: Mutex<Option<ContextSnapshot>>,
     /// Every invocation the router sent to `Perform`, in order.
     pub performed: Mutex<Vec<docket_core::ActivatedInvocation>>,
+    /// Every app the router asked to `Search`, in order.
+    pub searched: Mutex<Vec<AppName>>,
     /// The built-in `org.quire.Companion` provider, once a test has attached the router that
     /// hosts it (`host_companion`); until then the app is unavailable.
     companion: Hosted,
@@ -92,13 +97,15 @@ impl FakeLink {
             answering: Mutex::new(BTreeMap::new()),
             window: Mutex::new(None),
             performed: Mutex::new(Vec::new()),
+            searched: Mutex::new(Vec::new()),
             companion: Hosted::default(),
             hosted: Mutex::new(BTreeMap::new()),
         }
     }
 
     /// Forgets what a case left in the apps and in the link itself: the mail, files and menu
-    /// data, the apps made unreachable, the window, and the invocations performed. Apps a test
+    /// data, the apps made unreachable, the window, the invocations performed and the apps
+    /// searched. Apps a test
     /// hosts stay, like the manifests do.
     pub fn clear(&self) {
         self.mail.clear();
@@ -112,6 +119,9 @@ impl FakeLink {
         }
         if let Ok(mut performed) = self.performed.lock() {
             performed.clear();
+        }
+        if let Ok(mut searched) = self.searched.lock() {
+            searched.clear();
         }
     }
 
@@ -225,7 +235,7 @@ impl AppLink for FakeLink {
         match how {
             Some(Answering::Silent) => return Err(AppFault::TimedOut),
             Some(Answering::Absent) => return Err(AppFault::Unavailable),
-            Some(Answering::Normal) | None => {}
+            Some(Answering::Normal | Answering::Stopped) | None => {}
         }
         if self.is_mail(app) {
             self.mail.perform(inv).await.map_err(AppFault::Refused)
@@ -272,6 +282,15 @@ impl AppLink for FakeLink {
         }
     }
 
+    async fn running(&self, app: &AppName) -> bool {
+        let how = self
+            .answering
+            .lock()
+            .ok()
+            .and_then(|all| all.get(app).copied());
+        !matches!(how, Some(Answering::Stopped | Answering::Absent))
+    }
+
     async fn context(
         &self,
         app: &AppName,
@@ -293,6 +312,9 @@ impl AppLink for FakeLink {
         text: &str,
         _generation: Generation,
     ) -> Result<Vec<Hit>, LinkFault> {
+        if let Ok(mut searched) = self.searched.lock() {
+            searched.push(app.clone());
+        }
         if self.is_mail(app) {
             Ok(self.mail.search(text).await)
         } else if self.is_files(app) {

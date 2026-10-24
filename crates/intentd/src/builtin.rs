@@ -192,6 +192,14 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         }
     }
 
+    async fn running(&self, app: &AppName) -> bool {
+        match host_of(app) {
+            // Hosted in intentd itself, so running whenever the router is.
+            Host::Memory | Host::Companion | Host::Checkpoints => true,
+            Host::Installed => self.apps.running(app).await,
+        }
+    }
+
     async fn context(
         &self,
         app: &AppName,

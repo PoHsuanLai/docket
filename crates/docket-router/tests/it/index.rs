@@ -251,3 +251,39 @@ async fn a_hit_is_opened_by_its_kinds_open_action_performed_as_the_launcher() {
         "opening reads: nothing asks"
     );
 }
+
+#[tokio::test]
+async fn a_search_or_a_preview_asks_only_the_apps_already_running() {
+    use docket_fake::Answering;
+    let router = router();
+    let mail = app("org.quire.Mail");
+    let files = app("org.quire.Files");
+    router.seams.link.answer_from(&mail, Answering::Stopped);
+    router.seams.link.answer_from(&files, Answering::Stopped);
+    // Typing in the launcher starts no app: neither is running, so neither is asked.
+    ask(&router, &launcher(), query("lisbon")).await;
+    let searched = router.seams.link.searched.lock().expect("lock").clone();
+    assert!(
+        !searched.contains(&mail) && !searched.contains(&files),
+        "an app without an owner is not searched: {searched:?}"
+    );
+    let file = prov::EntityId {
+        app: files.clone(),
+        kind: EntityKind::parse("files.file").expect("kind"),
+        key: EntityKey::parse("f1").expect("key"),
+    };
+    assert!(
+        matches!(
+            ask(&router, &launcher(), IntentsRequest::Preview(file)).await,
+            IntentsReply::Refused(WireRefusal::Call(CallRefusal::AppUnavailable(_)))
+        ),
+        "nor is it started for a preview"
+    );
+    router.seams.link.answer_from(&files, Answering::Normal);
+    ask(&router, &launcher(), query("lisbon")).await;
+    let searched = router.seams.link.searched.lock().expect("lock").clone();
+    assert!(
+        searched.contains(&files) && !searched.contains(&mail),
+        "a running app is searched: {searched:?}"
+    );
+}

@@ -100,6 +100,9 @@ impl AppLink for ChainLink {
     ) -> Result<(), UndoFault> {
         Err(UndoFault::AppUnavailable)
     }
+    async fn running(&self, _: &porter_core::AppName) -> bool {
+        true
+    }
     async fn context(
         &self,
         _: &porter_core::AppName,

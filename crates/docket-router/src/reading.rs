@@ -194,6 +194,12 @@ impl<S: Seams> Router<S> {
         if !self.locked().sessions.contains_key(id) {
             return refuse(WireRefusal::NoSuchSession);
         }
+        if !self.seams.link().running(&app).await {
+            return refuse(WireRefusal::Call(link_refusal(
+                LinkFault::Unavailable,
+                &app,
+            )));
+        }
         let snapshot = match self
             .seams
             .link()

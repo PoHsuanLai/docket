@@ -88,6 +88,11 @@ impl<P: IntentProvider, C: ContextSource> AppLink for ProviderLink<P, C> {
         self.provider.undo(token.clone(), actor.clone()).await
     }
 
+    async fn running(&self, app: &AppName) -> bool {
+        // The provider lives in this process, so it runs whenever the router does.
+        self.is_ours(app)
+    }
+
     async fn context(
         &self,
         app: &AppName,

@@ -111,6 +111,9 @@ pub trait AppLink: Send + Sync {
         token: &UndoToken,
         actor: &Actor,
     ) -> impl Future<Output = Result<(), UndoFault>> + Send;
+    /// Whether the app is running now. A lookup (search, preview, context) asks only an app that
+    /// is: typing in the launcher never starts an app. An action may start one.
+    fn running(&self, app: &AppName) -> impl Future<Output = bool> + Send;
     /// `Context`.
     fn context(
         &self,
