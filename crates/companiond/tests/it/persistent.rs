@@ -387,10 +387,22 @@ async fn a_model_that_never_answers_ends_the_task_failed_when_its_span_runs_out(
         ..Waits::default()
     });
     let opened = w.open("work").await;
-    tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        w.say(&opened.session, "hello"),
-    )
+    // The test's clock runs out the model's span the moment the companion starts waiting on it.
+    let clock = w.clock.clone();
+    let span = Millis(50);
+    let run_out = async {
+        loop {
+            if clock.next_ask().await == span {
+                clock.advance(span);
+            }
+        }
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        tokio::select! {
+            _ = w.say(&opened.session, "hello") => {}
+            () = run_out => {}
+        }
+    })
     .await
     .expect("the span ended the wait");
     let answer = w.companion.shared.answer(&opened.task).expect("answer");

@@ -11,6 +11,7 @@ use docket_store::GrantFileError;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{AppName, DataClass, GrantId};
 use prov::{ActionName, SpaceScope, UnixSeconds};
+use std::os::unix::fs::PermissionsExt;
 
 fn grant(id: &str, action: &str, scope: GrantScope) -> ActionGrant {
     Grant {
@@ -148,13 +149,15 @@ fn a_failed_write_keeps_the_old_file() {
     let store = FileGrantStore::open(&path).expect("open");
     store.record(grant("g-1", "mail.thread.archive", GrantScope::Always));
     let before = std::fs::read_to_string(&path).expect("read");
-    // A directory where the temporary file belongs: the write cannot start.
-    std::fs::create_dir(dir.path().join("grants.json.tmp")).expect("blocker");
+    // A folder that takes no new files: the temporary file cannot be made, so the write cannot start.
+    let shut = |mode| {
+        std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(mode)).expect("mode");
+    };
+    shut(0o555);
     store.record(grant("g-2", "mail.draft.create", GrantScope::Always));
-    assert!(matches!(
-        store.take_fault(),
-        Some(GrantFileError::Write { .. })
-    ));
+    let fault = store.take_fault();
+    shut(0o755);
+    assert!(matches!(fault, Some(GrantFileError::Write { .. })));
     assert_eq!(std::fs::read_to_string(&path).expect("read"), before);
 }
 
