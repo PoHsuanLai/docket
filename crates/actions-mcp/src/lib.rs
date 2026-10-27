@@ -18,10 +18,6 @@ mod edge;
 mod expose;
 mod settings;
 
-pub use actions_tools::{
-    ArgsFault, TARGET_KEY, TargetFault, ToolFault, ToolHints, ToolName, ToolRefusal, ToolSpec, Why,
-    hints_of, offered, outcome_json, read_call, target, tool_label, tool_name, tools,
-};
 pub use bound::{BoundEdge, NoToken};
 pub use config::{ConfigError, McpConfig};
 pub use daemon::{

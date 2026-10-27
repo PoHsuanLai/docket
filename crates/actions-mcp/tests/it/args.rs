@@ -1,6 +1,6 @@
 //! JSON arguments to typed ones: one row per declared type, and every way to be wrong.
 
-use actions_mcp::*;
+use actions_tools::*;
 use docket_core::*;
 use porter_core::AppName;
 use prov::{ClientName, Effect, EntityId, EntityKey, EntityKind, Integrity, Label, Source};

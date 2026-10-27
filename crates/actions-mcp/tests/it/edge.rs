@@ -2,6 +2,7 @@
 //! the router and the fake mail app behind it. No bus, no process, no network.
 
 use actions_mcp::*;
+use actions_tools::*;
 use docket_client::{InProcess, Intents, Transport, TransportError};
 use docket_core::*;
 use docket_fake::{FakeSeams, MailThread, fake_router};
