@@ -5,7 +5,7 @@
 
 use crate::builtin::is_builtin;
 use docket_core::ValidManifest;
-use docket_router::parse;
+use docket_core::parse;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 

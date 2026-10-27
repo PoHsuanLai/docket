@@ -14,7 +14,7 @@ pub fn manifest(file: &str) -> ValidManifest {
         .join("../../manifests")
         .join(file);
     let text = std::fs::read_to_string(&path).expect("manifest");
-    docket_router::parse(&text).expect("valid")
+    docket_core::parse(&text).expect("valid")
 }
 
 pub fn catalogue() -> Catalogue {

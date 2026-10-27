@@ -13,7 +13,7 @@ use docket_core::{
 use docket_fake::{
     BoxFut, FakeSeams, FixedClock, HostedApp, ScriptedConfirmer, ScriptedReviewer, ScriptedWriter,
 };
-use docket_inapp::{EditorDesk, SheetConfirmer};
+use docket_host::{EditorDesk, SheetConfirmer};
 use docket_session::fake::MemoryLog;
 use prov::Actor;
 use std::sync::Arc;

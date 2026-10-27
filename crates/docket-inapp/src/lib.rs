@@ -12,8 +12,9 @@
 //!   `restore` are the many-task doors; `install_skills` and `install_skills_from` add skills (words
 //!   for the planner, never a grant); [`AuditFile`] keeps the audit records waiting for memory
 //!   across a restart.
-//! - [`ConfirmSheet`]: what the app implements to ask its person; [`SheetConfirmer`] mints the
-//!   receipt itself, so an app's sheet can say yes or no but never forge a proof.
+//! - `docket_host::ConfirmSheet`: what the app implements to ask its person; `SheetConfirmer`
+//!   (also `docket-host`) mints the receipt itself, so an app's sheet can say yes or no but never
+//!   forge a proof.
 //! - [`ProviderLink`], [`InAppSeams`]: the router's seams over the one provider, with the
 //!   in-memory consent store ([`SessionGrants`]) and audit buffer ([`AuditBuffer`]).
 //! - [`NoMemory`], [`NoReader`], [`NoWriter`]: the stubs an app starts with.
@@ -28,19 +29,16 @@ mod agent;
 mod ask;
 mod audit;
 mod audit_file;
-mod desk;
 mod grants;
 mod kit;
 mod link;
 mod seams;
-mod sheet;
 mod skills;
 mod tasks;
 mod turn_watch;
 
 pub use agent::{AgentFault, Ending, Failure, InAppAgent, InAppParts, Reply};
 pub use audit_file::{AuditFile, AuditFileError};
-pub use desk::EditorDesk;
 pub use docket_memory::{AlmanacMemory, AuditState, Flushed, Report};
 pub use docket_models::{TransportModel, TransportWriter, placeholder_set, reviewer_over};
 pub use docket_reader::TransportReader;
@@ -48,4 +46,3 @@ pub use grants::FileGrantStore;
 pub use kit::{AuditTo, InAppKit};
 pub use link::ProviderLink;
 pub use seams::{AuditBuffer, InAppSeams, NoMemory, NoReader, NoWriter, SessionGrants};
-pub use sheet::{ConfirmSheet, SheetAnswer, SheetConfirmer};

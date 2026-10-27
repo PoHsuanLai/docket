@@ -1,0 +1,22 @@
+[package]
+name = "docket-host"
+description = "What a host that shows no interface of its own needs to ask its person: the confirm sheet seam (`ConfirmSheet`, `SheetAnswer`), `SheetConfirmer`, which turns a sheet's answer into the router's `ConfirmAnswer` and mints the receipt, and `EditorDesk`, the sheets waiting for an editor's choice. Used by the editor host (docket-acp-bin) and by the in-app agent (docket-inapp)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+docket-session = { workspace = true }
+futures-channel = { workspace = true }
+prov = { workspace = true }
+
+[dev-dependencies]
+futures-util = { workspace = true }
+porter-core = { workspace = true }
+
+[lints]
+workspace = true

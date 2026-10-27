@@ -12,7 +12,7 @@
 use docket_core::{ConfirmId, ConfirmRequest, Confirmer};
 use docket_dbus::CONFIRM_PATH;
 use docket_dbus::callers::{INTENTD, Identity, require};
-use docket_inapp::{EditorDesk, SheetConfirmer};
+use docket_host::{EditorDesk, SheetConfirmer};
 use std::sync::Arc;
 use zbus::fdo;
 use zbus::message::Header;

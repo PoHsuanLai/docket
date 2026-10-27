@@ -10,9 +10,9 @@
 use crate::confirm::{self, Sheet};
 use crate::provider::{AcceptMail, AppLog, Focus, QuietWindow};
 use crate::things::{AcceptThings, App};
+use docket_core::parse;
 use docket_core::{ConfirmRequest, ValidManifest};
 use docket_dbus::callers::Identity;
-use docket_router::parse;
 use docket_testbus::{PrivateBus, Reaped};
 use futures_util::StreamExt;
 use std::path::{Path, PathBuf};

@@ -12,7 +12,8 @@ use crate::simple::{MemoryGrants, RecordingSink};
 use action_review::Reviewer;
 use docket_core::Clock;
 use docket_core::{AgentConfig, PolicyWriter, ValidManifest};
-use docket_router::{Registry, RegistryError, Router, parse};
+use docket_core::{ManifestFileError, parse};
+use docket_router::{Registry, Router};
 use docket_session::SessionLog;
 use docket_session::fake::MemoryLog;
 use policy_point::{PolicyError, Presets};
@@ -34,7 +35,7 @@ const ACP_AGENT_MANIFEST: &str = include_str!("../../../manifests/org.quire.AcpA
 pub enum FakeError {
     /// A shipped manifest does not parse or validate.
     #[error("manifest: {0}")]
-    Manifest(RegistryError),
+    Manifest(ManifestFileError),
     /// The shipped policy set does not load.
     #[error("policy: {0}")]
     Policy(PolicyError),
@@ -44,22 +45,22 @@ pub enum FakeError {
 }
 
 /// The fixture mail manifest, validated.
-pub fn mail_manifest() -> Result<ValidManifest, RegistryError> {
+pub fn mail_manifest() -> Result<ValidManifest, ManifestFileError> {
     parse(MAIL_MANIFEST)
 }
 
 /// The fixture files manifest, validated.
-pub fn files_manifest() -> Result<ValidManifest, RegistryError> {
+pub fn files_manifest() -> Result<ValidManifest, ManifestFileError> {
     parse(FILES_MANIFEST)
 }
 
 /// The fixture menu manifest, validated.
-pub fn menu_manifest() -> Result<ValidManifest, RegistryError> {
+pub fn menu_manifest() -> Result<ValidManifest, ManifestFileError> {
     parse(MENU_MANIFEST)
 }
 
 /// A registry holding the two fixtures and the three shipped built-in manifests.
-pub fn registry() -> Result<Registry, RegistryError> {
+pub fn registry() -> Result<Registry, ManifestFileError> {
     let mut registry = Registry::new();
     for text in [
         MAIL_MANIFEST,
@@ -75,7 +76,7 @@ pub fn registry() -> Result<Registry, RegistryError> {
 
 /// Installs the fake menu app's manifest in `router` (it is not in `registry()`: the menu is only
 /// for the tests of per-call effects, and the default world's goldens do not list it).
-pub fn install_menu(router: &Router<FakeSeams>) -> Result<(), RegistryError> {
+pub fn install_menu(router: &Router<FakeSeams>) -> Result<(), ManifestFileError> {
     let menu = menu_manifest()?;
     match router.state.lock() {
         Ok(mut state) => state.registry.insert(menu),

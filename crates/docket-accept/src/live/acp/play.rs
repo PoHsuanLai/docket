@@ -10,10 +10,11 @@ use crate::live::acp::secret::Credentials;
 use crate::runlink::short_run;
 use crate::world::{Binaries, Cgroup, World};
 use docket_acp_bin::agent::host::{Hosted, Wiring, host};
+use docket_acp_bin::agent::places::Places;
 use docket_acp_bin::agent::wire::SandboxLimits;
 use docket_acp_host::{Fallback, Models, ToolsOffer};
 use docket_core::{AbsPath, TurnId, TurnSource, TurnVia, UserTurn};
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_launch::{AgentsFile, AgentsPermit, LoginOnly, Registry};
 use docket_session::{BackendEvent, EndCause, ProgramName, SessionHost, TurnEnd};
 use prov::{SpaceId, UnixSeconds};
@@ -128,6 +129,11 @@ async fn open(
         fallback: Fallback::Off,
         desk: EditorDesk::new(),
         agents: dir,
+        // Only the scratch home: the world is `env -i`.
+        places: Places::read({
+            let scratch = home.display().to_string();
+            move |name: &str| (name == "HOME").then(|| scratch.clone())
+        }),
     };
     let space = SpaceId::parse("work").unwrap_or_else(|_| SpaceId::desktop());
     host(wiring, program, cwd.as_str(), space).await

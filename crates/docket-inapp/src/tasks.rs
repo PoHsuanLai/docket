@@ -3,13 +3,13 @@
 //! it is `docket-tasks`' (companiond's own model); these are the host's doors to it.
 
 use crate::agent::{AgentFault, InAppAgent};
-use crate::sheet::ConfirmSheet;
 use action_review::Reviewer;
 use agent_loop::LoopPhase;
 use companion_wire::FrontTask;
 use docket_core::Clock;
 use docket_core::MemoryLink;
 use docket_core::{PolicyWriter, Reader, Roster, TurnSource, TurnVia, UserTurn};
+use docket_host::ConfirmSheet;
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::GrantStore;
 use porter_client::Transport as ModelTransport;

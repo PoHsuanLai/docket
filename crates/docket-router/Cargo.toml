@@ -10,7 +10,7 @@ publish.workspace = true
 
 [dependencies]
 docket-checkpoint = { workspace = true }
-docket-core = { workspace = true }
+docket-core = { workspace = true, features = ["manifest-file"] }
 docket-session = { workspace = true }
 docket-skills = { workspace = true }
 policy-point = { workspace = true }
@@ -21,7 +21,6 @@ almanac-core = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
-toml = { workspace = true }
 serde_json = { workspace = true }
 futures-util = { workspace = true }
 futures-channel = { workspace = true }

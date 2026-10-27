@@ -28,23 +28,22 @@ pub mod helper_hosts;
 pub mod host;
 pub mod live;
 pub mod logout;
+pub mod places;
 pub mod provider;
 pub mod remember;
 pub mod serve;
 pub mod tty;
 pub mod wire;
 
-use agents_core::dirs::AgentsDir;
 use args::{Args, Mode};
 use docket_acp_host::Workdir;
 use docket_core::AbsPath;
 use docket_launch::dbus::DbusAccounts;
 use docket_session::{BackendEvent, SessionHost};
-use docket_settings::Locator;
 use fault::AgentFault;
 use host::{Hosted, host};
+use places::Places;
 use prov::UnixSeconds;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader, Stdin};
 use tokio::sync::Mutex;
@@ -55,32 +54,6 @@ type Lines = Arc<Mutex<tokio::io::Lines<BufReader<Stdin>>>>;
 /// The seams of the live host: porter's accountd behind it.
 pub type Live = host::Hosting<DbusAccounts>;
 
-fn env(name: &str) -> Option<String> {
-    std::env::var(name).ok()
-}
-
-fn config_dir() -> PathBuf {
-    Locator::from_env(&env)
-        .dirs()
-        .first()
-        .cloned()
-        .unwrap_or_default()
-}
-
-/// Where agents from the registry are installed (`docket-agents --dir`): `agents` in the data
-/// directory.
-pub fn agents_dir() -> AgentsDir {
-    AgentsDir::at(&data_dir().join("agents"))
-}
-
-fn data_dir() -> PathBuf {
-    env("XDG_DATA_HOME")
-        .filter(|v| !v.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(env("HOME").unwrap_or_default()).join(".local/share"))
-        .join("docket")
-}
-
 /// The program `name` in the directory of this one (it may not be built).
 fn sibling(name: &str) -> Option<AbsPath> {
     std::env::current_exe()
@@ -89,24 +62,35 @@ fn sibling(name: &str) -> Option<AbsPath> {
         .and_then(|p| p.to_str().and_then(|t| AbsPath::parse(t).ok()))
 }
 
-/// Runs the host until the person quits.
-pub async fn run(args: Args) -> Result<(), AgentFault> {
+/// Runs the host until the person quits. `env` is the environment `main` hands in.
+pub async fn run(
+    args: Args,
+    env: impl Fn(&str) -> Option<String> + Send + Sync + 'static,
+) -> Result<(), AgentFault> {
     let tools = match args.mode {
         Mode::Session => Tools::Wanted,
         Mode::Refresh => Tools::Unwanted,
     };
-    let bus = docket_dbus::session_connection(&env)
+    let places = Places::read(env);
+    let bus = docket_dbus::session_connection(&|name: &str| places.var(name))
         .await
         .map_err(|e| AgentFault::Bus(e.to_string()))?;
-    let wiring = wire::build(allowed()?, tools, args.fallback, bus, SandboxLimits::Scope).await?;
+    let wiring = wire::build(
+        allowed(&places)?,
+        tools,
+        args.fallback,
+        bus,
+        SandboxLimits::Scope,
+        places.clone(),
+    )
+    .await?;
 
     let cwd = std::fs::canonicalize(&args.cwd).map_err(|e| AgentFault::Directory(e.to_string()))?;
     let cwd = cwd.to_str().ok_or(AgentFault::DirectoryNotUtf8)?.to_owned();
     // The agent gets this folder read-write: never the home folder itself (its dot-directories
     // hold the person's configuration), nor a place of secrets.
     let folder = AbsPath::parse(&cwd).map_err(|e| AgentFault::Directory(e.to_string()))?;
-    let home = env("HOME").map(PathBuf::from);
-    Workdir::resolve(&folder, &folder, home.as_deref())
+    Workdir::resolve(&folder, &folder, places.home())
         .map_err(|e| AgentFault::Directory(format!("{cwd}: {e}; give --cwd a project folder")))?;
     let Hosted {
         mut host, session, ..

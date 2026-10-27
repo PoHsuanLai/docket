@@ -37,15 +37,14 @@ agents-core = { workspace = true }
 docket-agents = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-provider = { workspace = true, features = ["dbus"] }
-docket-core = { workspace = true }
+docket-core = { workspace = true, features = ["manifest-file"] }
 docket-dbus = { workspace = true, features = ["inferd"] }
-docket-inapp = { workspace = true }
+docket-host = { workspace = true }
 docket-store = { workspace = true }
 docket-launch = { workspace = true, features = ["dbus"] }
 docket-log = { workspace = true }
 docket-native = { workspace = true }
 docket-planner = { workspace = true }
-docket-router = { workspace = true }
 docket-session = { workspace = true }
 docket-settings = { workspace = true }
 clap = { workspace = true }

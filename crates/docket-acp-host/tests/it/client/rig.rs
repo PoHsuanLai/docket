@@ -20,7 +20,7 @@ use docket_core::{
 use docket_fake::{
     FixedClock, ScriptedConfirmer, ScriptedReviewer, ScriptedWriter, fake_router_over,
 };
-use docket_inapp::{EditorDesk, SheetConfirmer};
+use docket_host::{EditorDesk, SheetConfirmer};
 use docket_router::GrantStore;
 use docket_session::fake::MemoryLog;
 use docket_session::{

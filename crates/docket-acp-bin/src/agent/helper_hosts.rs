@@ -4,10 +4,11 @@
 
 use super::host::Hosting;
 use super::live::Live;
+use super::places::Places;
 use docket_acp_host::{AgentHost, EdgeMenu, Fallback, Hosts, Start};
 use docket_core::helper::HelperCard;
 use docket_core::{ProgramName, TaskPolicy};
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_launch::Accounts;
 use docket_session::{BackendKind, Opening, Workspace};
 use prov::{AgentRef, HelperId, SpaceId, TaskId};
@@ -39,7 +40,7 @@ impl<A: Accounts + 'static> HelperHosts<A> {
     /// listed and that its folder can be made.
     pub fn new(live: Arc<Live<A>>, card: &HelperCard) -> Self {
         let program = live.program_or_stand_in(card.kind.program().map(ProgramName::from));
-        let cwd = folder_of(&card.id).and_then(|text| Workspace::parse(&text).ok());
+        let cwd = folder_of(&card.id, live.places()).and_then(|text| Workspace::parse(&text).ok());
         Self {
             helper: card.id.clone(),
             space: card.space.clone(),
@@ -53,9 +54,9 @@ impl<A: Accounts + 'static> HelperHosts<A> {
 }
 
 /// The folder a helper's agent works in: its own, never the home folder or a project.
-pub fn folder_of(helper: &HelperId) -> Option<String> {
+pub fn folder_of(helper: &HelperId, places: &Places) -> Option<String> {
     let name = super::folders::plain_name(helper.as_str())?;
-    super::folders::folder_under("helpers", name).ok()
+    super::folders::folder_under("helpers", name, places).ok()
 }
 
 impl<A: Accounts + 'static> Hosts for HelperHosts<A> {

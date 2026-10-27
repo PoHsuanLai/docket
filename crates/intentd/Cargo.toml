@@ -20,7 +20,7 @@ path = "src/main.rs"
 docket-checkpoint-git = { workspace = true }
 porter-dbus = { workspace = true }
 porter-daemon = { workspace = true }
-docket-core = { workspace = true }
+docket-core = { workspace = true, features = ["manifest-file"] }
 docket-store = { workspace = true }
 docket-log = { workspace = true }
 docket-router = { workspace = true }

@@ -13,7 +13,7 @@ use docket_acp_host::{
 use docket_client::{InProcess, Intents};
 use docket_core::helper::HandFault;
 use docket_core::{AppSessionId, CallerId, CallerRole, WatchedAgent};
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_session::Opening;
 use prov::{SessionId, UnixSeconds};
 use std::collections::{BTreeSet, VecDeque};

@@ -16,36 +16,31 @@
 //!
 //! Only companiond may call: the callers table (`acp-callers.toml`) names its unit.
 
+mod object;
+mod watchdog;
+
 use super::calls::{Calls, NoSuchTurn};
-use super::env;
 use super::fault::AgentFault;
 use super::folders::folder;
 use super::hand_words::{end_of, refusal_of_fault, refusal_of_open};
 use super::helper_host::HelperHost;
 use super::host::{Hosted, open_on};
 use super::live::Live;
+use super::places::Places;
 use super::wire::{self, SandboxLimits, Tools};
 use bulkhead::NetworkMode;
 use docket_acp_host::Fallback;
 use docket_core::helper::{AppsAsk, AppsReply};
 use docket_core::{HandOver, HandRefusal, HandReply, Handed, Reveal, UserTurn};
-use docket_dbus::callers::{COMPANIOND, Identity, require};
+use docket_dbus::callers::Identity;
 use docket_dbus::{AGENT_HOST_BUS, AGENT_HOST_PATH, BusConnection};
 use docket_launch::dbus::DbusAccounts;
 use docket_session::{BackendEvent, EndCause, ProgramName, SessionHost};
 use prov::SpaceId;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tokio::sync::{Mutex, OnceCell};
-use zbus::fdo;
-use zbus::message::Header;
-
-/// How long the host keeps an agent's session open with nothing asked of it.
-pub const IDLE: Duration = Duration::from_secs(10 * 60);
-
-/// How often the host looks at the clock for that.
-const WATCH: Duration = Duration::from_secs(20);
 
 /// Whether an agent's session can take another turn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,6 +64,7 @@ struct Active {
 pub struct Service {
     bus: BusConnection,
     limits: SandboxLimits,
+    places: Places,
     live: OnceCell<Arc<Live<DbusAccounts>>>,
     assistant: Mutex<Option<Box<Active>>>,
     helpers: OnceLock<Arc<HelperHost>>,
@@ -85,11 +81,13 @@ impl std::fmt::Debug for Service {
 }
 
 impl Service {
-    /// A service with nothing started, on `bus`, whose agents' sandboxes are bounded by `limits`.
-    pub fn new(bus: BusConnection, limits: SandboxLimits) -> Self {
+    /// A service with nothing started, on `bus`, whose agents' sandboxes are bounded by `limits`
+    /// and whose places come from `places`.
+    pub fn new(bus: BusConnection, limits: SandboxLimits, places: Places) -> Self {
         Self {
             bus,
             limits,
+            places,
             live: OnceCell::new(),
             assistant: Mutex::new(None),
             helpers: OnceLock::new(),
@@ -149,11 +147,12 @@ impl Service {
             .live
             .get_or_try_init(|| async {
                 let wiring = wire::build(
-                    wire::allowed()?,
+                    wire::allowed(&self.places)?,
                     Tools::Wanted,
                     Fallback::Off,
                     self.bus.clone(),
                     self.limits,
+                    self.places.clone(),
                 )
                 .await?;
                 let live = Live::serve(wiring, NetworkMode::Host)
@@ -169,18 +168,6 @@ impl Service {
         let live = self.live().await?;
         let host = self.helpers.get_or_init(|| Arc::new(HelperHost::new(live)));
         Ok(Arc::clone(host))
-    }
-
-    fn touch(&self) {
-        if let Ok(mut last) = self.last.lock() {
-            *last = Instant::now();
-        }
-    }
-
-    fn quiet_for(&self) -> Duration {
-        self.last
-            .lock()
-            .map_or(Duration::ZERO, |last| last.elapsed())
     }
 
     /// The turn handed over: the agent's answer, or why it was not given.
@@ -240,7 +227,8 @@ impl Service {
             .label
             .as_ref()
             .map_or_else(|| program.as_str().to_owned(), |label| label.0.clone());
-        let cwd = folder(program).map_err(|why| HandRefusal::Failed { message: why })?;
+        let cwd =
+            folder(program, live.places()).map_err(|why| HandRefusal::Failed { message: why })?;
         let hosted = open_on(live, program.clone(), &cwd, space)
             .await
             .map_err(|error| refusal_of_open(error, &label))?;
@@ -262,65 +250,12 @@ impl Service {
         }
     }
 
-    /// Returns when the host should end: nothing has been asked of it for [`IDLE`] and no turn
-    /// is running, or the daemon that asked for the helpers' agents has left.
-    pub async fn until_done(&self) {
-        loop {
-            tokio::time::sleep(WATCH).await;
-            if self.quiet_for() > IDLE && self.assistant.try_lock().is_ok() && !self.helpers_busy()
-            {
-                return;
-            }
-            if self.caller_gone().await {
-                return;
-            }
-        }
-    }
-
-    /// Waits a moment for the replies nobody has collected yet, so a caller still asking is not
-    /// left with a host that is gone: at most ten seconds.
-    pub async fn drain(&self) {
-        for _ in 0..20 {
-            if self.turns.is_empty() && self.apps.is_empty() {
-                return;
-            }
-            tokio::time::sleep(Duration::from_millis(500)).await;
-        }
-    }
-
     /// Closes the session still open and ends the helpers' agents, on the way out.
     pub async fn close(&self) {
         Self::finish(&mut *self.assistant.lock().await).await;
         if let Some(helpers) = self.helpers.get() {
             helpers.shutdown().await;
         }
-    }
-
-    /// Whether a call on the helpers' agents is running.
-    fn helpers_busy(&self) -> bool {
-        self.helpers.get().is_some_and(|helpers| helpers.busy())
-    }
-
-    /// Notes who asked for the helpers' agents, to end them when that caller is gone.
-    pub fn remember_caller(&self, sender: Option<&str>) {
-        if let (Some(sender), Ok(mut caller)) = (sender, self.caller.lock()) {
-            *caller = Some(sender.to_owned());
-        }
-    }
-
-    /// Whether the daemon that asked for the helpers' agents has left the bus: no agent process
-    /// outlives it.
-    async fn caller_gone(&self) -> bool {
-        let Some(name) = self.caller.lock().ok().and_then(|caller| caller.clone()) else {
-            return false;
-        };
-        let (Ok(bus), Ok(name)) = (
-            fdo::DBusProxy::new(&self.bus).await,
-            zbus::names::BusName::try_from(name),
-        ) else {
-            return false;
-        };
-        matches!(bus.name_has_owner(name).await, Ok(false))
     }
 }
 
@@ -353,68 +288,6 @@ impl Active {
     }
 }
 
-/// The object companiond calls.
-struct Object {
-    service: Arc<Service>,
-    callers: Arc<Identity>,
-}
-
-#[zbus::interface(name = "org.quire.AgentHost1")]
-impl Object {
-    async fn hand_over(
-        &self,
-        handover: String,
-        #[zbus(header)] header: Header<'_>,
-    ) -> fdo::Result<String> {
-        let sender = header.sender().map(|s| s.as_str());
-        require(&*self.callers, sender, &[COMPANIOND]).await?;
-        let ask: HandOver =
-            serde_json::from_str(&handover).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
-        Ok(self.service.begin(ask))
-    }
-
-    async fn wait(&self, turn: String, #[zbus(header)] header: Header<'_>) -> fdo::Result<String> {
-        let sender = header.sender().map(|s| s.as_str());
-        require(&*self.callers, sender, &[COMPANIOND]).await?;
-        match self.service.wait(&turn).await {
-            Ok(Some(reply)) => {
-                serde_json::to_string(&reply).map_err(|e| fdo::Error::Failed(e.to_string()))
-            }
-            Ok(None) => Ok(String::new()),
-            Err(no_such) => Err(fdo::Error::InvalidArgs(no_such.to_string())),
-        }
-    }
-
-    async fn apps_begin(
-        &self,
-        ask: String,
-        #[zbus(header)] header: Header<'_>,
-    ) -> fdo::Result<String> {
-        let sender = header.sender().map(|s| s.as_str());
-        require(&*self.callers, sender, &[COMPANIOND]).await?;
-        let ask: AppsAsk =
-            serde_json::from_str(&ask).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
-        self.service.remember_caller(sender);
-        Ok(self.service.apps_begin(ask))
-    }
-
-    async fn apps_wait(
-        &self,
-        call: String,
-        #[zbus(header)] header: Header<'_>,
-    ) -> fdo::Result<String> {
-        let sender = header.sender().map(|s| s.as_str());
-        require(&*self.callers, sender, &[COMPANIOND]).await?;
-        match self.service.apps_wait(&call).await {
-            Ok(Some(reply)) => {
-                serde_json::to_string(&reply).map_err(|e| fdo::Error::Failed(e.to_string()))
-            }
-            Ok(None) => Ok(String::new()),
-            Err(no_such) => Err(fdo::Error::InvalidArgs(no_such.to_string())),
-        }
-    }
-}
-
 /// What only the acceptance harness chooses, as docket-acp's `HarnessSeams` does: the `/proc` the
 /// callers are read from (a fixture tree), the system's callers file, and how the agents'
 /// sandboxes are bounded. The packaged program passes the defaults ([`run`]): the system's `/proc`
@@ -429,15 +302,23 @@ pub struct HarnessSeams {
     pub limits: SandboxLimits,
 }
 
-/// Serves `AgentHost1` under the host's name until it has been quiet for [`IDLE`].
-pub async fn run() -> Result<(), AgentFault> {
-    run_with(HarnessSeams::default()).await
+/// Serves `AgentHost1` under the host's name until it has been quiet for ten minutes. `env` is
+/// the environment `main` hands in.
+pub async fn run(
+    env: impl Fn(&str) -> Option<String> + Send + Sync + 'static,
+) -> Result<(), AgentFault> {
+    run_with(HarnessSeams::default(), env).await
 }
 
 /// [`run`] with the seams the acceptance harness's main chooses.
-pub async fn run_with(seams: HarnessSeams) -> Result<(), AgentFault> {
+pub async fn run_with(
+    seams: HarnessSeams,
+    env: impl Fn(&str) -> Option<String> + Send + Sync + 'static,
+) -> Result<(), AgentFault> {
     let bus_fault = |e: zbus::Error| AgentFault::Bus(e.to_string());
-    let bus = docket_dbus::session_connection(&env)
+    let places = Places::read(env);
+    let var = |name: &str| places.var(name);
+    let bus = docket_dbus::session_connection(&var)
         .await
         .map_err(bus_fault)?;
     let HarnessSeams {
@@ -446,17 +327,17 @@ pub async fn run_with(seams: HarnessSeams) -> Result<(), AgentFault> {
         limits,
     } = seams;
     let table = match &system_callers {
-        Some(system) => crate::callers::read_at(system, &env),
-        None => crate::callers::read(&env),
+        Some(system) => crate::callers::read_at(system, &var),
+        None => crate::callers::read(&var),
     }
     .map_err(|e| AgentFault::Callers(e.to_string()))?;
     let callers = Arc::new(Identity::on(bus.clone(), table, proc_root.as_deref()));
-    let service = Arc::new(Service::new(bus.clone(), limits));
+    let service = Arc::new(Service::new(bus.clone(), limits, places.clone()));
     // Served before the name is claimed, so the first call finds it.
     bus.object_server()
         .at(
             AGENT_HOST_PATH,
-            Object {
+            object::Object {
                 service: service.clone(),
                 callers,
             },

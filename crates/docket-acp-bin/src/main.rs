@@ -10,12 +10,13 @@ const USAGE: &str =
     "usage: docket-acp   (no arguments: the router knows this process by its bus name)";
 
 fn main() -> ExitCode {
+    let env = |key: &str| std::env::var(key).ok();
     if std::env::args().nth(1).is_some() {
         eprintln!("docket-acp: {USAGE}");
         return ExitCode::from(2);
     }
     docket_log::init("docket-acp");
-    let permit = match Permit::from_env(&|k| std::env::var(k).ok()) {
+    let permit = match Permit::from_env(&env) {
         Ok(permit) => permit,
         Err(why) => {
             eprintln!("docket-acp: {why}");
@@ -35,6 +36,7 @@ fn main() -> ExitCode {
     match runtime.block_on(docket_acp_bin::serve(
         permit,
         docket_dbus::InferWatch::off(),
+        &env,
     )) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {

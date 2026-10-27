@@ -30,6 +30,7 @@ members = [
   "crates/docket-reader",
   "crates/docket-memory-core",
   "crates/docket-memory",
+  "crates/docket-host",
   "crates/docket-inapp",
   "crates/docket-dbus",
   "crates/docket-client",
@@ -97,6 +98,7 @@ docket-models  = { path = "crates/docket-models" }
 docket-reader  = { path = "crates/docket-reader" }
 docket-memory-core = { path = "crates/docket-memory-core" }
 docket-memory  = { path = "crates/docket-memory" }
+docket-host    = { path = "crates/docket-host" }
 docket-inapp   = { path = "crates/docket-inapp" }
 docket-dbus    = { path = "crates/docket-dbus" }
 docket-client  = { path = "crates/docket-client", default-features = false }

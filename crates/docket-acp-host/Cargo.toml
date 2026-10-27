@@ -41,7 +41,7 @@ action-review = { workspace = true }
 docket-acp-host = { workspace = true, features = ["testing"] }
 docket-client = { workspace = true, features = ["in_process"] }
 docket-fake = { workspace = true }
-docket-inapp = { workspace = true }
+docket-host = { workspace = true }
 docket-router = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 docket-testbus = { workspace = true }

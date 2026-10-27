@@ -28,7 +28,7 @@ use docket_client::{DbusTransport, Intents};
 use docket_core::AgentConfig;
 use docket_dbus::callers::Identity;
 use docket_dbus::{CONFIRM_PATH, InferLink};
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_native::NativeHost;
 use docket_planner::PlannerModel;
 use docket_store::SystemClock;
@@ -81,8 +81,13 @@ pub struct HarnessSeams {
 ///
 /// The editor's app, which the edge checks a stored session's opener against, is the bus name:
 /// the router records the opener and the editor's turns under the app behind the connection.
-pub async fn serve(permit: Permit, trace: docket_dbus::InferWatch) -> Result<(), LiveFault> {
-    serve_with(permit, trace, HarnessSeams::default()).await
+/// `env` is the environment `main` hands in.
+pub async fn serve(
+    permit: Permit,
+    trace: docket_dbus::InferWatch,
+    env: &impl Fn(&str) -> Option<String>,
+) -> Result<(), LiveFault> {
+    serve_with(permit, trace, HarnessSeams::default(), env).await
 }
 
 /// [`serve`] with the seams the acceptance harness's mains choose.
@@ -90,17 +95,17 @@ pub async fn serve_with(
     permit: Permit,
     trace: docket_dbus::InferWatch,
     seams: HarnessSeams,
+    env: &impl Fn(&str) -> Option<String>,
 ) -> Result<(), LiveFault> {
     let editor = AppName::parse(BUS_NAME).map_err(|_| LiveFault::App(BUS_NAME.to_owned()))?;
-    let env = |key: &str| std::env::var(key).ok();
     let bus = |e: zbus::Error| LiveFault::Bus(e.to_string());
-    let connection = docket_dbus::session_connection(&env).await.map_err(bus)?;
+    let connection = docket_dbus::session_connection(env).await.map_err(bus)?;
     // The sheets intentd hands this process for an editor's session wait on the desk the host
     // shows the editor. Served before the name is claimed, so the first sheet finds it.
     let desk = EditorDesk::new();
     let table = match &seams.system_callers {
-        Some(system) => callers::read_at(system, &env),
-        None => callers::read(&env),
+        Some(system) => callers::read_at(system, env),
+        None => callers::read(env),
     }
     .map_err(|e| LiveFault::Callers(e.to_string()))?;
     let who = Arc::new(Identity::on(

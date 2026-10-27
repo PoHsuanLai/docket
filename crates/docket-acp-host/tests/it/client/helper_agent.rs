@@ -17,7 +17,7 @@ use docket_core::helper::{
     HelperModel, HelperName, Job, JobId, JobStatus, Role, SignInHow, SignInWay,
 };
 use docket_core::{ActionMatch, GrantCaller, LabelText, TaskPolicy, TaskPolicyState};
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_session::Opening;
 use prov::{HelperId, UnixSeconds};
 use serde_json::json;

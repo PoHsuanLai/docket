@@ -6,9 +6,9 @@ use crate::audit_file::{AuditFile, AuditFileError};
 use crate::kit::{AuditTo, InAppKit};
 use crate::link::ProviderLink;
 use crate::seams::{AuditBuffer, InAppSeams, NoMemory, NoReader, NoWriter, SessionGrants};
-use crate::sheet::{ConfirmSheet, SheetConfirmer};
 use action_review::Reviewer;
 use docket_client::{ClientError, InProcess, Intents};
+use docket_host::{ConfirmSheet, SheetConfirmer};
 
 use docket_core::Clock;
 use docket_core::MemoryLink;
@@ -181,7 +181,8 @@ where
 /// # use docket_fake::{FakeFiles, FixedClock, ScriptedReviewer, WordsModel, files_manifest};
 /// # use porter_core::{AppName, Count};
 /// # use prov::{Label, Labelled, SpaceId, UnixSeconds};
-/// use docket_inapp::{ConfirmSheet, Ending, InAppAgent, InAppParts, SheetAnswer};
+/// use docket_host::{ConfirmSheet, SheetAnswer};
+/// use docket_inapp::{Ending, InAppAgent, InAppParts};
 /// # struct Nobody;
 /// # impl ConfirmSheet for Nobody {
 /// #     async fn ask(&self, _: &ConfirmRequest) -> SheetAnswer { SheetAnswer::Dismissed }

@@ -5,7 +5,8 @@ use crate::support::infer::{Say, ScriptedInfer, call, words};
 use crate::support::{Nowhere, TestSheet};
 use docket_core::{AgentConfig, CallRefusal, ConfirmEnd, StepEnd};
 use docket_fake::{FakeMail, FixedClock, MailThread, ScriptedReviewer, mail_manifest};
-use docket_inapp::{Ending, InAppAgent, InAppParts, SheetAnswer};
+use docket_host::SheetAnswer;
+use docket_inapp::{Ending, InAppAgent, InAppParts};
 use prov::{SpaceId, UnixSeconds};
 use serde_json::json;
 

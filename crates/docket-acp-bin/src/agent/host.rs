@@ -5,6 +5,7 @@
 //! here reads the environment or a file: everything is handed in.
 
 use crate::agent::live::Live;
+use crate::agent::places::Places;
 use crate::agent::remember::remember;
 use agents_core::dirs::AgentsDir;
 use bulkhead::{Detected, NetworkMode};
@@ -13,7 +14,7 @@ use docket_client::DbusTransport;
 use docket_core::AbsPath;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::Identity;
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_launch::{
     Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Registry,
 };
@@ -73,6 +74,8 @@ pub struct Wiring<A: Accounts + 'static> {
     /// The agents directory a registry agent was installed in: what an opening shows of the
     /// agent is written down there. None writes nothing.
     pub agents: Option<AgentsDir>,
+    /// Where this computer keeps what the host needs, read from the environment by `main`.
+    pub places: Places,
 }
 
 /// A running host and the session it opened.

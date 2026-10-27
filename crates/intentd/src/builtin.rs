@@ -13,9 +13,10 @@ use docket_core::{
     ACP_AGENT_APP, AppRefusal, ContextScope, ContextSnapshot, EntityRef, Invocation, Latency,
     Outcome, Preview, SuggestAsk, UndoFault, UndoToken, ValidManifest,
 };
+use docket_core::{ManifestFileError, parse};
 use docket_memory::{MEMORY_APP, MemoryProvider};
 use docket_provider::IntentProvider;
-use docket_router::{AppFault, AppLink, CHECKPOINTS_APP, COMPANION_APP, RegistryError, parse};
+use docket_router::{AppFault, AppLink, CHECKPOINTS_APP, COMPANION_APP};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 
@@ -26,7 +27,7 @@ const CHECKPOINTS: &str = include_str!("../../../manifests/org.quire.Checkpoints
 
 /// The built-in manifests, validated: Memory, Companion, the external agents' pseudo-app, then
 /// Checkpoints.
-pub fn builtin_manifests() -> Result<Vec<ValidManifest>, RegistryError> {
+pub fn builtin_manifests() -> Result<Vec<ValidManifest>, ManifestFileError> {
     [MEMORY, COMPANION, ACP_AGENT, CHECKPOINTS]
         .into_iter()
         .map(parse)
@@ -78,10 +79,10 @@ impl<T: MemoryTransport> HostedLink<T> {
         transport: T,
         port: CompanionPort,
         checkpoints: CheckpointsPort,
-    ) -> Result<Self, RegistryError> {
+    ) -> Result<Self, ManifestFileError> {
         let [memory, companion, _agents, restore] =
             <[ValidManifest; 4]>::try_from(builtin_manifests()?).map_err(|_| {
-                RegistryError::Toml("the built-in manifests are not four".to_owned())
+                ManifestFileError::Toml("the built-in manifests are not four".to_owned())
             })?;
         Ok(Self {
             apps,

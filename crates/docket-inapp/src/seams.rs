@@ -6,7 +6,6 @@
 //! and `docket-reader`), and the audit queue.
 
 use crate::link::ProviderLink;
-use crate::sheet::{ConfirmSheet, SheetConfirmer};
 use action_review::Reviewer;
 use almanac_core::{MemoryReply, MemoryRequest};
 use docket_core::Clock;
@@ -16,6 +15,7 @@ use docket_core::{
     held_without,
 };
 use docket_core::{EventSink, LinkFault, MemoryLink};
+use docket_host::{ConfirmSheet, SheetConfirmer};
 use docket_memory_core::QueuedSink;
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::{GrantStore, NoLog, NoStore, Seams};

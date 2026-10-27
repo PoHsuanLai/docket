@@ -8,7 +8,7 @@ use super::host::Hosting;
 use super::live::Live;
 use docket_acp_host::{AgentHost, EdgeMenu, Fallback, Hosts, Start};
 use docket_core::ProgramName;
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_launch::Accounts;
 use docket_session::{BackendKind, Opening, Workspace};
 use prov::{AgentRef, SessionId, SpaceId, TaskId};

@@ -3936,3 +3936,14 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - Tests: `helpers`, `helper_apps` and `routines` moved to `docket-helpers/tests/it` (the first two split into `helpers`, `helper_desk` and `helper_apps`, `helper_apps_terminal`, with their fixtures in `support/`). docket-helpers has its own copy of `support/infer.rs` and a trimmed `support/world.rs`, because companiond's world is built on `Bell` and the bus tests that stay there use it. Bus-level tests (`serve*`, `terminal`, `handoff`, ...) stay in companiond.
 - Users outside this repo: sill, detent, files, mailo and cua name none of `Hub`, `HubHost`, `Routines`, `RoutineDesk`, `Host`, `UnitDir`, `SystemZone` or `Timers` of companiond (checked on origin/master), and none depends on companiond.
 - Not verified by a build in the lane that made the change.
+
+## Layering lane D0.21: docket-acp-bin off docket-inapp and docket-router; docket-host (2026-10-28)
+
+- `docket-host` (C) is new. It holds `ConfirmSheet`, `SheetAnswer`, `SheetConfirmer` and `EditorDesk`, moved out of `docket-inapp` (X8: one confirmer). `EditorDesk` is a host-side desk (a map of open requests and a oneshot per request), not app UI, so it moved whole. `docket-inapp`, `docket-acp-bin`, and the tests of `docket-acp-host` and `docket-accept` import them from `docket_host`; nothing is re-exported from `docket-inapp`.
+- The one system clock was already `docket_store::SystemClock`; `Wall`, inapp's `SystemClock` and `SystemTicks` were gone before this lane, so no clock moved.
+- `docket_core::parse` and `ManifestFileError` (was `docket_router::parse` and `RegistryError`) read a manifest file. They sit in `docket-core` behind the `manifest-file` feature so the pure crates still reach no TOML parser; `docket-router`, `docket-fake`, `docket-eval`, `intentd`, `docket-accept` and `docket-acp-bin` turn it on. `docket-router` no longer depends on `toml`.
+- `docket-acp-bin` reads no environment below `main`: `serve`, `serve_with`, `agent::run`, `serve::run` and `serve::run_with` take the environment closure. `agent::places::Places` reads the data and config directories, home, `PATH`, the runtime directory and the login variables once; `Wiring` carries it as `places`. The KNOWN row `docket-acp-bin env D0.21` is deleted.
+- `agent/serve.rs` (471 lines, not the 645 of the audit; `folders.rs` had already taken `plain_name` and `workspace_name`) is split into the service, `serve/watchdog.rs` (idle end, drain, caller gone) and `serve/object.rs` (the `AgentHost1` object).
+- Not changed: `bulkhead::UserSession::from_env()` in `SandboxLimits::probe` reads the environment inside bulkhead.
+- Users outside this repo: sill, detent, files and mailo import none of `EditorDesk`, `SheetConfirmer`, `ConfirmSheet` (docket's), `SheetAnswer`, `docket_router::parse` or `RegistryError` (checked on origin/master).
+- Not verified by a build in the lane that made the change.

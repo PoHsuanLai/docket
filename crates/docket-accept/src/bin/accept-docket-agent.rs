@@ -28,7 +28,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(serve::run_with(chosen)) {
+    match runtime.block_on(serve::run_with(chosen, |key: &str| std::env::var(key).ok())) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("docket-agent: {why}");

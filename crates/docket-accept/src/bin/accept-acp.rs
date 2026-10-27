@@ -30,6 +30,7 @@ fn main() -> ExitCode {
         permit,
         docket_accept::seams::trace(),
         seams,
+        &|key: &str| std::env::var(key).ok(),
     )) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {

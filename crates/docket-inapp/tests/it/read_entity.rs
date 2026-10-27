@@ -7,6 +7,7 @@
 use crate::support::TestSheet;
 use crate::support::host::{clock, mail, work};
 use crate::support::infer::{ScriptedInfer, call, words};
+use docket_core::parse;
 use docket_core::{
     AppRefusal, ChoiceId, EntityRef, Handle, Hit, Invocation, Outcome, Preview, ReaderAsk,
     ReaderTask, SuggestAsk, TargetValue, UndoFault, UndoToken, ValidManifest, Value, ValueSchema,
@@ -14,7 +15,6 @@ use docket_core::{
 use docket_fake::{FakeMail, MAIL_MANIFEST};
 use docket_inapp::{Ending, InAppAgent, InAppKit, InAppParts, TransportReader};
 use docket_provider::IntentProvider;
-use docket_router::parse;
 use porter_core::AppName;
 use prov::{ActionName, Actor, EntityId, EntityKey, EntityKind, Labelled};
 use serde_json::{Value as Json, json};
@@ -135,7 +135,7 @@ async fn a_thread_is_read_first_and_its_text_handle_is_then_answered() {
         words("It is an invoice."),
     ]);
     let reader = ScriptedInfer::new(vec![words("invoice")]);
-    let sheet = TestSheet::answering(vec![docket_inapp::SheetAnswer::Once; 2]);
+    let sheet = TestSheet::answering(vec![docket_host::SheetAnswer::Once; 2]);
     let parts = InAppParts {
         provider: searching(),
         context: crate::support::Nowhere,

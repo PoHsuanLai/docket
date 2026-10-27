@@ -1,27 +1,9 @@
-//! The manifests of every installed app. Manifest TOML is parsed here, not in `docket-core`.
+//! The manifests of every installed app. Reading a manifest file is `docket_core::parse`.
 
-use docket_core::{ActionDecl, ActionRef, Manifest, ManifestError, ValidManifest, validate};
+use docket_core::{ActionDecl, ActionRef, ManifestError, ValidManifest};
 use porter_core::AppName;
 use prov::EntityKind;
 use std::collections::{BTreeMap, BTreeSet};
-
-/// Why a manifest was not taken.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum RegistryError {
-    /// The file is not a manifest.
-    #[error("manifest file: {0}")]
-    Toml(String),
-    /// The manifest does not validate.
-    #[error("manifest: {0}")]
-    Invalid(ManifestError),
-}
-
-/// Reads a manifest file and validates it.
-pub fn parse(text: &str) -> Result<ValidManifest, RegistryError> {
-    let manifest: Manifest =
-        toml::from_str(text).map_err(|e| RegistryError::Toml(e.to_string()))?;
-    validate(manifest).map_err(RegistryError::Invalid)
-}
 
 /// The installed manifests, by app.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

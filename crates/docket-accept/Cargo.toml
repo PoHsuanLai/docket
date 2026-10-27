@@ -70,11 +70,11 @@ docket-acp-bin = { path = "../docket-acp-bin" }
 docket-cli = { path = "../docket-cli" }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-provider = { workspace = true, features = ["dbus"] }
-docket-core = { workspace = true }
+docket-core = { workspace = true, features = ["manifest-file"] }
 docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }
 docket-eval = { workspace = true }
 eval-core = { workspace = true }
-docket-inapp = { workspace = true }
+docket-host = { workspace = true }
 docket-launch = { workspace = true }
 docket-reader = { workspace = true }
 docket-log = { workspace = true }

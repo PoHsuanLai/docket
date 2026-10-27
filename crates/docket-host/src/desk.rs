@@ -1,6 +1,6 @@
 //! `EditorDesk`: the sheet of an app whose person sits in an editor. The router asks it like any
 //! [`ConfirmSheet`] and the request waits on the desk; the session host hands the request to the
-//! editor (`SheetDesk::request`) and puts the editor\'s choice back (`SheetDesk::answer`). The
+//! editor (`SheetDesk::request`) and puts the editor's choice back (`SheetDesk::answer`). The
 //! choice names no scope: [`SheetConfirmer`](crate::SheetConfirmer) builds the answer and the
 //! receipt from it, and the router honours an "always" only where its own sheet offered one.
 

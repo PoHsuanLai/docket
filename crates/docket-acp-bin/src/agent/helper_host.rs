@@ -14,7 +14,6 @@ use super::fault::AgentFault;
 use super::helper_hosts::{HelperHosts, folder_of};
 use super::live::Live;
 use super::logout::EntryLogout;
-use super::wire;
 use docket_acp_host::{HelperAgent, HelperAgents};
 use docket_core::Clock;
 use docket_core::ProgramName;
@@ -75,7 +74,10 @@ impl HelperHost {
     pub fn new(live: Arc<Live<DbusAccounts>>) -> Self {
         let hosts = Arc::clone(&live);
         let make: Maker = Box::new(move |card| HelperHosts::new(Arc::clone(&hosts), card));
-        let logout = Arc::new(EntryLogout::new(Arc::clone(&live), wire::login_runner()));
+        let logout = Arc::new(EntryLogout::new(
+            Arc::clone(&live),
+            live.places().login_runner(),
+        ));
         let agents = HelperAgents::new(make, || SystemClock.now()).with_logout(logout);
         Self {
             live,
@@ -107,7 +109,7 @@ impl HelperHost {
             return refused(HandFault::Failed);
         };
         let program = ProgramName::from(program);
-        let folder = folder_of(&card.id);
+        let folder = folder_of(&card.id, self.live.places());
         // A line that cannot be built stops here, with the app still open.
         if self
             .live
@@ -195,7 +197,9 @@ impl HelperHost {
         if !Path::new(entry.command.as_str()).exists() {
             return Err(JobFault::NotInstalled);
         }
-        folder_of(&card.id).map(|_| ()).ok_or(JobFault::Crashed)
+        folder_of(&card.id, self.live.places())
+            .map(|_| ())
+            .ok_or(JobFault::Crashed)
     }
 
     /// A sign-in that is to run in a terminal, with the command resolved from the list of coding
@@ -209,7 +213,7 @@ impl HelperHost {
             self.live.terminal_run(
                 &ProgramName::from(program),
                 &login,
-                folder_of(&card.id).as_deref(),
+                folder_of(&card.id, self.live.places()).as_deref(),
             )
         });
         match run {

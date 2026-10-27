@@ -39,6 +39,8 @@ mod ids;
 mod index;
 mod limit;
 mod manifest;
+#[cfg(feature = "manifest-file")]
+mod manifest_file;
 mod marks;
 mod memory_link;
 mod message;
@@ -156,6 +158,8 @@ pub use manifest::{
     Lasting, Latency, Manifest, ParamDecl, ParamNeed, PropDecl, RELATION_ARG, RelationDecl,
     ResultShape, TargetKind, TitleTrust, UndoSupport, Visibility, related_name,
 };
+#[cfg(feature = "manifest-file")]
+pub use manifest_file::{ManifestFileError, parse};
 pub use marks::{hides, plain_text, reorders};
 pub use memory_link::{EventSink, LinkFault, MemoryLink, SpaceMemories};
 pub use message::{

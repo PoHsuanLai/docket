@@ -1091,7 +1091,7 @@ dependencies = [
  "docket-dbus",
  "docket-eval",
  "docket-fake",
- "docket-inapp",
+ "docket-host",
  "docket-launch",
  "docket-log",
  "docket-provider",
@@ -1159,13 +1159,12 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-fake",
- "docket-inapp",
+ "docket-host",
  "docket-launch",
  "docket-log",
  "docket-native",
  "docket-planner",
  "docket-provider",
- "docket-router",
  "docket-session",
  "docket-settings",
  "docket-store",
@@ -1193,7 +1192,7 @@ dependencies = [
  "docket-client",
  "docket-core",
  "docket-fake",
- "docket-inapp",
+ "docket-host",
  "docket-router",
  "docket-session",
  "docket-store",
@@ -1427,6 +1426,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-host"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "docket-session",
+ "futures-channel",
+ "futures-util",
+ "porter-core",
+ "prov",
+]
+
+[[package]]
 name = "docket-inapp"
 version = "0.1.0"
 dependencies = [
@@ -1440,6 +1451,7 @@ dependencies = [
  "docket-client",
  "docket-core",
  "docket-fake",
+ "docket-host",
  "docket-memory",
  "docket-memory-core",
  "docket-models",
@@ -1650,7 +1662,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
- "toml",
  "tracing",
  "url",
 ]

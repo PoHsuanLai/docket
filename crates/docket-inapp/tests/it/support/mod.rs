@@ -11,7 +11,7 @@ use docket_core::{
     ConfirmId, ConfirmRequest, ContextScope, ContextSnapshot, Here, Selection, TextTarget, Visible,
     WindowPrivacy,
 };
-use docket_inapp::{ConfirmSheet, SheetAnswer};
+use docket_host::{ConfirmSheet, SheetAnswer};
 use docket_provider::ContextSource;
 use porter_core::Count;
 use prov::Labelled;

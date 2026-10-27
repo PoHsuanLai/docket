@@ -12,7 +12,7 @@
 
 use crate::check::{CheckError, CheckReport, Found, Level, walk};
 use docket_core::ValidManifest;
-use docket_router::parse;
+use docket_core::parse;
 use docket_skills::{Origin, Reach, SkillFault, load_dir, reach};
 use docket_skills_disk::DiskFolder;
 use std::collections::BTreeSet;

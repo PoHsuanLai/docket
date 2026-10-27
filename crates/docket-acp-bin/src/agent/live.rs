@@ -4,6 +4,7 @@
 //! agents (`helper_host`) both start from here, so both hold an agent to the same rules.
 
 use crate::agent::host::{Hosting, Wiring};
+use crate::agent::places::Places;
 use crate::agent::provider::{PerformerProvider, Quiet};
 use agents_core::dirs::AgentsDir;
 use bulkhead::{BwrapSandbox, Detected, NetworkMode};
@@ -15,7 +16,7 @@ use docket_client::DbusTransport;
 use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};
 use docket_core::{ACP_AGENT_APP, AbsPath, SeenCommand, ValidManifest, WatchedAgent};
 use docket_dbus::CONFIRM_PATH;
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_launch::{
     Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Entry, Registry,
     ToolsMode, login_run,
@@ -50,6 +51,7 @@ pub struct Live<A: Accounts + 'static> {
     pub fallback: Fallback,
     /// The agents directory a registry agent was installed in; none writes nothing.
     pub agents: Option<AgentsDir>,
+    places: Places,
     placeholder: Placeholder,
 }
 
@@ -91,6 +93,7 @@ impl<A: Accounts + 'static> Live<A> {
             desk,
             callers,
             agents,
+            places,
         } = wiring;
         let found = match &bwrap {
             Detected::Bwrap(found) => found,
@@ -105,7 +108,7 @@ impl<A: Accounts + 'static> Live<A> {
             .with_agent_network(agent_network)
             .with_command_deadline(acp_core::command_deadline::CommandDeadline::DEFAULT);
         let manifest: ValidManifest =
-            docket_router::parse(MANIFEST).map_err(|e| format!("the agent manifest: {e}"))?;
+            docket_core::parse(MANIFEST).map_err(|e| format!("the agent manifest: {e}"))?;
         let quiet = Quiet(docket_core::acp_agent_app().ok_or("no app name for the agent host")?);
         if fallback == Fallback::Terminal {
             // Served before the name is claimed, so the first sheet finds it.
@@ -143,8 +146,14 @@ impl<A: Accounts + 'static> Live<A> {
             desk,
             fallback,
             agents,
+            places,
             placeholder: Placeholder::new()?,
         })
+    }
+
+    /// Where this computer keeps what the host needs.
+    pub fn places(&self) -> &Places {
+        &self.places
     }
 
     /// The entry of `agents.toml` that runs `program`.

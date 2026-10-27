@@ -4,17 +4,16 @@
 
 use super::fault::AgentFault;
 use super::host::Wiring;
-use super::{agents_dir, config_dir, data_dir, env, sibling};
+use super::places::Places;
+use super::sibling;
 use bulkhead::Detected;
 use docket_acp_host::{Fallback, ToolsOffer};
 use docket_dbus::BusConnection;
 use docket_dbus::callers::Identity;
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_launch::dbus::DbusAccounts;
-use docket_launch::login::VisibleLogin;
 use docket_launch::{AgentsFile, AgentsPermit, ChildProc, Registry, Supervisor};
-use docket_settings::{AgentSettings, Locator};
-use std::path::PathBuf;
+use docket_settings::AgentSettings;
 use std::sync::Arc;
 
 /// Whether the agent is offered the desktop's actions.
@@ -38,13 +37,13 @@ pub struct Allowed {
 }
 
 /// Reads the setting and `agents.toml`. Off, or no file, or a file that is wrong, is a fault.
-pub fn allowed() -> Result<Allowed, AgentFault> {
-    let loaded = Locator::from_env(&env).read(AgentSettings::default());
+pub fn allowed(places: &Places) -> Result<Allowed, AgentFault> {
+    let loaded = places.locator().read(AgentSettings::default());
     let permit = AgentsPermit::from_setting(loaded.value.agents)
         .map_err(|e| AgentFault::Permit(e.to_string()))?;
-    let text = std::fs::read_to_string(config_dir().join("docket/agents.toml"))
+    let text = std::fs::read_to_string(places.config_dir().join("docket/agents.toml"))
         .map_err(|_| AgentFault::NoAgentsFile)?;
-    let agents = agents_dir();
+    let agents = places.agents_dir();
     let file = Arc::new(
         AgentsFile::parse_in(&text, Some(&agents))
             .map_err(|e| AgentFault::Agents(e.to_string()))?,
@@ -52,36 +51,19 @@ pub fn allowed() -> Result<Allowed, AgentFault> {
     Ok(Allowed { permit, file })
 }
 
-/// What runs an agent's own login or logout command: given the variables it needs to show
-/// itself, chosen here because the launcher crate reads no environment.
-pub fn login_runner() -> VisibleLogin {
-    let vars = [
-        "HOME",
-        "PATH",
-        "DISPLAY",
-        "WAYLAND_DISPLAY",
-        "XDG_RUNTIME_DIR",
-        "DBUS_SESSION_BUS_ADDRESS",
-    ];
-    VisibleLogin::new(
-        vars.iter()
-            .filter_map(|k| env(k).map(|v| ((*k).to_owned(), v)))
-            .collect(),
-    )
-}
-
 /// The wiring of a host on `bus`: the sandbox, the launcher registered on the bus and the tool
-/// edge. `fallback` says who answers the sheets of the agent's session.
+/// edge. `fallback` says who answers the sheets of the agent's session; `places` is what
+/// `main` read of the environment.
 pub async fn build(
     allowed: Allowed,
     tools: Tools,
     fallback: Fallback,
     bus: BusConnection,
     limits: SandboxLimits,
+    places: Places,
 ) -> Result<Wiring<DbusAccounts>, AgentFault> {
     let Allowed { permit, file } = allowed;
-    let path = env("PATH").unwrap_or_default();
-    let bwrap = match limits.probe(&path) {
+    let bwrap = match limits.probe(places.path()) {
         Detected::Bwrap(bwrap) => bwrap,
         Detected::Missing(why) => return Err(AgentFault::NoSandbox(why)),
     };
@@ -93,7 +75,10 @@ pub async fn build(
             "docket-agent: no docket-net-enter beside this program: the kernel does not limit the agent's files or network"
         );
     }
-    let run_dir = PathBuf::from(env("XDG_RUNTIME_DIR").ok_or(AgentFault::NoRuntimeDir)?);
+    let run_dir = places
+        .runtime_dir()
+        .ok_or(AgentFault::NoRuntimeDir)?
+        .to_path_buf();
     // The desktop's actions go to the agent as an MCP server it starts itself: the `actions-mcp`
     // program beside this one, as the bridge to this host. Whether a program is offered it (an
     // entry can switch it off) and which of the actions is decided where its backend is made.
@@ -111,7 +96,8 @@ pub async fn build(
         );
     }
 
-    let table = crate::callers::read(&env).map_err(|e| AgentFault::Callers(e.to_string()))?;
+    let table = crate::callers::read(&|name: &str| places.var(name))
+        .map_err(|e| AgentFault::Callers(e.to_string()))?;
     let callers = Arc::new(Identity::on_system(bus.clone(), table));
     let accounts = Arc::new(
         DbusAccounts::connect(&bus)
@@ -123,7 +109,7 @@ pub async fn build(
         accounts.clone(),
         file.clone(),
         registry.clone(),
-        login_runner(),
+        places.login_runner(),
     );
     supervisor
         .register()
@@ -131,7 +117,7 @@ pub async fn build(
         .map_err(|e| AgentFault::Bus(e.to_string()))?;
     tokio::spawn(async move { supervisor.run().await });
 
-    if data_dir().join("acp-agent-grants.json").exists() {
+    if places.data_dir().join("acp-agent-grants.json").exists() {
         eprintln!(
             "docket-agent: ignoring the old acp-agent-grants.json in the data directory: \
              an agent's grants are docket's now (Settings lists and revokes them); allow \
@@ -152,7 +138,8 @@ pub async fn build(
         fallback,
         desk: EditorDesk::new(),
         callers,
-        agents: Some(agents_dir()),
+        agents: Some(places.agents_dir()),
+        places,
     })
 }
 

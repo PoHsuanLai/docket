@@ -94,7 +94,7 @@ fn world(replies: Vec<MemoryReply>) -> (Router, Arc<Watcher>) {
         .lock()
         .expect("lock")
         .registry
-        .insert(docket_router::parse(MANIFEST).expect("manifest"));
+        .insert(docket_core::parse(MANIFEST).expect("manifest"));
     (router, watcher)
 }
 

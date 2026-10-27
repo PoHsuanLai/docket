@@ -3,8 +3,8 @@
 
 use docket_cli::params::{Reading, Stdin, StdinSlot, arguments, target};
 use docket_cli::resolve::Apps;
+use docket_core::parse as parse_manifest;
 use docket_core::{ActionDecl, CivilDate, Decimal, Handle, Scale, Seconds, TargetValue, Value};
-use docket_router::parse as parse_manifest;
 use prov::{EntityId, EntityKey, EntityKind, UnixSeconds};
 
 const DEMO: &str = r#"

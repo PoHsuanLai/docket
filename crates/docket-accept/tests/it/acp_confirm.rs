@@ -11,7 +11,7 @@ use docket_core::{
 };
 use docket_dbus::callers::{Identity, Role};
 use docket_dbus::{CONFIRM_PATH, ConfirmProxy, INTENTS_BUS};
-use docket_inapp::EditorDesk;
+use docket_host::EditorDesk;
 use docket_session::{SheetChoice, SheetDesk};
 use docket_settings::AcpExpose;
 use docket_testbus::PrivateBus;

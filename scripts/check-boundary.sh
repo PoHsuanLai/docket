@@ -57,6 +57,7 @@ LAYERS=(
   "docket-checkpoint-git:C"
   "docket-acp:C"
   "docket-acp-host:C"
+  "docket-host:C"
   "docket-launch:C"
   "docket-agents:C"
   "docket-settings:C"
@@ -89,7 +90,6 @@ LAYERS=(
 # reexport:ext. The list only shrinks: each lane deletes its rows, and a row that no longer
 # matches a breach fails the check until it is deleted.
 KNOWN=(
-  "docket-acp-bin env D0.21"
   "docket-accept env D0.22"
 )
 
@@ -360,9 +360,12 @@ RULES=(
   # HTTP, desktop stack, database, Cedar or MCP SDK, and nothing that links a sandbox library.
   "docket-launch: reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy landlock libseccomp"
   "docket-inapp: $NO_CEDAR"
+  # The host side of a confirm sheet: values, a oneshot channel and the session seam; no bus, runtime, network or toml.
+  "docket-host: $EFFECTS toml"
   # The docket-acp process (and `docket-agent`, the host of an external coding agent): the router
-  # and the companion hosted in it, over the bus (zbus, tokio) and nothing else of the desktop.
-  "docket-acp-bin: reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp"
+  # and the companion hosted in it, over the bus (zbus, tokio) and nothing else of the desktop. It
+  # is wiring over clients: it reaches neither the in-app agent nor the router.
+  "docket-acp-bin: docket-inapp docket-router reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp"
   # The models, the quarantined reader and the memory seam are portable too (moved out of
   # intentd and readerd): they ask any porter-client or almanac-client Transport, never a bus or
   # a runtime; almanac-client hosts its service only behind `in_process` (a dev-dependency here)

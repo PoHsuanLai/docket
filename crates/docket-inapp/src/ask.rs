@@ -4,7 +4,6 @@
 //! reading of the result.
 
 use crate::agent::{AgentFault, Ending, InAppAgent, Reply};
-use crate::sheet::ConfirmSheet;
 use crate::turn_watch::TurnWatch;
 use action_review::Reviewer;
 use agent_loop::{FinishedAs, LoopPhase, LoopState};
@@ -15,6 +14,7 @@ use docket_core::{
     ContextKeep, Keep, Origin, PolicyWriter, Reader, SessionOpen, TurnEnd, TurnIn, TurnSource,
     TurnVia, UserTurn, WindowKey,
 };
+use docket_host::ConfirmSheet;
 use docket_planner::PlanFault;
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::GrantStore;

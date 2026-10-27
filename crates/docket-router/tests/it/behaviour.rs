@@ -83,13 +83,15 @@ fn an_action_naming_a_kind_no_app_declares_is_unresolved() {
 fn parse_names_what_is_wrong() {
     assert!(matches!(
         parse("vocab = \"x\""),
-        Err(RegistryError::Toml(_))
+        Err(ManifestFileError::Toml(_))
     ));
     let outside = shipped("org.quire.Memory.toml")
         .replace("name = \"memory.recall\"", "name = \"files.recall\"");
     assert!(matches!(
         parse(&outside),
-        Err(RegistryError::Invalid(ManifestError::ActionOutsideApp(_)))
+        Err(ManifestFileError::Invalid(ManifestError::ActionOutsideApp(
+            _
+        )))
     ));
 }
 

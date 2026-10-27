@@ -5,11 +5,11 @@
 //! files parsed into; nothing a model, a page or a message says can become one.
 
 use crate::agent::InAppAgent;
-use crate::sheet::ConfirmSheet;
 use action_review::Reviewer;
 use docket_core::Clock;
 use docket_core::MemoryLink;
 use docket_core::{PolicyWriter, Reader};
+use docket_host::ConfirmSheet;
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::GrantStore;
 use docket_skills::{Rejected, Roots, Skill, discover};

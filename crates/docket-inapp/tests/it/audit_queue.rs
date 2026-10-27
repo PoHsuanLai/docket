@@ -9,9 +9,7 @@ use almanac_client::InProcess;
 use almanac_core::{BodyMode, Caller, MemoryReply, MemoryRequest, RecentQuery, TrustFilter};
 use almanac_fake::{ScriptedConsolidator, fake_service};
 use docket_core::{LinkFault, MemoryLink};
-use docket_inapp::{
-    AlmanacMemory, AuditFile, AuditFileError, AuditTo, InAppAgent, InAppKit, SheetAnswer,
-};
+use docket_inapp::{AlmanacMemory, AuditFile, AuditFileError, AuditTo, InAppAgent, InAppKit};
 use porter_core::Count;
 use prov::UnixSeconds;
 use serde_json::json;

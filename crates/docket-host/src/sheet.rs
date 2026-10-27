@@ -1,4 +1,4 @@
-//! The in-app confirm sheet. The app draws it in its own window and answers with a
+//! The confirm sheet. The host draws it in its own window and answers with a
 //! [`SheetAnswer`]; [`SheetConfirmer`] turns that into the router's `ConfirmAnswer` and mints the
 //! receipt itself (the input proof is `SheetFallback`: the app's own pointer event, no
 //! compositor attestation), so a sheet can say yes or no but a model can never forge a yes.
