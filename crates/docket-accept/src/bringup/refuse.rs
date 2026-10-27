@@ -16,9 +16,9 @@ pub struct Own {
 }
 
 impl Own {
-    /// This process's own environment.
-    pub fn from_env() -> Self {
-        let var = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
+    /// This process's own environment, as `main` hands it in.
+    pub fn read(env: &impl Fn(&str) -> Option<String>) -> Self {
+        let var = |name: &str| env(name).filter(|v| !v.is_empty());
         Self {
             home: var("HOME").map(PathBuf::from),
             session_bus: var("DBUS_SESSION_BUS_ADDRESS"),

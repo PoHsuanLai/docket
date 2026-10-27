@@ -15,15 +15,19 @@ fn main() -> ExitCode {
         }
     };
     let defaults = companiond::HarnessSeams::default();
+    let env = |key: &str| std::env::var(key).ok();
     let seams = companiond::HarnessSeams {
-        proc_root: docket_accept::seams::proc_root(docket_accept::seams::COMPANIOND_PROC_ROOT_VAR)
-            .unwrap_or(defaults.proc_root),
+        proc_root: docket_accept::seams::proc_root(
+            &env,
+            docket_accept::seams::COMPANIOND_PROC_ROOT_VAR,
+        )
+        .unwrap_or(defaults.proc_root),
         system_callers: docket_accept::seams::system_callers(
+            &env,
             docket_accept::seams::COMPANIOND_SYSTEM_CALLERS_VAR,
         ),
-        trace: docket_accept::seams::trace(),
+        trace: docket_accept::seams::trace(&env),
     };
-    let env = |key: &str| std::env::var(key).ok();
     match runtime.block_on(companiond::run_with(seams, &env)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {

@@ -163,6 +163,7 @@ pub async fn run_flow_acp(
         acp: AcpSetting::Agents,
         focus: flow.focus(),
         app: flow.app(),
+        ..Options::default()
     };
     let world = World::start_model(binaries, flow.consent(), model, &options).await;
     if let Err(fault) = warm_world(&world, model, patience).await {
@@ -260,6 +261,7 @@ pub async fn list_models_acp(
         acp: AcpSetting::Agents,
         focus: Flow::ALL[0].focus(),
         app: Flow::ALL[0].app(),
+        ..Options::default()
     };
     let world = World::start_model(binaries, Flow::ALL[0].consent(), model, &options).await;
     let offered = offered_models(&world, binaries, spec).await?;

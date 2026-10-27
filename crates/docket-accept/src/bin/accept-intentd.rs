@@ -13,17 +13,21 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    let env = |key: &str| std::env::var(key).ok();
     let seams = intentd::HarnessSeams {
-        proc_root: docket_accept::seams::proc_root(docket_accept::seams::INTENTD_PROC_ROOT_VAR)
-            .map_or(intentd::ProcRoot::System, intentd::ProcRoot::Fake),
+        proc_root: docket_accept::seams::proc_root(
+            &env,
+            docket_accept::seams::INTENTD_PROC_ROOT_VAR,
+        )
+        .map_or(intentd::ProcRoot::System, intentd::ProcRoot::Fake),
         system_callers: docket_accept::seams::system_callers(
+            &env,
             docket_accept::seams::INTENTD_SYSTEM_CALLERS_VAR,
         ),
-        trace: docket_accept::seams::trace(),
+        trace: docket_accept::seams::trace(&env),
         floor: None,
         admin_permissions: None,
     };
-    let env = |key: &str| std::env::var(key).ok();
     match runtime.block_on(intentd::run_with(seams, &env)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {

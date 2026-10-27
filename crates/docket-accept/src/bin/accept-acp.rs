@@ -20,17 +20,19 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let seams = docket_acp_bin::HarnessSeams {
-        proc_root: docket_accept::seams::proc_root(docket_accept::seams::ACP_PROC_ROOT_VAR),
+    let env = |key: &str| std::env::var(key).ok();
+    let seams = docket_acp_bin::harness::acp::HarnessSeams {
+        proc_root: docket_accept::seams::proc_root(&env, docket_accept::seams::ACP_PROC_ROOT_VAR),
         system_callers: docket_accept::seams::system_callers(
+            &env,
             docket_accept::seams::ACP_SYSTEM_CALLERS_VAR,
         ),
     };
-    match runtime.block_on(docket_acp_bin::serve_with(
+    match runtime.block_on(docket_acp_bin::harness::acp::serve_with(
         permit,
-        docket_accept::seams::trace(),
+        docket_accept::seams::trace(&env),
         seams,
-        &|key: &str| std::env::var(key).ok(),
+        &env,
     )) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {

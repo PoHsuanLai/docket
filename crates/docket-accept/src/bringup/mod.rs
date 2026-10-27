@@ -15,7 +15,7 @@ pub mod refuse;
 pub mod seed;
 pub mod up;
 
-use crate::live::keys_home::HomeFault;
+use crate::keys_home::HomeFault;
 use crate::world::{Binaries, env_of};
 use cli::{Command, UsageError};
 use procs::ProcsFault;
@@ -108,14 +108,18 @@ fn say_up(args: &cli::UpArgs, binaries: &Binaries, started: &[up::Started]) {
     }
 }
 
-fn run_command(command: Command) -> Result<(), BringupError> {
+fn run_command(
+    command: Command,
+    exe: &Path,
+    env: &impl Fn(&str) -> Option<String>,
+) -> Result<(), BringupError> {
     match command {
         Command::Up(args) => {
-            let binaries = crate::live::packaged_binaries()?;
+            let binaries = Binaries::beside(exe, env);
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()?;
-            let started = runtime.block_on(up::up(&args, &binaries, &Own::from_env()))?;
+            let started = runtime.block_on(up::up(&args, &binaries, &Own::read(env)))?;
             say_up(&args, &binaries, &started);
         }
         Command::Down(args) => {
@@ -138,8 +142,9 @@ fn run_command(command: Command) -> Result<(), BringupError> {
 }
 
 /// The whole program: parses `args` (without the program's name), runs the command and prints
-/// its lines. Exit code 2 for a wrong command line, 1 for a failure.
-pub fn run_cli(args: &[String]) -> ExitCode {
+/// its lines. `exe` is the program's own path (the daemons are beside it) and `env` the environment
+/// `main` hands in. Exit code 2 for a wrong command line, 1 for a failure.
+pub fn run_cli(args: &[String], exe: &Path, env: &impl Fn(&str) -> Option<String>) -> ExitCode {
     let command = match cli::parse(args) {
         Ok(command) => command,
         Err(why @ UsageError::Subcommand) => {
@@ -151,7 +156,7 @@ pub fn run_cli(args: &[String]) -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    match run_command(command) {
+    match run_command(command, exe, env) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("docket-bringup: {why}");

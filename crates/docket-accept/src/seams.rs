@@ -1,11 +1,11 @@
-//! The test-only seams of the daemons, read from the environment by the harness's mains alone.
+//! The test-only seams of the daemons, read from the environment by the harness's mains alone: each
+//! takes the environment `main` hands in.
 //! The shipped daemons carry none of this: their `main` passes the defaults (the system's `/proc`,
 //! no model tap) and no environment variable can change either. The world sets these variables
 //! on the processes it spawns (`world::spawn`).
 
 use docket_dbus::InferWatch;
 use docket_trace::Tap;
-use std::ffi::OsString;
 use std::path::PathBuf;
 
 /// The variable that names the file the model tap appends to (prompts go to disk).
@@ -47,28 +47,28 @@ pub const AGENT_SYSTEM_CALLERS_VAR: &str = "DOCKET_AGENT_SYSTEM_CALLERS";
 pub const AGENT_PER_PROCESS_LIMITS_VAR: &str = "DOCKET_AGENT_RLIMIT";
 
 /// A non-empty value of `name`.
-fn set(name: &str) -> Option<OsString> {
-    std::env::var_os(name).filter(|value| !value.is_empty())
+fn set(env: &impl Fn(&str) -> Option<String>, name: &str) -> Option<String> {
+    env(name).filter(|value| !value.is_empty())
 }
 
 /// The model tap the world asked for: a file when [`TRACE_VAR`] names one, else off.
-pub fn trace() -> InferWatch {
-    set(TRACE_VAR).map_or_else(InferWatch::off, |path| {
+pub fn trace(env: &impl Fn(&str) -> Option<String>) -> InferWatch {
+    set(env, TRACE_VAR).map_or_else(InferWatch::off, |path| {
         Tap::trace_file(PathBuf::from(path)).watch()
     })
 }
 
 /// The fixture `/proc` named by the variable `name`, if the world set one.
-pub fn proc_root(name: &str) -> Option<PathBuf> {
-    set(name).map(PathBuf::from)
+pub fn proc_root(env: &impl Fn(&str) -> Option<String>, name: &str) -> Option<PathBuf> {
+    set(env, name).map(PathBuf::from)
 }
 
 /// The file named by the variable `name`, if the world set one: a system callers file.
-pub fn system_callers(name: &str) -> Option<PathBuf> {
-    set(name).map(PathBuf::from)
+pub fn system_callers(env: &impl Fn(&str) -> Option<String>, name: &str) -> Option<PathBuf> {
+    set(env, name).map(PathBuf::from)
 }
 
 /// Whether the variable `name` is set (and not empty).
-pub fn switched_on(name: &str) -> bool {
-    set(name).is_some()
+pub fn switched_on(env: &impl Fn(&str) -> Option<String>, name: &str) -> bool {
+    set(env, name).is_some()
 }

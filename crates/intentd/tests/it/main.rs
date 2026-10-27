@@ -1,3 +1,4 @@
+mod acp_desk;
 mod acp_gate;
 mod audit;
 mod binary;

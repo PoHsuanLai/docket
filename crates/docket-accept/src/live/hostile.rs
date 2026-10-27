@@ -168,7 +168,7 @@ pub async fn run_planner_case(
     case: &PlannerCase,
     model: &ModelSource,
     dirs: (Option<std::path::PathBuf>, Option<std::path::PathBuf>),
-    keys_home: Option<&crate::live::keys_home::KeysHome>,
+    keys_home: Option<&crate::keys_home::KeysHome>,
     patience: Duration,
 ) -> HostileReport {
     let script = Script {

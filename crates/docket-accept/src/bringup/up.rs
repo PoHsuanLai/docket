@@ -8,8 +8,8 @@ use super::down;
 use super::procs::{self, Record};
 use super::refuse::{self, Own};
 use super::seed;
-use crate::live::keys_home::KeysHome;
-use crate::world::{Binaries, Cgroup, env_of, extra_env};
+use crate::keys_home::KeysHome;
+use crate::world::{Binaries, Cgroup, InferdEnv, env_of, extra_env};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
@@ -48,14 +48,14 @@ fn spawn(
     bus: &str,
     name: &'static str,
     binary: &Path,
-    keys: Option<&str>,
+    inferd: InferdEnv<'_>,
 ) -> std::io::Result<Child> {
     let log = std::fs::File::create(root.join("logs").join(format!("{name}.log")))?;
     let mut command = Command::new(binary);
     command
         .env_clear()
         .envs(env_of(root))
-        .envs(extra_env(root, name, keys))
+        .envs(extra_env(root, name, inferd))
         .env("DBUS_SESSION_BUS_ADDRESS", bus)
         .env("DBUS_SYSTEM_BUS_ADDRESS", bus)
         .stdin(Stdio::null())
@@ -125,11 +125,11 @@ pub async fn up(
     crate::runlink::link_run(root)?;
     seed::files(root, args.shell_pid, &inferd_toml)?;
     if let Some(from) = &args.catalog {
-        crate::live::catalog::copy_entries(from, &crate::live::catalog::world_dir(root))
+        crate::catalog::copy_entries(from, &crate::catalog::world_dir(root))
             .map_err(|e| BringupError::Config(format!("catalogue {}: {e}", from.display())))?;
     }
     if let Some(from) = &args.providers {
-        crate::live::catalog::copy_entries(from, &root.join("data/porter/providers"))
+        crate::catalog::copy_entries(from, &root.join("data/porter/providers"))
             .map_err(|e| BringupError::Config(format!("providers {}: {e}", from.display())))?;
     }
     if let Some(home) = &keys {
@@ -146,6 +146,10 @@ pub async fn up(
         .await
         .map_err(|e| BringupError::Bus(e.to_string()))?;
     let keys_setting = keys.as_ref().map(KeysHome::keys_setting);
+    let inferd = InferdEnv {
+        keys: keys_setting.as_deref(),
+        engine_cache: binaries.engine_cache.as_deref(),
+    };
 
     let mut records: Vec<Record> = Vec::new();
     let mut started = Vec::new();
@@ -154,7 +158,7 @@ pub async fn up(
             root,
             &args.bus,
             (name, binary, owns),
-            keys_setting.as_deref(),
+            inferd,
             &dbus,
             &mut records,
         )
@@ -176,11 +180,11 @@ async fn start_one(
     root: &Path,
     bus: &str,
     (name, binary, owns): (&'static str, &Path, &'static str),
-    keys: Option<&str>,
+    inferd: InferdEnv<'_>,
     dbus: &DBusProxy<'_>,
     records: &mut Vec<Record>,
 ) -> Result<u32, BringupError> {
-    let mut child = spawn(root, bus, name, binary, keys)?;
+    let mut child = spawn(root, bus, name, binary, inferd)?;
     let pid = child.id();
     // Recorded before anything can fail, so a failure stops it too.
     let start = procs::start_time(pid).ok_or(BringupError::NoStartTime(name, pid))?;

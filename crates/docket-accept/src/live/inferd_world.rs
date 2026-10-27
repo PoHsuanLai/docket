@@ -8,8 +8,8 @@
 //! started here; `dev/live-smoke.sh` runs all of them.
 
 use crate::world::{
-    Binaries, Cgroup, GIVE_UP, ModelSource, Options, Scratch, env_of, inferd_toml, place, spawn,
-    until_owned, write,
+    Binaries, Cgroup, GIVE_UP, InferdEnv, ModelSource, Options, Scratch, env_of, inferd_toml,
+    place, spawn, until_owned, write,
 };
 use docket_dbus::BusConnection;
 use docket_testbus::{PrivateBus, Reaped};
@@ -66,7 +66,10 @@ impl InferdWorld {
             "inferd",
             &binaries.inferd,
             None,
-            keys.as_deref(),
+            InferdEnv {
+                keys: keys.as_deref(),
+                engine_cache: binaries.engine_cache.as_deref(),
+            },
         )
         .expect("inferd starts");
         place(root, inferd.pid(), Cgroup::Unit(name));

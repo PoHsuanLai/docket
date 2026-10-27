@@ -16,6 +16,7 @@ pub fn binaries() -> Binaries {
         quire_do: env!("CARGO_BIN_EXE_accept-quire-do").into(),
         actions_mcp: env!("CARGO_BIN_EXE_accept-actions-mcp").into(),
         relay: env!("CARGO_BIN_EXE_accept-bus-relay").into(),
+        engine_cache: None,
     }
 }
 

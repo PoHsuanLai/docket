@@ -1,6 +1,6 @@
 //! One turn of the person's words on a hosted external agent, in a running world.
 //!
-//! The host is the one `docket-agent` runs (`docket_acp_bin::agent::host`), with no accountd
+//! The host is the one `docket-agent` runs (`docket_acp_bin::harness::host`), with no accountd
 //! behind it (`LoginOnly`): the agent's sandbox is bubblewrap, its calls are router calls over the
 //! world's private bus, the sheets go to the world's scripted person (intentd's confirmer), and
 //! the per-session tool edge is offered with the bridge program of `Binaries::actions_mcp`.
@@ -9,9 +9,7 @@ use super::spec::AcpSpec;
 use crate::live::acp::secret::Credentials;
 use crate::runlink::short_run;
 use crate::world::{Binaries, Cgroup, World};
-use docket_acp_bin::agent::host::{Hosted, Wiring, host};
-use docket_acp_bin::agent::places::Places;
-use docket_acp_bin::agent::wire::SandboxLimits;
+use docket_acp_bin::harness::host::{Hosted, Places, SandboxLimits, Wiring, host};
 use docket_acp_host::{Fallback, Models, ToolsOffer};
 use docket_core::{AbsPath, TurnId, TurnSource, TurnVia, UserTurn};
 use docket_host::EditorDesk;

@@ -265,7 +265,7 @@ fn every_flow_has_its_test() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_worlds_inferd_finds_the_copied_catalogue_entries() {
-    use docket_accept::live::catalog::world_dir;
+    use docket_accept::catalog::world_dir;
     use docket_accept::live::{InferdWorld, hijacked_judge_cassette};
     use docket_accept::world::{ModelSource, Options};
     let source = tempfile::tempdir().expect("source");

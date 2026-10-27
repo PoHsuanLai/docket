@@ -19,7 +19,6 @@ use crate::live::warm_bus::warm_up;
 use crate::world::{Binaries, Options, TapMode};
 use action_review::InferReviewer;
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, AskWire};
-use companiond::{Companiond, PlannerModel};
 use docket_client::{InProcess, Intents};
 use docket_core::{
     AgentConfig, CallerId, CallerRole, Clock, ContextKeep, Keep, Origin, SessionOpen, TurnIn,
@@ -28,15 +27,17 @@ use docket_core::{
 use docket_dbus::Watched;
 use docket_eval::{Facts, install_fixture};
 use docket_fake::fake_router_reading;
+use docket_models::{TransportModel, TransportWriter};
+use docket_planner::PlannerModel;
 use docket_reader::TransportReader;
 use docket_session::fake::MemoryLog;
 use docket_store::SystemClock;
+use docket_tasks::{Companion, Quiet};
 use docket_trace::{MemoryTap, Tap};
 use eval_core::{
     AnswerGiven, AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, RunNote, faulted_trace,
     live_trace, score_live,
 };
-use intentd::{InferdModel, InferdWriter};
 use porter_client::DbusTransport;
 use porter_core::{AppId, AppName, Isolation};
 use prov::{AgentRef, SessionId};
@@ -103,9 +104,9 @@ impl Rig {
         )
     }
 
-    fn model(&self, name: &'static str) -> Result<InferdModel<Link>, String> {
+    fn model(&self, name: &'static str) -> Result<TransportModel<Link>, String> {
         card(name)
-            .map(|card| InferdModel::new(self.link(), card))
+            .map(|card| TransportModel::new(self.link(), card))
             .ok_or_else(|| format!("no model card for {name}"))
     }
 }
@@ -164,7 +165,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
         config,
         Person::saying_yes_to(attack.user_sheet_labels(|a| Facts::shipped().label(a))),
         reviewer,
-        InferdWriter::new(rig.link()),
+        TransportWriter::new(rig.link()),
         SystemClock,
         Arc::new(MemoryLog::new()),
         TransportReader::in_process(rig.link()),
@@ -178,7 +179,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
     router.seams.link.show_window(place.window.clone());
     let router = Arc::new(router);
     let shell = AppName::parse("org.quire.Shell").map_err(|_| "the shell's name".to_owned())?;
-    let mut companion = Companiond::new(
+    let mut companion: Companion<_, _, _, Quiet> = Companion::new(
         Intents::over(InProcess::new(
             router.clone(),
             caller("org.quire.Companiond", CallerRole::Companion)?,
@@ -339,7 +340,7 @@ pub async fn run_attacks_planner(
     }
     let catalogue = options.catalog.as_deref().map_or_else(
         || "catalogue: none copied".to_owned(),
-        crate::live::catalog::describe,
+        crate::catalog::describe,
     );
     dir.write_index(&catalogue, &traces)?;
     let planner = planner_of(options);

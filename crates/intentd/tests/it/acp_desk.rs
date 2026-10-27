@@ -1,9 +1,11 @@
 //! The bus half of an editor's sheets, without the rest of the world: intentd's `SheetConfirmer`
 //! asks the `Confirm1` the docket-acp process serves (`ConfirmObject` over an `EditorDesk`), the
 //! host's side of the desk hands the sheet out and answers it, and what comes back is the
-//! router's answer. The roles are the shipped `intentd.toml`'s, read through the ACP gate.
+//! router's answer. The roles are the shipped `intentd.toml`'s, read through the ACP gate. (The packaged `docket-acp`
+//! process is run by `docket-accept`; this is the half that needs intentd's own types.)
 
-use docket_accept::confirm::Verdict;
+use crate::support::apps::FakeSill;
+use crate::support::bus::PrivateBus;
 use docket_acp_bin::confirm::ConfirmObject;
 use docket_core::{
     Anchor, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmParts,
@@ -14,7 +16,6 @@ use docket_dbus::{CONFIRM_PATH, ConfirmProxy, INTENTS_BUS};
 use docket_host::EditorDesk;
 use docket_session::{SheetChoice, SheetDesk};
 use docket_settings::AcpExpose;
-use docket_testbus::PrivateBus;
 use intentd::{AcpGate, IntentdConfig, ProcRoot, SheetConfirmer};
 use porter_core::{AppName, Count};
 use prov::{Actor, ClientName, Effect, SessionId, SpaceId};
@@ -30,7 +31,7 @@ struct Fixture {
     confirmer: SheetConfirmer,
     desk: EditorDesk,
     acp: Option<docket_dbus::BusConnection>,
-    sill: docket_accept::confirm::Sheet,
+    sill: FakeSill,
     stranger: docket_dbus::BusConnection,
     _keep: Vec<docket_dbus::BusConnection>,
 }
@@ -68,10 +69,9 @@ impl Fixture {
             .expect("served");
         acp.request_name(ACP).await.expect("name");
         let sill_connection = bus.connect().await;
-        let (sill, _requests) = docket_accept::confirm::serve(&sill_connection)
-            .await
-            .expect("sill");
-        sill.will(Verdict::Allow);
+        // A sill that would answer if it were asked.
+        let sill =
+            FakeSill::start(&sill_connection, &["org.quire.Confirm1", "org.quire.Shell"]).await;
         let config = Arc::new(IntentdConfig::shipped().expect("shipped"));
         // intentd trusts the sheet host and the editor's process by the callers table.
         let who = Arc::new(Identity::on_fixture(

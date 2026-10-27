@@ -4,9 +4,11 @@
 
 pub mod acp;
 pub mod bringup;
+pub mod catalog;
 pub mod confirm;
 pub mod drive;
 pub mod grants;
+pub mod keys_home;
 pub mod live;
 pub mod provider;
 mod runlink;

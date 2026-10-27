@@ -69,6 +69,10 @@ publish = false
 
 [workspace.dependencies]
 actions-tools  = { path = "crates/actions-tools" }
+actions-mcp    = { path = "crates/actions-mcp" }
+companiond     = { path = "crates/companiond" }
+intentd        = { path = "crates/intentd" }
+readerd        = { path = "crates/readerd" }
 agents-core    = { path = "crates/agents-core" }
 docket-agents  = { path = "crates/docket-agents" }
 docket-core    = { path = "crates/docket-core" }

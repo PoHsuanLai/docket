@@ -5,6 +5,7 @@
 //! `--engine cloud`, and that is said before anything starts. Start it through
 //! `scripts/eval-release.sh` or `dev/live-smoke.sh`.
 
+use docket_accept::keys_home::KeysHome;
 use docket_accept::live::acp::{
     AcpSpec, Redactor, Task, agent_cassette, list_models_acp, run_flow_acp,
 };
@@ -14,11 +15,8 @@ use docket_accept::live::cli::{
 };
 use docket_accept::live::flows::{Flow, Kind, run_flow};
 use docket_accept::live::hostile::run_planner_case;
-use docket_accept::live::keys_home::KeysHome;
 use docket_accept::live::report_file::write_report;
-use docket_accept::live::{
-    CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_live,
-};
+use docket_accept::live::{CorpusOptions, Engine, EngineError, Reach, Timeouts, run_corpus_live};
 use docket_accept::live::{catalog, regress};
 use docket_accept::world::{Binaries, ModelSource};
 use docket_core::Millis;
@@ -33,6 +31,13 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 const LIVE_BOUND_MS: u32 = 30_000;
+
+/// The binaries beside this program, with the environment this process was given.
+fn packaged() -> std::io::Result<Binaries> {
+    Ok(Binaries::beside(&std::env::current_exe()?, &|key: &str| {
+        std::env::var(key).ok()
+    }))
+}
 
 fn say_reach(engine: Engine) {
     if engine.reach() == Reach::Network {
@@ -258,7 +263,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
     if let Agent::Acp(spec) = &args.agent {
         return corpus_agent(&args, spec);
     }
-    let binaries = packaged_binaries().map_err(|e| e.to_string())?;
+    let binaries = packaged().map_err(|e| e.to_string())?;
     let keys_home = args
         .keys_home
         .as_deref()
@@ -413,7 +418,7 @@ fn plays(args: &SmokeArgs) -> Result<Vec<Play>, String> {
 /// the same outcome checks. A planner case of the hostile-model corpus scripts the planner's own
 /// replies, so it has no agent counterpart and is said to be skipped.
 async fn smoke_agent(args: SmokeArgs, spec: AcpSpec) -> Result<ExitCode, String> {
-    let binaries = packaged_binaries().map_err(|e| e.to_string())?;
+    let binaries = packaged().map_err(|e| e.to_string())?;
     let smoke_catalog = args
         .catalog
         .clone()
@@ -506,7 +511,7 @@ async fn smoke(args: SmokeArgs) -> Result<ExitCode, String> {
     if let Agent::Acp(spec) = args.agent.clone() {
         return smoke_agent(args, *spec).await;
     }
-    let binaries = packaged_binaries().map_err(|e| e.to_string())?;
+    let binaries = packaged().map_err(|e| e.to_string())?;
     let smoke_catalog = args
         .catalog
         .clone()

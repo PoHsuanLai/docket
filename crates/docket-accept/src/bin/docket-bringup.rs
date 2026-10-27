@@ -5,5 +5,6 @@ use std::process::ExitCode;
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    docket_accept::bringup::run_cli(&args)
+    let exe = std::env::current_exe().unwrap_or_default();
+    docket_accept::bringup::run_cli(&args, &exe, &|key: &str| std::env::var(key).ok())
 }

@@ -13,15 +13,19 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    let env = |key: &str| std::env::var(key).ok();
     let seams = readerd::HarnessSeams {
-        proc_root: docket_accept::seams::proc_root(docket_accept::seams::READERD_PROC_ROOT_VAR),
+        proc_root: docket_accept::seams::proc_root(
+            &env,
+            docket_accept::seams::READERD_PROC_ROOT_VAR,
+        ),
         system_callers: docket_accept::seams::system_callers(
+            &env,
             docket_accept::seams::READERD_SYSTEM_CALLERS_VAR,
         ),
     };
-    let env = |key: &str| std::env::var(key).ok();
     match runtime.block_on(readerd::run_with(
-        docket_accept::seams::trace(),
+        docket_accept::seams::trace(&env),
         seams,
         &env,
     )) {

@@ -1,5 +1,5 @@
 //! A corpus run over a model: every case plays through the router with the real policy writer
-//! and the real reviewer cascade (intentd's `InferdWriter` and `action-review`'s `InferReviewer`)
+//! and the real reviewer cascade (`docket-models`' `TransportWriter` and `action-review`'s `InferReviewer`)
 //! asking a real inferd on a private bus, over docket-fake's apps. Each case is judged, traced
 //! and tallied; the run ends in a `RunReport` and a directory of traces.
 
@@ -15,10 +15,10 @@ use docket_core::{AgentConfig, Millis, ModelExchange, ReviewError, ReviewTimeout
 use docket_dbus::Watched;
 use docket_eval::{Harness, PolicyMode, run_case_traced};
 use docket_fake::{FakeError, Forget, fake_router_with};
+use docket_models::{TransportModel, TransportWriter};
 use docket_store::SystemClock;
 use docket_trace::{MemoryTap, Tap};
 use eval_core::{Case, CaseTrace, Observed, RunNote, RunReport, Tallies};
-use intentd::{InferdModel, InferdWriter};
 use porter_client::DbusTransport;
 use porter_core::{AccountId, Billing, Locality, ModelId};
 use porter_infer::ModelCard;
@@ -65,7 +65,7 @@ pub struct CorpusOptions {
     /// Where traces and the scratch root go.
     pub out: PathBuf,
     /// The checked home that holds the cloud key.
-    pub keys_home: Option<crate::live::keys_home::KeysHome>,
+    pub keys_home: Option<crate::keys_home::KeysHome>,
     /// The catalogue directory copied into the world (the sibling stoker checkout's by default).
     pub catalog: Option<PathBuf>,
     /// How long each model may take to come up before the run starts (live engines).
@@ -187,7 +187,7 @@ pub async fn run_corpus_live(
     let link = || -> Link { Watched::new(DbusTransport::over(connection.clone()), tap.watch()) };
     let model_of = |name: &'static str| {
         card(name)
-            .map(|c| InferdModel::new(link(), c))
+            .map(|c| TransportModel::new(link(), c))
             .ok_or(CorpusError::ModelCard(name))
     };
     let quick = model_of("quire-quick")?;
@@ -199,7 +199,7 @@ pub async fn run_corpus_live(
         second,
         timeouts: options.timeouts.config(),
     });
-    let writer: InferdWriter<Link> = InferdWriter::new(link());
+    let writer: TransportWriter<Link> = TransportWriter::new(link());
     let config = AgentConfig {
         review: options.timeouts.config(),
         ..AgentConfig::default()
@@ -234,7 +234,7 @@ pub async fn run_corpus_live(
     }
     let catalogue = options.catalog.as_deref().map_or_else(
         || "catalogue: none copied".to_owned(),
-        crate::live::catalog::describe,
+        crate::catalog::describe,
     );
     dir.write_index(&catalogue, &traces)?;
     let report = RunReport {

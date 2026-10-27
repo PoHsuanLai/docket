@@ -90,7 +90,6 @@ LAYERS=(
 # reexport:ext. The list only shrinks: each lane deletes its rows, and a row that no longer
 # matches a breach fails the check until it is deleted.
 KNOWN=(
-  "docket-accept env D0.22"
 )
 
 # Files over 500 lines are reported. F.1 turns the report into a failure: set this to "yes".

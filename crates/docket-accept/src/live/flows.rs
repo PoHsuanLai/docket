@@ -8,9 +8,9 @@
 
 use crate::confirm::{ByEffect, Verdict};
 use crate::drive::Launcher;
+use crate::keys_home::KeysHome;
 use crate::live::everyday::Everyday;
 use crate::live::hostile::at_rest;
-use crate::live::keys_home::KeysHome;
 use crate::live::pattern::{self, Pattern};
 use crate::live::stage::{Asker, asker};
 use crate::live::warm::WarmFault;

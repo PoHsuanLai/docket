@@ -18,10 +18,6 @@ jail=${JAIL:-$HOME/desktop/harness/jail.sh}
 archive=$target.accept.tar.zst
 
 cargo nextest archive -p docket-accept --all-features --archive-file "$archive"
-# The jail clears the environment: the debug switches are passed on by name.
-debug=()
-[ -z "${ACCEPT_RECORD:-}" ] || debug+=(--env ACCEPT_RECORD=1)
-
-"$jail" --bind "$here" --bind "$target" "${debug[@]}" -- \
+"$jail" --bind "$here" --bind "$target" -- \
   cargo-nextest nextest run --archive-file "$archive" --workspace-remap "$here" \
   --no-capture -E 'package(docket-accept)' "$@"

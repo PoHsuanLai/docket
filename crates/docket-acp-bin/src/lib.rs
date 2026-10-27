@@ -3,8 +3,8 @@
 //!
 //! - [`serve`], [`LiveFault`], [`BUS_NAME`]: `docket-acp`, the ACP server edge on stdio. It hosts
 //!   its own companion over the session bus and serves the editor's connection.
-//! - [`agent`]: `docket-agent`, the host that runs one configured coding agent as a docket
-//!   session under the launcher's sandbox ([`agent::run`], [`agent::host`], [`agent::fault`]).
+//! - [`entry::docket_agent`]: `docket-agent`, the host that runs one configured coding agent as a
+//!   docket session under the launcher's sandbox. The host itself (`agent`) is private.
 //! - [`confirm`]: the confirm object the editor's sheets reach the person through.
 //!
 //! The docket-acp process's live host: what the binary builds so a served connection has a session host. docket-acp
@@ -16,9 +16,12 @@
 //! name under both `editor` (opens sessions and records the editor's turns) and `companion`
 //! (the planner's calls in them). Without those lines the router refuses everything this does.
 
-pub mod agent;
+mod agent;
 pub mod callers;
 pub mod confirm;
+pub mod entry;
+#[cfg(feature = "testing")]
+pub mod harness;
 pub mod helpers;
 
 use companion_client::DbusHelpers;
@@ -64,18 +67,6 @@ pub enum LiveFault {
     Callers(String),
 }
 
-/// What only the acceptance harness's mains choose: the `/proc` callers are read from (a fixture
-/// tree has each unit's main process in `<root>/units`) and the system's callers file. The
-/// packaged binary passes the default (the system's `/proc`, `/etc/quire`) and no environment
-/// variable can change either.
-#[derive(Debug, Clone, Default)]
-pub struct HarnessSeams {
-    /// A fixture `/proc`, else the system's.
-    pub proc_root: Option<std::path::PathBuf>,
-    /// The system's callers file, else `/etc/quire/acp-callers.toml`.
-    pub system_callers: Option<std::path::PathBuf>,
-}
-
 /// Serves one editor on stdio until it closes the connection. `trace` is the inferd watch: the
 /// packaged binary passes `InferWatch::off()`, only the acceptance harness passes a file.
 ///
@@ -87,14 +78,21 @@ pub async fn serve(
     trace: docket_dbus::InferWatch,
     env: &impl Fn(&str) -> Option<String>,
 ) -> Result<(), LiveFault> {
-    serve_with(permit, trace, HarnessSeams::default(), env).await
+    serve_on(permit, trace, Callers::default(), env).await
 }
 
-/// [`serve`] with the seams the acceptance harness's mains choose.
-pub async fn serve_with(
+/// Where the callers are read from: the system's `/proc` and callers file, unless the acceptance
+/// harness (`harness::acp`) points at a fixture tree and a file of its own.
+#[derive(Debug, Default)]
+pub(crate) struct Callers {
+    pub(crate) proc_root: Option<std::path::PathBuf>,
+    pub(crate) system_callers: Option<std::path::PathBuf>,
+}
+
+async fn serve_on(
     permit: Permit,
     trace: docket_dbus::InferWatch,
-    seams: HarnessSeams,
+    seams: Callers,
     env: &impl Fn(&str) -> Option<String>,
 ) -> Result<(), LiveFault> {
     let editor = AppName::parse(BUS_NAME).map_err(|_| LiveFault::App(BUS_NAME.to_owned()))?;

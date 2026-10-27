@@ -292,7 +292,7 @@ fn the_hijacked_judge_has_an_entry_per_asker() {
 
 #[test]
 fn the_catalogue_paths() {
-    use docket_accept::live::catalog::{default_source, world_dir};
+    use docket_accept::catalog::{default_source, world_dir};
     use std::path::Path;
     assert_eq!(
         default_source(Path::new("/home/me/docket/eval")),
@@ -389,8 +389,8 @@ fn a_question_at_rest_is_asking_instead_of_finishing_never_an_unsettled_answer()
 
 mod keys_home {
     use super::words;
+    use docket_accept::keys_home::{HomeFault, KeysHome, check_dir};
     use docket_accept::live::cli::{Command, UsageError, parse};
-    use docket_accept::live::keys_home::{HomeFault, KeysHome, check_dir};
     use std::os::unix::fs::PermissionsExt;
     use std::path::Path;
 

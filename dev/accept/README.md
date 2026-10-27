@@ -11,8 +11,9 @@ quoted).
 `crates/docket-accept/tests/it/flows.rs`, a test of the workspace: it runs in the gate
 (`~/rs-wt/gate-lane-jailed.sh`, inside `~/desktop/harness/jail.sh`) with every other test.
 `dev/accept/run.sh` runs only this package in the same jail, for working on it.
-`ACCEPT_RECORD=1 dev/accept/run.sh` makes inferd's replay engine write every request body it is asked
-(planner, writer, reader) to `<scratch>/record.jsonl`, printed to stderr when the world drops.
+A world started with `Options { record: Record::On, .. }` makes inferd's replay engine write every
+request body it is asked (planner, writer, reader) to `<scratch>/record.jsonl`, printed to stderr when
+the world drops. No environment variable turns it on: the library reads none.
 
 ## What is real
 
@@ -35,7 +36,7 @@ body in its request; `flow-a-refused`'s closing words need the planner to have b
 `mail.message.forward not confirmed`. Handle numbers in `flow-c` (the body is #1, the reader's answer #2)
 come from the router's sequential handle table. `flow-c-focus` is the live smoke's flow (c): the person has the injected thread open, the companion reads that from the app's context (the entity's title and subtitle take handles #1 and #2, so the body is #3 and the reader's answer #4), the first planner entry needs the thread's key in its view, and the reply to the sender is refused. `flow-c` is the machinery test's own, where the planner is led to the injected address. inferd's audit trail (`World::model_turns`) counts turns
 by app, and flow (c) asserts the reader's session was class `mail` from the audit entry's `class`. The planner's
-full view is `ACCEPT_RECORD=1`'s output.
+full view is `Record::On`'s output.
 
 | Piece | Why | File |
 |---|---|---|

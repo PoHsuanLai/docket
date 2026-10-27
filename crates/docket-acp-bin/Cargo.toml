@@ -62,5 +62,10 @@ zbus = { workspace = true }
 docket-fake = { workspace = true }
 tempfile = { workspace = true }
 
+[features]
+# What the acceptance harness needs to host an agent in its own process (`harness`). Only dev-dependencies
+# and the harness crates turn it on; no packaged binary does.
+testing = []
+
 [lints]
 workspace = true
