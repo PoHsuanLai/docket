@@ -1,6 +1,6 @@
 [package]
 name = "docket-log"
-description = "The one log setup of the daemons: installs a standard tracing subscriber from a typed config, to the journal when it listens and to standard error otherwise, with optional OpenTelemetry span export."
+description = "The one log setup of the daemons: a tracing subscriber that writes one line per event to standard error, which the journal keeps, with the journal's priority prefix when it is the journal that is listening."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,25 +10,17 @@ publish.workspace = true
 
 [dependencies]
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-tracing-journald = { workspace = true }
-thiserror = { workspace = true }
-opentelemetry = { workspace = true, optional = true }
-opentelemetry_sdk = { workspace = true, optional = true }
-opentelemetry-otlp = { workspace = true, optional = true }
-tracing-opentelemetry = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
 
 [lints]
 workspace = true
 
 [features]
-# Span export over OTLP/HTTP through the OpenTelemetry crates. `init` exports only when
-# `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set and
-# `OTEL_SDK_DISABLED` is not `true`; the crates read the endpoint and `OTEL_SERVICE_NAME` themselves.
-# Off by default; without it the crate depends on `tracing`, `tracing-subscriber` and `tracing-journald` only.
-otlp = [
-    "dep:opentelemetry",
-    "dep:opentelemetry_sdk",
-    "dep:opentelemetry-otlp",
-    "dep:tracing-opentelemetry",
-]
+# Span export over OTLP/HTTP JSON, written in `src/otlp` over `std` networking, `serde_json` and `url`: no
+# opentelemetry, tonic, reqwest or tracing-subscriber crate. `init` reads
+# `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`), `OTEL_SERVICE_NAME` and
+# `OTEL_SDK_DISABLED` once (so only a daemon's `main` reads them); only `http://` endpoints are
+# accepted. Off by default; without it the crate has no dependency beyond `tracing`.
+otlp = ["dep:serde_json", "dep:thiserror", "dep:url"]

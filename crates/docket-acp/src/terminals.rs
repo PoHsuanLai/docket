@@ -12,8 +12,8 @@
 
 use crate::bulk;
 use crate::client::Workdir;
-use crate::command_deadline::CommandDeadline;
 use crate::fault;
+use acp_core::command_deadline::CommandDeadline;
 use agent_client_protocol::schema::v1::{
     ClientCapabilities, CreateTerminalRequest, CreateTerminalResponse, Error, KillTerminalRequest,
     KillTerminalResponse, ReleaseTerminalRequest, ReleaseTerminalResponse, TerminalExitStatus,

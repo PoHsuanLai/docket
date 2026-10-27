@@ -7,8 +7,8 @@ use super::rig::{
     CWD, Setup, abs, always, no, once, program, read, run_turn, selected, started, tool, write,
 };
 use crate::support::app;
+use acp_core::taint::TaintSource;
 use bulkhead::fake::Script;
-use docket_acp::client::TaintSource;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, FILES_READ, FILES_WRITE, GrantCaller, IntentsReply,
     IntentsRequest, StandingScope, TERMINAL_RUN, TurnState,

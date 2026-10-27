@@ -144,7 +144,7 @@ pub async fn run(args: Args) -> Result<(), AgentFault> {
             .await
             .map_err(|e| AgentFault::Session(e.to_string()))?
         {
-            if let BackendEvent::Sheet(request) = &event {
+            if let BackendEvent::Confirm(request) = &event {
                 let (words, always) = tty::render(request);
                 eprint!("{words}");
                 let typed = lines.lock().await.next_line().await.ok().flatten();

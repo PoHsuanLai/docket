@@ -20,17 +20,17 @@
 //! `close` kills the process. A host may still `cancel`, then `close`, sooner. A write the agent
 //! never reads ends the connection at the line sink's span (`capped_lines`).
 
-use super::cause::Step;
-use super::court::Court;
 use super::edge::{EdgeFault, EdgeMenu, ToolsEdge, ToolsOffer};
 use super::files::Files;
 use super::link::{Gone, Link, Reply, Work};
 use super::models::{ModelId, Models};
 use super::performer::Performer;
-use super::reported::Reported;
 use super::spawn::{AgentChild, SessionMeta, SignIn, Spawn};
-use super::strikes::Strikes;
-use super::taint::TaintSource;
+use acp_core::cause::Step;
+use acp_core::court::Court;
+use acp_core::reported::Reported;
+use acp_core::strikes::Strikes;
+use acp_core::taint::TaintSource;
 use agent_client_protocol::schema::v1::{
     ContentBlock, Error, PromptRequest, PromptResponse, SessionId, StopReason,
     WaitForTerminalExitRequest,
@@ -127,7 +127,7 @@ pub(super) struct Staged {
     pub call: Option<Called>,
     /// The host's hold on the request, made the first time it runs and kept so that a run the
     /// router's wait cut short does not stage a second copy.
-    pub stage: Option<super::call::StageId>,
+    pub stage: Option<acp_core::call::StageId>,
     pub announced: bool,
     pub n: u64,
 }

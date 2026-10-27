@@ -171,7 +171,7 @@ async fn the_sheet_goes_to_the_desktops_confirmer_and_its_answer_comes_back() {
         "the desktop's sheet, not the host's"
     );
     assert!(
-        !events.iter().any(|e| matches!(e, BackendEvent::Sheet(_))),
+        !events.iter().any(|e| matches!(e, BackendEvent::Confirm(_))),
         "the host shows nothing"
     );
     assert_eq!(rig.desk.waiting(), 0);
@@ -207,7 +207,7 @@ async fn the_hosts_own_sheet_exists_only_with_the_development_flag() {
     assert_eq!(
         events
             .iter()
-            .filter(|e| matches!(e, BackendEvent::Sheet(_)))
+            .filter(|e| matches!(e, BackendEvent::Confirm(_)))
             .count(),
         2
     );
@@ -252,7 +252,8 @@ async fn the_persons_prompt_is_what_derives_the_task_and_is_recorded_as_the_host
 
 #[tokio::test]
 async fn a_call_dropped_and_asked_again_with_its_number_is_one_call_at_the_router() {
-    use docket_acp::client::{AgentCall, Court};
+    use acp_core::call::AgentCall;
+    use acp_core::court::Court;
     use futures_util::FutureExt;
     let (rig, _files) = started(Setup::default()).await;
     let mut court = rig.court.clone();
@@ -261,7 +262,7 @@ async fn a_call_dropped_and_asked_again_with_its_number_is_one_call_at_the_route
     assert!(court.call(&rig.session, 7, &call).now_or_never().is_none());
     let ruled = court.call(&rig.session, 7, &call).await;
     assert!(
-        matches!(ruled, docket_acp::client::Ruled::Done(_)),
+        matches!(ruled, acp_core::court::Ruled::Done(_)),
         "{ruled:?}"
     );
     let routed = rig

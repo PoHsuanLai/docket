@@ -1,10 +1,11 @@
 //! The terminal methods over the fake sandbox, driven the way a peer agent drives them: each
 //! request and response is checked against the protocol schema.
 
+use acp_core::command_deadline::CommandDeadline;
 use agent_client_protocol::schema::v1::Error;
 use bulkhead::CannotSandbox;
 use bulkhead::fake::{FakeSandbox, Fate, Script, Seen};
-use docket_acp::{CommandDeadline, Terminals};
+use docket_acp::Terminals;
 use docket_core::AbsPath;
 use serde::Serialize;
 use serde::de::DeserializeOwned;

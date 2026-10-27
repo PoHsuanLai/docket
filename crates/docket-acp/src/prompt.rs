@@ -8,9 +8,10 @@ use crate::helpers::Helpers;
 use crate::link::{Gone, Inbound, Link, Settled, answer, settled};
 use crate::mode::Mode;
 use crate::out;
-use crate::permission::{self, verdict_of_reply};
+use crate::permission;
 use crate::server::{Server, Turns};
 use crate::turn::{Finish, Order, Turn, Wants};
+use acp_core::permission::verdict_of_reply;
 use agent_client_protocol::Responder;
 use agent_client_protocol::schema::v1::{
     ContentBlock, Error, PromptRequest, PromptResponse, RequestPermissionRequest,
@@ -195,7 +196,7 @@ impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {
                         Reply::Answer(reply) => turn.answered(verdict_of_reply(reply)),
                     }
                 }
-                Wants::Sheet(sheet) => self.put_sheet(link, session, &sheet, turn).await?,
+                Wants::Confirm(sheet) => self.put_sheet(link, session, &sheet, turn).await?,
             };
             self.carry(link, session, orders).await?;
         }
@@ -229,7 +230,7 @@ impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {
                 Listened::Inbound(None) => return Ok(Reply::Heard(turn.cancelled())),
                 Listened::Inbound(Some(inbound)) => {
                     let orders = heard(session, inbound, turn)?;
-                    if !matches!(turn.wants(), Wants::Answer(_) | Wants::Sheet(_)) {
+                    if !matches!(turn.wants(), Wants::Answer(_) | Wants::Confirm(_)) {
                         return Ok(Reply::Heard(orders));
                     }
                 }

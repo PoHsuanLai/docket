@@ -9,13 +9,13 @@
 //! staged request only if the call it was handed matches it exactly, and spends it. A stage
 //! cannot be used twice, by another session, or for another path.
 
-use super::call::StageId;
-use super::confine::Confined;
 use super::files::{FileFault, Files};
 use super::workdir::{Workdir, WorkdirFault};
 use crate::bulk;
-use crate::command_deadline::CommandDeadline;
 use crate::terminals::Terminals;
+use acp_core::call::StageId;
+use acp_core::command_deadline::CommandDeadline;
+use acp_core::confine::Confined;
 use agent_client_protocol::schema::v1::{
     ClientCapabilities, CreateTerminalRequest, Error, KillTerminalRequest, KillTerminalResponse,
     ReleaseTerminalRequest, ReleaseTerminalResponse, TerminalOutputRequest, TerminalOutputResponse,

@@ -7,14 +7,14 @@
 //! allowed, and the record keeps the router's reason.
 
 use super::backend::{AcpBackend, Seams};
-use super::call::{AgentCall, Command, RunFacts};
-use super::confine::{Confined, confine, named};
-use super::court::{Court, Ruled};
 use super::link::Work;
 use super::own_edge::{OwnEdge, claim};
-use super::taint::TaintSource;
-use super::tool_req::{Asked, tool_req};
 use crate::fault;
+use acp_core::call::{AgentCall, Command, RunFacts};
+use acp_core::confine::{Confined, confine, named};
+use acp_core::court::{Court, Ruled};
+use acp_core::taint::TaintSource;
+use acp_core::tool_req::{Asked, tool_req};
 use agent_client_protocol::schema::v1::{
     CreateTerminalRequest, CreateTerminalResponse, Error, PermissionOptionId, PermissionOptionKind,
     ReadTextFileRequest, ReadTextFileResponse, RequestPermissionOutcome, RequestPermissionRequest,
@@ -178,7 +178,7 @@ impl<X: Seams> AcpBackend<X> {
 
     /// A call the router did not let through: the staged request is dropped and the agent told
     /// only that it was not allowed.
-    fn refused(&self, stage: &super::call::StageId, ruled: Ruled, why: &str) -> Ran {
+    fn refused(&self, stage: &acp_core::call::StageId, ruled: Ruled, why: &str) -> Ran {
         self.performer.drop_stage(stage);
         let end = match ruled {
             Ruled::Refused(refusal) => refused_end(refusal),
@@ -302,7 +302,7 @@ impl<X: Seams> AcpBackend<X> {
             RequestPermissionOutcome::Selected(outcome),
         ));
         self.ready
-            .extend(super::reported::door_opened(&mut self.next_call));
+            .extend(acp_core::reported::door_opened(&mut self.next_call));
         Some(Ran {
             reply,
             end: StepEnd::Done {

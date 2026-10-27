@@ -8,7 +8,7 @@
 //! (links and secrets included) before the call exists, because a path outside is not a call
 //! the router should be asked to weigh.
 
-use super::call::AgentCall;
+use crate::call::AgentCall;
 use docket_core::{
     CallRefusal, ExternalAgent, HandTo, Outcome, Rewind, SheetSurface, TurnEnd, TurnId,
     ValidManifest, WatchedAgent,

@@ -3,7 +3,7 @@
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-    let _log = docket_log::init(&docket_log::Config::from_env("companiond"));
+    docket_log::init("companiond");
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

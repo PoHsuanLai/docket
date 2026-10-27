@@ -30,7 +30,7 @@ use std::sync::Arc;
 /// What a pull of a session found.
 enum Pulled {
     /// A sheet the desk was handed.
-    Sheet(Box<ConfirmRequest>),
+    Confirm(Box<ConfirmRequest>),
     /// The desk holds no sheets at all (not an editor's host).
     NoDesk,
     /// The backend's next event.
@@ -124,7 +124,7 @@ where
         let sheet = Box::pin(self.desk.next_sheet(session));
         let event = Box::pin(backend.next_event());
         Ok(match select(sheet, event).await {
-            Either::Left((Some(request), _)) => Pulled::Sheet(Box::new(request)),
+            Either::Left((Some(request), _)) => Pulled::Confirm(Box::new(request)),
             Either::Left((None, _)) => Pulled::NoDesk,
             Either::Right((event, _)) => Pulled::Event(event),
         })
@@ -227,9 +227,9 @@ where
             };
             let owed = self.awaited.get(session).cloned();
             let event = match (pulled, owed) {
-                (Pulled::Sheet(request), _) => {
+                (Pulled::Confirm(request), _) => {
                     self.awaited.remove(session);
-                    return Ok(Some(BackendEvent::Sheet(request)));
+                    return Ok(Some(BackendEvent::Confirm(request)));
                 }
                 (Pulled::NoDesk, Some(id)) => {
                     self.awaited.remove(session);

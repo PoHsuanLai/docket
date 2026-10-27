@@ -26,17 +26,6 @@ only the app and the Space did, and a later run of a conversation was asked agai
 docket-inapp's in-process store keeps no limits (the
 trait default holds none); Settings has no list of limits yet; adding a limit is not audited.
 
-## docket-log runs on the standard crates
-
-docket-log no longer holds a subscriber or an OTLP exporter of its own (about 1.6k lines gone). It
-builds a `tracing-subscriber` stack from a typed `Config`: `fmt` to standard error, `tracing-journald`
-under systemd, a `Targets` filter read from `RUST_LOG` (default `info`), and with the `otlp` feature
-`tracing-opentelemetry` + `opentelemetry-otlp`. Changes a person can see: lines no longer begin with the
-daemon name (the journal's `SYSLOG_IDENTIFIER` carries it; on standard error the name is not printed),
-the filter is configurable, and the OTLP body is protobuf rather than JSON. Open: the first build must
-refresh `Cargo.lock` for the OpenTelemetry crates (not in the offline registry when this landed), and
-`docs/telemetry.md`'s `PrivateNetwork` note still holds (the exporter needs the network).
-
 ## Stubs behind frozen interfaces
 
 | Where | Count | Closes when |
@@ -2207,7 +2196,7 @@ R1 direction (a): the editor's `allow_always` click creates the standing grant. 
   asks as the companion does and holds no editor grant (a test). Consequence to know: class consent
   (`grant_mail` and the like) is keyed by `GrantCaller` too, so an editor session needs consent in
   its own name, not the companion's; without it the editor's calls ask under the editor's key.
-- **The sheet reaches the editor as an event.** `BackendEvent::Sheet(Box<ConfirmRequest>)` and
+- **The sheet reaches the editor as an event.** `BackendEvent::Confirm(Box<ConfirmRequest>)` and
   `SessionHost::answer_sheet(session, id, SheetChoice)` are new. The edge reports the click
   (`Once`, `Always`, `Refused`); the host builds the router's `ConfirmAnswer` and receipt, and the
   router re-derives the offer (`record_standing` only records an `Offered` scope), so an editor can
@@ -2335,7 +2324,7 @@ process with a real host.
   (`reopen`), so an editor session has many prompts; later turns leave no extra episode (the router
   ended the task at the first).
 - `SheetDesk` / `NoDesk` (docket-session) and `EditorDesk` (docket-inapp): the host turns a
-  `NeedsYou(Confirm(id))` into `BackendEvent::Sheet` when its desk holds the request, and
+  `NeedsYou(Confirm(id))` into `BackendEvent::Confirm` when its desk holds the request, and
   `answer_sheet` goes to the desk; `EditorDesk` is a `ConfirmSheet`, so `SheetConfirmer` builds the
   answer and the receipt, and now honours an `Always` where the request offered a scoped grant.
 - `docket_session::contract` (`Harness`): the rules every backend keeps, run against `FakeBackend`
@@ -2837,7 +2826,7 @@ confirmer (sill's `Confirm1`), and the host sees nothing of it. With `--tty` (`F
 session with `SheetSurface::Host`; the router sets `ConfirmRequest.editor` (the field name stays; it names whoever shows
 the session's sheets), intentd's `SheetConfirmer` sends the sheet to the host's `Confirm1` while the host's name plays
 `acp_agent` (an unreachable or unconfigured host expires the sheet; it is never moved to sill), the sheet comes out of
-`AgentHost::next_event` as `BackendEvent::Sheet`, and the terminal answers through `answer_sheet`. Without the flag
+`AgentHost::next_event` as `BackendEvent::Confirm`, and the terminal answers through `answer_sheet`. Without the flag
 the process serves no `Confirm1` object, the host asks for no route (`SheetSurface::Desktop`) and its desk is never
 read; tests pin that the router names no route, that no sheet comes out of the host, and that the desktop's confirmer
 gets the sheet. The turn is recorded inside `next_event` (as
@@ -3827,7 +3816,7 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - What `native/stored.rs` added to `Companion` (`reopen`, `adopt_stored`, `run_begun_tapped`) uses private
   fields, so it stays in `docket-tasks` as `adopt` and the three methods are public. `docket-native` calls them.
 - The boundary row `docket-tasks ui:Sheet` is now `docket-native ui:Sheet`: the host matches on
-  `BackendEvent::Sheet`, a `docket-session` name, so the row waits for D0.16 with the session crate's own
+  `BackendEvent::Confirm`, a `docket-session` name, so the row waits for D0.16 with the session crate's own
   sheet wording.
 - Tests moved with the code: `docket-native/tests/it/{contract,native,support}`. `docket-tasks` keeps
   `tests/it/compaction.rs`; its dev-dependencies shrank to the three its remaining tests use.
@@ -3881,3 +3870,18 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - sill, detent, files, mailo and cua at origin/master: no use of `PlannerModel` or `docket-planner` (detent's
   FINDINGS.md names `PlannerModel::new` in prose only).
 - Not verified by a build in the lane that made the change.
+
+
+## D0.16: acp-core, and `BackendEvent::Confirm`
+
+- New pure crate `acp-core` holds only our ACP rules: `confine`, `tool_req`, `names`, `call`, `court`,
+  `permission` (verdicts and sheet choices, ids of the options), `taint`, `reported`, `strikes`,
+  `cause` and `command_deadline`. It depends on the SDK for schema value types only, and on no
+  runtime, fs or clock. `docket-acp` depends on it; the old copies are deleted and nothing is
+  re-exported (importers name `acp_core::...`).
+- Stayed in `docket-acp` on purpose: `calls`, `mode`, `turn`, `history` carry copy text (refusal
+  sentences, mode names) and `permission` keeps the option wording and `scope_words`; they move
+  with the wording when the editor's words get their own crate.
+- `cause` tests used `SpawnFault`; they now use plain `Display` causes.
+- `BackendEvent::Sheet` is `BackendEvent::Confirm` (docket-session, docket-acp, docket-acp-bin,
+  docket-accept, docket-native); the KNOWN rows `ui:Sheet` of docket-acp and docket-native are gone.

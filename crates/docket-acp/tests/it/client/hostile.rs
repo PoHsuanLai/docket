@@ -243,7 +243,7 @@ async fn tool_results_the_agent_claims_are_recorded_and_trusted_for_nothing() {
     );
     assert!(matches!(
         rig.host.backend().tainted_by(),
-        Some(docket_acp::client::TaintSource::Reported(
+        Some(acp_core::taint::TaintSource::Reported(
             docket_core::PermissionKind::Execute
         ))
     ));

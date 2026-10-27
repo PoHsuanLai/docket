@@ -20,7 +20,7 @@ fn load(path: &std::path::Path) -> Result<VoicedConfig, String> {
 }
 
 fn main() -> ExitCode {
-    let _log = docket_log::init(&docket_log::Config::from_env("voiced"));
+    docket_log::init("voiced");
     let args = Args::parse();
     let config = match load(&args.config) {
         Ok(config) => config,

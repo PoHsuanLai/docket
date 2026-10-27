@@ -103,7 +103,7 @@ impl<A: Accounts + 'static> Live<A> {
         let sandbox = found.clone();
         let performer = Performer::new(OsFiles, bwrap)
             .with_agent_network(agent_network)
-            .with_command_deadline(docket_acp::CommandDeadline::DEFAULT);
+            .with_command_deadline(acp_core::command_deadline::CommandDeadline::DEFAULT);
         let manifest: ValidManifest =
             docket_router::parse(MANIFEST).map_err(|e| format!("the agent manifest: {e}"))?;
         let quiet = Quiet(docket_core::acp_agent_app().ok_or("no app name for the agent host")?);

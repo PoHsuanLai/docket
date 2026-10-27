@@ -1,5 +1,5 @@
 //! Where an editor session's sheets wait. The router asks its confirmer; for a session an editor
-//! drives, a host that has a desk hands the request out as an event (`BackendEvent::Sheet`) and
+//! drives, a host that has a desk hands the request out as an event (`BackendEvent::Confirm`) and
 //! answers it from the person's choice. A host with no desk (`NoDesk`) sends nothing: the sheet
 //! stays wherever the router's confirmer puts it, and the editor is told it is waiting there.
 

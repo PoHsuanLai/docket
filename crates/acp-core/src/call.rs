@@ -3,7 +3,7 @@
 //! draws the manifest's words and the typed arguments, not an agent's prose), and the text of a
 //! write or a command's argument vector stays with the host behind a `StageId`.
 
-use super::confine::Care;
+use crate::confine::Care;
 use docket_core::{
     AbsPath, CallRequest, ChoiceId, DERIVES_PARAM, Derivation, FILES_READ, FILES_SENSITIVE,
     FILES_WRITE, FileRef, NETWORK_PARAM, NetAccess, Origin, PermissionKind, REPORTED, TERMINAL_RUN,

@@ -195,7 +195,7 @@ fn note(played: &mut Played, event: BackendEvent) {
         BackendEvent::Words(_)
         | BackendEvent::Thought(_)
         | BackendEvent::NeedsYou(_)
-        | BackendEvent::Sheet(_)
+        | BackendEvent::Confirm(_)
         | BackendEvent::Usage(_) => {}
     }
 }

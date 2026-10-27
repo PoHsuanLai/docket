@@ -39,6 +39,7 @@ LAYERS=(
   "voice-wire:P"
   "voice-loop:P"
   "docket-memory-core:P"
+  "acp-core:P"
   # client / IO
   "docket-store:C"
   "docket-skills-disk:C"
@@ -83,8 +84,6 @@ LAYERS=(
 # reexport:ext. The list only shrinks: each lane deletes its rows, and a row that no longer
 # matches a breach fails the check until it is deleted.
 KNOWN=(
-  "docket-acp ui:Sheet D0.16"
-  "docket-native ui:Sheet D0.16"
   "docket-acp-bin env D0.21"
   "docket-accept env D0.22"
 )
@@ -338,6 +337,8 @@ RULES=(
   # The git store runs git as a process through tokio: no bus, HTTP, desktop stack, database,
   # Cedar, MCP SDK or toml.
   "docket-checkpoint-git: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy toml"
+  # Our own ACP rules, pure: no runtime, bus, HTTP, Cedar or toml; the connections are docket-acp's.
+  "acp-core: $EFFECTS toml"
   # The ACP server edge: the lib is portable (the runtime is only the `server` feature's binary);
   # no bus, HTTP, Cedar or MCP SDK. The protocol's types and the JSON-RPC connection come from agent-client-protocol.
   # The client edge reaches the router only through docket-client (its `InProcess` transport is a

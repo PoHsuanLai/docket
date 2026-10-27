@@ -5,8 +5,8 @@
 //! is tainted by it. Its message text is its words (untrusted); its thoughts are `Thought`
 //! events and nothing reads them as instructions or as the person's.
 
-use super::names;
-use super::taint::brings_content;
+use crate::names;
+use crate::taint::brings_content;
 use agent_client_protocol::schema::v1::{
     ContentBlock, ContentChunk, SessionUpdate, ToolCallStatus, ToolKind,
 };

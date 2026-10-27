@@ -6,7 +6,7 @@
 use crate::calls;
 use crate::covered::Covered;
 use crate::mode::{Mode, Say};
-use crate::permission::Verdict;
+use acp_core::permission::Verdict;
 use agent_client_protocol::schema::v1::{SessionUpdate, StopReason};
 use companion_wire::NeedsYou;
 use docket_core::{AlwaysOffer, ConfirmRequest, Reveal};
@@ -57,7 +57,7 @@ pub enum Wants {
     /// The editor's answer about this call.
     Answer(CallOpen),
     /// The editor's choice on the router's sheet.
-    Sheet(Box<ConfirmRequest>),
+    Confirm(Box<ConfirmRequest>),
     /// Nothing: answer the prompt.
     Over(Finish),
 }
@@ -117,7 +117,7 @@ impl Turn {
         match &self.state {
             State::Running | State::Stopping { .. } => Wants::Event,
             State::Asking(call) => Wants::Answer(call.clone()),
-            State::Sheeting(sheet) => Wants::Sheet(sheet.clone()),
+            State::Sheeting(sheet) => Wants::Confirm(sheet.clone()),
             State::Done(finish) => Wants::Over(*finish),
         }
     }
@@ -186,7 +186,7 @@ impl Turn {
         match event {
             BackendEvent::Words(text) => vec![Order::Update(Box::new(calls::say(words(text))))],
             BackendEvent::Thought(_) | BackendEvent::Usage(_) => Vec::new(),
-            BackendEvent::Sheet(sheet) => {
+            BackendEvent::Confirm(sheet) => {
                 self.state = State::Sheeting(sheet);
                 Vec::new()
             }

@@ -157,7 +157,7 @@ pub enum BackendEvent {
     /// The router's sheet for a call, put to an edge that can ask the person where they are (an
     /// editor). The edge answers it with [`SessionHost::answer_sheet`]; the host turns the
     /// choice into the router's answer and its receipt.
-    Sheet(Box<ConfirmRequest>),
+    Confirm(Box<ConfirmRequest>),
     /// Use, informational.
     Usage(UsageNote),
     /// The turn is over.

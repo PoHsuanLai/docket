@@ -8,7 +8,7 @@ use std::fmt;
 
 /// The step of starting an agent that failed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Step {
+pub enum Step {
     /// The opening names no agent program or no folder.
     Opening,
     /// The router did not open the agent's session.
@@ -33,7 +33,7 @@ pub(super) enum Step {
 
 impl Step {
     /// The step as a clause of the log line.
-    pub(super) fn words(self) -> &'static str {
+    pub fn words(self) -> &'static str {
         match self {
             Step::Opening => "the opening names no agent or folder",
             Step::Router => "the router did not open the session",
@@ -49,12 +49,12 @@ impl Step {
     }
 
     /// The log line for this step failing because of `cause`.
-    pub(super) fn told(self, cause: &dyn fmt::Display) -> String {
+    pub fn told(self, cause: &dyn fmt::Display) -> String {
         format!("{}: {cause}", self.words())
     }
 
     /// `Unavailable`, with the step and its cause written to the log.
-    pub(super) fn unavailable(self, cause: &dyn fmt::Display) -> BackendFault {
+    pub fn unavailable(self, cause: &dyn fmt::Display) -> BackendFault {
         tracing::warn!("{}", self.told(cause));
         BackendFault::Unavailable
     }
@@ -63,15 +63,14 @@ impl Step {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::client::{SandboxStep, SpawnFault};
 
     #[test]
     fn a_failed_start_keeps_its_step_and_its_cause() {
-        let cause = SpawnFault::Sandbox(SandboxStep::Forwarder);
+        let cause = "the network forwarder did not start";
         let told = Step::Spawn.told(&cause);
         assert!(told.contains("the agent did not start"), "{told}");
         assert!(told.contains("network forwarder"), "{told}");
-        let other = Step::Spawn.told(&SpawnFault::Sandbox(SandboxStep::Start));
+        let other = Step::Spawn.told(&"the sandbox did not start");
         assert_ne!(told, other);
         assert_eq!(Step::Spawn.unavailable(&cause), BackendFault::Unavailable);
     }

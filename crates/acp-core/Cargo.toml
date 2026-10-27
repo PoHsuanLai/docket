@@ -1,0 +1,22 @@
+[package]
+name = "acp-core"
+description = "Our own rules for the Agent Client Protocol, pure: path confinement, the gate's ruling on permission requests, taint, strikes, the tool-request mapping, the names of calls, what an agent reports, why a start failed, and the court seam. No connection, no IO, no clock and no wording; the connections are the official agent-client-protocol SDK's, in docket-acp."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+agent-client-protocol = { workspace = true }
+docket-core = { workspace = true }
+docket-session = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[lints]
+workspace = true

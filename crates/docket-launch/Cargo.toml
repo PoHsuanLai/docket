@@ -40,6 +40,7 @@ tracing = { workspace = true }
 zbus = { workspace = true, optional = true }
 
 [dev-dependencies]
+acp-core = { workspace = true }
 # The config tests write `agents.toml` rows through the Settings writer.
 docket-settings = { workspace = true, features = ["agents"] }
 docket-testbus = { workspace = true }

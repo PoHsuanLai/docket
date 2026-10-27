@@ -4,13 +4,13 @@
 //! is turned away (see `Link::answer`).
 
 use super::backend::{AcpBackend, Live, Phase, Seams};
-use super::cause::Step;
 use super::edge::ToolsEdge;
 use super::link::{Gone, Link};
 use super::models::Models;
-use super::reported::Reported;
 use super::spawn::{AgentChild, LaunchPlan, Spawn, Spawned};
-use super::taint::TaintSource;
+use acp_core::cause::Step;
+use acp_core::reported::Reported;
+use acp_core::taint::TaintSource;
 use agent_client_protocol::schema::ProtocolVersion;
 use agent_client_protocol::schema::v1::{
     AGENT_METHOD_NAMES, AuthCapabilities, AuthMethod, AuthenticateRequest, ClientCapabilities,

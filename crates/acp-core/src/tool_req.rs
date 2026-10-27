@@ -5,9 +5,9 @@
 //! request `Forbidden`: it is refused without asking, before any call is formed. The agent's
 //! title is dropped: it is prose, and the sheet does not draw an agent's prose.
 
-use super::call::{Command, PermissionAsk};
-use super::confine::{Care, confine, named};
-use super::names;
+use crate::call::{Command, PermissionAsk};
+use crate::confine::{Care, confine, named};
+use crate::names;
 use agent_client_protocol::schema::v1::{ToolCallUpdate, ToolKind};
 use docket_core::AbsPath;
 use serde_json::Value;

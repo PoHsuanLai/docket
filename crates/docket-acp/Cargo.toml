@@ -1,6 +1,6 @@
 [package]
 name = "docket-acp"
-description = "The ACP server edge: an editor (Zed, JetBrains, Neovim) drives the companion over the Agent Client Protocol on stdio. The JSON-RPC connection, in both directions, is the official agent-client-protocol SDK's; this lib is the server over the SessionHost and SessionLog seams, and (feature `client`) an external agent as a session backend. The `server` feature adds the capped line source for stdio; the process is docket-acp-bin, which refuses to serve unless `agent.acp.expose` is on. The editor's permission prompt is an extra gate, never a replacement for ours."
+description = "The ACP server edge: an editor (Zed, JetBrains, Neovim) drives the companion over the Agent Client Protocol on stdio. The JSON-RPC connection, in both directions, is the official agent-client-protocol SDK's; this lib is the server over the SessionHost and SessionLog seams, and (feature `client`) an external agent as a session backend. Our own ACP rules (confinement, the permission ruling, taint, strikes, tool-request mapping) are `acp-core`. The `server` feature adds the capped line source for stdio; the process is docket-acp-bin, which refuses to serve unless `agent.acp.expose` is on. The editor's permission prompt is an extra gate, never a replacement for ours."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -23,6 +23,7 @@ name = "docket_acp"
 path = "src/lib.rs"
 
 [dependencies]
+acp-core = { workspace = true }
 actions-tools = { workspace = true, optional = true }
 agent-client-protocol = { workspace = true }
 companion-wire = { workspace = true }

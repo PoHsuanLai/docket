@@ -6,10 +6,11 @@
 use crate::helpers::Helpers;
 use crate::link::{Gone, Link};
 use crate::out;
-use crate::permission::{self, choice_of_reply};
+use crate::permission;
 use crate::prompt::Reply;
 use crate::server::Server;
 use crate::turn::{Order, Turn};
+use acp_core::permission::choice_of_reply;
 use docket_core::Clock;
 use docket_core::ConfirmRequest;
 use docket_session::{SessionHost, SessionLog};

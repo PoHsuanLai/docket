@@ -30,10 +30,6 @@
 //! - `fake`: an in-memory pipe, a scripted spawner and the like, for tests.
 
 mod backend;
-mod call;
-mod cause;
-mod confine;
-mod court;
 mod edge;
 pub mod fake;
 mod files;
@@ -46,23 +42,15 @@ mod intents_court;
 mod isolate;
 mod link;
 mod models;
-mod names;
 mod own_edge;
 mod perform;
 mod performer;
-mod reported;
 mod running;
 mod serve;
 mod spawn;
-mod strikes;
-mod taint;
-mod tool_req;
 mod workdir;
 
 pub use backend::{AcpBackend, Parts, Seams};
-pub use call::{AgentCall, Command, PermissionAsk, RunFacts, StageId};
-pub use confine::{Care, Confined, Refusal, confine, is_secret, named};
-pub use court::{Court, CourtFault, OpenAgent, Ruled};
 pub use edge::{EdgeBind, EdgeFault, EdgeMenu, SERVER_NAME, ToolsEdge, ToolsOffer};
 pub use files::{FileFault, Files, MAX_READ, MAX_WRITE, OsFiles};
 pub use helper_agent::{
@@ -72,13 +60,9 @@ pub use helper_agents::{HelperAgents, Logout};
 pub use host::{AgentHost, Fallback};
 pub use intents_court::IntentsCourt;
 pub use models::{ModelId, ModelIdRefused, Models};
-pub use names::{effect, permission, reported_action};
 pub use performer::{Performer, UndoNote};
 pub use spawn::{
     AgentChild, LaunchPlan, SandboxStep, SessionMeta, SignIn, SignInRefused, Spawn, SpawnFault,
     Spawned,
 };
-pub use strikes::{STRIKES_MAX, Strikes};
-pub use taint::{TaintSource, brings_content};
-pub use tool_req::{Asked, tool_req};
 pub use workdir::{Workdir, WorkdirFault};

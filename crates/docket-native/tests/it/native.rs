@@ -296,7 +296,7 @@ async fn a_sheet_the_router_asks_reaches_the_edge_as_a_sheet_and_its_answer_goes
         .expect("turn");
     let mut seen = Vec::new();
     while let Some(e) = host.next_event(&s).await.expect("host") {
-        if let BackendEvent::Sheet(request) = &e {
+        if let BackendEvent::Confirm(request) = &e {
             host.answer_sheet(&s, &request.id, SheetChoice::Refused)
                 .await
                 .expect("answered");
@@ -308,7 +308,7 @@ async fn a_sheet_the_router_asks_reaches_the_edge_as_a_sheet_and_its_answer_goes
         }
     }
     assert!(
-        seen.iter().any(|e| matches!(e, BackendEvent::Sheet(_))),
+        seen.iter().any(|e| matches!(e, BackendEvent::Confirm(_))),
         "{seen:?}"
     );
     assert_eq!(*desk.0.lock().expect("lock"), [SheetChoice::Refused]);

@@ -6,7 +6,7 @@
 //! **Sheets.** The router asks the person through its confirmer, like any call: sill's sheet, by
 //! default, and the host sees nothing of it. In the development fallback (`Fallback::Terminal`,
 //! `docket-agent --tty`) the host tells the router that it shows this session's sheets itself,
-//! and each one comes out of `next_event` as `BackendEvent::Sheet` and goes back through
+//! and each one comes out of `next_event` as `BackendEvent::Confirm` and goes back through
 //! `answer_sheet`, as an editor's do. Without the flag the host asks for no such route and holds
 //! no desk, so a sheet can only go to the desktop.
 //!
@@ -14,9 +14,9 @@
 //! no fork, and a resumed agent session is always a new one, which the router restores itself).
 
 use super::backend::{AcpBackend, Seams};
-use super::cause::Step;
-use super::court::{Court, OpenAgent};
 use super::running::RunningTurn;
+use acp_core::cause::Step;
+use acp_core::court::{Court, OpenAgent};
 use docket_core::{
     ConfirmId, HandTo, Rewind, SheetSurface, TurnEnd as Ended, TurnId, UserTurn, WatchedAgent,
 };
@@ -47,7 +47,7 @@ impl Fallback {
     }
 }
 
-type Recording = Pin<Box<dyn Future<Output = Result<TurnId, super::court::CourtFault>> + Send>>;
+type Recording = Pin<Box<dyn Future<Output = Result<TurnId, acp_core::court::CourtFault>> + Send>>;
 
 /// A turn the router is recording and the agent has not yet been given.
 struct Opening2 {
@@ -282,7 +282,7 @@ impl<X: Seams, D: SheetDesk> SessionHost for AgentHost<X, D> {
                 ) {
                     (_, Either::Left((recorded, _))) => recorded,
                     (Fallback::Terminal, Either::Right((Some(request), _))) => {
-                        return Ok(Some(BackendEvent::Sheet(Box::new(request))));
+                        return Ok(Some(BackendEvent::Confirm(Box::new(request))));
                     }
                     // No desk is asked for: nothing can be on it.
                     (_, Either::Right(_)) => continue,
@@ -316,7 +316,7 @@ impl<X: Seams, D: SheetDesk> SessionHost for AgentHost<X, D> {
                     settle(&mut self.running, &event).await;
                     event
                 }
-                Either::Right((Some(request), _)) => Some(BackendEvent::Sheet(Box::new(request))),
+                Either::Right((Some(request), _)) => Some(BackendEvent::Confirm(Box::new(request))),
                 // A desk with nothing to hand out ends the race: the backend's event is what is
                 // left, and the next pull asks for it again.
                 Either::Right((None, _)) => continue,

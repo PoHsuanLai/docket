@@ -433,7 +433,7 @@ fn sheet(id: &str) -> BackendEvent {
         expires: Seconds(120),
     })
     .offering(AlwaysOffer::Offered(files_scope()));
-    BackendEvent::Sheet(Box::new(request))
+    BackendEvent::Confirm(Box::new(request))
 }
 
 /// Opens a job session for Research (`s-70`): a job still runs in the editor's own host.

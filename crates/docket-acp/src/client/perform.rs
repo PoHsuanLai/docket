@@ -3,11 +3,11 @@
 //! agent reported, take a write back. Each checks that the call it was handed names exactly what
 //! the held request was formed for.
 
-use super::call::StageId;
 use super::files::FileFault;
 use super::files::Files;
 use super::performer::{Held, Performer, Scope, UNDO_KEEP, UndoNote};
-use super::taint::source;
+use acp_core::call::StageId;
+use acp_core::taint::source;
 use bulkhead::Sandbox;
 use docket_core::{
     AbsPath, AppRefusal, FILES_READ, FILES_SENSITIVE, FILES_WRITE, FailText, Follow, Invocation,

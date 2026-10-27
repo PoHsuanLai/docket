@@ -3,8 +3,8 @@
 use super::menu::EdgeMenu;
 use super::offer::{EdgeBind, ToolsOffer};
 use super::token::{mint, nonce};
-use crate::client::call::AgentCall;
-use crate::client::court::{Court, Ruled};
+use acp_core::call::AgentCall;
+use acp_core::court::{Court, Ruled};
 use actions_tools::{
     EDGE_LINE_MAX, EdgeOp, EdgeReply, EdgeRequest, EdgeToken, EdgeTool, ToolFault, ToolRefusal,
     listing, outcome_json, prepare,

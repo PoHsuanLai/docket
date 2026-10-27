@@ -48,7 +48,7 @@ fn sheet_with(id: &str, always: AlwaysOffer) -> ConfirmRequest {
 }
 
 fn sheet(id: &str, always: AlwaysOffer) -> BackendEvent {
-    BackendEvent::Sheet(Box::new(sheet_with(id, always)))
+    BackendEvent::Confirm(Box::new(sheet_with(id, always)))
 }
 
 fn offered() -> AlwaysOffer {

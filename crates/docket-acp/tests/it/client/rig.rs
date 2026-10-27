@@ -395,7 +395,7 @@ where
     rig.host.turn(&session, turn(n, text)).await.expect("turn");
     let mut events = Vec::new();
     while let Some(event) = rig.host.next_event(&session).await.expect("event") {
-        if let BackendEvent::Sheet(request) = &event {
+        if let BackendEvent::Confirm(request) = &event {
             let choice = choose(request);
             rig.host
                 .answer_sheet(&session, &request.id, choice)

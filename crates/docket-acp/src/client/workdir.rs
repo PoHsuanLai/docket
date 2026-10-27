@@ -6,7 +6,7 @@
 //!
 //! `resolve` walks the file system; `from_resolved` is the pure half, given the real paths.
 
-use super::confine::is_secret;
+use acp_core::confine::is_secret;
 use docket_core::{AbsPath, Cover};
 use std::path::{Path, PathBuf};
 

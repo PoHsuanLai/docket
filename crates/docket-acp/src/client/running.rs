@@ -7,7 +7,7 @@
 //! from a task of its own, as `Cancelled`. If there is no runtime to spawn on, the router ends
 //! the turn by time (`agent.checkpoints.turn_max_s`).
 
-use super::court::Court;
+use acp_core::court::Court;
 use docket_core::{TurnEnd, TurnId};
 use prov::SessionId;
 

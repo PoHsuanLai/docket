@@ -28,7 +28,6 @@
 pub mod bulk;
 mod calls;
 pub mod client;
-mod command_deadline;
 mod conversation;
 mod covered;
 mod expose;
@@ -52,17 +51,13 @@ mod terminals;
 mod turn;
 
 pub use calls::{Outcome, outcome};
-pub use command_deadline::CommandDeadline;
 pub use conversation::ConversationTurns;
 pub use covered::Covered;
 pub use expose::{Permit, Refusal};
 pub use helpers::{HelperRefusal, HelperRow, Helpers, NoHelpers};
 pub use history::rfc3339;
 pub use mode::{Mode, Say};
-pub use permission::{
-    ALLOW_ALWAYS, ALLOW_ONCE, REJECT_ONCE, Verdict, choice, choice_of_reply, options,
-    sheet_options, sheet_request, verdict, verdict_of_reply,
-};
+pub use permission::{options, sheet_options, sheet_request};
 pub use scope_words::always_words;
 pub use server::Server;
 #[cfg(any(feature = "server", feature = "client"))]

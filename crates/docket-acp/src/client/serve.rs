@@ -2,11 +2,11 @@
 //! runs. See `backend` for the rules this keeps.
 
 use super::backend::{AcpBackend, Called, Phase, Seams, Staged};
-use super::call::AgentCall;
 use super::handlers::ok;
 use super::link::{FromAgent, Plain, Reply, Work};
-use super::taint::TaintSource;
 use crate::fault;
+use acp_core::call::AgentCall;
+use acp_core::taint::TaintSource;
 use agent_client_protocol::schema::v1::{
     CreateElicitationResponse, ElicitationAction, Error, RequestPermissionOutcome,
     RequestPermissionResponse, SessionNotification,
@@ -275,8 +275,8 @@ impl<X: Seams> AcpBackend<X> {
     /// if the run is being repeated.
     pub(super) fn stage_once(
         &mut self,
-        make: impl FnOnce(&super::performer::Performer<X::Files, X::Sandbox>) -> super::call::StageId,
-    ) -> super::call::StageId {
+        make: impl FnOnce(&super::performer::Performer<X::Files, X::Sandbox>) -> acp_core::call::StageId,
+    ) -> acp_core::call::StageId {
         if let Some(stage) = self.staged.as_ref().and_then(|s| s.stage.clone()) {
             return stage;
         }
