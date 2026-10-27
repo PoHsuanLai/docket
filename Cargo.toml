@@ -196,7 +196,7 @@ const-hex = "1.19"
 # docket-launch and docket-accept: FNV-1a 64 of a name (Apache-2.0 OR MIT).
 fnv = "1"
 # docket-acp-host: the session token's random bytes from the kernel (MIT OR Apache-2.0).
-getrandom = "0.3"
+getrandom = { version = "0.3", features = ["std"] }
 # docket-checkpoint-git: the escaped session segment of a ref (MIT OR Apache-2.0).
 percent-encoding = "2.3"
 flate2 = "1"
