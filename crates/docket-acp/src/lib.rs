@@ -1,8 +1,8 @@
 //! The ACP server edge (design note `acp-sessions.md`, section 3a): an editor drives the
 //! companion over the Agent Client Protocol.
 //!
-//! - `Server`: the protocol over a `Wire`, a `SessionHost` and a `SessionLog`. It holds no
-//!   authority; every call a session makes goes through the host's gate.
+//! - `Server`: the protocol over the SDK's agent role, a `SessionHost` and a `SessionLog`. It holds
+//!   no authority; every call a session makes goes through the host's gate.
 //! - `Permit`: the proof that `agent.acp.expose` is on. No permit, no server.
 //! - `turn`: one prompt turn as a pure step machine. `calls`, `permission`, `mode`, `history`:
 //!   the mappings from our step lines, the editor's extra gate, the modes and the stored
@@ -18,8 +18,8 @@
 //! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`bulkhead`),
 //!   ruled by the `Execute` rules. They run in our sandbox, never in an editor's terminal.
 //!
-//! The protocol's wire types are `agent-client-protocol-schema`'s (Apache-2.0); the transport is
-//! ours. `rawInput` and `rawOutput` are never sent; `allow_always` is offered only on a router
+//! The protocol's wire types and the JSON-RPC connection are the official `agent-client-protocol`
+//! SDK's (Apache-2.0); only the capped line source under it is ours. `rawInput` and `rawOutput` are never sent; `allow_always` is offered only on a router
 //! sheet that offered it.
 
 #[cfg(feature = "client")]
@@ -35,6 +35,7 @@ mod helper_face;
 mod helper_replay;
 mod helpers;
 mod history;
+mod link;
 mod mode;
 mod out;
 mod permission;
@@ -64,7 +65,7 @@ pub use permission::{
 pub use scope_words::always_words;
 pub use server::Server;
 #[cfg(feature = "server")]
-pub use stdio::{LINE_MAX, LineFault, LineWire, read_capped};
+pub use stdio::{LINE_MAX, LineFault, LineWire, capped_lines, read_capped};
 pub use terminals::Terminals;
 pub use turn::{Finish, Order, Turn, Wants};
 pub use wire::{Incoming, NotJsonRpc, Wire, WireClosed};

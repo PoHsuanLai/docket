@@ -1,6 +1,7 @@
-//! The line transport and the messages that cross it. ACP over stdio is one JSON-RPC message per
-//! line; `Wire` is that and nothing more, so the lib names no runtime: the binary wraps stdin and
-//! stdout, a test wraps a pair of in-memory channels.
+//! The line transport and the messages that cross it, for the client edge (an external agent as a
+//! session backend). ACP over stdio is one JSON-RPC message per line; `Wire` is that and nothing
+//! more, so the lib names no runtime: the launcher wraps the agent's pipes, a test wraps a pair of
+//! in-memory channels. The server edge does not use it: the SDK frames its lines.
 
 use agent_client_protocol_schema::rpc::RequestId;
 use serde_json::Value;

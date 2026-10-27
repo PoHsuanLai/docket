@@ -1,24 +1,25 @@
-//! `session/prompt`: the turn loop. It races the host's next event against the editor's lines, so
-//! a `session/cancel` is heard while the assistant works, and it asks the editor's person before
-//! a call the mode says to ask about. The machine (`turn`) decides; this only carries.
+//! `session/prompt`: the turn loop. It races the host's next event against the editor's messages,
+//! so a `session/cancel` is heard while the assistant works, and it asks the editor's person
+//! before a call the mode says to ask about. The machine (`turn`) decides; this only carries.
 
 use crate::calls;
 use crate::fault;
 use crate::helpers::Helpers;
+use crate::link::{Gone, Inbound, Link, Settled, answer, settled};
 use crate::mode::Mode;
 use crate::out;
 use crate::permission::{self, verdict_of_reply};
 use crate::server::{Server, Turns};
 use crate::turn::{Finish, Order, Turn, Wants};
-use crate::wire::{Incoming, Wire, WireClosed};
-use agent_client_protocol_schema::rpc::RequestId;
+use agent_client_protocol::Responder;
 use agent_client_protocol_schema::v1::{
-    AGENT_METHOD_NAMES, CLIENT_METHOD_NAMES, CancelNotification, ContentBlock, Error,
-    PromptRequest, PromptResponse, RequestPermissionRequest, SessionNotification, StopReason,
+    ContentBlock, Error, PromptRequest, PromptResponse, RequestPermissionRequest,
+    RequestPermissionResponse, StopReason,
 };
 use docket_core::Clock;
 use docket_core::{TurnId, TurnSource, TurnVia, UserTurn};
 use docket_session::{BackendEvent, HostFault, SessionHost, SessionLog, TurnEnd};
+use futures_channel::oneshot;
 use futures_util::future::{Either, select};
 use prov::SessionId;
 use std::pin::pin;
@@ -57,44 +58,66 @@ enum Begun {
 /// What came of asking the editor.
 pub(crate) enum Reply {
     /// Its answer.
-    Answer(Result<serde_json::Value, serde_json::Value>),
+    Answer(Result<RequestPermissionResponse, Error>),
     /// A cancel or a hang-up ended the wait first; these are the orders it brings.
     Heard(Vec<Order>),
+}
+
+/// What ended a wait on the editor.
+enum Listened {
+    Reply(Result<Result<RequestPermissionResponse, Error>, oneshot::Canceled>),
+    Inbound(Option<Inbound>),
 }
 
 /// What woke the loop.
 enum Woke {
     Event(Result<Option<BackendEvent>, HostFault>),
-    Line(Option<String>),
+    Inbound(Option<Inbound>),
 }
 
-impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, W, T, S> {
+/// A message that arrived while a turn runs: a cancel for this session stops it, any other
+/// request is turned away.
+fn heard(session: &SessionId, inbound: Inbound, turn: &mut Turn) -> Result<Vec<Order>, Gone> {
+    match inbound {
+        Inbound::Cancel(cancel) => Ok(if &*cancel.session_id.0 == session.as_str() {
+            turn.cancelled()
+        } else {
+            Vec::new()
+        }),
+        other => other
+            .refuse(fault::not_now("a prompt is in progress"))
+            .map(|()| Vec::new()),
+    }
+}
+
+impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {
     pub(crate) async fn prompt(
         &mut self,
-        id: RequestId,
-        params: serde_json::Value,
-    ) -> Result<(), WireClosed> {
-        match self.begin(params).await {
-            Err(error) => self.wire.write_line(out::failure(&id, &error)).await,
-            Ok(Begun::AtHelper(session, turn)) => self.converse(id, session, turn).await,
+        link: &mut Link,
+        asked: PromptRequest,
+        responder: Responder<PromptResponse>,
+    ) -> Result<(), Gone> {
+        match self.begin(asked).await {
+            Err(error) => answer(responder, Err(error)),
+            Ok(Begun::AtHelper(session, turn)) => {
+                self.converse(link, responder, session, turn).await
+            }
             Ok(Begun::Here(session, mode)) => {
                 let mut turn = Turn::new(mode, self.covered.clone());
-                let finish = self.drive(&session, &mut turn).await;
+                let finish = self.drive(link, &session, &mut turn).await;
                 self.covered = turn.covered();
-                let finish = finish?;
-                let line = match finish {
-                    Finish::Stop(reason) => out::reply(&id, &PromptResponse::new(reason)),
-                    Finish::Failed => out::failure(&id, &fault::internal("the turn failed")),
+                let result = match finish? {
+                    Finish::Stop(reason) => Ok(PromptResponse::new(reason)),
+                    Finish::Failed => Err(fault::internal("the turn failed")),
                 };
-                self.wire.write_line(line).await
+                answer(responder, result)
             }
         }
     }
 
     /// Reads the prompt, and either hands the person's turn to the host or, for a helper's
     /// conversation, keeps it to be taken to the helper.
-    async fn begin(&mut self, params: serde_json::Value) -> Result<Begun, Error> {
-        let asked: PromptRequest = fault::params(params)?;
+    async fn begin(&mut self, asked: PromptRequest) -> Result<Begun, Error> {
         let session =
             SessionId::parse(&asked.session_id.0).map_err(|_| fault::unknown_session())?;
         let known = self
@@ -123,82 +146,89 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, 
     /// error in its own sentence.
     async fn converse(
         &mut self,
-        id: RequestId,
+        link: &Link,
+        responder: Responder<PromptResponse>,
         session: SessionId,
         turn: UserTurn,
-    ) -> Result<(), WireClosed> {
-        let line = match self.helpers.say(&session, turn).await {
+    ) -> Result<(), Gone> {
+        let result = match self.helpers.say(&session, turn).await {
             Ok(words) => {
                 if !words.trim().is_empty() {
-                    let note = SessionNotification::new(out::wire_id(&session), calls::say(words));
-                    let update = out::notify(CLIENT_METHOD_NAMES.session_update, &note);
-                    self.wire.write_line(update).await?;
+                    link.update(&session, calls::say(words))?;
                 }
-                out::reply(&id, &PromptResponse::new(StopReason::EndTurn))
+                Ok(PromptResponse::new(StopReason::EndTurn))
             }
-            Err(refusal) => out::failure(&id, &fault::internal(&refusal.0)),
+            Err(refusal) => Err(fault::internal(&refusal.0)),
         };
-        self.wire.write_line(line).await
+        answer(responder, result)
     }
 
-    async fn drive(&mut self, session: &SessionId, turn: &mut Turn) -> Result<Finish, WireClosed> {
+    async fn drive(
+        &mut self,
+        link: &mut Link,
+        session: &SessionId,
+        turn: &mut Turn,
+    ) -> Result<Finish, Gone> {
         loop {
             let orders = match turn.wants() {
                 Wants::Over(finish) => return Ok(finish),
                 Wants::Event => {
                     let woke = {
                         let event = pin!(self.host.next_event(session));
-                        let line = pin!(self.wire.read_line());
-                        match select(event, line).await {
+                        let inbound = pin!(link.next());
+                        match select(event, inbound).await {
                             Either::Left((event, _)) => Woke::Event(event),
-                            Either::Right((line, _)) => Woke::Line(line),
+                            Either::Right((inbound, _)) => Woke::Inbound(inbound),
                         }
                     };
                     match woke {
                         Woke::Event(Ok(Some(event))) => turn.event(event),
                         Woke::Event(_) => turn.event(BackendEvent::TurnEnd(TurnEnd::Failed)),
-                        Woke::Line(None) => turn.cancelled(),
-                        Woke::Line(Some(line)) => self.heard(session, &line, turn).await?,
+                        Woke::Inbound(None) => turn.cancelled(),
+                        Woke::Inbound(Some(inbound)) => heard(session, inbound, turn)?,
                     }
                 }
                 Wants::Answer(call) => {
                     let request = permission::request(&out::wire_id(session), &call);
-                    match self.ask_editor(session, &request, turn).await? {
+                    match self.ask_editor(link, session, request, turn).await? {
                         Reply::Heard(orders) => orders,
                         Reply::Answer(reply) => turn.answered(verdict_of_reply(reply)),
                     }
                 }
-                Wants::Sheet(sheet) => self.put_sheet(session, &sheet, turn).await?,
+                Wants::Sheet(sheet) => self.put_sheet(link, session, &sheet, turn).await?,
             };
-            self.carry(session, orders).await?;
+            self.carry(link, session, orders).await?;
         }
     }
 
-    /// Sends the permission `request` and reads lines until the editor answers it, or cancels,
-    /// or goes away.
+    /// Sends the permission `request` and listens until the editor answers it, or cancels, or
+    /// goes away.
     pub(crate) async fn ask_editor(
         &mut self,
+        link: &mut Link,
         session: &SessionId,
-        request: &RequestPermissionRequest,
+        request: RequestPermissionRequest,
         turn: &mut Turn,
-    ) -> Result<Reply, WireClosed> {
-        let asked = RequestId::Str(format!("docket-permission-{}", self.mint()));
-        let line = out::ask(
-            &asked,
-            CLIENT_METHOD_NAMES.session_request_permission,
-            request,
-        );
-        self.wire.write_line(line).await?;
+    ) -> Result<Reply, Gone> {
+        let mut waiting = link.ask(request);
         loop {
-            let Some(line) = self.wire.read_line().await else {
-                return Ok(Reply::Heard(turn.cancelled()));
-            };
-            match Incoming::parse(&line) {
-                Ok(Incoming::Reply { id, outcome }) if id == asked => {
-                    return Ok(Reply::Answer(outcome));
+            let listened = {
+                let inbound = pin!(link.next());
+                match select(&mut waiting, inbound).await {
+                    Either::Left((reply, _)) => Listened::Reply(reply),
+                    Either::Right((inbound, _)) => Listened::Inbound(inbound),
                 }
-                _ => {
-                    let orders = self.heard(session, &line, turn).await?;
+            };
+            match listened {
+                Listened::Reply(reply) => {
+                    return Ok(match settled(reply) {
+                        Settled::Answer(reply) => Reply::Answer(reply),
+                        Settled::Gone => Reply::Heard(turn.cancelled()),
+                    });
+                }
+                Listened::Inbound(None) => return Ok(Reply::Heard(turn.cancelled())),
+                Listened::Inbound(Some(inbound)) => {
+                    let orders = heard(session, inbound, turn)?;
                     if !matches!(turn.wants(), Wants::Answer(_) | Wants::Sheet(_)) {
                         return Ok(Reply::Heard(orders));
                     }
@@ -207,39 +237,15 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, 
         }
     }
 
-    /// A line that arrived while a turn runs: a cancel for this session stops it, any other
-    /// request is turned away, anything else is ignored.
-    async fn heard(
+    async fn carry(
         &mut self,
+        link: &Link,
         session: &SessionId,
-        line: &str,
-        turn: &mut Turn,
-    ) -> Result<Vec<Order>, WireClosed> {
-        match Incoming::parse(line) {
-            Ok(Incoming::Notification { method, params })
-                if method == AGENT_METHOD_NAMES.session_cancel =>
-            {
-                let ours = serde_json::from_value::<CancelNotification>(params)
-                    .is_ok_and(|c| &*c.session_id.0 == session.as_str());
-                Ok(if ours { turn.cancelled() } else { Vec::new() })
-            }
-            Ok(Incoming::Request { id, .. }) => {
-                let busy = fault::not_now("a prompt is in progress");
-                self.wire.write_line(out::failure(&id, &busy)).await?;
-                Ok(Vec::new())
-            }
-            _ => Ok(Vec::new()),
-        }
-    }
-
-    async fn carry(&mut self, session: &SessionId, orders: Vec<Order>) -> Result<(), WireClosed> {
+        orders: Vec<Order>,
+    ) -> Result<(), Gone> {
         for order in orders {
             match order {
-                Order::Update(update) => {
-                    let note = SessionNotification::new(out::wire_id(session), *update);
-                    let line = out::notify(CLIENT_METHOD_NAMES.session_update, &note);
-                    self.wire.write_line(line).await?;
-                }
+                Order::Update(update) => link.update(session, *update)?,
                 Order::CancelBackend => {
                     // A host that cannot cancel still ends the turn on its own terms.
                     let _ = self.host.cancel(session).await;

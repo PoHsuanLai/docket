@@ -7,10 +7,10 @@ use crate::fault;
 use crate::helper_face::{helper_asked, space_of};
 use crate::helpers::Helpers;
 use crate::history;
+use crate::link::Link;
 use crate::mode::Mode;
 use crate::out;
 use crate::server::{Known, Server, Turns};
-use crate::wire::Wire;
 use agent_client_protocol_schema::v1::{
     Error, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest, LoadSessionResponse,
     NewSessionRequest, NewSessionResponse, SessionInfo,
@@ -22,7 +22,6 @@ use docket_session::{
     may_restore_plan, read_all, resume_plan,
 };
 use prov::{AgentRef, SessionId, TaskId};
-use serde_json::Value;
 use std::path::Path;
 
 /// Sessions to a page of `session/list`.
@@ -34,11 +33,7 @@ pub(crate) fn workspace(path: &Path) -> Result<Workspace, Error> {
         .ok_or_else(|| fault::invalid("cwd must be an absolute path"))
 }
 
-pub(crate) fn json(of: &impl serde::Serialize) -> Result<Value, Error> {
-    serde_json::to_value(of).map_err(|_| fault::internal("could not answer"))
-}
-
-impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, W, T, S> {
+impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {
     /// The plan of a stored session this editor may use, or "no such session".
     async fn mine(
         &self,
@@ -57,11 +52,13 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, 
             .ok_or_else(fault::unknown_session)
     }
 
-    pub(crate) async fn new_session(&mut self, params: Value) -> Result<Value, Error> {
+    pub(crate) async fn new_session(
+        &mut self,
+        asked: NewSessionRequest,
+    ) -> Result<NewSessionResponse, Error> {
         // The editor's `mcpServers` are read and dropped: the editor's tools are not ours to run.
         // `_meta.helper` names a helper to open a job for; without it the session is the companion.
-        let helper = helper_asked(&params);
-        let asked: NewSessionRequest = fault::params(params)?;
+        let helper = helper_asked(asked.meta.as_ref());
         let cwd = workspace(&asked.cwd)?;
         if let Some(name) = helper {
             return self.new_helper_job(&name, &cwd).await;
@@ -95,11 +92,14 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, 
                 turns,
             },
         );
-        json(&NewSessionResponse::new(out::wire_id(&session)).modes(mode.state()))
+        Ok(NewSessionResponse::new(out::wire_id(&session)).modes(mode.state()))
     }
 
-    pub(crate) async fn load_session(&mut self, params: Value) -> Result<Value, Error> {
-        let asked: LoadSessionRequest = fault::params(params)?;
+    pub(crate) async fn load_session(
+        &mut self,
+        link: &Link,
+        asked: LoadSessionRequest,
+    ) -> Result<LoadSessionResponse, Error> {
         let session =
             SessionId::parse(&asked.session_id.0).map_err(|_| fault::unknown_session())?;
         // A helper's conversation is not a stored session of this editor's: it is found by name
@@ -109,7 +109,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, 
             .as_ref()
             .and_then(|cwd| self.helper_session(&session, cwd));
         if let Some(row) = helper {
-            return self.load_helper(row).await;
+            return self.load_helper(link, row).await;
         }
         let (rows, plan) = self.mine(&session).await?;
         let cwd = workspace(&asked.cwd)?;
@@ -117,8 +117,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, 
             return Err(fault::invalid("cwd does not match the session's"));
         }
         for update in history::replay(&rows, &plan) {
-            self.send_update(&session, update)
-                .await
+            link.update(&session, update)
                 .map_err(|_| fault::internal("the connection closed"))?;
         }
         if !self.roster.contains_key(&session) {
@@ -140,11 +139,13 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, 
                 turns,
             },
         );
-        json(&LoadSessionResponse::new().modes(mode.state()))
+        Ok(LoadSessionResponse::new().modes(mode.state()))
     }
 
-    pub(crate) async fn list_sessions(&mut self, params: Value) -> Result<Value, Error> {
-        let asked: ListSessionsRequest = fault::params(params)?;
+    pub(crate) async fn list_sessions(
+        &mut self,
+        asked: ListSessionsRequest,
+    ) -> Result<ListSessionsResponse, Error> {
         let wanted = asked.cwd.as_deref().map(workspace).transpose()?;
         let skip: usize = match asked.cursor.as_deref() {
             None => 0,
@@ -196,6 +197,6 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, 
         infos.extend(found.into_iter().map(|f| f.2));
         let page: Vec<_> = infos.iter().skip(skip).take(PAGE).cloned().collect();
         let next = (skip + PAGE < infos.len()).then(|| (skip + PAGE).to_string());
-        json(&ListSessionsResponse::new(page).next_cursor(next))
+        Ok(ListSessionsResponse::new(page).next_cursor(next))
     }
 }

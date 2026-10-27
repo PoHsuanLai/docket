@@ -157,7 +157,10 @@ clap = { version = "4", default-features = false, features = ["derive", "std", "
 cedar-policy = "4.13"
 # actions-mcp: pin the minor.
 rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io"] }
-# docket-acp: the ACP protocol's wire types alone (Apache-2.0), no schemars; the transport is ours.
+# docket-acp: the official ACP SDK (Apache-2.0): JSON-RPC framing, request matching and dispatch for the
+# server edge. No `process` (agents are spawned under bulkhead) and no `stdio` (our capped line source).
+agent-client-protocol = { version = "3.5", default-features = false }
+# The SDK's wire types (it pins this exact version), imported by their own crate name.
 agent-client-protocol-schema = { version = "=1.12.0", default-features = false }
 # Dev-dependencies.
 proptest = "1"

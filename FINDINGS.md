@@ -2073,10 +2073,25 @@ Open, and why:
 `docket-acp` serves the Agent Client Protocol v1 on stdio (design note `acp-sessions.md`, section 3a).
 What landed, and what it leaves for other lanes.
 
-- **Protocol types: the schema crate, not the SDK.** `agent-client-protocol-schema` 1.12.0,
-  Apache-2.0, pinned `=1.12.0` with `default-features = false` (no `schemars`), in `Cargo.lock`. The
-  transport (`Wire`, `Incoming`, `LineWire`) is ours, about 150 lines, no runtime in the lib. The
-  crate ships no JSON Schema file, so `crates/docket-acp/tests/schema/schema.json` and `meta.json`
+- **The server edge is on the official SDK (step 2 of D0.15b; the transport is no longer ours).**
+  `agent-client-protocol` 3.5.0 (Apache-2.0, `default-features = false`: no `process`, no `stdio`),
+  which pins `agent-client-protocol-schema =1.12.0` (still imported by its own name, `default-features
+  = false`, no `schemars`). The SDK's agent role does the JSON-RPC: framing, matching replies to
+  requests, the `-32700` and `-32601` answers, and the dispatch of each message to a typed handler.
+  Our handlers only forward `initialize`, `session/new|load|list|prompt|set_mode` and
+  `session/cancel` into a channel; one task (`Server::run`, `link.rs`) holds the sessions and runs
+  them in order, so a cancel is heard while a turn waits on the host or on the editor's permission
+  answer. We keep one thing of our own: the line source, `capped_lines` over `read_capped`, which
+  ends the stream at a line over `LINE_MAX` (4 MiB) or one that is not text. SDK 3.5's line source
+  (`ByteStreams`, `Stdio`) buffers a line of any length, so a hostile editor could grow our memory
+  without limit; the SDK's `Lines::new` takes any stream of lines, so ours feeds it. Wire changes
+  from the SDK: a malformed request body is `-32602` with the SDK's message (ours said "the
+  parameters do not fit the method"); an unknown method is `-32601` with the method name in `data`;
+  a parse error carries the line in `data`; an `initialize` asking for a version above 1 is
+  normalised to v1 by the SDK before we see it. `Wire`, `Incoming` and `LineWire` stay for the
+  client edge until step 3.
+- **The protocol-v1 JSON Schema copy.** The schema crate ships no JSON Schema file, so
+  `crates/docket-acp/tests/schema/schema.json` and `meta.json`
   are protocol v1 copied from the upstream repo's `schema/v1/` (commit e2d8334, 2026-10-16; the
   version is recorded in `tests/schema/VERSION`). No test fetches it. Every message the tests send
   or receive is validated against it (`jsonschema` 0.58, MIT, dev-dependency only, no default

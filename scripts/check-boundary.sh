@@ -332,7 +332,7 @@ RULES=(
   # Cedar, MCP SDK or toml.
   "docket-checkpoint-git: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy toml"
   # The ACP server edge: the lib is portable (the runtime is only the `server` feature's binary);
-  # no bus, HTTP, Cedar or MCP SDK. The protocol's types come from agent-client-protocol-schema.
+  # no bus, HTTP, Cedar or MCP SDK. The protocol's types and the JSON-RPC connection come from agent-client-protocol.
   # The client edge reaches the router only through docket-client (its `InProcess` transport is a
   # dev-dependency): the host of an external agent calls the same Intents1 every caller does.
   "docket-acp: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy"

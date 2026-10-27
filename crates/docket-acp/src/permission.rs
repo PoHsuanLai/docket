@@ -10,12 +10,12 @@
 use crate::calls;
 use crate::scope_words::always_words;
 use agent_client_protocol_schema::v1::{
-    PermissionOption, PermissionOptionKind, RequestPermissionOutcome, RequestPermissionRequest,
-    RequestPermissionResponse, SessionId, ToolCallStatus, ToolCallUpdate, ToolCallUpdateFields,
+    Error, PermissionOption, PermissionOptionKind, RequestPermissionOutcome,
+    RequestPermissionRequest, RequestPermissionResponse, SessionId, ToolCallStatus, ToolCallUpdate,
+    ToolCallUpdateFields,
 };
 use docket_core::{AlwaysOffer, ConfirmRequest};
 use docket_session::{CallOpen, SheetChoice};
-use serde_json::Value;
 
 /// The id of the one option that lets a call go on.
 pub const ALLOW_ONCE: &str = "allow_once";
@@ -61,11 +61,8 @@ pub fn verdict(outcome: &RequestPermissionOutcome) -> Verdict {
 }
 
 /// The verdict in a reply to our request: anything unreadable is a reject.
-pub fn verdict_of_reply(reply: Result<Value, Value>) -> Verdict {
-    reply
-        .ok()
-        .and_then(|v| serde_json::from_value::<RequestPermissionResponse>(v).ok())
-        .map_or(Verdict::Reject, |r| verdict(&r.outcome))
+pub fn verdict_of_reply(reply: Result<RequestPermissionResponse, Error>) -> Verdict {
+    reply.map_or(Verdict::Reject, |r| verdict(&r.outcome))
 }
 
 /// The options of a sheet: `allow_always` is there only when the router offered it, and says
@@ -116,9 +113,9 @@ pub fn choice(outcome: &RequestPermissionOutcome, sheet: &ConfirmRequest) -> She
 }
 
 /// The choice in a reply to our request: anything unreadable is a refusal.
-pub fn choice_of_reply(reply: Result<Value, Value>, sheet: &ConfirmRequest) -> SheetChoice {
-    reply
-        .ok()
-        .and_then(|v| serde_json::from_value::<RequestPermissionResponse>(v).ok())
-        .map_or(SheetChoice::Refused, |r| choice(&r.outcome, sheet))
+pub fn choice_of_reply(
+    reply: Result<RequestPermissionResponse, Error>,
+    sheet: &ConfirmRequest,
+) -> SheetChoice {
+    reply.map_or(SheetChoice::Refused, |r| choice(&r.outcome, sheet))
 }

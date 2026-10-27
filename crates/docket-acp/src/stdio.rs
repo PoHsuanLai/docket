@@ -1,7 +1,11 @@
-//! The wire over a byte stream, for the binary (stdin and stdout) and for tests (the two ends of
-//! an in-memory duplex): newline-delimited JSON, nothing else on the stream.
+//! Newline-delimited JSON over a byte stream, for the binary (stdin and stdout) and for tests (the
+//! two ends of an in-memory duplex): nothing else on the stream. [`capped_lines`] is what the ACP
+//! server edge hands the SDK; [`LineWire`] is what the client edge still reads and writes by hand.
 
 use crate::wire::{Wire, WireClosed};
+use agent_client_protocol::Lines;
+use futures_util::{Sink, Stream};
+use std::io;
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt};
 
 /// The longest line a peer may send, in bytes: the agent child's stdout and the editor's input
@@ -63,6 +67,61 @@ fn text_of(mut bytes: Vec<u8>) -> Result<String, LineFault> {
     String::from_utf8(bytes).map_err(|_| LineFault::NotText)
 }
 
+/// The lines of `reader` as the SDK reads them: blank lines skipped, and the stream ends, with a
+/// warning, at a line over `cap` bytes or one that is not text. The SDK's own line source holds a
+/// line of any length in memory, so it is not used for a peer we do not trust.
+fn lines_of<R>(reader: R, cap: usize) -> impl Stream<Item = io::Result<String>> + Send + 'static
+where
+    R: AsyncBufRead + Unpin + Send + 'static,
+{
+    futures_util::stream::unfold(
+        (reader, Vec::new()),
+        move |(mut reader, mut pending)| async move {
+            loop {
+                match read_capped(&mut reader, &mut pending, cap).await {
+                    Ok(Some(line)) if line.trim().is_empty() => {}
+                    Ok(Some(line)) => return Some((Ok(line), (reader, pending))),
+                    Ok(None) => return None,
+                    Err(fault) => {
+                        // The connection ends on a line it cannot take; the peer is not told why.
+                        tracing::warn!(%fault, "closing the wire");
+                        return None;
+                    }
+                }
+            }
+        },
+    )
+}
+
+/// `writer` as a sink of messages, one line each, flushed.
+fn sink_of<W>(writer: W) -> impl Sink<String, Error = io::Error> + Send + 'static
+where
+    W: AsyncWrite + Unpin + Send + 'static,
+{
+    futures_util::sink::unfold(writer, |mut writer: W, line: String| async move {
+        let mut bytes = line.into_bytes();
+        bytes.push(b'\n');
+        writer.write_all(&bytes).await?;
+        writer.flush().await?;
+        Ok::<W, io::Error>(writer)
+    })
+}
+
+/// A transport for the SDK over a reader and a writer, with lines held to [`LINE_MAX`].
+pub fn capped_lines<R, W>(
+    reader: R,
+    writer: W,
+) -> Lines<
+    impl Sink<String, Error = io::Error> + Send + 'static,
+    impl Stream<Item = io::Result<String>> + Send + 'static,
+>
+where
+    R: AsyncBufRead + Unpin + Send + 'static,
+    W: AsyncWrite + Unpin + Send + 'static,
+{
+    Lines::new(sink_of(writer), lines_of(reader, LINE_MAX))
+}
+
 /// A `Wire` over a reader and a writer.
 #[derive(Debug)]
 pub struct LineWire<R, W> {
@@ -117,7 +176,24 @@ impl<R: AsyncBufRead + Unpin + Send, W: AsyncWrite + Unpin + Send> Wire for Line
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures_util::StreamExt;
     use tokio::io::BufReader;
+
+    #[tokio::test]
+    async fn the_sdk_gets_whole_lines_and_the_stream_ends_at_one_over_the_cap() {
+        let input: &[u8] = b"one\r\n\ntwo\n0123456789\nrest";
+        let mut lines = Box::pin(lines_of(BufReader::new(input), 8));
+        assert_eq!(
+            lines.next().await.transpose().expect("line").as_deref(),
+            Some("one")
+        );
+        assert_eq!(
+            lines.next().await.transpose().expect("line").as_deref(),
+            Some("two")
+        );
+        // Ten bytes against a cap of eight: the stream ends, nothing is truncated or read on.
+        assert!(lines.next().await.is_none());
+    }
 
     #[tokio::test]
     async fn lines_come_whole_and_a_line_over_the_cap_ends_the_wire() {

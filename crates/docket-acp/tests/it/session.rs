@@ -36,7 +36,17 @@ fn golden(name: &str, got: &str) {
         std::fs::write(&path, got).expect("bless");
     }
     let want = std::fs::read_to_string(&path).expect("golden file");
-    assert_eq!(got, want, "{name} changed; DOCKET_ACP_BLESS=1 rewrites it");
+    // Compared as messages: the order of an object's keys is the SDK's.
+    let messages = |text: &str| -> Vec<Value> {
+        text.lines()
+            .map(|line| serde_json::from_str(line).expect("a JSON line"))
+            .collect()
+    };
+    assert_eq!(
+        messages(got),
+        messages(&want),
+        "{name} changed; DOCKET_ACP_BLESS=1 rewrites it"
+    );
 }
 
 fn kinds(updates: &[Value]) -> Vec<(String, String)> {

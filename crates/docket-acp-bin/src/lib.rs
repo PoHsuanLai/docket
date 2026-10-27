@@ -23,7 +23,7 @@ pub mod helpers;
 
 use companion_client::DbusHelpers;
 use confirm::ConfirmObject;
-use docket_acp::{LineWire, Permit, Server};
+use docket_acp::{Permit, Server, capped_lines};
 use docket_client::{DbusTransport, Intents};
 use docket_core::AgentConfig;
 use docket_dbus::callers::Identity;
@@ -141,10 +141,9 @@ pub async fn serve_with(
     });
     let helpers = LiveHelpers::over(talking).await;
     let host: LiveHost = NativeHost::over(companion, log.clone()).with_desk(desk);
-    let wire = LineWire::new(BufReader::new(stdin()), stdout());
-    let mut server =
-        Server::new(permit, editor, host, log, wire, SystemClock).with_helpers(helpers);
+    let lines = capped_lines(BufReader::new(stdin()), stdout());
+    let mut server = Server::new(permit, editor, host, log, SystemClock).with_helpers(helpers);
     // The editor closing the pipe is the normal end.
-    let _ = server.run().await;
+    let _ = server.run(lines).await;
     Ok(())
 }

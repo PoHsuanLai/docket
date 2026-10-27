@@ -2,8 +2,9 @@
 //! around it. Scripted: no network, no process, no clock.
 #![allow(dead_code)]
 
+use agent_client_protocol::{Agent, DynConnectTo};
 use agent_client_protocol_schema::rpc::RequestId;
-use docket_acp::{Helpers, LineWire, NoHelpers, Permit, Server};
+use docket_acp::{Helpers, NoHelpers, Permit, Server, capped_lines};
 use docket_core::{
     ActionRef, CallId, CallRefusal, DenyCode, LabelText, StepEnd, StepLine, StepShown,
 };
@@ -18,8 +19,23 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, duplex};
 use tokio::io::{AsyncWriteExt, BufReader, DuplexStream, Lines, ReadHalf, WriteHalf, split};
 
-pub type Wire = LineWire<BufReader<ReadHalf<DuplexStream>>, WriteHalf<DuplexStream>>;
-pub type TestServer = Server<FakeHost, Arc<MemoryLog>, Wire, Fixed>;
+/// The server under test, with the editor's end of its transport kept until it runs.
+pub struct TestServer<S = NoHelpers> {
+    server: Server<FakeHost, Arc<MemoryLog>, Fixed, S>,
+    lines: Option<DynConnectTo<Agent>>,
+}
+
+impl<S: Helpers> TestServer<S> {
+    /// Serves the editor until it closes its end.
+    pub async fn run(&mut self) -> Result<(), agent_client_protocol::Error> {
+        let lines = self.lines.take().expect("a rig serves once");
+        self.server.run(lines).await
+    }
+
+    pub fn into_host(self) -> FakeHost {
+        self.server.into_host()
+    }
+}
 
 /// A clock that stands still.
 pub type Fixed = FixedClock;
@@ -106,22 +122,25 @@ pub fn rig_with<S: Helpers>(
     scripts: Vec<Vec<Vec<BackendEvent>>>,
     editor_app: &str,
     helpers: S,
-) -> (Server<FakeHost, Arc<MemoryLog>, Wire, Fixed, S>, Editor) {
+) -> (TestServer<S>, Editor) {
     docket_testbus::hang_guard::arm();
     let (client_end, server_end) = duplex(1 << 16);
     let (server_read, server_write) = split(server_end);
     let (client_read, client_write) = split(client_end);
-    let wire = LineWire::new(BufReader::new(server_read), server_write);
+    let lines = capped_lines(BufReader::new(server_read), server_write);
     let host = FakeHost::new(log.clone(), scripts);
     let server = Server::new(
         permit(),
         app(editor_app),
         host,
         log.clone(),
-        wire,
         FixedClock::at(UnixSeconds(1_760_000_000)),
     )
     .with_helpers(helpers);
+    let server = TestServer {
+        server,
+        lines: Some(DynConnectTo::new(lines)),
+    };
     let schema: Value =
         serde_json::from_str(include_str!("../../schema/schema.json")).expect("schema");
     let editor = Editor {
@@ -306,9 +325,21 @@ impl Editor {
             .collect()
     }
 
-    /// The transcript, one message per line.
+    /// The transcript, one message per line. The ids of the server's own requests are the SDK's
+    /// to choose, so each is numbered by its place in the transcript.
     pub fn transcript(&self) -> String {
-        self.seen.iter().map(|m| format!("{m}\n")).collect()
+        let mut asked = 0;
+        self.seen
+            .iter()
+            .map(|message| {
+                let mut message = message.clone();
+                if message.get("method").is_some() && message.get("id").is_some() {
+                    asked += 1;
+                    message["id"] = json!(format!("request-{asked}"));
+                }
+                format!("{message}\n")
+            })
+            .collect()
     }
 }
 
