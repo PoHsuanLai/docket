@@ -320,7 +320,6 @@ impl Entry {
     }
 }
 
-use docket_acp_host::{ModelId, SignIn};
 /// Every listed program, by name.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AgentsFile {
