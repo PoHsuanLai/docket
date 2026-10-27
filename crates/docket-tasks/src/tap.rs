@@ -1,6 +1,6 @@
 //! Where a turn's progress is told as it happens, and the one place a call can be held back. The
 //! drive loop runs the same way whoever listens: companiond's `NoTap` hears nothing and lets
-//! every call go; the native session backend (`native`) hears each step, and holds a call at its
+//! every call go; the native session backend (`docket-native`) hears each step, and holds a call at its
 //! gate until the one who reads the events has seen it announced.
 
 use companion_wire::NeedsYou;

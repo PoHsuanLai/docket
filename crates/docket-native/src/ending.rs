@@ -10,7 +10,7 @@
 //! The guard is made before the flight locks the companion, so on a drop the lock is let go
 //! first (locals drop in reverse) and the guard can take it to reach the router link.
 
-use crate::native::backend::Core;
+use crate::backend::Core;
 use docket_client::Transport as IntentsTransport;
 use docket_core::{TurnEnd, TurnId};
 use futures_util::FutureExt;

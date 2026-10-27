@@ -5,8 +5,8 @@
 
 use crate::best_effort::best_effort;
 use crate::fault::ServeFault;
-use crate::native::RouterLog;
 use crate::recover::{RouterRecent, rebuild_from, recent_events};
+use crate::router_log::RouterLog;
 use crate::runtime::Companion;
 use crate::seams::Surface;
 use crate::stored_roster::stored_events;

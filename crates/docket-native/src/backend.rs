@@ -2,17 +2,14 @@
 //! `SessionBackend` trait. The backend holds no authority and writes no entry: every call goes to
 //! the router, which gates it and records it, and the host writes the rest.
 //!
-//! Two rules of the trait are kept here and tested (`tests/it/native_contract.rs`):
+//! Two rules of the trait are kept here and tested (`tests/it/contract.rs`):
 //! `next_event` is cancel-safe (the turn lives in a stored `Flight`; a dropped pull loses and
 //! repeats nothing), and a call is not made until the pull after the one that returned its
 //! `Started` event, so a reader that stops the turn in between stops the call before it runs.
 
-use crate::native::end::end_of;
-use crate::native::ending::Ending;
-use crate::native::flight::Flight;
-use crate::runtime::Companion;
-use crate::seams::Surface;
-use crate::shared::Shared;
+use crate::end::end_of;
+use crate::ending::Ending;
+use crate::flight::Flight;
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
@@ -21,6 +18,9 @@ use docket_session::{
     BackendEvent, BackendFault, BackendKind, ResumePlan, Resumed, SessionBackend, Standing,
     StartSession, TurnEnd,
 };
+use docket_tasks::Companion;
+use docket_tasks::Shared;
+use docket_tasks::Surface;
 use futures_util::FutureExt;
 use futures_util::lock::Mutex;
 use porter_client::Transport as InferTransport;

@@ -7,10 +7,10 @@
 //! on the pull that comes after the one that returned `Started`, and not before: whoever reads
 //! the events (an editor's permission round) has the whole time between the two pulls to stop it.
 
-use crate::tap::{Go, Tap};
 use companion_wire::NeedsYou;
 use docket_core::{Reveal, StepLine};
 use docket_session::{BackendEvent, CallEvent, CallOpen, TurnEnd};
+use docket_tasks::{Go, Tap};
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::StreamExt;
 use futures_util::future::{BoxFuture, Either, select};

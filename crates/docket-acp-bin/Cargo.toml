@@ -1,6 +1,6 @@
 [package]
 name = "docket-acp-bin"
-description = "The docket-acp process: the ACP server edge on stdio, hosting its own companion (docket-tasks NativeHost) over the session bus. Refuses to serve unless agent.acp.expose is on. The lib is what the acceptance harness runs under its own name."
+description = "The docket-acp process: the ACP server edge on stdio, hosting its own companion (docket-native NativeHost) over the session bus. Refuses to serve unless agent.acp.expose is on. The lib is what the acceptance harness runs under its own name."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -39,6 +39,7 @@ docket-inapp = { workspace = true }
 docket-store = { workspace = true }
 docket-launch = { workspace = true, features = ["dbus"] }
 docket-log = { workspace = true }
+docket-native = { workspace = true }
 docket-planner = { workspace = true }
 docket-router = { workspace = true }
 docket-session = { workspace = true }

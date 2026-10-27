@@ -43,6 +43,7 @@ LAYERS=(
   "docket-store:C"
   "docket-planner:C"
   "docket-tasks:C"
+  "docket-native:C"
   "docket-memory:C"
   "docket-models:C"
   "docket-reader:C"
@@ -81,7 +82,7 @@ LAYERS=(
 # matches a breach fails the check until it is deleted.
 KNOWN=(
   "docket-acp ui:Sheet D0.16"
-  "docket-tasks ui:Sheet D0.13"
+  "docket-native ui:Sheet D0.16"
   "docket-skills src:std::fs D0.24"
   "docket-acp-bin env D0.21"
   "docket-accept env D0.22"
@@ -328,6 +329,8 @@ RULES=(
   # a clock and a surface that are passed in; no bus, no runtime (the daemon's surface is the
   # one that holds tokio).
   "docket-tasks: $EFFECTS"
+  # The durable-session backend over the task model: the same portable rules, no bus or runtime.
+  "docket-native: $EFFECTS"
   # The durable session is portable and pure: no bus, runtime, HTTP, Cedar or toml; the log is a seam.
   "docket-session: $EFFECTS toml"
   # Restore points: the rules and the store seam, pure; the git store is another crate (a process).

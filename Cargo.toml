@@ -13,6 +13,7 @@ members = [
   "crates/agent-loop",
   "crates/docket-planner",
   "crates/docket-tasks",
+  "crates/docket-native",
   "crates/docket-session",
   "crates/docket-checkpoint",
   "crates/docket-checkpoint-git",
@@ -73,6 +74,7 @@ companion-client = { path = "crates/companion-client" }
 agent-loop     = { path = "crates/agent-loop" }
 docket-planner = { path = "crates/docket-planner" }
 docket-tasks   = { path = "crates/docket-tasks" }
+docket-native  = { path = "crates/docket-native" }
 docket-session = { path = "crates/docket-session" }
 docket-checkpoint = { path = "crates/docket-checkpoint" }
 docket-checkpoint-git = { path = "crates/docket-checkpoint-git" }

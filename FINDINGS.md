@@ -2300,7 +2300,7 @@ command outside the sandbox.
 
 ## native-backend: the planner loop behind SessionBackend (S2)
 
-`docket-tasks` now holds `NativeBackend` and `NativeHost`, and `docket-acp-bin` is the `docket-acp`
+`docket-native` (moved out of `docket-tasks` by D0.13) holds `NativeBackend` and `NativeHost`, and `docket-acp-bin` is the `docket-acp`
 process with a real host.
 
 **What landed.**
@@ -2328,7 +2328,7 @@ process with a real host.
   `answer_sheet` goes to the desk; `EditorDesk` is a `ConfirmSheet`, so `SheetConfirmer` builds the
   answer and the receipt, and now honours an `Always` where the request offered a scoped grant.
 - `docket_session::contract` (`Harness`): the rules every backend keeps, run against `FakeBackend`
-  (docket-session) and `NativeBackend` (docket-tasks): a turn's events, a stop before the next pull
+  (docket-session) and `NativeBackend` (docket-native): a turn's events, a stop before the next pull
   stops the call, a call waits for the pull after its announcement, a dropped pull loses and repeats
   nothing (the native harness stalls every planner answer once, so there is a pending pull to drop).
 - **`Session.Stored`** (new `Intents1` member; roles launcher, editor, companion): the log read
@@ -2347,7 +2347,7 @@ process with a real host.
 - Router: an editor may close and record turns only in sessions its own app opened (it could close
   any before).
 
-**Tests** (scripted, no network, no wall clock): `docket-tasks/tests/it/{contract,native}.rs` (the
+**Tests** (scripted, no network, no wall clock): `docket-native/tests/it/{contract,native}.rs` (the
 contract on the native backend; a turn recorded by the router; an editor's reject means the fake
 app's call log is empty and the log has no `Call`; a restart over the same log resumes with the history
 and the planner is shown it; fork and export; a sheet reaches the edge as `Sheet` and its answer goes
@@ -3802,3 +3802,21 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - `hub.rs` (993 lines) is now `hub.rs`, `jobs.rs` and `routine_link.rs`. `routines/units.rs` is `routines/unit_dir.rs` (the disk half). `companiond/src/serve.rs` was already 556 lines and is touched only for an import; its split is not done.
 - Not done: the hand-over types in `docket_core` (`helper`, `routine`, `hand`, `handover`) are still in `docket-core`; moving them is the later part of F1. `companiond::HostLink` (`handoff.rs`) is bus IO and stays. Not verified by a build in the lane that made the change.
 
+
+## D0.13: docket-native (the durable-session backend out of docket-tasks)
+
+- New crate `docket-native` (tier C): `NativeBackend`, `NativeHost` and `Core`, with their `Flight`,
+  `Ending` guard and `end_of`. It sits over `docket-tasks` and `docket-session`. `docket-acp-bin` is its
+  one user; `docket-inapp` and companiond never named these items.
+- `docket-tasks` keeps the task model and the runtime and has no `native` module and no re-exports of the
+  moved names. It still depends on `docket-session` (`CallOpen`, the stored roster), so that dependency stays.
+- `RouterLog` did not move. `Companion::restore` reads the stored sessions through it, and companiond and
+  `docket-acp-bin` name it, so it is `docket-tasks`' `router_log` and `docket-native` takes it from there.
+  A crate over `docket-tasks` cannot own what `docket-tasks` calls.
+- What `native/stored.rs` added to `Companion` (`reopen`, `adopt_stored`, `run_begun_tapped`) uses private
+  fields, so it stays in `docket-tasks` as `adopt` and the three methods are public. `docket-native` calls them.
+- The boundary row `docket-tasks ui:Sheet` is now `docket-native ui:Sheet`: the host matches on
+  `BackendEvent::Sheet`, a `docket-session` name, so the row waits for D0.16 with the session crate's own
+  sheet wording.
+- Tests moved with the code: `docket-native/tests/it/{contract,native,support}`. `docket-tasks` keeps
+  `tests/it/compaction.rs`; its dev-dependencies shrank to the three its remaining tests use.

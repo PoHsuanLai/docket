@@ -13,14 +13,15 @@
 //! - [`Shared`], [`Change`]: what a surface reads without waiting for the loop.
 //! - [`RecentSource`], [`recover`], [`replay_of`]: restart, from what the eventlog holds, read
 //!   through `Recent` with `BodyMode::Json`.
-//! - [`NativeBackend`], [`NativeHost`]: the planner loop behind the durable-session traits
-//!   (`docket-session`), the ACP edge's host.
+//! - [`RouterLog`]: the stored sessions read through `Session.Stored` (`docket-native` is the
+//!   durable-session backend over them).
 //! - [`primer_of`], [`profile_of`], [`hits_of`], [`episodes_of`], [`answer_read`]: the router's
 //!   memory and reader, one step at a time, for any smaller agent built on the same machines.
 //! - [`Tap`]: how a turn is told as it runs and a call is held at its gate.
 //! - [`completion_effects`]: how a finished worker or run reaches the front task.
 
 mod act;
+mod adopt;
 mod best_effort;
 mod choices;
 mod compaction;
@@ -37,7 +38,6 @@ mod idle;
 mod inbox;
 mod linger;
 mod memory;
-mod native;
 mod one_run;
 mod plan;
 mod prefetch;
@@ -45,6 +45,7 @@ mod read;
 mod records;
 mod recover;
 mod resume;
+mod router_log;
 mod run_ends;
 mod runtime;
 mod seams;
@@ -68,7 +69,6 @@ pub use helpers::{
     conversation_voice, helper_query, helper_records_of, open_options, planner_for, role_text,
 };
 pub use memory::{episodes_of, hits_of, primer_of, profile_of};
-pub use native::{Core, NativeBackend, NativeHost, RouterLog};
 pub use one_run::LiveRuns;
 pub use read::answer_read;
 pub use recover::{
@@ -76,6 +76,7 @@ pub use recover::{
     restart_query,
 };
 pub use resume::Restarted;
+pub use router_log::RouterLog;
 pub use run_ends::report_end;
 pub use runtime::{Begun, Companion, idle_state};
 pub use seams::{Quiet, Surface};

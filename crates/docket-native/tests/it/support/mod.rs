@@ -12,10 +12,11 @@ use docket_fake::{
     FakeSeams, FixedClock, MailContact, MailThread, ScriptedReviewer, ScriptedWriter,
     fake_router_on, host_companion,
 };
+use docket_native::NativeHost;
 use docket_planner::PlannerModel;
 use docket_router::{GrantStore, Router};
 use docket_session::fake::MemoryLog;
-use docket_tasks::{Companion, NativeHost, Quiet};
+use docket_tasks::{Companion, Quiet};
 use infer::{Say, ScriptedInfer};
 use porter_core::{AppId, AppName, Count, Isolation};
 use prov::{DataClass, Effect, EntityKind, SessionId, SpaceId, TaskId, UnixSeconds};

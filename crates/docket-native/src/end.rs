@@ -1,9 +1,9 @@
 //! How a turn ended, from where the task's loop stands: pure.
 
-use crate::task::Failure;
 use agent_loop::{FinishedAs, LoopPhase, LoopState};
 use docket_planner::PlanFault;
 use docket_session::TurnEnd;
+use docket_tasks::Failure;
 
 /// The turn's end for a loop that has run as far as it can alone. A loop at rest on a question
 /// for the person (`Idle`) ended its turn in good order: the question went out as an event. One

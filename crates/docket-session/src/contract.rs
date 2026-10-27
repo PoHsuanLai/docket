@@ -1,5 +1,5 @@
 //! For tests: the rules every `SessionBackend` keeps, written once and run against each backend
-//! (the scripted `FakeBackend` here, the native backend in `docket-tasks`). A backend's test
+//! (the scripted `FakeBackend` here, the native backend in `docket-native`). A backend's test
 //! implements [`Harness`]; the functions below drive it with no executor of their own, so they
 //! run on whatever the caller's test runs on.
 //!

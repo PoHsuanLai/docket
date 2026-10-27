@@ -336,7 +336,7 @@ async fn a_turn_in_a_helpers_conversation_asks_as_the_helper_and_in_its_role() {
     let voice = docket_tasks::conversation_voice(&helper, &name, "Tidies the mail.", &model)
         .expect("a voice");
     let mut w = World::new(vec![words("All tidy.")]);
-    w.host = docket_tasks::NativeHost::over(
+    w.host = docket_native::NativeHost::over(
         companion(&w.router, &w.infer).with_voices(Arc::new(Everyone(voice))),
         Arc::clone(&w.log),
     );

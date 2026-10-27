@@ -1138,6 +1138,7 @@ dependencies = [
  "docket-inapp",
  "docket-launch",
  "docket-log",
+ "docket-native",
  "docket-planner",
  "docket-router",
  "docket-session",
@@ -1462,6 +1463,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-native"
+version = "0.1.0"
+dependencies = [
+ "agent-loop",
+ "companion-wire",
+ "docket-client",
+ "docket-core",
+ "docket-fake",
+ "docket-planner",
+ "docket-router",
+ "docket-session",
+ "docket-tasks",
+ "futures-channel",
+ "futures-util",
+ "porter-client",
+ "porter-core",
+ "porter-infer",
+ "prov",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "docket-planner"
 version = "0.1.0"
 dependencies = [
@@ -1594,11 +1618,9 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-planner",
- "docket-router",
  "docket-session",
  "docket-skills",
  "docket-store",
- "futures-channel",
  "futures-util",
  "porter-client",
  "porter-core",

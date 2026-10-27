@@ -47,7 +47,7 @@ fn loop_of(standing: &Standing) -> LoopState {
 impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// A finished task whose router session is still open takes another turn: its loop starts
     /// again and it no longer waits to be closed.
-    pub(crate) fn reopen(&mut self, task: &TaskId) {
+    pub fn reopen(&mut self, task: &TaskId) {
         let finished = matches!(
             self.tasks.get(task).map(|s| s.phase),
             Some(LoopPhase::Finished(_))
@@ -61,7 +61,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, 
     /// Takes up the task of a stored session. The router is asked for the session's handles,
     /// which restores its record from the log when it holds none; a router that has no such
     /// session after that cannot run it.
-    pub(crate) async fn adopt_stored(
+    pub async fn adopt_stored(
         &mut self,
         session: &SessionId,
         plan: &ResumePlan,
@@ -92,7 +92,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, 
     }
 
     /// Runs a turn that `begin_ask` began, telling `tap` of each step.
-    pub(crate) async fn run_begun_tapped<T: crate::tap::Tap>(
+    pub async fn run_begun_tapped<T: crate::tap::Tap>(
         &mut self,
         begun: crate::runtime::Begun,
         tap: &mut T,

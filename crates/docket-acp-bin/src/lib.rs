@@ -10,7 +10,7 @@
 //! The docket-acp process's live host: what the binary builds so a served connection has a session host. docket-acp
 //! reaches docket the way companiond does, over the session bus: the router as `Intents1`
 //! (`DbusTransport`), the model through inferd, stored sessions read through the router. It hosts its own
-//! `Companion` (`docket_tasks::NativeHost`), so the editor's reject is heard before a call runs.
+//! `Companion` (`docket_native::NativeHost`), so the editor's reject is heard before a call runs.
 //!
 //! The router tells who this is by its bus name, `org.quire.Acp`, and `intentd.toml` lists that
 //! name under both `editor` (opens sessions and records the editor's turns) and `companion`
@@ -29,9 +29,10 @@ use docket_core::AgentConfig;
 use docket_dbus::callers::Identity;
 use docket_dbus::{CONFIRM_PATH, InferLink};
 use docket_inapp::EditorDesk;
+use docket_native::NativeHost;
 use docket_planner::PlannerModel;
 use docket_store::SystemClock;
-use docket_tasks::{Companion, NativeHost, Quiet, RouterLog};
+use docket_tasks::{Companion, Quiet, RouterLog};
 use helpers::LiveHelpers;
 use porter_core::AppName;
 use std::sync::Arc;

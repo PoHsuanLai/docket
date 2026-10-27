@@ -4,10 +4,7 @@
 //! to a session that runs; it reads the log to resume, export and fork, and appends only the
 //! first entries of a fork, which the router then restores by name like any stored session.
 
-use crate::native::backend::{Core, NativeBackend};
-use crate::runtime::Companion;
-use crate::seams::Surface;
-use crate::shared::Shared;
+use crate::backend::{Core, NativeBackend};
 use companion_wire::NeedsYou;
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
@@ -19,6 +16,9 @@ use docket_session::{
     SessionBackend, SessionExport, SessionHost, SessionLog, SheetChoice, SheetDesk, Standing,
     StartSession, child_names, export, fork, forks_of, read_all, resume_plan,
 };
+use docket_tasks::Companion;
+use docket_tasks::Shared;
+use docket_tasks::Surface;
 use futures_util::future::{Either, select};
 use futures_util::lock::Mutex;
 use porter_client::Transport as InferTransport;
