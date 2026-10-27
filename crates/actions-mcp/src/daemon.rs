@@ -30,15 +30,18 @@ pub enum DaemonFault {
     /// The configuration file does not read.
     #[error("{0}")]
     Config(#[from] ConfigError),
-    /// The bus name is taken or the connection failed.
+    /// The bus connection or a bus call failed.
     #[error("bus: {0}")]
-    Bus(String),
+    Bus(#[source] Box<zbus::Error>),
+    /// Another edge holds the bus name.
+    #[error("{MCP_BUS} is taken")]
+    NameTaken,
     /// The socket or a file failed.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     /// The MCP client did not start a session.
     #[error("session: {0}")]
-    Session(#[from] rmcp::service::ServerInitializeError),
+    Session(#[source] Box<rmcp::service::ServerInitializeError>),
     /// The session's task did not finish.
     #[error("session: {0}")]
     Joined(#[from] tokio::task::JoinError),
@@ -47,8 +50,16 @@ pub enum DaemonFault {
     NoToken(#[from] crate::bound::NoToken),
 }
 
-fn bus(error: zbus::Error) -> DaemonFault {
-    DaemonFault::Bus(error.to_string())
+impl From<zbus::Error> for DaemonFault {
+    fn from(error: zbus::Error) -> Self {
+        Self::Bus(Box::new(error))
+    }
+}
+
+impl From<rmcp::service::ServerInitializeError> for DaemonFault {
+    fn from(error: rmcp::service::ServerInitializeError) -> Self {
+        Self::Session(Box::new(error))
+    }
 }
 
 /// Takes the `mcp` role's bus name. intentd derives a caller's roles from the names its connection
@@ -57,13 +68,10 @@ fn bus(error: zbus::Error) -> DaemonFault {
 pub async fn claim(connection: &BusConnection) -> Result<(), DaemonFault> {
     let reply = connection
         .request_name_with_flags(MCP_BUS, RequestNameFlags::DoNotQueue.into())
-        .await
-        .map_err(bus)?;
+        .await?;
     match reply {
         RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => Ok(()),
-        RequestNameReply::InQueue | RequestNameReply::Exists => {
-            Err(DaemonFault::Bus(format!("{MCP_BUS} is taken")))
-        }
+        RequestNameReply::InQueue | RequestNameReply::Exists => Err(DaemonFault::NameTaken),
     }
 }
 
@@ -213,7 +221,7 @@ pub async fn run(args: Args, env: &impl Fn(&str) -> Option<String>) -> Result<()
             "actions-mcp: off (set agent.mcp.expose = \"on\" in docket/settings.toml): no tools are listed"
         );
     }
-    let connection = docket_dbus::session_connection(env).await.map_err(bus)?;
+    let connection = docket_dbus::session_connection(env).await?;
     let listen = args.socket.map_or(Listen::Stdio, Listen::Socket);
     let locator = docket_settings::Locator::from_env(env);
     let expose: ExposeRead = Arc::new(move || {
