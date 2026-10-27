@@ -80,7 +80,6 @@ KNOWN=(
   "docket-core src:std::fs D0.7"
   "docket-core src:thread::sleep D0.7"
   "docket-skills src:std::fs D0.24"
-  "actions-mcp env D0.4"
   "docket-acp-bin env D0.21"
   "docket-accept env D0.22"
   "companiond env D0.25"

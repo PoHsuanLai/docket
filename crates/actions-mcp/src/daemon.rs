@@ -25,7 +25,7 @@ pub enum Listen {
 }
 
 /// Why the edge stopped.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum DaemonFault {
     /// The configuration file does not read.
     #[error("{0}")]
@@ -33,9 +33,15 @@ pub enum DaemonFault {
     /// The bus name is taken or the connection failed.
     #[error("bus: {0}")]
     Bus(String),
-    /// The socket or the stream failed.
+    /// The socket or a file failed.
     #[error("io: {0}")]
-    Io(String),
+    Io(#[from] std::io::Error),
+    /// The MCP client did not start a session.
+    #[error("session: {0}")]
+    Session(#[from] rmcp::service::ServerInitializeError),
+    /// The session's task did not finish.
+    #[error("session: {0}")]
+    Joined(#[from] tokio::task::JoinError),
     /// A bridge was started without its session's token.
     #[error("{0}")]
     NoToken(#[from] crate::bound::NoToken),
@@ -43,10 +49,6 @@ pub enum DaemonFault {
 
 fn bus(error: zbus::Error) -> DaemonFault {
     DaemonFault::Bus(error.to_string())
-}
-
-fn io(error: impl std::fmt::Display) -> DaemonFault {
-    DaemonFault::Io(error.to_string())
 }
 
 /// Takes the `mcp` role's bus name. intentd derives a caller's roles from the names its connection
@@ -84,9 +86,9 @@ fn edge(
 async fn over_stdio<S: rmcp::ServerHandler>(edge: S) -> Result<(), DaemonFault> {
     let running = edge
         .serve((tokio::io::stdin(), tokio::io::stdout()))
-        .await
-        .map_err(io)?;
-    running.waiting().await.map(|_| ()).map_err(io)
+        .await?;
+    running.waiting().await?;
+    Ok(())
 }
 
 async fn over_socket(
@@ -98,10 +100,10 @@ async fn over_socket(
     // A stale file from a crashed edge is ours to replace; a live one would refuse the bind below
     // only after this removes it, so the bus name (taken first) is what keeps two edges apart.
     let _ = std::fs::remove_file(path);
-    let listener = tokio::net::UnixListener::bind(path).map_err(io)?;
+    let listener = tokio::net::UnixListener::bind(path)?;
     eprintln!("actions-mcp: listening on {}", path.display());
     loop {
-        let (stream, _) = listener.accept().await.map_err(io)?;
+        let (stream, _) = listener.accept().await?;
         let edge = edge(&connection, &config, &expose);
         tokio::spawn(async move {
             if let Ok(running) = edge.serve(stream).await {
@@ -192,18 +194,17 @@ impl Args {
     }
 }
 
-/// The daemon: the configuration and the session bus from the environment, the arguments from the
-/// command line.
-pub async fn run(args: Args) -> Result<(), DaemonFault> {
+/// The daemon: the configuration and the session bus from `env` (the process's environment, which
+/// its `main` passes in), the arguments from the command line.
+pub async fn run(args: Args, env: &impl Fn(&str) -> Option<String>) -> Result<(), DaemonFault> {
     if let Some(dir) = args.write_schema {
         return write_schema(&dir);
     }
-    let env = |key: &str| std::env::var(key).ok();
     if let Some(socket) = args.host_socket {
-        let edge = crate::bound::BoundEdge::from_env(socket, &env)?;
+        let edge = crate::bound::BoundEdge::from_env(socket, env)?;
         return over_stdio(edge).await;
     }
-    let mut config = McpConfig::from_env(&env)?;
+    let mut config = McpConfig::from_env(env)?;
     if let Some(client) = args.client {
         config = config.named(client);
     }
@@ -212,9 +213,9 @@ pub async fn run(args: Args) -> Result<(), DaemonFault> {
             "actions-mcp: off (set agent.mcp.expose = \"on\" in docket/settings.toml): no tools are listed"
         );
     }
-    let connection = docket_dbus::session_connection(&env).await.map_err(bus)?;
+    let connection = docket_dbus::session_connection(env).await.map_err(bus)?;
     let listen = args.socket.map_or(Listen::Stdio, Listen::Socket);
-    let locator = docket_settings::Locator::from_env(&env);
+    let locator = docket_settings::Locator::from_env(env);
     let expose: ExposeRead = Arc::new(move || {
         locator
             .read(docket_settings::AgentSettings::default())
@@ -227,6 +228,7 @@ pub async fn run(args: Args) -> Result<(), DaemonFault> {
 /// `--write-schema DIR`: `docket.settings.toml` into `DIR`, for a local install (design/22 section
 /// 9.2).
 pub fn write_schema(dir: &Path) -> Result<(), DaemonFault> {
-    std::fs::create_dir_all(dir).map_err(io)?;
-    std::fs::write(dir.join("docket.settings.toml"), crate::settings::SCHEMA).map_err(io)
+    std::fs::create_dir_all(dir)?;
+    std::fs::write(dir.join("docket.settings.toml"), crate::settings::SCHEMA)?;
+    Ok(())
 }

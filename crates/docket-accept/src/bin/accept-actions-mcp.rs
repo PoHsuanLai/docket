@@ -21,7 +21,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(actions_mcp::run(args)) {
+    let env = |key: &str| std::env::var(key).ok();
+    match runtime.block_on(actions_mcp::run(args, &env)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("actions-mcp: {why}");
