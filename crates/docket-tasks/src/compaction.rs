@@ -1,7 +1,7 @@
 //! Compaction in the driver: before a planner turn, a task that has outgrown its budget has its
 //! oldest whole steps summarised once, and the summary stands in for them from then on. The choice
 //! of what to cover and what the summariser may see are `agent-loop`'s; the model turn is the
-//! planner's (`PlannerModel::summarise`). The task keeps every step it ever had: the summary is
+//! planner's (`Planner::summarise`). The task keeps every step it ever had: the summary is
 //! only what the assembler shows in their place.
 //!
 //! A summary that cannot be made (the model is away, was cancelled, or wrote something the checks
@@ -15,10 +15,10 @@ use agent_loop::{Sources, compaction_due, summarised, summary_input};
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::Summary;
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::TaskId;
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// The summary that now stands for the start of `task`, when it was over its budget and one
     /// was made; `None` when nothing was due or the attempt failed.
     pub(crate) async fn compact(&mut self, task: &TaskId, sources: &Sources) -> Option<Summary> {
@@ -55,11 +55,11 @@ mod tests {
     use docket_client::{InProcess, Intents};
     use docket_core::{
         ActionRef, AgentConfig, CallId, CallerId, CallerRole, LabelText, SessionOpen, StepEnd,
-        StepLine, StepShown,
+        StepLine, StepShown, SummaryText,
     };
-    use docket_fake::{FixedClock, WordsModel, fake_router};
-    use docket_planner::PlannerModel;
-    use porter_core::{AppId, AppName, Isolation, Tokens};
+    use docket_fake::{FixedClock, fake_router};
+    use docket_planner::{ScriptedPlanner, Summarised};
+    use porter_core::{AppId, AppName, Isolation, Tier, Tokens};
     use prov::{ActionName, AgentRef, Effect, SpaceId, UnixSeconds};
     use std::{collections::BTreeSet, sync::Arc};
 
@@ -94,7 +94,12 @@ mod tests {
         };
         let mut companion: Companion<_, _, FixedClock, Quiet> = Companion::new(
             Intents::over(InProcess::new(router, caller)),
-            PlannerModel::new(WordsModel::says("Archived the earlier items in batches.")),
+            ScriptedPlanner::default().with_summaries([Ok(Summarised {
+                text: SummaryText::parse("Archived the earlier items in batches.", &[])
+                    .expect("a summary"),
+                tier: Tier::Balanced,
+                served: None,
+            })]),
             AgentConfig::default(),
             FixedClock::at(UnixSeconds(1_000)),
             shell,

@@ -19,7 +19,7 @@ use docket_core::{
     Outcome, Reveal, RosterDetail, RosterFull, RosterLine, RosterState, SessionOpen, SessionOpened,
     TurnId, TurnSource, TurnVia, Value,
 };
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use porter_core::{AppName, Count};
 use prov::{
     Address, AgentRef, Confidentiality, Integrity, Label, Labelled, MessageKind, ReportStatus,
@@ -73,7 +73,7 @@ fn app_label(app: AppName) -> Label {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// `Intents1.Message.Arrived`: reads the inbox and feeds each message to the right task as
     /// input (a request is evaluated under that task's own policy; nothing in it widens it), then
     /// runs what the messages started.

@@ -18,9 +18,9 @@ use docket_dbus::callers::Identity;
 use docket_dbus::{
     BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
 };
+use docket_planner::Planner;
 use docket_tasks::{Change, ServeFault};
 use futures_util::lock::Mutex;
-use porter_client::Transport as InferTransport;
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -56,13 +56,13 @@ fn path_of(task: &TaskId) -> fdo::Result<OwnedObjectPath> {
     OwnedObjectPath::try_from(answer_path(task)).map_err(|e| fdo::Error::Failed(e.to_string()))
 }
 
-struct Root<P: InferTransport, I: IntentsTransport, K: Clock> {
+struct Root<P: Planner, I: IntentsTransport, K: Clock> {
     companion: Arc<Mutex<Companiond<P, I, K>>>,
     shared: Arc<Shared>,
     speakers: Speakers,
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock> Root<P, I, K> {
+impl<P: Planner, I: IntentsTransport, K: Clock> Root<P, I, K> {
     /// The shell speaks for the person, and so does a terminal for the conversation (`Open`,
     /// `Ask`, `Close`): an ask carries the turn the router recorded, and a turn it never recorded
     /// must not be taken from anybody else. `Told` and `Act` are the shell's alone.
@@ -72,7 +72,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Clock> Root<P, I, K> {
 }
 
 #[zbus::interface(name = "org.quire.Companion1")]
-impl<P: InferTransport + 'static, I: IntentsTransport + 'static, K: Clock + 'static> Root<P, I, K> {
+impl<P: Planner + 'static, I: IntentsTransport + 'static, K: Clock + 'static> Root<P, I, K> {
     async fn prepare(&self, options: Details) -> fdo::Result<()> {
         let _ = options;
         Ok(())
@@ -185,14 +185,14 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static, K: Clock + 'sta
     async fn roster_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
 
-struct AnswerObject<P: InferTransport, I: IntentsTransport, K: Clock> {
+struct AnswerObject<P: Planner, I: IntentsTransport, K: Clock> {
     companion: Arc<Mutex<Companiond<P, I, K>>>,
     shared: Arc<Shared>,
     task: TaskId,
     speakers: Speakers,
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock> AnswerObject<P, I, K> {
+impl<P: Planner, I: IntentsTransport, K: Clock> AnswerObject<P, I, K> {
     /// An answer is the person's words and what the router showed of them: only the shell or a
     /// terminal reads it.
     async fn readable(&self, header: Option<&Header<'_>>) -> fdo::Result<()> {
@@ -201,7 +201,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Clock> AnswerObject<P, I, K> {
 }
 
 #[zbus::interface(name = "org.quire.Companion1.Answer")]
-impl<P: InferTransport + 'static, I: IntentsTransport + 'static, K: Clock + 'static>
+impl<P: Planner + 'static, I: IntentsTransport + 'static, K: Clock + 'static>
     AnswerObject<P, I, K>
 {
     async fn act(
@@ -278,7 +278,7 @@ async fn forward<P, I, K>(
     companion: Arc<Mutex<Companiond<P, I, K>>>,
     speakers: Speakers,
 ) where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
@@ -377,7 +377,7 @@ pub async fn serve_on<P, I, K>(
     who: Arc<Identity>,
 ) -> Result<(), ServeFault>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
@@ -394,7 +394,7 @@ pub async fn serve_on_rooted<P, I, K>(
     proc_root: PathBuf,
 ) -> Result<(), ServeFault>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
@@ -411,7 +411,7 @@ pub async fn serve_with_routines<P, I, K>(
     routines: Option<Arc<dyn RoutineDesk>>,
 ) -> Result<(), ServeFault>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
@@ -497,7 +497,7 @@ where
 /// A message arrived for an agent: read the inbox of the agents the companion runs.
 async fn arrivals<P, I, K>(connection: BusConnection, companion: Arc<Mutex<Companiond<P, I, K>>>)
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
@@ -521,7 +521,7 @@ where
 
 async fn ticking<P, I, K>(companion: Arc<Mutex<Companiond<P, I, K>>>)
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
@@ -544,7 +544,7 @@ pub async fn serve<P, I, K>(
     env: &impl Fn(&str) -> Option<String>,
 ) -> Result<(), ServeFault>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {

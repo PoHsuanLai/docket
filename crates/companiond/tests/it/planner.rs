@@ -7,6 +7,7 @@ use crate::support::planner_view::{catalogue, planner, view};
 use agent_loop::ModelOutput;
 use companiond::*;
 use docket_core::*;
+use docket_planner::Planner;
 use porter_core::AppName;
 use prov::{ActionName, EntityId, EntityKey, EntityKind, Integrity, Source};
 use serde_json::json;

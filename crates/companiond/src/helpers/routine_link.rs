@@ -9,13 +9,13 @@ use docket_core::Clock;
 use docket_core::SessionOpen;
 use docket_core::helper::{HelperName, HelperRecord, JobId};
 use docket_core::routine::JobEnd;
+use docket_planner::Planner;
 use docket_tasks::{RecentSource, RouterRecent};
-use porter_client::Transport as InferTransport;
 use prov::{AgentRef, HelperId, SpaceId};
 
 impl<P, I, K> Hub<P, I, K>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {

@@ -10,13 +10,13 @@ use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::{ParamType, PlannerView, SuggestAsk};
 use docket_planner::ParamChoices;
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use std::time::Duration;
 
 /// How long an app has to offer its options: the turn is waiting on it.
 const OFFER_WAIT: Duration = Duration::from_secs(2);
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Asks each dynamic parameter of the view's actions for its options and hands what came
     /// back to the planner, replacing the last turn's.
     pub(crate) async fn offer_choices(&mut self, view: &PlannerView) {

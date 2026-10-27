@@ -15,7 +15,7 @@ use almanac_core::{Episode, EpisodeId, EpisodeKind, EpisodeOutcome};
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::{DraftPart, EpisodeLine, NoteAsk, SkeletonText, TaskLedger, close};
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::{Address, AgentRef, MessageKind, MessageText, ReportStatus, TaskId};
 
 /// Why a task failed, for the daemon's log: the kind of failure, never the person's words.
@@ -46,7 +46,7 @@ fn status_of(how: FinishedAs) -> ReportStatus {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// The episode a task leaves: what it was asked, the typed steps it took, and how it ended.
     fn episode_of(&self, task: &TaskId, how: FinishedAs) -> Option<Episode> {
         let rt = self.runtimes.get(task)?;

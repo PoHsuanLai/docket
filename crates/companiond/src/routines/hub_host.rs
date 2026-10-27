@@ -13,7 +13,7 @@ use docket_core::helper::{
     BoardEffect, BoardEvent, GoalOrigin, HelperName, HelperRecord, JobId, NewJob,
 };
 use docket_core::routine::{JobEnd, RoutineRecord, RunRequest, Zone};
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use porter_core::Count;
 use prov::{HelperId, SpaceId, UnixSeconds};
 
@@ -30,19 +30,19 @@ pub enum Timers {
 }
 
 /// The hub as the routines' host.
-pub struct HubHost<P: InferTransport, I: IntentsTransport, K: Clock> {
+pub struct HubHost<P: Planner, I: IntentsTransport, K: Clock> {
     hub: Hub<P, I, K>,
     zone: SystemZone,
     timers: Timers,
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock> std::fmt::Debug for HubHost<P, I, K> {
+impl<P: Planner, I: IntentsTransport, K: Clock> std::fmt::Debug for HubHost<P, I, K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("HubHost").finish_non_exhaustive()
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock> HubHost<P, I, K> {
+impl<P: Planner, I: IntentsTransport, K: Clock> HubHost<P, I, K> {
     /// The host over `hub`.
     pub fn new(hub: Hub<P, I, K>, timers: Timers) -> Self {
         Self {
@@ -55,7 +55,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Clock> HubHost<P, I, K> {
 
 impl<P, I, K> Host for HubHost<P, I, K>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {

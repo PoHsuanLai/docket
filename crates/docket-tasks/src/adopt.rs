@@ -14,8 +14,8 @@ use companion_wire::AnswerPhase;
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::{StepEnd, StepLine, StepShown};
+use docket_planner::Planner;
 use docket_session::{ResumePlan, Standing};
-use porter_client::Transport as InferTransport;
 use prov::{AgentRef, SessionId, TaskId};
 
 /// The history of a plan: the calls that ended, and those the crash cut off, in call order.
@@ -44,7 +44,7 @@ fn loop_of(standing: &Standing) -> LoopState {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// A finished task whose router session is still open takes another turn: its loop starts
     /// again and it no longer waits to be closed.
     pub fn reopen(&mut self, task: &TaskId) {

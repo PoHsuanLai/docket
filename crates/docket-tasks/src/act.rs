@@ -15,7 +15,7 @@ use docket_client::{
 };
 use docket_core::Clock;
 use docket_core::{CallId, CallRequest, CardActionId};
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::{Effect, TaskId};
 
 /// A card's call that has begun: the request is in flight and its events are still to be read.
@@ -64,7 +64,7 @@ pub fn card_id(text: &str) -> Result<CardActionId, ServeFault> {
         .map_err(|_| ServeFault::NoSuchCard)
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Starts the card's call and shows it as a step. The answer must offer the card.
     pub async fn begin_act(
         &mut self,

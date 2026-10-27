@@ -1,12 +1,16 @@
 [package]
 name = "docket-planner"
-description = "The planner model: the working-set view rendered into a chat request, the catalogue of tools, and the reply read back into a ModelOutput, over any porter-client Transport. Portable: no bus, no runtime."
+description = "The planner model: the working-set view rendered into a chat request, the catalogue of tools, and the reply read back into a ModelOutput, behind a `Planner` trait, implemented by `PlannerModel` over any porter-client Transport. Portable: no bus, no runtime."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
+
+[features]
+# Test code: `ScriptedPlanner`, a `Planner` that plays a script. Only dev-dependencies turn it on.
+testing = []
 
 [dependencies]
 agent-loop = { workspace = true }
@@ -23,6 +27,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+docket-planner = { workspace = true, features = ["testing"] }
 docket-fake = { workspace = true }
 tokio = { workspace = true }
 

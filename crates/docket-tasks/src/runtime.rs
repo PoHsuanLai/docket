@@ -19,9 +19,7 @@ use docket_core::{
     AgentConfig, EpisodeLine, LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine,
     SessionOpen, SessionOpened,
 };
-use docket_planner::Catalogue;
-use docket_planner::PlannerModel;
-use porter_client::Transport as InferTransport;
+use docket_planner::{Catalogue, Planner};
 use porter_core::AppName;
 use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -102,11 +100,11 @@ pub(crate) struct Narration {
 /// # Ok(()) }
 /// ```
 #[derive(Debug)]
-pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
+pub struct Companion<P: Planner, I: IntentsTransport, K, S> {
     /// The router, as role `companion`.
     pub intents: Intents<I>,
     /// The planner.
-    pub planner: PlannerModel<P>,
+    pub planner: P,
     /// The proposed values.
     pub config: AgentConfig,
     /// How long each kind of peer may take before the loop gives up on it.
@@ -182,11 +180,11 @@ pub fn idle_state() -> LoopState {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// A companion with no tasks yet, over the surface's default.
     pub fn new(
         intents: Intents<I>,
-        planner: PlannerModel<P>,
+        planner: P,
         config: AgentConfig,
         clock: K,
         shell: AppName,

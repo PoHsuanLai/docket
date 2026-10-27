@@ -1,4 +1,4 @@
-//! The seam the task model is generic over beyond the router link, the model transport and the
+//! The seam the task model is generic over beyond the router link, the planner and the
 //! clock (`docket_core::Clock`): the surface the tasks are shown on. It reads no environment:
 //! companiond hands in a bus-facing surface, an app hands in its own.
 

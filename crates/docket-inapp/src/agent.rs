@@ -137,7 +137,7 @@ type Hosting<P, C, T, R, K, G, Y, W, D> = Router<Seam<P, C, T, R, K, G, Y, W, D>
 type Hosted<P, C, T, R, K, G, Y, W, D> = Arc<Hosting<P, C, T, R, K, G, Y, W, D>>;
 /// The task model over this host's router link.
 pub(crate) type Tasks<P, C, T, R, M, K, G, Y, W, D> =
-    Companion<M, InProcess<Seam<P, C, T, R, K, G, Y, W, D>>, K, Quiet>;
+    Companion<PlannerModel<M>, InProcess<Seam<P, C, T, R, K, G, Y, W, D>>, K, Quiet>;
 
 /// A link to `router` as the app's own name in one role. A caller never holds two roles: the
 /// first role that may make a call is the one it acts in.

@@ -25,10 +25,9 @@ use docket_core::{
     BudgetKind, CallId, CallProgress, CallRefusal, CallRequest, Held, ReaderAsk, StepEnd,
     TASK_START, WireRefusal,
 };
-use docket_planner::PlanFault;
+use docket_planner::{PlanFault, Planner};
 use docket_session::CallOpen;
 use docket_store::Stop;
-use porter_client::Transport as InferTransport;
 use prov::{Effect, TaskId};
 use std::collections::VecDeque;
 
@@ -96,7 +95,7 @@ fn idle_loop() -> LoopState {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Runs `first`, and what follows from it, to the end of what the task can do alone.
     pub(crate) async fn run(&mut self, task: &TaskId, first: LoopInput) -> Result<(), ServeFault> {
         self.run_tapped(task, first, &mut NoTap).await

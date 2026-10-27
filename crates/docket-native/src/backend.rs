@@ -14,6 +14,7 @@ use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::{ContextKeep, Keep, TurnIn, UserTurn, WindowKey};
+use docket_planner::Planner;
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, ResumePlan, Resumed, SessionBackend, Standing,
     StartSession, TurnEnd,
@@ -23,7 +24,6 @@ use docket_tasks::Shared;
 use docket_tasks::Surface;
 use futures_util::FutureExt;
 use futures_util::lock::Mutex;
-use porter_client::Transport as InferTransport;
 use prov::{SessionId, TaskId};
 use std::sync::Arc;
 
@@ -47,7 +47,7 @@ enum Bound {
 
 /// One session's backend.
 #[derive(Debug)]
-pub struct NativeBackend<P: InferTransport, I: IntentsTransport, K, S: Surface> {
+pub struct NativeBackend<P: Planner, I: IntentsTransport, K, S: Surface> {
     core: Core<P, I, K, S>,
     shared: Arc<Shared<S>>,
     session: SessionId,
@@ -67,7 +67,7 @@ fn kept_nothing() -> ContextKeep {
 
 impl<P, I, K, S> NativeBackend<P, I, K, S>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
@@ -106,7 +106,7 @@ enum Recording {
 
 impl<P, I, K, S> NativeBackend<P, I, K, S>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
@@ -185,7 +185,7 @@ where
 
 impl<P, I, K, S> SessionBackend for NativeBackend<P, I, K, S>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
     S: Surface + Send + Sync + 'static,

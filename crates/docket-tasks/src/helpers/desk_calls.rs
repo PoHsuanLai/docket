@@ -17,7 +17,7 @@ use docket_core::{
     ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, LabelText, NoteAsk, Outcome, Value,
     from_checked_brief,
 };
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::TaskId;
 
 pub(crate) use docket_core::HAND_ON_JOB as POST_JOB;
@@ -104,7 +104,7 @@ fn ceiling_of(call: &CallRequest) -> Option<Ceiling> {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Carries out a helper action the router allowed, through the host's desk. The call ends as
     /// the router's outcome when the desk did it, and as the desk's plain refusal when it did not;
     /// the router, which answered before the desk acted, is told of a refusal so that its own

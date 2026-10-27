@@ -3852,4 +3852,32 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - `MemoryProvider` and `MEMORY_APP` moved from intentd's `builtin_memory.rs` to `docket-memory` (`provider.rs`), with their test (`tests/it/provider.rs`, which now parses `manifests/org.quire.Memory.toml` itself). intentd imports them for `HostedLink`. Closes the Memory half of F9.
 - Not moved, needs a decision: `CompanionProvider` and `CheckpointsProvider` (with `CompanionPort`, `CheckpointsPort`). They hold no logic of their own; each forwards to `Router::companion_perform` / `checkpoints_perform` through a port attached to the router. A crate that holds them has to depend on `docket-router` (pure, with cedar below it), which `docket-provider` and `docket-memory` must not. They are router glue, so they stay in intentd with `HostedLink` until the plan names a home (for example a `docket-router` hook that the daemon registers, with the `IntentProvider` impl left to intentd).
 - Moved public items other repos name: `docket_client::{IntentProvider, ContextSource, SummonTarget, serve, serve_on, serve_on_with}` are now `docket_provider::...`; `intentd::{MemoryProvider, MEMORY_APP}` are `docket_memory::{MemoryProvider, MEMORY_APP}` (intentd no longer exports them).
+
+
+## D0.11: the `Planner` trait (H8, part one)
+
+- `docket-planner` has a `Planner` trait (`seam.rs`): `catalogue`, `set_catalogue`, `set_choices`, `voice`, `set_voice`,
+  `set_role`, and the turns `converse`, `chat` and `summarise`. These are the operations `docket-tasks` calls on the
+  planner; nothing else is in it. `request`, `plan`, `prefix` and `chat_routed` stay on `PlannerModel`, because only
+  tests and the model's own code call them. `PlannerModel<P: Transport>` implements it; the old inherent versions of
+  those methods are gone, so a caller on a concrete model needs `use docket_planner::Planner`.
+- The trait lives in `docket-planner`, not in `agent-loop`: `PlannerReply`, `PlanFault`, `Catalogue`, `Voice` and
+  `Summarised` are in `docket-planner`, and every consumer already depends on it. Putting it lower means moving those
+  types first. It is the planner-view split of H8 that makes a transport-free crate; that is not done here.
+- `Companion<P, I, K, S>` (docket-tasks), `NativeHost`, `NativeBackend`, `Hub`, `HubHost` and the companiond
+  serve code now take `P: Planner`. The `Companiond`, `Daemon` and `LiveHost` aliases and `docket-inapp`'s
+  `Tasks` alias spell `PlannerModel<transport>`. `InAppParts::model` is still a transport. `docket-tasks` and
+  `docket-native` no longer depend on `porter-client`; companiond keeps it as a dev-dependency (its test transport).
+- `docket_tasks::planner_for` is deleted. The two call sites build
+  `PlannerModel::new(transport).with_open_options(docket_tasks::open_options(card))`.
+- `ScriptedPlanner` (feature `testing`) plays a list of `converse` results and `summarise` results, keeps the
+  catalogue, choices and voice it is given, and records the views it was shown. Out of script it is
+  `PlanFault::Unavailable`. `docket-tasks`' compaction test uses it instead of a `PlannerModel` over `WordsModel`.
+  The companiond and docket-native tests stay on `PlannerModel` over `ScriptedInfer`: they check the request and the
+  reading of tool calls through the real model.
+- `planner.rs` was 820 lines; the meta tools moved to `meta_tools.rs` and the reply reading to `meta_reply.rs`
+  (planner.rs is now 463 lines). `Cargo.lock` was edited by hand (two `porter-client` edges out, the
+  planner's dev self-dependency in).
+- sill, detent, files, mailo and cua at origin/master: no use of `PlannerModel` or `docket-planner` (detent's
+  FINDINGS.md names `PlannerModel::new` in prose only).
 - Not verified by a build in the lane that made the change.

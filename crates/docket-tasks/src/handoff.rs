@@ -16,9 +16,8 @@ use companion_wire::{RefusalWire, RouteNote, WhyWord};
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::{HandOver, HandRefusal, HandReply, ProgramName};
-use docket_planner::PlanFault;
+use docket_planner::{PlanFault, Planner};
 use docket_store::Stop;
-use porter_client::Transport as InferTransport;
 use porter_core::{AccountId, Locality, ModelId};
 use porter_infer::{AGENT_ACCOUNT, DeclinedBecause, ModelLabel, ServedBy, StageRole};
 use prov::TaskId;
@@ -67,7 +66,7 @@ pub(crate) fn route_of(program: &ProgramName, label: &str) -> Vec<RouteNote> {
     }]
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// The planner's turn, given to the coding agent the person chose: the agent's words are the
     /// reply, the route names it, and the loop ends as it does for any reply. A host that is not
     /// there, or that refuses, ends the turn the way a model that cannot answer does.

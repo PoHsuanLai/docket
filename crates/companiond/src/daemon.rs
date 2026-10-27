@@ -50,7 +50,7 @@ impl Default for HarnessSeams {
 }
 
 /// The companion as the daemon runs it: inferd and the router over the session bus.
-pub type Daemon = Companiond<InferLink, DbusTransport>;
+pub type Daemon = Companiond<PlannerModel<InferLink>, DbusTransport>;
 
 /// Builds the companion over `connection`, takes up what a restart finds in the eventlog (a
 /// router or memoryd that is not there yet leaves it with nothing to resume, never a failure) and
@@ -126,10 +126,8 @@ pub async fn start_with_agents(
         let make = move |card: &HelperCard| {
             Companiond::new(
                 Intents::over(DbusTransport::new(link.clone())),
-                docket_tasks::planner_for(
-                    docket_dbus::inferd_transport(&link, trace.clone()),
-                    card,
-                ),
+                PlannerModel::new(docket_dbus::inferd_transport(&link, trace.clone()))
+                    .with_open_options(docket_tasks::open_options(card)),
                 agent,
                 SystemClock,
                 shell.clone(),

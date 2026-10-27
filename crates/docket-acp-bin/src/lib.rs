@@ -47,7 +47,8 @@ const SHELL: &str = "org.quire.Shell";
 type Log = Arc<RouterLog<DbusTransport>>;
 
 /// The host the binary serves with.
-pub type LiveHost = NativeHost<InferLink, DbusTransport, SystemClock, Quiet, Log, EditorDesk>;
+pub type LiveHost =
+    NativeHost<PlannerModel<InferLink>, DbusTransport, SystemClock, Quiet, Log, EditorDesk>;
 
 /// Why the process could not serve.
 #[derive(Debug, thiserror::Error)]

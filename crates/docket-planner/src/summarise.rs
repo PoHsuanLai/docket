@@ -7,6 +7,7 @@
 //! only if it is words, short, and cites no handle the planner never held (`SummaryText::parse`).
 
 use crate::planner::{PlanFault, PlannerModel};
+use crate::seam::Planner;
 use crate::step_text::step_line;
 use agent_loop::{SummaryInput, leaked_call};
 use docket_core::{SummaryFault, SummaryText};
@@ -120,7 +121,10 @@ fn message(role: Role, text: String) -> ChatMessage {
 
 impl<P: Transport> PlannerModel<P> {
     /// Asks the model for the account `input` calls for.
-    pub async fn summarise(&self, input: &SummaryInput) -> Result<Summarised, SummariseFault> {
+    pub(crate) async fn summary_of(
+        &self,
+        input: &SummaryInput,
+    ) -> Result<Summarised, SummariseFault> {
         let request = ChatRequest::new(
             vec![
                 message(Role::System, SUMMARY_RULES.to_owned()),
@@ -136,7 +140,9 @@ impl<P: Transport> PlannerModel<P> {
                 .with_tool_choice(ToolChoice::Never)
                 .with_sampling(Knob::Off),
         );
-        let reply = self.chat(request).await.map_err(SummariseFault::Model)?;
+        let reply = Planner::chat(self, request)
+            .await
+            .map_err(SummariseFault::Model)?;
         if matches!(
             reply.stop,
             StopReason::MaxTokens | StopReason::ContentFilter

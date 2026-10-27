@@ -13,18 +13,18 @@
 use crate::backend::Core;
 use docket_client::Transport as IntentsTransport;
 use docket_core::{TurnEnd, TurnId};
+use docket_planner::Planner;
 use futures_util::FutureExt;
-use porter_client::Transport as InferTransport;
 use prov::SessionId;
 
 /// A turn of `session` that has begun at the router and not ended.
-pub(crate) struct Ending<P: InferTransport, I: IntentsTransport, K, S> {
+pub(crate) struct Ending<P: Planner, I: IntentsTransport, K, S> {
     core: Core<P, I, K, S>,
     session: SessionId,
     turn: Option<TurnId>,
 }
 
-impl<P: InferTransport, I: IntentsTransport, K, S> Ending<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K, S> Ending<P, I, K, S> {
     /// A guard for a turn of `session` that has not begun yet.
     pub(crate) fn new(core: Core<P, I, K, S>, session: SessionId) -> Self {
         Self {
@@ -45,7 +45,7 @@ impl<P: InferTransport, I: IntentsTransport, K, S> Ending<P, I, K, S> {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K, S> Drop for Ending<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K, S> Drop for Ending<P, I, K, S> {
     fn drop(&mut self) {
         let Some(turn) = self.turn.take() else {
             return;

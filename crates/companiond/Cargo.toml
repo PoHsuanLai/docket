@@ -32,7 +32,6 @@ docket-dbus = { workspace = true, features = ["inferd"] }
 docket-settings = { workspace = true }
 futures-util = { workspace = true }
 prov = { workspace = true }
-porter-client = { workspace = true, features = ["dbus"] }
 porter-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -52,6 +51,7 @@ otlp = ["docket-log/otlp"]
 [dev-dependencies]
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 agent-loop = { workspace = true }
+porter-client = { workspace = true }
 porter-infer = { workspace = true }
 docket-testbus = { workspace = true }
 docket-client = { workspace = true, features = ["in_process"] }

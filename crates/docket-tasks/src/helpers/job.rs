@@ -19,7 +19,7 @@ use docket_core::{
     CallEnd, CallRefusal, DenyCode, DraftPart, MessageDraft, SessionOpen, StepEnd, TurnId,
     TurnSource, TurnVia, UserTurn,
 };
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use porter_core::Count;
 use prov::{Address, AgentRef, MessageKind, MessageText, TaskId};
 
@@ -47,7 +47,7 @@ fn why_of(refused: Option<&RefusalWire>) -> Option<String> {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Opens the session of a helper's job and briefs its planner: the role and the goal in the
     /// planner's role, the policy cut from the person's words (or the giver's) and the helper's
     /// reach, and the answers it is handed waiting in its inbox. A session that cannot be briefed

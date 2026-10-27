@@ -6,6 +6,7 @@ use crate::support::infer::{Say, call, words};
 use crate::support::planner_view::{catalogue, planner, view};
 use agent_loop::ModelOutput;
 use companiond::*;
+use docket_planner::Planner;
 use serde_json::json;
 
 const READ: &str = "org_quire_Mail-mail_thread_read";

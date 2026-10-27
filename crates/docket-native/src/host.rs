@@ -11,6 +11,7 @@ use docket_core::Clock;
 use docket_core::{
     ConfirmId, ConfirmRequest, ContextKeep, Keep, Origin, SessionOpen, TurnIn, UserTurn,
 };
+use docket_planner::Planner;
 use docket_session::{
     BackendEvent, BackendFault, EndCause, HostFault, NoDesk, Opening, ResumePlan, Seq,
     SessionBackend, SessionExport, SessionHost, SessionLog, SheetChoice, SheetDesk, Standing,
@@ -21,7 +22,6 @@ use docket_tasks::Shared;
 use docket_tasks::Surface;
 use futures_util::future::{Either, select};
 use futures_util::lock::Mutex;
-use porter_client::Transport as InferTransport;
 use prov::{AgentRef, SessionId};
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
@@ -39,7 +39,7 @@ enum Pulled {
 
 /// The native sessions of one companion, over the log the router writes.
 #[derive(Debug)]
-pub struct NativeHost<P: InferTransport, I: IntentsTransport, K, S: Surface, L, D = NoDesk> {
+pub struct NativeHost<P: Planner, I: IntentsTransport, K, S: Surface, L, D = NoDesk> {
     core: Core<P, I, K, S>,
     shared: Arc<Shared<S>>,
     log: L,
@@ -55,7 +55,7 @@ pub struct NativeHost<P: InferTransport, I: IntentsTransport, K, S: Surface, L, 
 
 impl<P, I, K, S, L> NativeHost<P, I, K, S, L>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
@@ -98,7 +98,7 @@ where
 
 impl<P, I, K, S, L, D> NativeHost<P, I, K, S, L, D>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
@@ -147,7 +147,7 @@ fn kept_nothing() -> ContextKeep {
 
 impl<P, I, K, S, L, D> SessionHost for NativeHost<P, I, K, S, L, D>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
     S: Surface + Send + Sync + 'static,

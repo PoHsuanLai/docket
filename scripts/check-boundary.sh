@@ -325,7 +325,7 @@ RULES=(
   "docket-planner: $EFFECTS"
   # The in-app agent: the router (and with it Cedar) hosted in one app, no bus, no runtime, no
   # HTTP, no watcher. docket-client only behind `in_process`, never `dbus`.
-  # The task model is portable: the companion's tasks over any router link and model transport,
+  # The task model is portable: the companion's tasks over any router link and any `Planner`,
   # a clock and a surface that are passed in; no bus, no runtime (the daemon's surface is the
   # one that holds tokio).
   "docket-tasks: $EFFECTS"

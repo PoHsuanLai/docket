@@ -1,6 +1,6 @@
 [package]
 name = "docket-tasks"
-description = "The companion's task model, portable: one identity over many tasks (TaskRuntime, the drive loop's effects, the roster, the front pointer, side conversations, the idle pass, restart recovery), generic over the router link, the model transport, the clock and the surface. companiond is its bus adapter; docket-inapp uses it in one app."
+description = "The companion's task model, portable: one identity over many tasks (TaskRuntime, the drive loop's effects, the roster, the front pointer, side conversations, the idle pass, restart recovery), generic over the router link, the `Planner`, the clock and the surface. companiond is its bus adapter; docket-inapp uses it in one app."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -20,7 +20,6 @@ docket-session = { workspace = true }
 docket-skills = { workspace = true }
 docket-store = { workspace = true }
 futures-util = { workspace = true }
-porter-client = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
 prov = { workspace = true }
@@ -31,6 +30,7 @@ tracing = { workspace = true }
 [dev-dependencies]
 docket-client = { workspace = true, features = ["in_process"] }
 docket-fake = { workspace = true }
+docket-planner = { workspace = true, features = ["testing"] }
 tokio = { workspace = true }
 
 [lints]

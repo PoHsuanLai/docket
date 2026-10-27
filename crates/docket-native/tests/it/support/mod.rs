@@ -25,7 +25,13 @@ use std::sync::Arc;
 
 pub const ARCHIVE: &str = "org_quire_Mail-mail_thread_archive";
 
-pub type Host = NativeHost<ScriptedInfer, InProcess<FakeSeams>, FixedClock, Quiet, Arc<MemoryLog>>;
+pub type Host = NativeHost<
+    PlannerModel<ScriptedInfer>,
+    InProcess<FakeSeams>,
+    FixedClock,
+    Quiet,
+    Arc<MemoryLog>,
+>;
 
 pub fn app(s: &str) -> AppName {
     AppName::parse(s).expect("app")
@@ -131,7 +137,7 @@ fn router(log: &Arc<MemoryLog>, task: &str, consent: bool) -> Arc<Router<FakeSea
     router
 }
 
-pub type Comp = Companion<ScriptedInfer, InProcess<FakeSeams>, FixedClock, Quiet>;
+pub type Comp = Companion<PlannerModel<ScriptedInfer>, InProcess<FakeSeams>, FixedClock, Quiet>;
 
 /// A companion whose one identity plays the editor and the companion.
 pub fn companion(router: &Arc<Router<FakeSeams>>, infer: &ScriptedInfer) -> Comp {

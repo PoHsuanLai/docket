@@ -8,6 +8,7 @@ use docket_client::InProcess;
 use docket_core::{SessionOpen, TurnId, TurnSource, TurnVia, UserTurn};
 use docket_fake::{FakeSeams, FixedClock};
 use docket_native::NativeBackend;
+use docket_planner::PlannerModel;
 use docket_session::contract::{self, Harness};
 use docket_session::{Opening, SessionBackend, StartSession};
 use docket_tasks::Quiet;
@@ -16,7 +17,7 @@ use prov::{AgentRef, UnixSeconds};
 use serde_json::json;
 use std::sync::Arc;
 
-type Backend = NativeBackend<ScriptedInfer, InProcess<FakeSeams>, FixedClock, Quiet>;
+type Backend = NativeBackend<PlannerModel<ScriptedInfer>, InProcess<FakeSeams>, FixedClock, Quiet>;
 
 fn script() -> Vec<Say> {
     vec![

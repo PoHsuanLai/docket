@@ -19,12 +19,12 @@ use docket_core::helper::{
     TerminalRequest, ToTerminalOutcome,
 };
 use docket_core::{SeenCommand, WatchedAgent};
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::{HelperId, SessionId};
 
 impl<P, I, K> Hub<P, I, K>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {

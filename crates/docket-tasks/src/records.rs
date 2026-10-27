@@ -10,7 +10,7 @@ use companion_wire::SessionRecord;
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::{NoteAsk, NoteSlug, SessionNote, TaskLedger, skeleton_of};
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::{SessionId, TaskId};
 
 /// The record as the router stores it: its slug and its serde JSON.
@@ -20,7 +20,7 @@ pub(crate) fn note_of(record: &SessionRecord) -> Option<NoteAsk> {
     Some(NoteAsk::Record(SessionNote { slug, json }))
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Writes `record` for `session`. A router that does not answer is not waited for twice.
     pub(crate) async fn record(&self, session: &SessionId, record: &SessionRecord) {
         if self.notes == Notes::Silent {

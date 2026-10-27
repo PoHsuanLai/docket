@@ -16,7 +16,7 @@ use docket_core::helper::{
     AgentApps, AgentOutcome, BoardEvent, HelperName, JobFault, JobId, Launch, TaskRef,
     owned_sentence,
 };
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::{AgentProgram, HelperId, SessionId, TaskId};
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -28,7 +28,7 @@ const GRACE: Duration = Duration::from_secs(5);
 
 impl<P, I, K> Hub<P, I, K>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {

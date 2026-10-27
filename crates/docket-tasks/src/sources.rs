@@ -17,8 +17,8 @@ use docket_core::{
     RecalledLine, Reveal, SelectionView, SkillCard, SkillText, TextTargetView, VisibleView,
     offered_to,
 };
+use docket_planner::Planner;
 use docket_skills::{BODY_BUDGET_BYTES, Situation, Skill, preselect, uses_first};
-use porter_client::Transport as InferTransport;
 use porter_core::{Count, UnixSeconds};
 use prov::TaskId;
 
@@ -73,7 +73,7 @@ fn words_of(rt: &TaskRuntime) -> String {
         .join("\n")
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// The sections for one planner turn of `task`. A source that does not answer leaves its
     /// section empty: the planner works with less, never with a guess.
     pub(crate) async fn sources(&mut self, task: &TaskId) -> Sources {

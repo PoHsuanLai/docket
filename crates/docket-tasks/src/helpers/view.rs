@@ -3,8 +3,7 @@
 //! helper opens with (who asks, and the one model it must run on).
 
 use docket_core::helper::{GoalSource, HelperCard, HelperModel, HelperName, Job};
-use docket_planner::{PlannerModel, RoleFault, RoleText, Voice};
-use porter_client::Transport as InferTransport;
+use docket_planner::{RoleFault, RoleText, Voice};
 use porter_infer::{Asker, OpenOptions};
 use prov::HelperId;
 
@@ -40,11 +39,6 @@ pub fn conversation_voice(
         role: Some(text),
         options: options_of(helper, model),
     })
-}
-
-/// The planner of a helper's job over `infer`: its sessions open with [`open_options`].
-pub fn planner_for<P: InferTransport>(infer: P, card: &HelperCard) -> PlannerModel<P> {
-    PlannerModel::new(infer).with_open_options(open_options(card))
 }
 
 /// The role a helper's planner works under: who it is, what it is for in the person's words, and

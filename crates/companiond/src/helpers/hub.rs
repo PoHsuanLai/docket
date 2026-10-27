@@ -13,9 +13,9 @@ use docket_core::helper::{
     SeatPlace, step,
 };
 use docket_core::{SessionOpen, ValidManifest};
+use docket_planner::Planner;
 use docket_tasks::{Change, Surface};
 use futures_util::lock::Mutex as AsyncMutex;
-use porter_client::Transport as InferTransport;
 use prov::{AgentRef, HelperId, SessionId, SpaceId, TaskId};
 use std::collections::BTreeMap;
 use std::fmt;
@@ -50,11 +50,11 @@ pub(super) struct State {
     pub(super) terminals: Terminals,
 }
 
-/// What builds the companion a job runs on: its transports are the daemon's, its planner is
-/// `docket_tasks::planner_for` the card.
+/// What builds the companion a job runs on: its transports are the daemon's, its planner opens its
+/// sessions with `docket_tasks::open_options` of the card.
 type Make<P, I, K> = dyn Fn(&HelperCard) -> Companiond<P, I, K> + Send + Sync;
 
-pub(super) struct Inner<P: InferTransport, I: IntentsTransport, K: Clock> {
+pub(super) struct Inner<P: Planner, I: IntentsTransport, K: Clock> {
     pub(super) state: Mutex<State>,
     /// Reads and writes the records through the router. Nothing else uses it, so a record is
     /// never written behind a person's turn.
@@ -73,11 +73,11 @@ pub(super) struct Inner<P: InferTransport, I: IntentsTransport, K: Clock> {
 type Talk<P, I, K> = Arc<AsyncMutex<Companiond<P, I, K>>>;
 
 /// The board and what carries it out. Cheap to clone: every clone is the same board.
-pub struct Hub<P: InferTransport, I: IntentsTransport, K: Clock> {
+pub struct Hub<P: Planner, I: IntentsTransport, K: Clock> {
     pub(super) inner: Arc<Inner<P, I, K>>,
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock> Clone for Hub<P, I, K> {
+impl<P: Planner, I: IntentsTransport, K: Clock> Clone for Hub<P, I, K> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -85,7 +85,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Clock> Clone for Hub<P, I, K> {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock> fmt::Debug for Hub<P, I, K> {
+impl<P: Planner, I: IntentsTransport, K: Clock> fmt::Debug for Hub<P, I, K> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Hub").finish_non_exhaustive()
     }
@@ -93,7 +93,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Clock> fmt::Debug for Hub<P, I, 
 
 impl<P, I, K> Hub<P, I, K>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {

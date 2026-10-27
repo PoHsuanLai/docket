@@ -16,7 +16,7 @@ use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::helper::{HelperCard, JobFault};
 use docket_core::{ContextKeep, Keep, SessionOpen, SessionOpened, TurnVia, UserTurn, WindowKey};
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::AgentRef;
 
 /// Where the window of a turn in a conversation is anchored: nowhere in particular.
@@ -32,7 +32,7 @@ fn kept_nothing() -> ContextKeep {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Runs the person's `said` in `card`'s conversation `talk` and reports how the turn ended.
     /// The conversation is taken up as a task of this companion the first time, and kept: the
     /// next turn sees the earlier ones. A report whose ending is `Done` carries only the words of

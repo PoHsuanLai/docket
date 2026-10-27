@@ -7,36 +7,37 @@
 //! registry's order. Nothing else goes in (no clock, no random ids), so two turns of one task
 //! share every prompt token up to the first section that changed and the engine reuses its cache.
 
-use crate::args::{ArgsFault, read_call};
+use crate::args::read_call;
 use crate::catalogue::Catalogue;
 use crate::choices::ParamChoices;
 use crate::known::known_values;
+use crate::meta_reply::{
+    answer_text, bounded, is_meta, meta_output, outside_known, plain_fault, plain_name,
+};
+use crate::meta_tools::{control, meta_tools};
 use crate::plain::without_ids;
-use crate::read_ask::read_output;
 use crate::render::messages_with;
 use crate::role::RoleText;
-use crate::show::{MOST_SHOWN, finish_output};
+use crate::seam::Planner;
+use crate::show::finish_output;
+use crate::summarise::{SummariseFault, Summarised};
 use crate::voice::Voice;
-use crate::want::want_schema;
-use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
-use companion_wire::{RouteLog, RouteNote};
-use docket_core::{
-    ActionCard, ActionRef, Args, CallRequest, Handle, HandleShape, OneOf, Origin, ParamName,
-    PlannerView, RELATION_ARG, ReplyFault, TargetValue, Value, Why,
+use agent_loop::{
+    Availability, ModelOutput, Offer, PlannedCall, SummaryInput, choose_tier, leaked_call,
 };
+use companion_wire::{RouteLog, RouteNote};
+use docket_core::{ActionRef, CallRequest, Handle, OneOf, Origin, PlannerView, ReplyFault};
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;
 use porter_core::need::LlmNeed;
-use porter_core::{AppName, DataClass, Need, Tier, Tokens};
+use porter_core::{DataClass, Need, Tier, Tokens};
 use porter_infer::{
-    ChatControl, ChatReply, ChatRequest, ClientFrame, Declined, InferEvent, InferRefusal,
-    InferReply, InferRequest, InferSession, JsonSchemaText, JsonText, Knob, OpenOptions, Reasoning,
-    ReplyShape, ServedBy, StopReason, ToolCallPart, ToolChoice, ToolDecl, ToolName,
-    ToolParallelism,
+    ChatReply, ChatRequest, ClientFrame, Declined, InferEvent, InferRefusal, InferReply,
+    InferRequest, InferSession, OpenOptions, ReplyShape, ServedBy, StopReason, ToolCallPart,
+    ToolDecl,
 };
-use prov::{EntityId, EntityKey, EntityKind};
-use serde_json::{Value as Json, json};
+use serde_json::Value as Json;
 use std::collections::BTreeSet;
 
 /// The smallest context window the planner is asked for: the assembled view and room to answer.
@@ -160,140 +161,6 @@ pub struct PlannerModel<P: Transport> {
     options: OpenOptions,
 }
 
-fn schema_text(schema: &Json) -> Option<JsonSchemaText> {
-    let text = serde_json::to_string(schema).ok()?;
-    Some(JsonSchemaText(JsonText::parse(&text).ok()?))
-}
-
-fn meta_tool(name: &str, description: &str, params: &Json) -> Option<ToolDecl> {
-    Some(ToolDecl {
-        name: ToolName::parse(name).ok()?,
-        description: description.to_owned(),
-        params: schema_text(params)?,
-    })
-}
-
-/// The relations the view's actions resolve, each name once, in the view's order.
-fn relation_names(actions: &[ActionCard]) -> Vec<String> {
-    let mut names: Vec<String> = Vec::new();
-    for relation in actions.iter().flat_map(|card| &card.related) {
-        if !names.iter().any(|n| n == relation.name.as_str()) {
-            names.push(relation.name.as_str().to_owned());
-        }
-    }
-    names
-}
-
-/// `quire_related`, when some action of the view resolves a relation.
-fn related_tool(actions: &[ActionCard]) -> Option<ToolDecl> {
-    let names = relation_names(actions);
-    if names.is_empty() {
-        return None;
-    }
-    let params = json!({
-        "type": "object",
-        "properties": {
-            "of": {
-                "anyOf": [
-                    {
-                        "type": "object",
-                        "properties": { "handle": { "type": "integer", "minimum": 0 } },
-                        "required": ["handle"],
-                        "additionalProperties": false,
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "app": { "type": "string" },
-                            "kind": { "type": "string" },
-                            "key": { "type": "string" },
-                        },
-                        "required": ["app", "kind", "key"],
-                        "additionalProperties": false,
-                    },
-                ],
-            },
-            "relation": { "enum": names },
-        },
-        "required": ["of", "relation"],
-        "additionalProperties": false,
-    });
-    meta_tool(
-        TOOL_RELATED,
-        "Get a thing related to a thing you hold, as a handle: \"of\" is the thing, as {\"handle\": n} or as {\"app\", \"kind\", \"key\"}, and \"relation\" is one of the relations shown beside it (\"related: ...\"). Use it when an action needs a thing of another kind that you cannot read from the one you hold, such as who sent a thread.",
-        &params,
-    )
-}
-
-/// The tools every task has beside the actions (`quire_related` first, where it is offered, so
-/// the last four are always answer, ask, read and finish).
-fn meta_tools(actions: &[ActionCard]) -> Vec<ToolDecl> {
-    let answer = json!({
-        "type": "object",
-        "properties": { "text": { "type": "string", "maxLength": MOST_WORDS } },
-        "required": ["text"],
-        "additionalProperties": false,
-    });
-    let ask = json!({
-        "type": "object",
-        "properties": {
-            "text": { "type": "string", "maxLength": 400 },
-            "choices": { "type": "array", "items": { "type": "string", "maxLength": 80 }, "maxItems": 6 },
-        },
-        "required": ["text"],
-        "additionalProperties": false,
-    });
-    let read = json!({
-        "type": "object",
-        "properties": {
-            "inputs": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1 },
-            "task": { "enum": ["classify", "extract", "summarise", "compare"] },
-            "want": want_schema(),
-        },
-        "required": ["inputs", "task", "want"],
-        "additionalProperties": false,
-    });
-    let finish = json!({
-        "type": "object",
-        "properties": {
-            "show": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "maxItems": MOST_SHOWN },
-        },
-        "additionalProperties": false,
-    });
-    [
-        related_tool(actions),
-        meta_tool(
-            TOOL_ANSWER,
-            "Give the person your reply: the answer itself, short, as they would want to read it, with nothing about how you found it. The turn ends with it.",
-            &answer,
-        ),
-        meta_tool(TOOL_ASK, "Ask the person a question and wait for the answer.", &ask),
-        meta_tool(
-            TOOL_READ,
-            "Have the reader answer a question about handles you cannot read. \"want\" is the shape of the answer, as {\"kind\": \"choice\", \"v\": [\"yes\", \"no\"]} (kinds: choice, integer, date, datetime, text, record, list); it is not a JSON Schema. A choice, integer, date or datetime answer is returned to you to read; an answer in words (text, or a record or list holding text) is returned as a handle you cannot read, so use it only as an argument.",
-            &read,
-        ),
-        meta_tool(
-            TOOL_FINISH,
-            "The task is done. \"show\" lists text handles to put in front of the person as content, in this order; you cannot read them.",
-            &finish,
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-/// The planner is deterministic enough to repeat: no sampling noise it does not need.
-fn control() -> ChatControl {
-    ChatControl::new()
-        .with_tool_choice(ToolChoice::Auto)
-        .with_tool_calls(ToolParallelism::Many)
-        .with_max_output(Knob::Off)
-        .with_reasoning(Reasoning::EngineDefault)
-        .with_sampling(Knob::Off)
-}
-
 impl<P: Transport> PlannerModel<P> {
     /// Asks through `infer`, with no actions to offer until a catalogue is set.
     pub fn new(infer: P) -> Self {
@@ -318,25 +185,6 @@ impl<P: Transport> PlannerModel<P> {
         &self.options
     }
 
-    /// The voice this planner speaks in now.
-    pub fn voice(&self) -> Voice {
-        Voice {
-            role: self.role.clone(),
-            options: self.options.clone(),
-        }
-    }
-
-    /// Speaks in `voice` from now on: its role and the options its sessions open with.
-    pub fn set_voice(&mut self, voice: Voice) {
-        self.role = voice.role;
-        self.options = voice.options;
-    }
-
-    /// Replaces the agent's role, for a task whose goal is only known once it opens.
-    pub fn set_role(&mut self, role: RoleText) {
-        self.role = Some(role);
-    }
-
     /// The same planner with an agent's role after the fixed rules.
     pub fn with_role(self, role: RoleText) -> Self {
         Self {
@@ -355,17 +203,6 @@ impl<P: Transport> PlannerModel<P> {
         Self { catalogue, ..self }
     }
 
-    /// Replaces the catalogue (an app was installed or removed).
-    pub fn set_catalogue(&mut self, catalogue: Catalogue) {
-        self.catalogue = catalogue;
-    }
-
-    /// The options apps offered for their dynamic parameters, as of now: the schema lists them
-    /// until they are replaced. The caller asks the router; this crate reaches no bus.
-    pub fn set_choices(&mut self, choices: Vec<ParamChoices>) {
-        self.choices = choices;
-    }
-
     /// What this turn lists for `action`'s parameters: the view's known values, then the
     /// options its app offered.
     fn listed(&self, action: &ActionRef, view: &PlannerView) -> Vec<OneOf> {
@@ -374,11 +211,6 @@ impl<P: Transport> PlannerModel<P> {
             .into_iter()
             .chain(offered.map(ParamChoices::one_of))
             .collect()
-    }
-
-    /// The actions offered.
-    pub fn catalogue(&self) -> &Catalogue {
-        &self.catalogue
     }
 
     /// The tools of a view: the actions the budget kept, in the view's order, then the three
@@ -413,14 +245,6 @@ impl<P: Transport> PlannerModel<P> {
         .with_control(control())
     }
 
-    /// One planner step: what the model said, and what the loop does next.
-    pub async fn converse(&self, view: &PlannerView) -> Result<PlannerReply, PlanFault> {
-        let (reply, route) = self.chat_routed(self.request(view)).await?;
-        let mut said = self.read(reply, view)?;
-        said.route = route;
-        Ok(said)
-    }
-
     /// One planner step as the loop's single output: calls, a read, a question, an end, or
     /// words when the model only spoke.
     pub async fn plan(&self, view: &PlannerView) -> Result<ModelOutput, PlanFault> {
@@ -429,11 +253,6 @@ impl<P: Transport> PlannerModel<P> {
             (Some(words), ModelOutput::Finish) => ModelOutput::Say(words),
             (_, then) => then,
         })
-    }
-
-    /// Runs a chat turn to its end and returns the reply.
-    pub async fn chat(&self, request: ChatRequest) -> Result<ChatReply, PlanFault> {
-        self.chat_routed(request).await.map(|(reply, _)| reply)
     }
 
     /// A chat turn and how it was routed: the reasons, doors and stages inferd announced.
@@ -577,229 +396,53 @@ impl<P: Transport> PlannerModel<P> {
     }
 }
 
-/// The first argument of `json` that names a value outside what this turn allows it.
-fn outside_known(known: &[OneOf], json: &Json) -> Option<ReplyFault> {
-    known.iter().find_map(|one_of| {
-        let given = json.get(one_of.param.as_str())?.as_str()?;
-        (!one_of.admits(given)).then(|| ReplyFault::NotOneOf {
-            param: one_of.param.clone(),
-            options: one_of.values.clone(),
-        })
-    })
-}
-
-/// A name the model wrote, as far as it is plain enough to say back: letters, digits and `._-`,
-/// at most 64 of them; anything else is not repeated.
-fn plain_name(name: &str) -> String {
-    let plain = name.len() <= 64
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
-    if plain {
-        name.to_owned()
-    } else {
-        String::new()
+impl<P: Transport> Planner for PlannerModel<P> {
+    fn catalogue(&self) -> &Catalogue {
+        &self.catalogue
     }
-}
 
-/// An argument fault that names nothing the model wrote but a plain name.
-fn plain_fault(fault: ArgsFault) -> ArgsFault {
-    match fault {
-        ArgsFault::Unknown(name) => ArgsFault::Unknown(plain_name(&name)),
-        other => other,
+    fn set_catalogue(&mut self, catalogue: Catalogue) {
+        self.catalogue = catalogue;
     }
-}
 
-/// The most words of one reply that are kept: a model with no output limit can say a great deal,
-/// and the person's answer, the history and the bus carry what is kept.
-const MOST_WORDS: usize = 32_000;
+    fn set_choices(&mut self, choices: Vec<ParamChoices>) {
+        self.choices = choices;
+    }
 
-/// `text` without the marks that reorder or hide words: the model's words are drawn as written,
-/// never reversed or concealed.
-fn plain(text: &str) -> String {
-    text.chars()
-        .filter(|c| !docket_core::reorders(*c) && !docket_core::hides(*c))
-        .collect()
-}
+    fn voice(&self) -> Voice {
+        Voice {
+            role: self.role.clone(),
+            options: self.options.clone(),
+        }
+    }
 
-/// `text` as the person is shown it: plain, and cut at [`MOST_WORDS`] characters with an
-/// ellipsis where it was cut.
-fn bounded(text: &str) -> String {
-    let shown = plain(text);
-    match shown.char_indices().nth(MOST_WORDS) {
-        Some((end, _)) => format!("{}\u{2026}", &shown[..end]),
-        None => shown,
+    fn set_voice(&mut self, voice: Voice) {
+        self.role = voice.role;
+        self.options = voice.options;
+    }
+
+    fn set_role(&mut self, role: RoleText) {
+        self.role = Some(role);
+    }
+
+    async fn converse(&self, view: &PlannerView) -> Result<PlannerReply, PlanFault> {
+        let (reply, route) = self.chat_routed(self.request(view)).await?;
+        let mut said = self.read(reply, view)?;
+        said.route = route;
+        Ok(said)
+    }
+
+    async fn chat(&self, request: ChatRequest) -> Result<ChatReply, PlanFault> {
+        self.chat_routed(request).await.map(|(reply, _)| reply)
+    }
+
+    async fn summarise(&self, input: &SummaryInput) -> Result<Summarised, SummariseFault> {
+        self.summary_of(input).await
     }
 }
 
 /// The session type of a transport.
 type AnyOrP<P> = <P as Transport>::Session;
-
-fn is_meta(name: &str) -> bool {
-    matches!(
-        name,
-        TOOL_ANSWER | TOOL_ASK | TOOL_READ | TOOL_FINISH | TOOL_RELATED
-    )
-}
-
-/// The words of a `quire_answer`: plain, not empty, and not a call written as words. A reply
-/// that is none of these is unreadable, like a question that is none of them.
-fn answer_text(call: &ToolCallPart) -> Result<String, PlanFault> {
-    let args: Json = serde_json::from_str(call.args.as_str()).map_err(|_| PlanFault::Unreadable)?;
-    let text = args
-        .get("text")
-        .and_then(Json::as_str)
-        .map(|t| bounded(t.trim()))
-        .filter(|t| !t.is_empty())
-        .ok_or(PlanFault::Unreadable)?;
-    match leaked_call(&text) {
-        Some(_) => Err(PlanFault::CallInText),
-        None => Ok(without_ids(&text)),
-    }
-}
-
-fn meta_output(call: &ToolCallPart, view: &PlannerView) -> Result<ModelOutput, PlanFault> {
-    let Ok(args) = serde_json::from_str::<Json>(call.args.as_str()) else {
-        return match call.name.as_str() {
-            TOOL_READ | TOOL_RELATED => Ok(ModelOutput::Unread(ReplyFault::NotJson)),
-            _ => Err(PlanFault::Unreadable),
-        };
-    };
-    match call.name.as_str() {
-        TOOL_FINISH => Ok(ModelOutput::Finish),
-        TOOL_ASK => question(&args),
-        TOOL_RELATED => Ok(related_output(&args, view)),
-        _ => Ok(read_output(&args)),
-    }
-}
-
-fn param(name: &str) -> Option<ParamName> {
-    ParamName::parse(name).ok()
-}
-
-fn wrong(name: &str, why: Why) -> ModelOutput {
-    match param(name) {
-        Some(param) => ModelOutput::Unread(ReplyFault::Args(ArgsFault::Wrong { param, why })),
-        None => ModelOutput::Unread(ReplyFault::NotJson),
-    }
-}
-
-fn missing(name: &str) -> ModelOutput {
-    match param(name) {
-        Some(param) => ModelOutput::Unread(ReplyFault::Args(ArgsFault::Missing(param))),
-        None => ModelOutput::Unread(ReplyFault::NotJson),
-    }
-}
-
-/// A `quire_related` as the call of the related action of the thing's kind: the same call the
-/// router gates and records as any other read, so a planner gets a related thing no other way
-/// than through the gate. The thing is a handle the view shows or a thing named as `target`
-/// names it (`{"app", "kind", "key"}`, as the context shows the thing the person has open), and
-/// its kind must have that relation.
-fn related_output(args: &Json, view: &PlannerView) -> ModelOutput {
-    let Some(of) = args.get("of") else {
-        return missing("of");
-    };
-    let Some(relation) = args.get("relation").and_then(Json::as_str) else {
-        return missing(RELATION_ARG);
-    };
-    let Some((target, kind)) = related_subject(of, view) else {
-        return wrong("of", Why::Type);
-    };
-    let kind = &kind;
-    let Some(card) = view.actions.iter().find(|card| {
-        matches!(&card.on, docket_core::TargetKind::One(k) if k == kind)
-            && card.related.iter().any(|r| r.name.as_str() == relation)
-    }) else {
-        return wrong(RELATION_ARG, Why::Range);
-    };
-    let (Some(name), Some(choice)) = (
-        param(RELATION_ARG),
-        docket_core::ChoiceId::parse(relation).ok(),
-    ) else {
-        return wrong(RELATION_ARG, Why::Range);
-    };
-    let Some(tier) = choose_tier(&Availability {
-        typed: Offer::Offered,
-        hook: Offer::Absent,
-        cua: Offer::Absent,
-    }) else {
-        return ModelOutput::Unread(ReplyFault::NoSuchTool(String::new()));
-    };
-    let mut args = Args::new();
-    args.insert(
-        name,
-        prov::Labelled {
-            value: Value::Choice(choice),
-            label: crate::args::planner_label(),
-        },
-    );
-    ModelOutput::Calls(vec![PlannedCall {
-        call: CallRequest {
-            action: card.action.clone(),
-            target,
-            args,
-            origin: Origin::Companion,
-        },
-        tier,
-        effect: Some(card.effect),
-    }])
-}
-
-/// The longest question the planner may put to the person, and its choices: the limits the tool's
-/// schema states, which a model is not made to keep.
-const ASK_TEXT: usize = 400;
-const ASK_CHOICES: usize = 6;
-const ASK_CHOICE_TEXT: usize = 80;
-
-/// A question as the schema allows it: bounded text and at most six bounded choices, every one a
-/// string. Anything else is an unreadable reply, not a question trimmed to fit.
-fn question(args: &Json) -> Result<ModelOutput, PlanFault> {
-    let text = args
-        .get("text")
-        .and_then(Json::as_str)
-        .filter(|t| t.chars().count() <= ASK_TEXT)
-        .map(plain)
-        .map(|t| without_ids(&t))
-        .filter(|t| !t.trim().is_empty())
-        .ok_or(PlanFault::Unreadable)?;
-    let choices = match args.get("choices") {
-        None => Vec::new(),
-        Some(Json::Array(items)) if items.len() <= ASK_CHOICES => items
-            .iter()
-            .map(|c| {
-                c.as_str()
-                    .filter(|c| c.chars().count() <= ASK_CHOICE_TEXT)
-                    .map(plain)
-                    .map(|t| without_ids(&t))
-                    .ok_or(PlanFault::Unreadable)
-            })
-            .collect::<Result<Vec<_>, _>>()?,
-        Some(_) => return Err(PlanFault::Unreadable),
-    };
-    Ok(ModelOutput::Ask { text, choices })
-}
-
-/// The thing a `quire_related` is about and its kind: a handle the view holds a thing for, or a
-/// thing named in full.
-fn related_subject(of: &Json, view: &PlannerView) -> Option<(TargetValue, EntityKind)> {
-    let object = of.as_object()?;
-    if let (1, Some(n)) = (object.len(), object.get("handle")) {
-        let held = Handle(n.as_u64()?);
-        let kind = view.handles.iter().find_map(|c| match &c.shape {
-            HandleShape::Entity(kind) if c.handle == held => Some(kind.clone()),
-            _ => None,
-        })?;
-        return Some((TargetValue::Handles(vec![held]), kind));
-    }
-    let text = |name: &str| object.get(name).and_then(Json::as_str);
-    let id = EntityId {
-        app: AppName::parse(text("app")?).ok()?,
-        kind: EntityKind::parse(text("kind")?).ok()?,
-        key: EntityKey::parse(text("key")?).ok()?,
-    };
-    (object.len() == 3).then(|| (TargetValue::Entities(vec![id.clone()]), id.kind))
-}
 
 /// What a reply that is not a chat was, for the log: a refusal or a failure with porter's own
 /// words for it (never the prompt), any other kind by name.

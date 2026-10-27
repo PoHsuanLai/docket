@@ -2,7 +2,7 @@
 //! (the task the launcher returns to), the roster, the side-conversation tracker and the idle
 //! pass; each task is its own docket session, with its own taint, budget and task policy, opened
 //! through `Intents1` in the role `companion`. The pure machines are `agent-loop`'s; this crate
-//! carries their effects out against a router link, a model transport, a clock and a surface.
+//! carries their effects out against a router link, a `Planner`, a clock and a surface.
 //!
 //! companiond is the bus adapter over it (the system clock, a surface that fans changes out on
 //! the bus); `docket-inapp` hosts it in one app with the app's own clock and a quiet surface. No
@@ -65,9 +65,7 @@ pub use desk::{
 pub use drive::{MOST_TASK_DEPTH, refusal_of};
 pub use fault::ServeFault;
 pub use handoff::Handoff;
-pub use helpers::{
-    conversation_voice, helper_query, helper_records_of, open_options, planner_for, role_text,
-};
+pub use helpers::{conversation_voice, helper_query, helper_records_of, open_options, role_text};
 pub use memory::{episodes_of, hits_of, primer_of, profile_of};
 pub use one_run::LiveRuns;
 pub use read::answer_read;

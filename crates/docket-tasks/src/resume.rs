@@ -14,7 +14,7 @@ use agent_loop::Rebuilt;
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::{RecallAsk, RecallView, SessionOpen, SessionOpened};
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::{AgentRef, SpaceId, UnixSeconds};
 
 /// What a restart found: the front task's fresh session, if it had one, and how many of the
@@ -34,7 +34,7 @@ pub struct Restarted {
 /// How far back a restart reads: the retention window of `companion.*` records (30 days).
 const RETENTION: i64 = 30 * 24 * 3600;
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// The Spaces to read on a restart: the ones `named` (the configuration's, the floor) and
     /// every Space the router says it knows (`Recall::Spaces`, asked in a session of the desktop
     /// that is closed again). A router that does not answer leaves the named ones.

@@ -3,12 +3,14 @@
 //! is any `porter_client::Transport` (inferd over D-Bus on the desktop, the latchkey socket or
 //! `InProcess` elsewhere). Nothing here reaches a bus or a runtime.
 //!
-//! - `PlannerModel`: the planner; `converse` turns a view into one `PlannerReply`.
+//! - `Planner`: what drives a task (its catalogue and voice, `converse`, `chat`, `summarise`);
+//!   `PlannerModel`: the planner over a transport, whose `converse` turns a view into one
+//!   `PlannerReply`; `ScriptedPlanner` (feature `testing`): one that plays what it was given.
 //! - `Catalogue`: the actions it may call, as tools; `ParamChoices`: the options an app offered for
 //!   a dynamic parameter, which the schema lists.
 //! - `messages`, `system_text`, `user_text`, `RULES`: the prompt; `RoleText`: an agent's own
 //!   instructions, which follow the rules and never replace them.
-//! - `PlannerModel::summarise`: the model turn that writes a summary of a task's oldest steps, from
+//! - `Planner::summarise`: the model turn that writes a summary of a task's oldest steps, from
 //!   what the planner was shown alone; `PlannerModel::prefix`: the part of a request that does
 //!   not change within a task, with the cache break after it.
 //! - `read_call`, `planner_label`: the planner's own steps and labels.
@@ -20,6 +22,8 @@ mod catalogue;
 mod choices;
 mod context_text;
 mod known;
+mod meta_reply;
+mod meta_tools;
 mod plain;
 mod planner;
 mod prefix;
@@ -27,6 +31,9 @@ mod read_ask;
 mod reader_text;
 mod render;
 mod role;
+#[cfg(feature = "testing")]
+mod scripted;
+mod seam;
 mod show;
 mod step_text;
 mod summarise;
@@ -44,5 +51,8 @@ pub use planner::{
 pub use prefix::{CacheBreak, StablePrefix};
 pub use render::{RULES, messages, messages_with, system_text, system_text_with, user_text};
 pub use role::{ROLE_LIMIT, RoleFault, RoleText};
+#[cfg(feature = "testing")]
+pub use scripted::ScriptedPlanner;
+pub use seam::Planner;
 pub use summarise::{SUMMARY_RULES, SummariseFault, Summarised, summary_text};
 pub use voice::Voice;

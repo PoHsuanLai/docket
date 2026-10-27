@@ -21,16 +21,16 @@ use docket_core::helper::{
     TerminalRequest,
 };
 use docket_core::{HelperRosterLine, Manifest, SeenCommand, WatchedAgent};
+use docket_planner::Planner;
 use docket_tasks::{
     HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk, RoutineFor,
     SayFromPerson,
 };
-use porter_client::Transport as InferTransport;
 use prov::{HelperId, SessionId, SpaceId};
 
 impl<P, I, K> Hub<P, I, K>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
@@ -252,7 +252,7 @@ where
 
 impl<P, I, K> HelperDesk for Hub<P, I, K>
 where
-    P: InferTransport + 'static,
+    P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {

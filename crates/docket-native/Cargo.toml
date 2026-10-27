@@ -18,7 +18,6 @@ docket-session = { workspace = true }
 docket-tasks = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
-porter-client = { workspace = true }
 prov = { workspace = true }
 
 [dev-dependencies]
@@ -27,6 +26,7 @@ docket-client = { workspace = true, features = ["in_process"] }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }
 porter-core = { workspace = true }
+porter-client = { workspace = true }
 porter-infer = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

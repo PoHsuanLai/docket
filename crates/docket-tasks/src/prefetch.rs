@@ -14,7 +14,7 @@ use docket_core::{
     ActionRef, Args, CallRequest, Origin, ParamName, RECALL_ACTION, RECALL_APP, TargetValue,
     UserTurn, Value,
 };
-use porter_client::Transport as InferTransport;
+use docket_planner::Planner;
 use prov::{ActionName, Effect, Labelled, TaskId};
 
 /// The longest search text the action takes (its declared limit), in characters.
@@ -47,7 +47,7 @@ pub(crate) fn recall_call(turn: &UserTurn) -> Option<CallRequest> {
     })
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Searches memory for the person's newest words and keeps the answer as a step of the task.
     /// The recall budget of the assembler is the switch: none, no search. A refusal, a router
     /// without memory or a search that fails leaves the task as it was.

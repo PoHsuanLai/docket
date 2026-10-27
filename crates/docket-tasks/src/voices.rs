@@ -9,8 +9,7 @@ use crate::runtime::Companion;
 use crate::seams::Surface;
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
-use docket_planner::Voice;
-use porter_client::Transport as InferTransport;
+use docket_planner::{Planner, Voice};
 use prov::SessionId;
 use std::fmt;
 use std::sync::Arc;
@@ -29,7 +28,7 @@ pub(crate) struct Speaking {
     own: Voice,
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// The same companion, driving the conversations `voices` names in their helper's voice and
     /// every other session in the voice it has now.
     pub fn with_voices(mut self, voices: Arc<dyn Voices>) -> Self {

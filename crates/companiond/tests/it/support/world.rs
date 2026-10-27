@@ -17,7 +17,7 @@ use prov::{
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-pub type Companion = Companiond<ScriptedInfer, InProcess<FakeSeams>, FixedClock>;
+pub type Companion = Companiond<PlannerModel<ScriptedInfer>, InProcess<FakeSeams>, FixedClock>;
 
 pub fn space(s: &str) -> SpaceId {
     SpaceId::parse(s).expect("space")
@@ -326,10 +326,10 @@ pub fn as_shell(who: &Identity, connection: &BusConnection) {
     who.introduce_app(connection, "org.quire.Shell", Role::SheetHost);
 }
 
-pub type TestHub = companiond::Hub<ScriptedInfer, InProcess<FakeSeams>, FixedClock>;
+pub type TestHub = companiond::Hub<PlannerModel<ScriptedInfer>, InProcess<FakeSeams>, FixedClock>;
 
 /// The companion a helper's job runs on: the router in process, and the helper's own scripted
-/// model, asked with the options `planner_for` gives it.
+/// model, asked with the options `open_options` gives it.
 pub fn companion_for(
     router: &Arc<Router<FakeSeams>>,
     infer: ScriptedInfer,
@@ -341,7 +341,7 @@ pub fn companion_for(
             router.clone(),
             caller("org.quire.Companiond", CallerRole::Companion),
         )),
-        docket_tasks::planner_for(infer, card),
+        PlannerModel::new(infer).with_open_options(docket_tasks::open_options(card)),
         AgentConfig::default(),
         clock,
         app("org.quire.Shell"),
