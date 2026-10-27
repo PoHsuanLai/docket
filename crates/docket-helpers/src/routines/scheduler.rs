@@ -1,23 +1,22 @@
-//! The scheduler: the routine book's owner. A small timer inside companiond (not a daemon of its
-//! own) ticks every few seconds; each tick asks which runs ended, which times are due, and what
+//! The scheduler: the routine book's owner. A small timer inside the companion's daemon (not a
+//! daemon of its own) ticks every few seconds; each tick asks which runs ended, which times are due, and what
 //! the almanac saw. A time that came while the computer slept or the assistant was down shows as a
 //! late tick, and the book skips it (or runs it once, when the person said so). Systemd user
 //! timers, written from the same schedules, only start companiond at the time.
 
 use super::host::Host;
 use companion_core::{EventWatch, Settle, ended_events, event_asks, group_by_space};
-use docket_core::Clock;
 use docket_core::routine::{
     RoutineBook, RoutineEffect, RoutineEvent, RoutineId, RoutineRecord, step,
 };
+use docket_core::{Clock, Millis};
 use prov::{SpaceId, UnixSeconds};
 use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 /// How often the timer ticks.
-const POLL: Duration = Duration::from_secs(5);
+const POLL: Millis = Millis(5_000);
 
 struct State {
     book: RoutineBook,
@@ -184,7 +183,7 @@ impl<H: Host, K: Clock> Routines<H, K> {
     pub async fn run(self: Arc<Self>) {
         loop {
             self.tick().await;
-            tokio::time::sleep(POLL).await;
+            self.clock.after(POLL).await;
         }
     }
 

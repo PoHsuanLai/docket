@@ -2,7 +2,7 @@
 //! and the shell's list, card and changes. The decisions are `companion_core`'s and refuse with
 //! a typed `Refusal`; the plain sentence is made here, at the edge (`crate::words`).
 
-use super::hub::Hub;
+use super::owner::Hub;
 use crate::words::{refused, sentence};
 use companion_core::{
     PlannerJob, Refusal, RoutineWho, RoutineWish, card_draft, created, helper_form, name_free,
@@ -24,15 +24,16 @@ use docket_core::{HelperRosterLine, Manifest, SeenCommand, WatchedAgent};
 use docket_planner::Planner;
 use docket_tasks::{
     HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk, RoutineFor,
-    SayFromPerson,
+    SayFromPerson, Surface,
 };
 use prov::{HelperId, SessionId, SpaceId};
 
-impl<P, I, K> Hub<P, I, K>
+impl<P, I, K, S> Hub<P, I, K, S>
 where
     P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
+    S: Surface + Send + Sync + 'static,
 {
     /// Whether the job a helper is working on waits for the person: a question, or a sheet.
     fn needs_of(&self, card: &HelperCard) -> Option<HelperNeeds> {
@@ -250,11 +251,12 @@ where
     }
 }
 
-impl<P, I, K> HelperDesk for Hub<P, I, K>
+impl<P, I, K, S> HelperDesk for Hub<P, I, K, S>
 where
     P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
+    S: Surface + Send + Sync + 'static,
 {
     fn view(&self, after: u64) -> HelpersView {
         let board = self.board();

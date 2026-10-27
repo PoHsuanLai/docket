@@ -1,4 +1,4 @@
-//! Routines in companiond: a due time posts one job, a time that came while the computer slept is
+//! Routines: a due time posts one job, a time that came while the computer slept is
 //! skipped and recorded (or run once on waking, when asked), three runs that do not finish pause a
 //! routine and tell the person once, an event is handed over as a handle, a job's end starts what
 //! waits for it, and the unit directory holds exactly the timers wanted. The host is a fake: no
@@ -7,13 +7,13 @@
 use almanac_core::{EventRef, ReplicaId, Seq};
 use companion_core::{Awake, EventAsk, Seen, UnitFile, units_of};
 use companion_wire::{EventForm, RoutineForm, RoutineReply, WhenForm};
-use companiond::{Host, RoutineDesk, Routines, UnitDir};
 use docket_core::helper::{HelperName, JobFault, JobId};
 use docket_core::routine::{
     JobEnd, Missed, RoutineId, RoutinePause, RoutineRecord, RoutineState, RunOutcome, RunRequest,
     Schedule, TimerEntry, Zone,
 };
 use docket_fake::FixedClock;
+use docket_helpers::{Host, RoutineDesk, Routines, UnitDir};
 use prov::{HelperId, SpaceId, UnixSeconds};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard};

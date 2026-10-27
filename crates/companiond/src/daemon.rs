@@ -5,14 +5,13 @@ use crate::Companiond;
 use crate::apps_link::AppsLink;
 use crate::config::CompaniondConfig;
 use crate::handoff::HostLink;
-use crate::helpers::Hub;
-use crate::routines::{HubHost, RoutineDesk, Routines, Timers};
 use crate::serve::serve_with_routines;
 use docket_client::{DbusTransport, Intents};
 use docket_core::helper::{AgentApps, HelperCard};
 use docket_dbus::InferWatch;
 use docket_dbus::callers::{CallerTable, Identity};
 use docket_dbus::{BusConnection, InferLink};
+use docket_helpers::{Hub, HubHost, RoutineDesk, Routines, Timers, TokioSpawn};
 use docket_planner::PlannerModel;
 use docket_skills::{Roots, discover};
 use docket_skills_disk::DiskFolder;
@@ -141,7 +140,12 @@ pub async fn start_with_agents(
             SystemClock,
             config.shell.clone(),
         );
-        Hub::new(service, companion.shared.clone(), make)
+        Hub::new(
+            service,
+            companion.shared.clone(),
+            Arc::new(TokioSpawn),
+            make,
+        )
     };
     if let Some(agents) = agents {
         hub.set_agents(agents);

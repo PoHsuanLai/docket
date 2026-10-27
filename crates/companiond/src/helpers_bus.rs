@@ -4,13 +4,13 @@
 //! goes to the desks the daemon was built with. Members carry no doc comments:
 //! zbus copies them into the introspection, which is held to `dbus/org.quire.Companion1.xml`.
 
-use crate::routines::RoutineDesk;
 use crate::serve::{bad, json};
 use crate::speaker::{EDITOR_APP, Speakers};
 use companion_core::{Call, Speaker};
 use companion_wire::{HelperForm, ProposalId, RoutineForm, RoutineReply};
 use docket_core::routine::RoutineId;
 use docket_core::{SeenCommand, TurnId, TurnSource};
+use docket_helpers::RoutineDesk;
 use docket_tasks::{HelperDesk, PostFromPerson, SayFromPerson};
 use porter_core::AppName;
 use prov::{EntityId, HelperId, SessionId};

@@ -1,11 +1,12 @@
-//! The hub runs the jobs the board launches. A job runs as a tokio task of its own on a
-//! `Companion` of its own (built by the factory the daemon passes in), so several helpers work at
+//! The hub runs the jobs the board launches. A job runs as a task of its own (started through the
+//! `Spawn` seam) on a `Companion` of its own (built by the factory the daemon passes in), so several helpers work at
 //! once, none behind the front conversation's lock, and a panic or an error in one job ends that
-//! job: a second task awaits the first and turns what it finds, a result or a `JoinError`, into
+//! job: a second task awaits the first and turns what it finds, a result or a `Fate`, into
 //! the board's event for that job (`companion_core::conclude`). The daemon and every other job go
 //! on.
 
-use super::hub::{Hub, Running};
+use super::owner::{Hub, Running};
+use crate::spawn::{Fate, Watch, Work};
 use companion_core::{
     Conclusion, Finished, Hold, JobEnding, JobReport, JobSpec, OpenedJob, conclude, job_spec,
     same_app,
@@ -17,20 +18,21 @@ use docket_core::helper::{
     owned_sentence,
 };
 use docket_planner::Planner;
+use docket_tasks::Surface;
 use prov::{AgentProgram, HelperId, SessionId, TaskId};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::task::JoinError;
 
 /// How long a stopped job has to end by itself before its task is cut off.
 const GRACE: Duration = Duration::from_secs(5);
 
-impl<P, I, K> Hub<P, I, K>
+impl<P, I, K, S> Hub<P, I, K, S>
 where
     P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
+    S: Surface + Send + Sync + 'static,
 {
     /// Starts the task that runs a job, and the task that watches it.
     pub(super) fn launch(&self, launch: &Launch) {
@@ -44,7 +46,7 @@ where
                 job,
                 Running {
                     helper: launch.helper.clone(),
-                    abort: None,
+                    cutoff: None,
                     task: None,
                     session: None,
                     shared: None,
@@ -52,17 +54,18 @@ where
             );
         });
         let hub = self.clone();
-        let work = tokio::spawn(async move { hub.work(spec).await });
-        let abort = work.abort_handle();
+        let work: Work = Box::pin(async move { hub.work(spec).await });
+        let hub = self.clone();
+        let watch: Watch = Box::new(move |outcome| {
+            Box::pin(async move {
+                hub.ended(job, outcome).await;
+            })
+        });
+        let cutoff = self.inner.spawn.run_watched(work, watch);
         self.with_state(|state| {
             if let Some(running) = state.running.get_mut(&job) {
-                running.abort = Some(abort);
+                running.cutoff = Some(cutoff);
             }
-        });
-        let hub = self.clone();
-        tokio::spawn(async move {
-            let outcome = work.await;
-            hub.ended(job, outcome).await;
         });
     }
 
@@ -180,14 +183,14 @@ where
     /// A job's task ended, by itself or not: tell the board how, and close what is not kept. A
     /// task that panicked ends its job as failed, with a plain sentence on its helper; a task that
     /// was cut off ends it as stopped. Nothing else is touched.
-    async fn ended(&self, job: JobId, outcome: Result<Finished, JoinError>) {
+    async fn ended(&self, job: JobId, outcome: Result<Finished, Fate>) {
         let Some(running) = self.with_state(|state| state.running.remove(&job)) else {
             return;
         };
         let conclusion = match outcome {
             Ok(done) => conclude(job, done),
-            Err(join) if join.is_cancelled() => Conclusion::cut_off(job, running.session.clone()),
-            Err(_) => {
+            Err(Fate::Cut) => Conclusion::cut_off(job, running.session.clone()),
+            Err(Fate::Panicked) => {
                 tracing::error!(%job, "a helper's job panicked; only that job ends");
                 Conclusion::crashed(job, running.session.clone())
             }
@@ -289,12 +292,12 @@ where
                 (
                     r.shared.clone(),
                     r.task.clone(),
-                    r.abort.clone(),
+                    r.cutoff.clone(),
                     r.helper.clone(),
                 )
             })
         });
-        let Some((shared, task, abort, helper)) = found else {
+        let Some((shared, task, cutoff, helper)) = found else {
             return;
         };
         if let (Some(shared), Some(task)) = (shared, task) {
@@ -302,13 +305,14 @@ where
         }
         // A job on an agent app is stopped at the app; for any other helper this finds nothing.
         if let Some(agents) = self.agents() {
-            tokio::spawn(async move { agents.stop(&helper).await });
+            self.inner
+                .spawn
+                .detach(Box::pin(async move { agents.stop(&helper).await }));
         }
-        if let Some(abort) = abort {
-            tokio::spawn(async move {
-                tokio::time::sleep(GRACE).await;
-                abort.abort();
-            });
+        if let Some(cutoff) = cutoff {
+            self.inner
+                .spawn
+                .detach_after(GRACE, Box::pin(async move { cutoff.cut() }));
         }
     }
 }

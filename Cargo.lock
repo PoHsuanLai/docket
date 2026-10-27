@@ -819,6 +819,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-fake",
+ "docket-helpers",
  "docket-log",
  "docket-planner",
  "docket-router",
@@ -1397,6 +1398,32 @@ dependencies = [
  "prov",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "docket-helpers"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "companion-core",
+ "companion-wire",
+ "docket-client",
+ "docket-core",
+ "docket-fake",
+ "docket-helpers",
+ "docket-planner",
+ "docket-router",
+ "docket-store",
+ "docket-tasks",
+ "futures-util",
+ "porter-client",
+ "porter-core",
+ "porter-infer",
+ "prov",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 [package]
 name = "companiond"
-description = "The companion daemon: one identity over many tasks, each its own docket session. Serves org.quire.Companion1; the binary serves it on the session bus. It runs the helper tasks, the routine timer and the bus; the decisions over values are companion-core's."
+description = "The companion daemon: one identity over many tasks, each its own docket session. Serves org.quire.Companion1; the binary serves it on the session bus. It is the bus adapter and the daemon over docket-helpers (the helpers' hub and the routine timer); the decisions over values are companion-core's."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -17,10 +17,10 @@ name = "companiond"
 path = "src/main.rs"
 
 [dependencies]
-almanac-core = { workspace = true }
 companion-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
+docket-helpers = { workspace = true, features = ["tokio"] }
 docket-store = { workspace = true }
 docket-log = { workspace = true }
 docket-planner = { workspace = true }
@@ -49,6 +49,7 @@ workspace = true
 otlp = ["docket-log/otlp"]
 
 [dev-dependencies]
+almanac-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 agent-loop = { workspace = true }
 porter-client = { workspace = true }

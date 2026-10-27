@@ -13,25 +13,24 @@
 //!   episodes, runs); `stored_events`, `events_of`: the sessions, from `Session.Stored`.
 //! - `completion_effects`: how a finished worker or run reaches the front task.
 //! - `serve`, `serve_on`: `org.quire.Companion1`.
-//! - `Routines`, `RoutineDesk`: a helper's standing instructions, run by a small timer here;
-//!   `UnitDir`: their systemd timers on disk.
+//! - The helpers' hub and the routines are `docket-helpers`'; `daemon` builds them over the bus and
+//!   `helpers_bus` serves them.
 //! - `HostLink`: a turn handed to the coding agent the person chose, through the agent host.
 //! - `AppsLink`: the agent apps that are helpers, through the same host (`AgentApps` over the bus).
 
 mod apps_link;
+mod background;
 mod bell;
 mod callers;
 mod config;
 mod daemon;
 mod follow;
 mod handoff;
-mod helpers;
 mod helpers_bus;
-mod routines;
 mod run_signals;
 mod serve;
+mod serve_entry;
 mod speaker;
-mod words;
 
 pub use apps_link::AppsLink;
 pub use bell::Bell;
@@ -49,9 +48,8 @@ pub use docket_tasks::{
     stored_events,
 };
 pub use handoff::HostLink;
-pub use helpers::Hub;
-pub use routines::{Host, HubHost, RoutineDesk, Routines, SystemZone, Timers, UnitDir};
-pub use serve::{serve, serve_on, serve_on_rooted, serve_with_routines};
+pub use serve::serve_with_routines;
+pub use serve_entry::{serve, serve_on, serve_on_rooted};
 pub use speaker::Speakers;
 
 /// The shared view as the bus reads it.

@@ -14,6 +14,7 @@ use docket_core::helper::{
 };
 use docket_core::routine::{JobEnd, RoutineRecord, RunRequest, Zone};
 use docket_planner::Planner;
+use docket_tasks::Surface;
 use porter_core::Count;
 use prov::{HelperId, SpaceId, UnixSeconds};
 
@@ -30,21 +31,23 @@ pub enum Timers {
 }
 
 /// The hub as the routines' host.
-pub struct HubHost<P: Planner, I: IntentsTransport, K: Clock> {
-    hub: Hub<P, I, K>,
+pub struct HubHost<P: Planner, I: IntentsTransport, K: Clock, S: Surface> {
+    hub: Hub<P, I, K, S>,
     zone: SystemZone,
     timers: Timers,
 }
 
-impl<P: Planner, I: IntentsTransport, K: Clock> std::fmt::Debug for HubHost<P, I, K> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> std::fmt::Debug
+    for HubHost<P, I, K, S>
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("HubHost").finish_non_exhaustive()
     }
 }
 
-impl<P: Planner, I: IntentsTransport, K: Clock> HubHost<P, I, K> {
+impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> HubHost<P, I, K, S> {
     /// The host over `hub`.
-    pub fn new(hub: Hub<P, I, K>, timers: Timers) -> Self {
+    pub fn new(hub: Hub<P, I, K, S>, timers: Timers) -> Self {
         Self {
             hub,
             zone: SystemZone::default(),
@@ -53,11 +56,12 @@ impl<P: Planner, I: IntentsTransport, K: Clock> HubHost<P, I, K> {
     }
 }
 
-impl<P, I, K> Host for HubHost<P, I, K>
+impl<P, I, K, S> Host for HubHost<P, I, K, S>
 where
     P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
+    S: Surface + Send + Sync + 'static,
 {
     fn zone(&self, at: UnixSeconds) -> Zone {
         self.zone.at(at)

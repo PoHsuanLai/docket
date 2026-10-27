@@ -1,7 +1,7 @@
 //! What the routines need of the hub: where a helper works, what its jobs came to, the sentences
 //! the person is told, and the records and events of the Spaces.
 
-use super::hub::Hub;
+use super::owner::Hub;
 use almanac_core::{RecentEntry, RecentQuery};
 use companion_core::job_end;
 use docket_client::Transport as IntentsTransport;
@@ -10,14 +10,15 @@ use docket_core::SessionOpen;
 use docket_core::helper::{HelperName, HelperRecord, JobId};
 use docket_core::routine::JobEnd;
 use docket_planner::Planner;
-use docket_tasks::{RecentSource, RouterRecent};
+use docket_tasks::{RecentSource, RouterRecent, Surface};
 use prov::{AgentRef, HelperId, SpaceId};
 
-impl<P, I, K> Hub<P, I, K>
+impl<P, I, K, S> Hub<P, I, K, S>
 where
     P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
+    S: Surface + Send + Sync + 'static,
 {
     /// The Space of a helper.
     pub(crate) fn helper_space(&self, helper: &HelperId) -> Option<SpaceId> {

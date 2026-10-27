@@ -6,7 +6,7 @@
 //! `companion_core::Terminals`'; every refusal is a typed `Refusal`, told in plain words at the
 //! edge.
 
-use super::hub::Hub;
+use super::owner::Hub;
 use crate::words::{refused, sentence};
 use companion_core::{Refusal, terminal_sessions, why_not_to_terminal};
 use companion_wire::{
@@ -20,13 +20,15 @@ use docket_core::helper::{
 };
 use docket_core::{SeenCommand, WatchedAgent};
 use docket_planner::Planner;
+use docket_tasks::Surface;
 use prov::{HelperId, SessionId};
 
-impl<P, I, K> Hub<P, I, K>
+impl<P, I, K, S> Hub<P, I, K, S>
 where
     P: Planner + 'static,
     I: IntentsTransport + 'static,
     K: Clock + 'static,
+    S: Surface + Send + Sync + 'static,
 {
     /// `line` as the person sees it: a conversation in the terminal says so.
     pub(super) fn line_shown(&self, mut line: HelperLine) -> HelperLine {

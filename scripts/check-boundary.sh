@@ -48,6 +48,7 @@ LAYERS=(
   "docket-skills-disk:C"
   "docket-planner:C"
   "docket-tasks:C"
+  "docket-helpers:C"
   "docket-native:C"
   "docket-memory:C"
   "docket-models:C"
@@ -334,6 +335,9 @@ RULES=(
   # a clock and a surface that are passed in; no bus, no runtime (the daemon's surface is the
   # one that holds tokio).
   "docket-tasks: $EFFECTS"
+  # The helpers' runner: the hub, the desks and the routines' scheduler over a `Spawn` seam. No bus; the
+  # runtime is only the `tokio` feature's `TokioSpawn`, which companiond switches on.
+  "docket-helpers: $EFFECTS"
   # The durable-session backend over the task model: the same portable rules, no bus or runtime.
   "docket-native: $EFFECTS"
   # The durable session is portable and pure: no bus, runtime, HTTP, Cedar or toml; the log is a seam.

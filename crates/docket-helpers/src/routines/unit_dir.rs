@@ -1,5 +1,5 @@
 //! The directory the systemd user timers are written into. Their text is
-//! `companion_core::units_of`'s; putting it on disk is companiond's.
+//! `companion_core::units_of`'s; putting it on disk is this crate's.
 
 use companion_core::{UNIT_PREFIX, UnitFile};
 use docket_store::{read_optional, write_atomic};

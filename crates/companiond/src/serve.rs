@@ -8,32 +8,25 @@
 use crate::Companiond;
 use crate::Shared;
 use crate::helpers_bus::{Helpers2Object, HelpersObject, TerminalsObject};
-use crate::routines::RoutineDesk;
 use crate::speaker::Speakers;
 use companion_core::{Call, Speaker};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
 use docket_core::{Clock, SessionOpen, StartedFrom, UserTurn};
 use docket_dbus::callers::Identity;
-use docket_dbus::{
-    BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
-};
+use docket_dbus::{BusConnection, COMPANION_BUS, COMPANION_PATH, Details, answer_path};
+use docket_helpers::RoutineDesk;
 use docket_planner::Planner;
 use docket_tasks::{Change, ServeFault};
 use futures_util::lock::Mutex;
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 use zbus::fdo;
 use zbus::fdo::{RequestNameFlags, RequestNameReply};
 use zbus::message::Header;
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath};
-
-/// How often time is told to the companion: side conversations end and the idle pass starts on
-/// this beat.
-const TICK: Duration = Duration::from_secs(5);
 
 fn failed(error: ServeFault) -> fdo::Error {
     match error {
@@ -367,40 +360,6 @@ async fn forward<P, I, K>(
     }
 }
 
-/// Claims `org.quire.Companion1` on `connection`, serves the root object and one answer object
-/// per task, listens for `Message.Arrived` and keeps time. The callers are told apart by `who`
-/// (the shell is the process it names as the shell's unit; a terminal's child is read from the
-/// system's `/proc`). Returns once the name is ours; the connection keeps serving until it closes.
-pub async fn serve_on<P, I, K>(
-    connection: &BusConnection,
-    companion: Arc<Mutex<Companiond<P, I, K>>>,
-    who: Arc<Identity>,
-) -> Result<(), ServeFault>
-where
-    P: Planner + 'static,
-    I: IntentsTransport + 'static,
-    K: Clock + 'static,
-{
-    let proc_root = PathBuf::from("/proc");
-    serve_on_rooted(connection, companion, who, proc_root).await
-}
-
-/// [`serve_on`] reading terminals' cgroups under `proc_root` instead of `/proc`: how a test
-/// presents its processes as a terminal. The daemon's own `serve_on` always reads `/proc`.
-pub async fn serve_on_rooted<P, I, K>(
-    connection: &BusConnection,
-    companion: Arc<Mutex<Companiond<P, I, K>>>,
-    who: Arc<Identity>,
-    proc_root: PathBuf,
-) -> Result<(), ServeFault>
-where
-    P: Planner + 'static,
-    I: IntentsTransport + 'static,
-    K: Clock + 'static,
-{
-    serve_with_routines(connection, companion, who, proc_root, None).await
-}
-
 /// [`serve_on_rooted`] with the routines the daemon keeps, which `Companion1.Helpers2` lists and
 /// changes. With none, its routine calls say routines are not kept here.
 pub async fn serve_with_routines<P, I, K>(
@@ -485,75 +444,14 @@ where
         companion.clone(),
         speakers,
     ));
-    tokio::spawn(arrivals(connection.clone(), companion.clone()));
+    tokio::spawn(crate::background::arrivals(
+        connection.clone(),
+        companion.clone(),
+    ));
     tokio::spawn(crate::run_signals::watch(
         connection.clone(),
         companion.clone(),
     ));
-    tokio::spawn(ticking(companion));
-    Ok(())
-}
-
-/// A message arrived for an agent: read the inbox of the agents the companion runs.
-async fn arrivals<P, I, K>(connection: BusConnection, companion: Arc<Mutex<Companiond<P, I, K>>>)
-where
-    P: Planner + 'static,
-    I: IntentsTransport + 'static,
-    K: Clock + 'static,
-{
-    use futures_util::StreamExt;
-    let Ok(proxy) = MessageProxy::builder(&connection)
-        .destination(INTENTS_BUS)
-        .and_then(|b| b.path(docket_dbus::INTENTS_PATH))
-    else {
-        return;
-    };
-    let Ok(proxy) = proxy.build().await else {
-        return;
-    };
-    let Ok(mut signals) = proxy.receive_arrived().await else {
-        return;
-    };
-    while signals.next().await.is_some() {
-        let _ = companion.lock().await.arrived().await;
-    }
-}
-
-async fn ticking<P, I, K>(companion: Arc<Mutex<Companiond<P, I, K>>>)
-where
-    P: Planner + 'static,
-    I: IntentsTransport + 'static,
-    K: Clock + 'static,
-{
-    let mut beat = tokio::time::interval(TICK);
-    loop {
-        beat.tick().await;
-        // A turn in flight holds the companion: time is told again on the next beat, never
-        // queued behind it.
-        if let Some(mut held) = companion.try_lock() {
-            let _ = held.tick().await;
-        }
-    }
-}
-
-/// Claims `org.quire.Companion1` on the session bus and serves it until the connection closes,
-/// telling callers apart by `companiond-callers.toml` (the system's under `/etc/quire`, the
-/// person's over it).
-pub async fn serve<P, I, K>(
-    companion: Arc<Mutex<Companiond<P, I, K>>>,
-    env: &impl Fn(&str) -> Option<String>,
-) -> Result<(), ServeFault>
-where
-    P: Planner + 'static,
-    I: IntentsTransport + 'static,
-    K: Clock + 'static,
-{
-    use futures_util::StreamExt;
-    let connection = BusConnection::session().await.map_err(bus)?;
-    let table = crate::callers::read(env).map_err(|e| ServeFault::Config(e.to_string()))?;
-    let who = Arc::new(Identity::on_system(connection.clone(), table));
-    serve_on(&connection, companion, who).await?;
-    let mut messages = zbus::MessageStream::from(&connection);
-    while messages.next().await.is_some() {}
+    tokio::spawn(crate::background::ticking(companion));
     Ok(())
 }

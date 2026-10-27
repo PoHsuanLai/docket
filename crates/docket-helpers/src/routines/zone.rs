@@ -1,5 +1,5 @@
-//! The local zone, read from the system (`date +%z`) at most once an hour. companiond is one of the
-//! few crates that may touch the system; everything below it is handed a [`Zone`]. Reading the
+//! The local zone, read from the system (`date +%z`) at most once an hour. This is the one place
+//! that touches the system for it; everything below is handed a [`Zone`]. Reading the
 //! text and how long a reading is trusted are `companion_core`'s.
 
 use companion_core::{ZoneReading, offset_of};

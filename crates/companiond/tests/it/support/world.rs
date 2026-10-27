@@ -2,13 +2,14 @@
 //! the launcher as another, a scripted planner model, and a clock the test moves by hand.
 
 use super::infer::{Say, ScriptedInfer};
-use companiond::{Companiond, Hub, PlannerModel};
+use companiond::{Bell, Companiond, PlannerModel};
 use docket_client::{InProcess, Intents};
 use docket_core::helper::HelperCard;
 use docket_core::*;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Identity, Role};
 use docket_fake::{FakeSeams, FixedClock, MailContact, MailThread, fake_router};
+use docket_helpers::{Hub, TokioSpawn};
 use docket_router::Router;
 use porter_core::{AppId, AppName, Isolation};
 use prov::{
@@ -326,7 +327,7 @@ pub fn as_shell(who: &Identity, connection: &BusConnection) {
     who.introduce_app(connection, "org.quire.Shell", Role::SheetHost);
 }
 
-pub type TestHub = companiond::Hub<PlannerModel<ScriptedInfer>, InProcess<FakeSeams>, FixedClock>;
+pub type TestHub = Hub<PlannerModel<ScriptedInfer>, InProcess<FakeSeams>, FixedClock, Bell>;
 
 /// The companion a helper's job runs on: the router in process, and the helper's own scripted
 /// model, asked with the options `open_options` gives it.
@@ -356,10 +357,15 @@ pub fn hub_with(w: &World, scripts: &[(&str, &ScriptedInfer)]) -> TestHub {
         .iter()
         .map(|(name, infer)| ((*name).to_owned(), (*infer).clone()))
         .collect();
-    Hub::new(w.restarted(), w.companion.shared.clone(), move |card| {
-        let infer = scripts.get(card.name.as_str()).cloned().unwrap_or_default();
-        companion_for(&router, infer, card)
-    })
+    Hub::new(
+        w.restarted(),
+        w.companion.shared.clone(),
+        Arc::new(TokioSpawn),
+        move |card| {
+            let infer = scripts.get(card.name.as_str()).cloned().unwrap_or_default();
+            companion_for(&router, infer, card)
+        },
+    )
 }
 
 pub fn hub_of(w: &World) -> TestHub {
