@@ -8,6 +8,7 @@ use super::{
 use crate::confirm;
 use crate::provider::{AcceptMail, QuietWindow};
 use crate::things::{AcceptThings, App};
+use crate::world::settings_toml;
 use docket_core::{ValidManifest, parse};
 use docket_dbus::callers::Identity;
 use docket_testbus::PrivateBus;

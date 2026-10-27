@@ -2,6 +2,7 @@
 //! run writes.
 
 use docket_live::acp::{Credentials, CredentialsSource, Redactor};
+use std::os::unix::fs::PermissionsExt;
 
 const SECRET: &str = "sk-ant-oat01-SECRET-TOKEN-0123456789";
 const REFRESH: &str = "sk-ant-ort01-REFRESH-TOKEN-abcdefghij";

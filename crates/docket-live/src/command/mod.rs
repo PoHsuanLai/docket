@@ -54,6 +54,12 @@ pub enum CommandFault {
     /// Nothing the command line names is a case.
     #[error("no case matches --corpus/--case")]
     NoCase,
+    /// `--flow` names no flow or planner case.
+    #[error("no flow or planner case named {0:?}")]
+    NoFlow(String),
+    /// `--flow` names no flow an agent can play.
+    #[error("no flow named {0:?} (a planner case has no agent counterpart)")]
+    NoAgentFlow(String),
     /// `--attack-summary` with no attack played.
     #[error("--attack-summary: this run played no attacks (--corpus attacks)")]
     NoAttackSummary,

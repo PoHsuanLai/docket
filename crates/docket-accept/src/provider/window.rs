@@ -1,6 +1,7 @@
 //! The context seam of the acceptance run's mail window.
 
 use super::Focus;
+use crate::provider::threads;
 use docket_core::{
     ContextScope, ContextSnapshot, EntityRef, Here, Selection, SummonAnswer, SummonOrigin,
     SummonSerial, TextTarget, Visible, WindowPrivacy,

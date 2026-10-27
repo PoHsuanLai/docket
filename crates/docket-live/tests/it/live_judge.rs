@@ -3,7 +3,6 @@
 
 use docket_accept::provider::{Message, Sending};
 use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange, Stage};
-use docket_live::cli::parse;
 use docket_live::flows::{Evidence, Failure, Flow, Kind, UndoCheck, judge};
 use docket_live::shape::{Shape, developer_word};
 use docket_live::stage::{Asker, asker};

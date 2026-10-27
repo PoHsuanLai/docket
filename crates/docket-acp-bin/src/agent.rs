@@ -50,8 +50,6 @@ use wire::{SandboxLimits, Tools, allowed};
 
 type Lines = Arc<Mutex<tokio::io::Lines<BufReader<Stdin>>>>;
 
-/// The seams of the live host: porter's accountd behind it.
-
 /// The program `name` in the directory of this one (it may not be built).
 fn sibling(name: &str) -> Option<AbsPath> {
     std::env::current_exe()

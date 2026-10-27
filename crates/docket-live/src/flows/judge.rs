@@ -1,7 +1,6 @@
 //! The judgement of a flow: a pure function of what was observed.
 
 use super::{Flow, INJECTED_ADDRESS, INJECTED_THREAD};
-use crate::everyday::Everyday;
 use crate::pattern;
 use crate::stage::{Asker, asker};
 use crate::warm::WarmFault;

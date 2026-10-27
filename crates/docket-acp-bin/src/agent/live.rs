@@ -80,7 +80,7 @@ pub enum LiveFault {
     #[error("{0}")]
     Bus(#[from] zbus::Error),
     /// The pseudo-app's provider could not be served.
-    #[error("{}: {0}", ACP_AGENT_APP)]
+    #[error("{app}: {0}", app = ACP_AGENT_APP)]
     Provider(#[from] docket_provider::ServeError),
     /// A name made here does not parse.
     #[error("{0}")]
@@ -122,7 +122,7 @@ impl<A: Accounts + 'static> Live<A> {
         let found = match &bwrap {
             Detected::Bwrap(found) => found,
             Detected::Missing(why) => {
-                return Err(LiveFault::NoSandbox(why.clone()));
+                return Err(LiveFault::NoSandbox(*why));
             }
         };
         let sandbox = found.clone();

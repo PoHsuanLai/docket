@@ -18,7 +18,7 @@ pub enum Cgroup<'a> {
 
 impl Cgroup<'_> {
     /// The one line of `/proc/<pid>/cgroup`.
-    pub(crate) fn line(self) -> String {
+    pub fn line(self) -> String {
         let slice = "0::/user.slice/user-1000.slice/user@1000.service/app.slice";
         match self {
             Cgroup::Unit(name) => format!("{slice}/{name}.service\n"),

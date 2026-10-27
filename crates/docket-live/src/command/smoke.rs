@@ -58,7 +58,7 @@ fn plays(args: &SmokeArgs) -> Result<Vec<Play>, CommandFault> {
         .map(|name| {
             all.clone()
                 .find(|p| &p.name() == name)
-                .ok_or_else(|| format!("no flow or planner case named {name:?}"))
+                .ok_or_else(|| CommandFault::NoFlow(name.clone()))
         })
         .collect()
 }
@@ -96,11 +96,7 @@ async fn smoke_agent(
     } else {
         args.flows
             .iter()
-            .map(|name| {
-                Flow::parse(name).ok_or_else(|| {
-                    format!("no flow named {name:?} (a planner case has no agent counterpart)")
-                })
-            })
+            .map(|name| Flow::parse(name).ok_or_else(|| CommandFault::NoAgentFlow(name.clone())))
             .collect::<Result<_, _>>()?
     };
     println!(
