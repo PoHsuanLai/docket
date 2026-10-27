@@ -14,7 +14,7 @@ the voice area spec; this file is the map of the code that freezes those interfa
 Reading order: section 1 (find the crate), section 3 (find the home), section 4 (find the
 trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 
-## 1. Crates and allowed edges
+## 1. Crates and layers
 
 | Crate | Purpose | I/O |
 | --- | --- | --- |
@@ -59,48 +59,24 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `voiced` | the microphone's owner: `VoicedConfig`, the `AudioDevice` seam and `choose_capture` (never a monitor), the `Voice1` interfaces and their introspection, `serve` (roles from the connection, one loop over the two `voice-loop` machines, inferd through porter-client), the PipeWire device | everything |
 | `docket-log` | the daemons' one log setup: `init(name)` starts a `tracing` subscriber that writes a line per event to standard error (the journal keeps it; with the journal's `<priority>` prefix when `JOURNAL_STREAM` is set). voiced, readerd and docket-checkpoint-git log refusals and faults through `tracing` events: kinds and typed reasons only, never a prompt, an utterance or a key. With its `otlp` feature (intentd and companiond forward it; off by default) `init` also records spans and sends them as OTLP/HTTP JSON to an `http://` collector named by `OTEL_EXPORTER_OTLP_ENDPOINT` (`docs/telemetry.md`); a span is exported as its declared fields only | `tracing` (`serde_json`, `thiserror` behind `otlp`) |
 
-Allowed direct edges (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it):
+Layers (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it). Every crate has one tier, named in the script's `LAYERS` table:
 
-| Crate | May depend on |
-| --- | --- |
-| `docket-core` | `prov`, `porter-core`, `porter-infer` (`ModelRef`), `almanac-core`, `cua-action`, `model-provider`, `bulkhead` (its `AbsPath`, `Cover`, `PathFault`, `RootState` only, re-exported) |
-| `docket-skills` | `docket-core`, `prov`, `porter-core`, `toml` |
-| `policy-point` | `docket-core`, `prov`, `porter-core` |
-| `action-review` | `docket-core`, `prov`, `porter-core`, `porter-infer`, `model-provider` |
-| `docket-router` | `docket-core`, `docket-checkpoint`, `docket-session`, `docket-skills`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
-| `companion-wire` | `docket-core`, `prov`, `porter-core`, `porter-infer`, `almanac-core` |
-| `companion-client` | `companion-wire`, `docket-core`, `docket-client`, `docket-dbus`, `prov` |
-| `agent-loop` | `docket-core`, `companion-wire`, `almanac-core`, `porter-core`, `prov` |
-| `docket-planner` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-core`, `porter-client` (no features), `porter-core`, `porter-infer`, `prov` |
-| `docket-tasks` | `agent-loop`, `almanac-core`, `companion-wire`, `docket-client` (no features), `docket-core`, `docket-planner`, `docket-session`, `docket-skills`, `porter-client` (no features), `porter-core`, `porter-infer`, `prov` |
-| `docket-session` | `companion-wire`, `docket-core`, `porter-core`, `prov` |
-| `docket-checkpoint` | `docket-core`, `porter-core`, `prov` (+ `sha2`) |
-| `docket-checkpoint-git` | `docket-checkpoint`, `docket-core`, `porter-core`, `prov` (+ `tokio`) |
-| `actions-tools` | `docket-core`, `porter-core`, `prov` |
-| `docket-acp` | `actions-tools` (feature `client`), `companion-wire`, `docket-client` (no default features, feature `client`), `docket-core`, `docket-session`, `docket-settings`, `bulkhead`, `porter-core`, `prov` (+ `agent-client-protocol-schema`) |
-| `docket-launch` | `docket-acp` (features `client`, `server`), `docket-agents`, `docket-core`, `docket-session`, `docket-settings`, `bulkhead`, `porter-core`, `prov`; `porter-client` (feature `dbus`) and `porter-dbus` behind its `dbus` feature |
-| `docket-agents` | `docket-core` (for the atomic file write) (`serde`, `serde_json`, `toml`, `thiserror`, `sha2`, `flate2`, `tar`, `zip`) |
-| `docket-acp-bin` | `companion-client`, `companion-wire`, `docket-acp` (feature `client`), `docket-agents`, `docket-client` (feature `dbus`), `docket-core`, `docket-dbus` (feature `inferd`), `docket-inapp`, `docket-launch` (feature `dbus`), `docket-planner`, `docket-router`, `docket-session`, `docket-settings`, `bulkhead`, `docket-tasks`, `porter-core`, `prov` |
-| `docket-models` | `action-review`, `docket-core`, `porter-client` (no features), `porter-core`, `porter-infer`, `prov` |
-| `docket-reader` | `docket-core`, `docket-models`, `porter-client` (no features), `porter-core`, `porter-infer`, `prov` |
-| `docket-memory` | `almanac-client` (no features), `almanac-core`, `docket-core`, `docket-router`, `docket-session`, `porter-core`, `prov` |
-| `docket-inapp` | `action-review`, `agent-loop`, `almanac-core`, `companion-wire`, `docket-client` (feature `in_process`), `docket-core`, `docket-memory`, `docket-models`, `docket-planner`, `docket-reader`, `docket-router`, `docket-session`, `docket-skills`, `docket-tasks`, `policy-point`, `porter-client` (no features), `porter-core`, `prov` |
-| `docket-dbus` | `docket-core`, `prov`, `porter-dbus`; `porter-client` with feature `inferd` |
-| `docket-client` | `docket-core`, `docket-router`, `prov`; `docket-dbus` with feature `dbus` |
-| `docket-fake` | `docket-core`, `docket-checkpoint`, `docket-router`, `docket-session`, `docket-client`, `policy-point`, `action-review`, `prov`, `porter-core`, `almanac-core` |
-| `docket-testbus` | `docket-dbus` |
-| `docket-accept` | `actions-mcp`, `almanac-client`, `almanac-core`, `companion-wire`, `companiond`, `docket-acp`, `docket-acp-bin`, `docket-agents`, `docket-cli`, `docket-client`, `docket-core`, `docket-dbus`, `docket-inapp`, `docket-launch`, `docket-router`, `docket-session`, `docket-settings`, `bulkhead`, `docket-testbus`, `intentd`, `porter-core`, `porter-infer`, `prov`, `readerd` |
-| `docket-eval` | `action-review`, `docket-core`, `docket-skills`, `docket-fake`, `docket-router`, `prov`, `porter-core` |
-| `docket-settings` | `docket-agents`, `docket-core`, `porter-core` (`toml_edit`, `thiserror`) |
-| `actions-mcp` | `actions-tools`, `docket-core`, `docket-client`, `docket-dbus`, `docket-settings`, `prov`, `porter-core` (+ `rmcp`) |
-| `intentd` | `docket-core`, `docket-checkpoint-git`, `docket-log`, `docket-memory`, `docket-session`, `docket-models`, `docket-skills`, `docket-settings`, `docket-router`, `docket-client`, `docket-dbus`, `policy-point`, `action-review`, `prov`, `porter-core`, `porter-infer`, `porter-client`, `almanac-core`, `almanac-client` |
-| `companiond` | `almanac-core` (event kinds and handles a routine watches for), `companion-wire`, `docket-core`, `docket-planner`, `docket-skills`, `docket-tasks`, `docket-settings`, `docket-client`, `docket-dbus`, `prov`, `porter-client`, `porter-core` |
-| `readerd` | `docket-core`, `docket-client`, `docket-dbus`, `docket-log`, `docket-reader`, `prov`, `porter-client`, `porter-core`, `porter-infer` |
-| `docket-cli` | `companion-client`, `companion-wire`, `docket-core`, `docket-session`, `docket-skills`, `docket-client` (feature `dbus`), `model-provider`, `prov`, `porter-core` |
-| `docket-ds` | `docket-core`, `docket-client`, `companion-wire`, `voice-wire`, `prov`, `porter-core`, `ds-intents` |
-| `voice-wire` | `docket-core`, `porter-core`, `porter-infer` |
-| `voice-loop` | `voice-wire`, `docket-core`, `porter-core`, `porter-infer` |
-| `voiced` | `voice-loop`, `voice-wire`, `docket-core`, `docket-dbus`, `docket-log`, `porter-core`, `porter-infer`, `porter-client`, `speech-provider`, `speech-vad` |
+| Tier | Crates | Rule |
+| --- | --- | --- |
+| P, pure | `docket-core`, `docket-skills`, `policy-point`, `action-review`, `docket-router`, `companion-wire`, `agent-loop`, `docket-session`, `docket-checkpoint`, `actions-tools`, `voice-wire`, `voice-loop` | No `std::fs`, `std::env`, `std::process`, `std::net`, `SystemTime::now`, `Instant::now`, `thread::sleep` or `tokio::` in `src/`; no dependency on tokio, zbus, rustix, nix, hyper, reqwest, quire, `ds-*` or any `*-dbus` crate; depends only on P crates |
+| C, client / IO | `docket-planner`, `docket-tasks`, `docket-memory`, `docket-models`, `docket-reader`, `docket-fake`, `docket-checkpoint-git`, `docket-acp`, `docket-launch`, `docket-agents`, `docket-settings`, `docket-dbus`, `docket-client`, `companion-client`, `voice-dbus`, `docket-log` | May do IO. No app or UI words in `src/`: the identifiers `Label` (other than prov's provenance `Label`), `Help`, `Sheet`, `SettingRow`, `ds_settings`; depends on P or C crates |
+| A, app / daemon / test binary | `intentd`, `companiond`, `readerd`, `voiced`, `actions-mcp`, `docket-cli`, `docket-acp-bin`, `docket-inapp`, `docket-ds`, `docket-eval`, `docket-testbus`, `docket-accept` | Wiring. No `env::var` outside `main.rs` and `src/bin/`; may depend on any tier |
+
+Dependencies point down: P to P, C to P or C, A to anything. The tier is the one the crate should
+have; a crate that breaks its tier today has a row in the script's `KNOWN` list, with the plan
+lane that removes the breach, and that list is the only allowance. It only shrinks: a lane deletes
+its rows, and a row that matches no breach fails the check. Also checked: a crate missing from
+`LAYERS` fails; a `pub use` of a whole external crate or module, and any `pub use ...::*`, fails;
+source files over 500 lines are reported (the script's `FAIL_ON_LONG` turns the report into a
+failure). `scripts/check-boundary.sh --self-test` seeds a violation into a temporary copy (`std::fs`
+in a P crate, a C crate depending on an A crate, two kinds of re-export, a crate missing from the
+table) and asserts that each one fails. The RULES in the same script still hold what each crate
+reaches through any path (cargo tree).
 
 The repo order is stoker, porter, almanac, docket, cua, sill. docket reaches stoker's pure
 crates (`cua-action`, `model-provider`, `speech-vad`), porter (`prov`, `porter-core`,
@@ -108,7 +84,7 @@ crates (`cua-action`, `model-provider`, `speech-vad`), porter (`prov`, `porter-c
 quire's view-only `ds-intents` (through `docket-ds` alone), all as pinned git revs in the root `Cargo.toml` (no
 `path = "../repo"` and no `[patch]`). Nothing of `cua` or `sill` may enter any tree here.
 
-`docket-cli` (`quire-do`) reaches the bus only through `docket-client`: no direct `docket-dbus` or `zbus`, and none of `docket-router`, `policy-point`, `action-review` or `cedar-policy` anywhere in its tree. A terminal has no way around intentd's gate.
+`docket-cli` (`quire-do`) reaches the bus only through `docket-client` (today it has no direct normal dependency on `docket-dbus` or `zbus`; the layer check no longer pins that), and none of `docket-router`, `policy-point`, `action-review` or `cedar-policy` anywhere in its tree. A terminal has no way around intentd's gate.
 
 External boundaries: see `scripts/check-boundary.sh` (the rules and their reasons are written
 there). `zbus` is behind `docket-dbus` and `docket-client`'s `dbus` feature only; the pure set
