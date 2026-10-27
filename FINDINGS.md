@@ -3952,4 +3952,4 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 
 - `docket_core::when` reads RFC 3339 with `chrono` (no `clock` feature) behind the same `NotRfc3339`; a bare date is still midnight UTC and `:60` still counts as the second after `:59`. The date part stays exactly `YYYY-MM-DD`. `when::utc_instant` and `when::utc_day` replace two more hand calendars: `docket_acp::rfc3339` (deleted) and the body of `eval_core::utc_date` (kept, now calls `when`).
 - `SystemZone` reads `chrono::Local` in process instead of running `date +%z`; the hour cache and `companion_core::{offset_of, ZoneReading}` are deleted. The zone is now the offset in force at the asked instant.
-- chrono is MIT/Apache-2.0, already in the lock. `chrono` accepts some offsets without a colon that the old reader refused. Not verified by a build in the lane that made the change.
+- chrono is MIT/Apache-2.0, already in the lock. `parse_from_rfc3339` needs the colon in the offset, as the old reader did (`+0200` is refused; a test holds it).

@@ -83,3 +83,9 @@ fn utc_texts_are_rfc3339() {
         assert_eq!(when::utc_day(UnixSeconds(at)).as_deref(), Some(day));
     }
 }
+
+#[test]
+fn an_offset_without_its_colon_is_refused() {
+    assert_eq!(when::instant("2026-10-03T09:30:00+0200"), Err(NotRfc3339));
+    assert_eq!(when::date("2026-10-03T09:30:00+0200"), Err(NotRfc3339));
+}

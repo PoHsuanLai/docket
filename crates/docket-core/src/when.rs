@@ -22,10 +22,10 @@ fn day(head: &str) -> Result<NaiveDate, NotRfc3339> {
         4 | 7 => b == b'-',
         _ => b.is_ascii_digit(),
     });
-    match shaped {
-        true => NaiveDate::parse_from_str(head, "%Y-%m-%d").map_err(|_| NotRfc3339),
-        false => Err(NotRfc3339),
+    if !shaped {
+        return Err(NotRfc3339);
     }
+    NaiveDate::parse_from_str(head, "%Y-%m-%d").map_err(|_| NotRfc3339)
 }
 
 /// The text read as a date alone or as a full instant (the separator may be `T`, `t` or a space,
