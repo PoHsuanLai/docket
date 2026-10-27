@@ -1219,6 +1219,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-fake",
+ "docket-provider",
  "docket-router",
  "docket-session",
  "docket-skills",
