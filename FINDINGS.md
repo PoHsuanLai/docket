@@ -3894,3 +3894,12 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - `ui.rs` already used a typed error (`UiFault`); the `Result<_, String>` the audit named was `install_fixture` in `world.rs`. It now returns the public `SetupFault`.
 - Tests: `tests/it/judge.rs` (judgement table, Wilson, report shape), `attack.rs` (format, scoring, summary naming, comparison) and `attack_live.rs` moved to `eval-core/tests/it`; the attack-live ones use a local `effect_of` instead of the registry. The sample attack file is repeated in `docket-eval`'s `attack.rs` test, which still loads files.
 - `check.rs`, `ui.rs` and `skills.rs` stay in `docket-eval`: they read files and parse manifests through `docket-router`. Not verified by a build in the lane that made the change.
+
+## Layering lane D0.19: voice dedupe against stoker (2026-10-28)
+
+- `voiced`'s own `Framer` is deleted. `frames::Frames` is a thin adapter over `speech_vad::Framer` (stoker takes `AudioChunk` bytes and returns a `Vec`; voiced has `i16` chunks and must forget frames not yet stepped when the utterance is wiped, so `Frames` keeps a queue and `clear` empties it). Odd-byte cuts and the sample index are stoker's. The tests for cutting and clearing moved with it.
+- One `Level`: `frames::wire_level(speech_vad::Level) -> voice_wire::Level` is the only conversion (a `From` is not possible, both types are foreign to voiced). The manual `Level(level_of(..).0)` in `hear.rs` is gone. `voice-wire::Level` is unchanged, so sill and detent need no change.
+- One rate: `voice_loop::CAPTURE_RATE` is now a `speech_provider::SampleRate` (voice-loop, P, depends on speech-provider, pure); `samples_in` and `BUFFER_SAMPLES` read `.0`. The frame size is `speech_provider::FRAME_SAMPLES`; `voiced`'s `FRAME` is deleted. Stoker keeps the 16 kHz rate private in `speech_vad::Framer`, so the constant is still written once here; `frames::tests::the_capture_rate_is_the_rate_the_framer_takes` fails if the two differ. Open: stoker could export that rate, and `CAPTURE_RATE` would then be a re-use instead of a copy.
+- Callers of `CaptureFormat { rate }` and `AudioRate` pass `CAPTURE_RATE.0`.
+- Still open in the voice area (D4.6 to D4.8): voice seams, voice-client, voice-audio.
+- Not verified by a build in the lane that made the change.

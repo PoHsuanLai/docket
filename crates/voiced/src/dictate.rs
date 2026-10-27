@@ -6,7 +6,7 @@
 use crate::device::{
     AudioDevice, CaptureFormat, CaptureStream, SNAPSHOT_BUDGET, choose_capture, snapshot_before,
 };
-use crate::frames::{Dictation, FRAME, Framer};
+use crate::frames::{Dictation, Frames};
 use crate::link::fault_of as link_fault;
 use crate::warm::stt_need;
 use porter_client::{InferSession, Transport};
@@ -16,6 +16,7 @@ use porter_infer::{
     AudioFrame, AudioRate, Base64Bytes, ClientFrame, InferEvent, InferReply, InferRequest,
     LangPick, ModelError, ServedBy, TranscribeBegin, TranscribeMode,
 };
+use speech_provider::FRAME_SAMPLES;
 use voice_loop::CAPTURE_RATE;
 use voice_wire::{HeardText, VoiceFault};
 
@@ -49,7 +50,12 @@ pub async fn dictate<D: AudioDevice, T: Transport>(
         .map(|chosen| chosen.node.clone())
         .ok_or(VoiceFault::MicUnavailable)?;
     let mut capture = device
-        .open_capture(&node, CaptureFormat { rate: CAPTURE_RATE })
+        .open_capture(
+            &node,
+            CaptureFormat {
+                rate: CAPTURE_RATE.0,
+            },
+        )
         .await
         .map_err(crate::utter::fault_of)?;
     let mut session = transport
@@ -59,7 +65,7 @@ pub async fn dictate<D: AudioDevice, T: Transport>(
     let begin = TranscribeBegin::new(
         TranscribeMode::Streaming,
         LangPick::Auto,
-        AudioRate(CAPTURE_RATE),
+        AudioRate(CAPTURE_RATE.0),
         Usage::Interactive,
     );
     session
@@ -79,15 +85,15 @@ async fn listen<C: CaptureStream, S: InferSession>(
     capture: &mut C,
     session: &mut S,
 ) -> Result<(), VoiceFault> {
-    let (mut dictation, mut framer, mut sent) = (Dictation::new(), Framer::default(), 0u64);
+    let (mut dictation, mut framer, mut sent) = (Dictation::new(), Frames::default(), 0u64);
     while let Some(samples) = capture.next().await {
-        framer.push(samples);
-        while let Some((frame, framed)) = framer.next_frame() {
+        framer.push(&samples);
+        while let Some(framed) = framer.next_frame() {
             let audio = AudioFrame {
                 at: sent,
-                pcm: Base64Bytes(pcm_bytes(&frame)),
+                pcm: Base64Bytes(pcm_bytes(framed.samples())),
             };
-            sent += FRAME as u64;
+            sent += FRAME_SAMPLES as u64;
             session
                 .send(ClientFrame::Audio(audio))
                 .await

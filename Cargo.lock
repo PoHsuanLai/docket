@@ -4655,6 +4655,7 @@ dependencies = [
  "porter-infer",
  "serde",
  "serde_json",
+ "speech-provider",
  "voice-wire",
 ]
 

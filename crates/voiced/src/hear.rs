@@ -4,16 +4,16 @@
 
 use crate::device::AudioDevice;
 use crate::engine::{Core, EndOfAudio, SttLink};
-use crate::frames::FRAME;
+use crate::frames::wire_level;
 use crate::link::LinkEvent;
 use crate::usage::UseSource;
 use crate::warm::Warm;
 use porter_client::Transport;
 use porter_infer::{HeardDelta, InferEvent, InferReply, ModelError};
-use speech_provider::Frame512;
+use speech_provider::{FRAME_SAMPLES, Frame512};
 use speech_vad::level_of;
 use voice_loop::{EngineGate, Transcript, UtteranceEvent, UtteranceState};
-use voice_wire::{HeardSegment, HeardTail, HeardText, Level, VoiceFault};
+use voice_wire::{HeardSegment, HeardTail, HeardText, VoiceFault};
 
 impl<D: AudioDevice + 'static, T: Transport + 'static, W: Warm, U: UseSource> Core<D, T, W, U>
 where
@@ -35,24 +35,24 @@ where
             return;
         };
         if let Some(utt) = self.utt.as_mut() {
-            utt.carry.push(samples);
+            utt.carry.push(&samples);
         }
         loop {
             let Some(utt) = self.utt.as_mut() else { return };
-            let Some((frame, framed)) = utt.carry.next_frame() else {
+            let Some(framed) = utt.carry.next_frame() else {
                 return;
             };
-            self.one_frame(frame, framed).await;
+            self.one_frame(framed).await;
         }
     }
 
-    async fn one_frame(&mut self, frame: Vec<i16>, framed: Frame512) {
-        let level = Level(level_of(&framed).0);
+    async fn one_frame(&mut self, framed: Frame512) {
+        let level = wire_level(level_of(&framed));
         let engine = self
             .utt
             .as_ref()
             .map_or(EngineGate::Cold, |u| u.engine.gate());
-        self.cur = frame;
+        self.cur = framed.samples().to_vec();
         self.utt_event(UtteranceEvent::Audio { level, engine })
             .await;
         let Some(utt) = self.utt.as_mut() else { return };
@@ -62,7 +62,7 @@ where
         };
         let tail_over = match (utt.state, utt.tail_left) {
             (UtteranceState::Tail, Some(left)) => {
-                let left = left.saturating_sub(FRAME);
+                let left = left.saturating_sub(FRAME_SAMPLES);
                 utt.tail_left = Some(left);
                 left == 0
             }

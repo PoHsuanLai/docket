@@ -403,7 +403,7 @@ fn a_second_begin_while_off_keeps_the_state_and_refuses() {
 
 #[test]
 fn milliseconds_become_samples_at_the_capture_rate() {
-    assert_eq!(samples_in(1000), CAPTURE_RATE as usize);
+    assert_eq!(samples_in(1000), CAPTURE_RATE.0 as usize);
     assert_eq!(samples_in(TAIL_MS), 4_000);
     assert_eq!(BUFFER_SAMPLES, samples_in(10_000));
 }

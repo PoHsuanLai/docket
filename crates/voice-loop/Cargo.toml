@@ -13,6 +13,7 @@ voice-wire = { workspace = true }
 porter-core = { workspace = true }
 docket-core = { workspace = true }
 porter-infer = { workspace = true }
+speech-provider = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]

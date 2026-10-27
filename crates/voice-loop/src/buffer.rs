@@ -1,18 +1,20 @@
 //! The audio the daemon holds while the engine warms: at most ten seconds of 16 kHz mono S16,
 //! oldest dropped first, zeroed when the utterance ends. Audio is never stored anywhere else.
 
+use speech_provider::SampleRate;
 use std::fmt;
 
-/// The capture and engine rate: 16 kHz mono S16.
-pub const CAPTURE_RATE: u32 = 16_000;
+/// The capture and engine rate: 16 kHz mono S16. It is the one rate `speech_vad::Framer` takes;
+/// stoker keeps that rate private, so `voiced` tests that the two agree.
+pub const CAPTURE_RATE: SampleRate = SampleRate(16_000);
 
 /// How many samples `ms` milliseconds hold at [`CAPTURE_RATE`].
 pub fn samples_in(ms: u32) -> usize {
-    usize::try_from(u64::from(ms) * u64::from(CAPTURE_RATE) / 1000).unwrap_or(usize::MAX)
+    usize::try_from(u64::from(ms) * u64::from(CAPTURE_RATE.0) / 1000).unwrap_or(usize::MAX)
 }
 
 /// Ten seconds at 16 kHz.
-pub const BUFFER_SAMPLES: usize = 10 * CAPTURE_RATE as usize;
+pub const BUFFER_SAMPLES: usize = 10 * CAPTURE_RATE.0 as usize;
 
 /// What a push did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

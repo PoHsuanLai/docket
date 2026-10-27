@@ -8,7 +8,7 @@ use crate::command::{Caller, Command};
 use crate::config::Earcons;
 use crate::device::{AudioDevice, AudioNode, CaptureStream};
 use crate::error::VoiceError;
-use crate::frames::Framer;
+use crate::frames::Frames;
 use crate::link::{Link, LinkEvent};
 use crate::peer::Peers;
 use crate::playback::{Played, Player};
@@ -68,7 +68,7 @@ pub(crate) struct Utt {
     pub committed: Vec<HeardSegment>,
     pub partial: Option<HeardTail>,
     pub ended: Option<UtteranceEnd>,
-    pub carry: Framer,
+    pub carry: Frames,
     pub pcm: PcmBuffer,
     pub tail_left: Option<usize>,
     pub sent: u64,

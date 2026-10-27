@@ -9,7 +9,7 @@ use crate::device::{
 };
 use crate::engine::{Core, EndOfAudio, SttLink, Utt};
 use crate::error::VoiceError;
-use crate::frames::Framer;
+use crate::frames::Frames;
 use crate::link;
 use crate::playback;
 use crate::sink::EventSink;
@@ -147,7 +147,7 @@ where
             committed: Vec::new(),
             partial: None,
             ended: None,
-            carry: Framer::default(),
+            carry: Frames::default(),
             pcm: PcmBuffer::new(),
             tail_left: None,
             sent: 0,
@@ -349,7 +349,12 @@ where
         };
         match self
             .device
-            .open_capture(&node, CaptureFormat { rate: CAPTURE_RATE })
+            .open_capture(
+                &node,
+                CaptureFormat {
+                    rate: CAPTURE_RATE.0,
+                },
+            )
             .await
         {
             Ok(stream) => {
@@ -364,7 +369,7 @@ where
         let first = ClientFrame::Request(InferRequest::Transcribe(TranscribeBegin::new(
             TranscribeMode::Streaming,
             LangPick::Auto,
-            AudioRate(CAPTURE_RATE),
+            AudioRate(CAPTURE_RATE.0),
             Usage::Interactive,
         )));
         self.stt = Some(link::spawn(
