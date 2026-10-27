@@ -22,7 +22,6 @@ use agent_client_protocol::{SentRequest, UntypedMessage};
 use docket_core::AbsPath;
 use docket_core::helper::{SignInHow, SignInWay, TerminalLogin};
 use docket_session::{BackendFault, Choice, Choices, Taint};
-use docket_store::within;
 use std::path::PathBuf;
 
 /// What we offer the agent: file reads and writes through us, a terminal when `terminal` says the
@@ -124,7 +123,7 @@ impl<X: Seams> AcpBackend<X> {
             true => self.waits.person,
             false => self.waits.handshake,
         };
-        match within(tokio::time::sleep(span), self.handshake(&cwd)).await {
+        match tokio::time::timeout(span, self.handshake(&cwd)).await {
             Ok(done) => done,
             Err(_) => {
                 self.dead = true;

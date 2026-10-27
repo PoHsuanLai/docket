@@ -9,7 +9,7 @@ use crate::child::Registry;
 use crate::config::AgentsFile;
 use crate::login::LoginRunner;
 use crate::procs::Proc;
-use docket_store::{Waits, within};
+use docket_store::Waits;
 use porter_core::{LoginFault, LoginOutcome};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
@@ -56,7 +56,7 @@ impl<A: Accounts, L: LoginRunner> Job<A, L> {
             Some(entry) => {
                 // Boxed: a deeper future here once exhausted the stack.
                 let work = Box::pin(self.login.run(entry, ask.kind));
-                within(tokio::time::sleep(self.span), work)
+                tokio::time::timeout(self.span, work)
                     .await
                     // The command is dropped (and with it killed) when the span runs out.
                     .unwrap_or(LoginOutcome::Failed(LoginFault::TimedOut))
