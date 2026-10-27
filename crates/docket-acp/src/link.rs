@@ -26,14 +26,18 @@ use std::pin::pin;
 #[error("the editor closed the connection")]
 pub(crate) struct Gone;
 
-/// What the editor sent that the server serves.
+/// What the editor sent that the server serves. The requests are boxed: `initialize` alone is
+/// over a kilobyte, and every select over the channel would carry that size.
 pub(crate) enum Inbound {
-    Initialize(InitializeRequest, Responder<InitializeResponse>),
-    New(NewSessionRequest, Responder<NewSessionResponse>),
-    Load(LoadSessionRequest, Responder<LoadSessionResponse>),
-    List(ListSessionsRequest, Responder<ListSessionsResponse>),
-    Prompt(PromptRequest, Responder<PromptResponse>),
-    SetMode(SetSessionModeRequest, Responder<SetSessionModeResponse>),
+    Initialize(Box<InitializeRequest>, Responder<InitializeResponse>),
+    New(Box<NewSessionRequest>, Responder<NewSessionResponse>),
+    Load(Box<LoadSessionRequest>, Responder<LoadSessionResponse>),
+    List(Box<ListSessionsRequest>, Responder<ListSessionsResponse>),
+    Prompt(Box<PromptRequest>, Responder<PromptResponse>),
+    SetMode(
+        Box<SetSessionModeRequest>,
+        Responder<SetSessionModeResponse>,
+    ),
     Cancel(CancelNotification),
 }
 
@@ -92,7 +96,7 @@ impl Link {
         match heard {
             Some(inbound) => inbound,
             // What the SDK dispatched before the close is already queued.
-            None => self.rx.try_next().ok().flatten(),
+            None => self.rx.try_recv().ok(),
         }
     }
 

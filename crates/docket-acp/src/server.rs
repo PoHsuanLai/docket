@@ -73,7 +73,7 @@ macro_rules! forward {
         let tx = $tx.clone();
         $builder.on_receive_request(
             async move |asked: $request, responder, _cx| {
-                tx.unbounded_send(Inbound::$variant(asked, responder))
+                tx.unbounded_send(Inbound::$variant(Box::new(asked), responder))
                     .map_err(|_| Error::internal_error())
             },
             on_receive_request!(),
@@ -192,22 +192,24 @@ impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {
         match (self.readiness, inbound) {
             // Nothing to cancel between prompts.
             (_, Inbound::Cancel(_)) => Ok(()),
-            (_, Inbound::Initialize(asked, responder)) => answer(responder, self.initialize(asked)),
+            (_, Inbound::Initialize(asked, responder)) => {
+                answer(responder, self.initialize(*asked))
+            }
             (Readiness::Fresh, other) => other.refuse(fault::not_now("initialize first")),
             (Readiness::Ready, Inbound::New(asked, responder)) => {
-                answer(responder, self.new_session(asked).await)
+                answer(responder, self.new_session(*asked).await)
             }
             (Readiness::Ready, Inbound::Load(asked, responder)) => {
-                answer(responder, self.load_session(link, asked).await)
+                answer(responder, self.load_session(link, *asked).await)
             }
             (Readiness::Ready, Inbound::List(asked, responder)) => {
-                answer(responder, self.list_sessions(asked).await)
+                answer(responder, self.list_sessions(*asked).await)
             }
             (Readiness::Ready, Inbound::SetMode(asked, responder)) => {
-                answer(responder, self.set_mode(asked))
+                answer(responder, self.set_mode(*asked))
             }
             (Readiness::Ready, Inbound::Prompt(asked, responder)) => {
-                self.prompt(link, asked, responder).await
+                self.prompt(link, *asked, responder).await
             }
         }
     }
