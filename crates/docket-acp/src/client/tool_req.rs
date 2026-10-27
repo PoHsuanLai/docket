@@ -8,7 +8,7 @@
 use super::call::{Command, PermissionAsk};
 use super::confine::{Care, confine, named};
 use super::names;
-use agent_client_protocol_schema::v1::{ToolCallUpdate, ToolKind};
+use agent_client_protocol::schema::v1::{ToolCallUpdate, ToolKind};
 use docket_core::AbsPath;
 use serde_json::Value;
 

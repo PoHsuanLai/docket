@@ -14,13 +14,15 @@
 //!   for the helper: its "always" is a grant for that helper alone.
 //! - `ConversationTurns`: the seam through which the person's words in a helper's conversation reach
 //!   the daemon that keeps the helper, which runs the turn; the editor carries words in and out.
-//! - `client` (feature `client`): the other direction (S4), an external agent as a session backend.
+//! - `client` (feature `client`): the other direction (S4), an external agent as a session backend,
+//!   over the SDK's client role.
 //! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`bulkhead`),
 //!   ruled by the `Execute` rules. They run in our sandbox, never in an editor's terminal.
 //!
-//! The protocol's wire types and the JSON-RPC connection are the official `agent-client-protocol`
-//! SDK's (Apache-2.0); only the capped line source under it is ours. `rawInput` and `rawOutput` are never sent; `allow_always` is offered only on a router
-//! sheet that offered it.
+//! The protocol's wire types and the JSON-RPC connection, both directions, are the official
+//! `agent-client-protocol` SDK's (Apache-2.0); only the capped line source under it is ours.
+//! `rawInput` and `rawOutput` are never sent; `allow_always` is offered only on a router sheet that
+//! offered it.
 
 #[cfg(feature = "client")]
 pub mod bulk;
@@ -44,11 +46,10 @@ mod scope_words;
 mod server;
 mod sessions;
 mod sheet;
-#[cfg(feature = "server")]
+#[cfg(any(feature = "server", feature = "client"))]
 mod stdio;
 mod terminals;
 mod turn;
-mod wire;
 
 pub use calls::{Outcome, outcome};
 pub use command_deadline::CommandDeadline;
@@ -64,8 +65,7 @@ pub use permission::{
 };
 pub use scope_words::always_words;
 pub use server::Server;
-#[cfg(feature = "server")]
-pub use stdio::{LINE_MAX, LineFault, LineWire, capped_lines, read_capped};
+#[cfg(any(feature = "server", feature = "client"))]
+pub use stdio::{LINE_MAX, LineFault, capped_lines, read_capped};
 pub use terminals::Terminals;
 pub use turn::{Finish, Order, Turn, Wants};
-pub use wire::{Incoming, NotJsonRpc, Wire, WireClosed};

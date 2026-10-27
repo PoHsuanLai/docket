@@ -4,7 +4,7 @@
 //! call returned may hold handles and private Space data the editor was not granted, so only the
 //! app's own words (`said`, or why it refused) go out.
 
-use agent_client_protocol_schema::v1::{
+use agent_client_protocol::schema::v1::{
     Content, ContentBlock, ContentChunk, SessionUpdate, ToolCall, ToolCallContent, ToolCallId,
     ToolCallStatus, ToolCallUpdate, ToolCallUpdateFields, ToolKind,
 };

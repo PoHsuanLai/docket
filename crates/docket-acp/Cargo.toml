@@ -1,6 +1,6 @@
 [package]
 name = "docket-acp"
-description = "The ACP server edge: an editor (Zed, JetBrains, Neovim) drives the companion over the Agent Client Protocol on stdio. The JSON-RPC connection is the official agent-client-protocol SDK's; this lib is the server over the SessionHost and SessionLog seams. The `server` feature adds the capped line source for stdio; the process is docket-acp-bin, which refuses to serve unless `agent.acp.expose` is on. The editor's permission prompt is an extra gate, never a replacement for ours."
+description = "The ACP server edge: an editor (Zed, JetBrains, Neovim) drives the companion over the Agent Client Protocol on stdio. The JSON-RPC connection, in both directions, is the official agent-client-protocol SDK's; this lib is the server over the SessionHost and SessionLog seams, and (feature `client`) an external agent as a session backend. The `server` feature adds the capped line source for stdio; the process is docket-acp-bin, which refuses to serve unless `agent.acp.expose` is on. The editor's permission prompt is an extra gate, never a replacement for ours."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,10 +10,12 @@ publish.workspace = true
 
 [features]
 default = ["server"]
-# `capped_lines` and `LineWire` over tokio streams; the process that serves it is `docket-acp-bin`.
+# `capped_lines` over tokio streams (the `client` feature has it too); the process that serves it is
+# `docket-acp-bin`.
 server = ["dep:tokio"]
-# An external agent as a session backend (S4): `client::AcpBackend` over a `Spawn` seam. Off by
-# default; the process that starts agents is `docket-launch`, and `agent.acp.agents` gates it.
+# An external agent as a session backend (S4): `client::AcpBackend` over a `Spawn` seam, on the SDK's
+# client role. Off by default; the process that starts agents is `docket-launch`, and
+# `agent.acp.agents` gates it.
 client = ["dep:tokio", "dep:docket-client", "dep:actions-tools"]
 
 [lib]
@@ -23,7 +25,6 @@ path = "src/lib.rs"
 [dependencies]
 actions-tools = { workspace = true, optional = true }
 agent-client-protocol = { workspace = true }
-agent-client-protocol-schema = { workspace = true }
 companion-wire = { workspace = true }
 docket-client = { workspace = true, optional = true }
 docket-core = { workspace = true }

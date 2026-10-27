@@ -289,7 +289,7 @@ impl FakeProcs {
 }
 
 impl Procs for FakeProcs {
-    type Wire = ChannelWire;
+    type Transport = ChannelWire;
     type Proc = FakeProc;
 
     async fn start(&mut self, run: &AgentRun) -> Result<(ChannelWire, FakeProc), ProcFault> {

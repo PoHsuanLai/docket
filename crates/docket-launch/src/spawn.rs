@@ -15,154 +15,22 @@
 //! way on the runtime.
 
 use crate::accounts::{Accounts, KeyHandoff, OpenedEndpoint, RouteWish};
+use crate::child::{Child, Registry, Release};
 use crate::config::{AgentsFile, EndpointKind, Entry, Profile, Route};
-use crate::confine::Confinement;
 use crate::egress;
 use crate::env::{Lent, child_env};
 use crate::names::launcher_session;
 use crate::permit::AgentsPermit;
 use crate::procs::{Proc, Procs};
 use crate::protect;
-use bulkhead::egress::{Proxy, Resolver, SystemResolver};
+use bulkhead::egress::{Resolver, SystemResolver};
 use bulkhead::forward::{Bridge, Loopback};
 use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
-use docket_acp::client::{
-    AgentChild, EdgeBind, LaunchPlan, SandboxStep, Spawn, SpawnFault, Spawned,
-};
+use docket_acp::client::{EdgeBind, LaunchPlan, SandboxStep, Spawn, SpawnFault, Spawned};
 use docket_core::AbsPath;
-use porter_core::{LauncherSession, ProcessCredentialId};
-use std::collections::BTreeMap;
+use porter_core::LauncherSession;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, MutexGuard};
-
-fn locked<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|e| e.into_inner())
-}
-
-/// The live processes that hold a credential, by credential: what a revocation looks up.
-#[derive(Debug)]
-pub struct Registry<P> {
-    map: Arc<Mutex<BTreeMap<ProcessCredentialId, Arc<Mutex<P>>>>>,
-}
-
-impl<P> Clone for Registry<P> {
-    fn clone(&self) -> Self {
-        Self {
-            map: Arc::clone(&self.map),
-        }
-    }
-}
-
-impl<P: Proc> Default for Registry<P> {
-    fn default() -> Self {
-        Self {
-            map: Arc::new(Mutex::new(BTreeMap::new())),
-        }
-    }
-}
-
-impl<P: Proc> Registry<P> {
-    fn add(&self, id: ProcessCredentialId, proc: Arc<Mutex<P>>) {
-        locked(&self.map).insert(id, proc);
-    }
-
-    fn remove(&self, id: &ProcessCredentialId) {
-        locked(&self.map).remove(id);
-    }
-
-    /// Ends the process that holds `id`. True if there was one.
-    pub fn kill(&self, id: &ProcessCredentialId) -> bool {
-        let proc = locked(&self.map).get(id).cloned();
-        proc.map(|p| locked(&p).kill()).is_some()
-    }
-
-    /// How many processes hold a credential.
-    pub fn len(&self) -> usize {
-        locked(&self.map).len()
-    }
-
-    /// Whether none do.
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-}
-
-/// What was lent for one session, to give back.
-struct Release<A, P> {
-    accounts: Arc<A>,
-    registry: Registry<P>,
-    session: LauncherSession,
-    endpoint: Option<String>,
-    credential: Option<ProcessCredentialId>,
-    bridge: Option<Bridge>,
-    proxy: Option<Proxy>,
-    dir: Option<PathBuf>,
-}
-
-impl<A: Accounts, P: Proc> Release<A, P> {
-    /// In the reverse of the order it was lent; each step is tried whatever the last did.
-    async fn run(mut self) {
-        if let Some(id) = self.credential.take() {
-            self.registry.remove(&id);
-            let _ = self.accounts.revoke(&id).await;
-        }
-        if let Some(endpoint) = self.endpoint.take() {
-            let _ = self.accounts.close_endpoint(&endpoint).await;
-        }
-        let _ = self.accounts.end_session(&self.session).await;
-        drop(self.bridge.take());
-        drop(self.proxy.take());
-        if let Some(dir) = self.dir.take() {
-            let _ = std::fs::remove_dir_all(dir);
-        }
-    }
-}
-
-/// The running agent as the backend holds it.
-pub struct Child<A: Accounts + 'static, P: Proc + 'static> {
-    proc: Arc<Mutex<P>>,
-    release: Option<Release<A, P>>,
-    net: NetworkMode,
-    sites: Vec<String>,
-}
-
-impl<A: Accounts + 'static, P: Proc + 'static> Child<A, P> {
-    /// How far this agent is held, as a person reads it: what the kernel limits (known once the
-    /// exec stage has reported, so ask after the session opens) and which network it has.
-    pub fn confinement(&self) -> Confinement {
-        Confinement::new(locked(&self.proc).landlock(), self.net, self.sites.clone())
-    }
-}
-
-impl<A: Accounts + 'static, P: Proc + 'static> std::fmt::Debug for Child<A, P> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Child").finish_non_exhaustive()
-    }
-}
-
-impl<A: Accounts + 'static, P: Proc + 'static> AgentChild for Child<A, P> {
-    fn kill(&mut self) {
-        locked(&self.proc).kill();
-    }
-
-    async fn close(&mut self) {
-        self.kill();
-        if let Some(release) = self.release.take() {
-            release.run().await;
-        }
-    }
-}
-
-impl<A: Accounts + 'static, P: Proc + 'static> Drop for Child<A, P> {
-    fn drop(&mut self) {
-        self.kill();
-        if let (Some(release), Ok(runtime)) =
-            (self.release.take(), tokio::runtime::Handle::try_current())
-        {
-            runtime.spawn(release.run());
-        }
-    }
-}
+use std::sync::{Arc, Mutex};
 
 /// Starts the programs listed in `agents.toml`.
 pub struct AgentSpawn<A: Accounts + 'static, P: Procs> {
@@ -284,13 +152,13 @@ fn session_dir<A: Accounts, P: Proc>(
 }
 
 impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
-    type Wire = P::Wire;
+    type Transport = P::Transport;
     type Child = Child<A, P::Proc>;
 
     async fn spawn(
         &mut self,
         plan: &LaunchPlan,
-    ) -> Result<Spawned<P::Wire, Child<A, P::Proc>>, SpawnFault> {
+    ) -> Result<Spawned<P::Transport, Child<A, P::Proc>>, SpawnFault> {
         let file = Arc::clone(&self.file);
         let entry = file.get(&plan.program).ok_or(SpawnFault::NotAllowed)?;
         let session = launcher_session(&plan.session).ok_or(SpawnFault::Accounts)?;
@@ -309,8 +177,8 @@ impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
             dir: None,
         };
         match self.launch(entry, plan, &session, &mut release).await {
-            Ok((wire, proc)) => Ok(Spawned {
-                wire,
+            Ok((transport, proc)) => Ok(Spawned {
+                transport,
                 child: Child {
                     proc,
                     release: Some(release),
@@ -485,7 +353,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         plan: &LaunchPlan,
         session: &LauncherSession,
         release: &mut Release<A, P::Proc>,
-    ) -> Result<(P::Wire, Arc<Mutex<P::Proc>>), SpawnFault> {
+    ) -> Result<(P::Transport, Arc<Mutex<P::Proc>>), SpawnFault> {
         let got = Self::lend(&self.accounts, entry, session, release).await?;
         let net = self.network(entry, &got, session, release)?;
         let lent = match &got {
@@ -513,7 +381,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             Some(enter) => run.with_landlock(enter.clone()),
             None => run,
         };
-        let (wire, proc) = self
+        let (transport, proc) = self
             .procs
             .start(&run)
             .await
@@ -522,6 +390,6 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         if let Some(id) = &release.credential {
             self.registry.add(id.clone(), Arc::clone(&proc));
         }
-        Ok((wire, proc))
+        Ok((transport, proc))
     }
 }

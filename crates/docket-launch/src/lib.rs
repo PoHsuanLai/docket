@@ -16,6 +16,7 @@
 //! coarse outcome.
 
 pub mod accounts;
+mod child;
 pub mod config;
 mod confine;
 #[cfg(feature = "dbus")]
@@ -39,6 +40,7 @@ mod terminal;
 pub use accounts::{
     AccountFault, Accounts, AskKind, Heard, Issued, KeyHandoff, LoginAsk, OpenedEndpoint, RouteWish,
 };
+pub use child::{Child, Registry};
 pub use config::{
     AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Profile, Route, SESSION_MARK,
     ToolsMode,
@@ -49,6 +51,6 @@ pub use names::launcher_session;
 pub use permit::{AgentsPermit, Refusal};
 pub use procs::{BwrapProcs, ChildProc, CommandLine, Proc, ProcFault, Procs, StdioWire};
 pub use reach::Reach;
-pub use spawn::{AgentSpawn, Child, Registry};
+pub use spawn::AgentSpawn;
 pub use supervise::Supervisor;
 pub use terminal::login_run;

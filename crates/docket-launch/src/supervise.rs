@@ -5,10 +5,10 @@
 //! is handled the moment it is heard, never behind one.
 
 use crate::accounts::{Accounts, Heard, LoginAsk};
+use crate::child::Registry;
 use crate::config::AgentsFile;
 use crate::login::LoginRunner;
 use crate::procs::Proc;
-use crate::spawn::Registry;
 use docket_store::{Waits, within};
 use porter_core::{LoginFault, LoginOutcome};
 use std::sync::{Arc, Mutex, MutexGuard};

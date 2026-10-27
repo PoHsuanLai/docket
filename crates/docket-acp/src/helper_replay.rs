@@ -2,7 +2,7 @@
 //! became of it, in plain words. Pure: jobs in, protocol values out.
 
 use crate::calls;
-use agent_client_protocol_schema::v1::SessionUpdate;
+use agent_client_protocol::schema::v1::SessionUpdate;
 use companion_wire::{JobLine, JobShown};
 use docket_core::helper::HelperName;
 

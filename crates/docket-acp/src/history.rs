@@ -3,7 +3,7 @@
 //! words and our step lines are replayed; handles stay handles and nothing is re-read.
 
 use crate::calls;
-use agent_client_protocol_schema::v1::{SessionInfo, SessionUpdate};
+use agent_client_protocol::schema::v1::{SessionInfo, SessionUpdate};
 use docket_session::{Logged, Read, ResumePlan, SessionEntry};
 use prov::{SessionId, UnixSeconds};
 

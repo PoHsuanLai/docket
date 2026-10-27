@@ -2,8 +2,8 @@
 //! around it. Scripted: no network, no process, no clock.
 #![allow(dead_code)]
 
+use agent_client_protocol::schema::v1::RequestId;
 use agent_client_protocol::{Agent, DynConnectTo};
-use agent_client_protocol_schema::rpc::RequestId;
 use docket_acp::{Helpers, NoHelpers, Permit, Server, capped_lines};
 use docket_core::{
     ActionRef, CallId, CallRefusal, DenyCode, LabelText, StepEnd, StepLine, StepShown,

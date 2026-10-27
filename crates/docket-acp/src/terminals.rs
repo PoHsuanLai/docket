@@ -14,18 +14,16 @@ use crate::bulk;
 use crate::client::Workdir;
 use crate::command_deadline::CommandDeadline;
 use crate::fault;
-use agent_client_protocol_schema::v1::{
-    CLIENT_METHOD_NAMES, ClientCapabilities, CreateTerminalRequest, CreateTerminalResponse, Error,
-    KillTerminalRequest, KillTerminalResponse, ReleaseTerminalRequest, ReleaseTerminalResponse,
-    TerminalExitStatus, TerminalId, TerminalOutputRequest, TerminalOutputResponse,
-    WaitForTerminalExitRequest, WaitForTerminalExitResponse,
+use agent_client_protocol::schema::v1::{
+    ClientCapabilities, CreateTerminalRequest, CreateTerminalResponse, Error, KillTerminalRequest,
+    KillTerminalResponse, ReleaseTerminalRequest, ReleaseTerminalResponse, TerminalExitStatus,
+    TerminalId, TerminalOutputRequest, TerminalOutputResponse, WaitForTerminalExitRequest,
+    WaitForTerminalExitResponse,
 };
 use bulkhead::{
     Argv, Cut, ExitReport, Launch, Network, Sandbox, Shell, ShellFault, StartFault, TermId,
 };
 use docket_core::{AbsPath, Cover, NetAccess, SandboxState};
-use serde::Serialize;
-use serde_json::Value;
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
@@ -42,10 +40,6 @@ pub struct Terminals<S: Sandbox> {
 
 /// How often a wait for a command with a deadline looks at the clock.
 const WAIT_STEP: Duration = Duration::from_millis(25);
-
-fn out(value: &impl Serialize) -> Result<Value, Error> {
-    serde_json::to_value(value).map_err(|_| fault::internal("could not answer"))
-}
 
 fn exit_status(report: ExitReport) -> TerminalExitStatus {
     match report {
@@ -142,21 +136,6 @@ impl<S: Sandbox> Terminals<S> {
         bulk::state(self.shell.check(cwd))
     }
 
-    /// Answers one `terminal/*` request other than `create` (which needs the session's scope and
-    /// the router's yes: `create`); `None` for any other method.
-    pub fn handle(&mut self, method: &str, params: Value) -> Option<Result<Value, Error>> {
-        self.reap();
-        let names = CLIENT_METHOD_NAMES;
-        let answer = match method {
-            m if m == names.terminal_output => self.output(params),
-            m if m == names.terminal_wait_for_exit => self.wait(params),
-            m if m == names.terminal_kill => self.kill(params),
-            m if m == names.terminal_release => self.release(params),
-            _ => return None,
-        };
-        Some(answer)
-    }
-
     fn term(&self, session: &str, id: &TerminalId) -> Result<TermId, Error> {
         let n =
             id.0.strip_prefix("term-")
@@ -174,8 +153,11 @@ impl<S: Sandbox> Terminals<S> {
     /// The router has ruled on it; this only refuses what cannot be confined or runs outside the
     /// session. The host that has a file system confines the directory first and calls
     /// [`Terminals::create_in`].
-    pub fn create(&mut self, scope: &AbsPath, params: Value) -> Result<Value, Error> {
-        let asked: CreateTerminalRequest = fault::params(params)?;
+    pub fn create(
+        &mut self,
+        scope: &AbsPath,
+        asked: &CreateTerminalRequest,
+    ) -> Result<CreateTerminalResponse, Error> {
         let cwd = match &asked.cwd {
             Some(path) => AbsPath::parse(&path.to_string_lossy())
                 .map_err(|_| fault::invalid("the working directory must be absolute"))?,
@@ -186,18 +168,25 @@ impl<S: Sandbox> Terminals<S> {
                 "the working directory is outside the session",
             ));
         }
-        self.start(&asked, &cwd)
+        self.start(asked, &cwd)
     }
 
     /// Starts the command a `terminal/create` asked for in `workdir`, a directory already
     /// confined (links resolved, inside the session, not home): the request's own `cwd` is not
     /// used, and the sandbox is given the real path.
-    pub fn create_in(&mut self, workdir: &Workdir, params: Value) -> Result<Value, Error> {
-        let asked: CreateTerminalRequest = fault::params(params)?;
-        self.start(&asked, workdir.real())
+    pub fn create_in(
+        &mut self,
+        workdir: &Workdir,
+        asked: &CreateTerminalRequest,
+    ) -> Result<CreateTerminalResponse, Error> {
+        self.start(asked, workdir.real())
     }
 
-    fn start(&mut self, asked: &CreateTerminalRequest, cwd: &AbsPath) -> Result<Value, Error> {
+    fn start(
+        &mut self,
+        asked: &CreateTerminalRequest,
+        cwd: &AbsPath,
+    ) -> Result<CreateTerminalResponse, Error> {
         self.reap();
         let argv = Argv::new(&asked.command, &asked.args)
             .ok_or_else(|| fault::invalid("the command is empty or holds a NUL"))?;
@@ -221,53 +210,68 @@ impl<S: Sandbox> Terminals<S> {
         let id = self.shell.create(&launch).map_err(|f| shell_error(&f))?;
         self.owners.insert(id, asked.session_id.0.to_string());
         self.due.insert(id, Instant::now() + self.deadline.limit());
-        out(&CreateTerminalResponse::new(TerminalId::new(format!(
+        Ok(CreateTerminalResponse::new(TerminalId::new(format!(
             "term-{}",
             id.0
         ))))
     }
 
-    fn output(&mut self, params: Value) -> Result<Value, Error> {
-        let asked: TerminalOutputRequest = fault::params(params)?;
+    /// `terminal/output`: what the command has written so far, and how it ended if it has.
+    pub fn output(
+        &mut self,
+        asked: &TerminalOutputRequest,
+    ) -> Result<TerminalOutputResponse, Error> {
+        self.reap();
         let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
         let snap = self.shell.output(id).map_err(|f| shell_error(&f))?;
         let cut = snap.shown.cut == Cut::Head;
-        out(&TerminalOutputResponse::new(snap.shown.text, cut)
+        Ok(TerminalOutputResponse::new(snap.shown.text, cut)
             .exit_status(snap.exit.map(exit_status)))
     }
 
-    fn wait(&mut self, params: Value) -> Result<Value, Error> {
-        let asked: WaitForTerminalExitRequest = fault::params(params)?;
+    /// `terminal/wait_for_exit`: blocks the thread until the command ends (or is killed at its
+    /// deadline). A host that shares a thread with other work uses [`Terminals::poll_wait`].
+    pub fn wait(
+        &mut self,
+        asked: &WaitForTerminalExitRequest,
+    ) -> Result<WaitForTerminalExitResponse, Error> {
         let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
         let report = self.wait_until_due(id).map_err(|f| shell_error(&f))?;
-        out(&WaitForTerminalExitResponse::new(exit_status(report)))
+        Ok(WaitForTerminalExitResponse::new(exit_status(report)))
     }
 
     /// `terminal/wait_for_exit` without blocking: the answer if the command has ended, `None`
     /// while it runs. A host that cannot block polls this.
-    pub fn poll_wait(&mut self, params: Value) -> Result<Option<Value>, Error> {
+    pub fn poll_wait(
+        &mut self,
+        asked: &WaitForTerminalExitRequest,
+    ) -> Result<Option<WaitForTerminalExitResponse>, Error> {
         self.reap();
-        let asked: WaitForTerminalExitRequest = fault::params(params)?;
         let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
         let snap = self.shell.output(id).map_err(|f| shell_error(&f))?;
-        snap.exit
-            .map(|report| out(&WaitForTerminalExitResponse::new(exit_status(report))))
-            .transpose()
+        Ok(snap
+            .exit
+            .map(|report| WaitForTerminalExitResponse::new(exit_status(report))))
     }
 
-    fn kill(&mut self, params: Value) -> Result<Value, Error> {
-        let asked: KillTerminalRequest = fault::params(params)?;
+    /// `terminal/kill`: ends the command; the terminal stays readable.
+    pub fn kill(&mut self, asked: &KillTerminalRequest) -> Result<KillTerminalResponse, Error> {
+        self.reap();
         let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
         self.shell.kill(id).map_err(|f| shell_error(&f))?;
-        out(&KillTerminalResponse::new())
+        Ok(KillTerminalResponse::new())
     }
 
-    fn release(&mut self, params: Value) -> Result<Value, Error> {
-        let asked: ReleaseTerminalRequest = fault::params(params)?;
+    /// `terminal/release`: forgets the terminal.
+    pub fn release(
+        &mut self,
+        asked: &ReleaseTerminalRequest,
+    ) -> Result<ReleaseTerminalResponse, Error> {
+        self.reap();
         let id = self.term(&asked.session_id.0, &asked.terminal_id)?;
         self.shell.release(id).map_err(|f| shell_error(&f))?;
         self.owners.remove(&id);
         self.due.remove(&id);
-        out(&ReleaseTerminalResponse::new())
+        Ok(ReleaseTerminalResponse::new())
     }
 }

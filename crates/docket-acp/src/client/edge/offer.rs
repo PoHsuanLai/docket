@@ -1,7 +1,7 @@
 //! What the host is given to offer an agent, and what the launcher binds for it.
 
 use actions_tools::{EDGE_TOKEN_ENV, EdgeToken};
-use agent_client_protocol_schema::v1::{EnvVariable, McpServer, McpServerStdio};
+use agent_client_protocol::schema::v1::{EnvVariable, McpServer, McpServerStdio};
 use docket_core::AbsPath;
 use std::path::PathBuf;
 

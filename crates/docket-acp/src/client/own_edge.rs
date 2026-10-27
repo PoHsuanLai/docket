@@ -12,7 +12,7 @@
 //! `tools/list` does not.
 
 use super::edge::SERVER_NAME;
-use agent_client_protocol_schema::v1::{ToolCallUpdate, ToolKind};
+use agent_client_protocol::schema::v1::{ToolCallUpdate, ToolKind};
 use serde_json::Value;
 
 /// What a recognised request is about.

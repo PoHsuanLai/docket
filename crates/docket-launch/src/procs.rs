@@ -1,10 +1,11 @@
-//! The process seam: starts one confined agent process and hands back its stdio and a handle.
-//! `BwrapProcs` is the real one (bubblewrap as a separate program, never linked); `fake::FakeProcs`
-//! records the run it was asked for and returns an in-memory pipe.
+//! The process seam: starts one confined agent process and hands back its stdio, as a transport for
+//! the SDK's client role, and a handle. `BwrapProcs` is the real one (bubblewrap as a separate
+//! program, never linked); `fake::FakeProcs` records the run it was asked for and returns an
+//! in-memory pipe.
 
+use agent_client_protocol::{Agent, Client, ConnectTo, Error};
 use bulkhead::{AgentRun, BwrapSandbox, LandlockLevel, StartFault};
-use docket_acp::LineWire;
-use docket_acp::Wire;
+use docket_acp::capped_lines;
 use std::future::Future;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -40,8 +41,8 @@ pub trait Proc: Send {
 
 /// Starts confined agent processes.
 pub trait Procs: Send {
-    /// The process's stdio.
-    type Wire: Wire;
+    /// The process's stdio, as the SDK's transport for the client edge.
+    type Transport: ConnectTo<Client>;
     /// The handle.
     type Proc: Proc + 'static;
 
@@ -50,7 +51,7 @@ pub trait Procs: Send {
     fn start(
         &mut self,
         run: &AgentRun,
-    ) -> impl Future<Output = Result<(Self::Wire, Self::Proc), ProcFault>> + Send;
+    ) -> impl Future<Output = Result<(Self::Transport, Self::Proc), ProcFault>> + Send;
 }
 
 /// Bubblewrap with its hardening: resource limits and the syscall filter, as the detected
@@ -139,8 +140,21 @@ impl Drop for ChildProc {
     }
 }
 
-/// The agent's stdio as lines.
-pub type StdioWire = LineWire<BufReader<ChildStdout>, ChildStdin>;
+/// The agent's stdio: its output, to be read as lines, and its input. As a transport for the SDK
+/// it reads and writes one message per line, and a line over `docket_acp::LINE_MAX` ends it.
+#[derive(Debug)]
+pub struct StdioWire {
+    /// What the agent writes.
+    pub stdout: BufReader<ChildStdout>,
+    /// What the agent reads.
+    pub stdin: ChildStdin,
+}
+
+impl ConnectTo<Client> for StdioWire {
+    async fn connect_to(self, client: impl ConnectTo<Agent>) -> Result<(), Error> {
+        ConnectTo::<Client>::connect_to(capped_lines(self.stdout, self.stdin), client).await
+    }
+}
 
 fn refused(fault: StartFault) -> ProcFault {
     match fault {
@@ -151,7 +165,7 @@ fn refused(fault: StartFault) -> ProcFault {
 }
 
 impl Procs for BwrapProcs {
-    type Wire = StdioWire;
+    type Transport = StdioWire;
     type Proc = ChildProc;
 
     async fn start(&mut self, run: &AgentRun) -> Result<(StdioWire, ChildProc), ProcFault> {
@@ -186,7 +200,10 @@ impl Procs for BwrapProcs {
             tokio::spawn(watch(stderr, Arc::clone(&level)));
         }
         Ok((
-            LineWire::new(BufReader::new(stdout), stdin),
+            StdioWire {
+                stdout: BufReader::new(stdout),
+                stdin,
+            },
             ChildProc {
                 child,
                 filter: filter.0.take(),

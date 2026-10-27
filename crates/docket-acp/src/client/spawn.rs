@@ -1,9 +1,10 @@
-//! The seam that starts an external agent and hands back its stdio as a `Wire`. The real one is
-//! `docket-launch`'s (accounts, sandbox, process); `fake::FakeSpawn` returns an in-memory pipe.
+//! The seam that starts an external agent and hands back its stdio as a transport for the SDK's
+//! client role. The real one is `docket-launch`'s (accounts, sandbox, process); `fake::FakeSpawn`
+//! returns an in-memory pipe.
 
 use super::edge::EdgeBind;
 use super::models::ModelId;
-use crate::wire::Wire;
+use agent_client_protocol::{Client, ConnectTo};
 use docket_core::AbsPath;
 use docket_session::ProgramName;
 use prov::SessionId;
@@ -130,9 +131,9 @@ impl SignIn {
 
 /// A started agent: its stdio and the handle that ends it.
 #[derive(Debug)]
-pub struct Spawned<W, C> {
-    /// Its stdio, a line each way.
-    pub wire: W,
+pub struct Spawned<T, C> {
+    /// Its stdio, a line each way, as the SDK reads and writes it.
+    pub transport: T,
     /// What ends it.
     pub child: C,
     /// The `_meta` of `session/new`, when the launcher has any (a preset in `agents.toml`).
@@ -143,7 +144,7 @@ pub struct Spawned<W, C> {
     pub model: Option<ModelId>,
 }
 
-/// The process behind a wire.
+/// The process behind a transport.
 pub trait AgentChild: Send {
     /// Ends the process now. Safe to repeat.
     fn kill(&mut self);
@@ -155,8 +156,8 @@ pub trait AgentChild: Send {
 
 /// Starts agents.
 pub trait Spawn: Send {
-    /// Its stdio.
-    type Wire: Wire;
+    /// Its stdio, as a transport for the SDK's client role. Lines past `capped_lines`' cap end it.
+    type Transport: ConnectTo<Client>;
     /// Its handle.
     type Child: AgentChild;
 
@@ -164,5 +165,5 @@ pub trait Spawn: Send {
     fn spawn(
         &mut self,
         plan: &LaunchPlan,
-    ) -> impl Future<Output = Result<Spawned<Self::Wire, Self::Child>, SpawnFault>> + Send;
+    ) -> impl Future<Output = Result<Spawned<Self::Transport, Self::Child>, SpawnFault>> + Send;
 }

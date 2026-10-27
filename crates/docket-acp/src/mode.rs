@@ -2,7 +2,7 @@
 //! our gate: no mode skips the router's policy, reviewer, taint, breaker or budgets, and none
 //! gives a right the Space's strictness withholds.
 
-use agent_client_protocol_schema::v1::{SessionMode, SessionModeId, SessionModeState};
+use agent_client_protocol::schema::v1::{SessionMode, SessionModeId, SessionModeState};
 use docket_session::CallOpen;
 use prov::Effect;
 

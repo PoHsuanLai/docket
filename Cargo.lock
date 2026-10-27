@@ -1096,7 +1096,6 @@ dependencies = [
  "action-review",
  "actions-tools",
  "agent-client-protocol",
- "agent-client-protocol-schema",
  "bulkhead",
  "companion-wire",
  "docket-client",
@@ -1382,6 +1381,7 @@ dependencies = [
 name = "docket-launch"
 version = "0.1.0"
 dependencies = [
+ "agent-client-protocol",
  "bulkhead",
  "docket-acp",
  "docket-agents",

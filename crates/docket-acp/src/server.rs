@@ -18,13 +18,13 @@ use crate::fault;
 use crate::helpers::{Helpers, NoHelpers};
 use crate::link::{Gone, Inbound, Link, answer};
 use crate::mode::Mode;
-use agent_client_protocol::{Agent, ConnectTo, Error, on_receive_notification, on_receive_request};
-use agent_client_protocol_schema::ProtocolVersion;
-use agent_client_protocol_schema::v1::{
+use agent_client_protocol::schema::ProtocolVersion;
+use agent_client_protocol::schema::v1::{
     AgentCapabilities, CancelNotification, Implementation, InitializeRequest, InitializeResponse,
     ListSessionsRequest, LoadSessionRequest, NewSessionRequest, PromptCapabilities, PromptRequest,
     SessionCapabilities, SessionListCapabilities, SetSessionModeRequest, SetSessionModeResponse,
 };
+use agent_client_protocol::{Agent, ConnectTo, Error, on_receive_notification, on_receive_request};
 use companion_wire::ToldWire;
 use docket_core::Clock;
 use docket_session::{SessionHost, SessionLog};

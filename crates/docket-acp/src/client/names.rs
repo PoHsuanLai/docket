@@ -3,7 +3,7 @@
 //! agent_app`); what the agent only reports having done itself is recorded for display under
 //! `acpagent.reported.<kind>` and is never dispatched.
 
-use agent_client_protocol_schema::v1::ToolKind;
+use agent_client_protocol::schema::v1::ToolKind;
 use docket_core::{ActionRef, PermissionKind, acp_agent_action};
 use prov::Effect;
 

@@ -16,7 +16,6 @@ use docket_core::{
 };
 use porter_core::DataClass;
 use prov::{Integrity, Label, Labelled, Source};
-use serde_json::Value as Json;
 use std::collections::BTreeSet;
 
 fn failed(why: &str) -> AppRefusal {
@@ -177,7 +176,7 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
     fn run(&self, inv: &Invocation) -> Result<Outcome, AppRefusal> {
         let (held, scope) = self.take(inv)?;
         let Held::Run {
-            line, cwd, params, ..
+            line, cwd, request, ..
         } = held
         else {
             return Err(failed("the held request is not a command"));
@@ -199,13 +198,9 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
             .map_err(|e| failed(&format!("the working directory is refused: {e}")))?;
         let answer = inner
             .terminals
-            .create_in(&workdir, params)
+            .create_in(&workdir, &request)
             .map_err(|e| failed(&e.message))?;
         drop(inner);
-        let id = answer
-            .get("terminalId")
-            .and_then(Json::as_str)
-            .ok_or_else(|| failed("the terminal has no name"))?;
         let label = Label {
             integrity: Integrity::Trusted,
             confidentiality: prov::Confidentiality::Public,
@@ -216,7 +211,7 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
         };
         Ok(Outcome {
             value: Some(Labelled {
-                value: Value::Text(id.to_owned()),
+                value: Value::Text(answer.terminal_id.0.to_string()),
                 label,
             }),
             ..done()

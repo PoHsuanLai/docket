@@ -2,8 +2,10 @@
 //! external coding agent is a session backend whose every call goes through the router.
 //!
 //! - `AcpBackend`: a `SessionBackend` over a process behind the `Spawn` seam. It speaks ACP as
-//!   the client, offers the agent file and terminal methods, and answers the agent's permission
-//!   requests itself, each from the router's ruling and never from the agent's own options.
+//!   the client, on the SDK's client role (`link`: the SDK frames the JSON-RPC and routes each
+//!   typed request, the backend holds the state), offers the agent file and terminal methods, and
+//!   answers the agent's permission requests itself, each from the router's ruling and never from
+//!   the agent's own options.
 //! - `Court`: the router as the agent's host calls it. `AgentCall` is what the agent asked,
 //!   formed and confined; `Ruled` is how the router ruled. `IntentsCourt` is the real one, over
 //!   `docket-client`. The host decides nothing: not whether to ask the person, not whether a
@@ -36,19 +38,19 @@ mod edge;
 pub mod fake;
 mod files;
 mod handlers;
+mod handshake;
 mod helper_agent;
 mod helper_agents;
 mod host;
-mod intake;
 mod intents_court;
 mod isolate;
+mod link;
 mod models;
 mod names;
 mod own_edge;
 mod perform;
 mod performer;
 mod reported;
-mod rpc;
 mod running;
 mod serve;
 mod spawn;

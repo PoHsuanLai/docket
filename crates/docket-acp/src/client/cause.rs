@@ -19,7 +19,7 @@ pub(super) enum Step {
     Spawn,
     /// The folder could not be resolved to the real one.
     Resolve,
-    /// A line could not be written to the agent.
+    /// A message could not be sent to the agent.
     Write,
     /// The agent closed its output or answered with an error.
     Reply,

@@ -12,7 +12,7 @@ use crate::permission::{self, verdict_of_reply};
 use crate::server::{Server, Turns};
 use crate::turn::{Finish, Order, Turn, Wants};
 use agent_client_protocol::Responder;
-use agent_client_protocol_schema::v1::{
+use agent_client_protocol::schema::v1::{
     ContentBlock, Error, PromptRequest, PromptResponse, RequestPermissionRequest,
     RequestPermissionResponse, StopReason,
 };

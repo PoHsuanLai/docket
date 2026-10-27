@@ -7,7 +7,7 @@
 
 use super::names;
 use super::taint::brings_content;
-use agent_client_protocol_schema::v1::{
+use agent_client_protocol::schema::v1::{
     ContentBlock, ContentChunk, SessionUpdate, ToolCallStatus, ToolKind,
 };
 use docket_core::PermissionKind;
@@ -73,7 +73,7 @@ fn failed() -> StepEnd {
     ))))
 }
 
-fn usage(update: &agent_client_protocol_schema::v1::UsageUpdate) -> UsageNote {
+fn usage(update: &agent_client_protocol::schema::v1::UsageUpdate) -> UsageNote {
     let spent = update
         .cost
         .as_ref()

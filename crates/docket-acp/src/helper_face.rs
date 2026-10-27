@@ -13,7 +13,7 @@ use crate::link::{Gone, Link};
 use crate::mode::Mode;
 use crate::out;
 use crate::server::{Known, Server, Turns};
-use agent_client_protocol_schema::v1::{
+use agent_client_protocol::schema::v1::{
     Error, LoadSessionResponse, Meta, NewSessionResponse, SessionInfo,
 };
 use companion_wire::ToldWire;

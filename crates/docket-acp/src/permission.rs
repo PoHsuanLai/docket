@@ -9,7 +9,7 @@
 
 use crate::calls;
 use crate::scope_words::always_words;
-use agent_client_protocol_schema::v1::{
+use agent_client_protocol::schema::v1::{
     Error, PermissionOption, PermissionOptionKind, RequestPermissionOutcome,
     RequestPermissionRequest, RequestPermissionResponse, SessionId, ToolCallStatus, ToolCallUpdate,
     ToolCallUpdateFields,

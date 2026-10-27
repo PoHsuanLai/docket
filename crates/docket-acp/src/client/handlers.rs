@@ -1,21 +1,21 @@
-//! The handlers: what a staged request does once it runs. Each forms the call the agent asked
-//! for (confining its paths first: a path outside the session's directory never becomes a call),
-//! has the router rule on it, and answers the agent as the router ruled. The reply is returned
-//! with how the call ends in our record; the loop (`serve`) sends the one and reports the other.
+//! What a staged request does once it runs. Each forms the call the agent asked for (confining its
+//! paths first: a path outside the session's directory never becomes a call), has the router rule
+//! on it, and answers the agent as the router ruled. The reply is returned with how the call ends
+//! in our record; the loop (`serve`) sends the one and reports the other.
 //!
 //! The router's refusal is carried as it came: the agent is told only that the call was not
 //! allowed, and the record keeps the router's reason.
 
-use super::backend::{AcpBackend, Seams, Staged};
+use super::backend::{AcpBackend, Seams};
 use super::call::{AgentCall, Command, RunFacts};
 use super::confine::{Confined, confine, named};
 use super::court::{Court, Ruled};
-use super::intake::Work;
+use super::link::Work;
 use super::own_edge::{OwnEdge, claim};
 use super::taint::TaintSource;
 use super::tool_req::{Asked, tool_req};
 use crate::fault;
-use agent_client_protocol_schema::v1::{
+use agent_client_protocol::schema::v1::{
     CreateTerminalRequest, CreateTerminalResponse, Error, PermissionOptionId, PermissionOptionKind,
     ReadTextFileRequest, ReadTextFileResponse, RequestPermissionOutcome, RequestPermissionRequest,
     RequestPermissionResponse, SelectedPermissionOutcome, TerminalId, WriteTextFileRequest,
@@ -86,23 +86,12 @@ fn text_of(outcome: &Outcome) -> Option<&str> {
 }
 
 impl<X: Seams> AcpBackend<X> {
-    pub(super) async fn run(&mut self, staged: &Staged) -> Ran {
-        match &staged.work {
-            Work::Read(request) => self.read(staged.n, request).await,
-            Work::Write(request) => self.write(staged.n, request).await,
-            Work::Permission(request) => self.permission(staged.n, request).await,
-            Work::Create { params, request } => {
-                self.create(staged.n, params.clone(), request).await
-            }
-            _ => Ran {
-                reply: Err(Error::method_not_found()),
-                end: StepEnd::Done {
-                    said: None,
-                    value: None,
-                    undo: None,
-                },
-                paused: None,
-            },
+    pub(super) async fn run(&mut self, work: &Work, n: u64) -> Ran {
+        match work {
+            Work::Read(request) => self.read(n, request).await,
+            Work::Write(request) => self.write(n, request).await,
+            Work::Permission(request) => self.permission(n, request).await,
+            Work::Create(request) => self.create(n, request).await,
         }
     }
 
@@ -117,7 +106,7 @@ impl<X: Seams> AcpBackend<X> {
         }
     }
 
-    fn for_agent(&self, session: &agent_client_protocol_schema::v1::SessionId) -> bool {
+    fn for_agent(&self, session: &agent_client_protocol::schema::v1::SessionId) -> bool {
         self.live.as_ref().and_then(|l| l.agent.as_ref()) == Some(session)
     }
 
@@ -325,7 +314,7 @@ impl<X: Seams> AcpBackend<X> {
         })
     }
 
-    async fn create(&mut self, n: u64, params: Json, request: &CreateTerminalRequest) -> Ran {
+    async fn create(&mut self, n: u64, request: &CreateTerminalRequest) -> Ran {
         if !self.for_agent(&request.session_id) {
             return self.denied(fault::unknown_session());
         }
@@ -361,7 +350,8 @@ impl<X: Seams> AcpBackend<X> {
             return self.denied(fault::not_now(&format!("cannot sandbox: {why}")));
         }
         let line = argv.line();
-        let stage = self.stage_once(|p| p.stage_run(&session, line.clone(), cwd.clone(), params));
+        let stage =
+            self.stage_once(|p| p.stage_run(&session, line.clone(), cwd.clone(), request.clone()));
         let (derives, network) = self.performer.exec_facts(&session, argv.words(), &cwd);
         let command = Command { line, cwd };
         let ruled = self

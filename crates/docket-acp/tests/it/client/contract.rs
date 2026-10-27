@@ -70,7 +70,7 @@ impl Harness for Acp {
     }
 
     async fn settle(&mut self) {
-        for _ in 0..16 {
+        for _ in 0..64 {
             tokio::task::yield_now().await;
         }
     }

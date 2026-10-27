@@ -18,6 +18,7 @@ name = "docket_launch"
 path = "src/lib.rs"
 
 [dependencies]
+agent-client-protocol = { workspace = true }
 docket-agents = { workspace = true }
 docket-acp = { workspace = true, features = ["client", "server"] }
 docket-core = { workspace = true }
@@ -39,6 +40,8 @@ tracing = { workspace = true }
 zbus = { workspace = true, optional = true }
 
 [dev-dependencies]
+# The config tests write `agents.toml` rows through the Settings writer.
+docket-settings = { workspace = true, features = ["agents"] }
 docket-testbus = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }

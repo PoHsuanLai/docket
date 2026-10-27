@@ -3,17 +3,20 @@
 
 use super::files::{FileFault, Files};
 use super::spawn::{AgentChild, LaunchPlan, SessionMeta, SignIn, Spawn, SpawnFault, Spawned};
-use crate::wire::{Wire, WireClosed};
+use agent_client_protocol::{Agent, Client, ConnectTo, Error, Lines};
 use docket_core::{AbsPath, Cover};
+use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
+use futures_util::{SinkExt, StreamExt};
 use std::collections::{BTreeMap, VecDeque};
+use std::io;
 use std::sync::{Arc, Mutex, MutexGuard};
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 fn locked<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// One end of an in-memory pipe of lines.
+/// One end of an in-memory pipe of lines. The agent's end reads and writes lines by hand, as a
+/// script does; the client's end is the SDK's transport.
 #[derive(Debug)]
 pub struct ChannelWire {
     rx: UnboundedReceiver<String>,
@@ -22,21 +25,38 @@ pub struct ChannelWire {
 
 /// Two ends: what one writes the other reads.
 pub fn pipe() -> (ChannelWire, ChannelWire) {
-    let (a_tx, b_rx) = unbounded_channel();
-    let (b_tx, a_rx) = unbounded_channel();
+    let (a_tx, b_rx) = unbounded();
+    let (b_tx, a_rx) = unbounded();
     (
         ChannelWire { rx: a_rx, tx: a_tx },
         ChannelWire { rx: b_rx, tx: b_tx },
     )
 }
 
-impl Wire for ChannelWire {
-    async fn read_line(&mut self) -> Option<String> {
-        self.rx.recv().await
+/// The other end of the pipe is gone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("the other end of the pipe is gone")]
+pub struct PipeClosed;
+
+impl ChannelWire {
+    /// The next line; `None` when the other end is gone. Cancel-safe.
+    pub async fn read_line(&mut self) -> Option<String> {
+        self.rx.next().await
     }
 
-    async fn write_line(&mut self, line: String) -> Result<(), WireClosed> {
-        self.tx.send(line).map_err(|_| WireClosed)
+    /// Writes one line.
+    pub async fn write_line(&mut self, line: String) -> Result<(), PipeClosed> {
+        self.tx.unbounded_send(line).map_err(|_| PipeClosed)
+    }
+}
+
+impl ConnectTo<Client> for ChannelWire {
+    async fn connect_to(self, client: impl ConnectTo<Agent>) -> Result<(), Error> {
+        let sink = self
+            .tx
+            .sink_map_err(|_| io::Error::from(io::ErrorKind::BrokenPipe));
+        let lines = Lines::new(sink, self.rx.map(Ok::<_, io::Error>));
+        ConnectTo::<Client>::connect_to(lines, client).await
     }
 }
 
@@ -72,7 +92,7 @@ impl SpawnSeen {
     }
 }
 
-/// A scripted `Spawn`: hands out the wires it was given, one per start.
+/// A scripted `Spawn`: hands out the pipes it was given, one per start.
 #[derive(Debug)]
 pub struct FakeSpawn {
     wires: VecDeque<ChannelWire>,
@@ -145,7 +165,7 @@ impl AgentChild for FakeChild {
 }
 
 impl Spawn for FakeSpawn {
-    type Wire = ChannelWire;
+    type Transport = ChannelWire;
     type Child = FakeChild;
 
     async fn spawn(
@@ -160,7 +180,7 @@ impl Spawn for FakeSpawn {
             closed: false,
         };
         Ok(Spawned {
-            wire,
+            transport: wire,
             child,
             meta: self.meta.clone(),
             sign_in: self.sign_in.clone(),

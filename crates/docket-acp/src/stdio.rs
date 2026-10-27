@@ -1,16 +1,21 @@
-//! Newline-delimited JSON over a byte stream, for the binary (stdin and stdout) and for tests (the
-//! two ends of an in-memory duplex): nothing else on the stream. [`capped_lines`] is what the ACP
-//! server edge hands the SDK; [`LineWire`] is what the client edge still reads and writes by hand.
+//! Newline-delimited JSON over a byte stream, for the binary (stdin and stdout), for an agent's
+//! pipes and for tests (the two ends of an in-memory duplex): nothing else on the stream.
+//! [`capped_lines`] is what both ACP edges hand the SDK: the SDK's own line source holds a line of
+//! any length, so a peer we do not trust gets ours.
 
-use crate::wire::{Wire, WireClosed};
 use agent_client_protocol::Lines;
 use futures_util::{Sink, Stream};
 use std::io;
+use std::time::Duration;
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt};
 
 /// The longest line a peer may send, in bytes: the agent child's stdout and the editor's input
 /// both end at it. A line past it is not a message, and nothing buffers it.
 pub const LINE_MAX: usize = 4 * 1024 * 1024;
+
+/// How long a write to the peer may take. A peer that stops reading ends the connection after it,
+/// as a closed one does, instead of stalling what writes to it for good.
+const WRITE_SPAN: Duration = Duration::from_secs(60);
 
 /// Why a line could not be read.
 #[derive(Debug, thiserror::Error)]
@@ -93,17 +98,27 @@ where
     )
 }
 
-/// `writer` as a sink of messages, one line each, flushed.
-fn sink_of<W>(writer: W) -> impl Sink<String, Error = io::Error> + Send + 'static
+/// `writer` as a sink of messages, one line each, flushed, each written within `span`.
+fn sink_of<W>(writer: W, span: Duration) -> impl Sink<String, Error = io::Error> + Send + 'static
 where
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    futures_util::sink::unfold(writer, |mut writer: W, line: String| async move {
+    futures_util::sink::unfold(writer, move |mut writer: W, line: String| async move {
         let mut bytes = line.into_bytes();
         bytes.push(b'\n');
-        writer.write_all(&bytes).await?;
-        writer.flush().await?;
-        Ok::<W, io::Error>(writer)
+        let written = tokio::time::timeout(span, async {
+            writer.write_all(&bytes).await?;
+            writer.flush().await
+        })
+        .await;
+        match written {
+            Ok(Ok(())) => Ok(writer),
+            Ok(Err(error)) => Err(error),
+            Err(_) => Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "the peer does not read",
+            )),
+        }
     })
 }
 
@@ -119,64 +134,13 @@ where
     R: AsyncBufRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    Lines::new(sink_of(writer), lines_of(reader, LINE_MAX))
-}
-
-/// A `Wire` over a reader and a writer.
-#[derive(Debug)]
-pub struct LineWire<R, W> {
-    reader: R,
-    pending: Vec<u8>,
-    cap: usize,
-    out: W,
-}
-
-impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> LineWire<R, W> {
-    /// Reads lines from `reader`, writes them to `writer`; a line longer than [`LINE_MAX`] ends
-    /// the wire.
-    pub fn new(reader: R, writer: W) -> Self {
-        Self::capped(reader, writer, LINE_MAX)
-    }
-
-    /// The same, with lines held to `cap` bytes.
-    pub fn capped(reader: R, writer: W, cap: usize) -> Self {
-        Self {
-            reader,
-            pending: Vec::new(),
-            cap,
-            out: writer,
-        }
-    }
-}
-
-impl<R: AsyncBufRead + Unpin + Send, W: AsyncWrite + Unpin + Send> Wire for LineWire<R, W> {
-    async fn read_line(&mut self) -> Option<String> {
-        // `read_capped` keeps a partial line in `pending`: a dropped read loses no input.
-        loop {
-            match read_capped(&mut self.reader, &mut self.pending, self.cap).await {
-                Ok(Some(line)) if line.trim().is_empty() => {}
-                Ok(line) => return line,
-                Err(fault) => {
-                    // The wire is closed on a line it cannot take; the peer is not told why.
-                    tracing::warn!(%fault, "closing the wire");
-                    return None;
-                }
-            }
-        }
-    }
-
-    async fn write_line(&mut self, line: String) -> Result<(), WireClosed> {
-        let mut bytes = line.into_bytes();
-        bytes.push(b'\n');
-        self.out.write_all(&bytes).await.map_err(|_| WireClosed)?;
-        self.out.flush().await.map_err(|_| WireClosed)
-    }
+    Lines::new(sink_of(writer, WRITE_SPAN), lines_of(reader, LINE_MAX))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures_util::StreamExt;
+    use futures_util::{SinkExt, StreamExt};
     use tokio::io::BufReader;
 
     #[tokio::test]
@@ -196,13 +160,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn lines_come_whole_and_a_line_over_the_cap_ends_the_wire() {
-        let input: &[u8] = b"one\r\n\ntwo\n0123456789\nrest";
-        let mut wire = LineWire::capped(BufReader::new(input), Vec::new(), 8);
-        assert_eq!(wire.read_line().await.as_deref(), Some("one"));
-        assert_eq!(wire.read_line().await.as_deref(), Some("two"));
-        // Ten bytes against a cap of eight: closed, not truncated and not read on.
-        assert_eq!(wire.read_line().await, None);
+    async fn a_writer_nobody_reads_ends_the_sink_at_its_span() {
+        let (writer, _unread) = tokio::io::duplex(1);
+        let mut sink = Box::pin(sink_of(writer, Duration::from_millis(20)));
+        let sent = sink.send("a line longer than the buffer".to_owned()).await;
+        assert_eq!(sent.expect_err("timed out").kind(), io::ErrorKind::TimedOut);
     }
 
     #[tokio::test]

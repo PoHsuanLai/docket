@@ -1,10 +1,13 @@
 //! The terminal methods over the fake sandbox, driven the way a peer agent drives them: each
 //! request and response is checked against the protocol schema.
 
+use agent_client_protocol::schema::v1::Error;
 use bulkhead::CannotSandbox;
 use bulkhead::fake::{FakeSandbox, Fate, Script, Seen};
 use docket_acp::{CommandDeadline, Terminals};
 use docket_core::AbsPath;
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 /// The scope the host was opened in.
@@ -27,6 +30,15 @@ fn with(sandbox: FakeSandbox, seen: Seen) -> Bench {
         seen,
         schema: serde_json::from_str(include_str!("../schema/schema.json")).expect("schema"),
     }
+}
+
+/// A request that fits the schema, as the typed request the SDK would hand over.
+fn typed<T: DeserializeOwned>(params: Value) -> T {
+    serde_json::from_value(params).expect("a request that fits the schema")
+}
+
+fn answer<T: Serialize>(result: Result<T, Error>) -> Result<Value, Error> {
+    result.map(|done| serde_json::to_value(done).expect("a response"))
 }
 
 impl Bench {
@@ -52,15 +64,17 @@ impl Bench {
         response: &str,
     ) -> Result<Value, Value> {
         self.conforms(request, &params);
-        let answer = if method == "terminal/create" {
-            self.terminals
-                .create(&AbsPath::parse(SCOPE).expect("scope"), params)
-        } else {
-            self.terminals
-                .handle(method, params)
-                .expect("a terminal method")
+        let scope = AbsPath::parse(SCOPE).expect("scope");
+        let terminals = &mut self.terminals;
+        let done = match method {
+            "terminal/create" => answer(terminals.create(&scope, &typed(params))),
+            "terminal/output" => answer(terminals.output(&typed(params))),
+            "terminal/wait_for_exit" => answer(terminals.wait(&typed(params))),
+            "terminal/kill" => answer(terminals.kill(&typed(params))),
+            "terminal/release" => answer(terminals.release(&typed(params))),
+            other => panic!("not a terminal method: {other}"),
         };
-        match answer {
+        match done {
             Ok(value) => {
                 self.conforms(response, &value);
                 Ok(value)
@@ -191,7 +205,7 @@ async fn the_command_runs_with_the_cwd_a_cleared_env_and_no_network() {
 async fn a_withheld_sandbox_is_not_advertised_and_runs_nothing() {
     let (sandbox, seen) = FakeSandbox::withheld(CannotSandbox::NamespacesDenied);
     let mut b = with(sandbox, seen);
-    let base = agent_client_protocol_schema::v1::ClientCapabilities::new();
+    let base = agent_client_protocol::schema::v1::ClientCapabilities::new();
     let caps = serde_json::to_value(b.terminals.capabilities(base)).expect("caps");
     assert_eq!(caps["terminal"], false);
     let refused = b.create("ls", &[], "/work/app").await.expect_err("refused");
@@ -219,7 +233,7 @@ fn a_security_policy_refusal_keeps_its_own_reason() {
 #[tokio::test]
 async fn a_ready_sandbox_is_advertised() {
     let b = bench(Vec::new());
-    let base = agent_client_protocol_schema::v1::ClientCapabilities::new();
+    let base = agent_client_protocol::schema::v1::ClientCapabilities::new();
     let caps = serde_json::to_value(b.terminals.capabilities(base)).expect("caps");
     assert_eq!(caps["terminal"], true);
 }
@@ -264,16 +278,6 @@ async fn a_cwd_outside_the_session_and_a_foreign_session_are_refused() {
     assert!(
         foreign.is_err(),
         "another session cannot read this terminal"
-    );
-}
-
-#[tokio::test]
-async fn other_methods_are_not_ours() {
-    let mut b = bench(vec![Script::done("", 0)]);
-    assert!(b.terminals.handle("fs/read_text_file", json!({})).is_none());
-    assert!(
-        b.terminals.handle("terminal/create", json!({})).is_none(),
-        "create needs the session's scope, and the router's yes: it is not a plain method"
     );
 }
 

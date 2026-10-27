@@ -4,15 +4,15 @@
 //! session state. [`Link`] is that task's end: what the editor sent, and the editor to send to.
 
 use crate::out;
-use agent_client_protocol::{
-    Client, ConnectionTo, Error, JsonRpcResponse, Responder, is_incoming_transport_closed,
-};
-use agent_client_protocol_schema::v1::{
+use agent_client_protocol::schema::v1::{
     CancelNotification, InitializeRequest, InitializeResponse, ListSessionsRequest,
     ListSessionsResponse, LoadSessionRequest, LoadSessionResponse, NewSessionRequest,
     NewSessionResponse, PromptRequest, PromptResponse, RequestPermissionRequest,
     RequestPermissionResponse, SessionNotification, SessionUpdate, SetSessionModeRequest,
     SetSessionModeResponse,
+};
+use agent_client_protocol::{
+    Client, ConnectionTo, Error, JsonRpcResponse, Responder, is_incoming_transport_closed,
 };
 use futures_channel::mpsc::UnboundedReceiver;
 use futures_channel::oneshot;

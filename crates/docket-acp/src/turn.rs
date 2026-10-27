@@ -7,7 +7,7 @@ use crate::calls;
 use crate::covered::Covered;
 use crate::mode::{Mode, Say};
 use crate::permission::Verdict;
-use agent_client_protocol_schema::v1::{SessionUpdate, StopReason};
+use agent_client_protocol::schema::v1::{SessionUpdate, StopReason};
 use companion_wire::NeedsYou;
 use docket_core::{AlwaysOffer, ConfirmRequest, Reveal};
 use docket_session::SheetChoice;

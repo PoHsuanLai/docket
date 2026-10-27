@@ -3,10 +3,9 @@
 //! still send. The model the person configured is set once, before the first turn, and the
 //! reply is awaited; a model the agent does not offer is a refusal that lists the ones it does.
 
-use crate::out;
-use agent_client_protocol_schema::rpc::RequestId;
-use agent_client_protocol_schema::v1::{
-    AGENT_METHOD_NAMES, NewSessionResponse, SessionConfigKind, SessionConfigOptionCategory,
+use agent_client_protocol::UntypedMessage;
+use agent_client_protocol::schema::v1::{
+    AGENT_METHOD_NAMES, Error, NewSessionResponse, SessionConfigKind, SessionConfigOptionCategory,
     SessionConfigSelectOptions, SessionConfigValueId, SessionId, SetSessionConfigOptionRequest,
 };
 use docket_session::{Choice, Choices};
@@ -123,21 +122,21 @@ impl Models {
         Choices(self.available.clone())
     }
 
-    /// The request that switches the session to `wanted`.
-    pub fn switch(&self, id: &RequestId, session: &SessionId, wanted: &ModelId) -> String {
+    /// The request that switches the session to `wanted`. It is built untyped: the older
+    /// `session/set_model` is not in the schema, and the reply is read for nothing but its success.
+    pub fn switch(&self, session: &SessionId, wanted: &ModelId) -> Result<UntypedMessage, Error> {
         match &self.way {
-            Way::Option(option) => {
-                let request = SetSessionConfigOptionRequest::new(
+            Way::Option(option) => UntypedMessage::new(
+                AGENT_METHOD_NAMES.session_set_config_option,
+                SetSessionConfigOptionRequest::new(
                     session.clone(),
                     option.clone(),
                     SessionConfigValueId::new(wanted.as_str()),
-                );
-                out::ask(id, AGENT_METHOD_NAMES.session_set_config_option, &request)
-            }
-            Way::Older => out::ask(
-                id,
+                ),
+            ),
+            Way::Older => UntypedMessage::new(
                 "session/set_model",
-                &json!({"sessionId": session, "modelId": wanted.as_str()}),
+                json!({"sessionId": session, "modelId": wanted.as_str()}),
             ),
         }
     }

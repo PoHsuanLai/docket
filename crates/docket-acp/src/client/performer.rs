@@ -16,11 +16,14 @@ use super::workdir::{Workdir, WorkdirFault};
 use crate::bulk;
 use crate::command_deadline::CommandDeadline;
 use crate::terminals::Terminals;
-use agent_client_protocol_schema::v1::{ClientCapabilities, Error};
+use agent_client_protocol::schema::v1::{
+    ClientCapabilities, CreateTerminalRequest, Error, KillTerminalRequest, KillTerminalResponse,
+    ReleaseTerminalRequest, ReleaseTerminalResponse, TerminalOutputRequest, TerminalOutputResponse,
+    WaitForTerminalExitRequest, WaitForTerminalExitResponse,
+};
 use bulkhead::{Network, NetworkMode, Sandbox};
 use docket_core::{AbsPath, Derivation, NetAccess, Served, UndoToken};
 use prov::SessionId;
-use serde_json::Value as Json;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -61,7 +64,7 @@ pub(super) enum Held {
         session: SessionId,
         line: String,
         cwd: AbsPath,
-        params: Json,
+        request: Box<CreateTerminalRequest>,
     },
 }
 
@@ -264,14 +267,14 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
         session: &SessionId,
         line: String,
         cwd: AbsPath,
-        params: Json,
+        request: CreateTerminalRequest,
     ) -> StageId {
         let mut inner = self.lock();
         let held = Held::Run {
             session: session.clone(),
             line,
             cwd,
-            params,
+            request: Box::new(request),
         };
         Self::hold(&mut inner, held)
     }
@@ -286,14 +289,36 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
         self.lock().held.remove(stage);
     }
 
-    /// The four `terminal/*` methods that need no ruling.
-    pub fn terminal_other(&self, method: &str, params: Json) -> Option<Result<Json, Error>> {
-        self.lock().terminals.handle(method, params)
+    /// `terminal/output`, which needs no ruling.
+    pub fn terminal_output(
+        &self,
+        asked: &TerminalOutputRequest,
+    ) -> Result<TerminalOutputResponse, Error> {
+        self.lock().terminals.output(asked)
     }
 
-    /// `terminal/wait_for_exit` without blocking.
-    pub fn poll_wait(&self, params: Json) -> Result<Option<Json>, Error> {
-        self.lock().terminals.poll_wait(params)
+    /// `terminal/kill`, which needs no ruling.
+    pub fn terminal_kill(
+        &self,
+        asked: &KillTerminalRequest,
+    ) -> Result<KillTerminalResponse, Error> {
+        self.lock().terminals.kill(asked)
+    }
+
+    /// `terminal/release`, which needs no ruling.
+    pub fn terminal_release(
+        &self,
+        asked: &ReleaseTerminalRequest,
+    ) -> Result<ReleaseTerminalResponse, Error> {
+        self.lock().terminals.release(asked)
+    }
+
+    /// `terminal/wait_for_exit` without blocking: the answer once the command has ended.
+    pub fn poll_wait(
+        &self,
+        asked: &WaitForTerminalExitRequest,
+    ) -> Result<Option<WaitForTerminalExitResponse>, Error> {
+        self.lock().terminals.poll_wait(asked)
     }
 
     /// The writes that can still be taken back, newest last (for a test).

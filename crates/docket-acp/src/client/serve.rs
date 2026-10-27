@@ -1,19 +1,15 @@
-//! The loop and the handlers: what `next_event` does with each line the agent sends, and how a
-//! staged request runs. See `backend` for the rules this keeps.
+//! The loop: what `next_event` does with each message the agent sends, and how a staged request
+//! runs. See `backend` for the rules this keeps.
 
 use super::backend::{AcpBackend, Called, Phase, Seams, Staged};
 use super::call::AgentCall;
 use super::handlers::ok;
-use super::intake::{Intake, Work, intake};
-use super::rpc;
+use super::link::{FromAgent, Plain, Reply, Work};
 use super::taint::TaintSource;
 use crate::fault;
-use crate::out;
-use crate::wire::Wire;
-use agent_client_protocol_schema::rpc::RequestId;
-use agent_client_protocol_schema::v1::{
+use agent_client_protocol::schema::v1::{
     CreateElicitationResponse, ElicitationAction, Error, RequestPermissionOutcome,
-    RequestPermissionResponse,
+    RequestPermissionResponse, SessionNotification,
 };
 use docket_core::{
     CallId, FILES_READ, FILES_WRITE, StepLine, StepShown, TERMINAL_RUN, acp_agent_action,
@@ -27,60 +23,49 @@ use std::time::Duration;
 /// How often a pending `terminal/wait_for_exit` looks at its command when the agent is silent.
 const WAIT_POLL: Duration = Duration::from_millis(50);
 
-/// An error reply line.
-pub(super) fn refusal(id: &RequestId, message: &str) -> String {
-    out::failure(id, &fault::not_now(message))
+/// What woke the loop.
+enum Next {
+    /// The agent sent something (boxed: a request is hundreds of bytes, a tick none).
+    Said(Box<FromAgent>),
+    /// A pending wait should look again.
+    Tick,
+    /// The agent closed the connection, and everything it sent has been taken.
+    Gone,
 }
 
 impl<X: Seams> AcpBackend<X> {
-    fn reply(&mut self, id: &RequestId, answer: Result<Value, Error>) {
-        let line = match answer {
-            Ok(value) => out::reply(id, &value),
-            Err(error) => out::failure(id, &error),
-        };
-        self.outbox.push_back(line);
-    }
-
-    async fn flush(&mut self) {
-        while let Some(line) = self.outbox.front().cloned() {
-            let Some(live) = self.live.as_mut() else {
-                self.outbox.clear();
-                return;
-            };
-            // A write the agent never reads ends the connection, like a closed one.
-            let sent = within(
-                tokio::time::sleep(self.waits.prompt),
-                live.wire.write_line(line),
-            )
-            .await;
-            if !matches!(sent, Ok(Ok(()))) {
-                self.dead = true;
-                self.outbox.clear();
-                return;
-            }
-            self.outbox.pop_front();
+    /// Answers `to`. An agent that can no longer be answered is dead.
+    fn reply(&mut self, to: Reply, answer: Result<Value, Error>) {
+        if to.respond_with_result(answer).is_err() {
+            self.dead = true;
         }
     }
 
-    /// The next line, or a tick (an empty string) when a pending wait should look again.
-    async fn line(&mut self) -> Option<String> {
-        let live = self.live.as_mut()?;
+    /// The next message, or a tick when a pending wait should look again.
+    async fn hear_next(&mut self) -> Next {
+        let Some(live) = self.live.as_mut() else {
+            return Next::Gone;
+        };
         if self.waiters.is_empty() {
-            return live.wire.read_line().await;
+            return live
+                .link
+                .next()
+                .await
+                .map_or(Next::Gone, |said| Next::Said(Box::new(said)));
         }
         tokio::select! {
-            line = live.wire.read_line() => line,
-            () = tokio::time::sleep(WAIT_POLL) => Some(String::new()),
+            said = live.link.next() => said.map_or(Next::Gone, |said| Next::Said(Box::new(said))),
+            () = tokio::time::sleep(WAIT_POLL) => Next::Tick,
         }
     }
 
     fn poll_waiters(&mut self) {
         let waiting = std::mem::take(&mut self.waiters);
-        for (id, params) in waiting {
-            match self.performer.poll_wait(params.clone()) {
-                Ok(None) => self.waiters.push((id, params)),
-                Ok(Some(value)) => self.outbox.push_back(out::reply(&id, &value)),
-                Err(error) => self.outbox.push_back(out::failure(&id, &error)),
+        for (reply, asked) in waiting {
+            match self.performer.poll_wait(&asked) {
+                Ok(None) => self.waiters.push((reply, asked)),
+                Ok(Some(done)) => self.reply(reply, ok(&done)),
+                Err(error) => self.reply(reply, Err(error)),
             }
         }
     }
@@ -90,7 +75,6 @@ impl<X: Seams> AcpBackend<X> {
             if let Some(event) = self.ready.pop_front() {
                 return Some(event);
             }
-            self.flush().await;
             self.tell_owed().await;
             if let Some(event) = self.step_staged().await {
                 return Some(event);
@@ -105,18 +89,16 @@ impl<X: Seams> AcpBackend<X> {
             if self.phase != Phase::Answering {
                 return None;
             }
-            // Whatever we owe the agent goes out before we wait to hear from it.
-            self.flush().await;
             // An agent silent for the whole span is gone, as if it had closed its output.
-            let heard = within(tokio::time::sleep(self.waits.person), self.line())
+            let heard = within(tokio::time::sleep(self.waits.person), self.hear_next())
                 .await
-                .unwrap_or_default();
+                .unwrap_or(Next::Gone);
             self.adopt_trip();
             match heard {
-                None => self.dead = true,
-                Some(line) if line.is_empty() => self.poll_waiters(),
-                Some(line) => {
-                    self.take(intake(&line));
+                Next::Gone => self.dead = true,
+                Next::Tick => self.poll_waiters(),
+                Next::Said(said) => {
+                    self.take(*said);
                     self.poll_waiters();
                 }
             }
@@ -138,25 +120,29 @@ impl<X: Seams> AcpBackend<X> {
         }
     }
 
-    /// Queues "cancel" for the agent's session; nothing when it has none.
+    /// Tells the agent to cancel its session; nothing when it has none.
     fn tell_cancel(&mut self) {
-        if let Some(agent) = self.live.as_ref().and_then(|l| l.agent.as_ref()) {
-            self.outbox.push_back(rpc::cancel(agent));
+        let Some(live) = self.live.as_ref() else {
+            return;
+        };
+        let Some(agent) = live.agent.as_ref() else {
+            return;
+        };
+        if live.link.cancel(agent).is_err() {
+            self.dead = true;
         }
     }
 
-    fn take(&mut self, heard: Intake) {
-        match heard {
-            Intake::Reply { id, outcome } if self.prompt.as_ref() == Some(&id) => {
-                self.turn_over(outcome);
-            }
-            Intake::Update(note) => self.hear(*note),
-            Intake::Request { id, work } => self.stage(id, work),
-            Intake::Reply { .. } | Intake::Ignore => {}
+    fn take(&mut self, said: FromAgent) {
+        match said {
+            FromAgent::Prompt(outcome) => self.turn_over(outcome),
+            FromAgent::Update(note) => self.hear(*note),
+            FromAgent::Ruled(work, reply) => self.stage(work, reply),
+            FromAgent::Plain(plain, reply) => self.answer_plain(plain, reply),
         }
     }
 
-    fn hear(&mut self, note: agent_client_protocol_schema::v1::SessionNotification) {
+    fn hear(&mut self, note: SessionNotification) {
         let Some(live) = self.live.as_mut() else {
             return;
         };
@@ -183,38 +169,25 @@ impl<X: Seams> AcpBackend<X> {
         }
     }
 
-    fn stage(&mut self, id: RequestId, work: Work) {
+    /// A request the router rules on: held for its turn, or turned away while the turn ends.
+    fn stage(&mut self, work: Work, reply: Reply) {
         let refusing = self.cancelling || self.pausing.is_some();
         match work {
-            Work::Unknown => self.reply(&id, Err(Error::method_not_found())),
-            Work::Bad => self.reply(
-                &id,
-                Err(fault::invalid("the parameters do not fit the method")),
-            ),
-            Work::Elicitation => {
-                let answer = CreateElicitationResponse::new(ElicitationAction::Decline);
-                self.reply(&id, ok(&answer));
-            }
             Work::Permission(_) if refusing => {
-                self.reply(
-                    &id,
-                    ok(&RequestPermissionResponse::new(
-                        RequestPermissionOutcome::Cancelled,
-                    )),
-                );
+                let cancelled = RequestPermissionResponse::new(RequestPermissionOutcome::Cancelled);
+                self.reply(reply, ok(&cancelled));
             }
-            Work::Terminal { method, params } => self.terminal_other(&id, &method, params),
-            _ if refusing => self.reply(&id, Err(fault::not_now("the turn is ending"))),
-            work => self.hold(id, work),
+            _ if refusing => self.reply(reply, Err(fault::not_now("the turn is ending"))),
+            work => self.hold(work, reply),
         }
     }
 
-    fn hold(&mut self, id: RequestId, work: Work) {
+    fn hold(&mut self, work: Work, reply: Reply) {
         let (action, effect) = match &work {
             Work::Read(_) => (FILES_READ, Effect::Read),
             Work::Write(_) => (FILES_WRITE, Effect::UndoableWrite),
-            Work::Create { .. } => (TERMINAL_RUN, docket_core::EXECUTE_AS),
-            _ => ("", Effect::Read),
+            Work::Create(_) => (TERMINAL_RUN, docket_core::EXECUTE_AS),
+            Work::Permission(_) => ("", Effect::Read),
         };
         let call = acp_agent_action(action)
             .filter(|_| !action.is_empty())
@@ -228,8 +201,8 @@ impl<X: Seams> AcpBackend<X> {
             });
         self.next_ask += 1;
         self.staged = Some(Staged {
-            id,
             work,
+            reply,
             announced: call.is_none(),
             call,
             stage: None,
@@ -237,17 +210,20 @@ impl<X: Seams> AcpBackend<X> {
         });
     }
 
-    fn terminal_other(&mut self, id: &RequestId, method: &str, params: Value) {
-        if method == agent_client_protocol_schema::v1::CLIENT_METHOD_NAMES.terminal_wait_for_exit {
-            self.waiters.push((id.clone(), params));
-            return;
-        }
-        // Kill, release and output never ask and never block.
-        let answer = self
-            .performer
-            .terminal_other(method, params)
-            .unwrap_or_else(|| Err(fault::internal("could not answer")));
-        self.reply(id, answer);
+    /// A request answered at once: a terminal's output, kill and release never ask and never
+    /// block; its wait is answered when the command has ended.
+    fn answer_plain(&mut self, plain: Plain, reply: Reply) {
+        let answer = match plain {
+            Plain::Wait(asked) => {
+                self.waiters.push((reply, asked));
+                return;
+            }
+            Plain::Output(asked) => self.performer.terminal_output(&asked).and_then(|a| ok(&a)),
+            Plain::Kill(asked) => self.performer.terminal_kill(&asked).and_then(|a| ok(&a)),
+            Plain::Release(asked) => self.performer.terminal_release(&asked).and_then(|a| ok(&a)),
+            Plain::Elicitation => ok(&CreateElicitationResponse::new(ElicitationAction::Decline)),
+        };
+        self.reply(reply, answer);
     }
 
     /// Announces the staged call, or runs it. Returns the announcement when there is one.
@@ -262,12 +238,12 @@ impl<X: Seams> AcpBackend<X> {
                 effect: call.effect,
             })));
         }
-        let staged = self.staged.clone()?;
-        let ran = self.run(&staged).await;
+        let (work, n) = (staged.work.clone(), staged.n);
+        let ran = self.run(&work, n).await;
         // From here to the end of the function nothing is awaited: the call has run, and its
         // reply, its end and the clearing of `staged` happen together.
-        self.staged = None;
-        self.reply(&staged.id, ran.reply);
+        let staged = self.staged.take()?;
+        self.reply(staged.reply, ran.reply);
         if let (Some(trip), None) = (ran.paused, self.pausing)
             && self.live.is_some()
         {
@@ -313,7 +289,7 @@ impl<X: Seams> AcpBackend<X> {
 
     /// Stops the turn in progress: a call that is staged and has not run never will, the agent
     /// is told "cancelled", and the turn ends when the agent answers its prompt.
-    pub(super) async fn stop_turn(&mut self) {
+    pub(super) fn stop_turn(&mut self) {
         if self.phase != Phase::Answering || self.cancelling {
             return;
         }
@@ -332,14 +308,13 @@ impl<X: Seams> AcpBackend<X> {
             }
             match staged.work {
                 Work::Permission(_) => {
-                    let answer =
+                    let cancelled =
                         RequestPermissionResponse::new(RequestPermissionOutcome::Cancelled);
-                    self.reply(&staged.id, ok(&answer));
+                    self.reply(staged.reply, ok(&cancelled));
                 }
-                _ => self.reply(&staged.id, Err(fault::not_now("cancelled"))),
+                _ => self.reply(staged.reply, Err(fault::not_now("cancelled"))),
             }
         }
         self.tell_cancel();
-        self.flush().await;
     }
 }
