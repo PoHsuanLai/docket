@@ -16,6 +16,15 @@ use docket_core::{SeenCommand, WatchedAgent, Workspace};
 use docket_dbus::{AgentHostProxy, BusConnection};
 use prov::{HelperId, SessionId};
 
+/// Why the host of the agent apps gave no reply.
+#[derive(Debug, thiserror::Error)]
+enum LinkFault {
+    #[error("{0}")]
+    Bus(#[from] zbus::Error),
+    #[error("{0}")]
+    Body(#[from] serde_json::Error),
+}
+
 /// The host of the agent apps, on the session bus.
 #[derive(Debug, Clone)]
 pub struct AppsLink {
@@ -38,16 +47,14 @@ impl AppsLink {
         reply.ok()
     }
 
-    async fn asked(&self, ask: &AppsAsk) -> Result<AppsReply, String> {
-        let body = serde_json::to_string(ask).map_err(|e| e.to_string())?;
-        let host = AgentHostProxy::new(&self.connection)
-            .await
-            .map_err(|e| e.to_string())?;
-        let call = host.apps_begin(&body).await.map_err(|e| e.to_string())?;
+    async fn asked(&self, ask: &AppsAsk) -> Result<AppsReply, LinkFault> {
+        let body = serde_json::to_string(ask)?;
+        let host = AgentHostProxy::new(&self.connection).await?;
+        let call = host.apps_begin(&body).await?;
         loop {
-            let text = host.apps_wait(&call).await.map_err(|e| e.to_string())?;
+            let text = host.apps_wait(&call).await?;
             if !text.is_empty() {
-                return serde_json::from_str(&text).map_err(|e| e.to_string());
+                return Ok(serde_json::from_str(&text)?);
             }
         }
     }

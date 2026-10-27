@@ -12,9 +12,9 @@
 //! `installing ID VERSION` on its first line before it reaches the network.
 
 use agents_core::dirs::AgentsDir;
-use agents_core::snapshot::Snapshot;
+use agents_core::snapshot::{Snapshot, SnapshotFault};
 use clap::{Parser, Subcommand};
-use docket_agents::fetch::{Curl, Fetch};
+use docket_agents::fetch::{Curl, Fetch, FetchFault};
 use docket_agents::run::System;
 use docket_agents::store::{agents, versions};
 use docket_agents::{Standing, Want, install, offers, standing};
@@ -61,15 +61,25 @@ enum Request {
     },
 }
 
-fn snapshot(file: Option<PathBuf>) -> Result<Snapshot, String> {
+/// Why the registry snapshot was not got.
+#[derive(Debug, thiserror::Error)]
+enum SnapshotError {
+    #[error("{0}")]
+    Unread(#[from] std::io::Error),
+    #[error("{0}")]
+    Unfetched(#[from] FetchFault),
+    #[error("{0}")]
+    NotText(#[from] std::string::FromUtf8Error),
+    #[error("{0}")]
+    Invalid(#[from] SnapshotFault),
+}
+
+fn snapshot(file: Option<PathBuf>) -> Result<Snapshot, SnapshotError> {
     let text = match file {
-        Some(path) => std::fs::read_to_string(path).map_err(|e| e.to_string())?,
-        None => {
-            let bytes = Curl.get(REGISTRY).map_err(|e| e.to_string())?;
-            String::from_utf8(bytes).map_err(|e| e.to_string())?
-        }
+        Some(path) => std::fs::read_to_string(path)?,
+        None => String::from_utf8(Curl.get(REGISTRY)?)?,
     };
-    Snapshot::parse(&text).map_err(|e| e.to_string())
+    Ok(Snapshot::parse(&text)?)
 }
 
 /// Prints each installed agent and its versions, one JSON object a line.

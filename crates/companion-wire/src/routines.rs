@@ -162,11 +162,23 @@ impl fmt::Display for ProposalId {
     }
 }
 
-impl TryFrom<String> for ProposalId {
-    type Error = String;
+/// Text that is not a proposal id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProposalIdFault;
 
-    fn try_from(text: String) -> Result<Self, String> {
-        Self::parse(&text).ok_or_else(|| "a proposal is written p-1, p-2 and so on".to_owned())
+impl fmt::Display for ProposalIdFault {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("a proposal is written p-1, p-2 and so on")
+    }
+}
+
+impl std::error::Error for ProposalIdFault {}
+
+impl TryFrom<String> for ProposalId {
+    type Error = ProposalIdFault;
+
+    fn try_from(text: String) -> Result<Self, ProposalIdFault> {
+        Self::parse(&text).ok_or(ProposalIdFault)
     }
 }
 

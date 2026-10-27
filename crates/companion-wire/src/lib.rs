@@ -33,7 +33,7 @@ pub use route::{
 };
 pub use route_log::RouteLog;
 pub use routines::{
-    EventForm, ProposalId, RoutineCardView, RoutineForm, RoutineLine, RoutineProposal,
-    RoutineReply, RoutineShown, RoutinesView, RunLine, RunShown, WhenForm, routine_card,
-    routine_line,
+    EventForm, ProposalId, ProposalIdFault, RoutineCardView, RoutineForm, RoutineLine,
+    RoutineProposal, RoutineReply, RoutineShown, RoutinesView, RunLine, RunShown, WhenForm,
+    routine_card, routine_line,
 };

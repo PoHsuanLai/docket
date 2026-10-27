@@ -13,7 +13,7 @@
 //! unreadable source, so its layer decides what that means. One policy set is built, from the
 //! core, the preset, and the person's, assistant's and administrator's layers.
 
-use policy_point::{Layer, LayerError, Pdp, PolicySource, Presets, Rejected, SCHEMA};
+use policy_point::{Layer, LayerError, Pdp, PolicySource, Presets, ReadFault, Rejected, SCHEMA};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -119,7 +119,7 @@ fn read_layer(layer: Layer, dir: &Path) -> Vec<PolicySource> {
         .into_iter()
         .map(|path| match std::fs::read_to_string(&path) {
             Ok(text) => PolicySource::file(layer, path, text),
-            Err(why) => PolicySource::unreadable(layer, path, why.to_string()),
+            Err(why) => PolicySource::unreadable(layer, path, ReadFault::from(&why)),
         })
         .collect()
 }

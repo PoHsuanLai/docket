@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use std::process::ExitCode;
-use voiced::{FileUse, PipeWireDevice, VoicedConfig};
+use voiced::{ConfigError, FileUse, PipeWireDevice, VoicedConfig};
 
 /// The voice daemon.
 #[derive(Debug, Parser)]
@@ -14,9 +14,24 @@ struct Args {
     config: std::path::PathBuf,
 }
 
-fn load(path: &std::path::Path) -> Result<VoicedConfig, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    VoicedConfig::parse(&text).map_err(|e| e.to_string())
+/// Why the configuration was not read.
+#[derive(Debug, thiserror::Error)]
+enum LoadFault {
+    #[error("{path}: {source}")]
+    Unread {
+        path: String,
+        source: std::io::Error,
+    },
+    #[error("{0}")]
+    Invalid(#[from] ConfigError),
+}
+
+fn load(path: &std::path::Path) -> Result<VoicedConfig, LoadFault> {
+    let text = std::fs::read_to_string(path).map_err(|source| LoadFault::Unread {
+        path: path.display().to_string(),
+        source,
+    })?;
+    Ok(VoicedConfig::parse(&text)?)
 }
 
 fn main() -> ExitCode {

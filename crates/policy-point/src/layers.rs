@@ -6,6 +6,7 @@
 
 use crate::pdp::{CORE_POLICIES, PRESET};
 use std::fmt;
+use std::io::ErrorKind;
 use std::path::PathBuf;
 
 /// One layer of the policy set, in loading order.
@@ -60,6 +61,24 @@ impl fmt::Display for PolicyOrigin {
     }
 }
 
+/// Why a policy file could not be read.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{message}")]
+pub struct ReadFault {
+    /// What kind of failure it was.
+    pub kind: ErrorKind,
+    message: String,
+}
+
+impl From<&std::io::Error> for ReadFault {
+    fn from(error: &std::io::Error) -> Self {
+        Self {
+            kind: error.kind(),
+            message: error.to_string(),
+        }
+    }
+}
+
 /// The text of one policy file and where it belongs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PolicySource {
@@ -69,7 +88,7 @@ pub struct PolicySource {
     pub origin: PolicyOrigin,
     /// The Cedar text, or why the file could not be read. An unreadable source is refused by its
     /// layer like a bad one, so a file that cannot be read never loosens the set.
-    pub text: Result<String, String>,
+    pub text: Result<String, ReadFault>,
 }
 
 impl PolicySource {
@@ -93,7 +112,7 @@ impl PolicySource {
     }
 
     /// A file that could not be read, and why.
-    pub fn unreadable(layer: Layer, path: PathBuf, why: String) -> Self {
+    pub fn unreadable(layer: Layer, path: PathBuf, why: ReadFault) -> Self {
         Self {
             layer,
             origin: PolicyOrigin::File(path),

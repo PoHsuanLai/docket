@@ -3,7 +3,7 @@
 //! directory wins for the same app. A file of an app with no manifest is ignored, and one that
 //! is not a search file is said so and ignored.
 
-use crate::shipped::ShippedEntries;
+use crate::shipped::{ShippedEntries, ShippedFault};
 use docket_router::{Router, Seams};
 use porter_core::AppName;
 use std::collections::BTreeSet;
@@ -46,7 +46,16 @@ pub fn ship_search_files<S: Seams>(router: &Router<S>, data_dirs: &[PathBuf]) {
     }
 }
 
-fn read(file: &Path) -> Result<ShippedEntries, String> {
-    let text = std::fs::read_to_string(file).map_err(|e| e.to_string())?;
-    ShippedEntries::parse(&text).map_err(|e| e.to_string())
+/// Why a search file was not taken.
+#[derive(Debug, thiserror::Error)]
+enum SearchFileFault {
+    #[error("{0}")]
+    Unread(#[from] std::io::Error),
+    #[error("{0}")]
+    Unshipped(#[from] ShippedFault),
+}
+
+fn read(file: &Path) -> Result<ShippedEntries, SearchFileFault> {
+    let text = std::fs::read_to_string(file)?;
+    Ok(ShippedEntries::parse(&text)?)
 }

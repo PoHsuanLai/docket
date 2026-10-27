@@ -19,7 +19,7 @@ mod request;
 
 pub use fault::{EvalFault, FaultCause, Ruled};
 pub use layered::{LayerError, Layered};
-pub use layers::{Layer, PolicyOrigin, PolicySource, Rejected};
+pub use layers::{Layer, PolicyOrigin, PolicySource, ReadFault, Rejected};
 pub use pdp::{CORE_POLICIES, PRESET, Pdp, PolicyError, SCHEMA};
 pub use presets::Presets;
 pub use request::{
