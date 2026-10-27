@@ -11,7 +11,8 @@ use docket_accept::live::{
 };
 use docket_accept::world::ModelSource;
 use docket_core::{Millis, ModelExchange};
-use docket_eval::{Case, CaseTrace, Corpus, Judgement, cassette_from, load_all};
+use docket_eval::{cassette_from, load_all};
+use eval_core::{Case, CaseTrace, Corpus, Judgement};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 

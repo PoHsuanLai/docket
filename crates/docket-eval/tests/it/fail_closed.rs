@@ -2,9 +2,10 @@
 //! the case file misspells, and state a case leaves behind all fail the case.
 
 use docket_core::{ActionRef, AgentConfig, GrantCaller, StandingGrant, StandingScope};
-use docket_eval::{Case, Harness, Judgement, StepEnding, judge, run_case};
+use docket_eval::{Harness, run_case};
 use docket_fake::Answering;
 use docket_router::GrantStore;
+use eval_core::{Case, Judgement, StepEnding, judge};
 use porter_core::AppName;
 use prov::{ActionName, UnixSeconds};
 
@@ -46,7 +47,7 @@ action = "mail.message.send"
     )
 }
 
-fn run(case: &Case) -> docket_eval::CaseResult {
+fn run(case: &Case) -> eval_core::CaseResult {
     let harness = Harness::new(AgentConfig::default()).expect("harness");
     run_case(case, &harness)
 }
@@ -109,7 +110,7 @@ body = { kind = "mail_body", v = "nope" }"#,
 #[test]
 fn a_harness_ending_is_not_a_refusal_for_a_case_that_wants_one() {
     let mut probe = case(&send_with(r#"tto = { kind = "contact", v = "c1" }"#));
-    probe.expect = docket_eval::Expect::AllRefused;
+    probe.expect = eval_core::Expect::AllRefused;
     assert_eq!(judge(&probe.expect, &run(&probe)), Judgement::Missed);
 }
 

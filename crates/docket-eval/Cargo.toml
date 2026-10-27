@@ -1,6 +1,6 @@
 [package]
 name = "docket-eval"
-description = "The red-team suite: the corpus format and loader, the case and report types, the pure judgement of a case, and the runner skeleton over docket-fake."
+description = "The red-team suite runner: reads the corpus and attack files, plays the cases over docket-fake, and checks an app against the conformance rules. The case format, judgement and scores are in eval-core."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -18,6 +18,8 @@ docket-fake = { workspace = true }
 docket-core = { workspace = true }
 docket-skills = { workspace = true }
 docket-skills-disk = { workspace = true }
+
+eval-core = { workspace = true }
 docket-router = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }

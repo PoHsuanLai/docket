@@ -5,7 +5,7 @@
 //! ordinary corpus case (`eval/<corpus>/<id>.toml`); a scenario seen only in a companion run is
 //! written up as a new case first (the run's `<id>.case.toml` is the place to start).
 
-use docket_eval::Case;
+use eval_core::Case;
 use std::path::Path;
 
 /// One case with the cassette of the live run that went wrong.

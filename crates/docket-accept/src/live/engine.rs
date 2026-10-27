@@ -2,8 +2,8 @@
 
 use crate::world::ModelSource;
 use docket_core::AgentReach;
-use docket_eval::Case;
 use docket_fake::registry;
+use eval_core::Case;
 use serde_json::{Value, json};
 use std::path::Path;
 

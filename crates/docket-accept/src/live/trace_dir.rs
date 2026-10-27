@@ -4,7 +4,8 @@
 //! `docs/live-eval.md`).
 
 use docket_core::ModelExchange;
-use docket_eval::{Case, CaseTrace, cassette_from, render_index, trace_file};
+use docket_eval::cassette_from;
+use eval_core::{Case, CaseTrace, render_index, trace_file};
 use std::path::{Path, PathBuf};
 
 /// Why a trace could not be written.

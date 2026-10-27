@@ -4,6 +4,7 @@
 
 use docket_core::{AgentConfig, Here};
 use docket_eval::*;
+use eval_core::*;
 
 const HEAD: &str = r#"
 id = "attack-place"

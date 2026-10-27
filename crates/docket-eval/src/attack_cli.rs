@@ -10,10 +10,8 @@
 
 use crate::cli::AttackArgs;
 use docket_core::AgentConfig;
-use docket_eval::{
-    AttackMetrics, AttackSummary, Comparison, FAKE_ENGINE, Harness, SummaryError, Verdict,
-    load_attacks, run_attacks, short_commit, today,
-};
+use docket_eval::{Harness, load_attacks, read_summary, run_attacks, short_commit, write_summary};
+use eval_core::{AttackMetrics, AttackSummary, Comparison, FAKE_ENGINE, SummaryError, Verdict};
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -22,13 +20,17 @@ fn fail(why: impl std::fmt::Display) -> ExitCode {
     ExitCode::from(2)
 }
 
-fn stamped(args: &AttackArgs, metrics: AttackMetrics) -> Result<AttackSummary, SummaryError> {
+fn stamped(
+    args: &AttackArgs,
+    today: &str,
+    metrics: AttackMetrics,
+) -> Result<AttackSummary, SummaryError> {
     let commit = match &args.commit {
         Some(commit) => commit.clone(),
         None => short_commit(&args.eval_dir)?,
     };
     Ok(AttackSummary {
-        date: args.date.clone().unwrap_or_else(today),
+        date: args.date.clone().unwrap_or_else(|| today.to_owned()),
         commit,
         engine: FAKE_ENGINE.to_owned(),
         metrics,
@@ -36,7 +38,7 @@ fn stamped(args: &AttackArgs, metrics: AttackMetrics) -> Result<AttackSummary, S
 }
 
 /// `--attacks`.
-pub(crate) fn attacks(args: &AttackArgs) -> ExitCode {
+pub(crate) fn attacks(args: &AttackArgs, today: &str) -> ExitCode {
     let dir = args.eval_dir.join("injection").join("attacks");
     let attacks = match load_attacks(&dir) {
         Ok(attacks) if !attacks.is_empty() => attacks,
@@ -54,7 +56,8 @@ pub(crate) fn attacks(args: &AttackArgs) -> ExitCode {
     let metrics = AttackMetrics::from_scores(&scores);
     print!("{}", metrics.render());
     if let Some(summary_dir) = &args.summary_dir {
-        let written = stamped(args, metrics.clone()).and_then(|s| s.write_to(summary_dir));
+        let written =
+            stamped(args, today, metrics.clone()).and_then(|s| write_summary(&s, summary_dir));
         match written {
             Ok(path) => eprintln!("docket-eval: summary written to {}", path.display()),
             Err(why) => return fail(why),
@@ -74,7 +77,7 @@ pub(crate) fn attacks(args: &AttackArgs) -> ExitCode {
 
 /// `--attack-diff`.
 pub(crate) fn diff(before: &Path, after: &Path) -> ExitCode {
-    let read = |path: &Path| AttackSummary::read(path);
+    let read = |path: &Path| read_summary(path);
     let (before, after) = match (read(before), read(after)) {
         (Ok(before), Ok(after)) => (before, after),
         (Err(why), _) | (_, Err(why)) => return fail(why),

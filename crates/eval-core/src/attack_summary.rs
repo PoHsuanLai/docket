@@ -11,8 +11,6 @@ use crate::attack_score::AttackMetrics;
 use crate::report::Rate95;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 /// The engine of the gate's own run: the scripted planner and reviewers that allow everything.
 pub const FAKE_ENGINE: &str = "hostile-fake";
@@ -20,7 +18,7 @@ pub const FAKE_ENGINE: &str = "hostile-fake";
 /// Why a summary could not be written, read or named.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SummaryError {
-    /// A file or directory could not be read or written.
+    /// A file or directory could not be read or written (by the caller that does the IO).
     #[error("{path}: {why}")]
     Io {
         /// Where.
@@ -92,54 +90,7 @@ pub fn utc_date(unix_secs: u64) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
-/// Today in UTC.
-pub fn today() -> String {
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs());
-    utc_date(secs)
-}
-
-fn git(repo: &Path, args: &[&str]) -> Result<String, SummaryError> {
-    let fault = |why: String| SummaryError::Commit {
-        path: repo.to_owned(),
-        why,
-    };
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(args)
-        .output()
-        .map_err(|e| fault(e.to_string()))?;
-    match out.status.success() {
-        true => Ok(String::from_utf8_lossy(&out.stdout).trim().to_owned()),
-        false => Err(fault(
-            String::from_utf8_lossy(&out.stderr).trim().to_owned(),
-        )),
-    }
-}
-
-/// The short commit of the checkout `repo` is in, with `-dirty` when tracked files have changes.
-pub fn short_commit(repo: &Path) -> Result<String, SummaryError> {
-    let sha = git(repo, &["rev-parse", "--short", "HEAD"])?;
-    let changes = git(repo, &["status", "--porcelain", "--untracked-files=no"])?;
-    Ok(match changes.is_empty() {
-        true => sha,
-        false => format!("{sha}-dirty"),
-    })
-}
-
 impl AttackSummary {
-    /// The numbers of `metrics`, stamped with today and the commit `repo` is at.
-    pub fn stamp(engine: &str, metrics: AttackMetrics, repo: &Path) -> Result<Self, SummaryError> {
-        Ok(Self {
-            date: today(),
-            commit: short_commit(repo)?,
-            engine: engine.to_owned(),
-            metrics,
-        })
-    }
-
     /// The file this summary is kept in.
     pub fn file_name(&self) -> Result<String, SummaryError> {
         [&self.date, &self.commit, &self.engine]
@@ -151,30 +102,19 @@ impl AttackSummary {
         })
     }
 
-    /// Writes the summary into `dir` (made if it is not there) and returns the path.
-    pub fn write_to(&self, dir: &Path) -> Result<PathBuf, SummaryError> {
-        let io = |path: &Path, e: std::io::Error| SummaryError::Io {
-            path: path.to_owned(),
-            why: e.to_string(),
-        };
-        let path = dir.join(self.file_name()?);
-        std::fs::create_dir_all(dir).map_err(|e| io(dir, e))?;
+    /// The summary as the JSON text of its file (`path` names the file in a fault).
+    pub fn to_json(&self, path: &Path) -> Result<String, SummaryError> {
         let mut text = serde_json::to_string_pretty(self).map_err(|e| SummaryError::Parse {
-            path: path.clone(),
+            path: path.to_owned(),
             why: e.to_string(),
         })?;
         text.push('\n');
-        std::fs::write(&path, text).map_err(|e| io(&path, e))?;
-        Ok(path)
+        Ok(text)
     }
 
-    /// Reads a summary back.
-    pub fn read(path: &Path) -> Result<Self, SummaryError> {
-        let text = std::fs::read_to_string(path).map_err(|e| SummaryError::Io {
-            path: path.to_owned(),
-            why: e.to_string(),
-        })?;
-        serde_json::from_str(&text).map_err(|e| SummaryError::Parse {
+    /// A summary from the JSON text of the file at `path`.
+    pub fn from_json(path: &Path, text: &str) -> Result<Self, SummaryError> {
+        serde_json::from_str(text).map_err(|e| SummaryError::Parse {
             path: path.to_owned(),
             why: e.to_string(),
         })

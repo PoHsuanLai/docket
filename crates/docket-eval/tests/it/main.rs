@@ -1,5 +1,4 @@
 mod attack;
-mod attack_live;
 mod attack_place;
 mod check;
 mod fail_closed;

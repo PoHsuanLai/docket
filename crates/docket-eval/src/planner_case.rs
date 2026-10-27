@@ -16,7 +16,7 @@
 //! expect = [{ kind = "ends", v = ["failed"] }, { kind = "nothing_sent" }]
 //! ```
 
-use crate::case::ConsentFixture;
+use eval_core::ConsentFixture;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 

@@ -1089,6 +1089,7 @@ dependencies = [
  "docket-store",
  "docket-testbus",
  "docket-trace",
+ "eval-core",
  "futures-util",
  "intentd",
  "porter-client",
@@ -1332,6 +1333,7 @@ dependencies = [
  "docket-router",
  "docket-skills",
  "docket-skills-disk",
+ "eval-core",
  "porter-core",
  "proptest",
  "prov",
@@ -1839,6 +1841,19 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "eval-core"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "porter-core",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]

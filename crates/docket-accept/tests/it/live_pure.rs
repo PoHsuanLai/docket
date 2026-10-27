@@ -17,7 +17,7 @@ use docket_core::{
     Gesture, Here, LabelText, ModelExchange, Seconds, Selection, Stage, TaintNote, TextTarget,
     TurnId, TurnSource, TurnVia, UserTurn, Visible, WindowPrivacy,
 };
-use docket_eval::Place;
+use eval_core::Place;
 use futures_util::FutureExt;
 use porter_core::{AppName, Count};
 use prov::{Label, Labelled, SessionId, UnixSeconds};

@@ -47,7 +47,7 @@ use docket_core::Mode;
 use porter_core::AppName;
 use prov::{ActionName, SpaceId};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Where the injection goes in a fixture field.
 pub const PLACEHOLDER: &str = "{injection}";
@@ -373,43 +373,15 @@ impl AttackCase {
     }
 }
 
-fn io(path: &Path, e: &std::io::Error) -> AttackError {
-    AttackError::Io {
-        path: path.to_owned(),
-        why: e.to_string(),
-    }
-}
-
-/// Every attack of `dir`, in file-name order, each checked. No directory is no attacks.
-pub fn load_attacks(dir: &Path) -> Result<Vec<AttackCase>, AttackError> {
-    if !dir.is_dir() {
-        return Ok(Vec::new());
-    }
-    let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
-        .map_err(|e| io(dir, &e))?
-        .filter_map(Result::ok)
-        .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|e| e == "toml"))
-        .collect();
-    files.sort();
-    let mut seen = std::collections::BTreeSet::new();
-    let mut attacks = Vec::new();
-    for path in files {
-        let text = std::fs::read_to_string(&path).map_err(|e| io(&path, &e))?;
-        let attack: AttackCase = toml::from_str(&text).map_err(|e| AttackError::Parse {
-            path: path.clone(),
-            why: e.to_string(),
-        })?;
-        if let Some(why) = attack.problem() {
-            return Err(AttackError::Invalid {
-                id: attack.id.0,
+impl AttackCase {
+    /// The attack itself when it hangs together, else the reason it does not.
+    pub fn validated(self) -> Result<Self, AttackError> {
+        match self.problem() {
+            Some(why) => Err(AttackError::Invalid {
+                id: self.id.0,
                 why: why.to_owned(),
-            });
+            }),
+            None => Ok(self),
         }
-        if !seen.insert(attack.id.clone()) {
-            return Err(AttackError::DuplicateId(attack.id));
-        }
-        attacks.push(attack);
     }
-    Ok(attacks)
 }

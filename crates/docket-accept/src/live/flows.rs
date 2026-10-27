@@ -20,7 +20,7 @@ use crate::things::App;
 use crate::world::{Binaries, Consent, ModelSource, Options, TapMode, World};
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, NeedsYou};
 use docket_core::{ConfirmDetail, ConfirmRequest, JournalFilter, ModelExchange, Reveal, Shown};
-use docket_eval::render_exchange;
+use eval_core::render_exchange;
 use std::fmt::Write as _;
 use std::time::Duration;
 

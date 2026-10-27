@@ -10,7 +10,7 @@
 //! ```
 //!
 //! The key is a key of the attack's world (a mail, a contact or a file). The app and the kind come
-//! from what the world's fake apps list ([`docket_fake::FakeLink::shown`]), so nothing here names
+//! from what the world's fake apps list (`docket_fake::FakeLink::shown`), so nothing here names
 //! an app. The items in view are the open item's siblings: the same app and the same kind.
 //!
 //! When `here` is absent the place follows from the user's own steps, over the things they act on

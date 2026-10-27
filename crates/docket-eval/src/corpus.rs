@@ -1,6 +1,6 @@
 //! Reading the corpus: every `*.toml` of a directory is one case.
 
-use crate::case::{Case, CaseId};
+use eval_core::{Case, CaseId};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 

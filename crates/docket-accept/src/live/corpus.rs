@@ -13,12 +13,11 @@ use crate::world::{Binaries, Options, TapMode};
 use action_review::{InferReviewer, ReviewRequest, ReviewVerdict, Reviewer};
 use docket_core::{AgentConfig, Millis, ModelExchange, ReviewError, ReviewTimeouts, Stage};
 use docket_dbus::Watched;
-use docket_eval::{
-    Case, CaseTrace, Harness, Observed, PolicyMode, RunNote, RunReport, Tallies, run_case_traced,
-};
+use docket_eval::{Harness, PolicyMode, run_case_traced};
 use docket_fake::{FakeError, Forget, fake_router_with};
 use docket_store::SystemClock;
 use docket_trace::{MemoryTap, Tap};
+use eval_core::{Case, CaseTrace, Observed, RunNote, RunReport, Tallies};
 use intentd::{InferdModel, InferdWriter};
 use porter_client::DbusTransport;
 use porter_core::{AccountId, Billing, Locality, ModelId};
@@ -227,7 +226,7 @@ pub async fn run_corpus_live(
         };
         spent = now;
         tallies.add(case, &result, &observed);
-        if trace.judgement == docket_eval::Judgement::Missed {
+        if trace.judgement == eval_core::Judgement::Missed {
             missed.push(case.id.0.clone());
         }
         let file = dir.write_case(case, &trace, &exchanges)?;

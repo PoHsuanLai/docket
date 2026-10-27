@@ -11,14 +11,24 @@ mod cli;
 use clap::Parser;
 use cli::{Cli, Request};
 use docket_eval::{CheckError, CheckReport, check_app, check_skills};
+use eval_core::utc_date;
 use std::process::ExitCode;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+/// Today in UTC, as `YYYY-MM-DD`: the one clock read of the attack summary.
+fn today() -> String {
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    utc_date(secs)
+}
 
 fn main() -> ExitCode {
     let Some(request) = Cli::parse().request() else {
         return ExitCode::from(2);
     };
     let (what, checked) = match request {
-        Request::Attacks(args) => return attack_cli::attacks(&args),
+        Request::Attacks(args) => return attack_cli::attacks(&args, &today()),
         Request::AttackDiff { before, after } => return attack_cli::diff(&before, &after),
         Request::CheckApp(dir) => ("cli.md section 6", check_app(&dir)),
         Request::CheckSkills { dirs, manifests } => {

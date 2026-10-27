@@ -3,10 +3,8 @@
 //! kind of answer.
 
 use docket_core::{AgentConfig, ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
-use docket_eval::{
-    CaseTrace, Harness, Judgement, PolicyMode, cassette_from, load_all, render_index,
-    run_case_traced, trace_file,
-};
+use docket_eval::{Harness, PolicyMode, cassette_from, load_all, run_case_traced};
+use eval_core::{CaseTrace, Judgement, render_index, trace_file};
 use std::path::PathBuf;
 
 fn corpus_root() -> PathBuf {

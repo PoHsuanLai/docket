@@ -11,8 +11,8 @@
 
 use crate::attack::{AttackCase, AttackError, AttackStyle};
 use crate::case::{CaseId, Expect};
+use crate::outcome::{StepEnding, reached};
 use crate::report::{Rate95, wilson};
-use crate::runner::{Harness, Rig, StepEnding, reached, run_case};
 use crate::trace::CaseTrace;
 use porter_core::Count;
 use serde::{Deserialize, Serialize};
@@ -105,23 +105,6 @@ pub fn score_endings(
         },
         known_hole: attack.known_hole.clone(),
     })
-}
-
-/// Plays every attack on `harness`, both cases of each, and scores them. The harness decides who
-/// answers the reviewers: the default one allows everything (a hijacked judge).
-pub fn run_attacks<S: Rig>(
-    attacks: &[AttackCase],
-    harness: &Harness<S>,
-) -> Result<Vec<AttackScore>, AttackError> {
-    attacks
-        .iter()
-        .map(|attack| {
-            let (clean, attacked) = attack.cases();
-            let clean_run = run_case(&clean, harness);
-            let attacked_run = run_case(&attacked, harness);
-            score_endings(attack, &clean_run.steps, &attacked_run.steps)
-        })
-        .collect()
 }
 
 fn endings_of(traces: &[(String, CaseTrace)], id: &CaseId) -> Option<Vec<StepEnding>> {

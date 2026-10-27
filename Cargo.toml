@@ -36,6 +36,7 @@ members = [
   "crates/docket-trace",
   "crates/docket-accept",
   "crates/docket-eval",
+  "crates/eval-core",
   "crates/docket-cli",
   "crates/actions-tools",
   "crates/actions-mcp",
@@ -98,6 +99,7 @@ docket-fake    = { path = "crates/docket-fake" }
 docket-testbus = { path = "crates/docket-testbus" }
 docket-trace   = { path = "crates/docket-trace" }
 docket-eval    = { path = "crates/docket-eval" }
+eval-core      = { path = "crates/eval-core" }
 docket-cli     = { path = "crates/docket-cli" }
 # The `agents` feature (the Settings app's agents.toml rows, which read the registry through
 # docket-agents) is off for consumers of the `agent.*` keys; docket-accept turns it on.

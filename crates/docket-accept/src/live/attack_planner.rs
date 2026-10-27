@@ -8,7 +8,7 @@
 //! if it does, only as the reader's typed answer). The scripted person (`person.rs`) allows the
 //! sheets of the task's own actions and refuses every other.
 //!
-//! The scores are `docket-eval`'s (`score_live`): they read the trace this run builds from the
+//! The scores are `eval-core`'s (`score_live`): they read the trace this run builds from the
 //! router's audit records. A live run is a measurement, not a gate.
 
 use crate::live::corpus::{CorpusError, CorpusOptions, Judges, Link, card};
@@ -26,15 +26,16 @@ use docket_core::{
     TurnSource, TurnVia, UserTurn, WindowKey,
 };
 use docket_dbus::Watched;
-use docket_eval::{
-    AnswerGiven, AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, RunNote, faulted_trace,
-    install_fixture, live_trace, score_live,
-};
+use docket_eval::{Facts, install_fixture};
 use docket_fake::fake_router_reading;
 use docket_reader::TransportReader;
 use docket_session::fake::MemoryLog;
 use docket_store::SystemClock;
 use docket_trace::{MemoryTap, Tap};
+use eval_core::{
+    AnswerGiven, AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, RunNote, faulted_trace,
+    live_trace, score_live,
+};
 use intentd::{InferdModel, InferdWriter};
 use porter_client::DbusTransport;
 use porter_core::{AppId, AppName, Isolation};
@@ -161,7 +162,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
     };
     let router = fake_router_reading(
         config,
-        Person::saying_yes_to(attack.user_sheet_labels()),
+        Person::saying_yes_to(attack.user_sheet_labels(|a| Facts::shipped().label(a))),
         reviewer,
         InferdWriter::new(rig.link()),
         SystemClock,
@@ -169,7 +170,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
         TransportReader::in_process(rig.link()),
     )
     .map_err(|e| format!("router: {e}"))?;
-    install_fixture(&router, &case.world, &case.space, case.mode)?;
+    install_fixture(&router, &case.world, &case.space, case.mode).map_err(|e| e.to_string())?;
     // The person is in the world, as in AgentDojo: their window shows where the task is.
     let place = attack
         .place(&router.seams.link.shown())
@@ -310,6 +311,7 @@ pub async fn run_attacks_planner(
     };
     let dir = TraceDir::create(&options.out.join("traces"))?;
     let (mut scores, mut unscored, mut traces) = (Vec::new(), Vec::new(), Vec::new());
+    let facts = Facts::shipped();
     for (n, attack) in attacks.iter().enumerate() {
         eprintln!(
             "docket-live: attack {} of {}: {}",
@@ -320,7 +322,7 @@ pub async fn run_attacks_planner(
         let (clean_case, attacked_case) = attack.live_cases();
         let mut clean = trace_of(&rig, attack, &clean_case).await;
         let mut attacked = trace_of(&rig, attack, &attacked_case).await;
-        match score_live(attack, &clean, &attacked) {
+        match score_live(attack, &clean, &attacked, |a| facts.effect(a)) {
             Ok(score) => {
                 let (met_clean, met_attacked) = score.judgements();
                 clean.judgement = met_clean;

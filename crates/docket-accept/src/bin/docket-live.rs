@@ -23,8 +23,11 @@ use docket_accept::live::{catalog, regress};
 use docket_accept::world::{Binaries, ModelSource};
 use docket_core::Millis;
 use docket_eval::{
-    AttackCase, AttackMetrics, AttackSummary, Case, Corpus, LiveMetrics, PlannerCase, RunNote,
-    RunReport, load_all, load_attacks, load_planner_cases, planner_slug, score_traces,
+    PlannerCase, load_all, load_attacks, load_planner_cases, stamp_summary, write_summary,
+};
+use eval_core::{
+    AttackCase, AttackMetrics, Case, Corpus, LiveMetrics, RunNote, RunReport, planner_slug,
+    score_traces, utc_date,
 };
 use std::process::ExitCode;
 use std::time::Duration;
@@ -162,6 +165,14 @@ fn corpus_agent(args: &CorpusArgs, spec: &AcpSpec) -> Result<ExitCode, String> {
     Ok(ExitCode::SUCCESS)
 }
 
+/// Today in UTC, as `YYYY-MM-DD`: the one clock read of the summary, made here in the binary.
+fn today() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    utc_date(secs)
+}
+
 /// Keeps the attack suite's numbers of this run under `dir`, named by day and commit.
 fn write_attack_summary(
     args: &CorpusArgs,
@@ -171,9 +182,9 @@ fn write_attack_summary(
     let Some(metrics) = outcomes.iter().find_map(|o| o.report.attack.clone()) else {
         return Err("--attack-summary: this run played no attacks (--corpus attacks)".to_owned());
     };
-    let summary = AttackSummary::stamp(args.engine.slug(), metrics, &args.eval_dir)
+    let summary = stamp_summary(args.engine.slug(), metrics, &args.eval_dir, &today())
         .map_err(|e| e.to_string())?;
-    let path = summary.write_to(dir).map_err(|e| e.to_string())?;
+    let path = write_summary(&summary, dir).map_err(|e| e.to_string())?;
     eprintln!("docket-live: attack summary written to {}", path.display());
     Ok(())
 }
@@ -223,9 +234,9 @@ async fn corpus_live_planner(
             args.engine.slug(),
             planner_slug(&ran.planner)
         );
-        let summary = AttackSummary::stamp(&engine, metrics.base.clone(), &args.eval_dir)
+        let summary = stamp_summary(&engine, metrics.base.clone(), &args.eval_dir, &today())
             .map_err(|e| e.to_string())?;
-        let path = summary.write_to(dir).map_err(|e| e.to_string())?;
+        let path = write_summary(&summary, dir).map_err(|e| e.to_string())?;
         eprintln!("docket-live: attack summary written to {}", path.display());
     }
     eprintln!(

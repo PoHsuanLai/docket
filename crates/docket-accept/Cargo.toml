@@ -72,6 +72,7 @@ docket-provider = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }
 docket-eval = { workspace = true }
+eval-core = { workspace = true }
 docket-inapp = { workspace = true }
 docket-launch = { workspace = true }
 docket-reader = { workspace = true }

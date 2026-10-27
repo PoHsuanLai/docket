@@ -19,7 +19,7 @@
 #      starts its own private dbus-daemon and inferd;
 #   3. for every case: plays the turns, the scripted planner steps and the world through the
 #      router, with the real writer and cascade; per corpus: FPR and FNR with Wilson intervals,
-#      ask and approve rates, latency per stage, spend (docket_eval::RunReport); a transcript, a
+#      ask and approve rates, latency per stage, spend (eval_core::RunReport); a transcript, a
 #      cassette and a case file per case under <scratch>/traces;
 #   4. the network is touched only with --engine cloud, and it says so before starting.
 #

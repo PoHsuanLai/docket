@@ -3,7 +3,8 @@
 //! engine can read.
 
 use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
-use docket_eval::{Case, PlannerCase, cassette_from};
+use docket_eval::{PlannerCase, cassette_from};
+use eval_core::Case;
 use proptest::prelude::*;
 
 fn exchange(

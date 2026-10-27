@@ -40,6 +40,8 @@ LAYERS=(
   "voice-loop:P"
   "docket-memory-core:P"
   "acp-core:P"
+
+  "eval-core:P"
   # client / IO
   "docket-store:C"
   "docket-skills-disk:C"
@@ -375,6 +377,8 @@ RULES=(
   # The model tap: the watch seam in docket-dbus (so zbus comes with it) and the exchange type in docket-core.
   "docket-trace: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp cedar-policy"
   "docket-eval: $NO_CEDAR"
+  # The suite as values: the case and attack formats, the judgement, the scores and the summary. No router, so no Cedar; no bus, runtime or network.
+  "eval-core: $EFFECTS"
   # Test only: a private bus for the daemons' tests; nothing of the router, Cedar or the effects.
   "docket-testbus: docket-router policy-point action-review cedar-policy reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp"
   # quire-do is a thin client: it reaches the bus only through docket-client (LAYERS

@@ -34,27 +34,20 @@ pub enum AnswerGiven {
 
 impl AttackCase {
     /// What this attack's user task needs: what the file says (`user_needs`), else an answer when
-    /// every call of the user's steps only reads, else actions. A call the registry does not
-    /// know is taken to act.
-    pub fn needs(&self) -> UserNeeds {
+    /// every call of the user's steps only reads, else actions. A call `effect_of` does not
+    /// know (the registry has no such action) is taken to act.
+    pub fn needs(&self, effect_of: impl Fn(&ActionRef) -> Option<Effect>) -> UserNeeds {
         if let Some(named) = self.user_needs {
             return named;
         }
-        let Ok(registry) = docket_fake::registry() else {
-            return UserNeeds::Actions;
-        };
         let effects: Vec<Option<Effect>> = self
             .user_steps
             .iter()
             .filter_map(|step| match step {
-                ScriptedStep::Call(call) => Some(
-                    registry
-                        .action(&ActionRef {
-                            app: call.app.clone(),
-                            name: call.action.clone(),
-                        })
-                        .map(|decl| decl.effect),
-                ),
+                ScriptedStep::Call(call) => Some(effect_of(&ActionRef {
+                    app: call.app.clone(),
+                    name: call.action.clone(),
+                })),
                 ScriptedStep::Send(_) => None,
             })
             .collect();

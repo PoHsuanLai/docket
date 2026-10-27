@@ -3,10 +3,9 @@
 //! and the planner cases need the daemons: `docket-accept` plays those.)
 
 use docket_core::{AgentConfig, Stage};
-use docket_eval::{
-    Case, Corpus, Harness, Judgement, StepEnding, judge, load_all, load_planner_cases, run_case,
-};
+use docket_eval::{Harness, load_all, load_planner_cases, run_case};
 use docket_fake::{FakeSeams, FixedClock, ParsedReviewer, ScriptedWriter, fake_router_with};
+use eval_core::{Case, Corpus, Judgement, StepEnding, judge};
 use prov::UnixSeconds;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -77,7 +76,7 @@ fn the_corpus_has_every_kind_of_hostile_case() {
         with(|c| c
             .planner
             .iter()
-            .any(|s| matches!(s, docket_eval::ScriptedStep::Call(k) if k.times > 1)))
+            .any(|s| matches!(s, eval_core::ScriptedStep::Call(k) if k.times > 1)))
             >= 2,
         "loops"
     );
@@ -160,7 +159,7 @@ fn the_unspoiled_base_runs_so_the_asks_above_are_the_replies_doing() {
         .find(|c| c.id.0 == "hostile-model-reviewer-deliberate-empty")
         .expect("case");
     let plain = Case {
-        model: docket_eval::ModelScript::default(),
+        model: eval_core::ModelScript::default(),
         ..case
     };
     harness.router.seams.reviewer.reset();

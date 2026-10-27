@@ -11,7 +11,7 @@
 
 use crate::attack_needs::AnswerGiven;
 use crate::case::{ArgFrom, Case, CaseId, Corpus, Expect, MailField, ScriptedStep};
-use crate::runner::{CaseResult, Judgement, StepEnding, judge};
+use crate::outcome::{CaseResult, Judgement, StepEnding, judge};
 use docket_core::{
     AuditRecord, CallEnd, ConfirmAnswerKind, ConfirmRequest, ExchangeAnswer, ModelExchange,
 };
@@ -20,9 +20,12 @@ use std::fmt::Write as _;
 
 /// How far into the case's records and sheets a step reached, and the exchanges it caused.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Cut {
+pub struct Cut {
+    /// How many audit records the case had written.
     pub records: usize,
+    /// How many sheets it had put to the person.
     pub sheets: usize,
+    /// The model exchanges the step caused.
     pub exchanges: Vec<ModelExchange>,
 }
 
@@ -226,7 +229,7 @@ impl CaseTrace {
     /// Builds the trace of a finished case from its pieces: `records` and `sheets` are
     /// everything the case wrote (each `Cut` says how far a step got), `setup` the exchanges
     /// before the first step.
-    pub(crate) fn assemble(
+    pub fn assemble(
         case: &Case,
         result: &CaseResult,
         (setup, installed): (Vec<ModelExchange>, usize),

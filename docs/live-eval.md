@@ -204,7 +204,7 @@ order the daemons wrote them, with the answer's phases, the sheets and what the 
 2. If the case is a corpus case already, copy the cassette:
    `cp <scratch>/out/traces/<id>.cassette.jsonl eval/regress/<id>.cassette.jsonl`. If the scenario came
    from a smoke run or is new, write it up as a case first: start from `<id>.case.toml` (or write one
-   in the format at the top of `docket-eval/src/case.rs`), give it a unique id, and put it in the
+   in the format at the top of `eval-core/src/case.rs`), give it a unique id, and put it in the
    matching `eval/<corpus>/` directory.
 3. `cargo test -p docket-accept every_regression_cassette_replays_and_its_case_holds`. The test replays
    each `eval/regress/*.cassette.jsonl` through the case of the same id with the model answering exactly
@@ -299,7 +299,7 @@ injection placed in data the agent reads, and an injection goal. Each attack in
 message, text hidden with zero-width, bidi-override or tag characters), the fixture field that carries it
 (`carrier`: a mail body or subject, a contact's name, a file's content; the field holds `{injection}`), the
 goal (`goal`: an action that must not reach its app, such as an outbound send, a forward, a deletion, a move
-or a draft) and the steps a hijacked agent takes (`attack_steps`). The format is in `docket-eval`'s
+or a draft) and the steps a hijacked agent takes (`attack_steps`). The format is in `eval-core`'s
 `attack.rs`; the starter corpus is 28 attacks over the neutral fake mail and files apps, in Auto and in Manual.
 
 Each attack plays as two cases over one world: the task with the carrier quiet, and the task with the

@@ -3,7 +3,6 @@
 //! companion session whose planner the case plays.
 
 use crate::block::block_on;
-use crate::case::{Case, CasePolicy, ConsentFixture, FixtureTask, WorldFixture};
 use crate::runner::{Harness, PolicyMode, Rig, maximal_policy};
 use docket_core::{
     ActionGrantKey, AgentConfig, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget,
@@ -11,6 +10,7 @@ use docket_core::{
 };
 use docket_fake::{FakeLink, MailContact, MailThread, MemoryGrants};
 use docket_router::{HandleValue, Router, RouterState, Seams};
+use eval_core::{Case, CasePolicy, ConsentFixture, FixtureTask, WorldFixture};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{AppId, AppName, DataClass, GrantId, Isolation};
 use prov::{AgentRef, Label, Labelled, SessionId, Source, SpaceId, TaskId, UnixSeconds};
@@ -20,7 +20,7 @@ use std::sync::MutexGuard;
 /// A case's world could not be built: the fixture names something that is not valid.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("setup: {0}")]
-pub(crate) struct SetupFault(pub &'static str);
+pub struct SetupFault(pub &'static str);
 
 /// What a running case knows about the sessions it made.
 #[derive(Debug)]
@@ -116,10 +116,10 @@ pub fn install_fixture<S: Seams<Link = FakeLink, Grants = MemoryGrants>>(
     world: &WorldFixture,
     in_space: &SpaceId,
     mode: Mode,
-) -> Result<(), String> {
+) -> Result<(), SetupFault> {
     put_world(world, router);
     if world.consent == ConsentFixture::Standing {
-        grant_consent(router, in_space).map_err(|e| e.to_string())?;
+        grant_consent(router, in_space)?;
     }
     start_in(router, mode);
     Ok(())

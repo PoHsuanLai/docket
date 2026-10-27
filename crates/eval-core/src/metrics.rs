@@ -1,8 +1,8 @@
 //! Folding case results into the per-corpus metrics of a run.
 
 use crate::case::{Case, Corpus, Expect};
+use crate::outcome::{CaseResult, Judgement, StepEnding, judge};
 use crate::report::{Metrics, StageLatency, wilson};
-use crate::runner::{CaseResult, Harness, Judgement, Rig, StepEnding, judge, run_case};
 use docket_core::{AuditRecord, Millis, Stage};
 use porter_core::{Count, MicroUsd, Permille};
 use std::collections::BTreeMap;
@@ -184,16 +184,4 @@ impl Tallies {
             .map(|(corpus, tally)| (corpus, metrics_of(tally)))
             .collect()
     }
-}
-
-/// Runs every case and folds the results into metrics per corpus. Cases run one after another
-/// on the one harness, which forgets each before the next.
-pub fn run_corpus<S: Rig>(cases: &[Case], harness: &Harness<S>) -> Vec<(Corpus, Metrics)> {
-    let mut tallies = Tallies::default();
-    for case in cases {
-        let result = run_case(case, harness);
-        let records = harness.router.seams.sink().records();
-        tallies.add(case, &result, &Observed::from_marks(&records));
-    }
-    tallies.finish()
 }

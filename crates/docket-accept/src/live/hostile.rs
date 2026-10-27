@@ -10,7 +10,8 @@ use crate::live::flows::{Evidence, Failure, Kind, Played, Script, observe, trans
 use crate::provider::Focus;
 use crate::world::{Binaries, Consent, ModelSource};
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, NeedsYou};
-use docket_eval::{ConsentFixture, PlannerCase, PlannerEnd, PlannerExpect, SheetAnswer};
+use docket_eval::{PlannerCase, PlannerEnd, PlannerExpect, SheetAnswer};
+use eval_core::ConsentFixture;
 use std::time::Duration;
 
 /// What a planner case's run came to.
