@@ -191,6 +191,14 @@ tempfile = "3"
 atomic-write-file = "0.3"
 # agents-core: the SHA-256 of an archive; docket-agents: unpack an agent from the registry (MIT/Apache-2.0 each).
 sha2 = "0.11"
+# Lower-case hex of a digest or a token (agents-core, docket-checkpoint, docket-acp-host); MIT OR Apache-2.0.
+const-hex = "1.19"
+# docket-launch and docket-accept: FNV-1a 64 of a name (Apache-2.0 OR MIT).
+fnv = "1"
+# docket-acp-host: the session token's random bytes from the kernel (MIT OR Apache-2.0).
+getrandom = "0.3"
+# docket-checkpoint-git: the escaped session segment of a ref (MIT OR Apache-2.0).
+percent-encoding = "2.3"
 flate2 = "1"
 tar = "0.4"
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }

@@ -144,6 +144,7 @@ dependencies = [
 name = "agents-core"
 version = "0.1.0"
 dependencies = [
+ "const-hex",
  "serde",
  "serde_json",
  "sha2",
@@ -845,6 +846,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "const-hex"
+version = "1.19.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e59eef12462b0f9b0a3620219be5d639afd79fe39dff0a42c3997061f9298b4"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.2.17",
+ "proptest",
+ "serde_core",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1103,6 +1116,7 @@ dependencies = [
  "docket-testbus",
  "docket-trace",
  "eval-core",
+ "fnv",
  "futures-util",
  "intentd",
  "porter-client",
@@ -1188,6 +1202,7 @@ dependencies = [
  "actions-tools",
  "agent-client-protocol",
  "bulkhead",
+ "const-hex",
  "docket-acp-host",
  "docket-client",
  "docket-core",
@@ -1199,6 +1214,7 @@ dependencies = [
  "docket-testbus",
  "futures-channel",
  "futures-util",
+ "getrandom 0.3.4",
  "jsonschema",
  "porter-core",
  "prov",
@@ -1230,6 +1246,7 @@ dependencies = [
 name = "docket-checkpoint"
 version = "0.1.0"
 dependencies = [
+ "const-hex",
  "docket-core",
  "porter-core",
  "prov",
@@ -1243,6 +1260,7 @@ version = "0.1.0"
 dependencies = [
  "docket-checkpoint",
  "docket-core",
+ "percent-encoding",
  "porter-core",
  "prov",
  "tempfile",
@@ -1494,6 +1512,7 @@ dependencies = [
  "docket-settings",
  "docket-store",
  "docket-testbus",
+ "fnv",
  "futures-util",
  "porter-client",
  "porter-core",

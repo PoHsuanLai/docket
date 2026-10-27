@@ -59,7 +59,7 @@ fn digest_of(now: &TreeListing, then: &TreeListing, lists: &[&Vec<WorkPath>; 3])
         }
     }
     let sum = hash.finalize();
-    PlanDigest(sum.iter().map(|b| format!("{b:02x}")).collect())
+    PlanDigest(const_hex::encode(sum))
 }
 
 fn id_of<'a>(listing: &'a TreeListing, path: &WorkPath) -> &'a [u8] {

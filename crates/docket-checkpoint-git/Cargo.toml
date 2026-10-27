@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 docket-checkpoint = { workspace = true }
 docket-core = { workspace = true }
+percent-encoding = { workspace = true }
 porter-core = { workspace = true }
 prov = { workspace = true }
 thiserror = { workspace = true }

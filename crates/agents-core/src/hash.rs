@@ -15,7 +15,7 @@ impl Sha256Hex {
     /// The digest of `bytes`.
     pub fn of(bytes: &[u8]) -> Self {
         let sum = Sha256::digest(bytes);
-        Self(sum.iter().map(|b| format!("{b:02x}")).collect())
+        Self(const_hex::encode(sum))
     }
 
     /// A digest the registry or a record wrote.

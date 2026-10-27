@@ -3953,3 +3953,11 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - `docket_core::when` reads RFC 3339 with `chrono` (no `clock` feature) behind the same `NotRfc3339`; a bare date is still midnight UTC and `:60` still counts as the second after `:59`. The date part stays exactly `YYYY-MM-DD`. `when::utc_instant` and `when::utc_day` replace two more hand calendars: `docket_acp::rfc3339` (deleted) and the body of `eval_core::utc_date` (kept, now calls `when`).
 - `SystemZone` reads `chrono::Local` in process instead of running `date +%z`; the hour cache and `companion_core::{offset_of, ZoneReading}` are deleted. The zone is now the offset in force at the asked instant.
 - chrono is MIT/Apache-2.0, already in the lock. `parse_from_rfc3339` needs the colon in the offset, as the old reader did (`+0200` is refused; a test holds it).
+
+## Layering lane U0.9: small helpers onto public crates (2026-10-28)
+
+- Hex: the hand `format!("{b:02x}")` loops in `agents-core` (`Sha256Hex::of`), `docket-checkpoint` (plan digest) and `docket-acp-host` (token) are `const_hex::encode` (lower case, same strings). `agents-core` already had the golden for `abc`.
+- FNV: `docket-launch` `names.rs` `digest` and `docket-accept` `runlink.rs` `short_run` use `fnv::FnvHasher`; the old values are pinned in tests (`acp-db007849f35ebbe5` for 64 `a`, `/tmp/dl-c037e38128f29d69` for `/tmp/scratch-root`), computed from the old fold before the swap.
+- Percent-encoding: `docket-checkpoint-git` `segment` uses `utf8_percent_encode` with an `AsciiSet` of everything but letters, digits, `_` and `-`. The crate writes upper-case `%2F`; we kept today's lower-case `%2f` with a one-line map over the chunks, so refs of sessions already stored do not move.
+- Random bytes: `docket-acp-host` `token.rs` uses `getrandom::fill` (0.3, as almanac) instead of reading `/dev/urandom`; a test checks the token and nonce shape.
+- Not verified by a build in the lane that made the change; `cargo metadata --offline` resolved all four crates from the local registry.

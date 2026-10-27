@@ -28,6 +28,7 @@ docket-store = { workspace = true }
 docket-session = { workspace = true }
 docket-settings = { workspace = true }
 bulkhead = { workspace = true }
+fnv = { workspace = true }
 futures-util = { workspace = true, optional = true }
 porter-client = { workspace = true, features = ["dbus"], optional = true }
 porter-core = { workspace = true }

@@ -3,8 +3,10 @@
 //! `acp-` and the id when that fits, else `acp-` and a 16-digit hex digest of the id. The same
 //! id always maps to the same name, and accountd never sees the original.
 
+use fnv::FnvHasher;
 use porter_core::LauncherSession;
 use prov::SessionId;
+use std::hash::Hasher;
 
 const PREFIX: &str = "acp-";
 
@@ -20,10 +22,9 @@ fn fits(text: &str) -> bool {
 }
 
 fn digest(text: &str) -> String {
-    let hash = text.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
-    });
-    format!("{hash:016x}")
+    let mut hasher = FnvHasher::default();
+    hasher.write(text.as_bytes());
+    format!("{:016x}", hasher.finish())
 }
 
 /// The launcher session for `session`.
@@ -55,6 +56,7 @@ mod tests {
         let mapped = launcher_session(&id(&long)).expect("name");
         assert_eq!(mapped.as_str().len(), 20);
         assert_eq!(Some(mapped), launcher_session(&id(&long)));
+        assert_eq!(mapped.as_str(), "acp-db007849f35ebbe5");
         assert_ne!(
             launcher_session(&id(&long)),
             launcher_session(&id(&"b".repeat(64)))

@@ -4,18 +4,15 @@
 //! `/tmp` named after the scratch root, pointing at `<scratch>/run`: the sockets still live in the
 //! scratch root, only the name every daemon is given is short.
 
+use fnv::FnvHasher;
+use std::hash::Hasher;
 use std::path::{Path, PathBuf};
 
 /// The link's path: `/tmp/dl-<16 hex digits of the scratch root's FNV-1a hash>`.
 pub(crate) fn short_run(dir: &Path) -> PathBuf {
-    let hash = dir
-        .as_os_str()
-        .as_encoded_bytes()
-        .iter()
-        .fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-            (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
-        });
-    PathBuf::from(format!("/tmp/dl-{hash:016x}"))
+    let mut hasher = FnvHasher::default();
+    hasher.write(dir.as_os_str().as_encoded_bytes());
+    PathBuf::from(format!("/tmp/dl-{:016x}", hasher.finish()))
 }
 
 /// Points the short name at `<dir>/run`, replacing a stale link of an earlier run of the same root.
@@ -50,6 +47,14 @@ mod tests {
         assert_ne!(name, short_run(Path::new("/elsewhere/world-5Vb5Za")));
         let socket = name.join("inferd/vllm-qwen3-4b-instruct-2507-fp8.sock");
         assert!(socket.as_os_str().len() < 108, "{}", socket.display());
+    }
+
+    #[test]
+    fn the_short_name_keeps_its_fnv_digits() {
+        assert_eq!(
+            short_run(Path::new("/tmp/scratch-root")),
+            PathBuf::from("/tmp/dl-c037e38128f29d69")
+        );
     }
 
     #[test]

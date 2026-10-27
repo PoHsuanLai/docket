@@ -86,6 +86,7 @@ docket-trace = { workspace = true }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }
 docket-testbus = { workspace = true }
+fnv = { workspace = true }
 futures-util = { workspace = true }
 intentd = { path = "../intentd" }
 readerd = { path = "../readerd" }
