@@ -7,7 +7,7 @@
 
 use crate::edge::{failed, listed, rmcp_tool};
 use actions_tools::{
-    EDGE_LINE_MAX, EDGE_TOKEN_ENV, EdgeOp, EdgeReply, EdgeRequest, EdgeToken, McpFault,
+    EDGE_LINE_MAX, EDGE_TOKEN_ENV, EdgeOp, EdgeReply, EdgeRequest, EdgeToken, ToolFault,
 };
 use rmcp::model::{
     CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData,
@@ -50,28 +50,28 @@ impl BoundEdge {
     }
 
     /// One request and its reply. Any trouble with the socket is the router being unavailable.
-    async fn ask(&self, op: EdgeOp) -> Result<EdgeReply, McpFault> {
+    async fn ask(&self, op: EdgeOp) -> Result<EdgeReply, ToolFault> {
         let request = EdgeRequest {
             token: self.token.clone(),
             op,
         };
-        let mut text = serde_json::to_string(&request).map_err(|_| McpFault::Unavailable)?;
+        let mut text = serde_json::to_string(&request).map_err(|_| ToolFault::Unavailable)?;
         text.push('\n');
         let stream = UnixStream::connect(&self.socket)
             .await
-            .map_err(|_| McpFault::Unavailable)?;
+            .map_err(|_| ToolFault::Unavailable)?;
         let (read, mut write) = stream.into_split();
         write
             .write_all(text.as_bytes())
             .await
-            .map_err(|_| McpFault::Unavailable)?;
+            .map_err(|_| ToolFault::Unavailable)?;
         let mut reader = BufReader::new(read).take(EDGE_LINE_MAX as u64);
         let mut line = Vec::new();
         reader
             .read_until(b'\n', &mut line)
             .await
-            .map_err(|_| McpFault::Unavailable)?;
-        serde_json::from_slice(&line).map_err(|_| McpFault::Unavailable)
+            .map_err(|_| ToolFault::Unavailable)?;
+        serde_json::from_slice(&line).map_err(|_| ToolFault::Unavailable)
     }
 }
 
@@ -110,7 +110,7 @@ impl ServerHandler for BoundEdge {
         let result = match self.ask(op).await {
             Ok(EdgeReply::Done(value)) => CallToolResult::success(vec![ContentBlock::json(value)?]),
             Ok(EdgeReply::Failed(fault)) | Err(fault) => failed(&fault),
-            Ok(EdgeReply::Refused | EdgeReply::Tools(_)) => failed(&McpFault::Unavailable),
+            Ok(EdgeReply::Refused | EdgeReply::Tools(_)) => failed(&ToolFault::Unavailable),
         };
         Ok(result.into())
     }

@@ -159,7 +159,7 @@ async fn an_edge_nobody_switched_on_lists_nothing_and_refuses_every_call() {
     )
     .await;
     assert_eq!(result.is_error, Some(true));
-    assert_eq!(text_of(&result), McpFault::Off.to_string());
+    assert_eq!(text_of(&result), ToolFault::Off.to_string());
     assert!(performs(&rig).is_empty(), "the router was never asked");
 }
 
@@ -321,13 +321,13 @@ async fn call_can_be_used_without_a_server() {
     assert_eq!(
         edge.call("mail__mail_thread_read", json!({ "target": thread("t1") }))
             .await,
-        Err(McpFault::Off)
+        Err(ToolFault::Off)
     );
     let edge = edge.with_expose(McpExpose::On);
     assert_eq!(edge.expose(), McpExpose::On);
     assert_eq!(
         edge.call("mail__mail_thread_read", json!([1])).await,
-        Err(McpFault::Args(ArgsFault::NotAnObject))
+        Err(ToolFault::Args(ArgsFault::NotAnObject))
     );
 }
 
@@ -366,6 +366,6 @@ async fn an_edge_following_the_settings_file_switches_on_and_off_with_it() {
         json!({ "target": thread("t1") }),
     )
     .await;
-    assert_eq!(text_of(&result), McpFault::Off.to_string());
+    assert_eq!(text_of(&result), ToolFault::Off.to_string());
     assert!(performs(&rig).is_empty());
 }

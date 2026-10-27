@@ -1,35 +1,34 @@
-//! The tools a registry offers to MCP clients.
+//! The tools a registry offers to an outside agent.
 
 use crate::args::TARGET_KEY;
-use crate::fault::McpFault;
+use crate::fault::ToolFault;
 use docket_core::{
-    ActionDecl, AgentReach, TargetKind, ToolSchema, ValidManifest, Visibility, action_prefix,
-    tool_schema,
+    ActionDecl, TargetKind, ToolSchema, ValidManifest, action_prefix, is_offered, tool_schema,
 };
 use prov::Effect;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// An MCP tool name: `<app slug>__<action with dots as underscores>`, at most 64 characters of
+/// A tool name: `<app slug>__<action with dots as underscores>`, at most 64 characters of
 /// `[A-Za-z0-9_-]`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct McpToolName(String);
+pub struct ToolName(String);
 
-impl McpToolName {
+impl ToolName {
     /// The name's text.
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
 
-impl fmt::Display for McpToolName {
+impl fmt::Display for ToolName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
     }
 }
 
-/// How an MCP client is told what a tool does (the protocol's hints, which are advice and not
+/// How an outside agent is told what a tool does (the protocol's hints, which are advice and not
 /// guarantees: the router still gates every call).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -57,9 +56,9 @@ pub fn hints_of(effect: Effect) -> ToolHints {
 
 /// One tool.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct McpTool {
+pub struct ToolSpec {
     /// Its name.
-    pub name: McpToolName,
+    pub name: ToolName,
     /// The schema of its arguments.
     pub schema: ToolSchema,
     /// What it does, as a hint.
@@ -67,28 +66,27 @@ pub struct McpTool {
 }
 
 /// The tool name of an action of an app.
-pub fn tool_name(app: &porter_core::AppName, action: &ActionDecl) -> Result<McpToolName, McpFault> {
+pub fn tool_name(app: &porter_core::AppName, action: &ActionDecl) -> Result<ToolName, ToolFault> {
     let name = format!(
         "{}__{}",
         action_prefix(app),
         action.name.as_str().replace('.', "_")
     );
     if name.len() > 64 {
-        Err(McpFault::TooLong)
+        Err(ToolFault::TooLong)
     } else {
-        Ok(McpToolName(name))
+        Ok(ToolName(name))
     }
 }
 
-/// The actions offered to clients: only `AgentReach::Offered`, of apps that are not host-only.
-/// Hidden ones are dropped, and so are the ones that ask every time (a client cannot answer a
-/// sheet).
+/// The actions offered to outside agents ([`is_offered`]): only `AgentReach::Offered`, of apps
+/// that are not host-only. Hidden ones are dropped, and so are the ones that ask every time (a
+/// client cannot answer a sheet).
 pub fn offered(registry: &[ValidManifest]) -> Vec<(&ValidManifest, &ActionDecl)> {
     registry
         .iter()
-        .filter(|m| m.manifest().visibility == Visibility::Everyone)
         .flat_map(|m| m.manifest().actions.iter().map(move |a| (m, a)))
-        .filter(|(_, a)| a.reach == AgentReach::Offered)
+        .filter(|(m, a)| is_offered(m, a))
         .collect()
 }
 
@@ -131,9 +129,9 @@ fn schema_of(action: &ActionDecl) -> ToolSchema {
 
 /// The tool of one offered action, with the action's label as its description. An action whose
 /// name would be too long gets none.
-pub fn tool_of(manifest: &ValidManifest, action: &ActionDecl) -> Option<(McpTool, String)> {
+pub fn tool_of(manifest: &ValidManifest, action: &ActionDecl) -> Option<(ToolSpec, String)> {
     let name = tool_name(&manifest.manifest().app, action).ok()?;
-    let tool = McpTool {
+    let tool = ToolSpec {
         name,
         schema: schema_of(action),
         annotations: hints_of(action.effect),
@@ -143,7 +141,7 @@ pub fn tool_of(manifest: &ValidManifest, action: &ActionDecl) -> Option<(McpTool
 
 /// The tools of a registry, in registry order. An action whose name would be too long gets no
 /// tool. The `target` key is part of each schema where the action acts on something.
-pub fn tools(registry: &[ValidManifest]) -> Vec<McpTool> {
+pub fn tools(registry: &[ValidManifest]) -> Vec<ToolSpec> {
     offered(registry)
         .into_iter()
         .filter_map(|(m, a)| tool_of(m, a).map(|(tool, _)| tool))

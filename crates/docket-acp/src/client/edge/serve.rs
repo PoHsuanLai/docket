@@ -6,12 +6,10 @@ use super::token::{mint, nonce};
 use crate::client::call::AgentCall;
 use crate::client::court::{Court, Ruled};
 use actions_tools::{
-    ArgsFault, EDGE_LINE_MAX, EdgeOp, EdgeReply, EdgeRequest, EdgeToken, EdgeTool, McpFault,
-    McpRefusal, find, mcp_label, offered, outcome_json, read_call, tool_of,
+    EDGE_LINE_MAX, EdgeOp, EdgeReply, EdgeRequest, EdgeToken, EdgeTool, ToolFault, ToolRefusal,
+    listing, outcome_json, prepare,
 };
-use docket_core::{
-    AbsPath, ActionDecl, ActionRef, BreakerTrip, CallRefusal, CallRequest, Origin, ValidManifest,
-};
+use docket_core::{AbsPath, BreakerTrip, CallRefusal};
 use docket_session::ProgramName;
 use prov::{ClientName, SessionId};
 use serde_json::Value as Json;
@@ -90,13 +88,6 @@ fn abs(path: &std::path::Path) -> Result<AbsPath, EdgeFault> {
     path.to_str()
         .and_then(|t| AbsPath::parse(t).ok())
         .ok_or(EdgeFault::Path)
-}
-
-fn ref_of(manifest: &ValidManifest, decl: &ActionDecl) -> ActionRef {
-    ActionRef {
-        app: manifest.manifest().app.clone(),
-        name: decl.name.clone(),
-    }
 }
 
 fn client_of(program: &ProgramName) -> ClientName {
@@ -246,14 +237,12 @@ impl<C: Court> Serving<C> {
             return EdgeReply::Refused;
         }
         let Some(registry) = self.court.registry().await else {
-            return EdgeReply::Failed(McpFault::Unavailable);
+            return EdgeReply::Failed(ToolFault::Unavailable);
         };
         match request.op {
             EdgeOp::List => EdgeReply::Tools(
-                offered(&registry)
+                listing(&registry, |action| self.menu.offers(action))
                     .into_iter()
-                    .filter(|(m, a)| self.menu.offers(&ref_of(m, a)))
-                    .filter_map(|(m, a)| tool_of(m, a))
                     .map(|(tool, description)| EdgeTool { tool, description })
                     .collect(),
             ),
@@ -271,25 +260,10 @@ impl<C: Court> Serving<C> {
         registry: &[docket_core::ValidManifest],
         tool: &str,
         arguments: Json,
-    ) -> Result<Json, McpFault> {
-        let (manifest, decl) = find(registry, tool)
-            .filter(|(m, a)| self.menu.offers(&ref_of(m, a)))
-            .ok_or(McpFault::UnknownTool)?;
-        let given = match &arguments {
-            Json::Null => None,
-            Json::Object(map) => Some(map),
-            _ => return Err(ArgsFault::NotAnObject.into()),
-        };
-        let (target, args) = read_call(decl, given, &mcp_label(&self.client))?;
-        let request = CallRequest {
-            action: ActionRef {
-                app: manifest.manifest().app.clone(),
-                name: decl.name.clone(),
-            },
-            target,
-            args,
-            origin: Origin::Mcp,
-        };
+    ) -> Result<Json, ToolFault> {
+        let request = prepare(registry, tool, &arguments, &self.client, |action| {
+            self.menu.offers(action)
+        })?;
         let n = self.next.fetch_add(1, Ordering::Relaxed);
         let call = AgentCall::Tool(Box::new(request));
         match self.court.call(&self.session, n, &call).await {
@@ -298,9 +272,9 @@ impl<C: Court> Serving<C> {
                 if let CallRefusal::Paused(trip) = &refusal {
                     *self.tripped.lock().unwrap_or_else(|e| e.into_inner()) = Some(*trip);
                 }
-                Err(McpRefusal::from(&refusal).into())
+                Err(ToolRefusal::from(&refusal).into())
             }
-            Ruled::Lost => Err(McpFault::Unavailable),
+            Ruled::Lost => Err(ToolFault::Unavailable),
         }
     }
 }

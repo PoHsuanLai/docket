@@ -9,7 +9,7 @@ pub use docket_core::{ArgsFault, TargetFault, Why};
 /// The ways the router refused a call, without its reasons.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, thiserror::Error)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
-pub enum McpRefusal {
+pub enum ToolRefusal {
     /// Policy or a reviewer said no; only the coarse code.
     #[error("denied ({0:?})")]
     Denied(DenyCode),
@@ -45,22 +45,22 @@ pub enum McpRefusal {
     AppRefused,
 }
 
-impl From<&CallRefusal> for McpRefusal {
+impl From<&CallRefusal> for ToolRefusal {
     fn from(refusal: &CallRefusal) -> Self {
         match refusal {
-            CallRefusal::Denied(code) => McpRefusal::Denied(*code),
-            CallRefusal::Unconfirmed(_) => McpRefusal::NotConfirmed,
-            CallRefusal::Halted(_) => McpRefusal::Halted,
-            CallRefusal::Paused(_) => McpRefusal::Paused,
-            CallRefusal::OverBudget(_) => McpRefusal::OverBudget,
-            CallRefusal::NoSuchAction(_) => McpRefusal::NoSuchAction,
+            CallRefusal::Denied(code) => ToolRefusal::Denied(*code),
+            CallRefusal::Unconfirmed(_) => ToolRefusal::NotConfirmed,
+            CallRefusal::Halted(_) => ToolRefusal::Halted,
+            CallRefusal::Paused(_) => ToolRefusal::Paused,
+            CallRefusal::OverBudget(_) => ToolRefusal::OverBudget,
+            CallRefusal::NoSuchAction(_) => ToolRefusal::NoSuchAction,
             CallRefusal::BadArgs { .. } | CallRefusal::App(AppRefusal::NeedsParam { .. }) => {
-                McpRefusal::BadArguments
+                ToolRefusal::BadArguments
             }
-            CallRefusal::AppUnavailable(_) => McpRefusal::AppUnavailable,
-            CallRefusal::Timeout => McpRefusal::TimedOut,
-            CallRefusal::NotRecorded => McpRefusal::NotRecorded,
-            CallRefusal::App(_) => McpRefusal::AppRefused,
+            CallRefusal::AppUnavailable(_) => ToolRefusal::AppUnavailable,
+            CallRefusal::Timeout => ToolRefusal::TimedOut,
+            CallRefusal::NotRecorded => ToolRefusal::NotRecorded,
+            CallRefusal::App(_) => ToolRefusal::AppRefused,
         }
     }
 }
@@ -68,7 +68,7 @@ impl From<&CallRefusal> for McpRefusal {
 /// Why a tool call gave no outcome.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
-pub enum McpFault {
+pub enum ToolFault {
     /// The name would be longer than 64 characters.
     #[error("tool name longer than 64 characters")]
     TooLong,
@@ -83,7 +83,7 @@ pub enum McpFault {
     Args(#[from] ArgsFault),
     /// The router refused the call.
     #[error("refused: {0}")]
-    Refused(#[from] McpRefusal),
+    Refused(#[from] ToolRefusal),
     /// The router is not reachable, or refused the request itself.
     #[error("the router is not available")]
     Unavailable,

@@ -10,6 +10,7 @@ use crate::gate::{GateInputs, Pending, gate};
 use crate::labels::{
     arg_labels, args_confidentiality, label_args, planner_integrity, resolve_target, sink_integrity,
 };
+use crate::may_make::may_make;
 use crate::owned::{owned_by_another, touched};
 use crate::prepared::{
     Early, Prepared, digest, entities, grant_state, proposed, typed_history, usage_of,
@@ -26,9 +27,8 @@ use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
 use docket_core::Clock;
 use docket_core::{
     ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
-    CallRequest, CallerRole, Classification, Cost, DenyCode, Depth, Impact, Lasting, LimitCall,
-    Limited, Mode, ModeRows, Reviewed, Ruling, SpaceAccess, WindowKey, is_agent_action,
-    space_access,
+    CallRequest, Classification, Cost, DenyCode, Depth, Impact, Lasting, LimitCall, Limited, Mode,
+    ModeRows, Reviewed, Ruling, SpaceAccess, WindowKey, space_access,
 };
 use policy_point::{
     ActionFacts, BudgetFact, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
@@ -487,32 +487,6 @@ impl<S: Seams> Router<S> {
             classified: None,
             standing: None,
             filled: docket_core::Args::new(),
-        }
-    }
-}
-
-/// Whether a caller in `role` may make a call of `action`. The pseudo-app belongs to the host of
-/// an external agent alone; that host makes it no call of another app but the ones the agent's
-/// edge offers (`AgentReach::Offered` of an app that is not host-only), so a hostile agent cannot
-/// reach an action nobody offered it by naming it.
-fn may_make(
-    registry: &crate::registry::Registry,
-    role: CallerRole,
-    action: &docket_core::ActionRef,
-    decl: &ActionDecl,
-) -> bool {
-    // Giving a job to a helper and proposing one are the companion's planners' alone.
-    if crate::companion::is_helper_action(action) {
-        return role == CallerRole::Companion;
-    }
-    match (role == CallerRole::AcpAgent, is_agent_action(action)) {
-        (_, true) => role == CallerRole::AcpAgent,
-        (false, false) => true,
-        (true, false) => {
-            decl.reach == docket_core::AgentReach::Offered
-                && registry
-                    .get(&action.app)
-                    .is_some_and(|m| m.manifest().visibility == docket_core::Visibility::Everyone)
         }
     }
 }

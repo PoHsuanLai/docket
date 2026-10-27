@@ -64,6 +64,7 @@ mod index;
 mod journal;
 mod labels;
 mod limits;
+mod may_make;
 mod messages;
 mod messaging;
 mod mode;

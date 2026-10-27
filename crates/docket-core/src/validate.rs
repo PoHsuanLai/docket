@@ -2,8 +2,8 @@
 
 use crate::ids::{IntentsVocab, ParamName, RelationName, action_prefix};
 use crate::manifest::{
-    ActionDecl, ArgSink, Filled, IndexPolicy, Manifest, ParamDecl, ParamNeed, TargetKind,
-    UndoSupport,
+    ActionDecl, AgentReach, ArgSink, Filled, IndexPolicy, Manifest, ParamDecl, ParamNeed,
+    TargetKind, UndoSupport, Visibility,
 };
 use crate::value::{ParamType, Value};
 use prov::{ActionName, Effect, EntityKind};
@@ -133,6 +133,13 @@ impl ValidManifest {
     pub fn manifest(&self) -> &Manifest {
         &self.0
     }
+}
+
+/// Whether an outside agent (an MCP client, an external ACP agent) may be offered `decl` of
+/// `manifest`: the action is `AgentReach::Offered` and the app is not host-only. The one rule the
+/// tools list and the router's gate both read, so what is listed and what is let through agree.
+pub fn is_offered(manifest: &ValidManifest, decl: &ActionDecl) -> bool {
+    manifest.manifest().visibility == Visibility::Everyone && decl.reach == AgentReach::Offered
 }
 
 impl TryFrom<Manifest> for ValidManifest {

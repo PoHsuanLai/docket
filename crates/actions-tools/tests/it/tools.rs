@@ -1,7 +1,7 @@
 //! Only offered actions become tools, names and hints follow the manifest, and every argument
 //! a client sends is untrusted.
 
-use actions_mcp::*;
+use actions_tools::*;
 use docket_core::*;
 use porter_core::AppName;
 use prov::Effect;
@@ -63,7 +63,7 @@ fn a_name_over_sixty_four_characters_has_no_tool() {
         .expect("action");
     assert_eq!(
         tool_name(&memory.manifest().app, &action),
-        Err(McpFault::TooLong)
+        Err(ToolFault::TooLong)
     );
 }
 

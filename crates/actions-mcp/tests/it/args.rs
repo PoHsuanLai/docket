@@ -7,7 +7,7 @@ use prov::{ClientName, Effect, EntityId, EntityKey, EntityKind, Integrity, Label
 use serde_json::{Value as Json, json};
 
 fn label() -> Label {
-    mcp_label(&ClientName::parse("Claude Desktop").expect("client"))
+    tool_label(&ClientName::parse("Claude Desktop").expect("client"))
 }
 
 fn param(name: &str, ty: ParamType, need: ParamNeed) -> ParamDecl {

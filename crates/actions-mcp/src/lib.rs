@@ -9,7 +9,7 @@
 //! - `McpEdge::call` and its `ServerHandler`: one tool call through `Intents::perform`.
 //! - `BoundEdge`: the bridge an external ACP agent starts (`--host-socket`), forwarding to the host
 //!   that started the agent, which makes each call in the agent's own session.
-//! - `McpFault`: why a call gave nothing, coarse.
+//! - `ToolFault`: why a call gave nothing, coarse.
 
 mod bound;
 mod config;
@@ -19,8 +19,8 @@ mod expose;
 mod settings;
 
 pub use actions_tools::{
-    ArgsFault, McpFault, McpRefusal, McpTool, McpToolName, TARGET_KEY, TargetFault, ToolHints, Why,
-    hints_of, mcp_label, offered, outcome_json, read_call, target, tool_name, tools,
+    ArgsFault, TARGET_KEY, TargetFault, ToolFault, ToolHints, ToolName, ToolRefusal, ToolSpec, Why,
+    hints_of, offered, outcome_json, read_call, target, tool_label, tool_name, tools,
 };
 pub use bound::{BoundEdge, NoToken};
 pub use config::{ConfigError, McpConfig};

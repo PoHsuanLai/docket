@@ -2,7 +2,6 @@ mod args;
 mod binary;
 mod bridge;
 mod edge;
-mod tools;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its
 /// own, and a `tests/it/` file or directory without a `mod` line would never run.

@@ -1,12 +1,9 @@
 //! The server: `rmcp` over stdio or a Unix socket, with the router behind it.
 
 use crate::expose::McpExpose;
-use actions_tools::{
-    ArgsFault, McpFault, McpRefusal, McpTool, ToolHints, find, mcp_label, offered, outcome_json,
-    read_call, tool_of,
-};
+use actions_tools::{ToolFault, ToolHints, ToolRefusal, ToolSpec, listing, outcome_json, prepare};
 use docket_client::{Intents, Transport};
-use docket_core::{ActionRef, CallRequest, Origin, ValidManifest};
+use docket_core::ValidManifest;
 use prov::ClientName;
 use rmcp::model::{
     CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData,
@@ -79,23 +76,20 @@ impl<T: Transport> McpEdge<T> {
         }
     }
 
-    async fn registry(&self) -> Result<Vec<ValidManifest>, McpFault> {
+    async fn registry(&self) -> Result<Vec<ValidManifest>, ToolFault> {
         self.intents
             .manifests()
             .await
-            .map_err(|_| McpFault::Unavailable)
+            .map_err(|_| ToolFault::Unavailable)
     }
 
     /// The tools offered right now, each with its description: nothing while the edge is off.
-    pub async fn listing(&self) -> Result<Vec<(McpTool, String)>, McpFault> {
+    pub async fn listing(&self) -> Result<Vec<(ToolSpec, String)>, ToolFault> {
         match self.expose() {
             McpExpose::Off => Ok(Vec::new()),
             McpExpose::On => {
                 let registry = self.registry().await?;
-                Ok(offered(&registry)
-                    .into_iter()
-                    .filter_map(|(m, a)| tool_of(m, a))
-                    .collect())
+                Ok(listing(&registry, |_| true))
             }
         }
     }
@@ -105,31 +99,16 @@ impl<T: Transport> McpEdge<T> {
     /// answers the outcome or the coarse refusal. A confirmation the router asks for is never
     /// answered here: the person answers it on the sheet. An argument that does not fit its
     /// declaration is refused before the router is asked anything.
-    pub async fn call(&self, tool: &str, arguments: Json) -> Result<Json, McpFault> {
+    pub async fn call(&self, tool: &str, arguments: Json) -> Result<Json, ToolFault> {
         if self.expose() == McpExpose::Off {
-            return Err(McpFault::Off);
+            return Err(ToolFault::Off);
         }
         let registry = self.registry().await?;
-        let (manifest, decl) = find(&registry, tool).ok_or(McpFault::UnknownTool)?;
-        let given = match &arguments {
-            Json::Null => None,
-            Json::Object(map) => Some(map),
-            _ => return Err(ArgsFault::NotAnObject.into()),
-        };
-        let (target, args) = read_call(decl, given, &mcp_label(&self.client))?;
-        let call = CallRequest {
-            action: ActionRef {
-                app: manifest.manifest().app.clone(),
-                name: decl.name.clone(),
-            },
-            target,
-            args,
-            origin: Origin::Mcp,
-        };
+        let call = prepare(&registry, tool, &arguments, &self.client, |_| true)?;
         match self.intents.perform(call, None, None).await {
             Ok(Ok(outcome)) => Ok(outcome_json(&outcome)),
-            Ok(Err(refusal)) => Err(McpRefusal::from(&refusal).into()),
-            Err(_) => Err(McpFault::Unavailable),
+            Ok(Err(refusal)) => Err(ToolRefusal::from(&refusal).into()),
+            Err(_) => Err(ToolFault::Unavailable),
         }
     }
 }
@@ -155,14 +134,14 @@ pub(crate) fn listed(tools: Vec<Tool>) -> ListToolsResult {
         .with_cache_scope(CacheScope::Private)
 }
 
-pub(crate) fn rmcp_tool(tool: McpTool, description: String) -> Option<Tool> {
+pub(crate) fn rmcp_tool(tool: ToolSpec, description: String) -> Option<Tool> {
     let schema = tool.schema.0.as_object()?.clone();
     let mut listed = Tool::new(tool.name.to_string(), description, Arc::new(schema));
     listed.annotations = Some(annotations(tool.annotations));
     Some(listed)
 }
 
-pub(crate) fn failed(fault: &McpFault) -> CallToolResult {
+pub(crate) fn failed(fault: &ToolFault) -> CallToolResult {
     CallToolResult::error(vec![ContentBlock::text(fault.to_string())])
 }
 

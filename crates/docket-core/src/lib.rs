@@ -217,7 +217,7 @@ pub use task_policy::{
 pub use trace::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
 pub use units::{CharCount, Days, Depth, Generation, Millis, Scale, Seconds};
-pub use validate::{ManifestError, ValidManifest, fits, open_name, validate};
+pub use validate::{ManifestError, ValidManifest, fits, is_offered, open_name, validate};
 pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
 pub use wire::{
     Displayed, Envelope, GrantAnswer, GrantAsk, HelperNote, IntentsReply, IntentsRequest,
