@@ -6,6 +6,7 @@ use docket_core::{
     AbsPath, ActionDecl, ArgFacts, ArgSink, CallFacts, CallRequest, DERIVES_PARAM, Domain,
     ExecFacts, NETWORK_PARAM, ParamName, Recipient, TERMINAL_RUN, TargetValue, Value,
 };
+use url::Url;
 
 /// The parameters a terminal action names its command and working directory by.
 pub(crate) const COMMAND_PARAM: &str = "command";
@@ -30,15 +31,14 @@ fn leaves(value: &Value) -> Vec<&Value> {
     }
 }
 
-/// The host a URL names, none when it hides one behind user information or has none.
+/// The host a URL names, read as the WHATWG standard reads it; none when it does not parse, has
+/// no host, or carries user information.
 fn host_of(url: &str) -> Option<Domain> {
-    let rest = url.split_once("://")?.1;
-    let authority = rest.split(['/', '?', '#']).next()?;
-    if authority.contains('@') {
-        return None;
+    let url = Url::parse(url).ok()?;
+    match url.username().is_empty() && url.password().is_none() {
+        true => Domain::parse(url.host_str()?).ok(),
+        false => None,
     }
-    let host = authority.split(':').next()?;
-    Domain::parse(host).ok()
 }
 
 fn recipient_of(value: &Value) -> Option<Recipient> {
@@ -147,4 +147,32 @@ pub(crate) fn exec_of(request: &CallRequest) -> Option<ExecFacts> {
         choice(NETWORK_PARAM),
         line,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::host_of;
+
+    #[test]
+    fn a_url_names_the_host_the_standard_reads() {
+        let rows = [
+            ("https://Good.Example:8443/a?b#c", Some("good.example")),
+            ("https://good.example./", Some("good.example")),
+            ("https://evil.test\\@good.example/", Some("evil.test")),
+            ("https://good.example@evil.test/", None),
+            ("https://u:p@good.example/", None),
+            (
+                "https://good.example.evil.test/",
+                Some("good.example.evil.test"),
+            ),
+            ("https://[::1]:80/", None),
+            ("https://good.example%40evil.test/", None),
+            ("good.example/path", None),
+            ("mailto:bob@good.example", None),
+        ];
+        for (url, want) in rows {
+            let got = host_of(url);
+            assert_eq!(got.as_ref().map(|d| d.as_str()), want, "{url}");
+        }
+    }
 }

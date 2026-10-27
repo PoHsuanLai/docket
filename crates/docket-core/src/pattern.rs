@@ -5,6 +5,7 @@
 use crate::ids::FileRef;
 use crate::task_policy::TrustedPattern;
 use crate::value::Value;
+use url::{Host, Url};
 
 /// Whether `value` is inside `pattern`.
 pub(crate) fn pattern_matches(pattern: &TrustedPattern, value: &Value) -> bool {
@@ -18,7 +19,7 @@ pub(crate) fn pattern_matches(pattern: &TrustedPattern, value: &Value) -> bool {
             .rsplit_once('@')
             .is_some_and(|(_, host)| in_domain(host, domain)),
         (TrustedPattern::Domain(domain), Value::Url(url)) => {
-            host_of_url(url).is_some_and(|host| in_domain(host, domain))
+            host_of_url(url).is_some_and(|host| in_domain(&host, domain))
         }
         (TrustedPattern::Under(base), Value::File(file)) => under(file, base),
         (TrustedPattern::Entity(_) | TrustedPattern::Domain(_) | TrustedPattern::Under(_), _) => {
@@ -49,13 +50,13 @@ fn in_domain(host: &str, domain: &str) -> bool {
                 .is_some_and(|rest| rest.ends_with('.')))
 }
 
-/// The host of `scheme://user@host:port/path`.
-fn host_of_url(url: &str) -> Option<&str> {
-    let rest = url.split_once("://")?.1;
-    let authority = rest.split(['/', '?', '#']).next()?;
-    let host = authority.rsplit('@').next()?;
-    let host = host.split(':').next()?;
-    (!host.is_empty()).then_some(host)
+/// The host name of a URL, read as the WHATWG standard reads it (so `\` ends the authority and
+/// the host is lower case). None when it does not parse, has no host, or names an address.
+fn host_of_url(url: &str) -> Option<String> {
+    match Url::parse(url).ok()?.host()? {
+        Host::Domain(name) => Some(name.to_owned()),
+        Host::Ipv4(_) | Host::Ipv6(_) => None,
+    }
 }
 
 fn under(file: &FileRef, base: &FileRef) -> bool {

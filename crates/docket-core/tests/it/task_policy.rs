@@ -204,7 +204,7 @@ pub(crate) fn file(path: &str) -> FileRef {
     FileRef::parse(path).expect("file")
 }
 
-fn call(name: &str, targets: &[&str], args: Vec<(&str, Value)>) -> CallRequest {
+pub(crate) fn call(name: &str, targets: &[&str], args: Vec<(&str, Value)>) -> CallRequest {
     CallRequest {
         action: mail_action(name),
         target: TargetValue::Entities(targets.iter().map(|k| entity("mail.thread", k)).collect()),

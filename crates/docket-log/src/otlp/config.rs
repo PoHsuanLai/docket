@@ -2,7 +2,7 @@
 //! Read once by `init`; every rule here is a pure function over a lookup, so tests need no
 //! environment.
 
-use std::net::Ipv6Addr;
+use url::{Host, ParseError, Url};
 
 /// The path the traces signal is posted to when only the base endpoint is given.
 const TRACES_PATH: &str = "/v1/traces";
@@ -53,75 +53,44 @@ pub(crate) enum EndpointError {
     Extras,
 }
 
-/// The endpoint a URL names. Strict: `http://` only, `host[:port]` then an optional path, no
-/// query, fragment or user information. A missing port is 80, as for any `http://` URL.
+/// The endpoint a URL names. Strict: `http://` only, then `host[:port]` and an optional path, no
+/// query, fragment, user information or white space. A missing port is 80, as for any `http://`
+/// URL. The URL is read as the WHATWG standard reads it, by the `url` crate.
 pub(crate) fn parse_endpoint(raw: &str, source: Source) -> Result<Endpoint, EndpointError> {
-    let rest = strip_scheme(raw.trim()).ok_or(EndpointError::NotHttp)?;
-    if rest.contains(|c: char| c.is_whitespace() || matches!(c, '?' | '#' | '@')) {
+    let raw = raw.trim();
+    if raw.contains(char::is_whitespace) {
         return Err(EndpointError::Extras);
     }
-    let (authority, path) = match rest.find('/') {
-        Some(at) => rest.split_at(at),
-        None => (rest, ""),
+    let url = Url::parse(raw).map_err(|why| match why {
+        ParseError::EmptyHost => EndpointError::NoHost,
+        ParseError::InvalidPort => EndpointError::BadPort,
+        ParseError::RelativeUrlWithoutBase => EndpointError::NotHttp,
+        _ => EndpointError::BadHost,
+    })?;
+    if url.scheme() != "http" {
+        return Err(EndpointError::NotHttp);
+    }
+    if url.query().is_some()
+        || url.fragment().is_some()
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return Err(EndpointError::Extras);
+    }
+    let host = match url.host().ok_or(EndpointError::NoHost)? {
+        Host::Domain(name) => name.to_owned(),
+        Host::Ipv4(address) => address.to_string(),
+        Host::Ipv6(address) => address.to_string(),
     };
-    let (host, port) = split_authority(authority)?;
+    let port = url
+        .port_or_known_default()
+        .filter(|port| *port != 0)
+        .ok_or(EndpointError::BadPort)?;
     let path = match source {
-        Source::Traces if path.is_empty() => "/".to_owned(),
-        Source::Traces => path.to_owned(),
-        Source::Base => format!("{}{TRACES_PATH}", path.trim_end_matches('/')),
+        Source::Traces => url.path().to_owned(),
+        Source::Base => format!("{}{TRACES_PATH}", url.path().trim_end_matches('/')),
     };
     Ok(Endpoint { host, port, path })
-}
-
-/// The URL without a leading `http://` (any case), or none when it has another scheme.
-fn strip_scheme(url: &str) -> Option<&str> {
-    match url.get(..7)?.eq_ignore_ascii_case("http://") {
-        true => url.get(7..),
-        false => None,
-    }
-}
-
-/// The host and port of `host[:port]` or `[v6][:port]`.
-fn split_authority(authority: &str) -> Result<(String, u16), EndpointError> {
-    let (host, port) = match authority.strip_prefix('[') {
-        Some(inner) => {
-            let (host, after) = inner.split_once(']').ok_or(EndpointError::BadHost)?;
-            host.parse::<Ipv6Addr>()
-                .map_err(|_| EndpointError::BadHost)?;
-            let port = match after {
-                "" => None,
-                _ => Some(after.strip_prefix(':').ok_or(EndpointError::BadHost)?),
-            };
-            (host, port)
-        }
-        None => match authority.split_once(':') {
-            Some((host, port)) => (host, Some(port)),
-            None => (authority, None),
-        },
-    };
-    if host.is_empty() {
-        return Err(EndpointError::NoHost);
-    }
-    if !host.contains(':') && !host.bytes().all(is_host_byte) {
-        return Err(EndpointError::BadHost);
-    }
-    Ok((host.to_owned(), port_of(port)?))
-}
-
-fn is_host_byte(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.')
-}
-
-/// The port of the text after the colon; 80 when there was no colon.
-fn port_of(text: Option<&str>) -> Result<u16, EndpointError> {
-    let Some(text) = text else { return Ok(80) };
-    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(EndpointError::BadPort);
-    }
-    match text.parse::<u16>() {
-        Ok(0) | Err(_) => Err(EndpointError::BadPort),
-        Ok(port) => Ok(port),
-    }
 }
 
 /// An exporter that is on.
@@ -230,19 +199,33 @@ mod tests {
             ("http", Source::Base, Err(EndpointError::NotHttp)),
             ("http://", Source::Base, Err(EndpointError::NoHost)),
             ("http://:4318", Source::Base, Err(EndpointError::NoHost)),
-            ("http://h:", Source::Base, Err(EndpointError::BadPort)),
+            (
+                "http://h:",
+                Source::Base,
+                Ok(endpoint("h", 80, "/v1/traces")),
+            ),
             ("http://h:0", Source::Base, Err(EndpointError::BadPort)),
             ("http://h:65536", Source::Base, Err(EndpointError::BadPort)),
             ("http://h:+80", Source::Base, Err(EndpointError::BadPort)),
             ("http://h:80:81", Source::Base, Err(EndpointError::BadPort)),
-            ("http://h_x:80", Source::Base, Err(EndpointError::BadHost)),
+            ("http://h x:80", Source::Base, Err(EndpointError::Extras)),
+            ("http://h%2fx:80", Source::Base, Err(EndpointError::BadHost)),
+            (
+                "http://OTEL.Local:4318",
+                Source::Base,
+                Ok(endpoint("otel.local", 4318, "/v1/traces")),
+            ),
+            (
+                "http://evil.test\\@good.example:4318",
+                Source::Base,
+                Ok(endpoint("evil.test", 80, "/@good.example:4318/v1/traces")),
+            ),
             ("http://[::1", Source::Base, Err(EndpointError::BadHost)),
             (
                 "http://[nope]:80",
                 Source::Base,
                 Err(EndpointError::BadHost),
             ),
-            ("http://[::1]x", Source::Base, Err(EndpointError::BadHost)),
             ("http://u:p@h:80", Source::Base, Err(EndpointError::Extras)),
             (
                 "http://h:80/p?q=1",

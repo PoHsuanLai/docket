@@ -12,14 +12,15 @@ publish.workspace = true
 tracing = { workspace = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
 
 [lints]
 workspace = true
 
 [features]
-# Span export over OTLP/HTTP JSON, written in `src/otlp` over `std` networking and `serde_json`: no
+# Span export over OTLP/HTTP JSON, written in `src/otlp` over `std` networking, `serde_json` and `url`: no
 # opentelemetry, tonic, reqwest or tracing-subscriber crate. `init` reads
 # `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`), `OTEL_SERVICE_NAME` and
 # `OTEL_SDK_DISABLED` once (so only a daemon's `main` reads them); only `http://` endpoints are
 # accepted. Off by default; without it the crate has no dependency beyond `tracing`.
-otlp = ["dep:serde_json", "dep:thiserror"]
+otlp = ["dep:serde_json", "dep:thiserror", "dep:url"]

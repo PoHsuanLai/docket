@@ -17,6 +17,7 @@ use porter_core::AppName;
 use prov::{EntityId, EntityKey, EntityKind, Label, Labelled, UnixSeconds};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value as Json};
+use url::Url;
 
 /// The key a caller names an action's target under.
 pub const TARGET_KEY: &str = "target";
@@ -160,10 +161,9 @@ fn date(json: &Json) -> Read<CivilDate> {
 }
 
 fn url(raw: &str) -> Read<String> {
-    match raw.split_once("://") {
-        Some((scheme, rest)) if !scheme.is_empty() && !rest.is_empty() => Ok(raw.to_owned()),
-        _ => Err(Why::Range),
-    }
+    Url::parse(raw)
+        .map(|_| raw.to_owned())
+        .map_err(|_| Why::Range)
 }
 
 /// One JSON value as a `ty`.

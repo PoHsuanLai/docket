@@ -13,6 +13,7 @@ use porter_core::AppName;
 use prov::{Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label};
 use prov::{Labelled, Source};
 use std::collections::{BTreeMap, BTreeSet};
+use url::Url;
 
 /// What standard input holds, if the caller gave it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -168,14 +169,9 @@ pub fn value(ty: &ParamType, reading: &mut Reading<'_>, raw: &str) -> Result<Val
         ParamType::Entity(kind) => entity(kind, reading, raw).map(Value::Entity),
         ParamType::Entities(kind) => entity(kind, reading, raw).map(|e| Value::Entities(vec![e])),
         ParamType::File => file(raw).map(Value::File),
-        ParamType::Url => match raw.split_once("://") {
-            Some((scheme, rest)) if !scheme.is_empty() && !rest.is_empty() => {
-                Ok(Value::Url(raw.to_owned()))
-            }
-            _ => Err(usage(
-                "expected a link such as https://example.org".to_owned(),
-            )),
-        },
+        ParamType::Url => Url::parse(raw)
+            .map(|_| Value::Url(raw.to_owned()))
+            .map_err(|_| usage("expected a link such as https://example.org".to_owned())),
     }
 }
 

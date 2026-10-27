@@ -17,6 +17,7 @@ mod support;
 mod task_paths;
 mod task_policy;
 mod tool_schema;
+mod url_hosts;
 mod when;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its
