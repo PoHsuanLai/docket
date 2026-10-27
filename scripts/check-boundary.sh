@@ -55,6 +55,7 @@ LAYERS=(
   "docket-fake:C"
   "docket-checkpoint-git:C"
   "docket-acp:C"
+  "docket-acp-host:C"
   "docket-launch:C"
   "docket-agents:C"
   "docket-settings:C"
@@ -342,13 +343,15 @@ RULES=(
   # The git store runs git as a process through tokio: no bus, HTTP, desktop stack, database,
   # Cedar, MCP SDK or toml.
   "docket-checkpoint-git: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy toml"
-  # Our own ACP rules, pure: no runtime, bus, HTTP, Cedar or toml; the connections are docket-acp's.
+  # Our own ACP rules, pure: no runtime, bus, HTTP, Cedar or toml; the connections are docket-acp's and docket-acp-host's.
   "acp-core: $EFFECTS toml"
-  # The ACP server edge: the lib is portable (the runtime is only the `server` feature's binary);
-  # no bus, HTTP, Cedar or MCP SDK. The protocol's types and the JSON-RPC connection come from agent-client-protocol.
-  # The client edge reaches the router only through docket-client (its `InProcess` transport is a
-  # dev-dependency): the host of an external agent calls the same Intents1 every caller does.
+  # The ACP server edge: the lib is portable; no bus, HTTP, Cedar or MCP SDK. The protocol's types
+  # and the JSON-RPC connection come from agent-client-protocol.
   "docket-acp: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy"
+  # The ACP client edge, an external agent as a session backend: it reaches the router only through
+  # docket-client (its `InProcess` transport is a dev-dependency): the host of an external agent calls
+  # the same Intents1 every caller does. Same bans as the server edge.
+  "docket-acp-host: zbus zvariant reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy"
   # Starts the external agents: the bus is the `dbus` feature's, the runtime is its processes'; no
   # HTTP, desktop stack, database, Cedar or MCP SDK, and nothing that links a sandbox library.
   "docket-launch: reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy landlock libseccomp"

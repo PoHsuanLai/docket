@@ -7,8 +7,8 @@ use super::agent::{Act, Auth, Offer, View};
 use crate::support::app;
 use bulkhead::fake::{FakeSandbox, Script, Seen};
 use bulkhead::{Network, NetworkMode};
-use docket_acp::client::fake::{FakeFiles, FakeSpawn, SpawnSeen};
-use docket_acp::client::{
+use docket_acp_host::fake::{FakeFiles, FakeSpawn, SpawnSeen};
+use docket_acp_host::{
     AcpBackend, AgentHost, Fallback, IntentsCourt, Parts, Performer, Seams, ToolsOffer,
 };
 use docket_client::InProcess;
@@ -144,15 +144,15 @@ pub struct Setup {
     /// it opens.
     pub rewind: docket_core::Rewind,
     /// The launcher's `_meta` for `session/new`, when a test has one.
-    pub session_meta: Option<docket_acp::client::SessionMeta>,
+    pub session_meta: Option<docket_acp_host::SessionMeta>,
     /// How the fake agent treats sign-in.
     pub auth: Auth,
     /// The way to sign in that `agents.toml` names, when a test has one.
-    pub sign_in: Option<docket_acp::client::SignIn>,
+    pub sign_in: Option<docket_acp_host::SignIn>,
     /// The models the fake agent offers.
     pub offer: Offer,
     /// The model `agents.toml` names, when a test has one.
-    pub model: Option<docket_acp::client::ModelId>,
+    pub model: Option<docket_acp_host::ModelId>,
     /// Whether the fake agent can pick a session of its own up again.
     pub resumes: super::agent::Resumes,
 }

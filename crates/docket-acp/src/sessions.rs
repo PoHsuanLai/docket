@@ -3,7 +3,6 @@
 //! (`may_restore_plan`, the editor under `Own` plus the conversation seat), asked here before anything is listed or replayed, and answered with the same
 //! "no such session" whether the session is another app's or does not exist.
 
-use crate::fault;
 use crate::helper_face::{helper_asked, space_of};
 use crate::helpers::Helpers;
 use crate::history;
@@ -11,6 +10,7 @@ use crate::link::Link;
 use crate::mode::Mode;
 use crate::out;
 use crate::server::{Known, Server, Turns};
+use acp_core::fault;
 use agent_client_protocol::schema::v1::{
     Error, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest, LoadSessionResponse,
     NewSessionRequest, NewSessionResponse, SessionInfo,

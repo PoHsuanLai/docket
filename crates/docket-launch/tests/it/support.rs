@@ -1,8 +1,8 @@
 //! Fixtures: the agents.toml of each route, and a launcher wired to the fakes.
 #![allow(dead_code)]
 
-use docket_acp::client::LaunchPlan;
-use docket_acp::client::fake::{ChannelWire, pipe};
+use docket_acp_host::LaunchPlan;
+use docket_acp_host::fake::{ChannelWire, pipe};
 use docket_core::AbsPath;
 use docket_launch::fake::{FakeAccounts, FakeProc, FakeProcs, Mood, ProcsSeen, Secrets};
 use docket_launch::{AgentSpawn, AgentsFile, AgentsPermit, Registry};

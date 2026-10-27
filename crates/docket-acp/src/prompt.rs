@@ -3,7 +3,6 @@
 //! before a call the mode says to ask about. The machine (`turn`) decides; this only carries.
 
 use crate::calls;
-use crate::fault;
 use crate::helpers::Helpers;
 use crate::link::{Gone, Inbound, Link, Settled, answer, settled};
 use crate::mode::Mode;
@@ -11,6 +10,7 @@ use crate::out;
 use crate::permission;
 use crate::server::{Server, Turns};
 use crate::turn::{Finish, Order, Turn, Wants};
+use acp_core::fault;
 use acp_core::permission::verdict_of_reply;
 use agent_client_protocol::Responder;
 use agent_client_protocol::schema::v1::{

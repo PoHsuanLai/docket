@@ -1,5 +1,8 @@
 //! The ACP client edge (design note `acp-sessions.md` section 3b, owner revisions R1 to R3): an
-//! external coding agent is a session backend whose every call goes through the router.
+//! external coding agent is a session backend whose every call goes through the router. This is
+//! the SDK's client role plus the IO under it: files, the working directory, the agent's tool
+//! socket, the sandboxed terminals. The server edge (an editor drives us) is `docket-acp`; our own
+//! rules, shared by both, are `acp-core`.
 //!
 //! - `AcpBackend`: a `SessionBackend` over a process behind the `Spawn` seam. It speaks ACP as
 //!   the client, on the SDK's client role (`link`: the SDK frames the JSON-RPC and routes each
@@ -27,10 +30,14 @@
 //!   own sign-in and sign-out.
 //! - `helper_agents`: `HelperAgents`, the agent apps of every helper at once, one process each; a
 //!   panic in one helper's agent ends that helper's process and job and nobody else's (`isolate`).
-//! - `fake`: an in-memory pipe, a scripted spawner and the like, for tests.
+//! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`bulkhead`), ruled
+//!   by the `Execute` rules. They run in our sandbox, never in an editor's terminal.
+//! - `fake` (feature `testing`): an in-memory pipe, a scripted spawner and the like, for tests.
 
 mod backend;
+pub mod bulk;
 mod edge;
+#[cfg(feature = "testing")]
 pub mod fake;
 mod files;
 mod handlers;
@@ -48,6 +55,7 @@ mod performer;
 mod running;
 mod serve;
 mod spawn;
+mod terminals;
 mod workdir;
 
 pub use backend::{AcpBackend, Parts, Seams};
@@ -65,4 +73,5 @@ pub use spawn::{
     AgentChild, LaunchPlan, SandboxStep, SessionMeta, SignIn, SignInRefused, Spawn, SpawnFault,
     Spawned,
 };
+pub use terminals::Terminals;
 pub use workdir::{Workdir, WorkdirFault};

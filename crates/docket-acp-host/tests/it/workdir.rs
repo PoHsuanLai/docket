@@ -2,7 +2,7 @@
 //! home folder, a folder that holds home, a place of secrets and an outside folder are refused.
 //! Scratch directories only.
 
-use docket_acp::client::{Workdir, WorkdirFault};
+use docket_acp_host::{Workdir, WorkdirFault};
 use docket_core::AbsPath;
 use std::os::unix::fs::symlink;
 use std::path::Path;

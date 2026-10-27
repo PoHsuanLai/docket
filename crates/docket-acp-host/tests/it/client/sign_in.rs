@@ -3,8 +3,8 @@
 
 use super::agent::Auth;
 use super::rig::{CWD, Fakes, Setup, opening, started, wired_over};
-use docket_acp::client::fake::FakeFiles;
-use docket_acp::client::{AgentHost, SignIn};
+use docket_acp_host::fake::FakeFiles;
+use docket_acp_host::{AgentHost, SignIn};
 use docket_session::{BackendFault, HostFault, SessionHost};
 use serde_json::json;
 

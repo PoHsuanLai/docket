@@ -8,6 +8,7 @@ mod calls;
 mod cancel;
 mod contract;
 mod edge;
+mod edge_input;
 mod exec_taint;
 mod full;
 mod handover;

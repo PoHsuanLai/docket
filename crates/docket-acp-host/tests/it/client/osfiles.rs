@@ -1,6 +1,6 @@
 use super::agent::{Act, call};
 use super::rig::{Real, Setup, abs, once, read, run_turn, started_over, write};
-use docket_acp::client::{FileFault, Files, OsFiles};
+use docket_acp_host::{FileFault, Files, OsFiles};
 use std::os::unix::fs::symlink;
 
 #[tokio::test]
@@ -137,7 +137,7 @@ fn a_pipe_or_a_directory_is_refused_at_once_and_a_big_file_is_too_big() {
     assert!(made.success());
     std::fs::create_dir(root.path().join("dir")).expect("dir");
     let big = std::fs::File::create(root.path().join("big")).expect("big");
-    big.set_len(docket_acp::client::MAX_READ as u64 + 1)
+    big.set_len(docket_acp_host::MAX_READ as u64 + 1)
         .expect("sparse");
 
     let mut files = OsFiles;

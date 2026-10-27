@@ -2,6 +2,7 @@ mod config;
 mod confine;
 mod e2e;
 mod launch;
+mod launch_bwrap;
 mod login;
 mod managed;
 mod real;

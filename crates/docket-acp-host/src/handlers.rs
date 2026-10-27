@@ -9,10 +9,10 @@
 use super::backend::{AcpBackend, Seams};
 use super::link::Work;
 use super::own_edge::{OwnEdge, claim};
-use crate::fault;
 use acp_core::call::{AgentCall, Command, RunFacts};
 use acp_core::confine::{Confined, confine, named};
 use acp_core::court::{Court, Ruled};
+use acp_core::fault;
 use acp_core::taint::TaintSource;
 use acp_core::tool_req::{Asked, tool_req};
 use agent_client_protocol::schema::v1::{

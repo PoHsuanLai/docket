@@ -9,7 +9,7 @@ use super::rig::{
     run_turn_answering, started, write,
 };
 use action_review::{ReviewReason, ReviewVerdict};
-use docket_acp::client::Fallback;
+use docket_acp_host::Fallback;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, GrantCaller, IntentsReply, IntentsRequest, ReasonCode,
     ReasonText, StandingScope, TurnSource,
@@ -276,9 +276,9 @@ async fn a_call_dropped_and_asked_again_with_its_number_is_one_call_at_the_route
 #[tokio::test]
 async fn the_host_runs_one_agent_session_of_an_agent_program() {
     use super::rig::{Fakes, wired_over};
-    use docket_acp::client::AgentHost;
+    use docket_acp_host::AgentHost;
     use docket_session::{BackendKind, HostFault, SessionHost};
-    let wired = wired_over::<Fakes>(docket_acp::client::fake::FakeFiles::new(), Setup::default());
+    let wired = wired_over::<Fakes>(docket_acp_host::fake::FakeFiles::new(), Setup::default());
     let mut host = AgentHost::new(wired.backend, wired.court, wired.desk, Fallback::Off);
     let mut native = super::rig::opening("/work/app");
     native.backend = BackendKind::Native;

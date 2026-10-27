@@ -10,7 +10,7 @@
 //! calls. It ends when the agent closes its output (or sends a line over the cap), and is stopped
 //! when the link is dropped.
 
-use crate::fault;
+use acp_core::fault;
 use agent_client_protocol::schema::v1::{
     CancelNotification, CreateElicitationRequest, CreateTerminalRequest, KillTerminalRequest,
     PromptRequest, PromptResponse, ReadTextFileRequest, ReleaseTerminalRequest,

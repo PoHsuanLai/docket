@@ -7,7 +7,7 @@ use crate::procs::Proc;
 use bulkhead::NetworkMode;
 use bulkhead::egress::Proxy;
 use bulkhead::forward::Bridge;
-use docket_acp::client::AgentChild;
+use docket_acp_host::AgentChild;
 use porter_core::{LauncherSession, ProcessCredentialId};
 use std::collections::BTreeMap;
 use std::path::PathBuf;

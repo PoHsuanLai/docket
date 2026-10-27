@@ -4,8 +4,8 @@
 use super::backend::{AcpBackend, Called, Phase, Seams, Staged};
 use super::handlers::ok;
 use super::link::{FromAgent, Plain, Reply, Work};
-use crate::fault;
 use acp_core::call::AgentCall;
+use acp_core::fault;
 use acp_core::taint::TaintSource;
 use agent_client_protocol::schema::v1::{
     CreateElicitationResponse, ElicitationAction, Error, RequestPermissionOutcome,

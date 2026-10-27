@@ -1,10 +1,10 @@
 //! The backend over the real spawner, with the fake porter and the recording process seam and
-//! the scripted agent of docket-acp's tests: a session start asks porter for what the agent needs,
+//! the scripted agent of docket-acp-host's tests: a session start asks porter for what the agent needs,
 //! and a close gives it all back.
 
-// The scripted agent is docket-acp's; this file uses part of it.
+// The scripted agent is docket-acp-host's; this file uses part of it.
 #[allow(dead_code)]
-#[path = "../../../docket-acp/tests/it/client/agent.rs"]
+#[path = "../../../docket-acp-host/tests/it/client/agent.rs"]
 mod agent;
 
 use super::support::{ENDPOINT, abs, permit};
@@ -12,8 +12,8 @@ use acp_core::call::AgentCall;
 use acp_core::court::{Court, CourtFault, OpenAgent, Ruled};
 use agent::{Act, agent as scripted, say};
 use bulkhead::fake::FakeSandbox;
-use docket_acp::client::fake::FakeFiles;
-use docket_acp::client::{AcpBackend, Parts, Performer, Seams};
+use docket_acp_host::fake::FakeFiles;
+use docket_acp_host::{AcpBackend, Parts, Performer, Seams};
 use docket_launch::fake::{Call, FakeAccounts, FakeProcs, Mood, Secrets};
 use docket_launch::{AgentSpawn, AgentsFile, Registry};
 use docket_session::{

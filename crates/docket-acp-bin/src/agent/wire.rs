@@ -6,7 +6,7 @@ use super::fault::AgentFault;
 use super::host::Wiring;
 use super::{agents_dir, config_dir, data_dir, env, sibling};
 use bulkhead::Detected;
-use docket_acp::client::{Fallback, ToolsOffer};
+use docket_acp_host::{Fallback, ToolsOffer};
 use docket_dbus::BusConnection;
 use docket_dbus::callers::Identity;
 use docket_inapp::EditorDesk;

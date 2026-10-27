@@ -4,7 +4,7 @@
 
 use agents_core::dirs::AgentsDir;
 use agents_core::offered::{Named, Offered, Start};
-use docket_acp::client::{AcpBackend, Models, Seams};
+use docket_acp_host::{AcpBackend, Models, Seams};
 use docket_agents::store::write_offered;
 use docket_session::{BackendFault, Choice, Choices, HostFault};
 

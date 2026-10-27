@@ -6,8 +6,8 @@
 use super::agent::{AGENT_SESSION, Act, Auth, Offer, Resumes, View, agent_resuming, say};
 use super::rig::{CWD, Setup, opening, program, wired_over};
 use super::world::{Fakes, TheCourt};
-use docket_acp::client::fake::{FakeFiles, FakeSpawn};
-use docket_acp::client::{
+use docket_acp_host::fake::{FakeFiles, FakeSpawn};
+use docket_acp_host::{
     AcpBackend, AgentEnd, AgentHost, Fallback, HelperAgent, Hosts, Parts, Start,
 };
 use docket_client::{InProcess, Intents};

@@ -1,6 +1,6 @@
 [package]
 name = "docket-acp"
-description = "The ACP server edge: an editor (Zed, JetBrains, Neovim) drives the companion over the Agent Client Protocol on stdio. The JSON-RPC connection, in both directions, is the official agent-client-protocol SDK's; this lib is the server over the SessionHost and SessionLog seams, and (feature `client`) an external agent as a session backend. Our own ACP rules (confinement, the permission ruling, taint, strikes, tool-request mapping) are `acp-core`. The `server` feature adds the capped line source for stdio; the process is docket-acp-bin, which refuses to serve unless `agent.acp.expose` is on. The editor's permission prompt is an extra gate, never a replacement for ours."
+description = "The ACP server edge: an editor (Zed, JetBrains, Neovim) drives the companion over the Agent Client Protocol on stdio. The JSON-RPC connection is the official agent-client-protocol SDK's; this lib is the server over the SessionHost and SessionLog seams, and the capped line source both edges hand the SDK. Our own ACP rules (confinement, the permission ruling, taint, strikes, tool-request mapping, the protocol errors) are `acp-core`; an external agent as a session backend is `docket-acp-host`. The process is docket-acp-bin, which refuses to serve unless `agent.acp.expose` is on. The editor's permission prompt is an extra gate, never a replacement for ours."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,52 +8,31 @@ rust-version.workspace = true
 repository.workspace = true
 publish.workspace = true
 
-[features]
-default = ["server"]
-# `capped_lines` over tokio streams (the `client` feature has it too); the process that serves it is
-# `docket-acp-bin`.
-server = ["dep:tokio"]
-# An external agent as a session backend (S4): `client::AcpBackend` over a `Spawn` seam, on the SDK's
-# client role. Off by default; the process that starts agents is `docket-launch`, and
-# `agent.acp.agents` gates it.
-client = ["dep:tokio", "dep:docket-client", "dep:actions-tools"]
-
 [lib]
 name = "docket_acp"
 path = "src/lib.rs"
 
 [dependencies]
 acp-core = { workspace = true }
-actions-tools = { workspace = true, optional = true }
 agent-client-protocol = { workspace = true }
 companion-wire = { workspace = true }
-docket-client = { workspace = true, optional = true }
 docket-core = { workspace = true }
-docket-store = { workspace = true }
 docket-session = { workspace = true }
-bulkhead = { workspace = true }
 docket-settings = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true, features = ["sink"] }
 porter-core = { workspace = true }
 prov = { workspace = true }
-serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
-tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
 docket-session = { workspace = true, features = ["testing"] }
-action-review = { workspace = true }
-docket-client = { workspace = true, features = ["in_process"] }
 docket-fake = { workspace = true }
-docket-inapp = { workspace = true }
-docket-router = { workspace = true }
 docket-testbus = { workspace = true }
-policy-point = { workspace = true }
 jsonschema = { workspace = true }
-tempfile = { workspace = true }
 tokio = { workspace = true }
 
 [lints]

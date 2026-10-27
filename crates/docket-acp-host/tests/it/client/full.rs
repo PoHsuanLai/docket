@@ -330,8 +330,8 @@ async fn a_yes_to_a_permission_request_covers_the_one_matching_write_and_no_more
 
 #[tokio::test]
 async fn a_resume_starts_a_new_agent_session_and_keeps_the_taint() {
-    use docket_acp::client::fake::FakeSpawn;
-    use docket_acp::client::{AcpBackend, Parts};
+    use docket_acp_host::fake::FakeSpawn;
+    use docket_acp_host::{AcpBackend, Parts};
     use docket_session::{ResumePlan, Resumed, SessionBackend, Standing, Taint};
     let (rig, _files) = started(Setup {
         turns: vec![vec![Act::Stop("end_turn")]],
@@ -376,7 +376,7 @@ async fn a_resume_starts_a_new_agent_session_and_keeps_the_taint() {
     backend.close().await;
 }
 
-fn meta() -> (docket_acp::client::SessionMeta, serde_json::Value) {
+fn meta() -> (docket_acp_host::SessionMeta, serde_json::Value) {
     let value = json!({"claudeCode": {"options": {"settings": {"permissions": {"allow": ["mcp__quire"]}}}}});
     let serde_json::Value::Object(map) = value.clone() else {
         panic!("object")

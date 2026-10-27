@@ -147,8 +147,10 @@ fn script() -> Vec<Act> {
 
 #[tokio::test]
 async fn every_message_both_ways_fits_the_protocol_schema() {
-    let schema: Value =
-        serde_json::from_str(include_str!("../../schema/schema.json")).expect("schema");
+    let schema: Value = serde_json::from_str(include_str!(
+        "../../../../docket-acp/tests/schema/schema.json"
+    ))
+    .expect("schema");
     let (mut rig, files) = started(Setup {
         turns: vec![script()],
         answers: vec![once(), once(), once(), once()],

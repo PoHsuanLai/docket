@@ -1,4 +1,4 @@
-//! Starts the external coding agents that `docket-acp`'s client edge drives (design note
+//! Starts the external coding agents that `docket-acp-host` drives (design note
 //! `acp-sessions.md` section 3b, owner revisions R2, R3). The pieces:
 //!
 //! - `config`: `agents.toml`, the programs the person lists; off unless `agent.acp.agents` is on

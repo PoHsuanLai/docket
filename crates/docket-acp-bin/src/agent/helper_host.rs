@@ -1,5 +1,5 @@
 //! The agent apps that are helpers, hosted here: one agent process per helper
-//! (`docket_acp::client::HelperAgents`), each opened at the router as this process's role, which
+//! (`docket_acp_host::HelperAgents`), each opened at the router as this process's role, which
 //! is the only role that may open an outside agent's session. companiond keeps the board and
 //! asks for a helper's job, sign-in, check, sign-out or removal through `AgentHost1`
 //! (`AppsBegin`, `AppsWait`); a fault in one helper's agent ends that helper's job and no other.
@@ -15,7 +15,7 @@ use super::helper_hosts::{HelperHosts, folder_of};
 use super::live::Live;
 use super::logout::EntryLogout;
 use super::wire;
-use docket_acp::client::{HelperAgent, HelperAgents};
+use docket_acp_host::{HelperAgent, HelperAgents};
 use docket_core::Clock;
 use docket_core::ProgramName;
 use docket_core::helper::{

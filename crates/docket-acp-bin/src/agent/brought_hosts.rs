@@ -6,7 +6,7 @@
 
 use super::host::Hosting;
 use super::live::Live;
-use docket_acp::client::{AgentHost, EdgeMenu, Fallback, Hosts, Start};
+use docket_acp_host::{AgentHost, EdgeMenu, Fallback, Hosts, Start};
 use docket_core::ProgramName;
 use docket_inapp::EditorDesk;
 use docket_launch::Accounts;

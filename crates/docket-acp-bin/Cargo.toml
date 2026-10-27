@@ -31,7 +31,8 @@ path = "src/bin/docket-net-enter.rs"
 companion-client = { workspace = true }
 companion-wire = { workspace = true }
 acp-core = { workspace = true }
-docket-acp = { workspace = true, features = ["client"] }
+docket-acp = { workspace = true }
+docket-acp-host = { workspace = true }
 agents-core = { workspace = true }
 docket-agents = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }

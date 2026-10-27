@@ -1,6 +1,6 @@
 [package]
 name = "docket-launch"
-description = "Starts the external coding agents (Claude Code, Gemini CLI) that docket-acp's client edge drives: the agents.toml config, the sandboxed process behind the Spawn seam, the model endpoint (inferd, P4) or the key handoff (P2) from porter, the login the agent runs itself, and the duties of a launcher (register, sessions, revocations, give back what was lent). The `dbus` feature adds the real accountd and inferd link."
+description = "Starts the external coding agents (Claude Code, Gemini CLI) that docket-acp-host drives: the agents.toml config, the sandboxed process behind the Spawn seam, the model endpoint (inferd, P4) or the key handoff (P2) from porter, the login the agent runs itself, and the duties of a launcher (register, sessions, revocations, give back what was lent). The `dbus` feature adds the real accountd and inferd link."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -20,7 +20,9 @@ path = "src/lib.rs"
 [dependencies]
 agent-client-protocol = { workspace = true }
 agents-core = { workspace = true }
-docket-acp = { workspace = true, features = ["client", "server"] }
+docket-acp = { workspace = true }
+# `fake` is public (`docket_launch::fake`), and builds on the host's in-memory pipe.
+docket-acp-host = { workspace = true, features = ["testing"] }
 docket-core = { workspace = true }
 docket-store = { workspace = true }
 docket-session = { workspace = true }

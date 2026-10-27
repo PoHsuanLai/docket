@@ -2,7 +2,7 @@
 //! script when the prompt comes.
 
 use super::{AGENT_SESSION, Act, Auth, Offer, Offered, Resumes, View, locked};
-use docket_acp::client::fake::ChannelWire;
+use docket_acp_host::fake::ChannelWire;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 

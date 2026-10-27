@@ -6,13 +6,13 @@
 //! with the helper (`ConversationTurns`).
 
 use crate::calls;
-use crate::fault;
 use crate::helper_replay;
 use crate::helpers::{HelperRow, Helpers};
 use crate::link::{Gone, Link};
 use crate::mode::Mode;
 use crate::out;
 use crate::server::{Known, Server, Turns};
+use acp_core::fault;
 use agent_client_protocol::schema::v1::{
     Error, LoadSessionResponse, Meta, NewSessionResponse, SessionInfo,
 };

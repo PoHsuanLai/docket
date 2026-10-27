@@ -3,8 +3,8 @@
 //! performer answering for the pseudo-app, and the seams that wire them.
 
 use bulkhead::fake::FakeSandbox;
-use docket_acp::client::fake::{FakeFiles, FakeSpawn};
-use docket_acp::client::{Files, IntentsCourt, OsFiles, Performer, Seams};
+use docket_acp_host::fake::{FakeFiles, FakeSpawn};
+use docket_acp_host::{Files, IntentsCourt, OsFiles, Performer, Seams};
 use docket_client::InProcess;
 use docket_core::{
     AppRefusal, ConfirmAnswer, ConfirmId, ConfirmRequest, Confirmer, Invocation, Outcome,

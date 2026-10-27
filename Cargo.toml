@@ -20,6 +20,7 @@ members = [
   "crates/docket-checkpoint-git",
   "crates/acp-core",
   "crates/docket-acp",
+  "crates/docket-acp-host",
   "crates/docket-launch",
   "crates/agents-core",
   "crates/docket-agents",
@@ -87,6 +88,7 @@ docket-checkpoint = { path = "crates/docket-checkpoint" }
 docket-checkpoint-git = { path = "crates/docket-checkpoint-git" }
 acp-core       = { path = "crates/acp-core" }
 docket-acp     = { path = "crates/docket-acp" }
+docket-acp-host = { path = "crates/docket-acp-host" }
 docket-launch  = { path = "crates/docket-launch" }
 docket-acp-bin = { path = "crates/docket-acp-bin" }
 docket-models  = { path = "crates/docket-models" }

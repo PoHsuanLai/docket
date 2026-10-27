@@ -4,8 +4,8 @@
 use super::agent::{Act, call, say};
 use super::rig::{Fakes, Setup, abs, opening, read, wired_over};
 use acp_core::court::{Court, OpenAgent};
-use docket_acp::client::AcpBackend;
-use docket_acp::client::fake::FakeFiles;
+use docket_acp_host::AcpBackend;
+use docket_acp_host::fake::FakeFiles;
 use docket_core::SheetSurface;
 use docket_session::contract::{self, Harness};
 use docket_session::{SessionBackend, StartSession};

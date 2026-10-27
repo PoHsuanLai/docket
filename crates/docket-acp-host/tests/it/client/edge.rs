@@ -5,18 +5,16 @@
 
 use super::agent::{Act, Offered, bridge_call, bridge_list};
 use super::rig::{Rig, Setup, abs, always, ended_with, no, once, program, run_turn, started};
-use docket_acp::client::{EdgeMenu, ToolsEdge, ToolsOffer};
-use docket_core::{
-    ActionMatch, AuditRecord, GrantCaller, LabelText, Saw, TaskPolicy, TaskPolicyState,
-};
+use docket_acp_host::{ToolsEdge, ToolsOffer};
+use docket_core::{AuditRecord, GrantCaller, Saw};
 use docket_fake::{MailContact, MailThread};
 use docket_session::{SessionHost, TurnEnd};
-use prov::{Actor, Effect, SessionId, SpaceId, TaskId, UnixSeconds};
+use prov::{Actor, SessionId};
 use serde_json::{Value, json};
 
 const THREAD: &str = "t1";
 
-fn offer(dir: &tempfile::TempDir) -> ToolsOffer {
+pub(super) fn offer(dir: &tempfile::TempDir) -> ToolsOffer {
     ToolsOffer {
         run_dir: dir.path().to_path_buf(),
         bridge: abs("/opt/docket/actions-mcp"),
@@ -238,7 +236,7 @@ async fn five_refusals_in_a_row_pause_the_turn_as_the_routers_breaker_does_for_a
 
 // ---- the hostile cases ----
 
-fn reached(rig: &Rig<super::rig::Fakes>) -> usize {
+pub(super) fn reached(rig: &Rig<super::rig::Fakes>) -> usize {
     rig.audit()
         .iter()
         .filter(|r| matches!(r, AuditRecord::Call { .. }))
@@ -427,167 +425,4 @@ async fn after_the_session_is_closed_the_edge_is_gone() {
     );
     assert!(!std::path::Path::new(&socket).exists());
     assert_eq!(reached(&rig), before);
-}
-
-/// Why: the agent can rewrite the entry it was given (a different command, arguments or
-/// environment). That changes which program it runs, never whose session the calls are in:
-/// the program still holds only this session's socket and token.
-#[tokio::test]
-async fn an_agent_that_edits_the_entry_it_was_given_gains_nothing() {
-    let (mut rig, _dir) = with_mail(
-        vec![vec![
-            // A different socket path, the token as given.
-            Act::Bridge {
-                tag: "path",
-                make: Box::new(|o| {
-                    let (_, line) = o.line(json!("list"));
-                    (format!("{}x", o.socket()), line)
-                }),
-            },
-            // The token cut, extended, upper-cased, or taken from the arguments.
-            Act::Bridge {
-                tag: "upper",
-                make: Box::new(|o| {
-                    (
-                        o.socket(),
-                        json!({"token": o.token().to_uppercase(), "op": "list"}),
-                    )
-                }),
-            },
-            Act::Bridge {
-                tag: "longer",
-                make: Box::new(|o| {
-                    (
-                        o.socket(),
-                        json!({"token": format!("{}0", o.token()), "op": "list"}),
-                    )
-                }),
-            },
-            Act::Bridge {
-                tag: "args",
-                make: Box::new(|o| {
-                    (
-                        o.socket(),
-                        json!({"token": o.args[0].clone(), "op": "list"}),
-                    )
-                }),
-            },
-            Act::Stop("end_turn"),
-        ]],
-        vec![],
-    )
-    .await;
-    run_turn(&mut rig, "go").await;
-    assert_eq!(
-        rig.agent.reply("path").expect_err("no such socket"),
-        json!("unreachable")
-    );
-    for tag in ["upper", "longer", "args"] {
-        assert_eq!(
-            rig.agent.reply(tag).expect("reply"),
-            json!("refused"),
-            "{tag}"
-        );
-    }
-    assert_eq!(reached(&rig), 0);
-}
-
-/// Why: a line that is not a request, or is far too long, closes nothing else and does nothing.
-#[tokio::test]
-async fn garbage_and_oversized_lines_are_refused_without_effect() {
-    let (mut rig, _dir) = with_mail(
-        vec![vec![
-            Act::Bridge {
-                tag: "text",
-                make: Box::new(|o| (o.socket(), json!("not an object"))),
-            },
-            Act::Bridge {
-                tag: "big",
-                make: Box::new(|o| {
-                    o.line(
-                        json!({"call": {"tool": "t", "arguments": {"x": "a".repeat(5_000_000)}}}),
-                    )
-                }),
-            },
-            bridge_list("after"),
-            Act::Stop("end_turn"),
-        ]],
-        vec![],
-    )
-    .await;
-    run_turn(&mut rig, "go").await;
-    assert_eq!(rig.agent.reply("text").expect("reply"), json!("refused"));
-    assert!(rig.agent.reply("big").is_err() || rig.agent.reply("big") == Ok(json!("refused")));
-    assert!(
-        rig.agent
-            .reply("after")
-            .expect("reply")
-            .get("tools")
-            .is_some()
-    );
-}
-
-fn reach_of(app: &str) -> TaskPolicy {
-    TaskPolicy {
-        task: TaskId::parse("t-0").expect("task"),
-        space: SpaceId::parse("work").expect("space"),
-        from: Vec::new(),
-        actions: std::collections::BTreeSet::from([ActionMatch::AppUpTo(
-            porter_core::AppName::parse(app).expect("app"),
-            Effect::Read,
-        )]),
-        kinds: std::collections::BTreeSet::new(),
-        ceiling: Effect::Read,
-        max_count: porter_core::Count(1),
-        recipients: Vec::new(),
-        destinations: Vec::new(),
-        paths: Vec::new(),
-        expires: UnixSeconds(i64::MAX),
-        rationale: LabelText::parse("what the helper may use").expect("words"),
-        state: TaskPolicyState::Active,
-    }
-}
-
-/// The names a helper's edge lists for `app`'s reach, and what a call to a mail tool gets.
-async fn helper_menu(
-    rig: &Rig<super::rig::Fakes>,
-    dir: &tempfile::TempDir,
-    app: &str,
-) -> (Vec<String>, Value) {
-    let session = SessionId::parse("s-98").expect("session");
-    let menu = EdgeMenu::Helper(Box::new(reach_of(app)));
-    let edge = ToolsEdge::start_with(&offer(dir), &session, &program(), rig.court.clone(), menu)
-        .expect("edge");
-    let socket = edge.bind().socket.as_str().to_owned();
-    let line = |op: Value| json!({"token": edge.token().reveal(), "op": op});
-    let listed = super::agent::over_socket(&socket, &line(json!("list")))
-        .await
-        .expect("list");
-    let names = listed["tools"]
-        .as_array()
-        .expect("tools")
-        .iter()
-        .filter_map(|t| t["tool"]["name"].as_str().map(str::to_owned))
-        .collect();
-    let read =
-        json!({"call": {"tool": "mail__mail_thread_read", "arguments": {"target": thread()}}});
-    let called = super::agent::over_socket(&socket, &line(read))
-        .await
-        .expect("call");
-    (names, called)
-}
-
-/// Why: a helper's agent app is offered what a native helper is: its card's apps, not the rest.
-#[tokio::test]
-async fn a_helpers_agent_is_offered_its_cards_actions_and_not_another_apps() {
-    let (rig, dir) = with_mail(Vec::new(), Vec::new()).await;
-    let (names, _) = helper_menu(&rig, &dir, "org.quire.Mail").await;
-    assert!(
-        names.iter().any(|n| n == "mail__mail_thread_read"),
-        "{names:?}"
-    );
-    let (names, called) = helper_menu(&rig, &dir, "org.quire.Notes").await;
-    assert!(!names.iter().any(|n| n.starts_with("mail__")), "{names:?}");
-    assert!(called.to_string().contains("unknown_tool"), "{called}");
-    assert_eq!(reached(&rig), 0);
 }

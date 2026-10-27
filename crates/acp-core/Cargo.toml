@@ -1,6 +1,6 @@
 [package]
 name = "acp-core"
-description = "Our own rules for the Agent Client Protocol, pure: path confinement, the gate's ruling on permission requests, taint, strikes, the tool-request mapping, the names of calls, what an agent reports, why a start failed, and the court seam. No connection, no IO, no clock and no wording; the connections are the official agent-client-protocol SDK's, in docket-acp."
+description = "Our own rules for the Agent Client Protocol, pure: path confinement, the protocol errors, the gate's ruling on permission requests, taint, strikes, the tool-request mapping, the names of calls, what an agent reports, why a start failed, and the court seam. No connection, no IO, no clock and no wording; the connections are the official agent-client-protocol SDK's, in docket-acp and docket-acp-host."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

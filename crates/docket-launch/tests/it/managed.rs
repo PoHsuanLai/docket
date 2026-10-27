@@ -3,7 +3,7 @@
 
 use super::support::{LOGIN, confined, plan, rig};
 use bulkhead::AgentRun;
-use docket_acp::client::{AgentChild, Spawn};
+use docket_acp_host::{AgentChild, Spawn};
 use docket_launch::fake::Mood;
 use serde_json::json;
 

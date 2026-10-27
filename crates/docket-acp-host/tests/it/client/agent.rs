@@ -3,7 +3,7 @@
 //! requests to the client whose replies it records, and the final stop reason). No process, no
 //! network, no clock.
 
-use docket_acp::client::fake::{ChannelWire, pipe};
+use docket_acp_host::fake::{ChannelWire, pipe};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard};

@@ -4,7 +4,7 @@
 
 use super::host::Hosting;
 use super::live::Live;
-use docket_acp::client::{AgentHost, EdgeMenu, Fallback, Hosts, Start};
+use docket_acp_host::{AgentHost, EdgeMenu, Fallback, Hosts, Start};
 use docket_core::helper::HelperCard;
 use docket_core::{ProgramName, TaskPolicy};
 use docket_inapp::EditorDesk;
@@ -54,8 +54,8 @@ impl<A: Accounts + 'static> HelperHosts<A> {
 
 /// The folder a helper's agent works in: its own, never the home folder or a project.
 pub fn folder_of(helper: &HelperId) -> Option<String> {
-    let name = super::serve::plain_name(helper.as_str())?;
-    super::serve::folder_under("helpers", name).ok()
+    let name = super::folders::plain_name(helper.as_str())?;
+    super::folders::folder_under("helpers", name).ok()
 }
 
 impl<A: Accounts + 'static> Hosts for HelperHosts<A> {

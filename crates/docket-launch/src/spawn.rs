@@ -26,7 +26,7 @@ use crate::protect;
 use bulkhead::egress::{Resolver, SystemResolver};
 use bulkhead::forward::{Bridge, Loopback};
 use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
-use docket_acp::client::{EdgeBind, LaunchPlan, SandboxStep, Spawn, SpawnFault, Spawned};
+use docket_acp_host::{EdgeBind, LaunchPlan, SandboxStep, Spawn, SpawnFault, Spawned};
 use docket_core::AbsPath;
 use porter_core::LauncherSession;
 use std::path::PathBuf;

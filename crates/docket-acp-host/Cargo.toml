@@ -1,0 +1,52 @@
+[package]
+name = "docket-acp-host"
+description = "The ACP client edge: an external coding agent (Claude Code, Gemini CLI) is a session backend. `AcpBackend` speaks the Agent Client Protocol as the client, on the official agent-client-protocol SDK's client role, over a `Spawn` seam; every call the agent makes is formed, confined and ruled by the router (`Court`, `IntentsCourt` over docket-client) before the `Performer` acts. The IO under it: files and the working directory, the agent's tool socket, the sandboxed terminals (bulkhead), the agent apps of the helpers. Our own ACP rules are `acp-core`; the server edge (an editor drives us) is `docket-acp`; the process that starts agents is `docket-launch`. The `testing` feature adds the in-memory pipe, scripted spawner and file map."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# `fake`: an in-memory pipe, a scripted `Spawn` and a file system in a map, for tests of this crate
+# and of the launcher.
+testing = []
+
+[lib]
+name = "docket_acp_host"
+path = "src/lib.rs"
+
+[dependencies]
+acp-core = { workspace = true }
+actions-tools = { workspace = true }
+agent-client-protocol = { workspace = true }
+bulkhead = { workspace = true }
+docket-client = { workspace = true }
+docket-core = { workspace = true }
+docket-session = { workspace = true }
+docket-store = { workspace = true }
+futures-channel = { workspace = true }
+futures-util = { workspace = true, features = ["sink"] }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+action-review = { workspace = true }
+docket-acp-host = { workspace = true, features = ["testing"] }
+docket-client = { workspace = true, features = ["in_process"] }
+docket-fake = { workspace = true }
+docket-inapp = { workspace = true }
+docket-router = { workspace = true }
+docket-session = { workspace = true, features = ["testing"] }
+docket-testbus = { workspace = true }
+jsonschema = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

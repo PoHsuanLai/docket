@@ -14,10 +14,10 @@
 
 use crate::covered::Covered;
 use crate::expose::Permit;
-use crate::fault;
 use crate::helpers::{Helpers, NoHelpers};
 use crate::link::{Gone, Inbound, Link, answer};
 use crate::mode::Mode;
+use acp_core::fault;
 use agent_client_protocol::schema::ProtocolVersion;
 use agent_client_protocol::schema::v1::{
     AgentCapabilities, CancelNotification, Implementation, InitializeRequest, InitializeResponse,

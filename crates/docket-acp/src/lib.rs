@@ -14,24 +14,17 @@
 //!   for the helper: its "always" is a grant for that helper alone.
 //! - `ConversationTurns`: the seam through which the person's words in a helper's conversation reach
 //!   the daemon that keeps the helper, which runs the turn; the editor carries words in and out.
-//! - `client` (feature `client`): the other direction (S4), an external agent as a session backend,
-//!   over the SDK's client role.
-//! - `Terminals`: the `terminal/*` client methods over the sandboxed shell tool (`bulkhead`),
-//!   ruled by the `Execute` rules. They run in our sandbox, never in an editor's terminal.
+//! - The other direction (S4), an external agent as a session backend, is `docket-acp-host`.
 //!
 //! The protocol's wire types and the JSON-RPC connection, both directions, are the official
 //! `agent-client-protocol` SDK's (Apache-2.0); only the capped line source under it is ours.
 //! `rawInput` and `rawOutput` are never sent; `allow_always` is offered only on a router sheet that
 //! offered it.
 
-#[cfg(feature = "client")]
-pub mod bulk;
 mod calls;
-pub mod client;
 mod conversation;
 mod covered;
 mod expose;
-mod fault;
 mod helper_face;
 mod helper_replay;
 mod helpers;
@@ -45,9 +38,7 @@ mod scope_words;
 mod server;
 mod sessions;
 mod sheet;
-#[cfg(any(feature = "server", feature = "client"))]
 mod stdio;
-mod terminals;
 mod turn;
 
 pub use calls::{Outcome, outcome};
@@ -60,7 +51,5 @@ pub use mode::{Mode, Say};
 pub use permission::{options, sheet_options, sheet_request};
 pub use scope_words::always_words;
 pub use server::Server;
-#[cfg(any(feature = "server", feature = "client"))]
 pub use stdio::{LINE_MAX, LineFault, capped_lines, read_capped};
-pub use terminals::Terminals;
 pub use turn::{Finish, Order, Turn, Wants};

@@ -4,7 +4,7 @@
 //! the performer that the gate did not allow.
 
 use bulkhead::Sandbox;
-use docket_acp::client::{Files, Performer};
+use docket_acp_host::{Files, Performer};
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, Here, Hit, Invocation, Outcome, Preview,
     Selection, SuggestAsk, SummonAnswer, SummonOrigin, SummonSerial, TextTarget, UndoFault,

@@ -1,6 +1,6 @@
 //! What a preset (`profile` in `agents.toml`) adds to a run to confine what a program brings of
 //! its own: environment variables, and extra `_meta` for `session/new`. The router never knows
-//! which program it is; `docket_acp::client` only carries the `_meta` the launcher hands back.
+//! which program it is; `docket_acp_host` only carries the `_meta` the launcher hands back.
 //!
 //! Claude Code reads no managed-settings file outside its hosted mode (its
 //! `CLAUDE_CODE_MANAGED_SETTINGS_PATH` is ignored), so the settings go the way its ACP adapter
@@ -19,7 +19,7 @@
 //! A `permissions.allow` the person's own settings hold is unioned with ours; that is theirs.
 
 use crate::config::Profile;
-use docket_acp::client::{SERVER_NAME, SessionMeta};
+use docket_acp_host::{SERVER_NAME, SessionMeta};
 use serde_json::{Value, json};
 
 impl Profile {

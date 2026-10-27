@@ -152,7 +152,7 @@ impl AcpSpec {
         if let Some(model) = self
             .model
             .as_ref()
-            .filter(|m| docket_acp::client::ModelId::parse(m).is_err())
+            .filter(|m| docket_acp_host::ModelId::parse(m).is_err())
         {
             return Err(SpecFault::Model(model.clone()));
         }
@@ -169,7 +169,7 @@ impl AcpSpec {
         if let Some(method) = self
             .sign_in
             .as_ref()
-            .filter(|m| docket_acp::client::SignIn::parse(m).is_err())
+            .filter(|m| docket_acp_host::SignIn::parse(m).is_err())
         {
             return Err(SpecFault::SignIn(method.clone()));
         }

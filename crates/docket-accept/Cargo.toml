@@ -65,6 +65,7 @@ companion-wire = { workspace = true }
 companiond = { path = "../companiond" }
 agents-core = { workspace = true }
 docket-acp = { path = "../docket-acp" }
+docket-acp-host = { path = "../docket-acp-host" }
 docket-acp-bin = { path = "../docket-acp-bin" }
 docket-cli = { path = "../docket-cli" }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
