@@ -104,6 +104,14 @@ voice-loop     = { path = "crates/voice-loop" }
 docket-log     = { path = "crates/docket-log" }
 # The events the daemons log (already in the build through zbus and tokio); docket-log is the subscriber.
 tracing = "0.1"
+# docket-log installs these: the standard subscriber (fmt, Targets filter; MIT), the journal writer (MIT).
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "registry"] }
+tracing-journald = "0.3"
+# OTLP span export behind docket-log's `otlp` feature (Apache-2.0 / MIT); tracing-opentelemetry 0.34 pairs with OpenTelemetry 0.33.
+opentelemetry = { version = "0.33", default-features = false, features = ["trace"] }
+opentelemetry_sdk = { version = "0.33", default-features = false, features = ["trace"] }
+opentelemetry-otlp = { version = "0.33", default-features = false, features = ["trace", "http-proto", "reqwest-blocking-client"] }
+tracing-opentelemetry = { version = "0.34", default-features = false }
 
 # porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout
 # overrides it through a [patch], FINDINGS.md "Cross-repo dependencies"). porter has no docket dependency, so there is

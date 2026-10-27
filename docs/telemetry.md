@@ -3,8 +3,7 @@
 The router writes OpenTelemetry GenAI spans: one `execute_tool` per action call and one
 `invoke_agent` per model turn. A span carries ids, action names, the effect class, the ruling,
 token counts and cost; never a prompt, an argument or a result. Callers of `docket-log` must never
-put content on a span, and the exporter sends only the fields a span declared (no events, no event
-messages).
+put content on a span; events are not exported, so no event message leaves the machine.
 
 By default nothing leaves the machine: the spans are made and dropped. A daemon built with the
 `otlp` feature can send them to a collector on this machine.
@@ -12,7 +11,7 @@ By default nothing leaves the machine: the spans are made and dropped. A daemon 
 ## Build
 
 `intentd` (where the router runs) and `companiond` each have an `otlp` feature that turns on
-`docket-log/otlp`. It is off by default, and without it `docket-log` depends on `tracing` alone.
+`docket-log/otlp`. It is off by default, and without it `docket-log` does not build the OpenTelemetry crates.
 
 ```sh
 cargo build --release -p intentd --features otlp
@@ -29,14 +28,15 @@ cargo build --release -p intentd --features otlp
 | `OTEL_SERVICE_NAME` | the `service.name` resource attribute; the daemon's name when unset |
 | `OTEL_SDK_DISABLED` | `true` turns export off whatever else is set |
 
-Only `http://` endpoints are accepted, with `host[:port]` (a missing port is 80) and an optional
-path; no query, fragment or user information. An `https://` or malformed endpoint is refused with
-one warning in the journal and export stays off. To reach a remote backend or use TLS, run a local
-collector and point the daemon at it.
+Export is on only when one of the two endpoint variables is set. The export is `opentelemetry-otlp`
+over HTTP (protobuf) with a blocking client and no TLS, so use an `http://` endpoint; to reach a
+remote backend or use TLS, run a local collector and point the daemon at it. If the exporter cannot
+be built, one warning goes to the log and export stays off. The `OTEL_*` variables the crates read
+beyond the ones above (timeouts, headers) apply as the OpenTelemetry specification says.
 
-Spans are sent as OTLP/HTTP JSON in batches of up to 512 spans or 5 seconds. A batch that cannot
-be delivered is dropped (one warning a minute at most); a full queue drops spans and says how many.
-Spans still queued when the daemon stops are lost.
+Spans are sent in batches by the SDK's batch processor. A batch that cannot be delivered is
+dropped. Spans still queued when the daemon stops are sent when `main` drops the guard `init`
+returned.
 
 ### Example: a local collector on 4318
 

@@ -26,6 +26,17 @@ only the app and the Space did, and a later run of a conversation was asked agai
 docket-inapp's in-process store keeps no limits (the
 trait default holds none); Settings has no list of limits yet; adding a limit is not audited.
 
+## docket-log runs on the standard crates
+
+docket-log no longer holds a subscriber or an OTLP exporter of its own (about 1.6k lines gone). It
+builds a `tracing-subscriber` stack from a typed `Config`: `fmt` to standard error, `tracing-journald`
+under systemd, a `Targets` filter read from `RUST_LOG` (default `info`), and with the `otlp` feature
+`tracing-opentelemetry` + `opentelemetry-otlp`. Changes a person can see: lines no longer begin with the
+daemon name (the journal's `SYSLOG_IDENTIFIER` carries it; on standard error the name is not printed),
+the filter is configurable, and the OTLP body is protobuf rather than JSON. Open: the first build must
+refresh `Cargo.lock` for the OpenTelemetry crates (not in the offline registry when this landed), and
+`docs/telemetry.md`'s `PrivateNetwork` note still holds (the exporter needs the network).
+
 ## Stubs behind frozen interfaces
 
 | Where | Count | Closes when |
