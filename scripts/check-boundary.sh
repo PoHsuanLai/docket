@@ -241,7 +241,7 @@ layers_check() {
       printf '%s' "${FOUND[$key]}" | head -5 | sed 's/^/    /'
       bad=1
     fi
-  done < <(printf '%s\0' "${!FOUND[@]}" | sort -z)
+  done < <(((${#FOUND[@]})) && printf '%s\0' "${!FOUND[@]}" | sort -z)
   for row in "${KNOWN[@]}"; do
     [ -n "${used[$row]:-}" ] || { echo "STALE: KNOWN row '$row' matches no breach; delete it"; bad=1; }
   done
