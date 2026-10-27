@@ -9,7 +9,8 @@ repository.workspace = true
 publish.workspace = true
 
 [features]
-# The backend contract suite (`contract`): test code, which asserts by panicking.
+# Test code: the backend contract suite (`contract`, which asserts by panicking) and the fakes
+# (`fake`, `fake_host`). Only the dev-dependencies of crates whose tests use them turn it on.
 testing = []
 
 [dependencies]
@@ -22,6 +23,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+docket-session = { workspace = true, features = ["testing"] }
 almanac-core = { workspace = true }
 proptest = { workspace = true }
 

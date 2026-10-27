@@ -74,7 +74,7 @@ docket-launch = { workspace = true }
 docket-reader = { workspace = true }
 docket-log = { workspace = true }
 bulkhead = { workspace = true }
-docket-session = { workspace = true }
+docket-session = { workspace = true, features = ["testing"] }
 docket-settings = { workspace = true, features = ["agents"] }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }

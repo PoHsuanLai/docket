@@ -12,10 +12,11 @@
 //!   entries.
 //! - `contract` (feature `testing`): the rules every backend keeps, written once for each
 //!   backend's test to run. Its checks panic by design, so a release build does not carry them.
+//! - `fake` and `fake_host` (feature `testing`): a scripted backend, an in-memory log and a
+//!   scripted host, for tests.
 //! - `may_restore`: who may bring a stored session back by naming it (the opener rule).
 //! - `SessionLog`, `SessionBackend` and `SessionHost`: the seams. The native and ACP backends
-//!   and the host are later lanes; `fake` holds a scripted backend and an in-memory log for
-//!   tests.
+//!   and the host are later lanes.
 //!
 //! Nothing here reaches a bus, a runtime or a clock: every time and every id is passed in.
 
@@ -27,7 +28,9 @@ pub mod contract;
 mod desk;
 mod entry;
 mod export;
+#[cfg(feature = "testing")]
 pub mod fake;
+#[cfg(feature = "testing")]
 pub mod fake_host;
 mod fork;
 pub mod legacy;
