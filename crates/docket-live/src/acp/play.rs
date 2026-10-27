@@ -9,7 +9,7 @@ use super::spec::AcpSpec;
 use crate::acp::secret::Credentials;
 use docket_accept::runlink::short_run;
 use docket_accept::world::{Binaries, Cgroup, World};
-use docket_acp_bin::harness::host::{Hosted, Places, SandboxLimits, Wiring, host};
+use docket_acp_bin::harness::host::{HostError, Hosted, Places, SandboxLimits, Wiring, host};
 use docket_acp_host::{Fallback, Models, ToolsOffer};
 use docket_core::{AbsPath, TurnId, TurnSource, TurnVia, UserTurn};
 use docket_host::EditorDesk;
@@ -29,6 +29,29 @@ pub enum AgentEnd {
     Silent,
     /// The agent never started, and why (coarse, never a path or a secret).
     NotStarted(String),
+}
+
+/// Why the agent could not be hosted. The words are what a run says, plainly.
+#[derive(Debug, thiserror::Error)]
+pub enum PlayFault {
+    /// The scratch directories could not be made.
+    #[error("scratch directories: {0}")]
+    Scratch(#[from] std::io::Error),
+    /// A path of the world is not text.
+    #[error("a path is not UTF-8")]
+    NotUtf8,
+    /// The agent's `agents.toml` entry does not parse.
+    #[error("{0}")]
+    Entry(String),
+    /// The agents setting is off.
+    #[error("agents are off")]
+    AgentsOff,
+    /// The program's name does not parse.
+    #[error("the program name")]
+    ProgramName,
+    /// The host did not start or the session did not open.
+    #[error(transparent)]
+    Host(#[from] HostError),
 }
 
 /// What a turn showed.
@@ -78,24 +101,23 @@ async fn open(
     world: &World,
     binaries: &Binaries,
     spec: &AcpSpec,
-) -> Result<Hosted<LoginOnly>, String> {
+) -> Result<Hosted<LoginOnly>, PlayFault> {
     let home = world.dir.path();
     let work = home.join("work");
-    std::fs::create_dir_all(&work)
-        .and_then(|()| prepare_state(spec, home))
-        .map_err(|why| format!("scratch directories: {why}"))?;
+    std::fs::create_dir_all(&work).and_then(|()| prepare_state(spec, home))?;
     let (Some(forwarder), Some(cwd)) = (abs(&binaries.actions_mcp), abs(&work)) else {
-        return Err("a path is not UTF-8".to_owned());
+        return Err(PlayFault::NotUtf8);
     };
     let entry = spec.entry_toml(home);
     let dir = spec
         .registry
         .as_ref()
         .map(|pick| agents_core::dirs::AgentsDir::at(&pick.dir));
-    let file = AgentsFile::parse_in(&entry, dir.as_ref()).map_err(|why| why.to_string())?;
+    let file = AgentsFile::parse_in(&entry, dir.as_ref())
+        .map_err(|why| PlayFault::Entry(why.to_string()))?;
     let permit = AgentsPermit::from_text("[agent.acp]\nagents = \"on\"\n")
-        .map_err(|_| "agents are off".to_owned())?;
-    let program = ProgramName::parse(&spec.program).map_err(|_| "the program name".to_owned())?;
+        .map_err(|_| PlayFault::AgentsOff)?;
+    let program = ProgramName::parse(&spec.program).map_err(|_| PlayFault::ProgramName)?;
     // The agent host is its own process to the daemons (docket-agent's scope), as it is on a
     // desktop; the harness process stays the shell.
     let bus = world
@@ -134,7 +156,7 @@ async fn open(
         }),
     };
     let space = SpaceId::parse("work").unwrap_or_else(|_| SpaceId::desktop());
-    host(wiring, program, cwd.as_str(), space).await
+    Ok(host(wiring, program, cwd.as_str(), space).await?)
 }
 
 /// The models the agent offers for a session opened in `world`, and the one in use; none when it
@@ -143,7 +165,7 @@ pub async fn offered_models(
     world: &World,
     binaries: &Binaries,
     spec: &AcpSpec,
-) -> Result<Option<Models>, String> {
+) -> Result<Option<Models>, PlayFault> {
     let Hosted { mut host, session } = open(world, binaries, spec).await?;
     let models = host.backend().models().cloned();
     let _ = host.close(&session, EndCause::Closed).await;
@@ -162,7 +184,7 @@ pub async fn play(
 ) -> Played {
     let Hosted { mut host, session } = match open(world, binaries, spec).await {
         Ok(hosted) => hosted,
-        Err(why) => return Played::failed(why),
+        Err(why) => return Played::failed(why.to_string()),
     };
     let turn = UserTurn {
         id: TurnId(1),

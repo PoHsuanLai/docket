@@ -43,7 +43,9 @@ pub fn refusal_of_open(error: HostError, label: &str) -> HandRefusal {
                 "The model chosen for {label} is not available. Choose another in Settings."
             ),
         },
-        HostError::Setup(words) => HandRefusal::Failed { message: words },
+        error @ (HostError::Setup(_) | HostError::Invalid(_)) => HandRefusal::Failed {
+            message: error.to_string(),
+        },
         HostError::Open(_) => HandRefusal::Failed {
             message: format!("{label} could not be started."),
         },

@@ -4,7 +4,7 @@
 //! accountd behind it; the live-eval harness hosts with `LoginOnly` on its private bus. Nothing
 //! here reads the environment or a file: everything is handed in.
 
-use crate::agent::live::Live;
+use crate::agent::live::{Live, LiveFault};
 use crate::agent::places::Places;
 use crate::agent::remember::remember;
 use agents_core::dirs::AgentsDir;
@@ -18,9 +18,7 @@ use docket_host::EditorDesk;
 use docket_launch::{
     Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Registry,
 };
-use docket_session::{
-    BackendFault, BackendKind, HostFault, Opening, ProgramName, SessionHost, Workspace,
-};
+use docket_session::{BackendKind, HostFault, Opening, ProgramName, SessionHost, Workspace};
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -88,52 +86,23 @@ pub struct Hosted<A: Accounts + 'static> {
 }
 
 /// Why a host did not start: something about this computer, or the session did not open.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum HostError {
     /// The sandbox, the manifest or the bus: the words say what.
-    Setup(String),
+    #[error(transparent)]
+    Setup(#[from] LiveFault),
+    /// A name made here does not parse.
+    #[error("{0}")]
+    Invalid(String),
     /// The session did not open; the fault says why (a sign-in is needed, say).
+    #[error("{0}")]
     Open(HostFault),
 }
 
-impl From<String> for HostError {
-    fn from(words: String) -> Self {
-        HostError::Setup(words)
-    }
-}
-
-impl From<&str> for HostError {
-    fn from(words: &str) -> Self {
-        HostError::Setup(words.to_owned())
-    }
-}
-
-impl HostError {
-    /// The words a person reads for it.
-    pub fn said(self) -> String {
-        match self {
-            HostError::Setup(words) => words,
-            HostError::Open(fault) => said(fault),
-        }
-    }
-}
-
 /// Serves the pseudo-app on the bus, starts the program named `program`, and opens its session in
-/// `space` working in `cwd`.
+/// `space` working in `cwd`. The error says why it failed, so a caller can tell a missing sign-in
+/// from a broken setup.
 pub async fn host<A: Accounts + 'static>(
-    wiring: Wiring<A>,
-    program: ProgramName,
-    cwd: &str,
-    space: SpaceId,
-) -> Result<Hosted<A>, String> {
-    host_typed(wiring, program, cwd, space)
-        .await
-        .map_err(HostError::said)
-}
-
-/// [`host`], saying why it failed as a [`HostError`] so a caller can tell a missing sign-in from
-/// a broken setup.
-pub async fn host_typed<A: Accounts + 'static>(
     wiring: Wiring<A>,
     program: ProgramName,
     cwd: &str,
@@ -177,7 +146,7 @@ pub async fn open_on<A: Accounts + 'static>(
     .with_rewind(rewind);
     let opened = host
         .open(Opening {
-            task: TaskId::parse("agent-task-1").map_err(|e| e.to_string())?,
+            task: TaskId::parse("agent-task-1").map_err(|e| HostError::Invalid(e.to_string()))?,
             space,
             opener: None,
             agent: Some(AgentRef::Companion),
@@ -186,7 +155,7 @@ pub async fn open_on<A: Accounts + 'static>(
             forked_from: None,
             started_from: None,
             label,
-            cwd: Some(Workspace::parse(cwd).map_err(|e| e.to_string())?),
+            cwd: Some(Workspace::parse(cwd).map_err(|e| HostError::Invalid(e.to_string()))?),
             rewind: Default::default(),
         })
         .await;
@@ -195,20 +164,4 @@ pub async fn open_on<A: Accounts + 'static>(
     }
     let session = opened.map_err(HostError::Open)?;
     Ok(Hosted { host, session })
-}
-
-/// Why the session did not open, in words a person reads: a sign-in problem is said plainly,
-/// not as "the backend failed".
-fn said(fault: HostFault) -> String {
-    match fault {
-        HostFault::Backend(
-            fault @ (BackendFault::SignInNeeded
-            | BackendFault::SignInUnsupported
-            | BackendFault::SignInChoose(_)
-            | BackendFault::ModelNotOffered(_)
-            | BackendFault::ModelNotChoosable
-            | BackendFault::ModelRefused),
-        ) => fault.to_string(),
-        other => other.to_string(),
-    }
 }

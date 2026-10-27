@@ -1,6 +1,6 @@
 //! A flow played by an external agent, in the same world and judged the same way.
 
-use super::play::{AgentEnd, Played, offered_models, play};
+use super::play::{AgentEnd, PlayFault, Played, offered_models, play};
 use super::secret::{Credentials, Redactor};
 use super::spec::AcpSpec;
 use crate::flows::{
@@ -252,7 +252,7 @@ pub async fn list_models_acp(
     spec: &AcpSpec,
     model: &ModelSource,
     (keep_in, catalog): (Option<PathBuf>, Option<PathBuf>),
-) -> Result<String, String> {
+) -> Result<String, PlayFault> {
     let options = Options {
         keep_in,
         tap: TapMode::On,

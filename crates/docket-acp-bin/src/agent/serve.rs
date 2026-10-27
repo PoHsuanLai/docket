@@ -157,7 +157,7 @@ impl Service {
                 .await?;
                 let live = Live::serve(wiring, NetworkMode::Host)
                     .await
-                    .map_err(AgentFault::Bus)?;
+                    .map_err(|why| AgentFault::Bus(why.to_string()))?;
                 Ok::<_, AgentFault>(Arc::new(live))
             })
             .await?;
@@ -227,8 +227,9 @@ impl Service {
             .label
             .as_ref()
             .map_or_else(|| program.as_str().to_owned(), |label| label.0.clone());
-        let cwd =
-            folder(program, live.places()).map_err(|why| HandRefusal::Failed { message: why })?;
+        let cwd = folder(program, live.places()).map_err(|why| HandRefusal::Failed {
+            message: why.to_string(),
+        })?;
         let hosted = open_on(live, program.clone(), &cwd, space)
             .await
             .map_err(|error| refusal_of_open(error, &label))?;

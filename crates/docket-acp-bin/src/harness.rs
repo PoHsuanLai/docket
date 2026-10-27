@@ -4,7 +4,7 @@
 
 /// Hosting one agent session in the harness's process.
 pub mod host {
-    pub use crate::agent::host::{Hosted, Wiring, host};
+    pub use crate::agent::host::{HostError, Hosted, Wiring, host};
     pub use crate::agent::places::Places;
     pub use crate::agent::wire::SandboxLimits;
 }

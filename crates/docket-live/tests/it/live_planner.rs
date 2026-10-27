@@ -160,6 +160,8 @@ fn a_report_is_written_into_a_directory_that_is_made_and_a_failure_names_the_pat
     assert_eq!(std::fs::read_to_string(&report).expect("read"), "numbers\n");
     // A file where the directory should be: the error says where.
     let blocked = report.join("deeper.md");
-    let why = write_report(&blocked, "x").expect_err("a file is not a directory");
+    let why = write_report(&blocked, "x")
+        .expect_err("a file is not a directory")
+        .to_string();
     assert!(why.contains("live-1.md"), "{why}");
 }

@@ -38,7 +38,6 @@ pub mod wire;
 use args::{Args, Mode};
 use docket_acp_host::Workdir;
 use docket_core::AbsPath;
-use docket_launch::dbus::DbusAccounts;
 use docket_session::{BackendEvent, SessionHost};
 use fault::AgentFault;
 use host::{Hosted, host};
@@ -52,7 +51,6 @@ use wire::{SandboxLimits, Tools, allowed};
 type Lines = Arc<Mutex<tokio::io::Lines<BufReader<Stdin>>>>;
 
 /// The seams of the live host: porter's accountd behind it.
-pub type Live = host::Hosting<DbusAccounts>;
 
 /// The program `name` in the directory of this one (it may not be built).
 fn sibling(name: &str) -> Option<AbsPath> {
@@ -96,7 +94,7 @@ pub async fn run(
         mut host, session, ..
     } = host(wiring, args.program, &cwd, args.space)
         .await
-        .map_err(AgentFault::Open)?;
+        .map_err(|why| AgentFault::Open(why.to_string()))?;
     if args.mode == Mode::Refresh {
         host.close(&session, docket_session::EndCause::Closed)
             .await

@@ -23,27 +23,35 @@ pub fn plain_name(name: &str) -> Option<&str> {
     (plain && !name.starts_with('.')).then_some(name)
 }
 
+/// Why an agent's folder could not be had. The words are the ones the person reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum FolderFault {
+    /// The program's name cannot be a folder's.
+    #[error("That coding agent can't be used by the assistant.")]
+    NotUsable,
+    /// The folder could not be made.
+    #[error("The agent's folder can't be made.")]
+    Make,
+    /// The folder is not one the agent may work in.
+    #[error("The agent's folder can't be used.")]
+    Unfit,
+}
+
 /// The folder the agent works in, made if it is not there.
-pub fn folder(program: &ProgramName, places: &Places) -> Result<String, String> {
-    let name = workspace_name(program)
-        .ok_or_else(|| "That coding agent can't be used by the assistant.".to_owned())?;
+pub fn folder(program: &ProgramName, places: &Places) -> Result<String, FolderFault> {
+    let name = workspace_name(program).ok_or(FolderFault::NotUsable)?;
     folder_under("assistant", name, places)
 }
 
 /// The folder `name` under `group` in docket's data directory, made if it is not there, and
 /// never the home folder or a place of secrets.
-pub fn folder_under(group: &str, name: &str, places: &Places) -> Result<String, String> {
+pub fn folder_under(group: &str, name: &str, places: &Places) -> Result<String, FolderFault> {
     let dir: PathBuf = places.data_dir().join(group).join(name);
-    std::fs::create_dir_all(&dir).map_err(|_| "The agent's folder can't be made.".to_owned())?;
-    let real =
-        std::fs::canonicalize(&dir).map_err(|_| "The agent's folder can't be used.".to_owned())?;
-    let text = real
-        .to_str()
-        .ok_or_else(|| "The agent's folder can't be used.".to_owned())?
-        .to_owned();
-    let path = AbsPath::parse(&text).map_err(|_| "The agent's folder can't be used.".to_owned())?;
-    Workdir::resolve(&path, &path, places.home())
-        .map_err(|_| "The agent's folder can't be used.".to_owned())?;
+    std::fs::create_dir_all(&dir).map_err(|_| FolderFault::Make)?;
+    let real = std::fs::canonicalize(&dir).map_err(|_| FolderFault::Unfit)?;
+    let text = real.to_str().ok_or(FolderFault::Unfit)?.to_owned();
+    let path = AbsPath::parse(&text).map_err(|_| FolderFault::Unfit)?;
+    Workdir::resolve(&path, &path, places.home()).map_err(|_| FolderFault::Unfit)?;
     Ok(text)
 }
 

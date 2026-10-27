@@ -1,11 +1,11 @@
 //! `docket-live smoke`.
 
-use super::{say_agent, say_reach};
+use super::{CommandFault, say_agent, say_reach};
+use crate::Engine;
 use crate::acp::{AcpSpec, Redactor, Task, agent_cassette, list_models_acp, run_flow_acp};
 use crate::cli::{Agent, SmokeArgs};
 use crate::flows::{Flow, Kind, run_flow};
 use crate::hostile::run_planner_case;
-use crate::{Engine, EngineError};
 use docket_accept::catalog;
 use docket_accept::keys_home::KeysHome;
 use docket_accept::world::{Binaries, ModelSource};
@@ -41,9 +41,8 @@ impl Play {
 /// planner cases when the engine is a cassette. A planner case's expectation is written for its
 /// own misbehaving replies; a live model says something else, so on a live engine the cases run
 /// only when named.
-fn plays(args: &SmokeArgs) -> Result<Vec<Play>, String> {
-    let hostile = load_planner_cases(&args.eval_dir.join("hostile-model/planner"))
-        .map_err(|e| e.to_string())?;
+fn plays(args: &SmokeArgs) -> Result<Vec<Play>, CommandFault> {
+    let hostile = load_planner_cases(&args.eval_dir.join("hostile-model/planner"))?;
     let all = Flow::ALL
         .into_iter()
         .map(Play::Flow)
@@ -71,19 +70,18 @@ async fn smoke_agent(
     args: SmokeArgs,
     spec: AcpSpec,
     binaries: &Binaries,
-) -> Result<ExitCode, String> {
+) -> Result<ExitCode, CommandFault> {
     let smoke_catalog = args
         .catalog
         .clone()
         .unwrap_or_else(|| catalog::default_source(&args.eval_dir));
     let traces = args.out.join("smoke-acp");
-    std::fs::create_dir_all(&traces).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&traces)?;
     let patience = Duration::from_secs(args.patience_s);
     if spec.task == Task::ListModels {
         let model = args
             .engine
-            .source(agent_cassette(), args.inferd_config.as_deref())
-            .map_err(|e: EngineError| e.to_string())?;
+            .source(agent_cassette(), args.inferd_config.as_deref())?;
         let dirs = (Some(args.out.join("scratch")), Some(smoke_catalog));
         print!("{}", list_models_acp(binaries, &spec, &model, dirs).await?);
         return Ok(ExitCode::SUCCESS);
@@ -112,14 +110,12 @@ async fn smoke_agent(
     for flow in flows {
         let model = args
             .engine
-            .source(agent_cassette(), args.inferd_config.as_deref())
-            .map_err(|e: EngineError| e.to_string())?;
+            .source(agent_cassette(), args.inferd_config.as_deref())?;
         let dirs = (Some(args.out.join("scratch")), Some(smoke_catalog.clone()));
         let r = run_flow_acp(binaries, flow, &spec, &model, dirs, patience).await;
         let file = traces.join(format!("{}.trace.txt", flow.slug()));
         let header = format!("{}\n\n", catalog::describe(&smoke_catalog));
-        std::fs::write(&file, redactor.scrub(&(header + &r.transcript)))
-            .map_err(|e| e.to_string())?;
+        std::fs::write(&file, redactor.scrub(&(header + &r.transcript)))?;
         let verdict = if r.failures.is_empty() {
             "PASS"
         } else {
@@ -158,7 +154,7 @@ async fn smoke_agent(
     })
 }
 
-pub(super) async fn smoke(args: SmokeArgs, binaries: &Binaries) -> Result<ExitCode, String> {
+pub(super) async fn smoke(args: SmokeArgs, binaries: &Binaries) -> Result<ExitCode, CommandFault> {
     say_reach(args.engine);
     say_agent(&args.agent);
     if let Agent::Acp(spec) = args.agent.clone() {
@@ -169,15 +165,10 @@ pub(super) async fn smoke(args: SmokeArgs, binaries: &Binaries) -> Result<ExitCo
         .clone()
         .unwrap_or_else(|| catalog::default_source(&args.eval_dir));
     let traces = args.out.join("smoke");
-    std::fs::create_dir_all(&traces).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&traces)?;
     let patience = Duration::from_secs(args.patience_s);
     let dirs = || (Some(args.out.join("scratch")), Some(smoke_catalog.clone()));
-    let keys_home = args
-        .keys_home
-        .as_deref()
-        .map(KeysHome::open)
-        .transpose()
-        .map_err(|e| e.to_string())?;
+    let keys_home = args.keys_home.as_deref().map(KeysHome::open).transpose()?;
     let mut failed = false;
     let plays: Vec<(Play, u32)> = plays(&args)?
         .into_iter()
@@ -195,8 +186,7 @@ pub(super) async fn smoke(args: SmokeArgs, binaries: &Binaries) -> Result<ExitCo
     for (play, run) in plays {
         let model: ModelSource = args
             .engine
-            .source(play.cassette(), args.inferd_config.as_deref())
-            .map_err(|e: EngineError| e.to_string())?;
+            .source(play.cassette(), args.inferd_config.as_deref())?;
         let (name, transcript, failures) = match &play {
             Play::Flow(flow) => {
                 let r = run_flow(
@@ -224,7 +214,7 @@ pub(super) async fn smoke(args: SmokeArgs, binaries: &Binaries) -> Result<ExitCo
         };
         let file = traces.join(format!("{name}.trace.txt"));
         let header = format!("{}\n\n", catalog::describe(&smoke_catalog));
-        std::fs::write(&file, header + &transcript).map_err(|e| e.to_string())?;
+        std::fs::write(&file, header + &transcript)?;
         let verdict = if failures.is_empty() { "PASS" } else { "FAIL" };
         println!("{verdict} {name}  trace: {}", file.display());
         for f in &failures {

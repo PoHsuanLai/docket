@@ -1,6 +1,6 @@
 //! What every session of a live host shares: the performer the router's `Perform` for the
 //! pseudo-app reaches, the pseudo-app served on the bus under `org.quire.AcpAgent`, and the parts
-//! a spawner is made of. One agent's session (`host_typed`) and the sessions of many helpers'
+//! a spawner is made of. One agent's session (`host`) and the sessions of many helpers'
 //! agents (`helper_host`) both start from here, so both hold an agent to the same rules.
 
 use crate::agent::host::{Hosting, Wiring};
@@ -64,12 +64,36 @@ struct Placeholder {
     program: ProgramName,
 }
 
+/// Why the host could not serve the pseudo-app.
+#[derive(Debug, thiserror::Error)]
+pub enum LiveFault {
+    /// No bubblewrap: no agent is started unconfined.
+    #[error("no sandbox (bubblewrap) here ({0}): no agent is started unconfined")]
+    NoSandbox(bulkhead::CannotSandbox),
+    /// The pseudo-app's manifest does not parse.
+    #[error("the agent manifest: {0}")]
+    Manifest(#[from] docket_core::ManifestFileError),
+    /// The agent host has no app name.
+    #[error("no app name for the agent host")]
+    NoAppName,
+    /// The bus refused the object.
+    #[error("{0}")]
+    Bus(#[from] zbus::Error),
+    /// The pseudo-app's provider could not be served.
+    #[error("{}: {0}", ACP_AGENT_APP)]
+    Provider(#[from] docket_provider::ServeError),
+    /// A name made here does not parse.
+    #[error("{0}")]
+    Invalid(String),
+}
+
 impl Placeholder {
-    fn new() -> Result<Self, String> {
+    fn new() -> Result<Self, LiveFault> {
+        let invalid = |e: &dyn std::fmt::Display| LiveFault::Invalid(e.to_string());
         Ok(Self {
-            session: SessionId::parse("s-0").map_err(|e| e.to_string())?,
-            task: TaskId::parse("helper-task").map_err(|e| e.to_string())?,
-            program: ProgramName::parse("agent").map_err(|e| e.to_string())?,
+            session: SessionId::parse("s-0").map_err(|e| invalid(&e))?,
+            task: TaskId::parse("helper-task").map_err(|e| invalid(&e))?,
+            program: ProgramName::parse("agent").map_err(|e| invalid(&e))?,
         })
     }
 }
@@ -77,7 +101,7 @@ impl Placeholder {
 impl<A: Accounts + 'static> Live<A> {
     /// Serves the pseudo-app on the bus. The performer counts the commands it runs against
     /// `agent_network`, the network of the agent process.
-    pub async fn serve(wiring: Wiring<A>, agent_network: NetworkMode) -> Result<Self, String> {
+    pub async fn serve(wiring: Wiring<A>, agent_network: NetworkMode) -> Result<Self, LiveFault> {
         let Wiring {
             bus,
             accounts,
@@ -98,18 +122,15 @@ impl<A: Accounts + 'static> Live<A> {
         let found = match &bwrap {
             Detected::Bwrap(found) => found,
             Detected::Missing(why) => {
-                return Err(format!(
-                    "no sandbox (bubblewrap) here ({why}): no agent is started unconfined"
-                ));
+                return Err(LiveFault::NoSandbox(why.clone()));
             }
         };
         let sandbox = found.clone();
         let performer = Performer::new(OsFiles, bwrap)
             .with_agent_network(agent_network)
             .with_command_deadline(acp_core::command_deadline::CommandDeadline::DEFAULT);
-        let manifest: ValidManifest =
-            docket_core::parse(MANIFEST).map_err(|e| format!("the agent manifest: {e}"))?;
-        let quiet = Quiet(docket_core::acp_agent_app().ok_or("no app name for the agent host")?);
+        let manifest: ValidManifest = docket_core::parse(MANIFEST)?;
+        let quiet = Quiet(docket_core::acp_agent_app().ok_or(LiveFault::NoAppName)?);
         if fallback == Fallback::Terminal {
             // Served before the name is claimed, so the first sheet finds it.
             bus.object_server()
@@ -117,8 +138,7 @@ impl<A: Accounts + 'static> Live<A> {
                     CONFIRM_PATH,
                     crate::confirm::ConfirmObject::new(desk.clone(), SystemClock, callers.clone()),
                 )
-                .await
-                .map_err(|e| e.to_string())?;
+                .await?;
         }
         // The pseudo-app's provider answers the same process `Confirm1` does: intentd's unit.
         serve_on_with(
@@ -128,8 +148,7 @@ impl<A: Accounts + 'static> Live<A> {
             quiet,
             callers,
         )
-        .await
-        .map_err(|e| format!("{ACP_AGENT_APP}: {e}"))?;
+        .await?;
         let court = IntentsCourt::over(DbusTransport::new(bus));
         Ok(Self {
             file,

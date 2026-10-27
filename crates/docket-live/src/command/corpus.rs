@@ -1,6 +1,6 @@
 //! `docket-live corpus`.
 
-use super::{say_agent, say_reach};
+use super::{CommandFault, say_agent, say_reach};
 use crate::acp::AcpSpec;
 use crate::attack_planner::run_attacks_planner;
 use crate::cli::{Agent, CorpusArgs, PlannerMode};
@@ -48,13 +48,12 @@ const ATTACKS: &str = "attacks";
 
 /// The attacks a run is asked for: those of `--corpus attacks`, or the ones `--case` names (by the
 /// attack's id or the id of either case it compiles to). Each is played as its pair of cases.
-fn chosen_attacks(args: &CorpusArgs) -> Result<Vec<AttackCase>, String> {
+fn chosen_attacks(args: &CorpusArgs) -> Result<Vec<AttackCase>, CommandFault> {
     let named = args.corpora.iter().any(|c| c == ATTACKS);
     if !named && args.cases.is_empty() {
         return Ok(Vec::new());
     }
-    let all =
-        load_attacks(&args.eval_dir.join("injection").join(ATTACKS)).map_err(|e| e.to_string())?;
+    let all = load_attacks(&args.eval_dir.join("injection").join(ATTACKS))?;
     Ok(all
         .into_iter()
         .filter(|a| match args.cases.is_empty() {
@@ -88,11 +87,11 @@ fn over_target(report: &RunReport, max: u32) -> Vec<String> {
 /// A case scripts the planner's calls and judges the router's ruling on each; an external agent
 /// chooses its own, so the case's expectation has nothing to compare. The flows (`smoke`) are what
 /// an agent is measured on.
-fn corpus_agent(args: &CorpusArgs, spec: &AcpSpec) -> Result<ExitCode, String> {
-    let all = load_all(&args.eval_dir).map_err(|e| e.to_string())?;
+fn corpus_agent(args: &CorpusArgs, spec: &AcpSpec) -> Result<ExitCode, CommandFault> {
+    let all = load_all(&args.eval_dir)?;
     let cases = chosen(args, all);
     if cases.is_empty() {
-        return Err("no case matches --corpus/--case".to_owned());
+        return Err(CommandFault::NoCase);
     }
     let why = "the case scripts the planner's calls and judges the router's ruling on each; an external agent chooses its own";
     let note = RunNote {
@@ -132,13 +131,12 @@ fn write_attack_summary(
     args: &CorpusArgs,
     outcomes: &[CorpusOutcome],
     dir: &std::path::Path,
-) -> Result<(), String> {
+) -> Result<(), CommandFault> {
     let Some(metrics) = outcomes.iter().find_map(|o| o.report.attack.clone()) else {
-        return Err("--attack-summary: this run played no attacks (--corpus attacks)".to_owned());
+        return Err(CommandFault::NoAttackSummary);
     };
-    let summary = stamp_summary(args.engine.slug(), metrics, &args.eval_dir, &today())
-        .map_err(|e| e.to_string())?;
-    let path = write_summary(&summary, dir).map_err(|e| e.to_string())?;
+    let summary = stamp_summary(args.engine.slug(), metrics, &args.eval_dir, &today())?;
+    let path = write_summary(&summary, dir)?;
     eprintln!("docket-live: attack summary written to {}", path.display());
     Ok(())
 }
@@ -151,25 +149,19 @@ async fn corpus_live_planner(
     args: &CorpusArgs,
     binaries: &Binaries,
     options: &CorpusOptions,
-) -> Result<ExitCode, String> {
+) -> Result<ExitCode, CommandFault> {
     if args.regress.is_some() || args.corpora.iter().any(|c| c != ATTACKS) {
-        return Err(format!(
-            "--planner live plays the attack suite only: name --corpus {ATTACKS} (or --case <attack id>), and no other corpus or --regress"
-        ));
+        return Err(CommandFault::LivePlannerOnlyAttacks);
     }
     let attacks = chosen_attacks(args)?;
     if attacks.is_empty() {
-        return Err(format!(
-            "--planner live plays the attack suite: name --corpus {ATTACKS} (or --case <attack id>)"
-        ));
+        return Err(CommandFault::NoAttacks);
     }
     eprintln!(
         "docket-live: --planner live: {} attacks, two runs each, played by the companion's own planner model (a run takes a while)",
         attacks.len()
     );
-    let ran = run_attacks_planner(binaries, &attacks, options)
-        .await
-        .map_err(|e| e.to_string())?;
+    let ran = run_attacks_planner(binaries, &attacks, options).await?;
     let metrics = LiveMetrics::from_scores(&ran.planner, &ran.scores);
     let report = RunReport {
         version: env!("CARGO_PKG_VERSION").to_owned(),
@@ -188,9 +180,8 @@ async fn corpus_live_planner(
             args.engine.slug(),
             planner_slug(&ran.planner)
         );
-        let summary = stamp_summary(&engine, metrics.base.clone(), &args.eval_dir, &today())
-            .map_err(|e| e.to_string())?;
-        let path = write_summary(&summary, dir).map_err(|e| e.to_string())?;
+        let summary = stamp_summary(&engine, metrics.base.clone(), &args.eval_dir, &today())?;
+        let path = write_summary(&summary, dir)?;
         eprintln!("docket-live: attack summary written to {}", path.display());
     }
     eprintln!(
@@ -206,18 +197,16 @@ async fn corpus_live_planner(
     })
 }
 
-pub(super) async fn corpus(args: CorpusArgs, binaries: &Binaries) -> Result<ExitCode, String> {
+pub(super) async fn corpus(
+    args: CorpusArgs,
+    binaries: &Binaries,
+) -> Result<ExitCode, CommandFault> {
     say_reach(args.engine);
     say_agent(&args.agent);
     if let Agent::Acp(spec) = &args.agent {
         return corpus_agent(&args, spec);
     }
-    let keys_home = args
-        .keys_home
-        .as_deref()
-        .map(KeysHome::open)
-        .transpose()
-        .map_err(|e| e.to_string())?;
+    let keys_home = args.keys_home.as_deref().map(KeysHome::open).transpose()?;
     let mut options = CorpusOptions {
         label: args.label.clone(),
         engine: args.engine,
@@ -238,15 +227,14 @@ pub(super) async fn corpus(args: CorpusArgs, binaries: &Binaries) -> Result<Exit
     }
     let mut misses = Vec::new();
     let mut outcomes = Vec::new();
-    let all = load_all(&args.eval_dir).map_err(|e| e.to_string())?;
+    let all = load_all(&args.eval_dir)?;
     match &args.regress {
         Some(dir) => {
-            for pair in regress::load(dir, &all).map_err(|e| e.to_string())? {
+            for pair in regress::load(dir, &all)? {
                 options.cassette = Some(pair.cassette.clone());
                 options.out = args.out.join(&pair.case.id.0);
-                let ran = run_corpus_live(binaries, std::slice::from_ref(&pair.case), &options)
-                    .await
-                    .map_err(|e| e.to_string())?;
+                let ran =
+                    run_corpus_live(binaries, std::slice::from_ref(&pair.case), &options).await?;
                 misses.extend(ran.note.missed.clone());
                 outcomes.push(ran);
             }
@@ -259,13 +247,11 @@ pub(super) async fn corpus(args: CorpusArgs, binaries: &Binaries) -> Result<Exit
                 [clean, attacked]
             }));
             if cases.is_empty() {
-                return Err("no case matches --corpus/--case".to_owned());
+                return Err(CommandFault::NoCase);
             }
-            let mut ran = run_corpus_live(binaries, &cases, &options)
-                .await
-                .map_err(|e| e.to_string())?;
+            let mut ran = run_corpus_live(binaries, &cases, &options).await?;
             if !attacks.is_empty() {
-                let scores = score_traces(&attacks, &ran.traces).map_err(|e| e.to_string())?;
+                let scores = score_traces(&attacks, &ran.traces)?;
                 ran.report.attack = Some(AttackMetrics::from_scores(&scores));
             }
             misses.extend(ran.note.missed.clone());
@@ -273,7 +259,7 @@ pub(super) async fn corpus(args: CorpusArgs, binaries: &Binaries) -> Result<Exit
         }
     }
     if outcomes.is_empty() {
-        return Err("nothing to run".to_owned());
+        return Err(CommandFault::NothingToRun);
     }
     // One section per run: a regression pair is a run of its own.
     let text: String = outcomes

@@ -25,8 +25,8 @@ use docket_core::{
     TurnSource, TurnVia, UserTurn, WindowKey,
 };
 use docket_dbus::Watched;
-use docket_eval::{Facts, install_fixture};
-use docket_fake::fake_router_reading;
+use docket_eval::{Facts, SetupFault, install_fixture};
+use docket_fake::{FakeError, fake_router_reading};
 use docket_models::{TransportModel, TransportWriter};
 use docket_planner::PlannerModel;
 use docket_reader::TransportReader;
@@ -35,8 +35,8 @@ use docket_store::SystemClock;
 use docket_tasks::{Companion, Quiet};
 use docket_trace::{MemoryTap, Tap};
 use eval_core::{
-    AnswerGiven, AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, RunNote, faulted_trace,
-    live_trace, score_live,
+    AnswerGiven, AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, PlaceError, RunNote,
+    faulted_trace, live_trace, score_live,
 };
 use porter_client::DbusTransport;
 use porter_core::{AppId, AppName, Isolation};
@@ -96,6 +96,41 @@ struct Rig {
     timeouts: crate::corpus::Timeouts,
 }
 
+/// Why one case could not be played. The words go into the case's faulted trace.
+#[derive(Debug, thiserror::Error)]
+pub enum AttackFault {
+    /// No model card for a tier.
+    #[error("no model card for {0}")]
+    NoCard(&'static str),
+    /// A name made here is not an app name.
+    #[error("{0} is not an app name")]
+    NotAnApp(String),
+    /// The window's name does not parse.
+    #[error("the window's name")]
+    WindowName,
+    /// The shell's name does not parse.
+    #[error("the shell's name")]
+    ShellName,
+    /// The case holds no turn to say.
+    #[error("the case has no turn")]
+    NoTurn,
+    /// The fake router could not be built.
+    #[error("router: {0}")]
+    Router(#[from] FakeError),
+    /// The case's world could not be installed.
+    #[error("{0}")]
+    Fixture(#[from] SetupFault),
+    /// The person's place could not be made from the world.
+    #[error("where the person is: {0}")]
+    Place(#[from] PlaceError),
+    /// The companion refused to open a session.
+    #[error("the companion did not open a session: {0}")]
+    Open(String),
+    /// The router did not record the turn.
+    #[error("the turn was not recorded: {0}")]
+    Turn(String),
+}
+
 impl Rig {
     fn link(&self) -> Link {
         Watched::new(
@@ -104,15 +139,15 @@ impl Rig {
         )
     }
 
-    fn model(&self, name: &'static str) -> Result<TransportModel<Link>, String> {
+    fn model(&self, name: &'static str) -> Result<TransportModel<Link>, AttackFault> {
         card(name)
             .map(|card| TransportModel::new(self.link(), card))
-            .ok_or_else(|| format!("no model card for {name}"))
+            .ok_or(AttackFault::NoCard(name))
     }
 }
 
-fn caller(name: &str, role: CallerRole) -> Result<CallerId, String> {
-    let app = AppName::parse(name).map_err(|_| format!("{name} is not an app name"))?;
+fn caller(name: &str, role: CallerRole) -> Result<CallerId, AttackFault> {
+    let app = AppName::parse(name).map_err(|_| AttackFault::NotAnApp(name.to_owned()))?;
     Ok(CallerId {
         app: AppId {
             name: app,
@@ -133,24 +168,20 @@ fn keep_nothing() -> ContextKeep {
 
 /// The ask a turn makes from where the person is: the companion reads the window of the place's
 /// app when it resolves "this", as it does for a turn asked from an app's window.
-pub fn ask_of(session: SessionId, turn: UserTurn, place: &Place) -> Result<AskWire, String> {
+pub fn ask_of(session: SessionId, turn: UserTurn, place: &Place) -> Result<AskWire, AttackFault> {
     Ok(AskWire {
         session,
         turn,
         keep: keep_nothing(),
-        parent_window: WindowKey::parse("w1").map_err(|_| "the window's name".to_owned())?,
+        parent_window: WindowKey::parse("w1").map_err(|_| AttackFault::WindowName)?,
         app: Some(place.app.clone()),
     })
 }
 
 /// Plays one case: a fresh router over the case's world, the companion with its real planner, the
 /// person's words, and the router's audit records and the model tap kept when the answer rests.
-async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, String> {
-    let words = case
-        .turns
-        .first()
-        .cloned()
-        .ok_or_else(|| "the case has no turn".to_owned())?;
+async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, AttackFault> {
+    let words = case.turns.first().cloned().ok_or(AttackFault::NoTurn)?;
     let reviewer = Judges(InferReviewer {
         quick: rig.model("quire-quick")?,
         deliberate: rig.model("quire-deliberate")?,
@@ -169,16 +200,13 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
         SystemClock,
         Arc::new(MemoryLog::new()),
         TransportReader::in_process(rig.link()),
-    )
-    .map_err(|e| format!("router: {e}"))?;
-    install_fixture(&router, &case.world, &case.space, case.mode).map_err(|e| e.to_string())?;
+    )?;
+    install_fixture(&router, &case.world, &case.space, case.mode)?;
     // The person is in the world, as in AgentDojo: their window shows where the task is.
-    let place = attack
-        .place(&router.seams.link.shown())
-        .map_err(|e| format!("where the person is: {e}"))?;
+    let place = attack.place(&router.seams.link.shown())?;
     router.seams.link.show_window(place.window.clone());
     let router = Arc::new(router);
-    let shell = AppName::parse("org.quire.Shell").map_err(|_| "the shell's name".to_owned())?;
+    let shell = AppName::parse("org.quire.Shell").map_err(|_| AttackFault::ShellName)?;
     let mut companion: Companion<_, _, _, Quiet> = Companion::new(
         Intents::over(InProcess::new(
             router.clone(),
@@ -205,7 +233,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
             acts_for: None,
         })
         .await
-        .map_err(|e| format!("the companion did not open a session: {e:?}"))?;
+        .map_err(|e| AttackFault::Open(format!("{e:?}")))?;
     let turn = launcher
         .session_turn(
             opened.session.clone(),
@@ -218,7 +246,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
             },
         )
         .await
-        .map_err(|e| format!("the turn was not recorded: {e:?}"))?;
+        .map_err(|e| AttackFault::Turn(format!("{e:?}")))?;
     let turn = UserTurn {
         id: turn,
         text: words,
@@ -274,7 +302,7 @@ fn answer_given(view: Option<&AnswerWire>) -> AnswerGiven {
 async fn trace_of(rig: &Rig, attack: &AttackCase, case: &Case) -> CaseTrace {
     match play(rig, attack, case).await {
         Ok(run) => live_trace(case, run),
-        Err(why) => faulted_trace(case, &why),
+        Err(why) => faulted_trace(case, &why.to_string()),
     }
 }
 
