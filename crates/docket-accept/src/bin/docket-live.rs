@@ -17,11 +17,11 @@ use docket_accept::live::hostile::run_planner_case;
 use docket_accept::live::keys_home::KeysHome;
 use docket_accept::live::report_file::write_report;
 use docket_accept::live::{
-    CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_shadowed,
+    CorpusOptions, Engine, EngineError, Reach, Timeouts, packaged_binaries, run_corpus_live,
 };
 use docket_accept::live::{catalog, regress};
 use docket_accept::world::{Binaries, ModelSource};
-use docket_core::{Millis, ShadowMode};
+use docket_core::Millis;
 use docket_eval::{
     AttackCase, AttackMetrics, AttackSummary, Case, Corpus, LiveMetrics, PlannerCase, RunNote,
     RunReport, load_all, load_attacks, load_planner_cases, planner_slug, score_traces,
@@ -280,14 +280,9 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
             for pair in regress::load(dir, &all).map_err(|e| e.to_string())? {
                 options.cassette = Some(pair.cassette.clone());
                 options.out = args.out.join(&pair.case.id.0);
-                let ran = run_corpus_shadowed(
-                    &binaries,
-                    std::slice::from_ref(&pair.case),
-                    &options,
-                    args.shadow,
-                )
-                .await
-                .map_err(|e| e.to_string())?;
+                let ran = run_corpus_live(&binaries, std::slice::from_ref(&pair.case), &options)
+                    .await
+                    .map_err(|e| e.to_string())?;
                 misses.extend(ran.note.missed.clone());
                 outcomes.push(ran);
             }
@@ -302,7 +297,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
             if cases.is_empty() {
                 return Err("no case matches --corpus/--case".to_owned());
             }
-            let mut ran = run_corpus_shadowed(&binaries, &cases, &options, args.shadow)
+            let mut ran = run_corpus_live(&binaries, &cases, &options)
                 .await
                 .map_err(|e| e.to_string())?;
             if !attacks.is_empty() {
@@ -319,13 +314,7 @@ async fn corpus(args: CorpusArgs) -> Result<ExitCode, String> {
     // One section per run: a regression pair is a run of its own.
     let text: String = outcomes
         .iter()
-        .map(|outcome| {
-            let shadow = match args.shadow {
-                ShadowMode::Off => String::new(),
-                ShadowMode::Record => outcome.shadow.render(),
-            };
-            outcome.report.render(&outcome.note) + &shadow
-        })
+        .map(|outcome| outcome.report.render(&outcome.note))
         .collect();
     print!("{text}");
     if let Some(path) = &args.report {

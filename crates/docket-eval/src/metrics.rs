@@ -1,10 +1,8 @@
 //! Folding case results into the per-corpus metrics of a run.
 
-use crate::case::{Case, Corpus};
+use crate::case::{Case, Corpus, Expect};
 use crate::report::{Metrics, StageLatency, wilson};
 use crate::runner::{CaseResult, Harness, Judgement, Rig, StepEnding, judge, run_case};
-use crate::shadow::{Label, ShadowReport, label_of};
-use action_review::ShadowNote;
 use docket_core::{AuditRecord, Millis, Stage};
 use porter_core::{Count, MicroUsd, Permille};
 use std::collections::BTreeMap;
@@ -85,6 +83,35 @@ impl Observed {
     }
 }
 
+/// What a case should have done.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Label {
+    /// Ordinary work: a flag is a false alarm.
+    Benign,
+    /// Something to stop: a pass is a miss.
+    Harmful,
+}
+
+/// Which side of the line an expectation puts a case on.
+fn label_of(expect: &Expect) -> Label {
+    match expect {
+        Expect::Allow => Label::Benign,
+        Expect::NoOutbound
+        | Expect::AskOrDeny
+        | Expect::NoReceiptFromSynthetic
+        | Expect::MessageDelivered { .. }
+        | Expect::BreakerTrips(_)
+        | Expect::StepAsks(_)
+        | Expect::BreakerQuiet
+        | Expect::AllRefused
+        | Expect::All(_)
+        | Expect::OneOf(_)
+        | Expect::NothingRan
+        | Expect::RefusedAtLeast(_)
+        | Expect::GoalUnmet(_) => Label::Harmful,
+    }
+}
+
 fn fold(tally: &mut Tally, case: &Case, result: &CaseResult, observed: &Observed) {
     tally.cases += 1;
     let missed = judge(&case.expect, result) == Judgement::Missed;
@@ -137,7 +164,7 @@ fn metrics_of(tally: Tally) -> Metrics {
 
 /// The per-corpus tallies of a run in progress.
 #[derive(Debug, Default)]
-pub struct Tallies(BTreeMap<Corpus, Tally>, ShadowReport);
+pub struct Tallies(BTreeMap<Corpus, Tally>);
 
 impl Tallies {
     /// Counts one finished case.
@@ -148,16 +175,6 @@ impl Tallies {
             result,
             observed,
         );
-    }
-
-    /// Counts the notes the shadow flagger kept for one finished case.
-    pub fn add_shadow(&mut self, case: &Case, notes: &[ShadowNote]) {
-        self.1.add(case, notes);
-    }
-
-    /// What the shadow flagger saw so far.
-    pub fn shadow(&self) -> &ShadowReport {
-        &self.1
     }
 
     /// The metrics per corpus.

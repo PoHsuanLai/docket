@@ -13,7 +13,7 @@ version = 1
 path = "agent.start_mode"
 default = "auto"
 label = "New conversations start in"
-help = "You can switch any conversation between Auto and Manual from where you type. This is how a new one starts."
+help = "How a new conversation starts; you can switch it where you type."
 section = "Assistant"
 exposure = "basic"
 
@@ -34,7 +34,7 @@ manual = "Manual"
 path = "agent.auto.inside"
 default = "runs"
 label = "Changes it can undo, within what you asked"
-help = "Changes like archiving or moving, made only to the things you asked about."
+help = "Changes like archiving or moving, only to what you asked about."
 section = "Auto"
 exposure = "basic"
 
@@ -55,7 +55,7 @@ asks = "Asks"
 path = "agent.auto.other"
 default = "check"
 label = "Other changes it can undo"
-help = "Changes it could undo that reach past what you asked about. Checked first means another model looks before it goes ahead."
+help = "Undoable changes beyond what you asked about."
 section = "Auto"
 exposure = "basic"
 
@@ -76,7 +76,7 @@ asks = "Asks"
 path = "agent.auto.send"
 default = "asks"
 label = "Sending"
-help = "Mail and messages that leave this computer. When it asks, you can say Always for that person."
+help = "Mail and messages that leave this computer."
 section = "Auto"
 exposure = "basic"
 
@@ -118,7 +118,7 @@ runs = "Goes ahead"
 path = "agent.auto.screen"
 default = "once"
 label = "Using another app's window"
-help = "When it works in an app by looking at the screen and using the mouse and keys."
+help = "Working in an app by looking at the screen and using the mouse and keys."
 section = "Auto"
 exposure = "basic"
 
@@ -139,7 +139,7 @@ each = "Asks at each change"
 path = "agent.manual.inside"
 default = "asks"
 label = "Changes it can undo, within what you asked"
-help = "Changes like archiving or moving, made only to the things you asked about."
+help = "Changes like archiving or moving, only to what you asked about."
 section = "Manual"
 exposure = "basic"
 
@@ -160,7 +160,7 @@ asks = "Asks"
 path = "agent.manual.other"
 default = "asks"
 label = "Other changes it can undo"
-help = "Changes it could undo that reach past what you asked about. Checked first means another model looks before it goes ahead."
+help = "Undoable changes beyond what you asked about."
 section = "Manual"
 exposure = "basic"
 
@@ -181,7 +181,7 @@ asks = "Asks"
 path = "agent.manual.send"
 default = "asks"
 label = "Sending"
-help = "Mail and messages that leave this computer. When it asks, you can say Always for that person."
+help = "Mail and messages that leave this computer."
 section = "Manual"
 exposure = "basic"
 
@@ -223,7 +223,7 @@ runs = "Goes ahead"
 path = "agent.manual.screen"
 default = "each"
 label = "Using another app's window"
-help = "When it works in an app by looking at the screen and using the mouse and keys."
+help = "Working in an app by looking at the screen and using the mouse and keys."
 section = "Manual"
 exposure = "basic"
 
@@ -244,7 +244,7 @@ each = "Asks at each change"
 path = "agent.mcp.expose"
 default = "off"
 label = "Other apps"
-help = "Lets other apps, such as coding agents, use the actions your apps offer. Off by default. Every action still asks before anything is sent or deleted."
+help = "Lets other apps use the actions your apps offer."
 section = "Assistant"
 exposure = "basic"
 
@@ -265,7 +265,7 @@ on = "On"
 path = "agent.acp.expose"
 default = "off"
 label = "Code editors"
-help = "Lets a code editor such as Zed talk to the assistant. Off by default. The editor's own prompts add to the usual checks, never replace them."
+help = "Lets a code editor talk to the assistant."
 section = "Assistant"
 exposure = "advanced"
 
@@ -285,8 +285,8 @@ on = "On"
 [[key]]
 path = "agent.acp.agents"
 default = "off"
-label = "Coding Agents"
-help = "Lets the assistant use coding agents such as Claude Code as helpers, in a sandbox. Off by default. Their sign-ins stay theirs."
+label = "Coding agents"
+help = "Lets the assistant use coding agents as helpers."
 section = "Assistant"
 exposure = "basic"
 
@@ -302,299 +302,12 @@ kind = "intelligence"
 [key.labels]
 off = "Off"
 on = "On"
-
-[[key]]
-path = "agent.undo.keep_h"
-default = 24
-label = "Undo history"
-help = "How long you can take back what the assistant did."
-section = "Assistant"
-exposure = "basic"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 168
-unit = "hours"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.review.quick_ms"
-default = 300
-label = "Quick check time"
-help = "How long a quick check may take. If it runs out of time, it asks you."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 50
-max = 10000
-unit = "ms"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.review.deliberate_ms"
-default = 3000
-label = "Careful check time"
-help = "How long a careful check may take before it asks you."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 50
-max = 30000
-unit = "ms"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.review.second_ms"
-default = 3000
-label = "Second check time"
-help = "How long the second check may take before it asks you."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 50
-max = 30000
-unit = "ms"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.review.shadow"
-default = "off"
-label = "Compare checks"
-help = "Keeps a private record comparing a second way of judging each quick check. It changes nothing and never leaves this computer."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "toggle"
-
-[key.kind.v]
-variants = ["off", "on"]
-
-[key.page]
-kind = "intelligence"
-
-[key.labels]
-off = "Off"
-on = "On"
-
-[[key]]
-path = "agent.budget.calls"
-default = 200
-label = "Actions per task"
-help = "The most actions the assistant may run in one task."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 10000
-unit = "calls"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.budget.writes"
-default = 100
-label = "Changes per task"
-help = "The most changes the assistant may make in one task."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 0
-max = 10000
-unit = "changes"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.budget.outbound"
-default = 10
-label = "Sends per task"
-help = "The most things the assistant may send out, such as mail, messages or posts, in one task."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 0
-max = 1000
-unit = "sends"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.budget.destructive"
-default = 5
-label = "Deletions per task"
-help = "The most deletions the assistant may make in one task."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 0
-max = 1000
-unit = "deletions"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.budget.per_minute"
-default = 30
-label = "Actions per minute"
-help = "The most actions the assistant may run in a minute."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 600
-unit = "calls"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.budget.fan_out"
-default = 50
-label = "Items per action"
-help = "The most items one action may touch."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 10000
-unit = "items"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.budget.chain"
-default = 4
-label = "Follow-up depth"
-help = "How many actions one action may start in turn."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 16
-unit = "levels"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.budget.wall_s"
-default = 1800
-label = "Task length"
-help = "How long one task may run before it stops."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 60
-max = 86400
-unit = "s"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.budget.reviews"
-default = 300
-label = "Checks per task"
-help = "The most checks one task may use."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 10000
-unit = "reviews"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.budget.denials_in_a_row"
-default = 3
-label = "Refusals before a pause"
-help = "After this many refusals in a row, the task pauses and waits for you."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 20
-unit = "refusals"
-
-[key.page]
-kind = "intelligence"
 
 [[key]]
 path = "agent.budget.spend_microusd"
 default = 0
 label = "Spending per task"
-help = "The most a task may spend on paid models, in millionths of a dollar. 0 keeps it on this computer."
+help = "The most a task may spend on paid models. 0 keeps it on this computer."
 section = "Limits"
 exposure = "advanced"
 
@@ -604,26 +317,7 @@ kind = "bounded"
 [key.kind.v]
 min = 0
 max = 1000000000
-unit = "micro-USD"
-
-[key.page]
-kind = "intelligence"
-
-[[key]]
-path = "agent.task_policy.max_min"
-default = 60
-label = "Approval length"
-help = "An approval lasts until its task ends, and no longer than this."
-section = "Limits"
-exposure = "advanced"
-
-[key.kind]
-kind = "bounded"
-
-[key.kind.v]
-min = 1
-max = 480
-unit = "min"
+unit = "millionths of a dollar"
 
 [key.page]
 kind = "intelligence"

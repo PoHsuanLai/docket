@@ -39,8 +39,8 @@ pub const SCHEMA: &str = include_str!("../../../dist/settings/docket.settings.to
 /// The file the settings live in, under the configuration directory.
 pub const SETTINGS_FILE: &str = "docket/settings.toml";
 
-/// The reviewers' own timeouts when the router enforces the person's: the top of the ranges, so
-/// the router's live deadline is the one that fires.
+/// The reviewers' own timeouts when the router enforces its deadline: long ones, so the router's
+/// live deadline is the one that fires.
 pub const REVIEW_CEILING: docket_core::ReviewTimeouts = docket_core::ReviewTimeouts {
     quick: docket_core::Millis(10_000),
     deliberate: docket_core::Millis(30_000),

@@ -43,7 +43,7 @@ pub enum UndoState {
     },
     /// Could not be undone.
     Failed(UndoFault),
-    /// Too old (the setting `agent.undo.keep_h`) or dropped by the app's stack.
+    /// Too old (past the undo history, a day) or dropped by the app's stack.
     Expired,
 }
 

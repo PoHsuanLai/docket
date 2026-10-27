@@ -6,7 +6,6 @@ use crate::live::acp::spec::{
     CLAUDE_CREDENTIALS_AT, CredentialsSource, RegistryPick, SpecFault, Task, network_of,
 };
 use crate::live::engine::{Engine, EngineError};
-use docket_core::ShadowMode;
 use std::path::PathBuf;
 
 /// Who plays the companion's part in a run.
@@ -74,8 +73,6 @@ pub struct CorpusArgs {
     pub catalog: Option<PathBuf>,
     /// Who plays the companion's part.
     pub agent: Agent,
-    /// Whether to run the shadow flagger beside the quick judge and report it.
-    pub shadow: ShadowMode,
     /// Where to write the attack suite's per-commit JSON summary (`eval/results`), when the run
     /// played the attacks (`--corpus attacks`).
     pub attack_summary: Option<PathBuf>,
@@ -180,7 +177,6 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     let mut keys_home: Option<PathBuf> = None;
     let mut repeat: Option<u32> = None;
     let mut agent_word = None;
-    let mut shadow = ShadowMode::Off;
     let mut attack_summary: Option<PathBuf> = None;
     let mut planner_word: Option<String> = None;
     let mut acp = AcpFlags::default();
@@ -208,7 +204,6 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             }
             "--repeat" => repeat = Some(number(flag, words.value(flag)?)?),
             "--fnr-max-permille" => fnr = Some(number(flag, words.value(flag)?)?),
-            "--shadow" => shadow = ShadowMode::Record,
             "--attack-summary" => attack_summary = Some(PathBuf::from(words.value(flag)?)),
             "--planner" => planner_word = Some(words.value(flag)?.clone()),
             "--patience-s" => patience = number(flag, words.value(flag)?)?,
@@ -273,7 +268,6 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             patience_s: patience,
             catalog,
             agent,
-            shadow,
             attack_summary,
             planner,
         })),

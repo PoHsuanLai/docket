@@ -177,7 +177,7 @@ missing" list in `FINDINGS.md` (portable-core).
 | `docket-testbus` | `guard` < `lib` (`PrivateBus`) |
 | `docket-settings` | `expose`, `keys` < `read` < `locate`, `places`, `agents` (`tests`: the schema against the table) |
 | `docket-accept` | `provider`, `confirm` < `world` < `drive` |
-| `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `shadow`, `check` < `ui` (the binary `docket-eval` runs `check`) |
+| `docket-eval` | `case`, `report`, `corpus`, `block`, `world`, `steps`, `runner`, `metrics`, `check` < `ui` (the binary `docket-eval` runs `check`) |
 | `docket-agents` | `slug`, `platform`, `hash`, `snapshot`, `dirs`, `record`, `offered`, `fetch`, `run`, `unpack`, `uv` < `install`, `launch` |
 | `docket-launch` | `config`, `accounts`, `names`, `recognise`, `permit`, `env`, `procs`, `fake`, `login` < `spawn` < `supervise`, `dbus` (feature) |
 | `docket-session` | `entry`, `thing`, `plan` < `codec`, `legacy` < `resume` < `fork`, `export`, `log`, `backend`, `desk` < `fake`, `contract` |

@@ -4,10 +4,8 @@
 
 use crate::AgentSettings;
 use crate::expose::{AcpAgents, AcpExpose, McpExpose};
-use docket_core::{
-    DeleteRow, Depth, InsideRow, Millis, Mode, OtherRow, ScreenRow, Seconds, SendRow, ShadowMode,
-};
-use porter_core::{Count, MicroUsd};
+use docket_core::{DeleteRow, InsideRow, Mode, OtherRow, ScreenRow, SendRow};
+use porter_core::MicroUsd;
 use std::ops::RangeInclusive;
 
 /// What a key's value may be and how it lands in the settings.
@@ -43,18 +41,6 @@ const fn num(
     }
 }
 
-fn count(v: i64) -> Count {
-    Count(u32::try_from(v).unwrap_or(u32::MAX))
-}
-
-fn millis(v: i64) -> Millis {
-    Millis(u32::try_from(v).unwrap_or(u32::MAX))
-}
-
-fn seconds(v: i64, per: i64) -> Seconds {
-    Seconds(u32::try_from(v.saturating_mul(per)).unwrap_or(u32::MAX))
-}
-
 const MODES: [Mode; 2] = [Mode::Auto, Mode::Manual];
 /// What each old `agent.strictness` word (`ask_more`, `default`, `trust_more`) means: `ask_more` is
 /// Manual, `default` and `trust_more` are Auto.
@@ -66,7 +52,6 @@ const DELETE: [DeleteRow; 2] = [DeleteRow::Asks, DeleteRow::Runs];
 const SCREEN: [ScreenRow; 2] = [ScreenRow::Once, ScreenRow::Each];
 const EXPOSE: [McpExpose; 2] = [McpExpose::Off, McpExpose::On];
 const ACP: [AcpExpose; 2] = [AcpExpose::Off, AcpExpose::On];
-const SHADOW: [ShadowMode; 2] = [ShadowMode::Off, ShadowMode::Record];
 const AGENTS: [AcpAgents; 2] = [AcpAgents::Off, AcpAgents::On];
 
 /// Keys an older settings file may still hold, read before the table so a new key beside them
@@ -175,60 +160,8 @@ fn rest() -> Vec<Key> {
                 set: |s, i| s.agents = AGENTS[i],
             },
         },
-        num("agent.undo.keep_h", 1..=168, |s, v| {
-            s.agent.undo_keep = seconds(v, 3600)
-        }),
-        num("agent.review.quick_ms", 50..=10_000, |s, v| {
-            s.agent.review.quick = millis(v)
-        }),
-        num("agent.review.deliberate_ms", 50..=30_000, |s, v| {
-            s.agent.review.deliberate = millis(v)
-        }),
-        num("agent.review.second_ms", 50..=30_000, |s, v| {
-            s.agent.review.second = millis(v)
-        }),
-        Key {
-            path: "agent.review.shadow",
-            rule: Rule::Word {
-                words: &["off", "on"],
-                set: |s, i| s.agent.shadow = SHADOW[i],
-            },
-        },
-        num("agent.budget.calls", 1..=10_000, |s, v| {
-            s.agent.budget.calls = count(v)
-        }),
-        num("agent.budget.writes", 0..=10_000, |s, v| {
-            s.agent.budget.writes = count(v)
-        }),
-        num("agent.budget.outbound", 0..=1_000, |s, v| {
-            s.agent.budget.outbound = count(v)
-        }),
-        num("agent.budget.destructive", 0..=1_000, |s, v| {
-            s.agent.budget.destructive = count(v)
-        }),
-        num("agent.budget.per_minute", 1..=600, |s, v| {
-            s.agent.budget.per_minute = count(v)
-        }),
-        num("agent.budget.fan_out", 1..=10_000, |s, v| {
-            s.agent.budget.fan_out = count(v)
-        }),
-        num("agent.budget.chain", 1..=16, |s, v| {
-            s.agent.budget.chain = Depth(u8::try_from(v).unwrap_or(u8::MAX));
-        }),
-        num("agent.budget.wall_s", 60..=86_400, |s, v| {
-            s.agent.budget.wall = seconds(v, 1)
-        }),
-        num("agent.budget.reviews", 1..=10_000, |s, v| {
-            s.agent.budget.reviews = count(v)
-        }),
-        num("agent.budget.denials_in_a_row", 1..=20, |s, v| {
-            s.agent.breaker.consecutive = count(v)
-        }),
         num("agent.budget.spend_microusd", 0..=1_000_000_000, |s, v| {
             s.agent.budget.spend = MicroUsd(u64::try_from(v).unwrap_or(u64::MAX));
-        }),
-        num("agent.task_policy.max_min", 1..=480, |s, v| {
-            s.agent.task_policy_max = seconds(v, 60)
         }),
     ]
 }

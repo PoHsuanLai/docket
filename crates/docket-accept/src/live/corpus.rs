@@ -5,20 +5,16 @@
 
 use crate::live::engine::{Engine, EngineError, scripted_cassette};
 use crate::live::inferd_world::InferdWorld;
-use crate::live::shadow_arm::Arm;
 use crate::live::stage::{Asker, asker};
 use crate::live::trace_dir::{TraceDir, TraceDirError};
 use crate::live::warm::WarmFault;
 use crate::live::warm_bus::warm_up;
 use crate::world::{Binaries, Options, TapMode};
-use action_review::{InferReviewer, ReviewRequest, ReviewVerdict, Reviewer, ShadowLog, Shadowed};
-use docket_core::{
-    AgentConfig, Millis, ModelExchange, ReviewError, ReviewTimeouts, ShadowMode, Stage,
-};
+use action_review::{InferReviewer, ReviewRequest, ReviewVerdict, Reviewer};
+use docket_core::{AgentConfig, Millis, ModelExchange, ReviewError, ReviewTimeouts, Stage};
 use docket_dbus::tap::{MemoryTap, Tap, Tapped};
 use docket_eval::{
-    Case, CaseTrace, Harness, Observed, PolicyMode, RunNote, RunReport, ShadowReport, Tallies,
-    run_case_traced,
+    Case, CaseTrace, Harness, Observed, PolicyMode, RunNote, RunReport, Tallies, run_case_traced,
 };
 use docket_fake::{FakeError, Forget, fake_router_with};
 use intentd::{InferdModel, InferdWriter, SystemClock};
@@ -31,7 +27,7 @@ use std::time::Duration;
 /// How long each review stage may take, as a run is told.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Timeouts {
-    /// The shipped values (`agent.review.*`: 300, 3000, 3000 ms). A cloud round trip is slower
+    /// The shipped values (300, 3000 and 3000 ms). A cloud round trip is slower
     /// than the quick stage's 300 ms, so a cloud run with these asks about everything: that is
     /// what a person on the shipped settings would get.
     Shipped,
@@ -42,7 +38,7 @@ pub enum Timeouts {
 impl Timeouts {
     pub(crate) fn config(self) -> ReviewTimeouts {
         match self {
-            Self::Shipped => AgentConfig::default().review,
+            Self::Shipped => ReviewTimeouts::STANDARD,
             Self::Every(ms) => ReviewTimeouts {
                 quick: ms,
                 deliberate: ms,
@@ -86,8 +82,6 @@ pub struct CorpusOutcome {
     pub traces: Vec<(String, CaseTrace)>,
     /// Where the trace directory is.
     pub trace_dir: PathBuf,
-    /// What the shadow flagger scored; empty unless the run asked for it.
-    pub shadow: ShadowReport,
 }
 
 /// Why a run could not be made.
@@ -166,17 +160,6 @@ pub async fn run_corpus_live(
     cases: &[Case],
     options: &CorpusOptions,
 ) -> Result<CorpusOutcome, CorpusError> {
-    run_corpus_shadowed(binaries, cases, options, ShadowMode::Off).await
-}
-
-/// [`run_corpus_live`] with the shadow flagger run beside the quick judge when `shadow` is
-/// `Record`. The shadow is recorded only: the run's verdicts are the live reviewer's.
-pub async fn run_corpus_shadowed(
-    binaries: &Binaries,
-    cases: &[Case],
-    options: &CorpusOptions,
-    shadow: ShadowMode,
-) -> Result<CorpusOutcome, CorpusError> {
     let cassette = options
         .cassette
         .clone()
@@ -214,18 +197,12 @@ pub async fn run_corpus_shadowed(
     let quick = model_of("quire-quick")?;
     let deliberate = model_of("quire-deliberate")?;
     let second = model_of("quire-second")?;
-    let log = ShadowLog::default();
-    let reviewer = Shadowed {
-        live: Judges(InferReviewer {
-            quick,
-            deliberate,
-            second,
-            timeouts: options.timeouts.config(),
-        }),
-        flagger: Arm::for_engine(options.engine),
-        sink: log.clone(),
-        mode: shadow,
-    };
+    let reviewer = Judges(InferReviewer {
+        quick,
+        deliberate,
+        second,
+        timeouts: options.timeouts.config(),
+    });
     let writer: InferdWriter<Link> = InferdWriter::new(link());
     let config = AgentConfig {
         review: options.timeouts.config(),
@@ -253,7 +230,6 @@ pub async fn run_corpus_shadowed(
         };
         spent = now;
         tallies.add(case, &result, &observed);
-        tallies.add_shadow(case, &log.take());
         if trace.judgement == docket_eval::Judgement::Missed {
             missed.push(case.id.0.clone());
         }
@@ -265,7 +241,6 @@ pub async fn run_corpus_shadowed(
         crate::live::catalog::describe,
     );
     dir.write_index(&catalogue, &traces)?;
-    let shadow = tallies.shadow().clone();
     let report = RunReport {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         per_corpus: tallies.finish().into_iter().collect(),
@@ -283,6 +258,5 @@ pub async fn run_corpus_shadowed(
         note,
         traces,
         trace_dir: dir.path().to_owned(),
-        shadow,
     })
 }

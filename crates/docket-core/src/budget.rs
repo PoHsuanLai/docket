@@ -8,7 +8,7 @@ use prov::{Effect, SpaceId, UnixSeconds};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// What one session may spend (settings `agent.budget.*`, proposed defaults). The denial limit
+/// What one session may spend (`STANDARD_BUDGET`; only the spend is a setting). The denial limit
 /// is the breaker's, not a budget.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Budget {

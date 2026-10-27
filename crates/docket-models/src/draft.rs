@@ -201,7 +201,7 @@ pub(crate) fn policy_of(
             .filter_map(|p| path_of_person(turns, p))
             .map(TrustedPattern::Under)
             .collect(),
-        // The router lowers this to now plus `task_policy_max` (`bound_policy` takes the
+        // The router lowers this to now plus `TASK_POLICY_MAX` (`bound_policy` takes the
         // smaller): a zero here would make every derived policy expired the moment a real clock
         // reads past the epoch (found by the first live-eval run).
         expires: UnixSeconds(i64::MAX),

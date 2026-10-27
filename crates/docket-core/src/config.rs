@@ -5,7 +5,6 @@
 
 use crate::budget::Budget;
 use crate::mode::{Mode, RowSets};
-use crate::review::ShadowMode;
 use crate::units::{Days, Depth, Millis, Seconds};
 use porter_core::{Count, MicroUsd, Tokens};
 use serde::{Deserialize, Serialize};
@@ -26,13 +25,49 @@ pub struct BreakerLimits {
 /// How long each review stage may take before it counts as a failure and asks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReviewTimeouts {
-    /// `agent.review.quick_ms` (300).
+    /// The quick stage.
     pub quick: Millis,
-    /// `agent.review.deliberate_ms` (3000).
+    /// The careful stage.
     pub deliberate: Millis,
-    /// `agent.review.second_ms` (3000).
+    /// The second opinion.
     pub second: Millis,
 }
+
+impl ReviewTimeouts {
+    /// What the product uses: 300 ms for the quick stage, 3000 ms for each of the others.
+    pub const STANDARD: Self = Self {
+        quick: Millis(300),
+        deliberate: Millis(3000),
+        second: Millis(3000),
+    };
+}
+
+impl Default for ReviewTimeouts {
+    fn default() -> Self {
+        Self::STANDARD
+    }
+}
+
+/// A task policy lapses by then, or at task end (one hour).
+pub const TASK_POLICY_MAX: Seconds = Seconds(3600);
+
+/// How long the undo history keeps what the assistant did (24 hours).
+pub const UNDO_KEEP: Seconds = Seconds(24 * 3600);
+
+/// What one session may spend. Zero spend keeps a task on this computer: a local model costs
+/// nothing, and a paid turn is over the cap until the person raises it (`agent.budget.spend_microusd`).
+pub const STANDARD_BUDGET: Budget = Budget {
+    calls: Count(200),
+    writes: Count(100),
+    outbound: Count(10),
+    destructive: Count(5),
+    per_minute: Count(30),
+    fan_out: Count(50),
+    chain: Depth(4),
+    wall: Seconds(1800),
+    reviews: Count(300),
+    spend: MicroUsd(0),
+};
 
 /// How many tokens each section of the planner's working set may use
 /// (`companion.budget.*`, measured against the real tokenizer later). The sections run from
@@ -100,7 +135,11 @@ pub struct AgentConfig {
     /// `agent.auto.*` and `agent.manual.*`: what each mode does without asking.
     #[serde(default)]
     pub rows: RowSets,
-    /// `agent.budget.*`.
+    /// How long each review stage may take. Not a setting: it starts at
+    /// [`ReviewTimeouts::STANDARD`], and a test or an evaluation run may set another.
+    #[serde(default)]
+    pub review: ReviewTimeouts,
+    /// What one session may spend; only `agent.budget.spend_microusd` is a setting.
     pub budget: Budget,
     /// `agent.mass_at`: more things than this in one call asks (20).
     pub mass_at: Count,
@@ -110,17 +149,8 @@ pub struct AgentConfig {
     /// step that must ask the person is refused unasked (10 s).
     #[serde(default = "proceed_within")]
     pub confirm_proceed: Millis,
-    /// `agent.task_policy.max_s`: a task policy lapses by then, or at task end (3600).
-    pub task_policy_max: Seconds,
-    /// `agent.undo.keep_h` in seconds (24 h).
-    pub undo_keep: Seconds,
     /// `agent.breaker.*`.
     pub breaker: BreakerLimits,
-    /// `agent.review.*`.
-    pub review: ReviewTimeouts,
-    /// `agent.review.shadow`: a second scorer recorded beside the quick judge (off).
-    #[serde(default)]
-    pub shadow: ShadowMode,
     /// `agent.checkpoints.keep`: restore points kept per session (20).
     #[serde(default = "checkpoint_keep")]
     pub checkpoint_keep: Count,
@@ -149,37 +179,17 @@ impl Default for AgentConfig {
         Self {
             start_mode: Mode::Auto,
             rows: RowSets::default(),
-            budget: Budget {
-                calls: Count(200),
-                writes: Count(100),
-                outbound: Count(10),
-                destructive: Count(5),
-                per_minute: Count(30),
-                fan_out: Count(50),
-                chain: Depth(4),
-                wall: Seconds(1800),
-                reviews: Count(300),
-                // Zero keeps a task on this computer: a local model costs nothing, and a paid turn
-                // is over the cap until the person raises it (`agent.budget.spend_microusd`).
-                spend: MicroUsd(0),
-            },
+            budget: STANDARD_BUDGET,
+            review: ReviewTimeouts::STANDARD,
             mass_at: Count(20),
             confirm_expiry: Seconds(120),
             confirm_proceed: proceed_within(),
-            task_policy_max: Seconds(3600),
-            undo_keep: Seconds(24 * 3600),
             breaker: BreakerLimits {
                 consecutive: Count(3),
                 recent: Count(10),
                 window: Count(50),
                 probing: Count(3),
             },
-            review: ReviewTimeouts {
-                quick: Millis(300),
-                deliberate: Millis(3000),
-                second: Millis(3000),
-            },
-            shadow: ShadowMode::Off,
             checkpoint_keep: checkpoint_keep(),
             checkpoint_days: checkpoint_days(),
             checkpoint_max_files: checkpoint_max_files(),
@@ -249,29 +259,11 @@ pub const SETTING_ROWS: &[SettingRow] = &[
     w("agent.manual.send", "asks"),
     w("agent.manual.delete", "asks"),
     w("agent.manual.screen", "each"),
-    n("agent.budget.calls", 200),
-    n("agent.budget.writes", 100),
-    n("agent.budget.outbound", 10),
-    n("agent.budget.destructive", 5),
-    n("agent.budget.per_minute", 30),
-    n("agent.budget.fan_out", 50),
-    n("agent.budget.chain", 4),
-    n("agent.budget.wall_s", 1800),
-    n("agent.budget.reviews", 300),
     n("agent.mass_at", 20),
     n("agent.confirm.expiry_s", 120),
     n("agent.confirm.proceed_ms", 10_000),
-    n("agent.task_policy.max_s", 3600),
-    n("agent.undo.keep_h", 24),
     n("agent.breaker.consecutive", 3),
     n("agent.breaker.recent", 10),
-    n("agent.review.quick_ms", 300),
-    n("agent.review.deliberate_ms", 3000),
-    n("agent.review.second_ms", 3000),
-    SettingRow {
-        key: "agent.review.shadow",
-        default: SettingValue::Word("off"),
-    },
     n("agent.checkpoints.keep", 20),
     n("agent.checkpoints.days", 14),
     n("agent.checkpoints.max_files", 50_000),
@@ -307,29 +299,11 @@ impl AgentConfig {
             "agent.manual.send" => Some(SettingValue::Word(self.rows.manual.send.word())),
             "agent.manual.delete" => Some(SettingValue::Word(self.rows.manual.delete.word())),
             "agent.manual.screen" => Some(SettingValue::Word(self.rows.manual.screen.word())),
-            "agent.budget.calls" => num(c(self.budget.calls)),
-            "agent.budget.writes" => num(c(self.budget.writes)),
-            "agent.budget.outbound" => num(c(self.budget.outbound)),
-            "agent.budget.destructive" => num(c(self.budget.destructive)),
-            "agent.budget.per_minute" => num(c(self.budget.per_minute)),
-            "agent.budget.fan_out" => num(c(self.budget.fan_out)),
-            "agent.budget.chain" => num(i64::from(self.budget.chain.0)),
-            "agent.budget.wall_s" => num(i64::from(self.budget.wall.0)),
-            "agent.budget.reviews" => num(c(self.budget.reviews)),
             "agent.mass_at" => num(c(self.mass_at)),
             "agent.confirm.expiry_s" => num(i64::from(self.confirm_expiry.0)),
             "agent.confirm.proceed_ms" => num(i64::from(self.confirm_proceed.0)),
-            "agent.task_policy.max_s" => num(i64::from(self.task_policy_max.0)),
-            "agent.undo.keep_h" => num(i64::from(self.undo_keep.0 / 3600)),
             "agent.breaker.consecutive" => num(c(self.breaker.consecutive)),
             "agent.breaker.recent" => num(c(self.breaker.recent)),
-            "agent.review.quick_ms" => num(i64::from(self.review.quick.0)),
-            "agent.review.deliberate_ms" => num(i64::from(self.review.deliberate.0)),
-            "agent.review.second_ms" => num(i64::from(self.review.second.0)),
-            "agent.review.shadow" => Some(SettingValue::Word(match self.shadow {
-                ShadowMode::Off => "off",
-                ShadowMode::Record => "on",
-            })),
             "agent.checkpoints.keep" => num(c(self.checkpoint_keep)),
             "agent.checkpoints.days" => num(i64::from(self.checkpoint_days.0)),
             "agent.checkpoints.max_files" => num(c(self.checkpoint_max_files)),

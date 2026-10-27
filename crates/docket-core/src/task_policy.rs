@@ -47,7 +47,7 @@ pub struct TaskPolicy {
     /// leaves the files to the session's directory and the grants. For an untrusted argument that
     /// feeds a path sink, an empty list trusts nothing.
     pub paths: Vec<TrustedPattern>,
-    /// When it lapses (`agent.task_policy.max_s`, proposed 3600, or at task end).
+    /// When it lapses (`TASK_POLICY_MAX`, or at task end).
     pub expires: UnixSeconds,
     /// Shown to the person when it widens.
     pub rationale: LabelText,

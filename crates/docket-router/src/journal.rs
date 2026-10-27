@@ -84,7 +84,7 @@ impl UndoJournal {
             .collect()
     }
 
-    /// Expires the available rows older than `keep` (the setting `agent.undo.keep_h`).
+    /// Expires the available rows older than `keep` (`docket_core::UNDO_KEEP`).
     pub fn expire(&mut self, now: UnixSeconds, keep: Seconds) {
         for e in self
             .entries

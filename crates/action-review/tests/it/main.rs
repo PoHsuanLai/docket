@@ -3,7 +3,6 @@ mod cascade;
 mod infer;
 mod props;
 mod request;
-mod shadow;
 mod support;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its

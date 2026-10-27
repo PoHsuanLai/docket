@@ -9,9 +9,9 @@ use docket_core::{
     ActionCard, ActionDecl, ActionMatch, ActionRef, AgentReach, Anchor, ArgLine, AskReason,
     AuditRecord, ConfirmAnswer, ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId,
     ConfirmOffer, ConfirmRequest, Confirmer, FileRef, Gesture, IntentsReply, LabelText,
-    PolicyChange, PolicyWriter, Shown, TaintNote, TaskPolicy, TaskPolicyState, TrustedPattern,
-    TurnSource, UserTurn, Visibility, WidenAnswer, Widening, WireRefusal, Workspace, compare,
-    intersection, tool_schema,
+    PolicyChange, PolicyWriter, Shown, TASK_POLICY_MAX, TaintNote, TaskPolicy, TaskPolicyState,
+    TrustedPattern, TurnSource, UserTurn, Visibility, WidenAnswer, Widening, WireRefusal,
+    Workspace, compare, intersection, tool_schema,
 };
 use porter_core::{AppName, Count};
 use prov::{Effect, SessionId, UnixSeconds};
@@ -146,10 +146,7 @@ impl<S: Seams> Router<S> {
         policy.from = record.turns.iter().map(|t| t.id).collect();
         policy.state = TaskPolicyState::Active;
         policy.paths = anchored(policy.paths, record.cwd.as_ref());
-        let latest = UnixSeconds(
-            now.0
-                .saturating_add(i64::from(self.agent_config().task_policy_max.0)),
-        );
+        let latest = UnixSeconds(now.0.saturating_add(i64::from(TASK_POLICY_MAX.0)));
         policy.expires = policy.expires.min(latest);
         if let Some(TurnSource::Field(app)) = record.turns.last().map(|t| &t.from) {
             policy = cap_to_app(policy, app, st);

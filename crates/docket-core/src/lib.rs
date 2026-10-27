@@ -112,7 +112,7 @@ pub use classify::{
 pub use compact::{Covers, SUMMARY_MAX_CHARS, Summary, SummaryFault, SummaryText};
 pub use config::{
     AgentConfig, AssemblerBudget, BreakerLimits, IdleRules, ReviewTimeouts, SETTING_ROWS,
-    SettingRow, SettingValue,
+    STANDARD_BUDGET, SettingRow, SettingValue, TASK_POLICY_MAX, UNDO_KEEP,
 };
 pub use confirm::{
     Anchor, ArgLine, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer,
@@ -186,7 +186,7 @@ pub use reader::{
 };
 pub use review::{
     AskReason, BreakerTrip, DenyCode, Impact, PolicyId, ReasonCode, ReasonText, ReviewError,
-    ReviewMark, Ruling, ShadowMode, Stage, Strictness, VerdictKind,
+    ReviewMark, Ruling, Stage, Strictness, VerdictKind,
 };
 pub use roster::{
     EpisodeLine, HelperRosterLine, LeadText, PrimerText, ProfileLine, RecalledLine, RollupLine,

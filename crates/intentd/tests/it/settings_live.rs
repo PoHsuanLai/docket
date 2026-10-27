@@ -5,7 +5,7 @@ use docket_core::{AgentConfig, InsideRow, Mode};
 use docket_fake::fake_router;
 use docket_settings::{AgentSettings, Locator};
 use intentd::{SettingsWatch, WatchState, apply, apply_next};
-use porter_core::Count;
+use porter_core::MicroUsd;
 use std::path::Path;
 
 /// What the Settings app does: a temp file, then a rename over the settings file.
@@ -37,7 +37,7 @@ async fn a_change_in_the_file_applies_to_the_router_without_a_restart() {
 
     write_atomically(
         home.path(),
-        "[agent]\nstart_mode = \"manual\"\n[agent.auto]\ninside = \"asks\"\n[agent.budget]\ncalls = 7\n",
+        "[agent]\nstart_mode = \"manual\"\n[agent.auto]\ninside = \"asks\"\n[agent.budget]\nspend_microusd = 7\n",
     );
     while router.agent_config().start_mode == Mode::Auto {
         let loaded = apply_next(&router, &mut watch)
@@ -47,13 +47,13 @@ async fn a_change_in_the_file_applies_to_the_router_without_a_restart() {
     }
     assert_eq!(router.agent_config().start_mode, Mode::Manual);
     assert_eq!(router.agent_config().rows.auto.inside, InsideRow::Asks);
-    assert_eq!(router.agent_config().budget.calls, Count(7));
+    assert_eq!(router.agent_config().budget.spend, MicroUsd(7));
 
     // A bad value falls back to the base for that key; the good key beside it still applies.
     write_atomically(
         home.path(),
         // The old key still reads: trust_more is Auto.
-        "[agent]\nstrictness = \"trust_more\"\n[agent.budget]\ncalls = 0\n",
+        "[agent]\nstrictness = \"trust_more\"\n[agent.budget]\nspend_microusd = -1\n",
     );
     while router.agent_config().start_mode != Mode::Auto {
         apply_next(&router, &mut watch)
@@ -61,8 +61,8 @@ async fn a_change_in_the_file_applies_to_the_router_without_a_restart() {
             .expect("the watch is live");
     }
     assert_eq!(
-        router.agent_config().budget.calls,
-        AgentConfig::default().budget.calls,
+        router.agent_config().budget.spend,
+        AgentConfig::default().budget.spend,
         "the refused value is the base's, not the previous file's"
     );
 }

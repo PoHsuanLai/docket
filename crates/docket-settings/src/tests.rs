@@ -122,8 +122,7 @@ fn the_intelligence_page_shows_the_assistant_rows_and_the_two_modes_and_the_rest
             "agent.manual.delete",
             "agent.manual.screen",
             "agent.mcp.expose",
-            "agent.acp.agents",
-            "agent.undo.keep_h"
+            "agent.acp.agents"
         ]
     );
 }
@@ -233,10 +232,8 @@ fn every_schema_key_is_read_by_the_daemon() {
 
 #[test]
 fn each_key_lands_in_the_typed_value_the_design_names() {
-    use docket_core::{
-        DeleteRow, Depth, InsideRow, Millis, Mode, OtherRow, ScreenRow, Seconds, SendRow,
-    };
-    use porter_core::{Count, MicroUsd};
+    use docket_core::{DeleteRow, InsideRow, Mode, OtherRow, ScreenRow, SendRow};
+    use porter_core::MicroUsd;
     let read_one = |p: &str, v: toml::Value| read(&doc(p, v), AgentSettings::default()).value;
     let int = toml::Value::Integer;
     let word = |w: &str| toml::Value::String(w.to_owned());
@@ -314,47 +311,11 @@ fn each_key_lands_in_the_typed_value_the_design_names() {
         crate::AcpAgents::On
     );
     assert_eq!(
-        read_one("agent.review.quick_ms", int(900))
-            .agent
-            .review
-            .quick,
-        Millis(900)
-    );
-    assert_eq!(
-        read_one("agent.budget.calls", int(7)).agent.budget.calls,
-        Count(7)
-    );
-    assert_eq!(
-        read_one("agent.budget.chain", int(2)).agent.budget.chain,
-        Depth(2)
-    );
-    assert_eq!(
-        read_one("agent.budget.wall_s", int(120)).agent.budget.wall,
-        Seconds(120)
-    );
-    assert_eq!(
-        read_one("agent.budget.denials_in_a_row", int(5))
-            .agent
-            .breaker
-            .consecutive,
-        Count(5)
-    );
-    assert_eq!(
         read_one("agent.budget.spend_microusd", int(2_500_000))
             .agent
             .budget
             .spend,
         MicroUsd(2_500_000)
-    );
-    assert_eq!(
-        read_one("agent.task_policy.max_min", int(30))
-            .agent
-            .task_policy_max,
-        Seconds(1800)
-    );
-    assert_eq!(
-        read_one("agent.undo.keep_h", int(48)).agent.undo_keep,
-        Seconds(48 * 3600)
     );
 }
 
@@ -377,18 +338,19 @@ fn a_bad_value_falls_back_for_that_key_alone() {
         };
         for value in bad {
             // A second, good key in the same file still applies.
-            let other = if p == "agent.undo.keep_h" {
-                "agent.budget.calls"
+            let spend = "agent.budget.spend_microusd";
+            let (other, good) = if p == spend {
+                ("agent.start_mode", toml::Value::String("manual".into()))
             } else {
-                "agent.undo.keep_h"
+                (spend, toml::Value::Integer(100))
             };
-            let text = merged(&[(p, value.clone()), (other, toml::Value::Integer(100))]);
+            let text = merged(&[(p, value.clone()), (other, good)]);
             let loaded = read(&text, AgentSettings::default());
             let mut want = AgentSettings::default();
-            if other == "agent.undo.keep_h" {
-                want.agent.undo_keep = docket_core::Seconds(100 * 3600);
+            if other == spend {
+                want.agent.budget.spend = porter_core::MicroUsd(100);
             } else {
-                want.agent.budget.calls = porter_core::Count(100);
+                want.agent.start_mode = docket_core::Mode::Manual;
             }
             assert_eq!(loaded.value, want, "{p} = {value}");
             assert_eq!(loaded.fallbacks.len(), 1, "{p} = {value}");
@@ -400,16 +362,16 @@ fn a_bad_value_falls_back_for_that_key_alone() {
 #[test]
 fn a_fallback_is_the_base_value_not_the_default() {
     let mut base = AgentSettings::default();
-    base.agent.budget.calls = porter_core::Count(11);
-    let loaded = read("[agent.budget]\ncalls = 0\n", base);
+    base.agent.budget.spend = porter_core::MicroUsd(11);
+    let loaded = read("[agent.budget]\nspend_microusd = -1\n", base);
     assert_eq!(loaded.value, base);
     assert_eq!(
         loaded.fallbacks,
         vec![Fallback {
-            key: "agent.budget.calls".into(),
+            key: "agent.budget.spend_microusd".into(),
             why: Why::OutOfRange {
-                min: 1,
-                max: 10_000
+                min: 0,
+                max: 1_000_000_000
             },
         }]
     );
@@ -445,10 +407,10 @@ fn the_locator_reads_the_first_file_of_the_configuration_directories() {
     let home = tempfile::tempdir().unwrap();
     let etc = tempfile::tempdir().unwrap();
     for (dir, text) in [
-        (&home, "[agent.undo]\nkeep_h = 5\n"),
+        (&home, "[agent.budget]\nspend_microusd = 5\n"),
         (
             &etc,
-            "[agent.undo]\nkeep_h = 9\n[agent.budget]\ncalls = 3\n",
+            "[agent.budget]\nspend_microusd = 9\n[agent.mcp]\nexpose = \"on\"\n",
         ),
     ] {
         std::fs::create_dir_all(dir.path().join("docket")).unwrap();
@@ -462,9 +424,9 @@ fn the_locator_reads_the_first_file_of_the_configuration_directories() {
     let locator = Locator::from_env(&env);
     assert_eq!(locator.watch_dir(), Some(home.path().join("docket")));
     let value = locator.read(AgentSettings::default()).value;
-    assert_eq!(value.agent.undo_keep, docket_core::Seconds(5 * 3600));
+    assert_eq!(value.agent.budget.spend, porter_core::MicroUsd(5));
     // The first file wins whole: the later directory's other keys are not merged in.
-    assert_eq!(value.agent.budget.calls, porter_core::Count(200));
+    assert_eq!(value.expose, McpExpose::Off);
     let none = Locator::from_env(&|_: &str| None::<String>);
     assert_eq!(
         none.read(AgentSettings::default()),

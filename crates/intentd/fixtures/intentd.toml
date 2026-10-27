@@ -27,8 +27,6 @@ family = "other"
 permissions = "auto"
 mass_at = 20
 confirm_expiry = 120
-task_policy_max = 3600
-undo_keep = 86400
 
 [agent.budget]
 calls = 200
@@ -47,11 +45,6 @@ consecutive = 3
 recent = 10
 window = 50
 probing = 3
-
-[agent.review]
-quick = 300
-deliberate = 3000
-second = 3000
 
 [agent.assembler]
 rules = 2500

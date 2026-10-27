@@ -10,7 +10,7 @@ use docket_accept::live::flows::{Evidence, Flow, Kind, Mode, UndoCheck, judge_in
 use docket_accept::provider::{Message, Sending};
 use docket_accept::world::{AcpSetting, settings_toml};
 use docket_core::AgentConfig;
-use docket_settings::{AgentSettings, REVIEW_CEILING, read};
+use docket_settings::{AgentSettings, read};
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
@@ -504,11 +504,9 @@ fn a_registry_entry_names_the_install_and_leaves_the_home_to_launch() {
 
 // ---- the world's settings ----
 
-/// A reviewer that misses its deadline makes the router ask the person again, so a world under
-/// load showed a second first-use sheet when the quick stage had 300 ms. Every world's settings
-/// carry the top of the ranges, and read back without a fallback, whatever the ACP setting.
+/// Every world's settings read back without a fallback or an unknown key, whatever the ACP setting.
 #[test]
-fn a_world_gives_the_reviewers_the_longest_deadlines_the_settings_allow() {
+fn a_worlds_settings_read_back_clean() {
     for acp in [AcpSetting::Off, AcpSetting::On, AcpSetting::Agents] {
         let loaded = read(
             &settings_toml(acp),
@@ -520,6 +518,5 @@ fn a_world_gives_the_reviewers_the_longest_deadlines_the_settings_allow() {
             loaded.fallbacks
         );
         assert!(loaded.unknown.is_empty(), "{acp:?}: {:?}", loaded.unknown);
-        assert_eq!(loaded.value.agent.review, REVIEW_CEILING, "{acp:?}");
     }
 }
