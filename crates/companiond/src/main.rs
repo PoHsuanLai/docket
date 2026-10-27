@@ -14,7 +14,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(companiond::run()) {
+    let env = |key: &str| std::env::var(key).ok();
+    match runtime.block_on(companiond::run(&env)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("companiond: {why}");

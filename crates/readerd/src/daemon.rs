@@ -38,20 +38,24 @@ pub struct HarnessSeams {
     pub system_callers: Option<PathBuf>,
 }
 
-/// The daemon: the session bus from the environment, served until it closes.
-pub async fn run() -> Result<(), ServeFault> {
-    run_with(InferWatch::off(), HarnessSeams::default()).await
+/// The daemon: the session bus from `env` (the process's environment, which its `main` passes
+/// in), served until it closes.
+pub async fn run(env: &impl Fn(&str) -> Option<String>) -> Result<(), ServeFault> {
+    run_with(InferWatch::off(), HarnessSeams::default(), env).await
 }
 
 /// [`run`] with the inferd watch and the seams the acceptance harness's mains choose.
-pub async fn run_with(tap: InferWatch, seams: HarnessSeams) -> Result<(), ServeFault> {
-    let env = |key: &str| std::env::var(key).ok();
-    let connection = docket_dbus::session_connection(&env)
+pub async fn run_with(
+    tap: InferWatch,
+    seams: HarnessSeams,
+    env: &impl Fn(&str) -> Option<String>,
+) -> Result<(), ServeFault> {
+    let connection = docket_dbus::session_connection(env)
         .await
         .map_err(|e| ServeFault::Bus(e.to_string()))?;
     let table = match &seams.system_callers {
-        Some(system) => callers::read_at(system, &env),
-        None => callers::read(&env),
+        Some(system) => callers::read_at(system, env),
+        None => callers::read(env),
     }
     .map_err(|e| ServeFault::Callers(e.to_string()))?;
     let who = Arc::new(Identity::on(

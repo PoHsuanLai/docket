@@ -14,7 +14,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(intentd::run()) {
+    let env = |key: &str| std::env::var(key).ok();
+    match runtime.block_on(intentd::run(&env)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("intentd: {why}");

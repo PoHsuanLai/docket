@@ -86,9 +86,6 @@ KNOWN=(
   "docket-native ui:Sheet D0.16"
   "docket-acp-bin env D0.21"
   "docket-accept env D0.22"
-  "companiond env D0.25"
-  "intentd env D0.25"
-  "readerd env D0.25"
 )
 
 # Files over 500 lines are reported. F.1 turns the report into a failure: set this to "yes".

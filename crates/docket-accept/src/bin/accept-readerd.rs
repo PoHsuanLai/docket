@@ -19,7 +19,12 @@ fn main() -> ExitCode {
             docket_accept::seams::READERD_SYSTEM_CALLERS_VAR,
         ),
     };
-    match runtime.block_on(readerd::run_with(docket_accept::seams::trace(), seams)) {
+    let env = |key: &str| std::env::var(key).ok();
+    match runtime.block_on(readerd::run_with(
+        docket_accept::seams::trace(),
+        seams,
+        &env,
+    )) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("readerd: {why}");

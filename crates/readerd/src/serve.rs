@@ -110,15 +110,17 @@ where
 /// connection closes. Only intentd may call it: the process behind the caller is named by
 /// `readerd-callers.toml` (the system's under `/etc/quire`, the person's over it) before the ask
 /// is read.
-pub async fn serve<P, I>(service: Arc<ReaderService<P, I>>) -> Result<(), ServeFault>
+pub async fn serve<P, I>(
+    service: Arc<ReaderService<P, I>>,
+    env: &impl Fn(&str) -> Option<String>,
+) -> Result<(), ServeFault>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
 {
     use futures_util::StreamExt;
     let connection = BusConnection::session().await.map_err(bus)?;
-    let table = crate::callers::read(&|key: &str| std::env::var(key).ok())
-        .map_err(|e| ServeFault::Callers(e.to_string()))?;
+    let table = crate::callers::read(env).map_err(|e| ServeFault::Callers(e.to_string()))?;
     let who = Arc::new(Identity::on_system(connection.clone(), table));
     serve_on(&connection, service, who).await?;
     let mut messages = zbus::MessageStream::from(&connection);

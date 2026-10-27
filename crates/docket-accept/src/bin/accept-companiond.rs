@@ -23,7 +23,8 @@ fn main() -> ExitCode {
         ),
         trace: docket_accept::seams::trace(),
     };
-    match runtime.block_on(companiond::run_with(seams)) {
+    let env = |key: &str| std::env::var(key).ok();
+    match runtime.block_on(companiond::run_with(seams, &env)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("companiond: {why}");

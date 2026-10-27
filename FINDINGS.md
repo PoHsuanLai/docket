@@ -3837,3 +3837,10 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - `docket-skills-disk` (client/IO, new) holds `DiskFolder`, the one folder over `std::fs`. It is a new crate because `docket-store` may not reach `toml` (its `RULES` row) and `docket-skills` needs it. intentd, companiond, docket-cli, docket-inapp and docket-eval depend on it and pass `&DiskFolder`.
 - Tests: the `docket-skills` tests use an in-memory folder instead of tempdirs. The tests that read the real disk (the shipped `dist/skills`, a skill written to a tempdir, the sorted listing) moved to `docket-skills-disk/tests/it`. Nothing is re-exported.
 - Not done: `docket-skills-disk` is not in `scripts/check-portable.sh`'s list, although docket-inapp and docket-eval, which are, now depend on it (it uses only `std::fs`). Not verified by a build in the lane that made the change.
+
+## Layering lane D0.25: intentd, companiond and readerd read no environment (2026-10-28)
+
+- `intentd::{run, run_with}`, `companiond::{run, run_with, serve}` and `readerd::{run, run_with, serve}` take the process's environment lookup (`&impl Fn(&str) -> Option<String>`, the shape `actions-mcp::run` and `docket-cli` use). Each `main.rs` builds it from `std::env::var` once. The three `env D0.25` rows are gone from `scripts/check-boundary.sh`.
+- Their tests already passed configuration directly and mutate no environment (`set_var` and `remove_var` do not appear in the three crates).
+- The three `accept-*` mains only pass `&env` to `run_with` (the lane that owns docket-accept removes their own env reads).
+- Not done: `companiond/src/serve.rs` is still 557 lines (it was 556); splitting it is a separate move.

@@ -194,22 +194,24 @@ pub async fn start_with_agents(
     Ok(companion)
 }
 
-/// The daemon: its configuration and the session bus from the environment, served until the bus
-/// closes.
-pub async fn run() -> Result<(), ServeFault> {
-    run_with(HarnessSeams::default()).await
+/// The daemon: its configuration and the session bus from `env` (the process's environment, which
+/// its `main` passes in), served until the bus closes.
+pub async fn run(env: &impl Fn(&str) -> Option<String>) -> Result<(), ServeFault> {
+    run_with(HarnessSeams::default(), env).await
 }
 
 /// [`run`] with the seams the acceptance harness's mains choose.
-pub async fn run_with(seams: HarnessSeams) -> Result<(), ServeFault> {
-    let env = |key: &str| std::env::var(key).ok();
-    let config = CompaniondConfig::from_env(&env).map_err(|e| ServeFault::Config(e.to_string()))?;
-    let connection = docket_dbus::session_connection(&env)
+pub async fn run_with(
+    seams: HarnessSeams,
+    env: &impl Fn(&str) -> Option<String>,
+) -> Result<(), ServeFault> {
+    let config = CompaniondConfig::from_env(env).map_err(|e| ServeFault::Config(e.to_string()))?;
+    let connection = docket_dbus::session_connection(env)
         .await
         .map_err(|e| ServeFault::Bus(e.to_string()))?;
     let callers = match &seams.system_callers {
-        Some(system) => crate::callers::read_at(system, &env),
-        None => crate::callers::read(&env),
+        Some(system) => crate::callers::read_at(system, env),
+        None => crate::callers::read(env),
     }
     .map_err(|e| ServeFault::Config(e.to_string()))?;
     // The agent apps that are helpers run in the host the bus starts (`docket-agent --serve`); the
@@ -218,7 +220,7 @@ pub async fn run_with(seams: HarnessSeams) -> Result<(), ServeFault> {
     let _running = start_with_agents(
         &connection,
         config,
-        &Roots::from_env(&env),
+        &Roots::from_env(env),
         seams,
         callers,
         Some(agents),

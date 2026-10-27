@@ -539,7 +539,10 @@ where
 /// Claims `org.quire.Companion1` on the session bus and serves it until the connection closes,
 /// telling callers apart by `companiond-callers.toml` (the system's under `/etc/quire`, the
 /// person's over it).
-pub async fn serve<P, I, K>(companion: Arc<Mutex<Companiond<P, I, K>>>) -> Result<(), ServeFault>
+pub async fn serve<P, I, K>(
+    companion: Arc<Mutex<Companiond<P, I, K>>>,
+    env: &impl Fn(&str) -> Option<String>,
+) -> Result<(), ServeFault>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
@@ -547,8 +550,7 @@ where
 {
     use futures_util::StreamExt;
     let connection = BusConnection::session().await.map_err(bus)?;
-    let table = crate::callers::read(&|key: &str| std::env::var(key).ok())
-        .map_err(|e| ServeFault::Config(e.to_string()))?;
+    let table = crate::callers::read(env).map_err(|e| ServeFault::Config(e.to_string()))?;
     let who = Arc::new(Identity::on_system(connection.clone(), table));
     serve_on(&connection, companion, who).await?;
     let mut messages = zbus::MessageStream::from(&connection);

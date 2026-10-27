@@ -498,15 +498,18 @@ fn placed_by<S: Seams>(router: &Router<S>, record: &AuditRecord) -> Option<Space
 }
 
 /// The daemon: the session bus, the system bus for logind (absent, it is not watched), the
-/// environment's files. Returns when the bus closes.
-pub async fn run() -> Result<(), DaemonFault> {
-    run_with(HarnessSeams::default()).await
+/// files `env` names (the process's environment, which its `main` passes in). Returns when the bus
+/// closes.
+pub async fn run(env: &impl Fn(&str) -> Option<String>) -> Result<(), DaemonFault> {
+    run_with(HarnessSeams::default(), env).await
 }
 
 /// [`run`] with the seams the acceptance harness's mains choose.
-pub async fn run_with(seams: HarnessSeams) -> Result<(), DaemonFault> {
-    let env = |key: &str| std::env::var(key).ok();
-    let mut setup = Setup::from_env(&env)?;
+pub async fn run_with(
+    seams: HarnessSeams,
+    env: &impl Fn(&str) -> Option<String>,
+) -> Result<(), DaemonFault> {
+    let mut setup = Setup::from_env(env)?;
     setup.proc_root = seams.proc_root;
     setup.trace = seams.trace;
     let floor = seams.floor.unwrap_or_else(|| PathBuf::from(FLOOR_FILE));
@@ -516,9 +519,9 @@ pub async fn run_with(seams: HarnessSeams) -> Result<(), DaemonFault> {
         .unwrap_or_else(|| PathBuf::from(ADMIN_DIR));
     if let Some(system) = &seams.system_callers {
         setup.callers =
-            callers::read_at(system, &env).map_err(|e| DaemonFault::Callers(e.to_string()))?;
+            callers::read_at(system, env).map_err(|e| DaemonFault::Callers(e.to_string()))?;
     }
-    let session = docket_dbus::session_connection(&env)
+    let session = docket_dbus::session_connection(env)
         .await
         .map_err(|e| DaemonFault::Serve(ServeFault::Bus(e.to_string())))?;
     let system = BusConnection::system().await.ok();

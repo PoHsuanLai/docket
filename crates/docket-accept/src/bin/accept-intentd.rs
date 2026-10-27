@@ -23,7 +23,8 @@ fn main() -> ExitCode {
         floor: None,
         admin_permissions: None,
     };
-    match runtime.block_on(intentd::run_with(seams)) {
+    let env = |key: &str| std::env::var(key).ok();
+    match runtime.block_on(intentd::run_with(seams, &env)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("intentd: {why}");

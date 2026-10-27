@@ -15,7 +15,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(readerd::run()) {
+    let env = |key: &str| std::env::var(key).ok();
+    match runtime.block_on(readerd::run(&env)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             tracing::error!("stopped: {why}");
