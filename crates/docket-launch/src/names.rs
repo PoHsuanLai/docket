@@ -55,8 +55,8 @@ mod tests {
         let long = "a".repeat(64);
         let mapped = launcher_session(&id(&long)).expect("name");
         assert_eq!(mapped.as_str().len(), 20);
-        assert_eq!(Some(mapped), launcher_session(&id(&long)));
         assert_eq!(mapped.as_str(), "acp-db007849f35ebbe5");
+        assert_eq!(Some(mapped), launcher_session(&id(&long)));
         assert_ne!(
             launcher_session(&id(&long)),
             launcher_session(&id(&"b".repeat(64)))
