@@ -6,11 +6,12 @@
 use crate::helpers::{Keeps, SKILL_LOAD, in_menu, offered_here, skill_in_menu};
 use crate::memory::{episodes_of, hits_of, primer_of, profile_of};
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use crate::task::TaskRuntime;
 use agent_loop::Sources;
 use almanac_core::{BodyMode, InjectQuery, RecallOver, RecentQuery, TrustFilter, UserText};
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::{
     ActionCard, ContextView, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine,
     RecalledLine, Reveal, SelectionView, SkillCard, SkillText, TextTargetView, VisibleView,
@@ -72,7 +73,7 @@ fn words_of(rt: &TaskRuntime) -> String {
         .join("\n")
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// The sections for one planner turn of `task`. A source that does not answer leaves its
     /// section empty: the planner works with less, never with a guess.
     pub(crate) async fn sources(&mut self, task: &TaskId) -> Sources {

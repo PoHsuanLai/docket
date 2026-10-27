@@ -7,11 +7,12 @@ use crate::best_effort::best_effort;
 use crate::fault::ServeFault;
 use crate::helpers::view::role_text;
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use crate::task::Failure;
 use agent_loop::{FinishedAs, LoopInput, LoopPhase};
 use companion_wire::{AnswerPhase, NeedsYou, RefusalWire};
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::helper::{
     CallVerdict, GoalSource, HelperCard, HelperSeat, Job, JobFault, SeatPlace, SignInWay,
 };
@@ -120,7 +121,7 @@ fn why_of(refused: Option<&RefusalWire>) -> Option<String> {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Opens the session of a helper's job and briefs its planner: the role and the goal in the
     /// planner's role, the policy cut from the person's words (or the giver's) and the helper's
     /// reach, and the answers it is handed waiting in its inbox. A session that cannot be briefed

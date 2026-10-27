@@ -9,15 +9,16 @@ use crate::seams::{AuditBuffer, InAppSeams, NoMemory, NoReader, NoWriter, Sessio
 use crate::sheet::{ConfirmSheet, SheetConfirmer};
 use action_review::Reviewer;
 use docket_client::{ClientError, ContextSource, InProcess, IntentProvider, Intents};
+use docket_core::Clock;
 use docket_core::{AgentConfig, AuditRecord, CallRefusal, PolicyWriter, Reader, StepLine, TurnId};
 use docket_memory::AuditState;
 use docket_planner::{PlanFault, PlannerModel};
-use docket_router::{Clock, GrantStore, MemoryLink, Registry, Router};
-use docket_tasks::{Companion, Now, Quiet, ServeFault};
+use docket_router::{GrantStore, MemoryLink, Registry, Router};
+use docket_tasks::{Companion, Quiet, ServeFault};
 use policy_point::Presets;
 use porter_client::Transport as ModelTransport;
 use porter_core::{AppId, AppName, Isolation};
-use prov::{SpaceId, TaskId, UnixSeconds};
+use prov::{SpaceId, TaskId};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -126,16 +127,6 @@ pub struct InAppParts<P, C, T, R, M, K> {
     pub config: AgentConfig,
 }
 
-/// The router's clock as the task model's.
-#[derive(Debug, Clone)]
-pub struct HostClock<K>(pub K);
-
-impl<K: Clock> Now for HostClock<K> {
-    fn now(&self) -> UnixSeconds {
-        self.0.now()
-    }
-}
-
 type Seam<P, C, T, R, K, G, Y, W, D> = InAppSeams<P, C, T, R, K, G, Y, W, D>;
 pub(crate) type Link<P, C, T, R, K, G, Y, W, D> =
     Intents<InProcess<Seam<P, C, T, R, K, G, Y, W, D>>>;
@@ -143,7 +134,7 @@ type Hosting<P, C, T, R, K, G, Y, W, D> = Router<Seam<P, C, T, R, K, G, Y, W, D>
 type Hosted<P, C, T, R, K, G, Y, W, D> = Arc<Hosting<P, C, T, R, K, G, Y, W, D>>;
 /// The task model over this host's router link.
 pub(crate) type Tasks<P, C, T, R, M, K, G, Y, W, D> =
-    Companion<M, InProcess<Seam<P, C, T, R, K, G, Y, W, D>>, HostClock<K>, Quiet>;
+    Companion<M, InProcess<Seam<P, C, T, R, K, G, Y, W, D>>, K, Quiet>;
 
 /// A link to `router` as the app's own name in one role. A caller never holds two roles: the
 /// first role that may make a call is the one it acts in.
@@ -350,7 +341,7 @@ where
             companion,
             PlannerModel::new(parts.model),
             parts.config,
-            HostClock(parts.clock.clone()),
+            parts.clock.clone(),
             app.clone(),
         );
         Ok(Self {

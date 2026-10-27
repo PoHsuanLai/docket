@@ -40,11 +40,12 @@ use agent_client_protocol_schema::v1::{
 };
 use bulkhead::Sandbox;
 use docket_core::helper::{SignInHow, SignInWay, TerminalLogin};
-use docket_core::{AbsPath, CallId, PermissionKind, UserTurn, Waits, within};
+use docket_core::{AbsPath, CallId, PermissionKind, UserTurn};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, Choice, Choices, ProgramName, ResumePlan, Resumed,
     SessionBackend, StartSession, Taint, TurnEnd,
 };
+use docket_store::{Waits, within};
 use prov::Effect;
 use std::collections::VecDeque;
 

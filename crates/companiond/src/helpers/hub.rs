@@ -10,6 +10,7 @@ use crate::Companiond;
 use crate::Shared;
 use almanac_core::{RecentEntry, RecentQuery};
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::helper::{
     AgentApps, AgentOutcome, Board, BoardEffect, BoardEvent, CallVerdict, CardRecord, HelperCard,
     HelperName, HelperRecord, HelperSeat, HelperState, JobFault, JobId, JobStatus, Launch, Need,
@@ -105,17 +106,17 @@ pub(super) struct State {
 
 /// What builds the companion a job runs on: its transports are the daemon's, its planner is
 /// `docket_tasks::planner_for` the card.
-type Make<P, I> = dyn Fn(&HelperCard) -> Companiond<P, I> + Send + Sync;
+type Make<P, I, K> = dyn Fn(&HelperCard) -> Companiond<P, I, K> + Send + Sync;
 
-struct Inner<P: InferTransport, I: IntentsTransport> {
+struct Inner<P: InferTransport, I: IntentsTransport, K: Clock> {
     state: Mutex<State>,
     /// Reads and writes the records through the router. Nothing else uses it, so a record is
     /// never written behind a person's turn.
-    service: AsyncMutex<Companiond<P, I>>,
-    make: Box<Make<P, I>>,
+    service: AsyncMutex<Companiond<P, I, K>>,
+    make: Box<Make<P, I, K>>,
     /// The companion each helper's conversation runs its turns on, made when the person first
     /// speaks and kept, so a turn sees the ones before it.
-    talks: Mutex<BTreeMap<HelperId, Talk<P, I>>>,
+    talks: Mutex<BTreeMap<HelperId, Talk<P, I, K>>>,
     /// The host of the agent apps that are helpers, when the daemon has one.
     agents: std::sync::OnceLock<Arc<dyn AgentApps>>,
     /// The front companion's shared view: where the shell is told something changed.
@@ -123,14 +124,14 @@ struct Inner<P: InferTransport, I: IntentsTransport> {
 }
 
 /// The companion one helper's conversation runs its turns on.
-type Talk<P, I> = Arc<AsyncMutex<Companiond<P, I>>>;
+type Talk<P, I, K> = Arc<AsyncMutex<Companiond<P, I, K>>>;
 
 /// The board and what carries it out. Cheap to clone: every clone is the same board.
-pub struct Hub<P: InferTransport, I: IntentsTransport> {
-    inner: Arc<Inner<P, I>>,
+pub struct Hub<P: InferTransport, I: IntentsTransport, K: Clock> {
+    inner: Arc<Inner<P, I, K>>,
 }
 
-impl<P: InferTransport, I: IntentsTransport> Clone for Hub<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock> Clone for Hub<P, I, K> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
@@ -138,7 +139,7 @@ impl<P: InferTransport, I: IntentsTransport> Clone for Hub<P, I> {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport> fmt::Debug for Hub<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock> fmt::Debug for Hub<P, I, K> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Hub").finish_non_exhaustive()
     }
@@ -269,18 +270,19 @@ fn conclude(job: JobId, done: Finished) -> Conclusion {
     }
 }
 
-impl<P, I> Hub<P, I>
+impl<P, I, K> Hub<P, I, K>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     /// A hub with an empty board. `service` is a companion of its own that reads and writes the
     /// helpers' records; `shared` is the front companion's view, where changes are told; `make`
     /// builds the companion a helper's job runs on.
     pub fn new(
-        service: Companiond<P, I>,
+        service: Companiond<P, I, K>,
         shared: Arc<Shared>,
-        make: impl Fn(&HelperCard) -> Companiond<P, I> + Send + Sync + 'static,
+        make: impl Fn(&HelperCard) -> Companiond<P, I, K> + Send + Sync + 'static,
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
@@ -303,7 +305,7 @@ where
 
     fn with_talks<R>(
         &self,
-        f: impl FnOnce(&mut BTreeMap<HelperId, Arc<AsyncMutex<Companiond<P, I>>>>) -> R,
+        f: impl FnOnce(&mut BTreeMap<HelperId, Arc<AsyncMutex<Companiond<P, I, K>>>>) -> R,
     ) -> R {
         match self.inner.talks.lock() {
             Ok(mut talks) => f(&mut talks),
@@ -327,7 +329,7 @@ where
     /// helper, with this board as its desk: the helper is told of the others, may hand one of them
     /// a job, and may suggest a routine for its card (the router gates each). Without the desk its
     /// planner was offered none of that.
-    fn helpers_companion(&self, card: &HelperCard) -> Companiond<P, I> {
+    fn helpers_companion(&self, card: &HelperCard) -> Companiond<P, I, K> {
         let mut companion = (self.inner.make)(card);
         companion.set_desk(Arc::new(self.clone()));
         companion
@@ -335,7 +337,7 @@ where
 
     /// The companion that runs the turns of `card`'s conversation, made the first time, on the
     /// planner and transports the daemon gives that helper.
-    pub(super) fn talker(&self, card: &HelperCard) -> Arc<AsyncMutex<Companiond<P, I>>> {
+    pub(super) fn talker(&self, card: &HelperCard) -> Arc<AsyncMutex<Companiond<P, I, K>>> {
         self.with_talks(|talks| {
             talks
                 .entry(card.id.clone())
@@ -896,10 +898,11 @@ where
 
 /// What the routines need of the hub: where a helper works, what its jobs came to, the sentences
 /// the person is told, and the records and events of the Spaces.
-impl<P, I> Hub<P, I>
+impl<P, I, K> Hub<P, I, K>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     /// The Space of a helper.
     pub(crate) fn helper_space(&self, helper: &HelperId) -> Option<SpaceId> {

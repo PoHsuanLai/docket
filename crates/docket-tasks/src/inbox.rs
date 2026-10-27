@@ -8,11 +8,12 @@
 use crate::fault::ServeFault;
 use crate::one_run::RunEnd;
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use agent_loop::{
     AskedPerson, Attention, CompletionNote, LoopInput, LoopPhase, SideInput, attention_of,
 };
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::{
     Delivery, DraftPart, Handle, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft,
     Outcome, Reveal, RosterDetail, RosterFull, RosterLine, RosterState, SessionOpen, SessionOpened,
@@ -72,7 +73,7 @@ fn app_label(app: AppName) -> Label {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// `Intents1.Message.Arrived`: reads the inbox and feeds each message to the right task as
     /// input (a request is evaluated under that task's own policy; nothing in it widens it), then
     /// runs what the messages started.

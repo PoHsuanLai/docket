@@ -7,11 +7,12 @@
 use crate::fault::ServeFault;
 use crate::linger::dismissed;
 use crate::runtime::{Companion, idle_state};
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use crate::task::TaskRuntime;
 use agent_loop::{LoopPhase, LoopState};
 use companion_wire::AnswerPhase;
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::{StepEnd, StepLine, StepShown};
 use docket_session::{ResumePlan, Standing};
 use porter_client::Transport as InferTransport;
@@ -43,7 +44,7 @@ fn loop_of(standing: &Standing) -> LoopState {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// A finished task whose router session is still open takes another turn: its loop starts
     /// again and it no longer waits to be closed.
     pub(crate) fn reopen(&mut self, task: &TaskId) {

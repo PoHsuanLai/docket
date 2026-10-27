@@ -71,7 +71,7 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
     let bus = PrivateBus::start(scratch.path());
     let (server, client) = (bus.connect().await, bus.connect().await);
     let w = world(vec![words("Hello there.")]);
-    let (launcher, hand) = (w.launcher, w.hand);
+    let (launcher, hand) = (w.launcher, w.clock);
     let companion = Arc::new(Mutex::new(w.companion));
     let who = who(&server, scratch.path());
     serve_on_rooted(
@@ -130,7 +130,7 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
         turn: UserTurn {
             id: turn,
             text: "hello".into(),
-            at: prov::UnixSeconds(hand.load(std::sync::atomic::Ordering::SeqCst)),
+            at: hand.now(),
             from: TurnSource::Launcher,
             via: TurnVia::Typed,
             mode: None,

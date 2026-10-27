@@ -6,7 +6,8 @@
 
 use crate::prepared::Prepared;
 use crate::router::Router;
-use crate::seams::{Clock, GrantStore, Seams};
+use crate::seams::{GrantStore, Seams};
+use docket_core::Clock;
 use docket_core::{
     ActionRef, AppRefusal, AskReason, FailText, Follow, Invocation, LabelText, Limit, LimitCall,
     LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitNote, LimitScope, Limited, Outcome,

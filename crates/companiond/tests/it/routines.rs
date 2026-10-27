@@ -6,17 +6,15 @@
 
 use almanac_core::{EventRef, ReplicaId, Seq};
 use companion_wire::{EventForm, RoutineForm, RoutineReply, WhenForm};
-use companiond::{
-    Awake, Clock, EventAsk, Host, RoutineDesk, Routines, Seen, UnitDir, UnitFile, units_of,
-};
+use companiond::{Awake, EventAsk, Host, RoutineDesk, Routines, Seen, UnitDir, UnitFile, units_of};
 use docket_core::helper::{HelperName, JobFault, JobId};
 use docket_core::routine::{
     JobEnd, Missed, RoutineId, RoutinePause, RoutineRecord, RoutineState, RunOutcome, RunRequest,
     Schedule, TimerEntry, Zone,
 };
+use docket_fake::FixedClock;
 use prov::{HelperId, SpaceId, UnixSeconds};
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 const H: i64 = 3_600;
@@ -105,10 +103,10 @@ fn helper() -> HelperId {
     serde_json::from_str("\"h-1\"").expect("helper id")
 }
 
-fn start(at: i64) -> (Routines<FakeHost>, Arc<FakeHost>, Arc<AtomicI64>) {
-    let (clock, hand) = Clock::manual(UnixSeconds(at));
+fn start(at: i64) -> (Routines<FakeHost, FixedClock>, Arc<FakeHost>, FixedClock) {
+    let hand = FixedClock::at(UnixSeconds(at));
     let host = FakeHost::new();
-    (Routines::new(host.clone(), clock), host, hand)
+    (Routines::new(host.clone(), hand.clone()), host, hand)
 }
 
 fn form(when: WhenForm, missed: Missed) -> RoutineForm {
@@ -125,21 +123,21 @@ fn daily(missed: Missed) -> RoutineForm {
     form(WhenForm::At("daily 08:00".to_owned()), missed)
 }
 
-async fn made(routines: &Routines<FakeHost>, form: RoutineForm) -> RoutineId {
+async fn made(routines: &Routines<FakeHost, FixedClock>, form: RoutineForm) -> RoutineId {
     match routines.create(form).await {
         RoutineReply::Made(id) => id,
         other => panic!("a routine, not {other:?}"),
     }
 }
 
-fn outcomes(routines: &Routines<FakeHost>, id: RoutineId) -> Vec<RunOutcome> {
+fn outcomes(routines: &Routines<FakeHost, FixedClock>, id: RoutineId) -> Vec<RunOutcome> {
     let book = routines.book();
     let routine = book.routine(id).expect("routine");
     routine.runs.iter().map(|run| run.outcome).collect()
 }
 
-fn set(hand: &AtomicI64, now: i64) {
-    hand.store(now, Ordering::SeqCst);
+fn set(hand: &FixedClock, now: i64) {
+    crate::support::world::set_clock(hand, now);
 }
 
 fn event(n: u64) -> EventRef {

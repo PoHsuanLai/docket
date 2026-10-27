@@ -4,9 +4,10 @@
 
 use crate::read::read_call;
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use crate::task::TaskRuntime;
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::{CallId, CallRequest, Held, ReaderAsk, ReplyFault, StepEnd, StepLine, StepShown};
 use porter_client::Transport as InferTransport;
 use prov::{Effect, TaskId};
@@ -42,7 +43,7 @@ impl TaskRuntime {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Tells the task's history that `call` was not run, and why.
     pub(crate) fn hold(&mut self, task: &TaskId, call: &CallRequest, why: Held) {
         let effect = self

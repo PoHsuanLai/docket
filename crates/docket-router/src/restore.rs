@@ -3,9 +3,10 @@
 
 use crate::rebuild::{number_of, rebuild};
 use crate::router::Router;
-use crate::seams::{Clock, Seams};
+use crate::seams::Seams;
 use crate::state::SessionKind;
 use crate::wal::Writer;
+use docket_core::Clock;
 use docket_core::{CallerId, CallerRole, IntentsRequest};
 use docket_session::{
     Claimant, LogFault, Logged, PageSize, PlanRefusal, Seq, SessionLog, Standing, may_restore_plan,

@@ -7,6 +7,7 @@ use super::zone::SystemZone;
 use crate::Hub;
 use almanac_core::{BodyMode, RecentQuery, TrustFilter};
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::helper::{
     BoardEffect, BoardEvent, GoalOrigin, HelperName, HelperRecord, JobId, NewJob,
 };
@@ -28,21 +29,21 @@ pub enum Timers {
 }
 
 /// The hub as the routines' host.
-pub struct HubHost<P: InferTransport, I: IntentsTransport> {
-    hub: Hub<P, I>,
+pub struct HubHost<P: InferTransport, I: IntentsTransport, K: Clock> {
+    hub: Hub<P, I, K>,
     zone: SystemZone,
     timers: Timers,
 }
 
-impl<P: InferTransport, I: IntentsTransport> std::fmt::Debug for HubHost<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock> std::fmt::Debug for HubHost<P, I, K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("HubHost").finish_non_exhaustive()
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport> HubHost<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock> HubHost<P, I, K> {
     /// The host over `hub`.
-    pub fn new(hub: Hub<P, I>, timers: Timers) -> Self {
+    pub fn new(hub: Hub<P, I, K>, timers: Timers) -> Self {
         Self {
             hub,
             zone: SystemZone::default(),
@@ -51,10 +52,11 @@ impl<P: InferTransport, I: IntentsTransport> HubHost<P, I> {
     }
 }
 
-impl<P, I> Host for HubHost<P, I>
+impl<P, I, K> Host for HubHost<P, I, K>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     fn zone(&self, at: UnixSeconds) -> Zone {
         self.zone.at(at)

@@ -5,7 +5,8 @@
 
 use crate::seams::Surface;
 use companion_wire::{AnswerPhase, AnswerWire, FrontTask, RouteNote};
-use docket_core::{Cancel, Roster};
+use docket_core::Roster;
+use docket_store::Cancel;
 use prov::{SessionId, TaskId};
 use std::collections::BTreeMap;
 use std::sync::Mutex;

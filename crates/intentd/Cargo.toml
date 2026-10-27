@@ -20,7 +20,8 @@ path = "src/main.rs"
 docket-checkpoint-git = { workspace = true }
 porter-dbus = { workspace = true }
 porter-daemon = { workspace = true }
-docket-core = { workspace = true, features = ["atomic-file"] }
+docket-core = { workspace = true }
+docket-store = { workspace = true }
 docket-log = { workspace = true }
 docket-router = { workspace = true }
 docket-skills = { workspace = true }

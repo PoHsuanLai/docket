@@ -9,7 +9,7 @@ use crate::config::AgentsFile;
 use crate::login::LoginRunner;
 use crate::procs::Proc;
 use crate::spawn::Registry;
-use docket_core::{Waits, within};
+use docket_store::{Waits, within};
 use porter_core::{LoginFault, LoginOutcome};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;

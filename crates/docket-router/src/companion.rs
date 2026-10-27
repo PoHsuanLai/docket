@@ -10,8 +10,9 @@
 use crate::handles::HandleValue;
 use crate::labels::{app_label, model_label};
 use crate::router::Router;
-use crate::seams::{Clock, EventSink, Seams};
+use crate::seams::{EventSink, Seams};
 use crate::spoken::whole_in;
+use docket_core::Clock;
 use docket_core::helper::{GoalOrigin, JobRefusal, PlannerSaw};
 use docket_core::{
     ActionRef, AppRefusal, AuditRecord, CallerId, CallerRole, ChoiceId, DraftPart,

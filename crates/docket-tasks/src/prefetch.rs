@@ -7,8 +7,9 @@
 
 use crate::drive::refusal_of;
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::{
     ActionRef, Args, CallRequest, Origin, ParamName, RECALL_ACTION, RECALL_APP, TargetValue,
     UserTurn, Value,
@@ -46,7 +47,7 @@ pub(crate) fn recall_call(turn: &UserTurn) -> Option<CallRequest> {
     })
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Searches memory for the person's newest words and keeps the answer as a step of the task.
     /// The recall budget of the assembler is the switch: none, no search. A refusal, a router
     /// without memory or a search that fails leaves the task as it was.

@@ -6,7 +6,7 @@
 //! and the other entries stay.
 
 use super::write::ChoiceFault;
-use docket_core::write_atomic;
+use docket_store::write_atomic;
 use std::path::Path;
 use toml_edit::{ArrayOfTables, DocumentMut, Item, Table, value};
 

@@ -18,7 +18,6 @@
 mod apps_link;
 mod bell;
 mod callers;
-mod clock;
 mod config;
 mod daemon;
 mod follow;
@@ -33,7 +32,6 @@ mod speaker;
 pub use apps_link::AppsLink;
 pub use bell::Bell;
 pub use callers::{FILE as CALLERS_FILE, shipped as shipped_callers};
-pub use clock::Clock;
 pub use config::{CompaniondConfig, ConfigError};
 pub use daemon::{Daemon, HarnessSeams, run, run_with, start, start_with, start_with_agents};
 pub use docket_planner::{
@@ -60,4 +58,4 @@ pub type Shared = docket_tasks::Shared<Bell>;
 
 /// The companion as the daemon and its tests run it: the task model over the system clock (or a
 /// test's hand) and the bell.
-pub type Companiond<P, I> = docket_tasks::Companion<P, I, Clock, Bell>;
+pub type Companiond<P, I, K = docket_store::SystemClock> = docket_tasks::Companion<P, I, K, Bell>;

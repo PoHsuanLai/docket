@@ -6,6 +6,7 @@
 
 use crate::Companiond;
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_dbus::BusConnection;
 use docket_tasks::report_end;
 use futures_util::StreamExt;
@@ -33,10 +34,13 @@ fn rule() -> Option<MatchRule<'static>> {
 }
 
 /// Listens for runs finishing until the connection closes.
-pub(crate) async fn watch<P, I>(connection: BusConnection, companion: Arc<Mutex<Companiond<P, I>>>)
-where
+pub(crate) async fn watch<P, I, K>(
+    connection: BusConnection,
+    companion: Arc<Mutex<Companiond<P, I, K>>>,
+) where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     let (Some(rule), Ok(dbus), Ok(name)) = (
         rule(),

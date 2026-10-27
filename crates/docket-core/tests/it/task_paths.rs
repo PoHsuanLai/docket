@@ -121,3 +121,16 @@ fn a_child_of_a_bounded_policy_stays_bounded() {
         "two lists keep what each covers of the other"
     );
 }
+
+#[test]
+fn a_path_that_is_not_utf8_is_a_fault_not_a_lossy_name() {
+    use std::os::unix::ffi::OsStrExt;
+    use std::path::Path;
+    let bad = Path::new(std::ffi::OsStr::from_bytes(b"/w/\xff"));
+    assert_eq!(AbsPath::try_from(bad), Err(PathFault::NotUtf8));
+    assert!(AbsPath::try_from(Path::new("/w/p")).is_ok());
+    assert_eq!(
+        AbsPath::try_from(Path::new("w/p")),
+        Err(PathFault::NotAbsolute)
+    );
+}

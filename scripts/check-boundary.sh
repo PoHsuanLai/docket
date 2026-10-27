@@ -38,6 +38,7 @@ LAYERS=(
   "voice-wire:P"
   "voice-loop:P"
   # client / IO
+  "docket-store:C"
   "docket-planner:C"
   "docket-tasks:C"
   "docket-memory:C"
@@ -79,8 +80,6 @@ LAYERS=(
 KNOWN=(
   "docket-acp ui:Sheet D0.16"
   "docket-tasks ui:Sheet D0.13"
-  "docket-core src:std::fs D0.7"
-  "docket-core src:thread::sleep D0.7"
   "docket-skills src:std::fs D0.24"
   "docket-acp-bin env D0.21"
   "docket-accept env D0.22"
@@ -305,6 +304,8 @@ RULES=(
   "docket-router: $NO_CEDAR"
   # Skills are files read from directories handed in: no bus, runtime, network or Cedar.
   "docket-skills: $EFFECTS"
+  # Disk and timers under the pure core: files, threads and futures; no bus, runtime, network or Cedar.
+  "docket-store: $EFFECTS toml"
   # The tools an outside agent is offered, as pure data: shared by the MCP edge and the ACP host.
   "actions-tools: $EFFECTS toml"
   "companion-wire: $EFFECTS toml"

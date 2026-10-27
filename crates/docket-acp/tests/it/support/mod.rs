@@ -3,10 +3,11 @@
 #![allow(dead_code)]
 
 use agent_client_protocol_schema::rpc::RequestId;
-use docket_acp::{Helpers, LineWire, NoHelpers, Permit, Server, Ticks};
+use docket_acp::{Helpers, LineWire, NoHelpers, Permit, Server};
 use docket_core::{
     ActionRef, CallId, CallRefusal, DenyCode, LabelText, StepEnd, StepLine, StepShown,
 };
+use docket_fake::FixedClock;
 use docket_session::fake::{FakeBackend, MemoryLog};
 use docket_session::fake_host::FakeHost;
 use docket_session::{BackendEvent, CallEvent, CallOpen, TurnEnd};
@@ -21,12 +22,7 @@ pub type Wire = LineWire<BufReader<ReadHalf<DuplexStream>>, WriteHalf<DuplexStre
 pub type TestServer = Server<FakeHost, Arc<MemoryLog>, Wire, Fixed>;
 
 /// A clock that stands still.
-pub struct Fixed;
-impl Ticks for Fixed {
-    fn now(&self) -> UnixSeconds {
-        UnixSeconds(1_760_000_000)
-    }
-}
+pub type Fixed = FixedClock;
 
 pub fn app(name: &str) -> AppName {
     AppName::parse(name).expect("app")
@@ -117,8 +113,15 @@ pub fn rig_with<S: Helpers>(
     let (client_read, client_write) = split(client_end);
     let wire = LineWire::new(BufReader::new(server_read), server_write);
     let host = FakeHost::new(log.clone(), scripts);
-    let server = Server::new(permit(), app(editor_app), host, log.clone(), wire, Fixed)
-        .with_helpers(helpers);
+    let server = Server::new(
+        permit(),
+        app(editor_app),
+        host,
+        log.clone(),
+        wire,
+        FixedClock::at(UnixSeconds(1_760_000_000)),
+    )
+    .with_helpers(helpers);
     let schema: Value =
         serde_json::from_str(include_str!("../../schema/schema.json")).expect("schema");
     let editor = Editor {

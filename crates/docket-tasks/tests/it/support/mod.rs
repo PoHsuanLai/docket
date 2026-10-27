@@ -15,7 +15,7 @@ use docket_fake::{
 use docket_planner::PlannerModel;
 use docket_router::{GrantStore, Router};
 use docket_session::fake::MemoryLog;
-use docket_tasks::{Companion, NativeHost, Now, Quiet};
+use docket_tasks::{Companion, NativeHost, Quiet};
 use infer::{Say, ScriptedInfer};
 use porter_core::{AppId, AppName, Count, Isolation};
 use prov::{DataClass, Effect, EntityKind, SessionId, SpaceId, TaskId, UnixSeconds};
@@ -24,15 +24,7 @@ use std::sync::Arc;
 
 pub const ARCHIVE: &str = "org_quire_Mail-mail_thread_archive";
 
-#[derive(Debug, Clone, Copy)]
-pub struct Still;
-impl Now for Still {
-    fn now(&self) -> UnixSeconds {
-        UnixSeconds(1_000)
-    }
-}
-
-pub type Host = NativeHost<ScriptedInfer, InProcess<FakeSeams>, Still, Quiet, Arc<MemoryLog>>;
+pub type Host = NativeHost<ScriptedInfer, InProcess<FakeSeams>, FixedClock, Quiet, Arc<MemoryLog>>;
 
 pub fn app(s: &str) -> AppName {
     AppName::parse(s).expect("app")
@@ -138,7 +130,7 @@ fn router(log: &Arc<MemoryLog>, task: &str, consent: bool) -> Arc<Router<FakeSea
     router
 }
 
-pub type Comp = Companion<ScriptedInfer, InProcess<FakeSeams>, Still, Quiet>;
+pub type Comp = Companion<ScriptedInfer, InProcess<FakeSeams>, FixedClock, Quiet>;
 
 /// A companion whose one identity plays the editor and the companion.
 pub fn companion(router: &Arc<Router<FakeSeams>>, infer: &ScriptedInfer) -> Comp {
@@ -153,7 +145,7 @@ pub fn companion(router: &Arc<Router<FakeSeams>>, infer: &ScriptedInfer) -> Comp
         Intents::over(InProcess::new(router.clone(), caller)),
         PlannerModel::new(infer.clone()),
         AgentConfig::default(),
-        Still,
+        FixedClock::at(UnixSeconds(1_000)),
         app("org.quire.Shell"),
     )
 }

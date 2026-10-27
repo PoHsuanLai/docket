@@ -16,7 +16,7 @@ use super::live::Live;
 use super::logout::EntryLogout;
 use super::wire;
 use docket_acp::client::{HelperAgent, HelperAgents};
-use docket_acp::{SystemTicks, Ticks};
+use docket_core::Clock;
 use docket_core::ProgramName;
 use docket_core::helper::{
     AgentApps, AgentOutcome, AppsAsk, AppsReply, BackOutcome, BroughtOutcome, CheckOutcome,
@@ -26,6 +26,7 @@ use docket_core::helper::{
 use docket_core::{SeenCommand, WatchedAgent};
 use docket_launch::dbus::DbusAccounts;
 use docket_session::Workspace;
+use docket_store::SystemClock;
 use prov::SessionId;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -75,7 +76,7 @@ impl HelperHost {
         let hosts = Arc::clone(&live);
         let make: Maker = Box::new(move |card| HelperHosts::new(Arc::clone(&hosts), card));
         let logout = Arc::new(EntryLogout::new(Arc::clone(&live), wire::login_runner()));
-        let agents = HelperAgents::new(make, || SystemTicks.now()).with_logout(logout);
+        let agents = HelperAgents::new(make, || SystemClock.now()).with_logout(logout);
         Self {
             live,
             agents,

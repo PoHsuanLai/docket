@@ -22,19 +22,14 @@ use agent_client_protocol_schema::v1::{
     SetSessionModeRequest, SetSessionModeResponse,
 };
 use companion_wire::ToldWire;
+use docket_core::Clock;
 use docket_session::{SessionHost, SessionLog};
 use futures_util::future::{Either, select};
 use porter_core::AppName;
-use prov::{HelperId, SessionId, UnixSeconds};
+use prov::{HelperId, SessionId};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use std::pin::pin;
-
-/// The time, passed in: the lib reads no clock.
-pub trait Ticks: Send {
-    /// Now.
-    fn now(&self) -> UnixSeconds;
-}
 
 /// Where the turns of a session run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -112,7 +107,7 @@ pub struct Server<H, L, W, T, S = NoHelpers> {
     readiness: Readiness,
 }
 
-impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T, NoHelpers> {
+impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock> Server<H, L, W, T, NoHelpers> {
     /// A server for the editor `editor` (the opener its sessions record), allowed to serve by
     /// `permit`.
     pub fn new(_permit: Permit, editor: AppName, host: H, log: L, wire: W, ticks: T) -> Self {
@@ -148,7 +143,7 @@ impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks> Server<H, L, W, T, NoHelp
     }
 }
 
-impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, W, T, S> {
+impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, W, T, S> {
     /// The host, for the caller that built the server to look at after it ran.
     pub fn into_host(self) -> H {
         self.host

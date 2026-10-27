@@ -8,9 +8,10 @@
 use crate::desk::{PostFromPlanner, Proposal, RoutineAsk, RoutineFor};
 use crate::read::COMPANION_APP;
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use companion_wire::HelperReply;
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::helper::{Ceiling, GoalOrigin, JobId, PlannerSaw};
 use docket_core::{
     ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, LabelText, NoteAsk, Outcome, Value,
@@ -103,7 +104,7 @@ fn ceiling_of(call: &CallRequest) -> Option<Ceiling> {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Carries out a helper action the router allowed, through the host's desk. The call ends as
     /// the router's outcome when the desk did it, and as the desk's plain refusal when it did not;
     /// the router, which answered before the desk acted, is told of a refusal so that its own

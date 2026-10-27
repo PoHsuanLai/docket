@@ -11,13 +11,13 @@ use docket_core::EntityRef;
 use docket_core::Limit;
 use docket_core::{
     ActionGrant, AppRefusal, AuditRecord, Confirmer, ContextScope, ContextSnapshot, Invocation,
-    Latency, Millis, Outcome, PolicyWriter, Preview, Reader, Revocation, StandingGrant,
-    StandingGrantId, SuggestAsk, UndoFault, UndoToken,
+    Latency, Outcome, PolicyWriter, Preview, Reader, Revocation, StandingGrant, StandingGrantId,
+    SuggestAsk, UndoFault, UndoToken,
 };
 use docket_session::{Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog};
 use policy_point::Presets;
 use porter_core::AppName;
-use prov::{Actor, EntityId, SessionId, SpaceId, UnixSeconds};
+use prov::{Actor, EntityId, SessionId, SpaceId};
 use std::future::Future;
 
 /// Why a call to an app or to memory got no answer.
@@ -176,15 +176,6 @@ pub trait EventSink: Send + Sync {
     fn append(&self, record: AuditRecord);
 }
 
-/// The one clock.
-pub trait Clock: Send + Sync {
-    /// Now.
-    fn now(&self) -> UnixSeconds;
-    /// Completes after `wait`: the deadline the router races a reviewer against (the real clock
-    /// sleeps; a fake completes at once only for no time at all).
-    fn after(&self, wait: Millis) -> impl Future<Output = ()> + Send;
-}
-
 /// Memory, reached as `Caller::Router` (the router acts for the companion's session, in the
 /// Space of the invocation; the companion never calls memory itself).
 pub trait MemoryLink: Send + Sync {
@@ -258,7 +249,7 @@ pub trait Seams: Send + Sync {
     /// The event log.
     type Sink: EventSink;
     /// The clock.
-    type Time: Clock;
+    type Time: docket_core::Clock;
     /// Memory.
     type Memory: MemoryLink;
     /// The task-policy writer.

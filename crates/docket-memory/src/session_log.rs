@@ -13,7 +13,7 @@ use almanac_core::{
     AreaPayload, AreaTag, BodyMode, Cause, Cursor, EntriesQuery, EventBody, JsonText, KindPattern,
     KindTag, Record, Refusal, ThingRole, ThingView, UserText,
 };
-use docket_router::Clock;
+use docket_core::Clock;
 use docket_session::{
     Appended, LogFault, LogPage, PageSize, SESSION_KIND, Seq, SessionEntry, SessionLog, decode,
     encode, session_thing,

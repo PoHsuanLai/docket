@@ -19,7 +19,8 @@ path = "src/main.rs"
 [dependencies]
 almanac-core = { workspace = true }
 companion-wire = { workspace = true }
-docket-core = { workspace = true, features = ["wait", "atomic-file"] }
+docket-core = { workspace = true }
+docket-store = { workspace = true }
 docket-log = { workspace = true }
 docket-planner = { workspace = true }
 docket-skills = { workspace = true }

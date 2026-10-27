@@ -11,7 +11,7 @@ use crate::helper_replay;
 use crate::helpers::{HelperRow, Helpers};
 use crate::mode::Mode;
 use crate::out;
-use crate::server::{Known, Server, Ticks, Turns};
+use crate::server::{Known, Server, Turns};
 use crate::sessions::json;
 use crate::wire::{Wire, WireClosed};
 use agent_client_protocol_schema::v1::{
@@ -19,6 +19,7 @@ use agent_client_protocol_schema::v1::{
     SessionNotification, SessionUpdate,
 };
 use companion_wire::ToldWire;
+use docket_core::Clock;
 use docket_core::Workspace;
 use docket_session::{SessionHost, SessionLog};
 use prov::{HelperId, SessionId, SpaceId};
@@ -39,7 +40,7 @@ pub(crate) fn helper_asked(params: &Value) -> Option<String> {
         .map(|name| name.trim().to_owned())
 }
 
-impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, W, T, S> {
+impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, W, T, S> {
     /// The helpers whose Space is the one `workspace` maps to.
     pub(crate) fn helpers_in(&self, workspace: &Workspace) -> Vec<HelperRow> {
         let space = space_of(workspace);

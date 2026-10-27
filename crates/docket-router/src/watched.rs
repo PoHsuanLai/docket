@@ -18,10 +18,11 @@
 use crate::checkpoint_restore::{CHECKPOINTS_APP, CHECKPOINTS_RESTORE};
 use crate::restore::named_session;
 use crate::router::Router;
-use crate::seams::{Clock, Seams};
+use crate::seams::Seams;
 use crate::session::SessionState;
 use crate::state::{SessionKind, SessionRecord};
 use crate::wal::Wal;
+use docket_core::Clock;
 use docket_core::{
     CallRequest, CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, TurnId, WatchOwner,
     WatchedAgent, Watching, WireRefusal, Workspace,

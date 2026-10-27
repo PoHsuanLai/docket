@@ -23,21 +23,18 @@ pub mod helpers;
 
 use companion_client::DbusHelpers;
 use confirm::ConfirmObject;
-use docket_acp::{LineWire, Permit, Server, SystemTicks, Ticks};
+use docket_acp::{LineWire, Permit, Server};
 use docket_client::{DbusTransport, Intents};
-use docket_core::{AgentConfig, Millis};
+use docket_core::AgentConfig;
 use docket_dbus::callers::Identity;
 use docket_dbus::{CONFIRM_PATH, InferLink};
 use docket_inapp::EditorDesk;
 use docket_planner::PlannerModel;
-use docket_router::Clock;
-use docket_tasks::{Companion, NativeHost, Now, Quiet, RouterLog};
+use docket_store::SystemClock;
+use docket_tasks::{Companion, NativeHost, Quiet, RouterLog};
 use helpers::LiveHelpers;
 use porter_core::AppName;
-use prov::UnixSeconds;
-use std::future::Future;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::io::{BufReader, stdin, stdout};
 
 /// The bus name the router knows this process by.
@@ -46,30 +43,10 @@ pub const BUS_NAME: &str = "org.quire.Acp";
 /// The shell's name, for the companion's `shell` (no launcher is involved in an editor session).
 const SHELL: &str = "org.quire.Shell";
 
-/// The system clock.
-#[derive(Debug, Clone, Copy)]
-pub struct Wall;
-
-impl Now for Wall {
-    fn now(&self) -> UnixSeconds {
-        SystemTicks.now()
-    }
-}
-
-impl Clock for Wall {
-    fn now(&self) -> UnixSeconds {
-        SystemTicks.now()
-    }
-
-    fn after(&self, wait: Millis) -> impl Future<Output = ()> + Send {
-        tokio::time::sleep(Duration::from_millis(u64::from(wait.0)))
-    }
-}
-
 type Log = Arc<RouterLog<DbusTransport>>;
 
 /// The host the binary serves with.
-pub type LiveHost = NativeHost<InferLink, DbusTransport, Wall, Quiet, Log, EditorDesk>;
+pub type LiveHost = NativeHost<InferLink, DbusTransport, SystemClock, Quiet, Log, EditorDesk>;
 
 /// Why the process could not serve.
 #[derive(Debug, thiserror::Error)]
@@ -131,7 +108,10 @@ pub async fn serve_with(
     ));
     connection
         .object_server()
-        .at(CONFIRM_PATH, ConfirmObject::new(desk.clone(), Wall, who))
+        .at(
+            CONFIRM_PATH,
+            ConfirmObject::new(desk.clone(), SystemClock, who),
+        )
         .await
         .map_err(bus)?;
     connection.request_name(BUS_NAME).await.map_err(bus)?;
@@ -140,7 +120,7 @@ pub async fn serve_with(
         Intents::over(DbusTransport::new(connection.clone())),
         PlannerModel::new(docket_dbus::inferd_transport(&connection, trace)),
         AgentConfig::default(),
-        Wall,
+        SystemClock,
         shell,
     )
     // An editor's sessions are not the companion's: no roster notes, so a restart of companiond
@@ -163,7 +143,7 @@ pub async fn serve_with(
     let host: LiveHost = NativeHost::over(companion, log.clone()).with_desk(desk);
     let wire = LineWire::new(BufReader::new(stdin()), stdout());
     let mut server =
-        Server::new(permit, editor, host, log, wire, SystemTicks).with_helpers(helpers);
+        Server::new(permit, editor, host, log, wire, SystemClock).with_helpers(helpers);
     // The editor closing the pipe is the normal end.
     let _ = server.run().await;
     Ok(())

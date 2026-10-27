@@ -1,0 +1,22 @@
+[package]
+name = "docket-store"
+description = "docket's disk and timers: the durable file write and read, the grant file's disk rules and write lock, the waits on peers with a deadline and a cancel, and the system clock."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+prov = { workspace = true }
+atomic-write-file = { workspace = true }
+futures-util = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

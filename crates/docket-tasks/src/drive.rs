@@ -11,7 +11,7 @@ use crate::one_run::loop_end;
 use crate::plan::phase_of;
 use crate::read::{COMPANION_APP, answer_read};
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use crate::tap::{Go, NoTap, Tap};
 use crate::task::Failure;
 use agent_loop::{
@@ -20,12 +20,14 @@ use agent_loop::{
 };
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
+use docket_core::Clock;
 use docket_core::{
-    BudgetKind, CallId, CallProgress, CallRefusal, CallRequest, Held, ReaderAsk, StepEnd, Stop,
+    BudgetKind, CallId, CallProgress, CallRefusal, CallRequest, Held, ReaderAsk, StepEnd,
     TASK_START, WireRefusal,
 };
 use docket_planner::PlanFault;
 use docket_session::CallOpen;
+use docket_store::Stop;
 use porter_client::Transport as InferTransport;
 use prov::{Effect, TaskId};
 use std::collections::VecDeque;
@@ -94,7 +96,7 @@ fn idle_loop() -> LoopState {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Runs `first`, and what follows from it, to the end of what the task can do alone.
     pub(crate) async fn run(&mut self, task: &TaskId, first: LoopInput) -> Result<(), ServeFault> {
         self.run_tapped(task, first, &mut NoTap).await

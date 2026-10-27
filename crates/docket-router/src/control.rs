@@ -3,8 +3,9 @@
 
 use crate::messaging::age;
 use crate::router::Router;
-use crate::seams::{AppLink, Clock, EventSink, Seams};
+use crate::seams::{AppLink, EventSink, Seams};
 use crate::session::SessionEvent;
+use docket_core::Clock;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, Confirmer, Halt, HaltCause, IntentsReply, JournalFilter,
     UndoEntry, UndoFault, UndoId, UndoReport, UndoScope, UndoState,

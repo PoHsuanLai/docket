@@ -7,8 +7,9 @@ use crate::classify::{at_ceiling, classify_step, delegation_end};
 use crate::driven::Driven;
 use crate::prepared::{Early, Prepared};
 use crate::router::Router;
-use crate::seams::{AppLink, Clock, EventSink, Seams};
+use crate::seams::{AppLink, EventSink, Seams};
 use crate::who::Who;
+use docket_core::Clock;
 use docket_core::{
     AppRefusal, AuditRecord, CallClass, CallEnd, CallRefusal, CallRequest, Classification, Depth,
     PerCall, WindowKey,

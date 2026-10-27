@@ -1,5 +1,4 @@
 mod args_props;
-mod atomic_file;
 mod board;
 mod budget;
 mod checkpoint;

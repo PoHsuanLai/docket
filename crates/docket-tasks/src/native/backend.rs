@@ -11,10 +11,11 @@ use crate::native::end::end_of;
 use crate::native::ending::Ending;
 use crate::native::flight::Flight;
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use crate::shared::Shared;
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::{ContextKeep, Keep, TurnIn, UserTurn, WindowKey};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, ResumePlan, Resumed, SessionBackend, Standing,
@@ -68,7 +69,7 @@ impl<P, I, K, S> NativeBackend<P, I, K, S>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
-    K: Now + Send + Sync + 'static,
+    K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
 {
     /// The backend of `session`, which runs on `core`.
@@ -107,7 +108,7 @@ impl<P, I, K, S> NativeBackend<P, I, K, S>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
-    K: Now + Send + Sync + 'static,
+    K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
 {
     /// Records `said` with the router (which numbers it and derives the task's policy, and may
@@ -186,7 +187,7 @@ impl<P, I, K, S> SessionBackend for NativeBackend<P, I, K, S>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
-    K: Now + Send + Sync + 'static,
+    K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
 {
     fn kind(&self) -> BackendKind {

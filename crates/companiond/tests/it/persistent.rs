@@ -10,6 +10,7 @@ use almanac_core::{
 };
 use companion_wire::{AnswerBody, AnswerPhase};
 use docket_core::*;
+use docket_store::Waits;
 use prov::{Actor, Integrity, Label, Source, UnixSeconds};
 use serde_json::json;
 

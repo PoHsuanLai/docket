@@ -4,15 +4,16 @@
 //! abandon half way). Both are free functions over the shared view and the clock, so a caller can
 //! hold other fields of the companion while it waits.
 
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use crate::shared::Shared;
-use docket_core::{Stop, stop_after, until, within};
+use docket_core::{Clock, Millis};
+use docket_store::{Stop, stop_after, until, within};
 use prov::TaskId;
 use std::future::Future;
 use std::time::Duration;
 
 /// `work`, ended early by a cancel of `task` or by `span` running out.
-pub(crate) async fn bounded<K: Now, S: Surface, T>(
+pub(crate) async fn bounded<K: Clock, S: Surface, T>(
     shared: &Shared<S>,
     clock: &K,
     task: &TaskId,
@@ -20,18 +21,23 @@ pub(crate) async fn bounded<K: Now, S: Surface, T>(
     work: impl Future<Output = T>,
 ) -> Result<T, Stop> {
     let cancel = shared.cancel_of(task);
-    let stop = stop_after(clock.sleep(span), cancel.cancelled());
+    let stop = stop_after(clock.after(millis(span)), cancel.cancelled());
     // Boxed so the waited future lives on the heap: inline it would sit one more layer deep on the
     // polling thread's stack, and the policy point's evaluator refuses to run below its stack floor.
     until(Box::pin(work), stop).await
 }
 
 /// `work`, ended early by `span` running out.
-pub(crate) async fn timed<K: Now, T>(
+pub(crate) async fn timed<K: Clock, T>(
     clock: &K,
     span: Duration,
     work: impl Future<Output = T>,
 ) -> Result<T, Stop> {
     // Boxed for the same reason as in `bounded`.
-    within(clock.sleep(span), Box::pin(work)).await
+    within(clock.after(millis(span)), Box::pin(work)).await
+}
+
+/// `span` in milliseconds, as many as a `Millis` holds.
+fn millis(span: Duration) -> Millis {
+    Millis(u32::try_from(span.as_millis()).unwrap_or(u32::MAX))
 }

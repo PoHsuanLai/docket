@@ -57,7 +57,7 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
     let bus = PrivateBus::start(scratch.path());
     let (server, client) = (bus.connect().await, bus.connect().await);
     let w = world(vec![words("Hello there.")]);
-    let (launcher, hand) = (w.launcher, w.hand);
+    let (launcher, hand) = (w.launcher, w.clock);
     let companion = Arc::new(Mutex::new(w.companion));
     serve_on_rooted(
         &server,
@@ -89,7 +89,7 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
         turn: UserTurn {
             id: turn,
             text: "hello".into(),
-            at: prov::UnixSeconds(hand.load(std::sync::atomic::Ordering::SeqCst)),
+            at: hand.now(),
             from: TurnSource::Terminal,
             via: TurnVia::Typed,
             mode: None,

@@ -9,7 +9,7 @@
 //! bus, no runtime: a crate that needs to wait gets a future from its surface.
 //!
 //! - [`Companion`]: the runtime and the entry points a host calls.
-//! - [`Now`], [`Surface`], [`Quiet`]: the seams beyond the link and the model.
+//! - [`Surface`], [`Quiet`]: the seam beyond the link, the model and the clock.
 //! - [`Shared`], [`Change`]: what a surface reads without waiting for the loop.
 //! - [`RecentSource`], [`recover`], [`replay_of`]: restart, from what the eventlog holds, read
 //!   through `Recent` with `BodyMode::Json`.
@@ -79,7 +79,7 @@ pub use recover::{
 pub use resume::Restarted;
 pub use run_ends::report_end;
 pub use runtime::{Begun, Companion, idle_state};
-pub use seams::{Now, Quiet, Surface};
+pub use seams::{Quiet, Surface};
 pub use shared::{Change, Shared};
 pub use sources::nowhere;
 pub use stored_roster::{events_of, stored_events};

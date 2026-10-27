@@ -15,7 +15,7 @@ use crate::prepared::{
     Early, Prepared, digest, entities, grant_state, proposed, typed_history, usage_of,
 };
 use crate::router::Router;
-use crate::seams::{Clock, GrantStore, Seams};
+use crate::seams::{GrantStore, Seams};
 use crate::session::{CloseCause, SessionEffect, SessionEvent, SessionState, session_step};
 use crate::spacing::relation_of;
 use crate::standing::StandingCtx;
@@ -23,6 +23,7 @@ use crate::state::{RouterState, SessionRecord};
 use crate::turn_start::{TurnStart, pass, rule};
 use crate::who::Who;
 use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
+use docket_core::Clock;
 use docket_core::{
     ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
     CallRequest, CallerRole, Classification, Cost, DenyCode, Depth, Impact, Lasting, LimitCall,

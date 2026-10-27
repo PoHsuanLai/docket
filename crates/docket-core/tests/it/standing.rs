@@ -626,3 +626,13 @@ fn a_read_scope_covers_its_action_only_and_never_the_pseudo_app() {
     let other = GrantCaller::AcpAgent(ProgramName::parse("gemini-cli").expect("program"));
     assert_eq!(grant.covers(&other, &search), Cover::Misses);
 }
+
+#[test]
+fn a_damaged_standing_text_is_a_typed_fault_not_an_empty_list() {
+    for text in ["{", "[1]", "{\"not\": \"a list\"}"] {
+        assert!(
+            matches!(decode_standing(text), Err(StandingFileFault::Decode(_))),
+            "{text:?}"
+        );
+    }
+}

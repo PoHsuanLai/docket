@@ -6,29 +6,12 @@ use crate::infer::{InferdModel, InferdWriter, ReaderClient};
 use crate::sheet::SheetConfirmer;
 use action_review::InferReviewer;
 use docket_checkpoint_git::{GitStore, StdGitRun};
-use docket_core::Millis;
 use docket_memory::QueuedSink;
 use docket_memory::{AlmanacMemory, AlmanacSessionLog};
-use docket_router::{Clock, NoLog, Seams};
+use docket_router::{NoLog, Seams};
 use docket_session::{Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog};
-use prov::{SessionId, UnixSeconds};
-
-/// The system clock: the one place intentd reads the time.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct SystemClock;
-
-impl Clock for SystemClock {
-    fn now(&self) -> UnixSeconds {
-        let seconds = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_secs());
-        UnixSeconds(i64::try_from(seconds).unwrap_or(i64::MAX))
-    }
-
-    async fn after(&self, wait: Millis) {
-        tokio::time::sleep(std::time::Duration::from_millis(u64::from(wait.0))).await;
-    }
-}
+use docket_store::SystemClock;
+use prov::SessionId;
 
 /// The sessions' log of the running daemon: memoryd's, or none. The daemon reads the log once at
 /// start (`Router::adopt_sessions`); a memoryd that cannot serve it (not running, or too old to

@@ -10,6 +10,7 @@ use companion_wire::{
     app_name_of,
 };
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::helper::{
     BackOutcome, BoardEvent, BroughtOutcome, HandFault, HelperCard, HelperKind, HelperState,
     JobRefusal, TerminalLogin, TerminalRequest, ToTerminalOutcome,
@@ -21,10 +22,11 @@ use prov::{AgentProgram, HelperId, SessionId};
 /// What a call that needs a host of apps says when there is none.
 const NO_APPS: &str = "No apps can be reached here.";
 
-impl<P, I> Hub<P, I>
+impl<P, I, K> Hub<P, I, K>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     /// Where the helper's conversation is running.
     fn runs_in(&self, helper: &HelperId) -> RunsIn {

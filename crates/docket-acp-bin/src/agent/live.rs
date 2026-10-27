@@ -3,7 +3,6 @@
 //! a spawner is made of. One agent's session (`host_typed`) and the sessions of many helpers'
 //! agents (`helper_host`) both start from here, so both hold an agent to the same rules.
 
-use crate::Wall;
 use crate::agent::host::{Hosting, Wiring};
 use crate::agent::provider::{PerformerProvider, Quiet};
 use bulkhead::{BwrapSandbox, Detected, NetworkMode};
@@ -21,6 +20,7 @@ use docket_launch::{
     ToolsMode, login_run,
 };
 use docket_session::ProgramName;
+use docket_store::SystemClock;
 use prov::{HelperId, SessionId, TaskId};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -110,7 +110,7 @@ impl<A: Accounts + 'static> Live<A> {
             bus.object_server()
                 .at(
                     CONFIRM_PATH,
-                    crate::confirm::ConfirmObject::new(desk.clone(), Wall, callers.clone()),
+                    crate::confirm::ConfirmObject::new(desk.clone(), SystemClock, callers.clone()),
                 )
                 .await
                 .map_err(|e| e.to_string())?;

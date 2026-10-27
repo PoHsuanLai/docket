@@ -1,7 +1,8 @@
 //! Writes the person's choices into `agents.toml`: the model, the way of signing in and who keeps
 //! the history of the files of one entry, and nothing else. The file is edited in place, so comments and every other field stay.
 
-use docket_core::{Rewind, write_atomic};
+use docket_core::Rewind;
+use docket_store::write_atomic;
 use std::path::Path;
 use toml_edit::{DocumentMut, Item, value};
 

@@ -8,12 +8,13 @@
 use crate::best_effort::best_effort;
 use crate::fault::ServeFault;
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use agent_loop::{
     IdleEffect, IdleInput, NarrativeJob, SideEffect, SideInput, side_episode, side_step,
 };
 use almanac_core::{Episode, Narrative, UserText};
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::{LedgerStep, NoteAsk};
 use futures_util::future::Either;
 use porter_client::Transport as InferTransport;
@@ -77,7 +78,7 @@ enum Narrated {
     Failed,
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Time passed, as the clock says.
     pub async fn tick(&mut self) -> Result<(), ServeFault> {
         let now = self.clock.now();

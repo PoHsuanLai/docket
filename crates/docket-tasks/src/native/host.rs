@@ -6,10 +6,11 @@
 
 use crate::native::backend::{Core, NativeBackend};
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use crate::shared::Shared;
 use companion_wire::NeedsYou;
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::{
     ConfirmId, ConfirmRequest, ContextKeep, Keep, Origin, SessionOpen, TurnIn, UserTurn,
 };
@@ -56,7 +57,7 @@ impl<P, I, K, S, L> NativeHost<P, I, K, S, L>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
-    K: Now + Send + Sync + 'static,
+    K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
     L: SessionLog,
 {
@@ -99,7 +100,7 @@ impl<P, I, K, S, L, D> NativeHost<P, I, K, S, L, D>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
-    K: Now + Send + Sync + 'static,
+    K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
     L: SessionLog,
     D: SheetDesk,
@@ -148,7 +149,7 @@ impl<P, I, K, S, L, D> SessionHost for NativeHost<P, I, K, S, L, D>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
-    K: Now + Send + Sync + 'static,
+    K: Clock + 'static,
     S: Surface + Send + Sync + 'static,
     L: SessionLog,
     D: SheetDesk,

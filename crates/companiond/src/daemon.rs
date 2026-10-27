@@ -3,7 +3,6 @@
 
 use crate::Companiond;
 use crate::apps_link::AppsLink;
-use crate::clock::Clock;
 use crate::config::CompaniondConfig;
 use crate::handoff::HostLink;
 use crate::helpers::Hub;
@@ -16,6 +15,7 @@ use docket_dbus::callers::{CallerTable, Identity};
 use docket_dbus::{BusConnection, InferLink};
 use docket_planner::PlannerModel;
 use docket_skills::{Roots, discover};
+use docket_store::SystemClock;
 use docket_tasks::ServeFault;
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
@@ -110,7 +110,7 @@ pub async fn start_with_agents(
         intents,
         planner,
         config.agent,
-        Clock::System,
+        SystemClock,
         config.shell.clone(),
     )
     .with_skills(found.skills)
@@ -130,7 +130,7 @@ pub async fn start_with_agents(
                     card,
                 ),
                 agent,
-                Clock::System,
+                SystemClock,
                 shell.clone(),
             )
         };
@@ -139,7 +139,7 @@ pub async fn start_with_agents(
             Intents::over(DbusTransport::new(connection.clone())),
             PlannerModel::new(docket_dbus::inferd_transport(connection, InferWatch::off())),
             config.agent,
-            Clock::System,
+            SystemClock,
             config.shell.clone(),
         );
         Hub::new(service, companion.shared.clone(), make)
@@ -169,7 +169,7 @@ pub async fn start_with_agents(
     // the unit's sandbox lets the daemon reach the user's unit directory (`Timers::Dir`).
     let routines = Arc::new(Routines::new(
         Arc::new(HubHost::new(hub.clone(), Timers::Off)),
-        Clock::System,
+        SystemClock,
     ));
     if tokio::time::timeout(companion.waits.startup, routines.restore(&config.spaces))
         .await

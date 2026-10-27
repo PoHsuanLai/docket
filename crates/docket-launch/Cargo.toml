@@ -21,6 +21,7 @@ path = "src/lib.rs"
 docket-agents = { workspace = true }
 docket-acp = { workspace = true, features = ["client", "server"] }
 docket-core = { workspace = true }
+docket-store = { workspace = true }
 docket-session = { workspace = true }
 docket-settings = { workspace = true }
 bulkhead = { workspace = true }

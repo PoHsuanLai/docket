@@ -47,7 +47,7 @@ What docket adds or decides differently, each with its reason:
 9. **Labels are literals until prov's lattice is filled.** `Label::{trusted_user, untrusted,
    join}` are frozen `todo!()`s in porter; docket's tests and fakes write `Label { .. }`
    literals, and every call to `join` is behind an `#[ignore]`d test.
-10. **Nothing ambient below the daemons.** The clock (`docket_router::Clock`), the apps, the
+10. **Nothing ambient below the daemons.** The clock (`docket_core::Clock`; the one system clock is `docket_store::SystemClock`), the apps, the
     sheet, memory, the reviewer, the reader and the grant store are passed in; only `intentd`,
     `companiond`, `readerd`, `voiced` and `actions-mcp` read the system clock, the environment
     or a bus.

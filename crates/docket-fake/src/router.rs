@@ -10,8 +10,9 @@ use crate::scripted::{
 use crate::seams::{FakeLink, FakeSeams};
 use crate::simple::{MemoryGrants, RecordingSink};
 use action_review::Reviewer;
+use docket_core::Clock;
 use docket_core::{AgentConfig, PolicyWriter, ValidManifest};
-use docket_router::{Clock, Registry, RegistryError, Router, parse};
+use docket_router::{Registry, RegistryError, Router, parse};
 use docket_session::SessionLog;
 use docket_session::fake::MemoryLog;
 use policy_point::{PolicyError, Presets};

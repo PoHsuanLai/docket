@@ -8,6 +8,7 @@ use companion_wire::{
     EventForm, RoutineCardView, RoutineForm, RoutineLine, RoutineReply, RoutinesView, WhenForm,
     routine_card, routine_line,
 };
+use docket_core::Clock;
 use docket_core::helper::{GoalText, HelperName};
 use docket_core::routine::{
     EventMatch, JobRef, NewRoutine, Routine, RoutineEvent, RoutineId, RunBudget, Schedule, Trigger,
@@ -61,7 +62,7 @@ fn trigger_of(when: WhenForm) -> Result<Trigger, String> {
     }
 }
 
-impl<H: Host> Routines<H> {
+impl<H: Host, K: Clock> Routines<H, K> {
     fn name_in_line(&self, routine: &Routine) -> HelperName {
         self.host()
             .name_of(&routine.helper)
@@ -102,7 +103,7 @@ impl<H: Host> Routines<H> {
     }
 }
 
-impl<H: Host> RoutineDesk for Routines<H> {
+impl<H: Host, K: Clock> RoutineDesk for Routines<H, K> {
     fn view(&self) -> RoutinesView {
         RoutinesView {
             routines: self

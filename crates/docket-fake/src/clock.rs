@@ -1,8 +1,9 @@
 //! A virtual clock: it says the same instant until a test moves it, and the router's timers
 //! (`Clock::after`) complete only when the test has advanced it far enough. No wall time passes.
 
+use docket_core::Clock;
 use docket_core::{Millis, Seconds};
-use docket_router::{Clock, Flag, Queue};
+use docket_router::{Flag, Queue};
 use prov::UnixSeconds;
 use std::sync::{Arc, Mutex};
 

@@ -5,9 +5,10 @@
 use crate::acp_agent::{host, program};
 use crate::support::*;
 use docket_checkpoint::{CheckpointStore, DropAsk, Tracking, WorkRoot};
+use docket_core::Clock;
 use docket_core::*;
 use docket_fake::FakeSeams;
-use docket_router::{CHECKPOINTS_APP, CHECKPOINTS_RESTORE, Clock, Router};
+use docket_router::{CHECKPOINTS_APP, CHECKPOINTS_RESTORE, Router};
 use porter_core::Count;
 use prov::{ActionName, Actor, AgentRef, Labelled, SessionId};
 use std::collections::BTreeMap;

@@ -13,10 +13,11 @@ agent-loop = { workspace = true }
 almanac-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-client = { workspace = true }
-docket-core = { workspace = true, features = ["wait"] }
+docket-core = { workspace = true }
 docket-planner = { workspace = true }
 docket-session = { workspace = true }
 docket-skills = { workspace = true }
+docket-store = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
 porter-client = { workspace = true }

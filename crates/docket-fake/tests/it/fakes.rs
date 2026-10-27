@@ -2,9 +2,10 @@
 
 use action_review::{ReviewVerdict, Reviewer};
 use docket_client::IntentProvider;
+use docket_core::Clock;
 use docket_core::*;
 use docket_fake::*;
-use docket_router::{Clock, GrantStore};
+use docket_router::GrantStore;
 use prov::{ActionName, Actor, AppName, SpaceId, UnixSeconds};
 use std::collections::BTreeSet;
 

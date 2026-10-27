@@ -7,13 +7,14 @@ use crate::desk::HelperDesk;
 use crate::fault::ServeFault;
 use crate::handoff::Handoff;
 use crate::helpers::AsHelper;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use crate::shared::Shared;
 use crate::task::{TaskRuntime, roster_state};
 use agent_loop::{FrontEvent, IdleState, LoopInput, LoopPhase, LoopState, SideTable, front_step};
 use almanac_core::{Episode, EpisodeId};
 use companion_wire::{AnswerPhase, AskWire, FrontTask, SessionRecord};
 use docket_client::{Intents, Transport as IntentsTransport};
+use docket_core::Clock;
 use docket_core::{
     AgentConfig, EpisodeLine, LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine,
     SessionOpen, SessionOpened,
@@ -63,17 +64,11 @@ pub(crate) struct Narration {
 /// use docket_core::{AgentConfig, CallerId, CallerRole, SessionOpen};
 /// use docket_fake::{WordsModel, fake_router};
 /// use docket_planner::PlannerModel;
-/// use docket_tasks::{Companion, Now, Quiet};
+/// use docket_fake::FixedClock;
+/// use docket_tasks::{Companion, Quiet};
 /// use porter_core::{AppId, AppName, Isolation};
 /// use prov::{AgentRef, SpaceId, UnixSeconds};
 /// use std::{collections::BTreeSet, sync::Arc};
-///
-/// struct Still;
-/// impl Now for Still {
-///     fn now(&self) -> UnixSeconds {
-///         UnixSeconds(1_000)
-///     }
-/// }
 ///
 /// let router = Arc::new(fake_router(AgentConfig::default())?);
 /// let shell = AppName::parse("org.quire.Shell")?;
@@ -84,11 +79,11 @@ pub(crate) struct Narration {
 ///     },
 ///     roles: BTreeSet::from([CallerRole::Companion]),
 /// };
-/// let mut companion: Companion<_, _, Still, Quiet> = Companion::new(
+/// let mut companion: Companion<_, _, FixedClock, Quiet> = Companion::new(
 ///     Intents::over(InProcess::new(router, caller)),
 ///     PlannerModel::new(WordsModel::says("Done.")),
 ///     AgentConfig::default(),
-///     Still,
+///     FixedClock::at(UnixSeconds(1_000)),
 ///     shell,
 /// );
 /// let opened = companion
@@ -115,7 +110,7 @@ pub struct Companion<P: InferTransport, I: IntentsTransport, K, S> {
     /// The proposed values.
     pub config: AgentConfig,
     /// How long each kind of peer may take before the loop gives up on it.
-    pub waits: docket_core::Waits,
+    pub waits: docket_store::Waits,
     /// The task the launcher returns to.
     pub front: Option<TaskId>,
     /// Each task's loop.
@@ -187,7 +182,7 @@ pub fn idle_state() -> LoopState {
     }
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// A companion with no tasks yet, over the surface's default.
     pub fn new(
         intents: Intents<I>,
@@ -201,7 +196,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
             intents,
             planner,
             config,
-            waits: docket_core::Waits::default(),
+            waits: docket_store::Waits::default(),
             front: None,
             tasks: BTreeMap::new(),
             side: SideTable::default(),
@@ -271,7 +266,7 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
     }
 
     /// The same companion, waiting on its peers as `waits` says.
-    pub fn with_waits(self, waits: docket_core::Waits) -> Self {
+    pub fn with_waits(self, waits: docket_store::Waits) -> Self {
         Self { waits, ..self }
     }
 

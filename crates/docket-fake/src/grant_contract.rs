@@ -1,7 +1,7 @@
 //! What every consent-file store must do, as one table a host runs over its own store.
 //!
 //! Both the daemon's store and an app's in-process store keep the person's consent in a file
-//! and share the disk rules in `docket_core::GrantFileError`'s module. A host calls
+//! and share the disk rules in `docket_store::GrantFileError`'s module. A host calls
 //! [`check_grant_file_contract`] with a way to open its store at a path and the name of the file
 //! its standing grants live in; what is particular to a host (its typed errors, its defaults,
 //! what a failed write is kept as) stays in the host's own tests. Test code: it panics on a

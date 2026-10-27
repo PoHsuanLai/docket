@@ -58,7 +58,11 @@ impl Fixture {
         acp.object_server()
             .at(
                 CONFIRM_PATH,
-                ConfirmObject::new(desk.clone(), FixedClock, acp_who),
+                ConfirmObject::new(
+                    desk.clone(),
+                    docket_fake::FixedClock::at(prov::UnixSeconds(1)),
+                    acp_who,
+                ),
             )
             .await
             .expect("served");
@@ -118,20 +122,6 @@ impl Fixture {
             .await
             .expect("proxy");
         proxy.confirm(&text).await.is_err()
-    }
-}
-
-/// The receipts' clock: any instant will do.
-#[derive(Debug, Clone, Copy)]
-struct FixedClock;
-
-impl docket_router::Clock for FixedClock {
-    fn now(&self) -> prov::UnixSeconds {
-        prov::UnixSeconds(1)
-    }
-
-    fn after(&self, _wait: docket_core::Millis) -> impl std::future::Future<Output = ()> + Send {
-        std::future::pending()
     }
 }
 

@@ -6,8 +6,8 @@
 
 use super::host::{Awake, EventAsk, Host, Seen};
 use super::units::units_of;
-use crate::Clock;
 use almanac_core::EventRef;
+use docket_core::Clock;
 use docket_core::routine::{
     EventMatch, JobEnd, RoutineBook, RoutineEffect, RoutineEvent, RoutineId, RoutineRecord,
     TimerEntry, step,
@@ -40,21 +40,21 @@ struct State {
 }
 
 /// The routines, over a [`Host`].
-pub struct Routines<H: Host> {
+pub struct Routines<H: Host, K: Clock> {
     host: Arc<H>,
-    clock: Clock,
+    clock: K,
     state: Mutex<State>,
 }
 
-impl<H: Host> fmt::Debug for Routines<H> {
+impl<H: Host, K: Clock> fmt::Debug for Routines<H, K> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Routines").finish_non_exhaustive()
     }
 }
 
-impl<H: Host> Routines<H> {
+impl<H: Host, K: Clock> Routines<H, K> {
     /// No routines yet; `restore` brings the stored ones back.
-    pub fn new(host: Arc<H>, clock: Clock) -> Self {
+    pub fn new(host: Arc<H>, clock: K) -> Self {
         let polled = clock.now();
         Self {
             host,

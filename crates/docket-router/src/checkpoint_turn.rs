@@ -4,12 +4,13 @@
 
 use crate::deadline::within;
 use crate::router::Router;
-use crate::seams::{Clock, Seams};
+use crate::seams::Seams;
 use crate::state::SessionKind;
 use docket_checkpoint::{
     CheckpointStore, Decision, DropAsk, Saved, StoreFault, TakeAsk, WorkRoot, decide, next_id,
     retention,
 };
+use docket_core::Clock;
 use docket_core::{
     AgentConfig, CheckpointEvent, CheckpointId, CheckpointNote, Millis, Retention, Rewind,
     SkipReason, TurnId,

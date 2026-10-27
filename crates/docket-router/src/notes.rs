@@ -4,9 +4,10 @@
 //! handle (`Session.Handles`).
 
 use crate::router::Router;
-use crate::seams::{Clock, EventSink, Seams};
+use crate::seams::{EventSink, Seams};
 use crate::tasks::{TaskRecord, TaskState};
 use almanac_core::{Episode, EpisodeId, EpisodeKind, EpisodeOutcome, Narrative};
+use docket_core::Clock;
 use docket_core::{AuditRecord, CallEnd, IntentsReply, NoteAsk, WireRefusal, close};
 use prov::{Integrity, ReportStatus, SessionId};
 

@@ -22,13 +22,12 @@
 //!   [`AlmanacMemory`] (recall and the audit as episodes, over `almanac-client`),
 //!   [`TransportWriter`] (the task policy from the person's words), [`TransportReader`] (the
 //!   quarantined reader in this process), and [`reviewer_over`] (the model-backed reviewer for
-//!   [`InAppParts::reviewer`]); [`SystemClock`] is the router's clock with no runtime needed.
+//!   [`InAppParts::reviewer`]).
 
 mod agent;
 mod ask;
 mod audit;
 mod audit_file;
-mod clock;
 mod desk;
 mod grants;
 mod kit;
@@ -39,11 +38,9 @@ mod skills;
 mod tasks;
 mod turn_watch;
 
-pub use agent::{AgentFault, Ending, Failure, HostClock, InAppAgent, InAppParts, Reply};
+pub use agent::{AgentFault, Ending, Failure, InAppAgent, InAppParts, Reply};
 pub use audit_file::{AuditFile, AuditFileError};
-pub use clock::SystemClock;
 pub use desk::EditorDesk;
-pub use docket_core::GrantFileError;
 pub use docket_memory::{AlmanacMemory, AuditState, Flushed, QueuedSink, Report};
 pub use docket_models::{TransportModel, TransportWriter, placeholder_set, reviewer_over};
 pub use docket_reader::TransportReader;

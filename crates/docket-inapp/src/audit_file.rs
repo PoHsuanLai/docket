@@ -12,8 +12,9 @@
 //! ([`InAppAgent::take_audit_fault`](crate::InAppAgent)): the records still wait in memory for
 //! this run.
 
-use docket_core::{AuditRecord, write_atomic};
+use docket_core::AuditRecord;
 use docket_memory::QUEUE_LIMIT;
+use docket_store::write_atomic;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 

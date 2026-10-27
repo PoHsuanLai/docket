@@ -19,11 +19,11 @@ use crate::live::warm_bus::warm_up;
 use crate::world::{Binaries, Options, TapMode};
 use action_review::InferReviewer;
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, AskWire};
-use companiond::{Clock, Companiond, PlannerModel};
+use companiond::{Companiond, PlannerModel};
 use docket_client::{InProcess, Intents};
 use docket_core::{
-    AgentConfig, CallerId, CallerRole, ContextKeep, Keep, Origin, SessionOpen, TurnIn, TurnSource,
-    TurnVia, UserTurn, WindowKey,
+    AgentConfig, CallerId, CallerRole, Clock, ContextKeep, Keep, Origin, SessionOpen, TurnIn,
+    TurnSource, TurnVia, UserTurn, WindowKey,
 };
 use docket_dbus::Watched;
 use docket_eval::{
@@ -33,8 +33,9 @@ use docket_eval::{
 use docket_fake::fake_router_reading;
 use docket_reader::TransportReader;
 use docket_session::fake::MemoryLog;
+use docket_store::SystemClock;
 use docket_trace::{MemoryTap, Tap};
-use intentd::{InferdModel, InferdWriter, SystemClock};
+use intentd::{InferdModel, InferdWriter};
 use porter_client::{AnyTransport, DbusTransport};
 use porter_core::{AppId, AppName, Isolation};
 use prov::{AgentRef, SessionId};
@@ -183,7 +184,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
         )),
         PlannerModel::new(rig.link()),
         AgentConfig::default(),
-        Clock::System,
+        SystemClock,
         shell,
     );
     let launcher = Intents::over(InProcess::new(
@@ -219,7 +220,7 @@ async fn play(rig: &Rig, attack: &AttackCase, case: &Case) -> Result<LiveRun, St
     let turn = UserTurn {
         id: turn,
         text: words,
-        at: Clock::System.now(),
+        at: SystemClock.now(),
         from: TurnSource::Launcher,
         via: TurnVia::Typed,
         mode: None,

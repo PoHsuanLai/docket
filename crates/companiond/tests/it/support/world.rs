@@ -2,13 +2,13 @@
 //! the launcher as another, a scripted planner model, and a clock the test moves by hand.
 
 use super::infer::{Say, ScriptedInfer};
-use companiond::{Clock, Companiond, Hub, PlannerModel};
+use companiond::{Companiond, Hub, PlannerModel};
 use docket_client::{InProcess, Intents};
 use docket_core::helper::HelperCard;
 use docket_core::*;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Identity, Role};
-use docket_fake::{FakeSeams, MailContact, MailThread, fake_router};
+use docket_fake::{FakeSeams, FixedClock, MailContact, MailThread, fake_router};
 use docket_router::Router;
 use porter_core::{AppId, AppName, Isolation};
 use prov::{
@@ -16,9 +16,8 @@ use prov::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicI64, Ordering};
 
-pub type Companion = Companiond<ScriptedInfer, InProcess<FakeSeams>>;
+pub type Companion = Companiond<ScriptedInfer, InProcess<FakeSeams>, FixedClock>;
 
 pub fn space(s: &str) -> SpaceId {
     SpaceId::parse(s).expect("space")
@@ -51,12 +50,18 @@ pub struct World {
     pub infer: ScriptedInfer,
     pub companion: Companion,
     pub launcher: Intents<InProcess<FakeSeams>>,
-    pub hand: Arc<AtomicI64>,
+    pub clock: FixedClock,
+}
+
+/// Moves `clock` forward to `at`; a test's time never runs backward.
+pub fn set_clock(clock: &FixedClock, at: i64) {
+    let ahead = at - clock.now().0;
+    clock.pass(Seconds(u32::try_from(ahead).expect("time moves forward")));
 }
 
 impl World {
     pub fn set_time(&self, at: i64) {
-        self.hand.store(at, Ordering::SeqCst);
+        set_clock(&self.clock, at);
     }
 }
 
@@ -122,7 +127,7 @@ fn world_all(
     // The built-in `org.quire.Companion` provider answers through the router, as in intentd.
     docket_fake::host_companion(&router);
     let infer = ScriptedInfer::new(script);
-    let (clock, hand) = Clock::manual(prov::UnixSeconds(1_000));
+    let clock = FixedClock::at(prov::UnixSeconds(1_000));
     let companion = Companiond::new(
         Intents::over(InProcess::new(
             router.clone(),
@@ -130,7 +135,7 @@ fn world_all(
         )),
         PlannerModel::new(infer.clone()),
         AgentConfig::default(),
-        clock,
+        clock.clone(),
         app("org.quire.Shell"),
     )
     .with_skills(skills);
@@ -143,7 +148,7 @@ fn world_all(
         infer,
         companion,
         launcher,
-        hand,
+        clock,
     }
 }
 
@@ -222,7 +227,7 @@ impl World {
             )
             .await
             .expect("turn");
-        let at = prov::UnixSeconds(self.hand.load(Ordering::SeqCst));
+        let at = self.clock.now();
         self.companion
             .ask(companion_wire::AskWire {
                 session: session.clone(),
@@ -245,7 +250,7 @@ impl World {
     /// The companion after a restart: a new one over the same router, which remembers the
     /// sessions in its log. It has no state of its own.
     pub fn restarted(&self) -> Companion {
-        let (clock, _hand) = Clock::manual(prov::UnixSeconds(2_000));
+        let clock = FixedClock::at(prov::UnixSeconds(2_000));
         Companiond::new(
             Intents::over(InProcess::new(
                 self.router.clone(),
@@ -321,7 +326,7 @@ pub fn as_shell(who: &Identity, connection: &BusConnection) {
     who.introduce_app(connection, "org.quire.Shell", Role::SheetHost);
 }
 
-pub type TestHub = companiond::Hub<ScriptedInfer, InProcess<FakeSeams>>;
+pub type TestHub = companiond::Hub<ScriptedInfer, InProcess<FakeSeams>, FixedClock>;
 
 /// The companion a helper's job runs on: the router in process, and the helper's own scripted
 /// model, asked with the options `planner_for` gives it.
@@ -330,7 +335,7 @@ pub fn companion_for(
     infer: ScriptedInfer,
     card: &HelperCard,
 ) -> Companion {
-    let (clock, _hand) = Clock::manual(UnixSeconds(3_000));
+    let clock = FixedClock::at(UnixSeconds(3_000));
     Companiond::new(
         Intents::over(InProcess::new(
             router.clone(),

@@ -6,7 +6,7 @@ use crate::support::infer::{Say, ScriptedInfer, call, words};
 use crate::support::*;
 use docket_client::InProcess;
 use docket_core::{SessionOpen, TurnId, TurnSource, TurnVia, UserTurn};
-use docket_fake::FakeSeams;
+use docket_fake::{FakeSeams, FixedClock};
 use docket_session::contract::{self, Harness};
 use docket_session::{Opening, SessionBackend, StartSession};
 use docket_tasks::{NativeBackend, Quiet};
@@ -15,7 +15,7 @@ use prov::{AgentRef, UnixSeconds};
 use serde_json::json;
 use std::sync::Arc;
 
-type Backend = NativeBackend<ScriptedInfer, InProcess<FakeSeams>, Still, Quiet>;
+type Backend = NativeBackend<ScriptedInfer, InProcess<FakeSeams>, FixedClock, Quiet>;
 
 fn script() -> Vec<Say> {
     vec![

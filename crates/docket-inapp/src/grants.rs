@@ -9,10 +9,11 @@
 //! ([`FileGrantStore::take_fault`]); the grant still counts for this run.
 
 use docket_core::{
-    ActionGrant, GrantFileError, Revocation, StandingGrant, StandingGrantId, decode_standing,
-    encode_standing, held_with, held_without, read_grant_list, write_grant_list,
+    ActionGrant, Revocation, StandingGrant, StandingGrantId, decode_standing, encode_standing,
+    held_with, held_without,
 };
 use docket_router::GrantStore;
+use docket_store::{GrantFileError, read_grant_list, write_grant_list};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 

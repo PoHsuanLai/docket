@@ -2,7 +2,7 @@
 //! its validation, values and their schemas, context and previews, calls and every way they end,
 //! the undo journal, confirmation, budgets and the kill switch, the per-task policy, the
 //! planner and reader contract, the roster, messages, tasks and their episodes, audit records,
-//! the proposed configuration and the Intents1 wire.
+//! the proposed configuration, the Intents1 wire and the `Clock` seam.
 //!
 //! Pure and portable: serde only. Names `prov` for who and what, `almanac-core` for the pure
 //! shapes of memory (episodes, recall, recent), `cua-action` for the computer-use gate and
@@ -10,8 +10,6 @@
 
 mod agent_app;
 mod args;
-#[cfg(feature = "atomic-file")]
-mod atomic_file;
 mod audit;
 mod brief;
 mod budget;
@@ -19,6 +17,7 @@ mod call;
 mod caller;
 mod checkpoint;
 mod classify;
+mod clock;
 mod compact;
 mod config;
 mod confirm;
@@ -32,8 +31,6 @@ mod external;
 mod floor;
 mod gate;
 mod grant;
-#[cfg(feature = "atomic-file")]
-mod grant_file;
 mod grant_space;
 mod hand;
 mod handover;
@@ -71,10 +68,6 @@ mod undo;
 mod units;
 mod validate;
 mod value;
-#[cfg(feature = "wait")]
-mod wait;
-#[cfg(feature = "wait")]
-mod wait_timer;
 pub mod when;
 mod wire;
 mod workspace;
@@ -85,8 +78,6 @@ pub use agent_app::{
 };
 pub use agent_app::{action as acp_agent_action, app as acp_agent_app};
 pub use args::{ArgsFault, TARGET_KEY, TargetFault, Why, args_from_json, target_from_json};
-#[cfg(feature = "atomic-file")]
-pub use atomic_file::{read_optional, write_atomic};
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};
 pub use brief::{
     BRIEF_MAX, BriefEdit, BriefFault, BriefFlag, BriefSheet, BriefText, BriefWhy,
@@ -109,6 +100,7 @@ pub use checkpoint::{
 pub use classify::{
     CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd, PerCall,
 };
+pub use clock::Clock;
 pub use compact::{Covers, SUMMARY_MAX_CHARS, Summary, SummaryFault, SummaryText};
 pub use config::{
     AgentConfig, AssemblerBudget, BreakerLimits, IdleRules, ReviewTimeouts, SETTING_ROWS,
@@ -138,8 +130,6 @@ pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass,
 pub use grant::{
     ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, ProgramName, ProgramNameError,
 };
-#[cfg(feature = "atomic-file")]
-pub use grant_file::{GrantFileError, read_grant_file, read_grant_list, write_grant_list};
 pub use grant_space::{
     Ended, GrantEnd, GrantListFault, KnownSpaces, Reconciled, decode_grants, reconcile,
     without_space,
@@ -227,8 +217,6 @@ pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
 pub use units::{CharCount, Days, Depth, Generation, Millis, Scale, Seconds};
 pub use validate::{ManifestError, ValidManifest, fits, open_name, validate};
 pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
-#[cfg(feature = "wait")]
-pub use wait::{Cancel, Stop, ThreadSleep, Waits, stop_after, thread_sleep, until, within};
 pub use wire::{
     Displayed, Envelope, GrantAnswer, GrantAsk, HelperNote, IntentsReply, IntentsRequest,
     JournalFilter, NoteAsk, NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine,

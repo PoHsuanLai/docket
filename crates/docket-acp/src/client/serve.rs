@@ -16,9 +16,10 @@ use agent_client_protocol_schema::v1::{
     RequestPermissionResponse,
 };
 use docket_core::{
-    CallId, FILES_READ, FILES_WRITE, StepLine, StepShown, TERMINAL_RUN, acp_agent_action, within,
+    CallId, FILES_READ, FILES_WRITE, StepLine, StepShown, TERMINAL_RUN, acp_agent_action,
 };
 use docket_session::{BackendEvent, CallEvent, CallOpen, TurnEnd};
+use docket_store::within;
 use prov::Effect;
 use serde_json::Value;
 use std::time::Duration;

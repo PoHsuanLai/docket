@@ -62,9 +62,9 @@ pub use permission::{
     sheet_options, sheet_request, verdict, verdict_of_reply,
 };
 pub use scope_words::always_words;
-pub use server::{Server, Ticks};
+pub use server::Server;
 #[cfg(feature = "server")]
-pub use stdio::{LINE_MAX, LineFault, LineWire, SystemTicks, read_capped};
+pub use stdio::{LINE_MAX, LineFault, LineWire, read_capped};
 pub use terminals::Terminals;
 pub use turn::{Finish, Order, Turn, Wants};
 pub use wire::{Incoming, NotJsonRpc, Wire, WireClosed};

@@ -5,8 +5,9 @@
 
 use docket_core::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
 use docket_fake::check_grant_file_contract;
-use docket_inapp::{FileGrantStore, GrantFileError};
+use docket_inapp::FileGrantStore;
 use docket_router::GrantStore;
+use docket_store::GrantFileError;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{AppName, DataClass, GrantId};
 use prov::{ActionName, SpaceScope, UnixSeconds};

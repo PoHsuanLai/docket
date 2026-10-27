@@ -6,7 +6,7 @@
 //! to run it once on waking).
 
 use docket_core::routine::TimerEntry;
-use docket_core::{read_optional, write_atomic};
+use docket_store::{read_optional, write_atomic};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 

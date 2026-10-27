@@ -3,27 +3,27 @@
 use crate::defaults::{default_grants_file, read_defaults};
 use crate::policies::{PolicyDirs, load_policies};
 use docket_core::{
-    ActionGrant, Ended, GrantFileError, KnownSpaces, Limit, LimitCaller, LimitKey, LimitLevel,
-    LimitMaker, LimitScope, Reconciled, Revocation, RuleFile, SpaceAccess, StandingGrant,
-    StandingGrantId, decode_grants, decode_limits, decode_standing, encode_limits, encode_standing,
-    held_with, held_without, limits_with, limits_without, read_grant_file, read_grant_list,
-    read_optional, reconcile, with_rule, without_rule, without_space, write_atomic,
-    write_grant_list,
+    ActionGrant, Ended, KnownSpaces, Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker,
+    LimitScope, Reconciled, Revocation, RuleFile, SpaceAccess, StandingGrant, StandingGrantId,
+    decode_grants, decode_limits, decode_standing, encode_limits, encode_standing, held_with,
+    held_without, limits_with, limits_without, reconcile, with_rule, without_rule, without_space,
 };
 use docket_router::GrantStore;
+use docket_store::{
+    GrantFileError, WriteLock, read_grant_file, read_grant_list, read_optional, write_atomic,
+    write_grant_list,
+};
 use policy_point::Presets;
 use prov::{Effect, SpaceId, SpaceScope, UnixSeconds};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
-
-/// One writer at a time: a grant recorded while another is being written is added to the file
-/// the first left, not to the one it read before.
-static WRITING: Mutex<()> = Mutex::new(());
 
 /// Grants kept in `$XDG_DATA_HOME/quire/intents/grants.json`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct FileGrants {
     path: PathBuf,
+    /// One writer at a time: a grant recorded while another is being written is added to the
+    /// file the first left, not to the one it read before. Clones share it.
+    writing: WriteLock,
     /// The shipped defaults files, read-only, layered under what the person's file holds.
     defaults: Vec<PathBuf>,
     /// Where the rules files are: the person's directory and the assistant's inside it. None
@@ -36,6 +36,7 @@ impl FileGrants {
     pub fn at(path: PathBuf) -> Self {
         Self {
             path,
+            writing: WriteLock::new(),
             defaults: Vec::new(),
             rules: None,
         }
@@ -79,9 +80,7 @@ impl FileGrants {
         &self,
         settle: impl FnOnce(Vec<ActionGrant>) -> Reconciled,
     ) -> Result<Vec<Ended>, GrantFileError> {
-        let _one_at_a_time = WRITING
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _one_at_a_time = self.writing.hold();
         let read = self.read()?;
         let settled = settle(read.kept);
         let ended: Vec<Ended> = read.ended.into_iter().chain(settled.ended).collect();
@@ -214,9 +213,7 @@ impl GrantStore for FileGrants {
         if let SpaceAccess::Refused(_) = grant.key.space_access() {
             return;
         }
-        let _one_at_a_time = WRITING
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _one_at_a_time = self.writing.hold();
         // A file that cannot be read is not written over: the grant is not kept, and the
         // person is asked again.
         let Some(mut all) = logged(self.kept()) else {
@@ -235,9 +232,7 @@ impl GrantStore for FileGrants {
     }
 
     fn add_standing(&self, grant: StandingGrant) {
-        let _one_at_a_time = WRITING
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _one_at_a_time = self.writing.hold();
         if let Some(held) = logged(self.read_standing()) {
             logged(self.write_standing(&held_with(held, grant)));
         }
@@ -252,9 +247,7 @@ impl GrantStore for FileGrants {
     }
 
     fn add_limit(&self, limit: Limit) {
-        let _one_at_a_time = WRITING
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _one_at_a_time = self.writing.hold();
         if let Some(held) = logged(self.read_limits()) {
             logged(self.write_limits(&limits_with(held, limit)));
         }
@@ -263,9 +256,7 @@ impl GrantStore for FileGrants {
     // One revoke path for both: the id says which file it is in, and the administrator's locked
     // entries are in neither.
     fn revoke_standing(&self, id: &StandingGrantId) -> Revocation {
-        let _one_at_a_time = WRITING
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _one_at_a_time = self.writing.hold();
         if let Some(held) = logged(self.read_standing()) {
             let (rest, done) = held_without(held, id);
             if done == Revocation::Revoked {
@@ -289,9 +280,7 @@ impl GrantStore for FileGrants {
         let (Some(dirs), Some(file)) = (&self.rules, RuleFile::of(limit.by)) else {
             return;
         };
-        let _one_at_a_time = WRITING
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _one_at_a_time = self.writing.hold();
         logged(edit_rules(&rule_path(dirs, file), |text| {
             with_rule(text, limit)
         }));

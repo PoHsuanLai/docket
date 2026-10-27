@@ -10,14 +10,15 @@
 
 use crate::deadline::bounded;
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use agent_loop::{Sources, compaction_due, summarised, summary_input};
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::Summary;
 use porter_client::Transport as InferTransport;
 use prov::TaskId;
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// The summary that now stands for the start of `task`, when it was over its budget and one
     /// was made; `None` when nothing was due or the attempt failed.
     pub(crate) async fn compact(&mut self, task: &TaskId, sources: &Sources) -> Option<Summary> {
@@ -49,25 +50,18 @@ impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I,
 
 #[cfg(test)]
 mod tests {
-    use crate::{Companion, Now, Quiet};
+    use crate::{Companion, Quiet};
     use agent_loop::compaction_due;
     use docket_client::{InProcess, Intents};
     use docket_core::{
         ActionRef, AgentConfig, CallId, CallerId, CallerRole, LabelText, SessionOpen, StepEnd,
         StepLine, StepShown,
     };
-    use docket_fake::{WordsModel, fake_router};
+    use docket_fake::{FixedClock, WordsModel, fake_router};
     use docket_planner::PlannerModel;
     use porter_core::{AppId, AppName, Isolation, Tokens};
     use prov::{ActionName, AgentRef, Effect, SpaceId, UnixSeconds};
     use std::{collections::BTreeSet, sync::Arc};
-
-    struct Still;
-    impl Now for Still {
-        fn now(&self) -> UnixSeconds {
-            UnixSeconds(1_000)
-        }
-    }
 
     fn step(n: u64) -> StepLine {
         StepLine {
@@ -98,11 +92,11 @@ mod tests {
             },
             roles: BTreeSet::from([CallerRole::Companion]),
         };
-        let mut companion: Companion<_, _, Still, Quiet> = Companion::new(
+        let mut companion: Companion<_, _, FixedClock, Quiet> = Companion::new(
             Intents::over(InProcess::new(router, caller)),
             PlannerModel::new(WordsModel::says("Archived the earlier items in batches.")),
             AgentConfig::default(),
-            Still,
+            FixedClock::at(UnixSeconds(1_000)),
             shell,
         );
         let opened = companion

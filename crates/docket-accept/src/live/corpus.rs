@@ -17,8 +17,9 @@ use docket_eval::{
     Case, CaseTrace, Harness, Observed, PolicyMode, RunNote, RunReport, Tallies, run_case_traced,
 };
 use docket_fake::{FakeError, Forget, fake_router_with};
+use docket_store::SystemClock;
 use docket_trace::{MemoryTap, Tap};
-use intentd::{InferdModel, InferdWriter, SystemClock};
+use intentd::{InferdModel, InferdWriter};
 use porter_client::{AnyTransport, DbusTransport};
 use porter_core::{AccountId, Billing, Locality, ModelId};
 use porter_infer::ModelCard;

@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
   "crates/docket-core",
+  "crates/docket-store",
   "crates/docket-skills",
   "crates/policy-point",
   "crates/action-review",
@@ -59,6 +60,7 @@ publish = false
 actions-tools  = { path = "crates/actions-tools" }
 docket-agents  = { path = "crates/docket-agents" }
 docket-core    = { path = "crates/docket-core" }
+docket-store   = { path = "crates/docket-store" }
 docket-skills  = { path = "crates/docket-skills" }
 policy-point   = { path = "crates/policy-point" }
 action-review  = { path = "crates/action-review" }
@@ -162,6 +164,8 @@ proptest = "1"
 # docket-acp tests: validate our messages against the protocol-v1 JSON Schema kept in the repo (MIT).
 jsonschema = { version = "0.58", default-features = false }
 tempfile = "3"
+# docket-store: the durable file write (BSD-3-Clause): temporary file, fsync, rename, directory fsync.
+atomic-write-file = "0.3"
 # docket-agents: verify and unpack an agent from the registry (MIT/Apache-2.0 each).
 sha2 = "0.11"
 flate2 = "1"

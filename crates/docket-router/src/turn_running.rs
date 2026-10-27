@@ -11,7 +11,8 @@
 //! `Session.Turn`).
 
 use crate::router::Router;
-use crate::seams::{Clock, Seams};
+use crate::seams::Seams;
+use docket_core::Clock;
 use docket_core::{CallerId, CallerRole, IntentsReply, TurnId, TurnState, WireRefusal};
 use prov::{SessionId, UnixSeconds};
 

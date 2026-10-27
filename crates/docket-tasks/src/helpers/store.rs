@@ -6,9 +6,10 @@
 use crate::best_effort::best_effort;
 use crate::recover::{RecentSource, RouterRecent, owner_form};
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use almanac_core::{BodyMode, JsonText, KindPattern, RecentEntry, RecentQuery, TrustFilter};
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::helper::{HelperRecord, HelperRecordKind};
 use docket_core::{HelperNote, NoteAsk, SessionOpen};
 use porter_client::Transport as InferTransport;
@@ -63,7 +64,7 @@ pub fn helper_records_of(entries: &[RecentEntry]) -> Vec<HelperRecord> {
         .collect()
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Writes `records`, all of the helpers of `space`, through a session opened in that Space for
     /// the purpose and closed again. A router that does not answer loses them and says so.
     pub async fn write_helper_records(&self, space: &SpaceId, records: &[HelperRecord]) {

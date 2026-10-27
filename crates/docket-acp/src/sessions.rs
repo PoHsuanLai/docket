@@ -9,13 +9,14 @@ use crate::helpers::Helpers;
 use crate::history;
 use crate::mode::Mode;
 use crate::out;
-use crate::server::{Known, Server, Ticks, Turns};
+use crate::server::{Known, Server, Turns};
 use crate::wire::Wire;
 use agent_client_protocol_schema::v1::{
     Error, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest, LoadSessionResponse,
     NewSessionRequest, NewSessionResponse, SessionInfo,
 };
 use docket_core::CallerRole;
+use docket_core::Clock;
 use docket_session::{
     BackendKind, Claimant, Opening, ResumePlan, SessionHost, SessionLog, Workspace,
     may_restore_plan, read_all, resume_plan,
@@ -37,7 +38,7 @@ pub(crate) fn json(of: &impl serde::Serialize) -> Result<Value, Error> {
     serde_json::to_value(of).map_err(|_| fault::internal("could not answer"))
 }
 
-impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, W, T, S> {
+impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, W, T, S> {
     /// The plan of a stored session this editor may use, or "no such session".
     async fn mine(
         &self,

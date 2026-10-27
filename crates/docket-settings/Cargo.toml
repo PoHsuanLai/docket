@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 docket-agents = { workspace = true, optional = true }
 docket-core = { workspace = true }
+docket-store = { workspace = true, optional = true }
 porter-core = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
@@ -22,7 +23,7 @@ default = ["agents"]
 # The `agents.toml` rows the Settings app draws (`read_agents`, `write_agent_choice`, ...): they read
 # the registry's records through docket-agents, which links an unpacker. A consumer of the
 # `agent.*` keys alone turns this off.
-agents = ["dep:docket-agents", "docket-core/atomic-file"]
+agents = ["dep:docket-agents", "dep:docket-store"]
 
 [lints]
 workspace = true

@@ -12,7 +12,7 @@ use crate::routines::RoutineDesk;
 use crate::speaker::{Call, Speaker, Speakers};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{SessionOpen, StartedFrom, UserTurn};
+use docket_core::{Clock, SessionOpen, StartedFrom, UserTurn};
 use docket_dbus::callers::Identity;
 use docket_dbus::{
     BusConnection, COMPANION_BUS, COMPANION_PATH, Details, INTENTS_BUS, MessageProxy, answer_path,
@@ -55,13 +55,13 @@ fn path_of(task: &TaskId) -> fdo::Result<OwnedObjectPath> {
     OwnedObjectPath::try_from(answer_path(task)).map_err(|e| fdo::Error::Failed(e.to_string()))
 }
 
-struct Root<P: InferTransport, I: IntentsTransport> {
-    companion: Arc<Mutex<Companiond<P, I>>>,
+struct Root<P: InferTransport, I: IntentsTransport, K: Clock> {
+    companion: Arc<Mutex<Companiond<P, I, K>>>,
     shared: Arc<Shared>,
     speakers: Speakers,
 }
 
-impl<P: InferTransport, I: IntentsTransport> Root<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock> Root<P, I, K> {
     /// The shell speaks for the person, and so does a terminal for the conversation (`Open`,
     /// `Ask`, `Close`): an ask carries the turn the router recorded, and a turn it never recorded
     /// must not be taken from anybody else. `Told` and `Act` are the shell's alone.
@@ -71,7 +71,7 @@ impl<P: InferTransport, I: IntentsTransport> Root<P, I> {
 }
 
 #[zbus::interface(name = "org.quire.Companion1")]
-impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
+impl<P: InferTransport + 'static, I: IntentsTransport + 'static, K: Clock + 'static> Root<P, I, K> {
     async fn prepare(&self, options: Details) -> fdo::Result<()> {
         let _ = options;
         Ok(())
@@ -184,14 +184,14 @@ impl<P: InferTransport + 'static, I: IntentsTransport + 'static> Root<P, I> {
     async fn roster_changed(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 }
 
-struct AnswerObject<P: InferTransport, I: IntentsTransport> {
-    companion: Arc<Mutex<Companiond<P, I>>>,
+struct AnswerObject<P: InferTransport, I: IntentsTransport, K: Clock> {
+    companion: Arc<Mutex<Companiond<P, I, K>>>,
     shared: Arc<Shared>,
     task: TaskId,
     speakers: Speakers,
 }
 
-impl<P: InferTransport, I: IntentsTransport> AnswerObject<P, I> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock> AnswerObject<P, I, K> {
     /// An answer is the person's words and what the router showed of them: only the shell or a
     /// terminal reads it.
     async fn readable(&self, header: Option<&Header<'_>>) -> fdo::Result<()> {
@@ -200,7 +200,9 @@ impl<P: InferTransport, I: IntentsTransport> AnswerObject<P, I> {
 }
 
 #[zbus::interface(name = "org.quire.Companion1.Answer")]
-impl<P: InferTransport + 'static, I: IntentsTransport + 'static> AnswerObject<P, I> {
+impl<P: InferTransport + 'static, I: IntentsTransport + 'static, K: Clock + 'static>
+    AnswerObject<P, I, K>
+{
     async fn act(
         &self,
         action: String,
@@ -269,14 +271,15 @@ fn bus(error: zbus::Error) -> ServeFault {
 
 /// Forwards what the loop wrote to the bus: answer objects appear, change and go away, and the
 /// roster changes, each as a content-free signal beside the object.
-async fn forward<P, I>(
+async fn forward<P, I, K>(
     connection: BusConnection,
     shared: Arc<Shared>,
-    companion: Arc<Mutex<Companiond<P, I>>>,
+    companion: Arc<Mutex<Companiond<P, I, K>>>,
     speakers: Speakers,
 ) where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     let mut changes = shared.subscribe();
     let server = connection.object_server().clone();
@@ -322,7 +325,9 @@ async fn forward<P, I>(
             }
             Change::AnswerRemoved(task) => {
                 let path = answer_path(&task);
-                let _ = server.remove::<AnswerObject<P, I>, _>(path.as_str()).await;
+                let _ = server
+                    .remove::<AnswerObject<P, I, K>, _>(path.as_str())
+                    .await;
                 if let Ok(object) = ObjectPath::try_from(path.as_str()) {
                     let _ = connection
                         .emit_signal(
@@ -365,14 +370,15 @@ async fn forward<P, I>(
 /// per task, listens for `Message.Arrived` and keeps time. The callers are told apart by `who`
 /// (the shell is the process it names as the shell's unit; a terminal's child is read from the
 /// system's `/proc`). Returns once the name is ours; the connection keeps serving until it closes.
-pub async fn serve_on<P, I>(
+pub async fn serve_on<P, I, K>(
     connection: &BusConnection,
-    companion: Arc<Mutex<Companiond<P, I>>>,
+    companion: Arc<Mutex<Companiond<P, I, K>>>,
     who: Arc<Identity>,
 ) -> Result<(), ServeFault>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     let proc_root = PathBuf::from("/proc");
     serve_on_rooted(connection, companion, who, proc_root).await
@@ -380,24 +386,25 @@ where
 
 /// [`serve_on`] reading terminals' cgroups under `proc_root` instead of `/proc`: how a test
 /// presents its processes as a terminal. The daemon's own `serve_on` always reads `/proc`.
-pub async fn serve_on_rooted<P, I>(
+pub async fn serve_on_rooted<P, I, K>(
     connection: &BusConnection,
-    companion: Arc<Mutex<Companiond<P, I>>>,
+    companion: Arc<Mutex<Companiond<P, I, K>>>,
     who: Arc<Identity>,
     proc_root: PathBuf,
 ) -> Result<(), ServeFault>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     serve_with_routines(connection, companion, who, proc_root, None).await
 }
 
 /// [`serve_on_rooted`] with the routines the daemon keeps, which `Companion1.Helpers2` lists and
 /// changes. With none, its routine calls say routines are not kept here.
-pub async fn serve_with_routines<P, I>(
+pub async fn serve_with_routines<P, I, K>(
     connection: &BusConnection,
-    companion: Arc<Mutex<Companiond<P, I>>>,
+    companion: Arc<Mutex<Companiond<P, I, K>>>,
     who: Arc<Identity>,
     proc_root: PathBuf,
     routines: Option<Arc<dyn RoutineDesk>>,
@@ -405,6 +412,7 @@ pub async fn serve_with_routines<P, I>(
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     let (shared, shell, desk) = {
         let held = companion.lock().await;
@@ -486,10 +494,11 @@ where
 }
 
 /// A message arrived for an agent: read the inbox of the agents the companion runs.
-async fn arrivals<P, I>(connection: BusConnection, companion: Arc<Mutex<Companiond<P, I>>>)
+async fn arrivals<P, I, K>(connection: BusConnection, companion: Arc<Mutex<Companiond<P, I, K>>>)
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     use futures_util::StreamExt;
     let Ok(proxy) = MessageProxy::builder(&connection)
@@ -509,10 +518,11 @@ where
     }
 }
 
-async fn ticking<P, I>(companion: Arc<Mutex<Companiond<P, I>>>)
+async fn ticking<P, I, K>(companion: Arc<Mutex<Companiond<P, I, K>>>)
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     let mut beat = tokio::time::interval(TICK);
     loop {
@@ -528,10 +538,11 @@ where
 /// Claims `org.quire.Companion1` on the session bus and serves it until the connection closes,
 /// telling callers apart by `companiond-callers.toml` (the system's under `/etc/quire`, the
 /// person's over it).
-pub async fn serve<P, I>(companion: Arc<Mutex<Companiond<P, I>>>) -> Result<(), ServeFault>
+pub async fn serve<P, I, K>(companion: Arc<Mutex<Companiond<P, I, K>>>) -> Result<(), ServeFault>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     use futures_util::StreamExt;
     let connection = BusConnection::session().await.map_err(bus)?;

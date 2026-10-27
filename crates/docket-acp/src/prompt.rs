@@ -8,7 +8,7 @@ use crate::helpers::Helpers;
 use crate::mode::Mode;
 use crate::out;
 use crate::permission::{self, verdict_of_reply};
-use crate::server::{Server, Ticks, Turns};
+use crate::server::{Server, Turns};
 use crate::turn::{Finish, Order, Turn, Wants};
 use crate::wire::{Incoming, Wire, WireClosed};
 use agent_client_protocol_schema::rpc::RequestId;
@@ -16,6 +16,7 @@ use agent_client_protocol_schema::v1::{
     AGENT_METHOD_NAMES, CLIENT_METHOD_NAMES, CancelNotification, ContentBlock, Error,
     PromptRequest, PromptResponse, RequestPermissionRequest, SessionNotification, StopReason,
 };
+use docket_core::Clock;
 use docket_core::{TurnId, TurnSource, TurnVia, UserTurn};
 use docket_session::{BackendEvent, HostFault, SessionHost, SessionLog, TurnEnd};
 use futures_util::future::{Either, select};
@@ -67,7 +68,7 @@ enum Woke {
     Line(Option<String>),
 }
 
-impl<H: SessionHost, L: SessionLog, W: Wire, T: Ticks, S: Helpers> Server<H, L, W, T, S> {
+impl<H: SessionHost, L: SessionLog, W: Wire, T: Clock, S: Helpers> Server<H, L, W, T, S> {
     pub(crate) async fn prompt(
         &mut self,
         id: RequestId,

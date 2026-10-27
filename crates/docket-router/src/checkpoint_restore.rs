@@ -9,10 +9,11 @@
 //! (the safety point), so a restore can itself be undone.
 
 use crate::router::Router;
-use crate::seams::{Clock, Seams};
+use crate::seams::Seams;
 use docket_checkpoint::{
     ApplyAsk, CheckpointStore, DropAsk, PlanAsk, StoreFault, TakeAsk, WorkRoot,
 };
+use docket_core::Clock;
 use docket_core::{
     AppRefusal, Args, CallRequest, CallerId, CallerRole, CheckpointEvent, CheckpointFault,
     CheckpointId, CheckpointNote, FailText, Follow, Invocation, LabelText, Outcome, ParamName,

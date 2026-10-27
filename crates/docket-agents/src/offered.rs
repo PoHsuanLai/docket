@@ -18,7 +18,7 @@
 
 use crate::dirs::AgentsDir;
 use crate::slug::Slug;
-use docket_core::{read_optional, write_atomic};
+use docket_store::{read_optional, write_atomic};
 use serde::{Deserialize, Serialize};
 
 /// The file name of the record, inside the agent's state directory.

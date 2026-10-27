@@ -1,24 +1,10 @@
-//! The two seams the task model is generic over beyond the router link and the model transport:
-//! what tells the time, and the surface the tasks are shown on. Neither reads the environment:
-//! companiond hands in the system clock and a bus-facing surface, an app hands in its own.
+//! The seam the task model is generic over beyond the router link, the model transport and the
+//! clock (`docket_core::Clock`): the surface the tasks are shown on. It reads no environment:
+//! companiond hands in a bus-facing surface, an app hands in its own.
 
 use crate::shared::Change;
-use prov::{TaskId, UnixSeconds};
+use prov::TaskId;
 use std::future::Future;
-use std::time::Duration;
-
-/// What tells the time, and waits it out.
-pub trait Now {
-    /// Now.
-    fn now(&self) -> UnixSeconds;
-
-    /// Resolves after `span`: what every deadline on a peer waits on. The default sleeps on a
-    /// thread of its own, so a host with no timer still gets its deadlines; one that has a timer
-    /// returns that.
-    fn sleep(&self, span: Duration) -> impl Future<Output = ()> + Send {
-        docket_core::thread_sleep(span)
-    }
-}
 
 /// Where the tasks are shown: what is told when state changes, how an interactive request cuts
 /// into background work, and what an answer is called out there.

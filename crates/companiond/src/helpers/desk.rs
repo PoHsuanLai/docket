@@ -8,6 +8,7 @@ use companion_wire::{
     TerminalSession, ToldWire, WhenForm, card_of, line_of,
 };
 use docket_client::Transport as IntentsTransport;
+use docket_core::Clock;
 use docket_core::helper::{
     Board, BoardEffect, BoardEvent, CardDraft, GoalOrigin, GoalText, HelperBudget, HelperCard,
     HelperKind, HelperModel, HelperName, HelperState, JobRefusal, JobStatus, NewJob, ReachFault,
@@ -62,10 +63,11 @@ fn latest_answer(board: &Board, name: &str) -> Option<docket_core::helper::JobId
         .map(|j| j.id)
 }
 
-impl<P, I> Hub<P, I>
+impl<P, I, K> Hub<P, I, K>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     /// Whether the job a helper is working on waits for the person: a question, or a sheet.
     fn needs_of(&self, card: &HelperCard) -> Option<HelperNeeds> {
@@ -376,10 +378,11 @@ where
     }
 }
 
-impl<P, I> HelperDesk for Hub<P, I>
+impl<P, I, K> HelperDesk for Hub<P, I, K>
 where
     P: InferTransport + 'static,
     I: IntentsTransport + 'static,
+    K: Clock + 'static,
 {
     fn view(&self, after: u64) -> HelpersView {
         let board = self.board();

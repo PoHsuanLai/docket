@@ -318,6 +318,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "atomic-write-file"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae67d5c03ee972c101a1d8db3ddbf8a9c819ad1ea9d6fd9cd385605547b60edb"
+dependencies = [
+ "nix",
+ "rand 0.10.3",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -585,13 +595,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "chacha20"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.3.1",
+ "rand_core 0.10.1",
+]
+
+[[package]]
 name = "chacha20poly1305"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10cd79432192d1c0f4e1a0fef9527696cc039165d729fb41b3f4f4f354c2dc35"
 dependencies = [
  "aead",
- "chacha20",
+ "chacha20 0.9.1",
  "cipher",
  "poly1305",
  "zeroize",
@@ -722,6 +743,7 @@ dependencies = [
  "docket-router",
  "docket-settings",
  "docket-skills",
+ "docket-store",
  "docket-tasks",
  "docket-testbus",
  "futures-util",
@@ -992,6 +1014,7 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-settings",
+ "docket-store",
  "docket-testbus",
  "docket-trace",
  "futures-util",
@@ -1026,6 +1049,7 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-settings",
+ "docket-store",
  "docket-testbus",
  "futures-util",
  "jsonschema",
@@ -1061,6 +1085,7 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-settings",
+ "docket-store",
  "docket-tasks",
  "futures-util",
  "porter-core",
@@ -1078,6 +1103,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "docket-core",
+ "docket-store",
  "flate2",
  "serde",
  "serde_json",
@@ -1171,7 +1197,6 @@ dependencies = [
  "almanac-core",
  "bulkhead",
  "cua-action",
- "futures-util",
  "model-provider",
  "porter-core",
  "porter-infer",
@@ -1179,7 +1204,6 @@ dependencies = [
  "prov",
  "serde",
  "serde_json",
- "tempfile",
  "thiserror",
  "toml",
  "url",
@@ -1280,6 +1304,7 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-skills",
+ "docket-store",
  "docket-tasks",
  "futures-channel",
  "futures-util",
@@ -1304,6 +1329,7 @@ dependencies = [
  "docket-core",
  "docket-session",
  "docket-settings",
+ "docket-store",
  "docket-testbus",
  "futures-util",
  "porter-client",
@@ -1451,6 +1477,7 @@ version = "0.1.0"
 dependencies = [
  "docket-agents",
  "docket-core",
+ "docket-store",
  "porter-core",
  "serde",
  "tempfile",
@@ -1473,6 +1500,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-store"
+version = "0.1.0"
+dependencies = [
+ "atomic-write-file",
+ "docket-core",
+ "futures-util",
+ "prov",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "docket-tasks"
 version = "0.1.0"
 dependencies = [
@@ -1486,6 +1525,7 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-skills",
+ "docket-store",
  "futures-channel",
  "futures-util",
  "porter-client",
@@ -1961,6 +2001,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "r-efi 6.0.0",
+ "rand_core 0.10.1",
 ]
 
 [[package]]
@@ -2232,6 +2273,7 @@ dependencies = [
  "docket-session",
  "docket-settings",
  "docket-skills",
+ "docket-store",
  "docket-testbus",
  "futures-util",
  "notify",
@@ -3304,7 +3346,7 @@ dependencies = [
  "bit-vec",
  "bitflags 2.13.2",
  "num-traits",
- "rand",
+ "rand 0.9.5",
  "rand_chacha",
  "rand_xorshift",
  "regex-syntax",
@@ -3371,6 +3413,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65c9fb96cbc91e3478eaae79a69fcd3f1ae4ad052e471fe6732fff548984b4af"
+dependencies = [
+ "chacha20 0.10.2",
+ "getrandom 0.4.3",
+ "rand_core 0.10.1",
+]
+
+[[package]]
 name = "rand_chacha"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3397,6 +3450,12 @@ checksum = "76afc826de14238e6e8c374ddcc1fa19e374fd8dd986b0d2af0d02377261d83c"
 dependencies = [
  "getrandom 0.3.4",
 ]
+
+[[package]]
+name = "rand_core"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
 name = "rand_xorshift"

@@ -8,8 +8,9 @@ use action_review::Reviewer;
 use agent_loop::LoopPhase;
 use companion_wire::FrontTask;
 use docket_client::{ContextSource, IntentProvider};
+use docket_core::Clock;
 use docket_core::{PolicyWriter, Reader, Roster, TurnSource, TurnVia, UserTurn};
-use docket_router::{Clock, GrantStore, MemoryLink};
+use docket_router::{GrantStore, MemoryLink};
 use porter_client::Transport as ModelTransport;
 use prov::{AgentRef, TaskId};
 

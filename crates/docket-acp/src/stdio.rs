@@ -1,9 +1,7 @@
 //! The wire over a byte stream, for the binary (stdin and stdout) and for tests (the two ends of
 //! an in-memory duplex): newline-delimited JSON, nothing else on the stream.
 
-use crate::server::Ticks;
 use crate::wire::{Wire, WireClosed};
-use prov::UnixSeconds;
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncWrite, AsyncWriteExt};
 
 /// The longest line a peer may send, in bytes: the agent child's stdout and the editor's input
@@ -113,19 +111,6 @@ impl<R: AsyncBufRead + Unpin + Send, W: AsyncWrite + Unpin + Send> Wire for Line
         bytes.push(b'\n');
         self.out.write_all(&bytes).await.map_err(|_| WireClosed)?;
         self.out.flush().await.map_err(|_| WireClosed)
-    }
-}
-
-/// The system clock, for the binary.
-#[derive(Debug, Clone, Copy)]
-pub struct SystemTicks;
-
-impl Ticks for SystemTicks {
-    fn now(&self) -> UnixSeconds {
-        let secs = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |d| d.as_secs());
-        UnixSeconds(i64::try_from(secs).unwrap_or(i64::MAX))
     }
 }
 

@@ -8,11 +8,12 @@ use crate::deadline::timed;
 use crate::fault::ServeFault;
 use crate::plan::phase_of;
 use crate::runtime::Companion;
-use crate::seams::{Now, Surface};
+use crate::seams::Surface;
 use companion_wire::AnswerPhase;
 use docket_client::{
     ClientError, PerformEvent, PerformWatch, Transport as IntentsTransport, TransportError,
 };
+use docket_core::Clock;
 use docket_core::{CallId, CallRequest, CardActionId};
 use porter_client::Transport as InferTransport;
 use prov::{Effect, TaskId};
@@ -63,7 +64,7 @@ pub fn card_id(text: &str) -> Result<CardActionId, ServeFault> {
         .map_err(|_| ServeFault::NoSuchCard)
 }
 
-impl<P: InferTransport, I: IntentsTransport, K: Now, S: Surface> Companion<P, I, K, S> {
+impl<P: InferTransport, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S> {
     /// Starts the card's call and shows it as a step. The answer must offer the card.
     pub async fn begin_act(
         &mut self,

@@ -1,9 +1,10 @@
 //! The router: the seams, the configuration and the state, with one entry point.
 
 use crate::auth::acting_role;
-use crate::seams::{Clock, Seams};
+use crate::seams::Seams;
 use crate::state::RouterState;
 use crate::watch::Watch;
+use docket_core::Clock;
 use docket_core::{
     AgentConfig, CallerId, CallerRole, Floor, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk,
     WireRefusal,

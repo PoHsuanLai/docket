@@ -6,12 +6,13 @@ use crate::handles::HandleLimit;
 use crate::labels::{Voice, absorb};
 use crate::prepared::{Early, Prepared};
 use crate::router::Router;
-use crate::seams::{Clock, EventSink, Seams};
+use crate::seams::{EventSink, Seams};
 use crate::session::{SessionEffect, SessionEvent};
 use crate::shield::shield;
 use crate::state::SessionRecord;
 use crate::tasks::TaskState;
 use action_review::note;
+use docket_core::Clock;
 use docket_core::{
     AuditRecord, BudgetKind, CallEnd, CallRefusal, DecidedBy, LedgerStep, Origin, Outcome, Preview,
     StepEnd, StepLine, StepShown, Undoable, Value, approves,
