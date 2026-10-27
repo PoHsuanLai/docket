@@ -1,7 +1,10 @@
 //! The command line of `docket-agent`: `docket-agent PROGRAM [--cwd DIR] [--space NAME] [--tty]`,
 //! or `docket-agent PROGRAM --refresh`: start the agent briefly, write down what it offers, and
-//! stop it without a turn.
+//! stop it without a turn. `docket-agent --serve` is the service the bus starts for the
+//! assistant: no program, no terminal.
 
+use clap::error::ErrorKind;
+use clap::{ArgAction, CommandFactory, Parser};
 use docket_acp::client::Fallback;
 use docket_session::ProgramName;
 use prov::SpaceId;
@@ -32,31 +35,84 @@ pub struct Args {
     pub mode: Mode,
 }
 
-/// Reads `args` (the program's name first, as `std::env::args().skip(1)` gives them), with
-/// `here` the directory to work in when `--cwd` is not given. `None` for anything else.
-pub fn parse(args: impl IntoIterator<Item = String>, here: PathBuf) -> Option<Args> {
-    let mut it = args.into_iter();
-    let program = ProgramName::parse(&it.next()?).ok()?;
-    let mut cwd = here;
-    let mut fallback = Fallback::Off;
-    let mut space = SpaceId::desktop();
-    let mut mode = Mode::Session;
-    while let Some(flag) = it.next() {
-        match flag.as_str() {
-            "--cwd" => cwd = PathBuf::from(it.next()?),
-            "--space" => space = SpaceId::parse(&it.next()?).ok()?,
-            "--tty" => fallback = Fallback::Terminal,
-            "--refresh" => mode = Mode::Refresh,
-            _ => return None,
+/// What the command line asks the process to be.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Request {
+    /// `--serve`: the service the bus starts.
+    Serve,
+    /// A session with a program, or a refresh of what it offers.
+    Run(Args),
+}
+
+/// The command line as clap reads it.
+#[derive(Debug, Parser)]
+#[command(
+    name = "docket-agent",
+    about = "Hosts a coding agent over ACP",
+    no_binary_name = true
+)]
+struct Cli {
+    /// The configured program (`agents.toml`).
+    #[arg(value_parser = ProgramName::parse)]
+    program: Option<ProgramName>,
+    /// The service the bus starts for the assistant; takes nothing else.
+    #[arg(long, action = ArgAction::Count)]
+    serve: u8,
+    /// The directory the program works in (the current one unless given).
+    #[arg(long)]
+    cwd: Option<PathBuf>,
+    /// The Space the session is in (the desktop's unless given).
+    #[arg(long, value_parser = SpaceId::parse)]
+    space: Option<SpaceId>,
+    /// Answer the agent's sheets on this terminal (a development fallback).
+    #[arg(long, action = ArgAction::Count)]
+    tty: u8,
+    /// Open a session, write down what the agent offers, close it.
+    #[arg(long, action = ArgAction::Count)]
+    refresh: u8,
+}
+
+impl Cli {
+    fn request(self, here: PathBuf) -> Result<Request, clap::Error> {
+        let options =
+            self.cwd.is_some() || self.space.is_some() || self.tty > 0 || self.refresh > 0;
+        match (self.program, self.serve) {
+            (None, 0) => Err(Self::command().error(
+                ErrorKind::MissingRequiredArgument,
+                "a PROGRAM is required, or --serve",
+            )),
+            (None, _) if options => {
+                Err(Self::command()
+                    .error(ErrorKind::ArgumentConflict, "--serve takes no other option"))
+            }
+            (None, _) => Ok(Request::Serve),
+            (Some(_), 1..) => {
+                Err(Self::command().error(ErrorKind::ArgumentConflict, "--serve takes no program"))
+            }
+            (Some(program), 0) => Ok(Request::Run(Args {
+                program,
+                cwd: self.cwd.unwrap_or(here),
+                space: self.space.unwrap_or_else(SpaceId::desktop),
+                fallback: match self.tty {
+                    0 => Fallback::Off,
+                    _ => Fallback::Terminal,
+                },
+                mode: match self.refresh {
+                    0 => Mode::Session,
+                    _ => Mode::Refresh,
+                },
+            })),
         }
     }
-    Some(Args {
-        program,
-        cwd,
-        space,
-        fallback,
-        mode,
-    })
+}
+
+/// Reads `args` (as `std::env::args().skip(1)` gives them), with `here` the directory to work in
+/// when `--cwd` is not given. The error is clap's: it knows how to say itself and how to exit.
+pub fn parse(
+    args: impl IntoIterator<Item = String>,
+    here: PathBuf,
+) -> Result<Request, clap::Error> {
+    Cli::try_parse_from(args)?.request(here)
 }
 
 #[cfg(test)]
@@ -67,16 +123,23 @@ mod tests {
         text.split_whitespace().map(str::to_owned).collect()
     }
 
+    fn run(text: &str, here: &std::path::Path) -> Option<Args> {
+        match parse(words(text), here.to_path_buf()) {
+            Ok(Request::Run(args)) => Some(args),
+            _ => None,
+        }
+    }
+
     #[test]
     fn the_desktops_sheet_is_the_default_and_the_terminal_needs_its_flag() {
         let here = PathBuf::from("/home/u/p");
-        let plain = parse(words("claude-code"), here.clone()).expect("args");
+        let plain = run("claude-code", here.as_path()).expect("args");
         assert_eq!(plain.fallback, Fallback::Off);
         assert_eq!(plain.cwd, here);
         assert_eq!(plain.space, SpaceId::desktop());
-        let work = parse(words("claude-code --space work"), here.clone()).expect("args");
+        let work = run("claude-code --space work", here.as_path()).expect("args");
         assert_eq!(work.space.as_str(), "work");
-        let tty = parse(words("claude-code --tty --cwd /home/u/q"), here.clone()).expect("args");
+        let tty = run("claude-code --tty --cwd /home/u/q", here.as_path()).expect("args");
         assert_eq!(tty.fallback, Fallback::Terminal);
         assert_eq!(tty.cwd, PathBuf::from("/home/u/q"));
     }
@@ -85,20 +148,31 @@ mod tests {
     fn a_refresh_is_a_flag_and_a_session_is_the_default() {
         let here = PathBuf::from("/home/u/p");
         assert_eq!(
-            parse(words("claude-code --refresh"), here.clone()).map(|a| a.mode),
+            run("claude-code --refresh", here.as_path()).map(|a| a.mode),
             Some(Mode::Refresh)
         );
         assert_eq!(
-            parse(words("claude-code"), here).map(|a| a.mode),
+            run("claude-code", here.as_path()).map(|a| a.mode),
             Some(Mode::Session)
         );
     }
 
     #[test]
+    fn serve_stands_alone() {
+        let here = PathBuf::from("/home/u/p");
+        assert_eq!(
+            parse(words("--serve"), here.clone()).ok(),
+            Some(Request::Serve)
+        );
+        assert!(parse(words("--serve --tty"), here.clone()).is_err());
+        assert!(parse(words("--serve claude-code"), here).is_err());
+    }
+
+    #[test]
     fn anything_else_is_a_bad_command_line() {
         let here = PathBuf::from("/home/u/p");
-        assert!(parse(Vec::new(), here.clone()).is_none());
-        assert!(parse(words("claude-code --yolo"), here.clone()).is_none());
-        assert!(parse(words("claude-code --cwd"), here).is_none());
+        assert!(parse(Vec::new(), here.clone()).is_err());
+        assert!(parse(words("claude-code --yolo"), here.clone()).is_err());
+        assert!(parse(words("claude-code --cwd"), here).is_err());
     }
 }

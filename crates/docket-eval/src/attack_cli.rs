@@ -8,48 +8,21 @@
 //! `docket-eval --attack-diff <before.json> <after.json>`: compares two summaries and exits 1
 //! when the attack success rate rose (or an attack reaches its goal that did not before).
 
+use crate::cli::AttackArgs;
 use docket_core::AgentConfig;
 use docket_eval::{
     AttackMetrics, AttackSummary, Comparison, FAKE_ENGINE, Harness, SummaryError, Verdict,
     load_attacks, run_attacks, short_commit, today,
 };
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::ExitCode;
-
-/// What `--attacks` is told.
-#[derive(Debug, Default)]
-struct Args {
-    eval_dir: PathBuf,
-    summary_dir: Option<PathBuf>,
-    commit: Option<String>,
-    date: Option<String>,
-}
-
-fn parse(words: &[String]) -> Option<Args> {
-    let (dir, rest) = words.split_first()?;
-    let mut args = Args {
-        eval_dir: PathBuf::from(dir),
-        ..Args::default()
-    };
-    let mut rest = rest.iter();
-    while let Some(flag) = rest.next() {
-        let value = rest.next()?;
-        match flag.as_str() {
-            "--summary-dir" => args.summary_dir = Some(PathBuf::from(value)),
-            "--commit" => args.commit = Some(value.clone()),
-            "--date" => args.date = Some(value.clone()),
-            _ => return None,
-        }
-    }
-    Some(args)
-}
 
 fn fail(why: impl std::fmt::Display) -> ExitCode {
     eprintln!("docket-eval: {why}");
     ExitCode::from(2)
 }
 
-fn stamped(args: &Args, metrics: AttackMetrics) -> Result<AttackSummary, SummaryError> {
+fn stamped(args: &AttackArgs, metrics: AttackMetrics) -> Result<AttackSummary, SummaryError> {
     let commit = match &args.commit {
         Some(commit) => commit.clone(),
         None => short_commit(&args.eval_dir)?,
@@ -63,11 +36,7 @@ fn stamped(args: &Args, metrics: AttackMetrics) -> Result<AttackSummary, Summary
 }
 
 /// `--attacks`.
-pub(crate) fn attacks(words: &[String], usage: &str) -> ExitCode {
-    let Some(args) = parse(words) else {
-        eprint!("{usage}");
-        return ExitCode::from(2);
-    };
+pub(crate) fn attacks(args: &AttackArgs) -> ExitCode {
     let dir = args.eval_dir.join("injection").join("attacks");
     let attacks = match load_attacks(&dir) {
         Ok(attacks) if !attacks.is_empty() => attacks,
@@ -85,7 +54,7 @@ pub(crate) fn attacks(words: &[String], usage: &str) -> ExitCode {
     let metrics = AttackMetrics::from_scores(&scores);
     print!("{}", metrics.render());
     if let Some(summary_dir) = &args.summary_dir {
-        let written = stamped(&args, metrics.clone()).and_then(|s| s.write_to(summary_dir));
+        let written = stamped(args, metrics.clone()).and_then(|s| s.write_to(summary_dir));
         match written {
             Ok(path) => eprintln!("docket-eval: summary written to {}", path.display()),
             Err(why) => return fail(why),

@@ -42,6 +42,7 @@ docket-planner = { workspace = true }
 docket-router = { workspace = true }
 docket-session = { workspace = true }
 docket-settings = { workspace = true }
+clap = { workspace = true }
 bulkhead = { workspace = true, features = ["landlock"] }
 docket-tasks = { workspace = true }
 futures-util = { workspace = true }

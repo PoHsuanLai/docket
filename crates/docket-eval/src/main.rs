@@ -6,49 +6,23 @@
 //! command line or a directory is wrong.
 
 mod attack_cli;
+mod cli;
 
+use clap::Parser;
+use cli::{Cli, Request};
 use docket_eval::{CheckError, CheckReport, check_app, check_skills};
-use std::path::PathBuf;
 use std::process::ExitCode;
 
-const USAGE: &str = "usage: docket-eval --check-app <repository dir>\n       docket-eval --check-skills <dir>... [--manifests <dir>]...\n       docket-eval --attacks <eval dir> [--summary-dir <dir>] [--commit <sha>] [--date <day>]\n       docket-eval --attack-diff <before.json> <after.json>\n";
-
-/// The directories to check and the extra manifest directories, from what follows
-/// `--check-skills`. `None` when no directory is named or `--manifests` has no value.
-fn skill_args(words: &[String]) -> Option<(Vec<PathBuf>, Vec<PathBuf>)> {
-    let mut dirs = Vec::new();
-    let mut manifests = Vec::new();
-    let mut words = words.iter();
-    while let Some(word) = words.next() {
-        if word == "--manifests" {
-            manifests.push(PathBuf::from(words.next()?));
-        } else {
-            dirs.push(PathBuf::from(word));
-        }
-    }
-    (!dirs.is_empty()).then_some((dirs, manifests))
-}
-
 fn main() -> ExitCode {
-    let words: Vec<String> = std::env::args().skip(1).collect();
-    let (what, checked) = match words.split_first() {
-        Some((flag, rest)) if flag == "--attacks" => return attack_cli::attacks(rest, USAGE),
-        Some((flag, [before, after])) if flag == "--attack-diff" => {
-            return attack_cli::diff(&PathBuf::from(before), &PathBuf::from(after));
-        }
-        Some((flag, [dir])) if flag == "--check-app" => {
-            ("cli.md section 6", check_app(&PathBuf::from(dir)))
-        }
-        Some((flag, rest)) if flag == "--check-skills" => match skill_args(rest) {
-            Some((dirs, manifests)) => ("the skills format", check_skills(&dirs, &manifests)),
-            None => {
-                eprint!("{USAGE}");
-                return ExitCode::from(2);
-            }
-        },
-        _ => {
-            eprint!("{USAGE}");
-            return ExitCode::from(2);
+    let Some(request) = Cli::parse().request() else {
+        return ExitCode::from(2);
+    };
+    let (what, checked) = match request {
+        Request::Attacks(args) => return attack_cli::attacks(&args),
+        Request::AttackDiff { before, after } => return attack_cli::diff(&before, &after),
+        Request::CheckApp(dir) => ("cli.md section 6", check_app(&dir)),
+        Request::CheckSkills { dirs, manifests } => {
+            ("the skills format", check_skills(&dirs, &manifests))
         }
     };
     finish(what, checked)

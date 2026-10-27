@@ -6,6 +6,8 @@ use crate::live::acp::spec::{
     CLAUDE_CREDENTIALS_AT, CredentialsSource, RegistryPick, SpecFault, Task, network_of,
 };
 use crate::live::engine::{Engine, EngineError};
+use clap::error::{ContextKind, ContextValue, ErrorKind};
+use clap::{ArgAction, Args, Parser};
 use std::path::PathBuf;
 
 /// Who plays the companion's part in a run.
@@ -143,16 +145,6 @@ impl From<SpecFault> for UsageError {
     }
 }
 
-struct Words<'a>(std::slice::Iter<'a, String>);
-
-impl<'a> Words<'a> {
-    fn value(&mut self, flag: &str) -> Result<&'a String, UsageError> {
-        self.0
-            .next()
-            .ok_or_else(|| UsageError::NoValue(flag.to_owned()))
-    }
-}
-
 fn number<T: std::str::FromStr>(flag: &str, text: &str) -> Result<T, UsageError> {
     text.parse()
         .map_err(|_| UsageError::Number(flag.to_owned(), text.to_owned()))
@@ -163,54 +155,117 @@ fn engine(text: Option<String>) -> Result<Engine, UsageError> {
     Engine::parse(&text).map_err(|e: EngineError| UsageError::Engine(e.to_string()))
 }
 
+/// The command line as clap reads it: every option takes a value (the next word, even one that
+/// starts with a dash) except `--acp-list-models`. Numbers stay words here; `number` reads them,
+/// so a bad one says which flag it was.
+#[derive(Parser)]
+#[command(
+    no_binary_name = true,
+    disable_help_flag = true,
+    disable_version_flag = true
+)]
+struct Raw {
+    /// `corpus` or `smoke`.
+    subcommand: Option<String>,
+    #[arg(long = "agent", allow_hyphen_values = true)]
+    agent_word: Option<String>,
+    #[command(flatten)]
+    acp: AcpFlags,
+    #[arg(long, allow_hyphen_values = true)]
+    engine: Option<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    inferd_config: Option<PathBuf>,
+    #[arg(long, allow_hyphen_values = true)]
+    out: Option<PathBuf>,
+    #[arg(long, allow_hyphen_values = true)]
+    label: Option<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    report: Option<PathBuf>,
+    #[arg(long, allow_hyphen_values = true)]
+    eval_dir: Option<PathBuf>,
+    #[arg(long, allow_hyphen_values = true)]
+    regress: Option<PathBuf>,
+    #[arg(long = "corpus", allow_hyphen_values = true)]
+    corpora: Vec<String>,
+    #[arg(long = "case", allow_hyphen_values = true)]
+    cases: Vec<String>,
+    #[arg(long = "flow", allow_hyphen_values = true)]
+    flows: Vec<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    timeout_ms: Option<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    catalog: Option<PathBuf>,
+    #[arg(long, allow_hyphen_values = true)]
+    keys_home: Option<PathBuf>,
+    /// Gone with accountd; kept to say where it went.
+    #[arg(long, hide = true, allow_hyphen_values = true)]
+    accountd: Option<String>,
+    /// Gone with accountd; kept to say where it went.
+    #[arg(long, hide = true, allow_hyphen_values = true)]
+    accountd_home: Option<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    repeat: Option<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    fnr_max_permille: Option<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    attack_summary: Option<PathBuf>,
+    #[arg(long, allow_hyphen_values = true)]
+    planner: Option<String>,
+    #[arg(long, allow_hyphen_values = true)]
+    patience_s: Option<String>,
+}
+
+/// What clap refused, as this command line's own errors.
+fn usage_of(error: &clap::Error) -> UsageError {
+    let arg = match error.get(ContextKind::InvalidArg) {
+        Some(ContextValue::String(arg)) => arg.as_str(),
+        _ => "",
+    };
+    match error.kind() {
+        ErrorKind::InvalidValue => {
+            UsageError::NoValue(arg.split_whitespace().next().unwrap_or_default().to_owned())
+        }
+        ErrorKind::UnknownArgument => UsageError::Unknown(arg.to_owned()),
+        _ => UsageError::Unknown(error.to_string()),
+    }
+}
+
 /// Reads the arguments after the program's name.
 pub fn parse(args: &[String]) -> Result<Command, UsageError> {
-    let (sub, rest) = args.split_first().ok_or(UsageError::Subcommand)?;
-    let mut words = Words(rest.iter());
-    let mut engine_text = None;
-    let mut config = None;
-    let mut out = None;
-    let (mut label, mut report, mut eval_dir, mut regress) = (None, None, None, None);
-    let (mut corpora, mut cases, mut flows) = (Vec::new(), Vec::new(), Vec::new());
-    let mut catalog = None;
-    let (mut timeout, mut fnr, mut patience) = (None, None, 600_u64);
-    let mut keys_home: Option<PathBuf> = None;
-    let mut repeat: Option<u32> = None;
-    let mut agent_word = None;
-    let mut attack_summary: Option<PathBuf> = None;
-    let mut planner_word: Option<String> = None;
-    let mut acp = AcpFlags::default();
-    while let Some(flag) = words.0.next() {
-        match flag.as_str() {
-            "--agent" => agent_word = Some(words.value(flag)?.clone()),
-            other if other.starts_with("--acp-") => acp.take(other, &mut words)?,
-            "--engine" => engine_text = Some(words.value(flag)?.clone()),
-            "--inferd-config" => config = Some(PathBuf::from(words.value(flag)?)),
-            "--out" => out = Some(PathBuf::from(words.value(flag)?)),
-            "--label" => label = Some(words.value(flag)?.clone()),
-            "--report" => report = Some(PathBuf::from(words.value(flag)?)),
-            "--eval-dir" => eval_dir = Some(PathBuf::from(words.value(flag)?)),
-            "--regress" => regress = Some(PathBuf::from(words.value(flag)?)),
-            "--corpus" => corpora.push(words.value(flag)?.clone()),
-            "--case" => cases.push(words.value(flag)?.clone()),
-            "--flow" => flows.push(words.value(flag)?.clone()),
-            "--timeout-ms" => timeout = Some(number(flag, words.value(flag)?)?),
-            "--catalog" => catalog = Some(PathBuf::from(words.value(flag)?)),
-            "--keys-home" => keys_home = Some(PathBuf::from(words.value(flag)?)),
-            "--accountd" | "--accountd-home" => {
-                return Err(UsageError::Home(format!(
-                    "{flag} is gone: inferd holds the AI keys now, not accountd. Use --keys-home DIR (dev/live/cloud-key.sh fills it)"
-                )));
-            }
-            "--repeat" => repeat = Some(number(flag, words.value(flag)?)?),
-            "--fnr-max-permille" => fnr = Some(number(flag, words.value(flag)?)?),
-            "--attack-summary" => attack_summary = Some(PathBuf::from(words.value(flag)?)),
-            "--planner" => planner_word = Some(words.value(flag)?.clone()),
-            "--patience-s" => patience = number(flag, words.value(flag)?)?,
-            other => return Err(UsageError::Unknown(other.to_owned())),
-        }
+    let raw = Raw::try_parse_from(args).map_err(|e| usage_of(&e))?;
+    let sub = raw.subcommand.ok_or(UsageError::Subcommand)?;
+    if let Some(moved) = [
+        ("--accountd", &raw.accountd),
+        ("--accountd-home", &raw.accountd_home),
+    ]
+    .into_iter()
+    .find_map(|(flag, value)| value.as_ref().map(|_| flag))
+    {
+        return Err(UsageError::Home(format!(
+            "{moved} is gone: inferd holds the AI keys now, not accountd. Use --keys-home DIR (dev/live/cloud-key.sh fills it)"
+        )));
     }
-    let engine = engine(engine_text)?;
+    let timeout = raw
+        .timeout_ms
+        .as_deref()
+        .map(|t| number("--timeout-ms", t))
+        .transpose()?;
+    let repeat: Option<u32> = raw
+        .repeat
+        .as_deref()
+        .map(|t| number("--repeat", t))
+        .transpose()?;
+    let fnr = raw
+        .fnr_max_permille
+        .as_deref()
+        .map(|t| number("--fnr-max-permille", t))
+        .transpose()?;
+    let patience = raw
+        .patience_s
+        .as_deref()
+        .map_or(Ok(600_u64), |t| number("--patience-s", t))?;
+    let engine = engine(raw.engine)?;
+    let keys_home = raw.keys_home;
     if let Some(home) = keys_home.as_ref().filter(|home| !home.is_absolute()) {
         return Err(UsageError::Home(format!(
             "--keys-home {} is not an absolute path",
@@ -225,10 +280,10 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     if sub == "corpus" && repeat.is_some() {
         return Err(UsageError::Unknown("--repeat (smoke only)".to_owned()));
     }
-    if sub == "smoke" && planner_word.is_some() {
+    if sub == "smoke" && raw.planner.is_some() {
         return Err(UsageError::Unknown("--planner (corpus only)".to_owned()));
     }
-    let planner = match planner_word.as_deref() {
+    let planner = match raw.planner.as_deref() {
         None | Some("scripted") => PlannerMode::Scripted,
         Some("live") => PlannerMode::Live,
         Some(other) => {
@@ -237,7 +292,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
             )));
         }
     };
-    let agent = acp.agent(agent_word)?;
+    let agent = raw.acp.agent(raw.agent_word)?;
     if planner == PlannerMode::Live && matches!(agent, Agent::Acp(_)) {
         return Err(UsageError::Planner(
             "--planner live plays the companion's own planner; it does not go with --agent acp"
@@ -250,35 +305,35 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
                 .to_owned(),
         ));
     }
-    let out = out.unwrap_or_else(|| PathBuf::from("docket-live-out"));
+    let out = raw.out.unwrap_or_else(|| PathBuf::from("docket-live-out"));
     match sub.as_str() {
         "corpus" => Ok(Command::Corpus(CorpusArgs {
             engine,
-            inferd_config: config,
-            label: label.unwrap_or_else(|| "live".to_owned()),
+            inferd_config: raw.inferd_config,
+            label: raw.label.unwrap_or_else(|| "live".to_owned()),
             out,
-            report,
-            eval_dir: eval_dir.unwrap_or_else(|| PathBuf::from("eval")),
-            corpora,
-            cases,
-            regress,
+            report: raw.report,
+            eval_dir: raw.eval_dir.unwrap_or_else(|| PathBuf::from("eval")),
+            corpora: raw.corpora,
+            cases: raw.cases,
+            regress: raw.regress,
             timeout_ms: timeout,
             keys_home,
             fnr_max_permille: fnr,
             patience_s: patience,
-            catalog,
+            catalog: raw.catalog,
             agent,
-            attack_summary,
+            attack_summary: raw.attack_summary,
             planner,
         })),
         "smoke" => Ok(Command::Smoke(SmokeArgs {
             engine,
-            inferd_config: config,
+            inferd_config: raw.inferd_config,
             out,
-            eval_dir: eval_dir.unwrap_or_else(|| PathBuf::from("eval")),
-            flows,
+            eval_dir: raw.eval_dir.unwrap_or_else(|| PathBuf::from("eval")),
+            flows: raw.flows,
             patience_s: patience,
-            catalog,
+            catalog: raw.catalog,
             agent,
             keys_home,
             repeat: repeat.unwrap_or(1),
@@ -288,63 +343,56 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
 }
 
 /// The `--acp-*` options as they come, before they are known to be wanted.
-#[derive(Default)]
+#[derive(Args, Default, PartialEq)]
 struct AcpFlags {
+    #[arg(long = "acp-program", allow_hyphen_values = true)]
     program: Option<String>,
+    #[arg(long = "acp-command", allow_hyphen_values = true)]
     command: Option<PathBuf>,
+    #[arg(long = "acp-arg", allow_hyphen_values = true)]
     args: Vec<String>,
+    #[arg(long = "acp-network", allow_hyphen_values = true)]
     network: Option<String>,
+    #[arg(long = "acp-state", allow_hyphen_values = true)]
     state: Vec<String>,
+    #[arg(long = "acp-reads", allow_hyphen_values = true)]
     reads: Vec<PathBuf>,
+    #[arg(long = "acp-set", allow_hyphen_values = true)]
     set: Vec<String>,
+    #[arg(long = "acp-credentials", allow_hyphen_values = true)]
     credentials: Option<PathBuf>,
+    #[arg(long = "acp-credentials-at", allow_hyphen_values = true)]
     credentials_at: Option<String>,
+    #[arg(long = "acp-route", allow_hyphen_values = true)]
     route: Option<String>,
+    #[arg(long = "acp-profile", allow_hyphen_values = true)]
     profile: Option<String>,
+    #[arg(long = "acp-sign-in", allow_hyphen_values = true)]
     sign_in: Option<String>,
+    #[arg(long = "acp-agent", allow_hyphen_values = true)]
     agent: Option<String>,
+    #[arg(long = "acp-version", allow_hyphen_values = true)]
     version: Option<String>,
+    #[arg(long = "acp-agents-dir", allow_hyphen_values = true)]
     agents_dir: Option<PathBuf>,
+    #[arg(long = "acp-model", allow_hyphen_values = true)]
     model: Option<String>,
-    list_models: Task,
-    seen: bool,
+    /// Counted, not a flag field: how many times `--acp-list-models` was given.
+    #[arg(long = "acp-list-models", action = ArgAction::Count)]
+    list_models: u8,
 }
 
 impl AcpFlags {
-    fn take(&mut self, flag: &str, words: &mut Words<'_>) -> Result<(), UsageError> {
-        self.seen = true;
-        if flag == "--acp-list-models" {
-            self.list_models = Task::ListModels;
-            return Ok(());
-        }
-        let value = words.value(flag)?.clone();
-        match flag {
-            "--acp-program" => self.program = Some(value),
-            "--acp-command" => self.command = Some(PathBuf::from(value)),
-            "--acp-arg" => self.args.push(value),
-            "--acp-network" => self.network = Some(value),
-            "--acp-state" => self.state.push(value),
-            "--acp-reads" => self.reads.push(PathBuf::from(value)),
-            "--acp-set" => self.set.push(value),
-            "--acp-credentials" => self.credentials = Some(PathBuf::from(value)),
-            "--acp-credentials-at" => self.credentials_at = Some(value),
-            "--acp-route" => self.route = Some(value),
-            "--acp-profile" => self.profile = Some(value),
-            "--acp-sign-in" => self.sign_in = Some(value),
-            "--acp-agent" => self.agent = Some(value),
-            "--acp-version" => self.version = Some(value),
-            "--acp-agents-dir" => self.agents_dir = Some(PathBuf::from(value)),
-            "--acp-model" => self.model = Some(value),
-            other => return Err(UsageError::Unknown(other.to_owned())),
-        }
-        Ok(())
+    /// Whether any `--acp-*` option was given.
+    fn given(&self) -> bool {
+        *self != Self::default()
     }
 
     /// The agent the options ask for: the planner unless `--agent acp`, and then the spec,
     /// checked. `--acp-*` options without `--agent acp` are a mistake, not an ignored line.
     fn agent(self, word: Option<String>) -> Result<Agent, UsageError> {
         match word.as_deref() {
-            None | Some("planner") if !self.seen => Ok(Agent::Planner),
+            None | Some("planner") if !self.given() => Ok(Agent::Planner),
             None | Some("planner") => Err(UsageError::Acp(
                 "--acp-* options need --agent acp".to_owned(),
             )),
@@ -376,7 +424,10 @@ impl AcpFlags {
         let mut spec = AcpSpec::new(&program, command);
         spec.registry = registry;
         spec.model = self.model;
-        spec.task = self.list_models;
+        spec.task = match self.list_models {
+            0 => Task::default(),
+            _ => Task::ListModels,
+        };
         spec.args = self.args;
         spec.state = self.state;
         spec.reads = self.reads;

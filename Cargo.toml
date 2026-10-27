@@ -147,7 +147,8 @@ toml_edit = "0.25"  # docket-settings only: agents.toml is edited in place, comm
 pipewire = "0.10"
 futures-channel = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
-clap = { version = "4", features = ["derive"] }
+# Command lines: `derive` for the structs; `help`, `usage` and `error-context` for the messages. No colour, no suggestions.
+clap = { version = "4", default-features = false, features = ["derive", "std", "help", "usage", "error-context"] }
 # Policy point: cedar-policy's lalrpop tree passes `cargo deny check licenses` (spike S-Cedar).
 cedar-policy = "4.13"
 # actions-mcp: pin the minor.
