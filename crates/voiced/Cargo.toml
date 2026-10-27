@@ -55,6 +55,6 @@ workspace = true
 [dev-dependencies]
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 docket-testbus = { workspace = true }
-porter-fake = { workspace = true }
+porter-infer = { workspace = true, features = ["testing"] }
 tempfile = { workspace = true }
 futures-util = { workspace = true }

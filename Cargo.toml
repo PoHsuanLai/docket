@@ -102,28 +102,26 @@ tracing = "0.1"
 # porter's frozen interfaces, by git at a pinned rev (quire CONSUMING.md section 1; a local checkout
 # overrides it through a [patch], FINDINGS.md "Cross-repo dependencies"). porter has no docket dependency, so there is
 # no cycle.
-porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
-prov            = { git = "https://github.com/PoHsuanLai/prov", rev = "bf8d316f45c9856f72abfb9ab214db424a60cbbb" }
+porter-core     = { git = "https://github.com/PoHsuanLai/porter", rev = "fc6b55aba646377c296f5ccf0e086b83e3c139ae" }
+prov            = { git = "https://github.com/PoHsuanLai/prov", rev = "44dc456c04bc4d414e03385b17be2cf6ddab0436" }
 # The confined shell and agent sandbox (bubblewrap as a separate process).
 bulkhead        = { git = "https://github.com/PoHsuanLai/bulkhead", rev = "fe1087903357e7cb99152caa5ef8e9dff4e1be7f" }
-porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
-porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
-porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
-porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
-# Test-only: the scripted inference session (dev-dependencies of the daemons that ask inferd).
-porter-fake     = { git = "https://github.com/PoHsuanLai/porter", rev = "dcc16ada850559c7c8ae213cd7a9b153672e5031" }
+porter-infer    = { git = "https://github.com/PoHsuanLai/porter", rev = "fc6b55aba646377c296f5ccf0e086b83e3c139ae" }
+porter-client   = { git = "https://github.com/PoHsuanLai/porter", rev = "fc6b55aba646377c296f5ccf0e086b83e3c139ae", features = ["infer"] }
+porter-dbus     = { git = "https://github.com/PoHsuanLai/porter", rev = "fc6b55aba646377c296f5ccf0e086b83e3c139ae" }
+porter-daemon   = { git = "https://github.com/PoHsuanLai/porter", rev = "fc6b55aba646377c296f5ccf0e086b83e3c139ae" }
 
 # almanac's frozen interfaces, by git at a pinned rev. docket-core names almanac-core's pure types
 # (episodes, recall and recent shapes); intentd reaches memoryd through almanac-client.
-almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "fda30d4e2b04f2957644be4120f72be9824d6fd9" }
+almanac-core    = { git = "https://github.com/PoHsuanLai/almanac", rev = "39121d44877615ae3d956b6939f485f848f9306c" }
 # Without its default desktop switch (`quire-desktop`, which pulls the bus): the portable crates name
 # no feature, the daemons name `dbus`.
-almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "fda30d4e2b04f2957644be4120f72be9824d6fd9", default-features = false }
+almanac-client  = { git = "https://github.com/PoHsuanLai/almanac", rev = "39121d44877615ae3d956b6939f485f848f9306c", default-features = false }
 # Test-only: a MemoryService over in-memory seams, the backend of the in-process memory tests.
-almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "fda30d4e2b04f2957644be4120f72be9824d6fd9" }
-almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "fda30d4e2b04f2957644be4120f72be9824d6fd9" }
+almanac-fake    = { git = "https://github.com/PoHsuanLai/almanac", rev = "39121d44877615ae3d956b6939f485f848f9306c" }
+almanac-service = { git = "https://github.com/PoHsuanLai/almanac", rev = "39121d44877615ae3d956b6939f485f848f9306c" }
 # Test-only: the fake memoryd of intentd's audit tests serves the real wire (dev-dependency).
-almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "fda30d4e2b04f2957644be4120f72be9824d6fd9" }
+almanac-dbus    = { git = "https://github.com/PoHsuanLai/almanac", rev = "39121d44877615ae3d956b6939f485f848f9306c" }
 
 # stoker's pure vocabulary, by git at a pinned rev: the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.

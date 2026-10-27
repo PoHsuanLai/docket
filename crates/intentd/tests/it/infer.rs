@@ -191,8 +191,8 @@ async fn every_way_inferd_can_fail_is_a_model_error_and_never_a_reply() {
         ),
         (
             "the session ends with no answer",
-            ScriptedInferd::new([porter_fake::FakeInferSession::scripted([
-                porter_fake::Script {
+            ScriptedInferd::new([porter_infer::testing::FakeInferSession::scripted([
+                porter_infer::testing::Script {
                     kind: RequestKind::Chat,
                     steps: vec![],
                 },
@@ -201,7 +201,7 @@ async fn every_way_inferd_can_fail_is_a_model_error_and_never_a_reply() {
         ),
         (
             "a script for another kind of request",
-            ScriptedInferd::new([porter_fake::FakeInferSession::scripted([])]),
+            ScriptedInferd::new([porter_infer::testing::FakeInferSession::scripted([])]),
             TurnError::Refused(InferRefusal::Unsupported),
         ),
     ];
@@ -336,9 +336,9 @@ async fn the_reviewer_over_inferd_passes_a_quick_pass_and_asks_when_inferd_says_
 
 #[tokio::test]
 async fn a_reply_cut_short_is_not_a_verdict() {
-    let cut = ScriptedInferd::new([porter_fake::FakeInferSession::scripted([chat_script(
-        reply_stopped("pass", StopReason::MaxTokens),
-    )])]);
+    let cut = ScriptedInferd::new([porter_infer::testing::FakeInferSession::scripted([
+        chat_script(reply_stopped("pass", StopReason::MaxTokens)),
+    ])]);
     let verdict = reviewer(cut).review(Stage::Quick, &review_request()).await;
     assert_eq!(verdict.map(|_| ()), Err(ReviewError::OutOfRoom));
 }

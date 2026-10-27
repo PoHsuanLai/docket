@@ -5,7 +5,7 @@
 
 use porter_client::{Transport, TransportError};
 use porter_core::{AccountsReply, AccountsRequest, DataClass, Need, Tier};
-use porter_fake::{FakeInferSession, Script, ScriptStep};
+use porter_infer::testing::{FakeInferSession, Script, ScriptStep};
 use porter_infer::{
     ChatReply, ClientFrame, InferEvent, InferReply, InferSession, OpenOptions, RequestKind,
     ServedBy, SessionError, StopReason, TokenUsage,

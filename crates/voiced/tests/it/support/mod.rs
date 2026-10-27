@@ -11,7 +11,7 @@ use docket_dbus::callers::{Identity, Role};
 use docket_testbus::PrivateBus;
 use infer::{ScriptedInfer, Seen};
 use porter_core::{AccountId, Locality, ModelId};
-use porter_fake::{Script, ScriptStep};
+use porter_infer::testing::{Script, ScriptStep};
 use porter_infer::{
     AudioFrameOut, AudioRate, Base64Bytes, HeardDelta, InferEvent, InferReply, Readiness,
     RequestKind, ServedBy, SpeakReply, TranscribeReply,

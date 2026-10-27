@@ -267,9 +267,12 @@ async fn when_the_writer_fails_there_is_no_policy() {
         ),
         (
             "cut short",
-            ScriptedInferd::new([porter_fake::FakeInferSession::scripted([chat_script(
-                reply_stopped(&draft(&[], "read", &[]), StopReason::MaxTokens),
-            )])]),
+            ScriptedInferd::new([porter_infer::testing::FakeInferSession::scripted([
+                chat_script(reply_stopped(
+                    &draft(&[], "read", &[]),
+                    StopReason::MaxTokens,
+                )),
+            ])]),
             // Stopped at the model's output limit: its own fault, not an unreadable reply.
             ReviewError::OutOfRoom,
         ),

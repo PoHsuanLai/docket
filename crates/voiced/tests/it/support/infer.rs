@@ -4,7 +4,7 @@
 
 use porter_client::{InferSession, OpenOptions, SessionError, Transport, TransportError};
 use porter_core::{AccountsReply, AccountsRequest, DataClass, Need, Tier};
-use porter_fake::{FakeInferSession, Script};
+use porter_infer::testing::{FakeInferSession, Script};
 use porter_infer::{ClientFrame, InferEvent, Readiness};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};

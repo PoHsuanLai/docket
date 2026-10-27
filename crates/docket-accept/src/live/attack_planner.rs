@@ -36,7 +36,7 @@ use docket_session::fake::MemoryLog;
 use docket_store::SystemClock;
 use docket_trace::{MemoryTap, Tap};
 use intentd::{InferdModel, InferdWriter};
-use porter_client::{AnyTransport, DbusTransport};
+use porter_client::DbusTransport;
 use porter_core::{AppId, AppName, Isolation};
 use prov::{AgentRef, SessionId};
 use std::collections::BTreeSet;
@@ -97,7 +97,7 @@ struct Rig {
 impl Rig {
     fn link(&self) -> Link {
         Watched::new(
-            AnyTransport::Dbus(DbusTransport::over(self.connection.clone())),
+            DbusTransport::over(self.connection.clone()),
             self.tap.watch(),
         )
     }

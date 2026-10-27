@@ -5,7 +5,7 @@
 
 use crate::support::bus::PrivateBus;
 use intentd::{InferdModel, InferdWriter, inferd_transport};
-use porter_client::{AnyTransport, Transport, TransportError};
+use porter_client::{Transport, TransportError};
 use porter_core::Tokens;
 use porter_core::capability::LlmFeature;
 use porter_core::need::LlmNeed;
@@ -14,13 +14,12 @@ use porter_infer::{Model, ModelCard};
 use std::collections::BTreeSet;
 
 #[tokio::test]
-async fn the_link_is_the_dbus_transport_and_an_absent_inferd_is_unreachable() {
+async fn an_absent_inferd_is_unreachable_on_the_link() {
     let scratch = tempfile::tempdir().expect("scratch");
     let bus = PrivateBus::start(scratch.path());
     let connection = bus.connect().await;
 
     let link = inferd_transport(&connection, docket_dbus::InferWatch::off());
-    assert!(matches!(link.inner(), AnyTransport::Dbus(_)), "{link:?}");
     let need = Need::Llm(LlmNeed::new(
         BTreeSet::from([LlmFeature::Chat]),
         Tokens(4096),

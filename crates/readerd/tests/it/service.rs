@@ -249,9 +249,9 @@ async fn what_the_model_says_is_passed_on_only_if_it_fits() {
         ),
         (
             "cut short",
-            ScriptedInferd::new([porter_fake::FakeInferSession::scripted([chat_script(
-                reply_stopped("newsl", StopReason::MaxTokens),
-            )])]),
+            ScriptedInferd::new([porter_infer::testing::FakeInferSession::scripted([
+                chat_script(reply_stopped("newsl", StopReason::MaxTokens)),
+            ])]),
             Err(ReaderError::Unparseable),
         ),
     ];

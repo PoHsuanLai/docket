@@ -15,7 +15,7 @@
 //! feature or an environment variable, that does it for a shipped binary.
 
 use crate::BusConnection;
-pub use porter_dbus::{
+pub use porter_dbus::callers::{
     Caller, CallerFileError, CallerRole as Role, CallerTable, Callers, ProcCallers, load_callers,
     table_from_toml,
 };

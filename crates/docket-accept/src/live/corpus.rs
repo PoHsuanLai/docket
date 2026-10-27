@@ -20,7 +20,7 @@ use docket_fake::{FakeError, Forget, fake_router_with};
 use docket_store::SystemClock;
 use docket_trace::{MemoryTap, Tap};
 use intentd::{InferdModel, InferdWriter};
-use porter_client::{AnyTransport, DbusTransport};
+use porter_client::DbusTransport;
 use porter_core::{AccountId, Billing, Locality, ModelId};
 use porter_infer::ModelCard;
 use std::path::PathBuf;
@@ -124,7 +124,7 @@ impl<R> Forget for Judges<R> {
     fn forget(&self) {}
 }
 
-pub(crate) type Link = Watched<AnyTransport>;
+pub(crate) type Link = Watched<DbusTransport>;
 
 pub(crate) fn card(model: &str) -> Option<ModelCard> {
     Some(ModelCard {
@@ -185,12 +185,7 @@ pub async fn run_corpus_live(
     warm_up(&model, connection.clone(), options.patience).await?;
     let memory = MemoryTap::default();
     let tap = Tap::memory(memory.clone(), "eval");
-    let link = || -> Link {
-        Watched::new(
-            AnyTransport::Dbus(DbusTransport::over(connection.clone())),
-            tap.watch(),
-        )
-    };
+    let link = || -> Link { Watched::new(DbusTransport::over(connection.clone()), tap.watch()) };
     let model_of = |name: &'static str| {
         card(name)
             .map(|c| InferdModel::new(link(), c))
