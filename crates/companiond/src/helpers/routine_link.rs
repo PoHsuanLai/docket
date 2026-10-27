@@ -9,7 +9,7 @@ use docket_core::Clock;
 use docket_core::SessionOpen;
 use docket_core::helper::{HelperName, HelperRecord, JobId};
 use docket_core::routine::JobEnd;
-use docket_tasks::RouterRecent;
+use docket_tasks::{RecentSource, RouterRecent};
 use porter_client::Transport as InferTransport;
 use prov::{AgentRef, HelperId, SpaceId};
 
