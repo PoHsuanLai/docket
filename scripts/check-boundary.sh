@@ -75,6 +75,8 @@ LAYERS=(
   "docket-eval:A"
   "docket-testbus:A"
   "docket-accept:A"
+  # operator tools over the acceptance world (docket-live, docket-bringup)
+  "docket-live:A"
   "actions-mcp:A"
   "docket-cli:A"
   "docket-ds:A"
@@ -413,6 +415,8 @@ RULES=(
   # audio, embedding runtime or MCP SDK.
   # (The acceptance run starts the actions-mcp bridge as a process for the ACP engine, so it links rmcp through it.)
   "docket-accept: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite"
+  # Test only: the operator tools run the acceptance world; the same bans as docket-accept.
+  "docket-live: reqwest hyper hyper-util rustls pipewire ort fastembed rusqlite"
   "docket-log: $EFFECTS toml"
   "voiced: reqwest hyper hyper-util rustls ort fastembed rusqlite rmcp cedar-policy"
 )
@@ -469,12 +473,12 @@ if [ "$theirs_found" -eq 0 ]; then
 fi
 
 # No shipped crate carries a test-only switch. The proc root of the callers and the model tap are
-# arguments (`HarnessSeams`) that only the docket-accept mains pass; no daemon source reads
+# arguments (`HarnessSeams`) that only the docket-accept mains pass (docket-live, which runs the same world, names them too); no daemon source reads
 # `*_PROC_ROOT` or `DOCKET_MODEL_TRACE`. porter reads a fixture tree only with porter-dbus's
 # `test-proc-root`, which docket-dbus's `fixture-callers` forwards (that one line is the only
-# mention allowed); docket-accept and tests' dev-dependencies turn it on.
+# mention allowed); docket-accept, docket-live and tests' dev-dependencies turn it on.
 leaks=$(grep -rnE 'PROC_ROOT|DOCKET_MODEL_TRACE|test-proc-root|test-model-trace' crates \
-  --include='*.rs' --include=Cargo.toml --exclude-dir=docket-accept --exclude-dir=tests \
+  --include='*.rs' --include=Cargo.toml --exclude-dir=docket-accept --exclude-dir=docket-live --exclude-dir=tests \
   | grep -vE '^crates/docket-dbus/Cargo.toml:[0-9]+:fixture-callers = \["porter-dbus/test-proc-root"\]$' || true)
 if [ -n "$leaks" ]; then
   echo "TEST SWITCH: a shipped crate names a harness switch:"
@@ -485,15 +489,15 @@ else
 fi
 
 # docket-trace writes prompts to disk and is test and acceptance support: only the harness
-# (docket-accept) lists it as a dependency, so no shipped crate has code that could write one.
+# (docket-accept and docket-live) lists it as a dependency, so no shipped crate has code that could write one.
 trace_users=$(grep -lE '^docket-trace[[:space:]]*=' crates/*/Cargo.toml \
-  | grep -vE '^crates/(docket-accept|docket-trace)/Cargo.toml$' || true)
+  | grep -vE '^crates/(docket-accept|docket-live|docket-trace)/Cargo.toml$' || true)
 if [ -n "$trace_users" ]; then
-  echo "TEST SUPPORT: a crate other than docket-accept depends on docket-trace:"
+  echo "TEST SUPPORT: a crate other than docket-accept and docket-live depends on docket-trace:"
   echo "$trace_users"
   fail=1
 else
-  echo "docket-trace is a dependency of docket-accept alone"
+  echo "docket-trace is a dependency of docket-accept and docket-live alone"
 fi
 
 # Built as the installer builds it (`-p` each shipped package, no dev-dependencies), no shipped

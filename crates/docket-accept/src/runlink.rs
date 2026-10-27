@@ -9,21 +9,21 @@ use std::hash::Hasher;
 use std::path::{Path, PathBuf};
 
 /// The link's path: `/tmp/dl-<16 hex digits of the scratch root's FNV-1a hash>`.
-pub(crate) fn short_run(dir: &Path) -> PathBuf {
+pub fn short_run(dir: &Path) -> PathBuf {
     let mut hasher = FnvHasher::default();
     hasher.write(dir.as_os_str().as_encoded_bytes());
     PathBuf::from(format!("/tmp/dl-{:016x}", hasher.finish()))
 }
 
 /// Points the short name at `<dir>/run`, replacing a stale link of an earlier run of the same root.
-pub(crate) fn link_run(dir: &Path) -> std::io::Result<()> {
+pub fn link_run(dir: &Path) -> std::io::Result<()> {
     let link = short_run(dir);
     unlink_run(dir);
     std::os::unix::fs::symlink(dir.join("run"), link)
 }
 
 /// Removes the short name if it is a link; anything else at that path is left alone.
-pub(crate) fn unlink_run(dir: &Path) {
+pub fn unlink_run(dir: &Path) {
     let link = short_run(dir);
     if link
         .symlink_metadata()

@@ -1,19 +1,10 @@
 mod acp;
-mod acp_engine;
-mod acp_pure;
 mod acp_sheets;
-mod bringup;
 mod checkpoints;
 mod flows;
 mod handles;
-mod hostile;
-mod live_eval;
-mod live_pure;
-mod live_warm;
-mod pattern_pure;
 mod support;
 mod terminal;
-mod warm_identity;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its
 /// own, and a `tests/it/` file or directory without a `mod` line would never run.

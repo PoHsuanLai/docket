@@ -3,15 +3,13 @@
 //! with a mail provider and a `Confirm1` server around them (see `dev/accept/README.md`).
 
 pub mod acp;
-pub mod bringup;
 pub mod catalog;
 pub mod confirm;
 pub mod drive;
 pub mod grants;
 pub mod keys_home;
-pub mod live;
 pub mod provider;
-mod runlink;
+pub mod runlink;
 pub mod seams;
 pub mod things;
 pub mod world;

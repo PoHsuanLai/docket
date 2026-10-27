@@ -57,7 +57,7 @@ case "$engine" in
 esac
 
 export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$(dirname "$root")/accept-target}
-cargo build -p docket-accept --bins
+cargo build -p docket-accept -p docket-live --bins
 bin=$CARGO_TARGET_DIR/debug/docket-live
 
 scratch=${LIVE_SCRATCH:-$(mktemp -d "${TMPDIR:-/tmp}/docket-live.XXXXXX")}

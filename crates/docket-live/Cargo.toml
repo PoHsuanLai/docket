@@ -1,0 +1,62 @@
+[package]
+name = "docket-live"
+description = "Operator tools over the acceptance world: docket-live runs the eval corpora and the acceptance flows against a real model or a cassette on a private bus, and docket-bringup starts the agent services on a demo shell's bus. Not shipped; docket-accept holds the world they run in."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "docket-live"
+path = "src/bin/docket-live.rs"
+
+[[bin]]
+name = "docket-bringup"
+path = "src/bin/docket-bringup.rs"
+
+# The daemons the world starts are docket-accept's binaries (`accept-intentd` and the rest), found
+# beside the running program (`Binaries::beside`): build them first with `cargo build -p docket-accept --bins`.
+[dependencies]
+action-review = { workspace = true }
+agents-core = { workspace = true }
+bulkhead = { workspace = true }
+clap = { workspace = true }
+companion-wire = { workspace = true }
+docket-accept = { workspace = true }
+docket-acp-bin = { workspace = true, features = ["testing"] }
+docket-acp-host = { workspace = true }
+docket-client = { workspace = true, features = ["dbus", "in_process"] }
+docket-core = { workspace = true, features = ["manifest-file"] }
+docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }
+docket-eval = { workspace = true }
+docket-fake = { workspace = true }
+docket-host = { workspace = true }
+docket-launch = { workspace = true }
+docket-models = { workspace = true }
+docket-planner = { workspace = true }
+docket-reader = { workspace = true }
+docket-session = { workspace = true, features = ["testing"] }
+docket-store = { workspace = true }
+docket-tasks = { workspace = true }
+docket-testbus = { workspace = true }
+docket-trace = { workspace = true }
+eval-core = { workspace = true }
+porter-client = { workspace = true, features = ["dbus"] }
+porter-core = { workspace = true }
+porter-infer = { workspace = true }
+prov = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+toml = { workspace = true }
+zbus = { workspace = true }
+
+[dev-dependencies]
+docket-settings = { workspace = true }
+futures-util = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

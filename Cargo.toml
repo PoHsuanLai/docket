@@ -39,6 +39,7 @@ members = [
   "crates/docket-testbus",
   "crates/docket-trace",
   "crates/docket-accept",
+  "crates/docket-live",
   "crates/docket-eval",
   "crates/eval-core",
   "crates/docket-cli",
@@ -110,6 +111,7 @@ docket-provider = { path = "crates/docket-provider" }
 docket-fake    = { path = "crates/docket-fake" }
 docket-testbus = { path = "crates/docket-testbus" }
 docket-trace   = { path = "crates/docket-trace" }
+docket-accept  = { path = "crates/docket-accept" }
 docket-eval    = { path = "crates/docket-eval" }
 eval-core      = { path = "crates/eval-core" }
 docket-cli     = { path = "crates/docket-cli" }

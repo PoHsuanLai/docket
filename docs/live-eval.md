@@ -5,7 +5,7 @@ runs: it plays the eval corpora and the acceptance flows through the real code w
 inferd, on a private bus that cannot reach the owner's desktop, and writes a transcript of everything a
 model was sent and said. A failure seen live becomes a deterministic gate test.
 
-Everything below is `docket-live` (`crates/docket-accept/src/live`, `src/bin/docket-live.rs`), started by
+Everything below is `docket-live` (the crate `crates/docket-live`; the world it runs in is `docket-accept`'s), started by
 two scripts. The gate runs the same code with `--engine scripted` (a cassette): no network, no model.
 
 | Script | What it runs |
@@ -206,7 +206,7 @@ order the daemons wrote them, with the answer's phases, the sheets and what the 
    from a smoke run or is new, write it up as a case first: start from `<id>.case.toml` (or write one
    in the format at the top of `eval-core/src/case.rs`), give it a unique id, and put it in the
    matching `eval/<corpus>/` directory.
-3. `cargo test -p docket-accept every_regression_cassette_replays_and_its_case_holds`. The test replays
+3. `cargo test -p docket-live every_regression_cassette_replays_and_its_case_holds`. The test replays
    each `eval/regress/*.cassette.jsonl` through the case of the same id with the model answering exactly
    as it did live, and requires the case's `expect` to hold. While the stack is unfixed this test is
    red: that is the failing test to write the fix against. Commit the cassette with the fix.

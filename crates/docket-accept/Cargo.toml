@@ -50,43 +50,19 @@ path = "src/bin/accept-bus-relay.rs"
 name = "accept-fake-agent"
 path = "src/bin/accept-fake-agent.rs"
 
-[[bin]]
-name = "docket-live"
-path = "src/bin/docket-live.rs"
-
-[[bin]]
-name = "docket-bringup"
-path = "src/bin/docket-bringup.rs"
-
 [dependencies]
 actions-mcp = { workspace = true }
-action-review = { workspace = true }
 companion-wire = { workspace = true }
 companiond = { workspace = true }
-agents-core = { workspace = true }
 docket-acp = { workspace = true }
-docket-acp-host = { workspace = true }
 docket-acp-bin = { workspace = true, features = ["testing"] }
 docket-cli = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-provider = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true, features = ["manifest-file"] }
 docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }
-docket-eval = { workspace = true }
-eval-core = { workspace = true }
-docket-host = { workspace = true }
-docket-launch = { workspace = true }
-docket-models = { workspace = true }
-docket-planner = { workspace = true }
-docket-tasks = { workspace = true }
-docket-reader = { workspace = true }
 docket-log = { workspace = true }
-bulkhead = { workspace = true }
-docket-session = { workspace = true, features = ["testing"] }
-docket-store = { workspace = true }
-docket-settings = { workspace = true }
 docket-trace = { workspace = true }
-docket-fake = { workspace = true }
 docket-router = { workspace = true }
 docket-testbus = { workspace = true }
 fnv = { workspace = true }
@@ -95,7 +71,6 @@ intentd = { workspace = true }
 readerd = { workspace = true }
 almanac-core = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }
-porter-client = { workspace = true, features = ["dbus"] }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
 prov = { workspace = true }
@@ -103,9 +78,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tempfile = { workspace = true }
-clap = { workspace = true }
 tokio = { workspace = true }
-toml = { workspace = true }
 zbus = { workspace = true }
 
 [lints]

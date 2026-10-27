@@ -3,13 +3,13 @@
 `docket-bringup` starts inferd, memoryd, intentd and companiond on a bus that already exists (the nested
 demo's private bus), so the companion pane answers. It is the acceptance `World`'s setup (same daemons, same
 `env_clear` scratch environment, same fake proc root) with daemons that outlive the command. Logic:
-`crates/docket-accept/src/bringup`; the binary is a thin wrapper.
+`crates/docket-live/src/bringup`; the binary is a thin wrapper.
 
 ## Build and find it
 
 ```sh
-cd ~/docket && cargo build -p docket-accept --bins     # the daemons must sit beside docket-bringup
-~/docket/target/debug/docket-bringup ...               # or: cargo run -p docket-accept --bin docket-bringup -- ...
+cd ~/docket && cargo build -p docket-accept -p docket-live --bins   # the daemons must sit beside docket-bringup
+~/docket/target/debug/docket-bringup ...                            # or: cargo run -p docket-live --bin docket-bringup -- ...
 ```
 
 `cargo run --bin docket-bringup` alone does not build the sibling daemons (`accept-intentd`, `accept-companiond`);
