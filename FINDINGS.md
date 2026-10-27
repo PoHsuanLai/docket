@@ -1042,8 +1042,8 @@ For the owner's live demo of the companion on a cloud model (runbook: `docs/demo
   it, and the conversation is left open for the sheet; a finished conversation is closed. A handle in the text is
   printed as `#n` (a terminal may not `Session.Display`). The seam is `companion_client::CompanionTransport`
   (`DbusCompanion` over the bus; a new crate rather than a module of `docket-client`, so cua's and sill's lock files, which
-  list docket-client's dependencies, do not change); the whole program is `docket_cli::program::main`, which `accept-quire-do` also
-  runs. Tests: `docket-cli/tests/it/ask.rs` (scripted companion over the fake router), `docket-accept/tests/it/terminal.rs`
+  list docket-client's dependencies, do not change); the whole program is `docket_cli::program::execute` over the process's `Process` and the `Buses`
+  (`SessionBus`); `main.rs` only collects them, and `accept-quire-do` builds the same `main.rs`. Tests: `docket-cli/tests/it/ask.rs` (scripted companion over the fake router), `docket-accept/tests/it/terminal.rs`
   (the real `quire-do` against the real daemons: a read answered, a Forward left waiting for the sheet),
   `companiond/tests/it/terminal.rs` (the authority, below).
 - **Security: the cli role speaks for the person in three calls.** companiond used to accept only the owner of

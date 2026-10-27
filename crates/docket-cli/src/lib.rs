@@ -5,7 +5,8 @@
 //! decides, and has no way around the gate: a terminal cannot tell the person from an agent typing
 //! in it, so every argument is untrusted and every act that is not a read asks the person.
 //!
-//! `run` is the whole program over any `Transport`; `main` supplies the bus.
+//! `run` is the whole command over any `Transport`; `program::execute` is the whole program over
+//! what the process hands it (`Process`) and the buses (`Buses`); `main` only collects those.
 
 mod args;
 mod ask;
@@ -20,6 +21,7 @@ pub mod program;
 mod render;
 pub mod resolve;
 pub mod schema;
+mod session_bus;
 mod sessions;
 mod skills;
 pub mod when;
@@ -30,6 +32,7 @@ pub use exec::Style;
 pub use exit::{Exit, Failure};
 pub use params::Stdin;
 pub use resolve::Apps;
+pub use session_bus::SessionBus;
 pub use sessions::SessionsCmd;
 pub use skills::list as skills_list;
 

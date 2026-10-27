@@ -1,24 +1,53 @@
-//! The whole `quire-do` program: the session bus as the transport, and the terminal as stdin and
-//! stdout. `main` is `program::main`, and so is the acceptance harness's copy of the binary.
+//! The whole `quire-do` program over what the process hands it: the command line, standard input
+//! and output, the environment, the clock and the buses. Nothing here reads a global; `main` (and
+//! the acceptance harness's copy of it) collects those and passes them in.
 
 use crate::{
-    Bus, Command, Exit, Invocation, NoBus, Report, Stdin, Stdout, ask_companion, bus_for, parse,
-    run_in,
+    Bus, Command, Exit, Invocation, JsonFlag, NoBus, Report, Stdin, Stdout, ask_companion, bus_for,
+    exit, parse, run_in,
 };
-use companion_client::DbusCompanion;
-use docket_client::{DbusTransport, Intents};
-use std::io::{IsTerminal, Read, Write};
-use std::process::ExitCode;
+use companion_client::CompanionTransport;
+use docket_client::{Intents, Transport, TransportError};
+use prov::{SpaceId, UnixSeconds};
+use std::future::Future;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-fn stdin_for(words: &[String]) -> Stdin {
-    if !words.iter().any(|w| w == "-") {
-        return Stdin::Closed;
-    }
-    let mut text = String::new();
-    match std::io::stdin().read_to_string(&mut text) {
-        Ok(_) => Stdin::Text(text),
-        Err(_) => Stdin::Closed,
-    }
+/// Reads standard input to its end. Called only when the command line names `-`.
+pub type ReadStdin = fn() -> Stdin;
+
+/// An environment variable, if it is set.
+pub type EnvLookup = fn(&str) -> Option<String>;
+
+/// What the process hands the program.
+#[derive(Debug, Clone)]
+pub struct Process {
+    /// The command line, without the program name.
+    pub words: Vec<String>,
+    /// What standard output is.
+    pub stdout: Stdout,
+    /// How to read standard input.
+    pub stdin: ReadStdin,
+    /// How to read the environment.
+    pub env: EnvLookup,
+    /// The time now.
+    pub now: SystemTime,
+}
+
+/// Where the program reaches intentd and the assistant. A connection is made only when a command
+/// needs it.
+pub trait Buses: Send + Sync {
+    /// The carrier of Intents1.
+    type Intents: Transport;
+    /// The carrier of the assistant's conversation calls.
+    type Companion: CompanionTransport;
+
+    /// Connects to intentd.
+    fn intents(
+        &self,
+    ) -> impl Future<Output = Result<Intents<Self::Intents>, TransportError>> + Send;
+
+    /// Connects to the assistant.
+    fn companion(&self) -> impl Future<Output = Result<Self::Companion, TransportError>> + Send;
 }
 
 fn unavailable(what: &impl std::fmt::Display) -> Report {
@@ -29,103 +58,81 @@ fn unavailable(what: &impl std::fmt::Display) -> Report {
     }
 }
 
-/// `quire-do ask`: intentd records the turn, companiond is asked; both on the session bus.
-async fn ask(text: &str, space: prov::SpaceId, json: crate::JsonFlag, stdout: Stdout) -> Report {
-    let intents = match DbusTransport::connect().await {
-        Ok(transport) => Intents::over(transport),
+fn seconds(now: SystemTime) -> UnixSeconds {
+    UnixSeconds(
+        now.duration_since(UNIX_EPOCH)
+            .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(0)),
+    )
+}
+
+/// `quire-do ask`: intentd records the turn, companiond is asked.
+async fn ask<B: Buses>(
+    buses: &B,
+    text: &str,
+    space: SpaceId,
+    json: JsonFlag,
+    process: &Process,
+) -> Report {
+    let intents = match buses.intents().await {
+        Ok(intents) => intents,
         Err(why) => return unavailable(&why),
     };
-    let companion = match DbusCompanion::connect().await {
+    let companion = match buses.companion().await {
         Ok(companion) => companion,
         Err(why) => return unavailable(&why),
     };
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(0));
     ask_companion(
         &intents,
         &companion,
         text,
         space,
-        prov::UnixSeconds(now),
-        stdout,
+        seconds(process.now),
+        process.stdout,
         json,
     )
     .await
 }
 
-async fn report(words: Vec<String>) -> Report {
-    let stdout = if std::io::stdout().is_terminal() {
-        Stdout::Tty
-    } else {
-        Stdout::Pipe
-    };
-    if let Ok(parsed) = parse(&words)
+/// Runs the program on what `process` hands it, and says what it prints and how it ends.
+pub async fn execute<B: Buses>(process: Process, buses: B) -> Report {
+    if let Ok(parsed) = parse(&process.words)
         && let Command::Ask { text, space } = &parsed.command
     {
-        return ask(text, space.clone(), parsed.json, stdout).await;
+        return ask(&buses, text, space.clone(), parsed.json, &process).await;
     }
-    let stdin = stdin_for(&words);
-    let roots = docket_skills::Roots::from_env(&|key| std::env::var(key).ok());
-    if bus_for(&words) == Bus::NotNeeded {
-        let invocation = Invocation {
-            words,
-            stdin,
-            stdout,
-        };
-        return run_in(&Intents::over(NoBus), invocation, &roots).await;
-    }
-    match DbusTransport::connect().await {
-        Ok(transport) => {
-            run_in(
-                &Intents::over(transport),
-                Invocation {
-                    words,
-                    stdin,
-                    stdout,
-                },
-                &roots,
-            )
-            .await
-        }
-        Err(why) => {
-            let failure = crate::exit::of_client(&why.into());
-            Report {
-                stdout: String::new(),
-                stderr: format!("quire-do: {}\n", failure.what),
-                exit: failure.exit,
+    let stdin = match process.words.iter().any(|w| w == "-") {
+        true => (process.stdin)(),
+        false => Stdin::Closed,
+    };
+    let roots = docket_skills::Roots::from_env(&process.env);
+    let bus = bus_for(&process.words);
+    let invocation = Invocation {
+        words: process.words,
+        stdin,
+        stdout: process.stdout,
+    };
+    match bus {
+        Bus::NotNeeded => run_in(&Intents::over(NoBus), invocation, &roots).await,
+        Bus::Needed => match buses.intents().await {
+            Ok(intents) => run_in(&intents, invocation, &roots).await,
+            Err(why) => {
+                let failure = exit::of_client(&why.into());
+                Report {
+                    stdout: String::new(),
+                    stderr: format!("quire-do: {}\n", failure.what),
+                    exit: failure.exit,
+                }
             }
-        }
+        },
     }
 }
 
 /// What a run that panicked is reported as: a terminal should read "unavailable", not a
 /// backtrace.
-fn broken(why: &str) -> Report {
+pub fn broken(why: &str) -> Report {
     Report {
         stdout: String::new(),
         stderr: format!("quire-do: unavailable: {why}\n"),
         exit: Exit::Unavailable,
     }
-}
-
-/// Runs the program on this process's arguments, standard streams and session bus.
-pub fn main() -> ExitCode {
-    std::panic::set_hook(Box::new(|_| {}));
-    let words: Vec<String> = std::env::args().skip(1).collect();
-    let runtime = match tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-    {
-        Ok(runtime) => runtime,
-        Err(_) => return ExitCode::from(Exit::Unavailable.code()),
-    };
-    let done = runtime.block_on(async {
-        tokio::spawn(report(words))
-            .await
-            .unwrap_or_else(|_| broken("quire-do stopped on an internal error"))
-    });
-    let _ = std::io::stdout().write_all(done.stdout.as_bytes());
-    let _ = std::io::stderr().write_all(done.stderr.as_bytes());
-    ExitCode::from(done.exit.code())
 }
