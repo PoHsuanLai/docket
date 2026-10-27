@@ -65,8 +65,7 @@ pub use drive::{MOST_TASK_DEPTH, refusal_of};
 pub use fault::ServeFault;
 pub use handoff::Handoff;
 pub use helpers::{
-    JobEnding, JobInput, JobReport, JobSpec, OpenedJob, conversation_voice, helper_query,
-    helper_records_of, open_options, planner_for, role_text,
+    conversation_voice, helper_query, helper_records_of, open_options, planner_for, role_text,
 };
 pub use memory::{episodes_of, hits_of, primer_of, profile_of};
 pub use native::{Core, NativeBackend, NativeHost, RouterLog};

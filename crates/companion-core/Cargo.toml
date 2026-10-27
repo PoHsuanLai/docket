@@ -1,0 +1,22 @@
+[package]
+name = "companion-core"
+description = "The companion's pure logic, with no runtime, bus, file or clock: how a helper's job end is told to the board, the answers and notices the board keeps, the desk's decisions and their typed refusals, the terminal hand-over rules, the routines' due and event-poll rules, the systemd timer text, and who may make which call."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+companion-wire = { workspace = true }
+docket-core = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+serde_json = { workspace = true }

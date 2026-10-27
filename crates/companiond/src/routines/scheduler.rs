@@ -4,13 +4,11 @@
 //! late tick, and the book skips it (or runs it once, when the person said so). Systemd user
 //! timers, written from the same schedules, only start companiond at the time.
 
-use super::host::{Awake, EventAsk, Host, Seen};
-use super::units::units_of;
-use almanac_core::EventRef;
+use super::host::Host;
+use companion_core::{EventWatch, Settle, ended_events, event_asks, group_by_space};
 use docket_core::Clock;
 use docket_core::routine::{
-    EventMatch, JobEnd, RoutineBook, RoutineEffect, RoutineEvent, RoutineId, RoutineRecord,
-    TimerEntry, step,
+    RoutineBook, RoutineEffect, RoutineEvent, RoutineId, RoutineRecord, step,
 };
 use prov::{SpaceId, UnixSeconds};
 use std::collections::VecDeque;
@@ -20,23 +18,13 @@ use std::time::Duration;
 
 /// How often the timer ticks.
 const POLL: Duration = Duration::from_secs(5);
-/// How often the almanac is asked for events, in seconds.
-const EVENTS_EVERY: i64 = 30;
-/// How far back a question to the almanac reaches past the last one, in seconds, so an event on the
-/// boundary is not lost (events are told apart by their handle).
-const OVERLAP: i64 = 2;
-/// The most event handles remembered.
-const MOST_SEEN: usize = 512;
 
 struct State {
     book: RoutineBook,
-    /// The timers last installed; none before the first time.
-    installed: Option<Vec<TimerEntry>>,
-    awake: Awake,
-    /// Events already acted on.
-    seen: VecDeque<EventRef>,
-    /// When the almanac was last asked.
-    polled: UnixSeconds,
+    /// What the host was last told: the timers installed, the need to stay awake.
+    settle: Settle,
+    /// When the almanac was last asked, and the events already acted on.
+    watch: EventWatch,
 }
 
 /// The routines, over a [`Host`].
@@ -55,16 +43,14 @@ impl<H: Host, K: Clock> fmt::Debug for Routines<H, K> {
 impl<H: Host, K: Clock> Routines<H, K> {
     /// No routines yet; `restore` brings the stored ones back.
     pub fn new(host: Arc<H>, clock: K) -> Self {
-        let polled = clock.now();
+        let watch = EventWatch::new(clock.now());
         Self {
             host,
             clock,
             state: Mutex::new(State {
                 book: RoutineBook::default(),
-                installed: None,
-                awake: Awake::NotNeeded,
-                seen: VecDeque::new(),
-                polled,
+                settle: Settle::default(),
+                watch,
             }),
         }
     }
@@ -101,7 +87,7 @@ impl<H: Host, K: Clock> Routines<H, K> {
         let now = self.clock.now();
         self.with(|state| {
             state.book = RoutineBook::restore(kept);
-            state.polled = now;
+            state.watch.restart(now);
         });
         self.settle();
     }
@@ -159,16 +145,11 @@ impl<H: Host, K: Clock> Routines<H, K> {
 
     /// Stores `records`, each in the Space of its helper.
     async fn write(&self, records: Vec<RoutineRecord>) {
-        let mut groups: Vec<(SpaceId, Vec<RoutineRecord>)> = Vec::new();
-        for record in records {
-            let Some(space) = self.host.space_of(record.helper()) else {
-                continue;
-            };
-            match groups.iter_mut().find(|(held, _)| *held == space) {
-                Some((_, held)) => held.push(record),
-                None => groups.push((space, vec![record])),
-            }
-        }
+        let groups = group_by_space(
+            records
+                .into_iter()
+                .filter_map(|record| Some((self.host.space_of(record.helper())?, record))),
+        );
         for (space, records) in groups {
             self.host.save(&space, records).await;
         }
@@ -177,24 +158,11 @@ impl<H: Host, K: Clock> Routines<H, K> {
     /// Tells the host what changed since it was last told: the timers wanted, and whether the
     /// desktop must stay awake (only while a run is in progress).
     fn settle(&self) {
-        let (units, awake) = self.with(|state| {
-            let timers = state.book.timers();
-            let units = (state.installed.as_ref() != Some(&timers)).then(|| units_of(&timers));
-            if units.is_some() {
-                state.installed = Some(timers);
-            }
-            let need = match state.book.running() {
-                0 => Awake::NotNeeded,
-                _ => Awake::Needed,
-            };
-            let awake = (state.awake != need).then_some(need);
-            state.awake = need;
-            (units, awake)
-        });
-        if let Some(units) = units {
+        let settled = self.with(|state| state.settle.settle(&state.book));
+        if let Some(units) = settled.units {
             self.host.install(&units);
         }
-        if let Some(need) = awake {
+        if let Some(need) = settled.awake {
             self.host.awake(need);
         }
     }
@@ -202,23 +170,9 @@ impl<H: Host, K: Clock> Routines<H, K> {
     /// One tick: the runs that ended, the times that are due, and the events the almanac saw.
     pub async fn tick(&self) {
         let now = self.clock.now();
-        let (running, awaited) =
-            self.with(|state| (state.book.running_jobs(), state.book.awaited_jobs()));
-        for job in running {
-            if let Some(end) = self.host.job_end(job) {
-                self.apply(RoutineEvent::Ended { job, end, now }).await;
-            }
-        }
-        // A job a routine waits for starts it only by ending done.
-        for job in awaited {
-            if self.host.job_end(job) == Some(JobEnd::Done) {
-                self.apply(RoutineEvent::Ended {
-                    job,
-                    end: JobEnd::Done,
-                    now,
-                })
-                .await;
-            }
+        let ended = self.with(|state| ended_events(&state.book, now, |job| self.host.job_end(job)));
+        for event in ended {
+            self.apply(event).await;
         }
         let zone = self.host.zone(now);
         self.apply(RoutineEvent::Tick { now, zone }).await;
@@ -234,69 +188,26 @@ impl<H: Host, K: Clock> Routines<H, K> {
         }
     }
 
-    /// Whether `event` is new; it is remembered.
-    fn remember(&self, event: &EventRef) -> bool {
-        self.with(|state| {
-            if state.seen.contains(event) {
-                return false;
-            }
-            state.seen.push_back(event.clone());
-            while state.seen.len() > MOST_SEEN {
-                state.seen.pop_front();
-            }
-            true
-        })
-    }
-
     async fn poll_events(&self, now: UnixSeconds) {
-        let plan = self.with(|state| {
-            if now.0 - state.polled.0 < EVENTS_EVERY {
-                return None;
-            }
-            let since = state.polled;
-            state.polled = now;
-            let watches: Vec<(RoutineId, prov::HelperId, EventMatch)> = state
-                .book
-                .watches()
-                .into_iter()
-                .map(|(routine, event)| (routine.id, routine.helper.clone(), event.clone()))
-                .collect();
-            Some((since, watches))
+        let asks = self.with(|state| {
+            let since = state.watch.due(now)?;
+            Some(event_asks(&state.book, since, |helper| {
+                self.host.space_of(helper)
+            }))
         });
-        let Some((since, watches)) = plan else {
-            return;
-        };
-        // Spaces are walls: a routine watches its helper's Space, or the one it names.
-        let mut by_space: Vec<(SpaceId, Vec<(RoutineId, EventMatch)>)> = Vec::new();
-        for (routine, helper, event) in watches {
-            let Some(space) = event.space.clone().or_else(|| self.host.space_of(&helper)) else {
-                continue;
-            };
-            match by_space.iter_mut().find(|(held, _)| *held == space) {
-                Some((_, held)) => held.push((routine, event)),
-                None => by_space.push((space, vec![(routine, event)])),
-            }
-        }
-        for (space, group) in by_space {
-            let ask = EventAsk {
-                space,
-                since: UnixSeconds(since.0 - OVERLAP),
-                kinds: group.iter().map(|(_, event)| event.kind.clone()).collect(),
-            };
-            for Seen { event, kind } in self.host.events(ask).await {
-                if !self.remember(&event) {
+        for watch in asks.unwrap_or_default() {
+            for seen in self.host.events(watch.ask.clone()).await {
+                if !self.with(|state| state.watch.remember(&seen.event)) {
                     continue;
                 }
-                for (routine, watch) in &group {
-                    if watch.covers(&kind, &event.space) {
-                        self.apply(RoutineEvent::Saw {
-                            routine: *routine,
-                            event: event.clone(),
-                            kind: kind.clone(),
-                            now,
-                        })
-                        .await;
-                    }
+                for routine in watch.covering(&seen) {
+                    self.apply(RoutineEvent::Saw {
+                        routine,
+                        event: seen.event.clone(),
+                        kind: seen.kind.clone(),
+                        now,
+                    })
+                    .await;
                 }
             }
         }

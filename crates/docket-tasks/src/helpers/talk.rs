@@ -5,12 +5,12 @@
 //! helper may do widens: the router still gates every call under the seat.
 
 use super::AsHelper;
-use super::job::{JobEnding, JobReport, OpenedJob};
 use super::view::conversation_voice;
 use crate::desk::SayFromPerson;
 use crate::runtime::Companion;
 use crate::seams::Surface;
 use crate::tap::NoTap;
+use companion_core::{JobEnding, JobReport, OpenedJob};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;

@@ -6,7 +6,8 @@
 
 use crate::routines::RoutineDesk;
 use crate::serve::{bad, json};
-use crate::speaker::{Call, EDITOR_APP, Speaker, Speakers};
+use crate::speaker::{EDITOR_APP, Speakers};
+use companion_core::{Call, Speaker};
 use companion_wire::{HelperForm, ProposalId, RoutineForm, RoutineReply};
 use docket_core::routine::RoutineId;
 use docket_core::{SeenCommand, TurnId, TurnSource};

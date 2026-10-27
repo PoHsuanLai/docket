@@ -1,6 +1,6 @@
 [package]
 name = "companiond"
-description = "The companion daemon: one identity over many tasks, each its own docket session. Serves org.quire.Companion1; the binary serves it on the session bus."
+description = "The companion daemon: one identity over many tasks, each its own docket session. Serves org.quire.Companion1; the binary serves it on the session bus. It runs the helper tasks, the routine timer and the bus; the decisions over values are companion-core's."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -18,6 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 almanac-core = { workspace = true }
+companion-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-store = { workspace = true }

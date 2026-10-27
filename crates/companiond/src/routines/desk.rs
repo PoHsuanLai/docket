@@ -1,20 +1,19 @@
 //! The routines as the desk the shell talks to: the list, a routine's card with its runs, and
-//! making, pausing, resuming and removing one. Every refusal is a plain sentence.
+//! making, pausing, resuming and removing one. Every refusal is a typed `Refusal`, told in plain
+//! words at this edge.
 
 use super::host::Host;
 use super::scheduler::Routines;
-use almanac_core::KindPattern;
+use crate::words::sentence;
+use companion_core::{Refusal, new_routine};
 use companion_wire::{
-    EventForm, RoutineCardView, RoutineForm, RoutineLine, RoutineReply, RoutinesView, WhenForm,
-    routine_card, routine_line,
+    RoutineCardView, RoutineForm, RoutineLine, RoutineReply, RoutinesView, routine_card,
+    routine_line,
 };
 use docket_core::Clock;
-use docket_core::helper::{GoalText, HelperName};
-use docket_core::routine::{
-    EventMatch, JobRef, NewRoutine, Routine, RoutineEvent, RoutineId, RunBudget, Schedule, Trigger,
-};
+use docket_core::helper::HelperName;
+use docket_core::routine::{Routine, RoutineEvent, RoutineId};
 use docket_tasks::Pending;
-use porter_core::Count;
 use std::fmt;
 
 /// What the shell asks of the routines.
@@ -38,30 +37,6 @@ pub trait RoutineDesk: fmt::Debug + Send + Sync {
     fn remove(&self, routine: RoutineId) -> Pending<'_, ()>;
 }
 
-fn event_of(form: EventForm) -> Result<EventMatch, String> {
-    let kind = KindPattern::parse(&form.kind)
-        .map_err(|_| "Say which kind of thing to watch for.".to_owned())?;
-    let words = form.words.trim();
-    if words.is_empty() {
-        return Err("Say what to watch for, in a few words.".to_owned());
-    }
-    Ok(EventMatch {
-        kind,
-        space: form.space,
-        words: words.to_owned(),
-    })
-}
-
-fn trigger_of(when: WhenForm) -> Result<Trigger, String> {
-    match when {
-        WhenForm::At(text) => Schedule::parse(&text)
-            .map(Trigger::At)
-            .map_err(|fault| fault.to_string()),
-        WhenForm::On(event) => event_of(event).map(Trigger::On),
-        WhenForm::AfterJob(job) => Ok(Trigger::AfterJob(JobRef(job))),
-    }
-}
-
 impl<H: Host, K: Clock> Routines<H, K> {
     fn name_in_line(&self, routine: &Routine) -> HelperName {
         self.host()
@@ -70,36 +45,25 @@ impl<H: Host, K: Clock> Routines<H, K> {
     }
 
     async fn make(&self, form: RoutineForm) -> RoutineReply {
+        match self.try_make(form).await {
+            Ok(id) => RoutineReply::Made(id),
+            Err(why) => RoutineReply::Refused(sentence(&why)),
+        }
+    }
+
+    async fn try_make(&self, form: RoutineForm) -> Result<RoutineId, Refusal> {
         if self.host().space_of(&form.helper).is_none() {
-            return RoutineReply::Refused("There is no such helper.".to_owned());
+            return Err(Refusal::UnknownHelper);
         }
-        let Ok(goal) = GoalText::parse(&form.goal) else {
-            return RoutineReply::Refused("Say what it is to do, in a few sentences.".to_owned());
-        };
-        let trigger = match trigger_of(form.when) {
-            Ok(trigger) => trigger,
-            Err(why) => return RoutineReply::Refused(why),
-        };
+        let new = new_routine(form)?;
         let now = self.now();
-        let made = self
-            .apply(RoutineEvent::Add {
-                new: Box::new(NewRoutine {
-                    helper: form.helper,
-                    goal,
-                    trigger,
-                    budget: RunBudget {
-                        steps: Count(form.steps.max(1)),
-                    },
-                    missed: form.missed,
-                }),
-                now,
-                zone: self.host().zone(now),
-            })
-            .await;
-        match made {
-            Some(id) => RoutineReply::Made(id),
-            None => RoutineReply::Refused("The routine could not be made.".to_owned()),
-        }
+        self.apply(RoutineEvent::Add {
+            new: Box::new(new),
+            now,
+            zone: self.host().zone(now),
+        })
+        .await
+        .ok_or(Refusal::RoutineNotMade)
     }
 }
 

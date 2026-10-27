@@ -19,6 +19,7 @@
 //! Every call the companion then makes goes through intentd's gate in the role `companion`, and
 //! a confirmation is still answered on the sheet by the person.
 
+use companion_core::{Call, Speaker, permits};
 use docket_core::TerminalScope;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Caller, Callers, Identity, Role};
@@ -30,66 +31,8 @@ use zbus::fdo::{self, DBusProxy};
 use zbus::message::Header;
 use zbus::names::BusName;
 
-/// Who a caller is, as far as the person's voice goes.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Speaker {
-    /// The shell.
-    Shell,
-    /// A terminal's child, in this scope.
-    Terminal(TerminalScope),
-    /// Our own editor bridge: it may read the helpers and speak in their conversations.
-    Editor,
-}
-
 /// The app the table names for our own editor bridge.
 pub(crate) const EDITOR_APP: &str = "org.quire.Acp";
-
-/// What a caller asks for.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Call {
-    /// `Open`.
-    Open,
-    /// `Ask`.
-    Ask,
-    /// `Close`.
-    Close,
-    /// `Told`: words to a subagent.
-    Told,
-    /// `Act`: presses a card.
-    Act,
-    /// `Answer.Cancel`: stops the task.
-    Cancel,
-    /// Reading an answer: `View`, `Session` and `Routing`.
-    Read,
-    /// Anything on `Companion1.Helpers` and `.Helpers2` that changes something (making, editing,
-    /// pausing, removing a helper, giving a job, signing in or out, opening a conversation in a
-    /// terminal or bringing it back, the routines and what they read), and `.Terminals` but
-    /// `Recognise`: they are the person's own, and the shell speaks for them; a terminal and the
-    /// editor bridge do not.
-    Helpers,
-    /// Reading the helpers: the list and a helper's card. The shell and the editor bridge may.
-    HelpersRead,
-    /// `Helpers2.Say`: the person's words in a helper's conversation, run by the helper. The shell
-    /// and the editor bridge may, and only for the conversation (the daemon refuses any other
-    /// session): the editor carries the person's words, and the helper's own gate rules the turn.
-    Converse,
-    /// `Terminals.Recognise`: which listed app a command line is, and which conversation. Reads
-    /// the list of apps only; the shell and a terminal may, the editor bridge may not.
-    Recognise,
-}
-
-/// Whether `speaker` may make `call`: the shell anything, a terminal only the conversation, the
-/// editor bridge only reading the helpers and speaking in a helper's conversation.
-pub fn permits(speaker: &Speaker, call: Call) -> bool {
-    match speaker {
-        Speaker::Shell => true,
-        Speaker::Editor => matches!(call, Call::HelpersRead | Call::Converse),
-        Speaker::Terminal(_) => matches!(
-            call,
-            Call::Open | Call::Ask | Call::Close | Call::Cancel | Call::Read | Call::Recognise
-        ),
-    }
-}
 
 fn denied() -> fdo::Error {
     fdo::Error::AccessDenied("only the shell or a terminal speaks for the person".into())
@@ -235,48 +178,6 @@ impl Speakers {
 mod tests {
     use super::*;
     use docket_dbus::callers::{CallerTable, ProcCallers, table_from_toml};
-
-    fn scope() -> TerminalScope {
-        TerminalScope::from_cgroup("vte-spawn-1.scope").expect("scope")
-    }
-
-    #[test]
-    fn the_shell_may_do_everything_and_a_terminal_only_the_conversation() {
-        let all = [
-            Call::Open,
-            Call::Ask,
-            Call::Close,
-            Call::Told,
-            Call::Act,
-            Call::Cancel,
-            Call::Read,
-            Call::Helpers,
-            Call::HelpersRead,
-            Call::Converse,
-            Call::Recognise,
-        ];
-        let terminal: Vec<Call> = all
-            .into_iter()
-            .filter(|c| permits(&Speaker::Terminal(scope()), *c))
-            .collect();
-        assert_eq!(
-            terminal,
-            [
-                Call::Open,
-                Call::Ask,
-                Call::Close,
-                Call::Cancel,
-                Call::Read,
-                Call::Recognise
-            ]
-        );
-        assert!(all.into_iter().all(|c| permits(&Speaker::Shell, c)));
-        let editor: Vec<Call> = all
-            .into_iter()
-            .filter(|c| permits(&Speaker::Editor, *c))
-            .collect();
-        assert_eq!(editor, [Call::HelpersRead, Call::Converse]);
-    }
 
     /// Process `pid` in the fake proc root, in the cgroup `leaf`; a service's process is also its
     /// unit's main process when `main` says so.

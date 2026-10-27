@@ -3,41 +3,11 @@
 //! person is told, the almanac's events, the systemd timers and keeping the desktop awake. The
 //! daemon passes the hub's; a test passes a fake that records what it was asked.
 
-use super::units::UnitFile;
-use almanac_core::{EventRef, KindPattern};
+use companion_core::{Awake, EventAsk, Seen, UnitFile};
 use docket_core::helper::{HelperName, JobId};
 use docket_core::routine::{JobEnd, RoutineRecord, RunRequest, Zone};
 use prov::{HelperId, SpaceId, UnixSeconds};
 use std::future::Future;
-
-/// Whether the desktop must stay awake.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Awake {
-    /// A run is in progress: do not suspend.
-    Needed,
-    /// Nothing is running: the desktop may sleep. A time is never waited for awake.
-    NotNeeded,
-}
-
-/// A question to the almanac: which events of these kinds happened in a Space since a time.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EventAsk {
-    /// The Space.
-    pub space: SpaceId,
-    /// From when.
-    pub since: UnixSeconds,
-    /// Which kinds.
-    pub kinds: Vec<KindPattern>,
-}
-
-/// An event the almanac answered with: its handle and its kind, nothing of its content.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Seen {
-    /// The event.
-    pub event: EventRef,
-    /// Its kind.
-    pub kind: String,
-}
 
 /// The scheduler's surroundings.
 pub trait Host: Send + Sync + 'static {

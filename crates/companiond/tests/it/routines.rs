@@ -1,12 +1,13 @@
 //! Routines in companiond: a due time posts one job, a time that came while the computer slept is
 //! skipped and recorded (or run once on waking, when asked), three runs that do not finish pause a
 //! routine and tell the person once, an event is handed over as a handle, a job's end starts what
-//! waits for it, and the systemd timers are generated as text. The host is a fake: no clock, no
-//! bus, no unit on disk.
+//! waits for it, and the unit directory holds exactly the timers wanted. The host is a fake: no
+//! clock, no bus, no real unit directory.
 
 use almanac_core::{EventRef, ReplicaId, Seq};
+use companion_core::{Awake, EventAsk, Seen, UnitFile, units_of};
 use companion_wire::{EventForm, RoutineForm, RoutineReply, WhenForm};
-use companiond::{Awake, EventAsk, Host, RoutineDesk, Routines, Seen, UnitDir, UnitFile, units_of};
+use companiond::{Host, RoutineDesk, Routines, UnitDir};
 use docket_core::helper::{HelperName, JobFault, JobId};
 use docket_core::routine::{
     JobEnd, Missed, RoutineId, RoutinePause, RoutineRecord, RoutineState, RunOutcome, RunRequest,
@@ -316,48 +317,6 @@ async fn a_routine_with_a_bad_time_or_no_helper_is_refused_in_plain_words() {
         RoutineReply::Refused(_)
     ));
     assert!(routines.book().routines().is_empty());
-}
-
-#[test]
-fn the_timer_text_is_a_calendar_that_does_not_make_up_missed_times() {
-    let entries = [
-        TimerEntry {
-            routine: RoutineId(3),
-            schedule: Schedule::parse("weekdays 08:30").expect("schedule"),
-        },
-        TimerEntry {
-            routine: RoutineId(4),
-            schedule: Schedule::parse("every 2 hours").expect("schedule"),
-        },
-    ];
-    let units = units_of(&entries);
-    let names: Vec<&str> = units.iter().map(|u| u.name.as_str()).collect();
-    assert_eq!(
-        names,
-        [
-            "quire-routine-3.timer",
-            "quire-routine-3.service",
-            "quire-routine-4.timer",
-            "quire-routine-4.service"
-        ]
-    );
-    let timer = &units[0].text;
-    assert!(
-        timer.contains("OnCalendar=Mon..Fri *-*-* 08:30:00\n"),
-        "{timer}"
-    );
-    assert!(timer.contains("Persistent=false\n"), "{timer}");
-    assert!(timer.contains("Unit=quire-routine-3.service\n"), "{timer}");
-    assert!(timer.contains("WantedBy=timers.target\n"), "{timer}");
-    assert!(units[2].text.contains("OnCalendar=*-*-* 0/2:00:00\n"));
-    let service = &units[1].text;
-    assert!(service.contains("Type=oneshot\n"), "{service}");
-    assert!(
-        service.contains("ExecStart=/usr/bin/systemctl --user start companiond.service\n"),
-        "{service}"
-    );
-    // No cron string, and none of the person's words, in a unit.
-    assert!(!timer.contains("* * *") && !service.contains(GOAL));
 }
 
 #[test]

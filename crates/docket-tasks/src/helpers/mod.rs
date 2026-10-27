@@ -17,7 +17,6 @@ mod talk;
 mod view;
 
 pub(crate) use desk_calls::{Keeps, is_helper_action, offered_here};
-pub use job::{JobEnding, JobInput, JobReport, JobSpec, OpenedJob};
 pub use menu::AsHelper;
 pub(crate) use menu::{SKILL_LOAD, in_menu, skill_in_menu};
 pub use store::{helper_query, helper_records_of};

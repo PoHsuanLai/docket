@@ -1,22 +1,24 @@
 //! Routines: a helper's standing instructions, run when a time comes, an almanac event happens or
-//! another job is done. The book and its rules are `docket_core::routine`'s (pure); this is the
-//! small timer inside companiond that owns the book and carries out what it asks.
+//! another job is done. The book and its rules are `docket_core::routine`'s (pure), and what the
+//! scheduler decides over it (the events for ended jobs, when and what to ask the almanac, the
+//! timer text) is `companion_core`'s; this is the small timer inside companiond that owns the
+//! book and carries out what it asks.
 //!
 //! - [`Routines`], [`Host`]: the scheduler and the seam to its surroundings.
 //! - [`RoutineDesk`]: what the shell asks (list, card, make, pause, resume, remove).
-//! - [`units_of`], [`UnitFile`], [`UnitDir`]: the systemd user timers, as text and on disk.
+//! - [`UnitDir`]: the systemd user timers, on disk.
 //! - [`HubHost`], [`Timers`]: the hub as the host in the daemon.
 
 mod desk;
 mod host;
 mod hub_host;
 mod scheduler;
-mod units;
+mod unit_dir;
 mod zone;
 
 pub use desk::RoutineDesk;
-pub use host::{Awake, EventAsk, Host, Seen};
+pub use host::Host;
 pub use hub_host::{HubHost, Timers};
 pub use scheduler::Routines;
-pub use units::{UnitDir, UnitFile, units_of};
+pub use unit_dir::UnitDir;
 pub use zone::SystemZone;

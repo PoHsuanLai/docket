@@ -1,11 +1,12 @@
 //! The routines' host in the daemon: the hub's board and records, the almanac through the router,
 //! the system's zone, and the systemd timers when a directory for them is given.
 
-use super::host::{Awake, EventAsk, Host, Seen};
-use super::units::{UnitDir, UnitFile};
+use super::host::Host;
+use super::unit_dir::UnitDir;
 use super::zone::SystemZone;
 use crate::Hub;
 use almanac_core::{BodyMode, RecentQuery, TrustFilter};
+use companion_core::{Awake, EventAsk, Seen, UnitFile};
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::helper::{

@@ -31,6 +31,7 @@ LAYERS=(
   "action-review:P"
   "docket-router:P"
   "companion-wire:P"
+  "companion-core:P"
   "agent-loop:P"
   "docket-session:P"
   "docket-checkpoint:P"
@@ -310,6 +311,9 @@ RULES=(
   # The tools an outside agent is offered, as pure data: shared by the MCP edge and the ACP host.
   "actions-tools: $EFFECTS toml"
   "companion-wire: $EFFECTS toml"
+  # The companion's decisions as values: the helper board's outcomes, the desks' typed refusals, the routines'
+  # due and event rules, the timer text and the caller policy. No bus, runtime, network, Cedar or toml.
+  "companion-core: $EFFECTS toml"
   # Installs agents from the registry: reads files and runs curl and npm as processes, so no bus,
   # runtime, network library or Cedar. It reads its own records as TOML.
   "docket-agents: $EFFECTS"

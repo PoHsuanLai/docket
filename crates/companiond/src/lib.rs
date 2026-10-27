@@ -2,7 +2,9 @@
 //! is `docket-tasks`' (the front pointer, the roster, the side-conversation tracker, the idle
 //! pass, restart, each task its own docket session); this crate is its adapter for the desktop:
 //! the system clock, a [`Bell`] surface that fans changes out to the bus, `Companion1` served,
-//! the speaker (who may call what) and the daemon.
+//! the speaker (who is on the other end of a call) and the daemon. What is decided over values,
+//! with no clock, bus or file (the helper board's outcomes and refusals, the routines' due and
+//! event rules, the timer text, who may call what), is `companion-core`'s.
 //!
 //! - `Companiond`: the runtime as the bus runs it (`docket_tasks::Companion` over the system
 //!   clock and the bell).
@@ -11,7 +13,8 @@
 //!   episodes, runs); `stored_events`, `events_of`: the sessions, from `Session.Stored`.
 //! - `completion_effects`: how a finished worker or run reaches the front task.
 //! - `serve`, `serve_on`: `org.quire.Companion1`.
-//! - `Routines`, `RoutineDesk`: a helper's standing instructions, run by a small timer here.
+//! - `Routines`, `RoutineDesk`: a helper's standing instructions, run by a small timer here;
+//!   `UnitDir`: their systemd timers on disk.
 //! - `HostLink`: a turn handed to the coding agent the person chose, through the agent host.
 //! - `AppsLink`: the agent apps that are helpers, through the same host (`AgentApps` over the bus).
 
@@ -28,6 +31,7 @@ mod routines;
 mod run_signals;
 mod serve;
 mod speaker;
+mod words;
 
 pub use apps_link::AppsLink;
 pub use bell::Bell;
@@ -45,13 +49,10 @@ pub use docket_tasks::{
     stored_events,
 };
 pub use handoff::HostLink;
-pub use helpers::{Hub, Told};
-pub use routines::{
-    Awake, EventAsk, Host, HubHost, RoutineDesk, Routines, Seen, SystemZone, Timers, UnitDir,
-    UnitFile, units_of,
-};
+pub use helpers::Hub;
+pub use routines::{Host, HubHost, RoutineDesk, Routines, SystemZone, Timers, UnitDir};
 pub use serve::{serve, serve_on, serve_on_rooted, serve_with_routines};
-pub use speaker::{Call, Speaker, Speakers, permits};
+pub use speaker::Speakers;
 
 /// The shared view as the bus reads it.
 pub type Shared = docket_tasks::Shared<Bell>;

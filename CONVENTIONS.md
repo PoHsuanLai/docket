@@ -23,7 +23,7 @@ What docket adds or decides differently, each with its reason:
    Each one is listed in `FINDINGS.md` with the work that removes it. A test whose subject is a
    `todo!()` is `#[ignore = "<what closes it>"]` and carries real assertions.
 4. **Pure crates reach no effect, and the portable core reaches no desktop.** `docket-core`, `policy-point`, `action-review`,
-   `docket-router`, `companion-wire`, `agent-loop`, `voice-wire` and `voice-loop` never reach
+   `docket-router`, `companion-wire`, `companion-core`, `agent-loop`, `voice-wire` and `voice-loop` never reach
    `tokio`, `zbus`, `pipewire`, an HTTP client, a database or the MCP SDK, whatever their
    dependencies' features; `scripts/check-boundary.sh` fails the gate if one does; `scripts/check-portable.sh` does the same for the portable set (ARCHITECTURE.md section 1a) with `--no-default-features`. Only
    `policy-point` (and what runs the router above it) reaches `cedar-policy`; only

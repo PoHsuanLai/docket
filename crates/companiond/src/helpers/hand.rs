@@ -2,25 +2,25 @@
 //! command-line program in a terminal ("Open in Terminal", "Bring Back"), and the conversations
 //! a terminal started that the person can bring in. While a conversation is in the terminal its
 //! helper is paused, so no job reaches the app; the router keeps the session as a watch session
-//! the terminal marks, and bringing it back resumes the helper. Every refusal is a plain sentence.
+//! the terminal marks, and bringing it back resumes the helper. The rules are
+//! `companion_core::Terminals`'; every refusal is a typed `Refusal`, told in plain words at the
+//! edge.
 
 use super::hub::Hub;
+use crate::words::{refused, sentence};
+use companion_core::{Refusal, terminal_sessions, why_not_to_terminal};
 use companion_wire::{
     BroughtBack, Handover, HelperCardView, HelperLine, HelperReply, RunsIn, TerminalSession,
-    app_name_of,
 };
 use docket_client::Transport as IntentsTransport;
 use docket_core::Clock;
 use docket_core::helper::{
-    BackOutcome, BoardEvent, BroughtOutcome, HandFault, HelperCard, HelperKind, HelperState,
-    JobRefusal, TerminalLogin, TerminalRequest, ToTerminalOutcome,
+    BackOutcome, BoardEvent, BroughtOutcome, HandFault, HelperCard, JobRefusal, TerminalLogin,
+    TerminalRequest, ToTerminalOutcome,
 };
 use docket_core::{SeenCommand, WatchedAgent};
 use porter_client::Transport as InferTransport;
-use prov::{AgentProgram, HelperId, SessionId};
-
-/// What a call that needs a host of apps says when there is none.
-const NO_APPS: &str = "No apps can be reached here.";
+use prov::{HelperId, SessionId};
 
 impl<P, I, K> Hub<P, I, K>
 where
@@ -28,35 +28,9 @@ where
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
-    /// Where the helper's conversation is running.
-    fn runs_in(&self, helper: &HelperId) -> RunsIn {
-        match self.with_state(|state| state.away.contains_key(helper)) {
-            true => RunsIn::Terminal,
-            false => RunsIn::Desktop,
-        }
-    }
-
-    /// What the person can do about where the helper's conversation is: take it to the terminal
-    /// when the app said it can be picked up and no job runs, or bring it back.
-    fn handover_of(&self, card: &HelperCard) -> Handover {
-        let board = self.board();
-        let (away, ready) = self.with_state(|state| {
-            (
-                state.away.contains_key(&card.id),
-                state.can_hand.contains(&card.id),
-            )
-        });
-        let idle = card.state == HelperState::Idle && board.running(&card.id).is_none();
-        match (away, ready && idle) {
-            (true, _) => Handover::BringBack,
-            (false, true) => Handover::ToTerminal,
-            (false, false) => Handover::Unavailable,
-        }
-    }
-
     /// `line` as the person sees it: a conversation in the terminal says so.
     pub(super) fn line_shown(&self, mut line: HelperLine) -> HelperLine {
-        if self.runs_in(&line.id) == RunsIn::Terminal {
+        if self.with_state(|state| state.terminals.runs_in(&line.id)) == RunsIn::Terminal {
             line.doing = "In its own terminal window".to_owned();
         }
         line
@@ -64,40 +38,52 @@ where
 
     /// `view` with where the conversation runs and what can be done about it.
     pub(super) fn card_shown(&self, mut view: HelperCardView, card: &HelperCard) -> HelperCardView {
-        view.runs_in = self.runs_in(&card.id);
-        view.handover = self.handover_of(card);
+        let (runs_in, handover) = self.with_state(|state| {
+            (
+                state.terminals.runs_in(&card.id),
+                state.terminals.handover_of(card, &state.board),
+            )
+        });
+        view.runs_in = runs_in;
+        view.handover = handover;
         view.line = self.line_shown(view.line);
         view
     }
 
     /// The person opens the helper's conversation in the app's own program in a terminal.
     pub(super) async fn open_terminal_for(&self, helper: HelperId) -> HelperReply {
-        let refused = |why: &str| HelperReply::Refused(why.to_owned());
-        let Some(card) = self.board().card(&helper).cloned() else {
-            return refused(&JobRefusal::NoSuchHelper.plain());
-        };
-        let Some(program) = card.kind.program().cloned() else {
-            return refused("This helper does not run an app.");
-        };
-        let Some(agents) = self.agents() else {
-            return refused(NO_APPS);
-        };
-        match self.handover_of(&card) {
+        match self.try_open_terminal(helper).await {
+            Ok(reply) => reply,
+            Err(why) => refused(why),
+        }
+    }
+
+    async fn try_open_terminal(&self, helper: HelperId) -> Result<HelperReply, Refusal> {
+        let card = self
+            .board()
+            .card(&helper)
+            .cloned()
+            .ok_or(Refusal::Job(JobRefusal::NoSuchHelper))?;
+        let program = card.kind.program().cloned().ok_or(Refusal::NotAnApp)?;
+        let agents = self.agents().ok_or(Refusal::NoAppHost)?;
+        let handover = self.with_state(|state| state.terminals.handover_of(&card, &state.board));
+        match handover {
             Handover::ToTerminal => {}
-            Handover::BringBack => return refused("It is already in the terminal."),
-            Handover::Unavailable => return refused(self.why_not_to_terminal(&card).plain()),
+            Handover::BringBack => return Err(Refusal::AlreadyInTerminal),
+            Handover::Unavailable => {
+                return Err(Refusal::Hand(why_not_to_terminal(&card, &self.board())));
+            }
         }
         match agents.to_terminal(&card).await {
             ToTerminalOutcome::Ready(hand) => {
                 self.with_state(|state| {
-                    state.away.insert(helper.clone(), hand.session.clone());
-                    state.can_hand.remove(&helper);
+                    state.terminals.went_away(&helper, hand.session.clone());
                 });
                 // No job reaches the app while the person works in it.
                 self.apply(BoardEvent::Pause(helper.clone())).await;
                 self.changed();
                 let run = Box::new(hand.run);
-                HelperReply::OpenTerminal(TerminalRequest {
+                Ok(HelperReply::OpenTerminal(TerminalRequest {
                     helper,
                     program,
                     login: TerminalLogin {
@@ -106,53 +92,46 @@ where
                     },
                     run: Some(run),
                     handoff: Some(hand.session),
-                })
+                }))
             }
-            ToTerminalOutcome::Refused(why) => refused(why.plain()),
-        }
-    }
-
-    /// Why a helper's conversation cannot go to the terminal now.
-    fn why_not_to_terminal(&self, card: &HelperCard) -> HandFault {
-        let running = self.board().running(&card.id).is_some();
-        match (&card.state, running) {
-            (HelperState::Paused(_), _) => HandFault::Paused,
-            (HelperState::Idle, false) => HandFault::NoConversation,
-            _ => HandFault::Busy,
+            ToTerminalOutcome::Refused(why) => Err(Refusal::Hand(why)),
         }
     }
 
     /// The person brings the helper's conversation back from the terminal.
     pub(super) async fn bring_back_for(&self, helper: HelperId) -> HelperReply {
-        let refused = |why: &str| HelperReply::Refused(why.to_owned());
-        let Some(card) = self.board().card(&helper).cloned() else {
-            return refused(&JobRefusal::NoSuchHelper.plain());
-        };
-        let Some(agents) = self.agents() else {
-            return refused(NO_APPS);
-        };
-        if self.runs_in(&helper) == RunsIn::Desktop {
-            return refused(HandFault::NotThere.plain());
+        match self.try_bring_back(helper).await {
+            Ok(reply) => reply,
+            Err(why) => refused(why),
+        }
+    }
+
+    async fn try_bring_back(&self, helper: HelperId) -> Result<HelperReply, Refusal> {
+        let card = self
+            .board()
+            .card(&helper)
+            .cloned()
+            .ok_or(Refusal::Job(JobRefusal::NoSuchHelper))?;
+        let agents = self.agents().ok_or(Refusal::NoAppHost)?;
+        if self.with_state(|state| state.terminals.runs_in(&helper)) == RunsIn::Desktop {
+            return Err(Refusal::Hand(HandFault::NotThere));
         }
         match agents.bring_back(&card).await {
             BackOutcome::Back => {
-                self.with_state(|state| {
-                    state.away.remove(&helper);
-                    state.can_hand.insert(helper.clone());
-                });
+                self.with_state(|state| state.terminals.came_back(&helper));
                 self.apply(BoardEvent::Resume(helper)).await;
                 self.changed();
-                HelperReply::Done
+                Ok(HelperReply::Done)
             }
             // The host no longer knows the conversation (it was restarted): nothing is left to
             // bring back, so the helper goes on as it was.
             BackOutcome::Refused(HandFault::NotThere) => {
-                self.with_state(|state| state.away.remove(&helper));
+                self.with_state(|state| state.terminals.lost(&helper));
                 self.apply(BoardEvent::Resume(helper)).await;
                 self.changed();
-                refused(HandFault::NotThere.plain())
+                Err(Refusal::Hand(HandFault::NotThere))
             }
-            BackOutcome::Refused(why) => refused(why.plain()),
+            BackOutcome::Refused(why) => Err(Refusal::Hand(why)),
         }
     }
 
@@ -164,46 +143,36 @@ where
             None => Handover::Unavailable,
         };
         let watched = self.watched_sessions().await;
-        let helpers = self.with_state(|state| state.away.values().cloned().collect::<Vec<_>>());
-        watched
-            .into_iter()
-            .filter(|line| !helpers.contains(&line.session))
-            .filter_map(|line| {
-                let program = AgentProgram::parse(line.agent.program.as_str()).ok()?;
-                Some(TerminalSession {
-                    session: line.session,
-                    app_name: app_name_of(&HelperKind::AgentApp(program.clone())),
-                    program,
-                    folder: line.folder.map(|folder| folder.as_str().to_owned()),
-                    handover,
-                })
-            })
-            .collect()
+        let away = self.with_state(|state| state.terminals.sessions_away());
+        terminal_sessions(watched, &away, handover)
     }
 
     /// The person brings a terminal's conversation into docket: the app starts on the same
     /// session and picks up its own conversation.
     pub(super) async fn bring_in(&self, session: SessionId) -> BroughtBack {
-        let refused = |why: &str| BroughtBack::Refused(why.to_owned());
-        let Some(agents) = self.agents() else {
-            return refused(NO_APPS);
-        };
+        match self.try_bring_in(session).await {
+            Ok(session) => BroughtBack::Session(session),
+            Err(why) => BroughtBack::Refused(sentence(&why)),
+        }
+    }
+
+    async fn try_bring_in(&self, session: SessionId) -> Result<SessionId, Refusal> {
+        let agents = self.agents().ok_or(Refusal::NoAppHost)?;
         let watched = self.watched_sessions().await;
-        let Some(line) = watched.into_iter().find(|line| line.session == session) else {
-            return refused(HandFault::NotThere.plain());
-        };
-        let Some(folder) = line.folder else {
-            return refused(HandFault::NotThere.plain());
-        };
+        let line = watched
+            .into_iter()
+            .find(|line| line.session == session)
+            .ok_or(Refusal::Hand(HandFault::NotThere))?;
+        let folder = line.folder.ok_or(Refusal::Hand(HandFault::NotThere))?;
         match agents
             .bring_back_watched(&session, &line.agent, &folder)
             .await
         {
             BroughtOutcome::Brought(session) => {
                 self.changed();
-                BroughtBack::Session(session)
+                Ok(session)
             }
-            BroughtOutcome::Refused(why) => refused(why.plain()),
+            BroughtOutcome::Refused(why) => Err(Refusal::Hand(why)),
         }
     }
 
