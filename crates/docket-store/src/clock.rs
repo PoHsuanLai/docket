@@ -5,7 +5,6 @@
 use crate::thread_sleep;
 use docket_core::{Clock, Millis};
 use prov::UnixSeconds;
-use std::future::Future;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// The one system `Clock`.
@@ -20,11 +19,9 @@ impl Clock for SystemClock {
         UnixSeconds(seconds)
     }
 
-    fn after(&self, wait: Millis) -> impl Future<Output = ()> + Send {
-        async move {
-            if wait.0 > 0 {
-                thread_sleep(Duration::from_millis(u64::from(wait.0))).await;
-            }
+    async fn after(&self, wait: Millis) {
+        if wait.0 > 0 {
+            thread_sleep(Duration::from_millis(u64::from(wait.0))).await;
         }
     }
 }
