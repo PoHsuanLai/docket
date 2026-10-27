@@ -50,7 +50,7 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> HubHost<P, I, K, S> 
     pub fn new(hub: Hub<P, I, K, S>, timers: Timers) -> Self {
         Self {
             hub,
-            zone: SystemZone::default(),
+            zone: SystemZone,
             timers,
         }
     }
