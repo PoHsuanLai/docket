@@ -5,8 +5,9 @@
 use crate::handles::{HandleTable, HandleValue, context_view};
 use crate::labels::{absorb, fold_labels};
 use crate::router::Router;
-use crate::seams::{AppLink, LinkFault, Seams};
+use crate::seams::{AppLink, Seams};
 use crate::session::SessionState;
+use docket_core::LinkFault;
 use docket_core::{
     CallRefusal, ContextScope, ContextSnapshot, Displayed, Handle, IntentsReply, ReadAsk,
     ReadFault, Reader, Resolved, Reveal, Selection, Value, WireRefusal, conforms,

@@ -37,6 +37,7 @@ LAYERS=(
   "actions-tools:P"
   "voice-wire:P"
   "voice-loop:P"
+  "docket-memory-core:P"
   # client / IO
   "docket-store:C"
   "docket-planner:C"
@@ -345,10 +346,13 @@ RULES=(
   # The models, the quarantined reader and the memory seam are portable too (moved out of
   # intentd and readerd): they ask any porter-client or almanac-client Transport, never a bus or
   # a runtime; almanac-client hosts its service only behind `in_process` (a dev-dependency here)
-# and reaches the bus only behind `dbus`. docket-memory sits on the router, so Cedar is below it.
+  # and reaches the bus only behind `dbus`. docket-memory no longer sits on the router (the memory
+  # seam is in docket-core), so Cedar is not below it either.
   "docket-models: $EFFECTS"
   "docket-reader: $EFFECTS"
-  "docket-memory: $NO_CEDAR"
+  "docket-memory: $EFFECTS"
+  # The audit records as almanac events and the bounded queue: values only, no client, bus or runtime.
+  "docket-memory-core: $EFFECTS toml"
   "voice-wire: $EFFECTS toml"
   "voice-loop: $EFFECTS toml"
   # The caller's side of Voice1: zbus (with its tokio feature) and nothing of the microphone or speech engines.

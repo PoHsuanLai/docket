@@ -334,7 +334,7 @@ async fn the_turns_audit_is_written_as_records_and_the_task_is_an_episode_the_ne
     );
 
     let reader = router_memory!(service);
-    let recent = docket_router::MemoryLink::ask(
+    let recent = docket_core::MemoryLink::ask(
         &reader,
         MemoryRequest::Recent(
             work(),

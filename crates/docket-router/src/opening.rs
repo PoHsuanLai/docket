@@ -3,13 +3,14 @@
 //! its parent's.
 
 use crate::router::Router;
-use crate::seams::{EventSink, Seams};
+use crate::seams::Seams;
 use crate::session::SessionEvent;
 use crate::state::SessionRecord;
 use crate::tasks::{TaskRecord, TaskState, child_policy};
 use crate::wal::Wal;
 use almanac_core::{EpisodeId, EpisodeKind, EpisodeOutcome};
 use docket_core::Clock;
+use docket_core::EventSink;
 use docket_core::helper::SeatPlace;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, ExternalAgent, IntentsReply, Reveal, Rewind, SessionOpen,

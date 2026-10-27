@@ -7,12 +7,13 @@
 
 use crate::prepared::Prepared;
 use crate::router::Router;
-use crate::seams::{EventSink, Seams};
+use crate::seams::Seams;
 use crate::session::{SessionEvent, session_step};
 use crate::state::{RouterState, SessionRecord};
 use crate::tasks::TaskState;
 use action_review::Breaker;
 use docket_core::Clock;
+use docket_core::EventSink;
 use docket_core::{
     ActionDecl, ActionMatch, ActionRef, AgentReach, AskReason, AuditRecord, CallerRole, LabelText,
     TargetKind, TaskPolicy, TaskPolicyState,

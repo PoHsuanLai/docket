@@ -9,8 +9,9 @@ use agent_loop::LoopPhase;
 use companion_wire::FrontTask;
 use docket_client::{ContextSource, IntentProvider};
 use docket_core::Clock;
+use docket_core::MemoryLink;
 use docket_core::{PolicyWriter, Reader, Roster, TurnSource, TurnVia, UserTurn};
-use docket_router::{GrantStore, MemoryLink};
+use docket_router::GrantStore;
 use porter_client::Transport as ModelTransport;
 use prov::{AgentRef, TaskId};
 

@@ -5,8 +5,7 @@
 //! (`restore`), and when the queue is full the oldest record is dropped and counted (`dropped`),
 //! so a desktop that never has a memoryd cannot grow intentd without end.
 
-use docket_core::AuditRecord;
-use docket_router::EventSink;
+use docket_core::{AuditRecord, EventSink};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 

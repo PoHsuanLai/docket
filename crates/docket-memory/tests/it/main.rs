@@ -1,5 +1,4 @@
 mod audit;
-mod helpers;
 mod portable;
 mod session_log;
 

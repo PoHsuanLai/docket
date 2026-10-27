@@ -40,6 +40,7 @@ mod index;
 mod limit;
 mod manifest;
 mod marks;
+mod memory_link;
 mod message;
 mod mode;
 mod pattern;
@@ -156,6 +157,7 @@ pub use manifest::{
     ResultShape, TargetKind, TitleTrust, UndoSupport, Visibility, related_name,
 };
 pub use marks::{hides, plain_text, reorders};
+pub use memory_link::{EventSink, LinkFault, MemoryLink, SpaceMemories};
 pub use message::{
     Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, MessageDraft, SendRefusal,
 };

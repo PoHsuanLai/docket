@@ -1,6 +1,6 @@
 [package]
 name = "docket-memory"
-description = "docket's memory seam, portable: the router's `MemoryLink` over almanac-client (any Transport: memoryd over D-Bus, or the service hosted in process), the audit trail as almanac records (`record_of`, `QueuedSink`, `AuditState`). No bus, no runtime."
+description = "docket's memory seam over a transport, portable: `MemoryLink` and `SessionLog` over almanac-client (any Transport: memoryd over D-Bus, or the service hosted in process), and `AuditState`, which drains the audit queue into memory with retry accounting. No bus, no runtime."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,7 +12,7 @@ publish.workspace = true
 almanac-client = { workspace = true }
 almanac-core = { workspace = true }
 docket-core = { workspace = true }
-docket-router = { workspace = true }
+docket-memory-core = { workspace = true }
 docket-session = { workspace = true }
 porter-core = { workspace = true }
 prov = { workspace = true }
@@ -24,6 +24,7 @@ almanac-client = { workspace = true, features = ["in_process"] }
 almanac-fake = { workspace = true }
 almanac-service = { workspace = true }
 docket-fake = { workspace = true }
+docket-router = { workspace = true }
 tokio = { workspace = true }
 
 [lints]

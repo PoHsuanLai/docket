@@ -7,9 +7,10 @@ use crate::support::bus::PrivateBus;
 use crate::support::memoryd::{FakeMemoryd, record_fault};
 use almanac_client::DbusTransport;
 use almanac_core::{AreaTag, Cause, EventBody, MemoryReply, MemoryRequest, Refusal};
+use docket_core::EventSink;
 use docket_core::*;
-use docket_router::EventSink;
-use intentd::{AuditLog, QueuedSink, kind_tag_of, record_of};
+use docket_memory_core::{QueuedSink, kind_tag_of, record_of};
+use intentd::AuditLog;
 use porter_core::AppName;
 use prov::{
     Actor, Address, AgentRef, ConfirmId, Effect, EntityId, EntityKey, EntityKind, Label, MessageId,

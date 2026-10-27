@@ -10,8 +10,9 @@ use crate::handles::HandleValue;
 use crate::labels::user_label;
 use crate::prepared::Prepared;
 use crate::router::Router;
-use crate::seams::{EventSink, Seams};
+use crate::seams::Seams;
 use docket_core::Clock;
+use docket_core::EventSink;
 use docket_core::{
     ActionRef, AppRefusal, AuditRecord, BriefEdit, BriefSheet, BriefText, ConfirmAnswer,
     ConfirmEnd, FailText, GrantScope, LabelText, Outcome, ParamName, Preview, Undoable, Value,

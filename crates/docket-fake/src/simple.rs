@@ -1,10 +1,11 @@
 //! The small fakes: a recording event sink and an in-memory consent store.
 
+use docket_core::EventSink;
 use docket_core::{
     ActionGrant, AuditRecord, Limit, Revocation, RuleFile, StandingGrant, StandingGrantId,
     held_with, held_without, limits_with, limits_without, with_rule, without_rule,
 };
-use docket_router::{EventSink, GrantStore};
+use docket_router::GrantStore;
 use policy_point::Presets;
 use std::sync::Mutex;
 

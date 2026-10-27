@@ -13,7 +13,7 @@
 //! this run.
 
 use docket_core::AuditRecord;
-use docket_memory::QUEUE_LIMIT;
+use docket_memory_core::QUEUE_LIMIT;
 use docket_store::write_atomic;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};

@@ -8,9 +8,10 @@ use crate::sheet::ConfirmSheet;
 use action_review::Reviewer;
 use docket_client::{ContextSource, IntentProvider};
 use docket_core::Clock;
+use docket_core::MemoryLink;
 use docket_core::{PolicyWriter, Reader};
 use docket_memory::Report;
-use docket_router::{GrantStore, MemoryLink};
+use docket_router::GrantStore;
 use porter_client::Transport as ModelTransport;
 
 impl<P, C, T, R, M: ModelTransport, K, G, Y, W, D> InAppAgent<P, C, T, R, M, K, G, Y, W, D>

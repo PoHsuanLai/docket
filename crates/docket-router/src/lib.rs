@@ -129,9 +129,7 @@ pub use messages::{assemble, check_stamped, inbound_line, intake_label, report_s
 pub use registry::{Registry, RegistryError, parse};
 pub use restore::{RestoreFault, Restored};
 pub use router::Router;
-pub use seams::{
-    AppFault, AppLink, EventSink, GrantStore, LinkFault, MemoryLink, NoLog, Seams, SpaceMemories,
-};
+pub use seams::{AppFault, AppLink, GrantStore, NoLog, Seams};
 pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
 pub use skills::SKILL_LOAD;
 pub use spacing::{SpaceOf, relation_of};

@@ -8,7 +8,7 @@ use docket_core::{
     Reader, ReaderAsk, ReaderError, ReasonCode, ReasonText, ReviewError, Stage, TaskPolicy,
     UserTurn, Value,
 };
-use docket_router::{LinkFault, MemoryLink};
+use docket_core::{LinkFault, MemoryLink};
 use prov::{Quarantined, SessionId, SpaceId, TaskId};
 use std::collections::VecDeque;
 use std::sync::Mutex;

@@ -2,10 +2,11 @@
 //! and its prompt field allow, narrowed silently and widened only when the person confirms.
 
 use crate::router::Router;
-use crate::seams::{EventSink, Seams};
+use crate::seams::Seams;
 use crate::state::{RouterState, SessionRecord};
 use crate::tasks::child_policy;
 use docket_core::Clock;
+use docket_core::EventSink;
 use docket_core::{
     ActionCard, ActionDecl, ActionMatch, ActionRef, AgentReach, Anchor, ArgLine, AskReason,
     AuditRecord, ConfirmAnswer, ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId,

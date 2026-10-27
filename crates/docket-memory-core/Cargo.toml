@@ -1,0 +1,19 @@
+[package]
+name = "docket-memory-core"
+description = "docket's memory seam, pure: the audit trail as almanac records (`record_of`, `kind_tag_of`, `space_named_by`) and the bounded queue the router appends them to (`QueuedSink`). Values in, values out: no almanac client, no bus, no runtime."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+docket-core = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

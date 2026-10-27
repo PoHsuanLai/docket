@@ -7,11 +7,12 @@ use crate::handles::HandleValue;
 use crate::history::{without_failed_lines, without_failed_steps};
 use crate::labels::absorb;
 use crate::router::Router;
-use crate::seams::{MemoryLink, Seams};
+use crate::seams::Seams;
 use almanac_core::{
     BodyMode, Episode, FactFilter, FactQuery, KindPattern, MemoryReply, MemoryRequest, RecentEntry,
     RecentQuery, SpaceState, TrustFilter,
 };
+use docket_core::MemoryLink;
 use docket_core::{
     EpisodeLine, IntentsReply, PrimerText, ProfileLine, RecallAsk, RecallView, RecalledLine,
     RecentLine, Reveal, SkeletonText, WireRefusal,

@@ -11,12 +11,13 @@ use crate::durable::Flush;
 use crate::gate::Pending;
 use crate::prepared::{Prepared, grants_for};
 use crate::router::Router;
-use crate::seams::{AppFault, AppLink, EventSink, GrantStore, Seams};
+use crate::seams::{AppFault, AppLink, GrantStore, Seams};
 use crate::terminal::offers_grant;
 use crate::watch::Watch;
 use crate::who::Who;
 use action_review::{DeniedBy, ReviewVerdict, Reviewer};
 use docket_core::Clock;
+use docket_core::EventSink;
 use docket_core::{
     ActivationToken, AlwaysOffer, AppRefusal, AskReason, AuditRecord, BudgetKind, CallEnd,
     CallRefusal, CallRequest, ConfirmAnswer, ConfirmAnswerKind, ConfirmEnd, ConfirmId,

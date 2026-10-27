@@ -4,11 +4,12 @@
 
 use crate::support::*;
 use action_review::{ReviewVerdict, Reviewer};
+use docket_core::LinkFault;
 use docket_core::*;
 use docket_fake::{
     FakeMemory, FixedClock, MemoryGrants, RecordingSink, ScriptedReader, ScriptedWriter,
 };
-use docket_router::{AppLink, LinkFault, Router, Seams};
+use docket_router::{AppLink, Router, Seams};
 use policy_point::Presets;
 use prov::{AgentRef, SpaceScope, UnixSeconds};
 use std::sync::atomic::{AtomicU32, Ordering};

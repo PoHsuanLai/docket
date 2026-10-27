@@ -21,6 +21,7 @@ members = [
   "crates/docket-acp-bin",
   "crates/docket-models",
   "crates/docket-reader",
+  "crates/docket-memory-core",
   "crates/docket-memory",
   "crates/docket-inapp",
   "crates/docket-dbus",
@@ -78,6 +79,7 @@ docket-launch  = { path = "crates/docket-launch" }
 docket-acp-bin = { path = "crates/docket-acp-bin" }
 docket-models  = { path = "crates/docket-models" }
 docket-reader  = { path = "crates/docket-reader" }
+docket-memory-core = { path = "crates/docket-memory-core" }
 docket-memory  = { path = "crates/docket-memory" }
 docket-inapp   = { path = "crates/docket-inapp" }
 docket-dbus    = { path = "crates/docket-dbus" }

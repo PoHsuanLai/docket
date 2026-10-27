@@ -12,12 +12,13 @@ use action_review::Reviewer;
 use docket_checkpoint::MemoryStore;
 use docket_client::IntentProvider;
 use docket_core::Clock;
+use docket_core::LinkFault;
 use docket_core::PolicyWriter;
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, Invocation, Latency, Outcome, Preview,
     SuggestAsk, UndoFault, UndoToken,
 };
-use docket_router::{AppFault, AppLink, LinkFault, Seams};
+use docket_router::{AppFault, AppLink, Seams};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 use std::collections::BTreeMap;

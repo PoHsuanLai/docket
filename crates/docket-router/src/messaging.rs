@@ -6,11 +6,12 @@
 use crate::labels::{absorb, fold_labels, model_label, user_label};
 use crate::messages::{assemble, check_stamped, inbound_line, report_status};
 use crate::router::Router;
-use crate::seams::{EventSink, Seams};
+use crate::seams::Seams;
 use crate::session::SessionState;
 use crate::state::{RouterState, SessionRecord};
 use crate::tasks::TaskState;
 use docket_core::Clock;
+use docket_core::EventSink;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, Delivery, DraftPart, Handle, InboxAsk, IntentsReply,
     MessageDraft, SendRefusal, WireRefusal, halted,

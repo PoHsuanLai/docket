@@ -2,11 +2,12 @@
 //! find and no owner to check. A call for any other app is unavailable.
 
 use docket_client::{ContextSource, IntentProvider};
+use docket_core::LinkFault;
 use docket_core::{
     AppRefusal, ClassifyFault, ContextScope, ContextSnapshot, EntityRef, Invocation, Latency,
     Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
 };
-use docket_router::{AppFault, AppLink, LinkFault};
+use docket_router::{AppFault, AppLink};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 

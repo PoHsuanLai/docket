@@ -4,8 +4,8 @@
 //! - `IntentdConfig`: which bus names play which role, and which reviewers are installed.
 //! - `builtin_manifests`, `MemoryProvider`, `CompanionProvider`, `HostedLink`: the providers
 //!   intentd hosts, and the `AppLink` that answers them in process.
-//! - `AlmanacMemory`: the router's memory seam over memoryd; [`QueuedSink`], [`record_of`] and
-//!   `AuditLog`: the event sink, its mapping into almanac's bodies and its way to memoryd.
+//! - `AlmanacMemory`: the router's memory seam over memoryd; `AuditLog`: the way of the event
+//!   sink (`docket_memory_core::QueuedSink`) to memoryd.
 //! - `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `ReaderClient`: the
 //!   system implementations of the other seams.
 //! - `SystemSeams`: all of them behind `docket_router::Seams`.
@@ -57,8 +57,6 @@ pub use config::{ConfigError, IntentdConfig};
 pub use daemon::{DaemonFault, HarnessSeams, Running, Setup, data_dirs, run, run_with, start};
 pub use defaults::{DEFAULT_GRANTS_FILE, default_grants_file, revoking};
 pub use docket_memory::AlmanacMemory;
-pub use docket_memory::{QUEUE_LIMIT, QueuedSink};
-pub use docket_memory::{kind_tag_of, record_of};
 pub use floor::{FLOOR_FILE, FloorError, read_floor};
 pub use grants::FileGrants;
 pub use index_files::{IndexFileFault, IndexStore};

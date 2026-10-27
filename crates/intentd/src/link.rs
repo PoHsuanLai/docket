@@ -1,12 +1,13 @@
 //! The apps, over D-Bus: `IntentProvider1` on each app's own bus name. The router calls it only
 //! after checking that the name's owner is the person's own process.
 
+use docket_core::LinkFault;
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, FailText, Invocation, Latency, Outcome,
     Preview, SuggestAsk, UndoFault, UndoToken,
 };
 use docket_dbus::{BusConnection, Details, IntentProviderProxy};
-use docket_router::{AppFault, AppLink, LinkFault};
+use docket_router::{AppFault, AppLink};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 use serde::Serialize;

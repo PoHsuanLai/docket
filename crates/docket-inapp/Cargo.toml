@@ -18,6 +18,7 @@ docket-core = { workspace = true }
 futures-channel = { workspace = true }
 futures-util = { workspace = true }
 docket-memory = { workspace = true }
+docket-memory-core = { workspace = true }
 docket-models = { workspace = true }
 docket-planner = { workspace = true }
 docket-reader = { workspace = true }

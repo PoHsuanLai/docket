@@ -16,8 +16,9 @@ use docket_core::{
     ReviewError, Revocation, StandingGrant, StandingGrantId, UserTurn, Value, held_with,
     held_without,
 };
-use docket_memory::QueuedSink;
-use docket_router::{EventSink, GrantStore, LinkFault, MemoryLink, NoLog, NoStore, Seams};
+use docket_core::{EventSink, LinkFault, MemoryLink};
+use docket_memory_core::QueuedSink;
+use docket_router::{GrantStore, NoLog, NoStore, Seams};
 use prov::{Quarantined, SessionId, SpaceId, TaskId};
 use std::sync::Mutex;
 

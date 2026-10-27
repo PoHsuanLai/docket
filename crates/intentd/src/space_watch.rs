@@ -7,8 +7,9 @@
 use crate::grants::FileGrants;
 use docket_core::Clock;
 use docket_core::{AuditRecord, Ended, KnownSpaces};
+use docket_core::{EventSink, MemoryLink};
 use docket_dbus::BusConnection;
-use docket_router::{EventSink, MemoryLink, Router, Seams};
+use docket_router::{Router, Seams};
 use docket_store::GrantFileError;
 use futures_util::StreamExt;
 use porter_client::{Spaces, SpacesError};

@@ -8,10 +8,11 @@ use crate::gate::{GateInputs, Pending, gate};
 use crate::labels::absorb;
 use crate::prepared::grant_state;
 use crate::router::Router;
-use crate::seams::{EventSink, GrantStore, Seams};
+use crate::seams::{GrantStore, Seams};
 use crate::watch::Watch;
 use action_review::RepeatState;
 use docket_core::Clock;
+use docket_core::EventSink;
 use docket_core::{
     ActionGrantKey, Anchor, AskReason, AuditRecord, CallProgress, CallRefusal, ConfirmAnswer,
     ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest,

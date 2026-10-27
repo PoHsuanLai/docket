@@ -10,8 +10,9 @@ use crate::labels::app_label;
 use crate::rank::{Rank, rank_of};
 use crate::reading::link_refusal;
 use crate::router::Router;
-use crate::seams::{AppLink, LinkFault, Seams};
+use crate::seams::{AppLink, Seams};
 use crate::state::RouterState;
+use docket_core::LinkFault;
 use docket_core::{
     CallerId, CallerRole, EntityRef, Hit, IndexBatch, IndexEntry, IndexPolicy, IntentsReply,
     SearchAsk, SearchScope, SuggestAsk, TitleTrust, WireRefusal,

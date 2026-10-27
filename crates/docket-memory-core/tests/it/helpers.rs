@@ -4,7 +4,7 @@
 use almanac_core::{AreaTag, EventBody, JsonText};
 use docket_core::AuditRecord;
 use docket_core::helper::HelperRecordKind;
-use docket_memory::{kind_tag_of, record_of};
+use docket_memory_core::{kind_tag_of, record_of};
 use prov::{SpaceId, UnixSeconds};
 
 #[test]

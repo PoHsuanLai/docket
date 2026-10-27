@@ -4,8 +4,9 @@
 
 use almanac_core::{MemoryReply, MemoryRequest, Refusal};
 use docket_core::{AuditRecord, HaltCause};
-use docket_memory::{AuditState, Link, QueuedSink};
-use docket_router::{EventSink, LinkFault, MemoryLink};
+use docket_core::{EventSink, LinkFault, MemoryLink};
+use docket_memory::{AuditState, Link};
+use docket_memory_core::QueuedSink;
 use prov::{SpaceId, SpaceScope, UnixSeconds};
 use std::collections::VecDeque;
 use std::sync::Mutex;

@@ -8,10 +8,11 @@ use crate::gate::Pending;
 use crate::labels::{fold_labels, user_label};
 use crate::prepared::Prepared;
 use crate::router::Router;
-use crate::seams::{MemoryLink, Seams};
+use crate::seams::Seams;
 use almanac_core::{
     BodyMode, Cursor, EntriesQuery, KindPattern, MemoryReply, MemoryRequest, RecentEntry,
 };
+use docket_core::MemoryLink;
 use docket_core::{Args, Filled, Value};
 use docket_session::session_thing;
 use porter_core::Count;

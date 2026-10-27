@@ -1313,6 +1313,7 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-memory",
+ "docket-memory-core",
  "docket-models",
  "docket-planner",
  "docket-reader",
@@ -1381,12 +1382,24 @@ dependencies = [
  "almanac-service",
  "docket-core",
  "docket-fake",
+ "docket-memory-core",
  "docket-router",
  "docket-session",
  "porter-core",
  "prov",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "docket-memory-core"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "docket-core",
+ "porter-core",
+ "prov",
+ "serde_json",
 ]
 
 [[package]]
@@ -2283,6 +2296,7 @@ dependencies = [
  "docket-fake",
  "docket-log",
  "docket-memory",
+ "docket-memory-core",
  "docket-models",
  "docket-router",
  "docket-session",

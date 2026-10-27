@@ -11,12 +11,13 @@ use agent_loop::{FinishedAs, LoopPhase, LoopState};
 use companion_wire::{AnswerPhase, AskWire, NeedsYou};
 use docket_client::{ContextSource, IntentProvider};
 use docket_core::Clock;
+use docket_core::MemoryLink;
 use docket_core::{
     ContextKeep, Keep, Origin, PolicyWriter, Reader, SessionOpen, TurnEnd, TurnIn, TurnSource,
     TurnVia, UserTurn, WindowKey,
 };
 use docket_planner::PlanFault;
-use docket_router::{GrantStore, MemoryLink};
+use docket_router::GrantStore;
 use docket_tasks::{Failure, TaskRuntime};
 use porter_client::Transport as ModelTransport;
 use prov::{AgentRef, TaskId};

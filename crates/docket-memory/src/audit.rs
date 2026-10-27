@@ -8,11 +8,9 @@
 //! and counts them. `AuditState::flush` says what changed (`Report`) and prints nothing: the host
 //! decides what to tell the person.
 
-use crate::record::{record_of, space_named_by};
-use crate::sink::QueuedSink;
 use almanac_core::{MemoryReply, MemoryRequest, Refusal};
-use docket_core::{AuditRecord, CallId};
-use docket_router::{LinkFault, MemoryLink};
+use docket_core::{AuditRecord, CallId, LinkFault, MemoryLink};
+use docket_memory_core::{QueuedSink, record_of, space_named_by};
 use prov::SpaceId;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 

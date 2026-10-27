@@ -41,7 +41,7 @@ mod turn_watch;
 pub use agent::{AgentFault, Ending, Failure, InAppAgent, InAppParts, Reply};
 pub use audit_file::{AuditFile, AuditFileError};
 pub use desk::EditorDesk;
-pub use docket_memory::{AlmanacMemory, AuditState, Flushed, QueuedSink, Report};
+pub use docket_memory::{AlmanacMemory, AuditState, Flushed, Report};
 pub use docket_models::{TransportModel, TransportWriter, placeholder_set, reviewer_over};
 pub use docket_reader::TransportReader;
 pub use grants::FileGrantStore;

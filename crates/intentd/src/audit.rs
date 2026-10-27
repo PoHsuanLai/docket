@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 
 pub use docket_memory::Flushed;
 
-use docket_memory::QueuedSink;
+use docket_memory_core::QueuedSink;
 
 /// Writes the router's records into memoryd.
 #[derive(Debug)]

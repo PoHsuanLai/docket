@@ -129,8 +129,8 @@ async fn a_side_conversation_ends_as_an_episode_of_the_persons_own_words() {
 }
 
 /// How many episode records memory holds.
-async fn side_episodes(reader: &impl docket_router::MemoryLink) -> usize {
-    let reply = docket_router::MemoryLink::ask(
+async fn side_episodes(reader: &impl docket_core::MemoryLink) -> usize {
+    let reply = docket_core::MemoryLink::ask(
         reader,
         MemoryRequest::Recent(
             crate::support::host::work(),

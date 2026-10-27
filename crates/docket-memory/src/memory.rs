@@ -2,7 +2,7 @@
 
 use almanac_client::{ClientError, Memory, Transport};
 use almanac_core::{HistoryFate, MemoryFate, MemoryReply, MemoryRequest, Removal};
-use docket_router::{LinkFault, MemoryLink, SpaceMemories};
+use docket_core::{LinkFault, MemoryLink, SpaceMemories};
 use prov::SpaceId;
 
 /// Memory, as the router asks it (`Caller::Router`).
