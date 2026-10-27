@@ -153,7 +153,7 @@ cedar-policy = "4.13"
 # actions-mcp: pin the minor.
 rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io"] }
 # docket-acp: the ACP protocol's wire types alone (Apache-2.0), no schemars; the transport is ours.
-agent-client-protocol-schema = { version = "=1.10.2", default-features = false }
+agent-client-protocol-schema = { version = "=1.12.0", default-features = false }
 # Dev-dependencies.
 proptest = "1"
 # docket-acp tests: validate our messages against the protocol-v1 JSON Schema kept in the repo (MIT).

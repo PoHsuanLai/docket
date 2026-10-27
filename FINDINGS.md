@@ -2073,14 +2073,28 @@ Open, and why:
 `docket-acp` serves the Agent Client Protocol v1 on stdio (design note `acp-sessions.md`, section 3a).
 What landed, and what it leaves for other lanes.
 
-- **Protocol types: the schema crate, not the SDK.** `agent-client-protocol-schema` 1.10.2,
-  Apache-2.0, pinned `=1.10.2` with `default-features = false` (no `schemars`), in `Cargo.lock`. The
+- **Protocol types: the schema crate, not the SDK.** `agent-client-protocol-schema` 1.12.0,
+  Apache-2.0, pinned `=1.12.0` with `default-features = false` (no `schemars`), in `Cargo.lock`. The
   transport (`Wire`, `Incoming`, `LineWire`) is ours, about 150 lines, no runtime in the lib. The
   crate ships no JSON Schema file, so `crates/docket-acp/tests/schema/schema.json` and `meta.json`
-  are protocol v1 copied from the upstream repo's `schema/v1/` (commit c4137ab, 2026-09-17; the
+  are protocol v1 copied from the upstream repo's `schema/v1/` (commit e2d8334, 2026-10-16; the
   version is recorded in `tests/schema/VERSION`). No test fetches it. Every message the tests send
   or receive is validated against it (`jsonschema` 0.58, MIT, dev-dependency only, no default
   features).
+- **Schema 1.10.2 to 1.12.0 (step 1 of moving onto the official SDK, `agent-client-protocol` 3.5.0, which
+  pins `=1.12.0`).** No stable v1 type we use was removed or renamed, so no source change. Changes read
+  from the two crate sources:
+  - Wire: the list and map fields `mcpServers`, `additionalDirectories`, terminal-auth `args` and `env`,
+    and an MCP server's `headers`, `args` and `env` deserialize with "null means empty" instead of "an
+    error means empty, a bad item is skipped". A malformed item in `mcpServers` now fails the whole
+    request (invalid params) instead of being dropped. We ignore an editor's `mcpServers` after
+    parsing, so a malformed one is now refused where it was silently dropped.
+  - A `terminal` auth method that does not match its schema is an error; before, it fell through to
+    the open "other" method.
+  - Types: `Eq` added to most v1 types (`Annotations` compares `priority` by total order). The
+    `unstable_nes` and notice/compaction features are gone and `unstable_session_system_prompt`
+    appears; we enable no unstable feature.
+  - `tests/schema/schema.json` is the upstream file at commit e2d8334 (`meta.json` is unchanged).
 - **`CallerRole::Editor` and `TurnSource::Editor(AppName)`** in docket-core. The router's auth table
   lets an editor open and close sessions and record turns, nothing else; `who_for` treats it like a
   field; a turn from an editor first capped the task policy to the editor's app like a field's (changed by "Editor policy (R8)" below). The restore
