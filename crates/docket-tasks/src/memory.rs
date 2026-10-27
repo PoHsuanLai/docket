@@ -1,6 +1,6 @@
 //! What the router reads from memory for a task, one section at a time. Each answers for one
 //! session; a router that does not answer leaves its section empty, and the planner works with
-//! less, never with a guess. The companion fills every section; a smaller agent (docket-kit)
+//! less, never with a guess. The companion fills every section; a smaller agent
 //! fills only those it was given.
 
 use almanac_core::{InjectQuery, RecentQuery};

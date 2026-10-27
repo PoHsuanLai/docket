@@ -3710,3 +3710,8 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
   next start.
 - `IntentProvider1.Search`, `docket-client`'s `IntentProvider::search` and the `Search.Hits` signal are unused. They
   go in the next batched quire release (the wire and proxy are quire's); the signal stays declared until then.
+
+## Layering lanes D0.3 and D0.23 (2026-10-28)
+
+- `docket-session`'s test code (`contract`, `fake`, `fake_host`) is behind the `testing` feature. Only dev-dependencies turn it on (docket-router, docket-memory, docket-tasks, docket-acp, and docket-session's own tests); `docket-fake` and `docket-accept`, which are test crates, turn it on in their dependencies. `docket-eval` links `docket-fake`, so a `docket-eval` build also enables it.
+- `docket-kit` is deleted. Nothing outside docket used it (checked in sill, detent, files, mailo and cua on origin/master); `docket-inapp` named it only in a doc example, which is gone. `InAppAgent::companion_link`, `record_turn`, `end_recorded` and `RecordedTurn` existed only to feed it and are deleted with their test and the `person` link; no other repo called them.

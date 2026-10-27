@@ -42,10 +42,6 @@ RULES=(
   # a clock and a surface that are passed in; no bus, no runtime (the daemon's surface is the
   # one that holds tokio).
   "docket-tasks: $EFFECTS"
-  # The kit declares an internal agent over the same portable pieces (agent-loop, the planner,
-  # the task model's memory reads, an Intents1 link): no bus, runtime, HTTP, database or Cedar
-  # of its own.
-  "docket-kit: $EFFECTS"
   # The durable session is portable and pure: no bus, runtime, HTTP, Cedar or toml; the log is a seam.
   "docket-session: $EFFECTS toml"
   # Restore points: the rules and the store seam, pure; the git store is another crate (a process).
@@ -170,7 +166,6 @@ EDGES=(
   "agent-loop: almanac-core companion-wire docket-core porter-core prov"
   "docket-planner: agent-loop almanac-core companion-wire docket-core porter-client porter-core porter-infer prov"
   "docket-tasks: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-session docket-skills porter-client porter-core porter-infer prov"
-  "docket-kit: agent-loop almanac-core companion-wire docket-client docket-core docket-planner docket-tasks porter-client porter-core prov"
   "docket-session: companion-wire docket-core porter-core prov"
   "docket-checkpoint: docket-core porter-core prov"
   "docket-checkpoint-git: docket-checkpoint docket-core porter-core prov"
