@@ -40,7 +40,7 @@ full view is `ACCEPT_RECORD=1`'s output.
 | Piece | Why | File |
 |---|---|---|
 | `org.quire.Confirm1` (sill's sheet) | owns `org.quire.Confirm1` and `org.quire.Shell` (where intentd sends the sheet), and the test process is `sill.service`, so intentd derives sill's `confirm`, `launcher` and `control` roles from `intentd.toml` as it would for sill; answers Allow (with a receipt) or Refuse from a queue the test fills | `src/confirm.rs` |
-| `org.quire.Mail` provider | `org.quire.IntentProvider1` served with `docket_client::serve_on` for the manifest `fixtures/org.quire.Mail.toml`; holds a forward or send for an undo window like mailo | `src/provider.rs` |
+| `org.quire.Mail` provider | `org.quire.IntentProvider1` served with `docket_provider::serve_on` for the manifest `fixtures/org.quire.Mail.toml`; holds a forward or send for an undo window like mailo | `src/provider.rs` |
 
 ## What mailo's real provider must match
 

@@ -1,9 +1,8 @@
 //! The other processes on the private bus: a mail app (docket-fake's `FakeMail` behind
-//! `docket_client::serve_on`, so the app side of `IntentProvider1` is the real one) and sill's
+//! `docket_provider::serve_on`, so the app side of `IntentProvider1` is the real one) and sill's
 //! `Confirm1` with scripted answers. Shared by intentd's tests and `quire-do`'s end-to-end test.
 #![allow(dead_code)]
 
-use docket_client::{ContextSource, IntentProvider, SummonTarget, serve_on_with};
 use docket_core::CallerRole;
 use docket_core::{
     AppRefusal, ConfirmAnswer, ConfirmEnd, ConfirmRequest, ContextScope, ContextSnapshot,
@@ -14,6 +13,7 @@ use docket_core::{
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Identity, Role};
 use docket_fake::{FakeMail, MailThread};
+use docket_provider::{ContextSource, IntentProvider, SummonTarget, serve_on_with};
 use intentd::IntentdConfig;
 use porter_core::{AppName, Count};
 use prov::{Actor, EntityId, Label, SpaceId};

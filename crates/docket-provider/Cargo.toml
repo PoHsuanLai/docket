@@ -1,0 +1,26 @@
+[package]
+name = "docket-provider"
+description = "The app side of org.quire.Intents1: the IntentProvider, ContextSource and SummonTarget traits an app implements, and (behind the dbus feature) serve and serve_on, which answer org.quire.IntentProvider1 on the app's own bus name. The caller side is docket-client."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+docket-dbus = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
+prov = { workspace = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+thiserror = { workspace = true }
+zbus = { workspace = true, optional = true }
+
+[features]
+# `serve` and `serve_on`: the provider on the session bus (Linux, the desktop's intentd calls it).
+dbus = ["dep:docket-dbus", "dep:futures-util", "dep:serde", "dep:serde_json", "dep:zbus"]
+
+[lints]
+workspace = true

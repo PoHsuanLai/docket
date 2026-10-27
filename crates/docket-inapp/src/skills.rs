@@ -7,10 +7,10 @@
 use crate::agent::InAppAgent;
 use crate::sheet::ConfirmSheet;
 use action_review::Reviewer;
-use docket_client::{ContextSource, IntentProvider};
 use docket_core::Clock;
 use docket_core::MemoryLink;
 use docket_core::{PolicyWriter, Reader};
+use docket_provider::{ContextSource, IntentProvider};
 use docket_router::GrantStore;
 use docket_skills::{Rejected, Roots, Skill, discover};
 use docket_skills_disk::DiskFolder;

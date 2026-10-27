@@ -777,7 +777,7 @@ async fn undo_all_stops_at_the_first_conflict() {
         let st = router.state.lock().expect("lock");
         st.journal.entries().last().expect("entry").clone()
     };
-    use docket_client::IntentProvider;
+    use docket_provider::IntentProvider;
     router
         .seams
         .link

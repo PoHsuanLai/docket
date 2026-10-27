@@ -56,6 +56,7 @@ LAYERS=(
   "docket-settings:C"
   "docket-dbus:C"
   "docket-client:C"
+  "docket-provider:C"
   "companion-client:C"
   "voice-dbus:C"
   "docket-log:C"
@@ -367,6 +368,8 @@ RULES=(
   "docket-dbus: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp cedar-policy"
   # A client never links the router: `InProcess` (feature `in_process`) is the one way in.
   "docket-client: $EFFECTS toml"
+  # The app side of Intents1: the traits an app implements; zbus only behind its `dbus` feature, never the router.
+  "docket-provider: $EFFECTS toml"
   "docket-fake: $NO_CEDAR"
   # The model tap: the watch seam in docket-dbus (so zbus comes with it) and the exchange type in docket-core.
   "docket-trace: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp cedar-policy"

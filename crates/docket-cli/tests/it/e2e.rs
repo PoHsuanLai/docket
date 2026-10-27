@@ -1,6 +1,6 @@
 //! `quire-do` end to end: the real binary, intentd's real `start` (the router over `DbusLink`,
 //! `SheetConfirmer` and `FileGrants`, serving `org.quire.Intents1`), a mail app that is
-//! docket-fake's `FakeMail` behind `docket_client::serve_on`, and sill's `Confirm1` as a fake
+//! docket-fake's `FakeMail` behind `docket_provider::serve_on`, and sill's `Confirm1` as a fake
 //! that answers from a script. All of it on a private `dbus-daemon`, with a scratch HOME and
 //! XDG directories (the app's manifest is installed under the scratch `XDG_DATA_DIRS`): the
 //! person's real session bus and `~/.config` are never named.

@@ -1,6 +1,6 @@
 [package]
 name = "docket-client"
-description = "The app side (IntentProvider, serve) and the caller side (Intents over a Transport: D-Bus behind the dbus feature, or the router in process behind in_process)."
+description = "The caller side of org.quire.Intents1 (Intents over a Transport: D-Bus behind the dbus feature, or the router in process behind in_process)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -10,12 +10,12 @@
 //! untrusted, from the source the app's manifest names for its content.
 
 use crate::provider::{AppLog, Message, Sending, words_match};
-use docket_client::IntentProvider;
 use docket_core::{
     AppRefusal, ArgSink, EntityRef, Follow, Hit, Invocation, LabelText, Outcome, ParamName,
     Preview, ResultShape, SuggestAsk, TargetKind, TargetValue, UndoFault, UndoToken, Undoable,
     ValidManifest, Value,
 };
+use docket_provider::IntentProvider;
 use porter_core::{AppName, DataClass};
 use prov::{
     Actor, Confidentiality, Effect, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled,

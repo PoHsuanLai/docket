@@ -3,12 +3,12 @@
 //! time `Perform` runs, and what `Perform` returns.
 
 use crate::labels::outcome;
-use docket_client::IntentProvider;
 use docket_core::{
     ActionRef, AppRefusal, CallClass, CallRequest, ClassifyFault, FailText, Follow, Hit,
     Invocation, Origin, Outcome, ParamName, Preview, SuggestAsk, TargetValue, UndoFault, UndoToken,
     Undoable, ValidManifest, Value,
 };
+use docket_provider::IntentProvider;
 use porter_core::AppName;
 use prov::{Actor, Effect, EntityId};
 use std::collections::BTreeMap;

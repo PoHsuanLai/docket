@@ -299,7 +299,7 @@ impl WindowFacts for Bare {
 /// The mapping from the model is not built: the source reports the app alone, and never panics.
 #[test]
 fn an_unbuilt_context_source_reports_the_app_alone() {
-    use docket_client::ContextSource;
+    use docket_provider::ContextSource;
     let snap = DsContextSource::new(app(), ds_intents::ContextModel::default(), Bare)
         .snapshot(ContextScope::ActiveWindow);
     assert_eq!(snap.app, app());

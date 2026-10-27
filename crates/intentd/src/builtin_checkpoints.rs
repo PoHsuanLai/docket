@@ -5,11 +5,11 @@
 //! once the router exists, as `org.quire.Companion` does, so the router that owns the provider is
 //! not owned by it.
 
-use docket_client::IntentProvider;
 use docket_core::{
     AppRefusal, EntityRef, FailText, Hit, Invocation, Outcome, Preview, SuggestAsk, UndoFault,
     UndoToken, ValidManifest,
 };
+use docket_provider::IntentProvider;
 use docket_router::{Router, Seams};
 use prov::{Actor, EntityId};
 use std::fmt;

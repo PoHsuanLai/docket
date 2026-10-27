@@ -696,7 +696,7 @@ impl World {
                 let mail = mail.focused(options.focus);
                 within(
                     "the mail provider to serve",
-                    docket_client::serve_on_with(
+                    docket_provider::serve_on_with(
                         &provider_connection,
                         mail,
                         quiet.clone(),
@@ -712,7 +712,7 @@ impl World {
                 let (things, log) = AcceptThings::new(other, manifest, space);
                 within(
                     "the app's provider to serve",
-                    docket_client::serve_on_with(
+                    docket_provider::serve_on_with(
                         &provider_connection,
                         things,
                         quiet.clone(),

@@ -2,8 +2,8 @@
 //! through its companion port. This converts the plain values both ways and holds the target
 //! `docket-client` asks.
 
-use docket_client::SummonTarget;
 use docket_core::{SummonAnswer, SummonOrigin, SummonSerial, VoiceIntent};
+use docket_provider::SummonTarget;
 use ds_intents::{SummonAnswerMark, SummonOriginMark, SummonSerial as DsSerial};
 
 /// ds's answer as the wire's. A new wire variant stops the build in the other direction; an unknown ds mark reads as declined.

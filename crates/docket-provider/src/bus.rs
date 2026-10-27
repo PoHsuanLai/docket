@@ -9,8 +9,8 @@
 //! reports), never whoever owns a well-known name. `Summon` is the one member that also comes
 //! from the shell.
 
+use crate::error::ServeError;
 use crate::provider::{ContextSource, IntentProvider, SummonTarget};
-use crate::transport::TransportError;
 use docket_core::{SummonSerial, ValidManifest};
 use docket_dbus::callers::{Callers, INTENTD, Identity, intentd_only, require};
 use docket_dbus::{BusConnection, Details, PROVIDER_PATH};
@@ -179,7 +179,7 @@ pub async fn serve_on<P, C, S>(
     provider: P,
     context: C,
     summon: S,
-) -> Result<(), TransportError>
+) -> Result<(), ServeError>
 where
     P: IntentProvider + 'static,
     C: ContextSource + 'static,
@@ -197,7 +197,7 @@ pub async fn serve_on_with<P, C, S, K>(
     context: C,
     summon: S,
     callers: Arc<K>,
-) -> Result<(), TransportError>
+) -> Result<(), ServeError>
 where
     P: IntentProvider + 'static,
     C: ContextSource + 'static,
@@ -212,20 +212,14 @@ where
         summon,
         callers,
     };
-    let bus = |e: zbus::Error| TransportError::Bus(e.to_string());
-    connection
-        .object_server()
-        .at(PROVIDER_PATH, object)
-        .await
-        .map_err(bus)?;
+    connection.object_server().at(PROVIDER_PATH, object).await?;
     let reply = connection
         .request_name_with_flags(name.as_str(), fdo::RequestNameFlags::DoNotQueue.into())
-        .await
-        .map_err(bus)?;
+        .await?;
     match reply {
         fdo::RequestNameReply::PrimaryOwner | fdo::RequestNameReply::AlreadyOwner => Ok(()),
         fdo::RequestNameReply::InQueue | fdo::RequestNameReply::Exists => {
-            Err(TransportError::Bus(format!("{name} is taken")))
+            Err(ServeError::Taken(name))
         }
     }
 }

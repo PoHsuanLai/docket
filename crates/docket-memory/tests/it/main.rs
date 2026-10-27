@@ -1,5 +1,6 @@
 mod audit;
 mod portable;
+mod provider;
 mod session_log;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its

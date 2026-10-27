@@ -6,7 +6,7 @@ the MCP edge), the w4-docket fill (the audit trail, the built-in providers, the 
 signals), the w5-docket fill (the reader's session, the gate's watch, the companion's asks, the
 daemons' binaries) and the f4-docket fill (the MCP binary, the watched perform, the resolver seam) there is **1 `todo!()` body** in library and daemon code (the voice wave's v-voiced lane filled the other: `voiced::serve`), listed below; the tests contain
 none, and no test is `#[ignore]`d. (The freeze had 37: `agent_step` was filled in fill wave 1; F3 filled
-`DbusTransport::call`, `docket_client::serve`, `DbusLink`, `SheetConfirmer`, `FileGrants` and intentd's
+`DbusTransport::call`, `docket_provider::serve`, `DbusLink`, `SheetConfirmer`, `FileGrants` and intentd's
 `serve` and `main`; w4-companion filled companiond and `McpEdge::call`; w4-docket filled `record_of`,
 `InferdModel::{chat, embed}`, `InferdWriter::derive`, `ReaderClient::extract`, both providers' `perform`,
 `reader_request`, `ReaderService::{extract, extract_in}` and readerd's `serve`. w5-docket filled no stub: it
@@ -242,7 +242,7 @@ Built and tested on a private `dbus-daemon` (nothing of the real session is name
   the acceptance world writes the setting (`AcpSetting::On`, `World::start_acp`).
 - **Apps** (`DbusLink`): `IntentProvider1` on the app's own name, started by activation when absent, the
   owner checked to be the person's own process; latencies 250 ms (instant), 5 s (quick), 10 min (long, reports
-  progress itself); a timeout is `AppFault::TimedOut`. `docket_client::serve_on` / `serve` serve a provider and
+  progress itself); a timeout is `AppFault::TimedOut`. `docket_provider::serve_on` / `serve` serve a provider and
   answer only intentd (every member but `Summon`). The mail app of the tests is docket-fake's `FakeMail`
   behind it.
 - **The sheet** (`SheetConfirmer`): `Confirm1` is asked only when its owner plays the `confirm` role; no sill, an
@@ -1531,8 +1531,8 @@ Not run: a live model (the run that found this needs the local Qwen3 engine).
 What this lane built. The rule: everything except the desktop environment is cross-platform; the
 desktop's extras are additive. docket's portable core is an in-app agent.
 
-- `docket-client` was already split: `dbus` (the transport and `serve_on`) pulls zbus, nothing else
-  does; `serve` without it answers `Closed`. It is now `default = ["quire-desktop"]` with `quire-desktop = ["dbus"]` (design/36: the app-level switch, implied by the D-Bus client; `dbus` stays the transport feature) so a consumer outside the
+- `docket-client` was already split: `dbus` (the transport) pulls zbus, nothing else
+  does (`serve` and `serve_on` have since moved to `docket-provider`, see lane D0.15). It is now `default = ["quire-desktop"]` with `quire-desktop = ["dbus"]` (design/36: the app-level switch, implied by the D-Bus client; `dbus` stays the transport feature) so a consumer outside the
   workspace is unchanged, while the workspace declares it with `default-features = false` and each
   desktop crate names `dbus` (as sill already does), so every in-workspace build is what it was.
 - `docket-planner` (new, portable): companiond's `PlannerModel`, `Catalogue`, prompt rendering, `step_text` (loop-guard) and
@@ -3566,7 +3566,7 @@ owns, `GetNameOwner` or a uid alone; an unidentified caller is refused.
     roles need `sheet_host`, `cua` and `compositor` their own, the daemons' and editors' roles any role above a plain app.
     An app scope or Flatpak app is a plain app; a terminal's child (nothing names it) is the cli role.
   - readerd (`readerd-callers.toml`) and docket-acp's / docket-agent's `Confirm1` (`acp-callers.toml`): `org.quire.Intents`
-    `agent` = `intentd.service`, the only caller (`INTENTD`). Provider apps (`docket_client::serve_on`) answer the same
+    `agent` = `intentd.service`, the only caller (`INTENTD`). Provider apps (`docket_provider::serve_on`) answer the same
     one-row table, built in (`docket_dbus::callers::INTENTD_ONLY`); `serve_on_with` takes another `Identity`.
   - companiond (`companiond-callers.toml`): `org.quire.Shell` `sheet_host` = `sill.service` speaks for the person; a
     terminal's child that nothing names and that owns no name of its own may open, ask, close, cancel and read.
@@ -3844,3 +3844,12 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - Their tests already passed configuration directly and mutate no environment (`set_var` and `remove_var` do not appear in the three crates).
 - The three `accept-*` mains only pass `&env` to `run_with` (the lane that owns docket-accept removes their own env reads).
 - Not done: `companiond/src/serve.rs` is still 557 lines (it was 556); splitting it is a separate move.
+
+## Layering lane D0.15: docket-provider and the Memory provider (2026-10-28)
+
+- `docket-provider` (C) is new: the app side of Intents1. `IntentProvider`, `ContextSource` and `SummonTarget` (from `docket-client/src/provider.rs`), and behind its `dbus` feature `serve`, `serve_on` and `serve_on_with` (from `docket-client`'s `serve.rs` and `provider_bus.rs`, now `serve.rs` and `bus.rs`). `docket-client` is the caller side only (`Intents<Transport>`). Closes F11.
+- `serve_on` / `serve_on_with` / `serve` return the new `ServeError` (`Bus(String)`, `Taken(String)`) instead of `docket_client::TransportError`. A taken name used to be `TransportError::Bus("<name> is taken")`; it is now `ServeError::Taken(name)`, so callers can match it instead of reading text. Without the `dbus` feature `serve` no longer exists (it used to answer `Closed`).
+- `MemoryProvider` and `MEMORY_APP` moved from intentd's `builtin_memory.rs` to `docket-memory` (`provider.rs`), with their test (`tests/it/provider.rs`, which now parses `manifests/org.quire.Memory.toml` itself). intentd imports them for `HostedLink`. Closes the Memory half of F9.
+- Not moved, needs a decision: `CompanionProvider` and `CheckpointsProvider` (with `CompanionPort`, `CheckpointsPort`). They hold no logic of their own; each forwards to `Router::companion_perform` / `checkpoints_perform` through a port attached to the router. A crate that holds them has to depend on `docket-router` (pure, with cedar below it), which `docket-provider` and `docket-memory` must not. They are router glue, so they stay in intentd with `HostedLink` until the plan names a home (for example a `docket-router` hook that the daemon registers, with the `IntentProvider` impl left to intentd).
+- Moved public items other repos name: `docket_client::{IntentProvider, ContextSource, SummonTarget, serve, serve_on, serve_on_with}` are now `docket_provider::...`; `intentd::{MemoryProvider, MEMORY_APP}` are `docket_memory::{MemoryProvider, MEMORY_APP}` (intentd no longer exports them).
+- Not verified by a build in the lane that made the change.

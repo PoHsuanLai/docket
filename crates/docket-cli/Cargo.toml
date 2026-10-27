@@ -36,6 +36,7 @@ docket-testbus = { workspace = true }
 intentd = { path = "../intentd" }
 zbus = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
+docket-provider = { workspace = true, features = ["dbus"] }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }
 almanac-dbus = { workspace = true }

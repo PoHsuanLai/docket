@@ -8,12 +8,14 @@ use crate::link::ProviderLink;
 use crate::seams::{AuditBuffer, InAppSeams, NoMemory, NoReader, NoWriter, SessionGrants};
 use crate::sheet::{ConfirmSheet, SheetConfirmer};
 use action_review::Reviewer;
-use docket_client::{ClientError, ContextSource, InProcess, IntentProvider, Intents};
+use docket_client::{ClientError, InProcess, Intents};
+
 use docket_core::Clock;
 use docket_core::MemoryLink;
 use docket_core::{AgentConfig, AuditRecord, CallRefusal, PolicyWriter, Reader, StepLine, TurnId};
 use docket_memory::AuditState;
 use docket_planner::{PlanFault, PlannerModel};
+use docket_provider::{ContextSource, IntentProvider};
 use docket_router::{GrantStore, Registry, Router};
 use docket_tasks::{Companion, Quiet, ServeFault};
 use policy_point::Presets;
@@ -173,7 +175,7 @@ where
 /// ```
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// # use docket_client::ContextSource;
+/// # use docket_provider::ContextSource;
 /// # use docket_core::{AgentConfig, ConfirmRequest, ContextScope, ContextSnapshot};
 /// # use docket_core::{Here, Selection, TextTarget, Visible, WindowPrivacy};
 /// # use docket_fake::{FakeFiles, FixedClock, ScriptedReviewer, WordsModel, files_manifest};

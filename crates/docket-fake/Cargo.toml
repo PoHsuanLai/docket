@@ -13,7 +13,7 @@ docket-checkpoint = { workspace = true }
 docket-core = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 docket-router = { workspace = true }
-docket-client = { workspace = true, features = ["in_process"] }
+docket-provider = { workspace = true }
 policy-point = { workspace = true }
 action-review = { workspace = true }
 porter-client = { workspace = true }
@@ -24,6 +24,7 @@ almanac-core = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+docket-client = { workspace = true, features = ["in_process"] }
 tokio = { workspace = true }
 cua-action = { workspace = true }
 

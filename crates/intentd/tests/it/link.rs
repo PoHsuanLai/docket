@@ -1,14 +1,14 @@
-//! The apps over a real bus: `DbusLink` on intentd's side, the real `docket_client::serve_on` on
+//! The apps over a real bus: `DbusLink` on intentd's side, the real `docket_provider::serve_on` on
 //! the app's, with docket-fake's mail app behind it. A provider answers nothing but intentd, an
 //! app that is away is "unavailable" rather than a panic, and a slow one is cut at its latency.
 
 use crate::support::apps::{Blank, answering_intentd, serve_mail};
 use crate::support::bus::PrivateBus;
 use crate::support::world::app;
-use docket_client::{ContextSource, IntentProvider, SummonTarget, serve_on_with};
 use docket_core::LinkFault;
 use docket_core::*;
 use docket_dbus::{INTENTS_BUS, IntentProviderProxy};
+use docket_provider::{ContextSource, IntentProvider, SummonTarget, serve_on_with};
 use docket_router::{AppFault, AppLink};
 use intentd::DbusLink;
 use prov::{Actor, EntityId, EntityKey, EntityKind, SpaceId};

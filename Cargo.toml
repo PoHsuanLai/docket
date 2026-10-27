@@ -29,6 +29,7 @@ members = [
   "crates/docket-inapp",
   "crates/docket-dbus",
   "crates/docket-client",
+  "crates/docket-provider",
   "crates/docket-fake",
   "crates/docket-testbus",
   "crates/docket-trace",
@@ -90,6 +91,7 @@ docket-memory  = { path = "crates/docket-memory" }
 docket-inapp   = { path = "crates/docket-inapp" }
 docket-dbus    = { path = "crates/docket-dbus" }
 docket-client  = { path = "crates/docket-client", default-features = false }
+docket-provider = { path = "crates/docket-provider" }
 docket-fake    = { path = "crates/docket-fake" }
 docket-testbus = { path = "crates/docket-testbus" }
 docket-trace   = { path = "crates/docket-trace" }

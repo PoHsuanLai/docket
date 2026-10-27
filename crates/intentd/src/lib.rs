@@ -2,8 +2,9 @@
 //! without a bus. The router is pure (`docket-router`); this crate gives it its seams.
 //!
 //! - `IntentdConfig`: which bus names play which role, and which reviewers are installed.
-//! - `builtin_manifests`, `MemoryProvider`, `CompanionProvider`, `HostedLink`: the providers
-//!   intentd hosts, and the `AppLink` that answers them in process.
+//! - `builtin_manifests`, `CompanionProvider`, `CheckpointsProvider`, `HostedLink`: the providers
+//!   whose router-side half intentd hosts (`MemoryProvider` is `docket-memory`'s), and the `AppLink`
+//!   that answers them in process.
 //! - `AlmanacMemory`: the router's memory seam over memoryd; `AuditLog`: the way of the event
 //!   sink (`docket_memory_core::QueuedSink`) to memoryd.
 //! - `DbusLink`, `SheetConfirmer`, `FileGrants`, `InferdModel`, `ReaderClient`: the
@@ -18,7 +19,6 @@ mod audit;
 mod builtin;
 mod builtin_checkpoints;
 mod builtin_companion;
-mod builtin_memory;
 mod bus;
 pub mod callers;
 mod config;
@@ -52,7 +52,6 @@ pub use audit::{AuditLog, Flushed};
 pub use builtin::{HostedLink, builtin_manifests, is_builtin};
 pub use builtin_checkpoints::{CheckpointsPort, CheckpointsProvider};
 pub use builtin_companion::{CompanionPort, CompanionProvider};
-pub use builtin_memory::{MEMORY_APP, MemoryProvider};
 pub use config::{ConfigError, IntentdConfig};
 pub use daemon::{DaemonFault, HarnessSeams, Running, Setup, data_dirs, run, run_with, start};
 pub use defaults::{DEFAULT_GRANTS_FILE, default_grants_file, revoking};

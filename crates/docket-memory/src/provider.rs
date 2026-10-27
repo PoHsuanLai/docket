@@ -8,11 +8,11 @@ use almanac_core::{
     FactDraft, FactFilter, FactQuery, FactState, FactText, MemoryItem, RecallHit, RecallOver,
     RecallQuery, TopicPath,
 };
-use docket_client::IntentProvider;
 use docket_core::{
     AppRefusal, EntityRef, FactLine, FailText, Follow, Hit, Invocation, LabelText, Outcome,
     ParamName, Preview, SuggestAsk, UndoFault, UndoToken, Undoable, ValidManifest, Value,
 };
+use docket_provider::IntentProvider;
 use porter_core::{AppName, Count};
 use prov::{
     Actor, AgentRole, Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled,

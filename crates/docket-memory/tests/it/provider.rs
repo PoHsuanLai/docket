@@ -3,10 +3,9 @@
 
 use almanac_client::{Transport, TransportError};
 use almanac_core::{FactId, FactState, MemoryReply, MemoryRequest};
-use docket_client::IntentProvider;
 use docket_core::{Args, CallId, Invocation, Origin, ParamName, TargetValue, Value};
-use intentd::{MemoryProvider, builtin_manifests};
-use porter_core::AppName;
+use docket_memory::MemoryProvider;
+use docket_provider::IntentProvider;
 use prov::{ActionName, Actor, AgentRole, HelperId, Label, Labelled, SessionId, SpaceId, TaskId};
 use std::sync::{Arc, Mutex};
 
@@ -68,10 +67,7 @@ fn propose_as(actor: Actor) -> Invocation {
 }
 
 async fn proposed_for(actor: Actor) -> Vec<Option<Actor>> {
-    let manifests = builtin_manifests().expect("manifests");
-    let memory = manifests
-        .into_iter()
-        .find(|m| m.manifest().app == AppName::parse("org.quire.Memory").expect("app"))
+    let memory = docket_router::parse(include_str!("../../../../manifests/org.quire.Memory.toml"))
         .expect("the memory manifest");
     let transport = Recording::default();
     let provider = MemoryProvider::new(memory, transport.clone());

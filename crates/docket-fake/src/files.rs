@@ -1,11 +1,11 @@
 //! `FakeFiles`: an in-memory files app behind the fixture manifest, with real undo tokens.
 
 use crate::labels::{app_label, entity, entity_ref, outcome, third_party};
-use docket_client::IntentProvider;
 use docket_core::{
     AppRefusal, FileMove, FileRef, Hit, Invocation, Outcome, ParamName, Preview, SuggestAsk,
     TargetValue, UndoFault, UndoToken, Undoable, ValidManifest, Value,
 };
+use docket_provider::IntentProvider;
 use porter_core::{AppName, DataClass};
 use prov::{Actor, EntityId, Labelled, Source, SpaceId};
 use std::collections::BTreeMap;

@@ -1,5 +1,5 @@
 //! The acceptance run's mail provider: `org.quire.IntentProvider1` for `org.quire.Mail`, served
-//! on its own connection with `docket_client::serve_on` (the wire every app uses). It is a
+//! on its own connection with `docket_provider::serve_on` (the wire every app uses). It is a
 //! stand-in for mailo's real provider and depends on none of mailo's code; the manifest it
 //! answers for is `dev/accept/fixtures/org.quire.Mail.toml`, which is what mailo's must match.
 //!
@@ -7,13 +7,13 @@
 //! `Undoable::Yes(token)` and the message is `Held`; `Undo(token)` cancels it. Nothing here
 //! leaves the process.
 
-use docket_client::{ContextSource, IntentProvider, SummonTarget};
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, EntityRef, Follow, Here, Hit, Invocation, LabelText,
     MessageSnip, Outcome, ParamName, Preview, Selection, SuggestAsk, SummonAnswer, SummonOrigin,
     SummonSerial, TargetValue, TextTarget, UndoFault, UndoToken, Undoable, ValidManifest, Value,
     Visible, WindowPrivacy,
 };
+use docket_provider::{ContextSource, IntentProvider, SummonTarget};
 use porter_core::{AppName, DataClass};
 use prov::{
     Actor, Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled, Source,

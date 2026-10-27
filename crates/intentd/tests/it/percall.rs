@@ -1,5 +1,5 @@
 //! Per-call effects over a real bus: the router's `Classify` and `Perform` reach a provider
-//! through intentd's `DbusLink` and the real `docket_client::serve_on`, with docket-fake's menu
+//! through intentd's `DbusLink` and the real `docket_provider::serve_on`, with docket-fake's menu
 //! app behind it. The seams that ask a person or a model are scripted; nothing else is.
 //!
 //! Covered: a Read item is not asked, a Destructive one is, a provider that classifies above its
@@ -9,13 +9,13 @@
 
 use crate::support::apps::Blank;
 use crate::support::bus::PrivateBus;
-use docket_client::{IntentProvider, serve_on_with};
 use docket_core::*;
 use docket_dbus::INTENTS_BUS;
 use docket_fake::{
     FakeMemory, FakeMenu, FixedClock, MemoryGrants, MenuItem, RecordingSink, ScriptedConfirmer,
     ScriptedReader, ScriptedReviewer, ScriptedWriter,
 };
+use docket_provider::{IntentProvider, serve_on_with};
 use docket_router::{Router, Seams};
 use intentd::DbusLink;
 use policy_point::Presets;

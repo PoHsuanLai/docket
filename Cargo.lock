@@ -1073,6 +1073,7 @@ dependencies = [
  "docket-inapp",
  "docket-launch",
  "docket-log",
+ "docket-provider",
  "docket-reader",
  "docket-router",
  "docket-session",
@@ -1147,6 +1148,7 @@ dependencies = [
  "docket-log",
  "docket-native",
  "docket-planner",
+ "docket-provider",
  "docket-router",
  "docket-session",
  "docket-settings",
@@ -1298,8 +1300,8 @@ name = "docket-ds"
 version = "0.1.0"
 dependencies = [
  "companion-wire",
- "docket-client",
  "docket-core",
+ "docket-provider",
  "ds-intents",
  "porter-core",
  "porter-infer",
@@ -1339,6 +1341,7 @@ dependencies = [
  "docket-checkpoint",
  "docket-client",
  "docket-core",
+ "docket-provider",
  "docket-router",
  "docket-session",
  "policy-point",
@@ -1368,6 +1371,7 @@ dependencies = [
  "docket-memory-core",
  "docket-models",
  "docket-planner",
+ "docket-provider",
  "docket-reader",
  "docket-router",
  "docket-session",
@@ -1441,6 +1445,7 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-memory-core",
+ "docket-provider",
  "docket-router",
  "docket-session",
  "porter-core",
@@ -1520,6 +1525,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-provider"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "docket-dbus",
+ "futures-util",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "zbus",
+]
+
+[[package]]
 name = "docket-reader"
 version = "0.1.0"
 dependencies = [
@@ -1543,9 +1562,9 @@ dependencies = [
  "almanac-core",
  "cua-action",
  "docket-checkpoint",
- "docket-client",
  "docket-core",
  "docket-fake",
+ "docket-provider",
  "docket-session",
  "docket-skills",
  "futures-channel",
@@ -2488,6 +2507,7 @@ dependencies = [
  "docket-memory",
  "docket-memory-core",
  "docket-models",
+ "docket-provider",
  "docket-router",
  "docket-session",
  "docket-settings",

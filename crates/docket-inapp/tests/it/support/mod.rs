@@ -7,12 +7,12 @@ pub mod host;
 #[path = "../../../../companiond/tests/it/support/infer.rs"]
 pub mod infer;
 
-use docket_client::ContextSource;
 use docket_core::{
     ConfirmId, ConfirmRequest, ContextScope, ContextSnapshot, Here, Selection, TextTarget, Visible,
     WindowPrivacy,
 };
 use docket_inapp::{ConfirmSheet, SheetAnswer};
+use docket_provider::ContextSource;
 use porter_core::Count;
 use prov::Labelled;
 use std::collections::VecDeque;

@@ -34,7 +34,7 @@ workspace = true
 [dev-dependencies]
 docket-session = { workspace = true, features = ["testing"] }
 docket-fake = { workspace = true }
-docket-client = { workspace = true }
+docket-provider = { workspace = true }
 tokio = { workspace = true }
 proptest = { workspace = true }
 cua-action = { workspace = true }
