@@ -3,9 +3,10 @@
 use super::model::{
     AgentRow, Agents, Availability, Install, ModelState, Offers, SignInState, Source,
 };
-use docket_agents::AgentsDir;
-use docket_agents::offered::{Offered, Start};
-use docket_agents::slug::Slug;
+use agents_core::dirs::AgentsDir;
+use agents_core::offered::{Offered, Start};
+use agents_core::record::{FILE, Record};
+use agents_core::slug::Slug;
 use docket_core::Rewind;
 
 fn text(t: &toml::Table, key: &str) -> Option<String> {
@@ -13,6 +14,19 @@ fn text(t: &toml::Table, key: &str) -> Option<String> {
         .as_str()
         .filter(|s| !s.is_empty())
         .map(str::to_owned)
+}
+
+/// Whether `version` of `id` is installed: its install record is there and is one.
+fn is_installed(dir: &AgentsDir, id: &Slug, version: &Slug) -> bool {
+    std::fs::read_to_string(dir.installed(id, version).join(FILE))
+        .is_ok_and(|text| Record::parse(&text).is_ok())
+}
+
+/// What the agent installed as `id` last offered; none when it never started or the record is
+/// not readable.
+fn offered(dir: &AgentsDir, id: &str) -> Option<Offered> {
+    let text = std::fs::read_to_string(dir.offered(&Slug::parse(id).ok()?)).ok()?;
+    Offered::parse(&text).ok()
 }
 
 fn source(entry: &toml::Table, dir: &AgentsDir) -> Source {
@@ -26,7 +40,7 @@ fn source(entry: &toml::Table, dir: &AgentsDir) -> Source {
     let installed = Slug::parse(&id)
         .ok()
         .zip(Slug::parse(&version).ok())
-        .filter(|(id, version)| dir.versions(id).contains(version))
+        .filter(|(id, version)| is_installed(dir, id, version))
         .map_or(Install::NotInstalled, |_| Install::Installed);
     Source::Registry {
         id,
@@ -83,7 +97,7 @@ fn row(entry: &toml::Table, dir: &AgentsDir) -> Option<AgentRow> {
     let program = text(entry, "program")?;
     let source = source(entry, dir);
     let record = match &source {
-        Source::Registry { id, .. } => Offered::read(dir, id).ok().flatten(),
+        Source::Registry { id, .. } => offered(dir, id),
         Source::Own { .. } => None,
     };
     let (offers, sign_in) = seen(record);

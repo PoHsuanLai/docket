@@ -1,7 +1,7 @@
 //! What an opening says about the agent, as the record that gets written: no agent runs here.
 
+use agents_core::offered::Start;
 use docket_acp_bin::agent::remember::of_opening;
-use docket_agents::Start;
 use docket_session::{BackendFault, Choice, Choices};
 
 fn choices(ids: &[&str]) -> Choices {

@@ -6,13 +6,14 @@
 pub struct Platform(String);
 
 impl Platform {
-    /// The platform this build runs on.
-    pub fn current() -> Self {
-        let os = match std::env::consts::OS {
+    /// The platform of an operating system and architecture as Rust names them
+    /// (`std::env::consts::OS` and `ARCH`): `macos` is `darwin` in the registry.
+    pub fn of(os: &str, arch: &str) -> Self {
+        let os = match os {
             "macos" => "darwin",
             other => other,
         };
-        Self(format!("{os}-{}", std::env::consts::ARCH))
+        Self(format!("{os}-{arch}"))
     }
 
     /// A platform by its registry key.

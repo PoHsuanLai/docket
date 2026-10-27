@@ -2,9 +2,10 @@
 //! it offered, the ways of signing in it listed, and whether it let the session open. Best
 //! effort: a record that cannot be written changes nothing about the session.
 
+use agents_core::dirs::AgentsDir;
+use agents_core::offered::{Named, Offered, Start};
 use docket_acp::client::{AcpBackend, Models, Seams};
-use docket_agents::offered::{Named, Offered};
-use docket_agents::{AgentsDir, Start};
+use docket_agents::store::write_offered;
 use docket_session::{BackendFault, Choice, Choices, HostFault};
 
 fn named(choices: &[Choice]) -> Vec<Named> {
@@ -66,6 +67,6 @@ pub fn remember<X: Seams>(
     };
     let listed = backend.sign_in_ways().unwrap_or(&none);
     if let Some(record) = of_opening(fault, backend.models(), listed) {
-        let _ = record.write(dir, id);
+        let _ = write_offered(dir, id, record);
     }
 }

@@ -4,7 +4,6 @@
 //! Reading is a pure function of text; only [`Locator::read`] touches the disk, and the live
 //! watch is the daemon's (intentd), so this crate reaches no runtime and no watcher.
 
-#[cfg(feature = "agents")]
 mod agents;
 mod expose;
 mod keys;
@@ -16,7 +15,6 @@ mod tests;
 
 use docket_core::AgentConfig;
 
-#[cfg(feature = "agents")]
 pub use agents::{
     AddFault, AgentChoice, AgentRow, Agents, Availability, ChoiceFault, Found, Install, KNOWN,
     KnownAgent, ModelState, NewAgent, Offers, Pick, REFRESH_PROGRAM, RefreshRequest, SignInState,

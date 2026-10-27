@@ -1,7 +1,7 @@
 //! The rows' types. An invalid state has no value: an agent that never started has no offers, a
 //! model is chosen or it is the agent's own, and only one that needs signing in lists ways.
 
-use docket_agents::offered::Named;
+use agents_core::offered::Named;
 use docket_core::Rewind;
 
 /// Where an agent's program came from.

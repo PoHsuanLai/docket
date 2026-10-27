@@ -63,7 +63,7 @@ actions-mcp = { path = "../actions-mcp" }
 action-review = { workspace = true }
 companion-wire = { workspace = true }
 companiond = { path = "../companiond" }
-docket-agents = { workspace = true }
+agents-core = { workspace = true }
 docket-acp = { path = "../docket-acp" }
 docket-acp-bin = { path = "../docket-acp-bin" }
 docket-cli = { path = "../docket-cli" }
@@ -80,7 +80,7 @@ docket-log = { workspace = true }
 bulkhead = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 docket-store = { workspace = true }
-docket-settings = { workspace = true, features = ["agents"] }
+docket-settings = { workspace = true }
 docket-trace = { workspace = true }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }

@@ -92,7 +92,7 @@ async fn open(
     let dir = spec
         .registry
         .as_ref()
-        .map(|pick| docket_agents::AgentsDir::at(&pick.dir));
+        .map(|pick| agents_core::dirs::AgentsDir::at(&pick.dir));
     let file = AgentsFile::parse_in(&entry, dir.as_ref()).map_err(|why| why.to_string())?;
     let permit = AgentsPermit::from_text("[agent.acp]\nagents = \"on\"\n")
         .map_err(|_| "agents are off".to_owned())?;

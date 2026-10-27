@@ -4,8 +4,8 @@
 
 use crate::install::InstallFault;
 use crate::run::Run;
-use crate::slug::Slug;
-use crate::snapshot::Package;
+use agents_core::slug::Slug;
+use agents_core::snapshot::Package;
 use std::path::Path;
 
 /// A package the registry names, reduced to what `uv pip install` is given.

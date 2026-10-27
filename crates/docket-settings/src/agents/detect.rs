@@ -83,7 +83,7 @@ pub fn unlisted<'a>(agents: &Agents, found: &'a [Found]) -> Vec<&'a Found> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_agents::AgentsDir;
+    use agents_core::dirs::AgentsDir;
 
     fn dirs() -> Vec<PathBuf> {
         dirs_of("/first/bin::/second/bin")

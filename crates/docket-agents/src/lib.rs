@@ -1,32 +1,19 @@
-//! Coding agents from the agent registry. Docket ships no list of agents: it reads a registry
-//! snapshot, installs the version the person pinned (checked against the digest the registry
-//! gives) into a directory it owns, and says how to start it.
+//! Installing coding agents from the agent registry. Docket ships no list of agents: it reads a
+//! registry snapshot (`agents-core`), installs the version the person pinned (checked against the
+//! digest the registry gives) into a directory it owns, and says what is installed.
 //!
-//! - `snapshot`: the registry's JSON, typed.
 //! - `install`: `install` (a named version), and `standing` and `offers` (what the list offers
 //!   against what is installed). Updating is installing the newer version the person names; nothing runs by
 //!   itself, and the network is reached only through `fetch::Fetch` in these two.
-//! - `dirs`, `record`, `launch`: where agents live, what was installed, how to start it. Each
-//!   agent has its own home inside its sandbox, where it signs in.
-//! - `offered`: what an agent last offered when a session opened (its models and ways of signing
-//!   in, and whether it was signed in), kept beside its home for the Settings app to read.
+//! - `fetch`, `run`, `unpack`, `uv`: the download, the package-manager process, the archive and the
+//!   python environment, each behind a seam the tests fake.
+//! - `store`: the install record and the offered record on disk, and what is installed.
 
-pub mod dirs;
 pub mod fetch;
-pub mod hash;
 pub mod install;
-pub mod launch;
-pub mod offered;
-pub mod platform;
-pub mod record;
 pub mod run;
-pub mod slug;
-pub mod snapshot;
+pub mod store;
 pub mod unpack;
 pub mod uv;
 
-pub use dirs::AgentsDir;
 pub use install::{InstallFault, Offer, Standing, Want, install, offers, standing};
-pub use launch::{Launch, LaunchFault};
-pub use offered::{Offered, OfferedFault, Start};
-pub use snapshot::{Listing, Snapshot, SnapshotFault};

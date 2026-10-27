@@ -1,16 +1,17 @@
 //! The registry reader and installer, over a fixture snapshot and archives built here. Nothing
 //! reaches the network or the real home.
 
+use agents_core::dirs::AgentsDir;
+use agents_core::hash::Sha256Hex;
+use agents_core::platform::Platform;
+use agents_core::record::{Check, Record, RecordFault};
+use agents_core::slug::Slug;
+use agents_core::snapshot::Snapshot;
 use docket_agents::fetch::{Fetch, FetchFault};
-use docket_agents::hash::Sha256Hex;
-use docket_agents::platform::Platform;
-use docket_agents::record::Check;
 use docket_agents::run::{Run, RunFault};
-use docket_agents::slug::Slug;
+use docket_agents::store::{agents, read_record, versions};
 use docket_agents::uv::PythonPackage;
-use docket_agents::{
-    AgentsDir, InstallFault, Offer, Snapshot, Standing, Want, install, offers, standing,
-};
+use docket_agents::{InstallFault, Offer, Standing, Want, install, offers, standing};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -95,7 +96,7 @@ fn tar_gz_of(name: &str, body: &[u8]) -> Vec<u8> {
 }
 
 fn snapshot(sha: Option<&str>, version: &str) -> Snapshot {
-    let key = Platform::current();
+    let key = Platform::of(std::env::consts::OS, std::env::consts::ARCH);
     let sha = sha.map_or(String::new(), |s| format!(r#", "sha256": "{s}""#));
     Snapshot::parse(&format!(
         r#"{{"version": "1", "extensions": [], "agents": [
@@ -116,6 +117,26 @@ fn served(version: &str, body: &[u8]) -> Served {
     Served(BTreeMap::from([(url, zip_of("agy", body))]))
 }
 
+/// The record of `id` at `version`, as the launcher would read it.
+fn installed(dir: &AgentsDir, id: &str, version: &str) -> Result<Record, RecordFault> {
+    let (id, version) = (
+        Slug::parse(id).expect("id"),
+        Slug::parse(version).expect("version"),
+    );
+    read_record(&dir.installed(&id, &version))
+}
+
+/// The program of `id` at `version`, given the directory it is installed under.
+fn program(dir: &AgentsDir, id: &str, version: &str) -> std::path::PathBuf {
+    let (slug, pinned) = (
+        Slug::parse(id).expect("id"),
+        Slug::parse(version).expect("version"),
+    );
+    installed(dir, id, version)
+        .expect("record")
+        .command_in(&dir.installed(&slug, &pinned))
+}
+
 fn want<'a>(id: &'a str, version: &'a str) -> Want<'a> {
     Want { id, version }
 }
@@ -129,12 +150,11 @@ fn a_declared_digest_is_checked_and_the_program_unpacks_executable() {
     let snap = snapshot(Some(digest.as_str()), "1.0.0");
     let record = install(&dir, &snap, want("agy-acp", "1.0.0"), (&net, &FakeNpm)).expect("install");
     assert_eq!(record.check, Check::Declared);
-    let launch = dir.launch("agy-acp", "1.0.0").expect("launch");
-    assert_eq!(launch.args, ["--uid="]);
-    assert!(launch.command.is_file());
-    assert!(launch.home.is_dir());
+    assert_eq!(record.args, ["--uid="]);
+    let command = program(&dir, "agy-acp", "1.0.0");
+    assert!(command.is_file());
     use std::os::unix::fs::PermissionsExt;
-    let mode = std::fs::metadata(&launch.command)
+    let mode = std::fs::metadata(&command)
         .expect("meta")
         .permissions()
         .mode();
@@ -151,7 +171,7 @@ fn a_wrong_digest_installs_nothing() {
     let fault =
         install(&dir, &snap, want("agy-acp", "1.0.0"), (&net, &FakeNpm)).expect_err("refused");
     assert!(matches!(fault, InstallFault::Digest { .. }));
-    assert!(dir.launch("agy-acp", "1.0.0").is_err());
+    assert!(installed(&dir, "agy-acp", "1.0.0").is_err());
 }
 
 #[test]
@@ -188,7 +208,7 @@ fn a_reinstall_with_no_declared_digest_is_compared_with_the_first_one() {
     assert_eq!(go(b"x").expect("same").check, Check::Pinned);
     let fault = go(b"swapped").expect_err("changed");
     assert!(matches!(fault, InstallFault::Digest { .. }));
-    assert!(dir.launch("agy-acp", "1.0.0").is_err());
+    assert!(installed(&dir, "agy-acp", "1.0.0").is_err());
 }
 
 #[test]
@@ -212,7 +232,7 @@ fn only_the_listed_version_installs_and_a_newer_one_is_never_taken_alone() {
             installed: vec!["1.0.0".into()]
         }
     );
-    assert!(dir.launch("agy-acp", "1.0.0").is_ok());
+    assert!(installed(&dir, "agy-acp", "1.0.0").is_ok());
     // Asking again for the installed version reaches nothing.
     let old = snapshot(None, "1.0.0");
     let none = Served(BTreeMap::new());
@@ -246,7 +266,7 @@ fn only_the_listed_version_installs_and_a_newer_one_is_never_taken_alone() {
     );
     assert_eq!(offers(&dir, &old)[1].description, "");
     // What is installed is known without the list.
-    let ids: Vec<String> = dir.agents().iter().map(|s| s.as_str().to_owned()).collect();
+    let ids: Vec<String> = agents(&dir).iter().map(|s| s.as_str().to_owned()).collect();
     assert_eq!(ids, ["agy-acp"]);
 }
 
@@ -275,7 +295,7 @@ fn a_python_package_goes_through_uv_into_its_own_directory() {
     let record = install(&dir, &snap, want("py", "1"), (&net, &uv)).expect("install");
     assert_eq!(record.check, Check::PackageManager);
     assert_eq!(record.command, "venv/bin/py");
-    assert!(dir.launch("py", "1").expect("launch").command.is_file());
+    assert!(program(&dir, "py", "1").is_file());
     let calls = uv.calls.borrow();
     assert_eq!(calls.len(), 2);
     assert!(calls[1].contains(&"py==1".to_owned()));
@@ -293,8 +313,8 @@ fn a_python_program_missing_after_uv_installs_nothing() {
     let fault =
         install(&dir, &snap, want("py", "1"), (&net, &FakeUv::default())).expect_err("no program");
     assert_eq!(fault, InstallFault::NoProgram);
-    assert!(dir.launch("py", "1").is_err());
-    assert!(dir.versions(&Slug::parse("py").expect("slug")).is_empty());
+    assert!(installed(&dir, "py", "1").is_err());
+    assert!(versions(&dir, &Slug::parse("py").expect("slug")).is_empty());
 }
 
 #[test]
@@ -322,14 +342,6 @@ fn a_tarball_unpacks_and_an_escaping_entry_is_refused() {
     assert!(!tmp.path().join("escape").exists());
     let kind = docket_agents::unpack::unpack("a.tar.bz2", b"", &into).expect_err("kind");
     assert_eq!(kind, docket_agents::unpack::UnpackFault::Kind);
-}
-
-#[test]
-fn names_that_could_climb_out_are_refused() {
-    let tmp = tempfile::tempdir().expect("tmp");
-    let dir = AgentsDir::at(tmp.path());
-    assert!(dir.launch("../x", "1").is_err());
-    assert!(dir.launch("x", "..").is_err());
 }
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its

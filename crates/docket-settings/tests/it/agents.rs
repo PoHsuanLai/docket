@@ -1,8 +1,9 @@
 //! The agent rows: what was offered against what is chosen, the plain words, and the in-place
 //! edit of `agents.toml`. A scratch agents directory; no agent starts and no clock is read.
 
-use docket_agents::AgentsDir;
-use docket_agents::offered::{Named, Offered, Start};
+use agents_core::dirs::AgentsDir;
+use agents_core::offered::{Named, Offered, Start};
+use agents_core::slug::Slug;
 use docket_settings::*;
 
 const FILE: &str = r#"# my agents
@@ -29,8 +30,8 @@ fn named(id: &str, name: &str) -> Named {
 
 fn installed(dir: &AgentsDir, id: &str, version: &str) {
     let at = dir.installed(
-        &docket_agents::slug::Slug::parse(id).expect("id"),
-        &docket_agents::slug::Slug::parse(version).expect("version"),
+        &Slug::parse(id).expect("id"),
+        &Slug::parse(version).expect("version"),
     );
     std::fs::create_dir_all(&at).expect("dir");
     std::fs::write(
@@ -40,6 +41,18 @@ fn installed(dir: &AgentsDir, id: &str, version: &str) {
         ),
     )
     .expect("record");
+}
+
+/// What docket-agents does when a session opens: the record replaces the one before it.
+fn put(next: Offered, dir: &AgentsDir, id: &str) -> Offered {
+    let path = dir.offered(&Slug::parse(id).expect("id"));
+    let before = std::fs::read_to_string(&path)
+        .ok()
+        .map(|text| Offered::parse(&text).expect("before"));
+    let next = next.after(before.as_ref());
+    std::fs::create_dir_all(path.parent().expect("state dir")).expect("dir");
+    std::fs::write(&path, next.render().expect("render")).expect("write");
+    next
 }
 
 fn record(start: Start, models: Vec<Named>, ways: Vec<Named>) -> Offered {
@@ -98,26 +111,30 @@ fn the_record_decides_the_models_and_whether_the_choice_is_still_offered() {
     let tmp = tempfile::tempdir().expect("tmp");
     let dir = AgentsDir::at(tmp.path());
     installed(&dir, "antigravity-acp", "1.3.0");
-    record(
-        Start::SignedIn,
-        vec![named("pro", "Gemini Pro")],
-        Vec::new(),
-    )
-    .write(&dir, "antigravity-acp")
-    .expect("write");
+    put(
+        record(
+            Start::SignedIn,
+            vec![named("pro", "Gemini Pro")],
+            Vec::new(),
+        ),
+        &dir,
+        "antigravity-acp",
+    );
     let row = read_agents(FILE, &dir).rows.remove(0);
     assert_eq!(row.install_line(), "Installed");
     assert_eq!(row.sign_in_line(), "Signed in");
     assert_eq!(row.model_line(), "Model: Gemini Pro");
     assert_eq!(row.offers_line(), "1 model to choose from");
 
-    record(
-        Start::SignedIn,
-        vec![named("flash", "Gemini Flash")],
-        Vec::new(),
-    )
-    .write(&dir, "antigravity-acp")
-    .expect("write");
+    put(
+        record(
+            Start::SignedIn,
+            vec![named("flash", "Gemini Flash")],
+            Vec::new(),
+        ),
+        &dir,
+        "antigravity-acp",
+    );
     let row = read_agents(FILE, &dir).rows.remove(0);
     assert_eq!(row.model_line(), "Model: pro (no longer offered)");
 }
@@ -126,20 +143,24 @@ fn the_record_decides_the_models_and_whether_the_choice_is_still_offered() {
 fn needing_sign_in_lists_the_ways_and_keeps_the_models_seen_before() {
     let tmp = tempfile::tempdir().expect("tmp");
     let dir = AgentsDir::at(tmp.path());
-    record(
-        Start::SignedIn,
-        vec![named("pro", "Gemini Pro")],
-        Vec::new(),
-    )
-    .write(&dir, "antigravity-acp")
-    .expect("write");
-    let after = record(
-        Start::NeedsSignIn,
-        Vec::new(),
-        vec![named("google", "Google account")],
-    )
-    .write(&dir, "antigravity-acp")
-    .expect("write");
+    put(
+        record(
+            Start::SignedIn,
+            vec![named("pro", "Gemini Pro")],
+            Vec::new(),
+        ),
+        &dir,
+        "antigravity-acp",
+    );
+    let after = put(
+        record(
+            Start::NeedsSignIn,
+            Vec::new(),
+            vec![named("google", "Google account")],
+        ),
+        &dir,
+        "antigravity-acp",
+    );
     assert_eq!(after.seen, 2, "a counter, not a clock");
     assert_eq!(after.models.len(), 1);
     let row = read_agents(FILE, &dir).rows.remove(0);

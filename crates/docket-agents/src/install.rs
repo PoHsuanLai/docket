@@ -2,16 +2,17 @@
 //! here and nowhere else, through the `Fetch` seam. Nothing updates by itself: a newer version
 //! is installed only when the person names it.
 
-use crate::dirs::AgentsDir;
 use crate::fetch::{Fetch, FetchFault};
-use crate::hash::Sha256Hex;
-use crate::platform::Platform;
-use crate::record::{Check, FILES, Record};
 use crate::run::{Run, RunFault};
-use crate::slug::{Slug, SlugRefused};
-use crate::snapshot::{Binary, Listing, Package, Snapshot};
+use crate::store::{read_record, versions, write_record};
 use crate::unpack::{UnpackFault, unpack};
 use crate::uv::uvx;
+use agents_core::dirs::AgentsDir;
+use agents_core::hash::Sha256Hex;
+use agents_core::platform::Platform;
+use agents_core::record::{Check, FILES, Record};
+use agents_core::slug::{Slug, SlugRefused};
+use agents_core::snapshot::{Binary, Listing, Package, Snapshot};
 use std::path::Path;
 
 /// Why an install did not happen. Nothing is left half-installed.
@@ -89,8 +90,7 @@ pub fn standing(dir: &AgentsDir, snapshot: &Snapshot, id: &str) -> Standing {
     let (Some(listing), Ok(slug)) = (snapshot.find(id), Slug::parse(id)) else {
         return Standing::Unknown;
     };
-    let installed: Vec<String> = dir
-        .versions(&slug)
+    let installed: Vec<String> = versions(dir, &slug)
         .iter()
         .map(|v| v.as_str().to_owned())
         .collect();
@@ -153,16 +153,16 @@ pub fn install(
     }
     let (id, version) = (Slug::parse(&listing.id)?, Slug::parse(&listing.version)?);
     let target = dir.installed(&id, &version);
-    if let Ok(done) = Record::read(&target) {
+    if let Ok(done) = read_record(&target) {
         return Ok(done);
     }
     // Staged at its final place: a python environment keeps absolute paths, so it cannot be moved
-    // into place afterwards. A directory without a record is not installed (see `AgentsDir::versions`).
+    // into place afterwards. A directory without a record is not installed (see `store::versions`).
     let _ = std::fs::remove_dir_all(&target);
     std::fs::create_dir_all(target.join(FILES)).map_err(|_| InstallFault::Disk)?;
     let pin = dir.pin(&id, &version);
     let record = fill(listing, (&target, &pin), (fetch, run)).and_then(|record| {
-        record.write(&target).map_err(|_| InstallFault::Disk)?;
+        write_record(&record, &target).map_err(|_| InstallFault::Disk)?;
         Ok(record)
     });
     if record.is_err() {
@@ -188,7 +188,10 @@ fn fill(
         digest,
         check,
     };
-    if let Some(bin) = dist.binary.get(&Platform::current()) {
+    if let Some(bin) = dist
+        .binary
+        .get(&Platform::of(std::env::consts::OS, std::env::consts::ARCH))
+    {
         let (digest, check) = binary(bin, (&files, pin), fetch)?;
         let found = files.join(&bin.cmd);
         found

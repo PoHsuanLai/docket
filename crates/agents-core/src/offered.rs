@@ -1,5 +1,6 @@
 //! What an agent last offered, written by docket whenever a session with it opens (and when its
-//! models are listed), kept at `state/<id>/offered.toml` for the Settings app to read.
+//! models are listed), kept at `state/<id>/offered.toml` for the Settings app to read. This is the
+//! record as a value and as text; reading and writing the file is up to the caller.
 //!
 //! ```toml
 //! seen = 3                    # how many times this was written: a counter, no clock
@@ -16,9 +17,6 @@
 //! The record is the agent's own words, shown to the person and trusted for nothing: the ids the
 //! person picks are checked again by the agent when the next session opens.
 
-use crate::dirs::AgentsDir;
-use crate::slug::Slug;
-use docket_store::{read_optional, write_atomic};
 use serde::{Deserialize, Serialize};
 
 /// The file name of the record, inside the agent's state directory.
@@ -78,33 +76,31 @@ pub enum OfferedFault {
 }
 
 impl Offered {
-    /// Reads the record of `id`; none when the agent never started.
-    pub fn read(dir: &AgentsDir, id: &str) -> Result<Option<Self>, OfferedFault> {
-        let path = dir.offered(&Slug::parse(id).map_err(|_| OfferedFault::Name)?);
-        let text = read_optional(&path).map_err(|_| OfferedFault::Io)?;
-        text.map(|t| toml::from_str(&t).map_err(|_| OfferedFault::Damaged))
-            .transpose()
+    /// Reads the text of `offered.toml`.
+    pub fn parse(text: &str) -> Result<Self, OfferedFault> {
+        toml::from_str(text).map_err(|_| OfferedFault::Damaged)
     }
 
-    /// Replaces the record of `id` with `self`, its counter one past the one it replaces. A start
-    /// that did not get as far as listing models keeps the models listed before.
-    pub fn write(self, dir: &AgentsDir, id: &str) -> Result<Self, OfferedFault> {
-        let path = dir.offered(&Slug::parse(id).map_err(|_| OfferedFault::Name)?);
-        let before = Self::read(dir, id).ok().flatten();
-        let seen = before.as_ref().map_or(0, |o| o.seen) + 1;
-        let kept = |o: &Self| (o.in_use.clone(), o.models.clone());
-        let (in_use, models) = match (self.models.is_empty(), &before) {
-            (true, Some(old)) if self.start != Start::SignedIn => kept(old),
+    /// The record as the text kept in `offered.toml`.
+    pub fn render(&self) -> Result<String, OfferedFault> {
+        toml::to_string(self).map_err(|_| OfferedFault::Damaged)
+    }
+
+    /// The record that replaces `before` when `self` is written: its counter one past the one it
+    /// replaces. A start that did not get as far as listing models keeps the models listed before.
+    pub fn after(self, before: Option<&Self>) -> Self {
+        let seen = before.map_or(0, |o| o.seen) + 1;
+        let (in_use, models) = match (self.models.is_empty(), before) {
+            (true, Some(old)) if self.start != Start::SignedIn => {
+                (old.in_use.clone(), old.models.clone())
+            }
             _ => (self.in_use.clone(), self.models.clone()),
         };
-        let next = Self {
+        Self {
             seen,
             in_use,
             models,
             ..self
-        };
-        let text = toml::to_string(&next).map_err(|_| OfferedFault::Damaged)?;
-        write_atomic(&path, text.as_bytes()).map_err(|_| OfferedFault::Io)?;
-        Ok(next)
+        }
     }
 }

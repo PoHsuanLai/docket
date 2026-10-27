@@ -19,7 +19,7 @@ cd "$(dirname "$0")/.."
 PORTABLE=(
   docket-core docket-skills docket-skills-disk policy-point action-review docket-router
   actions-tools companion-wire companion-core agent-loop docket-planner docket-tasks docket-native docket-session docket-checkpoint docket-acp docket-client docket-fake docket-eval eval-core
-  docket-models docket-reader docket-memory-core docket-memory docket-inapp voice-wire voice-loop
+  docket-models docket-reader docket-memory-core docket-memory agents-core docket-inapp voice-wire voice-loop
 )
 # What must never be in a portable crate's tree: a bus, or a Linux-only kernel interface.
 FORBIDDEN='zbus|zvariant|inotify|landlock|pipewire|notify|libspa'

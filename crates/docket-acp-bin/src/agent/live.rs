@@ -5,11 +5,11 @@
 
 use crate::agent::host::{Hosting, Wiring};
 use crate::agent::provider::{PerformerProvider, Quiet};
+use agents_core::dirs::AgentsDir;
 use bulkhead::{BwrapSandbox, Detected, NetworkMode};
 use docket_acp::client::{
     AcpBackend, EdgeMenu, Fallback, IntentsCourt, OsFiles, Parts, Performer, ToolsOffer,
 };
-use docket_agents::AgentsDir;
 use docket_client::DbusTransport;
 
 use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};

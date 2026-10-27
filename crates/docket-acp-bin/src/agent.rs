@@ -32,9 +32,9 @@ pub mod serve;
 pub mod tty;
 pub mod wire;
 
+use agents_core::dirs::AgentsDir;
 use args::{Args, Mode};
 use docket_acp::client::Workdir;
-use docket_agents::AgentsDir;
 use docket_core::AbsPath;
 use docket_launch::dbus::DbusAccounts;
 use docket_session::{BackendEvent, SessionHost};

@@ -33,6 +33,7 @@ pub mod procs;
 mod protect;
 mod reach;
 mod recognise;
+mod registry;
 pub mod spawn;
 pub mod supervise;
 mod terminal;

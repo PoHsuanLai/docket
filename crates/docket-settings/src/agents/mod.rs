@@ -1,7 +1,7 @@
 //! The external coding agents in `agents.toml`, as the Settings app draws them: one row each with
 //! its label, where it came from, whether the pinned version is installed, the model chosen and
 //! the ones the agent last offered, and whether it was signed in. What the agent offered is the
-//! record docket wrote when it last started (`docket_agents::offered`); nothing here starts an
+//! record docket wrote when it last started (`agents_core::offered`); nothing here starts an
 //! agent. Starting one to refresh the record is an explicit [`RefreshRequest`], never a page
 //! opening.
 

@@ -11,10 +11,13 @@
 //! `--registry-file FILE` reads the snapshot from a file instead of the registry. `install` says
 //! `installing ID VERSION` on its first line before it reaches the network.
 
+use agents_core::dirs::AgentsDir;
+use agents_core::snapshot::Snapshot;
 use clap::{Parser, Subcommand};
 use docket_agents::fetch::{Curl, Fetch};
 use docket_agents::run::System;
-use docket_agents::{AgentsDir, Snapshot, Standing, Want, install, offers, standing};
+use docket_agents::store::{agents, versions};
+use docket_agents::{Standing, Want, install, offers, standing};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -71,9 +74,8 @@ fn snapshot(file: Option<PathBuf>) -> Result<Snapshot, String> {
 
 /// Prints each installed agent and its versions, one JSON object a line.
 fn installed(dir: &AgentsDir) -> ExitCode {
-    for id in dir.agents() {
-        let versions: Vec<String> = dir
-            .versions(&id)
+    for id in agents(dir) {
+        let versions: Vec<String> = versions(dir, &id)
             .iter()
             .map(|v| v.as_str().to_owned())
             .collect();

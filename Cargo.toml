@@ -21,6 +21,7 @@ members = [
   "crates/acp-core",
   "crates/docket-acp",
   "crates/docket-launch",
+  "crates/agents-core",
   "crates/docket-agents",
   "crates/docket-acp-bin",
   "crates/docket-models",
@@ -65,6 +66,7 @@ publish = false
 
 [workspace.dependencies]
 actions-tools  = { path = "crates/actions-tools" }
+agents-core    = { path = "crates/agents-core" }
 docket-agents  = { path = "crates/docket-agents" }
 docket-core    = { path = "crates/docket-core" }
 docket-store   = { path = "crates/docket-store" }
@@ -101,9 +103,7 @@ docket-trace   = { path = "crates/docket-trace" }
 docket-eval    = { path = "crates/docket-eval" }
 eval-core      = { path = "crates/eval-core" }
 docket-cli     = { path = "crates/docket-cli" }
-# The `agents` feature (the Settings app's agents.toml rows, which read the registry through
-# docket-agents) is off for consumers of the `agent.*` keys; docket-accept turns it on.
-docket-settings = { path = "crates/docket-settings", default-features = false }
+docket-settings = { path = "crates/docket-settings" }
 notify = "8.2"
 docket-ds      = { path = "crates/docket-ds" }
 voice-wire     = { path = "crates/voice-wire" }
@@ -181,7 +181,7 @@ jsonschema = { version = "0.58", default-features = false }
 tempfile = "3"
 # docket-store: the durable file write (BSD-3-Clause): temporary file, fsync, rename, directory fsync.
 atomic-write-file = "0.3"
-# docket-agents: verify and unpack an agent from the registry (MIT/Apache-2.0 each).
+# agents-core: the SHA-256 of an archive; docket-agents: unpack an agent from the registry (MIT/Apache-2.0 each).
 sha2 = "0.11"
 flate2 = "1"
 tar = "0.4"

@@ -1,4 +1,3 @@
-#[cfg(feature = "agents")]
 mod agents;
 mod places;
 

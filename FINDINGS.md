@@ -3903,3 +3903,12 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
 - Callers of `CaptureFormat { rate }` and `AudioRate` pass `CAPTURE_RATE.0`.
 - Still open in the voice area (D4.6 to D4.8): voice seams, voice-client, voice-audio.
 - Not verified by a build in the lane that made the change.
+
+## Layering lane D0.14: agents-core (H17, closes F5) (2026-10-28)
+
+- `docket-agents` is split. `agents-core` (tier P) holds the values and their text: `Snapshot`, `Slug`, `Sha256Hex`, `Platform`, `AgentsDir` (paths only), `Record`, `Launch` and `Offered`. `docket-agents` (tier C) keeps `install`, `fetch`, `run`, `unpack`, `uv` and a new `store` (the records on disk and the listing of what is installed). Its `main.rs` is unchanged apart from imports.
+- `Platform::current()` is `Platform::of(os, arch)`; the installer passes `std::env::consts`. `Record::read/write`, `Offered::read/write` and `AgentsDir::{agents, versions, launch}` left the core: the disk calls are `docket_agents::store::{read_record, write_record, read_offered, write_offered, agents, versions}`, and `Offered::after` is the pure counter-and-models rule.
+- F5 is closed. `docket-settings` and `docket-launch` depend on `agents-core` only; neither links the installer, its unpacker or `docket-store` (settings no longer lists `docket-store`). Each reads the one record it needs with `std::fs` (settings: whether a version is installed, and `offered.toml`; launch: `registry::launch`, which also makes the agent's home). That is the price of not sharing a disk crate: three short readers of `installed.toml` (`docket-agents::store`, settings, launch).
+- The `agents` feature of `docket-settings` is gone. It existed to keep the installer out of consumers of the `agent.*` keys; `agents-core` is small (serde, sha2, toml), so the rows are always built. `docket-launch` and `docket-accept` lose their `features = ["agents"]`. `docket-acp-bin` uses `agents-core` for the types and `docket-agents` only for `write_offered`; `docket-accept` uses `agents-core` only.
+- Tests: the names, digest, platform, layout, record and offered-counter tests are in `agents-core/tests/it`; the installer tests stay in `docket-agents/tests/it` and read the record where they called `launch`. Not verified by a build in the lane that made the change.
+- Open: `docket-launch/src/config.rs` was 649 lines before this lane and is still over 500.

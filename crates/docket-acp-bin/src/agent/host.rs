@@ -6,9 +6,9 @@
 
 use crate::agent::live::Live;
 use crate::agent::remember::remember;
+use agents_core::dirs::AgentsDir;
 use bulkhead::{Detected, NetworkMode};
 use docket_acp::client::{AgentHost, EdgeMenu, Fallback, IntentsCourt, OsFiles, Seams, ToolsOffer};
-use docket_agents::AgentsDir;
 use docket_client::DbusTransport;
 use docket_core::AbsPath;
 use docket_dbus::BusConnection;

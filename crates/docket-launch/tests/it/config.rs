@@ -286,10 +286,10 @@ fn a_sign_in_method_that_is_empty_long_or_odd_is_refused_naming_the_program() {
 
 // ---- agents from the registry ----
 
-fn installed_agy(root: &std::path::Path) -> docket_agents::AgentsDir {
-    use docket_agents::record::{Check, FILES, Record};
-    let dir = docket_agents::AgentsDir::at(root);
-    let slug = |t: &str| docket_agents::slug::Slug::parse(t).expect("slug");
+fn installed_agy(root: &std::path::Path) -> agents_core::dirs::AgentsDir {
+    use agents_core::record::{Check, FILE, FILES, Record};
+    let dir = agents_core::dirs::AgentsDir::at(root);
+    let slug = |t: &str| agents_core::slug::Slug::parse(t).expect("slug");
     let at = dir.installed(&slug("agy-acp"), &slug("1.3.0"));
     std::fs::create_dir_all(at.join(FILES)).expect("dir");
     let record = Record {
@@ -301,7 +301,7 @@ fn installed_agy(root: &std::path::Path) -> docket_agents::AgentsDir {
         digest: None,
         check: Check::FirstUse,
     };
-    record.write(&at).expect("record");
+    std::fs::write(at.join(FILE), record.render().expect("render")).expect("record");
     dir
 }
 
@@ -364,7 +364,7 @@ fn a_registry_agent_added_in_settings_is_one_docket_starts() {
 #[test]
 fn a_registry_agent_that_is_not_installed_or_not_pinned_is_refused() {
     let tmp = tempfile::tempdir().expect("tmp");
-    let dir = docket_agents::AgentsDir::at(tmp.path());
+    let dir = agents_core::dirs::AgentsDir::at(tmp.path());
     let fault = AgentsFile::parse_in(REGISTRY_ENTRY, Some(&dir)).expect_err("not installed");
     assert!(matches!(fault, ConfigFault::Registry { .. }));
     let unpinned = REGISTRY_ENTRY.replace("version = \"1.3.0\"\n", "");

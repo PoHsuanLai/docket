@@ -1,9 +1,9 @@
-//! What to run for an installed agent. The launcher turns it into an `agents.toml` entry.
+//! What to run for an installed agent. The launcher turns it into an `agents.toml` entry. This is
+//! the value; reading the record and making the home is the caller's.
 
-use crate::dirs::AgentsDir;
 use crate::record::{FILES, Record, RecordFault};
-use crate::slug::{Slug, SlugRefused};
-use std::path::PathBuf;
+use crate::slug::SlugRefused;
+use std::path::{Path, PathBuf};
 
 /// How to start an installed agent.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,24 +41,16 @@ pub enum LaunchFault {
     Home,
 }
 
-impl AgentsDir {
-    /// How to start `id` at `version`; makes its home when it is not there yet.
-    pub fn launch(&self, id: &str, version: &str) -> Result<Launch, LaunchFault> {
-        let (slug, pinned) = (Slug::parse(id)?, Slug::parse(version)?);
-        let dir = self.installed(&slug, &pinned);
-        let record = Record::read(&dir).map_err(|why| LaunchFault::Record {
-            id: id.to_owned(),
-            version: version.to_owned(),
-            why,
-        })?;
-        let home = self.home(&slug);
-        std::fs::create_dir_all(&home).map_err(|_| LaunchFault::Home)?;
-        Ok(Launch {
-            command: record.command_in(&dir),
+impl Launch {
+    /// How to start the agent whose record is `record`, installed at `dir` (the version's
+    /// directory) with `home` as its home.
+    pub fn of(record: &Record, dir: &Path, home: PathBuf) -> Self {
+        Self {
+            command: record.command_in(dir),
             args: record.args.clone(),
             env: record.env.clone().into_iter().collect(),
             files: dir.join(FILES),
             home,
-        })
+        }
     }
 }

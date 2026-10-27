@@ -9,9 +9,9 @@
 //! ```
 //!
 //! The agent signs in inside `home` and keeps its login there. Nothing is copied into it from the
-//! person's real home.
+//! person's real home. This is the layout as paths and touches no disk; listing and reading what is
+//! there is `docket-agents`.
 
-use crate::record::Record;
 use crate::slug::Slug;
 use std::path::{Path, PathBuf};
 
@@ -25,12 +25,19 @@ impl AgentsDir {
         Self(root.to_owned())
     }
 
+    /// The directory with one directory per installed agent.
+    pub fn all_installed(&self) -> PathBuf {
+        self.0.join("installed")
+    }
+
+    /// The directory with one directory per installed version of `id`.
+    pub fn installed_of(&self, id: &Slug) -> PathBuf {
+        self.all_installed().join(id.as_str())
+    }
+
     /// Where version `version` of `id` is installed.
     pub fn installed(&self, id: &Slug, version: &Slug) -> PathBuf {
-        self.0
-            .join("installed")
-            .join(id.as_str())
-            .join(version.as_str())
+        self.installed_of(id).join(version.as_str())
     }
 
     /// The file that keeps the digest first seen for version `version` of `id`, when the registry
@@ -42,49 +49,12 @@ impl AgentsDir {
             .join(format!("{}.sha256", version.as_str()))
     }
 
-    /// The agents with at least one version installed, by id. Reads only this directory.
-    pub fn agents(&self) -> Vec<Slug> {
-        let Ok(read) = std::fs::read_dir(self.0.join("installed")) else {
-            return Vec::new();
-        };
-        let mut found: Vec<Slug> = read
-            .filter_map(|e| {
-                let name = e.ok()?.file_name();
-                Slug::parse(name.to_str()?).ok()
-            })
-            .filter(|id| !self.versions(id).is_empty())
-            .collect();
-        found.sort();
-        found
-    }
-
-    /// The versions of `id` that are installed.
-    pub fn versions(&self, id: &Slug) -> Vec<Slug> {
-        let dir = self.0.join("installed").join(id.as_str());
-        let Ok(read) = std::fs::read_dir(&dir) else {
-            return Vec::new();
-        };
-        let mut found: Vec<Slug> = read
-            .filter_map(|e| {
-                let slug = e
-                    .ok()?
-                    .file_name()
-                    .to_str()
-                    .and_then(|n| Slug::parse(n).ok())?;
-                // Only a version with its record is installed; a staging directory has none.
-                Record::read(&dir.join(slug.as_str())).ok().map(|_| slug)
-            })
-            .collect();
-        found.sort();
-        found
-    }
-
     /// The agent's home inside its sandbox.
     pub fn home(&self, id: &Slug) -> PathBuf {
         self.0.join("state").join(id.as_str()).join("home")
     }
 
-    /// The record of what `id` last offered.
+    /// The file with the record of what `id` last offered.
     pub fn offered(&self, id: &Slug) -> PathBuf {
         self.0
             .join("state")

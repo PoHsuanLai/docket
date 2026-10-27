@@ -1,4 +1,5 @@
-//! What was installed and how it was checked, kept beside the files.
+//! What was installed and how it was checked, kept beside the files. This is the record as a value
+//! and as text; reading and writing the file is `docket-agents`.
 
 use crate::hash::Sha256Hex;
 use crate::slug::Slug;
@@ -59,16 +60,15 @@ pub const FILE: &str = "installed.toml";
 pub const FILES: &str = "files";
 
 impl Record {
-    /// Writes the record into `dir`.
-    pub fn write(&self, dir: &Path) -> std::io::Result<()> {
-        let text = toml::to_string(self).map_err(std::io::Error::other)?;
-        std::fs::write(dir.join(FILE), text)
+    /// The record as the text kept in `installed.toml`.
+    pub fn render(&self) -> Result<String, toml::ser::Error> {
+        toml::to_string(self)
     }
 
-    /// Reads the record in `dir`.
-    pub fn read(dir: &Path) -> Result<Self, RecordFault> {
-        let text = std::fs::read_to_string(dir.join(FILE)).map_err(|_| RecordFault::Missing)?;
-        let record: Self = toml::from_str(&text).map_err(|_| RecordFault::Damaged)?;
+    /// Reads the text of `installed.toml`; a record that names a program outside its directory, or
+    /// a name or digest that is not one, is damaged.
+    pub fn parse(text: &str) -> Result<Self, RecordFault> {
+        let record: Self = toml::from_str(text).map_err(|_| RecordFault::Damaged)?;
         let named = Slug::parse(&record.id).is_ok() && Slug::parse(&record.version).is_ok();
         let stays = Path::new(&record.command)
             .components()

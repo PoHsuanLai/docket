@@ -40,6 +40,7 @@ LAYERS=(
   "voice-loop:P"
   "docket-memory-core:P"
   "acp-core:P"
+  "agents-core:P"
 
   "eval-core:P"
   # client / IO
@@ -319,6 +320,8 @@ RULES=(
   # Installs agents from the registry: reads files and runs curl and npm as processes, so no bus,
   # runtime, network library or Cedar. It reads its own records as TOML.
   "docket-agents: $EFFECTS"
+  # The registry values and the two small records as text: no disk, bus, runtime, network or Cedar.
+  "agents-core: $EFFECTS"
   "agent-loop: $EFFECTS toml"
   # The planner is portable: it asks any porter-client Transport (porter-client without its
   # `dbus` and `socket` features reaches no runtime), so inferd over D-Bus is companiond's

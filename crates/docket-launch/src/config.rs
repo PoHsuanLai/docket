@@ -58,10 +58,12 @@
 //! ```
 
 use crate::reach::Reach;
+use crate::registry;
+use agents_core::dirs::AgentsDir;
+use agents_core::launch::LaunchFault;
 use bulkhead::NetworkMode;
 use bulkhead::egress::HostFault;
 use docket_acp::client::{ModelId, SignIn};
-use docket_agents::{AgentsDir, LaunchFault};
 use docket_core::{AbsPath, Rewind};
 use docket_session::ProgramName;
 use porter_core::DataClass;
@@ -426,9 +428,8 @@ fn source(at: &str, raw: &Raw, dir: Option<&AgentsDir>) -> Result<Source, Config
         )),
         (None, Some(id), Some(version)) => {
             let dir = dir.ok_or_else(|| bad(at, "a registry agent needs the agents directory"))?;
-            let launch = dir
-                .launch(id, version)
-                .map_err(|why| ConfigFault::Registry {
+            let launch =
+                registry::launch(dir, id, version).map_err(|why| ConfigFault::Registry {
                     program: at.to_owned(),
                     why,
                 })?;
