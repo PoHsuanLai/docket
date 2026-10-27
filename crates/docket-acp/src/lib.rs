@@ -46,7 +46,6 @@ pub use conversation::ConversationTurns;
 pub use covered::Covered;
 pub use expose::{Permit, Refusal};
 pub use helpers::{HelperRefusal, HelperRow, Helpers, NoHelpers};
-pub use history::rfc3339;
 pub use mode::{Mode, Say};
 pub use permission::{options, sheet_options, sheet_request};
 pub use scope_words::always_words;

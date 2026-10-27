@@ -4,7 +4,6 @@ mod desk;
 mod speaker;
 mod units;
 mod watch;
-mod zone;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its
 /// own, and a `tests/it/` file without a `mod` line would never run.

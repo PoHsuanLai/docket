@@ -12,7 +12,7 @@
 //! - [`name_free`], [`card_draft`], [`person_job`], [`planner_job`], [`routine_wish`] and the
 //!   rest of the desk's decisions.
 //! - [`by_space`], [`group_by_space`], [`space_of`]: records and watches grouped by Space.
-//! - [`units_of`], [`UnitFile`], [`offset_of`], [`ZoneReading`], [`EventWatch`], [`event_asks`],
+//! - [`units_of`], [`UnitFile`], [`EventWatch`], [`event_asks`],
 //!   [`Settle`], [`ended_events`], [`new_routine`]: the routines' scheduler, as values.
 
 mod answers;
@@ -45,7 +45,6 @@ pub use routines::due::ended_events;
 pub use routines::settle::{Awake, Settle, Settled};
 pub use routines::units::{UNIT_PREFIX, UnitFile, units_of};
 pub use routines::watch::{EventAsk, EventWatch, Seen, SpaceWatch, event_asks};
-pub use routines::zone::{ZoneReading, offset_of};
 pub use speaker::{Call, Speaker, permits};
 pub use terminal::{Terminals, terminal_sessions, why_not_to_terminal};
 pub use told::{MOST_NOTICES, Told, ToldLog};

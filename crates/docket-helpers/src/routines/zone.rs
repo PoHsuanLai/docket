@@ -1,36 +1,23 @@
-//! The local zone, read from the system (`date +%z`) at most once an hour. This is the one place
-//! that touches the system for it; everything below is handed a [`Zone`]. Reading the
-//! text and how long a reading is trusted are `companion_core`'s.
+//! The local zone, read from the system through `chrono::Local`. This is the one place that
+//! touches the system for it; everything below is handed a [`Zone`].
 
-use companion_core::{ZoneReading, offset_of};
+use chrono::{DateTime, Local, TimeZone};
 use docket_core::routine::Zone;
 use prov::UnixSeconds;
-use std::process::Command;
-use std::sync::Mutex;
 
-/// The system's zone, remembered for an hour.
-#[derive(Debug, Default)]
-pub struct SystemZone {
-    last: Mutex<ZoneReading>,
-}
+/// The system's zone.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SystemZone;
 
 impl SystemZone {
-    /// The zone at `at`: UTC when the system will not say.
+    /// The zone at `at`, daylight saving included: UTC when `at` is beyond the calendar.
     pub fn at(&self, at: UnixSeconds) -> Zone {
-        let mut last = match self.last.lock() {
-            Ok(last) => last,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        if let Some(zone) = last.fresh(at) {
-            return zone;
-        }
-        let zone = Command::new("date")
-            .arg("+%z")
-            .output()
-            .ok()
-            .and_then(|out| offset_of(&String::from_utf8_lossy(&out.stdout)))
-            .map_or(Zone::UTC, Zone);
-        last.keep(at, zone);
-        zone
+        DateTime::from_timestamp(at.0, 0).map_or(Zone::UTC, |utc| {
+            Zone(
+                Local
+                    .offset_from_utc_datetime(&utc.naive_utc())
+                    .local_minus_utc(),
+            )
+        })
     }
 }
