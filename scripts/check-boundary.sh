@@ -54,6 +54,8 @@ LAYERS=(
   "companion-client:C"
   "voice-dbus:C"
   "docket-log:C"
+  # test and acceptance support: the model tap writes prompts to disk, so no shipped crate lists it
+  "docket-trace:C"
   # app / daemon / test binary
   "docket-acp-bin:A"
   "docket-inapp:A"
@@ -355,6 +357,8 @@ RULES=(
   # A client never links the router: `InProcess` (feature `in_process`) is the one way in.
   "docket-client: $EFFECTS toml"
   "docket-fake: $NO_CEDAR"
+  # The model tap: the watch seam in docket-dbus (so zbus comes with it) and the exchange type in docket-core.
+  "docket-trace: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp cedar-policy"
   "docket-eval: $NO_CEDAR"
   # Test only: a private bus for the daemons' tests; nothing of the router, Cedar or the effects.
   "docket-testbus: docket-router policy-point action-review cedar-policy reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp"
@@ -447,6 +451,18 @@ if [ -n "$leaks" ]; then
   fail=1
 else
   echo "no shipped crate carries a proc-root or model-trace switch"
+fi
+
+# docket-trace writes prompts to disk and is test and acceptance support: only the harness
+# (docket-accept) lists it as a dependency, so no shipped crate has code that could write one.
+trace_users=$(grep -lE '^docket-trace[[:space:]]*=' crates/*/Cargo.toml \
+  | grep -vE '^crates/(docket-accept|docket-trace)/Cargo.toml$' || true)
+if [ -n "$trace_users" ]; then
+  echo "TEST SUPPORT: a crate other than docket-accept depends on docket-trace:"
+  echo "$trace_users"
+  fail=1
+else
+  echo "docket-trace is a dependency of docket-accept alone"
 fi
 
 # Built as the installer builds it (`-p` each shipped package, no dev-dependencies), no shipped

@@ -1295,7 +1295,7 @@ scripted|local|cloud`, a private bus, scratch HOME and XDG, `env -i`, network on
   `Forget`. docket-eval: `Harness<S: Rig>`, `PolicyMode::{Maximal, Written}`, `run_case_traced`,
   `CaseTrace` (rendering is pure; enums in serde slugs), `cassette_from`, `Tallies`/`Observed`,
   `RunReport::render`; `block_on` now parks on the future's waker.
-- docket-dbus `tap`: every daemon's inferd link is `InferLink = Tapped<AnyTransport>`; with
+- docket-dbus `watch` and `docket-trace`: every daemon's inferd link is `InferLink = Watched<AnyTransport>`, which tells an `InferWatch` about each frame (the tap itself, `Tap`, is in `docket-trace`, which only docket-accept lists); with
   `DOCKET_MODEL_TRACE=<file>` (harness worlds only) each chat request and answer is appended as a
   `docket_core::ModelExchange` (messages in full, route notes, answer, ms, tokens). With the variable
   unset nothing is copied. Reused for the trace: the router's audit records (rulings), the sheet's requests,

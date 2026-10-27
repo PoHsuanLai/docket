@@ -1,0 +1,23 @@
+[package]
+name = "docket-trace"
+description = "Test and acceptance support: the model tap, which keeps every chat request and answer on a daemon's inferd link as a ModelExchange (and can write them to a file). No shipped crate depends on it."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+docket-dbus = { workspace = true, features = ["inferd"] }
+porter-infer = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+porter-core = { workspace = true }

@@ -26,6 +26,7 @@ members = [
   "crates/docket-client",
   "crates/docket-fake",
   "crates/docket-testbus",
+  "crates/docket-trace",
   "crates/docket-accept",
   "crates/docket-eval",
   "crates/docket-cli",
@@ -81,6 +82,7 @@ docket-dbus    = { path = "crates/docket-dbus" }
 docket-client  = { path = "crates/docket-client", default-features = false }
 docket-fake    = { path = "crates/docket-fake" }
 docket-testbus = { path = "crates/docket-testbus" }
+docket-trace   = { path = "crates/docket-trace" }
 docket-eval    = { path = "crates/docket-eval" }
 docket-cli     = { path = "crates/docket-cli" }
 # The `agents` feature (the Settings app's agents.toml rows, which read the registry through

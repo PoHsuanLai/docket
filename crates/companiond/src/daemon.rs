@@ -11,8 +11,8 @@ use crate::routines::{HubHost, RoutineDesk, Routines, Timers};
 use crate::serve::serve_with_routines;
 use docket_client::{DbusTransport, Intents};
 use docket_core::helper::{AgentApps, HelperCard};
+use docket_dbus::InferWatch;
 use docket_dbus::callers::{CallerTable, Identity};
-use docket_dbus::tap::Tap;
 use docket_dbus::{BusConnection, InferLink};
 use docket_planner::PlannerModel;
 use docket_skills::{Roots, discover};
@@ -24,8 +24,8 @@ use std::sync::Arc;
 
 /// What only the acceptance harness's mains choose: the `/proc` callers are read from (a tree
 /// other than `/proc` is a fixture, whose units' main processes are in `<root>/units`), the
-/// system's callers file, and whether the model tap writes to a file. The shipped `main` passes
-/// the default (the system's `/proc`, `/etc/quire`, no tap) and no environment variable can
+/// system's callers file, and whether the inferd watch writes to a file. The shipped `main` passes
+/// the default (the system's `/proc`, `/etc/quire`, no watch) and no environment variable can
 /// change any.
 #[derive(Debug, Clone)]
 pub struct HarnessSeams {
@@ -35,7 +35,7 @@ pub struct HarnessSeams {
     /// harness is its own system, and a fixed role (the shell's) comes from no other file.
     pub system_callers: Option<PathBuf>,
     /// What is kept of the exchanges with inferd.
-    pub trace: Tap,
+    pub trace: InferWatch,
 }
 
 impl Default for HarnessSeams {
@@ -43,7 +43,7 @@ impl Default for HarnessSeams {
         Self {
             proc_root: PathBuf::from("/proc"),
             system_callers: None,
-            trace: Tap::off(),
+            trace: InferWatch::off(),
         }
     }
 }
@@ -137,7 +137,7 @@ pub async fn start_with_agents(
         // Reads and writes the helpers' records; it never asks a model.
         let service = Companiond::new(
             Intents::over(DbusTransport::new(connection.clone())),
-            PlannerModel::new(docket_dbus::inferd_transport(connection, Tap::off())),
+            PlannerModel::new(docket_dbus::inferd_transport(connection, InferWatch::off())),
             config.agent,
             Clock::System,
             config.shell.clone(),

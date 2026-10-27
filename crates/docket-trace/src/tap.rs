@@ -12,14 +12,10 @@
 //! not asked takes no copy of anything. A process that is not a daemon builds a [`MemoryTap`] and
 //! reads the exchanges itself.
 
-use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
-use porter_client::{Transport, TransportError};
-use porter_core::{AccountsReply, AccountsRequest, DataClass, Need, Tier};
-use porter_infer::{
-    ChatRequest, ClientFrame, InferEvent, InferReply, InferRequest, InferSession, MessagePart,
-    OpenOptions, Readiness, ReplyShape, Role, SessionError,
-};
-use serde::Serialize;
+use crate::exchange::{begin, finish, route_note};
+use docket_core::ModelExchange;
+use docket_dbus::{InferObserver, InferWatch, SessionWatch};
+use porter_infer::{ClientFrame, InferEvent, InferRequest};
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
@@ -94,6 +90,15 @@ impl Tap {
         Self::file(path, &process_label())
     }
 
+    /// The watch to hand a daemon's inferd link: this tap, or none when it keeps nothing.
+    pub fn watch(&self) -> InferWatch {
+        if self.is_off() {
+            InferWatch::off()
+        } else {
+            InferWatch::new(Arc::new(self.clone()))
+        }
+    }
+
     fn is_off(&self) -> bool {
         matches!(self.sink, Sink::Off)
     }
@@ -126,151 +131,24 @@ fn append(path: &PathBuf, exchange: &ModelExchange) -> std::io::Result<()> {
         .write_all(line.as_bytes())
 }
 
-/// A transport that tells its tap about every chat turn and otherwise is `T`.
+impl InferObserver for Tap {
+    fn session(&self) -> Box<dyn SessionWatch> {
+        Box::new(TapSession {
+            tap: self.clone(),
+            open: None,
+        })
+    }
+}
+
+/// One session's watcher: the exchange in flight, if a chat turn is open.
 #[derive(Debug)]
-pub struct Tapped<T> {
-    inner: T,
-    tap: Tap,
-}
-
-impl<T> Tapped<T> {
-    /// `inner`, with `tap` on its sessions.
-    pub fn new(inner: T, tap: Tap) -> Self {
-        Self { inner, tap }
-    }
-
-    /// The transport underneath.
-    pub fn inner(&self) -> &T {
-        &self.inner
-    }
-}
-
-/// The slug of a closed set, from its serde form.
-fn slug<V: Serialize>(value: &V) -> String {
-    match serde_json::to_value(value) {
-        Ok(serde_json::Value::String(s)) => s,
-        Ok(other) => other.to_string(),
-        Err(_) => String::new(),
-    }
-}
-
-/// The words of one part of a message.
-fn words(part: &MessagePart) -> Option<String> {
-    match part {
-        MessagePart::Text(text) => Some(text.clone()),
-        MessagePart::Image(_) => Some("[image]".to_owned()),
-        MessagePart::ToolCall(call) => {
-            Some(format!("[call {} {}]", slug(&call.name), slug(&call.args)))
-        }
-        MessagePart::ToolResult(result) => {
-            let inner: Vec<String> = result.parts.iter().filter_map(words).collect();
-            Some(format!("[result {:?}: {}]", result.status, inner.join(" ")))
-        }
-        MessagePart::Thought(_) => None,
-        _ => Some("[part]".to_owned()),
-    }
-}
-
-fn role(role: Role) -> &'static str {
-    match role {
-        Role::System => "system",
-        Role::User => "user",
-        Role::Assistant => "assistant",
-    }
-}
-
-fn shape(shape: &ReplyShape) -> &'static str {
-    match shape {
-        ReplyShape::Text => "text",
-        ReplyShape::Json(_) => "json",
-        ReplyShape::Choice(_) => "choice",
-        _ => "other",
-    }
-}
-
-/// An exchange begun: everything but the answer.
-fn begin(by: &str, n: u32, request: &ChatRequest) -> ModelExchange {
-    ModelExchange {
-        by: by.to_owned(),
-        n,
-        tier: slug(&request.tier),
-        class: slug(&request.class),
-        shape: shape(&request.shape).to_owned(),
-        tools: request.tools.iter().map(|t| slug(&t.name)).collect(),
-        messages: request
-            .messages
-            .iter()
-            .map(|m| ExchangeMessage {
-                role: role(m.role).to_owned(),
-                text: m
-                    .parts
-                    .iter()
-                    .filter_map(words)
-                    .collect::<Vec<_>>()
-                    .join("\n"),
-            })
-            .collect(),
-        route: Vec::new(),
-        answer: ExchangeAnswer::Cancelled,
-        took_ms: 0,
-        input_tokens: 0,
-        output_tokens: 0,
-    }
-}
-
-/// What inferd said about the route, in one line, if the event is such a note.
-fn route_note(event: &InferEvent) -> Option<String> {
-    match event {
-        InferEvent::Routed(served) => Some(format!(
-            "routed to {}/{} ({})",
-            slug(&served.account),
-            slug(&served.model),
-            slug(&served.locality)
-        )),
-        InferEvent::Why(why) => Some(format!("why: {}", slug(why))),
-        InferEvent::Declined(declined) => Some(format!("declined: {declined:?}")),
-        _ => None,
-    }
-}
-
-/// The exchange finished by `reply`.
-fn finish(mut open: ModelExchange, reply: &InferReply, took_ms: u32) -> ModelExchange {
-    open.took_ms = took_ms;
-    open.answer = match reply {
-        InferReply::Chat(chat) => {
-            open.input_tokens = chat.usage.input.0;
-            open.output_tokens = chat.usage.output.0;
-            ExchangeAnswer::Replied {
-                text: chat.text.clone(),
-                calls: chat
-                    .tool_calls
-                    .iter()
-                    .map(|c| ExchangeCall {
-                        name: slug(&c.name),
-                        args: slug(&c.args),
-                    })
-                    .collect(),
-                stop: slug(&chat.stop),
-            }
-        }
-        InferReply::Refused(why) => ExchangeAnswer::Refused(format!("{why:?}")),
-        InferReply::Failed(why) => ExchangeAnswer::Failed(format!("{why:?}")),
-        InferReply::Cancelled => ExchangeAnswer::Cancelled,
-        other => ExchangeAnswer::Failed(format!("unexpected reply {other:?}")),
-    };
-    open
-}
-
-/// A session that tells its tap about each chat turn.
-#[derive(Debug)]
-pub struct TappedSession<S> {
-    inner: S,
+struct TapSession {
     tap: Tap,
     open: Option<(ModelExchange, Instant)>,
 }
 
-impl<S> TappedSession<S> {
-    fn note_frame(&mut self, frame: &ClientFrame) {
+impl SessionWatch for TapSession {
+    fn sent(&mut self, frame: &ClientFrame) {
         if self.tap.is_off() {
             return;
         }
@@ -280,7 +158,7 @@ impl<S> TappedSession<S> {
         }
     }
 
-    fn note_event(&mut self, event: &InferEvent) {
+    fn received(&mut self, event: &InferEvent) {
         let Some((open, began)) = self.open.as_mut() else {
             return;
         };
@@ -296,64 +174,11 @@ impl<S> TappedSession<S> {
     }
 }
 
-impl<S: InferSession> InferSession for TappedSession<S> {
-    async fn send(&mut self, frame: ClientFrame) -> Result<(), SessionError> {
-        self.note_frame(&frame);
-        self.inner.send(frame).await
-    }
-
-    async fn send_attached(
-        &mut self,
-        frame: ClientFrame,
-        attachments: Vec<std::os::fd::OwnedFd>,
-    ) -> Result<(), SessionError> {
-        self.note_frame(&frame);
-        self.inner.send_attached(frame, attachments).await
-    }
-
-    async fn next(&mut self) -> Result<InferEvent, SessionError> {
-        let event = self.inner.next().await?;
-        self.note_event(&event);
-        Ok(event)
-    }
-}
-
-impl<T: Transport> Transport for Tapped<T> {
-    type Session = TappedSession<T::Session>;
-
-    async fn call(&self, request: AccountsRequest) -> Result<AccountsReply, TransportError> {
-        self.inner.call(request).await
-    }
-
-    async fn open_with(
-        &self,
-        need: &Need,
-        class: DataClass,
-        tier: Tier,
-        options: &OpenOptions,
-    ) -> Result<Self::Session, TransportError> {
-        let inner = self.inner.open_with(need, class, tier, options).await?;
-        Ok(TappedSession {
-            inner,
-            tap: self.tap.clone(),
-            open: None,
-        })
-    }
-
-    async fn prepare(
-        &self,
-        need: &Need,
-        class: DataClass,
-        tier: Tier,
-        options: &OpenOptions,
-    ) -> Result<Readiness, TransportError> {
-        self.inner.prepare(need, class, tier, options).await
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use porter_core::{DataClass, Tier};
+    use porter_infer::{ChatRequest, InferReply, ReplyShape};
 
     #[test]
     fn a_tap_that_is_off_keeps_nothing() {

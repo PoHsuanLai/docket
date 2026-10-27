@@ -3,7 +3,8 @@
 //! no model tap) and no environment variable can change either. The world sets these variables
 //! on the processes it spawns (`world::spawn`).
 
-use docket_dbus::tap::Tap;
+use docket_dbus::InferWatch;
+use docket_trace::Tap;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
@@ -51,8 +52,10 @@ fn set(name: &str) -> Option<OsString> {
 }
 
 /// The model tap the world asked for: a file when [`TRACE_VAR`] names one, else off.
-pub fn trace() -> Tap {
-    set(TRACE_VAR).map_or_else(Tap::off, |path| Tap::trace_file(PathBuf::from(path)))
+pub fn trace() -> InferWatch {
+    set(TRACE_VAR).map_or_else(InferWatch::off, |path| {
+        Tap::trace_file(PathBuf::from(path)).watch()
+    })
 }
 
 /// The fixture `/proc` named by the variable `name`, if the world set one.

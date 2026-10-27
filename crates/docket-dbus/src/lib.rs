@@ -37,9 +37,9 @@ mod request;
 mod run;
 mod search;
 mod session;
-#[cfg(feature = "inferd")]
-pub mod tap;
 mod terminals;
+#[cfg(feature = "inferd")]
+mod watch;
 
 pub use agent_host::{AgentHostProxy, AgentHostSkeleton};
 pub use answer::{CompanionAnswerProxy, CompanionAnswerSkeleton};
@@ -74,5 +74,7 @@ pub use run::{RunProxy, RunSkeleton};
 pub use search::{SearchProxy, SearchSkeleton};
 pub use session::{SessionProxy, SessionSkeleton};
 pub use terminals::{CompanionTerminalsProxy, CompanionTerminalsSkeleton};
+#[cfg(feature = "inferd")]
+pub use watch::{InferObserver, InferWatch, SessionWatch, Watched, WatchedSession};
 /// The session-bus connection transports and daemons hold.
 pub use zbus::Connection as BusConnection;

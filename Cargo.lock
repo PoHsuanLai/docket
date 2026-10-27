@@ -993,6 +993,7 @@ dependencies = [
  "docket-session",
  "docket-settings",
  "docket-testbus",
+ "docket-trace",
  "futures-util",
  "intentd",
  "porter-client",
@@ -1199,7 +1200,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "thiserror",
- "tracing",
  "zbus",
 ]
 
@@ -1505,6 +1505,19 @@ dependencies = [
  "docket-dbus",
  "tempfile",
  "zbus",
+]
+
+[[package]]
+name = "docket-trace"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "docket-dbus",
+ "porter-core",
+ "porter-infer",
+ "serde",
+ "serde_json",
+ "tracing",
 ]
 
 [[package]]

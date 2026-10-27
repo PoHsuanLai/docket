@@ -78,6 +78,7 @@ docket-log = { workspace = true }
 bulkhead = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 docket-settings = { workspace = true, features = ["agents"] }
+docket-trace = { workspace = true }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }
 docket-testbus = { workspace = true }

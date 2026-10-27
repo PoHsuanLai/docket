@@ -39,7 +39,7 @@ Both scripts take `--engine`:
 - The network is reached only by inferd, only with `--engine cloud`. inferd's `[ai]` rows in your config
   say which classes may leave the machine; the harness adds nothing.
 - The key never passes through the scripts: not an environment variable, not a file they read. See Cloud.
-- The daemons' **model tap** (`DOCKET_MODEL_TRACE`, `docket-dbus/src/tap.rs`) writes prompts to disk.
+- The daemons' **model tap** (`DOCKET_MODEL_TRACE`, `docket-trace`) writes prompts to disk.
   It is on only in a harness world (the harness's `accept-*` mains read the variable and pass the tap in; no packaged daemon reads it), and the file is `<scratch>/model.jsonl`, mode 0600, under the
   scratch root the run keeps (`<scratch>/out/scratch/world-*`). Delete the scratch directory when you
   are done with it.
@@ -190,7 +190,7 @@ A transcript reads top to bottom in the order it happened:
 
 It is built from what already exists and is not recorded twice: the router's audit records
 (`AuditRecord`: the rulings, the policy, the confirmations, the breaker), the sheet's requests, the
-runner's endings, and the tap on the daemons' inferd link (`docket_dbus::tap`, every chat request and its
+runner's endings, and the tap on the daemons' inferd link (`docket_trace`, every chat request and its
 answer as the daemon that asked saw them). inferd's own audit never keeps content and its replay `record`
 sees requests only on a replay engine, so the tap is the one place a live answer can be read back. For a
 smoke run the tap's file is `model.jsonl` in the scratch root; the transcript prints every exchange in the

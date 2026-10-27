@@ -97,19 +97,19 @@ pub struct HarnessSeams {
     pub system_callers: Option<std::path::PathBuf>,
 }
 
-/// Serves one editor on stdio until it closes the connection. `trace` is the model tap: the
-/// packaged binary passes `Tap::off()`, only the acceptance harness passes a file.
+/// Serves one editor on stdio until it closes the connection. `trace` is the inferd watch: the
+/// packaged binary passes `InferWatch::off()`, only the acceptance harness passes a file.
 ///
 /// The editor's app, which the edge checks a stored session's opener against, is the bus name:
 /// the router records the opener and the editor's turns under the app behind the connection.
-pub async fn serve(permit: Permit, trace: docket_dbus::tap::Tap) -> Result<(), LiveFault> {
+pub async fn serve(permit: Permit, trace: docket_dbus::InferWatch) -> Result<(), LiveFault> {
     serve_with(permit, trace, HarnessSeams::default()).await
 }
 
 /// [`serve`] with the seams the acceptance harness's mains choose.
 pub async fn serve_with(
     permit: Permit,
-    trace: docket_dbus::tap::Tap,
+    trace: docket_dbus::InferWatch,
     seams: HarnessSeams,
 ) -> Result<(), LiveFault> {
     let editor = AppName::parse(BUS_NAME).map_err(|_| LiveFault::App(BUS_NAME.to_owned()))?;

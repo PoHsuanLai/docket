@@ -29,8 +29,8 @@ use crate::system::{DaemonLog, SystemClock, SystemSeams};
 use docket_checkpoint_git::{GitStore, StdGitRun};
 use docket_core::{AbsPath, AuditRecord, Floor};
 use docket_dbus::BusConnection;
+use docket_dbus::InferWatch;
 use docket_dbus::callers::{CallerTable, Identity};
-use docket_dbus::tap::Tap;
 use docket_memory::QueuedSink;
 use docket_memory::{AlmanacMemory, AlmanacSessionLog};
 use docket_router::{Router, Seams};
@@ -52,8 +52,8 @@ const PRUNE_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
 const SPACES_RETRY: Duration = Duration::from_secs(10);
 
 /// What only the acceptance harness's mains choose: where callers' cgroups are read from and
-/// whether the model tap writes to a file. The shipped `main` passes the default (the system's
-/// `/proc`, no tap) and no environment variable can change either.
+/// whether the inferd watch writes to a file. The shipped `main` passes the default (the system's
+/// `/proc`, no watch) and no environment variable can change either.
 #[derive(Debug, Clone)]
 pub struct HarnessSeams {
     /// Where callers' cgroups are read.
@@ -62,7 +62,7 @@ pub struct HarnessSeams {
     /// harness is its own system, and a fixed role (the shell's) comes from no other file.
     pub system_callers: Option<PathBuf>,
     /// What is kept of the exchanges with inferd.
-    pub trace: Tap,
+    pub trace: InferWatch,
     /// The administrator's floor file, when the harness's main chose another than `/etc/quire`'s.
     pub floor: Option<PathBuf>,
     /// The administrator's policy directory, when the harness's main chose another than
@@ -75,7 +75,7 @@ impl Default for HarnessSeams {
         Self {
             proc_root: ProcRoot::System,
             system_callers: None,
-            trace: Tap::off(),
+            trace: InferWatch::off(),
             floor: None,
             admin_permissions: None,
         }
@@ -139,8 +139,8 @@ pub struct Setup {
     pub proc_root: ProcRoot,
     /// Where the person's settings file is (`docket/settings.toml`, design/22 section 3.27).
     pub settings: Locator,
-    /// What is kept of the exchanges with inferd (off, unless the harness's main passed a tap).
-    pub trace: Tap,
+    /// What is kept of the exchanges with inferd (off, unless the harness's main passed a watch).
+    pub trace: InferWatch,
     /// The administrator's floor: none unless the file exists (`run_with` reads it).
     pub floor: Floor,
     /// Where the policy files are read from, and watched.
@@ -222,7 +222,7 @@ impl Setup {
             identity: None,
             proc_root: ProcRoot::System,
             settings: Locator::from_env(env),
-            trace: Tap::off(),
+            trace: InferWatch::off(),
             floor: Floor::none(),
             permissions,
         })

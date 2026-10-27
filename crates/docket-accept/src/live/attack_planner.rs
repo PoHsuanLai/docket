@@ -25,7 +25,7 @@ use docket_core::{
     AgentConfig, CallerId, CallerRole, ContextKeep, Keep, Origin, SessionOpen, TurnIn, TurnSource,
     TurnVia, UserTurn, WindowKey,
 };
-use docket_dbus::tap::{MemoryTap, Tap, Tapped};
+use docket_dbus::Watched;
 use docket_eval::{
     AnswerGiven, AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, RunNote, faulted_trace,
     install_fixture, live_trace, score_live,
@@ -33,6 +33,7 @@ use docket_eval::{
 use docket_fake::fake_router_reading;
 use docket_reader::TransportReader;
 use docket_session::fake::MemoryLog;
+use docket_trace::{MemoryTap, Tap};
 use intentd::{InferdModel, InferdWriter, SystemClock};
 use porter_client::{AnyTransport, DbusTransport};
 use porter_core::{AppId, AppName, Isolation};
@@ -94,9 +95,9 @@ struct Rig {
 
 impl Rig {
     fn link(&self) -> Link {
-        Tapped::new(
+        Watched::new(
             AnyTransport::Dbus(DbusTransport::over(self.connection.clone())),
-            self.tap.clone(),
+            self.tap.watch(),
         )
     }
 

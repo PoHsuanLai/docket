@@ -12,7 +12,7 @@ async fn the_planner_is_built_on_the_bus() {
     let connection = bus.connect().await;
     let planner = PlannerModel::new(docket_dbus::inferd_transport(
         &connection,
-        docket_dbus::tap::Tap::off(),
+        docket_dbus::InferWatch::off(),
     ));
     assert!(format!("{planner:?}").contains("Dbus"), "{planner:?}");
 }

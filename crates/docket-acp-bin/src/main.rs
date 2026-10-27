@@ -32,7 +32,10 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(docket_acp_bin::serve(permit, docket_dbus::tap::Tap::off())) {
+    match runtime.block_on(docket_acp_bin::serve(
+        permit,
+        docket_dbus::InferWatch::off(),
+    )) {
         Ok(()) => ExitCode::SUCCESS,
         Err(why) => {
             eprintln!("docket-acp: {why}");

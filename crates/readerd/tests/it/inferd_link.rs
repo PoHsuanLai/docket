@@ -16,7 +16,7 @@ async fn the_service_is_built_on_the_bus() {
         ReaderHost::start(),
         &connection,
         intents,
-        docket_dbus::tap::Tap::off(),
+        docket_dbus::InferWatch::off(),
     );
     assert!(format!("{service:?}").contains("Dbus"), "{service:?}");
 }

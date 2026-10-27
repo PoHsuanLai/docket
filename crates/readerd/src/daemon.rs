@@ -8,8 +8,8 @@ use crate::serve::{ServeFault, serve_on};
 use crate::service::ReaderService;
 use docket_client::{DbusTransport, Intents};
 use docket_dbus::BusConnection;
+use docket_dbus::InferWatch;
 use docket_dbus::callers::Identity;
-use docket_dbus::tap::Tap;
 use futures_util::StreamExt;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -19,7 +19,7 @@ use std::sync::Arc;
 /// keeps serving until it closes.
 pub async fn start(
     connection: &BusConnection,
-    tap: Tap,
+    tap: InferWatch,
     who: Arc<Identity>,
 ) -> Result<(), ServeFault> {
     let intents = Intents::over(DbusTransport::new(connection.clone()));
@@ -40,11 +40,11 @@ pub struct HarnessSeams {
 
 /// The daemon: the session bus from the environment, served until it closes.
 pub async fn run() -> Result<(), ServeFault> {
-    run_with(Tap::off(), HarnessSeams::default()).await
+    run_with(InferWatch::off(), HarnessSeams::default()).await
 }
 
-/// [`run`] with the model tap and the seams the acceptance harness's mains choose.
-pub async fn run_with(tap: Tap, seams: HarnessSeams) -> Result<(), ServeFault> {
+/// [`run`] with the inferd watch and the seams the acceptance harness's mains choose.
+pub async fn run_with(tap: InferWatch, seams: HarnessSeams) -> Result<(), ServeFault> {
     let env = |key: &str| std::env::var(key).ok();
     let connection = docket_dbus::session_connection(&env)
         .await

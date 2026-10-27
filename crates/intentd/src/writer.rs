@@ -21,7 +21,7 @@ impl<T: Transport> InferdWriter<T> {
 
 impl InferdWriter<InferLink> {
     /// Asks inferd over the session bus.
-    pub fn on_bus(connection: &docket_dbus::BusConnection, tap: docket_dbus::tap::Tap) -> Self {
+    pub fn on_bus(connection: &docket_dbus::BusConnection, tap: docket_dbus::InferWatch) -> Self {
         Self::new(crate::infer::inferd_transport(connection, tap))
     }
 }

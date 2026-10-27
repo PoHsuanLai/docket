@@ -12,11 +12,12 @@ use crate::live::warm_bus::warm_up;
 use crate::world::{Binaries, Options, TapMode};
 use action_review::{InferReviewer, ReviewRequest, ReviewVerdict, Reviewer};
 use docket_core::{AgentConfig, Millis, ModelExchange, ReviewError, ReviewTimeouts, Stage};
-use docket_dbus::tap::{MemoryTap, Tap, Tapped};
+use docket_dbus::Watched;
 use docket_eval::{
     Case, CaseTrace, Harness, Observed, PolicyMode, RunNote, RunReport, Tallies, run_case_traced,
 };
 use docket_fake::{FakeError, Forget, fake_router_with};
+use docket_trace::{MemoryTap, Tap};
 use intentd::{InferdModel, InferdWriter, SystemClock};
 use porter_client::{AnyTransport, DbusTransport};
 use porter_core::{AccountId, Billing, Locality, ModelId};
@@ -122,7 +123,7 @@ impl<R> Forget for Judges<R> {
     fn forget(&self) {}
 }
 
-pub(crate) type Link = Tapped<AnyTransport>;
+pub(crate) type Link = Watched<AnyTransport>;
 
 pub(crate) fn card(model: &str) -> Option<ModelCard> {
     Some(ModelCard {
@@ -184,9 +185,9 @@ pub async fn run_corpus_live(
     let memory = MemoryTap::default();
     let tap = Tap::memory(memory.clone(), "eval");
     let link = || -> Link {
-        Tapped::new(
+        Watched::new(
             AnyTransport::Dbus(DbusTransport::over(connection.clone())),
-            tap.clone(),
+            tap.watch(),
         )
     };
     let model_of = |name: &'static str| {

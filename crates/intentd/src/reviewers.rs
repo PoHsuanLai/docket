@@ -3,14 +3,18 @@
 
 use action_review::{InferReviewer, ModelChoice, ReviewerSet};
 use docket_core::ReviewTimeouts;
-use docket_dbus::tap::Tap;
+use docket_dbus::InferWatch;
 use docket_dbus::{BusConnection, InferLink};
 
 use crate::infer::InferdModel;
 
 pub use docket_models::placeholder_set;
 
-fn model(connection: &BusConnection, choice: &ModelChoice, tap: &Tap) -> InferdModel<InferLink> {
+fn model(
+    connection: &BusConnection,
+    choice: &ModelChoice,
+    tap: &InferWatch,
+) -> InferdModel<InferLink> {
     InferdModel::on_bus(connection, docket_models::card_of(choice), tap.clone())
 }
 
@@ -20,7 +24,7 @@ pub fn reviewer(
     connection: &BusConnection,
     set: Option<&ReviewerSet>,
     timeouts: ReviewTimeouts,
-    tap: &Tap,
+    tap: &InferWatch,
 ) -> Option<InferReviewer<InferdModel<InferLink>>> {
     let placeholder = placeholder_set();
     let set = set.or(placeholder.as_ref())?;
