@@ -805,6 +805,7 @@ dependencies = [
  "docket-router",
  "docket-settings",
  "docket-skills",
+ "docket-skills-disk",
  "docket-store",
  "docket-tasks",
  "docket-testbus",
@@ -1219,6 +1220,7 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-skills",
+ "docket-skills-disk",
  "docket-testbus",
  "futures-util",
  "intentd",
@@ -1316,6 +1318,7 @@ dependencies = [
  "docket-fake",
  "docket-router",
  "docket-skills",
+ "docket-skills-disk",
  "porter-core",
  "proptest",
  "prov",
@@ -1369,6 +1372,7 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-skills",
+ "docket-skills-disk",
  "docket-store",
  "docket-tasks",
  "futures-channel",
@@ -1599,8 +1603,17 @@ dependencies = [
  "porter-core",
  "prov",
  "serde",
- "tempfile",
  "thiserror",
+ "toml",
+]
+
+[[package]]
+name = "docket-skills-disk"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "docket-skills",
+ "tempfile",
  "toml",
 ]
 
@@ -2479,6 +2492,7 @@ dependencies = [
  "docket-session",
  "docket-settings",
  "docket-skills",
+ "docket-skills-disk",
  "docket-store",
  "docket-testbus",
  "futures-util",

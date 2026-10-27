@@ -2,6 +2,7 @@
 
 use docket_core::ValidManifest;
 use docket_skills::{Always, Library, Origin, Roots, discover, load_dir};
+use docket_skills_disk::DiskFolder;
 use std::path::PathBuf;
 
 fn dist() -> PathBuf {
@@ -20,7 +21,8 @@ fn manifests() -> Vec<ValidManifest> {
 
 #[test]
 fn desktop_basics_validates_is_always_and_fits_a_kilobyte() {
-    let skill = load_dir(&dist().join("desktop-basics"), Origin::Shipped).expect("validates");
+    let skill =
+        load_dir(&DiskFolder, &dist().join("desktop-basics"), Origin::Shipped).expect("validates");
     assert_eq!(skill.id.as_str(), "desktop-basics");
     assert_eq!(skill.when.always, Always::Yes);
     assert!(skill.body.len() <= 1024, "{} bytes", skill.body.len());
@@ -40,7 +42,7 @@ fn desktop_basics_validates_is_always_and_fits_a_kilobyte() {
 
 #[test]
 fn everything_under_dist_skills_loads() {
-    let found = discover(&Roots::shipped_only(vec![dist()]));
+    let found = discover(&Roots::shipped_only(vec![dist()]), &DiskFolder);
     assert!(found.rejected.is_empty(), "{:?}", found.rejected);
     assert!(
         found

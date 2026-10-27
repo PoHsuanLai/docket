@@ -3831,3 +3831,9 @@ again anyway). `Roster.helpers` is for the planner's view; the shell's list is `
   sheet wording.
 - Tests moved with the code: `docket-native/tests/it/{contract,native,support}`. `docket-tasks` keeps
   `tests/it/compaction.rs`; its dev-dependencies shrank to the three its remaining tests use.
+## Layering lane D0.24: docket-skills (2026-10-28)
+
+- `docket-skills` (pure) no longer uses `std::fs`. It defines `SkillFolder` (`subdirs`, `read`) and `FolderError`; `discover(roots, folder)` and `load_dir(folder, dir, origin)` take the folder as an argument. The `KNOWN` row `docket-skills src:std::fs` is deleted.
+- `docket-skills-disk` (client/IO, new) holds `DiskFolder`, the one folder over `std::fs`. It is a new crate because `docket-store` may not reach `toml` (its `RULES` row) and `docket-skills` needs it. intentd, companiond, docket-cli, docket-inapp and docket-eval depend on it and pass `&DiskFolder`.
+- Tests: the `docket-skills` tests use an in-memory folder instead of tempdirs. The tests that read the real disk (the shipped `dist/skills`, a skill written to a tempdir, the sorted listing) moved to `docket-skills-disk/tests/it`. Nothing is re-exported.
+- Not done: `docket-skills-disk` is not in `scripts/check-portable.sh`'s list, although docket-inapp and docket-eval, which are, now depend on it (it uses only `std::fs`). Not verified by a build in the lane that made the change.

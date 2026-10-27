@@ -36,6 +36,7 @@ use docket_memory_core::QueuedSink;
 use docket_router::{Router, Seams};
 use docket_settings::{AgentSettings, Locator, REVIEW_CEILING};
 use docket_skills::{Roots, discover};
+use docket_skills_disk::DiskFolder;
 use docket_store::SystemClock;
 use porter_daemon::ProcRoot;
 use prov::SpaceId;
@@ -358,7 +359,7 @@ pub async fn start(
     index.restore(&router);
     // The skills the data directories ship: valid files only; which are offered is checked against
     // the registry at each load. What did not load, or is hidden for a missing action, is logged.
-    let found = discover(&Roots::from_dirs(&data_dirs));
+    let found = discover(&Roots::from_dirs(&data_dirs), &DiskFolder);
     for rejected in &found.rejected {
         eprintln!(
             "intentd: skill {}: {}",

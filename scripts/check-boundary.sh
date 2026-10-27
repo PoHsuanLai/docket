@@ -41,6 +41,7 @@ LAYERS=(
   "docket-memory-core:P"
   # client / IO
   "docket-store:C"
+  "docket-skills-disk:C"
   "docket-planner:C"
   "docket-tasks:C"
   "docket-native:C"
@@ -83,7 +84,6 @@ LAYERS=(
 KNOWN=(
   "docket-acp ui:Sheet D0.16"
   "docket-native ui:Sheet D0.16"
-  "docket-skills src:std::fs D0.24"
   "docket-acp-bin env D0.21"
   "docket-accept env D0.22"
   "companiond env D0.25"
@@ -305,8 +305,10 @@ RULES=(
   "policy-point: $NO_CEDAR toml"
   "action-review: $EFFECTS toml"
   "docket-router: $NO_CEDAR"
-  # Skills are files read from directories handed in: no bus, runtime, network or Cedar.
+  # Skills are read through a folder the caller injects: no bus, runtime, network or Cedar.
   "docket-skills: $EFFECTS"
+  # The real-disk skill folder: files only, no bus, runtime, network or Cedar.
+  "docket-skills-disk: $EFFECTS"
   # Disk and timers under the pure core: files, threads and futures; no bus, runtime, network or Cedar.
   "docket-store: $EFFECTS toml"
   # The tools an outside agent is offered, as pure data: shared by the MCP edge and the ACP host.

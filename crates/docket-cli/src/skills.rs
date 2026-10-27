@@ -6,6 +6,7 @@ use crate::exec::Printed;
 use crate::resolve::Apps;
 use docket_core::IntentsVocab;
 use docket_skills::{Origin, Reach, Roots, Skill, discover, reach};
+use docket_skills_disk::DiskFolder;
 use serde_json::{Value, json};
 
 fn origin(skill: &Skill) -> &'static str {
@@ -31,7 +32,7 @@ fn state(skill: &Skill, apps: &Apps) -> (&'static str, Option<String>) {
 
 /// The skills under `roots`, as lines and as JSON.
 pub fn list(apps: &Apps, roots: &Roots) -> Printed {
-    let found = discover(roots);
+    let found = discover(roots, &DiskFolder);
     let mut lines = Vec::new();
     let mut rows: Vec<Value> = Vec::new();
     for skill in &found.skills {

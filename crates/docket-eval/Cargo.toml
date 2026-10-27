@@ -17,6 +17,7 @@ action-review = { workspace = true }
 docket-fake = { workspace = true }
 docket-core = { workspace = true }
 docket-skills = { workspace = true }
+docket-skills-disk = { workspace = true }
 docket-router = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }

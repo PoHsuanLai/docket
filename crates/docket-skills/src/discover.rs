@@ -3,6 +3,7 @@
 //! reads the environment (the daemon's `main` does, and passes the results).
 
 use crate::fault::SkillFault;
+use crate::folder::SkillFolder;
 use crate::skill::{Origin, Skill, parse};
 use std::path::{Path, PathBuf};
 
@@ -78,46 +79,41 @@ pub struct Found {
     pub rejected: Vec<Rejected>,
 }
 
-fn read(dir: &Path, file: &'static str) -> Result<String, SkillFault> {
-    std::fs::read_to_string(dir.join(file)).map_err(|e| SkillFault::Unreadable {
-        file,
-        why: e.to_string(),
-    })
+fn read(folder: &impl SkillFolder, dir: &Path, file: &'static str) -> Result<String, SkillFault> {
+    folder
+        .read(&dir.join(file))
+        .map_err(|e| SkillFault::Unreadable {
+            file,
+            why: e.to_string(),
+        })
 }
 
-/// Loads the skill in `dir` (`skill.toml` and `SKILL.md`; the directory name is its id).
-pub fn load_dir(dir: &Path, origin: Origin) -> Result<Skill, SkillFault> {
+/// Loads the skill in `dir` through `folder` (`skill.toml` and `SKILL.md`; the directory name is
+/// its id).
+pub fn load_dir(
+    folder: &impl SkillFolder,
+    dir: &Path,
+    origin: Origin,
+) -> Result<Skill, SkillFault> {
     let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default();
     parse(
         name,
-        &read(dir, "skill.toml")?,
-        &read(dir, "SKILL.md")?,
+        &read(folder, dir, "skill.toml")?,
+        &read(folder, dir, "SKILL.md")?,
         origin,
     )
 }
 
-fn subdirs(root: &Path) -> Vec<PathBuf> {
-    let mut dirs: Vec<PathBuf> = std::fs::read_dir(root)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.is_dir())
-        .collect();
-    dirs.sort();
-    dirs
-}
-
-/// Reads every root: the person's own first, then each shipped root in order. The first valid
+/// Reads every root through `folder`: the person's own first, then each shipped root in order. The first valid
 /// skill of an id wins; a later one of the same id is shadowed. A directory that fails is
 /// reported, and does not shadow anything.
-pub fn discover(roots: &Roots) -> Found {
+pub fn discover(roots: &Roots, folder: &impl SkillFolder) -> Found {
     let own = roots.own.iter().map(|r| (r, Origin::Own));
     let shipped = roots.shipped.iter().map(|r| (r, Origin::Shipped));
     let mut found = Found::default();
     for (root, origin) in own.chain(shipped) {
-        for dir in subdirs(root) {
-            match load_dir(&dir, origin) {
+        for dir in folder.subdirs(root) {
+            match load_dir(folder, &dir, origin) {
                 Ok(skill) if found.skills.iter().all(|s| s.id != skill.id) => {
                     found.skills.push(skill);
                 }

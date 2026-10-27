@@ -1,6 +1,6 @@
 [package]
 name = "docket-skills"
-description = "Skills: the instructions the desktop ships for the companion. Parses and validates skill.toml and SKILL.md, discovers installed skills from directories it is handed, checks them against the registered manifests and picks which to show. Pure but for directory reads; no authority."
+description = "Skills: the instructions the desktop ships for the companion. Parses and validates skill.toml and SKILL.md, discovers installed skills from directories it is handed, checks them against the registered manifests and picks which to show. Pure: directories are read through a folder the caller injects; no authority."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,9 +15,6 @@ prov = { workspace = true }
 serde = { workspace = true }
 toml = { workspace = true }
 thiserror = { workspace = true }
-
-[dev-dependencies]
-tempfile = { workspace = true }
 
 [lints]
 workspace = true

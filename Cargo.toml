@@ -4,6 +4,7 @@ members = [
   "crates/docket-core",
   "crates/docket-store",
   "crates/docket-skills",
+  "crates/docket-skills-disk",
   "crates/policy-point",
   "crates/action-review",
   "crates/docket-router",
@@ -65,6 +66,7 @@ docket-agents  = { path = "crates/docket-agents" }
 docket-core    = { path = "crates/docket-core" }
 docket-store   = { path = "crates/docket-store" }
 docket-skills  = { path = "crates/docket-skills" }
+docket-skills-disk = { path = "crates/docket-skills-disk" }
 policy-point   = { path = "crates/policy-point" }
 action-review  = { path = "crates/action-review" }
 docket-router  = { path = "crates/docket-router" }

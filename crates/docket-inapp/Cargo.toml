@@ -25,6 +25,7 @@ docket-reader = { workspace = true }
 docket-router = { workspace = true }
 docket-session = { workspace = true }
 docket-skills = { workspace = true }
+docket-skills-disk = { workspace = true }
 docket-store = { workspace = true }
 docket-tasks = { workspace = true }
 policy-point = { workspace = true }

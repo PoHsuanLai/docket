@@ -17,7 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PORTABLE=(
-  docket-core docket-skills policy-point action-review docket-router
+  docket-core docket-skills docket-skills-disk policy-point action-review docket-router
   actions-tools companion-wire companion-core agent-loop docket-planner docket-tasks docket-native docket-session docket-checkpoint docket-acp docket-client docket-fake docket-eval
   docket-models docket-reader docket-memory-core docket-memory docket-inapp voice-wire voice-loop
 )

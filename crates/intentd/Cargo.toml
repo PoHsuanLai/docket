@@ -25,6 +25,7 @@ docket-store = { workspace = true }
 docket-log = { workspace = true }
 docket-router = { workspace = true }
 docket-skills = { workspace = true }
+docket-skills-disk = { workspace = true }
 docket-settings = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true, features = ["inferd"] }

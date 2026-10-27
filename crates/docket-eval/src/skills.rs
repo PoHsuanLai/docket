@@ -14,6 +14,7 @@ use crate::check::{CheckError, CheckReport, Found, Level, walk};
 use docket_core::ValidManifest;
 use docket_router::parse;
 use docket_skills::{Origin, Reach, SkillFault, load_dir, reach};
+use docket_skills_disk::DiskFolder;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -91,7 +92,7 @@ pub fn check_skills(
     manifests.extend(read_manifests(extra, &mut seen, &mut report));
     let mut ids = BTreeSet::new();
     for dir in &skill_dirs {
-        match load_dir(dir, Origin::Shipped) {
+        match load_dir(&DiskFolder, dir, Origin::Shipped) {
             Err(fault) => report.push(Level::Fail, dir, fault_words(&fault)),
             Ok(skill) if !ids.insert(skill.id.clone()) => {
                 report.push(

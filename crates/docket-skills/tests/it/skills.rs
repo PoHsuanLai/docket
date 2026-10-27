@@ -7,10 +7,11 @@ use docket_skills::{
     Situation, SkillFault, discover, load_dir, parse, parse_doc, parse_facts, preselect, reach,
     uses_first,
 };
+use docket_skills::{FolderError, SkillFolder};
 use porter_core::AppName;
 use prov::EntityKind;
-use std::collections::BTreeSet;
-use std::path::PathBuf;
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 
 const COMPANION: &str = include_str!("../../../../manifests/org.quire.Companion.toml");
 
@@ -188,47 +189,72 @@ fn rules_of_the_format_table() {
     }
 }
 
-fn write(root: &std::path::Path, id: &str, toml: &str, md: &str) {
-    let dir = root.join(id);
-    std::fs::create_dir_all(&dir).expect("dir");
-    std::fs::write(dir.join("skill.toml"), toml).expect("toml");
-    std::fs::write(dir.join("SKILL.md"), md).expect("md");
+/// Files held in memory, keyed by path.
+#[derive(Default)]
+struct Memory(BTreeMap<PathBuf, String>);
+
+impl Memory {
+    fn write(&mut self, root: &Path, id: &str, toml: &str, md: &str) {
+        let dir = root.join(id);
+        self.0.insert(dir.join("skill.toml"), toml.to_owned());
+        self.0.insert(dir.join("SKILL.md"), md.to_owned());
+    }
+}
+
+impl SkillFolder for Memory {
+    fn subdirs(&self, root: &Path) -> Vec<PathBuf> {
+        let dirs: BTreeSet<PathBuf> = self
+            .0
+            .keys()
+            .filter_map(|p| p.parent())
+            .filter(|d| d.parent() == Some(root))
+            .map(Path::to_path_buf)
+            .collect();
+        dirs.into_iter().collect()
+    }
+
+    fn read(&self, path: &Path) -> Result<String, FolderError> {
+        self.0.get(path).cloned().ok_or_else(|| FolderError {
+            why: "no such file".to_owned(),
+        })
+    }
 }
 
 #[test]
 fn an_own_skill_overrides_a_shipped_one_and_a_bad_directory_is_reported() {
-    let data = tempfile::tempdir().expect("tmp");
-    let home = data.path().join("home");
-    let sys = data.path().join("sys");
-    let sys2 = data.path().join("sys2");
+    let data = PathBuf::from("/data");
+    let home = data.join("home");
+    let sys = data.join("sys");
+    let sys2 = data.join("sys2");
     let skills = |d: &PathBuf| d.join("quire").join("skills");
-    write(
+    let mut folder = Memory::default();
+    folder.write(
         &skills(&sys),
         "a",
         &toml_for("a", ""),
         &md_for("a", "shipped", "S"),
     );
-    write(
+    folder.write(
         &skills(&sys),
         "b",
         &toml_for("b", ""),
         &md_for("b", "shipped b", "S"),
     );
-    write(
+    folder.write(
         &skills(&sys2),
         "b",
         &toml_for("b", ""),
         &md_for("b", "second dir", "S"),
     );
-    write(
+    folder.write(
         &skills(&home),
         "a",
         &toml_for("a", ""),
         &md_for("a", "mine", "M"),
     );
-    write(&skills(&home), "broken", "not toml [", "x");
+    folder.write(&skills(&home), "broken", "not toml [", "x");
     let roots = Roots::in_data_dirs(Some(&home), &[sys.clone(), sys2]);
-    let Found { skills, rejected } = discover(&roots);
+    let Found { skills, rejected } = discover(&roots, &folder);
     let described: Vec<(String, String, Origin)> = skills
         .iter()
         .map(|s| (s.id.to_string(), s.description.clone(), s.origin))
@@ -253,7 +279,7 @@ fn an_own_skill_overrides_a_shipped_one_and_a_bad_directory_is_reported() {
         )])
     );
     assert_eq!(shipped.label.integrity, prov::Integrity::Trusted);
-    assert!(load_dir(&skills_path(&sys).join("a"), Origin::Shipped).is_ok());
+    assert!(load_dir(&folder, &skills_path(&sys).join("a"), Origin::Shipped).is_ok());
 }
 
 fn skills_path(root: &std::path::Path) -> PathBuf {
@@ -417,12 +443,12 @@ fn loaded_skills_actions_go_first_and_nothing_else_changes() {
 /// way (a string of text, a URL, a handle) cannot be added without breaking this test.
 #[test]
 fn skill_text_enters_only_through_directory_paths() {
-    let entry: fn(&Roots) -> Found = discover;
+    let entry: fn(&Roots, &Memory) -> Found = discover;
     let roots = Roots {
         own: Some(PathBuf::from("/nonexistent/own")),
         shipped: vec![PathBuf::from("/nonexistent/shipped")],
     };
-    let found = entry(&roots);
+    let found = entry(&roots, &Memory::default());
     assert!(found.skills.is_empty() && found.rejected.is_empty());
     // Every field of `Roots` is a path; destructuring without `..` fails to compile otherwise.
     let Roots { own, shipped } = roots;

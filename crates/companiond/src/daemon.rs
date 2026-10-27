@@ -15,6 +15,7 @@ use docket_dbus::callers::{CallerTable, Identity};
 use docket_dbus::{BusConnection, InferLink};
 use docket_planner::PlannerModel;
 use docket_skills::{Roots, discover};
+use docket_skills_disk::DiskFolder;
 use docket_store::SystemClock;
 use docket_tasks::ServeFault;
 use futures_util::StreamExt;
@@ -93,7 +94,7 @@ pub async fn start_with_agents(
     callers: CallerTable,
     agents: Option<Arc<dyn AgentApps>>,
 ) -> Result<Arc<Mutex<Daemon>>, ServeFault> {
-    let found = discover(skills);
+    let found = discover(skills, &DiskFolder);
     for rejected in &found.rejected {
         tracing::warn!(
             dir = %rejected.dir.display(),

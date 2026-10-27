@@ -13,6 +13,7 @@ use docket_core::MemoryLink;
 use docket_core::{PolicyWriter, Reader};
 use docket_router::GrantStore;
 use docket_skills::{Rejected, Roots, Skill, discover};
+use docket_skills_disk::DiskFolder;
 use porter_client::Transport as ModelTransport;
 use std::path::Path;
 
@@ -40,7 +41,10 @@ where
     /// and returns the directories that did not load, each with why. A directory that is missing
     /// installs nothing.
     pub fn install_skills_from(&mut self, dir: impl AsRef<Path>) -> Vec<Rejected> {
-        let found = discover(&Roots::shipped_only(vec![dir.as_ref().to_owned()]));
+        let found = discover(
+            &Roots::shipped_only(vec![dir.as_ref().to_owned()]),
+            &DiskFolder,
+        );
         self.install_skills(found.skills);
         found.rejected
     }
