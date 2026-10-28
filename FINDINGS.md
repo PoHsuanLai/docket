@@ -4048,3 +4048,8 @@ Two commits: the harness seams first, then the split.
 - `scripts/check-boundary.sh`: LAYERS rows (`docket-gate-wire` P, `docket-wire` P) and RULES rows (effects and `toml` banned); `scripts/check-portable.sh` lists both; `scripts/check-core-layers.sh` drops levels 5 and 6.
 - `voice-wire`, `voice-loop`, `voiced`, `companion-client` and `docket-procroot` used only moved items from `docket-core`, so their dependency on it became one on `docket-wire`.
 - Not verified by a build in the lane that made the change; `cargo metadata --offline` resolved and `cargo fmt --all` ran.
+
+## D4.13f: docket-core trimmed (2026-10-28)
+- The core cut is done: `docket-core` keeps context, previews, calls, undo, confirmation and the brief, budgets and spending, the planner and reader contract, the roster, messages, restore points, audit records, `AgentConfig` and the memory and event-log seams (~5.1k lines). Every dependency it lists is used.
+- `scripts/check-core-layers.sh` is deleted: with every planned crate split out it checked one level, and the crate edges between the new crates are Cargo's. ARCHITECTURE's module order for `docket-core` is the real one (groups that use each other are listed together).
+- Stale paths fixed: `docket_core::Clock` → `docket_vocab::Clock` (CONVENTIONS 10), `docket_core::agent_app` → `docket_permissions_core::agent_app`, `docket_core::parse` → `docket_manifest::parse` (ARCHITECTURE); the crate doc names the four crates below it.

@@ -548,7 +548,4 @@ for member in $(sed -n 's#^  "crates/\(.*\)",$#\1#p' Cargo.toml); do
   grep -q "^$member:" <<<"$rule_rows" || { echo "ERROR: $member has no row in RULES"; fail=1; }
 done
 
-# docket-core's modules against the crate stack they will split into: no upward import.
-scripts/check-core-layers.sh || fail=1
-
 exit "$fail"

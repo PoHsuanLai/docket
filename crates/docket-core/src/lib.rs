@@ -1,14 +1,17 @@
-//! docket's vocabulary above `docket-vocab`, and the pure behaviour that is cheap to build with it:
-//! the manifest and its validation, context and previews, calls and every way they end, the undo
-//! journal, confirmation, budgets and the kill switch, the per-task policy, the planner and
-//! reader contract, the roster, messages, audit records and the proposed configuration. Ids,
-//! units, values, call requests, dates and the `Clock` seam live in `docket-vocab`. The Intents1
-//! wire, tasks and their episodes are in `docket-wire`, and the computer-use gate's ask and
-//! answer in `docket-gate-wire`, both above this crate.
+//! docket's vocabulary above `docket-vocab`, `docket-manifest`, `docket-permissions-core` and
+//! `companion-model`, and the pure behaviour that is cheap to build with it: context and previews,
+//! calls and every way they end, the undo journal, confirmation and the brief, budgets, spending
+//! and the kill switch, the planner and reader contract, the roster, messages, restore points,
+//! audit records and the proposed configuration, and the memory and event-log seams. Ids, units,
+//! values, call requests, dates and the `Clock` seam live in `docket-vocab`; the manifest and its
+//! argument reader in `docket-manifest`; grants, limits and the task policy in
+//! `docket-permissions-core`; the helpers and routines in `companion-model`. The Intents1 wire is in
+//! `docket-wire`, and the computer-use gate's ask and answer in `docket-gate-wire`, both above this
+//! crate.
 //!
-//! Pure and portable: serde only. Names `prov` for who and what, `almanac-core` for the pure
-//! shapes of memory (episodes, recall, recent) and `model-provider` for the structured-output
-//! shapes `ValueSchema` renders through.
+//! Pure and portable: serde only. Names `prov` for who and what, `porter-core` for accounts and
+//! labels, `almanac-core` for the pure shapes of memory (episodes, recall, recent) and
+//! `model-provider` for the structured-output shapes `ValueSchema` renders through.
 
 mod audit;
 mod brief;
