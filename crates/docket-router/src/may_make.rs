@@ -3,8 +3,7 @@
 use crate::registry::Registry;
 use docket_manifest::{ActionDecl, is_offered};
 use docket_permissions_core::is_agent_action;
-use docket_vocab::ActionRef;
-use docket_wire::CallerRole;
+use docket_vocab::{ActionRef, CallerRole};
 
 /// Whether a caller in `role` may make a call of `action`. The pseudo-app belongs to the host of
 /// an external agent alone; that host makes it no call of another app but the ones the agent's

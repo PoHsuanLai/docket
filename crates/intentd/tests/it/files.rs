@@ -121,7 +121,7 @@ fn the_shipped_configuration_gives_a_terminal_the_cli_role_and_sill_the_rest() {
             .into_iter()
             .collect::<Vec<_>>()
     };
-    use docket_wire::CallerRole as R;
+    use docket_vocab::CallerRole as R;
     assert_eq!(roles("org.quire.Do"), [R::Cli]);
     assert_eq!(
         roles("org.quire.Temor"),

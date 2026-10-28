@@ -8,8 +8,8 @@ use docket_core::*;
 use docket_fake::fake_router;
 use docket_permissions_core::Saw;
 use docket_router::{HandleValue, Router};
-use docket_vocab::{ChoiceId, Handle, Value};
-use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen};
+use docket_vocab::{CallerRole, ChoiceId, Handle, Value};
+use docket_wire::{CallerId, IntentsReply, IntentsRequest, SessionOpen};
 use porter_capability::LlmFeature;
 use porter_core::{AppId, AppName, DataClass, Isolation};
 use porter_infer::{

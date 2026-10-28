@@ -7,10 +7,11 @@ use docket_core::*;
 use docket_fake::ScriptedWriter;
 use docket_permissions_core::{ActionMatch, COMPANION_APP, DenyCode, Saw, TaskPolicy};
 use docket_router::{HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE};
-use docket_vocab::{ActionRef, CallId, CallRequest, Origin, TargetValue, TurnId, Value};
+use docket_vocab::{
+    ActionRef, CallId, CallRequest, Caller, CallerRole, Origin, TargetValue, TurnId, Value,
+};
 use docket_wire::{
-    CallerId, CallerRole, IntentsReply, IntentsRequest, NoteAsk, SessionOpen, SessionOpened,
-    WireRefusal,
+    CallerId, IntentsReply, IntentsRequest, NoteAsk, SessionOpen, SessionOpened, WireRefusal,
 };
 use prov::{
     Actor, Address, AgentRef, AgentRole, Confidentiality, Effect, HelperId, Integrity, Label,
@@ -99,7 +100,7 @@ fn turn() -> UserTurn {
         id: TurnId(1),
         text: "tidy the inbox".into(),
         at: UnixSeconds(1),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     }

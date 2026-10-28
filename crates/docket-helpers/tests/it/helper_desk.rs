@@ -8,9 +8,9 @@ use crate::support::infer::{Say, ScriptedInfer, call, words};
 use crate::support::world::*;
 use companion_model::helper::*;
 use companion_wire::{HelperNeeds, HelperReply, JobShown, SayReply};
-use docket_core::{ConfirmAnswer, TurnSource};
+use docket_core::ConfirmAnswer;
 use docket_tasks::{HelperDesk, PostFromPerson, SayFromPerson};
-use docket_vocab::TurnId;
+use docket_vocab::{Caller, TurnId};
 use porter_infer::{Asker, OpenOptions};
 use prov::UnixSeconds;
 use serde_json::json;
@@ -353,7 +353,7 @@ async fn only_a_helpers_conversation_is_spoken_in_and_the_front_conversation_is_
             session: front.session.clone(),
             id: TurnId(1),
             text: "hello".into(),
-            from: TurnSource::Editor(app("org.quire.Acp")),
+            from: Caller::editor(app("org.quire.Acp")),
         },
     )
     .await;

@@ -14,12 +14,10 @@ use companion_core::{JobEnding, JobInput, JobReport, JobSpec, OpenedJob};
 use companion_model::helper::{CallVerdict, GoalSource, HelperSeat, JobFault, SeatPlace};
 use companion_wire::{AnswerPhase, NeedsYou, RefusalWire};
 use docket_client::Transport as IntentsTransport;
-use docket_core::{
-    CallEnd, CallRefusal, DraftPart, MessageDraft, StepEnd, TurnSource, TurnVia, UserTurn,
-};
+use docket_core::{CallEnd, CallRefusal, DraftPart, MessageDraft, StepEnd, TurnVia, UserTurn};
 use docket_permissions_core::DenyCode;
 use docket_planner::Planner;
-use docket_vocab::{Clock, TurnId};
+use docket_vocab::{Caller, Clock, TurnId};
 use docket_wire::SessionOpen;
 use porter_ids::Count;
 use prov::{Address, AgentRef, MessageKind, MessageText, TaskId};
@@ -113,7 +111,7 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
                 id: TurnId(0),
                 text: spec.job.goal.as_str().to_owned(),
                 at: self.clock.now(),
-                from: TurnSource::Launcher,
+                from: Caller::launcher(),
                 via: TurnVia::Typed,
                 mode: None,
             };

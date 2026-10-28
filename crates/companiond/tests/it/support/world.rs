@@ -12,8 +12,8 @@ use docket_fake::{FakeSeams, FixedClock, MailContact, MailThread, fake_router};
 use docket_helpers::{Hub, TokioSpawn};
 use docket_permissions_core::{ActionGrantKey, GrantCaller, GrantTarget};
 use docket_router::Router;
-use docket_vocab::{Clock, Origin, Seconds, WindowKey, Workspace};
-use docket_wire::{CallerId, CallerRole, SessionOpen, SessionOpened};
+use docket_vocab::{Caller, CallerRole, Clock, Origin, Seconds, WindowKey, Workspace};
+use docket_wire::{CallerId, SessionOpen, SessionOpened};
 use porter_core::{AppId, AppName, Isolation};
 use prov::{
     AgentRef, DataClass, EntityId, EntityKey, EntityKind, SessionId, SpaceId, TaskId, UnixSeconds,
@@ -239,7 +239,7 @@ impl World {
                     id,
                     text: text.into(),
                     at,
-                    from: TurnSource::Launcher,
+                    from: Caller::launcher(),
                     via: TurnVia::Typed,
                     mode: None,
                 },

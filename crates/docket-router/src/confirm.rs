@@ -10,8 +10,7 @@ use docket_core::{
 };
 use docket_manifest::{AgentReach, ArgSink};
 use docket_permissions_core::{AlwaysOffer, AskReason, Limited};
-use docket_vocab::{Seconds, Value};
-use docket_wire::CallerRole;
+use docket_vocab::{CallerRole, Seconds, Value};
 use porter_ids::Count;
 use prov::{Actor, Effect, Integrity, Label, Source};
 use std::collections::BTreeSet;

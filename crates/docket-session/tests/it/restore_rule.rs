@@ -3,7 +3,7 @@
 use crate::support::*;
 use companion_model::helper::{HelperName, HelperSeat, SeatPlace};
 use docket_session::*;
-use docket_wire::CallerRole;
+use docket_vocab::CallerRole;
 use prov::AppName;
 
 fn plan_with(place: Option<SeatPlace>) -> ResumePlan {

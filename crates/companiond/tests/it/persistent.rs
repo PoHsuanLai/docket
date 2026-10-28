@@ -11,7 +11,7 @@ use almanac_core::{
 use companion_wire::{AnswerBody, AnswerPhase};
 use docket_core::*;
 use docket_store::Waits;
-use docket_vocab::{Millis, TurnId, WindowKey};
+use docket_vocab::{Caller, Millis, TurnId, WindowKey};
 use prov::{Actor, Integrity, Label, Source, UnixSeconds};
 use serde_json::json;
 
@@ -318,7 +318,7 @@ async fn a_finished_task_takes_no_follow_up_and_an_unknown_session_is_refused() 
             id: TurnId(99),
             text: "and again".into(),
             at: prov::UnixSeconds(0),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         },

@@ -14,8 +14,8 @@ use almanac_core::{
 use docket_client::{DbusTransport, Intents};
 use docket_core::*;
 use docket_dbus::callers::{Identity, Role};
-use docket_vocab::{ChoiceId, Handle, Value};
-use docket_wire::{CallerRole, ReadAsk, RecallAsk, RecallView, SessionOpen};
+use docket_vocab::{CallerRole, ChoiceId, Handle, Value};
+use docket_wire::{ReadAsk, RecallAsk, RecallView, SessionOpen};
 use intentd::{Cadence, FileGrants, IntentdConfig, Setup, start};
 use porter_core::{AppName, DataClass};
 use porter_ids::{Count, Tokens};

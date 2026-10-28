@@ -3,7 +3,7 @@
 
 use action_review::ReviewerSet;
 use docket_core::AgentConfig;
-use docket_wire::CallerRole;
+use docket_vocab::CallerRole;
 use porter_core::AppName;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};

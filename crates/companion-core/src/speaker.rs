@@ -8,7 +8,9 @@
 
 use docket_wire::TerminalScope;
 
-/// Who a caller is, as far as the person's voice goes.
+/// Who a caller is, as far as the person's voice goes: the policy subject of the companion's bus,
+/// not the caller of a request (`docket_vocab::Caller`). It is filled from the callers table
+/// and a terminal's scope, and `companiond` turns it into a `Caller` for the turns it records.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Speaker {
     /// The shell.

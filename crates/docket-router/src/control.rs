@@ -9,8 +9,8 @@ use docket_core::EventSink;
 use docket_core::{
     AuditRecord, Confirmer, Halt, HaltCause, UndoEntry, UndoFault, UndoScope, UndoState,
 };
-use docket_vocab::{Clock, UndoId};
-use docket_wire::{CallerId, CallerRole, IntentsReply, JournalFilter, UndoReport};
+use docket_vocab::{CallerRole, Clock, UndoId};
+use docket_wire::{CallerId, IntentsReply, JournalFilter, UndoReport};
 use porter_ids::Count;
 use prov::{Actor, SpaceScope};
 

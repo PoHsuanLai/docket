@@ -60,7 +60,8 @@ pub(crate) struct Narration {
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use docket_client::{InProcess, Intents};
 /// use docket_core::AgentConfig;
-/// use docket_wire::{CallerId, CallerRole, SessionOpen};
+/// use docket_vocab::CallerRole;
+/// use docket_wire::{CallerId, SessionOpen};
 /// use docket_fake::{WordsModel, fake_router};
 /// use docket_planner::PlannerModel;
 /// use docket_fake::FixedClock;

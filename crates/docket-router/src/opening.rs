@@ -11,29 +11,18 @@ use crate::wal::Wal;
 use almanac_core::{EpisodeId, EpisodeKind, EpisodeOutcome};
 use companion_model::helper::SeatPlace;
 use docket_core::EventSink;
-use docket_core::{AuditRecord, Reveal, Rewind, TurnIn, TurnSource, UserTurn};
+use docket_core::{AuditRecord, Reveal, Rewind, TurnIn, UserTurn};
 use docket_permissions_core::intersection;
 use docket_session::{BackendKind, Opening, SessionEntry, Taint};
-use docket_vocab::{Clock, TurnId};
+use docket_vocab::{Caller, CallerRole, Clock, TurnId};
 use docket_wire::{
-    CallerId, CallerRole, IntentsReply, SessionOpen, SessionOpened, TaskLedger, WireRefusal, close,
+    CallerId, IntentsReply, SessionOpen, SessionOpened, TaskLedger, WireRefusal, close,
 };
 use porter_core::AppName;
 use prov::{Actor, AgentRef, AgentRole, ReportStatus, SessionId, TaskId};
 
 fn refuse(why: WireRefusal) -> IntentsReply {
     IntentsReply::Refused(why)
-}
-
-/// Where a turn recorded by a caller in `role` came from.
-fn turn_source(role: CallerRole, caller: &CallerId) -> TurnSource {
-    match role {
-        CallerRole::Field => TurnSource::Field(caller.app.name.clone()),
-        CallerRole::Editor => TurnSource::Editor(caller.app.name.clone()),
-        CallerRole::AcpAgent => TurnSource::Agent(caller.app.name.clone()),
-        CallerRole::Cli => TurnSource::Terminal,
-        _ => TurnSource::Launcher,
-    }
 }
 
 /// Ends a task that is not ended yet and returns the skeleton it leaves. A session nobody used
@@ -316,7 +305,7 @@ impl<S: Seams> Router<S> {
         {
             return Err(WireRefusal::NotAllowed);
         }
-        let from = turn_source(role, caller);
+        let from = Caller::of(role, &caller.app.name);
         // The mode travels with the turn, but only the shell can say it: the same words from an
         // editor, a terminal or an agent's host change nothing.
         let mode = turn
@@ -350,37 +339,5 @@ impl<S: Seams> Router<S> {
             t.ledger.asked.push(recorded.clone());
         }
         Ok(recorded)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use porter_core::{AppId, AppName, Isolation};
-
-    fn caller(name: &str) -> CallerId {
-        CallerId {
-            app: AppId {
-                name: AppName::parse(name).expect("app"),
-                isolation: Isolation::Unsandboxed,
-            },
-            roles: Default::default(),
-        }
-    }
-
-    #[test]
-    fn a_turn_is_recorded_as_from_the_surface_that_took_it() {
-        let mail = caller("org.quire.Mail");
-        let rows = [
-            (CallerRole::Launcher, TurnSource::Launcher),
-            (CallerRole::Cli, TurnSource::Terminal),
-            (
-                CallerRole::Field,
-                TurnSource::Field(AppName::parse("org.quire.Mail").expect("app")),
-            ),
-        ];
-        for (role, expected) in rows {
-            assert_eq!(turn_source(role, &mail), expected, "{role:?}");
-        }
     }
 }

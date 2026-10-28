@@ -1,6 +1,6 @@
 //! `quire-do ask "<text>"`: the person at a terminal talks to the companion, the way sill's
 //! launcher does. Open a conversation, record the turn with intentd (`Session.Turn`, which a
-//! terminal may make: it is recorded as `TurnSource::Terminal`), hand it to companiond, and
+//! terminal may make: it is recorded as `Caller::terminal()`), hand it to companiond, and
 //! follow the answer object until it settles.
 //!
 //! `quire-do` is not `Confirm1`: when the answer needs the person for a confirmation it prints
@@ -14,8 +14,8 @@ use crate::{JsonFlag, Report, Stdout};
 use companion_client::{CompanionTransport, Follow};
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, AskWire, RefusalWire};
 use docket_client::{ClientError, Intents, Transport, TransportError};
-use docket_core::{ContextKeep, Keep, TurnIn, TurnSource, TurnVia, UserTurn};
-use docket_vocab::{Origin, WindowKey};
+use docket_core::{ContextKeep, Keep, TurnIn, TurnVia, UserTurn};
+use docket_vocab::{Caller, Origin, WindowKey};
 use docket_wire::{SessionOpen, SessionOpened};
 use prov::{AgentRef, SessionId, SpaceId, UnixSeconds};
 use serde_json::json;
@@ -56,7 +56,7 @@ fn ask_of(
             id,
             text: text.to_owned(),
             at: now,
-            from: TurnSource::Terminal,
+            from: Caller::terminal(),
             via: TurnVia::Typed,
             mode: None,
         },

@@ -20,10 +20,8 @@ use docket_core::{
     Outcome, Preview, Reveal, SendRefusal, Undoable,
 };
 use docket_permissions_core::{COMPANION_APP, Saw};
-use docket_vocab::{ChoiceId, Clock, LabelText, ParamName, TargetValue, Value};
-use docket_wire::{
-    CallerId, CallerRole, IntentsReply, SessionOpen, SessionOpened, TaskStart, WireRefusal,
-};
+use docket_vocab::{CallerRole, ChoiceId, Clock, LabelText, ParamName, TargetValue, Value};
+use docket_wire::{CallerId, IntentsReply, SessionOpen, SessionOpened, TaskStart, WireRefusal};
 use porter_core::{AppId, AppName, Isolation};
 use prov::{
     Actor, Address, AgentRef, AgentRole, EntityId, EntityKey, EntityKind, Integrity, Labelled,

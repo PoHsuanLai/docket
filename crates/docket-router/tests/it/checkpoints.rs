@@ -10,10 +10,10 @@ use docket_core::*;
 use docket_fake::FakeSeams;
 use docket_router::{CHECKPOINTS_APP, CHECKPOINTS_RESTORE, Router};
 use docket_vocab::{
-    ActionRef, CallId, CallRequest, Clock, Origin, ParamName, Seconds, TargetValue, TurnId, Value,
-    Workspace,
+    ActionRef, CallId, CallRequest, CallerRole, Clock, Origin, ParamName, Seconds, TargetValue,
+    TurnId, Value, Workspace,
 };
-use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, WireRefusal};
+use docket_wire::{CallerId, IntentsReply, IntentsRequest, SessionOpen, WireRefusal};
 use porter_ids::Count;
 use prov::{ActionName, Actor, AgentRef, Labelled, SessionId};
 use std::collections::BTreeMap;

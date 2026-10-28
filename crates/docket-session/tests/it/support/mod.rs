@@ -1,13 +1,11 @@
 //! Fixtures: a canonical session log and the rows around it. Scripted, no clock, no network.
 #![allow(dead_code)]
 
-use docket_core::{
-    HandleShape, Ledger, StepEnd, StepLine, StepShown, TurnSource, TurnVia, UserTurn,
-};
+use docket_core::{HandleShape, Ledger, StepEnd, StepLine, StepShown, TurnVia, UserTurn};
 use docket_permissions_core::BreakerTrip;
 use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_session::*;
-use docket_vocab::{ActionRef, CallId, Handle, LabelText, TurnId};
+use docket_vocab::{ActionRef, CallId, Caller, Handle, LabelText, TurnId};
 use porter_core::{AppName, DataClass};
 use porter_ids::Count;
 use prov::{
@@ -70,7 +68,7 @@ pub fn turn(id: u64, text: &str) -> UserTurn {
         id: TurnId(id),
         text: text.to_owned(),
         at: UnixSeconds(id as i64),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     }

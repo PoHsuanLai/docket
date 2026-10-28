@@ -7,7 +7,7 @@ use docket_manifest::{ArgSink, Lasting};
 use docket_permissions_core::{
     ArgLabels, ReasonCode, ReasonText, ReviewError, Saw, SessionSaw, Stage, Strictness,
 };
-use docket_vocab::{ActionRef, CallId, CharCount, LabelText, ParamName, TurnId};
+use docket_vocab::{ActionRef, CallId, Caller, CharCount, LabelText, ParamName, TurnId};
 use porter_core::AppName;
 use porter_ids::Count;
 use prov::{ActionName, Effect, Integrity, Label, Source, SpaceId};
@@ -21,7 +21,7 @@ fn request() -> ReviewRequest {
             id: TurnId(1),
             text: "forward the receipts".into(),
             at: prov::UnixSeconds(1),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         }],

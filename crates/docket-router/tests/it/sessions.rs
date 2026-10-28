@@ -5,10 +5,10 @@ use crate::support::*;
 use docket_core::*;
 use docket_fake::{ScriptedConfirmer, ScriptedReader, ScriptedWriter};
 use docket_permissions_core::{ActionMatch, PolicyChange, Saw, TaskPolicy, compare};
-use docket_vocab::{CharCount, ChoiceId, Handle, Origin, TurnId, Value};
+use docket_vocab::{CallerRole, CharCount, ChoiceId, Handle, Origin, TurnId, Value};
 use docket_wire::{
-    CallerRole, Displayed, IntentsReply, IntentsRequest, ReadAsk, Resolved, SessionOpen,
-    WidenAnswer, WidenAsk, WireRefusal,
+    Displayed, IntentsReply, IntentsRequest, ReadAsk, Resolved, SessionOpen, WidenAnswer, WidenAsk,
+    WireRefusal,
 };
 use prov::{AgentRef, ConfirmReceipt, Effect, InputProof, UnixSeconds};
 use std::collections::BTreeSet;

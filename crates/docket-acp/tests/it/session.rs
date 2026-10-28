@@ -2,10 +2,11 @@
 //! modes, cancel. The host is the scripted `FakeHost`; no network, no process.
 
 use crate::support::*;
-use docket_core::{StepEnd, TurnSource};
+use docket_core::StepEnd;
 use docket_permissions_core::DenyCode;
 use docket_session::TurnEnd;
 use docket_session::fake::MemoryLog;
+use docket_vocab::Caller;
 use prov::Effect;
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -337,7 +338,7 @@ async fn the_prompt_text_is_the_turn_and_attachments_are_not() {
     assert_eq!(host.turns.len(), 1);
     let turn = &host.turns[0].1;
     assert_eq!(turn.text, "summarise this\nbriefly");
-    assert_eq!(turn.from, TurnSource::Editor(app(EDITOR)));
+    assert_eq!(turn.from, Caller::editor(app(EDITOR)));
 }
 
 #[tokio::test]

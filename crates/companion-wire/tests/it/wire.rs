@@ -4,7 +4,7 @@ use companion_wire::*;
 use docket_core::*;
 use docket_permissions_core::DenyCode;
 use docket_vocab::{
-    ActionRef, Args, CallId, CallRequest, CardActionId, Handle, LabelText, Origin, StepId,
+    ActionRef, Args, CallId, CallRequest, Caller, CardActionId, Handle, LabelText, Origin, StepId,
     TargetValue, TurnId, UndoId, WindowKey,
 };
 use docket_wire::TaskLedger;
@@ -180,7 +180,7 @@ fn asks_and_the_front_pointer_round_trip() {
             id: TurnId(4),
             text: "archive the newsletters".into(),
             at: prov::UnixSeconds(5),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         },
@@ -236,7 +236,7 @@ fn session_records_carry_the_turn_verbatim_and_pin_their_tags() {
         id: TurnId(1),
         text: "archive the newsletters".into(),
         at: prov::UnixSeconds(5),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     };
@@ -289,7 +289,7 @@ fn an_asked_record_holds_the_persons_words_and_the_target_agent() {
         id: TurnId(2),
         text: "skip the newsletter folder".into(),
         at: prov::UnixSeconds(9),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Spoken,
         mode: None,
     };

@@ -9,9 +9,8 @@ use docket_session::{
     Claimant, Logged, PageSize, Seq, SessionLog, child_names, fork, forks_of, may_restore_opening,
     may_restore_plan, resume_plan,
 };
-use docket_wire::{
-    CallerId, CallerRole, IntentsReply, StoredAsk, StoredRow, StoredView, WireRefusal,
-};
+use docket_vocab::CallerRole;
+use docket_wire::{CallerId, IntentsReply, StoredAsk, StoredRow, StoredView, WireRefusal};
 use porter_ids::Count;
 use prov::SessionId;
 

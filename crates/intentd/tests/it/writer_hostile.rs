@@ -6,7 +6,7 @@
 use crate::support::inferd::*;
 use docket_core::*;
 use docket_permissions_core::{ReviewError, TaskPolicy, TrustedPattern};
-use docket_vocab::{ActionRef, TurnId, Value};
+use docket_vocab::{ActionRef, Caller, TurnId, Value};
 use intentd::InferdWriter;
 use prov::{Effect, SpaceId, TaskId, UnixSeconds};
 use serde_json::json;
@@ -16,7 +16,7 @@ fn turn(text: &str) -> UserTurn {
         id: TurnId(1),
         text: text.into(),
         at: UnixSeconds(1),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     }

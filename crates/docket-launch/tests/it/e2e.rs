@@ -110,7 +110,7 @@ async fn a_session_through_the_launcher_asks_porter_in_order_and_gives_it_all_ba
             id: docket_vocab::TurnId(1),
             text: "go".to_owned(),
             at: UnixSeconds(1),
-            from: docket_core::TurnSource::Launcher,
+            from: docket_vocab::Caller::launcher(),
             via: docket_core::TurnVia::Typed,
             mode: None,
         })

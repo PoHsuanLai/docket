@@ -22,7 +22,7 @@ use crate::peer::Peers;
 use docket_core::{ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmRequest, Confirmer};
 use docket_dbus::callers::Identity;
 use docket_dbus::{BusConnection, CONFIRM_BUS, ConfirmProxy};
-use docket_wire::CallerRole;
+use docket_vocab::CallerRole;
 use porter_core::AppName;
 use porter_daemon::ProcRoot;
 use std::collections::BTreeMap;

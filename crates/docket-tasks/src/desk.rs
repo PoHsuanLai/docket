@@ -9,8 +9,8 @@ use companion_wire::{
     BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineProposal,
     SayReply, TerminalSession,
 };
-use docket_core::{HelperRosterLine, TurnSource};
-use docket_vocab::TurnId;
+use docket_core::HelperRosterLine;
+use docket_vocab::{Caller, TurnId};
 use prov::{EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::fmt;
 use std::future::Future;
@@ -61,7 +61,7 @@ pub struct SayFromPerson {
     /// What the person said.
     pub text: String,
     /// Where it was recorded.
-    pub from: TurnSource,
+    pub from: Caller,
 }
 
 /// A helper the assistant proposes. Nothing exists until the person confirms the sheet the router

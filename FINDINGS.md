@@ -4086,3 +4086,9 @@ Two commits: the harness seams first, then the split.
 - `report_of(usage)` passes the charge through. The `invoke_agent` span writes `docket.charge` as `0.0042 USD` or leaves it out. An ACP agent's reported cost becomes `Money` only when the amount and the ISO code both read exactly; otherwise it is unpriced.
 - `Budget`, `Ledger`, `AgentConfig`, `Spent`, `TurnReport` and `TaskTotals` lost `Hash` (`Money` has none). The live eval reads `ChargeTotal` rows from inferd's ledger; `cost_per_1000` is `Option<Money>`.
 - Not verified by a build.
+
+## E-D4: one Caller (2026-10-28)
+- `docket_vocab::Caller` is the one caller type: a `CallerRole` and, for a field, an editor and an agent host, the app behind it. `CallerRole` moved from `docket-wire` to `docket-vocab` (same variants, same snake_case slugs, `CallerRole::ALL`); `TurnSource` (docket-core) and the router's `turn_source` mapper are gone, replaced by `Caller::{launcher, terminal, field, editor, agent}` and `Caller::of(role, app)`. A stored turn's `from` is unchanged (`{"kind":"launcher"}`, `{"kind":"field","v":"org.quire.Mail"}`, `terminal`, `editor`, `agent`); `docket-vocab/tests/it/caller.rs` pins it.
+- Kept on purpose: `GrantCaller` (the key a grant is stored under; it names a client, a program or a helper the role does not, filled in one place by `Who::grant_caller`; `GrantCaller::kind` stays its one match onto prov's `ActorKind`), `Speaker` (companion-core: the policy subject of the companion's bus, with a terminal's scope; `companiond::helpers_bus::caller_of` makes the `Caller` of the turns it records), `Origin` (the provider-wire vocabulary: eight values that are not roles, set at 65 sites).
+- `docket-acp` no longer depends on `docket-wire` (it only used `CallerRole`); `Cargo.lock` was edited by hand for that.
+- Not verified by a build; rustfmt ran on the touched files.

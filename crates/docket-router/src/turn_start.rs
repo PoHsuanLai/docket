@@ -13,9 +13,8 @@
 //! reading the person's own memory for their own request does not ask either.
 
 use crate::who::Who;
-use docket_core::{TurnSource, UserTurn};
-use docket_vocab::{CallRequest, Origin, RECALL_ACTION, RECALL_APP};
-use docket_wire::CallerRole;
+use docket_core::UserTurn;
+use docket_vocab::{CallRequest, CallerRole, Origin, RECALL_ACTION, RECALL_APP};
 use porter_core::GrantId;
 use porter_core::consent::{GrantScope, Verdict};
 use prov::{Actor, AgentRole};
@@ -32,10 +31,12 @@ pub(crate) enum TurnStart {
 }
 
 fn person_typed(turns: &[UserTurn]) -> bool {
-    matches!(
-        turns.last().map(|t| &t.from),
-        Some(TurnSource::Launcher | TurnSource::Field(_) | TurnSource::Editor(_))
-    )
+    turns.last().is_some_and(|t| {
+        matches!(
+            t.from.role(),
+            CallerRole::Launcher | CallerRole::Field | CallerRole::Editor
+        )
+    })
 }
 
 /// The memory app's reads of the person's own memory that the main planner may make unasked

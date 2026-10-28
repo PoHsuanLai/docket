@@ -5,14 +5,14 @@
 use crate::support::infer::{Say, ScriptedInfer, call, words};
 use crate::support::*;
 use docket_client::InProcess;
-use docket_core::{TurnSource, TurnVia, UserTurn};
+use docket_core::{TurnVia, UserTurn};
 use docket_fake::{FakeSeams, FixedClock};
 use docket_native::NativeBackend;
 use docket_planner::PlannerModel;
 use docket_session::contract::{self, Harness};
 use docket_session::{Opening, SessionBackend, StartSession};
 use docket_tasks::Quiet;
-use docket_vocab::TurnId;
+use docket_vocab::{Caller, TurnId};
 use docket_wire::SessionOpen;
 use futures_util::lock::Mutex;
 use prov::{AgentRef, UnixSeconds};
@@ -87,7 +87,7 @@ impl Harness for Native {
             id: TurnId(n),
             text: "archive the digest".into(),
             at: UnixSeconds(1_000),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         }

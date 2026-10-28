@@ -1,7 +1,8 @@
 //! Who may call which member of Intents1.
 
 use docket_router::*;
-use docket_wire::{CallerRole, Member};
+use docket_vocab::CallerRole;
+use docket_wire::Member;
 
 fn role_set(member: Member) -> Vec<CallerRole> {
     CallerRole::ALL

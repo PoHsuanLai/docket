@@ -76,8 +76,8 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::{TurnSource, TurnVia};
-    use docket_vocab::TurnId;
+    use docket_core::TurnVia;
+    use docket_vocab::{Caller, TurnId};
     use prov::UnixSeconds;
 
     fn turn(text: &str) -> UserTurn {
@@ -85,7 +85,7 @@ mod tests {
             id: TurnId(1),
             text: text.to_owned(),
             at: UnixSeconds(0),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         }

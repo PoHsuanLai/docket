@@ -16,8 +16,8 @@ use docket_permissions_core::{
 use docket_session::{
     BackendKind, LogFault, Opening, PageSize, Read, Seq, SessionEntry, SessionLog, Taint,
 };
-use docket_vocab::{ActionRef, CallRequest, LabelText, Origin, TargetValue, TurnId};
-use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen};
+use docket_vocab::{ActionRef, CallRequest, CallerRole, LabelText, Origin, TargetValue, TurnId};
+use docket_wire::{CallerId, IntentsReply, IntentsRequest, SessionOpen};
 use porter_core::AppName;
 use porter_ids::Count;
 use prov::{AgentRef, Integrity, SessionId, SpaceId, TaskId, UnixSeconds};
@@ -72,7 +72,7 @@ fn turn(n: u64) -> SessionEntry {
         id: TurnId(n),
         text: format!("turn {n}"),
         at: UnixSeconds(0),
-        from: TurnSource::Launcher,
+        from: docket_vocab::Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     })

@@ -17,9 +17,9 @@ use agent_client_protocol::schema::v1::{
     ContentBlock, Error, PromptRequest, PromptResponse, RequestPermissionRequest,
     RequestPermissionResponse, StopReason,
 };
-use docket_core::{TurnSource, TurnVia, UserTurn};
+use docket_core::{TurnVia, UserTurn};
 use docket_session::{BackendEvent, HostFault, SessionHost, SessionLog, TurnEnd};
-use docket_vocab::{Clock, TurnId};
+use docket_vocab::{Caller, Clock, TurnId};
 use futures_util::future::{Either, select};
 use prov::SessionId;
 use std::pin::pin;
@@ -118,7 +118,7 @@ impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {
             id: TurnId(self.mint()),
             text,
             at: self.ticks.now(),
-            from: TurnSource::Editor(self.editor.clone()),
+            from: Caller::editor(self.editor.clone()),
             via: TurnVia::Typed,
             mode: None,
         };

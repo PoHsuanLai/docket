@@ -6,11 +6,10 @@ use almanac_core::{EventRef, EventSummary, JsonText, KindTag, RecentEntry, Repli
 use companion_model::helper::*;
 use companion_wire::{HelperForm, SayReply};
 use docket_client::{InProcess, Intents};
-use docket_core::{AuditRecord, TurnIn, TurnSource, TurnVia};
+use docket_core::{AuditRecord, TurnIn, TurnVia};
 use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_tasks::{HelperDesk, SayFromPerson};
-use docket_vocab::{LabelText, Origin};
-use docket_wire::CallerRole;
+use docket_vocab::{Caller, CallerRole, LabelText, Origin};
 use porter_capability::ModelId;
 use porter_core::AccountId;
 use porter_ids::Count;
@@ -214,7 +213,7 @@ pub async fn editor_says(
             session: session.clone(),
             id,
             text: text.into(),
-            from: TurnSource::Editor(app("org.quire.Acp")),
+            from: Caller::editor(app("org.quire.Acp")),
         },
     )
     .await

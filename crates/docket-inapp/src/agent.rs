@@ -144,7 +144,7 @@ pub(crate) type Tasks<P, C, T, R, M, K, G, Y, W, D> =
 fn link_of<P, C, T, R, K, G, Y, W, D>(
     router: &Hosted<P, C, T, R, K, G, Y, W, D>,
     app: &AppName,
-    role: docket_wire::CallerRole,
+    role: docket_vocab::CallerRole,
 ) -> Link<P, C, T, R, K, G, Y, W, D>
 where
     P: IntentProvider + 'static,
@@ -342,7 +342,7 @@ where
             Err(poisoned) => poisoned.into_inner().registry = registry,
         }
         let router = Arc::new(router);
-        let companion = link_of(&router, &app, docket_wire::CallerRole::Companion);
+        let companion = link_of(&router, &app, docket_vocab::CallerRole::Companion);
         let tasks = Companion::new(
             companion,
             PlannerModel::new(parts.model),
@@ -351,7 +351,7 @@ where
             app.clone(),
         );
         Ok(Self {
-            person: link_of(&router, &app, docket_wire::CallerRole::Field),
+            person: link_of(&router, &app, docket_vocab::CallerRole::Field),
             router,
             tasks,
             app,

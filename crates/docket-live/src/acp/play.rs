@@ -12,12 +12,12 @@ use docket_accept::runlink::short_run;
 use docket_accept::world::{Binaries, Cgroup, World};
 use docket_acp_bin::harness::host::{HostError, Hosted, Places, SandboxLimits, Wiring, host};
 use docket_acp_host::{Fallback, Models, ToolsOffer};
-use docket_core::{TurnSource, TurnVia, UserTurn};
+use docket_core::{TurnVia, UserTurn};
 use docket_host::EditorDesk;
 use docket_launch::{AgentsFile, AgentsPermit, LoginOnly, Registry};
 use docket_permissions_core::ProgramName;
 use docket_session::{BackendEvent, EndCause, SessionHost, TurnEnd};
-use docket_vocab::TurnId;
+use docket_vocab::{Caller, TurnId};
 use prov::{SpaceId, UnixSeconds};
 use std::path::Path;
 use std::sync::Arc;
@@ -193,7 +193,7 @@ pub async fn play(
         id: TurnId(1),
         text: prompt.to_owned(),
         at: UnixSeconds(1),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     };

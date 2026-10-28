@@ -5,7 +5,9 @@ use almanac_core::{MemoryItem, RecallWhy};
 use docket_core::*;
 use docket_manifest::{AgentReach, Lasting, TargetKind};
 use docket_permissions_core::{BreakerTrip, DenyCode};
-use docket_vocab::{ActionRef, CallId, CharCount, Handle, LabelText, TurnId, UndoId, Value};
+use docket_vocab::{
+    ActionRef, CallId, Caller, CharCount, Handle, LabelText, TurnId, UndoId, Value,
+};
 use porter_core::AppName;
 use porter_ids::{Count, Tokens};
 use prov::{ActionName, Effect, Integrity, SpaceId, UnixSeconds};
@@ -86,7 +88,7 @@ fn sources() -> Sources {
             id: TurnId(1),
             text: "archive the newsletters".into(),
             at: UnixSeconds(5),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         }],
@@ -291,7 +293,7 @@ fn the_stable_sections_do_not_change_between_turns() {
         id: TurnId(2),
         text: "and the receipts".into(),
         at: UnixSeconds(99),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     });
@@ -371,7 +373,7 @@ fn long_turn(n: u64) -> UserTurn {
         id: TurnId(n),
         text: "x".repeat(400),
         at: UnixSeconds(n as i64),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     }

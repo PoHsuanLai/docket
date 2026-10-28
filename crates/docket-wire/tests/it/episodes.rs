@@ -2,9 +2,9 @@
 
 use crate::support::*;
 use almanac_core::{EpisodeKind, EpisodeOutcome, StepOutcome};
-use docket_core::{CallEnd, CallRefusal, TurnSource, TurnVia, UserTurn};
+use docket_core::{CallEnd, CallRefusal, TurnVia, UserTurn};
 use docket_permissions_core::DenyCode;
-use docket_vocab::{CallId, TurnId, UndoId};
+use docket_vocab::{CallId, Caller, TurnId, UndoId};
 use docket_wire::{LedgerStep, TaskLedger, close, skeleton_of};
 use prov::{AgentRef, Effect, Integrity, TaskId};
 use std::collections::BTreeSet;
@@ -21,7 +21,7 @@ fn ledger() -> TaskLedger {
             id: TurnId(1),
             text: "archive the newsletters".into(),
             at: at(100),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         }],

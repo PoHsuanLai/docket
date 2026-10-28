@@ -9,7 +9,7 @@ use companion_wire::{AnswerPhase, AnswerWire, AskWire};
 use companiond::serve_on_rooted;
 use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
-use docket_vocab::{Clock, Handle, Origin, WindowKey};
+use docket_vocab::{Caller, Clock, Handle, Origin, WindowKey};
 use docket_wire::{SessionOpen, SessionOpened, WireRefusal};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
@@ -255,7 +255,7 @@ async fn the_answer_object_names_its_session_and_close_removes_it() {
             id: turn,
             text: "read".into(),
             at: clock.now(),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         },

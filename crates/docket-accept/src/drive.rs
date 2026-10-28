@@ -5,9 +5,9 @@
 use crate::world::{GIVE_UP, World, within};
 use companion_wire::{AnswerWire, AskWire};
 use docket_client::{DbusTransport, Intents};
-use docket_core::{ContextKeep, Keep, TurnIn, TurnSource, TurnVia, UserTurn};
+use docket_core::{ContextKeep, Keep, TurnIn, TurnVia, UserTurn};
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy};
-use docket_vocab::{Origin, WindowKey};
+use docket_vocab::{Caller, Origin, WindowKey};
 use docket_wire::{SessionOpen, SessionOpened};
 use futures_util::StreamExt;
 use porter_core::AppName;
@@ -115,7 +115,7 @@ impl Launcher {
                 id,
                 text: text.into(),
                 at: UnixSeconds(1),
-                from: TurnSource::Launcher,
+                from: Caller::launcher(),
                 via: TurnVia::Typed,
                 mode: None,
             },

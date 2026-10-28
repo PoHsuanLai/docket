@@ -6,9 +6,9 @@
 
 use crate::support::bus::PrivateBus;
 use companion_wire::FrontTask;
-use docket_core::{Roster, TurnSource, TurnVia, UserTurn};
+use docket_core::{Roster, TurnVia, UserTurn};
 use docket_dbus::CompanionProxy;
-use docket_vocab::TurnId;
+use docket_vocab::{Caller, TurnId};
 use prov::{AgentRef, TaskId};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
@@ -61,7 +61,7 @@ fn turn() -> String {
         id: TurnId(1),
         text: "skip the newsletters".into(),
         at: prov::UnixSeconds(5),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     })

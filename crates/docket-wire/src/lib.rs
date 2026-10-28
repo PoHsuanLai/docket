@@ -1,5 +1,5 @@
 //! The wire of docket's `org.quire.Intents1` and the shapes that ride on it: every request and
-//! reply, the bodies they carry, who is calling (`CallerRole`, `CallerId`) and which member a
+//! reply, the bodies they carry, who is calling (`CallerId`, over the roles of `docket-vocab`) and which member a
 //! request is (`Member`), where a conversation was started from, the opening of a session and the
 //! ledger of a task, and summoning the companion into an app. Nothing here sends or receives: a
 //! transport carries these values as JSON.
@@ -21,7 +21,7 @@ pub use bodies::{
     RecallAsk, RecallView, RecentLine, Resolved, SessionModeAsk, SessionNote, StoredAsk, StoredRow,
     StoredView, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
 };
-pub use caller::{CallerId, CallerRole, is_terminal_scope};
+pub use caller::{CallerId, is_terminal_scope};
 pub use member::Member;
 pub use reply::IntentsReply;
 pub use request::IntentsRequest;

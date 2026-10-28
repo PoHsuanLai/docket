@@ -10,10 +10,9 @@ use companion_core::{Call, Speaker};
 use companion_model::SeenCommand;
 use companion_model::routine::RoutineId;
 use companion_wire::{HelperForm, ProposalId, RoutineForm, RoutineReply};
-use docket_core::TurnSource;
 use docket_helpers::RoutineDesk;
 use docket_tasks::{HelperDesk, PostFromPerson, SayFromPerson};
-use docket_vocab::TurnId;
+use docket_vocab::{Caller, TurnId};
 use porter_core::AppName;
 use prov::{EntityId, HelperId, SessionId};
 use std::sync::Arc;
@@ -39,11 +38,11 @@ fn proposal_of(text: &str) -> fdo::Result<ProposalId> {
 
 /// Where the router recorded a turn said by `speaker`: the editor bridge records as an editor,
 /// the shell as the launcher. No other speaker speaks in a conversation.
-fn turn_source(speaker: &Speaker) -> fdo::Result<TurnSource> {
+fn caller_of(speaker: &Speaker) -> fdo::Result<Caller> {
     match speaker {
-        Speaker::Shell => Ok(TurnSource::Launcher),
+        Speaker::Shell => Ok(Caller::launcher()),
         Speaker::Editor => AppName::parse(EDITOR_APP)
-            .map(TurnSource::Editor)
+            .map(Caller::editor)
             .map_err(|_| fdo::Error::Failed("the editor bridge has no app name".into())),
         Speaker::Terminal(_) => Err(fdo::Error::AccessDenied(
             "a terminal does not speak in a helper's conversation".into(),
@@ -419,7 +418,7 @@ impl Helpers2Object {
                     session,
                     id: TurnId(turn),
                     text,
-                    from: turn_source(&speaker)?,
+                    from: caller_of(&speaker)?,
                 })
                 .await,
         )

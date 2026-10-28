@@ -6,7 +6,7 @@ use docket_core::*;
 use docket_permissions_core::{
     ActionMatch, ReviewError, TaskPolicy, TaskPolicyState, TrustedPattern,
 };
-use docket_vocab::{ActionRef, TurnId, Value};
+use docket_vocab::{ActionRef, Caller, TurnId, Value};
 use intentd::InferdWriter;
 use porter_capability::LlmFeature;
 use porter_core::DataClass;
@@ -21,7 +21,7 @@ fn turn(id: u64, text: &str) -> UserTurn {
         id: TurnId(id),
         text: text.into(),
         at: UnixSeconds(1),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     }

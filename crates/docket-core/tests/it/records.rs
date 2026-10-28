@@ -7,8 +7,8 @@ use docket_permissions_core::{
     Stage, VerdictKind, Withheld,
 };
 use docket_vocab::{
-    ActionRef, Args, CallId, CallRequest, CharCount, Handle, LabelText, Millis, Origin, Seconds,
-    TargetValue, TurnId, Value,
+    ActionRef, Args, CallId, CallRequest, Caller, CharCount, Handle, LabelText, Millis, Origin,
+    Seconds, TargetValue, TurnId, Value,
 };
 use porter_ids::Count;
 use prov::{Address, AgentRef, ConfirmId, Effect, MessageKind, MessageText, ReportStatus, TaskId};
@@ -170,7 +170,7 @@ fn the_planner_view_and_the_roster_round_trip() {
             id: TurnId(1),
             text: "summarise this".into(),
             at: at(1),
-            from: TurnSource::Field(app("org.quire.Mail")),
+            from: Caller::field(app("org.quire.Mail")),
             via: TurnVia::Spoken,
             mode: None,
         }],

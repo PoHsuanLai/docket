@@ -9,14 +9,14 @@ use docket_core::EventSink;
 use docket_core::{
     ActionCard, Anchor, ArgLine, AuditRecord, ConfirmAnswer, ConfirmAnswerKind, ConfirmDetail,
     ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, Gesture, PolicyWriter, Shown,
-    TASK_POLICY_MAX, TaintNote, TurnSource, UserTurn, tool_schema,
+    TASK_POLICY_MAX, TaintNote, UserTurn, tool_schema,
 };
 use docket_manifest::{ActionDecl, AgentReach, Visibility};
 use docket_permissions_core::{
     ActionMatch, AskReason, PolicyChange, TaskPolicy, TaskPolicyState, TrustedPattern, Widening,
     compare, intersection,
 };
-use docket_vocab::{ActionRef, Clock, FileRef, LabelText, Workspace};
+use docket_vocab::{ActionRef, CallerRole, Clock, FileRef, LabelText, Workspace};
 use docket_wire::{IntentsReply, WidenAnswer, WireRefusal};
 use porter_core::AppName;
 use porter_ids::Count;
@@ -154,7 +154,10 @@ impl<S: Seams> Router<S> {
         policy.paths = anchored(policy.paths, record.cwd.as_ref());
         let latest = UnixSeconds(now.0.saturating_add(i64::from(TASK_POLICY_MAX.0)));
         policy.expires = policy.expires.min(latest);
-        if let Some(TurnSource::Field(app)) = record.turns.last().map(|t| &t.from) {
+        if let Some(from) = record.turns.last().map(|t| &t.from)
+            && from.role() == CallerRole::Field
+            && let Some(app) = from.app()
+        {
             policy = cap_to_app(policy, app, st);
         }
         let parent = st

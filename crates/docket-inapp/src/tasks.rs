@@ -7,11 +7,11 @@ use action_review::Reviewer;
 use agent_loop::LoopPhase;
 use companion_wire::FrontTask;
 use docket_core::MemoryLink;
-use docket_core::{PolicyWriter, Reader, Roster, TurnSource, TurnVia, UserTurn};
+use docket_core::{PolicyWriter, Reader, Roster, TurnVia, UserTurn};
 use docket_host::ConfirmSheet;
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::GrantStore;
-use docket_vocab::Clock;
+use docket_vocab::{Caller, Clock};
 use porter_client::Transport as ModelTransport;
 use prov::{AgentRef, TaskId};
 
@@ -73,7 +73,7 @@ where
             id: self.next_side_turn(),
             text: text.to_owned(),
             at: self.clock.now(),
-            from: TurnSource::Field(self.app.clone()),
+            from: Caller::field(self.app.clone()),
             via: TurnVia::Typed,
             mode: None,
         };

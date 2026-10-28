@@ -6,7 +6,8 @@
 use crate::support::world::*;
 use docket_client::Transport;
 use docket_settings::{AcpAgents, AcpExpose};
-use docket_wire::{CallerRole, IntentsReply, IntentsRequest, RecallAsk, SessionOpen, WireRefusal};
+use docket_vocab::CallerRole;
+use docket_wire::{IntentsReply, IntentsRequest, RecallAsk, SessionOpen, WireRefusal};
 use intentd::{ACP_NAME, AcpGate, IntentdConfig};
 use prov::{AgentRef, SessionId, SpaceId};
 use std::collections::BTreeMap;

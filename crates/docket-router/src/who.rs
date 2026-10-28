@@ -3,9 +3,10 @@
 
 use crate::labels::Voice;
 use crate::state::{RouterState, SessionRecord};
-use docket_core::{ExternalAgent, TurnSource};
+use docket_core::ExternalAgent;
 use docket_permissions_core::{GrantCaller, ProgramName};
-use docket_wire::{CallerId, CallerRole, WireRefusal};
+use docket_vocab::CallerRole;
+use docket_wire::{CallerId, WireRefusal};
 use porter_core::AppName;
 use prov::{Actor, AgentRef, AgentRole, ClientName, SessionId, TaskId};
 
@@ -58,10 +59,11 @@ pub(crate) fn acp_client(program: &ProgramName) -> Option<ClientName> {
 /// The editor the person last spoke through in `record`: the app that recorded its latest turn,
 /// if that turn came from an editor.
 pub(crate) fn editor_of(record: &SessionRecord) -> Option<ClientName> {
-    match record.turns.last().map(|t| &t.from) {
-        Some(TurnSource::Editor(app)) => ClientName::parse(app.as_str()).ok(),
-        _ => None,
+    let from = &record.turns.last()?.from;
+    if from.role() != CallerRole::Editor {
+        return None;
     }
+    ClientName::parse(from.app()?.as_str()).ok()
 }
 
 /// Where a sheet for a call of `who` goes when an editor is driving its session.

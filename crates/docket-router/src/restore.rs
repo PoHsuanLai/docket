@@ -10,8 +10,8 @@ use docket_session::{
     Claimant, LogFault, Logged, PageSize, PlanRefusal, Seq, SessionLog, Standing, may_restore_plan,
     resume_plan,
 };
-use docket_vocab::Clock;
-use docket_wire::{CallerId, CallerRole, IntentsRequest};
+use docket_vocab::{CallerRole, Clock};
+use docket_wire::{CallerId, IntentsRequest};
 use porter_ids::Count;
 use prov::SessionId;
 use std::sync::Arc;

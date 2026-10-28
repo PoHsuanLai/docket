@@ -13,9 +13,7 @@ use docket_acp_host::{
     AcpBackend, AgentHost, Fallback, IntentsCourt, Parts, Performer, Seams, ToolsOffer,
 };
 use docket_client::InProcess;
-use docket_core::{
-    AgentConfig, ConfirmAnswer, ConfirmEnd, ConfirmRequest, TurnSource, TurnVia, UserTurn,
-};
+use docket_core::{AgentConfig, ConfirmAnswer, ConfirmEnd, ConfirmRequest, TurnVia, UserTurn};
 use docket_fake::{
     FixedClock, ScriptedConfirmer, ScriptedReviewer, ScriptedWriter, fake_router_over,
 };
@@ -27,9 +25,8 @@ use docket_permissions_core::{
 use docket_router::GrantStore;
 use docket_session::fake::MemoryLog;
 use docket_session::{BackendEvent, BackendKind, Opening, SessionHost, SheetChoice, TurnEnd};
-use docket_vocab::Workspace;
-use docket_vocab::{LabelText, TurnId};
-use docket_wire::{CallerId, CallerRole};
+use docket_vocab::{Caller, CallerRole, LabelText, TurnId, Workspace};
+use docket_wire::CallerId;
 use porter_core::{AppId, Isolation};
 use porter_ids::Count;
 use prov::{AgentRef, Effect, SessionId, SpaceId, TaskId, UnixSeconds};
@@ -78,7 +75,7 @@ pub fn turn(n: u64, text: &str) -> UserTurn {
         id: TurnId(n),
         text: text.to_owned(),
         at: UnixSeconds(1_760_000_000),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     }

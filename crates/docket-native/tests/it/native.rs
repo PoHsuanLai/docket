@@ -3,15 +3,14 @@
 
 use crate::support::infer::{call, words};
 use crate::support::*;
-use docket_core::{TurnSource, TurnState, TurnVia, UserTurn};
+use docket_core::{TurnState, TurnVia, UserTurn};
 use docket_session::fake::MemoryLog;
 use docket_session::{
     BackendEvent, BackendKind, CallEvent, DeskFault, EndCause, Opening, Read, Seq, SessionEntry,
     SessionHost, SheetChoice, SheetDesk, Standing, TurnEnd, read_all,
 };
-use docket_vocab::TurnId;
-use docket_vocab::Workspace;
-use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest};
+use docket_vocab::{Caller, CallerRole, TurnId, Workspace};
+use docket_wire::{CallerId, IntentsReply, IntentsRequest};
 use porter_core::{AppId, Isolation};
 use prov::{AgentRef, UnixSeconds};
 use serde_json::json;
@@ -38,7 +37,7 @@ fn said(text: &str) -> UserTurn {
         id: TurnId(1),
         text: text.into(),
         at: UnixSeconds(1_000),
-        from: TurnSource::Editor(app("org.quire.Acp")),
+        from: Caller::editor(app("org.quire.Acp")),
         via: TurnVia::Typed,
         mode: None,
     }
@@ -97,7 +96,7 @@ async fn a_turn_is_announced_made_and_told_and_the_router_records_it() {
     };
     assert_eq!(o.cwd, Some(Workspace::parse("/work/a").expect("cwd")));
     assert!(log.iter().any(
-        |e| matches!(e, SessionEntry::Turn(t) if t.from == TurnSource::Editor(app("org.quire.Acp")))
+        |e| matches!(e, SessionEntry::Turn(t) if t.from == Caller::editor(app("org.quire.Acp")))
     ));
     assert!(log.iter().any(|e| matches!(e, SessionEntry::Call(_))));
     assert!(log.iter().any(|e| matches!(e, SessionEntry::Step(_))));

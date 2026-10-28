@@ -6,7 +6,7 @@ use crate::support::inferd::*;
 use action_review::{ReviewVerdict, Reviewer};
 use docket_core::ReviewTimeouts;
 use docket_permissions_core::{ReviewError, Stage};
-use docket_vocab::Millis;
+use docket_vocab::{Caller, Millis};
 use intentd::InferdModel;
 use porter_capability::Tier;
 use porter_capability::{LlmFeature, Modality};
@@ -264,7 +264,7 @@ fn review_request() -> action_review::ReviewRequest {
             id: TurnId(1),
             text: "archive the newsletters".into(),
             at: prov::UnixSeconds(1),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         }],

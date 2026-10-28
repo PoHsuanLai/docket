@@ -4,7 +4,7 @@
 use agent_loop::*;
 use companion_wire::SessionRecord;
 use docket_core::*;
-use docket_vocab::TurnId;
+use docket_vocab::{Caller, TurnId};
 use prov::{AgentRef, SpaceId, TaskId, UnixSeconds};
 
 pub fn space(s: &str) -> SpaceId {
@@ -24,7 +24,7 @@ pub fn turn(id: u64, text: &str, t: i64) -> UserTurn {
         id: TurnId(id),
         text: text.into(),
         at: at(t),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     }

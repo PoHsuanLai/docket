@@ -4,15 +4,15 @@
 use docket_core::Confirmer;
 use docket_core::{
     Anchor, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmOffer, ConfirmParts, ConfirmRequest,
-    ContextSnapshot, Gesture, Here, Selection, TaintNote, TextTarget, TurnSource, TurnVia,
-    UserTurn, Visible, WindowPrivacy,
+    ContextSnapshot, Gesture, Here, Selection, TaintNote, TextTarget, TurnVia, UserTurn, Visible,
+    WindowPrivacy,
 };
 use docket_live::attack_planner::{ask_of, planner_model_name};
 use docket_live::engine::hijacked_judge_cassette;
 use docket_live::person::Person;
 use docket_live::report_file::write_report;
 use docket_permissions_core::AskReason;
-use docket_vocab::{LabelText, Seconds, TurnId};
+use docket_vocab::{Caller, LabelText, Seconds, TurnId};
 use eval_core::Place;
 use futures_util::FutureExt;
 use porter_core::AppName;
@@ -147,7 +147,7 @@ fn an_attack_turn_is_asked_from_the_place_the_case_names() {
         id: TurnId(1),
         text: "summarise this thread".to_owned(),
         at: UnixSeconds(1),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     };

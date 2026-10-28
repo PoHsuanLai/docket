@@ -97,9 +97,9 @@ pub async fn stored_events<L: SessionLog>(
 mod tests {
     use super::*;
     use companion_wire::AnswerPhase;
-    use docket_core::{TurnSource, TurnVia, UserTurn};
+    use docket_core::{TurnVia, UserTurn};
     use docket_session::{BackendKind, Seq};
-    use docket_vocab::{TurnId, Workspace};
+    use docket_vocab::{Caller, TurnId, Workspace};
     use prov::SpaceId;
 
     fn opening(task: &str, cwd: Option<&str>) -> SessionEntry {
@@ -123,7 +123,7 @@ mod tests {
             id: TurnId(1),
             text: "hello".into(),
             at: UnixSeconds(at),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         })

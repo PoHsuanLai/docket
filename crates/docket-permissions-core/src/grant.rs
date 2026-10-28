@@ -26,6 +26,11 @@ pub struct ActionGrantKey {
 
 /// The caller kinds a grant names. `Mcp` and `App` grants are per party, so the key carries
 /// who; the others are one party each.
+///
+/// This is the key a grant is stored under, not the caller of a request ([`docket_vocab::Caller`]
+/// and its role are that): it names a client, a program or a helper that the role does not, and
+/// it is filled from the connection and the session in one place, the router's
+/// `Who::grant_caller`. Its stored form is the grant files'.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
 pub enum GrantCaller {

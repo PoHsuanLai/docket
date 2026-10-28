@@ -8,7 +8,8 @@
 
 use crate::{Opening, ResumePlan};
 use companion_model::helper::SeatPlace;
-use docket_wire::{CallerRole, StartedFrom};
+use docket_vocab::CallerRole;
+use docket_wire::StartedFrom;
 use prov::AppName;
 
 /// A caller asking for a stored session.

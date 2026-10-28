@@ -8,8 +8,8 @@ use docket_core::*;
 use docket_fake::{FakeSeams, MailContact, ScriptedConfirmer, ScriptedWriter};
 use docket_permissions_core::{ActionMatch, AlwaysOffer, AskReason, GrantCaller, TaskPolicy};
 use docket_router::Router;
-use docket_vocab::{CallRequest, Value};
-use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest};
+use docket_vocab::{CallRequest, CallerRole, Value};
+use docket_wire::{CallerId, IntentsReply, IntentsRequest};
 use prov::{AgentRef, ClientName, Effect, Labelled, SessionId};
 
 const ZED: &str = "org.zed.Zed";

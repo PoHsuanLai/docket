@@ -11,9 +11,9 @@ use docket_permissions_core::{
     LimitLevel, LimitMaker, LimitScope,
 };
 use docket_router::GrantStore;
+use docket_vocab::CallerRole;
 use docket_wire::{
-    CallerId, CallerRole, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, SessionOpen,
-    WireRefusal,
+    CallerId, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, SessionOpen, WireRefusal,
 };
 use prov::{AgentRef, ConfirmReceipt, Effect, InputProof, Label, RunId, SpaceScope, UnixSeconds};
 

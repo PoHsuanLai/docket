@@ -3,10 +3,9 @@
 
 use crate::support::*;
 use docket_core::*;
-use docket_vocab::Origin;
+use docket_vocab::{CallerRole, Origin};
 use docket_wire::{
-    CallerRole, IntentsReply, IntentsRequest, SessionOpen, StoredAsk, StoredRow, StoredView,
-    WireRefusal,
+    IntentsReply, IntentsRequest, SessionOpen, StoredAsk, StoredRow, StoredView, WireRefusal,
 };
 use prov::AgentRef;
 

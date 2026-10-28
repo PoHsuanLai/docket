@@ -1,6 +1,6 @@
 [package]
 name = "docket-wire"
-description = "The wire of docket's `org.quire.Intents1`: every request and reply and the bodies they carry, the caller's role and the member a request is, where a conversation was started from, the opening of a session and the ledger of a task, and summoning the companion. Sits above docket-core and docket-gate-wire."
+description = "The wire of docket's `org.quire.Intents1`: every request and reply and the bodies they carry, who is calling and the member a request is, where a conversation was started from, the opening of a session and the ledger of a task, and summoning the companion. Sits above docket-core and docket-gate-wire."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

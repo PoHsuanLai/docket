@@ -11,10 +11,10 @@ use companiond::serve_on_rooted;
 use docket_core::*;
 use docket_dbus::callers::Role;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
-use docket_vocab::{Clock, Origin, WindowKey};
+use docket_vocab::{Caller, CallerRole, Clock, Origin, WindowKey};
 use docket_wire::{
-    CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, SessionOpened, StartedFrom,
-    StoredAsk, StoredView, TerminalScope,
+    CallerId, IntentsReply, IntentsRequest, SessionOpen, SessionOpened, StartedFrom, StoredAsk,
+    StoredView, TerminalScope,
 };
 use futures_util::lock::Mutex;
 use porter_daemon::ProcRoot;
@@ -96,7 +96,7 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
             id: turn,
             text: "hello".into(),
             at: hand.now(),
-            from: TurnSource::Terminal,
+            from: Caller::terminal(),
             via: TurnVia::Typed,
             mode: None,
         },

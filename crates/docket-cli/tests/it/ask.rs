@@ -10,10 +10,10 @@ use companion_wire::{
 };
 use docket_cli::{Exit, JsonFlag, Stdout, ask_companion};
 use docket_client::{InProcess, Intents, TransportError};
-use docket_core::{ConfirmId, ContextKeep, Keep, Reveal, TurnSource};
+use docket_core::{ConfirmId, ContextKeep, Keep, Reveal};
 use docket_fake::FakeSeams;
-use docket_vocab::{ActionRef, LabelText, StepId};
-use docket_wire::{CallerRole, SessionOpen, SessionOpened, StartedFrom, TerminalScope};
+use docket_vocab::{ActionRef, Caller, CallerRole, LabelText, StepId};
+use docket_wire::{SessionOpen, SessionOpened, StartedFrom, TerminalScope};
 use porter_capability::{Locality, ModelId};
 use porter_core::{AccountId, DataClass};
 use porter_infer::ServedBy;
@@ -189,7 +189,7 @@ async fn an_answer_prints_its_text_the_plan_and_what_it_was_made_of_and_the_sess
     assert_eq!(seen.asked.len(), 1);
     let ask = &seen.asked[0];
     assert_eq!(ask.turn.text, "what is on my calendar");
-    assert_eq!(ask.turn.from, TurnSource::Terminal);
+    assert_eq!(ask.turn.from, Caller::terminal());
     assert_eq!(ask.turn.at, UnixSeconds(1_000));
     assert_eq!(seen.closed, vec![ask.session.clone()]);
     assert_eq!(run.desk.sheets(), 0);

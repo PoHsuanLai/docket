@@ -140,3 +140,6 @@ What docket adds or decides differently, each with its reason:
     or `Option`, not a two-arm enum; a named two-arm enum stays only where its JSON is a contract
     (the bus, the audit log, a file) or it reads better at three or more sites. (g) If the type can
     say it, no runtime check says it; a single-variant enum is not a type.
+    `docket_vocab::Caller` (a `CallerRole` and the app behind it) is the one caller type; `GrantCaller`
+    (a grant's key) and `Speaker` (the companion bus's policy subject) are different facts and are
+    filled from the connection, not declared again.

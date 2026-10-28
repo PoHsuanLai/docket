@@ -3,15 +3,14 @@
 
 use agent_loop::{Sources, assemble};
 use docket_core::{
-    AgentConfig, Covers, StepEnd, StepLine, StepShown, Summary, SummaryText, TurnSource, TurnVia,
-    UserTurn,
+    AgentConfig, Covers, StepEnd, StepLine, StepShown, Summary, SummaryText, TurnVia, UserTurn,
 };
 use docket_session::{
     BackendKind, Compacted, CompactedBy, Logged, Opening, Read, Seq, SessionEntry, Taint,
     TaintCause, TaintNote, resume_plan,
 };
 use docket_tasks::nowhere;
-use docket_vocab::{ActionRef, CallId, LabelText, TurnId};
+use docket_vocab::{ActionRef, CallId, Caller, LabelText, TurnId};
 use porter_capability::Tier;
 use porter_core::AppName;
 use porter_ids::Count;
@@ -42,7 +41,7 @@ fn turn() -> UserTurn {
         id: TurnId(1),
         text: "archive the old items".into(),
         at: UnixSeconds(1),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     }

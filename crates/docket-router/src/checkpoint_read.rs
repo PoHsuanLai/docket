@@ -10,8 +10,8 @@ use docket_core::{
     RestorePlan, Retention, SavedState,
 };
 use docket_session::{Claimant, may_restore, note_rows};
-use docket_vocab::Workspace;
-use docket_wire::{CallerId, CallerRole, IntentsReply, WireRefusal};
+use docket_vocab::{CallerRole, Workspace};
+use docket_wire::{CallerId, IntentsReply, WireRefusal};
 use prov::{AgentLabel, SessionId};
 
 /// What a surface may know of one session's restore points.

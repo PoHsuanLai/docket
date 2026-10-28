@@ -10,13 +10,13 @@ use companion_wire::{JobLine, JobShown, ToldWire};
 use docket_acp::{ConversationTurns, HelperRefusal, HelperRow, Helpers};
 use docket_core::{
     Anchor, AppRefusal, CallRefusal, ConfirmDetail, ConfirmId, ConfirmOffer, ConfirmParts,
-    ConfirmRequest, FailText, Gesture, StepEnd, TaintNote, TurnSource, UserTurn,
+    ConfirmRequest, FailText, Gesture, StepEnd, TaintNote, UserTurn,
 };
 use docket_permissions_core::{AlwaysOffer, StandingScope};
 use docket_session::fake::MemoryLog;
 use docket_session::{BackendEvent, BackendKind, Opening, Seq, SessionEntry, SessionLog};
 use docket_session::{SheetChoice, TurnEnd};
-use docket_vocab::{LabelText, Seconds};
+use docket_vocab::{Caller, LabelText, Seconds};
 use porter_ids::Count;
 use prov::{Actor, AgentRef, Effect, HelperId, SessionId, SpaceId, TaskId};
 use serde_json::{Value, json};
@@ -297,7 +297,7 @@ async fn a_prompt_in_a_helpers_job_session_is_the_persons_turn_with_the_editors_
     let (at, turn) = &host.turns[0];
     assert_eq!(at, &session("s-70"));
     assert_eq!(turn.text, "compare the three offers");
-    assert!(matches!(&turn.from, TurnSource::Editor(a) if *a == app(EDITOR)));
+    assert_eq!(turn.from, Caller::editor(app(EDITOR)));
 }
 
 #[tokio::test]
@@ -326,7 +326,7 @@ async fn a_prompt_in_a_helpers_conversation_goes_to_the_helper_and_streams_its_w
     assert_eq!(said.len(), 1);
     assert_eq!(said[0].0, session("s-61"));
     assert_eq!(said[0].1.text, "compare the three offers");
-    assert!(matches!(&said[0].1.from, TurnSource::Editor(a) if *a == app(EDITOR)));
+    assert_eq!(said[0].1.from, Caller::editor(app(EDITOR)));
     assert!(server.into_host().turns.is_empty());
 }
 

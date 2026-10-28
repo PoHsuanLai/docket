@@ -14,8 +14,8 @@ use companion_wire::{
 use docket_acp::{ConversationTurns, HelperRefusal, Helpers};
 use docket_acp_bin::helpers::{BusHelpers, LiveHelpers, Records};
 use docket_client::TransportError;
-use docket_core::{TurnEnd, TurnSource, TurnVia, UserTurn};
-use docket_vocab::TurnId;
+use docket_core::{TurnEnd, TurnVia, UserTurn};
+use docket_vocab::{Caller, TurnId};
 use futures_util::stream;
 use porter_ids::Count;
 use prov::{EntityId, HelperId, SessionId, SpaceId};
@@ -256,7 +256,7 @@ fn spoken(text: &str) -> UserTurn {
         id: TurnId(1),
         text: text.to_owned(),
         at: prov::UnixSeconds(0),
-        from: TurnSource::Editor(porter_core::AppName::parse("org.quire.Acp").expect("app")),
+        from: Caller::editor(porter_core::AppName::parse("org.quire.Acp").expect("app")),
         via: TurnVia::Typed,
         mode: None,
     }

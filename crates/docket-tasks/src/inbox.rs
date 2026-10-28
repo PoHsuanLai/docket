@@ -13,10 +13,10 @@ use agent_loop::{Attention, CompletionNote, LoopInput, LoopPhase, SideInput, att
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
     Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft, Outcome,
-    Reveal, RosterDetail, RosterFull, RosterLine, RosterState, TurnSource, TurnVia,
+    Reveal, RosterDetail, RosterFull, RosterLine, RosterState, TurnVia,
 };
 use docket_planner::Planner;
-use docket_vocab::{Clock, Handle, TurnId, Value};
+use docket_vocab::{Caller, Clock, Handle, TurnId, Value};
 use docket_wire::{SessionOpen, SessionOpened};
 use porter_core::AppName;
 use porter_ids::Count;
@@ -253,7 +253,7 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
             id: TurnId(turn_number(line)),
             text,
             at: self.clock.now(),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         };

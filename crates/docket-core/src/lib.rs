@@ -79,7 +79,7 @@ pub use message::{
 };
 pub use planner::{
     ActionCard, HandleCard, HandleShape, Held, PlannerView, ReplyFault, StepEnd, StepLine,
-    StepShown, TurnIn, TurnSource, TurnVia, UserTurn,
+    StepShown, TurnIn, TurnVia, UserTurn,
 };
 pub use preview::{
     FactLine, FileFacts, FileMove, Markdownish, MessageSnip, PageIndex, Preview, TimeRange, size_of,

@@ -10,7 +10,7 @@ use almanac_core::{Succession, UserText};
 use docket_core::*;
 use docket_fake::ScriptedWriter;
 use docket_permissions_core::{ActionMatch, PolicyChange, TaskPolicy, compare};
-use docket_vocab::{ActionRef, CallId, CharCount, NoteSlug, TurnId};
+use docket_vocab::{ActionRef, CallId, Caller, CharCount, NoteSlug, TurnId};
 use docket_wire::{
     HelperNote, IntentsReply, IntentsRequest, LedgerStep, NoteAsk, SessionNote, WireRefusal,
 };
@@ -335,7 +335,7 @@ fn turn() -> UserTurn {
         id: TurnId(1),
         text: "only read it, send nothing".into(),
         at: UnixSeconds(5),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     }

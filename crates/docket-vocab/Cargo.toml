@@ -1,6 +1,6 @@
 [package]
 name = "docket-vocab"
-description = "docket's smallest vocabulary: ids, units, values and their arguments, call requests and classes, RFC 3339 dates, the workspace name, the `Clock` seam and the text marks a name may not carry."
+description = "docket's smallest vocabulary: ids, units, values and their arguments, call requests and classes, who is calling, RFC 3339 dates, the workspace name, the `Clock` seam and the text marks a name may not carry."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

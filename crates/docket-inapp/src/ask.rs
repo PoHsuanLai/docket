@@ -9,15 +9,13 @@ use action_review::Reviewer;
 use agent_loop::{FinishedAs, LoopPhase, LoopState};
 use companion_wire::{AnswerPhase, AskWire, NeedsYou};
 use docket_core::MemoryLink;
-use docket_core::{
-    ContextKeep, Keep, PolicyWriter, Reader, TurnEnd, TurnIn, TurnSource, TurnVia, UserTurn,
-};
+use docket_core::{ContextKeep, Keep, PolicyWriter, Reader, TurnEnd, TurnIn, TurnVia, UserTurn};
 use docket_host::ConfirmSheet;
 use docket_planner::PlanFault;
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::GrantStore;
 use docket_tasks::{Failure, TaskRuntime};
-use docket_vocab::{Clock, Origin, WindowKey};
+use docket_vocab::{Caller, Clock, Origin, WindowKey};
 use docket_wire::SessionOpen;
 use porter_client::Transport as ModelTransport;
 use prov::{AgentRef, TaskId};
@@ -127,7 +125,7 @@ where
             id,
             text: text.to_owned(),
             at: self.clock.now(),
-            from: TurnSource::Field(self.app.clone()),
+            from: Caller::field(self.app.clone()),
             via: TurnVia::Typed,
             mode: None,
         };

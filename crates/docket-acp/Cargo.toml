@@ -18,7 +18,6 @@ agent-client-protocol = { workspace = true }
 companion-model = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
-docket-wire = { workspace = true }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 docket-session = { workspace = true }

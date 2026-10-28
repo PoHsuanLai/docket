@@ -114,7 +114,7 @@ pub async fn run(
             id: docket_vocab::TurnId(n),
             text,
             at: UnixSeconds(0),
-            from: docket_core::TurnSource::Launcher,
+            from: docket_vocab::Caller::launcher(),
             via: docket_core::TurnVia::Typed,
             mode: None,
         };

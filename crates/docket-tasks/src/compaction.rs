@@ -56,8 +56,8 @@ mod tests {
     use docket_core::{AgentConfig, StepEnd, StepLine, StepShown, SummaryText};
     use docket_fake::{FixedClock, fake_router};
     use docket_planner::{ScriptedPlanner, Summarised};
-    use docket_vocab::{ActionRef, CallId, LabelText};
-    use docket_wire::{CallerId, CallerRole, SessionOpen};
+    use docket_vocab::{ActionRef, CallId, CallerRole, LabelText};
+    use docket_wire::{CallerId, SessionOpen};
     use porter_capability::Tier;
     use porter_core::{AppId, AppName, Isolation};
     use porter_ids::Tokens;

@@ -19,9 +19,7 @@ use docket_session::{
     BackendKind, Claimant, Opening, ResumePlan, SessionHost, SessionLog, may_restore_plan,
     read_all, resume_plan,
 };
-use docket_vocab::Clock;
-use docket_vocab::Workspace;
-use docket_wire::CallerRole;
+use docket_vocab::{CallerRole, Clock, Workspace};
 use prov::{AgentRef, SessionId, TaskId};
 use std::path::Path;
 

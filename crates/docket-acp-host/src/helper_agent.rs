@@ -18,11 +18,11 @@ use super::host::AgentHost;
 use super::spawn::SignIn;
 use companion_model::helper::{HandFault, SignInHow, SignInWay, TerminalLogin, UntrustedWords};
 use companion_model::{AppSessionId, WatchedAgent};
-use docket_core::{Reveal, TurnSource, TurnVia, UserTurn};
+use docket_core::{Reveal, TurnVia, UserTurn};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, HostFault, Opening, SessionHost, SheetDesk, TurnEnd,
 };
-use docket_vocab::TurnId;
+use docket_vocab::{Caller, TurnId};
 use prov::{SessionId, UnixSeconds};
 use std::future::Future;
 
@@ -335,7 +335,7 @@ impl<H: Hosts> HelperAgent<H> {
             id: TurnId(self.turns),
             text: goal.to_owned(),
             at,
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         };

@@ -14,8 +14,10 @@ use docket_permissions_core::{
     TaskPolicy, Withheld, acp_agent_action, acp_agent_app,
 };
 use docket_router::Router;
-use docket_vocab::{CallRequest, ChoiceId, FileRef, Origin, TargetValue, Value, Workspace};
-use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, WireRefusal};
+use docket_vocab::{
+    CallRequest, Caller, CallerRole, ChoiceId, FileRef, Origin, TargetValue, Value, Workspace,
+};
+use docket_wire::{CallerId, IntentsReply, IntentsRequest, SessionOpen, WireRefusal};
 use prov::{Actor, AgentRef, ClientName, DataClass, Effect, Label, Labelled, SessionId, Source};
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
@@ -487,7 +489,7 @@ async fn the_policy_comes_from_the_persons_typed_turn_and_the_host_cannot_speak_
         .clone();
     assert_eq!(
         turns.last().map(|t| &t.from),
-        Some(&TurnSource::Agent(
+        Some(&Caller::agent(
             porter_core::AppName::parse(HOST).expect("app")
         ))
     );

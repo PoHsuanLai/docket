@@ -4,7 +4,8 @@
 use crate::support::*;
 use docket_core::{ActivatedInvocation, ActivationToken, Invocation};
 use docket_router::Router;
-use docket_wire::{CallerRole, IntentsReply, IntentsRequest};
+use docket_vocab::CallerRole;
+use docket_wire::{IntentsReply, IntentsRequest};
 
 fn token() -> ActivationToken {
     ActivationToken::parse("xdg-activation-1234").expect("token")

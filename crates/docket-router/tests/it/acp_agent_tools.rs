@@ -6,8 +6,8 @@ use crate::acp_agent::{CLAUDE, host, world};
 use crate::support::*;
 use docket_core::*;
 use docket_permissions_core::DenyCode;
-use docket_vocab::CallRequest;
-use docket_wire::{CallerRole, IntentsReply, IntentsRequest, WireRefusal};
+use docket_vocab::{CallRequest, CallerRole};
+use docket_wire::{IntentsReply, IntentsRequest, WireRefusal};
 use prov::Actor;
 
 fn read_thread() -> CallRequest {

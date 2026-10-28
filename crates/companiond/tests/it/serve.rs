@@ -12,7 +12,7 @@ use docket_dbus::{
     Bus, COMPANION_BUS, COMPANION_PATH, CompanionAnswerProxy, CompanionProxy, Details,
     introspection,
 };
-use docket_vocab::{Clock, Origin, TurnId, WindowKey};
+use docket_vocab::{Caller, Clock, Origin, TurnId, WindowKey};
 use docket_wire::{SessionOpen, SessionOpened};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
@@ -127,7 +127,7 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
             id: turn,
             text: "hello".into(),
             at: hand.now(),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         },
@@ -252,7 +252,7 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
             id: turn,
             text: "hello".into(),
             at: prov::UnixSeconds(0),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         },
@@ -304,7 +304,7 @@ async fn only_the_shell_speaks_for_the_person() {
         id: TurnId(1),
         text: "archive everything".into(),
         at: prov::UnixSeconds(0),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     };

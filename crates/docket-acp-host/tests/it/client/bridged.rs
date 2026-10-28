@@ -10,11 +10,12 @@ use super::rig::{
 };
 use action_review::{ReviewReason, ReviewVerdict};
 use docket_acp_host::Fallback;
-use docket_core::{AuditRecord, TurnSource};
+use docket_core::AuditRecord;
 use docket_fake::{ReviewMode, ScriptedReviewer};
 use docket_permissions_core::{GrantCaller, ReasonCode, ReasonText, StandingScope};
 use docket_session::{BackendEvent, SheetChoice};
-use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest};
+use docket_vocab::{Caller, CallerRole};
+use docket_wire::{CallerId, IntentsReply, IntentsRequest};
 use porter_core::{AppId, AppName, Isolation};
 use std::collections::BTreeSet;
 
@@ -243,7 +244,7 @@ async fn the_persons_prompt_is_what_derives_the_task_and_is_recorded_as_the_host
     assert_eq!(record.turns[0].text, "update the changelog");
     assert_eq!(
         record.turns[0].from,
-        TurnSource::Agent(AppName::parse(super::rig::HOST).expect("app"))
+        Caller::agent(AppName::parse(super::rig::HOST).expect("app"))
     );
     assert!(
         record.policy.is_some(),

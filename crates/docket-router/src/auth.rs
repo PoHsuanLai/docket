@@ -1,6 +1,7 @@
 //! Who may call which member of `Intents1`: a table from member to roles, pure.
 
-use docket_wire::{CallerRole, Member};
+use docket_vocab::CallerRole;
+use docket_wire::Member;
 
 use CallerRole::{
     AcpAgent, App, Cli, Companion, Compositor, Control, Cua, Editor, Field, Launcher, Mcp, Reader,
@@ -30,7 +31,7 @@ fn roles(member: Member) -> &'static [CallerRole] {
         Member::SessionClose => &[Launcher, Field, Editor, Companion, Cua, Cli, AcpAgent],
         // Only the person's own surfaces record a turn: a model cannot say what the person said.
         // A terminal is one of them for `quire-do ask` (the person at a keyboard, the same user),
-        // and its turns are recorded as `TurnSource::Terminal`, never as the launcher's.
+        // and its turns are recorded as `Caller::terminal()`, never as the launcher's.
         Member::SessionTurn => &[Launcher, Field, Editor, Cli, AcpAgent],
         // The host that recorded a turn says when it ended: exactly the roles of `Session.Turn`,
         // `AcpAgent` included (it is the role docket's external-agent host runs as, and it

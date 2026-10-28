@@ -5,7 +5,7 @@ use docket_permissions_core::{
     ActionMatch, PolicyChange, TaskPolicy, TaskPolicyState, TrustedPattern, compare,
 };
 use docket_router::*;
-use docket_vocab::{Handle, LabelText, TurnId};
+use docket_vocab::{Caller, Handle, LabelText, TurnId};
 use docket_wire::TaskLedger;
 use porter_core::AppName;
 use porter_ids::Count;
@@ -198,7 +198,7 @@ fn the_roster_shows_a_goal_in_this_space_and_presence_in_another() {
         id: TurnId(1),
         text: "skip the newsletters".into(),
         at: UnixSeconds(1),
-        from: TurnSource::Launcher,
+        from: Caller::launcher(),
         via: TurnVia::Typed,
         mode: None,
     });

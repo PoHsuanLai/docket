@@ -5,6 +5,7 @@
 //! Pure and portable: serde, `chrono` for dates, `porter-core` for app names and `prov` for who
 //! and what. Nothing here reads a clock, a file or the environment.
 
+mod caller;
 mod classify;
 mod clock;
 mod ids;
@@ -15,6 +16,7 @@ mod value;
 pub mod when;
 mod workspace;
 
+pub use caller::{Caller, CallerRole};
 pub use classify::{
     CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd, PerCall,
 };

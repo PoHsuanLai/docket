@@ -51,11 +51,10 @@ mod tests {
     use agent_loop::{Sources, assemble};
     use docket_core::{
         AgentConfig, ContextView, Covers, HandleCard, HandleShape, HereView, Reveal, Roster,
-        SelectionView, Summary, SummaryText, TextTargetView, TurnSource, TurnVia, UserTurn,
-        VisibleView,
+        SelectionView, Summary, SummaryText, TextTargetView, TurnVia, UserTurn, VisibleView,
     };
     use docket_fake::WordsModel;
-    use docket_vocab::{CharCount, Handle, TurnId};
+    use docket_vocab::{Caller, CharCount, Handle, TurnId};
     use porter_core::AppName;
     use porter_ids::Count;
     use prov::{Integrity, Source, UnixSeconds};
@@ -104,7 +103,7 @@ mod tests {
             id: TurnId(2),
             text: "and the receipts".into(),
             at: UnixSeconds(9),
-            from: TurnSource::Launcher,
+            from: Caller::launcher(),
             via: TurnVia::Typed,
             mode: None,
         }];

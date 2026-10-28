@@ -11,12 +11,14 @@ use crate::schema::ToolSchema;
 use crate::skill::{SkillCard, SkillText};
 use docket_manifest::{AgentReach, Lasting, RelationDecl, TargetKind};
 use docket_permissions_core::TaskPolicy;
-use docket_vocab::{ActionRef, CallId, CharCount, Handle, LabelText, TurnId, UndoId, Value};
+use docket_vocab::{
+    ActionRef, CallId, Caller, CharCount, Handle, LabelText, TurnId, UndoId, Value,
+};
 use prov::{Effect, EntityKind, Integrity, Source, UnixSeconds};
 use serde::{Deserialize, Serialize};
 
 /// How a turn reached the router. Informational: it grants nothing, and integrity comes from
-/// [`TurnSource`] as for typed text. The planner may confirm odd names; memory says "you said".
+/// the turn's [`Caller`] as for typed text. The planner may confirm odd names; memory says "you said".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TurnVia {
@@ -24,27 +26,6 @@ pub enum TurnVia {
     Typed,
     /// Spoken through the hold gesture and transcribed on this computer.
     Spoken,
-}
-
-/// Where a turn was recorded from.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
-pub enum TurnSource {
-    /// The launcher.
-    Launcher,
-    /// A terminal (`quire-do ask`): the person at a keyboard, or whatever is typing in it.
-    Terminal,
-    /// A prompt field inside this app: the task policy is capped to that app plus reads, and
-    /// widening confirms.
-    Field(porter_core::AppName),
-    /// A code editor (`docket-acp`): the person's typed words, so the task policy is derived from
-    /// them as for the launcher (not capped like a field). The prompt's text blocks are the only
-    /// words recorded; attachments are data and never reach the policy writer.
-    Editor(porter_core::AppName),
-    /// The host of an external coding agent (`docket-agent`): the person's typed prompt, so the
-    /// task policy is derived from it as for the launcher. The agent's own words are never a
-    /// turn.
-    Agent(porter_core::AppName),
 }
 
 /// One prompt, as the router records it. Only the launcher, field, editor and terminal roles may record a turn.
@@ -73,7 +54,7 @@ pub struct UserTurn {
     /// When.
     pub at: UnixSeconds,
     /// Where it was recorded.
-    pub from: TurnSource,
+    pub from: Caller,
     /// Typed or spoken.
     pub via: TurnVia,
     /// The mode the conversation was switched to with this turn; none when it kept its mode.

@@ -1264,7 +1264,6 @@ dependencies = [
  "docket-settings",
  "docket-testbus",
  "docket-vocab",
- "docket-wire",
  "futures-channel",
  "futures-util",
  "jsonschema",

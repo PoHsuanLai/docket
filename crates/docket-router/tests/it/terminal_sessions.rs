@@ -5,9 +5,10 @@
 use crate::support::*;
 use docket_fake::FakeSeams;
 use docket_router::Router;
+use docket_vocab::CallerRole;
 use docket_wire::{
-    CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, StartedFrom, StoredAsk,
-    StoredView, TerminalScope, WireRefusal,
+    CallerId, IntentsReply, IntentsRequest, SessionOpen, StartedFrom, StoredAsk, StoredView,
+    TerminalScope, WireRefusal,
 };
 use prov::{AgentRef, SessionId};
 
