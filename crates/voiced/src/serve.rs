@@ -3,7 +3,6 @@
 use crate::bus::VoiceSkeleton;
 use crate::command::Handle;
 use crate::config::VoicedConfig;
-use crate::device::AudioDevice;
 use crate::engine::Core;
 use crate::peer::Peers;
 use crate::playback::Player;
@@ -18,6 +17,7 @@ use porter_core::Tier;
 use porter_infer::Readiness;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
+use voice_audio::AudioDevice;
 use voice_dbus::{VOICE_BUS, VOICE_PATH};
 use zbus::fdo::RequestNameFlags;
 

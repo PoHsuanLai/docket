@@ -5,7 +5,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
-use voiced::{
+use voice_audio::{
     AudioDevice, AudioNode, CaptureFormat, CaptureStream, DeviceError, MediaClass, NodeId,
     NodeKind, PlaybackFormat, PlaybackStream,
 };

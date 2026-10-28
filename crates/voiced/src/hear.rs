@@ -2,7 +2,6 @@
 //! counted against the tail, watched for the silence that ends a dictation) and what inferd says
 //! back (partials, segments, the transcript, a refusal).
 
-use crate::device::AudioDevice;
 use crate::engine::{Core, EndOfAudio, SttLink};
 use crate::frames::wire_level;
 use crate::link::LinkEvent;
@@ -12,6 +11,7 @@ use porter_client::Transport;
 use porter_infer::{HeardDelta, InferEvent, InferReply, ModelError};
 use speech_provider::{FRAME_SAMPLES, Frame512};
 use speech_vad::level_of;
+use voice_audio::AudioDevice;
 use voice_loop::{EngineGate, Transcript, UtteranceEvent, UtteranceState};
 use voice_wire::{HeardSegment, HeardTail, HeardText, VoiceFault};
 

@@ -3988,3 +3988,13 @@ Two commits: the harness seams first, then the split.
 - almanac (memoryd) has its own `MEMORYD_PROC_ROOT` choice and cgroup read; not touched. For a later lane: it could take `porter_daemon::ProcRoot` the same way.
 - `Folder` seam: not added. The only audit row (H16, `docket-checkpoint-git` `files.rs` and `git.rs`) asks for a fake of `symlink_metadata`, `remove` and `create_dir_all`, but those tests exist to meet hostile folders (symlinks, permissions) and must run on the real file system; a fake would test the fake. No other C-tier library reads a directory in a way a test wants to fake (`docket-skills-disk` already has `DiskFolder` behind a skills trait).
 - Not verified by a build in the lane that made the change; `cargo metadata --offline` resolved.
+
+## Layering lane D4.8: voice-audio and voice-pipewire (2026-10-28)
+
+- New P crate `voice-audio`: the device model and traits out of `voiced/src/device.rs` (`AudioNode`, `NodeId`, `NodeKind`, `MediaClass`, `choose_capture`, `Chosen`, `ChosenBy`, `AudioDevice`, `CaptureStream`, `PlaybackStream`, the formats, `DeviceError`, `Snapshot`, `SNAPSHOT_BUDGET`, `snapshot_before`), `samples_of` (from `voiced/src/playback.rs`) and `FakeAudioDevice` (feature `testing`). `snapshot_before` races the snapshot against the caller's expiry with `futures_util::future::select` instead of `tokio::select!`, so the crate has no tokio. Its tests (the capture-choice table, the fake device, the snapshot expiry) moved from `voiced/tests/it/config.rs`; the crate builds itself with `testing` as a dev-dependency, so they always run.
+- New C crate `voice-pipewire`: `PipeWireDevice` out of `voiced/src/pipewire_device.rs` (598 lines) in `device`, `nodes`, `format`, `capture` and `playback`, plus `default_source` (`DefaultSources`, `name_in`, the two metadata keys). voiced's `pipewire` feature now means this crate.
+- voiced keeps the daemon wiring. The `testing` feature of voiced is gone with the fake. Every moved item has one copy; voiced's tests import the device types from `voice_audio`.
+- `dictate` stays in voiced: `voice-client` (D4.7) does not exist yet. It moves there when that crate lands.
+- sill does not use `FakeAudioDevice` or any voiced device item (grep of `~/sill`, read only); its stand-in voiced is a bus object.
+- `scripts/check-boundary.sh`: LAYERS rows (`voice-audio` P, `voice-pipewire` C) and RULES rows; `scripts/check-portable.sh` lists `voice-audio`.
+- Not verified by a build in the lane that made the change.

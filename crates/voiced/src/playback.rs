@@ -3,10 +3,10 @@
 //! the generation it was sent in, and a stop makes the older ones stale. Half-duplex is the
 //! machines' business (speech never plays while the mic is open); this file only plays.
 
-use crate::device::{AudioDevice, PlaybackFormat, PlaybackStream};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::mpsc;
+use voice_audio::{AudioDevice, PlaybackFormat, PlaybackStream};
 use voice_loop::Earcon;
 
 /// The rate earcons play at.
@@ -131,16 +131,6 @@ async fn run<D: AudioDevice>(
             Cmd::Drain { .. } => {}
         }
     }
-}
-
-/// S16LE bytes as samples (a trailing odd byte is dropped).
-pub(crate) fn samples_of(bytes: &[u8]) -> Vec<i16> {
-    bytes
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .map(|b| i16::from_le_bytes(*b))
-        .collect()
 }
 
 /// A short two-note blip: rising for begin, falling for end. A triangle wave in integers, with a

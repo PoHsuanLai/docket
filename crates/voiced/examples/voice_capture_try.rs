@@ -10,10 +10,11 @@
 
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
-use voiced::{
-    AudioDevice, CaptureFormat, CaptureStream, NodeKind, PipeWireDevice, PlaybackFormat,
-    PlaybackStream, choose_capture,
+use voice_audio::{
+    AudioDevice, CaptureFormat, CaptureStream, NodeKind, PlaybackFormat, PlaybackStream,
+    choose_capture,
 };
+use voice_pipewire::PipeWireDevice;
 
 /// The override to try: `VOICED_INPUT`, standing in for `input = "..."` in voiced.toml.
 fn configured_input() -> Option<String> {

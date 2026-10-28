@@ -38,6 +38,7 @@ LAYERS=(
   "actions-tools:P"
   "voice-wire:P"
   "voice-loop:P"
+  "voice-audio:P"
   "docket-memory-core:P"
   "acp-core:P"
   "agents-core:P"
@@ -66,6 +67,7 @@ LAYERS=(
   "docket-provider:C"
   "companion-client:C"
   "voice-dbus:C"
+  "voice-pipewire:C"
   "docket-log:C"
   "docket-procroot:C"
   # test and acceptance support: the model tap writes prompts to disk, so no shipped crate lists it
@@ -297,7 +299,7 @@ cd "$(dirname "$0")/.."
 # RULES: what a crate reaches through ANY path (transitive, default features).
 #
 # The pure crates (docket-core, policy-point, action-review, docket-router, companion-wire,
-# agent-loop, voice-wire, voice-loop) never reach a bus, a runtime, an HTTP client, an audio or
+# agent-loop, voice-wire, voice-loop, voice-audio) never reach a bus, a runtime, an HTTP client, an audio or
 # display or accessibility stack, a database, a file watcher, an embedding runtime or the MCP SDK.
 # Only policy-point reaches cedar-policy, and the crates above it (docket-router, the fakes and
 # the daemons that run the router; docket-client only behind its `in_process` feature). Only actions-mcp reaches rmcp. docket-core
@@ -380,6 +382,10 @@ RULES=(
   "docket-memory-core: $EFFECTS toml"
   "voice-wire: $EFFECTS toml"
   "voice-loop: $EFFECTS toml"
+  # The audio device seam as values and traits: no runtime, bus or audio stack (futures-util only, for the expiry race).
+  "voice-audio: $EFFECTS toml"
+  # The PipeWire backend: libpipewire and tokio, nothing of the bus, HTTP, a database or the policy engine.
+  "voice-pipewire: zbus zvariant reqwest hyper hyper-util rustls oo7 ort fastembed rusqlite rmcp cedar-policy"
   # The caller's side of Voice1: zbus (with its tokio feature) and nothing of the microphone or speech engines.
   "voice-dbus: reqwest hyper hyper-util rustls pipewire oo7 ort fastembed rusqlite rmcp cedar-policy"
   # zbus lives in docket-dbus, and in docket-client only behind its `dbus` feature.

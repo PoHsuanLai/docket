@@ -15,10 +15,11 @@ use porter_infer::{
     Readiness, RequestKind, TranscribeMode,
 };
 use std::collections::BTreeSet;
+use voice_audio::{DeviceError, NodeKind};
 use voice_wire::{
     CancelCause, HeardText, MicState, UtteranceEnd, VoiceEvent, VoiceFault, VoiceRefusal, VoiceUse,
 };
-use voiced::{DeviceError, NodeKind, VoiceProxy};
+use voiced::VoiceProxy;
 
 fn stt_need() -> Need {
     Need::Speech(SpeechNeed::new(BTreeSet::from([SpeechMode::Stt])))
@@ -136,7 +137,7 @@ async fn hold_to_ask_hears_the_words_and_the_mic_closes_after_the_tail() {
     assert_eq!(world.hand.open_now(), 1);
     assert_eq!(
         *world.hand.log.nodes.lock().expect("nodes"),
-        [voiced::NodeId(2)],
+        [voice_audio::NodeId(2)],
         "the physical source, not the monitor"
     );
     assert_eq!(*world.hand.log.formats.lock().expect("formats"), [16_000]);

@@ -1,6 +1,6 @@
 [package]
 name = "voiced"
-description = "The voice daemon: the only process that opens the microphone, serves org.quire.Voice1, and runs the voice machines. The audio device is a seam; the PipeWire backend waits for its dependency line."
+description = "The voice daemon: the only process that opens the microphone, serves org.quire.Voice1, and runs the voice machines. The audio device is the voice-audio seam; the PipeWire backend is voice-pipewire."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 voice-loop = { workspace = true }
+voice-audio = { workspace = true }
 voice-wire = { workspace = true }
 voice-dbus = { workspace = true }
 docket-core = { workspace = true }
@@ -18,7 +19,7 @@ porter-infer = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true }
 docket-procroot = { workspace = true }
-pipewire = { workspace = true, optional = true }
+voice-pipewire = { workspace = true, optional = true }
 futures-util = { workspace = true }
 speech-vad = { workspace = true }
 speech-provider = { workspace = true }
@@ -34,12 +35,10 @@ docket-log = { workspace = true }
 
 [features]
 default = ["pipewire"]
-# `PipeWireDevice`, the shipped audio backend (needs libpipewire and libclang to build). The
-# daemon binary and the by-hand example need it; the library without it is the seam, the machines
-# and `dictate`, so a test or another backend builds with `--no-default-features`.
-pipewire = ["dep:pipewire"]
-# `FakeAudioDevice`, for tests of this crate and of sill's stand-in.
-testing = []
+# `voice-pipewire`, the shipped audio backend (needs libpipewire and libclang to build). The
+# daemon binary and the by-hand example need it; the library without it is the machines and
+# `dictate`, so a test or another backend builds with `--no-default-features`.
+pipewire = ["dep:voice-pipewire"]
 
 [[bin]]
 name = "voiced"

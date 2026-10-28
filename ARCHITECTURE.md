@@ -71,7 +71,9 @@ trait), section 5 (the gate in one picture), section 6 (copy the recipe).
 | `docket-ds` | the adapter quire apps use: chips and keep, things and labels, summon answers, `DsContextSource`, `DsSummonTarget`, the voice bridge | none |
 | `voice-wire` | the bodies of `org.quire.Voice1`: `VoiceBegin`, `VoiceEvent`, `UtteranceEnd`, `VoiceStatus`, `VoiceRefusal` and its 1:1 error names, `SpeakWire` | none |
 | `voice-loop` | the voice machines: `utterance_step` (the microphone is open exactly in Opening, Listening and Tail), `speech_step` (barge-in), `sentences`, `PcmBuffer`, `CAPTURE_RATE` (a `speech_provider::SampleRate`, the rate `speech_vad::Framer` takes) | none |
-| `voiced` | the microphone's owner: `VoicedConfig`, the `AudioDevice` seam and `choose_capture` (never a monitor), the `Voice1` interfaces and their introspection, `serve` (roles from the connection, one loop over the two `voice-loop` machines, inferd through porter-client; capture is cut into frames by stoker's `speech_vad::Framer` behind `frames::Frames`, and `frames::wire_level` is the one place `speech_vad::Level` becomes `voice_wire::Level`, because `voice-wire` has no stoker dependency), the PipeWire device | everything |
+| `voice-audio` | the audio device seam, pure: `AudioNode`, `NodeKind`, `choose_capture` (never a monitor), `AudioDevice` with `CaptureStream` and `PlaybackStream`, `snapshot_before` (the expiry is a future the caller supplies), `samples_of`, and `FakeAudioDevice` behind the `testing` feature | none |
+| `voice-pipewire` | the PipeWire backend of `AudioDevice`: `PipeWireDevice` (capture from one physical source by name, playback on the default output, one thread and main loop per stream) and `DefaultSources` (the `default` metadata object's source keys) | `pipewire`, `tokio` |
+| `voiced` | the microphone's owner: `VoicedConfig`, the `Voice1` interfaces and their introspection, `serve` (roles from the connection, one loop over the two `voice-loop` machines, inferd through porter-client; capture is cut into frames by stoker's `speech_vad::Framer` behind `frames::Frames`, and `frames::wire_level` is the one place `speech_vad::Level` becomes `voice_wire::Level`, because `voice-wire` has no stoker dependency), the device chosen in `main.rs` | everything |
 | `docket-log` | the daemons' one log setup: `init(name)` starts a `tracing` subscriber that writes a line per event to standard error (the journal keeps it; with the journal's `<priority>` prefix when `JOURNAL_STREAM` is set). voiced, readerd and docket-checkpoint-git log refusals and faults through `tracing` events: kinds and typed reasons only, never a prompt, an utterance or a key. With its `otlp` feature (intentd and companiond forward it; off by default) `init` also records spans and sends them as OTLP/HTTP JSON to an `http://` collector named by `OTEL_EXPORTER_OTLP_ENDPOINT` (`docs/telemetry.md`); a span is exported as its declared fields only | `tracing` (`serde_json`, `thiserror` behind `otlp`) |
 | `docket-procroot` | what the daemons read under a `/proc` tree, the one copy: `terminal_scope(root, pid)` (the `TerminalScope` the cgroup of a process names, from `<root>/<pid>/cgroup`) and `own_uid()` (the user the daemon runs as, from the system's `/proc/self`). Which tree is the daemon's choice, porter's `ProcRoot` (`System`, or `Fake(dir)` in a test build), which intentd and companiond both take from their `main` through `HarnessSeams`; intentd's `Peers`, companiond's `Speakers`, voiced's `Peers`, the ACP tool edge and the app link use these two functions | `docket-core`, `porter-core` |
 
@@ -81,6 +83,9 @@ Layers (checked by `scripts/check-boundary.sh`; dev-dependencies are outside it)
 | --- | --- | --- |
 | P, pure | `docket-core`, `docket-skills`, `policy-point`, `action-review`, `docket-router`, `companion-wire`, `companion-core`, `agent-loop`, `docket-session`, `docket-checkpoint`, `actions-tools`, `voice-wire`, `voice-loop`, `docket-memory-core`, `acp-core`, `agents-core`, `eval-core` | No `std::fs`, `std::env`, `std::process`, `std::net`, `SystemTime::now`, `Instant::now`, `thread::sleep` or `tokio::` in `src/`; no dependency on tokio, zbus, rustix, nix, hyper, reqwest, quire, `ds-*` or any `*-dbus` crate; depends only on P crates |
 | C, client / IO | `docket-planner`, `docket-tasks`, `docket-helpers`, `docket-native`, `docket-memory`, `docket-models`, `docket-reader`, `docket-fake`, `docket-checkpoint-git`, `docket-acp`, `docket-acp-host`, `docket-host`, `docket-launch`, `docket-agents`, `docket-skills-disk`, `docket-settings`, `docket-dbus`, `docket-client`, `docket-provider`, `companion-client`, `voice-dbus`, `docket-log`, `docket-procroot`, `docket-trace` | May do IO. No app or UI words in `src/`: the identifiers `Label` (other than prov's provenance `Label`), `Help`, `Sheet`, `SettingRow`, `ds_settings`; depends on P or C crates |
+
+| P, pure | `docket-core`, `docket-skills`, `policy-point`, `action-review`, `docket-router`, `companion-wire`, `companion-core`, `agent-loop`, `docket-session`, `docket-checkpoint`, `actions-tools`, `voice-wire`, `voice-loop`, `voice-audio`, `docket-memory-core`, `acp-core`, `agents-core`, `eval-core` | No `std::fs`, `std::env`, `std::process`, `std::net`, `SystemTime::now`, `Instant::now`, `thread::sleep` or `tokio::` in `src/`; no dependency on tokio, zbus, rustix, nix, hyper, reqwest, quire, `ds-*` or any `*-dbus` crate; depends only on P crates |
+| C, client / IO | `docket-planner`, `docket-tasks`, `docket-helpers`, `docket-native`, `docket-memory`, `docket-models`, `docket-reader`, `docket-fake`, `docket-checkpoint-git`, `docket-acp`, `docket-acp-host`, `docket-host`, `docket-launch`, `docket-agents`, `docket-skills-disk`, `docket-settings`, `docket-dbus`, `docket-client`, `docket-provider`, `companion-client`, `voice-dbus`, `voice-pipewire`, `docket-log`, `docket-trace` | May do IO. No app or UI words in `src/`: the identifiers `Label` (other than prov's provenance `Label`), `Help`, `Sheet`, `SettingRow`, `ds_settings`; depends on P or C crates |
 
 | A, app / daemon / test binary | `intentd`, `companiond`, `readerd`, `voiced`, `actions-mcp`, `docket-cli`, `docket-acp-bin`, `docket-inapp`, `docket-ds`, `docket-eval`, `docket-testbus`, `docket-accept`, `docket-live` | Wiring. No `env::var` outside `main.rs` and `src/bin/`; may depend on any tier |
 
@@ -118,7 +123,7 @@ builds. For docket that makes two sets.
 Windows, reach no `zbus`, `inotify`, `landlock`, `pipewire` or `/proc`, and carry no D-Bus type
 in a public signature: `docket-core`, `docket-skills`, `policy-point`, `action-review`,
 `docket-router`, `companion-wire`, `companion-core`, `agent-loop`, `docket-planner`, `docket-tasks` (the companion's task model over any transports, clock and surface), `docket-session` (the durable session record and its resume rules), `docket-checkpoint` (restore points: the rules and the store seam), `docket-provider` (the app side: `IntentProvider`, without its `dbus` feature), `docket-client` (the caller side, `Intents` and `InProcess`, without its `dbus` feature), `docket-fake`, `docket-eval`, `eval-core`,
-`docket-models` (the model-backed reviewer and policy writer over any transport), `docket-reader` (the quarantined reader over any transport), `docket-memory` (the memory seam over any almanac-client transport), `docket-inapp` (the host that runs the others inside one app), `docket-host`, `voice-wire` and `voice-loop`.
+`docket-models` (the model-backed reviewer and policy writer over any transport), `docket-reader` (the quarantined reader over any transport), `docket-memory` (the memory seam over any almanac-client transport), `docket-inapp` (the host that runs the others inside one app), `docket-host`, `voice-wire`, `voice-loop` and `voice-audio`.
 An app that embeds `docket-inapp` gets the whole gate (Cedar policy point, reviewer, breaker,
 budgets, the confirm sheet only the person can answer) with no other process.
 
@@ -191,7 +196,9 @@ missing" list in `FINDINGS.md` (portable-core).
 | `docket-ds` | `chips`, `things`, `summon`, `context`, `voice` |
 | `voice-wire` | `text`, `begin`, `event`, `status`, `refusal` |
 | `voice-loop` | `buffer`, `sentencer`, `utterance`, `speech`, `coordinate` |
-| `voiced` | `names`, `config`, `device`, `bus`, `introspect`, `serve`, `engine`, `utter`, `hear`, `talk`, `command`, `callers`, `peer`, `link`, `playback`, `sink`, `usage`, `warm`, `wire`, `error`, `pipewire_device` |
+| `voice-audio` | `node`, `choose`, `device`, `snapshot`, `pcm`, `fake` |
+| `voice-pipewire` | `default_source`, `format`, `nodes`, `capture`, `playback`, `device` |
+| `voiced` | `names`, `config`, `bus`, `introspect`, `serve`, `engine`, `utter`, `hear`, `talk`, `command`, `callers`, `peer`, `link`, `playback`, `sink`, `usage`, `warm`, `wire`, `error` |
 
 ## 3. One home per concept
 
@@ -258,7 +265,7 @@ missing" list in `FINDINGS.md` (portable-core).
 | `Accounts`, `Procs`, `LoginRunner` | `docket-launch` | `DbusAccounts`, `BwrapProcs`, `VisibleLogin`; `FakeAccounts`, `FakeProcs` |
 | `RecentSource` | `docket-tasks` | `RouterRecent` (`Session.Recall` through intentd's router: a body only for a trusted entry), a fake |
 | `PromptHost`, `DictationBridge`, `WindowFacts` | `docket-ds` | quire apps |
-| `AudioDevice` | `voiced` | `PipeWireDevice`, `FakeAudioDevice` (feature `testing`) |
+| `AudioDevice` | `voice-audio` | `PipeWireDevice` (`voice-pipewire`), `FakeAudioDevice` (feature `testing`) |
 
 Closed sets stay enums: requests, replies, rulings, refusals, records, every machine's states,
 inputs and effects.
@@ -479,7 +486,7 @@ every type `Serialize + Eq`, a table test, and the effects carried out by a daem
   echo "GATE GREEN"
   ```
 
-  No crate is excluded: every crate builds and tests without hardware or network. (`voiced`
+  No crate is excluded: every crate builds and tests without hardware or network. (`voice-pipewire`
   links libpipewire but opens no device in a test, and `speech-vad-silero` is not a dependency, so
   neither needs the exclusion `recall-fastembed` needs in almanac.)
 

@@ -2,14 +2,14 @@
 //! carrying out of the speech machine's effects. Synthesis runs in an inferd session task and
 //! playback in its own task; this file decides, in the loop, what each report means.
 
+use crate::SpeechSkeleton;
 use crate::command::{Caller, Reply};
 use crate::engine::Core;
 use crate::error::VoiceError;
 use crate::link::{self, Link, LinkEvent};
-use crate::playback::{Played, samples_of};
+use crate::playback::Played;
 use crate::usage::UseSource;
 use crate::warm::{Warm, tts_need};
-use crate::{SpeechSkeleton, device::AudioDevice};
 use porter_client::Transport;
 use porter_core::capability::LanguageTag;
 use porter_core::consent::Usage;
@@ -17,6 +17,7 @@ use porter_core::{DataClass, Tier};
 use porter_infer::{
     ClientFrame, InferEvent, InferReply, InferRequest, ModelError, Readiness, SpeakRequest,
 };
+use voice_audio::{AudioDevice, samples_of};
 use voice_dbus::speech_path;
 use voice_loop::{MicNow, SpeechEffect, SpeechEvent, SpeechPhase, SpeechState, speech_step};
 use voice_wire::{SpeakWire, Speaking, SpeechEnd, VoiceFault, VoiceRefusal, VoiceUse};

@@ -4,9 +4,6 @@
 //! touches it.
 
 use crate::command::Caller;
-use crate::device::{
-    AudioDevice, CaptureFormat, DeviceError, SNAPSHOT_BUDGET, choose_capture, snapshot_before,
-};
 use crate::engine::{Core, EndOfAudio, SttLink, Utt};
 use crate::error::VoiceError;
 use crate::frames::Frames;
@@ -26,6 +23,9 @@ use porter_infer::{
     TranscribeMode,
 };
 use std::os::fd::OwnedFd;
+use voice_audio::{
+    AudioDevice, CaptureFormat, DeviceError, SNAPSHOT_BUDGET, choose_capture, snapshot_before,
+};
 use voice_dbus::{VOICE_PATH, utterance_path};
 use voice_loop::{
     CAPTURE_RATE, MicNow, PcmBuffer, PushOutcome, UtteranceEffect, UtteranceEvent, UtteranceState,

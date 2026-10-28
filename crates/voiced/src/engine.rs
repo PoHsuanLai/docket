@@ -6,7 +6,6 @@
 
 use crate::command::{Caller, Command};
 use crate::config::Earcons;
-use crate::device::{AudioDevice, AudioNode, CaptureStream};
 use crate::error::VoiceError;
 use crate::frames::Frames;
 use crate::link::{Link, LinkEvent};
@@ -23,6 +22,7 @@ use porter_infer::Readiness;
 use std::future::pending;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
+use voice_audio::{AudioDevice, AudioNode, CaptureStream};
 use voice_loop::{PcmBuffer, UtteranceState};
 use voice_wire::{CancelCause, HeardSegment, HeardTail, UtteranceEnd, VoiceTarget};
 

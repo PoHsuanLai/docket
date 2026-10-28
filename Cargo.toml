@@ -51,6 +51,8 @@ members = [
   "crates/readerd",
   "crates/docket-ds",
   "crates/voice-wire",
+  "crates/voice-audio",
+  "crates/voice-pipewire",
   "crates/voice-dbus",
   "crates/voice-loop",
   "crates/voiced",
@@ -122,6 +124,8 @@ docket-ds      = { path = "crates/docket-ds" }
 voice-wire     = { path = "crates/voice-wire" }
 voice-dbus     = { path = "crates/voice-dbus" }
 voice-loop     = { path = "crates/voice-loop" }
+voice-audio    = { path = "crates/voice-audio" }
+voice-pipewire = { path = "crates/voice-pipewire" }
 docket-log     = { path = "crates/docket-log" }
 docket-procroot = { path = "crates/docket-procroot" }
 # The events the daemons log (already in the build through zbus and tokio); docket-log is the subscriber.
@@ -175,7 +179,7 @@ serde_json = "1"
 zbus = { version = "5.19", default-features = false, features = ["tokio"] }  # shell repos only; they also enable ds-settings/tokio. quire itself builds zbus with its async-io default so app consumers keep their own executor.
 toml = "1"
 toml_edit = "0.25"  # docket-settings only: agents.toml is edited in place, comments kept
-# voiced's audio device (spike V-A): MIT, safe wrapper over libpipewire; needs libclang to build.
+# voice-pipewire's audio device (spike V-A): MIT, safe wrapper over libpipewire; needs libclang to build.
 pipewire = "0.10"
 futures-channel = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }

@@ -3,7 +3,8 @@
 
 use clap::Parser;
 use std::process::ExitCode;
-use voiced::{ConfigError, FileUse, PipeWireDevice, VoicedConfig};
+use voice_pipewire::PipeWireDevice;
+use voiced::{ConfigError, FileUse, VoicedConfig};
 
 /// The voice daemon.
 #[derive(Debug, Parser)]

@@ -4777,6 +4777,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "voice-audio"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "serde",
+ "thiserror",
+ "tokio",
+ "voice-audio",
+]
+
+[[package]]
 name = "voice-dbus"
 version = "0.1.0"
 dependencies = [
@@ -4794,6 +4805,17 @@ dependencies = [
  "serde_json",
  "speech-provider",
  "voice-wire",
+]
+
+[[package]]
+name = "voice-pipewire"
+version = "0.1.0"
+dependencies = [
+ "pipewire",
+ "serde",
+ "serde_json",
+ "tokio",
+ "voice-audio",
 ]
 
 [[package]]
@@ -4820,7 +4842,6 @@ dependencies = [
  "docket-procroot",
  "docket-testbus",
  "futures-util",
- "pipewire",
  "porter-client",
  "porter-core",
  "porter-infer",
@@ -4833,8 +4854,10 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
+ "voice-audio",
  "voice-dbus",
  "voice-loop",
+ "voice-pipewire",
  "voice-wire",
  "zbus",
 ]

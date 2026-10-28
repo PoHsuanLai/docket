@@ -3,9 +3,6 @@
 //! allowed to hear (consent is the caller's to check); the capture ends at the silence after
 //! speech, or when the stream does.
 
-use crate::device::{
-    AudioDevice, CaptureFormat, CaptureStream, SNAPSHOT_BUDGET, choose_capture, snapshot_before,
-};
 use crate::frames::{Dictation, Frames};
 use crate::link::fault_of as link_fault;
 use crate::warm::stt_need;
@@ -17,6 +14,9 @@ use porter_infer::{
     LangPick, ModelError, ServedBy, TranscribeBegin, TranscribeMode,
 };
 use speech_provider::FRAME_SAMPLES;
+use voice_audio::{
+    AudioDevice, CaptureFormat, CaptureStream, SNAPSHOT_BUDGET, choose_capture, snapshot_before,
+};
 use voice_loop::CAPTURE_RATE;
 use voice_wire::{HeardText, VoiceFault};
 
