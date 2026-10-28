@@ -3,7 +3,7 @@
 //! stands. Entries hold the person's words, the checked policy, typed steps, and handle *labels*:
 //! never a handle's content, never a secret.
 //!
-//! Named apart from `docket_router::SessionRecord` (the router's in-memory session) and
+//! Named apart from `docket_context::state::SessionRecord` (the router's in-memory session) and
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
 use companion_model::HandNote;

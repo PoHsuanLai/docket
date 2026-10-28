@@ -3,9 +3,9 @@
 //! person even when it is a read.
 
 use crate::support::*;
+use docket_context::spacing::{SpaceOf, relation_of};
 use docket_core::*;
 use docket_manifest::TargetKind;
-use docket_router::{SpaceOf, relation_of};
 use docket_vocab::{CallRequest, CallerRole, Origin};
 use docket_wire::{CallerId, IntentsReply, IntentsRequest, WireRefusal};
 use policy_point::SpaceRelation;

@@ -6,12 +6,12 @@
 
 use crate::brief_sheet::text_of;
 use crate::driven::Run;
-use crate::handles::HandleValue;
-use crate::labels::user_label;
 use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::state::{BRIEFS_KEPT, ConfirmedBrief};
+use docket_context::handles::HandleValue;
+use docket_context::labels::user_label;
+use docket_context::state::{BRIEFS_KEPT, ConfirmedBrief};
 use docket_core::EventSink;
 use docket_core::{AppRefusal, AuditRecord, BriefEdit, FailText, Outcome, Preview, Undoable};
 use docket_vocab::{Clock, LabelText, Value};

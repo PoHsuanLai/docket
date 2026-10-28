@@ -98,7 +98,7 @@ pub fn session_step(
 }
 
 /// How recently a session was opened: ids are minted in order.
-pub(crate) fn age(id: &SessionId) -> u64 {
+pub fn age(id: &SessionId) -> u64 {
     id.as_str()
         .rsplit('-')
         .next()

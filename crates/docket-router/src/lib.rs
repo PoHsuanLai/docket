@@ -1,9 +1,8 @@
 //! The router, pure over its seams. It owns the rules that make the companion safe to run:
 //! who may call what (`auth`), the order in which a call is refused or let through (`gate`),
-//! the session machine with its breaker pause (`session`), the handle table that keeps
-//! untrusted text away from planners (`handles`), the undo journal (`journal`), tasks and the
-//! messages between them (`tasks`, `messages`), the shadow index machine (`index`) and the
-//! manifest registry (`registry`). `Router` ties them to the seams (`seams`).
+//! tasks and the messages between them (`messages`) and the order of every request through the
+//! seams the daemon passes in. What it remembers and shows (the sessions, the handle table, the
+//! undo journal, the registry) is `docket-context`. `Router` ties them to the seams (`seams`).
 //!
 //! No clock, bus, file or runtime is reached here; the daemon (`intentd`) passes them in.
 //!
@@ -33,7 +32,6 @@
 //! ```
 
 mod argcheck;
-mod asks;
 mod assess;
 mod auth;
 mod brief;
@@ -50,7 +48,6 @@ mod confirm;
 mod consent;
 mod control;
 mod conversation;
-mod convert;
 mod coverage;
 mod deadline;
 mod driven;
@@ -61,13 +58,8 @@ mod filled;
 mod finish;
 mod gate;
 mod gatecheck;
-mod handle_views;
-mod handles;
 mod handover;
 mod history;
-mod index;
-mod journal;
-mod labels;
 mod limits;
 mod may_make;
 mod messages;
@@ -75,7 +67,6 @@ mod messaging;
 mod mode;
 mod notes;
 mod opening;
-mod owned;
 mod perform;
 mod perform_call;
 mod perform_sheet;
@@ -85,36 +76,26 @@ mod prepare;
 mod prepared;
 mod rank;
 mod reading;
-mod rebuild;
 mod recall;
-mod recording;
-mod registry;
 mod related;
 mod restore;
 mod router;
 mod seams;
 mod search;
-mod session;
 mod shield;
 mod shipping;
 mod skills;
-mod spacing;
 mod spans;
-mod spoken;
 mod standing;
 mod standing_ctx;
 mod standing_facts;
-mod state;
 mod stored;
-mod tasks;
 mod terminal;
 mod turn_running;
 mod turn_start;
 mod usage;
-mod wal;
 mod watch;
 mod watched;
-mod who;
 
 pub use auth::{acting_role, permits};
 pub use call::{ArgsRefused, CallEffect, CallEvent, CallState, call_step};
@@ -126,23 +107,11 @@ pub use companion_names::{BRIEF_CONFIRM, HELPER_POST_JOB, HELPER_PROPOSE, ROUTIN
 pub use docket_checkpoint::NoStore;
 pub use facts::{RunFacts, budget_fact, repeat_fact, run_facts, taint_fact};
 pub use gate::{GateInputs, Pending, gate};
-pub use handle_views::{ViewInputs, context_view, planner_view};
-pub use handles::{
-    HandleEntry, HandleLimit, HandleTable, HandleValue, MAX_HANDLES, MAX_KNOWN, MAX_VIEW_TEXTS,
-};
-pub use index::{IndexAction, IndexEvent, index_step};
-pub use journal::UndoJournal;
 pub use messages::{assemble, check_stamped, inbound_line, intake_label, report_status};
-pub use registry::Registry;
 pub use restore::{RestoreFault, Restored};
 pub use router::Router;
 pub use seams::{AppFault, AppLink, GrantStore, NoLog, Seams};
-pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, session_step};
 pub use skills::SKILL_LOAD;
-pub use spacing::{SpaceOf, relation_of};
-pub use state::{BRIEFS_KEPT, ConfirmedBrief, RouterState, SessionKind, SessionRecord};
-pub use tasks::{TaskRecord, TaskState, TaskTable, child_policy, roster_of, roster_with_totals};
 pub use terminal::Revoked;
 pub use usage::TurnBudget;
-pub use wal::{Reveals, Wal};
 pub use watch::{Flag, Queue, Watch};

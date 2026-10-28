@@ -129,9 +129,11 @@ impl Wal {
 
 /// The one writer of a session's log: its next position, the taint on the record, whether the store diverged.
 #[derive(Debug)]
-pub(crate) struct Writer {
+pub struct Writer {
+    /// The position the next entry takes.
     pub(crate) next: Seq,
-    pub(crate) taint: Taint,
+    /// The taint the log holds.
+    pub taint: Taint,
     /// The position the store holds when it is not the writer's: another writer, or an append
     /// that landed unseen. Nothing more is written until the session is restored from the log.
     diverged: Option<Seq>,
@@ -139,16 +141,16 @@ pub(crate) struct Writer {
 
 /// A writer shared by the requests of one session, taken in turn (never held with the router's
 /// state lock).
-pub(crate) type Lane = Arc<futures_util::lock::Mutex<Writer>>;
+pub type Lane = Arc<futures_util::lock::Mutex<Writer>>;
 
 impl Writer {
     /// The writer of a session whose log is empty.
-    pub(crate) fn fresh() -> Self {
+    pub fn fresh() -> Self {
         Self::at(Seq(0), Taint::Clean)
     }
 
     /// The writer of a log that holds `next` entries and the taint `taint`.
-    pub(crate) fn at(next: Seq, taint: Taint) -> Self {
+    pub fn at(next: Seq, taint: Taint) -> Self {
         Self {
             next,
             taint,
@@ -157,7 +159,7 @@ impl Writer {
     }
 
     /// Appends `entry` after, if it needs one, the taint entry it must not precede.
-    pub(crate) async fn put<L: SessionLog>(
+    pub async fn put<L: SessionLog>(
         &mut self,
         log: &L,
         session: &SessionId,
@@ -177,7 +179,7 @@ impl Writer {
     }
 
     /// Appends one entry at the writer's position; the position moves only on an ack.
-    pub(crate) async fn append<L: SessionLog>(
+    pub async fn append<L: SessionLog>(
         &mut self,
         log: &L,
         session: &SessionId,

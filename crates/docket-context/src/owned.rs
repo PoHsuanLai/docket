@@ -10,7 +10,7 @@ use docket_vocab::{CallRequest, TargetValue, Value};
 use prov::EntityId;
 
 /// The things a call touches: its targets and the things among its arguments.
-pub(crate) fn touched(request: &CallRequest) -> Vec<EntityId> {
+pub fn touched(request: &CallRequest) -> Vec<EntityId> {
     let mut things: Vec<EntityId> = match &request.target {
         TargetValue::Entities(es) => es.clone(),
         TargetValue::Nothing
@@ -38,11 +38,7 @@ fn alive(st: &RouterState, record: &SessionRecord) -> bool {
 }
 
 /// Whether a live job of another session owns one of `things`.
-pub(crate) fn owned_by_another(
-    st: &RouterState,
-    mine: &SessionRecord,
-    things: &[EntityId],
-) -> bool {
+pub fn owned_by_another(st: &RouterState, mine: &SessionRecord, things: &[EntityId]) -> bool {
     st.sessions
         .values()
         .filter(|other| other.task != mine.task && alive(st, other))

@@ -1,11 +1,11 @@
 //! `Router::restore_session`: a session read back from its log, and the lazy restore a request
 //! that names it triggers. The rules are `rebuild`'s; this is the log read and the insertion.
 
-use crate::rebuild::{number_of, rebuild};
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::state::SessionKind;
-use crate::wal::Writer;
+use docket_context::rebuild::{number_of, rebuild};
+use docket_context::state::SessionKind;
+use docket_context::wal::Writer;
 use docket_session::{
     Claimant, LogFault, Logged, PageSize, PlanRefusal, Seq, SessionLog, Standing, may_restore_plan,
     resume_plan,

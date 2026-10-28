@@ -36,7 +36,7 @@ fn open_after(tail: &str) -> bool {
 }
 
 /// Whether `text` stands in `turn` from one token edge to another.
-pub(crate) fn whole_in(turn: &str, text: &str) -> bool {
+pub fn whole_in(turn: &str, text: &str) -> bool {
     !text.is_empty()
         && turn
             .match_indices(text)

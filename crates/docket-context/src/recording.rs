@@ -7,7 +7,7 @@ use docket_session::{SessionEntry, TaintCause};
 
 impl SessionRecord {
     /// Applies a session event and queues what it did to the record: a close, a taint.
-    pub(crate) fn apply(&mut self, event: SessionEvent) -> Vec<SessionEffect> {
+    pub fn apply(&mut self, event: SessionEvent) -> Vec<SessionEffect> {
         let was_closed = matches!(self.state, SessionState::Closed(_));
         let (next, effects) = session_step(self.state, event);
         self.state = next;
@@ -24,7 +24,7 @@ impl SessionRecord {
     }
 
     /// Queues the handles minted since the last gathering: label, shape and source.
-    pub(crate) fn gather(&mut self) {
+    pub fn gather(&mut self) {
         for label in self.handles.take_fresh() {
             self.wal.note(SessionEntry::Handle(label));
         }

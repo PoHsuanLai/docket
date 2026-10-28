@@ -3,10 +3,10 @@
 //! reviewer is shown).
 
 use crate::gate::Pending;
-use crate::state::SessionRecord;
-use crate::who::Who;
 use action_review::GoalKey;
 use action_review::{ArgDigest, ArgView, CallEndKind, ProposedAction, ReviewRequest, TypedStep};
+use docket_context::state::SessionRecord;
+use docket_context::who::Who;
 use docket_core::{ActivationToken, CallRefusal, Cost, StepEnd, size_of};
 use docket_manifest::ActionDecl;
 use docket_permissions_core::{GrantCaller, Ruling};

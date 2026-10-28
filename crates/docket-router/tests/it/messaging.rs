@@ -1,9 +1,9 @@
 //! Messages through the router: stamped, labelled, delivered as input and nothing more.
 
 use crate::support::*;
+use docket_context::tasks::TaskState;
 use docket_core::*;
 use docket_permissions_core::Saw;
-use docket_router::TaskState;
 use docket_vocab::{CallRequest, CallerRole, Handle, Origin, TargetValue, Value};
 use docket_wire::{IntentsReply, IntentsRequest, SessionOpened, WireRefusal};
 use prov::{
@@ -288,7 +288,7 @@ async fn a_final_report_ends_the_senders_task() {
         st.tasks.get(&worker.task).expect("task").state,
         TaskState::Ended(ReportStatus::Failed)
     );
-    let roster = docket_router::roster_of(&st.tasks, &space("work"));
+    let roster = docket_context::tasks::roster_of(&st.tasks, &space("work"));
     assert!(
         roster
             .entries

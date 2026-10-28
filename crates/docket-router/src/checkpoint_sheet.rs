@@ -2,7 +2,7 @@
 //! are named by agents and by the person, so each is drawn as quoted third-party text; a group
 //! shows at most `SHOWN` of them and then how many more. Nothing here names a tool.
 
-use crate::labels::{app_label, path_label};
+use docket_context::labels::{app_label, path_label};
 use docket_core::{FactLine, RestorePlan, WorkPath};
 use docket_vocab::LabelText;
 use porter_core::AppName;

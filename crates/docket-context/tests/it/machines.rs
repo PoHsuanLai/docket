@@ -1,8 +1,12 @@
 //! The session machine, the index machine and the undo journal.
 
+use docket_context::index::{IndexAction, IndexEvent, index_step};
+use docket_context::journal::UndoJournal;
+use docket_context::session::{
+    CloseCause, SessionEffect, SessionEvent, SessionState, session_step,
+};
 use docket_core::*;
 use docket_permissions_core::BreakerTrip;
-use docket_router::*;
 use docket_session::Taint;
 use docket_vocab::{ActionRef, LabelText, Seconds, UndoId, UndoToken};
 use prov::{Actor, AgentRole, RunId, SessionId, UnixSeconds};

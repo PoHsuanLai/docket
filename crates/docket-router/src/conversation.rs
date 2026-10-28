@@ -4,8 +4,8 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::session::SessionState;
 use companion_model::helper::{HelperSeat, SeatPlace};
+use docket_context::session::SessionState;
 use docket_session::{PageSize, Read, SessionEntry, SessionLog, Standing};
 use docket_vocab::CallerRole;
 use docket_wire::{IntentsReply, SessionOpen, SessionOpened};

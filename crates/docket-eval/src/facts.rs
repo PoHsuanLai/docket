@@ -1,7 +1,7 @@
 //! What the shipped fake apps' manifests say about an action, for the scores that need to know
 //! whether a call only reads or what its sheet is called.
 
-use docket_router::Registry;
+use docket_context::registry::Registry;
 use docket_vocab::ActionRef;
 use prov::Effect;
 

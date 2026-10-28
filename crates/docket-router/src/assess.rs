@@ -8,7 +8,7 @@ use crate::driven::Driven;
 use crate::prepared::{Early, Prepared};
 use crate::router::Router;
 use crate::seams::{AppLink, Seams};
-use crate::who::Who;
+use docket_context::who::Who;
 use docket_core::EventSink;
 use docket_core::{AppRefusal, AuditRecord, CallEnd, CallRefusal};
 use docket_vocab::{CallClass, CallRequest, Classification, Clock, Depth, PerCall, WindowKey};

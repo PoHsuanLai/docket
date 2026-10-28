@@ -10,10 +10,11 @@ use crate::scripted::{
 use crate::seams::{FakeLink, FakeSeams};
 use crate::simple::{MemoryGrants, RecordingSink};
 use action_review::Reviewer;
+use docket_context::registry::Registry;
 use docket_core::{AgentConfig, PolicyWriter};
 use docket_manifest::ValidManifest;
 use docket_manifest::{ManifestFileError, parse};
-use docket_router::{Registry, Router};
+use docket_router::Router;
 use docket_session::SessionLog;
 use docket_session::fake::MemoryLog;
 use docket_vocab::Clock;

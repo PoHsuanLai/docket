@@ -35,6 +35,7 @@ LAYERS=(
   "docket-skills:P"
   "policy-point:P"
   "action-review:P"
+  "docket-context:P"
   "docket-router:P"
   "companion-wire:P"
   "companion-core:P"
@@ -304,7 +305,7 @@ cd "$(dirname "$0")/.."
 
 # RULES: what a crate reaches through ANY path (transitive, default features).
 #
-# The pure crates (docket-vocab, docket-manifest, docket-permissions-core, companion-model, docket-core, docket-gate-wire, docket-wire, policy-point, action-review, docket-router, companion-wire,
+# The pure crates (docket-vocab, docket-manifest, docket-permissions-core, companion-model, docket-core, docket-gate-wire, docket-wire, policy-point, action-review, docket-context, docket-router, companion-wire,
 # agent-loop, voice-wire, voice-loop, voice-audio) never reach a bus, a runtime, an HTTP client, an audio or
 # display or accessibility stack, a database, a file watcher, an embedding runtime or the MCP SDK.
 # Only policy-point reaches cedar-policy, and the crates above it (docket-router, the fakes and
@@ -322,6 +323,7 @@ RULES=(
   "docket-wire: $EFFECTS toml"
   "policy-point: $NO_CEDAR toml"
   "action-review: $EFFECTS toml"
+  "docket-context: $NO_CEDAR"
   "docket-router: $NO_CEDAR"
   # Skills are read through a folder the caller injects: no bus, runtime, network or Cedar.
   "docket-skills: $EFFECTS"

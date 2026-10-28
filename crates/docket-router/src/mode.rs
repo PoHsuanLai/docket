@@ -5,40 +5,10 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::state::RouterState;
+use docket_context::state::RouterState;
 use docket_permissions_core::{Mode, ModeRows};
 use docket_wire::{IntentsReply, SessionModeAsk, WireRefusal};
 use prov::SessionId;
-
-/// How many parents the chain is followed through: a cycle can never spin.
-const MAX_HOPS: usize = 8;
-
-impl RouterState {
-    /// The mode `session` is in: its own, or that of the conversation it works for. None when
-    /// the session is not held.
-    pub(crate) fn mode_of(&self, session: &SessionId) -> Option<Mode> {
-        let conversation = self.conversation_of(session)?;
-        self.sessions.get(&conversation).map(|record| record.mode)
-    }
-
-    /// The conversation `session` works for: itself, or the end of its chain of parents the
-    /// router still holds. None when the session is not held.
-    pub(crate) fn conversation_of(&self, session: &SessionId) -> Option<SessionId> {
-        let mut at = session;
-        for _ in 0..MAX_HOPS {
-            let record = self.sessions.get(at)?;
-            match record
-                .parent
-                .as_ref()
-                .filter(|parent| self.sessions.contains_key(*parent))
-            {
-                Some(parent) => at = parent,
-                None => return Some(at.clone()),
-            }
-        }
-        self.sessions.contains_key(at).then(|| at.clone())
-    }
-}
 
 impl<S: Seams> Router<S> {
     /// The mode a new conversation starts in: the person's setting, held at Manual by a floor

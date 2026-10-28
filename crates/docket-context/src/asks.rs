@@ -24,7 +24,7 @@ use std::sync::{Mutex, MutexGuard};
 
 /// What makes two sheets the same question.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct AskKey {
+pub struct AskKey {
     space: SpaceId,
     session: Option<SessionId>,
     actor: Actor,
@@ -39,7 +39,7 @@ pub(crate) struct AskKey {
 
 /// Whether a sheet may be shared.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Shared {
+pub enum Shared {
     /// It offered a standing grant, so one answer serves the calls that asked the same.
     Key(Box<AskKey>),
     /// It is this call's own question.
@@ -48,7 +48,7 @@ pub(crate) enum Shared {
 
 impl AskKey {
     /// The sheet's key, or `Own` when no grant is on offer.
-    pub(crate) fn of(request: &ConfirmRequest, session: Option<&SessionId>) -> Shared {
+    pub fn of(request: &ConfirmRequest, session: Option<&SessionId>) -> Shared {
         let grant_on_offer = request.offer != ConfirmOffer::OnceOnly
             || matches!(request.always, AlwaysOffer::Offered(_));
         if !grant_on_offer {
@@ -71,7 +71,7 @@ impl AskKey {
 
 /// What a waiter does after the first sheet closed.
 #[derive(Debug)]
-pub(crate) enum Settled {
+pub enum Settled {
     /// Take this answer.
     Take(ConfirmAnswer),
     /// The answer covered only the asking call: ask again.
@@ -87,7 +87,8 @@ pub(crate) struct Asks {
 }
 
 /// Where a call stands against the open sheets.
-pub(crate) enum Seat<'a> {
+#[derive(Debug)]
+pub enum Seat<'a> {
     /// Nothing like it is open: this call raises the sheet.
     Asker(Opened<'a>),
     /// The same sheet is open: wait for it.
@@ -117,7 +118,7 @@ fn locked(state: &Mutex<RouterState>) -> MutexGuard<'_, RouterState> {
 }
 
 /// Takes a seat for the sheet `shared`.
-pub(crate) fn seat<'a>(state: &'a Mutex<RouterState>, shared: Shared) -> Seat<'a> {
+pub fn seat<'a>(state: &'a Mutex<RouterState>, shared: Shared) -> Seat<'a> {
     let Shared::Key(key) = shared else {
         return Seat::Alone;
     };
@@ -137,7 +138,8 @@ pub(crate) fn seat<'a>(state: &'a Mutex<RouterState>, shared: Shared) -> Seat<'a
 
 /// The sheet this call raised. When it goes away, answered or not, the table is cleared; a
 /// call that is dropped mid-sheet frees its waiters to ask for themselves.
-pub(crate) struct Opened<'a> {
+#[derive(Debug)]
+pub struct Opened<'a> {
     state: &'a Mutex<RouterState>,
     key: Box<AskKey>,
     answer: Option<ConfirmAnswer>,
@@ -145,7 +147,7 @@ pub(crate) struct Opened<'a> {
 
 impl Opened<'_> {
     /// Records the answer the waiters take.
-    pub(crate) fn settle(&mut self, answer: &ConfirmAnswer) {
+    pub fn settle(&mut self, answer: &ConfirmAnswer) {
         self.answer = Some(answer.clone());
     }
 }
@@ -185,7 +187,7 @@ fn for_waiter(answer: ConfirmAnswer) -> Option<ConfirmAnswer> {
 }
 
 /// How a waiter's wait ended.
-pub(crate) async fn settled(rx: Receiver<ConfirmAnswer>) -> Settled {
+pub async fn settled(rx: Receiver<ConfirmAnswer>) -> Settled {
     match rx.await {
         Ok(answer) => Settled::Take(answer),
         Err(_) => Settled::AskAgain,

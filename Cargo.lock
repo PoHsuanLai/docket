@@ -1475,6 +1475,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-context"
+version = "0.1.0"
+dependencies = [
+ "action-review",
+ "almanac-core",
+ "companion-model",
+ "docket-core",
+ "docket-manifest",
+ "docket-permissions-core",
+ "docket-session",
+ "docket-skills",
+ "docket-vocab",
+ "docket-wire",
+ "futures-channel",
+ "futures-util",
+ "policy-point",
+ "porter-core",
+ "porter-ids",
+ "prov",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "docket-core"
 version = "0.1.0"
 dependencies = [
@@ -1547,6 +1571,7 @@ version = "0.1.0"
 dependencies = [
  "action-review",
  "clap",
+ "docket-context",
  "docket-core",
  "docket-fake",
  "docket-manifest",
@@ -1578,6 +1603,7 @@ dependencies = [
  "cua-action",
  "docket-checkpoint",
  "docket-client",
+ "docket-context",
  "docket-core",
  "docket-gate-wire",
  "docket-manifest",
@@ -1676,6 +1702,7 @@ dependencies = [
  "companion-wire",
  "cua-action",
  "docket-client",
+ "docket-context",
  "docket-core",
  "docket-fake",
  "docket-host",
@@ -1833,6 +1860,7 @@ dependencies = [
  "almanac-core",
  "almanac-fake",
  "almanac-service",
+ "docket-context",
  "docket-core",
  "docket-fake",
  "docket-manifest",
@@ -2020,6 +2048,7 @@ dependencies = [
  "companion-model",
  "cua-action",
  "docket-checkpoint",
+ "docket-context",
  "docket-core",
  "docket-fake",
  "docket-gate-wire",
@@ -2030,7 +2059,6 @@ dependencies = [
  "docket-skills",
  "docket-vocab",
  "docket-wire",
- "futures-channel",
  "futures-util",
  "genai-names",
  "model-provider",
@@ -2953,6 +2981,7 @@ dependencies = [
  "docket-acp-bin",
  "docket-checkpoint-git",
  "docket-client",
+ "docket-context",
  "docket-core",
  "docket-dbus",
  "docket-fake",
@@ -4293,6 +4322,7 @@ name = "readerd"
 version = "0.1.0"
 dependencies = [
  "docket-client",
+ "docket-context",
  "docket-core",
  "docket-dbus",
  "docket-fake",

@@ -2,8 +2,8 @@
 
 use crate::auth::acting_role;
 use crate::seams::Seams;
-use crate::state::RouterState;
 use crate::watch::Watch;
+use docket_context::state::RouterState;
 use docket_core::AgentConfig;
 use docket_permissions_core::Floor;
 use docket_vocab::{CallerRole, Clock};

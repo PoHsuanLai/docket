@@ -423,7 +423,7 @@ async fn a_session_is_restored_from_almanac_after_the_router_is_dropped() {
         assert_eq!(record.policy, policy_before, "the policy as stored");
         assert_eq!(
             record.state,
-            docket_router::SessionState::Open(Taint::Tainted),
+            docket_context::session::SessionState::Open(Taint::Tainted),
             "the taint of the first read survived the restart"
         );
         let handles = record.handles.forgotten();

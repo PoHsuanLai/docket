@@ -1,6 +1,6 @@
 //! Which calls a caller's role may make at all, before any policy is asked.
 
-use crate::registry::Registry;
+use docket_context::registry::Registry;
 use docket_manifest::{ActionDecl, is_offered};
 use docket_permissions_core::is_agent_action;
 use docket_vocab::{ActionRef, CallerRole};

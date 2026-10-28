@@ -13,7 +13,7 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::wal::{Lane, Reveals, Writer};
+use docket_context::wal::{Lane, Reveals, Writer};
 use docket_core::CallRefusal;
 use docket_session::{LogFault, SessionEntry, Taint, TaintCause, TaintNote};
 use docket_vocab::CallId;

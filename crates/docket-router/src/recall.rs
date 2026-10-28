@@ -3,15 +3,15 @@
 //! text comes back as a handle and the planner never reads it, and a body that is not trusted
 //! never comes back at all.
 
-use crate::handles::HandleValue;
 use crate::history::{without_failed_lines, without_failed_steps};
-use crate::labels::absorb;
 use crate::router::Router;
 use crate::seams::Seams;
 use almanac_core::{
     BodyMode, Episode, FactFilter, FactQuery, KindPattern, MemoryReply, MemoryRequest, RecentEntry,
     RecentQuery, SpaceState, TrustFilter,
 };
+use docket_context::handles::HandleValue;
+use docket_context::labels::absorb;
 use docket_core::MemoryLink;
 use docket_core::{EpisodeLine, PrimerText, ProfileLine, RecalledLine, Reveal, SkeletonText};
 use docket_wire::{IntentsReply, RecallAsk, RecallView, RecentLine, WireRefusal};
@@ -29,7 +29,7 @@ fn refuse(why: WireRefusal) -> IntentsReply {
 }
 
 /// A trusted text read into a session still counts when it is private: the session now holds it.
-fn absorb_private(record: &mut crate::state::SessionRecord, label: &Label) {
+fn absorb_private(record: &mut docket_context::state::SessionRecord, label: &Label) {
     if !matches!(label.confidentiality, prov::Confidentiality::Public) {
         absorb(record, label);
     }

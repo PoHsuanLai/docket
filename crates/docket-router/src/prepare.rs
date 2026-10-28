@@ -7,23 +7,25 @@ use crate::consent::{consent_for, within_reach};
 use crate::coverage::coverage;
 use crate::facts::{RunFacts, budget_fact, repeat_fact, run_facts, taint_fact};
 use crate::gate::{GateInputs, Pending, gate};
-use crate::labels::{
-    arg_labels, args_confidentiality, label_args, planner_integrity, resolve_target, sink_integrity,
-};
 use crate::may_make::may_make;
-use crate::owned::{owned_by_another, touched};
 use crate::prepared::{
     Early, Prepared, digest, entities, grant_state, proposed, typed_history, usage_of,
 };
 use crate::router::Router;
 use crate::seams::{GrantStore, Seams};
-use crate::session::{CloseCause, SessionEffect, SessionEvent, SessionState, session_step};
-use crate::spacing::relation_of;
 use crate::standing_ctx::StandingCtx;
-use crate::state::{RouterState, SessionRecord};
 use crate::turn_start::{TurnStart, pass, rule};
-use crate::who::Who;
 use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
+use docket_context::labels::{
+    arg_labels, args_confidentiality, label_args, planner_integrity, resolve_target, sink_integrity,
+};
+use docket_context::owned::{owned_by_another, touched};
+use docket_context::session::{
+    CloseCause, SessionEffect, SessionEvent, SessionState, session_step,
+};
+use docket_context::spacing::relation_of;
+use docket_context::state::{RouterState, SessionRecord};
+use docket_context::who::Who;
 use docket_core::{BudgetKind, CallRefusal, Cost};
 use docket_manifest::{ActionDecl, Lasting};
 use docket_permissions_core::{

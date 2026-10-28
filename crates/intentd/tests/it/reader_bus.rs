@@ -5,9 +5,10 @@
 use crate::support::bus::PrivateBus;
 use crate::support::inferd::ScriptedInferd;
 use docket_client::{InProcess, Intents};
+use docket_context::handles::HandleValue;
 use docket_core::*;
 use docket_fake::{FakeSeams, fake_router};
-use docket_router::{HandleValue, Router};
+use docket_router::Router;
 use docket_vocab::{CallerRole, ChoiceId, Handle, Value};
 use docket_wire::{CallerId, IntentsReply, IntentsRequest, SessionOpen};
 use intentd::ReaderClient;

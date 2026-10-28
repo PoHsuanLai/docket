@@ -13,6 +13,7 @@ members = [
   "crates/docket-skills-disk",
   "crates/policy-point",
   "crates/action-review",
+  "crates/docket-context",
   "crates/docket-router",
   "crates/companion-core",
   "crates/companion-wire",
@@ -97,6 +98,7 @@ docket-skills  = { path = "crates/docket-skills" }
 docket-skills-disk = { path = "crates/docket-skills-disk" }
 policy-point   = { path = "crates/policy-point" }
 action-review  = { path = "crates/action-review" }
+docket-context = { path = "crates/docket-context" }
 docket-router  = { path = "crates/docket-router" }
 companion-core = { path = "crates/companion-core" }
 companion-wire = { path = "crates/companion-wire" }

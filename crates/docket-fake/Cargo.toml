@@ -20,6 +20,7 @@ docket-manifest = { workspace = true, features = ["manifest-file"] }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
+docket-context = { workspace = true }
 docket-router = { workspace = true }
 docket-provider = { workspace = true }
 policy-point = { workspace = true }

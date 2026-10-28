@@ -8,12 +8,12 @@
 //! planner's; nothing here reads it as an instruction.
 
 use crate::companion_names::{HELPER_POST_JOB, HELPER_PROPOSE, LIMIT_ADD, ROUTINE_PROPOSE};
-use crate::handles::HandleValue;
-use crate::labels::{app_label, model_label};
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::spoken::whole_in;
 use companion_model::helper::{GoalOrigin, JobRefusal, PlannerSaw};
+use docket_context::handles::HandleValue;
+use docket_context::labels::{app_label, model_label};
+use docket_context::spoken::whole_in;
 use docket_core::EventSink;
 use docket_core::{
     AppRefusal, AuditRecord, DraftPart, FROM_CHECKED_BRIEF, FailText, Invocation, MessageDraft,

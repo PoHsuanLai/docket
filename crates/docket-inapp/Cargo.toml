@@ -28,6 +28,7 @@ docket-memory-core = { workspace = true }
 docket-models = { workspace = true }
 docket-planner = { workspace = true }
 docket-reader = { workspace = true }
+docket-context = { workspace = true }
 docket-router = { workspace = true }
 docket-session = { workspace = true }
 docket-skills = { workspace = true }

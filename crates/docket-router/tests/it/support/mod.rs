@@ -2,12 +2,13 @@
 //! labelled handles and the calls of the fixture mail app.
 #![allow(dead_code)]
 
+use docket_context::state::SessionRecord;
 use docket_core::*;
 use docket_fake::{FakeSeams, MailContact, MailThread, fake_router};
 use docket_permissions_core::{
     ActionGrantKey, ActionMatch, GrantCaller, GrantTarget, TaskPolicy, TaskPolicyState,
 };
-use docket_router::{Router, SessionRecord};
+use docket_router::Router;
 use docket_vocab::{
     ActionRef, CallRequest, CallerRole, Handle, LabelText, Origin, ParamName, TargetValue, TurnId,
     Value,
@@ -245,7 +246,7 @@ pub fn hold(router: &Router<FakeSeams>, session: &SessionId, text: &str, label: 
     let record: &mut SessionRecord = st.sessions.get_mut(session).expect("session");
     record.handles.mint(
         Labelled {
-            value: docket_router::HandleValue::Text(text.into()),
+            value: docket_context::handles::HandleValue::Text(text.into()),
             label,
         },
         Source::Mail,

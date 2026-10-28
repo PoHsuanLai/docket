@@ -4,7 +4,7 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::state::RouterState;
+use docket_context::state::RouterState;
 use docket_core::{IndexEntry, IndexState};
 use docket_manifest::IndexPolicy;
 use porter_core::AppName;

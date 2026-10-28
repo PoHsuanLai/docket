@@ -2,9 +2,11 @@
 //! task policy, its goal is a handle, and a message to it is delivered as input.
 
 use crate::support::*;
+use docket_context::handles::HandleValue;
+use docket_context::tasks::TaskState;
 use docket_core::*;
 use docket_permissions_core::{COMPANION_APP, PolicyChange, Saw, compare};
-use docket_router::{HandleValue, Router, TaskState};
+use docket_router::Router;
 use docket_vocab::{Args, CallId, ChoiceId, Handle, Origin, TargetValue, Value};
 use docket_wire::{IntentsReply, IntentsRequest};
 use prov::{

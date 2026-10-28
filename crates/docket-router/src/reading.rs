@@ -2,12 +2,12 @@
 //! context of the window the person prompted from. Untrusted text reaches a planner only as a
 //! handle; plain text goes to the reader and to the screen.
 
-use crate::handle_views::context_view;
-use crate::handles::{HandleTable, HandleValue};
-use crate::labels::{absorb, fold_labels};
 use crate::router::Router;
 use crate::seams::{AppLink, Seams};
-use crate::session::SessionState;
+use docket_context::handle_views::context_view;
+use docket_context::handles::{HandleTable, HandleValue};
+use docket_context::labels::{absorb, fold_labels};
+use docket_context::session::SessionState;
 use docket_core::LinkFault;
 use docket_core::{
     CallRefusal, ContextScope, ContextSnapshot, ReadFault, Reader, Reveal, Selection, conforms,
@@ -171,7 +171,7 @@ impl<S: Seams> Router<S> {
         if words.is_empty() {
             return IntentsReply::Read(Reveal::Plain(value));
         }
-        let label = fold_labels(labels).unwrap_or_else(crate::labels::model_label);
+        let label = fold_labels(labels).unwrap_or_else(docket_context::labels::model_label);
         if label.integrity == Integrity::Untrusted
             && let Err(why) = self.ahead_of_reveal(id, None).await
         {

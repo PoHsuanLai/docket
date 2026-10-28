@@ -4,8 +4,8 @@
 //! (a leaf that is not a closed-set value never passes), never left to pass because nothing
 //! matched it.
 
-use crate::handles::{HandleLimit, HandleValue};
-use crate::state::SessionRecord;
+use docket_context::handles::{HandleLimit, HandleValue};
+use docket_context::state::SessionRecord;
 use docket_vocab::Value;
 use prov::{Label, Labelled, Source};
 

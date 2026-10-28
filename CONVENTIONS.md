@@ -31,7 +31,7 @@ What docket adds or decides differently, each with its reason:
    dependencies' features; `scripts/check-boundary.sh` fails the gate if one does; `scripts/check-portable.sh` does the same for the portable set (ARCHITECTURE.md section 1a) with `--no-default-features`. Only
    `policy-point` (and what runs the router above it) reaches `cedar-policy`; only
    `actions-mcp` reaches `rmcp`. `docket-core` and `docket-manifest` never reach `toml` by default: manifest TOML is parsed by `docket_manifest::parse` (feature `manifest-file`), which
-   `docket-router::registry` turns on.
+   `docket-context::registry` turns on.
 5. **docket sits below `cua` and `sill`.** No crate of the computer-use repo or of sill enters
    any tree here, dev-dependencies included; the boundary script checks it.
 6. **One message model.** Every exchange between agents, and between the person and an agent,

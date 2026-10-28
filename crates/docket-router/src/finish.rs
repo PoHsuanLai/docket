@@ -2,16 +2,16 @@
 //! session's history and the task's ledger, and the outcome as its caller may read it.
 
 use crate::driven::{Driven, decision_of, step_end};
-use crate::handles::HandleLimit;
-use crate::labels::{Voice, absorb};
 use crate::prepared::{Early, Prepared};
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::session::{SessionEffect, SessionEvent};
 use crate::shield::shield;
-use crate::state::SessionRecord;
-use crate::tasks::TaskState;
 use action_review::note;
+use docket_context::handles::HandleLimit;
+use docket_context::labels::{Voice, absorb};
+use docket_context::session::{SessionEffect, SessionEvent};
+use docket_context::state::SessionRecord;
+use docket_context::tasks::TaskState;
 use docket_core::EventSink;
 use docket_core::{
     AuditRecord, BudgetKind, CallEnd, CallRefusal, DecidedBy, Outcome, Preview, StepEnd, StepLine,

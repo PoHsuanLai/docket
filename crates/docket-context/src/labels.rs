@@ -16,7 +16,7 @@ use std::collections::BTreeSet;
 
 /// Who is speaking, which sets how much of the labels it supplies the router believes.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Voice {
+pub enum Voice {
     /// The person, through the launcher or a prompt field: its labels are the surface's.
     Person,
     /// An app calling its own actions: its labels are its own.
@@ -44,22 +44,22 @@ fn label(integrity: Integrity, source: Source) -> Label {
 }
 
 /// The person's own words.
-pub(crate) fn user_label() -> Label {
+pub fn user_label() -> Label {
     Label::trusted_user()
 }
 
 /// Text a model wrote.
-pub(crate) fn model_label() -> Label {
+pub fn model_label() -> Label {
     label(Integrity::Untrusted, Source::Model(ModelRole::Planner))
 }
 
 /// The name of a file in a workspace: written by an agent or by the person, so third-party text.
-pub(crate) fn path_label() -> Label {
+pub fn path_label() -> Label {
     label(Integrity::Untrusted, Source::File)
 }
 
 /// What an app authored about its own things.
-pub(crate) fn app_label(app: &AppName) -> Label {
+pub fn app_label(app: &AppName) -> Label {
     label(Integrity::Trusted, Source::App(app.clone()))
 }
 
@@ -74,7 +74,7 @@ fn private(c: &Confidentiality) -> bool {
 
 /// The labels in `labels`, equal ones once, joined: `None` for none. A single label needs no
 /// join.
-pub(crate) fn fold_labels(labels: impl IntoIterator<Item = Label>) -> Option<Label> {
+pub fn fold_labels(labels: impl IntoIterator<Item = Label>) -> Option<Label> {
     let mut distinct: Vec<Label> = Vec::new();
     for l in labels {
         if !distinct.contains(&l) {
@@ -86,7 +86,7 @@ pub(crate) fn fold_labels(labels: impl IntoIterator<Item = Label>) -> Option<Lab
 
 /// Labels and resolves every argument: handles become the values they hold with their labels,
 /// and a plain value gets the label its speaker's voice earns.
-pub(crate) fn label_args(
+pub fn label_args(
     session: &SessionRecord,
     voice: &Voice,
     args: Args,
@@ -103,7 +103,7 @@ pub(crate) fn label_args(
 
 /// The target with every handle resolved to the thing it holds: a handle that is not held is
 /// unknown, one that holds words or a file is the wrong type.
-pub(crate) fn resolve_target(
+pub fn resolve_target(
     session: &SessionRecord,
     target: TargetValue,
 ) -> Result<TargetValue, ArgFault> {
@@ -226,7 +226,7 @@ fn trace(session: &SessionRecord, value: &Value) -> Label {
 
 /// The integrity of what each sink receives: the least trusted argument that feeds it. A sink
 /// no argument feeds receives nothing untrusted.
-pub(crate) fn sink_integrity(decl: &ActionDecl, args: &Args) -> SinkIntegrity {
+pub fn sink_integrity(decl: &ActionDecl, args: &Args) -> SinkIntegrity {
     let of = |wanted: &[ArgSink]| {
         let untrusted = decl
             .params
@@ -249,7 +249,7 @@ pub(crate) fn sink_integrity(decl: &ActionDecl, args: &Args) -> SinkIntegrity {
 }
 
 /// What the router knows about the arguments of one call.
-pub(crate) fn arg_labels(args: &Args, session: &SessionRecord) -> ArgLabels {
+pub fn arg_labels(args: &Args, session: &SessionRecord) -> ArgLabels {
     ArgLabels {
         per_arg: args
             .iter()
@@ -261,7 +261,7 @@ pub(crate) fn arg_labels(args: &Args, session: &SessionRecord) -> ArgLabels {
 }
 
 /// A planner that has seen untrusted content is untrusted.
-pub(crate) fn planner_integrity(saw: &SessionSaw) -> Integrity {
+pub fn planner_integrity(saw: &SessionSaw) -> Integrity {
     match saw.untrusted {
         Saw::Seen => Integrity::Untrusted,
         Saw::NotSeen => Integrity::Trusted,
@@ -269,7 +269,7 @@ pub(crate) fn planner_integrity(saw: &SessionSaw) -> Integrity {
 }
 
 /// The confidentiality of everything a call carries.
-pub(crate) fn args_confidentiality(args: &Args) -> Confidentiality {
+pub fn args_confidentiality(args: &Args) -> Confidentiality {
     args.values()
         .map(|a| a.label.confidentiality.clone())
         .fold(Confidentiality::Public, |a, b| a.join(&b))
@@ -277,7 +277,7 @@ pub(crate) fn args_confidentiality(args: &Args) -> Confidentiality {
 
 /// Takes `label` into the session: what it now has seen can only grow, and a plain untrusted
 /// reveal taints it for good.
-pub(crate) fn absorb(session: &mut SessionRecord, label: &Label) {
+pub fn absorb(session: &mut SessionRecord, label: &Label) {
     if label.integrity == Integrity::Untrusted {
         session.saw.untrusted = Saw::Seen;
         session.apply(SessionEvent::UntrustedReveal);

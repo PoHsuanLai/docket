@@ -2,12 +2,13 @@
 //! the table, the ledger of each task until it ends (it becomes an episode), and the roster.
 
 use crate::state::SessionRecord;
+use almanac_core::{Episode, EpisodeKind, EpisodeOutcome};
 use docket_core::{
     Budget, LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine, RosterState, StepLine,
     TaskTotals, totals_of,
 };
 use docket_permissions_core::{TaskPolicy, intersection};
-use docket_wire::TaskLedger;
+use docket_wire::{TaskLedger, close};
 use prov::{AgentRef, ReportStatus, SessionId, SpaceId, TaskId};
 use std::collections::BTreeMap;
 
@@ -150,4 +151,19 @@ fn roster_by(
         helpers: Vec::new(),
     }
     .seen_from(active)
+}
+
+/// Ends a task that is not ended yet and returns the skeleton it leaves. A session nobody used
+/// (no turn, no step) leaves no episode: there is nothing to remember.
+pub fn end_task(t: &mut TaskRecord, now: prov::UnixSeconds) -> Option<Episode> {
+    let outcome = match t.state {
+        TaskState::Ended(_) => None,
+        _ => {
+            t.state = TaskState::Ended(ReportStatus::Done);
+            Some(EpisodeOutcome::Done)
+        }
+    };
+    outcome
+        .and_then(|o| close(&t.ledger, EpisodeKind::Task, now, o))
+        .filter(|e| !(e.skeleton.asked.is_empty() && e.skeleton.steps.is_empty()))
 }

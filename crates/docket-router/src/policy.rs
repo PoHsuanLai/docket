@@ -3,8 +3,8 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::state::{RouterState, SessionRecord};
-use crate::tasks::child_policy;
+use docket_context::state::{RouterState, SessionRecord};
+use docket_context::tasks::child_policy;
 use docket_core::EventSink;
 use docket_core::{
     ActionCard, Anchor, ArgLine, AuditRecord, ConfirmAnswer, ConfirmAnswerKind, ConfirmDetail,
@@ -369,9 +369,11 @@ impl<S: Seams> Router<S> {
                 gesture: Gesture::Press,
                 anchor: Anchor::Launcher,
                 expires: self.agent_config().confirm_expiry,
-                editor: crate::who::editor_of(record).map(|client| docket_core::EditorRoute {
-                    client,
-                    session: id.clone(),
+                editor: docket_context::who::editor_of(record).map(|client| {
+                    docket_core::EditorRoute {
+                        client,
+                        session: id.clone(),
+                    }
                 }),
                 helper: record.helper.as_ref().map(|seat| seat.name.clone()),
                 brief: None,

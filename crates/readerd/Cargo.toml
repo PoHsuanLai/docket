@@ -48,6 +48,7 @@ docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-fake = { workspace = true }
 porter-infer = { workspace = true, features = ["testing"] }
 proptest = { workspace = true }
+docket-context = { workspace = true }
 docket-router = { workspace = true }
 docket-wire = { workspace = true }
 

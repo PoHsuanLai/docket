@@ -2,11 +2,12 @@
 //! the gate, labelled by what the relation says and never better than where it was found.
 
 use crate::support::*;
+use docket_context::handles::HandleValue;
 use docket_core::*;
 use docket_fake::FakeSeams;
 use docket_manifest::{ArgSink, Cardinality, ManifestError, TitleTrust};
 use docket_permissions_core::{ActionGrantKey, AskReason, GrantCaller, GrantTarget, Saw};
-use docket_router::{GrantStore, HandleValue, Router};
+use docket_router::{GrantStore, Router};
 use docket_vocab::{ActionRef, CallRequest, ChoiceId, Handle, Origin, TargetValue, Value};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use prov::{DataClass, Integrity, SessionId};
@@ -298,11 +299,11 @@ fn a_manifest_file_declares_a_relation_and_the_registry_checks_the_kind_it_names
     ));
 
     // A relation to a kind no installed app declares is the registry's to refuse.
-    let mut registry = docket_router::Registry::new();
+    let mut registry = docket_context::registry::Registry::new();
     registry.insert(mail.clone());
     assert!(registry.unresolved().is_empty());
     let dangling = text.replace("to = \"mail.contact\"", "to = \"mail.nobody\"");
-    let mut registry = docket_router::Registry::new();
+    let mut registry = docket_context::registry::Registry::new();
     registry.insert(docket_manifest::parse(&dangling).expect("valid on its own"));
     assert!(
         registry.unresolved().iter().any(|e| matches!(

@@ -2,12 +2,14 @@
 //! Every test runs over `MemoryLog`: no network, no clock, a crash is `crash_after(n)`.
 
 use crate::support::*;
+use docket_context::session::SessionState;
+use docket_context::wal::Wal;
 use docket_core::*;
 use docket_fake::{
     FixedClock, MailContact, MailThread, ScriptedReviewer, ScriptedWriter, fake_router_on,
 };
 use docket_permissions_core::{Saw, TaskPolicy};
-use docket_router::{RestoreFault, Router, SessionState, Wal};
+use docket_router::{RestoreFault, Router};
 use docket_session::Taint;
 use docket_session::fake::{LogMood, MemoryLog};
 use docket_session::{

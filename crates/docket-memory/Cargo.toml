@@ -29,6 +29,7 @@ almanac-client = { workspace = true, features = ["in_process"] }
 almanac-fake = { workspace = true }
 almanac-service = { workspace = true }
 docket-fake = { workspace = true }
+docket-context = { workspace = true }
 docket-router = { workspace = true }
 tokio = { workspace = true }
 docket-wire = { workspace = true }

@@ -3,8 +3,8 @@
 
 use crate::router::Router;
 use crate::seams::{AppLink, Seams};
-use crate::session::SessionEvent;
-use crate::session::age;
+use docket_context::session::SessionEvent;
+use docket_context::session::age;
 use docket_core::EventSink;
 use docket_core::{
     AuditRecord, Confirmer, Halt, HaltCause, UndoEntry, UndoFault, UndoScope, UndoState,

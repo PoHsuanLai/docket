@@ -7,13 +7,14 @@
 
 use crate::steps::Player;
 use crate::world::{install, state_of};
+use docket_context::state::RouterState;
 use docket_core::{AgentConfig, AuditRecord, ModelExchange};
 use docket_fake::{
     FakeError, FakeLink, FakeSeams, Forget, MemoryGrants, RecordingSink, ScriptedConfirmer,
     ScriptedWriter, fake_router,
 };
 use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
-use docket_router::{Router, RouterState, Seams};
+use docket_router::{Router, Seams};
 use docket_vocab::LabelText;
 use eval_core::{Case, CaseResult, CaseTrace, Cut, StepEnding};
 use porter_ids::Count;

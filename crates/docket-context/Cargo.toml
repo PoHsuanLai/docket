@@ -1,0 +1,36 @@
+[package]
+name = "docket-context"
+description = "What the router remembers and shows: the session record and its state, the handle table, the task table, the write-ahead log, the undo journal, the manifest registry, the labels, the rebuild of a session from its log, and who is asking."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+porter-ids = { workspace = true }
+action-review = { workspace = true }
+almanac-core = { workspace = true }
+companion-model = { workspace = true }
+docket-core = { workspace = true }
+docket-wire = { workspace = true }
+docket-manifest = { workspace = true }
+docket-permissions-core = { workspace = true }
+docket-vocab = { workspace = true }
+docket-session = { workspace = true }
+docket-skills = { workspace = true }
+policy-point = { workspace = true }
+prov = { workspace = true }
+porter-core = { workspace = true }
+thiserror = { workspace = true }
+futures-util = { workspace = true }
+futures-channel = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+docket-session = { workspace = true, features = ["testing"] }
+docket-manifest = { workspace = true, features = ["manifest-file"] }
+serde_json = { workspace = true }

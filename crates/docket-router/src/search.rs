@@ -4,14 +4,14 @@
 //! router labels each title from its kind's declared trust, so an app cannot call somebody
 //! else's words its own.
 
-use crate::index::IndexAction;
-use crate::index::IndexEvent;
-use crate::labels::app_label;
 use crate::rank::{Rank, rank_of};
 use crate::reading::link_refusal;
 use crate::router::Router;
 use crate::seams::{AppLink, Seams};
-use crate::state::RouterState;
+use docket_context::index::IndexAction;
+use docket_context::index::IndexEvent;
+use docket_context::labels::app_label;
+use docket_context::state::RouterState;
 use docket_core::LinkFault;
 use docket_core::{Hit, IndexBatch, IndexEntry, SearchAsk, SearchScope, SuggestAsk};
 use docket_manifest::{IndexPolicy, TitleTrust};
@@ -198,7 +198,7 @@ impl<S: Seams> Router<S> {
             .sessions
             .iter()
             .filter(|(_, r)| matches!(r.actor, prov::Actor::Companion { .. }))
-            .max_by_key(|(id, _)| crate::session::age(id))
+            .max_by_key(|(id, _)| docket_context::session::age(id))
             .map(|(id, _)| id.clone());
         if let Some(record) = newest.and_then(|id| st.sessions.get_mut(&id))
             && let Err(limit) = record.know(ids)

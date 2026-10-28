@@ -10,12 +10,13 @@ use action_review::Reviewer;
 use docket_client::{ClientError, InProcess, Intents};
 use docket_host::{ConfirmSheet, SheetConfirmer};
 
+use docket_context::registry::Registry;
 use docket_core::MemoryLink;
 use docket_core::{AgentConfig, AuditRecord, CallRefusal, PolicyWriter, Reader, StepLine};
 use docket_memory::AuditState;
 use docket_planner::{PlanFault, PlannerModel};
 use docket_provider::{ContextSource, IntentProvider};
-use docket_router::{GrantStore, Registry, Router};
+use docket_router::{GrantStore, Router};
 use docket_tasks::{Companion, Quiet, ServeFault};
 use docket_vocab::{Clock, TurnId};
 use policy_point::Presets;

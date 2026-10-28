@@ -12,7 +12,7 @@ use prov::{Actor, AgentRef, AgentRole, ClientName, SessionId, TaskId};
 
 /// The party behind a request.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Who {
+pub struct Who {
     /// The connection.
     pub caller: CallerId,
     /// The role it acts in.
@@ -36,7 +36,7 @@ pub(crate) struct Who {
 
 /// The external agent behind a host's call.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct AgentSeat {
+pub struct AgentSeat {
     /// The configured program.
     pub program: ProgramName,
     /// The host that shows this session's sheets itself, when the session asked for that.
@@ -58,7 +58,7 @@ pub(crate) fn acp_client(program: &ProgramName) -> Option<ClientName> {
 
 /// The editor the person last spoke through in `record`: the app that recorded its latest turn,
 /// if that turn came from an editor.
-pub(crate) fn editor_of(record: &SessionRecord) -> Option<ClientName> {
+pub fn editor_of(record: &SessionRecord) -> Option<ClientName> {
     let from = &record.turns.last()?.from;
     if from.role() != CallerRole::Editor {
         return None;
@@ -67,7 +67,7 @@ pub(crate) fn editor_of(record: &SessionRecord) -> Option<ClientName> {
 }
 
 /// Where a sheet for a call of `who` goes when an editor is driving its session.
-pub(crate) fn route_of(who: &Who) -> Option<docket_core::EditorRoute> {
+pub fn route_of(who: &Who) -> Option<docket_core::EditorRoute> {
     let client = match &who.agent {
         Some(seat) => seat.host.clone()?,
         None => who.editor.clone()?,
@@ -80,7 +80,7 @@ pub(crate) fn route_of(who: &Who) -> Option<docket_core::EditorRoute> {
 
 impl Who {
     /// The consent a grant for this party is keyed by.
-    pub(crate) fn grant_caller(&self) -> GrantCaller {
+    pub fn grant_caller(&self) -> GrantCaller {
         if let Some(seat) = &self.agent {
             return match &seat.helper {
                 Some(helper) => GrantCaller::AcpHelper {
@@ -125,7 +125,7 @@ impl RouterState {
     /// Who a `role` calling as `caller` is. The person's surfaces act directly; a companion
     /// acts in the session it names, else its newest (a closed one refuses its calls, so a halt reads as a halt); MCP clients, terminals and apps act in a session of
     /// their own, made when they first call.
-    pub(crate) fn who_for(
+    pub fn who_for(
         &mut self,
         caller: &CallerId,
         role: CallerRole,
@@ -276,7 +276,7 @@ impl RouterState {
 }
 
 /// Who acts in the session of `agent`, opened by `opener`: how calls and the journal name it.
-pub(crate) fn actor_of(
+pub fn actor_of(
     agent: &AgentRef,
     external: Option<&ExternalAgent>,
     session: &SessionId,

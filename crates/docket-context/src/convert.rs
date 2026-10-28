@@ -1,6 +1,6 @@
-//! The router's `CloseCause` and the durable record's `EndCause` (`docket-session` does not
-//! depend on the router, so each side has its type and these are the only crossings). Each
-//! match names every variant, so adding one to either side stops the build here.
+//! The `CloseCause` of the session machine and the durable record's `EndCause` (`docket-session`
+//! does not depend on the router, so each side has its type and these are the only crossings).
+//! Each match names every variant, so adding one to either side stops the build here.
 
 use crate::session::CloseCause;
 use docket_session::EndCause;

@@ -5,8 +5,8 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::tasks::{TaskRecord, TaskState};
 use almanac_core::{Episode, EpisodeId, EpisodeKind, EpisodeOutcome, Narrative};
+use docket_context::tasks::{TaskRecord, TaskState};
 use docket_core::EventSink;
 use docket_core::{AuditRecord, CallEnd};
 use docket_vocab::Clock;
@@ -68,7 +68,7 @@ impl<S: Seams> Router<S> {
                     task.and_then(|task| {
                         st.tasks
                             .get_mut(&task)
-                            .and_then(|t| crate::opening::end_task(t, now))
+                            .and_then(|t| docket_context::tasks::end_task(t, now))
                     })
                 };
                 if let Some(episode) = ended {

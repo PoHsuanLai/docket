@@ -33,16 +33,16 @@ const FALLBACK_OPENER: &str = docket_permissions_core::COMPANION_APP;
 
 /// A restored session and everything beside it the router must make consistent.
 #[derive(Debug)]
-pub(crate) struct Rebuilt {
+pub struct Rebuilt {
     /// The session.
-    pub(crate) record: SessionRecord,
+    pub record: SessionRecord,
     /// Its task.
-    pub(crate) task: TaskRecord,
+    pub task: TaskRecord,
     /// The highest number any id of it used: new ids must be above it.
-    pub(crate) reserve: u64,
+    pub reserve: u64,
     /// The taint the log itself holds: below the session's when a repair is still to be
     /// appended.
-    pub(crate) durable: Taint,
+    pub durable: Taint,
 }
 
 /// Whether the plan found untrusted handles with no taint entry before them.
@@ -53,7 +53,7 @@ fn needs_repair(plan: &ResumePlan) -> bool {
 }
 
 /// The number in an id of the form `<letter>-<number>`.
-pub(crate) fn number_of(id: &str) -> u64 {
+pub fn number_of(id: &str) -> u64 {
     id.rsplit('-')
         .next()
         .and_then(|n| n.parse().ok())
@@ -130,7 +130,7 @@ fn queued(plan: &ResumePlan, lines: &[StepLine]) -> Vec<SessionEntry> {
 }
 
 /// The session `plan` describes, as of `now`.
-pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Rebuilt {
+pub fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Rebuilt {
     let opening = &plan.opening;
     let agent = opening.agent.clone().unwrap_or(AgentRef::Companion);
     let opener = opening

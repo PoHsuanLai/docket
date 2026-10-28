@@ -4092,3 +4092,13 @@ Two commits: the harness seams first, then the split.
 - Kept on purpose: `GrantCaller` (the key a grant is stored under; it names a client, a program or a helper the role does not, filled in one place by `Who::grant_caller`; `GrantCaller::kind` stays its one match onto prov's `ActorKind`), `Speaker` (companion-core: the policy subject of the companion's bus, with a terminal's scope; `companiond::helpers_bus::caller_of` makes the `Caller` of the turns it records), `Origin` (the provider-wire vocabulary: eight values that are not roles, set at 65 sites).
 - `docket-acp` no longer depends on `docket-wire` (it only used `CallerRole`); `Cargo.lock` was edited by hand for that.
 - Not verified by a build; rustfmt ran on the touched files.
+
+## D4.14b: docket-context (2026-10-28)
+- New P-tier crate `docket-context`: what the router remembers and shows. It holds `state` (`RouterState`, `SessionRecord`), `session`, `tasks` (with `end_task`, moved out of `opening`), `wal`, `journal`, `registry`, `handles`, `handle_views`, `labels`, `rebuild`, `who`, `asks`, `owned`, `spacing`, and the `recording` impls. It names nothing of `Router` or `Seams`; `docket-router` depends on it.
+- Also moved because the above name them: `index` (`RouterState::index_event` uses `index_step`), `spoken` (`labels` uses `whole_in`) and `convert` (the `CloseCause`/`EndCause` conversions: with `CloseCause` in the new crate the orphan rule needs them beside it). `RouterState::mode_of`, `conversation_of` and `terminal_sessions` moved out of the router's `mode.rs` and `terminal.rs` into `state.rs`, because an inherent impl must sit in the crate that owns the type.
+- `opening` stays in the router: it is almost all `impl Router`. Its only free function, `end_task`, moved to `docket-context::tasks`.
+- No re-exports: the router's `lib.rs` no longer exports the moved names. Importers in `docket-eval`, `docket-fake`, `docket-inapp`, `docket-memory` (test), `intentd`, `readerd` (test) and the router's tests use `docket_context::<module>::`. The `pub(crate)` items the router uses are `pub` with docs.
+- Tests: `machines.rs`, `tasks.rs` and the registry and handle half of `behaviour.rs` moved to `docket-context/tests/it`; the message half of `behaviour.rs` stays.
+- `docket-context` also depends on `action-review`, `docket-skills`, `policy-point` and `almanac-core` (all P tier): `RouterState` holds a `Breaker` and the skill list, `spacing` names `SpaceRelation`, `rebuild` names `EpisodeId`.
+- `docket-router` no longer depends on `futures-channel`. Rows added in `scripts/check-boundary.sh` (layers and rules) and `scripts/check-portable.sh`.
+- Not verified by a build; rustfmt ran on the touched files. `Cargo.lock` was edited by hand for the new crate and its edges.

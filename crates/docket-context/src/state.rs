@@ -25,6 +25,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use docket_permissions_core::Saw;
 
+/// How many parents the chain is followed through: a cycle can never spin.
+const MAX_HOPS: usize = 8;
+
 /// How many confirmed briefs a session keeps; the oldest is dropped past it.
 pub const BRIEFS_KEPT: usize = 8;
 
@@ -41,11 +44,11 @@ pub struct ConfirmedBrief {
 
 /// A turn that has begun and not ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct RunningTurn {
+pub struct RunningTurn {
     /// Which turn.
-    pub(crate) turn: TurnId,
+    pub turn: TurnId,
     /// When it began, by the router's clock.
-    pub(crate) since: UnixSeconds,
+    pub since: UnixSeconds,
 }
 
 /// What a session is for.
@@ -242,11 +245,11 @@ pub struct RouterState {
     /// each load).
     pub skills: Vec<docket_skills::Skill>,
     /// The writer of each recorded session's log.
-    pub(crate) lanes: BTreeMap<SessionId, Lane>,
+    pub lanes: BTreeMap<SessionId, Lane>,
     /// The sessions whose workspace is being saved or restored right now.
-    pub(crate) stepping: BTreeSet<SessionId>,
+    pub stepping: BTreeSet<SessionId>,
     /// The turn each session's agent is working on now.
-    pub(crate) running: BTreeMap<SessionId, RunningTurn>,
+    pub running: BTreeMap<SessionId, RunningTurn>,
 }
 
 impl RouterState {
@@ -296,6 +299,40 @@ impl RouterState {
     pub fn mint(&mut self) -> u32 {
         self.minted = Count(self.minted.0.saturating_add(1));
         self.minted.0
+    }
+
+    /// The mode `session` is in: its own, or that of the conversation it works for. None when
+    /// the session is not held.
+    pub fn mode_of(&self, session: &SessionId) -> Option<Mode> {
+        let conversation = self.conversation_of(session)?;
+        self.sessions.get(&conversation).map(|record| record.mode)
+    }
+
+    /// The conversation `session` works for: itself, or the end of its chain of parents the
+    /// router still holds. None when the session is not held.
+    pub fn conversation_of(&self, session: &SessionId) -> Option<SessionId> {
+        let mut at = session;
+        for _ in 0..MAX_HOPS {
+            let record = self.sessions.get(at)?;
+            match record
+                .parent
+                .as_ref()
+                .filter(|parent| self.sessions.contains_key(*parent))
+            {
+                Some(parent) => at = parent,
+                None => return Some(at.clone()),
+            }
+        }
+        self.sessions.contains_key(at).then(|| at.clone())
+    }
+
+    /// The terminal sessions: every implicit session of the `Cli` role.
+    pub fn terminal_sessions(&self) -> Vec<SessionId> {
+        self.implicit
+            .iter()
+            .filter(|((role, _), _)| *role == CallerRole::Cli)
+            .map(|(_, session)| session.clone())
+            .collect()
     }
 }
 

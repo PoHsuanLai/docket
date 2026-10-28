@@ -4,43 +4,23 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::session::SessionEvent;
-use crate::state::SessionRecord;
-use crate::tasks::{TaskRecord, TaskState, child_policy};
-use crate::wal::Wal;
-use almanac_core::{EpisodeId, EpisodeKind, EpisodeOutcome};
+use almanac_core::EpisodeId;
 use companion_model::helper::SeatPlace;
+use docket_context::session::SessionEvent;
+use docket_context::state::SessionRecord;
+use docket_context::tasks::{TaskRecord, TaskState, child_policy, end_task};
+use docket_context::wal::Wal;
 use docket_core::EventSink;
 use docket_core::{AuditRecord, Reveal, Rewind, TurnIn, UserTurn};
 use docket_permissions_core::intersection;
 use docket_session::{BackendKind, Opening, SessionEntry, Taint};
 use docket_vocab::{Caller, CallerRole, Clock, TurnId};
-use docket_wire::{
-    CallerId, IntentsReply, SessionOpen, SessionOpened, TaskLedger, WireRefusal, close,
-};
+use docket_wire::{CallerId, IntentsReply, SessionOpen, SessionOpened, TaskLedger, WireRefusal};
 use porter_core::AppName;
-use prov::{Actor, AgentRef, AgentRole, ReportStatus, SessionId, TaskId};
+use prov::{Actor, AgentRef, AgentRole, SessionId, TaskId};
 
 fn refuse(why: WireRefusal) -> IntentsReply {
     IntentsReply::Refused(why)
-}
-
-/// Ends a task that is not ended yet and returns the skeleton it leaves. A session nobody used
-/// (no turn, no step) leaves no episode: there is nothing to remember.
-pub(crate) fn end_task(
-    t: &mut crate::tasks::TaskRecord,
-    now: prov::UnixSeconds,
-) -> Option<almanac_core::Episode> {
-    let outcome = match t.state {
-        TaskState::Ended(_) => None,
-        _ => {
-            t.state = TaskState::Ended(ReportStatus::Done);
-            Some(EpisodeOutcome::Done)
-        }
-    };
-    outcome
-        .and_then(|o| close(&t.ledger, EpisodeKind::Task, now, o))
-        .filter(|e| !(e.skeleton.asked.is_empty() && e.skeleton.steps.is_empty()))
 }
 
 impl<S: Seams> Router<S> {
@@ -130,7 +110,9 @@ impl<S: Seams> Router<S> {
                     task: task.clone(),
                 },
             },
-            None => crate::who::actor_of(&open.agent, open.external.as_ref(), &session, opener),
+            None => {
+                docket_context::who::actor_of(&open.agent, open.external.as_ref(), &session, opener)
+            }
         };
         let mut record =
             SessionRecord::new(task.clone(), actor, opener.clone(), open.space.clone(), now);

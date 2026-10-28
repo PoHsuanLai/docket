@@ -3,13 +3,13 @@
 //! its taint, and the request in it is evaluated by the receiver's own policy and gate when
 //! the receiver acts on it. Across Spaces it shows on the roster and grants no memory read.
 
-use crate::labels::{absorb, fold_labels, model_label, user_label};
 use crate::messages::{assemble, check_stamped, inbound_line, report_status};
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::session::SessionState;
-use crate::state::{RouterState, SessionRecord};
-use crate::tasks::TaskState;
+use docket_context::labels::{absorb, fold_labels, model_label, user_label};
+use docket_context::session::SessionState;
+use docket_context::state::{RouterState, SessionRecord};
+use docket_context::tasks::TaskState;
 use docket_core::EventSink;
 use docket_core::{AuditRecord, Delivery, DraftPart, InboxAsk, MessageDraft, SendRefusal, halted};
 use docket_vocab::{CallerRole, Clock, Handle};
@@ -120,7 +120,7 @@ impl<S: Seams> Router<S> {
         };
         let Some(target) = receiving(&st, &to)
             .map(|(id, _)| id.clone())
-            .max_by_key(crate::session::age)
+            .max_by_key(docket_context::session::age)
         else {
             return match to.agent {
                 AgentRef::User => self.deliver_to_address(&mut st, to, message),
@@ -244,7 +244,9 @@ impl<S: Seams> Router<S> {
                 let line = inbound_line(message, |text| {
                     record.handles.mint(
                         prov::Labelled {
-                            value: crate::handles::HandleValue::Text(text.as_str().to_owned()),
+                            value: docket_context::handles::HandleValue::Text(
+                                text.as_str().to_owned(),
+                            ),
                             label: label.clone(),
                         },
                         label

@@ -30,6 +30,7 @@ docket-manifest = { workspace = true, features = ["manifest-file"] }
 docket-vocab = { workspace = true }
 docket-store = { workspace = true }
 docket-log = { workspace = true }
+docket-context = { workspace = true }
 docket-router = { workspace = true }
 docket-skills = { workspace = true }
 docket-skills-disk = { workspace = true }

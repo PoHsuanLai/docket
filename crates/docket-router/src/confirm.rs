@@ -3,7 +3,7 @@
 //! never drawn, and somebody else's words are drawn quoted with where they came from.
 
 use crate::prepared::Prepared;
-use crate::state::SessionRecord;
+use docket_context::state::SessionRecord;
 use docket_core::{
     Anchor, ArgLine, ConfirmDetail, ConfirmId, ConfirmOffer, ConfirmRequest, Gesture, NeverOffer,
     Preview, SheetLimits, Shown, TaintNote,
@@ -175,7 +175,7 @@ pub(crate) fn confirm_request(
             (None, _) => Anchor::Centre,
         },
         expires,
-        editor: crate::who::route_of(&p.who),
+        editor: docket_context::who::route_of(&p.who),
         helper: record
             .and_then(|r| r.helper.as_ref())
             .map(|seat| seat.name.clone()),

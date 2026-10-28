@@ -25,6 +25,7 @@ docket-skills = { workspace = true }
 docket-skills-disk = { workspace = true }
 
 eval-core = { workspace = true }
+docket-context = { workspace = true }
 docket-router = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }

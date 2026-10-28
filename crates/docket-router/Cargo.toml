@@ -14,6 +14,7 @@ porter-ids = { workspace = true }
 bulkhead = { workspace = true }
 companion-model = { workspace = true }
 docket-checkpoint = { workspace = true }
+docket-context = { workspace = true }
 docket-core = { workspace = true }
 docket-wire = { workspace = true }
 docket-gate-wire = { workspace = true }
@@ -34,7 +35,6 @@ toml = { workspace = true }
 url = { workspace = true }
 serde_json = { workspace = true }
 futures-util = { workspace = true }
-futures-channel = { workspace = true }
 tracing = { workspace = true }
 genai-names = { workspace = true }
 

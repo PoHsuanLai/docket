@@ -5,13 +5,13 @@
 //! sent and nothing more. A value that cannot be had is left out, and the call still runs.
 
 use crate::gate::Pending;
-use crate::labels::{fold_labels, user_label};
 use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::Seams;
 use almanac_core::{
     BodyMode, Cursor, EntriesQuery, KindPattern, MemoryReply, MemoryRequest, RecentEntry,
 };
+use docket_context::labels::{fold_labels, user_label};
 use docket_core::MemoryLink;
 use docket_manifest::Filled;
 use docket_session::session_thing;

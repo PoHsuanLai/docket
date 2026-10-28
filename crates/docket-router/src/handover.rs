@@ -7,9 +7,9 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::session::SessionState;
-use crate::state::SessionKind;
 use companion_model::{HandNote, HandTo, WatchedAgent, WatchedLine};
+use docket_context::session::SessionState;
+use docket_context::state::SessionKind;
 use docket_core::{ExternalAgent, Rewind, SheetSurface, TurnState};
 use docket_session::SessionEntry;
 use docket_wire::{CallerId, IntentsReply, WireRefusal};

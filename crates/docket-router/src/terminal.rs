@@ -8,10 +8,10 @@
 use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::session::{SessionEvent, session_step};
-use crate::state::{RouterState, SessionRecord};
-use crate::tasks::TaskState;
 use action_review::Breaker;
+use docket_context::session::{SessionEvent, session_step};
+use docket_context::state::{RouterState, SessionRecord};
+use docket_context::tasks::TaskState;
 use docket_core::AuditRecord;
 use docket_core::EventSink;
 use docket_manifest::{ActionDecl, TargetKind};
@@ -71,17 +71,6 @@ pub enum Revoked {
     Done,
     /// The terminal held no grant for that action.
     NotHeld,
-}
-
-impl RouterState {
-    /// The terminal sessions: every implicit session of the `Cli` role.
-    fn terminal_sessions(&self) -> Vec<prov::SessionId> {
-        self.implicit
-            .iter()
-            .filter(|((role, _), _)| *role == CallerRole::Cli)
-            .map(|(_, session)| session.clone())
-            .collect()
-    }
 }
 
 impl<S: Seams> Router<S> {

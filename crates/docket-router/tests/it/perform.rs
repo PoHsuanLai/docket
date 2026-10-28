@@ -2,13 +2,14 @@
 
 use crate::support::*;
 use action_review::{ReviewReason, ReviewVerdict};
+use docket_context::session::SessionState;
 use docket_core::*;
 use docket_fake::{ReviewMode, ScriptedReviewer};
 use docket_manifest::ArgSink;
 use docket_permissions_core::{
     AskReason, BreakerTrip, DenyCode, ReasonCode, ReasonText, ReviewError, Saw, Stage,
 };
-use docket_router::{GrantStore, SessionState};
+use docket_router::GrantStore;
 use docket_vocab::{ActionRef, Args, CallRequest, Handle, Origin, TargetValue, Value};
 use docket_wire::{IntentsReply, IntentsRequest, JournalFilter, WireRefusal};
 use prov::{AgentRef, Integrity, Labelled};
@@ -676,7 +677,7 @@ async fn the_roster_shows_a_tasks_spend_and_what_is_left() {
     let budget = router.agent_config().budget;
     let st = router.state.lock().expect("lock");
     let roster =
-        docket_router::roster_with_totals(&st.tasks, &st.sessions, &budget, &space("work"));
+        docket_context::tasks::roster_with_totals(&st.tasks, &st.sessions, &budget, &space("work"));
     let used = roster
         .entries
         .iter()
