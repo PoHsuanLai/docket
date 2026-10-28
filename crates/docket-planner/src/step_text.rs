@@ -8,9 +8,10 @@ use crate::read_ask::read_fault_text;
 use crate::reader_text::{reader_answer, reader_head};
 use crate::unconfirmed::unconfirmed_text;
 use docket_core::{
-    ActionCard, AppRefusal, ArgFault, ArgsFault, CallRefusal, Handle, HandleCard, HandleShape,
-    Held, ReplyFault, Reveal, StepEnd, StepLine, StepShown, TargetFault, TargetKind, Value, Why,
+    ActionCard, AppRefusal, ArgFault, ArgsFault, CallRefusal, HandleCard, HandleShape, Held,
+    ReplyFault, Reveal, StepEnd, StepLine, StepShown, TargetFault, TargetKind, Why,
 };
+use docket_vocab::{Handle, Value};
 
 fn json<T: serde::Serialize>(value: &T) -> String {
     serde_json::to_string(value).unwrap_or_default()
@@ -474,7 +475,8 @@ fn step_line_raw(step: &StepLine, seen: &Seen<'_>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::{ActionRef, CallId, CharCount, Handle, HandleShape};
+    use docket_core::HandleShape;
+    use docket_vocab::{ActionRef, CallId, CharCount, Handle};
     use prov::{ActionName, Effect, Source};
 
     fn step(end: StepEnd) -> StepLine {
@@ -512,7 +514,7 @@ mod tests {
 
     #[test]
     fn a_step_that_gave_a_job_says_to_whom_and_which() {
-        let said = docket_core::LabelText::parse("Gave Coder the job j-4").expect("said");
+        let said = docket_vocab::LabelText::parse("Gave Coder the job j-4").expect("said");
         let end = StepEnd::Done {
             said: Some(said),
             value: None,
@@ -525,7 +527,7 @@ mod tests {
     #[test]
     fn an_unknown_handle_is_told_with_the_handles_held() {
         let end = StepEnd::Refused(CallRefusal::BadArgs {
-            param: docket_core::ParamName::parse("recipient").expect("param"),
+            param: docket_vocab::ParamName::parse("recipient").expect("param"),
             why: ArgFault::UnknownHandle,
         });
         let none = step_line(&step(end.clone()), &[]);
@@ -538,7 +540,7 @@ mod tests {
     #[test]
     fn a_wrong_typed_target_says_the_kind_it_needs_and_the_handles_held_of_it() {
         let end = StepEnd::Refused(CallRefusal::BadArgs {
-            param: docket_core::ParamName::parse("target").expect("param"),
+            param: docket_vocab::ParamName::parse("target").expect("param"),
             why: ArgFault::WrongType,
         });
         // mail.message.forward acts on a mail.thread.
@@ -599,7 +601,7 @@ mod tests {
 
     #[test]
     fn an_app_that_needs_an_argument_lists_its_choices_by_key_and_never_by_title() {
-        let option = |key: &str| docket_core::EntityRef {
+        let option = |key: &str| docket_vocab::EntityRef {
             id: prov::EntityId {
                 app: porter_core::AppName::parse("org.quire.Cua").expect("app"),
                 kind: prov::EntityKind::parse("desktop.app").expect("kind"),
@@ -610,7 +612,7 @@ mod tests {
         };
         let needs = |options| {
             StepEnd::Refused(CallRefusal::App(AppRefusal::NeedsParam {
-                param: docket_core::ParamName::parse("app").expect("param"),
+                param: docket_vocab::ParamName::parse("app").expect("param"),
                 options,
             }))
         };
@@ -635,13 +637,13 @@ mod tests {
     #[test]
     fn a_step_names_its_action_by_label_and_never_shows_an_id() {
         let done = StepEnd::Done {
-            said: Some(docket_core::LabelText::parse("Started t-179").expect("said")),
+            said: Some(docket_vocab::LabelText::parse("Started t-179").expect("said")),
             value: Some(Reveal::Plain(Value::Text("r-1".to_owned()))),
             undo: None,
         };
         let one = crate::accepts::fixtures::card("mail.message.forward", TargetKind::Nothing, &[]);
         let own = ActionCard {
-            label: docket_core::LabelText::parse("Do this on screen").expect("label"),
+            label: docket_vocab::LabelText::parse("Do this on screen").expect("label"),
             ..one.clone()
         };
         let seen = |actions: &[ActionCard]| {
@@ -734,9 +736,9 @@ mod tests {
     #[test]
     fn a_done_step_that_can_be_undone_says_so_without_a_number() {
         let end = StepEnd::Done {
-            said: Some(docket_core::LabelText::parse("Made it").expect("text")),
+            said: Some(docket_vocab::LabelText::parse("Made it").expect("text")),
             value: None,
-            undo: Some(docket_core::UndoId(1)),
+            undo: Some(docket_vocab::UndoId(1)),
         };
         let line = step_line(&step(end), &[]);
         assert!(line.ends_with("done \"Made it\" (can be undone)"), "{line}");
@@ -796,7 +798,7 @@ mod tests {
 
     fn found(value: Value) -> StepEnd {
         StepEnd::Done {
-            said: Some(docket_core::LabelText::parse("Found threads").expect("text")),
+            said: Some(docket_vocab::LabelText::parse("Found threads").expect("text")),
             value: Some(Reveal::Plain(value)),
             undo: None,
         }
@@ -843,20 +845,20 @@ mod tests {
             (ReplyFault::NotJson, "not valid JSON"),
             (
                 ReplyFault::NotOneOf {
-                    param: docket_core::ParamName::parse("helper").expect("p"),
+                    param: docket_vocab::ParamName::parse("helper").expect("p"),
                     options: vec!["Coder".into(), "Scout".into()],
                 },
                 "argument \"helper\" must be one of \"Coder\", \"Scout\"",
             ),
             (
                 ReplyFault::Args(ArgsFault::Missing(
-                    docket_core::ParamName::parse("to").expect("p"),
+                    docket_vocab::ParamName::parse("to").expect("p"),
                 )),
                 "argument \"to\" is required and was missing",
             ),
             (
                 ReplyFault::Args(ArgsFault::Wrong {
-                    param: docket_core::ParamName::parse("query").expect("p"),
+                    param: docket_vocab::ParamName::parse("query").expect("p"),
                     why: Why::Type,
                 }),
                 "argument \"query\" has the wrong type",
@@ -896,7 +898,7 @@ mod tests {
                 "option \"Option A?!\" is not an id and has no id to read it as: use lowercase letters, digits and _, such as \"option_a\"",
             ),
             (
-                ReadFault::WantClash(docket_core::ChoiceId::parse("a_b").expect("id")),
+                ReadFault::WantClash(docket_vocab::ChoiceId::parse("a_b").expect("id")),
                 "both \"a_b\"",
             ),
             (ReadFault::WantText, "text needs v: {\"max\": N}"),
@@ -948,7 +950,7 @@ mod tests {
 
     fn done(said: &str, value: Reveal<Value>) -> StepEnd {
         StepEnd::Done {
-            said: Some(docket_core::LabelText::parse(said).expect("text")),
+            said: Some(docket_vocab::LabelText::parse(said).expect("text")),
             value: Some(value),
             undo: None,
         }

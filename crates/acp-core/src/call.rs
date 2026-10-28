@@ -5,10 +5,11 @@
 
 use crate::confine::Care;
 use docket_core::{
-    AbsPath, CallRequest, ChoiceId, DERIVES_PARAM, Derivation, FILES_READ, FILES_SENSITIVE,
-    FILES_WRITE, FileRef, NETWORK_PARAM, NetAccess, Origin, PermissionKind, REPORTED, TERMINAL_RUN,
-    TargetValue, Value, acp_agent_action, derives_choice, network_choice,
+    AbsPath, DERIVES_PARAM, Derivation, FILES_READ, FILES_SENSITIVE, FILES_WRITE, NETWORK_PARAM,
+    NetAccess, PermissionKind, REPORTED, TERMINAL_RUN, acp_agent_action, derives_choice,
+    network_choice,
 };
+use docket_vocab::{CallRequest, ChoiceId, FileRef, Origin, TargetValue, Value};
 use prov::{Integrity, Label, Labelled, ModelRole, Source};
 use std::collections::BTreeSet;
 
@@ -142,12 +143,12 @@ fn given() -> Label {
     }
 }
 
-type Args = std::collections::BTreeMap<docket_core::ParamName, Labelled<Value>>;
+type Args = std::collections::BTreeMap<docket_vocab::ParamName, Labelled<Value>>;
 
 fn args(of: impl IntoIterator<Item = (&'static str, Value)>) -> Option<Args> {
     of.into_iter()
         .map(|(name, value)| {
-            let name = docket_core::ParamName::parse(name).ok()?;
+            let name = docket_vocab::ParamName::parse(name).ok()?;
             Some((
                 name,
                 Labelled {

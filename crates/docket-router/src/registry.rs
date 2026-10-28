@@ -1,6 +1,7 @@
 //! The manifests of every installed app. Reading a manifest file is `docket_core::parse`.
 
-use docket_core::{ActionDecl, ActionRef, ManifestError, ValidManifest};
+use docket_core::{ActionDecl, ManifestError, ValidManifest};
+use docket_vocab::ActionRef;
 use porter_core::AppName;
 use prov::EntityKind;
 use std::collections::{BTreeMap, BTreeSet};
@@ -59,7 +60,8 @@ impl Registry {
     /// The actions that name a kind no installed app declares. Only the registry can tell: it
     /// sees every manifest, and an app may name another app's kind.
     pub fn unresolved(&self) -> Vec<ManifestError> {
-        use docket_core::{ParamType, TargetKind};
+        use docket_core::TargetKind;
+        use docket_vocab::ParamType;
         let known = self.kinds();
         let mut faults = Vec::new();
         for manifest in self.manifests.values() {

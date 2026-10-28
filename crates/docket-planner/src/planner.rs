@@ -26,7 +26,8 @@ use agent_loop::{
     Availability, ModelOutput, Offer, PlannedCall, SummaryInput, choose_tier, leaked_call,
 };
 use companion_wire::{RouteLog, RouteNote};
-use docket_core::{ActionRef, CallRequest, Handle, OneOf, Origin, PlannerView, ReplyFault};
+use docket_core::{OneOf, PlannerView, ReplyFault};
+use docket_vocab::{ActionRef, CallRequest, Handle, Origin};
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::consent::Usage;

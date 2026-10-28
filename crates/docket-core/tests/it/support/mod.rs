@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 use docket_core::*;
+use docket_vocab::{CharCount, IntentsVocab, LabelText, Lines, ParamName, ParamType, PerCall};
 use porter_core::{AppName, Count, DataClass};
 use prov::{
     ActionName, Actor, AgentRole, Effect, EntityId, EntityKey, EntityKind, Label, Labelled,

@@ -61,10 +61,8 @@ pub(crate) fn busy_hint(step: &StepLine, seen: &Seen<'_>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::{
-        ActionRef, CallId, CharCount, Handle, HandleCard, RosterFull, RosterLine, StepEnd,
-        StepShown,
-    };
+    use docket_core::{HandleCard, RosterFull, RosterLine, StepEnd, StepShown};
+    use docket_vocab::{ActionRef, CallId, CharCount, Handle};
     use prov::{ActionName, Effect, Source};
 
     fn action(app: &str) -> ActionRef {

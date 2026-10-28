@@ -4,7 +4,8 @@
 use super::places::Places;
 use docket_acp_host::Workdir;
 use docket_core::AbsPath;
-use docket_session::ProgramName;
+use docket_core::ProgramName;
+
 use std::path::PathBuf;
 
 /// The folder an agent works in when the assistant hands it a turn: its own, under docket's data

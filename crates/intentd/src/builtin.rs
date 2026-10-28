@@ -11,13 +11,14 @@ use almanac_client::Transport as MemoryTransport;
 use docket_core::COMPANION_APP;
 use docket_core::LinkFault;
 use docket_core::{
-    ACP_AGENT_APP, AppRefusal, ContextScope, ContextSnapshot, EntityRef, Invocation, Latency,
-    Outcome, Preview, SuggestAsk, UndoFault, UndoToken, ValidManifest,
+    ACP_AGENT_APP, AppRefusal, ContextScope, ContextSnapshot, Invocation, Latency, Outcome,
+    Preview, SuggestAsk, UndoFault, ValidManifest,
 };
 use docket_core::{ManifestFileError, parse};
 use docket_memory::{MEMORY_APP, MemoryProvider};
 use docket_provider::IntentProvider;
 use docket_router::{AppFault, AppLink, CHECKPOINTS_APP};
+use docket_vocab::{EntityRef, UndoToken};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 
@@ -146,7 +147,7 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         app: &AppName,
         inv: Invocation,
         activation: Option<docket_core::ActivationToken>,
-        classified: Option<docket_core::CallClass>,
+        classified: Option<docket_vocab::CallClass>,
         within: Latency,
     ) -> Result<Outcome, AppFault> {
         match host_of(app) {
@@ -165,12 +166,12 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         &self,
         app: &AppName,
         inv: Invocation,
-    ) -> Result<docket_core::CallClass, docket_core::ClassifyFault> {
+    ) -> Result<docket_vocab::CallClass, docket_vocab::ClassifyFault> {
         match host_of(app) {
             Host::Installed => self.apps.classify(app, inv).await,
             // The built-in providers declare every effect outright.
             Host::Memory | Host::Companion | Host::Checkpoints => {
-                Err(docket_core::ClassifyFault::Unsupported)
+                Err(docket_vocab::ClassifyFault::Unsupported)
             }
         }
     }

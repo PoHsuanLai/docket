@@ -7,9 +7,8 @@
 //! Nothing here reads a clock, a file or the system.
 
 use crate::grant::GrantCaller;
-use crate::ids::ActionRef;
-use crate::marks::plain_text;
 use crate::standing::{Cover, Revocation, StandingGrantId};
+use docket_vocab::{ActionRef, plain_text};
 use porter_core::AppName;
 use prov::{ActionName, Effect, SpaceId, SpaceScope, UnixSeconds};
 use serde::{Deserialize, Serialize};

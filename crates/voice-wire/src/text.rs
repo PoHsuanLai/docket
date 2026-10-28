@@ -1,6 +1,6 @@
 //! Envelope and the transcript text types.
 
-use docket_core::UtteranceId;
+use docket_vocab::UtteranceId;
 use porter_core::DataClass;
 use porter_core::capability::LanguageTag;
 use serde::{Deserialize, Serialize};

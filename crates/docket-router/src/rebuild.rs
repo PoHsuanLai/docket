@@ -290,11 +290,12 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+    use docket_core::BreakerTrip;
     use docket_core::Rewind;
-    use docket_core::{BreakerTrip, CallId};
     use docket_session::{
         BackendKind, CallOpen, EndCause, Interrupted, Opening, ResumedBudget, TaintCause,
     };
+    use docket_vocab::CallId;
     use prov::{ActionName, Effect, SpaceId, TaskId};
 
     fn plan(standing: Standing) -> ResumePlan {
@@ -340,7 +341,7 @@ mod tests {
     fn an_external_agents_label_survives_a_rebuild() {
         let mut p = plan(Standing::Open);
         p.opening.backend =
-            BackendKind::Acp(docket_session::ProgramName::parse("claude-code").expect("program"));
+            BackendKind::Acp(docket_core::ProgramName::parse("claude-code").expect("program"));
         p.opening.label = Some(prov::AgentLabel("Claude Code".to_owned()));
         p.opening.rewind = Rewind::Agent;
         let record = rebuild(&id(), &p, UnixSeconds(1)).record;
@@ -421,7 +422,7 @@ mod tests {
         let mut p = plan(Standing::Open);
         let open = CallOpen {
             call: CallId(12),
-            action: docket_core::ActionRef {
+            action: docket_vocab::ActionRef {
                 app: AppName::parse("org.quire.Mail").expect("app"),
                 name: ActionName::parse("mail.thread.archive").expect("action"),
             },

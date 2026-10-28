@@ -2,10 +2,11 @@
 
 use crate::labels::{app_label, entity, entity_ref, outcome, third_party};
 use docket_core::{
-    AppRefusal, Hit, Invocation, MessageSnip, Outcome, ParamName, Preview, SuggestAsk, TargetValue,
-    UndoFault, UndoToken, Undoable, ValidManifest, Value,
+    AppRefusal, Hit, Invocation, MessageSnip, Outcome, Preview, SuggestAsk, UndoFault, Undoable,
+    ValidManifest,
 };
 use docket_provider::IntentProvider;
+use docket_vocab::{ParamName, TargetValue, UndoToken, Value};
 use porter_core::{AppName, DataClass};
 use prov::{Actor, EntityId, Labelled, Source, SpaceId, UnixSeconds};
 use std::collections::{BTreeMap, BTreeSet};
@@ -36,7 +37,7 @@ pub struct MailContact {
 }
 
 /// A thread as a list shows it: the subject and the sender, somebody else's words.
-fn thread_ref(app: &AppName, space: &SpaceId, t: &MailThread) -> Option<docket_core::EntityRef> {
+fn thread_ref(app: &AppName, space: &SpaceId, t: &MailThread) -> Option<docket_vocab::EntityRef> {
     let label = third_party(Source::Mail, DataClass::Mail, space.clone());
     let say = |v: &str| Labelled {
         value: v.to_owned(),
@@ -141,7 +142,7 @@ impl FakeMail {
 
     /// What the app lists: every thread that is not archived (subject and sender, somebody
     /// else's words), then every contact (name and address, the app's own), each in key order.
-    pub fn shown(&self) -> Vec<docket_core::EntityRef> {
+    pub fn shown(&self) -> Vec<docket_vocab::EntityRef> {
         let (app, space) = (self.app.clone(), self.space.clone());
         let own = app_label(&app);
         self.edit(|s| {
@@ -456,7 +457,7 @@ impl IntentProvider for FakeMail {
         })
     }
 
-    async fn suggest(&self, ask: SuggestAsk) -> Vec<docket_core::EntityRef> {
+    async fn suggest(&self, ask: SuggestAsk) -> Vec<docket_vocab::EntityRef> {
         let app = self.app.clone();
         let own = app_label(&app);
         self.edit(|s| {

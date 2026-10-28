@@ -153,9 +153,8 @@ impl SheetDesk for EditorDesk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::{
-        Anchor, ConfirmDetail, ConfirmOffer, ConfirmParts, Gesture, LabelText, Seconds, TaintNote,
-    };
+    use docket_core::{Anchor, ConfirmDetail, ConfirmOffer, ConfirmParts, Gesture, TaintNote};
+    use docket_vocab::{LabelText, Seconds};
     use futures_util::FutureExt;
     use porter_core::{AppName, Count};
     use prov::{Actor, Effect, SpaceId};

@@ -8,10 +8,11 @@
 //! failed check.
 
 use docket_core::{
-    AbsPath, ActionGrant, ActionGrantKey, ActionRef, GrantCaller, GrantTarget, Revocation,
-    StandingGrant, StandingScope,
+    AbsPath, ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, Revocation, StandingGrant,
+    StandingScope,
 };
 use docket_router::GrantStore;
+use docket_vocab::ActionRef;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{AppName, DataClass, GrantId};
 use prov::{ActionName, SpaceScope, UnixSeconds};

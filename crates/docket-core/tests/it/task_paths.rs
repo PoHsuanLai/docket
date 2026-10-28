@@ -4,6 +4,7 @@
 use crate::support::{action, app};
 use crate::task_policy::{declared, edit, file, labels, policy};
 use docket_core::*;
+use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
 use prov::Effect;
 
 fn files_call(paths: &[&str]) -> CallRequest {

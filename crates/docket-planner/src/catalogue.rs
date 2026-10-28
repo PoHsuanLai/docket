@@ -4,9 +4,10 @@
 //! byte-stable until the app set changes.
 
 use docket_core::{
-    ActionCard, ActionDecl, ActionRef, AgentReach, HandleCard, HandleShape, OneOf, RelationDecl,
-    TargetKind, ToolSchema, ValidManifest, Visibility, tool_schema,
+    ActionCard, ActionDecl, AgentReach, HandleCard, HandleShape, OneOf, RelationDecl, TargetKind,
+    ToolSchema, ValidManifest, Visibility, tool_schema,
 };
+use docket_vocab::ActionRef;
 use porter_core::AppName;
 use porter_infer::{JsonSchemaText, JsonText, ToolDecl, ToolName};
 use serde_json::{Value as Json, json};

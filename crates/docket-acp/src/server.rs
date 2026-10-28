@@ -26,8 +26,8 @@ use agent_client_protocol::schema::v1::{
 };
 use agent_client_protocol::{Agent, ConnectTo, Error, on_receive_notification, on_receive_request};
 use companion_wire::ToldWire;
-use docket_core::Clock;
 use docket_session::{SessionHost, SessionLog};
+use docket_vocab::Clock;
 use futures_channel::mpsc;
 use futures_util::future::{Either, select};
 use porter_core::AppName;

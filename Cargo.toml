@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+  "crates/docket-vocab",
   "crates/docket-core",
   "crates/docket-store",
   "crates/docket-skills",
@@ -79,6 +80,7 @@ intentd        = { path = "crates/intentd" }
 readerd        = { path = "crates/readerd" }
 agents-core    = { path = "crates/agents-core" }
 docket-agents  = { path = "crates/docket-agents" }
+docket-vocab   = { path = "crates/docket-vocab" }
 docket-core    = { path = "crates/docket-core" }
 docket-store   = { path = "crates/docket-store" }
 docket-skills  = { path = "crates/docket-skills" }

@@ -109,7 +109,7 @@ async fn a_grant_is_the_programs_and_not_another_hosts_or_programs() {
     // Another program (or an editor of the same app name) holds none of it.
     assert_ne!(
         held[0].caller,
-        GrantCaller::AcpAgent(docket_session::ProgramName::parse("gemini-cli").expect("program"))
+        GrantCaller::AcpAgent(docket_core::ProgramName::parse("gemini-cli").expect("program"))
     );
     assert_ne!(
         held[0].caller,

@@ -12,12 +12,13 @@ use almanac_core::{
 };
 use almanac_fake::{ScriptedConsolidator, fake_service};
 use almanac_service::Caller;
-use docket_core::{AgentConfig, ChoiceId, Handle, ReaderAsk, ReaderTask, StepEnd, ValueSchema};
+use docket_core::{AgentConfig, ReaderAsk, ReaderTask, StepEnd, ValueSchema};
 use docket_fake::{FakeMail, FixedClock, MailThread, ScriptedReviewer, mail_manifest};
 use docket_inapp::{
     AlmanacMemory, AuditTo, FileGrantStore, InAppAgent, InAppKit, InAppParts, TransportReader,
     TransportWriter, reviewer_over,
 };
+use docket_vocab::{ChoiceId, Handle};
 use porter_core::Count;
 use prov::{SpaceId, UnixSeconds};
 use serde_json::json;

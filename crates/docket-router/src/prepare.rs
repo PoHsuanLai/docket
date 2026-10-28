@@ -24,12 +24,12 @@ use crate::state::{RouterState, SessionRecord};
 use crate::turn_start::{TurnStart, pass, rule};
 use crate::who::Who;
 use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
-use docket_core::Clock;
 use docket_core::{
-    ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallId, CallRefusal,
-    CallRequest, Classification, Cost, DenyCode, Depth, Impact, Lasting, LimitCall, Limited, Mode,
-    ModeRows, Reviewed, Ruling, SpaceAccess, WindowKey, space_access,
+    ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallRefusal, Cost, DenyCode,
+    Impact, Lasting, LimitCall, Limited, Mode, ModeRows, Reviewed, Ruling, SpaceAccess,
+    space_access,
 };
+use docket_vocab::{CallId, CallRequest, Classification, Clock, Depth, WindowKey};
 use policy_point::{
     ActionFacts, BudgetFact, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
     SpaceRelation, TaintFact,
@@ -428,7 +428,7 @@ impl<S: Seams> Router<S> {
             activation: None,
             classified,
             standing: Some(standing),
-            filled: docket_core::Args::new(),
+            filled: docket_vocab::Args::new(),
         })
     }
 
@@ -486,7 +486,7 @@ impl<S: Seams> Router<S> {
             // The person's own calls are not gated, so they are not classified.
             classified: None,
             standing: None,
-            filled: docket_core::Args::new(),
+            filled: docket_vocab::Args::new(),
         }
     }
 }

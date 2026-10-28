@@ -4,6 +4,7 @@
 
 use docket_core::*;
 use docket_reader::{class_of, reader_request, reply_shape, task_instruction};
+use docket_vocab::{CharCount, ChoiceId, Handle, ParamName};
 use porter_core::DataClass;
 use porter_infer::{MessagePart, ReplyShape, Role, ToolChoice};
 use proptest::prelude::*;

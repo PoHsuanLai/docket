@@ -3,11 +3,12 @@
 
 use crate::handles::HandleTable;
 use docket_core::{
-    ActionCard, ContextSnapshot, ContextView, EntityLine, EntityRef, EpisodeLine, Here, HereView,
-    InboundLine, PlannerView, PrimerText, ProfileLine, RecalledLine, Reveal, RollupLine, Roster,
-    Selection, SelectionView, StepLine, TaskPolicy, TextTarget, TextTargetView, UserTurn,
-    VisibleView, WindowPrivacy,
+    ActionCard, ContextSnapshot, ContextView, EntityLine, EpisodeLine, Here, HereView, InboundLine,
+    PlannerView, PrimerText, ProfileLine, RecalledLine, Reveal, RollupLine, Roster, Selection,
+    SelectionView, StepLine, TaskPolicy, TextTarget, TextTargetView, UserTurn, VisibleView,
+    WindowPrivacy,
 };
+use docket_vocab::EntityRef;
 use prov::{Integrity, Label, Source};
 
 fn source_of(label: &Label, fallback: &Source) -> Source {

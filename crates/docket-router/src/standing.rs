@@ -7,11 +7,11 @@
 use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::{GrantStore, Seams};
-use docket_core::Clock;
 use docket_core::EventSink;
 use docket_core::{
     AuditRecord, CallFacts, GrantCaller, Revocation, StandingGrant, StandingGrantId, StandingScope,
 };
+use docket_vocab::Clock;
 
 impl<S: Seams> Router<S> {
     /// Spends the approval a call ran on: gone if it was spent in the meantime (the call must not

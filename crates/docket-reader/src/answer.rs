@@ -2,10 +2,9 @@
 //! written: each field is read as the type its schema names, an entity is only one the ask
 //! offered, and the whole is checked with `conforms` before it is passed on.
 
-use docket_core::when::{date, instant};
-use docket_core::{
-    ChoiceId, ParamName, ReaderError, SchemaFault, Value, ValueSchema, conforms, entity_choice_text,
-};
+use docket_core::{ReaderError, SchemaFault, ValueSchema, conforms, entity_choice_text};
+use docket_vocab::when::{date, instant};
+use docket_vocab::{ChoiceId, ParamName, Value};
 use serde_json::Value as Json;
 use std::collections::BTreeMap;
 

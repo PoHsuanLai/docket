@@ -4,9 +4,10 @@
 //! kept only when the person wrote it in a turn. Pure: no model, no clock.
 
 use docket_core::{
-    ActionCard, ActionMatch, ActionRef, Corrected, Derived, LabelText, TaskPolicy, TaskPolicyState,
-    TrustedPattern, UserTurn, Value,
+    ActionCard, ActionMatch, Corrected, Derived, TaskPolicy, TaskPolicyState, TrustedPattern,
+    UserTurn,
 };
+use docket_vocab::{ActionRef, LabelText, Value};
 use porter_core::Count;
 use prov::{Effect, EntityKind, SpaceId, TaskId, UnixSeconds};
 use serde::Deserialize;
@@ -133,12 +134,12 @@ fn trusted_value(turns: &[UserTurn], text: &str) -> Option<TrustedPattern> {
 
 /// A path the person wrote, whole, and not the root of everything: what a writer may draw a
 /// `paths` entry from.
-fn path_of_person(turns: &[UserTurn], path: &str) -> Option<docket_core::FileRef> {
+fn path_of_person(turns: &[UserTurn], path: &str) -> Option<docket_vocab::FileRef> {
     let path = path.trim();
     let whole = named_by_person(turns, path) || named_by_person(turns, path.trim_end_matches('/'));
     let root = matches!(path.trim_end_matches('/'), "" | "~");
     (whole && !root)
-        .then(|| docket_core::FileRef::parse(path).ok())
+        .then(|| docket_vocab::FileRef::parse(path).ok())
         .flatten()
 }
 

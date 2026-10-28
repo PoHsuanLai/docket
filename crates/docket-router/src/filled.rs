@@ -12,9 +12,10 @@ use crate::seams::Seams;
 use almanac_core::{
     BodyMode, Cursor, EntriesQuery, KindPattern, MemoryReply, MemoryRequest, RecentEntry,
 };
+use docket_core::Filled;
 use docket_core::MemoryLink;
-use docket_core::{Args, Filled, Value};
 use docket_session::session_thing;
+use docket_vocab::{Args, Value};
 use porter_core::Count;
 use prov::{EntityId, Labelled, SpaceId};
 

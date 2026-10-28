@@ -20,7 +20,7 @@ pub fn info(session: &SessionId, plan: &ResumePlan) -> Option<SessionInfo> {
     let updated = plan
         .turns
         .last()
-        .and_then(|t| docket_core::when::utc_instant(t.at));
+        .and_then(|t| docket_vocab::when::utc_instant(t.at));
     Some(
         SessionInfo::new(crate::out::wire_id(session), cwd.as_str())
             .title(title)

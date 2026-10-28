@@ -4,6 +4,7 @@
 use agent_loop::*;
 use companion_wire::SessionRecord;
 use docket_core::*;
+use docket_vocab::TurnId;
 use prov::{AgentRef, SpaceId, TaskId, UnixSeconds};
 
 pub fn space(s: &str) -> SpaceId {

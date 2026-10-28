@@ -6,6 +6,7 @@ use crate::support::world::{app, caller};
 use docket_core::*;
 use docket_fake::{FakeSeams, fake_router};
 use docket_router::Router;
+use docket_vocab::Generation;
 use intentd::{IndexStore, ship_search_files};
 use prov::{EntityKey, EntityKind, SpaceScope, UnixSeconds};
 use std::os::unix::fs::PermissionsExt;

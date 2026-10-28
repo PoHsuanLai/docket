@@ -2,8 +2,9 @@
 
 use crate::host::ReaderHost;
 use docket_client::{Intents, Transport as IntentsTransport};
-use docket_core::{Reader, ReaderAsk, ReaderError, Value};
+use docket_core::{Reader, ReaderAsk, ReaderError};
 use docket_dbus::InferLink;
+use docket_vocab::Value;
 use porter_client::Transport as InferTransport;
 use prov::{Labelled, Quarantined, SessionId};
 

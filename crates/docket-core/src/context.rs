@@ -4,13 +4,10 @@
 //! router derives for a companion session: every untrusted text is a [`Reveal::Handle`]. Only
 //! the router builds a view, so a model never reads text it was not meant to.
 
-use crate::ids::{Handle, TextTargetRef, ViewName};
-use crate::units::CharCount;
+use docket_vocab::{CharCount, EntityRef, Handle, TextTargetRef, ViewName};
 use porter_core::{AppName, Count};
 use prov::{EntityId, EntityKind, Labelled};
 use serde::{Deserialize, Serialize};
-
-pub use crate::ids::EntityRef;
 
 /// A value shown to a reader, or a handle to it when the reader may not read it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -92,7 +89,7 @@ pub enum Selection {
     /// Some text.
     Text(Labelled<String>),
     /// These files.
-    Files(Vec<crate::ids::FileRef>),
+    Files(Vec<docket_vocab::FileRef>),
 }
 
 /// What is on screen.
@@ -241,7 +238,7 @@ pub enum SelectionView {
     /// Some text.
     Text(Reveal<String>),
     /// These files.
-    Files(Vec<crate::ids::FileRef>),
+    Files(Vec<docket_vocab::FileRef>),
 }
 
 /// [`Visible`] as a reader sees it.

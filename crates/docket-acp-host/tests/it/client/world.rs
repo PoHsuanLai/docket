@@ -7,14 +7,14 @@ use docket_acp_host::fake::{FakeFiles, FakeSpawn};
 use docket_acp_host::{Files, IntentsCourt, OsFiles, Performer, Seams};
 use docket_client::InProcess;
 use docket_core::{
-    AppRefusal, ConfirmAnswer, ConfirmId, ConfirmRequest, Confirmer, Invocation, Outcome,
-    UndoFault, UndoToken,
+    AppRefusal, ConfirmAnswer, ConfirmId, ConfirmRequest, Confirmer, Invocation, Outcome, UndoFault,
 };
 use docket_fake::{
     BoxFut, FakeSeams, FixedClock, HostedApp, ScriptedConfirmer, ScriptedReviewer, ScriptedWriter,
 };
 use docket_host::{EditorDesk, SheetConfirmer};
 use docket_session::fake::MemoryLog;
+use docket_vocab::UndoToken;
 use prov::Actor;
 use std::sync::Arc;
 

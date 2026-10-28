@@ -3,7 +3,7 @@
 //! produces them lives in `policy-point` and `action-review`; the words live here because the
 //! refusals and audit records of this crate name them.
 
-use crate::units::Millis;
+use docket_vocab::Millis;
 use porter_core::{Count, ModelId};
 use prov::Effect;
 use serde::{Deserialize, Serialize};

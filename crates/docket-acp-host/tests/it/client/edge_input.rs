@@ -5,7 +5,8 @@ use super::agent::{Act, bridge_list};
 use super::edge::{offer, reached, thread, with_mail};
 use super::rig::{Rig, program, run_turn};
 use docket_acp_host::{EdgeMenu, ToolsEdge};
-use docket_core::{ActionMatch, LabelText, TaskPolicy, TaskPolicyState};
+use docket_core::{ActionMatch, TaskPolicy, TaskPolicyState};
+use docket_vocab::LabelText;
 use prov::{Effect, SessionId, SpaceId, TaskId, UnixSeconds};
 use serde_json::{Value, json};
 

@@ -11,7 +11,7 @@
 //! carries its labels, but never grants a memory read in the other Space.
 
 use crate::context::Reveal;
-use crate::ids::Handle;
+use docket_vocab::Handle;
 use prov::{
     Address, AgentRef, Crossing, EntityId, Fault, MessageId, MessageKind, MessageText, OutcomeRef,
     ThreadId, UndoHandle,

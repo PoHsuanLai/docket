@@ -6,8 +6,8 @@
 
 use crate::seams::Surface;
 use crate::shared::Shared;
-use docket_core::{Clock, Millis};
 use docket_store::{Stop, stop_after, until, within};
+use docket_vocab::{Clock, Millis};
 use prov::TaskId;
 use std::future::Future;
 use std::time::Duration;

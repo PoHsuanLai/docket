@@ -11,9 +11,9 @@ use crate::prompt::Reply;
 use crate::server::Server;
 use crate::turn::{Order, Turn};
 use acp_core::permission::choice_of_reply;
-use docket_core::Clock;
 use docket_core::ConfirmRequest;
 use docket_session::{SessionHost, SessionLog};
+use docket_vocab::Clock;
 use prov::SessionId;
 
 impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {

@@ -11,27 +11,26 @@ use crate::checkpoint::{
     CheckpointFault, CheckpointId, CheckpointList, RestorePlan, Rewind, TurnEnd,
 };
 use crate::confirm::ConfirmEnd;
-use crate::context::EntityRef;
 use crate::context::{ContextView, Reveal};
 use crate::gate::{CuaAsk, GateAnswer};
 use crate::hand::{HandTo, WatchedAgent, WatchedLine, Watching};
-use crate::ids::{ActionRef, Handle, IntentsVocab, NoteSlug, TurnId, UndoId, WindowKey};
 use crate::index::{Hit, IndexBatch, SearchAsk, SuggestAsk};
 use crate::message::{Delivery, InboundLine, InboxAsk, MessageDraft, SendRefusal};
 use crate::planner::TurnIn;
 use crate::planner::{HandleCard, UserTurn};
 use crate::preview::Preview;
 use crate::reader::ReaderAsk;
-use crate::request::CallRequest;
 use crate::roster::{EpisodeLine, RecalledLine};
 use crate::roster::{PrimerText, ProfileLine};
 use crate::task::{SessionOpen, SessionOpened};
 use crate::task_policy::TaskPolicy;
 use crate::undo::{UndoEntry, UndoFault, UndoScope};
-use crate::value::Value;
-use crate::workspace::Workspace;
 use almanac_core::{
     Episode, EpisodeId, EventSummary, InjectQuery, JsonText, Narrative, RecentQuery,
+};
+use docket_vocab::{
+    ActionRef, CallRequest, EntityRef, Handle, IntentsVocab, NoteSlug, TurnId, UndoId, Value,
+    WindowKey, Workspace,
 };
 use porter_core::{AppName, Count};
 use prov::{EntityId, RunId, SessionId, SpaceId, SpaceScope};
@@ -265,7 +264,7 @@ pub enum IntentsRequest {
     /// `.Search.Query`.
     Search(SearchAsk),
     /// `.Search.Cancel`.
-    SearchCancel(crate::units::Generation),
+    SearchCancel(docket_vocab::Generation),
     /// `.Run.Perform`.
     Perform {
         /// The call.

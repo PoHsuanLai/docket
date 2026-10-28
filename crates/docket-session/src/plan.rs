@@ -7,8 +7,9 @@ use crate::entry::{CallOpen, EndCause, HandleLabel, Opening, Seq, Taint};
 use docket_core::HandNote;
 use docket_core::helper::HelperSeat;
 use docket_core::{
-    BreakerTrip, CallId, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy, UserTurn,
+    BreakerTrip, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy, UserTurn,
 };
+use docket_vocab::CallId;
 use porter_core::Count;
 use serde::{Deserialize, Serialize};
 

@@ -2,6 +2,10 @@
 
 use companion_wire::*;
 use docket_core::*;
+use docket_vocab::{
+    ActionRef, Args, CallId, CallRequest, CardActionId, Handle, LabelText, Origin, StepId,
+    TargetValue, TurnId, UndoId, WindowKey,
+};
 use porter_core::{AppName, Count, DataClass};
 use prov::{AgentRef, Effect, SpaceId, TaskId};
 use serde::{Serialize, de::DeserializeOwned};

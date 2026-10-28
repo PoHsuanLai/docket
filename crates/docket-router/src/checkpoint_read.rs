@@ -8,9 +8,9 @@ use docket_checkpoint::{CheckpointStore, PlanAsk, StoreFault, WorkRoot};
 use docket_core::{
     CallerId, CallerRole, CheckpointEvent, CheckpointFault, CheckpointId, CheckpointList,
     CheckpointNote, CheckpointRow, IntentsReply, RestorePlan, Retention, SavedState, WireRefusal,
-    Workspace,
 };
 use docket_session::{Claimant, may_restore, note_rows};
+use docket_vocab::Workspace;
 use prov::{AgentLabel, SessionId};
 
 /// What a surface may know of one session's restore points.

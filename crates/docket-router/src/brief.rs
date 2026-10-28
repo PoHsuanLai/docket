@@ -12,11 +12,9 @@ use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::Seams;
 use crate::state::{BRIEFS_KEPT, ConfirmedBrief};
-use docket_core::Clock;
 use docket_core::EventSink;
-use docket_core::{
-    AppRefusal, AuditRecord, BriefEdit, FailText, LabelText, Outcome, Preview, Undoable, Value,
-};
+use docket_core::{AppRefusal, AuditRecord, BriefEdit, FailText, Outcome, Preview, Undoable};
+use docket_vocab::{Clock, LabelText, Value};
 use prov::{Labelled, Source};
 
 fn plain(words: &str) -> Option<LabelText> {

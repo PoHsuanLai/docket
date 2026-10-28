@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 docket-core = { workspace = true }
+docket-vocab = { workspace = true }
 docket-models = { workspace = true }
 porter-client = { workspace = true }
 porter-core = { workspace = true }

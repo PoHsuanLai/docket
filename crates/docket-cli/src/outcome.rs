@@ -2,10 +2,8 @@
 //! with the things and the held handles the outcome mentions listed apart so a script can pass
 //! them to the next command (`<kind>:<key>` or `#<n>`).
 
-use docket_core::{
-    ContextView, EntityLine, Follow, Handle, Hit, IntentsVocab, Outcome, Preview, Reveal,
-    SelectionView, UndoId, Value as Val,
-};
+use docket_core::{ContextView, EntityLine, Follow, Hit, Outcome, Preview, Reveal, SelectionView};
+use docket_vocab::{Handle, IntentsVocab, UndoId, Value as Val};
 use prov::EntityId;
 use serde_json::{Value, json};
 

@@ -8,17 +8,16 @@
 use crate::link::ProviderLink;
 use action_review::Reviewer;
 use almanac_core::{MemoryReply, MemoryRequest};
-use docket_core::Clock;
 use docket_core::{
     ActionCard, ActionGrant, AuditRecord, PolicyWriter, Reader, ReaderAsk, ReaderError,
-    ReviewError, Revocation, StandingGrant, StandingGrantId, UserTurn, Value, held_with,
-    held_without,
+    ReviewError, Revocation, StandingGrant, StandingGrantId, UserTurn, held_with, held_without,
 };
 use docket_core::{EventSink, LinkFault, MemoryLink};
 use docket_host::{ConfirmSheet, SheetConfirmer};
 use docket_memory_core::QueuedSink;
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::{GrantStore, NoLog, NoStore, Seams};
+use docket_vocab::{Clock, Value};
 use prov::{Quarantined, SessionId, SpaceId, TaskId};
 use std::sync::Mutex;
 

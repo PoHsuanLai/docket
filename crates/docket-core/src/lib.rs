@@ -1,8 +1,9 @@
-//! docket's vocabulary, and the pure behaviour that is cheap to build with it: the manifest and
-//! its validation, values and their schemas, context and previews, calls and every way they end,
-//! the undo journal, confirmation, budgets and the kill switch, the per-task policy, the
-//! planner and reader contract, the roster, messages, tasks and their episodes, audit records,
-//! the proposed configuration, the Intents1 wire and the `Clock` seam.
+//! docket's vocabulary above `docket-vocab`, and the pure behaviour that is cheap to build with it:
+//! the manifest and its validation, context and previews, calls and every way they end, the undo
+//! journal, confirmation, budgets and the kill switch, the per-task policy, the planner and
+//! reader contract, the roster, messages, tasks and their episodes, audit records, the proposed
+//! configuration and the Intents1 wire. Ids, units, values, call requests, dates and the `Clock`
+//! seam live in `docket-vocab`.
 //!
 //! Pure and portable: serde only. Names `prov` for who and what, `almanac-core` for the pure
 //! shapes of memory (episodes, recall, recent), `cua-action` for the computer-use gate and
@@ -16,8 +17,6 @@ mod budget;
 mod call;
 mod caller;
 mod checkpoint;
-mod classify;
-mod clock;
 mod compact;
 mod config;
 mod confirm;
@@ -35,13 +34,11 @@ mod grant_space;
 mod hand;
 mod handover;
 pub mod helper;
-mod ids;
 mod index;
 mod limit;
 mod manifest;
 #[cfg(feature = "manifest-file")]
 mod manifest_file;
-mod marks;
 mod memory_link;
 mod message;
 mod mode;
@@ -50,7 +47,6 @@ mod planner;
 mod preview;
 mod reach_menu;
 mod reader;
-mod request;
 mod review;
 mod roster;
 pub mod routine;
@@ -69,12 +65,8 @@ mod task;
 mod task_policy;
 mod trace;
 mod undo;
-mod units;
 mod validate;
-mod value;
-pub mod when;
 mod wire;
-mod workspace;
 
 pub use agent_app::{
     ACP_AGENT_APP, FILES_READ, FILES_SENSITIVE, FILES_WRITE, PermissionKind, REPORTED,
@@ -100,10 +92,6 @@ pub use checkpoint::{
     PlanDigest, RestorePlan, Retention, Rewind, SavedState, SkipReason, TurnEnd, TurnState,
     WorkPath, WorkPathError,
 };
-pub use classify::{
-    CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd, PerCall,
-};
-pub use clock::Clock;
 pub use compact::{Covers, SUMMARY_MAX_CHARS, Summary, SummaryFault, SummaryText};
 pub use config::{
     AgentConfig, AssemblerBudget, BreakerLimits, IdleRules, ReviewTimeouts, SETTING_ROWS,
@@ -142,11 +130,6 @@ pub use hand::{
     WatchedAgent, WatchedLine, Watching,
 };
 pub use handover::{HandOver, HandRefusal, HandReply, Handed};
-pub use ids::{
-    ActionRef, CallId, CardActionId, ChoiceId, EntityRef, FileRef, Handle, IconName, IntentsVocab,
-    LabelText, NoteSlug, NoteSlugError, ParamName, RelationName, StepId, TextTargetRef, TurnId,
-    UndoId, UndoToken, UtteranceId, ViewName, WindowKey, action_prefix,
-};
 pub use index::{Hit, IndexBatch, IndexEntry, IndexState, SearchAsk, SearchScope, SuggestAsk};
 pub use limit::{
     Level, Limit, LimitCall, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitNote, LimitScope,
@@ -160,7 +143,6 @@ pub use manifest::{
 };
 #[cfg(feature = "manifest-file")]
 pub use manifest_file::{ManifestFileError, parse};
-pub use marks::{hides, plain_text, reorders};
 pub use memory_link::{EventSink, LinkFault, MemoryLink, SpaceMemories};
 pub use message::{
     Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, MessageDraft, SendRefusal,
@@ -180,7 +162,6 @@ pub use reader::{
     ReadFault, Reader, ReaderAsk, ReaderError, ReaderTask, SchemaFault, ValueSchema, conforms,
     entity_choice_text,
 };
-pub use request::{CallRequest, Origin, RECALL_ACTION, RECALL_APP};
 pub use review::{
     AskReason, BreakerTrip, DenyCode, Impact, PolicyId, ReasonCode, ReasonText, ReviewError,
     ReviewMark, Ruling, Stage, Strictness, VerdictKind,
@@ -220,12 +201,9 @@ pub use task_policy::{
 };
 pub use trace::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
-pub use units::{CharCount, Days, Depth, Generation, Millis, Scale, Seconds};
 pub use validate::{ManifestError, ValidManifest, fits, is_offered, open_name, validate};
-pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
 pub use wire::{
     Displayed, Envelope, GrantAnswer, GrantAsk, HelperNote, IntentsReply, IntentsRequest,
     JournalFilter, NoteAsk, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved, SessionModeAsk,
     SessionNote, StoredAsk, StoredRow, StoredView, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
 };
-pub use workspace::{Workspace, WorkspaceError};

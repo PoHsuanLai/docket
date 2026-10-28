@@ -6,11 +6,11 @@
 //! not owned by it.
 
 use docket_core::{
-    AppRefusal, EntityRef, FailText, Hit, Invocation, Outcome, Preview, SuggestAsk, UndoFault,
-    UndoToken, ValidManifest,
+    AppRefusal, FailText, Hit, Invocation, Outcome, Preview, SuggestAsk, UndoFault, ValidManifest,
 };
 use docket_provider::IntentProvider;
 use docket_router::{Router, Seams};
+use docket_vocab::{EntityRef, UndoToken};
 use prov::{Actor, EntityId};
 use std::fmt;
 use std::future::Future;

@@ -1,7 +1,8 @@
 //! Literal labels for fixtures: the fakes write the few labels they need out in full, so a
 //! fixture shows exactly what an app reports.
 
-use docket_core::{EntityRef, Follow, LabelText, Outcome, Preview, Undoable};
+use docket_core::{Follow, Outcome, Preview, Undoable};
+use docket_vocab::{EntityRef, LabelText};
 use porter_core::{AppName, DataClass};
 use prov::{
     Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled, Source, SpaceId,

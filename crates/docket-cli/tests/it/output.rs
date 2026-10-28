@@ -4,9 +4,8 @@
 
 use crate::support::*;
 use docket_cli::{Exit, Stdin, Stdout};
-use docket_core::{
-    ContextSnapshot, EntityRef, Here, Selection, TextTarget, Visible, WindowPrivacy,
-};
+use docket_core::{ContextSnapshot, Here, Selection, TextTarget, Visible, WindowPrivacy};
+use docket_vocab::EntityRef;
 use porter_core::{AppName, Count};
 use prov::{DataClass, EntityId, EntityKey, EntityKind, Label, Labelled, Source, SpaceId};
 use serde_json::Value;

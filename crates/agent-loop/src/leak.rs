@@ -36,8 +36,8 @@ pub struct LeakedCall {
 /// Marks that draw nothing or change the direction of text: dropped before matching.
 fn invisible(c: char) -> bool {
     c.is_control()
-        || docket_core::reorders(c)
-        || docket_core::hides(c)
+        || docket_vocab::reorders(c)
+        || docket_vocab::hides(c)
         || matches!(c, '\u{200C}'..='\u{200F}')
 }
 

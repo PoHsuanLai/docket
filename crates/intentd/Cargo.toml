@@ -21,6 +21,7 @@ docket-checkpoint-git = { workspace = true }
 porter-dbus = { workspace = true }
 porter-daemon = { workspace = true, features = ["watch"] }
 docket-core = { workspace = true, features = ["manifest-file"] }
+docket-vocab = { workspace = true }
 docket-store = { workspace = true }
 docket-log = { workspace = true }
 docket-router = { workspace = true }

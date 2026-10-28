@@ -6,10 +6,11 @@ use crate::block::block_on;
 use crate::runner::{Harness, PolicyMode, Rig, maximal_policy};
 use docket_core::{
     ActionGrantKey, AgentConfig, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget,
-    IntentsReply, IntentsRequest, Keep, Mode, Origin, Reveal, SessionOpen, TurnIn, TurnVia,
+    IntentsReply, IntentsRequest, Keep, Mode, Reveal, SessionOpen, TurnIn, TurnVia,
 };
 use docket_fake::{FakeLink, MailContact, MailThread, MemoryGrants};
 use docket_router::{HandleValue, Router, RouterState, Seams};
+use docket_vocab::Origin;
 use eval_core::{Case, CasePolicy, ConsentFixture, FixtureTask, WorldFixture};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{AppId, AppName, DataClass, GrantId, Isolation};
@@ -219,7 +220,7 @@ pub(crate) fn hold<S: Rig>(
     value: HandleValue,
     label: Label,
     from: Source,
-) -> Option<docket_core::Handle> {
+) -> Option<docket_vocab::Handle> {
     let mut st = state_of(router);
     let record = st.sessions.get_mut(session)?;
     Some(record.handles.mint(Labelled { value, label }, from))

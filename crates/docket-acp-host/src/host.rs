@@ -18,12 +18,13 @@ use super::running::RunningTurn;
 use acp_core::cause::Step;
 use acp_core::court::{Court, OpenAgent};
 use docket_core::{
-    ConfirmId, HandTo, Rewind, SheetSurface, TurnEnd as Ended, TurnId, UserTurn, WatchedAgent,
+    ConfirmId, HandTo, Rewind, SheetSurface, TurnEnd as Ended, UserTurn, WatchedAgent,
 };
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, EndCause, HostFault, Opening, ResumePlan,
     SessionBackend, SessionExport, SessionHost, SheetChoice, SheetDesk, StartSession, TurnEnd,
 };
+use docket_vocab::TurnId;
 use futures_util::future::{Either, select};
 use prov::SessionId;
 use std::future::Future;
@@ -208,7 +209,7 @@ async fn settle<C: Court>(running: &mut Option<RunningTurn<C>>, event: &Option<B
     }
 }
 
-fn program_of(opening: &Opening) -> Option<docket_session::ProgramName> {
+fn program_of(opening: &Opening) -> Option<docket_core::ProgramName> {
     match &opening.backend {
         BackendKind::Acp(program) => Some(program.clone()),
         BackendKind::Native | BackendKind::Fake | BackendKind::Watch(_) => None,

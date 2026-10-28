@@ -12,9 +12,9 @@ use crate::seams::Surface;
 use crate::stored_roster::stored_events;
 use agent_loop::Rebuilt;
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_core::{RecallAsk, RecallView, SessionOpen, SessionOpened};
 use docket_planner::Planner;
+use docket_vocab::Clock;
 use prov::{AgentRef, SpaceId, UnixSeconds};
 
 /// What a restart found: the front task's fresh session, if it had one, and how many of the

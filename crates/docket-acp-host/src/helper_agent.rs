@@ -17,10 +17,11 @@ use super::backend::Seams;
 use super::host::AgentHost;
 use super::spawn::SignIn;
 use docket_core::helper::{HandFault, SignInHow, SignInWay, TerminalLogin, UntrustedWords};
-use docket_core::{AppSessionId, Reveal, TurnId, TurnSource, TurnVia, UserTurn, WatchedAgent};
+use docket_core::{AppSessionId, Reveal, TurnSource, TurnVia, UserTurn, WatchedAgent};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, HostFault, Opening, SessionHost, SheetDesk, TurnEnd,
 };
+use docket_vocab::TurnId;
 use prov::{SessionId, UnixSeconds};
 use std::future::Future;
 

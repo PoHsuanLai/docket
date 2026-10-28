@@ -3,7 +3,8 @@
 
 use crate::attack_score::AttackMetrics;
 use crate::case::Corpus;
-use docket_core::{Millis, Stage};
+use docket_core::Stage;
+use docket_vocab::Millis;
 use porter_core::{Count, MicroUsd, Permille};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

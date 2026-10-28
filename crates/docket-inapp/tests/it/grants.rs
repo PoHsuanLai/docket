@@ -103,7 +103,7 @@ fn standing_grant(prefix: &str) -> docket_core::StandingGrant {
     docket_core::StandingGrant::new(
         GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
         docket_core::StandingScope::Files {
-            action: docket_core::ActionRef {
+            action: docket_vocab::ActionRef {
                 app: AppName::parse("org.quire.Files").expect("app"),
                 name: ActionName::parse("files.file.move").expect("action"),
             },
@@ -117,7 +117,7 @@ fn read_grant() -> docket_core::StandingGrant {
     docket_core::StandingGrant::new(
         GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
         docket_core::StandingScope::Reads {
-            action: docket_core::ActionRef {
+            action: docket_vocab::ActionRef {
                 app: AppName::parse("org.quire.Mail").expect("app"),
                 name: ActionName::parse("mail.thread.search").expect("action"),
             },

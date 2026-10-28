@@ -6,7 +6,7 @@
 use crate::session::SessionState;
 use crate::state::{RouterState, SessionRecord};
 use crate::tasks::TaskState;
-use docket_core::{CallRequest, TargetValue, Value};
+use docket_vocab::{CallRequest, TargetValue, Value};
 use prov::EntityId;
 
 /// The things a call touches: its targets and the things among its arguments.

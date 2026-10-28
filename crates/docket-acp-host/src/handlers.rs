@@ -24,8 +24,9 @@ use agent_client_protocol::schema::v1::{
 use bulkhead::Argv;
 use docket_core::{
     AbsPath, AppRefusal, BreakerTrip, CallRefusal, DenyCode, FailText, Outcome, SandboxState,
-    StepEnd, Undoable, Value,
+    StepEnd, Undoable,
 };
+use docket_vocab::Value;
 use serde::Serialize;
 use serde_json::Value as Json;
 

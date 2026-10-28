@@ -40,9 +40,9 @@ pub const SETTINGS_FILE: &str = "docket/settings.toml";
 /// The reviewers' own timeouts when the router enforces its deadline: long ones, so the router's
 /// live deadline is the one that fires.
 pub const REVIEW_CEILING: docket_core::ReviewTimeouts = docket_core::ReviewTimeouts {
-    quick: docket_core::Millis(10_000),
-    deliberate: docket_core::Millis(30_000),
-    second: docket_core::Millis(30_000),
+    quick: docket_vocab::Millis(10_000),
+    deliberate: docket_vocab::Millis(30_000),
+    second: docket_vocab::Millis(30_000),
 };
 
 /// Every value of the file, typed: what the router and the companion read, and whether the MCP

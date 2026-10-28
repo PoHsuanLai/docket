@@ -17,7 +17,7 @@ fn performed(router: &Router<docket_fake::FakeSeams>) -> Vec<ActivatedInvocation
 
 fn perform_with(
     who: &docket_core::CallerId,
-    call: docket_core::CallRequest,
+    call: docket_vocab::CallRequest,
     session: Option<prov::SessionId>,
 ) -> (docket_core::CallerId, IntentsRequest) {
     (
@@ -123,14 +123,14 @@ async fn the_token_is_never_shown_by_debug() {
 #[test]
 fn the_wire_form_is_the_invocations_with_one_optional_top_level_string() {
     let invocation = Invocation {
-        call: docket_core::CallId(1),
+        call: docket_vocab::CallId(1),
         action: prov::ActionName::parse("mail.thread.read").expect("action"),
-        target: docket_core::TargetValue::Nothing,
-        args: docket_core::Args::new(),
+        target: docket_vocab::TargetValue::Nothing,
+        args: docket_vocab::Args::new(),
         actor: prov::Actor::User {
             via: app("org.quire.Shell"),
         },
-        origin: docket_core::Origin::Launcher,
+        origin: docket_vocab::Origin::Launcher,
         space: prov::SpaceId::desktop(),
     };
     let json = |a: Option<ActivationToken>| {
@@ -161,12 +161,12 @@ fn the_wire_form_is_the_invocations_with_one_optional_top_level_string() {
 fn the_classification_is_one_more_optional_top_level_member() {
     let delivered = |classified| ActivatedInvocation {
         invocation: Invocation {
-            call: docket_core::CallId(1),
+            call: docket_vocab::CallId(1),
             action: prov::ActionName::parse("mail.thread.read").expect("action"),
-            target: docket_core::TargetValue::Nothing,
-            args: docket_core::Args::new(),
+            target: docket_vocab::TargetValue::Nothing,
+            args: docket_vocab::Args::new(),
             actor: prov::Actor::Cli,
-            origin: docket_core::Origin::Cli,
+            origin: docket_vocab::Origin::Cli,
             space: prov::SpaceId::desktop(),
         },
         activation: None,
@@ -177,7 +177,7 @@ fn the_classification_is_one_more_optional_top_level_member() {
         none.get("classified").is_none(),
         "absent when not classified"
     );
-    let read = serde_json::to_value(delivered(Some(docket_core::CallClass::Effect(
+    let read = serde_json::to_value(delivered(Some(docket_vocab::CallClass::Effect(
         prov::Effect::Read,
     ))))
     .expect("json");
@@ -188,6 +188,6 @@ fn the_classification_is_one_more_optional_top_level_member() {
     let back: ActivatedInvocation = serde_json::from_value(read).expect("round trip");
     assert_eq!(
         back.classified,
-        Some(docket_core::CallClass::Effect(prov::Effect::Read))
+        Some(docket_vocab::CallClass::Effect(prov::Effect::Read))
     );
 }

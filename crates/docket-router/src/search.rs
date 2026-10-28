@@ -14,9 +14,10 @@ use crate::seams::{AppLink, Seams};
 use crate::state::RouterState;
 use docket_core::LinkFault;
 use docket_core::{
-    CallerId, CallerRole, EntityRef, Hit, IndexBatch, IndexEntry, IndexPolicy, IntentsReply,
-    SearchAsk, SearchScope, SuggestAsk, TitleTrust, WireRefusal,
+    CallerId, CallerRole, Hit, IndexBatch, IndexEntry, IndexPolicy, IntentsReply, SearchAsk,
+    SearchScope, SuggestAsk, TitleTrust, WireRefusal,
 };
+use docket_vocab::EntityRef;
 use porter_core::AppName;
 use prov::{EntityId, EntityKind, Label, Labelled, SpaceId, SpaceScope, UnixSeconds};
 use std::collections::BTreeSet;

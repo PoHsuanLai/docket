@@ -3,9 +3,10 @@
 use crate::outcome::{entity_word, mentioned};
 use crate::resolve::{Apps, short_name, slug, visible};
 use docket_core::{
-    ActionDecl, ContextView, Decimal, EntityLine, Follow, HereView, Hit, Manifest, Outcome,
-    ParamDecl, ParamNeed, Preview, Reveal, SelectionView, UndoId, Value,
+    ActionDecl, ContextView, EntityLine, Follow, HereView, Hit, Manifest, Outcome, ParamDecl,
+    ParamNeed, Preview, Reveal, SelectionView,
 };
+use docket_vocab::{Decimal, UndoId, Value};
 use prov::Labelled;
 
 fn words(value: &Value) -> String {

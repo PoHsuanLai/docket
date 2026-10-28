@@ -1,7 +1,7 @@
 //! The router's undo journal rows. The app's own stack stays the truth for Cmd+Z; the journal
 //! labels who did what and lets the person undo a run or a task.
 
-use crate::ids::{ActionRef, LabelText, UndoId, UndoToken};
+use docket_vocab::{ActionRef, LabelText, UndoId, UndoToken};
 use prov::{Actor, RunId, SessionId, TaskId, UnixSeconds};
 use serde::{Deserialize, Serialize};
 

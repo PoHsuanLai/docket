@@ -3,6 +3,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_vocab::Origin;
 use prov::AgentRef;
 
 fn rows(reply: IntentsReply) -> (Vec<StoredRow>, Option<u64>) {

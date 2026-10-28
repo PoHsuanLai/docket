@@ -3,7 +3,7 @@
 //! lives in the router, which still asks, by a sheet, for any call the grant does not cover
 //! (another path, another recipient, a revoked grant) and runs every review on the ones it does.
 
-use docket_core::ActionRef;
+use docket_vocab::ActionRef;
 use std::collections::BTreeSet;
 
 /// Actions the person chose "allow always" for, by name only; the scope is the router's.

@@ -10,10 +10,9 @@ use crate::support::world::*;
 use companion_wire::{BroughtBack, Handover, HelperReply, RunsIn};
 use docket_client::{InProcess, Intents};
 use docket_core::helper::*;
-use docket_core::{
-    AppSessionId, CallerRole, ProgramName, Rewind, SeenCommand, WatchedAgent, Workspace,
-};
+use docket_core::{AppSessionId, CallerRole, ProgramName, Rewind, SeenCommand, WatchedAgent};
 use docket_tasks::HelperDesk;
+use docket_vocab::Workspace;
 use prov::SessionId;
 use std::sync::Arc;
 use std::time::Duration;

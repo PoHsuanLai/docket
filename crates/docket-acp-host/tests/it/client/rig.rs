@@ -12,10 +12,11 @@ use docket_acp_host::{
     AcpBackend, AgentHost, Fallback, IntentsCourt, Parts, Performer, Seams, ToolsOffer,
 };
 use docket_client::InProcess;
+use docket_core::ProgramName;
 use docket_core::{
     AbsPath, ActionMatch, AgentConfig, CallerId, CallerRole, ConfirmAnswer, ConfirmEnd,
-    ConfirmRequest, LabelText, StandingGrant, TaskPolicy, TaskPolicyState, TurnId, TurnSource,
-    TurnVia, UserTurn, acp_agent_app,
+    ConfirmRequest, StandingGrant, TaskPolicy, TaskPolicyState, TurnSource, TurnVia, UserTurn,
+    acp_agent_app,
 };
 use docket_fake::{
     FixedClock, ScriptedConfirmer, ScriptedReviewer, ScriptedWriter, fake_router_over,
@@ -23,9 +24,9 @@ use docket_fake::{
 use docket_host::{EditorDesk, SheetConfirmer};
 use docket_router::GrantStore;
 use docket_session::fake::MemoryLog;
-use docket_session::{
-    BackendEvent, BackendKind, Opening, ProgramName, SessionHost, SheetChoice, TurnEnd, Workspace,
-};
+use docket_session::{BackendEvent, BackendKind, Opening, SessionHost, SheetChoice, TurnEnd};
+use docket_vocab::Workspace;
+use docket_vocab::{LabelText, TurnId};
 use porter_core::{AppId, Count, Isolation};
 use prov::{AgentRef, Effect, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::BTreeSet;

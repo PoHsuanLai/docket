@@ -5,9 +5,9 @@
 use crate::support::{Desk, caller, json};
 use docket_cli::Exit;
 use docket_core::{
-    CallerRole, ContextKeep, IntentsReply, IntentsRequest, Keep, Origin, SessionOpen, TurnIn,
-    TurnVia,
+    CallerRole, ContextKeep, IntentsReply, IntentsRequest, Keep, SessionOpen, TurnIn, TurnVia,
 };
+use docket_vocab::Origin;
 use prov::{AgentRef, SessionId, SpaceId};
 
 fn keep_nothing() -> ContextKeep {

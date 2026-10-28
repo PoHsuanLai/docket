@@ -3,8 +3,9 @@
 
 use docket_cli::params::{Reading, Stdin, StdinSlot, arguments, target};
 use docket_cli::resolve::Apps;
+use docket_core::ActionDecl;
 use docket_core::parse as parse_manifest;
-use docket_core::{ActionDecl, CivilDate, Decimal, Handle, Scale, Seconds, TargetValue, Value};
+use docket_vocab::{CivilDate, Decimal, Handle, Scale, Seconds, TargetValue, Value};
 use prov::{EntityId, EntityKey, EntityKind, UnixSeconds};
 
 const DEMO: &str = r#"
@@ -163,7 +164,7 @@ fn given(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
         .collect()
 }
 
-fn map(pairs: &[(&str, &str)], stdin: Stdin) -> Result<docket_core::Args, String> {
+fn map(pairs: &[(&str, &str)], stdin: Stdin) -> Result<docket_vocab::Args, String> {
     let apps = apps();
     let (app, action) = demo(&apps);
     let mut slot = StdinSlot::new(stdin);
@@ -192,7 +193,7 @@ fn each_declared_type_maps_from_its_words() {
             vec![("title", "t"), (name, raw)]
         };
         let args = map(&pairs, Stdin::Closed).unwrap_or_else(|e| panic!("{name}={raw}: {e}"));
-        let param = docket_core::ParamName::parse(name).expect("param");
+        let param = docket_vocab::ParamName::parse(name).expect("param");
         args.get(&param).expect("the argument").value.clone()
     };
     let rows: Vec<(&str, &str, Value)> = vec![
@@ -254,7 +255,7 @@ fn each_declared_type_maps_from_its_words() {
         (
             "mood",
             "loud",
-            Value::Choice(docket_core::ChoiceId::parse("loud").expect("choice")),
+            Value::Choice(docket_vocab::ChoiceId::parse("loud").expect("choice")),
         ),
         ("parent", "demo.item:a1", Value::Entity(item("a1"))),
         ("parent", "a1", Value::Entity(item("a1"))),
@@ -282,7 +283,7 @@ fn each_declared_type_maps_from_its_words() {
     let file = one("source", "/tmp/a.txt");
     assert_eq!(
         file,
-        Value::File(docket_core::FileRef::parse("/tmp/a.txt").expect("file"))
+        Value::File(docket_vocab::FileRef::parse("/tmp/a.txt").expect("file"))
     );
     let relative = one("source", "notes.txt");
     assert!(
@@ -298,7 +299,7 @@ fn several_things_are_a_repeated_flag() {
         Stdin::Closed,
     )
     .expect("mapped");
-    let peers = docket_core::ParamName::parse("peers").expect("param");
+    let peers = docket_vocab::ParamName::parse("peers").expect("param");
     assert_eq!(
         args[&peers].value,
         Value::Entities(vec![item("a"), item("b")])
@@ -345,7 +346,7 @@ fn words_that_do_not_fit_are_usage_errors_that_say_why() {
 #[test]
 fn a_dash_reads_standard_input_once() {
     let args = map(&[("title", "-")], Stdin::Text("from a pipe\n".into())).expect("mapped");
-    let title = docket_core::ParamName::parse("title").expect("param");
+    let title = docket_vocab::ParamName::parse("title").expect("param");
     assert_eq!(
         args[&title].value,
         Value::Text("from a pipe".into()),
@@ -356,7 +357,7 @@ fn a_dash_reads_standard_input_once() {
         Stdin::Text("a\nb\n".into()),
     )
     .expect("mapped");
-    let notes = docket_core::ParamName::parse("notes").expect("param");
+    let notes = docket_vocab::ParamName::parse("notes").expect("param");
     assert_eq!(
         many[&notes].value,
         Value::Text("a\nb".into()),

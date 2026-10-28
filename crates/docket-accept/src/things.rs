@@ -11,11 +11,11 @@
 
 use crate::provider::{AppLog, Message, Sending, words_match};
 use docket_core::{
-    AppRefusal, ArgSink, EntityRef, Follow, Hit, Invocation, LabelText, Outcome, ParamName,
-    Preview, ResultShape, SuggestAsk, TargetKind, TargetValue, UndoFault, UndoToken, Undoable,
-    ValidManifest, Value,
+    AppRefusal, ArgSink, Follow, Hit, Invocation, Outcome, Preview, ResultShape, SuggestAsk,
+    TargetKind, UndoFault, Undoable, ValidManifest,
 };
 use docket_provider::IntentProvider;
+use docket_vocab::{EntityRef, LabelText, ParamName, TargetValue, UndoToken, Value};
 use porter_core::{AppName, DataClass};
 use prov::{
     Actor, Confidentiality, Effect, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled,

@@ -7,12 +7,12 @@ use crate::budget::HaltCause;
 use crate::call::CallEnd;
 use crate::confirm::{ConfirmEnd, GrantScope};
 use crate::grant::GrantCaller;
-use crate::ids::{ActionRef, CallId, UndoId};
 use crate::review::{BreakerTrip, PolicyId, ReasonCode, ReviewMark, Stage};
 use crate::standing::{ScopeKind, StandingGrantId};
 use crate::task_policy::{PolicyChange, TaskPolicyState};
 use crate::undo::UndoState;
 use almanac_core::Episode;
+use docket_vocab::{ActionRef, CallId, UndoId};
 use prov::{
     Actor, AgentRef, ConfirmId, ConfirmReceipt, Effect, EntityId, InputProof, Message, SessionId,
     SpaceId, SpaceScope, TaskId, UnixSeconds,
@@ -109,7 +109,7 @@ pub enum AuditRecord {
         /// The action.
         action: ActionRef,
         /// What was decided.
-        classification: crate::classify::Classification,
+        classification: docket_vocab::Classification,
     },
     /// A call that classified itself as delegating ended its delegation.
     Delegation {
@@ -120,7 +120,7 @@ pub enum AuditRecord {
         /// The action it said it delegates to.
         to: ActionRef,
         /// How it ended.
-        end: crate::classify::DelegationEnd,
+        end: docket_vocab::DelegationEnd,
     },
     /// One stage of a review ended; every stage is logged once.
     Review {
@@ -284,7 +284,7 @@ pub enum AuditRecord {
         /// The Space of the session.
         space: SpaceId,
         /// The record's kind.
-        slug: crate::ids::NoteSlug,
+        slug: docket_vocab::NoteSlug,
         /// The record, in its owner's serde form.
         json: almanac_core::JsonText,
     },

@@ -22,12 +22,12 @@ use crate::seams::Seams;
 use crate::session::SessionState;
 use crate::state::{SessionKind, SessionRecord};
 use crate::wal::Wal;
-use docket_core::Clock;
 use docket_core::{
-    CallRequest, CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, TurnId, WatchOwner,
-    WatchedAgent, Watching, WireRefusal, Workspace,
+    CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, WatchOwner, WatchedAgent, Watching,
+    WireRefusal,
 };
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
+use docket_vocab::{CallRequest, Clock, TurnId, Workspace};
 use prov::{Actor, AgentLabel, AgentRef, SessionId, SpaceId, TaskId};
 
 /// The longest label kept, in characters.

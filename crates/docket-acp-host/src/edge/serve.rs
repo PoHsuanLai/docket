@@ -9,9 +9,10 @@ use actions_tools::{
     EDGE_LINE_MAX, EdgeOp, EdgeReply, EdgeRequest, EdgeToken, EdgeTool, ToolFault, ToolRefusal,
     listing, outcome_json, prepare,
 };
+use docket_core::ProgramName;
 use docket_core::{AbsPath, BreakerTrip, CallRefusal};
 use docket_procroot::own_uid;
-use docket_session::ProgramName;
+
 use prov::{ClientName, SessionId};
 use serde_json::Value as Json;
 use std::os::unix::fs::DirBuilderExt;

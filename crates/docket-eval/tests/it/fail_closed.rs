@@ -1,10 +1,11 @@
 //! A harness fault never reads as the router's ruling: a world that cannot be built, an argument
 //! the case file misspells, and state a case leaves behind all fail the case.
 
-use docket_core::{ActionRef, AgentConfig, GrantCaller, StandingGrant, StandingScope};
+use docket_core::{AgentConfig, GrantCaller, StandingGrant, StandingScope};
 use docket_eval::{Harness, run_case};
 use docket_fake::Answering;
 use docket_router::GrantStore;
+use docket_vocab::ActionRef;
 use eval_core::{Case, Judgement, StepEnding, judge};
 use porter_core::AppName;
 use prov::{ActionName, UnixSeconds};

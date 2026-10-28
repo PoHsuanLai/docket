@@ -10,7 +10,8 @@ use docket_core::helper::HelperCard;
 use docket_core::{ProgramName, TaskPolicy};
 use docket_host::EditorDesk;
 use docket_launch::Accounts;
-use docket_session::{BackendKind, Opening, Workspace};
+use docket_session::{BackendKind, Opening};
+use docket_vocab::Workspace;
 use prov::{AgentRef, HelperId, SpaceId, TaskId};
 use std::sync::Arc;
 

@@ -2,7 +2,7 @@
 
 use crate::review::BreakerTrip;
 use crate::spend::{Spent, check_turn};
-use crate::units::{Depth, Seconds};
+use docket_vocab::{Depth, Seconds};
 use porter_core::{Count, MicroUsd};
 use prov::{Effect, SpaceId, UnixSeconds};
 use serde::{Deserialize, Serialize};

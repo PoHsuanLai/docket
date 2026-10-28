@@ -7,7 +7,8 @@ use acp_core::call::AgentCall;
 use acp_core::court::{Court, CourtFault, OpenAgent, Ruled};
 use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EnvVar, Profile, agent_bwrap_args};
 use docket_acp_host::{ToolsEdge, ToolsOffer};
-use docket_core::{AbsPath, TurnId, ValidManifest};
+use docket_core::{AbsPath, ValidManifest};
+use docket_vocab::TurnId;
 use prov::SessionId;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -68,7 +69,7 @@ async fn a_process_in_the_sandbox_with_no_network_reaches_its_sessions_edge_and_
         bridge: abs(&python),
     };
     let session = SessionId::parse("s-1").expect("session");
-    let program = docket_session::ProgramName::parse("claude-code").expect("program");
+    let program = docket_core::ProgramName::parse("claude-code").expect("program");
     let edge = ToolsEdge::start(&offer, &session, &program, Stand).expect("edge");
     let run = |socket: &bulkhead::AbsPath, token: &str| {
         let run = AgentRun::new(

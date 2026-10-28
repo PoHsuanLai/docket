@@ -8,8 +8,10 @@ use crate::who::Who;
 use action_review::GoalKey;
 use action_review::{ArgDigest, ArgView, CallEndKind, ProposedAction, ReviewRequest, TypedStep};
 use docket_core::{
-    ActionDecl, ActionRef, ActivationToken, Args, CallId, CallRefusal, CallRequest, CharCount,
-    Cost, GrantCaller, ParamName, Ruling, StepEnd, TargetValue, Value, WindowKey, size_of,
+    ActionDecl, ActivationToken, CallRefusal, Cost, GrantCaller, Ruling, StepEnd, size_of,
+};
+use docket_vocab::{
+    ActionRef, Args, CallId, CallRequest, CharCount, ParamName, TargetValue, Value, WindowKey,
 };
 use policy_point::GrantState;
 use porter_core::Count;
@@ -45,12 +47,12 @@ pub(crate) struct Prepared {
     pub window: Option<WindowKey>,
     pub targets: Vec<EntityId>,
     /// The handles the caller named, before the router resolved them (for the history line).
-    pub named: Vec<docket_core::Handle>,
+    pub named: Vec<docket_vocab::Handle>,
     /// The launcher's activation token, for the app's `Perform` only.
     pub activation: Option<ActivationToken>,
     /// How the call was classified, for an action that classifies per call. `decl.effect` is
     /// already the effect it used.
-    pub classified: Option<docket_core::Classification>,
+    pub classified: Option<docket_vocab::Classification>,
     /// What standing grants say about the call; none for the person's own calls.
     pub standing: Option<crate::standing_ctx::StandingCtx>,
     /// The arguments the router fills itself (`ParamDecl::filled`), put in just before the app

@@ -10,6 +10,10 @@ use docket_core::*;
 use docket_dbus::{INTENTS_BUS, IntentProviderProxy};
 use docket_provider::{ContextSource, IntentProvider, SummonTarget, serve_on_with};
 use docket_router::{AppFault, AppLink};
+use docket_vocab::{
+    ActionRef, Args, CallId, EntityRef, IntentsVocab, Origin, ParamName, TargetValue, UndoToken,
+    Value,
+};
 use intentd::DbusLink;
 use prov::{Actor, EntityId, EntityKey, EntityKind, SpaceId};
 use std::time::Duration;

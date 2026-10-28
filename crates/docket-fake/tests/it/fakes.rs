@@ -1,11 +1,14 @@
 //! The fixtures validate and the fakes behave.
 
 use action_review::{ReviewVerdict, Reviewer};
-use docket_core::Clock;
 use docket_core::*;
 use docket_fake::*;
 use docket_provider::IntentProvider;
 use docket_router::GrantStore;
+use docket_vocab::{
+    ActionRef, Args, CallId, CallRequest, Clock, FileRef, LabelText, Millis, Origin, ParamName,
+    Seconds, TargetValue, UndoToken, Value,
+};
 use prov::{ActionName, Actor, AppName, SpaceId, UnixSeconds};
 use std::collections::BTreeSet;
 

@@ -1,0 +1,22 @@
+[package]
+name = "docket-vocab"
+description = "docket's smallest vocabulary: ids, units, values and their arguments, call requests and classes, RFC 3339 dates, the workspace name, the `Clock` seam and the text marks a name may not carry."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+chrono = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+serde_json = { workspace = true }

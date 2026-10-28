@@ -8,6 +8,7 @@ use crate::support::world::*;
 use almanac_core::MemoryReply;
 use companiond::{RouterLog, stored_events};
 use docket_core::*;
+use docket_vocab::NoteSlug;
 use prov::{SpaceId, UnixSeconds};
 use serde_json::json;
 

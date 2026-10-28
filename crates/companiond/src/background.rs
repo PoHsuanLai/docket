@@ -3,9 +3,9 @@
 
 use crate::Companiond;
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_dbus::{BusConnection, INTENTS_BUS, MessageProxy};
 use docket_planner::Planner;
+use docket_vocab::Clock;
 use futures_util::lock::Mutex;
 use std::sync::Arc;
 use std::time::Duration;

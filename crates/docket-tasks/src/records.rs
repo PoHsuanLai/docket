@@ -8,9 +8,9 @@ use crate::seams::Surface;
 use almanac_core::JsonText;
 use companion_wire::SessionRecord;
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
-use docket_core::{NoteAsk, NoteSlug, SessionNote, TaskLedger, skeleton_of};
+use docket_core::{NoteAsk, SessionNote, TaskLedger, skeleton_of};
 use docket_planner::Planner;
+use docket_vocab::{Clock, NoteSlug};
 use prov::{SessionId, TaskId};
 
 /// The record as the router stores it: its slug and its serde JSON.
@@ -39,15 +39,15 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
         &mut self,
         task: &TaskId,
         session: &SessionId,
-        call: &docket_core::CallRequest,
+        call: &docket_vocab::CallRequest,
     ) {
         let is_load = call.action.app.as_str() == "org.quire.Companion"
             && call.action.name.as_str() == "companion.skill.load";
-        let id = docket_core::ParamName::parse("id")
+        let id = docket_vocab::ParamName::parse("id")
             .ok()
             .and_then(|param| call.args.get(&param))
             .and_then(|a| match &a.value {
-                docket_core::Value::Text(t) => docket_core::SkillId::parse(t).ok(),
+                docket_vocab::Value::Text(t) => docket_core::SkillId::parse(t).ok(),
                 _ => None,
             });
         let (true, Some(id)) = (is_load, id) else {

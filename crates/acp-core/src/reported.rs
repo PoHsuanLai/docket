@@ -11,10 +11,9 @@ use agent_client_protocol::schema::v1::{
     ContentBlock, ContentChunk, SessionUpdate, ToolCallStatus, ToolKind,
 };
 use docket_core::PermissionKind;
-use docket_core::{
-    AppRefusal, CallId, CallRefusal, FailText, Reveal, StepEnd, StepLine, StepShown,
-};
+use docket_core::{AppRefusal, CallRefusal, FailText, Reveal, StepEnd, StepLine, StepShown};
 use docket_session::{BackendEvent, CallEvent, CallOpen, UsageNote};
+use docket_vocab::CallId;
 use porter_core::{Count, MicroUsd};
 use prov::Effect;
 use std::collections::BTreeMap;
@@ -31,7 +30,7 @@ pub struct Heard {
 #[derive(Debug, Clone)]
 struct Open {
     call: CallId,
-    action: docket_core::ActionRef,
+    action: docket_vocab::ActionRef,
     effect: Effect,
 }
 

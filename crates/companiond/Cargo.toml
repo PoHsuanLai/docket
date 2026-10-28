@@ -20,6 +20,7 @@ path = "src/main.rs"
 companion-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
+docket-vocab = { workspace = true }
 docket-helpers = { workspace = true, features = ["tokio"] }
 docket-store = { workspace = true }
 docket-log = { workspace = true }

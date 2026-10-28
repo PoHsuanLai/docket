@@ -9,9 +9,10 @@ use docket_accept::drive::{Launcher, keep_nothing};
 use docket_accept::world::{Consent, World, as_app};
 use docket_client::{DbusTransport, Intents};
 use docket_core::{
-    ActionRef, CallRequest, CheckpointId, CheckpointRow, Origin, Preview, Rewind, SavedState,
-    SessionOpen, TargetValue, TurnEnd, TurnIn, TurnState, TurnVia, Value, WorkPath, Workspace,
+    CheckpointId, CheckpointRow, Preview, Rewind, SavedState, SessionOpen, TurnEnd, TurnIn,
+    TurnState, TurnVia, WorkPath,
 };
+use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value, Workspace};
 use porter_core::AppName;
 use prov::{ActionName, AgentRef, Label, Labelled, SpaceId};
 use std::path::Path;
@@ -66,7 +67,7 @@ fn restore_call(session: &prov::SessionId, point: i64, plan: &str) -> CallReques
             ("plan", arg(Value::Text(plan.into()))),
         ]
         .into_iter()
-        .map(|(name, value)| (docket_core::ParamName::parse(name).expect("param"), value))
+        .map(|(name, value)| (docket_vocab::ParamName::parse(name).expect("param"), value))
         .collect(),
         origin: Origin::Launcher,
     }

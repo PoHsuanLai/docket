@@ -2,7 +2,8 @@
 //! numbers read from it, and the report section. No model is needed: the traces are made from the
 //! audit records a run would leave.
 
-use docket_core::{ActionRef, AuditRecord, CallEnd, CallId, CallRefusal, DecidedBy, DenyCode};
+use docket_core::{AuditRecord, CallEnd, CallRefusal, DecidedBy, DenyCode};
+use docket_vocab::{ActionRef, CallId};
 use eval_core::*;
 use porter_core::AppName;
 use prov::{ActionName, Actor, Effect, EntityId, EntityKey, EntityKind, SpaceId, UnixSeconds};

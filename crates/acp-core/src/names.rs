@@ -4,7 +4,8 @@
 //! `acpagent.reported.<kind>` and is never dispatched.
 
 use agent_client_protocol::schema::v1::ToolKind;
-use docket_core::{ActionRef, PermissionKind, acp_agent_action};
+use docket_core::{PermissionKind, acp_agent_action};
+use docket_vocab::ActionRef;
 use prov::Effect;
 
 /// The permission kind an ACP tool kind is. Anything the protocol adds later is `other`.

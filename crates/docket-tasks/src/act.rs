@@ -13,9 +13,8 @@ use companion_wire::AnswerPhase;
 use docket_client::{
     ClientError, PerformEvent, PerformWatch, Transport as IntentsTransport, TransportError,
 };
-use docket_core::Clock;
-use docket_core::{CallId, CallRequest, CardActionId};
 use docket_planner::Planner;
+use docket_vocab::{CallId, CallRequest, CardActionId, Clock};
 use prov::{Effect, TaskId};
 
 /// A card's call that has begun: the request is in flight and its events are still to be read.
@@ -155,7 +154,7 @@ mod tests {
     use super::*;
 
     fn pressed() -> (crate::task::TaskRuntime, TaskId) {
-        use docket_core::{ActionRef, LabelText};
+        use docket_vocab::{ActionRef, LabelText};
         let mut rt = crate::task::TaskRuntime::new(
             prov::SessionId::parse("s-1").expect("session"),
             prov::SpaceId::desktop(),
@@ -195,14 +194,14 @@ mod tests {
         use companion_wire::{AnswerBody, StepWireState};
         let (mut rt, task) = pressed();
         let end = rt.record_call(
-            &docket_core::CallRequest {
-                action: docket_core::ActionRef {
+            &docket_vocab::CallRequest {
+                action: docket_vocab::ActionRef {
                     app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
                     name: prov::ActionName::parse("mail.message.send").expect("name"),
                 },
-                target: docket_core::TargetValue::Nothing,
-                args: docket_core::Args::new(),
-                origin: docket_core::Origin::Companion,
+                target: docket_vocab::TargetValue::Nothing,
+                args: docket_vocab::Args::new(),
+                origin: docket_vocab::Origin::Companion,
             },
             Effect::Outbound,
             Err(docket_core::CallRefusal::Timeout),

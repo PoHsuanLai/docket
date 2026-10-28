@@ -7,6 +7,7 @@ use docket_client::{InProcess, Intents};
 use docket_core::*;
 use docket_fake::fake_router;
 use docket_router::{HandleValue, Router};
+use docket_vocab::{ChoiceId, Handle, Value};
 use porter_core::capability::LlmFeature;
 use porter_core::{AppId, AppName, DataClass, Isolation};
 use porter_infer::{

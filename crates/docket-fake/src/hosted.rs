@@ -2,7 +2,8 @@
 //! reach this trait. What `FakeLink` does for `org.quire.Companion`, generalised to a provider
 //! that is async and carries its own state (the external agents' host).
 
-use docket_core::{AppRefusal, Invocation, Outcome, Preview, UndoFault, UndoToken};
+use docket_core::{AppRefusal, Invocation, Outcome, Preview, UndoFault};
+use docket_vocab::UndoToken;
 use prov::Actor;
 use std::future::Future;
 use std::pin::Pin;

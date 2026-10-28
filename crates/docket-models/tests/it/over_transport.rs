@@ -6,8 +6,9 @@
 #[path = "../../../companiond/tests/it/support/infer.rs"]
 mod infer;
 
-use docket_core::{ActionCard, ActionRef, PolicyWriter, TurnId, TurnSource, TurnVia, UserTurn};
+use docket_core::{ActionCard, PolicyWriter, TurnSource, TurnVia, UserTurn};
 use docket_models::{TransportModel, TransportWriter, card_of, placeholder_set, reviewer_over};
+use docket_vocab::{ActionRef, TurnId};
 use infer::{Say, ScriptedInfer, words};
 use porter_core::DataClass;
 use porter_infer::{

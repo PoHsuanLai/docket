@@ -9,7 +9,7 @@ use super::card::HelperCard;
 use super::hand::{BackOutcome, BroughtOutcome, HandFault, ToTerminalOutcome};
 use super::job::{Job, JobFault};
 use crate::hand::{AppSessionId, SeenCommand, WatchedAgent};
-use crate::workspace::Workspace;
+use docket_vocab::Workspace;
 use prov::{HelperId, SessionId, TaskId};
 use serde::{Deserialize, Serialize};
 use std::future::Future;

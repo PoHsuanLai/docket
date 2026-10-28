@@ -15,6 +15,10 @@ use almanac_core::{
 use docket_client::{Transport, TransportError};
 use docket_core::*;
 use docket_dbus::{Bus, introspection};
+use docket_vocab::{
+    ActionRef, Args, CallRequest, Generation, Handle, LabelText, NoteSlug, Origin, ParamName,
+    TargetValue, TurnId, UndoId, Workspace,
+};
 use porter_core::Count;
 use prov::{
     ActionName, Address, AgentRef, Effect, EntityId, EntityKey, EntityKind, Label, MessageKind,
@@ -498,7 +502,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     .await;
     pair.both(IntentsRequest::SessionTurnEnded {
         session: session.clone(),
-        turn: docket_core::TurnId(1),
+        turn: docket_vocab::TurnId(1),
         how: docket_core::TurnEnd::Answered,
     })
     .await;

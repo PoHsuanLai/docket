@@ -6,8 +6,9 @@ use crate::reach::Reach;
 use agents_core::dirs::AgentsDir;
 use bulkhead::NetworkMode;
 use docket_acp_host::{ModelId, SignIn};
+use docket_core::ProgramName;
 use docket_core::{AbsPath, Rewind};
-use docket_session::ProgramName;
+
 use porter_core::DataClass;
 use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
 

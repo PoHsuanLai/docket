@@ -117,9 +117,8 @@ pub(crate) fn related_of(kind: &EntityKind, actions: &[ActionCard]) -> Option<St
 
 #[cfg(test)]
 pub(crate) mod fixtures {
-    use docket_core::{
-        ActionCard, ActionRef, AgentReach, LabelText, Lasting, TargetKind, ToolSchema,
-    };
+    use docket_core::{ActionCard, AgentReach, Lasting, TargetKind, ToolSchema};
+    use docket_vocab::{ActionRef, LabelText};
     use prov::{ActionName, Effect, EntityKind};
     use serde_json::json;
 
@@ -170,8 +169,8 @@ pub(crate) mod fixtures {
     /// The related action of mail threads: `from` names one contact, `participants` several.
     pub(crate) fn related_thread() -> ActionCard {
         let relation = |name: &str, many| docket_core::RelationDecl {
-            name: docket_core::RelationName::parse(name).expect("relation"),
-            label: docket_core::LabelText::parse("A relation").expect("label"),
+            name: docket_vocab::RelationName::parse(name).expect("relation"),
+            label: docket_vocab::LabelText::parse("A relation").expect("label"),
             to: kind("mail.contact"),
             many,
             trust: docket_core::TitleTrust::AppAuthored,

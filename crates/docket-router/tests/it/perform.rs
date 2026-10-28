@@ -5,6 +5,7 @@ use action_review::{ReviewReason, ReviewVerdict};
 use docket_core::*;
 use docket_fake::{ReviewMode, ScriptedReviewer};
 use docket_router::{GrantStore, SessionState};
+use docket_vocab::{ActionRef, Args, CallRequest, Handle, Origin, TargetValue, Value};
 use prov::{AgentRef, Integrity, Labelled};
 
 fn contact() -> Value {
@@ -144,9 +145,9 @@ async fn a_reviewer_that_asks_sends_the_call_to_the_person() {
 async fn a_reviewer_that_hangs_past_its_deadline_is_a_timeout_that_asks() {
     let mut router = router();
     router.config.review = docket_core::ReviewTimeouts {
-        quick: docket_core::Millis(0),
-        deliberate: docket_core::Millis(0),
-        second: docket_core::Millis(0),
+        quick: docket_vocab::Millis(0),
+        deliberate: docket_vocab::Millis(0),
+        second: docket_vocab::Millis(0),
     };
     router.seams.reviewer = ScriptedReviewer::hanging();
     ready_outside(&router).await;

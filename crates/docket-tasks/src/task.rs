@@ -9,10 +9,10 @@ use companion_wire::{
     AnswerBody, AnswerPhase, AnswerWire, FooterWire, NeedsYou, RefusalWire, RouteNote,
 };
 use docket_core::{
-    CallEnd, CallId, CallRefusal, CallRequest, CharCount, ContextKeep, Handle, HandleCard,
-    HandleShape, InboundLine, InboundPart, Keep, LedgerStep, Origin, Outcome, Reveal, StepEnd,
-    StepLine, StepShown, Summary, TargetValue, Undoable, UserTurn, Value, WindowKey,
+    CallEnd, CallRefusal, ContextKeep, HandleCard, HandleShape, InboundLine, InboundPart, Keep,
+    LedgerStep, Outcome, Reveal, StepEnd, StepLine, StepShown, Summary, Undoable, UserTurn,
 };
+use docket_vocab::{CallId, CallRequest, CharCount, Handle, Origin, TargetValue, Value, WindowKey};
 use porter_core::AppName;
 use porter_infer::ServedBy;
 use prov::{
@@ -174,7 +174,7 @@ impl TaskRuntime {
     }
 
     /// The card of the proposal named `id`.
-    pub fn card(&self, id: &docket_core::CardActionId) -> Option<&companion_wire::CardWire> {
+    pub fn card(&self, id: &docket_vocab::CardActionId) -> Option<&companion_wire::CardWire> {
         match self.proposal.as_ref()? {
             AnswerBody::DraftReply { actions, .. } | AnswerBody::ProposedEvent { actions, .. } => {
                 actions.iter().find(|c| &c.id == id)
@@ -395,7 +395,8 @@ pub fn roster_state(state: Option<&LoopState>, phase: &AnswerPhase) -> docket_co
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::{CallId, CallProgress, ConfirmId, LabelText};
+    use docket_core::{CallProgress, ConfirmId};
+    use docket_vocab::{CallId, LabelText};
     use prov::ActionName;
 
     fn runtime() -> TaskRuntime {
@@ -415,7 +416,7 @@ mod tests {
     fn begin(rt: &mut TaskRuntime) {
         rt.plan.begin(
             CallId(0),
-            docket_core::ActionRef {
+            docket_vocab::ActionRef {
                 app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
                 name: ActionName::parse("mail.message.forward").expect("name"),
             },

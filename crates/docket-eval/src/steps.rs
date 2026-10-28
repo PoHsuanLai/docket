@@ -7,11 +7,11 @@ use crate::block::block_on;
 use crate::runner::Rig;
 use crate::world::{Scene, cli, companion, hold, mail_label, state_of};
 use docket_core::{
-    ActionRef, Args, CallRefusal, CallRequest, DenyCode, DraftPart, InboundPart, InboxAsk,
-    IntentsReply, IntentsRequest, MessageDraft, Origin, ParamDecl, ParamNeed, ParamType, Reveal,
-    TargetValue, Value, WireRefusal,
+    CallRefusal, DenyCode, DraftPart, InboundPart, InboxAsk, IntentsReply, IntentsRequest,
+    MessageDraft, ParamDecl, ParamNeed, Reveal, WireRefusal,
 };
 use docket_router::{HandleValue, Router};
+use docket_vocab::{ActionRef, Args, CallRequest, Origin, ParamType, TargetValue, Value};
 use eval_core::{
     ArgFrom, Case, Driver, MailField, ScriptedCall, ScriptedSend, ScriptedStep, StepEnding,
 };
@@ -25,7 +25,7 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone)]
 enum Inbound {
     Plain(String),
-    Held(docket_core::Handle),
+    Held(docket_vocab::Handle),
 }
 
 /// How the planner's steps go, and what they learned from one another.
@@ -154,7 +154,7 @@ impl<'a, S: Rig> Player<'a, S> {
             ParamType::Text { .. } => Some((Value::Text(text.clone()), HandleValue::Text(text))),
             ParamType::Url => Some((Value::Url(text.clone()), HandleValue::Text(text))),
             ParamType::File => {
-                let file = docket_core::FileRef::parse(&text).ok()?;
+                let file = docket_vocab::FileRef::parse(&text).ok()?;
                 Some((Value::File(file.clone()), HandleValue::File(file)))
             }
             ParamType::Entity(kind) => {
@@ -194,7 +194,7 @@ impl<'a, S: Rig> Player<'a, S> {
         from: &ArgFrom,
     ) -> Result<Value, Fault> {
         if let ArgFrom::Unminted(n) = from {
-            return Ok(Value::Handle(docket_core::Handle(*n)));
+            return Ok(Value::Handle(docket_vocab::Handle(*n)));
         }
         let (text, label) = self
             .source(from)

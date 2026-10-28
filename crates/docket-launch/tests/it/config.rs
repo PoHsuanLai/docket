@@ -11,7 +11,7 @@ fn the_claude_code_entry_reads_as_written() {
     let file = AgentsFile::parse(ENDPOINT).expect("file");
     assert_eq!(file.len(), 1);
     let entry = file
-        .get(&docket_session::ProgramName::parse("claude-code").expect("name"))
+        .get(&docket_core::ProgramName::parse("claude-code").expect("name"))
         .expect("entry");
     assert_eq!(entry.route, Route::Endpoint);
     assert_eq!(entry.network, NetworkMode::EndpointOnly);
@@ -322,7 +322,7 @@ fn a_registry_agent_runs_from_its_install_with_a_home_of_its_own() {
     let dir = installed_agy(tmp.path());
     let file = AgentsFile::parse_in(REGISTRY_ENTRY, Some(&dir)).expect("file");
     let entry = file
-        .get(&docket_session::ProgramName::parse("antigravity").expect("name"))
+        .get(&docket_core::ProgramName::parse("antigravity").expect("name"))
         .expect("entry");
     let root = tmp.path().to_str().expect("utf-8");
     assert_eq!(entry.route, Route::Login);
@@ -355,7 +355,7 @@ fn a_registry_agent_added_in_settings_is_one_docket_starts() {
     let text = docket_settings::edit_agent_add("", &agent).expect("add");
     let file = AgentsFile::parse_in(&text, Some(&dir)).expect("file");
     let entry = file
-        .get(&docket_session::ProgramName::parse("antigravity").expect("name"))
+        .get(&docket_core::ProgramName::parse("antigravity").expect("name"))
         .expect("entry");
     assert_eq!(entry.route, Route::Login);
     assert_eq!(entry.network, NetworkMode::Host);
@@ -482,7 +482,7 @@ fn a_command_line_a_terminal_saw_is_the_app_and_conversation_it_picks_up() {
     // What the host builds to resume is what it recognises.
     for entry in ["claude-code", "flagged"] {
         let entry = file
-            .get(&docket_session::ProgramName::parse(entry).expect("name"))
+            .get(&docket_core::ProgramName::parse(entry).expect("name"))
             .expect("entry");
         let mut words = vec![entry.command.as_str().to_owned()];
         words.extend(entry.resume_line("0a1b-2c3d").expect("line"));

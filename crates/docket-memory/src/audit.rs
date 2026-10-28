@@ -9,8 +9,9 @@
 //! decides what to tell the person.
 
 use almanac_core::{MemoryReply, MemoryRequest, Refusal};
-use docket_core::{AuditRecord, CallId, LinkFault, MemoryLink};
+use docket_core::{AuditRecord, LinkFault, MemoryLink};
 use docket_memory_core::{QueuedSink, record_of, space_named_by};
+use docket_vocab::CallId;
 use prov::SpaceId;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 

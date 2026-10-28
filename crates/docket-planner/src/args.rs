@@ -4,7 +4,8 @@
 //! does not fit its declared type is a fault before the router is asked.
 
 use crate::catalogue::CatalogueTool;
-use docket_core::{Args, TargetValue, args_from_json};
+use docket_core::args_from_json;
+use docket_vocab::{Args, TargetValue};
 use prov::{Integrity, Label, ModelRole, Source};
 use serde_json::Value as Json;
 use std::collections::BTreeSet;

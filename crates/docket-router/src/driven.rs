@@ -6,8 +6,9 @@ use crate::prepared::Prepared;
 use action_review::{DecisionMark, DenialMark, DeniedBy, ReviewVerdict};
 use docket_core::{
     AskReason, CallEnd, CallRefusal, ConfirmId, DecidedBy, Outcome, PolicyId, Preview, ReasonCode,
-    ReviewError, Ruling, Stage, StepEnd, UndoId,
+    ReviewError, Ruling, Stage, StepEnd,
 };
+use docket_vocab::UndoId;
 use porter_core::ModelId;
 
 /// How a call ended, with what the audit and the caller need of it.
@@ -135,7 +136,7 @@ pub(crate) fn step_end(driven: &Driven, outcome: Option<&Outcome>) -> StepEnd {
             value: outcome
                 .and_then(|o| o.value.as_ref())
                 .map(|v| match &v.value {
-                    docket_core::Value::Handle(h) => docket_core::Reveal::Handle(*h),
+                    docket_vocab::Value::Handle(h) => docket_core::Reveal::Handle(*h),
                     other => docket_core::Reveal::Plain(other.clone()),
                 }),
             undo: driven.undo,

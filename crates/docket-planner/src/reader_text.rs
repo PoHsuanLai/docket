@@ -6,7 +6,8 @@
 
 use crate::show::MOST_SHOWN;
 use crate::step_text::{returned, with_text};
-use docket_core::{Handle, HandleCard, HandleShape, PlannerView, StepEnd, StepLine};
+use docket_core::{HandleCard, HandleShape, PlannerView, StepEnd, StepLine};
+use docket_vocab::Handle;
 
 /// The head of a history line for the reader's step: `quire_read summarise #10`. None for any
 /// other step.
@@ -130,9 +131,10 @@ mod tests {
     use crate::render::user_text;
     use agent_loop::{Sources, assemble};
     use docket_core::{
-        ActionRef, AgentConfig, CallId, CharCount, ContextView, Held, HereView, Reveal, Roster,
-        SelectionView, StepShown, TextTargetView, Value, VisibleView,
+        AgentConfig, ContextView, Held, HereView, Reveal, Roster, SelectionView, StepShown,
+        TextTargetView, VisibleView,
     };
+    use docket_vocab::{ActionRef, CallId, CharCount, Value};
     use porter_core::{AppName, Count};
     use prov::{ActionName, Effect, Integrity, Source};
 

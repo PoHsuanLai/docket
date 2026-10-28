@@ -22,7 +22,8 @@ use agent_client_protocol::schema::v1::{
     WaitForTerminalExitRequest, WaitForTerminalExitResponse,
 };
 use bulkhead::{Network, NetworkMode, Sandbox};
-use docket_core::{AbsPath, Derivation, NetAccess, Served, UndoToken};
+use docket_core::{AbsPath, Derivation, NetAccess, Served};
+use docket_vocab::UndoToken;
 use prov::SessionId;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard};

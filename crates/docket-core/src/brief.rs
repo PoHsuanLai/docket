@@ -3,8 +3,7 @@
 //! Nothing here is trusted by itself: only the router turns confirmed words into the person's.
 
 use crate::call::Outcome;
-use crate::ids::LabelText;
-use crate::value::Value;
+use docket_vocab::{LabelText, Value};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

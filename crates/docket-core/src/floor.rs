@@ -7,10 +7,10 @@
 //! the TOML (`docket-core` never reaches `toml`); a file that exists and does not read is an
 //! error there, never a silent skip.
 
-use crate::ids::ActionRef;
 use crate::limit::{Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope};
 use crate::mode::{DeleteRow, InsideRow, Mode, ModeRows, OtherRow, ScreenRow, SendRow};
 use crate::review::Strictness;
+use docket_vocab::ActionRef;
 use porter_core::AppName;
 use prov::{ActionName, Effect, SpaceScope, UnixSeconds};
 use serde::{Deserialize, Serialize};

@@ -14,8 +14,9 @@
 use crate::router::Router;
 use crate::seams::Seams;
 use crate::wal::{Lane, Reveals, Writer};
-use docket_core::{CallId, CallRefusal, IntentsReply, WireRefusal};
+use docket_core::{CallRefusal, IntentsReply, WireRefusal};
 use docket_session::{LogFault, SessionEntry, Taint as Written, TaintCause, TaintNote};
+use docket_vocab::CallId;
 use prov::SessionId;
 use std::sync::Arc;
 

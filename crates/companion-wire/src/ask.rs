@@ -1,6 +1,7 @@
 //! What a caller says to the companion, and where the launcher goes back to.
 
-use docket_core::{ContextKeep, UserTurn, WindowKey};
+use docket_core::{ContextKeep, UserTurn};
+use docket_vocab::WindowKey;
 use porter_core::AppName;
 use prov::{SessionId, TaskId};
 use serde::{Deserialize, Serialize};

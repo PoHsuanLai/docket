@@ -5,7 +5,7 @@
 //! agent apps and the terminal share.
 
 use crate::grant::ProgramName;
-use crate::workspace::Workspace;
+use docket_vocab::Workspace;
 use prov::{AgentLabel, SessionId};
 use serde::{Deserialize, Serialize};
 use std::fmt;

@@ -11,7 +11,6 @@ use crate::task::TaskRuntime;
 use agent_loop::Sources;
 use almanac_core::{BodyMode, InjectQuery, RecallOver, RecentQuery, TrustFilter, UserText};
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_core::{
     ActionCard, ContextView, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine,
     RecalledLine, Reveal, SelectionView, SkillCard, SkillText, TextTargetView, VisibleView,
@@ -19,6 +18,7 @@ use docket_core::{
 };
 use docket_planner::Planner;
 use docket_skills::{BODY_BUDGET_BYTES, Situation, Skill, preselect, uses_first};
+use docket_vocab::Clock;
 use porter_core::{Count, UnixSeconds};
 use prov::TaskId;
 

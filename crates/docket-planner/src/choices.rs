@@ -5,7 +5,8 @@
 //! app may have opened since the list was asked.
 
 use crate::catalogue::ENUM_LIMIT;
-use docket_core::{ActionRef, OneOf, ParamName};
+use docket_core::OneOf;
+use docket_vocab::{ActionRef, ParamName};
 
 /// The longest key offered.
 const KEY_LIMIT: usize = 128;

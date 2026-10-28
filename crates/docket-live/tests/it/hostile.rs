@@ -4,10 +4,11 @@
 
 use crate::support::*;
 use docket_accept::world::ModelSource;
-use docket_core::{ExchangeAnswer, Millis};
+use docket_core::ExchangeAnswer;
 use docket_eval::{load_all, load_planner_cases};
 use docket_live::hostile::run_planner_case;
 use docket_live::{CorpusOptions, Engine, Timeouts, run_corpus_live};
+use docket_vocab::Millis;
 use eval_core::{Corpus, Judgement};
 use std::path::PathBuf;
 use std::time::Duration;

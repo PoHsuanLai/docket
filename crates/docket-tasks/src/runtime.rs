@@ -14,12 +14,12 @@ use agent_loop::{FrontEvent, IdleState, LoopInput, LoopPhase, LoopState, SideTab
 use almanac_core::{Episode, EpisodeId};
 use companion_wire::{AnswerPhase, AskWire, FrontTask, SessionRecord};
 use docket_client::{Intents, Transport as IntentsTransport};
-use docket_core::Clock;
 use docket_core::{
     AgentConfig, EpisodeLine, LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine,
     SessionOpen, SessionOpened,
 };
 use docket_planner::{Catalogue, Planner};
+use docket_vocab::Clock;
 use porter_core::AppName;
 use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};

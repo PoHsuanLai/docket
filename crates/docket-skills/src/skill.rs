@@ -1,7 +1,8 @@
 //! One skill: `skill.toml` and `SKILL.md` parsed and checked as pure functions of their text.
 
 use crate::fault::SkillFault;
-use docket_core::{ActionRef, SkillCard, SkillId, SkillText, SkillVersion};
+use docket_core::{SkillCard, SkillId, SkillText, SkillVersion};
+use docket_vocab::ActionRef;
 use porter_core::AppName;
 use prov::{ActionName, EntityKind, Source};
 use serde::Deserialize;

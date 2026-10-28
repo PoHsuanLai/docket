@@ -5,7 +5,7 @@
 //! be offered at all. Nothing here reads a clock, a file or the system.
 
 use crate::grant::GrantCaller;
-use crate::ids::ActionRef;
+use docket_vocab::ActionRef;
 use prov::UnixSeconds;
 use serde::{Deserialize, Serialize};
 

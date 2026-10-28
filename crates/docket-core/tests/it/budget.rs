@@ -2,6 +2,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_vocab::Depth;
 use porter_core::{Count, MicroUsd, Tokens};
 use prov::Effect;
 use std::collections::BTreeMap;

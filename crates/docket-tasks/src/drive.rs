@@ -20,14 +20,13 @@ use agent_loop::{
 };
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
-use docket_core::Clock;
 use docket_core::{
-    BudgetKind, CallId, CallProgress, CallRefusal, CallRequest, Held, ReaderAsk, StepEnd,
-    TASK_START, WireRefusal,
+    BudgetKind, CallProgress, CallRefusal, Held, ReaderAsk, StepEnd, TASK_START, WireRefusal,
 };
 use docket_planner::{PlanFault, Planner};
 use docket_session::CallOpen;
 use docket_store::Stop;
+use docket_vocab::{CallId, CallRequest, Clock};
 use prov::{Effect, TaskId};
 use std::collections::VecDeque;
 
@@ -411,7 +410,7 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
         call: &CallRequest,
         id: CallId,
         session: prov::SessionId,
-        window: Option<docket_core::WindowKey>,
+        window: Option<docket_vocab::WindowKey>,
         tap: &mut T,
     ) -> Result<docket_core::Outcome, CallRefusal> {
         let waits = self.waits;
@@ -466,14 +465,14 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
         &mut self,
         task: &TaskId,
         call: &CallRequest,
-        label: Option<docket_core::LabelText>,
+        label: Option<docket_vocab::LabelText>,
         effect: Effect,
         id: CallId,
     ) {
         if let Some(rt) = self.runtimes.get_mut(task) {
             let label = label
-                .or_else(|| docket_core::LabelText::parse(call.action.name.as_str()).ok())
-                .or_else(|| docket_core::LabelText::parse("Step").ok());
+                .or_else(|| docket_vocab::LabelText::parse(call.action.name.as_str()).ok())
+                .or_else(|| docket_vocab::LabelText::parse("Step").ok());
             if let Some(label) = label {
                 rt.plan.begin(id, call.action.clone(), label, effect);
             }

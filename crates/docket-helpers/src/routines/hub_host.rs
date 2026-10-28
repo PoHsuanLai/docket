@@ -8,13 +8,13 @@ use crate::Hub;
 use almanac_core::{BodyMode, RecentQuery, TrustFilter};
 use companion_core::{Awake, EventAsk, Seen, UnitFile};
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_core::helper::{
     BoardEffect, BoardEvent, GoalOrigin, HelperName, HelperRecord, JobId, NewJob,
 };
 use docket_core::routine::{JobEnd, RoutineRecord, RunRequest, Zone};
 use docket_planner::Planner;
 use docket_tasks::Surface;
+use docket_vocab::Clock;
 use porter_core::Count;
 use prov::{HelperId, SpaceId, UnixSeconds};
 

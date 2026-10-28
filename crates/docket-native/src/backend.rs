@@ -12,8 +12,7 @@ use crate::ending::Ending;
 use crate::flight::Flight;
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
-use docket_core::{ContextKeep, Keep, TurnIn, UserTurn, WindowKey};
+use docket_core::{ContextKeep, Keep, TurnIn, UserTurn};
 use docket_planner::Planner;
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, ResumePlan, Resumed, SessionBackend, Standing,
@@ -22,6 +21,7 @@ use docket_session::{
 use docket_tasks::Companion;
 use docket_tasks::Shared;
 use docket_tasks::Surface;
+use docket_vocab::{Clock, WindowKey};
 use futures_util::FutureExt;
 use futures_util::lock::Mutex;
 use prov::{SessionId, TaskId};

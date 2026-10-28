@@ -4,7 +4,8 @@
 use crate::support::*;
 use docket_core::DenyCode;
 use docket_session::fake::MemoryLog;
-use docket_session::{BackendKind, Opening, Seq, SessionEntry, SessionLog, TurnEnd, Workspace};
+use docket_session::{BackendKind, Opening, Seq, SessionEntry, SessionLog, TurnEnd};
+use docket_vocab::Workspace;
 use prov::{AgentRef, Effect, SessionId, SpaceId, TaskId};
 use serde_json::{Value, json};
 use std::sync::Arc;

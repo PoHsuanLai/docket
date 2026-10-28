@@ -5,7 +5,8 @@
 //! (`agent.checkpoints.turn_max_s`).
 
 use docket_client::{Intents, Transport};
-use docket_core::{TurnEnd, TurnId};
+use docket_core::TurnEnd;
+use docket_vocab::TurnId;
 use futures_util::FutureExt;
 use prov::SessionId;
 

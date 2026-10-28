@@ -13,7 +13,6 @@ use companion_wire::{
     BroughtBack, Handover, HelperCardView, HelperLine, HelperReply, RunsIn, TerminalSession,
 };
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_core::helper::{
     BackOutcome, BoardEvent, BroughtOutcome, HandFault, HelperCard, JobRefusal, TerminalLogin,
     TerminalRequest, ToTerminalOutcome,
@@ -21,6 +20,7 @@ use docket_core::helper::{
 use docket_core::{SeenCommand, WatchedAgent};
 use docket_planner::Planner;
 use docket_tasks::Surface;
+use docket_vocab::Clock;
 use prov::{HelperId, SessionId};
 
 impl<P, I, K, S> Hub<P, I, K, S>

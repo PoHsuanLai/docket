@@ -5,8 +5,9 @@
 
 use crate::answer::answer_of;
 use crate::request::reader_request;
-use docket_core::{Reader, ReaderAsk, ReaderError, Value};
+use docket_core::{Reader, ReaderAsk, ReaderError};
 use docket_models::{Discard, turn};
+use docket_vocab::Value;
 use porter_client::Transport;
 use porter_core::capability::LlmFeature;
 use porter_core::need::LlmNeed;

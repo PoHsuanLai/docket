@@ -21,8 +21,8 @@ use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, AskWire};
 use docket_accept::world::{Binaries, Options, TapMode};
 use docket_client::{InProcess, Intents};
 use docket_core::{
-    AgentConfig, CallerId, CallerRole, Clock, ContextKeep, Keep, Origin, SessionOpen, TurnIn,
-    TurnSource, TurnVia, UserTurn, WindowKey,
+    AgentConfig, CallerId, CallerRole, ContextKeep, Keep, SessionOpen, TurnIn, TurnSource, TurnVia,
+    UserTurn,
 };
 use docket_dbus::Watched;
 use docket_eval::{Facts, SetupFault, install_fixture};
@@ -34,6 +34,7 @@ use docket_session::fake::MemoryLog;
 use docket_store::SystemClock;
 use docket_tasks::{Companion, Quiet};
 use docket_trace::{MemoryTap, Tap};
+use docket_vocab::{Clock, Origin, WindowKey};
 use eval_core::{
     AnswerGiven, AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, PlaceError, RunNote,
     faulted_trace, live_trace, score_live,

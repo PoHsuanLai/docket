@@ -9,13 +9,14 @@ use crate::support::bus::PrivateBus;
 use docket_acp_bin::confirm::ConfirmObject;
 use docket_core::{
     Anchor, ConfirmAnswer, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmParts,
-    ConfirmRequest, Confirmer, EditorRoute, Gesture, GrantScope, LabelText, Seconds, TaintNote,
+    ConfirmRequest, Confirmer, EditorRoute, Gesture, GrantScope, TaintNote,
 };
 use docket_dbus::callers::{Identity, Role};
 use docket_dbus::{CONFIRM_PATH, ConfirmProxy, INTENTS_BUS};
 use docket_host::EditorDesk;
 use docket_session::{SheetChoice, SheetDesk};
 use docket_settings::AcpExpose;
+use docket_vocab::{LabelText, Seconds};
 use intentd::{AcpGate, IntentdConfig, ProcRoot, SheetConfirmer};
 use porter_core::{AppName, Count};
 use prov::{Actor, ClientName, Effect, SessionId, SpaceId};

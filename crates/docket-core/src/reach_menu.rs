@@ -4,8 +4,8 @@
 //! asks the person on a sheet that names the helper. Of the companion's own actions the helper
 //! keeps handing a job on, suggesting a routine and loading a skill; never another app's, never the assistant's own.
 
-use crate::ids::ActionRef;
 use crate::task_policy::{ActionMatch, TaskPolicy};
+use docket_vocab::ActionRef;
 use prov::AgentRef;
 
 /// The built-in provider whose actions the companion carries out itself.

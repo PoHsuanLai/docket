@@ -6,9 +6,10 @@ use almanac_core::{MemoryReply, MemoryRequest};
 use docket_core::{
     ActionCard, ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmRequest, Confirmer, PolicyWriter,
     Reader, ReaderAsk, ReaderError, ReasonCode, ReasonText, ReviewError, Stage, TaskPolicy,
-    UserTurn, Value,
+    UserTurn,
 };
 use docket_core::{LinkFault, MemoryLink};
+use docket_vocab::Value;
 use prov::{Quarantined, SessionId, SpaceId, TaskId};
 use std::collections::VecDeque;
 use std::sync::Mutex;

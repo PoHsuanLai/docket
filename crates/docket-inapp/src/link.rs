@@ -3,11 +3,12 @@
 
 use docket_core::LinkFault;
 use docket_core::{
-    AppRefusal, ClassifyFault, ContextScope, ContextSnapshot, EntityRef, Invocation, Latency,
-    Outcome, Preview, SuggestAsk, UndoFault, UndoToken,
+    AppRefusal, ContextScope, ContextSnapshot, Invocation, Latency, Outcome, Preview, SuggestAsk,
+    UndoFault,
 };
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::{AppFault, AppLink};
+use docket_vocab::{ClassifyFault, EntityRef, UndoToken};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 
@@ -49,7 +50,7 @@ impl<P: IntentProvider, C: ContextSource> AppLink for ProviderLink<P, C> {
         app: &AppName,
         inv: Invocation,
         activation: Option<docket_core::ActivationToken>,
-        classified: Option<docket_core::CallClass>,
+        classified: Option<docket_vocab::CallClass>,
         _within: Latency,
     ) -> Result<Outcome, AppFault> {
         if !self.is_ours(app) {
@@ -65,7 +66,7 @@ impl<P: IntentProvider, C: ContextSource> AppLink for ProviderLink<P, C> {
         &self,
         app: &AppName,
         inv: Invocation,
-    ) -> Result<docket_core::CallClass, ClassifyFault> {
+    ) -> Result<docket_vocab::CallClass, ClassifyFault> {
         if !self.is_ours(app) {
             return Err(ClassifyFault::Unsupported);
         }

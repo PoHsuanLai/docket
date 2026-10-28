@@ -13,11 +13,11 @@ use almanac_core::{
     AreaPayload, AreaTag, BodyMode, Cause, Cursor, EntriesQuery, EventBody, JsonText, KindPattern,
     KindTag, Record, Refusal, ThingRole, ThingView, UserText,
 };
-use docket_core::Clock;
 use docket_session::{
     Appended, LogFault, LogPage, PageSize, SESSION_KIND, Seq, SessionEntry, SessionLog, decode,
     encode, session_thing,
 };
+use docket_vocab::Clock;
 use porter_core::{AppName, Count};
 use prov::{
     Actor, Confidentiality, EntityId, Integrity, Label, SessionId, Source, SpaceId, SystemPart,

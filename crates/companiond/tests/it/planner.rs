@@ -8,6 +8,10 @@ use agent_loop::ModelOutput;
 use companiond::*;
 use docket_core::*;
 use docket_planner::Planner;
+use docket_vocab::{
+    CharCount, ChoiceDecl, ChoiceId, CivilDate, Handle, LabelText, Lines, Origin, ParamName,
+    ParamType, Seconds, TargetValue, Value,
+};
 use porter_core::AppName;
 use prov::{ActionName, EntityId, EntityKey, EntityKind, Integrity, Source};
 use serde_json::json;

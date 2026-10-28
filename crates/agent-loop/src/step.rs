@@ -6,10 +6,8 @@ use crate::completion::{Attention, CompletionNote, completion_line};
 use crate::guard::{Guard, Verdict};
 use crate::tier::Tier;
 use companion_wire::{AnswerPhase, NeedsYou};
-use docket_core::{
-    BreakerTrip, CallId, CallRefusal, CallRequest, Held, ReaderAsk, ReplyFault, Reveal, StepEnd,
-    TurnId, Value,
-};
+use docket_core::{BreakerTrip, CallRefusal, Held, ReaderAsk, ReplyFault, Reveal, StepEnd};
+use docket_vocab::{CallId, CallRequest, TurnId, Value};
 use prov::Effect;
 use serde::{Deserialize, Serialize};
 

@@ -2,10 +2,11 @@
 
 use super::{Gateway, json, parsed};
 use docket_core::{
-    Displayed, Handle, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, SessionModeAsk,
-    TurnId, WidenAsk, WireRefusal,
+    Displayed, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, SessionModeAsk, WidenAsk,
+    WireRefusal,
 };
 use docket_dbus::{Details, IntentsError};
+use docket_vocab::{Handle, TurnId};
 use prov::SessionId;
 use zbus::message::Header;
 use zbus::zvariant::OwnedObjectPath;

@@ -1,11 +1,10 @@
 //! Manifest validation: pure, total, one error per rule a caller can act on.
 
-use crate::ids::{IntentsVocab, ParamName, RelationName, action_prefix};
 use crate::manifest::{
     ActionDecl, AgentReach, ArgSink, Filled, IndexPolicy, Manifest, ParamDecl, ParamNeed,
     TargetKind, UndoSupport, Visibility,
 };
-use crate::value::{ParamType, Value};
+use docket_vocab::{IntentsVocab, ParamName, ParamType, RelationName, Value, action_prefix};
 use prov::{ActionName, Effect, EntityKind};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -163,7 +162,7 @@ pub fn fits(value: &Value, ty: &ParamType) -> bool {
     match (value, ty) {
         (Value::Text(t), ParamType::Text { max, lines }) => {
             t.chars().count() <= max.0 as usize
-                && (*lines == crate::value::Lines::Many || !t.contains('\n'))
+                && (*lines == docket_vocab::Lines::Many || !t.contains('\n'))
         }
         (Value::Integer(n), ParamType::Integer { min, max }) => (*min..=*max).contains(n),
         (Value::Decimal(d), ParamType::Decimal { scale }) => d.scale == *scale,

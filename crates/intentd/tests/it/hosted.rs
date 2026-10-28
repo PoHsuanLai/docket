@@ -13,6 +13,9 @@ use docket_client::{DbusTransport, Intents};
 use docket_core::*;
 use docket_dbus::callers::Identity;
 use docket_router::GrantStore;
+use docket_vocab::{
+    ActionRef, CallRequest, LabelText, NoteSlug, Origin, ParamName, TargetValue, Value,
+};
 use intentd::{Cadence, FileGrants, IntentdConfig, Setup, start};
 use porter_core::AppName;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};

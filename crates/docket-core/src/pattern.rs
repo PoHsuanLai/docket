@@ -2,9 +2,8 @@
 //! person's own words or choice; a value matches by whole labels and whole path segments,
 //! never by substring, so `evil-example.com` is not inside `example.com`.
 
-use crate::ids::FileRef;
 use crate::task_policy::TrustedPattern;
-use crate::value::Value;
+use docket_vocab::{FileRef, Value};
 use url::{Host, Url};
 
 /// Whether `value` is inside `pattern`.

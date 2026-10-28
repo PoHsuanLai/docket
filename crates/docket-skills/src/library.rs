@@ -2,7 +2,8 @@
 
 use crate::fault::Unresolved;
 use crate::skill::{Always, Skill};
-use docket_core::{ActionRef, AgentReach, SkillCard, SkillId, ValidManifest};
+use docket_core::{AgentReach, SkillCard, SkillId, ValidManifest};
+use docket_vocab::ActionRef;
 use porter_core::AppName;
 use prov::EntityKind;
 use std::collections::BTreeSet;

@@ -1,9 +1,8 @@
 //! The router's undo journal: who did what, newest last, and what "undo all" would undo. The
 //! app's own stack stays the truth for Cmd+Z; the journal follows it through `UndoChanged`.
 
-use docket_core::{
-    ActionRef, LabelText, Seconds, UndoEntry, UndoId, UndoScope, UndoState, UndoToken,
-};
+use docket_core::{UndoEntry, UndoScope, UndoState};
+use docket_vocab::{ActionRef, LabelText, Seconds, UndoId, UndoToken};
 use prov::{Actor, RunId, SessionId, UnixSeconds};
 
 /// The journal.

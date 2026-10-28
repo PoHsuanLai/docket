@@ -9,12 +9,12 @@ use crate::drive::refusal_of;
 use crate::runtime::Companion;
 use crate::seams::Surface;
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
-use docket_core::{
-    ActionRef, Args, CallRequest, Origin, ParamName, RECALL_ACTION, RECALL_APP, TargetValue,
-    UserTurn, Value,
-};
+use docket_core::UserTurn;
 use docket_planner::Planner;
+use docket_vocab::{
+    ActionRef, Args, CallRequest, Clock, Origin, ParamName, RECALL_ACTION, RECALL_APP, TargetValue,
+    Value,
+};
 use prov::{ActionName, Effect, Labelled, TaskId};
 
 /// The longest search text the action takes (its declared limit), in characters.
@@ -76,7 +76,8 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::{TurnId, TurnSource, TurnVia};
+    use docket_core::{TurnSource, TurnVia};
+    use docket_vocab::TurnId;
     use prov::UnixSeconds;
 
     fn turn(text: &str) -> UserTurn {

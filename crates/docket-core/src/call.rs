@@ -2,13 +2,12 @@
 
 use crate::budget::BudgetKind;
 use crate::confirm::{ConfirmEnd, ConfirmId};
-use crate::context::EntityRef;
-use crate::ids::ParamName;
-use crate::ids::{ActionRef, CallId, UndoId, UndoToken};
 use crate::preview::Preview;
-use crate::request::{CallRequest, Origin};
 use crate::review::{BreakerTrip, DenyCode};
-use crate::value::{Args, TargetValue, Value};
+use docket_vocab::{
+    ActionRef, Args, CallId, CallRequest, EntityRef, Origin, ParamName, TargetValue, UndoId,
+    UndoToken, Value,
+};
 use porter_core::{AppName, Permille};
 use prov::{Actor, EntityId, Labelled, SpaceId, SpaceScope};
 use serde::{Deserialize, Serialize};
@@ -52,7 +51,7 @@ pub struct ActivatedInvocation {
     /// `ClassificationChanged` when it no longer matches, unless this is the declared ceiling,
     /// which it must accept.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub classified: Option<crate::classify::CallClass>,
+    pub classified: Option<docket_vocab::CallClass>,
 }
 
 /// An XDG activation token: a capability to take focus, handed by the launcher with a `Perform`
@@ -85,7 +84,7 @@ pub struct Outcome {
     /// A value, labelled.
     pub value: Option<Labelled<Value>>,
     /// "Archived 3 threads", in the app's words.
-    pub said: Option<crate::ids::LabelText>,
+    pub said: Option<docket_vocab::LabelText>,
     /// What to show.
     pub show: Preview,
     /// Whether it can be taken back.

@@ -16,6 +16,7 @@ testing = []
 [dependencies]
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
+docket-vocab = { workspace = true }
 porter-core = { workspace = true }
 prov = { workspace = true }
 serde = { workspace = true }

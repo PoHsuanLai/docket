@@ -38,7 +38,8 @@
 //! is converted to the parameter's type and keeps the label of its origin.
 
 use crate::model_script::ModelScript;
-use docket_core::{BreakerTrip, Mode, ParamName};
+use docket_core::{BreakerTrip, Mode};
+use docket_vocab::ParamName;
 use porter_core::AppName;
 use prov::{ActionName, Address, EntityKey, EntityKind, Integrity, MessageKind, SpaceId};
 use serde::{Deserialize, Serialize};

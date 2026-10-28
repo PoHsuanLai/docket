@@ -15,9 +15,9 @@ use companion_client::{CompanionTransport, Follow};
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, AskWire, RefusalWire};
 use docket_client::{ClientError, Intents, Transport, TransportError};
 use docket_core::{
-    ContextKeep, Keep, Origin, SessionOpen, SessionOpened, TurnIn, TurnSource, TurnVia, UserTurn,
-    WindowKey,
+    ContextKeep, Keep, SessionOpen, SessionOpened, TurnIn, TurnSource, TurnVia, UserTurn,
 };
+use docket_vocab::{Origin, WindowKey};
 use prov::{AgentRef, SessionId, SpaceId, UnixSeconds};
 use serde_json::json;
 
@@ -47,7 +47,7 @@ fn unavailable(error: &TransportError) -> Failure {
 /// The turn the router recorded, as the companion is handed it.
 fn ask_of(
     opened: &SessionOpened,
-    id: docket_core::TurnId,
+    id: docket_vocab::TurnId,
     text: &str,
     now: UnixSeconds,
 ) -> AskWire {
@@ -97,7 +97,7 @@ fn report(answer: &AnswerWire, style: Style) -> Report {
         Style::Json => format!(
             "{}\n",
             json!({
-                "vocab": docket_core::IntentsVocab::CURRENT,
+                "vocab": docket_vocab::IntentsVocab::CURRENT,
                 "answer": answer,
                 "exit": exit.code(),
             })
@@ -127,7 +127,7 @@ async fn turn<T: Transport>(
     intents: &Intents<T>,
     session: &SessionId,
     text: &str,
-) -> Result<docket_core::TurnId, Failure> {
+) -> Result<docket_vocab::TurnId, Failure> {
     intents
         .session_turn(
             session.clone(),

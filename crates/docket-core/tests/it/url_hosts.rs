@@ -3,6 +3,7 @@
 
 use crate::task_policy::{call, declared, edit, labels, policy};
 use docket_core::*;
+use docket_vocab::Value;
 use prov::{Effect, Integrity};
 
 fn trusts(domain: &str, url: &str) -> bool {

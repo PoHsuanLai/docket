@@ -73,7 +73,7 @@ fn record(raw: &str) -> Result<ReviewVerdict, ReviewError> {
         .ok_or(ReviewError::OutOfVocabulary)?;
     // The reason is drawn in the activity view: a control character, a bidirectional override or
     // a hidden mark could make it read as something it is not.
-    if reason.chars().count() > MAX_REASON || !docket_core::plain_text(reason, &[]) {
+    if reason.chars().count() > MAX_REASON || !docket_vocab::plain_text(reason, &[]) {
         return Err(ReviewError::OutOfVocabulary);
     }
     let why = ReviewReason {

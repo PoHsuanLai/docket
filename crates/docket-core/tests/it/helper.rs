@@ -250,7 +250,7 @@ fn the_calls_on_the_host_of_the_agent_apps_cross_a_bus_as_they_are() {
                 program: ProgramName::parse("claude-code").expect("program"),
                 session: docket_core::AppSessionId::parse("abc").expect("id"),
             },
-            folder: docket_core::Workspace::parse("/work/project").expect("folder"),
+            folder: docket_vocab::Workspace::parse("/work/project").expect("folder"),
         },
     ];
     for ask in asks {

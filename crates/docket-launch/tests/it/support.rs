@@ -4,9 +4,10 @@
 use docket_acp_host::LaunchPlan;
 use docket_acp_host::fake::{ChannelWire, pipe};
 use docket_core::AbsPath;
+use docket_core::ProgramName;
 use docket_launch::fake::{FakeAccounts, FakeProc, FakeProcs, Mood, ProcsSeen, Secrets};
 use docket_launch::{AgentSpawn, AgentsFile, AgentsPermit, Registry};
-use docket_session::ProgramName;
+
 use prov::SessionId;
 use std::sync::Arc;
 

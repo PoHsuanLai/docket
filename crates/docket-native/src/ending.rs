@@ -12,8 +12,9 @@
 
 use crate::backend::Core;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{TurnEnd, TurnId};
+use docket_core::TurnEnd;
 use docket_planner::Planner;
+use docket_vocab::TurnId;
 use futures_util::FutureExt;
 use prov::SessionId;
 

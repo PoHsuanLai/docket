@@ -13,9 +13,9 @@
 
 use crate::assemble::{Sources, mask_history, task_cost, view_of};
 use docket_core::{
-    AssemblerBudget, Covers, Handle, Reveal, StepEnd, StepLine, Summary, SummaryText, UserTurn,
-    Value,
+    AssemblerBudget, Covers, Reveal, StepEnd, StepLine, Summary, SummaryText, UserTurn,
 };
+use docket_vocab::{Handle, Value};
 use porter_core::{Count, Tokens};
 use prov::Integrity;
 use serde::{Deserialize, Serialize};

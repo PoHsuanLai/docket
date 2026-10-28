@@ -15,7 +15,7 @@ fn script() -> Vec<Vec<BackendEvent>> {
     let call = || {
         [
             BackendEvent::Call(CallEvent::Started(CallOpen {
-                call: docket_core::CallId(0),
+                call: docket_vocab::CallId(0),
                 action: action("mail.thread.archive"),
                 effect: Effect::UndoableWrite,
             })),

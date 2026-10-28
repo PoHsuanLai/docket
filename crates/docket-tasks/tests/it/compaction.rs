@@ -3,14 +3,15 @@
 
 use agent_loop::{Sources, assemble};
 use docket_core::{
-    ActionRef, AgentConfig, CallId, Covers, LabelText, StepEnd, StepLine, StepShown, Summary,
-    SummaryText, TurnId, TurnSource, TurnVia, UserTurn,
+    AgentConfig, Covers, StepEnd, StepLine, StepShown, Summary, SummaryText, TurnSource, TurnVia,
+    UserTurn,
 };
 use docket_session::{
     BackendKind, Compacted, CompactedBy, Logged, Opening, Read, Seq, SessionEntry, Taint,
     TaintCause, TaintNote, resume_plan,
 };
 use docket_tasks::nowhere;
+use docket_vocab::{ActionRef, CallId, LabelText, TurnId};
 use porter_core::{AppName, Count, Tier};
 use prov::{ActionName, AgentRef, Effect, Integrity, SpaceId, TaskId, UnixSeconds};
 

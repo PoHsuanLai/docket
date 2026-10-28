@@ -16,8 +16,9 @@
 use crate::state::RouterState;
 use docket_core::{
     AlwaysOffer, AskReason, ConfirmAnswer, ConfirmEnd, ConfirmOffer, ConfirmRequest, GrantScope,
-    LabelText, TaintNote,
+    TaintNote,
 };
+use docket_vocab::LabelText;
 use futures_channel::oneshot::{Receiver, Sender, channel};
 use porter_core::AppName;
 use prov::{Actor, Effect, SessionId, SpaceId};

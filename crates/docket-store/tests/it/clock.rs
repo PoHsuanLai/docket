@@ -1,7 +1,7 @@
 //! The system clock reads the time, and a wait of no time at all is done at once.
 
-use docket_core::{Clock, Millis};
 use docket_store::SystemClock;
+use docket_vocab::{Clock, Millis};
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 

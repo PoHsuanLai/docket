@@ -4,6 +4,10 @@
 use agent_loop::*;
 use companion_wire::{AnswerPhase, NeedsYou};
 use docket_core::*;
+use docket_vocab::{
+    ActionRef, CallId, CallRequest, CharCount, Handle, LabelText, Origin, ParamName, TargetValue,
+    TurnId, Value,
+};
 use porter_core::AppName;
 use prov::{ActionName, Confidentiality, Effect, Integrity, Label};
 use std::collections::{BTreeMap, BTreeSet};

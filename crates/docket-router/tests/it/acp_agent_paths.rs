@@ -4,6 +4,7 @@
 use crate::acp_agent::{CLAUDE, wide, world, write};
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
+use docket_vocab::FileRef;
 use prov::SessionId;
 
 fn under(path: &str) -> TrustedPattern {

@@ -1,6 +1,7 @@
 //! Standing grants: scope matching, the offer rule and the never-grantable rule, as tables.
 
 use docket_core::*;
+use docket_vocab::ActionRef;
 use proptest::prelude::*;
 use prov::Effect;
 

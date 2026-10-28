@@ -10,12 +10,12 @@ use crate::seams::Seams;
 use crate::session::SessionState;
 use crate::state::{RouterState, SessionRecord};
 use crate::tasks::TaskState;
-use docket_core::Clock;
 use docket_core::EventSink;
 use docket_core::{
-    AuditRecord, CallerId, CallerRole, Delivery, DraftPart, Handle, InboxAsk, IntentsReply,
-    MessageDraft, SendRefusal, WireRefusal, halted,
+    AuditRecord, CallerId, CallerRole, Delivery, DraftPart, InboxAsk, IntentsReply, MessageDraft,
+    SendRefusal, WireRefusal, halted,
 };
+use docket_vocab::{Clock, Handle};
 use prov::{
     Actor, Address, AgentRef, Label, Message, MessageId, MessageText, ReportStatus, SessionId,
 };

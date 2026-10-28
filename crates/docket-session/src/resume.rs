@@ -25,9 +25,9 @@ use crate::plan::{
 use docket_core::HandNote;
 use docket_core::helper::HelperSeat;
 use docket_core::{
-    BreakerTrip, CallId, Handle, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy,
-    UserTurn,
+    BreakerTrip, Ledger, SkillId, SkillVersion, StepLine, Summary, TaskPolicy, UserTurn,
 };
+use docket_vocab::{CallId, Handle};
 use porter_core::Count;
 use prov::Integrity;
 use std::collections::BTreeMap;

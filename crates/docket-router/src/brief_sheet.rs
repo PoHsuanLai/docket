@@ -3,10 +3,8 @@
 
 use crate::companion_names::BRIEF_CONFIRM;
 use crate::prepared::Prepared;
-use docket_core::{
-    ActionRef, BriefSheet, BriefText, COMPANION_APP, ConfirmAnswer, ConfirmEnd, GrantScope,
-    LabelText, ParamName, Value,
-};
+use docket_core::{BriefSheet, BriefText, COMPANION_APP, ConfirmAnswer, ConfirmEnd, GrantScope};
+use docket_vocab::{ActionRef, LabelText, ParamName, Value};
 
 /// The most pieces a sheet lists.
 const PIECES_SHOWN: usize = 12;

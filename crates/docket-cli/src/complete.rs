@@ -3,7 +3,8 @@
 //! installed manifests: apps, actions, parameter flags and the options of a choice.
 
 use crate::resolve::{Apps, short_name, slug, visible};
-use docket_core::{Manifest, ParamType};
+use docket_core::Manifest;
+use docket_vocab::ParamType;
 
 const COMMANDS: [&str; 6] = ["apps", "ask", "describe", "undo", "--help", "--version"];
 const ACTIONLESS: [&str; 3] = ["--list", "search", "context"];

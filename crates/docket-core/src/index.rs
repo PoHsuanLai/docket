@@ -1,9 +1,7 @@
 //! The shadow index: apps push entity titles so the launcher can search without waking them.
 //! The owner is derived from the connection and must equal the manifest's app.
 
-use crate::context::EntityRef;
-use crate::ids::LabelText;
-use crate::units::Generation;
+use docket_vocab::{EntityRef, Generation, LabelText};
 use prov::{EntityKey, EntityKind, SpaceScope};
 use serde::{Deserialize, Serialize};
 
@@ -84,9 +82,9 @@ pub struct SearchAsk {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SuggestAsk {
     /// The action.
-    pub action: crate::ids::ActionRef,
+    pub action: docket_vocab::ActionRef,
     /// The parameter.
-    pub param: crate::ids::ParamName,
+    pub param: docket_vocab::ParamName,
     /// What the person typed so far.
     pub typed: String,
 }

@@ -1,9 +1,10 @@
 //! What an app implements.
 
 use docket_core::{
-    AppRefusal, ContextScope, ContextSnapshot, EntityRef, Hit, Invocation, Outcome, Preview,
-    SuggestAsk, SummonAnswer, SummonOrigin, SummonSerial, UndoFault, UndoToken, ValidManifest,
+    AppRefusal, ContextScope, ContextSnapshot, Hit, Invocation, Outcome, Preview, SuggestAsk,
+    SummonAnswer, SummonOrigin, SummonSerial, UndoFault, ValidManifest,
 };
+use docket_vocab::{EntityRef, UndoToken};
 use prov::{Actor, EntityId};
 use std::future::Future;
 
@@ -33,7 +34,7 @@ pub trait IntentProvider: Send + Sync {
         &self,
         inv: Invocation,
         activation: Option<docket_core::ActivationToken>,
-        classified: Option<docket_core::CallClass>,
+        classified: Option<docket_vocab::CallClass>,
     ) -> impl Future<Output = Result<Outcome, AppRefusal>> + Send {
         let _ = classified;
         self.perform_activated(inv, activation)
@@ -44,7 +45,7 @@ pub trait IntentProvider: Send + Sync {
     fn classify(
         &self,
         inv: Invocation,
-    ) -> impl Future<Output = Result<docket_core::CallClass, AppRefusal>> + Send {
+    ) -> impl Future<Output = Result<docket_vocab::CallClass, AppRefusal>> + Send {
         let _ = inv;
         async { Err(AppRefusal::Unsupported) }
     }

@@ -12,6 +12,7 @@ use docket_dbus::{
     Bus, COMPANION_BUS, COMPANION_PATH, CompanionAnswerProxy, CompanionProxy, Details,
     introspection,
 };
+use docket_vocab::{Clock, Origin, TurnId, WindowKey};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
 use porter_daemon::ProcRoot;

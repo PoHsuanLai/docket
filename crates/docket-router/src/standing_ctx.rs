@@ -6,9 +6,10 @@ use crate::standing_facts::{exec_of, facts_of};
 use action_review::plan;
 use docket_core::{
     ActionDecl, AlwaysOffer, ArgSink, AskFacts, AskReason, BreakerState, BudgetState, CallFacts,
-    CallRequest, ExecFacts, GrantCaller, Impact, Limited, Ruling, StandingGrant, StandingGrantId,
-    Withheld, blocker, covers_approval, find_standing_for, holds_standing, may_offer,
+    ExecFacts, GrantCaller, Impact, Limited, Ruling, StandingGrant, StandingGrantId, Withheld,
+    blocker, covers_approval, find_standing_for, holds_standing, may_offer,
 };
+use docket_vocab::CallRequest;
 use prov::Integrity;
 
 /// What the router knows about standing grants for one call.

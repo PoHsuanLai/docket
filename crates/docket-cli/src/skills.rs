@@ -4,9 +4,9 @@
 
 use crate::exec::Printed;
 use crate::resolve::Apps;
-use docket_core::IntentsVocab;
 use docket_skills::{Origin, Reach, Roots, Skill, discover, reach};
 use docket_skills_disk::DiskFolder;
+use docket_vocab::IntentsVocab;
 use serde_json::{Value, json};
 
 fn origin(skill: &Skill) -> &'static str {

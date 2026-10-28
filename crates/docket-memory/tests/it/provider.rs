@@ -3,9 +3,10 @@
 
 use almanac_client::{Transport, TransportError};
 use almanac_core::{FactId, FactState, MemoryReply, MemoryRequest};
-use docket_core::{Args, CallId, Invocation, Origin, ParamName, TargetValue, Value};
+use docket_core::Invocation;
 use docket_memory::MemoryProvider;
 use docket_provider::IntentProvider;
+use docket_vocab::{Args, CallId, Origin, ParamName, TargetValue, Value};
 use prov::{ActionName, Actor, AgentRole, HelperId, Label, Labelled, SessionId, SpaceId, TaskId};
 use std::sync::{Arc, Mutex};
 

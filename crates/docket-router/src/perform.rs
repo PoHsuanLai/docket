@@ -14,10 +14,10 @@ use crate::watch::Watch;
 use crate::who::Who;
 use action_review::{DeniedBy, ReviewVerdict, Reviewer};
 use docket_core::{
-    ActivationToken, AlwaysOffer, AuditRecord, CallEnd, CallRefusal, CallRequest, Clock,
-    ConfirmAnswerKind, Confirmer, Depth, EventSink, Follow, Millis, Outcome, ReviewError,
-    ReviewMark, Stage, Undoable, WindowKey, halted,
+    ActivationToken, AlwaysOffer, AuditRecord, CallEnd, CallRefusal, ConfirmAnswerKind, Confirmer,
+    EventSink, Follow, Outcome, ReviewError, ReviewMark, Stage, Undoable, halted,
 };
+use docket_vocab::{CallRequest, Clock, Depth, Millis, WindowKey};
 use prov::SpaceScope;
 use tracing::Instrument;
 

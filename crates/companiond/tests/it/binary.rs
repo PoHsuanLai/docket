@@ -6,8 +6,9 @@
 
 use crate::support::bus::PrivateBus;
 use companion_wire::FrontTask;
-use docket_core::{Roster, TurnId, TurnSource, TurnVia, UserTurn};
+use docket_core::{Roster, TurnSource, TurnVia, UserTurn};
 use docket_dbus::CompanionProxy;
+use docket_vocab::TurnId;
 use prov::{AgentRef, TaskId};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};

@@ -6,10 +6,11 @@
 
 use crate::support::*;
 use docket_accept::world::ModelSource;
-use docket_core::{Millis, ModelExchange};
+use docket_core::ModelExchange;
 use docket_eval::{cassette_from, load_all};
 use docket_live::flows::{Flow, run_flow};
 use docket_live::{CorpusOptions, CorpusOutcome, Engine, Timeouts, regress, run_corpus_live};
+use docket_vocab::Millis;
 use eval_core::{Case, CaseTrace, Corpus, Judgement};
 use std::path::{Path, PathBuf};
 use std::time::Duration;

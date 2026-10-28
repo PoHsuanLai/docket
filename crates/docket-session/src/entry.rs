@@ -7,12 +7,14 @@
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
 use docket_core::HandNote;
+use docket_core::ProgramName;
 use docket_core::helper::HelperSeat;
-use docket_core::{
-    ActionRef, CallId, CheckpointNote, Covers, Handle, HandleShape, Rewind, SkillId, SkillVersion,
-    StartedFrom, StepLine, SummaryText, TaskPolicy, UserTurn,
-};
 use docket_core::{BreakerTrip, Ledger};
+use docket_core::{
+    CheckpointNote, Covers, HandleShape, Rewind, SkillId, SkillVersion, StartedFrom, StepLine,
+    SummaryText, TaskPolicy, UserTurn,
+};
+use docket_vocab::{ActionRef, CallId, Handle, Workspace};
 use porter_core::{AppName, Tier};
 use prov::{AgentRef, Effect, Label, SessionId, Source, SpaceId, TaskId};
 use serde::{Deserialize, Serialize};
@@ -33,12 +35,6 @@ impl Taint {
         self.max(other)
     }
 }
-
-// The name lives in docket-core, where a standing grant also names the program.
-pub use docket_core::{ProgramName, ProgramNameError};
-
-// The workspace lives in docket-core, where `Session.Open` carries it.
-pub use docket_core::{Workspace, WorkspaceError};
 
 /// What runs the session's turns.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

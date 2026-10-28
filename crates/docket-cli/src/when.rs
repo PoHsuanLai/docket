@@ -3,7 +3,7 @@
 //! ("tomorrow at nine") is sill's and cannot be reached from here; that is an interface ask,
 //! and until it lands a natural date is a usage error that says so.
 
-use docket_core::{CivilDate, Decimal, Scale, Seconds};
+use docket_vocab::{CivilDate, Decimal, Scale, Seconds};
 use prov::UnixSeconds;
 
 /// Why a word is not the value wanted.
@@ -22,18 +22,18 @@ pub enum WhenFault {
     NotDecimal(u8),
 }
 
-fn rfc3339<T>(read: Result<T, docket_core::when::NotRfc3339>) -> Result<T, WhenFault> {
+fn rfc3339<T>(read: Result<T, docket_vocab::when::NotRfc3339>) -> Result<T, WhenFault> {
     read.map_err(|_| WhenFault::NotRfc3339)
 }
 
 /// A calendar date: `2026-10-03`, or the date part of an RFC 3339 instant as written.
 pub fn date(text: &str) -> Result<CivilDate, WhenFault> {
-    rfc3339(docket_core::when::date(text))
+    rfc3339(docket_vocab::when::date(text))
 }
 
 /// An instant: RFC 3339, or a bare date taken as midnight UTC.
 pub fn instant(text: &str) -> Result<UnixSeconds, WhenFault> {
-    rfc3339(docket_core::when::instant(text))
+    rfc3339(docket_vocab::when::instant(text))
 }
 
 /// A length of time: whole seconds, or `d`, `h`, `m` and `s` units (`1h30m`).

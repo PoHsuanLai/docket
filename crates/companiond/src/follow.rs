@@ -4,9 +4,9 @@
 
 use crate::Bell;
 use docket_client::{PerformEvent, Transport as IntentsTransport};
-use docket_core::Clock;
 use docket_planner::Planner;
 use docket_tasks::{Acting, Companion, refusal_of};
+use docket_vocab::Clock;
 use futures_util::lock::Mutex;
 use std::sync::Arc;
 

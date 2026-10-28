@@ -9,10 +9,8 @@ use crate::params::{Reading, StdinSlot, arguments, target};
 use crate::resolve::{Apps, slug, visible};
 use crate::{render, schema};
 use docket_client::{Intents, Transport};
-use docket_core::{
-    ActionRef, CallRequest, Generation, IntentsVocab, JournalFilter, Origin, SearchAsk,
-    SearchScope, UndoId, UndoState, Undoable,
-};
+use docket_core::{JournalFilter, SearchAsk, SearchScope, UndoState, Undoable};
+use docket_vocab::{ActionRef, CallRequest, Generation, IntentsVocab, Origin, UndoId};
 use porter_core::Count;
 use prov::SessionId;
 use serde_json::{Value, json};
@@ -101,7 +99,7 @@ pub fn describe(apps: &Apps, app: &str, action: &str) -> Result<Printed, Failure
 /// The journal row a finished call left, found by its undo token: what `undo` takes.
 async fn undo_id<T: Transport>(
     intents: &Intents<T>,
-    token: &docket_core::UndoToken,
+    token: &docket_vocab::UndoToken,
 ) -> Option<UndoId> {
     let rows = intents
         .journal(JournalFilter {

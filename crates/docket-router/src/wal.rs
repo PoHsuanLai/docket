@@ -7,10 +7,10 @@
 //! queue through one `Writer` per session, which owns the position, the durable taint and the
 //! rule that an untrusted handle never reaches the log before a taint entry.
 
-use docket_core::CallId;
 use docket_session::{
     LogFault, Seq, SessionEntry, SessionLog, Taint as Written, TaintCause, TaintNote,
 };
+use docket_vocab::CallId;
 use prov::{Integrity, SessionId};
 use std::sync::Arc;
 

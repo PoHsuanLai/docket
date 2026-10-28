@@ -7,7 +7,8 @@
 //! `TurnEnd(Done)`.
 
 use crate::backend::{BackendEvent, BackendFault, CallEvent, SessionBackend, TurnEnd};
-use docket_core::{CallId, Reveal, UserTurn};
+use docket_core::{Reveal, UserTurn};
+use docket_vocab::CallId;
 use std::future::Future;
 use std::pin::pin;
 use std::task::{Context, Poll, Waker};

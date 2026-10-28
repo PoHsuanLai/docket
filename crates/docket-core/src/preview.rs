@@ -1,8 +1,6 @@
 //! The closed vocabulary of previews the host draws with its own components; apps send data only.
 
-use crate::context::EntityRef;
-use crate::ids::{FileRef, LabelText};
-use crate::units::CharCount;
+use docket_vocab::{CharCount, EntityRef, FileRef, LabelText};
 use porter_core::Bytes;
 use prov::{Labelled, UnixSeconds};
 use serde::{Deserialize, Serialize};

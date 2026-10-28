@@ -9,6 +9,7 @@ dependencies = [
  "agent-client-protocol",
  "docket-core",
  "docket-session",
+ "docket-vocab",
  "porter-core",
  "prov",
  "serde_json",
@@ -21,6 +22,7 @@ name = "action-review"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "docket-vocab",
  "model-provider",
  "porter-core",
  "porter-infer",
@@ -43,6 +45,7 @@ dependencies = [
  "docket-router",
  "docket-settings",
  "docket-testbus",
+ "docket-vocab",
  "intentd",
  "porter-core",
  "prov",
@@ -61,6 +64,7 @@ name = "actions-tools"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "docket-vocab",
  "porter-core",
  "prov",
  "serde",
@@ -133,6 +137,7 @@ dependencies = [
  "almanac-core",
  "companion-wire",
  "docket-core",
+ "docket-vocab",
  "porter-core",
  "proptest",
  "prov",
@@ -842,6 +847,7 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "docket-core",
+ "docket-vocab",
  "porter-core",
  "porter-infer",
  "proptest",
@@ -873,6 +879,7 @@ dependencies = [
  "docket-store",
  "docket-tasks",
  "docket-testbus",
+ "docket-vocab",
  "futures-util",
  "porter-client",
  "porter-core",
@@ -1146,6 +1153,7 @@ dependencies = [
  "docket-router",
  "docket-testbus",
  "docket-trace",
+ "docket-vocab",
  "fnv",
  "futures-util",
  "intentd",
@@ -1174,6 +1182,7 @@ dependencies = [
  "docket-session",
  "docket-settings",
  "docket-testbus",
+ "docket-vocab",
  "futures-channel",
  "futures-util",
  "jsonschema",
@@ -1212,6 +1221,7 @@ dependencies = [
  "docket-settings",
  "docket-store",
  "docket-tasks",
+ "docket-vocab",
  "futures-util",
  "porter-core",
  "porter-daemon",
@@ -1243,6 +1253,7 @@ dependencies = [
  "docket-session",
  "docket-store",
  "docket-testbus",
+ "docket-vocab",
  "futures-channel",
  "futures-util",
  "getrandom 0.3.4",
@@ -1279,6 +1290,7 @@ version = "0.1.0"
 dependencies = [
  "const-hex",
  "docket-core",
+ "docket-vocab",
  "porter-core",
  "prov",
  "sha2",
@@ -1319,6 +1331,7 @@ dependencies = [
  "docket-skills",
  "docket-skills-disk",
  "docket-testbus",
+ "docket-vocab",
  "futures-util",
  "intentd",
  "model-provider",
@@ -1343,6 +1356,7 @@ dependencies = [
  "docket-dbus",
  "docket-fake",
  "docket-router",
+ "docket-vocab",
  "futures-util",
  "porter-core",
  "prov",
@@ -1359,8 +1373,8 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "bulkhead",
- "chrono",
  "cua-action",
+ "docket-vocab",
  "model-provider",
  "porter-core",
  "porter-infer",
@@ -1379,6 +1393,7 @@ version = "0.1.0"
 dependencies = [
  "docket-core",
  "docket-dbus",
+ "docket-vocab",
  "porter-client",
  "porter-core",
  "porter-dbus",
@@ -1398,6 +1413,7 @@ dependencies = [
  "companion-wire",
  "docket-core",
  "docket-provider",
+ "docket-vocab",
  "ds-intents",
  "porter-core",
  "porter-infer",
@@ -1417,6 +1433,7 @@ dependencies = [
  "docket-router",
  "docket-skills",
  "docket-skills-disk",
+ "docket-vocab",
  "eval-core",
  "porter-core",
  "proptest",
@@ -1441,6 +1458,7 @@ dependencies = [
  "docket-provider",
  "docket-router",
  "docket-session",
+ "docket-vocab",
  "policy-point",
  "porter-client",
  "porter-core",
@@ -1466,6 +1484,7 @@ dependencies = [
  "docket-router",
  "docket-store",
  "docket-tasks",
+ "docket-vocab",
  "futures-util",
  "porter-client",
  "porter-core",
@@ -1483,6 +1502,7 @@ version = "0.1.0"
 dependencies = [
  "docket-core",
  "docket-session",
+ "docket-vocab",
  "futures-channel",
  "futures-util",
  "porter-core",
@@ -1517,6 +1537,7 @@ dependencies = [
  "docket-skills-disk",
  "docket-store",
  "docket-tasks",
+ "docket-vocab",
  "futures-channel",
  "futures-util",
  "policy-point",
@@ -1545,6 +1566,7 @@ dependencies = [
  "docket-settings",
  "docket-store",
  "docket-testbus",
+ "docket-vocab",
  "fnv",
  "futures-util",
  "porter-client",
@@ -1589,6 +1611,7 @@ dependencies = [
  "docket-tasks",
  "docket-testbus",
  "docket-trace",
+ "docket-vocab",
  "eval-core",
  "futures-util",
  "porter-client",
@@ -1627,6 +1650,7 @@ dependencies = [
  "docket-provider",
  "docket-router",
  "docket-session",
+ "docket-vocab",
  "porter-core",
  "prov",
  "serde_json",
@@ -1651,6 +1675,7 @@ dependencies = [
  "action-review",
  "docket-core",
  "docket-fake",
+ "docket-vocab",
  "porter-client",
  "porter-core",
  "porter-infer",
@@ -1673,6 +1698,7 @@ dependencies = [
  "docket-router",
  "docket-session",
  "docket-tasks",
+ "docket-vocab",
  "futures-channel",
  "futures-util",
  "porter-client",
@@ -1693,6 +1719,7 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-planner",
+ "docket-vocab",
  "porter-client",
  "porter-core",
  "porter-infer",
@@ -1719,6 +1746,7 @@ version = "0.1.0"
 dependencies = [
  "docket-core",
  "docket-dbus",
+ "docket-vocab",
  "futures-util",
  "prov",
  "serde",
@@ -1734,6 +1762,7 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-models",
+ "docket-vocab",
  "porter-client",
  "porter-core",
  "porter-infer",
@@ -1756,6 +1785,7 @@ dependencies = [
  "docket-provider",
  "docket-session",
  "docket-skills",
+ "docket-vocab",
  "futures-channel",
  "futures-util",
  "genai-names",
@@ -1779,6 +1809,7 @@ dependencies = [
  "companion-wire",
  "docket-core",
  "docket-session",
+ "docket-vocab",
  "porter-core",
  "proptest",
  "prov",
@@ -1794,6 +1825,7 @@ dependencies = [
  "agents-core",
  "docket-core",
  "docket-store",
+ "docket-vocab",
  "porter-core",
  "serde",
  "tempfile",
@@ -1807,6 +1839,7 @@ name = "docket-skills"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "docket-vocab",
  "porter-core",
  "prov",
  "serde",
@@ -1829,7 +1862,7 @@ name = "docket-store"
 version = "0.1.0"
 dependencies = [
  "atomic-write-file",
- "docket-core",
+ "docket-vocab",
  "futures-util",
  "prov",
  "tempfile",
@@ -1851,6 +1884,7 @@ dependencies = [
  "docket-session",
  "docket-skills",
  "docket-store",
+ "docket-vocab",
  "futures-util",
  "porter-core",
  "porter-infer",
@@ -1881,6 +1915,18 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
+]
+
+[[package]]
+name = "docket-vocab"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "porter-core",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -2025,6 +2071,7 @@ name = "eval-core"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "docket-vocab",
  "porter-core",
  "prov",
  "serde",
@@ -2631,6 +2678,7 @@ dependencies = [
  "docket-skills-disk",
  "docket-store",
  "docket-testbus",
+ "docket-vocab",
  "futures-util",
  "notify",
  "policy-point",
@@ -3506,6 +3554,7 @@ version = "0.1.0"
 dependencies = [
  "cedar-policy",
  "docket-core",
+ "docket-vocab",
  "porter-core",
  "prov",
  "serde",
@@ -3812,6 +3861,7 @@ dependencies = [
  "docket-reader",
  "docket-router",
  "docket-testbus",
+ "docket-vocab",
  "futures-util",
  "porter-client",
  "porter-core",
@@ -4891,6 +4941,7 @@ name = "voice-wire"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "docket-vocab",
  "porter-core",
  "porter-infer",
  "proptest",
@@ -4909,6 +4960,7 @@ dependencies = [
  "docket-log",
  "docket-procroot",
  "docket-testbus",
+ "docket-vocab",
  "futures-util",
  "porter-client",
  "porter-core",

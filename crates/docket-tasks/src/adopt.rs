@@ -12,10 +12,10 @@ use crate::task::TaskRuntime;
 use agent_loop::{LoopPhase, LoopState};
 use companion_wire::AnswerPhase;
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_core::{StepEnd, StepLine, StepShown};
 use docket_planner::Planner;
 use docket_session::{ResumePlan, Standing};
+use docket_vocab::Clock;
 use prov::{AgentRef, SessionId, TaskId};
 
 /// The history of a plan: the calls that ended, and those the crash cut off, in call order.

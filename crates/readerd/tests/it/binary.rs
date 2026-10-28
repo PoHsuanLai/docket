@@ -5,8 +5,9 @@
 //! callers file names it) is tested in process, over a fake proc root (`callers.rs`).
 
 use crate::support::bus::PrivateBus;
-use docket_core::{Handle, ReaderAsk, ReaderTask, ValueSchema};
+use docket_core::{ReaderAsk, ReaderTask, ValueSchema};
 use docket_dbus::{Details, ReaderProxy};
+use docket_vocab::Handle;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;

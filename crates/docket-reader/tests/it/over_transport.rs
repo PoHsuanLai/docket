@@ -5,10 +5,9 @@
 #[path = "../../../companiond/tests/it/support/infer.rs"]
 mod infer;
 
-use docket_core::{
-    CharCount, ChoiceId, Handle, Reader, ReaderAsk, ReaderError, ReaderTask, Value, ValueSchema,
-};
+use docket_core::{Reader, ReaderAsk, ReaderError, ReaderTask, ValueSchema};
 use docket_reader::{TransportReader, read};
+use docket_vocab::{CharCount, ChoiceId, Handle, Value};
 use infer::{Say, ScriptedInfer, words};
 use porter_core::DataClass;
 use porter_infer::{InferRefusal, ReplyShape};

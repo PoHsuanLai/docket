@@ -6,15 +6,15 @@
 
 use action_review::Reviewer;
 use docket_checkpoint::CheckpointStore;
-use docket_core::EntityRef;
 use docket_core::Limit;
 use docket_core::{
     ActionGrant, AppRefusal, Confirmer, ContextScope, ContextSnapshot, Invocation, Latency,
     Outcome, PolicyWriter, Preview, Reader, Revocation, StandingGrant, StandingGrantId, SuggestAsk,
-    UndoFault, UndoToken,
+    UndoFault,
 };
 use docket_core::{EventSink, LinkFault, MemoryLink};
 use docket_session::{Appended, LogFault, LogPage, PageSize, Seq, SessionEntry, SessionLog};
+use docket_vocab::{EntityRef, UndoToken};
 use policy_point::Presets;
 use porter_core::AppName;
 use prov::{Actor, EntityId, SessionId};
@@ -67,7 +67,7 @@ pub trait AppLink: Send + Sync {
         app: &AppName,
         inv: Invocation,
         activation: Option<docket_core::ActivationToken>,
-        classified: Option<docket_core::CallClass>,
+        classified: Option<docket_vocab::CallClass>,
         within: Latency,
     ) -> impl Future<Output = Result<Outcome, AppFault>> + Send {
         let _ = classified;
@@ -79,10 +79,10 @@ pub trait AppLink: Send + Sync {
         &self,
         app: &AppName,
         inv: Invocation,
-    ) -> impl Future<Output = Result<docket_core::CallClass, docket_core::ClassifyFault>> + Send
+    ) -> impl Future<Output = Result<docket_vocab::CallClass, docket_vocab::ClassifyFault>> + Send
     {
         let _ = (app, inv);
-        async { Err(docket_core::ClassifyFault::Unsupported) }
+        async { Err(docket_vocab::ClassifyFault::Unsupported) }
     }
     /// `DryRun`: the concrete change, before it is made.
     fn dry_run(
@@ -203,7 +203,7 @@ pub trait Seams: Send + Sync {
     /// The event log.
     type Sink: EventSink;
     /// The clock.
-    type Time: docket_core::Clock;
+    type Time: docket_vocab::Clock;
     /// Memory.
     type Memory: MemoryLink;
     /// The task-policy writer.

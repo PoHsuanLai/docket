@@ -11,16 +11,15 @@ use crate::router::Router;
 use crate::seams::{GrantStore, Seams};
 use crate::watch::Watch;
 use action_review::RepeatState;
-use docket_core::Clock;
 use docket_core::EventSink;
 use docket_core::{
     ActionGrantKey, Anchor, AskReason, AuditRecord, CallProgress, CallRefusal, ConfirmAnswer,
     ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest,
-    Confirmer, Cost, CuaAsk, Depth, GateAnswer, Gesture, GrantAnswer, GrantAsk, GrantCaller,
-    GrantTarget, Impact, IntentsReply, LabelText, Level, LimitCall, Reviewed, Saw, SessionSaw,
-    SinkIntegrity, TaintNote,
+    Confirmer, Cost, CuaAsk, GateAnswer, Gesture, GrantAnswer, GrantAsk, GrantCaller, GrantTarget,
+    Impact, IntentsReply, Level, LimitCall, Reviewed, Saw, SessionSaw, SinkIntegrity, TaintNote,
 };
-use docket_core::{AgentReach, Lasting, Origin};
+use docket_core::{AgentReach, Lasting};
+use docket_vocab::{Clock, Depth, LabelText, Origin};
 use policy_point::{
     ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, RunFact,
     SpaceRelation, TerminalGrant,

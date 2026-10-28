@@ -3,14 +3,12 @@
 //! spawning a worker, and the ledger the router keeps so a finished task becomes an episode.
 
 use crate::call::{ArgFault, CallEnd};
-use crate::ids::ParamName;
-use crate::ids::{CallId, UndoId};
 use crate::planner::UserTurn;
-use crate::value::{Args, Value};
 use almanac_core::{
     Episode, EpisodeId, EpisodeKind, EpisodeOutcome, ResultLine, Skeleton, StepLine, StepOutcome,
     ThingRole, ThingView,
 };
+use docket_vocab::{Args, CallId, ParamName, UndoId, Value};
 use prov::{
     ActionName, AgentRef, Confidentiality, Effect, EntityId, Integrity, Label, MessageText,
     SessionId, Source, SpaceId, TaskId, UndoHandle, UnixSeconds,
@@ -76,7 +74,7 @@ pub struct SessionOpen {
     pub parent: Option<TaskId>,
     /// The directory an editor opened it in; none for a session no editor opened.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cwd: Option<crate::workspace::Workspace>,
+    pub cwd: Option<docket_vocab::Workspace>,
     /// The terminal a conversation came from, said by the companion when it opens one for
     /// `quire-do ask`; the router keeps it only from the companion role.
     #[serde(default, skip_serializing_if = "Option::is_none")]

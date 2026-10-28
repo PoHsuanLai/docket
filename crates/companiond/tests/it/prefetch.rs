@@ -7,6 +7,7 @@ use crate::support::world::*;
 use companion_wire::AnswerBody;
 use docket_core::*;
 use docket_fake::{Answering, BoxFut, HostedApp};
+use docket_vocab::{LabelText, Value};
 use prov::{Actor, Labelled};
 use serde_json::json;
 use std::sync::{Arc, Mutex};

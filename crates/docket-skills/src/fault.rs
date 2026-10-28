@@ -1,6 +1,6 @@
 //! Why a skill is not valid, as typed errors.
 
-use docket_core::ActionRef;
+use docket_vocab::ActionRef;
 
 /// A skill that does not parse or break a rule of the format.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

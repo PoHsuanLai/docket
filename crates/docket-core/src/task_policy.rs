@@ -8,11 +8,9 @@
 //! reviewer, the planner, the reader or the computer-use model. If the writer fails there is no
 //! policy and every non-read call is outside.
 
-use crate::ids::{ActionRef, FileRef, LabelText, TurnId};
 use crate::manifest::{ActionDecl, ArgSink};
 use crate::pattern::{pattern_inside, pattern_matches};
-use crate::request::CallRequest;
-use crate::value::{TargetValue, Value};
+use docket_vocab::{ActionRef, CallRequest, FileRef, LabelText, TargetValue, TurnId, Value};
 use porter_core::{AppName, Count};
 use prov::{Effect, EntityId, EntityKind, Integrity, Label, SpaceId, TaskId, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -169,7 +167,7 @@ pub struct SessionSaw {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArgLabels {
     /// The label of each argument.
-    pub per_arg: BTreeMap<crate::ids::ParamName, Label>,
+    pub per_arg: BTreeMap<docket_vocab::ParamName, Label>,
     /// The planner's integrity.
     pub planner: Integrity,
     /// What the session has seen.

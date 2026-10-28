@@ -9,7 +9,7 @@ use super::card::HelperCard;
 use super::hand::{BackOutcome, BroughtOutcome, ToTerminalOutcome};
 use super::job::Job;
 use crate::hand::{SeenCommand, WatchedAgent};
-use crate::workspace::Workspace;
+use docket_vocab::Workspace;
 use prov::{HelperId, SessionId};
 use serde::{Deserialize, Serialize};
 

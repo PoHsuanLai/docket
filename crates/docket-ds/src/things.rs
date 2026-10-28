@@ -2,7 +2,8 @@
 //! ([`EntityRef`], with labels). An app never writes a label: the kind's declared title trust
 //! does, so a mail subject is somebody else's words the moment it crosses.
 
-use docket_core::{EntityRef, TitleTrust};
+use docket_core::TitleTrust;
+use docket_vocab::EntityRef;
 use ds_intents::ThingMark;
 use porter_core::{AppName, DataClass};
 use prov::{

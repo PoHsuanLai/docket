@@ -2,9 +2,10 @@
 
 use crate::service::ReaderService;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{ReaderAsk, ReaderError, Value};
+use docket_core::{ReaderAsk, ReaderError};
 use docket_dbus::callers::{INTENTD, Identity, require};
 use docket_dbus::{BusConnection, Details, READER_BUS, READER_PATH};
+use docket_vocab::Value;
 use porter_client::Transport as InferTransport;
 use prov::SessionId;
 use std::sync::Arc;

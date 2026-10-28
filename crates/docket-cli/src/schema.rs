@@ -5,7 +5,8 @@
 
 use crate::exit::{Exit, Failure};
 use crate::resolve::{short_name, slug};
-use docket_core::{ActionDecl, Manifest, ParamDecl, ParamNeed, ParamType};
+use docket_core::{ActionDecl, Manifest, ParamDecl, ParamNeed};
+use docket_vocab::ParamType;
 use model_provider::{CharCount, ChoiceText, Count, Field, FieldName, SchemaDialect, Shape};
 use serde_json::{Value, json};
 
@@ -134,7 +135,7 @@ pub fn action_row(app: &Manifest, action: &ActionDecl) -> Value {
 pub fn described(app: &Manifest, action: &ActionDecl) -> Result<Value, Failure> {
     let mut row = action_row(app, action);
     if let Value::Object(map) = &mut row {
-        map.insert("vocab".into(), json!(docket_core::IntentsVocab::CURRENT));
+        map.insert("vocab".into(), json!(docket_vocab::IntentsVocab::CURRENT));
         map.insert("app".into(), json!(slug(&app.app)));
         map.insert("schema".into(), json_schema(action)?);
     }

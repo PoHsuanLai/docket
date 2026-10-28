@@ -1,6 +1,7 @@
 //! What a summary may say: not empty, not long, and handles only the planner held.
 
-use docket_core::{Handle, SUMMARY_MAX_CHARS, SummaryFault, SummaryText};
+use docket_core::{SUMMARY_MAX_CHARS, SummaryFault, SummaryText};
+use docket_vocab::Handle;
 
 #[test]
 fn a_summary_cites_only_handles_the_planner_held() {

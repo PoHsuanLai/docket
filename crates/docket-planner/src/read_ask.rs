@@ -3,7 +3,8 @@
 
 use crate::want::settle_want;
 use agent_loop::ModelOutput;
-use docket_core::{Handle, HandleShape, ReadFault, ReaderAsk, ReaderTask, ReplyFault, ValueSchema};
+use docket_core::{HandleShape, ReadFault, ReaderAsk, ReaderTask, ReplyFault, ValueSchema};
+use docket_vocab::Handle;
 use serde_json::Value as Json;
 
 /// The most handles one read may name: a model that lists hundreds has not chosen.

@@ -14,12 +14,11 @@ use agent::{Act, agent as scripted, say};
 use bulkhead::fake::FakeSandbox;
 use docket_acp_host::fake::FakeFiles;
 use docket_acp_host::{AcpBackend, Parts, Performer, Seams};
+use docket_core::ProgramName;
 use docket_launch::fake::{Call, FakeAccounts, FakeProcs, Mood, Secrets};
 use docket_launch::{AgentSpawn, AgentsFile, Registry};
-use docket_session::{
-    BackendEvent, BackendKind, Opening, ProgramName, SessionBackend, StartSession, TurnEnd,
-    Workspace,
-};
+use docket_session::{BackendEvent, BackendKind, Opening, SessionBackend, StartSession, TurnEnd};
+use docket_vocab::Workspace;
 use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::sync::Arc;
 
@@ -37,7 +36,7 @@ impl Court for Nobody {
         &mut self,
         _session: &SessionId,
         _text: &str,
-    ) -> Result<docket_core::TurnId, CourtFault> {
+    ) -> Result<docket_vocab::TurnId, CourtFault> {
         Err(CourtFault::Unavailable)
     }
 
@@ -108,7 +107,7 @@ async fn a_session_through_the_launcher_asks_porter_in_order_and_gives_it_all_ba
     assert_eq!(seen.runs().len(), 1);
     backend
         .turn(docket_core::UserTurn {
-            id: docket_core::TurnId(1),
+            id: docket_vocab::TurnId(1),
             text: "go".to_owned(),
             at: UnixSeconds(1),
             from: docket_core::TurnSource::Launcher,

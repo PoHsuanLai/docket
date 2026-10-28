@@ -234,9 +234,10 @@ pub(crate) async fn until_closed(connection: &BusConnection) {
 mod tests {
     use super::*;
     use docket_core::{
-        AppRefusal, ContextScope, ContextSnapshot, EntityRef, Hit, Invocation, Outcome, Preview,
-        SuggestAsk, SummonAnswer, SummonOrigin, UndoFault, UndoToken,
+        AppRefusal, ContextScope, ContextSnapshot, Hit, Invocation, Outcome, Preview, SuggestAsk,
+        SummonAnswer, SummonOrigin, UndoFault,
     };
+    use docket_vocab::{EntityRef, UndoToken};
     use prov::{Actor, EntityId};
     use zbus::object_server::Interface;
 
@@ -289,7 +290,7 @@ mod tests {
     #[test]
     fn the_served_interface_is_the_declared_one() {
         let manifest = docket_core::validate(docket_core::Manifest {
-            vocab: docket_core::IntentsVocab(1),
+            vocab: docket_vocab::IntentsVocab(1),
             app: prov::AppName::parse("org.quire.Nobody").expect("an app name"),
             entities: vec![],
             actions: vec![],

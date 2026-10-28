@@ -53,6 +53,7 @@ required-features = ["pipewire"]
 workspace = true
 
 [dev-dependencies]
+docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 docket-testbus = { workspace = true }
 porter-infer = { workspace = true, features = ["testing"] }

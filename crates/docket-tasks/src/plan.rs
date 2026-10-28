@@ -6,7 +6,8 @@
 //! answer is `NeedsYou(Confirm)`; when the sheet closes it is `Streaming` again.
 
 use companion_wire::{AnswerPhase, NeedsYou, PlanStepWire, PlanWire, StepWireState};
-use docket_core::{ActionRef, CallId, CallProgress, CallRefusal, LabelText, StepEnd, StepId};
+use docket_core::{CallProgress, CallRefusal, StepEnd};
+use docket_vocab::{ActionRef, CallId, LabelText, StepId};
 use prov::Effect;
 
 /// The steps of one turn, in the order the calls were made.

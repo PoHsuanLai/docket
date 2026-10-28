@@ -11,9 +11,9 @@ use acp_core::taint::source;
 use bulkhead::Sandbox;
 use docket_core::{
     AbsPath, AppRefusal, FILES_READ, FILES_SENSITIVE, FILES_WRITE, FailText, Follow, Invocation,
-    LabelText, Outcome, ParamName, PermissionKind, Preview, REPORTED, TERMINAL_RUN, TargetValue,
-    UndoFault, UndoToken, Undoable, Value,
+    Outcome, PermissionKind, Preview, REPORTED, TERMINAL_RUN, UndoFault, Undoable,
 };
+use docket_vocab::{LabelText, ParamName, TargetValue, UndoToken, Value};
 use porter_core::DataClass;
 use prov::{Integrity, Label, Labelled, Source};
 use std::collections::BTreeSet;

@@ -11,13 +11,12 @@ use crate::runtime::Companion;
 use crate::seams::Surface;
 use companion_wire::HelperReply;
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_core::helper::{Ceiling, GoalOrigin, JobId, PlannerSaw};
 use docket_core::{
-    ActionCard, AppRefusal, CallRefusal, CallRequest, FailText, LabelText, NoteAsk, Outcome, Value,
-    from_checked_brief,
+    ActionCard, AppRefusal, CallRefusal, FailText, NoteAsk, Outcome, from_checked_brief,
 };
 use docket_planner::Planner;
+use docket_vocab::{CallRequest, Clock, LabelText, Value};
 use prov::TaskId;
 
 pub(crate) use docket_core::HAND_ON_JOB as POST_JOB;

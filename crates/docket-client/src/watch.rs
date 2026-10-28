@@ -9,9 +9,10 @@
 use crate::intents::{ClientError, Intents};
 use crate::transport::{Transport, TransportError};
 use docket_core::{
-    ActivationToken, CallProgress, CallRefusal, CallRequest, ConfirmId, CuaAsk, GateAnswer,
-    IntentsReply, IntentsRequest, Outcome, WindowKey,
+    ActivationToken, CallProgress, CallRefusal, ConfirmId, CuaAsk, GateAnswer, IntentsReply,
+    IntentsRequest, Outcome,
 };
+use docket_vocab::{CallRequest, WindowKey};
 use prov::SessionId;
 use std::future::Future;
 use std::pin::Pin;

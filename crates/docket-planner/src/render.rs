@@ -14,10 +14,10 @@ use crate::reader_text::{reader_origin, ready_line};
 use crate::role::RoleText;
 use crate::step_text::{Seen, step_line, step_line_in};
 use docket_core::{
-    ActionCard, EpisodeLine, Handle, HandleCard, HandleShape, HelperRosterLine, InboundLine,
-    InboundPart, PlannerView, RecalledLine, Reveal, RosterDetail, RosterLine, StepEnd, StepLine,
-    Value,
+    ActionCard, EpisodeLine, HandleCard, HandleShape, HelperRosterLine, InboundLine, InboundPart,
+    PlannerView, RecalledLine, Reveal, RosterDetail, RosterLine, StepEnd, StepLine,
 };
+use docket_vocab::{Handle, Value};
 use porter_infer::{ChatMessage, MessagePart, Role};
 use prov::EntityKind;
 use prov::{AgentRef, Crossing, Integrity, MessageKind, ReportStatus};
@@ -408,7 +408,7 @@ pub fn messages_with(view: &PlannerView, role: Option<&RoleText>) -> Vec<ChatMes
 mod tests {
     use super::*;
     use crate::accepts::fixtures::{kind, mail};
-    use docket_core::CharCount;
+    use docket_vocab::CharCount;
     use prov::Source;
 
     fn card(n: u64, shape: HandleShape) -> HandleCard {
@@ -423,8 +423,9 @@ mod tests {
     #[test]
     fn a_task_and_a_run_are_told_by_what_they_are_never_by_id_or_action_name() {
         use docket_core::{
-            ActionCard, EpisodeLine, LabelText, RosterDetail, RosterLine, RosterState, SkeletonText,
+            ActionCard, EpisodeLine, RosterDetail, RosterLine, RosterState, SkeletonText,
         };
+        use docket_vocab::LabelText;
         let labelled = ActionCard {
             label: LabelText::parse("Do this on screen").expect("label"),
             ..crate::accepts::fixtures::card("cua.run.start", docket_core::TargetKind::Nothing, &[])

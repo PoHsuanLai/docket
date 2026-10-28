@@ -8,11 +8,11 @@
 //! Pure: every value comes out labelled with the label it is given, and an argument the manifest
 //! does not declare is refused rather than ignored.
 
-use crate::ids::FileRef;
-use crate::ids::{Handle, ParamName};
 use crate::manifest::{ActionDecl, ParamDecl, ParamNeed, TargetKind};
-use crate::units::{CharCount, Scale, Seconds};
-use crate::value::{Args, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
+use docket_vocab::{
+    Args, CharCount, CivilDate, Decimal, FileRef, Handle, Lines, ParamName, ParamType, Scale,
+    Seconds, TargetValue, Value,
+};
 use porter_core::AppName;
 use prov::{EntityId, EntityKey, EntityKind, Label, Labelled, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -115,7 +115,7 @@ fn text(max: CharCount, lines: Lines, json: &Json) -> Read<String> {
         Lines::One => &[],
         Lines::Many => &['\n', '\r', '\t'],
     };
-    let deceptive = !crate::marks::plain_text(body, allowed);
+    let deceptive = !docket_vocab::plain_text(body, allowed);
     if too_long || deceptive {
         Err(Why::Range)
     } else {

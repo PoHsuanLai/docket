@@ -5,7 +5,7 @@
 
 use crate::budget::Budget;
 use crate::mode::{Mode, RowSets};
-use crate::units::{Days, Depth, Millis, Seconds};
+use docket_vocab::{Days, Depth, Millis, Seconds};
 use porter_core::{Count, MicroUsd, Tokens};
 use serde::{Deserialize, Serialize};
 

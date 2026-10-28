@@ -463,7 +463,7 @@ pub fn speak_wire(text: &str, utterance: Option<&str>) -> String {
 
 pub fn speak_wire_as(text: &str, utterance: Option<&str>, class: porter_core::DataClass) -> String {
     seal(&voice_wire::SpeakWire {
-        utterance: utterance.map(|u| docket_core::UtteranceId::parse(u).expect("utterance id")),
+        utterance: utterance.map(|u| docket_vocab::UtteranceId::parse(u).expect("utterance id")),
         text: voice_wire::SpokenText(text.to_owned()),
         class,
         lang: porter_core::capability::LanguageTag::parse("en").expect("language"),

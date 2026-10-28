@@ -8,10 +8,9 @@ use crate::durable::Flush;
 use crate::prepared::{Prepared, grants_for};
 use crate::router::Router;
 use crate::seams::{AppFault, AppLink, GrantStore, Seams};
-use docket_core::{
-    BudgetKind, CallEnd, CallRefusal, Clock, Ledger, Outcome, Reviewed, UndoId, charge,
-};
+use docket_core::{BudgetKind, CallEnd, CallRefusal, Ledger, Outcome, Reviewed, charge};
 use docket_session::{CallOpen, SessionEntry};
+use docket_vocab::{Clock, UndoId};
 use porter_core::GrantId;
 use prov::{Actor, AgentRole, SessionId};
 
@@ -38,7 +37,7 @@ impl<S: Seams> Router<S> {
         &self,
         p: &Prepared,
         outcome: &Outcome,
-        token: &docket_core::UndoToken,
+        token: &docket_vocab::UndoToken,
     ) -> UndoId {
         let now = self.seams.clock().now();
         let said = outcome.said.clone().unwrap_or_else(|| p.decl.label.clone());
@@ -84,7 +83,7 @@ impl<S: Seams> Router<S> {
         let before = std::mem::replace(&mut record.ledger, ledger);
         // The turn-start memory read is a read the companion brought as context: nothing to
         // recover after a crash, and no step a replay shows (see `finish`).
-        if p.request.origin != docket_core::Origin::TurnStart {
+        if p.request.origin != docket_vocab::Origin::TurnStart {
             record.wal.note(SessionEntry::Call(CallOpen {
                 call: p.id,
                 action: p.request.action.clone(),

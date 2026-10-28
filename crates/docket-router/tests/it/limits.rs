@@ -6,6 +6,7 @@ use crate::support::*;
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
 use docket_router::GrantStore;
+use docket_vocab::{CallId, CallRequest, ChoiceId, Origin, TargetValue, Value};
 use prov::{Actor, AgentRole, Effect, Labelled, SpaceScope};
 
 fn archive() -> CallRequest {

@@ -9,11 +9,14 @@
 //! the router should be asked to weigh.
 
 use crate::call::AgentCall;
+use docket_core::ProgramName;
 use docket_core::{
-    CallRefusal, ExternalAgent, HandTo, Outcome, Rewind, SheetSurface, TurnEnd, TurnId,
-    ValidManifest, WatchedAgent,
+    CallRefusal, ExternalAgent, HandTo, Outcome, Rewind, SheetSurface, TurnEnd, ValidManifest,
+    WatchedAgent,
 };
-use docket_session::{ProgramName, Workspace};
+use docket_vocab::Workspace;
+
+use docket_vocab::TurnId;
 use prov::{SessionId, SpaceId};
 use std::future::Future;
 

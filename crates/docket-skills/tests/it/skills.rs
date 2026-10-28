@@ -416,19 +416,19 @@ fn a_task_loads_at_most_three_and_a_repeat_is_free() {
 fn loaded_skills_actions_go_first_and_nothing_else_changes() {
     let s = skill("s", "");
     let items = ["x", "org.quire.Companion:companion.skill.load", "y"];
-    let action = |i: &&str| -> docket_core::ActionRef {
+    let action = |i: &&str| -> docket_vocab::ActionRef {
         match i.split_once(':') {
-            Some((app, name)) => docket_core::ActionRef {
+            Some((app, name)) => docket_vocab::ActionRef {
                 app: AppName::parse(app).expect("app"),
                 name: prov::ActionName::parse(name).expect("name"),
             },
-            None => docket_core::ActionRef {
+            None => docket_vocab::ActionRef {
                 app: AppName::parse("org.example.X").expect("app"),
                 name: prov::ActionName::parse("x.y").expect("name"),
             },
         }
     };
-    let cards: Vec<(docket_core::ActionRef, &str)> =
+    let cards: Vec<(docket_vocab::ActionRef, &str)> =
         items.iter().map(|i| (action(i), *i)).collect();
     let out = uses_first(cards.clone(), |c| &c.0, &[&s]);
     let names: Vec<&str> = out.iter().map(|c| c.1).collect();

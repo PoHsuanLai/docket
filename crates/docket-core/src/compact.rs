@@ -7,7 +7,7 @@
 //! summary that names a handle the planner never held. The integrity of a summary is never above
 //! that of the task when it was written.
 
-use crate::ids::Handle;
+use docket_vocab::Handle;
 use porter_core::Count;
 use prov::Integrity;
 use serde::{Deserialize, Serialize};

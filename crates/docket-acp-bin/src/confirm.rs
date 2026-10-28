@@ -20,13 +20,13 @@ use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 
 /// The sheets intentd put to this process, answered through the shared desk.
 #[derive(Debug)]
-pub struct ConfirmObject<K: docket_core::Clock + 'static> {
+pub struct ConfirmObject<K: docket_vocab::Clock + 'static> {
     sheets: Arc<SheetConfirmer<EditorDesk, K>>,
     next: std::sync::atomic::AtomicU64,
     callers: Arc<Identity>,
 }
 
-impl<K: docket_core::Clock + 'static> ConfirmObject<K> {
+impl<K: docket_vocab::Clock + 'static> ConfirmObject<K> {
     /// Answers for the sheets on `desk`, stamping receipts with `clock`, to the process that
     /// `callers` names as intentd.
     pub fn new(desk: EditorDesk, clock: K, callers: Arc<Identity>) -> Self {
@@ -47,7 +47,7 @@ async fn from_intentd(header: &Header<'_>, callers: &Identity) -> fdo::Result<()
 }
 
 #[zbus::interface(name = "org.quire.Confirm1")]
-impl<K: docket_core::Clock + 'static> ConfirmObject<K> {
+impl<K: docket_vocab::Clock + 'static> ConfirmObject<K> {
     async fn confirm(
         &self,
         request: String,

@@ -4,6 +4,7 @@
 use crate::support::*;
 use docket_core::*;
 use docket_fake::{ScriptedConfirmer, ScriptedReader, ScriptedWriter};
+use docket_vocab::{CharCount, ChoiceId, Handle, Origin, TurnId, Value};
 use prov::{AgentRef, ConfirmReceipt, Effect, InputProof, UnixSeconds};
 use std::collections::BTreeSet;
 

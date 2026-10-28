@@ -7,10 +7,8 @@ use crate::plain::without_ids;
 use crate::planner::{PlanFault, TOOL_ANSWER, TOOL_ASK, TOOL_FINISH, TOOL_READ, TOOL_RELATED};
 use crate::read_ask::read_output;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
-use docket_core::{
-    Args, CallRequest, Handle, HandleShape, OneOf, Origin, ParamName, PlannerView, RELATION_ARG,
-    ReplyFault, TargetValue, Value, Why,
-};
+use docket_core::{HandleShape, OneOf, PlannerView, RELATION_ARG, ReplyFault, Why};
+use docket_vocab::{Args, CallRequest, Handle, Origin, ParamName, TargetValue, Value};
 use porter_core::AppName;
 use porter_infer::ToolCallPart;
 use prov::{EntityId, EntityKey, EntityKind};
@@ -57,7 +55,7 @@ pub(crate) const MOST_WORDS: usize = 32_000;
 /// never reversed or concealed.
 fn plain(text: &str) -> String {
     text.chars()
-        .filter(|c| !docket_core::reorders(*c) && !docket_core::hides(*c))
+        .filter(|c| !docket_vocab::reorders(*c) && !docket_vocab::hides(*c))
         .collect()
 }
 
@@ -154,7 +152,7 @@ fn related_output(args: &Json, view: &PlannerView) -> ModelOutput {
     };
     let (Some(name), Some(choice)) = (
         param(RELATION_ARG),
-        docket_core::ChoiceId::parse(relation).ok(),
+        docket_vocab::ChoiceId::parse(relation).ok(),
     ) else {
         return wrong(RELATION_ARG, Why::Range);
     };

@@ -13,13 +13,13 @@ use agent_loop::{
     AskedPerson, Attention, CompletionNote, LoopInput, LoopPhase, SideInput, attention_of,
 };
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_core::{
-    Delivery, DraftPart, Handle, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft,
-    Outcome, Reveal, RosterDetail, RosterFull, RosterLine, RosterState, SessionOpen, SessionOpened,
-    TurnId, TurnSource, TurnVia, Value,
+    Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft, Outcome,
+    Reveal, RosterDetail, RosterFull, RosterLine, RosterState, SessionOpen, SessionOpened,
+    TurnSource, TurnVia,
 };
 use docket_planner::Planner;
+use docket_vocab::{Clock, Handle, TurnId, Value};
 use porter_core::{AppName, Count};
 use prov::{
     Address, AgentRef, Confidentiality, Integrity, Label, Labelled, MessageKind, ReportStatus,

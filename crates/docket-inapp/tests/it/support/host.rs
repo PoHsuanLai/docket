@@ -4,10 +4,9 @@
 use super::infer::ScriptedInfer;
 use super::{Nowhere, TestSheet};
 use docket_core::AgentConfig;
-use docket_core::Clock;
-use docket_core::Millis;
 use docket_fake::{FakeMail, MailThread, ScriptedReviewer, mail_manifest};
 use docket_inapp::InAppParts;
+use docket_vocab::{Clock, Millis};
 use prov::{SpaceId, UnixSeconds};
 use serde_json::json;
 use std::sync::Arc;

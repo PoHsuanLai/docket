@@ -8,13 +8,14 @@
 use crate::steps::Player;
 use crate::world::{install, state_of};
 use docket_core::{
-    ActionMatch, AgentConfig, AuditRecord, LabelText, ModelExchange, TaskPolicy, TaskPolicyState,
+    ActionMatch, AgentConfig, AuditRecord, ModelExchange, TaskPolicy, TaskPolicyState,
 };
 use docket_fake::{
     FakeError, FakeLink, FakeSeams, Forget, MemoryGrants, RecordingSink, ScriptedConfirmer,
     ScriptedWriter, fake_router,
 };
 use docket_router::{Router, RouterState, Seams};
+use docket_vocab::LabelText;
 use eval_core::{Case, CaseResult, CaseTrace, Cut, StepEnding};
 use porter_core::Count;
 use prov::{Effect, SpaceId, TaskId, UnixSeconds};

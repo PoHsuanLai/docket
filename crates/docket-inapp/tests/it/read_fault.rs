@@ -7,8 +7,9 @@
 use crate::support::TestSheet;
 use crate::support::host::{clock, parts, thread};
 use crate::support::infer::{ScriptedInfer, call, words};
-use docket_core::{ChoiceId, Handle, ReaderAsk, ReaderTask, ValueSchema};
+use docket_core::{ReaderAsk, ReaderTask, ValueSchema};
 use docket_inapp::{Ending, Failure, InAppAgent, InAppKit, TransportReader};
+use docket_vocab::{ChoiceId, Handle};
 use serde_json::{Value, json};
 
 const READ: &str = "org_quire_Mail-mail_thread_read";

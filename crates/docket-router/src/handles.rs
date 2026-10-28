@@ -3,8 +3,9 @@
 //! only the reader, and the screen through `Session.Display`. A model cannot forge taint: the
 //! router computes it.
 
-use docket_core::{FileRef, Handle, HandleCard, HandleShape, Reveal, size_of};
+use docket_core::{HandleCard, HandleShape, Reveal, size_of};
 use docket_session::HandleLabel;
+use docket_vocab::{FileRef, Handle};
 use prov::{EntityId, Integrity, Label, Labelled, Measured, Quarantined, Source};
 use std::collections::BTreeMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -330,9 +331,9 @@ impl HandleTable {
             HandleValue::Text(t) => (HandleShape::Text, size_of(t)),
             HandleValue::Entity(e) => (
                 HandleShape::Entity(e.kind.clone()),
-                docket_core::CharCount(0),
+                docket_vocab::CharCount(0),
             ),
-            HandleValue::File(_) => (HandleShape::File, docket_core::CharCount(0)),
+            HandleValue::File(_) => (HandleShape::File, docket_vocab::CharCount(0)),
             HandleValue::Forgotten(_) => return None,
         };
         Some(HandleCard {

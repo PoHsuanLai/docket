@@ -1,6 +1,6 @@
 [package]
 name = "docket-core"
-description = "docket's vocabulary: ids, the manifest and its validation, values, context, previews, calls, refusals, undo, confirmation, budgets, the task policy, the planner and reader contract, the roster, audit records, the memory and event-log seams (`MemoryLink`, `EventSink`) and the wire."
+description = "docket's vocabulary above docket-vocab: the manifest and its validation, context, previews, calls, refusals, undo, confirmation, budgets, the task policy, the planner and reader contract, the roster, audit records, the memory and event-log seams (`MemoryLink`, `EventSink`) and the wire. Ids, units, values and the `Clock` seam are in docket-vocab."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,7 @@ publish.workspace = true
 
 [dependencies]
 bulkhead = { workspace = true }
-chrono = { workspace = true }
+docket-vocab = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
 prov = { workspace = true }

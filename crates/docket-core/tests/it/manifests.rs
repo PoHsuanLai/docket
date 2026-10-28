@@ -2,6 +2,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_vocab::{CharCount, IconName, IntentsVocab, Lines, ParamType, RelationName, Value};
 use prov::{ActionName, Effect};
 use std::path::PathBuf;
 

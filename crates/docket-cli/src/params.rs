@@ -7,8 +7,11 @@
 use crate::exit::Failure;
 use crate::resolve::Apps;
 use crate::when;
-use docket_core::{ActionDecl, Args, CharCount, FileRef, Handle, Lines, ParamNeed};
-use docket_core::{ParamName, ParamType, TargetKind, TargetValue, Value};
+use docket_core::TargetKind;
+use docket_core::{ActionDecl, ParamNeed};
+use docket_vocab::{
+    Args, CharCount, FileRef, Handle, Lines, ParamName, ParamType, TargetValue, Value,
+};
 use porter_core::AppName;
 use prov::{Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label};
 use prov::{Labelled, Source};

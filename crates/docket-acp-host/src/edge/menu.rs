@@ -1,6 +1,7 @@
 //! Which of the desktop's actions one session's tool edge lists and lets through.
 
-use docket_core::{ActionRef, TaskPolicy};
+use docket_core::TaskPolicy;
+use docket_vocab::ActionRef;
 
 /// What the edge of one session offers its agent.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

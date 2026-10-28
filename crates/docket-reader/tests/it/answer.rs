@@ -3,6 +3,7 @@
 
 use docket_core::*;
 use docket_reader::answer_of;
+use docket_vocab::{CharCount, ChoiceId, CivilDate, ParamName, Value};
 use prov::{EntityId, EntityKey, EntityKind};
 use std::collections::BTreeMap;
 

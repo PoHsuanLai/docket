@@ -2,6 +2,7 @@
 
 use docket_core::*;
 use docket_router::*;
+use docket_vocab::{Handle, LabelText, TurnId};
 use porter_core::{AppName, Count};
 use prov::{AgentRef, Effect, EntityKind, ReportStatus, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::BTreeSet;

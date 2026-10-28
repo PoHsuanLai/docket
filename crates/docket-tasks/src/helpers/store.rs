@@ -9,10 +9,10 @@ use crate::runtime::Companion;
 use crate::seams::Surface;
 use almanac_core::{BodyMode, JsonText, KindPattern, RecentEntry, RecentQuery, TrustFilter};
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_core::helper::{HelperRecord, HelperRecordKind};
 use docket_core::{HelperNote, NoteAsk, SessionOpen};
 use docket_planner::Planner;
+use docket_vocab::Clock;
 use porter_core::Count;
 use prov::{AgentRef, SpaceId, UnixSeconds};
 

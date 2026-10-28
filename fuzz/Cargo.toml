@@ -19,6 +19,8 @@ action-review = { path = "../crates/action-review" }
 agent-loop = { path = "../crates/agent-loop" }
 companion-wire = { path = "../crates/companion-wire" }
 docket-core = { path = "../crates/docket-core" }
+docket-vocab = { workspace = true }
+docket-vocab = { path = "../crates/docket-vocab" }
 docket-eval = { path = "../crates/docket-eval" }
 docket-fake = { path = "../crates/docket-fake" }
 eval-core = { path = "../crates/eval-core" }

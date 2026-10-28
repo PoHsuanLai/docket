@@ -3,14 +3,12 @@
 //! dry-run preview; agent prose is never shown, and untrusted values are drawn quoted.
 
 use crate::brief::{BriefSheet, BriefText};
-use crate::context::EntityRef;
 use crate::helper::HelperName;
-use crate::ids::{LabelText, WindowKey};
 use crate::limit::LimitNote;
 use crate::preview::{FileMove, Preview};
 use crate::review::AskReason;
 use crate::standing_offer::AlwaysOffer;
-use crate::units::Seconds;
+use docket_vocab::{EntityRef, LabelText, Seconds, WindowKey};
 use porter_core::{AppName, Count};
 use prov::{Actor, ClientName, ConfirmReceipt, Effect, SessionId, Source, SpaceId};
 use serde::{Deserialize, Serialize};

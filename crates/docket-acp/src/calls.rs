@@ -84,7 +84,7 @@ fn kind(open: &CallOpen) -> ToolKind {
     }
 }
 
-pub(crate) fn call_id(call: docket_core::CallId) -> ToolCallId {
+pub(crate) fn call_id(call: docket_vocab::CallId) -> ToolCallId {
     ToolCallId::new(format!("call-{}", call.0))
 }
 
@@ -103,7 +103,7 @@ pub fn started(open: &CallOpen) -> SessionUpdate {
     )
 }
 
-fn update(call: docket_core::CallId, fields: ToolCallUpdateFields) -> SessionUpdate {
+fn update(call: docket_vocab::CallId, fields: ToolCallUpdateFields) -> SessionUpdate {
     SessionUpdate::ToolCallUpdate(ToolCallUpdate::new(call_id(call), fields))
 }
 

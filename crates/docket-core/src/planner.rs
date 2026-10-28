@@ -5,15 +5,13 @@ use crate::call::CallRefusal;
 use crate::compact::Summary;
 use crate::confirm::ConfirmEnd;
 use crate::context::{ContextKeep, ContextView, Reveal};
-use crate::ids::{ActionRef, CallId, Handle, LabelText, TurnId, UndoId};
 use crate::manifest::{AgentReach, Lasting, RelationDecl, TargetKind};
 use crate::message::InboundLine;
 use crate::roster::{EpisodeLine, PrimerText, ProfileLine, RecalledLine, RollupLine, Roster};
 use crate::schema::ToolSchema;
 use crate::skill::{SkillCard, SkillText};
 use crate::task_policy::TaskPolicy;
-use crate::units::CharCount;
-use crate::value::Value;
+use docket_vocab::{ActionRef, CallId, CharCount, Handle, LabelText, TurnId, UndoId, Value};
 use prov::{Effect, EntityKind, Integrity, Source, UnixSeconds};
 use serde::{Deserialize, Serialize};
 
@@ -55,7 +53,7 @@ pub struct TurnIn {
     /// What the person said.
     pub text: String,
     /// Where it was said.
-    pub origin: crate::request::Origin,
+    pub origin: docket_vocab::Origin,
     /// The context chips they kept.
     pub keep: ContextKeep,
     /// Typed or spoken.
@@ -197,7 +195,7 @@ pub enum ReplyFault {
     /// ones it was).
     NotOneOf {
         /// The parameter.
-        param: crate::ids::ParamName,
+        param: docket_vocab::ParamName,
         /// The values it may take.
         options: Vec<String>,
     },

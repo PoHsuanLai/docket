@@ -4,7 +4,8 @@
 
 use crate::support::*;
 use docket_cli::Exit;
-use docket_core::{ActionRef, AskReason, ConfirmOffer};
+use docket_core::{AskReason, ConfirmOffer};
+use docket_vocab::ActionRef;
 use prov::Effect;
 
 fn archive_ref() -> ActionRef {

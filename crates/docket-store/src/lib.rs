@@ -6,7 +6,7 @@
 //!   and the [`WriteLock`] a grant store holds as a field;
 //! - the waits on a peer with a deadline and a cancel ([`within`], [`until`], [`Cancel`],
 //!   [`Waits`]) and the timer a host with no runtime sleeps on ([`thread_sleep`]);
-//! - [`SystemClock`]: the one system implementation of `docket_core::Clock`.
+//! - [`SystemClock`]: the one system implementation of `docket_vocab::Clock`.
 //!
 //! It names no app, window or label, and nothing here reads the environment.
 

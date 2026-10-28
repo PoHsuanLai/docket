@@ -10,12 +10,12 @@ use crate::scripted::{
 use crate::seams::{FakeLink, FakeSeams};
 use crate::simple::{MemoryGrants, RecordingSink};
 use action_review::Reviewer;
-use docket_core::Clock;
 use docket_core::{AgentConfig, PolicyWriter, ValidManifest};
 use docket_core::{ManifestFileError, parse};
 use docket_router::{Registry, Router};
 use docket_session::SessionLog;
 use docket_session::fake::MemoryLog;
+use docket_vocab::Clock;
 use policy_point::{PolicyError, Presets};
 use prov::{SpaceId, UnixSeconds};
 use std::sync::Arc;

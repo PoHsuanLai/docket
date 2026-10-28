@@ -25,6 +25,7 @@ cd "$(dirname "$0")/.."
 # KNOWN below with the plan lane that removes the breach; there is no other allowance.
 LAYERS=(
   # pure
+  "docket-vocab:P"
   "docket-core:P"
   "docket-skills:P"
   "policy-point:P"
@@ -298,7 +299,7 @@ cd "$(dirname "$0")/.."
 
 # RULES: what a crate reaches through ANY path (transitive, default features).
 #
-# The pure crates (docket-core, policy-point, action-review, docket-router, companion-wire,
+# The pure crates (docket-vocab, docket-core, policy-point, action-review, docket-router, companion-wire,
 # agent-loop, voice-wire, voice-loop, voice-audio) never reach a bus, a runtime, an HTTP client, an audio or
 # display or accessibility stack, a database, a file watcher, an embedding runtime or the MCP SDK.
 # Only policy-point reaches cedar-policy, and the crates above it (docket-router, the fakes and
@@ -307,6 +308,7 @@ cd "$(dirname "$0")/.."
 EFFECTS="zbus zvariant tokio reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp cedar-policy"
 NO_CEDAR="zbus zvariant tokio reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp"
 RULES=(
+  "docket-vocab: $EFFECTS toml"
   "docket-core: $EFFECTS toml"
   "policy-point: $NO_CEDAR toml"
   "action-review: $EFFECTS toml"

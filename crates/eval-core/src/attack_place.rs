@@ -26,9 +26,8 @@
 
 use crate::attack::{AttackCase, Carrier};
 use crate::case::{FixtureRef, ScriptedStep};
-use docket_core::{
-    ContextSnapshot, EntityRef, Here, Selection, TextTarget, Visible, WindowPrivacy,
-};
+use docket_core::{ContextSnapshot, Here, Selection, TextTarget, Visible, WindowPrivacy};
+use docket_vocab::EntityRef;
 use porter_core::{AppName, Count};
 use prov::{EntityKey, Label, Labelled};
 use serde::{Deserialize, Serialize};

@@ -3,7 +3,8 @@
 //! meant, so the words become the id they name; when they name none, or two options name the
 //! same one, it is told which option and what an option looks like.
 
-use docket_core::{CharCount, ChoiceId, ReadFault};
+use docket_core::ReadFault;
+use docket_vocab::{CharCount, ChoiceId};
 use serde_json::Value as Json;
 use std::collections::HashSet;
 

@@ -8,7 +8,8 @@ use companion_wire::{
     SayReply, TerminalSession,
 };
 use docket_core::helper::{Ceiling, GoalOrigin};
-use docket_core::{HelperRosterLine, SeenCommand, TurnId, TurnSource, WatchedAgent};
+use docket_core::{HelperRosterLine, SeenCommand, TurnSource, WatchedAgent};
+use docket_vocab::TurnId;
 use prov::{EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::fmt;
 use std::future::Future;

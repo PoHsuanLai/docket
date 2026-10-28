@@ -5,10 +5,10 @@ use crate::support::world::*;
 use companion_wire::HelperReply;
 use docket_core::helper::*;
 use docket_core::{
-    ActionMatch, AppSessionId, LabelText, ProgramName, SeenCommand, TaskPolicy, TaskPolicyState,
-    WatchedAgent, Workspace,
+    ActionMatch, AppSessionId, ProgramName, SeenCommand, TaskPolicy, TaskPolicyState, WatchedAgent,
 };
 use docket_tasks::{HelperDesk, PostFromPerson};
+use docket_vocab::{LabelText, Workspace};
 use porter_core::Count;
 use prov::{AgentProgram, Effect, EntityKind, HelperId, SessionId, UnixSeconds};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};

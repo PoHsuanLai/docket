@@ -4,7 +4,8 @@
 
 use crate::support::inferd::*;
 use action_review::{ReviewVerdict, Reviewer};
-use docket_core::{Millis, ReviewError, ReviewTimeouts, Stage};
+use docket_core::{ReviewError, ReviewTimeouts, Stage};
+use docket_vocab::Millis;
 use intentd::InferdModel;
 use porter_core::capability::{LlmFeature, Modality};
 use porter_core::consent::Usage;
@@ -248,6 +249,7 @@ async fn embeddings_open_an_embedding_session_for_the_indexs_length() {
 
 fn review_request() -> action_review::ReviewRequest {
     use docket_core::*;
+    use docket_vocab::{LabelText, TurnId};
     use std::collections::BTreeMap;
     action_review::ReviewRequest {
         space: prov::SpaceId::parse("work").expect("space"),

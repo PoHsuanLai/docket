@@ -2,6 +2,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_vocab::{ActionRef, Args, CallId, CharCount, ChoiceId, Value};
 use porter_core::Count;
 
 fn schema_cases() -> Vec<(&'static str, Value, ValueSchema, Result<(), SchemaFault>)> {

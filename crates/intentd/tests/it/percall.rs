@@ -17,6 +17,10 @@ use docket_fake::{
 };
 use docket_provider::{IntentProvider, serve_on_with};
 use docket_router::{Router, Seams};
+use docket_vocab::{
+    ActionRef, CallClass, CallRequest, Classification, ClassifyAnswer, ClassifyFault, EntityRef,
+    Origin, ParamName, TargetValue, UndoToken, Value,
+};
 use intentd::DbusLink;
 use policy_point::Presets;
 use porter_core::{AppId, AppName, Isolation};

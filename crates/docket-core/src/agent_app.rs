@@ -6,8 +6,8 @@
 //! The names live here because the host, the router and the manifest all use them. The actions'
 //! declarations are `manifests/org.quire.AcpAgent.toml`.
 
-use crate::ids::ActionRef;
 use crate::standing_match::{ArgFacts, CallFacts};
+use docket_vocab::ActionRef;
 use porter_core::AppName;
 use prov::{ActionName, Effect};
 

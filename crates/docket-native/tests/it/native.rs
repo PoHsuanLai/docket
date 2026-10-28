@@ -4,14 +4,15 @@
 use crate::support::infer::{call, words};
 use crate::support::*;
 use docket_core::{
-    CallerId, CallerRole, IntentsReply, IntentsRequest, TurnId, TurnSource, TurnState, TurnVia,
-    UserTurn,
+    CallerId, CallerRole, IntentsReply, IntentsRequest, TurnSource, TurnState, TurnVia, UserTurn,
 };
 use docket_session::fake::MemoryLog;
 use docket_session::{
     BackendEvent, BackendKind, CallEvent, DeskFault, EndCause, Opening, Read, Seq, SessionEntry,
-    SessionHost, SheetChoice, SheetDesk, Standing, TurnEnd, Workspace, read_all,
+    SessionHost, SheetChoice, SheetDesk, Standing, TurnEnd, read_all,
 };
+use docket_vocab::TurnId;
+use docket_vocab::Workspace;
 use porter_core::{AppId, Isolation};
 use prov::{AgentRef, UnixSeconds};
 use serde_json::json;
@@ -257,6 +258,7 @@ impl SheetDesk for Canned {
 
     fn request(&self, id: &docket_core::ConfirmId) -> Option<docket_core::ConfirmRequest> {
         use docket_core::*;
+        use docket_vocab::{LabelText, Seconds};
         Some(
             ConfirmRequest::new(ConfirmParts {
                 id: id.clone(),

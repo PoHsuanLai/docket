@@ -34,7 +34,7 @@ pub fn assemble(
     from: Address,
     label: Label,
     sent: UnixSeconds,
-    resolved: &BTreeMap<docket_core::Handle, MessageText>,
+    resolved: &BTreeMap<docket_vocab::Handle, MessageText>,
 ) -> Result<Message, SendRefusal> {
     let thread = match draft.thread {
         Some(thread) => thread,
@@ -73,7 +73,7 @@ pub fn assemble(
 /// a handle (minted through `mint`) when it is not.
 pub fn inbound_line(
     message: &Message,
-    mut mint: impl FnMut(MessageText) -> docket_core::Handle,
+    mut mint: impl FnMut(MessageText) -> docket_vocab::Handle,
 ) -> InboundLine {
     let trusted = message.label.integrity == prov::Integrity::Trusted;
     let parts = message

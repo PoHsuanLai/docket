@@ -3,9 +3,10 @@
 
 use crate::support::*;
 use docket_core::{
-    ActionRef, AskReason, Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope,
-    PolicyId, Ruling, rule_text, with_rule,
+    AskReason, Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope, PolicyId, Ruling,
+    rule_text, with_rule,
 };
+use docket_vocab::ActionRef;
 use policy_point::{Layer, LayerError, Pdp, PolicyOrigin, PolicySource, SCHEMA};
 use prov::{ActionName, Effect, SpaceScope};
 use std::path::PathBuf;

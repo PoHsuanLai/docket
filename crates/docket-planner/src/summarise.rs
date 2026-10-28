@@ -53,11 +53,11 @@ pub enum SummariseFault {
 /// as words, and passing `SummaryText::parse` against the handles the planner held.
 pub fn summary_text(
     words: &str,
-    held: &[docket_core::Handle],
+    held: &[docket_vocab::Handle],
 ) -> Result<SummaryText, SummariseFault> {
     let plain: String = words
         .chars()
-        .filter(|c| !docket_core::reorders(*c) && !docket_core::hides(*c))
+        .filter(|c| !docket_vocab::reorders(*c) && !docket_vocab::hides(*c))
         .collect();
     if leaked_call(&plain).is_some() {
         return Err(SummariseFault::CallInText);
@@ -160,8 +160,9 @@ impl<P: Transport> PlannerModel<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::{Covers, Handle};
+    use docket_core::Covers;
     use docket_fake::WordsModel;
+    use docket_vocab::Handle;
     use porter_core::Count;
     use prov::Integrity;
 

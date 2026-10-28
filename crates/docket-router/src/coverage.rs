@@ -3,7 +3,8 @@
 //! clock's expiry is the router's.
 
 use docket_core::ActionMatch;
-use docket_core::{ActionDecl, ArgLabels, CallRequest, Coverage, TaskPolicy, Widening, covers};
+use docket_core::{ActionDecl, ArgLabels, Coverage, TaskPolicy, Widening, covers};
+use docket_vocab::CallRequest;
 use prov::UnixSeconds;
 
 /// The coverage of `call` under `policy` at `now`. No policy covers nothing.

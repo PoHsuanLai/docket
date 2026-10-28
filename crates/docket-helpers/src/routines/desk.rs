@@ -10,10 +10,10 @@ use companion_wire::{
     RoutineCardView, RoutineForm, RoutineLine, RoutineReply, RoutinesView, routine_card,
     routine_line,
 };
-use docket_core::Clock;
 use docket_core::helper::HelperName;
 use docket_core::routine::{Routine, RoutineEvent, RoutineId};
 use docket_tasks::Pending;
+use docket_vocab::Clock;
 use std::fmt;
 
 /// What the shell asks of the routines.

@@ -6,7 +6,7 @@
 
 use crate::handles::{HandleLimit, HandleValue};
 use crate::state::SessionRecord;
-use docket_core::Value;
+use docket_vocab::Value;
 use prov::{Label, Labelled, Source};
 
 /// `value` with every leaf that can carry somebody's words held as a handle in `record`, under
@@ -75,7 +75,7 @@ pub(crate) fn shield(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::ParamName;
+    use docket_vocab::ParamName;
     use prov::{Actor, DataClass, SpaceId, TaskId, UnixSeconds};
 
     #[test]

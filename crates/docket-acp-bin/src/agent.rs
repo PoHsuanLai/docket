@@ -111,7 +111,7 @@ pub async fn run(
         };
         n += 1;
         let turn = docket_core::UserTurn {
-            id: docket_core::TurnId(n),
+            id: docket_vocab::TurnId(n),
             text,
             at: UnixSeconds(0),
             from: docket_core::TurnSource::Launcher,

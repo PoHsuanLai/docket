@@ -3,11 +3,11 @@
 //! receipt itself (the input proof is `SheetFallback`: the app's own pointer event, no
 //! compositor attestation), so a sheet can say yes or no but a model can never forge a yes.
 
-use docket_core::Clock;
 use docket_core::{
     AlwaysOffer, ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer,
     GrantScope,
 };
+use docket_vocab::Clock;
 use prov::{Confidentiality, ConfirmReceipt, InputProof};
 use std::future::Future;
 

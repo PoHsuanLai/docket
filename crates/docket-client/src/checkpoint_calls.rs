@@ -5,8 +5,9 @@ use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
 use docket_core::{
     CheckpointFault, CheckpointId, CheckpointList, HandTo, IntentsReply, IntentsRequest,
-    RestorePlan, Rewind, TurnId, WatchedAgent, WatchedLine, Watching, Workspace,
+    RestorePlan, Rewind, WatchedAgent, WatchedLine, Watching,
 };
+use docket_vocab::{TurnId, Workspace};
 use prov::SessionId;
 
 impl<T: Transport> Intents<T> {

@@ -3,7 +3,8 @@
 //! before the router is asked, with the list. Nothing here is specific to one app: an action
 //! gets an entry when the view holds the full set of what one of its parameters may name.
 
-use docket_core::{ActionRef, COMPANION_APP, HAND_ON_JOB, OneOf, ParamName, PlannerView};
+use docket_core::{COMPANION_APP, HAND_ON_JOB, OneOf, PlannerView};
+use docket_vocab::{ActionRef, ParamName};
 
 /// The parameter of giving a job that names the helper to give it to. `after` (whose last answer
 /// is handed on) is left free: it may name the helper whose planner this is, which the view does

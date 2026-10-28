@@ -102,7 +102,7 @@ fn turn() -> IntentsRequest {
         session: SessionId::parse("s-1").expect("session"),
         turn: docket_core::TurnIn {
             text: "go".to_owned(),
-            origin: docket_core::Origin::InWindowField,
+            origin: docket_vocab::Origin::InWindowField,
             keep: docket_core::ContextKeep {
                 query: docket_core::Keep::Dropped,
                 results: docket_core::Keep::Dropped,

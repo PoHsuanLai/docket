@@ -65,7 +65,7 @@ fn attack(here: &str, user_steps: &[String]) -> AttackCase {
     toml::from_str(&text(here, user_steps)).expect("the attack parses")
 }
 
-fn shown() -> Vec<docket_core::EntityRef> {
+fn shown() -> Vec<docket_vocab::EntityRef> {
     let attack = attack("", &[thread("mail.thread.read", "t1")]);
     let router = docket_fake::fake_router(AgentConfig::default()).expect("router");
     install_fixture(&router, &attack.world, &attack.space, attack.mode).expect("world");

@@ -6,7 +6,7 @@
 
 use crate::attack::AttackCase;
 use crate::case::ScriptedStep;
-use docket_core::ActionRef;
+use docket_vocab::ActionRef;
 use prov::Effect;
 use serde::{Deserialize, Serialize};
 

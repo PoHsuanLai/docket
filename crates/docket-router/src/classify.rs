@@ -14,9 +14,9 @@
 //! its own without an ask: the real action is a separate typed call (the provider's
 //! `Follow::Next`, a child of this call in the same chain), and it gets the full gate.
 
-use docket_core::{
-    ActionRef, CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd, Follow,
-    Outcome,
+use docket_core::{Follow, Outcome};
+use docket_vocab::{
+    ActionRef, CallClass, Classification, ClassifyAnswer, ClassifyFault, DelegationEnd,
 };
 use prov::Effect;
 
@@ -174,11 +174,11 @@ mod tests {
     #[test]
     fn a_delegation_is_followed_unused_or_different() {
         let to = action("shell.window.hide");
-        let call = |a: ActionRef| docket_core::CallRequest {
+        let call = |a: ActionRef| docket_vocab::CallRequest {
             action: a,
-            target: docket_core::TargetValue::Nothing,
+            target: docket_vocab::TargetValue::Nothing,
             args: Default::default(),
-            origin: docket_core::Origin::AppInternal,
+            origin: docket_vocab::Origin::AppInternal,
         };
         assert_eq!(
             delegation_end(&to, &outcome(Follow::Next(call(to.clone())))),

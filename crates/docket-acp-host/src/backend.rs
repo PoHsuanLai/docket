@@ -36,13 +36,15 @@ use agent_client_protocol::schema::v1::{
     WaitForTerminalExitRequest,
 };
 use bulkhead::Sandbox;
+use docket_core::ProgramName;
 use docket_core::helper::SignInWay;
-use docket_core::{AbsPath, CallId, PermissionKind, UserTurn};
+use docket_core::{AbsPath, PermissionKind, UserTurn};
 use docket_session::{
-    BackendEvent, BackendFault, BackendKind, Choices, ProgramName, ResumePlan, Resumed,
-    SessionBackend, StartSession, Taint, TurnEnd,
+    BackendEvent, BackendFault, BackendKind, Choices, ResumePlan, Resumed, SessionBackend,
+    StartSession, Taint, TurnEnd,
 };
 use docket_store::Waits;
+use docket_vocab::CallId;
 use prov::Effect;
 use std::collections::VecDeque;
 
@@ -115,7 +117,7 @@ pub(super) struct Live<X: Seams> {
 #[derive(Debug, Clone)]
 pub(super) struct Called {
     pub call: CallId,
-    pub action: docket_core::ActionRef,
+    pub action: docket_vocab::ActionRef,
     pub effect: Effect,
 }
 

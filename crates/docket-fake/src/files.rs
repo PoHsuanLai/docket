@@ -2,10 +2,11 @@
 
 use crate::labels::{app_label, entity, entity_ref, outcome, third_party};
 use docket_core::{
-    AppRefusal, FileMove, FileRef, Hit, Invocation, Outcome, ParamName, Preview, SuggestAsk,
-    TargetValue, UndoFault, UndoToken, Undoable, ValidManifest, Value,
+    AppRefusal, FileMove, Hit, Invocation, Outcome, Preview, SuggestAsk, UndoFault, Undoable,
+    ValidManifest,
 };
 use docket_provider::IntentProvider;
+use docket_vocab::{FileRef, ParamName, TargetValue, UndoToken, Value};
 use porter_core::{AppName, DataClass};
 use prov::{Actor, EntityId, Labelled, Source, SpaceId};
 use std::collections::BTreeMap;
@@ -77,7 +78,7 @@ impl FakeFiles {
     }
 
     /// What the app lists: every file by its path (somebody else's words), in key order.
-    pub fn shown(&self) -> Vec<docket_core::EntityRef> {
+    pub fn shown(&self) -> Vec<docket_vocab::EntityRef> {
         let (app, space) = (self.app.clone(), self.space.clone());
         self.edit(|s| {
             s.files
@@ -259,7 +260,7 @@ impl IntentProvider for FakeFiles {
         })
     }
 
-    async fn suggest(&self, _ask: SuggestAsk) -> Vec<docket_core::EntityRef> {
+    async fn suggest(&self, _ask: SuggestAsk) -> Vec<docket_vocab::EntityRef> {
         vec![]
     }
 }

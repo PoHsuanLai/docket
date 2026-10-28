@@ -6,7 +6,8 @@ use crate::args::read_call;
 use crate::fault::{ArgsFault, ToolFault};
 use crate::label::tool_label;
 use crate::tools::{ToolSpec, find, offered, tool_of};
-use docket_core::{ActionDecl, ActionRef, CallRequest, Origin, ValidManifest};
+use docket_core::{ActionDecl, ValidManifest};
+use docket_vocab::{ActionRef, CallRequest, Origin};
 use prov::ClientName;
 use serde_json::Value as Json;
 

@@ -1,6 +1,6 @@
 //! Bus names and object paths.
 
-use docket_core::CallId;
+use docket_vocab::CallId;
 use prov::TaskId;
 
 /// The option of `Gate.Check` that says its caller watches the request: it listens for

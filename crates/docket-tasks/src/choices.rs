@@ -7,10 +7,10 @@ use crate::deadline::timed;
 use crate::runtime::Companion;
 use crate::seams::Surface;
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
-use docket_core::{ParamType, PlannerView, SuggestAsk};
+use docket_core::{PlannerView, SuggestAsk};
 use docket_planner::ParamChoices;
 use docket_planner::Planner;
+use docket_vocab::{Clock, ParamType};
 use std::time::Duration;
 
 /// How long an app has to offer its options: the turn is waiting on it.

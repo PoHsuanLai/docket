@@ -3,10 +3,8 @@
 //! schema. Its result is labelled with the join of its inputs; any text inside it reaches the
 //! planner as a new handle.
 
-use crate::ids::{ChoiceId, Handle, ParamName};
 use crate::planner::{HandleShape, StepLine};
-use crate::units::CharCount;
-use crate::value::Value;
+use docket_vocab::{CharCount, ChoiceId, Handle, ParamName, Value};
 use model_provider::{ChoiceText, Field, FieldName, Shape};
 use porter_core::Count;
 use prov::{EntityId, Quarantined, SessionId};

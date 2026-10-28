@@ -6,9 +6,10 @@
 
 use crate::served::service;
 use crate::support::bus::PrivateBus;
-use docket_core::{Handle, ReaderAsk, ReaderError, ReaderTask, Value, ValueSchema};
+use docket_core::{ReaderAsk, ReaderError, ReaderTask, ValueSchema};
 use docket_dbus::callers::Identity;
 use docket_dbus::{Details, ReaderProxy};
+use docket_vocab::{Handle, Value};
 use readerd::serve_on;
 use std::path::Path;
 use std::sync::Arc;

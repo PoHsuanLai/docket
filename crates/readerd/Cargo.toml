@@ -18,6 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 docket-core = { workspace = true }
+docket-vocab = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true, features = ["inferd"] }
 docket-reader = { workspace = true }

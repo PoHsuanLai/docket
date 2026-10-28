@@ -3,9 +3,10 @@
 //! written (porter's provider-file rule). TOML is parsed in `docket-router::registry`; this
 //! crate never reaches `toml`.
 
-use crate::classify::PerCall;
-use crate::ids::{IconName, IntentsVocab, LabelText, ParamName, RelationName};
-use crate::value::{ChoiceDecl, ParamType, Value};
+use docket_vocab::{
+    ChoiceDecl, IconName, IntentsVocab, LabelText, ParamName, ParamType, PerCall, RelationName,
+    Value,
+};
 use porter_core::DataClass;
 use prov::{ActionName, Effect, EntityKind, Source};
 use serde::{Deserialize, Serialize};

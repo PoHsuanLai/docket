@@ -29,6 +29,7 @@ docket-acp-bin = { workspace = true, features = ["testing"] }
 docket-acp-host = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-core = { workspace = true, features = ["manifest-file"] }
+docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }
 docket-eval = { workspace = true }
 docket-fake = { workspace = true }

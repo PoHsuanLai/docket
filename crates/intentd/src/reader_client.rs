@@ -1,7 +1,8 @@
 //! The quarantined reader, over `org.quire.Reader1`.
 
-use docket_core::{Reader, ReaderAsk, ReaderError, Value};
+use docket_core::{Reader, ReaderAsk, ReaderError};
 use docket_dbus::{BusConnection, Details, ReaderProxy};
+use docket_vocab::Value;
 use prov::{Quarantined, SessionId};
 
 /// The quarantined reader, over `org.quire.Reader1`.

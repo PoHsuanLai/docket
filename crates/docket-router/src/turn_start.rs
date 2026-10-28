@@ -13,9 +13,8 @@
 //! reading the person's own memory for their own request does not ask either.
 
 use crate::who::Who;
-use docket_core::{
-    CallRequest, CallerRole, Origin, RECALL_ACTION, RECALL_APP, TurnSource, UserTurn,
-};
+use docket_core::{CallerRole, TurnSource, UserTurn};
+use docket_vocab::{CallRequest, Origin, RECALL_ACTION, RECALL_APP};
 use porter_core::GrantId;
 use porter_core::consent::{GrantScope, Verdict};
 use prov::{Actor, AgentRole};

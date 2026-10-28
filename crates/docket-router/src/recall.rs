@@ -207,7 +207,7 @@ fn hands_out_untrusted(reply: &MemoryReply, episodes: bool) -> bool {
 /// skeleton says nothing.
 fn episode_lines(
     entries: &[RecentEntry],
-    mint: &mut impl FnMut(&str, &Label, Source) -> docket_core::Handle,
+    mint: &mut impl FnMut(&str, &Label, Source) -> docket_vocab::Handle,
 ) -> Vec<EpisodeLine> {
     let mut seen = BTreeSet::new();
     let mut lines = Vec::new();

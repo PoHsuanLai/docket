@@ -4,10 +4,8 @@
 
 use crate::support::world::*;
 use docket_client::{Intents, Transport};
-use docket_core::{
-    ActivationToken, Args, CallRequest, IntentsReply, IntentsRequest, JournalFilter, Origin,
-    TargetValue, WireRefusal,
-};
+use docket_core::{ActivationToken, IntentsReply, IntentsRequest, JournalFilter, WireRefusal};
+use docket_vocab::{Args, CallRequest, Origin, TargetValue};
 use intentd::IntentdConfig;
 use prov::ActionName;
 
@@ -17,7 +15,7 @@ fn token() -> ActivationToken {
 
 fn read_t2() -> CallRequest {
     CallRequest {
-        action: docket_core::ActionRef {
+        action: docket_vocab::ActionRef {
             app: app("org.quire.Mail"),
             name: ActionName::parse("mail.thread.read").expect("action"),
         },

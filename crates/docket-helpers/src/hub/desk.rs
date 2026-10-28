@@ -15,7 +15,6 @@ use companion_wire::{
     ToldWire, card_of, line_of,
 };
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_core::helper::{
     BoardEvent, CardDraft, HelperCard, JobId, JobRefusal, SignInOutcome, SignOutOutcome,
     TerminalRequest,
@@ -26,6 +25,7 @@ use docket_tasks::{
     HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk, RoutineFor,
     SayFromPerson, Surface,
 };
+use docket_vocab::Clock;
 use prov::{HelperId, SessionId, SpaceId};
 
 impl<P, I, K, S> Hub<P, I, K, S>

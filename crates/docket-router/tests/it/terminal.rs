@@ -6,6 +6,7 @@ use crate::support::*;
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
 use docket_router::{Revoked, Router};
+use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
 use prov::{Actor, Source};
 
 fn once() -> ConfirmAnswer {

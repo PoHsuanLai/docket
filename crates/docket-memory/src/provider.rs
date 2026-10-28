@@ -9,10 +9,11 @@ use almanac_core::{
     RecallQuery, TopicPath,
 };
 use docket_core::{
-    AppRefusal, EntityRef, FactLine, FailText, Follow, Hit, Invocation, LabelText, Outcome,
-    ParamName, Preview, SuggestAsk, UndoFault, UndoToken, Undoable, ValidManifest, Value,
+    AppRefusal, FactLine, FailText, Follow, Hit, Invocation, Outcome, Preview, SuggestAsk,
+    UndoFault, Undoable, ValidManifest,
 };
 use docket_provider::IntentProvider;
+use docket_vocab::{EntityRef, LabelText, ParamName, UndoToken, Value};
 use porter_core::{AppName, Count};
 use prov::{
     Actor, AgentRole, Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled,

@@ -2,6 +2,7 @@
 
 use docket_core::*;
 use docket_router::*;
+use docket_vocab::{ActionRef, LabelText, Seconds, UndoId, UndoToken};
 use prov::{Actor, AgentRole, RunId, SessionId, UnixSeconds};
 
 #[test]

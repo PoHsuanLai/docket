@@ -9,7 +9,7 @@ use companion_core::{EventWatch, Settle, ended_events, event_asks, group_by_spac
 use docket_core::routine::{
     RoutineBook, RoutineEffect, RoutineEvent, RoutineId, RoutineRecord, step,
 };
-use docket_core::{Clock, Millis};
+use docket_vocab::{Clock, Millis};
 use prov::{SpaceId, UnixSeconds};
 use std::collections::VecDeque;
 use std::fmt;

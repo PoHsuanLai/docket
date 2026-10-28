@@ -38,6 +38,7 @@ docket-agents = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-provider = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true, features = ["manifest-file"] }
+docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd"] }
 docket-host = { workspace = true }
 docket-store = { workspace = true }

@@ -1,7 +1,7 @@
 //! Summoning the companion into an app: what `IntentProvider1.Summon(serial, origin)` carries
 //! and how the app answers.
 
-use crate::ids::UtteranceId;
+use docket_vocab::UtteranceId;
 use serde::{Deserialize, Serialize};
 
 /// One summon, as sill numbers it so a late answer cannot be taken for a newer one.

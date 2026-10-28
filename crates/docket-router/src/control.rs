@@ -5,12 +5,12 @@ use crate::router::Router;
 use crate::seams::{AppLink, Seams};
 use crate::session::SessionEvent;
 use crate::session::age;
-use docket_core::Clock;
 use docket_core::EventSink;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, Confirmer, Halt, HaltCause, IntentsReply, JournalFilter,
-    UndoEntry, UndoFault, UndoId, UndoReport, UndoScope, UndoState,
+    UndoEntry, UndoFault, UndoReport, UndoScope, UndoState,
 };
+use docket_vocab::{Clock, UndoId};
 use porter_core::Count;
 use prov::{Actor, SpaceScope};
 

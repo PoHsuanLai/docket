@@ -2,10 +2,11 @@
 
 use super::{AppLog, Focus, Message, Sending, contacts, threads, words_match};
 use docket_core::{
-    AppRefusal, EntityRef, Follow, Hit, Invocation, LabelText, MessageSnip, Outcome, ParamName,
-    Preview, SuggestAsk, TargetValue, UndoFault, UndoToken, Undoable, ValidManifest, Value,
+    AppRefusal, Follow, Hit, Invocation, MessageSnip, Outcome, Preview, SuggestAsk, UndoFault,
+    Undoable, ValidManifest,
 };
 use docket_provider::IntentProvider;
+use docket_vocab::{EntityRef, LabelText, ParamName, TargetValue, UndoToken, Value};
 use porter_core::{AppName, DataClass};
 use prov::{
     Actor, Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled, Source,

@@ -10,10 +10,10 @@
 use crate::router::Router;
 use crate::seams::Seams;
 use docket_core::{
-    AppRefusal, FailText, Follow, Invocation, LabelText, Outcome, ParamName, Preview, SkillId,
-    Undoable, ValidManifest, Value,
+    AppRefusal, FailText, Follow, Invocation, Outcome, Preview, SkillId, Undoable, ValidManifest,
 };
 use docket_skills::{Library, Skill};
+use docket_vocab::{LabelText, ParamName, Value};
 use prov::{Actor, Labelled};
 
 /// The action's name.

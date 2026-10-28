@@ -7,11 +7,11 @@ use crate::support::*;
 use docket_acp::always_words;
 use docket_core::{
     AbsPath, AlwaysOffer, Anchor, CommandPrefix, ConfirmDetail, ConfirmId, ConfirmOffer,
-    ConfirmParts, ConfirmRequest, Domain, Gesture, LabelText, Recipient, Seconds, StandingScope,
-    TaintNote, Withheld,
+    ConfirmParts, ConfirmRequest, Domain, Gesture, Recipient, StandingScope, TaintNote, Withheld,
 };
 use docket_session::fake::MemoryLog;
 use docket_session::{BackendEvent, SheetChoice, TurnEnd};
+use docket_vocab::{LabelText, Seconds};
 use porter_core::Count;
 use prov::{Actor, Effect, SpaceId};
 use serde_json::{Value, json};

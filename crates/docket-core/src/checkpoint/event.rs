@@ -1,7 +1,7 @@
 //! What happened to the workspace at a turn start, or at a restore.
 
 use super::CheckpointId;
-use crate::ids::TurnId;
+use docket_vocab::TurnId;
 use porter_core::UnixSeconds;
 use serde::{Deserialize, Serialize};
 

@@ -12,6 +12,7 @@ use docket_session::{
     BackendKind, HandleLabel, Opening, PageSize, Read, SessionEntry, SessionLog, Standing,
     TaintCause,
 };
+use docket_vocab::{Handle, Value};
 use porter_core::Count;
 use prov::{AgentRef, Integrity, SessionId, Source, TaskId, UnixSeconds};
 use std::sync::Arc;

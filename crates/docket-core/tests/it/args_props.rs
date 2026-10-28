@@ -4,6 +4,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_vocab::{CharCount, Lines, ParamType, Value, plain_text};
 use proptest::prelude::*;
 use prov::Effect;
 use serde_json::{Map, Value as Json, json};

@@ -1,8 +1,10 @@
 //! The answer object: `/org/quire/Companion1/answer/<task>`.
 
 use docket_core::{
-    ActionRef, Args, BudgetKind, CallId, CallRefusal, CallRequest, CardActionId, ConfirmId,
-    ContextKeep, DenyCode, EntityRef, LabelText, ParamDecl, Reveal, StepId, TimeRange, UndoId,
+    BudgetKind, CallRefusal, ConfirmId, ContextKeep, DenyCode, ParamDecl, Reveal, TimeRange,
+};
+use docket_vocab::{
+    ActionRef, Args, CallId, CallRequest, CardActionId, EntityRef, LabelText, StepId, UndoId,
 };
 use porter_core::{AppName, DataClass};
 use porter_infer::ServedBy;

@@ -6,6 +6,7 @@ use docket_core::*;
 use docket_fake::{FixedClock, ScriptedReviewer, ScriptedWriter, fake_router_on};
 use docket_router::Router;
 use docket_session::fake::MemoryLog;
+use docket_vocab::Origin;
 use prov::{AgentRef, SessionId, UnixSeconds};
 use std::sync::Arc;
 

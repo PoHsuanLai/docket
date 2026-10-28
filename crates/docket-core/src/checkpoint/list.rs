@@ -1,8 +1,7 @@
 //! A session's list of restore points.
 
 use super::{CheckpointId, SkipReason, TurnState};
-use crate::ids::TurnId;
-use crate::units::Days;
+use docket_vocab::{Days, TurnId};
 use porter_core::{Count, UnixSeconds};
 use prov::SessionId;
 use serde::{Deserialize, Serialize};

@@ -22,7 +22,8 @@
 
 use crate::task::TaskRuntime;
 use agent_loop::CompletionNote;
-use docket_core::{ActionRef, Held, InboundLine, StepEnd};
+use docket_core::{Held, InboundLine, StepEnd};
+use docket_vocab::ActionRef;
 use prov::{AgentRef, MessageKind, ReportStatus};
 
 /// The app whose runs are on screen.
@@ -101,7 +102,8 @@ impl TaskRuntime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::{CallId, InboundLine, StepShown};
+    use docket_core::{InboundLine, StepShown};
+    use docket_vocab::CallId;
     use prov::{ActionName, Address, Crossing, Effect, MessageId, SpaceId, TaskId, ThreadId};
 
     fn action(app: &str, name: &str) -> ActionRef {

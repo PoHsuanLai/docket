@@ -1,10 +1,8 @@
 //! The stripped request a reviewer sees, and how it becomes a prompt and a verdict again.
 //! Untrusted arguments appear as their sources and their size, never their text.
 
-use docket_core::{
-    ActionRef, ArgLabels, ArgSink, CallId, CharCount, LabelText, ParamName, ReasonCode, Stage,
-    Strictness, TaskPolicy, UserTurn, Value,
-};
+use docket_core::{ArgLabels, ArgSink, ReasonCode, Stage, Strictness, TaskPolicy, UserTurn};
+use docket_vocab::{ActionRef, CallId, CharCount, LabelText, ParamName, Value};
 use model_provider::{ChoiceText, Field, FieldName, Shape};
 use porter_core::{AppName, Count};
 use prov::{ActionName, Effect, EntityKind, Source, SpaceId};

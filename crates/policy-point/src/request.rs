@@ -1,7 +1,8 @@
 //! What the router asks the policy point: a principal, an operation, the action, and the
 //! context that Cedar's rules read. Every context field has a slug form in the schema.
 
-use docket_core::{BudgetKind, Impact, Origin, Saw, SessionSaw, SinkIntegrity};
+use docket_core::{BudgetKind, Impact, Saw, SessionSaw, SinkIntegrity};
+use docket_vocab::Origin;
 use porter_core::consent::Usage;
 use porter_core::{AppName, Count, DataClass, Isolation};
 use prov::{ActionName, ActorKind, Confidentiality, Effect, Integrity, SpaceId};

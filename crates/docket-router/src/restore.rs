@@ -6,12 +6,12 @@ use crate::router::Router;
 use crate::seams::Seams;
 use crate::state::SessionKind;
 use crate::wal::Writer;
-use docket_core::Clock;
 use docket_core::{CallerId, CallerRole, IntentsRequest};
 use docket_session::{
     Claimant, LogFault, Logged, PageSize, PlanRefusal, Seq, SessionLog, Standing, may_restore_plan,
     resume_plan,
 };
+use docket_vocab::Clock;
 use porter_core::Count;
 use prov::SessionId;
 use std::sync::Arc;

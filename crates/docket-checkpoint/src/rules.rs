@@ -1,9 +1,8 @@
 //! The pure rules: which number comes next, what is dropped, whether a turn takes a point.
 
 use crate::ids::{Saved, WorkRoot};
-use docket_core::{
-    CheckpointEvent, CheckpointId, CheckpointNote, Retention, Rewind, SkipReason, Workspace,
-};
+use docket_core::{CheckpointEvent, CheckpointId, CheckpointNote, Retention, Rewind, SkipReason};
+use docket_vocab::Workspace;
 use porter_core::UnixSeconds;
 
 const SECONDS_PER_DAY: i64 = 24 * 60 * 60;

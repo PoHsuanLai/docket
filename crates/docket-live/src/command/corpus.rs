@@ -9,8 +9,8 @@ use crate::{CorpusOptions, CorpusOutcome, Engine, Timeouts, regress, run_corpus_
 use docket_accept::catalog;
 use docket_accept::keys_home::KeysHome;
 use docket_accept::world::Binaries;
-use docket_core::Millis;
 use docket_eval::{load_all, load_attacks, stamp_summary, write_summary};
+use docket_vocab::Millis;
 use eval_core::{
     AttackCase, AttackMetrics, Case, Corpus, LiveMetrics, RunNote, RunReport, planner_slug,
     score_traces, utc_date,

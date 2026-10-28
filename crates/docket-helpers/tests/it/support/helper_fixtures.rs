@@ -7,10 +7,10 @@ use companion_wire::{HelperForm, SayReply};
 use docket_client::{InProcess, Intents};
 use docket_core::helper::*;
 use docket_core::{
-    ActionMatch, AuditRecord, CallerRole, LabelText, Origin, TaskPolicy, TaskPolicyState, TurnIn,
-    TurnSource, TurnVia,
+    ActionMatch, AuditRecord, CallerRole, TaskPolicy, TaskPolicyState, TurnIn, TurnSource, TurnVia,
 };
 use docket_tasks::{HelperDesk, SayFromPerson};
+use docket_vocab::{LabelText, Origin};
 use porter_core::{AccountId, Count, ModelId};
 use porter_infer::ModelRef;
 use prov::{Actor, Effect, EntityKind, HelperId, UnixSeconds};

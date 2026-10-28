@@ -2,6 +2,10 @@
 
 use actions_tools::*;
 use docket_core::*;
+use docket_vocab::{
+    CharCount, ChoiceDecl, ChoiceId, CivilDate, Decimal, FileRef, Handle, LabelText, Lines,
+    ParamName, ParamType, PerCall, Scale, Seconds, TargetValue, Value,
+};
 use porter_core::AppName;
 use prov::{ClientName, Effect, EntityId, EntityKey, EntityKind, Integrity, Label, Source};
 use serde_json::{Value as Json, json};

@@ -3,7 +3,7 @@
 //! deadline future is dropped, so it works under any executor.
 
 use crate::thread_sleep;
-use docket_core::{Clock, Millis};
+use docket_vocab::{Clock, Millis};
 use prov::UnixSeconds;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 

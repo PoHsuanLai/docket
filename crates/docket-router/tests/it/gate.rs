@@ -3,6 +3,7 @@
 
 use docket_core::*;
 use docket_router::*;
+use docket_vocab::Depth;
 use policy_point::BudgetFact;
 use porter_core::Count;
 use prov::{Effect, SpaceId, SpaceScope, UnixSeconds};

@@ -3,6 +3,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_vocab::ActionRef;
 use prov::{ActionName, Effect, SpaceScope};
 
 fn name(text: &str) -> ActionName {

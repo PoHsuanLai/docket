@@ -81,7 +81,7 @@ fn reference(pairs: &[(&'static str, Val)]) -> Option<VerdictKind> {
     let (verdict, code, reason) = (get("verdict")?, get("code")?, get("reason")?);
     let plain = reason
         .chars()
-        .all(|c| !c.is_control() && !docket_core::reorders(c) && !docket_core::hides(c));
+        .all(|c| !c.is_control() && !docket_vocab::reorders(c) && !docket_vocab::hides(c));
     if !exact || reason.chars().count() > 200 || !plain || !CODES.contains(&code) {
         return None;
     }

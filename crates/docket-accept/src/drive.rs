@@ -6,10 +6,10 @@ use crate::world::{GIVE_UP, World, within};
 use companion_wire::{AnswerWire, AskWire};
 use docket_client::{DbusTransport, Intents};
 use docket_core::{
-    ContextKeep, Keep, Origin, SessionOpen, SessionOpened, TurnIn, TurnSource, TurnVia, UserTurn,
-    WindowKey,
+    ContextKeep, Keep, SessionOpen, SessionOpened, TurnIn, TurnSource, TurnVia, UserTurn,
 };
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy};
+use docket_vocab::{Origin, WindowKey};
 use futures_util::StreamExt;
 use porter_core::AppName;
 use prov::{AgentRef, SpaceId, UnixSeconds};

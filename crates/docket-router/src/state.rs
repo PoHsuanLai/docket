@@ -11,9 +11,9 @@ use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
     BriefText, CallFacts, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry,
-    IndexState, KillSwitch, Ledger, Mode, Rewind, SessionSaw, StepLine, TaskPolicy, TurnId,
-    UserTurn,
+    IndexState, KillSwitch, Ledger, Mode, Rewind, SessionSaw, StepLine, TaskPolicy, UserTurn,
 };
+use docket_vocab::TurnId;
 use porter_core::{AppName, Count};
 use prov::{
     Actor, Address, EntityId, EntityKey, EntityKind, Label, Message, SessionId, SpaceId, TaskId,
@@ -34,7 +34,7 @@ pub struct ConfirmedBrief {
     /// When.
     pub at: UnixSeconds,
     /// The call that asked.
-    pub call: docket_core::CallId,
+    pub call: docket_vocab::CallId,
 }
 
 /// A turn that has begun and not ended.
@@ -115,7 +115,7 @@ pub struct SessionRecord {
     pub external: Option<ExternalAgent>,
     /// The directory the session was opened in; a relative path the person wrote means a path
     /// under it.
-    pub cwd: Option<docket_core::Workspace>,
+    pub cwd: Option<docket_vocab::Workspace>,
     /// Permission requests the person said yes to, each good for one matching call; cleared when
     /// the person speaks again.
     pub approvals: Vec<CallFacts>,

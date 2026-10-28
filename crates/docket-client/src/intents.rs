@@ -3,13 +3,13 @@
 
 use crate::transport::{Transport, TransportError};
 use docket_core::{
-    ActionRef, ActivationToken, CallRefusal, CallRequest, ContextView, CuaAsk, Delivery, Displayed,
-    EntityRef, GateAnswer, GrantAnswer, GrantAsk, HaltCause, Handle, Hit, InboundLine, InboxAsk,
-    IntentsReply, IntentsRequest, JournalFilter, KillSwitch, MessageDraft, Mode, Outcome, Preview,
-    Resolved, SearchAsk, SessionModeAsk, SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnId,
-    TurnIn, UndoEntry, UndoId, UndoReport, UndoScope, ValidManifest, WidenAnswer, WidenAsk,
-    WindowKey, WireRefusal,
+    ActivationToken, CallRefusal, ContextView, CuaAsk, Delivery, Displayed, GateAnswer,
+    GrantAnswer, GrantAsk, HaltCause, Hit, InboundLine, InboxAsk, IntentsReply, IntentsRequest,
+    JournalFilter, KillSwitch, MessageDraft, Mode, Outcome, Preview, Resolved, SearchAsk,
+    SessionModeAsk, SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnIn, UndoEntry, UndoReport,
+    UndoScope, ValidManifest, WidenAnswer, WidenAsk, WireRefusal,
 };
+use docket_vocab::{ActionRef, CallRequest, EntityRef, Handle, TurnId, UndoId, WindowKey};
 use prov::{AppName, EntityId, SessionId, SpaceScope};
 
 /// Why a request did not give the reply its caller wanted.

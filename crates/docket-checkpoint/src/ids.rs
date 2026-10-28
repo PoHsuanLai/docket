@@ -1,7 +1,8 @@
 //! What a store hands back and what names a place: the workspace root, a saved point, the opaque
 //! ids of a tree and of one file's content.
 
-use docket_core::{AbsPath, CheckpointId, PathFault, Workspace};
+use docket_core::{AbsPath, CheckpointId, PathFault};
+use docket_vocab::Workspace;
 use porter_core::UnixSeconds;
 
 /// The folder a session works in, absolute and normalised: where points are taken and restored.

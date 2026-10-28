@@ -4,11 +4,14 @@
 
 use crate::labels::outcome;
 use docket_core::{
-    ActionRef, AppRefusal, CallClass, CallRequest, ClassifyFault, FailText, Follow, Hit,
-    Invocation, Origin, Outcome, ParamName, Preview, SuggestAsk, TargetValue, UndoFault, UndoToken,
-    Undoable, ValidManifest, Value,
+    AppRefusal, FailText, Follow, Hit, Invocation, Outcome, Preview, SuggestAsk, UndoFault,
+    Undoable, ValidManifest,
 };
 use docket_provider::IntentProvider;
+use docket_vocab::{
+    ActionRef, CallClass, CallRequest, ClassifyFault, Origin, ParamName, TargetValue, UndoToken,
+    Value,
+};
 use porter_core::AppName;
 use prov::{Actor, Effect, EntityId};
 use std::collections::BTreeMap;
@@ -211,7 +214,7 @@ impl IntentProvider for FakeMenu {
         Preview::None
     }
 
-    async fn suggest(&self, _: SuggestAsk) -> Vec<docket_core::EntityRef> {
+    async fn suggest(&self, _: SuggestAsk) -> Vec<docket_vocab::EntityRef> {
         vec![]
     }
 }

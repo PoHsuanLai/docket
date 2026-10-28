@@ -1,7 +1,7 @@
 //! RFC 3339 dates and instants, as the terminal and the reader both read them.
 
-use docket_core::CivilDate;
-use docket_core::when::{self, NotRfc3339, date, instant};
+use docket_vocab::CivilDate;
+use docket_vocab::when::{self, NotRfc3339, date, instant};
 use prov::UnixSeconds;
 
 #[test]

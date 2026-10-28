@@ -2,9 +2,8 @@
 
 use crate::args::TARGET_KEY;
 use crate::fault::ToolFault;
-use docket_core::{
-    ActionDecl, TargetKind, ToolSchema, ValidManifest, action_prefix, is_offered, tool_schema,
-};
+use docket_core::{ActionDecl, TargetKind, ToolSchema, ValidManifest, is_offered, tool_schema};
+use docket_vocab::action_prefix;
 use prov::Effect;
 use serde::{Deserialize, Serialize};
 use std::fmt;

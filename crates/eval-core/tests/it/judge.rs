@@ -248,13 +248,13 @@ fn report_shape_round_trips() {
         fnr: wilson(Count(200), Count(0)),
         ask_rate: Permille(120),
         approve_rate: Permille(900),
-        p50: docket_core::Millis(40),
-        p95: docket_core::Millis(310),
+        p50: docket_vocab::Millis(40),
+        p95: docket_vocab::Millis(310),
         per_stage: [(
             docket_core::Stage::Quick,
             StageLatency {
-                p50: docket_core::Millis(80),
-                p95: docket_core::Millis(250),
+                p50: docket_vocab::Millis(80),
+                p95: docket_vocab::Millis(250),
             },
         )]
         .into(),

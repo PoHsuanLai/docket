@@ -10,12 +10,11 @@ use docket_checkpoint::{
     CheckpointStore, Decision, DropAsk, Saved, StoreFault, TakeAsk, WorkRoot, decide, next_id,
     retention,
 };
-use docket_core::Clock;
 use docket_core::{
-    AgentConfig, CheckpointEvent, CheckpointId, CheckpointNote, Millis, Retention, Rewind,
-    SkipReason, TurnId,
+    AgentConfig, CheckpointEvent, CheckpointId, CheckpointNote, Retention, Rewind, SkipReason,
 };
 use docket_session::{Logged, Read, SessionEntry, SessionLog, resume_plan};
+use docket_vocab::{Clock, Millis, TurnId};
 use porter_core::Count;
 use prov::SessionId;
 use std::future::Future;

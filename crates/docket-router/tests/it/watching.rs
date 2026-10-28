@@ -7,6 +7,7 @@ use cua_action::{CuaAction, WindowSpace};
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
 use docket_router::{Flag, Queue, Watch};
+use docket_vocab::{CallRequest, Millis, Origin, TargetValue, Value};
 use prov::{AgentRef, ConfirmReceipt, Effect, InputProof, Label, RunId, UnixSeconds};
 use std::sync::Arc;
 
@@ -331,7 +332,8 @@ async fn an_unwatched_perform_is_as_before() {
 
 #[tokio::test]
 async fn a_watcher_that_never_proceeds_is_refused_unasked_after_the_configured_time() {
-    use docket_core::{AgentConfig, Millis};
+    use docket_core::AgentConfig;
+    use docket_vocab::Millis;
     // The time is a setting, and the clock is virtual: nothing here waits.
     let config = AgentConfig {
         confirm_proceed: Millis(2_500),

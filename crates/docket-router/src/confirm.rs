@@ -7,9 +7,9 @@ use crate::state::SessionRecord;
 use docket_core::{AgentReach, ArgSink, CallerRole};
 use docket_core::{
     AlwaysOffer, Anchor, ArgLine, AskReason, ConfirmDetail, ConfirmId, ConfirmOffer,
-    ConfirmRequest, Gesture, Limited, NeverOffer, Preview, Seconds, SheetLimits, Shown, TaintNote,
-    Value,
+    ConfirmRequest, Gesture, Limited, NeverOffer, Preview, SheetLimits, Shown, TaintNote,
 };
+use docket_vocab::{Seconds, Value};
 use porter_core::Count;
 use prov::{Actor, Effect, Integrity, Label, Source};
 use std::collections::BTreeSet;

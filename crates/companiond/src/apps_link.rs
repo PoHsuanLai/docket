@@ -12,8 +12,9 @@ use docket_core::helper::{
     CheckOutcome, HandFault, HelperCard, Job, JobFault, SignInOutcome, SignInWay, SignOutOutcome,
     ToTerminalOutcome,
 };
-use docket_core::{SeenCommand, WatchedAgent, Workspace};
+use docket_core::{SeenCommand, WatchedAgent};
 use docket_dbus::{AgentHostProxy, BusConnection};
+use docket_vocab::Workspace;
 use prov::{HelperId, SessionId};
 
 /// Why the host of the agent apps gave no reply.

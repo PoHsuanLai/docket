@@ -6,10 +6,8 @@ use crate::handles::HandleValue;
 use crate::session::SessionEvent;
 use crate::spoken::whole_in;
 use crate::state::SessionRecord;
-use docket_core::{
-    ActionDecl, ArgFault, ArgLabels, ArgSink, Args, ParamName, Saw, SessionSaw, SinkIntegrity,
-    TargetValue, Value,
-};
+use docket_core::{ActionDecl, ArgFault, ArgLabels, ArgSink, Saw, SessionSaw, SinkIntegrity};
+use docket_vocab::{Args, ParamName, TargetValue, Value};
 use porter_core::AppName;
 use prov::{ClientName, Confidentiality, Integrity, Label, Labelled, ModelRole, Source};
 use std::collections::BTreeSet;
@@ -293,7 +291,7 @@ pub(crate) fn absorb(session: &mut SessionRecord, label: &Label) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::Handle;
+    use docket_vocab::Handle;
     use prov::{Actor, DataClass, EntityId, EntityKey, EntityKind, SpaceId, TaskId, UnixSeconds};
 
     fn record() -> SessionRecord {

@@ -3,12 +3,13 @@
 
 use docket_core::LinkFault;
 use docket_core::{
-    AppRefusal, ContextScope, ContextSnapshot, EntityRef, FailText, Invocation, Latency, Outcome,
-    Preview, SuggestAsk, UndoFault, UndoToken,
+    AppRefusal, ContextScope, ContextSnapshot, FailText, Invocation, Latency, Outcome, Preview,
+    SuggestAsk, UndoFault,
 };
 use docket_dbus::{BusConnection, Details, IntentProviderProxy};
 use docket_procroot::own_uid;
 use docket_router::{AppFault, AppLink};
+use docket_vocab::{EntityRef, UndoToken};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 use serde::Serialize;
@@ -186,8 +187,8 @@ impl AppLink for DbusLink {
         &self,
         app: &AppName,
         inv: Invocation,
-    ) -> Result<docket_core::CallClass, docket_core::ClassifyFault> {
-        use docket_core::ClassifyFault as Fault;
+    ) -> Result<docket_vocab::CallClass, docket_vocab::ClassifyFault> {
+        use docket_vocab::ClassifyFault as Fault;
         let text = json(&inv).map_err(|_| Fault::Unavailable)?;
         let answered = self
             .ask(app, Wake::Start, READ, |p| async move {
@@ -195,7 +196,7 @@ impl AppLink for DbusLink {
             })
             .await;
         match answered {
-            Ok(text) => read::<Result<docket_core::CallClass, AppRefusal>>(&text)
+            Ok(text) => read::<Result<docket_vocab::CallClass, AppRefusal>>(&text)
                 .map_err(|_| Fault::Unavailable)?
                 .map_err(|_| Fault::Refused),
             Err(LinkFault::Timeout) => Err(Fault::TimedOut),
@@ -208,7 +209,7 @@ impl AppLink for DbusLink {
         app: &AppName,
         inv: Invocation,
         activation: Option<docket_core::ActivationToken>,
-        classified: Option<docket_core::CallClass>,
+        classified: Option<docket_vocab::CallClass>,
         within: Latency,
     ) -> Result<Outcome, AppFault> {
         let delivered = docket_core::ActivatedInvocation {

@@ -7,9 +7,8 @@ use docket_accept::confirm::Verdict;
 use docket_accept::drive::{Launcher, recorded};
 use docket_accept::provider::Sending;
 use docket_accept::world::{Consent, World};
-use docket_core::{
-    ConfirmDetail, ConfirmOffer, Handle, JournalFilter, Shown, TaintNote, UndoState,
-};
+use docket_core::{ConfirmDetail, ConfirmOffer, JournalFilter, Shown, TaintNote, UndoState};
+use docket_vocab::Handle;
 
 fn settled(view: &AnswerWire) -> bool {
     matches!(

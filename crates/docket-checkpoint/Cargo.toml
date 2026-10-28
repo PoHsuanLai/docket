@@ -15,6 +15,7 @@ testing = []
 [dependencies]
 const-hex = { workspace = true }
 docket-core = { workspace = true }
+docket-vocab = { workspace = true }
 porter-core = { workspace = true }
 prov = { workspace = true }
 sha2 = { workspace = true }

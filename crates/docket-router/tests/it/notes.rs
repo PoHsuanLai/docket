@@ -9,6 +9,7 @@ use almanac_core::{
 use almanac_core::{Succession, UserText};
 use docket_core::*;
 use docket_fake::ScriptedWriter;
+use docket_vocab::{ActionRef, CallId, CharCount, NoteSlug, TurnId};
 use prov::{AgentRef, Label, MessageKind, ReportStatus, SessionId, Source, UnixSeconds};
 
 fn note(session: &SessionId, note: NoteAsk) -> IntentsRequest {

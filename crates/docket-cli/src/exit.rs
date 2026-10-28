@@ -99,7 +99,7 @@ impl Failure {
     /// The error object of `--json`.
     pub fn json(&self) -> Value {
         json!({
-            "vocab": docket_core::IntentsVocab::CURRENT,
+            "vocab": docket_vocab::IntentsVocab::CURRENT,
             "error": {
                 "exit": self.exit.code(),
                 "kind": self.exit.word(),

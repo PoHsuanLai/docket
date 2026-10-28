@@ -7,9 +7,9 @@ use crate::gate::Pending;
 use action_review::{Gate, ReviewVerdict, escalate, tighten};
 use docket_core::{
     AppRefusal, AuditRecord, CallEnd, CallProgress, CallRefusal, ConfirmAnswer, ConfirmEnd,
-    ConfirmId, ConfirmRequest, GrantScope, Outcome, ParamName, ReviewError, Ruling, Stage,
-    Undoable,
+    ConfirmId, ConfirmRequest, GrantScope, Outcome, ReviewError, Ruling, Stage, Undoable,
 };
+use docket_vocab::ParamName;
 use porter_core::AppName;
 use prov::SpaceScope;
 

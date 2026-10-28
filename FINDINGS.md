@@ -3998,3 +3998,11 @@ Two commits: the harness seams first, then the split.
 - sill does not use `FakeAudioDevice` or any voiced device item (grep of `~/sill`, read only); its stand-in voiced is a bus object.
 - `scripts/check-boundary.sh`: LAYERS rows (`voice-audio` P, `voice-pipewire` C) and RULES rows; `scripts/check-portable.sh` lists `voice-audio`.
 - Not verified by a build in the lane that made the change.
+
+## Layering lane D4.13b: docket-vocab (2026-10-28)
+
+- New P crate `docket-vocab`: `ids`, `units`, `marks`, `value`, `when`, `classify`, `clock`, `workspace` and `request` left `docket-core` with their inline tests; `tests/it/when.rs` went with `when`. `docket-core` no longer depends on `chrono`.
+- Every moved item has one copy. Importers in this repo (45 crates, `fuzz`, and `docket-core`'s own modules and tests) now say `docket_vocab::`. `docket-core` had one re-export of a moved item (`context::EntityRef`); it is gone and its five users import `docket_vocab::EntityRef`. `docket-session` still has its own older `pub use` of `Workspace` and `WorkspaceError`, now from `docket_vocab`.
+- `scripts/check-boundary.sh`: LAYERS row (`docket-vocab` P) and RULES row (effects and `toml` banned); `scripts/check-portable.sh` lists it. `scripts/check-core-layers.sh` drops level 0, whose modules are now a crate, and still passes (0 upward edges, run).
+- Moved public items: ids (`ActionRef`, `CallId`, `CardActionId`, `ChoiceId`, `EntityRef`, `FileRef`, `Handle`, `IconName`, `IntentsVocab`, `LabelText`, `NoteSlug`, `NoteSlugError`, `ParamName`, `RelationName`, `StepId`, `TextTargetRef`, `TurnId`, `UndoId`, `UndoToken`, `UtteranceId`, `ViewName`, `WindowKey`, `action_prefix`), units (`CharCount`, `Days`, `Depth`, `Generation`, `Millis`, `Scale`, `Seconds`), value (`Args`, `ChoiceDecl`, `CivilDate`, `Decimal`, `Lines`, `ParamType`, `TargetValue`, `Value`), classify (`CallClass`, `Classification`, `ClassifyAnswer`, `ClassifyFault`, `DelegationEnd`, `PerCall`), request (`CallRequest`, `Origin`, `RECALL_ACTION`, `RECALL_APP`), `Clock`, `Workspace`, `WorkspaceError`, `hides`, `plain_text`, `reorders`, and the module `when`.
+- Not verified by a build in the lane that made the change; `cargo metadata --offline` resolved and `cargo fmt --all` ran.

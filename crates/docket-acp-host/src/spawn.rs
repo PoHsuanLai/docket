@@ -6,7 +6,8 @@ use super::edge::EdgeBind;
 use super::models::ModelId;
 use agent_client_protocol::{Client, ConnectTo};
 use docket_core::AbsPath;
-use docket_session::ProgramName;
+use docket_core::ProgramName;
+
 use prov::SessionId;
 use std::future::Future;
 

@@ -4,11 +4,11 @@
 use crate::Companiond;
 use crate::serve::serve_with_routines;
 use docket_client::Transport as IntentsTransport;
-use docket_core::Clock;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::Identity;
 use docket_planner::Planner;
 use docket_tasks::ServeFault;
+use docket_vocab::Clock;
 use futures_util::lock::Mutex;
 use porter_daemon::ProcRoot;
 use std::sync::Arc;

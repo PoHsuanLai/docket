@@ -109,7 +109,7 @@ fn the_preset_reads_from_agents_toml_and_an_unknown_one_is_refused() {
     use docket_launch::{AgentsFile, Profile};
     let file = AgentsFile::parse(&confined("/home/me/.claude", "")).expect("file");
     let entry = file
-        .get(&docket_session::ProgramName::parse("claude-code").expect("name"))
+        .get(&docket_core::ProgramName::parse("claude-code").expect("name"))
         .expect("entry");
     assert_eq!(entry.profile, Some(Profile::ClaudeCode));
     let bad = confined("/home/me/.claude", "")

@@ -17,6 +17,7 @@ use docket_planner::PlannerModel;
 use docket_router::{GrantStore, Router};
 use docket_session::fake::MemoryLog;
 use docket_tasks::{Companion, Quiet};
+use docket_vocab::LabelText;
 use infer::{Say, ScriptedInfer};
 use porter_core::{AppId, AppName, Count, Isolation};
 use prov::{DataClass, Effect, EntityKind, SessionId, SpaceId, TaskId, UnixSeconds};
@@ -215,7 +216,7 @@ impl World {
             .lock()
             .expect("lock")
             .iter()
-            .filter(|i| i.invocation.action.as_str() != docket_core::RECALL_ACTION)
+            .filter(|i| i.invocation.action.as_str() != docket_vocab::RECALL_ACTION)
             .count()
     }
 }

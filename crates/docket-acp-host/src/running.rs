@@ -8,7 +8,8 @@
 //! the turn by time (`agent.checkpoints.turn_max_s`).
 
 use acp_core::court::Court;
-use docket_core::{TurnEnd, TurnId};
+use docket_core::TurnEnd;
+use docket_vocab::TurnId;
 use prov::SessionId;
 
 /// What the guard sends, and to whom.

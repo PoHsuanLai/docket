@@ -7,6 +7,7 @@ use crate::support::*;
 use docket_core::*;
 use docket_fake::{FakeSeams, MailContact, ScriptedConfirmer, ScriptedWriter};
 use docket_router::Router;
+use docket_vocab::{CallRequest, Value};
 use prov::{AgentRef, ClientName, Effect, Labelled, SessionId};
 
 const ZED: &str = "org.zed.Zed";

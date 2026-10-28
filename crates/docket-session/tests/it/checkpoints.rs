@@ -2,9 +2,10 @@
 
 use crate::support::*;
 use docket_core::{
-    CheckpointEvent, CheckpointId, CheckpointNote, CheckpointRow, SavedState, SkipReason, TurnId,
+    CheckpointEvent, CheckpointId, CheckpointNote, CheckpointRow, SavedState, SkipReason,
 };
 use docket_session::*;
+use docket_vocab::TurnId;
 use prov::UnixSeconds;
 
 fn note(turn: u64, at: i64, event: CheckpointEvent) -> SessionEntry {

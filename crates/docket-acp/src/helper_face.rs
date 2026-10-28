@@ -17,9 +17,8 @@ use agent_client_protocol::schema::v1::{
     Error, LoadSessionResponse, Meta, NewSessionResponse, SessionInfo,
 };
 use companion_wire::ToldWire;
-use docket_core::Clock;
-use docket_core::Workspace;
 use docket_session::{SessionHost, SessionLog};
+use docket_vocab::{Clock, Workspace};
 use prov::{HelperId, SessionId, SpaceId};
 
 /// The Space a workspace maps to (owner decision D4). Every workspace maps to the desktop Space

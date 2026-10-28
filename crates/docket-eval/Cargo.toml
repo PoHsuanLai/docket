@@ -16,6 +16,7 @@ path = "src/main.rs"
 action-review = { workspace = true }
 docket-fake = { workspace = true }
 docket-core = { workspace = true, features = ["manifest-file"] }
+docket-vocab = { workspace = true }
 docket-skills = { workspace = true }
 docket-skills-disk = { workspace = true }
 

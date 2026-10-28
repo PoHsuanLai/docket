@@ -2,9 +2,9 @@
 
 use docket_checkpoint::{Decision, Saved, TreeId, WorkRoot, decide, next_id, retention};
 use docket_core::{
-    AbsPath, CheckpointEvent, CheckpointId, CheckpointNote, Days, Retention, Rewind, SkipReason,
-    TurnId, Workspace,
+    AbsPath, CheckpointEvent, CheckpointId, CheckpointNote, Retention, Rewind, SkipReason,
 };
+use docket_vocab::{Days, TurnId, Workspace};
 use porter_core::{Count, UnixSeconds};
 
 const DAY: i64 = 86_400;

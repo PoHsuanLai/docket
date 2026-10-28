@@ -36,6 +36,7 @@ zbus = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 docket-testbus = { workspace = true }
 intentd = { path = "../intentd" }

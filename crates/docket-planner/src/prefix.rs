@@ -50,11 +50,12 @@ mod tests {
     use super::*;
     use agent_loop::{Sources, assemble};
     use docket_core::{
-        AgentConfig, CharCount, ContextView, Covers, Handle, HandleCard, HandleShape, HereView,
-        Reveal, Roster, SelectionView, Summary, SummaryText, TextTargetView, TurnId, TurnSource,
-        TurnVia, UserTurn, VisibleView,
+        AgentConfig, ContextView, Covers, HandleCard, HandleShape, HereView, Reveal, Roster,
+        SelectionView, Summary, SummaryText, TextTargetView, TurnSource, TurnVia, UserTurn,
+        VisibleView,
     };
     use docket_fake::WordsModel;
+    use docket_vocab::{CharCount, Handle, TurnId};
     use porter_core::{AppName, Count};
     use prov::{Integrity, Source, UnixSeconds};
 

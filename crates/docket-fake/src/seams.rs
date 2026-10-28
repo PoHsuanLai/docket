@@ -10,15 +10,15 @@ use crate::scripted::{
 use crate::simple::{MemoryGrants, RecordingSink};
 use action_review::Reviewer;
 use docket_checkpoint::MemoryStore;
-use docket_core::Clock;
 use docket_core::LinkFault;
 use docket_core::PolicyWriter;
 use docket_core::{
-    AppRefusal, ContextScope, ContextSnapshot, EntityRef, Invocation, Latency, Outcome, Preview,
-    SuggestAsk, UndoFault, UndoToken,
+    AppRefusal, ContextScope, ContextSnapshot, Invocation, Latency, Outcome, Preview, SuggestAsk,
+    UndoFault,
 };
 use docket_provider::IntentProvider;
 use docket_router::{AppFault, AppLink, Seams};
+use docket_vocab::{Clock, EntityRef, UndoToken};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 use std::collections::BTreeMap;
@@ -135,7 +135,7 @@ impl FakeLink {
     }
 
     /// Everything the fake apps list, mail first and then files: what a window of an app shows.
-    pub fn shown(&self) -> Vec<docket_core::EntityRef> {
+    pub fn shown(&self) -> Vec<docket_vocab::EntityRef> {
         let mut all = self.mail.shown();
         all.extend(self.files.shown());
         all
@@ -197,14 +197,14 @@ impl AppLink for FakeLink {
         &self,
         app: &AppName,
         inv: Invocation,
-    ) -> Result<docket_core::CallClass, docket_core::ClassifyFault> {
+    ) -> Result<docket_vocab::CallClass, docket_vocab::ClassifyFault> {
         if !self.is_menu(app) {
-            return Err(docket_core::ClassifyFault::Unsupported);
+            return Err(docket_vocab::ClassifyFault::Unsupported);
         }
         self.menu
             .classify(inv)
             .await
-            .map_err(|_| docket_core::ClassifyFault::Refused)
+            .map_err(|_| docket_vocab::ClassifyFault::Refused)
     }
 
     async fn perform_classified(
@@ -212,7 +212,7 @@ impl AppLink for FakeLink {
         app: &AppName,
         inv: Invocation,
         activation: Option<docket_core::ActivationToken>,
-        classified: Option<docket_core::CallClass>,
+        classified: Option<docket_vocab::CallClass>,
         _within: Latency,
     ) -> Result<Outcome, AppFault> {
         if let Ok(mut seen) = self.performed.lock() {

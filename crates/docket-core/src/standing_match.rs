@@ -4,8 +4,8 @@
 
 use crate::agent_app::is_agent_action;
 use crate::grant::GrantCaller;
-use crate::ids::ActionRef;
 use crate::standing::{AbsPath, Cover, Recipient, ScopeKind, StandingGrant, StandingScope};
+use docket_vocab::ActionRef;
 use prov::Effect;
 use serde::{Deserialize, Serialize};
 

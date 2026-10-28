@@ -12,6 +12,7 @@ use docket_acp_host::{
     AcpBackend, EdgeMenu, Fallback, IntentsCourt, OsFiles, Parts, Performer, ToolsOffer,
 };
 use docket_client::DbusTransport;
+use docket_core::ProgramName;
 
 use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};
 use docket_core::{ACP_AGENT_APP, AbsPath, SeenCommand, ValidManifest, WatchedAgent};
@@ -22,7 +23,7 @@ use docket_launch::{
     ToolsMode, login_run,
 };
 use docket_provider::serve_on_with;
-use docket_session::ProgramName;
+
 use docket_store::SystemClock;
 use prov::{HelperId, SessionId, TaskId};
 use std::path::PathBuf;

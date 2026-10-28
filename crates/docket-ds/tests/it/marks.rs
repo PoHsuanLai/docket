@@ -2,6 +2,7 @@
 
 use docket_core::*;
 use docket_ds::*;
+use docket_vocab::{UtteranceId, ViewName};
 use ds_intents::{
     ChipKind, HeardEndMark, HeardMark, InputLevel, SummonAnswerMark, SummonOriginMark, Tally,
     ThingMark,

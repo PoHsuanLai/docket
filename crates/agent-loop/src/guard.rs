@@ -19,7 +19,8 @@
 //! so comparing answers cannot catch it.
 
 use crate::declined::declined_words;
-use docket_core::{ActionRef, CallId, CallRefusal, CallRequest, Held, ReaderAsk, StepEnd, Value};
+use docket_core::{CallRefusal, Held, ReaderAsk, StepEnd};
+use docket_vocab::{ActionRef, CallId, CallRequest, Value};
 use prov::Effect;
 use serde::{Deserialize, Serialize};
 

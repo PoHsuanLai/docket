@@ -16,9 +16,10 @@ use docket_core::helper::{
     AgentApps, AgentOutcome, CardDraft, GoalSource, GoalText, HelperBudget, HelperCard, HelperKind,
     HelperModel, HelperName, Job, JobId, JobStatus, Role, SignInHow, SignInWay,
 };
-use docket_core::{ActionMatch, GrantCaller, LabelText, TaskPolicy, TaskPolicyState};
+use docket_core::{ActionMatch, GrantCaller, TaskPolicy, TaskPolicyState};
 use docket_host::EditorDesk;
 use docket_session::Opening;
+use docket_vocab::LabelText;
 use prov::{HelperId, UnixSeconds};
 use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};

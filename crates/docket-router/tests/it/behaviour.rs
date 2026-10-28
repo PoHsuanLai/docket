@@ -3,6 +3,7 @@
 
 use docket_core::*;
 use docket_router::*;
+use docket_vocab::{ActionRef, EntityRef, Handle};
 use porter_core::{AppName, Count, DataClass};
 use prov::{
     Actor, Address, AgentRef, AgentRole, Confidentiality, Crossing, Integrity, Label, Labelled,
