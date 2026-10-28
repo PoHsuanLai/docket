@@ -155,8 +155,16 @@ fn budget_charge_table() {
             Ok(()),
         ),
         (
-            "spend at the cap runs out",
+            "spend at the cap still runs",
             used(&|l| l.spent.charges.reported = usd(10)),
+            paid,
+            cost(Effect::Read, 1, 0, false),
+            1_001,
+            Ok(()),
+        ),
+        (
+            "spend over the cap runs out",
+            used(&|l| l.spent.charges.reported = usd(11)),
             paid,
             cost(Effect::Read, 1, 0, false),
             1_001,
@@ -173,7 +181,10 @@ fn budget_charge_table() {
         (
             "no cap, no limit",
             used(&|l| l.spent.charges.reported = usd(1_000_000)),
-            budget(),
+            Budget {
+                spend: None,
+                ..budget()
+            },
             cost(Effect::Read, 1, 0, false),
             1_001,
             Ok(()),
@@ -233,7 +244,7 @@ fn turn_charge_table() {
             false,
         ),
         (
-            "a turn that reaches the cap stops the next",
+            "a turn that reaches the cap does not stop the next",
             TurnReport {
                 tokens: TokenTotals::NONE,
                 charge: Some(usd(100)),
@@ -241,7 +252,7 @@ fn turn_charge_table() {
             TokenTotals::NONE,
             100,
             0,
-            false,
+            true,
         ),
         (
             "a turn with no charge is unpriced and never blocks",
@@ -304,7 +315,11 @@ fn totals_show_what_is_left_and_never_less_than_nothing() {
     };
     assert_eq!(totals_of(&spent(30), &capped).remaining, Some(usd(70)));
     assert_eq!(totals_of(&spent(150), &capped).remaining, Some(usd(0)));
-    assert_eq!(totals_of(&spent(30), &budget()).remaining, None);
+    let uncapped = Budget {
+        spend: None,
+        ..budget()
+    };
+    assert_eq!(totals_of(&spent(30), &uncapped).remaining, None);
 }
 
 #[test]

@@ -38,7 +38,7 @@ fan_out = 50
 chain = 4
 wall = 1800
 reviews = 300
-spend = 0
+spend = { amount = "0", currency = "USD" }
 
 [agent.breaker]
 consecutive = 3
