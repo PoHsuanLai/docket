@@ -115,7 +115,7 @@ impl Desk {
         let mut setup = Setup::from_env(&env).expect("the shipped configuration and the manifests");
         setup.audit_every = std::time::Duration::from_millis(100);
         setup.signals.every = std::time::Duration::from_millis(30);
-        setup.proc_root = ProcRoot::Fake(dir.path().join("proc"));
+        setup.proc_root = ProcRoot::Honoured(dir.path().join("proc"));
         // Every connection here is this process: the test says that the one that serves sill's
         // names is the shell's unit. `quire-do` is told apart by its cgroup in the fake proc root.
         let who = std::sync::Arc::new(Identity::on_fixture(

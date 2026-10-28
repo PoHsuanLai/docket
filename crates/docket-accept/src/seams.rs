@@ -62,7 +62,9 @@ pub fn trace(env: &impl Fn(&str) -> Option<String>) -> InferWatch {
 /// The `/proc` a daemon reads: the fixture tree named by the variable `name` if the world set
 /// one, else the system's.
 pub fn proc_root(env: &impl Fn(&str) -> Option<String>, name: &str) -> ProcRoot {
-    set(env, name).map_or(ProcRoot::System, |dir| ProcRoot::Fake(PathBuf::from(dir)))
+    set(env, name).map_or(ProcRoot::Unset, |dir| {
+        ProcRoot::Honoured(PathBuf::from(dir))
+    })
 }
 
 /// The file named by the variable `name`, if the world set one: a system callers file.

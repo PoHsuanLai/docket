@@ -69,7 +69,7 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
         &server,
         companion.clone(),
         who(&server, &proc_root),
-        ProcRoot::Fake(proc_root),
+        ProcRoot::Honoured(proc_root),
     )
     .await
     .expect("serving");
@@ -173,7 +173,7 @@ async fn a_process_that_is_not_a_terminal_or_owns_a_name_speaks_for_nobody() {
         &server,
         companion,
         who(&server, &proc_root),
-        ProcRoot::Fake(proc_root.clone()),
+        ProcRoot::Honoured(proc_root.clone()),
     )
     .await
     .expect("serving");
@@ -230,7 +230,7 @@ async fn a_conversation_a_terminal_opens_records_the_terminal_and_the_shells_doe
         &server,
         companion,
         who(&server, &proc_root),
-        ProcRoot::Fake(proc_root),
+        ProcRoot::Honoured(proc_root),
     )
     .await
     .expect("serving");
@@ -301,7 +301,7 @@ async fn a_process_the_table_names_as_less_than_the_shell_speaks_for_nobody() {
             &server,
             companion,
             identity.clone(),
-            ProcRoot::Fake(proc_root),
+            ProcRoot::Honoured(proc_root),
         )
         .await
         .expect("serving");

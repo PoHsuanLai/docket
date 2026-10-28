@@ -104,7 +104,7 @@ impl Desk {
             dir.path().join("proc"),
         ));
         setup.identity = Some(who.clone());
-        setup.proc_root = intentd::ProcRoot::Fake(dir.path().join("proc"));
+        setup.proc_root = intentd::ProcRoot::Honoured(dir.path().join("proc"));
         let intentd = start(&daemon, None, setup).await.expect("intentd");
         let sill_connection = bus.connect().await;
         let sill = FakeSill::start(&sill_connection, &["org.quire.Confirm1", SILL]).await;

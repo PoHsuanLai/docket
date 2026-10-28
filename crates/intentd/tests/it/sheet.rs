@@ -222,7 +222,7 @@ async fn gated_desk(agents: docket_settings::AcpAgents) -> Desk {
     gate.set_agents(agents);
     let who = identity(&dir, &daemon);
     let sheet = SheetConfirmer::trusting(daemon, Arc::new(config.clone()), who.clone())
-        .gated(gate, &intentd::ProcRoot::Fake(dir.path().join("proc")))
+        .gated(gate, &intentd::ProcRoot::Honoured(dir.path().join("proc")))
         .waiting(Duration::from_millis(100));
     Desk {
         _dir: dir,

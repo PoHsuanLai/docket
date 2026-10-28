@@ -74,7 +74,7 @@ async fn companion1_is_served_as_declared_and_an_ask_runs_to_its_answer() {
         &server,
         companion.clone(),
         who.clone(),
-        ProcRoot::Fake(scratch.path().to_owned()),
+        ProcRoot::Honoured(scratch.path().to_owned()),
     )
     .await
     .expect("serving");
@@ -208,7 +208,7 @@ async fn the_roster_and_the_front_answer_while_a_planner_turn_is_still_running()
         &server,
         companion.clone(),
         who.clone(),
-        ProcRoot::Fake(scratch.path().to_owned()),
+        ProcRoot::Honoured(scratch.path().to_owned()),
     )
     .await
     .expect("serving");
@@ -294,7 +294,7 @@ async fn only_the_shell_speaks_for_the_person() {
         &server,
         companion.clone(),
         who.clone(),
-        ProcRoot::Fake(scratch.path().to_owned()),
+        ProcRoot::Honoured(scratch.path().to_owned()),
     )
     .await
     .expect("serving");

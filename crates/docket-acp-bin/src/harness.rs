@@ -36,7 +36,7 @@ pub mod acp {
     impl Default for HarnessSeams {
         fn default() -> Self {
             Self {
-                proc_root: ProcRoot::System,
+                proc_root: ProcRoot::Unset,
                 system_callers: None,
             }
         }

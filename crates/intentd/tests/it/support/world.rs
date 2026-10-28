@@ -91,7 +91,7 @@ impl World {
         let bus = PrivateBus::start(dir.path());
         let daemon = bus.connect().await;
         let router = Arc::new(router);
-        let root = ProcRoot::Fake(dir.path().join("proc"));
+        let root = ProcRoot::Honoured(dir.path().join("proc"));
         let who = Arc::new(Identity::on_fixture(
             daemon.clone(),
             intentd::callers::shipped(),

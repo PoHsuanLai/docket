@@ -8,7 +8,7 @@ use crate::accounts::{AccountFault, Accounts, Heard, Issued, LoginAsk, OpenedEnd
 use crate::config::Delivery;
 use porter_capability::LoginOutcome;
 use porter_capability::{AgentProgram, AgentProtocol, EnvName};
-use porter_core::{DataClass, KeyPermitId, LauncherSession, ProcessCredentialId};
+use porter_core::{DataClass, GrantId, LauncherSession, ProcessCredentialId};
 
 /// The seam with nothing behind it.
 #[derive(Debug, Clone, Copy, Default)]
@@ -46,13 +46,13 @@ impl Accounts for LoginOnly {
         _program: &AgentProgram,
         _class: DataClass,
         _session: &LauncherSession,
-    ) -> Result<KeyPermitId, AccountFault> {
+    ) -> Result<GrantId, AccountFault> {
         Err(AccountFault::Unreachable)
     }
 
     async fn issue(
         &self,
-        _permit: &KeyPermitId,
+        _permit: &GrantId,
         _program: &AgentProgram,
         _key_env: &EnvName,
         _delivery: Delivery,

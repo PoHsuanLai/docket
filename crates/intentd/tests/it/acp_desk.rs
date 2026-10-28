@@ -84,7 +84,7 @@ impl Fixture {
         who.introduce_app(&sill_connection, "org.quire.Shell", Role::SheetHost);
         who.introduce_app(&acp, ACP, Role::Agent);
         let confirmer = SheetConfirmer::trusting(intentd.clone(), config, who)
-            .gated(gate, &ProcRoot::Fake(proc));
+            .gated(gate, &ProcRoot::Honoured(proc));
         let stranger = bus.connect().await;
         Fixture {
             _dir: dir,

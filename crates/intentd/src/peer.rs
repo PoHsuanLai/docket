@@ -133,7 +133,7 @@ impl Peers {
     /// Derives identities on `connection` with the roles of `config`, naming processes through
     /// `who`; terminals' cgroups are read from the system's `/proc`.
     pub fn new(connection: BusConnection, config: Arc<IntentdConfig>, who: Arc<Identity>) -> Self {
-        Self::with_proc_root(connection, config, who, &ProcRoot::System)
+        Self::with_proc_root(connection, config, who, &ProcRoot::Unset)
     }
 
     /// As [`Peers::new`], reading terminals' cgroups from the proc root the daemon chose (a
@@ -160,7 +160,7 @@ impl Peers {
             connection,
             config,
             who,
-            proc_root: proc_root.path().to_path_buf(),
+            proc_root: porter_daemon::proc_path(proc_root).to_path_buf(),
             acp,
         }
     }

@@ -11,7 +11,7 @@ use bulkhead::AbsPath;
 use porter_capability::{AgentProgram, AgentProtocol};
 use porter_capability::{LoginOutcome, LoginRequestId};
 use porter_core::{
-    AccountId, DataClass, KeyPermitId, LauncherSession, ProcessCredentialId, SecretText,
+    AccountId, DataClass, GrantId, LauncherSession, ProcessCredentialId, SecretText,
 };
 use std::future::Future;
 
@@ -145,12 +145,12 @@ pub trait Accounts: Send + Sync {
         program: &AgentProgram,
         class: DataClass,
         session: &LauncherSession,
-    ) -> impl Future<Output = Result<KeyPermitId, AccountFault>> + Send;
+    ) -> impl Future<Output = Result<GrantId, AccountFault>> + Send;
 
     /// A key for one process under `permit`, handed over as `delivery` says.
     fn issue(
         &self,
-        permit: &KeyPermitId,
+        permit: &GrantId,
         program: &AgentProgram,
         key_env: &porter_capability::EnvName,
         delivery: Delivery,

@@ -27,7 +27,7 @@ where
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
-    serve_on_rooted(connection, companion, who, ProcRoot::System).await
+    serve_on_rooted(connection, companion, who, ProcRoot::Unset).await
 }
 
 /// [`serve_on`] reading terminals' cgroups under `proc_root` instead of `/proc`: how a test

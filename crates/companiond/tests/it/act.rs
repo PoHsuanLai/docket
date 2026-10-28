@@ -88,7 +88,7 @@ async fn a_pressed_card_is_performed_in_the_answers_session_and_the_answer_follo
         &server,
         companion.clone(),
         who.clone(),
-        ProcRoot::Fake(scratch.path().to_owned()),
+        ProcRoot::Honoured(scratch.path().to_owned()),
     )
     .await
     .expect("serving");

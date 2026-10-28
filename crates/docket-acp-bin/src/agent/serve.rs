@@ -300,7 +300,7 @@ pub struct HarnessSeams {
 impl Default for HarnessSeams {
     fn default() -> Self {
         Self {
-            proc_root: ProcRoot::System,
+            proc_root: ProcRoot::Unset,
             system_callers: None,
             limits: SandboxLimits::default(),
         }
@@ -336,7 +336,11 @@ pub async fn run_with(
         None => crate::callers::read(&var),
     }
     .map_err(|e| AgentFault::Callers(e.to_string()))?;
-    let callers = Arc::new(Identity::on(bus.clone(), table, proc_root.fixture()));
+    let callers = Arc::new(Identity::on(
+        bus.clone(),
+        table,
+        proc_root.honoured().map(std::path::PathBuf::as_path),
+    ));
     let service = Arc::new(Service::new(bus.clone(), limits, places.clone()));
     // Served before the name is claimed, so the first call finds it.
     bus.object_server()

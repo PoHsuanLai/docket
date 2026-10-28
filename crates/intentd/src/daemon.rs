@@ -77,7 +77,7 @@ pub struct HarnessSeams {
 impl Default for HarnessSeams {
     fn default() -> Self {
         Self {
-            proc_root: ProcRoot::System,
+            proc_root: ProcRoot::Unset,
             system_callers: None,
             trace: InferWatch::off(),
             floor: None,
@@ -224,7 +224,7 @@ impl Setup {
             signals: Cadence::default(),
             callers,
             identity: None,
-            proc_root: ProcRoot::System,
+            proc_root: ProcRoot::Unset,
             settings: Locator::from_env(env),
             trace: InferWatch::off(),
             floor: Floor::none(),
@@ -287,8 +287,13 @@ pub async fn start(
     // The ACP name plays its roles only while the setting is on; the settings watch below keeps the
     // gate current, for the bus (who is an editor) and for the sheets (whose process is trusted).
     let acp = AcpGate::shut();
-    let who = identity
-        .unwrap_or_else(|| Arc::new(Identity::on(session.clone(), callers, proc_root.fixture())));
+    let who = identity.unwrap_or_else(|| {
+        Arc::new(Identity::on(
+            session.clone(),
+            callers,
+            proc_root.honoured().map(std::path::PathBuf::as_path),
+        ))
+    });
     let confirmer =
         SheetConfirmer::trusting(session.clone(), Arc::new(config.clone()), who.clone())
             .gated(acp.clone(), &proc_root);

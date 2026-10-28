@@ -147,7 +147,7 @@ async fn the_answer_object_serves_the_routing_property() {
         &server,
         companion.clone(),
         who.clone(),
-        ProcRoot::Fake(scratch.path().to_owned()),
+        ProcRoot::Honoured(scratch.path().to_owned()),
     )
     .await
     .expect("serving");

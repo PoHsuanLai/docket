@@ -119,7 +119,7 @@ impl Speakers {
         let scope = credentials
             .process_id()
             .filter(|_| same_user)
-            .and_then(|pid| terminal_scope(self.proc_root.path(), pid));
+            .and_then(|pid| terminal_scope(porter_daemon::proc_path(&self.proc_root), pid));
         // Narrowing, not identification: a terminal's child that owns a name of its own is an
         // application the person started there, not the person's keyboard.
         match scope {

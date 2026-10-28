@@ -147,7 +147,7 @@ async fn desk() -> (tempfile::TempDir, PrivateBus, docket_dbus::BusConnection) {
         &daemon,
         Arc::new(router()),
         Arc::new(IntentdConfig::shipped().expect("shipped")),
-        &ProcRoot::Fake(dir.path().join("proc")),
+        &ProcRoot::Honoured(dir.path().join("proc")),
     )
     .await
     .expect("intentd serves");

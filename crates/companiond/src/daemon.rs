@@ -42,7 +42,7 @@ pub struct HarnessSeams {
 impl Default for HarnessSeams {
     fn default() -> Self {
         Self {
-            proc_root: ProcRoot::System,
+            proc_root: ProcRoot::Unset,
             system_callers: None,
             trace: InferWatch::off(),
         }
@@ -186,7 +186,7 @@ pub async fn start_with_agents(
     let who = Arc::new(Identity::on(
         connection.clone(),
         callers,
-        seams.proc_root.fixture(),
+        seams.proc_root.honoured().map(std::path::PathBuf::as_path),
     ));
     let kept: Arc<dyn RoutineDesk> = routines;
     serve_with_routines(

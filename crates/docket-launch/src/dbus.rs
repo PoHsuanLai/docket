@@ -11,12 +11,13 @@ use bulkhead::AbsPath;
 use futures_util::StreamExt;
 use porter_capability::LoginOutcome;
 use porter_capability::{AgentProgram, AgentProtocol, EnvName};
-use porter_client::{ChildKey, Delivery as KeyDelivery, Launcher, LauncherError};
+use porter_client::{CallFailure, ChildKey, Delivery as KeyDelivery, Launcher, LauncherError};
 use porter_client::{Requests, Revocations};
 use porter_core::audit::Handoff;
-use porter_core::{DataClass, KeyPermitId, LauncherSession, ProcessCredentialId, SecretText};
+use porter_core::{DataClass, GrantId, LauncherSession, ProcessCredentialId, SecretText};
 use porter_dbus::{
-    AgentsProxy, BusConnection, MODELS_ANY, MODELS_LISTED, ROUTE_ACCOUNT, ROUTE_MODEL,
+    AgentsProxy, BusConnection, LauncherFault, MODELS_ANY, MODELS_LISTED, ROUTE_ACCOUNT,
+    ROUTE_MODEL,
 };
 use std::collections::HashMap;
 use tokio::sync::Mutex;
@@ -37,10 +38,10 @@ impl std::fmt::Debug for DbusAccounts {
 
 fn fault(error: &LauncherError) -> AccountFault {
     match error {
-        LauncherError::Unreachable => AccountFault::Unreachable,
-        LauncherError::Refused(_) | LauncherError::Denied(_) | LauncherError::OnceGrant => {
-            AccountFault::Refused
-        }
+        LauncherError::Bus(CallFailure::Unreachable) => AccountFault::Unreachable,
+        LauncherError::Refused(_)
+        | LauncherError::Bus(CallFailure::Denied(_))
+        | LauncherError::Fault(LauncherFault::OnceGrant) => AccountFault::Refused,
         _ => AccountFault::Other,
     }
 }
@@ -159,7 +160,7 @@ impl Accounts for DbusAccounts {
         program: &AgentProgram,
         class: DataClass,
         session: &LauncherSession,
-    ) -> Result<KeyPermitId, AccountFault> {
+    ) -> Result<GrantId, AccountFault> {
         self.launcher
             .request_agent_key(program, class, Some(session))
             .await
@@ -169,7 +170,7 @@ impl Accounts for DbusAccounts {
 
     async fn issue(
         &self,
-        permit: &KeyPermitId,
+        permit: &GrantId,
         program: &AgentProgram,
         key_env: &EnvName,
         delivery: Delivery,

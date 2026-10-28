@@ -69,7 +69,7 @@ pub async fn serve_on<S: Seams + 'static>(
     router: Arc<Router<S>>,
     config: Arc<IntentdConfig>,
 ) -> Result<(), ServeFault> {
-    serve_on_with(connection, router, config, &ProcRoot::System).await
+    serve_on_with(connection, router, config, &ProcRoot::Unset).await
 }
 
 /// As [`serve_on`], naming callers by the cgroups under `proc_root` (the system's `/proc` unless
@@ -83,7 +83,7 @@ pub async fn serve_on_with<S: Seams + 'static>(
     let who = Arc::new(Identity::on(
         connection.clone(),
         callers::shipped(),
-        proc_root.fixture(),
+        proc_root.honoured().map(std::path::PathBuf::as_path),
     ));
     serve_on_gated(
         connection,

@@ -123,7 +123,7 @@ impl Desk {
             dir.path().join("proc"),
         ));
         setup.identity = Some(who.clone());
-        setup.proc_root = intentd::ProcRoot::Fake(dir.path().join("proc"));
+        setup.proc_root = intentd::ProcRoot::Honoured(dir.path().join("proc"));
         setup.audit_every = Duration::from_millis(50);
         setup.signals = Cadence {
             every: Duration::from_millis(30),

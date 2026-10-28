@@ -11,7 +11,7 @@ use bulkhead::{AgentRun, LandlockLevel};
 use docket_acp_host::fake::ChannelWire;
 use porter_capability::LoginOutcome;
 use porter_capability::{AgentProgram, AgentProtocol, EnvName};
-use porter_core::{DataClass, KeyPermitId, LauncherSession, ProcessCredentialId, SecretText};
+use porter_core::{DataClass, GrantId, LauncherSession, ProcessCredentialId, SecretText};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -176,14 +176,14 @@ impl Accounts for FakeAccounts {
         program: &AgentProgram,
         _class: DataClass,
         _session: &LauncherSession,
-    ) -> Result<KeyPermitId, AccountFault> {
+    ) -> Result<GrantId, AccountFault> {
         self.note(Call::Permit(program.as_str().to_owned()))?;
-        KeyPermitId::parse("permit-1").map_err(|_| AccountFault::Other)
+        GrantId::parse("permit-1").map_err(|_| AccountFault::Other)
     }
 
     async fn issue(
         &self,
-        _permit: &KeyPermitId,
+        _permit: &GrantId,
         program: &AgentProgram,
         _key_env: &EnvName,
         delivery: Delivery,

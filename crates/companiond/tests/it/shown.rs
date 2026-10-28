@@ -211,7 +211,7 @@ async fn the_answer_object_names_its_session_and_close_removes_it() {
         &server,
         companion.clone(),
         who.clone(),
-        ProcRoot::Fake(scratch.path().to_owned()),
+        ProcRoot::Honoured(scratch.path().to_owned()),
     )
     .await
     .expect("serving");

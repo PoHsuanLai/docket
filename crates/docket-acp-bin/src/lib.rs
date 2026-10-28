@@ -93,7 +93,7 @@ pub(crate) struct Callers {
 impl Default for Callers {
     fn default() -> Self {
         Self {
-            proc_root: ProcRoot::System,
+            proc_root: ProcRoot::Unset,
             system_callers: None,
         }
     }
@@ -119,7 +119,7 @@ async fn serve_on(
     let who = Arc::new(Identity::on(
         connection.clone(),
         table,
-        seams.proc_root.fixture(),
+        seams.proc_root.honoured().map(std::path::PathBuf::as_path),
     ));
     connection
         .object_server()
