@@ -3,8 +3,11 @@
 
 use crate::labels::Voice;
 use crate::state::{RouterState, SessionRecord};
-use docket_core::{CallerId, CallerRole, GrantCaller, ProgramName, TurnSource, WireRefusal};
-use prov::{Actor, AgentRole, ClientName, SessionId, TaskId};
+use docket_core::{
+    CallerId, CallerRole, ExternalAgent, GrantCaller, ProgramName, TurnSource, WireRefusal,
+};
+use porter_core::AppName;
+use prov::{Actor, AgentRef, AgentRole, ClientName, SessionId, TaskId};
 
 /// The party behind a request.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -161,7 +164,7 @@ impl RouterState {
                                 seat.place == docket_core::helper::SeatPlace::Conversation
                             })
                         })
-                        .max_by_key(|(id, _)| crate::messaging::age(id)),
+                        .max_by_key(|(id, _)| crate::session::age(id)),
                 }
                 .map(|(id, r)| {
                     (
@@ -267,5 +270,44 @@ impl RouterState {
                 helper: external.helper.clone(),
             }),
         })
+    }
+}
+
+/// Who acts in the session of `agent`, opened by `opener`: how calls and the journal name it.
+pub(crate) fn actor_of(
+    agent: &AgentRef,
+    external: Option<&ExternalAgent>,
+    session: &SessionId,
+    opener: &AppName,
+) -> Actor {
+    if let Some(external) = external {
+        // prov's own actor when the program fits porter's grammar; the older `acp:<program>`
+        // client name otherwise, so the audit still tells the agent apart.
+        if let Ok(program) = prov::AgentProgram::parse(external.program.as_str()) {
+            return Actor::Acp {
+                program,
+                label: external.label.clone(),
+            };
+        }
+        if let Some(client) = crate::who::acp_client(&external.program) {
+            return Actor::Mcp { client };
+        }
+    }
+    match agent {
+        AgentRef::Companion => Actor::Companion {
+            session: session.clone(),
+            role: AgentRole::Planner,
+        },
+        AgentRef::Worker { task } => Actor::Companion {
+            session: session.clone(),
+            role: AgentRole::Worker { task: task.clone() },
+        },
+        AgentRef::Cua { run } => Actor::Companion {
+            session: session.clone(),
+            role: AgentRole::Cua { run: run.clone() },
+        },
+        AgentRef::User => Actor::User {
+            via: opener.clone(),
+        },
     }
 }

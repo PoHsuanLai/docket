@@ -10,8 +10,9 @@ use crate::tasks::TaskTable;
 use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
-    CallFacts, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState,
-    KillSwitch, Ledger, Mode, Rewind, SessionSaw, StepLine, TaskPolicy, UserTurn,
+    BriefText, CallFacts, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry,
+    IndexState, KillSwitch, Ledger, Mode, Rewind, SessionSaw, StepLine, TaskPolicy, TurnId,
+    UserTurn,
 };
 use porter_core::{AppName, Count};
 use prov::{
@@ -21,6 +22,29 @@ use prov::{
 use std::collections::{BTreeMap, BTreeSet};
 
 use docket_core::Saw;
+
+/// How many confirmed briefs a session keeps; the oldest is dropped past it.
+pub const BRIEFS_KEPT: usize = 8;
+
+/// Words the person confirmed on a sheet, kept in the session like a turn they typed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfirmedBrief {
+    /// The field's content when the person pressed the button.
+    pub text: BriefText,
+    /// When.
+    pub at: UnixSeconds,
+    /// The call that asked.
+    pub call: docket_core::CallId,
+}
+
+/// A turn that has begun and not ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct RunningTurn {
+    /// Which turn.
+    pub(crate) turn: TurnId,
+    /// When it began, by the router's clock.
+    pub(crate) since: UnixSeconds,
+}
 
 /// What a session is for.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -64,7 +88,7 @@ pub struct SessionRecord {
     pub turns: Vec<UserTurn>,
     /// The briefs the person confirmed on a sheet, oldest first. Kept in memory: a restart forgets
     /// them and the planner must ask again, which is the safe direction.
-    pub briefs: Vec<crate::brief::ConfirmedBrief>,
+    pub briefs: Vec<ConfirmedBrief>,
     /// What this task may do.
     pub policy: Option<TaskPolicy>,
     /// How its calls ended.
@@ -220,7 +244,7 @@ pub struct RouterState {
     /// The sessions whose workspace is being saved or restored right now.
     pub(crate) stepping: BTreeSet<SessionId>,
     /// The turn each session's agent is working on now.
-    pub(crate) running: BTreeMap<SessionId, crate::turn_running::RunningTurn>,
+    pub(crate) running: BTreeMap<SessionId, RunningTurn>,
 }
 
 impl RouterState {

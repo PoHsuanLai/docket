@@ -1,10 +1,10 @@
 //! The halt and the journal: stopping everything, resuming, and undoing what agents did. The
 //! app's own stack stays the truth for Cmd+Z; the journal follows it and can undo a task.
 
-use crate::messaging::age;
 use crate::router::Router;
 use crate::seams::{AppLink, Seams};
 use crate::session::SessionEvent;
+use crate::session::age;
 use docket_core::Clock;
 use docket_core::EventSink;
 use docket_core::{

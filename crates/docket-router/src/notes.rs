@@ -104,7 +104,7 @@ impl<S: Seams> Router<S> {
         action: &docket_core::ActionRef,
         why: docket_core::CallRefusal,
     ) -> IntentsReply {
-        if !crate::companion::is_helper_action(action) {
+        if !crate::companion_names::is_helper_action(action) {
             return refuse(WireRefusal::NotAllowed);
         }
         let mut st = self.locked();

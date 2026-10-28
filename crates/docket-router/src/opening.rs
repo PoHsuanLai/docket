@@ -13,9 +13,8 @@ use docket_core::Clock;
 use docket_core::EventSink;
 use docket_core::helper::SeatPlace;
 use docket_core::{
-    AuditRecord, CallerId, CallerRole, ExternalAgent, IntentsReply, Reveal, Rewind, SessionOpen,
-    SessionOpened, TaskLedger, TurnId, TurnIn, TurnSource, UserTurn, WireRefusal, close,
-    intersection,
+    AuditRecord, CallerId, CallerRole, IntentsReply, Reveal, Rewind, SessionOpen, SessionOpened,
+    TaskLedger, TurnId, TurnIn, TurnSource, UserTurn, WireRefusal, close, intersection,
 };
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use porter_core::AppName;
@@ -33,45 +32,6 @@ fn turn_source(role: CallerRole, caller: &CallerId) -> TurnSource {
         CallerRole::AcpAgent => TurnSource::Agent(caller.app.name.clone()),
         CallerRole::Cli => TurnSource::Terminal,
         _ => TurnSource::Launcher,
-    }
-}
-
-/// Who acts in the session of `agent`, opened by `opener`: how calls and the journal name it.
-pub(crate) fn actor_of(
-    agent: &AgentRef,
-    external: Option<&ExternalAgent>,
-    session: &SessionId,
-    opener: &AppName,
-) -> Actor {
-    if let Some(external) = external {
-        // prov's own actor when the program fits porter's grammar; the older `acp:<program>`
-        // client name otherwise, so the audit still tells the agent apart.
-        if let Ok(program) = prov::AgentProgram::parse(external.program.as_str()) {
-            return Actor::Acp {
-                program,
-                label: external.label.clone(),
-            };
-        }
-        if let Some(client) = crate::who::acp_client(&external.program) {
-            return Actor::Mcp { client };
-        }
-    }
-    match agent {
-        AgentRef::Companion => Actor::Companion {
-            session: session.clone(),
-            role: AgentRole::Planner,
-        },
-        AgentRef::Worker { task } => Actor::Companion {
-            session: session.clone(),
-            role: AgentRole::Worker { task: task.clone() },
-        },
-        AgentRef::Cua { run } => Actor::Companion {
-            session: session.clone(),
-            role: AgentRole::Cua { run: run.clone() },
-        },
-        AgentRef::User => Actor::User {
-            via: opener.clone(),
-        },
     }
 }
 
@@ -180,7 +140,7 @@ impl<S: Seams> Router<S> {
                     task: task.clone(),
                 },
             },
-            None => actor_of(&open.agent, open.external.as_ref(), &session, opener),
+            None => crate::who::actor_of(&open.agent, open.external.as_ref(), &session, opener),
         };
         let mut record =
             SessionRecord::new(task.clone(), actor, opener.clone(), open.space.clone(), now);

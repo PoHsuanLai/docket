@@ -7,6 +7,7 @@
 //! table (`TaskRecord::goal`) and reaches the worker as a request message whose label is the
 //! planner's; nothing here reads it as an instruction.
 
+use crate::companion_names::{HELPER_POST_JOB, HELPER_PROPOSE, LIMIT_ADD, ROUTINE_PROPOSE};
 use crate::handles::HandleValue;
 use crate::labels::{app_label, model_label};
 use crate::router::Router;
@@ -16,7 +17,7 @@ use docket_core::Clock;
 use docket_core::EventSink;
 use docket_core::helper::{GoalOrigin, JobRefusal, PlannerSaw};
 use docket_core::{
-    ActionRef, AppRefusal, AuditRecord, CallerId, CallerRole, ChoiceId, DraftPart,
+    AppRefusal, AuditRecord, COMPANION_APP, CallerId, CallerRole, ChoiceId, DraftPart,
     FROM_CHECKED_BRIEF, FailText, IntentsReply, Invocation, LabelText, MessageDraft, Outcome,
     ParamName, Preview, Reveal, Saw, SendRefusal, SessionOpen, SessionOpened, TargetValue,
     TaskStart, Undoable, Value, WireRefusal,
@@ -28,31 +29,8 @@ use prov::{
 };
 use std::collections::BTreeMap;
 
-/// The name the built-in provider answers to.
-pub const COMPANION_APP: &str = "org.quire.Companion";
-
 /// The kind of thing a task is.
 const TASK_KIND: &str = "companion.task";
-
-/// Gives a job to a helper by its name.
-pub const HELPER_POST_JOB: &str = "companion.helper.post_job";
-/// Proposes a helper to the person, who confirms it on a sheet.
-pub const HELPER_PROPOSE: &str = "companion.helper.propose";
-/// Proposes a routine to the person, who accepts or declines it on a sheet.
-pub const ROUTINE_PROPOSE: &str = "companion.routine.propose";
-/// Shows the person a brief to check and change; what they confirm becomes their words in the
-/// session. The router answers it itself (see `brief`), since only it sees the sheet's words.
-pub const BRIEF_CONFIRM: &str = "companion.brief.confirm";
-
-/// Whether `action` is one of the helper actions: only the companion's own planners may call
-/// them, however an app or an outside client names them.
-pub fn is_helper_action(action: &ActionRef) -> bool {
-    action.app.as_str() == COMPANION_APP
-        && matches!(
-            action.name.as_str(),
-            HELPER_POST_JOB | HELPER_PROPOSE | ROUTINE_PROPOSE | BRIEF_CONFIRM
-        )
-}
 
 fn failed(why: &str) -> AppRefusal {
     AppRefusal::Failed(FailText(why.to_owned()))
@@ -132,7 +110,7 @@ impl<S: Seams> Router<S> {
             "companion.task.start" => self.task_start(&inv),
             "companion.task.message" => self.task_message(&inv),
             crate::skills::SKILL_LOAD => self.skill_load(&inv),
-            crate::limits::LIMIT_ADD => self.limit_add(&inv),
+            LIMIT_ADD => self.limit_add(&inv),
             HELPER_POST_JOB => self.helper_post_job(&inv),
             HELPER_PROPOSE => self.helper_propose(&inv),
             ROUTINE_PROPOSE => Self::routine_propose(&inv),

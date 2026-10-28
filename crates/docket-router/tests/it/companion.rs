@@ -3,7 +3,7 @@
 
 use crate::support::*;
 use docket_core::*;
-use docket_router::{COMPANION_APP, HandleValue, Router, TaskState};
+use docket_router::{HandleValue, Router, TaskState};
 use prov::{
     Actor, AgentRef, AgentRole, EntityId, EntityKey, EntityKind, Labelled, MessageKind, SessionId,
 };

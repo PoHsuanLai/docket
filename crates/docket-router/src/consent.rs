@@ -1,11 +1,20 @@
 //! Standing consent for one call: the person's grants, looked up per data class the action
 //! touches. What a tainted session does to an `Always` is the policy's (`tainted-always-asks`).
 
-use docket_core::{ActionDecl, ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
+use crate::companion_names::LIMIT_ADD;
+use docket_core::{
+    ActionDecl, ActionGrant, ActionGrantKey, COMPANION_APP, GrantCaller, GrantTarget,
+};
 use policy_point::TaintFact;
 use porter_core::consent::{GrantScope, Usage, Verdict, decide};
 use porter_core::{DataClass, GrantId};
-use prov::{SpaceId, SpaceScope};
+use prov::{ActionName, SpaceId, SpaceScope};
+
+/// Whether a call is the assistant's own `companion.limit.add`: the one action that needs no
+/// first-use question, because it can only make things stricter.
+fn is_limit_add(app: &porter_core::AppName, name: &ActionName) -> bool {
+    app.as_str() == COMPANION_APP && name.as_str() == LIMIT_ADD
+}
 
 /// The grants to try for one class, narrowest first: this action in this Space, the whole app
 /// in this Space, then the same across Spaces.
@@ -68,12 +77,10 @@ pub(crate) fn consent_for(
         }
         // The assistant tightening on the person's word needs no question: it can only make
         // the next call ask or refuse.
-        GrantCaller::Companion if crate::limits::is_limit_add(app, &decl.name) => {
-            Verdict::Granted {
-                grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
-                scope: GrantScope::Always,
-            }
-        }
+        GrantCaller::Companion if is_limit_add(app, &decl.name) => Verdict::Granted {
+            grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
+            scope: GrantScope::Always,
+        },
         _ => Verdict::Ask,
     };
     let per_class: Vec<Verdict> = decl

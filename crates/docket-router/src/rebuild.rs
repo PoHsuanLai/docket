@@ -8,11 +8,11 @@
 //! for display.
 
 use crate::handles::HandleTable;
-use crate::opening::actor_of;
 use crate::session::{CloseCause, SessionState, Taint};
 use crate::state::{SessionKind, SessionRecord};
 use crate::tasks::{TaskRecord, TaskState};
 use crate::wal::Wal;
+use crate::who::actor_of;
 use almanac_core::EpisodeId;
 use docket_core::{
     ExternalAgent, HandTo, Ledger, Reveal, Saw, SheetSurface, StepEnd, StepLine, StepShown,
@@ -26,7 +26,7 @@ use prov::{Actor, AgentRef, AgentRole, Label, SessionId, UnixSeconds};
 
 /// The app a session is attributed to when its log never said who opened it (a record from
 /// before the durable log).
-const FALLBACK_OPENER: &str = crate::companion::COMPANION_APP;
+const FALLBACK_OPENER: &str = docket_core::COMPANION_APP;
 
 /// A restored session and everything beside it the router must make consistent.
 #[derive(Debug)]

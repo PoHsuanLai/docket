@@ -21,15 +21,6 @@ use prov::{
 };
 use std::collections::BTreeMap;
 
-/// How recently a session was opened: ids are minted in order.
-pub(crate) fn age(id: &SessionId) -> u64 {
-    id.as_str()
-        .rsplit('-')
-        .next()
-        .and_then(|n| n.parse().ok())
-        .unwrap_or(0)
-}
-
 fn receiving<'a>(
     st: &'a RouterState,
     to: &Address,
@@ -131,7 +122,7 @@ impl<S: Seams> Router<S> {
         };
         let Some(target) = receiving(&st, &to)
             .map(|(id, _)| id.clone())
-            .max_by_key(age)
+            .max_by_key(crate::session::age)
         else {
             return match to.agent {
                 AgentRef::User => self.deliver_to_address(&mut st, to, message),

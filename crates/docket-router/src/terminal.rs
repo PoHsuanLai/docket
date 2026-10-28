@@ -15,12 +15,12 @@ use action_review::Breaker;
 use docket_core::Clock;
 use docket_core::EventSink;
 use docket_core::{
-    ActionDecl, ActionMatch, ActionRef, AgentReach, AskReason, AuditRecord, CallerRole, LabelText,
-    TargetKind, TaskPolicy, TaskPolicyState,
+    ActionDecl, ActionMatch, ActionRef, AuditRecord, CallerRole, LabelText, TargetKind, TaskPolicy,
+    TaskPolicyState,
 };
 use policy_point::TerminalGrant;
 use porter_core::Count;
-use prov::{Actor, Effect, EntityKind, SpaceScope, UnixSeconds};
+use prov::{Actor, EntityKind, SpaceScope, UnixSeconds};
 use std::collections::BTreeSet;
 
 /// Whether the terminal session `record` holds a standing grant for `action` at `now`.
@@ -37,17 +37,6 @@ pub(crate) fn held(record: &SessionRecord, action: &ActionRef, now: UnixSeconds)
         }
         _ => TerminalGrant::NotGranted,
     }
-}
-
-/// Whether the sheet may offer the standing grant for `p`: it comes from the terminal, the only
-/// thing that asks is the terminal rule itself (no Rule of Two, untrusted sink, mass or
-/// memory rule would ask on top, which a grant could not lift), and the action is neither
-/// destructive nor one that asks every time.
-pub(crate) fn offers_grant(p: &Prepared, why: &[AskReason]) -> bool {
-    p.who.actor == Actor::Cli
-        && p.decl.effect != Effect::Destructive
-        && p.decl.reach == AgentReach::Offered
-        && why == [AskReason::FromTerminal]
 }
 
 fn kinds_of(decl: &ActionDecl) -> BTreeSet<EntityKind> {

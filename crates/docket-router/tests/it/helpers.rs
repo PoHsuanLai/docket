@@ -5,7 +5,7 @@ use crate::support::*;
 use docket_core::helper::HelperSeat;
 use docket_core::*;
 use docket_fake::ScriptedWriter;
-use docket_router::{COMPANION_APP, HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE};
+use docket_router::{HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE};
 use prov::{
     Actor, Address, AgentRef, AgentRole, Confidentiality, Effect, HelperId, Integrity, Label,
     Labelled, MessageKind, MessageText, ModelRole, SessionId, Source, UnixSeconds,

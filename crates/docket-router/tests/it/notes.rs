@@ -410,7 +410,7 @@ async fn narrowing_a_subagent_never_widens_what_it_has() {
 
 fn helper_action(name: &str) -> ActionRef {
     ActionRef {
-        app: app(docket_router::COMPANION_APP),
+        app: app(docket_core::COMPANION_APP),
         name: prov::ActionName::parse(name).expect("action"),
     }
 }

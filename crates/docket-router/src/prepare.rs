@@ -19,7 +19,7 @@ use crate::router::Router;
 use crate::seams::{GrantStore, Seams};
 use crate::session::{CloseCause, SessionEffect, SessionEvent, SessionState, session_step};
 use crate::spacing::relation_of;
-use crate::standing::StandingCtx;
+use crate::standing_ctx::StandingCtx;
 use crate::state::{RouterState, SessionRecord};
 use crate::turn_start::{TurnStart, pass, rule};
 use crate::who::Who;

@@ -3,6 +3,7 @@
 //! closed.
 
 use docket_core::{BreakerTrip, CallRefusal};
+use prov::SessionId;
 
 /// Whether the session read anything untrusted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -101,4 +102,13 @@ pub fn session_step(
             (paused, vec![E::Refuse(CallRefusal::Paused(trip))])
         }
     }
+}
+
+/// How recently a session was opened: ids are minted in order.
+pub(crate) fn age(id: &SessionId) -> u64 {
+    id.as_str()
+        .rsplit('-')
+        .next()
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(0)
 }

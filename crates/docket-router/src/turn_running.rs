@@ -12,18 +12,10 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
+use crate::state::RunningTurn;
 use docket_core::Clock;
 use docket_core::{CallerId, CallerRole, IntentsReply, TurnId, TurnState, WireRefusal};
 use prov::{SessionId, UnixSeconds};
-
-/// A turn that has begun and not ended.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct RunningTurn {
-    /// Which turn.
-    pub(crate) turn: TurnId,
-    /// When it began, by the router's clock.
-    pub(crate) since: UnixSeconds,
-}
 
 impl<S: Seams> Router<S> {
     /// Marks `turn` as running in `session`, in place of any turn that never ended.

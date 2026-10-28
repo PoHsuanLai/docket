@@ -17,9 +17,6 @@ use docket_core::{
 use porter_core::AppName;
 use prov::{ActionName, Actor, Effect, SpaceScope};
 
-/// The assistant's one action that adds a limit.
-pub(crate) const LIMIT_ADD: &str = "companion.limit.add";
-
 fn failed(why: &str) -> AppRefusal {
     AppRefusal::Failed(FailText(why.to_owned()))
 }
@@ -197,10 +194,4 @@ pub(crate) fn rule_limit(ruling: &Ruling) -> Limited {
             _ => None,
         })
         .map_or(Limited::Free, Limited::Ask)
-}
-
-/// Whether a call is the assistant's own `companion.limit.add`: the one action that needs no
-/// first-use question, because it can only make things stricter.
-pub(crate) fn is_limit_add(app: &AppName, name: &ActionName) -> bool {
-    app.as_str() == crate::companion::COMPANION_APP && name.as_str() == LIMIT_ADD
 }

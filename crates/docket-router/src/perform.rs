@@ -1,36 +1,25 @@
 //! Driving one call through its lifecycle: the pure step decides, this carries out what it
 //! asks (the reviewers, the app's dry run, the sheet, the app itself) and keeps the audit.
 
-use crate::asks::{AskKey, Seat, Settled, seat, settled};
-use crate::brief::{brief_answer, is_brief_confirm};
 use crate::call::{CallEffect, CallEvent, CallState, call_step};
-use crate::confirm::confirm_request;
+use crate::confirm::offers_grant;
 use crate::deadline::within;
 use crate::driven::{Driven, Next, Run, code_of, reviewer_model, unissued};
-use crate::durable::Flush;
 use crate::gate::Pending;
-use crate::prepared::{Prepared, grants_for};
+use crate::perform_sheet::asked_why;
+use crate::prepared::Prepared;
 use crate::router::Router;
-use crate::seams::{AppFault, AppLink, GrantStore, Seams};
-use crate::terminal::offers_grant;
+use crate::seams::Seams;
 use crate::watch::Watch;
 use crate::who::Who;
 use action_review::{DeniedBy, ReviewVerdict, Reviewer};
-use docket_core::Clock;
-use docket_core::EventSink;
 use docket_core::{
-    ActivationToken, AlwaysOffer, AppRefusal, AskReason, AuditRecord, BudgetKind, CallEnd,
-    CallRefusal, CallRequest, ConfirmAnswer, ConfirmAnswerKind, ConfirmEnd, ConfirmId,
-    ConfirmRequest, Confirmer, Depth, Follow, Invocation, Ledger, Millis, Outcome, PolicyId,
-    ReviewError, ReviewMark, Reviewed, Stage, UndoId, Undoable, WindowKey, charge, halted,
+    ActivationToken, AlwaysOffer, AuditRecord, CallEnd, CallRefusal, CallRequest, Clock,
+    ConfirmAnswerKind, Confirmer, Depth, EventSink, Follow, Millis, Outcome, ReviewError,
+    ReviewMark, Stage, Undoable, WindowKey, halted,
 };
-use docket_session::{CallOpen, SessionEntry};
-use porter_core::GrantId;
-use prov::{Actor, AgentRole, SessionId, SpaceScope};
+use prov::SpaceScope;
 use tracing::Instrument;
-
-/// A ledger checkpoint is written when the session has made a multiple of this many calls.
-const BUDGET_EVERY: u32 = 5;
 
 impl<S: Seams> Router<S> {
     /// One call, from arguments to answer.
@@ -114,7 +103,7 @@ impl<S: Seams> Router<S> {
         }
     }
 
-    fn halt_scope(&self, space: &prov::SpaceId) -> Option<SpaceScope> {
+    pub(crate) fn halt_scope(&self, space: &prov::SpaceId) -> Option<SpaceScope> {
         let st = self.locked();
         halted(&st.kill, space)?;
         Some(match st.kill.all {
@@ -227,50 +216,6 @@ impl<S: Seams> Router<S> {
         }
     }
 
-    /// The broad "always" of the other callers: one grant per data class, for the app in this
-    /// Space.
-    fn record_class_grant(&self, p: &Prepared) {
-        let now = self.seams.clock().now();
-        let id = {
-            let n = self.locked().mint();
-            GrantId::parse(&format!("g-{n}")).ok()
-        };
-        if let Some(id) = id {
-            for grant in grants_for(p, id, now, p.who.grant_caller()) {
-                self.seams.grants().record(grant);
-            }
-        }
-    }
-
-    fn journal_undo(
-        &self,
-        p: &Prepared,
-        outcome: &Outcome,
-        token: &docket_core::UndoToken,
-    ) -> UndoId {
-        let now = self.seams.clock().now();
-        let said = outcome.said.clone().unwrap_or_else(|| p.decl.label.clone());
-        let (run_id, session) = match (&p.who.actor, &p.who.session) {
-            (
-                Actor::Companion {
-                    role: AgentRole::Cua { run },
-                    ..
-                },
-                session,
-            ) => (Some(run.clone()), session.clone()),
-            (_, session) => (None, session.clone()),
-        };
-        self.locked().journal.record(
-            now,
-            p.who.actor.clone(),
-            p.request.action.clone(),
-            said,
-            token.clone(),
-            run_id,
-            session,
-        )
-    }
-
     async fn next_event(&self, p: &Prepared, run: &mut Run, effects: &[CallEffect]) -> Next {
         let dispatching = effects.contains(&CallEffect::Dispatch);
         if self.halt_scope(&p.space).is_some()
@@ -330,244 +275,5 @@ impl<S: Seams> Router<S> {
         run.codes.push((stage, code));
         run.verdicts.push((stage, verdict.clone()));
         Next::Event(CallEvent::Verdict(stage, verdict))
-    }
-
-    async fn dry_run(&self, p: &Prepared, run: &mut Run) -> Next {
-        let answer = match p.decl.dry_run {
-            docket_core::DryRun::None => Err(AppRefusal::Unsupported),
-            docket_core::DryRun::Preview => {
-                self.seams
-                    .link()
-                    .dry_run(&p.request.action.app, self.invocation(p))
-                    .await
-            }
-        };
-        run.preview = answer.as_ref().ok().cloned();
-        match self.sheet_for(p, run) {
-            Some(request) => Next::Event(CallEvent::Previewed(Box::new(request))),
-            None => Next::Event(CallEvent::Answered(ConfirmAnswer::Ended(
-                ConfirmEnd::Cancelled,
-            ))),
-        }
-    }
-
-    pub(crate) fn invocation(&self, p: &Prepared) -> Invocation {
-        Invocation {
-            call: p.id,
-            action: p.decl.name.clone(),
-            target: p.request.target.clone(),
-            // What the caller sent, then what the router filled (`check_call` kept the two apart).
-            args: p
-                .request
-                .args
-                .iter()
-                .chain(&p.filled)
-                .map(|(name, arg)| (name.clone(), arg.clone()))
-                .collect(),
-            actor: p.who.actor.clone(),
-            origin: p.request.origin,
-            space: p.space.clone(),
-        }
-    }
-
-    /// The sheet for a call that goes to the person: its reasons, the preview the app gave (or
-    /// the plain argument lines), and a freshly minted id.
-    fn sheet_for(&self, p: &Prepared, run: &Run) -> Option<ConfirmRequest> {
-        let mut st = self.locked();
-        let n = st.mint();
-        let id = ConfirmId::parse(&format!("c-{n}")).ok()?;
-        let record = p.who.session.as_ref().and_then(|s| st.sessions.get(s));
-        let reasons = asked_why(p);
-        Some(confirm_request(
-            id,
-            p,
-            record,
-            &reasons,
-            run.preview.as_ref(),
-            self.agent_config().confirm_expiry,
-        ))
-    }
-
-    async fn confirm(&self, p: &Prepared, run: &mut Run, request: &ConfirmRequest) -> Next {
-        let id = request.id.clone();
-        let mut opened = None;
-        let answer = loop {
-            match seat(&self.state, AskKey::of(request, p.who.session.as_ref())) {
-                Seat::Waiter(rx) => match settled(rx).await {
-                    Settled::Take(answer) => return self.taken(p, run, answer),
-                    Settled::AskAgain => continue,
-                },
-                Seat::Asker(seat) => opened = Some(seat),
-                Seat::Alone => {}
-            }
-            self.locked().pending.insert(id.clone(), p.space.clone());
-            run.confirm = Some(id.clone());
-            let answer = self.seams.confirmer().confirm(request.clone()).await;
-            self.locked().pending.remove(&id);
-            if let Some(seat) = opened.as_mut() {
-                seat.settle(&answer);
-            }
-            break answer;
-        };
-        drop(opened);
-        if self.halt_scope(&p.space).is_some() {
-            self.seams.confirmer().cancel(&id).await;
-            return Next::Event(CallEvent::Halted);
-        }
-        let answer = Self::brief_settled(p, run, answer);
-        let yes = match &answer {
-            ConfirmAnswer::Allowed { scope, receipt, .. } => {
-                Some((ConfirmAnswerKind::Allowed(scope.clone()), receipt))
-            }
-            ConfirmAnswer::AllowedFromTerminal { receipt } => {
-                Some((ConfirmAnswerKind::AllowedFromTerminal, receipt))
-            }
-            ConfirmAnswer::Never { receipt } => Some((ConfirmAnswerKind::Never, receipt)),
-            ConfirmAnswer::Ended(_) => None,
-        };
-        if let Some((kind, receipt)) = yes {
-            // A "never" proves the person said so; it is no proof for running the call.
-            if !matches!(answer, ConfirmAnswer::Never { .. }) {
-                run.receipt = Some(receipt.clone());
-            }
-            self.seams.sink().append(AuditRecord::Confirm {
-                at: self.seams.clock().now(),
-                id: id.clone(),
-                answer: kind,
-                input: Some(receipt.input),
-            });
-        }
-        Next::Event(CallEvent::Answered(answer))
-    }
-
-    /// A call that waited on another's sheet takes that sheet's answer: the person's yes is
-    /// the receipt it runs on, and a refusal refuses it too.
-    fn taken(&self, p: &Prepared, run: &mut Run, answer: ConfirmAnswer) -> Next {
-        if self.halt_scope(&p.space).is_some() {
-            return Next::Event(CallEvent::Halted);
-        }
-        let answer = Self::brief_settled(p, run, answer);
-        if let ConfirmAnswer::Allowed { receipt, .. } = &answer {
-            run.receipt = Some(receipt.clone());
-        }
-        Next::Event(CallEvent::Answered(answer))
-    }
-
-    /// A brief sheet's answer as it counts (see `brief_answer`), with the words the person
-    /// confirmed noted on the run.
-    fn brief_settled(p: &Prepared, run: &mut Run, answer: ConfirmAnswer) -> ConfirmAnswer {
-        let answer = brief_answer(p, answer);
-        if let ConfirmAnswer::Allowed {
-            written: Some(words),
-            ..
-        } = &answer
-        {
-            run.written = Some(words.clone());
-        }
-        answer
-    }
-
-    /// Charges the call to its session and queues its `Call` entry. Gives back the ledger as it
-    /// was, to restore if the call cannot be recorded and so does not run.
-    fn begin_call(
-        &self,
-        p: &Prepared,
-        reviewed: Reviewed,
-        session: &SessionId,
-    ) -> Result<Option<Ledger>, BudgetKind> {
-        let now = self.seams.clock().now();
-        let mut st = self.locked();
-        let Some(record) = st.sessions.get_mut(session) else {
-            return Ok(None);
-        };
-        let cost = docket_core::Cost {
-            review: reviewed,
-            ..p.cost
-        };
-        let ledger = charge(&record.ledger, &self.agent_config().budget, &cost, now)?;
-        let before = std::mem::replace(&mut record.ledger, ledger);
-        // The turn-start memory read is a read the companion brought as context: nothing to
-        // recover after a crash, and no step a replay shows (see `finish`).
-        if p.request.origin != docket_core::Origin::TurnStart {
-            record.wal.note(SessionEntry::Call(CallOpen {
-                call: p.id,
-                action: p.request.action.clone(),
-                effect: p.decl.effect,
-            }));
-        }
-        if record.ledger.calls.0 % BUDGET_EVERY == 0 {
-            record.wal.note(SessionEntry::Budget(record.ledger));
-        }
-        Ok(Some(before))
-    }
-
-    async fn dispatch(&self, p: &Prepared, run: &mut Run) -> Next {
-        let answered = run.receipt.is_some();
-        if self.standing_use(p, answered).is_err() {
-            run.state = CallState::Done(CallEnd::Refused(CallRefusal::Denied(
-                docket_core::DenyCode::NeedsUser,
-            )));
-            return Next::Stop;
-        }
-        let reviewed = if run.verdicts.is_empty() {
-            Reviewed::No
-        } else {
-            Reviewed::Yes
-        };
-        if let Some(session) = &p.who.session {
-            let before = match self.begin_call(p, reviewed, session) {
-                Ok(before) => before,
-                Err(kind) => {
-                    run.state = CallState::Done(CallEnd::Refused(CallRefusal::OverBudget(kind)));
-                    return Next::Stop;
-                }
-            };
-            // The call is on the record before it is handed to the app: a crash after this
-            // leaves a `Call` with no `Step`, which a restore ends interrupted and never runs
-            // again. If it cannot be recorded, it does not run.
-            if self.flush(session).await != Flush::Durable {
-                if let Some(record) = self.locked().sessions.get_mut(session) {
-                    record.wal.retract_call(p.id);
-                    if let Some(before) = before {
-                        record.ledger = before;
-                    }
-                }
-                run.state = CallState::Done(CallEnd::Refused(CallRefusal::NotRecorded));
-                return Next::Stop;
-            }
-        }
-        let answer = if is_brief_confirm(&p.request.action) {
-            // Only the router sees the words the person confirmed, so no app is asked.
-            self.confirmed_brief(p, run).map_err(AppFault::Refused)
-        } else {
-            self.seams
-                .link()
-                .perform_classified(
-                    &p.request.action.app,
-                    self.invocation(p),
-                    p.activation.clone(),
-                    p.classified.as_ref().map(|c| c.sent.clone()),
-                    p.decl.latency,
-                )
-                .await
-                .and_then(|outcome| self.related_outcome(p, outcome).map_err(AppFault::Refused))
-        };
-        run.outcome = answer.as_ref().ok().cloned();
-        match answer {
-            Err(AppFault::TimedOut) => Next::Event(CallEvent::AppTimedOut),
-            Err(AppFault::Unavailable) => {
-                Next::Event(CallEvent::AppUnavailable(p.request.action.app.clone()))
-            }
-            Ok(outcome) => Next::Event(CallEvent::AppAnswered(Box::new(Ok(outcome)))),
-            Err(AppFault::Refused(why)) => Next::Event(CallEvent::AppAnswered(Box::new(Err(why)))),
-        }
-    }
-}
-
-/// Why the person is asked: the gate's reasons, or the reviewers' tightening.
-fn asked_why(p: &Prepared) -> Vec<AskReason> {
-    match &p.pending {
-        Pending::Confirm(r) => r.clone(),
-        _ => vec![AskReason::Rule(PolicyId("review".into()))],
     }
 }

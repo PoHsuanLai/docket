@@ -2,7 +2,8 @@
 //! context of the window the person prompted from. Untrusted text reaches a planner only as a
 //! handle; plain text goes to the reader and to the screen.
 
-use crate::handles::{HandleTable, HandleValue, context_view};
+use crate::handle_views::context_view;
+use crate::handles::{HandleTable, HandleValue};
 use crate::labels::{absorb, fold_labels};
 use crate::router::Router;
 use crate::seams::{AppLink, Seams};

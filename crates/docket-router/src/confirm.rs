@@ -4,16 +4,26 @@
 
 use crate::prepared::Prepared;
 use crate::state::SessionRecord;
-use crate::terminal::offers_grant;
+use docket_core::{AgentReach, ArgSink, CallerRole};
 use docket_core::{
     AlwaysOffer, Anchor, ArgLine, AskReason, ConfirmDetail, ConfirmId, ConfirmOffer,
     ConfirmRequest, Gesture, Limited, NeverOffer, Preview, Seconds, SheetLimits, Shown, TaintNote,
     Value,
 };
-use docket_core::{ArgSink, CallerRole};
 use porter_core::Count;
-use prov::{Effect, Integrity, Label, Source};
+use prov::{Actor, Effect, Integrity, Label, Source};
 use std::collections::BTreeSet;
+
+/// Whether the sheet may offer the standing grant for `p`: it comes from the terminal, the only
+/// thing that asks is the terminal rule itself (no Rule of Two, untrusted sink, mass or
+/// memory rule would ask on top, which a grant could not lift), and the action is neither
+/// destructive nor one that asks every time.
+pub(crate) fn offers_grant(p: &Prepared, why: &[AskReason]) -> bool {
+    p.who.actor == Actor::Cli
+        && p.decl.effect != Effect::Destructive
+        && p.decl.reach == AgentReach::Offered
+        && why == [AskReason::FromTerminal]
+}
 
 /// A value as words, for the sheet.
 fn words(value: &Value) -> String {
@@ -116,7 +126,7 @@ pub(crate) fn confirm_request(
             Limited::Free | Limited::Never(_) => None,
         }),
     };
-    let offer = if crate::brief::is_brief_confirm(&p.request.action) {
+    let offer = if crate::brief_sheet::is_brief_confirm(&p.request.action) {
         // A brief is checked every time and a "yes" for one is no grant for the next.
         ConfirmOffer::OnceOnly
     } else if limits.held.is_some() || standing.is_some_and(|s| s.holds()) {
@@ -168,6 +178,6 @@ pub(crate) fn confirm_request(
         helper: record
             .and_then(|r| r.helper.as_ref())
             .map(|seat| seat.name.clone()),
-        brief: crate::brief::sheet_of(p),
+        brief: crate::brief_sheet::sheet_of(p),
     }
 }
