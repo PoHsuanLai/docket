@@ -15,7 +15,7 @@ use crate::seams::Seams;
 use crate::state::RunningTurn;
 use docket_core::Clock;
 use docket_core::{CallerId, CallerRole, IntentsReply, TurnId, TurnState, WireRefusal};
-use prov::{SessionId, UnixSeconds};
+use prov::SessionId;
 
 impl<S: Seams> Router<S> {
     /// Marks `turn` as running in `session`, in place of any turn that never ended.
