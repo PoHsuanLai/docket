@@ -1,7 +1,7 @@
 //! Starting a world, in dependency order.
 
 use super::{
-    AcpSetting, Binaries, Cassette, Cgroup, Consent, InferdEnv, MEMORY_CALLERS, ModelSource,
+    AcpSetting, Binaries, Cassette, Cgroup, Consent, DaemonEnv, MEMORY_CALLERS, ModelSource,
     Options, Record, SPACES, Scratch, TapMode, World, copy_catalog, inferd_toml, place, spawn,
     within, write, write_system_callers,
 };
@@ -43,7 +43,7 @@ pub async fn until_owned(connection: &zbus::Connection, name: &str) {
 }
 
 impl World {
-    /// Starts everything, in dependency order: the bus, sill, inferd (replaying `cassette`),
+    /// Starts everything, in dependency order: the bus, sill, accountd, inferd (replaying `cassette`),
     /// memoryd, intentd (with the mail manifest installed), the mail provider, readerd, companiond.
     pub async fn start(binaries: &Binaries, consent: Consent, cassette: Cassette) -> World {
         let model = ModelSource::Scripted(cassette.0.to_owned());
@@ -132,14 +132,14 @@ impl World {
             .keys_home
             .as_ref()
             .map(crate::keys_home::KeysHome::keys_setting);
-        let inferd = InferdEnv {
+        let daemon_env = DaemonEnv {
             keys: keys.as_deref(),
             engine_cache: binaries.engine_cache.as_deref(),
         };
         let mut daemons = Vec::new();
         let mut start = async |name: &'static str, binary: &Path, owns: &str| {
-            let daemon =
-                spawn(root, &address, name, binary, tap.as_deref(), inferd).expect("daemon starts");
+            let daemon = spawn(root, &address, name, binary, tap.as_deref(), daemon_env)
+                .expect("daemon starts");
             place(root, daemon.1.pid(), Cgroup::Unit(name));
             daemons.push(daemon);
             until_owned(&sill, owns).await;
@@ -147,6 +147,7 @@ impl World {
         if let Some(home) = &options.keys_home {
             home.seed(root).expect("the key home's records are copied");
         }
+        start("accountd", &binaries.accountd, "org.quire.Accounts1").await;
         start("inferd", &binaries.inferd, "org.quire.Inference1").await;
         start("memoryd", &binaries.memoryd, "org.quire.Memory1").await;
         start("intentd", &binaries.intentd, "org.quire.Intents1").await;

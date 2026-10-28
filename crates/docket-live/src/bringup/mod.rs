@@ -1,4 +1,4 @@
-//! `docket-bringup`: the agent services (inferd, memoryd, intentd, companiond) on a bus that
+//! `docket-bringup`: the agent services (accountd, inferd, memoryd, intentd, companiond) on a bus that
 //! already exists, for a demo shell whose companion pane should really answer. It reuses the
 //! acceptance world's pieces: the same daemons, `env_clear` plus the scratch environment, the
 //! same fake proc root and configuration files. Unlike a world, the daemons outlive this
@@ -73,20 +73,20 @@ fn quote(word: &str) -> String {
     }
 }
 
-/// The command line that adds an OpenRouter key to a root whose inferd keeps its keys in the
-/// root's own file (the run without `--keys-home`). inferd must be stopped while it runs.
-pub fn add_command(root: &Path, inferd: &Path) -> String {
-    let keys = format!("file:{}", root.join("keys/inferd.keys").display());
+/// The command line that adds an OpenRouter key to a root whose accountd keeps its keys in the
+/// root's own file (the run without `--keys-home`). accountd must be stopped while it runs.
+pub fn add_command(root: &Path, accountd: &Path) -> String {
+    let keys = format!("file:{}", root.join("keys/accountd.keys").display());
     let env: Vec<String> = env_of(root)
         .into_iter()
         .map(|(name, value)| format!("{name}={value}"))
-        .chain([format!("INFERD_KEYS={keys}")])
+        .chain([format!("ACCOUNTD_KEYS={keys}")])
         .map(|pair| quote(&pair))
         .collect();
     format!(
         "env -i {} {} add openrouter --allow org.quire.Companion --allow org.quire.Intents",
         env.join(" "),
-        quote(&inferd.display().to_string())
+        quote(&accountd.display().to_string())
     )
 }
 
@@ -96,13 +96,13 @@ fn say_up(args: &cli::UpArgs, binaries: &Binaries, started: &[up::Started]) {
         .for_each(|s| println!("{} {} ok", s.name, s.pid));
     if args.keys_home.is_none() {
         println!(
-            "Cloud models need a key in this root; skip this if you already added one. To add it, stop the services (docket-bringup down --root {}), then type the key at inferd's own prompt:\n  {}\nthen run up again.",
+            "Cloud models need a key in this root; skip this if you already added one. To add it, stop the services (docket-bringup down --root {}), then type the key at accountd's own prompt:\n  {}\nthen run up again.",
             args.root.display(),
-            add_command(&args.root, &binaries.inferd)
+            add_command(&args.root, &binaries.accountd)
         );
         if args.providers.is_none() {
             println!(
-                "The root has no provider files, so inferd add will not know OpenRouter: run up with --providers (an install keeps them in ~/.local/share/porter/providers) first."
+                "The root has no provider files, so accountd add will not know OpenRouter: run up with --providers (an install keeps them in ~/.local/share/porter/providers) first."
             );
         }
     }

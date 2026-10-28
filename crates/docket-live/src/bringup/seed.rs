@@ -93,7 +93,7 @@ pub fn place(root: &Path, pid: u32, cgroup: Cgroup<'_>) -> std::io::Result<()> {
 pub const SHELL_UNIT: &str = "sill";
 
 /// Writes the configuration files a World writes (memoryd's callers and Spaces, inferd's
-/// configuration), and puts the shell in the fake proc root. intentd and companiond read no
+/// configuration, the system callers files with accountd's among them), and puts the shell in the fake proc root. intentd and companiond read no
 /// file: without one they run on the configuration they ship.
 pub fn files(root: &Path, shell_pid: u32, inferd_toml: &str) -> std::io::Result<()> {
     place(root, shell_pid, Cgroup::Unit(SHELL_UNIT))?;

@@ -176,26 +176,22 @@ mod keys_home {
         mode(&home, 0o700);
         let why = KeysHome::open(&home).expect_err("empty").to_string();
         assert!(why.contains("dev/live/cloud-key.sh"), "{why}");
-        std::fs::write(home.join("inferd.keys"), "fake").expect("keys");
-        mode(&home.join("inferd.keys"), 0o644);
+        std::fs::write(home.join("accountd.keys"), "fake").expect("keys");
+        mode(&home.join("accountd.keys"), 0o644);
         assert!(matches!(
             KeysHome::open(&home),
             Err(HomeFault::LooseMode(..))
         ));
-        mode(&home.join("inferd.keys"), 0o600);
-        let registry = home.join("state/quire/inferd/keys");
+        mode(&home.join("accountd.keys"), 0o600);
+        let registry = home.join("state/porter");
         std::fs::create_dir_all(&registry).expect("state");
         std::fs::write(registry.join("registry.json"), "{}").expect("registry");
         let open = KeysHome::open(&home).expect("filled");
-        assert!(open.keys_setting().ends_with("/inferd.keys"));
+        assert!(open.keys_setting().ends_with("/accountd.keys"));
         let world = tmp.path().join("world");
         open.seed(&world).expect("seed");
-        assert!(
-            world
-                .join(".local/state/quire/inferd/keys/registry.json")
-                .is_file()
-        );
-        assert!(!world.join("inferd.keys").exists());
+        assert!(world.join(".local/state/porter/registry.json").is_file());
+        assert!(!world.join("accountd.keys").exists());
     }
 
     #[test]

@@ -9,7 +9,7 @@ use super::procs::{self, Record};
 use super::refuse::{self, Own};
 use super::seed;
 use docket_accept::keys_home::KeysHome;
-use docket_accept::world::{Binaries, Cgroup, InferdEnv, env_of, extra_env};
+use docket_accept::world::{Binaries, Cgroup, DaemonEnv, env_of, extra_env};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
@@ -30,8 +30,13 @@ pub struct Started {
 }
 
 /// The daemons in start order, each with its binary and the bus name that says it is ready.
-fn plan(binaries: &Binaries) -> [(&'static str, &Path, &'static str); 4] {
+fn plan(binaries: &Binaries) -> [(&'static str, &Path, &'static str); 5] {
     [
+        (
+            "accountd",
+            binaries.accountd.as_path(),
+            "org.quire.Accounts1",
+        ),
         ("inferd", binaries.inferd.as_path(), "org.quire.Inference1"),
         ("memoryd", binaries.memoryd.as_path(), "org.quire.Memory1"),
         ("intentd", binaries.intentd.as_path(), "org.quire.Intents1"),
@@ -48,14 +53,14 @@ fn spawn(
     bus: &str,
     name: &'static str,
     binary: &Path,
-    inferd: InferdEnv<'_>,
+    daemon: DaemonEnv<'_>,
 ) -> std::io::Result<Child> {
     let log = std::fs::File::create(root.join("logs").join(format!("{name}.log")))?;
     let mut command = Command::new(binary);
     command
         .env_clear()
         .envs(env_of(root))
-        .envs(extra_env(root, name, inferd))
+        .envs(extra_env(root, name, daemon))
         .env("DBUS_SESSION_BUS_ADDRESS", bus)
         .env("DBUS_SYSTEM_BUS_ADDRESS", bus)
         .stdin(Stdio::null())
@@ -98,7 +103,7 @@ fn check_binaries(binaries: &Binaries) -> Result<(), BringupError> {
     Ok(())
 }
 
-/// Starts inferd, memoryd, intentd and companiond on `args.bus`, rooted in `args.root`, and
+/// Starts accountd, inferd, memoryd, intentd and companiond on `args.bus`, rooted in `args.root`, and
 /// waits for each one's bus name. On any failure everything started so far is stopped again.
 pub async fn up(
     args: &UpArgs,
@@ -146,7 +151,7 @@ pub async fn up(
         .await
         .map_err(|e| BringupError::Bus(e.to_string()))?;
     let keys_setting = keys.as_ref().map(KeysHome::keys_setting);
-    let inferd = InferdEnv {
+    let daemon_env = DaemonEnv {
         keys: keys_setting.as_deref(),
         engine_cache: binaries.engine_cache.as_deref(),
     };
@@ -158,7 +163,7 @@ pub async fn up(
             root,
             &args.bus,
             (name, binary, owns),
-            inferd,
+            daemon_env,
             &dbus,
             &mut records,
         )
@@ -180,11 +185,11 @@ async fn start_one(
     root: &Path,
     bus: &str,
     (name, binary, owns): (&'static str, &Path, &'static str),
-    inferd: InferdEnv<'_>,
+    daemon: DaemonEnv<'_>,
     dbus: &DBusProxy<'_>,
     records: &mut Vec<Record>,
 ) -> Result<u32, BringupError> {
-    let mut child = spawn(root, bus, name, binary, inferd)?;
+    let mut child = spawn(root, bus, name, binary, daemon)?;
     let pid = child.id();
     // Recorded before anything can fail, so a failure stops it too.
     let start = procs::start_time(pid).ok_or(BringupError::NoStartTime(name, pid))?;

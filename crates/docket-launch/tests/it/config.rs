@@ -2,7 +2,7 @@
 
 use bulkhead::NetworkMode;
 use bulkhead::egress::{Host, HostFault, Refusal};
-use docket_launch::{AgentsFile, ConfigFault, Delivery, Route};
+use docket_launch::{AgentsFile, ConfigFault, Route};
 
 use super::support::{ENDPOINT, HANDOFF, LOGIN};
 
@@ -20,7 +20,6 @@ fn the_claude_code_entry_reads_as_written() {
         Some("ANTHROPIC_API_KEY")
     );
     assert_eq!(entry.state.len(), 2);
-    assert_eq!(entry.delivery, Delivery::Value);
     assert_eq!(file.programs().len(), 1);
 }
 
@@ -136,6 +135,16 @@ fn a_program_listed_twice_refuses() {
         entry("route = \"login\"")
     );
     assert_eq!(refused(&two), ConfigFault::Twice("x".to_owned()));
+}
+
+#[test]
+fn a_delivery_line_is_refused_by_name() {
+    let ConfigFault::Syntax(why) = refused(&entry(
+        "route = \"handoff\"\nkey_env = \"K\"\ndelivery = \"file\"",
+    )) else {
+        panic!("expected a syntax fault");
+    };
+    assert!(why.contains("delivery"), "{why}");
 }
 
 #[test]

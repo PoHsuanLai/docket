@@ -1,7 +1,7 @@
 //! What the sandbox of a started agent binds: the tool edge, the buses it never sees and the
 //! read-only git directories.
 
-use super::support::{ALLOWLIST, ENDPOINT, HANDOFF, HANDOFF_FILE, LOGIN, plan, rig};
+use super::support::{ALLOWLIST, ENDPOINT, HANDOFF, LOGIN, plan, rig};
 use bulkhead::{Access, AgentNet, Profile, agent_bwrap_args};
 use docket_acp_host::{AgentChild, Spawn};
 use docket_launch::fake::Mood;
@@ -68,7 +68,6 @@ async fn no_network_mode_gives_the_agent_a_bus() {
     let cases = [
         (ENDPOINT, "claude-code"),
         (HANDOFF, "gemini-cli"),
-        (HANDOFF_FILE, "gemini-cli"),
         (LOGIN, "claude-code"),
         (ALLOWLIST, "claude-code"),
         (quiet.as_str(), "claude-code"),

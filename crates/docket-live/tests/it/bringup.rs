@@ -294,17 +294,36 @@ fn the_shell_is_sill_in_the_fake_proc_root() {
         std::fs::read_to_string(root.join("system/inferd-callers.toml")).expect("callers"),
         seed::inferd_callers()
     );
+
+    // accountd's table: inferd is the AI broker and the agent launcher has its row.
+    let accounts = parsed(
+        &std::fs::read_to_string(root.join("system/accountd-callers.toml")).expect("callers"),
+    );
+    let role_of = |unit: &str| {
+        accounts["caller"]
+            .as_array()
+            .expect("rows")
+            .iter()
+            .find(|row| row["unit"].as_str() == Some(unit))
+            .and_then(|row| row["role"].as_str())
+            .map(str::to_owned)
+    };
+    assert_eq!(role_of("inferd.service").as_deref(), Some("ai_broker"));
+    assert_eq!(
+        role_of("docket-acp.service").as_deref(),
+        Some("agent_launcher")
+    );
 }
 
 #[test]
 fn the_key_command_targets_the_root() {
-    let line = add_command(Path::new("/tmp/demo root"), Path::new("/opt/inferd"));
+    let line = add_command(Path::new("/tmp/demo root"), Path::new("/opt/accountd"));
     assert!(line.starts_with("env -i "), "{line}");
     assert!(line.contains("'HOME=/tmp/demo root'"), "{line}");
-    assert!(line.contains("INFERD_KEYS=file:/tmp/demo"), "{line}");
+    assert!(line.contains("ACCOUNTD_KEYS=file:/tmp/demo"), "{line}");
     assert!(
         line.ends_with(
-            "/opt/inferd add openrouter --allow org.quire.Companion --allow org.quire.Intents"
+            "/opt/accountd add openrouter --allow org.quire.Companion --allow org.quire.Intents"
         ),
         "{line}"
     );

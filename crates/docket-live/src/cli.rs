@@ -242,7 +242,7 @@ pub fn parse(args: &[String]) -> Result<Command, UsageError> {
     .find_map(|(flag, value)| value.as_ref().map(|_| flag))
     {
         return Err(UsageError::Home(format!(
-            "{moved} is gone: inferd holds the AI keys now, not accountd. Use --keys-home DIR (dev/live/cloud-key.sh fills it)"
+            "{moved} is gone: the AI keys sit in a key home. Use --keys-home DIR (dev/live/cloud-key.sh fills it)"
         )));
     }
     let timeout = raw

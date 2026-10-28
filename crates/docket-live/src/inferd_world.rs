@@ -1,4 +1,5 @@
-//! The smallest world a corpus run needs: a private bus and the packaged inferd, and this
+//! The smallest world a corpus run needs: a private bus, the packaged accountd (inferd asks it for
+//! the AI keys) and inferd, and this
 //! process placed in the fake proc root as `intentd.service` so inferd serves it as
 //! `org.quire.Intents` (the policy writer and the reviewers). Everything is scratch: HOME, every
 //! XDG directory, the bus. The model is a cassette or the owner's own `inferd.toml`.
@@ -8,7 +9,7 @@
 //! started here; `dev/live-smoke.sh` runs all of them.
 
 use docket_accept::world::{
-    Binaries, Cgroup, GIVE_UP, InferdEnv, ModelSource, Options, Scratch, env_of, inferd_toml,
+    Binaries, Cgroup, DaemonEnv, GIVE_UP, ModelSource, Options, Scratch, env_of, inferd_toml,
     place, spawn, until_owned, write,
 };
 use docket_dbus::BusConnection;
@@ -20,8 +21,9 @@ use std::path::{Path, PathBuf};
 
 /// The running world.
 pub struct InferdWorld {
-    // Declared first: inferd is killed before the bus it talks on goes.
+    // Declared first: inferd is killed before accountd and the bus it talks on go.
     inferd: Reaped,
+    _accountd: Reaped,
     /// The scratch root.
     pub dir: Scratch,
     bus: PrivateBus,
@@ -34,7 +36,8 @@ impl std::fmt::Debug for InferdWorld {
 }
 
 impl InferdWorld {
-    /// Starts the bus and inferd (replaying or live, as `model` says) and waits for inferd's name.
+    /// Starts the bus, accountd and inferd (replaying or live, as `model` says) and waits for
+    /// their names.
     pub async fn start(binaries: &Binaries, model: &ModelSource, options: &Options) -> Self {
         let dir = Scratch::made(options.keep_in.as_deref()).expect("scratch");
         let root = dir.path();
@@ -63,21 +66,25 @@ impl InferdWorld {
             home.seed(root).expect("the key home's records are copied");
             home.keys_setting()
         });
-        let (name, inferd) = spawn(
-            root,
-            bus.address(),
-            "inferd",
-            &binaries.inferd,
-            None,
-            InferdEnv {
-                keys: keys.as_deref(),
-                engine_cache: binaries.engine_cache.as_deref(),
-            },
-        )
-        .expect("inferd starts");
-        place(root, inferd.pid(), Cgroup::Unit(name));
-        until_owned(&client, "org.quire.Inference1").await;
-        Self { inferd, dir, bus }
+        let daemon_env = DaemonEnv {
+            keys: keys.as_deref(),
+            engine_cache: binaries.engine_cache.as_deref(),
+        };
+        let start = async |name: &'static str, binary: &Path, owns: &str| {
+            let (name, daemon) = spawn(root, bus.address(), name, binary, None, daemon_env)
+                .unwrap_or_else(|e| panic!("{name} starts: {e}"));
+            place(root, daemon.pid(), Cgroup::Unit(name));
+            until_owned(&client, owns).await;
+            daemon
+        };
+        let accountd = start("accountd", &binaries.accountd, "org.quire.Accounts1").await;
+        let inferd = start("inferd", &binaries.inferd, "org.quire.Inference1").await;
+        Self {
+            inferd,
+            _accountd: accountd,
+            dir,
+            bus,
+        }
     }
 
     /// A fresh connection to the private bus: the corpus run's link to inferd.

@@ -4,7 +4,7 @@
 //! is how intentd, inferd and memoryd know it: the callers files and tables the world writes name
 //! that scope (`org.quire.Acp` is an editor and a companion in the shipped `intentd.toml`).
 
-use crate::world::{Cgroup, GIVE_UP, InferdEnv, World, env_of, extra_env, place};
+use crate::world::{Cgroup, DaemonEnv, GIVE_UP, World, env_of, extra_env, place};
 use docket_testbus::Reaped;
 use serde_json::{Value, json};
 use std::path::Path;
@@ -37,7 +37,7 @@ impl AcpEditor {
         command
             .env_clear()
             .envs(env_of(dir))
-            .envs(extra_env(dir, "docket-acp", InferdEnv::default()))
+            .envs(extra_env(dir, "docket-acp", DaemonEnv::default()))
             .env("DBUS_SESSION_BUS_ADDRESS", world.address())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

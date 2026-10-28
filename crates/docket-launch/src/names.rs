@@ -4,7 +4,7 @@
 //! id always maps to the same name, and accountd never sees the original.
 
 use fnv::FnvHasher;
-use porter_core::LauncherSession;
+use porter_core::SessionToken;
 use prov::SessionId;
 use std::hash::Hasher;
 
@@ -28,14 +28,14 @@ fn digest(text: &str) -> String {
 }
 
 /// The launcher session for `session`.
-pub fn launcher_session(session: &SessionId) -> Option<LauncherSession> {
+pub fn launcher_session(session: &SessionId) -> Option<SessionToken> {
     let whole = format!("{PREFIX}{}", session.as_str());
     let name = if fits(&whole) {
         whole
     } else {
         format!("{PREFIX}{}", digest(session.as_str()))
     };
-    LauncherSession::parse(&name).ok()
+    SessionToken::parse(&name).ok()
 }
 
 #[cfg(test)]

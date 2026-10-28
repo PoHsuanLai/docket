@@ -8,9 +8,26 @@ use std::path::Path;
 /// calling from this file alone, never from `inferd.toml`.
 pub const INFERD_CALLERS: &str = "[apps]\n\"org.quire.Memory\" = [\"memoryd.service\"]\n\"org.quire.Intents\" = [\"intentd.service\"]\n\"org.quire.Companion\" = [\"companiond.service\", { unit = \"docket-acp.scope\", exe = [\"/usr/bin/docket-acp\"] }]\n\"org.quire.Reader\" = [\"readerd.service\"]\n";
 
+/// accountd's caller table, a system file (its `callers.toml`): inferd is the AI broker, the one
+/// daemon that asks for the key behind a permit, and the launcher of external coding agents may
+/// call the `Launcher` interface.
+pub const ACCOUNTD_CALLERS: &str = r#"[[caller]]
+app = "org.quire.Inference"
+unit = "inferd.service"
+role = "ai_broker"
+name = "Intelligence"
+
+[[caller]]
+app = "org.quire.DocketAcp"
+unit = "docket-acp.service"
+role = "agent_launcher"
+name = "Agents"
+"#;
+
 /// The shipped callers files of the daemons that read their own, by file name.
-const SYSTEM_CALLERS: [(&str, &str); 6] = [
+const SYSTEM_CALLERS: [(&str, &str); 7] = [
     ("memory-callers.toml", MEMORY_CALLERS),
+    ("accountd-callers.toml", ACCOUNTD_CALLERS),
     ("inferd-callers.toml", INFERD_CALLERS),
     (
         "intentd-callers.toml",

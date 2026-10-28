@@ -3,15 +3,15 @@
 //! variable pair its route needs. The key is put in the child only, by the route:
 //!
 //! - endpoint (P4): the base URL and inferd's per-session token. Never the account's key.
-//! - handoff (P2), `value`: the key under `key_env`. `file`: `<key_env>_FILE` names a tmpfs file
-//!   and the key is in no environment.
+//! - handoff (P2): the key under `key_env`.
 //! - login: nothing. The agent has its own sign-in in its own state directory.
 
-use crate::accounts::{KeyHandoff, OpenedEndpoint};
+use crate::accounts::OpenedEndpoint;
 use crate::config::{Entry, Route};
 use bulkhead::AbsPath;
 use bulkhead::{EnvVar, SANDBOX_HOME, SANDBOX_PATH};
 use porter_capability::EnvName;
+use porter_core::SecretText;
 
 /// What a route gave the child.
 #[derive(Debug)]
@@ -21,25 +21,22 @@ pub enum Lent<'a> {
     /// An inferd endpoint.
     Endpoint(&'a OpenedEndpoint),
     /// A key.
-    Key(&'a KeyHandoff),
+    Key(&'a SecretText),
 }
 
 /// Why the environment could not be built.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum EnvFault {
-    /// What the route lent does not fit the entry (a key where none is read, a file variable
-    /// whose name is too long).
+    /// What the route lent does not fit the entry (a key where none is read).
     #[error("the entry cannot take what its route lent")]
     Mismatch,
 }
 
-/// The environment and the extra read-only path a file-delivered key needs.
+/// The environment built for a child.
 #[derive(Debug)]
 pub struct Built {
     /// The whole environment.
     pub vars: Vec<EnvVar>,
-    /// A key file to bind read-only into the sandbox.
-    pub key_file: Option<AbsPath>,
 }
 
 fn var(name: &str, value: &str) -> EnvVar {
@@ -72,7 +69,6 @@ pub fn child_env(entry: &Entry, lent: &Lent<'_>) -> Result<Built, EnvFault> {
         vars.retain(|v| v.name != name);
         vars.push(var(name, value));
     }
-    let mut key_file = None;
     match (entry.route, lent) {
         (Route::Login, Lent::Nothing) => {}
         (Route::Endpoint, Lent::Endpoint(endpoint)) => {
@@ -82,18 +78,11 @@ pub fn child_env(entry: &Entry, lent: &Lent<'_>) -> Result<Built, EnvFault> {
             put(&mut vars, base, &endpoint.base_url);
             put(&mut vars, key, endpoint.token.expose());
         }
-        (Route::Handoff, Lent::Key(KeyHandoff::Value(secret))) => {
+        (Route::Handoff, Lent::Key(secret)) => {
             let key = entry.key_env.as_ref().ok_or(EnvFault::Mismatch)?;
             put(&mut vars, key, secret.expose());
         }
-        (Route::Handoff, Lent::Key(KeyHandoff::File(path))) => {
-            let key = entry.key_env.as_ref().ok_or(EnvFault::Mismatch)?;
-            let name = EnvName::parse(&format!("{}_FILE", key.as_str()))
-                .map_err(|_| EnvFault::Mismatch)?;
-            put(&mut vars, &name, path.as_str());
-            key_file = Some(path.clone());
-        }
         _ => return Err(EnvFault::Mismatch),
     }
-    Ok(Built { vars, key_file })
+    Ok(Built { vars })
 }

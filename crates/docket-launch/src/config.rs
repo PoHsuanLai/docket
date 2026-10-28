@@ -87,19 +87,6 @@ pub enum Route {
     Login,
 }
 
-/// How a handed-off key reaches the child.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Delivery {
-    /// In the child's environment: for programs that read only their key variable. Readable by
-    /// the user's other processes through `/proc`; porter's note on residual risk applies.
-    #[default]
-    Value,
-    /// `<key_env>_FILE` names a 0600 file on a tmpfs, bound read-only into the sandbox: for
-    /// programs that read such a variable. The key is in no environment.
-    File,
-}
-
 /// Whether the agent is offered the desktop's actions over the per-session tool edge
 /// (`docket_acp_host::ToolsEdge`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
@@ -168,8 +155,6 @@ struct Raw {
     base_url_env: Option<String>,
     protocol: Option<AgentProtocol>,
     class: Option<DataClass>,
-    #[serde(default)]
-    delivery: Delivery,
     endpoint: Option<Endpoint>,
     #[serde(default)]
     reads: Vec<String>,
@@ -263,8 +248,6 @@ pub struct Entry {
     pub protocol: AgentProtocol,
     /// The data class the route carries.
     pub class: DataClass,
-    /// How a handed-off key travels.
-    pub delivery: Delivery,
     /// The endpoint route's target.
     pub endpoint: Option<Endpoint>,
     /// Read-only paths (the program's installation).

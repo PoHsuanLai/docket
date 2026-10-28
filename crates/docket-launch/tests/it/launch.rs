@@ -2,7 +2,7 @@
 //! asked of porter and in what order, what the child is given and not given, what is undone on
 //! close, on a failure, and when a credential is revoked.
 
-use super::support::{ALLOWLIST, ENDPOINT, HANDOFF, HANDOFF_FILE, LOGIN, plan, rig};
+use super::support::{ALLOWLIST, ENDPOINT, HANDOFF, LOGIN, plan, rig};
 use bulkhead::{Access, AgentNet, AgentRun, NetworkMode, Profile, agent_bwrap_args};
 use docket_acp_host::{AgentChild, Spawn, SpawnFault};
 use docket_launch::fake::{Call, FakeAccounts, Mood};
@@ -134,7 +134,7 @@ async fn a_handed_off_key_goes_to_the_child_only_and_is_revoked_with_it() {
         [
             Call::Begin("acp-s-2".into()),
             Call::Permit("gemini-cli".into()),
-            Call::Issue("gemini-cli".into(), docket_launch::Delivery::Value)
+            Call::Issue("gemini-cli".into())
         ]
     );
     let run = &rig.procs.runs()[0];
@@ -155,28 +155,6 @@ async fn a_handed_off_key_goes_to_the_child_only_and_is_revoked_with_it() {
         [Call::Revoke("cred-1".into()), Call::End("acp-s-2".into())]
     );
     assert!(rig.registry.is_empty());
-}
-
-#[tokio::test]
-async fn a_file_handoff_puts_the_key_in_no_environment() {
-    let mut rig = rig(HANDOFF_FILE, Mood::Working, true);
-    let _spawned = rig
-        .spawn
-        .spawn(&plan("gemini-cli", "s-3"))
-        .await
-        .expect("spawned");
-    let run = &rig.procs.runs()[0];
-    assert_eq!(env_of(run, "GEMINI_API_KEY"), None);
-    assert_eq!(
-        env_of(run, "GEMINI_API_KEY_FILE"),
-        Some(rig.secrets.key_file.as_str())
-    );
-    assert!(!format!("{run:?}").contains(&rig.secrets.key));
-    assert!(
-        run.binds
-            .iter()
-            .any(|b| b.path.as_str() == rig.secrets.key_file && b.access == Access::ReadOnly)
-    );
 }
 
 #[tokio::test]

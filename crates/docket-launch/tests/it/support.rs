@@ -38,7 +38,7 @@ id = "anthropic-main"
 NODE_NO_WARNINGS = "1"
 "#;
 
-/// An agent that takes a key and cannot take a base URL: a handoff, delivered as a value.
+/// An agent that takes a key and cannot take a base URL: a handoff.
 pub const HANDOFF: &str = r#"
 [[agent]]
 program = "gemini-cli"
@@ -47,16 +47,6 @@ route = "handoff"
 network = "host"
 key_env = "GEMINI_API_KEY"
 protocol = "generate_content"
-"#;
-
-pub const HANDOFF_FILE: &str = r#"
-[[agent]]
-program = "gemini-cli"
-command = "/opt/gemini/bin/gemini-acp"
-route = "handoff"
-network = "host"
-key_env = "GEMINI_API_KEY"
-delivery = "file"
 "#;
 
 /// A subscription login: the agent's own sign-in, nothing from us, the host network.

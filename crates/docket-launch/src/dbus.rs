@@ -1,25 +1,21 @@
-//! The real porter link: inferd's launcher interface (`porter_client::Launcher`) and its
+//! The real porter link: the accounts service's launcher interface (`porter_client::Launcher`) and its
 //! `org.quire.Inference1.Agents` (`OpenEndpoint`, `CloseEndpoint`) over the bus. Built only with
 //! the `dbus` feature. A secret passes through here once, from the bus reply into the caller's
 //! hands, and is in no log: `SecretText`'s `Debug` shows nothing, and no error carries a value.
 
 use crate::accounts::{
-    AccountFault, Accounts, AskKind, Heard, Issued, KeyHandoff, LoginAsk, OpenedEndpoint, RouteWish,
+    AccountFault, Accounts, AskKind, Heard, Issued, LoginAsk, OpenedEndpoint, RouteWish,
 };
-use crate::config::Delivery;
-use bulkhead::AbsPath;
 use futures_util::StreamExt;
 use porter_capability::LoginOutcome;
 use porter_capability::{AgentProgram, AgentProtocol, EnvName};
 use porter_client::{CallFailure, ChildKey, Delivery as KeyDelivery, Launcher, LauncherError};
 use porter_client::{Requests, Revocations};
-use porter_core::audit::Handoff;
-use porter_core::{DataClass, GrantId, LauncherSession, ProcessCredentialId, SecretText};
+use porter_core::{DataClass, GrantId, ProcessCredentialId, SecretText, SessionToken};
 use porter_dbus::{
     BusConnection,
-    inference::{
-        AgentsProxy, LauncherFault, MODELS_ANY, MODELS_LISTED, ROUTE_ACCOUNT, ROUTE_MODEL,
-    },
+    accounts::LauncherFault,
+    inference::{AgentsProxy, MODELS_ANY, MODELS_LISTED, ROUTE_ACCOUNT, ROUTE_MODEL},
 };
 use std::collections::HashMap;
 use tokio::sync::Mutex;
@@ -91,14 +87,14 @@ impl Accounts for DbusAccounts {
             .map_err(|e| fault(&e))
     }
 
-    async fn begin_session(&self, session: &LauncherSession) -> Result<(), AccountFault> {
+    async fn begin_session(&self, session: &SessionToken) -> Result<(), AccountFault> {
         self.launcher
             .begin_session(session)
             .await
             .map_err(|e| fault(&e))
     }
 
-    async fn end_session(&self, session: &LauncherSession) -> Result<(), AccountFault> {
+    async fn end_session(&self, session: &SessionToken) -> Result<(), AccountFault> {
         self.launcher
             .end_session(session)
             .await
@@ -161,7 +157,7 @@ impl Accounts for DbusAccounts {
         &self,
         program: &AgentProgram,
         class: DataClass,
-        session: &LauncherSession,
+        session: &SessionToken,
     ) -> Result<GrantId, AccountFault> {
         self.launcher
             .request_agent_key(program, class, Some(session))
@@ -175,26 +171,17 @@ impl Accounts for DbusAccounts {
         permit: &GrantId,
         program: &AgentProgram,
         key_env: &EnvName,
-        delivery: Delivery,
     ) -> Result<Issued, AccountFault> {
-        let (handoff, how) = match delivery {
-            Delivery::Value => (Handoff::Memfd, KeyDelivery::Value),
-            // A tmpfs file has no descriptor to pass; the number is ignored.
-            Delivery::File => (Handoff::TmpfsFile, KeyDelivery::File { child_fd: 0 }),
-        };
         let credential = self
             .launcher
-            .issue_credential(permit, program, handoff)
+            .issue_credential(permit, program)
             .await
             .map_err(|e| fault(&e))?;
-        let key = match credential
-            .child_key(key_env, how)
+        let ChildKey::Value { value: key, .. } = credential
+            .child_key(key_env, KeyDelivery::Value)
             .map_err(|_| AccountFault::Other)?
-        {
-            ChildKey::Value { value, .. } => KeyHandoff::Value(value),
-            ChildKey::File { path, .. } => {
-                KeyHandoff::File(AbsPath::parse(&path).map_err(|_| AccountFault::Other)?)
-            }
+        else {
+            return Err(AccountFault::Other);
         };
         Ok(Issued {
             id: credential.id().clone(),

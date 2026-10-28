@@ -12,6 +12,7 @@ pub fn binaries() -> Binaries {
         companiond: env!("CARGO_BIN_EXE_accept-companiond").into(),
         readerd: env!("CARGO_BIN_EXE_accept-readerd").into(),
         memoryd: env!("ACCEPT_MEMORYD").into(),
+        accountd: env!("ACCEPT_ACCOUNTD").into(),
         inferd: env!("ACCEPT_INFERD").into(),
         quire_do: env!("CARGO_BIN_EXE_accept-quire-do").into(),
         actions_mcp: env!("CARGO_BIN_EXE_accept-actions-mcp").into(),

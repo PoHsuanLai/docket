@@ -8,7 +8,7 @@ use bulkhead::NetworkMode;
 use bulkhead::egress::Proxy;
 use bulkhead::forward::Bridge;
 use docket_acp_host::AgentChild;
-use porter_core::{LauncherSession, ProcessCredentialId};
+use porter_core::{ProcessCredentialId, SessionToken};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -69,7 +69,7 @@ impl<P: Proc> Registry<P> {
 pub(crate) struct Release<A, P> {
     pub(crate) accounts: Arc<A>,
     pub(crate) registry: Registry<P>,
-    pub(crate) session: LauncherSession,
+    pub(crate) session: SessionToken,
     pub(crate) endpoint: Option<String>,
     pub(crate) credential: Option<ProcessCredentialId>,
     pub(crate) bridge: Option<Bridge>,

@@ -1,10 +1,11 @@
-//! Builds the two daemons the acceptance runs as the packaged binaries: porter's `inferd`
-//! and almanac's `memoryd` (both with `test-keys`, because the private bus has no Secret Service, and `test-proc-root`
-//! on both, so callers are named from a fake proc root). Each is built from its own workspace and lock file, into a target
+//! Builds the three daemons the acceptance runs as the packaged binaries: porter's `accountd` (it
+//! holds the AI keys) and `inferd`, and almanac's `memoryd`. `accountd` and `memoryd` are built with
+//! `test-keys`, because the private bus has no Secret Service, and all three with `test-proc-root`,
+//! so callers are named from a fake proc root. Each is built from its own workspace and lock file, into a target
 //! directory inside this build's (`<target>/accept-siblings/<repo>`), so the nextest archive's
 //! target directory, which the jail binds, holds them and `cargo clean` removes them.
 //!
-//! The paths reach the tests as `ACCEPT_INFERD` and `ACCEPT_MEMORYD`. The nested cargo is the one
+//! The paths reach the tests as `ACCEPT_ACCOUNTD`, `ACCEPT_INFERD` and `ACCEPT_MEMORYD`. The nested cargo is the one
 //! the outer cargo runs as (`$CARGO`, not the build-slot shim: the outer build already holds a
 //! slot), with every cargo variable of this build scrubbed so the two do not share flags, a
 //! jobserver or a target directory.
@@ -18,11 +19,16 @@ struct Sibling {
     features: &'static [&'static str],
 }
 
-const SIBLINGS: [Sibling; 2] = [
+const SIBLINGS: [Sibling; 3] = [
+    Sibling {
+        repo: "porter",
+        package: "accountd",
+        features: &["test-proc-root", "test-keys"],
+    },
     Sibling {
         repo: "porter",
         package: "inferd",
-        features: &["test-proc-root", "test-keys"],
+        features: &["test-proc-root"],
     },
     Sibling {
         repo: "almanac",

@@ -1,17 +1,13 @@
 //! For tests: porter as a script (`FakeAccounts`) and the process seam as a recorder
 //! (`FakeProcs`). No bus, no process, no clock.
 
-use crate::accounts::{
-    AccountFault, Accounts, Heard, Issued, KeyHandoff, LoginAsk, OpenedEndpoint, RouteWish,
-};
-use crate::config::Delivery;
+use crate::accounts::{AccountFault, Accounts, Heard, Issued, LoginAsk, OpenedEndpoint, RouteWish};
 use crate::procs::{Proc, ProcFault, Procs};
-use bulkhead::AbsPath;
 use bulkhead::{AgentRun, LandlockLevel};
 use docket_acp_host::fake::ChannelWire;
 use porter_capability::LoginOutcome;
 use porter_capability::{AgentProgram, AgentProtocol, EnvName};
-use porter_core::{DataClass, GrantId, LauncherSession, ProcessCredentialId, SecretText};
+use porter_core::{DataClass, GrantId, ProcessCredentialId, SecretText, SessionToken};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -35,7 +31,7 @@ pub enum Call {
     /// `request_key`.
     Permit(String),
     /// `issue`: program and how it was to be delivered.
-    Issue(String, Delivery),
+    Issue(String),
     /// `revoke`.
     Revoke(String),
     /// `report`: the request and the outcome.
@@ -61,8 +57,6 @@ pub struct Secrets {
     pub token: String,
     /// The key a handoff would give.
     pub key: String,
-    /// Where a file handoff would put it.
-    pub key_file: String,
     /// The endpoint's port.
     pub port: u16,
 }
@@ -72,7 +66,6 @@ impl Default for Secrets {
         Self {
             token: "tok-session-7c1d".to_owned(),
             key: "sk-test-handoff-9f3a".to_owned(),
-            key_file: "/run/user/1000/porter/agent/key".to_owned(),
             port: 41999,
         }
     }
@@ -139,11 +132,11 @@ impl Accounts for FakeAccounts {
         ))
     }
 
-    async fn begin_session(&self, session: &LauncherSession) -> Result<(), AccountFault> {
+    async fn begin_session(&self, session: &SessionToken) -> Result<(), AccountFault> {
         self.note(Call::Begin(session.as_str().to_owned()))
     }
 
-    async fn end_session(&self, session: &LauncherSession) -> Result<(), AccountFault> {
+    async fn end_session(&self, session: &SessionToken) -> Result<(), AccountFault> {
         self.note(Call::End(session.as_str().to_owned()))
     }
 
@@ -175,7 +168,7 @@ impl Accounts for FakeAccounts {
         &self,
         program: &AgentProgram,
         _class: DataClass,
-        _session: &LauncherSession,
+        _session: &SessionToken,
     ) -> Result<GrantId, AccountFault> {
         self.note(Call::Permit(program.as_str().to_owned()))?;
         GrantId::parse("permit-1").map_err(|_| AccountFault::Other)
@@ -186,18 +179,11 @@ impl Accounts for FakeAccounts {
         _permit: &GrantId,
         program: &AgentProgram,
         _key_env: &EnvName,
-        delivery: Delivery,
     ) -> Result<Issued, AccountFault> {
-        self.note(Call::Issue(program.as_str().to_owned(), delivery))?;
-        let key = match delivery {
-            Delivery::Value => KeyHandoff::Value(SecretText::new(self.secrets.key.clone())),
-            Delivery::File => KeyHandoff::File(
-                AbsPath::parse(&self.secrets.key_file).map_err(|_| AccountFault::Other)?,
-            ),
-        };
+        self.note(Call::Issue(program.as_str().to_owned()))?;
         Ok(Issued {
             id: ProcessCredentialId::parse("cred-1").map_err(|_| AccountFault::Other)?,
-            key,
+            key: SecretText::new(self.secrets.key.clone()),
         })
     }
 

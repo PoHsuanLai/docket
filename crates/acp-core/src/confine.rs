@@ -25,7 +25,10 @@ const SECRET_PAIRS: &[(&str, &str)] = &[
     (".config", "chromium"),
     (".config", "google-chrome"),
     (".local", "share/keyrings"),
-    // inferd's state: the AI key registry and, in a test-keys build, the plain key file.
+    // The accounts service's state: the AI key registry, its audit and, in a test-keys build, the
+    // plain key file. inferd's old state stays listed while inferd still copies the old files.
+    (".local", "state/porter"),
+    (".local", "state/quire/accountd"),
     (".local", "state/quire/inferd"),
 ];
 /// File names that are credentials.
@@ -188,6 +191,8 @@ mod tests {
             "/home/u/proj/.local/share/keyrings/login.keyring",
             "/home/u/proj/.local/state/quire/inferd/keys/registry.json",
             "/home/u/proj/.local/state/quire/inferd",
+            "/home/u/proj/.local/state/porter/registry.json",
+            "/home/u/proj/.local/state/quire/accountd/audit.jsonl",
         ] {
             assert_eq!(confine(&scope, abs(p), abs(p)), Err(Refusal::Secret), "{p}");
         }

@@ -28,7 +28,7 @@ pub struct UpArgs {
     /// A catalogue directory whose `*.toml` entries are copied in.
     pub catalog: Option<PathBuf>,
     /// A directory of provider files (`*.toml`, no secrets) copied into `data/porter/providers`:
-    /// `inferd add` and the daemon serve only the providers named there.
+    /// `accountd add` and the daemon serve only the providers named there.
     pub providers: Option<PathBuf>,
     /// A file of extra `inferd.toml` rows (`[ai]` only: the person's data and model choices).
     pub inferd_config: Option<PathBuf>,

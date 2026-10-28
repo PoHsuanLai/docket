@@ -252,7 +252,6 @@ pub(super) fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFa
         base_url_env,
         protocol: raw.protocol.unwrap_or(AgentProtocol::AnthropicMessages),
         class: raw.class.unwrap_or(DataClass::Files),
-        delivery: raw.delivery,
         endpoint: raw.endpoint,
         reads: src.reads,
         state: src.state,

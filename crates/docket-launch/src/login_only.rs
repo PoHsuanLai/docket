@@ -5,10 +5,9 @@
 //! where there is no accountd.
 
 use crate::accounts::{AccountFault, Accounts, Heard, Issued, LoginAsk, OpenedEndpoint, RouteWish};
-use crate::config::Delivery;
 use porter_capability::LoginOutcome;
 use porter_capability::{AgentProgram, AgentProtocol, EnvName};
-use porter_core::{DataClass, GrantId, LauncherSession, ProcessCredentialId};
+use porter_core::{DataClass, GrantId, ProcessCredentialId, SessionToken};
 
 /// The seam with nothing behind it.
 #[derive(Debug, Clone, Copy, Default)]
@@ -19,11 +18,11 @@ impl Accounts for LoginOnly {
         Ok(())
     }
 
-    async fn begin_session(&self, _session: &LauncherSession) -> Result<(), AccountFault> {
+    async fn begin_session(&self, _session: &SessionToken) -> Result<(), AccountFault> {
         Ok(())
     }
 
-    async fn end_session(&self, _session: &LauncherSession) -> Result<(), AccountFault> {
+    async fn end_session(&self, _session: &SessionToken) -> Result<(), AccountFault> {
         Ok(())
     }
 
@@ -45,7 +44,7 @@ impl Accounts for LoginOnly {
         &self,
         _program: &AgentProgram,
         _class: DataClass,
-        _session: &LauncherSession,
+        _session: &SessionToken,
     ) -> Result<GrantId, AccountFault> {
         Err(AccountFault::Unreachable)
     }
@@ -55,7 +54,6 @@ impl Accounts for LoginOnly {
         _permit: &GrantId,
         _program: &AgentProgram,
         _key_env: &EnvName,
-        _delivery: Delivery,
     ) -> Result<Issued, AccountFault> {
         Err(AccountFault::Unreachable)
     }

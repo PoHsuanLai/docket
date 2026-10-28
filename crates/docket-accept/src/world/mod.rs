@@ -1,4 +1,4 @@
-//! The acceptance world: a private bus, the five real daemons as processes (inferd and memoryd as
+//! The acceptance world: a private bus, the real daemons as processes (accountd, inferd and memoryd as
 //! the packaged binaries of their repos, intentd, readerd and companiond), and the fakes on the
 //! bus around them: sill's `Confirm1` and a mail provider. The model is inferd's replay engine
 //! playing a cassette. Everything is scratch: HOME, every XDG directory and the bus.
@@ -18,8 +18,11 @@ mod ops;
 mod proc;
 mod start;
 
-pub use env::{InferdEnv, env_of, extra_env, spawn};
-pub use files::{INFERD_CALLERS, MEMORY_CALLERS, SPACES, inferd_toml, write, write_system_callers};
+pub use env::{DaemonEnv, env_of, extra_env, spawn};
+pub use files::{
+    ACCOUNTD_CALLERS, INFERD_CALLERS, MEMORY_CALLERS, SPACES, inferd_toml, write,
+    write_system_callers,
+};
 pub use proc::{Cgroup, as_app, link_image, place, restore_unit, unit_main};
 pub use start::until_owned;
 
@@ -61,6 +64,8 @@ pub struct Binaries {
     pub readerd: PathBuf,
     /// almanac's packaged `memoryd`, built with `test-keys`.
     pub memoryd: PathBuf,
+    /// porter's packaged `accountd`, built with `test-keys`: it holds the AI keys.
+    pub accountd: PathBuf,
     /// porter's packaged `inferd`.
     pub inferd: PathBuf,
     /// `accept-quire-do`.
@@ -80,7 +85,7 @@ pub const ENGINE_CACHE_VAR: &str = "DOCKET_LIVE_ENGINE_CACHE";
 
 impl Binaries {
     /// The binaries of a packaged run: the daemons beside `exe` (the program that runs them), and
-    /// the two siblings `build.rs` built into the target directory. `env` is the environment
+    /// the siblings `build.rs` built into the target directory. `env` is the environment
     /// `main` hands in: [`ENGINE_CACHE_VAR`] names the engines' shared compile cache.
     pub fn beside(exe: &Path, env: &impl Fn(&str) -> Option<String>) -> Self {
         let beside = |name: &str| exe.with_file_name(name);
@@ -89,6 +94,7 @@ impl Binaries {
             companiond: beside("accept-companiond"),
             readerd: beside("accept-readerd"),
             memoryd: PathBuf::from(env!("ACCEPT_MEMORYD")),
+            accountd: PathBuf::from(env!("ACCEPT_ACCOUNTD")),
             inferd: PathBuf::from(env!("ACCEPT_INFERD")),
             quire_do: beside("accept-quire-do"),
             actions_mcp: beside("accept-actions-mcp"),

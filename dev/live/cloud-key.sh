@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # One-time fill of the cloud key home used by `--keys-home` (docs/live-eval.md, "Cloud").
 #
-#   dev/live/cloud-key.sh DIR INFERD [--key-file FILE] [--providers DIR]
+#   dev/live/cloud-key.sh DIR ACCOUNTD [--key-file FILE] [--providers DIR]
 #
-# DIR       absolute, outside every git work tree; made 0700 here. Holds inferd.keys (0600), which
-#           only inferd opens, and inferd's non-secret records (state/, data/): the registry with
-#           the key permits is state/quire/inferd/keys/registry.json.
-# INFERD    porter's inferd built with `--features test-keys` (it runs `inferd add`).
+# DIR       absolute, outside every git work tree; made 0700 here. Holds accountd.keys (0600), which
+#           only accountd opens, and accountd's non-secret records (state/, data/): the registry with
+#           the key permits is state/porter/registry.json.
+# ACCOUNTD  porter's accountd built with `--features test-keys` (it runs `accountd add`).
 # --key-file FILE   a 0600 file holding the OpenRouter key on one line, outside every git work
-#           tree. It is piped to inferd's standard input (never put in argv or the environment,
-#           never printed or read by this script). Without it, inferd asks at its own prompt
+#           tree. It is piped to accountd's standard input (never put in argv or the environment,
+#           never printed or read by this script). Without it, accountd asks at its own prompt
 #           with echo off.
 # --providers DIR   where openrouter.toml is (default $PORTER_PROVIDERS, else ~/porter/providers).
 #
-# inferd runs on a private bus (dbus-run-session): the real session bus, the real Secret Service
+# accountd runs on a private bus (dbus-run-session): the real session bus, the real Secret Service
 # and the real home are never touched.
 set -euo pipefail
 
@@ -21,8 +21,8 @@ die() { echo "cloud-key: $*" >&2; exit 2; }
 loose() { [ -n "$(find "$1" -maxdepth 0 -perm /077)" ]; }
 in_git() { (cd "$(dirname "$1")" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); }
 
-[ $# -ge 2 ] || die "usage: cloud-key.sh DIR INFERD [--key-file FILE] [--providers DIR]"
-home=$1; inferd=$2; shift 2
+[ $# -ge 2 ] || die "usage: cloud-key.sh DIR ACCOUNTD [--key-file FILE] [--providers DIR]"
+home=$1; accountd=$2; shift 2
 keyfile=; providers=${PORTER_PROVIDERS:-$HOME/porter/providers}
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -33,7 +33,7 @@ while [ $# -gt 0 ]; do
 done
 
 case "$home" in /*) ;; *) die "DIR must be absolute" ;; esac
-[ -x "$inferd" ] || die "$inferd is not an executable"
+[ -x "$accountd" ] || die "$accountd is not an executable"
 [ -f "$providers/openrouter.toml" ] || die "no $providers/openrouter.toml (pass --providers)"
 mkdir -p "$home"
 home=$(cd "$home" && pwd -P)
@@ -54,8 +54,8 @@ add=(add openrouter --allow org.quire.Intents --allow org.quire.Companion --allo
 run() {
   env -i PATH="$PATH" HOME="$home" XDG_STATE_HOME="$home/state" XDG_CONFIG_HOME="$home/config" \
     XDG_DATA_HOME="$home/data" XDG_RUNTIME_DIR="$home/run" XDG_CACHE_HOME="$home/run" \
-    INFERD_KEYS="file:$home/inferd.keys" \
-    dbus-run-session -- "$inferd" "${add[@]}"
+    ACCOUNTD_KEYS="file:$home/accountd.keys" \
+    dbus-run-session -- "$accountd" "${add[@]}"
 }
 if [ -n "$keyfile" ]; then
   # The key line, then the answer to "Add this account?" (a blank line is the default, yes).
@@ -63,5 +63,5 @@ if [ -n "$keyfile" ]; then
 else
   run
 fi
-chmod 600 "$home/inferd.keys"
+chmod 600 "$home/accountd.keys"
 echo "cloud-key: done. Use: --keys-home $home" >&2

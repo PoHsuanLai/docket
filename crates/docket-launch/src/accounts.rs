@@ -6,13 +6,9 @@
 //! The types are ours so this file names no bus: a secret is porter's `SecretText` (its `Debug`
 //! shows nothing).
 
-use crate::config::Delivery;
-use bulkhead::AbsPath;
 use porter_capability::{AgentProgram, AgentProtocol};
 use porter_capability::{LoginOutcome, LoginRequestId};
-use porter_core::{
-    AccountId, DataClass, GrantId, LauncherSession, ProcessCredentialId, SecretText,
-};
+use porter_core::{AccountId, DataClass, GrantId, ProcessCredentialId, SecretText, SessionToken};
 use std::future::Future;
 
 /// Why a call to porter failed. Coarse on purpose: nothing of the other side's wording is kept.
@@ -60,17 +56,8 @@ pub struct OpenedEndpoint {
 pub struct Issued {
     /// To revoke it by, and what a revocation names.
     pub id: ProcessCredentialId,
-    /// How the child gets it.
-    pub key: KeyHandoff,
-}
-
-/// The key as the child is to receive it.
-#[derive(Debug)]
-pub enum KeyHandoff {
-    /// The text, for the child's environment.
-    Value(SecretText),
-    /// A file on a tmpfs, for `<key_env>_FILE`.
-    File(AbsPath),
+    /// The key, for the child's environment.
+    pub key: SecretText,
 }
 
 /// A person's request to sign an agent in or out.
@@ -115,13 +102,13 @@ pub trait Accounts: Send + Sync {
     /// Opens a launcher session (the span a "this session only" grant lasts).
     fn begin_session(
         &self,
-        session: &LauncherSession,
+        session: &SessionToken,
     ) -> impl Future<Output = Result<(), AccountFault>> + Send;
 
     /// Ends it: accountd removes its grants and ends the credentials under them.
     fn end_session(
         &self,
-        session: &LauncherSession,
+        session: &SessionToken,
     ) -> impl Future<Output = Result<(), AccountFault>> + Send;
 
     /// inferd opens a loopback endpoint for `program` over `route` (P4).
@@ -144,16 +131,15 @@ pub trait Accounts: Send + Sync {
         &self,
         program: &AgentProgram,
         class: DataClass,
-        session: &LauncherSession,
+        session: &SessionToken,
     ) -> impl Future<Output = Result<GrantId, AccountFault>> + Send;
 
-    /// A key for one process under `permit`, handed over as `delivery` says.
+    /// A key for one process under `permit`.
     fn issue(
         &self,
         permit: &GrantId,
         program: &AgentProgram,
         key_env: &porter_capability::EnvName,
-        delivery: Delivery,
     ) -> impl Future<Output = Result<Issued, AccountFault>> + Send;
 
     /// Ends a credential because its process ended.

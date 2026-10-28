@@ -24,10 +24,10 @@ pub fn env_of(dir: &Path) -> Vec<(&'static str, String)> {
     ]
 }
 
-/// What only inferd is told besides the scratch root.
+/// What only accountd and inferd are told besides the scratch root.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct InferdEnv<'a> {
-    /// Where its AI keys are (`INFERD_KEYS`), else a file in the scratch root.
+pub struct DaemonEnv<'a> {
+    /// Where accountd's AI keys are (`ACCOUNTD_KEYS`), else a file in the scratch root.
     pub keys: Option<&'a str>,
     /// The directory its engines keep their compile caches in: a world is fresh each time, so
     /// without a shared one vLLM compiles for minutes in every world. inferd's engines inherit
@@ -48,13 +48,13 @@ fn engine_cache(root: Option<&Path>) -> Vec<(&'static str, String)> {
 }
 
 /// What only one daemon is told. memoryd's packaged binary runs a test build: its keys are a file
-/// (there is no Secret Service on the private bus), its sandbox stays ON, and both daemons read
+/// (there is no Secret Service on the private bus), its sandbox stays ON, and accountd, inferd and memoryd read
 /// their callers from the scratch fake proc root instead of `/proc`.
-pub fn extra_env(dir: &Path, name: &str, inferd: InferdEnv<'_>) -> Vec<(&'static str, String)> {
+pub fn extra_env(dir: &Path, name: &str, daemon: DaemonEnv<'_>) -> Vec<(&'static str, String)> {
     let proc_root = dir.join("proc").display().to_string();
-    let system = |daemon: &str| {
+    let system = |unit: &str| {
         dir.join("system")
-            .join(format!("{daemon}-callers.toml"))
+            .join(format!("{unit}-callers.toml"))
             .display()
             .to_string()
     };
@@ -70,22 +70,33 @@ pub fn extra_env(dir: &Path, name: &str, inferd: InferdEnv<'_>) -> Vec<(&'static
             // until it honours this variable (a test build, with the fixture `/proc`).
             ("MEMORYD_SYSTEM_CALLERS", system("memory")),
         ],
-        // inferd holds the AI keys: the home's key file for a cloud run, else a file in the
-        // scratch root (a build with the `test-keys` feature; see docs/live-eval.md).
+        // accountd holds the AI keys: the home's key file for a cloud run, else a file in the
+        // scratch root (a build with the `test-keys` feature; see docs/live-eval.md). Its Tailscale
+        // socket is a scratch path, so it never reaches the real one.
+        "accountd" => vec![
+            ("ACCOUNTD_PROC_ROOT", proc_root),
+            // Who is calling comes from this system file alone.
+            ("PORTER_SYSTEM_CALLERS", system("accountd")),
+            (
+                "ACCOUNTD_TAILSCALE_SOCKET",
+                dir.join("none.sock").display().to_string(),
+            ),
+            (
+                "ACCOUNTD_KEYS",
+                daemon.keys.map_or_else(
+                    || format!("file:{}", dir.join("keys/accountd.keys").display()),
+                    str::to_owned,
+                ),
+            ),
+        ],
+        // inferd asks accountd for the keys; its engines inherit its environment.
         "inferd" => [
             ("INFERD_PROC_ROOT", proc_root),
             // Who is calling comes from this system file alone (not `inferd.toml`).
             ("PORTER_INFERD_CALLERS", system("inferd")),
-            (
-                "INFERD_KEYS",
-                inferd.keys.map_or_else(
-                    || format!("file:{}", dir.join("keys/inferd.keys").display()),
-                    str::to_owned,
-                ),
-            ),
         ]
         .into_iter()
-        .chain(engine_cache(inferd.engine_cache))
+        .chain(engine_cache(daemon.engine_cache))
         .collect(),
         // intentd, companiond, readerd and docket-acp name their callers by the units and cgroups of
         // the scratch root's fake proc, and read the system's callers file from the scratch
@@ -121,14 +132,14 @@ pub fn spawn(
     name: &'static str,
     binary: &Path,
     tap: Option<&Path>,
-    inferd: InferdEnv<'_>,
+    daemon: DaemonEnv<'_>,
 ) -> std::io::Result<(&'static str, Reaped)> {
     let log = std::fs::File::create(dir.join("logs").join(format!("{name}.log")))?;
     let mut command = Command::new(binary);
     command
         .env_clear()
         .envs(env_of(dir))
-        .envs(extra_env(dir, name, inferd))
+        .envs(extra_env(dir, name, daemon))
         .env("DBUS_SESSION_BUS_ADDRESS", bus)
         .env("DBUS_SYSTEM_BUS_ADDRESS", bus)
         .envs(tap.map(|file| (crate::seams::TRACE_VAR, file.to_owned())))

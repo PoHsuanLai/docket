@@ -1,26 +1,26 @@
 //! A durable, test-only home for the cloud AI key: one directory outside every repository that
-//! holds what inferd needs to know the OpenRouter account across worlds, so the owner types the
+//! holds what accountd needs to know the OpenRouter account across worlds, so the owner types the
 //! key once (`dev/live/cloud-key.sh`) and every fresh world reuses it.
 //!
 //! ```text
 //! DIR/                           0700
-//!   inferd.keys                  0600  the key file; only inferd opens it (INFERD_KEYS=file:...)
-//!   inferd.keys.lock                   the key file's advisory lock
-//!   state/quire/inferd/keys/...        the registry (accounts and key permits; no secrets)
-//!   data/porter/providers/             the provider files `inferd add` used
+//!   accountd.keys                0600  the key file; only accountd opens it (ACCOUNTD_KEYS=file:...)
+//!   accountd.keys.lock                 the key file's advisory lock
+//!   state/porter/registry.json         the registry (accounts and key permits; no secrets)
+//!   data/porter/providers/             the provider files `accountd add` used
 //! ```
 //!
-//! This process never opens the key file: it only looks at its metadata. A world points inferd's
-//! `INFERD_KEYS` at it and copies the non-secret `state` and `data` trees into its scratch
+//! This process never opens the key file: it only looks at its metadata. A world points accountd's
+//! `ACCOUNTD_KEYS` at it and copies the non-secret `state` and `data` trees into its scratch
 //! root, so a run never changes the home.
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 /// The key file's name inside the home.
-pub const KEYS_FILE: &str = "inferd.keys";
-/// The registry inferd keeps (accounts and key permits), relative to the home.
-const REGISTRY: &str = "state/quire/inferd/keys/registry.json";
+pub const KEYS_FILE: &str = "accountd.keys";
+/// The registry accountd keeps (accounts and key permits), relative to the home.
+const REGISTRY: &str = "state/porter/registry.json";
 
 /// Why a directory cannot be the home.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -44,7 +44,7 @@ pub enum HomeFault {
     NotAFile(PathBuf),
     /// The home does not hold the account yet.
     #[error(
-        "{0} does not hold the cloud key yet. Fill it once, in your own terminal (the key is typed at inferd's own prompt, echo off):\n  dev/live/cloud-key.sh {0} <inferd built with --features test-keys>\nthen run again."
+        "{0} does not hold the cloud key yet. Fill it once, in your own terminal (the key is typed at accountd's own prompt, echo off):\n  dev/live/cloud-key.sh {0} <accountd built with --features test-keys>\nthen run again."
     )]
     Empty(PathBuf),
     /// The directory could not be read.
@@ -110,12 +110,12 @@ impl KeysHome {
         Ok(Self(real))
     }
 
-    /// The value for `INFERD_KEYS`.
+    /// The value for `ACCOUNTD_KEYS`.
     pub fn keys_setting(&self) -> String {
         format!("file:{}", self.0.join(KEYS_FILE).display())
     }
 
-    /// Copies the non-secret records into a world's scratch root: inferd's state under
+    /// Copies the non-secret records into a world's scratch root: accountd's state under
     /// `.local/state` and the provider files under `data/porter/providers`.
     pub fn seed(&self, root: &Path) -> std::io::Result<()> {
         copy_tree(&self.0.join("state"), &root.join(".local/state"))?;

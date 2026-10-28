@@ -42,6 +42,6 @@ pub fn login_run(
     let argv = Argv::new(entry.command.as_str(), &all)?;
     let net = AgentNet::of(NetworkMode::Host, None).ok()?;
     let run = AgentRun::new(argv, folder.clone(), vars, net);
-    let binds = binds(entry, None, None);
+    let binds = binds(entry, None);
     Some(binds.into_iter().fold(run, |run, bind| run.with_bind(bind)))
 }

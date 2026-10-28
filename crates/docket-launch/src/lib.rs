@@ -39,12 +39,11 @@ pub mod supervise;
 mod terminal;
 
 pub use accounts::{
-    AccountFault, Accounts, AskKind, Heard, Issued, KeyHandoff, LoginAsk, OpenedEndpoint, RouteWish,
+    AccountFault, Accounts, AskKind, Heard, Issued, LoginAsk, OpenedEndpoint, RouteWish,
 };
 pub use child::{Child, Registry};
 pub use config::{
-    AgentsFile, ConfigFault, Delivery, Endpoint, EndpointKind, Entry, Profile, Route, SESSION_MARK,
-    ToolsMode,
+    AgentsFile, ConfigFault, Endpoint, EndpointKind, Entry, Profile, Route, SESSION_MARK, ToolsMode,
 };
 pub use confine::Confinement;
 pub use login_only::LoginOnly;

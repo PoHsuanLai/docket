@@ -14,7 +14,7 @@
 //! removes the socket directory. A process that is dropped without `close` is cleaned up the same
 //! way on the runtime.
 
-use crate::accounts::{Accounts, KeyHandoff, OpenedEndpoint, RouteWish};
+use crate::accounts::{Accounts, OpenedEndpoint, RouteWish};
 use crate::child::{Child, Registry, Release};
 use crate::config::{AgentsFile, EndpointKind, Entry, Profile, Route};
 use crate::egress;
@@ -28,7 +28,7 @@ use bulkhead::egress::{Resolver, SystemResolver};
 use bulkhead::forward::{Bridge, Loopback};
 use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
 use docket_acp_host::{EdgeBind, LaunchPlan, SandboxStep, Spawn, SpawnFault, Spawned};
-use porter_core::LauncherSession;
+use porter_core::{SecretText, SessionToken};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -105,18 +105,13 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     }
 }
 
-pub(crate) fn binds(
-    entry: &Entry,
-    key_file: Option<&AbsPath>,
-    edge: Option<&EdgeBind>,
-) -> Vec<Bind> {
+pub(crate) fn binds(entry: &Entry, edge: Option<&EdgeBind>) -> Vec<Bind> {
     let program_dir = entry.command.parent().into_iter();
     let read_only = entry
         .reads
         .iter()
         .cloned()
         .chain(program_dir)
-        .chain(key_file.cloned())
         .chain(edge.map(|e| e.bridge.clone()));
     // The tool edge's socket is written to by whoever connects, so it is the one read-write bind
     // that is not the program's own state.
@@ -138,7 +133,7 @@ pub(crate) fn binds(
 /// The run's private directory (mode 0700), made on first use and removed with the session.
 fn session_dir<A: Accounts, P: Proc>(
     run_dir: &std::path::Path,
-    session: &LauncherSession,
+    session: &SessionToken,
     release: &mut Release<A, P>,
 ) -> std::io::Result<PathBuf> {
     use std::os::unix::fs::DirBuilderExt;
@@ -209,14 +204,14 @@ const PROXY_PORT: u16 = 3128;
 enum Got {
     Nothing,
     Endpoint(OpenedEndpoint),
-    Key(KeyHandoff),
+    Key(SecretText),
 }
 
 impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     async fn lend(
         accounts: &A,
         entry: &Entry,
-        session: &LauncherSession,
+        session: &SessionToken,
         release: &mut Release<A, P::Proc>,
     ) -> Result<Got, SpawnFault> {
         match entry.route {
@@ -245,7 +240,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
                     .await
                     .map_err(|_| SpawnFault::Accounts)?;
                 let issued = accounts
-                    .issue(&permit, &entry.program, key_env, entry.delivery)
+                    .issue(&permit, &entry.program, key_env)
                     .await
                     .map_err(|_| SpawnFault::Accounts)?;
                 release.credential = Some(issued.id);
@@ -261,7 +256,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         &self,
         entry: &Entry,
         got: &Got,
-        session: &LauncherSession,
+        session: &SessionToken,
         release: &mut Release<A, P::Proc>,
     ) -> Result<AgentNet, SpawnFault> {
         match entry.network {
@@ -277,7 +272,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     /// from inside, on loopback `port`.
     fn bind(
         &self,
-        session: &LauncherSession,
+        session: &SessionToken,
         release: &mut Release<A, P::Proc>,
         port: u16,
     ) -> Result<(PathBuf, EndpointBind), SpawnFault> {
@@ -297,7 +292,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     fn endpoint_net(
         &self,
         got: &Got,
-        session: &LauncherSession,
+        session: &SessionToken,
         release: &mut Release<A, P::Proc>,
     ) -> Result<AgentNet, SpawnFault> {
         let Got::Endpoint(endpoint) = got else {
@@ -318,7 +313,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     fn allowlist_net(
         &self,
         entry: &Entry,
-        session: &LauncherSession,
+        session: &SessionToken,
         release: &mut Release<A, P::Proc>,
     ) -> Result<AgentNet, SpawnFault> {
         let reach = entry
@@ -351,7 +346,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         &mut self,
         entry: &Entry,
         plan: &LaunchPlan,
-        session: &LauncherSession,
+        session: &SessionToken,
         release: &mut Release<A, P::Proc>,
     ) -> Result<(P::Transport, Arc<Mutex<P::Proc>>), SpawnFault> {
         let got = Self::lend(&self.accounts, entry, session, release).await?;
@@ -365,17 +360,15 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
             child_env(entry, &lent).map_err(|_| SpawnFault::Sandbox(SandboxStep::Environment))?;
         let command = entry.command.as_str();
         let cwd = plan.cwd.clone();
-        let run = binds(entry, built.key_file.as_ref(), plan.edge.as_ref())
-            .into_iter()
-            .fold(
-                AgentRun::new(
-                    Argv::new(command, &entry.args).ok_or(SpawnFault::Process)?,
-                    cwd.clone(),
-                    built.vars,
-                    net,
-                ),
-                AgentRun::with_bind,
-            );
+        let run = binds(entry, plan.edge.as_ref()).into_iter().fold(
+            AgentRun::new(
+                Argv::new(command, &entry.args).ok_or(SpawnFault::Process)?,
+                cwd.clone(),
+                built.vars,
+                net,
+            ),
+            AgentRun::with_bind,
+        );
         let run = self.guarded(run, &cwd)?;
         let run = match &self.enter {
             Some(enter) => run.with_landlock(enter.clone()),
