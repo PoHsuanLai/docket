@@ -7,6 +7,7 @@ use docket_core::*;
 use docket_manifest::TargetKind;
 use docket_router::{SpaceOf, relation_of};
 use docket_vocab::{CallRequest, Origin};
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, WireRefusal};
 use policy_point::SpaceRelation;
 use prov::{EntityId, EntityKey, EntityKind, SpaceId, SpaceScope, UnixSeconds};
 use std::collections::BTreeMap;

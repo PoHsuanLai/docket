@@ -1,8 +1,10 @@
 //! The fixtures validate and the fakes behave.
 
 use action_review::{ReviewVerdict, Reviewer};
+use cua_action::{RunMode, WindowTrust};
 use docket_core::*;
 use docket_fake::*;
+use docket_gate_wire::{CuaAsk, EffectBasis, GateAnswer};
 use docket_manifest::{Lasting, TitleTrust, ValidManifest};
 use docket_permissions_core::{
     ArgLabels, GrantCaller, Recipient, ReviewError, Saw, SessionSaw, Stage, StandingGrant,
@@ -14,6 +16,7 @@ use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, Clock, FileRef, LabelText, Millis, Origin, ParamName,
     Seconds, TargetValue, UndoToken, Value,
 };
+use docket_wire::{CallerId, CallerRole, SessionOpen};
 use prov::{ActionName, Actor, AppName, SpaceId, UnixSeconds};
 use std::collections::BTreeSet;
 

@@ -14,9 +14,10 @@ use companion_core::{JobEnding, JobReport, OpenedJob};
 use companion_model::helper::{HelperCard, JobFault};
 use companion_wire::AskWire;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{ContextKeep, Keep, SessionOpen, SessionOpened, TurnVia, UserTurn};
+use docket_core::{ContextKeep, Keep, TurnVia, UserTurn};
 use docket_planner::Planner;
 use docket_vocab::{Clock, WindowKey};
+use docket_wire::{SessionOpen, SessionOpened};
 use prov::AgentRef;
 
 /// Where the window of a turn in a conversation is anchored: nowhere in particular.

@@ -2,6 +2,7 @@
 
 use crate::support::infer::{Opened, ScriptedInfer};
 use crate::support::*;
+use docket_wire::VoiceIntent;
 use futures_util::{FutureExt, StreamExt};
 use porter_core::capability::SpeechMode;
 use porter_core::need::SpeechNeed;

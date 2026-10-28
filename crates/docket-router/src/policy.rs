@@ -8,9 +8,8 @@ use crate::tasks::child_policy;
 use docket_core::EventSink;
 use docket_core::{
     ActionCard, Anchor, ArgLine, AuditRecord, ConfirmAnswer, ConfirmAnswerKind, ConfirmDetail,
-    ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, Gesture, IntentsReply,
-    PolicyWriter, Shown, TASK_POLICY_MAX, TaintNote, TurnSource, UserTurn, WidenAnswer,
-    WireRefusal, tool_schema,
+    ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, Gesture, PolicyWriter, Shown,
+    TASK_POLICY_MAX, TaintNote, TurnSource, UserTurn, tool_schema,
 };
 use docket_manifest::{ActionDecl, AgentReach, Visibility};
 use docket_permissions_core::{
@@ -18,6 +17,7 @@ use docket_permissions_core::{
     compare, intersection,
 };
 use docket_vocab::{ActionRef, Clock, FileRef, LabelText, Workspace};
+use docket_wire::{IntentsReply, WidenAnswer, WireRefusal};
 use porter_core::{AppName, Count};
 use prov::{Effect, SessionId, UnixSeconds};
 use std::collections::BTreeSet;

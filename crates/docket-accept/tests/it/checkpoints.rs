@@ -9,10 +9,11 @@ use docket_accept::drive::{Launcher, keep_nothing};
 use docket_accept::world::{Consent, World, as_app};
 use docket_client::{DbusTransport, Intents};
 use docket_core::{
-    CheckpointId, CheckpointRow, Preview, Rewind, SavedState, SessionOpen, TurnEnd, TurnIn,
-    TurnState, TurnVia, WorkPath,
+    CheckpointId, CheckpointRow, Preview, Rewind, SavedState, TurnEnd, TurnIn, TurnState, TurnVia,
+    WorkPath,
 };
 use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value, Workspace};
+use docket_wire::SessionOpen;
 use porter_core::AppName;
 use prov::{ActionName, AgentRef, Label, Labelled, SpaceId};
 use std::path::Path;

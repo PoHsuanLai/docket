@@ -1,9 +1,14 @@
 //! `Intents` sends the request it is asked for and reads only the reply that request gets.
 
+use cua_action::{RunMode, WindowTrust};
 use docket_client::{ClientError, Intents, Transport, TransportError};
 use docket_core::*;
+use docket_gate_wire::{CuaAsk, EffectBasis, GateAnswer};
 use docket_permissions_core::DenyCode;
 use docket_vocab::{ActionRef, Args, CallRequest, Handle, Origin, TargetValue, TurnId, Workspace};
+use docket_wire::{
+    Displayed, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, Member, WireRefusal,
+};
 use prov::{ActionName, AppName, SessionId};
 use std::collections::VecDeque;
 use std::sync::Mutex;

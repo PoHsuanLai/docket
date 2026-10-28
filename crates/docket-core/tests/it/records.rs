@@ -239,28 +239,8 @@ fn the_planner_view_and_the_roster_round_trip() {
 }
 
 #[test]
-fn the_cua_ask_carries_an_untrusted_screen_label() {
-    use cua_action::{CuaAction, WindowSpace};
-    let ask = CuaAsk {
-        run: prov::RunId::parse("r-1").expect("r"),
-        step: 4,
-        app: app("org.mozilla.Firefox"),
-        trust: WindowTrust::Flatpak,
-        mode: RunMode::InPlace,
-        space: space("work"),
-        action: CuaAction::<WindowSpace>::Observe,
-        node: None,
-        effect: Effect::Read,
-        basis: EffectBasis::DefaultTable,
-        screen: untrusted_mail("work"),
-    };
-    round(&ask);
-}
-
-#[test]
 fn the_terminal_words_are_pinned() {
     assert_eq!(round(&Origin::Cli), r#""cli""#);
-    assert_eq!(round(&CallerRole::Cli), r#""cli""#);
     assert_eq!(round(&GrantCaller::Cli), r#"{"kind":"cli"}"#);
     assert_eq!(GrantCaller::Cli.kind(), prov::ActorKind::Cli);
     assert_eq!(
@@ -354,30 +334,4 @@ fn briefs_add_only_optional_fields_to_the_sheet_and_the_answer() {
     );
     let asked = request.for_brief(Some(sheet));
     assert!(round(&asked).contains(r#""brief":{"#));
-}
-
-#[test]
-fn a_dry_run_is_a_member_of_its_own() {
-    let request = IntentsRequest::DryRun {
-        call: CallRequest {
-            action: ActionRef {
-                app: app("org.quire.Mail"),
-                name: action("mail.thread.archive"),
-            },
-            target: TargetValue::Nothing,
-            args: Args::new(),
-            origin: Origin::Cli,
-        },
-        session: None,
-    };
-    assert_eq!(request.member(), Member::DryRun);
-    round(&request);
-    assert_eq!(
-        IntentsRequest::ControlTerminalGrants.member(),
-        Member::ControlTerminalGrants
-    );
-    round(&IntentsReply::TerminalGrants(vec![ActionRef {
-        app: app("org.quire.Mail"),
-        name: action("mail.thread.archive"),
-    }]));
 }

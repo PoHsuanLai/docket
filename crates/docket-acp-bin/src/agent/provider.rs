@@ -7,12 +7,12 @@ use bulkhead::Sandbox;
 use docket_acp_host::{Files, Performer};
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, Here, Hit, Invocation, Outcome, Preview, Selection,
-    SuggestAsk, SummonAnswer, SummonOrigin, SummonSerial, TextTarget, UndoFault, Visible,
-    WindowPrivacy,
+    SuggestAsk, TextTarget, UndoFault, Visible, WindowPrivacy,
 };
 use docket_manifest::ValidManifest;
 use docket_provider::{ContextSource, IntentProvider, SummonTarget};
 use docket_vocab::{EntityRef, UndoToken};
+use docket_wire::{SummonAnswer, SummonOrigin, SummonSerial};
 use porter_core::{AppName, Count};
 use prov::{Actor, Confidentiality, EntityId, Integrity, Label, Labelled, Source};
 use std::collections::BTreeSet;

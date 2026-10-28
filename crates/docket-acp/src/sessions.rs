@@ -15,13 +15,13 @@ use agent_client_protocol::schema::v1::{
     Error, ListSessionsRequest, ListSessionsResponse, LoadSessionRequest, LoadSessionResponse,
     NewSessionRequest, NewSessionResponse, SessionInfo,
 };
-use docket_core::CallerRole;
 use docket_session::{
     BackendKind, Claimant, Opening, ResumePlan, SessionHost, SessionLog, may_restore_plan,
     read_all, resume_plan,
 };
 use docket_vocab::Clock;
 use docket_vocab::Workspace;
+use docket_wire::CallerRole;
 use prov::{AgentRef, SessionId, TaskId};
 use std::path::Path;
 

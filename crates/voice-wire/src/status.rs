@@ -1,7 +1,7 @@
 //! Content-free status of the voice service.
 
 use crate::event::VoiceFault;
-use docket_core::VoiceIntent;
+use docket_wire::VoiceIntent;
 use porter_core::UnixSeconds;
 use porter_infer::Readiness;
 use serde::{Deserialize, Serialize};

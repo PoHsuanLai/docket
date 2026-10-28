@@ -17,6 +17,7 @@ testing = []
 companion-model = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
+docket-wire = { workspace = true }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 porter-core = { workspace = true }

@@ -5,12 +5,12 @@
 
 use crate::Router;
 use crate::seams::Seams;
-use docket_core::{
-    CallerId, CallerRole, IntentsReply, StoredAsk, StoredRow, StoredView, WireRefusal,
-};
 use docket_session::{
     Claimant, Logged, PageSize, Seq, SessionLog, child_names, fork, forks_of, may_restore_opening,
     may_restore_plan, resume_plan,
+};
+use docket_wire::{
+    CallerId, CallerRole, IntentsReply, StoredAsk, StoredRow, StoredView, WireRefusal,
 };
 use porter_core::Count;
 use prov::SessionId;

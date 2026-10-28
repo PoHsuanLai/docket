@@ -11,6 +11,7 @@ use docket_permissions_core::{
 };
 use docket_router::GrantStore;
 use docket_vocab::{CallId, CallRequest, ChoiceId, Origin, TargetValue, Value};
+use docket_wire::{IntentsReply, IntentsRequest};
 use prov::{Actor, AgentRole, Effect, Labelled, SpaceScope};
 
 fn archive() -> CallRequest {

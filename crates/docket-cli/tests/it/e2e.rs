@@ -494,7 +494,7 @@ async fn a_process_that_is_not_quire_do_is_not_the_terminal() {
         matches!(
             reply,
             Err(docket_client::ClientError::Refused(
-                docket_core::WireRefusal::NotAllowed
+                docket_wire::WireRefusal::NotAllowed
             ))
         ),
         "{reply:?}"

@@ -11,6 +11,7 @@ use docket_vocab::{
     ActionRef, CallClass, CallRequest, Classification, ClassifyAnswer, ClassifyFault,
     DelegationEnd, LabelText, Origin, TargetValue, Value,
 };
+use docket_wire::{IntentsReply, IntentsRequest};
 use prov::{ActionName, AgentRef, Effect};
 
 fn menu() -> porter_core::AppName {

@@ -6,8 +6,8 @@ use crate::router::Router;
 use crate::seams::Seams;
 use crate::session::SessionState;
 use companion_model::helper::{HelperSeat, SeatPlace};
-use docket_core::{CallerRole, IntentsReply, SessionOpen, SessionOpened};
 use docket_session::{PageSize, Read, SessionEntry, SessionLog, Standing};
+use docket_wire::{CallerRole, IntentsReply, SessionOpen, SessionOpened};
 use porter_core::Count;
 use prov::{HelperId, SessionId};
 

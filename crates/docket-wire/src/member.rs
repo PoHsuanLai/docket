@@ -1,7 +1,7 @@
 //! Which member of `Intents1` a request is.
 
-use super::IntentsRequest;
 use crate::caller::Member;
+use crate::request::IntentsRequest;
 
 impl IntentsRequest {
     /// The member this request calls.

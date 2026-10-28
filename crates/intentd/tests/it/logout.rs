@@ -6,6 +6,7 @@ use crate::support::world::{app, caller, mail_router};
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
 use docket_vocab::{ActionRef, Args, CallRequest, Origin, TargetValue};
+use docket_wire::{CallerRole, IntentsReply, IntentsRequest};
 use intentd::watch_logind;
 use prov::{ActionName, EntityId, EntityKey, EntityKind};
 use std::sync::Arc;

@@ -3,11 +3,10 @@
 //! `Confirm1` with scripted answers. Shared by intentd's tests and `quire-do`'s end-to-end test.
 #![allow(dead_code)]
 
-use docket_core::CallerRole;
 use docket_core::{
     AppRefusal, ConfirmAnswer, ConfirmEnd, ConfirmRequest, ContextScope, ContextSnapshot, Here,
-    Hit, Invocation, Outcome, Preview, Selection, SuggestAsk, SummonAnswer, SummonOrigin,
-    SummonSerial, TextTarget, UndoFault, Visible, WindowPrivacy,
+    Hit, Invocation, Outcome, Preview, Selection, SuggestAsk, TextTarget, UndoFault, Visible,
+    WindowPrivacy,
 };
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Identity, Role};
@@ -15,6 +14,8 @@ use docket_fake::{FakeMail, MailThread};
 use docket_manifest::ValidManifest;
 use docket_provider::{ContextSource, IntentProvider, SummonTarget, serve_on_with};
 use docket_vocab::{EntityRef, UndoToken};
+use docket_wire::CallerRole;
+use docket_wire::{SummonAnswer, SummonOrigin, SummonSerial};
 use intentd::IntentdConfig;
 use porter_core::{AppName, Count};
 use prov::{Actor, EntityId, Label, SpaceId};

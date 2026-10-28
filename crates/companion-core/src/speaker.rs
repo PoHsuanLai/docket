@@ -6,7 +6,7 @@
 //! that is why it gets no more than the conversation. The editor bridge may read the helpers and
 //! speak in a helper's conversation, and nothing else.
 
-use docket_core::TerminalScope;
+use docket_wire::TerminalScope;
 
 /// Who a caller is, as far as the person's voice goes.
 #[derive(Debug, Clone, PartialEq, Eq)]

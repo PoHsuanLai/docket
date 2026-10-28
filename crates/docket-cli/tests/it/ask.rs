@@ -10,12 +10,10 @@ use companion_wire::{
 };
 use docket_cli::{Exit, JsonFlag, Stdout, ask_companion};
 use docket_client::{InProcess, Intents, TransportError};
-use docket_core::{
-    CallerRole, ConfirmId, ContextKeep, Keep, Reveal, SessionOpen, SessionOpened, StartedFrom,
-    TerminalScope, TurnSource,
-};
+use docket_core::{ConfirmId, ContextKeep, Keep, Reveal, TurnSource};
 use docket_fake::FakeSeams;
 use docket_vocab::{ActionRef, LabelText, StepId};
+use docket_wire::{CallerRole, SessionOpen, SessionOpened, StartedFrom, TerminalScope};
 use porter_core::{AccountId, DataClass, Locality, ModelId};
 use porter_infer::ServedBy;
 use prov::{ActionName, Effect, SessionId, UnixSeconds};

@@ -4,6 +4,7 @@ use docket_core::*;
 use docket_ds::*;
 use docket_manifest::TitleTrust;
 use docket_vocab::{UtteranceId, ViewName};
+use docket_wire::{SummonAnswer, SummonOrigin, SummonSerial, VoiceIntent};
 use ds_intents::{
     ChipKind, HeardEndMark, HeardMark, InputLevel, SummonAnswerMark, SummonOriginMark, Tally,
     ThingMark,

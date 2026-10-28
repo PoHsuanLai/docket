@@ -15,11 +15,11 @@ use agent_loop::{
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
     Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft, Outcome,
-    Reveal, RosterDetail, RosterFull, RosterLine, RosterState, SessionOpen, SessionOpened,
-    TurnSource, TurnVia,
+    Reveal, RosterDetail, RosterFull, RosterLine, RosterState, TurnSource, TurnVia,
 };
 use docket_planner::Planner;
 use docket_vocab::{Clock, Handle, TurnId, Value};
+use docket_wire::{SessionOpen, SessionOpened};
 use porter_core::{AppName, Count};
 use prov::{
     Address, AgentRef, Confidentiality, Integrity, Label, Labelled, MessageKind, ReportStatus,

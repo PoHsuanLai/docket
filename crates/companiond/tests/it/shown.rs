@@ -10,6 +10,7 @@ use companiond::serve_on_rooted;
 use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use docket_vocab::{Clock, Handle, Origin, WindowKey};
+use docket_wire::{SessionOpen, SessionOpened, WireRefusal};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
 use porter_daemon::ProcRoot;

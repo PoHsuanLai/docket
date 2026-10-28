@@ -9,9 +9,10 @@ use super::rig::{
 use crate::support::app;
 use acp_core::taint::TaintSource;
 use bulkhead::fake::Script;
-use docket_core::{AuditRecord, CallerId, CallerRole, IntentsReply, IntentsRequest, TurnState};
+use docket_core::{AuditRecord, TurnState};
 use docket_permissions_core::{FILES_READ, FILES_WRITE, GrantCaller, StandingScope, TERMINAL_RUN};
 use docket_session::{BackendEvent, CallEvent, EndCause, SessionHost, TurnEnd};
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest};
 use porter_core::{AppId, Isolation};
 use prov::Actor;
 use serde_json::json;

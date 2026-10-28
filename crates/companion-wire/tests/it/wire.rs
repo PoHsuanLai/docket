@@ -7,6 +7,7 @@ use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, CardActionId, Handle, LabelText, Origin, StepId,
     TargetValue, TurnId, UndoId, WindowKey,
 };
+use docket_wire::TaskLedger;
 use porter_core::{AppName, Count, DataClass};
 use prov::{AgentRef, Effect, SpaceId, TaskId};
 use serde::{Serialize, de::DeserializeOwned};
@@ -215,7 +216,7 @@ fn asks_and_the_front_pointer_round_trip() {
 }
 
 fn skeleton() -> almanac_core::Skeleton {
-    docket_core::skeleton_of(&TaskLedger {
+    docket_wire::skeleton_of(&TaskLedger {
         task: task("t-1"),
         agent: AgentRef::Companion,
         parent: None,

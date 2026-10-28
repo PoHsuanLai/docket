@@ -48,3 +48,4 @@ docket-fake = { workspace = true }
 docket-router = { workspace = true }
 rmcp = { workspace = true, features = ["client"] }
 tokio = { workspace = true }
+docket-wire = { workspace = true }

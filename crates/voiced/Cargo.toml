@@ -13,7 +13,7 @@ voice-loop = { workspace = true }
 voice-audio = { workspace = true }
 voice-wire = { workspace = true }
 voice-dbus = { workspace = true }
-docket-core = { workspace = true }
+docket-wire = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }

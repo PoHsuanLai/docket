@@ -17,6 +17,7 @@ docket-client = { workspace = true, features = ["in_process"] }
 docket-permissions-core = { workspace = true }
 docket-provider = { workspace = true }
 docket-core = { workspace = true }
+docket-wire = { workspace = true }
 docket-manifest = { workspace = true }
 docket-vocab = { workspace = true }
 docket-host = { workspace = true }

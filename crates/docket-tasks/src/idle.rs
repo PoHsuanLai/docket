@@ -14,9 +14,9 @@ use agent_loop::{
 };
 use almanac_core::{Episode, Narrative, UserText};
 use docket_client::Transport as IntentsTransport;
-use docket_core::{LedgerStep, NoteAsk};
 use docket_planner::Planner;
 use docket_vocab::Clock;
+use docket_wire::{LedgerStep, NoteAsk};
 use futures_util::future::Either;
 use porter_core::consent::Usage;
 use porter_core::{DataClass, Tier};

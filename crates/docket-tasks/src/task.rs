@@ -10,9 +10,10 @@ use companion_wire::{
 };
 use docket_core::{
     CallEnd, CallRefusal, ContextKeep, HandleCard, HandleShape, InboundLine, InboundPart, Keep,
-    LedgerStep, Outcome, Reveal, StepEnd, StepLine, StepShown, Summary, Undoable, UserTurn,
+    Outcome, Reveal, StepEnd, StepLine, StepShown, Summary, Undoable, UserTurn,
 };
 use docket_vocab::{CallId, CallRequest, CharCount, Handle, Origin, TargetValue, Value, WindowKey};
+use docket_wire::LedgerStep;
 use porter_core::AppName;
 use porter_infer::ServedBy;
 use prov::{

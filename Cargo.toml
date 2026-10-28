@@ -6,6 +6,8 @@ members = [
   "crates/docket-permissions-core",
   "crates/companion-model",
   "crates/docket-core",
+  "crates/docket-gate-wire",
+  "crates/docket-wire",
   "crates/docket-store",
   "crates/docket-skills",
   "crates/docket-skills-disk",
@@ -88,6 +90,8 @@ docket-manifest = { path = "crates/docket-manifest" }
 docket-permissions-core = { path = "crates/docket-permissions-core" }
 companion-model = { path = "crates/companion-model" }
 docket-core    = { path = "crates/docket-core" }
+docket-gate-wire = { path = "crates/docket-gate-wire" }
+docket-wire    = { path = "crates/docket-wire" }
 docket-store   = { path = "crates/docket-store" }
 docket-skills  = { path = "crates/docket-skills" }
 docket-skills-disk = { path = "crates/docket-skills-disk" }

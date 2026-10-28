@@ -13,9 +13,10 @@ use agent_loop::{
 };
 use almanac_core::{Episode, EpisodeId, EpisodeKind, EpisodeOutcome};
 use docket_client::Transport as IntentsTransport;
-use docket_core::{DraftPart, EpisodeLine, NoteAsk, SkeletonText, TaskLedger, close};
+use docket_core::{DraftPart, EpisodeLine, SkeletonText};
 use docket_planner::Planner;
 use docket_vocab::Clock;
+use docket_wire::{NoteAsk, TaskLedger, close};
 use prov::{Address, AgentRef, MessageKind, MessageText, ReportStatus, TaskId};
 
 /// Why a task failed, for the daemon's log: the kind of failure, never the person's words.

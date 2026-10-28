@@ -5,7 +5,8 @@
 //! confirms).
 
 use almanac_core::{Episode, EpisodeKind, EpisodeOutcome, ResultLine};
-use docket_core::{IdleRules, LedgerStep, TaskLedger, UserTurn, close};
+use docket_core::{IdleRules, UserTurn};
+use docket_wire::{LedgerStep, TaskLedger, close};
 use prov::{AgentRef, SpaceId, TaskId, UnixSeconds};
 use serde::{Deserialize, Serialize};
 

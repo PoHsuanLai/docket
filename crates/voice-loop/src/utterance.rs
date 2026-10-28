@@ -1,7 +1,7 @@
 //! One utterance (§4.2). Hold-to-talk or dictation: the mic opens on `Begin` and closes at the
 //! end of the tail. The invariant is a property of this table alone.
 
-use docket_core::VoiceIntent;
+use docket_wire::VoiceIntent;
 use porter_infer::{Readiness, ServedBy};
 use serde::{Deserialize, Serialize};
 use voice_wire::{

@@ -6,10 +6,11 @@
 //! identification is intentd's own: its `Peers`, the configuration's roles, and the fake proc root.
 
 use docket_client::DbusTransport;
-use docket_core::{AgentConfig, CallerId, CallerRole};
+use docket_core::AgentConfig;
 use docket_dbus::callers::Identity;
 use docket_fake::{FakeSeams, fake_router};
 use docket_router::Router;
+use docket_wire::{CallerId, CallerRole};
 use intentd::{AcpGate, IntentdConfig, ProcRoot, serve_on_gated};
 use porter_core::{AppId, AppName, Isolation};
 use std::collections::{BTreeMap, BTreeSet};

@@ -11,15 +11,16 @@
 //! connection.
 
 use crate::transport::TransportError;
-use docket_core::{
-    CallRefusal, ContextView, Delivery, IntentsReply, IntentsRequest, Outcome, ReadFault,
-    RecallView, SessionOpened, StoredView, UndoFault, UndoReport, WidenAnswer, WireRefusal,
-};
+use docket_core::{CallRefusal, ContextView, Delivery, Outcome, ReadFault, UndoFault};
 use docket_dbus::{
     BusConnection, CheckpointProxy, ContextProxy, ControlProxy, Details, GateProxy, INTENTS_BUS,
     IndexProxy, IntentsError, MessageProxy, RegistryProxy, RunProxy, SearchProxy, SessionProxy,
 };
 use docket_vocab::TurnId;
+use docket_wire::{
+    IntentsReply, IntentsRequest, RecallView, SessionOpened, StoredView, UndoReport, WidenAnswer,
+    WireRefusal,
+};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::future::Future;

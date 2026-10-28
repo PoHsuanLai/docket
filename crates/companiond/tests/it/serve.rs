@@ -13,6 +13,7 @@ use docket_dbus::{
     introspection,
 };
 use docket_vocab::{Clock, Origin, TurnId, WindowKey};
+use docket_wire::{SessionOpen, SessionOpened};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
 use porter_daemon::ProcRoot;

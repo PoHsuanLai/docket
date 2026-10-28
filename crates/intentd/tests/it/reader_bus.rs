@@ -9,6 +9,7 @@ use docket_core::*;
 use docket_fake::{FakeSeams, fake_router};
 use docket_router::{HandleValue, Router};
 use docket_vocab::{ChoiceId, Handle, Value};
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen};
 use intentd::ReaderClient;
 use porter_core::{AppId, AppName, DataClass, Isolation};
 use prov::{AgentRef, Label, Labelled, Quarantined, SessionId, Source, SpaceId};

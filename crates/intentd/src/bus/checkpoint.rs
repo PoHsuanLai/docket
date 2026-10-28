@@ -2,9 +2,10 @@
 
 use super::{Gateway, json, parsed};
 use companion_model::WatchedAgent;
-use docket_core::{CheckpointId, IntentsReply, IntentsRequest};
+use docket_core::CheckpointId;
 use docket_dbus::IntentsError;
 use docket_vocab::{TurnId, Workspace};
+use docket_wire::{IntentsReply, IntentsRequest};
 use prov::SessionId;
 use zbus::message::Header;
 

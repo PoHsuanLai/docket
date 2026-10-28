@@ -2,10 +2,9 @@
 //! sent it, and is dropped for every other role, whatever it asked for.
 
 use crate::support::*;
-use docket_core::{
-    ActivatedInvocation, ActivationToken, CallerRole, IntentsReply, IntentsRequest, Invocation,
-};
+use docket_core::{ActivatedInvocation, ActivationToken, Invocation};
 use docket_router::Router;
+use docket_wire::{CallerRole, IntentsReply, IntentsRequest};
 
 fn token() -> ActivationToken {
     ActivationToken::parse("xdg-activation-1234").expect("token")
@@ -16,10 +15,10 @@ fn performed(router: &Router<docket_fake::FakeSeams>) -> Vec<ActivatedInvocation
 }
 
 fn perform_with(
-    who: &docket_core::CallerId,
+    who: &docket_wire::CallerId,
     call: docket_vocab::CallRequest,
     session: Option<prov::SessionId>,
-) -> (docket_core::CallerId, IntentsRequest) {
+) -> (docket_wire::CallerId, IntentsRequest) {
     (
         who.clone(),
         IntentsRequest::Perform {

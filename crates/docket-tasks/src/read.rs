@@ -5,11 +5,9 @@
 use crate::task::{Failure, TaskRuntime};
 use agent_loop::LoopInput;
 use docket_client::{ClientError, Intents, Transport as IntentsTransport};
-use docket_core::{
-    Follow, Outcome, Preview, ReadAsk, ReadFault, ReaderAsk, ReplyFault, Reveal, Undoable,
-    WireRefusal,
-};
+use docket_core::{Follow, Outcome, Preview, ReadFault, ReaderAsk, ReplyFault, Reveal, Undoable};
 use docket_vocab::{ActionRef, Args, CallRequest, Origin, TargetValue, Value};
+use docket_wire::{ReadAsk, WireRefusal};
 use prov::{ActionName, Effect, Labelled};
 
 use docket_permissions_core::COMPANION_APP;

@@ -11,6 +11,7 @@ use docket_permissions_core::{
 };
 use docket_router::{BRIEF_CONFIRM, GrantStore, HELPER_POST_JOB, Router};
 use docket_vocab::{ActionRef, CallRequest, Handle, Origin, TargetValue, Value};
+use docket_wire::{IntentsReply, IntentsRequest};
 use porter_core::consent::{Decision, Grant};
 use porter_core::{DataClass, GrantId};
 use prov::{

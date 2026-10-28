@@ -4,14 +4,12 @@
 
 use crate::block::block_on;
 use crate::runner::{Harness, PolicyMode, Rig, maximal_policy};
-use docket_core::{
-    AgentConfig, CallerId, CallerRole, ContextKeep, IntentsReply, IntentsRequest, Keep, Reveal,
-    SessionOpen, TurnIn, TurnVia,
-};
+use docket_core::{AgentConfig, ContextKeep, Keep, Reveal, TurnIn, TurnVia};
 use docket_fake::{FakeLink, MailContact, MailThread, MemoryGrants};
 use docket_permissions_core::{ActionGrantKey, GrantCaller, GrantTarget, Mode};
 use docket_router::{HandleValue, Router, RouterState, Seams};
 use docket_vocab::Origin;
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen};
 use eval_core::{Case, CasePolicy, ConsentFixture, FixtureTask, WorldFixture};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{AppId, AppName, DataClass, GrantId, Isolation};
@@ -180,7 +178,7 @@ fn open<S: Rig>(
     router: &Router<S>,
     in_space: &SpaceId,
     agent: AgentRef,
-) -> Result<docket_core::SessionOpened, SetupFault> {
+) -> Result<docket_wire::SessionOpened, SetupFault> {
     let reply = block_on(router.handle(
         &companion()?,
         IntentsRequest::SessionOpen(SessionOpen {

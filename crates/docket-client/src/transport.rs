@@ -2,10 +2,10 @@
 
 use crate::watch::Watched;
 #[cfg(feature = "in_process")]
-use docket_core::CallerId;
-use docket_core::{IntentsReply, IntentsRequest};
-#[cfg(feature = "in_process")]
 use docket_router::{Router, Seams};
+#[cfg(feature = "in_process")]
+use docket_wire::CallerId;
+use docket_wire::{IntentsReply, IntentsRequest};
 use std::future::Future;
 #[cfg(feature = "in_process")]
 use std::sync::Arc;

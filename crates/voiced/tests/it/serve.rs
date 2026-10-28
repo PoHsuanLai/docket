@@ -4,6 +4,7 @@ use crate::support::device::{OnOpen, ScriptedDevice, node};
 use crate::support::infer::ScriptedInfer;
 use crate::support::*;
 use docket_dbus::callers::Role;
+use docket_wire::VoiceIntent;
 use futures_util::FutureExt;
 use futures_util::StreamExt;
 use porter_core::capability::SpeechMode;

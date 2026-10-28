@@ -6,8 +6,8 @@
 use crate::router::Router;
 use crate::seams::Seams;
 use crate::state::RouterState;
-use docket_core::{IntentsReply, SessionModeAsk, WireRefusal};
 use docket_permissions_core::{Mode, ModeRows};
+use docket_wire::{IntentsReply, SessionModeAsk, WireRefusal};
 use prov::SessionId;
 
 /// How many parents the chain is followed through: a cycle can never spin.

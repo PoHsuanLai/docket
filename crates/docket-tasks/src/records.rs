@@ -8,9 +8,9 @@ use crate::seams::Surface;
 use almanac_core::JsonText;
 use companion_wire::SessionRecord;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{NoteAsk, SessionNote, TaskLedger, skeleton_of};
 use docket_planner::Planner;
 use docket_vocab::{Clock, NoteSlug};
+use docket_wire::{NoteAsk, SessionNote, TaskLedger, skeleton_of};
 use prov::{SessionId, TaskId};
 
 /// The record as the router stores it: its slug and its serde JSON.

@@ -11,12 +11,11 @@ use crate::seams::Surface;
 use companion_model::helper::{Ceiling, GoalOrigin, JobId, PlannerSaw};
 use companion_wire::HelperReply;
 use docket_client::Transport as IntentsTransport;
-use docket_core::{
-    ActionCard, AppRefusal, CallRefusal, FailText, NoteAsk, Outcome, from_checked_brief,
-};
+use docket_core::{ActionCard, AppRefusal, CallRefusal, FailText, Outcome, from_checked_brief};
 use docket_permissions_core::{COMPANION_APP, HAND_ON_JOB, PROPOSE_ROUTINE};
 use docket_planner::Planner;
 use docket_vocab::{CallRequest, Clock, LabelText, Value};
+use docket_wire::NoteAsk;
 use prov::TaskId;
 
 /// Proposes a helper to the person.

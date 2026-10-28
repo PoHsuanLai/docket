@@ -1,19 +1,19 @@
 //! docket's vocabulary above `docket-vocab`, and the pure behaviour that is cheap to build with it:
 //! the manifest and its validation, context and previews, calls and every way they end, the undo
 //! journal, confirmation, budgets and the kill switch, the per-task policy, the planner and
-//! reader contract, the roster, messages, tasks and their episodes, audit records, the proposed
-//! configuration and the Intents1 wire. Ids, units, values, call requests, dates and the `Clock`
-//! seam live in `docket-vocab`.
+//! reader contract, the roster, messages, audit records and the proposed configuration. Ids,
+//! units, values, call requests, dates and the `Clock` seam live in `docket-vocab`. The Intents1
+//! wire, tasks and their episodes are in `docket-wire`, and the computer-use gate's ask and
+//! answer in `docket-gate-wire`, both above this crate.
 //!
 //! Pure and portable: serde only. Names `prov` for who and what, `almanac-core` for the pure
-//! shapes of memory (episodes, recall, recent), `cua-action` for the computer-use gate and
-//! `model-provider` for the structured-output shapes `ValueSchema` renders through.
+//! shapes of memory (episodes, recall, recent) and `model-provider` for the structured-output
+//! shapes `ValueSchema` renders through.
 
 mod audit;
 mod brief;
 mod budget;
 mod call;
-mod caller;
 mod checkpoint;
 mod compact;
 mod config;
@@ -21,7 +21,6 @@ mod confirm;
 mod context;
 mod derived;
 mod external;
-mod gate;
 mod handover;
 mod index;
 mod memory_link;
@@ -34,12 +33,8 @@ mod run_end;
 mod schema;
 mod skill;
 mod spend;
-mod started;
-mod summon;
-mod task;
 mod trace;
 mod undo;
-mod wire;
 
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy};
 pub use brief::{
@@ -53,7 +48,6 @@ pub use call::{
     ActivatedInvocation, ActivationToken, AppRefusal, ArgFault, CallEnd, CallProgress, CallRefusal,
     FailText, Follow, Invocation, Outcome, Undoable,
 };
-pub use caller::{CallerId, CallerRole, Member, is_terminal_scope};
 pub use checkpoint::{
     CheckpointEvent, CheckpointFault, CheckpointId, CheckpointList, CheckpointNote, CheckpointRow,
     PlanDigest, RestorePlan, Retention, Rewind, SavedState, SkipReason, TurnEnd, TurnState,
@@ -76,7 +70,6 @@ pub use context::{
 };
 pub use derived::{Corrected, Derived, PolicyWriter};
 pub use external::{ExternalAgent, SheetSurface};
-pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};
 pub use handover::{HandOver, HandRefusal, HandReply, Handed};
 pub use index::{Hit, IndexBatch, IndexEntry, IndexState, SearchAsk, SearchScope, SuggestAsk};
 pub use memory_link::{EventSink, LinkFault, MemoryLink, SpaceMemories};
@@ -104,16 +97,5 @@ pub use skill::{SKILL_ID_MAX, SkillCard, SkillId, SkillIdError, SkillText, Skill
 pub use spend::{
     Certainty, Spent, TaskTotals, TokenTotals, TurnReport, charge_turn, check_turn, totals_of,
 };
-pub use started::{NotATerminalScope, StartedFrom, TerminalScope};
-pub use summon::{SummonAnswer, SummonOrigin, SummonSerial, VoiceIntent};
-pub use task::{
-    LedgerStep, SessionOpen, SessionOpened, TaskKind, TaskLedger, TaskStart, close, skeleton_of,
-    step_outcome,
-};
 pub use trace::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
-pub use wire::{
-    Displayed, Envelope, GrantAnswer, GrantAsk, HelperNote, IntentsReply, IntentsRequest,
-    JournalFilter, NoteAsk, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved, SessionModeAsk,
-    SessionNote, StoredAsk, StoredRow, StoredView, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
-};

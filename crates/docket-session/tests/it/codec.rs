@@ -116,9 +116,9 @@ fn an_unknown_version_in_the_log_blocks_the_resume() {
 
 #[test]
 fn an_opening_written_before_started_from_reads_back_with_none() {
-    let scope = docket_core::TerminalScope::from_cgroup("vte-spawn-1.scope").expect("scope");
+    let scope = docket_wire::TerminalScope::from_cgroup("vte-spawn-1.scope").expect("scope");
     let with = Opening {
-        started_from: Some(docket_core::StartedFrom::Terminal(scope)),
+        started_from: Some(docket_wire::StartedFrom::Terminal(scope)),
         ..opening()
     };
     assert!(

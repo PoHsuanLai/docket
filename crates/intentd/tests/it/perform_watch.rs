@@ -6,6 +6,7 @@ use crate::support::world::*;
 use docket_client::{DbusTransport, Intents, PerformEvent};
 use docket_core::*;
 use docket_vocab::{ActionRef, Args, CallRequest, Origin, TargetValue};
+use docket_wire::CallerRole;
 use intentd::IntentdConfig;
 use prov::{ActionName, EntityId, EntityKey, EntityKind};
 use std::collections::BTreeMap;

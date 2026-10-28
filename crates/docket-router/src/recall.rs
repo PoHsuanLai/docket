@@ -13,10 +13,8 @@ use almanac_core::{
     RecentQuery, SpaceState, TrustFilter,
 };
 use docket_core::MemoryLink;
-use docket_core::{
-    EpisodeLine, IntentsReply, PrimerText, ProfileLine, RecallAsk, RecallView, RecalledLine,
-    RecentLine, Reveal, SkeletonText, WireRefusal,
-};
+use docket_core::{EpisodeLine, PrimerText, ProfileLine, RecalledLine, Reveal, SkeletonText};
+use docket_wire::{IntentsReply, RecallAsk, RecallView, RecentLine, WireRefusal};
 use porter_core::Count;
 use prov::{Actor, Integrity, Label, Labelled, SessionId, Source, SpaceId};
 use std::collections::BTreeSet;

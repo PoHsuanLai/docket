@@ -1,0 +1,19 @@
+[package]
+name = "docket-gate-wire"
+description = "The computer-use gate's wire: the ask `cuad` sends to `Intents1.Gate.Check` for each pixel step (`CuaAsk`, `NodeFacts`, `EffectBasis`) and the router's answer (`GateAnswer`). Sits above docket-core, whose `CallRefusal` the answer holds."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+cua-action = { workspace = true }
+docket-core = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde = { workspace = true }
+
+[lints]
+workspace = true

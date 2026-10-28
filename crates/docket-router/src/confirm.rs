@@ -4,7 +4,6 @@
 
 use crate::prepared::Prepared;
 use crate::state::SessionRecord;
-use docket_core::CallerRole;
 use docket_core::{
     Anchor, ArgLine, ConfirmDetail, ConfirmId, ConfirmOffer, ConfirmRequest, Gesture, NeverOffer,
     Preview, SheetLimits, Shown, TaintNote,
@@ -12,6 +11,7 @@ use docket_core::{
 use docket_manifest::{AgentReach, ArgSink};
 use docket_permissions_core::{AlwaysOffer, AskReason, Limited};
 use docket_vocab::{Seconds, Value};
+use docket_wire::CallerRole;
 use porter_core::Count;
 use prov::{Actor, Effect, Integrity, Label, Source};
 use std::collections::BTreeSet;

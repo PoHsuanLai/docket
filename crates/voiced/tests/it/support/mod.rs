@@ -30,7 +30,7 @@ use voiced::{
 };
 use zbus::zvariant::OwnedFd;
 
-pub use docket_core::VoiceIntent;
+use docket_wire::VoiceIntent;
 
 pub const SHELL: &str = "org.quire.Shell";
 pub const SECOND_SHELL: &str = "org.quire.Shell2";

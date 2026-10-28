@@ -5,6 +5,7 @@ use docket_core::*;
 use docket_permissions_core::Saw;
 use docket_router::TaskState;
 use docket_vocab::{CallRequest, Handle, Origin, TargetValue, Value};
+use docket_wire::{CallerRole, IntentsReply, IntentsRequest, SessionOpened, WireRefusal};
 use prov::{
     Address, AgentRef, Crossing, Integrity, MessageKind, MessageText, ReportStatus, TaskId,
 };

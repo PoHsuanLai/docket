@@ -11,10 +11,10 @@
 
 use crate::error::ServeError;
 use crate::provider::{ContextSource, IntentProvider, SummonTarget};
-use docket_core::SummonSerial;
 use docket_dbus::callers::{Callers, INTENTD, Identity, intentd_only, require};
 use docket_dbus::{BusConnection, Details, PROVIDER_PATH};
 use docket_manifest::ValidManifest;
+use docket_wire::SummonSerial;
 use futures_util::StreamExt;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -236,9 +236,10 @@ mod tests {
     use super::*;
     use docket_core::{
         AppRefusal, ContextScope, ContextSnapshot, Hit, Invocation, Outcome, Preview, SuggestAsk,
-        SummonAnswer, SummonOrigin, UndoFault,
+        UndoFault,
     };
     use docket_vocab::{EntityRef, UndoToken};
+    use docket_wire::{SummonAnswer, SummonOrigin};
     use prov::{Actor, EntityId};
     use zbus::object_server::Interface;
 

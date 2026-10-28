@@ -10,10 +10,11 @@ use super::rig::{
 };
 use action_review::{ReviewReason, ReviewVerdict};
 use docket_acp_host::Fallback;
-use docket_core::{AuditRecord, CallerId, CallerRole, IntentsReply, IntentsRequest, TurnSource};
+use docket_core::{AuditRecord, TurnSource};
 use docket_fake::{ReviewMode, ScriptedReviewer};
 use docket_permissions_core::{GrantCaller, ReasonCode, ReasonText, StandingScope};
 use docket_session::{BackendEvent, SheetChoice};
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest};
 use porter_core::{AppId, AppName, Isolation};
 use std::collections::BTreeSet;
 

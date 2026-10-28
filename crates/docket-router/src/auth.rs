@@ -1,6 +1,6 @@
 //! Who may call which member of `Intents1`: a table from member to roles, pure.
 
-use docket_core::{CallerRole, Member};
+use docket_wire::{CallerRole, Member};
 
 use CallerRole::{
     AcpAgent, App, Cli, Companion, Compositor, Control, Cua, Editor, Field, Launcher, Mcp, Reader,

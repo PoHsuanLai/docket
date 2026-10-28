@@ -8,7 +8,7 @@
 
 use crate::{Opening, ResumePlan};
 use companion_model::helper::SeatPlace;
-use docket_core::{CallerRole, StartedFrom};
+use docket_wire::{CallerRole, StartedFrom};
 use prov::AppName;
 
 /// A caller asking for a stored session.
@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn a_terminal_also_sees_what_a_terminal_started_and_nobody_else_does() {
         let (companion, a) = (app("org.quire.Companiond"), app("org.quire.A"));
-        let from = docket_core::TerminalScope::from_cgroup("vte-spawn-1.scope").expect("scope");
+        let from = docket_wire::TerminalScope::from_cgroup("vte-spawn-1.scope").expect("scope");
         let started = opening(&companion, Some(StartedFrom::Terminal(from)));
         let plain = opening(&companion, None);
         let table = [

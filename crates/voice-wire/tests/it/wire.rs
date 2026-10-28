@@ -1,7 +1,7 @@
 //! Every wire type survives JSON; the forms are pinned; the status holds no content.
 
-use docket_core::VoiceIntent;
 use docket_vocab::UtteranceId;
+use docket_wire::VoiceIntent;
 use porter_core::capability::LanguageTag;
 use porter_core::{
     AccountId, AppName, DataClass, Locality, ModelId, Permille, SpaceId, UnixSeconds,

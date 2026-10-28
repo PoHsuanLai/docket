@@ -14,6 +14,7 @@ use docket_permissions_core::{
 };
 use docket_router::{GrantStore, Router};
 use docket_vocab::{ActionRef, CallRequest, FileRef, Origin, TargetValue, Value};
+use docket_wire::{IntentsReply, IntentsRequest};
 use prov::{Labelled, UnixSeconds};
 
 pub(crate) const ADDRESS: &str = "accounting@example.test";

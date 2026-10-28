@@ -13,9 +13,9 @@ use docket_acp_host::{
     AcpBackend, AgentEnd, AgentHost, Fallback, HelperAgent, Hosts, Parts, Start,
 };
 use docket_client::{InProcess, Intents};
-use docket_core::{CallerId, CallerRole};
 use docket_host::EditorDesk;
 use docket_session::Opening;
+use docket_wire::{CallerId, CallerRole};
 use prov::{SessionId, UnixSeconds};
 use std::collections::{BTreeSet, VecDeque};
 

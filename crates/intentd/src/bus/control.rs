@@ -1,8 +1,8 @@
 //! `Control`: halting, resuming, the journal and the terminal's standing grants.
 
 use super::{Gateway, json};
-use docket_core::{IntentsReply, IntentsRequest};
 use docket_dbus::IntentsError;
+use docket_wire::{IntentsReply, IntentsRequest};
 use zbus::message::Header;
 use zbus::object_server::SignalEmitter;
 

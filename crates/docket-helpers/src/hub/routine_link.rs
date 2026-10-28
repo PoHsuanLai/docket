@@ -7,10 +7,10 @@ use companion_core::job_end;
 use companion_model::helper::{HelperName, HelperRecord, JobId};
 use companion_model::routine::JobEnd;
 use docket_client::Transport as IntentsTransport;
-use docket_core::SessionOpen;
 use docket_planner::Planner;
 use docket_tasks::{RecentSource, RouterRecent, Surface};
 use docket_vocab::Clock;
+use docket_wire::SessionOpen;
 use prov::{AgentRef, HelperId, SpaceId};
 
 impl<P, I, K, S> Hub<P, I, K, S>

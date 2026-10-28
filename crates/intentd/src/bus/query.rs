@@ -1,9 +1,10 @@
 //! The read-mostly interfaces: the registry, the index, search, context and messages.
 
 use super::{Gateway, json, parsed};
-use docket_core::{IntentsReply, IntentsRequest, SendRefusal, WireRefusal};
+use docket_core::SendRefusal;
 use docket_dbus::{Details, IntentsError};
 use docket_vocab::Generation;
+use docket_wire::{IntentsReply, IntentsRequest, WireRefusal};
 use prov::SessionId;
 use zbus::message::Header;
 use zbus::object_server::SignalEmitter;

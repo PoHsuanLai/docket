@@ -4,8 +4,9 @@
 use crate::support::*;
 use docket_cli::{Exit, Invocation, Stdin, Stdout, run};
 use docket_client::{Intents, Transport, TransportError};
-use docket_core::{ConfirmAnswer, ConfirmEnd, IntentsReply, IntentsRequest};
+use docket_core::{ConfirmAnswer, ConfirmEnd};
 use docket_fake::Answering;
+use docket_wire::{IntentsReply, IntentsRequest};
 use porter_core::AppName;
 
 /// The intentd that is not there.

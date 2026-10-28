@@ -1,6 +1,6 @@
 //! The utterance table and the mic invariant.
 
-use docket_core::VoiceIntent;
+use docket_wire::VoiceIntent;
 use porter_core::{AccountId, Locality, ModelId};
 use porter_infer::{ModelError, Readiness, ServedBy};
 use voice_loop::*;

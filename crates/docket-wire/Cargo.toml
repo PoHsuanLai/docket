@@ -1,0 +1,29 @@
+[package]
+name = "docket-wire"
+description = "The wire of docket's `org.quire.Intents1`: every request and reply and the bodies they carry, the caller's role and the member a request is, where a conversation was started from, the opening of a session and the ledger of a task, and summoning the companion. Sits above docket-core and docket-gate-wire."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+almanac-core = { workspace = true }
+companion-model = { workspace = true }
+docket-core = { workspace = true }
+docket-gate-wire = { workspace = true }
+docket-manifest = { workspace = true }
+docket-permissions-core = { workspace = true }
+docket-vocab = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+cua-action = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

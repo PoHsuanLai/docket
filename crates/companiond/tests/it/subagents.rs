@@ -7,6 +7,7 @@ use crate::support::world::*;
 use agent_loop::LoopPhase;
 use companion_wire::{AnswerBody, AnswerPhase, NeedsYou};
 use docket_core::*;
+use docket_wire::SessionOpen;
 use prov::{
     Address, AgentRef, Crossing, Integrity, MessageKind, MessageText, ReportStatus, RunId,
     SessionId, Source, UnixSeconds,

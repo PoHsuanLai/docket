@@ -23,10 +23,10 @@
 
 use crate::acp_gate::AcpGate;
 use crate::config::IntentdConfig;
-use docket_core::{CallerId, CallerRole};
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Caller, Callers, Identity, Role};
 use docket_procroot::{own_uid, terminal_scope};
+use docket_wire::{CallerId, CallerRole};
 use porter_core::{AppId, AppName, Isolation};
 use porter_daemon::ProcRoot;
 use std::path::{Path, PathBuf};

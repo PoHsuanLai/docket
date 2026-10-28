@@ -11,6 +11,7 @@ use docket_router::{Router, SessionRecord};
 use docket_vocab::{
     ActionRef, CallRequest, Handle, LabelText, Origin, ParamName, TargetValue, TurnId, Value,
 };
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, SessionOpened};
 use porter_core::{AppId, AppName, Count, Isolation};
 use prov::{
     ActionName, AgentRef, DataClass, Effect, EntityId, EntityKey, EntityKind, Label, Labelled,

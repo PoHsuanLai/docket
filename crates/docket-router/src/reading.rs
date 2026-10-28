@@ -10,10 +10,10 @@ use crate::seams::{AppLink, Seams};
 use crate::session::SessionState;
 use docket_core::LinkFault;
 use docket_core::{
-    CallRefusal, ContextScope, ContextSnapshot, Displayed, IntentsReply, ReadAsk, ReadFault,
-    Reader, Resolved, Reveal, Selection, WireRefusal, conforms,
+    CallRefusal, ContextScope, ContextSnapshot, ReadFault, Reader, Reveal, Selection, conforms,
 };
 use docket_vocab::{Handle, Value};
+use docket_wire::{Displayed, IntentsReply, ReadAsk, Resolved, WireRefusal};
 use porter_core::AppName;
 use prov::{Integrity, Label, Labelled, Quarantined, SessionId, Source};
 

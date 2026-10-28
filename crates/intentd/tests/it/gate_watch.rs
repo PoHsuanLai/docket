@@ -6,9 +6,12 @@
 use crate::support::apps::{Answer, FakeSill};
 use crate::support::bus::PrivateBus;
 use crate::support::world::introduce;
+use cua_action::{RunMode, WindowTrust};
 use docket_client::{DbusTransport, GateEvent, Intents};
 use docket_core::*;
 use docket_dbus::callers::Identity;
+use docket_gate_wire::{CuaAsk, EffectBasis, GateAnswer};
+use docket_wire::{CallerRole, SessionOpen};
 use intentd::{Cadence, IntentdConfig, Setup, start};
 use porter_core::AppName;
 use prov::{AgentRef, Effect, Label, RunId, SpaceId, UnixSeconds};

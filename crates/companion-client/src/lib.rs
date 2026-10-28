@@ -11,7 +11,7 @@
 //! use companion_client::{CompanionTransport, DbusCompanion, Follow};
 //! use companion_wire::AskWire;
 //! use docket_client::TransportError;
-//! use docket_core::SessionOpen;
+//! use docket_wire::SessionOpen;
 //!
 //! async fn converse(open: &SessionOpen, ask: &AskWire) -> Result<(), TransportError> {
 //!     let companion = DbusCompanion::connect().await?;
@@ -26,7 +26,7 @@
 
 use companion_wire::{AnswerWire, AskWire};
 use docket_client::TransportError;
-use docket_core::{SessionOpen, SessionOpened};
+use docket_wire::{SessionOpen, SessionOpened};
 use prov::SessionId;
 use std::future::Future;
 

@@ -5,8 +5,8 @@
 use crate::{CompanionTransport, Follow};
 use companion_wire::{AnswerWire, AskWire};
 use docket_client::TransportError;
-use docket_core::{SessionOpen, SessionOpened};
 use docket_dbus::{BusConnection, CompanionAnswerProxy, CompanionProxy, Details};
+use docket_wire::{SessionOpen, SessionOpened};
 use futures_util::{Stream, StreamExt};
 use prov::SessionId;
 use std::pin::Pin;

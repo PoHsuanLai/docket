@@ -4,12 +4,12 @@
 
 use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
-use docket_core::{
-    HandleCard, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, RecallAsk, RecallView, Reveal,
-    StoredAsk, StoredView, UserTurn,
-};
+use docket_core::{HandleCard, Reveal, UserTurn};
 use docket_permissions_core::TaskPolicy;
 use docket_vocab::Value;
+use docket_wire::{
+    IntentsReply, IntentsRequest, NoteAsk, ReadAsk, RecallAsk, RecallView, StoredAsk, StoredView,
+};
 use prov::SessionId;
 
 impl<T: Transport> Intents<T> {

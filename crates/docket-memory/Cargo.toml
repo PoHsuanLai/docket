@@ -30,6 +30,7 @@ almanac-service = { workspace = true }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }
 tokio = { workspace = true }
+docket-wire = { workspace = true }
 
 [lints]
 workspace = true

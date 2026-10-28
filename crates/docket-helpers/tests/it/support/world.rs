@@ -12,6 +12,7 @@ use docket_planner::PlannerModel;
 use docket_router::Router;
 use docket_tasks::{Companion as Tasks, Quiet};
 use docket_vocab::{Clock, Origin, Seconds, WindowKey};
+use docket_wire::{CallerId, CallerRole, SessionOpen, SessionOpened};
 use porter_core::{AppId, AppName, Isolation};
 use prov::{
     AgentRef, DataClass, EntityId, EntityKey, EntityKind, SessionId, SpaceId, TaskId, UnixSeconds,

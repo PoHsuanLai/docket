@@ -13,12 +13,10 @@ use crate::router::Router;
 use crate::seams::{AppLink, Seams};
 use crate::state::RouterState;
 use docket_core::LinkFault;
-use docket_core::{
-    CallerId, CallerRole, Hit, IndexBatch, IndexEntry, IntentsReply, SearchAsk, SearchScope,
-    SuggestAsk, WireRefusal,
-};
+use docket_core::{Hit, IndexBatch, IndexEntry, SearchAsk, SearchScope, SuggestAsk};
 use docket_manifest::{IndexPolicy, TitleTrust};
 use docket_vocab::EntityRef;
+use docket_wire::{CallerId, CallerRole, IntentsReply, WireRefusal};
 use porter_core::AppName;
 use prov::{EntityId, EntityKind, Label, Labelled, SpaceId, SpaceScope, UnixSeconds};
 use std::collections::BTreeSet;

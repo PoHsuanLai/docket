@@ -2,6 +2,7 @@
 
 use crate::support::infer::ScriptedInfer;
 use crate::support::*;
+use docket_wire::VoiceIntent;
 use futures_util::FutureExt;
 use futures_util::StreamExt;
 use voice_wire::{CancelCause, SpeechEnd, UtteranceEnd, VoiceEvent, VoiceRefusal};

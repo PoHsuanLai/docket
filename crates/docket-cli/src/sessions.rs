@@ -7,9 +7,9 @@
 use crate::exec::Printed;
 use crate::exit::{Failure, of_client};
 use docket_client::{Intents, Transport};
-use docket_core::{StoredAsk, StoredView};
 use docket_session::{Logged, ResumePlan, SessionEntry, Standing, export, resume_plan, to_json};
 use docket_vocab::IntentsVocab;
+use docket_wire::{StoredAsk, StoredView};
 use prov::{AgentRef, SessionId};
 use serde_json::{Value, json};
 

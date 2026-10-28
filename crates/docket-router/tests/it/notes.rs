@@ -11,6 +11,9 @@ use docket_core::*;
 use docket_fake::ScriptedWriter;
 use docket_permissions_core::{ActionMatch, PolicyChange, TaskPolicy, compare};
 use docket_vocab::{ActionRef, CallId, CharCount, NoteSlug, TurnId};
+use docket_wire::{
+    HelperNote, IntentsReply, IntentsRequest, LedgerStep, NoteAsk, SessionNote, WireRefusal,
+};
 use prov::{AgentRef, Label, MessageKind, ReportStatus, SessionId, Source, UnixSeconds};
 
 fn note(session: &SessionId, note: NoteAsk) -> IntentsRequest {

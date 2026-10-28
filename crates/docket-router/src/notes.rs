@@ -8,8 +8,9 @@ use crate::seams::Seams;
 use crate::tasks::{TaskRecord, TaskState};
 use almanac_core::{Episode, EpisodeId, EpisodeKind, EpisodeOutcome, Narrative};
 use docket_core::EventSink;
-use docket_core::{AuditRecord, CallEnd, IntentsReply, NoteAsk, WireRefusal, close};
+use docket_core::{AuditRecord, CallEnd};
 use docket_vocab::Clock;
+use docket_wire::{IntentsReply, NoteAsk, WireRefusal, close};
 use prov::{Integrity, ReportStatus, SessionId};
 
 fn refuse(why: WireRefusal) -> IntentsReply {

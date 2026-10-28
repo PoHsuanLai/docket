@@ -3,9 +3,7 @@
 
 use crate::support::infer::{call, words};
 use crate::support::*;
-use docket_core::{
-    CallerId, CallerRole, IntentsReply, IntentsRequest, TurnSource, TurnState, TurnVia, UserTurn,
-};
+use docket_core::{TurnSource, TurnState, TurnVia, UserTurn};
 use docket_session::fake::MemoryLog;
 use docket_session::{
     BackendEvent, BackendKind, CallEvent, DeskFault, EndCause, Opening, Read, Seq, SessionEntry,
@@ -13,6 +11,7 @@ use docket_session::{
 };
 use docket_vocab::TurnId;
 use docket_vocab::Workspace;
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest};
 use porter_core::{AppId, Isolation};
 use prov::{AgentRef, UnixSeconds};
 use serde_json::json;

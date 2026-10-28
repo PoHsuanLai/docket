@@ -10,6 +10,7 @@ use docket_permissions_core::{
 };
 use docket_router::{GrantStore, SessionState};
 use docket_vocab::{ActionRef, Args, CallRequest, Handle, Origin, TargetValue, Value};
+use docket_wire::{IntentsReply, IntentsRequest, JournalFilter, WireRefusal};
 use prov::{AgentRef, Integrity, Labelled};
 
 fn contact() -> Value {

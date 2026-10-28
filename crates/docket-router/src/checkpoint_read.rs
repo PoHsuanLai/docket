@@ -6,11 +6,12 @@ use crate::router::Router;
 use crate::seams::Seams;
 use docket_checkpoint::{CheckpointStore, PlanAsk, StoreFault, WorkRoot};
 use docket_core::{
-    CallerId, CallerRole, CheckpointEvent, CheckpointFault, CheckpointId, CheckpointList,
-    CheckpointNote, CheckpointRow, IntentsReply, RestorePlan, Retention, SavedState, WireRefusal,
+    CheckpointEvent, CheckpointFault, CheckpointId, CheckpointList, CheckpointNote, CheckpointRow,
+    RestorePlan, Retention, SavedState,
 };
 use docket_session::{Claimant, may_restore, note_rows};
 use docket_vocab::Workspace;
+use docket_wire::{CallerId, CallerRole, IntentsReply, WireRefusal};
 use prov::{AgentLabel, SessionId};
 
 /// What a surface may know of one session's restore points.

@@ -5,7 +5,8 @@
 
 use almanac_core::{InjectQuery, RecentQuery};
 use docket_client::{Intents, Transport as IntentsTransport};
-use docket_core::{EpisodeLine, PrimerText, ProfileLine, RecallAsk, RecallView, RecalledLine};
+use docket_core::{EpisodeLine, PrimerText, ProfileLine, RecalledLine};
+use docket_wire::{RecallAsk, RecallView};
 use prov::SessionId;
 
 /// The Space's primer, if it has one.

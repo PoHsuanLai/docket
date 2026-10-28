@@ -23,9 +23,10 @@ use crate::session::SessionState;
 use crate::state::{SessionKind, SessionRecord};
 use crate::wal::Wal;
 use companion_model::{WatchOwner, WatchedAgent, Watching};
-use docket_core::{CallerId, CallerRole, IntentsReply, IntentsRequest, Rewind, WireRefusal};
+use docket_core::Rewind;
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use docket_vocab::{CallRequest, Clock, TurnId, Workspace};
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, WireRefusal};
 use prov::{Actor, AgentLabel, AgentRef, SessionId, SpaceId, TaskId};
 
 /// The longest label kept, in characters.

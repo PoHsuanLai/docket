@@ -79,10 +79,10 @@ impl<I: docket_client::Transport> RecentSource for RouterRecent<'_, I> {
     async fn recent(&self, query: RecentQuery) -> Result<Vec<RecentEntry>, ReplayFault> {
         let view = self
             .intents
-            .session_recall(self.session.clone(), docket_core::RecallAsk::Recent(query))
+            .session_recall(self.session.clone(), docket_wire::RecallAsk::Recent(query))
             .await
             .map_err(|_| ReplayFault::Unavailable)?;
-        let docket_core::RecallView::Recent(lines) = view else {
+        let docket_wire::RecallView::Recent(lines) = view else {
             return Err(ReplayFault::Unavailable);
         };
         Ok(lines

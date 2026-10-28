@@ -4,12 +4,12 @@ use crate::auth::acting_role;
 use crate::seams::Seams;
 use crate::state::RouterState;
 use crate::watch::Watch;
-use docket_core::{
-    AgentConfig, CallerId, CallerRole, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk,
-    WireRefusal,
-};
+use docket_core::AgentConfig;
 use docket_permissions_core::Floor;
 use docket_vocab::Clock;
+use docket_wire::{
+    CallerId, CallerRole, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk, WireRefusal,
+};
 use policy_point::Presets;
 use std::future::Future;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
@@ -131,7 +131,7 @@ impl<S: Seams> Router<S> {
     async fn answer(
         &self,
         caller: &CallerId,
-        role: docket_core::CallerRole,
+        role: docket_wire::CallerRole,
         request: IntentsRequest,
         watch: &Watch,
     ) -> IntentsReply {

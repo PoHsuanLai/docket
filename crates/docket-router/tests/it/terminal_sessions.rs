@@ -3,9 +3,12 @@
 //! else. Everything else is answered as a session the log does not hold.
 
 use crate::support::*;
-use docket_core::*;
 use docket_fake::FakeSeams;
 use docket_router::Router;
+use docket_wire::{
+    CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, StartedFrom, StoredAsk,
+    StoredView, TerminalScope, WireRefusal,
+};
 use prov::{AgentRef, SessionId};
 
 fn scope(name: &str) -> StartedFrom {

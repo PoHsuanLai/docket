@@ -1,7 +1,6 @@
 mod budget;
 mod checkpoint;
 mod compact;
-mod episodes;
 mod permission_records;
 mod records;
 mod schema;

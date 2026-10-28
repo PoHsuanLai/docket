@@ -14,15 +14,17 @@ use action_review::RepeatState;
 use docket_core::EventSink;
 use docket_core::{
     Anchor, AuditRecord, CallProgress, CallRefusal, ConfirmAnswer, ConfirmAnswerKind,
-    ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, Cost, CuaAsk,
-    GateAnswer, Gesture, GrantAnswer, GrantAsk, IntentsReply, Reviewed, TaintNote,
+    ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, Cost, Gesture,
+    Reviewed, TaintNote,
 };
+use docket_gate_wire::{CuaAsk, GateAnswer};
 use docket_manifest::{AgentReach, Lasting};
 use docket_permissions_core::{
     ActionGrantKey, AskReason, GrantCaller, GrantTarget, Impact, Level, LimitCall, Saw, SessionSaw,
     SinkIntegrity,
 };
 use docket_vocab::{Clock, Depth, LabelText, Origin};
+use docket_wire::{GrantAnswer, GrantAsk, IntentsReply};
 use policy_point::{
     ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, RunFact,
     SpaceRelation, TerminalGrant,

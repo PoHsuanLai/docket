@@ -10,9 +10,9 @@ use crate::seams::Surface;
 use almanac_core::{BodyMode, JsonText, KindPattern, RecentEntry, RecentQuery, TrustFilter};
 use companion_model::helper::{HelperRecord, HelperRecordKind};
 use docket_client::Transport as IntentsTransport;
-use docket_core::{HelperNote, NoteAsk, SessionOpen};
 use docket_planner::Planner;
 use docket_vocab::Clock;
+use docket_wire::{HelperNote, NoteAsk, SessionOpen};
 use porter_core::Count;
 use prov::{AgentRef, SpaceId, UnixSeconds};
 

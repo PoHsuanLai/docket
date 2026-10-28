@@ -21,6 +21,7 @@ use docket_router::{GrantStore, Router};
 use docket_session::fake::MemoryLog;
 use docket_tasks::{Companion, Quiet};
 use docket_vocab::LabelText;
+use docket_wire::{CallerId, CallerRole};
 use infer::{Say, ScriptedInfer};
 use porter_core::{AppId, AppName, Count, Isolation};
 use prov::{DataClass, Effect, EntityKind, SessionId, SpaceId, TaskId, UnixSeconds};

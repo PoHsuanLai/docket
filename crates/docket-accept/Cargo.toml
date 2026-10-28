@@ -61,6 +61,7 @@ docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-permissions-core = { workspace = true }
 docket-provider = { workspace = true, features = ["dbus"] }
 docket-core = { workspace = true }
+docket-wire = { workspace = true }
 docket-manifest = { workspace = true, features = ["manifest-file"] }
 docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }

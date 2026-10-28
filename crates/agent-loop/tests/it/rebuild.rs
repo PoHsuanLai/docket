@@ -5,6 +5,7 @@ use agent_loop::*;
 use almanac_core::{EpisodeKind, EpisodeOutcome};
 use companion_wire::{AnswerPhase, SessionRecord};
 use docket_core::*;
+use docket_wire::{TaskLedger, close};
 use porter_core::AppName;
 use prov::{
     Address, AgentRef, Message, MessageId, MessageKind, MessageText, Part, ReportStatus, RunId,

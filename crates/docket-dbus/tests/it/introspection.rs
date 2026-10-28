@@ -104,7 +104,7 @@ fn every_intents_member_is_declared() {
     // One method per `Member` of docket-core, plus the Request object's Close and Proceed.
     assert_eq!(
         xml.matches("<method ").count(),
-        docket_core::Member::ALL.len() + 2
+        docket_wire::Member::ALL.len() + 2
     );
 }
 

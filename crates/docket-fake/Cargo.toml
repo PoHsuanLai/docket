@@ -31,6 +31,8 @@ thiserror = { workspace = true }
 docket-client = { workspace = true, features = ["in_process"] }
 tokio = { workspace = true }
 cua-action = { workspace = true }
+docket-gate-wire = { workspace = true }
+docket-wire = { workspace = true }
 
 [lints]
 workspace = true

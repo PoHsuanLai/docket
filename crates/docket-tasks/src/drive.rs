@@ -20,13 +20,14 @@ use agent_loop::{
 };
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
-use docket_core::{BudgetKind, CallProgress, CallRefusal, Held, ReaderAsk, StepEnd, WireRefusal};
+use docket_core::{BudgetKind, CallProgress, CallRefusal, Held, ReaderAsk, StepEnd};
 use docket_permissions_core::COMPANION_APP;
 use docket_permissions_core::TASK_START;
 use docket_planner::{PlanFault, Planner};
 use docket_session::CallOpen;
 use docket_store::Stop;
 use docket_vocab::{CallId, CallRequest, Clock};
+use docket_wire::WireRefusal;
 use prov::{Effect, TaskId};
 use std::collections::VecDeque;
 

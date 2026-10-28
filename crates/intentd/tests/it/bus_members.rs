@@ -12,13 +12,19 @@ use crate::support::world::*;
 use almanac_core::{
     BodyMode, Episode, EpisodeId, EpisodeKind, EpisodeOutcome, RecentQuery, Skeleton, TrustFilter,
 };
+use cua_action::{RunMode, WindowTrust};
 use docket_client::{Transport, TransportError};
 use docket_core::*;
 use docket_dbus::{Bus, introspection};
+use docket_gate_wire::{CuaAsk, EffectBasis};
 use docket_permissions_core::{ActionMatch, Level, TaskPolicy, TaskPolicyState};
 use docket_vocab::{
     ActionRef, Args, CallRequest, Generation, Handle, LabelText, NoteSlug, Origin, ParamName,
     TargetValue, TurnId, UndoId, Workspace,
+};
+use docket_wire::{
+    CallerId, CallerRole, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, Member, NoteAsk,
+    ReadAsk, RecallAsk, SessionNote, SessionOpen, WidenAsk, WireRefusal,
 };
 use porter_core::Count;
 use prov::{
@@ -305,7 +311,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     })
     .await;
     pair.both(IntentsRequest::SessionStored {
-        ask: docket_core::StoredAsk::List,
+        ask: docket_wire::StoredAsk::List,
     })
     .await;
     pair.both(IntentsRequest::SessionNarrow {
@@ -507,7 +513,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         how: docket_core::TurnEnd::Answered,
     })
     .await;
-    pair.both(IntentsRequest::SessionMode(docket_core::SessionModeAsk {
+    pair.both(IntentsRequest::SessionMode(docket_wire::SessionModeAsk {
         session: session.clone(),
         mode: docket_permissions_core::Mode::Manual,
     }))

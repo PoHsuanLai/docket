@@ -11,13 +11,13 @@ use crate::wal::Wal;
 use almanac_core::{EpisodeId, EpisodeKind, EpisodeOutcome};
 use companion_model::helper::SeatPlace;
 use docket_core::EventSink;
-use docket_core::{
-    AuditRecord, CallerId, CallerRole, IntentsReply, Reveal, Rewind, SessionOpen, SessionOpened,
-    TaskLedger, TurnIn, TurnSource, UserTurn, WireRefusal, close,
-};
+use docket_core::{AuditRecord, Reveal, Rewind, TurnIn, TurnSource, UserTurn};
 use docket_permissions_core::intersection;
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use docket_vocab::{Clock, TurnId};
+use docket_wire::{
+    CallerId, CallerRole, IntentsReply, SessionOpen, SessionOpened, TaskLedger, WireRefusal, close,
+};
 use porter_core::AppName;
 use prov::{Actor, AgentRef, AgentRole, ReportStatus, SessionId, TaskId};
 

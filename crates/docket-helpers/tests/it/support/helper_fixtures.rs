@@ -6,10 +6,11 @@ use almanac_core::{EventRef, EventSummary, JsonText, KindTag, RecentEntry, Repli
 use companion_model::helper::*;
 use companion_wire::{HelperForm, SayReply};
 use docket_client::{InProcess, Intents};
-use docket_core::{AuditRecord, CallerRole, TurnIn, TurnSource, TurnVia};
+use docket_core::{AuditRecord, TurnIn, TurnSource, TurnVia};
 use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_tasks::{HelperDesk, SayFromPerson};
 use docket_vocab::{LabelText, Origin};
+use docket_wire::CallerRole;
 use porter_core::{AccountId, Count, ModelId};
 use porter_infer::ModelRef;
 use prov::{Actor, Effect, EntityKind, HelperId, UnixSeconds};

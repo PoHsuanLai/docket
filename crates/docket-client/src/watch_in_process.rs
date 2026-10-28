@@ -5,8 +5,9 @@
 
 use crate::transport::TransportError;
 use crate::watch::{Boxed, Events, Said, Steering, Watched};
-use docket_core::{CallProgress, CallerId, IntentsReply, IntentsRequest};
+use docket_core::CallProgress;
 use docket_router::{Flag, Queue, Router, Seams, Watch};
+use docket_wire::{CallerId, IntentsReply, IntentsRequest};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;

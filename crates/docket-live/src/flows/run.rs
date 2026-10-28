@@ -11,7 +11,8 @@ use docket_accept::keys_home::KeysHome;
 use docket_accept::provider::{Focus, Sending};
 use docket_accept::things::App;
 use docket_accept::world::{Binaries, Consent, ModelSource, Options, TapMode, World};
-use docket_core::{JournalFilter, ModelExchange};
+use docket_core::ModelExchange;
+use docket_wire::JournalFilter;
 use std::time::Duration;
 
 pub(crate) fn exchanges_of(world: &World) -> Vec<ModelExchange> {

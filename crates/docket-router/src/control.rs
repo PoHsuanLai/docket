@@ -7,10 +7,10 @@ use crate::session::SessionEvent;
 use crate::session::age;
 use docket_core::EventSink;
 use docket_core::{
-    AuditRecord, CallerId, CallerRole, Confirmer, Halt, HaltCause, IntentsReply, JournalFilter,
-    UndoEntry, UndoFault, UndoReport, UndoScope, UndoState,
+    AuditRecord, Confirmer, Halt, HaltCause, UndoEntry, UndoFault, UndoScope, UndoState,
 };
 use docket_vocab::{Clock, UndoId};
+use docket_wire::{CallerId, CallerRole, IntentsReply, JournalFilter, UndoReport};
 use porter_core::Count;
 use prov::{Actor, SpaceScope};
 
@@ -198,7 +198,7 @@ impl<S: Seams> Router<S> {
             .get(id)
             .is_none_or(|e| role != CallerRole::Cli || e.actor == Actor::Cli);
         if !own {
-            return IntentsReply::Refused(docket_core::WireRefusal::NotAllowed);
+            return IntentsReply::Refused(docket_wire::WireRefusal::NotAllowed);
         }
         IntentsReply::Undone(self.undo_one(id, &actor_of(caller, role)).await)
     }

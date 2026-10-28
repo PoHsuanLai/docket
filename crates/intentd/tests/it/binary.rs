@@ -4,7 +4,7 @@
 
 use crate::support::bus::PrivateBus;
 use docket_client::Transport;
-use docket_core::{IntentsReply, IntentsRequest, WireRefusal};
+use docket_wire::{IntentsReply, IntentsRequest, WireRefusal};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;

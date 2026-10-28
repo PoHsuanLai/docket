@@ -30,6 +30,8 @@ LAYERS=(
   "docket-permissions-core:P"
   "companion-model:P"
   "docket-core:P"
+  "docket-gate-wire:P"
+  "docket-wire:P"
   "docket-skills:P"
   "policy-point:P"
   "action-review:P"
@@ -302,7 +304,7 @@ cd "$(dirname "$0")/.."
 
 # RULES: what a crate reaches through ANY path (transitive, default features).
 #
-# The pure crates (docket-vocab, docket-manifest, docket-permissions-core, companion-model, docket-core, policy-point, action-review, docket-router, companion-wire,
+# The pure crates (docket-vocab, docket-manifest, docket-permissions-core, companion-model, docket-core, docket-gate-wire, docket-wire, policy-point, action-review, docket-router, companion-wire,
 # agent-loop, voice-wire, voice-loop, voice-audio) never reach a bus, a runtime, an HTTP client, an audio or
 # display or accessibility stack, a database, a file watcher, an embedding runtime or the MCP SDK.
 # Only policy-point reaches cedar-policy, and the crates above it (docket-router, the fakes and
@@ -316,6 +318,8 @@ RULES=(
   "docket-permissions-core: $EFFECTS toml"
   "companion-model: $EFFECTS toml"
   "docket-core: $EFFECTS toml"
+  "docket-gate-wire: $EFFECTS toml"
+  "docket-wire: $EFFECTS toml"
   "policy-point: $NO_CEDAR toml"
   "action-review: $EFFECTS toml"
   "docket-router: $NO_CEDAR"

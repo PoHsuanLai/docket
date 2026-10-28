@@ -19,6 +19,7 @@ use docket_helpers::RoutineDesk;
 use docket_tasks::HelperDesk;
 use docket_tasks::{Pending, RoutineAsk, RoutineFor};
 use docket_vocab::Origin;
+use docket_wire::{CallerRole, SessionOpen};
 use futures_util::lock::Mutex;
 use porter_daemon::ProcRoot;
 use prov::AgentRef;

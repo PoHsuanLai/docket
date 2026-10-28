@@ -6,14 +6,12 @@
 use crate::block::block_on;
 use crate::runner::Rig;
 use crate::world::{Scene, cli, companion, hold, mail_label, state_of};
-use docket_core::{
-    CallRefusal, DraftPart, InboundPart, InboxAsk, IntentsReply, IntentsRequest, MessageDraft,
-    Reveal, WireRefusal,
-};
+use docket_core::{CallRefusal, DraftPart, InboundPart, InboxAsk, MessageDraft, Reveal};
 use docket_manifest::{ParamDecl, ParamNeed};
 use docket_permissions_core::DenyCode;
 use docket_router::{HandleValue, Router};
 use docket_vocab::{ActionRef, Args, CallRequest, Origin, ParamType, TargetValue, Value};
+use docket_wire::{IntentsReply, IntentsRequest, WireRefusal};
 use eval_core::{
     ArgFrom, Case, Driver, MailField, ScriptedCall, ScriptedSend, ScriptedStep, StepEnding,
 };
@@ -376,7 +374,7 @@ impl<'a, S: Rig> Player<'a, S> {
 
     /// The receiver's planner reads what landed: the first words of it become what a later step
     /// can name as `Inbound`.
-    fn take_inbox(&mut self, index: usize, agent: &AgentRef, caller: &docket_core::CallerId) {
+    fn take_inbox(&mut self, index: usize, agent: &AgentRef, caller: &docket_wire::CallerId) {
         if !matches!(agent, AgentRef::Companion | AgentRef::Worker { .. }) {
             return;
         }

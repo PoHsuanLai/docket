@@ -2,7 +2,7 @@
 //! `ProcRoot`: the system's, or a fixture in a test build); this crate reads under the directory
 //! it is handed, so a test builds a scratch one.
 
-use docket_core::TerminalScope;
+use docket_wire::TerminalScope;
 use porter_core::CgroupPath;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;

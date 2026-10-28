@@ -7,9 +7,10 @@ use crate::gate::Pending;
 use crate::router::Router;
 use crate::seams::{AppLink, Seams};
 use crate::who::Who;
-use docket_core::{CallRefusal, IntentsReply, Invocation, Preview, WireRefusal};
+use docket_core::{CallRefusal, Invocation, Preview};
 use docket_manifest::DryRun;
 use docket_vocab::{CallRequest, Depth};
+use docket_wire::{IntentsReply, WireRefusal};
 
 fn refused(why: CallRefusal) -> IntentsReply {
     IntentsReply::Refused(WireRefusal::Call(why))

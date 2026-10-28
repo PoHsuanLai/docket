@@ -13,9 +13,10 @@ mod run;
 mod session;
 
 use crate::peer::{PeerFault, Peers};
-use docket_core::{CallerId, Hit, IntentsReply, IntentsRequest, SearchAsk};
+use docket_core::{Hit, SearchAsk};
 use docket_dbus::{INTENTS_PATH, IntentsError};
 use docket_router::Watch;
+use docket_wire::{CallerId, IntentsReply, IntentsRequest};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::future::Future;
@@ -75,7 +76,7 @@ pub(crate) fn or_refused<T>(
     pick: impl FnOnce(IntentsReply) -> Option<T>,
 ) -> Option<Result<T, docket_core::CallRefusal>> {
     match reply {
-        IntentsReply::Refused(docket_core::WireRefusal::Call(why)) => Some(Err(why)),
+        IntentsReply::Refused(docket_wire::WireRefusal::Call(why)) => Some(Err(why)),
         other => pick(other).map(Ok),
     }
 }

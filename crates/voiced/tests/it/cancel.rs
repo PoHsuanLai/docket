@@ -3,6 +3,7 @@
 
 use crate::support::infer::ScriptedInfer;
 use crate::support::*;
+use docket_wire::VoiceIntent;
 use voice_wire::{CancelCause, UtteranceEnd, VoiceEvent};
 use voiced::UtteranceProxy;
 

@@ -14,10 +14,9 @@ use crate::{JsonFlag, Report, Stdout};
 use companion_client::{CompanionTransport, Follow};
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, AskWire, RefusalWire};
 use docket_client::{ClientError, Intents, Transport, TransportError};
-use docket_core::{
-    ContextKeep, Keep, SessionOpen, SessionOpened, TurnIn, TurnSource, TurnVia, UserTurn,
-};
+use docket_core::{ContextKeep, Keep, TurnIn, TurnSource, TurnVia, UserTurn};
 use docket_vocab::{Origin, WindowKey};
+use docket_wire::{SessionOpen, SessionOpened};
 use prov::{AgentRef, SessionId, SpaceId, UnixSeconds};
 use serde_json::json;
 

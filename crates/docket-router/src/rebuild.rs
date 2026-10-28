@@ -16,12 +16,13 @@ use crate::who::actor_of;
 use almanac_core::EpisodeId;
 use companion_model::HandTo;
 use docket_core::{
-    ExternalAgent, Ledger, Reveal, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger, UserTurn,
+    ExternalAgent, Ledger, Reveal, SheetSurface, StepEnd, StepLine, StepShown, UserTurn,
 };
 use docket_permissions_core::Saw;
 use docket_session::{
     ResumeFault, ResumePlan, SessionEntry, Standing, Taint as Written, TaintCause, TaintNote,
 };
+use docket_wire::TaskLedger;
 use porter_core::{AppName, Count};
 use prov::{Actor, AgentRef, AgentRole, Label, SessionId, UnixSeconds};
 

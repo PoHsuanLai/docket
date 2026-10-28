@@ -8,6 +8,7 @@ use docket_fake::ScriptedConfirmer;
 use docket_permissions_core::{ActionGrantKey, DenyCode, GrantCaller, GrantTarget};
 use docket_router::Router;
 use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
+use docket_wire::{IntentsReply, IntentsRequest, JournalFilter, WireRefusal};
 use prov::{Actor, UnixSeconds};
 
 fn answering(router: &mut Router<docket_fake::FakeSeams>, answers: Vec<ConfirmAnswer>) {

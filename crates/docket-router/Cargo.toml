@@ -13,6 +13,8 @@ bulkhead = { workspace = true }
 companion-model = { workspace = true }
 docket-checkpoint = { workspace = true }
 docket-core = { workspace = true }
+docket-wire = { workspace = true }
+docket-gate-wire = { workspace = true }
 docket-manifest = { workspace = true, features = ["manifest-file"] }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }

@@ -16,10 +16,10 @@ use companion_wire::{AnswerPhase, AskWire, FrontTask, SessionRecord};
 use docket_client::{Intents, Transport as IntentsTransport};
 use docket_core::{
     AgentConfig, EpisodeLine, LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine,
-    SessionOpen, SessionOpened,
 };
 use docket_planner::{Catalogue, Planner};
 use docket_vocab::Clock;
+use docket_wire::{SessionOpen, SessionOpened};
 use porter_core::AppName;
 use prov::{AgentRef, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -59,7 +59,8 @@ pub(crate) struct Narration {
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use docket_client::{InProcess, Intents};
-/// use docket_core::{AgentConfig, CallerId, CallerRole, SessionOpen};
+/// use docket_core::AgentConfig;
+/// use docket_wire::{CallerId, CallerRole, SessionOpen};
 /// use docket_fake::{WordsModel, fake_router};
 /// use docket_planner::PlannerModel;
 /// use docket_fake::FixedClock;

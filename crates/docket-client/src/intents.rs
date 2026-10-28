@@ -3,15 +3,18 @@
 
 use crate::transport::{Transport, TransportError};
 use docket_core::{
-    ActivationToken, CallRefusal, ContextView, CuaAsk, Delivery, Displayed, GateAnswer,
-    GrantAnswer, GrantAsk, HaltCause, Hit, InboundLine, InboxAsk, IntentsReply, IntentsRequest,
-    JournalFilter, KillSwitch, MessageDraft, Outcome, Preview, Resolved, SearchAsk, SessionModeAsk,
-    SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnIn, UndoEntry, UndoReport, UndoScope,
-    WidenAnswer, WidenAsk, WireRefusal,
+    ActivationToken, CallRefusal, ContextView, Delivery, HaltCause, Hit, InboundLine, InboxAsk,
+    KillSwitch, MessageDraft, Outcome, Preview, SearchAsk, SuggestAsk, TurnEnd, TurnIn, UndoEntry,
+    UndoScope,
 };
+use docket_gate_wire::{CuaAsk, GateAnswer};
 use docket_manifest::ValidManifest;
 use docket_permissions_core::Mode;
 use docket_vocab::{ActionRef, CallRequest, EntityRef, Handle, TurnId, UndoId, WindowKey};
+use docket_wire::{
+    Displayed, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, Resolved,
+    SessionModeAsk, SessionOpen, SessionOpened, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
+};
 use prov::{AppName, EntityId, SessionId, SpaceScope};
 
 /// Why a request did not give the reply its caller wanted.
@@ -44,7 +47,8 @@ impl From<TransportError> for ClientError {
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use docket_client::{InProcess, Intents};
-/// use docket_core::{AgentConfig, CallerId, CallerRole};
+/// use docket_core::AgentConfig;
+/// use docket_wire::{CallerId, CallerRole};
 /// use docket_fake::fake_router;
 /// use porter_core::{AppId, AppName, Isolation};
 /// use std::{collections::BTreeSet, sync::Arc};

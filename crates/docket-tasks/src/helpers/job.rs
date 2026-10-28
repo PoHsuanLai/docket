@@ -15,12 +15,12 @@ use companion_model::helper::{CallVerdict, GoalSource, HelperSeat, JobFault, Sea
 use companion_wire::{AnswerPhase, NeedsYou, RefusalWire};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
-    CallEnd, CallRefusal, DraftPart, MessageDraft, SessionOpen, StepEnd, TurnSource, TurnVia,
-    UserTurn,
+    CallEnd, CallRefusal, DraftPart, MessageDraft, StepEnd, TurnSource, TurnVia, UserTurn,
 };
 use docket_permissions_core::DenyCode;
 use docket_planner::Planner;
 use docket_vocab::{Clock, TurnId};
+use docket_wire::SessionOpen;
 use porter_core::Count;
 use prov::{Address, AgentRef, MessageKind, MessageText, TaskId};
 

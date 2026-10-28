@@ -8,6 +8,7 @@ use docket_fake::ScriptedConfirmer;
 use docket_permissions_core::{AskReason, DenyCode, Mode};
 use docket_router::{Revoked, Router};
 use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
+use docket_wire::{CallerId, IntentsReply, IntentsRequest, WireRefusal};
 use prov::{Actor, Source};
 
 fn once() -> ConfirmAnswer {

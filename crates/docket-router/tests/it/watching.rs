@@ -4,10 +4,13 @@
 
 use crate::support::*;
 use cua_action::{CuaAction, WindowSpace};
+use cua_action::{RunMode, WindowTrust};
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
+use docket_gate_wire::{CuaAsk, EffectBasis, GateAnswer};
 use docket_router::{Flag, Queue, Watch};
 use docket_vocab::{CallRequest, Millis, Origin, TargetValue, Value};
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, WireRefusal};
 use prov::{AgentRef, ConfirmReceipt, Effect, InputProof, Label, RunId, UnixSeconds};
 use std::sync::Arc;
 

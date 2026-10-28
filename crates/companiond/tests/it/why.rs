@@ -12,6 +12,7 @@ use companiond::serve_on_rooted;
 use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use docket_vocab::{Clock, Origin, WindowKey};
+use docket_wire::{SessionOpen, SessionOpened};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
 use porter_core::{AccountId, ModelId};

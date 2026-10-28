@@ -4,8 +4,9 @@
 
 use crate::support::world::*;
 use docket_client::{Intents, Transport};
-use docket_core::{ActivationToken, IntentsReply, IntentsRequest, JournalFilter, WireRefusal};
+use docket_core::ActivationToken;
 use docket_vocab::{Args, CallRequest, Origin, TargetValue};
+use docket_wire::{IntentsReply, IntentsRequest, JournalFilter, WireRefusal};
 use intentd::IntentdConfig;
 use prov::ActionName;
 

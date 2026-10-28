@@ -2,12 +2,11 @@
 //! `Session` (its own taint, budget and `TaskPolicy`). This is the vocabulary of opening one,
 //! spawning a worker, and the ledger the router keeps so a finished task becomes an episode.
 
-use crate::call::{ArgFault, CallEnd};
-use crate::planner::UserTurn;
 use almanac_core::{
     Episode, EpisodeId, EpisodeKind, EpisodeOutcome, ResultLine, Skeleton, StepLine, StepOutcome,
     ThingRole, ThingView,
 };
+use docket_core::{ArgFault, CallEnd, UserTurn};
 use docket_vocab::{Args, CallId, ParamName, UndoId, Value};
 use prov::{
     ActionName, AgentRef, Confidentiality, Effect, EntityId, Integrity, Label, MessageText,
@@ -82,7 +81,7 @@ pub struct SessionOpen {
     /// The external agent program the session is for, said by the host that launched it; the
     /// router keeps it only from the `acp_agent` role.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub external: Option<crate::external::ExternalAgent>,
+    pub external: Option<docket_core::ExternalAgent>,
     /// The helper whose job the session is for, and the ceiling and the things that job owns,
     /// said by the companion; the router keeps it only from the `companion` role and ignores it
     /// from anyone else.
@@ -151,7 +150,7 @@ pub struct TaskLedger {
 
 /// How a call's end reads in an episode.
 pub fn step_outcome(end: &CallEnd) -> StepOutcome {
-    use crate::call::CallRefusal as R;
+    use docket_core::CallRefusal as R;
     match end {
         CallEnd::Done => StepOutcome::Done,
         CallEnd::Refused(R::Denied(_) | R::Unconfirmed(_) | R::Paused(_) | R::Halted(_)) => {

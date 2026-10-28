@@ -20,10 +20,7 @@ use action_review::InferReviewer;
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, AskWire};
 use docket_accept::world::{Binaries, Options, TapMode};
 use docket_client::{InProcess, Intents};
-use docket_core::{
-    AgentConfig, CallerId, CallerRole, ContextKeep, Keep, SessionOpen, TurnIn, TurnSource, TurnVia,
-    UserTurn,
-};
+use docket_core::{AgentConfig, ContextKeep, Keep, TurnIn, TurnSource, TurnVia, UserTurn};
 use docket_dbus::Watched;
 use docket_eval::{Facts, SetupFault, install_fixture};
 use docket_fake::{FakeError, fake_router_reading};
@@ -35,6 +32,7 @@ use docket_store::SystemClock;
 use docket_tasks::{Companion, Quiet};
 use docket_trace::{MemoryTap, Tap};
 use docket_vocab::{Clock, Origin, WindowKey};
+use docket_wire::{CallerId, CallerRole, SessionOpen};
 use eval_core::{
     AnswerGiven, AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, PlaceError, RunNote,
     faulted_trace, live_trace, score_live,

@@ -16,7 +16,7 @@ use crate::talk::Say;
 use crate::usage::UseSource;
 use crate::warm::Warm;
 use crate::watch::{Deadline, Leaving};
-use docket_core::VoiceIntent;
+use docket_wire::VoiceIntent;
 use porter_client::Transport;
 use porter_infer::Readiness;
 use std::future::pending;

@@ -3,11 +3,11 @@
 use super::Focus;
 use crate::provider::threads;
 use docket_core::{
-    ContextScope, ContextSnapshot, Here, Selection, SummonAnswer, SummonOrigin, SummonSerial,
-    TextTarget, Visible, WindowPrivacy,
+    ContextScope, ContextSnapshot, Here, Selection, TextTarget, Visible, WindowPrivacy,
 };
 use docket_provider::{ContextSource, SummonTarget};
 use docket_vocab::EntityRef;
+use docket_wire::{SummonAnswer, SummonOrigin, SummonSerial};
 use porter_core::{AppName, DataClass};
 use prov::{
     Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled, Source, SpaceId,

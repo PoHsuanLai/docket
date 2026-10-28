@@ -125,8 +125,8 @@ pub struct NoBus;
 impl Transport for NoBus {
     async fn call(
         &self,
-        _: docket_core::IntentsRequest,
-    ) -> Result<docket_core::IntentsReply, docket_client::TransportError> {
+        _: docket_wire::IntentsRequest,
+    ) -> Result<docket_wire::IntentsReply, docket_client::TransportError> {
         Err(docket_client::TransportError::Closed)
     }
 }

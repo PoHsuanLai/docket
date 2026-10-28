@@ -4,10 +4,11 @@
 //! answer is awaited; a caller subscribes before it calls, so a quick answer is not lost.
 
 use super::{Gateway, render};
-use docket_core::{CallProgress, IntentsReply, IntentsRequest, WireRefusal};
+use docket_core::CallProgress;
 use docket_dbus::{IntentsError, request_path};
 use docket_router::{Flag, Watch};
 use docket_vocab::CallId;
+use docket_wire::{IntentsReply, IntentsRequest, WireRefusal};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;

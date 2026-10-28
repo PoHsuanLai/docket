@@ -5,8 +5,9 @@
 
 use crate::transport::TransportError;
 use crate::watch::{Boxed, Events, Said, Steering, Watched};
-use docket_core::{CallProgress, IntentsReply};
+use docket_core::CallProgress;
 use docket_dbus::{BusConnection, INTENTS_BUS, RequestProxy};
+use docket_wire::IntentsReply;
 use futures_util::StreamExt;
 use futures_util::future::{Either, select};
 use std::future::Future;

@@ -23,6 +23,7 @@ use docket_vocab::{
     ActionRef, CallClass, CallRequest, Classification, ClassifyAnswer, ClassifyFault, EntityRef,
     Origin, ParamName, TargetValue, UndoToken, Value,
 };
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen};
 use intentd::DbusLink;
 use policy_point::Presets;
 use porter_core::{AppId, AppName, Isolation};

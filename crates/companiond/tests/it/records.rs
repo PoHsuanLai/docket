@@ -9,6 +9,7 @@ use almanac_core::MemoryReply;
 use companiond::{RouterLog, stored_events};
 use docket_core::*;
 use docket_vocab::NoteSlug;
+use docket_wire::{NoteAsk, SessionNote};
 use prov::{SpaceId, UnixSeconds};
 use serde_json::json;
 

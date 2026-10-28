@@ -18,6 +18,7 @@ use docket_router::GrantStore;
 use docket_vocab::{
     ActionRef, CallRequest, LabelText, NoteSlug, Origin, ParamName, TargetValue, Value,
 };
+use docket_wire::{CallerRole, NoteAsk, SessionNote, SessionOpen, SessionOpened};
 use intentd::{Cadence, FileGrants, IntentdConfig, Setup, start};
 use porter_core::AppName;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};

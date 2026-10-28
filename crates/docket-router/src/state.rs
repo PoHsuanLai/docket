@@ -10,11 +10,12 @@ use crate::tasks::TaskTable;
 use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
-    BriefText, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState,
-    KillSwitch, Ledger, Rewind, StepLine, UserTurn,
+    BriefText, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState, KillSwitch,
+    Ledger, Rewind, StepLine, UserTurn,
 };
 use docket_permissions_core::{CallFacts, Mode, SessionSaw, TaskPolicy};
 use docket_vocab::TurnId;
+use docket_wire::CallerRole;
 use porter_core::{AppName, Count};
 use prov::{
     Actor, Address, EntityId, EntityKey, EntityKind, Label, Message, SessionId, SpaceId, TaskId,

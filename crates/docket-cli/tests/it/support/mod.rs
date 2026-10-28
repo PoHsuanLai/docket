@@ -5,12 +5,10 @@
 
 use docket_cli::{Invocation, Report, Stdin, Stdout, run};
 use docket_client::{InProcess, Intents};
-use docket_core::{
-    AgentConfig, CallerId, CallerRole, ConfirmAnswer, GrantScope, IndexBatch, IndexEntry,
-    IntentsReply, IntentsRequest,
-};
+use docket_core::{AgentConfig, ConfirmAnswer, GrantScope, IndexBatch, IndexEntry};
 use docket_fake::{FakeSeams, MailContact, MailThread, ScriptedConfirmer, fake_router};
 use docket_router::Router;
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest};
 use porter_core::{AppId, AppName, Isolation};
 use prov::{ConfirmId, ConfirmReceipt, InputProof, SpaceScope, UnixSeconds};
 use std::collections::BTreeSet;

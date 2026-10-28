@@ -10,11 +10,11 @@ use companion_model::helper::{
     SeatPlace, step,
 };
 use docket_client::Transport as IntentsTransport;
-use docket_core::SessionOpen;
 use docket_manifest::ValidManifest;
 use docket_planner::Planner;
 use docket_tasks::{Change, Companion, Shared, Surface};
 use docket_vocab::Clock;
+use docket_wire::SessionOpen;
 use futures_util::lock::Mutex as AsyncMutex;
 use prov::{AgentRef, HelperId, SessionId, SpaceId, TaskId};
 use std::collections::BTreeMap;

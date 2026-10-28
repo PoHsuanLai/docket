@@ -12,7 +12,8 @@
 //! ```
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! use docket_core::{AgentConfig, CallerId, CallerRole, IntentsReply, IntentsRequest};
+//! use docket_core::AgentConfig;
+//! use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest};
 //! use docket_fake::fake_router;
 //! use porter_core::{AppId, AppName, Isolation};
 //! use std::collections::BTreeSet;

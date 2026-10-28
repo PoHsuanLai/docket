@@ -53,12 +53,11 @@ mod tests {
     use crate::{Companion, Quiet};
     use agent_loop::compaction_due;
     use docket_client::{InProcess, Intents};
-    use docket_core::{
-        AgentConfig, CallerId, CallerRole, SessionOpen, StepEnd, StepLine, StepShown, SummaryText,
-    };
+    use docket_core::{AgentConfig, StepEnd, StepLine, StepShown, SummaryText};
     use docket_fake::{FixedClock, fake_router};
     use docket_planner::{ScriptedPlanner, Summarised};
     use docket_vocab::{ActionRef, CallId, LabelText};
+    use docket_wire::{CallerId, CallerRole, SessionOpen};
     use porter_core::{AppId, AppName, Isolation, Tier, Tokens};
     use prov::{ActionName, AgentRef, Effect, SpaceId, UnixSeconds};
     use std::{collections::BTreeSet, sync::Arc};

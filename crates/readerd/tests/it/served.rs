@@ -4,10 +4,11 @@
 use crate::support::bus::PrivateBus;
 use crate::support::inferd::ScriptedInferd;
 use docket_client::{InProcess, Intents};
-use docket_core::{AgentConfig, CallerId, CallerRole};
+use docket_core::AgentConfig;
 use docket_dbus::callers::Identity;
 use docket_dbus::{Bus, BusConnection, introspection};
 use docket_fake::fake_router;
+use docket_wire::{CallerId, CallerRole};
 use porter_core::{AppId, AppName, Isolation};
 use readerd::{ReaderHost, ReaderService, ServeFault, serve_on};
 use std::collections::BTreeSet;

@@ -13,6 +13,7 @@ use docket_fake::{BoxFut, FakeMemory, HostedApp};
 use docket_permissions_core::ActionMatch;
 use docket_session::session_thing;
 use docket_vocab::{ActionRef, Args, CallRequest, Origin, TargetValue, Value};
+use docket_wire::{IntentsReply, IntentsRequest, SessionOpen};
 use porter_core::Count;
 use prov::{ActionName, AgentRef, Effect, Label, Labelled, SessionId, Source};
 use std::sync::{Arc, Mutex};

@@ -1,12 +1,12 @@
 //! `Session`: one per task; the role decides who may call what (the router checks).
 
 use super::{Gateway, json, parsed};
-use docket_core::{
+use docket_dbus::{Details, IntentsError};
+use docket_vocab::{Handle, TurnId};
+use docket_wire::{
     Displayed, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, Resolved, SessionModeAsk, WidenAsk,
     WireRefusal,
 };
-use docket_dbus::{Details, IntentsError};
-use docket_vocab::{Handle, TurnId};
 use prov::SessionId;
 use zbus::message::Header;
 use zbus::zvariant::OwnedObjectPath;

@@ -14,7 +14,7 @@ use crate::usage::UseSource;
 use crate::warm::{Warm, stt_need};
 use crate::watch::{Deadline, Leaving};
 use crate::{UtteranceSkeleton, VoiceSkeleton};
-use docket_core::VoiceIntent;
+use docket_wire::VoiceIntent;
 use porter_client::Transport;
 use porter_core::consent::Usage;
 use porter_core::{DataClass, Tier, UnixSeconds};

@@ -2,7 +2,8 @@
 //! stage of a run ends in. A code is derived from what the router said, never from prose.
 
 use docket_client::{ClientError, TransportError};
-use docket_core::{AppRefusal, CallRefusal, ConfirmEnd, UndoFault, WireRefusal};
+use docket_core::{AppRefusal, CallRefusal, ConfirmEnd, UndoFault};
+use docket_wire::WireRefusal;
 use serde_json::{Value, json};
 
 /// How a run ended, as the shell sees it.

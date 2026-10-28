@@ -15,6 +15,7 @@ use docket_permissions_core::{
 };
 use docket_router::Router;
 use docket_vocab::{CallRequest, ChoiceId, FileRef, Origin, TargetValue, Value, Workspace};
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, WireRefusal};
 use prov::{Actor, AgentRef, ClientName, DataClass, Effect, Label, Labelled, SessionId, Source};
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};

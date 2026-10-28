@@ -13,6 +13,7 @@ use docket_vocab::{
     ActionRef, CallId, CallRequest, Clock, Origin, ParamName, Seconds, TargetValue, TurnId, Value,
     Workspace,
 };
+use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, WireRefusal};
 use porter_core::Count;
 use prov::{ActionName, Actor, AgentRef, Labelled, SessionId};
 use std::collections::BTreeMap;

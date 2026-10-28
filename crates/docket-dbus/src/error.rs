@@ -2,7 +2,7 @@
 //! call. A refused *call* (denied, over budget, unconfirmed) is an answer, not an error: it
 //! travels in the `Response` body as a `CallRefusal`.
 
-use docket_core::WireRefusal;
+use docket_wire::WireRefusal;
 
 /// The errors the router's members return.
 #[derive(Debug, zbus::DBusError)]

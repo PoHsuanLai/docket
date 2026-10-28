@@ -11,6 +11,7 @@ use almanac_core::{
 };
 use docket_core::*;
 use docket_fake::FakeMemory;
+use docket_wire::{IntentsReply, IntentsRequest, RecallAsk, RecallView};
 use porter_core::Count;
 use prov::{Actor, AgentRef, Label, Source, UnixSeconds};
 

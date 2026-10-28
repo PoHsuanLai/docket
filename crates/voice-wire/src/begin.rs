@@ -1,6 +1,6 @@
 //! Opening an utterance.
 
-use docket_core::VoiceIntent;
+use docket_wire::VoiceIntent;
 use porter_core::AppName;
 use porter_core::SpaceId;
 use serde::{Deserialize, Serialize};

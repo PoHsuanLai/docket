@@ -52,7 +52,7 @@ fn old_log() -> Vec<Logged> {
 }
 
 fn almanac_skeleton() -> almanac_core::Skeleton {
-    docket_core::skeleton_of(&docket_core::TaskLedger {
+    docket_wire::skeleton_of(&docket_wire::TaskLedger {
         task: task("t-1"),
         agent: prov::AgentRef::Companion,
         parent: None,

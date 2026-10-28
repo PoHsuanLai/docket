@@ -12,6 +12,10 @@ use docket_core::*;
 use docket_dbus::callers::Role;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use docket_vocab::{Clock, Origin, WindowKey};
+use docket_wire::{
+    CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, SessionOpened, StartedFrom,
+    StoredAsk, StoredView, TerminalScope,
+};
 use futures_util::lock::Mutex;
 use porter_daemon::ProcRoot;
 use prov::AgentRef;

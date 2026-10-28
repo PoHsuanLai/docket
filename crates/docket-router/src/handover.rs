@@ -10,10 +10,9 @@ use crate::seams::Seams;
 use crate::session::SessionState;
 use crate::state::SessionKind;
 use companion_model::{HandNote, HandTo, WatchedAgent, WatchedLine};
-use docket_core::{
-    CallerId, ExternalAgent, IntentsReply, Rewind, SheetSurface, TurnState, WireRefusal,
-};
+use docket_core::{ExternalAgent, Rewind, SheetSurface, TurnState};
 use docket_session::SessionEntry;
+use docket_wire::{CallerId, IntentsReply, WireRefusal};
 use prov::SessionId;
 
 impl<S: Seams> Router<S> {

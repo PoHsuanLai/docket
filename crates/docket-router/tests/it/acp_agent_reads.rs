@@ -10,6 +10,7 @@ use docket_permissions_core::{
     find_standing_for,
 };
 use docket_vocab::{ActionRef, CallRequest, TargetValue};
+use docket_wire::{IntentsReply, IntentsRequest, WireRefusal};
 use prov::{Effect, EntityId, EntityKey, EntityKind};
 use std::collections::BTreeSet;
 

@@ -6,7 +6,7 @@
 //!
 //! The shell is the process the callers table names, never the owner of a bus name: a scope that
 //! claims the shell's app is a plain app, and a plain app is refused. The terminal is identified
-//! the way intentd identifies the cli role (`docket_core::is_terminal_scope` over the cgroup
+//! the way intentd identifies the cli role (`docket_wire::is_terminal_scope` over the cgroup
 //! behind the pid the bus names for the connection) and only when the table names nothing and the
 //! connection owns no name of its own; it is
 //! the person at a keyboard, or whatever is typing in one, and that is why it gets no more than
@@ -20,10 +20,10 @@
 //! a confirmation is still answered on the sheet by the person.
 
 use companion_core::{Call, Speaker, permits};
-use docket_core::TerminalScope;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Caller, Callers, Identity, Role};
 use docket_procroot::{own_uid, terminal_scope};
+use docket_wire::TerminalScope;
 use porter_core::AppName;
 use porter_daemon::ProcRoot;
 use std::sync::Arc;

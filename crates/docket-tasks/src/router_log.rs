@@ -4,10 +4,10 @@
 //! router. The router writes the log of a native session, so an append here is refused.
 
 use docket_client::{ClientError, Intents, Transport as IntentsTransport};
-use docket_core::{StoredAsk, StoredView, WireRefusal};
 use docket_session::{
     Appended, LogFault, LogPage, Logged, PageSize, Seq, SessionEntry, SessionLog,
 };
+use docket_wire::{StoredAsk, StoredView, WireRefusal};
 use prov::SessionId;
 use std::borrow::Borrow;
 use std::marker::PhantomData;

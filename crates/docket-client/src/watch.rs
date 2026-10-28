@@ -8,11 +8,10 @@
 
 use crate::intents::{ClientError, Intents};
 use crate::transport::{Transport, TransportError};
-use docket_core::{
-    ActivationToken, CallProgress, CallRefusal, ConfirmId, CuaAsk, GateAnswer, IntentsReply,
-    IntentsRequest, Outcome,
-};
+use docket_core::{ActivationToken, CallProgress, CallRefusal, ConfirmId, Outcome};
+use docket_gate_wire::{CuaAsk, GateAnswer};
 use docket_vocab::{CallRequest, WindowKey};
+use docket_wire::{IntentsReply, IntentsRequest};
 use prov::SessionId;
 use std::future::Future;
 use std::pin::Pin;

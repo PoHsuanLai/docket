@@ -15,6 +15,7 @@ use docket_permissions_core::{
 };
 use docket_router::{AppLink, Router, Seams};
 use docket_vocab::{CallRequest, EntityRef, UndoToken, Value};
+use docket_wire::{IntentsReply, IntentsRequest, SessionOpen, SessionOpened};
 use policy_point::Presets;
 use prov::{AgentRef, SpaceScope, UnixSeconds};
 use std::sync::atomic::{AtomicU32, Ordering};

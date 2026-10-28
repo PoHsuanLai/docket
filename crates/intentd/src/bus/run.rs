@@ -2,9 +2,10 @@
 
 use super::request::Watching;
 use super::{Gateway, json};
-use docket_core::{ActivationToken, IntentsReply, IntentsRequest};
+use docket_core::ActivationToken;
 use docket_dbus::{Details, IntentsError};
 use docket_vocab::UndoId;
+use docket_wire::{IntentsReply, IntentsRequest};
 use zbus::message::Header;
 use zbus::zvariant::OwnedObjectPath;
 

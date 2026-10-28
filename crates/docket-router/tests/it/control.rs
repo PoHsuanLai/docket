@@ -2,13 +2,19 @@
 
 use crate::support::*;
 use cua_action::{CuaAction, WindowSpace};
+use cua_action::{RunMode, WindowTrust};
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
+use docket_gate_wire::{CuaAsk, EffectBasis, GateAnswer};
 use docket_permissions_core::{
     ActionGrantKey, DenyCode, GrantCaller, GrantTarget, Level, Limit, LimitCaller, LimitKey,
     LimitLevel, LimitMaker, LimitScope,
 };
 use docket_router::GrantStore;
+use docket_wire::{
+    CallerId, CallerRole, GrantAnswer, GrantAsk, IntentsReply, IntentsRequest, SessionOpen,
+    WireRefusal,
+};
 use prov::{AgentRef, ConfirmReceipt, Effect, InputProof, Label, RunId, SpaceScope, UnixSeconds};
 
 fn cuad() -> CallerId {

@@ -1,14 +1,16 @@
 //! The computer-use gate: what `cuad` sends to `Intents1.Gate.Check` for every pixel step, and
 //! what the router answers. One decision point, one breaker, one audit.
+//!
+//! Pure and portable: serde only. Sits above `docket-core`, whose `CallRefusal` the answer holds,
+//! and names `cua-action` for the action and the window's trust and mode. `RunMode`,
+//! `WindowClass` and `WindowTrust` are `cua-action`'s: say `cua_action::` for them.
 
-use crate::call::CallRefusal;
-use cua_action::{CuaAction, WindowSpace};
+use cua_action::{CuaAction, RunMode, WindowClass, WindowSpace, WindowTrust};
+use docket_core::CallRefusal;
 use porter_core::AppName;
 use prov::{ActionName, Labelled};
 use prov::{Effect, Label, RunId, SpaceId};
 use serde::{Deserialize, Serialize};
-
-pub use cua_action::{RunMode, WindowClass, WindowTrust};
 
 /// Where a step's effect class came from.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
