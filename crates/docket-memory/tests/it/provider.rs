@@ -68,8 +68,9 @@ fn propose_as(actor: Actor) -> Invocation {
 }
 
 async fn proposed_for(actor: Actor) -> Vec<Option<Actor>> {
-    let memory = docket_core::parse(include_str!("../../../../manifests/org.quire.Memory.toml"))
-        .expect("the memory manifest");
+    let memory =
+        docket_manifest::parse(include_str!("../../../../manifests/org.quire.Memory.toml"))
+            .expect("the memory manifest");
     let transport = Recording::default();
     let provider = MemoryProvider::new(memory, transport.clone());
     provider

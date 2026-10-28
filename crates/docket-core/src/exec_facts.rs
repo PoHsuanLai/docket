@@ -88,7 +88,7 @@ impl ExecFacts {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::ArgSink;
+    use docket_manifest::ArgSink;
 
     #[test]
     fn missing_or_unknown_facts_are_read_the_conservative_way() {

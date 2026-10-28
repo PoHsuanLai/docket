@@ -41,7 +41,7 @@ mod unconfirmed;
 mod voice;
 mod want;
 
-pub use args::{ArgsFault, ReadCall, planner_label, read_call};
+pub use args::{ReadCall, planner_label, read_call};
 pub use catalogue::{Catalogue, CatalogueTool, TARGET};
 pub use choices::ParamChoices;
 pub use planner::{

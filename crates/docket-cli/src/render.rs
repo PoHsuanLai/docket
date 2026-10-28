@@ -3,9 +3,9 @@
 use crate::outcome::{entity_word, mentioned};
 use crate::resolve::{Apps, short_name, slug, visible};
 use docket_core::{
-    ActionDecl, ContextView, EntityLine, Follow, HereView, Hit, Manifest, Outcome, ParamDecl,
-    ParamNeed, Preview, Reveal, SelectionView,
+    ContextView, EntityLine, Follow, HereView, Hit, Outcome, Preview, Reveal, SelectionView,
 };
+use docket_manifest::{ActionDecl, Manifest, ParamDecl, ParamNeed};
 use docket_vocab::{Decimal, UndoId, Value};
 use prov::Labelled;
 

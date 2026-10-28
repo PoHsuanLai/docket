@@ -3,9 +3,9 @@
 
 use docket_core::LinkFault;
 use docket_core::{
-    AppRefusal, ContextScope, ContextSnapshot, Invocation, Latency, Outcome, Preview, SuggestAsk,
-    UndoFault,
+    AppRefusal, ContextScope, ContextSnapshot, Invocation, Outcome, Preview, SuggestAsk, UndoFault,
 };
+use docket_manifest::Latency;
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::{AppFault, AppLink};
 use docket_vocab::{ClassifyFault, EntityRef, UndoToken};

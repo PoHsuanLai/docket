@@ -3,8 +3,8 @@
 use crate::labels::{app_label, entity, entity_ref, outcome, third_party};
 use docket_core::{
     AppRefusal, FileMove, Hit, Invocation, Outcome, Preview, SuggestAsk, UndoFault, Undoable,
-    ValidManifest,
 };
+use docket_manifest::ValidManifest;
 use docket_provider::IntentProvider;
 use docket_vocab::{FileRef, ParamName, TargetValue, UndoToken, Value};
 use porter_core::{AppName, DataClass};
@@ -155,7 +155,7 @@ impl IntentProvider for FakeFiles {
                     return Err(entity(&app, "files.file", key)
                         .map_or(AppRefusal::Unsupported, AppRefusal::NotFound));
                 }
-                let chosen = ParamName::parse(docket_core::RELATION_ARG)
+                let chosen = ParamName::parse(docket_manifest::RELATION_ARG)
                     .ok()
                     .and_then(|n| inv.args.get(&n))
                     .map(|a| &a.value);

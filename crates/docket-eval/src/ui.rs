@@ -19,7 +19,7 @@
 //! ```
 
 use crate::check::{CheckReport, Level};
-use docket_core::ValidManifest;
+use docket_manifest::ValidManifest;
 use prov::ActionName;
 use serde::Deserialize;
 use std::path::Path;

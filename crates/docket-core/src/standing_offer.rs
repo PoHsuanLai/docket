@@ -7,10 +7,10 @@
 use crate::exec_facts::ExecFacts;
 use crate::exec_reach::NetReach;
 use crate::grant::GrantCaller;
-use crate::manifest::{AgentReach, ArgSink, UndoSupport};
 use crate::review::AskReason;
 use crate::standing::{CommandPrefix, NarrowState, StandingScope};
 use crate::standing_match::{ArgFacts, CallFacts};
+use docket_manifest::{AgentReach, ArgSink, UndoSupport};
 use prov::Effect;
 use serde::{Deserialize, Serialize};
 

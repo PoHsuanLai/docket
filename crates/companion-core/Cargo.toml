@@ -12,6 +12,7 @@ publish.workspace = true
 almanac-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
+docket-manifest = { workspace = true }
 porter-core = { workspace = true }
 prov = { workspace = true }
 

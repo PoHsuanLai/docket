@@ -43,6 +43,7 @@ tracing = { workspace = true }
 zbus = { workspace = true, optional = true }
 
 [dev-dependencies]
+docket-manifest = { workspace = true }
 docket-vocab = { workspace = true }
 acp-core = { workspace = true }
 docket-testbus = { workspace = true }

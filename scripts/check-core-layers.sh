@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # docket-core's modules against the crate stack they are planned to split into (agent-layers
-# CORE-CUT-DESIGN.md, section 2). Level 0, docket-vocab, is its own crate now (the boundary check
-# keeps it a leaf), so its modules are no longer on disk here; an import of it is a crate edge, not
-# a `crate::` path. Each module has a level; a module may import only modules at
+# CORE-CUT-DESIGN.md, section 2). Levels 0 and 1, docket-vocab and docket-manifest, are their own
+# crates now (the boundary check keeps them below), so their modules are no longer on disk here; an
+# import of them is a crate edge, not a `crate::` path. Each module has a level; a module may import only modules at
 # its own level or below. An import of a higher level is an upward edge and fails the check.
 # Non-test code only: everything after the first `#[cfg(test)]` in a file is dropped.
 # Items imported by root name (`crate::TaskPolicy`) are traced to their module through lib.rs.
@@ -12,7 +12,6 @@ src=crates/docket-core/src
 
 # level <crate>: modules
 LEVELS=(
-  "1 docket-manifest: manifest manifest_file args validate"
   "2 docket-permissions-core: review mode grant grant_space space_access standing limit rules floor standing_match standing_offer agent_app exec_derive exec_facts exec_reach execute pattern reach_menu task_policy"
   "3 companion-model: helper routine hand"
   "4 docket-core: audit brief budget spend call checkpoint compact config confirm context derived external handover index memory_link message planner preview reader roster run_end schema skill trace undo"
@@ -85,5 +84,5 @@ if [ -n "$edges" ]; then
   echo "upward edges: $(sort -u <<<"$edges" | wc -l)"
   exit 1
 fi
-[ "$bad" -eq 0 ] && echo "core layers hold: 0 upward edges across $(wc -l <"$map") modules in 6 planned crates"
+[ "$bad" -eq 0 ] && echo "core layers hold: 0 upward edges across $(wc -l <"$map") modules in 5 planned crates"
 exit "$bad"

@@ -11,9 +11,9 @@
 use crate::call::AgentCall;
 use docket_core::ProgramName;
 use docket_core::{
-    CallRefusal, ExternalAgent, HandTo, Outcome, Rewind, SheetSurface, TurnEnd, ValidManifest,
-    WatchedAgent,
+    CallRefusal, ExternalAgent, HandTo, Outcome, Rewind, SheetSurface, TurnEnd, WatchedAgent,
 };
+use docket_manifest::ValidManifest;
 use docket_vocab::Workspace;
 
 use docket_vocab::TurnId;

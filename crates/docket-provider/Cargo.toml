@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 docket-core = { workspace = true }
+docket-manifest = { workspace = true }
 docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }

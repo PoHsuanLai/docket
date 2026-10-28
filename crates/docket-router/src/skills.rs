@@ -9,9 +9,8 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use docket_core::{
-    AppRefusal, FailText, Follow, Invocation, Outcome, Preview, SkillId, Undoable, ValidManifest,
-};
+use docket_core::{AppRefusal, FailText, Follow, Invocation, Outcome, Preview, SkillId, Undoable};
+use docket_manifest::ValidManifest;
 use docket_skills::{Library, Skill};
 use docket_vocab::{LabelText, ParamName, Value};
 use prov::{Actor, Labelled};

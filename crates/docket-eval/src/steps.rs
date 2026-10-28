@@ -8,8 +8,9 @@ use crate::runner::Rig;
 use crate::world::{Scene, cli, companion, hold, mail_label, state_of};
 use docket_core::{
     CallRefusal, DenyCode, DraftPart, InboundPart, InboxAsk, IntentsReply, IntentsRequest,
-    MessageDraft, ParamDecl, ParamNeed, Reveal, WireRefusal,
+    MessageDraft, Reveal, WireRefusal,
 };
+use docket_manifest::{ParamDecl, ParamNeed};
 use docket_router::{HandleValue, Router};
 use docket_vocab::{ActionRef, Args, CallRequest, Origin, ParamType, TargetValue, Value};
 use eval_core::{

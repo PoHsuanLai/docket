@@ -11,8 +11,8 @@
 //! actions a skill uses, so each `uses` can be resolved.
 
 use crate::check::{CheckError, CheckReport, Found, Level, walk};
-use docket_core::ValidManifest;
-use docket_core::parse;
+use docket_manifest::ValidManifest;
+use docket_manifest::parse;
 use docket_skills::{Origin, Reach, SkillFault, load_dir, reach};
 use docket_skills_disk::DiskFolder;
 use std::collections::BTreeSet;

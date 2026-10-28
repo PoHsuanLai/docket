@@ -5,7 +5,8 @@
 
 use crate::planner::PlanFault;
 use agent_loop::ModelOutput;
-use docket_core::{ArgsFault, HandleShape, PlannerView, ReplyFault, Why};
+use docket_core::{HandleShape, PlannerView, ReplyFault};
+use docket_manifest::{ArgsFault, Why};
 use docket_vocab::{Handle, ParamName};
 use porter_infer::ToolCallPart;
 use serde_json::Value as Json;

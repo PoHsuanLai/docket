@@ -5,8 +5,9 @@
 use crate::labels::outcome;
 use docket_core::{
     AppRefusal, FailText, Follow, Hit, Invocation, Outcome, Preview, SuggestAsk, UndoFault,
-    Undoable, ValidManifest,
+    Undoable,
 };
+use docket_manifest::ValidManifest;
 use docket_provider::IntentProvider;
 use docket_vocab::{
     ActionRef, CallClass, CallRequest, ClassifyFault, Origin, ParamName, TargetValue, UndoToken,

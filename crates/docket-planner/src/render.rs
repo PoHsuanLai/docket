@@ -428,7 +428,11 @@ mod tests {
         use docket_vocab::LabelText;
         let labelled = ActionCard {
             label: LabelText::parse("Do this on screen").expect("label"),
-            ..crate::accepts::fixtures::card("cua.run.start", docket_core::TargetKind::Nothing, &[])
+            ..crate::accepts::fixtures::card(
+                "cua.run.start",
+                docket_manifest::TargetKind::Nothing,
+                &[],
+            )
         };
         let episode = EpisodeLine {
             id: almanac_core::EpisodeId::parse("t-179").expect("id"),

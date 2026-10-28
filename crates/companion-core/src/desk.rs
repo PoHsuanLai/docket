@@ -13,7 +13,8 @@ use docket_core::helper::{
     JobStatus, Launch, NewJob, ReachFault, Role, reach_policy,
 };
 use docket_core::routine::{JobEnd, Missed, Schedule};
-use docket_core::{HelperRosterLine, LeadText, Manifest};
+use docket_core::{HelperRosterLine, LeadText};
+use docket_manifest::Manifest;
 use porter_core::{AppName, Count};
 use prov::{EntityId, HelperId, SpaceId, TaskId};
 

@@ -1,6 +1,6 @@
 //! The skills this repository ships validate against the manifests it ships.
 
-use docket_core::ValidManifest;
+use docket_manifest::ValidManifest;
 use docket_skills::{Always, Library, Origin, Roots, discover, load_dir};
 use docket_skills_disk::DiskFolder;
 use std::path::PathBuf;

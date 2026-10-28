@@ -2,7 +2,7 @@
 //! MCP. The planner supplies entity arguments as the `{app, kind, key}` object of an `EntityId`
 //! and handles as `{ "handle": n }`; the router labels everything it receives.
 
-use crate::manifest::{ActionDecl, ParamDecl, ParamNeed};
+use docket_manifest::{ActionDecl, ParamDecl, ParamNeed};
 use docket_vocab::{Lines, ParamName, ParamType};
 use model_provider::{CharCount, ChoiceText, SchemaDialect, Shape};
 use prov::EntityKind;

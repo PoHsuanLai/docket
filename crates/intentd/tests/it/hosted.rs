@@ -12,6 +12,7 @@ use almanac_core::{
 use docket_client::{DbusTransport, Intents};
 use docket_core::*;
 use docket_dbus::callers::Identity;
+use docket_manifest::AgentReach;
 use docket_router::GrantStore;
 use docket_vocab::{
     ActionRef, CallRequest, LabelText, NoteSlug, Origin, ParamName, TargetValue, Value,

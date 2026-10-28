@@ -2,11 +2,10 @@
 //! the same way, so the MCP edge and the per-session edge of an external ACP agent keep only their
 //! transport.
 
-use crate::args::read_call;
-use crate::fault::{ArgsFault, ToolFault};
+use crate::fault::ToolFault;
 use crate::label::tool_label;
 use crate::tools::{ToolSpec, find, offered, tool_of};
-use docket_core::{ActionDecl, ValidManifest};
+use docket_manifest::{ActionDecl, ArgsFault, ValidManifest, args_from_json};
 use docket_vocab::{ActionRef, CallRequest, Origin};
 use prov::ClientName;
 use serde_json::Value as Json;
@@ -51,7 +50,7 @@ pub fn prepare(
         Json::Object(map) => Some(map),
         _ => return Err(ArgsFault::NotAnObject.into()),
     };
-    let (target, args) = read_call(decl, given, &tool_label(client))?;
+    let (target, args) = args_from_json(decl, given, &tool_label(client))?;
     Ok(CallRequest {
         action: ref_of(manifest, decl),
         target,

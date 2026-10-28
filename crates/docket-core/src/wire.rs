@@ -603,7 +603,7 @@ pub enum IntentsReply {
     /// Nothing to return.
     Done,
     /// The installed manifests.
-    Manifests(Vec<crate::validate::ValidManifest>),
+    Manifests(Vec<docket_manifest::ValidManifest>),
     /// Search hits.
     Hits(Vec<Hit>),
     /// How a call ended.

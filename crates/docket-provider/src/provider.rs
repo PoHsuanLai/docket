@@ -2,8 +2,9 @@
 
 use docket_core::{
     AppRefusal, ContextScope, ContextSnapshot, Hit, Invocation, Outcome, Preview, SuggestAsk,
-    SummonAnswer, SummonOrigin, SummonSerial, UndoFault, ValidManifest,
+    SummonAnswer, SummonOrigin, SummonSerial, UndoFault,
 };
+use docket_manifest::ValidManifest;
 use docket_vocab::{EntityRef, UndoToken};
 use prov::{Actor, EntityId};
 use std::future::Future;

@@ -4,9 +4,9 @@
 //! data class to `app_own`, so `menu.item.activate` is `shell.menu.activate`'s twin.
 
 use crate::support::*;
-use docket_core::parse;
 use docket_core::*;
 use docket_fake::{FakeMenu, MENU_MANIFEST, MenuItem, ScriptedConfirmer};
+use docket_manifest::parse;
 use docket_router::{GrantStore, Router};
 use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
 use porter_core::consent::{Decision, Grant, GrantScope};

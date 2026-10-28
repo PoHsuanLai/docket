@@ -1,7 +1,8 @@
 //! Tables for the parser and the validator, discovery, reachability, preselection and the load
 //! cap.
 
-use docket_core::{AgentReach, SkillId, ValidManifest};
+use docket_core::SkillId;
+use docket_manifest::{AgentReach, ValidManifest};
 use docket_skills::{
     Always, BODY_BUDGET_BYTES, Found, LOAD_MAX, Library, LoadRefusal, Loaded, Origin, Reach, Roots,
     Situation, SkillFault, discover, load_dir, parse, parse_doc, parse_facts, preselect, reach,

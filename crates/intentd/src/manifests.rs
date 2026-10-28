@@ -4,8 +4,8 @@
 //! broken app must not take every other app's actions away.
 
 use crate::builtin::is_builtin;
-use docket_core::ValidManifest;
-use docket_core::parse;
+use docket_manifest::ValidManifest;
+use docket_manifest::parse;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 

@@ -1,7 +1,10 @@
 //! JSON arguments to typed ones: one row per declared type, and every way to be wrong.
 
 use actions_tools::*;
-use docket_core::*;
+use docket_manifest::{
+    ActionDecl, AgentReach, ArgSink, ArgsFault, DryRun, KeyHint, Lasting, Latency, ParamDecl,
+    ParamNeed, ResultShape, TargetFault, TargetKind, UndoSupport, Why, args_from_json,
+};
 use docket_vocab::{
     CharCount, ChoiceDecl, ChoiceId, CivilDate, Decimal, FileRef, Handle, LabelText, Lines,
     ParamName, ParamType, PerCall, Scale, Seconds, TargetValue, Value,
@@ -66,7 +69,7 @@ fn one(ty: ParamType, given: Json) -> Result<Value, ArgsFault> {
         vec![param("p", ty, ParamNeed::Required)],
     );
     let map = json!({ "p": given });
-    let (_, args) = read_call(&decl, map.as_object(), &label())?;
+    let (_, args) = args_from_json(&decl, map.as_object(), &label())?;
     let name = ParamName::parse("p").expect("p");
     Ok(args[&name].value.clone())
 }
@@ -254,7 +257,7 @@ fn every_argument_is_labelled_untrusted_from_this_client() {
         ],
     );
     let given = json!({ "a": "x", "b": 2 });
-    let (_, args) = read_call(&decl, given.as_object(), &label()).expect("args");
+    let (_, args) = args_from_json(&decl, given.as_object(), &label()).expect("args");
     assert_eq!(args.len(), 2);
     for held in args.values() {
         assert_eq!(held.label.integrity, Integrity::Untrusted);
@@ -276,7 +279,8 @@ fn missing_unknown_and_optional_arguments() {
             param("maybe", text(9, Lines::One), ParamNeed::Optional),
         ],
     );
-    let read = |given: Json| read_call(&decl, given.as_object(), &label()).map(|(_, a)| a.len());
+    let read =
+        |given: Json| args_from_json(&decl, given.as_object(), &label()).map(|(_, a)| a.len());
     assert_eq!(read(json!({ "need": "x" })), Ok(1));
     assert_eq!(read(json!({ "need": "x", "maybe": "y" })), Ok(2));
     assert_eq!(
@@ -288,7 +292,7 @@ fn missing_unknown_and_optional_arguments() {
         Err(ArgsFault::Unknown("extra".into()))
     );
     assert_eq!(
-        read_call(&decl, None, &label()).map(|_| ()),
+        args_from_json(&decl, None, &label()).map(|_| ()),
         Err(ArgsFault::Missing(ParamName::parse("need").expect("p")))
     );
 }
@@ -298,7 +302,7 @@ fn the_target_follows_the_actions_on() {
     let t = |on: TargetKind, given: Option<Json>| {
         let decl = action(on, vec![]);
         let map = given.map(|g| json!({ "target": g }));
-        read_call(&decl, map.as_ref().and_then(Json::as_object), &label()).map(|(t, _)| t)
+        args_from_json(&decl, map.as_ref().and_then(Json::as_object), &label()).map(|(t, _)| t)
     };
     let thread_kind = kind("mail.thread");
     assert_eq!(t(TargetKind::Nothing, None), Ok(TargetValue::Nothing));

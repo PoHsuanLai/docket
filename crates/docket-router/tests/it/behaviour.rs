@@ -2,6 +2,7 @@
 //! the labels prov builds.
 
 use docket_core::*;
+use docket_manifest::{ManifestError, ManifestFileError, parse};
 use docket_router::*;
 use docket_vocab::{ActionRef, EntityRef, Handle};
 use porter_core::{AppName, Count, DataClass};

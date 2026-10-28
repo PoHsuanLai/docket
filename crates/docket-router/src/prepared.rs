@@ -7,9 +7,8 @@ use crate::state::SessionRecord;
 use crate::who::Who;
 use action_review::GoalKey;
 use action_review::{ArgDigest, ArgView, CallEndKind, ProposedAction, ReviewRequest, TypedStep};
-use docket_core::{
-    ActionDecl, ActivationToken, CallRefusal, Cost, GrantCaller, Ruling, StepEnd, size_of,
-};
+use docket_core::{ActivationToken, CallRefusal, Cost, GrantCaller, Ruling, StepEnd, size_of};
+use docket_manifest::ActionDecl;
 use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, CharCount, ParamName, TargetValue, Value, WindowKey,
 };

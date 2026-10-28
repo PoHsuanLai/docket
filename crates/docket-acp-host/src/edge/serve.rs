@@ -259,7 +259,7 @@ impl<C: Court> Serving<C> {
 
     async fn call(
         &mut self,
-        registry: &[docket_core::ValidManifest],
+        registry: &[docket_manifest::ValidManifest],
         tool: &str,
         arguments: Json,
     ) -> Result<Json, ToolFault> {

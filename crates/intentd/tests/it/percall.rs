@@ -15,6 +15,7 @@ use docket_fake::{
     FakeMemory, FakeMenu, FixedClock, MemoryGrants, MenuItem, RecordingSink, ScriptedConfirmer,
     ScriptedReader, ScriptedReviewer, ScriptedWriter,
 };
+use docket_manifest::ValidManifest;
 use docket_provider::{IntentProvider, serve_on_with};
 use docket_router::{Router, Seams};
 use docket_vocab::{

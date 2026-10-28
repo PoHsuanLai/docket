@@ -11,9 +11,10 @@
 
 use crate::error::ServeError;
 use crate::provider::{ContextSource, IntentProvider, SummonTarget};
-use docket_core::{SummonSerial, ValidManifest};
+use docket_core::SummonSerial;
 use docket_dbus::callers::{Callers, INTENTD, Identity, intentd_only, require};
 use docket_dbus::{BusConnection, Details, PROVIDER_PATH};
+use docket_manifest::ValidManifest;
 use futures_util::StreamExt;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -289,12 +290,12 @@ mod tests {
 
     #[test]
     fn the_served_interface_is_the_declared_one() {
-        let manifest = docket_core::validate(docket_core::Manifest {
+        let manifest = docket_manifest::validate(docket_manifest::Manifest {
             vocab: docket_vocab::IntentsVocab(1),
             app: prov::AppName::parse("org.quire.Nobody").expect("an app name"),
             entities: vec![],
             actions: vec![],
-            visibility: docket_core::Visibility::Everyone,
+            visibility: docket_manifest::Visibility::Everyone,
         })
         .expect("a manifest");
         let object = ProviderObject {

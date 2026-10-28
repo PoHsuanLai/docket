@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 use docket_core::*;
+use docket_manifest::{AgentReach, Lasting};
 use docket_vocab::Origin;
 use policy_point::*;
 use porter_core::consent::Usage;

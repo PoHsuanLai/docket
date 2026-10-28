@@ -1,8 +1,8 @@
 //! The tools a registry offers to an outside agent.
 
-use crate::args::TARGET_KEY;
 use crate::fault::ToolFault;
-use docket_core::{ActionDecl, TargetKind, ToolSchema, ValidManifest, is_offered, tool_schema};
+use docket_core::{ToolSchema, tool_schema};
+use docket_manifest::{ActionDecl, TARGET_KEY, TargetKind, ValidManifest, is_offered};
 use docket_vocab::action_prefix;
 use prov::Effect;
 use serde::{Deserialize, Serialize};

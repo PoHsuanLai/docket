@@ -2,9 +2,8 @@
 //! policy, so a refusal says which kind it was and never which rule, reviewer or app text.
 
 use docket_core::{AppRefusal, CallRefusal, DenyCode};
+use docket_manifest::ArgsFault;
 use serde::{Deserialize, Serialize};
-
-pub use docket_core::{ArgsFault, TargetFault, Why};
 
 /// The ways the router refused a call, without its reasons.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, thiserror::Error)]

@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "agent-client-protocol",
  "docket-core",
+ "docket-manifest",
  "docket-session",
  "docket-vocab",
  "porter-core",
@@ -22,6 +23,7 @@ name = "action-review"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "docket-manifest",
  "docket-vocab",
  "model-provider",
  "porter-core",
@@ -42,6 +44,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-fake",
+ "docket-manifest",
  "docket-router",
  "docket-settings",
  "docket-testbus",
@@ -64,6 +67,7 @@ name = "actions-tools"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "docket-manifest",
  "docket-vocab",
  "porter-core",
  "prov",
@@ -137,6 +141,7 @@ dependencies = [
  "almanac-core",
  "companion-wire",
  "docket-core",
+ "docket-manifest",
  "docket-vocab",
  "porter-core",
  "proptest",
@@ -836,6 +841,7 @@ dependencies = [
  "almanac-core",
  "companion-wire",
  "docket-core",
+ "docket-manifest",
  "porter-core",
  "prov",
  "serde_json",
@@ -847,6 +853,7 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "docket-core",
+ "docket-manifest",
  "docket-vocab",
  "porter-core",
  "porter-infer",
@@ -870,6 +877,7 @@ dependencies = [
  "docket-fake",
  "docket-helpers",
  "docket-log",
+ "docket-manifest",
  "docket-planner",
  "docket-procroot",
  "docket-router",
@@ -1149,6 +1157,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-log",
+ "docket-manifest",
  "docket-provider",
  "docket-router",
  "docket-testbus",
@@ -1214,6 +1223,7 @@ dependencies = [
  "docket-host",
  "docket-launch",
  "docket-log",
+ "docket-manifest",
  "docket-native",
  "docket-planner",
  "docket-provider",
@@ -1248,6 +1258,7 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-host",
+ "docket-manifest",
  "docket-procroot",
  "docket-router",
  "docket-session",
@@ -1325,6 +1336,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-fake",
+ "docket-manifest",
  "docket-provider",
  "docket-router",
  "docket-session",
@@ -1355,6 +1367,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-fake",
+ "docket-manifest",
  "docket-router",
  "docket-vocab",
  "futures-util",
@@ -1374,6 +1387,7 @@ dependencies = [
  "almanac-core",
  "bulkhead",
  "cua-action",
+ "docket-manifest",
  "docket-vocab",
  "model-provider",
  "porter-core",
@@ -1383,7 +1397,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "toml",
  "url",
 ]
 
@@ -1393,6 +1406,7 @@ version = "0.1.0"
 dependencies = [
  "docket-core",
  "docket-dbus",
+ "docket-manifest",
  "docket-vocab",
  "porter-client",
  "porter-core",
@@ -1412,6 +1426,7 @@ version = "0.1.0"
 dependencies = [
  "companion-wire",
  "docket-core",
+ "docket-manifest",
  "docket-provider",
  "docket-vocab",
  "ds-intents",
@@ -1430,6 +1445,7 @@ dependencies = [
  "clap",
  "docket-core",
  "docket-fake",
+ "docket-manifest",
  "docket-router",
  "docket-skills",
  "docket-skills-disk",
@@ -1455,6 +1471,7 @@ dependencies = [
  "docket-checkpoint",
  "docket-client",
  "docket-core",
+ "docket-manifest",
  "docket-provider",
  "docket-router",
  "docket-session",
@@ -1480,6 +1497,7 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-helpers",
+ "docket-manifest",
  "docket-planner",
  "docket-router",
  "docket-store",
@@ -1525,6 +1543,7 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-host",
+ "docket-manifest",
  "docket-memory",
  "docket-memory-core",
  "docket-models",
@@ -1562,6 +1581,7 @@ dependencies = [
  "docket-acp",
  "docket-acp-host",
  "docket-core",
+ "docket-manifest",
  "docket-session",
  "docket-settings",
  "docket-store",
@@ -1602,6 +1622,7 @@ dependencies = [
  "docket-fake",
  "docket-host",
  "docket-launch",
+ "docket-manifest",
  "docket-models",
  "docket-planner",
  "docket-reader",
@@ -1637,6 +1658,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-manifest"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "docket-vocab",
+ "porter-core",
+ "proptest",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
+ "url",
+]
+
+[[package]]
 name = "docket-memory"
 version = "0.1.0"
 dependencies = [
@@ -1646,6 +1683,7 @@ dependencies = [
  "almanac-service",
  "docket-core",
  "docket-fake",
+ "docket-manifest",
  "docket-memory-core",
  "docket-provider",
  "docket-router",
@@ -1718,6 +1756,7 @@ dependencies = [
  "companion-wire",
  "docket-core",
  "docket-fake",
+ "docket-manifest",
  "docket-planner",
  "docket-vocab",
  "porter-client",
@@ -1746,6 +1785,7 @@ version = "0.1.0"
 dependencies = [
  "docket-core",
  "docket-dbus",
+ "docket-manifest",
  "docket-vocab",
  "futures-util",
  "prov",
@@ -1782,6 +1822,7 @@ dependencies = [
  "docket-checkpoint",
  "docket-core",
  "docket-fake",
+ "docket-manifest",
  "docket-provider",
  "docket-session",
  "docket-skills",
@@ -1839,6 +1880,7 @@ name = "docket-skills"
 version = "0.1.0"
 dependencies = [
  "docket-core",
+ "docket-manifest",
  "docket-vocab",
  "porter-core",
  "prov",
@@ -1851,7 +1893,7 @@ dependencies = [
 name = "docket-skills-disk"
 version = "0.1.0"
 dependencies = [
- "docket-core",
+ "docket-manifest",
  "docket-skills",
  "tempfile",
  "toml",
@@ -1880,6 +1922,7 @@ dependencies = [
  "docket-client",
  "docket-core",
  "docket-fake",
+ "docket-manifest",
  "docket-planner",
  "docket-session",
  "docket-skills",
@@ -2666,6 +2709,7 @@ dependencies = [
  "docket-fake",
  "docket-host",
  "docket-log",
+ "docket-manifest",
  "docket-memory",
  "docket-memory-core",
  "docket-models",
@@ -3554,6 +3598,7 @@ version = "0.1.0"
 dependencies = [
  "cedar-policy",
  "docket-core",
+ "docket-manifest",
  "docket-vocab",
  "porter-core",
  "prov",

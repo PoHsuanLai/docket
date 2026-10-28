@@ -9,7 +9,7 @@ use prov::Effect;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use crate::manifest::ArgSink;
+use docket_manifest::ArgSink;
 
 /// How much the reviewers are told to be careful. The router's own asking is the preset's
 /// ([`crate::Mode`]); this is what a reviewer is handed, and what old eval cases and settings

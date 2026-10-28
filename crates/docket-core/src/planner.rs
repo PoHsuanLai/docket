@@ -5,12 +5,12 @@ use crate::call::CallRefusal;
 use crate::compact::Summary;
 use crate::confirm::ConfirmEnd;
 use crate::context::{ContextKeep, ContextView, Reveal};
-use crate::manifest::{AgentReach, Lasting, RelationDecl, TargetKind};
 use crate::message::InboundLine;
 use crate::roster::{EpisodeLine, PrimerText, ProfileLine, RecalledLine, RollupLine, Roster};
 use crate::schema::ToolSchema;
 use crate::skill::{SkillCard, SkillText};
 use crate::task_policy::TaskPolicy;
+use docket_manifest::{AgentReach, Lasting, RelationDecl, TargetKind};
 use docket_vocab::{ActionRef, CallId, CharCount, Handle, LabelText, TurnId, UndoId, Value};
 use prov::{Effect, EntityKind, Integrity, Source, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -190,7 +190,7 @@ pub enum ReplyFault {
     /// Its arguments were not JSON.
     NotJson,
     /// Its arguments did not fit the action's manifest.
-    Args(crate::args::ArgsFault),
+    Args(docket_manifest::ArgsFault),
     /// An argument named a value the planner was not offered for this turn (`options` are the
     /// ones it was).
     NotOneOf {

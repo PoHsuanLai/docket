@@ -3,7 +3,8 @@
 //! on.
 
 use crate::labels::app_label;
-use docket_core::{ActionDecl, ArgFault, ParamNeed, TargetKind, fits};
+use docket_core::ArgFault;
+use docket_manifest::{ActionDecl, ParamNeed, TargetKind, fits};
 use docket_vocab::{Args, ParamName, ParamType, TargetValue, Value};
 use porter_core::AppName;
 use prov::Labelled;

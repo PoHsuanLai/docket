@@ -16,6 +16,7 @@ path = "src/main.rs"
 companion-client = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
+docket-manifest = { workspace = true }
 docket-vocab = { workspace = true }
 docket-session = { workspace = true }
 docket-skills = { workspace = true }

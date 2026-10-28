@@ -38,8 +38,8 @@ pub use callers::{FILE as CALLERS_FILE, shipped as shipped_callers};
 pub use config::{CompaniondConfig, ConfigError};
 pub use daemon::{Daemon, HarnessSeams, run, run_with, start, start_with, start_with_agents};
 pub use docket_planner::{
-    ArgsFault, Catalogue, CatalogueTool, PlanFault, PlannerModel, PlannerReply, RULES, ReadCall,
-    TARGET, TOOL_ANSWER, TOOL_ASK, TOOL_FINISH, TOOL_READ, TOOL_RELATED, messages, planner_label,
+    Catalogue, CatalogueTool, PlanFault, PlannerModel, PlannerReply, RULES, ReadCall, TARGET,
+    TOOL_ANSWER, TOOL_ASK, TOOL_FINISH, TOOL_READ, TOOL_RELATED, messages, planner_label,
     read_call, system_text, user_text,
 };
 pub use docket_tasks::{

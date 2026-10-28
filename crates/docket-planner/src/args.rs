@@ -4,13 +4,11 @@
 //! does not fit its declared type is a fault before the router is asked.
 
 use crate::catalogue::CatalogueTool;
-use docket_core::args_from_json;
+use docket_manifest::{ArgsFault, args_from_json};
 use docket_vocab::{Args, TargetValue};
 use prov::{Integrity, Label, ModelRole, Source};
 use serde_json::Value as Json;
 use std::collections::BTreeSet;
-
-pub use docket_core::ArgsFault;
 
 /// What a tool call asks of the router, short of the origin.
 #[derive(Debug, Clone, PartialEq, Eq)]

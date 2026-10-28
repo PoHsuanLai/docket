@@ -4,6 +4,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_manifest::TargetKind;
 use docket_router::{SpaceOf, relation_of};
 use docket_vocab::{CallRequest, Origin};
 use policy_point::SpaceRelation;

@@ -5,6 +5,7 @@ use super::infer::{Say, ScriptedInfer};
 use agent_loop::{Sources, assemble};
 use companiond::*;
 use docket_core::*;
+use docket_manifest::ValidManifest;
 use porter_core::{AppName, Count};
 use prov::Integrity;
 use std::path::PathBuf;
@@ -14,7 +15,7 @@ pub fn manifest(file: &str) -> ValidManifest {
         .join("../../manifests")
         .join(file);
     let text = std::fs::read_to_string(&path).expect("manifest");
-    docket_core::parse(&text).expect("valid")
+    docket_manifest::parse(&text).expect("valid")
 }
 
 pub fn catalogue() -> Catalogue {

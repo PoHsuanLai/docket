@@ -3,10 +3,11 @@
 
 use docket_core::LinkFault;
 use docket_core::{
-    AppRefusal, ContextScope, ContextSnapshot, FailText, Invocation, Latency, Outcome, Preview,
-    SuggestAsk, UndoFault,
+    AppRefusal, ContextScope, ContextSnapshot, FailText, Invocation, Outcome, Preview, SuggestAsk,
+    UndoFault,
 };
 use docket_dbus::{BusConnection, Details, IntentProviderProxy};
+use docket_manifest::Latency;
 use docket_procroot::own_uid;
 use docket_router::{AppFault, AppLink};
 use docket_vocab::{EntityRef, UndoToken};

@@ -1,9 +1,9 @@
 //! A tool call's arguments, as JSON bytes, read by the types of a real action.
 #![no_main]
 
-use docket_core::args_from_json;
-use docket_vocab::{Value, plain_text};
 use docket_fake::mail_manifest;
+use docket_manifest::args_from_json;
+use docket_vocab::{Value, plain_text};
 use libfuzzer_sys::fuzz_target;
 use prov::Label;
 

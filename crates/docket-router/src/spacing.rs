@@ -5,7 +5,7 @@
 //! cross-Space, which Cedar sends to the person (and denies an MCP client).
 
 use crate::state::RouterState;
-use docket_core::TargetKind;
+use docket_manifest::TargetKind;
 use policy_point::SpaceRelation;
 use prov::{EntityId, SpaceId, SpaceScope};
 

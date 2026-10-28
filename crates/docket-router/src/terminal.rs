@@ -13,9 +13,8 @@ use crate::state::{RouterState, SessionRecord};
 use crate::tasks::TaskState;
 use action_review::Breaker;
 use docket_core::EventSink;
-use docket_core::{
-    ActionDecl, ActionMatch, AuditRecord, CallerRole, TargetKind, TaskPolicy, TaskPolicyState,
-};
+use docket_core::{ActionMatch, AuditRecord, CallerRole, TaskPolicy, TaskPolicyState};
+use docket_manifest::{ActionDecl, TargetKind};
 use docket_vocab::{ActionRef, Clock, LabelText};
 use policy_point::TerminalGrant;
 use porter_core::Count;

@@ -8,9 +8,10 @@ use crate::read_ask::read_fault_text;
 use crate::reader_text::{reader_answer, reader_head};
 use crate::unconfirmed::unconfirmed_text;
 use docket_core::{
-    ActionCard, AppRefusal, ArgFault, ArgsFault, CallRefusal, HandleCard, HandleShape, Held,
-    ReplyFault, Reveal, StepEnd, StepLine, StepShown, TargetFault, TargetKind, Why,
+    ActionCard, AppRefusal, ArgFault, CallRefusal, HandleCard, HandleShape, Held, ReplyFault,
+    Reveal, StepEnd, StepLine, StepShown,
 };
+use docket_manifest::{ArgsFault, TargetFault, TargetKind, Why};
 use docket_vocab::{Handle, Value};
 
 fn json<T: serde::Serialize>(value: &T) -> String {
@@ -188,7 +189,7 @@ fn refusal_hint(refusal: &CallRefusal, step: &StepLine, seen: &Seen<'_>) -> Opti
     match refusal {
         CallRefusal::BadArgs { param, why } => {
             let wrong_target =
-                param.as_str() == docket_core::TARGET_KEY && matches!(why, ArgFault::WrongType);
+                param.as_str() == docket_manifest::TARGET_KEY && matches!(why, ArgFault::WrongType);
             let kind = wrong_target
                 .then(|| target_kind(step, seen.actions))
                 .flatten();

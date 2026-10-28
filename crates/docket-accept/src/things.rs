@@ -11,9 +11,9 @@
 
 use crate::provider::{AppLog, Message, Sending, words_match};
 use docket_core::{
-    AppRefusal, ArgSink, Follow, Hit, Invocation, Outcome, Preview, ResultShape, SuggestAsk,
-    TargetKind, UndoFault, Undoable, ValidManifest,
+    AppRefusal, Follow, Hit, Invocation, Outcome, Preview, SuggestAsk, UndoFault, Undoable,
 };
+use docket_manifest::{ArgSink, ResultShape, TargetKind, ValidManifest};
 use docket_provider::IntentProvider;
 use docket_vocab::{EntityRef, LabelText, ParamName, TargetValue, UndoToken, Value};
 use porter_core::{AppName, DataClass};

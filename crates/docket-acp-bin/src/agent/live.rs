@@ -15,13 +15,14 @@ use docket_client::DbusTransport;
 use docket_core::ProgramName;
 
 use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};
-use docket_core::{ACP_AGENT_APP, AbsPath, SeenCommand, ValidManifest, WatchedAgent};
+use docket_core::{ACP_AGENT_APP, AbsPath, SeenCommand, WatchedAgent};
 use docket_dbus::CONFIRM_PATH;
 use docket_host::EditorDesk;
 use docket_launch::{
     Accounts, AgentSpawn, AgentsFile, AgentsPermit, BwrapProcs, ChildProc, Entry, Registry,
     ToolsMode, login_run,
 };
+use docket_manifest::ValidManifest;
 use docket_provider::serve_on_with;
 
 use docket_store::SystemClock;
@@ -73,7 +74,7 @@ pub enum LiveFault {
     NoSandbox(bulkhead::CannotSandbox),
     /// The pseudo-app's manifest does not parse.
     #[error("the agent manifest: {0}")]
-    Manifest(#[from] docket_core::ManifestFileError),
+    Manifest(#[from] docket_manifest::ManifestFileError),
     /// The agent host has no app name.
     #[error("no app name for the agent host")]
     NoAppName,
@@ -130,7 +131,7 @@ impl<A: Accounts + 'static> Live<A> {
         let performer = Performer::new(OsFiles, bwrap)
             .with_agent_network(agent_network)
             .with_command_deadline(acp_core::command_deadline::CommandDeadline::DEFAULT);
-        let manifest: ValidManifest = docket_core::parse(MANIFEST)?;
+        let manifest: ValidManifest = docket_manifest::parse(MANIFEST)?;
         let quiet = Quiet(docket_core::acp_agent_app().ok_or(LiveFault::NoAppName)?);
         if fallback == Fallback::Terminal {
             // Served before the name is claimed, so the first sheet finds it.

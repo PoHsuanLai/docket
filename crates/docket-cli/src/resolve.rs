@@ -5,7 +5,7 @@
 //! names it by hand is sent on: the router is the one that refuses it.
 
 use crate::exit::Failure;
-use docket_core::{ActionDecl, AgentReach, Manifest, ValidManifest};
+use docket_manifest::{ActionDecl, AgentReach, Manifest, ValidManifest};
 use docket_vocab::action_prefix;
 use porter_core::AppName;
 use prov::{ActionName, EntityKind};

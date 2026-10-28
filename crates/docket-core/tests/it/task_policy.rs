@@ -3,6 +3,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_manifest::{ActionDecl, ArgSink, ParamNeed, UndoSupport};
 use docket_vocab::{ActionRef, CallRequest, FileRef, Origin, TargetValue, TurnId, Value};
 use porter_core::Count;
 use prov::{Effect, Integrity, TaskId};

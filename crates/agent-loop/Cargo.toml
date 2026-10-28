@@ -19,6 +19,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+docket-manifest = { workspace = true }
 proptest = { workspace = true }
 
 [lints]

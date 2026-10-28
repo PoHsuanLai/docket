@@ -8,8 +8,8 @@
 //! reviewer, the planner, the reader or the computer-use model. If the writer fails there is no
 //! policy and every non-read call is outside.
 
-use crate::manifest::{ActionDecl, ArgSink};
 use crate::pattern::{pattern_inside, pattern_matches};
+use docket_manifest::{ActionDecl, ArgSink};
 use docket_vocab::{ActionRef, CallRequest, FileRef, LabelText, TargetValue, TurnId, Value};
 use porter_core::{AppName, Count};
 use prov::{Effect, EntityId, EntityKind, Integrity, Label, SpaceId, TaskId, UnixSeconds};

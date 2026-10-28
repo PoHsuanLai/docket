@@ -147,7 +147,7 @@ impl<T: Transport + 'static> Court for IntentsCourt<T> {
         }
     }
 
-    async fn registry(&mut self) -> Option<Vec<docket_core::ValidManifest>> {
+    async fn registry(&mut self) -> Option<Vec<docket_manifest::ValidManifest>> {
         self.intents.manifests().await.ok()
     }
 

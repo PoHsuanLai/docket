@@ -8,6 +8,7 @@ use crate::support::world::app;
 use docket_core::LinkFault;
 use docket_core::*;
 use docket_dbus::{INTENTS_BUS, IntentProviderProxy};
+use docket_manifest::{Latency, Manifest, ValidManifest, Visibility, validate};
 use docket_provider::{ContextSource, IntentProvider, SummonTarget, serve_on_with};
 use docket_router::{AppFault, AppLink};
 use docket_vocab::{

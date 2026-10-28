@@ -141,7 +141,7 @@ pub struct Companion<P: Planner, I: IntentsTransport, K, S> {
     pub(crate) skill_files: Vec<docket_skills::Skill>,
     /// The skills whose actions are all registered, and the manifests they were checked against.
     pub(crate) skills: docket_skills::Library,
-    pub(crate) manifests: Vec<docket_core::ValidManifest>,
+    pub(crate) manifests: Vec<docket_manifest::ValidManifest>,
     /// Whether the companion writes its roster notes (`Session.Note`) for its sessions.
     pub(crate) notes: Notes,
     /// What gives a turn to the coding agent the person chose as the assistant's model; none

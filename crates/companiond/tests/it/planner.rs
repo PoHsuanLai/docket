@@ -7,6 +7,7 @@ use crate::support::planner_view::{catalogue, planner, view};
 use agent_loop::ModelOutput;
 use companiond::*;
 use docket_core::*;
+use docket_manifest::{ArgSink, ArgsFault, ParamDecl, ParamNeed, Why};
 use docket_planner::Planner;
 use docket_vocab::{
     CharCount, ChoiceDecl, ChoiceId, CivilDate, Handle, LabelText, Lines, Origin, ParamName,
@@ -20,7 +21,7 @@ use serde_json::json;
 fn wrong(name: &str) -> ArgsFault {
     ArgsFault::Wrong {
         param: ParamName::parse(name).expect("param"),
-        why: docket_core::Why::Range,
+        why: docket_manifest::Why::Range,
     }
 }
 
@@ -616,15 +617,15 @@ async fn quire_finish_shows_text_handles_of_the_view_and_refuses_the_rest() {
         (ModelOutput::Finish, vec![Handle(2), Handle(1)])
     );
     for (why, fault) in [
-        ("unknown", docket_core::Why::Range),
-        ("not text", docket_core::Why::Range),
-        ("not a list", docket_core::Why::Type),
+        ("unknown", docket_manifest::Why::Range),
+        ("not text", docket_manifest::Why::Range),
+        ("not a list", docket_manifest::Why::Type),
     ] {
         let reply = planner.converse(&view).await.expect(why);
         assert_eq!((reply.then, reply.show), (unread(fault), vec![]), "{why}");
     }
     let many = planner.converse(&view).await.expect("too many");
-    assert_eq!(many.then, unread(docket_core::Why::Range));
+    assert_eq!(many.then, unread(docket_manifest::Why::Range));
     let none = planner.converse(&view).await.expect("none");
     assert_eq!((none.then, none.show), (ModelOutput::Finish, vec![]));
 }

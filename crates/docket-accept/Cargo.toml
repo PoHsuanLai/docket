@@ -59,7 +59,8 @@ docket-acp-bin = { workspace = true, features = ["testing"] }
 docket-cli = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-provider = { workspace = true, features = ["dbus"] }
-docket-core = { workspace = true, features = ["manifest-file"] }
+docket-core = { workspace = true }
+docket-manifest = { workspace = true, features = ["manifest-file"] }
 docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }
 docket-log = { workspace = true }

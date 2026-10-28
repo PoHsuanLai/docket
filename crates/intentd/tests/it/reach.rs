@@ -6,9 +6,10 @@
 
 use crate::support::bus::PrivateBus;
 use crate::support::world::app;
-use docket_core::{AgentConfig, AgentReach};
+use docket_core::AgentConfig;
 use docket_dbus::{BusConnection, ReachNow, ReachServer};
 use docket_fake::{FakeSeams, MAIL_MANIFEST, fake_router};
+use docket_manifest::AgentReach;
 use docket_router::Router;
 use intentd::{Changed, LiveReach, changes, follow_reach, marks_of, parse_reach, rescan};
 use std::path::PathBuf;

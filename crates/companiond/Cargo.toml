@@ -55,6 +55,7 @@ otlp = ["docket-log/otlp"]
 almanac-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 agent-loop = { workspace = true }
+docket-manifest = { workspace = true }
 porter-client = { workspace = true }
 porter-infer = { workspace = true }
 docket-testbus = { workspace = true }

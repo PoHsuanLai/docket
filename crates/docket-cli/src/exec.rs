@@ -80,7 +80,7 @@ pub fn describe(apps: &Apps, app: &str, action: &str) -> Result<Printed, Failure
     let decl = apps
         .action(app, action)
         .ok()
-        .filter(|a| a.reach != docket_core::AgentReach::Hidden)
+        .filter(|a| a.reach != docket_manifest::AgentReach::Hidden)
         .ok_or_else(|| Failure::usage(format!("{} has no action {action:?}", slug(&app.app))))?;
     let document = schema::described(app, decl)?;
     let human = format!(

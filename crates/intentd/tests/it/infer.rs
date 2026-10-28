@@ -249,6 +249,7 @@ async fn embeddings_open_an_embedding_session_for_the_indexs_length() {
 
 fn review_request() -> action_review::ReviewRequest {
     use docket_core::*;
+    use docket_manifest::Lasting;
     use docket_vocab::{LabelText, TurnId};
     use std::collections::BTreeMap;
     action_review::ReviewRequest {

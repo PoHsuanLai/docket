@@ -5,7 +5,7 @@
 
 use crate::exit::{Exit, Failure};
 use crate::resolve::{short_name, slug};
-use docket_core::{ActionDecl, Manifest, ParamDecl, ParamNeed};
+use docket_manifest::{ActionDecl, Manifest, ParamDecl, ParamNeed};
 use docket_vocab::ParamType;
 use model_provider::{CharCount, ChoiceText, Count, Field, FieldName, SchemaDialect, Shape};
 use serde_json::{Value, json};

@@ -7,13 +7,14 @@
 use crate::support::TestSheet;
 use crate::support::host::{clock, mail, work};
 use crate::support::infer::{ScriptedInfer, call, words};
-use docket_core::parse;
 use docket_core::{
     AppRefusal, Hit, Invocation, Outcome, Preview, ReaderAsk, ReaderTask, SuggestAsk, UndoFault,
-    ValidManifest, ValueSchema,
+    ValueSchema,
 };
 use docket_fake::{FakeMail, MAIL_MANIFEST};
 use docket_inapp::{Ending, InAppAgent, InAppKit, InAppParts, TransportReader};
+use docket_manifest::ValidManifest;
+use docket_manifest::parse;
 use docket_provider::IntentProvider;
 use docket_vocab::{ChoiceId, EntityRef, Handle, TargetValue, UndoToken, Value};
 use porter_core::AppName;

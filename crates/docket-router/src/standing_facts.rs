@@ -3,9 +3,10 @@
 //! beyond the typed values; anything unreadable is `Opaque`, which no grant covers.
 
 use docket_core::{
-    AbsPath, ActionDecl, ArgFacts, ArgSink, CallFacts, DERIVES_PARAM, Domain, ExecFacts,
-    NETWORK_PARAM, Recipient, TERMINAL_RUN,
+    AbsPath, ArgFacts, CallFacts, DERIVES_PARAM, Domain, ExecFacts, NETWORK_PARAM, Recipient,
+    TERMINAL_RUN,
 };
+use docket_manifest::{ActionDecl, ArgSink};
 use docket_vocab::{CallRequest, ParamName, TargetValue, Value};
 use url::Url;
 

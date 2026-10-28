@@ -10,7 +10,8 @@ publish.workspace = true
 
 [dependencies]
 docket-checkpoint = { workspace = true }
-docket-core = { workspace = true, features = ["manifest-file"] }
+docket-core = { workspace = true }
+docket-manifest = { workspace = true, features = ["manifest-file"] }
 docket-vocab = { workspace = true }
 docket-session = { workspace = true }
 docket-skills = { workspace = true }

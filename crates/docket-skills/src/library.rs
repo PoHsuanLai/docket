@@ -2,7 +2,8 @@
 
 use crate::fault::Unresolved;
 use crate::skill::{Always, Skill};
-use docket_core::{AgentReach, SkillCard, SkillId, ValidManifest};
+use docket_core::{SkillCard, SkillId};
+use docket_manifest::{AgentReach, ValidManifest};
 use docket_vocab::ActionRef;
 use porter_core::AppName;
 use prov::EntityKind;

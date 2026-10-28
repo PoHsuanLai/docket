@@ -25,10 +25,10 @@ use crate::turn_start::{TurnStart, pass, rule};
 use crate::who::Who;
 use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
 use docket_core::{
-    ActionDecl, ActionGrant, BreakerState, BudgetKind, BudgetState, CallRefusal, Cost, DenyCode,
-    Impact, Lasting, LimitCall, Limited, Mode, ModeRows, Reviewed, Ruling, SpaceAccess,
-    space_access,
+    ActionGrant, BreakerState, BudgetKind, BudgetState, CallRefusal, Cost, DenyCode, Impact,
+    LimitCall, Limited, Mode, ModeRows, Reviewed, Ruling, SpaceAccess, space_access,
 };
+use docket_manifest::{ActionDecl, Lasting};
 use docket_vocab::{CallId, CallRequest, Classification, Clock, Depth, WindowKey};
 use policy_point::{
     ActionFacts, BudgetFact, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts,

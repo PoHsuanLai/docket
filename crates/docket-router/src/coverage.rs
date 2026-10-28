@@ -3,7 +3,8 @@
 //! clock's expiry is the router's.
 
 use docket_core::ActionMatch;
-use docket_core::{ActionDecl, ArgLabels, Coverage, TaskPolicy, Widening, covers};
+use docket_core::{ArgLabels, Coverage, TaskPolicy, Widening, covers};
+use docket_manifest::ActionDecl;
 use docket_vocab::CallRequest;
 use prov::UnixSeconds;
 

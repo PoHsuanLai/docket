@@ -1,8 +1,7 @@
 //! The answer object: `/org/quire/Companion1/answer/<task>`.
 
-use docket_core::{
-    BudgetKind, CallRefusal, ConfirmId, ContextKeep, DenyCode, ParamDecl, Reveal, TimeRange,
-};
+use docket_core::{BudgetKind, CallRefusal, ConfirmId, ContextKeep, DenyCode, Reveal, TimeRange};
+use docket_manifest::ParamDecl;
 use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, CardActionId, EntityRef, LabelText, StepId, UndoId,
 };

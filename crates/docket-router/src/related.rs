@@ -8,9 +8,8 @@
 use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::Seams;
-use docket_core::{
-    AppRefusal, Cardinality, EntityDecl, Manifest, Outcome, RELATION_ARG, RelationDecl, TitleTrust,
-};
+use docket_core::{AppRefusal, Outcome};
+use docket_manifest::{Cardinality, EntityDecl, Manifest, RELATION_ARG, RelationDecl, TitleTrust};
 use docket_vocab::Value;
 use porter_core::DataClass;
 use prov::{EntityKind, Label, Labelled};

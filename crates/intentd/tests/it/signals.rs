@@ -85,7 +85,7 @@ fn a_manifest_installed_replaced_or_removed_is_a_manifest_change() {
     let edited = docket_fake::FILES_MANIFEST.replace("Read", "Look at");
     registry(&|st| {
         st.registry
-            .insert(docket_core::parse(&edited).expect("manifest"))
+            .insert(docket_manifest::parse(&edited).expect("manifest"))
     });
     assert_eq!(
         changes(&again, &marks_of(&router)),

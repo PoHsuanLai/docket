@@ -1,7 +1,8 @@
 //! The stripped request a reviewer sees, and how it becomes a prompt and a verdict again.
 //! Untrusted arguments appear as their sources and their size, never their text.
 
-use docket_core::{ArgLabels, ArgSink, ReasonCode, Stage, Strictness, TaskPolicy, UserTurn};
+use docket_core::{ArgLabels, ReasonCode, Stage, Strictness, TaskPolicy, UserTurn};
+use docket_manifest::ArgSink;
 use docket_vocab::{ActionRef, CallId, CharCount, LabelText, ParamName, Value};
 use model_provider::{ChoiceText, Field, FieldName, Shape};
 use porter_core::{AppName, Count};
@@ -71,7 +72,7 @@ pub struct ProposedAction {
     /// Each argument with the sink it feeds.
     pub args: Vec<(ParamName, ArgSink, ArgView)>,
     /// Whether it writes lasting memory.
-    pub lasting: docket_core::Lasting,
+    pub lasting: docket_manifest::Lasting,
 }
 
 /// What a reviewer sees: the person's turns, the typed action, labels, the task policy and the

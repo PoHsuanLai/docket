@@ -1,8 +1,8 @@
 //! One tool list and one tool call made into a request, for every edge: the menu narrows both,
 //! an argument that does not fit is refused, and a call carries the client's label.
 
-use actions_tools::{ArgsFault, ToolFault, listing, prepare, tools};
-use docket_core::*;
+use actions_tools::{ToolFault, listing, prepare, tools};
+use docket_manifest::{ArgsFault, Manifest, ValidManifest, validate};
 use docket_vocab::Origin;
 use prov::{ClientName, Integrity};
 use serde_json::{Value as Json, json};

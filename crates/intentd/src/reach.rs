@@ -10,8 +10,8 @@
 use crate::builtin::is_builtin;
 use crate::link::owned_by_us;
 use crate::signals::rescan_with;
-use docket_core::{AgentReach, Manifest, ValidManifest};
 use docket_dbus::{BusConnection, IntentReachProxy, ReachNow};
+use docket_manifest::{AgentReach, Manifest, ValidManifest};
 use docket_router::{Router, Seams};
 use futures_util::StreamExt;
 use futures_util::future::join_all;

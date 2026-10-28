@@ -4,6 +4,7 @@
 use crate::support::*;
 use docket_core::*;
 use docket_fake::FakeSeams;
+use docket_manifest::open_name;
 use docket_router::Router;
 use docket_vocab::{ActionRef, Args, CallRequest, Generation, Origin, TargetValue};
 use prov::{EntityKey, EntityKind, Integrity, SpaceScope, UnixSeconds};

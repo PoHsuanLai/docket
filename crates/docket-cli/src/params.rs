@@ -7,8 +7,8 @@
 use crate::exit::Failure;
 use crate::resolve::Apps;
 use crate::when;
-use docket_core::TargetKind;
-use docket_core::{ActionDecl, ParamNeed};
+use docket_manifest::TargetKind;
+use docket_manifest::{ActionDecl, ParamNeed};
 use docket_vocab::{
     Args, CharCount, FileRef, Handle, Lines, ParamName, ParamType, TargetValue, Value,
 };

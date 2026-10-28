@@ -3,8 +3,8 @@
 
 use docket_cli::params::{Reading, Stdin, StdinSlot, arguments, target};
 use docket_cli::resolve::Apps;
-use docket_core::ActionDecl;
-use docket_core::parse as parse_manifest;
+use docket_manifest::ActionDecl;
+use docket_manifest::parse as parse_manifest;
 use docket_vocab::{CivilDate, Decimal, Handle, Scale, Seconds, TargetValue, Value};
 use prov::{EntityId, EntityKey, EntityKind, UnixSeconds};
 
@@ -151,7 +151,7 @@ fn apps() -> Apps {
     ])
 }
 
-fn demo(apps: &Apps) -> (&docket_core::Manifest, &ActionDecl) {
+fn demo(apps: &Apps) -> (&docket_manifest::Manifest, &ActionDecl) {
     let app = apps.app("demo").expect("app");
     let action = apps.action(app, "item.tune").expect("action");
     (app, action)

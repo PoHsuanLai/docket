@@ -3,8 +3,8 @@
 use crate::labels::{app_label, entity, entity_ref, outcome, third_party};
 use docket_core::{
     AppRefusal, Hit, Invocation, MessageSnip, Outcome, Preview, SuggestAsk, UndoFault, Undoable,
-    ValidManifest,
 };
+use docket_manifest::ValidManifest;
 use docket_provider::IntentProvider;
 use docket_vocab::{ParamName, TargetValue, UndoToken, Value};
 use porter_core::{AppName, DataClass};
@@ -213,7 +213,7 @@ impl FakeMail {
 
     /// The relation a related action was asked for.
     fn relation(inv: &Invocation) -> Option<String> {
-        let name = ParamName::parse(docket_core::RELATION_ARG).ok()?;
+        let name = ParamName::parse(docket_manifest::RELATION_ARG).ok()?;
         match &inv.args.get(&name)?.value {
             Value::Choice(id) => Some(id.as_str().to_owned()),
             _ => None,

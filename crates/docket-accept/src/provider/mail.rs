@@ -3,8 +3,9 @@
 use super::{AppLog, Focus, Message, Sending, contacts, threads, words_match};
 use docket_core::{
     AppRefusal, Follow, Hit, Invocation, MessageSnip, Outcome, Preview, SuggestAsk, UndoFault,
-    Undoable, ValidManifest,
+    Undoable,
 };
+use docket_manifest::ValidManifest;
 use docket_provider::IntentProvider;
 use docket_vocab::{EntityRef, LabelText, ParamName, TargetValue, UndoToken, Value};
 use porter_core::{AppName, DataClass};

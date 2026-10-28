@@ -15,6 +15,7 @@ companion-core = { workspace = true }
 companion-wire = { workspace = true }
 docket-client = { workspace = true }
 docket-core = { workspace = true }
+docket-manifest = { workspace = true }
 docket-vocab = { workspace = true }
 docket-planner = { workspace = true }
 docket-store = { workspace = true }

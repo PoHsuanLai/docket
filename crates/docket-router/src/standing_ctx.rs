@@ -5,10 +5,11 @@ use crate::gate::Pending;
 use crate::standing_facts::{exec_of, facts_of};
 use action_review::plan;
 use docket_core::{
-    ActionDecl, AlwaysOffer, ArgSink, AskFacts, AskReason, BreakerState, BudgetState, CallFacts,
-    ExecFacts, GrantCaller, Impact, Limited, Ruling, StandingGrant, StandingGrantId, Withheld,
-    blocker, covers_approval, find_standing_for, holds_standing, may_offer,
+    AlwaysOffer, AskFacts, AskReason, BreakerState, BudgetState, CallFacts, ExecFacts, GrantCaller,
+    Impact, Limited, Ruling, StandingGrant, StandingGrantId, Withheld, blocker, covers_approval,
+    find_standing_for, holds_standing, may_offer,
 };
+use docket_manifest::{ActionDecl, ArgSink};
 use docket_vocab::CallRequest;
 use prov::Integrity;
 

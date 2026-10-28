@@ -1,6 +1,6 @@
-//! The manifests of every installed app. Reading a manifest file is `docket_core::parse`.
+//! The manifests of every installed app. Reading a manifest file is `docket_manifest::parse`.
 
-use docket_core::{ActionDecl, ManifestError, ValidManifest};
+use docket_manifest::{ActionDecl, ManifestError, ValidManifest};
 use docket_vocab::ActionRef;
 use porter_core::AppName;
 use prov::EntityKind;
@@ -60,7 +60,7 @@ impl Registry {
     /// The actions that name a kind no installed app declares. Only the registry can tell: it
     /// sees every manifest, and an app may name another app's kind.
     pub fn unresolved(&self) -> Vec<ManifestError> {
-        use docket_core::TargetKind;
+        use docket_manifest::TargetKind;
         use docket_vocab::ParamType;
         let known = self.kinds();
         let mut faults = Vec::new();
@@ -87,7 +87,7 @@ impl Registry {
             // A relation names a kind as an action does; its derived action carries the fault.
             for e in &manifest.manifest().entities {
                 for r in e.relations.iter().filter(|r| !known.contains(&r.to)) {
-                    if let Some(action) = docket_core::related_name(&e.kind) {
+                    if let Some(action) = docket_manifest::related_name(&e.kind) {
                         faults.push(ManifestError::UnknownKind {
                             action,
                             kind: r.to.clone(),

@@ -2,7 +2,7 @@
 //! a client sends is untrusted.
 
 use actions_tools::*;
-use docket_core::*;
+use docket_manifest::{Manifest, ValidManifest, validate};
 use porter_core::AppName;
 use prov::Effect;
 use std::path::PathBuf;

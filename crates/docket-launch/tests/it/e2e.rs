@@ -44,7 +44,7 @@ impl Court for Nobody {
         Ruled::Lost
     }
 
-    async fn registry(&mut self) -> Option<Vec<docket_core::ValidManifest>> {
+    async fn registry(&mut self) -> Option<Vec<docket_manifest::ValidManifest>> {
         None
     }
 

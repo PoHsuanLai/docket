@@ -3,9 +3,9 @@
 //! action is never a tool. The order is the registry's, so the first sections of the prompt stay
 //! byte-stable until the app set changes.
 
-use docket_core::{
-    ActionCard, ActionDecl, AgentReach, HandleCard, HandleShape, OneOf, RelationDecl, TargetKind,
-    ToolSchema, ValidManifest, Visibility, tool_schema,
+use docket_core::{ActionCard, HandleCard, HandleShape, OneOf, ToolSchema, tool_schema};
+use docket_manifest::{
+    ActionDecl, AgentReach, RelationDecl, TargetKind, ValidManifest, Visibility,
 };
 use docket_vocab::ActionRef;
 use porter_core::AppName;
@@ -85,7 +85,7 @@ impl CatalogueTool {
 }
 
 /// The reserved argument that names what the call acts on.
-pub const TARGET: &str = docket_core::TARGET_KEY;
+pub const TARGET: &str = docket_manifest::TARGET_KEY;
 
 fn entity_or_handle(kind: &str) -> Json {
     json!({

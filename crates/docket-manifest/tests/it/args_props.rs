@@ -3,7 +3,9 @@
 //! reordering or hidden marks, every required argument present.
 
 use crate::support::*;
-use docket_core::*;
+use docket_manifest::{
+    ActionDecl, ArgSink, ArgsFault, ParamDecl, ParamNeed, TargetKind, UndoSupport, args_from_json,
+};
 use docket_vocab::{CharCount, Lines, ParamType, Value, plain_text};
 use proptest::prelude::*;
 use prov::Effect;

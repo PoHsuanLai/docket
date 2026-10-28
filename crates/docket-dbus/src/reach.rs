@@ -4,7 +4,7 @@
 //! intentd asks the provider's own bus name, caches the answer, and asks again on `ReachChanged`.
 
 use crate::names::PROVIDER_PATH;
-use docket_core::AgentReach;
+use docket_manifest::AgentReach;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};

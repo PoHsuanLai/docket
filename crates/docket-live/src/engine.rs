@@ -1,8 +1,8 @@
 //! Where a live run's model answers come from, and the one cassette the gate's runs use.
 
 use docket_accept::world::ModelSource;
-use docket_core::AgentReach;
 use docket_fake::registry;
+use docket_manifest::AgentReach;
 use eval_core::Case;
 use serde_json::{Value, json};
 use std::path::Path;
@@ -128,7 +128,7 @@ fn catalogue() -> Vec<String> {
         |registry| {
             registry
                 .all()
-                .filter(|m| m.manifest().visibility == docket_core::Visibility::Everyone)
+                .filter(|m| m.manifest().visibility == docket_manifest::Visibility::Everyone)
                 .flat_map(|m| {
                     let app = m.manifest().app.to_string();
                     m.manifest()

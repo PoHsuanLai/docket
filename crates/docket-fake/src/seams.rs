@@ -13,9 +13,9 @@ use docket_checkpoint::MemoryStore;
 use docket_core::LinkFault;
 use docket_core::PolicyWriter;
 use docket_core::{
-    AppRefusal, ContextScope, ContextSnapshot, Invocation, Latency, Outcome, Preview, SuggestAsk,
-    UndoFault,
+    AppRefusal, ContextScope, ContextSnapshot, Invocation, Outcome, Preview, SuggestAsk, UndoFault,
 };
+use docket_manifest::Latency;
 use docket_provider::IntentProvider;
 use docket_router::{AppFault, AppLink, Seams};
 use docket_vocab::{Clock, EntityRef, UndoToken};

@@ -6,11 +6,12 @@
 use crate::spawn::{Cutoff, Spawn};
 use companion_core::{Answers, Logins, OpenedJob, Proposals, Terminals, Told, ToldLog, by_space};
 use docket_client::Transport as IntentsTransport;
+use docket_core::SessionOpen;
 use docket_core::helper::{
     AgentApps, Board, BoardEffect, BoardEvent, HelperCard, HelperName, HelperSeat, JobId, Notice,
     SeatPlace, step,
 };
-use docket_core::{SessionOpen, ValidManifest};
+use docket_manifest::ValidManifest;
 use docket_planner::Planner;
 use docket_tasks::{Change, Companion, Shared, Surface};
 use docket_vocab::Clock;

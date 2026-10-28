@@ -4,6 +4,7 @@
 use crate::support::*;
 use docket_core::*;
 use docket_fake::FakeSeams;
+use docket_manifest::{ArgSink, Cardinality, ManifestError, TitleTrust};
 use docket_router::{GrantStore, HandleValue, Router};
 use docket_vocab::{ActionRef, CallRequest, ChoiceId, Handle, Origin, TargetValue, Value};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
@@ -277,7 +278,7 @@ async fn resolving_a_relation_is_a_read_of_the_classes_of_both_kinds() {
 fn a_manifest_file_declares_a_relation_and_the_registry_checks_the_kind_it_names() {
     let text = docket_fake::MAIL_MANIFEST;
     assert!(text.contains("[[entities.relations]]"));
-    let mail = docket_core::parse(text).expect("the mail fixture parses and validates");
+    let mail = docket_manifest::parse(text).expect("the mail fixture parses and validates");
     let thread = mail
         .manifest()
         .entities
@@ -301,7 +302,7 @@ fn a_manifest_file_declares_a_relation_and_the_registry_checks_the_kind_it_names
     assert!(registry.unresolved().is_empty());
     let dangling = text.replace("to = \"mail.contact\"", "to = \"mail.nobody\"");
     let mut registry = docket_router::Registry::new();
-    registry.insert(docket_core::parse(&dangling).expect("valid on its own"));
+    registry.insert(docket_manifest::parse(&dangling).expect("valid on its own"));
     assert!(
         registry.unresolved().iter().any(|e| matches!(
             e,

@@ -218,7 +218,8 @@ fn a_tool_name_with_a_homoglyph_is_not_a_name_at_all() {
 
 #[tokio::test]
 async fn made_up_and_wrong_typed_calls_are_unread_with_a_typed_fault_not_run() {
-    use docket_core::{ArgsFault, ReplyFault, TargetFault};
+    use docket_core::ReplyFault;
+    use docket_manifest::{ArgsFault, TargetFault};
     let thread = json!({ "app": "org.quire.Mail", "kind": "mail.thread", "key": "t1" });
     let target = |fault| ReplyFault::Args(ArgsFault::Target(fault));
     for (name, args, fault) in [

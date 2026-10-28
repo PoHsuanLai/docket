@@ -4,6 +4,7 @@
 use crate::support::{action, app};
 use crate::task_policy::{declared, edit, file, labels, policy};
 use docket_core::*;
+use docket_manifest::ArgSink;
 use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
 use prov::Effect;
 
@@ -25,7 +26,7 @@ fn under(path: &str) -> TrustedPattern {
 
 fn outside(path: &str) -> Coverage {
     Coverage::Outside(Widening::Pattern(
-        docket_core::ArgSink::Path,
+        docket_manifest::ArgSink::Path,
         TrustedPattern::Exact(Value::File(file(path))),
     ))
 }

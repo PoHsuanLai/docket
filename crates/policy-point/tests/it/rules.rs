@@ -3,6 +3,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_manifest::ArgSink;
 use prov::{Effect, Integrity};
 
 #[test]

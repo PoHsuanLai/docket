@@ -17,8 +17,9 @@
 //! `testdata`), build output and hidden directories are not part of the app.
 
 use crate::ui::{UiFile, check_ui};
-use docket_core::parse;
-use docket_core::{ValidManifest, tool_schema};
+use docket_core::tool_schema;
+use docket_manifest::ValidManifest;
+use docket_manifest::parse;
 use porter_core::AppName;
 use std::path::{Path, PathBuf};
 

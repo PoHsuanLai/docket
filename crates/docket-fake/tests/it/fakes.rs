@@ -3,6 +3,7 @@
 use action_review::{ReviewVerdict, Reviewer};
 use docket_core::*;
 use docket_fake::*;
+use docket_manifest::{Lasting, TitleTrust, ValidManifest};
 use docket_provider::IntentProvider;
 use docket_router::GrantStore;
 use docket_vocab::{

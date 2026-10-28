@@ -19,7 +19,8 @@ use docket_core::helper::{
     BoardEvent, CardDraft, HelperCard, JobId, JobRefusal, SignInOutcome, SignOutOutcome,
     TerminalRequest,
 };
-use docket_core::{HelperRosterLine, Manifest, SeenCommand, WatchedAgent};
+use docket_core::{HelperRosterLine, SeenCommand, WatchedAgent};
+use docket_manifest::Manifest;
 use docket_planner::Planner;
 use docket_tasks::{
     HelperDesk, Pending, PostFromPerson, PostFromPlanner, Proposal, RoutineAsk, RoutineFor,

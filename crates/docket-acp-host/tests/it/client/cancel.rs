@@ -10,7 +10,7 @@ use bulkhead::Network;
 use bulkhead::fake::FakeSandbox;
 use docket_acp_host::fake::{FakeFiles, FakeSpawn};
 use docket_acp_host::{AcpBackend, EdgeFault, Parts, Performer, Seams, ToolsOffer};
-use docket_core::ValidManifest;
+use docket_manifest::ValidManifest;
 use docket_session::{SessionBackend, StartSession};
 use docket_vocab::TurnId;
 use futures_util::future::pending;

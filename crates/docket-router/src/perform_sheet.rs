@@ -19,8 +19,8 @@ use docket_vocab::Clock;
 impl<S: Seams> Router<S> {
     pub(crate) async fn dry_run(&self, p: &Prepared, run: &mut Run) -> Next {
         let answer = match p.decl.dry_run {
-            docket_core::DryRun::None => Err(AppRefusal::Unsupported),
-            docket_core::DryRun::Preview => {
+            docket_manifest::DryRun::None => Err(AppRefusal::Unsupported),
+            docket_manifest::DryRun::Preview => {
                 self.seams
                     .link()
                     .dry_run(&p.request.action.app, self.invocation(p))

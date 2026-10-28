@@ -7,8 +7,9 @@ use docket_core::{
     GrantAnswer, GrantAsk, HaltCause, Hit, InboundLine, InboxAsk, IntentsReply, IntentsRequest,
     JournalFilter, KillSwitch, MessageDraft, Mode, Outcome, Preview, Resolved, SearchAsk,
     SessionModeAsk, SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnIn, UndoEntry, UndoReport,
-    UndoScope, ValidManifest, WidenAnswer, WidenAsk, WireRefusal,
+    UndoScope, WidenAnswer, WidenAsk, WireRefusal,
 };
+use docket_manifest::ValidManifest;
 use docket_vocab::{ActionRef, CallRequest, EntityRef, Handle, TurnId, UndoId, WindowKey};
 use prov::{AppName, EntityId, SessionId, SpaceScope};
 

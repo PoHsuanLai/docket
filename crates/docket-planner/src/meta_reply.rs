@@ -2,12 +2,12 @@
 //! `quire_finish`, `quire_related`) into the loop's output, and the limits on what a model's
 //! words may carry.
 
-use crate::args::ArgsFault;
 use crate::plain::without_ids;
 use crate::planner::{PlanFault, TOOL_ANSWER, TOOL_ASK, TOOL_FINISH, TOOL_READ, TOOL_RELATED};
 use crate::read_ask::read_output;
 use agent_loop::{Availability, ModelOutput, Offer, PlannedCall, choose_tier, leaked_call};
-use docket_core::{HandleShape, OneOf, PlannerView, RELATION_ARG, ReplyFault, Why};
+use docket_core::{HandleShape, OneOf, PlannerView, ReplyFault};
+use docket_manifest::{ArgsFault, RELATION_ARG, Why};
 use docket_vocab::{Args, CallRequest, Handle, Origin, ParamName, TargetValue, Value};
 use porter_core::AppName;
 use porter_infer::ToolCallPart;
@@ -145,7 +145,7 @@ fn related_output(args: &Json, view: &PlannerView) -> ModelOutput {
     };
     let kind = &kind;
     let Some(card) = view.actions.iter().find(|card| {
-        matches!(&card.on, docket_core::TargetKind::One(k) if k == kind)
+        matches!(&card.on, docket_manifest::TargetKind::One(k) if k == kind)
             && card.related.iter().any(|r| r.name.as_str() == relation)
     }) else {
         return wrong(RELATION_ARG, Why::Range);

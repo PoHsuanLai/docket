@@ -3,7 +3,7 @@
 
 use crate::support::planner_view::manifest;
 use companiond::*;
-use docket_core::*;
+use docket_manifest::{ValidManifest, Visibility};
 
 #[test]
 fn the_external_agents_pseudo_app_is_not_in_the_planners_tools_or_cards() {

@@ -2,6 +2,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_manifest::{ActionDecl, ArgSink, Filled, ParamDecl, ParamNeed, UndoSupport};
 use docket_vocab::{CharCount, ChoiceDecl, ChoiceId, Lines, ParamType, Value};
 use prov::Effect;
 use serde_json::json;

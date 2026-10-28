@@ -10,7 +10,6 @@
 //! `model-provider` for the structured-output shapes `ValueSchema` renders through.
 
 mod agent_app;
-mod args;
 mod audit;
 mod brief;
 mod budget;
@@ -36,9 +35,6 @@ mod handover;
 pub mod helper;
 mod index;
 mod limit;
-mod manifest;
-#[cfg(feature = "manifest-file")]
-mod manifest_file;
 mod memory_link;
 mod message;
 mod mode;
@@ -65,7 +61,6 @@ mod task;
 mod task_policy;
 mod trace;
 mod undo;
-mod validate;
 mod wire;
 
 pub use agent_app::{
@@ -73,7 +68,6 @@ pub use agent_app::{
     TERMINAL_RUN, approves, covers_approval, is_agent_action,
 };
 pub use agent_app::{action as acp_agent_action, app as acp_agent_app};
-pub use args::{ArgsFault, TARGET_KEY, TargetFault, Why, args_from_json, target_from_json};
 pub use audit::{AuditRecord, ConfirmAnswerKind, DecidedBy, PolicyChangeKind};
 pub use brief::{
     BRIEF_MAX, BriefEdit, BriefFault, BriefFlag, BriefSheet, BriefText, BriefWhy,
@@ -136,13 +130,6 @@ pub use limit::{
     Limited, NotATightening, Said, SaidFault, Tighten, UndoOffer, decode_limits, encode_limits,
     limited, limits_with, limits_without,
 };
-pub use manifest::{
-    ActionDecl, AgentReach, ArgSink, Cardinality, DryRun, EntityDecl, Filled, IndexPolicy, KeyHint,
-    Lasting, Latency, Manifest, ParamDecl, ParamNeed, PropDecl, RELATION_ARG, RelationDecl,
-    ResultShape, TargetKind, TitleTrust, UndoSupport, Visibility, related_name,
-};
-#[cfg(feature = "manifest-file")]
-pub use manifest_file::{ManifestFileError, parse};
 pub use memory_link::{EventSink, LinkFault, MemoryLink, SpaceMemories};
 pub use message::{
     Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, MessageDraft, SendRefusal,
@@ -201,7 +188,6 @@ pub use task_policy::{
 };
 pub use trace::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
-pub use validate::{ManifestError, ValidManifest, fits, is_offered, open_name, validate};
 pub use wire::{
     Displayed, Envelope, GrantAnswer, GrantAsk, HelperNote, IntentsReply, IntentsRequest,
     JournalFilter, NoteAsk, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved, SessionModeAsk,

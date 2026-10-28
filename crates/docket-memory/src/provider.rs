@@ -10,8 +10,9 @@ use almanac_core::{
 };
 use docket_core::{
     AppRefusal, FactLine, FailText, Follow, Hit, Invocation, Outcome, Preview, SuggestAsk,
-    UndoFault, Undoable, ValidManifest,
+    UndoFault, Undoable,
 };
+use docket_manifest::ValidManifest;
 use docket_provider::IntentProvider;
 use docket_vocab::{EntityRef, LabelText, ParamName, UndoToken, Value};
 use porter_core::{AppName, Count};

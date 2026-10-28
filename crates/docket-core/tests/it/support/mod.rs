@@ -1,7 +1,10 @@
 //! Builders the tests share; labels come from prov's constructors.
 #![allow(dead_code)]
 
-use docket_core::*;
+use docket_manifest::{
+    ActionDecl, AgentReach, ArgSink, DryRun, KeyHint, Lasting, Latency, Manifest, ParamDecl,
+    ParamNeed, ResultShape, TargetKind, UndoSupport, Visibility,
+};
 use docket_vocab::{CharCount, IntentsVocab, LabelText, Lines, ParamName, ParamType, PerCall};
 use porter_core::{AppName, Count, DataClass};
 use prov::{

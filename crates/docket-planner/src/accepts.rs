@@ -2,7 +2,8 @@
 //! parameter or target it fills, and the action's name. Nothing of the thing's content, so the
 //! words are the same on every turn while the view's actions are.
 
-use docket_core::{ActionCard, Cardinality, RelationDecl, TargetKind};
+use docket_core::ActionCard;
+use docket_manifest::{Cardinality, RelationDecl, TargetKind};
 use prov::EntityKind;
 use serde_json::Value as Json;
 use std::collections::BTreeMap;
@@ -117,7 +118,8 @@ pub(crate) fn related_of(kind: &EntityKind, actions: &[ActionCard]) -> Option<St
 
 #[cfg(test)]
 pub(crate) mod fixtures {
-    use docket_core::{ActionCard, AgentReach, Lasting, TargetKind, ToolSchema};
+    use docket_core::{ActionCard, ToolSchema};
+    use docket_manifest::{AgentReach, Lasting, TargetKind};
     use docket_vocab::{ActionRef, LabelText};
     use prov::{ActionName, Effect, EntityKind};
     use serde_json::json;
@@ -168,17 +170,17 @@ pub(crate) mod fixtures {
 
     /// The related action of mail threads: `from` names one contact, `participants` several.
     pub(crate) fn related_thread() -> ActionCard {
-        let relation = |name: &str, many| docket_core::RelationDecl {
+        let relation = |name: &str, many| docket_manifest::RelationDecl {
             name: docket_vocab::RelationName::parse(name).expect("relation"),
             label: docket_vocab::LabelText::parse("A relation").expect("label"),
             to: kind("mail.contact"),
             many,
-            trust: docket_core::TitleTrust::AppAuthored,
+            trust: docket_manifest::TitleTrust::AppAuthored,
         };
         ActionCard {
             related: vec![
-                relation("from", docket_core::Cardinality::One),
-                relation("participants", docket_core::Cardinality::Many),
+                relation("from", docket_manifest::Cardinality::One),
+                relation("participants", docket_manifest::Cardinality::Many),
             ],
             ..card(
                 "mail.thread.related",

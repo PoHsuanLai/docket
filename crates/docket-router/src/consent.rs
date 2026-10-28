@@ -2,9 +2,8 @@
 //! touches. What a tainted session does to an `Always` is the policy's (`tainted-always-asks`).
 
 use crate::companion_names::LIMIT_ADD;
-use docket_core::{
-    ActionDecl, ActionGrant, ActionGrantKey, COMPANION_APP, GrantCaller, GrantTarget,
-};
+use docket_core::{ActionGrant, ActionGrantKey, COMPANION_APP, GrantCaller, GrantTarget};
+use docket_manifest::ActionDecl;
 use policy_point::TaintFact;
 use porter_core::consent::{GrantScope, Usage, Verdict, decide};
 use porter_core::{DataClass, GrantId};

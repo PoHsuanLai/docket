@@ -18,7 +18,7 @@ use docket_core::{
     Confirmer, Cost, CuaAsk, GateAnswer, Gesture, GrantAnswer, GrantAsk, GrantCaller, GrantTarget,
     Impact, IntentsReply, Level, LimitCall, Reviewed, Saw, SessionSaw, SinkIntegrity, TaintNote,
 };
-use docket_core::{AgentReach, Lasting};
+use docket_manifest::{AgentReach, Lasting};
 use docket_vocab::{Clock, Depth, LabelText, Origin};
 use policy_point::{
     ActionFacts, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts, RunFact,

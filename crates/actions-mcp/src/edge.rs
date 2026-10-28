@@ -3,7 +3,7 @@
 use crate::expose::McpExpose;
 use actions_tools::{ToolFault, ToolHints, ToolRefusal, ToolSpec, listing, outcome_json, prepare};
 use docket_client::{Intents, Transport};
-use docket_core::ValidManifest;
+use docket_manifest::ValidManifest;
 use prov::ClientName;
 use rmcp::model::{
     CacheScope, CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, ErrorData,

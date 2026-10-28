@@ -52,9 +52,9 @@ pub struct ActionFacts {
     /// The data classes it touches.
     pub classes: BTreeSet<DataClass>,
     /// Whether an agent may see it.
-    pub reach: docket_core::AgentReach,
+    pub reach: docket_manifest::AgentReach,
     /// Whether it writes lasting memory.
-    pub lasting: docket_core::Lasting,
+    pub lasting: docket_manifest::Lasting,
 }
 
 /// Where the target is relative to the session's Space.

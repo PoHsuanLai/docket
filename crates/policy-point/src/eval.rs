@@ -8,7 +8,8 @@ use cedar_policy::{
     Authorizer, Context, Decision, Entities, Entity, EntityId, EntityTypeName, EntityUid,
     PolicySet, Request, RestrictedExpression, Schema,
 };
-use docket_core::{ArgSink, AskReason, PolicyId, Ruling};
+use docket_core::{AskReason, PolicyId, Ruling};
+use docket_manifest::ArgSink;
 use prov::{Effect, Integrity};
 use serde::Serialize;
 use serde_json::{Value, json};

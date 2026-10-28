@@ -7,19 +7,20 @@ use crate::state::{RouterState, SessionRecord};
 use crate::tasks::child_policy;
 use docket_core::EventSink;
 use docket_core::{
-    ActionCard, ActionDecl, ActionMatch, AgentReach, Anchor, ArgLine, AskReason, AuditRecord,
-    ConfirmAnswer, ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer,
-    ConfirmRequest, Confirmer, Gesture, IntentsReply, PolicyChange, PolicyWriter, Shown,
-    TASK_POLICY_MAX, TaintNote, TaskPolicy, TaskPolicyState, TrustedPattern, TurnSource, UserTurn,
-    Visibility, WidenAnswer, Widening, WireRefusal, compare, intersection, tool_schema,
+    ActionCard, ActionMatch, Anchor, ArgLine, AskReason, AuditRecord, ConfirmAnswer,
+    ConfirmAnswerKind, ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest,
+    Confirmer, Gesture, IntentsReply, PolicyChange, PolicyWriter, Shown, TASK_POLICY_MAX,
+    TaintNote, TaskPolicy, TaskPolicyState, TrustedPattern, TurnSource, UserTurn, WidenAnswer,
+    Widening, WireRefusal, compare, intersection, tool_schema,
 };
+use docket_manifest::{ActionDecl, AgentReach, Visibility};
 use docket_vocab::{ActionRef, Clock, FileRef, LabelText, Workspace};
 use porter_core::{AppName, Count};
 use prov::{Effect, SessionId, UnixSeconds};
 use std::collections::BTreeSet;
 
 /// An action as a card: what the person reads, its effect and the schema of its arguments.
-fn card_of(decl: &ActionDecl, manifest: &docket_core::Manifest) -> ActionCard {
+fn card_of(decl: &ActionDecl, manifest: &docket_manifest::Manifest) -> ActionCard {
     ActionCard {
         action: ActionRef {
             app: manifest.app.clone(),

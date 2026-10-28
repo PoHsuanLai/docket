@@ -6,6 +6,7 @@ use actions_tools::*;
 use docket_client::{InProcess, Intents, Transport, TransportError};
 use docket_core::*;
 use docket_fake::{FakeSeams, MailThread, fake_router};
+use docket_manifest::ArgsFault;
 use docket_router::{GrantStore, Router};
 use docket_vocab::{CallRequest, Origin};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
