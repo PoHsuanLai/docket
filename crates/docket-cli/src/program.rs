@@ -3,8 +3,8 @@
 //! the acceptance harness's copy of it) collects those and passes them in.
 
 use crate::{
-    Bus, Command, Exit, Invocation, JsonFlag, NoBus, Report, Stdin, Stdout, ask_companion, bus_for,
-    exit, parse, run_in,
+    Command, Exit, Invocation, JsonFlag, NoBus, Report, Stdin, Stdout, ask_companion, exit,
+    needs_bus, parse, run_in,
 };
 use companion_client::CompanionTransport;
 use docket_client::{Intents, Transport, TransportError};
@@ -105,25 +105,25 @@ pub async fn execute<B: Buses>(process: Process, buses: B) -> Report {
         false => Stdin::Closed,
     };
     let roots = docket_skills::Roots::from_env(&process.env);
-    let bus = bus_for(&process.words);
+    let bus = needs_bus(&process.words);
     let invocation = Invocation {
         words: process.words,
         stdin,
         stdout: process.stdout,
     };
-    match bus {
-        Bus::NotNeeded => run_in(&Intents::over(NoBus), invocation, &roots).await,
-        Bus::Needed => match buses.intents().await {
-            Ok(intents) => run_in(&intents, invocation, &roots).await,
-            Err(why) => {
-                let failure = exit::of_client(&why.into());
-                Report {
-                    stdout: String::new(),
-                    stderr: format!("quire-do: {}\n", failure.what),
-                    exit: failure.exit,
-                }
+    if !bus {
+        return run_in(&Intents::over(NoBus), invocation, &roots).await;
+    }
+    match buses.intents().await {
+        Ok(intents) => run_in(&intents, invocation, &roots).await,
+        Err(why) => {
+            let failure = exit::of_client(&why.into());
+            Report {
+                stdout: String::new(),
+                stderr: format!("quire-do: {}\n", failure.what),
+                exit: failure.exit,
             }
-        },
+        }
     }
 }
 

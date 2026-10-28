@@ -3,9 +3,10 @@
 //! tables to each other, so a row without a reader or a reader without a row fails.
 
 use crate::AgentSettings;
-use crate::expose::{AcpAgents, AcpExpose, McpExpose};
-use docket_permissions_core::{DeleteRow, InsideRow, Mode, OtherRow, ScreenRow, SendRow};
 use porter_core::MicroUsd;
+use serde::Deserialize;
+use serde::de::value::{Error as DeError, StrDeserializer};
+use serde::de::{DeserializeOwned, IntoDeserializer};
 use std::ops::RangeInclusive;
 
 /// What a key's value may be and how it lands in the settings.
@@ -16,10 +17,10 @@ pub(crate) enum Rule {
         range: RangeInclusive<i64>,
         set: fn(&mut AgentSettings, i64),
     },
-    /// One of `words`, by position.
+    /// One of `words`, read by the target type's serde name; `set` says whether it took.
     Word {
         words: &'static [&'static str],
-        set: fn(&mut AgentSettings, usize),
+        set: fn(&mut AgentSettings, &str) -> bool,
     },
 }
 
@@ -41,45 +42,39 @@ const fn num(
     }
 }
 
-const MODES: [Mode; 2] = [Mode::Auto, Mode::Manual];
-/// What each old `agent.strictness` word (`ask_more`, `default`, `trust_more`) means: `ask_more` is
-/// Manual, `default` and `trust_more` are Auto.
-const LEGACY_STRICTNESS: [Mode; 3] = [Mode::Manual, Mode::Auto, Mode::Auto];
-const INSIDE: [InsideRow; 2] = [InsideRow::Runs, InsideRow::Asks];
-const OTHER: [OtherRow; 2] = [OtherRow::Check, OtherRow::Asks];
-const SEND: [SendRow; 2] = [SendRow::Asks, SendRow::Runs];
-const DELETE: [DeleteRow; 2] = [DeleteRow::Asks, DeleteRow::Runs];
-const SCREEN: [ScreenRow; 2] = [ScreenRow::Once, ScreenRow::Each];
-const EXPOSE: [McpExpose; 2] = [McpExpose::Off, McpExpose::On];
-const ACP: [AcpExpose; 2] = [AcpExpose::Off, AcpExpose::On];
-const AGENTS: [AcpAgents; 2] = [AcpAgents::Off, AcpAgents::On];
+/// Reads `word` into `slot` by the type's serde name; whether it was one.
+fn parse_into<T: DeserializeOwned>(slot: &mut T, word: &str) -> bool {
+    let de: StrDeserializer<'_, DeError> = word.into_deserializer();
+    match <T as Deserialize<'_>>::deserialize(de) {
+        Ok(value) => {
+            *slot = value;
+            true
+        }
+        Err(_) => false,
+    }
+}
 
 /// Keys an older settings file may still hold, read before the table so a new key beside them
 /// wins. They are not schema rows.
 pub(crate) fn legacy() -> Vec<Key> {
     vec![
-        Key {
-            path: "agent.strictness",
-            rule: Rule::Word {
-                words: &["ask_more", "default", "trust_more"],
-                set: |s, i| s.agent.start_mode = LEGACY_STRICTNESS[i],
-            },
-        },
+        // `ask_more` is Manual, `default` and `trust_more` are Auto: `Mode` reads all three.
+        word(
+            "agent.strictness",
+            &["ask_more", "default", "trust_more"],
+            |s, w| parse_into(&mut s.agent.start_mode, w),
+        ),
         // The single row of the first permissions release: its word is the start mode.
-        Key {
-            path: "agent.permissions",
-            rule: Rule::Word {
-                words: &["auto", "manual"],
-                set: |s, i| s.agent.start_mode = MODES[i],
-            },
-        },
+        word("agent.permissions", &["auto", "manual"], |s, w| {
+            parse_into(&mut s.agent.start_mode, w)
+        }),
     ]
 }
 
 const fn word(
     path: &'static str,
     words: &'static [&'static str],
-    set: fn(&mut AgentSettings, usize),
+    set: fn(&mut AgentSettings, &str) -> bool,
 ) -> Key {
     Key {
         path,
@@ -94,38 +89,38 @@ fn mode_keys() -> Vec<Key> {
     let ask_or_runs: &[&str] = &["asks", "runs"];
     let screen: &[&str] = &["once", "each"];
     vec![
-        word("agent.start_mode", &["auto", "manual"], |s, i| {
-            s.agent.start_mode = MODES[i]
+        word("agent.start_mode", &["auto", "manual"], |s, w| {
+            parse_into(&mut s.agent.start_mode, w)
         }),
-        word("agent.auto.inside", inside, |s, i| {
-            s.agent.rows.auto.inside = INSIDE[i]
+        word("agent.auto.inside", inside, |s, w| {
+            parse_into(&mut s.agent.rows.auto.inside, w)
         }),
-        word("agent.auto.other", other, |s, i| {
-            s.agent.rows.auto.other = OTHER[i]
+        word("agent.auto.other", other, |s, w| {
+            parse_into(&mut s.agent.rows.auto.other, w)
         }),
-        word("agent.auto.send", ask_or_runs, |s, i| {
-            s.agent.rows.auto.send = SEND[i]
+        word("agent.auto.send", ask_or_runs, |s, w| {
+            parse_into(&mut s.agent.rows.auto.send, w)
         }),
-        word("agent.auto.delete", ask_or_runs, |s, i| {
-            s.agent.rows.auto.delete = DELETE[i]
+        word("agent.auto.delete", ask_or_runs, |s, w| {
+            parse_into(&mut s.agent.rows.auto.delete, w)
         }),
-        word("agent.auto.screen", screen, |s, i| {
-            s.agent.rows.auto.screen = SCREEN[i]
+        word("agent.auto.screen", screen, |s, w| {
+            parse_into(&mut s.agent.rows.auto.screen, w)
         }),
-        word("agent.manual.inside", inside, |s, i| {
-            s.agent.rows.manual.inside = INSIDE[i]
+        word("agent.manual.inside", inside, |s, w| {
+            parse_into(&mut s.agent.rows.manual.inside, w)
         }),
-        word("agent.manual.other", other, |s, i| {
-            s.agent.rows.manual.other = OTHER[i]
+        word("agent.manual.other", other, |s, w| {
+            parse_into(&mut s.agent.rows.manual.other, w)
         }),
-        word("agent.manual.send", ask_or_runs, |s, i| {
-            s.agent.rows.manual.send = SEND[i]
+        word("agent.manual.send", ask_or_runs, |s, w| {
+            parse_into(&mut s.agent.rows.manual.send, w)
         }),
-        word("agent.manual.delete", ask_or_runs, |s, i| {
-            s.agent.rows.manual.delete = DELETE[i]
+        word("agent.manual.delete", ask_or_runs, |s, w| {
+            parse_into(&mut s.agent.rows.manual.delete, w)
         }),
-        word("agent.manual.screen", screen, |s, i| {
-            s.agent.rows.manual.screen = SCREEN[i]
+        word("agent.manual.screen", screen, |s, w| {
+            parse_into(&mut s.agent.rows.manual.screen, w)
         }),
     ]
 }
@@ -138,28 +133,15 @@ pub(crate) fn table() -> Vec<Key> {
 }
 
 fn rest() -> Vec<Key> {
+    let switch: &[&str] = &["off", "on"];
     vec![
-        Key {
-            path: "agent.mcp.expose",
-            rule: Rule::Word {
-                words: &["off", "on"],
-                set: |s, i| s.expose = EXPOSE[i],
-            },
-        },
-        Key {
-            path: "agent.acp.expose",
-            rule: Rule::Word {
-                words: &["off", "on"],
-                set: |s, i| s.acp = ACP[i],
-            },
-        },
-        Key {
-            path: "agent.acp.agents",
-            rule: Rule::Word {
-                words: &["off", "on"],
-                set: |s, i| s.agents = AGENTS[i],
-            },
-        },
+        word("agent.mcp.expose", switch, |s, w| {
+            parse_into(&mut s.expose, w)
+        }),
+        word("agent.acp.expose", switch, |s, w| parse_into(&mut s.acp, w)),
+        word("agent.acp.agents", switch, |s, w| {
+            parse_into(&mut s.agents, w)
+        }),
         num("agent.budget.spend_microusd", 0..=1_000_000_000, |s, v| {
             s.agent.budget.spend = MicroUsd(u64::try_from(v).unwrap_or(u64::MAX));
         }),

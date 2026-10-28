@@ -44,24 +44,15 @@ pub(crate) fn id_of_ref(session: &SessionId, refname: &str) -> Option<Checkpoint
         .map(CheckpointId)
 }
 
-/// Which private index file of a session.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum IndexKind {
-    /// Kept between turns, so each `add` only looks at what changed.
-    Taken,
-    /// For reading the folder as it is now (a plan, the start of a restore).
-    Planned,
-    /// For writing files back.
-    Restoring,
-}
+/// The stem of the index kept between turns, so each `add` only looks at what changed.
+pub(crate) const INDEX: &str = "index";
+/// The stem of the index for reading the folder as it is now (a plan, the start of a restore).
+pub(crate) const PLAN: &str = "plan";
+/// The stem of the index for writing files back.
+pub(crate) const RESTORE: &str = "restore";
 
-/// The file name of a session's private index of `kind`.
-pub(crate) fn index_file(session: &SessionId, kind: IndexKind) -> String {
-    let stem = match kind {
-        IndexKind::Taken => "index",
-        IndexKind::Planned => "plan",
-        IndexKind::Restoring => "restore",
-    };
+/// The file name of a session's private index with `stem`.
+pub(crate) fn index_file(session: &SessionId, stem: &str) -> String {
     format!("{stem}-{}", segment(session))
 }
 

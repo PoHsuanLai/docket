@@ -3,7 +3,7 @@
 
 use crate::scratch::{Scratch, root};
 use docket_checkpoint::{CheckpointStore, StoreFault, TakeAsk};
-use docket_checkpoint_git::{GitCause, GitProblem, Limits};
+use docket_checkpoint_git::{GitCause, GitFault, GitProblem, Limits};
 use docket_core::CheckpointId;
 use porter_core::{Count, UnixSeconds};
 use prov::SessionId;
@@ -53,7 +53,7 @@ async fn a_command_past_its_deadline_is_killed_and_the_cause_is_a_timeout() {
     let all = seen.lock().expect("log");
     assert_eq!(
         all.first().map(|p| p.cause.clone()),
-        Some(GitCause::TimedOut)
+        Some(GitCause::Run(GitFault::TimedOut))
     );
 }
 

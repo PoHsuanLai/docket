@@ -5,9 +5,11 @@
 use bulkhead::AbsPath;
 use docket_manifest::{ActionDecl, ArgSink};
 use docket_permissions_core::{
-    ArgFacts, CallFacts, DERIVES_PARAM, Domain, ExecFacts, NETWORK_PARAM, Recipient, TERMINAL_RUN,
+    ArgFacts, CallFacts, DERIVES_PARAM, Domain, ExecFacts, NETWORK_PARAM, NetPrograms, Recipient,
+    TERMINAL_RUN,
 };
 use docket_vocab::{CallRequest, ParamName, TargetValue, Value};
+use std::sync::LazyLock;
 use url::Url;
 
 /// The parameters a terminal action names its command and working directory by.
@@ -130,6 +132,15 @@ fn args_of(decl: &ActionDecl, request: &CallRequest) -> ArgFacts {
     }
 }
 
+/// The programs that reach the network: the shipped `dist/network-programs.toml`, read once.
+fn net_programs() -> &'static NetPrograms {
+    static PROGRAMS: LazyLock<NetPrograms> = LazyLock::new(|| {
+        toml::from_str(include_str!("../../../dist/network-programs.toml"))
+            .expect("the shipped network-programs.toml reads")
+    });
+    &PROGRAMS
+}
+
 /// What the host said of a terminal command (R11): whether its arguments derive from what the
 /// agent read, and the sandbox's network, with the command's own reach. None for any other call.
 /// A fact that is missing or unknown is read the conservative way.
@@ -148,6 +159,7 @@ pub(crate) fn exec_of(request: &CallRequest) -> Option<ExecFacts> {
         choice(DERIVES_PARAM),
         choice(NETWORK_PARAM),
         line,
+        net_programs(),
     ))
 }
 

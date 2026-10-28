@@ -27,6 +27,7 @@ porter-core = { workspace = true }
 almanac-core = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+toml = { workspace = true }
 url = { workspace = true }
 serde_json = { workspace = true }
 futures-util = { workspace = true }

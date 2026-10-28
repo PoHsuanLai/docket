@@ -6,9 +6,9 @@ use crate::standing_facts::{exec_of, facts_of};
 use action_review::plan;
 use docket_manifest::{ActionDecl, ArgSink};
 use docket_permissions_core::{
-    AlwaysOffer, AskFacts, AskReason, BreakerState, BudgetState, CallFacts, ExecFacts, GrantCaller,
-    Impact, Limited, Ruling, StandingGrant, StandingGrantId, Withheld, blocker, covers_approval,
-    find_standing_for, holds_standing, may_offer,
+    AlwaysOffer, AskFacts, AskReason, CallFacts, ExecFacts, GrantCaller, Impact, Limited, Ruling,
+    StandingGrant, StandingGrantId, Withheld, blocker, covers_approval, find_standing_for,
+    holds_standing, may_offer,
 };
 use docket_vocab::CallRequest;
 use prov::Integrity;
@@ -24,10 +24,10 @@ pub(crate) struct StandingCtx {
     pub untrusted: Vec<ArgSink>,
     /// What the host said of a terminal command; none for any other call.
     pub exec: Option<ExecFacts>,
-    /// The breaker as the call arrived.
-    pub breaker: BreakerState,
-    /// The budgets as the call arrived.
-    pub budget: BudgetState,
+    /// Whether the breaker was tripped as the call arrived.
+    pub breaker_tripped: bool,
+    /// Whether the call would exceed a budget.
+    pub over_budget: bool,
     /// The grant that stood in for the ask, if one did.
     pub applied: Option<StandingGrantId>,
     /// The permission request the person said yes to that stood in for the ask, if one did.
@@ -43,8 +43,8 @@ impl StandingCtx {
         caller: GrantCaller,
         decl: &ActionDecl,
         request: &CallRequest,
-        breaker: BreakerState,
-        budget: BudgetState,
+        breaker_tripped: bool,
+        over_budget: bool,
     ) -> Self {
         let untrusted = decl
             .params
@@ -63,8 +63,8 @@ impl StandingCtx {
             facts: facts_of(decl, request),
             exec: exec_of(request),
             untrusted,
-            breaker,
-            budget,
+            breaker_tripped,
+            over_budget,
             applied: None,
             approved: None,
             limited: Limited::Free,
@@ -83,8 +83,8 @@ impl StandingCtx {
             reach: decl.reach,
             why,
             untrusted: &self.untrusted,
-            breaker: self.breaker,
-            budget: self.budget,
+            breaker_tripped: self.breaker_tripped,
+            over_budget: self.over_budget,
             exec: self.exec,
         }
     }
@@ -116,7 +116,7 @@ impl StandingCtx {
         // once, unless the breaker or a budget says no (a yes is not a way round either). It is
         // the person's own answer to this call, so the call runs as it would on the sheet's yes,
         // which no reviewer follows; a grant, which is only standing, is reviewed.
-        let open = self.breaker == BreakerState::Running && self.budget == BudgetState::Within;
+        let open = !self.breaker_tripped && !self.over_budget;
         match approvals.iter().find(|a| covers_approval(a, &self.facts)) {
             Some(approval) if open => {
                 self.approved = Some(approval.clone());

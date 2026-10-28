@@ -255,26 +255,14 @@ impl StandingScope {
     }
 
     /// Whether the scope is narrow enough to hold: a directory scope is never `/`.
-    pub fn narrow(&self) -> NarrowState {
+    pub fn is_narrow(&self) -> bool {
         let rooted = match self {
             StandingScope::Files { under, .. } => under.is_root(),
             StandingScope::Terminal { cwd, .. } => cwd.is_root(),
             StandingScope::Outbound { .. } | StandingScope::Reads { .. } => RootState::Below,
         };
-        match rooted {
-            RootState::Root => NarrowState::TooBroad,
-            RootState::Below => NarrowState::Narrow,
-        }
+        rooted == RootState::Below
     }
-}
-
-/// Whether a scope is narrow enough to hold.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NarrowState {
-    /// Yes.
-    Narrow,
-    /// It covers the whole file system.
-    TooBroad,
 }
 
 /// A grant's identity: derived from its caller and scope, so granting the same thing twice is one

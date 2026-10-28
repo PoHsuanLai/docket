@@ -1,7 +1,7 @@
 //! `GitStore`: the commands it runs and the listings it reads. The trait impl is in `store.rs`.
 
 use crate::files::{inside_repository, person_excludes};
-use crate::names::{IndexKind, index_file, ref_name};
+use crate::names::{PLAN, index_file, ref_name};
 use crate::parse::{object_id, staged_listing, tree_listing};
 use crate::problem::{GitCause, GitProblem, Report};
 use crate::run::{GitCommand, GitFault, GitOut, GitRun, Limits};
@@ -147,11 +147,11 @@ impl<R: GitRun> GitStore<R> {
             }
             // Too many files to list is the folder being too large, not a git failure.
             Err(GitFault::TooMuchOutput) => {
-                self.tell(command, GitCause::TooMuchOutput);
+                self.tell(command, GitCause::Run(GitFault::TooMuchOutput));
                 Err(StoreFault::TooLarge)
             }
             Err(fault) => {
-                self.tell(command, fault.into());
+                self.tell(command, GitCause::Run(fault));
                 Err(StoreFault::Failed)
             }
         }
@@ -270,7 +270,7 @@ impl<R: GitRun> GitStore<R> {
     pub(crate) async fn index_env(
         &self,
         session: &SessionId,
-        kind: IndexKind,
+        stem: &str,
     ) -> Result<Vec<(String, String)>, StoreFault> {
         let dir = self.index_dir.as_str().to_owned();
         let made = {
@@ -280,7 +280,7 @@ impl<R: GitRun> GitStore<R> {
         if !matches!(made, Ok(Ok(()))) {
             return Err(StoreFault::Failed);
         }
-        let file = format!("{dir}/{}", index_file(session, kind));
+        let file = format!("{dir}/{}", index_file(session, stem));
         Ok(vec![("GIT_INDEX_FILE".to_owned(), file)])
     }
 
@@ -331,7 +331,7 @@ impl<R: GitRun> GitStore<R> {
         root: &WorkRoot,
         session: &SessionId,
     ) -> Result<TreeListing, StoreFault> {
-        let env = self.index_env(session, IndexKind::Planned).await?;
+        let env = self.index_env(session, PLAN).await?;
         self.drop_ignored(root, &env).await?;
         self.ok(root, &["add", "-A", "--", "."], &env).await?;
         let out = self.ok(root, &["ls-files", "-s", "-z"], &env).await?;

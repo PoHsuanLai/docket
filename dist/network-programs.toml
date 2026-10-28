@@ -1,0 +1,43 @@
+# Programs that can reach the network, by the basename of the word that names them. A terminal
+# command that runs one always asks and is never granted (acp-sessions.md section 12, R11).
+#
+# The list is a belt, not the lock: the terminal sandbox has no network today, so a program here
+# is stopped by the sandbox as well. It is the rule that holds when a sandbox is given a network,
+# and what keeps a grant for such a program from ever existing.
+
+# Network tools: running one at all reaches out.
+any = [
+    "curl", "wget", "aria2c", "http", "https", "nc", "ncat", "netcat", "socat", "telnet",
+    "ftp", "sftp", "lftp", "ssh", "scp", "rsync", "mosh", "ping", "dig", "nslookup",
+    "sendmail", "msmtp", "gh", "apt", "apt-get", "dnf", "yum", "pacman", "zypper", "brew",
+    "flatpak", "snap",
+]
+
+# Programs that run other programs from their arguments: a network tool named anywhere in the
+# line is as good as run.
+wrappers = [
+    "sh", "bash", "zsh", "dash", "fish", "env", "sudo", "doas", "xargs", "timeout", "nice",
+    "nohup", "time", "exec", "command", "setsid", "stdbuf", "busybox", "watch", "script",
+]
+
+# Programs that reach the network only for some subcommands. `cargo build`, `cargo test`,
+# `cargo check` and `cargo run` are not listed: they may fetch crates from the registry when the
+# lockfile is not yet vendored, which sends out nothing the agent chose, and the owner wants them
+# grantable. `cargo install`, `publish` and the like are.
+[subcommands]
+git = ["push", "fetch", "clone", "pull", "ls-remote", "submodule", "remote", "lfs", "send-email"]
+cargo = ["publish", "install", "fetch", "update", "search", "login", "owner", "yank", "add"]
+npm = [
+    "publish", "install", "i", "ci", "add", "update", "view", "login", "adduser", "audit",
+    "access", "token", "unpublish", "deprecate", "dist-tag", "search", "outdated",
+]
+pnpm = ["publish", "install", "i", "add", "update", "fetch", "login"]
+yarn = ["publish", "install", "add", "upgrade", "npm", "login"]
+pip = ["install", "download", "wheel", "index", "search"]
+pip3 = ["install", "download", "wheel", "index", "search"]
+uv = ["add", "sync", "lock", "publish", "pip", "tool", "python", "venv"]
+go = ["get", "install", "mod"]
+docker = ["push", "pull", "login", "build", "run", "compose"]
+podman = ["push", "pull", "login", "build", "run"]
+gem = ["install", "push", "fetch", "update"]
+bundle = ["install", "update"]

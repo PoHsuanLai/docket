@@ -142,18 +142,10 @@ pub fn read(text: &str, base: AgentSettings) -> Loaded {
                     max: *range.end(),
                 }),
             },
-            Rule::Word { words, set } => {
-                match found
-                    .as_str()
-                    .and_then(|w| words.iter().position(|x| *x == w))
-                {
-                    Some(at) => {
-                        set(&mut value, at);
-                        None
-                    }
-                    None => Some(Why::NotAWord { words }),
-                }
-            }
+            Rule::Word { words, set } => match found.as_str() {
+                Some(w) if words.contains(&w) && set(&mut value, w) => None,
+                _ => Some(Why::NotAWord { words }),
+            },
         };
         fallbacks.extend(refused.map(|why| Fallback {
             key: key.path.to_owned(),

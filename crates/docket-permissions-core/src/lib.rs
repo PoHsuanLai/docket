@@ -39,7 +39,7 @@ pub use exec_facts::{
     DERIVES_OWN, DERIVES_PARAM, DERIVES_READ, ExecFacts, NETWORK_CLOSED, NETWORK_OPEN,
     NETWORK_PARAM, derives_choice, network_choice,
 };
-pub use exec_reach::{NetAccess, NetReach};
+pub use exec_reach::{NetAccess, NetPrograms, NetReach};
 pub use execute::{CannotSandbox, EXECUTE_AS, SandboxState};
 pub use floor::{Floor, FloorEntry, FloorFault, FloorFile, LockedRow};
 pub use grant::{
@@ -66,14 +66,13 @@ pub use review::{
 pub use rules::{RuleFile, generated_rules, rule_ids, rule_text, with_rule, without_rule};
 pub use space_access::{SpaceAccess, SpaceRefusal, space_access};
 pub use standing::{
-    AddressFault, CommandFault, CommandPrefix, Domain, DomainFault, NarrowState, Recipient,
-    Revocation, ScopeKind, StandingFileFault, StandingGrant, StandingGrantId, StandingIdFault,
-    StandingScope, decode_standing, encode_standing, held_with, held_without,
+    AddressFault, CommandFault, CommandPrefix, Domain, DomainFault, Recipient, Revocation,
+    ScopeKind, StandingFileFault, StandingGrant, StandingGrantId, StandingIdFault, StandingScope,
+    decode_standing, encode_standing, held_with, held_without,
 };
 pub use standing_match::{ArgFacts, CallFacts, find_standing_for};
 pub use standing_offer::{
-    AlwaysOffer, AskFacts, BreakerState, BudgetState, Withheld, blocker, holds_standing, may_offer,
-    scope_for,
+    AlwaysOffer, AskFacts, Withheld, blocker, holds_standing, may_offer, scope_for,
 };
 pub use task_policy::{
     ActionMatch, ArgLabels, Coverage, Saw, SessionSaw, SinkIntegrity, TaskPolicy, TaskPolicyState,

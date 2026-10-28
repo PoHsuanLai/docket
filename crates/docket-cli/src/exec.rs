@@ -2,12 +2,12 @@
 //! text. Nothing here talks to an app, and nothing here decides: every call is the router's to
 //! allow, ask about or refuse.
 
-use crate::args::{CallArgs, RunMode, UndoWhich};
+use crate::args::{CallArgs, JsonFlag, RunMode, UndoWhich};
 use crate::exit::{Failure, of_client, of_refusal, of_undo};
 use crate::outcome::{context_json, dry_run_json, hits_json, outcome_json};
 use crate::params::{Reading, StdinSlot, arguments, target};
 use crate::resolve::{Apps, slug, visible};
-use crate::{render, schema};
+use crate::{Stdout, render, schema};
 use docket_client::{Intents, Transport};
 use docket_core::{SearchAsk, SearchScope, UndoState, Undoable};
 use docket_vocab::{ActionRef, CallRequest, Generation, IntentsVocab, Origin, UndoId};
@@ -23,6 +23,17 @@ pub enum Style {
     Human,
     /// One JSON document.
     Json,
+}
+
+impl Style {
+    /// The style for a run: JSON when asked for or when stdout is a pipe, text for a person at a
+    /// terminal.
+    pub fn choose(json: JsonFlag, stdout: Stdout) -> Self {
+        match (json, stdout) {
+            (JsonFlag::Asked, _) | (_, Stdout::Pipe) => Style::Json,
+            (JsonFlag::Auto, Stdout::Tty) => Style::Human,
+        }
+    }
 }
 
 /// What a command prints on success.

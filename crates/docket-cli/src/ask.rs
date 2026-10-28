@@ -180,10 +180,7 @@ pub async fn ask<T: Transport, C: CompanionTransport>(
     stdout: Stdout,
     json: JsonFlag,
 ) -> Report {
-    let style = match (json, stdout) {
-        (JsonFlag::Asked, _) | (_, Stdout::Pipe) => Style::Json,
-        (JsonFlag::Auto, Stdout::Tty) => Style::Human,
-    };
+    let style = Style::choose(json, stdout);
     match run(intents, companion, text, space, now).await {
         Ok((answer, session)) => {
             if !matches!(answer.phase, AnswerPhase::NeedsYou(_)) {

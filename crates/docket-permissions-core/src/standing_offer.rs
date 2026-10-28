@@ -8,31 +8,11 @@ use crate::exec_facts::ExecFacts;
 use crate::exec_reach::NetReach;
 use crate::grant::GrantCaller;
 use crate::review::AskReason;
-use crate::standing::{CommandPrefix, NarrowState, StandingScope};
+use crate::standing::{CommandPrefix, StandingScope};
 use crate::standing_match::{ArgFacts, CallFacts};
 use docket_manifest::{AgentReach, ArgSink, UndoSupport};
 use prov::Effect;
 use serde::{Deserialize, Serialize};
-
-/// Where the session's breaker stands.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BreakerState {
-    /// Taking calls.
-    Running,
-    /// Tripped: the session is paused until the person resumes it.
-    Tripped,
-}
-
-/// Where the session's budgets stand.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BudgetState {
-    /// Room for this call.
-    Within,
-    /// This call would exceed a budget.
-    Over,
-}
 
 /// Why "allow always" is not offered (and a held grant does not skip the ask).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -98,10 +78,10 @@ pub struct AskFacts<'a> {
     pub why: &'a [AskReason],
     /// The sinks that untrusted arguments feed.
     pub untrusted: &'a [ArgSink],
-    /// The breaker.
-    pub breaker: BreakerState,
-    /// The budgets.
-    pub budget: BudgetState,
+    /// Whether the session's breaker is tripped.
+    pub breaker_tripped: bool,
+    /// Whether this call would exceed a budget.
+    pub over_budget: bool,
     /// What the host said of a terminal command; none for every other call.
     pub exec: Option<ExecFacts>,
 }
@@ -144,10 +124,10 @@ fn reason(reason: &AskReason, effect: Effect, undo: UndoSupport) -> Result<(), W
 /// The first reason a standing grant cannot replace this ask, in a fixed order: breaker, budget,
 /// effect class, the action's own rule, then each reason the router gave, then the labels.
 pub fn blocker(f: &AskFacts<'_>) -> Option<Withheld> {
-    if f.breaker == BreakerState::Tripped {
+    if f.breaker_tripped {
         return Some(Withheld::BreakerTripped);
     }
-    if f.budget == BudgetState::Over {
+    if f.over_budget {
         return Some(Withheld::OverBudget);
     }
     if f.exec.is_some_and(|e| e.reach == NetReach::Possible) {
@@ -229,9 +209,10 @@ pub fn scope_for(call: &CallFacts) -> Result<StandingScope, Withheld> {
         ArgFacts::Unscoped => return Err(Withheld::Unscoped),
         ArgFacts::Opaque => return Err(Withheld::TooBroad),
     };
-    match scope.narrow() {
-        NarrowState::Narrow => Ok(scope),
-        NarrowState::TooBroad => Err(Withheld::TooBroad),
+    if scope.is_narrow() {
+        Ok(scope)
+    } else {
+        Err(Withheld::TooBroad)
     }
 }
 

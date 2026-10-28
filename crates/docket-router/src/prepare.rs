@@ -27,8 +27,8 @@ use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
 use docket_core::{BudgetKind, CallRefusal, Cost};
 use docket_manifest::{ActionDecl, Lasting};
 use docket_permissions_core::{
-    ActionGrant, BreakerState, BudgetState, DenyCode, Impact, LimitCall, Limited, Mode, ModeRows,
-    Ruling, SpaceAccess, space_access,
+    ActionGrant, DenyCode, Impact, LimitCall, Limited, Mode, ModeRows, Ruling, SpaceAccess,
+    space_access,
 };
 use docket_vocab::{CallId, CallRequest, Classification, Clock, Depth, WindowKey};
 use policy_point::{
@@ -375,15 +375,9 @@ impl<S: Seams> Router<S> {
         });
         // A standing grant replaces only the ask: the refusals above have already run, and the
         // reviewers still look at what it lets through.
-        let breaker = match admit(record) {
-            Ok(()) => BreakerState::Running,
-            Err(_) => BreakerState::Tripped,
-        };
-        let budget = match charged {
-            BudgetFact::Within => BudgetState::Within,
-            BudgetFact::Over(_) => BudgetState::Over,
-        };
-        let ctx = StandingCtx::new(caller, &decl, &request, breaker, budget);
+        let breaker_tripped = admit(record).is_err();
+        let over_budget = matches!(charged, BudgetFact::Over(_));
+        let ctx = StandingCtx::new(caller, &decl, &request, breaker_tripped, over_budget);
         // A limit outranks every allowance: under one, no standing grant or approval stands in
         // for the question (the policy has already asked or refused for it).
         let limited = match limited {

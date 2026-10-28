@@ -98,24 +98,14 @@ impl Report {
 
 /// Whether a command line needs intentd at all: help, the version and a command line that does
 /// not parse are answered without a bus.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Bus {
-    /// It does.
-    Needed,
-    /// It does not.
-    NotNeeded,
-}
-
-/// Whether `words` need the bus.
-pub fn bus_for(words: &[String]) -> Bus {
-    match parse(words) {
+pub fn needs_bus(words: &[String]) -> bool {
+    !matches!(
+        parse(words),
         Ok(Parsed {
             command: Command::Help | Command::Version,
             ..
-        })
-        | Err(_) => Bus::NotNeeded,
-        Ok(_) => Bus::Needed,
-    }
+        }) | Err(_)
+    )
 }
 
 /// The transport of a run that must not reach intentd: every request finds it closed.
@@ -196,17 +186,10 @@ pub async fn run_in<T: Transport>(
     let parsed = match parse(&invocation.words) {
         Ok(parsed) => parsed,
         Err(failure) => {
-            let style = match invocation.stdout {
-                Stdout::Pipe => Style::Json,
-                Stdout::Tty => Style::Human,
-            };
-            return Report::failed(&failure, style);
+            return Report::failed(&failure, Style::choose(JsonFlag::Auto, invocation.stdout));
         }
     };
-    let style = match (parsed.json, invocation.stdout) {
-        (JsonFlag::Asked, _) | (_, Stdout::Pipe) => Style::Json,
-        (JsonFlag::Auto, Stdout::Tty) => Style::Human,
-    };
+    let style = Style::choose(parsed.json, invocation.stdout);
     let plain_text = matches!(
         parsed.command,
         Command::Help | Command::Version | Command::Complete(_)

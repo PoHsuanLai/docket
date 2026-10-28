@@ -141,7 +141,14 @@ fn the_schema_rows_and_the_key_table_are_the_same_keys_with_the_same_ranges() {
                 assert_eq!(v["min"].as_integer(), Some(*range.start()), "{}", key.path);
                 assert_eq!(v["max"].as_integer(), Some(*range.end()), "{}", key.path);
             }
-            Rule::Word { words, .. } => {
+            Rule::Word { words, set } => {
+                for word in *words {
+                    assert!(
+                        set(&mut AgentSettings::default(), word),
+                        "{} {word}",
+                        key.path
+                    );
+                }
                 let schema_words: Vec<&str> = v["variants"]
                     .as_array()
                     .unwrap()

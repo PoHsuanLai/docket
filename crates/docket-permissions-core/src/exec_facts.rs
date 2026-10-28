@@ -7,7 +7,7 @@
 //! conservative way: derived, with the network open. So a missing fact can only cost a question.
 
 use crate::exec_derive::Derivation;
-use crate::exec_reach::{NetAccess, NetReach};
+use crate::exec_reach::{NetAccess, NetPrograms, NetReach};
 use crate::review::AskReason;
 use serde::{Deserialize, Serialize};
 
@@ -52,7 +52,12 @@ pub struct ExecFacts {
 
 impl ExecFacts {
     /// The facts for `line` from the two choices the host sent.
-    pub fn from_choices(derives: Option<&str>, network: Option<&str>, line: &str) -> Self {
+    pub fn from_choices(
+        derives: Option<&str>,
+        network: Option<&str>,
+        line: &str,
+        programs: &NetPrograms,
+    ) -> Self {
         let derivation = match derives {
             Some(DERIVES_OWN) => Derivation::Independent,
             _ => Derivation::Derived,
@@ -63,7 +68,7 @@ impl ExecFacts {
         };
         Self {
             derivation,
-            reach: NetReach::of(line, access),
+            reach: NetReach::of(line, access, programs),
         }
     }
 
@@ -90,9 +95,16 @@ mod tests {
     use super::*;
     use docket_manifest::ArgSink;
 
+    fn curl() -> NetPrograms {
+        NetPrograms {
+            any: vec!["curl".to_owned()],
+            ..NetPrograms::default()
+        }
+    }
+
     #[test]
     fn missing_or_unknown_facts_are_read_the_conservative_way() {
-        let own = ExecFacts::from_choices(Some("own"), Some("closed"), "cargo test");
+        let own = ExecFacts::from_choices(Some("own"), Some("closed"), "cargo test", &curl());
         assert_eq!(
             (own.derivation, own.reach),
             (Derivation::Independent, NetReach::None)
@@ -103,7 +115,7 @@ mod tests {
             (Some("maybe"), Some("closed")),
             (Some("own"), Some("endpoint")),
         ] {
-            let f = ExecFacts::from_choices(derives, network, "cargo test");
+            let f = ExecFacts::from_choices(derives, network, "cargo test", &curl());
             assert!(!f.is_session_taint_only(), "{derives:?} {network:?}");
         }
     }
@@ -115,9 +127,9 @@ mod tests {
             AskReason::RuleOfTwo,
             AskReason::UntrustedSink(ArgSink::Body),
         ];
-        let own = ExecFacts::from_choices(Some("own"), Some("closed"), "ls");
-        let derived = ExecFacts::from_choices(Some("read"), Some("closed"), "ls");
-        let out = ExecFacts::from_choices(Some("own"), Some("closed"), "curl a.test");
+        let own = ExecFacts::from_choices(Some("own"), Some("closed"), "ls", &curl());
+        let derived = ExecFacts::from_choices(Some("read"), Some("closed"), "ls", &curl());
+        let out = ExecFacts::from_choices(Some("own"), Some("closed"), "curl a.test", &curl());
         for r in &reasons {
             assert!(
                 own.excuses(r) && !derived.excuses(r) && !out.excuses(r),

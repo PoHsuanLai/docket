@@ -2,7 +2,7 @@
 
 use crate::files::{delete, stay_inside};
 use crate::git::{GitStore, strings};
-use crate::names::{IndexKind, ref_name, session_prefix};
+use crate::names::{INDEX, RESTORE, ref_name, session_prefix};
 use crate::parse::{count_paths, held_points, named, object_id};
 use crate::run::GitRun;
 use docket_checkpoint::{
@@ -68,7 +68,7 @@ impl<R: GitRun> GitStore<R> {
         if paths.is_empty() {
             return Ok(());
         }
-        let env = self.index_env(session, IndexKind::Restoring).await?;
+        let env = self.index_env(session, RESTORE).await?;
         self.ok_with(
             root,
             vec!["read-tree".to_owned(), tree.to_owned()],
@@ -102,7 +102,7 @@ impl<R: GitRun> CheckpointStore for GitStore<R> {
             max,
         } = ask;
         self.require_repository(&root).await?;
-        let env = self.index_env(&session, IndexKind::Taken).await?;
+        let env = self.index_env(&session, INDEX).await?;
         self.drop_ignored(&root, &env).await?;
         let listed = self
             .ok(

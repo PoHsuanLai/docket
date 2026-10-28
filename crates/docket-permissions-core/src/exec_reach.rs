@@ -1,7 +1,7 @@
 //! Can a command send data out of the machine? (acp-sessions.md section 12, R11.) A command that
 //! can always asks and is never granted, whether or not anything was read. The answer is the
-//! sandbox's network plus a const table of known network programs; nothing here runs a command or
-//! reads a file.
+//! sandbox's network plus a table of known network programs, shipped as `dist/network-programs.toml`
+//! and passed in as [`NetPrograms`]; nothing here runs a command or reads a file.
 //!
 //! The table is a belt, not the lock: the terminal sandbox has no network today, so a program in
 //! the table is stopped by the sandbox as well. It is the rule that holds when a sandbox is given
@@ -10,6 +10,7 @@
 //! `Possible`.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// What network the sandbox the command runs in has.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -43,135 +44,34 @@ pub enum NetReach {
     Possible,
 }
 
-/// Which of a program's subcommands reach the network.
-#[derive(Debug, Clone, Copy)]
-enum Subs {
-    /// The program itself is a network tool.
-    Any,
-    /// Only these subcommands are.
-    Only(&'static [&'static str]),
+/// The programs that reach the network, by the basename of the word that names them: the shipped
+/// `dist/network-programs.toml`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NetPrograms {
+    /// Network tools: running one at all reaches out.
+    pub any: Vec<String>,
+    /// Programs that run other programs from their arguments: a network tool named anywhere in
+    /// the line is as good as run.
+    pub wrappers: Vec<String>,
+    /// Programs that reach the network only for these subcommands.
+    pub subcommands: BTreeMap<String, Vec<String>>,
 }
 
-/// Programs that reach the network, by the basename of the word that names them. `cargo build`,
-/// `cargo test`, `cargo check` and `cargo run` are not listed: they may fetch crates from the
-/// registry when the lockfile is not yet vendored, which sends out nothing the agent chose, and
-/// the owner wants them grantable. `cargo install`, `publish` and the like are.
-const PROGRAMS: &[(&str, Subs)] = &[
-    ("curl", Subs::Any),
-    ("wget", Subs::Any),
-    ("aria2c", Subs::Any),
-    ("http", Subs::Any),
-    ("https", Subs::Any),
-    ("nc", Subs::Any),
-    ("ncat", Subs::Any),
-    ("netcat", Subs::Any),
-    ("socat", Subs::Any),
-    ("telnet", Subs::Any),
-    ("ftp", Subs::Any),
-    ("sftp", Subs::Any),
-    ("lftp", Subs::Any),
-    ("ssh", Subs::Any),
-    ("scp", Subs::Any),
-    ("rsync", Subs::Any),
-    ("mosh", Subs::Any),
-    ("ping", Subs::Any),
-    ("dig", Subs::Any),
-    ("nslookup", Subs::Any),
-    ("sendmail", Subs::Any),
-    ("msmtp", Subs::Any),
-    ("gh", Subs::Any),
-    ("apt", Subs::Any),
-    ("apt-get", Subs::Any),
-    ("dnf", Subs::Any),
-    ("yum", Subs::Any),
-    ("pacman", Subs::Any),
-    ("zypper", Subs::Any),
-    ("brew", Subs::Any),
-    ("flatpak", Subs::Any),
-    ("snap", Subs::Any),
-    (
-        "git",
-        Subs::Only(&[
-            "push",
-            "fetch",
-            "clone",
-            "pull",
-            "ls-remote",
-            "submodule",
-            "remote",
-            "lfs",
-            "send-email",
-        ]),
-    ),
-    (
-        "cargo",
-        Subs::Only(&[
-            "publish", "install", "fetch", "update", "search", "login", "owner", "yank", "add",
-        ]),
-    ),
-    (
-        "npm",
-        Subs::Only(&[
-            "publish",
-            "install",
-            "i",
-            "ci",
-            "add",
-            "update",
-            "view",
-            "login",
-            "adduser",
-            "audit",
-            "access",
-            "token",
-            "unpublish",
-            "deprecate",
-            "dist-tag",
-            "search",
-            "outdated",
-        ]),
-    ),
-    (
-        "pnpm",
-        Subs::Only(&["publish", "install", "i", "add", "update", "fetch", "login"]),
-    ),
-    (
-        "yarn",
-        Subs::Only(&["publish", "install", "add", "upgrade", "npm", "login"]),
-    ),
-    (
-        "pip",
-        Subs::Only(&["install", "download", "wheel", "index", "search"]),
-    ),
-    (
-        "pip3",
-        Subs::Only(&["install", "download", "wheel", "index", "search"]),
-    ),
-    (
-        "uv",
-        Subs::Only(&[
-            "add", "sync", "lock", "publish", "pip", "tool", "python", "venv",
-        ]),
-    ),
-    ("go", Subs::Only(&["get", "install", "mod"])),
-    (
-        "docker",
-        Subs::Only(&["push", "pull", "login", "build", "run", "compose"]),
-    ),
-    (
-        "podman",
-        Subs::Only(&["push", "pull", "login", "build", "run"]),
-    ),
-    ("gem", Subs::Only(&["install", "push", "fetch", "update"])),
-    ("bundle", Subs::Only(&["install", "update"])),
-];
+impl NetPrograms {
+    fn reaches(&self, token: &str, after: &[&str]) -> bool {
+        let name = base(token);
+        self.any.iter().any(|p| p == name)
+            || self
+                .subcommands
+                .get(name)
+                .is_some_and(|list| after.iter().any(|t| list.iter().any(|s| s == t)))
+    }
 
-/// Programs that run other programs from their arguments: a network tool named anywhere in the
-/// line is as good as run.
-const WRAPPERS: &[&str] = &[
-    "sh", "bash", "zsh", "dash", "fish", "env", "sudo", "doas", "xargs", "timeout", "nice",
-    "nohup", "time", "exec", "command", "setsid", "stdbuf", "busybox", "watch", "script",
-];
+    fn wraps(&self, token: &str) -> bool {
+        self.wrappers.iter().any(|w| w == base(token))
+    }
+}
 
 /// The words of `line` that could be a program or a subcommand: runs of letters, digits and
 /// `. _ + - /`, so quotes, operators and `=` split words.
@@ -191,16 +91,6 @@ fn single_program(line: &str) -> bool {
     crate::standing::CommandPrefix::parse(line).is_ok()
 }
 
-fn reaches(token: &str, after: &[&str]) -> bool {
-    PROGRAMS
-        .iter()
-        .find(|(name, _)| *name == base(token))
-        .is_some_and(|(_, subs)| match subs {
-            Subs::Any => true,
-            Subs::Only(list) => after.iter().any(|t| list.contains(t)),
-        })
-}
-
 impl NetReach {
     /// Whether `line` (a command and its arguments) can send data out when it runs in a sandbox
     /// with `access`. With network open everything can. Otherwise the program is looked up by the
@@ -209,19 +99,18 @@ impl NetReach {
     /// (`sh -c`, `env`, `xargs`) or a line with a shell operator is searched word by word, so a
     /// network tool anywhere in it counts. These false positives are on purpose: a word that only
     /// looks like a network tool asks, which is the safe side.
-    pub fn of(line: &str, access: NetAccess) -> NetReach {
+    pub fn of(line: &str, access: NetAccess, programs: &NetPrograms) -> NetReach {
         if access == NetAccess::Open {
             return NetReach::Possible;
         }
         let words = tokens(line);
-        let search_all =
-            !single_program(line) || words.first().is_some_and(|w| WRAPPERS.contains(&base(w)));
+        let search_all = !single_program(line) || words.first().is_some_and(|w| programs.wraps(w));
         let heads = if search_all {
             words.len()
         } else {
             1.min(words.len())
         };
-        let hit = (0..heads).any(|i| reaches(words[i], &words[i + 1..]));
+        let hit = (0..heads).any(|i| programs.reaches(words[i], &words[i + 1..]));
         if hit {
             NetReach::Possible
         } else {
@@ -234,58 +123,49 @@ impl NetReach {
 mod tests {
     use super::*;
 
+    fn programs() -> NetPrograms {
+        let list = |words: &[&str]| words.iter().map(|w| (*w).to_owned()).collect::<Vec<_>>();
+        NetPrograms {
+            any: list(&["curl", "nc"]),
+            wrappers: list(&["sh", "env"]),
+            subcommands: BTreeMap::from([("git".to_owned(), list(&["push", "pull"]))]),
+        }
+    }
+
     #[test]
-    fn the_table_of_commands() {
+    fn a_program_reaches_by_its_name_or_its_subcommand() {
         use NetReach::{None as No, Possible as Yes};
         let cases = [
             ("curl https://a.test/x", Yes),
             ("/usr/bin/curl -s a.test", Yes),
-            ("wget a.test", Yes),
-            ("ssh host ls", Yes),
-            ("scp a host:b", Yes),
-            ("rsync -a . host:/b", Yes),
-            ("nc -l 9", Yes),
             ("git push origin main", Yes),
             ("git -C /home/u/proj push", Yes),
-            ("git fetch", Yes),
-            ("git clone x", Yes),
-            ("git pull", Yes),
             ("git status", No),
-            ("git diff HEAD~1", No),
-            ("git log --oneline", No),
-            ("cargo publish", Yes),
-            ("cargo install ripgrep", Yes),
-            ("cargo build", No),
-            ("cargo test --lib", No),
-            ("cargo clippy", No),
-            ("npm publish", Yes),
-            ("npm install left-pad", Yes),
-            ("npm test", No),
-            ("npm run build", No),
-            ("pip install x", Yes),
-            ("pip list", No),
             ("ls -la", No),
-            ("cat Cargo.toml", No),
-            ("echo hello", No),
-            ("cd src", No),
-            ("pwd", No),
             ("sh -c 'curl a.test'", Yes),
-            ("env FOO=1 wget a.test", Yes),
+            ("env FOO=1 nc a.test", Yes),
             ("echo hi; curl a.test", Yes),
             ("ls | nc host 9", Yes),
-            ("ls && cargo test", No),
             ("cat curl.txt", No),
-            ("echo $(ssh h)", Yes),
+            ("echo $(curl h)", Yes),
         ];
+        let programs = programs();
         for (line, want) in cases {
-            assert_eq!(NetReach::of(line, NetAccess::Closed), want, "{line}");
+            assert_eq!(
+                NetReach::of(line, NetAccess::Closed, &programs),
+                want,
+                "{line}"
+            );
         }
     }
 
     #[test]
     fn an_open_sandbox_reaches_with_every_command() {
         for line in ["ls", "cargo test", "pwd", "git status"] {
-            assert_eq!(NetReach::of(line, NetAccess::Open), NetReach::Possible);
+            assert_eq!(
+                NetReach::of(line, NetAccess::Open, &programs()),
+                NetReach::Possible
+            );
         }
     }
 
@@ -305,6 +185,9 @@ mod tests {
 
     #[test]
     fn an_empty_line_reaches_nothing() {
-        assert_eq!(NetReach::of("", NetAccess::Closed), NetReach::None);
+        assert_eq!(
+            NetReach::of("", NetAccess::Closed, &programs()),
+            NetReach::None
+        );
     }
 }

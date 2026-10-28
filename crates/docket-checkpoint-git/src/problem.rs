@@ -9,18 +9,9 @@ use std::sync::Arc;
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum GitCause {
-    /// The process did not start.
-    #[error("git could not be started")]
-    Spawn,
-    /// Its pipes broke or it could not be waited for.
-    #[error("git could not be run to the end")]
-    Io,
-    /// It passed its deadline and was killed.
-    #[error("git ran past its deadline")]
-    TimedOut,
-    /// It printed more than the limit and was killed.
-    #[error("git printed more than the limit")]
-    TooMuchOutput,
+    /// Git could not be run to its end.
+    #[error(transparent)]
+    Run(#[from] GitFault),
     /// It ended without success.
     #[error("git ended with status {code:?}: {stderr}")]
     Exit {
@@ -29,17 +20,6 @@ pub enum GitCause {
         /// The last bytes of its standard error, as text.
         stderr: String,
     },
-}
-
-impl From<GitFault> for GitCause {
-    fn from(fault: GitFault) -> Self {
-        match fault {
-            GitFault::Spawn => Self::Spawn,
-            GitFault::TimedOut => Self::TimedOut,
-            GitFault::TooMuchOutput => Self::TooMuchOutput,
-            GitFault::Io => Self::Io,
-        }
-    }
 }
 
 /// A failed command: which git subcommand, and why.

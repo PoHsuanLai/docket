@@ -26,6 +26,7 @@ mod live_settings;
 mod machines;
 mod messaging;
 mod mode;
+mod net_programs;
 mod notes;
 mod percall;
 mod perform;

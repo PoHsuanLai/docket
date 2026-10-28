@@ -39,32 +39,14 @@ pub enum Derivation {
     Derived,
 }
 
-/// Whether the host saw all the content the agent took in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Sight {
-    /// Every byte came through `fs/read_text_file`.
-    Whole,
-    /// Something came in that the host never saw (a tool the agent ran itself, a resumed
-    /// session, more text than was kept).
-    Partial,
-}
-
 /// What the host served one session, for the derivation test.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Served {
     paths: BTreeSet<AbsPath>,
     tokens: BTreeSet<String>,
-    sight: Sight,
-}
-
-impl Default for Served {
-    fn default() -> Self {
-        Self {
-            paths: BTreeSet::new(),
-            tokens: BTreeSet::new(),
-            sight: Sight::Whole,
-        }
-    }
+    /// Whether some content came in that the host never saw (a tool the agent ran itself, a
+    /// resumed session, more text than was kept).
+    partial: bool,
 }
 
 fn separator(c: char) -> bool {
@@ -123,7 +105,7 @@ impl Served {
         self.paths.insert(real.clone());
         for token in tokens_of(text) {
             if self.tokens.len() >= MAX_TOKENS {
-                self.sight = Sight::Partial;
+                self.partial = true;
                 return;
             }
             self.tokens.insert(token.to_owned());
@@ -133,12 +115,12 @@ impl Served {
     /// Content came in that the host never saw (a tool the agent ran itself, or a resumed
     /// session): from now on no command can be told apart from it, so every one is derived.
     pub fn unseen(&mut self) {
-        self.sight = Sight::Partial;
+        self.partial = true;
     }
 
     /// Nothing has been served and nothing unseen has come in.
     pub fn is_untouched(&self) -> bool {
-        self.sight == Sight::Whole && self.paths.is_empty()
+        !self.partial && self.paths.is_empty()
     }
 
     fn names_a_served_path(&self, cwd: &AbsPath, value: &str) -> bool {
@@ -156,7 +138,7 @@ impl Served {
 
     /// Whether the command `words` (program first) run in `cwd` derives from what was served.
     pub fn derivation(&self, words: &[String], cwd: &AbsPath) -> Derivation {
-        if self.sight == Sight::Partial {
+        if self.partial {
             return Derivation::Derived;
         }
         let derived = words.iter().enumerate().any(|(at, word)| {

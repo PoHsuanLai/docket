@@ -15,8 +15,8 @@ fn facts<'a>(effect: Effect, why: &'a [AskReason], untrusted: &'a [ArgSink]) -> 
         reach: AgentReach::Offered,
         why,
         untrusted,
-        breaker: BreakerState::Running,
-        budget: BudgetState::Within,
+        breaker_tripped: false,
+        over_budget: false,
         exec: None,
     }
 }
@@ -120,10 +120,10 @@ fn the_offer_rule_table() {
 #[test]
 fn a_tripped_breaker_or_spent_budget_withholds_before_anything_else() {
     let mut f = facts(Effect::Destructive, &[AskReason::OutsideTask], &[]);
-    f.breaker = BreakerState::Tripped;
+    f.breaker_tripped = true;
     assert_eq!(blocker(&f), Some(Withheld::BreakerTripped));
-    f.breaker = BreakerState::Running;
-    f.budget = BudgetState::Over;
+    f.breaker_tripped = false;
+    f.over_budget = true;
     assert_eq!(blocker(&f), Some(Withheld::OverBudget));
 }
 
@@ -227,8 +227,8 @@ proptest! {
             reach: if ask_always { AgentReach::AskAlways } else { AgentReach::Offered },
             why: &why,
             untrusted: &untrusted,
-            breaker: if tripped { BreakerState::Tripped } else { BreakerState::Running },
-            budget: if spent { BudgetState::Over } else { BudgetState::Within },
+            breaker_tripped: tripped,
+            over_budget: spent,
             exec: None,
         };
         let offered = matches!(
@@ -266,7 +266,12 @@ proptest! {
 fn an_executes_session_taint_excuses_only_a_command_of_its_own_with_no_way_out() {
     use AskReason as R;
     let taint = [R::Tainted, R::RuleOfTwo, R::UntrustedSink(ArgSink::Body)];
-    let exec = |derives, network, line| Some(ExecFacts::from_choices(derives, network, line));
+    let programs = NetPrograms {
+        any: vec!["curl".to_owned()],
+        ..NetPrograms::default()
+    };
+    let exec =
+        |derives, network, line| Some(ExecFacts::from_choices(derives, network, line, &programs));
     let with = |exec| AskFacts {
         exec,
         ..facts(Effect::Outbound, &taint, &[ArgSink::Body])
@@ -289,7 +294,7 @@ fn an_executes_session_taint_excuses_only_a_command_of_its_own_with_no_way_out()
     assert_eq!(blocker(&outside), Some(Withheld::OutsideTask));
     // A tripped breaker comes first, and a way out beats the other reasons.
     let tripped = AskFacts {
-        breaker: BreakerState::Tripped,
+        breaker_tripped: true,
         ..out
     };
     assert_eq!(blocker(&tripped), Some(Withheld::BreakerTripped));
