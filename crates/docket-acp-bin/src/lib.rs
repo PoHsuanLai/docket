@@ -38,6 +38,7 @@ use docket_store::SystemClock;
 use docket_tasks::{Companion, Quiet, RouterLog};
 use helpers::LiveHelpers;
 use porter_core::AppName;
+use porter_daemon::ProcRoot;
 use std::sync::Arc;
 use tokio::io::{BufReader, stdin, stdout};
 
@@ -83,10 +84,19 @@ pub async fn serve(
 
 /// Where the callers are read from: the system's `/proc` and callers file, unless the acceptance
 /// harness (`harness::acp`) points at a fixture tree and a file of its own.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct Callers {
-    pub(crate) proc_root: Option<std::path::PathBuf>,
+    pub(crate) proc_root: ProcRoot,
     pub(crate) system_callers: Option<std::path::PathBuf>,
+}
+
+impl Default for Callers {
+    fn default() -> Self {
+        Self {
+            proc_root: ProcRoot::System,
+            system_callers: None,
+        }
+    }
 }
 
 async fn serve_on(
@@ -109,7 +119,7 @@ async fn serve_on(
     let who = Arc::new(Identity::on(
         connection.clone(),
         table,
-        seams.proc_root.as_deref(),
+        seams.proc_root.fixture(),
     ));
     connection
         .object_server()

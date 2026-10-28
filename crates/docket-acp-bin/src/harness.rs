@@ -18,18 +18,28 @@ pub mod serve {
 pub mod acp {
     use crate::{Callers, LiveFault};
     use docket_acp::Permit;
+    use porter_daemon::ProcRoot;
     use std::path::PathBuf;
 
     /// What only the acceptance harness's mains choose: the `/proc` callers are read from (a
     /// fixture tree has each unit's main process in `<root>/units`) and the system's callers file.
     /// The packaged binary uses the system's `/proc` and `/etc/quire`, and no environment variable
     /// can change either.
-    #[derive(Debug, Clone, Default)]
+    #[derive(Debug, Clone)]
     pub struct HarnessSeams {
-        /// A fixture `/proc`, else the system's.
-        pub proc_root: Option<PathBuf>,
+        /// Where callers' processes are read: the system's `/proc`, or a fixture tree.
+        pub proc_root: ProcRoot,
         /// The system's callers file, else `/etc/quire/acp-callers.toml`.
         pub system_callers: Option<PathBuf>,
+    }
+
+    impl Default for HarnessSeams {
+        fn default() -> Self {
+            Self {
+                proc_root: ProcRoot::System,
+                system_callers: None,
+            }
+        }
     }
 
     /// [`crate::serve`] with the seams the acceptance harness's mains choose.

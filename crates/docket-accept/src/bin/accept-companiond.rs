@@ -19,10 +19,6 @@ fn main() -> ExitCode {
         proc_root: docket_accept::seams::proc_root(
             &env,
             docket_accept::seams::COMPANIOND_PROC_ROOT_VAR,
-        )
-        .map_or(
-            porter_daemon::ProcRoot::System,
-            porter_daemon::ProcRoot::Fake,
         ),
         system_callers: docket_accept::seams::system_callers(
             &env,

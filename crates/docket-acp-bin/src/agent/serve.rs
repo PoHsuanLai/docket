@@ -36,6 +36,7 @@ use docket_dbus::callers::Identity;
 use docket_dbus::{AGENT_HOST_BUS, AGENT_HOST_PATH, BusConnection};
 use docket_launch::dbus::DbusAccounts;
 use docket_session::{BackendEvent, EndCause, ProgramName, SessionHost};
+use porter_daemon::ProcRoot;
 use prov::SpaceId;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
@@ -293,14 +294,24 @@ impl Active {
 /// callers are read from (a fixture tree), the system's callers file, and how the agents'
 /// sandboxes are bounded. The packaged program passes the defaults ([`run`]): the system's `/proc`
 /// and `/etc/quire`, and a scope of the user manager.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct HarnessSeams {
-    /// A fixture `/proc`, else the system's.
-    pub proc_root: Option<PathBuf>,
+    /// Where callers' processes are read: the system's `/proc`, or a fixture tree.
+    pub proc_root: ProcRoot,
     /// The system's callers file, else `/etc/quire/acp-callers.toml`.
     pub system_callers: Option<PathBuf>,
     /// How an agent's sandbox is bounded.
     pub limits: SandboxLimits,
+}
+
+impl Default for HarnessSeams {
+    fn default() -> Self {
+        Self {
+            proc_root: ProcRoot::System,
+            system_callers: None,
+            limits: SandboxLimits::default(),
+        }
+    }
 }
 
 /// Serves `AgentHost1` under the host's name until it has been quiet for ten minutes. `env` is
@@ -332,7 +343,7 @@ pub async fn run_with(
         None => crate::callers::read(&var),
     }
     .map_err(|e| AgentFault::Callers(e.to_string()))?;
-    let callers = Arc::new(Identity::on(bus.clone(), table, proc_root.as_deref()));
+    let callers = Arc::new(Identity::on(bus.clone(), table, proc_root.fixture()));
     let service = Arc::new(Service::new(bus.clone(), limits, places.clone()));
     // Served before the name is claimed, so the first call finds it.
     bus.object_server()

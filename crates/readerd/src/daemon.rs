@@ -11,6 +11,7 @@ use docket_dbus::BusConnection;
 use docket_dbus::InferWatch;
 use docket_dbus::callers::Identity;
 use futures_util::StreamExt;
+use porter_daemon::ProcRoot;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -30,12 +31,21 @@ pub async fn start(
 /// What only the acceptance harness's mains choose: the `/proc` callers are read from and the
 /// system's callers file. The shipped `main` passes the default (the system's `/proc`, the file
 /// under `/etc/quire`) and no environment variable can change either.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct HarnessSeams {
-    /// A fixture `/proc`, else the system's.
-    pub proc_root: Option<PathBuf>,
+    /// Where callers' processes are read: the system's `/proc`, or a fixture tree.
+    pub proc_root: ProcRoot,
     /// The system's callers file, else `/etc/quire/readerd-callers.toml`.
     pub system_callers: Option<PathBuf>,
+}
+
+impl Default for HarnessSeams {
+    fn default() -> Self {
+        Self {
+            proc_root: ProcRoot::System,
+            system_callers: None,
+        }
+    }
 }
 
 /// The daemon: the session bus from `env` (the process's environment, which its `main` passes
@@ -61,7 +71,7 @@ pub async fn run_with(
     let who = Arc::new(Identity::on(
         connection.clone(),
         table,
-        seams.proc_root.as_deref(),
+        seams.proc_root.fixture(),
     ));
     start(&connection, tap, who).await?;
     let mut messages = zbus::MessageStream::from(&connection);

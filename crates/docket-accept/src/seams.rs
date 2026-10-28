@@ -6,6 +6,7 @@
 
 use docket_dbus::InferWatch;
 use docket_trace::Tap;
+use porter_daemon::ProcRoot;
 use std::path::PathBuf;
 
 /// The variable that names the file the model tap appends to (prompts go to disk).
@@ -58,9 +59,10 @@ pub fn trace(env: &impl Fn(&str) -> Option<String>) -> InferWatch {
     })
 }
 
-/// The fixture `/proc` named by the variable `name`, if the world set one.
-pub fn proc_root(env: &impl Fn(&str) -> Option<String>, name: &str) -> Option<PathBuf> {
-    set(env, name).map(PathBuf::from)
+/// The `/proc` a daemon reads: the fixture tree named by the variable `name` if the world set
+/// one, else the system's.
+pub fn proc_root(env: &impl Fn(&str) -> Option<String>, name: &str) -> ProcRoot {
+    set(env, name).map_or(ProcRoot::System, |dir| ProcRoot::Fake(PathBuf::from(dir)))
 }
 
 /// The file named by the variable `name`, if the world set one: a system callers file.

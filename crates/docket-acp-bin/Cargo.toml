@@ -52,6 +52,7 @@ bulkhead = { workspace = true, features = ["landlock"] }
 docket-tasks = { workspace = true }
 futures-util = { workspace = true }
 porter-core = { workspace = true }
+porter-daemon = { workspace = true }
 serde_json = { workspace = true }
 prov = { workspace = true }
 thiserror = { workspace = true }
