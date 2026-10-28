@@ -10,7 +10,7 @@ use crate::router::Router;
 use crate::seams::Seams;
 use action_review::Breaker;
 use docket_context::session::{SessionEvent, session_step};
-use docket_context::state::{RouterState, SessionRecord};
+use docket_context::state::SessionRecord;
 use docket_context::tasks::TaskState;
 use docket_core::AuditRecord;
 use docket_core::EventSink;
