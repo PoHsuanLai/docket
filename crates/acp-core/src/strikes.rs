@@ -3,7 +3,7 @@
 //! what it ruled on; an agent that keeps trying places it may not reach is never ruled on, so
 //! this counts them, and the turn pauses until the person speaks. Pure counts.
 
-use docket_core::BreakerTrip;
+use docket_permissions_core::BreakerTrip;
 
 /// Refusals in a row after which the turn pauses.
 pub const STRIKES_MAX: u32 = 5;

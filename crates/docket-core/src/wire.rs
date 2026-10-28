@@ -23,11 +23,11 @@ use crate::reader::ReaderAsk;
 use crate::roster::{EpisodeLine, RecalledLine};
 use crate::roster::{PrimerText, ProfileLine};
 use crate::task::{SessionOpen, SessionOpened};
-use crate::task_policy::TaskPolicy;
 use crate::undo::{UndoEntry, UndoFault, UndoScope};
 use almanac_core::{
     Episode, EpisodeId, EventSummary, InjectQuery, JsonText, Narrative, RecentQuery,
 };
+use docket_permissions_core::TaskPolicy;
 use docket_vocab::{
     ActionRef, CallRequest, EntityRef, Handle, IntentsVocab, NoteSlug, TurnId, UndoId, Value,
     WindowKey, Workspace,
@@ -209,7 +209,7 @@ pub struct GrantAsk {
     /// request from before this field meant), ask every run, or never. The router keeps its own
     /// store the last word: an entry it holds can only make this stricter.
     #[serde(default)]
-    pub level: crate::limit::Level,
+    pub level: docket_permissions_core::Level,
     /// The screen run this request is for. With it, the person's yes covers that run alone; a
     /// request from before this field names no run, and covers every live screen run in the
     /// Space. `cuad` should send it, so two runs in one Space each get their own start sheet.
@@ -223,7 +223,7 @@ pub struct SessionModeAsk {
     /// The conversation.
     pub session: SessionId,
     /// The mode to switch to.
-    pub mode: crate::mode::Mode,
+    pub mode: docket_permissions_core::Mode,
 }
 
 /// How a grant request ended.
@@ -500,7 +500,7 @@ pub enum IntentsRequest {
     /// `.Control.StandingGrants`: the standing "allow always" grants held (Settings lists them).
     ControlStandingGrants,
     /// `.Control.RevokeStandingGrant`: the next call it covered asks again.
-    ControlStandingRevoke(crate::StandingGrantId),
+    ControlStandingRevoke(docket_permissions_core::StandingGrantId),
 }
 
 /// Why a request got no answer of its own kind.
@@ -669,7 +669,7 @@ pub enum IntentsReply {
     /// The actions the terminal holds a standing grant for.
     TerminalGrants(Vec<ActionRef>),
     /// The standing grants held.
-    StandingGrants(Vec<crate::StandingGrant>),
+    StandingGrants(Vec<docket_permissions_core::StandingGrant>),
     /// The request was refused.
     Refused(WireRefusal),
 }

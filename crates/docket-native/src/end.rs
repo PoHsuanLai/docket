@@ -37,8 +37,8 @@ fn failed(failure: Option<&Failure>) -> TurnEnd {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::BreakerTrip;
     use docket_core::{BudgetKind, CallRefusal};
+    use docket_permissions_core::BreakerTrip;
 
     fn at(phase: LoopPhase) -> LoopState {
         LoopState {

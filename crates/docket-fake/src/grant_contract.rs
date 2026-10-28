@@ -7,9 +7,9 @@
 //! what a failed write is kept as) stays in the host's own tests. Test code: it panics on a
 //! failed check.
 
-use docket_core::{
-    AbsPath, ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, Revocation, StandingGrant,
-    StandingScope,
+use bulkhead::AbsPath;
+use docket_permissions_core::{
+    ActionGrant, ActionGrantKey, GrantCaller, GrantTarget, Revocation, StandingGrant, StandingScope,
 };
 use docket_router::GrantStore;
 use docket_vocab::ActionRef;

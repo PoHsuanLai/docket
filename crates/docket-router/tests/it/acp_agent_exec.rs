@@ -4,8 +4,14 @@
 
 use crate::acp_agent::*;
 use crate::support::*;
+use bulkhead::AbsPath;
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
+use docket_permissions_core::{
+    AlwaysOffer, CommandPrefix, DERIVES_OWN, DERIVES_PARAM, DERIVES_READ, GrantCaller,
+    NETWORK_CLOSED, NETWORK_OPEN, NETWORK_PARAM, StandingGrant, StandingScope, TERMINAL_RUN,
+    Withheld, acp_agent_action,
+};
 use docket_router::GrantStore;
 
 const PROJ: &str = "/home/u/proj";

@@ -26,6 +26,7 @@ const-hex = { workspace = true }
 docket-client = { workspace = true }
 docket-core = { workspace = true }
 docket-manifest = { workspace = true }
+docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 docket-procroot = { workspace = true }
 docket-session = { workspace = true }

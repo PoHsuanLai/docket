@@ -37,6 +37,7 @@ docket-log = { workspace = true }
 
 [dev-dependencies]
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
+docket-permissions-core = { workspace = true }
 docket-testbus = { workspace = true }
 tempfile = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }

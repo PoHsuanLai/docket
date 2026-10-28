@@ -2,7 +2,7 @@
 //! ceiling its policy is cut to, and the things it alone may write.
 
 use crate::helper::HelperName;
-use crate::task_policy::TaskPolicy;
+use docket_permissions_core::TaskPolicy;
 use prov::{EntityId, HelperId};
 use serde::{Deserialize, Serialize};
 

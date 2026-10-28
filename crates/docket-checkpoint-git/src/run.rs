@@ -1,6 +1,6 @@
 //! The one effect: running git as a process. No shell is involved: the arguments are a list.
 
-use docket_core::AbsPath;
+use bulkhead::AbsPath;
 use std::process::{ExitStatus, Stdio};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};

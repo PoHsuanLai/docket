@@ -11,7 +11,8 @@ use agent_client_protocol::schema::v1::{
     CreateElicitationResponse, ElicitationAction, Error, RequestPermissionOutcome,
     RequestPermissionResponse, SessionNotification,
 };
-use docket_core::{FILES_READ, FILES_WRITE, StepLine, StepShown, TERMINAL_RUN, acp_agent_action};
+use docket_core::{StepLine, StepShown};
+use docket_permissions_core::{FILES_READ, FILES_WRITE, TERMINAL_RUN, acp_agent_action};
 use docket_session::{BackendEvent, CallEvent, CallOpen, TurnEnd};
 use docket_vocab::CallId;
 use prov::Effect;
@@ -184,7 +185,7 @@ impl<X: Seams> AcpBackend<X> {
         let (action, effect) = match &work {
             Work::Read(_) => (FILES_READ, Effect::Read),
             Work::Write(_) => (FILES_WRITE, Effect::UndoableWrite),
-            Work::Create(_) => (TERMINAL_RUN, docket_core::EXECUTE_AS),
+            Work::Create(_) => (TERMINAL_RUN, docket_permissions_core::EXECUTE_AS),
             Work::Permission(_) => ("", Effect::Read),
         };
         let call = acp_agent_action(action)

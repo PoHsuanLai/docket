@@ -5,6 +5,7 @@
 use crate::support::*;
 use docket_core::*;
 use docket_fake::{MenuItem, MenuPerform};
+use docket_permissions_core::{ActionGrantKey, GrantCaller, GrantTarget, Strictness};
 use docket_router::Router;
 use docket_vocab::{
     ActionRef, CallClass, CallRequest, Classification, ClassifyAnswer, ClassifyFault,

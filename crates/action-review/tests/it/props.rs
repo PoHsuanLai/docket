@@ -3,7 +3,7 @@
 //! reads as an allow (or an ask, or a refusal) that the reference does not.
 
 use action_review::parse_verdict;
-use docket_core::{ReviewError, Stage, VerdictKind};
+use docket_permissions_core::{ReviewError, Stage, VerdictKind};
 use proptest::prelude::*;
 
 const CODES: [&str; 11] = [

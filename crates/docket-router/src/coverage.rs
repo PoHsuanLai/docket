@@ -1,10 +1,10 @@
-//! Whether a call is inside the task policy. `docket_core::covers` judges the call from the
+//! Whether a call is inside the task policy. `docket_permissions_core::covers` judges the call from the
 //! manifest's declaration (its effect, its cap and where each argument goes) and the labels; the
 //! clock's expiry is the router's.
 
-use docket_core::ActionMatch;
-use docket_core::{ArgLabels, Coverage, TaskPolicy, Widening, covers};
 use docket_manifest::ActionDecl;
+use docket_permissions_core::ActionMatch;
+use docket_permissions_core::{ArgLabels, Coverage, TaskPolicy, Widening, covers};
 use docket_vocab::CallRequest;
 use prov::UnixSeconds;
 

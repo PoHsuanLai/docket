@@ -120,11 +120,16 @@ async fn host_allowed(agents: AcpAgents, expose: AcpExpose) -> bool {
     let gate = AcpGate::new(expose);
     gate.set_agents(agents);
     let config = IntentdConfig {
-        roles: BTreeMap::from([(CallerRole::AcpAgent, vec![app(docket_core::ACP_AGENT_APP)])]),
+        roles: BTreeMap::from([(
+            CallerRole::AcpAgent,
+            vec![app(docket_permissions_core::ACP_AGENT_APP)],
+        )]),
         ..IntentdConfig::empty()
     };
     let world = World::serving_gated(mail_router(), config, "test-runner.service", gate).await;
-    let (host, _keep) = world.client(&[docket_core::ACP_AGENT_APP]).await;
+    let (host, _keep) = world
+        .client(&[docket_permissions_core::ACP_AGENT_APP])
+        .await;
     !refused(&host.call(turn()).await.expect("a reply"))
 }
 

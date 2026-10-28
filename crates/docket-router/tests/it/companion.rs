@@ -3,6 +3,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_permissions_core::{COMPANION_APP, PolicyChange, Saw, compare};
 use docket_router::{HandleValue, Router, TaskState};
 use docket_vocab::{Args, CallId, ChoiceId, Handle, Origin, TargetValue, Value};
 use prov::{

@@ -9,8 +9,8 @@ use crate::message::InboundLine;
 use crate::roster::{EpisodeLine, PrimerText, ProfileLine, RecalledLine, RollupLine, Roster};
 use crate::schema::ToolSchema;
 use crate::skill::{SkillCard, SkillText};
-use crate::task_policy::TaskPolicy;
 use docket_manifest::{AgentReach, Lasting, RelationDecl, TargetKind};
+use docket_permissions_core::TaskPolicy;
 use docket_vocab::{ActionRef, CallId, CharCount, Handle, LabelText, TurnId, UndoId, Value};
 use prov::{Effect, EntityKind, Integrity, Source, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -60,7 +60,7 @@ pub struct TurnIn {
     pub via: TurnVia,
     /// The mode the conversation switches to with this turn; none keeps the current one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mode: Option<crate::mode::Mode>,
+    pub mode: Option<docket_permissions_core::Mode>,
 }
 
 /// A recorded turn: the person's own words, trusted, verbatim.
@@ -78,7 +78,7 @@ pub struct UserTurn {
     pub via: TurnVia,
     /// The mode the conversation was switched to with this turn; none when it kept its mode.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mode: Option<crate::mode::Mode>,
+    pub mode: Option<docket_permissions_core::Mode>,
 }
 
 macro_rules! redact_turn {

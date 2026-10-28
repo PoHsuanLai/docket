@@ -1,6 +1,7 @@
 //! The session machine, the index machine and the undo journal.
 
 use docket_core::*;
+use docket_permissions_core::BreakerTrip;
 use docket_router::*;
 use docket_vocab::{ActionRef, LabelText, Seconds, UndoId, UndoToken};
 use prov::{Actor, AgentRole, RunId, SessionId, UnixSeconds};

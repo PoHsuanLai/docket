@@ -243,7 +243,7 @@ impl AppLink for FakeLink {
                 .map_err(AppFault::Refused)
         } else if let Some(hosted) = self.hosted(app) {
             hosted.perform(inv).await.map_err(AppFault::Refused)
-        } else if app.as_str() == docket_core::COMPANION_APP {
+        } else if app.as_str() == docket_permissions_core::COMPANION_APP {
             match self.companion.0.get() {
                 Some(perform) => perform(inv).map_err(AppFault::Refused),
                 None => Err(AppFault::Unavailable),

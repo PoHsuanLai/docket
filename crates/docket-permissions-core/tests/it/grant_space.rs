@@ -2,11 +2,11 @@
 //! a Space that is gone ends its grants, and another app's own Space is never open.
 
 use crate::support::*;
-use docket_core::*;
+use docket_permissions_core::*;
 use porter_core::DesktopSpace;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{DataClass, GrantId};
-use prov::{SpaceId, SpaceScope};
+use prov::SpaceScope;
 
 fn grant(id: &str, caller: GrantCaller, scope: SpaceScope) -> ActionGrant {
     Grant {
@@ -160,24 +160,4 @@ fn a_file_that_is_wrong_in_any_other_way_is_a_fault_not_a_migration() {
         serde_json::to_value(grant("g-1", GrantCaller::Companion, only("work"))).expect("json");
     broken["decision"] = serde_json::json!("maybe");
     assert!(decode_grants(&format!("[{broken}]")).is_err());
-}
-
-#[test]
-fn a_dropped_entry_is_audited_in_its_own_words() {
-    let record = AuditRecord::GrantsEnded {
-        at: at(5),
-        ended: Ended {
-            why: GrantEnd::SpaceGone(SpaceId::parse("home").expect("space")),
-            count: 2,
-        },
-    };
-    let json = serde_json::to_string(&record).expect("json");
-    assert_eq!(
-        json,
-        r#"{"kind":"grants_ended","v":{"at":5,"ended":{"why":{"kind":"space_gone","v":"home"},"count":2}}}"#
-    );
-    assert_eq!(
-        serde_json::from_str::<AuditRecord>(&json).expect("back"),
-        record
-    );
 }

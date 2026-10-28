@@ -7,7 +7,7 @@
 //! shows nothing).
 
 use crate::config::Delivery;
-use docket_core::AbsPath;
+use bulkhead::AbsPath;
 use porter_core::capability::{AgentProgram, AgentProtocol};
 use porter_core::{
     AccountId, DataClass, KeyPermitId, LauncherSession, LoginOutcome, LoginRequestId,

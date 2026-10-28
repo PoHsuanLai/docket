@@ -3,8 +3,8 @@
 //! name apps and choose a ceiling, and the policy covers those apps' things up to it, trusting no
 //! recipient, destination or path (anything a job sends out or writes to a place still asks).
 
-use crate::task_policy::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_manifest::Manifest;
+use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_vocab::LabelText;
 use porter_core::{AppName, Count};
 use prov::{Effect, SpaceId, TaskId, UnixSeconds};

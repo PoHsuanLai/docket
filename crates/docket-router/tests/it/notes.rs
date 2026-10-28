@@ -9,6 +9,7 @@ use almanac_core::{
 use almanac_core::{Succession, UserText};
 use docket_core::*;
 use docket_fake::ScriptedWriter;
+use docket_permissions_core::{ActionMatch, PolicyChange, TaskPolicy, compare};
 use docket_vocab::{ActionRef, CallId, CharCount, NoteSlug, TurnId};
 use prov::{AgentRef, Label, MessageKind, ReportStatus, SessionId, Source, UnixSeconds};
 
@@ -411,7 +412,7 @@ async fn narrowing_a_subagent_never_widens_what_it_has() {
 
 fn helper_action(name: &str) -> ActionRef {
     ActionRef {
-        app: app(docket_core::COMPANION_APP),
+        app: app(docket_permissions_core::COMPANION_APP),
         name: prov::ActionName::parse(name).expect("action"),
     }
 }

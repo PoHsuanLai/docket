@@ -6,6 +6,7 @@ use crate::standing::{ADDRESS, move_to, scope_to, send, send_with, under, used};
 use crate::support::*;
 use docket_core::*;
 use docket_fake::{FakeSeams, MailContact, ScriptedConfirmer};
+use docket_permissions_core::{ActionMatch, AlwaysOffer, GrantCaller, TaskPolicy, Withheld};
 use docket_router::Router;
 use docket_vocab::{CallRequest, Value};
 use prov::{AgentRef, ClientName, Effect, Labelled, SessionId};

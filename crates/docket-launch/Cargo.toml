@@ -24,6 +24,7 @@ docket-acp = { workspace = true }
 # `fake` is public (`docket_launch::fake`), and builds on the host's in-memory pipe.
 docket-acp-host = { workspace = true, features = ["testing"] }
 docket-core = { workspace = true }
+docket-permissions-core = { workspace = true }
 docket-store = { workspace = true }
 docket-session = { workspace = true }
 docket-settings = { workspace = true }

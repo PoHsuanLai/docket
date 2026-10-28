@@ -6,12 +6,12 @@
 use crate::budget::HaltCause;
 use crate::call::CallEnd;
 use crate::confirm::{ConfirmEnd, GrantScope};
-use crate::grant::GrantCaller;
-use crate::review::{BreakerTrip, PolicyId, ReasonCode, ReviewMark, Stage};
-use crate::standing::{ScopeKind, StandingGrantId};
-use crate::task_policy::{PolicyChange, TaskPolicyState};
 use crate::undo::UndoState;
 use almanac_core::Episode;
+use docket_permissions_core::TaskPolicyState;
+use docket_permissions_core::{BreakerTrip, PolicyId, ReasonCode, ReviewMark, Stage};
+use docket_permissions_core::{GrantCaller, PolicyChangeKind};
+use docket_permissions_core::{ScopeKind, StandingGrantId};
 use docket_vocab::{ActionRef, CallId, UndoId};
 use prov::{
     Actor, AgentRef, ConfirmId, ConfirmReceipt, Effect, EntityId, InputProof, Message, SessionId,
@@ -48,29 +48,6 @@ pub enum ConfirmAnswerKind {
     Never,
     /// It ended without a yes.
     Ended(ConfirmEnd),
-}
-
-/// How a policy changed, without its contents.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PolicyChangeKind {
-    /// Covers less.
-    Narrows,
-    /// Covers the same.
-    Same,
-    /// Covers more.
-    Widens,
-}
-
-impl PolicyChange {
-    /// The change without its detail.
-    pub fn kind(&self) -> PolicyChangeKind {
-        match self {
-            PolicyChange::Narrows => PolicyChangeKind::Narrows,
-            PolicyChange::Same => PolicyChangeKind::Same,
-            PolicyChange::Widens(_) => PolicyChangeKind::Widens,
-        }
-    }
 }
 
 /// One thing the router records.
@@ -202,7 +179,7 @@ pub enum AuditRecord {
         /// When.
         at: UnixSeconds,
         /// Why, and how many.
-        ended: crate::grant_space::Ended,
+        ended: docket_permissions_core::Ended,
     },
     /// A halt began or ended.
     Halt {

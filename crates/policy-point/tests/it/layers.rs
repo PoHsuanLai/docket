@@ -2,7 +2,7 @@
 //! a bad source is handled by its layer without ever loosening the set.
 
 use crate::support::*;
-use docket_core::{
+use docket_permissions_core::{
     AskReason, Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope, PolicyId, Ruling,
     rule_text, with_rule,
 };

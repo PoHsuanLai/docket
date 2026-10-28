@@ -1,8 +1,8 @@
 //! What the daemon reads and writes on disk: the person's consent file, the installed manifests
 //! and the environment that says where they are.
 
-use docket_core::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
 use docket_fake::check_grant_file_contract;
+use docket_permissions_core::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
 use docket_router::GrantStore;
 use intentd::{FileGrants, Setup, load_manifests};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
@@ -280,13 +280,13 @@ fn the_consent_file_follows_the_shared_store_rules() {
 
 #[test]
 fn the_floor_file_is_none_when_missing_and_an_error_when_it_does_not_read() {
-    use docket_core::Strictness;
+    use docket_permissions_core::Strictness;
     use intentd::{FloorError, read_floor};
     let dir = tempfile::tempdir().expect("scratch");
     let path = dir.path().join("docket-floor.toml");
     assert_eq!(
         read_floor(&path).expect("no file is no floor"),
-        docket_core::Floor::none()
+        docket_permissions_core::Floor::none()
     );
     let rows = [
         ("not toml at all", "this is = = not toml"),
@@ -316,7 +316,7 @@ fn the_floor_file_is_none_when_missing_and_an_error_when_it_does_not_read() {
 
 #[test]
 fn limits_are_kept_beside_the_grants_and_removed_by_the_one_revoke_path() {
-    use docket_core::{
+    use docket_permissions_core::{
         Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope, Revocation,
     };
     let dir = tempfile::tempdir().expect("scratch");

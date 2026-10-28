@@ -2,7 +2,7 @@
 
 use companion_wire::*;
 use docket_core::helper::*;
-use docket_core::{ActionMatch, TaskPolicy, TaskPolicyState};
+use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_vocab::LabelText;
 use porter_core::Count;
 use prov::{AgentRef, Effect, HelperId, SpaceId, TaskId};

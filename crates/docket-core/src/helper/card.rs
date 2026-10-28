@@ -1,7 +1,7 @@
 //! The helper's card: what the person confirmed when they made it, and where it stands now.
 
 use super::job::JobId;
-use crate::task_policy::TaskPolicy;
+use docket_permissions_core::TaskPolicy;
 use porter_core::Count;
 use porter_infer::ModelRef;
 use prov::{AgentProgram, HelperId, SpaceId, TaskId};

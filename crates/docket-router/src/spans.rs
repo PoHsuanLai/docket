@@ -8,7 +8,8 @@
 //! have none, as for cost).
 
 use crate::prepared::Prepared;
-use docket_core::{Ruling, TokenTotals, TurnReport};
+use docket_core::{TokenTotals, TurnReport};
+use docket_permissions_core::Ruling;
 use genai_names::Operation;
 use prov::{SessionId, TaskId};
 use tracing::Span;

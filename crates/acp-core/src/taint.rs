@@ -4,7 +4,8 @@
 //! then uses in a command) is a change to what counts here and to the label the performer gives,
 //! not a hunt through string compares.
 
-use docket_core::{AbsPath, PermissionKind};
+use bulkhead::AbsPath;
+use docket_permissions_core::PermissionKind;
 use prov::Source;
 
 /// What caused it.

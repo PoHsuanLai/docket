@@ -4,7 +4,7 @@
 
 use crate::request::{CODES, slug};
 use crate::verdict::{ReviewReason, ReviewVerdict};
-use docket_core::{ReasonCode, ReasonText, ReviewError, Stage};
+use docket_permissions_core::{ReasonCode, ReasonText, ReviewError, Stage};
 use serde::Deserialize;
 
 /// The longest reason a model may write, in characters.

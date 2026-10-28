@@ -4,6 +4,7 @@
 
 use crate::support::inferd::*;
 use docket_core::*;
+use docket_permissions_core::{ActionMatch, ReviewError};
 use docket_vocab::{ActionRef, TurnId};
 use intentd::InferdWriter;
 use prov::{Effect, SpaceId, TaskId, UnixSeconds};

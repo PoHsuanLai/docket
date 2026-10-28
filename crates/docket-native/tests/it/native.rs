@@ -258,6 +258,7 @@ impl SheetDesk for Canned {
 
     fn request(&self, id: &docket_core::ConfirmId) -> Option<docket_core::ConfirmRequest> {
         use docket_core::*;
+        use docket_permissions_core::{AlwaysOffer, Withheld};
         use docket_vocab::{LabelText, Seconds};
         Some(
             ConfirmRequest::new(ConfirmParts {

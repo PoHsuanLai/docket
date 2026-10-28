@@ -19,7 +19,7 @@ use agent_client_protocol::schema::v1::{
     ResumeSessionRequest,
 };
 use agent_client_protocol::{SentRequest, UntypedMessage};
-use docket_core::AbsPath;
+use bulkhead::AbsPath;
 use docket_core::helper::{SignInHow, SignInWay, TerminalLogin};
 use docket_session::{BackendFault, Choice, Choices, Taint};
 use std::path::PathBuf;

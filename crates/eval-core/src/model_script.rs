@@ -8,7 +8,7 @@
 //! run plays them through inferd's replay engine (`docket-live`), the gate's deterministic suite
 //! through `action_review::parse_verdict`.
 
-use docket_core::Stage;
+use docket_permissions_core::Stage;
 use serde::{Deserialize, Serialize};
 
 /// The raw replies of the stages a case spoils.

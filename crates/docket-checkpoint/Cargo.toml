@@ -13,6 +13,7 @@ publish.workspace = true
 testing = []
 
 [dependencies]
+bulkhead = { workspace = true }
 const-hex = { workspace = true }
 docket-core = { workspace = true }
 docket-vocab = { workspace = true }

@@ -6,6 +6,7 @@
 use crate::support::*;
 use docket_core::*;
 use docket_fake::{BoxFut, HostedApp};
+use docket_permissions_core::DenyCode;
 use docket_vocab::{
     ActionRef, Args, CallRequest, LabelText, Origin, RECALL_ACTION, RECALL_APP, TargetValue, Value,
 };

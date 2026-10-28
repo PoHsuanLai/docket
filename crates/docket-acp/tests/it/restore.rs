@@ -2,7 +2,7 @@
 //! the sessions it opened, and cannot tell another app's session from one that does not exist.
 
 use crate::support::*;
-use docket_core::DenyCode;
+use docket_permissions_core::DenyCode;
 use docket_session::fake::MemoryLog;
 use docket_session::{BackendKind, Opening, Seq, SessionEntry, SessionLog, TurnEnd};
 use docket_vocab::Workspace;

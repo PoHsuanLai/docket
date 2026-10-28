@@ -5,9 +5,10 @@
 use super::agent::{AGENT_SESSION, Act, call};
 use super::rig::{CWD, Setup, abs, always, once, program, read, run_turn, started};
 use bulkhead::{Network, NetworkMode, fake::Script};
-use docket_core::{
-    AlwaysOffer, AuditRecord, CommandPrefix, GrantCaller, StandingGrant, StandingScope,
-    TERMINAL_RUN, Withheld, acp_agent_action,
+use docket_core::AuditRecord;
+use docket_permissions_core::{
+    AlwaysOffer, CommandPrefix, GrantCaller, StandingGrant, StandingScope, TERMINAL_RUN, Withheld,
+    acp_agent_action,
 };
 use prov::UnixSeconds;
 use serde_json::json;

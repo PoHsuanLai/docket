@@ -3,8 +3,9 @@
 
 use crate::support::{action, app};
 use crate::task_policy::{declared, edit, file, labels, policy};
-use docket_core::*;
+use bulkhead::{AbsPath, PathFault};
 use docket_manifest::ArgSink;
+use docket_permissions_core::*;
 use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
 use prov::Effect;
 

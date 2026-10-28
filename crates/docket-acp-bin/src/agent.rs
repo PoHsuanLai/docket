@@ -36,8 +36,8 @@ pub mod tty;
 pub mod wire;
 
 use args::{Args, Mode};
+use bulkhead::AbsPath;
 use docket_acp_host::Workdir;
-use docket_core::AbsPath;
 use docket_session::{BackendEvent, SessionHost};
 use fault::AgentFault;
 use host::{Hosted, host};

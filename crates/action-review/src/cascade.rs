@@ -4,7 +4,7 @@
 
 use crate::request::ReviewRequest;
 use crate::verdict::ReviewVerdict;
-use docket_core::{DenyCode, Impact, ReviewError, Ruling, Stage};
+use docket_permissions_core::{DenyCode, Impact, ReviewError, Ruling, Stage};
 use porter_core::{AccountId, ModelId};
 use serde::{Deserialize, Serialize};
 use std::future::Future;

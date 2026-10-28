@@ -2,7 +2,7 @@
 //! core and the two presets), the shape of a policy request, `Pdp::layered`, which builds one
 //! set from the layers (core, preset, person, assistant, administrator) and decides what to do
 //! with a source that is bad, and `Pdp::decide`, which maps three Cedar queries onto the four
-//! [`Ruling`](docket_core::Ruling)s. Pure: no I/O, no runtime; the caller reads the files and
+//! [`Ruling`](docket_permissions_core::Ruling)s. Pure: no I/O, no runtime; the caller reads the files and
 //! passes their text as [`PolicySource`]s.
 //!
 //! The rulings and the reasons to ask live in `docket-core` because the router's refusals and

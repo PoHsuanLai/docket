@@ -365,7 +365,7 @@ pub(crate) async fn call(connection: &BusConnection, request: IntentsRequest) ->
             let proxy = SessionProxy::new(c).await.map_err(bus)?;
             body(
                 proxy.task_policy(session.as_str()).await,
-                |policy: Option<docket_core::TaskPolicy>| {
+                |policy: Option<docket_permissions_core::TaskPolicy>| {
                     IntentsReply::TaskPolicy(policy.map(Box::new))
                 },
             )

@@ -8,7 +8,7 @@
 //! must not stop a call over a disk), so a failed write is kept for the app to ask for
 //! ([`FileGrantStore::take_fault`]); the grant still counts for this run.
 
-use docket_core::{
+use docket_permissions_core::{
     ActionGrant, Revocation, StandingGrant, StandingGrantId, decode_standing, encode_standing,
     held_with, held_without,
 };

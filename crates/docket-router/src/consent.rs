@@ -2,8 +2,10 @@
 //! touches. What a tainted session does to an `Always` is the policy's (`tainted-always-asks`).
 
 use crate::companion_names::LIMIT_ADD;
-use docket_core::{ActionGrant, ActionGrantKey, COMPANION_APP, GrantCaller, GrantTarget};
 use docket_manifest::ActionDecl;
+use docket_permissions_core::{
+    ActionGrant, ActionGrantKey, COMPANION_APP, GrantCaller, GrantTarget,
+};
 use policy_point::TaintFact;
 use porter_core::consent::{GrantScope, Usage, Verdict, decide};
 use porter_core::{DataClass, GrantId};
@@ -67,7 +69,7 @@ pub(crate) fn consent_for(
         // person launched the agent in a directory, not into their mail, so an action of another
         // app that the agent calls over its tool edge is asked about like a planner's.
         GrantCaller::AcpAgent(_) | GrantCaller::AcpHelper { .. }
-            if app.as_str() == docket_core::ACP_AGENT_APP =>
+            if app.as_str() == docket_permissions_core::ACP_AGENT_APP =>
         {
             Verdict::Granted {
                 grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),

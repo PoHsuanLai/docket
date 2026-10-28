@@ -5,9 +5,10 @@ use crate::seams::Seams;
 use crate::state::RouterState;
 use crate::watch::Watch;
 use docket_core::{
-    AgentConfig, CallerId, CallerRole, Floor, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk,
+    AgentConfig, CallerId, CallerRole, IntentsReply, IntentsRequest, WidenAnswer, WidenAsk,
     WireRefusal,
 };
+use docket_permissions_core::Floor;
 use docket_vocab::Clock;
 use policy_point::Presets;
 use std::future::Future;

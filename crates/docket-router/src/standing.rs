@@ -7,9 +7,10 @@
 use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::{GrantStore, Seams};
+use docket_core::AuditRecord;
 use docket_core::EventSink;
-use docket_core::{
-    AuditRecord, CallFacts, GrantCaller, Revocation, StandingGrant, StandingGrantId, StandingScope,
+use docket_permissions_core::{
+    CallFacts, GrantCaller, Revocation, StandingGrant, StandingGrantId, StandingScope,
 };
 use docket_vocab::Clock;
 

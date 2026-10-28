@@ -4,7 +4,7 @@
 //!
 //! The shapes and the rules are `docket_core`'s ([`Floor`]); this reads the file.
 
-use docket_core::{Floor, FloorFile};
+use docket_permissions_core::{Floor, FloorFile};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 

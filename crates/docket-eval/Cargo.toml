@@ -17,6 +17,7 @@ action-review = { workspace = true }
 docket-fake = { workspace = true }
 docket-core = { workspace = true }
 docket-manifest = { workspace = true, features = ["manifest-file"] }
+docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 docket-skills = { workspace = true }
 docket-skills-disk = { workspace = true }

@@ -1,7 +1,7 @@
 //! Budgets, the ledger that spends them, and the kill switch. `charge` and `halted` are pure.
 
-use crate::review::BreakerTrip;
 use crate::spend::{Spent, check_turn};
+use docket_permissions_core::BreakerTrip;
 use docket_vocab::{Depth, Seconds};
 use porter_core::{Count, MicroUsd};
 use prov::{Effect, SpaceId, UnixSeconds};

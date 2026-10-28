@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 docket-core = { workspace = true }
 docket-manifest = { workspace = true }
+docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }

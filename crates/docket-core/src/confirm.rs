@@ -4,10 +4,10 @@
 
 use crate::brief::{BriefSheet, BriefText};
 use crate::helper::HelperName;
-use crate::limit::LimitNote;
 use crate::preview::{FileMove, Preview};
-use crate::review::AskReason;
-use crate::standing_offer::AlwaysOffer;
+use docket_permissions_core::AlwaysOffer;
+use docket_permissions_core::AskReason;
+use docket_permissions_core::LimitNote;
 use docket_vocab::{EntityRef, LabelText, Seconds, WindowKey};
 use porter_core::{AppName, Count};
 use prov::{Actor, ClientName, ConfirmReceipt, Effect, SessionId, Source, SpaceId};

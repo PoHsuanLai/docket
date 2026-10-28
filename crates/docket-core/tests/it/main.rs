@@ -3,18 +3,13 @@ mod budget;
 mod checkpoint;
 mod compact;
 mod episodes;
-mod grant_space;
 mod helper;
-mod limits;
+mod permission_records;
 mod records;
 mod routine;
 mod schema;
-mod standing;
 mod support;
-mod task_paths;
-mod task_policy;
 mod tool_schema;
-mod url_hosts;
 
 /// Every test file is one module of this binary: a `tests/*.rs` file would be a binary of its
 /// own, and a `tests/it/` file or directory without a `mod` line would never run.

@@ -4,10 +4,10 @@
 //! write or a command's argument vector stays with the host behind a `StageId`.
 
 use crate::confine::Care;
-use docket_core::{
-    AbsPath, DERIVES_PARAM, Derivation, FILES_READ, FILES_SENSITIVE, FILES_WRITE, NETWORK_PARAM,
-    NetAccess, PermissionKind, REPORTED, TERMINAL_RUN, acp_agent_action, derives_choice,
-    network_choice,
+use bulkhead::AbsPath;
+use docket_permissions_core::{
+    DERIVES_PARAM, Derivation, FILES_READ, FILES_SENSITIVE, FILES_WRITE, NETWORK_PARAM, NetAccess,
+    PermissionKind, REPORTED, TERMINAL_RUN, acp_agent_action, derives_choice, network_choice,
 };
 use docket_vocab::{CallRequest, ChoiceId, FileRef, Origin, TargetValue, Value};
 use prov::{Integrity, Label, Labelled, ModelRole, Source};

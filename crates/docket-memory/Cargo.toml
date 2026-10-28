@@ -22,6 +22,7 @@ prov = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+docket-permissions-core = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 almanac-client = { workspace = true, features = ["in_process"] }
 almanac-fake = { workspace = true }

@@ -3,7 +3,8 @@
 
 use crate::companion_names::BRIEF_CONFIRM;
 use crate::prepared::Prepared;
-use docket_core::{BriefSheet, BriefText, COMPANION_APP, ConfirmAnswer, ConfirmEnd, GrantScope};
+use docket_core::{BriefSheet, BriefText, ConfirmAnswer, ConfirmEnd, GrantScope};
+use docket_permissions_core::COMPANION_APP;
 use docket_vocab::{ActionRef, LabelText, ParamName, Value};
 
 /// The most pieces a sheet lists.

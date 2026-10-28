@@ -3,7 +3,7 @@
 //! the edge.
 
 use bulkhead::{CannotSandbox as ShellCannot, Network, NetworkMode, SandboxState as ShellState};
-use docket_core::{CannotSandbox, NetAccess, SandboxState};
+use docket_permissions_core::{CannotSandbox, NetAccess, SandboxState};
 
 /// Why bulkhead cannot confine, as docket-core words it.
 pub const fn cannot(why: ShellCannot) -> CannotSandbox {

@@ -10,9 +10,10 @@ use crate::tasks::TaskTable;
 use crate::wal::{Lane, Wal};
 use action_review::Breaker;
 use docket_core::{
-    BriefText, CallFacts, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry,
-    IndexState, KillSwitch, Ledger, Mode, Rewind, SessionSaw, StepLine, TaskPolicy, UserTurn,
+    BriefText, CallerRole, CheckpointNote, ConfirmId, ExternalAgent, Halt, IndexEntry, IndexState,
+    KillSwitch, Ledger, Rewind, StepLine, UserTurn,
 };
+use docket_permissions_core::{CallFacts, Mode, SessionSaw, TaskPolicy};
 use docket_vocab::TurnId;
 use porter_core::{AppName, Count};
 use prov::{
@@ -21,7 +22,7 @@ use prov::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
-use docket_core::Saw;
+use docket_permissions_core::Saw;
 
 /// How many confirmed briefs a session keeps; the oldest is dropped past it.
 pub const BRIEFS_KEPT: usize = 8;

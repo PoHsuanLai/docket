@@ -3,7 +3,8 @@
 use crate::case::{Case, Corpus, Expect};
 use crate::outcome::{CaseResult, Judgement, StepEnding, judge};
 use crate::report::{Metrics, StageLatency, wilson};
-use docket_core::{AuditRecord, Stage};
+use docket_core::AuditRecord;
+use docket_permissions_core::Stage;
 use docket_vocab::Millis;
 use porter_core::{Count, MicroUsd, Permille};
 use std::collections::BTreeMap;

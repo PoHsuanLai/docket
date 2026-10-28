@@ -6,6 +6,7 @@ use docket_core::*;
 use docket_fake::{
     FixedClock, MailContact, MailThread, ScriptedReviewer, ScriptedWriter, fake_router_on,
 };
+use docket_permissions_core::{Saw, TaskPolicy};
 use docket_router::{RestoreFault, Router, SessionState, Taint, Wal};
 use docket_session::fake::{LogMood, MemoryLog};
 use docket_session::{

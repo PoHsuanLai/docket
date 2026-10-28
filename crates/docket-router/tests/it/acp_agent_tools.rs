@@ -5,6 +5,7 @@
 use crate::acp_agent::{CLAUDE, host, world};
 use crate::support::*;
 use docket_core::*;
+use docket_permissions_core::DenyCode;
 use docket_vocab::CallRequest;
 use prov::Actor;
 

@@ -7,7 +7,7 @@
 //! A write to a place that can later run code outside the sandbox (`.git`, an editor or agent
 //! configuration) is `Sensitive`: it asks every time and is never offered "always".
 
-use docket_core::{AbsPath, Cover};
+use bulkhead::{AbsPath, Cover};
 
 /// Directory names that hold secrets wherever they sit.
 const SECRET_DIRS: &[&str] = &[

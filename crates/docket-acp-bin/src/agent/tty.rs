@@ -5,7 +5,8 @@
 //! request, with its words and typed arguments, never an agent's prose.
 
 use docket_acp::always_words;
-use docket_core::{AlwaysOffer, ConfirmRequest, Shown, StepEnd};
+use docket_core::{ConfirmRequest, Shown, StepEnd};
+use docket_permissions_core::AlwaysOffer;
 use docket_session::{BackendEvent, CallEvent, SheetChoice};
 
 /// A line for a sheet argument: somebody else's words are quoted with where they came from.

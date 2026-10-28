@@ -5,6 +5,7 @@
 use crate::support::*;
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
+use docket_permissions_core::{ActionGrantKey, DenyCode, GrantCaller, GrantTarget};
 use docket_router::Router;
 use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
 use prov::{Actor, UnixSeconds};

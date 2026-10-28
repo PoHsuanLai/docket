@@ -5,7 +5,7 @@
 
 use crate::scripted::Forget;
 use action_review::{ReviewRequest, ReviewVerdict, Reviewer, parse_verdict};
-use docket_core::{ReviewError, Stage};
+use docket_permissions_core::{ReviewError, Stage};
 use std::sync::Mutex;
 
 /// What an unspoiled stage says: the quick judge passes, the larger stages allow.

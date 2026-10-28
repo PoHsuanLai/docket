@@ -1,10 +1,11 @@
 //! The stores of this crate keep the contract.
 
 use crate::support::*;
+use bulkhead::AbsPath;
 use docket_checkpoint::{
     ApplyAsk, CheckpointStore, DropAsk, NoStore, PlanAsk, StoreFault, TakeAsk, WorkRoot,
 };
-use docket_core::{AbsPath, CheckpointId, PlanDigest};
+use docket_core::{CheckpointId, PlanDigest};
 use porter_core::{Count, UnixSeconds};
 use prov::SessionId;
 

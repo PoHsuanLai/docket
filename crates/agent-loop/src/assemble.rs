@@ -14,8 +14,9 @@ use almanac_core::{estimate_tokens, fit_budget};
 use docket_core::{
     ActionCard, AssemblerBudget, ContextView, Covers, EpisodeLine, HandleCard, InboundLine,
     PlannerView, PrimerText, ProfileLine, RecalledLine, Reveal, RollupLine, Roster, SkillCard,
-    SkillText, StepEnd, StepLine, StepShown, Summary, TaskPolicy, UserTurn,
+    SkillText, StepEnd, StepLine, StepShown, Summary, UserTurn,
 };
+use docket_permissions_core::TaskPolicy;
 use docket_vocab::{Handle, Value};
 use porter_core::{Count, Tokens};
 use prov::Integrity;

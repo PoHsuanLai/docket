@@ -2,6 +2,7 @@
 //! through. Cedar decides; the gate only maps.
 
 use docket_core::*;
+use docket_permissions_core::{AskReason, DenyCode, Impact, Limited, PolicyId, Ruling, Stage};
 use docket_router::*;
 use docket_vocab::Depth;
 use policy_point::BudgetFact;

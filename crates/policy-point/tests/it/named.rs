@@ -4,6 +4,7 @@
 use crate::support::*;
 use docket_core::*;
 use docket_manifest::{AgentReach, Lasting};
+use docket_permissions_core::{AskReason, PolicyId, Ruling, Saw, SessionSaw};
 use docket_vocab::Origin;
 use policy_point::*;
 use porter_core::Count;

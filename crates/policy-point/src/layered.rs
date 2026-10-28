@@ -5,7 +5,7 @@
 use crate::layers::{Layer, PolicyOrigin, PolicySource, Rejected};
 use crate::pdp::{Pdp, PolicyError};
 use cedar_policy::{Effect, PolicySet, Schema, ValidationMode, Validator};
-use docket_core::generated_rules;
+use docket_permissions_core::generated_rules;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 

@@ -1,7 +1,8 @@
 //! The answer object: `/org/quire/Companion1/answer/<task>`.
 
-use docket_core::{BudgetKind, CallRefusal, ConfirmId, ContextKeep, DenyCode, Reveal, TimeRange};
+use docket_core::{BudgetKind, CallRefusal, ConfirmId, ContextKeep, Reveal, TimeRange};
 use docket_manifest::ParamDecl;
+use docket_permissions_core::DenyCode;
 use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, CardActionId, EntityRef, LabelText, StepId, UndoId,
 };
@@ -214,5 +215,5 @@ pub struct FooterWire {
     pub keep: ContextKeep,
     /// The mode the conversation was in, so an answer shown again names the mode it ran under.
     #[serde(default)]
-    pub mode: docket_core::Mode,
+    pub mode: docket_permissions_core::Mode,
 }

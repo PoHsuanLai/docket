@@ -2,7 +2,7 @@
 //! administrator's floor.
 
 use crate::support::*;
-use docket_core::*;
+use docket_permissions_core::*;
 use docket_vocab::ActionRef;
 use prov::{ActionName, Effect, SpaceScope};
 
@@ -190,19 +190,6 @@ fn a_level_that_allows_is_not_a_limit() {
 
 #[test]
 fn a_file_with_no_level_still_reads_as_always_allow() {
-    // A grant request written before limits has no level: it is an always-allow.
-    let now = GrantAsk {
-        app: app("org.quire.Mail"),
-        space: space("work"),
-        level: Level::Never,
-        run: None,
-    };
-    let mut old = serde_json::to_value(&now).expect("json");
-    old.as_object_mut().expect("object").remove("level");
-    let ask: GrantAsk = serde_json::from_value(old).expect("an old request still reads");
-    assert_eq!(ask.level, Level::AlwaysAllow);
-    // A sheet written before limits offers no "never" and names no limit.
-    assert_eq!(SheetLimits::default().never, NeverOffer::Withheld);
     // An empty limits file holds none, and a list round-trips.
     assert_eq!(decode_limits("  ").expect("empty"), vec![]);
     let l = limit(

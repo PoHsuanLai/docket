@@ -13,7 +13,8 @@ use agent_client_protocol::schema::v1::{
     PermissionOption, PermissionOptionKind, RequestPermissionRequest, SessionId, ToolCallStatus,
     ToolCallUpdate, ToolCallUpdateFields,
 };
-use docket_core::{AlwaysOffer, ConfirmRequest};
+use docket_core::ConfirmRequest;
+use docket_permissions_core::AlwaysOffer;
 use docket_session::CallOpen;
 
 /// The options offered: two, always.

@@ -7,6 +7,9 @@ use crate::acp_agent::*;
 use crate::support::*;
 use docket_core::*;
 use docket_fake::{ReviewMode, ScriptedConfirmer, ScriptedReviewer};
+use docket_permissions_core::{
+    BreakerTrip, DenyCode, FILES_WRITE, GrantCaller, ReasonCode, ReasonText,
+};
 
 #[tokio::test]
 async fn an_always_on_a_write_is_a_grant_for_the_program_used_audited_listed_and_revoked() {

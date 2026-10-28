@@ -1,7 +1,8 @@
 //! The breaker: 3 consecutive, 10 of the last 50, or probing.
 
 use action_review::*;
-use docket_core::{AgentConfig, BreakerTrip};
+use docket_core::AgentConfig;
+use docket_permissions_core::BreakerTrip;
 use porter_core::{AppName, Count};
 use prov::{ActionName, UnixSeconds};
 

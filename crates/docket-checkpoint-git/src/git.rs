@@ -5,8 +5,9 @@ use crate::names::{IndexKind, index_file, ref_name};
 use crate::parse::{object_id, staged_listing, tree_listing};
 use crate::problem::{GitCause, GitProblem, Report};
 use crate::run::{GitCommand, GitFault, GitOut, GitRun, Limits};
+use bulkhead::AbsPath;
 use docket_checkpoint::{StoreFault, TreeListing, WorkRoot};
-use docket_core::{AbsPath, CheckpointId};
+use docket_core::CheckpointId;
 use prov::SessionId;
 use std::path::{Path, PathBuf};
 

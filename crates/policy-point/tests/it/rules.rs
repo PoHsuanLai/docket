@@ -2,8 +2,8 @@
 //! cell gives when it asks.
 
 use crate::support::*;
-use docket_core::*;
 use docket_manifest::ArgSink;
+use docket_permissions_core::{AskReason, Ruling, Saw, SessionSaw, SinkIntegrity};
 use prov::{Effect, Integrity};
 
 #[test]

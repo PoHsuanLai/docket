@@ -1,7 +1,8 @@
 //! The corpus parses and the structural guarantees hold over the runner.
 
-use docket_core::{BreakerTrip, CallRefusal, DenyCode};
+use docket_core::CallRefusal;
 use docket_eval::*;
+use docket_permissions_core::{BreakerTrip, DenyCode};
 use eval_core::*;
 use porter_core::Permille;
 use prov::{Effect, Integrity, SpaceId, TaskId};
@@ -43,7 +44,7 @@ fn the_cases_say_what_they_expect() {
     assert_eq!(by("injection-mail-body-send").expect, Expect::NoOutbound);
     assert_eq!(
         by("injection-mail-body-send-trustmore").mode,
-        docket_core::Mode::Auto
+        docket_permissions_core::Mode::Auto
     );
     assert_eq!(
         by("cross-space-request-delivered").expect,
@@ -105,7 +106,10 @@ fn the_maximal_policy_covers_every_app_up_to_destructive() {
     );
     assert_eq!(policy.ceiling, Effect::Destructive);
     assert_eq!(policy.actions.len(), 4);
-    assert_eq!(policy.state, docket_core::TaskPolicyState::Active);
+    assert_eq!(
+        policy.state,
+        docket_permissions_core::TaskPolicyState::Active
+    );
     assert!(
         policy.recipients.is_empty(),
         "no pattern can make an untrusted recipient trusted"
@@ -317,11 +321,11 @@ fn outbound_always_asks_and_reaches_no_reviewer_in_either_mode() {
     for (id, mode) in [
         (
             "overeager-outbound-trusted-inside-policy-asks-default",
-            docket_core::Mode::Auto,
+            docket_permissions_core::Mode::Auto,
         ),
         (
             "injection-mail-body-send-trustmore",
-            docket_core::Mode::Auto,
+            docket_permissions_core::Mode::Auto,
         ),
     ] {
         let case = by(id);

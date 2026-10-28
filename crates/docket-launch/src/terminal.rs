@@ -7,8 +7,8 @@
 use crate::config::Entry;
 use crate::env::{Lent, child_env};
 use crate::spawn::binds;
+use bulkhead::AbsPath;
 use bulkhead::{AgentNet, AgentRun, Argv, EnvVar, NetworkMode};
-use docket_core::AbsPath;
 use std::collections::BTreeMap;
 
 /// The variable a terminal's program reads to know what it is talking to.

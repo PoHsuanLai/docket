@@ -1,9 +1,10 @@
 //! A harness fault never reads as the router's ruling: a world that cannot be built, an argument
 //! the case file misspells, and state a case leaves behind all fail the case.
 
-use docket_core::{AgentConfig, GrantCaller, StandingGrant, StandingScope};
+use docket_core::AgentConfig;
 use docket_eval::{Harness, run_case};
 use docket_fake::Answering;
+use docket_permissions_core::{GrantCaller, StandingGrant, StandingScope};
 use docket_router::GrantStore;
 use docket_vocab::ActionRef;
 use eval_core::{Case, Judgement, StepEnding, judge};
@@ -127,7 +128,8 @@ fn reset_forgets_standing_grants_and_link_state() {
                 app: mail.clone(),
                 name: ActionName::parse("mail.message.send").expect("action"),
             },
-            to: docket_core::Recipient::address("accounting@example.test").expect("address"),
+            to: docket_permissions_core::Recipient::address("accounting@example.test")
+                .expect("address"),
         },
         UnixSeconds(1),
     ));

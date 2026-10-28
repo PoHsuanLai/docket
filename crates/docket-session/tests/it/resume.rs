@@ -1,5 +1,5 @@
 use crate::support::*;
-use docket_core::BreakerTrip;
+use docket_permissions_core::BreakerTrip;
 use docket_session::*;
 
 fn plan(entries: &[SessionEntry]) -> ResumePlan {

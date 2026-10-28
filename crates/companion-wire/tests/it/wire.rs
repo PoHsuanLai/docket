@@ -2,6 +2,7 @@
 
 use companion_wire::*;
 use docket_core::*;
+use docket_permissions_core::DenyCode;
 use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, CardActionId, Handle, LabelText, Origin, StepId,
     TargetValue, TurnId, UndoId, WindowKey,
@@ -31,7 +32,7 @@ fn footer() -> FooterWire {
             selection: Keep::Kept,
             window: Keep::Kept,
         },
-        mode: docket_core::Mode::Auto,
+        mode: docket_permissions_core::Mode::Auto,
     }
 }
 

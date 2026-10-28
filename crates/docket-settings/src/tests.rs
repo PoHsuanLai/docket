@@ -232,7 +232,7 @@ fn every_schema_key_is_read_by_the_daemon() {
 
 #[test]
 fn each_key_lands_in_the_typed_value_the_design_names() {
-    use docket_core::{DeleteRow, InsideRow, Mode, OtherRow, ScreenRow, SendRow};
+    use docket_permissions_core::{DeleteRow, InsideRow, Mode, OtherRow, ScreenRow, SendRow};
     use porter_core::MicroUsd;
     let read_one = |p: &str, v: toml::Value| read(&doc(p, v), AgentSettings::default()).value;
     let int = toml::Value::Integer;
@@ -350,7 +350,7 @@ fn a_bad_value_falls_back_for_that_key_alone() {
             if other == spend {
                 want.agent.budget.spend = porter_core::MicroUsd(100);
             } else {
-                want.agent.start_mode = docket_core::Mode::Manual;
+                want.agent.start_mode = docket_permissions_core::Mode::Manual;
             }
             assert_eq!(loaded.value, want, "{p} = {value}");
             assert_eq!(loaded.fallbacks.len(), 1, "{p} = {value}");

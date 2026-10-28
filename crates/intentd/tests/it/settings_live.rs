@@ -1,8 +1,9 @@
 //! The person's settings file reaches a router that is already serving: a change in the file
 //! applies to the next decision without a restart. The wait is the watch's own event, never a sleep.
 
-use docket_core::{AgentConfig, InsideRow, Mode};
+use docket_core::AgentConfig;
 use docket_fake::fake_router;
+use docket_permissions_core::{InsideRow, Mode};
 use docket_settings::{AgentSettings, Locator};
 use intentd::{SettingsWatch, WatchState, apply, apply_next};
 use porter_core::MicroUsd;

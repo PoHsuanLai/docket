@@ -6,6 +6,7 @@
 use actions_mcp::McpConfig;
 use docket_core::*;
 use docket_fake::{MailThread, fake_router};
+use docket_permissions_core::{ActionGrantKey, GrantCaller, GrantTarget};
 use docket_router::GrantStore;
 use docket_testbus::PrivateBus;
 use intentd::{IntentdConfig, ProcRoot, serve_on_with};

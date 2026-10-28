@@ -8,7 +8,7 @@
 //! Anything else in the file is skipped with a line on standard error, so a defaults file can
 //! never lend the companion mail, files or the screen.
 
-use docket_core::ActionGrant;
+use docket_permissions_core::ActionGrant;
 use porter_core::DataClass;
 use porter_core::GrantId;
 use porter_core::consent::{Decision, Grant, GrantScope};

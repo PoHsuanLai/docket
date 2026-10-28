@@ -21,8 +21,9 @@ use agent_client_protocol::schema::v1::{
     ReleaseTerminalRequest, ReleaseTerminalResponse, TerminalOutputRequest, TerminalOutputResponse,
     WaitForTerminalExitRequest, WaitForTerminalExitResponse,
 };
+use bulkhead::AbsPath;
 use bulkhead::{Network, NetworkMode, Sandbox};
-use docket_core::{AbsPath, Derivation, NetAccess, Served};
+use docket_permissions_core::{Derivation, NetAccess, Served};
 use docket_vocab::UndoToken;
 use prov::SessionId;
 use std::collections::BTreeMap;
@@ -160,7 +161,7 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
     }
 
     /// Whether a command can be confined in `cwd`.
-    pub fn check(&self, cwd: &AbsPath) -> docket_core::SandboxState {
+    pub fn check(&self, cwd: &AbsPath) -> docket_permissions_core::SandboxState {
         self.lock().terminals.check(cwd)
     }
 

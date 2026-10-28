@@ -20,6 +20,7 @@ agent-loop = { path = "../crates/agent-loop" }
 companion-wire = { path = "../crates/companion-wire" }
 docket-core = { path = "../crates/docket-core" }
 docket-manifest = { path = "../crates/docket-manifest" }
+docket-permissions-core = { path = "../crates/docket-permissions-core" }
 docket-vocab = { path = "../crates/docket-vocab" }
 docket-eval = { path = "../crates/docket-eval" }
 docket-fake = { path = "../crates/docket-fake" }

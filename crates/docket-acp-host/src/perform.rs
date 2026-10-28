@@ -8,10 +8,13 @@ use super::files::Files;
 use super::performer::{Held, Performer, Scope, UNDO_KEEP, UndoNote};
 use acp_core::call::StageId;
 use acp_core::taint::source;
+use bulkhead::AbsPath;
 use bulkhead::Sandbox;
 use docket_core::{
-    AbsPath, AppRefusal, FILES_READ, FILES_SENSITIVE, FILES_WRITE, FailText, Follow, Invocation,
-    Outcome, PermissionKind, Preview, REPORTED, TERMINAL_RUN, UndoFault, Undoable,
+    AppRefusal, FailText, Follow, Invocation, Outcome, Preview, UndoFault, Undoable,
+};
+use docket_permissions_core::{
+    FILES_READ, FILES_SENSITIVE, FILES_WRITE, PermissionKind, REPORTED, TERMINAL_RUN,
 };
 use docket_vocab::{LabelText, ParamName, TargetValue, UndoToken, Value};
 use porter_core::DataClass;
@@ -206,7 +209,7 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
             confidentiality: prov::Confidentiality::Public,
             classes: BTreeSet::new(),
             sources: BTreeSet::from([Source::App(
-                docket_core::acp_agent_app().ok_or_else(|| failed("no such app"))?,
+                docket_permissions_core::acp_agent_app().ok_or_else(|| failed("no such app"))?,
             )]),
         };
         Ok(Outcome {
@@ -242,7 +245,7 @@ impl<F: Files, S: Sandbox> Performer<F, S> {
         let within = inner
             .scopes
             .values()
-            .find(|s| s.real_cwd.covers(&note.path) == docket_core::Cover::Covers)
+            .find(|s| s.real_cwd.covers(&note.path) == bulkhead::Cover::Covers)
             .map(|s| s.real_cwd.clone())
             .ok_or(UndoFault::Gone)?;
         let done = match &note.before {

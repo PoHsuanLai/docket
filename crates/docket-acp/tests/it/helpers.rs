@@ -4,14 +4,15 @@
 //! A scripted editor over the existing transport; the helpers are a fake seam.
 
 use crate::support::*;
+use bulkhead::AbsPath;
 use companion_wire::{JobLine, JobShown, ToldWire};
 use docket_acp::{ConversationTurns, HelperRefusal, HelperRow, Helpers};
 use docket_core::helper::{HelperName, JobId};
 use docket_core::{
-    AbsPath, AlwaysOffer, Anchor, AppRefusal, CallRefusal, ConfirmDetail, ConfirmId, ConfirmOffer,
-    ConfirmParts, ConfirmRequest, FailText, Gesture, StandingScope, StepEnd, TaintNote, TurnSource,
-    UserTurn,
+    Anchor, AppRefusal, CallRefusal, ConfirmDetail, ConfirmId, ConfirmOffer, ConfirmParts,
+    ConfirmRequest, FailText, Gesture, StepEnd, TaintNote, TurnSource, UserTurn,
 };
+use docket_permissions_core::{AlwaysOffer, StandingScope};
 use docket_session::fake::MemoryLog;
 use docket_session::{BackendEvent, BackendKind, Opening, Seq, SessionEntry, SessionLog};
 use docket_session::{SheetChoice, TurnEnd};

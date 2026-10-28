@@ -1,7 +1,8 @@
 //! The denial circuit breaker: three denials in a row, ten of the last fifty decisions, or the
 //! same goal tried with different arguments, stop the session until the person speaks. Pure.
 
-use docket_core::{BreakerLimits, BreakerTrip};
+use docket_core::BreakerLimits;
+use docket_permissions_core::BreakerTrip;
 use porter_core::{AppName, Count};
 use prov::{ActionName, EntityKind, UnixSeconds};
 use serde::{Deserialize, Serialize};

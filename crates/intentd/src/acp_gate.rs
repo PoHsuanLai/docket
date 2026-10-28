@@ -67,7 +67,7 @@ impl AcpGate {
     pub(crate) fn keeps(&self, name: &AppName) -> bool {
         match name.as_str() {
             ACP_NAME => self.expose() == AcpExpose::On,
-            docket_core::ACP_AGENT_APP => self.agents() == AcpAgents::On,
+            docket_permissions_core::ACP_AGENT_APP => self.agents() == AcpAgents::On,
             _ => true,
         }
     }
@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn only_the_acp_names_wait_on_their_settings() {
         let gate = AcpGate::shut();
-        let host = name(docket_core::ACP_AGENT_APP);
+        let host = name(docket_permissions_core::ACP_AGENT_APP);
         assert!(!gate.keeps(&name(ACP_NAME)));
         assert!(!gate.keeps(&host));
         assert!(gate.keeps(&name("org.quire.Shell")));

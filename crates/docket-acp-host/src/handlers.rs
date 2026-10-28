@@ -21,11 +21,10 @@ use agent_client_protocol::schema::v1::{
     RequestPermissionResponse, SelectedPermissionOutcome, TerminalId, WriteTextFileRequest,
     WriteTextFileResponse,
 };
+use bulkhead::AbsPath;
 use bulkhead::Argv;
-use docket_core::{
-    AbsPath, AppRefusal, BreakerTrip, CallRefusal, DenyCode, FailText, Outcome, SandboxState,
-    StepEnd, Undoable,
-};
+use docket_core::{AppRefusal, CallRefusal, FailText, Outcome, StepEnd, Undoable};
+use docket_permissions_core::{BreakerTrip, DenyCode, SandboxState};
 use docket_vocab::Value;
 use serde::Serialize;
 use serde_json::Value as Json;
@@ -330,7 +329,7 @@ impl<X: Seams> AcpBackend<X> {
             Some(path) => AbsPath::parse(&path.to_string_lossy()).ok(),
             None => Some(scope.clone()),
         };
-        let Some(cwd) = cwd.filter(|c| scope.covers(c) == docket_core::Cover::Covers) else {
+        let Some(cwd) = cwd.filter(|c| scope.covers(c) == bulkhead::Cover::Covers) else {
             return self.denied(fault::invalid(
                 "the working directory is outside the session",
             ));

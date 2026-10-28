@@ -2,6 +2,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_permissions_core::InsideRow;
 
 #[tokio::test]
 async fn a_settings_change_applies_to_the_next_call_without_a_restart() {

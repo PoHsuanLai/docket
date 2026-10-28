@@ -4,10 +4,10 @@
 
 use super::live::Live;
 use docket_acp_host::Logout;
-use docket_core::ProgramName;
 use docket_core::helper::AgentPending;
 use docket_launch::login::{LoginRunner, VisibleLogin};
 use docket_launch::{Accounts, AskKind};
+use docket_permissions_core::ProgramName;
 use porter_core::LoginOutcome;
 use prov::AgentProgram;
 use std::sync::Arc;

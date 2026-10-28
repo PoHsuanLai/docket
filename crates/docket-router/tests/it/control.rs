@@ -4,6 +4,10 @@ use crate::support::*;
 use cua_action::{CuaAction, WindowSpace};
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
+use docket_permissions_core::{
+    ActionGrantKey, DenyCode, GrantCaller, GrantTarget, Level, Limit, LimitCaller, LimitKey,
+    LimitLevel, LimitMaker, LimitScope,
+};
 use docket_router::GrantStore;
 use prov::{AgentRef, ConfirmReceipt, Effect, InputProof, Label, RunId, SpaceScope, UnixSeconds};
 

@@ -7,6 +7,7 @@ use crate::support::*;
 use docket_core::*;
 use docket_fake::{FakeMenu, MENU_MANIFEST, MenuItem, ScriptedConfirmer};
 use docket_manifest::parse;
+use docket_permissions_core::{ActionGrant, GrantCaller, GrantTarget, Strictness};
 use docket_router::{GrantStore, Router};
 use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
 use porter_core::consent::{Decision, Grant, GrantScope};

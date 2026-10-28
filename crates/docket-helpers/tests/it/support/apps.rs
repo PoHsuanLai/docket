@@ -4,9 +4,8 @@
 use crate::support::world::*;
 use companion_wire::HelperReply;
 use docket_core::helper::*;
-use docket_core::{
-    ActionMatch, AppSessionId, ProgramName, SeenCommand, TaskPolicy, TaskPolicyState, WatchedAgent,
-};
+use docket_core::{AppSessionId, SeenCommand, WatchedAgent};
+use docket_permissions_core::{ActionMatch, ProgramName, TaskPolicy, TaskPolicyState};
 use docket_tasks::{HelperDesk, PostFromPerson};
 use docket_vocab::{LabelText, Workspace};
 use porter_core::Count;

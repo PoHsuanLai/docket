@@ -15,6 +15,7 @@ use almanac_core::{
 use docket_client::{Transport, TransportError};
 use docket_core::*;
 use docket_dbus::{Bus, introspection};
+use docket_permissions_core::{ActionMatch, Level, TaskPolicy, TaskPolicyState};
 use docket_vocab::{
     ActionRef, Args, CallRequest, Generation, Handle, LabelText, NoteSlug, Origin, ParamName,
     TargetValue, TurnId, UndoId, Workspace,
@@ -369,7 +370,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         label: "an agent in pane 2".into(),
         rewind: Rewind::Docket,
         agent: docket_core::WatchedAgent {
-            program: docket_core::ProgramName::parse("claude-code").expect("program"),
+            program: docket_permissions_core::ProgramName::parse("claude-code").expect("program"),
             session: docket_core::AppSessionId::parse("0a1b-2c3d").expect("id"),
         },
     })
@@ -497,7 +498,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     .await;
     pair.both(IntentsRequest::ControlStandingGrants).await;
     pair.both(IntentsRequest::ControlStandingRevoke(
-        docket_core::StandingGrantId::parse("sg-0000000000000000").expect("id"),
+        docket_permissions_core::StandingGrantId::parse("sg-0000000000000000").expect("id"),
     ))
     .await;
     pair.both(IntentsRequest::SessionTurnEnded {
@@ -508,7 +509,7 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
     .await;
     pair.both(IntentsRequest::SessionMode(docket_core::SessionModeAsk {
         session: session.clone(),
-        mode: docket_core::Mode::Manual,
+        mode: docket_permissions_core::Mode::Manual,
     }))
     .await;
     pair.both(IntentsRequest::SessionClose { session }).await;

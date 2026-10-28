@@ -9,8 +9,10 @@ use actions_tools::{
     EDGE_LINE_MAX, EdgeOp, EdgeReply, EdgeRequest, EdgeToken, EdgeTool, ToolFault, ToolRefusal,
     listing, outcome_json, prepare,
 };
-use docket_core::ProgramName;
-use docket_core::{AbsPath, BreakerTrip, CallRefusal};
+use bulkhead::AbsPath;
+use docket_core::CallRefusal;
+use docket_permissions_core::BreakerTrip;
+use docket_permissions_core::ProgramName;
 use docket_procroot::own_uid;
 
 use prov::{ClientName, SessionId};

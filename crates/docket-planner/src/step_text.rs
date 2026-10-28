@@ -783,7 +783,9 @@ mod tests {
 
     #[test]
     fn a_coarse_denial_stays_a_bare_code() {
-        let end = StepEnd::Refused(CallRefusal::Denied(docket_core::DenyCode::OutsideTask));
+        let end = StepEnd::Refused(CallRefusal::Denied(
+            docket_permissions_core::DenyCode::OutsideTask,
+        ));
         let line = step_line(&step(end), &[]);
         assert!(line.ends_with("\"outside_task\"}"), "{line}");
     }

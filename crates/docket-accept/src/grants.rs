@@ -2,7 +2,7 @@
 //! standing "always" for the companion to use an app's data in one Space.
 
 use crate::things::App;
-use docket_core::{ActionGrantKey, GrantCaller, GrantTarget};
+use docket_permissions_core::{ActionGrantKey, GrantCaller, GrantTarget};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
 use porter_core::{AppName, GrantId};
 use prov::{SpaceId, SpaceScope, UnixSeconds};
@@ -18,7 +18,7 @@ pub fn standing_json(space: &str, app: App) -> String {
         (editor.clone(), space),
         (editor, "desktop"),
     ];
-    let grants: Vec<docket_core::ActionGrant> = holders
+    let grants: Vec<docket_permissions_core::ActionGrant> = holders
         .into_iter()
         .flat_map(|(caller, space)| {
             app.classes()

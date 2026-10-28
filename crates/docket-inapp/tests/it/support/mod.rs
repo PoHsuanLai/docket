@@ -77,7 +77,7 @@ impl ContextSource for Nowhere {
 /// Standing consent: the companion may use Mail in the `work` Space, always (what the person gave
 /// on an earlier day), so a policy-covered call is left to the reviewer and not asked on the sheet.
 pub fn standing_mail_consent() -> docket_inapp::SessionGrants {
-    use docket_core::{ActionGrantKey, GrantCaller, GrantTarget};
+    use docket_permissions_core::{ActionGrantKey, GrantCaller, GrantTarget};
     use porter_core::consent::{Decision, Grant, GrantScope, Usage};
     use porter_core::{AppName, DataClass, GrantId};
     use prov::{SpaceId, SpaceScope, UnixSeconds};

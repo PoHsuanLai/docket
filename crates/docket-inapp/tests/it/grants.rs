@@ -3,9 +3,9 @@
 //! error the app decides about, a failed write is kept for the app to ask for, and the file is
 //! the one intentd's `FileGrants` reads. Every file is in a scratch directory the test makes.
 
-use docket_core::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
 use docket_fake::check_grant_file_contract;
 use docket_inapp::FileGrantStore;
+use docket_permissions_core::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
 use docket_router::GrantStore;
 use docket_store::GrantFileError;
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};
@@ -99,24 +99,28 @@ fn the_file_is_a_json_list_of_grants_the_desktop_store_format() {
     );
 }
 
-fn standing_grant(prefix: &str) -> docket_core::StandingGrant {
-    docket_core::StandingGrant::new(
-        GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
-        docket_core::StandingScope::Files {
+fn standing_grant(prefix: &str) -> docket_permissions_core::StandingGrant {
+    docket_permissions_core::StandingGrant::new(
+        GrantCaller::AcpAgent(
+            docket_permissions_core::ProgramName::parse("claude-code").expect("program"),
+        ),
+        docket_permissions_core::StandingScope::Files {
             action: docket_vocab::ActionRef {
                 app: AppName::parse("org.quire.Files").expect("app"),
                 name: ActionName::parse("files.file.move").expect("action"),
             },
-            under: docket_core::AbsPath::parse(prefix).expect("path"),
+            under: bulkhead::AbsPath::parse(prefix).expect("path"),
         },
         UnixSeconds(1),
     )
 }
 
-fn read_grant() -> docket_core::StandingGrant {
-    docket_core::StandingGrant::new(
-        GrantCaller::AcpAgent(docket_core::ProgramName::parse("claude-code").expect("program")),
-        docket_core::StandingScope::Reads {
+fn read_grant() -> docket_permissions_core::StandingGrant {
+    docket_permissions_core::StandingGrant::new(
+        GrantCaller::AcpAgent(
+            docket_permissions_core::ProgramName::parse("claude-code").expect("program"),
+        ),
+        docket_permissions_core::StandingScope::Reads {
             action: docket_vocab::ActionRef {
                 app: AppName::parse("org.quire.Mail").expect("app"),
                 name: ActionName::parse("mail.thread.search").expect("action"),

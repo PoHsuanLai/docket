@@ -3,6 +3,7 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_permissions_core::DenyCode;
 use prov::AgentRef;
 
 async fn ready_in(router: &docket_router::Router<docket_fake::FakeSeams>, in_space: &str) {

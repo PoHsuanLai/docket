@@ -212,9 +212,9 @@ async fn the_real_runner_reports_how_the_command_ended_and_gives_it_only_what_it
 fn a_sign_in_in_a_terminal_runs_the_entrys_command_with_the_login_added_and_only_for_a_login_route()
 {
     let file = AgentsFile::parse(LOGIN).expect("file");
-    let name = docket_core::ProgramName::parse("claude-code").expect("name");
+    let name = docket_permissions_core::ProgramName::parse("claude-code").expect("name");
     let entry = file.get(&name).expect("entry");
-    let folder = docket_core::AbsPath::parse("/home/me/helpers/h-1").expect("folder");
+    let folder = bulkhead::AbsPath::parse("/home/me/helpers/h-1").expect("folder");
     let env = std::collections::BTreeMap::from([("BROWSER".to_owned(), "none".to_owned())]);
     let run = docket_launch::login_run(entry, &["/login".to_owned()], &env, &folder)
         .expect("a login entry has a run");

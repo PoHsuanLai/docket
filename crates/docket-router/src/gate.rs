@@ -5,8 +5,9 @@
 
 use crate::facts::RunFacts;
 use action_review::plan;
-use docket_core::{
-    AskReason, CallRefusal, DenyCode, Impact, PolicyId, Ruling, Stage, StandingGrantId,
+use docket_core::CallRefusal;
+use docket_permissions_core::{
+    AskReason, DenyCode, Impact, PolicyId, Ruling, Stage, StandingGrantId,
 };
 use policy_point::BudgetFact;
 

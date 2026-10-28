@@ -7,7 +7,8 @@
 use crate::support::bus::PrivateBus;
 use crate::support::memoryd::FakeMemoryd;
 use crate::support::spaces::FakeSpaces;
-use docket_core::{ActionGrant, ActionGrantKey, AgentConfig, GrantCaller, GrantTarget};
+use docket_core::AgentConfig;
+use docket_permissions_core::{ActionGrant, ActionGrantKey, GrantCaller, GrantTarget};
 use docket_router::GrantStore;
 use intentd::{Cadence, FileGrants, IntentdConfig, Setup, start};
 use porter_core::consent::{Decision, Grant, GrantScope, Usage};

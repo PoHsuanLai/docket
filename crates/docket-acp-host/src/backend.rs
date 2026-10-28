@@ -35,10 +35,12 @@ use agent_client_protocol::schema::v1::{
     ContentBlock, Error, PromptRequest, PromptResponse, SessionId, StopReason,
     WaitForTerminalExitRequest,
 };
+use bulkhead::AbsPath;
 use bulkhead::Sandbox;
-use docket_core::ProgramName;
+use docket_core::UserTurn;
 use docket_core::helper::SignInWay;
-use docket_core::{AbsPath, PermissionKind, UserTurn};
+use docket_permissions_core::PermissionKind;
+use docket_permissions_core::ProgramName;
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, Choices, ResumePlan, Resumed, SessionBackend,
     StartSession, Taint, TurnEnd,
@@ -159,7 +161,7 @@ pub struct AcpBackend<X: Seams> {
     /// `terminal/wait_for_exit` requests whose command is still running.
     pub(super) waiters: Vec<(Reply, WaitForTerminalExitRequest)>,
     pub(super) cancelling: bool,
-    pub(super) pausing: Option<docket_core::BreakerTrip>,
+    pub(super) pausing: Option<docket_permissions_core::BreakerTrip>,
     pub(super) dead: bool,
     /// Why the tool edge could not be made at the last start, when it was offered and failed.
     pub(super) edge_fault: Option<EdgeFault>,

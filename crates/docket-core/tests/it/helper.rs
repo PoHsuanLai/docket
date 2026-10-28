@@ -2,8 +2,10 @@
 //! disk and over the bus.
 
 use crate::support::*;
+use docket_core::WatchedAgent;
 use docket_core::helper::*;
-use docket_core::{ActionMatch, ProgramName, WatchedAgent};
+use docket_permissions_core::{ActionMatch, ProgramName, TaskPolicy, TaskPolicyState};
+use docket_vocab::TurnId;
 use porter_core::{AccountId, Count, ModelId};
 use porter_infer::ModelRef;
 use prov::{Effect, HelperId, TaskId};
@@ -24,6 +26,27 @@ pub(crate) fn chosen() -> HelperModel {
     })
 }
 
+fn reach_policy_for_card() -> TaskPolicy {
+    TaskPolicy {
+        task: TaskId::parse("t-1").expect("task"),
+        space: space("work"),
+        from: vec![TurnId(1)],
+        actions: BTreeSet::from([ActionMatch::AppUpTo(
+            app("org.quire.Mail"),
+            Effect::UndoableWrite,
+        )]),
+        kinds: BTreeSet::from([kind("mail.thread")]),
+        ceiling: Effect::UndoableWrite,
+        max_count: Count(10),
+        recipients: vec![],
+        destinations: vec![],
+        paths: vec![],
+        expires: at(3600),
+        rationale: words("archive the newsletters"),
+        state: TaskPolicyState::Active,
+    }
+}
+
 pub(crate) fn draft(helper: &str, model: HelperModel) -> CardDraft {
     CardDraft {
         name: name(helper),
@@ -31,7 +54,7 @@ pub(crate) fn draft(helper: &str, model: HelperModel) -> CardDraft {
         kind: HelperKind::Native,
         space: space("work"),
         model,
-        reach: crate::task_policy::policy(),
+        reach: reach_policy_for_card(),
         budget: HelperBudget { steps: Count(20) },
     }
 }
@@ -208,7 +231,7 @@ fn a_reach_is_the_named_apps_up_to_the_chosen_ceiling_and_nothing_else() {
 
 #[test]
 fn two_helpers_that_run_the_same_program_do_not_share_a_grant_caller() {
-    use docket_core::{GrantCaller, ProgramName, holds_standing};
+    use docket_permissions_core::{GrantCaller, ProgramName, holds_standing};
     let program = ProgramName::parse("claude-code").expect("program");
     let first = GrantCaller::AcpHelper {
         program: program.clone(),

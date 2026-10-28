@@ -4,10 +4,11 @@
 use super::{ConfigFault, Entry, Profile, Raw, Route, SESSION_MARK};
 use crate::reach::Reach;
 use agents_core::dirs::AgentsDir;
+use bulkhead::AbsPath;
 use bulkhead::NetworkMode;
 use docket_acp_host::{ModelId, SignIn};
-use docket_core::ProgramName;
-use docket_core::{AbsPath, Rewind};
+use docket_core::Rewind;
+use docket_permissions_core::ProgramName;
 
 use porter_core::DataClass;
 use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
@@ -69,8 +70,8 @@ fn resume_of(
 fn abs(program: &str, text: &str) -> Result<AbsPath, ConfigFault> {
     let path = AbsPath::parse(text).map_err(|_| bad(program, "a path must be absolute"))?;
     match path.is_root() {
-        docket_core::RootState::Root => Err(bad(program, "a path must not be /")),
-        docket_core::RootState::Below => Ok(path),
+        bulkhead::RootState::Root => Err(bad(program, "a path must not be /")),
+        bulkhead::RootState::Below => Ok(path),
     }
 }
 

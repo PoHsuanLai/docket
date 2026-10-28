@@ -2,7 +2,8 @@
 //! tainted (taint never goes back), paused after the breaker trips until the person speaks, or
 //! closed.
 
-use docket_core::{BreakerTrip, CallRefusal};
+use docket_core::CallRefusal;
+use docket_permissions_core::BreakerTrip;
 use prov::SessionId;
 
 /// Whether the session read anything untrusted.

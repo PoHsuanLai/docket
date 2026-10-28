@@ -16,10 +16,11 @@ use crate::spoken::whole_in;
 use docket_core::EventSink;
 use docket_core::helper::{GoalOrigin, JobRefusal, PlannerSaw};
 use docket_core::{
-    AppRefusal, AuditRecord, COMPANION_APP, CallerId, CallerRole, DraftPart, FROM_CHECKED_BRIEF,
-    FailText, IntentsReply, Invocation, MessageDraft, Outcome, Preview, Reveal, Saw, SendRefusal,
-    SessionOpen, SessionOpened, TaskStart, Undoable, WireRefusal,
+    AppRefusal, AuditRecord, CallerId, CallerRole, DraftPart, FROM_CHECKED_BRIEF, FailText,
+    IntentsReply, Invocation, MessageDraft, Outcome, Preview, Reveal, SendRefusal, SessionOpen,
+    SessionOpened, TaskStart, Undoable, WireRefusal,
 };
+use docket_permissions_core::{COMPANION_APP, Saw};
 use docket_vocab::{ChoiceId, Clock, LabelText, ParamName, TargetValue, Value};
 use porter_core::{AppId, AppName, Isolation};
 use prov::{

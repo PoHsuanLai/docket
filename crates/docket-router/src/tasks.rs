@@ -4,8 +4,9 @@
 use crate::state::SessionRecord;
 use docket_core::{
     Budget, LeadText, Reveal, Roster, RosterDetail, RosterFull, RosterLine, RosterState, StepLine,
-    TaskLedger, TaskPolicy, TaskTotals, intersection, totals_of,
+    TaskLedger, TaskTotals, totals_of,
 };
+use docket_permissions_core::{TaskPolicy, intersection};
 use prov::{AgentRef, ReportStatus, SessionId, SpaceId, TaskId};
 use std::collections::BTreeMap;
 

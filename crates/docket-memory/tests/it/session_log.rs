@@ -10,6 +10,9 @@ use almanac_service::MemoryService;
 use docket_core::*;
 use docket_fake::{FixedClock, MailThread, ScriptedReviewer, ScriptedWriter, fake_router_on};
 use docket_memory::AlmanacSessionLog;
+use docket_permissions_core::{
+    ActionGrantKey, ActionMatch, GrantCaller, GrantTarget, TaskPolicy, TaskPolicyState,
+};
 use docket_router::Taint;
 use docket_session::{
     BackendKind, LogFault, Opening, PageSize, Read, Seq, SessionEntry, SessionLog,

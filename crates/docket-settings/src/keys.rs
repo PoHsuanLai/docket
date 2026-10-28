@@ -4,7 +4,7 @@
 
 use crate::AgentSettings;
 use crate::expose::{AcpAgents, AcpExpose, McpExpose};
-use docket_core::{DeleteRow, InsideRow, Mode, OtherRow, ScreenRow, SendRow};
+use docket_permissions_core::{DeleteRow, InsideRow, Mode, OtherRow, ScreenRow, SendRow};
 use porter_core::MicroUsd;
 use std::ops::RangeInclusive;
 

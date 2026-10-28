@@ -9,7 +9,7 @@ use crate::handoff::chosen_agent;
 use crate::helpers::is_helper_action;
 use crate::one_run::loop_end;
 use crate::plan::phase_of;
-use crate::read::{COMPANION_APP, answer_read};
+use crate::read::answer_read;
 use crate::runtime::Companion;
 use crate::seams::Surface;
 use crate::tap::{Go, NoTap, Tap};
@@ -20,9 +20,9 @@ use agent_loop::{
 };
 use companion_wire::{AnswerPhase, RefusalWire, declined_text};
 use docket_client::{ClientError, PerformEvent, Transport as IntentsTransport};
-use docket_core::{
-    BudgetKind, CallProgress, CallRefusal, Held, ReaderAsk, StepEnd, TASK_START, WireRefusal,
-};
+use docket_core::{BudgetKind, CallProgress, CallRefusal, Held, ReaderAsk, StepEnd, WireRefusal};
+use docket_permissions_core::COMPANION_APP;
+use docket_permissions_core::TASK_START;
 use docket_planner::{PlanFault, Planner};
 use docket_session::CallOpen;
 use docket_store::Stop;

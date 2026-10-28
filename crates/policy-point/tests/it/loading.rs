@@ -1,7 +1,7 @@
 //! The shipped schema and built-in policies load and validate strictly.
 
 use crate::support;
-use docket_core::PolicyId;
+use docket_permissions_core::PolicyId;
 use policy_point::{CORE_POLICIES, Pdp, PolicyError, SCHEMA};
 
 #[test]
@@ -81,7 +81,9 @@ fn a_policy_that_errors_asks_with_the_failure_and_never_permits() {
     let ruled = pdp.decide_checked(&support::base(prov::Effect::Read));
     assert_eq!(
         ruled.ruling,
-        docket_core::Ruling::Ask(vec![docket_core::AskReason::EvaluationFailed])
+        docket_permissions_core::Ruling::Ask(vec![
+            docket_permissions_core::AskReason::EvaluationFailed
+        ])
     );
     assert_eq!(
         ruled.faults,

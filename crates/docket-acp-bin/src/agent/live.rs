@@ -12,10 +12,11 @@ use docket_acp_host::{
     AcpBackend, EdgeMenu, Fallback, IntentsCourt, OsFiles, Parts, Performer, ToolsOffer,
 };
 use docket_client::DbusTransport;
-use docket_core::ProgramName;
+use docket_permissions_core::ProgramName;
 
+use bulkhead::AbsPath;
 use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};
-use docket_core::{ACP_AGENT_APP, AbsPath, SeenCommand, WatchedAgent};
+use docket_core::{SeenCommand, WatchedAgent};
 use docket_dbus::CONFIRM_PATH;
 use docket_host::EditorDesk;
 use docket_launch::{
@@ -23,6 +24,7 @@ use docket_launch::{
     ToolsMode, login_run,
 };
 use docket_manifest::ValidManifest;
+use docket_permissions_core::ACP_AGENT_APP;
 use docket_provider::serve_on_with;
 
 use docket_store::SystemClock;
@@ -132,7 +134,7 @@ impl<A: Accounts + 'static> Live<A> {
             .with_agent_network(agent_network)
             .with_command_deadline(acp_core::command_deadline::CommandDeadline::DEFAULT);
         let manifest: ValidManifest = docket_manifest::parse(MANIFEST)?;
-        let quiet = Quiet(docket_core::acp_agent_app().ok_or(LiveFault::NoAppName)?);
+        let quiet = Quiet(docket_permissions_core::acp_agent_app().ok_or(LiveFault::NoAppName)?);
         if fallback == Fallback::Terminal {
             // Served before the name is claimed, so the first sheet finds it.
             bus.object_server()

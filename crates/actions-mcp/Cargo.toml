@@ -37,6 +37,7 @@ zbus = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 docket-testbus = { workspace = true }

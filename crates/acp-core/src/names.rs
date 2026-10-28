@@ -4,7 +4,7 @@
 //! `acpagent.reported.<kind>` and is never dispatched.
 
 use agent_client_protocol::schema::v1::ToolKind;
-use docket_core::{PermissionKind, acp_agent_action};
+use docket_permissions_core::{PermissionKind, acp_agent_action};
 use docket_vocab::ActionRef;
 use prov::Effect;
 
@@ -34,7 +34,7 @@ pub fn effect(kind: ToolKind) -> Effect {
 pub fn reported_action(kind: ToolKind) -> Option<ActionRef> {
     acp_agent_action(&format!(
         "{}.{}",
-        docket_core::REPORTED,
+        docket_permissions_core::REPORTED,
         permission(kind).word()
     ))
 }
@@ -58,6 +58,6 @@ mod tests {
     fn a_reported_call_is_named_for_display_by_its_kind() {
         let shown = reported_action(ToolKind::Execute).expect("action");
         assert_eq!(shown.name.as_str(), "acpagent.reported.execute");
-        assert_eq!(shown.app.as_str(), docket_core::ACP_AGENT_APP);
+        assert_eq!(shown.app.as_str(), docket_permissions_core::ACP_AGENT_APP);
     }
 }

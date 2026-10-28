@@ -4,6 +4,7 @@ use agent_loop::*;
 use almanac_core::{MemoryItem, RecallWhy};
 use docket_core::*;
 use docket_manifest::{AgentReach, Lasting, TargetKind};
+use docket_permissions_core::{BreakerTrip, DenyCode};
 use docket_vocab::{ActionRef, CallId, CharCount, Handle, LabelText, TurnId, UndoId, Value};
 use porter_core::{AppName, Count, Tokens};
 use prov::{ActionName, Effect, Integrity, SpaceId, UnixSeconds};

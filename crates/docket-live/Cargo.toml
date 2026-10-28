@@ -30,6 +30,7 @@ docket-acp-host = { workspace = true }
 docket-client = { workspace = true, features = ["dbus", "in_process"] }
 docket-core = { workspace = true }
 docket-manifest = { workspace = true, features = ["manifest-file"] }
+docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }
 docket-eval = { workspace = true }

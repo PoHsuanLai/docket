@@ -1,9 +1,9 @@
 //! Scratch repositories: a temporary folder with its own HOME and git configuration, so the
 //! person's real configuration, repositories and index are never read or written.
 
+use bulkhead::AbsPath;
 use docket_checkpoint::WorkRoot;
 use docket_checkpoint_git::{GitStore, StdGitRun};
-use docket_core::AbsPath;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 

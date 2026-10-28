@@ -38,7 +38,7 @@ pub struct TaskRuntime {
     /// The chips of context the person kept with the latest turn.
     pub keep: ContextKeep,
     /// The mode the latest turn named, for the answer's footer; Auto until a turn names one.
-    pub mode: docket_core::Mode,
+    pub mode: docket_permissions_core::Mode,
     /// The window the person asked from, to anchor a confirmation.
     pub window: Option<WindowKey>,
     /// The calls and how they ended, oldest first.
@@ -133,7 +133,7 @@ impl TaskRuntime {
             started,
             turns: Vec::new(),
             keep: kept_all(),
-            mode: docket_core::Mode::Auto,
+            mode: docket_permissions_core::Mode::Auto,
             window: None,
             history: Vec::new(),
             steps: Vec::new(),
@@ -339,7 +339,7 @@ fn refusal_wire(refusal: &CallRefusal) -> RefusalWire {
         CallRefusal::Denied(code) => RefusalWire::NotAllowed(*code),
         CallRefusal::OverBudget(kind) => RefusalWire::OverBudget(*kind),
         CallRefusal::Paused(_) | CallRefusal::Halted(_) => {
-            RefusalWire::NotAllowed(docket_core::DenyCode::NeedsUser)
+            RefusalWire::NotAllowed(docket_permissions_core::DenyCode::NeedsUser)
         }
         CallRefusal::App(_)
         | CallRefusal::Unconfirmed(_)

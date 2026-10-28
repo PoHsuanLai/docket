@@ -7,13 +7,15 @@
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
 use docket_core::HandNote;
-use docket_core::ProgramName;
+use docket_core::Ledger;
 use docket_core::helper::HelperSeat;
-use docket_core::{BreakerTrip, Ledger};
 use docket_core::{
     CheckpointNote, Covers, HandleShape, Rewind, SkillId, SkillVersion, StartedFrom, StepLine,
-    SummaryText, TaskPolicy, UserTurn,
+    SummaryText, UserTurn,
 };
+use docket_permissions_core::BreakerTrip;
+use docket_permissions_core::ProgramName;
+use docket_permissions_core::TaskPolicy;
 use docket_vocab::{ActionRef, CallId, Handle, Workspace};
 use porter_core::{AppName, Tier};
 use prov::{AgentRef, Effect, Label, SessionId, Source, SpaceId, TaskId};

@@ -13,8 +13,9 @@ use docket_core::EventSink;
 use docket_core::helper::SeatPlace;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, IntentsReply, Reveal, Rewind, SessionOpen, SessionOpened,
-    TaskLedger, TurnIn, TurnSource, UserTurn, WireRefusal, close, intersection,
+    TaskLedger, TurnIn, TurnSource, UserTurn, WireRefusal, close,
 };
+use docket_permissions_core::intersection;
 use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
 use docket_vocab::{Clock, TurnId};
 use porter_core::AppName;
@@ -282,8 +283,8 @@ impl<S: Seams> Router<S> {
             self.seams.sink().append(AuditRecord::TaskPolicy {
                 at: now,
                 task,
-                state: docket_core::TaskPolicyState::Expired,
-                change: docket_core::PolicyChangeKind::Narrows,
+                state: docket_permissions_core::TaskPolicyState::Expired,
+                change: docket_permissions_core::PolicyChangeKind::Narrows,
             });
         }
         if let Some(episode) = episode {

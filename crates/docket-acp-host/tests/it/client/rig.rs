@@ -5,6 +5,7 @@
 
 use super::agent::{Act, Auth, Offer, View};
 use crate::support::app;
+use bulkhead::AbsPath;
 use bulkhead::fake::{FakeSandbox, Script, Seen};
 use bulkhead::{Network, NetworkMode};
 use docket_acp_host::fake::{FakeFiles, FakeSpawn, SpawnSeen};
@@ -12,16 +13,18 @@ use docket_acp_host::{
     AcpBackend, AgentHost, Fallback, IntentsCourt, Parts, Performer, Seams, ToolsOffer,
 };
 use docket_client::InProcess;
-use docket_core::ProgramName;
 use docket_core::{
-    AbsPath, ActionMatch, AgentConfig, CallerId, CallerRole, ConfirmAnswer, ConfirmEnd,
-    ConfirmRequest, StandingGrant, TaskPolicy, TaskPolicyState, TurnSource, TurnVia, UserTurn,
-    acp_agent_app,
+    AgentConfig, CallerId, CallerRole, ConfirmAnswer, ConfirmEnd, ConfirmRequest, TurnSource,
+    TurnVia, UserTurn,
 };
 use docket_fake::{
     FixedClock, ScriptedConfirmer, ScriptedReviewer, ScriptedWriter, fake_router_over,
 };
 use docket_host::{EditorDesk, SheetConfirmer};
+use docket_permissions_core::ProgramName;
+use docket_permissions_core::{
+    ActionMatch, StandingGrant, TaskPolicy, TaskPolicyState, acp_agent_app,
+};
 use docket_router::GrantStore;
 use docket_session::fake::MemoryLog;
 use docket_session::{BackendEvent, BackendKind, Opening, SessionHost, SheetChoice, TurnEnd};

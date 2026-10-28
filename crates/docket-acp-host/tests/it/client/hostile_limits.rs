@@ -3,7 +3,8 @@
 
 use super::agent::{AGENT_SESSION, Act, call, say, think};
 use super::rig::{Policy, Setup, ended_with, no, once, run_turn, selected, started, tool};
-use docket_core::{AlwaysOffer, AuditRecord, Withheld};
+use docket_core::AuditRecord;
+use docket_permissions_core::{AlwaysOffer, Withheld};
 use docket_session::TurnEnd;
 use serde_json::json;
 

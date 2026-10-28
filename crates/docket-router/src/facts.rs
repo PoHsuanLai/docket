@@ -3,7 +3,8 @@
 //! the policy only as a context value; the refusal they bring about is Cedar's ruling.
 
 use action_review::RepeatState;
-use docket_core::{Budget, Cost, KillSwitch, Ledger, Limited, Saw, charge, halted};
+use docket_core::{Budget, Cost, KillSwitch, Ledger, charge, halted};
+use docket_permissions_core::{Limited, Saw};
 use policy_point::{BudgetFact, HaltFact, LimitFact, RepeatFact, TaintFact};
 use prov::{Effect, SpaceId, SpaceScope, UnixSeconds};
 

@@ -100,7 +100,7 @@ impl<S: Seams> Router<S> {
         let answered = run.receipt.is_some();
         if self.standing_use(p, answered).is_err() {
             run.state = CallState::Done(CallEnd::Refused(CallRefusal::Denied(
-                docket_core::DenyCode::NeedsUser,
+                docket_permissions_core::DenyCode::NeedsUser,
             )));
             return Next::Stop;
         }

@@ -2,7 +2,7 @@
 //! that only looks like it in the raw text (user information, backslashes, lookalike suffixes).
 
 use crate::task_policy::{call, declared, edit, labels, policy};
-use docket_core::*;
+use docket_permissions_core::*;
 use docket_vocab::Value;
 use prov::{Effect, Integrity};
 

@@ -5,7 +5,7 @@
 use crate::support::*;
 
 use action_review::*;
-use docket_core::*;
+use docket_permissions_core::{AskReason, DenyCode, Impact, PolicyId, ReviewError, Ruling, Stage};
 use docket_vocab::Millis;
 use porter_core::consent::Usage;
 use porter_core::{Tier, Tokens};

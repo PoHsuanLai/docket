@@ -7,8 +7,9 @@ use crate::state::SessionRecord;
 use crate::who::Who;
 use action_review::GoalKey;
 use action_review::{ArgDigest, ArgView, CallEndKind, ProposedAction, ReviewRequest, TypedStep};
-use docket_core::{ActivationToken, CallRefusal, Cost, GrantCaller, Ruling, StepEnd, size_of};
+use docket_core::{ActivationToken, CallRefusal, Cost, StepEnd, size_of};
 use docket_manifest::ActionDecl;
+use docket_permissions_core::{GrantCaller, Ruling};
 use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, CharCount, ParamName, TargetValue, Value, WindowKey,
 };
@@ -171,17 +172,17 @@ pub(crate) fn grants_for(
     id: GrantId,
     at: prov::UnixSeconds,
     caller: GrantCaller,
-) -> Vec<docket_core::ActionGrant> {
+) -> Vec<docket_permissions_core::ActionGrant> {
     prepared
         .decl
         .classes
         .iter()
         .map(|class| porter_core::consent::Grant {
             id: id.clone(),
-            key: docket_core::ActionGrantKey {
+            key: docket_permissions_core::ActionGrantKey {
                 caller: caller.clone(),
                 owner: prepared.request.action.app.clone(),
-                target: docket_core::GrantTarget::App,
+                target: docket_permissions_core::GrantTarget::App,
                 class: *class,
                 usage: usage_of(&prepared.who.actor),
                 space: prov::SpaceScope::Only(prepared.space.clone()),

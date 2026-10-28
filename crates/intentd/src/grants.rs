@@ -2,7 +2,7 @@
 
 use crate::defaults::{default_grants_file, read_defaults};
 use crate::policies::{PolicyDirs, load_policies};
-use docket_core::{
+use docket_permissions_core::{
     ActionGrant, Ended, KnownSpaces, Limit, LimitCaller, LimitKey, LimitLevel, LimitMaker,
     LimitScope, Reconciled, Revocation, RuleFile, SpaceAccess, StandingGrant, StandingGrantId,
     decode_grants, decode_limits, decode_standing, encode_limits, encode_standing, held_with,

@@ -6,9 +6,8 @@
 //! a routine for its own card, which the router gates by its own rules, and loading a skill when
 //! one fits its apps.
 
-pub(crate) use docket_core::SKILL_LOAD;
-
-use docket_core::{ActionCard, TaskPolicy};
+use docket_core::ActionCard;
+use docket_permissions_core::TaskPolicy;
 use docket_skills::Skill;
 use prov::HelperId;
 

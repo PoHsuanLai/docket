@@ -34,6 +34,7 @@ tokio = ["dep:tokio"]
 docket-client = { workspace = true, features = ["in_process"] }
 docket-fake = { workspace = true }
 docket-helpers = { workspace = true, features = ["tokio"] }
+docket-permissions-core = { workspace = true }
 docket-router = { workspace = true }
 porter-client = { workspace = true }
 porter-infer = { workspace = true }

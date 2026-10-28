@@ -6,7 +6,6 @@
 //! the host that keeps the helpers carries it out here. A host with none refuses them.
 
 use crate::desk::{PostFromPlanner, Proposal, RoutineAsk, RoutineFor};
-use crate::read::COMPANION_APP;
 use crate::runtime::Companion;
 use crate::seams::Surface;
 use companion_wire::HelperReply;
@@ -15,16 +14,13 @@ use docket_core::helper::{Ceiling, GoalOrigin, JobId, PlannerSaw};
 use docket_core::{
     ActionCard, AppRefusal, CallRefusal, FailText, NoteAsk, Outcome, from_checked_brief,
 };
+use docket_permissions_core::{COMPANION_APP, HAND_ON_JOB, PROPOSE_ROUTINE};
 use docket_planner::Planner;
 use docket_vocab::{CallRequest, Clock, LabelText, Value};
 use prov::TaskId;
 
-pub(crate) use docket_core::HAND_ON_JOB as POST_JOB;
 /// Proposes a helper to the person.
 pub(crate) const PROPOSE: &str = "companion.helper.propose";
-
-/// Proposes a routine to the person.
-pub(crate) use docket_core::PROPOSE_ROUTINE;
 
 /// Asks the person to check a brief before helpers work from it. The router answers it itself,
 /// so it never goes through the desk.
@@ -39,8 +35,8 @@ pub(crate) fn offered_here(card: &ActionCard, keeps: Keeps) -> bool {
         return true;
     }
     match (card.action.name.as_str(), keeps) {
-        (POST_JOB, Keeps::Helpers) => true,
-        (POST_JOB, Keeps::NoHelpers | Keeps::OnlyItself | Keeps::NoDesk) => false,
+        (HAND_ON_JOB, Keeps::Helpers) => true,
+        (HAND_ON_JOB, Keeps::NoHelpers | Keeps::OnlyItself | Keeps::NoDesk) => false,
         (PROPOSE, Keeps::Helpers | Keeps::NoHelpers) => true,
         (PROPOSE, Keeps::OnlyItself | Keeps::NoDesk) => false,
         (PROPOSE_ROUTINE, Keeps::Helpers | Keeps::OnlyItself) => true,
@@ -70,7 +66,7 @@ pub(crate) fn is_helper_action(call: &CallRequest) -> bool {
     call.action.app.as_str() == COMPANION_APP
         && matches!(
             call.action.name.as_str(),
-            POST_JOB | PROPOSE | PROPOSE_ROUTINE
+            HAND_ON_JOB | PROPOSE | PROPOSE_ROUTINE
         )
 }
 
@@ -170,7 +166,7 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
                 space,
             })
             .await
-        } else if call.action.name.as_str() == POST_JOB {
+        } else if call.action.name.as_str() == HAND_ON_JOB {
             let (Some(helper), Some(goal)) = (text_of(call, "helper"), text_of(call, "goal"))
             else {
                 return Err(refused("Say which helper and what it is to do."));

@@ -1,6 +1,7 @@
 //! The attack format, the scores, the summary and the comparison of two summaries.
 
-use docket_core::{CallRefusal, DenyCode};
+use docket_core::CallRefusal;
+use docket_permissions_core::DenyCode;
 use eval_core::*;
 use prov::Effect;
 

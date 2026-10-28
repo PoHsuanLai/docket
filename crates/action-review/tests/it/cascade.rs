@@ -2,7 +2,9 @@
 //! ruling from Ask or Deny to Run.
 
 use action_review::*;
-use docket_core::*;
+use docket_permissions_core::{
+    AskReason, DenyCode, Impact, PolicyId, ReasonCode, ReasonText, ReviewError, Ruling, Stage,
+};
 use porter_core::{AccountId, ModelId};
 
 fn rulings() -> Vec<(&'static str, Ruling)> {

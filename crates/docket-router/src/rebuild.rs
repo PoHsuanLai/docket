@@ -15,9 +15,10 @@ use crate::wal::Wal;
 use crate::who::actor_of;
 use almanac_core::EpisodeId;
 use docket_core::{
-    ExternalAgent, HandTo, Ledger, Reveal, Saw, SheetSurface, StepEnd, StepLine, StepShown,
-    TaskLedger, UserTurn,
+    ExternalAgent, HandTo, Ledger, Reveal, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger,
+    UserTurn,
 };
+use docket_permissions_core::Saw;
 use docket_session::{
     ResumeFault, ResumePlan, SessionEntry, Standing, Taint as Written, TaintCause, TaintNote,
 };
@@ -26,7 +27,7 @@ use prov::{Actor, AgentRef, AgentRole, Label, SessionId, UnixSeconds};
 
 /// The app a session is attributed to when its log never said who opened it (a record from
 /// before the durable log).
-const FALLBACK_OPENER: &str = docket_core::COMPANION_APP;
+const FALLBACK_OPENER: &str = docket_permissions_core::COMPANION_APP;
 
 /// A restored session and everything beside it the router must make consistent.
 #[derive(Debug)]
@@ -290,8 +291,8 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
-    use docket_core::BreakerTrip;
     use docket_core::Rewind;
+    use docket_permissions_core::BreakerTrip;
     use docket_session::{
         BackendKind, CallOpen, EndCause, Interrupted, Opening, ResumedBudget, TaintCause,
     };
@@ -340,8 +341,9 @@ mod tests {
     #[test]
     fn an_external_agents_label_survives_a_rebuild() {
         let mut p = plan(Standing::Open);
-        p.opening.backend =
-            BackendKind::Acp(docket_core::ProgramName::parse("claude-code").expect("program"));
+        p.opening.backend = BackendKind::Acp(
+            docket_permissions_core::ProgramName::parse("claude-code").expect("program"),
+        );
         p.opening.label = Some(prov::AgentLabel("Claude Code".to_owned()));
         p.opening.rewind = Rewind::Agent;
         let record = rebuild(&id(), &p, UnixSeconds(1)).record;

@@ -1,9 +1,9 @@
 //! What a policy writer hands the router: the policy, and what checking the model's draft had to
 //! change in it, so a trace shows a correction instead of hiding it. Also the writer's seam.
 
-use crate::TaskPolicy;
 use crate::planner::{ActionCard, UserTurn};
-use crate::review::ReviewError;
+use docket_permissions_core::ReviewError;
+use docket_permissions_core::TaskPolicy;
 use prov::{Effect, SpaceId, TaskId};
 use serde::{Deserialize, Serialize};
 use std::future::Future;

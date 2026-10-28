@@ -4,7 +4,7 @@
 use super::files::{FileFault, Files};
 use super::spawn::{AgentChild, LaunchPlan, SessionMeta, SignIn, Spawn, SpawnFault, Spawned};
 use agent_client_protocol::{Agent, Client, ConnectTo, Error, Lines};
-use docket_core::{AbsPath, Cover};
+use bulkhead::{AbsPath, Cover};
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::{SinkExt, StreamExt};
 use std::collections::{BTreeMap, VecDeque};

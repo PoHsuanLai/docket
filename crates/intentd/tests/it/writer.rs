@@ -3,6 +3,9 @@
 
 use crate::support::inferd::*;
 use docket_core::*;
+use docket_permissions_core::{
+    ActionMatch, ReviewError, TaskPolicy, TaskPolicyState, TrustedPattern,
+};
 use docket_vocab::{ActionRef, TurnId, Value};
 use intentd::InferdWriter;
 use porter_core::DataClass;

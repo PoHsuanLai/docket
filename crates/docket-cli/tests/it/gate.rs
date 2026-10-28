@@ -4,7 +4,8 @@
 
 use crate::support::*;
 use docket_cli::Exit;
-use docket_core::{AskReason, ConfirmOffer};
+use docket_core::ConfirmOffer;
+use docket_permissions_core::AskReason;
 use docket_vocab::ActionRef;
 use prov::Effect;
 

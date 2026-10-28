@@ -4,7 +4,7 @@
 //! the conversation is brought back. These are the words for it that the router, the host of the
 //! agent apps and the terminal share.
 
-use crate::grant::ProgramName;
+use docket_permissions_core::ProgramName;
 use docket_vocab::Workspace;
 use prov::{AgentLabel, SessionId};
 use serde::{Deserialize, Serialize};

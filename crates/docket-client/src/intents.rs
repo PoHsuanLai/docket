@@ -5,11 +5,12 @@ use crate::transport::{Transport, TransportError};
 use docket_core::{
     ActivationToken, CallRefusal, ContextView, CuaAsk, Delivery, Displayed, GateAnswer,
     GrantAnswer, GrantAsk, HaltCause, Hit, InboundLine, InboxAsk, IntentsReply, IntentsRequest,
-    JournalFilter, KillSwitch, MessageDraft, Mode, Outcome, Preview, Resolved, SearchAsk,
-    SessionModeAsk, SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnIn, UndoEntry, UndoReport,
-    UndoScope, WidenAnswer, WidenAsk, WireRefusal,
+    JournalFilter, KillSwitch, MessageDraft, Outcome, Preview, Resolved, SearchAsk, SessionModeAsk,
+    SessionOpen, SessionOpened, SuggestAsk, TurnEnd, TurnIn, UndoEntry, UndoReport, UndoScope,
+    WidenAnswer, WidenAsk, WireRefusal,
 };
 use docket_manifest::ValidManifest;
+use docket_permissions_core::Mode;
 use docket_vocab::{ActionRef, CallRequest, EntityRef, Handle, TurnId, UndoId, WindowKey};
 use prov::{AppName, EntityId, SessionId, SpaceScope};
 
@@ -173,7 +174,9 @@ impl<T: Transport> Intents<T> {
     }
 
     /// The standing "allow always" grants held (Settings).
-    pub async fn standing_grants(&self) -> Result<Vec<docket_core::StandingGrant>, ClientError> {
+    pub async fn standing_grants(
+        &self,
+    ) -> Result<Vec<docket_permissions_core::StandingGrant>, ClientError> {
         self.ask(IntentsRequest::ControlStandingGrants, |r| match r {
             IntentsReply::StandingGrants(grants) => Some(grants),
             _ => None,
@@ -184,7 +187,7 @@ impl<T: Transport> Intents<T> {
     /// Revokes one standing grant (Settings): the next call it covered asks again.
     pub async fn revoke_standing_grant(
         &self,
-        id: docket_core::StandingGrantId,
+        id: docket_permissions_core::StandingGrantId,
     ) -> Result<(), ClientError> {
         self.ask(IntentsRequest::ControlStandingRevoke(id), |r| match r {
             IntentsReply::Done => Some(()),

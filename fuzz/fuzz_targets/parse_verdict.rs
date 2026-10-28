@@ -2,7 +2,7 @@
 #![no_main]
 
 use action_review::parse_verdict;
-use docket_core::{Stage, VerdictKind};
+use docket_permissions_core::{Stage, VerdictKind};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|input: (u8, &str)| {

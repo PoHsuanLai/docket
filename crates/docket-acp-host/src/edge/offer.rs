@@ -2,7 +2,7 @@
 
 use actions_tools::{EDGE_TOKEN_ENV, EdgeToken};
 use agent_client_protocol::schema::v1::{EnvVariable, McpServer, McpServerStdio};
-use docket_core::AbsPath;
+use bulkhead::AbsPath;
 use std::path::PathBuf;
 
 /// The name the agent sees the server under.

@@ -1,8 +1,9 @@
 //! Why a tool call produced no outcome. Coarse on purpose: a client is not an oracle for the
 //! policy, so a refusal says which kind it was and never which rule, reviewer or app text.
 
-use docket_core::{AppRefusal, CallRefusal, DenyCode};
+use docket_core::{AppRefusal, CallRefusal};
 use docket_manifest::ArgsFault;
+use docket_permissions_core::DenyCode;
 use serde::{Deserialize, Serialize};
 
 /// The ways the router refused a call, without its reasons.

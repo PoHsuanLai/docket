@@ -12,7 +12,7 @@ use docket_core::{
 use docket_vocab::{ActionRef, Args, CallRequest, Origin, TargetValue, Value};
 use prov::{ActionName, Effect, Labelled};
 
-pub(crate) use docket_core::COMPANION_APP;
+use docket_permissions_core::COMPANION_APP;
 
 /// Asks the reader about `ask` for the task `rt`, and says what the loop is told.
 pub async fn answer_read<I: IntentsTransport>(

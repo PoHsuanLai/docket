@@ -302,7 +302,7 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
             &SessionOpened {
                 session,
                 task: task.clone(),
-                mode: docket_core::Mode::default(),
+                mode: docket_permissions_core::Mode::default(),
             },
             &open,
         );

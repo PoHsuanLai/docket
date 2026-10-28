@@ -4,8 +4,8 @@
 //! the person gave from the sheet is the only way to skip the ask, and it lifts nothing else.
 
 use crate::support::*;
-use docket_core::*;
 use docket_manifest::{AgentReach, Lasting};
+use docket_permissions_core::{AskReason, Saw, SessionSaw};
 use docket_vocab::Origin;
 use policy_point::{GrantState, PolicyRequest, TerminalGrant};
 use prov::{ActorKind, Effect, Integrity};

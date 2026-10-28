@@ -5,6 +5,10 @@
 use crate::acp_agent::*;
 use crate::support::*;
 use docket_core::*;
+use docket_permissions_core::{
+    ActionMatch, AlwaysOffer, ArgFacts, CallFacts, GrantCaller, StandingGrant, StandingScope,
+    find_standing_for,
+};
 use docket_vocab::{ActionRef, CallRequest, TargetValue};
 use prov::{Effect, EntityId, EntityKey, EntityKind};
 use std::collections::BTreeSet;

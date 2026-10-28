@@ -2,9 +2,10 @@
 //! real `parse_verdict`, a hijacked planner's calls through the real router. (The writer's words
 //! and the planner cases need the daemons: `docket-accept` plays those.)
 
-use docket_core::{AgentConfig, Stage};
+use docket_core::AgentConfig;
 use docket_eval::{Harness, load_all, load_planner_cases, run_case};
 use docket_fake::{FakeSeams, FixedClock, ParsedReviewer, ScriptedWriter, fake_router_with};
+use docket_permissions_core::Stage;
 use eval_core::{Case, Corpus, Judgement, StepEnding, judge};
 use prov::UnixSeconds;
 use std::collections::BTreeSet;

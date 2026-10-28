@@ -43,7 +43,7 @@ use crate::case::{
     ScriptedStep, WorldFixture,
 };
 use crate::model_script::ModelScript;
-use docket_core::Mode;
+use docket_permissions_core::Mode;
 use porter_core::AppName;
 use prov::{ActionName, SpaceId};
 use serde::{Deserialize, Serialize};

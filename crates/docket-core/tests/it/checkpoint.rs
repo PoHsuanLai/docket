@@ -1,6 +1,7 @@
 //! Restore-point data: serde shapes, `WorkPath` rules, the `Rewind` default.
 
 use docket_core::*;
+use docket_permissions_core::ProgramName;
 use docket_vocab::{Days, TurnId, Workspace};
 use porter_core::{Count, UnixSeconds};
 use prov::SessionId;

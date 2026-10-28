@@ -10,8 +10,8 @@ use crate::taint::brings_content;
 use agent_client_protocol::schema::v1::{
     ContentBlock, ContentChunk, SessionUpdate, ToolCallStatus, ToolKind,
 };
-use docket_core::PermissionKind;
 use docket_core::{AppRefusal, CallRefusal, FailText, Reveal, StepEnd, StepLine, StepShown};
+use docket_permissions_core::PermissionKind;
 use docket_session::{BackendEvent, CallEvent, CallOpen, UsageNote};
 use docket_vocab::CallId;
 use porter_core::{Count, MicroUsd};

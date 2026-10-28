@@ -106,7 +106,7 @@ fn the_entry_is_an_agents_toml_entry_under_the_scratch_home() {
     let text = spec.entry_toml(std::path::Path::new("/scratch/world-1"));
     let file = docket_launch::AgentsFile::parse(&text).expect("agents.toml reads it");
     let entry = file
-        .get(&docket_core::ProgramName::parse("claude-code").expect("name"))
+        .get(&docket_permissions_core::ProgramName::parse("claude-code").expect("name"))
         .expect("entry");
     assert_eq!(entry.route, docket_launch::Route::Login);
     assert_eq!(entry.network, bulkhead::NetworkMode::Host);

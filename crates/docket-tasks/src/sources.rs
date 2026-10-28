@@ -3,7 +3,7 @@
 //! already a handle by the time it is here. The sections are the assembler's (`agent-loop`); this
 //! only fills them, and the assembler cuts each to its budget.
 
-use crate::helpers::{Keeps, SKILL_LOAD, in_menu, offered_here, skill_in_menu};
+use crate::helpers::{Keeps, in_menu, offered_here, skill_in_menu};
 use crate::memory::{episodes_of, hits_of, primer_of, profile_of};
 use crate::runtime::Companion;
 use crate::seams::Surface;
@@ -14,8 +14,9 @@ use docket_client::Transport as IntentsTransport;
 use docket_core::{
     ActionCard, ContextView, EntityLine, EpisodeLine, HereView, PrimerText, ProfileLine,
     RecalledLine, Reveal, SelectionView, SkillCard, SkillText, TextTargetView, VisibleView,
-    offered_to,
 };
+use docket_permissions_core::SKILL_LOAD;
+use docket_permissions_core::offered_to;
 use docket_planner::Planner;
 use docket_skills::{BODY_BUDGET_BYTES, Situation, Skill, preselect, uses_first};
 use docket_vocab::Clock;

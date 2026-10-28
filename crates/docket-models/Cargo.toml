@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 action-review = { workspace = true }
 docket-core = { workspace = true }
+docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 porter-client = { workspace = true }
 porter-core = { workspace = true }

@@ -1,7 +1,8 @@
 //! What the router asks the policy point: a principal, an operation, the action, and the
 //! context that Cedar's rules read. Every context field has a slug form in the schema.
 
-use docket_core::{BudgetKind, Impact, Saw, SessionSaw, SinkIntegrity};
+use docket_core::BudgetKind;
+use docket_permissions_core::{Impact, Saw, SessionSaw, SinkIntegrity};
 use docket_vocab::Origin;
 use porter_core::consent::Usage;
 use porter_core::{AppName, Count, DataClass, Isolation};
@@ -93,11 +94,11 @@ pub enum CoverageState {
     Outside,
 }
 
-impl From<&docket_core::Coverage> for CoverageState {
-    fn from(coverage: &docket_core::Coverage) -> Self {
+impl From<&docket_permissions_core::Coverage> for CoverageState {
+    fn from(coverage: &docket_permissions_core::Coverage) -> Self {
         match coverage {
-            docket_core::Coverage::Inside => CoverageState::Inside,
-            docket_core::Coverage::Outside(_) => CoverageState::Outside,
+            docket_permissions_core::Coverage::Inside => CoverageState::Inside,
+            docket_permissions_core::Coverage::Outside(_) => CoverageState::Outside,
         }
     }
 }
@@ -230,9 +231,9 @@ pub struct PolicyContext {
     /// Whether the person allowed the screen run this step belongs to.
     pub run: RunFact,
     /// The mode of the conversation the call belongs to.
-    pub mode: docket_core::Mode,
+    pub mode: docket_permissions_core::Mode,
     /// What that mode does without asking, from the settings and the administrator's floor.
-    pub rows: docket_core::ModeRows,
+    pub rows: docket_permissions_core::ModeRows,
 }
 
 /// One question for the policy point.

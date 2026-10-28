@@ -9,8 +9,8 @@
 //! A turn can take longer than the bus lets one call wait, so the call is two: `HandOver` starts
 //! the turn and answers its id, and `Wait` is asked again until the turn has ended.
 
-use crate::grant::ProgramName;
 use crate::planner::UserTurn;
+use docket_permissions_core::ProgramName;
 use prov::SpaceId;
 use serde::{Deserialize, Serialize};
 

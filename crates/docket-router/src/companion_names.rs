@@ -1,7 +1,7 @@
 //! The names of the companion's own actions, and the rule that the helper ones are the
 //! companion's planners' alone.
 
-use docket_core::COMPANION_APP;
+use docket_permissions_core::COMPANION_APP;
 use docket_vocab::ActionRef;
 
 /// The assistant's one action that adds a limit.

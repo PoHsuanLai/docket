@@ -2,7 +2,8 @@
 //! result and the pure judgement of one against the other.
 
 use crate::case::{CaseId, Corpus, Expect};
-use docket_core::{BreakerTrip, CallRefusal};
+use docket_core::CallRefusal;
+use docket_permissions_core::BreakerTrip;
 use prov::{Effect, InputProof, Integrity};
 use serde::{Deserialize, Serialize};
 

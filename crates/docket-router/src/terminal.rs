@@ -13,8 +13,9 @@ use crate::state::{RouterState, SessionRecord};
 use crate::tasks::TaskState;
 use action_review::Breaker;
 use docket_core::EventSink;
-use docket_core::{ActionMatch, AuditRecord, CallerRole, TaskPolicy, TaskPolicyState};
+use docket_core::{AuditRecord, CallerRole};
 use docket_manifest::{ActionDecl, TargetKind};
+use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_vocab::{ActionRef, Clock, LabelText};
 use policy_point::TerminalGrant;
 use porter_core::Count;
@@ -113,7 +114,7 @@ impl<S: Seams> Router<S> {
             at,
             task,
             state: TaskPolicyState::Active,
-            change: docket_core::PolicyChangeKind::Widens,
+            change: docket_permissions_core::PolicyChangeKind::Widens,
         });
     }
 
@@ -155,7 +156,7 @@ impl<S: Seams> Router<S> {
                     at,
                     task,
                     state: TaskPolicyState::Revoked,
-                    change: docket_core::PolicyChangeKind::Narrows,
+                    change: docket_permissions_core::PolicyChangeKind::Narrows,
                 });
                 Revoked::Done
             }

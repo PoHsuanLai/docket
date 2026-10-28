@@ -9,6 +9,7 @@
 //! policy and every non-read call is outside.
 
 use crate::pattern::{pattern_inside, pattern_matches};
+use crate::policy_change::PolicyChange;
 use docket_manifest::{ActionDecl, ArgSink};
 use docket_vocab::{ActionRef, CallRequest, FileRef, LabelText, TargetValue, TurnId, Value};
 use porter_core::{AppName, Count};
@@ -86,18 +87,6 @@ pub enum TaskPolicyState {
     Expired,
     /// Withdrawn in Settings or the control centre.
     Revoked,
-}
-
-/// How a new policy compares with the old.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
-pub enum PolicyChange {
-    /// Covers less: applied silently.
-    Narrows,
-    /// Covers the same.
-    Same,
-    /// Covers more: the person confirms.
-    Widens(Vec<Widening>),
 }
 
 /// One way a policy would widen.

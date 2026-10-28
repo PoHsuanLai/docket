@@ -4,6 +4,7 @@
 use crate::acp_agent::{CLAUDE, wide, world, write};
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
+use docket_permissions_core::{AlwaysOffer, AskReason, OtherRow, TrustedPattern, Withheld};
 use docket_vocab::FileRef;
 use prov::SessionId;
 

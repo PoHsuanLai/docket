@@ -33,6 +33,7 @@ tokio = { workspace = true }
 
 [dev-dependencies]
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
+docket-permissions-core = { workspace = true }
 porter-infer = { workspace = true }
 docket-testbus = { workspace = true }
 intentd = { path = "../intentd" }

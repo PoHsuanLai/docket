@@ -1,6 +1,7 @@
 //! The judgement of a finished case, the Wilson interval and the report shape.
 
-use docket_core::{BreakerTrip, CallRefusal, DenyCode};
+use docket_core::CallRefusal;
+use docket_permissions_core::{BreakerTrip, DenyCode};
 use eval_core::*;
 use porter_core::{Count, Permille};
 use prov::{Effect, InputProof, Integrity};
@@ -251,7 +252,7 @@ fn report_shape_round_trips() {
         p50: docket_vocab::Millis(40),
         p95: docket_vocab::Millis(310),
         per_stage: [(
-            docket_core::Stage::Quick,
+            docket_permissions_core::Stage::Quick,
             StageLatency {
                 p50: docket_vocab::Millis(80),
                 p95: docket_vocab::Millis(250),

@@ -3,10 +3,10 @@
 
 use acp_core::command_deadline::CommandDeadline;
 use agent_client_protocol::schema::v1::Error;
+use bulkhead::AbsPath;
 use bulkhead::CannotSandbox;
 use bulkhead::fake::{FakeSandbox, Fate, Script, Seen};
 use docket_acp_host::Terminals;
-use docket_core::AbsPath;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -222,7 +222,7 @@ async fn a_withheld_sandbox_is_not_advertised_and_runs_nothing() {
 
 #[test]
 fn a_security_policy_refusal_keeps_its_own_reason() {
-    use docket_core::CannotSandbox as Reason;
+    use docket_permissions_core::CannotSandbox as Reason;
     let reason = docket_acp_host::bulk::cannot(CannotSandbox::RestrictedByAppArmor);
     assert_eq!(reason, Reason::RestrictedByAppArmor);
     assert_ne!(reason, Reason::NamespacesDenied);

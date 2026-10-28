@@ -2,7 +2,8 @@
 //! modes, cancel. The host is the scripted `FakeHost`; no network, no process.
 
 use crate::support::*;
-use docket_core::{DenyCode, StepEnd, TurnSource};
+use docket_core::{StepEnd, TurnSource};
+use docket_permissions_core::DenyCode;
 use docket_session::TurnEnd;
 use docket_session::fake::MemoryLog;
 use prov::Effect;

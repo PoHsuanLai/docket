@@ -5,10 +5,10 @@ use action_review::{ReviewReason, ReviewRequest, ReviewVerdict, Reviewer};
 use almanac_core::{MemoryReply, MemoryRequest};
 use docket_core::{
     ActionCard, ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmRequest, Confirmer, PolicyWriter,
-    Reader, ReaderAsk, ReaderError, ReasonCode, ReasonText, ReviewError, Stage, TaskPolicy,
-    UserTurn,
+    Reader, ReaderAsk, ReaderError, UserTurn,
 };
 use docket_core::{LinkFault, MemoryLink};
+use docket_permissions_core::{ReasonCode, ReasonText, ReviewError, Stage, TaskPolicy};
 use docket_vocab::Value;
 use prov::{Quarantined, SessionId, SpaceId, TaskId};
 use std::collections::VecDeque;

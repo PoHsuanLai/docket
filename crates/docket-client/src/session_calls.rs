@@ -6,8 +6,9 @@ use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
 use docket_core::{
     HandleCard, IntentsReply, IntentsRequest, NoteAsk, ReadAsk, RecallAsk, RecallView, Reveal,
-    StoredAsk, StoredView, TaskPolicy, UserTurn,
+    StoredAsk, StoredView, UserTurn,
 };
+use docket_permissions_core::TaskPolicy;
 use docket_vocab::Value;
 use prov::SessionId;
 

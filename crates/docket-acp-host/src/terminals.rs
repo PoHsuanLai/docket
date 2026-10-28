@@ -20,10 +20,11 @@ use agent_client_protocol::schema::v1::{
     TerminalId, TerminalOutputRequest, TerminalOutputResponse, WaitForTerminalExitRequest,
     WaitForTerminalExitResponse,
 };
+use bulkhead::{AbsPath, Cover};
 use bulkhead::{
     Argv, Cut, ExitReport, Launch, Network, Sandbox, Shell, ShellFault, StartFault, TermId,
 };
-use docket_core::{AbsPath, Cover, NetAccess, SandboxState};
+use docket_permissions_core::{NetAccess, SandboxState};
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 

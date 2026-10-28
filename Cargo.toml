@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "crates/docket-vocab",
   "crates/docket-manifest",
+  "crates/docket-permissions-core",
   "crates/docket-core",
   "crates/docket-store",
   "crates/docket-skills",
@@ -83,6 +84,7 @@ agents-core    = { path = "crates/agents-core" }
 docket-agents  = { path = "crates/docket-agents" }
 docket-vocab   = { path = "crates/docket-vocab" }
 docket-manifest = { path = "crates/docket-manifest" }
+docket-permissions-core = { path = "crates/docket-permissions-core" }
 docket-core    = { path = "crates/docket-core" }
 docket-store   = { path = "crates/docket-store" }
 docket-skills  = { path = "crates/docket-skills" }

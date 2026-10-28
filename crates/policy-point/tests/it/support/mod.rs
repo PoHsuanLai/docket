@@ -1,8 +1,10 @@
 //! Shared rows and helpers of the policy grid tests.
 #![allow(dead_code)]
 
-use docket_core::*;
 use docket_manifest::{AgentReach, Lasting};
+use docket_permissions_core::{
+    AskReason, Impact, Mode, ModeRows, Ruling, Saw, SessionSaw, SinkIntegrity,
+};
 use docket_vocab::Origin;
 use policy_point::*;
 use porter_core::consent::Usage;

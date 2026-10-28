@@ -17,6 +17,7 @@ acp-core = { workspace = true }
 agent-client-protocol = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
+docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 docket-session = { workspace = true }
 docket-settings = { workspace = true }
@@ -30,6 +31,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+bulkhead = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 docket-fake = { workspace = true }
 docket-testbus = { workspace = true }

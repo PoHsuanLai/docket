@@ -5,10 +5,11 @@
 use crate::block::block_on;
 use crate::runner::{Harness, PolicyMode, Rig, maximal_policy};
 use docket_core::{
-    ActionGrantKey, AgentConfig, CallerId, CallerRole, ContextKeep, GrantCaller, GrantTarget,
-    IntentsReply, IntentsRequest, Keep, Mode, Reveal, SessionOpen, TurnIn, TurnVia,
+    AgentConfig, CallerId, CallerRole, ContextKeep, IntentsReply, IntentsRequest, Keep, Reveal,
+    SessionOpen, TurnIn, TurnVia,
 };
 use docket_fake::{FakeLink, MailContact, MailThread, MemoryGrants};
+use docket_permissions_core::{ActionGrantKey, GrantCaller, GrantTarget, Mode};
 use docket_router::{HandleValue, Router, RouterState, Seams};
 use docket_vocab::Origin;
 use eval_core::{Case, CasePolicy, ConsentFixture, FixtureTask, WorldFixture};

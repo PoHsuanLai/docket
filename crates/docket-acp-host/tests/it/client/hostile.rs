@@ -8,9 +8,10 @@ use super::rig::{
     CWD, Setup, abs, always, ended_with, no, once, program, read, run_turn, selected, started,
     tool, write,
 };
-use docket_core::{
-    AlwaysOffer, AuditRecord, FILES_READ, GrantCaller, Saw, StandingGrant, StandingScope,
-    TERMINAL_RUN, Withheld, acp_agent_action,
+use docket_core::AuditRecord;
+use docket_permissions_core::{
+    AlwaysOffer, FILES_READ, GrantCaller, Saw, StandingGrant, StandingScope, TERMINAL_RUN,
+    Withheld, acp_agent_action,
 };
 use docket_session::{BackendEvent, CallEvent, TurnEnd};
 use serde_json::json;
@@ -124,7 +125,7 @@ async fn a_grant_for_one_command_does_not_cover_a_pipeline() {
         GrantCaller::AcpAgent(program()),
         StandingScope::Terminal {
             action: acp_agent_action(TERMINAL_RUN).expect("action"),
-            command: docket_core::CommandPrefix::parse("echo").expect("prefix"),
+            command: docket_permissions_core::CommandPrefix::parse("echo").expect("prefix"),
             cwd: abs(CWD),
         },
         prov::UnixSeconds(1),
@@ -244,7 +245,7 @@ async fn tool_results_the_agent_claims_are_recorded_and_trusted_for_nothing() {
     assert!(matches!(
         rig.host.backend().tainted_by(),
         Some(acp_core::taint::TaintSource::Reported(
-            docket_core::PermissionKind::Execute
+            docket_permissions_core::PermissionKind::Execute
         ))
     ));
     let saw = rig.router.state.lock().expect("lock").sessions[&rig.session]

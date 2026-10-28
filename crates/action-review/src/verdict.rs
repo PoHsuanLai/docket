@@ -1,6 +1,6 @@
 //! What a reviewer says.
 
-use docket_core::{ReasonCode, ReasonText, VerdictKind};
+use docket_permissions_core::{ReasonCode, ReasonText, VerdictKind};
 use serde::{Deserialize, Serialize};
 
 /// A reviewer's coded reason, with words for the person's activity view only.

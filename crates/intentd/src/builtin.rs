@@ -8,15 +8,15 @@ use crate::builtin_checkpoints::{CheckpointsPort, CheckpointsProvider};
 use crate::builtin_companion::{CompanionPort, CompanionProvider};
 use crate::link::DbusLink;
 use almanac_client::Transport as MemoryTransport;
-use docket_core::COMPANION_APP;
 use docket_core::LinkFault;
 use docket_core::{
-    ACP_AGENT_APP, AppRefusal, ContextScope, ContextSnapshot, Invocation, Outcome, Preview,
-    SuggestAsk, UndoFault,
+    AppRefusal, ContextScope, ContextSnapshot, Invocation, Outcome, Preview, SuggestAsk, UndoFault,
 };
 use docket_manifest::{Latency, ValidManifest};
 use docket_manifest::{ManifestFileError, parse};
 use docket_memory::{MEMORY_APP, MemoryProvider};
+use docket_permissions_core::ACP_AGENT_APP;
+use docket_permissions_core::COMPANION_APP;
 use docket_provider::IntentProvider;
 use docket_router::{AppFault, AppLink, CHECKPOINTS_APP};
 use docket_vocab::{EntityRef, UndoToken};

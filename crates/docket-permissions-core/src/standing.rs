@@ -9,7 +9,7 @@ use docket_vocab::ActionRef;
 use prov::UnixSeconds;
 use serde::{Deserialize, Serialize};
 
-pub use bulkhead::{AbsPath, Cover, PathFault, RootState};
+use bulkhead::{AbsPath, Cover, RootState};
 
 /// A host name, lower case: `example.org`. Matched whole, never as a suffix, so `example.org`
 /// does not cover `evilexample.org`.

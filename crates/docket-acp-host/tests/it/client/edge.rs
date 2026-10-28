@@ -6,8 +6,9 @@
 use super::agent::{Act, Offered, bridge_call, bridge_list};
 use super::rig::{Rig, Setup, abs, always, ended_with, no, once, program, run_turn, started};
 use docket_acp_host::{ToolsEdge, ToolsOffer};
-use docket_core::{AuditRecord, GrantCaller, Saw};
+use docket_core::AuditRecord;
 use docket_fake::{MailContact, MailThread};
+use docket_permissions_core::{GrantCaller, Saw};
 use docket_session::{SessionHost, TurnEnd};
 use prov::{Actor, SessionId};
 use serde_json::{Value, json};

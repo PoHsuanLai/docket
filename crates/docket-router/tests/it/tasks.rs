@@ -1,6 +1,9 @@
 //! A child task's policy and the roster of tasks.
 
 use docket_core::*;
+use docket_permissions_core::{
+    ActionMatch, PolicyChange, TaskPolicy, TaskPolicyState, TrustedPattern, compare,
+};
 use docket_router::*;
 use docket_vocab::{Handle, LabelText, TurnId};
 use porter_core::{AppName, Count};

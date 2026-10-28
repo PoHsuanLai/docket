@@ -7,7 +7,7 @@
 //! `resolve` walks the file system; `from_resolved` is the pure half, given the real paths.
 
 use acp_core::confine::is_secret;
-use docket_core::{AbsPath, Cover};
+use bulkhead::{AbsPath, Cover};
 use std::path::{Path, PathBuf};
 
 /// Why a directory is not a [`Workdir`].

@@ -4,7 +4,7 @@ use crate::fault::Ruled;
 use crate::layers::PolicySource;
 use crate::request::PolicyRequest;
 use cedar_policy::{PolicySet, Schema, ValidationMode, Validator};
-use docket_core::{PolicyId, Ruling};
+use docket_permissions_core::{PolicyId, Ruling};
 use std::str::FromStr;
 
 /// The schema, as shipped.

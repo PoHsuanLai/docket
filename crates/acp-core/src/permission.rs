@@ -6,7 +6,8 @@
 use agent_client_protocol::schema::v1::{
     Error, RequestPermissionOutcome, RequestPermissionResponse,
 };
-use docket_core::{AlwaysOffer, ConfirmRequest};
+use docket_core::ConfirmRequest;
+use docket_permissions_core::AlwaysOffer;
 use docket_session::SheetChoice;
 
 /// The id of the one option that lets a call go on.

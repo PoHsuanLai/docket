@@ -15,7 +15,6 @@ use super::helper_hosts::{HelperHosts, folder_of};
 use super::live::Live;
 use super::logout::EntryLogout;
 use docket_acp_host::{HelperAgent, HelperAgents};
-use docket_core::ProgramName;
 use docket_core::helper::{
     AgentApps, AgentOutcome, AppsAsk, AppsReply, BackOutcome, BroughtOutcome, CheckOutcome,
     HandFault, HelperCard, JobFault, SignInOutcome, SignOutOutcome, TerminalHand, TerminalLogin,
@@ -23,6 +22,7 @@ use docket_core::helper::{
 };
 use docket_core::{SeenCommand, WatchedAgent};
 use docket_launch::dbus::DbusAccounts;
+use docket_permissions_core::ProgramName;
 use docket_vocab::Workspace;
 
 use docket_store::SystemClock;

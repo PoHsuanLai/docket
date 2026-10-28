@@ -3,7 +3,7 @@
 //! takes the name from the agent, which is a model's.
 
 use crate::checkpoint::Rewind;
-use crate::grant::ProgramName;
+use docket_permissions_core::ProgramName;
 use serde::{Deserialize, Serialize};
 
 /// Where the person answers a sheet for a call in an external agent's session.

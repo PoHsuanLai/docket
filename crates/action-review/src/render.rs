@@ -4,7 +4,7 @@
 //! a JSON string, so nothing in it can pass for a new line of the prompt.
 
 use crate::request::{ArgView, ReviewPrompt, ReviewRequest};
-use docket_core::Stage;
+use docket_permissions_core::Stage;
 use serde::Serialize;
 
 const COMMON: &str = "You review one action that an assistant proposes to take on a person's computer. \

@@ -3,7 +3,8 @@
 //! reads the rest from the words, because the reviewer's and the writer's instructions are fixed
 //! text (`action-review`'s render, `intentd`'s writer).
 
-use docket_core::{ModelExchange, Stage};
+use docket_core::ModelExchange;
+use docket_permissions_core::Stage;
 
 /// What asked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

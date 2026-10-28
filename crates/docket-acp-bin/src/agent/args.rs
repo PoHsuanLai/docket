@@ -6,7 +6,7 @@
 use clap::error::ErrorKind;
 use clap::{ArgAction, CommandFactory, Parser};
 use docket_acp_host::Fallback;
-use docket_core::ProgramName;
+use docket_permissions_core::ProgramName;
 
 use prov::SpaceId;
 use std::path::PathBuf;

@@ -10,6 +10,9 @@ use docket_fake::{
     FakeMemory, FixedClock, MemoryGrants, RecordingSink, ScriptedReader, ScriptedWriter,
 };
 use docket_manifest::Latency;
+use docket_permissions_core::{
+    ActionGrantKey, GrantCaller, GrantTarget, ReviewError, Stage, Strictness,
+};
 use docket_router::{AppLink, Router, Seams};
 use docket_vocab::{CallRequest, EntityRef, UndoToken, Value};
 use policy_point::Presets;

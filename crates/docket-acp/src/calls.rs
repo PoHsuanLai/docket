@@ -8,7 +8,8 @@ use agent_client_protocol::schema::v1::{
     Content, ContentBlock, ContentChunk, SessionUpdate, ToolCall, ToolCallContent, ToolCallId,
     ToolCallStatus, ToolCallUpdate, ToolCallUpdateFields, ToolKind,
 };
-use docket_core::{AppRefusal, CallRefusal, DenyCode, StepEnd, StepLine};
+use docket_core::{AppRefusal, CallRefusal, StepEnd, StepLine};
+use docket_permissions_core::DenyCode;
 use docket_session::CallOpen;
 use prov::Effect;
 

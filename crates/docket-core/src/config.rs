@@ -4,7 +4,7 @@
 //! [`AgentConfig`].
 
 use crate::budget::Budget;
-use crate::mode::{Mode, RowSets};
+use docket_permissions_core::{Mode, RowSets};
 use docket_vocab::{Days, Depth, Millis, Seconds};
 use porter_core::{Count, MicroUsd, Tokens};
 use serde::{Deserialize, Serialize};

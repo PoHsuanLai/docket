@@ -10,11 +10,9 @@ use super::rig::{
 };
 use action_review::{ReviewReason, ReviewVerdict};
 use docket_acp_host::Fallback;
-use docket_core::{
-    AuditRecord, CallerId, CallerRole, GrantCaller, IntentsReply, IntentsRequest, ReasonCode,
-    ReasonText, StandingScope, TurnSource,
-};
+use docket_core::{AuditRecord, CallerId, CallerRole, IntentsReply, IntentsRequest, TurnSource};
 use docket_fake::{ReviewMode, ScriptedReviewer};
+use docket_permissions_core::{GrantCaller, ReasonCode, ReasonText, StandingScope};
 use docket_session::{BackendEvent, SheetChoice};
 use porter_core::{AppId, AppName, Isolation};
 use std::collections::BTreeSet;
@@ -109,7 +107,9 @@ async fn a_grant_is_the_programs_and_not_another_hosts_or_programs() {
     // Another program (or an editor of the same app name) holds none of it.
     assert_ne!(
         held[0].caller,
-        GrantCaller::AcpAgent(docket_core::ProgramName::parse("gemini-cli").expect("program"))
+        GrantCaller::AcpAgent(
+            docket_permissions_core::ProgramName::parse("gemini-cli").expect("program")
+        )
     );
     assert_ne!(
         held[0].caller,
@@ -257,7 +257,7 @@ async fn a_call_dropped_and_asked_again_with_its_number_is_one_call_at_the_route
     use futures_util::FutureExt;
     let (rig, _files) = started(Setup::default()).await;
     let mut court = rig.court.clone();
-    let call = AgentCall::Reported(docket_core::PermissionKind::Read);
+    let call = AgentCall::Reported(docket_permissions_core::PermissionKind::Read);
     // The first pull gave up before the router answered; the second asks again.
     assert!(court.call(&rig.session, 7, &call).now_or_never().is_none());
     let ruled = court.call(&rig.session, 7, &call).await;

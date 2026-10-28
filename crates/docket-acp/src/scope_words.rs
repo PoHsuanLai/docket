@@ -3,7 +3,7 @@
 //! validate. A path, a command prefix and an address have already passed their own parsers, which
 //! refuse control characters and shell syntax.
 
-use docket_core::{Recipient, StandingScope};
+use docket_permissions_core::{Recipient, StandingScope};
 
 fn to(recipient: &Recipient) -> String {
     match recipient {

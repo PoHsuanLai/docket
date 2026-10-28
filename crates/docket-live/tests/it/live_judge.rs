@@ -2,10 +2,11 @@
 //! a flow's observations, the shape check and the everyday flows.
 
 use docket_accept::provider::{Message, Sending};
-use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange, Stage};
+use docket_core::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 use docket_live::flows::{Evidence, Failure, Flow, Kind, UndoCheck, judge};
 use docket_live::shape::{Shape, developer_word};
 use docket_live::stage::{Asker, asker};
+use docket_permissions_core::Stage;
 
 fn exchange(tools: &[&str], shape: &str, text: &str) -> ModelExchange {
     ModelExchange {
@@ -158,7 +159,7 @@ fn resting_as(phase: companion_wire::AnswerPhase) -> Evidence {
                 selection: Keep::Kept,
                 window: Keep::Kept,
             },
-            mode: docket_core::Mode::Auto,
+            mode: docket_permissions_core::Mode::Auto,
         },
     }]);
     e

@@ -2,6 +2,10 @@
 
 use crate::support::*;
 use docket_core::*;
+use docket_permissions_core::{
+    AlwaysOffer, AskReason, BreakerTrip, DenyCode, GrantCaller, PolicyId, ReasonCode, ReviewMark,
+    Stage, VerdictKind, Withheld,
+};
 use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, CharCount, Handle, LabelText, Millis, Origin, Seconds,
     TargetValue, TurnId, Value,

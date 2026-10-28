@@ -1,7 +1,7 @@
 //! What went wrong while Cedar ruled on a request. A fault never permits: the ruling that comes
 //! with it is the stricter reading of the query that faulted.
 
-use docket_core::Ruling;
+use docket_permissions_core::Ruling;
 
 /// Why one query could not be answered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]

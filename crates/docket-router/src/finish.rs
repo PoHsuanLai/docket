@@ -15,8 +15,9 @@ use action_review::note;
 use docket_core::EventSink;
 use docket_core::{
     AuditRecord, BudgetKind, CallEnd, CallRefusal, DecidedBy, LedgerStep, Outcome, Preview,
-    StepEnd, StepLine, StepShown, Undoable, approves,
+    StepEnd, StepLine, StepShown, Undoable,
 };
+use docket_permissions_core::approves;
 use docket_session::{BreakerNote, SessionEntry};
 use docket_vocab::{Clock, Origin, Value};
 use prov::{Integrity, Labelled, Source};
@@ -161,7 +162,7 @@ impl<S: Seams> Router<S> {
                     with: p.named.clone(),
                 });
                 // A permission request that went through is the person's yes to the thing it
-                // names, good once for the matching call (`docket_core::approves`).
+                // names, good once for the matching call (`docket_permissions_core::approves`).
                 if matches!(driven.end, CallEnd::Done)
                     && withheld.is_none()
                     && let Some(held) = p.standing.as_ref().and_then(|s| approves(&s.facts))

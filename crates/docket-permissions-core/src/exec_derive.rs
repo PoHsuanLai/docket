@@ -18,7 +18,7 @@
 //!
 //! What it misses is why the network rule (`exec_reach`) is unconditional.
 
-use crate::standing::{AbsPath, Cover};
+use bulkhead::{AbsPath, Cover};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 

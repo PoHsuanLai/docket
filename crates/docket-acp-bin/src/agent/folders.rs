@@ -2,9 +2,9 @@
 //! home or a project.
 
 use super::places::Places;
+use bulkhead::AbsPath;
 use docket_acp_host::Workdir;
-use docket_core::AbsPath;
-use docket_core::ProgramName;
+use docket_permissions_core::ProgramName;
 
 use std::path::PathBuf;
 

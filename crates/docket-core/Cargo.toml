@@ -1,6 +1,6 @@
 [package]
 name = "docket-core"
-description = "docket's vocabulary above docket-vocab and docket-manifest: context, previews, calls, refusals, undo, confirmation, budgets, the task policy, the planner and reader contract, the roster, audit records, the memory and event-log seams (`MemoryLink`, `EventSink`) and the wire. Ids, units, values and the `Clock` seam are in docket-vocab; the manifest, its validation and the JSON argument reader are in docket-manifest."
+description = "docket's vocabulary above docket-vocab and docket-manifest: context, previews, calls, refusals, undo, confirmation, budgets, the planner and reader contract, the roster, audit records, the memory and event-log seams (`MemoryLink`, `EventSink`) and the wire. Ids, units, values and the `Clock` seam are in docket-vocab; the manifest, its validation and the JSON argument reader are in docket-manifest."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,8 +9,8 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-bulkhead = { workspace = true }
 docket-manifest = { workspace = true }
+docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
@@ -21,10 +21,6 @@ model-provider = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-url = { workspace = true }
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-proptest = { workspace = true }

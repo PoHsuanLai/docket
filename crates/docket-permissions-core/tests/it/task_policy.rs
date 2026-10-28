@@ -2,8 +2,8 @@
 //! rule that an untrusted argument is never inside.
 
 use crate::support::*;
-use docket_core::*;
 use docket_manifest::{ActionDecl, ArgSink, ParamNeed, UndoSupport};
+use docket_permissions_core::*;
 use docket_vocab::{ActionRef, CallRequest, FileRef, Origin, TargetValue, TurnId, Value};
 use porter_core::Count;
 use prov::{Effect, Integrity, TaskId};
