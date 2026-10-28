@@ -7,13 +7,13 @@ use docket_core::{
     Preview, SuggestAsk, UndoFault, UndoToken,
 };
 use docket_dbus::{BusConnection, Details, IntentProviderProxy};
+use docket_procroot::own_uid;
 use docket_router::{AppFault, AppLink};
 use porter_core::AppName;
 use prov::{Actor, EntityId};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use std::future::Future;
-use std::os::unix::fs::MetadataExt;
 use std::time::Duration;
 use zbus::fdo::DBusProxy;
 use zbus::names::BusName;
@@ -81,10 +81,6 @@ fn fault_of(error: &zbus::Error) -> LinkFault {
 
 fn gone() -> AppRefusal {
     AppRefusal::Failed(FailText("the app is not available".into()))
-}
-
-fn own_uid() -> Option<u32> {
-    std::fs::metadata("/proc/self").ok().map(|m| m.uid())
 }
 
 /// Checks that the owner of `name` is the person's own process: the identity every call to a

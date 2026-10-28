@@ -67,6 +67,7 @@ LAYERS=(
   "companion-client:C"
   "voice-dbus:C"
   "docket-log:C"
+  "docket-procroot:C"
   # test and acceptance support: the model tap writes prompts to disk, so no shipped crate lists it
   "docket-trace:C"
   # app / daemon / test binary

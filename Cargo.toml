@@ -55,6 +55,7 @@ members = [
   "crates/voice-loop",
   "crates/voiced",
   "crates/docket-log",
+  "crates/docket-procroot",
 ]
 # cargo-fuzz needs nightly and stays out of the workspace and the gate (dev/fuzz.sh).
 exclude = ["fuzz"]
@@ -122,6 +123,7 @@ voice-wire     = { path = "crates/voice-wire" }
 voice-dbus     = { path = "crates/voice-dbus" }
 voice-loop     = { path = "crates/voice-loop" }
 docket-log     = { path = "crates/docket-log" }
+docket-procroot = { path = "crates/docket-procroot" }
 # The events the daemons log (already in the build through zbus and tokio); docket-log is the subscriber.
 tracing = "0.1"
 

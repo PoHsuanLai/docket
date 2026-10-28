@@ -9,6 +9,7 @@ use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
+use porter_daemon::ProcRoot;
 use prov::Effect;
 use std::sync::Arc;
 use std::time::Duration;
@@ -86,7 +87,7 @@ async fn a_pressed_card_is_performed_in_the_answers_session_and_the_answer_follo
         &server,
         companion.clone(),
         who.clone(),
-        scratch.path().to_owned(),
+        ProcRoot::Fake(scratch.path().to_owned()),
     )
     .await
     .expect("serving");

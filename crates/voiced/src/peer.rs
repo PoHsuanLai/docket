@@ -11,8 +11,8 @@
 
 use crate::config::{VoiceRole, VoicedConfig};
 use docket_dbus::callers::{Caller, Callers, Identity, Role};
+use docket_procroot::own_uid;
 use porter_core::AppName;
-use std::os::unix::fs::MetadataExt;
 use std::sync::Arc;
 use zbus::fdo::DBusProxy;
 use zbus::names::BusName;
@@ -22,10 +22,6 @@ use zbus::names::BusName;
 pub(crate) fn derive(config: &VoicedConfig, caller: &Caller) -> Option<VoiceRole> {
     (caller.role == Role::SheetHost && config.role_of(&caller.app.name) == Some(VoiceRole::Shell))
         .then_some(VoiceRole::Shell)
-}
-
-fn own_uid() -> Option<u32> {
-    std::fs::metadata("/proc/self").ok().map(|m| m.uid())
 }
 
 /// Derives the roles of the connections on one bus.

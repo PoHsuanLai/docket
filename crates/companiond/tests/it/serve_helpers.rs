@@ -20,6 +20,7 @@ use docket_helpers::RoutineDesk;
 use docket_tasks::Pending;
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
+use porter_daemon::ProcRoot;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -41,7 +42,7 @@ async fn the_helpers_are_served_beside_the_conversation_to_the_shell_alone() {
         &server,
         companion.clone(),
         who.clone(),
-        scratch.path().to_owned(),
+        ProcRoot::Fake(scratch.path().to_owned()),
     )
     .await
     .expect("serving");
@@ -151,7 +152,7 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
         &server,
         companion.clone(),
         who.clone(),
-        scratch.path().to_owned(),
+        ProcRoot::Fake(scratch.path().to_owned()),
         Some(Arc::new(EmptyRoutines)),
     )
     .await
@@ -273,7 +274,7 @@ async fn the_editor_bridge_reads_the_helpers_and_changes_nothing_and_a_stranger_
         &server,
         companion,
         who.clone(),
-        scratch.path().to_owned(),
+        ProcRoot::Fake(scratch.path().to_owned()),
         Some(Arc::new(EmptyRoutines)),
     )
     .await

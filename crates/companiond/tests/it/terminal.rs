@@ -12,6 +12,7 @@ use docket_core::*;
 use docket_dbus::callers::Role;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use futures_util::lock::Mutex;
+use porter_daemon::ProcRoot;
 use prov::AgentRef;
 use std::path::Path;
 use std::sync::Arc;
@@ -63,7 +64,7 @@ async fn a_terminal_opens_asks_and_closes_but_neither_tells_nor_presses_a_card()
         &server,
         companion.clone(),
         who(&server, &proc_root),
-        proc_root,
+        ProcRoot::Fake(proc_root),
     )
     .await
     .expect("serving");
@@ -167,7 +168,7 @@ async fn a_process_that_is_not_a_terminal_or_owns_a_name_speaks_for_nobody() {
         &server,
         companion,
         who(&server, &proc_root),
-        proc_root.clone(),
+        ProcRoot::Fake(proc_root.clone()),
     )
     .await
     .expect("serving");
@@ -220,9 +221,14 @@ async fn a_conversation_a_terminal_opens_records_the_terminal_and_the_shells_doe
     let w = world(vec![]);
     let router = w.router.clone();
     let companion = Arc::new(Mutex::new(w.companion));
-    serve_on_rooted(&server, companion, who(&server, &proc_root), proc_root)
-        .await
-        .expect("serving");
+    serve_on_rooted(
+        &server,
+        companion,
+        who(&server, &proc_root),
+        ProcRoot::Fake(proc_root),
+    )
+    .await
+    .expect("serving");
     let proxy = CompanionProxy::new(&client).await.expect("proxy");
 
     // A terminal cannot make the daemon record another scope by writing one in the body.
@@ -286,9 +292,14 @@ async fn a_process_the_table_names_as_less_than_the_shell_speaks_for_nobody() {
         let w = world(vec![]);
         let companion = Arc::new(Mutex::new(w.companion));
         let identity = who(&server, &proc_root);
-        serve_on_rooted(&server, companion, identity.clone(), proc_root)
-            .await
-            .expect("serving");
+        serve_on_rooted(
+            &server,
+            companion,
+            identity.clone(),
+            ProcRoot::Fake(proc_root),
+        )
+        .await
+        .expect("serving");
         identity.introduce_app(&client, "org.quire.Shell", standing);
         let proxy = CompanionProxy::new(&client).await.expect("proxy");
         assert!(denied(proxy.open(&open_json()).await), "{what}");

@@ -29,10 +29,12 @@ docket-skills-disk = { workspace = true }
 docket-tasks = { workspace = true }
 docket-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true, features = ["inferd"] }
+docket-procroot = { workspace = true }
 docket-settings = { workspace = true }
 futures-util = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }
+porter-daemon = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

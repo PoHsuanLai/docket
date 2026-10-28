@@ -1,0 +1,19 @@
+[package]
+name = "docket-procroot"
+description = "What the daemons read from a /proc tree: whether a process runs in a terminal's scope, and which user the daemon itself runs as. The tree is a parameter, so a test hands in a scratch one."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+docket-core = { workspace = true }
+porter-core = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

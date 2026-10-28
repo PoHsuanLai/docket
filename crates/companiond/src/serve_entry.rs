@@ -10,7 +10,7 @@ use docket_dbus::callers::Identity;
 use docket_planner::Planner;
 use docket_tasks::ServeFault;
 use futures_util::lock::Mutex;
-use std::path::PathBuf;
+use porter_daemon::ProcRoot;
 use std::sync::Arc;
 
 /// Claims `org.quire.Companion1` on `connection`, serves the root object and one answer object
@@ -27,8 +27,7 @@ where
     I: IntentsTransport + 'static,
     K: Clock + 'static,
 {
-    let proc_root = PathBuf::from("/proc");
-    serve_on_rooted(connection, companion, who, proc_root).await
+    serve_on_rooted(connection, companion, who, ProcRoot::System).await
 }
 
 /// [`serve_on`] reading terminals' cgroups under `proc_root` instead of `/proc`: how a test
@@ -37,7 +36,7 @@ pub async fn serve_on_rooted<P, I, K>(
     connection: &BusConnection,
     companion: Arc<Mutex<Companiond<P, I, K>>>,
     who: Arc<Identity>,
-    proc_root: PathBuf,
+    proc_root: ProcRoot,
 ) -> Result<(), ServeFault>
 where
     P: Planner + 'static,

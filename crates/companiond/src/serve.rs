@@ -19,8 +19,8 @@ use docket_helpers::RoutineDesk;
 use docket_planner::Planner;
 use docket_tasks::{Change, ServeFault};
 use futures_util::lock::Mutex;
+use porter_daemon::ProcRoot;
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
-use std::path::PathBuf;
 use std::sync::Arc;
 use zbus::fdo;
 use zbus::fdo::{RequestNameFlags, RequestNameReply};
@@ -366,7 +366,7 @@ pub async fn serve_with_routines<P, I, K>(
     connection: &BusConnection,
     companion: Arc<Mutex<Companiond<P, I, K>>>,
     who: Arc<Identity>,
-    proc_root: PathBuf,
+    proc_root: ProcRoot,
     routines: Option<Arc<dyn RoutineDesk>>,
 ) -> Result<(), ServeFault>
 where

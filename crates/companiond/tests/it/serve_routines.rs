@@ -19,6 +19,7 @@ use docket_helpers::RoutineDesk;
 use docket_tasks::HelperDesk;
 use docket_tasks::{Pending, RoutineAsk, RoutineFor};
 use futures_util::lock::Mutex;
+use porter_daemon::ProcRoot;
 use prov::AgentRef;
 use std::sync::Arc;
 
@@ -75,7 +76,7 @@ async fn a_proposed_routine_waits_for_the_shell_to_accept_or_decline_it() {
         &server,
         companion,
         who.clone(),
-        scratch.path().to_owned(),
+        ProcRoot::Fake(scratch.path().to_owned()),
         Some(routines.clone()),
     )
     .await
@@ -203,7 +204,7 @@ async fn the_editor_bridge_speaks_in_a_helpers_conversation_and_a_stranger_or_an
         &server,
         companion,
         who.clone(),
-        scratch.path().to_owned(),
+        ProcRoot::Fake(scratch.path().to_owned()),
         Some(Arc::new(EmptyRoutines)),
     )
     .await

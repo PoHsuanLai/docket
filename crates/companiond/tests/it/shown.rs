@@ -11,6 +11,7 @@ use docket_core::*;
 use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
+use porter_daemon::ProcRoot;
 use prov::{AgentRef, SessionId};
 use serde_json::json;
 use std::sync::Arc;
@@ -208,7 +209,7 @@ async fn the_answer_object_names_its_session_and_close_removes_it() {
         &server,
         companion.clone(),
         who.clone(),
-        scratch.path().to_owned(),
+        ProcRoot::Fake(scratch.path().to_owned()),
     )
     .await
     .expect("serving");

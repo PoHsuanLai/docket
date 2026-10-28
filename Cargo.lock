@@ -823,6 +823,7 @@ dependencies = [
  "docket-helpers",
  "docket-log",
  "docket-planner",
+ "docket-procroot",
  "docket-router",
  "docket-settings",
  "docket-skills",
@@ -833,6 +834,7 @@ dependencies = [
  "futures-util",
  "porter-client",
  "porter-core",
+ "porter-daemon",
  "porter-infer",
  "prov",
  "serde",
@@ -1106,6 +1108,7 @@ dependencies = [
  "futures-util",
  "intentd",
  "porter-core",
+ "porter-daemon",
  "porter-infer",
  "prov",
  "readerd",
@@ -1192,6 +1195,7 @@ dependencies = [
  "docket-core",
  "docket-fake",
  "docket-host",
+ "docket-procroot",
  "docket-router",
  "docket-session",
  "docket-store",
@@ -1653,6 +1657,15 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "docket-procroot"
+version = "0.1.0"
+dependencies = [
+ "docket-core",
+ "porter-core",
+ "tempfile",
 ]
 
 [[package]]
@@ -2563,6 +2576,7 @@ dependencies = [
  "docket-memory",
  "docket-memory-core",
  "docket-models",
+ "docket-procroot",
  "docket-provider",
  "docket-router",
  "docket-session",
@@ -4801,6 +4815,7 @@ dependencies = [
  "docket-core",
  "docket-dbus",
  "docket-log",
+ "docket-procroot",
  "docket-testbus",
  "futures-util",
  "pipewire",

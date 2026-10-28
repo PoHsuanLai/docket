@@ -19,7 +19,8 @@ use docket_store::SystemClock;
 use docket_tasks::ServeFault;
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
-use std::path::{Path, PathBuf};
+use porter_daemon::ProcRoot;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 /// What only the acceptance harness's mains choose: the `/proc` callers are read from (a tree
@@ -30,7 +31,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub struct HarnessSeams {
     /// Where callers' cgroups are read.
-    pub proc_root: PathBuf,
+    pub proc_root: ProcRoot,
     /// The system's callers file, when the harness's main chose another than `/etc/quire`'s: the
     /// harness is its own system, and a fixed role (the shell's) comes from no other file.
     pub system_callers: Option<PathBuf>,
@@ -41,7 +42,7 @@ pub struct HarnessSeams {
 impl Default for HarnessSeams {
     fn default() -> Self {
         Self {
-            proc_root: PathBuf::from("/proc"),
+            proc_root: ProcRoot::System,
             system_callers: None,
             trace: InferWatch::off(),
         }
@@ -182,8 +183,11 @@ pub async fn start_with_agents(
     }
     tokio::spawn(routines.clone().run());
     let companion = Arc::new(Mutex::new(companion));
-    let fixture = (seams.proc_root != Path::new("/proc")).then_some(seams.proc_root.as_path());
-    let who = Arc::new(Identity::on(connection.clone(), callers, fixture));
+    let who = Arc::new(Identity::on(
+        connection.clone(),
+        callers,
+        seams.proc_root.fixture(),
+    ));
     let kept: Arc<dyn RoutineDesk> = routines;
     serve_with_routines(
         connection,

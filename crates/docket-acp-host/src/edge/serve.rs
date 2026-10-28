@@ -10,10 +10,11 @@ use actions_tools::{
     listing, outcome_json, prepare,
 };
 use docket_core::{AbsPath, BreakerTrip, CallRefusal};
+use docket_procroot::own_uid;
 use docket_session::ProgramName;
 use prov::{ClientName, SessionId};
 use serde_json::Value as Json;
-use std::os::unix::fs::{DirBuilderExt, MetadataExt};
+use std::os::unix::fs::DirBuilderExt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -117,7 +118,7 @@ impl ToolsEdge {
         menu: EdgeMenu,
     ) -> Result<Self, EdgeFault> {
         let io = |_| EdgeFault::Io;
-        let owner = std::fs::metadata("/proc/self").map_err(io)?.uid();
+        let owner = own_uid().ok_or(EdgeFault::Io)?;
         let token = mint().map_err(io)?;
         let dir = private_dir(&offer.run_dir).map_err(io)?;
         let socket = dir.join("tools.sock");

@@ -271,26 +271,6 @@ fn the_users_file_cannot_make_an_app_the_shell() {
 }
 
 #[test]
-fn a_cgroup_makes_a_terminal_only_for_a_terminal_scope() {
-    let rows: [(&str, bool); 9] = [
-        ("vte-spawn-1b2c.scope", true),
-        ("tmux-spawn-9.scope", true),
-        ("session-3.scope", true),
-        ("app-org.kde.konsole-123.scope", false),
-        ("intentd.service", false),
-        ("vte-spawn-1b2c.service", false),
-        ("session-3.slice", false),
-        ("run-r4242.scope", false),
-        ("dbus-broker.service", false),
-    ];
-    for (leaf, expected) in rows {
-        let root = tempfile::tempdir().expect("scratch");
-        put(root.path(), 41, leaf, Main::No);
-        assert_eq!(in_terminal(root.path(), 41), expected, "{leaf}");
-    }
-}
-
-#[test]
 fn a_flatpak_app_is_named_by_its_sandbox_metadata() {
     let root = tempfile::tempdir().expect("scratch");
     put(

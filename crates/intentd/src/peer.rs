@@ -23,12 +23,12 @@
 
 use crate::acp_gate::AcpGate;
 use crate::config::IntentdConfig;
-use docket_core::{CallerId, CallerRole, is_terminal_scope};
+use docket_core::{CallerId, CallerRole};
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Caller, Callers, Identity, Role};
-use porter_core::{AppId, AppName, CgroupPath, Isolation};
+use docket_procroot::{own_uid, terminal_scope};
+use porter_core::{AppId, AppName, Isolation};
 use porter_daemon::ProcRoot;
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use zbus::fdo::DBusProxy;
@@ -113,24 +113,9 @@ pub(crate) fn derive(config: &IntentdConfig, acp: &AcpGate, found: &Found) -> Op
 pub(crate) fn classify(root: &Path, pid: Option<u32>, named: Option<Caller>) -> Option<Found> {
     match (named, pid) {
         (Some(caller), _) => Some(Found::Process(caller)),
-        (None, Some(pid)) if in_terminal(root, pid) => Some(Found::Terminal),
+        (None, Some(pid)) if terminal_scope(root, pid).is_some() => Some(Found::Terminal),
         (None, _) => None,
     }
-}
-
-/// Whether the cgroup of process `pid` in the `/proc` tree at `root` is a terminal child's scope.
-fn in_terminal(root: &Path, pid: u32) -> bool {
-    let text =
-        std::fs::read_to_string(root.join(pid.to_string()).join("cgroup")).unwrap_or_default();
-    matches!(
-        CgroupPath::from_proc(&text),
-        Ok(cgroup) if is_terminal_scope(cgroup.as_str())
-    )
-}
-
-/// The user this process runs as.
-fn own_uid() -> Option<u32> {
-    std::fs::metadata("/proc/self").ok().map(|m| m.uid())
 }
 
 /// Derives identities of the connections on one bus.

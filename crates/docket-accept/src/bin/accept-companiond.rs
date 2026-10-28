@@ -14,14 +14,16 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let defaults = companiond::HarnessSeams::default();
     let env = |key: &str| std::env::var(key).ok();
     let seams = companiond::HarnessSeams {
         proc_root: docket_accept::seams::proc_root(
             &env,
             docket_accept::seams::COMPANIOND_PROC_ROOT_VAR,
         )
-        .unwrap_or(defaults.proc_root),
+        .map_or(
+            porter_daemon::ProcRoot::System,
+            porter_daemon::ProcRoot::Fake,
+        ),
         system_callers: docket_accept::seams::system_callers(
             &env,
             docket_accept::seams::COMPANIOND_SYSTEM_CALLERS_VAR,

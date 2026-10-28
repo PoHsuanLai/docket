@@ -17,6 +17,7 @@ porter-core = { workspace = true }
 porter-infer = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true }
+docket-procroot = { workspace = true }
 pipewire = { workspace = true, optional = true }
 futures-util = { workspace = true }
 speech-vad = { workspace = true }

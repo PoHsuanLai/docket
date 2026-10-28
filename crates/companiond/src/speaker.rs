@@ -23,9 +23,9 @@ use companion_core::{Call, Speaker, permits};
 use docket_core::TerminalScope;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Caller, Callers, Identity, Role};
-use porter_core::{AppName, CgroupPath};
-use std::os::unix::fs::MetadataExt;
-use std::path::{Path, PathBuf};
+use docket_procroot::{own_uid, terminal_scope};
+use porter_core::AppName;
+use porter_daemon::ProcRoot;
 use std::sync::Arc;
 use zbus::fdo::{self, DBusProxy};
 use zbus::message::Header;
@@ -36,18 +36,6 @@ pub(crate) const EDITOR_APP: &str = "org.quire.Acp";
 
 fn denied() -> fdo::Error {
     fdo::Error::AccessDenied("only the shell or a terminal speaks for the person".into())
-}
-
-/// The terminal scope the cgroup file of `pid` under `root` names, if it is a terminal's child.
-fn in_terminal(root: &Path, pid: u32) -> Option<TerminalScope> {
-    let text =
-        std::fs::read_to_string(root.join(pid.to_string()).join("cgroup")).unwrap_or_default();
-    let cgroup = CgroupPath::from_proc(&text).ok()?;
-    TerminalScope::from_cgroup(cgroup.as_str()).ok()
-}
-
-fn own_uid() -> Option<u32> {
-    std::fs::metadata("/proc/self").ok().map(|m| m.uid())
 }
 
 async fn owns_a_name(dbus: &DBusProxy<'_>, unique: &str) -> fdo::Result<bool> {
@@ -98,7 +86,7 @@ pub struct Speakers {
     connection: BusConnection,
     who: Arc<Identity>,
     shell: AppName,
-    proc_root: PathBuf,
+    proc_root: ProcRoot,
 }
 
 impl Speakers {
@@ -108,7 +96,7 @@ impl Speakers {
         connection: BusConnection,
         who: Arc<Identity>,
         shell: AppName,
-        proc_root: PathBuf,
+        proc_root: ProcRoot,
     ) -> Self {
         Self {
             connection,
@@ -131,7 +119,7 @@ impl Speakers {
         let scope = credentials
             .process_id()
             .filter(|_| same_user)
-            .and_then(|pid| in_terminal(&self.proc_root, pid));
+            .and_then(|pid| terminal_scope(self.proc_root.path(), pid));
         // Narrowing, not identification: a terminal's child that owns a name of its own is an
         // application the person started there, not the person's keyboard.
         match scope {
@@ -178,6 +166,7 @@ impl Speakers {
 mod tests {
     use super::*;
     use docket_dbus::callers::{CallerTable, ProcCallers, table_from_toml};
+    use std::path::Path;
 
     /// Process `pid` in the fake proc root, in the cgroup `leaf`; a service's process is also its
     /// unit's main process when `main` says so.
@@ -201,7 +190,7 @@ mod tests {
         let named = ProcCallers::caller_of_pid(root, pid, table);
         let terminal = match named {
             Some(_) => None,
-            None => in_terminal(root, pid),
+            None => terminal_scope(root, pid),
         };
         speaker_of(&shell, named.as_ref(), terminal)
     }

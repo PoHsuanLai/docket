@@ -14,6 +14,7 @@ use docket_dbus::{CompanionAnswerProxy, CompanionProxy, Details};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
 use porter_core::{AccountId, ModelId};
+use porter_daemon::ProcRoot;
 use porter_infer::{
     Declined, DeclinedBecause, Door, InferEvent, InferRefusal, ModelLabel, ModelRef, ProviderId,
     StageNote, StageRole, Why,
@@ -143,7 +144,7 @@ async fn the_answer_object_serves_the_routing_property() {
         &server,
         companion.clone(),
         who.clone(),
-        scratch.path().to_owned(),
+        ProcRoot::Fake(scratch.path().to_owned()),
     )
     .await
     .expect("serving");
