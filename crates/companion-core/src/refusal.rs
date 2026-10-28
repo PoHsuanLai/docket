@@ -5,6 +5,17 @@
 use companion_model::helper::{HandFault, HelperName, JobFault, JobRefusal, ReachFault};
 use companion_model::routine::ScheduleFault;
 
+/// What a request to the helper's app was for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AppStep {
+    /// Open the app's terminal.
+    Terminal,
+    /// Sign in to the app.
+    SignIn,
+    /// Sign out of the app.
+    SignOut,
+}
+
 /// Why a request to a desk was not carried out.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refusal {
@@ -49,16 +60,10 @@ pub enum Refusal {
     SayStopped(HelperName),
     /// The helper's app wants the person to sign in first.
     SayNeedsSignIn(HelperName),
-    /// The helper does not run an app, so there is no terminal to open.
-    NotAnApp,
-    /// The helper does not run an app, so there is nothing to sign in to.
-    NotAnAppToSignInTo,
-    /// The helper does not run an app, so there is nothing to sign out of.
-    NotAnAppToSignOutOf,
-    /// No host of apps can be reached.
-    NoAppHost,
-    /// No host of apps can be reached to sign in to.
-    NoAppHostToSignInTo,
+    /// The helper does not run an app, so there is nothing to do with it at this step.
+    NotAnApp(AppStep),
+    /// No host of apps can be reached for this step (never a sign-out: that needs only the app).
+    NoAppHost(AppStep),
     /// The conversation is already in the terminal.
     AlreadyInTerminal,
     /// The way chosen is not one the app listed.

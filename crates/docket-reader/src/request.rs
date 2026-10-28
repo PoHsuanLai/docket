@@ -3,7 +3,7 @@
 
 use docket_core::{ReaderAsk, ReaderTask, ValueSchema};
 use porter_core::consent::Usage;
-use porter_core::{DataClass, Permille, Tier, Tokens};
+use porter_core::{DataClass, Permille, Tokens};
 use porter_infer::{
     ChatControl, ChatMessage, ChatRequest, Knob, MessagePart, Reasoning, ReplyShape, Role,
     Sampling, ToolChoice, ToolParallelism,
@@ -109,14 +109,6 @@ fn output_cap(want: &ValueSchema) -> Tokens {
     }
 }
 
-/// The tier a task asks for: picking a label is quick, reading closely is not.
-fn tier_of(task: ReaderTask) -> Tier {
-    match task {
-        ReaderTask::Classify => Tier::Fast,
-        ReaderTask::Extract | ReaderTask::Summarise | ReaderTask::Compare => Tier::Balanced,
-    }
-}
-
 /// The inputs as numbered data between fences, the fence text removed from the data.
 fn fenced(inputs: &[Labelled<String>]) -> String {
     let fence = fence_for(inputs);
@@ -148,7 +140,7 @@ pub fn reader_request(ask: &ReaderAsk, inputs: &[Labelled<String>]) -> ChatReque
             message(Role::System, task_instruction(ask.task).to_owned()),
             message(Role::User, fenced(inputs)),
         ],
-        tier_of(ask.task),
+        ask.task.tier(),
         class_of(inputs.iter().map(|i| &i.label)),
         Usage::Interactive,
     )

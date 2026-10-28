@@ -5,8 +5,8 @@
 use super::owner::Hub;
 use crate::words::{refused, sentence};
 use companion_core::{
-    PlannerJob, Refusal, RoutineWho, RoutineWish, card_draft, created, helper_form, name_free,
-    person_job, planner_job, posted, resume_event, roster_lines, routine_wish, same_app,
+    AppStep, PlannerJob, Refusal, RoutineWho, RoutineWish, card_draft, created, helper_form,
+    name_free, person_job, planner_job, posted, resume_event, roster_lines, routine_wish, same_app,
     say_outcome, talkable,
 };
 use companion_model::helper::{
@@ -77,8 +77,8 @@ where
             .kind
             .program()
             .cloned()
-            .ok_or(Refusal::NotAnAppToSignInTo)?;
-        let agents = self.agents().ok_or(Refusal::NoAppHostToSignInTo)?;
+            .ok_or(Refusal::NotAnApp(AppStep::SignIn))?;
+        let agents = self.agents().ok_or(Refusal::NoAppHost(AppStep::SignIn))?;
         let way = self
             .with_state(|state| state.logins.way(&helper, way))
             .ok_or(Refusal::NotAWayToSignIn)?;
@@ -105,7 +105,7 @@ where
             return refused(Refusal::Job(JobRefusal::NoSuchHelper));
         };
         let (Some(program), Some(agents)) = (card.kind.program().cloned(), self.agents()) else {
-            return refused(Refusal::NotAnAppToSignOutOf);
+            return refused(Refusal::NotAnApp(AppStep::SignOut));
         };
         match agents.sign_out(&card).await {
             SignOutOutcome::SignedOut => {

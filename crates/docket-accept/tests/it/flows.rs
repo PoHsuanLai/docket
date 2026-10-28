@@ -319,13 +319,17 @@ async fn flow_c_a_reply_to_the_related_sender_is_a_handle_and_still_asks_quoted(
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn flow_a_the_answer_shows_the_sheet_while_it_waits() {
     let world = World::start(&binaries(), Consent::Standing, FLOW_A).await;
-    world.sheet.will(Verdict::Allow);
+    // Held until the test has seen the wait: an answer sent at once can replace the waiting view
+    // before a loaded machine reads it.
+    world.sheet.will_when_released(Verdict::Allow);
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
     let mut answer = launcher
         .say(&opened, "forward the Lisbon receipts to accounting")
         .await;
-    let history = answer.history_until(settled).await;
+    let mut history = answer.history_until(waiting_on_sheet).await;
+    world.sheet.release().await;
+    history.extend(answer.history_until(settled).await);
     assert!(history.iter().any(waiting_on_sheet), "{history:#?}");
     assert!(
         history

@@ -6,7 +6,7 @@ use super::unit_dir::UnitDir;
 use super::zone::SystemZone;
 use crate::Hub;
 use almanac_core::{BodyMode, RecentQuery, TrustFilter};
-use companion_core::{Awake, EventAsk, Seen, UnitFile};
+use companion_core::{EventAsk, Seen, UnitFile};
 use companion_model::helper::{
     BoardEffect, BoardEvent, GoalOrigin, HelperName, HelperRecord, JobId, NewJob,
 };
@@ -164,9 +164,9 @@ where
         }
     }
 
-    fn awake(&self, need: Awake) {
+    fn awake(&self, need: bool) {
         // No inhibit seam exists in the program yet: this is the typed hook. A host that gets one
-        // takes the lock while `Needed` and drops it on `NotNeeded`.
+        // takes the lock while `need` is true and drops it when it is false.
         tracing::debug!(?need, "the desktop's need to stay awake changed");
     }
 }

@@ -5,11 +5,11 @@
 //! clock, no bus, no real unit directory.
 
 use almanac_core::{EventRef, ReplicaId, Seq};
-use companion_core::{Awake, EventAsk, Seen, UnitFile, units_of};
-use companion_model::helper::{HelperName, JobFault, JobId};
+use companion_core::{EventAsk, Seen, UnitFile, units_of};
+use companion_model::helper::{HelperName, JobFault, JobId, PauseWhy};
 use companion_model::routine::{
-    JobEnd, Missed, RoutineId, RoutinePause, RoutineRecord, RoutineState, RunOutcome, RunRequest,
-    Schedule, TimerEntry, Zone,
+    JobEnd, Missed, RoutineId, RoutineRecord, RoutineState, RunOutcome, RunRequest, Schedule,
+    TimerEntry, Zone,
 };
 use companion_wire::{EventForm, RoutineForm, RoutineReply, WhenForm};
 use docket_fake::FixedClock;
@@ -29,7 +29,7 @@ struct Log {
     said: Vec<String>,
     stored: Vec<RoutineRecord>,
     installed: Vec<Vec<UnitFile>>,
-    awake: Vec<Awake>,
+    awake: Vec<bool>,
     events: Vec<Seen>,
 }
 
@@ -95,7 +95,7 @@ impl Host for FakeHost {
         self.log().installed.push(units.to_vec());
     }
 
-    fn awake(&self, need: Awake) {
+    fn awake(&self, need: bool) {
         self.log().awake.push(need);
     }
 }
@@ -162,12 +162,12 @@ async fn a_due_time_posts_one_job_and_the_desktop_stays_awake_only_while_it_runs
     assert_eq!(posted[0].goal.as_str(), GOAL);
     assert_eq!(posted[0].event, None);
     assert_eq!(outcomes(&routines, id), [RunOutcome::Started]);
-    assert_eq!(host.log().awake, [Awake::Needed]);
+    assert_eq!(host.log().awake, [true]);
 
     host.log().ends.insert(JobId(1), JobEnd::Done);
     routines.tick().await;
     assert_eq!(outcomes(&routines, id), [RunOutcome::Done]);
-    assert_eq!(host.log().awake, [Awake::Needed, Awake::NotNeeded]);
+    assert_eq!(host.log().awake, [true, false]);
 }
 
 #[tokio::test]
@@ -230,7 +230,7 @@ async fn three_runs_that_do_not_finish_pause_the_routine_and_tell_the_person_onc
     let book = routines.book();
     assert_eq!(
         book.routine(id).expect("routine").state,
-        RoutineState::Paused(RoutinePause::Failed3)
+        RoutineState::Paused(PauseWhy::Failed3)
     );
     // Paused, it no longer wants a timer: the last install is empty.
     assert!(host.log().installed.last().expect("installed").is_empty());

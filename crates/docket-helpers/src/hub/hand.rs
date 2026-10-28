@@ -8,7 +8,7 @@
 
 use super::owner::Hub;
 use crate::words::{refused, sentence};
-use companion_core::{Refusal, terminal_sessions, why_not_to_terminal};
+use companion_core::{AppStep, Refusal, terminal_sessions, why_not_to_terminal};
 use companion_model::helper::{
     BackOutcome, BoardEvent, BroughtOutcome, HandFault, HelperCard, JobRefusal, TerminalLogin,
     TerminalRequest, ToTerminalOutcome,
@@ -66,8 +66,12 @@ where
             .card(&helper)
             .cloned()
             .ok_or(Refusal::Job(JobRefusal::NoSuchHelper))?;
-        let program = card.kind.program().cloned().ok_or(Refusal::NotAnApp)?;
-        let agents = self.agents().ok_or(Refusal::NoAppHost)?;
+        let program = card
+            .kind
+            .program()
+            .cloned()
+            .ok_or(Refusal::NotAnApp(AppStep::Terminal))?;
+        let agents = self.agents().ok_or(Refusal::NoAppHost(AppStep::Terminal))?;
         let handover = self.with_state(|state| state.terminals.handover_of(&card, &state.board));
         match handover {
             Handover::ToTerminal => {}
@@ -114,7 +118,7 @@ where
             .card(&helper)
             .cloned()
             .ok_or(Refusal::Job(JobRefusal::NoSuchHelper))?;
-        let agents = self.agents().ok_or(Refusal::NoAppHost)?;
+        let agents = self.agents().ok_or(Refusal::NoAppHost(AppStep::Terminal))?;
         if self.with_state(|state| state.terminals.runs_in(&helper)) == RunsIn::Desktop {
             return Err(Refusal::Hand(HandFault::NotThere));
         }
@@ -159,7 +163,7 @@ where
     }
 
     async fn try_bring_in(&self, session: SessionId) -> Result<SessionId, Refusal> {
-        let agents = self.agents().ok_or(Refusal::NoAppHost)?;
+        let agents = self.agents().ok_or(Refusal::NoAppHost(AppStep::Terminal))?;
         let watched = self.watched_sessions().await;
         let line = watched
             .into_iter()

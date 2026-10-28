@@ -2,7 +2,7 @@
 //! `companion_core::Refusal`; this edge makes the words, one place for the helpers' desk and the
 //! routines' desk, so the wire's plain-sentence refusals read as they always have.
 
-use companion_core::Refusal;
+use companion_core::{AppStep, Refusal};
 use companion_model::helper::ReachFault;
 use companion_wire::HelperReply;
 
@@ -46,13 +46,17 @@ pub(crate) fn sentence(refusal: &Refusal) -> String {
         Refusal::SayNeedsSignIn(name) => {
             format!("{} needs you to sign in first.", name.as_str())
         }
-        Refusal::NotAnApp => "This helper does not run an app.".to_owned(),
-        Refusal::NotAnAppToSignInTo => "This helper does not run an app to sign in to.".to_owned(),
-        Refusal::NotAnAppToSignOutOf => {
+        Refusal::NotAnApp(AppStep::Terminal) => "This helper does not run an app.".to_owned(),
+        Refusal::NotAnApp(AppStep::SignIn) => {
+            "This helper does not run an app to sign in to.".to_owned()
+        }
+        Refusal::NotAnApp(AppStep::SignOut) => {
             "This helper does not run an app to sign out of.".to_owned()
         }
-        Refusal::NoAppHost => "No apps can be reached here.".to_owned(),
-        Refusal::NoAppHostToSignInTo => "No apps can be signed in to here.".to_owned(),
+        Refusal::NoAppHost(AppStep::SignIn) => "No apps can be signed in to here.".to_owned(),
+        Refusal::NoAppHost(AppStep::Terminal | AppStep::SignOut) => {
+            "No apps can be reached here.".to_owned()
+        }
         Refusal::AlreadyInTerminal => "It is already in the terminal.".to_owned(),
         Refusal::NotAWayToSignIn => "That is not one of the ways to sign in.".to_owned(),
         Refusal::SignInDeclined => {

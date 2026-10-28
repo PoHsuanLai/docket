@@ -15,7 +15,7 @@ use docket_core::EventSink;
 use docket_core::{
     Anchor, AuditRecord, CallProgress, CallRefusal, ConfirmAnswer, ConfirmAnswerKind,
     ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, Cost, Gesture,
-    Reviewed, TaintNote,
+    TaintNote,
 };
 use docket_gate_wire::{CuaAsk, GateAnswer};
 use docket_manifest::{AgentReach, Lasting};
@@ -340,7 +340,7 @@ impl<S: Seams> Router<S> {
                 effect: ask.effect,
                 entities: Count(1),
                 depth: Depth(0),
-                review: Reviewed::No,
+                reviewed: false,
             };
             // The same facts as an agent's call: the limits (the person's, the assistant's and the
             // floor's) cover a pixel step like any other change.

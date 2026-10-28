@@ -30,7 +30,7 @@ fn world() -> World {
             effect: Effect::UndoableWrite,
             entities: Count(1),
             depth: Depth(0),
-            review: Reviewed::No,
+            reviewed: false,
         },
     }
 }
@@ -47,7 +47,7 @@ fn decide(w: &World, ruling: &Ruling) -> Pending {
     let space = SpaceId::parse("work").expect("space");
     let now = UnixSeconds(1);
     let judged = Cost {
-        review: Reviewed::Yes,
+        reviewed: true,
         ..w.cost
     };
     let facts = run_facts(

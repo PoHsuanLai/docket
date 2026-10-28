@@ -2,10 +2,8 @@
 //! sends. Every sentence in it is plain words: a routine is something a helper does by itself
 //! when a time comes, something happens, or another job is done.
 
-use companion_model::helper::{HelperName, JobId};
-use companion_model::routine::{
-    Missed, Routine, RoutineId, RoutinePause, RoutineState, RunOutcome, RunRecord,
-};
+use companion_model::helper::{HelperName, JobId, PauseWhy};
+use companion_model::routine::{Missed, Routine, RoutineId, RoutineState, RunOutcome, RunRecord};
 use prov::{HelperId, SpaceId, UnixSeconds};
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -232,8 +230,8 @@ pub fn routine_line(routine: &Routine, helper_name: HelperName) -> RoutineLine {
         when: routine.trigger.plain(),
         state: match routine.state {
             RoutineState::Active => RoutineShown::On,
-            RoutineState::Paused(RoutinePause::ByPerson) => RoutineShown::Paused,
-            RoutineState::Paused(RoutinePause::Failed3) => RoutineShown::Stopped,
+            RoutineState::Paused(PauseWhy::ByPerson) => RoutineShown::Paused,
+            RoutineState::Paused(PauseWhy::Denied3 | PauseWhy::Failed3) => RoutineShown::Stopped,
         },
         next: routine.next_due,
         last: routine.runs.last().map(run_line),

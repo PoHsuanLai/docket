@@ -3,11 +3,11 @@
 //! tells the person what is worth telling, and feeds back what happened. Time and the zone are
 //! passed in, so a test moves them by hand.
 
-use super::kept::{Missed, Routine, RoutineId, RoutinePause, RoutineState, RunOutcome, RunRecord};
+use super::kept::{Missed, Routine, RoutineId, RoutineState, RunOutcome, RunRecord};
 use super::schedule::{Schedule, Zone};
 use super::shapes::{JobEnd, NewRoutine, RoutineNotice, RoutineRecord, RunRequest};
 use super::trigger::{EventMatch, JobRef, Trigger};
-use crate::helper::JobId;
+use crate::helper::{JobId, PauseWhy};
 use almanac_core::EventRef;
 use prov::{HelperId, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -275,7 +275,7 @@ impl RoutineBook {
         if let Some(routine) = self.find(id)
             && routine.state == RoutineState::Active
         {
-            routine.state = RoutineState::Paused(RoutinePause::ByPerson);
+            routine.state = RoutineState::Paused(PauseWhy::ByPerson);
             save(routine, fx);
         }
     }
@@ -403,7 +403,7 @@ impl RoutineBook {
                     run.outcome = RunOutcome::Failed(fault);
                     routine.failed = routine.failed.saturating_add(1);
                     if routine.failed >= IN_A_ROW && routine.state == RoutineState::Active {
-                        routine.state = RoutineState::Paused(RoutinePause::Failed3);
+                        routine.state = RoutineState::Paused(PauseWhy::Failed3);
                         fx.push(RoutineEffect::Say {
                             helper: routine.helper.clone(),
                             notice: RoutineNotice::Paused {

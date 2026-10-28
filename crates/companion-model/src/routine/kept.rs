@@ -1,7 +1,7 @@
 //! A routine as the person made it and as it now stands, with its last runs.
 
 use super::trigger::Trigger;
-use crate::helper::{GoalText, JobFault, JobId};
+use crate::helper::{GoalText, JobFault, JobId, PauseWhy};
 use almanac_core::EventRef;
 use porter_core::Count;
 use prov::{HelperId, UnixSeconds};
@@ -48,16 +48,6 @@ pub enum Missed {
     RunOnceOnWake,
 }
 
-/// Why a routine does not run.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RoutinePause {
-    /// The person paused it.
-    ByPerson,
-    /// Three runs in a row did not finish.
-    Failed3,
-}
-
 /// Whether a routine runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "v", rename_all = "snake_case")]
@@ -65,7 +55,7 @@ pub enum RoutineState {
     /// It runs when its trigger comes.
     Active,
     /// It does not.
-    Paused(RoutinePause),
+    Paused(PauseWhy),
 }
 
 /// How a run came out.

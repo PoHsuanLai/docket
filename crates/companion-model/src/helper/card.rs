@@ -165,13 +165,13 @@ pub struct TaskRef {
     pub task: TaskId,
 }
 
-/// Why a helper stopped taking jobs.
+/// Why a helper stopped taking jobs, or a routine stopped running.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PauseWhy {
     /// The person paused it.
     ByPerson,
-    /// Three of its calls in a row were refused.
+    /// Three of its calls in a row were refused (a helper only).
     Denied3,
     /// Three of its jobs in a row failed.
     Failed3,

@@ -5,7 +5,9 @@
 use crate::helper::hid;
 use crate::support::*;
 use almanac_core::{EventRef, KindPattern, ReplicaId, Seq};
-use companion_model::helper::{GoalText, HelperRecord, HelperRecordKind, JobFault, JobId};
+use companion_model::helper::{
+    GoalText, HelperRecord, HelperRecordKind, JobFault, JobId, PauseWhy,
+};
 use companion_model::routine::*;
 use porter_core::Count;
 use prov::HelperId;
@@ -272,7 +274,7 @@ fn three_runs_that_do_not_finish_pause_the_routine_and_say_so_once() {
     assert_eq!(said, 1);
     assert_eq!(
         book.routine(id).expect("routine").state,
-        RoutineState::Paused(RoutinePause::Failed3)
+        RoutineState::Paused(PauseWhy::Failed3)
     );
     // A paused routine does not run, and a timer for it is not wanted.
     assert!(book.timers().is_empty());

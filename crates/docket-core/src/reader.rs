@@ -6,7 +6,7 @@
 use crate::planner::{HandleShape, StepLine};
 use docket_vocab::{CharCount, ChoiceId, Handle, ParamName, Value};
 use model_provider::{ChoiceText, Field, FieldName, Shape};
-use porter_core::Count;
+use porter_core::{Count, Tier};
 use prov::{EntityId, Quarantined, SessionId};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -52,6 +52,14 @@ impl ReaderTask {
             Self::Extract => "extract",
             Self::Summarise => "summarise",
             Self::Compare => "compare",
+        }
+    }
+
+    /// The tier a task asks for: picking a label is quick, reading closely is not.
+    pub const fn tier(self) -> Tier {
+        match self {
+            Self::Classify => Tier::Fast,
+            Self::Extract | Self::Summarise | Self::Compare => Tier::Balanced,
         }
     }
 

@@ -44,9 +44,7 @@ pub use brief::{
     BRIEF_MAX, BriefEdit, BriefFault, BriefFlag, BriefSheet, BriefText, BriefWhy,
     FROM_CHECKED_BRIEF, flag_brief, from_checked_brief,
 };
-pub use budget::{
-    Budget, BudgetKind, Cost, Halt, HaltCause, KillSwitch, Ledger, Reviewed, charge, halted,
-};
+pub use budget::{Budget, BudgetKind, Cost, Halt, HaltCause, KillSwitch, Ledger, charge, halted};
 pub use call::{
     ActivatedInvocation, ActivationToken, AppRefusal, ArgFault, CallEnd, CallProgress, CallRefusal,
     FailText, Follow, Invocation, Outcome, Undoable,

@@ -21,7 +21,8 @@ pub use bodies::{
     RecallAsk, RecallView, RecentLine, Resolved, SessionModeAsk, SessionNote, StoredAsk, StoredRow,
     StoredView, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
 };
-pub use caller::{CallerId, CallerRole, Member, is_terminal_scope};
+pub use caller::{CallerId, CallerRole, is_terminal_scope};
+pub use member::Member;
 pub use reply::IntentsReply;
 pub use request::IntentsRequest;
 pub use started::{NotATerminalScope, StartedFrom, TerminalScope};

@@ -101,16 +101,6 @@ impl Ledger {
     }
 }
 
-/// Whether a call used a review.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Reviewed {
-    /// No.
-    No,
-    /// Yes.
-    Yes,
-}
-
 /// What one call costs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Cost {
@@ -121,7 +111,7 @@ pub struct Cost {
     /// How deep in a chain.
     pub depth: Depth,
     /// Whether it was reviewed.
-    pub review: Reviewed,
+    pub reviewed: bool,
 }
 
 const WINDOW_SECONDS: i64 = 60;
@@ -146,7 +136,7 @@ pub fn charge(
     let write = cost.effect > Effect::Read;
     let outbound = cost.effect == Effect::Outbound;
     let destructive = cost.effect == Effect::Destructive;
-    let reviewed = cost.review == Reviewed::Yes;
+    let reviewed = cost.reviewed;
     if now.0 - ledger.started.0 > i64::from(budget.wall.0) {
         Err(BudgetKind::Wall)
     } else if cost.depth > budget.chain {

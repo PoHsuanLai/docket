@@ -8,7 +8,7 @@ use crate::durable::Flush;
 use crate::prepared::{Prepared, grants_for};
 use crate::router::Router;
 use crate::seams::{AppFault, AppLink, GrantStore, Seams};
-use docket_core::{BudgetKind, CallEnd, CallRefusal, Ledger, Outcome, Reviewed, charge};
+use docket_core::{BudgetKind, CallEnd, CallRefusal, Ledger, Outcome, charge};
 use docket_session::{CallOpen, SessionEntry};
 use docket_vocab::{Clock, UndoId};
 use porter_core::GrantId;
@@ -67,7 +67,7 @@ impl<S: Seams> Router<S> {
     pub(crate) fn begin_call(
         &self,
         p: &Prepared,
-        reviewed: Reviewed,
+        reviewed: bool,
         session: &SessionId,
     ) -> Result<Option<Ledger>, BudgetKind> {
         let now = self.seams.clock().now();
@@ -75,10 +75,7 @@ impl<S: Seams> Router<S> {
         let Some(record) = st.sessions.get_mut(session) else {
             return Ok(None);
         };
-        let cost = docket_core::Cost {
-            review: reviewed,
-            ..p.cost
-        };
+        let cost = docket_core::Cost { reviewed, ..p.cost };
         let ledger = charge(&record.ledger, &self.agent_config().budget, &cost, now)?;
         let before = std::mem::replace(&mut record.ledger, ledger);
         // The turn-start memory read is a read the companion brought as context: nothing to
@@ -104,11 +101,7 @@ impl<S: Seams> Router<S> {
             )));
             return Next::Stop;
         }
-        let reviewed = if run.verdicts.is_empty() {
-            Reviewed::No
-        } else {
-            Reviewed::Yes
-        };
+        let reviewed = !run.verdicts.is_empty();
         if let Some(session) = &p.who.session {
             let before = match self.begin_call(p, reviewed, session) {
                 Ok(before) => before,

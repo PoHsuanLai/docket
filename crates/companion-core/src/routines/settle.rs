@@ -5,23 +5,14 @@
 use super::units::{UnitFile, units_of};
 use companion_model::routine::{RoutineBook, TimerEntry};
 
-/// Whether the desktop must stay awake.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum Awake {
-    /// A run is in progress: do not suspend.
-    Needed,
-    /// Nothing is running: the desktop may sleep. A time is never waited for awake.
-    #[default]
-    NotNeeded,
-}
-
 /// What changed since the host was last told.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settled {
     /// The units to install, the whole set, when the timers wanted changed.
     pub units: Option<Vec<UnitFile>>,
-    /// The desktop's need to stay awake, when it changed.
-    pub awake: Option<Awake>,
+    /// Whether the desktop must stay awake (a run is in progress), when that changed. A time is
+    /// never waited for awake.
+    pub awake: Option<bool>,
 }
 
 /// What the host was last told.
@@ -29,7 +20,7 @@ pub struct Settled {
 pub struct Settle {
     /// The timers last installed; none before the first time.
     installed: Option<Vec<TimerEntry>>,
-    awake: Awake,
+    awake: bool,
 }
 
 impl Settle {
@@ -40,10 +31,7 @@ impl Settle {
         if units.is_some() {
             self.installed = Some(timers);
         }
-        let need = match book.running() {
-            0 => Awake::NotNeeded,
-            _ => Awake::Needed,
-        };
+        let need = book.running() != 0;
         let awake = (self.awake != need).then_some(need);
         self.awake = need;
         Settled { units, awake }

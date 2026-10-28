@@ -13,12 +13,15 @@ What docket adds or decides differently, each with its reason:
    directly; `docket-ds`, the adapter quire apps use, reaches its vocabulary through `ds-intents`): the router and the agent must build for any
    desktop. A closed set's stable slug is its serde `snake_case` form (the same slug in files,
    on the bus and in the audit log); nothing hand-writes `slug` or `parse`. Where a list of
-   every variant is needed (`CallerRole::ALL`, `Member::ALL`) it is written by hand and a test
-   with a wildcard-free `match` stops the build when a variant is added.
+   every variant is needed it is written once: `CallerRole::ALL` by hand, with a test holding a
+   wildcard-free `match` that stops the build when a variant is added, and `Member`
+   (`Member::ALL`, `IntentsRequest::member`) by the one `members!` list in `docket-wire`. A
+   field-less view of an enum is a method, not a second declaration.
 2. **Async seams use `-> impl Future<Output = ...> + Send`**, so implementations write
-   `async fn` and every future can cross a multi-threaded runtime. Closed sets of
-   implementations are enums or generic parameters bundled in `docket_router::Seams`, never
-   `dyn`. The router is generic over one parameter, the bundle.
+   `async fn` and every future can cross a multi-threaded runtime. Generics are
+   the default and the router's are bundled in `docket_router::Seams`; the router is generic over
+   one parameter, the bundle. `Box<dyn Trait>` is fine where the implementation is picked from
+   configuration at run time.
 3. **`todo!()` bodies exist only while an interface is frozen and its behaviour is not built.**
    Each one is listed in `FINDINGS.md` with the work that removes it. A test whose subject is a
    `todo!()` is `#[ignore = "<what closes it>"]` and carries real assertions.
@@ -123,3 +126,17 @@ What docket adds or decides differently, each with its reason:
     check written `cmd | grep -q x` then fails at random, and one written `if cmd | grep -q .` can
     read a hit as a miss and pass what it should fail. Match from a here-string
     (`grep -q x <<<"$rows"`) or test captured output (`[ -n "$(cmd)" ]`).
+
+15. **Types: plain Rust first** (owner, 2026-10-28; replaces "no bools, typed enums everywhere").
+    (a) `bool` is fine for fields, return values, locals and private functions. Use an enum only
+    when a public function would read as `f(true, false)`, a third state is realistic, or the value
+    is written to disk or the bus where a named word reads better. (b) Newtypes only when they
+    hold a rule: parsed or validated (an app name, a URL), a unit (`Tokens`, `Seconds`), or an id
+    that must not be mixed with another; otherwise the plain type. (c) Enums are for closed sets
+    the code branches on; a set that grows (apps, providers, programs, phrases, window classes) is
+    data: a string id or a shipped file. (d) Behaviour that differs by case is a trait with default
+    methods. (e) One fact, one type: no mirror enum across crates (`X`/`XKind`/`XWire`/`XState`);
+    the lower crate owns it, and a field-less view is a method. (f) Two-way outcomes are `Result`
+    or `Option`, not a two-arm enum; a named two-arm enum stays only where its JSON is a contract
+    (the bus, the audit log, a file) or it reads better at three or more sites. (g) If the type can
+    say it, no runtime check says it; a single-variant enum is not a type.

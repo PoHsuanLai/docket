@@ -1,60 +1,128 @@
-//! Which member of `Intents1` a request is.
+//! Which member of `Intents1` a request is: the fieldless name of each `IntentsRequest` variant,
+//! written once, with the request's `member` method and the list of every member made from it.
 
-use crate::caller::Member;
 use crate::request::IntentsRequest;
 
-impl IntentsRequest {
-    /// The member this request calls.
-    pub fn member(&self) -> Member {
-        use IntentsRequest as R;
-        match self {
-            R::Manifests => Member::Manifests,
-            R::IndexPush(_) => Member::IndexPush,
-            R::IndexReset { .. } => Member::IndexReset,
-            R::Search(_) => Member::SearchQuery,
-            R::SearchCancel(_) => Member::SearchCancel,
-            R::Perform { .. } => Member::Perform,
-            R::DryRun { .. } => Member::DryRun,
-            R::Preview(_) => Member::Preview,
-            R::Suggest(_) => Member::Suggest,
-            R::Undo(_) => Member::Undo,
-            R::UndoAll(_) => Member::UndoAll,
-            R::Context { .. } => Member::Context,
-            R::SessionOpen(_) => Member::SessionOpen,
-            R::SessionTurn { .. } => Member::SessionTurn,
-            R::SessionClose { .. } => Member::SessionClose,
-            R::SessionTurnEnded { .. } => Member::SessionTurnEnded,
-            R::SessionMode(_) => Member::SessionMode,
-            R::SessionResolve { .. } => Member::SessionResolve,
-            R::SessionDisplay { .. } => Member::SessionDisplay,
-            R::SessionDisplayLabelled { .. } => Member::SessionDisplayLabelled,
-            R::SessionRead { .. } => Member::SessionRead,
-            R::SessionTaskPolicy { .. } => Member::SessionTaskPolicy,
-            R::SessionWiden { .. } => Member::SessionWiden,
-            R::SessionNote { .. } => Member::SessionNote,
-            R::SessionRecall { .. } => Member::SessionRecall,
-            R::SessionNarrow { .. } => Member::SessionNarrow,
-            R::SessionHandles { .. } => Member::SessionHandles,
-            R::SessionStored { .. } => Member::SessionStored,
-            R::CheckpointList { .. } => Member::CheckpointList,
-            R::CheckpointPlan { .. } => Member::CheckpointPlan,
-            R::CheckpointWatch { .. } => Member::CheckpointWatch,
-            R::CheckpointMark { .. } => Member::CheckpointMark,
-            R::CheckpointWatchAgent { .. } => Member::CheckpointWatchAgent,
-            R::CheckpointHandover { .. } => Member::CheckpointHandover,
-            R::CheckpointWatched => Member::CheckpointWatched,
-            R::MessageSend { .. } => Member::MessageSend,
-            R::MessageInbox(_) => Member::MessageInbox,
-            R::GateGrant(_) => Member::GateGrant,
-            R::GateCheck(_) => Member::GateCheck,
-            R::ControlHalt { .. } => Member::ControlHalt,
-            R::ControlResume { .. } => Member::ControlResume,
-            R::ControlState => Member::ControlState,
-            R::ControlJournal(_) => Member::ControlJournal,
-            R::ControlTerminalGrants => Member::ControlTerminalGrants,
-            R::ControlTerminalRevoke(_) => Member::ControlTerminalRevoke,
-            R::ControlStandingGrants => Member::ControlStandingGrants,
-            R::ControlStandingRevoke(_) => Member::ControlStandingRevoke,
+/// Declares `Member`, `Member::ALL` and `IntentsRequest::member` from one list of
+/// `Member <= request pattern` rows, in the order the interface table lists the members.
+macro_rules! members {
+    ($($(#[$doc:meta])* $name:ident <= $pat:pat,)*) => {
+        /// One member of `org.quire.Intents1`, as a word.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        pub enum Member {
+            $($(#[$doc])* $name,)*
         }
-    }
+
+        impl Member {
+            /// Every member, in the order the interface table lists them.
+            pub const ALL: [Member; [$(Member::$name),*].len()] = [$(Member::$name),*];
+        }
+
+        impl IntentsRequest {
+            /// The member this request calls.
+            pub fn member(&self) -> Member {
+                use IntentsRequest as R;
+                match self {
+                    $($pat => Member::$name,)*
+                }
+            }
+        }
+    };
+}
+
+members! {
+    /// `.Registry.Manifests`.
+    Manifests <= R::Manifests,
+    /// `.Index.Push`.
+    IndexPush <= R::IndexPush(_),
+    /// `.Index.Reset`.
+    IndexReset <= R::IndexReset { .. },
+    /// `.Search.Query`.
+    SearchQuery <= R::Search(_),
+    /// `.Search.Cancel`.
+    SearchCancel <= R::SearchCancel(_),
+    /// `.Run.Perform`.
+    Perform <= R::Perform { .. },
+    /// `.Run.DryRun`.
+    DryRun <= R::DryRun { .. },
+    /// `.Run.Preview`.
+    Preview <= R::Preview(_),
+    /// `.Run.Suggest`.
+    Suggest <= R::Suggest(_),
+    /// `.Run.Undo`.
+    Undo <= R::Undo(_),
+    /// `.Run.UndoAll`.
+    UndoAll <= R::UndoAll(_),
+    /// `.Context.Current`.
+    Context <= R::Context { .. },
+    /// `.Session.Open`.
+    SessionOpen <= R::SessionOpen(_),
+    /// `.Session.Turn`.
+    SessionTurn <= R::SessionTurn { .. },
+    /// `.Session.Close`.
+    SessionClose <= R::SessionClose { .. },
+    /// `.Session.TurnEnded`.
+    SessionTurnEnded <= R::SessionTurnEnded { .. },
+    /// `.Session.SetMode`.
+    SessionMode <= R::SessionMode(_),
+    /// `.Session.Resolve`.
+    SessionResolve <= R::SessionResolve { .. },
+    /// `.Session.Display`.
+    SessionDisplay <= R::SessionDisplay { .. },
+    /// `.Session.DisplayLabelled`.
+    SessionDisplayLabelled <= R::SessionDisplayLabelled { .. },
+    /// `.Session.Read`.
+    SessionRead <= R::SessionRead { .. },
+    /// `.Session.TaskPolicy`.
+    SessionTaskPolicy <= R::SessionTaskPolicy { .. },
+    /// `.Session.Widen`.
+    SessionWiden <= R::SessionWiden { .. },
+    /// `.Session.Note`.
+    SessionNote <= R::SessionNote { .. },
+    /// `.Session.Recall`.
+    SessionRecall <= R::SessionRecall { .. },
+    /// `.Session.Narrow`.
+    SessionNarrow <= R::SessionNarrow { .. },
+    /// `.Session.Handles`.
+    SessionHandles <= R::SessionHandles { .. },
+    /// `.Session.Stored`.
+    SessionStored <= R::SessionStored { .. },
+    /// `.Checkpoint.List`.
+    CheckpointList <= R::CheckpointList { .. },
+    /// `.Checkpoint.Plan`.
+    CheckpointPlan <= R::CheckpointPlan { .. },
+    /// `.Checkpoint.Watch`.
+    CheckpointWatch <= R::CheckpointWatch { .. },
+    /// `.Checkpoint.Mark`.
+    CheckpointMark <= R::CheckpointMark { .. },
+    /// `.Checkpoint.WatchAgent`.
+    CheckpointWatchAgent <= R::CheckpointWatchAgent { .. },
+    /// `.Checkpoint.Handover`.
+    CheckpointHandover <= R::CheckpointHandover { .. },
+    /// `.Checkpoint.Watched`.
+    CheckpointWatched <= R::CheckpointWatched,
+    /// `.Message.Send`.
+    MessageSend <= R::MessageSend { .. },
+    /// `.Message.Inbox`.
+    MessageInbox <= R::MessageInbox(_),
+    /// `.Gate.Grant`.
+    GateGrant <= R::GateGrant(_),
+    /// `.Gate.Check`.
+    GateCheck <= R::GateCheck(_),
+    /// `.Control.Halt`.
+    ControlHalt <= R::ControlHalt { .. },
+    /// `.Control.Resume`.
+    ControlResume <= R::ControlResume { .. },
+    /// `.Control.State`.
+    ControlState <= R::ControlState,
+    /// `.Control.Journal`.
+    ControlJournal <= R::ControlJournal(_),
+    /// `.Control.TerminalGrants`.
+    ControlTerminalGrants <= R::ControlTerminalGrants,
+    /// `.Control.RevokeTerminalGrant`.
+    ControlTerminalRevoke <= R::ControlTerminalRevoke(_),
+    /// `.Control.StandingGrants`.
+    ControlStandingGrants <= R::ControlStandingGrants,
+    /// `.Control.RevokeStandingGrant`.
+    ControlStandingRevoke <= R::ControlStandingRevoke(_),
 }

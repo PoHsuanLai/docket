@@ -3,7 +3,7 @@
 //! person is told, the almanac's events, the systemd timers and keeping the desktop awake. The
 //! daemon passes the hub's; a test passes a fake that records what it was asked.
 
-use companion_core::{Awake, EventAsk, Seen, UnitFile};
+use companion_core::{EventAsk, Seen, UnitFile};
 use companion_model::helper::{HelperName, JobId};
 use companion_model::routine::{JobEnd, RoutineRecord, RunRequest, Zone};
 use prov::{HelperId, SpaceId, UnixSeconds};
@@ -44,5 +44,5 @@ pub trait Host: Send + Sync + 'static {
     fn install(&self, units: &[UnitFile]);
 
     /// The desktop must stay awake, or may sleep. Said when it changes.
-    fn awake(&self, need: Awake);
+    fn awake(&self, need: bool);
 }

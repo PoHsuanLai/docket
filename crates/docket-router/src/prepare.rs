@@ -24,7 +24,7 @@ use crate::state::{RouterState, SessionRecord};
 use crate::turn_start::{TurnStart, pass, rule};
 use crate::who::Who;
 use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
-use docket_core::{BudgetKind, CallRefusal, Cost, Reviewed};
+use docket_core::{BudgetKind, CallRefusal, Cost};
 use docket_manifest::{ActionDecl, Lasting};
 use docket_permissions_core::{
     ActionGrant, BreakerState, BudgetState, DenyCode, Impact, LimitCall, Limited, Mode, ModeRows,
@@ -329,7 +329,7 @@ impl<S: Seams> Router<S> {
             effect: decl.effect,
             entities: count,
             depth,
-            review: Reviewed::No,
+            reviewed: false,
         };
         let budget = &self.agent_config().budget;
         let run = run_facts(
@@ -363,10 +363,7 @@ impl<S: Seams> Router<S> {
         let ruling = ruled.ruling;
         // A reviewed call also spends the reviews budget.
         let cost = Cost {
-            review: match ruling {
-                Ruling::AllowJudged(_) => Reviewed::Yes,
-                _ => Reviewed::No,
-            },
+            reviewed: matches!(ruling, Ruling::AllowJudged(_)),
             ..cost
         };
         let charged = budget_fact(&record.ledger, budget, &cost, now);
@@ -473,7 +470,7 @@ impl<S: Seams> Router<S> {
                 effect: decl.effect,
                 entities: count,
                 depth,
-                review: Reviewed::No,
+                reviewed: false,
             },
             decl,
             request,

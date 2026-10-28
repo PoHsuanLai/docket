@@ -381,7 +381,7 @@ sink; a write without undo is destructive). `docket_manifest::validate` and the 
 `companion.rs`) for `org.quire.Companion`. `HostedLink` routes the two names to them.
 
 **Add a member to `Intents1`.** (1) A variant of `IntentsRequest` and its reply in
-`docket-wire`; (2) `Member` and `IntentsRequest::member`; (3) its row in `docket-router::auth`
+`docket-wire`; (2) its row in the `members!` list (`Member`, `IntentsRequest::member`); (3) its row in `docket-router::auth`
 (who may call it, and a test that names the guarantee); (4) the method in `docket-dbus`'s table
 for its interface; run `cargo test -p docket-dbus`, which prints the new XML; replace
 `dbus/org.quire.Intents1.xml` with it in the same commit; (5) a method on `docket_client::Intents`.
