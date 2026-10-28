@@ -4,14 +4,15 @@ use super::play::{AgentEnd, PlayFault, Played, offered_models, play};
 use super::secret::{Credentials, Redactor};
 use super::spec::AcpSpec;
 use crate::flows::{
-    Evidence, Failure, Flow, Kind, Mode, exchanges_of, judge_in, setup, transcript_of, undo_held,
+    Evidence, Failure, Flow, Kind, exchanges_of, judge_in, setup, transcript_of, undo_held,
 };
 use crate::warm_bus::warm_world;
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, FooterWire};
-use docket_accept::confirm::{ByEffect, Verdict};
+use docket_accept::confirm::ByEffect;
 use docket_accept::drive::Launcher;
 use docket_accept::world::{AcpSetting, Binaries, ModelSource, Options, TapMode, World};
 use docket_core::Reveal;
+use docket_session::SheetChoice;
 use docket_session::TurnEnd;
 use serde_json::json;
 use std::path::PathBuf;
@@ -139,7 +140,7 @@ fn describe(end: &AgentEnd) -> String {
 /// refuses everything else.
 fn person_for(flow: Flow) -> ByEffect {
     flow.by_effect().unwrap_or(ByEffect {
-        reads: Verdict::AllowAlways,
+        reads: SheetChoice::Always,
         rest: flow.verdict(),
     })
 }
@@ -206,7 +207,7 @@ pub async fn run_flow_acp(
     let launcher = Launcher::of(&world).await.patient(patience);
     let undo = undo_held(&launcher, &world).await;
     let found = evidence(&played, &world, undo);
-    let mut judged = judge_in(&Mode::Agent(spec.program.clone()), flow, &found);
+    let mut judged = judge_in(Some(spec.program.as_str()), flow, &found);
     if let AgentEnd::NotStarted(why) = &played.end {
         judged.failures.push(Failure {
             kind: Kind::Setup,

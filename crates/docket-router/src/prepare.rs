@@ -30,10 +30,11 @@ use docket_permissions_core::{
     ActionGrant, DenyCode, Impact, LimitCall, Limited, Mode, ModeRows, Ruling, SpaceAccess,
     space_access,
 };
+use docket_session::Taint;
 use docket_vocab::{CallId, CallRequest, Classification, Clock, Depth, WindowKey};
 use policy_point::{
     ActionFacts, BudgetFact, CoverageState, Op, PolicyContext, PolicyRequest, PrincipalFacts,
-    SpaceRelation, TaintFact,
+    SpaceRelation,
 };
 use porter_core::Count;
 use porter_core::consent::Verdict;
@@ -84,7 +85,7 @@ struct Facts<'a> {
     relation: SpaceRelation,
     run: &'a RunFacts,
     repeat: RepeatState,
-    taint: TaintFact,
+    taint: Taint,
     mode: Mode,
     rows: ModeRows,
 }

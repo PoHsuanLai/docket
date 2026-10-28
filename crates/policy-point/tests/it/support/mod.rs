@@ -5,6 +5,7 @@ use docket_manifest::{AgentReach, Lasting};
 use docket_permissions_core::{
     AskReason, Impact, Mode, ModeRows, Ruling, Saw, SessionSaw, SinkIntegrity,
 };
+use docket_session::Taint;
 use docket_vocab::Origin;
 use policy_point::*;
 use porter_core::consent::Usage;
@@ -62,7 +63,7 @@ pub fn base(effect: Effect) -> PolicyRequest {
             budget: BudgetFact::Within,
             repeat: RepeatFact::Fresh,
             limit: LimitFact::Free,
-            taint: TaintFact::Clean,
+            taint: Taint::Clean,
             run: RunFact::NotAsked,
             mode: Mode::Auto,
             rows: ModeRows::AUTO,

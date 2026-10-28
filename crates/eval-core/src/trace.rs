@@ -71,7 +71,7 @@ pub struct CaseTrace {
 }
 
 /// A closed set in its serde slug, without the quotes of a JSON string.
-fn slug<T: Serialize>(value: &T) -> Option<String> {
+pub(crate) fn slug<T: Serialize>(value: &T) -> Option<String> {
     let text = serde_json::to_string(value).ok()?;
     Some(
         text.strip_prefix('"')

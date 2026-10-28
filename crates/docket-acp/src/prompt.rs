@@ -11,7 +11,7 @@ use crate::permission;
 use crate::server::{Server, Turns};
 use crate::turn::{Finish, Order, Turn, Wants};
 use acp_core::fault;
-use acp_core::permission::verdict_of_reply;
+use acp_core::permission::allows_reply;
 use agent_client_protocol::Responder;
 use agent_client_protocol::schema::v1::{
     ContentBlock, Error, PromptRequest, PromptResponse, RequestPermissionRequest,
@@ -20,7 +20,6 @@ use agent_client_protocol::schema::v1::{
 use docket_core::{TurnSource, TurnVia, UserTurn};
 use docket_session::{BackendEvent, HostFault, SessionHost, SessionLog, TurnEnd};
 use docket_vocab::{Clock, TurnId};
-use futures_channel::oneshot;
 use futures_util::future::{Either, select};
 use prov::SessionId;
 use std::pin::pin;
@@ -62,18 +61,6 @@ pub(crate) enum Reply {
     Answer(Result<RequestPermissionResponse, Error>),
     /// A cancel or a hang-up ended the wait first; these are the orders it brings.
     Heard(Vec<Order>),
-}
-
-/// What ended a wait on the editor.
-enum Listened {
-    Reply(Result<Result<RequestPermissionResponse, Error>, oneshot::Canceled>),
-    Inbound(Option<Inbound>),
-}
-
-/// What woke the loop.
-enum Woke {
-    Event(Result<Option<BackendEvent>, HostFault>),
-    Inbound(Option<Inbound>),
 }
 
 /// A message that arrived while a turn runs: a cancel for this session stops it, any other
@@ -178,22 +165,22 @@ impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {
                         let event = pin!(self.host.next_event(session));
                         let inbound = pin!(link.next());
                         match select(event, inbound).await {
-                            Either::Left((event, _)) => Woke::Event(event),
-                            Either::Right((inbound, _)) => Woke::Inbound(inbound),
+                            Either::Left((event, _)) => Either::Left(event),
+                            Either::Right((inbound, _)) => Either::Right(inbound),
                         }
                     };
                     match woke {
-                        Woke::Event(Ok(Some(event))) => turn.event(event),
-                        Woke::Event(_) => turn.event(BackendEvent::TurnEnd(TurnEnd::Failed)),
-                        Woke::Inbound(None) => turn.cancelled(),
-                        Woke::Inbound(Some(inbound)) => heard(session, inbound, turn)?,
+                        Either::Left(Ok(Some(event))) => turn.event(event),
+                        Either::Left(_) => turn.event(BackendEvent::TurnEnd(TurnEnd::Failed)),
+                        Either::Right(None) => turn.cancelled(),
+                        Either::Right(Some(inbound)) => heard(session, inbound, turn)?,
                     }
                 }
                 Wants::Answer(call) => {
                     let request = permission::request(&out::wire_id(session), &call);
                     match self.ask_editor(link, session, request, turn).await? {
                         Reply::Heard(orders) => orders,
-                        Reply::Answer(reply) => turn.answered(verdict_of_reply(reply)),
+                        Reply::Answer(reply) => turn.answered(allows_reply(reply)),
                     }
                 }
                 Wants::Confirm(sheet) => self.put_sheet(link, session, &sheet, turn).await?,
@@ -216,19 +203,19 @@ impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {
             let listened = {
                 let inbound = pin!(link.next());
                 match select(&mut waiting, inbound).await {
-                    Either::Left((reply, _)) => Listened::Reply(reply),
-                    Either::Right((inbound, _)) => Listened::Inbound(inbound),
+                    Either::Left((reply, _)) => Either::Left(reply),
+                    Either::Right((inbound, _)) => Either::Right(inbound),
                 }
             };
             match listened {
-                Listened::Reply(reply) => {
+                Either::Left(reply) => {
                     return Ok(match settled(reply) {
                         Settled::Answer(reply) => Reply::Answer(reply),
                         Settled::Gone => Reply::Heard(turn.cancelled()),
                     });
                 }
-                Listened::Inbound(None) => return Ok(Reply::Heard(turn.cancelled())),
-                Listened::Inbound(Some(inbound)) => {
+                Either::Right(None) => return Ok(Reply::Heard(turn.cancelled())),
+                Either::Right(Some(inbound)) => {
                     let orders = heard(session, inbound, turn)?;
                     if !matches!(turn.wants(), Wants::Answer(_) | Wants::Confirm(_)) {
                         return Ok(Reply::Heard(orders));

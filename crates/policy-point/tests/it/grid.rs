@@ -156,7 +156,7 @@ fn a_step_of_an_allowed_screen_run_runs_unless_it_sends_or_deletes() {
             r.context.grant = policy_point::GrantState::None;
             outside(r);
             untrust_planner(r);
-            r.context.taint = policy_point::TaintFact::Tainted;
+            r.context.taint = docket_session::Taint::Tainted;
             if allowed {
                 allowed_run(r);
             }
@@ -228,7 +228,7 @@ fn screen_step(r: &mut policy_point::PolicyRequest) {
     r.context.grant = policy_point::GrantState::None;
     outside(r);
     untrust_planner(r);
-    r.context.taint = policy_point::TaintFact::Tainted;
+    r.context.taint = docket_session::Taint::Tainted;
     allowed_run(r);
 }
 
@@ -244,7 +244,7 @@ fn both_legs(r: &mut policy_point::PolicyRequest) {
 }
 
 fn tainted(r: &mut policy_point::PolicyRequest) {
-    r.context.taint = policy_point::TaintFact::Tainted;
+    r.context.taint = docket_session::Taint::Tainted;
 }
 
 fn never(r: &mut policy_point::PolicyRequest) {

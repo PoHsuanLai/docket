@@ -1,9 +1,10 @@
 //! The providers intentd hosts itself: `org.quire.Memory` (the planner reaches memory only
 //! through these router actions, so the router can label what it delivers) and
-//! `org.quire.Companion` (starting a worker task, messaging one). `HostedLink` is the router's
-//! `AppLink` with the two answered in process and every other app over D-Bus, and
-//! `builtin_manifests` are what `quire-do apps` lists for them.
+//! `org.quire.Companion` (starting a worker task, messaging one), and `org.quire.Checkpoints`.
+//! `HostedLink` is the router's `AppLink` with those answered in process and every other app over
+//! D-Bus, and `builtin_manifests` are what `quire-do apps` lists for them.
 
+use crate::builtin_chain::{Builtins, Chain};
 use crate::builtin_checkpoints::{CheckpointsPort, CheckpointsProvider};
 use crate::builtin_companion::{CompanionPort, CompanionProvider};
 use crate::link::DbusLink;
@@ -17,7 +18,6 @@ use docket_manifest::{ManifestFileError, parse};
 use docket_memory::{MEMORY_APP, MemoryProvider};
 use docket_permissions_core::ACP_AGENT_APP;
 use docket_permissions_core::COMPANION_APP;
-use docket_provider::IntentProvider;
 use docket_router::{AppFault, AppLink, CHECKPOINTS_APP};
 use docket_vocab::{EntityRef, UndoToken};
 use porter_core::AppName;
@@ -48,30 +48,11 @@ pub fn is_builtin(app: &AppName) -> bool {
     )
 }
 
-/// Which provider an app name is.
-enum Host {
-    Memory,
-    Companion,
-    Checkpoints,
-    Installed,
-}
-
-fn host_of(app: &AppName) -> Host {
-    match app.as_str() {
-        MEMORY_APP => Host::Memory,
-        COMPANION_APP => Host::Companion,
-        CHECKPOINTS_APP => Host::Checkpoints,
-        _ => Host::Installed,
-    }
-}
-
-/// Apps over D-Bus, and the two built-ins in process.
+/// Apps over D-Bus, and the built-ins in process.
 #[derive(Debug)]
 pub struct HostedLink<T: MemoryTransport> {
     apps: DbusLink,
-    memory: MemoryProvider<T>,
-    companion: CompanionProvider,
-    checkpoints: CheckpointsProvider,
+    builtins: Chain<MemoryProvider<T>, Chain<CompanionProvider, CheckpointsProvider>>,
 }
 
 impl<T: MemoryTransport> HostedLink<T> {
@@ -89,19 +70,21 @@ impl<T: MemoryTransport> HostedLink<T> {
             })?;
         Ok(Self {
             apps,
-            memory: MemoryProvider::new(memory, transport),
-            companion: CompanionProvider::new(companion, port),
-            checkpoints: CheckpointsProvider::new(restore, checkpoints),
+            builtins: Chain(
+                MemoryProvider::new(memory, transport),
+                Chain(
+                    CompanionProvider::new(companion, port),
+                    CheckpointsProvider::new(restore, checkpoints),
+                ),
+            ),
         })
     }
 
     /// The manifests of what is hosted, for the registry.
-    pub fn manifests(&self) -> [&ValidManifest; 3] {
-        [
-            self.memory.manifest(),
-            self.companion.manifest(),
-            self.checkpoints.manifest(),
-        ]
+    pub fn manifests(&self) -> Vec<&ValidManifest> {
+        let mut out = Vec::new();
+        self.builtins.manifests(&mut out);
+        out
     }
 }
 
@@ -116,11 +99,13 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         inv: Invocation,
         within: Latency,
     ) -> Result<Outcome, AppFault> {
-        match host_of(app) {
-            Host::Memory => self.memory.perform(inv).await.map_err(faulted),
-            Host::Companion => self.companion.perform(inv).await.map_err(faulted),
-            Host::Checkpoints => self.checkpoints.perform(inv).await.map_err(faulted),
-            Host::Installed => self.apps.perform(app, inv, within).await,
+        if self.builtins.serves(app) {
+            self.builtins
+                .hosted_perform(app, inv)
+                .await
+                .map_err(faulted)
+        } else {
+            self.apps.perform(app, inv, within).await
         }
     }
 
@@ -131,15 +116,12 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         activation: Option<docket_core::ActivationToken>,
         within: Latency,
     ) -> Result<Outcome, AppFault> {
-        match host_of(app) {
-            Host::Installed => {
-                self.apps
-                    .perform_activated(app, inv, activation, within)
-                    .await
-            }
-            Host::Memory | Host::Companion | Host::Checkpoints => {
-                self.perform(app, inv, within).await
-            }
+        if self.builtins.serves(app) {
+            self.perform(app, inv, within).await
+        } else {
+            self.apps
+                .perform_activated(app, inv, activation, within)
+                .await
         }
     }
 
@@ -151,15 +133,12 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         classified: Option<docket_vocab::CallClass>,
         within: Latency,
     ) -> Result<Outcome, AppFault> {
-        match host_of(app) {
-            Host::Installed => {
-                self.apps
-                    .perform_classified(app, inv, activation, classified, within)
-                    .await
-            }
-            Host::Memory | Host::Companion | Host::Checkpoints => {
-                self.perform(app, inv, within).await
-            }
+        if self.builtins.serves(app) {
+            self.perform(app, inv, within).await
+        } else {
+            self.apps
+                .perform_classified(app, inv, activation, classified, within)
+                .await
         }
     }
 
@@ -168,39 +147,35 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         app: &AppName,
         inv: Invocation,
     ) -> Result<docket_vocab::CallClass, docket_vocab::ClassifyFault> {
-        match host_of(app) {
-            Host::Installed => self.apps.classify(app, inv).await,
+        if self.builtins.serves(app) {
             // The built-in providers declare every effect outright.
-            Host::Memory | Host::Companion | Host::Checkpoints => {
-                Err(docket_vocab::ClassifyFault::Unsupported)
-            }
+            Err(docket_vocab::ClassifyFault::Unsupported)
+        } else {
+            self.apps.classify(app, inv).await
         }
     }
 
     async fn dry_run(&self, app: &AppName, inv: Invocation) -> Result<Preview, AppRefusal> {
-        match host_of(app) {
-            Host::Memory => self.memory.dry_run(inv).await,
-            Host::Companion => self.companion.dry_run(inv).await,
-            Host::Checkpoints => self.checkpoints.dry_run(inv).await,
-            Host::Installed => self.apps.dry_run(app, inv).await,
+        if self.builtins.serves(app) {
+            self.builtins.hosted_dry_run(app, inv).await
+        } else {
+            self.apps.dry_run(app, inv).await
         }
     }
 
     async fn undo(&self, app: &AppName, token: &UndoToken, actor: &Actor) -> Result<(), UndoFault> {
-        match host_of(app) {
-            Host::Memory => self.memory.undo(token.clone(), actor.clone()).await,
-            Host::Companion => self.companion.undo(token.clone(), actor.clone()).await,
-            Host::Checkpoints => self.checkpoints.undo(token.clone(), actor.clone()).await,
-            Host::Installed => self.apps.undo(app, token, actor).await,
+        if self.builtins.serves(app) {
+            self.builtins
+                .hosted_undo(app, token.clone(), actor.clone())
+                .await
+        } else {
+            self.apps.undo(app, token, actor).await
         }
     }
 
     async fn running(&self, app: &AppName) -> bool {
-        match host_of(app) {
-            // Hosted in intentd itself, so running whenever the router is.
-            Host::Memory | Host::Companion | Host::Checkpoints => true,
-            Host::Installed => self.apps.running(app).await,
-        }
+        // Hosted in intentd itself, so running whenever the router is.
+        self.builtins.serves(app) || self.apps.running(app).await
     }
 
     async fn context(
@@ -208,28 +183,27 @@ impl<T: MemoryTransport> AppLink for HostedLink<T> {
         app: &AppName,
         scope: ContextScope,
     ) -> Result<ContextSnapshot, LinkFault> {
-        match host_of(app) {
-            // Neither has a window: there is nothing on screen to report.
-            Host::Memory | Host::Companion | Host::Checkpoints => Err(LinkFault::Unavailable),
-            Host::Installed => self.apps.context(app, scope).await,
+        if self.builtins.serves(app) {
+            // None has a window: there is nothing on screen to report.
+            Err(LinkFault::Unavailable)
+        } else {
+            self.apps.context(app, scope).await
         }
     }
 
     async fn preview(&self, app: &AppName, id: &EntityId) -> Result<Preview, LinkFault> {
-        match host_of(app) {
-            Host::Memory => Ok(self.memory.preview(id).await),
-            Host::Companion => Ok(self.companion.preview(id).await),
-            Host::Checkpoints => Ok(self.checkpoints.preview(id).await),
-            Host::Installed => self.apps.preview(app, id).await,
+        if self.builtins.serves(app) {
+            Ok(self.builtins.hosted_preview(app, id).await)
+        } else {
+            self.apps.preview(app, id).await
         }
     }
 
     async fn suggest(&self, app: &AppName, ask: SuggestAsk) -> Result<Vec<EntityRef>, LinkFault> {
-        match host_of(app) {
-            Host::Memory => Ok(self.memory.suggest(ask).await),
-            Host::Companion => Ok(self.companion.suggest(ask).await),
-            Host::Checkpoints => Ok(self.checkpoints.suggest(ask).await),
-            Host::Installed => self.apps.suggest(app, ask).await,
+        if self.builtins.serves(app) {
+            Ok(self.builtins.hosted_suggest(app, ask).await)
+        } else {
+            self.apps.suggest(app, ask).await
         }
     }
 }

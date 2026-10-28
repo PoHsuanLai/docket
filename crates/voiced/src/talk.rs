@@ -19,7 +19,7 @@ use porter_infer::{
 };
 use voice_audio::{AudioDevice, samples_of};
 use voice_dbus::speech_path;
-use voice_loop::{MicNow, SpeechEffect, SpeechEvent, SpeechPhase, SpeechState, speech_step};
+use voice_loop::{SpeechEffect, SpeechEvent, SpeechPhase, SpeechState, speech_step};
 use voice_wire::{SpeakWire, Speaking, SpeechEnd, VoiceFault, VoiceRefusal, VoiceUse};
 use zbus::object_server::SignalEmitter;
 
@@ -209,8 +209,8 @@ where
     }
 
     /// The mic opened or closed: the speech machine learns it.
-    pub(crate) async fn speech_mic(&mut self, mic: MicNow) {
-        self.speech_event(SpeechEvent::Mic(mic)).await;
+    pub(crate) async fn speech_mic(&mut self, open: bool) {
+        self.speech_event(SpeechEvent::Mic { open }).await;
     }
 
     pub(crate) async fn speech_event(&mut self, event: SpeechEvent) {

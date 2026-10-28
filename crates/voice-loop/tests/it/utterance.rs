@@ -326,15 +326,15 @@ fn alphabet() -> Vec<UtteranceEvent> {
 }
 
 /// The mic as the effects leave it: the last of OpenMic and CloseMic wins.
-fn mic_after(mic: MicNow, effects: &[UtteranceEffect]) -> MicNow {
+fn mic_after(mic: bool, effects: &[UtteranceEffect]) -> bool {
     effects.iter().fold(mic, |m, e| match e {
-        E::OpenMic => MicNow::Open,
-        E::CloseMic => MicNow::Closed,
+        E::OpenMic => true,
+        E::CloseMic => false,
         _ => m,
     })
 }
 
-fn walk(depth: usize, state: UtteranceState, mic: MicNow, visited: &mut usize) {
+fn walk(depth: usize, state: UtteranceState, mic: bool, visited: &mut usize) {
     if depth == 0 {
         return;
     }
@@ -351,7 +351,7 @@ fn walk(depth: usize, state: UtteranceState, mic: MicNow, visited: &mut usize) {
         let after = mic_after(mic, &effects);
         assert_eq!(
             after,
-            mic_of(next),
+            next.mic_open(),
             "effects leave the mic out of step with {next:?}: {effects:?}"
         );
         assert!(
@@ -365,16 +365,16 @@ fn walk(depth: usize, state: UtteranceState, mic: MicNow, visited: &mut usize) {
 #[test]
 fn mic_open_iff_open_states() {
     let mut visited = 0;
-    walk(4, UtteranceState::Idle, MicNow::Closed, &mut visited);
+    walk(4, UtteranceState::Idle, false, &mut visited);
     assert_eq!(visited, 15 + 15 * 15 + 15 * 15 * 15 + 15 * 15 * 15 * 15);
     for (state, mic) in [
-        (S::Idle, MicNow::Closed),
-        (S::Opening, MicNow::Open),
-        (S::Listening, MicNow::Open),
-        (S::Tail, MicNow::Open),
-        (S::Finishing, MicNow::Closed),
+        (S::Idle, false),
+        (S::Opening, true),
+        (S::Listening, true),
+        (S::Tail, true),
+        (S::Finishing, false),
     ] {
-        assert_eq!(mic_of(state), mic);
+        assert_eq!(state.mic_open(), mic);
     }
 }
 

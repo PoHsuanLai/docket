@@ -7,10 +7,10 @@
 
 use crate::flows::{Evidence, Failure, Kind, Played, Script, observe, transcript_of};
 use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, NeedsYou};
-use docket_accept::confirm::Verdict;
 use docket_accept::provider::Focus;
 use docket_accept::world::{Binaries, Consent, ModelSource};
 use docket_eval::{PlannerCase, PlannerEnd, PlannerExpect, SheetAnswer};
+use docket_session::SheetChoice;
 use eval_core::ConsentFixture;
 use std::time::Duration;
 
@@ -177,8 +177,8 @@ pub async fn run_planner_case(
             ConsentFixture::Withheld => Consent::FirstUse,
         },
         verdict: match case.sheet {
-            SheetAnswer::Refuse => Verdict::Refuse,
-            SheetAnswer::Allow => Verdict::Allow,
+            SheetAnswer::Refuse => SheetChoice::Refused,
+            SheetAnswer::Allow => SheetChoice::Once,
         },
         by_effect: None,
         focus: Focus::Nowhere,

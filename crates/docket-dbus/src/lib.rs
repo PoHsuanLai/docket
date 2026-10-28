@@ -67,7 +67,7 @@ pub use names::{
 pub use porter_dbus::Details;
 pub use porter_dbus::names::OPTION_TRACEPARENT;
 pub use provider::{IntentProviderProxy, IntentProviderSkeleton};
-pub use reach::{IntentReachProxy, ReachNow, ReachServer, Replaced};
+pub use reach::{IntentReachProxy, ReachNow, ReachServer};
 pub use reader::{ReaderProxy, ReaderSkeleton};
 pub use registry::{RegistryProxy, RegistrySkeleton};
 pub use request::{RequestProxy, RequestSkeleton};

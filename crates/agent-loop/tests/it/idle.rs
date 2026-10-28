@@ -3,8 +3,9 @@
 use crate::support::*;
 use agent_loop::*;
 use almanac_core::EpisodeId;
+use docket_session::Taint;
 
-fn job(id: &str, read: ReadUntrusted) -> EpisodeJob {
+fn job(id: &str, read: Taint) -> EpisodeJob {
     EpisodeJob {
         episode: EpisodeId::parse(id).expect("id"),
         read,
@@ -17,13 +18,13 @@ fn the_idle_pass_waits_for_quiet_runs_one_narrative_and_yields_to_the_person() {
     let state = IdleState::quiet_since(at(0));
     let (state, effects) = idle_step(
         state,
-        IdleInput::EpisodeClosed(job("t-1", ReadUntrusted::Yes)),
+        IdleInput::EpisodeClosed(job("t-1", Taint::Tainted)),
         &rules,
     );
     assert!(effects.is_empty());
     let (state, effects) = idle_step(
         state,
-        IdleInput::EpisodeClosed(job("t-2", ReadUntrusted::No)),
+        IdleInput::EpisodeClosed(job("t-2", Taint::Clean)),
         &rules,
     );
     assert!(effects.is_empty());
@@ -70,7 +71,7 @@ fn a_failed_narrative_waits_for_the_person_to_come_and_go() {
     let rules = rules();
     let state = IdleState {
         phase: IdlePhase::Quiet { since: at(0) },
-        queue: vec![job("t-1", ReadUntrusted::No)],
+        queue: vec![job("t-1", Taint::Clean)],
     };
     let (state, _) = idle_step(state, IdleInput::Tick(at(40)), &rules);
     let (state, effects) = idle_step(

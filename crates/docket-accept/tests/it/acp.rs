@@ -4,8 +4,8 @@
 
 use crate::support::*;
 use docket_accept::acp::AcpEditor;
-use docket_accept::confirm::Verdict;
 use docket_accept::world::{Consent, World};
+use docket_session::SheetChoice;
 use serde_json::{Value, json};
 
 pub(crate) const CWD: &str = "/work/project";
@@ -68,7 +68,7 @@ pub(crate) fn words(updates: &[Value]) -> Vec<String> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn one_session_initialize_new_prompt_a_permission_round_and_done() {
     let world = World::start_acp(&binaries(), Consent::Standing, FLOW_A).await;
-    world.sheet.will(Verdict::Allow);
+    world.sheet.will(SheetChoice::Once);
     let mut editor = editor_of(&world).await;
     let id = session(&mut editor).await;
     let reply = editor
@@ -103,7 +103,7 @@ async fn one_session_initialize_new_prompt_a_permission_round_and_done() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn an_editors_reject_means_the_app_never_runs_the_call() {
     let world = World::start_acp(&binaries(), Consent::Standing, FLOW_A).await;
-    world.sheet.will(Verdict::Allow);
+    world.sheet.will(SheetChoice::Once);
     let mut editor = editor_of(&world).await;
     let id = session(&mut editor).await;
     let reply = editor
@@ -135,7 +135,7 @@ async fn an_editors_reject_means_the_app_never_runs_the_call() {
 /// goes on with turn two. Returns what turn two showed and what the app did. The sheets the editor was shown are returned too: none, since both turns only read (a later clock second used to make the second turn's policy count as wider, and the router asked "Allow more for this task" in about one run in eight).
 async fn two_turns(restart: bool) -> (Vec<Value>, Vec<String>, Vec<String>) {
     let world = World::start_acp(&binaries(), Consent::Standing, ACP_TWO_TURNS).await;
-    world.sheet.will(Verdict::Allow);
+    world.sheet.will(SheetChoice::Once);
     let mut editor = editor_of(&world).await;
     let id = session(&mut editor).await;
     let one = editor

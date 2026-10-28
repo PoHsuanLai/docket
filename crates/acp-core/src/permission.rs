@@ -17,28 +17,18 @@ pub const ALLOW_ALWAYS: &str = "allow_always";
 /// The id of the option that stops it.
 pub const REJECT_ONCE: &str = "reject_once";
 
-/// What the editor's person said.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Verdict {
-    /// Go on, to our gate.
-    Allow,
-    /// Stop.
-    Reject,
+/// Whether the editor's person let the call go on, to our gate: only a selection of `allow_once`
+/// does.
+pub fn allows(outcome: &RequestPermissionOutcome) -> bool {
+    matches!(
+        outcome,
+        RequestPermissionOutcome::Selected(chosen) if &*chosen.option_id.0 == ALLOW_ONCE
+    )
 }
 
-/// The verdict in an outcome: only a selection of `allow_once` allows.
-pub fn verdict(outcome: &RequestPermissionOutcome) -> Verdict {
-    match outcome {
-        RequestPermissionOutcome::Selected(chosen) if &*chosen.option_id.0 == ALLOW_ONCE => {
-            Verdict::Allow
-        }
-        _ => Verdict::Reject,
-    }
-}
-
-/// The verdict in a reply to our request: anything unreadable is a reject.
-pub fn verdict_of_reply(reply: Result<RequestPermissionResponse, Error>) -> Verdict {
-    reply.map_or(Verdict::Reject, |r| verdict(&r.outcome))
+/// Whether a reply to our request let the call go on: anything unreadable is a reject.
+pub fn allows_reply(reply: Result<RequestPermissionResponse, Error>) -> bool {
+    reply.is_ok_and(|r| allows(&r.outcome))
 }
 
 /// The choice in an outcome on `sheet`: anything but a listed allow is a refusal, and `always`

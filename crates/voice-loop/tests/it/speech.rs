@@ -22,12 +22,12 @@ use SpeechEffect as E;
 use SpeechEvent as V;
 use SpeechPhase as P;
 
-fn state(phase: SpeechPhase, queue: &[&str], mic: MicNow) -> SpeechState {
+fn state(phase: SpeechPhase, queue: &[&str], mic_open: bool) -> SpeechState {
     SpeechState {
         phase,
         queue: queue.iter().map(|t| s(t)).collect(),
         pending: None,
-        mic,
+        mic_open,
         class: Some(DataClass::Mail),
     }
 }
@@ -51,7 +51,7 @@ fn speech_table() {
                 phase: P::Synth,
                 queue: vec![s("Second sentence here.")],
                 pending: None,
-                mic: MicNow::Closed,
+                mic_open: false,
                 class: Some(DataClass::Mail),
             },
             vec![
@@ -62,7 +62,7 @@ fn speech_table() {
         (
             "speak while the mic is open waits",
             SpeechState {
-                mic: MicNow::Open,
+                mic_open: true,
                 ..SpeechState::quiet()
             },
             V::Speak(wire("Hello there friend.")),
@@ -70,7 +70,7 @@ fn speech_table() {
                 phase: P::Quiet,
                 queue: vec![],
                 pending: Some(wire("Hello there friend.")),
-                mic: MicNow::Open,
+                mic_open: true,
                 class: None,
             },
             vec![],
@@ -79,15 +79,15 @@ fn speech_table() {
             "the mic closing starts the pending speech",
             SpeechState {
                 pending: Some(wire("Hello there friend.")),
-                mic: MicNow::Open,
+                mic_open: true,
                 ..SpeechState::quiet()
             },
-            V::Mic(MicNow::Closed),
+            V::Mic { open: false },
             SpeechState {
                 phase: P::Synth,
                 queue: vec![],
                 pending: None,
-                mic: MicNow::Closed,
+                mic_open: false,
                 class: Some(DataClass::Mail),
             },
             vec![
@@ -97,40 +97,40 @@ fn speech_table() {
         ),
         (
             "audio makes it play",
-            state(P::Synth, &[], MicNow::Closed),
+            state(P::Synth, &[], false),
             V::Chunk,
-            state(P::Playing, &[], MicNow::Closed),
+            state(P::Playing, &[], false),
             vec![E::Play],
         ),
         (
             "a finished sentence starts the next",
-            state(P::Playing, &["Next one here."], MicNow::Closed),
+            state(P::Playing, &["Next one here."], false),
             V::SentenceDone,
-            state(P::Synth, &[], MicNow::Closed),
+            state(P::Synth, &[], false),
             vec![E::SpeakSentence(s("Next one here."))],
         ),
         (
             "a drained queue is done",
-            state(P::Playing, &[], MicNow::Closed),
+            state(P::Playing, &[], false),
             V::Drained,
             SpeechState {
                 class: None,
-                ..state(P::Quiet, &[], MicNow::Closed)
+                ..state(P::Quiet, &[], false)
             },
             vec![E::Finished(SpeechEnd::Done)],
         ),
         (
             "drained with sentences left keeps playing",
-            state(P::Playing, &["more"], MicNow::Closed),
+            state(P::Playing, &["more"], false),
             V::Drained,
-            state(P::Playing, &["more"], MicNow::Closed),
+            state(P::Playing, &["more"], false),
             vec![],
         ),
         (
             "hush stops",
-            state(P::Playing, &["more"], MicNow::Closed),
+            state(P::Playing, &["more"], false),
             V::Hush,
-            state(P::Stopping, &[], MicNow::Closed),
+            state(P::Stopping, &[], false),
             vec![
                 E::StopSynth,
                 E::Fade { ms: FADE_MS },
@@ -139,9 +139,9 @@ fn speech_table() {
         ),
         (
             "an utterance barges in",
-            state(P::Synth, &[], MicNow::Closed),
+            state(P::Synth, &[], false),
             V::Begin,
-            state(P::Stopping, &[], MicNow::Closed),
+            state(P::Stopping, &[], false),
             vec![
                 E::StopSynth,
                 E::Fade { ms: FADE_MS },
@@ -150,23 +150,19 @@ fn speech_table() {
         ),
         (
             "stopping drains to quiet",
-            state(P::Stopping, &[], MicNow::Open),
+            state(P::Stopping, &[], true),
             V::Drained,
             SpeechState {
                 class: None,
-                ..state(P::Quiet, &[], MicNow::Open)
+                ..state(P::Quiet, &[], true)
             },
             vec![],
         ),
         (
             "speech while playing extends the queue",
-            state(P::Playing, &[], MicNow::Closed),
+            state(P::Playing, &[], false),
             V::Speak(wire("Another long sentence follows.")),
-            state(
-                P::Playing,
-                &["Another long sentence follows."],
-                MicNow::Closed,
-            ),
+            state(P::Playing, &["Another long sentence follows."], false),
             vec![],
         ),
         (
@@ -191,7 +187,7 @@ fn speech_table() {
 
 #[test]
 fn barge_in_stops_before_mic_opens() {
-    let speaking = state(P::Playing, &["x"], MicNow::Closed);
+    let speaking = state(P::Playing, &["x"], false);
     let begin = UtteranceEvent::Begin {
         enabled: VoiceUse::On,
         intent: VoiceIntent::Ask,
@@ -201,20 +197,20 @@ fn barge_in_stops_before_mic_opens() {
     assert!(at(Step::Speech(E::StopSynth)) < at(Step::Utterance(UtteranceEffect::OpenMic)));
     assert_eq!(utterance, UtteranceState::Opening);
     assert_eq!(speech.phase, P::Stopping);
-    assert_eq!(speech.mic, MicNow::Open);
+    assert!(speech.mic_open);
 }
 
 #[test]
 fn speak_is_refused_while_the_mic_is_open_then_runs() {
     let (waiting, effects) = speech_step(
         SpeechState {
-            mic: MicNow::Open,
+            mic_open: true,
             ..SpeechState::quiet()
         },
         V::Speak(wire("Hello there friend.")),
     );
     assert!(effects.is_empty() && waiting.pending.is_some());
-    let (running, effects) = speech_step(waiting, V::Mic(MicNow::Closed));
+    let (running, effects) = speech_step(waiting, V::Mic { open: false });
     assert_eq!(running.phase, P::Synth);
     assert!(effects.contains(&E::SpeakSentence(s("Hello there friend."))));
 }

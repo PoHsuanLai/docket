@@ -7,7 +7,8 @@ use crate::support::world::{World, everything_config, mail_router};
 use docket_core::*;
 use docket_fake::fake_router;
 use docket_permissions_core::{BreakerTrip, Mode};
-use docket_router::{Router, SessionState, Taint};
+use docket_router::{Router, SessionState};
+use docket_session::Taint;
 use docket_vocab::{ActionRef, LabelText, Origin, UndoToken};
 use docket_wire::{
     CallerId, CallerRole, IntentsReply, IntentsRequest, SessionModeAsk, SessionOpen, SessionOpened,

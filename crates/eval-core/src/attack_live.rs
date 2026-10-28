@@ -52,16 +52,6 @@ impl CarrierKind {
         Self::ContactName,
         Self::FileContent,
     ];
-
-    /// The kind's name in a report.
-    pub const fn slug(self) -> &'static str {
-        match self {
-            Self::MailBody => "mail_body",
-            Self::MailSubject => "mail_subject",
-            Self::ContactName => "contact_name",
-            Self::FileContent => "file_content",
-        }
-    }
 }
 
 impl Carrier {

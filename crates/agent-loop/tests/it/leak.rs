@@ -1,31 +1,31 @@
 //! `leaked_call`: a call written as words is told from words about calls.
 
-use agent_loop::{LeakForm, leaked_call};
+use agent_loop::leaked_call;
 use proptest::prelude::*;
 
 #[test]
-fn the_templates_are_told_apart() {
+fn the_markers_are_told_from_words() {
     let table = [
         (
             "hermes",
             "<tool_call>\n{\"name\": \"f\", \"arguments\": {}}\n</tool_call>",
-            Some(LeakForm::Hermes),
+            Some("<tool_call>"),
         ),
         (
             "qwen xml",
             "<tool_call>\n<function=f>\n<parameter=a>\n1\n</parameter>\n</function>\n</tool_call>",
-            Some(LeakForm::QwenXml),
+            Some("<function="),
         ),
         (
             "mistral",
             "[TOOL_CALLS] [{\"name\": \"f\"}]",
-            Some(LeakForm::Mistral),
+            Some("[tool_calls]"),
         ),
-        ("llama", "<|python_tag|>f()", Some(LeakForm::LlamaTag)),
+        ("llama", "<|python_tag|>f()", Some("<|python_tag|>")),
         (
             "other",
             "<function_call>{}</function_call>",
-            Some(LeakForm::OtherTag),
+            Some("<function_call>"),
         ),
         (
             "words",
@@ -36,7 +36,7 @@ fn the_templates_are_told_apart() {
         ("empty", "", None),
     ];
     for (name, text, want) in table {
-        assert_eq!(leaked_call(text).map(|l| l.form), want, "{name}");
+        assert_eq!(leaked_call(text), want, "{name}");
     }
 }
 

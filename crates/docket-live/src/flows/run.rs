@@ -5,13 +5,14 @@ use crate::hostile::at_rest;
 use crate::warm::WarmFault;
 use crate::warm_bus::warm_world;
 use companion_wire::AnswerWire;
-use docket_accept::confirm::{ByEffect, Verdict};
+use docket_accept::confirm::ByEffect;
 use docket_accept::drive::Launcher;
 use docket_accept::keys_home::KeysHome;
 use docket_accept::provider::{Focus, Sending};
 use docket_accept::things::App;
 use docket_accept::world::{Binaries, Consent, ModelSource, Options, TapMode, World};
 use docket_core::ModelExchange;
+use docket_session::SheetChoice;
 use docket_wire::JournalFilter;
 use std::time::Duration;
 
@@ -62,7 +63,7 @@ pub(crate) struct Played {
 /// What a play is told: the person's grants, what they do with a sheet, and their words.
 pub(crate) struct Script<'a> {
     pub consent: Consent,
-    pub verdict: Verdict,
+    pub verdict: SheetChoice,
     pub by_effect: Option<ByEffect>,
     pub focus: Focus,
     pub app: App,

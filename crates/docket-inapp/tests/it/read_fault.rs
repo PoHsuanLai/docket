@@ -35,7 +35,7 @@ fn open_thread() -> crate::support::infer::Say {
 }
 
 async fn turn(planner: &ScriptedInfer, reader: &ScriptedInfer) -> docket_inapp::Reply {
-    let sheet = TestSheet::answering(vec![docket_host::SheetAnswer::Once; 2]);
+    let sheet = TestSheet::answering(vec![docket_session::SheetChoice::Once; 2]);
     let mut agent = InAppAgent::with_kit(
         parts(planner, &sheet, &clock()),
         InAppKit::default().reader(TransportReader::in_process(reader.clone())),
@@ -140,7 +140,7 @@ async fn three_bad_reads_running_stop_the_turn_and_ask_the_person() {
 #[tokio::test]
 async fn a_reader_that_is_not_there_still_fails_the_turn_with_its_cause() {
     let planner = ScriptedInfer::new(vec![open_thread(), call("quire_read", good_ask())]);
-    let sheet = TestSheet::answering(vec![docket_host::SheetAnswer::Once; 2]);
+    let sheet = TestSheet::answering(vec![docket_session::SheetChoice::Once; 2]);
     let mut agent = InAppAgent::new(parts(&planner, &sheet, &clock())).expect("agent");
     let reply = agent
         .ask("what kind of mail is the invoice")

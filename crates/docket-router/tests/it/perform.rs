@@ -107,7 +107,7 @@ async fn a_planner_gets_untrusted_text_as_a_handle_never_plain() {
     assert_eq!(record.saw.private, Saw::Seen, "a thread of mail is private");
     assert_eq!(
         record.state,
-        SessionState::Open(docket_router::Taint::Tainted)
+        SessionState::Open(docket_session::Taint::Tainted)
     );
 }
 

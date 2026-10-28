@@ -1,5 +1,6 @@
 //! The confirm sheet. The host draws it in its own window and answers with a
-//! [`SheetAnswer`]; [`SheetConfirmer`] turns that into the router's `ConfirmAnswer` and mints the
+//! `Option<SheetChoice>` (`None`: closed without an answer); [`SheetConfirmer`] turns that into
+//! the router's `ConfirmAnswer` and mints the
 //! receipt itself (the input proof is `SheetFallback`: the app's own pointer event, no
 //! compositor attestation), so a sheet can say yes or no but a model can never forge a yes.
 
@@ -7,29 +8,17 @@ use docket_core::{
     ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, GrantScope,
 };
 use docket_permissions_core::AlwaysOffer;
+use docket_session::SheetChoice;
 use docket_vocab::Clock;
 use prov::{Confidentiality, ConfirmReceipt, InputProof};
 use std::future::Future;
-
-/// What the person chose on the sheet.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SheetAnswer {
-    /// Yes, this once.
-    Once,
-    /// Yes, and from now on for this app, class and Space (only where the sheet offered it).
-    Always,
-    /// No.
-    Refused,
-    /// Closed without an answer.
-    Dismissed,
-}
 
 /// What an app implements to ask its person. Draw `request` (it names the action, the effect,
 /// the count, the concrete change and why it asks) and answer when they have chosen. Dropping
 /// the future withdraws the sheet.
 pub trait ConfirmSheet: Send + Sync {
-    /// Asks the person.
-    fn ask(&self, request: &ConfirmRequest) -> impl Future<Output = SheetAnswer> + Send;
+    /// Asks the person. `None` is a sheet closed without an answer.
+    fn ask(&self, request: &ConfirmRequest) -> impl Future<Output = Option<SheetChoice>> + Send;
     /// The router withdrew the request (a halt, a cancel): take the sheet down.
     fn withdraw(&self, id: &ConfirmId) -> impl Future<Output = ()> + Send {
         let _ = id;
@@ -61,26 +50,28 @@ impl<T: ConfirmSheet, K: Clock> SheetConfirmer<T, K> {
     }
 }
 
-fn scope_of(answer: SheetAnswer, offer: ConfirmOffer) -> GrantScope {
-    match (answer, offer) {
-        (SheetAnswer::Always, ConfirmOffer::OnceOrAlways) => GrantScope::Always,
+fn scope_of(choice: SheetChoice, offer: ConfirmOffer) -> GrantScope {
+    match (choice, offer) {
+        (SheetChoice::Always, ConfirmOffer::OnceOrAlways) => GrantScope::Always,
         _ => GrantScope::Once,
     }
 }
 
 impl<T: ConfirmSheet, K: Clock> Confirmer for SheetConfirmer<T, K> {
     async fn confirm(&self, request: ConfirmRequest) -> ConfirmAnswer {
-        let answer = self.sheet.ask(&request).await;
-        match answer {
-            SheetAnswer::Once | SheetAnswer::Always => ConfirmAnswer::Allowed {
+        let Some(choice) = self.sheet.ask(&request).await else {
+            return ConfirmAnswer::Ended(ConfirmEnd::Dismissed);
+        };
+        match choice {
+            SheetChoice::Once | SheetChoice::Always => ConfirmAnswer::Allowed {
                 written: None,
-                scope: if answer == SheetAnswer::Always
+                scope: if choice == SheetChoice::Always
                     && matches!(request.always, AlwaysOffer::Offered(_))
                 {
                     // A scoped standing grant the router itself offered; it re-derives the scope.
                     GrantScope::Always
                 } else {
-                    scope_of(answer, request.offer)
+                    scope_of(choice, request.offer)
                 },
                 receipt: ConfirmReceipt {
                     id: request.id,
@@ -89,8 +80,7 @@ impl<T: ConfirmSheet, K: Clock> Confirmer for SheetConfirmer<T, K> {
                     covers: Confidentiality::Secret,
                 },
             },
-            SheetAnswer::Refused => ConfirmAnswer::Ended(ConfirmEnd::Refused),
-            SheetAnswer::Dismissed => ConfirmAnswer::Ended(ConfirmEnd::Dismissed),
+            SheetChoice::Refused => ConfirmAnswer::Ended(ConfirmEnd::Refused),
         }
     }
 
@@ -107,28 +97,28 @@ mod tests {
     fn always_counts_only_where_the_sheet_offered_it() {
         let table = [
             (
-                SheetAnswer::Always,
+                SheetChoice::Always,
                 ConfirmOffer::OnceOrAlways,
                 GrantScope::Always,
             ),
             (
-                SheetAnswer::Always,
+                SheetChoice::Always,
                 ConfirmOffer::OnceOnly,
                 GrantScope::Once,
             ),
             (
-                SheetAnswer::Always,
+                SheetChoice::Always,
                 ConfirmOffer::OnceOrFromTerminal,
                 GrantScope::Once,
             ),
             (
-                SheetAnswer::Once,
+                SheetChoice::Once,
                 ConfirmOffer::OnceOrAlways,
                 GrantScope::Once,
             ),
         ];
-        for (answer, offer, want) in table {
-            assert_eq!(scope_of(answer, offer), want, "{answer:?} on {offer:?}");
+        for (choice, offer, want) in table {
+            assert_eq!(scope_of(choice, offer), want, "{choice:?} on {offer:?}");
         }
     }
 }

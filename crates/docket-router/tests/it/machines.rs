@@ -3,6 +3,7 @@
 use docket_core::*;
 use docket_permissions_core::BreakerTrip;
 use docket_router::*;
+use docket_session::Taint;
 use docket_vocab::{ActionRef, LabelText, Seconds, UndoId, UndoToken};
 use prov::{Actor, AgentRole, RunId, SessionId, UnixSeconds};
 

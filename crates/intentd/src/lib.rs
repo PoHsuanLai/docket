@@ -17,6 +17,7 @@
 mod acp_gate;
 mod audit;
 mod builtin;
+mod builtin_chain;
 mod builtin_checkpoints;
 mod builtin_companion;
 mod bus;

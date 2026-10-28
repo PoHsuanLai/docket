@@ -6,7 +6,7 @@ use docket_manifest::ActionDecl;
 use docket_permissions_core::{
     ActionGrant, ActionGrantKey, COMPANION_APP, GrantCaller, GrantTarget,
 };
-use policy_point::TaintFact;
+use docket_session::Taint;
 use porter_core::consent::{GrantScope, Usage, Verdict, decide};
 use porter_core::{DataClass, GrantId};
 use prov::{ActionName, SpaceId, SpaceScope};
@@ -118,9 +118,9 @@ pub(crate) fn consent_for(
 /// grant for it, so a first-use question is already answered. As with every standing grant, a
 /// session that read untrusted content asks once more before it writes (`taint`: the question
 /// stays a question). A denial, a grant, or a call outside the reach is left as it is.
-pub(crate) fn within_reach(consent: Verdict, inside: bool, taint: TaintFact) -> Verdict {
+pub(crate) fn within_reach(consent: Verdict, inside: bool, taint: Taint) -> Verdict {
     match (consent, inside, taint) {
-        (Verdict::Ask, true, TaintFact::Clean) => Verdict::Granted {
+        (Verdict::Ask, true, Taint::Clean) => Verdict::Granted {
             grant: GrantId::parse("g-none").expect("`g-none` is a valid grant id"),
             scope: GrantScope::Always,
         },

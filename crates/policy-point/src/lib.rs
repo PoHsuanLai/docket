@@ -24,5 +24,5 @@ pub use pdp::{CORE_POLICIES, PRESET, Pdp, PolicyError, SCHEMA};
 pub use presets::Presets;
 pub use request::{
     ActionFacts, BudgetFact, CoverageState, GrantState, HaltFact, LimitFact, Op, PolicyContext,
-    PolicyRequest, PrincipalFacts, RepeatFact, RunFact, SpaceRelation, TaintFact, TerminalGrant,
+    PolicyRequest, PrincipalFacts, RepeatFact, RunFact, SpaceRelation, TerminalGrant,
 };

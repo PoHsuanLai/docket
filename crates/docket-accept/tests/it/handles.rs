@@ -5,9 +5,9 @@
 
 use crate::support::*;
 use companion_wire::{AnswerPhase, AnswerWire};
-use docket_accept::confirm::Verdict;
 use docket_accept::drive::Launcher;
 use docket_accept::world::{Cassette, Consent, World};
+use docket_session::SheetChoice;
 
 fn settled(view: &AnswerWire) -> bool {
     matches!(
@@ -20,7 +20,7 @@ fn settled(view: &AnswerWire) -> bool {
 /// were forwarded to accounting, held for one sheet.
 async fn forwarded_over(cassette: Cassette) {
     let world = World::start(&binaries(), Consent::Standing, cassette).await;
-    world.sheet.will(Verdict::Allow);
+    world.sheet.will(SheetChoice::Once);
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
     let mut answer = launcher

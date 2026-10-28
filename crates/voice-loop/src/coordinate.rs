@@ -1,7 +1,7 @@
 //! Running the two machines for one `Begin`: speech stops before the mic opens.
 
 use crate::speech::{SpeechEffect, SpeechEvent, SpeechState, speech_step};
-use crate::utterance::{UtteranceEffect, UtteranceEvent, UtteranceState, mic_of, utterance_step};
+use crate::utterance::{UtteranceEffect, UtteranceEvent, UtteranceState, utterance_step};
 use serde::{Deserialize, Serialize};
 
 /// One effect, tagged with the machine that produced it. The daemon runs them in order.
@@ -23,7 +23,12 @@ pub fn begin_utterance(
 ) -> (SpeechState, UtteranceState, Vec<Step>) {
     let (speech, stopped) = speech_step(speech, SpeechEvent::Begin);
     let (utterance, started) = utterance_step(utterance, begin);
-    let (speech, told) = speech_step(speech, SpeechEvent::Mic(mic_of(utterance)));
+    let (speech, told) = speech_step(
+        speech,
+        SpeechEvent::Mic {
+            open: utterance.mic_open(),
+        },
+    );
     let steps = stopped
         .into_iter()
         .map(Step::Speech)

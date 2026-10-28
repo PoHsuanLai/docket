@@ -12,6 +12,7 @@ publish.workspace = true
 docket-core = { workspace = true }
 docket-manifest = { workspace = true }
 docket-permissions-core = { workspace = true }
+docket-session = { workspace = true }
 docket-vocab = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }

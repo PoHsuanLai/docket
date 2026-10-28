@@ -8,30 +8,20 @@
 //! angle brackets) because a hostile or confused model controls the bytes; it is exact about
 //! the markers, which are the ones the common chat templates write.
 
-use serde::{Deserialize, Serialize};
-
-/// Which template's call it looks like.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LeakForm {
-    /// Hermes: `<tool_call>{"name": ..., "arguments": {...}}</tool_call>`.
-    Hermes,
-    /// Qwen3-coder: `<tool_call><function=name><parameter=key>value</parameter></function></tool_call>`.
-    QwenXml,
-    /// Mistral: `[TOOL_CALLS] [...]`.
-    Mistral,
-    /// Llama: `<|python_tag|>` followed by a call.
-    LlamaTag,
-    /// Any other tag a template names a call by.
-    OtherTag,
-}
-
-/// Words that are a call which was never made.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct LeakedCall {
-    /// The template it looks like.
-    pub form: LeakForm,
-}
+/// The markers the common chat templates write around a call, in lower case: Qwen3-coder's
+/// `<function=name>`, Hermes's `<tool_call>`, Mistral's `[TOOL_CALLS]`, Llama's `<|python_tag|>`
+/// and the other tags a template names a call by. Which template wrote it is not told apart.
+const TAGS: [&str; 9] = [
+    "<function=",
+    "<tool_call>",
+    "<tool_call ",
+    "[tool_calls]",
+    "<|python_tag|>",
+    "<function_call>",
+    "<|tool_call|>",
+    "<|tool_call_begin|>",
+    "<tool_use>",
+];
 
 /// Marks that draw nothing or change the direction of text: dropped before matching.
 fn invisible(c: char) -> bool {
@@ -56,30 +46,9 @@ fn plain(text: &str) -> String {
         .collect()
 }
 
-/// Whether `text` is, or holds, a tool call the model wrote instead of making. `None` for
-/// ordinary words, including words that talk about tools.
-pub fn leaked_call(text: &str) -> Option<LeakedCall> {
+/// The marker `text` holds when it is, or holds, a tool call the model wrote instead of making.
+/// `None` for ordinary words, including words that talk about tools.
+pub fn leaked_call(text: &str) -> Option<&'static str> {
     let plain = plain(text);
-    let form = if plain.contains("<function=") {
-        LeakForm::QwenXml
-    } else if plain.contains("<tool_call>") || plain.contains("<tool_call ") {
-        LeakForm::Hermes
-    } else if plain.contains("[tool_calls]") {
-        LeakForm::Mistral
-    } else if plain.contains("<|python_tag|>") {
-        LeakForm::LlamaTag
-    } else if [
-        "<function_call>",
-        "<|tool_call|>",
-        "<|tool_call_begin|>",
-        "<tool_use>",
-    ]
-    .iter()
-    .any(|tag| plain.contains(tag))
-    {
-        LeakForm::OtherTag
-    } else {
-        return None;
-    };
-    Some(LeakedCall { form })
+    TAGS.into_iter().find(|tag| plain.contains(tag))
 }

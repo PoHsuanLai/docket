@@ -4,16 +4,8 @@
 
 use docket_core::CallRefusal;
 use docket_permissions_core::BreakerTrip;
+use docket_session::Taint;
 use prov::SessionId;
-
-/// Whether the session read anything untrusted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Taint {
-    /// Nothing untrusted was revealed.
-    Clean,
-    /// Something was, and it stays so.
-    Tainted,
-}
 
 /// Why a session closed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

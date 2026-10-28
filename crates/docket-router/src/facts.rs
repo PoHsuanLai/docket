@@ -5,7 +5,8 @@
 use action_review::RepeatState;
 use docket_core::{Budget, Cost, KillSwitch, Ledger, charge, halted};
 use docket_permissions_core::{Limited, Saw};
-use policy_point::{BudgetFact, HaltFact, LimitFact, RepeatFact, TaintFact};
+use docket_session::Taint;
+use policy_point::{BudgetFact, HaltFact, LimitFact, RepeatFact};
 use prov::{Effect, SpaceId, SpaceScope, UnixSeconds};
 
 /// What the stateful parts of the router say about one call, before Cedar rules.
@@ -69,9 +70,9 @@ pub fn repeat_fact(repeat: RepeatState) -> RepeatFact {
 }
 
 /// A session that read untrusted content is tainted for any call that changes something.
-pub fn taint_fact(untrusted: Saw, effect: Effect) -> TaintFact {
+pub fn taint_fact(untrusted: Saw, effect: Effect) -> Taint {
     match (untrusted, effect) {
-        (Saw::Seen, effect) if effect > Effect::Read => TaintFact::Tainted,
-        _ => TaintFact::Clean,
+        (Saw::Seen, effect) if effect > Effect::Read => Taint::Tainted,
+        _ => Taint::Clean,
     }
 }

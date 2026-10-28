@@ -4,7 +4,7 @@
 //! choice names no scope: [`SheetConfirmer`](crate::SheetConfirmer) builds the answer and the
 //! receipt from it, and the router honours an "always" only where its own sheet offered one.
 
-use crate::{ConfirmSheet, SheetAnswer};
+use crate::ConfirmSheet;
 use docket_core::{ConfirmId, ConfirmRequest};
 use docket_session::{DeskFault, SheetChoice, SheetDesk};
 use futures_channel::oneshot;
@@ -13,19 +13,13 @@ use std::collections::BTreeMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex, PoisonError};
 
-/// Whether the host has been handed a sheet.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Handed {
-    Not,
-    Yes,
-}
-
 /// A sheet waiting for its answer.
 #[derive(Debug)]
 struct Waiting {
     request: ConfirmRequest,
-    handed: Handed,
-    answer: oneshot::Sender<SheetAnswer>,
+    /// Whether the host has been handed the sheet.
+    handed: bool,
+    answer: oneshot::Sender<SheetChoice>,
 }
 
 #[derive(Debug, Default)]
@@ -46,13 +40,13 @@ impl Held {
     /// The oldest sheet of `session` not yet handed out, now marked handed.
     fn hand_out(&mut self, session: &SessionId) -> Option<ConfirmRequest> {
         let waiting = self.open.values_mut().find(|w| {
-            w.handed == Handed::Not
+            !w.handed
                 && w.request
                     .editor
                     .as_ref()
                     .is_some_and(|r| &r.session == session)
         })?;
-        waiting.handed = Handed::Yes;
+        waiting.handed = true;
         Some(waiting.request.clone())
     }
 }
@@ -80,21 +74,21 @@ impl EditorDesk {
 }
 
 impl ConfirmSheet for EditorDesk {
-    fn ask(&self, request: &ConfirmRequest) -> impl Future<Output = SheetAnswer> + Send {
+    fn ask(&self, request: &ConfirmRequest) -> impl Future<Output = Option<SheetChoice>> + Send {
         let (answer, wait) = oneshot::channel();
         self.with(|held| {
             held.open.insert(
                 request.id.clone(),
                 Waiting {
                     request: request.clone(),
-                    handed: Handed::Not,
+                    handed: false,
                     answer,
                 },
             );
             held.ping();
         });
         // A desk dropped with the sheet open is a sheet closed.
-        async move { wait.await.unwrap_or(SheetAnswer::Dismissed) }
+        async move { wait.await.ok() }
     }
 
     fn withdraw(&self, id: &ConfirmId) -> impl Future<Output = ()> + Send {
@@ -139,13 +133,8 @@ impl SheetDesk for EditorDesk {
         let waiting = self
             .with(|held| held.open.remove(id))
             .ok_or(DeskFault::NoSuchSheet)?;
-        let answer = match choice {
-            SheetChoice::Once => SheetAnswer::Once,
-            SheetChoice::Always => SheetAnswer::Always,
-            SheetChoice::Refused => SheetAnswer::Refused,
-        };
         // The router stopped waiting (the call was cancelled): nothing is left to tell.
-        let _ = waiting.answer.send(answer);
+        let _ = waiting.answer.send(choice);
         Ok(())
     }
 }
@@ -187,7 +176,7 @@ mod tests {
         assert_eq!((&mut asking).now_or_never(), None);
         assert_eq!(desk.request(&ask.id), Some(ask.clone()));
         assert_eq!(desk.answer(&ask.id, SheetChoice::Always), Ok(()));
-        assert_eq!(asking.now_or_never(), Some(SheetAnswer::Always));
+        assert_eq!(asking.now_or_never(), Some(Some(SheetChoice::Always)));
         assert_eq!(
             desk.answer(&ask.id, SheetChoice::Once),
             Err(DeskFault::NoSuchSheet)

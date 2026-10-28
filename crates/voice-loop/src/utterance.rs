@@ -28,21 +28,10 @@ pub enum UtteranceState {
     Finishing,
 }
 
-/// Whether the microphone is open.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MicNow {
-    /// Closed.
-    Closed,
-    /// Open.
-    Open,
-}
-
-/// The mic is open exactly in `Opening`, `Listening` and `Tail`.
-pub fn mic_of(state: UtteranceState) -> MicNow {
-    match state {
-        UtteranceState::Opening | UtteranceState::Listening | UtteranceState::Tail => MicNow::Open,
-        UtteranceState::Idle | UtteranceState::Finishing => MicNow::Closed,
+impl UtteranceState {
+    /// Whether the mic is open: exactly in `Opening`, `Listening` and `Tail`.
+    pub fn mic_open(self) -> bool {
+        matches!(self, Self::Opening | Self::Listening | Self::Tail)
     }
 }
 
@@ -208,7 +197,7 @@ pub fn utterance_step(
     state: UtteranceState,
     event: UtteranceEvent,
 ) -> (UtteranceState, Vec<UtteranceEffect>) {
-    // The utterance is still live (the mic is closed in `Finishing`; see `mic_of`).
+    // The utterance is still live (the mic is closed in `Finishing`; see `mic_open`).
     let active = matches!(state, S::Opening | S::Listening | S::Tail | S::Finishing);
     match (state, event) {
         (

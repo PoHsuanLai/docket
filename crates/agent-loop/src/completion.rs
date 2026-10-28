@@ -19,16 +19,6 @@ pub enum Attention {
     Starter,
 }
 
-/// Whether the report asked the person something.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AskedPerson {
-    /// It did.
-    Yes,
-    /// It did not.
-    No,
-}
-
 /// A final report, as typed facts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CompletionNote {
@@ -47,15 +37,12 @@ pub struct CompletionNote {
     pub attention: Attention,
 }
 
-/// Whether a report needs the person: a failure does, and so does anything that asked them
-/// something; a normal finish, a cancel and progress do not.
-pub fn attention_of(status: ReportStatus, asked: AskedPerson) -> Attention {
-    match (status, asked) {
-        (_, AskedPerson::Yes) | (ReportStatus::Failed, AskedPerson::No) => Attention::NeedsYou,
-        (
-            ReportStatus::Done | ReportStatus::Cancelled | ReportStatus::Progress,
-            AskedPerson::No,
-        ) => Attention::Quiet,
+/// Whether a report needs the person: a failure does; a normal finish, a cancel and progress
+/// do not.
+pub fn attention_of(status: ReportStatus) -> Attention {
+    match status {
+        ReportStatus::Failed => Attention::NeedsYou,
+        ReportStatus::Done | ReportStatus::Cancelled | ReportStatus::Progress => Attention::Quiet,
     }
 }
 

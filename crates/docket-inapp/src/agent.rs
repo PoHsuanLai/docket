@@ -181,11 +181,12 @@ where
 /// # use docket_fake::{FakeFiles, FixedClock, ScriptedReviewer, WordsModel, files_manifest};
 /// # use porter_core::{AppName, Count};
 /// # use prov::{Label, Labelled, SpaceId, UnixSeconds};
-/// use docket_host::{ConfirmSheet, SheetAnswer};
+/// use docket_host::ConfirmSheet;
+/// use docket_session::SheetChoice;
 /// use docket_inapp::{Ending, InAppAgent, InAppParts};
 /// # struct Nobody;
 /// # impl ConfirmSheet for Nobody {
-/// #     async fn ask(&self, _: &ConfirmRequest) -> SheetAnswer { SheetAnswer::Dismissed }
+/// #     async fn ask(&self, _: &ConfirmRequest) -> Option<SheetChoice> { None }
 /// # }
 /// # struct Nowhere(AppName);
 /// # impl ContextSource for Nowhere {

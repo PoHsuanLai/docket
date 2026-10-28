@@ -68,6 +68,7 @@ docket-dbus = { workspace = true, features = ["inferd", "fixture-callers"] }
 docket-log = { workspace = true }
 docket-trace = { workspace = true }
 docket-router = { workspace = true }
+docket-session = { workspace = true }
 docket-testbus = { workspace = true }
 fnv = { workspace = true }
 futures-util = { workspace = true }

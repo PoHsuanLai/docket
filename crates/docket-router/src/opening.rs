@@ -13,7 +13,7 @@ use companion_model::helper::SeatPlace;
 use docket_core::EventSink;
 use docket_core::{AuditRecord, Reveal, Rewind, TurnIn, TurnSource, UserTurn};
 use docket_permissions_core::intersection;
-use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
+use docket_session::{BackendKind, Opening, SessionEntry, Taint};
 use docket_vocab::{Clock, TurnId};
 use docket_wire::{
     CallerId, CallerRole, IntentsReply, SessionOpen, SessionOpened, TaskLedger, WireRefusal, close,
@@ -192,7 +192,7 @@ impl<S: Seams> Router<S> {
             record.policy = record.policy.take().map(|p| intersection(&p, &seat.reach));
         }
         record.helper = open.helper.clone();
-        record.wal = Wal::on(Written::Clean);
+        record.wal = Wal::on(Taint::Clean);
         record.wal.note(SessionEntry::Opened(Opening {
             task: task.clone(),
             space: open.space.clone(),

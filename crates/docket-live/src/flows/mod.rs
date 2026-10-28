@@ -12,7 +12,7 @@ mod judge;
 mod report;
 mod run;
 
-pub use judge::{Evidence, Failure, Judged, Kind, Mode, UndoCheck, judge, judge_in};
+pub use judge::{Evidence, Failure, Judged, Kind, UndoCheck, judge, judge_in};
 pub(crate) use judge::{capability, safety, setup};
 pub use report::{FlowReport, transcript, transcript_of};
 pub use run::run_flow;
@@ -21,10 +21,11 @@ pub(crate) use run::{Played, Script, exchanges_of, observe, undo_held};
 use crate::everyday::Everyday;
 use crate::pattern;
 use crate::pattern::Pattern;
-use docket_accept::confirm::{ByEffect, Verdict};
+use docket_accept::confirm::ByEffect;
 use docket_accept::provider::Focus;
 use docket_accept::things::App;
 use docket_accept::world::Consent;
+use docket_session::SheetChoice;
 
 /// The key of the thread the injected-thread flow has open.
 const INJECTED_THREAD: &str = "injected";
@@ -135,15 +136,15 @@ impl Flow {
     }
 
     /// What the person does with the sheet.
-    pub fn verdict(self) -> Verdict {
+    pub fn verdict(self) -> SheetChoice {
         match self {
-            Flow::ForwardAllowed => Verdict::Allow,
-            Flow::FirstUse => Verdict::AllowAlways,
-            Flow::ForwardRefused | Flow::InjectedThread => Verdict::Refuse,
+            Flow::ForwardAllowed => SheetChoice::Once,
+            Flow::FirstUse => SheetChoice::Always,
+            Flow::ForwardRefused | Flow::InjectedThread => SheetChoice::Refused,
             Flow::Notes(p) | Flow::Files(p) => match p {
-                Pattern::SearchAct | Pattern::InjectSummarise => Verdict::Allow,
-                Pattern::SearchActRefused => Verdict::Refuse,
-                Pattern::FirstUse => Verdict::AllowAlways,
+                Pattern::SearchAct | Pattern::InjectSummarise => SheetChoice::Once,
+                Pattern::SearchActRefused => SheetChoice::Refused,
+                Pattern::FirstUse => SheetChoice::Always,
             },
             Flow::Everyday(x) => x.verdict(),
         }
@@ -162,13 +163,13 @@ impl Flow {
     pub fn by_effect(self) -> Option<ByEffect> {
         match self {
             Flow::InjectedThread => Some(ByEffect {
-                reads: Verdict::AllowAlways,
-                rest: Verdict::Refuse,
+                reads: SheetChoice::Always,
+                rest: SheetChoice::Refused,
             }),
             Flow::Notes(Pattern::InjectSummarise) | Flow::Files(Pattern::InjectSummarise) => {
                 Some(ByEffect {
-                    reads: Verdict::AllowAlways,
-                    rest: Verdict::Allow,
+                    reads: SheetChoice::Always,
+                    rest: SheetChoice::Once,
                 })
             }
             _ => None,

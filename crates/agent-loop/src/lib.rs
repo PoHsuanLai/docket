@@ -32,17 +32,16 @@ mod tier;
 
 pub use assemble::{Sources, TaskFit, assemble, mask_history, task_fit};
 pub use compact::{SUMMARY_RESERVE, SummaryInput, compaction_due, summarised, summary_input};
-pub use completion::{AskedPerson, Attention, CompletionNote, attention_of, completion_line};
+pub use completion::{Attention, CompletionNote, attention_of, completion_line};
 pub use front::{FrontEvent, front_step};
 pub use guard::{
     Guard, HOLDS_BEFORE_STOP, HOLDS_BEFORE_STOP_ANSWERED, MOST_DECLINED, MOST_HOLDS_PER_TURN,
     MOST_REMEMBERED, Stuck, Verdict,
 };
 pub use idle::{
-    EpisodeJob, IdleEffect, IdleInput, IdlePhase, IdleState, NarrativeJob, NarrativeVia,
-    ReadUntrusted, idle_step,
+    EpisodeJob, IdleEffect, IdleInput, IdlePhase, IdleState, NarrativeJob, NarrativeVia, idle_step,
 };
-pub use leak::{LeakForm, LeakedCall, leaked_call};
+pub use leak::leaked_call;
 pub use rebuild::{Rebuilt, RebuiltTask, ReplayEvent, ReplayWhat, rebuild};
 pub use side::{SideConv, SideEffect, SideEnd, SideInput, SideTable, side_episode, side_step};
 pub use step::{

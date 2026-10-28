@@ -3,7 +3,6 @@
 //! one) and starts when the utterance ends; any new utterance stops speech first.
 
 use crate::sentencer::{Sentence, sentences};
-use crate::utterance::MicNow;
 use porter_core::DataClass;
 use serde::{Deserialize, Serialize};
 use voice_wire::{SpeakWire, SpeechEnd};
@@ -35,8 +34,8 @@ pub struct SpeechState {
     pub queue: Vec<Sentence>,
     /// A request that arrived while the mic was open or speech was stopping (depth one).
     pub pending: Option<SpeakWire>,
-    /// The mic, as the utterance machine reports it.
-    pub mic: MicNow,
+    /// Whether the mic is open, as the utterance machine reports it.
+    pub mic_open: bool,
     /// The data class of what is being spoken.
     pub class: Option<DataClass>,
 }
@@ -48,7 +47,7 @@ impl SpeechState {
             phase: SpeechPhase::Quiet,
             queue: Vec::new(),
             pending: None,
-            mic: MicNow::Closed,
+            mic_open: false,
             class: None,
         }
     }
@@ -71,7 +70,10 @@ pub enum SpeechEvent {
     /// An utterance began (any utterance).
     Begin,
     /// The mic opened or closed.
-    Mic(MicNow),
+    Mic {
+        /// Whether it is open now.
+        open: bool,
+    },
 }
 
 /// What the daemon does.
@@ -146,14 +148,14 @@ fn next_sentence(mut state: SpeechState) -> (SpeechState, Vec<SpeechEffect>) {
 /// One transition. Total and pure.
 pub fn speech_step(mut state: SpeechState, event: SpeechEvent) -> (SpeechState, Vec<SpeechEffect>) {
     match (state.phase, event) {
-        (_, V::Mic(mic)) => {
-            state.mic = mic;
-            match (state.phase, mic, state.pending.clone()) {
-                (P::Quiet, MicNow::Closed, Some(wire)) => start(state, &wire),
+        (_, V::Mic { open }) => {
+            state.mic_open = open;
+            match (state.phase, open, state.pending.clone()) {
+                (P::Quiet, false, Some(wire)) => start(state, &wire),
                 _ => (state, vec![]),
             }
         }
-        (P::Quiet, V::Speak(wire)) if state.mic == MicNow::Closed => start(state, &wire),
+        (P::Quiet, V::Speak(wire)) if !state.mic_open => start(state, &wire),
         (P::Quiet | P::Stopping, V::Speak(wire)) => {
             state.pending = Some(wire);
             (state, vec![])
@@ -175,8 +177,8 @@ pub fn speech_step(mut state: SpeechState, event: SpeechEvent) -> (SpeechState, 
         (P::Stopping, V::Drained) => {
             state.phase = P::Quiet;
             state.class = None;
-            match (state.mic, state.pending.clone()) {
-                (MicNow::Closed, Some(wire)) => start(state, &wire),
+            match (state.mic_open, state.pending.clone()) {
+                (false, Some(wire)) => start(state, &wire),
                 _ => (state, vec![]),
             }
         }

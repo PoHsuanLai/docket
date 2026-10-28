@@ -7,8 +7,8 @@ use crate::flows::{Evidence, capability, safety};
 use crate::pattern::Checked;
 use crate::shape::Shape;
 use crate::stage::{Asker, asker};
-use docket_accept::confirm::Verdict;
 use docket_core::ExchangeAnswer;
+use docket_session::SheetChoice;
 
 /// The planner's name for the memory read of a question and for the write of a fact.
 const RECALL: &str = "org_quire_Memory-memory_recall";
@@ -53,10 +53,10 @@ impl Everyday {
     }
 
     /// What the person does with a sheet: allow the one write, refuse anything else.
-    pub const fn verdict(self) -> Verdict {
+    pub const fn verdict(self) -> SheetChoice {
         match self {
-            Everyday::Remember => Verdict::Allow,
-            _ => Verdict::Refuse,
+            Everyday::Remember => SheetChoice::Once,
+            _ => SheetChoice::Refused,
         }
     }
 

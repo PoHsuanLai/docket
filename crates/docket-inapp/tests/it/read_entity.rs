@@ -137,7 +137,7 @@ async fn a_thread_is_read_first_and_its_text_handle_is_then_answered() {
         words("It is an invoice."),
     ]);
     let reader = ScriptedInfer::new(vec![words("invoice")]);
-    let sheet = TestSheet::answering(vec![docket_host::SheetAnswer::Once; 2]);
+    let sheet = TestSheet::answering(vec![docket_session::SheetChoice::Once; 2]);
     let parts = InAppParts {
         provider: searching(),
         context: crate::support::Nowhere,

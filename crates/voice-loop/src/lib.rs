@@ -16,6 +16,6 @@ pub use coordinate::{Step, begin_utterance};
 pub use sentencer::{MAX_SENTENCE_CHARS, MIN_SENTENCE_CHARS, Sentence, sentences};
 pub use speech::{FADE_MS, SpeechEffect, SpeechEvent, SpeechPhase, SpeechState, speech_step};
 pub use utterance::{
-    Earcon, EngineGate, MicNow, TAIL_MS, Transcript, UtteranceEffect, UtteranceEvent,
-    UtteranceState, mic_of, refusal_for, utterance_step,
+    Earcon, EngineGate, TAIL_MS, Transcript, UtteranceEffect, UtteranceEvent, UtteranceState,
+    refusal_for, utterance_step,
 };

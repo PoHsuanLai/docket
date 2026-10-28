@@ -3,6 +3,7 @@
 
 use docket_core::BudgetKind;
 use docket_permissions_core::{Impact, Saw, SessionSaw, SinkIntegrity};
+use docket_session::Taint;
 use docket_vocab::Origin;
 use porter_core::consent::Usage;
 use porter_core::{AppName, Count, DataClass, Isolation};
@@ -160,17 +161,6 @@ pub enum LimitFact {
     Never,
 }
 
-/// Whether the session read untrusted content before a call that changes something. Reading
-/// stays clean, or one mail read would put a question on every read after.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TaintFact {
-    /// Nothing untrusted was read, or the call only reads.
-    Clean,
-    /// Untrusted content was read and this call changes something.
-    Tainted,
-}
-
 /// Whether the person already allowed the screen run this step belongs to: by the sheet that
 /// opened the run ("Let it use this app"), or by a standing grant for the app. Every call that
 /// is not a screen step is `NotAsked`.
@@ -226,8 +216,10 @@ pub struct PolicyContext {
     pub repeat: RepeatFact,
     /// What the limits say.
     pub limit: LimitFact,
-    /// Whether the session is tainted for this call.
-    pub taint: TaintFact,
+    /// Whether the session is tainted for this call: it read untrusted content and the call
+    /// changes something. Reading stays clean, or one mail read would put a question on every
+    /// read after.
+    pub taint: Taint,
     /// Whether the person allowed the screen run this step belongs to.
     pub run: RunFact,
     /// The mode of the conversation the call belongs to.

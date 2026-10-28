@@ -44,15 +44,6 @@ pub trait IntentReach {
     fn reach_changed(&self) -> zbus::Result<()>;
 }
 
-/// Whether [`ReachServer::replace`] changed what is said.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Replaced {
-    /// The same answer as before: nothing to announce.
-    Same,
-    /// A different answer: announce it.
-    Different,
-}
-
 /// The provider's side: holds the answer and serves it. Clone it freely; the clones share one
 /// answer. Serve it with [`ReachServer::serve`], change it with [`ReachServer::replace`] and
 /// say so with [`ReachServer::announce`].
@@ -67,18 +58,19 @@ impl ReachServer {
         Self::default()
     }
 
-    /// Sets what is said about each action named.
-    pub fn replace(&self, next: impl IntoIterator<Item = (String, ReachNow)>) -> Replaced {
+    /// Sets what is said about each action named. True when the answer changed (announce it);
+    /// false when it is the same as before.
+    pub fn replace(&self, next: impl IntoIterator<Item = (String, ReachNow)>) -> bool {
         let next: BTreeMap<String, ReachNow> = next.into_iter().collect();
         let mut held = self
             .now
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         if *held == next {
-            return Replaced::Same;
+            return false;
         }
         *held = next;
-        Replaced::Different
+        true
     }
 
     /// The answer of `Reach` as it stands.

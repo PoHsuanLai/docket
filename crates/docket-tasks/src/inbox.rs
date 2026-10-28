@@ -9,9 +9,7 @@ use crate::fault::ServeFault;
 use crate::one_run::RunEnd;
 use crate::runtime::Companion;
 use crate::seams::Surface;
-use agent_loop::{
-    AskedPerson, Attention, CompletionNote, LoopInput, LoopPhase, SideInput, attention_of,
-};
+use agent_loop::{Attention, CompletionNote, LoopInput, LoopPhase, SideInput, attention_of};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{
     Delivery, DraftPart, InboundLine, InboundPart, InboxAsk, LeadText, MessageDraft, Outcome,
@@ -210,7 +208,7 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
         // report is a note, and a failure asks the person.
         let attention = match run {
             RunEnd::Ours => Attention::Starter,
-            RunEnd::Others => attention_of(status, AskedPerson::No),
+            RunEnd::Others => attention_of(status),
         };
         let note = CompletionNote {
             agent: from,

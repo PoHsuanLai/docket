@@ -149,7 +149,7 @@ impl SessionRecord {
         now: UnixSeconds,
     ) -> Self {
         Self {
-            state: SessionState::Open(crate::session::Taint::Clean),
+            state: SessionState::Open(docket_session::Taint::Clean),
             handles: HandleTable::new(),
             task,
             mode: Mode::Auto,

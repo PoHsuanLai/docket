@@ -1,7 +1,7 @@
 //! The host side of a confirm sheet, for a program that draws no window of its own.
 //!
-//! - [`ConfirmSheet`], [`SheetAnswer`]: what a host implements to ask its person, and what the
-//!   person chose.
+//! - [`ConfirmSheet`]: what a host implements to ask its person; the answer is the person's
+//!   `SheetChoice`, or none for a sheet closed.
 //! - [`SheetConfirmer`]: a [`ConfirmSheet`] as the router's `Confirmer`. It mints the receipt
 //!   itself, so a sheet can say yes or no but a model can never forge a yes.
 //! - [`EditorDesk`]: the sheets of an app whose person sits in an editor. The router asks it
@@ -15,4 +15,4 @@ mod desk;
 mod sheet;
 
 pub use desk::EditorDesk;
-pub use sheet::{ConfirmSheet, SheetAnswer, SheetConfirmer};
+pub use sheet::{ConfirmSheet, SheetConfirmer};

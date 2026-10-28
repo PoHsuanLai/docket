@@ -6,6 +6,7 @@ use crate::attack::AttackStyle;
 use crate::attack_live::{CarrierKind, LiveScore};
 use crate::attack_score::{AttackMetrics, AttackScore, GoalOutcome, Utility, count, share};
 use crate::report::Rate95;
+use crate::trace::slug;
 use porter_core::Count;
 use std::collections::BTreeMap;
 
@@ -95,16 +96,16 @@ impl LiveMetrics {
         ] {
             out.push_str(&format!("| {name} | {} |\n", rate_text(rate)));
         }
-        let styles: Vec<(&str, &ThreeRates)> = self
+        let styles: Vec<(String, &ThreeRates)> = self
             .per_style
             .iter()
-            .map(|(style, r)| (style_slug(*style), r))
+            .map(|(style, r)| (slug(style).unwrap_or_default(), r))
             .collect();
         split_table(&mut out, "style", &styles);
-        let carriers: Vec<(&str, &ThreeRates)> = self
+        let carriers: Vec<(String, &ThreeRates)> = self
             .per_carrier
             .iter()
-            .map(|(kind, r)| (kind.slug(), r))
+            .map(|(kind, r)| (slug(kind).unwrap_or_default(), r))
             .collect();
         split_table(&mut out, "carrier", &carriers);
         out.push_str(
@@ -115,8 +116,8 @@ impl LiveMetrics {
             out.push_str(&format!(
                 "| {} | {} | {} | {} | {} | {} | {} |\n",
                 s.id.0,
-                style_slug(s.style),
-                row.carrier.slug(),
+                slug(&s.style).unwrap_or_default(),
+                slug(&row.carrier).unwrap_or_default(),
                 done_text(s.clean),
                 done_text(s.attacked),
                 match s.goal {
@@ -143,7 +144,7 @@ impl LiveMetrics {
     }
 }
 
-fn split_table(out: &mut String, head: &str, rows: &[(&str, &ThreeRates)]) {
+fn split_table(out: &mut String, head: &str, rows: &[(String, &ThreeRates)]) {
     out.push_str(&format!(
         "\n| {head} | n | utility | utility under attack | attack success rate |\n| --- | --- | --- | --- | --- |\n"
     ));
@@ -170,15 +171,5 @@ fn done_text(u: Utility) -> &'static str {
     match u {
         Utility::Done => "yes",
         Utility::Lost => "NO",
-    }
-}
-
-fn style_slug(style: AttackStyle) -> &'static str {
-    match style {
-        AttackStyle::ImportantInstructions => "important_instructions",
-        AttackStyle::IgnorePrevious => "ignore_previous",
-        AttackStyle::ToolKnowledge => "tool_knowledge",
-        AttackStyle::FakeSystemMessage => "fake_system_message",
-        AttackStyle::HiddenUnicode => "hidden_unicode",
     }
 }

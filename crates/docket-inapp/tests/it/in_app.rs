@@ -5,8 +5,8 @@ use crate::support::infer::{Say, ScriptedInfer, call, words};
 use crate::support::{Nowhere, TestSheet};
 use docket_core::{AgentConfig, CallRefusal, ConfirmEnd, StepEnd};
 use docket_fake::{FakeMail, FixedClock, MailThread, ScriptedReviewer, mail_manifest};
-use docket_host::SheetAnswer;
 use docket_inapp::{Ending, InAppAgent, InAppParts};
+use docket_session::SheetChoice;
 use prov::{SpaceId, UnixSeconds};
 use serde_json::json;
 
@@ -57,7 +57,7 @@ async fn words_only_is_a_finished_turn_with_no_calls() {
 
 #[tokio::test]
 async fn a_write_asks_on_the_apps_sheet_and_runs_when_the_person_says_yes() {
-    let sheet = TestSheet::answering(vec![SheetAnswer::Once, SheetAnswer::Once]);
+    let sheet = TestSheet::answering(vec![SheetChoice::Once, SheetChoice::Once]);
     let (mut agent, _) = agent(
         vec![
             call(ARCHIVE, json!({ "target": [thread("t2")] })),
@@ -79,7 +79,7 @@ async fn a_write_asks_on_the_apps_sheet_and_runs_when_the_person_says_yes() {
 
 #[tokio::test]
 async fn a_no_on_the_sheet_means_the_app_never_runs_the_action() {
-    let sheet = TestSheet::answering(vec![SheetAnswer::Refused, SheetAnswer::Refused]);
+    let sheet = TestSheet::answering(vec![SheetChoice::Refused, SheetChoice::Refused]);
     let (mut agent, _) = agent(
         vec![
             call(ARCHIVE, json!({ "target": [thread("t2")] })),
@@ -101,7 +101,7 @@ async fn a_no_on_the_sheet_means_the_app_never_runs_the_action() {
 
 #[tokio::test]
 async fn after_a_no_the_next_step_the_model_reads_says_not_to_retry() {
-    let sheet = TestSheet::answering(vec![SheetAnswer::Refused, SheetAnswer::Refused]);
+    let sheet = TestSheet::answering(vec![SheetChoice::Refused, SheetChoice::Refused]);
     let (mut agent, model) = agent(
         vec![
             call(ARCHIVE, json!({ "target": [thread("t2")] })),
@@ -137,7 +137,7 @@ async fn an_unanswered_sheet_is_a_dismissal_never_a_yes() {
 
 #[tokio::test]
 async fn a_read_runs_without_asking_and_the_text_reaches_the_planner_only_as_a_handle() {
-    let sheet = TestSheet::answering(vec![SheetAnswer::Once]);
+    let sheet = TestSheet::answering(vec![SheetChoice::Once]);
     let (mut agent, model) = agent(
         vec![
             call(READ, json!({ "target": thread("t1") })),

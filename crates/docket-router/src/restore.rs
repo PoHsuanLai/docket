@@ -51,7 +51,7 @@ pub struct Restored {
     /// Where the session stands: taking turns, paused, or closed for display.
     pub standing: Standing,
     /// The taint it holds, never lower than the log's.
-    pub taint: crate::session::Taint,
+    pub taint: docket_session::Taint,
     /// How many calls a crash cut off: told to the planner, not run again.
     pub interrupted: Count,
 }
@@ -101,7 +101,7 @@ impl<S: Seams> Router<S> {
         let next = rows.last().map_or(Seq(0), |r| r.seq.next());
         let restored = Restored {
             standing: plan.standing.clone(),
-            taint: plan.taint.into(),
+            taint: plan.taint,
             interrupted: Count(u32::try_from(plan.interrupted.len()).unwrap_or(u32::MAX)),
         };
         let mut st = self.locked();

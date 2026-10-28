@@ -13,9 +13,8 @@ use docket_memory::AlmanacSessionLog;
 use docket_permissions_core::{
     ActionGrantKey, ActionMatch, GrantCaller, GrantTarget, TaskPolicy, TaskPolicyState,
 };
-use docket_router::Taint;
 use docket_session::{
-    BackendKind, LogFault, Opening, PageSize, Read, Seq, SessionEntry, SessionLog,
+    BackendKind, LogFault, Opening, PageSize, Read, Seq, SessionEntry, SessionLog, Taint,
 };
 use docket_vocab::{ActionRef, CallRequest, LabelText, Origin, TargetValue, TurnId};
 use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen};

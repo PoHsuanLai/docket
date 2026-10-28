@@ -2,7 +2,7 @@
 //! counted against the tail, watched for the silence that ends a dictation) and what inferd says
 //! back (partials, segments, the transcript, a refusal).
 
-use crate::engine::{Core, EndOfAudio, SttLink};
+use crate::engine::{Core, SttLink};
 use crate::frames::wire_level;
 use crate::link::LinkEvent;
 use crate::usage::UseSource;
@@ -98,14 +98,14 @@ where
 
     async fn engine_ready(&mut self) {
         let Some(utt) = self.utt.as_mut() else { return };
-        let end = match utt.engine {
-            SttLink::Cold { end } => end,
-            SttLink::Ready => EndOfAudio::NotYet,
+        let end_pending = match utt.engine {
+            SttLink::Cold { end_pending } => end_pending,
+            SttLink::Ready => false,
         };
         utt.engine = SttLink::Ready;
         let held = utt.pcm.take();
         self.send_audio(&held);
-        if end == EndOfAudio::Pending {
+        if end_pending {
             self.end_of_audio();
         }
     }

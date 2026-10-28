@@ -8,13 +8,12 @@ use crate::fault::ServeFault;
 use crate::linger::{LINGER, finished};
 use crate::runtime::{Companion, Narration, REMEMBERED};
 use crate::seams::Surface;
-use agent_loop::{
-    EpisodeJob, FinishedAs, FrontEvent, IdleInput, LoopPhase, ReadUntrusted, front_step,
-};
+use agent_loop::{EpisodeJob, FinishedAs, FrontEvent, IdleInput, LoopPhase, front_step};
 use almanac_core::{Episode, EpisodeId, EpisodeKind, EpisodeOutcome};
 use docket_client::Transport as IntentsTransport;
 use docket_core::{DraftPart, EpisodeLine, SkeletonText};
 use docket_planner::Planner;
+use docket_session::Taint;
 use docket_vocab::Clock;
 use docket_wire::{NoteAsk, TaskLedger, close};
 use prov::{Address, AgentRef, MessageKind, MessageText, ReportStatus, TaskId};
@@ -179,9 +178,9 @@ impl<P: Planner, I: IntentsTransport, K: Clock, S: Surface> Companion<P, I, K, S
         let read = self
             .runtimes
             .get(task)
-            .map_or(ReadUntrusted::No, |rt| match rt.taint() {
-                prov::Integrity::Trusted => ReadUntrusted::No,
-                prov::Integrity::Untrusted => ReadUntrusted::Yes,
+            .map_or(Taint::Clean, |rt| match rt.taint() {
+                prov::Integrity::Trusted => Taint::Clean,
+                prov::Integrity::Untrusted => Taint::Tainted,
             });
         self.idle_apply(IdleInput::EpisodeClosed(EpisodeJob {
             episode: episode.id.clone(),

@@ -8,7 +8,7 @@
 //! for display.
 
 use crate::handles::HandleTable;
-use crate::session::{CloseCause, SessionState, Taint};
+use crate::session::{CloseCause, SessionState};
 use crate::state::{SessionKind, SessionRecord};
 use crate::tasks::{TaskRecord, TaskState};
 use crate::wal::Wal;
@@ -20,7 +20,7 @@ use docket_core::{
 };
 use docket_permissions_core::Saw;
 use docket_session::{
-    ResumeFault, ResumePlan, SessionEntry, Standing, Taint as Written, TaintCause, TaintNote,
+    ResumeFault, ResumePlan, SessionEntry, Standing, Taint, TaintCause, TaintNote,
 };
 use docket_wire::TaskLedger;
 use porter_core::{AppName, Count};
@@ -41,7 +41,7 @@ pub(crate) struct Rebuilt {
     pub(crate) reserve: u64,
     /// The taint the log itself holds: below the session's when a repair is still to be
     /// appended.
-    pub(crate) durable: Written,
+    pub(crate) durable: Taint,
 }
 
 /// Whether the plan found untrusted handles with no taint entry before them.
@@ -136,7 +136,7 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         .opener
         .clone()
         .unwrap_or_else(|| AppName::parse(FALLBACK_OPENER).expect("a fixed app name is valid"));
-    let taint: Taint = plan.taint.into();
+    let taint = plan.taint;
     let (state, task_state) = state_of(&plan.standing, taint);
     let cut_off: Vec<StepLine> = plan
         .interrupted
@@ -278,7 +278,7 @@ pub(crate) fn rebuild(id: &SessionId, plan: &ResumePlan, now: UnixSeconds) -> Re
         },
     };
     let durable = match needs_repair(plan) {
-        true => Written::Clean,
+        true => Taint::Clean,
         false => plan.taint,
     };
     Rebuilt {
@@ -318,7 +318,7 @@ mod tests {
             seat: None,
             hand: None,
             standing,
-            taint: Written::Clean,
+            taint: Taint::Clean,
             policy: None,
             turns: vec![],
             history: vec![],
@@ -408,7 +408,7 @@ mod tests {
             SessionState::Closed(CloseCause::SpaceHalted)
         );
         let mut p = plan(Standing::Blocked(docket_session::Blocker::Gap));
-        p.taint = Written::Tainted;
+        p.taint = Taint::Tainted;
         let blocked = rebuild(&id(), &p, UnixSeconds(1));
         assert_eq!(
             blocked.record.state,
@@ -449,14 +449,14 @@ mod tests {
     #[test]
     fn untrusted_handles_with_no_taint_are_repaired_on_the_record() {
         let mut p = plan(Standing::Open);
-        p.taint = Written::Tainted;
+        p.taint = Taint::Tainted;
         p.faults = vec![ResumeFault::MissingTaint {
             at: docket_session::Seq(1),
         }];
         let rebuilt = rebuild(&id(), &p, UnixSeconds(1));
         assert_eq!(
             rebuilt.durable,
-            Written::Clean,
+            Taint::Clean,
             "the repair is still to be written"
         );
         let Wal::On { pending, .. } = &rebuilt.record.wal else {

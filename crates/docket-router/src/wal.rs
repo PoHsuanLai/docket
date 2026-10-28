@@ -7,9 +7,7 @@
 //! queue through one `Writer` per session, which owns the position, the durable taint and the
 //! rule that an untrusted handle never reaches the log before a taint entry.
 
-use docket_session::{
-    LogFault, Seq, SessionEntry, SessionLog, Taint as Written, TaintCause, TaintNote,
-};
+use docket_session::{LogFault, Seq, SessionEntry, SessionLog, Taint, TaintCause, TaintNote};
 use docket_vocab::CallId;
 use prov::{Integrity, SessionId};
 use std::sync::Arc;
@@ -26,7 +24,7 @@ pub enum Wal {
         /// In order, oldest first.
         pending: Vec<SessionEntry>,
         /// The taint already queued or appended: a `Taint` entry is due only above it.
-        taint: Written,
+        taint: Taint,
     },
 }
 
@@ -41,7 +39,7 @@ pub enum Reveals {
 
 impl Wal {
     /// A recorded session with nothing queued, at `taint`.
-    pub fn on(taint: Written) -> Self {
+    pub fn on(taint: Taint) -> Self {
         Wal::On {
             pending: Vec::new(),
             taint,
@@ -52,7 +50,7 @@ impl Wal {
     pub fn note(&mut self, entry: SessionEntry) {
         if let Wal::On { pending, taint } = self {
             if matches!(entry, SessionEntry::Taint(_)) {
-                *taint = Written::Tainted;
+                *taint = Taint::Tainted;
             }
             pending.push(entry);
         }
@@ -63,7 +61,7 @@ impl Wal {
         if matches!(
             self,
             Wal::On {
-                taint: Written::Clean,
+                taint: Taint::Clean,
                 ..
             }
         ) {
@@ -74,7 +72,7 @@ impl Wal {
     /// Marks the record tainted without queueing (a writer already appended the entry).
     pub fn tainted(&mut self) {
         if let Wal::On { taint, .. } = self {
-            *taint = Written::Tainted;
+            *taint = Taint::Tainted;
         }
     }
 
@@ -129,22 +127,14 @@ impl Wal {
     }
 }
 
-/// Whether the writer may still append.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Health {
-    /// It may.
-    Sound,
-    /// The store holds another position than the writer's: another writer, or an append that
-    /// landed unseen. Nothing more is written until the session is restored from the log.
-    Diverged(Seq),
-}
-
-/// The one writer of a session's log: its next position, the taint on the record, its health.
+/// The one writer of a session's log: its next position, the taint on the record, whether the store diverged.
 #[derive(Debug)]
 pub(crate) struct Writer {
     pub(crate) next: Seq,
-    pub(crate) taint: Written,
-    health: Health,
+    pub(crate) taint: Taint,
+    /// The position the store holds when it is not the writer's: another writer, or an append
+    /// that landed unseen. Nothing more is written until the session is restored from the log.
+    diverged: Option<Seq>,
 }
 
 /// A writer shared by the requests of one session, taken in turn (never held with the router's
@@ -154,15 +144,15 @@ pub(crate) type Lane = Arc<futures_util::lock::Mutex<Writer>>;
 impl Writer {
     /// The writer of a session whose log is empty.
     pub(crate) fn fresh() -> Self {
-        Self::at(Seq(0), Written::Clean)
+        Self::at(Seq(0), Taint::Clean)
     }
 
     /// The writer of a log that holds `next` entries and the taint `taint`.
-    pub(crate) fn at(next: Seq, taint: Written) -> Self {
+    pub(crate) fn at(next: Seq, taint: Taint) -> Self {
         Self {
             next,
             taint,
-            health: Health::Sound,
+            diverged: None,
         }
     }
 
@@ -175,7 +165,7 @@ impl Writer {
     ) -> Result<(), LogFault> {
         let untrusted =
             matches!(&entry, SessionEntry::Handle(h) if h.label.integrity == Integrity::Untrusted);
-        if untrusted && self.taint == Written::Clean {
+        if untrusted && self.taint == Taint::Clean {
             let note = TaintNote {
                 cause: TaintCause::UntrustedReveal,
                 at_call: None,
@@ -193,19 +183,19 @@ impl Writer {
         session: &SessionId,
         entry: &SessionEntry,
     ) -> Result<(), LogFault> {
-        if let Health::Diverged(expected) = self.health {
+        if let Some(expected) = self.diverged {
             return Err(LogFault::OutOfOrder { expected });
         }
         match log.append(session, self.next, entry).await {
             Ok(_) => {
                 self.next = self.next.next();
                 if matches!(entry, SessionEntry::Taint(_)) {
-                    self.taint = Written::Tainted;
+                    self.taint = Taint::Tainted;
                 }
                 Ok(())
             }
             Err(LogFault::OutOfOrder { expected }) => {
-                self.health = Health::Diverged(expected);
+                self.diverged = Some(expected);
                 Err(LogFault::OutOfOrder { expected })
             }
             Err(other) => Err(other),

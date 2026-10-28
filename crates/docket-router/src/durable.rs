@@ -15,7 +15,7 @@ use crate::router::Router;
 use crate::seams::Seams;
 use crate::wal::{Lane, Reveals, Writer};
 use docket_core::CallRefusal;
-use docket_session::{LogFault, SessionEntry, Taint as Written, TaintCause, TaintNote};
+use docket_session::{LogFault, SessionEntry, Taint, TaintCause, TaintNote};
 use docket_vocab::CallId;
 use docket_wire::{IntentsReply, WireRefusal};
 use prov::SessionId;
@@ -98,7 +98,7 @@ impl<S: Seams> Router<S> {
             return Ok(());
         };
         let mut writer = lane.lock().await;
-        if writer.taint == Written::Tainted {
+        if writer.taint == Taint::Tainted {
             return Ok(());
         }
         let note = SessionEntry::Taint(TaintNote {

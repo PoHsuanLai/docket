@@ -25,7 +25,6 @@ use agent_client_protocol::schema::v1::{
     SessionCapabilities, SessionListCapabilities, SetSessionModeRequest, SetSessionModeResponse,
 };
 use agent_client_protocol::{Agent, ConnectTo, Error, on_receive_notification, on_receive_request};
-use companion_wire::ToldWire;
 use docket_session::{SessionHost, SessionLog};
 use docket_vocab::Clock;
 use futures_channel::mpsc;
@@ -52,12 +51,6 @@ pub(crate) struct Known {
     pub helper: Option<HelperId>,
     /// Where its turns run.
     pub turns: Turns,
-}
-
-/// What woke the serve loop.
-enum Heard {
-    Inbound(Option<Inbound>),
-    Told(ToldWire),
 }
 
 /// Whether `initialize` has happened.
@@ -176,14 +169,14 @@ impl<H: SessionHost, L: SessionLog, T: Clock, S: Helpers> Server<H, L, T, S> {
                 let inbound = pin!(link.next());
                 let told = pin!(self.helpers.next_told(&watching));
                 match select(inbound, told).await {
-                    Either::Left((inbound, _)) => Heard::Inbound(inbound),
-                    Either::Right((told, _)) => Heard::Told(told),
+                    Either::Left((inbound, _)) => Either::Left(inbound),
+                    Either::Right((told, _)) => Either::Right(told),
                 }
             };
             match heard {
-                Heard::Inbound(None) => return Ok(()),
-                Heard::Inbound(Some(inbound)) => self.inbound(link, inbound).await?,
-                Heard::Told(told) => self.tell(link, told)?,
+                Either::Left(None) => return Ok(()),
+                Either::Left(Some(inbound)) => self.inbound(link, inbound).await?,
+                Either::Right(told) => self.tell(link, told)?,
             }
         }
     }

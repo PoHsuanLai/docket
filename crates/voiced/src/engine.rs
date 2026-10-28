@@ -26,20 +26,14 @@ use voice_audio::{AudioDevice, AudioNode, CaptureStream};
 use voice_loop::{PcmBuffer, UtteranceState};
 use voice_wire::{CancelCause, HeardSegment, HeardTail, UtteranceEnd, VoiceTarget};
 
-/// Whether the end of the audio is waiting for the engine.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum EndOfAudio {
-    /// The utterance has not ended its audio, or it was already sent.
-    NotYet,
-    /// The audio ended while the engine was cold; send it once the engine is ready.
-    Pending,
-}
-
 /// The speech-to-text session of the utterance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SttLink {
     /// Still warming; audio is buffered.
-    Cold { end: EndOfAudio },
+    Cold {
+        /// The audio ended while the engine was cold: send its end once the engine is ready.
+        end_pending: bool,
+    },
     /// Ready for audio.
     Ready,
 }

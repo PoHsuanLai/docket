@@ -141,13 +141,12 @@ fn completion_lines_are_typed_facts_and_attention_is_rare() {
         Some("the on-screen run finished: Failed (could not take the window), 0 steps, 0 values")
     );
     let cases = [
-        (ReportStatus::Done, AskedPerson::No, Attention::Quiet),
-        (ReportStatus::Cancelled, AskedPerson::No, Attention::Quiet),
-        (ReportStatus::Progress, AskedPerson::No, Attention::Quiet),
-        (ReportStatus::Failed, AskedPerson::No, Attention::NeedsYou),
-        (ReportStatus::Done, AskedPerson::Yes, Attention::NeedsYou),
+        (ReportStatus::Done, Attention::Quiet),
+        (ReportStatus::Cancelled, Attention::Quiet),
+        (ReportStatus::Progress, Attention::Quiet),
+        (ReportStatus::Failed, Attention::NeedsYou),
     ];
-    for (status, asked, want) in cases {
-        assert_eq!(attention_of(status, asked), want, "{status:?} {asked:?}");
+    for (status, want) in cases {
+        assert_eq!(attention_of(status), want, "{status:?}");
     }
 }

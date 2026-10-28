@@ -6,6 +6,7 @@
 
 use docket_core::{ConfirmAnswer, ConfirmEnd, ConfirmRequest};
 use docket_dbus::{CONFIRM_BUS, CONFIRM_PATH};
+use docket_session::SheetChoice;
 use porter_core::consent::GrantScope;
 use prov::{Confidentiality, ConfirmReceipt, Effect, InputProof, UnixSeconds};
 use std::collections::VecDeque;
@@ -15,28 +16,17 @@ use zbus::fdo;
 use zbus::message::Header;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 
-/// What the person does with the next sheet.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Verdict {
-    /// Presses Allow, once.
-    Allow,
-    /// Presses Allow and "always": the grant is recorded and the same ask is not made again.
-    AllowAlways,
-    /// Presses Refuse.
-    Refuse,
-}
-
 /// What the person does with every sheet once the queue is empty, by what the sheet is for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ByEffect {
     /// For a sheet about a read-only action.
-    pub reads: Verdict,
+    pub reads: SheetChoice,
     /// For every other sheet.
-    pub rest: Verdict,
+    pub rest: SheetChoice,
 }
 
 impl ByEffect {
-    fn verdict_for(self, request: &ConfirmRequest) -> Verdict {
+    fn verdict_for(self, request: &ConfirmRequest) -> SheetChoice {
         if request.effect == Effect::Read {
             self.reads
         } else {
@@ -66,7 +56,7 @@ struct Held {
 #[derive(Debug, Default)]
 struct Inner {
     by_effect: Option<ByEffect>,
-    verdicts: VecDeque<(Verdict, Release)>,
+    verdicts: VecDeque<(SheetChoice, Release)>,
     held: Vec<Held>,
     shown: Vec<ConfirmRequest>,
     cancelled: Vec<String>,
@@ -86,13 +76,13 @@ impl Sheet {
     }
 
     /// Queues what the person does with the next sheet that has no verdict yet.
-    pub fn will(&self, verdict: Verdict) {
+    pub fn will(&self, verdict: SheetChoice) {
         self.edit(|i| i.verdicts.push_back((verdict, Release::AtOnce)));
     }
 
     /// Queues what the person does with the next sheet, but holds the answer until
     /// [`Sheet::release`], so the test can see the turn waiting on the sheet first.
-    pub fn will_when_released(&self, verdict: Verdict) {
+    pub fn will_when_released(&self, verdict: SheetChoice) {
         self.edit(|i| i.verdicts.push_back((verdict, Release::WhenReleased)));
     }
 
@@ -145,12 +135,12 @@ struct ConfirmObject {
     seen: mpsc::UnboundedSender<ConfirmRequest>,
 }
 
-fn answer_of(verdict: Verdict, request: &ConfirmRequest) -> ConfirmAnswer {
+fn answer_of(verdict: SheetChoice, request: &ConfirmRequest) -> ConfirmAnswer {
     match verdict {
-        Verdict::Allow | Verdict::AllowAlways => ConfirmAnswer::Allowed {
+        SheetChoice::Once | SheetChoice::Always => ConfirmAnswer::Allowed {
             written: None,
             scope: match verdict {
-                Verdict::AllowAlways => GrantScope::Always,
+                SheetChoice::Always => GrantScope::Always,
                 _ => GrantScope::Once,
             },
             receipt: ConfirmReceipt {
@@ -160,7 +150,7 @@ fn answer_of(verdict: Verdict, request: &ConfirmRequest) -> ConfirmAnswer {
                 covers: Confidentiality::Secret,
             },
         },
-        Verdict::Refuse => ConfirmAnswer::Ended(ConfirmEnd::Refused),
+        SheetChoice::Refused => ConfirmAnswer::Ended(ConfirmEnd::Refused),
     }
 }
 

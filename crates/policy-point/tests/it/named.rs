@@ -5,6 +5,7 @@ use crate::support::*;
 use docket_core::*;
 use docket_manifest::{AgentReach, Lasting};
 use docket_permissions_core::{AskReason, PolicyId, Ruling, Saw, SessionSaw};
+use docket_session::Taint;
 use docket_vocab::Origin;
 use policy_point::*;
 use porter_core::Count;
@@ -321,21 +322,21 @@ fn a_tainted_always_grant_asks_with_the_taint_reason_and_only_for_a_change() {
             "tainted change",
             Effect::UndoableWrite,
             GrantState::Always,
-            TaintFact::Tainted,
+            Taint::Tainted,
             Cell::Ask,
         ),
         (
             "tainted but only a read",
             Effect::Read,
             GrantState::Always,
-            TaintFact::Tainted,
+            Taint::Tainted,
             Cell::Final,
         ),
         (
             "clean change",
             Effect::UndoableWrite,
             GrantState::Always,
-            TaintFact::Clean,
+            Taint::Clean,
             Cell::Final,
         ),
     ];
@@ -352,7 +353,7 @@ fn a_tainted_always_grant_asks_with_the_taint_reason_and_only_for_a_change() {
     let user = pdp().decide(&with(Effect::UndoableWrite, |r| {
         r.principal.kind = ActorKind::User;
         r.context.origin = Origin::Launcher;
-        r.context.taint = TaintFact::Tainted;
+        r.context.taint = Taint::Tainted;
     }));
     assert_eq!(cell(&user), Cell::Final, "the person's own act: {user:?}");
 }
@@ -361,7 +362,7 @@ fn a_tainted_always_grant_asks_with_the_taint_reason_and_only_for_a_change() {
 fn a_first_use_still_says_first_use_when_the_session_is_tainted() {
     let got = pdp().decide(&with(Effect::UndoableWrite, |r| {
         r.context.grant = GrantState::None;
-        r.context.taint = TaintFact::Tainted;
+        r.context.taint = Taint::Tainted;
     }));
     assert_eq!(asks(&got), [AskReason::FirstUse], "{got:?}");
 }

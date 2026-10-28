@@ -3,11 +3,11 @@
 
 use crate::support::*;
 use companion_wire::{AnswerPhase, AnswerWire, NeedsYou};
-use docket_accept::confirm::Verdict;
 use docket_accept::drive::{Launcher, recorded};
 use docket_accept::provider::Sending;
 use docket_accept::world::{Consent, World};
 use docket_core::{ConfirmDetail, ConfirmOffer, Shown, TaintNote, UndoState};
+use docket_session::SheetChoice;
 use docket_vocab::Handle;
 use docket_wire::JournalFilter;
 
@@ -37,7 +37,7 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
     // The model is the cassette `flow-a`: find the threads and the contact, name what the finds
     // returned (entity ids are structure; only the words of a title are held back), forward, and
     // say it is done.
-    world.sheet.will(Verdict::Allow);
+    world.sheet.will(SheetChoice::Once);
 
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
@@ -149,7 +149,7 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn flow_a_the_person_refuses_the_sheet_and_nothing_is_sent() {
     let world = World::start(&binaries(), Consent::Standing, FLOW_A_REFUSED).await;
-    world.sheet.will(Verdict::Refuse);
+    world.sheet.will(SheetChoice::Refused);
 
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
@@ -204,7 +204,7 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
     // neither the body nor the summary (`lacks`), so a turn that leaked either has no answer
     // (a replay miss) and the answer ends Failed. The reader's entry answers only a request that
     // holds the fence instruction and the body: it is how the run proves the reader saw it.
-    world.sheet.will(Verdict::Refuse);
+    world.sheet.will(SheetChoice::Refused);
 
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
@@ -266,7 +266,7 @@ async fn flow_c_an_injected_body_never_reaches_the_planner_and_the_send_still_as
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn flow_c_a_reply_to_the_related_sender_is_a_handle_and_still_asks_quoted() {
     let world = World::start(&binaries(), Consent::Standing, FLOW_C_RELATED).await;
-    world.sheet.will(Verdict::Refuse);
+    world.sheet.will(SheetChoice::Refused);
 
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
@@ -321,7 +321,7 @@ async fn flow_a_the_answer_shows_the_sheet_while_it_waits() {
     let world = World::start(&binaries(), Consent::Standing, FLOW_A).await;
     // Held until the test has seen the wait: an answer sent at once can replace the waiting view
     // before a loaded machine reads it.
-    world.sheet.will_when_released(Verdict::Allow);
+    world.sheet.will_when_released(SheetChoice::Once);
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
     let mut answer = launcher

@@ -5,10 +5,10 @@
 
 use crate::support::*;
 use companion_wire::AnswerPhase;
-use docket_accept::confirm::Verdict;
 use docket_accept::drive::{Launcher, recorded};
 use docket_accept::world::{Consent, World, unit_main};
 use docket_live::warm_bus::as_intentd;
+use docket_session::SheetChoice;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn after_the_warm_up_the_real_intentd_is_still_the_intentd_unit() {
@@ -19,7 +19,7 @@ async fn after_the_warm_up_the_real_intentd_is_still_the_intentd_unit() {
     assert_eq!(unit_main(world.dir.path(), "intentd"), before);
 
     // The proof is the run itself: calls are recorded and the audit reaches memoryd.
-    world.sheet.will(Verdict::Allow);
+    world.sheet.will(SheetChoice::Once);
     let launcher = Launcher::of(&world).await;
     let opened = launcher.open().await;
     let mut answer = launcher

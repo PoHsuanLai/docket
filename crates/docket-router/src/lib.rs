@@ -136,7 +136,7 @@ pub use registry::Registry;
 pub use restore::{RestoreFault, Restored};
 pub use router::Router;
 pub use seams::{AppFault, AppLink, GrantStore, NoLog, Seams};
-pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, Taint, session_step};
+pub use session::{CloseCause, SessionEffect, SessionEvent, SessionState, session_step};
 pub use skills::SKILL_LOAD;
 pub use spacing::{SpaceOf, relation_of};
 pub use state::{BRIEFS_KEPT, ConfirmedBrief, RouterState, SessionKind, SessionRecord};

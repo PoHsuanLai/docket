@@ -44,21 +44,13 @@ use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 use tokio::sync::{Mutex, OnceCell};
 
-/// Whether an agent's session can take another turn.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Health {
-    /// It can.
-    Sound,
-    /// It stopped answering: its session is closed, and the next turn opens a new one.
-    Broken,
-}
-
 /// One agent's open session.
 struct Active {
     program: ProgramName,
     label: String,
     hosted: Hosted<DbusAccounts>,
-    health: Health,
+    /// It stopped answering: its session is closed, and the next turn opens a new one.
+    broken: bool,
 }
 
 /// The service: who may call it, the pseudo-app every use shares, the assistant's agent session,
@@ -211,7 +203,7 @@ impl Service {
             });
         };
         let answered = active.run(turn).await;
-        if active.health == Health::Broken {
+        if active.broken {
             Self::finish(&mut held).await;
         }
         answered
@@ -239,7 +231,7 @@ impl Service {
             program: program.clone(),
             label,
             hosted,
-            health: Health::Sound,
+            broken: false,
         })
     }
 
@@ -271,7 +263,7 @@ impl Active {
         };
         let Hosted { host, session } = &mut self.hosted;
         if host.turn(session, turn).await.is_err() {
-            self.health = Health::Broken;
+            self.broken = true;
             return Err(broke(&label));
         }
         let mut said = Vec::new();
@@ -283,7 +275,7 @@ impl Active {
                 // agent names stay in its session.
                 Ok(Some(_)) => {}
                 Ok(None) | Err(_) => {
-                    self.health = Health::Broken;
+                    self.broken = true;
                     return Err(broke(&label));
                 }
             }

@@ -7,18 +7,9 @@
 
 use almanac_core::EpisodeId;
 use docket_core::IdleRules;
+use docket_session::Taint;
 use prov::UnixSeconds;
 use serde::{Deserialize, Serialize};
-
-/// Whether a task read untrusted content.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ReadUntrusted {
-    /// It did.
-    Yes,
-    /// It did not.
-    No,
-}
 
 /// Where the narrative runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -30,13 +21,30 @@ pub enum NarrativeVia {
     Companion,
 }
 
+impl NarrativeVia {
+    /// Where a task's narrative runs: in readerd when the task read untrusted content.
+    pub fn of(taint: Taint) -> Self {
+        match taint {
+            Taint::Tainted => Self::Reader,
+            Taint::Clean => Self::Companion,
+        }
+    }
+
+    fn taint(self) -> Taint {
+        match self {
+            Self::Reader => Taint::Tainted,
+            Self::Companion => Taint::Clean,
+        }
+    }
+}
+
 /// One finished task waiting for its narrative.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EpisodeJob {
     /// The episode.
     pub episode: EpisodeId,
-    /// Whether its task read untrusted content.
-    pub read: ReadUntrusted,
+    /// Whether its task read untrusted content (`Tainted`).
+    pub read: Taint,
 }
 
 /// A narrative being written.
@@ -118,13 +126,6 @@ pub enum IdleEffect {
     ProposeFacts(EpisodeId),
 }
 
-fn via(read: ReadUntrusted) -> NarrativeVia {
-    match read {
-        ReadUntrusted::Yes => NarrativeVia::Reader,
-        ReadUntrusted::No => NarrativeVia::Companion,
-    }
-}
-
 /// One transition. A narrative starts only after `idle_after` of quiet; anything interactive
 /// cancels a running one and puts its job back at the front of the queue.
 pub fn idle_step(
@@ -141,7 +142,7 @@ pub fn idle_step(
                 0,
                 EpisodeJob {
                     episode: job.episode,
-                    read: read_of(job.via),
+                    read: job.via.taint(),
                 },
             );
             IdlePhase::Busy
@@ -158,7 +159,7 @@ pub fn idle_step(
         {
             let next = queue.remove(0);
             let job = NarrativeJob {
-                via: via(next.read),
+                via: NarrativeVia::of(next.read),
                 episode: next.episode,
             };
             effects.push(IdleEffect::Start(job.clone()));
@@ -178,18 +179,11 @@ pub fn idle_step(
         {
             queue.push(EpisodeJob {
                 episode: job.episode,
-                read: read_of(job.via),
+                read: job.via.taint(),
             });
             IdlePhase::Busy
         }
         (phase, IdleInput::NarrativeDone(_) | IdleInput::NarrativeFailed(_)) => phase,
     };
     (IdleState { phase, queue }, effects)
-}
-
-fn read_of(via: NarrativeVia) -> ReadUntrusted {
-    match via {
-        NarrativeVia::Reader => ReadUntrusted::Yes,
-        NarrativeVia::Companion => ReadUntrusted::No,
-    }
 }

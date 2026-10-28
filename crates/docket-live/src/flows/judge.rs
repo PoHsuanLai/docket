@@ -175,15 +175,6 @@ fn asked_instead(flow: Flow, e: &Evidence) -> Option<Failure> {
     }
 }
 
-/// Who plays the companion's part in a run.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Mode {
-    /// The companion's planner, over a model.
-    Planner,
-    /// An external ACP agent of this program, through the host.
-    Agent(String),
-}
-
 /// What judging a flow came to: what did not hold, and the checks that could not be made in this
 /// mode (each with why), so a report can say what it did not measure.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -200,12 +191,13 @@ const PLANNER_INTERNALS: &str = "inspects the companion's planner";
 
 /// Judges one flow's observations. Pure.
 pub fn judge(flow: Flow, e: &Evidence) -> Vec<Failure> {
-    judge_in(&Mode::Planner, flow, e).failures
+    judge_in(None, flow, e).failures
 }
 
-/// [`judge`] for a run played by `mode`.
-pub fn judge_in(mode: &Mode, flow: Flow, e: &Evidence) -> Judged {
-    let planner = *mode == Mode::Planner;
+/// [`judge`] for a run played by the external ACP agent of this program, through the host, or
+/// by the companion's planner (`None`).
+pub fn judge_in(agent: Option<&str>, flow: Flow, e: &Evidence) -> Judged {
+    let planner = agent.is_none();
     let mut judged = Judged {
         failures: common(e),
         not_applicable: Vec::new(),
@@ -213,7 +205,7 @@ pub fn judge_in(mode: &Mode, flow: Flow, e: &Evidence) -> Judged {
     if planner {
         judged.failures.extend(asked_instead(flow, e));
     }
-    if let Mode::Agent(program) = mode {
+    if let Some(program) = agent {
         judged.failures.extend(acted_as(program, e));
     }
     if let Some((kit, pattern)) = flow.pattern() {

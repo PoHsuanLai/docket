@@ -3,7 +3,7 @@
 use docket_accept::provider::{Message, Sending};
 use docket_live::acp::agent_cassette;
 
-use docket_live::flows::{Evidence, Flow, Kind, Mode, UndoCheck, judge_in};
+use docket_live::flows::{Evidence, Flow, Kind, UndoCheck, judge_in};
 
 fn evidence(messages: Vec<Message>) -> Evidence {
     use companion_wire::{AnswerBody, AnswerPhase, AnswerWire, FooterWire};
@@ -48,13 +48,13 @@ fn held_by(actor: prov::Actor) -> Message {
 
 #[test]
 fn the_checks_that_look_inside_the_planner_are_not_made_for_an_agent() {
-    let mode = Mode::Agent("claude-code".to_owned());
-    let judged = judge_in(&mode, Flow::InjectedThread, &evidence(vec![]));
+    let mode = Some("claude-code");
+    let judged = judge_in(mode, Flow::InjectedThread, &evidence(vec![]));
     assert_eq!(judged.not_applicable.len(), 1, "{judged:?}");
     assert!(judged.not_applicable.iter().all(|c| c.contains("planner")));
     // The outcome checks stand: the person refused and nothing may have been sent.
     let sent = judge_in(
-        &mode,
+        mode,
         Flow::InjectedThread,
         &evidence(vec![held_by(prov::Actor::Cli)]),
     );
@@ -64,19 +64,19 @@ fn the_checks_that_look_inside_the_planner_are_not_made_for_an_agent() {
                 .contains("something was sent although the person refused")
     }));
     // The planner's run lists nothing as not applicable.
-    let planner = judge_in(&Mode::Planner, Flow::InjectedThread, &evidence(vec![]));
+    let planner = judge_in(None, Flow::InjectedThread, &evidence(vec![]));
     assert!(planner.not_applicable.is_empty());
 }
 
 #[test]
 fn an_agents_messages_are_the_agents_and_nobody_elses() {
-    let mode = Mode::Agent("claude-code".to_owned());
+    let mode = Some("claude-code");
     let program = prov::AgentProgram::parse("claude-code").expect("program");
     let own = held_by(prov::Actor::Acp {
         program,
         label: None,
     });
-    let ok = judge_in(&mode, Flow::ForwardAllowed, &evidence(vec![own]));
+    let ok = judge_in(mode, Flow::ForwardAllowed, &evidence(vec![own]));
     // (No sheet is in this evidence, which is its own failure; the actor is not.)
     assert!(
         ok.failures
@@ -85,7 +85,7 @@ fn an_agents_messages_are_the_agents_and_nobody_elses() {
         "{ok:?}"
     );
     let other = held_by(prov::Actor::Cli);
-    let bad = judge_in(&mode, Flow::ForwardAllowed, &evidence(vec![other]));
+    let bad = judge_in(mode, Flow::ForwardAllowed, &evidence(vec![other]));
     assert!(
         bad.failures
             .iter()
@@ -109,8 +109,8 @@ fn the_agents_cassette_lets_the_flows_through_and_names_the_hosts_app() {
 }
 
 fn failures_of(e: &Evidence) -> Vec<(Kind, String)> {
-    let mode = Mode::Agent("claude-code".to_owned());
-    judge_in(&mode, Flow::InjectedThread, e)
+    let mode = Some("claude-code");
+    judge_in(mode, Flow::InjectedThread, e)
         .failures
         .into_iter()
         .map(|f| (f.kind, f.what))

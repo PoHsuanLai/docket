@@ -142,7 +142,7 @@ async fn a_flag_escalates_to_the_larger_model_and_its_ask_reaches_the_sheet() {
         r#"{"verdict":"ask","code":"uncertain","reason":"not sure the person meant this one"}"#,
     )]);
     let second = ScriptedInfer::default();
-    let sheet = TestSheet::answering(vec![docket_host::SheetAnswer::Once; 2]);
+    let sheet = TestSheet::answering(vec![docket_session::SheetChoice::Once; 2]);
     let mut agent = InAppAgent::with_kit(
         parts(cascade([&quick, &deliberate, &second]), &planner, &sheet),
         InAppKit::default()
@@ -207,7 +207,7 @@ async fn a_quire_read_is_answered_by_the_portable_reader_and_the_planner_sees_on
         words("It is an invoice."),
     ]);
     let reader = ScriptedInfer::new(vec![words("invoice")]);
-    let sheet = TestSheet::answering(vec![docket_host::SheetAnswer::Once; 2]);
+    let sheet = TestSheet::answering(vec![docket_session::SheetChoice::Once; 2]);
     let mut agent = InAppAgent::with_kit(
         parts(ScriptedReviewer::always_allow(), &planner, &sheet),
         InAppKit::default().reader(TransportReader::in_process(reader.clone())),
@@ -247,7 +247,7 @@ async fn without_a_reader_the_read_ends_the_turn_as_failed() {
         call(READ, json!({ "target": thread("t1") })),
         call("quire_read", serde_json::to_value(&ask).expect("ask")),
     ]);
-    let sheet = TestSheet::answering(vec![docket_host::SheetAnswer::Once; 2]);
+    let sheet = TestSheet::answering(vec![docket_session::SheetChoice::Once; 2]);
     let mut agent =
         InAppAgent::new(parts(ScriptedReviewer::always_allow(), &planner, &sheet)).expect("agent");
     let reply = agent.ask("classify the invoice").await.expect("turn");
@@ -321,7 +321,7 @@ async fn the_turns_audit_is_written_as_records_and_the_task_is_an_episode_the_ne
         call(ARCHIVE, json!({ "target": [thread("t2")] })),
         words("Archived the digest."),
     ]);
-    let sheet = TestSheet::answering(vec![docket_host::SheetAnswer::Once; 2]);
+    let sheet = TestSheet::answering(vec![docket_session::SheetChoice::Once; 2]);
     let mut agent = InAppAgent::with_kit(
         parts(ScriptedReviewer::always_allow(), &planner, &sheet),
         memory_kit(router_memory!(service)),
@@ -388,7 +388,7 @@ async fn an_always_grant_outlives_the_agent_that_was_given_it() {
         call(ARCHIVE, json!({ "target": [thread("t2")] })),
         words("Archived the digest."),
     ]);
-    let first_sheet = TestSheet::answering(vec![docket_host::SheetAnswer::Always; 2]);
+    let first_sheet = TestSheet::answering(vec![docket_session::SheetChoice::Always; 2]);
     let mut first = InAppAgent::with_kit(
         parts(ScriptedReviewer::always_allow(), &planner, &first_sheet),
         InAppKit::default().grants(FileGrantStore::open(&file).expect("grants")),

@@ -11,8 +11,9 @@ use docket_core::{
     ConfirmId, ConfirmRequest, ContextScope, ContextSnapshot, Here, Selection, TextTarget, Visible,
     WindowPrivacy,
 };
-use docket_host::{ConfirmSheet, SheetAnswer};
+use docket_host::ConfirmSheet;
 use docket_provider::ContextSource;
+use docket_session::SheetChoice;
 use porter_core::Count;
 use prov::Labelled;
 use std::collections::VecDeque;
@@ -21,12 +22,12 @@ use std::sync::{Arc, Mutex};
 /// The sheet the test answers from a queue, remembering what it was shown.
 #[derive(Debug, Default, Clone)]
 pub struct TestSheet {
-    answers: Arc<Mutex<VecDeque<SheetAnswer>>>,
+    answers: Arc<Mutex<VecDeque<SheetChoice>>>,
     shown: Arc<Mutex<Vec<ConfirmRequest>>>,
 }
 
 impl TestSheet {
-    pub fn answering(answers: Vec<SheetAnswer>) -> Self {
+    pub fn answering(answers: Vec<SheetChoice>) -> Self {
         Self {
             answers: Arc::new(Mutex::new(answers.into())),
             shown: Arc::default(),
@@ -38,13 +39,9 @@ impl TestSheet {
 }
 
 impl ConfirmSheet for TestSheet {
-    async fn ask(&self, request: &ConfirmRequest) -> SheetAnswer {
+    async fn ask(&self, request: &ConfirmRequest) -> Option<SheetChoice> {
         self.shown.lock().expect("lock").push(request.clone());
-        self.answers
-            .lock()
-            .expect("lock")
-            .pop_front()
-            .unwrap_or(SheetAnswer::Dismissed)
+        self.answers.lock().expect("lock").pop_front()
     }
     async fn withdraw(&self, _id: &ConfirmId) {}
 }

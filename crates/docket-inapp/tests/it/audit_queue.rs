@@ -10,8 +10,8 @@ use almanac_core::{BodyMode, MemoryReply, MemoryRequest, RecentQuery, TrustFilte
 use almanac_fake::{ScriptedConsolidator, fake_service};
 use almanac_service::Caller;
 use docket_core::{LinkFault, MemoryLink};
-use docket_host::SheetAnswer;
 use docket_inapp::{AlmanacMemory, AuditFile, AuditFileError, AuditTo, InAppAgent, InAppKit};
+use docket_session::SheetChoice;
 use porter_core::Count;
 use prov::UnixSeconds;
 use serde_json::json;
@@ -53,7 +53,7 @@ fn archive_model() -> ScriptedInfer {
 }
 
 fn sheet() -> TestSheet {
-    TestSheet::answering(vec![SheetAnswer::Once; 2])
+    TestSheet::answering(vec![SheetChoice::Once; 2])
 }
 
 /// How many events of `kind` memory holds for the work Space.

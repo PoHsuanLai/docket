@@ -4,7 +4,7 @@
 //! touches it.
 
 use crate::command::Caller;
-use crate::engine::{Core, EndOfAudio, SttLink, Utt};
+use crate::engine::{Core, SttLink, Utt};
 use crate::error::VoiceError;
 use crate::frames::Frames;
 use crate::link;
@@ -28,8 +28,8 @@ use voice_audio::{
 };
 use voice_dbus::{VOICE_PATH, utterance_path};
 use voice_loop::{
-    CAPTURE_RATE, MicNow, PcmBuffer, PushOutcome, UtteranceEffect, UtteranceEvent, UtteranceState,
-    begin_utterance, mic_of, refusal_for, samples_in, utterance_step,
+    CAPTURE_RATE, PcmBuffer, PushOutcome, UtteranceEffect, UtteranceEvent, UtteranceState,
+    begin_utterance, refusal_for, samples_in, utterance_step,
 };
 use voice_wire::{
     CancelCause, HeardText, MicState, UtteranceEnd, VoiceBegin, VoiceEvent, VoiceFault,
@@ -64,7 +64,7 @@ where
 
     pub(crate) fn status_text(&self) -> String {
         let mic = match &self.utt {
-            Some(utt) if mic_of(utt.state) == MicNow::Open => MicState::Open {
+            Some(utt) if utt.state.mic_open() => MicState::Open {
                 since: utt.since,
                 intent: utt.intent,
             },
@@ -151,9 +151,7 @@ where
             pcm: PcmBuffer::new(),
             tail_left: None,
             sent: 0,
-            engine: SttLink::Cold {
-                end: EndOfAudio::NotYet,
-            },
+            engine: SttLink::Cold { end_pending: false },
             dictation: (begin.intent == VoiceIntent::Dictate).then(crate::frames::Dictation::new),
         });
         self.deadline = Deadline::after(self.max_hold);
@@ -170,11 +168,7 @@ where
 
     /// The previous utterance's object leaves the bus when the next begins.
     async fn forget_utterance_object(&self) {
-        if let Some(old) = self
-            .utt
-            .as_ref()
-            .filter(|u| mic_of(u.state) == MicNow::Closed)
-        {
+        if let Some(old) = self.utt.as_ref().filter(|u| !u.state.mic_open()) {
             let _ = self
                 .conn
                 .object_server()
@@ -252,7 +246,7 @@ where
         let mut work = std::collections::VecDeque::from([event]);
         while let Some(event) = work.pop_front() {
             let Some(utt) = self.utt.as_mut() else { return };
-            let before = mic_of(utt.state);
+            let before = utt.state.mic_open();
             let (state, effects) = utterance_step(utt.state, event);
             utt.state = state;
             for effect in effects {
@@ -260,12 +254,9 @@ where
                     work.push_back(follow);
                 }
             }
-            let after = self
-                .utt
-                .as_ref()
-                .map_or(MicNow::Closed, |u| mic_of(u.state));
+            let after = self.utt.as_ref().is_some_and(|u| u.state.mic_open());
             if before != after {
-                if after == MicNow::Closed {
+                if !after {
                     self.deadline = Deadline::default();
                     self.leaving = Leaving::default();
                 }
@@ -387,11 +378,7 @@ where
             (Some(link), SttLink::Ready) => {
                 let _ = link.tx.send(ClientFrame::EndOfAudio);
             }
-            _ => {
-                utt.engine = SttLink::Cold {
-                    end: EndOfAudio::Pending,
-                }
-            }
+            _ => utt.engine = SttLink::Cold { end_pending: true },
         }
     }
 
@@ -477,7 +464,7 @@ where
         let Some((_, sink)) = &utt.attached else {
             return;
         };
-        if mic_of(utt.state) == MicNow::Open || utt.ended.is_some() {
+        if utt.state.mic_open() || utt.ended.is_some() {
             sink.send(&VoiceEvent::Opened);
         }
         utt.committed

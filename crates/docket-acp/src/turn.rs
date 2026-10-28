@@ -6,7 +6,6 @@
 use crate::calls;
 use crate::covered::Covered;
 use crate::mode::{Mode, Say};
-use acp_core::permission::Verdict;
 use agent_client_protocol::schema::v1::{SessionUpdate, StopReason};
 use companion_wire::NeedsYou;
 use docket_core::{ConfirmRequest, Reveal};
@@ -142,13 +141,14 @@ impl Turn {
     }
 
     /// The editor's person answered the permission request.
-    pub fn answered(&mut self, verdict: Verdict) -> Vec<Order> {
+    pub fn answered(&mut self, allowed: bool) -> Vec<Order> {
         let State::Asking(call) = std::mem::replace(&mut self.state, State::Running) else {
             return Vec::new();
         };
-        match verdict {
-            Verdict::Allow => vec![Order::Update(Box::new(calls::running(&call)))],
-            Verdict::Reject => self.stop(Some(call), Why::Rejected),
+        if allowed {
+            vec![Order::Update(Box::new(calls::running(&call)))]
+        } else {
+            self.stop(Some(call), Why::Rejected)
         }
     }
 

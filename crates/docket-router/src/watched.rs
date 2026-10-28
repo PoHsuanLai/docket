@@ -24,7 +24,7 @@ use crate::state::{SessionKind, SessionRecord};
 use crate::wal::Wal;
 use companion_model::{WatchOwner, WatchedAgent, Watching};
 use docket_core::Rewind;
-use docket_session::{BackendKind, Opening, SessionEntry, Taint as Written};
+use docket_session::{BackendKind, Opening, SessionEntry, Taint};
 use docket_vocab::{CallRequest, Clock, TurnId, Workspace};
 use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, WireRefusal};
 use prov::{Actor, AgentLabel, AgentRef, SessionId, SpaceId, TaskId};
@@ -144,7 +144,7 @@ impl<S: Seams> Router<S> {
         record.cwd = Some(workspace.clone());
         let label = label_text(label);
         record.label = Some(label.clone());
-        record.wal = Wal::on(Written::Clean);
+        record.wal = Wal::on(Taint::Clean);
         record.wal.note(SessionEntry::Opened(Opening {
             task,
             space,

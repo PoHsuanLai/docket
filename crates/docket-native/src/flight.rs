@@ -15,19 +15,13 @@ use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::StreamExt;
 use futures_util::future::{BoxFuture, Either, select};
 
-/// Whether the gate still lets calls through.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Gate {
-    Open,
-    Stopped,
-}
-
 /// The loop's side: what it tells goes down `events`, and a call waits on `release`.
 #[derive(Debug)]
 pub(crate) struct ChannelTap {
     events: UnboundedSender<BackendEvent>,
     release: UnboundedReceiver<Go>,
-    gate: Gate,
+    /// Whether the turn was stopped: the gate lets no more calls through.
+    stopped: bool,
 }
 
 impl ChannelTap {
@@ -47,14 +41,14 @@ impl Tap for ChannelTap {
     }
 
     async fn gate(&mut self, open: CallOpen) -> Go {
-        if self.gate == Gate::Stopped {
+        if self.stopped {
             return Go::Stop;
         }
         self.tell(BackendEvent::Call(CallEvent::Started(open)));
         match self.release.next().await {
             Some(Go::Run) => Go::Run,
             Some(Go::Stop) | None => {
-                self.gate = Gate::Stopped;
+                self.stopped = true;
                 Go::Stop
             }
         }
@@ -65,27 +59,13 @@ impl Tap for ChannelTap {
     }
 }
 
-/// What the reader owes the loop for the last event it was given.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Owed {
-    /// Nothing.
-    Nothing,
-    /// A call was announced: it goes on at the next pull.
-    Release,
-}
-
-/// What woke a pull.
-enum Woke {
-    Ended(TurnEnd),
-    Event(Option<BackendEvent>),
-}
-
 /// The reader's side of a turn in flight.
 pub(crate) struct Flight {
     driver: Option<BoxFuture<'static, TurnEnd>>,
     events: UnboundedReceiver<BackendEvent>,
     release: UnboundedSender<Go>,
-    owed: Owed,
+    /// Whether a call was announced: it goes on at the next pull.
+    owed: bool,
     ended: Option<TurnEnd>,
 }
 
@@ -104,13 +84,13 @@ impl Flight {
         let tap = ChannelTap {
             events: events_tx,
             release: release_rx,
-            gate: Gate::Open,
+            stopped: false,
         };
         Flight {
             driver: Some(drive(tap)),
             events,
             release,
-            owed: Owed::Nothing,
+            owed: false,
             ended: None,
         }
     }
@@ -118,14 +98,14 @@ impl Flight {
     /// Stops the turn: a call waiting at the gate is never made. A turn that is between calls
     /// ends at the loop's next step, which the caller asks for with the cancel flag.
     pub(crate) fn stop(&mut self) {
-        self.owed = Owed::Nothing;
+        self.owed = false;
         let _ = self.release.unbounded_send(Go::Stop);
     }
 
     /// The next event of the turn; the turn's end last, then `None`. Cancel-safe.
     pub(crate) async fn next(&mut self) -> Option<BackendEvent> {
-        if self.owed == Owed::Release {
-            self.owed = Owed::Nothing;
+        if self.owed {
+            self.owed = false;
             let _ = self.release.unbounded_send(Go::Run);
         }
         loop {
@@ -136,17 +116,17 @@ impl Flight {
                 return self.ended.take().map(BackendEvent::TurnEnd);
             };
             let woke = match select(driver, self.events.next()).await {
-                Either::Left((end, _)) => Woke::Ended(end),
-                Either::Right((event, _)) => Woke::Event(event),
+                Either::Left((end, _)) => Either::Left(end),
+                Either::Right((event, _)) => Either::Right(event),
             };
             match woke {
-                Woke::Ended(end) => {
+                Either::Left(end) => {
                     self.driver = None;
                     self.ended = Some(end);
                 }
-                Woke::Event(Some(event)) => return Some(self.seen(event)),
+                Either::Right(Some(event)) => return Some(self.seen(event)),
                 // The loop dropped its tap, which it does as it ends: only its end is left.
-                Woke::Event(None) => {
+                Either::Right(None) => {
                     if let Some(driver) = self.driver.as_mut() {
                         let end = driver.await;
                         self.driver = None;
@@ -159,7 +139,7 @@ impl Flight {
 
     fn seen(&mut self, event: BackendEvent) -> BackendEvent {
         if matches!(event, BackendEvent::Call(CallEvent::Started(_))) {
-            self.owed = Owed::Release;
+            self.owed = true;
         }
         event
     }
