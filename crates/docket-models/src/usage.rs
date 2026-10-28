@@ -1,105 +1,63 @@
 //! What a model turn reports about itself, as the router's ledger counts it: tokens by kind
-//! and what they cost at the account's billing.
+//! and the charge the provider reported.
 
 use docket_core::{TokenTotals, TurnReport};
-use porter_capability::Billing;
-use porter_core::MicroUsd;
-use porter_infer::{TokenUsage, cost};
+use porter_infer::TokenUsage;
 
-/// The ledger's report for a turn that used `usage` on an account billed as `billing`.
-///
-/// A reply that counts no input and no output tokens reported nothing: it is charged `worst`
-/// (the most the turn could have cost, from its token limits and the account's prices), or, when
-/// that is not known, `TurnReport::Missing { worst: None }`, which makes the spend cap
-/// uncertain. Money is exact for a metered account, and nothing for a free or plan account.
-pub fn report_of(usage: TokenUsage, billing: &Billing, worst: Option<MicroUsd>) -> TurnReport {
-    if usage.input.0 == 0 && usage.output.0 == 0 {
-        return TurnReport::Missing { worst };
-    }
-    let money = match billing {
-        Billing::Metered(prices) => cost(usage, prices),
-        Billing::Free | Billing::PlanBudget => MicroUsd(0),
-    };
-    TurnReport::Reported {
+/// The ledger's report for a turn that used `usage`. The charge is whatever the provider
+/// reported, passed through as it came: never worked out from a price, and `None` when the
+/// provider said nothing.
+pub fn report_of(usage: TokenUsage) -> TurnReport {
+    TurnReport {
         tokens: TokenTotals {
             input: usage.input,
             output: usage.output,
             cached: usage.cached,
         },
-        cost: money,
+        charge: usage.charge,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use porter_core::PriceTable;
+    use model_provider::Money;
     use porter_ids::Tokens;
+    use rust_decimal::Decimal;
 
-    fn usage(input: u32, output: u32, cached: u32) -> TokenUsage {
+    fn usage(input: u32, output: u32, cached: u32, charge: Option<Money>) -> TokenUsage {
         TokenUsage {
             input: Tokens(input),
             output: Tokens(output),
             cached: Tokens(cached),
+            charge,
         }
     }
 
     #[test]
-    fn usage_becomes_a_report_by_billing() {
-        let metered = Billing::Metered(PriceTable {
-            input_per_mtok: MicroUsd(3_000_000),
-            output_per_mtok: MicroUsd(15_000_000),
-        });
+    fn usage_becomes_a_report_with_the_charge_as_reported() {
+        let charge = Money::usd(Decimal::new(42, 4));
         let tokens = TokenTotals {
             input: Tokens(1000),
             output: Tokens(100),
             cached: Tokens(400),
         };
-        let at = |cost| TurnReport::Reported {
-            tokens,
-            cost: MicroUsd(cost),
-        };
         let cases = [
-            (
-                "metered: input and output priced",
-                metered.clone(),
-                usage(1000, 100, 400),
-                None,
-                at(4_500),
-            ),
-            (
-                "free costs nothing",
-                Billing::Free,
-                usage(1000, 100, 400),
-                None,
-                at(0),
-            ),
-            (
-                "a plan costs no money",
-                Billing::PlanBudget,
-                usage(1000, 100, 400),
-                None,
-                at(0),
-            ),
-            (
-                "no usage is charged the worst case",
-                metered.clone(),
-                usage(0, 0, 0),
-                Some(MicroUsd(900)),
-                TurnReport::Missing {
-                    worst: Some(MicroUsd(900)),
-                },
-            ),
-            (
-                "no usage and no worst case is uncertain",
-                metered,
-                usage(0, 0, 0),
-                None,
-                TurnReport::Missing { worst: None },
-            ),
+            ("a reported charge", Some(charge)),
+            ("no charge reported", None),
         ];
-        for (name, billing, used, worst, want) in cases {
-            assert_eq!(report_of(used, &billing, worst), want, "{name}");
+        for (name, charge) in cases {
+            let want = TurnReport { tokens, charge };
+            assert_eq!(report_of(usage(1000, 100, 400, charge)), want, "{name}");
         }
+    }
+
+    #[test]
+    fn a_reply_with_no_usage_is_no_tokens_and_no_charge() {
+        let want = TurnReport {
+            tokens: TokenTotals::NONE,
+            charge: None,
+        };
+        assert_eq!(report_of(usage(0, 0, 0, None)), want);
     }
 }

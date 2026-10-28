@@ -59,6 +59,8 @@ tokio = { workspace = true }
 zbus = { workspace = true }
 
 [dev-dependencies]
+model-provider = { workspace = true }
+rust_decimal = { workspace = true }
 porter-wire = { workspace = true }
 porter-match = { workspace = true }
 porter-capability = { workspace = true }

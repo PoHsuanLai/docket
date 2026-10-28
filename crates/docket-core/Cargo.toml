@@ -16,9 +16,11 @@ docket-manifest = { workspace = true }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 porter-core = { workspace = true }
+porter-infer = { workspace = true }
 prov = { workspace = true }
 almanac-core = { workspace = true }
 model-provider = { workspace = true }
+rust_decimal = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

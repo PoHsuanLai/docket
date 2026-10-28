@@ -18,7 +18,9 @@ docket-manifest = { workspace = true }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 docket-session = { workspace = true }
-porter-core = { workspace = true }
+model-provider = { workspace = true }
+iso_currency = { workspace = true }
+rust_decimal = { workspace = true }
 prov = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -1,16 +1,17 @@
 //! The router's trace spans, named by the OpenTelemetry GenAI conventions (`genai-names`): one
 //! `execute_tool` span for each action call and one `invoke_agent` span for each model turn.
 //!
-//! A span carries ids, action names, the effect class, the ruling, token counts and cost, and
+//! A span carries ids, action names, the effect class, the ruling, token counts and the reported charge, and
 //! nothing a person wrote or an app returned: every builder takes typed values, never text of a
 //! prompt, an argument or a result, so there is nothing to leak. `tracing` needs field names
 //! as literals; they are the `genai_names::attr` keys (a `docket.` key where the conventions
-//! have none, as for cost).
+//! have none, as for the charge).
 
 use crate::prepared::Prepared;
-use docket_core::{TokenTotals, TurnReport};
+use docket_core::TurnReport;
 use docket_permissions_core::Ruling;
 use genai_names::Operation;
+use model_provider::Money;
 use prov::{SessionId, TaskId};
 use tracing::Span;
 
@@ -44,14 +45,16 @@ pub(crate) fn execute_tool(p: &Prepared) -> Span {
     )
 }
 
+/// A charge as the span writes it: the amount and the ISO code, as in `0.0042 USD`.
+fn charge_text(charge: Money) -> String {
+    format!("{} {}", charge.amount, charge.currency.code())
+}
+
 /// The span of one model turn of a task, written when its usage is reported: the tokens it
-/// used, what it cost, and how the report was counted.
+/// used and the charge the provider reported, when it reported one.
 pub(crate) fn invoke_agent(session: &SessionId, task: &TaskId, report: &TurnReport) -> Span {
-    let (tokens, cost, counted) = match *report {
-        TurnReport::Reported { tokens, cost } => (tokens, cost.0, "reported"),
-        TurnReport::Missing { worst: Some(w) } => (TokenTotals::NONE, w.0, "worst_case"),
-        TurnReport::Missing { worst: None } => (TokenTotals::NONE, 0, "unreported"),
-    };
+    let tokens = report.tokens;
+    let charge = report.charge.map(charge_text);
     tracing::info_span!(
         "invoke_agent",
         gen_ai.operation.name = Operation::InvokeAgent.as_str(),
@@ -60,8 +63,7 @@ pub(crate) fn invoke_agent(session: &SessionId, task: &TaskId, report: &TurnRepo
         gen_ai.usage.output_tokens = tokens.output.0,
         docket.task = %task,
         docket.cached_tokens = tokens.cached.0,
-        docket.cost_microusd = cost,
-        docket.usage = counted,
+        docket.charge = charge.as_deref(),
     )
 }
 
@@ -69,8 +71,8 @@ pub(crate) fn invoke_agent(session: &SessionId, task: &TaskId, report: &TurnRepo
 mod tests {
     use super::*;
     use docket_core::TokenTotals;
-    use porter_core::MicroUsd;
     use porter_ids::Tokens;
+    use rust_decimal::Decimal;
     use std::sync::{Arc, Mutex};
     use tracing::span::{Attributes, Id, Record};
     use tracing::{Event, Metadata, Subscriber};
@@ -96,15 +98,20 @@ mod tests {
     }
 
     #[test]
+    fn a_charge_is_written_as_an_amount_and_a_currency_code() {
+        assert_eq!(charge_text(Money::usd(Decimal::new(42, 4))), "0.0042 USD");
+    }
+
+    #[test]
     fn a_turn_span_has_only_names_counts_and_ids() {
         let seen = Arc::new(Names::default());
-        let report = TurnReport::Reported {
+        let report = TurnReport {
             tokens: TokenTotals {
                 input: Tokens(3),
                 output: Tokens(2),
                 cached: Tokens(1),
             },
-            cost: MicroUsd(9),
+            charge: Some(Money::usd(Decimal::new(42, 4))),
         };
         let session = SessionId::parse("s-1").expect("session");
         let task = TaskId::parse("t-1").expect("task");

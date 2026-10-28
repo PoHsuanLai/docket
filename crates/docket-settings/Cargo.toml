@@ -14,7 +14,8 @@ docket-core = { workspace = true }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 docket-store = { workspace = true }
-porter-core = { workspace = true }
+model-provider = { workspace = true }
+rust_decimal = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }

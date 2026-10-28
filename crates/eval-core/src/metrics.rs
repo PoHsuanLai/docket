@@ -6,8 +6,9 @@ use crate::report::{Metrics, StageLatency, wilson};
 use docket_core::AuditRecord;
 use docket_permissions_core::Stage;
 use docket_vocab::Millis;
-use porter_core::MicroUsd;
+use model_provider::Money;
 use porter_ids::{Count, Permille};
+use rust_decimal::Decimal;
 use std::collections::BTreeMap;
 
 /// What one corpus has seen so far.
@@ -22,7 +23,7 @@ struct Tally {
     asked: u32,
     stage_times: BTreeMap<Stage, Vec<u32>>,
     case_times: Vec<u32>,
-    micro_usd: u64,
+    reported: Option<Money>,
 }
 
 fn permille(part: u32, whole: u32) -> Permille {
@@ -65,8 +66,9 @@ pub struct Observed {
     pub stage_ms: Vec<(Stage, u32)>,
     /// Time the case took, in milliseconds.
     pub case_ms: u32,
-    /// What the models cost for this case, in micro-dollars.
-    pub micro_usd: u64,
+    /// The charge the providers reported for this case's model turns; `None` when none was
+    /// reported (a model on this computer, a provider that reports tokens only).
+    pub charge: Option<Money>,
 }
 
 impl Observed {
@@ -115,6 +117,23 @@ fn label_of(expect: &Expect) -> Label {
     }
 }
 
+/// `total` and `more`, kept apart when they cannot be added (another currency, or too large):
+/// the total stands and the charge is left out, never converted.
+fn plus(total: Option<Money>, more: Option<Money>) -> Option<Money> {
+    match (total, more) {
+        (Some(total), Some(more)) => Some(total.checked_add(more).unwrap_or(total)),
+        (total, more) => total.or(more),
+    }
+}
+
+/// The reported charges per thousand cases, when any case reported one.
+fn per_1000(reported: Option<Money>, cases: u32) -> Option<Money> {
+    let reported = reported?;
+    let scaled = reported.amount.checked_mul(Decimal::ONE_THOUSAND)?;
+    let each = scaled.checked_div(Decimal::from(cases))?;
+    Some(Money::new(each, reported.currency))
+}
+
 fn fold(tally: &mut Tally, case: &Case, result: &CaseResult, observed: &Observed) {
     tally.cases += 1;
     let missed = judge(&case.expect, result) == Judgement::Missed;
@@ -134,7 +153,7 @@ fn fold(tally: &mut Tally, case: &Case, result: &CaseResult, observed: &Observed
         tally.stage_times.entry(*stage).or_default().push(*ms);
     }
     tally.case_times.push(observed.case_ms);
-    tally.micro_usd = tally.micro_usd.saturating_add(observed.micro_usd);
+    tally.reported = plus(tally.reported, observed.charge);
 }
 
 fn metrics_of(tally: Tally) -> Metrics {
@@ -155,13 +174,7 @@ fn metrics_of(tally: Tally) -> Metrics {
             .into_iter()
             .map(|(stage, times)| (stage, latency(times)))
             .collect(),
-        cost_per_1000: MicroUsd(
-            tally
-                .micro_usd
-                .saturating_mul(1000)
-                .checked_div(u64::from(tally.cases))
-                .unwrap_or(0),
-        ),
+        cost_per_1000: per_1000(tally.reported, tally.cases),
     }
 }
 

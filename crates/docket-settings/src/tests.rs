@@ -4,6 +4,11 @@ use super::*;
 use crate::keys::{Rule, table};
 use std::collections::BTreeSet;
 
+/// A spend cap of `n` millionths of a US dollar.
+fn micro_usd(n: i64) -> Option<model_provider::Money> {
+    Some(model_provider::Money::usd(rust_decimal::Decimal::new(n, 6)))
+}
+
 fn schema() -> toml::Table {
     SCHEMA.parse().expect("the schema is TOML")
 }
@@ -240,7 +245,6 @@ fn every_schema_key_is_read_by_the_daemon() {
 #[test]
 fn each_key_lands_in_the_typed_value_the_design_names() {
     use docket_permissions_core::{DeleteRow, InsideRow, Mode, OtherRow, ScreenRow, SendRow};
-    use porter_core::MicroUsd;
     let read_one = |p: &str, v: toml::Value| read(&doc(p, v), AgentSettings::default()).value;
     let int = toml::Value::Integer;
     let word = |w: &str| toml::Value::String(w.to_owned());
@@ -322,7 +326,7 @@ fn each_key_lands_in_the_typed_value_the_design_names() {
             .agent
             .budget
             .spend,
-        MicroUsd(2_500_000)
+        micro_usd(2_500_000)
     );
 }
 
@@ -355,7 +359,7 @@ fn a_bad_value_falls_back_for_that_key_alone() {
             let loaded = read(&text, AgentSettings::default());
             let mut want = AgentSettings::default();
             if other == spend {
-                want.agent.budget.spend = porter_core::MicroUsd(100);
+                want.agent.budget.spend = micro_usd(100);
             } else {
                 want.agent.start_mode = docket_permissions_core::Mode::Manual;
             }
@@ -369,7 +373,7 @@ fn a_bad_value_falls_back_for_that_key_alone() {
 #[test]
 fn a_fallback_is_the_base_value_not_the_default() {
     let mut base = AgentSettings::default();
-    base.agent.budget.spend = porter_core::MicroUsd(11);
+    base.agent.budget.spend = micro_usd(11);
     let loaded = read("[agent.budget]\nspend_microusd = -1\n", base);
     assert_eq!(loaded.value, base);
     assert_eq!(
@@ -431,7 +435,7 @@ fn the_locator_reads_the_first_file_of_the_configuration_directories() {
     let locator = Locator::from_env(&env);
     assert_eq!(locator.watch_dir(), Some(home.path().join("docket")));
     let value = locator.read(AgentSettings::default()).value;
-    assert_eq!(value.agent.budget.spend, porter_core::MicroUsd(5));
+    assert_eq!(value.agent.budget.spend, micro_usd(5));
     // The first file wins whole: the later directory's other keys are not merged in.
     assert_eq!(value.expose, McpExpose::Off);
     let none = Locator::from_env(&|_: &str| None::<String>);

@@ -6,7 +6,6 @@ use docket_fake::fake_router;
 use docket_permissions_core::{InsideRow, Mode};
 use docket_settings::{AgentSettings, Locator};
 use intentd::{SettingsWatch, WatchState, apply, apply_next};
-use porter_core::MicroUsd;
 use std::path::Path;
 
 /// What the Settings app does: a temp file, then a rename over the settings file.
@@ -48,7 +47,10 @@ async fn a_change_in_the_file_applies_to_the_router_without_a_restart() {
     }
     assert_eq!(router.agent_config().start_mode, Mode::Manual);
     assert_eq!(router.agent_config().rows.auto.inside, InsideRow::Asks);
-    assert_eq!(router.agent_config().budget.spend, MicroUsd(7));
+    assert_eq!(
+        router.agent_config().budget.spend,
+        Some(model_provider::Money::usd(rust_decimal::Decimal::new(7, 6)))
+    );
 
     // A bad value falls back to the base for that key; the good key beside it still applies.
     write_atomically(

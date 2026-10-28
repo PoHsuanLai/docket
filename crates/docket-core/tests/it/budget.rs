@@ -3,13 +3,19 @@
 use crate::support::*;
 use docket_core::*;
 use docket_vocab::Depth;
-use porter_core::MicroUsd;
-use porter_ids::{Count, Tokens};
+use model_provider::Money;
+use porter_ids::{Count, Tokens, TurnCount};
 use prov::Effect;
+use rust_decimal::Decimal;
 use std::collections::BTreeMap;
 
 fn budget() -> Budget {
     AgentConfig::default().budget
+}
+
+/// `cents` US cents.
+fn usd(cents: i64) -> Money {
+    Money::usd(Decimal::new(cents, 2))
 }
 
 fn cost(effect: Effect, entities: u32, depth: u8, reviewed: bool) -> Cost {
@@ -32,11 +38,10 @@ fn budget_charge_table() {
         destructive: Count(1),
         per_minute: Count(2),
         reviews: Count(1),
-        spend: MicroUsd(0),
         ..budget()
     };
     let paid = Budget {
-        spend: MicroUsd(10),
+        spend: Some(usd(10)),
         ..budget()
     };
     let used = |f: &dyn Fn(&mut Ledger)| {
@@ -142,28 +147,36 @@ fn budget_charge_table() {
             Ok(()),
         ),
         (
-            "spend at the cap still has room",
-            used(&|l| l.spent.cost = MicroUsd(10)),
+            "spend under the cap has room",
+            used(&|l| l.spent.charges.reported = usd(9)),
             paid,
             cost(Effect::Read, 1, 0, false),
             1_001,
             Ok(()),
         ),
         (
-            "spend past the cap runs out",
-            used(&|l| l.spent.cost = MicroUsd(11)),
+            "spend at the cap runs out",
+            used(&|l| l.spent.charges.reported = usd(10)),
             paid,
             cost(Effect::Read, 1, 0, false),
             1_001,
             Err(BudgetKind::Spend),
         ),
         (
-            "spend that cannot be counted runs out",
-            used(&|l| l.spent.certainty = Certainty::Uncertain),
+            "turns that reported no charge never run it out",
+            used(&|l| l.spent.charges.unpriced = TurnCount(500)),
             paid,
             cost(Effect::Read, 1, 0, false),
             1_001,
-            Err(BudgetKind::Spend),
+            Ok(()),
+        ),
+        (
+            "no cap, no limit",
+            used(&|l| l.spent.charges.reported = usd(1_000_000)),
+            budget(),
+            cost(Effect::Read, 1, 0, false),
+            1_001,
+            Ok(()),
         ),
         (
             "reviews run out",
@@ -192,84 +205,117 @@ fn turn_charge_table() {
         cached: Tokens(c),
     };
     let paid = Budget {
-        spend: MicroUsd(100),
+        spend: Some(usd(100)),
         ..budget()
     };
-    // (name, report, tokens after, cost after, certainty after, within the cap)
+    // (name, report, tokens after, reported cents after, unpriced turns after, within the cap)
     let cases = [
         (
             "a reported turn is counted by kind",
-            TurnReport::Reported {
+            TurnReport {
                 tokens: tokens(10, 5, 4),
-                cost: MicroUsd(60),
+                charge: Some(usd(60)),
             },
             tokens(10, 5, 4),
             60,
-            Certainty::Known,
+            0,
             true,
         ),
         (
             "a turn that costs more than the cap is recorded and stops the next",
-            TurnReport::Reported {
+            TurnReport {
                 tokens: tokens(1, 1, 0),
-                cost: MicroUsd(101),
+                charge: Some(usd(101)),
             },
             tokens(1, 1, 0),
             101,
-            Certainty::Known,
+            0,
             false,
         ),
         (
-            "a missing report is charged its worst case",
-            TurnReport::Missing {
-                worst: Some(MicroUsd(70)),
+            "a turn that reaches the cap stops the next",
+            TurnReport {
+                tokens: TokenTotals::NONE,
+                charge: Some(usd(100)),
             },
             TokenTotals::NONE,
-            70,
-            Certainty::Known,
+            100,
+            0,
+            false,
+        ),
+        (
+            "a turn with no charge is unpriced and never blocks",
+            TurnReport {
+                tokens: tokens(7, 7, 0),
+                charge: None,
+            },
+            tokens(7, 7, 0),
+            0,
+            1,
             true,
         ),
-        (
-            "a worst case over the cap stops the next turn",
-            TurnReport::Missing {
-                worst: Some(MicroUsd(200)),
-            },
-            TokenTotals::NONE,
-            200,
-            Certainty::Known,
-            false,
-        ),
-        (
-            "a missing report with no worst case makes the cap uncertain",
-            TurnReport::Missing { worst: None },
-            TokenTotals::NONE,
-            0,
-            Certainty::Uncertain,
-            false,
-        ),
     ];
-    for (name, report, want_tokens, want_cost, want_certainty, within) in cases {
+    for (name, report, want_tokens, want_cents, want_unpriced, within) in cases {
         let after = charge_turn(&Ledger::new(at(0)), &report);
         assert_eq!(after.spent.tokens, want_tokens, "tokens: {name}");
-        assert_eq!(after.spent.cost, MicroUsd(want_cost), "cost: {name}");
-        assert_eq!(after.spent.certainty, want_certainty, "certainty: {name}");
+        assert_eq!(
+            after.spent.charges.reported.amount,
+            Decimal::new(want_cents, 2),
+            "reported: {name}"
+        );
+        assert_eq!(
+            after.spent.charges.unpriced,
+            TurnCount(want_unpriced),
+            "unpriced: {name}"
+        );
         assert_eq!(check_turn(&after, &paid).is_ok(), within, "cap: {name}");
     }
     let twice = charge_turn(
         &charge_turn(
             &Ledger::new(at(0)),
-            &TurnReport::Reported {
+            &TurnReport {
                 tokens: tokens(u32::MAX, 0, 0),
-                cost: MicroUsd(u64::MAX),
+                charge: Some(usd(1)),
             },
         ),
-        &TurnReport::Reported {
+        &TurnReport {
             tokens: tokens(1, 1, 1),
-            cost: MicroUsd(1),
+            charge: Some(usd(2)),
         },
     );
     assert_eq!(twice.spent.tokens.input, Tokens(u32::MAX), "saturates");
-    assert_eq!(twice.spent.cost, MicroUsd(u64::MAX), "saturates");
+    assert_eq!(twice.spent.charges.reported, usd(3), "charges add exactly");
+}
+
+#[test]
+fn totals_show_what_is_left_and_never_less_than_nothing() {
+    let capped = Budget {
+        spend: Some(usd(100)),
+        ..budget()
+    };
+    let spent = |cents| {
+        charge_turn(
+            &Ledger::new(at(0)),
+            &TurnReport {
+                tokens: TokenTotals::NONE,
+                charge: Some(usd(cents)),
+            },
+        )
+    };
+    assert_eq!(totals_of(&spent(30), &capped).remaining, Some(usd(70)));
+    assert_eq!(totals_of(&spent(150), &capped).remaining, Some(usd(0)));
+    assert_eq!(totals_of(&spent(30), &budget()).remaining, None);
+}
+
+#[test]
+fn an_old_ledger_with_a_cost_and_a_certainty_reads_as_nothing_reported() {
+    let mut json = serde_json::to_value(Ledger::new(at(3))).expect("json");
+    let spent = json["spent"].as_object_mut().expect("spent");
+    spent.remove("charges");
+    spent.insert("cost".to_owned(), serde_json::json!(2_500_000));
+    spent.insert("certainty".to_owned(), serde_json::json!("uncertain"));
+    let back: Ledger = serde_json::from_value(json).expect("old ledger");
+    assert_eq!(back, Ledger::new(at(3)));
 }
 
 #[test]

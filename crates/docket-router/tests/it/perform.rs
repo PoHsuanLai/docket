@@ -566,8 +566,12 @@ async fn an_exhausted_budget_overrides_an_allow() {
     assert_eq!(refused, CallRefusal::OverBudget(BudgetKind::Calls));
 }
 
+fn usd(cents: i64) -> model_provider::Money {
+    model_provider::Money::usd(rust_decimal::Decimal::new(cents, 2))
+}
+
 #[tokio::test]
-async fn model_spend_past_the_cap_or_uncounted_stops_the_next_call() {
+async fn model_spend_reaching_the_cap_stops_the_next_call_and_unpriced_turns_never_do() {
     let tokens = TokenTotals {
         input: porter_ids::Tokens(10),
         output: porter_ids::Tokens(5),
@@ -575,38 +579,41 @@ async fn model_spend_past_the_cap_or_uncounted_stops_the_next_call() {
     };
     let paying = || {
         let mut config = AgentConfig::default();
-        config.budget.spend = porter_core::MicroUsd(5_000_000);
+        config.budget.spend = Some(usd(500));
         router_with(config)
     };
-    let cap = paying().config.budget.spend;
     let cases = [
         (
             "a turn over the cap",
-            TurnReport::Reported {
+            TurnReport {
                 tokens,
-                cost: porter_core::MicroUsd(cap.0 + 1),
+                charge: Some(usd(501)),
+            },
+            Some(BudgetKind::Spend),
+        ),
+        (
+            "a turn that reaches the cap",
+            TurnReport {
+                tokens,
+                charge: Some(usd(500)),
             },
             Some(BudgetKind::Spend),
         ),
         (
             "a turn within the cap",
-            TurnReport::Reported {
+            TurnReport {
                 tokens,
-                cost: porter_core::MicroUsd(1),
+                charge: Some(usd(1)),
             },
             None,
         ),
         (
-            "no usage and no worst case",
-            TurnReport::Missing { worst: None },
-            Some(BudgetKind::Spend),
-        ),
-        (
-            "no usage, worst case over the cap",
-            TurnReport::Missing {
-                worst: Some(porter_core::MicroUsd(cap.0 + 1)),
+            "a turn with no charge",
+            TurnReport {
+                tokens: TokenTotals::NONE,
+                charge: None,
             },
-            Some(BudgetKind::Spend),
+            None,
         ),
     ];
     for (name, report, over) in cases {
@@ -629,32 +636,32 @@ async fn model_spend_past_the_cap_or_uncounted_stops_the_next_call() {
             None => assert!(got.is_ok(), "{name}: {got:?}"),
         }
     }
-    // The default cap is zero: any paid turn is over it, so a task stays on this computer.
+    // The default has no cap: a charged turn is counted and nothing stops the next one.
     let router = router();
     let s = ready(&router).await;
-    let paid = TurnReport::Reported {
+    let paid = TurnReport {
         tokens,
-        cost: porter_core::MicroUsd(1),
+        charge: Some(usd(1_000_000)),
     };
     assert_eq!(
         router.note_turn_usage(&s.session, &paid),
-        docket_router::TurnBudget::Over(BudgetKind::Spend)
+        docket_router::TurnBudget::Within
     );
 }
 
 #[tokio::test]
 async fn the_roster_shows_a_tasks_spend_and_what_is_left() {
     let mut config = AgentConfig::default();
-    config.budget.spend = porter_core::MicroUsd(5_000_000);
+    config.budget.spend = Some(usd(500));
     let router = router_with(config);
     let s = ready(&router).await;
-    let report = TurnReport::Reported {
+    let report = TurnReport {
         tokens: TokenTotals {
             input: porter_ids::Tokens(40),
             output: porter_ids::Tokens(10),
             cached: porter_ids::Tokens(8),
         },
-        cost: porter_core::MicroUsd(1_000),
+        charge: Some(usd(100)),
     };
     router.note_turn_usage(&s.session, &report);
     let budget = router.agent_config().budget;
@@ -669,13 +676,9 @@ async fn the_roster_shows_a_tasks_spend_and_what_is_left() {
             RosterDetail::PresenceOnly => None,
         })
         .expect("a task with totals");
-    assert_eq!(used.cost, porter_core::MicroUsd(1_000));
-    assert_eq!(
-        used.remaining,
-        porter_core::MicroUsd(budget.spend.0 - 1_000)
-    );
+    assert_eq!(used.charges.reported, usd(100));
+    assert_eq!(used.remaining, Some(usd(400)));
     assert_eq!(used.tokens.input, porter_ids::Tokens(40));
-    assert_eq!(used.certainty, Certainty::Known);
 }
 
 #[tokio::test]

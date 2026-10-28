@@ -259,7 +259,7 @@ fn report_shape_round_trips() {
             },
         )]
         .into(),
-        cost_per_1000: porter_core::MicroUsd(0),
+        cost_per_1000: None,
     };
     let report = RunReport {
         version: "0.1.0".into(),

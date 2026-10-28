@@ -23,6 +23,7 @@ docket-wire = { workspace = true }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 porter-core = { workspace = true }
+model-provider = { workspace = true }
 prov = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

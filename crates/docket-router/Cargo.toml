@@ -26,6 +26,7 @@ policy-point = { workspace = true }
 action-review = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }
+model-provider = { workspace = true }
 almanac-core = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
@@ -41,6 +42,7 @@ genai-names = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+rust_decimal = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 docket-fake = { workspace = true }
 docket-provider = { workspace = true }

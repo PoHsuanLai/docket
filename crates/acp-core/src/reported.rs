@@ -14,9 +14,11 @@ use docket_core::{AppRefusal, CallRefusal, FailText, Reveal, StepEnd, StepLine, 
 use docket_permissions_core::PermissionKind;
 use docket_session::{BackendEvent, CallEvent, CallOpen, UsageNote};
 use docket_vocab::CallId;
-use porter_core::MicroUsd;
+use iso_currency::Currency;
+use model_provider::Money;
 use porter_ids::Count;
 use prov::Effect;
+use rust_decimal::Decimal;
 use std::collections::BTreeMap;
 
 /// What was heard.
@@ -73,12 +75,22 @@ fn failed() -> StepEnd {
     ))))
 }
 
+/// An agent's reported cost as money, when both the amount and the ISO 4217 code can be read
+/// exactly. Anything else is unpriced: nothing is guessed or converted.
+fn reported_money(amount: f64, code: &str) -> Option<Money> {
+    if amount < 0.0 {
+        return None;
+    }
+    let amount = Decimal::try_from(amount).ok()?;
+    let currency = Currency::from_code(code)?;
+    Some(Money::new(amount, currency))
+}
+
 fn usage(update: &agent_client_protocol::schema::v1::UsageUpdate) -> UsageNote {
     let spent = update
         .cost
         .as_ref()
-        .filter(|c| c.currency == "USD" && c.amount.is_finite() && c.amount >= 0.0)
-        .map(|c| MicroUsd((c.amount * 1_000_000.0) as u64));
+        .and_then(|c| reported_money(c.amount, &c.currency));
     UsageNote {
         context: Some(Count(u32::try_from(update.used).unwrap_or(u32::MAX))),
         spent,
@@ -170,5 +182,27 @@ impl Reported {
             .into_values()
             .map(|open| end_of(&open, StepEnd::Interrupted))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_reported_cost_is_money_only_when_amount_and_currency_read_exactly() {
+        let usd = |amount| Money::new(amount, Currency::USD);
+        assert_eq!(
+            reported_money(0.0042, "USD"),
+            Some(usd(Decimal::new(42, 4)))
+        );
+        assert_eq!(
+            reported_money(1.5, "EUR"),
+            Some(Money::new(Decimal::new(15, 1), Currency::EUR))
+        );
+        assert_eq!(reported_money(1.0, "credits"), None);
+        assert_eq!(reported_money(f64::NAN, "USD"), None);
+        assert_eq!(reported_money(f64::INFINITY, "USD"), None);
+        assert_eq!(reported_money(-1.0, "USD"), None);
     }
 }

@@ -6,7 +6,6 @@
 use crate::budget::Budget;
 use docket_permissions_core::{Mode, RowSets};
 use docket_vocab::{Days, Depth, Millis, Seconds};
-use porter_core::MicroUsd;
 use porter_ids::{Count, Tokens};
 use serde::{Deserialize, Serialize};
 
@@ -55,8 +54,9 @@ pub const TASK_POLICY_MAX: Seconds = Seconds(3600);
 /// How long the undo history keeps what the assistant did (24 hours).
 pub const UNDO_KEEP: Seconds = Seconds(24 * 3600);
 
-/// What one session may spend. Zero spend keeps a task on this computer: a local model costs
-/// nothing, and a paid turn is over the cap until the person raises it (`agent.budget.spend_microusd`).
+/// What one session may spend. No spend cap until the person sets one
+/// (`agent.budget.spend_microusd`); a cap compares the charges providers reported and stops the
+/// next turn, never the current one.
 pub const STANDARD_BUDGET: Budget = Budget {
     calls: Count(200),
     writes: Count(100),
@@ -67,7 +67,7 @@ pub const STANDARD_BUDGET: Budget = Budget {
     chain: Depth(4),
     wall: Seconds(1800),
     reviews: Count(300),
-    spend: MicroUsd(0),
+    spend: None,
 };
 
 /// How many tokens each section of the planner's working set may use
@@ -127,7 +127,7 @@ fn checkpoint_turn_max() -> Seconds {
 }
 
 /// Every proposed value in one place.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentConfig {
     /// `agent.start_mode`: the mode a new conversation starts in (an old `strictness` or
     /// `permissions` still reads).

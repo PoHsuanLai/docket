@@ -9,7 +9,7 @@ use crate::plan::ResumePlan;
 use companion_wire::NeedsYou;
 use docket_core::{ConfirmId, ConfirmRequest, Reveal, StepLine, UserTurn};
 use docket_permissions_core::BreakerTrip;
-use porter_core::MicroUsd;
+use model_provider::Money;
 use porter_ids::Count;
 use prov::SessionId;
 use std::future::Future;
@@ -132,8 +132,8 @@ pub enum SheetChoice {
 pub struct UsageNote {
     /// The context it holds, in tokens, if it says.
     pub context: Option<Count>,
-    /// What it reports spending, if it says.
-    pub spent: Option<MicroUsd>,
+    /// What it reports spending, if it says and the amount and currency can be read exactly.
+    pub spent: Option<Money>,
 }
 
 /// A call's progress as the backend reports it.

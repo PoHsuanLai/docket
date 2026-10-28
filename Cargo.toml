@@ -175,6 +175,9 @@ almanac-dbus-serve = { git = "https://github.com/PoHsuanLai/almanac", rev = "05c
 # stoker's pure vocabulary, by git at a pinned rev: the computer-use actions (`CuaAsk`), the structured
 # output shapes (`ValueSchema` renders through `Shape`) and the speech VAD helpers.
 cua-action      = { git = "https://github.com/PoHsuanLai/stoker", rev = "c8fed624534867659448ac417992bac4f0f47e28" }
+# model-provider's `Money`: an exact decimal amount and an ISO 4217 currency (same versions as porter and stoker).
+rust_decimal    = { version = "1", default-features = false, features = ["std", "serde"] }
+iso_currency    = { version = "0.7", features = ["with-serde"] }
 model-provider  = { git = "https://github.com/PoHsuanLai/stoker", rev = "c8fed624534867659448ac417992bac4f0f47e28" }
 # The OpenTelemetry GenAI names (no dependencies; no content attribute exists in it): the router's spans.
 genai-names     = { git = "https://github.com/PoHsuanLai/stoker", rev = "c8fed624534867659448ac417992bac4f0f47e28" }

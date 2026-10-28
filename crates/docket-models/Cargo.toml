@@ -24,6 +24,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+model-provider = { workspace = true }
+rust_decimal = { workspace = true }
 docket-fake = { workspace = true }
 tokio = { workspace = true }
 # The scripted model transport of companiond's tests is included by path (one file, not a copy).

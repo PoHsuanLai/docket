@@ -21,10 +21,12 @@ use docket_store::SystemClock;
 use docket_trace::{MemoryTap, Tap};
 use docket_vocab::Millis;
 use eval_core::{Case, CaseTrace, Observed, RunNote, RunReport, Tallies};
+use model_provider::Money;
 use porter_capability::{Billing, Locality, ModelId};
 use porter_client::DbusTransport;
 use porter_core::AccountId;
 use porter_infer::ModelCard;
+use rust_decimal::Decimal;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -215,19 +217,19 @@ pub async fn run_corpus_live(
     let mut tallies = Tallies::default();
     let mut traces = Vec::new();
     let mut missed = Vec::new();
-    let mut spent = world.spent_micro_usd();
+    let mut reported = world.reported_charge();
     for case in cases {
         let (result, trace) = tokio::task::block_in_place(|| {
             run_case_traced(case, &harness, PolicyMode::Written, &mut || memory.take())
         });
         let exchanges = all_exchanges(&trace);
-        let now = world.spent_micro_usd();
+        let now = world.reported_charge();
         let observed = Observed {
             stage_ms: stage_ms(&exchanges),
             case_ms: exchanges.iter().map(|e| e.took_ms).sum(),
-            micro_usd: now.saturating_sub(spent),
+            charge: charged_since(reported, now),
         };
-        spent = now;
+        reported = now;
         tallies.add(case, &result, &observed);
         if trace.judgement == eval_core::Judgement::Missed {
             missed.push(case.id.0.clone());
@@ -258,4 +260,14 @@ pub async fn run_corpus_live(
         traces,
         trace_dir: dir.path().to_owned(),
     })
+}
+
+/// What was reported between two readings of inferd's ledger; `None` when nothing was added, or
+/// the readings are in different currencies (nothing is converted).
+fn charged_since(before: Money, now: Money) -> Option<Money> {
+    if before.currency != now.currency {
+        return None;
+    }
+    let added = now.amount.checked_sub(before.amount)?;
+    (added > Decimal::ZERO).then(|| Money::new(added, now.currency))
 }

@@ -5,7 +5,7 @@ use crate::attack_score::AttackMetrics;
 use crate::case::Corpus;
 use docket_permissions_core::Stage;
 use docket_vocab::Millis;
-use porter_core::MicroUsd;
+use model_provider::Money;
 use porter_ids::{Count, Permille};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -54,8 +54,8 @@ pub struct Metrics {
     pub p95: Millis,
     /// Latency per review stage.
     pub per_stage: BTreeMap<Stage, StageLatency>,
-    /// Model spend per thousand cases.
-    pub cost_per_1000: MicroUsd,
+    /// The charges the providers reported per thousand cases; `None` when none was reported.
+    pub cost_per_1000: Option<Money>,
 }
 
 /// A whole run.
@@ -120,8 +120,11 @@ fn rate(r: &Rate95) -> String {
     format!("{} [{} - {}]", pct(r.point), pct(r.low), pct(r.high))
 }
 
-fn dollars(m: MicroUsd) -> String {
-    format!("${}.{:06}", m.0 / 1_000_000, m.0 % 1_000_000)
+fn charge(m: Option<Money>) -> String {
+    m.map_or_else(
+        || "none reported".to_owned(),
+        |m| format!("{} {}", m.amount.round_dp(4), m.currency.code()),
+    )
 }
 
 impl RunReport {
@@ -152,7 +155,7 @@ impl RunReport {
                 pct(m.approve_rate),
                 m.p50.0,
                 m.p95.0,
-                dollars(m.cost_per_1000)
+                charge(m.cost_per_1000)
             ));
         }
         if let Some(attack) = &self.attack {

@@ -3,7 +3,8 @@
 //! tables to each other, so a row without a reader or a reader without a row fails.
 
 use crate::AgentSettings;
-use porter_core::MicroUsd;
+use model_provider::Money;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::de::value::{Error as DeError, StrDeserializer};
 use serde::de::{DeserializeOwned, IntoDeserializer};
@@ -143,7 +144,8 @@ fn rest() -> Vec<Key> {
             parse_into(&mut s.agents, w)
         }),
         num("agent.budget.spend_microusd", 0..=1_000_000_000, |s, v| {
-            s.agent.budget.spend = MicroUsd(u64::try_from(v).unwrap_or(u64::MAX));
+            // Millionths of a US dollar in the file; 0 is no cap.
+            s.agent.budget.spend = (v > 0).then(|| Money::usd(Decimal::new(v, 6)));
         }),
     ]
 }

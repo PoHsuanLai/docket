@@ -3,7 +3,7 @@
 use crate::spend::{Spent, check_turn};
 use docket_permissions_core::BreakerTrip;
 use docket_vocab::{Depth, Seconds};
-use porter_core::MicroUsd;
+use model_provider::Money;
 use porter_ids::Count;
 use prov::{Effect, SpaceId, UnixSeconds};
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 /// What one session may spend (`STANDARD_BUDGET`; only the spend is a setting). The denial limit
 /// is the breaker's, not a budget.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Budget {
     /// Calls per session (200).
     pub calls: Count,
@@ -31,8 +31,9 @@ pub struct Budget {
     pub wall: Seconds,
     /// Reviews (300).
     pub reviews: Count,
-    /// Spend, shared with inferd's cap.
-    pub spend: MicroUsd,
+    /// The most the charges providers report may reach before the next turn is refused; `None`
+    /// is no session cap.
+    pub spend: Option<Money>,
 }
 
 /// Which budget ran out.
@@ -62,7 +63,7 @@ pub enum BudgetKind {
 }
 
 /// What a session has used so far.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ledger {
     /// When the session started.
     pub started: UnixSeconds,
@@ -97,7 +98,7 @@ impl Ledger {
             reviews: Count(0),
             window_start: now,
             in_window: Count(0),
-            spent: Spent::NONE,
+            spent: Spent::none(),
         }
     }
 }

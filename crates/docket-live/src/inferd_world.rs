@@ -13,6 +13,9 @@ use docket_accept::world::{
 };
 use docket_dbus::BusConnection;
 use docket_testbus::{PrivateBus, Reaped};
+use model_provider::Money;
+use porter_infer::ChargeTotal;
+use rust_decimal::Decimal;
 use std::path::{Path, PathBuf};
 
 /// The running world.
@@ -92,25 +95,30 @@ impl InferdWorld {
         std::fs::read_to_string(self.root().join("logs/inferd.log")).unwrap_or_default()
     }
 
-    /// What the models have cost so far, in micro-dollars, from inferd's own ledger (money and
+    /// The charges the providers have reported so far, from inferd's own ledger (money and
     /// token counts, never content): the largest daily total of any scope, which is the whole
-    /// spend because every request is counted once on its account and once on its app.
-    pub fn spent_micro_usd(&self) -> u64 {
+    /// reported spend because every request is counted once on its account and once on its app.
+    /// Zero US dollars when nothing is reported or the ledger cannot be read.
+    pub fn reported_charge(&self) -> Money {
+        let none = Money::usd(Decimal::ZERO);
         let file: PathBuf = self.root().join(".local/state/quire/inferd/spend.json");
         let Ok(text) = std::fs::read_to_string(file) else {
-            return 0;
+            return none;
         };
         let Ok(doc) = serde_json::from_str::<serde_json::Value>(&text) else {
-            return 0;
+            return none;
         };
         doc["rows"]
             .as_array()
             .into_iter()
             .flatten()
             .filter(|row| row["period"] == "daily")
-            .filter_map(|row| row["spent"]["micro_usd"].as_u64())
-            .max()
-            .unwrap_or(0)
+            .filter_map(|row| {
+                serde_json::from_value::<ChargeTotal>(row["spent"]["charges"].clone()).ok()
+            })
+            .map(|charges| charges.reported)
+            .max_by_key(|reported| reported.amount)
+            .unwrap_or(none)
     }
 
     /// How long a wait may take before a run fails instead of hanging.

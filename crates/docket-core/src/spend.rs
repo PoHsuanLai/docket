@@ -1,9 +1,12 @@
-//! What a session's model turns have cost: tokens by kind, money, and whether the money is
-//! known. Pure; `budget::charge` reads it and `charge_turn` writes it.
+//! What a session's model turns have used: tokens by kind and the charges the providers
+//! reported. Dollars come only from the reply: there is no price table and no estimate. Pure;
+//! `budget::charge` reads it and `charge_turn` writes it.
 
 use crate::budget::{Budget, BudgetKind, Ledger};
-use porter_core::MicroUsd;
+use model_provider::Money;
 use porter_ids::Tokens;
+use porter_infer::ChargeTotal;
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 /// Tokens by kind. `cached` is a share of `input`, as the model reports it.
@@ -36,112 +39,90 @@ impl TokenTotals {
     }
 }
 
-/// Whether the money counted is the whole bill.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Certainty {
-    /// Every turn reported its usage, or was charged its worst case.
-    Known,
-    /// A turn reported nothing and no worst case is known: the cap cannot be trusted.
-    Uncertain,
-}
-
 /// What a session's model turns have used so far.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Spent {
     /// Tokens.
     pub tokens: TokenTotals,
-    /// Money, in millionths of a US dollar.
-    pub cost: MicroUsd,
-    /// Whether `cost` is the whole bill.
-    pub certainty: Certainty,
+    /// The charges the providers reported, and how many turns reported none. Ledgers written
+    /// before this field existed (they held a `cost` and a `certainty`, now ignored) read as
+    /// nothing reported.
+    #[serde(default)]
+    pub charges: ChargeTotal,
 }
 
 impl Spent {
-    /// Nothing used yet.
-    pub const NONE: Self = Self {
-        tokens: TokenTotals::NONE,
-        cost: MicroUsd(0),
-        certainty: Certainty::Known,
-    };
-
-    /// `NONE`, as a serde default for ledgers written before spend was counted.
+    /// Nothing used yet; also the serde default for ledgers written before spend was counted.
     pub fn none() -> Self {
-        Self::NONE
+        Self {
+            tokens: TokenTotals::NONE,
+            charges: ChargeTotal::default(),
+        }
     }
 }
 
-/// What one model turn tells the router about itself.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(tag = "kind", content = "v", rename_all = "snake_case")]
-pub enum TurnReport {
-    /// The model's usage and what it cost at the account's prices.
-    Reported {
-        /// Tokens the turn used.
-        tokens: TokenTotals,
-        /// What they cost.
-        cost: MicroUsd,
-    },
-    /// The model reported no usage. `worst` is the most the turn could have cost, when known
-    /// (its token limits at the account's prices).
-    Missing {
-        /// The most the turn could have cost.
-        worst: Option<MicroUsd>,
-    },
+/// What one model turn tells the router about itself: the tokens it used and the charge the
+/// provider reported. A turn that reported no usage is `TokenTotals::NONE` and no charge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TurnReport {
+    /// Tokens the turn used.
+    pub tokens: TokenTotals,
+    /// What the provider said it cost, if it said.
+    pub charge: Option<Money>,
 }
 
 /// The ledger after one model turn. Always recorded, even if it takes the session over its
-/// cap: the money is spent. A missing report is charged its worst case; with no worst case the
-/// ledger becomes `Uncertain`, which `charge` and `check_turn` refuse.
+/// cap: the money is spent. A turn with no charge is counted as unpriced.
 pub fn charge_turn(ledger: &Ledger, report: &TurnReport) -> Ledger {
     let before = ledger.spent;
-    let spent = match *report {
-        TurnReport::Reported { tokens, cost } => Spent {
-            tokens: before.tokens.plus(tokens),
-            cost: MicroUsd(before.cost.0.saturating_add(cost.0)),
-            certainty: before.certainty,
-        },
-        TurnReport::Missing { worst: Some(worst) } => Spent {
-            cost: MicroUsd(before.cost.0.saturating_add(worst.0)),
-            ..before
-        },
-        TurnReport::Missing { worst: None } => Spent {
-            certainty: Certainty::Uncertain,
-            ..before
-        },
+    let spent = Spent {
+        tokens: before.tokens.plus(report.tokens),
+        charges: before.charges.counting(report.charge),
     };
     Ledger { spent, ..*ledger }
 }
 
-/// Whether the session may spend any more: out when the money counted passes the cap, or when
-/// it cannot be counted.
+/// Whether the session may spend any more: out when the charges reported so far have reached
+/// the cap. A cap never stops the turn in flight, only the next one; an unpriced turn, a session
+/// with no cap and a cap in another currency than the reports never fail it.
 pub fn check_turn(ledger: &Ledger, budget: &Budget) -> Result<(), BudgetKind> {
-    let over = ledger.spent.cost > budget.spend;
-    match (over, ledger.spent.certainty) {
-        (false, Certainty::Known) => Ok(()),
-        _ => Err(BudgetKind::Spend),
+    let reported = ledger.spent.charges.reported;
+    match budget.spend {
+        Some(cap) if cap.currency == reported.currency && reported.amount >= cap.amount => {
+            Err(BudgetKind::Spend)
+        }
+        _ => Ok(()),
     }
 }
 
 /// A task's model spend, as the roster shows it: typed numbers for the shell to word.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskTotals {
     /// Tokens used, by kind.
     pub tokens: TokenTotals,
-    /// Money used, in millionths of a US dollar.
-    pub cost: MicroUsd,
-    /// Money left under the session's spend cap (zero when it is out).
-    pub remaining: MicroUsd,
-    /// Whether `cost` is the whole bill.
-    pub certainty: Certainty,
+    /// The charges reported, and the turns that reported none.
+    pub charges: ChargeTotal,
+    /// Money left under the session's spend cap (zero when it is out); `None` when there is no
+    /// cap, or the reports are in another currency than the cap.
+    pub remaining: Option<Money>,
 }
 
 /// The totals of a session's ledger under its budget.
 pub fn totals_of(ledger: &Ledger, budget: &Budget) -> TaskTotals {
+    let charges = ledger.spent.charges;
+    let remaining = budget
+        .spend
+        .filter(|cap| cap.currency == charges.reported.currency)
+        .map(|cap| {
+            let left = cap.amount.checked_sub(charges.reported.amount);
+            Money::new(
+                left.unwrap_or(Decimal::ZERO).max(Decimal::ZERO),
+                cap.currency,
+            )
+        });
     TaskTotals {
         tokens: ledger.spent.tokens,
-        cost: ledger.spent.cost,
-        remaining: MicroUsd(budget.spend.0.saturating_sub(ledger.spent.cost.0)),
-        certainty: ledger.spent.certainty,
+        charges,
+        remaining,
     }
 }

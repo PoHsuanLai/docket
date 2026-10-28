@@ -13,15 +13,15 @@ use prov::SessionId;
 pub enum TurnBudget {
     /// The session may take another turn.
     Within,
-    /// It may not: this budget is out (`Spend`, past the cap or uncounted).
+    /// It may not: this budget is out (`Spend`: the reported charges have reached the cap).
     Over(BudgetKind),
     /// The router holds no such session.
     NoSession,
 }
 
 impl<S: Seams> Router<S> {
-    /// Counts one model turn against the session: its tokens and cost, or, when the model
-    /// reported nothing, the worst case it could have cost. The turn is recorded even if it takes
+    /// Counts one model turn against the session: its tokens and the charge the provider
+    /// reported, if it did (a turn with none is counted as unpriced). The turn is recorded even if it takes
     /// the session over its cap (the money is spent); the answer says whether another turn may
     /// start. The ledger is written to the session's record so a restore keeps the spend.
     pub fn note_turn_usage(&self, session: &SessionId, report: &TurnReport) -> TurnBudget {
