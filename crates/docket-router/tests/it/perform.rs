@@ -571,7 +571,7 @@ fn usd(cents: i64) -> model_provider::Money {
 }
 
 #[tokio::test]
-async fn model_spend_reaching_the_cap_stops_the_next_call_and_unpriced_turns_never_do() {
+async fn model_spend_over_the_cap_stops_the_next_call_and_unpriced_turns_never_do() {
     let tokens = TokenTotals {
         input: porter_ids::Tokens(10),
         output: porter_ids::Tokens(5),
@@ -597,7 +597,7 @@ async fn model_spend_reaching_the_cap_stops_the_next_call_and_unpriced_turns_nev
                 tokens,
                 charge: Some(usd(500)),
             },
-            Some(BudgetKind::Spend),
+            None,
         ),
         (
             "a turn within the cap",
@@ -636,16 +636,25 @@ async fn model_spend_reaching_the_cap_stops_the_next_call_and_unpriced_turns_nev
             None => assert!(got.is_ok(), "{name}: {got:?}"),
         }
     }
-    // The default has no cap: a charged turn is counted and nothing stops the next one.
+    // The default cap is nothing: any reported charge stops the next turn, and a turn with no
+    // charge never does.
     let router = router();
     let s = ready(&router).await;
+    let unpriced = TurnReport {
+        tokens,
+        charge: None,
+    };
+    assert_eq!(
+        router.note_turn_usage(&s.session, &unpriced),
+        docket_router::TurnBudget::Within
+    );
     let paid = TurnReport {
         tokens,
-        charge: Some(usd(1_000_000)),
+        charge: Some(usd(1)),
     };
     assert_eq!(
         router.note_turn_usage(&s.session, &paid),
-        docket_router::TurnBudget::Within
+        docket_router::TurnBudget::Over(BudgetKind::Spend)
     );
 }
 

@@ -111,7 +111,8 @@ pub struct PlannerReply {
 /// use docket_core::*;
 /// use docket_fake::WordsModel;
 /// use docket_planner::PlannerModel;
-/// use porter_core::{AppName, Count};
+/// use porter_core::AppName;
+/// use porter_ids::Count;
 /// use prov::Integrity;
 ///
 /// let view = assemble(

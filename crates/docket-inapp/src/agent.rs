@@ -179,7 +179,8 @@ where
 /// # use docket_core::{AgentConfig, ConfirmRequest, ContextScope, ContextSnapshot};
 /// # use docket_core::{Here, Selection, TextTarget, Visible, WindowPrivacy};
 /// # use docket_fake::{FakeFiles, FixedClock, ScriptedReviewer, WordsModel, files_manifest};
-/// # use porter_core::{AppName, Count};
+/// # use porter_core::AppName;
+/// # use porter_ids::Count;
 /// # use prov::{Label, Labelled, SpaceId, UnixSeconds};
 /// use docket_host::ConfirmSheet;
 /// use docket_session::SheetChoice;

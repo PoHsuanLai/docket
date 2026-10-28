@@ -13,7 +13,7 @@ use prov::SessionId;
 pub enum TurnBudget {
     /// The session may take another turn.
     Within,
-    /// It may not: this budget is out (`Spend`: the reported charges have reached the cap).
+    /// It may not: this budget is out (`Spend`: the reported charges have gone over the cap).
     Over(BudgetKind),
     /// The router holds no such session.
     NoSession,
