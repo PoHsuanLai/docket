@@ -37,8 +37,8 @@ use agent_client_protocol::schema::v1::{
 };
 use bulkhead::AbsPath;
 use bulkhead::Sandbox;
+use companion_model::helper::SignInWay;
 use docket_core::UserTurn;
-use docket_core::helper::SignInWay;
 use docket_permissions_core::PermissionKind;
 use docket_permissions_core::ProgramName;
 use docket_session::{

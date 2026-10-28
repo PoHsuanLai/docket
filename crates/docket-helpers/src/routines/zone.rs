@@ -2,7 +2,7 @@
 //! touches the system for it; everything below is handed a [`Zone`].
 
 use chrono::{DateTime, Local, TimeZone};
-use docket_core::routine::Zone;
+use companion_model::routine::Zone;
 use prov::UnixSeconds;
 
 /// The system's zone.

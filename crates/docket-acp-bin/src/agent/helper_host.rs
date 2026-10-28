@@ -14,13 +14,13 @@ use super::fault::AgentFault;
 use super::helper_hosts::{HelperHosts, folder_of};
 use super::live::Live;
 use super::logout::EntryLogout;
-use docket_acp_host::{HelperAgent, HelperAgents};
-use docket_core::helper::{
+use companion_model::helper::{
     AgentApps, AgentOutcome, AppsAsk, AppsReply, BackOutcome, BroughtOutcome, CheckOutcome,
     HandFault, HelperCard, JobFault, SignInOutcome, SignOutOutcome, TerminalHand, TerminalLogin,
     ToTerminalOutcome,
 };
-use docket_core::{SeenCommand, WatchedAgent};
+use companion_model::{SeenCommand, WatchedAgent};
+use docket_acp_host::{HelperAgent, HelperAgents};
 use docket_launch::dbus::DbusAccounts;
 use docket_permissions_core::ProgramName;
 use docket_vocab::Workspace;

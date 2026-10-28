@@ -2,8 +2,8 @@
 //! the launcher as another, a scripted planner model, and a clock the test moves by hand.
 
 use super::infer::{Say, ScriptedInfer};
+use companion_model::helper::HelperCard;
 use docket_client::{InProcess, Intents};
-use docket_core::helper::HelperCard;
 use docket_core::*;
 use docket_fake::{FakeSeams, FixedClock, MailContact, MailThread, fake_router};
 use docket_helpers::{Hub, TokioSpawn};

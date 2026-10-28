@@ -6,7 +6,7 @@
 
 use super::host::Host;
 use companion_core::{EventWatch, Settle, ended_events, event_asks, group_by_space};
-use docket_core::routine::{
+use companion_model::routine::{
     RoutineBook, RoutineEffect, RoutineEvent, RoutineId, RoutineRecord, step,
 };
 use docket_vocab::{Clock, Millis};

@@ -1,7 +1,7 @@
 //! Which agent-app helpers are signed in, and the ways of signing in the app listed for those
 //! that are not. An app has one login, so every helper that runs the same app shares it.
 
-use docket_core::helper::{Board, HelperState, Need, SignInWay};
+use companion_model::helper::{Board, HelperState, Need, SignInWay};
 use prov::{AgentProgram, HelperId};
 use std::collections::{BTreeMap, BTreeSet};
 

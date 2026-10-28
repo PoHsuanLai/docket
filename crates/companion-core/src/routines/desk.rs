@@ -2,9 +2,9 @@
 
 use crate::refusal::Refusal;
 use almanac_core::KindPattern;
+use companion_model::helper::GoalText;
+use companion_model::routine::{EventMatch, JobRef, NewRoutine, RunBudget, Schedule, Trigger};
 use companion_wire::{EventForm, RoutineForm, WhenForm};
-use docket_core::helper::GoalText;
-use docket_core::routine::{EventMatch, JobRef, NewRoutine, RunBudget, Schedule, Trigger};
 use porter_core::Count;
 
 fn event_of(form: EventForm) -> Result<EventMatch, Refusal> {

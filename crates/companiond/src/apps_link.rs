@@ -7,12 +7,12 @@
 //! running. A host that cannot be reached answers every call as the failure it is, so a helper
 //! says so and the others go on.
 
-use docket_core::helper::{
+use companion_model::helper::{
     AgentApps, AgentOutcome, AgentPending, AppsAsk, AppsReply, BackOutcome, BroughtOutcome,
     CheckOutcome, HandFault, HelperCard, Job, JobFault, SignInOutcome, SignInWay, SignOutOutcome,
     ToTerminalOutcome,
 };
-use docket_core::{SeenCommand, WatchedAgent};
+use companion_model::{SeenCommand, WatchedAgent};
 use docket_dbus::{AgentHostProxy, BusConnection};
 use docket_vocab::Workspace;
 use prov::{HelperId, SessionId};

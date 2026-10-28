@@ -3,7 +3,7 @@
 
 use crate::conclude::{Answer, Hold};
 use crate::job::JobInput;
-use docket_core::helper::{Job, JobId};
+use companion_model::helper::{Job, JobId};
 use prov::SessionId;
 use std::collections::{BTreeMap, VecDeque};
 

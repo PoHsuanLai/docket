@@ -2,7 +2,7 @@
 //! The runner that opens the session and drives the loop is `docket-tasks`'; the board's rules
 //! for the report are `conclude`'s.
 
-use docket_core::helper::{CallVerdict, HelperCard, Job, JobFault, SignInWay};
+use companion_model::helper::{CallVerdict, HelperCard, Job, JobFault, SignInWay};
 use prov::{EntityId, SessionId, TaskId};
 
 /// An earlier job's answer, handed to a job as data: the session the answer was given in, and its

@@ -5,9 +5,9 @@
 
 use crate::support::*;
 use bulkhead::AbsPath;
+use companion_model::helper::{HelperName, JobId};
 use companion_wire::{JobLine, JobShown, ToldWire};
 use docket_acp::{ConversationTurns, HelperRefusal, HelperRow, Helpers};
-use docket_core::helper::{HelperName, JobId};
 use docket_core::{
     Anchor, AppRefusal, CallRefusal, ConfirmDetail, ConfirmId, ConfirmOffer, ConfirmParts,
     ConfirmRequest, FailText, Gesture, StepEnd, TaintNote, TurnSource, UserTurn,

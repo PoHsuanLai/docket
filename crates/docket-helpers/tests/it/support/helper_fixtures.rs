@@ -3,9 +3,9 @@
 
 use crate::support::world::*;
 use almanac_core::{EventRef, EventSummary, JsonText, KindTag, RecentEntry, ReplicaId, Seq};
+use companion_model::helper::*;
 use companion_wire::{HelperForm, SayReply};
 use docket_client::{InProcess, Intents};
-use docket_core::helper::*;
 use docket_core::{AuditRecord, CallerRole, TurnIn, TurnSource, TurnVia};
 use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_tasks::{HelperDesk, SayFromPerson};

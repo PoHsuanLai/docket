@@ -3,8 +3,8 @@
 
 use crate::calls;
 use agent_client_protocol::schema::v1::SessionUpdate;
+use companion_model::helper::HelperName;
 use companion_wire::{JobLine, JobShown};
-use docket_core::helper::HelperName;
 
 /// How many of the latest jobs a load replays.
 const RECENT: usize = 5;

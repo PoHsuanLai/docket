@@ -4,6 +4,7 @@
 
 use crate::acp_agent::{host, program};
 use crate::support::*;
+use companion_model::{AppSessionId, HandTo, WatchOwner, WatchedAgent, WatchedLine, Watching};
 use docket_checkpoint::{CheckpointStore, DropAsk, Tracking, WorkRoot};
 use docket_core::*;
 use docket_fake::FakeSeams;

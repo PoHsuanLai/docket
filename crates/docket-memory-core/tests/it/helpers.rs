@@ -2,8 +2,8 @@
 //! of the helper.
 
 use almanac_core::{AreaTag, EventBody, JsonText};
+use companion_model::helper::HelperRecordKind;
 use docket_core::AuditRecord;
-use docket_core::helper::HelperRecordKind;
 use docket_memory_core::{kind_tag_of, record_of};
 use prov::{SpaceId, UnixSeconds};
 

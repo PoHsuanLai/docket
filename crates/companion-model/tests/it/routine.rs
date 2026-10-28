@@ -5,8 +5,8 @@
 use crate::helper::hid;
 use crate::support::*;
 use almanac_core::{EventRef, KindPattern, ReplicaId, Seq};
-use docket_core::helper::{GoalText, HelperRecord, HelperRecordKind, JobFault, JobId};
-use docket_core::routine::*;
+use companion_model::helper::{GoalText, HelperRecord, HelperRecordKind, JobFault, JobId};
+use companion_model::routine::*;
 use porter_core::Count;
 use prov::HelperId;
 

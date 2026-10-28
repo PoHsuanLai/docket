@@ -20,6 +20,7 @@ path = "src/lib.rs"
 [dependencies]
 agent-client-protocol = { workspace = true }
 agents-core = { workspace = true }
+companion-model = { workspace = true }
 docket-acp = { workspace = true }
 # `fake` is public (`docket_launch::fake`), and builds on the host's in-memory pipe.
 docket-acp-host = { workspace = true, features = ["testing"] }

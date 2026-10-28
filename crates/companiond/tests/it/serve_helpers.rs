@@ -5,13 +5,13 @@
 use crate::serve::{block, introspect};
 use crate::support::bus::PrivateBus;
 use crate::support::world::*;
+use companion_model::helper::{Ceiling, HelperModel, HelperName, Role};
+use companion_model::routine::RoutineId;
 use companion_wire::{
     BroughtBack, HelperForm, HelperReply, HelpersView, RoutineCardView, RoutineForm, RoutineReply,
     RoutinesView, TerminalSession,
 };
 use companiond::{serve_on_rooted, serve_with_routines};
-use docket_core::helper::{Ceiling, HelperModel, HelperName, Role};
-use docket_core::routine::RoutineId;
 use docket_dbus::{
     Bus, COMPANION_PATH, CompanionHelpers2Proxy, CompanionHelpersProxy, CompanionTerminalsProxy,
     introspection,

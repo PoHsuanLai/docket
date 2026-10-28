@@ -16,8 +16,9 @@
 use super::backend::Seams;
 use super::host::AgentHost;
 use super::spawn::SignIn;
-use docket_core::helper::{HandFault, SignInHow, SignInWay, TerminalLogin, UntrustedWords};
-use docket_core::{AppSessionId, Reveal, TurnSource, TurnVia, UserTurn, WatchedAgent};
+use companion_model::helper::{HandFault, SignInHow, SignInWay, TerminalLogin, UntrustedWords};
+use companion_model::{AppSessionId, WatchedAgent};
+use docket_core::{Reveal, TurnSource, TurnVia, UserTurn};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, HostFault, Opening, SessionHost, SheetDesk, TurnEnd,
 };

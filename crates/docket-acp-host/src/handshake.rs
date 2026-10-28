@@ -20,7 +20,7 @@ use agent_client_protocol::schema::v1::{
 };
 use agent_client_protocol::{SentRequest, UntypedMessage};
 use bulkhead::AbsPath;
-use docket_core::helper::{SignInHow, SignInWay, TerminalLogin};
+use companion_model::helper::{SignInHow, SignInWay, TerminalLogin};
 use docket_session::{BackendFault, Choice, Choices, Taint};
 use std::path::PathBuf;
 

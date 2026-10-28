@@ -6,12 +6,12 @@ use super::host::Host;
 use super::scheduler::Routines;
 use crate::words::sentence;
 use companion_core::{Refusal, new_routine};
+use companion_model::helper::HelperName;
+use companion_model::routine::{Routine, RoutineEvent, RoutineId};
 use companion_wire::{
     RoutineCardView, RoutineForm, RoutineLine, RoutineReply, RoutinesView, routine_card,
     routine_line,
 };
-use docket_core::helper::HelperName;
-use docket_core::routine::{Routine, RoutineEvent, RoutineId};
 use docket_tasks::Pending;
 use docket_vocab::Clock;
 use std::fmt;

@@ -6,13 +6,13 @@ use crate::serve_helpers::EmptyRoutines;
 use crate::support::bus::PrivateBus;
 use crate::support::infer::{ScriptedInfer, words};
 use crate::support::world::*;
+use companion_model::helper::{Ceiling, HelperModel, HelperName, Role};
+use companion_model::routine::RoutineId;
 use companion_wire::{
     HelperForm, HelperReply, HelpersView, RoutineCardView, RoutineForm, RoutineProposal,
     RoutineReply, RoutinesView, SayReply,
 };
 use companiond::serve_with_routines;
-use docket_core::helper::{Ceiling, HelperModel, HelperName, Role};
-use docket_core::routine::RoutineId;
 use docket_core::*;
 use docket_dbus::CompanionHelpers2Proxy;
 use docket_helpers::RoutineDesk;
@@ -162,7 +162,7 @@ async fn a_proposed_routine_waits_for_the_shell_to_accept_or_decline_it() {
     assert_eq!(reply, RoutineReply::Made(RoutineId(1)));
     let made = routines.made.lock().expect("made").clone();
     assert_eq!(made.len(), 1);
-    assert_eq!(made[0].missed, docket_core::routine::Missed::Skip);
+    assert_eq!(made[0].missed, companion_model::routine::Missed::Skip);
     assert_eq!(made[0].goal, "Look up the news.");
 
     // Declining removes the other and makes nothing; a proposal already answered is not there.

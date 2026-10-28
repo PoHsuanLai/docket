@@ -334,8 +334,8 @@ impl docket_tasks::Voices for Everyone {
 #[tokio::test]
 async fn a_turn_in_a_helpers_conversation_asks_as_the_helper_and_in_its_role() {
     let helper: prov::HelperId = serde_json::from_str("\"h-1\"").expect("helper id");
-    let name = docket_core::helper::HelperName::parse("Inbox").expect("name");
-    let model = docket_core::helper::HelperModel::Unset;
+    let name = companion_model::helper::HelperName::parse("Inbox").expect("name");
+    let model = companion_model::helper::HelperModel::Unset;
     let voice = docket_tasks::conversation_voice(&helper, &name, "Tidies the mail.", &model)
         .expect("a voice");
     let mut w = World::new(vec![words("All tidy.")]);

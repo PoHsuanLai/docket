@@ -131,11 +131,11 @@ pub struct SessionRecord {
     /// The helper whose job the session is for: its reach cuts the session's policy, and the
     /// things the job owns are written by no other session while it lives. Said by the companion
     /// when it opened the session.
-    pub helper: Option<docket_core::helper::HelperSeat>,
+    pub helper: Option<companion_model::helper::HelperSeat>,
     /// The agent app's own id for the conversation, while the session is a watch session that
     /// came from an agent app (a terminal named it, or the host handed the conversation to a
     /// terminal). Said by the host or the terminal, never read from a model.
-    pub agent_session: Option<docket_core::AppSessionId>,
+    pub agent_session: Option<companion_model::AppSessionId>,
 }
 
 impl SessionRecord {
@@ -192,7 +192,7 @@ impl SessionRecord {
             && self
                 .helper
                 .as_ref()
-                .is_some_and(|seat| seat.place == docket_core::helper::SeatPlace::Conversation)
+                .is_some_and(|seat| seat.place == companion_model::helper::SeatPlace::Conversation)
     }
 
     /// Notes things the router showed this session, so a name for one is not a model's

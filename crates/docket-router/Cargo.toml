@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 bulkhead = { workspace = true }
+companion-model = { workspace = true }
 docket-checkpoint = { workspace = true }
 docket-core = { workspace = true }
 docket-manifest = { workspace = true, features = ["manifest-file"] }

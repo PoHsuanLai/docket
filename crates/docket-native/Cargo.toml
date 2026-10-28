@@ -23,6 +23,7 @@ futures-util = { workspace = true }
 prov = { workspace = true }
 
 [dev-dependencies]
+companion-model = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 docket-client = { workspace = true, features = ["in_process"] }
 docket-fake = { workspace = true }

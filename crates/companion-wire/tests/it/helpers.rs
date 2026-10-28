@@ -1,7 +1,7 @@
 //! The helpers on the wire: the list the shell shows, a card, and the words in them.
 
+use companion_model::helper::*;
 use companion_wire::*;
-use docket_core::helper::*;
 use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_vocab::LabelText;
 use porter_core::Count;

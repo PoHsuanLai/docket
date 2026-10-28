@@ -9,9 +9,8 @@
 //! the router should be asked to weigh.
 
 use crate::call::AgentCall;
-use docket_core::{
-    CallRefusal, ExternalAgent, HandTo, Outcome, Rewind, SheetSurface, TurnEnd, WatchedAgent,
-};
+use companion_model::{HandTo, WatchedAgent};
+use docket_core::{CallRefusal, ExternalAgent, Outcome, Rewind, SheetSurface, TurnEnd};
 use docket_manifest::ValidManifest;
 use docket_permissions_core::ProgramName;
 use docket_vocab::Workspace;

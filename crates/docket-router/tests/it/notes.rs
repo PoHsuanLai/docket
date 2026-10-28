@@ -87,7 +87,7 @@ async fn a_record_of_the_companions_session_is_kept_for_the_sessions_own_space()
 
 #[tokio::test]
 async fn a_record_of_the_helpers_is_kept_for_the_sessions_space_under_its_own_kind() {
-    use docket_core::helper::HelperRecordKind;
+    use companion_model::helper::HelperRecordKind;
     let router = router();
     let s = open(&router, "work", AgentRef::Companion).await;
     let json = JsonText::parse(r#"{"kind":"removed","v":"h-1"}"#).expect("json");

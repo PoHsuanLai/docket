@@ -4,8 +4,8 @@
 //! daemon passes the hub's; a test passes a fake that records what it was asked.
 
 use companion_core::{Awake, EventAsk, Seen, UnitFile};
-use docket_core::helper::{HelperName, JobId};
-use docket_core::routine::{JobEnd, RoutineRecord, RunRequest, Zone};
+use companion_model::helper::{HelperName, JobId};
+use companion_model::routine::{JobEnd, RoutineRecord, RunRequest, Zone};
 use prov::{HelperId, SpaceId, UnixSeconds};
 use std::future::Future;
 

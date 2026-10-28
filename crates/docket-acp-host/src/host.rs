@@ -17,9 +17,8 @@ use super::backend::{AcpBackend, Seams};
 use super::running::RunningTurn;
 use acp_core::cause::Step;
 use acp_core::court::{Court, OpenAgent};
-use docket_core::{
-    ConfirmId, HandTo, Rewind, SheetSurface, TurnEnd as Ended, UserTurn, WatchedAgent,
-};
+use companion_model::{HandTo, WatchedAgent};
+use docket_core::{ConfirmId, Rewind, SheetSurface, TurnEnd as Ended, UserTurn};
 use docket_session::{
     BackendEvent, BackendFault, BackendKind, EndCause, HostFault, Opening, ResumePlan,
     SessionBackend, SessionExport, SessionHost, SheetChoice, SheetDesk, StartSession, TurnEnd,

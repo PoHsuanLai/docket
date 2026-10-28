@@ -13,7 +13,6 @@ use crate::checkpoint::{
 use crate::confirm::ConfirmEnd;
 use crate::context::{ContextView, Reveal};
 use crate::gate::{CuaAsk, GateAnswer};
-use crate::hand::{HandTo, WatchedAgent, WatchedLine, Watching};
 use crate::index::{Hit, IndexBatch, SearchAsk, SuggestAsk};
 use crate::message::{Delivery, InboundLine, InboxAsk, MessageDraft, SendRefusal};
 use crate::planner::TurnIn;
@@ -27,6 +26,7 @@ use crate::undo::{UndoEntry, UndoFault, UndoScope};
 use almanac_core::{
     Episode, EpisodeId, EventSummary, InjectQuery, JsonText, Narrative, RecentQuery,
 };
+use companion_model::{HandTo, WatchedAgent, WatchedLine, Watching};
 use docket_permissions_core::TaskPolicy;
 use docket_vocab::{
     ActionRef, CallRequest, EntityRef, Handle, IntentsVocab, NoteSlug, TurnId, UndoId, Value,
@@ -146,7 +146,7 @@ pub struct SessionNote {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HelperNote {
     /// Which kind of record.
-    pub kind: crate::helper::HelperRecordKind,
+    pub kind: companion_model::helper::HelperRecordKind,
     /// The record's serde JSON.
     pub json: JsonText,
 }

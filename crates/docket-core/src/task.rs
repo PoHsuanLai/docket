@@ -87,7 +87,7 @@ pub struct SessionOpen {
     /// said by the companion; the router keeps it only from the `companion` role and ignores it
     /// from anyone else.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub helper: Option<crate::helper::HelperSeat>,
+    pub helper: Option<companion_model::helper::HelperSeat>,
     /// The conversation a screen run works for, said by the computer-use daemon when it opens the
     /// run's session, so the run follows that conversation's mode. The router keeps it only from
     /// the `cua` role, for a run's own session, and only for a conversation in the same Space.

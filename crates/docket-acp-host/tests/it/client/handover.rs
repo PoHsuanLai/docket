@@ -6,13 +6,14 @@
 use super::agent::{AGENT_SESSION, Act, Auth, Offer, Resumes, View, agent_resuming, say};
 use super::rig::{CWD, Setup, opening, program, wired_over};
 use super::world::{Fakes, TheCourt};
+use companion_model::helper::HandFault;
+use companion_model::{AppSessionId, WatchedAgent};
 use docket_acp_host::fake::{FakeFiles, FakeSpawn};
 use docket_acp_host::{
     AcpBackend, AgentEnd, AgentHost, Fallback, HelperAgent, Hosts, Parts, Start,
 };
 use docket_client::{InProcess, Intents};
-use docket_core::helper::HandFault;
-use docket_core::{AppSessionId, CallerId, CallerRole, WatchedAgent};
+use docket_core::{CallerId, CallerRole};
 use docket_host::EditorDesk;
 use docket_session::Opening;
 use prov::{SessionId, UnixSeconds};

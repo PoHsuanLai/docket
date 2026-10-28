@@ -1,14 +1,15 @@
 //! The desk: how the task model reaches the helpers companiond owns. The board is not here (it is
-//! `docket_core::helper`'s, and companiond owns it); this is the seam a host passes in so that
+//! `companion_model::helper`'s, and companiond owns it); this is the seam a host passes in so that
 //! the planner's two helper actions and the shell's helper calls reach it. A host with no helpers
 //! passes none, and the actions are refused.
 
+use companion_model::helper::{Ceiling, GoalOrigin};
+use companion_model::{SeenCommand, WatchedAgent};
 use companion_wire::{
     BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineProposal,
     SayReply, TerminalSession,
 };
-use docket_core::helper::{Ceiling, GoalOrigin};
-use docket_core::{HelperRosterLine, SeenCommand, TurnSource, WatchedAgent};
+use docket_core::{HelperRosterLine, TurnSource};
 use docket_vocab::TurnId;
 use prov::{EntityId, HelperId, SessionId, SpaceId, TaskId};
 use std::fmt;

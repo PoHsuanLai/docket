@@ -3,8 +3,8 @@
 //! routines' desk, so the wire's plain-sentence refusals read as they always have.
 
 use companion_core::Refusal;
+use companion_model::helper::ReachFault;
 use companion_wire::HelperReply;
-use docket_core::helper::ReachFault;
 
 fn reach_sentence(fault: &ReachFault) -> String {
     match fault {

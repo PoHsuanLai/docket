@@ -5,7 +5,7 @@
 
 use super::helper_agent::{AgentEnd, Away, HelperAgent, Hosts, SignInStep, SignOutStep, Trouble};
 use super::isolate::{Caught, caught};
-use docket_core::helper::{
+use companion_model::helper::{
     AgentApps, AgentOutcome, AgentPending, CheckOutcome, HandFault, HelperCard, Job, JobFault,
     SignInOutcome, SignInWay, SignOutOutcome,
 };

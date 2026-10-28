@@ -7,7 +7,7 @@
 //! computer-use daemon touches only the session its own app opened).
 
 use crate::{Opening, ResumePlan};
-use docket_core::helper::SeatPlace;
+use companion_model::helper::SeatPlace;
 use docket_core::{CallerRole, StartedFrom};
 use prov::AppName;
 

@@ -18,6 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 bulkhead = { workspace = true }
+companion-model = { workspace = true }
 docket-checkpoint-git = { workspace = true }
 docket-permissions-core = { workspace = true }
 porter-dbus = { workspace = true }

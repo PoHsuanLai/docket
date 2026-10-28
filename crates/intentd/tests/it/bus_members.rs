@@ -369,15 +369,15 @@ async fn every_member_over_the_bus_answers_what_the_router_answers() {
         workspace: Workspace::parse("/tmp/watched").expect("workspace"),
         label: "an agent in pane 2".into(),
         rewind: Rewind::Docket,
-        agent: docket_core::WatchedAgent {
+        agent: companion_model::WatchedAgent {
             program: docket_permissions_core::ProgramName::parse("claude-code").expect("program"),
-            session: docket_core::AppSessionId::parse("0a1b-2c3d").expect("id"),
+            session: companion_model::AppSessionId::parse("0a1b-2c3d").expect("id"),
         },
     })
     .await;
     pair.both(IntentsRequest::CheckpointHandover {
         session: SessionId::parse("s-none").expect("session"),
-        to: docket_core::HandTo::Desktop,
+        to: companion_model::HandTo::Desktop,
         agent: None,
     })
     .await;

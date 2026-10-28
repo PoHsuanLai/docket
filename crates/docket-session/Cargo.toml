@@ -14,6 +14,7 @@ publish.workspace = true
 testing = []
 
 [dependencies]
+companion-model = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-permissions-core = { workspace = true }

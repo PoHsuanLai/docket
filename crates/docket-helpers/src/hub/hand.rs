@@ -9,15 +9,15 @@
 use super::owner::Hub;
 use crate::words::{refused, sentence};
 use companion_core::{Refusal, terminal_sessions, why_not_to_terminal};
+use companion_model::helper::{
+    BackOutcome, BoardEvent, BroughtOutcome, HandFault, HelperCard, JobRefusal, TerminalLogin,
+    TerminalRequest, ToTerminalOutcome,
+};
+use companion_model::{SeenCommand, WatchedAgent};
 use companion_wire::{
     BroughtBack, Handover, HelperCardView, HelperLine, HelperReply, RunsIn, TerminalSession,
 };
 use docket_client::Transport as IntentsTransport;
-use docket_core::helper::{
-    BackOutcome, BoardEvent, BroughtOutcome, HandFault, HelperCard, JobRefusal, TerminalLogin,
-    TerminalRequest, ToTerminalOutcome,
-};
-use docket_core::{SeenCommand, WatchedAgent};
 use docket_planner::Planner;
 use docket_tasks::Surface;
 use docket_vocab::Clock;

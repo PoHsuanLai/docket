@@ -1,7 +1,8 @@
 //! `Checkpoint`: a session's restore points and what restoring one changes.
 
 use super::{Gateway, json, parsed};
-use docket_core::{CheckpointId, IntentsReply, IntentsRequest, WatchedAgent};
+use companion_model::WatchedAgent;
+use docket_core::{CheckpointId, IntentsReply, IntentsRequest};
 use docket_dbus::IntentsError;
 use docket_vocab::{TurnId, Workspace};
 use prov::SessionId;

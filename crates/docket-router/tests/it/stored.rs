@@ -253,7 +253,7 @@ async fn a_fork_is_written_by_the_router_for_whoever_may_bring_the_parent_back()
 #[tokio::test]
 async fn an_editor_reads_a_helpers_conversation_the_companion_opened_but_not_a_job_and_cannot_fork_it()
  {
-    use docket_core::helper::{HelperName, HelperSeat, SeatPlace};
+    use companion_model::helper::{HelperName, HelperSeat, SeatPlace};
     let router = router();
     let zed = caller("org.zed.Zed", CallerRole::Editor);
     let seat = |place| HelperSeat {

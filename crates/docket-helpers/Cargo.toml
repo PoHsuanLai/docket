@@ -12,6 +12,7 @@ publish.workspace = true
 almanac-core = { workspace = true }
 chrono = { workspace = true, features = ["clock"] }
 companion-core = { workspace = true }
+companion-model = { workspace = true }
 companion-wire = { workspace = true }
 docket-client = { workspace = true }
 docket-core = { workspace = true }

@@ -1,7 +1,7 @@
 //! How a job's end is told to the board.
 
 use companion_core::{Answer, Finished, Hold, JobEnding, JobReport, OpenedJob, conclude};
-use docket_core::helper::{BoardEvent, JobFault, JobId, ResultHandle};
+use companion_model::helper::{BoardEvent, JobFault, JobId, ResultHandle};
 use prov::{SessionId, TaskId};
 
 fn opened() -> OpenedJob {

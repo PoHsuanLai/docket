@@ -16,15 +16,14 @@
 mod book;
 mod kept;
 mod schedule;
+mod shapes;
 mod trigger;
 
-pub use book::{
-    JobEnd, LATE, NewRoutine, RoutineBook, RoutineEffect, RoutineEvent, RoutineNotice,
-    RoutineRecord, RunRequest, TimerEntry, step,
-};
+pub use book::{LATE, RoutineBook, RoutineEffect, RoutineEvent, TimerEntry, step};
 pub use kept::{
     MOST_RUNS, Missed, Routine, RoutineId, RoutinePause, RoutineState, RunBudget, RunOutcome,
     RunRecord,
 };
 pub use schedule::{Hours, Schedule, ScheduleFault, TimeOfDay, Zone};
+pub use shapes::{JobEnd, NewRoutine, RoutineNotice, RoutineRecord, RunRequest};
 pub use trigger::{EventMatch, JobRef, Trigger};

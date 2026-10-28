@@ -3,7 +3,7 @@
 //! read `agents.toml`; the host that can answers for it.
 
 use crate::config::{AgentsFile, Entry, SESSION_MARK};
-use docket_core::{AppSessionId, SeenCommand, WatchedAgent};
+use companion_model::{AppSessionId, SeenCommand, WatchedAgent};
 use std::path::Path;
 
 /// How one word of a command line stands to one argument of a resume template.

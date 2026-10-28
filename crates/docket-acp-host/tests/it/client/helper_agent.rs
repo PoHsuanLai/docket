@@ -8,13 +8,13 @@ use super::rig::{
     CWD, Setup, Wired, abs, always, once, opening, program, read, tool, wired_over, write,
 };
 use super::world::{Fakes, World};
+use companion_model::helper::{
+    AgentApps, AgentOutcome, CardDraft, GoalSource, GoalText, HelperBudget, HelperCard, HelperKind,
+    HelperModel, HelperName, Job, JobId, JobStatus, Role, SignInHow, SignInWay,
+};
 use docket_acp_host::fake::{FakeFiles, SpawnSeen};
 use docket_acp_host::{
     AgentEnd, AgentHost, HelperAgent, HelperAgents, Hosts, SignInStep, SignOutStep, Start, Trouble,
-};
-use docket_core::helper::{
-    AgentApps, AgentOutcome, CardDraft, GoalSource, GoalText, HelperBudget, HelperCard, HelperKind,
-    HelperModel, HelperName, Job, JobId, JobStatus, Role, SignInHow, SignInWay,
 };
 use docket_host::EditorDesk;
 use docket_permissions_core::{ActionMatch, GrantCaller, TaskPolicy, TaskPolicyState};

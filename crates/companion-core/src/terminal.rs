@@ -3,9 +3,9 @@
 //! it, and which conversations a terminal started that they can bring in. While a conversation is
 //! in the terminal its helper is paused, so no job reaches the app.
 
+use companion_model::WatchedLine;
+use companion_model::helper::{Board, HandFault, HelperCard, HelperKind, HelperState};
 use companion_wire::{Handover, RunsIn, TerminalSession, app_name_of};
-use docket_core::WatchedLine;
-use docket_core::helper::{Board, HandFault, HelperCard, HelperKind, HelperState};
 use prov::{AgentProgram, HelperId, SessionId};
 use std::collections::{BTreeMap, BTreeSet};
 

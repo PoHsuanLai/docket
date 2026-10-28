@@ -9,11 +9,11 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+companion-model = { workspace = true }
 docket-manifest = { workspace = true }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
 porter-core = { workspace = true }
-porter-infer = { workspace = true }
 prov = { workspace = true }
 almanac-core = { workspace = true }
 cua-action = { workspace = true }

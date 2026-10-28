@@ -15,6 +15,7 @@ testing = []
 [dependencies]
 agent-loop = { workspace = true }
 almanac-core = { workspace = true }
+companion-model = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-manifest = { workspace = true }

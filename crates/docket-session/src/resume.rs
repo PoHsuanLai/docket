@@ -22,8 +22,8 @@ use crate::entry::{
 use crate::plan::{
     Blocker, Interrupted, PlanRefusal, ResumeFault, ResumePlan, ResumedBudget, Standing,
 };
-use docket_core::HandNote;
-use docket_core::helper::HelperSeat;
+use companion_model::HandNote;
+use companion_model::helper::HelperSeat;
 use docket_core::{Ledger, SkillId, SkillVersion, StepLine, Summary, UserTurn};
 use docket_permissions_core::{BreakerTrip, TaskPolicy};
 use docket_vocab::{CallId, Handle};

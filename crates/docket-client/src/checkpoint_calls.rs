@@ -3,9 +3,10 @@
 
 use crate::intents::{ClientError, Intents};
 use crate::transport::Transport;
+use companion_model::{HandTo, WatchedAgent, WatchedLine, Watching};
 use docket_core::{
-    CheckpointFault, CheckpointId, CheckpointList, HandTo, IntentsReply, IntentsRequest,
-    RestorePlan, Rewind, WatchedAgent, WatchedLine, Watching,
+    CheckpointFault, CheckpointId, CheckpointList, IntentsReply, IntentsRequest, RestorePlan,
+    Rewind,
 };
 use docket_vocab::{TurnId, Workspace};
 use prov::SessionId;

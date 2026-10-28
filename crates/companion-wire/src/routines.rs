@@ -2,8 +2,8 @@
 //! sends. Every sentence in it is plain words: a routine is something a helper does by itself
 //! when a time comes, something happens, or another job is done.
 
-use docket_core::helper::{HelperName, JobId};
-use docket_core::routine::{
+use companion_model::helper::{HelperName, JobId};
+use companion_model::routine::{
     Missed, Routine, RoutineId, RoutinePause, RoutineState, RunOutcome, RunRecord,
 };
 use prov::{HelperId, SpaceId, UnixSeconds};

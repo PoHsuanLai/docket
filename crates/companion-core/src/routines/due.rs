@@ -1,8 +1,8 @@
 //! What a tick of the scheduler finds: the runs that ended, and the jobs routines wait for that
 //! ended done.
 
-use docket_core::helper::JobId;
-use docket_core::routine::{JobEnd, RoutineBook, RoutineEvent};
+use companion_model::helper::JobId;
+use companion_model::routine::{JobEnd, RoutineBook, RoutineEvent};
 use prov::UnixSeconds;
 
 /// The events for the jobs that ended by `now`: each run of the book that has not ended and whose

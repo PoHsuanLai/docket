@@ -11,11 +11,11 @@ use companion_core::{
     Conclusion, Finished, Hold, JobEnding, JobReport, JobSpec, OpenedJob, conclude, job_spec,
     same_app,
 };
-use docket_client::Transport as IntentsTransport;
-use docket_core::helper::{
+use companion_model::helper::{
     AgentApps, AgentOutcome, BoardEvent, HelperName, JobFault, JobId, Launch, TaskRef,
     owned_sentence,
 };
+use docket_client::Transport as IntentsTransport;
 use docket_planner::Planner;
 use docket_tasks::Surface;
 use docket_vocab::Clock;

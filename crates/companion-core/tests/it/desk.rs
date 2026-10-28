@@ -4,7 +4,7 @@ use companion_core::{
     PROPOSED_STEPS, PlannerJob, Refusal, RoutineWho, RoutineWish, helper_form, person_job,
     planner_job, routine_wish,
 };
-use docket_core::helper::{Board, Ceiling, GoalOrigin, JobRefusal, ReachFault};
+use companion_model::helper::{Board, Ceiling, GoalOrigin, JobRefusal, ReachFault};
 use prov::{HelperId, SpaceId, TaskId};
 
 fn space() -> SpaceId {

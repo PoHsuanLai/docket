@@ -1,5 +1,5 @@
 //! Routines: a helper's standing instructions, run when a time comes, an almanac event happens or
-//! another job is done. The book and its rules are `docket_core::routine`'s; this is what the
+//! another job is done. The book and its rules are `companion_model::routine`'s; this is what the
 //! scheduler decides over it, as values.
 //!
 //! - `units`: the systemd user timers, as text.

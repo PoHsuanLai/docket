@@ -9,8 +9,8 @@ use crate::state::SessionRecord;
 use crate::tasks::{TaskRecord, TaskState, child_policy};
 use crate::wal::Wal;
 use almanac_core::{EpisodeId, EpisodeKind, EpisodeOutcome};
+use companion_model::helper::SeatPlace;
 use docket_core::EventSink;
-use docket_core::helper::SeatPlace;
 use docket_core::{
     AuditRecord, CallerId, CallerRole, IntentsReply, Reveal, Rewind, SessionOpen, SessionOpened,
     TaskLedger, TurnIn, TurnSource, UserTurn, WireRefusal, close,

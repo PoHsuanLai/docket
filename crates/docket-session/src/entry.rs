@@ -6,9 +6,9 @@
 //! Named apart from `docket_router::SessionRecord` (the router's in-memory session) and
 //! `companion_wire::SessionRecord` (companiond's roster facts, read back by `legacy`).
 
-use docket_core::HandNote;
+use companion_model::HandNote;
+use companion_model::helper::HelperSeat;
 use docket_core::Ledger;
-use docket_core::helper::HelperSeat;
 use docket_core::{
     CheckpointNote, Covers, HandleShape, Rewind, SkillId, SkillVersion, StartedFrom, StepLine,
     SummaryText, UserTurn,

@@ -2,8 +2,8 @@
 //! disk and over the bus.
 
 use crate::support::*;
-use docket_core::WatchedAgent;
-use docket_core::helper::*;
+use companion_model::WatchedAgent;
+use companion_model::helper::*;
 use docket_permissions_core::{ActionMatch, ProgramName, TaskPolicy, TaskPolicyState};
 use docket_vocab::TurnId;
 use porter_core::{AccountId, Count, ModelId};
@@ -264,14 +264,17 @@ fn the_calls_on_the_host_of_the_agent_apps_cross_a_bus_as_they_are() {
         AppsAsk::Stop { helper: hid(1) },
         AppsAsk::Forget { helper: hid(2) },
         AppsAsk::Recognise {
-            seen: docket_core::SeenCommand::parse(vec!["claude".to_owned(), "--resume".to_owned()])
-                .expect("seen"),
+            seen: companion_model::SeenCommand::parse(vec![
+                "claude".to_owned(),
+                "--resume".to_owned(),
+            ])
+            .expect("seen"),
         },
         AppsAsk::BringBackWatched {
             session: prov::SessionId::parse("s-3").expect("session"),
             agent: WatchedAgent {
                 program: ProgramName::parse("claude-code").expect("program"),
-                session: docket_core::AppSessionId::parse("abc").expect("id"),
+                session: companion_model::AppSessionId::parse("abc").expect("id"),
             },
             folder: docket_vocab::Workspace::parse("/work/project").expect("folder"),
         },
@@ -289,7 +292,7 @@ fn the_calls_on_the_host_of_the_agent_apps_cross_a_bus_as_they_are() {
             words: UntrustedWords::new("Three offers.".to_owned()),
             task: TaskId::parse("t-1").expect("task"),
             session: prov::SessionId::parse("s-1").expect("session"),
-            own_session: docket_core::AppSessionId::parse("abc").ok(),
+            own_session: companion_model::AppSessionId::parse("abc").ok(),
         }),
         AppsReply::ToTerminal(ToTerminalOutcome::Refused(HandFault::Busy)),
         AppsReply::BringBack(BackOutcome::Back),

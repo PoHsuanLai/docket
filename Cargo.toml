@@ -4,6 +4,7 @@ members = [
   "crates/docket-vocab",
   "crates/docket-manifest",
   "crates/docket-permissions-core",
+  "crates/companion-model",
   "crates/docket-core",
   "crates/docket-store",
   "crates/docket-skills",
@@ -85,6 +86,7 @@ docket-agents  = { path = "crates/docket-agents" }
 docket-vocab   = { path = "crates/docket-vocab" }
 docket-manifest = { path = "crates/docket-manifest" }
 docket-permissions-core = { path = "crates/docket-permissions-core" }
+companion-model = { path = "crates/companion-model" }
 docket-core    = { path = "crates/docket-core" }
 docket-store   = { path = "crates/docket-store" }
 docket-skills  = { path = "crates/docket-skills" }

@@ -1,8 +1,8 @@
 //! Who may restore a stored plan: the opener rule, and an editor in a helper's conversation.
 
 use crate::support::*;
+use companion_model::helper::{HelperName, HelperSeat, SeatPlace};
 use docket_core::CallerRole;
-use docket_core::helper::{HelperName, HelperSeat, SeatPlace};
 use docket_session::*;
 use prov::AppName;
 

@@ -6,11 +6,11 @@
 //! walls, and the companion learns that something runs elsewhere, never what.
 
 use crate::context::Reveal;
-use crate::helper::{HelperName, HelperPhase};
 use crate::planner::StepLine;
 use crate::run_end::EndWhy;
 use crate::spend::TaskTotals;
 use almanac_core::{EpisodeId, EpisodeOutcome, MemoryItem, RecallWhy};
+use companion_model::helper::{HelperName, HelperPhase};
 use docket_vocab::Handle;
 use prov::{AgentRef, SpaceId, UnixSeconds};
 use serde::{Deserialize, Serialize};

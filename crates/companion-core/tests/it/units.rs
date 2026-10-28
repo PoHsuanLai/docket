@@ -1,7 +1,7 @@
 //! The systemd timer text for the routines that run at a time.
 
 use companion_core::units_of;
-use docket_core::routine::{RoutineId, Schedule, TimerEntry};
+use companion_model::routine::{RoutineId, Schedule, TimerEntry};
 
 const GOAL: &str = "Summarise my unread mail and list what needs an answer";
 

@@ -9,17 +9,18 @@ use companion_core::{
     person_job, planner_job, posted, resume_event, roster_lines, routine_wish, same_app,
     say_outcome, talkable,
 };
+use companion_model::helper::{
+    BoardEvent, CardDraft, HelperCard, JobId, JobRefusal, SignInOutcome, SignOutOutcome,
+    TerminalRequest,
+};
+use companion_model::{SeenCommand, WatchedAgent};
 use companion_wire::{
     AnswerPhase, BroughtBack, HelperCardView, HelperForm, HelperLine, HelperNeeds, HelperReply,
     HelpersView, LoginShown, ProposalId, RoutineProposal, SayReply, SignInChoice, TerminalSession,
     ToldWire, card_of, line_of,
 };
 use docket_client::Transport as IntentsTransport;
-use docket_core::helper::{
-    BoardEvent, CardDraft, HelperCard, JobId, JobRefusal, SignInOutcome, SignOutOutcome,
-    TerminalRequest,
-};
-use docket_core::{HelperRosterLine, SeenCommand, WatchedAgent};
+use docket_core::HelperRosterLine;
 use docket_manifest::Manifest;
 use docket_planner::Planner;
 use docket_tasks::{

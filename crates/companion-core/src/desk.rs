@@ -6,13 +6,13 @@
 use crate::answers::Answers;
 use crate::job::{JobEnding, JobReport, JobSpec};
 use crate::refusal::Refusal;
-use companion_wire::{HelperForm, RoutineForm, WhenForm, line_of};
-use docket_core::helper::{
+use companion_model::helper::{
     Board, BoardEffect, BoardEvent, CardDraft, Ceiling, GoalOrigin, GoalText, HelperBudget,
     HelperCard, HelperKind, HelperModel, HelperName, HelperState, JobFault, JobId, JobRefusal,
     JobStatus, Launch, NewJob, ReachFault, Role, reach_policy,
 };
-use docket_core::routine::{JobEnd, Missed, Schedule};
+use companion_model::routine::{JobEnd, Missed, Schedule};
+use companion_wire::{HelperForm, RoutineForm, WhenForm, line_of};
 use docket_core::{HelperRosterLine, LeadText};
 use docket_manifest::Manifest;
 use porter_core::{AppName, Count};

@@ -8,10 +8,9 @@
 
 use acp_core::call::AgentCall;
 use acp_core::court::{Court, CourtFault, OpenAgent, Ruled};
+use companion_model::{HandTo, WatchedAgent};
 use docket_client::{Intents, Transport};
-use docket_core::{
-    CallRefusal, ContextKeep, HandTo, Keep, SessionOpen, TurnEnd, TurnIn, TurnVia, WatchedAgent,
-};
+use docket_core::{CallRefusal, ContextKeep, Keep, SessionOpen, TurnEnd, TurnIn, TurnVia};
 use docket_permissions_core::DenyCode;
 use docket_vocab::{Origin, TurnId};
 use prov::{AgentRef, SessionId};

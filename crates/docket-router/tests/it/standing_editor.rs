@@ -308,13 +308,14 @@ fn seat_as(router: &Router<FakeSeams>, session: &SessionId, n: u64) {
         ..wide_policy(&prov::TaskId::parse("t-0").expect("task"), "work")
     };
     let mut st = router.state.lock().expect("lock");
-    st.sessions.get_mut(session).expect("session").helper = Some(docket_core::helper::HelperSeat {
-        helper: helper_id(n),
-        name: docket_core::helper::HelperName::parse("Inbox").expect("name"),
-        reach: look,
-        owns: Vec::new(),
-        place: docket_core::helper::SeatPlace::Conversation,
-    });
+    st.sessions.get_mut(session).expect("session").helper =
+        Some(companion_model::helper::HelperSeat {
+            helper: helper_id(n),
+            name: companion_model::helper::HelperName::parse("Inbox").expect("name"),
+            reach: look,
+            owns: Vec::new(),
+            place: companion_model::helper::SeatPlace::Conversation,
+        });
 }
 
 #[tokio::test]

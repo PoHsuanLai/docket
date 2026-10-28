@@ -160,7 +160,7 @@ impl RouterState {
                     None => companions
                         .filter(|(_, r)| {
                             !r.helper.as_ref().is_some_and(|seat| {
-                                seat.place == docket_core::helper::SeatPlace::Conversation
+                                seat.place == companion_model::helper::SeatPlace::Conversation
                             })
                         })
                         .max_by_key(|(id, _)| crate::session::age(id)),

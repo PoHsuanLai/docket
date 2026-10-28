@@ -1,5 +1,5 @@
 //! Helpers: the board of jobs and the mailbox, owned here. The hub is the single owner, so
-//! taking a job is decided in the board's state machine (`docket_core::helper::step`) and needs no
+//! taking a job is decided in the board's state machine (`companion_model::helper::step`) and needs no
 //! compare-and-set; this carries its effects out: the records written through the router (and
 //! read back at a restart), the notices the person is shown, and the tasks that run the jobs.
 //! What is decided over values (how a job's end is told to the board, the kept answers, the

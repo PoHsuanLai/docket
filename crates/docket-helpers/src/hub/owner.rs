@@ -5,12 +5,12 @@
 
 use crate::spawn::{Cutoff, Spawn};
 use companion_core::{Answers, Logins, OpenedJob, Proposals, Terminals, Told, ToldLog, by_space};
-use docket_client::Transport as IntentsTransport;
-use docket_core::SessionOpen;
-use docket_core::helper::{
+use companion_model::helper::{
     AgentApps, Board, BoardEffect, BoardEvent, HelperCard, HelperName, HelperSeat, JobId, Notice,
     SeatPlace, step,
 };
+use docket_client::Transport as IntentsTransport;
+use docket_core::SessionOpen;
 use docket_manifest::ValidManifest;
 use docket_planner::Planner;
 use docket_tasks::{Change, Companion, Shared, Surface};
@@ -267,7 +267,7 @@ where
 
     /// The open watch sessions whose agent app a terminal named, as the router lists them; none
     /// when it does not answer.
-    pub(super) async fn watched_sessions(&self) -> Vec<docket_core::WatchedLine> {
+    pub(super) async fn watched_sessions(&self) -> Vec<companion_model::WatchedLine> {
         self.inner
             .service
             .lock()

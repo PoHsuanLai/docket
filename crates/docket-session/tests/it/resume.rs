@@ -22,7 +22,7 @@ fn a_whole_session_restores_what_was_stored() {
 
 #[test]
 fn the_latest_hand_note_says_where_the_conversation_is() {
-    use docket_core::{HandNote, HandTo};
+    use companion_model::{HandNote, HandTo};
     let to = |to| SessionEntry::Hand(HandNote { to, agent: None });
     let moved = plan(&[
         SessionEntry::Opened(opening()),

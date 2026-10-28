@@ -777,7 +777,7 @@ const POST_JOB: &str = "org_quire_Companion-companion_helper_post_job";
 
 /// A view that lists these helpers, all idle in the desktop Space.
 fn view_with_helpers(names: &[&str]) -> PlannerView {
-    use docket_core::helper::{HelperName, HelperPhase};
+    use companion_model::helper::{HelperName, HelperPhase};
     let mut view = view(catalogue().cards());
     view.roster.helpers = names
         .iter()

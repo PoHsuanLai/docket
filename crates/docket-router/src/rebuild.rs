@@ -14,9 +14,9 @@ use crate::tasks::{TaskRecord, TaskState};
 use crate::wal::Wal;
 use crate::who::actor_of;
 use almanac_core::EpisodeId;
+use companion_model::HandTo;
 use docket_core::{
-    ExternalAgent, HandTo, Ledger, Reveal, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger,
-    UserTurn,
+    ExternalAgent, Ledger, Reveal, SheetSurface, StepEnd, StepLine, StepShown, TaskLedger, UserTurn,
 };
 use docket_permissions_core::Saw;
 use docket_session::{

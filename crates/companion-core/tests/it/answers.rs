@@ -1,9 +1,9 @@
 //! What the board keeps of finished jobs: their answers, and why jobs stopped.
 
 use companion_core::{Answer, Answers, Hold, KEPT_ANSWERS, MOST_NOTICES, Proposals, ToldLog};
+use companion_model::helper::JobId;
+use companion_model::routine::Missed;
 use companion_wire::{ProposalId, RoutineForm, WhenForm};
-use docket_core::helper::JobId;
-use docket_core::routine::Missed;
 use prov::{HelperId, SessionId};
 
 fn answer(n: u64, hold: Hold) -> Answer {

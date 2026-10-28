@@ -5,12 +5,12 @@
 //! refuses anyone else.
 
 use crate::bus::{fault_of, json};
+use companion_model::routine::RoutineId;
 use companion_wire::{
     BroughtBack, HelperCardView, HelperForm, HelperReply, HelpersView, ProposalId, RoutineCardView,
     RoutineForm, RoutineProposal, RoutineReply, RoutinesView, SayReply, TerminalSession,
 };
 use docket_client::TransportError;
-use docket_core::routine::RoutineId;
 use docket_dbus::{BusConnection, CompanionHelpers2Proxy, CompanionTerminalsProxy};
 use futures_util::{Stream, StreamExt};
 use prov::{EntityId, HelperId, SessionId};

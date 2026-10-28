@@ -444,7 +444,7 @@ fn resume_names_the_session_and_the_claude_code_profile_has_the_well_known_flag(
 
 #[test]
 fn a_command_line_a_terminal_saw_is_the_app_and_conversation_it_picks_up() {
-    use docket_core::SeenCommand;
+    use companion_model::SeenCommand;
     let file = AgentsFile::parse(concat!(
         "[[agent]]\nprogram = \"claude-code\"\ncommand = \"/usr/bin/claude\"\nroute = \"login\"\n",
         "profile = \"claude-code\"\n",

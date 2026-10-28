@@ -273,7 +273,7 @@ pub enum AuditRecord {
         /// The Space of the helper.
         space: SpaceId,
         /// Which kind of record.
-        kind: crate::helper::HelperRecordKind,
+        kind: companion_model::helper::HelperRecordKind,
         /// The record, in its owner's serde form.
         json: almanac_core::JsonText,
     },

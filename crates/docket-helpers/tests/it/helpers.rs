@@ -8,8 +8,8 @@ use crate::support::helper_fixtures::{
 use crate::support::infer::{Say, ScriptedInfer, call, words};
 use crate::support::world::*;
 use almanac_core::MemoryReply;
+use companion_model::helper::*;
 use docket_core::AuditRecord;
-use docket_core::helper::*;
 use porter_infer::{Asker, OpenOptions};
 use std::time::Duration;
 

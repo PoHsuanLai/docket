@@ -5,8 +5,8 @@
 use super::host::Hosting;
 use super::live::Live;
 use super::places::Places;
+use companion_model::helper::HelperCard;
 use docket_acp_host::{AgentHost, EdgeMenu, Fallback, Hosts, Start};
-use docket_core::helper::HelperCard;
 use docket_host::EditorDesk;
 use docket_launch::Accounts;
 use docket_permissions_core::{ProgramName, TaskPolicy};

@@ -11,9 +11,9 @@ use crate::seams::Surface;
 use crate::task::Failure;
 use agent_loop::{FinishedAs, LoopInput, LoopPhase};
 use companion_core::{JobEnding, JobInput, JobReport, JobSpec, OpenedJob};
+use companion_model::helper::{CallVerdict, GoalSource, HelperSeat, JobFault, SeatPlace};
 use companion_wire::{AnswerPhase, NeedsYou, RefusalWire};
 use docket_client::Transport as IntentsTransport;
-use docket_core::helper::{CallVerdict, GoalSource, HelperSeat, JobFault, SeatPlace};
 use docket_core::{
     CallEnd, CallRefusal, DraftPart, MessageDraft, SessionOpen, StepEnd, TurnSource, TurnVia,
     UserTurn,

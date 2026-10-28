@@ -617,7 +617,7 @@ mod property {
 
 #[tokio::test]
 async fn a_helpers_conversation_keeps_its_seat_over_a_restart_and_is_not_made_twice() {
-    use docket_core::helper::{HelperName, HelperSeat, SeatPlace};
+    use companion_model::helper::{HelperName, HelperSeat, SeatPlace};
     let log = Arc::new(MemoryLog::new());
     let talk = HelperSeat {
         helper: serde_json::from_str("\"h-1\"").expect("helper id"),

@@ -3,7 +3,7 @@
 //! progress).
 
 use super::units::{UnitFile, units_of};
-use docket_core::routine::{RoutineBook, TimerEntry};
+use companion_model::routine::{RoutineBook, TimerEntry};
 
 /// Whether the desktop must stay awake.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

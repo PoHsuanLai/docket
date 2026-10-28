@@ -13,8 +13,8 @@ use crate::labels::{app_label, model_label};
 use crate::router::Router;
 use crate::seams::Seams;
 use crate::spoken::whole_in;
+use companion_model::helper::{GoalOrigin, JobRefusal, PlannerSaw};
 use docket_core::EventSink;
-use docket_core::helper::{GoalOrigin, JobRefusal, PlannerSaw};
 use docket_core::{
     AppRefusal, AuditRecord, CallerId, CallerRole, DraftPart, FROM_CHECKED_BRIEF, FailText,
     IntentsReply, Invocation, MessageDraft, Outcome, Preview, Reveal, SendRefusal, SessionOpen,

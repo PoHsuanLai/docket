@@ -2,7 +2,7 @@
 //! the helper's reach, one live job writes a thing, and what another helper writes to it is data.
 
 use crate::support::*;
-use docket_core::helper::HelperSeat;
+use companion_model::helper::HelperSeat;
 use docket_core::*;
 use docket_fake::ScriptedWriter;
 use docket_permissions_core::{ActionMatch, COMPANION_APP, DenyCode, Saw, TaskPolicy};
@@ -30,10 +30,10 @@ fn reach(ceiling: Effect) -> TaskPolicy {
 fn seat(n: u64, reach: TaskPolicy, owns: &[&str]) -> HelperSeat {
     HelperSeat {
         helper: hid(n),
-        name: docket_core::helper::HelperName::parse("Inbox").expect("name"),
+        name: companion_model::helper::HelperName::parse("Inbox").expect("name"),
         reach,
         owns: owns.iter().map(|k| entity("mail.thread", k)).collect(),
-        place: docket_core::helper::SeatPlace::Job,
+        place: companion_model::helper::SeatPlace::Job,
     }
 }
 
@@ -457,7 +457,7 @@ async fn a_job_for_a_helper_is_allowed_only_when_a_planner_that_read_nothing_unt
     assert_eq!(
         refused,
         AppRefusal::Failed(FailText(
-            docket_core::helper::JobRefusal::UntrustedGoal.plain()
+            companion_model::helper::JobRefusal::UntrustedGoal.plain()
         ))
     );
     // ...and nothing a planner writes after it has read something untrusted is.
@@ -688,7 +688,7 @@ async fn an_editor_speaks_in_a_helpers_conversation_and_in_no_other_session_it_d
     let router = router();
     let editor = caller("org.zed.Zed", CallerRole::Editor);
     let talk = HelperSeat {
-        place: docket_core::helper::SeatPlace::Conversation,
+        place: companion_model::helper::SeatPlace::Conversation,
         ..seat(1, reach(Effect::Read), &[])
     };
     let conversation = open_job(&router, &companion(), Some(talk), None).await;
@@ -733,7 +733,7 @@ async fn an_editor_speaks_in_a_helpers_conversation_and_in_no_other_session_it_d
         &router,
         &editor,
         Some(HelperSeat {
-            place: docket_core::helper::SeatPlace::Conversation,
+            place: companion_model::helper::SeatPlace::Conversation,
             ..seat(2, reach(Effect::Read), &[])
         }),
         None,

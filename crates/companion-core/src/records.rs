@@ -2,7 +2,7 @@
 //! routine's watches ask the almanac one Space at a time. Spaces are walls, so nothing here mixes
 //! two of them.
 
-use docket_core::helper::{Board, CardRecord, HelperRecord};
+use companion_model::helper::{Board, CardRecord, HelperRecord};
 use prov::{HelperId, SpaceId};
 
 /// `items` grouped by Space, in the order the Spaces first appear.

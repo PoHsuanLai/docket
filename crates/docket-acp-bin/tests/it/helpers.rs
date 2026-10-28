@@ -4,6 +4,8 @@
 //! daemon is not there. The daemon is a fake transport: no bus.
 
 use companion_client::{Changes, HelpersTransport};
+use companion_model::helper::{HelperModel, HelperName, HelperPhase, JobId};
+use companion_model::routine::RoutineId;
 use companion_wire::{
     HelperCardView, HelperForm, HelperLine, HelperReply, HelpersView, JobLine, JobShown,
     ProposalId, RoutineCardView, RoutineForm, RoutineProposal, RoutineReply, RoutinesView,
@@ -12,8 +14,6 @@ use companion_wire::{
 use docket_acp::{ConversationTurns, HelperRefusal, Helpers};
 use docket_acp_bin::helpers::{BusHelpers, LiveHelpers, Records};
 use docket_client::TransportError;
-use docket_core::helper::{HelperModel, HelperName, HelperPhase, JobId};
-use docket_core::routine::RoutineId;
 use docket_core::{TurnEnd, TurnSource, TurnVia, UserTurn};
 use docket_vocab::TurnId;
 use futures_util::stream;

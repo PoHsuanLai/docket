@@ -2,9 +2,9 @@
 //! the launcher as another, a scripted planner model, and a clock the test moves by hand.
 
 use super::infer::{Say, ScriptedInfer};
+use companion_model::helper::HelperCard;
 use companiond::{Bell, Companiond, PlannerModel};
 use docket_client::{InProcess, Intents};
-use docket_core::helper::HelperCard;
 use docket_core::*;
 use docket_dbus::BusConnection;
 use docket_dbus::callers::{Identity, Role};

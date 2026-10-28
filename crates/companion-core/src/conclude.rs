@@ -3,7 +3,7 @@
 //! handed on; every other end closes it.
 
 use crate::job::{JobEnding, JobReport, OpenedJob};
-use docket_core::helper::{BoardEvent, CallVerdict, JobFault, JobId, ResultHandle, SignInWay};
+use companion_model::helper::{BoardEvent, CallVerdict, JobFault, JobId, ResultHandle, SignInWay};
 use prov::{EntityId, SessionId};
 
 /// Whether the hub closes the session an answer was given in when the answer is let go. A native

@@ -7,10 +7,11 @@ use crate::support::apps::{
     terminal_hand, until,
 };
 use crate::support::world::*;
+use companion_model::helper::*;
+use companion_model::{AppSessionId, SeenCommand, WatchedAgent};
 use companion_wire::{BroughtBack, Handover, HelperReply, RunsIn};
 use docket_client::{InProcess, Intents};
-use docket_core::helper::*;
-use docket_core::{AppSessionId, CallerRole, Rewind, SeenCommand, WatchedAgent};
+use docket_core::{CallerRole, Rewind};
 use docket_permissions_core::ProgramName;
 use docket_tasks::HelperDesk;
 use docket_vocab::Workspace;

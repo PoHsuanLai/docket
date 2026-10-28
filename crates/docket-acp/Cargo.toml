@@ -15,6 +15,7 @@ path = "src/lib.rs"
 [dependencies]
 acp-core = { workspace = true }
 agent-client-protocol = { workspace = true }
+companion-model = { workspace = true }
 companion-wire = { workspace = true }
 docket-core = { workspace = true }
 docket-permissions-core = { workspace = true }

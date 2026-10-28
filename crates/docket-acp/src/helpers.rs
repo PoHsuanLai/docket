@@ -5,9 +5,9 @@
 //! a call and a sheet go the way they always do.
 
 use crate::conversation::ConversationTurns;
+use companion_model::helper::HelperName;
 use companion_wire::{JobLine, ToldWire};
 use docket_core::UserTurn;
-use docket_core::helper::HelperName;
 use prov::{HelperId, SessionId, SpaceId};
 use std::future::Future;
 

@@ -7,8 +7,8 @@ use crate::support::apps::{
     Apps, done, give, hub, make, program, state_of, status_of, until, ways,
 };
 use crate::support::world::*;
+use companion_model::helper::*;
 use companion_wire::{HelperNeeds, HelperReply, JobShown, LoginShown};
-use docket_core::helper::*;
 use docket_tasks::HelperDesk;
 use std::collections::BTreeMap;
 use std::sync::Arc;

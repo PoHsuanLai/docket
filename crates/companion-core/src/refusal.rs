@@ -2,8 +2,8 @@
 //! told are made once, at the edge that serves them (companiond today, the view crate later); a
 //! decision here never carries words.
 
-use docket_core::helper::{HandFault, HelperName, JobFault, JobRefusal, ReachFault};
-use docket_core::routine::ScheduleFault;
+use companion_model::helper::{HandFault, HelperName, JobFault, JobRefusal, ReachFault};
+use companion_model::routine::ScheduleFault;
 
 /// Why a request to a desk was not carried out.
 #[derive(Debug, Clone, PartialEq, Eq)]

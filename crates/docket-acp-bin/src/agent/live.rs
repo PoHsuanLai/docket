@@ -15,8 +15,8 @@ use docket_client::DbusTransport;
 use docket_permissions_core::ProgramName;
 
 use bulkhead::AbsPath;
-use docket_core::helper::{TerminalLine, TerminalLogin, TerminalRun};
-use docket_core::{SeenCommand, WatchedAgent};
+use companion_model::helper::{TerminalLine, TerminalLogin, TerminalRun};
+use companion_model::{SeenCommand, WatchedAgent};
 use docket_dbus::CONFIRM_PATH;
 use docket_host::EditorDesk;
 use docket_launch::{

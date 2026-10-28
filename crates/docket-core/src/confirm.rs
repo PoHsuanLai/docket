@@ -3,8 +3,8 @@
 //! dry-run preview; agent prose is never shown, and untrusted values are drawn quoted.
 
 use crate::brief::{BriefSheet, BriefText};
-use crate::helper::HelperName;
 use crate::preview::{FileMove, Preview};
+use companion_model::helper::HelperName;
 use docket_permissions_core::AlwaysOffer;
 use docket_permissions_core::AskReason;
 use docket_permissions_core::LimitNote;

@@ -3,8 +3,8 @@
 //! read by no one. An entry with no logout command cannot be signed out, and says so.
 
 use super::live::Live;
+use companion_model::helper::AgentPending;
 use docket_acp_host::Logout;
-use docket_core::helper::AgentPending;
 use docket_launch::login::{LoginRunner, VisibleLogin};
 use docket_launch::{Accounts, AskKind};
 use docket_permissions_core::ProgramName;

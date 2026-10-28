@@ -1,5 +1,5 @@
 //! Routines: a helper's standing instructions, run when a time comes, an almanac event happens or
-//! another job is done. The book and its rules are `docket_core::routine`'s (pure), and what the
+//! another job is done. The book and its rules are `companion_model::routine`'s (pure), and what the
 //! scheduler decides over it (the events for ended jobs, when and what to ask the almanac, the
 //! timer text) is `companion_core`'s; this is the small timer inside the daemon that owns the
 //! book and carries out what it asks.

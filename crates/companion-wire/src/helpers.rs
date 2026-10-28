@@ -3,11 +3,11 @@
 //! pause; nothing here names how the machinery works.
 
 use crate::handoff::{Handover, RunsIn};
-use docket_core::LeadText;
-use docket_core::helper::{
+use companion_model::helper::{
     Board, Ceiling, GoalSource, HelperCard, HelperKind, HelperModel, HelperName, HelperPhase,
     HelperState, JobId, JobStatus, Need, PauseWhy, Role, SignInWay, TerminalRequest, reach_lines,
 };
+use docket_core::LeadText;
 use porter_core::{AppName, Count};
 use prov::{AgentRef, HelperId, SessionId, SpaceId};
 use serde::{Deserialize, Serialize};
@@ -337,7 +337,7 @@ pub struct JobWords {
     pub why: Option<String>,
 }
 
-fn job_line(job: &docket_core::helper::Job, words: JobWords) -> JobLine {
+fn job_line(job: &companion_model::helper::Job, words: JobWords) -> JobLine {
     let state = match &job.status {
         JobStatus::Open => JobShown::Waiting,
         JobStatus::Taken(_) => JobShown::Working,

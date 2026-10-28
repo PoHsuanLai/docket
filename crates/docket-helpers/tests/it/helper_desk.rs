@@ -6,8 +6,8 @@ use crate::support::helper_fixtures::{
 };
 use crate::support::infer::{Say, ScriptedInfer, call, words};
 use crate::support::world::*;
+use companion_model::helper::*;
 use companion_wire::{HelperNeeds, HelperReply, JobShown, SayReply};
-use docket_core::helper::*;
 use docket_core::{ConfirmAnswer, TurnSource};
 use docket_tasks::{HelperDesk, PostFromPerson, SayFromPerson};
 use docket_vocab::TurnId;
@@ -292,7 +292,7 @@ async fn the_assistant_only_proposes_a_helper_and_nothing_exists_until_the_perso
     );
     assert_eq!(card.space, space("work"));
     assert_eq!(
-        docket_core::helper::reach_lines(&card.reach),
+        companion_model::helper::reach_lines(&card.reach),
         ["org.quire.Mail: look at things and change them (changes can be undone)"]
     );
     assert_eq!(w.router.seams.confirmer.requests().len(), 2);

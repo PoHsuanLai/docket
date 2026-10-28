@@ -22,6 +22,7 @@ acp-core = { workspace = true }
 actions-tools = { workspace = true }
 agent-client-protocol = { workspace = true }
 bulkhead = { workspace = true }
+companion-model = { workspace = true }
 const-hex = { workspace = true }
 docket-client = { workspace = true }
 docket-core = { workspace = true }

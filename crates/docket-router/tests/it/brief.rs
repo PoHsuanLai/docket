@@ -3,7 +3,7 @@
 //! session as the person's own; nothing a planner or an app says makes them so.
 
 use crate::support::*;
-use docket_core::helper::JobRefusal;
+use companion_model::helper::JobRefusal;
 use docket_core::*;
 use docket_fake::{FakeSeams, ScriptedConfirmer, host_companion};
 use docket_permissions_core::{

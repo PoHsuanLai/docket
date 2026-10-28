@@ -5,7 +5,7 @@
 //! not made up later by systemd; companiond sees it was late and skips it (unless the person chose
 //! to run it once on waking).
 
-use docket_core::routine::TimerEntry;
+use companion_model::routine::TimerEntry;
 
 /// The name every routine unit starts with.
 pub const UNIT_PREFIX: &str = "quire-routine-";

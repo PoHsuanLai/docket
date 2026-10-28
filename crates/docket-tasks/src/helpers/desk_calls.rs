@@ -8,9 +8,9 @@
 use crate::desk::{PostFromPlanner, Proposal, RoutineAsk, RoutineFor};
 use crate::runtime::Companion;
 use crate::seams::Surface;
+use companion_model::helper::{Ceiling, GoalOrigin, JobId, PlannerSaw};
 use companion_wire::HelperReply;
 use docket_client::Transport as IntentsTransport;
-use docket_core::helper::{Ceiling, GoalOrigin, JobId, PlannerSaw};
 use docket_core::{
     ActionCard, AppRefusal, CallRefusal, FailText, NoteAsk, Outcome, from_checked_brief,
 };

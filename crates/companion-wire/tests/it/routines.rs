@@ -1,12 +1,12 @@
 //! The routines on the wire: a form reads from the shell's JSON (a missed time is skipped unless
 //! the form says otherwise), and a card shows the last runs newest first in plain words.
 
+use companion_model::helper::{GoalText, HelperName, JobFault, JobId};
+use companion_model::routine::*;
 use companion_wire::{
     ProposalId, RoutineForm, RoutineProposal, RoutineShown, RunShown, WhenForm, routine_card,
     routine_line,
 };
-use docket_core::helper::{GoalText, HelperName, JobFault, JobId};
-use docket_core::routine::*;
 use porter_core::Count;
 use prov::{HelperId, UnixSeconds};
 

@@ -7,11 +7,11 @@ use super::zone::SystemZone;
 use crate::Hub;
 use almanac_core::{BodyMode, RecentQuery, TrustFilter};
 use companion_core::{Awake, EventAsk, Seen, UnitFile};
-use docket_client::Transport as IntentsTransport;
-use docket_core::helper::{
+use companion_model::helper::{
     BoardEffect, BoardEvent, GoalOrigin, HelperName, HelperRecord, JobId, NewJob,
 };
-use docket_core::routine::{JobEnd, RoutineRecord, RunRequest, Zone};
+use companion_model::routine::{JobEnd, RoutineRecord, RunRequest, Zone};
+use docket_client::Transport as IntentsTransport;
 use docket_planner::Planner;
 use docket_tasks::Surface;
 use docket_vocab::Clock;

@@ -6,12 +6,12 @@
 
 use almanac_core::{EventRef, ReplicaId, Seq};
 use companion_core::{Awake, EventAsk, Seen, UnitFile, units_of};
-use companion_wire::{EventForm, RoutineForm, RoutineReply, WhenForm};
-use docket_core::helper::{HelperName, JobFault, JobId};
-use docket_core::routine::{
+use companion_model::helper::{HelperName, JobFault, JobId};
+use companion_model::routine::{
     JobEnd, Missed, RoutineId, RoutinePause, RoutineRecord, RoutineState, RunOutcome, RunRequest,
     Schedule, TimerEntry, Zone,
 };
+use companion_wire::{EventForm, RoutineForm, RoutineReply, WhenForm};
 use docket_fake::FixedClock;
 use docket_helpers::{Host, RoutineDesk, Routines, UnitDir};
 use prov::{HelperId, SpaceId, UnixSeconds};

@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "agent-client-protocol",
  "bulkhead",
+ "companion-model",
  "docket-core",
  "docket-manifest",
  "docket-permissions-core",
@@ -829,6 +830,7 @@ checksum = "1c133bc6a41be0d194c306b5506d15e6feeea7b1d6604bd3f8310dfb2ca96486"
 name = "companion-client"
 version = "0.1.0"
 dependencies = [
+ "companion-model",
  "companion-wire",
  "docket-client",
  "docket-core",
@@ -845,6 +847,7 @@ name = "companion-core"
 version = "0.1.0"
 dependencies = [
  "almanac-core",
+ "companion-model",
  "companion-wire",
  "docket-core",
  "docket-manifest",
@@ -854,10 +857,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "companion-model"
+version = "0.1.0"
+dependencies = [
+ "almanac-core",
+ "docket-manifest",
+ "docket-permissions-core",
+ "docket-vocab",
+ "porter-core",
+ "porter-infer",
+ "prov",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "companion-wire"
 version = "0.1.0"
 dependencies = [
  "almanac-core",
+ "companion-model",
  "docket-core",
  "docket-manifest",
  "docket-permissions-core",
@@ -877,6 +897,7 @@ dependencies = [
  "agent-loop",
  "almanac-core",
  "companion-core",
+ "companion-model",
  "companion-wire",
  "docket-client",
  "docket-core",
@@ -1195,6 +1216,7 @@ dependencies = [
  "acp-core",
  "agent-client-protocol",
  "bulkhead",
+ "companion-model",
  "companion-wire",
  "docket-core",
  "docket-fake",
@@ -1223,6 +1245,7 @@ dependencies = [
  "bulkhead",
  "clap",
  "companion-client",
+ "companion-model",
  "companion-wire",
  "docket-acp",
  "docket-acp-host",
@@ -1264,6 +1287,7 @@ dependencies = [
  "actions-tools",
  "agent-client-protocol",
  "bulkhead",
+ "companion-model",
  "const-hex",
  "docket-acp-host",
  "docket-client",
@@ -1379,6 +1403,7 @@ dependencies = [
 name = "docket-client"
 version = "0.1.0"
 dependencies = [
+ "companion-model",
  "cua-action",
  "docket-core",
  "docket-dbus",
@@ -1402,13 +1427,13 @@ name = "docket-core"
 version = "0.1.0"
 dependencies = [
  "almanac-core",
+ "companion-model",
  "cua-action",
  "docket-manifest",
  "docket-permissions-core",
  "docket-vocab",
  "model-provider",
  "porter-core",
- "porter-infer",
  "prov",
  "serde",
  "serde_json",
@@ -1511,6 +1536,7 @@ dependencies = [
  "almanac-core",
  "chrono",
  "companion-core",
+ "companion-model",
  "companion-wire",
  "docket-client",
  "docket-core",
@@ -1601,6 +1627,7 @@ dependencies = [
  "agent-client-protocol",
  "agents-core",
  "bulkhead",
+ "companion-model",
  "docket-acp",
  "docket-acp-host",
  "docket-core",
@@ -1726,6 +1753,7 @@ name = "docket-memory-core"
 version = "0.1.0"
 dependencies = [
  "almanac-core",
+ "companion-model",
  "docket-core",
  "porter-core",
  "prov",
@@ -1755,6 +1783,7 @@ name = "docket-native"
 version = "0.1.0"
 dependencies = [
  "agent-loop",
+ "companion-model",
  "companion-wire",
  "docket-client",
  "docket-core",
@@ -1797,6 +1826,7 @@ version = "0.1.0"
 dependencies = [
  "agent-loop",
  "almanac-core",
+ "companion-model",
  "companion-wire",
  "docket-core",
  "docket-fake",
@@ -1864,6 +1894,7 @@ dependencies = [
  "action-review",
  "almanac-core",
  "bulkhead",
+ "companion-model",
  "cua-action",
  "docket-checkpoint",
  "docket-core",
@@ -1894,6 +1925,7 @@ name = "docket-session"
 version = "0.1.0"
 dependencies = [
  "almanac-core",
+ "companion-model",
  "companion-wire",
  "docket-core",
  "docket-permissions-core",
@@ -1967,6 +1999,7 @@ dependencies = [
  "agent-loop",
  "almanac-core",
  "companion-core",
+ "companion-model",
  "companion-wire",
  "docket-client",
  "docket-core",
@@ -2752,6 +2785,7 @@ dependencies = [
  "almanac-dbus",
  "almanac-dbus-serve",
  "bulkhead",
+ "companion-model",
  "cua-action",
  "docket-acp-bin",
  "docket-checkpoint-git",

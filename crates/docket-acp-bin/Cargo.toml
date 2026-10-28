@@ -29,6 +29,7 @@ path = "src/bin/docket-net-enter.rs"
 
 [dependencies]
 companion-client = { workspace = true }
+companion-model = { workspace = true }
 companion-wire = { workspace = true }
 acp-core = { workspace = true }
 docket-acp = { workspace = true }

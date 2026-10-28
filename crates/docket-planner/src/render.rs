@@ -517,8 +517,8 @@ mod tests {
 
     #[test]
     fn a_helper_is_told_by_the_name_the_person_gave_it_and_another_space_shows_no_more() {
+        use companion_model::helper::{HelperName, HelperPhase};
         use docket_core::LeadText;
-        use docket_core::helper::{HelperName, HelperPhase};
         let line = |space: &str, doing: Option<&str>| HelperRosterLine {
             name: HelperName::parse("Research").expect("name"),
             space: prov::SpaceId::parse(space).expect("space"),

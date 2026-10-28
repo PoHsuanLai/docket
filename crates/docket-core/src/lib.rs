@@ -22,9 +22,7 @@ mod context;
 mod derived;
 mod external;
 mod gate;
-mod hand;
 mod handover;
-pub mod helper;
 mod index;
 mod memory_link;
 mod message;
@@ -32,7 +30,6 @@ mod planner;
 mod preview;
 mod reader;
 mod roster;
-pub mod routine;
 mod run_end;
 mod schema;
 mod skill;
@@ -80,10 +77,6 @@ pub use context::{
 pub use derived::{Corrected, Derived, PolicyWriter};
 pub use external::{ExternalAgent, SheetSurface};
 pub use gate::{CuaAsk, EffectBasis, GateAnswer, NodeFacts, RunMode, WindowClass, WindowTrust};
-pub use hand::{
-    AppSessionId, AppSessionIdError, HandNote, HandTo, SeenCommand, SeenCommandFault, WatchOwner,
-    WatchedAgent, WatchedLine, Watching,
-};
 pub use handover::{HandOver, HandRefusal, HandReply, Handed};
 pub use index::{Hit, IndexBatch, IndexEntry, IndexState, SearchAsk, SearchScope, SuggestAsk};
 pub use memory_link::{EventSink, LinkFault, MemoryLink, SpaceMemories};

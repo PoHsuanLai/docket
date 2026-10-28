@@ -3,7 +3,7 @@
 //! Asking is the host's; this is what is asked and what the answers mean.
 
 use almanac_core::{EventRef, KindPattern};
-use docket_core::routine::{EventMatch, RoutineBook, RoutineId};
+use companion_model::routine::{EventMatch, RoutineBook, RoutineId};
 use prov::{HelperId, SpaceId, UnixSeconds};
 use std::collections::VecDeque;
 
