@@ -456,7 +456,11 @@ async fn end_and_skeleton_text(
 async fn a_helper_action_the_desk_refused_ends_the_tasks_record_refused_and_not_done() {
     let router = router();
     let s = open(&router, "work", AgentRef::Companion).await;
-    ledger_done(&router, &s.task, docket_router::HELPER_POST_JOB);
+    ledger_done(
+        &router,
+        &s.task,
+        docket_gate::companion_names::HELPER_POST_JOB,
+    );
     let refused = CallRefusal::App(AppRefusal::Failed(FailText(
         "There is no helper by that name.".to_owned(),
     )));
@@ -466,7 +470,7 @@ async fn a_helper_action_the_desk_refused_ends_the_tasks_record_refused_and_not_
         note(
             &s.session,
             NoteAsk::DeskRefused {
-                action: helper_action(docket_router::HELPER_POST_JOB),
+                action: helper_action(docket_gate::companion_names::HELPER_POST_JOB),
                 why: refused.clone(),
             },
         ),
@@ -485,7 +489,11 @@ async fn a_helper_action_the_desk_refused_ends_the_tasks_record_refused_and_not_
 async fn a_helper_action_the_desk_did_not_refuse_stays_done_in_the_record() {
     let router = router();
     let s = open(&router, "work", AgentRef::Companion).await;
-    ledger_done(&router, &s.task, docket_router::HELPER_POST_JOB);
+    ledger_done(
+        &router,
+        &s.task,
+        docket_gate::companion_names::HELPER_POST_JOB,
+    );
     let skeleton = end_and_skeleton_text(&router, &s.session).await;
     assert!(
         skeleton.contains("step: companion.helper.post_job  done"),
@@ -512,7 +520,7 @@ async fn only_a_helper_action_recorded_as_done_can_be_amended_by_the_desk() {
         ask(
             &router,
             &companion(),
-            amend(helper_action(docket_router::HELPER_PROPOSE))
+            amend(helper_action(docket_gate::companion_names::HELPER_PROPOSE))
         )
         .await,
         IntentsReply::Refused(WireRefusal::Malformed)

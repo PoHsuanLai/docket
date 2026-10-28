@@ -5,8 +5,9 @@
 use crate::support::*;
 use docket_core::*;
 use docket_fake::ScriptedConfirmer;
+use docket_gate::terminal::Revoked;
 use docket_permissions_core::{AskReason, DenyCode, Mode};
-use docket_router::{Revoked, Router};
+use docket_router::Router;
 use docket_vocab::{ActionRef, CallRequest, Origin, TargetValue, Value};
 use docket_wire::{CallerId, IntentsReply, IntentsRequest, WireRefusal};
 use prov::{Actor, Source};

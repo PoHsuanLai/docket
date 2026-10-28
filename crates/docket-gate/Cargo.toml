@@ -1,0 +1,37 @@
+[package]
+name = "docket-gate"
+description = "The pure steps of a call's way through the router: the facts the policy reads, the gate's mapping from a ruling, the call lifecycle, classification, consent, turn start, argument checks, the call as prepared, what is driven, the confirmation sheet's facts, standing grants' context, the terminal's grants and the trace spans."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+porter-capability = { workspace = true }
+porter-ids = { workspace = true }
+action-review = { workspace = true }
+bulkhead = { workspace = true }
+docket-context = { workspace = true }
+docket-core = { workspace = true }
+docket-manifest = { workspace = true }
+docket-permissions-core = { workspace = true }
+docket-session = { workspace = true }
+docket-vocab = { workspace = true }
+docket-wire = { workspace = true }
+genai-names = { workspace = true }
+model-provider = { workspace = true }
+policy-point = { workspace = true }
+porter-core = { workspace = true }
+prov = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+rust_decimal = { workspace = true }

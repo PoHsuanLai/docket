@@ -19,7 +19,7 @@ use std::collections::BTreeSet;
 /// thing that asks is the terminal rule itself (no Rule of Two, untrusted sink, mass or
 /// memory rule would ask on top, which a grant could not lift), and the action is neither
 /// destructive nor one that asks every time.
-pub(crate) fn offers_grant(p: &Prepared, why: &[AskReason]) -> bool {
+pub fn offers_grant(p: &Prepared, why: &[AskReason]) -> bool {
     p.who.actor == Actor::Cli
         && p.decl.effect != Effect::Destructive
         && p.decl.reach == AgentReach::Offered
@@ -104,7 +104,7 @@ fn taint_note(record: Option<&SessionRecord>) -> TaintNote {
 }
 
 /// The request the sheet draws for `p`.
-pub(crate) fn confirm_request(
+pub fn confirm_request(
     id: ConfirmId,
     p: &Prepared,
     record: Option<&SessionRecord>,

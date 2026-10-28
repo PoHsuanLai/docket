@@ -4,17 +4,18 @@
 //! the person's own entries; the strongest wins. Only agents meet limits: the person's own
 //! launcher acts never reach this file.
 
-use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::{GrantStore, Seams};
 use docket_core::{AppRefusal, FailText, Follow, Invocation, Outcome, Preview, Undoable};
+use docket_gate::limits::{choice_arg, level_of, reach_of, text_arg};
+use docket_gate::prepared::Prepared;
 use docket_permissions_core::{
-    AskReason, Limit, LimitCall, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitNote,
-    LimitScope, Limited, Ruling, Said, StandingGrantId, Tighten, UndoOffer, limited,
+    Limit, LimitCall, LimitCaller, LimitKey, LimitLevel, LimitMaker, LimitScope, Limited, Said,
+    Tighten, limited,
 };
-use docket_vocab::{ActionRef, Clock, LabelText, ParamName, Value};
+use docket_vocab::{ActionRef, Clock, LabelText, ParamName};
 use porter_core::AppName;
-use prov::{ActionName, Actor, Effect, SpaceScope};
+use prov::{ActionName, Actor, SpaceScope};
 
 fn failed(why: &str) -> AppRefusal {
     AppRefusal::Failed(FailText(why.to_owned()))
@@ -22,40 +23,6 @@ fn failed(why: &str) -> AppRefusal {
 
 fn param(name: &str) -> ParamName {
     ParamName::parse(name).expect("a fixed parameter name is valid")
-}
-
-fn text(inv: &Invocation, name: &str) -> Option<String> {
-    match inv.args.get(&param(name)).map(|a| &a.value) {
-        Some(Value::Text(t)) if !t.trim().is_empty() => Some(t.clone()),
-        _ => None,
-    }
-}
-
-fn choice(inv: &Invocation, name: &str) -> Option<String> {
-    match inv.args.get(&param(name)).map(|a| &a.value) {
-        Some(Value::Choice(c)) => Some(c.to_string()),
-        _ => None,
-    }
-}
-
-/// The level the `level` choice names: `ask` or `never`. Nothing else is a level, so the
-/// action cannot carry an allow.
-fn level_of(choice: Option<&str>) -> Option<LimitLevel> {
-    match choice {
-        Some("ask") => Some(LimitLevel::AlwaysAsk),
-        Some("never") => Some(LimitLevel::Never),
-        _ => None,
-    }
-}
-
-/// The weakest effect the `reach` choice covers.
-fn reach_of(choice: Option<&str>) -> Option<Effect> {
-    match choice {
-        None | Some("changes") => Some(Effect::UndoableWrite),
-        Some("anything") => Some(Effect::Read),
-        Some("removals") => Some(Effect::Destructive),
-        Some(_) => None,
-    }
 }
 
 impl<S: Seams> Router<S> {
@@ -101,17 +68,18 @@ impl<S: Seams> Router<S> {
         let Actor::Companion { session, .. } = &inv.actor else {
             return Err(AppRefusal::Unsupported);
         };
-        let level =
-            level_of(choice(inv, "level").as_deref()).ok_or_else(|| AppRefusal::NeedsParam {
+        let level = level_of(choice_arg(inv, "level").as_deref()).ok_or_else(|| {
+            AppRefusal::NeedsParam {
                 param: param("level"),
                 options: Vec::new(),
-            })?;
-        let from = reach_of(choice(inv, "reach").as_deref())
+            }
+        })?;
+        let from = reach_of(choice_arg(inv, "reach").as_deref())
             .ok_or_else(|| failed("that is not a kind of change"))?;
-        let app = text(inv, "app")
+        let app = text_arg(inv, "app")
             .map(|t| AppName::parse(&t).map_err(|_| failed("that is not an app name")))
             .transpose()?;
-        let action = text(inv, "action")
+        let action = text_arg(inv, "action")
             .map(|t| ActionName::parse(&t).map_err(|_| failed("that is not an action name")))
             .transpose()?;
         let scope = match (app, action) {
@@ -126,12 +94,12 @@ impl<S: Seams> Router<S> {
             }
             (None, Some(_)) => return Err(failed("an action needs its app")),
         };
-        let space = match choice(inv, "space").as_deref() {
+        let space = match choice_arg(inv, "space").as_deref() {
             Some("everywhere") => SpaceScope::Any,
             None | Some("here") => SpaceScope::Only(inv.space.clone()),
             Some(_) => return Err(failed("that is not a place")),
         };
-        let said = self.words_the_person_said(session, text(inv, "said"));
+        let said = self.words_the_person_said(session, text_arg(inv, "said"));
         let limit = Tighten {
             level,
             scope,
@@ -172,25 +140,4 @@ impl<S: Seams> Router<S> {
             .any(|t| t.text.to_lowercase().contains(&wanted))
             .then_some(said)
     }
-}
-
-/// The "ask first" a generated rule put into `ruling`, as the sheet shows it: the rule's own
-/// sentence and the id Undo removes. Like a stored limit, it outranks every standing grant.
-pub(crate) fn rule_limit(ruling: &Ruling) -> Limited {
-    let Ruling::Ask(why) = ruling else {
-        return Limited::Free;
-    };
-    why.iter()
-        .find_map(|reason| match reason {
-            AskReason::Said { rule, why } => {
-                StandingGrantId::parse(&rule.0).ok().map(|id| LimitNote {
-                    id,
-                    level: LimitLevel::AlwaysAsk,
-                    why: why.clone(),
-                    undo: UndoOffer::Offered,
-                })
-            }
-            _ => None,
-        })
-        .map_or(Limited::Free, Limited::Ask)
 }

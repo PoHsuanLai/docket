@@ -1627,6 +1627,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket-gate"
+version = "0.1.0"
+dependencies = [
+ "action-review",
+ "bulkhead",
+ "docket-context",
+ "docket-core",
+ "docket-manifest",
+ "docket-permissions-core",
+ "docket-session",
+ "docket-vocab",
+ "docket-wire",
+ "genai-names",
+ "model-provider",
+ "policy-point",
+ "porter-capability",
+ "porter-core",
+ "porter-ids",
+ "prov",
+ "rust_decimal",
+ "serde_json",
+ "toml",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "docket-gate-wire"
 version = "0.1.0"
 dependencies = [
@@ -2051,6 +2078,7 @@ dependencies = [
  "docket-context",
  "docket-core",
  "docket-fake",
+ "docket-gate",
  "docket-gate-wire",
  "docket-manifest",
  "docket-permissions-core",
@@ -2060,22 +2088,18 @@ dependencies = [
  "docket-vocab",
  "docket-wire",
  "futures-util",
- "genai-names",
  "model-provider",
  "policy-point",
- "porter-capability",
  "porter-core",
  "porter-ids",
  "proptest",
  "prov",
  "rust_decimal",
- "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "toml",
  "tracing",
- "url",
 ]
 
 [[package]]

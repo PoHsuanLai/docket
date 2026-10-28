@@ -27,7 +27,7 @@ fn ruling_word(ruling: &Ruling) -> &'static str {
 
 /// The span of one action call: which action, its call id and session, its effect class and
 /// the ruling the policy gave it.
-pub(crate) fn execute_tool(p: &Prepared) -> Span {
+pub fn execute_tool(p: &Prepared) -> Span {
     let action = format!("{}.{}", p.request.action.app, p.request.action.name);
     let session = p
         .who
@@ -52,7 +52,7 @@ fn charge_text(charge: Money) -> String {
 
 /// The span of one model turn of a task, written when its usage is reported: the tokens it
 /// used and the charge the provider reported, when it reported one.
-pub(crate) fn invoke_agent(session: &SessionId, task: &TaskId, report: &TurnReport) -> Span {
+pub fn invoke_agent(session: &SessionId, task: &TaskId, report: &TurnReport) -> Span {
     let tokens = report.tokens;
     let charge = report.charge.map(charge_text);
     tracing::info_span!(

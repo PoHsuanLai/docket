@@ -5,73 +5,18 @@
 //! the control centre reads it like any policy and revokes it; it ends with the session. There
 //! is no flag, option or environment variable that grants it.
 
-use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::Seams;
 use action_review::Breaker;
 use docket_context::session::{SessionEvent, session_step};
-use docket_context::state::SessionRecord;
 use docket_context::tasks::TaskState;
 use docket_core::AuditRecord;
 use docket_core::EventSink;
-use docket_manifest::{ActionDecl, TargetKind};
-use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
-use docket_vocab::{ActionRef, CallerRole, Clock, LabelText};
-use policy_point::TerminalGrant;
-use porter_ids::Count;
-use prov::{Actor, EntityKind, SpaceScope, UnixSeconds};
-use std::collections::BTreeSet;
-
-/// Whether the terminal session `record` holds a standing grant for `action` at `now`.
-pub(crate) fn held(record: &SessionRecord, action: &ActionRef, now: UnixSeconds) -> TerminalGrant {
-    let named = ActionMatch::One(action.clone());
-    match &record.policy {
-        Some(policy)
-            if record.actor == Actor::Cli
-                && policy.state == TaskPolicyState::Active
-                && policy.expires >= now
-                && policy.actions.contains(&named) =>
-        {
-            TerminalGrant::Granted
-        }
-        _ => TerminalGrant::NotGranted,
-    }
-}
-
-fn kinds_of(decl: &ActionDecl) -> BTreeSet<EntityKind> {
-    match &decl.on {
-        TargetKind::One(kind) | TargetKind::Many(kind) => BTreeSet::from([kind.clone()]),
-        TargetKind::Nothing | TargetKind::Text | TargetKind::Files => BTreeSet::new(),
-    }
-}
-
-fn grant_policy(record: &SessionRecord, decl: &ActionDecl, mass_at: Count) -> TaskPolicy {
-    TaskPolicy {
-        task: record.task.clone(),
-        space: record.space.clone(),
-        from: vec![],
-        actions: BTreeSet::new(),
-        kinds: kinds_of(decl),
-        ceiling: decl.effect,
-        max_count: mass_at,
-        recipients: vec![],
-        destinations: vec![],
-        paths: vec![],
-        expires: UnixSeconds(i64::MAX),
-        rationale: LabelText::parse("Allowed from the terminal until logout")
-            .expect("a fixed sheet phrase obeys the label grammar"),
-        state: TaskPolicyState::Active,
-    }
-}
-
-/// Why a revocation did nothing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Revoked {
-    /// The grant is gone.
-    Done,
-    /// The terminal held no grant for that action.
-    NotHeld,
-}
+use docket_gate::prepared::Prepared;
+use docket_gate::terminal::{Revoked, grant_policy, kinds_of};
+use docket_permissions_core::{ActionMatch, TaskPolicyState};
+use docket_vocab::{ActionRef, CallerRole, Clock};
+use prov::{Actor, SpaceScope};
 
 impl<S: Seams> Router<S> {
     /// The person answered "allow from the terminal": the terminal session of `p` now holds the

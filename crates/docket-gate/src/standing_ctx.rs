@@ -15,7 +15,7 @@ use prov::Integrity;
 
 /// What the router knows about standing grants for one call.
 #[derive(Debug, Clone)]
-pub(crate) struct StandingCtx {
+pub struct StandingCtx {
     /// Who is calling.
     pub caller: GrantCaller,
     /// What the call is, for matching.
@@ -39,7 +39,7 @@ pub(crate) struct StandingCtx {
 
 impl StandingCtx {
     /// The context for `request` made by `caller`.
-    pub(crate) fn new(
+    pub fn new(
         caller: GrantCaller,
         decl: &ActionDecl,
         request: &CallRequest,
@@ -72,7 +72,7 @@ impl StandingCtx {
     }
 
     /// The same context under `limited`.
-    pub(crate) fn limited(self, limited: Limited) -> Self {
+    pub fn limited(self, limited: Limited) -> Self {
         Self { limited, ..self }
     }
 
@@ -92,7 +92,7 @@ impl StandingCtx {
     /// The pending step after standing grants: an ask that a held grant may replace becomes a
     /// review at the plan the call's impact calls for; everything else is untouched. The
     /// reviewers' own ask still reaches the person.
-    pub(crate) fn lifted(
+    pub fn lifted(
         mut self,
         grants: &[StandingGrant],
         approvals: &[CallFacts],
@@ -127,7 +127,7 @@ impl StandingCtx {
     }
 
     /// Whether the sheet for `why` offers "allow always", and for what.
-    pub(crate) fn offer(&self, decl: &ActionDecl, why: &[AskReason]) -> AlwaysOffer {
+    pub fn offer(&self, decl: &ActionDecl, why: &[AskReason]) -> AlwaysOffer {
         match &self.applied {
             Some(_) => AlwaysOffer::Withheld(Withheld::AlreadyHeld),
             None => may_offer(&self.caller, &self.facts, &self.ask_facts(decl, why)),
@@ -135,7 +135,7 @@ impl StandingCtx {
     }
 
     /// Whether this caller's "always" is a standing grant rather than the broad class grant.
-    pub(crate) fn holds(&self) -> bool {
+    pub fn holds(&self) -> bool {
         holds_standing(&self.caller)
     }
 }

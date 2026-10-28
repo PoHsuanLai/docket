@@ -1,11 +1,16 @@
-//! The names of the companion's own actions, and the rule that the helper ones are the
-//! companion's planners' alone.
+//! The names of the companion's own actions, the rule that the helper ones are the companion's
+//! planners' alone, and the things that stand for its tasks.
 
 use docket_permissions_core::COMPANION_APP;
 use docket_vocab::ActionRef;
+use porter_core::AppName;
+use prov::{EntityId, EntityKey, EntityKind, TaskId};
+
+/// The kind of thing a task is.
+const TASK_KIND: &str = "companion.task";
 
 /// The assistant's one action that adds a limit.
-pub(crate) const LIMIT_ADD: &str = "companion.limit.add";
+pub const LIMIT_ADD: &str = "companion.limit.add";
 
 /// Gives a job to a helper by its name.
 pub const HELPER_POST_JOB: &str = "companion.helper.post_job";
@@ -25,4 +30,24 @@ pub fn is_helper_action(action: &ActionRef) -> bool {
             action.name.as_str(),
             HELPER_POST_JOB | HELPER_PROPOSE | ROUTINE_PROPOSE | BRIEF_CONFIRM
         )
+}
+
+fn name() -> AppName {
+    AppName::parse(COMPANION_APP).expect("`org.quire.Companion` is a valid app name")
+}
+
+/// The thing of kind `companion.task` that stands for `task`.
+pub fn task_entity(task: &TaskId) -> Option<EntityId> {
+    Some(EntityId {
+        app: name(),
+        kind: EntityKind::parse(TASK_KIND).ok()?,
+        key: EntityKey::parse(task.as_str()).ok()?,
+    })
+}
+
+/// The task an entity of kind `companion.task` names.
+pub fn task_of(entity: &EntityId) -> Option<TaskId> {
+    (entity.app == name() && entity.kind.as_str() == TASK_KIND)
+        .then(|| TaskId::parse(entity.key.as_str()).ok())
+        .flatten()
 }

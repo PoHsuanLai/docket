@@ -21,7 +21,7 @@ use prov::{Actor, AgentRole, Effect, EntityId, Integrity, SpaceId};
 
 /// A call that ended before it reached the gate.
 #[derive(Debug, Clone)]
-pub(crate) struct Early {
+pub struct Early {
     pub id: CallId,
     pub who: Who,
     pub action: ActionRef,
@@ -32,7 +32,7 @@ pub(crate) struct Early {
 
 /// A call ready to be driven.
 #[derive(Debug, Clone)]
-pub(crate) struct Prepared {
+pub struct Prepared {
     pub id: CallId,
     pub who: Who,
     pub space: SpaceId,
@@ -61,7 +61,8 @@ pub(crate) struct Prepared {
     pub filled: Args,
 }
 
-pub(crate) fn entities(target: &TargetValue) -> Vec<EntityId> {
+/// The things a target names, if it names things.
+pub fn entities(target: &TargetValue) -> Vec<EntityId> {
     match target {
         TargetValue::Entities(ids) => ids.clone(),
         TargetValue::Nothing
@@ -73,7 +74,7 @@ pub(crate) fn entities(target: &TargetValue) -> Vec<EntityId> {
 
 /// A stable hash of what a call is about: the same action, target (things or files) and argument
 /// values.
-pub(crate) fn digest(target: &TargetValue, args: &Args) -> ArgDigest {
+pub fn digest(target: &TargetValue, args: &Args) -> ArgDigest {
     let values: std::collections::BTreeMap<&ParamName, &Value> =
         args.iter().map(|(k, v)| (k, &v.value)).collect();
     let bytes = serde_json::to_vec(&(target, values)).unwrap_or_default();
@@ -83,7 +84,8 @@ pub(crate) fn digest(target: &TargetValue, args: &Args) -> ArgDigest {
     ArgDigest(hash)
 }
 
-pub(crate) fn grant_state(v: &Verdict) -> GrantState {
+/// What a consent verdict says of the grant behind it, as the policy reads it.
+pub fn grant_state(v: &Verdict) -> GrantState {
     match v {
         Verdict::Granted {
             scope: GrantScope::Always,
@@ -99,7 +101,8 @@ pub(crate) fn grant_state(v: &Verdict) -> GrantState {
     }
 }
 
-pub(crate) fn usage_of(actor: &Actor) -> Usage {
+/// How the actor uses the app: an agent working in the background, or the person's own acts.
+pub fn usage_of(actor: &Actor) -> Usage {
     match actor {
         Actor::Companion {
             role: AgentRole::Worker { .. } | AgentRole::Cua { .. } | AgentRole::Helper { .. },
@@ -110,7 +113,7 @@ pub(crate) fn usage_of(actor: &Actor) -> Usage {
 }
 
 /// The steps of a session as the reviewer is told them: codes only.
-pub(crate) fn typed_history(record: &SessionRecord) -> Vec<TypedStep> {
+pub fn typed_history(record: &SessionRecord) -> Vec<TypedStep> {
     record
         .history
         .iter()
@@ -132,11 +135,8 @@ pub(crate) fn typed_history(record: &SessionRecord) -> Vec<TypedStep> {
         .collect()
 }
 
-pub(crate) fn proposed(
-    decl: &ActionDecl,
-    call: &CallRequest,
-    targets: &[EntityId],
-) -> ProposedAction {
+/// The action as the reviewer is shown it: the arguments, trusted or untrusted, and the targets.
+pub fn proposed(decl: &ActionDecl, call: &CallRequest, targets: &[EntityId]) -> ProposedAction {
     let view = |name: &ParamName| {
         call.args.get(name).map(|a| match a.label.integrity {
             Integrity::Trusted => ArgView::Trusted(a.value.clone()),
@@ -167,7 +167,7 @@ pub(crate) fn proposed(
 
 /// What a grant the person gives with "always" is keyed by: one per data class, for the whole
 /// app in this Space.
-pub(crate) fn grants_for(
+pub fn grants_for(
     prepared: &Prepared,
     id: GrantId,
     at: prov::UnixSeconds,

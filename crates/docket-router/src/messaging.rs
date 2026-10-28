@@ -8,28 +8,17 @@ use crate::router::Router;
 use crate::seams::Seams;
 use docket_context::labels::{absorb, fold_labels, model_label, user_label};
 use docket_context::session::SessionState;
-use docket_context::state::{RouterState, SessionRecord};
+use docket_context::state::RouterState;
 use docket_context::tasks::TaskState;
 use docket_core::EventSink;
 use docket_core::{AuditRecord, Delivery, DraftPart, InboxAsk, MessageDraft, SendRefusal, halted};
+use docket_gate::messaging::{receiving, send_refusal};
 use docket_vocab::{CallerRole, Clock, Handle};
 use docket_wire::{CallerId, IntentsReply, WireRefusal};
 use prov::{
     Actor, Address, AgentRef, Label, Message, MessageId, MessageText, ReportStatus, SessionId,
 };
 use std::collections::BTreeMap;
-
-fn receiving<'a>(
-    st: &'a RouterState,
-    to: &Address,
-) -> impl Iterator<Item = (&'a SessionId, &'a SessionRecord)> {
-    let to = to.clone();
-    st.sessions.iter().filter(move |(_, r)| {
-        r.space == to.space
-            && !matches!(r.state, SessionState::Closed(_))
-            && AgentRef::of(&r.actor) == Some(to.agent.clone())
-    })
-}
 
 /// A message for the person, as their screen shows it: the words are theirs to read.
 fn screen_line(message: &Message) -> docket_core::InboundLine {
@@ -47,10 +36,6 @@ fn screen_line(message: &Message) -> docket_core::InboundLine {
         })
         .collect();
     line
-}
-
-fn refuse(why: SendRefusal) -> IntentsReply {
-    IntentsReply::Refused(WireRefusal::Send(why))
 }
 
 impl<S: Seams> Router<S> {
@@ -77,12 +62,12 @@ impl<S: Seams> Router<S> {
             record.actor.clone()
         };
         let Some(sender) = AgentRef::of(&actor) else {
-            return refuse(SendRefusal::SenderMismatch);
+            return send_refusal(SendRefusal::SenderMismatch);
         };
         if halted(&st.kill, &record.space).is_some()
             || (!person && matches!(record.state, SessionState::Paused { .. }))
         {
-            return refuse(SendRefusal::Halted);
+            return send_refusal(SendRefusal::Halted);
         }
         let mut handle_labels: Vec<Label> = Vec::new();
         let mut resolved: BTreeMap<Handle, MessageText> = BTreeMap::new();
@@ -93,7 +78,7 @@ impl<S: Seams> Router<S> {
                         resolved.insert(*h, MessageText::new(text));
                         handle_labels.push(label.clone());
                     }
-                    _ => return refuse(SendRefusal::UnknownHandle),
+                    _ => return send_refusal(SendRefusal::UnknownHandle),
                 }
             }
         }
@@ -109,14 +94,14 @@ impl<S: Seams> Router<S> {
             MessageId::parse(&format!("m-{n}")),
             Address::new(sender, record.space.clone()),
         ) else {
-            return refuse(SendRefusal::Malformed(prov::Fault::NoParts));
+            return send_refusal(SendRefusal::Malformed(prov::Fault::NoParts));
         };
         let to = draft.to.clone();
         let message = match assemble(draft, id, from, label, now, &resolved)
             .and_then(|m| check_stamped(&m, &actor).map(|()| m))
         {
             Ok(m) => m,
-            Err(why) => return refuse(why),
+            Err(why) => return send_refusal(why),
         };
         let Some(target) = receiving(&st, &to)
             .map(|(id, _)| id.clone())
@@ -124,7 +109,7 @@ impl<S: Seams> Router<S> {
         else {
             return match to.agent {
                 AgentRef::User => self.deliver_to_address(&mut st, to, message),
-                _ => refuse(SendRefusal::NoRecipient),
+                _ => send_refusal(SendRefusal::NoRecipient),
             };
         };
         if let Some(r) = st.sessions.get_mut(&target) {

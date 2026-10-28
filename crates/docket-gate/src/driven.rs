@@ -11,7 +11,7 @@ use porter_capability::ModelId;
 
 /// How a call ended, with what the audit and the caller need of it.
 #[derive(Debug, Clone)]
-pub(crate) struct Driven {
+pub struct Driven {
     pub end: CallEnd,
     pub outcome: Option<Outcome>,
     pub decided: DecidedBy,
@@ -20,7 +20,8 @@ pub(crate) struct Driven {
 }
 
 /// What the driver has learned about the call so far.
-pub(crate) struct Run {
+#[derive(Debug)]
+pub struct Run {
     pub state: CallState,
     pub verdicts: Vec<(Stage, Result<ReviewVerdict, ReviewError>)>,
     pub codes: Vec<(Stage, ReasonCode)>,
@@ -34,9 +35,15 @@ pub(crate) struct Run {
     pub written: Option<docket_core::BriefText>,
 }
 
+impl Default for Run {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Run {
     /// A call that has just arrived.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             state: CallState::Received,
             verdicts: vec![],
@@ -53,7 +60,7 @@ impl Run {
 
     /// Who decided the call: the person if they answered, else the last reviewer that ran, else
     /// policy alone.
-    pub(crate) fn decided_by(&self, p: &Prepared) -> DecidedBy {
+    pub fn decided_by(&self, p: &Prepared) -> DecidedBy {
         match (&self.receipt, self.codes.last()) {
             (Some(receipt), _) => DecidedBy::User(receipt.clone()),
             (None, Some((stage, code))) => DecidedBy::Reviewer {
@@ -66,8 +73,11 @@ impl Run {
 }
 
 /// What the driver does after carrying out an effect.
-pub(crate) enum Next {
+#[derive(Debug)]
+pub enum Next {
+    /// The call goes on with this event.
     Event(CallEvent),
+    /// The call is over.
     Stop,
 }
 
@@ -84,7 +94,8 @@ fn ruling_ids(ruling: &Ruling) -> Vec<PolicyId> {
     }
 }
 
-pub(crate) fn code_of(verdict: &Result<ReviewVerdict, ReviewError>) -> ReasonCode {
+/// The reason code a reviewer's verdict, or its failure, comes to.
+pub fn code_of(verdict: &Result<ReviewVerdict, ReviewError>) -> ReasonCode {
     match verdict {
         Ok(ReviewVerdict::Allow) => ReasonCode::WithinRequest,
         Ok(ReviewVerdict::Ask { why } | ReviewVerdict::Deny { why }) => why.code,
@@ -92,11 +103,13 @@ pub(crate) fn code_of(verdict: &Result<ReviewVerdict, ReviewError>) -> ReasonCod
     }
 }
 
-pub(crate) fn unissued() -> ConfirmId {
+/// The id of a sheet that was never issued.
+pub fn unissued() -> ConfirmId {
     ConfirmId::parse("c-0").expect("`c-0` is a valid confirmation id")
 }
 
-pub(crate) fn reviewer_model(stage: Stage) -> ModelId {
+/// The model id the reviewer of `stage` is named by.
+pub fn reviewer_model(stage: Stage) -> ModelId {
     let name = match stage {
         Stage::Quick => "reviewer-quick",
         Stage::Deliberate => "reviewer-deliberate",
@@ -107,11 +120,7 @@ pub(crate) fn reviewer_model(stage: Stage) -> ModelId {
 
 /// The breaker's mark for a call that ended: allowed if it ran, denied if policy, a reviewer or
 /// the person said no, and nothing for a halt, a budget or an app that failed.
-pub(crate) fn decision_of(
-    driven: &Driven,
-    p: &Prepared,
-    at: prov::UnixSeconds,
-) -> Option<DecisionMark> {
+pub fn decision_of(driven: &Driven, p: &Prepared, at: prov::UnixSeconds) -> Option<DecisionMark> {
     match (&driven.end, driven.denied_by) {
         (CallEnd::Done, _) => Some(DecisionMark::Allowed),
         (CallEnd::Refused(CallRefusal::Denied(_) | CallRefusal::Unconfirmed(_)), Some(by)) => {
@@ -127,7 +136,7 @@ pub(crate) fn decision_of(
 }
 
 /// How a call's end reads in the session history.
-pub(crate) fn step_end(driven: &Driven, outcome: Option<&Outcome>) -> StepEnd {
+pub fn step_end(driven: &Driven, outcome: Option<&Outcome>) -> StepEnd {
     match &driven.end {
         CallEnd::Done => StepEnd::Done {
             said: outcome.and_then(|o| o.said.clone()),

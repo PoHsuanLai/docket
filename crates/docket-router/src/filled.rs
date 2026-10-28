@@ -4,8 +4,6 @@
 //! called, in `Prepared::filled`, so the sheet, the digest and the gate see what the planner
 //! sent and nothing more. A value that cannot be had is left out, and the call still runs.
 
-use crate::gate::Pending;
-use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::Seams;
 use almanac_core::{
@@ -13,6 +11,8 @@ use almanac_core::{
 };
 use docket_context::labels::{fold_labels, user_label};
 use docket_core::MemoryLink;
+use docket_gate::gate::Pending;
+use docket_gate::prepared::Prepared;
 use docket_manifest::Filled;
 use docket_session::session_thing;
 use docket_vocab::{Args, Value};

@@ -5,7 +5,7 @@ use policy_point::Ruled;
 use prov::TaskId;
 
 /// Logs each evaluation fault of `ruled` with the task it was for.
-pub(crate) fn log_faults(ruled: &Ruled, task: &TaskId) {
+pub fn log_faults(ruled: &Ruled, task: &TaskId) {
     for fault in &ruled.faults {
         tracing::warn!(
             %task,

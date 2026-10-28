@@ -9,7 +9,7 @@ use docket_vocab::{ActionRef, CallerRole};
 /// an external agent alone; that host makes it no call of another app but the ones the agent's
 /// edge offers (`AgentReach::Offered` of an app that is not host-only), so a hostile agent cannot
 /// reach an action nobody offered it by naming it.
-pub(crate) fn may_make(
+pub fn may_make(
     registry: &Registry,
     role: CallerRole,
     action: &ActionRef,

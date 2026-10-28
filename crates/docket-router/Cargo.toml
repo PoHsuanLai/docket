@@ -1,6 +1,6 @@
 [package]
 name = "docket-router"
-description = "The pure router: registry, the gate, sessions and the handle table, the undo journal, tasks and messages, over seams the daemon passes in."
+description = "The pure router: `Router` and the seams the daemon passes in, over docket-context (what it remembers) and docket-gate (the pure steps of a call)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,13 +9,12 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-porter-capability = { workspace = true }
 porter-ids = { workspace = true }
-bulkhead = { workspace = true }
 companion-model = { workspace = true }
 docket-checkpoint = { workspace = true }
 docket-context = { workspace = true }
 docket-core = { workspace = true }
+docket-gate = { workspace = true }
 docket-wire = { workspace = true }
 docket-gate-wire = { workspace = true }
 docket-manifest = { workspace = true, features = ["manifest-file"] }
@@ -27,21 +26,19 @@ policy-point = { workspace = true }
 action-review = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }
-model-provider = { workspace = true }
 almanac-core = { workspace = true }
-serde = { workspace = true }
 thiserror = { workspace = true }
-toml = { workspace = true }
-url = { workspace = true }
 serde_json = { workspace = true }
 futures-util = { workspace = true }
 tracing = { workspace = true }
-genai-names = { workspace = true }
 
 [lints]
 workspace = true
 
 [dev-dependencies]
+bulkhead = { workspace = true }
+model-provider = { workspace = true }
+toml = { workspace = true }
 rust_decimal = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 docket-fake = { workspace = true }

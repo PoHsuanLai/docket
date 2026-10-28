@@ -9,7 +9,7 @@ use docket_vocab::CallRequest;
 use prov::UnixSeconds;
 
 /// The coverage of `call` under `policy` at `now`. No policy covers nothing.
-pub(crate) fn coverage(
+pub fn coverage(
     policy: Option<&TaskPolicy>,
     decl: &ActionDecl,
     call: &CallRequest,

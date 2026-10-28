@@ -3,8 +3,8 @@
 
 use crate::router::Router;
 use crate::seams::Seams;
-use crate::spans;
 use docket_core::{BudgetKind, TurnReport, charge_turn, check_turn};
+use docket_gate::spans;
 use docket_session::SessionEntry;
 use prov::SessionId;
 

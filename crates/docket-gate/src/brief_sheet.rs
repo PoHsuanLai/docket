@@ -11,11 +11,12 @@ use docket_vocab::{ActionRef, LabelText, ParamName, Value};
 const PIECES_SHOWN: usize = 12;
 
 /// Whether `action` is the one that asks the person to check a brief.
-pub(crate) fn is_brief_confirm(action: &ActionRef) -> bool {
+pub fn is_brief_confirm(action: &ActionRef) -> bool {
     action.app.as_str() == COMPANION_APP && action.name.as_str() == BRIEF_CONFIRM
 }
 
-pub(crate) fn text_of(p: &Prepared, name: &str) -> Option<String> {
+/// The text argument `name` of the call, if it holds text.
+pub fn text_of(p: &Prepared, name: &str) -> Option<String> {
     let name = ParamName::parse(name).ok()?;
     match p.request.args.get(&name).map(|held| &held.value) {
         Some(Value::Text(text)) => Some(text.clone()),
@@ -48,7 +49,7 @@ pub(crate) fn sheet_of(p: &Prepared) -> Option<BriefSheet> {
 /// and only once: any other answer (a yes from a surface that cannot edit, an "always", a
 /// "never", a terminal grant) is not a confirmation, and nothing is kept. Other calls' answers
 /// pass unchanged.
-pub(crate) fn brief_answer(p: &Prepared, answer: ConfirmAnswer) -> ConfirmAnswer {
+pub fn brief_answer(p: &Prepared, answer: ConfirmAnswer) -> ConfirmAnswer {
     if !is_brief_confirm(&p.request.action) {
         return answer;
     }

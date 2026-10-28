@@ -1,8 +1,6 @@
 //! What a call leaves behind when it ends: the one audit record, the breaker's tally, the
 //! session's history and the task's ledger, and the outcome as its caller may read it.
 
-use crate::driven::{Driven, decision_of, step_end};
-use crate::prepared::{Early, Prepared};
 use crate::router::Router;
 use crate::seams::Seams;
 use crate::shield::shield;
@@ -17,6 +15,8 @@ use docket_core::{
     AuditRecord, BudgetKind, CallEnd, CallRefusal, DecidedBy, Outcome, Preview, StepEnd, StepLine,
     StepShown, Undoable,
 };
+use docket_gate::driven::{Driven, decision_of, step_end};
+use docket_gate::prepared::{Early, Prepared};
 use docket_permissions_core::approves;
 use docket_session::{BreakerNote, SessionEntry};
 use docket_vocab::{Clock, Origin, Value};

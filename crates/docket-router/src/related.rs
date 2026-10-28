@@ -5,10 +5,10 @@
 //! (the sender of a message) is untrusted whatever the app says, so a recipient chosen through it
 //! meets the same sink checks as any untrusted recipient.
 
-use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::Seams;
 use docket_core::{AppRefusal, Outcome};
+use docket_gate::prepared::Prepared;
 use docket_manifest::{Cardinality, EntityDecl, Manifest, RELATION_ARG, RelationDecl, TitleTrust};
 use docket_vocab::Value;
 use porter_core::DataClass;

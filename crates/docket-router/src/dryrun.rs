@@ -3,11 +3,11 @@
 //! gate would refuse is refused here with the same refusal, so `quire-do --dry-run` cannot be
 //! used to probe around the gate.
 
-use crate::gate::Pending;
 use crate::router::Router;
 use crate::seams::{AppLink, Seams};
 use docket_context::who::Who;
 use docket_core::{CallRefusal, Invocation, Preview};
+use docket_gate::gate::Pending;
 use docket_manifest::DryRun;
 use docket_vocab::{CallRequest, Depth};
 use docket_wire::{IntentsReply, WireRefusal};

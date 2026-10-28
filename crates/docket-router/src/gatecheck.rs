@@ -3,9 +3,6 @@
 //! same Cedar policy and the same breaker.
 
 use crate::deadline::within;
-use crate::facts::{budget_fact, repeat_fact, run_facts, taint_fact};
-use crate::gate::{GateInputs, Pending, gate};
-use crate::prepared::grant_state;
 use crate::router::Router;
 use crate::seams::{GrantStore, Seams};
 use crate::watch::Watch;
@@ -17,6 +14,9 @@ use docket_core::{
     ConfirmDetail, ConfirmEnd, ConfirmId, ConfirmOffer, ConfirmRequest, Confirmer, Cost, Gesture,
     TaintNote,
 };
+use docket_gate::facts::{budget_fact, repeat_fact, run_facts, taint_fact};
+use docket_gate::gate::{GateInputs, Pending, gate};
+use docket_gate::prepared::grant_state;
 use docket_gate_wire::{CuaAsk, GateAnswer};
 use docket_manifest::{AgentReach, Lasting};
 use docket_permissions_core::{
@@ -416,7 +416,7 @@ impl<S: Seams> Router<S> {
                 },
                 context: ctx.clone(),
             });
-            crate::policylog::log_faults(&ruled, &record.task);
+            docket_gate::policylog::log_faults(&ruled, &record.task);
             let ruling = ruled.ruling;
             gate(&GateInputs {
                 ruling: &ruling,

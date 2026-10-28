@@ -7,7 +7,6 @@
 //! table (`TaskRecord::goal`) and reaches the worker as a request message whose label is the
 //! planner's; nothing here reads it as an instruction.
 
-use crate::companion_names::{HELPER_POST_JOB, HELPER_PROPOSE, LIMIT_ADD, ROUTINE_PROPOSE};
 use crate::router::Router;
 use crate::seams::Seams;
 use companion_model::helper::{GoalOrigin, JobRefusal, PlannerSaw};
@@ -19,18 +18,18 @@ use docket_core::{
     AppRefusal, AuditRecord, DraftPart, FROM_CHECKED_BRIEF, FailText, Invocation, MessageDraft,
     Outcome, Preview, Reveal, SendRefusal, Undoable,
 };
+use docket_gate::companion_names::{
+    HELPER_POST_JOB, HELPER_PROPOSE, LIMIT_ADD, ROUTINE_PROPOSE, task_entity, task_of,
+};
 use docket_permissions_core::{COMPANION_APP, Saw};
 use docket_vocab::{CallerRole, ChoiceId, Clock, LabelText, ParamName, TargetValue, Value};
 use docket_wire::{CallerId, IntentsReply, SessionOpen, SessionOpened, TaskStart, WireRefusal};
 use porter_core::{AppId, AppName, Isolation};
 use prov::{
-    Actor, Address, AgentRef, AgentRole, EntityId, EntityKey, EntityKind, Integrity, Labelled,
-    MessageKind, MessageText, ModelRole, SessionId, Source, TaskId,
+    Actor, Address, AgentRef, AgentRole, Integrity, Labelled, MessageKind, MessageText, ModelRole,
+    SessionId, Source, TaskId,
 };
 use std::collections::BTreeMap;
-
-/// The kind of thing a task is.
-const TASK_KIND: &str = "companion.task";
 
 fn failed(why: &str) -> AppRefusal {
     AppRefusal::Failed(FailText(why.to_owned()))
@@ -389,20 +388,4 @@ impl<S: Seams> Router<S> {
             other => Err(refused_send(other)),
         }
     }
-}
-
-/// The thing of kind `companion.task` that stands for `task`.
-fn task_entity(task: &TaskId) -> Option<EntityId> {
-    Some(EntityId {
-        app: name(),
-        kind: EntityKind::parse(TASK_KIND).ok()?,
-        key: EntityKey::parse(task.as_str()).ok()?,
-    })
-}
-
-/// The task an entity of kind `companion.task` names.
-fn task_of(entity: &EntityId) -> Option<TaskId> {
-    (entity.app == name() && entity.kind.as_str() == TASK_KIND)
-        .then(|| TaskId::parse(entity.key.as_str()).ok())
-        .flatten()
 }

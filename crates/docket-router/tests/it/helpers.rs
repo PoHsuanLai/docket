@@ -5,8 +5,8 @@ use crate::support::*;
 use companion_model::helper::HelperSeat;
 use docket_core::*;
 use docket_fake::ScriptedWriter;
+use docket_gate::companion_names::{HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE};
 use docket_permissions_core::{ActionMatch, COMPANION_APP, DenyCode, Saw, TaskPolicy};
-use docket_router::{HELPER_POST_JOB, HELPER_PROPOSE, ROUTINE_PROPOSE};
 use docket_vocab::{
     ActionRef, CallId, CallRequest, Caller, CallerRole, Origin, TargetValue, TurnId, Value,
 };

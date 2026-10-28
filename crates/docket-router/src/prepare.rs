@@ -2,19 +2,8 @@
 //! and what they are worth, what standing consent and the task policy say, what Cedar rules,
 //! and where the gate sends the call. Pure over the router's state and its clock.
 
-use crate::argcheck::{check_call, no_handle_names, target_name};
-use crate::consent::{consent_for, within_reach};
-use crate::coverage::coverage;
-use crate::facts::{RunFacts, budget_fact, repeat_fact, run_facts, taint_fact};
-use crate::gate::{GateInputs, Pending, gate};
-use crate::may_make::may_make;
-use crate::prepared::{
-    Early, Prepared, digest, entities, grant_state, proposed, typed_history, usage_of,
-};
 use crate::router::Router;
 use crate::seams::{GrantStore, Seams};
-use crate::standing_ctx::StandingCtx;
-use crate::turn_start::{TurnStart, pass, rule};
 use action_review::{GoalKey, RepeatState, ReviewRequest, repeated};
 use docket_context::labels::{
     arg_labels, args_confidentiality, label_args, planner_integrity, resolve_target, sink_integrity,
@@ -27,6 +16,17 @@ use docket_context::spacing::relation_of;
 use docket_context::state::{RouterState, SessionRecord};
 use docket_context::who::Who;
 use docket_core::{BudgetKind, CallRefusal, Cost};
+use docket_gate::argcheck::{check_call, no_handle_names, target_name};
+use docket_gate::consent::{consent_for, within_reach};
+use docket_gate::coverage::coverage;
+use docket_gate::facts::{RunFacts, budget_fact, repeat_fact, run_facts, taint_fact};
+use docket_gate::gate::{GateInputs, Pending, gate};
+use docket_gate::may_make::may_make;
+use docket_gate::prepared::{
+    Early, Prepared, digest, entities, grant_state, proposed, typed_history, usage_of,
+};
+use docket_gate::standing_ctx::StandingCtx;
+use docket_gate::turn_start::{TurnStart, pass, rule};
 use docket_manifest::{ActionDecl, Lasting};
 use docket_permissions_core::{
     ActionGrant, DenyCode, Impact, LimitCall, Limited, Mode, ModeRows, Ruling, SpaceAccess,
@@ -130,7 +130,7 @@ impl<S: Seams> Router<S> {
                 count: f.count,
                 mass_at: self.agent_config().mass_at,
                 grant: grant_state(f.consent),
-                terminal: crate::terminal::held(
+                terminal: docket_gate::terminal::held(
                     f.record,
                     &f.request.action,
                     self.seams.clock().now(),
@@ -362,7 +362,7 @@ impl<S: Seams> Router<S> {
             mode,
             rows,
         }));
-        crate::policylog::log_faults(&ruled, &record.task);
+        docket_gate::policylog::log_faults(&ruled, &record.task);
         let ruling = ruled.ruling;
         // A reviewed call also spends the reviews budget.
         let cost = Cost {
@@ -384,7 +384,7 @@ impl<S: Seams> Router<S> {
         // A limit outranks every allowance: under one, no standing grant or approval stands in
         // for the question (the policy has already asked or refused for it).
         let limited = match limited {
-            Limited::Free => crate::limits::rule_limit(&ruling),
+            Limited::Free => docket_gate::limits::rule_limit(&ruling),
             held => held,
         };
         let (pending, standing) = match limited {

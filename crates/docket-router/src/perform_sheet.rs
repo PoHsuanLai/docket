@@ -1,12 +1,6 @@
 //! What a call shows the person and how their answer is taken: the app's dry run, the
 //! invocation an app gets, the sheet, and a sheet's answer borrowed by a waiting call.
 
-use crate::brief_sheet::brief_answer;
-use crate::call::CallEvent;
-use crate::confirm::confirm_request;
-use crate::driven::{Next, Run};
-use crate::gate::Pending;
-use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::{AppLink, Seams};
 use docket_context::asks::{AskKey, Seat, Settled, seat, settled};
@@ -14,6 +8,12 @@ use docket_core::{
     AppRefusal, AuditRecord, ConfirmAnswer, ConfirmAnswerKind, ConfirmEnd, ConfirmId,
     ConfirmRequest, Confirmer, EventSink, Invocation,
 };
+use docket_gate::brief_sheet::brief_answer;
+use docket_gate::call::CallEvent;
+use docket_gate::confirm::confirm_request;
+use docket_gate::driven::{Next, Run};
+use docket_gate::gate::Pending;
+use docket_gate::prepared::Prepared;
 use docket_permissions_core::{AskReason, PolicyId};
 use docket_vocab::Clock;
 

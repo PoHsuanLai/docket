@@ -4,11 +4,11 @@
 //! already run. Whether it may do so, and whether "always" is offered, is the pure rule in
 //! `docket_core`; this file reads the facts, carries out the decision and keeps the audit.
 
-use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::{GrantStore, Seams};
 use docket_core::AuditRecord;
 use docket_core::EventSink;
+use docket_gate::prepared::Prepared;
 use docket_permissions_core::{
     CallFacts, GrantCaller, Revocation, StandingGrant, StandingGrantId, StandingScope,
 };

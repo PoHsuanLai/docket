@@ -1,13 +1,8 @@
 //! Driving one call through its lifecycle: the pure step decides, this carries out what it
 //! asks (the reviewers, the app's dry run, the sheet, the app itself) and keeps the audit.
 
-use crate::call::{CallEffect, CallEvent, CallState, call_step};
-use crate::confirm::offers_grant;
 use crate::deadline::within;
-use crate::driven::{Driven, Next, Run, code_of, reviewer_model, unissued};
-use crate::gate::Pending;
 use crate::perform_sheet::asked_why;
-use crate::prepared::Prepared;
 use crate::router::Router;
 use crate::seams::Seams;
 use crate::watch::Watch;
@@ -17,6 +12,11 @@ use docket_core::{
     ActivationToken, AuditRecord, CallEnd, CallRefusal, ConfirmAnswerKind, Confirmer, EventSink,
     Follow, Outcome, Undoable, halted,
 };
+use docket_gate::call::{CallEffect, CallEvent, CallState, call_step};
+use docket_gate::confirm::offers_grant;
+use docket_gate::driven::{Driven, Next, Run, code_of, reviewer_model, unissued};
+use docket_gate::gate::Pending;
+use docket_gate::prepared::Prepared;
 use docket_permissions_core::{AlwaysOffer, ReviewError, ReviewMark, Stage};
 use docket_vocab::{CallRequest, Clock, Depth, Millis, WindowKey};
 use prov::SpaceScope;
@@ -75,7 +75,7 @@ impl<S: Seams> Router<S> {
                     .await;
                 let driven = self
                     .drive(&prepared, watch)
-                    .instrument(crate::spans::execute_tool(&prepared))
+                    .instrument(docket_gate::spans::execute_tool(&prepared))
                     .await;
                 self.note_delegation(&prepared, &driven);
                 let changed = Self::changed_since_classified(&prepared, &driven);
@@ -95,7 +95,7 @@ impl<S: Seams> Router<S> {
                         };
                         let driven = self
                             .drive(&again, watch)
-                            .instrument(crate::spans::execute_tool(&again))
+                            .instrument(docket_gate::spans::execute_tool(&again))
                             .await;
                         self.finish(&again, driven).await
                     }
