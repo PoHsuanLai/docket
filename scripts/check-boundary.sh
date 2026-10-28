@@ -499,12 +499,12 @@ fi
 
 # No shipped crate carries a test-only switch. The proc root of the callers and the model tap are
 # arguments (`HarnessSeams`) that only the docket-accept mains pass (docket-live, which runs the same world, names them too); no daemon source reads
-# `*_PROC_ROOT` or `DOCKET_MODEL_TRACE`. porter reads a fixture tree only with porter-dbus's
+# `*_PROC_ROOT` or `DOCKET_MODEL_TRACE`. porter reads a fixture tree only with porter-callers's
 # `test-proc-root`, which docket-dbus's `fixture-callers` forwards (that one line is the only
 # mention allowed); docket-accept, docket-live and tests' dev-dependencies turn it on.
 leaks=$(grep -rnE 'PROC_ROOT|DOCKET_MODEL_TRACE|test-proc-root|test-model-trace' crates \
   --include='*.rs' --include=Cargo.toml --exclude-dir=docket-accept --exclude-dir=docket-live --exclude-dir=tests \
-  | grep -vE '^crates/docket-dbus/Cargo.toml:[0-9]+:fixture-callers = \["porter-dbus/test-proc-root"\]$' || true)
+  | grep -vE '^crates/docket-dbus/Cargo.toml:[0-9]+:fixture-callers = \["porter-callers/test-proc-root"\]$' || true)
 if [ -n "$leaks" ]; then
   echo "TEST SWITCH: a shipped crate names a harness switch:"
   echo "$leaks"

@@ -19,7 +19,7 @@ use docket_store::SystemClock;
 use docket_tasks::ServeFault;
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use std::path::PathBuf;
 use std::sync::Arc;
 

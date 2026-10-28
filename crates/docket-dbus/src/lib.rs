@@ -65,7 +65,7 @@ pub use names::{
 /// The reserved key of the W3C trace context in an `options` vardict, and the vardict type:
 /// porter's, shared on every call that starts work.
 pub use porter_dbus::Details;
-pub use porter_dbus::names::OPTION_TRACEPARENT;
+pub use porter_dbus::inference::OPTION_TRACEPARENT;
 pub use provider::{IntentProviderProxy, IntentProviderSkeleton};
 pub use reach::{IntentReachProxy, ReachNow, ReachServer};
 pub use reader::{ReaderProxy, ReaderSkeleton};

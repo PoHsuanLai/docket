@@ -23,6 +23,7 @@ companion-model = { workspace = true }
 docket-checkpoint-git = { workspace = true }
 docket-permissions-core = { workspace = true }
 porter-dbus = { workspace = true }
+porter-callers = { workspace = true }
 porter-daemon = { workspace = true, features = ["watch"] }
 docket-core = { workspace = true }
 docket-wire = { workspace = true }

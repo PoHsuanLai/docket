@@ -18,7 +18,7 @@ pub mod serve {
 pub mod acp {
     use crate::{Callers, LiveFault};
     use docket_acp::Permit;
-    use porter_daemon::ProcRoot;
+    use porter_callers::ProcRoot;
     use std::path::PathBuf;
 
     /// What only the acceptance harness's mains choose: the `/proc` callers are read from (a

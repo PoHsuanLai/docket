@@ -69,7 +69,7 @@ pub use policies::{
     ADMIN_DIR, LoadedPolicies, PolicyDirs, PresetOrigin, load_policies, read_sources,
 };
 pub use policies_watch::{follow as follow_policies, reload as reload_policies};
-pub use porter_daemon::ProcRoot;
+pub use porter_callers::ProcRoot;
 pub use reach::{LiveReach, follow as follow_reach, parse_reach};
 pub use reviewers::{placeholder_set, reviewer};
 pub use search_files::{search_dir, ship_search_files};

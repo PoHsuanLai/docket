@@ -21,7 +21,7 @@ use docket_tasks::{Pending, RoutineAsk, RoutineFor};
 use docket_vocab::{CallerRole, Origin};
 use docket_wire::SessionOpen;
 use futures_util::lock::Mutex;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use prov::AgentRef;
 use std::sync::Arc;
 

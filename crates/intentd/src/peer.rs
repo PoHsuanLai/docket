@@ -28,8 +28,8 @@ use docket_dbus::callers::{Caller, Callers, Identity, Role};
 use docket_procroot::{own_uid, terminal_scope};
 use docket_vocab::CallerRole;
 use docket_wire::CallerId;
+use porter_callers::ProcRoot;
 use porter_core::{AppId, AppName, Isolation};
-use porter_daemon::ProcRoot;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use zbus::fdo::DBusProxy;
@@ -160,7 +160,7 @@ impl Peers {
             connection,
             config,
             who,
-            proc_root: porter_daemon::proc_path(proc_root).to_path_buf(),
+            proc_root: porter_callers::proc_path(proc_root).to_path_buf(),
             acp,
         }
     }

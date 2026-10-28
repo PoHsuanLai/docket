@@ -10,7 +10,7 @@ use docket_dbus::callers::Identity;
 use docket_dbus::{BusConnection, INTENTS_BUS};
 use docket_router::{Router, Seams, Watch, acting_role};
 use docket_wire::{CallerId, IntentsReply, IntentsRequest, Member};
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;

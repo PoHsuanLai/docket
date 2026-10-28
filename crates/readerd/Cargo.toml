@@ -24,7 +24,7 @@ docket-dbus = { workspace = true, features = ["inferd"] }
 docket-reader = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }
-porter-daemon = { workspace = true }
+porter-callers = { workspace = true }
 porter-infer = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"] }
 thiserror = { workspace = true }

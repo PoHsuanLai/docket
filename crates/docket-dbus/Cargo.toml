@@ -17,7 +17,8 @@ docket-wire = { workspace = true }
 docket-manifest = { workspace = true }
 docket-vocab = { workspace = true }
 prov = { workspace = true }
-porter-dbus = { workspace = true, features = ["callers-file"] }
+porter-callers = { workspace = true, features = ["file"] }
+porter-dbus = { workspace = true }
 porter-client = { workspace = true, features = ["dbus"], optional = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true, optional = true }
@@ -33,7 +34,7 @@ inferd = ["dep:porter-client", "dep:porter-infer"]
 # Callers read from a fixture tree standing for /proc and the unit manager (`Identity::on_fixture`):
 # porter reads one only in a test build. Turned on by docket-accept and by tests' dev-dependencies,
 # never by a shipped crate (check-boundary.sh checks every shipped package's feature tree).
-fixture-callers = ["porter-dbus/test-proc-root"]
+fixture-callers = ["porter-callers/test-proc-root"]
 
 [lints]
 workspace = true

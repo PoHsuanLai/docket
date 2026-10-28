@@ -17,7 +17,7 @@ use docket_wire::{
     StoredView, TerminalScope,
 };
 use futures_util::lock::Mutex;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use prov::AgentRef;
 use std::path::Path;
 use std::sync::Arc;

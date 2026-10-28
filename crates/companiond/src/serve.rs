@@ -21,7 +21,7 @@ use docket_tasks::{Change, ServeFault};
 use docket_vocab::Clock;
 use docket_wire::{SessionOpen, StartedFrom};
 use futures_util::lock::Mutex;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use prov::{AgentRef, SessionId, SpaceId, TaskId};
 use std::sync::Arc;
 use zbus::fdo;

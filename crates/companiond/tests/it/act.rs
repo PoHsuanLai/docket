@@ -10,7 +10,7 @@ use docket_dbus::{CompanionAnswerProxy, CompanionProxy};
 use docket_vocab::{ActionRef, Args, CallRequest, CardActionId, LabelText, Origin, TargetValue};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use prov::Effect;
 use std::sync::Arc;
 use std::time::Duration;

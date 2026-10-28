@@ -40,7 +40,7 @@ use docket_settings::{AgentSettings, Locator, REVIEW_CEILING};
 use docket_skills::{Roots, discover};
 use docket_skills_disk::DiskFolder;
 use docket_store::SystemClock;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use prov::SpaceId;
 use std::path::PathBuf;
 use std::sync::Arc;

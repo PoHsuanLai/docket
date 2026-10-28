@@ -3,7 +3,7 @@
 //! process that is not the unit's main process, and a process nothing names.
 
 use docket_dbus::callers::{INTENTD, SHELL, Standing, config_home, load_callers, table_from_toml};
-use porter_dbus::callers::{CallerTable, ProcCallers};
+use porter_callers::{CallerTable, ProcCallers};
 use std::path::Path;
 
 const SYSTEM: &str = r#"

@@ -37,8 +37,8 @@ use docket_planner::PlannerModel;
 use docket_store::SystemClock;
 use docket_tasks::{Companion, Quiet, RouterLog};
 use helpers::LiveHelpers;
+use porter_callers::ProcRoot;
 use porter_core::AppName;
-use porter_daemon::ProcRoot;
 use std::sync::Arc;
 use tokio::io::{BufReader, stdin, stdout};
 

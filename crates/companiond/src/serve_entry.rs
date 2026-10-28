@@ -10,7 +10,7 @@ use docket_planner::Planner;
 use docket_tasks::ServeFault;
 use docket_vocab::Clock;
 use futures_util::lock::Mutex;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use std::sync::Arc;
 
 /// Claims `org.quire.Companion1` on `connection`, serves the root object and one answer object

@@ -37,7 +37,7 @@ docket-settings = { workspace = true }
 futures-util = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }
-porter-daemon = { workspace = true }
+porter-callers = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

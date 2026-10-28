@@ -13,7 +13,7 @@ use docket_vocab::{Caller, Clock, Handle, Origin, WindowKey};
 use docket_wire::{SessionOpen, SessionOpened, WireRefusal};
 use futures_util::StreamExt;
 use futures_util::lock::Mutex;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use prov::{AgentRef, SessionId};
 use serde_json::json;
 use std::sync::Arc;

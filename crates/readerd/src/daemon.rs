@@ -11,7 +11,7 @@ use docket_dbus::BusConnection;
 use docket_dbus::InferWatch;
 use docket_dbus::callers::Identity;
 use futures_util::StreamExt;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use std::path::PathBuf;
 use std::sync::Arc;
 

@@ -6,7 +6,7 @@
 
 use docket_dbus::InferWatch;
 use docket_trace::Tap;
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use std::path::PathBuf;
 
 /// The variable that names the file the model tap appends to (prompts go to disk).

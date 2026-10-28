@@ -23,8 +23,8 @@ use docket_core::{ConfirmAnswer, ConfirmEnd, ConfirmId, ConfirmRequest, Confirme
 use docket_dbus::callers::Identity;
 use docket_dbus::{BusConnection, CONFIRM_BUS, ConfirmProxy};
 use docket_vocab::CallerRole;
+use porter_callers::ProcRoot;
 use porter_core::AppName;
-use porter_daemon::ProcRoot;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;

@@ -78,7 +78,7 @@ readerd = { workspace = true }
 almanac-core = { workspace = true }
 almanac-client = { workspace = true, features = ["dbus"] }
 porter-core = { workspace = true }
-porter-daemon = { workspace = true }
+porter-callers = { workspace = true }
 porter-infer = { workspace = true }
 prov = { workspace = true }
 serde = { workspace = true }

@@ -37,7 +37,7 @@ use docket_dbus::{AGENT_HOST_BUS, AGENT_HOST_PATH, BusConnection};
 use docket_launch::dbus::DbusAccounts;
 use docket_permissions_core::ProgramName;
 use docket_session::{BackendEvent, EndCause, SessionHost};
-use porter_daemon::ProcRoot;
+use porter_callers::ProcRoot;
 use prov::SpaceId;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};

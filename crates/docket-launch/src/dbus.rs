@@ -16,8 +16,10 @@ use porter_client::{Requests, Revocations};
 use porter_core::audit::Handoff;
 use porter_core::{DataClass, GrantId, LauncherSession, ProcessCredentialId, SecretText};
 use porter_dbus::{
-    AgentsProxy, BusConnection, LauncherFault, MODELS_ANY, MODELS_LISTED, ROUTE_ACCOUNT,
-    ROUTE_MODEL,
+    BusConnection,
+    inference::{
+        AgentsProxy, LauncherFault, MODELS_ANY, MODELS_LISTED, ROUTE_ACCOUNT, ROUTE_MODEL,
+    },
 };
 use std::collections::HashMap;
 use tokio::sync::Mutex;
