@@ -24,7 +24,7 @@ fn chat() -> ChatRequest {
             role: Role::User,
             parts: vec![MessagePart::Text("hello".to_owned())],
         }],
-        porter_core::Tier::Fast,
+        porter_capability::Tier::Fast,
         DataClass::Prompt,
         porter_core::consent::Usage::Interactive,
     )

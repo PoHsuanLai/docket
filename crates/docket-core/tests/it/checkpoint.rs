@@ -2,7 +2,7 @@
 
 use docket_core::*;
 use docket_vocab::{Days, TurnId};
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::SessionId;
 use serde::{Serialize, de::DeserializeOwned};
 

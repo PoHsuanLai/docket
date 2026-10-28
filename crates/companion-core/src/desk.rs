@@ -15,7 +15,8 @@ use companion_model::routine::{JobEnd, Missed, Schedule};
 use companion_wire::{HelperForm, RoutineForm, WhenForm, line_of};
 use docket_core::{HelperRosterLine, LeadText};
 use docket_manifest::Manifest;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{EntityId, HelperId, SpaceId, TaskId};
 
 /// How many steps a helper the assistant proposed may take in one job, until the person says.

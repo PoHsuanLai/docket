@@ -4,7 +4,7 @@
 use crate::scratch::{Scratch, root};
 use docket_checkpoint::{ApplyAsk, CheckpointStore, DropAsk, PlanAsk, TakeAsk};
 use docket_core::CheckpointId;
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::SessionId;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;

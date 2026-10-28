@@ -36,6 +36,8 @@ tracing = { workspace = true }
 docket-log = { workspace = true }
 
 [dev-dependencies]
+porter-match = { workspace = true }
+porter-capability = { workspace = true }
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 docket-permissions-core = { workspace = true }
 docket-testbus = { workspace = true }

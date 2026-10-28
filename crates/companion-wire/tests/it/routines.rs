@@ -7,7 +7,7 @@ use companion_wire::{
     ProposalId, RoutineForm, RoutineProposal, RoutineShown, RunShown, WhenForm, routine_card,
     routine_line,
 };
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{HelperId, UnixSeconds};
 
 fn helper() -> HelperId {

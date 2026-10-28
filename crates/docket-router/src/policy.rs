@@ -18,7 +18,8 @@ use docket_permissions_core::{
 };
 use docket_vocab::{ActionRef, Clock, FileRef, LabelText, Workspace};
 use docket_wire::{IntentsReply, WidenAnswer, WireRefusal};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{Effect, SessionId, UnixSeconds};
 use std::collections::BTreeSet;
 

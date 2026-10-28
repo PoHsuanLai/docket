@@ -8,7 +8,7 @@ use docket_acp_host::Logout;
 use docket_launch::login::{LoginRunner, VisibleLogin};
 use docket_launch::{Accounts, AskKind};
 use docket_permissions_core::ProgramName;
-use porter_core::LoginOutcome;
+use porter_capability::LoginOutcome;
 use prov::AgentProgram;
 use std::sync::Arc;
 

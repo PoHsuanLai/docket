@@ -6,8 +6,9 @@
 
 use crate::accounts::{AccountFault, Accounts, Heard, Issued, LoginAsk, OpenedEndpoint, RouteWish};
 use crate::config::Delivery;
-use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
-use porter_core::{DataClass, KeyPermitId, LauncherSession, LoginOutcome, ProcessCredentialId};
+use porter_capability::LoginOutcome;
+use porter_capability::{AgentProgram, AgentProtocol, EnvName};
+use porter_core::{DataClass, KeyPermitId, LauncherSession, ProcessCredentialId};
 
 /// The seam with nothing behind it.
 #[derive(Debug, Clone, Copy, Default)]

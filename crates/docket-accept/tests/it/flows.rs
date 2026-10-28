@@ -91,7 +91,7 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
         .journal(JournalFilter {
             run: None,
             session: None,
-            limit: porter_core::Count(10),
+            limit: porter_ids::Count(10),
         })
         .await
         .expect("journal");
@@ -112,7 +112,7 @@ async fn flow_a_prompt_plan_confirm_perform_journal_undo() {
         .journal(JournalFilter {
             run: None,
             session: None,
-            limit: porter_core::Count(10),
+            limit: porter_ids::Count(10),
         })
         .await
         .expect("journal");
@@ -189,7 +189,7 @@ async fn flow_a_the_person_refuses_the_sheet_and_nothing_is_sent() {
         .journal(JournalFilter {
             run: None,
             session: None,
-            limit: porter_core::Count(10),
+            limit: porter_ids::Count(10),
         })
         .await
         .expect("journal");

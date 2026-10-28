@@ -7,7 +7,7 @@ use action_review::{DecisionMark, DenialMark, DeniedBy, ReviewVerdict};
 use docket_core::{CallEnd, CallRefusal, ConfirmId, DecidedBy, Outcome, Preview, StepEnd};
 use docket_permissions_core::{AskReason, PolicyId, ReasonCode, ReviewError, Ruling, Stage};
 use docket_vocab::UndoId;
-use porter_core::ModelId;
+use porter_capability::ModelId;
 
 /// How a call ended, with what the audit and the caller need of it.
 #[derive(Debug, Clone)]

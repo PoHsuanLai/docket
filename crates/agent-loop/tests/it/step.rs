@@ -6,7 +6,8 @@ use companion_wire::{AnswerPhase, NeedsYou};
 use docket_core::*;
 use docket_permissions_core::{BreakerTrip, DenyCode};
 use docket_vocab::{ActionRef, CallId, CallRequest, Handle, Origin, TargetValue, TurnId};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{ActionName, ReportStatus, SpaceScope};
 use std::collections::BTreeMap;
 

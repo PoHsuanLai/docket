@@ -4,8 +4,9 @@
 use crate::model::TransportModel;
 use action_review::{InferReviewer, ModelChoice, ModelFamily, ReviewerSet};
 use docket_core::ReviewTimeouts;
+use porter_capability::{Billing, Locality, ModelId};
 use porter_client::Transport;
-use porter_core::{AccountId, Billing, Locality, ModelId};
+use porter_core::AccountId;
 use porter_infer::ModelCard;
 
 fn choice(model: &str, family: &str) -> Option<ModelChoice> {

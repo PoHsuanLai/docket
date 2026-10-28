@@ -7,7 +7,8 @@ use docket_permissions_core::{
 use docket_router::*;
 use docket_vocab::{Handle, LabelText, TurnId};
 use docket_wire::TaskLedger;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{AgentRef, Effect, EntityKind, ReportStatus, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::BTreeSet;
 

@@ -23,7 +23,8 @@ use docket_session::{
     ResumeFault, ResumePlan, SessionEntry, Standing, Taint, TaintCause, TaintNote,
 };
 use docket_wire::TaskLedger;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{Actor, AgentRef, AgentRole, Label, SessionId, UnixSeconds};
 
 /// The app a session is attributed to when its log never said who opened it (a record from

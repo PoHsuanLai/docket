@@ -11,7 +11,7 @@ use docket_dbus::callers::{Identity, Role};
 use docket_permissions_core::{ACP_AGENT_APP, AskReason};
 use docket_vocab::{LabelText, Seconds};
 use intentd::{IntentdConfig, SheetConfirmer};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{Actor, ConfirmId, ConfirmReceipt, Effect, InputProof, SpaceId, UnixSeconds};
 use std::sync::Arc;
 use std::time::Duration;

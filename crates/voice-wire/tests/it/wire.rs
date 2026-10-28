@@ -2,10 +2,10 @@
 
 use docket_vocab::UtteranceId;
 use docket_wire::VoiceIntent;
-use porter_core::capability::LanguageTag;
-use porter_core::{
-    AccountId, AppName, DataClass, Locality, ModelId, Permille, SpaceId, UnixSeconds,
-};
+use porter_capability::LanguageTag;
+use porter_capability::{Locality, ModelId};
+use porter_core::{AccountId, AppName, DataClass, SpaceId};
+use porter_ids::{Permille, UnixSeconds};
 use porter_infer::{InferRefusal, ModelError, Readiness, ServedBy};
 use serde::{Serialize, de::DeserializeOwned};
 use voice_wire::*;

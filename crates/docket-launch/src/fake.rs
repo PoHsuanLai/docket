@@ -9,10 +9,9 @@ use crate::procs::{Proc, ProcFault, Procs};
 use bulkhead::AbsPath;
 use bulkhead::{AgentRun, LandlockLevel};
 use docket_acp_host::fake::ChannelWire;
-use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
-use porter_core::{
-    DataClass, KeyPermitId, LauncherSession, LoginOutcome, ProcessCredentialId, SecretText,
-};
+use porter_capability::LoginOutcome;
+use porter_capability::{AgentProgram, AgentProtocol, EnvName};
+use porter_core::{DataClass, KeyPermitId, LauncherSession, ProcessCredentialId, SecretText};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard};
 

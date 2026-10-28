@@ -67,7 +67,7 @@ fn a_session_log_page_reads_back_what_was_appended() {
         let ack = block_on(log.append(&s, Seq(i as u64), e)).expect("append");
         assert_eq!(ack.seq, Seq(i as u64));
     }
-    let size = PageSize(porter_core::Count(5));
+    let size = PageSize(porter_ids::Count(5));
     let first = block_on(log.page(&s, None, size)).expect("page");
     assert_eq!(first.rows.len(), 5);
     assert_eq!(first.next, Some(Seq(5)));
@@ -108,7 +108,7 @@ fn an_unknown_version_in_the_log_blocks_the_resume() {
         "companion.session.taint",
         r#"{"version":7,"kind":"taint","v":{}}"#,
     );
-    let page = block_on(log.page(&s, None, PageSize(porter_core::Count(10)))).expect("page");
+    let page = block_on(log.page(&s, None, PageSize(porter_ids::Count(10)))).expect("page");
     let plan = resume_plan(&page.rows).expect("plan");
     assert_eq!(plan.standing, Standing::Blocked(Blocker::Unreadable));
     assert_eq!(plan.taint, Taint::Tainted);

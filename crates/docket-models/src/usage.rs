@@ -2,7 +2,8 @@
 //! and what they cost at the account's billing.
 
 use docket_core::{TokenTotals, TurnReport};
-use porter_core::{Billing, MicroUsd};
+use porter_capability::Billing;
+use porter_core::MicroUsd;
 use porter_infer::{TokenUsage, cost};
 
 /// The ledger's report for a turn that used `usage` on an account billed as `billing`.
@@ -32,7 +33,8 @@ pub fn report_of(usage: TokenUsage, billing: &Billing, worst: Option<MicroUsd>) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use porter_core::{PriceTable, Tokens};
+    use porter_core::PriceTable;
+    use porter_ids::Tokens;
 
     fn usage(input: u32, output: u32, cached: u32) -> TokenUsage {
         TokenUsage {

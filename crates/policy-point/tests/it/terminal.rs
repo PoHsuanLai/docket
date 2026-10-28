@@ -123,7 +123,7 @@ fn terminal_grid() {
             UndoableWrite,
             |r| {
                 granted(r);
-                r.context.count = porter_core::Count(21);
+                r.context.count = porter_ids::Count(21);
             },
             Ask,
         ),

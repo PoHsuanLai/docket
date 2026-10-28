@@ -130,7 +130,7 @@ fn everything() -> Vec<AuditRecord> {
                 verdict: Ok(VerdictKind::Allow),
                 code: ReasonCode::WithinRequest,
                 latency: Millis(90),
-                model: porter_core::ModelId::parse("holo").expect("model"),
+                model: porter_capability::ModelId::parse("holo").expect("model"),
             },
         },
         AuditRecord::Confirm {

@@ -6,7 +6,8 @@ use agent_loop::{Sources, assemble};
 use companiond::*;
 use docket_core::*;
 use docket_manifest::ValidManifest;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::Integrity;
 use std::path::PathBuf;
 

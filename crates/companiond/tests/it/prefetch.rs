@@ -137,7 +137,7 @@ async fn a_worker_a_missing_memory_and_the_recall_switch_leave_the_turn_as_it_wa
 
     // No recall budget: no search.
     let (mut w, memory) = with_memory(vec![words("Taipei.")]);
-    w.companion.config.assembler.recall = porter_core::Tokens(0);
+    w.companion.config.assembler.recall = porter_ids::Tokens(0);
     let opened = w.open("work").await;
     w.say(&opened.session, "What is the capital of Taiwan?")
         .await;

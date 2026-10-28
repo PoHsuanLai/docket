@@ -18,7 +18,8 @@ use docket_core::{
 use docket_planner::Planner;
 use docket_vocab::{Clock, Handle, TurnId, Value};
 use docket_wire::{SessionOpen, SessionOpened};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{
     Address, AgentRef, Confidentiality, Integrity, Label, Labelled, MessageKind, ReportStatus,
     Source, SpaceId, TaskId,

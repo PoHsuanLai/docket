@@ -47,7 +47,7 @@ pub fn context_view(ctx: &ContextSnapshot, table: &mut HandleTable) -> ContextVi
             visible: VisibleView {
                 kind: None,
                 items: vec![],
-                total: porter_core::Count(0),
+                total: porter_ids::Count(0),
             },
             text_target: TextTargetView::None,
         };

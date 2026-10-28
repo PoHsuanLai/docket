@@ -7,7 +7,7 @@ use crate::attack_live::{CarrierKind, LiveScore};
 use crate::attack_score::{AttackMetrics, AttackScore, GoalOutcome, Utility, count, share};
 use crate::report::Rate95;
 use crate::trace::slug;
-use porter_core::Count;
+use porter_ids::Count;
 use std::collections::BTreeMap;
 
 /// AgentDojo's three numbers over some attacks.

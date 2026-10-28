@@ -30,7 +30,8 @@ use docket_session::{BackendEvent, BackendKind, Opening, SessionHost, SheetChoic
 use docket_vocab::Workspace;
 use docket_vocab::{LabelText, TurnId};
 use docket_wire::{CallerId, CallerRole};
-use porter_core::{AppId, Count, Isolation};
+use porter_core::{AppId, Isolation};
+use porter_ids::Count;
 use prov::{AgentRef, Effect, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::collections::BTreeSet;
 use std::sync::Arc;

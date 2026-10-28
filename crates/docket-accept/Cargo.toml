@@ -51,6 +51,7 @@ name = "accept-fake-agent"
 path = "src/bin/accept-fake-agent.rs"
 
 [dependencies]
+porter-ids = { workspace = true }
 actions-mcp = { workspace = true }
 companion-wire = { workspace = true }
 companiond = { workspace = true }

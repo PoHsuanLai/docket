@@ -8,15 +8,18 @@ use crate::draft::{Draft, key, policy_of, schema};
 use crate::model::{Discard, chat_of, turn};
 use docket_core::{ActionCard, Derived, PolicyWriter, UserTurn};
 use docket_permissions_core::ReviewError;
+use porter_capability::LlmFeature;
+use porter_capability::Tier;
 use porter_client::Transport;
-use porter_core::capability::LlmFeature;
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::need::LlmNeed;
-use porter_core::{DataClass, Need, Permille, Tier, Tokens};
+use porter_ids::{Permille, Tokens};
 use porter_infer::{
     ChatControl, ChatMessage, ChatRequest, InferRequest, Knob, MessagePart, ModelError, Reasoning,
     ReplyShape, Role, Sampling, ToolChoice, ToolParallelism,
 };
+use porter_match::LlmNeed;
+use porter_match::Need;
 use prov::{SpaceId, TaskId};
 use std::collections::BTreeSet;
 

@@ -6,7 +6,8 @@
 use crate::budget::Budget;
 use docket_permissions_core::{Mode, RowSets};
 use docket_vocab::{Days, Depth, Millis, Seconds};
-use porter_core::{Count, MicroUsd, Tokens};
+use porter_core::MicroUsd;
+use porter_ids::{Count, Tokens};
 use serde::{Deserialize, Serialize};
 
 /// When the breaker trips (`agent.breaker.*`).

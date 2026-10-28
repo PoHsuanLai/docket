@@ -6,7 +6,8 @@ use docket_manifest::{
     ParamNeed, ResultShape, TargetKind, UndoSupport, Visibility,
 };
 use docket_vocab::{CharCount, IntentsVocab, LabelText, Lines, ParamName, ParamType, PerCall};
-use porter_core::{AppName, Count, DataClass};
+use porter_core::{AppName, DataClass};
+use porter_ids::Count;
 use prov::{
     ActionName, Actor, AgentRole, Effect, EntityId, EntityKey, EntityKind, Label, Labelled,
     SessionId, Source, SpaceId, UnixSeconds,

@@ -8,7 +8,7 @@ use companion_wire::HelperReply;
 use docket_permissions_core::{ActionMatch, ProgramName, TaskPolicy, TaskPolicyState};
 use docket_tasks::{HelperDesk, PostFromPerson};
 use docket_vocab::{LabelText, Workspace};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{AgentProgram, Effect, EntityKind, HelperId, SessionId, UnixSeconds};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::{Arc, Mutex};

@@ -76,7 +76,7 @@ fn an_interrupted_call_stays_listed_after_a_close() {
 #[test]
 fn the_policy_is_the_last_one_stored_and_never_derived() {
     let mut narrower = policy();
-    narrower.max_count = porter_core::Count(1);
+    narrower.max_count = porter_ids::Count(1);
     let p = plan(&[
         SessionEntry::Opened(opening()),
         SessionEntry::Policy(policy()),

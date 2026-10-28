@@ -6,7 +6,8 @@
 use docket_manifest::Manifest;
 use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_vocab::LabelText;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{Effect, SpaceId, TaskId, UnixSeconds};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;

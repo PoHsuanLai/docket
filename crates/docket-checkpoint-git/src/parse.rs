@@ -2,7 +2,7 @@
 
 use docket_checkpoint::{EntryId, Saved, TreeId, TreeListing};
 use docket_core::{CheckpointId, WorkPath};
-use porter_core::UnixSeconds;
+use porter_ids::UnixSeconds;
 use prov::SessionId;
 use std::collections::BTreeMap;
 

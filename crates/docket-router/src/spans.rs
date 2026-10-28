@@ -69,7 +69,8 @@ pub(crate) fn invoke_agent(session: &SessionId, task: &TaskId, report: &TurnRepo
 mod tests {
     use super::*;
     use docket_core::TokenTotals;
-    use porter_core::{MicroUsd, Tokens};
+    use porter_core::MicroUsd;
+    use porter_ids::Tokens;
     use std::sync::{Arc, Mutex};
     use tracing::span::{Attributes, Id, Record};
     use tracing::{Event, Metadata, Subscriber};

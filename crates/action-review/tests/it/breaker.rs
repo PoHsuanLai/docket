@@ -3,7 +3,8 @@
 use action_review::*;
 use docket_core::AgentConfig;
 use docket_permissions_core::BreakerTrip;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{ActionName, UnixSeconds};
 
 fn goal(action: &str) -> GoalKey {

@@ -4,10 +4,11 @@ use crate::support::infer::{Opened, ScriptedInfer};
 use crate::support::*;
 use docket_wire::VoiceIntent;
 use futures_util::{FutureExt, StreamExt};
-use porter_core::capability::SpeechMode;
-use porter_core::need::SpeechNeed;
-use porter_core::{DataClass, Need};
+use porter_capability::SpeechMode;
+use porter_core::DataClass;
 use porter_infer::{ClientFrame, InferRequest};
+use porter_match::Need;
+use porter_match::SpeechNeed;
 use std::collections::BTreeSet;
 use voice_wire::{SpeechEnd, VoiceEvent, VoiceRefusal};
 use voiced::{SpeechProxy, VoiceProxy};
@@ -49,7 +50,7 @@ async fn an_answer_is_spoken_sentence_by_sentence_and_finishes_done() {
         [Opened {
             need: tts_need(),
             class: DataClass::Mail,
-            tier: porter_core::Tier::Balanced
+            tier: porter_capability::Tier::Balanced
         }],
         "the text's own class, one session for the answer"
     );

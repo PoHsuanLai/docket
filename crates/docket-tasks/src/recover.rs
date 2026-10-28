@@ -13,7 +13,7 @@ use agent_loop::{Rebuilt, ReplayEvent, ReplayWhat, rebuild};
 use almanac_core::{BodyMode, Episode, KindPattern, RecentEntry, RecentQuery, TrustFilter};
 use companion_wire::{SESSION_KIND_PREFIX, SessionRecord};
 use docket_core::RosterState;
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{Message, RunId, SpaceId, UnixSeconds};
 use std::collections::BTreeMap;
 use std::future::Future;

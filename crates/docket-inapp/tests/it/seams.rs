@@ -19,7 +19,7 @@ use docket_inapp::{
     TransportWriter, reviewer_over,
 };
 use docket_vocab::{ChoiceId, Handle};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{SpaceId, UnixSeconds};
 use serde_json::json;
 use std::sync::Arc;

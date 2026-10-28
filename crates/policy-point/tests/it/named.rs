@@ -8,7 +8,7 @@ use docket_permissions_core::{AskReason, PolicyId, Ruling, Saw, SessionSaw};
 use docket_session::Taint;
 use docket_vocab::Origin;
 use policy_point::*;
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{ActorKind, Effect, Integrity};
 
 #[test]

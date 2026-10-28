@@ -12,7 +12,7 @@ use almanac_core::{
 use docket_core::*;
 use docket_fake::FakeMemory;
 use docket_wire::{IntentsReply, IntentsRequest, RecallAsk, RecallView};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{Actor, AgentRef, Label, Source, UnixSeconds};
 
 pub(crate) fn entry(
@@ -329,7 +329,7 @@ async fn a_step_that_failed_in_an_earlier_turn_is_not_handed_to_the_planner() {
         RecallAsk::Inject(almanac_core::InjectQuery {
             space: space("work"),
             text: UserText::new("receipts"),
-            budget: porter_core::Tokens(100),
+            budget: porter_ids::Tokens(100),
             k: Count(3),
             over: almanac_core::RecallOver::Both,
             trust: TrustFilter::Any,

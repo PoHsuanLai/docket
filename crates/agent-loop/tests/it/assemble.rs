@@ -6,7 +6,8 @@ use docket_core::*;
 use docket_manifest::{AgentReach, Lasting, TargetKind};
 use docket_permissions_core::{BreakerTrip, DenyCode};
 use docket_vocab::{ActionRef, CallId, CharCount, Handle, LabelText, TurnId, UndoId, Value};
-use porter_core::{AppName, Count, Tokens};
+use porter_core::AppName;
+use porter_ids::{Count, Tokens};
 use prov::{ActionName, Effect, Integrity, SpaceId, UnixSeconds};
 
 fn app() -> AppName {

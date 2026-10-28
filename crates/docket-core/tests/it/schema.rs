@@ -3,7 +3,7 @@
 use crate::support::*;
 use docket_core::*;
 use docket_vocab::{ActionRef, CallId, CharCount, ChoiceId, Value};
-use porter_core::Count;
+use porter_ids::Count;
 
 fn schema_cases() -> Vec<(&'static str, Value, ValueSchema, Result<(), SchemaFault>)> {
     let a = entity("mail.thread", "a");

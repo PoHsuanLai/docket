@@ -18,8 +18,9 @@ use docket_planner::Planner;
 use docket_vocab::Clock;
 use docket_wire::{LedgerStep, NoteAsk};
 use futures_util::future::Either;
+use porter_capability::Tier;
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::{DataClass, Tier};
 use porter_infer::{
     ChatControl, ChatMessage, ChatRequest, Knob, MessagePart, Reasoning, ReplyShape, Role,
     ToolChoice, ToolParallelism,

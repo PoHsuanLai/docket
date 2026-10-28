@@ -1,8 +1,8 @@
 //! The speech table, barge-in order, the sentencer and the buffer.
 
 use docket_wire::VoiceIntent;
+use porter_capability::LanguageTag;
 use porter_core::DataClass;
-use porter_core::capability::LanguageTag;
 use voice_loop::*;
 use voice_wire::{SpeakWire, SpeechEnd, SpokenText, VoiceUse};
 

@@ -8,23 +8,26 @@ use docket_core::ReviewTimeouts;
 use docket_permissions_core::{ReviewError, Stage};
 use docket_vocab::Millis;
 use intentd::InferdModel;
-use porter_core::capability::{LlmFeature, Modality};
+use porter_capability::Tier;
+use porter_capability::{LlmFeature, Modality};
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::need::{DimsNeed, EmbedNeed};
-use porter_core::{DataClass, Dims, Need, Tier};
+use porter_ids::Dims;
 use porter_infer::{
     ChatControl, ChatMessage, ChatRequest, ChatSink, EmbedRequest, EmbedRole, Flow, InferEvent,
     InferRefusal, InferReply, Knob, MessagePart, Model, ModelCard, ModelError, ReplyShape,
     RequestKind, Role, StopReason, ToolChoice, ToolDecl, ToolParallelism, TurnError,
 };
+use porter_match::Need;
+use porter_match::{DimsNeed, EmbedNeed};
 use std::collections::BTreeSet;
 
 fn card() -> ModelCard {
     ModelCard {
         account: porter_core::AccountId::parse("local").expect("account"),
-        model: porter_core::ModelId::parse("scripted").expect("model"),
-        locality: porter_core::Locality::OnDevice,
-        billing: porter_core::Billing::Free,
+        model: porter_capability::ModelId::parse("scripted").expect("model"),
+        locality: porter_capability::Locality::OnDevice,
+        billing: porter_capability::Billing::Free,
         capabilities: vec![],
     }
 }
@@ -271,7 +274,7 @@ fn review_request() -> action_review::ReviewRequest {
             label: LabelText::parse("Archive").expect("label"),
             effect: prov::Effect::UndoableWrite,
             kinds: BTreeSet::new(),
-            count: porter_core::Count(1),
+            count: porter_ids::Count(1),
             args: vec![],
             lasting: Lasting::No,
         },

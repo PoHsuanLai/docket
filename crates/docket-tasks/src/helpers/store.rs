@@ -13,7 +13,7 @@ use docket_client::Transport as IntentsTransport;
 use docket_planner::Planner;
 use docket_vocab::Clock;
 use docket_wire::{HelperNote, NoteAsk, SessionOpen};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{AgentRef, SpaceId, UnixSeconds};
 
 /// The most records one Space's read returns.

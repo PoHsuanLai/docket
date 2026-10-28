@@ -7,14 +7,16 @@ use docket_dbus::callers::Role;
 use docket_wire::VoiceIntent;
 use futures_util::FutureExt;
 use futures_util::StreamExt;
-use porter_core::capability::SpeechMode;
-use porter_core::need::SpeechNeed;
-use porter_core::{DataClass, Need, Tier};
+use porter_capability::SpeechMode;
+use porter_capability::Tier;
+use porter_core::DataClass;
 use porter_infer::testing::{Script, ScriptStep};
 use porter_infer::{
     ClientFrame, InferEvent, InferRefusal, InferReply, InferRequest, LangPick, ModelError,
     Readiness, RequestKind, TranscribeMode,
 };
+use porter_match::Need;
+use porter_match::SpeechNeed;
 use std::collections::BTreeSet;
 use voice_audio::{DeviceError, NodeKind};
 use voice_wire::{

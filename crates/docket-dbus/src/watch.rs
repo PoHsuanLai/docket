@@ -4,9 +4,12 @@
 //! this crate holds no code that writes a prompt anywhere, and a link with no watch takes no copy
 //! of anything.
 
+use porter_capability::Tier;
 use porter_client::{Transport, TransportError};
-use porter_core::{AccountsReply, AccountsRequest, DataClass, Need, Tier};
+use porter_core::DataClass;
 use porter_infer::{ClientFrame, InferEvent, InferSession, OpenOptions, Readiness, SessionError};
+use porter_match::Need;
+use porter_wire::{AccountsReply, AccountsRequest};
 use std::fmt::Debug;
 use std::sync::Arc;
 

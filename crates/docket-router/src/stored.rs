@@ -12,7 +12,7 @@ use docket_session::{
 use docket_wire::{
     CallerId, CallerRole, IntentsReply, StoredAsk, StoredRow, StoredView, WireRefusal,
 };
-use porter_core::Count;
+use porter_ids::Count;
 use prov::SessionId;
 
 /// The most rows one page holds, whatever is asked.

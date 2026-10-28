@@ -8,7 +8,8 @@ use companion_model::helper::{
     HelperState, JobId, JobStatus, Need, PauseWhy, Role, SignInWay, TerminalRequest, reach_lines,
 };
 use docket_core::LeadText;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{AgentRef, HelperId, SessionId, SpaceId};
 use serde::{Deserialize, Serialize};
 

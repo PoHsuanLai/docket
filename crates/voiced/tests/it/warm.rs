@@ -1,11 +1,13 @@
 //! The shipped warmer asks `Transport::prepare` for the speech-to-text need and maps its outcomes.
 
 use crate::support::infer::{Opened, ScriptedInfer};
+use porter_capability::SpeechMode;
+use porter_capability::Tier;
 use porter_client::TransportError;
-use porter_core::capability::SpeechMode;
-use porter_core::need::SpeechNeed;
-use porter_core::{DataClass, Need, Tier};
+use porter_core::DataClass;
 use porter_infer::Readiness;
+use porter_match::Need;
+use porter_match::SpeechNeed;
 use std::collections::BTreeSet;
 use voiced::{TransportWarm, Warm};
 

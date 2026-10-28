@@ -2,8 +2,9 @@
 //! planner's words never reach it, and the inputs are data fenced away from the instruction.
 
 use docket_core::{ReaderAsk, ReaderTask, ValueSchema};
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::{DataClass, Permille, Tokens};
+use porter_ids::{Permille, Tokens};
 use porter_infer::{
     ChatControl, ChatMessage, ChatRequest, Knob, MessagePart, Reasoning, ReplyShape, Role,
     Sampling, ToolChoice, ToolParallelism,

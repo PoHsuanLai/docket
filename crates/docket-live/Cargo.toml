@@ -19,6 +19,9 @@ path = "src/bin/docket-bringup.rs"
 # The daemons the world starts are docket-accept's binaries (`accept-intentd` and the rest), found
 # beside the running program (`Binaries::beside`): build them first with `cargo build -p docket-accept --bins`.
 [dependencies]
+porter-match = { workspace = true }
+porter-capability = { workspace = true }
+porter-ids = { workspace = true }
 action-review = { workspace = true }
 agents-core = { workspace = true }
 bulkhead = { workspace = true }

@@ -2,12 +2,14 @@
 //! request, and says how ready it is. The shipped warmer asks porter-client's
 //! `Transport::prepare`; a test hands in a fixed answer or a scripted transport.
 
+use porter_capability::SpeechMode;
+use porter_capability::Tier;
 use porter_client::{DbusTransport, OpenOptions, Transport};
-use porter_core::capability::SpeechMode;
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::need::SpeechNeed;
-use porter_core::{DataClass, Need, Tier};
 use porter_infer::Readiness;
+use porter_match::Need;
+use porter_match::SpeechNeed;
 use std::collections::BTreeSet;
 use std::future::Future;
 

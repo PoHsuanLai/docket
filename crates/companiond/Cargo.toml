@@ -54,6 +54,10 @@ workspace = true
 otlp = ["docket-log/otlp"]
 
 [dev-dependencies]
+porter-wire = { workspace = true }
+porter-match = { workspace = true }
+porter-capability = { workspace = true }
+porter-ids = { workspace = true }
 almanac-core = { workspace = true }
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 agent-loop = { workspace = true }

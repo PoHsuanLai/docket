@@ -569,9 +569,9 @@ async fn an_exhausted_budget_overrides_an_allow() {
 #[tokio::test]
 async fn model_spend_past_the_cap_or_uncounted_stops_the_next_call() {
     let tokens = TokenTotals {
-        input: porter_core::Tokens(10),
-        output: porter_core::Tokens(5),
-        cached: porter_core::Tokens(0),
+        input: porter_ids::Tokens(10),
+        output: porter_ids::Tokens(5),
+        cached: porter_ids::Tokens(0),
     };
     let paying = || {
         let mut config = AgentConfig::default();
@@ -650,9 +650,9 @@ async fn the_roster_shows_a_tasks_spend_and_what_is_left() {
     let s = ready(&router).await;
     let report = TurnReport::Reported {
         tokens: TokenTotals {
-            input: porter_core::Tokens(40),
-            output: porter_core::Tokens(10),
-            cached: porter_core::Tokens(8),
+            input: porter_ids::Tokens(40),
+            output: porter_ids::Tokens(10),
+            cached: porter_ids::Tokens(8),
         },
         cost: porter_core::MicroUsd(1_000),
     };
@@ -674,7 +674,7 @@ async fn the_roster_shows_a_tasks_spend_and_what_is_left() {
         used.remaining,
         porter_core::MicroUsd(budget.spend.0 - 1_000)
     );
-    assert_eq!(used.tokens.input, porter_core::Tokens(40));
+    assert_eq!(used.tokens.input, porter_ids::Tokens(40));
     assert_eq!(used.certainty, Certainty::Known);
 }
 
@@ -726,7 +726,7 @@ async fn an_undoable_act_is_journalled_under_its_actor_and_can_be_undone() {
         IntentsRequest::ControlJournal(JournalFilter {
             run: None,
             session: Some(s.session.clone()),
-            limit: porter_core::Count(10),
+            limit: porter_ids::Count(10),
         }),
     )
     .await
@@ -750,7 +750,7 @@ async fn an_undoable_act_is_journalled_under_its_actor_and_can_be_undone() {
         IntentsRequest::ControlJournal(JournalFilter {
             run: None,
             session: None,
-            limit: porter_core::Count(10),
+            limit: porter_ids::Count(10),
         }),
     )
     .await

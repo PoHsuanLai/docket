@@ -13,7 +13,8 @@ use docket_manifest::ValidManifest;
 use docket_provider::{ContextSource, IntentProvider, SummonTarget};
 use docket_vocab::{EntityRef, UndoToken};
 use docket_wire::{SummonAnswer, SummonOrigin, SummonSerial};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{Actor, Confidentiality, EntityId, Integrity, Label, Labelled, Source};
 use std::collections::BTreeSet;
 

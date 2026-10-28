@@ -119,7 +119,7 @@ fn reach_of(app: &str) -> TaskPolicy {
         )]),
         kinds: std::collections::BTreeSet::new(),
         ceiling: Effect::Read,
-        max_count: porter_core::Count(1),
+        max_count: porter_ids::Count(1),
         recipients: Vec::new(),
         destinations: Vec::new(),
         paths: Vec::new(),

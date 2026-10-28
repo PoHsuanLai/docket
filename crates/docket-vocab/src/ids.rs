@@ -1,7 +1,8 @@
 //! The ids docket mints or names. Slug ids use `prov`'s grammar; numeric ids are minted by the
 //! router and mean nothing outside it.
 
-use porter_core::{AppName, CoreError, is_id};
+use porter_core::{AppName, CoreError};
+use porter_ids::is_id;
 use prov::{ActionName, EntityId};
 use serde::{Deserialize, Serialize};
 use std::fmt;

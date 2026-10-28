@@ -33,6 +33,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+porter-ids = { workspace = true }
 bulkhead = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }
 docket-fake = { workspace = true }

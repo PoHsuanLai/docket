@@ -3,7 +3,7 @@
 use super::trigger::Trigger;
 use crate::helper::{GoalText, JobFault, JobId, PauseWhy};
 use almanac_core::EventRef;
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{HelperId, UnixSeconds};
 use serde::{Deserialize, Serialize};
 use std::fmt;

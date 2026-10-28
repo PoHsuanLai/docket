@@ -362,10 +362,10 @@ async fn a_resume_starts_a_new_agent_session_and_keeps_the_taint() {
         handles: Vec::new(),
         budget: docket_session::ResumedBudget {
             checkpoint: None,
-            calls_since: porter_core::Count(0),
+            calls_since: porter_ids::Count(0),
         },
         skills: Vec::new(),
-        legacy_skipped: porter_core::Count(0),
+        legacy_skipped: porter_ids::Count(0),
         faults: Vec::new(),
     };
     assert_eq!(backend.resume(&plan).await, Ok(Resumed::Reseeded));

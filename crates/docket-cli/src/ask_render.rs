@@ -6,7 +6,7 @@ use companion_wire::{
     AnswerBody, AnswerPhase, AnswerWire, FooterWire, NeedsYou, PlanWire, RefusalWire, StepWireState,
 };
 use docket_core::Reveal;
-use porter_core::Locality;
+use porter_capability::Locality;
 
 fn reveal(text: &Reveal<String>) -> String {
     match text {

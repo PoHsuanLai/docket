@@ -4,7 +4,8 @@
 //! refusals and audit records of this crate name them.
 
 use docket_vocab::Millis;
-use porter_core::{Count, ModelId};
+use porter_capability::ModelId;
+use porter_ids::Count;
 use prov::Effect;
 use serde::{Deserialize, Serialize};
 use std::fmt;

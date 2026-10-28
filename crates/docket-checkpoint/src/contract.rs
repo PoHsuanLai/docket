@@ -6,7 +6,7 @@
 use crate::ids::WorkRoot;
 use crate::store::{ApplyAsk, CheckpointStore, DropAsk, PlanAsk, StoreFault, TakeAsk};
 use docket_core::{CheckpointId, PlanDigest, WorkPath};
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::SessionId;
 
 /// A folder under test and the hands to change it.

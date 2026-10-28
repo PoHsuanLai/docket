@@ -40,12 +40,12 @@ route = "login"
 }
 
 trait Program {
-    fn parse_program(&self) -> porter_core::capability::AgentProgram;
+    fn parse_program(&self) -> porter_capability::AgentProgram;
 }
 
 impl Program for str {
-    fn parse_program(&self) -> porter_core::capability::AgentProgram {
-        porter_core::capability::AgentProgram::parse(self).expect("program")
+    fn parse_program(&self) -> porter_capability::AgentProgram {
+        porter_capability::AgentProgram::parse(self).expect("program")
     }
 }
 

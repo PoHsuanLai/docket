@@ -2,7 +2,7 @@
 
 use crate::ids::{Saved, WorkRoot};
 use docket_core::{CheckpointId, PlanDigest, RestorePlan};
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::SessionId;
 use std::future::Future;
 

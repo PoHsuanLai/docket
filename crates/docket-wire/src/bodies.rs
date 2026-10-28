@@ -11,7 +11,8 @@ use docket_core::{
 };
 use docket_permissions_core::TaskPolicy;
 use docket_vocab::{ActionRef, IntentsVocab, NoteSlug, TurnId};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{RunId, SessionId, SpaceId};
 use serde::{Deserialize, Serialize};
 

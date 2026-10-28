@@ -3,7 +3,8 @@
 
 use docket_core::BreakerLimits;
 use docket_permissions_core::BreakerTrip;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{ActionName, EntityKind, UnixSeconds};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;

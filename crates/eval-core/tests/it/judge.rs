@@ -3,7 +3,7 @@
 use docket_core::CallRefusal;
 use docket_permissions_core::{BreakerTrip, DenyCode};
 use eval_core::*;
-use porter_core::{Count, Permille};
+use porter_ids::{Count, Permille};
 use prov::{Effect, InputProof, Integrity};
 
 #[test]

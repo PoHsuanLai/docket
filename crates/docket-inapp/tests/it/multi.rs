@@ -11,7 +11,7 @@ use almanac_fake::{ScriptedConsolidator, fake_service};
 use almanac_service::Caller;
 use docket_core::RosterState;
 use docket_inapp::{AlmanacMemory, AuditTo, Ending, InAppAgent, InAppKit};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{AgentRef, TaskId, UnixSeconds};
 use std::sync::Arc;
 

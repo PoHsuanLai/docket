@@ -8,7 +8,8 @@ use docket_permissions_core::BreakerTrip;
 use docket_permissions_core::{ActionMatch, TaskPolicy, TaskPolicyState};
 use docket_session::*;
 use docket_vocab::{ActionRef, CallId, Handle, LabelText, TurnId};
-use porter_core::{AppName, Count, DataClass};
+use porter_core::{AppName, DataClass};
+use porter_ids::Count;
 use prov::{
     ActionName, AgentRef, Effect, EntityKind, Label, SessionId, Source, SpaceId, TaskId,
     UnixSeconds,
@@ -191,7 +192,7 @@ pub fn compacted(turns: u32, steps: u32, taint: Taint) -> SessionEntry {
             .expect("summary"),
         taint,
         by: CompactedBy {
-            tier: porter_core::Tier::Balanced,
+            tier: porter_capability::Tier::Balanced,
             model: None,
         },
     })

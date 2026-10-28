@@ -20,7 +20,7 @@ use docket_permissions_core::offered_to;
 use docket_planner::Planner;
 use docket_skills::{BODY_BUDGET_BYTES, Situation, Skill, preselect, uses_first};
 use docket_vocab::Clock;
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::TaskId;
 
 /// How many hits the automatic recall asks for before the token budget cuts them.

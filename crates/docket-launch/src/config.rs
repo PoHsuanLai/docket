@@ -69,8 +69,8 @@ use docket_acp_host::{ModelId, SignIn};
 use docket_core::Rewind;
 use docket_permissions_core::ProgramName;
 
+use porter_capability::{AgentProgram, AgentProtocol, EnvName};
 use porter_core::DataClass;
-use porter_core::capability::{AgentProgram, AgentProtocol, EnvName};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 

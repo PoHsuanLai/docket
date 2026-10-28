@@ -13,6 +13,9 @@ publish.workspace = true
 testing = []
 
 [dependencies]
+porter-match = { workspace = true }
+porter-capability = { workspace = true }
+porter-ids = { workspace = true }
 agent-loop = { workspace = true }
 almanac-core = { workspace = true }
 companion-model = { workspace = true }

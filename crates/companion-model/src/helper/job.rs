@@ -3,7 +3,7 @@
 
 use super::card::Need;
 use almanac_core::EventRef;
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{EntityId, HelperId, SessionId, TaskId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;

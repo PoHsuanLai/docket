@@ -6,7 +6,7 @@ use docket_checkpoint::contract::{Workbench, run};
 use docket_checkpoint::{ApplyAsk, CheckpointStore, PlanAsk, StoreFault, TakeAsk, WorkRoot};
 use docket_checkpoint_git::ref_name;
 use docket_core::{CheckpointId, WorkPath};
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::SessionId;
 use std::path::{Path, PathBuf};
 

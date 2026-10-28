@@ -17,6 +17,7 @@ name = "intentd"
 path = "src/main.rs"
 
 [dependencies]
+porter-ids = { workspace = true }
 bulkhead = { workspace = true }
 companion-model = { workspace = true }
 docket-checkpoint-git = { workspace = true }
@@ -58,6 +59,9 @@ tokio = { workspace = true }
 zbus = { workspace = true }
 
 [dev-dependencies]
+porter-wire = { workspace = true }
+porter-match = { workspace = true }
+porter-capability = { workspace = true }
 almanac-core = { workspace = true }
 docket-acp-bin = { workspace = true }
 docket-host = { workspace = true }

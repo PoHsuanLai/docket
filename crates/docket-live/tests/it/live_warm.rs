@@ -4,7 +4,7 @@
 
 use docket_accept::world::ModelSource;
 use docket_live::warm::{POLL, Prepare, WarmFault, WarmStep, plan, warm_all};
-use porter_core::Tier;
+use porter_capability::Tier;
 use porter_infer::Readiness;
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;

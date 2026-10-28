@@ -15,7 +15,8 @@ use docket_permissions_core::AskReason;
 use docket_vocab::{LabelText, Seconds, TurnId};
 use eval_core::Place;
 use futures_util::FutureExt;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{Label, Labelled, SessionId, UnixSeconds};
 use std::collections::BTreeSet;
 
@@ -78,7 +79,7 @@ fn sheet(app: &str, label: &str) -> ConfirmRequest {
         app: AppName::parse(app).expect("app"),
         action: LabelText::parse(label).expect("label"),
         effect: prov::Effect::UndoableWrite,
-        count: porter_core::Count(1),
+        count: porter_ids::Count(1),
         detail: ConfirmDetail::Plain,
         lines: vec![],
         why: vec![AskReason::Tainted],

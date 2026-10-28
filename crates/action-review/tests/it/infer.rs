@@ -7,8 +7,9 @@ use crate::support::*;
 use action_review::*;
 use docket_permissions_core::{AskReason, DenyCode, Impact, PolicyId, ReviewError, Ruling, Stage};
 use docket_vocab::Millis;
+use porter_capability::Tier;
 use porter_core::consent::Usage;
-use porter_core::{Tier, Tokens};
+use porter_ids::Tokens;
 use porter_infer::{
     ChatReply, InferEvent, Knob, MessagePart, ModelError, Reasoning, ReplyShape, StopReason,
     ToolChoice,
@@ -41,7 +42,8 @@ fn quick_asks_its_own_model_for_one_token() {
 /// however the models are configured.
 #[test]
 fn every_reviewer_request_carries_the_prompt_class_pinned_on_device() {
-    use porter_core::{DataClass, Locality};
+    use porter_capability::Locality;
+    use porter_core::DataClass;
     use porter_infer::{Floor, Policy};
 
     assert_eq!(REVIEW_CLASS, DataClass::Prompt);

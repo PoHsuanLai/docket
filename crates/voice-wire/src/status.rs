@@ -2,7 +2,7 @@
 
 use crate::event::VoiceFault;
 use docket_wire::VoiceIntent;
-use porter_core::UnixSeconds;
+use porter_ids::UnixSeconds;
 use porter_infer::Readiness;
 use serde::{Deserialize, Serialize};
 

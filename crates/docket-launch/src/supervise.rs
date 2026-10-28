@@ -10,7 +10,7 @@ use crate::config::AgentsFile;
 use crate::login::LoginRunner;
 use crate::procs::Proc;
 use docket_store::Waits;
-use porter_core::{LoginFault, LoginOutcome};
+use porter_capability::{LoginFault, LoginOutcome};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 use tokio::task::JoinHandle;

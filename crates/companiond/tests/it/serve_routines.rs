@@ -93,7 +93,7 @@ async fn a_proposed_routine_waits_for_the_shell_to_accept_or_decline_it() {
         model: HelperModel::Unset,
         apps: vec![app("org.quire.Mail")],
         ceiling: Ceiling::Look,
-        steps: porter_core::Count(8),
+        steps: porter_ids::Count(8),
         kind: Default::default(),
     };
     let helpers = CompanionHelpers2Proxy::new(&shell).await.expect("proxy");
@@ -220,11 +220,11 @@ async fn the_editor_bridge_speaks_in_a_helpers_conversation_and_a_stranger_or_an
         space: space("work"),
         model: HelperModel::Named(porter_infer::ModelRef {
             account: porter_core::AccountId::parse("local").expect("account"),
-            model: porter_core::ModelId::parse("tiny").expect("model"),
+            model: porter_capability::ModelId::parse("tiny").expect("model"),
         }),
         apps: vec![app("org.quire.Mail")],
         ceiling: Ceiling::Look,
-        steps: porter_core::Count(8),
+        steps: porter_ids::Count(8),
         kind: Default::default(),
     };
     let form = serde_json::to_string(&form).expect("json");

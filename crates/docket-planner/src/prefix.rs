@@ -56,7 +56,8 @@ mod tests {
     };
     use docket_fake::WordsModel;
     use docket_vocab::{CharCount, Handle, TurnId};
-    use porter_core::{AppName, Count};
+    use porter_core::AppName;
+    use porter_ids::Count;
     use prov::{Integrity, Source, UnixSeconds};
 
     fn sources(window: &str) -> Sources {

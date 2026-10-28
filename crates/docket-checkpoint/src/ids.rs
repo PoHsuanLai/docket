@@ -4,7 +4,7 @@
 use bulkhead::{AbsPath, PathFault};
 use docket_core::CheckpointId;
 use docket_vocab::Workspace;
-use porter_core::UnixSeconds;
+use porter_ids::UnixSeconds;
 
 /// The folder a session works in, absolute and normalised: where points are taken and restored.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]

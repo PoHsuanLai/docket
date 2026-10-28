@@ -9,7 +9,8 @@ use crate::plan::ResumePlan;
 use companion_wire::NeedsYou;
 use docket_core::{ConfirmId, ConfirmRequest, Reveal, StepLine, UserTurn};
 use docket_permissions_core::BreakerTrip;
-use porter_core::{Count, MicroUsd};
+use porter_core::MicroUsd;
+use porter_ids::Count;
 use prov::SessionId;
 use std::future::Future;
 

@@ -15,7 +15,8 @@ use docket_core::{
 use docket_manifest::ValidManifest;
 use docket_provider::IntentProvider;
 use docket_vocab::{EntityRef, LabelText, ParamName, UndoToken, Value};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{
     Actor, AgentRole, Confidentiality, EntityId, EntityKey, EntityKind, Integrity, Label, Labelled,
     Source, SpaceId,

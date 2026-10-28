@@ -339,7 +339,7 @@ fn card(id: &str) -> HelperCard {
         actions: BTreeSet::<ActionMatch>::new(),
         kinds: BTreeSet::new(),
         ceiling: prov::Effect::Read,
-        max_count: porter_core::Count(1),
+        max_count: porter_ids::Count(1),
         recipients: vec![],
         destinations: vec![],
         paths: vec![],
@@ -355,7 +355,7 @@ fn card(id: &str) -> HelperCard {
         model: HelperModel::Unset,
         reach,
         budget: HelperBudget {
-            steps: porter_core::Count(4),
+            steps: porter_ids::Count(4),
         },
     };
     HelperCard::new(helper(id), draft)

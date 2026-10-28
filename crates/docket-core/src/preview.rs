@@ -1,7 +1,7 @@
 //! The closed vocabulary of previews the host draws with its own components; apps send data only.
 
 use docket_vocab::{CharCount, EntityRef, FileRef, LabelText};
-use porter_core::Bytes;
+use porter_ids::Bytes;
 use prov::{Labelled, UnixSeconds};
 use serde::{Deserialize, Serialize};
 

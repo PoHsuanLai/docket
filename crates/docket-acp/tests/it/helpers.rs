@@ -17,7 +17,7 @@ use docket_session::fake::MemoryLog;
 use docket_session::{BackendEvent, BackendKind, Opening, Seq, SessionEntry, SessionLog};
 use docket_session::{SheetChoice, TurnEnd};
 use docket_vocab::{LabelText, Seconds};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{Actor, AgentRef, Effect, HelperId, SessionId, SpaceId, TaskId};
 use serde_json::{Value, json};
 use std::collections::VecDeque;

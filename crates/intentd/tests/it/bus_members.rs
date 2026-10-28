@@ -26,7 +26,7 @@ use docket_wire::{
     CallerId, CallerRole, GrantAsk, IntentsReply, IntentsRequest, JournalFilter, Member, NoteAsk,
     ReadAsk, RecallAsk, SessionNote, SessionOpen, WidenAsk, WireRefusal,
 };
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{
     ActionName, Address, AgentRef, Effect, EntityId, EntityKey, EntityKind, Label, MessageKind,
     SessionId, SpaceId, SpaceScope, UnixSeconds,

@@ -8,7 +8,8 @@ use docket_core::{
 use docket_manifest::TitleTrust;
 use docket_provider::ContextSource;
 use ds_intents::ContextModel;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{Label, Labelled, SpaceId};
 
 /// What only the app knows about its window.

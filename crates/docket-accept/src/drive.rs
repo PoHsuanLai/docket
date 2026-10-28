@@ -250,7 +250,7 @@ pub async fn recorded(world: &World, kinds: &[&str]) -> Vec<almanac_core::Recent
                     since: UnixSeconds(0),
                     kinds: vec![],
                     trust: TrustFilter::Any,
-                    limit: porter_core::Count(100),
+                    limit: porter_ids::Count(100),
                     bodies: BodyMode::Json,
                 };
                 entries.extend(

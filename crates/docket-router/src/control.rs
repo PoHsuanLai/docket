@@ -11,7 +11,7 @@ use docket_core::{
 };
 use docket_vocab::{Clock, UndoId};
 use docket_wire::{CallerId, CallerRole, IntentsReply, JournalFilter, UndoReport};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{Actor, SpaceScope};
 
 fn actor_of(caller: &CallerId, role: CallerRole) -> Actor {

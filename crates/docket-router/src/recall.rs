@@ -15,7 +15,7 @@ use almanac_core::{
 use docket_core::MemoryLink;
 use docket_core::{EpisodeLine, PrimerText, ProfileLine, RecalledLine, Reveal, SkeletonText};
 use docket_wire::{IntentsReply, RecallAsk, RecallView, RecentLine, WireRefusal};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{Actor, Integrity, Label, Labelled, SessionId, Source, SpaceId};
 use std::collections::BTreeSet;
 

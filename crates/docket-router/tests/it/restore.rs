@@ -16,7 +16,7 @@ use docket_session::{
 };
 use docket_vocab::{Handle, Value};
 use docket_wire::{IntentsReply, IntentsRequest, SessionOpen, SessionOpened, WireRefusal};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{AgentRef, Integrity, SessionId, Source, TaskId, UnixSeconds};
 use std::sync::Arc;
 

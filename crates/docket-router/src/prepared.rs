@@ -14,9 +14,9 @@ use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, CharCount, ParamName, TargetValue, Value, WindowKey,
 };
 use policy_point::GrantState;
-use porter_core::Count;
 use porter_core::GrantId;
 use porter_core::consent::{GrantScope, Usage, Verdict};
+use porter_ids::Count;
 use prov::{Actor, AgentRole, Effect, EntityId, Integrity, SpaceId};
 
 /// A call that ended before it reached the gate.

@@ -6,7 +6,8 @@ use super::support::{ENDPOINT, LOGIN};
 use docket_launch::fake::{Call, FakeAccounts};
 use docket_launch::login::{LoginRunner, VisibleLogin};
 use docket_launch::{AgentsFile, AskKind, Entry, Heard, LoginAsk, Registry, Supervisor};
-use porter_core::{AccountId, LoginFault, LoginOutcome, LoginRequestId};
+use porter_capability::{LoginFault, LoginOutcome, LoginRequestId};
+use porter_core::AccountId;
 use std::sync::{Arc, Mutex};
 
 /// A runner that answers from a script and remembers what it was asked.
@@ -44,7 +45,7 @@ fn ask(kind: AskKind, program: &str) -> LoginAsk {
         kind,
         request: LoginRequestId::parse("req-1").expect("request"),
         account: AccountId::parse("claude-code").expect("account"),
-        program: porter_core::capability::AgentProgram::parse(program).expect("program"),
+        program: porter_capability::AgentProgram::parse(program).expect("program"),
     }
 }
 
@@ -155,7 +156,7 @@ fn entry_with(login: &str, logout: &str) -> Entry {
         "[[agent]]\nprogram = \"a\"\ncommand = \"/usr/bin/a\"\nroute = \"login\"\nlogin = {login}\nlogout = {logout}\n"
     );
     let file = AgentsFile::parse(&text).expect("file");
-    file.by_program(&porter_core::capability::AgentProgram::parse("a").expect("p"))
+    file.by_program(&porter_capability::AgentProgram::parse("a").expect("p"))
         .expect("entry")
         .clone()
 }

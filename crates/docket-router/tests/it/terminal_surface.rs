@@ -140,7 +140,7 @@ async fn a_terminal_undoes_only_what_a_terminal_did() {
         IntentsRequest::ControlJournal(JournalFilter {
             run: None,
             session: None,
-            limit: porter_core::Count(10),
+            limit: porter_ids::Count(10),
         }),
     )
     .await
@@ -156,7 +156,7 @@ async fn a_terminal_undoes_only_what_a_terminal_did() {
         IntentsRequest::ControlJournal(JournalFilter {
             run: None,
             session: None,
-            limit: porter_core::Count(10),
+            limit: porter_ids::Count(10),
         }),
     )
     .await

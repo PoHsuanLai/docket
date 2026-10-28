@@ -8,7 +8,8 @@ use docket_vocab::{
     TargetValue, TurnId, UndoId, WindowKey,
 };
 use docket_wire::TaskLedger;
-use porter_core::{AppName, Count, DataClass};
+use porter_core::{AppName, DataClass};
+use porter_ids::Count;
 use prov::{AgentRef, Effect, SpaceId, TaskId};
 use serde::{Serialize, de::DeserializeOwned};
 

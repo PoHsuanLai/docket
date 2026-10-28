@@ -17,6 +17,7 @@ speech-provider = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]
+porter-capability = { workspace = true }
 serde_json = { workspace = true }
 
 [lints]

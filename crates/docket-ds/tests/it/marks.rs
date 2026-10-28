@@ -9,7 +9,8 @@ use ds_intents::{
     ChipKind, HeardEndMark, HeardMark, InputLevel, SummonAnswerMark, SummonOriginMark, Tally,
     ThingMark,
 };
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{Integrity, Label, Labelled, Source, SpaceId};
 use voice_wire::{
     CancelCause, HeardSegment, HeardTail, HeardText, Level, UtteranceEnd, VoiceEvent,
@@ -191,8 +192,8 @@ fn a_mark_that_is_not_a_thing_is_refused() {
 fn voice_frames_become_what_a_field_does() {
     let served = || porter_infer::ServedBy {
         account: porter_core::AccountId::parse("local").expect("account"),
-        model: porter_core::ModelId::parse("nemotron").expect("model"),
-        locality: porter_core::Locality::OnDevice,
+        model: porter_capability::ModelId::parse("nemotron").expect("model"),
+        locality: porter_capability::Locality::OnDevice,
     };
     let cases: Vec<(&str, VoiceEvent, Option<HeardMark>)> = vec![
         ("opened is not a field's business", VoiceEvent::Opened, None),

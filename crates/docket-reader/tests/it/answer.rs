@@ -158,7 +158,7 @@ fn answers_table() {
             r#"{"answer": [1, 2]}"#,
             ValueSchema::List {
                 of: Box::new(ValueSchema::Integer { min: 0, max: 9 }),
-                max: porter_core::Count(3),
+                max: porter_ids::Count(3),
             },
             Ok(Value::List(vec![Value::Integer(1), Value::Integer(2)])),
         ),
@@ -167,7 +167,7 @@ fn answers_table() {
             r#"{"answer": [1, 2, 3, 4]}"#,
             ValueSchema::List {
                 of: Box::new(ValueSchema::Integer { min: 0, max: 9 }),
-                max: porter_core::Count(3),
+                max: porter_ids::Count(3),
             },
             Err(ReaderError::OutOfSchema(SchemaFault::TooMany)),
         ),

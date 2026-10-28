@@ -69,7 +69,7 @@ async fn the_helpers_are_served_beside_the_conversation_to_the_shell_alone() {
         model: HelperModel::Unset,
         apps: vec![app("org.quire.Mail")],
         ceiling: Ceiling::Look,
-        steps: porter_core::Count(8),
+        steps: porter_ids::Count(8),
         kind: Default::default(),
     };
     let form = serde_json::to_string(&form).expect("json");
@@ -183,7 +183,7 @@ async fn helpers2_is_served_beside_helpers_with_sign_in_and_routines_to_the_shel
         model: HelperModel::Unset,
         apps: vec![app("org.quire.Mail")],
         ceiling: Ceiling::Look,
-        steps: porter_core::Count(8),
+        steps: porter_ids::Count(8),
         kind: Default::default(),
     };
     let form = serde_json::to_string(&form).expect("json");
@@ -289,7 +289,7 @@ async fn the_editor_bridge_reads_the_helpers_and_changes_nothing_and_a_stranger_
         model: HelperModel::Unset,
         apps: vec![app("org.quire.Mail")],
         ceiling: Ceiling::Look,
-        steps: porter_core::Count(8),
+        steps: porter_ids::Count(8),
         kind: Default::default(),
     };
     let form = serde_json::to_string(&form).expect("json");

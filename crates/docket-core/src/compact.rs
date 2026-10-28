@@ -8,7 +8,7 @@
 //! that of the task when it was written.
 
 use docket_vocab::Handle;
-use porter_core::Count;
+use porter_ids::Count;
 use prov::Integrity;
 use serde::{Deserialize, Serialize};
 

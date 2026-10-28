@@ -13,7 +13,7 @@ use crate::helper::post::{Post, PostId, PostPart, PostTo};
 use crate::helper::records::{CardRecord, HelperRecord};
 use crate::helper::rules::JobRefusal;
 use almanac_core::EventRef;
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{EntityId, HelperId, Label, TaskId};
 use serde::{Deserialize, Serialize};
 

@@ -2,7 +2,8 @@
 //! known. Pure; `budget::charge` reads it and `charge_turn` writes it.
 
 use crate::budget::{Budget, BudgetKind, Ledger};
-use porter_core::{MicroUsd, Tokens};
+use porter_core::MicroUsd;
+use porter_ids::Tokens;
 use serde::{Deserialize, Serialize};
 
 /// Tokens by kind. `cached` is a share of `input`, as the model reports it.

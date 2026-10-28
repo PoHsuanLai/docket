@@ -5,7 +5,7 @@ use almanac_core::KindPattern;
 use companion_model::helper::GoalText;
 use companion_model::routine::{EventMatch, JobRef, NewRoutine, RunBudget, Schedule, Trigger};
 use companion_wire::{EventForm, RoutineForm, WhenForm};
-use porter_core::Count;
+use porter_ids::Count;
 
 fn event_of(form: EventForm) -> Result<EventMatch, Refusal> {
     let kind = KindPattern::parse(&form.kind).map_err(|_| Refusal::WatchKind)?;

@@ -177,7 +177,8 @@ impl SessionWatch for TapSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use porter_core::{DataClass, Tier};
+    use porter_capability::Tier;
+    use porter_core::DataClass;
     use porter_infer::{ChatRequest, InferReply, ReplyShape};
 
     #[test]

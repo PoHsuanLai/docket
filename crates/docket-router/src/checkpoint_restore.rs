@@ -20,7 +20,8 @@ use docket_core::{
 use docket_session::{Claimant, may_restore};
 use docket_vocab::{Args, CallRequest, Clock, LabelText, ParamName, TurnId, Value};
 use docket_wire::{CallerId, CallerRole, WireRefusal};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{Actor, AgentRole, SessionId};
 
 /// The name the built-in provider answers to.

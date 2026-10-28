@@ -5,12 +5,14 @@
 
 use crate::support::bus::PrivateBus;
 use intentd::{InferdModel, InferdWriter, inferd_transport};
+use porter_capability::LlmFeature;
+use porter_capability::Tier;
 use porter_client::{Transport, TransportError};
-use porter_core::Tokens;
-use porter_core::capability::LlmFeature;
-use porter_core::need::LlmNeed;
-use porter_core::{DataClass, Need, Tier};
+use porter_core::DataClass;
+use porter_ids::Tokens;
 use porter_infer::{Model, ModelCard};
+use porter_match::LlmNeed;
+use porter_match::Need;
 use std::collections::BTreeSet;
 
 #[tokio::test]
@@ -39,9 +41,9 @@ async fn the_models_and_the_writer_are_built_on_the_bus() {
     let connection = bus.connect().await;
     let card = ModelCard {
         account: porter_core::AccountId::parse("local").expect("account"),
-        model: porter_core::ModelId::parse("q").expect("model"),
-        locality: porter_core::Locality::OnDevice,
-        billing: porter_core::Billing::Free,
+        model: porter_capability::ModelId::parse("q").expect("model"),
+        locality: porter_capability::Locality::OnDevice,
+        billing: porter_capability::Billing::Free,
         capabilities: vec![],
     };
     let model = InferdModel::on_bus(&connection, card.clone(), docket_dbus::InferWatch::off());

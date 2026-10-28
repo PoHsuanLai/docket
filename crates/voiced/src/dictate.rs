@@ -6,9 +6,10 @@
 use crate::frames::{Dictation, Frames};
 use crate::link::fault_of as link_fault;
 use crate::warm::stt_need;
+use porter_capability::Tier;
 use porter_client::{InferSession, Transport};
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::{DataClass, Tier};
 use porter_infer::{
     AudioFrame, AudioRate, Base64Bytes, ClientFrame, InferEvent, InferReply, InferRequest,
     LangPick, ModelError, ServedBy, TranscribeBegin, TranscribeMode,

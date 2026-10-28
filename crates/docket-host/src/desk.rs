@@ -145,7 +145,8 @@ mod tests {
     use docket_core::{Anchor, ConfirmDetail, ConfirmOffer, ConfirmParts, Gesture, TaintNote};
     use docket_vocab::{LabelText, Seconds};
     use futures_util::FutureExt;
-    use porter_core::{AppName, Count};
+    use porter_core::AppName;
+    use porter_ids::Count;
     use prov::{Actor, Effect, SpaceId};
 
     fn request(id: &str) -> ConfirmRequest {

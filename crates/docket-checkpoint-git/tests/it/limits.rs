@@ -5,7 +5,7 @@ use crate::scratch::{Scratch, root};
 use docket_checkpoint::{CheckpointStore, StoreFault, TakeAsk};
 use docket_checkpoint_git::{GitCause, GitFault, GitProblem, Limits};
 use docket_core::CheckpointId;
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::SessionId;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;

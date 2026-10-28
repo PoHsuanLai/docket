@@ -6,7 +6,9 @@ use docket_core::*;
 use docket_manifest::Lasting;
 use docket_permissions_core::{ArgLabels, Saw, SessionSaw, Strictness};
 use docket_vocab::{LabelText, Millis, TurnId};
-use porter_core::{AccountId, Billing, Locality, ModelId, Tokens};
+use porter_capability::{Billing, Locality, ModelId};
+use porter_core::AccountId;
+use porter_ids::Tokens;
 use porter_infer::{
     ChatReply, ChatRequest, ChatSink, EmbedReply, EmbedRequest, InferEvent, InferRefusal, Model,
     ModelCard, ModelError, ServedBy, StopReason, TaskRequest, TokenUsage, TurnError,
@@ -180,7 +182,7 @@ pub fn request() -> ReviewRequest {
             label: LabelText::parse("Archive").expect("label"),
             effect: Effect::UndoableWrite,
             kinds: BTreeSet::new(),
-            count: porter_core::Count(2),
+            count: porter_ids::Count(2),
             args: vec![],
             lasting: Lasting::No,
         },

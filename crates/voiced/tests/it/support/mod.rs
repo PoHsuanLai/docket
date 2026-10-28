@@ -10,7 +10,8 @@ use device::{Hand, ScriptedDevice};
 use docket_dbus::callers::{Identity, Role};
 use docket_testbus::PrivateBus;
 use infer::{ScriptedInfer, Seen};
-use porter_core::{AccountId, Locality, ModelId};
+use porter_capability::{Locality, ModelId};
+use porter_core::AccountId;
 use porter_infer::testing::{Script, ScriptStep};
 use porter_infer::{
     AudioFrameOut, AudioRate, Base64Bytes, HeardDelta, InferEvent, InferReply, Readiness,
@@ -466,7 +467,7 @@ pub fn speak_wire_as(text: &str, utterance: Option<&str>, class: porter_core::Da
         utterance: utterance.map(|u| docket_vocab::UtteranceId::parse(u).expect("utterance id")),
         text: voice_wire::SpokenText(text.to_owned()),
         class,
-        lang: porter_core::capability::LanguageTag::parse("en").expect("language"),
+        lang: porter_capability::LanguageTag::parse("en").expect("language"),
     })
     .expect("seal")
 }

@@ -3,15 +3,16 @@
 //! request says its data class and `Usage::Interactive`; a refusal from the daemon is an error
 //! that asks the person, never an allow.
 
+use porter_capability::{LlmFeature, Modality};
 use porter_client::Transport;
-use porter_core::capability::{LlmFeature, Modality};
-use porter_core::need::{EmbedNeed, LlmNeed};
-use porter_core::{Need, Tokens};
+use porter_ids::Tokens;
 use porter_infer::{
     ChatReply, ChatRequest, ChatSink, ClientFrame, EmbedReply, EmbedRequest, Flow, InferEvent,
     InferReply, InferRequest, InferSession, Knob, MessagePart, Model, ModelCard, ModelError,
     ReplyShape, TaskRequest, TurnError,
 };
+use porter_match::Need;
+use porter_match::{EmbedNeed, LlmNeed};
 use std::collections::BTreeSet;
 
 /// A chat model reached through a porter-client session (inferd over D-Bus, the latchkey socket
@@ -186,7 +187,7 @@ impl<T: Transport> Model for TransportModel<T> {
         ));
         let mut session = self
             .transport
-            .open(&need, request.class, porter_core::Tier::Fast)
+            .open(&need, request.class, porter_capability::Tier::Fast)
             .await
             .map_err(|_| ModelError::Unreachable)?;
         chat_turn(turn(&mut session, InferRequest::Task(request.clone()), sink).await?)
@@ -199,7 +200,7 @@ impl<T: Transport> Model for TransportModel<T> {
         ));
         let mut session = self
             .transport
-            .open(&need, request.class, porter_core::Tier::Fast)
+            .open(&need, request.class, porter_capability::Tier::Fast)
             .await
             .map_err(|_| ModelError::Unreachable)?;
         let reply = turn(

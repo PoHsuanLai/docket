@@ -11,7 +11,7 @@ use crate::accounts::{KeyHandoff, OpenedEndpoint};
 use crate::config::{Entry, Route};
 use bulkhead::AbsPath;
 use bulkhead::{EnvVar, SANDBOX_HOME, SANDBOX_PATH};
-use porter_core::capability::EnvName;
+use porter_capability::EnvName;
 
 /// What a route gave the child.
 #[derive(Debug)]

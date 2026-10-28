@@ -16,7 +16,7 @@ use docket_core::{
     AssemblerBudget, Covers, Reveal, StepEnd, StepLine, Summary, SummaryText, UserTurn,
 };
 use docket_vocab::{Handle, Value};
-use porter_core::{Count, Tokens};
+use porter_ids::{Count, Tokens};
 use prov::Integrity;
 use serde::{Deserialize, Serialize};
 

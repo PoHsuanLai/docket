@@ -28,16 +28,19 @@ use agent_loop::{
 use companion_wire::{RouteLog, RouteNote};
 use docket_core::{OneOf, PlannerView, ReplyFault};
 use docket_vocab::{ActionRef, CallRequest, Handle, Origin};
+use porter_capability::LlmFeature;
+use porter_capability::Tier;
 use porter_client::Transport;
-use porter_core::capability::LlmFeature;
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::need::LlmNeed;
-use porter_core::{DataClass, Need, Tier, Tokens};
+use porter_ids::Tokens;
 use porter_infer::{
     ChatReply, ChatRequest, ClientFrame, Declined, InferEvent, InferRefusal, InferReply,
     InferRequest, InferSession, OpenOptions, ReplyShape, ServedBy, StopReason, ToolCallPart,
     ToolDecl,
 };
+use porter_match::LlmNeed;
+use porter_match::Need;
 use serde_json::Value as Json;
 use std::collections::BTreeSet;
 

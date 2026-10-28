@@ -135,7 +135,8 @@ mod tests {
         TextTargetView, VisibleView,
     };
     use docket_vocab::{ActionRef, CallId, CharCount, Value};
-    use porter_core::{AppName, Count};
+    use porter_core::AppName;
+    use porter_ids::Count;
     use prov::{ActionName, Effect, Integrity, Source};
 
     fn step(app: &str, name: &str, with: &[u64], end: StepEnd) -> StepLine {

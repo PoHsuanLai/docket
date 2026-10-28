@@ -2,7 +2,7 @@
 
 use super::job::JobId;
 use docket_permissions_core::TaskPolicy;
-use porter_core::Count;
+use porter_ids::Count;
 use porter_infer::ModelRef;
 use prov::{AgentProgram, HelperId, SpaceId, TaskId};
 use serde::{Deserialize, Serialize};

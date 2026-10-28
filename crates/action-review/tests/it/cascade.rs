@@ -5,7 +5,8 @@ use action_review::*;
 use docket_permissions_core::{
     AskReason, DenyCode, Impact, PolicyId, ReasonCode, ReasonText, ReviewError, Ruling, Stage,
 };
-use porter_core::{AccountId, ModelId};
+use porter_capability::ModelId;
+use porter_core::AccountId;
 
 fn rulings() -> Vec<(&'static str, Ruling)> {
     vec![

@@ -3,9 +3,11 @@
 //! `LinkEvent`s out of its outbox. Dropping the inbox ends the task and, with it, the session.
 //! The session's `next` must be cancel safe (porter's framed sessions say so).
 
+use porter_capability::Tier;
 use porter_client::{InferSession, Transport, TransportError};
-use porter_core::{DataClass, Need, Tier};
+use porter_core::DataClass;
 use porter_infer::{ClientFrame, InferEvent, InferRefusal, ModelError};
+use porter_match::Need;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use voice_wire::VoiceFault;

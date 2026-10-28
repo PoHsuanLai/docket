@@ -3,7 +3,8 @@
 use crate::spend::{Spent, check_turn};
 use docket_permissions_core::BreakerTrip;
 use docket_vocab::{Depth, Seconds};
-use porter_core::{Count, MicroUsd};
+use porter_core::MicroUsd;
+use porter_ids::Count;
 use prov::{Effect, SpaceId, UnixSeconds};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

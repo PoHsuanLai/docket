@@ -8,7 +8,8 @@ use docket_permissions_core::{
     ArgLabels, ReasonCode, ReasonText, ReviewError, Saw, SessionSaw, Stage, Strictness,
 };
 use docket_vocab::{ActionRef, CallId, CharCount, LabelText, ParamName, TurnId};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{ActionName, Effect, Integrity, Label, Source, SpaceId};
 use std::collections::{BTreeMap, BTreeSet};
 

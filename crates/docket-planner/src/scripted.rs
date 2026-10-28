@@ -129,8 +129,9 @@ impl Planner for ScriptedPlanner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use porter_capability::Tier;
+    use porter_core::DataClass;
     use porter_core::consent::Usage;
-    use porter_core::{DataClass, Tier};
 
     #[test]
     fn a_role_set_is_the_voice_it_speaks_in() {

@@ -4,7 +4,7 @@ use bulkhead::AbsPath;
 use docket_checkpoint::{Decision, Saved, TreeId, WorkRoot, decide, next_id, retention};
 use docket_core::{CheckpointEvent, CheckpointId, CheckpointNote, Retention, Rewind, SkipReason};
 use docket_vocab::{Days, TurnId, Workspace};
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 
 const DAY: i64 = 86_400;
 const NOW: i64 = 100 * DAY;

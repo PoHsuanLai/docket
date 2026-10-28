@@ -8,10 +8,10 @@
 
 use crate::config::Delivery;
 use bulkhead::AbsPath;
-use porter_core::capability::{AgentProgram, AgentProtocol};
+use porter_capability::{AgentProgram, AgentProtocol};
+use porter_capability::{LoginOutcome, LoginRequestId};
 use porter_core::{
-    AccountId, DataClass, KeyPermitId, LauncherSession, LoginOutcome, LoginRequestId,
-    ProcessCredentialId, SecretText,
+    AccountId, DataClass, KeyPermitId, LauncherSession, ProcessCredentialId, SecretText,
 };
 use std::future::Future;
 
@@ -152,7 +152,7 @@ pub trait Accounts: Send + Sync {
         &self,
         permit: &KeyPermitId,
         program: &AgentProgram,
-        key_env: &porter_core::capability::EnvName,
+        key_env: &porter_capability::EnvName,
         delivery: Delivery,
     ) -> impl Future<Output = Result<Issued, AccountFault>> + Send;
 

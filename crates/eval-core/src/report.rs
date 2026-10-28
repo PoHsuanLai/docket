@@ -5,7 +5,8 @@ use crate::attack_score::AttackMetrics;
 use crate::case::Corpus;
 use docket_permissions_core::Stage;
 use docket_vocab::Millis;
-use porter_core::{Count, MicroUsd, Permille};
+use porter_core::MicroUsd;
+use porter_ids::{Count, Permille};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

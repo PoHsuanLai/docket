@@ -9,7 +9,7 @@ use companion_model::helper::{
     GoalText, HelperRecord, HelperRecordKind, JobFault, JobId, PauseWhy,
 };
 use companion_model::routine::*;
-use porter_core::Count;
+use porter_ids::Count;
 use prov::HelperId;
 
 const H: i64 = 3_600;

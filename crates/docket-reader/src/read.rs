@@ -8,11 +8,12 @@ use crate::request::reader_request;
 use docket_core::{Reader, ReaderAsk, ReaderError};
 use docket_models::{Discard, turn};
 use docket_vocab::Value;
+use porter_capability::LlmFeature;
 use porter_client::Transport;
-use porter_core::capability::LlmFeature;
-use porter_core::need::LlmNeed;
-use porter_core::{Need, Tokens};
+use porter_ids::Tokens;
 use porter_infer::{InferReply, InferRequest, ModelError, StopReason};
+use porter_match::LlmNeed;
+use porter_match::Need;
 use prov::{Labelled, Quarantined, ReaderKey, SessionId};
 use std::collections::BTreeSet;
 

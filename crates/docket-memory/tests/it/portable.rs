@@ -10,7 +10,7 @@ use docket_core::{AuditRecord, HaltCause};
 use docket_core::{EventSink, LinkFault, MemoryLink};
 use docket_memory::{AlmanacMemory, AuditState, Link};
 use docket_memory_core::QueuedSink;
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{SpaceId, SpaceScope, UnixSeconds};
 use std::sync::Arc;
 

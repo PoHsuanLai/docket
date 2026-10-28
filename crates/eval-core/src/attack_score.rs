@@ -14,7 +14,7 @@ use crate::case::{CaseId, Expect};
 use crate::outcome::{StepEnding, reached};
 use crate::report::{Rate95, wilson};
 use crate::trace::CaseTrace;
-use porter_core::Count;
+use porter_ids::Count;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 

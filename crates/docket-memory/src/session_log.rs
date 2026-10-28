@@ -18,7 +18,8 @@ use docket_session::{
     encode, session_thing,
 };
 use docket_vocab::Clock;
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{
     Actor, Confidentiality, EntityId, Integrity, Label, SessionId, Source, SpaceId, SystemPart,
 };

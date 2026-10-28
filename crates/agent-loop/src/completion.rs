@@ -2,7 +2,7 @@
 //! its current task (like a completion notification), and the orb shows Waiting only when the
 //! result needs the person. The line is built from typed facts, never from what the worker said.
 
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{AgentRef, ReportStatus};
 use serde::{Deserialize, Serialize};
 

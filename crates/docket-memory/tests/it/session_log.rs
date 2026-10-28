@@ -18,7 +18,8 @@ use docket_session::{
 };
 use docket_vocab::{ActionRef, CallRequest, LabelText, Origin, TargetValue, TurnId};
 use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{AgentRef, Integrity, SessionId, SpaceId, TaskId, UnixSeconds};
 use std::future::Future;
 use std::sync::Arc;

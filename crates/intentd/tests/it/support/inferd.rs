@@ -3,13 +3,16 @@
 //! data class, the tier) and every frame the code under test sent. No bus, no engine, no GPU.
 #![allow(dead_code)]
 
+use porter_capability::Tier;
 use porter_client::{Transport, TransportError};
-use porter_core::{AccountsReply, AccountsRequest, DataClass, Need, Tier};
+use porter_core::DataClass;
 use porter_infer::testing::{FakeInferSession, Script, ScriptStep};
 use porter_infer::{
     ChatReply, ClientFrame, InferEvent, InferReply, InferSession, OpenOptions, RequestKind,
     ServedBy, SessionError, StopReason, TokenUsage,
 };
+use porter_match::Need;
+use porter_wire::{AccountsReply, AccountsRequest};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
@@ -114,16 +117,16 @@ impl Transport for ScriptedInferd {
 pub fn served() -> ServedBy {
     ServedBy {
         account: porter_core::AccountId::parse("local").expect("account"),
-        model: porter_core::ModelId::parse("scripted").expect("model"),
-        locality: porter_core::Locality::OnDevice,
+        model: porter_capability::ModelId::parse("scripted").expect("model"),
+        locality: porter_capability::Locality::OnDevice,
     }
 }
 
 pub fn usage() -> TokenUsage {
     TokenUsage {
-        input: porter_core::Tokens(1),
-        output: porter_core::Tokens(1),
-        cached: porter_core::Tokens(0),
+        input: porter_ids::Tokens(1),
+        output: porter_ids::Tokens(1),
+        cached: porter_ids::Tokens(0),
     }
 }
 

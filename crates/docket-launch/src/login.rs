@@ -7,7 +7,7 @@
 
 use crate::accounts::AskKind;
 use crate::config::Entry;
-use porter_core::{LoginFault, LoginOutcome};
+use porter_capability::{LoginFault, LoginOutcome};
 use std::future::Future;
 use std::process::Stdio;
 use tokio::process::Command;

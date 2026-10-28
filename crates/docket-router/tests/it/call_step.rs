@@ -23,7 +23,7 @@ fn sheet(id: &str) -> ConfirmRequest {
         app: porter_core::AppName::parse("org.quire.Mail").expect("app"),
         action: LabelText::parse("Send 1 message").expect("words"),
         effect: prov::Effect::Outbound,
-        count: porter_core::Count(1),
+        count: porter_ids::Count(1),
         detail: ConfirmDetail::Plain,
         lines: vec![],
         why: vec![AskReason::FirstUse],

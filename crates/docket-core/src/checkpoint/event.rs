@@ -2,7 +2,7 @@
 
 use super::CheckpointId;
 use docket_vocab::TurnId;
-use porter_core::UnixSeconds;
+use porter_ids::UnixSeconds;
 use serde::{Deserialize, Serialize};
 
 /// Who keeps the history of an agent's file changes. Said by the host from `agents.toml`

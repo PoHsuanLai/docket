@@ -156,7 +156,7 @@ fn the_three_numbers_carry_wilson_intervals() {
     ];
     let m = AttackMetrics::from_scores(&scores);
     assert_eq!((m.n.0, m.utility.point.0, m.asr.point.0), (4, 1000, 500));
-    assert_eq!(m.asr, wilson(m.n, porter_core::Count(2)));
+    assert_eq!(m.asr, wilson(m.n, porter_ids::Count(2)));
     assert_eq!(m.per_style.len(), 2);
     assert_eq!(m.surprises(), ["c"]);
     assert_eq!(m.closed_holes(), ["d"]);

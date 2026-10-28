@@ -2,7 +2,7 @@
 
 use crate::support::*;
 use agent_loop::*;
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{AgentRef, ReportStatus, RunId};
 
 #[test]

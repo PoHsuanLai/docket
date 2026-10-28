@@ -5,7 +5,8 @@ use docket_core::*;
 use docket_manifest::{ManifestError, ManifestFileError, parse};
 use docket_router::*;
 use docket_vocab::{ActionRef, EntityRef, Handle};
-use porter_core::{AppName, Count, DataClass};
+use porter_core::{AppName, DataClass};
+use porter_ids::Count;
 use prov::{
     Actor, Address, AgentRef, AgentRole, Confidentiality, Crossing, Integrity, Label, Labelled,
     Message, MessageId, MessageKind, MessageText, Part, ReportStatus, SessionId, Source, SpaceId,

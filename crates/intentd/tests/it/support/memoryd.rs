@@ -9,7 +9,7 @@
 use almanac_core::{EventBody, EventRef, MemoryReply, MemoryRequest, Record, ReplicaId, Seq};
 use almanac_dbus::{Call, MemoryError, decode_request, encode_reply};
 use almanac_dbus_serve::{Serve, serve_on};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{Integrity, Label, SenderCheck};
 use std::future::Future;
 use std::os::fd::OwnedFd;

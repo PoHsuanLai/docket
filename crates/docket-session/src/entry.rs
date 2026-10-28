@@ -18,7 +18,8 @@ use docket_permissions_core::ProgramName;
 use docket_permissions_core::TaskPolicy;
 use docket_vocab::{ActionRef, CallId, Handle, Workspace};
 use docket_wire::StartedFrom;
-use porter_core::{AppName, Tier};
+use porter_capability::Tier;
+use porter_core::AppName;
 use prov::{AgentRef, Effect, Label, SessionId, Source, SpaceId, TaskId};
 use serde::{Deserialize, Serialize};
 

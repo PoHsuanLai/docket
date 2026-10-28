@@ -8,7 +8,7 @@
 
 use crate::codec::Logged;
 use crate::entry::{Seq, SessionEntry};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::SessionId;
 use std::future::Future;
 

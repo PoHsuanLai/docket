@@ -11,9 +11,10 @@ use crate::seam::Planner;
 use crate::step_text::step_line;
 use agent_loop::{SummaryInput, leaked_call};
 use docket_core::{SummaryFault, SummaryText};
+use porter_capability::Tier;
 use porter_client::Transport;
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::{DataClass, Tier};
 use porter_infer::{
     ChatControl, ChatMessage, ChatRequest, Knob, MessagePart, ReplyShape, Role, ServedBy,
     StopReason, ToolChoice,
@@ -163,7 +164,7 @@ mod tests {
     use docket_core::Covers;
     use docket_fake::WordsModel;
     use docket_vocab::Handle;
-    use porter_core::Count;
+    use porter_ids::Count;
     use prov::Integrity;
 
     fn input() -> SummaryInput {

@@ -18,7 +18,8 @@ use docket_session::{SheetChoice, SheetDesk};
 use docket_settings::AcpExpose;
 use docket_vocab::{LabelText, Seconds};
 use intentd::{AcpGate, IntentdConfig, ProcRoot, SheetConfirmer};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{Actor, ClientName, Effect, SessionId, SpaceId};
 use std::sync::Arc;
 

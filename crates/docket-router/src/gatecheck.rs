@@ -30,7 +30,8 @@ use policy_point::{
     SpaceRelation, TerminalGrant,
 };
 use porter_core::consent::{Decision, Grant, GrantScope, Usage, Verdict};
-use porter_core::{AppName, Count, DataClass, GrantId};
+use porter_core::{AppName, DataClass, GrantId};
+use porter_ids::Count;
 use prov::{
     ActionName, Actor, AgentRole, Confidentiality, Effect, Integrity, Label, RunId, SessionId,
     Source, SpaceScope,

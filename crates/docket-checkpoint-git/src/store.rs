@@ -10,7 +10,7 @@ use docket_checkpoint::{
     plan_restore,
 };
 use docket_core::{RestorePlan, WorkPath};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::SessionId;
 use std::path::PathBuf;
 

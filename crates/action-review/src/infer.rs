@@ -14,8 +14,10 @@ use crate::verdict::ReviewVerdict;
 use docket_core::ReviewTimeouts;
 use docket_permissions_core::{ReviewError, Stage};
 use docket_vocab::Millis;
+use porter_capability::Tier;
+use porter_core::DataClass;
 use porter_core::consent::Usage;
-use porter_core::{DataClass, Permille, Tier, Tokens};
+use porter_ids::{Permille, Tokens};
 use porter_infer::{
     ChatControl, ChatMessage, ChatReply, ChatRequest, ChatSink, Flow, InferEvent, Knob,
     MessagePart, Model, ModelError, Reasoning, ReplyShape, Role, Sampling, StopReason, ToolChoice,

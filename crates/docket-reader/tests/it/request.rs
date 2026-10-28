@@ -113,7 +113,7 @@ fn the_reply_shape_is_the_schema() {
             "list",
             ValueSchema::List {
                 of: Box::new(ValueSchema::Integer { min: 0, max: 9 }),
-                max: porter_core::Count(3),
+                max: porter_ids::Count(3),
             },
         ),
     ];

@@ -4,7 +4,7 @@
 
 use crate::codec::{Logged, Read};
 use crate::entry::{Seq, SessionEntry};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::SessionId;
 use serde::{Deserialize, Serialize};
 

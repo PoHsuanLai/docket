@@ -5,7 +5,8 @@
 //! the router builds a view, so a model never reads text it was not meant to.
 
 use docket_vocab::{CharCount, EntityRef, Handle, TextTargetRef, ViewName};
-use porter_core::{AppName, Count};
+use porter_core::AppName;
+use porter_ids::Count;
 use prov::{EntityId, EntityKind, Labelled};
 use serde::{Deserialize, Serialize};
 

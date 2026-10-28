@@ -8,7 +8,7 @@ use crate::session::SessionState;
 use companion_model::helper::{HelperSeat, SeatPlace};
 use docket_session::{PageSize, Read, SessionEntry, SessionLog, Standing};
 use docket_wire::{CallerRole, IntentsReply, SessionOpen, SessionOpened};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{HelperId, SessionId};
 
 /// Rows read from the head of a log to find its seat: the opening, then the seat.

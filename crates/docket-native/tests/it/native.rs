@@ -267,7 +267,7 @@ impl SheetDesk for Canned {
                 app: app("org.quire.Mail"),
                 action: LabelText::parse("Archive messages").expect("label"),
                 effect: prov::Effect::UndoableWrite,
-                count: porter_core::Count(1),
+                count: porter_ids::Count(1),
                 detail: ConfirmDetail::Plain,
                 lines: Vec::new(),
                 why: Vec::new(),

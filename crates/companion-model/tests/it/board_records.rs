@@ -196,12 +196,12 @@ fn a_job_about_an_event_carries_the_event_as_a_handle_and_keeps_the_goal_the_per
         BoardEvent::PostRun {
             job: Box::new(new),
             about: Some(about.clone()),
-            steps: porter_core::Count(4),
+            steps: porter_ids::Count(4),
         },
     );
     let job = board.job(posted(&fx)).expect("job");
     assert_eq!(job.about, Some(about));
-    assert_eq!(job.steps, Some(porter_core::Count(4)));
+    assert_eq!(job.steps, Some(porter_ids::Count(4)));
     assert_eq!(job.goal.as_str(), "Tidy the new mail");
 }
 

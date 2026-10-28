@@ -28,6 +28,8 @@ name = "docket-net-enter"
 path = "src/bin/docket-net-enter.rs"
 
 [dependencies]
+porter-capability = { workspace = true }
+porter-ids = { workspace = true }
 companion-client = { workspace = true }
 companion-model = { workspace = true }
 companion-wire = { workspace = true }

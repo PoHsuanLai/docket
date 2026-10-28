@@ -8,8 +8,8 @@ use docket_permissions_core::{
 };
 use docket_vocab::{ActionRef, TurnId, Value};
 use intentd::InferdWriter;
+use porter_capability::LlmFeature;
 use porter_core::DataClass;
-use porter_core::capability::LlmFeature;
 use porter_infer::{
     ClientFrame, InferRefusal, InferReply, InferRequest, MessagePart, ReplyShape, RequestKind,
     StopReason,
@@ -109,7 +109,7 @@ async fn the_model_is_shown_the_persons_words_and_the_catalogue_and_asked_for_js
         DataClass::Prompt,
         "the person's words stay on this computer"
     );
-    let porter_core::Need::Llm(need) = &opened[0].need else {
+    let porter_match::Need::Llm(need) = &opened[0].need else {
         panic!("{:?}", opened[0].need)
     };
     assert!(need.features.contains(&LlmFeature::StructuredOutput));

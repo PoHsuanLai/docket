@@ -10,7 +10,7 @@ use docket_permissions_core::Saw;
 use docket_router::{HandleValue, Router};
 use docket_vocab::{ChoiceId, Handle, Value};
 use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen};
-use porter_core::capability::LlmFeature;
+use porter_capability::LlmFeature;
 use porter_core::{AppId, AppName, DataClass, Isolation};
 use porter_infer::{
     ClientFrame, InferRefusal, InferReply, InferRequest, ModelError, RequestKind, StopReason,
@@ -132,7 +132,7 @@ async fn the_handles_are_resolved_in_the_session_and_read_as_quarantined_data() 
     );
     let opened = inferd.opened();
     assert_eq!(opened.len(), 1);
-    let porter_core::Need::Llm(need) = &opened[0].need else {
+    let porter_match::Need::Llm(need) = &opened[0].need else {
         panic!("{:?}", opened[0].need)
     };
     assert!(need.features.contains(&LlmFeature::StructuredOutput));

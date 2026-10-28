@@ -9,7 +9,7 @@ use companion_model::helper::HelperSeat;
 use docket_core::{Ledger, SkillId, SkillVersion, StepLine, Summary, UserTurn};
 use docket_permissions_core::{BreakerTrip, TaskPolicy};
 use docket_vocab::CallId;
-use porter_core::Count;
+use porter_ids::Count;
 use serde::{Deserialize, Serialize};
 
 /// Why a session takes no new turn.

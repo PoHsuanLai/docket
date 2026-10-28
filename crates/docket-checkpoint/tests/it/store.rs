@@ -6,7 +6,7 @@ use docket_checkpoint::{
     ApplyAsk, CheckpointStore, DropAsk, NoStore, PlanAsk, StoreFault, TakeAsk, WorkRoot,
 };
 use docket_core::{CheckpointId, PlanDigest};
-use porter_core::{Count, UnixSeconds};
+use porter_ids::{Count, UnixSeconds};
 use prov::SessionId;
 
 fn root(text: &str) -> WorkRoot {

@@ -58,7 +58,9 @@ mod tests {
     use docket_planner::{ScriptedPlanner, Summarised};
     use docket_vocab::{ActionRef, CallId, LabelText};
     use docket_wire::{CallerId, CallerRole, SessionOpen};
-    use porter_core::{AppId, AppName, Isolation, Tier, Tokens};
+    use porter_capability::Tier;
+    use porter_core::{AppId, AppName, Isolation};
+    use porter_ids::Tokens;
     use prov::{ActionName, AgentRef, Effect, SpaceId, UnixSeconds};
     use std::{collections::BTreeSet, sync::Arc};
 

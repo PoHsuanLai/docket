@@ -10,7 +10,7 @@ use docket_vocab::{
     ActionRef, Args, CallId, CallRequest, CharCount, Handle, LabelText, Millis, Origin, Seconds,
     TargetValue, TurnId, Value,
 };
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{Address, AgentRef, ConfirmId, Effect, MessageKind, MessageText, ReportStatus, TaskId};
 use serde::{Serialize, de::DeserializeOwned};
 use std::collections::BTreeSet;
@@ -114,7 +114,7 @@ fn the_audit_record_holds_no_content() {
             verdict: Ok(VerdictKind::Ask),
             code: ReasonCode::Uncertain,
             latency: Millis(120),
-            model: porter_core::ModelId::parse("holo").expect("model"),
+            model: porter_capability::ModelId::parse("holo").expect("model"),
         },
     };
     let json = round(&record);

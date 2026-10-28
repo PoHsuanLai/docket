@@ -9,7 +9,8 @@ use docket_session::Taint;
 use docket_vocab::Origin;
 use policy_point::*;
 use porter_core::consent::Usage;
-use porter_core::{AppName, Count, DataClass, Isolation};
+use porter_core::{AppName, DataClass, Isolation};
+use porter_ids::Count;
 use prov::{ActionName, ActorKind, Confidentiality, Effect, Integrity, SpaceId};
 use std::collections::BTreeSet;
 

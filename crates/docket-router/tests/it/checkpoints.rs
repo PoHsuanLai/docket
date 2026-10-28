@@ -14,7 +14,7 @@ use docket_vocab::{
     Workspace,
 };
 use docket_wire::{CallerId, CallerRole, IntentsReply, IntentsRequest, SessionOpen, WireRefusal};
-use porter_core::Count;
+use porter_ids::Count;
 use prov::{ActionName, Actor, AgentRef, Labelled, SessionId};
 use std::collections::BTreeMap;
 

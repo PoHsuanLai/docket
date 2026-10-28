@@ -3,7 +3,8 @@
 use companion_wire::{
     Reached, RouteLog, RouteNote, WhyWord, declined_text, footer_line, model_name, provider_name,
 };
-use porter_core::{AccountId, Locality, ModelId};
+use porter_capability::{Locality, ModelId};
+use porter_core::AccountId;
 use porter_infer::{
     Declined, DeclinedBecause, Door, InferEvent, InferRefusal, ModelLabel, ModelRef, ProviderId,
     ServedBy, StageNote, StageRole, Why,

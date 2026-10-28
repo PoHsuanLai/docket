@@ -5,7 +5,7 @@
 //! [`Prepare`] seam, a test hands in a scripted one.
 
 use docket_accept::world::ModelSource;
-use porter_core::Tier;
+use porter_capability::Tier;
 use porter_infer::Readiness;
 use std::future::Future;
 use std::time::Duration;
