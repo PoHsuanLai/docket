@@ -1,7 +1,7 @@
 //! Reading one `[[agent]]` table into an [`Entry`]: every field checked, and the route that
 //! decides what the entry must say.
 
-use super::{ConfigFault, Entry, Profile, Raw, Route, SESSION_MARK};
+use super::{ConfigFault, Entry, Raw, Route, SESSION_MARK};
 use crate::reach::Reach;
 use agents_core::dirs::AgentsDir;
 use bulkhead::AbsPath;
@@ -46,12 +46,10 @@ fn bad(program: &str, why: &'static str) -> ConfigFault {
 fn resume_of(
     at: &str,
     written: Option<Vec<String>>,
-    profile: Option<Profile>,
+    claude_code: bool,
 ) -> Result<Option<Vec<String>>, ConfigFault> {
     let Some(args) = written else {
-        return Ok(
-            profile.map(|Profile::ClaudeCode| vec!["--resume".to_owned(), SESSION_MARK.to_owned()])
-        );
+        return Ok(claude_code.then(|| vec!["--resume".to_owned(), SESSION_MARK.to_owned()]));
     };
     let names_it = args.iter().any(|arg| arg.contains(SESSION_MARK));
     let fine = names_it
@@ -163,6 +161,11 @@ pub(super) fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFa
             "a program is lower-case letters, digits and - (porter's grammar)",
         )
     })?;
+    let claude_code = match raw.profile.as_deref() {
+        None => false,
+        Some("claude-code") => true,
+        Some(_) => return Err(bad(&at, "profile is claude-code")),
+    };
     let src = source(&at, &raw, dir)?;
     let route = raw
         .route
@@ -261,7 +264,7 @@ pub(super) fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFa
         logout: raw.logout,
         tools: raw.tools,
         label,
-        profile: raw.profile,
+        claude_code,
         sign_in: raw
             .sign_in
             .as_deref()
@@ -275,10 +278,11 @@ pub(super) fn check(raw: Raw, dir: Option<&AgentsDir>) -> Result<Entry, ConfigFa
             .transpose()
             .map_err(|_| bad(&at, "a model id has no spaces or control characters"))?,
         registry: raw.registry.clone(),
-        rewind: raw.checkpoints.unwrap_or(match raw.profile {
-            Some(Profile::ClaudeCode) => Rewind::Agent,
-            None => Rewind::Docket,
+        rewind: raw.checkpoints.unwrap_or(if claude_code {
+            Rewind::Agent
+        } else {
+            Rewind::Docket
         }),
-        resume: resume_of(&at, raw.resume, raw.profile)?,
+        resume: resume_of(&at, raw.resume, claude_code)?,
     })
 }

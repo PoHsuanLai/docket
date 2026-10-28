@@ -72,9 +72,6 @@ pub enum SandboxStep {
     /// The filter for the allowed places did not start.
     #[error("the filter for the allowed places did not start")]
     Filter,
-    /// The agent's environment could not be built.
-    #[error("the agent's environment could not be built")]
-    Environment,
     /// The working folder is not a path the sandbox can bind.
     #[error("the working folder is not usable")]
     WorkingFolder,

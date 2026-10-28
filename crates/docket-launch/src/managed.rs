@@ -18,29 +18,17 @@
 //!
 //! A `permissions.allow` the person's own settings hold is unioned with ours; that is theirs.
 
-use crate::config::Profile;
 use docket_acp_host::{SERVER_NAME, SessionMeta};
 use serde_json::{Value, json};
 
-impl Profile {
-    /// The variables that go with the preset. They are applied after the entry's `set`.
-    pub fn env(self) -> Vec<(&'static str, &'static str)> {
-        match self {
-            Profile::ClaudeCode => vec![
-                ("CLAUDE_CODE_DISABLE_CLAUDE_MDS", "1"),
-                ("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"),
-                ("ENABLE_CLAUDEAI_MCP_SERVERS", "false"),
-                ("DISABLE_AUTOUPDATER", "1"),
-            ],
-        }
-    }
-
-    /// The `_meta` of `session/new` the preset adds.
-    pub fn session_meta(self) -> Option<SessionMeta> {
-        match self {
-            Profile::ClaudeCode => Some(claude_code_meta()),
-        }
-    }
+/// The variables that go with the Claude Code preset. They are applied after the entry's `set`.
+pub fn claude_code_env() -> [(&'static str, &'static str); 4] {
+    [
+        ("CLAUDE_CODE_DISABLE_CLAUDE_MDS", "1"),
+        ("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"),
+        ("ENABLE_CLAUDEAI_MCP_SERVERS", "false"),
+        ("DISABLE_AUTOUPDATER", "1"),
+    ]
 }
 
 /// The allow rule for every tool of the desktop's server and no other server.
@@ -48,7 +36,8 @@ pub fn allow_rule() -> String {
     format!("mcp__{SERVER_NAME}")
 }
 
-fn claude_code_meta() -> SessionMeta {
+/// The `_meta` of `session/new` the Claude Code preset adds.
+pub fn claude_code_meta() -> SessionMeta {
     let settings = json!({
         "disableClaudeAiConnectors": true,
         "syncClaudeAiSkills": false,

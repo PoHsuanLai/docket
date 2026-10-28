@@ -99,17 +99,6 @@ pub enum ToolsMode {
     Off,
 }
 
-/// A preset that confines what a program brings of its own (its account's connectors, skills and
-/// plugins, its own permission prompt for the desktop's tools). Docket sends the settings in the
-/// `session/new` it writes and sets the variables the preset names; the program cannot change
-/// either. See `managed`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-pub enum Profile {
-    /// Claude Code: settings in `session/new` `_meta` and the variables of its isolated mode.
-    #[serde(rename = "claude-code")]
-    ClaudeCode,
-}
-
 /// Which model the endpoint serves.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -170,7 +159,7 @@ struct Raw {
     #[serde(default)]
     tools: ToolsMode,
     label: Option<String>,
-    profile: Option<Profile>,
+    profile: Option<String>,
     sign_in: Option<String>,
     model: Option<String>,
     checkpoints: Option<Rewind>,
@@ -267,8 +256,11 @@ pub struct Entry {
     /// What the person calls it, shown in the audit and the journal. Written here and nowhere
     /// else: never taken from what the agent says of itself.
     pub label: Option<prov::AgentLabel>,
-    /// The preset that confines the program's own extras, if the person named one.
-    pub profile: Option<Profile>,
+    /// Whether the person named the `claude-code` preset, which confines what the program brings
+    /// of its own (its account's connectors, skills and plugins, its own permission prompt for
+    /// the desktop's tools). Docket sends the settings in the `session/new` it writes and sets
+    /// the variables the preset names; the program cannot change either. See `managed`.
+    pub claude_code: bool,
     /// The way the agent signs itself in before a session opens, one of the ids it advertises.
     /// It signs in from the login it already holds; docket sends the id and nothing else.
     pub sign_in: Option<SignIn>,

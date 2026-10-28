@@ -160,9 +160,9 @@ fn the_shipped_example_reads_in_both_of_its_forms() {
     let claude = file
         .by_program(&"claude-code".parse_program())
         .expect("claude");
-    assert_eq!(claude.profile, Some(docket_launch::Profile::ClaudeCode));
+    assert!(claude.claude_code);
     let agy = file.by_program(&"agy".parse_program()).expect("agy");
-    assert_eq!(agy.profile, None);
+    assert!(!agy.claude_code);
     assert_eq!(
         agy.sign_in.as_ref().map(|s| s.as_str()),
         Some("oauth-personal")

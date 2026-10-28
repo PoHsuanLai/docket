@@ -7,29 +7,22 @@
 //! - login: nothing. The agent has its own sign-in in its own state directory.
 
 use crate::accounts::OpenedEndpoint;
-use crate::config::{Entry, Route};
+use crate::config::Entry;
+use crate::managed::claude_code_env;
 use bulkhead::AbsPath;
 use bulkhead::{EnvVar, SANDBOX_HOME, SANDBOX_PATH};
 use porter_capability::EnvName;
 use porter_core::SecretText;
 
-/// What a route gave the child.
+/// What a route lent the child, kept alive until the process is built.
 #[derive(Debug)]
-pub enum Lent<'a> {
-    /// Nothing.
+pub enum Lent {
+    /// Nothing (the login route).
     Nothing,
-    /// An inferd endpoint.
-    Endpoint(&'a OpenedEndpoint),
-    /// A key.
-    Key(&'a SecretText),
-}
-
-/// Why the environment could not be built.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
-pub enum EnvFault {
-    /// What the route lent does not fit the entry (a key where none is read).
-    #[error("the entry cannot take what its route lent")]
-    Mismatch,
+    /// An opened inferd endpoint (the endpoint route).
+    Endpoint(OpenedEndpoint),
+    /// A key (the handoff route).
+    Key(SecretText),
 }
 
 /// The environment built for a child.
@@ -51,8 +44,9 @@ fn put(vars: &mut Vec<EnvVar>, name: &EnvName, value: &str) {
     vars.push(var(name.as_str(), value));
 }
 
-/// The environment for `entry` with what its route lent.
-pub fn child_env(entry: &Entry, lent: &Lent<'_>) -> Result<Built, EnvFault> {
+/// The environment for `entry` with what its route lent. The entry was checked against its
+/// route when the file was read, so the variable names the lent value goes under are there.
+pub fn child_env(entry: &Entry, lent: &Lent) -> Built {
     let home = entry.home.as_ref().map_or(SANDBOX_HOME, AbsPath::as_str);
     let mut vars = vec![
         var("PATH", SANDBOX_PATH),
@@ -65,24 +59,27 @@ pub fn child_env(entry: &Entry, lent: &Lent<'_>) -> Result<Built, EnvFault> {
         put(&mut vars, name, value);
     }
     // The preset's variables come after the person's `set` and win over it: they are the point.
-    for (name, value) in entry.profile.iter().flat_map(|p| p.env()) {
-        vars.retain(|v| v.name != name);
-        vars.push(var(name, value));
-    }
-    match (entry.route, lent) {
-        (Route::Login, Lent::Nothing) => {}
-        (Route::Endpoint, Lent::Endpoint(endpoint)) => {
-            let (Some(base), Some(key)) = (&entry.base_url_env, &entry.key_env) else {
-                return Err(EnvFault::Mismatch);
-            };
-            put(&mut vars, base, &endpoint.base_url);
-            put(&mut vars, key, endpoint.token.expose());
+    if entry.claude_code {
+        for (name, value) in claude_code_env() {
+            vars.retain(|v| v.name != name);
+            vars.push(var(name, value));
         }
-        (Route::Handoff, Lent::Key(secret)) => {
-            let key = entry.key_env.as_ref().ok_or(EnvFault::Mismatch)?;
-            put(&mut vars, key, secret.expose());
-        }
-        _ => return Err(EnvFault::Mismatch),
     }
-    Ok(Built { vars })
+    match lent {
+        Lent::Nothing => {}
+        Lent::Endpoint(endpoint) => {
+            if let Some(base) = &entry.base_url_env {
+                put(&mut vars, base, &endpoint.base_url);
+            }
+            if let Some(key) = &entry.key_env {
+                put(&mut vars, key, endpoint.token.expose());
+            }
+        }
+        Lent::Key(secret) => {
+            if let Some(key) = &entry.key_env {
+                put(&mut vars, key, secret.expose());
+            }
+        }
+    }
+    Built { vars }
 }

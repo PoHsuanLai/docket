@@ -106,12 +106,12 @@ async fn an_entry_without_the_preset_has_no_meta_and_no_variables() {
 
 #[test]
 fn the_preset_reads_from_agents_toml_and_an_unknown_one_is_refused() {
-    use docket_launch::{AgentsFile, Profile};
+    use docket_launch::AgentsFile;
     let file = AgentsFile::parse(&confined("/home/me/.claude", "")).expect("file");
     let entry = file
         .get(&docket_permissions_core::ProgramName::parse("claude-code").expect("name"))
         .expect("entry");
-    assert_eq!(entry.profile, Some(Profile::ClaudeCode));
+    assert!(entry.claude_code);
     let bad = confined("/home/me/.claude", "")
         .replace("profile = \"claude-code\"", "profile = \"other\"");
     assert!(AgentsFile::parse(&bad).is_err());

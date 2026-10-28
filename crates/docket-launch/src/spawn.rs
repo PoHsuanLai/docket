@@ -14,11 +14,12 @@
 //! removes the socket directory. A process that is dropped without `close` is cleaned up the same
 //! way on the runtime.
 
-use crate::accounts::{Accounts, OpenedEndpoint, RouteWish};
+use crate::accounts::{Accounts, RouteWish};
 use crate::child::{Child, Registry, Release};
-use crate::config::{AgentsFile, EndpointKind, Entry, Profile, Route};
+use crate::config::{AgentsFile, Entry, Route};
 use crate::egress;
 use crate::env::{Lent, child_env};
+use crate::managed::claude_code_meta;
 use crate::names::launcher_session;
 use crate::permit::AgentsPermit;
 use crate::procs::{Proc, Procs};
@@ -28,7 +29,7 @@ use bulkhead::egress::{Resolver, SystemResolver};
 use bulkhead::forward::{Bridge, Loopback};
 use bulkhead::{Access, AgentNet, AgentRun, Argv, Bind, EndpointBind, NetworkMode};
 use docket_acp_host::{EdgeBind, LaunchPlan, SandboxStep, Spawn, SpawnFault, Spawned};
-use porter_core::{SecretText, SessionToken};
+use porter_core::SessionToken;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -184,7 +185,7 @@ impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
                         .map(|r| r.sites().to_vec())
                         .unwrap_or_default(),
                 },
-                meta: entry.profile.and_then(Profile::session_meta),
+                meta: entry.claude_code.then(claude_code_meta),
                 sign_in: entry.sign_in.clone(),
                 model: entry.model.clone(),
             }),
@@ -200,29 +201,19 @@ impl<A: Accounts + 'static, P: Procs> Spawn for AgentSpawn<A, P> {
 /// proxy port; the agent's network is its own, so nothing else of ours is there).
 const PROXY_PORT: u16 = 3128;
 
-/// What a route lent, kept alive until the process is built.
-enum Got {
-    Nothing,
-    Endpoint(OpenedEndpoint),
-    Key(SecretText),
-}
-
 impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     async fn lend(
         accounts: &A,
         entry: &Entry,
         session: &SessionToken,
         release: &mut Release<A, P::Proc>,
-    ) -> Result<Got, SpawnFault> {
+    ) -> Result<Lent, SpawnFault> {
         match entry.route {
-            Route::Login => Ok(Got::Nothing),
+            Route::Login => Ok(Lent::Nothing),
             Route::Endpoint => {
                 let target = entry.endpoint.as_ref().ok_or(SpawnFault::NotAllowed)?;
                 let wish = RouteWish {
-                    kind: match target.kind {
-                        EndpointKind::Account => "account",
-                        EndpointKind::Model => "model",
-                    },
+                    kind: target.kind,
                     id: target.id.clone(),
                     models: target.models.clone(),
                 };
@@ -231,7 +222,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
                     .await
                     .map_err(|_| SpawnFault::Accounts)?;
                 release.endpoint = Some(opened.session.clone());
-                Ok(Got::Endpoint(opened))
+                Ok(Lent::Endpoint(opened))
             }
             Route::Handoff => {
                 let key_env = entry.key_env.as_ref().ok_or(SpawnFault::NotAllowed)?;
@@ -244,7 +235,7 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
                     .await
                     .map_err(|_| SpawnFault::Accounts)?;
                 release.credential = Some(issued.id);
-                Ok(Got::Key(issued.key))
+                Ok(Lent::Key(issued.key))
             }
         }
     }
@@ -255,12 +246,12 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
     fn network(
         &self,
         entry: &Entry,
-        got: &Got,
+        lent: &Lent,
         session: &SessionToken,
         release: &mut Release<A, P::Proc>,
     ) -> Result<AgentNet, SpawnFault> {
         match entry.network {
-            NetworkMode::EndpointOnly => self.endpoint_net(got, session, release),
+            NetworkMode::EndpointOnly => self.endpoint_net(lent, session, release),
             NetworkMode::Allowlist => self.allowlist_net(entry, session, release),
             NetworkMode::None | NetworkMode::Host => AgentNet::of(entry.network, None)
                 .map_err(|_| SpawnFault::Sandbox(SandboxStep::NetworkPlan)),
@@ -291,11 +282,11 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
 
     fn endpoint_net(
         &self,
-        got: &Got,
+        lent: &Lent,
         session: &SessionToken,
         release: &mut Release<A, P::Proc>,
     ) -> Result<AgentNet, SpawnFault> {
-        let Got::Endpoint(endpoint) = got else {
+        let Lent::Endpoint(endpoint) = lent else {
             return Err(SpawnFault::Sandbox(SandboxStep::NoEndpoint));
         };
         let target =
@@ -349,15 +340,9 @@ impl<A: Accounts + 'static, P: Procs> AgentSpawn<A, P> {
         session: &SessionToken,
         release: &mut Release<A, P::Proc>,
     ) -> Result<(P::Transport, Arc<Mutex<P::Proc>>), SpawnFault> {
-        let got = Self::lend(&self.accounts, entry, session, release).await?;
-        let net = self.network(entry, &got, session, release)?;
-        let lent = match &got {
-            Got::Nothing => Lent::Nothing,
-            Got::Endpoint(e) => Lent::Endpoint(e),
-            Got::Key(k) => Lent::Key(k),
-        };
-        let built =
-            child_env(entry, &lent).map_err(|_| SpawnFault::Sandbox(SandboxStep::Environment))?;
+        let lent = Self::lend(&self.accounts, entry, session, release).await?;
+        let net = self.network(entry, &lent, session, release)?;
+        let built = child_env(entry, &lent);
         let command = entry.command.as_str();
         let cwd = plan.cwd.clone();
         let run = binds(entry, plan.edge.as_ref()).into_iter().fold(

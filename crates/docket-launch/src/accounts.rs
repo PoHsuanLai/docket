@@ -6,6 +6,7 @@
 //! The types are ours so this file names no bus: a secret is porter's `SecretText` (its `Debug`
 //! shows nothing).
 
+use crate::config::EndpointKind;
 use porter_capability::{AgentProgram, AgentProtocol};
 use porter_capability::{LoginOutcome, LoginRequestId};
 use porter_core::{AccountId, DataClass, GrantId, ProcessCredentialId, SecretText, SessionToken};
@@ -28,8 +29,8 @@ pub enum AccountFault {
 /// What the endpoint serves, as the bus names it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouteWish {
-    /// `account` or `model`.
-    pub kind: &'static str,
+    /// An account or a model.
+    pub kind: EndpointKind,
     /// The account id or catalogue model id.
     pub id: String,
     /// Model ids the agent may name; empty means any.

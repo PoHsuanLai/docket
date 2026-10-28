@@ -6,6 +6,7 @@
 use crate::accounts::{
     AccountFault, Accounts, AskKind, Heard, Issued, LoginAsk, OpenedEndpoint, RouteWish,
 };
+use crate::config::EndpointKind;
 use futures_util::StreamExt;
 use porter_capability::LoginOutcome;
 use porter_capability::{AgentProgram, AgentProtocol, EnvName};
@@ -108,10 +109,9 @@ impl Accounts for DbusAccounts {
         class: DataClass,
         protocol: AgentProtocol,
     ) -> Result<OpenedEndpoint, AccountFault> {
-        let kind = if route.kind == "model" {
-            ROUTE_MODEL
-        } else {
-            ROUTE_ACCOUNT
+        let kind = match route.kind {
+            EndpointKind::Model => ROUTE_MODEL,
+            EndpointKind::Account => ROUTE_ACCOUNT,
         };
         let models = if route.models.is_empty() {
             MODELS_ANY

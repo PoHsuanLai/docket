@@ -4,7 +4,7 @@
 //! sign-in, which has to reach the site that signs the person in. Nothing is lent: whatever the
 //! person signs in with is the agent's, kept in the agent's own state, never read here.
 
-use crate::config::Entry;
+use crate::config::{Entry, Route};
 use crate::env::{Lent, child_env};
 use crate::spawn::binds;
 use bulkhead::AbsPath;
@@ -33,7 +33,10 @@ pub fn login_run(
     env: &BTreeMap<String, String>,
     folder: &AbsPath,
 ) -> Option<AgentRun> {
-    let mut vars = child_env(entry, &Lent::Nothing).ok()?.vars;
+    if entry.route != Route::Login {
+        return None;
+    }
+    let mut vars = child_env(entry, &Lent::Nothing).vars;
     set(&mut vars, TERM, TERMINAL_KIND);
     for (name, value) in env {
         set(&mut vars, name, value);
