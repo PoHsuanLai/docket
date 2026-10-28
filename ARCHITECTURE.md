@@ -98,7 +98,7 @@ source files over 500 lines are reported (the script's `FAIL_ON_LONG` turns the 
 failure). `scripts/check-boundary.sh --self-test` seeds a violation into a temporary copy (`std::fs`
 in a P crate, a C crate depending on an A crate, two kinds of re-export, a crate missing from the
 table) and asserts that each one fails. The RULES in the same script still hold what each crate
-reaches through any path (cargo tree).
+reaches through any path (cargo tree). `scripts/check-core-layers.sh`, run by `check-boundary.sh`, maps each `docket-core` module to the crate it will move into and fails on an import of a module mapped higher.
 
 The repo order is stoker, porter, almanac, docket, cua, sill. docket reaches stoker's pure
 crates (`cua-action`, `model-provider`, `speech-vad`), porter (`prov`, `porter-core`,
@@ -228,7 +228,7 @@ missing" list in `FINDINGS.md` (portable-core).
 | the roster and episode lines the planner reads | `docket-core::roster` (the view holds them) |
 | episodes and their skeleton | almanac `Episode`; docket builds the skeleton (`docket-core::task::skeleton_of`) and the router records it |
 | the one message model | porter `prov::Message`; docket's `MessageDraft`, `Delivery`, `InboundLine` are input and views |
-| the task policy, `compare`, `covers`, `PolicyWriter`; `paths` bound the files a call targets (whole components, the standing-grant path semantics; an empty list leaves files unbounded; a target outside is `OutsideTask`; dropping every path is a widening; the writer's relative paths are anchored to the session's directory by the router) | `docket-core::task_policy`, `docket-router::policy` |
+| the task policy, `compare`, `covers`, `PolicyWriter`; `paths` bound the files a call targets (whole components, the standing-grant path semantics; an empty list leaves files unbounded; a target outside is `OutsideTask`; dropping every path is a widening; the writer's relative paths are anchored to the session's directory by the router) | `docket-core::task_policy` (`PolicyWriter` in `docket-core::derived`), `docket-router::policy` |
 | the session budget, ledger, kill switch | `docket-core::budget` (`cua-run`'s per-run budget is cua's) |
 | the `Intents1` wire and who may call which member | `docket-core::{wire, caller}`; the table `docket-router::auth` |
 | the interfaces as D-Bus | `docket-dbus` and `dbus/*.xml`; `Voice1` is `voiced`'s |

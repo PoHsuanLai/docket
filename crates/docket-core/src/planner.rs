@@ -55,7 +55,7 @@ pub struct TurnIn {
     /// What the person said.
     pub text: String,
     /// Where it was said.
-    pub origin: crate::call::Origin,
+    pub origin: crate::request::Origin,
     /// The context chips they kept.
     pub keep: ContextKeep,
     /// Typed or spoken.

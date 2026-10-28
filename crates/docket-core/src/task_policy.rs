@@ -8,18 +8,15 @@
 //! reviewer, the planner, the reader or the computer-use model. If the writer fails there is no
 //! policy and every non-read call is outside.
 
-use crate::call::CallRequest;
 use crate::ids::{ActionRef, FileRef, LabelText, TurnId};
 use crate::manifest::{ActionDecl, ArgSink};
 use crate::pattern::{pattern_inside, pattern_matches};
-use crate::planner::{ActionCard, UserTurn};
-use crate::review::ReviewError;
+use crate::request::CallRequest;
 use crate::value::{TargetValue, Value};
 use porter_core::{AppName, Count};
 use prov::{Effect, EntityId, EntityKind, Integrity, Label, SpaceId, TaskId, UnixSeconds};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-use std::future::Future;
 
 /// What one task may do.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -485,18 +482,4 @@ fn target_entities(target: &TargetValue) -> Vec<&EntityId> {
         | TargetValue::Text(_)
         | TargetValue::Files(_) => vec![],
     }
-}
-
-/// Derives a policy from the person's turns alone. Its input is the router-held turns and the
-/// action catalogue; it never sees content, tool output or planner prose.
-pub trait PolicyWriter: Send + Sync {
-    /// The policy for these turns in this Space, or why there is none. The router stamps the
-    /// result's `from` and `expires`; `task` is the task it is for.
-    fn derive(
-        &self,
-        task: &TaskId,
-        turns: &[UserTurn],
-        catalogue: &[ActionCard],
-        space: &SpaceId,
-    ) -> impl Future<Output = Result<crate::Derived, ReviewError>> + Send;
 }

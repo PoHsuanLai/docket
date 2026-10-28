@@ -1,9 +1,12 @@
 //! What a policy writer hands the router: the policy, and what checking the model's draft had to
-//! change in it, so a trace shows a correction instead of hiding it.
+//! change in it, so a trace shows a correction instead of hiding it. Also the writer's seam.
 
 use crate::TaskPolicy;
-use prov::Effect;
+use crate::planner::{ActionCard, UserTurn};
+use crate::review::ReviewError;
+use prov::{Effect, SpaceId, TaskId};
 use serde::{Deserialize, Serialize};
+use std::future::Future;
 
 /// One thing the checker changed in a model's draft because the draft contradicted itself.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -36,4 +39,18 @@ impl Derived {
             corrected: Vec::new(),
         }
     }
+}
+
+/// Derives a policy from the person's turns alone. Its input is the router-held turns and the
+/// action catalogue; it never sees content, tool output or planner prose.
+pub trait PolicyWriter: Send + Sync {
+    /// The policy for these turns in this Space, or why there is none. The router stamps the
+    /// result's `from` and `expires`; `task` is the task it is for.
+    fn derive(
+        &self,
+        task: &TaskId,
+        turns: &[UserTurn],
+        catalogue: &[ActionCard],
+        space: &SpaceId,
+    ) -> impl Future<Output = Result<Derived, ReviewError>> + Send;
 }

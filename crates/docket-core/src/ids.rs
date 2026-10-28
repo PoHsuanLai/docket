@@ -245,6 +245,50 @@ pub fn action_prefix(app: &AppName) -> String {
         .to_ascii_lowercase()
 }
 
+/// The tail of a session record's kind (`companion.session.<slug>`): lowercase words and digits
+/// with underscores, 1 to 32 characters, starting with a letter.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct NoteSlug(String);
+
+/// Why a slug is not one.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("a note slug is 1 to 32 lowercase letters, digits and underscores, starting with a letter")]
+pub struct NoteSlugError;
+
+impl NoteSlug {
+    /// `text` as a slug.
+    pub fn parse(text: &str) -> Result<Self, NoteSlugError> {
+        let mut chars = text.chars();
+        let first = chars.next().is_some_and(|c| c.is_ascii_lowercase());
+        let rest = chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+        if first && rest && text.len() <= 32 {
+            Ok(Self(text.to_owned()))
+        } else {
+            Err(NoteSlugError)
+        }
+    }
+
+    /// The slug.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for NoteSlug {
+    type Error = NoteSlugError;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        Self::parse(&text)
+    }
+}
+
+impl From<NoteSlug> for String {
+    fn from(slug: NoteSlug) -> String {
+        slug.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

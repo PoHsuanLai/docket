@@ -284,7 +284,7 @@ pub enum AuditRecord {
         /// The Space of the session.
         space: SpaceId,
         /// The record's kind.
-        slug: crate::wire::NoteSlug,
+        slug: crate::ids::NoteSlug,
         /// The record, in its owner's serde form.
         json: almanac_core::JsonText,
     },

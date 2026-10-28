@@ -50,6 +50,7 @@ mod planner;
 mod preview;
 mod reach_menu;
 mod reader;
+mod request;
 mod review;
 mod roster;
 pub mod routine;
@@ -91,8 +92,7 @@ pub use budget::{
 };
 pub use call::{
     ActivatedInvocation, ActivationToken, AppRefusal, ArgFault, CallEnd, CallProgress, CallRefusal,
-    CallRequest, FailText, Follow, Invocation, Origin, Outcome, RECALL_ACTION, RECALL_APP,
-    Undoable,
+    FailText, Follow, Invocation, Outcome, Undoable,
 };
 pub use caller::{CallerId, CallerRole, Member, is_terminal_scope};
 pub use checkpoint::{
@@ -119,7 +119,7 @@ pub use context::{
     Here, HereView, Keep, Reveal, Selection, SelectionView, TextPurpose, TextTarget,
     TextTargetView, Visible, VisibleView, WindowPrivacy,
 };
-pub use derived::{Corrected, Derived};
+pub use derived::{Corrected, Derived, PolicyWriter};
 pub use exec_derive::{Derivation, MIN_TOKEN, Served};
 pub use exec_facts::{
     DERIVES_OWN, DERIVES_PARAM, DERIVES_READ, ExecFacts, NETWORK_CLOSED, NETWORK_OPEN,
@@ -144,8 +144,8 @@ pub use hand::{
 pub use handover::{HandOver, HandRefusal, HandReply, Handed};
 pub use ids::{
     ActionRef, CallId, CardActionId, ChoiceId, EntityRef, FileRef, Handle, IconName, IntentsVocab,
-    LabelText, ParamName, RelationName, StepId, TextTargetRef, TurnId, UndoId, UndoToken,
-    UtteranceId, ViewName, WindowKey, action_prefix,
+    LabelText, NoteSlug, NoteSlugError, ParamName, RelationName, StepId, TextTargetRef, TurnId,
+    UndoId, UndoToken, UtteranceId, ViewName, WindowKey, action_prefix,
 };
 pub use index::{Hit, IndexBatch, IndexEntry, IndexState, SearchAsk, SearchScope, SuggestAsk};
 pub use limit::{
@@ -180,6 +180,7 @@ pub use reader::{
     ReadFault, Reader, ReaderAsk, ReaderError, ReaderTask, SchemaFault, ValueSchema, conforms,
     entity_choice_text,
 };
+pub use request::{CallRequest, Origin, RECALL_ACTION, RECALL_APP};
 pub use review::{
     AskReason, BreakerTrip, DenyCode, Impact, PolicyId, ReasonCode, ReasonText, ReviewError,
     ReviewMark, Ruling, Stage, Strictness, VerdictKind,
@@ -214,9 +215,8 @@ pub use task::{
     step_outcome,
 };
 pub use task_policy::{
-    ActionMatch, ArgLabels, Coverage, PolicyChange, PolicyWriter, Saw, SessionSaw, SinkIntegrity,
-    TaskPolicy, TaskPolicyState, TrustedPattern, Widening, compare, covers, covers_reach,
-    intersection,
+    ActionMatch, ArgLabels, Coverage, PolicyChange, Saw, SessionSaw, SinkIntegrity, TaskPolicy,
+    TaskPolicyState, TrustedPattern, Widening, compare, covers, covers_reach, intersection,
 };
 pub use trace::{ExchangeAnswer, ExchangeCall, ExchangeMessage, ModelExchange};
 pub use undo::{UndoEntry, UndoFault, UndoScope, UndoState};
@@ -225,8 +225,7 @@ pub use validate::{ManifestError, ValidManifest, fits, is_offered, open_name, va
 pub use value::{Args, ChoiceDecl, CivilDate, Decimal, Lines, ParamType, TargetValue, Value};
 pub use wire::{
     Displayed, Envelope, GrantAnswer, GrantAsk, HelperNote, IntentsReply, IntentsRequest,
-    JournalFilter, NoteAsk, NoteSlug, NoteSlugError, ReadAsk, RecallAsk, RecallView, RecentLine,
-    Resolved, SessionModeAsk, SessionNote, StoredAsk, StoredRow, StoredView, UndoReport,
-    WidenAnswer, WidenAsk, WireRefusal,
+    JournalFilter, NoteAsk, ReadAsk, RecallAsk, RecallView, RecentLine, Resolved, SessionModeAsk,
+    SessionNote, StoredAsk, StoredRow, StoredView, UndoReport, WidenAnswer, WidenAsk, WireRefusal,
 };
 pub use workspace::{Workspace, WorkspaceError};
