@@ -366,6 +366,8 @@ RULES=(
   "docket-inapp: $NO_CEDAR"
   # The host side of a confirm sheet: values, a oneshot channel and the session seam; no bus, runtime, network or toml.
   "docket-host: $EFFECTS toml"
+  # The /proc reads (terminal scope, own uid) under an injected root: files only, no bus, runtime, network or Cedar.
+  "docket-procroot: $EFFECTS toml"
   # The docket-acp process (and `docket-agent`, the host of an external coding agent): the router
   # and the companion hosted in it, over the bus (zbus, tokio) and nothing else of the desktop. It
   # is wiring over clients: it reaches neither the in-app agent nor the router.
