@@ -7,7 +7,8 @@
 #![allow(dead_code)]
 
 use almanac_core::{EventBody, EventRef, MemoryReply, MemoryRequest, Record, ReplicaId, Seq};
-use almanac_dbus::{Call, MemoryError, Serve, decode_request, encode_reply, serve_on};
+use almanac_dbus::{Call, MemoryError, decode_request, encode_reply};
+use almanac_dbus_serve::{Serve, serve_on};
 use porter_core::Count;
 use prov::{Integrity, Label, SenderCheck};
 use std::future::Future;

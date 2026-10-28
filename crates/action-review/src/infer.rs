@@ -172,6 +172,9 @@ fn turn_failed(error: TurnError, heard: Heard) -> ReviewError {
     match error {
         TurnError::Refused(_) => ReviewError::Unavailable,
         TurnError::Failed(error) => model_failed(error, heard),
+        // Any way a later porter adds for a turn to give no reply: the reviewer is out of reach,
+        // and nothing is allowed because of it.
+        _ => ReviewError::Unavailable,
     }
 }
 

@@ -8,10 +8,10 @@ use crate::support::infer::{ScriptedInfer, call, words};
 use crate::support::{Nowhere, TestSheet, standing_mail_consent};
 use almanac_client::{InProcess, Memory};
 use almanac_core::{
-    BodyMode, Caller, FactDraft, FactText, MemoryReply, MemoryRequest, RecentQuery, TopicPath,
-    TrustFilter,
+    BodyMode, FactDraft, FactText, MemoryReply, MemoryRequest, RecentQuery, TopicPath, TrustFilter,
 };
 use almanac_fake::{ScriptedConsolidator, fake_service};
+use almanac_service::Caller;
 use docket_core::{AgentConfig, ChoiceId, Handle, ReaderAsk, ReaderTask, StepEnd, ValueSchema};
 use docket_fake::{FakeMail, FixedClock, MailThread, ScriptedReviewer, mail_manifest};
 use docket_inapp::{

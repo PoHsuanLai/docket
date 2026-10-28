@@ -184,7 +184,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "almanac-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "almanac-dbus",
@@ -195,19 +195,21 @@ dependencies = [
 [[package]]
 name = "almanac-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
+ "const-hex",
  "porter-core",
  "prov",
  "serde",
  "serde_json",
  "thiserror",
+ "ulid",
 ]
 
 [[package]]
 name = "almanac-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "serde",
@@ -217,14 +219,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "almanac-dbus-serve"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
+dependencies = [
+ "almanac-core",
+ "almanac-dbus",
+ "serde",
+ "serde_json",
+ "zbus",
+]
+
+[[package]]
 name = "almanac-fake"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "almanac-seal",
  "almanac-service",
  "almanac-store",
+ "almanac-tidy",
  "chrono",
  "eventlog",
  "memfiles",
@@ -238,27 +253,40 @@ dependencies = [
 [[package]]
 name = "almanac-seal"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "blake3",
  "chacha20poly1305",
+ "const-hex",
  "getrandom 0.3.4",
  "thiserror",
  "zeroize",
 ]
 
 [[package]]
+name = "almanac-search"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
+dependencies = [
+ "almanac-core",
+ "almanac-store",
+]
+
+[[package]]
 name = "almanac-service"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "almanac-seal",
+ "almanac-search",
  "almanac-settings",
  "almanac-store",
+ "almanac-tidy",
  "blake3",
  "chrono",
+ "const-hex",
  "memfiles-format",
  "serde",
  "serde_json",
@@ -270,7 +298,7 @@ dependencies = [
 [[package]]
 name = "almanac-settings"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "serde",
@@ -281,7 +309,7 @@ dependencies = [
 [[package]]
 name = "almanac-store"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -289,6 +317,20 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "almanac-tidy"
+version = "0.1.0"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
+dependencies = [
+ "almanac-core",
+ "blake3",
+ "memfiles-format",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
 ]
 
 [[package]]
@@ -942,7 +984,7 @@ dependencies = [
 [[package]]
 name = "cua-action"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=f30d2808a9f05901a952c1fac6db2c6479a1bfe2#f30d2808a9f05901a952c1fac6db2c6479a1bfe2"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=521a920898856001860ac4edafd3d57b7e1ccb6e#521a920898856001860ac4edafd3d57b7e1ccb6e"
 dependencies = [
  "keyboard-types",
  "serde",
@@ -1264,6 +1306,7 @@ version = "0.1.0"
 dependencies = [
  "almanac-core",
  "almanac-dbus",
+ "almanac-dbus-serve",
  "companion-client",
  "companion-wire",
  "docket-client",
@@ -1455,6 +1498,7 @@ dependencies = [
  "almanac-client",
  "almanac-core",
  "almanac-fake",
+ "almanac-service",
  "companion-wire",
  "cua-action",
  "docket-client",
@@ -1973,7 +2017,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -2012,7 +2056,7 @@ dependencies = [
 [[package]]
 name = "eventlog"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -2260,7 +2304,7 @@ dependencies = [
 [[package]]
 name = "genai-names"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=f30d2808a9f05901a952c1fac6db2c6479a1bfe2#f30d2808a9f05901a952c1fac6db2c6479a1bfe2"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=521a920898856001860ac4edafd3d57b7e1ccb6e#521a920898856001860ac4edafd3d57b7e1ccb6e"
 
 [[package]]
 name = "generic-array"
@@ -2565,6 +2609,7 @@ dependencies = [
  "almanac-client",
  "almanac-core",
  "almanac-dbus",
+ "almanac-dbus-serve",
  "cua-action",
  "docket-acp-bin",
  "docket-checkpoint-git",
@@ -2981,7 +3026,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "memfiles"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "almanac-seal",
@@ -2991,7 +3036,7 @@ dependencies = [
 [[package]]
 name = "memfiles-format"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-core",
  "almanac-store",
@@ -3070,7 +3115,7 @@ dependencies = [
 [[package]]
 name = "model-provider"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=f30d2808a9f05901a952c1fac6db2c6479a1bfe2#f30d2808a9f05901a952c1fac6db2c6479a1bfe2"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=521a920898856001860ac4edafd3d57b7e1ccb6e#521a920898856001860ac4edafd3d57b7e1ccb6e"
 dependencies = [
  "base64 0.22.1",
  "cua-action",
@@ -3497,7 +3542,7 @@ dependencies = [
 [[package]]
 name = "porter-client"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
  "porter-core",
  "porter-dbus",
@@ -3514,11 +3559,15 @@ dependencies = [
 [[package]]
 name = "porter-core"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
+ "chrono",
  "peephole-core",
+ "percent-encoding",
+ "secrecy",
  "serde",
  "serde_json",
+ "subtle",
  "thiserror",
  "zeroize",
 ]
@@ -3526,7 +3575,7 @@ dependencies = [
 [[package]]
 name = "porter-daemon"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
  "notify",
  "thiserror",
@@ -3535,7 +3584,7 @@ dependencies = [
 [[package]]
 name = "porter-dbus"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
  "peephole",
  "peephole-bus",
@@ -3552,7 +3601,7 @@ dependencies = [
 [[package]]
 name = "porter-infer"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/porter?rev=fc6b55aba646377c296f5ccf0e086b83e3c139ae#fc6b55aba646377c296f5ccf0e086b83e3c139ae"
+source = "git+https://github.com/PoHsuanLai/porter?rev=f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261#f7e47a71ac30ab46dd0629fc8c2b2ae9cfcae261"
 dependencies = [
  "base64 0.22.1",
  "cua-action",
@@ -3643,7 +3692,7 @@ dependencies = [
 [[package]]
 name = "prov"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/prov?rev=44dc456c04bc4d414e03385b17be2cf6ddab0436#44dc456c04bc4d414e03385b17be2cf6ddab0436"
+source = "git+https://github.com/PoHsuanLai/prov?rev=e1e9725126c44b369086fdb0ce7f8da2e3048b8c#e1e9725126c44b369086fdb0ce7f8da2e3048b8c"
 dependencies = [
  "porter-core",
  "serde",
@@ -3781,7 +3830,7 @@ dependencies = [
 [[package]]
 name = "recall"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/almanac?rev=39121d44877615ae3d956b6939f485f848f9306c#39121d44877615ae3d956b6939f485f848f9306c"
+source = "git+https://github.com/PoHsuanLai/almanac?rev=8d91de738c76b38fdf3542795db334cc99a05437#8d91de738c76b38fdf3542795db334cc99a05437"
 dependencies = [
  "almanac-store",
  "rusqlite",
@@ -3941,7 +3990,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4014,6 +4063,16 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "secrecy"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
+dependencies = [
+ "serde",
+ "zeroize",
+]
 
 [[package]]
 name = "semver"
@@ -4213,13 +4272,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
 name = "speech-provider"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=f30d2808a9f05901a952c1fac6db2c6479a1bfe2#f30d2808a9f05901a952c1fac6db2c6479a1bfe2"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=521a920898856001860ac4edafd3d57b7e1ccb6e#521a920898856001860ac4edafd3d57b7e1ccb6e"
 dependencies = [
  "base64 0.22.1",
  "model-provider",
@@ -4232,7 +4291,7 @@ dependencies = [
 [[package]]
 name = "speech-vad"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=f30d2808a9f05901a952c1fac6db2c6479a1bfe2#f30d2808a9f05901a952c1fac6db2c6479a1bfe2"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=521a920898856001860ac4edafd3d57b7e1ccb6e#521a920898856001860ac4edafd3d57b7e1ccb6e"
 dependencies = [
  "serde",
  "speech-provider",
@@ -4267,7 +4326,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "psm",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4388,7 +4447,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4397,7 +4456,7 @@ version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8c27177b12a6399ffc08b98f76f7c9a1f4fe9fc967c784c5a071fa8d93cf7e1"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4628,7 +4687,16 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
+]
+
+[[package]]
+name = "ulid"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "947dde63b6d514cc5e044edad4e0ca7261afd1099d16c83d942cb2b2f348689c"
+dependencies = [
+ "web-time",
 ]
 
 [[package]]
@@ -4769,7 +4837,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "vision-prep"
 version = "0.1.0"
-source = "git+https://github.com/PoHsuanLai/stoker?rev=f30d2808a9f05901a952c1fac6db2c6479a1bfe2#f30d2808a9f05901a952c1fac6db2c6479a1bfe2"
+source = "git+https://github.com/PoHsuanLai/stoker?rev=521a920898856001860ac4edafd3d57b7e1ccb6e#521a920898856001860ac4edafd3d57b7e1ccb6e"
 dependencies = [
  "cua-action",
  "serde",
@@ -4948,12 +5016,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "web-time"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
+dependencies = [
+ "js-sys",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "winapi-util"
 version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

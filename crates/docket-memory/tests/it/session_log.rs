@@ -3,8 +3,9 @@
 //! router wrote there before it was dropped.
 
 use almanac_client::{Absent, InProcess, Transport, TransportError};
-use almanac_core::{Caller, MemoryReply, MemoryRequest};
+use almanac_core::{MemoryReply, MemoryRequest};
 use almanac_fake::{FakeBackend, ScriptedConsolidator, fake_service};
+use almanac_service::Caller;
 use almanac_service::MemoryService;
 use docket_core::*;
 use docket_fake::{FixedClock, MailThread, ScriptedReviewer, ScriptedWriter, fake_router_on};

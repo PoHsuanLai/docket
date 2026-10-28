@@ -46,6 +46,7 @@ tokio = { workspace = true }
 tempfile = { workspace = true }
 almanac-client = { workspace = true, features = ["in_process"] }
 almanac-fake = { workspace = true }
+almanac-service = { workspace = true }
 
 [lints]
 workspace = true

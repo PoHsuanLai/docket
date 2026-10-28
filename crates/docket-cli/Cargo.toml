@@ -40,6 +40,7 @@ docket-provider = { workspace = true, features = ["dbus"] }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }
 almanac-dbus = { workspace = true }
+almanac-dbus-serve = { workspace = true }
 futures-util = { workspace = true }
 almanac-core = { workspace = true }
 porter-core = { workspace = true }

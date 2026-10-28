@@ -3,8 +3,9 @@
 //! intentd's `audit.rs` through its re-exports.
 
 use almanac_client::{Absent, InProcess};
-use almanac_core::{BodyMode, Caller, MemoryReply, MemoryRequest, RecentQuery, TrustFilter};
+use almanac_core::{BodyMode, MemoryReply, MemoryRequest, RecentQuery, TrustFilter};
 use almanac_fake::{ScriptedConsolidator, fake_service};
+use almanac_service::Caller;
 use docket_core::{AuditRecord, HaltCause};
 use docket_core::{EventSink, LinkFault, MemoryLink};
 use docket_memory::{AlmanacMemory, AuditState, Link};
