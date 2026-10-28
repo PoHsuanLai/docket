@@ -47,7 +47,7 @@ impl KnownSpaces {
         match scope {
             SpaceScope::Only(space) => match space.kind() {
                 SpaceKind::Linked(_) if !self.0.contains(space) => Some(space.clone()),
-                SpaceKind::Linked(_) | SpaceKind::Outside | SpaceKind::App { .. } => None,
+                _ => None,
             },
             SpaceScope::Any => None,
         }

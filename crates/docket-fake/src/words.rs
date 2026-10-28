@@ -35,6 +35,7 @@ impl WordsModel {
                 input: Tokens(0),
                 output: Tokens(0),
                 cached: Tokens(0),
+                charge: None,
             },
             ServedBy {
                 account: AccountId::parse("local").map_err(|_| malformed("account"))?,

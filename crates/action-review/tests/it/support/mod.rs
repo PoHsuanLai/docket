@@ -101,6 +101,7 @@ pub fn reply(card: &ModelCard, text: &str, stop: StopReason) -> ChatReply {
             input: Tokens(1),
             output: Tokens(1),
             cached: Tokens(0),
+            charge: None,
         },
         served(card),
     )

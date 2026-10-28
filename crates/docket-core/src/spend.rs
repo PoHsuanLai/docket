@@ -82,13 +82,13 @@ pub fn charge_turn(ledger: &Ledger, report: &TurnReport) -> Ledger {
     Ledger { spent, ..*ledger }
 }
 
-/// Whether the session may spend any more: out when the charges reported so far have reached
-/// the cap. A cap never stops the turn in flight, only the next one; an unpriced turn, a session
+/// Whether the session may spend any more: out when the charges reported so far have passed
+/// the cap (a cap of nothing is passed by the first reported charge, never by a free turn). A cap never stops the turn in flight, only the next one; an unpriced turn, a session
 /// with no cap and a cap in another currency than the reports never fail it.
 pub fn check_turn(ledger: &Ledger, budget: &Budget) -> Result<(), BudgetKind> {
     let reported = ledger.spent.charges.reported;
     match budget.spend {
-        Some(cap) if cap.currency == reported.currency && reported.amount >= cap.amount => {
+        Some(cap) if cap.currency == reported.currency && reported.amount > cap.amount => {
             Err(BudgetKind::Spend)
         }
         _ => Ok(()),

@@ -144,8 +144,9 @@ fn rest() -> Vec<Key> {
             parse_into(&mut s.agents, w)
         }),
         num("agent.budget.spend_microusd", 0..=1_000_000_000, |s, v| {
-            // Millionths of a US dollar in the file; 0 is no cap.
-            s.agent.budget.spend = (v > 0).then(|| Money::usd(Decimal::new(v, 6)));
+            // Millionths of a US dollar in the file. 0 is a cap of nothing: the turn after any
+            // reported charge stops (a free or unpriced turn reports none).
+            s.agent.budget.spend = Some(Money::usd(Decimal::new(v, 6)));
         }),
     ]
 }

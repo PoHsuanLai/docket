@@ -24,6 +24,9 @@ futures-util = { workspace = true }
 prov = { workspace = true }
 
 [dev-dependencies]
+porter-capability = { workspace = true }
+porter-match = { workspace = true }
+porter-wire = { workspace = true }
 porter-ids = { workspace = true }
 companion-model = { workspace = true }
 docket-session = { workspace = true, features = ["testing"] }

@@ -51,14 +51,20 @@ const BY_SENSITIVITY: [DataClass; 13] = [
     DataClass::Public,
 ];
 
-/// The class a read over `labels` is sent as: the most sensitive present. Text that no label
-/// classes is treated as the person's own words, whose floor is this computer, so an unclassed
-/// input is never sent off it.
+/// The class a read over `labels` is sent as: the most sensitive present. A class porter adds
+/// that this list does not rank yet counts as more sensitive than any ranked one, so a new class
+/// is never sent as something looser. Text that no label classes is treated as the person's own
+/// words, whose floor is this computer, so an unclassed input is never sent off it.
 pub fn class_of<'a>(labels: impl IntoIterator<Item = &'a Label>) -> DataClass {
     let present: Vec<&Label> = labels.into_iter().collect();
-    BY_SENSITIVITY
-        .into_iter()
-        .find(|class| present.iter().any(|l| l.classes.contains(class)))
+    let classes = || present.iter().flat_map(|l| l.classes.iter().copied());
+    classes()
+        .find(|class| !BY_SENSITIVITY.contains(class))
+        .or_else(|| {
+            BY_SENSITIVITY
+                .into_iter()
+                .find(|class| classes().any(|c| c == *class))
+        })
         .unwrap_or(DataClass::Prompt)
 }
 
@@ -160,37 +166,4 @@ pub fn reader_request(ask: &ReaderAsk, inputs: &[Labelled<String>]) -> ChatReque
                 seed: Knob::Off,
             })),
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Each class's place in [`BY_SENSITIVITY`]. The match is exhaustive, so a class porter adds
-    /// is a compile error here until it is given a place, and the test below fails until the
-    /// list holds it there: a new class is never silently sent as the person's own words.
-    fn rank(class: DataClass) -> usize {
-        match class {
-            DataClass::Voice => 0,
-            DataClass::Prompt => 1,
-            DataClass::Mail => 2,
-            DataClass::Contacts => 3,
-            DataClass::Calendar => 4,
-            DataClass::Tasks => 5,
-            DataClass::Notes => 6,
-            DataClass::Files => 7,
-            DataClass::Photos => 8,
-            DataClass::Clipboard => 9,
-            DataClass::Screen => 10,
-            DataClass::AppOwn => 11,
-            DataClass::Public => 12,
-        }
-    }
-
-    #[test]
-    fn every_class_has_its_place_in_the_sensitivity_order() {
-        for (place, class) in BY_SENSITIVITY.into_iter().enumerate() {
-            assert_eq!(rank(class), place, "{class:?}");
-        }
-    }
 }

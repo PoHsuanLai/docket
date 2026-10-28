@@ -6,7 +6,10 @@
 use crate::budget::Budget;
 use docket_permissions_core::{Mode, RowSets};
 use docket_vocab::{Days, Depth, Millis, Seconds};
+use iso_currency::Currency;
+use model_provider::Money;
 use porter_ids::{Count, Tokens};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 /// When the breaker trips (`agent.breaker.*`).
@@ -54,9 +57,9 @@ pub const TASK_POLICY_MAX: Seconds = Seconds(3600);
 /// How long the undo history keeps what the assistant did (24 hours).
 pub const UNDO_KEEP: Seconds = Seconds(24 * 3600);
 
-/// What one session may spend. No spend cap until the person sets one
-/// (`agent.budget.spend_microusd`); a cap compares the charges providers reported and stops the
-/// next turn, never the current one.
+/// What one session may spend. The spend cap (`agent.budget.spend_microusd`) starts at nothing:
+/// the turn after any reported charge stops. A cap compares the charges providers reported and
+/// stops the next turn, never the current one; a turn that reported no charge never meets it.
 pub const STANDARD_BUDGET: Budget = Budget {
     calls: Count(200),
     writes: Count(100),
@@ -67,7 +70,10 @@ pub const STANDARD_BUDGET: Budget = Budget {
     chain: Depth(4),
     wall: Seconds(1800),
     reviews: Count(300),
-    spend: None,
+    spend: Some(Money {
+        amount: Decimal::ZERO,
+        currency: Currency::USD,
+    }),
 };
 
 /// How many tokens each section of the planner's working set may use

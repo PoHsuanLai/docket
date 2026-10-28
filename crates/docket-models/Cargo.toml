@@ -24,6 +24,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
+porter-wire = { workspace = true }
 model-provider = { workspace = true }
 rust_decimal = { workspace = true }
 docket-fake = { workspace = true }

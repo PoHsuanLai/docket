@@ -42,6 +42,9 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+porter-capability = { workspace = true }
+porter-match = { workspace = true }
+porter-wire = { workspace = true }
 porter-ids = { workspace = true }
 bulkhead = { workspace = true }
 cua-action = { workspace = true }

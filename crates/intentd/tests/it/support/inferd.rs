@@ -127,6 +127,7 @@ pub fn usage() -> TokenUsage {
         input: porter_ids::Tokens(1),
         output: porter_ids::Tokens(1),
         cached: porter_ids::Tokens(0),
+        charge: None,
     }
 }
 
