@@ -1,6 +1,6 @@
 [package]
 name = "docket-models"
-description = "The models docket asks, portable: a porter-infer `Model` over any porter-client Transport (`TransportModel`), the task-policy writer (`TransportWriter`) and the reviewer cascade's placeholder set. No bus, no runtime: intentd's `InferdModel` and `InferdWriter` are thin adapters over these."
+description = "The models docket asks, portable: a porter-infer `Model` over any inferd-client Transport (`TransportModel`), the task-policy writer (`TransportWriter`) and the reviewer cascade's placeholder set. No bus, no runtime: intentd's `InferdModel` and `InferdWriter` are thin adapters over these."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,7 +16,7 @@ action-review = { workspace = true }
 docket-core = { workspace = true }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
-porter-client = { workspace = true }
+inferd-client = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
 prov = { workspace = true }
@@ -30,7 +30,7 @@ rust_decimal = { workspace = true }
 docket-fake = { workspace = true }
 tokio = { workspace = true }
 # The scripted model transport of companiond's tests is included by path (one file, not a copy).
-porter-client = { workspace = true }
+inferd-client = { workspace = true }
 
 [lints]
 workspace = true

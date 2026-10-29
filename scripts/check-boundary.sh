@@ -345,7 +345,7 @@ RULES=(
   # The registry values and the two small records as text: no disk, bus, runtime, network or Cedar.
   "agents-core: $EFFECTS"
   "agent-loop: $EFFECTS toml"
-  # The planner is portable: it asks any porter-client Transport (porter-client without its
+  # The planner is portable: it asks any inferd-client Transport (inferd-client without its
   # `dbus` and `socket` features reaches no runtime), so inferd over D-Bus is companiond's
   # choice of transport, never the planner's.
   "docket-planner: $EFFECTS"
@@ -389,7 +389,7 @@ RULES=(
   # is wiring over clients: it reaches neither the in-app agent nor the router.
   "docket-acp-bin: docket-inapp docket-router reqwest hyper hyper-util rustls pipewire wayland-client wayland-backend reis atspi oo7 ort fastembed rusqlite notify rmcp"
   # The models, the quarantined reader and the memory seam are portable too (moved out of
-  # intentd and readerd): they ask any porter-client or almanac-client Transport, never a bus or
+  # intentd and readerd): they ask any inferd-client or almanac-client Transport, never a bus or
   # a runtime; almanac-client hosts its service only behind `in_process` (a dev-dependency here)
   # and reaches the bus only behind `dbus`. docket-memory no longer sits on the router (the memory
   # seam is in docket-core), so Cedar is not below it either.

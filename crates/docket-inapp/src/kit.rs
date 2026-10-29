@@ -4,8 +4,8 @@
 //!
 //! - grants: [`FileGrantStore`](crate::FileGrantStore) (consent survives a restart);
 //! - memory: `docket_memory::AlmanacMemory` over an almanac-client transport;
-//! - writer: `docket_models::TransportWriter` over a porter-client transport;
-//! - reader: `docket_reader::TransportReader` over a porter-client transport.
+//! - writer: `docket_models::TransportWriter` over a inferd-client transport;
+//! - reader: `docket_reader::TransportReader` over a inferd-client transport.
 
 use crate::audit_file::AuditFile;
 use crate::seams::{NoMemory, NoReader, NoWriter, SessionGrants};

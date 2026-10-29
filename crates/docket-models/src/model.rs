@@ -1,10 +1,10 @@
-//! A porter-infer `Model` over any `porter_client::Transport`: the reviewer's stages and the
+//! A porter-infer `Model` over any `inferd_client::Transport`: the reviewer's stages and the
 //! policy writer ask through sessions of it, the quarantined reader shares its `turn`. Every
 //! request says its data class and `Usage::Interactive`; a refusal from the daemon is an error
 //! that asks the person, never an allow.
 
+use inferd_client::Transport;
 use porter_capability::{LlmFeature, Modality};
-use porter_client::Transport;
 use porter_ids::Tokens;
 use porter_infer::{
     ChatReply, ChatRequest, ChatSink, ClientFrame, EmbedReply, EmbedRequest, Flow, InferEvent,
@@ -15,7 +15,7 @@ use porter_match::Need;
 use porter_match::{EmbedNeed, LlmNeed};
 use std::collections::BTreeSet;
 
-/// A chat model reached through a porter-client session (inferd over D-Bus, the latchkey socket
+/// A chat model reached through a inferd-client session (inferd over D-Bus, the latchkey socket
 /// or `InProcess`: the transport is the caller's choice).
 #[derive(Debug)]
 pub struct TransportModel<T: Transport> {

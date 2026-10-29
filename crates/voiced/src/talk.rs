@@ -10,9 +10,9 @@ use crate::link::{self, Link, LinkEvent};
 use crate::playback::Played;
 use crate::usage::UseSource;
 use crate::warm::{Warm, tts_need};
+use inferd_client::Transport;
 use porter_capability::LanguageTag;
 use porter_capability::Tier;
-use porter_client::Transport;
 use porter_core::DataClass;
 use porter_core::consent::Usage;
 use porter_infer::{

@@ -1,13 +1,13 @@
-//! intentd's inferd link is porter-client's D-Bus transport on the daemon's own connection. The
+//! intentd's inferd link is inferd-client's D-Bus transport on the daemon's own connection. The
 //! bus here is a private one with no inferd on it, so the first `open` says inferd is away (the
 //! reviewer then asks the person) instead of the daemon failing to start. The link is
 //! `docket_dbus::inferd_transport`, the one constructor intentd, companiond and readerd share.
 
 use crate::support::bus::PrivateBus;
+use inferd_client::{Transport, TransportError};
 use intentd::{InferdModel, InferdWriter, inferd_transport};
 use porter_capability::LlmFeature;
 use porter_capability::Tier;
-use porter_client::{Transport, TransportError};
 use porter_core::DataClass;
 use porter_ids::Tokens;
 use porter_infer::{Model, ModelCard};

@@ -19,7 +19,7 @@ voice-dbus = { workspace = true }
 docket-wire = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
-porter-client = { workspace = true, features = ["dbus"] }
+inferd-client = { workspace = true, features = ["dbus"] }
 docket-dbus = { workspace = true }
 docket-procroot = { workspace = true }
 voice-pipewire = { workspace = true, optional = true }
@@ -56,7 +56,6 @@ required-features = ["pipewire"]
 workspace = true
 
 [dev-dependencies]
-porter-wire = { workspace = true }
 docket-vocab = { workspace = true }
 docket-dbus = { workspace = true, features = ["fixture-callers"] }
 docket-testbus = { workspace = true }

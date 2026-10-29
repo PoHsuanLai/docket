@@ -1,10 +1,10 @@
 //! `Voice1.Prepare`: warms the speech-to-text engine the route would pick, with no mic and no
-//! request, and says how ready it is. The shipped warmer asks porter-client's
+//! request, and says how ready it is. The shipped warmer asks inferd-client's
 //! `Transport::prepare`; a test hands in a fixed answer or a scripted transport.
 
+use inferd_client::{DbusTransport, OpenOptions, Transport};
 use porter_capability::SpeechMode;
 use porter_capability::Tier;
-use porter_client::{DbusTransport, OpenOptions, Transport};
 use porter_core::DataClass;
 use porter_core::consent::Usage;
 use porter_infer::Readiness;
@@ -39,7 +39,7 @@ impl Warm for FixedWarm {
     }
 }
 
-/// Warms through porter-client's [`Transport::prepare`]: `Inference1.Prepare` when the
+/// Warms through inferd-client's [`Transport::prepare`]: `Inference1.Prepare` when the
 /// transport is the session bus. A refusal (`Denied`) and an absent inferd (`Unreachable`) both
 /// read as `Unavailable`, so the shell sees one answer for "cannot hear now".
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ pub struct TransportWarm<T> {
     tier: Tier,
 }
 
-/// The shipped warmer: porter-client's D-Bus transport on the session bus.
+/// The shipped warmer: inferd-client's D-Bus transport on the session bus.
 pub type BusWarm = TransportWarm<DbusTransport>;
 
 impl TransportWarm<DbusTransport> {

@@ -26,7 +26,7 @@ prov = { workspace = true }
 porter-core = { workspace = true }
 porter-callers = { workspace = true }
 porter-infer = { workspace = true }
-porter-client = { workspace = true, features = ["dbus"] }
+inferd-client = { workspace = true, features = ["dbus"] }
 thiserror = { workspace = true }
 serde_json = { workspace = true }
 futures-util = { workspace = true }

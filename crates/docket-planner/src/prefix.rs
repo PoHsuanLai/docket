@@ -10,7 +10,7 @@
 use crate::planner::PlannerModel;
 use crate::render::system_text_with;
 use docket_core::PlannerView;
-use porter_client::Transport;
+use inferd_client::Transport;
 use porter_infer::ToolDecl;
 use serde::{Deserialize, Serialize};
 

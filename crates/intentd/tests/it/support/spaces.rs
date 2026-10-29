@@ -2,7 +2,8 @@
 //! sets, and the `Changed` signal it sends on demand.
 
 use porter_dbus::Details;
-use porter_dbus::accounts::{SPACE_KEY_CREATED, SPACE_KEY_LOOK, SPACE_KEY_NAME, SPACES_PATH};
+use porter_dbus::accounts::{SPACE_KEY_CREATED, SPACE_KEY_LOOK, SPACE_KEY_NAME};
+use porter_wire::names::SPACES_PATH;
 use std::sync::{Arc, Mutex};
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{OwnedValue, Value};

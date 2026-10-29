@@ -1,4 +1,4 @@
-//! One read: the ask and the opened inputs go to the reader model through a porter-client
+//! One read: the ask and the opened inputs go to the reader model through a inferd-client
 //! session (structured output, no tools), and the reply comes back as a value that fits the
 //! ask's schema or as a typed error. `TransportReader` is the in-process `Reader`: it opens the
 //! quarantined text itself, so an app that hosts the agent needs no second process.
@@ -8,8 +8,8 @@ use crate::request::reader_request;
 use docket_core::{Reader, ReaderAsk, ReaderError};
 use docket_models::{Discard, turn};
 use docket_vocab::Value;
+use inferd_client::Transport;
 use porter_capability::LlmFeature;
-use porter_client::Transport;
 use porter_ids::Tokens;
 use porter_infer::{InferReply, InferRequest, ModelError, StopReason};
 use porter_match::LlmNeed;

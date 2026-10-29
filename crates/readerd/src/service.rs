@@ -5,7 +5,7 @@ use docket_client::{Intents, Transport as IntentsTransport};
 use docket_core::{Reader, ReaderAsk, ReaderError};
 use docket_dbus::InferLink;
 use docket_vocab::Value;
-use porter_client::Transport as InferTransport;
+use inferd_client::Transport as InferTransport;
 use prov::{Labelled, Quarantined, SessionId};
 
 /// Reads for intentd: resolves handles through `Intents1.Session.Resolve` (the reader role),

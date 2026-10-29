@@ -34,7 +34,6 @@ tracing = { workspace = true }
 tokio = ["dep:tokio"]
 
 [dev-dependencies]
-porter-wire = { workspace = true }
 porter-match = { workspace = true }
 porter-capability = { workspace = true }
 docket-client = { workspace = true, features = ["in_process"] }
@@ -42,7 +41,7 @@ docket-fake = { workspace = true }
 docket-helpers = { workspace = true, features = ["tokio"] }
 docket-permissions-core = { workspace = true }
 docket-router = { workspace = true }
-porter-client = { workspace = true }
+inferd-client = { workspace = true }
 porter-infer = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }

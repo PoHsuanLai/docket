@@ -1,8 +1,8 @@
 //! A model that only talks: every chat is answered with the same words and no tool call. For an
 //! example or a test that needs a planner to finish a turn without caring what it says.
 
+use inferd_client::{Transport, TransportError};
 use porter_capability::{Locality, ModelId, Tier};
-use porter_client::{Transport, TransportError};
 use porter_core::{AccountId, DataClass};
 use porter_ids::Tokens;
 use porter_infer::{
@@ -10,7 +10,6 @@ use porter_infer::{
     ServedBy, SessionError, StopReason, TokenUsage,
 };
 use porter_match::Need;
-use porter_wire::{AccountsReply, AccountsRequest};
 
 /// The model transport that answers every chat with `says`.
 #[derive(Debug, Clone)]
@@ -74,10 +73,6 @@ impl InferSession for WordsSession {
 
 impl Transport for WordsModel {
     type Session = WordsSession;
-
-    async fn call(&self, _request: AccountsRequest) -> Result<AccountsReply, TransportError> {
-        Err(TransportError::Unreachable)
-    }
 
     async fn open_with(
         &self,

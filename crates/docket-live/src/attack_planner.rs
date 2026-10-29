@@ -37,7 +37,7 @@ use eval_core::{
     AnswerGiven, AttackCase, Case, CaseTrace, LiveRun, LiveScore, Place, PlaceError, RunNote,
     faulted_trace, live_trace, score_live,
 };
-use porter_client::DbusTransport;
+use inferd_client::DbusTransport;
 use porter_core::{AppId, AppName, Isolation};
 use prov::{AgentRef, SessionId};
 use std::collections::BTreeSet;

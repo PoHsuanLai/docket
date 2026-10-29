@@ -57,7 +57,7 @@ allow-wildcard-paths = true
 
 [sources]
 # crates.io is the only registry, and the only git host is the owner's GitHub organisation
-# (porter, almanac, stoker, bulkhead, quire, chordkit). A new git source is a decision made here.
+# (porter, steward, prov, almanac, stoker, bulkhead, quire, chordkit). A new git source is a decision made here.
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]

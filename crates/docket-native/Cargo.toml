@@ -34,7 +34,7 @@ docket-client = { workspace = true, features = ["in_process"] }
 docket-fake = { workspace = true }
 docket-router = { workspace = true }
 porter-core = { workspace = true }
-porter-client = { workspace = true }
+inferd-client = { workspace = true }
 porter-infer = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

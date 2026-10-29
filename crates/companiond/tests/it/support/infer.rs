@@ -1,7 +1,7 @@
 //! A planner model that says what a test scripted, and remembers every request it was asked.
 
+use inferd_client::{Transport, TransportError};
 use porter_capability::{Locality, ModelId, Tier};
-use porter_client::{Transport, TransportError};
 use porter_core::consent::Usage;
 use porter_core::{AccountId, DataClass};
 use porter_ids::Tokens;
@@ -11,7 +11,6 @@ use porter_infer::{
     ToolCallId, ToolCallPart, ToolName,
 };
 use porter_match::Need;
-use porter_wire::{AccountsReply, AccountsRequest};
 use serde_json::Value as Json;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -228,10 +227,6 @@ impl InferSession for ScriptedSession {
 
 impl Transport for ScriptedInfer {
     type Session = ScriptedSession;
-
-    async fn call(&self, _request: AccountsRequest) -> Result<AccountsReply, TransportError> {
-        Err(TransportError::Unreachable)
-    }
 
     async fn open_with(
         &self,

@@ -1,13 +1,13 @@
 //! Dictation in process: one utterance from a microphone to text, over the `AudioDevice` seam and
-//! any porter-client `Transport`, with no bus, no skeletons and no daemon. The caller is already
+//! any inferd-client `Transport`, with no bus, no skeletons and no daemon. The caller is already
 //! allowed to hear (consent is the caller's to check); the capture ends at the silence after
 //! speech, or when the stream does.
 
 use crate::frames::{Dictation, Frames};
 use crate::link::fault_of as link_fault;
 use crate::warm::stt_need;
+use inferd_client::{InferSession, Transport};
 use porter_capability::Tier;
-use porter_client::{InferSession, Transport};
 use porter_core::DataClass;
 use porter_core::consent::Usage;
 use porter_infer::{

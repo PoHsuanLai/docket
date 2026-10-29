@@ -1,11 +1,11 @@
-//! The shipped [`Prepare`]: porter-client's `Transport::prepare` over a private bus, as the
+//! The shipped [`Prepare`]: inferd-client's `Transport::prepare` over a private bus, as the
 //! intentd unit (the policy writer's identity, which inferd serves every tier of a run to).
 
 use crate::warm::{POLL, Prepare, WarmFault, plan, warm_all};
 use docket_accept::world::{Cgroup, ModelSource, World, place, restore_unit, unit_main};
+use inferd_client::{DbusTransport, OpenOptions, Transport};
 use porter_capability::LlmFeature;
 use porter_capability::Tier;
-use porter_client::{DbusTransport, OpenOptions, Transport};
 use porter_core::DataClass;
 use porter_core::consent::Usage;
 use porter_ids::Tokens;

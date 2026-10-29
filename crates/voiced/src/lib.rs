@@ -1,5 +1,5 @@
 //! voiced: the microphone's one owner. It opens capture only on `Voice1.Begin` from the shell
-//! role, runs the pure machines of `voice-loop`, talks to inferd through porter-client, and
+//! role, runs the pure machines of `voice-loop`, talks to inferd through inferd-client, and
 //! records nothing. The audio device (`voice-audio`), inferd, the engine warmer and the
 //! person's consent are seams (`Seams`), so tests serve the whole daemon on a private bus with no real device.
 

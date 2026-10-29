@@ -1,6 +1,6 @@
 //! The planner model, portable: what companiond asks inferd and what an app-hosted agent asks
 //! its own model. The request is a function of the view and the catalogue alone; the transport
-//! is any `porter_client::Transport` (inferd over D-Bus on the desktop, the latchkey socket or
+//! is any `inferd_client::Transport` (inferd over D-Bus on the desktop, the latchkey socket or
 //! `InProcess` elsewhere). Nothing here reaches a bus or a runtime.
 //!
 //! - `Planner`: what drives a task (its catalogue and voice, `converse`, `chat`, `summarise`);

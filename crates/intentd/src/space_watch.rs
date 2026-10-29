@@ -12,8 +12,8 @@ use docket_permissions_core::{Ended, KnownSpaces};
 use docket_router::{Router, Seams};
 use docket_store::GrantFileError;
 use docket_vocab::Clock;
-use futures_util::StreamExt;
-use porter_client::{Spaces, SpacesError};
+use porter_client::{Porter, Spaces, SpacesError};
+use porter_client_dbus::Bus;
 use porter_core::{DesktopSpace, SpaceChange};
 use prov::SpaceId;
 use std::sync::Arc;
@@ -71,7 +71,7 @@ impl<S: Seams<Grants = FileGrants>> SpaceKeeper<S> {
     }
 
     /// Drops what the registry no longer holds.
-    async fn sweep(&self, spaces: &Spaces) -> Result<(), SpacesError> {
+    async fn sweep(&self, spaces: &Spaces<Bus>) -> Result<(), SpacesError> {
         let known = KnownSpaces::of(spaces.list().await?.into_iter().map(|r| r.id));
         self.said(self.router.seams.grants().reconcile_with(&known));
         Ok(())
@@ -91,14 +91,14 @@ impl<S: Seams<Grants = FileGrants>> SpaceKeeper<S> {
 
     /// Subscribes, settles what is already out of date, then follows the changes until the
     /// stream or accountd ends.
-    async fn follow(&self, spaces: &Spaces) -> Result<(), SpacesError> {
+    async fn follow(&self, spaces: &Spaces<Bus>) -> Result<(), SpacesError> {
         let mut changes = spaces.watch().await?;
         self.sweep(spaces).await?;
         while let Some(change) = changes.next().await {
             match change {
                 Ok((space, SpaceChange::Removed)) => self.removed(space).await,
                 Ok(_) => {}
-                Err(why) => eprintln!("intentd: a Space change was not understood: {why}"),
+                Err(why) => eprintln!("intentd: a Space change was not understood: {why:?}"),
             }
         }
         Ok(())
@@ -108,11 +108,8 @@ impl<S: Seams<Grants = FileGrants>> SpaceKeeper<S> {
     /// goes away.
     pub async fn run(self, bus: BusConnection) {
         loop {
-            let ended = match Spaces::connect(&bus).await {
-                Ok(spaces) => self.follow(&spaces).await,
-                Err(why) => Err(why),
-            };
-            if let Err(why) = ended {
+            let spaces = Porter::over(Bus::over(bus.clone())).spaces();
+            if let Err(why) = self.follow(&spaces).await {
                 eprintln!("intentd: the Spaces are not followed for now: {why}");
             }
             tokio::time::sleep(self.retry).await;

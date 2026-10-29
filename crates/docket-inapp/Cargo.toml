@@ -36,7 +36,7 @@ docket-skills-disk = { workspace = true }
 docket-store = { workspace = true }
 docket-tasks = { workspace = true }
 policy-point = { workspace = true }
-porter-client = { workspace = true }
+inferd-client = { workspace = true }
 porter-core = { workspace = true }
 prov = { workspace = true }
 serde_json = { workspace = true }

@@ -1,10 +1,10 @@
-//! A scripted inferd for the daemons' model tests: a porter-client `Transport` whose sessions
+//! A scripted inferd for the daemons' model tests: a inferd-client `Transport` whose sessions
 //! are porter-fake's scripted ones, wrapped so the test can read what was opened (the need, the
 //! data class, the tier) and every frame the code under test sent. No bus, no engine, no GPU.
 #![allow(dead_code)]
 
+use inferd_client::{Transport, TransportError};
 use porter_capability::Tier;
-use porter_client::{Transport, TransportError};
 use porter_core::DataClass;
 use porter_infer::testing::{FakeInferSession, Script, ScriptStep};
 use porter_infer::{
@@ -12,7 +12,6 @@ use porter_infer::{
     ServedBy, SessionError, StopReason, TokenUsage,
 };
 use porter_match::Need;
-use porter_wire::{AccountsReply, AccountsRequest};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
@@ -84,10 +83,6 @@ impl InferSession for LoggedSession {
 
 impl Transport for ScriptedInferd {
     type Session = LoggedSession;
-
-    async fn call(&self, _request: AccountsRequest) -> Result<AccountsReply, TransportError> {
-        Err(TransportError::Unreachable)
-    }
 
     async fn open_with(
         &self,

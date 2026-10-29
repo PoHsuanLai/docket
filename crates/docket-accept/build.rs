@@ -1,5 +1,5 @@
 //! Builds the three daemons the acceptance runs as the packaged binaries: porter's `accountd` (it
-//! holds the AI keys) and `inferd`, and almanac's `memoryd`. `accountd` and `memoryd` are built with
+//! holds the AI keys), steward's `inferd` and almanac's `memoryd`. `accountd` and `memoryd` are built with
 //! `test-keys`, because the private bus has no Secret Service, and all three with `test-proc-root`,
 //! so callers are named from a fake proc root. Each is built from its own workspace and lock file, into a target
 //! directory inside this build's (`<target>/accept-siblings/<repo>`), so the nextest archive's
@@ -26,7 +26,7 @@ const SIBLINGS: [Sibling; 3] = [
         features: &["test-proc-root", "test-keys"],
     },
     Sibling {
-        repo: "porter",
+        repo: "steward",
         package: "inferd",
         features: &["test-proc-root"],
     },

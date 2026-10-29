@@ -6,7 +6,7 @@ use docket_core::{ReaderAsk, ReaderError};
 use docket_dbus::callers::{INTENTD, Identity, require};
 use docket_dbus::{BusConnection, Details, READER_BUS, READER_PATH};
 use docket_vocab::Value;
-use porter_client::Transport as InferTransport;
+use inferd_client::Transport as InferTransport;
 use prov::SessionId;
 use std::sync::Arc;
 use zbus::fdo::{self, RequestNameFlags, RequestNameReply};

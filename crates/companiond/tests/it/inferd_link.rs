@@ -1,4 +1,4 @@
-//! companiond's planner reaches inferd over porter-client's D-Bus transport on the daemon's own
+//! companiond's planner reaches inferd over inferd-client's D-Bus transport on the daemon's own
 //! connection. The planner is filled and tested over a scripted model (`tests/it/planner.rs`); this one
 //! holds only that the constructor is built on the bus and calls nothing until the first session.
 

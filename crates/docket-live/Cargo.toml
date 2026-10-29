@@ -50,7 +50,7 @@ docket-tasks = { workspace = true }
 docket-testbus = { workspace = true }
 docket-trace = { workspace = true }
 eval-core = { workspace = true }
-porter-client = { workspace = true, features = ["dbus"] }
+inferd-client = { workspace = true, features = ["dbus"] }
 porter-core = { workspace = true }
 model-provider = { workspace = true }
 rust_decimal = { workspace = true }

@@ -1,6 +1,6 @@
 [package]
 name = "docket-planner"
-description = "The planner model: the working-set view rendered into a chat request, the catalogue of tools, and the reply read back into a ModelOutput, behind a `Planner` trait, implemented by `PlannerModel` over any porter-client Transport. Portable: no bus, no runtime."
+description = "The planner model: the working-set view rendered into a chat request, the catalogue of tools, and the reply read back into a ModelOutput, behind a `Planner` trait, implemented by `PlannerModel` over any inferd-client Transport. Portable: no bus, no runtime."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -24,7 +24,7 @@ docket-core = { workspace = true }
 docket-manifest = { workspace = true }
 docket-permissions-core = { workspace = true }
 docket-vocab = { workspace = true }
-porter-client = { workspace = true }
+inferd-client = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
 prov = { workspace = true }

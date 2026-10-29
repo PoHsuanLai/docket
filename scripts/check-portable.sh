@@ -4,7 +4,7 @@
 # Linux-only or desktop-bus crate. Needs no network (cargo reads the lockfile and the cache).
 #
 # The portable core is the in-app agent: the vocabulary, the router and its Cedar policy point,
-# the reviewer, the agent loop, the planner over any porter-client Transport, skills, the red
+# the reviewer, the agent loop, the planner over any inferd-client Transport, skills, the red
 # team's suite, the fakes, the model-backed reviewer and policy writer (`docket-models`), the
 # quarantined reader (`docket-reader`), the memory seam (`docket-memory`), and `docket-inapp`,
 # which hosts them in one app. The desktop extras

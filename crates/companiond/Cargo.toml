@@ -54,7 +54,6 @@ workspace = true
 otlp = ["docket-log/otlp"]
 
 [dev-dependencies]
-porter-wire = { workspace = true }
 porter-match = { workspace = true }
 porter-capability = { workspace = true }
 porter-ids = { workspace = true }
@@ -63,7 +62,7 @@ docket-dbus = { workspace = true, features = ["fixture-callers"] }
 agent-loop = { workspace = true }
 docket-manifest = { workspace = true }
 docket-permissions-core = { workspace = true }
-porter-client = { workspace = true }
+inferd-client = { workspace = true }
 porter-infer = { workspace = true }
 docket-testbus = { workspace = true }
 docket-client = { workspace = true, features = ["in_process"] }

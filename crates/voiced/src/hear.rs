@@ -7,7 +7,7 @@ use crate::frames::wire_level;
 use crate::link::LinkEvent;
 use crate::usage::UseSource;
 use crate::warm::Warm;
-use porter_client::Transport;
+use inferd_client::Transport;
 use porter_infer::{HeardDelta, InferEvent, InferReply, ModelError};
 use speech_provider::{FRAME_SAMPLES, Frame512};
 use speech_vad::level_of;

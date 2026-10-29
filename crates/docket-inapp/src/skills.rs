@@ -14,7 +14,7 @@ use docket_router::GrantStore;
 use docket_skills::{Rejected, Roots, Skill, discover};
 use docket_skills_disk::DiskFolder;
 use docket_vocab::Clock;
-use porter_client::Transport as ModelTransport;
+use inferd_client::Transport as ModelTransport;
 use std::path::Path;
 
 impl<P, C, T, R, M: ModelTransport, K, G, Y, W, D> InAppAgent<P, C, T, R, M, K, G, Y, W, D>

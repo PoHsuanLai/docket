@@ -2,13 +2,12 @@
 //! frames the daemon sent logged, and the `next` of an empty script waiting instead of closing
 //! (the fake closes when nothing is ready; a real session waits).
 
+use inferd_client::{InferSession, OpenOptions, SessionError, Transport, TransportError};
 use porter_capability::Tier;
-use porter_client::{InferSession, OpenOptions, SessionError, Transport, TransportError};
 use porter_core::DataClass;
 use porter_infer::testing::{FakeInferSession, Script};
 use porter_infer::{ClientFrame, InferEvent, Readiness};
 use porter_match::Need;
-use porter_wire::{AccountsReply, AccountsRequest};
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Notify;
@@ -112,10 +111,6 @@ impl InferSession for ScriptedSession {
 
 impl Transport for ScriptedInfer {
     type Session = ScriptedSession;
-
-    async fn call(&self, _request: AccountsRequest) -> Result<AccountsReply, TransportError> {
-        Err(TransportError::Unreachable)
-    }
 
     async fn prepare(
         &self,

@@ -1,11 +1,11 @@
-//! The reviewer cascade over any porter-client Transport: the placeholder set used when nothing
+//! The reviewer cascade over any inferd-client Transport: the placeholder set used when nothing
 //! is configured, and the cascade built from a set and a way to make one transport per stage.
 
 use crate::model::TransportModel;
 use action_review::{InferReviewer, ModelChoice, ModelFamily, ReviewerSet};
 use docket_core::ReviewTimeouts;
+use inferd_client::Transport;
 use porter_capability::{Billing, Locality, ModelId};
-use porter_client::Transport;
 use porter_core::AccountId;
 use porter_infer::ModelCard;
 

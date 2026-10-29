@@ -11,8 +11,8 @@ use crate::seam::Planner;
 use crate::step_text::step_line;
 use agent_loop::{SummaryInput, leaked_call};
 use docket_core::{SummaryFault, SummaryText};
+use inferd_client::Transport;
 use porter_capability::Tier;
-use porter_client::Transport;
 use porter_core::DataClass;
 use porter_core::consent::Usage;
 use porter_infer::{

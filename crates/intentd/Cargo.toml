@@ -49,7 +49,9 @@ action-review = { workspace = true }
 prov = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true }
-porter-client = { workspace = true, features = ["dbus"] }
+porter-client = { workspace = true }
+porter-client-dbus = { workspace = true }
+inferd-client = { workspace = true, features = ["dbus"] }
 almanac-client = { workspace = true, features = ["dbus"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -63,7 +65,6 @@ zbus = { workspace = true }
 [dev-dependencies]
 model-provider = { workspace = true }
 rust_decimal = { workspace = true }
-porter-wire = { workspace = true }
 porter-match = { workspace = true }
 porter-capability = { workspace = true }
 almanac-core = { workspace = true }
@@ -73,6 +74,7 @@ docket-dbus = { workspace = true, features = ["fixture-callers"] }
 docket-testbus = { workspace = true }
 docket-fake = { workspace = true }
 porter-infer = { workspace = true, features = ["testing"] }
+porter-wire = { workspace = true }
 almanac-dbus = { workspace = true }
 almanac-dbus-serve = { workspace = true }
 readerd = { workspace = true }

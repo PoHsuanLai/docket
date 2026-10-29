@@ -356,7 +356,7 @@ async fn the_engine_refusing_or_failing_ends_the_utterance_and_closes_the_mic() 
 
 #[tokio::test]
 async fn an_unreachable_inferd_fails_the_utterance_the_moment_it_is_known() {
-    let infer = ScriptedInfer::new(vec![]).unreachable(porter_client::TransportError::Unreachable);
+    let infer = ScriptedInfer::new(vec![]).unreachable(inferd_client::TransportError::Unreachable);
     let world = world(Options::new(infer)).await;
     let (_, mut events) = start_utterance(&world, VoiceIntent::Ask).await;
     assert_eq!(

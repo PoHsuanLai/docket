@@ -60,9 +60,9 @@ impl<M: almanac_client::Transport> SessionLog for DaemonLog<M> {
 
 /// The seams of the running daemon: apps and the sheet over the session bus, the built-in
 /// providers in process, models over
-/// inferd (`P` is porter-client's transport), memory over memoryd (`M` is almanac-client's).
+/// inferd (`P` is inferd-client's transport), memory over memoryd (`M` is almanac-client's).
 #[derive(Debug)]
-pub struct SystemSeams<P: porter_client::Transport, M: almanac_client::Transport> {
+pub struct SystemSeams<P: inferd_client::Transport, M: almanac_client::Transport> {
     /// The apps, and the two built-in providers answered in process.
     pub link: HostedLink<M>,
     /// The sheet.
@@ -87,7 +87,7 @@ pub struct SystemSeams<P: porter_client::Transport, M: almanac_client::Transport
     pub checkpoints: GitStore<StdGitRun>,
 }
 
-impl<P: porter_client::Transport, M: almanac_client::Transport> Seams for SystemSeams<P, M> {
+impl<P: inferd_client::Transport, M: almanac_client::Transport> Seams for SystemSeams<P, M> {
     type Link = HostedLink<M>;
     type Confirm = SheetConfirmer;
     type Review = InferReviewer<InferdModel<P>>;

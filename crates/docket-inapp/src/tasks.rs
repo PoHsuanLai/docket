@@ -12,7 +12,7 @@ use docket_host::ConfirmSheet;
 use docket_provider::{ContextSource, IntentProvider};
 use docket_router::GrantStore;
 use docket_vocab::{Caller, Clock};
-use porter_client::Transport as ModelTransport;
+use inferd_client::Transport as ModelTransport;
 use prov::{AgentRef, TaskId};
 
 impl<P, C, T, R, M: ModelTransport, K, G, Y, W, D> InAppAgent<P, C, T, R, M, K, G, Y, W, D>

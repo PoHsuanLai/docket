@@ -28,9 +28,9 @@ use agent_loop::{
 use companion_wire::{RouteLog, RouteNote};
 use docket_core::{OneOf, PlannerView, ReplyFault};
 use docket_vocab::{ActionRef, CallRequest, Handle, Origin};
+use inferd_client::Transport;
 use porter_capability::LlmFeature;
 use porter_capability::Tier;
-use porter_client::Transport;
 use porter_core::DataClass;
 use porter_core::consent::Usage;
 use porter_ids::Tokens;

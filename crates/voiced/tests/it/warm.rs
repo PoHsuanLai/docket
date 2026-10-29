@@ -1,9 +1,9 @@
 //! The shipped warmer asks `Transport::prepare` for the speech-to-text need and maps its outcomes.
 
 use crate::support::infer::{Opened, ScriptedInfer};
+use inferd_client::TransportError;
 use porter_capability::SpeechMode;
 use porter_capability::Tier;
-use porter_client::TransportError;
 use porter_core::DataClass;
 use porter_infer::Readiness;
 use porter_match::Need;

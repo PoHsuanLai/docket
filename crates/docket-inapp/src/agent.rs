@@ -19,8 +19,8 @@ use docket_provider::{ContextSource, IntentProvider};
 use docket_router::{GrantStore, Router};
 use docket_tasks::{Companion, Quiet, ServeFault};
 use docket_vocab::{Clock, TurnId};
+use inferd_client::Transport as ModelTransport;
 use policy_point::Presets;
-use porter_client::Transport as ModelTransport;
 use porter_core::{AppId, AppName, Isolation};
 use prov::{SpaceId, TaskId};
 use std::collections::BTreeSet;
@@ -121,7 +121,7 @@ pub struct InAppParts<P, C, T, R, M, K> {
     pub sheet: T,
     /// The reviewer cascade (it can only tighten what the policy point allows).
     pub reviewer: R,
-    /// The model: any `porter_client::Transport`.
+    /// The model: any `inferd_client::Transport`.
     pub model: M,
     /// The clock.
     pub clock: K,

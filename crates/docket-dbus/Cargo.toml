@@ -9,7 +9,6 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-porter-wire = { workspace = true }
 porter-match = { workspace = true }
 porter-capability = { workspace = true }
 docket-core = { workspace = true }
@@ -19,7 +18,8 @@ docket-vocab = { workspace = true }
 prov = { workspace = true }
 porter-callers = { workspace = true, features = ["file"] }
 porter-dbus = { workspace = true }
-porter-client = { workspace = true, features = ["dbus"], optional = true }
+inferd-client = { workspace = true, features = ["dbus"], optional = true }
+steward-dbus = { workspace = true }
 porter-core = { workspace = true }
 porter-infer = { workspace = true, optional = true }
 serde = { workspace = true }
@@ -30,7 +30,7 @@ thiserror = { workspace = true }
 [features]
 # `inferd_transport`: the one place a daemon makes its inferd link (intentd, companiond, readerd),
 # and the watch on it that a live run turns on (`watch`; docket-trace is the watcher).
-inferd = ["dep:porter-client", "dep:porter-infer"]
+inferd = ["dep:inferd-client", "dep:porter-infer"]
 # Callers read from a fixture tree standing for /proc and the unit manager (`Identity::on_fixture`):
 # porter reads one only in a test build. Turned on by docket-accept and by tests' dev-dependencies,
 # never by a shipped crate (check-boundary.sh checks every shipped package's feature tree).

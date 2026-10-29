@@ -1,4 +1,4 @@
-//! The policy writer over any porter-client Transport: it reads the person's own turns and the
+//! The policy writer over any inferd-client Transport: it reads the person's own turns and the
 //! action catalogue, never content, and asks a model for a draft of the task's policy as JSON
 //! under a schema; `draft::policy_of` checks the draft. The router stamps `from` and `expires`
 //! and bounds the result by the grants (`Router::bound_policy`); if the writer fails there is no
@@ -8,9 +8,9 @@ use crate::draft::{Draft, key, policy_of, schema};
 use crate::model::{Discard, chat_of, turn};
 use docket_core::{ActionCard, Derived, PolicyWriter, UserTurn};
 use docket_permissions_core::ReviewError;
+use inferd_client::Transport;
 use porter_capability::LlmFeature;
 use porter_capability::Tier;
-use porter_client::Transport;
 use porter_core::DataClass;
 use porter_core::consent::Usage;
 use porter_ids::{Permille, Tokens};

@@ -6,7 +6,7 @@ use docket_core::{ActionCard, Derived, PolicyWriter, UserTurn};
 use docket_dbus::InferLink;
 use docket_models::TransportWriter;
 use docket_permissions_core::ReviewError;
-use porter_client::Transport;
+use inferd_client::Transport;
 use prov::{SpaceId, TaskId};
 
 /// The policy writer: reads the person's turns and the action catalogue, never content.

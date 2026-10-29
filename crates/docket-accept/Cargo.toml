@@ -11,7 +11,7 @@ publish = false
 # The daemons run as their own processes from these thin mains: the same daemon the packaged
 # binaries run (`run_with`, given the proc root and model tap from the environment), under names that cannot collide with theirs in one target directory. memoryd's
 # memoryd and inferd are not here: `build.rs` builds the packaged binaries of almanac (with its
-# `test-keys` feature) and porter, from git at the revs the workspace pins.
+# `test-keys` feature), porter and steward, from git at the revs the workspace pins.
 [[bin]]
 name = "accept-intentd"
 path = "src/bin/accept-intentd.rs"

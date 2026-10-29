@@ -65,7 +65,6 @@ pub use names::{
 /// The reserved key of the W3C trace context in an `options` vardict, and the vardict type:
 /// porter's, shared on every call that starts work.
 pub use porter_dbus::Details;
-pub use porter_dbus::inference::OPTION_TRACEPARENT;
 pub use provider::{IntentProviderProxy, IntentProviderSkeleton};
 pub use reach::{IntentReachProxy, ReachNow, ReachServer};
 pub use reader::{ReaderProxy, ReaderSkeleton};
@@ -74,6 +73,7 @@ pub use request::{RequestProxy, RequestSkeleton};
 pub use run::{RunProxy, RunSkeleton};
 pub use search::{SearchProxy, SearchSkeleton};
 pub use session::{SessionProxy, SessionSkeleton};
+pub use steward_dbus::inference::OPTION_TRACEPARENT;
 pub use terminals::{CompanionTerminalsProxy, CompanionTerminalsSkeleton};
 #[cfg(feature = "inferd")]
 pub use watch::{InferObserver, InferWatch, SessionWatch, Watched, WatchedSession};

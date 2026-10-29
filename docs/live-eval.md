@@ -164,7 +164,7 @@ A local model's first request waits for its load (75 to 200 s for the 8B planner
 any product timeout, and the turn would fail on it. So a live engine (`local`, `cloud`) warms first:
 after each world's inferd is up and before its first flow or case, `docket-live` asks inferd to prepare
 every model the config's `[ai.model.text]` routes (`warm.rs`: one per distinct model, the `fast` tier
-last because the first request uses it), through porter-client's `Transport::prepare`, polling every 2 s
+last because the first request uses it), through inferd-client's `Transport::prepare`, polling every 2 s
 up to `--patience-s` per model. Each is printed as `docket-live: warm <Tier> <model> ready in N.Ns`.
 A model that is unavailable or never comes up is a `[setup]` failure (a smoke run stops there; a corpus
 run errors) and no flow starts. A scripted engine skips it. The warm-up runs once per world, because a

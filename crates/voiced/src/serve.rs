@@ -12,8 +12,8 @@ use crate::warm::{BusWarm, Warm};
 use crate::watch::{Deadline, Leaving};
 use docket_dbus::callers::{CallerTable, Identity};
 use futures_util::StreamExt;
+use inferd_client::{DbusTransport, Transport};
 use porter_capability::Tier;
-use porter_client::{DbusTransport, Transport};
 use porter_infer::Readiness;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
@@ -167,7 +167,7 @@ where
 
 /// Serves `org.quire.Voice1` on the session bus over a device: registers the three
 /// interfaces, derives each caller's role from the connection, runs `voice-loop` and talks to
-/// inferd through porter-client. `usage` is where the person's voice settings are read. Returns
+/// inferd through inferd-client. `usage` is where the person's voice settings are read. Returns
 /// when the bus closes, or with an error if the loop dies first.
 pub async fn serve<D: AudioDevice + 'static>(
     config: VoicedConfig,

@@ -1,4 +1,4 @@
-//! readerd's service reaches inferd over porter-client's D-Bus transport on the daemon's own
+//! readerd's service reaches inferd over inferd-client's D-Bus transport on the daemon's own
 //! connection: the constructor wires it and nothing is called until the first read (the reads
 //! themselves are tested over a scripted inferd in `service.rs`).
 

@@ -1,4 +1,4 @@
-//! The real porter link: the accounts service's launcher interface (`porter_client::Launcher`) and its
+//! The real porter link: the accounts service's launcher interface (`porter_client_dbus::Launcher`) and its
 //! `org.quire.Inference1.Agents` (`OpenEndpoint`, `CloseEndpoint`) over the bus. Built only with
 //! the `dbus` feature. A secret passes through here once, from the bus reply into the caller's
 //! hands, and is in no log: `SecretText`'s `Debug` shows nothing, and no error carries a value.
@@ -7,26 +7,26 @@ use crate::accounts::{
     AccountFault, Accounts, AskKind, Heard, Issued, LoginAsk, OpenedEndpoint, RouteWish,
 };
 use crate::config::EndpointKind;
-use futures_util::StreamExt;
 use porter_capability::LoginOutcome;
 use porter_capability::{AgentProgram, AgentProtocol, EnvName};
-use porter_client::{CallFailure, ChildKey, Delivery as KeyDelivery, Launcher, LauncherError};
-use porter_client::{Requests, Revocations};
-use porter_core::{DataClass, GrantId, ProcessCredentialId, SecretText, SessionToken};
-use porter_dbus::{
-    BusConnection,
-    accounts::LauncherFault,
-    inference::{AgentsProxy, MODELS_ANY, MODELS_LISTED, ROUTE_ACCOUNT, ROUTE_MODEL},
+use porter_client::{Changes, LinkError};
+use porter_client_dbus::{
+    AskKind as PorterAskKind, Bus, ChildKey, Delivery as KeyDelivery, Launcher, LauncherError,
+    LauncherRequest, Revoked,
 };
+use porter_core::{DataClass, GrantId, ProcessCredentialId, SecretText, SessionToken};
+use porter_dbus::BusConnection;
+use porter_wire::LauncherFault;
 use std::collections::HashMap;
+use steward_dbus::inference::{AgentsProxy, MODELS_ANY, MODELS_LISTED, ROUTE_ACCOUNT, ROUTE_MODEL};
 use tokio::sync::Mutex;
 
 /// The launcher's link to accountd and inferd.
 pub struct DbusAccounts {
     launcher: Launcher,
     agents: AgentsProxy<'static>,
-    requests: Mutex<Requests>,
-    revocations: Mutex<Revocations>,
+    requests: Mutex<Changes<LauncherRequest>>,
+    revocations: Mutex<Changes<Revoked>>,
 }
 
 impl std::fmt::Debug for DbusAccounts {
@@ -37,9 +37,9 @@ impl std::fmt::Debug for DbusAccounts {
 
 fn fault(error: &LauncherError) -> AccountFault {
     match error {
-        LauncherError::Bus(CallFailure::Unreachable) => AccountFault::Unreachable,
+        LauncherError::Link(LinkError::Unreachable) => AccountFault::Unreachable,
         LauncherError::Refused(_)
-        | LauncherError::Bus(CallFailure::Denied(_))
+        | LauncherError::Link(LinkError::Denied)
         | LauncherError::Fault(LauncherFault::OnceGrant) => AccountFault::Refused,
         _ => AccountFault::Other,
     }
@@ -65,7 +65,7 @@ impl DbusAccounts {
     /// and revocation streams are subscribed before anything is registered or issued, so none
     /// is missed.
     pub async fn connect(connection: &BusConnection) -> Result<Self, AccountFault> {
-        let launcher = Launcher::connect(connection).await.map_err(|e| fault(&e))?;
+        let launcher = Bus::over(connection.clone()).launcher();
         let requests = launcher.requests().await.map_err(|e| fault(&e))?;
         let revocations = launcher.revocations().await.map_err(|e| fault(&e))?;
         let agents = AgentsProxy::new(connection)
@@ -206,8 +206,8 @@ impl Accounts for DbusAccounts {
                     if let Ok(ask) = ask? {
                         return Some(Heard::Ask(LoginAsk {
                             kind: match ask.kind {
-                                porter_client::AskKind::Login => AskKind::Login,
-                                porter_client::AskKind::Logout => AskKind::Logout,
+                                PorterAskKind::Login => AskKind::Login,
+                                PorterAskKind::Logout => AskKind::Logout,
                             },
                             request: ask.request,
                             account: ask.account,

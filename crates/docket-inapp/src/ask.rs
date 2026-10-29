@@ -17,7 +17,7 @@ use docket_router::GrantStore;
 use docket_tasks::{Failure, TaskRuntime};
 use docket_vocab::{Caller, Clock, Origin, WindowKey};
 use docket_wire::SessionOpen;
-use porter_client::Transport as ModelTransport;
+use inferd_client::Transport as ModelTransport;
 use prov::{AgentRef, TaskId};
 
 const fn keep_nothing() -> ContextKeep {
